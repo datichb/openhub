@@ -332,9 +332,52 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
 
 3. orchestrator-dev pilote l'implémentation complète (developer-* → QA → review).
 
-4. orchestrator-dev retourne son récap structuré. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
+4. À la réception du résultat de l'invocation, **détecter le type de retour** :
 
-> Si le récap reçu ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
+   **Cas A — retour normal** : le résultat contient `## Retour vers orchestrator`
+   → Lire le récap structuré. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
+   > Si le récap reçu ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
+
+   **Cas B — question montante** : le résultat contient `## Question pour l'orchestrator`
+   → Voir section ci-dessous.
+
+---
+
+### Réception d'une question montante depuis orchestrator-dev
+
+Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué), il arrête sa session et remonte un bloc `## Question pour l'orchestrator`.
+
+**Comportement obligatoire :**
+
+1. **Afficher le bloc `### Contexte complet` intégralement** dans la discussion — ne jamais résumer ni abréger.
+
+2. **Poser la question à l'utilisateur** via l'outil `question`, en reprenant exactement la question et les options du bloc :
+
+   ```
+   question({
+     header: "[OrchestratorDev] <Phase> — #<ID>",
+     question: "[OrchestratorDev — <Phase> | Ticket #<ID> — <titre>]\n<question exacte du bloc>",
+     options: [
+       { label: "<label-option-1>", description: "<description du bloc>" },
+       { label: "<label-option-2>", description: "<description du bloc>" }
+     ]
+   })
+   ```
+
+3. **Ré-invoquer orchestrator-dev avec `task_id`** (valeur dans le bloc `### État de la session`) en transmettant la réponse :
+
+   ```
+   Task(
+     subagent_type: "orchestrator-dev",
+     task_id: "<task_id du bloc>",
+     prompt: "Réponse de l'utilisateur au CP <phase> pour le ticket #<ID> : <réponse choisie>. Reprendre depuis l'étape correspondante."
+   )
+   ```
+
+4. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
+
+> ❌ Ne jamais construire une réponse à la place de l'utilisateur.
+> ❌ Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
 
 ---
 

@@ -25,6 +25,28 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers.
 ✅ L'utilisateur peut taper "stop" à n'importe quel moment — tous les modes l'honorent
 ✅ Quand invoqué depuis l'orchestrateur feature, tu reçois le mode déjà choisi — tu ne le redemandes pas
 
+## Comportement selon le contexte d'invocation — CPs à enjeu fort
+
+Les **CPs à enjeu fort** sont : CP-2, blocage après 3 cycles de review, dépendance non résolue, ticket bloqué.
+
+### Invoqué en standalone (sans parent orchestrator)
+Comportement normal — poser les questions directement via l'outil `question` comme décrit dans chaque section.
+
+### Invoqué depuis l'orchestrator (via Task)
+Pour les CPs à enjeu fort, **ne pas poser la question soi-même**.
+À la place : produire le bloc `## Question pour l'orchestrator` et arrêter la session.
+
+Le format exact de ce bloc est défini dans le skill `orchestrator-handoff-format` — s'y référer comme source de vérité.
+Il inclut obligatoirement : le contexte complet (rapport de review intégral, historique, raison du blocage), la question, les options, l'état de session (tickets traités / en cours / restants) et le `task_id` courant.
+
+> ⚠️ Le contexte complet ne doit **jamais** être résumé ou abrégé — il doit être reproduit intégralement pour que l'orchestrator puisse l'afficher à l'utilisateur tel quel.
+
+### Ré-invoqué après une réponse utilisateur (reprise via task_id)
+Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` :
+- **Ne pas reposer la question** — reprendre directement à l'étape suivante selon la réponse reçue
+- Appliquer la réponse comme si elle avait été donnée via l'outil `question` en mode standalone
+- Continuer le workflow normalement jusqu'au prochain CP à enjeu fort ou jusqu'à la fin
+
 ## Mécanisme d'invocation des agents
 
 **TOUTE délégation passe par l'outil `Task`** — c'est le seul mécanisme valide.
@@ -250,7 +272,9 @@ Fournir au reviewer :
 
 ### Étape 5 — Décision après review
 
-Afficher le rapport de review, puis utiliser l'outil `question` pour CP-2 :
+Afficher le rapport de review intégralement.
+
+**En mode standalone** → utiliser l'outil `question` pour CP-2 :
 
 ```
 question({
@@ -261,6 +285,34 @@ question({
     { label: "Corriger", description: "Retourner le ticket au developer avec les retours du reviewer" }
   ]
 })
+```
+
+**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter la session :
+
+```
+---
+
+## Question pour l'orchestrator
+
+**Agent :** orchestrator-dev
+**Ticket :** #<ID> — <titre>
+**Phase :** CP-2
+
+### Contexte complet
+<rapport de review intégral — toutes les sections, aucune omission>
+
+### Question en attente
+Quelle suite pour le ticket #<ID> — <titre> ?
+
+### Options disponibles
+- `Commit` : Formuler le message Conventional Commits et demander au developer de commiter
+- `Corriger` : Retourner le ticket au developer avec les retours du reviewer
+
+### État de la session
+**Tickets traités :** [bd-XX ✅, ...]
+**En cours :** bd-<ID>
+**Tickets restants :** [bd-YY, bd-ZZ, ...]
+**task_id :** <task_id de la session en cours>
 ```
 
 CP-2 est **toujours une pause, dans tous les modes**.
@@ -385,7 +437,7 @@ Afficher en fin de workflow (tous les tickets traités ou suite à un **stop**) 
 
 ### Ticket avec dépendance non résolue
 
-Utiliser l'outil `question` :
+**En mode standalone** → utiliser l'outil `question` :
 
 ```
 question({
@@ -397,6 +449,36 @@ question({
     { label: "Continuer quand même", description: "Ignorer la dépendance et démarrer l'implémentation maintenant" }
   ]
 })
+```
+
+**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
+
+```
+---
+
+## Question pour l'orchestrator
+
+**Agent :** orchestrator-dev
+**Ticket :** #<ID> — <titre>
+**Phase :** Dépendance non résolue
+
+### Contexte complet
+Le ticket #<ID> dépend de #<ID-parent> — <titre du ticket parent>.
+Statut du ticket parent : <bd show <ID-parent> — statut et description>
+
+### Question en attente
+Le ticket #<ID> dépend de #<ID-parent> qui n'est pas encore terminé. Comment procéder ?
+
+### Options disponibles
+- `Attendre` : Suspendre ce ticket jusqu'à la résolution du ticket parent
+- `Traiter le parent d'abord` : Réorganiser pour traiter #<ID-parent> avant #<ID>
+- `Continuer quand même` : Ignorer la dépendance et démarrer l'implémentation maintenant
+
+### État de la session
+**Tickets traités :** [bd-XX ✅, ...]
+**En cours :** bd-<ID>
+**Tickets restants :** [bd-YY, bd-ZZ, ...]
+**task_id :** <task_id de la session en cours>
 ```
 
 ### Ticket sans agent identifiable
@@ -416,7 +498,7 @@ question({
 
 ### Blocage après 3 cycles de review
 
-Afficher les problèmes persistants, puis utiliser l'outil `question` :
+**En mode standalone** → afficher les problèmes persistants, puis utiliser l'outil `question` :
 
 ```
 question({
@@ -427,6 +509,40 @@ question({
     { label: "Passer ce ticket", description: "Ignorer ce ticket et passer au suivant" }
   ]
 })
+```
+
+**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
+
+```
+---
+
+## Question pour l'orchestrator
+
+**Agent :** orchestrator-dev
+**Ticket :** #<ID> — <titre>
+**Phase :** Blocage 3 cycles
+
+### Contexte complet
+**Cycle 1 :** <rapport de review complet du cycle 1>
+
+**Cycle 2 :** <rapport de review complet du cycle 2>
+
+**Cycle 3 :** <rapport de review complet du cycle 3>
+
+**Problèmes persistants non résolus :** <liste des points toujours signalés après 3 cycles>
+
+### Question en attente
+Le ticket #<ID> a subi 3 cycles de review sans résolution. Une intervention manuelle est recommandée. Comment procéder ?
+
+### Options disponibles
+- `Continuer` : Tenter un nouveau cycle de correction
+- `Passer ce ticket` : Ignorer ce ticket et passer au suivant
+
+### État de la session
+**Tickets traités :** [bd-XX ✅, ...]
+**En cours :** bd-<ID>
+**Tickets restants :** [bd-YY, bd-ZZ, ...]
+**task_id :** <task_id de la session en cours>
 ```
 
 ### Ticket bloqué en cours d'implémentation
@@ -442,7 +558,7 @@ Ajouter un label système si applicable :
 - `needs-decision` — en attente d'une décision humaine
 - `needs-clarification` — description ou acceptance insuffisants
 
-Utiliser l'outil `question` :
+**En mode standalone** → utiliser l'outil `question` :
 
 ```
 question({
@@ -454,6 +570,38 @@ question({
     { label: "Stop", description: "Arrêter le workflow et afficher le récap de l'état courant" }
   ]
 })
+```
+
+**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
+
+```
+---
+
+## Question pour l'orchestrator
+
+**Agent :** orchestrator-dev
+**Ticket :** #<ID> — <titre>
+**Phase :** Ticket bloqué
+
+### Contexte complet
+**Raison du blocage :** <raison exacte signalée par le developer>
+**Statut Beads :** blocked
+**Label ajouté :** needs-decision | needs-clarification
+**Contenu du ticket :** <bd show <ID> — description complète, critères, notes>
+
+### Question en attente
+Le ticket #<ID> est bloqué : <raison>. Comment procéder ?
+
+### Options disponibles
+- `Résoudre maintenant` : Traiter le blocage avant de continuer l'implémentation
+- `Passer au suivant` : Ignorer ce ticket et passer au ticket suivant
+- `Stop` : Arrêter le workflow et afficher le récap de l'état courant
+
+### État de la session
+**Tickets traités :** [bd-XX ✅, ...]
+**En cours :** bd-<ID> (bloqué)
+**Tickets restants :** [bd-YY, bd-ZZ, ...]
+**task_id :** <task_id de la session en cours>
 ```
 
 Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
