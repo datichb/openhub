@@ -64,7 +64,7 @@ Guide la désinstallation en 4 étapes, toutes optionnelles et avec confirmation
 
 ## `oc deploy`
 
-Génère les fichiers agents pour une cible dans un projet.
+Génère les fichiers agents pour une cible dans un projet. Quand un `PROJECT_ID` est fourni, **détecte automatiquement la stack du projet** et injecte les skills spécifiques correspondants dans les agents developer (en plus de leurs skills déclarés statiquement).
 
 ```bash
 oc deploy <target> [PROJECT_ID]
@@ -77,7 +77,7 @@ oc deploy --diff  [target] [PROJECT_ID]
 | Argument | Valeurs | Description |
 |----------|---------|-------------|
 | `<target>` | `opencode`, `claude-code`, `all` | Cible à déployer |
-| `[PROJECT_ID]` | ID d'un projet enregistré | Optionnel — déploie au niveau du hub si absent |
+| `[PROJECT_ID]` | ID d'un projet enregistré | Optionnel — déploie au niveau du hub si absent (pas de détection de stack) |
 
 **Options :**
 
@@ -86,11 +86,17 @@ oc deploy --diff  [target] [PROJECT_ID]
 | `--check` | Vérifie si les fichiers sont à jour sans déployer |
 | `--diff` | Compare les sources avec les fichiers déployés ; propose le déploiement si un écart est détecté |
 
+**Détection de stack :**
+
+Quand `PROJECT_ID` est fourni, `oc deploy` lit les fichiers de dépendances du projet (`package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, fichiers d'infrastructure, etc.) pour détecter la stack active. Les skills correspondants dans `skills/developer/stacks/` sont ensuite injectés dans les agents developer selon le mapping de `config/stack-skills.json`.
+
+Ainsi, un agent `developer-frontend` déployé sur un projet React/Vitest/Playwright recevra automatiquement `dev-standards-react`, `dev-standards-vitest` et `dev-standards-playwright` — sans aucun changement de configuration d'agent.
+
 **Exemples :**
 
 ```bash
-oc deploy opencode              # déploie OpenCode au niveau du hub
-oc deploy opencode MON-APP      # déploie OpenCode dans MON-APP
+oc deploy opencode              # déploie OpenCode au niveau du hub (pas de détection de stack)
+oc deploy opencode MON-APP      # déploie OpenCode dans MON-APP (avec détection de stack)
 oc deploy all MON-APP           # déploie toutes les cibles actives dans MON-APP
 oc deploy --check               # vérifie toutes les cibles actives (hub)
 oc deploy --check opencode      # vérifie OpenCode (hub)

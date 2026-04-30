@@ -78,6 +78,26 @@ Un agent qui audite (lecture seule) va dans `auditor/`.
 | Agent qui produit du code à tester | `dev-standards-testing` |
 | Agent qui commit | `dev-standards-git` |
 
+### Skills spécifiques aux stacks (injection dynamique)
+
+Les agents developer reçoivent automatiquement des skills spécifiques à la stack au déploiement, en fonction de ce qui est détecté dans le projet cible. Cette injection dynamique est gérée par `detect_stack()` et `resolve_stack_skills()` dans `scripts/lib/prompt-builder.sh`, configurée par `config/stack-skills.json`.
+
+**Il n'est pas nécessaire de déclarer les skills spécifiques aux stacks dans les frontmatters des agents.** Ils sont injectés automatiquement pour les types d'agents concernés.
+
+Le périmètre d'injection dynamique par type d'agent :
+
+| Agent | Catégories injectées dynamiquement |
+|---|---|
+| `developer-frontend` | language, frontend, test, api-spec |
+| `developer-backend` | language, backend, orm, test, api-spec |
+| `developer-fullstack` | language, frontend, backend, orm, test, api-spec |
+| `developer-mobile` | mobile, test |
+| `developer-data` | language, data, test |
+| `developer-devops` | infra |
+| `developer-platform` | infra |
+
+**Ajouter une nouvelle stack :** ajouter la signature de détection dans `detect_stack()` et l'entrée de mapping dans `config/stack-skills.json`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire.
+
 ---
 
 ## Concevoir un skill
@@ -165,8 +185,8 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] Le contenu est opérationnel (règles + exemples) — pas théorique
 - [ ] Pas de duplication avec les skills existants
 - [ ] Le skill est ajouté dans le tableau du bon domaine dans `docs/architecture/skills.md`
-- [ ] Les agents qui en ont besoin l'ont dans leur frontmatter `skills`
-- [ ] La matrice de dépendances dans `docs/architecture/skills.md` est mise à jour
+- [ ] **Skills génériques** (`developer/`) : les agents qui en ont besoin l'ont dans leur frontmatter `skills` ; matrice de dépendances mise à jour
+- [ ] **Skills spécifiques aux stacks** (`developer/stacks/`) : détection ajoutée dans `detect_stack()`, mapping ajouté dans `config/stack-skills.json` — aucun changement de frontmatter d'agent nécessaire
 
 ---
 

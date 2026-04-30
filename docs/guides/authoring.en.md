@@ -80,6 +80,26 @@ An agent that audits (read-only) goes in `auditor/`.
 | Agent producing code to test | `dev-standards-testing` |
 | Agent that commits | `dev-standards-git` |
 
+### Stack-specific skills (dynamic injection)
+
+Developer agents automatically receive additional stack-specific skills at deploy time, based on what is detected in the target project. This dynamic injection is handled by `detect_stack()` and `resolve_stack_skills()` in `scripts/lib/prompt-builder.sh`, configured by `config/stack-skills.json`.
+
+**You do not need to declare stack-specific skills in agent frontmatters.** They are injected automatically for the relevant agent types.
+
+The scope of dynamic injection per agent type:
+
+| Agent | Dynamic categories injected |
+|---|---|
+| `developer-frontend` | language, frontend, test, api-spec |
+| `developer-backend` | language, backend, orm, test, api-spec |
+| `developer-fullstack` | language, frontend, backend, orm, test, api-spec |
+| `developer-mobile` | mobile, test |
+| `developer-data` | language, data, test |
+| `developer-devops` | infra |
+| `developer-platform` | infra |
+
+**Adding a new stack:** Add the detection signature in `detect_stack()` and the mapping entry in `config/stack-skills.json`. Create the skill file in `skills/developer/stacks/`. No agent frontmatter changes needed.
+
 ---
 
 ## Designing a skill
@@ -167,8 +187,8 @@ This skill defines... It complements <other-skill> if applicable.
 - [ ] Content is operational (rules + examples) — not theoretical
 - [ ] No duplication with existing skills
 - [ ] The skill is added to the correct domain table in `docs/architecture/skills.en.md`
-- [ ] Agents that need it have it in their `skills` frontmatter
-- [ ] The dependency matrix in `docs/architecture/skills.en.md` is updated
+- [ ] **Generic skills** (`developer/`): agents that need it have it in their `skills` frontmatter; dependency matrix updated
+- [ ] **Stack-specific skills** (`developer/stacks/`): detection added in `detect_stack()`, mapping added in `config/stack-skills.json` — no agent frontmatter changes needed
 
 ---
 

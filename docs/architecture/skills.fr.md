@@ -28,24 +28,116 @@ description: <Description courte — visible dans oc agent edit et oc skills lis
 
 Skills de standards de développement. Partagés entre les agents développeurs et le reviewer.
 
+### Skills génériques (toujours chargés)
+
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
 | `developer/beads-plan.md` | Tous les developer-*, planner, onboarder, designers, documentarian | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, `bd label list-all`, liens externes |
 | `developer/beads-dev.md` | Tous les developer-*, designers, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
-| `developer/dev-standards-universal.md` | Tous les developer-*, reviewer | Clean Code, SOLID complet, TypeScript strict, nommage, structure |
-| `developer/dev-standards-security.md` | Tous les developer-*, reviewer | Secrets/config, validation des inputs, injections (SQL/shell/LDAP), auth/autorisation, logs sans données sensibles, audit des dépendances |
+| `developer/dev-standards-universal.md` | Tous les developer-*, reviewer | Clean Code, SOLID complet, nommage, structure — **agnostique du langage** |
+| `developer/dev-standards-security.md` | Tous les developer-*, reviewer | Secrets/config, validation des inputs, injections (SQL/shell/LDAP), auth/autorisation, logs sans données sensibles, audit des dépendances — **agnostique des outils** |
 | `developer/dev-standards-backend.md` | developer-backend, developer-fullstack, developer-api, reviewer | Architecture en couches, DTOs, services, repositories, sécurité API |
 | `developer/dev-standards-frontend.md` | developer-frontend, developer-fullstack, reviewer | Séparation logique/présentation, performance, bundle, lazy loading |
 | `developer/dev-standards-frontend-a11y.md` | developer-frontend, developer-fullstack, reviewer | WCAG 2.1 A/AA, sémantique HTML, ARIA, contrastes |
-| `developer/dev-standards-vuejs.md` | developer-frontend, developer-fullstack | Composition API, `<script setup>`, Pinia, composables, Vue Router |
-| `developer/dev-standards-testing.md` | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data, qa-engineer | Stratégie de tests, coverage, TDD, Vitest, pytest, PHPUnit |
+| `developer/dev-standards-testing.md` | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data, qa-engineer | Stratégie de tests, pyramide, coverage, TDD — **agnostique des outils** |
 | `developer/dev-standards-git.md` | Tous les developer-*, reviewer | Conventional Commits, branches, PR, messages de commit |
-| `developer/dev-standards-data.md` | developer-data | Pipelines de données, ETL, ML, dbt, Airflow, qualité des données, tests dbt/Airflow/PySpark/ML |
-| `developer/dev-standards-devops.md` | developer-devops | Docker, CI/CD, scripts shell (`set -euo pipefail`) |
-| `developer/dev-standards-mobile.md` | developer-mobile | React Native, Flutter, Swift, Kotlin, patterns mobile, performance |
-| `developer/dev-standards-platform.md` | developer-platform | Terraform, Pulumi, Kubernetes, Helm, GitOps (ArgoCD/Flux), secrets à l'échelle (Vault, ESO) |
-| `developer/dev-standards-api.md` | developer-api | Versioning d'API, pagination, format de réponse uniforme, codes HTTP, idempotence, OpenAPI, breaking changes, webhooks, rate limiting |
+| `developer/dev-standards-devops.md` | developer-devops | Scripts shell, gestion des secrets, registries d'images, observabilité, principes IaC — **agnostique des outils** |
+| `developer/dev-standards-api.md` | developer-api | Versioning d'API, pagination, format de réponse uniforme, codes HTTP, idempotence, contrat schema-first, breaking changes, webhooks, rate limiting |
 | `developer/dev-standards-security-hardening.md` | developer-security | CORS, headers HTTP (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, révocation), sessions (httpOnly/secure/sameSite), rate limiting, chiffrement AES-256-GCM |
+
+### Skills spécifiques aux stacks — `developer/stacks/`
+
+Ces skills sont injectés **dynamiquement au déploiement** quand la stack correspondante est détectée dans le projet cible (`detect_stack()` dans `prompt-builder.sh`). Ils sont **additifs** — ils complètent les skills génériques ci-dessus.
+
+Le mapping entre les stacks détectées et les skills à injecter est déclaré dans `config/stack-skills.json`. Chaque type d'agent (`developer-frontend`, `developer-backend`, etc.) a un scope défini qui limite les catégories de stack skills qu'il reçoit.
+
+#### Langages
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-typescript.md` | `typescript` dans les dépendances | Config stricte, interfaces vs types, enums, types partagés, erreurs typées, type guards, generics |
+| `developer/stacks/dev-standards-python.md` | `pyproject.toml` / `requirements.txt` présent | Version, ruff, mypy/pyright, nommage, exceptions custom, logging, pytest |
+
+#### Frameworks frontend
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-vuejs.md` | `vue` dans les dépendances | Composition API, `<script setup>`, Pinia, composables, Vue Router |
+| `developer/stacks/dev-standards-react.md` | `react` dans les dépendances | Hooks, TanStack Query, memo/useCallback, RTL, conventions |
+| `developer/stacks/dev-standards-nextjs.md` | `next` dans les dépendances | App Router, Server/Client Components, ISR, Server Actions, métadonnées |
+| `developer/stacks/dev-standards-nuxtjs.md` | `nuxt` dans les dépendances | Auto-imports, useFetch, routes serveur Nitro, Pinia setup, routeRules |
+| `developer/stacks/dev-standards-angular.md` | `@angular/core` dans les dépendances | Standalone components, Signals, inject(), RxJS, Reactive Forms, lazy routing |
+
+#### Frameworks backend
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-nestjs.md` | `@nestjs/core` dans les dépendances | Modules, DTOs + class-validator, guards, ConfigService + Joi, tests unitaires |
+| `developer/stacks/dev-standards-express.md` | `express` ou `fastify` dans les dépendances | Routing par domaine, middleware zod, AppError, helmet/cors, handler d'erreur global |
+| `developer/stacks/dev-standards-django.md` | `django` dans les dépendances Python | BaseModel UUID, FormRequest, serializers I/O, services, migrations |
+| `developer/stacks/dev-standards-fastapi.md` | `fastapi` dans les dépendances Python | pydantic-settings, schemas Pydantic v2, inject(), services async, tests httpx |
+| `developer/stacks/dev-standards-laravel.md` | `laravel` dans Gemfile/composer | Eloquent, FormRequest, API Resources, service objects, queues/jobs |
+| `developer/stacks/dev-standards-rails.md` | `rails` dans Gemfile | MVC, service objects, query objects, scopes, RSpec request specs |
+| `developer/stacks/dev-standards-springboot.md` | `spring-boot` dans build.gradle/pom.xml | Entités JPA, record DTOs + @Valid, @Transactional, ProblemDetail, MockMvc |
+
+#### ORMs / Bases de données
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-prisma.md` | `@prisma/client` dans les dépendances | Schema, client singleton, select explicite, transactions, migrate deploy |
+| `developer/stacks/dev-standards-typeorm.md` | `typeorm` dans les dépendances | Entités select:false, repository custom, QueryBuilder paramétré, QueryRunner |
+| `developer/stacks/dev-standards-sqlalchemy.md` | `sqlalchemy` dans les dépendances Python | Mapped v2, sessions async, Alembic, transactions context manager |
+| `developer/stacks/dev-standards-mongodb.md` | `mongoose` dans les dépendances | Schemas Mongoose, lean(), indexes, agrégations documentées, transactions |
+
+#### Spec API
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-openapi.md` | `openapi.yaml` / `swagger.yaml` présent | `$ref`, schemas/réponses/params réutilisables, writeOnly, sécurité JWT, codegen |
+
+#### Outils de test
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-vitest.md` | `vitest` dans les dépendances | vi.mock, vi.fn, vi.spyOn, vi.useFakeTimers, Vue Test Utils |
+| `developer/stacks/dev-standards-jest.md` | `jest` dans les dépendances | jest.mock, jest.fn, jest.spyOn, tests comportementaux RTL, snapshots |
+| `developer/stacks/dev-standards-playwright.md` | `@playwright/test` dans les dépendances | Locators sémantiques (getByRole), waits sémantiques, POM, fixtures de session |
+| `developer/stacks/dev-standards-cypress.md` | `cypress` dans les dépendances | data-cy, cy.intercept + alias, commandes custom, cy.session |
+
+#### Mobile
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-react-native.md` | `react-native` dans les dépendances | Expo, React Navigation, Zustand/RTK, TanStack Query, Detox |
+| `developer/stacks/dev-standards-flutter.md` | `flutter` dans pubspec.yaml | BLoC/Riverpod, Clean Arch, freezed, flutter_test, mockito |
+| `developer/stacks/dev-standards-swift.md` | Projet Xcode détecté | SwiftUI, MVVM, Swift Concurrency, Keychain, XCTest async |
+| `developer/stacks/dev-standards-kotlin.md` | `jetpack compose` dans build.gradle | Jetpack Compose, MVVM+Clean, Hilt, Coroutines+Flow, JUnit5+Mockk+Turbine |
+
+#### Data / ML
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-pandas.md` | `pandas` dans les dépendances Python | Vectorisation, pandera, pipeline .pipe(), tests DataFrame |
+| `developer/stacks/dev-standards-dbt.md` | `dbt-*` dans les dépendances Python | Layers staging/intermediate/mart, schema.yml, tests natifs + personnalisés |
+| `developer/stacks/dev-standards-airflow.md` | `apache-airflow` dans les dépendances Python | TaskFlow API, idempotence, Connections/Variables, tests de structure DAG |
+| `developer/stacks/dev-standards-pyspark.md` | `pyspark` dans les dépendances Python | DataFrame API, broadcast join, partitionnement, ML lifecycle, MLflow, tests locaux |
+
+#### DevOps / CI-CD
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-docker.md` | `Dockerfile` présent | Multi-stage, non-root, .dockerignore, Compose healthchecks, BuildKit secrets |
+| `developer/stacks/dev-standards-github-actions.md` | `.github/workflows/` présent | Permissions minimales, concurrency, SHA pinning, OIDC, environments avec approbation |
+| `developer/stacks/dev-standards-gitlab-ci.md` | `.gitlab-ci.yml` présent | rules (pas only/except), templates YAML, variables masked, when:manual en prod |
+
+#### Platform / Infrastructure
+
+| Fichier | Stack détectée | Contenu |
+|---------|---------------|---------|
+| `developer/stacks/dev-standards-terraform.md` | Fichiers `*.tf` présents | Modules, variables + validation, state remote, cycle de vie (plan → PR → apply via pipeline) |
+| `developer/stacks/dev-standards-kubernetes.md` | Manifests K8s présents | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
+| `developer/stacks/dev-standards-helm.md` | `Chart.yaml` présent | Structure chart, values sans secrets, ExternalSecret dans les templates, helm diff + --atomic |
+| `developer/stacks/dev-standards-argocd.md` | Manifests ArgoCD présents | Principes GitOps, sync policies par env (auto staging / manuel prod), ESO, Vault |
 
 ---
 
@@ -147,6 +239,8 @@ Skills de posture transverse. Injectables dans tout agent nécessitant une postu
 
 ## Matrice de dépendances agents ↔ skills
 
+> **Note :** Les skills spécifiques aux stacks dans `developer/stacks/` sont injectés **dynamiquement** au déploiement selon la stack du projet cible. Seuls les skills déclarés statiquement sont listés ci-dessous. Voir `config/stack-skills.json` pour le mapping complet.
+
 ```
 orchestrator          → orchestrator/orchestrator-protocol,
                          developer/beads-plan, posture/tool-question
@@ -186,34 +280,48 @@ documentarian         → dev-standards-git, beads-plan, beads-dev,
                          posture/tool-question
 developer-frontend    → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend,
-                         dev-standards-frontend-a11y, dev-standards-vuejs,
+                         dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev
+                         + [stacks: language, frontend, test, api-spec] (dynamique)
 developer-backend     → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev
+                         + [stacks: language, backend, orm, test, api-spec] (dynamique)
 developer-fullstack   → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend,
-                         dev-standards-frontend-a11y, dev-standards-vuejs,
+                         dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-backend, dev-standards-testing,
                          dev-standards-git, beads-plan, beads-dev
+                         + [stacks: language, frontend, backend, orm, test, api-spec] (dynamique)
 developer-data        → dev-standards-universal, dev-standards-security,
-                         dev-standards-data, dev-standards-testing,
-                         dev-standards-git, beads-plan, beads-dev
+                         stacks/dev-standards-python,
+                         stacks/dev-standards-pandas, stacks/dev-standards-dbt,
+                         stacks/dev-standards-airflow, stacks/dev-standards-pyspark,
+                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev
+                         + [stacks: language, data, test] (dynamique)
 developer-devops      → dev-standards-universal, dev-standards-security,
                          dev-standards-devops,
+                         stacks/dev-standards-docker, stacks/dev-standards-github-actions,
+                         stacks/dev-standards-gitlab-ci,
                          dev-standards-git, beads-plan, beads-dev
+                         + [stacks: infra] (dynamique)
 developer-mobile      → dev-standards-universal, dev-standards-security,
-                         dev-standards-mobile,
-                         dev-standards-git, beads-plan, beads-dev
+                         stacks/dev-standards-react-native, stacks/dev-standards-flutter,
+                         stacks/dev-standards-swift, stacks/dev-standards-kotlin,
+                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev
+                         + [stacks: mobile, test] (dynamique)
 developer-api         → dev-standards-universal, dev-standards-security,
                          dev-standards-backend, dev-standards-api,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev
 developer-platform    → dev-standards-universal, dev-standards-security,
-                         dev-standards-platform,
+                         dev-standards-devops,
+                         stacks/dev-standards-terraform, stacks/dev-standards-kubernetes,
+                         stacks/dev-standards-helm, stacks/dev-standards-argocd,
                          dev-standards-git, beads-plan, beads-dev
+                         + [stacks: infra] (dynamique)
 developer-security    → dev-standards-universal, dev-standards-security,
                          dev-standards-security-hardening,
                          dev-standards-backend,

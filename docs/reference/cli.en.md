@@ -66,7 +66,7 @@ Guides the uninstallation through 4 optional steps, all with explicit confirmati
 
 ## `oc deploy`
 
-Generates agent files for a target in a project.
+Generates agent files for a target in a project. When a `PROJECT_ID` is provided, **automatically detects the project's stack** and injects the corresponding stack-specific skills into developer agents (in addition to their statically declared skills).
 
 ```bash
 oc deploy <target> [PROJECT_ID]
@@ -79,7 +79,7 @@ oc deploy --diff  [target] [PROJECT_ID]
 | Argument | Values | Description |
 |----------|--------|-------------|
 | `<target>` | `opencode`, `claude-code`, `all` | Target to deploy |
-| `[PROJECT_ID]` | ID of a registered project | Optional — deploys at hub level if absent |
+| `[PROJECT_ID]` | ID of a registered project | Optional — deploys at hub level if absent (no stack detection) |
 
 **Options:**
 
@@ -88,11 +88,17 @@ oc deploy --diff  [target] [PROJECT_ID]
 | `--check` | Checks if files are up to date without deploying |
 | `--diff` | Compares sources with deployed files; offers deployment if a difference is detected |
 
+**Stack detection:**
+
+When `PROJECT_ID` is provided, `oc deploy` reads the project's dependency files (`package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, infrastructure files, etc.) to detect the active stack. The corresponding skills from `skills/developer/stacks/` are then injected into developer agents based on the mapping in `config/stack-skills.json`.
+
+This means a `developer-frontend` agent deployed on a React/Vitest/Playwright project will automatically receive `dev-standards-react`, `dev-standards-vitest`, and `dev-standards-playwright` — without any agent configuration changes.
+
 **Examples:**
 
 ```bash
-oc deploy opencode              # deploy OpenCode at hub level
-oc deploy opencode MY-APP       # deploy OpenCode in MY-APP
+oc deploy opencode              # deploy OpenCode at hub level (no stack detection)
+oc deploy opencode MY-APP       # deploy OpenCode in MY-APP (with stack detection)
 oc deploy all MY-APP            # deploy all active targets in MY-APP
 oc deploy --check               # check all active targets (hub)
 oc deploy --check opencode      # check OpenCode (hub)
