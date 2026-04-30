@@ -73,6 +73,18 @@ Pour chaque fichier lu, noter :
 - Les **points d'extension** possibles (interfaces, abstractions existantes)
 - Les **tests existants** sur le périmètre concerné
 
+### Recherche de logique existante
+
+Pour toute feature impliquant une logique métier (calcul, transformation, comparaison, validation, règle de gestion) :
+
+1. Identifier les mots-clés du domaine dans la demande (ex : "comparatif", "valeur", "diff", "règle", "calcul")
+2. Rechercher activement dans **l'ensemble du codebase** si une logique similaire existe déjà :
+   - Backend : services, use cases, value objects, helpers, DTOs avec méthodes
+   - Frontend : composables, stores, utilitaires, fonctions de transformation
+   - Couches partagées : types communs, libs internes, packages utilitaires
+3. Si une logique existante est trouvée : la noter comme **réutilisable** et la mentionner dans le résumé de contexte
+4. Si une implémentation similaire existe déjà quelque part et que la feature semble vouloir la dupliquer → **signaler le risque de duplication dans le résumé, quelle que soit la couche concernée**
+
 Pendant la lecture, **détecter les signaux design** :
 
 **Signaux UX** (au moins un → UX recommandé) :
@@ -129,6 +141,10 @@ Présenter ce qui a été détecté avant de poser des questions :
 ### Signaux design détectés
 - **UX** : [oui ⚠️ / non] — [raison si oui : nouveau parcours multi-étapes / changement d'interaction / flow critique]
 - **UI** : [oui ⚠️ / non] — [raison si oui : nouveau composant / composant profondément modifié / variantes à spécifier]
+
+### Logiques existantes réutilisables
+- [Nom de la logique] → [fichier:ligne] — [description courte] — [couche : backend / frontend / partagé]
+- Risque de duplication : [oui ⚠️ / non]
 ```
 
 **⏸️ PAUSE — Valider le contexte via l'outil `question` :**
@@ -416,12 +432,14 @@ Epics dans Beads : [oui / non / à confirmer]
 
 ### Règle — Granularité des tickets
 
-Un ticket est trop gros si l'un de ces critères est vrai :
+**Un ticket unique est toujours acceptable** si la demande est clairement délimitée (bug isolé, ajout UI simple, tâche technique ciblée, etc.). Ne pas découper par défaut.
+
+Un découpage peut être **suggéré** (jamais imposé) si **plusieurs** de ces critères sont vrais simultanément :
 - Plus de 3 critères d'acceptance complexes
 - Estimation > 1 jour de travail
 - Implique des modifications dans > 3 couches (ex : BDD + service + API + frontend + tests)
 
-Dans ce cas : proposer de scinder avant de valider le plan.
+Un seul critère ne suffit pas à proposer un découpage. Si un découpage semble pertinent, le **signaler comme option** à l'utilisateur sans l'inclure dans le plan par défaut. L'utilisateur décide toujours.
 
 **⏸️ PAUSE — Validation explicite du plan via l'outil `question` :**
 
@@ -872,7 +890,7 @@ question({
 6. **Toujours capturer l'ID** dynamiquement via `jq -r '.id'`
 7. **Jamais de code** dans les descriptions — langage naturel uniquement
 8. **Jamais `bd edit`** — uniquement les commandes listées dans ce skill
-9. **Toujours enrichir** chaque ticket : description + acceptance + notes + estimate
+9. **Enrichir chaque ticket créé** : description + acceptance + notes + estimate — un ticket unique est toujours acceptable si la demande est clairement délimitée
 10. **Toujours enrichir les epics** : description + notes (jamais d'epic vide)
 11. **Toujours renseigner `--design`** pour tout ticket touchant un composant UI (spec complète si disponible, partielle + `bd comments add` sinon)
 12. **Toujours inclure les tests** dans l'acceptance (type, cas nominal, cas limite)
@@ -880,3 +898,4 @@ question({
 14. **Toujours vérifier** avec `bd children` + `bd list` après la création
 15. **Jamais `ai-delegated` sans accord** — toujours demander avant de déléguer
 16. **Justifier les priorités** — toujours expliquer pourquoi un ticket est P0/P1/P2/P3
+17. **Toujours chercher** si une logique similaire existe déjà dans le codebase (toutes couches : backend, frontend, partagé) avant de planifier une nouvelle implémentation — signaler tout risque de duplication dans le résumé de contexte
