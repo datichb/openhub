@@ -125,7 +125,7 @@ adapter_deploy() {
     local agent_id; agent_id=$(get_agent_id "$agent_file")
     should_deploy_agent "$project_id" "$agent_id" || { log_info "[opencode] Filtré : $agent_id"; continue; }
     log_info "[opencode] Génération : $agent_id"
-    build_agent_content "$agent_file" "opencode" "$lang" > "$out_dir/${agent_id}.md"
+    build_agent_content "$agent_file" "opencode" "$lang" "$deploy_dir" > "$out_dir/${agent_id}.md"
     log_success "[opencode] $agent_id"
     deployed=$((deployed + 1))
 

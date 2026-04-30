@@ -145,14 +145,209 @@ get_agent_id() {
   fi
 }
 
+# Détecte la stack d'un projet à partir de ses fichiers de dépendances.
+# @param $1 — project_path (chemin racine du projet)
+# Affiche sur stdout une liste de clés de stack, une par ligne.
+# Clés possibles : typescript, python, vue, react, next, nuxt, angular,
+#   nestjs, express, fastify, django, fastapi, laravel, rails, spring,
+#   prisma, typeorm, sqlalchemy, mongoose,
+#   vitest, jest, playwright, cypress, openapi,
+#   react-native, flutter, swift, kotlin,
+#   pandas, dbt, airflow, pyspark,
+#   docker, github-actions, gitlab-ci,
+#   terraform, kubernetes, helm, argocd
+detect_stack() {
+  local project_path="${1:-}"
+  [ -z "$project_path" ] || [ ! -d "$project_path" ] && return 0
+
+  local pkg_json="${project_path}/package.json"
+  local pyproject="${project_path}/pyproject.toml"
+  local requirements="${project_path}/requirements.txt"
+  local gemfile="${project_path}/Gemfile"
+  local build_gradle="${project_path}/build.gradle"
+  local build_gradle_kts="${project_path}/build.gradle.kts"
+  local pom_xml="${project_path}/pom.xml"
+  local pubspec="${project_path}/pubspec.yaml"
+
+  # ── JavaScript / TypeScript (package.json) ──────────────────────────────
+  if [ -f "$pkg_json" ]; then
+    local deps=""
+    deps=$(grep -E '"dependencies"|"devDependencies"' -A 9999 "$pkg_json" 2>/dev/null | \
+           grep -oE '"[a-zA-Z@][a-zA-Z0-9@/_-]*"[[:space:]]*:' | tr -d '"' | tr -d ':' | tr -d ' ')
+
+    # Langage
+    echo "$deps" | grep -q 'typescript' && echo "typescript"
+
+    # Frontend frameworks
+    echo "$deps" | grep -qE '^next$' && echo "next" && echo "react"
+    echo "$deps" | grep -qE '^nuxt$' && echo "nuxt" && echo "vue"
+    echo "$deps" | grep -qE '^@vue/core$|^vue$' && ! echo "$deps" | grep -q '^nuxt$' && echo "vue"
+    echo "$deps" | grep -qE '^react$' && ! echo "$deps" | grep -q '^next$' && echo "react"
+    echo "$deps" | grep -qE '^@angular/core$' && echo "angular"
+
+    # Backend frameworks
+    echo "$deps" | grep -qE '^@nestjs/core$' && echo "nestjs"
+    echo "$deps" | grep -qE '^express$' && echo "express"
+    echo "$deps" | grep -qE '^fastify$' && echo "fastify"
+
+    # ORMs / BDD
+    echo "$deps" | grep -qE '^@prisma/client$|^prisma$' && echo "prisma"
+    echo "$deps" | grep -qE '^typeorm$' && echo "typeorm"
+    echo "$deps" | grep -qE '^mongoose$' && echo "mongoose"
+
+    # Outils de test
+    echo "$deps" | grep -qE '^vitest$' && echo "vitest"
+    echo "$deps" | grep -qE '^jest$|^@jest/core$' && echo "jest"
+    echo "$deps" | grep -qE '^@playwright/test$|^playwright$' && echo "playwright"
+    echo "$deps" | grep -qE '^cypress$' && echo "cypress"
+
+    # Spec API
+    if [ -f "${project_path}/openapi.yaml" ] || \
+       [ -f "${project_path}/openapi.yml" ] || \
+       [ -f "${project_path}/swagger.yaml" ] || \
+       [ -f "${project_path}/docs/openapi.yaml" ] || \
+       [ -f "${project_path}/docs/api/openapi.yaml" ]; then
+      echo "openapi"
+    fi
+
+    # Mobile
+    echo "$deps" | grep -qE '^react-native$' && echo "react-native"
+
+    # Infra
+    [ -f "${project_path}/Dockerfile" ] || [ -f "${project_path}/docker-compose.yml" ] || \
+    [ -f "${project_path}/docker-compose.yaml" ] && echo "docker"
+    [ -d "${project_path}/.github/workflows" ] && echo "github-actions"
+    [ -f "${project_path}/.gitlab-ci.yml" ] && echo "gitlab-ci"
+  fi
+
+  # ── Python (pyproject.toml / requirements.txt) ──────────────────────────
+  if [ -f "$pyproject" ] || [ -f "$requirements" ]; then
+    echo "python"
+
+    local py_deps=""
+    [ -f "$pyproject" ] && py_deps=$(cat "$pyproject" 2>/dev/null)
+    [ -f "$requirements" ] && py_deps="${py_deps}$(cat "$requirements" 2>/dev/null)"
+
+    echo "$py_deps" | grep -qiE 'django' && echo "django"
+    echo "$py_deps" | grep -qiE 'fastapi' && echo "fastapi"
+    echo "$py_deps" | grep -qiE 'sqlalchemy' && echo "sqlalchemy"
+    echo "$py_deps" | grep -qiE '^pandas|pandas==' && echo "pandas"
+    echo "$py_deps" | grep -qiE '^dbt-|dbt==' && echo "dbt"
+    echo "$py_deps" | grep -qiE 'apache-airflow|airflow' && echo "airflow"
+    echo "$py_deps" | grep -qiE 'pyspark' && echo "pyspark"
+  fi
+
+  # ── Ruby (Gemfile) ───────────────────────────────────────────────────────
+  if [ -f "$gemfile" ]; then
+    grep -q 'rails' "$gemfile" 2>/dev/null && echo "rails"
+  fi
+
+  # ── Java / Kotlin (build.gradle / pom.xml) ───────────────────────────────
+  if [ -f "$build_gradle" ] || [ -f "$build_gradle_kts" ] || [ -f "$pom_xml" ]; then
+    local jvm_deps=""
+    [ -f "$build_gradle" ] && jvm_deps=$(cat "$build_gradle" 2>/dev/null)
+    [ -f "$build_gradle_kts" ] && jvm_deps="${jvm_deps}$(cat "$build_gradle_kts" 2>/dev/null)"
+    [ -f "$pom_xml" ] && jvm_deps="${jvm_deps}$(cat "$pom_xml" 2>/dev/null)"
+
+    echo "$jvm_deps" | grep -qiE 'spring-boot|spring.boot' && echo "spring"
+    echo "$jvm_deps" | grep -qiE 'jetpack.compose|compose.bom' && echo "kotlin"
+  fi
+
+  # ── Dart / Flutter (pubspec.yaml) ────────────────────────────────────────
+  if [ -f "$pubspec" ]; then
+    grep -q 'flutter' "$pubspec" 2>/dev/null && echo "flutter"
+  fi
+
+  # ── Infrastructure (fichiers de config) ──────────────────────────────────
+  [ -f "${project_path}/Dockerfile" ] || [ -f "${project_path}/docker-compose.yml" ] || \
+  [ -f "${project_path}/docker-compose.yaml" ] && echo "docker"
+  [ -d "${project_path}/.github/workflows" ] && echo "github-actions"
+  [ -f "${project_path}/.gitlab-ci.yml" ] && echo "gitlab-ci"
+
+  # Terraform
+  find "$project_path" -maxdepth 3 -name "*.tf" 2>/dev/null | grep -q . && echo "terraform"
+
+  # Kubernetes
+  find "$project_path" -maxdepth 4 \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | \
+    xargs grep -l 'kind: Deployment\|kind: Service\|kind: Ingress' 2>/dev/null | grep -q . && echo "kubernetes"
+
+  # Helm
+  [ -f "${project_path}/Chart.yaml" ] || \
+  find "$project_path" -maxdepth 3 -name "Chart.yaml" 2>/dev/null | grep -q . && echo "helm"
+
+  # ArgoCD
+  find "$project_path" -maxdepth 4 \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | \
+    xargs grep -l 'argoproj.io\|kind: Application' 2>/dev/null | grep -q . && echo "argocd"
+}
+
+# Résout la liste des skills stack à injecter pour un agent donné.
+# @param $1 — agent_id (ex: developer-frontend)
+# @param $2 — stacks_list (liste de clés séparées par des espaces ou newlines)
+# @param $3 — stack_skills_config (chemin vers config/stack-skills.json)
+# Affiche sur stdout les chemins de skills à injecter, un par ligne, dédupliqués.
+resolve_stack_skills() {
+  local agent_id="$1"
+  local stacks_list="$2"
+  local config_file="$3"
+
+  [ -z "$stacks_list" ] && return 0
+  [ -f "$config_file" ] || return 0
+  command -v jq &>/dev/null || return 0  # jq requis pour parser le JSON
+
+  # Récupérer les catégories autorisées pour cet agent
+  local allowed_categories
+  allowed_categories=$(jq -r --arg agent "$agent_id" \
+    '._agent_scope[$agent] // [] | .[]' "$config_file" 2>/dev/null)
+
+  # Si pas de scope défini pour cet agent, ne rien injecter
+  [ -z "$allowed_categories" ] && return 0
+
+  local seen=()
+  local stack
+
+  while IFS= read -r stack; do
+    [ -z "$stack" ] && continue
+
+    # Pour chaque catégorie autorisée, chercher si la stack y est mappée
+    local category
+    while IFS= read -r category; do
+      [ -z "$category" ] && continue
+
+      # Chercher la stack dans cette catégorie
+      local skills
+      skills=$(jq -r --arg cat "$category" --arg stack "$stack" \
+        '.[$cat][$stack] // [] | .[]' "$config_file" 2>/dev/null)
+
+      [ -z "$skills" ] && continue
+
+      # Ajouter les skills non encore vus
+      local skill
+      while IFS= read -r skill; do
+        [ -z "$skill" ] && continue
+        local already_seen=0
+        local s
+        for s in "${seen[@]:-}"; do
+          [ "$s" = "$skill" ] && already_seen=1 && break
+        done
+        if [ "$already_seen" = "0" ]; then
+          seen+=("$skill")
+          echo "$skill"
+        fi
+      done <<< "$skills"
+    done <<< "$allowed_categories"
+  done <<< "$stacks_list"
+}
+
 # Construit le contenu final : corps de l'agent + skills injectés → stdout
 # $2 (target) est réservé pour un futur filtrage par cible — non utilisé pour l'instant
 # $3 (lang) optionnel — si non vide, injecte une instruction de langue en tête de l'agent
+# $4 (project_path) optionnel — si non vide, détecte la stack et injecte les skills correspondants
 build_agent_content() {
   local agent_file="$1"
   # shellcheck disable=SC2034
   local target="${2:-opencode}"  # réservé : filtrage par cible (futur)
   local lang="${3:-}"
+  local project_path="${4:-}"
   [ -f "$agent_file" ] || { log_warn "Agent introuvable : $agent_file" >&2; return 1; }
 
   build_generated_header
@@ -163,16 +358,47 @@ build_agent_content() {
   fi
   strip_frontmatter "$agent_file"
 
+  # ── Skills déclarés dans le frontmatter ─────────────────────────────────
   local skills=()
   while IFS= read -r skill; do
     skills+=("$skill")
   done < <(extract_frontmatter_list "$agent_file" "skills")
 
-  if [ ${#skills[@]} -gt 0 ]; then
+  # ── Skills dynamiques basés sur la stack détectée ────────────────────────
+  local stack_skills=()
+  if [ -n "$project_path" ] && [ -d "$project_path" ]; then
+    local agent_id
+    agent_id=$(get_agent_id "$agent_file")
+
+    local stack_skills_config="${HUB_DIR:-}/config/stack-skills.json"
+
+    if [ -f "$stack_skills_config" ]; then
+      local detected_stacks
+      detected_stacks=$(detect_stack "$project_path" | sort -u)
+
+      if [ -n "$detected_stacks" ]; then
+        while IFS= read -r stack_skill; do
+          [ -z "$stack_skill" ] && continue
+          # Vérifier que ce skill n'est pas déjà dans les skills déclarés
+          local already_declared=0
+          local declared_skill
+          for declared_skill in "${skills[@]:-}"; do
+            [ "$declared_skill" = "$stack_skill" ] && already_declared=1 && break
+          done
+          [ "$already_declared" = "0" ] && stack_skills+=("$stack_skill")
+        done < <(resolve_stack_skills "$agent_id" "$detected_stacks" "$stack_skills_config")
+      fi
+    fi
+  fi
+
+  # ── Injection des skills (déclarés + stack) ──────────────────────────────
+  local all_skills=("${skills[@]:-}" "${stack_skills[@]:-}")
+
+  if [ ${#all_skills[@]} -gt 0 ]; then
     echo ""
     echo "---"
     echo ""
-    for skill in "${skills[@]}"; do
+    for skill in "${all_skills[@]}"; do
       [ -z "$skill" ] && continue
       local skill_file="$SKILLS_DIR/${skill}.md"
       if [ -f "$skill_file" ]; then

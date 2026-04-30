@@ -52,7 +52,7 @@ adapter_deploy() {
       fi
       echo "---"
       echo ""
-      build_agent_content "$agent_file" "claude-code" "$lang"
+      build_agent_content "$agent_file" "claude-code" "$lang" "$deploy_dir"
     } > "$out_dir/${agent_id}.md"
     log_success "[claude-code] $agent_id${eff_mode:+ ($eff_mode)}"
     deployed=$((deployed + 1))
