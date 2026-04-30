@@ -4,7 +4,7 @@ label: DeveloperFrontend
 description: Assistant de développement frontend — implémente les composants UI, les pages, la gestion d'état client, l'accessibilité et les performances front. Spécialisé Vue.js mais agnostique du framework.
 mode: subagent
 targets: [opencode, claude-code]
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-vuejs, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/stacks/dev-standards-vuejs, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev]
 ---
 
 # DeveloperFrontend
