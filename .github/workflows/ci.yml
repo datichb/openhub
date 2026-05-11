@@ -58,16 +58,41 @@ jobs:
   check-staleness:
     name: Check deployed agents are up to date
     runs-on: ubuntu-latest
-    continue-on-error: true   # Informatif en CI — ne bloque pas le merge
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Deploy agents (generates .opencode/agents/ from sources)
+        run: |
+          # Les agents sont gitignorés — il faut les générer avant de vérifier leur fraîcheur.
+          # On mock adapter_validate pour ne pas exiger qu'opencode soit installé en CI.
+          bash -c "
+            source scripts/common.sh
+            source scripts/lib/adapter-manager.sh
+            source scripts/lib/spinner.sh
+
+            load_adapter()     { source scripts/adapters/opencode.adapter.sh; }
+            adapter_validate() { return 0; }
+            _spinner_start()   { true; }
+            _spinner_stop()    { true; }
+
+            targets=('opencode')
+            deploy_dir=\"\$HUB_DIR\"
+
+            for target in \"\${targets[@]}\"; do
+              load_adapter \"\$target\"
+              adapter_deploy \"\$deploy_dir\" ''
+            done
+          "
+
       - name: Check staleness (opencode target — hub level)
         run: |
-          echo "Vérification de la fraîcheur des agents déployés au niveau du hub..."
           bash scripts/cmd-deploy.sh --check opencode || {
-            echo "::warning::Des agents déployés sont obsolètes. Relancez : ./oc.sh deploy"
+            echo "::error::Des agents déployés sont obsolètes ou manquants après deploy — vérifier les sources agents/ et skills/"
+            exit 1
           }
 
   bats:

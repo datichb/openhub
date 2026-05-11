@@ -6,23 +6,24 @@
 HUB_DIR="${HUB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 PROJECTS_FILE="${PROJECTS_FILE:-$HUB_DIR/projects/projects.md}"
 PROJECTS_EXAMPLE_FILE="$HUB_DIR/projects/projects.example.md"
+export PROJECTS_EXAMPLE_FILE
 PATHS_FILE="${PATHS_FILE:-$HUB_DIR/projects/paths.local.md}"
 API_KEYS_FILE="${API_KEYS_FILE:-$HUB_DIR/projects/api-keys.local.md}"
-SKILLS_DIR="$HUB_DIR/skills"
+SKILLS_DIR="${SKILLS_DIR:-$HUB_DIR/skills}"
 export SKILLS_DIR
 SCRIPTS_DIR="${SCRIPTS_DIR:-$HUB_DIR/scripts}"
 export SCRIPTS_DIR
 
 # Phase 2+ : sources canoniques (agents/ et config/)
-CANONICAL_AGENTS_DIR="$HUB_DIR/agents"
+CANONICAL_AGENTS_DIR="${CANONICAL_AGENTS_DIR:-$HUB_DIR/agents}"
 export CANONICAL_AGENTS_DIR
 HUB_CONFIG="${HUB_CONFIG:-$HUB_DIR/config/hub.json}"
-HUB_CONFIG_EXAMPLE="$HUB_DIR/config/hub.json.example"
-LIB_DIR="$HUB_DIR/scripts/lib"
+HUB_CONFIG_EXAMPLE="${HUB_CONFIG_EXAMPLE:-$HUB_DIR/config/hub.json.example}"
+LIB_DIR="${LIB_DIR:-$HUB_DIR/scripts/lib}"
 export LIB_DIR
-ADAPTERS_DIR="$HUB_DIR/scripts/adapters"
+ADAPTERS_DIR="${ADAPTERS_DIR:-$HUB_DIR/scripts/adapters}"
 export ADAPTERS_DIR
-EXTERNAL_SKILLS_DIR="$HUB_DIR/skills/external"
+EXTERNAL_SKILLS_DIR="${EXTERNAL_SKILLS_DIR:-$HUB_DIR/skills/external}"
 export EXTERNAL_SKILLS_DIR
 
 # Load i18n string table (bash 3.2 compatible)
@@ -49,6 +50,7 @@ export EXTERNAL_SKILLS_DIR
 # DEFAULTS
 # ─────────────────────────────────────────
 DEFAULT_MODEL="claude-sonnet-4-5"
+export DEFAULT_MODEL
 
 # ─────────────────────────────────────────
 # I18N — Language resolution
