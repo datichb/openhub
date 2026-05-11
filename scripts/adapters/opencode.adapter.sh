@@ -24,49 +24,55 @@ _get_opencode_model() {
   echo "${model:-$DEFAULT_MODEL}"
 }
 
-# Génère le bloc JSON "provider" selon le provider configuré
-# Retourne une chaîne JSON partielle (sans virgule de tête) ou vide
-_build_provider_block() {
-  local project_id="${1:-}"
-  [ -z "$project_id" ] && return 0
+# Génère un objet JSON complet {"provider": {...}} selon le provider et ses paramètres
+# Utilise jq end-to-end pour garantir un JSON valide même avec des valeurs spéciales
+# Retourne le JSON complet ou rien si les paramètres sont insuffisants
+_build_provider_json() {
+  local provider="${1:-}" api_key="${2:-}" base_url="${3:-}" aws_region="${4:-}"
 
-  local provider api_key base_url
-  provider=$(get_project_api_provider "$project_id")
-  api_key=$(get_project_api_key "$project_id")
-  { [ -z "$provider" ] || [ -z "$api_key" ]; } && return 0
+  [ -z "$provider" ] || [ -z "$api_key" ] && return 0
 
   case "$provider" in
     anthropic)
-      # Utiliser jq pour encoder proprement la clé API dans le JSON
       jq -n --arg key "$api_key" \
-        '{"provider": {"anthropic": {"apiKey": $key}}}' \
-        | sed 's/^{//;s/^}$//;/^$/d'
+        '{"provider": {"anthropic": {"apiKey": $key}}}'
       ;;
     bedrock)
       # Provider natif amazon-bedrock d'OpenCode.
       # La région est obligatoire ; la clé API stockée est le bearer token
       # (injecté aussi via AWS_BEARER_TOKEN_BEDROCK au lancement par adapter_start).
-      local aws_region
-      aws_region=$(get_project_api_region "$project_id")
-      aws_region="${aws_region:-eu-west-3}"
-      jq -n --arg region "$aws_region" \
-        '{"provider": {"amazon-bedrock": {"options": {"region": $region}}}}' \
-        | sed 's/^{//;s/^}$//;/^$/d'
+      local region="${aws_region:-eu-west-3}"
+      jq -n --arg region "$region" \
+        '{"provider": {"amazon-bedrock": {"options": {"region": $region}}}}'
       ;;
     mammouth|github-models|ollama|litellm)
       # Providers OpenAI-compatible via litellm
-      base_url=$(get_project_api_base_url "$project_id")
       if [ -n "$base_url" ]; then
         jq -n --arg key "$api_key" --arg url "$base_url" \
-          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key, "baseURL": $url}}}}' \
-          | sed 's/^{//;s/^}$//;/^$/d'
+          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key, "baseURL": $url}}}}'
       else
         jq -n --arg key "$api_key" \
-          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key}}}}' \
-          | sed 's/^{//;s/^}$//;/^$/d'
+          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key}}}}'
       fi
       ;;
   esac
+}
+
+# Génère le bloc JSON "provider" selon le provider configuré pour un projet
+# Retourne un objet JSON complet {"provider": {...}} ou rien
+_build_provider_block() {
+  local project_id="${1:-}"
+  [ -z "$project_id" ] && return 0
+
+  local provider api_key base_url aws_region
+  provider=$(get_project_api_provider "$project_id")
+  api_key=$(get_project_api_key "$project_id")
+  { [ -z "$provider" ] || [ -z "$api_key" ]; } && return 0
+
+  base_url=$(get_project_api_base_url "$project_id")
+  aws_region=$(get_project_api_region "$project_id" 2>/dev/null || true)
+
+  _build_provider_json "$provider" "$api_key" "$base_url" "$aws_region"
 }
 
 # Ajoute opencode.json et .opencode/ au .git/info/exclude du projet cible si une clé API est injectée
@@ -114,9 +120,12 @@ adapter_deploy() {
   lang=$(resolve_agent_lang "$lang")
 
   local deployed=0
-  # Tableau associatif : agent_id → mode effectif (pour générer opencode.json)
+  # Tableaux parallèles : agent_id → mode effectif + fichier source
+  # (bash 3.2 compatible — pas de declare -A)
   local _agent_modes_keys=()
   local _agent_modes_vals=()
+  # Tableau des fichiers source (même index) pour éviter le scan O(n²)
+  local _agent_modes_files=()
 
   while IFS= read -r agent_file; do
     [ -f "$agent_file" ] || continue
@@ -134,105 +143,69 @@ adapter_deploy() {
     eff_mode=$(get_effective_agent_mode "$agent_file" "$project_id")
     _agent_modes_keys+=("$agent_id")
     _agent_modes_vals+=("$eff_mode")
+    _agent_modes_files+=("$agent_file")
   done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
 
   # Générer opencode.json à la racine du projet
   local config_file="$deploy_dir/opencode.json"
   local model; model=$(_get_opencode_model "$project_id")
-  local provider_block=""
+  local provider_json=""
   local has_api_key=false
 
   # Construire le bloc provider si une clé est configurée pour ce projet
   if [ -n "$project_id" ] && api_keys_entry_exists "$project_id"; then
-    provider_block=$(_build_provider_block "$project_id")
-    [ -n "$provider_block" ] && has_api_key=true
+    provider_json=$(_build_provider_block "$project_id")
+    [ -n "$provider_json" ] && has_api_key=true
   else
     # Fallback : vérifier le hub default_provider
     local hub_api_key
     hub_api_key=$(get_hub_default_api_key)
     if [ -n "$hub_api_key" ]; then
-      # Construire le provider_block basé sur le hub default
-      local hub_provider hub_base_url
+      local hub_provider hub_base_url hub_aws_region
       hub_provider=$(get_hub_default_provider)
       hub_base_url=$(get_hub_default_base_url)
-      
-      case "$hub_provider" in
-        anthropic)
-          provider_block=$(jq -n --arg key "$hub_api_key" \
-            '{"provider": {"anthropic": {"apiKey": $key}}}' \
-            | sed 's/^{//;s/^}$//;/^$/d')
-          has_api_key=true
-          ;;
-        bedrock)
-          # Provider natif amazon-bedrock d'OpenCode.
-          # La région est lue depuis hub.json (.default_provider.region) ou défaut eu-west-3.
-          local hub_aws_region
-          hub_aws_region=$(jq -r '.default_provider.region // empty' "$HUB_CONFIG" 2>/dev/null)
-          hub_aws_region="${hub_aws_region:-eu-west-3}"
-          provider_block=$(jq -n --arg region "$hub_aws_region" \
-            '{"provider": {"amazon-bedrock": {"options": {"region": $region}}}}' \
-            | sed 's/^{//;s/^}$//;/^$/d')
-          has_api_key=true
-          ;;
-        mammouth|github-models|ollama|litellm)
-          # Providers OpenAI-compatible via litellm
-          if [ -n "$hub_base_url" ]; then
-            provider_block=$(jq -n --arg key "$hub_api_key" --arg url "$hub_base_url" \
-              '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key, "baseURL": $url}}}}' \
-              | sed 's/^{//;s/^}$//;/^$/d')
-          else
-            provider_block=$(jq -n --arg key "$hub_api_key" \
-              '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key}}}}' \
-              | sed 's/^{//;s/^}$//;/^$/d')
-          fi
-          has_api_key=true
-          ;;
-      esac
+      hub_aws_region=$(jq -r '.default_provider.region // empty' "$HUB_CONFIG" 2>/dev/null || true)
+
+      provider_json=$(_build_provider_json "$hub_provider" "$hub_api_key" "$hub_base_url" "$hub_aws_region")
+      [ -n "$provider_json" ] && has_api_key=true
     fi
   fi
 
-  # Construire le bloc "agent": pour les agents dont le mode n'est pas "primary"
-  # ou qui ont des permissions à injecter (ex: permission.question: allow)
-  local agent_block=""
+  # Construire l'objet "agent" via jq pour garantir un JSON valide
+  # Chaque entrée est construite comme un objet jq puis fusionnée
+  local agent_obj_json="{}"
   local _ai=0
   while [ "$_ai" -lt "${#_agent_modes_keys[@]}" ]; do
     local _aid="${_agent_modes_keys[$_ai]}"
     local _amode="${_agent_modes_vals[$_ai]}"
+    local _asource="${_agent_modes_files[$_ai]}"
 
-    # Extraire le bloc permission depuis le fichier source de l'agent
-    local _agent_source_file=""
-    while IFS= read -r _f; do
-      [ -f "$_f" ] || continue
-      local _fid; _fid=$(get_agent_id "$_f")
-      if [ "$_fid" = "$_aid" ]; then
-        _agent_source_file="$_f"
-        break
-      fi
-    done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
-
+    # Extraire le bloc permission depuis le fichier source (déjà connu — pas de scan O(n²))
     local _perm_json=""
-    [ -n "$_agent_source_file" ] && _perm_json=$(extract_permission_json "$_agent_source_file")
+    [ -n "$_asource" ] && _perm_json=$(extract_permission_json "$_asource")
 
-    # Construire l'entrée JSON pour cet agent
-    local _entry=""
+    # Construire l'entrée JSON pour cet agent via jq
+    local _entry_json=""
     if [ "$_amode" != "primary" ] && [ -n "$_perm_json" ]; then
-      _entry="{ \"mode\": \"${_amode}\", ${_perm_json} }"
+      _entry_json=$(jq -n --arg mode "$_amode" --argjson perm "{${_perm_json}}" \
+        '{mode: $mode} + $perm')
     elif [ "$_amode" != "primary" ]; then
-      _entry="{ \"mode\": \"${_amode}\" }"
+      _entry_json=$(jq -n --arg mode "$_amode" '{mode: $mode}')
     elif [ -n "$_perm_json" ]; then
-      _entry="{ ${_perm_json} }"
+      _entry_json=$(jq -n --argjson perm "{${_perm_json}}" '$perm')
     fi
 
-    if [ -n "$_entry" ]; then
-      [ -n "$agent_block" ] && agent_block="${agent_block},"$'\n'
-      agent_block="${agent_block}    \"${_aid}\": ${_entry}"
+    if [ -n "$_entry_json" ]; then
+      agent_obj_json=$(jq -n \
+        --argjson base "$agent_obj_json" \
+        --arg id "$_aid" \
+        --argjson entry "$_entry_json" \
+        '$base + {($id): $entry}')
     fi
     _ai=$((_ai + 1))
   done
 
   # Injecter les agents natifs désactivés (projet > hub)
-  # Si le projet a le champ "- Disable agents :" → utiliser la valeur projet
-  # Sinon → utiliser la valeur de hub.json (.opencode.disabled_native_agents)
   local disabled_csv=""
   if [ -n "$project_id" ]; then
     disabled_csv=$(get_project_disabled_native_agents "$project_id")
@@ -242,8 +215,10 @@ adapter_deploy() {
   fi
   for agent_name in $(echo "$disabled_csv" | tr ',' ' '); do
     [ -z "$agent_name" ] && continue
-    [ -n "$agent_block" ] && agent_block="${agent_block},"$'\n'
-    agent_block="${agent_block}    \"${agent_name}\": { \"disable\": true }"
+    agent_obj_json=$(jq -n \
+      --argjson base "$agent_obj_json" \
+      --arg id "$agent_name" \
+      '$base + {($id): {"disable": true}}')
   done
 
   # Régénérer si : fichier absent, clé API à injecter, ou project_id défini
@@ -260,26 +235,35 @@ adapter_deploy() {
     if [ "$has_api_key" = true ]; then
       _gitignore_opencode_json "$deploy_dir"
     fi
-    {
-      echo '{'
-      echo '  "$schema": "https://opencode.ai/config.json",'
-      if [ "$has_api_key" = true ]; then
-        echo "  \"model\": \"${model}\","
-        printf '%s' "$provider_block"
-        if [ -n "$agent_block" ]; then
-          printf ',\n  "agent": {\n%s\n  }' "$agent_block"
-        fi
-      else
-        if [ -n "$agent_block" ]; then
-          echo "  \"model\": \"${model}\","
-          printf '  "agent": {\n%s\n  }' "$agent_block"
-        else
-          echo "  \"model\": \"${model}\""
-        fi
-      fi
-      echo ""
-      echo '}'
-    } > "$config_file"
+
+    # Assembler opencode.json en une seule invocation jq end-to-end
+    local base_obj
+    base_obj=$(jq -n \
+      --arg schema "https://opencode.ai/config.json" \
+      --arg model "$model" \
+      '{"$schema": $schema, "model": $model}')
+
+    # Fusionner le bloc provider si présent
+    if [ "$has_api_key" = true ] && [ -n "$provider_json" ]; then
+      base_obj=$(jq -n \
+        --argjson base "$base_obj" \
+        --argjson provider "$provider_json" \
+        '$base * $provider')
+    fi
+
+    # Fusionner le bloc agent si non vide ({} = pas d'entrées)
+    local has_agents
+    has_agents=$(jq -r 'if . == {} then "false" else "true" end' <<< "$agent_obj_json")
+    if [ "$has_agents" = "true" ]; then
+      base_obj=$(jq -n \
+        --argjson base "$base_obj" \
+        --argjson agents "$agent_obj_json" \
+        '$base + {"agent": $agents}')
+    fi
+
+    # Écrire le fichier final
+    printf '%s\n' "$base_obj" > "$config_file"
+
     if [ "$has_api_key" = true ]; then
       log_success "[opencode] opencode.json créé avec clé API (modèle : $model, provider : $(get_project_api_provider "$project_id"))"
       chmod 600 "$config_file"

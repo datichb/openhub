@@ -2,8 +2,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # release.sh — Créer une release versionnée de opencode-hub
 #
-# Usage : bash scripts/release.sh <version>
+# Usage : bash scripts/release.sh <version> [--dry-run]
 #   ex  : bash scripts/release.sh 1.1.0
+#   ex  : bash scripts/release.sh 1.1.0 --dry-run
 #
 # Ce script :
 #   1. Valide le format X.Y.Z
@@ -13,6 +14,9 @@
 #   3.5. Met à jour CHANGELOG.md : insère ## [X.Y.Z] — date sous [Unreleased]
 #   4. Crée le commit "chore(release): vX.Y.Z" et le tag annoté vX.Y.Z
 #   5. Propose de pusher (ou affiche la commande à lancer manuellement)
+#
+# Flags :
+#   --dry-run   Affiche ce qui serait fait sans rien modifier ni committer
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -38,9 +42,10 @@ log_title()   { echo -e "\n${BOLD}$*${RESET}"; }
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  echo -e "${BOLD}Usage :${RESET} bash scripts/release.sh <version>"
+  echo -e "${BOLD}Usage :${RESET} bash scripts/release.sh <version> [--dry-run]"
   echo ""
   echo "  <version>   Numéro de version au format X.Y.Z (ex : 1.1.0)"
+  echo "  --dry-run   Affiche ce qui serait fait sans modifier ni committer"
   echo ""
   echo "Ce script :"
   echo "  1. Valide le format X.Y.Z"
@@ -52,17 +57,27 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   exit 0
 fi
 
-# ── Argument ──────────────────────────────────────────────────────────────────
+# ── Argument + flags ──────────────────────────────────────────────────────────
 VERSION="${1:-}"
+DRY_RUN=false
+
+# Parcourir tous les arguments pour détecter --dry-run
+for _arg in "$@"; do
+  if [ "$_arg" = "--dry-run" ]; then
+    DRY_RUN=true
+  fi
+done
+
+# Retirer --dry-run de VERSION si passé en premier
+VERSION="${VERSION#v}"
+VERSION="${VERSION/--dry-run/}"
+VERSION="${VERSION// /}"
 
 if [ -z "$VERSION" ]; then
   log_error "Version manquante."
   echo -e "  Usage : bash scripts/release.sh <version>  (ex : 1.1.0)"
   exit 1
 fi
-
-# Accepter avec ou sans préfixe 'v', normaliser sans
-VERSION="${VERSION#v}"
 
 if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
   log_error "Format invalide : '$VERSION' — attendu X.Y.Z (ex : 1.1.0)"
@@ -71,7 +86,11 @@ fi
 
 TAG="v${VERSION}"
 
-log_title "◆  Release opencode-hub ${TAG}"
+if [ "$DRY_RUN" = true ]; then
+  log_title "◆  [DRY-RUN] Release opencode-hub ${TAG}"
+else
+  log_title "◆  Release opencode-hub ${TAG}"
+fi
 echo ""
 
 # ── Vérifications préalables ──────────────────────────────────────────────────
@@ -88,23 +107,23 @@ if ! git -C "$HUB_DIR" rev-parse --git-dir &>/dev/null; then
   exit 1
 fi
 
-# Branche main
+# Branche main (ignorée en dry-run)
 current_branch=$(git -C "$HUB_DIR" rev-parse --abbrev-ref HEAD)
-if [ "$current_branch" != "main" ]; then
+if [ "$current_branch" != "main" ] && [ "$DRY_RUN" = false ]; then
   log_error "Vous n'êtes pas sur main (branche actuelle : $current_branch)"
   log_info  "Basculer sur main : git checkout main"
   exit 1
 fi
 
-# Working tree propre
-if [ -n "$(git -C "$HUB_DIR" status --porcelain)" ]; then
+# Working tree propre (ignoré en dry-run)
+if [ -n "$(git -C "$HUB_DIR" status --porcelain)" ] && [ "$DRY_RUN" = false ]; then
   log_error "Working tree non propre — committer ou stasher les modifications avant de releaser"
   git -C "$HUB_DIR" status --short
   exit 1
 fi
 
-# Tag non existant
-if git -C "$HUB_DIR" tag --list | grep -qx "$TAG"; then
+# Tag non existant (ignoré en dry-run)
+if git -C "$HUB_DIR" tag --list | grep -qx "$TAG" && [ "$DRY_RUN" = false ]; then
   log_error "Le tag $TAG existe déjà"
   exit 1
 fi
@@ -120,6 +139,28 @@ current_version=$(jq -r '.version // "inconnue"' "$HUB_CONFIG")
 log_info "Version actuelle dans hub.json : ${current_version}"
 log_info "Nouvelle version                : ${VERSION}"
 echo ""
+
+# ── Dry-run : afficher ce qui serait fait ─────────────────────────────────────
+if [ "$DRY_RUN" = true ]; then
+  CHANGELOG="$HUB_DIR/CHANGELOG.md"
+  TODAY=$(date +%Y-%m-%d)
+
+  log_title "Changements qui seraient appliqués :"
+  echo ""
+  echo -e "  ${BOLD}config/hub.json${RESET}         : version ${current_version} → ${VERSION}"
+  echo -e "  ${BOLD}config/hub.json.example${RESET} : version ${current_version} → ${VERSION}"
+  if [ -f "$CHANGELOG" ]; then
+    echo -e "  ${BOLD}CHANGELOG.md${RESET}            : insertion de ## [${VERSION}] — ${TODAY} sous [Unreleased]"
+  else
+    echo -e "  ${BOLD}CHANGELOG.md${RESET}            : introuvable — étape ignorée"
+  fi
+  echo ""
+  echo -e "  ${BOLD}git commit${RESET}  : chore(release): ${TAG}"
+  echo -e "  ${BOLD}git tag${RESET}     : ${TAG} (annoté)"
+  echo ""
+  log_warn "Mode dry-run — aucune modification effectuée."
+  exit 0
+fi
 
 # ── Confirmation ──────────────────────────────────────────────────────────────
 read -rp "  Créer la release ${TAG} ? [Y/n] : " _confirm </dev/tty

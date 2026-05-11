@@ -82,3 +82,36 @@ jobs:
 
       - name: Run bats tests
         run: for f in tests/*.bats; do bats "$f" || exit 1; done
+
+  version-consistency:
+    name: Check version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Verify hub.json.example version matches latest CHANGELOG entry
+        run: |
+          example_version=$(jq -r '.version' config/hub.json.example)
+
+          # Extraire la dernière version taguée depuis CHANGELOG.md (ex: ## [1.5.0] — 2026-01-01)
+          changelog_version=$(grep -oE '## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+          echo "Version dans hub.json.example : ${example_version}"
+          echo "Dernière version dans CHANGELOG : ${changelog_version}"
+
+          if [ -z "$changelog_version" ]; then
+            echo "::warning::Aucune version trouvée dans CHANGELOG.md — vérification ignorée"
+            exit 0
+          fi
+
+          if [ "$example_version" != "$changelog_version" ]; then
+            echo "::error::Dérive de version détectée : hub.json.example=${example_version} ≠ CHANGELOG=${changelog_version}"
+            echo "Lancez scripts/release.sh pour synchroniser les versions."
+            exit 1
+          fi
+
+          echo "Versions cohérentes : ${example_version}"

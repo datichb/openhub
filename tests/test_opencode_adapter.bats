@@ -253,3 +253,53 @@ EOF
   [ -f "$DEPLOY_DIR/.opencode/agents/reviewer.md" ]
   [ -f "$DEPLOY_DIR/.opencode/agents/debugger.md" ]
 }
+
+# ── Cas limites : valeurs spéciales dans les clés API ─────────────────────────
+
+@test "_build_provider_block : clé API avec espaces génère du JSON valide" {
+  # Clé avec espaces (encodage base64 typique avec padding)
+  printf '[PROJ-SPACE]\nmodel=claude-sonnet-4-5\nprovider=anthropic\napi_key=sk-ant-abc def ghi\n' > "$API_KEYS_FILE"
+  command -v jq &>/dev/null || skip "jq non disponible"
+  block=$(_build_provider_block "PROJ-SPACE" 2>/dev/null || true)
+  [ -n "$block" ]
+  run jq . <<< "$block"
+  [ "$status" -eq 0 ]
+  # La clé doit être présente dans le JSON
+  result=$(jq -r '.provider.anthropic.apiKey' <<< "$block")
+  [ "$result" = "sk-ant-abc def ghi" ]
+}
+
+@test "_build_provider_block : URL avec paramètres génère du JSON valide" {
+  # URL avec caractères spéciaux (& ? = dans query string)
+  printf '[PROJ-URL]\nmodel=claude-sonnet-4-5\nprovider=litellm\napi_key=sk-lit-test\nbase_url=https://api.example.com/v1?key=value&other=test\n' > "$API_KEYS_FILE"
+  command -v jq &>/dev/null || skip "jq non disponible"
+  block=$(_build_provider_block "PROJ-URL" 2>/dev/null || true)
+  [ -n "$block" ]
+  run jq . <<< "$block"
+  [ "$status" -eq 0 ]
+  # L'URL doit être correctement encodée dans le JSON
+  result=$(jq -r '.provider.litellm.options.baseURL' <<< "$block")
+  [[ "$result" == *"key=value"* ]]
+}
+
+@test "_build_provider_block : clé API longue (256 chars) génère du JSON valide" {
+  long_key=$(python3 -c "import string, random; print('sk-' + ''.join(random.choices(string.ascii_letters + string.digits, k=253)))" 2>/dev/null || printf 'sk-%0253d' 0)
+  printf '[PROJ-LONG]\nmodel=claude-sonnet-4-5\nprovider=anthropic\napi_key=%s\n' "$long_key" > "$API_KEYS_FILE"
+  command -v jq &>/dev/null || skip "jq non disponible"
+  block=$(_build_provider_block "PROJ-LONG" 2>/dev/null || true)
+  [ -n "$block" ]
+  run jq . <<< "$block"
+  [ "$status" -eq 0 ]
+}
+
+@test "adapter_deploy : opencode.json est du JSON valide même sans provider ni agents" {
+  # Dossier agents vide → opencode.json minimal avec juste model et schema
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  command -v jq &>/dev/null || skip "jq non disponible"
+  run jq . "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+  # Doit avoir $schema et model
+  result=$(jq -r '.["$schema"]' "$DEPLOY_DIR/opencode.json")
+  [ "$result" = "https://opencode.ai/config.json" ]
+}

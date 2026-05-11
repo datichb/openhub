@@ -231,3 +231,77 @@ oc agent list
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
 - [ ] `oc deploy opencode` and `oc deploy --check opencode` pass without errors
+- [ ] `oc deploy --diff opencode` shows no unexpected divergence
+
+---
+
+## Creating a release
+
+> Reserved for maintainers with write access to `main`.
+
+### Prerequisites
+
+- Be on the `main` branch with a clean working tree
+- `jq` installed (`brew install jq` or `apt install jq`)
+- Push access to the remote repository
+
+### Preparing the CHANGELOG
+
+Before running the script, write the release content under `## [Unreleased]` in `CHANGELOG.md`:
+
+```markdown
+## [Unreleased]
+
+### Added
+- ...
+
+### Fixed
+- ...
+```
+
+The script will automatically insert the `## [X.Y.Z] — YYYY-MM-DD` header after `[Unreleased]`.
+
+### Running the release
+
+```bash
+# Preview without modifying anything (dry-run)
+bash scripts/release.sh 1.2.0 --dry-run
+
+# Create the release
+bash scripts/release.sh 1.2.0
+```
+
+The script performs in order:
+1. Validates the `X.Y.Z` format
+2. Checks `main` branch + clean working tree + non-existing tag
+3. Updates `config/hub.json` (local, not tracked by git) → `.version`
+4. Updates `config/hub.json.example` (tracked) → `.version`
+5. Inserts `## [X.Y.Z] — date` into `CHANGELOG.md`
+6. Creates commit `chore(release): vX.Y.Z`
+7. Creates annotated tag `vX.Y.Z`
+8. Offers to push (`git push && git push --tags`)
+
+### Version file conventions
+
+| File | Git tracked | Role |
+|------|------------|------|
+| `config/hub.json` | No (local) | Active instance config — never committed |
+| `config/hub.json.example` | Yes | Version source of truth — committed at each release |
+
+A new user who clones the repository runs `install.sh` which copies `hub.json.example` → `hub.json`.
+
+### Tag convention
+
+Tags follow the `vX.Y.Z` format (annotated):
+
+```bash
+git tag -a v1.2.0 -m "Release v1.2.0"
+```
+
+### Post-release install one-liner
+
+After pushing, the one-liner to install this version is:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.2.0 bash
+```

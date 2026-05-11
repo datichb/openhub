@@ -30,6 +30,8 @@ t() {
       no_modification)        printf '%s' "Aucune modification." ;;
       invalid_choice)         printf '%s' "Choix invalide" ;;
       deploy_later)           printf '%s' "Déployer plus tard : ./oc.sh deploy all" ;;
+      deploy_apply_prompt)    printf '%s' "Appliquer le déploiement ? [Y/n] : " ;;
+      deploy_cancelled)       printf '%s' "Déploiement annulé." ;;
 
       # ── cmd-help.sh ────────────────────────────────────────────────────────
       help.title)             printf '%s' "opencode-hub — gestionnaire d'agents IA" ;;
@@ -615,6 +617,8 @@ t_en() {
     no_modification)        printf '%s' "No changes." ;;
     invalid_choice)         printf '%s' "Invalid choice" ;;
     deploy_later)           printf '%s' "Deploy later: ./oc.sh deploy all" ;;
+    deploy_apply_prompt)    printf '%s' "Apply deployment? [Y/n]: " ;;
+    deploy_cancelled)       printf '%s' "Deployment cancelled." ;;
 
     # ── cmd-help.sh ──────────────────────────────────────────────────────────
     help.title)             printf '%s' "opencode-hub — AI agent workspace manager" ;;
