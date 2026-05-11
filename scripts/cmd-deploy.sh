@@ -83,7 +83,7 @@ _cmd_deploy_check() {
       local agent_mtime; agent_mtime=$(stat -f %m "$agent_file" 2>/dev/null || stat -c %Y "$agent_file" 2>/dev/null)
       [ "$agent_mtime" -gt "$max_src_mtime" ] && max_src_mtime=$agent_mtime
 
-      # Vérifier chaque skill de l'agent
+      # Vérifier chaque skill de l'agent (déclarés dans le frontmatter)
       while IFS= read -r skill; do
         [ -z "$skill" ] && continue
         local skill_file="$SKILLS_DIR/${skill}.md"
@@ -94,6 +94,25 @@ _cmd_deploy_check() {
           stale_reason="skill: $skill"
         fi
       done < <(extract_frontmatter_list "$agent_file" "skills")
+
+      # Vérifier les stack skills dynamiques si un projet est ciblé
+      if [ -n "$project_id" ] && [ -f "$HUB_DIR/config/stack-skills.json" ]; then
+        local detected_stacks
+        detected_stacks=$(detect_stack "$deploy_dir" 2>/dev/null | sort -u)
+        if [ -n "$detected_stacks" ]; then
+          local stack_skill
+          while IFS= read -r stack_skill; do
+            [ -z "$stack_skill" ] && continue
+            local sf="$SKILLS_DIR/${stack_skill}.md"
+            [ -f "$sf" ] || continue
+            local sf_mtime; sf_mtime=$(stat -f %m "$sf" 2>/dev/null || stat -c %Y "$sf" 2>/dev/null)
+            if [ "$sf_mtime" -gt "$max_src_mtime" ]; then
+              max_src_mtime=$sf_mtime
+              stale_reason="stack-skill: $stack_skill"
+            fi
+          done < <(resolve_stack_skills "$agent_id" "$detected_stacks" "$HUB_DIR/config/stack-skills.json")
+        fi
+      fi
 
       if [ "$agent_mtime" -gt "$gen_mtime" ] && [ "$max_src_mtime" -eq "$agent_mtime" ]; then
         stale_reason="agent source modifié"
