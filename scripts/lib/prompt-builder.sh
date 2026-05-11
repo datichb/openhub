@@ -212,12 +212,6 @@ detect_stack() {
 
     # Mobile
     echo "$deps" | grep -qE '^react-native$' && echo "react-native"
-
-    # Infra
-    [ -f "${project_path}/Dockerfile" ] || [ -f "${project_path}/docker-compose.yml" ] || \
-    [ -f "${project_path}/docker-compose.yaml" ] && echo "docker"
-    [ -d "${project_path}/.github/workflows" ] && echo "github-actions"
-    [ -f "${project_path}/.gitlab-ci.yml" ] && echo "gitlab-ci"
   fi
 
   # ── Python (pyproject.toml / requirements.txt) ──────────────────────────

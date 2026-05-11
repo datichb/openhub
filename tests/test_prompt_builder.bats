@@ -2,7 +2,7 @@
 # Tests unitaires pour scripts/lib/prompt-builder.sh
 # Fonctions testées : extract_frontmatter_value, extract_frontmatter_list,
 #                     strip_frontmatter, agent_supports_target, get_agent_id,
-#                     build_agent_content
+#                     build_agent_content, detect_stack, resolve_stack_skills
 
 setup() {
   TEST_DIR="$(mktemp -d)"
@@ -467,4 +467,436 @@ EOF
   line_unreleased=$(grep -n '## \[Unreleased\]' "$changelog" | head -1 | cut -d: -f1)
   line_v13=$(grep -n '## \[1\.3\.0\]' "$changelog" | head -1 | cut -d: -f1)
   [ "$line_unreleased" -lt "$line_v13" ]
+}
+
+# ── detect_stack ──────────────────────────────────────────────────────────────
+
+@test "detect_stack : retourne vide si le répertoire n'existe pas" {
+  run detect_stack "/chemin/qui/nexiste/pas"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "detect_stack : retourne vide si project_path est vide" {
+  run detect_stack ""
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "detect_stack : détecte typescript depuis package.json dependencies" {
+  local proj="$TEST_DIR/proj-ts"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "typescript": "^5.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "typescript"
+}
+
+@test "detect_stack : détecte typescript depuis package.json devDependencies" {
+  local proj="$TEST_DIR/proj-ts-dev"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "devDependencies": { "typescript": "^5.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "typescript"
+}
+
+@test "detect_stack : détecte vue sans nuxt" {
+  local proj="$TEST_DIR/proj-vue"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "vue": "^3.4.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "^vue$"
+  ! echo "$output" | grep -q "^nuxt$"
+}
+
+@test "detect_stack : détecte nuxt ET vue quand nuxt est présent" {
+  local proj="$TEST_DIR/proj-nuxt"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "nuxt": "^3.10.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "nuxt"
+  echo "$output" | grep -q "vue"
+}
+
+@test "detect_stack : détecte react sans next" {
+  local proj="$TEST_DIR/proj-react"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "react": "^18.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "^react$"
+  ! echo "$output" | grep -q "^next$"
+}
+
+@test "detect_stack : détecte next ET react quand next est présent" {
+  local proj="$TEST_DIR/proj-next"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "next": "^14.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "next"
+  echo "$output" | grep -q "react"
+}
+
+@test "detect_stack : détecte nestjs depuis @nestjs/core" {
+  local proj="$TEST_DIR/proj-nest"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "@nestjs/core": "^10.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "nestjs"
+}
+
+@test "detect_stack : détecte prisma depuis @prisma/client" {
+  local proj="$TEST_DIR/proj-prisma"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "@prisma/client": "^5.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "prisma"
+}
+
+@test "detect_stack : détecte vitest depuis devDependencies" {
+  local proj="$TEST_DIR/proj-vitest"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "devDependencies": { "vitest": "^1.0.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "vitest"
+}
+
+@test "detect_stack : détecte playwright depuis @playwright/test" {
+  local proj="$TEST_DIR/proj-playwright"
+  mkdir -p "$proj"
+  cat > "$proj/package.json" <<'EOF'
+{ "devDependencies": { "@playwright/test": "^1.40.0" } }
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "playwright"
+}
+
+@test "detect_stack : détecte python depuis pyproject.toml" {
+  local proj="$TEST_DIR/proj-py"
+  mkdir -p "$proj"
+  echo '[tool.poetry]' > "$proj/pyproject.toml"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "python"
+}
+
+@test "detect_stack : détecte django depuis requirements.txt" {
+  local proj="$TEST_DIR/proj-django"
+  mkdir -p "$proj"
+  echo 'Django==4.2.0' > "$proj/requirements.txt"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "python"
+  echo "$output" | grep -q "django"
+}
+
+@test "detect_stack : détecte fastapi depuis requirements.txt" {
+  local proj="$TEST_DIR/proj-fastapi"
+  mkdir -p "$proj"
+  echo 'fastapi==0.110.0' > "$proj/requirements.txt"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "fastapi"
+}
+
+@test "detect_stack : détecte docker depuis Dockerfile" {
+  local proj="$TEST_DIR/proj-docker"
+  mkdir -p "$proj"
+  touch "$proj/Dockerfile"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "docker"
+}
+
+@test "detect_stack : détecte github-actions depuis .github/workflows/" {
+  local proj="$TEST_DIR/proj-gha"
+  mkdir -p "$proj/.github/workflows"
+  touch "$proj/.github/workflows/ci.yml"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "github-actions"
+}
+
+@test "detect_stack : détecte terraform depuis fichiers *.tf" {
+  local proj="$TEST_DIR/proj-tf"
+  mkdir -p "$proj/infra"
+  touch "$proj/infra/main.tf"
+  run detect_stack "$proj"
+  echo "$output" | grep -q "terraform"
+}
+
+@test "detect_stack : ne produit pas de doublons (docker via package.json et Dockerfile)" {
+  local proj="$TEST_DIR/proj-nodup"
+  mkdir -p "$proj"
+  touch "$proj/Dockerfile"
+  cat > "$proj/package.json" <<'EOF'
+{ "dependencies": { "react": "^18.0.0" } }
+EOF
+  run detect_stack "$proj"
+  local docker_count
+  docker_count=$(echo "$output" | grep -c "^docker$" || true)
+  [ "$docker_count" -le 1 ]
+}
+
+@test "detect_stack : détecte plusieurs stacks sur un projet complet" {
+  local proj="$TEST_DIR/proj-full"
+  mkdir -p "$proj/.github/workflows"
+  touch "$proj/Dockerfile"
+  touch "$proj/.github/workflows/ci.yml"
+  cat > "$proj/package.json" <<'EOF'
+{
+  "dependencies": { "next": "^14.0.0", "@prisma/client": "^5.0.0" },
+  "devDependencies": { "typescript": "^5.0.0", "vitest": "^1.0.0" }
+}
+EOF
+  run detect_stack "$proj"
+  echo "$output" | grep -q "typescript"
+  echo "$output" | grep -q "next"
+  echo "$output" | grep -q "react"
+  echo "$output" | grep -q "prisma"
+  echo "$output" | grep -q "vitest"
+  echo "$output" | grep -q "docker"
+  echo "$output" | grep -q "github-actions"
+}
+
+# ── resolve_stack_skills ──────────────────────────────────────────────────────
+
+_make_stack_config() {
+  local config_file="$1"
+  cat > "$config_file" <<'EOF'
+{
+  "language": {
+    "typescript": ["developer/stacks/dev-standards-typescript"]
+  },
+  "frontend": {
+    "vue":   ["developer/stacks/dev-standards-vuejs"],
+    "react": ["developer/stacks/dev-standards-react"],
+    "next":  ["developer/stacks/dev-standards-react", "developer/stacks/dev-standards-nextjs"]
+  },
+  "backend": {
+    "nestjs": ["developer/stacks/dev-standards-nestjs"]
+  },
+  "test": {
+    "vitest": ["developer/stacks/dev-standards-vitest"]
+  },
+  "_agent_scope": {
+    "developer-frontend": ["language", "frontend", "test"],
+    "developer-backend":  ["language", "backend", "test"],
+    "developer-fullstack": ["language", "frontend", "backend", "test"]
+  }
+}
+EOF
+}
+
+@test "resolve_stack_skills : retourne vide si stacks_list est vide" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-frontend" "" "$cfg"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_stack_skills : retourne vide si le fichier config n'existe pas" {
+  run resolve_stack_skills "developer-frontend" "typescript" "/chemin/inexistant.json"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_stack_skills : retourne vide si agent_id absent de _agent_scope" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "agent-inconnu" "typescript" "$cfg"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_stack_skills : injecte typescript pour developer-frontend" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-frontend" "typescript" "$cfg"
+  echo "$output" | grep -q "dev-standards-typescript"
+}
+
+@test "resolve_stack_skills : injecte react pour developer-frontend" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-frontend" "react" "$cfg"
+  echo "$output" | grep -q "dev-standards-react"
+}
+
+@test "resolve_stack_skills : n'injecte pas nestjs pour developer-frontend (hors scope)" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-frontend" "nestjs" "$cfg"
+  ! echo "$output" | grep -q "dev-standards-nestjs"
+}
+
+@test "resolve_stack_skills : injecte nestjs pour developer-backend" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-backend" "nestjs" "$cfg"
+  echo "$output" | grep -q "dev-standards-nestjs"
+}
+
+@test "resolve_stack_skills : n'injecte pas vue pour developer-backend (hors scope)" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-backend" "vue" "$cfg"
+  ! echo "$output" | grep -q "dev-standards-vuejs"
+}
+
+@test "resolve_stack_skills : injecte react ET nextjs pour la stack next" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-frontend" "next" "$cfg"
+  echo "$output" | grep -q "dev-standards-react"
+  echo "$output" | grep -q "dev-standards-nextjs"
+}
+
+@test "resolve_stack_skills : déduplique les skills sur stacks multiples" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  # next inclut react, react tout seul aussi → dev-standards-react ne doit apparaître qu'une fois
+  run resolve_stack_skills "developer-frontend" "$(printf 'next\nreact')" "$cfg"
+  local react_count
+  react_count=$(echo "$output" | grep -c "dev-standards-react" || true)
+  [ "$react_count" -eq 1 ]
+}
+
+@test "resolve_stack_skills : developer-fullstack reçoit frontend ET backend" {
+  local cfg="$TEST_DIR/stack-skills.json"
+  _make_stack_config "$cfg"
+  run resolve_stack_skills "developer-fullstack" "$(printf 'react\nnestjs')" "$cfg"
+  echo "$output" | grep -q "dev-standards-react"
+  echo "$output" | grep -q "dev-standards-nestjs"
+}
+
+# ── build_agent_content avec project_path ─────────────────────────────────────
+
+@test "build_agent_content : n'injecte pas les stack skills quand project_path est vide" {
+  # Créer un skill stack pour s'assurer qu'il n'est PAS injecté sans project_path
+  mkdir -p "$TEST_DIR/skills/developer/stacks"
+  cat > "$TEST_DIR/skills/developer/stacks/dev-standards-typescript.md" <<'EOF'
+---
+name: dev-standards-typescript
+description: TypeScript skill
+---
+
+# TypeScript stack skill
+EOF
+  run build_agent_content "$TEST_DIR/agents/test-agent.md" "opencode" ""
+  [ "$status" -eq 0 ]
+  # Le skill stack ne doit pas apparaître (project_path vide → pas de détection)
+  ! echo "$output" | grep -q "TypeScript stack skill"
+}
+
+@test "build_agent_content : injecte les stack skills quand project_path est fourni avec la bonne stack" {
+  # Créer le skill stack dans le SKILLS_DIR de test
+  mkdir -p "$TEST_DIR/skills/developer/stacks"
+  cat > "$TEST_DIR/skills/developer/stacks/dev-standards-typescript.md" <<'EOF'
+---
+name: dev-standards-typescript
+description: TypeScript skill
+---
+
+# TypeScript stack skill content
+EOF
+
+  # Créer un projet TypeScript ISOLÉ (pas de sous-dossiers qui déclencheraient terraform/k8s detect)
+  local proj
+  proj=$(mktemp -d)
+  cat > "$proj/package.json" <<'EOF'
+{ "devDependencies": { "typescript": "^5.0.0" } }
+EOF
+
+  # Créer un agent developer-frontend (dans le scope pour typescript)
+  cat > "$TEST_DIR/agents/developer-frontend.md" <<'EOF'
+---
+id: developer-frontend
+label: DeveloperFrontend
+description: Agent frontend
+targets: [opencode]
+skills: [developer/test-skill]
+---
+
+# DeveloperFrontend
+EOF
+
+  # Créer un stack-skills.json minimal dans HUB_DIR de test
+  mkdir -p "$TEST_DIR/config"
+  cat > "$TEST_DIR/config/stack-skills.json" <<'EOF'
+{
+  "language": { "typescript": ["developer/stacks/dev-standards-typescript"] },
+  "_agent_scope": { "developer-frontend": ["language"] }
+}
+EOF
+
+  # Surcharger HUB_DIR pour pointer vers TEST_DIR
+  HUB_DIR="$TEST_DIR"
+
+  run build_agent_content "$TEST_DIR/agents/developer-frontend.md" "opencode" "" "$proj"
+  rm -rf "$proj"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "TypeScript stack skill content"
+}
+
+@test "build_agent_content : ne duplique pas un skill déjà dans le frontmatter" {
+  # Créer un skill stack identique à un skill déclaré en frontmatter
+  mkdir -p "$TEST_DIR/skills/developer/stacks"
+  cat > "$TEST_DIR/skills/developer/stacks/dev-standards-typescript.md" <<'EOF'
+---
+name: dev-standards-typescript
+description: TypeScript skill
+---
+
+# TypeScript unique
+EOF
+
+  local proj
+  proj=$(mktemp -d)
+  cat > "$proj/package.json" <<'EOF'
+{ "devDependencies": { "typescript": "^5.0.0" } }
+EOF
+
+  # Agent qui déclare DÉJÀ developer/stacks/dev-standards-typescript dans son frontmatter
+  cat > "$TEST_DIR/agents/agent-with-ts.md" <<'EOF'
+---
+id: agent-with-ts
+label: AgentWithTs
+description: Agent qui déclare déjà typescript
+targets: [opencode]
+skills: [developer/stacks/dev-standards-typescript]
+---
+
+# AgentWithTs
+EOF
+
+  mkdir -p "$TEST_DIR/config"
+  cat > "$TEST_DIR/config/stack-skills.json" <<'EOF'
+{
+  "language": { "typescript": ["developer/stacks/dev-standards-typescript"] },
+  "_agent_scope": { "agent-with-ts": ["language"] }
+}
+EOF
+
+  HUB_DIR="$TEST_DIR"
+
+  run build_agent_content "$TEST_DIR/agents/agent-with-ts.md" "opencode" "" "$proj"
+  rm -rf "$proj"
+  [ "$status" -eq 0 ]
+  # "TypeScript unique" ne doit apparaître qu'une seule fois
+  local count
+  count=$(echo "$output" | grep -c "TypeScript unique" || true)
+  [ "$count" -eq 1 ]
 }
