@@ -138,7 +138,6 @@
     ]
   },
   "_agent_scope": {
-    "_comment": "Filtrage des catégories de skills par type d'agent. Seules les catégories listées sont injectées pour un agent donné.",
     "developer-frontend": ["language", "frontend", "test", "api-spec"],
     "developer-backend": ["language", "backend", "orm", "test", "api-spec"],
     "developer-fullstack": ["language", "frontend", "backend", "orm", "test", "api-spec"],

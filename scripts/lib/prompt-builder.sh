@@ -406,12 +406,13 @@ precompute_stack_skills() {
   jq -r --argjson stacks "$stacks_json" '
     . as $conf |
     ($conf._agent_scope // {}) | to_entries[] |
+    select(.value | type == "array") |
     .key as $agent |
     .value[] as $cat |
     $stacks[] as $stack |
     ($conf[$cat][$stack] // [])[] |
     "\($agent):\(.)"
-  ' "$config_file" 2>/dev/null | sort -u
+  ' "$config_file" 2>/dev/null | sort -u || true
 }
 
 # Filtre les lignes "agent_id:skill" précalculées pour un agent donné.
