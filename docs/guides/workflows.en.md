@@ -146,8 +146,10 @@ Then a short structured question: **"Which workflow mode?"** — Manual / Semi-a
 The orchestrator first handles `spec-*` and `audit` tickets:
 
 - Invokes `ux-designer` → UX spec produced → **[CP-spec]** validate / revise / skip
+  - The designer returns a structured block `## Return to orchestrator` with the complete spec, implementation constraints, and open points. The orchestrator validates the presence of this block before proceeding.
 - Invokes `ui-designer` → UI spec produced → **[CP-spec]** validate / revise / skip
 - Invokes `auditor-security` → audit report → **[CP-audit]** fix / accept / skip
+  - The auditor returns a structured block with the vulnerability table by severity, prioritized recommendations, residual risk, and a status (`corrections-required` / `acceptable` / `blocking`).
   - If "fix": a correction ticket is added to the dev list
 
 #### 5. Implementation phase via orchestrator-dev
@@ -157,10 +159,13 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 
 1. Presents each ticket `[CP-1]` (automatic in semi-auto/auto)
 2. Identifies the agent via the routing matrix and delegates
-3. Offers QA `[CP-QA]` (automatic in auto mode if enabled at CP-0 — automatically skipped if the ticket carries the `tdd` label)
-4. Launches review automatically after implementation (± QA)
-5. Presents the review report `[CP-2]` — **always a pause, no exception**
-6. Closes and moves to the next `[CP-3]` (automatic in semi-auto/auto)
+3. Developer returns a structured `## Return to orchestrator-dev` block — files modified, acceptance criteria checked, **points of attention for the review** (fragile zones, technical trade-offs)
+4. Offers QA `[CP-QA]` (automatic in auto mode if enabled at CP-0 — automatically skipped if the ticket carries the `tdd` label); the qa-engineer returns a structured block with tests written and acceptance criteria coverage
+5. Launches review automatically — passing the developer's points of attention to the reviewer
+6. Reviewer returns a structured block with an **actionable verdict** (`commit` / `fix` / `fix-security`), problem summary by severity, and required corrections verbatim
+7. Presents the review report `[CP-2]` — **always a pause, no exception**
+8. If "fix": corrections are copied verbatim into the Beads comment — no manual summary; routing to `developer-security` if the verdict is `fix-security`
+9. Closes and moves to the next `[CP-3]` (automatic in semi-auto/auto)
 
 > **Subagent questions:** when a subagent (planner, ux-designer, reviewer…) asks a question,
 > it surfaces in the parent session with a context block identifying the agent and current phase —
@@ -331,20 +336,23 @@ Login with non-existent email throws a TypeError in production.
 Expected behaviour: return an explicit 401 error.
 Frequency: systematic.
 
-### Probable location
-`src/services/user.service.ts:47`
+### Root cause
+Method `findById` returns `null` when the user doesn't exist,
+but line 47 directly accesses `.email` without prior null guard.
 
-### Main hypothesis — high probability
-The `findById` method returns `null` when the user doesn't exist,
-but line 47 directly accesses `.email` without prior validation.
+Certainty level: confirmed
+Causal chain:
+1. Login request with non-existent email
+2. `UserRepository.findByEmail` returns `null`
+3. `UserService.findById` accesses `.email` on the null value → TypeError
 
-Supporting evidence:
-- The stacktrace points precisely to `user.service.ts:47`
-- The message "Cannot read properties of null" confirms a null access
+### Explored hypotheses
+- Race condition in the repository: eliminated — error is systematic, not intermittent
+- Missing null guard before line 47: confirmed — no guard found in the call chain
 
-To confirm:
-- Check if `UserRepository.findByEmail` can return null
-- Search for null guards on the return value before line 47
+### Impact and potential regressions
+- All login attempts with non-existent email result in an unhandled TypeError
+- The error propagates to the HTTP layer as a 500 rather than a clean 401
 
 ### Suggested correction ticket
 Title: Fix missing null guard in UserService.findById

@@ -6,7 +6,7 @@ mode: primary
 permission:
   question: allow
 targets: [opencode, claude-code]
-skills: [developer/dev-standards-universal, developer/dev-standards-testing, developer/dev-standards-git, posture/expert-posture, posture/tool-question, qa/qa-protocol]
+skills: [developer/dev-standards-universal, developer/dev-standards-testing, developer/dev-standards-git, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
 ---
 
 # QAEngineer

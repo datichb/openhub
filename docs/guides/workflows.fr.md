@@ -144,8 +144,10 @@ Puis une question structurée (courte) : **"Quel mode de workflow ?"** — Manue
 L'orchestrateur traite d'abord les tickets de type `spec-*` et `audit` :
 
 - Invoque `ux-designer` → spec UX produite → **[CP-spec]** valider / réviser / ignorer
+  - L'agent design retourne un bloc structuré `## Retour vers orchestrator` avec la spec complète, les contraintes d'implémentation et les points ouverts. L'orchestrateur valide la présence de ce bloc avant de continuer.
 - Invoque `ui-designer` → spec UI produite → **[CP-spec]** valider / réviser / ignorer
 - Invoque `auditor-security` → rapport d'audit → **[CP-audit]** corriger / accepter / ignorer
+  - L'auditeur retourne un bloc structuré avec le tableau des vulnérabilités par sévérité, les recommandations priorisées, le risque résiduel et un statut (`corrections-requises` / `acceptable` / `bloquant`).
   - Si "corriger" : un ticket de correction est ajouté à la liste dev
 
 #### 5. Phase implémentation via orchestrator-dev
@@ -155,10 +157,13 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 
 1. Présente chaque ticket `[CP-1]` (automatique en semi-auto/auto)
 2. Identifie l'agent via la matrice de routing et délègue
-   3. Propose le QA `[CP-QA]` (automatique en mode auto si activé au CP-0 — skippé automatiquement si le ticket porte le label `tdd`)
-4. Lance la review automatiquement après implémentation (± QA)
-5. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
-6. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
+3. Le developer retourne un bloc structuré `## Retour vers orchestrator-dev` — fichiers modifiés, critères d'acceptance cochés, **points d'attention pour la review** (zones fragiles, compromis techniques)
+4. Propose le QA `[CP-QA]` (automatique en mode auto si activé au CP-0 — skippé automatiquement si le ticket porte le label `tdd`) ; le qa-engineer retourne un bloc structuré avec les tests écrits et la couverture des critères d'acceptance
+5. Lance la review automatiquement — en transmettant les points d'attention du developer au reviewer
+6. Le reviewer retourne un bloc structuré avec un **verdict actionnable** (`commit` / `corriger` / `corriger-sécurité`), une synthèse des problèmes par sévérité et les corrections requises verbatim
+7. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
+8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`
+9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
 
 > **Questions des sous-agents :** quand un sous-agent (planner, ux-designer, reviewer…) pose une question,
 > elle remonte dans la session parente avec un bloc de contexte identifiant l'agent et la phase en cours —
@@ -329,20 +334,23 @@ Login avec email inexistant lève une TypeError en production.
 Comportement attendu : retourner une erreur 401 explicite.
 Fréquence : systématique.
 
-### Localisation probable
-`src/services/user.service.ts:47`
-
-### Hypothèse principale — haute probabilité
+### Cause racine
 La méthode `findById` retourne `null` quand l'utilisateur n'existe pas,
-mais la ligne 47 accède directement à `.email` sans vérification préalable.
+mais la ligne 47 accède directement à `.email` sans guard null préalable.
 
-Éléments qui l'étayent :
-- La stacktrace pointe précisément sur `user.service.ts:47`
-- Le message "Cannot read properties of null" confirme un accès sur null
+Niveau de certitude : confirmé
+Chaîne causale :
+1. Requête de login avec email inexistant
+2. `UserRepository.findByEmail` retourne `null`
+3. `UserService.findById` accède à `.email` sur la valeur null → TypeError
 
-Pour confirmer :
-- Vérifier si `UserRepository.findByEmail` peut retourner null
-- Chercher les guards null sur la valeur de retour avant la ligne 47
+### Hypothèses explorées
+- Race condition dans le repository : écartée — l'erreur est systématique, pas intermittente
+- Guard null manquant avant la ligne 47 : confirmée — aucun guard dans la chaîne d'appel
+
+### Impact et régressions potentielles
+- Toutes les tentatives de login avec email inexistant génèrent une TypeError non gérée
+- L'erreur se propage vers la couche HTTP comme un 500 au lieu d'un 401 propre
 
 ### Ticket de correction suggéré
 Titre : Corriger l'absence de guard null dans UserService.findById

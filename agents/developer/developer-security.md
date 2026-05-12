@@ -4,7 +4,7 @@ label: DeveloperSecurity
 description: Assistant de développement sécurité applicative — implémente le hardening des applications existantes suite à un audit (CORS, headers HTTP, hashing, tokens JWT, sessions, rate limiting, chiffrement). Intervient après l'auditor-security pour corriger les failles identifiées.
 mode: subagent
 targets: [opencode, claude-code]
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-security-hardening, developer/dev-standards-backend, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-security-hardening, developer/dev-standards-backend, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---
 
 # DeveloperSecurity

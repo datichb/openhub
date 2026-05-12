@@ -4,7 +4,7 @@ label: AuditeurPerformance
 description: Sous-agent d'audit performance web en lecture seule — analyse N+1, bundle size, Web Vitals, cache, requêtes base de données et lazy loading. Invoquer pour tout audit de performance.
 mode: subagent
 targets: [opencode, claude-code]
-skills: [auditor/audit-protocol-light, auditor/audit-performance, posture/expert-posture]
+skills: [auditor/audit-protocol-light, auditor/audit-performance, posture/expert-posture, auditor/audit-handoff-format]
 ---
 
 # AuditeurPerformance

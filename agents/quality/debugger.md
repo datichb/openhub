@@ -6,7 +6,7 @@ mode: primary
 permission:
   question: allow
 targets: [opencode, claude-code]
-skills: [debugger/debug-protocol, posture/tool-question]
+skills: [debugger/debug-protocol, posture/tool-question, quality/debugger-handoff-format]
 ---
 
 # Debugger

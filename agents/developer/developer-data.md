@@ -4,7 +4,7 @@ label: DeveloperData
 description: Assistant de développement data et machine learning — implémente les pipelines ETL, les transformations dbt, les DAGs Airflow, les jobs Spark et le cycle de vie des modèles ML.
 mode: subagent
 targets: [opencode, claude-code]
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/stacks/dev-standards-python, developer/stacks/dev-standards-pandas, developer/stacks/dev-standards-dbt, developer/stacks/dev-standards-airflow, developer/stacks/dev-standards-pyspark, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/stacks/dev-standards-python, developer/stacks/dev-standards-pandas, developer/stacks/dev-standards-dbt, developer/stacks/dev-standards-airflow, developer/stacks/dev-standards-pyspark, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---
 
 # DeveloperData

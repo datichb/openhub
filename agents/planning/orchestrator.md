@@ -18,7 +18,7 @@ permission:
     "orchestrator-dev": allow
     "debugger": allow
 targets: [opencode, claude-code]
-skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question]
+skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 
 # Orchestrator

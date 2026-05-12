@@ -46,6 +46,7 @@ Development standards skills. Shared between developer agents and the reviewer.
 | `developer/dev-standards-devops.md` | developer-devops | Shell scripts, secrets management, image registries, observability, IaC principles — **tool-agnostic** |
 | `developer/dev-standards-api.md` | developer-api | API versioning, pagination, uniform response format, HTTP codes, idempotency, schema-first contract, breaking changes, webhooks, rate limiting |
 | `developer/dev-standards-security-hardening.md` | developer-security | CORS, HTTP headers (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, revocation), sessions (httpOnly/secure/sameSite), rate limiting, AES-256-GCM encryption |
+| `developer/developer-handoff-format.md` | All developer-*, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: files modified, tests written, Beads status `review`, acceptance criteria checked one by one, points of attention for the reviewer, blockers encountered, status (`implemented` / `partially-implemented` / `blocked`) |
 
 ### Stack-specific skills — `developer/stacks/`
 
@@ -157,6 +158,7 @@ Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
 | `auditor/audit-architecture.md` | auditor-architecture | SOLID, Clean Architecture, technical debt, coupling, cohesion |
 | `auditor/audit-privacy.md` | auditor-privacy | GDPR articles 5/6/17/25/32, EDPB, CNIL, minimisation, consent |
 | `auditor/audit-observability.md` | auditor-observability | RED method (Rate/Errors/Duration), structured logs, OpenTelemetry, SLOs/error budget, alerting (actionable, runbooks), dashboards, 5-question grid |
+| `auditor/audit-handoff-format.md` | all auditor-*, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: audited scope, vulnerability table by severity, prioritized recommendations with effort estimate, residual risk, status (`corrections-required` / `acceptable` / `blocking`) |
 
 ---
 
@@ -164,8 +166,10 @@ Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `orchestrator/orchestrator-protocol.md` | orchestrator | Full feature workflow, routing matrix (3 families: design, auditor, dev via orchestrator-dev), checkpoint format ([CP-0], [CP-spec], [CP-audit], [CP-feature]), edge case handling |
-| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Beads ticket-by-ticket workflow, developer-* routing matrix (9 signals → 9 agents), checkpoint format ([CP-1] to [CP-3] + [CP-QA]), 3 modes (manual/semi-auto/auto), `tdd` label detection (CP-QA automatically skipped — tests written by the developer in red/green/refactor), step summary and global recap format |
+| `orchestrator/orchestrator-protocol.md` | orchestrator | Full feature workflow, routing matrix (3 families: design, auditor, dev via orchestrator-dev), checkpoint format ([CP-0], [CP-spec], [CP-audit], [CP-feature]), edge case handling, structured return validation for each sub-agent type |
+| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Beads ticket-by-ticket workflow, developer-* routing matrix (9 signals → 9 agents), checkpoint format ([CP-1] to [CP-3] + [CP-QA]), 3 modes (manual/semi-auto/auto), `tdd` label detection (CP-QA automatically skipped — tests written by the developer in red/green/refactor), structured return exploitation (developer points-of-attention → reviewer, QA non-covered criteria → reviewer, reviewer corrections verbatim → Beads comment), step summary and global recap format |
+| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Handoff contract** — two formats: `## Return to orchestrator` (end of session: tickets handled, attention points, global status `success`/`partial`/`blocked`) and `## Question for the orchestrator` (high-stakes CPs: CP-2, 3-cycle blockage, unresolved dependency, blocked ticket — full context, waiting question, options, `task_id` for session resumption) |
+| `orchestrator/orchestrator-workflow-modes.md` | orchestrator, orchestrator-dev | Single source of truth for the 3 workflow modes (manual/semi-auto/auto) — canonical question blocks, absolute rules per mode |
 
 ---
 
@@ -174,6 +178,7 @@ Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
 | File | Agents using it | Content |
 |------|----------------|---------|
 | `qa/qa-protocol.md` | qa-engineer | Test types (unit/integration/E2E/component), tools by stack, systematic checklist (nominal/error/edge cases/acceptance), coverage report format, AAA structure |
+| `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: tests written with files and covered cases, acceptance criteria checked, non-testable zones, status (`complete-coverage` / `partial-coverage` / `non-testable`) |
 
 ---
 
@@ -185,11 +190,22 @@ Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
 
 ---
 
+## Domain — `quality/`
+
+Quality skills for agents that are not qa-engineer or reviewer.
+
+| File | Agents using it | Content |
+|------|----------------|---------|
+| `quality/debugger-handoff-format.md` | debugger, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: root cause with certainty level (confirmed/probable/uncertain) + causal chain, explored hypotheses, impact and potential regressions, correction tickets created, emergency actions if bug in production, status (`diagnosed` / `partially-diagnosed` / `non-reproducible`) |
+
+---
+
 ## Domain — `reviewer/`
 
 | File | Agents using it | Content |
 |------|----------------|---------|
 | `reviewer/review-protocol.md` | reviewer | Review report format (Critical/Major/Minor/Suggestion/Positive points/Out of scope), 4 severity levels, systematic 6-category checklist, individual comment format, "full audit" mode |
+| `reviewer/reviewer-handoff-format.md` | reviewer, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: actionable verdict (`commit` / `fix` / `fix-security`), problem summary by severity, required corrections verbatim (pasted directly into Beads comment), recommended routing (`return-initial` / `developer-security`), status (`approved` / `corrections-required` / `blocking-security`) |
 
 ---
 
@@ -214,6 +230,8 @@ Documentation skills. Used by the `documentarian` agent.
 | `planning/planner.md` | planner | Phase 0 (codebase exploration + existing tickets + context summary), Phase 1 (contextualised questions + justified priority deduction), Phase 2 (hierarchical plan epics → tickets, >5 tickets rule), Phase 3 (creation with `--parent`, `--deps`, `--estimate`), Phase 4 (`bd children` verification), edge case handling (scope change, split, late dependency, duplicate) |
 | `planning/project-discovery.md` | onboarder | Stack detection (manifests, CI, infra), adaptive exploration by profile (Vue, React, Node.js, Python, API, Data/ML, DevOps, Mobile), context report format (stack, architecture, patterns, 🔴/🟠/🟡, blind spots, questions, agent map), agent recommendation matrix (priority by risk + recommended by stack + optional), `projects.md` update protocol |
 | `planning/project-conventions.md` | onboarder | Project-specific naming conventions and contribution standards, rules detected from the codebase (branches, commits, PRs, tickets) |
+| `planning/planner-handoff-format.md` | planner, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete tickets table with planned agent and dependencies, hypotheses and ambiguities, global estimate, identified risks, status (`complete-planning` / `partial-planning` / `blocked`) |
+| `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: detected tech stack (languages, frameworks, DB, infra, tools, key versions), identified conventions, technical debt (🔴/🟠/🟡), uncertainty zones, context files produced (`ONBOARDING.md`, `CONVENTIONS.md`), status (`context-established` / `partial-context` / `blocked`) |
 
 ---
 
@@ -225,6 +243,16 @@ Design skills. Used by the `ux-designer` and `ui-designer` agents.
 |------|----------------|---------|
 | `designer/ux-protocol.md` | ux-designer | Nielsen heuristics (10 principles), 5-question UX grid, user flow format (nominal/alternatives/errors), UX spec format with acceptance criteria, friction audit protocol |
 | `designer/ui-protocol.md` | ui-designer | Design tokens (colours, typography, spacing, radius, shadows), component spec format (variants/states/tokens/do-don't), visual consistency rules, inconsistency audit protocol, typographic modular scale |
+
+---
+
+## Domain — `design/`
+
+Handoff skills for design agents. Injected in the design agent (producer) and in `orchestrator` (consumer).
+
+| File | Agents using it | Content |
+|------|----------------|---------|
+| `design/design-handoff-format.md` | ux-designer, ui-designer, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete spec (never summarized), implementation constraints, open points, rejected alternatives, status (`complete-spec` / `partial-spec` / `blocked`) — produced only when invoked from the orchestrator, after explicit user validation |
 
 ---
 
@@ -242,39 +270,73 @@ Cross-cutting posture skills. Injectable into any agent requiring an expert post
 ## Agent ↔ skills dependency matrix
 
 > **Note:** Stack-specific skills from `developer/stacks/` are injected **dynamically** at deploy time based on the target project's stack. Only the statically declared skills are listed below. See `config/stack-skills.json` for the complete mapping.
+> **Handoff skills** are marked with `†` — injected in both the producing agent and the consuming agent to guarantee the shared contract.
 
 ```
 orchestrator          → orchestrator/orchestrator-protocol,
-                         developer/beads-plan, posture/tool-question
+                         orchestrator/orchestrator-workflow-modes,
+                         orchestrator/orchestrator-handoff-format,
+                         developer/beads-plan, posture/tool-question,
+                         design/design-handoff-format †,
+                         auditor/audit-handoff-format †,
+                         planning/planner-handoff-format †,
+                         planning/onboarder-handoff-format †,
+                         quality/debugger-handoff-format †
 orchestrator-dev      → orchestrator/orchestrator-dev-protocol,
-                         posture/tool-question
+                         orchestrator/orchestrator-handoff-format,
+                         orchestrator/orchestrator-workflow-modes,
+                         posture/tool-question,
+                         developer/developer-handoff-format †,
+                         reviewer/reviewer-handoff-format †,
+                         qa/qa-handoff-format †
 onboarder             → planning/project-discovery, planning/project-conventions,
                          posture/expert-posture, posture/tool-question,
-                         developer/beads-plan, developer/dev-standards-git
+                         developer/beads-plan, developer/dev-standards-git,
+                         planning/onboarder-handoff-format †
 planner               → developer/beads-plan, planning/planner,
-                         posture/expert-posture, posture/tool-question
+                         posture/expert-posture, posture/tool-question,
+                         planning/planner-handoff-format †
 reviewer              → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
                          dev-standards-frontend, dev-standards-frontend-a11y,
                          dev-standards-testing,
                          dev-standards-git, reviewer/review-protocol,
-                         posture/tool-question
+                         posture/tool-question,
+                         reviewer/reviewer-handoff-format †
 qa-engineer           → dev-standards-universal, dev-standards-testing,
                          dev-standards-git, posture/expert-posture,
-                         posture/tool-question, qa/qa-protocol
-debugger              → debugger/debug-protocol, posture/tool-question
+                         posture/tool-question, qa/qa-protocol,
+                         qa/qa-handoff-format †
+debugger              → debugger/debug-protocol, posture/tool-question,
+                         quality/debugger-handoff-format †
 auditor               → auditor/audit-protocol, posture/tool-question
-auditor-security      → auditor/audit-protocol-light, auditor/audit-security, posture/expert-posture
-auditor-performance   → auditor/audit-protocol-light, auditor/audit-performance, posture/expert-posture
-auditor-accessibility → auditor/audit-protocol-light, auditor/audit-accessibility, posture/expert-posture
-auditor-ecodesign     → auditor/audit-protocol-light, auditor/audit-ecodesign, posture/expert-posture
-auditor-architecture  → auditor/audit-protocol-light, auditor/audit-architecture, posture/expert-posture
-auditor-privacy       → auditor/audit-protocol-light, auditor/audit-privacy, posture/expert-posture
-auditor-observability → auditor/audit-protocol-light, auditor/audit-observability, posture/expert-posture
+auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-performance   → auditor/audit-protocol-light, auditor/audit-performance,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-accessibility → auditor/audit-protocol-light, auditor/audit-accessibility,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-ecodesign     → auditor/audit-protocol-light, auditor/audit-ecodesign,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-architecture  → auditor/audit-protocol-light, auditor/audit-architecture,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-privacy       → auditor/audit-protocol-light, auditor/audit-privacy,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
+auditor-observability → auditor/audit-protocol-light, auditor/audit-observability,
+                         posture/expert-posture,
+                         auditor/audit-handoff-format †
 ux-designer           → designer/ux-protocol, developer/beads-plan, developer/beads-dev,
-                         posture/expert-posture, posture/tool-question
+                         posture/expert-posture, posture/tool-question,
+                         design/design-handoff-format †
 ui-designer           → designer/ui-protocol, developer/beads-plan, developer/beads-dev,
-                         posture/expert-posture, posture/tool-question
+                         posture/expert-posture, posture/tool-question,
+                         design/design-handoff-format †
 documentarian         → dev-standards-git, beads-plan, beads-dev,
                          documentarian/doc-protocol, documentarian/doc-standards,
                          documentarian/doc-adr, documentarian/doc-api,
@@ -284,49 +346,58 @@ developer-frontend    → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend,
                          dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev
+                         beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: language, frontend, test, api-spec] (dynamic)
 developer-backend     → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
                          dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev
+                         beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: language, backend, orm, test, api-spec] (dynamic)
 developer-fullstack   → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend,
                          dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-backend, dev-standards-testing,
-                         dev-standards-git, beads-plan, beads-dev
+                         dev-standards-git, beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: language, frontend, backend, orm, test, api-spec] (dynamic)
 developer-data        → dev-standards-universal, dev-standards-security,
                          stacks/dev-standards-python,
                          stacks/dev-standards-pandas, stacks/dev-standards-dbt,
                          stacks/dev-standards-airflow, stacks/dev-standards-pyspark,
-                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev
+                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: language, data, test] (dynamic)
 developer-devops      → dev-standards-universal, dev-standards-security,
                          dev-standards-devops,
                          stacks/dev-standards-docker, stacks/dev-standards-github-actions,
                          stacks/dev-standards-gitlab-ci,
-                         dev-standards-git, beads-plan, beads-dev
+                         dev-standards-git, beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: infra] (dynamic)
 developer-mobile      → dev-standards-universal, dev-standards-security,
                          stacks/dev-standards-react-native, stacks/dev-standards-flutter,
                          stacks/dev-standards-swift, stacks/dev-standards-kotlin,
-                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev
+                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: mobile, test] (dynamic)
 developer-api         → dev-standards-universal, dev-standards-security,
                          dev-standards-backend, dev-standards-api,
                          dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev
+                         beads-plan, beads-dev,
+                         developer/developer-handoff-format †
 developer-platform    → dev-standards-universal, dev-standards-security,
                          dev-standards-devops,
                          stacks/dev-standards-terraform, stacks/dev-standards-kubernetes,
                          stacks/dev-standards-helm, stacks/dev-standards-argocd,
-                         dev-standards-git, beads-plan, beads-dev
+                         dev-standards-git, beads-plan, beads-dev,
+                         developer/developer-handoff-format †
                          + [stacks: infra] (dynamic)
 developer-security    → dev-standards-universal, dev-standards-security,
                          dev-standards-security-hardening,
                          dev-standards-backend,
                          dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev
+                         beads-plan, beads-dev,
+                         developer/developer-handoff-format †
 ```

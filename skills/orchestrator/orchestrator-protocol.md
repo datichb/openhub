@@ -48,6 +48,11 @@ Invoquer le `debugger` en lui transmettant :
 - Le problème tel que décrit par l'utilisateur (verbatim)
 - Tout contexte disponible (fichier mentionné, comportement attendu vs observé, stacktrace)
 
+À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
+- **Présent** → afficher l'intégralité du bloc dans la discussion. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées, puis l'`### Impact et régressions potentielles`. Proposer à l'utilisateur d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable.
+- **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
+Le format attendu et les définitions des statuts du debugger sont définis dans le skill `quality/debugger-handoff-format` — s'y référer comme source de vérité.
+
 ⚠️ Ne jamais tenter de :
 - Lire les fichiers concernés pour comprendre le bug
 - Formuler une hypothèse de cause racine
@@ -90,6 +95,11 @@ question({
 
 - **Oui** → Invoquer l'`onboarder`, attendre le rapport complet.
 
+  À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
+  - **Présent** → afficher l'intégralité du bloc dans la discussion avant de poser le CP-onboard. Présenter les `### Zones d'incertitude` et la `### Dette technique détectée` à l'utilisateur pour décision.
+  - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
+  Le format attendu et les définitions des statuts de l'onboarder sont définis dans le skill `planning/onboarder-handoff-format` — s'y référer comme source de vérité.
+
   **[CP-onboard]** — Après le rapport, utiliser l'outil `question` :
 
   ```
@@ -119,13 +129,13 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
    > « Je délègue la planification au `planner` pour la feature : <nom de la feature>.
    > Le planner va explorer le projet et poser des questions de contexte — elles apparaîtront ici avec leur contexte identifié. »
 
-2. Le planner crée les tickets et présente son récapitulatif.
+2. À la réception du résultat du `planner`, **détecter la présence du bloc `## Retour vers orchestrator`** :
+   - **Présent** → utiliser le tableau `### Tickets créés` comme source de vérité. Présenter les `### Hypothèses et ambiguïtés` et les `### Risques identifiés` à l'utilisateur dans le texte du CP-0, avant la question.
+   - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
+   Le format attendu, les champs obligatoires et les définitions des statuts du planner sont définis dans le skill `planning/planner-handoff-format` — s'y référer comme source de vérité.
 
-3. Récupérer les IDs créés :
-   ```bash
-   bd list --status open --json
-   ```
-   Pour chaque ticket, noter la présence du label `tdd` via `bd show <ID>`.
+3. Récupérer les IDs créés depuis le bloc `### Tickets créés` du retour planner.
+   Pour chaque ticket, noter la présence du label `tdd` depuis la colonne `TDD` du tableau.
 
 4. **[CP-0]** — voir section CP-0 ci-dessous.
 
@@ -232,9 +242,13 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    - L'ID du ticket (`bd show <ID>`)
    - Le contexte global de la feature
 
-3. L'agent produit la spec (user flow + spec UX, ou tokens + spec composant).
+3. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
+   - **Présent** → afficher la `### Spec produite` intégralement dans la discussion. Signaler les `### Points ouverts` et les `### Contraintes d'implémentation` avant de poser le CP-spec.
+   - **Absent** → demander explicitement à l'agent design de produire le récapitulatif structuré avant de continuer.
+   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `design/design-handoff-format` — s'y référer comme source de vérité.
+   > ❌ Ne jamais résumer ni abréger la spec avant de la présenter à l'utilisateur au CP-spec.
 
-4. [CP-spec] Afficher la spec produite, puis utiliser l'outil `question` :
+4. [CP-spec] Afficher la spec produite (via le champ `### Spec produite` du retour), puis utiliser l'outil `question` :
 
    ```
    question({
@@ -248,7 +262,7 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    })
    ```
 
-- **Valider** → transmettre la spec validée à `orchestrator-dev` pour implémentation
+- **Valider** → transmettre la spec validée **et les `### Contraintes d'implémentation`** à `orchestrator-dev` pour implémentation
 - **Réviser** → retourner à l'agent design avec les corrections, incrémenter le compteur de révisions, nouveau CP-spec
 
   **Compteur de révisions :** maintenir un compteur interne par ticket spec.
@@ -280,9 +294,13 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    - L'ID du ticket (`bd show <ID>`)
    - Le périmètre à auditer
 
-3. L'auditeur produit son rapport structuré.
+3. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
+   - **Présent** → afficher l'intégralité du bloc dans la discussion — notamment le `### Périmètre audité`, les `### Vulnérabilités / Problèmes identifiés` et le `### Risque résiduel si non corrigé`. Tenir compte du `### Statut` pour adapter la formulation du CP-audit.
+   - **Absent** → demander explicitement à l'agent auditeur de produire le récapitulatif structuré avant de continuer.
+   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `auditor/audit-handoff-format` — s'y référer comme source de vérité.
+   > ❌ Ne jamais résumer ni filtrer le rapport avant de le présenter à l'utilisateur au CP-audit.
 
-4. [CP-audit] Afficher le rapport, puis utiliser l'outil `question` :
+4. [CP-audit] Afficher le rapport (via le bloc retour), puis utiliser l'outil `question` :
 
    ```
    question({
@@ -296,7 +314,7 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    })
    ```
 
-- **Corriger** → transmettre le rapport à `orchestrator-dev` pour corrections
+- **Corriger** → transmettre les `### Recommandations priorisées` **intégralement** à `orchestrator-dev` pour corrections
 
   Quand `orchestrator-dev` retourne son récap de corrections, utiliser l'outil `question` :
 
@@ -327,7 +345,7 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
 2. Invoquer orchestrator-dev en transmettant :
    - La liste des tickets à implémenter
    - Le mode de workflow choisi en CP-0
-   - Le contexte : specs UX/UI validées et/ou rapports d'audit si applicable
+   - Le contexte complet : specs UX/UI validées (champ `### Spec produite`) + contraintes d'implémentation (champ `### Contraintes d'implémentation`) + rapports d'audit (champ `### Recommandations priorisées`) si applicable — transmettre intégralement, sans résumer
    - Les tickets portant le label `tdd` (déjà identifiés au CP-0)
 
 3. orchestrator-dev pilote l'implémentation complète (developer-* → QA → review).
@@ -517,3 +535,4 @@ question({
 - Modifier les tickets Beads sans validation de l'utilisateur
 - Résumer ou abréger les specs ou rapports d'audit — les transmettre intégralement
 - Diagnostiquer ou corriger un bug signalé — invoquer immédiatement le `debugger` sans analyse préalable
+- Construire un CP à partir d'un retour incomplet ou sans le bloc `## Retour vers orchestrator` attendu — demander explicitement à l'agent de le compléter

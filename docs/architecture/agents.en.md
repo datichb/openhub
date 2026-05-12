@@ -60,7 +60,7 @@ Agents that drive other agents without ever coding themselves.
 |--|--|
 | **Label** | Onboarder |
 | **File** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/project-discovery`, `planning/project-conventions`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git` |
+| **Skills** | `planning/project-discovery`, `planning/project-conventions`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `planning/onboarder-handoff-format` |
 | **Invocation** | `"Onboard yourself on this project"` / `"Discover this project"` / `"Before starting, explore the project"` |
 
 Project discovery agent. Explores an existing project's codebase and produces
@@ -82,7 +82,7 @@ Invocable directly, from `oc start` (suggestion displayed), or from the `orchest
 |--|--|
 | **Label** | Orchestrator |
 | **File** | `agents/planning/orchestrator.md` |
-| **Skills** | `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question` |
+| **Skills** | `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/planner-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format` |
 | **Invocation** | `"Implement [feature]"` / `"Handle tickets [IDs]"` |
 
 AI project manager. Drives the complete delivery of a feature by mobilizing all
@@ -110,7 +110,7 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 |--|--|
 | **Label** | OrchestratorDev |
 | **File** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `orchestrator/orchestrator-dev-protocol`, `posture/tool-question` |
+| **Skills** | `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-workflow-modes`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format` |
 | **Invocation** | `"Implement tickets [IDs]"` / `"Dev workflow for [feature]"` |
 
 AI tech lead specialized in driving implementation. Takes a list of ready-to-implement
@@ -153,7 +153,8 @@ Auditor's subagents. All read-only. Invocable directly or via the auditor.
 | `auditor-observability` | `agents/auditor/auditor-observability.md` | Observability | RED method, SLOs, OpenTelemetry, alerting |
 
 All audit agents inject `auditor/audit-protocol` (common report format)
-+ their domain-specific skill (`auditor/audit-<domain>`).
++ their domain-specific skill (`auditor/audit-<domain>`)
++ `auditor/audit-handoff-format` (structured return contract when invoked from the orchestrator).
 
 ---
 
@@ -162,7 +163,7 @@ All audit agents inject `auditor/audit-protocol` (common report format)
 9 agents specialized by technical domain. All follow the same Beads workflow
 (`bd claim → implement → test → bd close`).
 
-Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`.
+Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`.
 
 | Agent | File | Domain | Specific Skills |
 |-------|------|--------|----------------|
@@ -200,7 +201,7 @@ Never code. Invocable directly or via the `orchestrator`.
 |--|--|
 | **Label** | UXDesigner |
 | **File** | `agents/design/ux-designer.md` |
-| **Skills** | `designer/ux-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `designer/ux-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format` |
 | **Invocation** | `"Analyze the flow for [feature]"` / `"UX spec for [ticket]"` / `"UX audit of [screen]"` |
 
 User experience expert. Analyzes needs, identifies friction, produces textual user flows
@@ -220,7 +221,7 @@ into the plan (no `bd close` — the planner resumes control).
 |--|--|
 | **Label** | UIDesigner |
 | **File** | `agents/design/ui-designer.md` |
-| **Skills** | `designer/ui-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `designer/ui-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format` |
 | **Invocation** | `"UI spec for [component]"` / `"Design system [project]"` / `"Harmonize [screen]"` |
 
 Interface design expert. Defines design system foundations (tokens),
@@ -245,7 +246,7 @@ Agents dedicated to code quality, invocable standalone or via the orchestrator.
 |--|--|
 | **Label** | CodeReviewer |
 | **File** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question` |
+| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format` |
 | **Invocation** | Pasted diff / branch name / PR URL + optionally `bd show <ID>` |
 
 Analyzes PR/MR diffs. Produces a structured report by severity (Critical /
@@ -259,7 +260,7 @@ Major / Minor / Suggestion / Positive points). Read-only — never modifies file
 |--|--|
 | **Label** | QAEngineer |
 | **File** | `agents/quality/qa-engineer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol` |
+| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format` |
 | **Invocation** | `"Write tests for branch [X]"` / `"QA on ticket [ID]"` |
 
 Writes missing tests (unit / integration / E2E) from a diff or a
@@ -279,7 +280,7 @@ tests are written by the developer themselves before implementation (red/green/r
 |--|--|
 | **Label** | Debugger |
 | **File** | `agents/quality/debugger.md` |
-| **Skills** | `debugger/debug-protocol`, `posture/tool-question` |
+| **Skills** | `debugger/debug-protocol`, `posture/tool-question`, `quality/debugger-handoff-format` |
 | **Invocation** | `"This bug: [stacktrace]"` / `"Analyze these logs: [logs]"` |
 
 Diagnoses the root cause of a bug in 4 steps (reproduction → isolation →
@@ -299,7 +300,7 @@ Never fixes the bug.
 |--|--|
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `developer/beads-plan`, `planning/planner`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format` |
 | **Invocation** | Natural language feature description |
 
 Functional and technical consultant who analyzes the project context before planning.

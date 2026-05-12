@@ -99,6 +99,9 @@ Les skills sont organisés par domaine dans `skills/` :
 | `skills/debugger/` | Protocoles de diagnostic |
 | `skills/reviewer/` | Protocoles de review |
 | `skills/documentarian/` | Protocoles de documentation |
+| `skills/designer/` | Protocoles de design (ux-designer, ui-designer) |
+| `skills/design/` | Contrats de handoff design |
+| `skills/quality/` | Contrats de handoff qualité (debugger et agents hors `qa/` et `reviewer/`) |
 
 Pour un nouveau domaine, créer un nouveau sous-dossier.
 
@@ -136,6 +139,8 @@ Ajouter le chemin dans le frontmatter de l'agent (sans l'extension `.md`) :
 skills: [chemin/vers/mon-skill]
 ---
 ```
+
+**Skills de handoff :** si votre skill définit un format de retour structuré entre deux agents (un bloc `## Retour vers ...`), l'injecter dans **les deux** agents — l'agent producteur (celui qui produit le bloc) et l'agent consommateur (celui qui lit le bloc). Cela garantit que les deux agents partagent le même contrat. Voir `skills/reviewer/reviewer-handoff-format.md` ou `skills/auditor/audit-handoff-format.md` comme exemples.
 
 ---
 
@@ -226,6 +231,7 @@ oc agent list
 - [ ] Le skill a un frontmatter avec `name` et `description`
 - [ ] L'agent est référencé dans `README.md` et `docs/architecture/agents.fr.md`
 - [ ] Le skill est référencé dans `docs/architecture/skills.fr.md`
+- [ ] Si le skill définit un format de retour structuré : injecté dans l'agent producteur ET l'agent consommateur
 - [ ] Si décision architecturale : un ADR est créé dans `docs/architecture/adr/`
 - [ ] Le commit respecte les Conventional Commits
 - [ ] `oc deploy opencode` et `oc deploy --check opencode` passent sans erreur

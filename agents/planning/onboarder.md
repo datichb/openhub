@@ -6,7 +6,7 @@ mode: primary
 permission:
   question: allow
 targets: [opencode, claude-code]
-skills: [planning/project-discovery, planning/project-conventions, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git]
+skills: [planning/project-discovery, planning/project-conventions, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, planning/onboarder-handoff-format]
 ---
 
 # Onboarder

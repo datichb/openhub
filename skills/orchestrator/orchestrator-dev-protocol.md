@@ -219,6 +219,13 @@ question({
    (bd claim → **[TDD : tests rouges d'abord]** → implémenter → tester → bd update -s review)
    orchestrator-dev attend le compte rendu — il n'exécute aucune de ces étapes lui-même.
 
+4. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+   - **Présent** → lire le `### Statut` :
+     - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
+     - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
+   - **Absent** → demander explicitement au developer de produire le bloc avant de continuer.
+   Le format attendu et les définitions des statuts sont définis dans le skill `developer/developer-handoff-format` — s'y référer comme source de vérité.
+
 ---
 
 ### Étape 3 — QA (optionnel)
@@ -254,7 +261,19 @@ question({
 
 Si QA activé :
 > « Je délègue la vérification de couverture au qa-engineer. »
-Le qa-engineer produit son rapport. Enchaîner ensuite automatiquement vers l'étape 4.
+
+Invoquer `qa-engineer` en fournissant :
+- Le diff ou le nom de la branche produite
+- L'ID du ticket Beads
+- Les critères d'acceptance déjà couverts par le developer (champ `### Critères d'acceptance couverts` du retour developer, si disponible)
+
+À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+- **Présent** → lire le `### Statut` :
+  - `couverture-complète` → continuer vers l'étape 4 normalement
+  - `couverture-partielle` → transmettre les critères non couverts au reviewer à l'étape 4
+  - `non-testable` → noter dans le compte rendu d'étape (étape 6) comme point d'attention technique
+- **Absent** → demander explicitement au qa-engineer de produire le bloc avant de continuer.
+Le format attendu et les définitions des statuts sont définis dans le skill `qa/qa-handoff-format` — s'y référer comme source de vérité.
 
 ---
 
@@ -267,6 +286,15 @@ Dès que le developer (et optionnellement le qa-engineer) a terminé, invoquer *
 Fournir au reviewer :
 - Le diff ou le nom de la branche produite (incluant les tests si QA activé)
 - L'ID du ticket Beads pour contexte (`bd show <ID>`)
+- Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
+- Si disponible depuis le retour qa-engineer : les critères d'acceptance non couverts (statut `couverture-partielle`)
+
+À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+- **Présent** → lire le `### Verdict` pour préparer le CP-2 :
+  - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
+  - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
+- **Absent** → demander explicitement au reviewer de produire le bloc avant de continuer.
+Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
 
 ---
 
@@ -274,7 +302,11 @@ Fournir au reviewer :
 
 Afficher le rapport de review intégralement.
 
-**En mode standalone** → utiliser l'outil `question` pour CP-2 :
+**En mode standalone** → utiliser l'outil `question` pour CP-2.
+
+Utiliser le `### Verdict` du retour reviewer pour orienter les options présentées :
+- Verdict `commit` → présenter "Commit" comme option recommandée
+- Verdict `corriger` ou `corriger-sécurité` → présenter "Corriger" avec les corrections listées dans `### Corrections requises`
 
 ```
 question({
@@ -287,7 +319,12 @@ question({
 })
 ```
 
-**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter la session :
+**En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter la session.
+
+Pour remplir le `### Contexte complet` du bloc, utiliser :
+- Le rapport de review intégral
+- La `### Synthèse des problèmes` du retour reviewer (tableau sévérité / nombre / résumé)
+- Le `### Routing recommandé` du retour reviewer
 
 ```
 ---
@@ -300,6 +337,14 @@ question({
 
 ### Contexte complet
 <rapport de review intégral — toutes les sections, aucune omission>
+
+**Synthèse :**
+| Sévérité | Nombre | Résumé |
+|----------|--------|--------|
+<tableau issu du ### Synthèse des problèmes du retour reviewer>
+
+**Verdict reviewer :** <commit | corriger | corriger-sécurité>
+**Routing recommandé :** <retour-initial | developer-security>
 
 ### Question en attente
 Quelle suite pour le ticket #<ID> — <titre> ?
@@ -327,22 +372,21 @@ CP-2 est **toujours une pause, dans tous les modes**.
      `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`
   → étape 6
 
-- **corriger** → le reviewer a formulé des retours — repasser en `in_progress` avec le résumé du rapport :
+- **corriger** → utiliser le champ `### Corrections requises` du retour reviewer pour remplir le commentaire Beads :
 
   ```bash
-  bd comments add <ID> "Retours reviewer : <résumé du rapport de review>"
+  bd comments add <ID> "Retours reviewer : <contenu intégral de ### Corrections requises>"
   bd update <ID> -s in_progress
   ```
 
   > **Ordre obligatoire :** poser le commentaire **avant** de repasser en `in_progress`,
   > pour que le developer agent trouve les retours dès qu'il reprend le ticket via `bd show <ID>`.
+  > Ne jamais résumer ni reformuler les corrections — les copier telles quelles depuis le retour reviewer.
 
-  **Routing de la correction :**
-  - Si le rapport de review contient un 🔴 Critique de nature **sécurité** (faille OWASP,
-    secret exposé, injection, CORS, auth) → router vers `developer-security` plutôt que
-    de retourner le ticket à l'agent initial.
+  **Routing de la correction — basé sur le `### Routing recommandé` du retour reviewer :**
+  - `developer-security` → router vers `developer-security`
     > « La correction est de nature sécurité — je route vers `developer-security`. »
-  - Sinon → retourner à l'agent développeur initial.
+  - `retour-initial` → retourner à l'agent développeur initial
 
   > « Je retourne le ticket à `<developer-xxx>` avec les corrections demandées. »
   > Puis repasser étape 3 (QA optionnel) → étape 4 (review).
@@ -355,14 +399,27 @@ CP-2 est **toujours une pause, dans tous les modes**.
 
 ### Étape 6 — Compte rendu d'étape
 
+Construire le compte rendu en agrégeant les données structurées collectées aux étapes précédentes :
+
 ```
 ## ✅ Ticket #<ID> terminé — <titre>
 
 **Agent :** <developer-xxx>
-**QA :** <oui/non>
+**QA :** <oui — X tests ajoutés | non>
 **Cycles de review :** <N>
 **Corrections demandées :** <oui/non>
 **Statut Beads :** clos
+
+**Fichiers modifiés :**
+<liste issue du ### Fichiers modifiés du retour developer — si disponible>
+
+**Couverture des critères d'acceptance :** <tous couverts | partielle — <critères non couverts>>
+<issue du ### Critères d'acceptance couverts du retour developer ou qa-engineer>
+
+**Points d'attention techniques :**
+<issue du ### Points d'attention pour la review du retour developer — si renseigné>
+<issue du ### Zones non testables identifiées du retour qa-engineer — si renseigné>
+<"Aucun" si aucun point d'attention signalé>
 
 ---
 
@@ -407,16 +464,17 @@ Invoquer `documentarian` uniquement si l'utilisateur répond "Oui".
 
 ## Récap global — Fin de session
 
-Afficher en fin de workflow (tous les tickets traités ou suite à un **stop**) :
+Afficher en fin de workflow (tous les tickets traités ou suite à un **stop**).
+Construire ce récap en agrégeant les données structurées collectées à chaque étape 6 :
 
 ```
 ## Récap implémentation — <nom de la feature ou session>
 
-| ID | Titre | Agent | QA | Cycles review | Statut |
-|----|-------|-------|----|---------------|--------|
-| bd-XX | ... | developer-frontend | oui | 1 | ✅ Terminé |
-| bd-XX | ... | developer-backend  | non | 2 | ✅ Terminé |
-| bd-XX | ... | developer-api      | non | 1 | ⏭️ Ignoré  |
+| ID | Titre | Agent | QA | Cycles review | Critères couverts | Statut |
+|----|-------|-------|----|---------------|-------------------|--------|
+| bd-XX | ... | developer-frontend | oui — X tests | 1 | tous | ✅ Terminé |
+| bd-XX | ... | developer-backend  | non | 2 | partielle | ✅ Terminé |
+| bd-XX | ... | developer-api      | non | 1 | — | ⏭️ Ignoré  |
 
 - **Tickets traités :** X / Y
 - **Tickets ignorés :** Z
@@ -424,12 +482,16 @@ Afficher en fin de workflow (tous les tickets traités ou suite à un **stop**) 
 - **Corrections demandées :** M fois
 
 ### Points d'attention
-<Points soulevés par les reviews — dette technique, risques, suivi suggéré>
+<Agrégation des points d'attention techniques collectés à chaque étape 6 :
+ - Points signalés par les developer-* (décisions techniques, compromis, dette)
+ - Zones non testables signalées par le qa-engineer
+ - Points récurrents signalés par le reviewer sur plusieurs tickets>
 ```
 
 **Si invoqué depuis l'orchestrateur feature**, ajouter obligatoirement à la fin du récap le bloc `## Retour vers orchestrator` dont le format exact, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer comme source de vérité unique.
 
 > Ce bloc est requis pour que l'orchestrator puisse construire le CP-feature. Ne pas l'omettre ni en modifier la structure.
+> Les `### Points d'attention` du bloc `## Retour vers orchestrator` doivent reprendre l'agrégation ci-dessus — jamais une liste vide si des points ont été signalés en cours de session.
 
 ---
 
@@ -617,3 +679,6 @@ Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
 - Modifier les tickets Beads sans validation de l'utilisateur
 - Lancer plusieurs tickets en parallèle — traitement séquentiel uniquement
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité
+- Résumer les `### Corrections requises` du reviewer dans le commentaire Beads — les copier telles quelles
+- Continuer vers la review sans avoir reçu le bloc `## Retour vers orchestrator-dev` du developer
+- Ignorer les `### Points d'attention pour la review` du developer — les transmettre toujours au reviewer

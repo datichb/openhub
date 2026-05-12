@@ -101,6 +101,9 @@ Skills are organised by domain in `skills/`:
 | `skills/debugger/` | Diagnostic protocols |
 | `skills/reviewer/` | Review protocols |
 | `skills/documentarian/` | Documentation protocols |
+| `skills/designer/` | Design protocols (ux-designer, ui-designer) |
+| `skills/design/` | Design handoff contracts |
+| `skills/quality/` | Quality handoff contracts (debugger and agents not in qa/ or reviewer/) |
 
 For a new domain, create a new sub-folder.
 
@@ -138,6 +141,8 @@ Add the path in the agent frontmatter (without the `.md` extension):
 skills: [path/to/my-skill]
 ---
 ```
+
+**Handoff skills:** if your skill defines a structured return format between two agents (a `## Return to ...` block), inject it in **both** the producing agent (the one that returns the block) and the consuming agent (the one that reads it). This guarantees the two agents share the same contract. See `skills/reviewer/reviewer-handoff-format.md` or `skills/auditor/audit-handoff-format.md` as examples.
 
 ---
 
@@ -228,6 +233,7 @@ oc agent list
 - [ ] The skill has a frontmatter with `name` and `description`
 - [ ] The agent is referenced in `README.md` and `docs/architecture/agents.en.md`
 - [ ] The skill is referenced in `docs/architecture/skills.en.md`
+- [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
 - [ ] `oc deploy opencode` and `oc deploy --check opencode` pass without errors

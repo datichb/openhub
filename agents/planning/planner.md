@@ -6,7 +6,7 @@ mode: primary
 permission:
   question: allow
 targets: [opencode, claude-code]
-skills: [developer/beads-plan, planning/planner, posture/expert-posture, posture/tool-question]
+skills: [developer/beads-plan, planning/planner, posture/expert-posture, posture/tool-question, planning/planner-handoff-format]
 ---
 
 # ProjectPlanner

@@ -4,7 +4,7 @@ label: DeveloperAPI
 description: Assistant de développement API et intégrations — conçoit et implémente les APIs REST et GraphQL, les webhooks, les intégrations de services tiers et les contrats d'interface.
 mode: subagent
 targets: [opencode, claude-code]
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---
 
 # DeveloperAPI
