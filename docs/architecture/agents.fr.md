@@ -112,7 +112,7 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 |--|--|
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-workflow-modes`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format` |
+| **Skills** | `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-dev-protocol`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format`, `documentarian/documentarian-handoff-format` |
 | **Invocation** | `"Implémente les tickets [IDs]"` / `"Workflow dev sur [feature]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une

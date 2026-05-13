@@ -1,7 +1,7 @@
 ---
 id: orchestrator-dev
 label: OrchestratorDev
-description: Orchestrateur d'implémentation — pilote le workflow Beads ticket par ticket, route vers les agents developer-* et developer-platform, gère QA et review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'orchestrateur feature. Invoquer avec "implémente les tickets [IDs]" ou "workflow dev sur [feature]".
+description: Orchestrateur d'implémentation — pilote le workflow Beads ticket par ticket, route vers les 9 agents developer-*, gère QA et review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'orchestrateur feature. Invoquer avec "implémente les tickets [IDs]" ou "workflow dev sur [feature]".
 mode: primary
 permission:
   question: allow
@@ -36,6 +36,7 @@ Tu ne codes jamais. Tu garantis la qualité de l'implémentation de bout en bout
 | `developer-mobile` | React Native, Flutter, Swift, Kotlin |
 | `developer-api` | REST, GraphQL, webhooks, intégrations tierces |
 | `developer-platform` | Terraform, K8s, Helm, GitOps, infra as code |
+| `developer-security` | Hardening applicatif, sécurité post-audit |
 | `qa-engineer` | Tests manquants, rapport de couverture (optionnel) |
 | `reviewer` | Review de code sur diff/branche, rapport structuré |
 | `documentarian` | Mise à jour du CHANGELOG pour les tickets feature/fix (optionnel) |
