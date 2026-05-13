@@ -179,6 +179,13 @@ if command -v bd &>/dev/null && [ -d "$PROJECT_PATH" ] && [ ! -d "$PROJECT_PATH/
       log_success "Beads initialisé dans $PROJECT_PATH"
       BEADS_OK=1
 
+      # Exclure .beads/ et AGENTS.md du suivi git (exclusion locale)
+      _excl_dir="$PROJECT_PATH/.git/info"
+      _excl_file="$_excl_dir/exclude"
+      mkdir -p "$_excl_dir"
+      grep -qx ".beads/" "$_excl_file" 2>/dev/null || echo ".beads/" >> "$_excl_file"
+      grep -qx "AGENTS.md" "$_excl_file" 2>/dev/null || echo "AGENTS.md" >> "$_excl_file"
+
       # Proposer de configurer l'upstream git si absent (ni upstream ni origin trouvé)
       if ! (cd "$PROJECT_PATH" && git remote get-url upstream) &>/dev/null && \
          ! (cd "$PROJECT_PATH" && git remote get-url origin) &>/dev/null; then

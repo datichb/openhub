@@ -132,6 +132,13 @@ if [ ! -d "$PROJECT_PATH/.beads" ]; then
     if [[ "${_init_beads:-Y}" =~ ^[Yy]$ ]]; then
       if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID" --skip-hooks); then
         log_success "$(t beads.initialized) $PROJECT_PATH"
+
+        # Exclure .beads/ et AGENTS.md du suivi git (exclusion locale)
+        _excl_dir="$PROJECT_PATH/.git/info"
+        _excl_file="$_excl_dir/exclude"
+        mkdir -p "$_excl_dir"
+        grep -qx ".beads/" "$_excl_file" 2>/dev/null || echo ".beads/" >> "$_excl_file"
+        grep -qx "AGENTS.md" "$_excl_file" 2>/dev/null || echo "AGENTS.md" >> "$_excl_file"
         # Proposer de configurer l'upstream git si absent (ni upstream ni origin trouvé)
         if ! (cd "$PROJECT_PATH" && git remote get-url upstream) &>/dev/null && \
            ! (cd "$PROJECT_PATH" && git remote get-url origin) &>/dev/null; then

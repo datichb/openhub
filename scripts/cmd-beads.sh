@@ -209,7 +209,7 @@ cmd_init() {
   # Importer les labels depuis le tracker distant si configuré (GitLab ou Jira)
   _fetch_tracker_labels "$id" "$path"
 
-  # Ajouter .beads/ au .git/info/exclude du projet (exclusion locale des credentials tracker)
+  # Ajouter .beads/ et AGENTS.md au .git/info/exclude du projet (exclusion locale)
   local _exclude_dir="$path/.git/info"
   local _exclude_file="$_exclude_dir/exclude"
   mkdir -p "$_exclude_dir"
@@ -218,6 +218,9 @@ cmd_init() {
     log_info "$(t beads.gitignore_added)"
   else
     log_info "$(t beads.gitignore_exists)"
+  fi
+  if [ ! -f "$_exclude_file" ] || ! grep -qx "AGENTS.md" "$_exclude_file"; then
+    echo "AGENTS.md" >> "$_exclude_file"
   fi
 }
 
