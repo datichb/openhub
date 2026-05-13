@@ -91,3 +91,75 @@ get_effective_llm_model() {
   # 4. Fallback : DEFAULT_MODEL
   echo "$DEFAULT_MODEL"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers interactifs (partagés par cmd-provider.sh et cmd-config.sh)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Affiche le menu numéroté des providers et remplit un tableau.
+# Usage : _build_provider_menu <array_name>
+# @param {nameref} $1 — nom du tableau Bash à remplir
+_build_provider_menu() {
+  local -n _menu_array=$1
+  _menu_array=()
+  if [ -f "$PROVIDERS_FILE" ] && command -v jq &>/dev/null; then
+    while IFS= read -r pname; do
+      _menu_array+=("$pname")
+    done < <(jq -r '.providers | keys[]' "$PROVIDERS_FILE")
+  else
+    _menu_array=("anthropic" "mammouth" "github-models" "bedrock" "ollama")
+  fi
+
+  local _i=1
+  for pname in "${_menu_array[@]}"; do
+    local _label; _label=$(get_provider_info "$pname" "label" 2>/dev/null || echo "$pname")
+    printf "  ${BLUE}%d${RESET}. %s\n" "$_i" "$_label"
+    _i=$((_i + 1))
+  done
+}
+
+# Collecte les credentials pour un provider sélectionné de façon interactive.
+# Sortie : variables globales dans le contexte appelant :
+#   _cred_api_key   — clé API saisie
+#   _cred_base_url  — URL de base (si applicable)
+#   _cred_region    — région AWS (si applicable)
+# @param $1 — nom interne du provider
+# @param $2 — label affiché
+_collect_provider_credentials() {
+  local provider_name="$1"
+  local provider_label="$2"
+  local requires_api_key; requires_api_key=$(get_provider_info "$provider_name" "requires_api_key" 2>/dev/null || echo "true")
+  local requires_base_url; requires_base_url=$(get_provider_info "$provider_name" "requires_base_url" 2>/dev/null || echo "false")
+  local requires_region; requires_region=$(get_provider_info "$provider_name" "requires_region" 2>/dev/null || echo "false")
+  local default_base_url; default_base_url=$(get_provider_info "$provider_name" "default_base_url" 2>/dev/null || echo "")
+  local default_region; default_region=$(get_provider_info "$provider_name" "default_region" 2>/dev/null || echo "")
+
+  _cred_api_key=""
+  _cred_base_url="$default_base_url"
+  _cred_region=""
+
+  if [ "$requires_api_key" = "true" ]; then
+    echo ""
+    trap 'stty echo 2>/dev/null; echo ""; exit 130' INT TERM
+    read -rsp "  Clé API ${provider_label} : " _cred_api_key
+    stty echo 2>/dev/null
+    trap - INT TERM
+    echo ""
+  fi
+
+  if [ "$requires_region" = "true" ]; then
+    echo ""
+    if [ -n "$default_region" ]; then
+      read -rp "  Région AWS [${default_region}] : " _input_region
+      _cred_region="${_input_region:-$default_region}"
+    else
+      read -rp "  Région AWS (ex: us-east-1) : " _cred_region
+    fi
+  fi
+
+  if [ "$requires_base_url" = "true" ] && [ -n "$default_base_url" ]; then
+    echo ""
+    read -rp "  URL de base [${default_base_url}] : " _input_url
+    _cred_base_url="${_input_url:-$default_base_url}"
+  fi
+}

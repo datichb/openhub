@@ -52,10 +52,12 @@ _cmd help.init
 _cmd help.version
 
 _section help.section.projects
-_cmd help.list
 _cmd help.status
+_cmd help.status_short
 _cmd help.remove
 _cmd help.remove_clean
+_cmd help.project_rename
+_cmd help.project_move
 
 _section help.section.launch
 _cmd help.start
@@ -89,8 +91,6 @@ _cmd help.config_unset
 _cmd help.config_language
 _cmd help.provider_list
 _cmd help.provider_set_default
-_cmd help.provider_set
-_cmd help.provider_get
 _cmd help.target_info
 _cmd help.target_select
 
@@ -107,7 +107,7 @@ _cmd help.agent_info
 _cmd help.agent_select
 _cmd help.agent_mode
 _cmd help.agent_validate
-_cmd help.agent_keytest
+_cmd help.agent_deploy
 
 _section help.section.skills
 _cmd help.skills_search
@@ -118,6 +118,7 @@ _cmd help.skills_update
 _cmd help.skills_used_by
 _cmd help.skills_sync
 _cmd help.skills_remove
+_cmd help.skills_validate
 
 _section help.section.beads
 _cmd help.beads_status

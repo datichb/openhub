@@ -417,11 +417,11 @@ if [[ "$setup_provider" =~ ^[Yy]$ ]]; then
     [ "$_proj_requires_key" = "false" ] && _proj_should_save=true
 
     if [ "$_proj_should_save" = "true" ]; then
-      bash "$SCRIPTS_DIR/cmd-provider.sh" set "$PROJECT_ID" \
-        "$_proj_provider" "${_proj_api_key}" "${_proj_base_url}" 2>/dev/null \
+      bash "$SCRIPTS_DIR/cmd-config.sh" set "$PROJECT_ID" \
+        --provider "$_proj_provider" --api-key "${_proj_api_key}" ${_proj_base_url:+--base-url "${_proj_base_url}"} 2>/dev/null \
         && log_success "Fournisseur configuré pour ${PROJECT_ID} : ${_proj_label}" \
         && PROVIDER_SUMMARY="${_proj_label} (projet)" \
-        || { log_warn "Impossible de configurer le fournisseur — réessayer : ./oc.sh provider set ${PROJECT_ID}"; PROVIDER_SUMMARY="erreur de configuration"; }
+        || { log_warn "Impossible de configurer le fournisseur — réessayer : ./oc.sh config set ${PROJECT_ID}"; PROVIDER_SUMMARY="erreur de configuration"; }
     else
       log_info "Fournisseur non configuré — le hub sera utilisé par défaut"
       PROVIDER_SUMMARY="${_hub_provider_label:-hub par défaut}"

@@ -168,14 +168,44 @@ cmd_set() {
   # Provider
   if [ -z "$flag_provider" ]; then
     local default_provider="${cur_provider:-anthropic}"
-    echo "  Providers disponibles : anthropic / mammouth / github-models / bedrock / ollama / litellm"
-    read -rp "  Provider [${default_provider}] : " flag_provider
-    flag_provider="${flag_provider:-$default_provider}"
+    if [ -f "$PROVIDERS_FILE" ] && command -v jq &>/dev/null; then
+      # Menu dynamique depuis providers.json
+      echo ""
+      echo "  Choisir le provider :"
+      echo ""
+      local _providers_array=()
+      _build_provider_menu _providers_array
+      echo ""
+      read -rp "  Numéro (1-${#_providers_array[@]}) ou Entrée pour conserver [${default_provider}] : " _choice
+      if [ -z "$_choice" ]; then
+        flag_provider="$default_provider"
+      elif [[ "$_choice" =~ ^[0-9]+$ ]] && [ "$_choice" -ge 1 ] && [ "$_choice" -le "${#_providers_array[@]}" ]; then
+        flag_provider="${_providers_array[$((_choice - 1))]}"
+      else
+        log_error "Choix invalide : $_choice"
+        exit 1
+      fi
+    else
+      # Fallback texte libre si providers.json absent
+      echo "  Providers disponibles : anthropic / mammouth / github-models / bedrock / ollama / litellm"
+      read -rp "  Provider [${default_provider}] : " flag_provider
+      flag_provider="${flag_provider:-$default_provider}"
+    fi
   fi
   # Normaliser
   flag_provider=$(echo "$flag_provider" | tr '[:upper:]' '[:lower:]')
-  if [ "$flag_provider" != "anthropic" ] && [ "$flag_provider" != "mammouth" ] && [ "$flag_provider" != "github-models" ] && [ "$flag_provider" != "bedrock" ] && [ "$flag_provider" != "ollama" ] && [ "$flag_provider" != "litellm" ]; then
-    log_error "Provider non supporté : $flag_provider (anthropic | mammouth | github-models | bedrock | ollama | litellm)"
+  # Valider : accepter tous les providers du catalogue + litellm
+  local valid_providers="anthropic mammouth github-models bedrock ollama litellm"
+  if [ -f "$PROVIDERS_FILE" ] && command -v jq &>/dev/null; then
+    valid_providers=$(jq -r '.providers | keys | join(" ")' "$PROVIDERS_FILE" 2>/dev/null || echo "$valid_providers")
+  fi
+  local _found=false
+  for _p in $valid_providers; do
+    [ "$_p" = "$flag_provider" ] && _found=true && break
+  done
+  if [ "$_found" = false ]; then
+    log_error "Provider non supporté : $flag_provider"
+    log_info  "Providers disponibles : $valid_providers"
     exit 1
   fi
 

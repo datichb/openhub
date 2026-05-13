@@ -442,34 +442,28 @@ oc init MON-APP ~/workspace/mon-app  # pré-remplit ID et chemin (questions rest
 
 ---
 
-## `oc list`
-
-Liste les projets enregistrés avec leur statut d'accessibilité.
-
-```bash
-oc list
-```
-
-> Pour un tableau de bord détaillé (Beads, API, agents, tracker), utiliser `oc status`.
-
----
-
 ## `oc status`
 
 Affiche un tableau de bord de l'état de tous les projets enregistrés.
 
 ```bash
-oc status
+oc status [--short]
 ```
 
-**Pour chaque projet, vérifie :**
+**Options :**
+
+| Option | Description |
+|--------|-------------|
+| `--short` / `-s` | Vue compacte : tableau id / chemin / statut (équivalent à l'ancien `oc list`) |
+
+**Sans option — vue détaillée.** Pour chaque projet, vérifie :
 - Chemin local accessible
 - Beads initialisé (`.beads/`)
 - Clé API configurée (provider + modèle)
 - Tracker configuré
 - Agents déployés pour la cible par défaut
 
-**Exemple de sortie :**
+**Exemple de sortie détaillée :**
 
 ```
   MON-APP
@@ -478,6 +472,54 @@ oc status
     ✔  API configurée (anthropic / claude-sonnet-4-5)
     ·  Tracker : aucun
     ✔  Agents déployés (opencode) : 12 fichier(s)
+```
+
+**Exemples :**
+
+```bash
+oc status          # vue détaillée de tous les projets
+oc status --short  # liste compacte (id, chemin, statut)
+```
+
+---
+
+## `oc project`
+
+Opérations sur les projets enregistrés : renommage et déplacement.
+
+```bash
+oc project rename <OLD_ID> <NEW_ID>
+oc project move   <PROJECT_ID> <nouveau_chemin>
+```
+
+### `oc project rename`
+
+Renomme un projet dans **tous les fichiers registre** (`projects.md`, `paths.local.md`, `api-keys.local.md`).
+
+```bash
+oc project rename MON-APP MON-APP-V2
+```
+
+- Demande confirmation avant toute modification
+- Met à jour les trois fichiers de façon atomique
+- Rappelle de redéployer les agents après le renommage si nécessaire
+
+### `oc project move`
+
+Change le chemin local d'un projet dans `paths.local.md`.
+
+```bash
+oc project move MON-APP ~/workspace/mon-app-nouveau
+```
+
+- Accepte les chemins avec `~` et les chemins relatifs (résolus depuis `$PWD`)
+- Avertit si le dossier de destination n'existe pas encore (peut continuer quand même)
+
+**Exemples :**
+
+```bash
+oc project rename OLD-NAME NEW-NAME           # renomme dans tous les registres
+oc project move MON-APP ~/workspace/mon-app   # met à jour le chemin local
 ```
 
 ---
@@ -509,17 +551,19 @@ oc remove MON-APP --clean   # retire du registre + nettoie les fichiers déploy�
 
 ## `oc update`
 
-Met à jour les outils installés selon les cibles actives.
+Met à jour les **outils installés** : opencode, Beads (`bd`) et les skills externes enregistrés.
 
 ```bash
 oc update
 ```
 
+> Ne met pas à jour les scripts du hub lui-même. Pour cela, utiliser `oc upgrade`.
+
 ---
 
 ## `oc upgrade`
 
-Met à jour les sources du hub lui-même (`git pull` sur le repo local). Avec un argument de version optionnel, bascule sur un tag de release spécifique.
+Met à jour les **sources du hub lui-même** (`git pull` sur le repo local). Avec un argument de version optionnel, bascule sur un tag de release spécifique.
 
 ```bash
 oc upgrade              # pull le dernier main
@@ -528,7 +572,9 @@ oc upgrade v1.1.0       # checkout du tag v1.1.0
 
 Après une mise à jour réussie, propose de relancer `oc sync` pour redéployer les agents sur tous les projets enregistrés.
 
-> Utiliser `oc update` pour mettre à jour les outils installés (opencode, Beads, skills externes). Utiliser `oc upgrade` pour mettre à jour les scripts et agents du hub eux-mêmes.
+> **Résumé de la distinction :**
+> - `oc update` → met à jour les outils installés (opencode, bd, skills externes)
+> - `oc upgrade` → met à jour les scripts et agents du hub via git
 
 ---
 
@@ -562,12 +608,12 @@ oc config <sous-commande> [options]
 | Option | Description |
 |--------|-------------|
 | `--model <modèle>` | Modèle IA (défaut : `claude-sonnet-4-5`) |
-| `--provider <provider>` | `anthropic` ou `litellm` (défaut : `anthropic`) |
+| `--provider <provider>` | Provider LLM — en mode interactif, un menu numéroté est proposé depuis le catalogue `providers.json` |
 | `--api-key <clé>` | Clé API (saisie masquée en mode interactif) |
-| `--base-url <url>` | URL de base (litellm uniquement) |
+| `--base-url <url>` | URL de base (providers compatibles OpenAI) |
 
-> Sans options, `set` est interactif — propose les valeurs actuelles comme défaut.
-> Après un `set`, propose de re-déployer `opencode.json` dans le projet si le chemin est connu.
+> Sans options, `set` est interactif — propose les valeurs actuelles comme défaut et affiche un menu numéroté des providers disponibles.
+> Après un `set`, propose de re-déployer les agents dans le projet si le chemin est connu.
 
 **Exemples :**
 
@@ -578,6 +624,30 @@ oc config set MON-APP --provider litellm --api-key sk-... --base-url https://api
 oc config get MON-APP                                 # affiche la config (clé masquée)
 oc config list                                        # liste toutes les entrées
 oc config unset MON-APP                               # supprime (avec confirmation)
+```
+
+---
+
+## `oc provider`
+
+Gère les providers LLM au niveau **hub** (configuration globale partagée par tous les projets).
+
+```bash
+oc provider <sous-commande>
+```
+
+| Sous-commande | Description |
+|---------------|-------------|
+| `list` | Liste tous les providers du catalogue avec leur statut hub |
+| `set-default` | Configure le provider par défaut du hub (interactif) |
+
+> Pour configurer le provider d'un **projet spécifique**, utiliser `oc config set <PROJECT_ID>`.
+
+**Exemples :**
+
+```bash
+oc provider list         # liste tous les providers disponibles
+oc provider set-default  # wizard interactif pour choisir le provider hub
 ```
 
 ---
@@ -599,7 +669,7 @@ oc agent <sous-commande>
 | `select <PROJECT_ID>` | Choisit les agents à déployer pour un projet |
 | `mode <PROJECT_ID>` | Affiche / overrides les modes `primary`/`subagent` par projet |
 | `validate [agent-id]` | Valide la cohérence des agents (champs requis, skills existants, targets valides, unicité des id) |
-| `keytest` | Diagnostic clavier pour le sélecteur interactif |
+| `deploy <agent-id> [PROJECT_ID]` | Déploie **un seul agent** sur les cibles actives (ou celles du projet) |
 
 ### `oc agent create` — workflow interactif
 
@@ -628,10 +698,28 @@ Vérifie pour chaque agent :
 
 Retourne le code 1 si au moins une erreur est détectée.
 
-> `oc agent keytest` affiche les octets bruts reçus pour chaque touche. Utile pour
-> diagnostiquer un terminal où la navigation du sélecteur ne fonctionne pas. Quitter avec `q`.
+### `oc agent deploy`
+
+```bash
+oc agent deploy <agent-id>                # déploie sur les cibles actives du hub
+oc agent deploy <agent-id> <PROJECT_ID>   # déploie sur les cibles configurées du projet
+```
+
+Déploie **un seul agent** sans tout redéployer. Utile après modification d'un agent ou d'un skill.
+
+- Respecte les cibles du projet si `PROJECT_ID` est fourni (sinon cibles actives du hub)
+- Vérifie que l'agent supporte la cible avant de déployer
+- Applique la détection de langue du projet (si configurée)
+
+**Exemples :**
+
+```bash
+oc agent deploy planner            # déploie planner dans le hub
+oc agent deploy planner MON-APP    # déploie planner dans MON-APP uniquement
+```
 
 > Le sélecteur interactif (agents, cibles) utilise l'écran alternatif (`smcup`/`rmcup`) — le contenu du terminal parent est intégralement préservé à la fermeture.
+> `oc agent keytest` est disponible pour diagnostiquer les terminaux où la navigation ne fonctionne pas (non documenté dans le help, taper `oc agent keytest`).
 
 ---
 
@@ -653,6 +741,21 @@ oc skills <sous-commande>
 | `used-by <skill>` | Liste les agents qui utilisent ce skill |
 | `sync` | Re-télécharge tous les skills externes (utile après clone) |
 | `remove <name>` | Supprime un skill externe |
+| `validate [name]` | Valide la cohérence des skills (frontmatter, sources) |
+
+### `oc skills validate`
+
+```bash
+oc skills validate          # valide tous les skills (locaux + externes)
+oc skills validate <name>   # valide uniquement le skill spécifié
+```
+
+Vérifie pour chaque fichier skill `.md` :
+- Champs frontmatter requis présents (`name`, `description`)
+- Cohérence entre le champ `name` et le nom de fichier
+- Pour les skills externes : présence de leur source dans `.sources.json`
+
+Retourne le code 1 si au moins une erreur est détectée.
 
 ---
 

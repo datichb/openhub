@@ -57,10 +57,10 @@ t() {
       help.version.cmd)       printf '%s' "version" ;;
       help.version.desc)      printf '%s' "Affiche la version du hub" ;;
       # Projects
-      help.list.cmd)          printf '%s' "list" ;;
-      help.list.desc)         printf '%s' "Liste les projets enregistrés" ;;
       help.status.cmd)        printf '%s' "status" ;;
-      help.status.desc)       printf '%s' "Statut de tous les projets (Beads, API, agents déployés)" ;;
+      help.status.desc)       printf '%s' "Statut détaillé de tous les projets (Beads, API, agents déployés)" ;;
+      help.status_short.cmd)  printf '%s' "status --short" ;;
+      help.status_short.desc) printf '%s' "Liste compacte des projets (id, chemin, statut)" ;;
       help.remove.cmd)        printf '%s' "remove <PROJECT_ID>" ;;
       help.remove.desc)       printf '%s' "Supprime un projet du registre" ;;
       help.remove_clean.cmd)  printf '%s' "remove <PROJECT_ID> --clean" ;;
@@ -101,9 +101,9 @@ t() {
       help.sync_dryrun.cmd)   printf '%s' "sync --dry-run" ;;
       help.sync_dryrun.desc)  printf '%s' "Vérifie la fraîcheur sur tous les projets (sans déployer)" ;;
       help.update.cmd)        printf '%s' "update" ;;
-      help.update.desc)       printf '%s' "Met à jour les outils installés" ;;
+      help.update.desc)       printf '%s' "Met à jour les outils installés (opencode, bd, skills externes)" ;;
       help.upgrade.cmd)       printf '%s' "upgrade [vX.Y.Z]" ;;
-      help.upgrade.desc)      printf '%s' "Met à jour les sources du hub (git pull / checkout tag)" ;;
+      help.upgrade.desc)      printf '%s' "Met à jour les sources du hub via git (git pull ou checkout tag)" ;;
       # Config
       help.config_set.cmd)    printf '%s' "config set <PROJECT_ID> [--model m] [--provider p] [--api-key k] [--base-url u]" ;;
       help.config_set.desc)   printf '%s' "Configure le modèle et la clé API d'un projet" ;;
@@ -119,10 +119,6 @@ t() {
       help.provider_list.desc) printf '%s' "Liste les providers disponibles" ;;
       help.provider_set_default.cmd)  printf '%s' "provider set-default" ;;
       help.provider_set_default.desc) printf '%s' "Configure le provider par défaut du hub (interactif)" ;;
-      help.provider_set.cmd)  printf '%s' "provider set <PROJECT_ID> [p] [k]" ;;
-      help.provider_set.desc) printf '%s' "Configure un provider pour un projet" ;;
-      help.provider_get.cmd)  printf '%s' "provider get <PROJECT_ID>" ;;
-      help.provider_get.desc) printf '%s' "Affiche la configuration effective d'un projet" ;;
       help.target_info.cmd)   printf '%s' "target info <PROJECT_ID>" ;;
       help.target_info.desc)  printf '%s' "Affiche les cibles de déploiement d'un projet" ;;
       help.target_select.cmd) printf '%s' "target select <PROJECT_ID>" ;;
@@ -146,8 +142,8 @@ t() {
       help.agent_mode.desc)   printf '%s' "Afficher / overrider les modes primary/subagent par projet" ;;
       help.agent_validate.cmd)  printf '%s' "agent validate [agent-id]" ;;
       help.agent_validate.desc) printf '%s' "Valider la cohérence des agents (ou d'un seul)" ;;
-      help.agent_keytest.cmd) printf '%s' "agent keytest" ;;
-      help.agent_keytest.desc) printf '%s' "Diagnostic clavier (octets reçus par touche)" ;;
+      help.agent_deploy.cmd)  printf '%s' "agent deploy <agent-id> [PROJECT_ID]" ;;
+      help.agent_deploy.desc) printf '%s' "Déploie un seul agent sur les cibles actives (ou celles du projet)" ;;
       # Skills
       help.skills_search.cmd) printf '%s' "skills search <query>" ;;
       help.skills_search.desc) printf '%s' "Rechercher des skills sur context7" ;;
@@ -165,6 +161,13 @@ t() {
       help.skills_sync.desc)  printf '%s' "Re-télécharger tous les skills (après clone)" ;;
       help.skills_remove.cmd) printf '%s' "skills remove <name>" ;;
       help.skills_remove.desc) printf '%s' "Supprimer un skill externe" ;;
+      help.skills_validate.cmd)  printf '%s' "skills validate [name]" ;;
+      help.skills_validate.desc) printf '%s' "Valider la cohérence des skills (frontmatter, sources)" ;;
+      # Projects
+      help.project_rename.cmd)  printf '%s' "project rename <OLD_ID> <NEW_ID>" ;;
+      help.project_rename.desc) printf '%s' "Renomme un projet dans tous les registres" ;;
+      help.project_move.cmd)    printf '%s' "project move <PROJECT_ID> <path>" ;;
+      help.project_move.desc)   printf '%s' "Change le chemin local d'un projet" ;;
       # Beads
       help.beads_status.cmd)  printf '%s' "beads status [PROJECT_ID]" ;;
       help.beads_status.desc) printf '%s' "Vérifie si Beads est initialisé (tous si sans ID)" ;;
@@ -202,6 +205,7 @@ t() {
       agent.select_cmd)       printf '%s' "select <PROJECT_ID>   Choisir les agents à déployer pour un projet" ;;
       agent.mode_cmd)         printf '%s' "mode <PROJECT_ID>     Afficher / overrider les modes primary/subagent" ;;
       agent.validate_cmd)     printf '%s' "validate [agent-id]   Valider la cohérence de tous les agents (ou d'un seul)" ;;
+      agent.deploy_cmd)       printf '%s' "deploy <agent-id> [PROJECT_ID]  Déployer un seul agent sur les cibles actives" ;;
       agent.keytest_cmd)      printf '%s' "keytest               Diagnostic clavier — affiche les octets reçus" ;;
       agent.usage.info)       printf '%s' "Usage : oc agent info <agent-id>" ;;
       agent.usage.edit)       printf '%s' "Usage : oc agent edit <agent-id>" ;;
@@ -333,8 +337,6 @@ t() {
       provider.usage)         printf '%s' "Usage : ./oc.sh provider <sous-commande>" ;;
       provider.list_cmd)      printf '%s' "list                           Liste les fournisseurs disponibles" ;;
       provider.set_default_cmd) printf '%s' "set-default                    Configure le fournisseur par défaut (hub)" ;;
-      provider.set_cmd)       printf '%s' "set <PROJECT_ID>               Configure le fournisseur pour un projet" ;;
-      provider.get_cmd)       printf '%s' "get <PROJECT_ID>               Affiche la configuration effective" ;;
 
       # ── cmd-skills.sh ──────────────────────────────────────────────────────
       skills.title)           printf '%s' "oc skills — Gestion des skills externes" ;;
@@ -644,10 +646,10 @@ t_en() {
     help.version.cmd)       printf '%s' "version" ;;
     help.version.desc)      printf '%s' "Show hub version" ;;
     # Projects
-    help.list.cmd)          printf '%s' "list" ;;
-    help.list.desc)         printf '%s' "List registered projects" ;;
     help.status.cmd)        printf '%s' "status" ;;
-    help.status.desc)       printf '%s' "Status of all projects (Beads, API, deployed agents)" ;;
+    help.status.desc)       printf '%s' "Detailed status of all projects (Beads, API, deployed agents)" ;;
+    help.status_short.cmd)  printf '%s' "status --short" ;;
+    help.status_short.desc) printf '%s' "Compact project list (id, path, status)" ;;
     help.remove.cmd)        printf '%s' "remove <PROJECT_ID>" ;;
     help.remove.desc)       printf '%s' "Remove a project from the registry" ;;
     help.remove_clean.cmd)  printf '%s' "remove <PROJECT_ID> --clean" ;;
@@ -688,9 +690,9 @@ t_en() {
     help.sync_dryrun.cmd)   printf '%s' "sync --dry-run" ;;
     help.sync_dryrun.desc)  printf '%s' "Check freshness on all projects (without deploying)" ;;
     help.update.cmd)        printf '%s' "update" ;;
-    help.update.desc)       printf '%s' "Update installed tools" ;;
+    help.update.desc)       printf '%s' "Update installed tools (opencode, bd, external skills)" ;;
     help.upgrade.cmd)       printf '%s' "upgrade [vX.Y.Z]" ;;
-    help.upgrade.desc)      printf '%s' "Update hub sources (git pull / checkout tag)" ;;
+    help.upgrade.desc)      printf '%s' "Update hub sources via git (git pull or checkout tag)" ;;
     # Config
     help.config_set.cmd)    printf '%s' "config set <PROJECT_ID> [--model m] [--provider p] [--api-key k] [--base-url u]" ;;
     help.config_set.desc)   printf '%s' "Configure model and API key for a project" ;;
@@ -706,10 +708,6 @@ t_en() {
     help.provider_list.desc) printf '%s' "List available providers" ;;
     help.provider_set_default.cmd)  printf '%s' "provider set-default" ;;
     help.provider_set_default.desc) printf '%s' "Configure the hub default provider (interactive)" ;;
-    help.provider_set.cmd)  printf '%s' "provider set <PROJECT_ID> [p] [k]" ;;
-    help.provider_set.desc) printf '%s' "Configure a provider for a project" ;;
-    help.provider_get.cmd)  printf '%s' "provider get <PROJECT_ID>" ;;
-    help.provider_get.desc) printf '%s' "Show effective project configuration" ;;
     help.target_info.cmd)   printf '%s' "target info <PROJECT_ID>" ;;
     help.target_info.desc)  printf '%s' "Show deploy targets for a project" ;;
     help.target_select.cmd) printf '%s' "target select <PROJECT_ID>" ;;
@@ -733,8 +731,8 @@ t_en() {
     help.agent_mode.desc)   printf '%s' "Show / override primary/subagent modes per project" ;;
     help.agent_validate.cmd)  printf '%s' "agent validate [agent-id]" ;;
     help.agent_validate.desc) printf '%s' "Validate agent consistency (or a single one)" ;;
-    help.agent_keytest.cmd) printf '%s' "agent keytest" ;;
-    help.agent_keytest.desc) printf '%s' "Keyboard diagnostic (bytes received per key)" ;;
+    help.agent_deploy.cmd)  printf '%s' "agent deploy <agent-id> [PROJECT_ID]" ;;
+    help.agent_deploy.desc) printf '%s' "Deploy a single agent to active targets (or project targets)" ;;
     # Skills
     help.skills_search.cmd) printf '%s' "skills search <query>" ;;
     help.skills_search.desc) printf '%s' "Search for skills on context7" ;;
@@ -752,6 +750,13 @@ t_en() {
     help.skills_sync.desc)  printf '%s' "Re-download all skills (after clone)" ;;
     help.skills_remove.cmd) printf '%s' "skills remove <name>" ;;
     help.skills_remove.desc) printf '%s' "Remove an external skill" ;;
+    help.skills_validate.cmd)  printf '%s' "skills validate [name]" ;;
+    help.skills_validate.desc) printf '%s' "Validate skill consistency (frontmatter, sources)" ;;
+    # Projects
+    help.project_rename.cmd)  printf '%s' "project rename <OLD_ID> <NEW_ID>" ;;
+    help.project_rename.desc) printf '%s' "Rename a project across all registry files" ;;
+    help.project_move.cmd)    printf '%s' "project move <PROJECT_ID> <path>" ;;
+    help.project_move.desc)   printf '%s' "Change the local path of a project" ;;
     # Beads
     help.beads_status.cmd)  printf '%s' "beads status [PROJECT_ID]" ;;
     help.beads_status.desc) printf '%s' "Check if Beads is initialized (all if no ID)" ;;
@@ -793,6 +798,7 @@ t_en() {
     agent.select_cmd)       printf '%s' "select <PROJECT_ID>   Choose agents to deploy for a project" ;;
     agent.mode_cmd)         printf '%s' "mode <PROJECT_ID>     Show / override primary/subagent modes" ;;
     agent.validate_cmd)     printf '%s' "validate [agent-id]   Validate consistency of all agents (or one)" ;;
+    agent.deploy_cmd)       printf '%s' "deploy <agent-id> [PROJECT_ID]  Deploy a single agent to active targets" ;;
     agent.keytest_cmd)      printf '%s' "keytest               Keyboard diagnostic — show bytes received" ;;
     agent.usage.info)       printf '%s' "Usage: oc agent info <agent-id>" ;;
     agent.usage.edit)       printf '%s' "Usage: oc agent edit <agent-id>" ;;
@@ -929,8 +935,6 @@ t_en() {
     provider.usage)         printf '%s' "Usage: ./oc.sh provider <subcommand>" ;;
     provider.list_cmd)      printf '%s' "list                           List available providers" ;;
     provider.set_default_cmd) printf '%s' "set-default                    Configure the default provider (hub)" ;;
-    provider.set_cmd)       printf '%s' "set <PROJECT_ID>               Configure the provider for a project" ;;
-    provider.get_cmd)       printf '%s' "get <PROJECT_ID>               Show effective configuration" ;;
 
     # ── cmd-skills.sh ────────────────────────────────────────────────────────
     skills.title)           printf '%s' "oc skills — External skill management" ;;

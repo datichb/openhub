@@ -987,6 +987,110 @@ cmd_validate() {
   return 0
 }
 
+# ── DEPLOY (agent unique) ─────────────────────────────────────────────────────
+
+##
+# Déploie un seul agent canonique vers toutes les cibles actives (ou celles du projet).
+# Utile pour redéployer un agent après modification sans tout redéployer.
+# @param {string} $1 — agent-id
+# @param {string} [$2] — PROJECT_ID (optionnel)
+##
+cmd_deploy() {
+  local agent_id="${1:-}" project_id="${2:-}"
+  [ -z "$agent_id" ] && { log_error "Usage : oc agent deploy <agent-id> [PROJECT_ID]"; exit 1; }
+
+  source "$LIB_DIR/adapter-manager.sh"
+  source "$LIB_DIR/prompt-builder.sh"
+
+  # Retrouver le fichier source de l'agent
+  local agent_file
+  agent_file=$(_find_agent_file "$agent_id")
+  if [ -z "$agent_file" ] || [ ! -f "$agent_file" ]; then
+    log_error "Agent introuvable : $agent_id"
+    exit 1
+  fi
+
+  # Résoudre le dossier de déploiement
+  local deploy_dir="$HUB_DIR"
+  if [ -n "$project_id" ]; then
+    project_id=$(normalize_project_id "$project_id")
+    deploy_dir=$(resolve_project_path "$project_id")
+    log_info "Projet cible : $project_id ($deploy_dir)"
+  fi
+
+  # Résoudre les cibles
+  local targets=()
+  if [ -n "$project_id" ]; then
+    local proj_targets; proj_targets=$(get_project_targets "$project_id")
+    if [ -n "$proj_targets" ] && [ "$proj_targets" != "all" ]; then
+      while IFS=',' read -ra _t; do
+        for _tgt in "${_t[@]}"; do
+          _tgt=$(echo "$_tgt" | tr -d '\r' | sed 's/^ *//;s/ *$//')
+          [ -n "$_tgt" ] && targets+=("$_tgt")
+        done
+      done <<< "$proj_targets"
+    fi
+  fi
+  if [ "${#targets[@]}" -eq 0 ]; then
+    while IFS= read -r t; do [ -n "$t" ] && targets+=("$t"); done < <(get_active_targets)
+  fi
+
+  if [ "${#targets[@]}" -eq 0 ]; then
+    log_warn "Aucune cible configurée — vérifier active_targets dans config/hub.json"
+    exit 1
+  fi
+
+  # Langue du projet
+  local lang=""
+  [ -n "$project_id" ] && lang=$(get_project_language "$project_id" 2>/dev/null || true)
+  lang=$(resolve_agent_lang "$lang")
+
+  log_title "Déploiement de l'agent : $agent_id"
+  echo ""
+
+  local deployed=0
+  for tgt in "${targets[@]}"; do
+    # Vérifier que l'agent supporte cette cible
+    if ! agent_supports_target "$agent_file" "$tgt"; then
+      log_info "Cible $tgt : ignorée (agent non compatible)"
+      continue
+    fi
+
+    # Répertoire de sortie selon la cible
+    local out_dir="" out_file=""
+    case "$tgt" in
+      opencode)
+        out_dir="$deploy_dir/.opencode/agents"
+        out_file="$out_dir/${agent_id}.md"
+        ;;
+      claude-code)
+        out_dir="$deploy_dir/.claude/agents"
+        out_file="$out_dir/${agent_id}.md"
+        ;;
+      *)
+        log_warn "Cible non reconnue : $tgt — ignorée"
+        continue
+        ;;
+    esac
+
+    mkdir -p "$out_dir"
+    if build_agent_content "$agent_file" "$tgt" "$lang" "$deploy_dir" > "$out_file"; then
+      log_success "$tgt : $agent_id → $out_file"
+      deployed=$((deployed + 1))
+    else
+      log_error "$tgt : échec du déploiement de $agent_id"
+    fi
+  done
+
+  echo ""
+  if [ "$deployed" -gt 0 ]; then
+    log_success "$agent_id déployé sur $deployed cible(s)"
+  else
+    log_warn "Aucune cible n'a accepté $agent_id"
+  fi
+  echo ""
+}
+
 # ── DISPATCH ─────────────────────────────────────────────────────────────────
 
 SUBCOMMAND="${1:-}"
@@ -1000,6 +1104,7 @@ case "$SUBCOMMAND" in
   select)   cmd_select "$@" ;;
   mode)     cmd_mode "$@" ;;
   validate) cmd_validate "$@" ;;
+  deploy)   cmd_deploy "$@" ;;
   keytest)  cmd_keytest ;;
   *)
     echo -e "${BOLD}$(t agent.title)${RESET}"
@@ -1011,7 +1116,7 @@ case "$SUBCOMMAND" in
     echo "  $(t agent.select_cmd)"
     echo "  $(t agent.mode_cmd)"
     echo "  $(t agent.validate_cmd)"
-    echo "  $(t agent.keytest_cmd)"
+    echo "  $(t agent.deploy_cmd)"
     echo ""
     echo -e "${BOLD}$(t agent.examples)${RESET}"
     echo "  ./oc.sh agent list"
@@ -1022,6 +1127,8 @@ case "$SUBCOMMAND" in
     echo "  ./oc.sh agent info planner"
     echo "  ./oc.sh agent validate"
     echo "  ./oc.sh agent validate planner"
+    echo "  ./oc.sh agent deploy planner"
+    echo "  ./oc.sh agent deploy planner MY-PROJECT"
     echo "  ./oc.sh agent keytest"
     echo ""
     ;;

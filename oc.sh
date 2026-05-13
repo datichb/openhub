@@ -17,9 +17,10 @@ case "$COMMAND" in
   install)         bash "$SCRIPTS_DIR/cmd-install.sh" "${@:2}" ;;
   uninstall)       bash "$SCRIPTS_DIR/cmd-uninstall.sh" "${@:2}" ;;
   init)            bash "$SCRIPTS_DIR/cmd-init.sh" "${@:2}" ;;
-  list)            bash "$SCRIPTS_DIR/cmd-list.sh" ;;
+  list)            bash "$SCRIPTS_DIR/cmd-status.sh" --short ;;
   status)          bash "$SCRIPTS_DIR/cmd-status.sh" "${@:2}" ;;
   remove)          bash "$SCRIPTS_DIR/cmd-remove.sh" "${@:2}" ;;
+  project)         bash "$SCRIPTS_DIR/cmd-project.sh" "${@:2}" ;;
   start)           bash "$SCRIPTS_DIR/cmd-start.sh" "${@:2}" ;;
   audit)           bash "$SCRIPTS_DIR/cmd-audit.sh" "${@:2}" ;;
   review)          bash "$SCRIPTS_DIR/cmd-review.sh" "${@:2}" ;;

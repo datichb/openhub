@@ -532,6 +532,126 @@ cmd_update() {
   [ "$skipped" -gt 0 ] && log_info    "$skipped $(t skills.update.unchanged)"
 }
 
+# ── VALIDATE ─────────────────────────────────────────────────────────────────
+
+##
+# Valide la cohérence de tous les skills (locaux + externes).
+# Vérifie pour chaque fichier .md :
+#   - présence des champs frontmatter requis (name, description)
+#   - cohérence du nom dans le frontmatter vs le nom de fichier
+#   - pour les externes : présence dans .sources.json
+# Affiche un résumé et exit 1 si des erreurs sont trouvées.
+# @param {string} [$1] — nom de skill optionnel (valide uniquement ce skill)
+##
+cmd_validate() {
+  local filter_name="${1:-}"
+  local count_ok=0 count_err=0 count_warn=0
+
+  log_title "Validation des skills"
+  echo ""
+
+  # ── Construire la liste des skills locaux ─────────────────────────────────
+  local skill_files=()
+  while IFS= read -r f; do
+    skill_files+=("$f")
+  done < <(find "$HUB_DIR/skills" -name "*.md" \
+              -not -path "*/external/*" \
+              -type f 2>/dev/null | sort)
+
+  # ── Ajouter les skills externes ───────────────────────────────────────────
+  if [ -d "$EXTERNAL_SKILLS_DIR" ]; then
+    while IFS= read -r f; do
+      skill_files+=("$f")
+    done < <(find "$EXTERNAL_SKILLS_DIR" -name "*.md" \
+                -not -name ".sources.json" \
+                -type f 2>/dev/null | sort)
+  fi
+
+  if [ "${#skill_files[@]}" -eq 0 ]; then
+    log_warn "Aucun skill trouvé."
+    exit 0
+  fi
+
+  # ── Charger les sources externes pour validation croisée ─────────────────
+  local known_externals=""
+  if [ -f "$SOURCES_FILE" ] && command -v jq &>/dev/null; then
+    known_externals=$(jq -r 'keys[]' "$SOURCES_FILE" 2>/dev/null || true)
+  fi
+
+  for f in "${skill_files[@]}"; do
+    [ -f "$f" ] || continue
+
+    local skill_name_front skill_desc_front
+    skill_name_front=$(grep '^name:'        "$f" 2>/dev/null | head -1 | sed 's/^name:[[:space:]]*//')
+    skill_desc_front=$(grep '^description:' "$f" 2>/dev/null | head -1 | sed 's/^description:[[:space:]]*//')
+
+    # Nom du skill depuis le chemin (sans extension, relatif à skills/)
+    local rel_path file_basename
+    rel_path="${f#"$HUB_DIR"/skills/}"
+    file_basename=$(basename "$f" .md)
+
+    # Filtrer si un nom spécifique est demandé
+    if [ -n "$filter_name" ]; then
+      local filter_base; filter_base=$(basename "$filter_name" .md)
+      [ "$file_basename" = "$filter_base" ] || continue
+    fi
+
+    local issues=""
+    local has_err=0 has_warn=0
+
+    # ── Champs requis ────────────────────────────────────────────────────────
+    if [ -z "$skill_name_front" ]; then
+      issues="${issues}    champ manquant : name\n"
+      has_warn=1
+    fi
+    if [ -z "$skill_desc_front" ]; then
+      issues="${issues}    champ manquant : description\n"
+      has_warn=1
+    fi
+
+    # ── Cohérence name frontmatter vs nom de fichier ──────────────────────
+    if [ -n "$skill_name_front" ] && [ "$skill_name_front" != "$file_basename" ]; then
+      issues="${issues}    nom incohérent : frontmatter='${skill_name_front}' vs fichier='${file_basename}'\n"
+      has_warn=1
+    fi
+
+    # ── Skills externes : vérifier présence dans .sources.json ───────────
+    if [[ "$rel_path" == external/* ]]; then
+      local ext_base; ext_base="${rel_path#external/}"; ext_base="${ext_base%.md}"
+      if [ -n "$known_externals" ] && ! printf '%s\n' "$known_externals" | grep -qx "$ext_base"; then
+        issues="${issues}    skill externe sans source enregistrée dans .sources.json\n"
+        has_warn=1
+      fi
+    fi
+
+    # ── Affichage résultat ───────────────────────────────────────────────
+    if [ $has_err -eq 1 ]; then
+      echo -e "  ${RED}✘${RESET}  ${BOLD}${rel_path}${RESET}"
+      printf '%b' "$issues"
+      count_err=$((count_err + 1))
+    elif [ $has_warn -eq 1 ]; then
+      echo -e "  ${YELLOW}⚠${RESET}  ${BOLD}${rel_path}${RESET}"
+      printf '%b' "$issues"
+      count_warn=$((count_warn + 1))
+    else
+      echo -e "  ${GREEN}✔${RESET}  ${rel_path}"
+      count_ok=$((count_ok + 1))
+    fi
+  done
+
+  # ── Résumé ─────────────────────────────────────────────────────────────────
+  echo ""
+  local summary
+  summary="${BOLD}Résumé :${RESET}  ${GREEN}${count_ok} OK${RESET}"
+  [ $count_err  -gt 0 ] && summary="${summary}  ${RED}${count_err} erreur(s)${RESET}"
+  [ $count_warn -gt 0 ] && summary="${summary}  ${YELLOW}${count_warn} avertissement(s)${RESET}"
+  echo -e "$summary"
+  echo ""
+
+  [ $count_err -gt 0 ] && exit 1
+  return 0
+}
+
 # ── DISPATCH ─────────────────────────────────────────────────────────────────
 
 SUBCOMMAND="${1:-}"
@@ -545,7 +665,8 @@ case "$SUBCOMMAND" in
   sync)    cmd_sync ;;
   update)  cmd_update "$@" ;;
   used-by) cmd_used_by "$@" ;;
-  remove)  cmd_remove "$@" ;;
+  remove)   cmd_remove "$@" ;;
+  validate) cmd_validate "$@" ;;
   *)
     echo -e "${BOLD}$(t skills.title)${RESET}"
     echo ""
@@ -557,6 +678,7 @@ case "$SUBCOMMAND" in
     echo "  $(t help.skills_used_by)"
     echo "  $(t help.skills_sync)"
     echo "  $(t help.skills_remove)"
+    echo "  $(t help.skills_validate)"
     echo ""
     echo -e "${BOLD}$(t skills.examples)${RESET}"
     echo "  ./oc.sh skills update pdf"

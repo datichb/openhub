@@ -444,34 +444,28 @@ oc init MY-APP ~/workspace/my-app    # pre-fills ID and path (remaining question
 
 ---
 
-## `oc list`
-
-Lists registered projects with their accessibility status.
-
-```bash
-oc list
-```
-
-> For a detailed dashboard (Beads, API, agents, tracker), use `oc status`.
-
----
-
 ## `oc status`
 
 Displays a dashboard of the state of all registered projects.
 
 ```bash
-oc status
+oc status [--short]
 ```
 
-**For each project, checks:**
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--short` / `-s` | Compact view: id / path / status table (replaces the former `oc list`) |
+
+**Without option — detailed view.** For each project, checks:
 - Local path accessible
 - Beads initialised (`.beads/`)
 - API key configured (provider + model)
 - Tracker configured
 - Agents deployed for the default target
 
-**Example output:**
+**Example detailed output:**
 
 ```
   MY-APP
@@ -480,6 +474,54 @@ oc status
     ✔  API configured (anthropic / claude-sonnet-4-5)
     ·  Tracker: none
     ✔  Agents deployed (opencode): 12 file(s)
+```
+
+**Examples:**
+
+```bash
+oc status          # detailed view of all projects
+oc status --short  # compact list (id, path, status)
+```
+
+---
+
+## `oc project`
+
+Operations on registered projects: renaming and moving.
+
+```bash
+oc project rename <OLD_ID> <NEW_ID>
+oc project move   <PROJECT_ID> <new_path>
+```
+
+### `oc project rename`
+
+Renames a project in **all registry files** (`projects.md`, `paths.local.md`, `api-keys.local.md`).
+
+```bash
+oc project rename MY-APP MY-APP-V2
+```
+
+- Requests confirmation before any modification
+- Updates all three files atomically
+- Reminds you to redeploy agents after renaming if necessary
+
+### `oc project move`
+
+Changes a project's local path in `paths.local.md`.
+
+```bash
+oc project move MY-APP ~/workspace/my-app-new
+```
+
+- Accepts `~` paths and relative paths (resolved from `$PWD`)
+- Warns if the destination folder does not exist yet (can continue anyway)
+
+**Examples:**
+
+```bash
+oc project rename OLD-NAME NEW-NAME           # rename across all registries
+oc project move MY-APP ~/workspace/my-app     # update the local path
 ```
 
 ---
@@ -511,17 +553,19 @@ oc remove MY-APP --clean   # remove from registry + clean deployed files
 
 ## `oc update`
 
-Updates installed tools according to active targets.
+Updates **installed tools**: opencode, Beads (`bd`) and registered external skills.
 
 ```bash
 oc update
 ```
 
+> Does not update the hub scripts themselves. For that, use `oc upgrade`.
+
 ---
 
 ## `oc upgrade`
 
-Updates the hub sources themselves (`git pull` on the local repo). With an optional version argument, checks out a specific release tag.
+Updates the **hub sources themselves** (`git pull` on the local repo). With an optional version argument, checks out a specific release tag.
 
 ```bash
 oc upgrade              # pull latest main
@@ -530,7 +574,9 @@ oc upgrade v1.1.0       # checkout tag v1.1.0
 
 After a successful update, offers to re-run `oc sync` to redeploy agents on all registered projects.
 
-> Use `oc update` to update the installed tools (opencode, Beads, external skills). Use `oc upgrade` to update the hub scripts and agents themselves.
+> **Summary of the distinction:**
+> - `oc update` → updates installed tools (opencode, bd, external skills)
+> - `oc upgrade` → updates hub scripts and agents via git
 
 ---
 
@@ -564,12 +610,12 @@ oc config <sub-command> [options]
 | Option | Description |
 |--------|-------------|
 | `--model <model>` | AI model (default: `claude-sonnet-4-5`) |
-| `--provider <provider>` | `anthropic` or `litellm` (default: `anthropic`) |
+| `--provider <provider>` | LLM provider — in interactive mode, a numbered menu is shown from the `providers.json` catalogue |
 | `--api-key <key>` | API key (masked input in interactive mode) |
-| `--base-url <url>` | Base URL (litellm only) |
+| `--base-url <url>` | Base URL (OpenAI-compatible providers) |
 
-> Without options, `set` is interactive — offers current values as defaults.
-> After a `set`, offers to re-deploy `opencode.json` in the project if the path is known.
+> Without options, `set` is interactive — offers current values as defaults and displays a numbered menu of available providers.
+> After a `set`, offers to re-deploy agents in the project if the path is known.
 
 **Examples:**
 
@@ -580,6 +626,30 @@ oc config set MY-APP --provider litellm --api-key sk-... --base-url https://api.
 oc config get MY-APP                                 # display config (masked key)
 oc config list                                       # list all entries
 oc config unset MY-APP                               # delete (with confirmation)
+```
+
+---
+
+## `oc provider`
+
+Manages LLM providers at the **hub level** (global configuration shared by all projects).
+
+```bash
+oc provider <sub-command>
+```
+
+| Sub-command | Description |
+|-------------|-------------|
+| `list` | List all providers in the catalogue with their hub status |
+| `set-default` | Configure the hub default provider (interactive) |
+
+> To configure the provider for a **specific project**, use `oc config set <PROJECT_ID>`.
+
+**Examples:**
+
+```bash
+oc provider list         # list all available providers
+oc provider set-default  # interactive wizard to choose the hub provider
 ```
 
 ---
@@ -601,7 +671,7 @@ oc agent <sub-command>
 | `select <PROJECT_ID>` | Choose which agents to deploy for a project |
 | `mode <PROJECT_ID>` | Display / override `primary`/`subagent` modes per project |
 | `validate [agent-id]` | Validate agent consistency (required fields, existing skills, valid targets, id uniqueness) |
-| `keytest` | Keyboard diagnostic for the interactive selector |
+| `deploy <agent-id> [PROJECT_ID]` | Deploy **a single agent** to active targets (or project targets) |
 
 ### `oc agent create` — interactive workflow
 
@@ -630,10 +700,28 @@ Verifies for each agent:
 
 Returns exit code 1 if at least one error is detected.
 
-> `oc agent keytest` displays raw bytes received for each key. Useful for
-> diagnosing a terminal where selector navigation doesn't work. Quit with `q`.
+### `oc agent deploy`
+
+```bash
+oc agent deploy <agent-id>                # deploy to active hub targets
+oc agent deploy <agent-id> <PROJECT_ID>   # deploy to project-configured targets
+```
+
+Deploys **a single agent** without redeploying everything. Useful after modifying an agent or a skill.
+
+- Respects the project's configured targets if `PROJECT_ID` is provided (otherwise hub active targets)
+- Checks that the agent supports the target before deploying
+- Applies the project's language setting (if configured)
+
+**Examples:**
+
+```bash
+oc agent deploy planner            # deploy planner in the hub
+oc agent deploy planner MY-APP     # deploy planner in MY-APP only
+```
 
 > The interactive selector (agents, targets) uses the alternate screen (`smcup`/`rmcup`) — the parent terminal content is fully preserved on close.
+> `oc agent keytest` is available to diagnose terminals where navigation doesn't work (not in help, type `oc agent keytest`).
 
 ---
 
@@ -655,6 +743,21 @@ oc skills <sub-command>
 | `used-by <skill>` | List agents that use this skill |
 | `sync` | Re-download all external skills (useful after clone) |
 | `remove <name>` | Remove an external skill |
+| `validate [name]` | Validate skill consistency (frontmatter, sources) |
+
+### `oc skills validate`
+
+```bash
+oc skills validate          # validate all skills (local + external)
+oc skills validate <name>   # validate only the specified skill
+```
+
+Verifies for each skill `.md` file:
+- Required frontmatter fields present (`name`, `description`)
+- Consistency between the `name` field and the filename
+- For external skills: presence of their source in `.sources.json`
+
+Returns exit code 1 if at least one error is detected.
 
 ---
 
