@@ -130,7 +130,7 @@ if [ ! -d "$PROJECT_PATH/.beads" ]; then
     log_warn "$(t start.beads_not_init)"
     _prompt _init_beads "$(t start.init_beads_now)"
     if [[ "${_init_beads:-Y}" =~ ^[Yy]$ ]]; then
-      if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID"); then
+      if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID" --skip-hooks); then
         log_success "$(t beads.initialized) $PROJECT_PATH"
         # Proposer de configurer l'upstream git si absent (ni upstream ni origin trouvé)
         if ! (cd "$PROJECT_PATH" && git remote get-url upstream) &>/dev/null && \

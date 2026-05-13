@@ -175,7 +175,7 @@ if command -v bd &>/dev/null && [ -d "$PROJECT_PATH" ] && [ ! -d "$PROJECT_PATH/
   echo ""
   _prompt init_beads "Initialiser Beads dans le projet ? [Y/n] : "
   if [[ "${init_beads:-Y}" =~ ^[Yy]$ ]]; then
-    if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID"); then
+    if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID" --skip-hooks); then
       log_success "Beads initialisé dans $PROJECT_PATH"
       BEADS_OK=1
 
