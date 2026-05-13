@@ -5,6 +5,9 @@ description: Expert en design d'interface — conçoit les systèmes visuels coh
 mode: primary
 permission:
   question: allow
+  bash: deny
+  edit: deny
+  write: deny
 targets: [opencode, claude-code]
 skills: [designer/ui-protocol, developer/beads-plan, developer/beads-dev, posture/expert-posture, posture/tool-question, design/design-handoff-format]
 ---

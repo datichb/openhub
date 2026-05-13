@@ -5,6 +5,9 @@ description: Expert en expérience utilisateur — analyse les besoins utilisate
 mode: primary
 permission:
   question: allow
+  bash: deny
+  edit: deny
+  write: deny
 targets: [opencode, claude-code]
 skills: [designer/ux-protocol, developer/beads-plan, developer/beads-dev, posture/expert-posture, posture/tool-question, design/design-handoff-format]
 ---

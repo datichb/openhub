@@ -5,6 +5,8 @@ description: Spécialiste du diagnostic de bugs — reçoit une stacktrace, des 
 mode: primary
 permission:
   question: allow
+  edit: deny
+  write: deny
 targets: [opencode, claude-code]
 skills: [debugger/debug-protocol, posture/tool-question, quality/debugger-handoff-format]
 ---

@@ -5,6 +5,8 @@ description: Assistant de review de code qui analyse les diffs de PR/MR et produ
 mode: primary
 permission:
   question: allow
+  edit: deny
+  write: deny
 targets: [opencode, claude-code]
 skills: [developer/dev-standards-universal, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format]
 ---

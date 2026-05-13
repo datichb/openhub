@@ -5,6 +5,8 @@ description: Consultant fonctionnel et technique qui analyse le contexte projet 
 mode: primary
 permission:
   question: allow
+  edit: deny
+  write: deny
 targets: [opencode, claude-code]
 skills: [developer/beads-plan, planning/planner, posture/expert-posture, posture/tool-question, planning/planner-handoff-format]
 ---

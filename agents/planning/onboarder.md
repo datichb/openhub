@@ -5,6 +5,8 @@ description: Agent de découverte d'un projet existant — explore la codebase, 
 mode: primary
 permission:
   question: allow
+  bash: deny
+  edit: deny
 targets: [opencode, claude-code]
 skills: [planning/project-discovery, planning/project-conventions, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, planning/onboarder-handoff-format]
 ---
