@@ -225,12 +225,21 @@ question({
    (bd claim → **[TDD : tests rouges d'abord]** → implémenter → tester → bd update -s review)
    orchestrator-dev attend le compte rendu — il n'exécute aucune de ces étapes lui-même.
 
-4. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
-   - **Présent** → lire le `### Statut` :
-     - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
-     - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
-   - **Absent** → demander explicitement au developer de produire le bloc avant de continuer.
+4. À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
+
+   1. **Détecter la présence du compte rendu d'implémentation complet** (description de ce qui a été fait, fichiers modifiés, tests écrits) :
+      - **Présent** → continuer la vérification suivante
+      - **Absent** → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+
+   2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+      - **Présent** → lire le `### Statut` :
+        - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
+        - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
+      - **Absent** → demander explicitement au developer de produire le bloc avant de continuer.
+
    Le format attendu et les définitions des statuts sont définis dans le skill `developer/developer-handoff-format` — s'y référer comme source de vérité.
+
+   > ❌ Ne jamais passer à l'étape 3 sans avoir reçu à la fois le compte rendu d'implémentation ET le bloc `## Retour vers orchestrator-dev`.
 
 ---
 
@@ -273,13 +282,22 @@ Invoquer `qa-engineer` en fournissant :
 - L'ID du ticket Beads
 - Les critères d'acceptance déjà couverts par le developer (champ `### Critères d'acceptance couverts` du retour developer, si disponible)
 
-À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
-- **Présent** → lire le `### Statut` :
-  - `couverture-complète` → continuer vers l'étape 4 normalement
-  - `couverture-partielle` → transmettre les critères non couverts au reviewer à l'étape 4
-  - `non-testable` → noter dans le compte rendu d'étape (étape 6) comme point d'attention technique
-- **Absent** → demander explicitement au qa-engineer de produire le bloc avant de continuer.
+À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
+
+1. **Détecter la présence du rapport QA complet** (liste des tests écrits, couverture par critère, zones non testables) :
+   - **Présent** → continuer la vérification suivante
+   - **Absent** → demander explicitement au qa-engineer de produire le rapport complet avant de continuer.
+
+2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+   - **Présent** → lire le `### Statut` :
+     - `couverture-complète` → continuer vers l'étape 4 normalement
+     - `couverture-partielle` → transmettre les critères non couverts au reviewer à l'étape 4
+     - `non-testable` → noter dans le compte rendu d'étape (étape 6) comme point d'attention technique
+   - **Absent** → demander explicitement au qa-engineer de produire le bloc avant de continuer.
+
 Le format attendu et les définitions des statuts sont définis dans le skill `qa/qa-handoff-format` — s'y référer comme source de vérité.
+
+> ❌ Ne jamais passer à l'étape 4 sans avoir reçu à la fois le rapport QA ET le bloc `## Retour vers orchestrator-dev`.
 
 ---
 
@@ -459,6 +477,18 @@ question({
 })
 ```
 Invoquer `documentarian` uniquement si l'utilisateur répond "Oui".
+
+À la réception du résultat du documentarian, effectuer les vérifications suivantes :
+
+1. **Détecter la présence du contenu de documentation complet** (présenté avant le bloc) :
+   - **Présent** → continuer la vérification suivante
+   - **Absent** → demander explicitement au documentarian de présenter le contenu complet avant de continuer.
+
+2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+   - **Présent** → lire le `### Statut` et intégrer le `### Résumé de l'entrée` dans le compte rendu d'étape
+   - **Absent** → demander explicitement au documentarian de produire le bloc avant de continuer.
+
+Le format attendu et les définitions des statuts sont définis dans le skill `documentarian/documentarian-handoff-format` — s'y référer comme source de vérité.
 
 **Selon le mode :**
 

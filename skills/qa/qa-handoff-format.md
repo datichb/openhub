@@ -13,10 +13,15 @@ Il est injecté dans le `qa-engineer` et dans `orchestrator-dev` — producteur 
 ## Quand produire ce bloc
 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
-tu **dois** conclure ta session avec le bloc `## Retour vers orchestrator-dev` défini ci-dessous,
-après avoir produit ton rapport de couverture complet et écrit les tests.
+tu **dois** produire dans cet ordre :
 
-Ce bloc vient **après** ton rapport QA habituel — il en est le résumé actionnable structuré.
+1. **Le rapport QA complet** — liste détaillée des tests écrits, analyse de la couverture par critère d'acceptance, justification des zones non testables. **Ce rapport doit être produit même si aucun test n'a pu être écrit (statut `non-testable`).**
+2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé structuré actionnable.
+
+Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il ne le remplace pas.
+
+> **Autocontrôle obligatoire avant de produire ce bloc :**
+> « Ai-je produit le rapport QA complet avant ce bloc ? Si non, le produire d'abord. »
 
 ---
 
@@ -64,10 +69,14 @@ Ce bloc vient **après** ton rapport QA habituel — il en est le résumé actio
 
 ## Règles pour le producteur (qa-engineer)
 
-- **Toujours produire ce bloc**, même si aucun test n'a pu être écrit
+- **Toujours produire le rapport QA complet** avant ce bloc — même si aucun test n'a pu être écrit. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire ce bloc** à la suite du rapport, même si le statut est `non-testable`
 - **La `### Couverture des critères d'acceptance`** doit être basée sur `bd show <ID>` — ne pas supposer les critères
 - **Signaler honnêtement les zones non testables** — `orchestrator-dev` en a besoin pour informer sur la qualité globale
 - Si aucun test n'a été écrit (statut `non-testable`), expliquer clairement pourquoi dans les zones non testables
+
+> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport QA complet.
+> ❌ Ne jamais résumer le rapport — le bloc est un résumé structuré, pas un substitut.
 
 ---
 
@@ -87,5 +96,8 @@ Ce bloc vient **après** ton rapport QA habituel — il en est le résumé actio
 
 4. **Si le bloc est absent** → demander explicitement au qa-engineer de le produire avant de continuer.
 
+5. **Si le rapport QA complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au qa-engineer de produire le rapport complet avant de continuer.
+
 > ❌ Ne jamais passer à la review sans avoir vérifié le statut QA — une couverture `non-testable` doit être signalée.
 > ❌ Ne jamais ignorer les critères d'acceptance non couverts — les transmettre au reviewer.
+> ❌ Ne jamais accepter un bloc handoff sans rapport QA préalable — les deux sont obligatoires.

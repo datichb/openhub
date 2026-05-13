@@ -13,10 +13,15 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 ## Quand produire ce bloc
 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
-tu **dois** conclure ta session avec le bloc `## Retour vers orchestrator-dev` défini ci-dessous,
-après avoir terminé ton implémentation et passé le ticket en statut `review` dans Beads.
+tu **dois** produire dans cet ordre :
 
-Ce bloc vient **après** ton compte rendu d'implémentation habituel.
+1. **Le compte rendu d'implémentation complet** — description narrative de ce qui a été fait, décisions prises, fichiers touchés, tests écrits, critères couverts. **Ce compte rendu doit être produit même si l'implémentation est partielle ou bloquée.**
+2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé structuré actionnable.
+
+Ce bloc vient **après** le compte rendu d'implémentation — il en est le résumé structuré. Il ne le remplace pas.
+
+> **Autocontrôle obligatoire avant de produire ce bloc :**
+> « Ai-je produit le compte rendu d'implémentation complet avant ce bloc ? Si non, le produire d'abord. »
 
 ---
 
@@ -161,13 +166,17 @@ Aucun blocage rencontré.
 
 ## Règles pour le producteur (developer-*)
 
-- **Toujours produire ce bloc** en fin de session, quelle que soit la complexité de l'implémentation
+- **Toujours produire le compte rendu d'implémentation complet** avant ce bloc — même si l'implémentation est partielle ou bloquée. Le compte rendu est obligatoire dans tous les cas.
+- **Toujours produire ce bloc** à la suite du compte rendu, quelle que soit la complexité de l'implémentation
 - **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée
 - **`**Changements par fichier**`** : pour chaque fichier du diff, lister les symboles changés avec la notation `+/-/~` — ne pas inventer, ne pas résumer arbitrairement
 - **`### Critères d'acceptance couverts`** doit être basé sur `bd show <ID>` — cocher chaque critère explicitement
 - **`### Points d'attention pour la review`** est critique : c'est ce qui permet au reviewer de concentrer son attention sur les zones sensibles
 - **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc
+
+> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le compte rendu d'implémentation complet.
+> ❌ Ne jamais résumer le compte rendu — le bloc est un résumé structuré, pas un substitut.
 
 ---
 
@@ -193,6 +202,9 @@ Aucun blocage rencontré.
 
 6. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 
+7. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
 > ❌ Ne jamais résumer les `**Changements par fichier**` — les transmettre tels quels au reviewer.
+> ❌ Ne jamais accepter un bloc handoff sans compte rendu d'implémentation préalable — les deux sont obligatoires.

@@ -13,10 +13,15 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 ## Quand produire ce bloc
 
 Quand tu es invoqué depuis l'`orchestrator` (Mode D — bug signalé par l'utilisateur),
-tu **dois** conclure ta session avec le bloc `## Retour vers orchestrator` défini ci-dessous,
-après avoir terminé ton diagnostic et (si confirmé) créé le ou les tickets de correction.
+tu **dois** produire dans cet ordre :
 
-En standalone (invocation directe), tu produis ton rapport habituel — ce bloc structuré vient s'y ajouter en conclusion.
+1. **Le rapport de diagnostic complet** — cause racine identifiée, chaîne causale, hypothèses explorées (confirmées / écartées / insuffisamment documentées), impact et régressions potentielles. **Ce rapport doit être produit même si le diagnostic est partiel ou le bug non reproductible.**
+2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable.
+
+En standalone (invocation directe), le rapport de diagnostic précède également ce bloc.
+
+> **Autocontrôle obligatoire avant de produire ce bloc :**
+> « Ai-je produit le rapport de diagnostic complet avant ce bloc ? Si non, le produire d'abord. »
 
 ---
 
@@ -81,11 +86,16 @@ En standalone (invocation directe), tu produis ton rapport habituel — ce bloc 
 
 ## Règles pour le producteur (debugger)
 
+- **Toujours produire le rapport de diagnostic complet** avant ce bloc — même si le diagnostic est `non-reproductible`. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire ce bloc** à la suite du rapport, même si le statut est `non-reproductible`
 - **Ne jamais affirmer une cause racine sans éléments probants** — utiliser "confirmé / probable / incertain" dans `Niveau de certitude`
 - **Renseigner toutes les sections** — même si vides, utiliser la mention explicite correspondante
 - **Signaler honnêtement les `### Hypothèses explorées`** — y compris celles insuffisamment documentées
 - **Signaler l'impact honnêtement** — ne pas minimiser si des régressions sont possibles
 - Ce bloc est produit **après** la création du ticket (ou après refus explicite de l'utilisateur)
+
+> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport de diagnostic complet.
+> ❌ Ne jamais résumer le rapport — le bloc est un résumé structuré, pas un substitut.
 
 ---
 
@@ -93,17 +103,20 @@ En standalone (invocation directe), tu produis ton rapport habituel — ce bloc 
 
 ### À la réception du bloc `## Retour vers orchestrator` du debugger
 
-1. **Afficher l'intégralité du bloc** dans la discussion — ne jamais résumer ni filtrer.
-2. **Vérifier la présence de tous les champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Statut`.
+1. **Afficher l'intégralité du rapport de diagnostic** dans la discussion — ne jamais résumer ni filtrer.
+2. **Afficher l'intégralité du bloc** dans la discussion — ne jamais résumer ni filtrer.
+3. **Vérifier la présence de tous les champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement au debugger de compléter avant de continuer.
-3. **Présenter les `### Actions d'urgence si bug en prod`** en premier si renseignées — elles sont prioritaires sur toute autre décision.
-4. **Utiliser les tickets créés** comme point d'entrée pour la suite :
+4. **Si le rapport de diagnostic complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au debugger de produire le rapport complet avant de continuer.
+5. **Présenter les `### Actions d'urgence si bug en prod`** en premier si renseignées — elles sont prioritaires sur toute autre décision.
+6. **Utiliser les tickets créés** comme point d'entrée pour la suite :
    - Si des tickets ont été créés → proposer à l'utilisateur de les intégrer dans le workflow feature (Mode A ou B)
    - Si aucun ticket créé (cause non déterminée) → informer l'utilisateur et proposer les options disponibles
-5. **Utiliser le `### Statut`** pour informer l'utilisateur du niveau de confiance du diagnostic :
+7. **Utiliser le `### Statut`** pour informer l'utilisateur du niveau de confiance du diagnostic :
    - `diagnostiqué` → présenter la cause racine comme établie
    - `partiellement-diagnostiqué` → signaler l'incertitude explicitement
    - `non-reproductible` → ne pas créer de ticket de correction sans plus d'information
 
 > ❌ Ne jamais minimiser ou ignorer la section `### Impact et régressions potentielles`.
 > ❌ Ne jamais passer les tickets créés directement à orchestrator-dev sans les présenter à l'utilisateur.
+> ❌ Ne jamais accepter un bloc handoff sans rapport de diagnostic préalable — les deux sont obligatoires.

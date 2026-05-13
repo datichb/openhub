@@ -48,10 +48,19 @@ Invoquer le `debugger` en lui transmettant :
 - Le problème tel que décrit par l'utilisateur (verbatim)
 - Tout contexte disponible (fichier mentionné, comportement attendu vs observé, stacktrace)
 
-À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
-- **Présent** → afficher l'intégralité du bloc dans la discussion. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées, puis l'`### Impact et régressions potentielles`. Proposer à l'utilisateur d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable.
-- **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
+À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
+
+1. **Détecter la présence du rapport de diagnostic complet** (cause racine, hypothèses explorées, impact) :
+   - **Présent** → continuer la vérification suivante
+   - **Absent** → demander explicitement au debugger de produire le rapport complet avant de continuer.
+
+2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+   - **Présent** → afficher l'intégralité du bloc dans la discussion. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées, puis l'`### Impact et régressions potentielles`. Proposer à l'utilisateur d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable.
+   - **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
+
 Le format attendu et les définitions des statuts du debugger sont définis dans le skill `quality/debugger-handoff-format` — s'y référer comme source de vérité.
+
+> ❌ Ne jamais accepter un bloc handoff sans rapport de diagnostic préalable — les deux sont obligatoires.
 
 ⚠️ Ne jamais tenter de :
 - Lire les fichiers concernés pour comprendre le bug
@@ -95,10 +104,19 @@ question({
 
 - **Oui** → Invoquer l'`onboarder`, attendre le rapport complet.
 
-  À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
-  - **Présent** → afficher l'intégralité du bloc dans la discussion avant de poser le CP-onboard. Présenter les `### Zones d'incertitude` et la `### Dette technique détectée` à l'utilisateur pour décision.
-  - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
+  À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
+
+  1. **Détecter la présence du rapport d'onboarding complet** (stack, conventions, dette détectée, fichiers produits) :
+     - **Présent** → continuer la vérification suivante
+     - **Absent** → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.
+
+  2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+     - **Présent** → afficher l'intégralité du bloc dans la discussion avant de poser le CP-onboard. Présenter les `### Zones d'incertitude` et la `### Dette technique détectée` à l'utilisateur pour décision.
+     - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
+
   Le format attendu et les définitions des statuts de l'onboarder sont définis dans le skill `planning/onboarder-handoff-format` — s'y référer comme source de vérité.
+
+  > ❌ Ne jamais accepter un bloc handoff sans rapport d'onboarding préalable — les deux sont obligatoires.
 
   **[CP-onboard]** — Après le rapport, utiliser l'outil `question` :
 
@@ -129,10 +147,19 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
    > « Je délègue la planification au `planner` pour la feature : <nom de la feature>.
    > Le planner va explorer le projet et poser des questions de contexte — elles apparaîtront ici avec leur contexte identifié. »
 
-2. À la réception du résultat du `planner`, **détecter la présence du bloc `## Retour vers orchestrator`** :
-   - **Présent** → utiliser le tableau `### Tickets créés` comme source de vérité. Présenter les `### Hypothèses et ambiguïtés` et les `### Risques identifiés` à l'utilisateur dans le texte du CP-0, avant la question.
-   - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
+2. À la réception du résultat du `planner`, effectuer les vérifications suivantes dans l'ordre :
+
+   1. **Détecter la présence du récapitulatif de planification complet** (liste narrative des tickets créés, dépendances, risques) :
+      - **Présent** → continuer la vérification suivante
+      - **Absent** → demander explicitement au planner de produire le récapitulatif complet avant de continuer.
+
+   2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+      - **Présent** → utiliser le tableau `### Tickets créés` comme source de vérité. Présenter les `### Hypothèses et ambiguïtés` et les `### Risques identifiés` à l'utilisateur dans le texte du CP-0, avant la question.
+      - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
+
    Le format attendu, les champs obligatoires et les définitions des statuts du planner sont définis dans le skill `planning/planner-handoff-format` — s'y référer comme source de vérité.
+
+   > ❌ Ne jamais accepter un bloc handoff sans récapitulatif de planification préalable — les deux sont obligatoires.
 
 3. Récupérer les IDs créés depuis le bloc `### Tickets créés` du retour planner.
    Pour chaque ticket, noter la présence du label `tdd` depuis la colonne `TDD` du tableau.
@@ -242,13 +269,22 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    - L'ID du ticket (`bd show <ID>`)
    - Le contexte global de la feature
 
-3. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
-   - **Présent** → afficher la `### Spec produite` intégralement dans la discussion. Signaler les `### Points ouverts` et les `### Contraintes d'implémentation` avant de poser le CP-spec.
-   - **Absent** → demander explicitement à l'agent design de produire le récapitulatif structuré avant de continuer.
-   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `design/design-handoff-format` — s'y référer comme source de vérité.
-   > ❌ Ne jamais résumer ni abréger la spec avant de la présenter à l'utilisateur au CP-spec.
+3. À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 
-4. [CP-spec] Afficher la spec produite (via le champ `### Spec produite` du retour), puis utiliser l'outil `question` :
+   1. **Détecter la présence de la spec complète** (user flows, états, wireframes, tokens, critères d'acceptance UX/UI) :
+      - **Présente** → continuer la vérification suivante
+      - **Absente ou semble résumée** → demander explicitement à l'agent design de produire la spec complète avant de continuer.
+
+   2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+      - **Présent** → afficher la spec complète dans la discussion. Signaler les `### Points ouverts` et les `### Contraintes d'implémentation` avant de poser le CP-spec.
+      - **Absent** → demander explicitement à l'agent design de produire le récapitulatif structuré avant de continuer.
+
+   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `design/design-handoff-format` — s'y référer comme source de vérité.
+
+   > ❌ Ne jamais résumer ni abréger la spec avant de la présenter à l'utilisateur au CP-spec.
+   > ❌ Ne jamais accepter un bloc handoff sans spec complète préalable — les deux sont obligatoires.
+
+4. [CP-spec] Afficher la spec complète produite, puis utiliser l'outil `question` :
 
    ```
    question({
@@ -294,13 +330,22 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    - L'ID du ticket (`bd show <ID>`)
    - Le périmètre à auditer
 
-3. À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator`** :
-   - **Présent** → afficher l'intégralité du bloc dans la discussion — notamment le `### Périmètre audité`, les `### Vulnérabilités / Problèmes identifiés` et le `### Risque résiduel si non corrigé`. Tenir compte du `### Statut` pour adapter la formulation du CP-audit.
-   - **Absent** → demander explicitement à l'agent auditeur de produire le récapitulatif structuré avant de continuer.
-   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `auditor/audit-handoff-format` — s'y référer comme source de vérité.
-   > ❌ Ne jamais résumer ni filtrer le rapport avant de le présenter à l'utilisateur au CP-audit.
+3. À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 
-4. [CP-audit] Afficher le rapport (via le bloc retour), puis utiliser l'outil `question` :
+   1. **Détecter la présence du rapport d'audit complet** (analyse narrative, observations item par item, preuves) :
+      - **Présent** → continuer la vérification suivante
+      - **Absent** → demander explicitement à l'agent auditeur de produire le rapport complet avant de continuer.
+
+   2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+      - **Présent** → afficher le rapport d'audit complet dans la discussion, puis afficher l'intégralité du bloc — notamment le `### Périmètre audité`, la `### Synthèse des problèmes identifiés` et le `### Risque résiduel si non corrigé`. Tenir compte du `### Statut` pour adapter la formulation du CP-audit.
+      - **Absent** → demander explicitement à l'agent auditeur de produire le récapitulatif structuré avant de continuer.
+
+   Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `auditor/audit-handoff-format` — s'y référer comme source de vérité.
+
+   > ❌ Ne jamais résumer ni filtrer le rapport avant de le présenter à l'utilisateur au CP-audit.
+   > ❌ Ne jamais accepter un bloc handoff sans rapport d'audit préalable — les deux sont obligatoires.
+
+4. [CP-audit] Afficher le rapport d'audit complet, puis utiliser l'outil `question` :
 
    ```
    question({

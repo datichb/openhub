@@ -13,10 +13,15 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 ## Quand produire ce bloc
 
 Quand tu es invoqué depuis l'`orchestrator` (et non en standalone),
-tu **dois** conclure ta session avec le bloc `## Retour vers orchestrator` défini ci-dessous,
-après avoir produit ton rapport complet.
+tu **dois** produire dans cet ordre :
 
-En standalone, tu produis ton rapport habituel — ce bloc structuré vient s'y ajouter en conclusion.
+1. **Le rapport d'audit complet** — analyse narrative et détaillée du périmètre : observations item par item, contexte de chaque problème identifié, preuves, chemins d'exploitation si applicable. **Ce rapport doit être produit même si aucun problème n'est identifié.**
+2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — synthèse structurée et actionnelle du rapport.
+
+En standalone, le rapport d'audit complet précède également ce bloc.
+
+> **Autocontrôle obligatoire avant de produire ce bloc :**
+> « Ai-je produit le rapport d'audit complet avant ce bloc ? Si non, le produire d'abord. »
 
 ---
 
@@ -34,15 +39,16 @@ En standalone, tu produis ton rapport habituel — ce bloc structuré vient s'y 
 **Couvert :** <liste des fichiers, répertoires, composants, endpoints analysés>
 **Non couvert :** <ce qui n'a pas été analysé et pourquoi — "Périmètre complet couvert" si rien n'a été exclu>
 
-### Vulnérabilités / Problèmes identifiés
+### Synthèse des problèmes identifiés
 
-| Sévérité | Problème | Localisation | Description |
-|----------|---------|--------------|-------------|
-| 🔴 Critique | <titre court> | <fichier:ligne ou composant> | <description précise> |
-| 🟠 Majeur | <titre court> | <fichier:ligne ou composant> | <description précise> |
-| 🟡 Mineur | <titre court> | <fichier:ligne ou composant> | <description précise> |
+| Sévérité | Problème | Localisation |
+|----------|---------|--------------|
+| 🔴 Critique | <titre court> | <fichier:ligne ou composant> |
+| 🟠 Majeur | <titre court> | <fichier:ligne ou composant> |
+| 🟡 Mineur | <titre court> | <fichier:ligne ou composant> |
 
 <"Aucun problème identifié" si le périmètre est conforme>
+<Le détail complet de chaque problème est dans le rapport d'audit ci-dessus>
 
 ### Recommandations priorisées
 
@@ -75,25 +81,33 @@ En standalone, tu produis ton rapport habituel — ce bloc structuré vient s'y 
 
 ## Règles pour le producteur (auditor-*)
 
-- **Reproduire le rapport intégral** dans le bloc `### Vulnérabilités / Problèmes identifiés` — ne jamais résumer
+- **Toujours produire le rapport d'audit complet** avant ce bloc — même si aucun problème n'est identifié. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire ce bloc** à la suite du rapport, même si le statut est `acceptable`
+- **Le tableau `### Synthèse des problèmes identifiés`** est une synthèse — le détail complet est dans le rapport narratif qui précède
 - **Toujours renseigner le `### Périmètre audité`** — même si le périmètre est complet, l'indiquer explicitement
 - **Toujours renseigner le `### Risque résiduel`** — même si nul, l'indiquer explicitement
 - Si aucun problème n'est identifié, renseigner chaque section avec la mention explicite correspondante
+
+> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport d'audit complet.
+> ❌ Ne jamais résumer le rapport dans le bloc — le bloc est une synthèse structurée, pas un substitut.
 
 ---
 
 ## Règles pour le consommateur (orchestrator)
 
-### À la réception du bloc `## Retour vers orchestrator` d'un agent auditor
+### À la réception du retour d'un agent auditor
 
-1. **Afficher l'intégralité du bloc** dans la discussion avant de poser le CP-audit — ne jamais résumer.
-2. **Vérifier la présence de tous les champs obligatoires** : `Périmètre audité`, `Vulnérabilités / Problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Statut`.
+1. **Afficher le rapport d'audit complet** dans la discussion avant de poser le CP-audit — ne jamais résumer ni filtrer.
+2. **Afficher l'intégralité du bloc** dans la discussion.
+3. **Vérifier la présence de tous les champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement à l'agent auditor de compléter avant de continuer.
-3. **Utiliser le `### Statut`** pour informer la question au CP-audit :
+4. **Si le rapport d'audit complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement à l'agent auditor de produire le rapport complet avant de continuer.
+5. **Utiliser le `### Statut`** pour informer la question au CP-audit :
    - `bloquant` → le mentionner explicitement dans la question CP-audit
    - `acceptable` → le mentionner pour aider l'utilisateur à choisir "Accepter"
-4. **Transmettre les `### Recommandations priorisées` intégralement** à `orchestrator-dev` si l'utilisateur choisit "Corriger" au CP-audit.
-5. **Signaler le `### Périmètre non couvert`** dans le récap CP-feature si des zones n'ont pas été auditées.
+6. **Transmettre les `### Recommandations priorisées` intégralement** à `orchestrator-dev` si l'utilisateur choisit "Corriger" au CP-audit.
+7. **Signaler le `### Périmètre non couvert`** dans le récap CP-feature si des zones n'ont pas été auditées.
 
 > ❌ Ne jamais construire le CP-audit à partir d'un retour incomplet ou sans ce bloc structuré.
 > ❌ Ne jamais résumer ou filtrer les recommandations avant de les transmettre à orchestrator-dev.
+> ❌ Ne jamais accepter un bloc handoff sans rapport d'audit préalable — les deux sont obligatoires.

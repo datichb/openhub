@@ -13,10 +13,15 @@ Il est injecté dans `ux-designer`, `ui-designer` et `orchestrator` — producte
 ## Quand produire ce bloc
 
 Quand tu es invoqué depuis l'`orchestrator` (et non en standalone ou depuis le `planner`),
-tu **dois** conclure ta session avec le bloc `## Retour vers orchestrator` défini ci-dessous,
-**après** la validation explicite de la spec par l'utilisateur.
+tu **dois** produire dans cet ordre :
 
-En standalone ou quand invoqué depuis le `planner`, tu produis ton format habituel — ce bloc n'est pas requis.
+1. **La spec complète** — user flows intégraux avec tous les états, wireframes textuels, tokens, composants, critères d'acceptance UX/UI. **Cette spec doit être produite dans sa totalité, jamais résumée, même si elle est longue.** Elle est produite après la validation explicite de l'utilisateur.
+2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — synthèse structurée avec les métadonnées, contraintes et statut.
+
+En standalone ou quand invoqué depuis le `planner`, la spec est produite sans ce bloc.
+
+> **Autocontrôle obligatoire avant de produire ce bloc :**
+> « Ai-je produit la spec complète avant ce bloc ? Si non, la produire d'abord. »
 
 ---
 
@@ -31,8 +36,7 @@ En standalone ou quand invoqué depuis le `planner`, tu produis ton format habit
 **Ticket :** #<ID> — <titre>
 
 ### Spec produite
-<spec complète — user flow intégral avec tous les états, wireframes textuels, tokens, composants,
-critères d'acceptance UX/UI — jamais résumée ni abrégée>
+Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ### Contraintes d'implémentation
 - <contrainte 1 — ex : responsive mobile-first obligatoire, ratio de contraste WCAG AA minimum, etc.>
@@ -65,25 +69,33 @@ critères d'acceptance UX/UI — jamais résumée ni abrégée>
 
 ## Règles pour le producteur (ux-designer / ui-designer)
 
-- **Ne jamais résumer la spec** dans le bloc `### Spec produite` — reproduire intégralement le contenu de la spec validée
+- **Toujours produire la spec complète** avant ce bloc — jamais résumée ni abrégée. La spec est obligatoire dans tous les cas.
+- **Toujours produire ce bloc** à la suite de la spec, même si le statut est `bloqué`
+- **Le champ `### Spec produite`** dans le bloc pointe vers la spec ci-dessus — ne pas la reproduire dans le bloc
 - Le bloc est produit **après** la validation explicite de l'utilisateur, pas avant
 - Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place du `bd close` habituel
 - Le `task_id` n'est pas requis dans ce format (contrairement au format `orchestrator-dev`) — l'orchestrator reprend naturellement après réception
+
+> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit la spec complète.
+> ❌ Ne jamais résumer la spec — le bloc est une synthèse de métadonnées, pas un substitut à la spec.
 
 ---
 
 ## Règles pour le consommateur (orchestrator)
 
-### À la réception du bloc `## Retour vers orchestrator` d'un agent design
+### À la réception du retour d'un agent design
 
-1. **Afficher la `### Spec produite` intégralement** dans la discussion avant de poser le CP-spec — ne jamais résumer.
-2. **Vérifier la présence de tous les champs obligatoires** : `Spec produite`, `Contraintes d'implémentation`, `Points ouverts`, `Statut`.
+1. **Afficher la spec complète** dans la discussion avant de poser le CP-spec — ne jamais résumer.
+2. **Afficher l'intégralité du bloc** dans la discussion.
+3. **Vérifier la présence de tous les champs obligatoires** : `Contraintes d'implémentation`, `Points ouverts`, `Statut`.
    - Si l'un de ces champs est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander explicitement à l'agent design de compléter avant de continuer.
-3. **Intégrer les `### Contraintes d'implémentation`** dans le prompt de délégation à `orchestrator-dev` lors de la phase d'implémentation.
-4. **Signaler les `### Points ouverts`** à l'utilisateur lors du CP-spec pour décision avant implémentation.
-5. **Utiliser le `### Statut`** pour conditionner la suite :
+4. **Si la spec complète est absente** (le bloc handoff est présent sans spec préalable) → demander explicitement à l'agent design de produire la spec complète avant de continuer.
+5. **Intégrer les `### Contraintes d'implémentation`** dans le prompt de délégation à `orchestrator-dev` lors de la phase d'implémentation.
+6. **Signaler les `### Points ouverts`** à l'utilisateur lors du CP-spec pour décision avant implémentation.
+7. **Utiliser le `### Statut`** pour conditionner la suite :
    - `spec-complète` ou `spec-partielle` → continuer vers CP-spec normalement
    - `bloqué` → ne pas router vers orchestrator-dev — demander à l'utilisateur comment débloquer
 
 > ❌ Ne jamais construire le CP-spec à partir d'un retour incomplet ou sans ce bloc structuré.
 > ❌ Ne jamais résumer la spec avant de la présenter à l'utilisateur au CP-spec.
+> ❌ Ne jamais accepter un bloc handoff sans spec préalable — les deux sont obligatoires.
