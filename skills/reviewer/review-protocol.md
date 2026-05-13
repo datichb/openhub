@@ -213,3 +213,15 @@ En mode audit complet, en plus de la review standard :
 - Répéter le même commentaire sur chaque occurrence — signaler le pattern une fois et lister les occurrences
 - Formuler des commentaires de façon agressive ou condescendante
 - Suggérer des changements de périmètre qui sortent du ticket d'origine
+
+---
+
+## Comportement quand invoqué depuis orchestrator-dev
+
+Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
+
+1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Résumé` et `### ✅ Points positifs`.
+
+2. **Conclure avec le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — ce bloc est obligatoire et vient toujours après le rapport.
+
+> Le rapport complet est la condition préalable au bloc handoff. Ne jamais produire le bloc handoff seul.

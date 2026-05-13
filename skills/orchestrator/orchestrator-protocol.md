@@ -369,9 +369,13 @@ Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dép
 
 **Comportement obligatoire :**
 
-1. **Afficher le bloc `### Contexte complet` intégralement** dans la discussion — ne jamais résumer ni abréger.
+1. **Pour un CP-2 (rapport de review) : afficher le `### Rapport de review complet` dans le fil de conversation** avant toute autre action — l'utilisateur doit lire le rapport avant de prendre sa décision.
+   - Si la section `### Rapport de review complet` est absente ou semble résumée → demander explicitement à orchestrator-dev de retransmettre le rapport intégral avant de continuer.
+   - Ne jamais poser la question au CP-2 sans avoir d'abord affiché le rapport complet.
 
-2. **Poser la question à l'utilisateur** via l'outil `question`, en reprenant exactement la question et les options du bloc :
+2. **Afficher le bloc `### Contexte complet` intégralement** dans la discussion — ne jamais résumer ni abréger.
+
+3. **Poser la question à l'utilisateur** via l'outil `question`, en reprenant exactement la question et les options du bloc :
 
    ```
    question({
@@ -384,7 +388,7 @@ Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dép
    })
    ```
 
-3. **Ré-invoquer orchestrator-dev avec `task_id`** (valeur dans le bloc `### État de la session`) en transmettant la réponse :
+4. **Ré-invoquer orchestrator-dev avec `task_id`** (valeur dans le bloc `### État de la session`) en transmettant la réponse :
 
    ```
    Task(
@@ -394,10 +398,11 @@ Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dép
    )
    ```
 
-4. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
+5. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
 
 > ❌ Ne jamais construire une réponse à la place de l'utilisateur.
 > ❌ Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
+> ❌ Pour un CP-2 : ne jamais poser la question sans avoir affiché le rapport de review complet au préalable.
 
 ---
 

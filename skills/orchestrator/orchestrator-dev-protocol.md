@@ -295,12 +295,21 @@ Fournir au reviewer :
 - Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
 - Si disponible depuis le retour qa-engineer : les critères d'acceptance non couverts (statut `couverture-partielle`)
 
-À la réception du résultat, **détecter la présence du bloc `## Retour vers orchestrator-dev`** :
-- **Présent** → lire le `### Verdict` pour préparer le CP-2 :
-  - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
-  - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
-- **Absent** → demander explicitement au reviewer de produire le bloc avant de continuer.
+À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
+
+1. **Détecter la présence du rapport de review complet** (format `review-protocol`) :
+   - **Présent** → continuer la vérification suivante
+   - **Absent** → demander explicitement au reviewer de produire le rapport complet avant de continuer. Le rapport doit précéder le bloc handoff.
+
+2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+   - **Présent** → lire le `### Verdict` pour préparer le CP-2 :
+     - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
+     - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
+   - **Absent** → demander explicitement au reviewer de produire le bloc avant de continuer.
+
 Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
+
+> ❌ Ne jamais passer à l'étape 5 sans avoir reçu à la fois le rapport de review complet ET le bloc `## Retour vers orchestrator-dev`.
 
 ---
 
@@ -329,10 +338,12 @@ question({
 
 > ⚠️ **Si CONTEXTE = orchestrateur_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
 
-Pour remplir le `### Contexte complet` du bloc, utiliser :
-- Le rapport de review intégral
-- La `### Synthèse des problèmes` du retour reviewer (tableau sévérité / nombre / résumé)
-- Le `### Routing recommandé` du retour reviewer
+**Autocontrôle obligatoire avant de produire le bloc CP-2 :**
+> « Le rapport de review complet est-il présent et non résumé dans la section `### Rapport de review complet` ? Si non, retourner à l'étape 4 et redemander le rapport intégral au reviewer. »
+
+Pour remplir les sections du bloc, utiliser :
+- `### Contexte complet` : la `### Synthèse des problèmes` du retour reviewer + le verdict + le routing recommandé
+- `### Rapport de review complet` : le rapport de review copié **intégralement, tel quel, sans modification ni résumé**
 
 ```
 ---
@@ -344,8 +355,6 @@ Pour remplir le `### Contexte complet` du bloc, utiliser :
 **Phase :** CP-2
 
 ### Contexte complet
-<rapport de review intégral — toutes les sections, aucune omission>
-
 **Synthèse :**
 | Sévérité | Nombre | Résumé |
 |----------|--------|--------|
@@ -353,6 +362,9 @@ Pour remplir le `### Contexte complet` du bloc, utiliser :
 
 **Verdict reviewer :** <commit | corriger | corriger-sécurité>
 **Routing recommandé :** <retour-initial | developer-security>
+
+### Rapport de review complet
+<rapport de review intégral copié tel quel — toutes sections (Résumé, 🔴 Critique, 🟠 Majeur, 🟡 Mineur, 💡 Suggestion, ✅ Points positifs, 🔍 Hors scope), aucune omission, aucune reformulation>
 
 ### Question en attente
 Quelle suite pour le ticket #<ID> — <titre> ?
@@ -718,3 +730,5 @@ Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
 - Continuer vers la review sans avoir reçu le bloc `## Retour vers orchestrator-dev` du developer
 - Ignorer les `### Points d'attention pour la review` du developer — les transmettre toujours au reviewer
 - Clore une session invoquée depuis l'orchestrateur feature sans avoir produit le bloc `## Retour vers orchestrator` — ce bloc est obligatoire même en cas de stop, de ticket bloqué ou de session partielle
+- Accepter un retour du reviewer sans rapport de review complet — rapport et bloc handoff sont tous deux obligatoires
+- Copier le rapport de review dans `### Contexte complet` — le rapport va dans `### Rapport de review complet`, le contexte est réservé à la synthèse et au verdict

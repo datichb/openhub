@@ -60,8 +60,14 @@ il **ne pose pas la question lui-même** — il arrête sa session en produisant
 **Phase :** <CP-2 | Blocage 3 cycles | Dépendance non résolue | Ticket bloqué>
 
 ### Contexte complet
-<contenu intégral — rapport de review, historique des cycles, raison du blocage, etc.>
+<contenu de contexte — synthèse, historique des cycles, raison du blocage, etc.>
+<Pour CP-2 : synthèse des problèmes + verdict + routing — le rapport complet est dans ### Rapport de review complet>
 <Ne jamais résumer ni abréger — tout le contenu doit être présent>
+
+### Rapport de review complet
+<Pour CP-2 uniquement : rapport de review intégral copié tel quel — toutes sections, aucune omission, aucune reformulation>
+<Pour les autres CPs (Blocage 3 cycles) : rapports de review des cycles concernés, copiés intégralement>
+<Omettre cette section pour les CPs sans rapport de review (Dépendance non résolue, Ticket bloqué)>
 
 ### Question en attente
 <texte exact de la question à poser à l'utilisateur>
@@ -82,12 +88,12 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 
 ### CPs à enjeu fort qui déclenchent ce bloc
 
-| CP | Déclencheur | Contexte à inclure |
-|----|------------|-------------------|
-| **CP-2** | Rapport de review reçu — commit ou corriger ? | Rapport de review intégral (toutes sections) |
-| **Blocage 3 cycles** | 3 cycles de review sans résolution | Historique des 3 rapports de review, problèmes persistants |
-| **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description |
-| **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket |
+| CP | Déclencheur | `### Contexte complet` | `### Rapport de review complet` |
+|----|------------|------------------------|----------------------------------|
+| **CP-2** | Rapport de review reçu — commit ou corriger ? | Synthèse des problèmes + verdict + routing | Rapport de review intégral (toutes sections, copié tel quel) |
+| **Blocage 3 cycles** | 3 cycles de review sans résolution | Problèmes persistants non résolus | Rapports des 3 cycles copiés intégralement |
+| **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description | *(section omise)* |
+| **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket | *(section omise)* |
 
 ---
 
@@ -109,7 +115,8 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 - Ne jamais construire le CP-feature à partir d'un récap incomplet ou ambigu.
 
 ### À la réception d'un `## Question pour l'orchestrator`
-- Afficher le bloc **Contexte complet** tel quel dans la discussion — ne pas résumer.
+- Pour un CP-2 : afficher le `### Rapport de review complet` **dans le fil de conversation** avant de poser la question — l'utilisateur doit voir le rapport avant de prendre sa décision.
+- Afficher le bloc **`### Contexte complet`** tel quel dans la discussion — ne pas résumer.
 - Poser la question à l'utilisateur via l'outil `question`, en reprenant exactement la question et les options du bloc.
 - Le champ `question` doit commencer par : `[OrchestratorDev — <Phase> | Ticket #<ID> — <titre>]\n<question>`
 - Ré-invoquer `orchestrator-dev` avec `task_id` (valeur dans le bloc `### État de la session`) et transmettre la réponse :
@@ -117,3 +124,4 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 - Ne jamais construire une réponse à la place de l'utilisateur.
 - Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
 - Si le résultat contient aussi `## Retour vers orchestrator` (présent après `## Question pour l'orchestrator`) : le lire pour avoir une vue de l'état courant, mais **ne pas construire le CP-feature à partir de lui** — ce récap est partiel. Attendre le récap final après que l'utilisateur ait répondu et que la session ait terminé normalement.
+- Pour un CP-2 : si le `### Rapport de review complet` est absent ou semble résumé, **redemander à `orchestrator-dev`** de transmettre le rapport intégral avant d'afficher quoi que ce soit à l'utilisateur.
