@@ -333,7 +333,7 @@ Le format attendu, les définitions des verdicts et du routing sont définis dan
 
 ### Étape 5 — Décision après review
 
-Afficher le rapport de review intégralement.
+Afficher le rapport de review intégralement dans le texte de la discussion (ne pas inclure dans l'outil `question`).
 
 **En mode standalone** → utiliser l'outil `question` pour CP-2.
 

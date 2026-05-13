@@ -115,8 +115,8 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 - Ne jamais construire le CP-feature à partir d'un récap incomplet ou ambigu.
 
 ### À la réception d'un `## Question pour l'orchestrator`
-- Pour un CP-2 : afficher le `### Rapport de review complet` **dans le fil de conversation** avant de poser la question — l'utilisateur doit voir le rapport avant de prendre sa décision.
-- Afficher le bloc **`### Contexte complet`** tel quel dans la discussion — ne pas résumer.
+- Pour un CP-2 : afficher le `### Rapport de review complet` **dans le texte de la discussion (ne pas inclure dans l'outil `question`)** avant de poser la question — l'utilisateur doit voir le rapport avant de prendre sa décision.
+- Afficher le bloc **`### Contexte complet`** dans le texte de la discussion (ne pas inclure dans l'outil `question`) — ne pas résumer.
 - Poser la question à l'utilisateur via l'outil `question`, en reprenant exactement la question et les options du bloc.
 - Le champ `question` doit commencer par : `[OrchestratorDev — <Phase> | Ticket #<ID> — <titre>]\n<question>`
 - Ré-invoquer `orchestrator-dev` avec `task_id` (valeur dans le bloc `### État de la session`) et transmettre la réponse :

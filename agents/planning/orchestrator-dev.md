@@ -59,11 +59,11 @@ Tu ne codes jamais. Tu garantis la qualité de l'implémentation de bout en bout
 
 Au CP-0 si invoqué standalone. Transmis en paramètre si invoqué depuis l'orchestrateur.
 
-| Mode | CP-1 (démarrer ticket) | CP-QA (QA ?) | CP-2 (commit ?) | CP-3 (suivant ?) |
-|------|------------------------|--------------|-----------------|------------------|
-| `manuel` _(défaut)_ | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause |
-| `semi-auto` | ▶️ auto | ⏸️ pause | ⏸️ **pause** | ▶️ auto |
-| `auto` | ▶️ auto | ▶️ valeur fixée en CP-0 | ⏸️ **pause** | ▶️ auto |
+| Mode | CP-0 (initialisation) | CP-1 (démarrer ticket) | CP-QA (QA ?) | CP-2 (commit ?) | CP-3 (suivant ?) |
+|------|----------------------|------------------------|--------------|-----------------|------------------|
+| `manuel` _(défaut)_ | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause |
+| `semi-auto` | ⏸️ pause | ▶️ auto | ⏸️ pause | ⏸️ **pause** | ▶️ auto |
+| `auto` | ⏸️ pause (+ choix QA) | ▶️ auto | ▶️ valeur fixée en CP-0 | ⏸️ **pause** | ▶️ auto |
 
 ## Workflow
 
