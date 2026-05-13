@@ -96,8 +96,8 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 
 ### À la réception du bloc `## Retour vers orchestrator` de l'onboarder
 
-1. **Afficher le rapport d'onboarding complet** dans la discussion avant de poser le CP-onboard — ne jamais résumer.
-2. **Afficher l'intégralité du bloc** dans la discussion avant de poser le CP-onboard.
+1. **Afficher le rapport d'onboarding complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-onboard — ne jamais résumer.
+2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-onboard.
 3. **Vérifier la présence de tous les champs obligatoires** : `Stack technique`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement à l'onboarder de compléter avant de continuer.
 4. **Si le rapport d'onboarding complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.

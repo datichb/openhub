@@ -85,8 +85,8 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ### À la réception du retour d'un agent design
 
-1. **Afficher la spec complète** dans la discussion avant de poser le CP-spec — ne jamais résumer.
-2. **Afficher l'intégralité du bloc** dans la discussion.
+1. **Afficher la spec complète dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-spec — ne jamais résumer.
+2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`).
 3. **Vérifier la présence de tous les champs obligatoires** : `Contraintes d'implémentation`, `Points ouverts`, `Statut`.
    - Si l'un de ces champs est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander explicitement à l'agent design de compléter avant de continuer.
 4. **Si la spec complète est absente** (le bloc handoff est présent sans spec préalable) → demander explicitement à l'agent design de produire la spec complète avant de continuer.

@@ -96,7 +96,7 @@ En standalone, le récapitulatif de planification précède également ce bloc.
 
 ### À la réception du bloc `## Retour vers orchestrator` du planner
 
-1. **Afficher le récapitulatif de planification complet** dans la discussion avant de poser le CP-0 — ne jamais résumer.
+1. **Afficher le récapitulatif de planification complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-0 — ne jamais résumer.
 2. **Utiliser le tableau `### Tickets créés`** comme source de vérité pour le CP-0 — ne pas relire les tickets un par un avec `bd show` si le tableau est complet.
 3. **Vérifier la présence de tous les champs obligatoires** : `Tickets créés`, `Dépendances`, `Hypothèses et ambiguïtés`, `Risques identifiés`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement au planner de compléter avant de continuer.

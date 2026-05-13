@@ -103,8 +103,8 @@ En standalone (invocation directe), le rapport de diagnostic précède égalemen
 
 ### À la réception du bloc `## Retour vers orchestrator` du debugger
 
-1. **Afficher l'intégralité du rapport de diagnostic** dans la discussion — ne jamais résumer ni filtrer.
-2. **Afficher l'intégralité du bloc** dans la discussion — ne jamais résumer ni filtrer.
+1. **Afficher l'intégralité du rapport de diagnostic dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer.
+2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer.
 3. **Vérifier la présence de tous les champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement au debugger de compléter avant de continuer.
 4. **Si le rapport de diagnostic complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au debugger de produire le rapport complet avant de continuer.

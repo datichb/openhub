@@ -97,8 +97,8 @@ En standalone, le rapport d'audit complet précède également ce bloc.
 
 ### À la réception du retour d'un agent auditor
 
-1. **Afficher le rapport d'audit complet** dans la discussion avant de poser le CP-audit — ne jamais résumer ni filtrer.
-2. **Afficher l'intégralité du bloc** dans la discussion.
+1. **Afficher le rapport d'audit complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-audit — ne jamais résumer ni filtrer.
+2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`).
 3. **Vérifier la présence de tous les champs obligatoires** : `Périmètre audité`, `Synthèse des problèmes identifiés`, `Recommandations priorisées`, `Risque résiduel si non corrigé`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement à l'agent auditor de compléter avant de continuer.
 4. **Si le rapport d'audit complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement à l'agent auditor de produire le rapport complet avant de continuer.
