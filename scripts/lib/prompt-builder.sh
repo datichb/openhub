@@ -46,7 +46,7 @@ extract_frontmatter_list() {
 # @param $1 — chemin absolu du fichier agent
 read_agent_frontmatter() {
   local file="$1"
-  _fm_id="" _fm_targets="" _fm_skills=""
+  _fm_id="" _fm_targets="" _fm_skills="" _fm_model=""
   local in_fm=0 fm_done=0
   while IFS= read -r line; do
     if [ "$in_fm" -eq 0 ] && [ "$line" = "---" ]; then
@@ -62,9 +62,11 @@ read_agent_frontmatter() {
         id:*)      _fm_id="${line#id:}";      _fm_id="${_fm_id# }"      ;;
         targets:*) _fm_targets="${line#targets:}"; _fm_targets="${_fm_targets# }" ;;
         skills:*)  _fm_skills="${line#skills:}";  _fm_skills="${_fm_skills# }"  ;;
+        model:*)   _fm_model="${line#model:}";   _fm_model="${_fm_model# }"   ;;
       esac
     fi
     # Arrêter dès qu'on a tout (optimisation : les champs utiles sont dans les 10 premières lignes)
+    # _fm_model est optionnel — pas inclus dans la condition de sortie anticipée
     [ -n "$_fm_id" ] && [ -n "$_fm_targets" ] && [ -n "$_fm_skills" ] && break
   done < "$file"
 }
@@ -80,6 +82,38 @@ _fm_list_items() {
       item="${item# }"; item="${item% }"
       [ -n "$item" ] && printf '%s\n' "$item"
     done
+}
+
+# Retourne un rang numérique pour la hiérarchie des modèles
+# Hiérarchie : claude-opus-4 > claude-sonnet-4-5 > claude-haiku-4-5
+# Modèles inconnus = rang 0 (le plus bas)
+get_model_rank() {
+  local model="$1"
+  # Extraire le nom de base (sans préfixe provider comme "anthropic/")
+  local base="${model##*/}"
+  case "$base" in
+    claude-opus-4*)     echo 3 ;;
+    claude-sonnet-4-5*) echo 2 ;;
+    claude-haiku-4-5*)  echo 1 ;;
+    *)                  echo 0 ;;
+  esac
+}
+
+# Applique le clamp (plancher) du frontmatter
+# Si resolved_model < floor_model en rang → retourne floor_model + warning
+# $1 = resolved_model (depuis la cascade), $2 = floor_model (depuis le frontmatter), $3 = agent_id (pour le log)
+clamp_model() {
+  local resolved="$1" floor="$2" agent_id="${3:-}"
+  [ -z "$floor" ] && echo "$resolved" && return 0
+  local rank_resolved rank_floor
+  rank_resolved=$(get_model_rank "$resolved")
+  rank_floor=$(get_model_rank "$floor")
+  if [ "$rank_resolved" -lt "$rank_floor" ]; then
+    log_warn "Modèle résolu '$resolved' inférieur au plancher '$floor' pour l'agent '$agent_id' — plancher appliqué"
+    echo "$floor"
+  else
+    echo "$resolved"
+  fi
 }
 
 # Extrait le bloc permission du frontmatter et le convertit en JSON inline

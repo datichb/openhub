@@ -8,6 +8,7 @@ permission:
   bash: allow
   edit: deny
   write: deny
+model: anthropic/claude-opus-4
 targets: [opencode, claude-code]
 skills: [developer/beads-plan, planning/planner, posture/expert-posture, posture/tool-question, planning/planner-handoff-format]
 ---
