@@ -105,8 +105,8 @@ t() {
       help.upgrade.cmd)       printf '%s' "upgrade [vX.Y.Z]" ;;
       help.upgrade.desc)      printf '%s' "Met à jour les sources du hub via git (git pull ou checkout tag)" ;;
       # Config
-      help.config_set.cmd)    printf '%s' "config set <PROJECT_ID> [--model m] [--provider p] [--api-key k] [--base-url u]" ;;
-      help.config_set.desc)   printf '%s' "Configure le modèle et la clé API d'un projet" ;;
+      help.config_set.cmd)    printf '%s' "config set [PROJECT_ID] [--model m] [--provider p] [--api-key k] [--family-model f=m] [--agent-model a=m]" ;;
+      help.config_set.desc)   printf '%s' "Configure le modèle, la clé API et les modèles par agent/famille d'un projet (ou du hub si pas de PROJECT_ID)" ;;
       help.config_get.cmd)    printf '%s' "config get <PROJECT_ID>" ;;
       help.config_get.desc)   printf '%s' "Affiche la configuration d'un projet" ;;
       help.config_list.cmd)   printf '%s' "config list" ;;
@@ -694,8 +694,8 @@ t_en() {
     help.upgrade.cmd)       printf '%s' "upgrade [vX.Y.Z]" ;;
     help.upgrade.desc)      printf '%s' "Update hub sources via git (git pull or checkout tag)" ;;
     # Config
-    help.config_set.cmd)    printf '%s' "config set <PROJECT_ID> [--model m] [--provider p] [--api-key k] [--base-url u]" ;;
-    help.config_set.desc)   printf '%s' "Configure model and API key for a project" ;;
+    help.config_set.cmd)    printf '%s' "config set [PROJECT_ID] [--model m] [--provider p] [--api-key k] [--family-model f=m] [--agent-model a=m]" ;;
+    help.config_set.desc)   printf '%s' "Configure model, API key and per-agent/family models for a project (or hub if no PROJECT_ID)" ;;
     help.config_get.cmd)    printf '%s' "config get <PROJECT_ID>" ;;
     help.config_get.desc)   printf '%s' "Show project configuration" ;;
     help.config_list.cmd)   printf '%s' "config list" ;;
