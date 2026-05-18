@@ -123,27 +123,111 @@ cmd_get_language() {
   log_info "Current CLI language: ${lang:-en}"
 }
 
+_cmd_set_hub() {
+  # Parse --family-model et --agent-model au niveau hub (pas de PROJECT_ID)
+  if ! command -v jq >/dev/null 2>&1; then
+    log_error "jq is required for hub-level config"
+    exit 1
+  fi
+  if [ ! -f "$HUB_CONFIG" ]; then
+    log_error "hub.json not found — run first: ./oc.sh install"
+    exit 1
+  fi
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --family-model)
+        [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
+        local fm_key="${2%%=*}" fm_value="${2#*=}"
+        [ "$fm_key" = "$2" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
+        local tmp; tmp=$(mktemp)
+        jq --arg k "$fm_key" --arg v "$fm_value" '.agent_models.families[$k] = $v' "$HUB_CONFIG" > "$tmp" && mv "$tmp" "$HUB_CONFIG"
+        log_success "Hub family model set: $fm_key=$fm_value"
+        shift 2 ;;
+      --agent-model)
+        [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
+        local am_key="${2%%=*}" am_value="${2#*=}"
+        [ "$am_key" = "$2" ] && { log_error "--agent-model requiert le format key=value"; exit 1; }
+        local tmp; tmp=$(mktemp)
+        jq --arg k "$am_key" --arg v "$am_value" '.agent_models.agents[$k] = $v' "$HUB_CONFIG" > "$tmp" && mv "$tmp" "$HUB_CONFIG"
+        log_success "Hub agent model set: $am_key=$am_value"
+        shift 2 ;;
+      *) log_error "Option inconnue : $1"; exit 1 ;;
+    esac
+  done
+}
+
+# Ajoute ou remplace une ligne key=value dans une section [ID] de api-keys.local.md
+_upsert_api_keys_field() {
+  local id="$1" field="$2" value="$3"
+  _ensure_api_keys_file
+  if ! api_keys_entry_exists "$id"; then
+    printf '\n[%s]\n' "$id" >> "$API_KEYS_FILE"
+  fi
+  local tmp; tmp=$(mktemp)
+  awk -v section="[${id}]" -v field="$field" -v value="$value" '
+    BEGIN { found_section=0; replaced=0 }
+    $0 == section { found_section=1; print; next }
+    found_section && /^\[/ {
+      if (!replaced) { print field "=" value }
+      found_section=0; replaced=1; print; next
+    }
+    found_section && substr($0, 1, length(field)+1) == field "=" { print field "=" value; replaced=1; next }
+    { print }
+    END { if (found_section && !replaced) print field "=" value }
+  ' "$API_KEYS_FILE" > "$tmp"
+  mv "$tmp" "$API_KEYS_FILE"
+}
+
 cmd_set() {
   local id="${1:-}"
-  shift || true
 
   # Special case: oc config set language <en|fr>
   if [ "$id" = "language" ]; then
-    cmd_set_language "$@"
+    shift; cmd_set_language "$@"
     return
   fi
 
+  # Si le premier arg est un flag → pas de project_id, opération sur le hub
+  if [ -z "$id" ] || [[ "$id" == --* ]]; then
+    _cmd_set_hub "$@"
+    return
+  fi
+
+  shift || true
+
   # Flags optionnels
   local flag_model="" flag_provider="" flag_api_key="" flag_base_url=""
+  local flag_family_models=() flag_agent_models=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --model)    [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_model="$2";    shift 2 ;;
       --provider) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_provider="$2"; shift 2 ;;
       --api-key)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_api_key="$2";  shift 2 ;;
       --base-url) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_base_url="$2"; shift 2 ;;
+      --family-model) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_family_models+=("$2"); shift 2 ;;
+      --agent-model)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_agent_models+=("$2");  shift 2 ;;
       *) log_error "Option inconnue : $1"; exit 1 ;;
     esac
   done
+
+  # Si --family-model ou --agent-model utilisés → écriture autonome, pas de flow interactif
+  if [ ${#flag_family_models[@]} -gt 0 ] || [ ${#flag_agent_models[@]} -gt 0 ]; then
+    id=$(normalize_project_id "$id")
+    require_project_id "$id"
+    for entry in "${flag_family_models[@]}"; do
+      local fk="${entry%%=*}" fv="${entry#*=}"
+      [ "$fk" = "$entry" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
+      _upsert_api_keys_field "$id" "agent_models.families.${fk}" "$fv"
+      log_success "Project $id family model set: $fk=$fv"
+    done
+    for entry in "${flag_agent_models[@]}"; do
+      local ak="${entry%%=*}" av="${entry#*=}"
+      [ "$ak" = "$entry" ] && { log_error "--agent-model requiert le format key=value"; exit 1; }
+      _upsert_api_keys_field "$id" "agent_models.agents.${ak}" "$av"
+      log_success "Project $id agent model set: $ak=$av"
+    done
+    return
+  fi
 
   [ -z "$id" ] && { read -rp "  PROJECT_ID : " id; }
   id=$(normalize_project_id "$id")
