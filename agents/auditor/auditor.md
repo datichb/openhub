@@ -5,6 +5,12 @@ description: Agent coordinateur d'audit multi-domaine — analyse la demande et 
 mode: primary
 permission:
   question: allow
+  bash: deny
+  edit: deny
+  write: deny
+  task:
+    "*": deny
+    "auditor-*": allow
 targets: [opencode, claude-code]
 skills: [auditor/audit-protocol, posture/tool-question]
 ---
