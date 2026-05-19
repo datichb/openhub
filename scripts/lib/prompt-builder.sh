@@ -58,6 +58,9 @@ read_agent_frontmatter() {
       break
     fi
     if [ "$in_fm" -eq 1 ]; then
+      # ⚠ Contrainte d'ordre : model: est optionnel et non inclus dans le early exit
+      # (ligne ci-dessous). Il DOIT apparaître avant skills: dans le frontmatter
+      # pour être lu avant la sortie anticipée.
       case "$line" in
         id:*)      _fm_id="${line#id:}";      _fm_id="${_fm_id# }"      ;;
         targets:*) _fm_targets="${line#targets:}"; _fm_targets="${_fm_targets# }" ;;
@@ -84,10 +87,12 @@ _fm_list_items() {
     done
 }
 
-# Retourne un rang numérique pour la hiérarchie des modèles
-# Hiérarchie : claude-opus-4 > claude-sonnet-4-5 > claude-haiku-4-5
-# Modèles inconnus = rang 0 (le plus bas)
-get_model_rank() {
+# Retourne un rang numérique pour la hiérarchie des modèles (fonction interne)
+# Hiérarchie : claude-opus-4(3) > claude-sonnet-4-5(2) > claude-haiku-4-5(1)
+# Modèles inconnus = rang 0 — volontairement inférieur à haiku pour que le clamp
+# force systématiquement le plancher quand un modèle non reconnu est résolu.
+# Cela évite qu'un modèle inconnu contourne silencieusement un plancher opus/sonnet.
+_get_model_rank() {
   local model="$1"
   # Extraire le nom de base (sans préfixe provider comme "anthropic/")
   local base="${model##*/}"
@@ -106,8 +111,8 @@ clamp_model() {
   local resolved="$1" floor="$2" agent_id="${3:-}"
   [ -z "$floor" ] && echo "$resolved" && return 0
   local rank_resolved rank_floor
-  rank_resolved=$(get_model_rank "$resolved")
-  rank_floor=$(get_model_rank "$floor")
+  rank_resolved=$(_get_model_rank "$resolved")
+  rank_floor=$(_get_model_rank "$floor")
   if [ "$rank_resolved" -lt "$rank_floor" ]; then
     log_warn "Modèle résolu '$resolved' inférieur au plancher '$floor' pour l'agent '$agent_id' — plancher appliqué"
     echo "$floor"
