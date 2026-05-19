@@ -26,7 +26,7 @@ Pour un agent `X` de famille `F` dans un projet `P` :
 
 **Exemple :** si le projet définit un modèle pour la famille `planning` (niveau 2) et que le hub définit un modèle pour l'agent `orchestrator` (niveau 4), c'est le niveau 2 qui l'emporte car il est prioritaire.
 
-> **Note — préfixes provider :** les préfixes provider (ex. `anthropic/`) sont optionnels dans la cascade de résolution. Le fallback hardcodé (niveau 7) n'en inclut pas (`claude-sonnet-4-5`), tandis que les valeurs frontmatter ou de configuration peuvent en inclure (ex. `anthropic/claude-opus-4`). Les deux formes sont acceptées.
+> **Note — préfixes provider :** les préfixes provider (ex. `anthropic/`) sont optionnels dans la cascade de résolution — les noms courts sont recommandés. L'adaptateur opencode applique automatiquement le préfixe du provider configuré en sortie (voir [Préfixage provider dans opencode.json](#préfixage-provider-dans-opencodejson)). Les valeurs frontmatter ou de configuration peuvent inclure un préfixe (ex. `anthropic/claude-opus-4`) — il sera strippé puis réappliqué selon le provider effectif.
 
 > **Note — `default_provider.model` :** le champ `default_provider.model` de `hub.json` n'est PAS utilisé dans cette cascade. Il sert uniquement à la configuration du provider OpenCode, pas à la résolution de modèle par agent.
 
@@ -159,3 +159,45 @@ oc config set MY-APP --agent-model reviewer=claude-sonnet-4-5
 
 - Si le modèle résolu (après clamp) == modèle global du projet → **pas d'injection** (l'agent utilise le modèle par défaut, ce qui évite le bruit dans la configuration)
 - Si le modèle résolu ≠ modèle global → injection de `"model": "<valeur>"` dans l'entrée de l'agent
+
+---
+
+## Préfixage provider dans opencode.json
+
+Opencode exige que les noms de modèles soient préfixés avec le provider au format `provider/model`.
+L'adaptateur opencode applique ce préfixage **automatiquement** après la résolution et le clamp,
+en utilisant les champs `opencode_prefix` et `model_aliases` de `config/providers.json`.
+
+### Flux complet
+
+```
+Cascade (7 niveaux) → Clamp (plancher) → Strip préfixe existant → Alias provider → Préfixe provider → opencode.json
+                       ↑ noms courts                                                 ↑ noms préfixés
+```
+
+> **Important :** la cascade de résolution et le clamp travaillent exclusivement avec des noms courts
+> (ex. `claude-sonnet-4-5`). Le préfixage est une transformation en sortie de l'adaptateur opencode —
+> il n'affecte pas la résolution interne.
+
+### Champs de `config/providers.json`
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `opencode_prefix` | `string \| null` | Préfixe opencode du provider. `null` = pas de préfixe (providers litellm). |
+| `model_aliases` | `object` | Mapping nom interne → nom spécifique au provider. Objet vide si les noms sont identiques. |
+
+### Exemples par provider
+
+| Provider | `opencode_prefix` | Modèle interne | Alias | Résultat dans opencode.json |
+|----------|-------------------|----------------|-------|-----------------------------|
+| `anthropic` | `"anthropic"` | `claude-sonnet-4-5` | — | `anthropic/claude-sonnet-4-5` |
+| `bedrock` | `"amazon-bedrock"` | `claude-sonnet-4-5` | `anthropic.claude-sonnet-4-5-v2-0` | `amazon-bedrock/anthropic.claude-sonnet-4-5-v2-0` |
+| `github-copilot` | `"github-copilot"` | `claude-sonnet-4-5` | `claude-sonnet-4.5` | `github-copilot/claude-sonnet-4.5` |
+| `mammouth` | `null` | `claude-sonnet-4-5` | — | `claude-sonnet-4-5` |
+| `ollama` | `null` | `llama3.2` | — | `llama3.2` |
+
+### Rétrocompatibilité
+
+- La cascade de résolution (niveaux 1-7) n'est pas affectée — elle continue d'accepter les noms courts et les noms préfixés
+- Le clamp continue de fonctionner avec les noms courts (le préfixe est strippé avant comparaison)
+- Les configurations existantes (`hub.json`, `api-keys.local.md`) n'ont pas besoin d'être modifiées
