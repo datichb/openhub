@@ -3,6 +3,38 @@
 
 source "$HUB_DIR/scripts/lib/prompt-builder.sh"
 
+# Applique le préfixe opencode et les model_aliases du provider au modèle court.
+# $1 = modèle (nom court, ex: claude-sonnet-4-5)
+# $2 = provider_name (ex: anthropic, bedrock, github-copilot)
+# Retourne le modèle préfixé sur stdout.
+_apply_provider_prefix() {
+  local model="$1"
+  local provider_name="$2"
+
+  [ -z "$model" ] && return 0
+  [ -z "$provider_name" ] && { echo "$model"; return 0; }
+
+  local providers_file="$HUB_DIR/config/providers.json"
+  [ -f "$providers_file" ] || { echo "$model"; return 0; }
+
+  # Appliquer le model_alias si défini pour ce provider
+  local aliased
+  aliased=$(jq -r --arg p "$provider_name" --arg m "$model" \
+    '.providers[$p].model_aliases[$m] // empty' "$providers_file" 2>/dev/null)
+  [ -n "$aliased" ] && model="$aliased"
+
+  # Lire le opencode_prefix (null → pas de préfixe)
+  local prefix
+  prefix=$(jq -r --arg p "$provider_name" \
+    '.providers[$p].opencode_prefix // empty' "$providers_file" 2>/dev/null)
+
+  if [ -n "$prefix" ]; then
+    echo "${prefix}/${model}"
+  else
+    echo "$model"
+  fi
+}
+
 # Modèle résolu par priorité :
 #   1. api-keys.local.md (clé project-level) si project_id défini
 #   2. variable d'env OPENCODE_MODEL
@@ -22,8 +54,12 @@ _get_opencode_model() {
     model=$(jq -r '.default_provider.model // .opencode.model // empty' "$HUB_DIR/config/hub.json" 2>/dev/null)
   fi
   model="${model:-$DEFAULT_MODEL}"
-  # Strip le préfixe provider (ex: "anthropic/claude-opus-4" → "claude-opus-4")
-  echo "${model##*/}"
+  # Strip le préfixe provider pour obtenir le nom court
+  model="${model##*/}"
+  # Appliquer le préfixe et les aliases du provider effectif
+  local provider
+  provider=$(get_effective_provider "$project_id")
+  _apply_provider_prefix "$model" "$provider"
 }
 
 # Résout le modèle pour un agent et retourne vide si identique au modèle global du projet.
@@ -37,8 +73,12 @@ _get_agent_model() {
 
   local resolved
   resolved=$(resolve_agent_model "$agent_file" "$project_id")
-  # Strip le préfixe provider pour opencode.json
+  # Strip le préfixe provider pour obtenir le nom court
   resolved="${resolved##*/}"
+  # Appliquer le préfixe et les aliases du provider effectif
+  local provider
+  provider=$(get_effective_provider "$project_id")
+  resolved=$(_apply_provider_prefix "$resolved" "$provider")
 
   local global_model
   global_model=$(_get_opencode_model "$project_id")
