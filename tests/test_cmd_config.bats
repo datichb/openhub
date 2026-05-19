@@ -183,3 +183,177 @@ teardown() {
   run get_project_api_base_url "PROJ-1"
   [ "$output" = "" ]
 }
+
+# ── Fonctions sourcées depuis cmd-config.sh ──────────────────────────────────
+
+# ── _validate_family_name ────────────────────────────────────────────────────
+
+@test "_validate_family_name : accepte une famille existante (planning)" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  run _validate_family_name "planning"
+  [ "$status" -eq 0 ]
+}
+
+@test "_validate_family_name : rejette une famille inexistante" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  run _validate_family_name "nonexistent-family"
+  [ "$status" -ne 0 ]
+}
+
+# ── _validate_agent_name ─────────────────────────────────────────────────────
+
+@test "_validate_agent_name : accepte un agent existant (reviewer)" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  run _validate_agent_name "reviewer"
+  [ "$status" -eq 0 ]
+}
+
+@test "_validate_agent_name : rejette un agent inexistant" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  run _validate_agent_name "nonexistent-agent-xyz"
+  [ "$status" -ne 0 ]
+}
+
+# ── _warn_unknown_model ──────────────────────────────────────────────────────
+
+@test "_warn_unknown_model : pas de warning pour claude-opus-4" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  local warnings=()
+  log_warn() { warnings+=("$*"); }
+  _warn_unknown_model "claude-opus-4"
+  [ ${#warnings[@]} -eq 0 ]
+}
+
+@test "_warn_unknown_model : pas de warning pour claude-sonnet-4-5" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  local warnings=()
+  log_warn() { warnings+=("$*"); }
+  _warn_unknown_model "claude-sonnet-4-5"
+  [ ${#warnings[@]} -eq 0 ]
+}
+
+@test "_warn_unknown_model : warning pour modèle inconnu" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  local warnings=()
+  log_warn() { warnings+=("$*"); }
+  _warn_unknown_model "gpt-4o"
+  [ ${#warnings[@]} -eq 1 ]
+}
+
+@test "_warn_unknown_model : warning pour modèle trop permissif (claude-opus-400-turbo)" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  local warnings=()
+  log_warn() { warnings+=("$*"); }
+  _warn_unknown_model "claude-opus-400-turbo"
+  [ ${#warnings[@]} -eq 1 ]
+}
+
+# ── _upsert_api_keys_field : idempotence ─────────────────────────────────────
+
+@test "_upsert_api_keys_field : double exécution ne duplique pas l'entrée" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  _ensure_api_keys_file
+  printf '\n[TEST-IDEM]\nmodel=claude-sonnet-4-5\n' >> "$API_KEYS_FILE"
+
+  _upsert_api_keys_field "TEST-IDEM" "agent_models.families.planning" "claude-opus-4"
+  _upsert_api_keys_field "TEST-IDEM" "agent_models.families.planning" "claude-opus-4"
+
+  count=$(grep -c "agent_models.families.planning" "$API_KEYS_FILE")
+  [ "$count" -eq 1 ]
+}
+
+# ── Hub-level config set (integration via _cmd_set_hub) ──────────────────────
+
+@test "_cmd_set_hub : family-model met à jour hub.json" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  printf '{"agent_models":{"families":{},"agents":{}}}\n' > "$HUB_CONFIG"
+
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/planning"
+
+  _cmd_set_hub --family-model "planning=claude-opus-4"
+
+  run jq -r '.agent_models.families.planning' "$HUB_CONFIG"
+  [ "$output" = "claude-opus-4" ]
+}
+
+@test "_cmd_set_hub : agent-model met à jour hub.json" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  printf '{"agent_models":{"families":{},"agents":{}}}\n' > "$HUB_CONFIG"
+
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/quality"
+  touch "$CANONICAL_AGENTS_DIR/quality/debugger.md"
+
+  _cmd_set_hub --agent-model "debugger=claude-sonnet-4-5"
+
+  run jq -r '.agent_models.agents.debugger' "$HUB_CONFIG"
+  [ "$output" = "claude-sonnet-4-5" ]
+}
+
+@test "_cmd_set_hub : famille inexistante → erreur" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/planning"
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  printf '{"agent_models":{"families":{},"agents":{}}}\n' > "$HUB_CONFIG"
+
+  run _cmd_set_hub --family-model "nonexistent=claude-opus-4"
+  [ "$status" -ne 0 ]
+}
+
+@test "_cmd_set_hub : agent inexistant → erreur" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/quality"
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  printf '{"agent_models":{"families":{},"agents":{}}}\n' > "$HUB_CONFIG"
+
+  run _cmd_set_hub --agent-model "fake-agent=claude-opus-4"
+  [ "$status" -ne 0 ]
+}
+
+# ── Project-level config set ─────────────────────────────────────────────────
+
+@test "cmd_set projet : --family-model met à jour api-keys.local.md" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+
+  # Préparer le projet dans projects.md
+  printf '[MY-APP]\nagents=reviewer\n' > "$PROJECTS_FILE"
+  _ensure_api_keys_file
+  printf '\n[MY-APP]\nmodel=claude-sonnet-4-5\n' >> "$API_KEYS_FILE"
+
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/planning"
+
+  # Mocker normalize_project_id et require_project_id
+  normalize_project_id() { echo "$1"; }
+  require_project_id() { true; }
+
+  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
+
+  run grep "agent_models.families.planning=claude-opus-4" "$API_KEYS_FILE"
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd_set projet : --family-model idempotent — pas de doublon" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+
+  printf '[MY-APP]\nagents=reviewer\n' > "$PROJECTS_FILE"
+  _ensure_api_keys_file
+  printf '\n[MY-APP]\nmodel=claude-sonnet-4-5\n' >> "$API_KEYS_FILE"
+
+  CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  mkdir -p "$CANONICAL_AGENTS_DIR/planning"
+
+  normalize_project_id() { echo "$1"; }
+  require_project_id() { true; }
+
+  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
+  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
+
+  count=$(grep -c "agent_models.families.planning" "$API_KEYS_FILE")
+  [ "$count" -eq 1 ]
+}

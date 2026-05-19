@@ -1,7 +1,12 @@
 #!/bin/bash
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
-resolve_oc_lang
+
+# Guard : si _CMD_CONFIG_SOURCE_ONLY=1, ne sourcer que les fonctions sans exécuter
+# common.sh doit être déjà sourcé par l'appelant dans ce cas
+if [ "${_CMD_CONFIG_SOURCE_ONLY:-}" != "1" ]; then
+  source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+  resolve_oc_lang
+fi
 
 # ─────────────────────────────────────────────────────────────────
 # oc config — gestion des clés API et modèles par projet
@@ -28,6 +33,33 @@ _ensure_api_keys_file() {
 EOF
     log_info "api-keys.local.md créé"
   fi
+}
+
+# Vérifie qu'un nom de famille existe dans agents/
+# Retourne 0 si valide, 1 sinon
+_validate_family_name() {
+  local name="$1"
+  [ -d "$CANONICAL_AGENTS_DIR/$name" ]
+}
+
+# Vérifie qu'un agent id existe (fichier .md dans agents/*/)
+# Retourne 0 si valide, 1 sinon
+_validate_agent_name() {
+  local name="$1"
+  local f
+  for f in "$CANONICAL_AGENTS_DIR"/*/"${name}.md"; do
+    [ -f "$f" ] && return 0
+  done
+  return 1
+}
+
+# Émet un warning si le modèle n'est pas dans la liste connue
+_warn_unknown_model() {
+  local model="$1"
+  case "$model" in
+    claude-opus-4|claude-opus-4-*|claude-sonnet-4-5|claude-sonnet-4-5-*|claude-haiku-4-5|claude-haiku-4-5-*) ;;
+    *) log_warn "Unknown model '$model' — known models: claude-opus-4, claude-sonnet-4-5, claude-haiku-4-5" ;;
+  esac
 }
 
 # Supprime une section [PROJECT_ID] complète du fichier (délègue à common.sh)
@@ -139,6 +171,8 @@ _cmd_set_hub() {
         [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
         local fm_key="${2%%=*}" fm_value="${2#*=}"
         [ "$fm_key" = "$2" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
+        _validate_family_name "$fm_key" || { log_error "Unknown family '$fm_key' — available: $(ls -d "$CANONICAL_AGENTS_DIR"/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ', ' | sed 's/,$//')"; exit 1; }
+        _warn_unknown_model "$fm_value"
         local tmp; tmp=$(mktemp)
         jq --arg k "$fm_key" --arg v "$fm_value" '.agent_models.families[$k] = $v' "$HUB_CONFIG" > "$tmp" && mv "$tmp" "$HUB_CONFIG"
         log_success "Hub family model set: $fm_key=$fm_value"
@@ -147,6 +181,8 @@ _cmd_set_hub() {
         [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
         local am_key="${2%%=*}" am_value="${2#*=}"
         [ "$am_key" = "$2" ] && { log_error "--agent-model requiert le format key=value"; exit 1; }
+        _validate_agent_name "$am_key" || { log_error "Unknown agent '$am_key' — no matching file in $CANONICAL_AGENTS_DIR/*/"; exit 1; }
+        _warn_unknown_model "$am_value"
         local tmp; tmp=$(mktemp)
         jq --arg k "$am_key" --arg v "$am_value" '.agent_models.agents[$k] = $v' "$HUB_CONFIG" > "$tmp" && mv "$tmp" "$HUB_CONFIG"
         log_success "Hub agent model set: $am_key=$am_value"
@@ -217,12 +253,16 @@ cmd_set() {
     for entry in "${flag_family_models[@]}"; do
       local fk="${entry%%=*}" fv="${entry#*=}"
       [ "$fk" = "$entry" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
+      _validate_family_name "$fk" || { log_error "Unknown family '$fk' — available: $(ls -d "$CANONICAL_AGENTS_DIR"/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ', ' | sed 's/,$//')"; exit 1; }
+      _warn_unknown_model "$fv"
       _upsert_api_keys_field "$id" "agent_models.families.${fk}" "$fv"
       log_success "Project $id family model set: $fk=$fv"
     done
     for entry in "${flag_agent_models[@]}"; do
       local ak="${entry%%=*}" av="${entry#*=}"
       [ "$ak" = "$entry" ] && { log_error "--agent-model requiert le format key=value"; exit 1; }
+      _validate_agent_name "$ak" || { log_error "Unknown agent '$ak' — no matching file in $CANONICAL_AGENTS_DIR/*/"; exit 1; }
+      _warn_unknown_model "$av"
       _upsert_api_keys_field "$id" "agent_models.agents.${ak}" "$av"
       log_success "Project $id agent model set: $ak=$av"
     done
@@ -397,6 +437,9 @@ cmd_unset() {
 }
 
 # ── Dispatcher ─────────────────────────────────────────────────────
+
+# Si sourcé pour les fonctions uniquement, ne pas exécuter le dispatcher
+if [ "${_CMD_CONFIG_SOURCE_ONLY:-}" = "1" ]; then return 0 2>/dev/null || exit 0; fi
 
 case "$SUBCOMMAND" in
   set)   cmd_set "$@" ;;
