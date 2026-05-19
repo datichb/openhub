@@ -886,3 +886,37 @@ Règles :
 - Ne pas modifier d'autres fichiers du projet
 EOF
 }
+
+# Construit le prompt de bootstrap pour la commande oc debug
+# Lance l'agent debugger en mode interactif sur le projet
+# @param $1 — project_path
+# @param $2 — project_id (optionnel)
+build_debug_bootstrap_prompt() {
+  local project_path="$1"
+  local project_id="${2:-}"
+
+  local project_info=""
+  if [ -n "$project_id" ]; then
+    project_info="Projet : ${project_id}
+Chemin : ${project_path}"
+  else
+    project_info="Chemin : ${project_path}"
+  fi
+
+  # Vérifier l'existence de ONBOARDING.md
+  local onboarding_hint=""
+  if [ -f "${project_path}/ONBOARDING.md" ]; then
+    onboarding_hint="
+→ ONBOARDING.md disponible — consulter pour le contexte du projet"
+  fi
+
+  cat <<EOF
+Session de debug sur le projet.
+
+${project_info}
+${onboarding_hint}
+
+Attends les instructions de l'utilisateur pour commencer le debug.
+L'utilisateur décrira le bug ou le comportement inattendu à investiguer.
+EOF
+}

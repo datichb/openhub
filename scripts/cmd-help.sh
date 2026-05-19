@@ -73,6 +73,7 @@ _cmd help.conventions
 _cmd help.conventions_force
 _cmd help.review
 _cmd help.review_branch
+_cmd help.debug
 
 _section help.section.maintenance
 _cmd help.deploy

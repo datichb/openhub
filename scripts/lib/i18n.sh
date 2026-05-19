@@ -89,6 +89,8 @@ t() {
       help.review.desc)       printf '%s' "Lance une code review via l'agent reviewer" ;;
       help.review_branch.cmd) printf '%s' "review [PROJECT_ID] --branch <branche>" ;;
       help.review_branch.desc) printf '%s' "Review d'une branche spécifique (défaut : branche courante)" ;;
+      help.debug.cmd)         printf '%s' "debug [PROJECT_ID]" ;;
+      help.debug.desc)        printf '%s' "Lance une session de debug via l'agent debugger" ;;
       # Maintenance
       help.deploy.cmd)        printf '%s' "deploy [target] [PROJECT_ID]" ;;
       help.deploy.desc)       printf '%s' "Déploie les agents (opencode/claude-code/all)" ;;
@@ -565,6 +567,29 @@ t() {
       review.main_agent)          printf '%s' "Agent : " ;;
       review.launching)           printf '%s' "Lancement de la review " ;;
 
+      # ── cmd-debug.sh ──────────────────────────────────────────────────────
+      debug.no_projects)         printf '%s' "Aucun projet enregistré → ./oc.sh init" ;;
+      debug.choose_project)      printf '%s' "Choisir un projet :" ;;
+      debug.choose_number)       printf '%s' "  Numéro : " ;;
+      debug.invalid_choice)      printf '%s' "Choix invalide : " ;;
+      debug.target_unavailable)  printf '%s' "Cible '" ;;
+      debug.target_unavailable_suffix) printf '%s' "non disponible → oc install" ;;
+      debug.label_path)          printf '%s' "Chemin" ;;
+      debug.label_target)        printf '%s' "Cible" ;;
+      debug.label_agent)         printf '%s' "Agent" ;;
+      debug.agent_missing_config) printf '%s' "Agent absent de la sélection projet : " ;;
+      debug.add_agent_prompt)    printf '%s' "Ajouter debugger à la sélection du projet ? [Y/n] : " ;;
+      debug.agent_updated)       printf '%s' "Agents mis à jour dans projects.md : " ;;
+      debug.redeploy_prompt)     printf '%s' "Redéployer les agents maintenant ? [Y/n] : " ;;
+      debug.redeploy_later)      printf '%s' "Redéployer plus tard : ./oc.sh deploy " ;;
+      debug.agents_not_deployed) printf '%s' "Agents non déployés pour " ;;
+      debug.agent_not_deployed)  printf '%s' "Agent non déployé : " ;;
+      debug.deploy_now_prompt)   printf '%s' "Déployer maintenant ? [Y/n] : " ;;
+      debug.deploy_skipped)      printf '%s' "Déploiement ignoré — l'agent risque d'être introuvable" ;;
+      debug.deploy_later)        printf '%s' "Déployer plus tard : ./oc.sh deploy " ;;
+      debug.main_agent)          printf '%s' "Agent : " ;;
+      debug.launching)           printf '%s' "Lancement du debug " ;;
+
       # ── cmd-audit.sh ───────────────────────────────────────────────────────
       audit.invalid_type)     printf '%s' "Type d'audit invalide : '" ;;
       audit.valid_types)      printf '%s' "Types valides : " ;;
@@ -678,6 +703,8 @@ t_en() {
     help.review.desc)       printf '%s' "Run a code review via the reviewer agent" ;;
     help.review_branch.cmd) printf '%s' "review [PROJECT_ID] --branch <branch>" ;;
     help.review_branch.desc) printf '%s' "Review a specific branch (default: current branch)" ;;
+    help.debug.cmd)         printf '%s' "debug [PROJECT_ID]" ;;
+    help.debug.desc)        printf '%s' "Start a debug session via the debugger agent" ;;
     # Maintenance
     help.deploy.cmd)        printf '%s' "deploy [target] [PROJECT_ID]" ;;
     help.deploy.desc)       printf '%s' "Deploy agents (opencode/claude-code/all)" ;;
@@ -1162,6 +1189,29 @@ t_en() {
     review.deploy_later)        printf '%s' "Deploy later: ./oc.sh deploy " ;;
     review.main_agent)          printf '%s' "Agent: " ;;
     review.launching)           printf '%s' "Launching review on " ;;
+
+    # ── cmd-debug.sh ────────────────────────────────────────────────────────
+    debug.no_projects)         printf '%s' "No registered projects → ./oc.sh init" ;;
+    debug.choose_project)      printf '%s' "Choose a project:" ;;
+    debug.choose_number)       printf '%s' "  Number: " ;;
+    debug.invalid_choice)      printf '%s' "Invalid choice: " ;;
+    debug.target_unavailable)  printf '%s' "Target '" ;;
+    debug.target_unavailable_suffix) printf '%s' "unavailable → oc install" ;;
+    debug.label_path)          printf '%s' "Path" ;;
+    debug.label_target)        printf '%s' "Target" ;;
+    debug.label_agent)         printf '%s' "Agent" ;;
+    debug.agent_missing_config) printf '%s' "Agent missing from project selection: " ;;
+    debug.add_agent_prompt)    printf '%s' "Add debugger to project selection? [Y/n]: " ;;
+    debug.agent_updated)       printf '%s' "Agents updated in projects.md: " ;;
+    debug.redeploy_prompt)     printf '%s' "Redeploy agents now? [Y/n]: " ;;
+    debug.redeploy_later)      printf '%s' "Redeploy later: ./oc.sh deploy " ;;
+    debug.agents_not_deployed) printf '%s' "Agents not deployed for " ;;
+    debug.agent_not_deployed)  printf '%s' "Agent not deployed: " ;;
+    debug.deploy_now_prompt)   printf '%s' "Deploy now? [Y/n]: " ;;
+    debug.deploy_skipped)      printf '%s' "Deployment skipped — agent may not be found" ;;
+    debug.deploy_later)        printf '%s' "Deploy later: ./oc.sh deploy " ;;
+    debug.main_agent)          printf '%s' "Agent: " ;;
+    debug.launching)           printf '%s' "Launching debug on " ;;
 
     # ── cmd-audit.sh ─────────────────────────────────────────────────────────
     audit.invalid_type)     printf '%s' "Invalid audit type: '" ;;
