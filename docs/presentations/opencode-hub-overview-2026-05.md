@@ -44,17 +44,24 @@ style: |
     color: #e9d5ff;
   }
   code {
-    background: #1e1b4b;
-    color: #c4b5fd;
+    background: #2d2b55;
+    color: #e2d9f3;
     border-radius: 4px;
     padding: 2px 6px;
-    font-size: 0.85em;
+    font-size: 0.92em;
   }
   pre {
-    background: #0f0e17 !important;
+    background: #2d2b55 !important;
     border-left: 4px solid #7c3aed;
-    padding: 16px 20px !important;
-    font-size: 0.78rem !important;
+    padding: 20px 24px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px;
+    line-height: 1.5;
+  }
+  pre code {
+    background: transparent;
+    color: #e2d9f3;
+    font-size: 0.9rem;
   }
   blockquote {
     border-left: 4px solid #7c3aed;
@@ -109,6 +116,22 @@ style: |
     font-size: 0.82rem;
     color: #7c3aed;
   }
+  section.part-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  section.part-title h1 {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: #a78bfa;
+  }
+  section.part-title p {
+    font-size: 1.1rem;
+    opacity: 0.7;
+  }
 ---
 
 <!-- _class: lead invert -->
@@ -119,261 +142,337 @@ style: |
 ### Hub central pour piloter vos assistants IA sur tous vos projets
 
 **27 agents spécialisés · Skills injectables · Workflow Beads intégré**
-**OpenCode & Claude Code**
+**OpenCode**
 
 ---
+
+## Sommaire
+
+### Partie 1 — Créer un projet avec l'IA
+Comment j'ai utilisé OpenCode pour concevoir et construire opencode-hub de A à Z
+
+### Partie 2 — Utiliser opencode-hub
+Ce que le projet fait, comment l'installer et comment l'utiliser au quotidien
+
+---
+
+<!-- _class: part-title -->
 <!-- _paginate: false -->
 
-## Le problème à résoudre
-
-> *Comment maintenir des agents IA cohérents et à jour sur plusieurs projets sans tout dupliquer ?*
-
-### Aujourd'hui, sans hub
-
-- 🔁 Chaque projet possède **ses propres copies** d'agents — elles divergent au fil du temps
-- 🛠️ Un changement de protocole = **mise à jour manuelle** dans chaque dépôt
-- 🏝️ Aucun standard partagé — chaque équipe réinvente sa configuration
-- 📉 La qualité du workflow IA **se dégrade** à mesure que les projets prolifèrent
-
-### Ce que ça coûte
-
-Temps perdu en maintenance · Incohérences entre équipes · Agents "fantômes" obsolètes
+# Partie 1
+Créer un projet avec l'IA et OpenCode
 
 ---
 
-## La solution — une source de vérité unique
+## Le point de départ
 
-```
-opencode-hub/                  ← source de vérité (éditer ICI, jamais dans les projets)
-├── agents/    ← identité des rôles IA (~40-80 lignes par agent)
-├── skills/    ← protocoles détaillés injectables
-└── scripts/   ← assemblage + déploiement automatisé
-```
+> *"J'ai une idée de hub d'agents IA, mais aucune ligne de code."*
 
-```
-         oc deploy opencode MON-APP
-opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md
-                                   └►  mon-app/opencode.json
+### Les objectifs
+- **Centraliser** la gestion des agents IA en un seul endroit
+- **Multi-projets** — un hub, N projets, zéro duplication
+- **Facilement déployable** — une commande et c'est fait
+- **Travailler AVEC l'IA** — un workflow de collaboration, pas de délégation aveugle
 
-         oc deploy claude-code MON-APP
-opencode-hub  ──────────────────────►  mon-app/.claude/agents/*.md
-```
-
-> Mettre à jour **un seul fichier dans le hub** = tous les projets récupèrent le changement au prochain `oc deploy`
+### L'outil choisi
+**OpenCode** (terminal) — un assistant IA qui lit, écrit et raisonne dans le contexte du projet entier
 
 ---
 
-## 3 concepts fondamentaux
+## Méthodologie — travailler AVEC l'IA
 
-### Agent
-Fichier Markdown de ~40-80 lignes. Définit **qui** est le rôle IA : périmètre, ce qu'il fait, ce qu'il ne fait pas, son workflow condensé. Court, lisible, maintenable.
+> **Philosophie : l'IA est un partenaire de travail, pas un exécutant autonome.**
 
-### Skill
-Bloc de protocole injectable. Définit **comment** l'agent travaille : standards de code, checklists, formats de rapport. Déclaré **une seule fois**, partagé entre plusieurs agents.
+### Le rôle de l'humain (moi)
+- Définir la **vision** et les **objectifs**
+- Valider ou rejeter chaque décision structurante
+- Reformuler quand l'IA part dans la mauvaise direction
+- Prioriser : "pas ça maintenant, d'abord ceci"
 
-### Adapter
-Script shell qui traduit le format hub → format attendu par l'outil cible (`opencode`, `claude-code`). Ajouter un nouvel outil = écrire un seul adapter.
-
----
-
-## Chiffres clés
-
-| | |
-|---|---|
-| 🤖 **27 agents** spécialisés | couvrant tout le cycle de dev |
-| 🧩 **~40 skills** injectables | protocoles réutilisables entre agents |
-| 🎯 **2 modes d'invocation** | `primary` (picker IA) · `subagent` (délégation) |
-| ⚙️ **2 outils cibles** | OpenCode · Claude Code |
-| 🔌 **5 providers LLM** | Anthropic · MammouthAI · GitHub Models · Bedrock · Ollama |
-| 📋 **6 ADR** | décisions d'architecture documentées |
-| 🛡️ **5 checkpoints** | l'humain garde le contrôle à chaque étape critique |
+### Le rôle de l'IA (OpenCode)
+- Proposer des architectures et des alternatives
+- Rédiger le code, la documentation, les scripts
+- Détecter les incohérences dans mes demandes
+- Challenger mes choix : "as-tu pensé à…"
 
 ---
 
-## 27 agents — la carte complète
+## Les étapes de construction
 
-| Famille | Agents | Mode |
-|---------|--------|------|
-| **Coordinateurs** | `orchestrator` · `orchestrator-dev` · `auditor` · `onboarder` | primary |
-| **Planification** | `planner` | primary |
-| **Design** | `ux-designer` · `ui-designer` | primary |
-| **Qualité** | `reviewer` · `qa-engineer` · `debugger` · `documentarian` | primary |
-| **Developer** | `frontend` · `backend` · `fullstack` · `data` · `devops` · `mobile` · `api` · `platform` · `security` | subagent |
-| **Auditor** | `security` · `performance` · `accessibility` · `ecodesign` · `architecture` · `privacy` · `observability` | subagent |
-
-> Les subagents sont aussi invocables **directement** si besoin — ex : `auditor-security` seul
+| Étape | Ce que j'ai demandé | Ce que l'IA a produit |
+|-------|---------------------|----------------------|
+| 1 | Structure de base | Arborescence agents/skills/scripts |
+| 2 | 5 premiers agents | Markdown structuré avec workflow |
+| 3 | Système de skills injectables | Mécanisme de référence + injection |
+| 4 | CLI `oc` | Script shell avec sous-commandes |
+| 5 | Adapters opencode + claude-code | Traduction hub → format cible |
+| 6 | 22 agents supplémentaires | Spécialisation par domaine |
+| 7 | Beads (tickets IA) | Intégration workflow complet |
+| 8 | Documentation + ADR | 6 ADR, guides, référence CLI |
 
 ---
 
-## Workflows — 3 scénarios types
+## Retour d'expérience
 
-### Feature de A à Z → `orchestrator`
+### ✅ Ce qui fonctionne
+- Prompts **contextuels**, **contraints**, **itératifs**
+- L'IA maintient la cohérence de format et détecte les incohérences
+
+### ❌ Ce qui ne fonctionne pas
+- Prompts vagues ou massifs, sans relecture
+- L'IA sur-ingénierie et ajoute du non-demandé
+
+### En chiffres
+
+| Code produit par l'IA | Décisions prises par l'humain | Durée totale |
+|:---:|:---:|:---:|
+| ~90% | ~90% | ~3 semaines |
+
+> On travaille ensemble, on ne délègue pas
+
+---
+
+## Conseils clés
+
+1. **Vision d'abord** — expliquer le "pourquoi" avant le "comment"
+2. **Itérer petit** — un fichier à la fois, relire, versionner
+3. **Rester dans la boucle** — travailler avec l'IA, pas la faire travailler
+4. **Challenger** — "Quelles sont les faiblesses de cette approche ?"
+
+---
+
+<!-- _class: part-title -->
+<!-- _paginate: false -->
+
+# Partie 2
+Utiliser opencode-hub
+
+---
+
+## En bref — ce que fait le hub
+
 ```
-orchestrator → planner → ux/ui-designer → auditor-* → orchestrator-dev
-                                                              ↓
-                                              developer-* + qa-engineer + reviewer
+opencode-hub/                  ← source de vérité unique
+├── agents/    ← 27 rôles IA (Markdown, ~50 lignes chacun)
+├── skills/    ← ~40 protocoles injectables (partagés entre agents)
+└── scripts/   ← CLI `oc` + adapters par outil cible
 ```
 
-### Bug en production → `debugger`
-```
-debugger → reproduction → isolation → hypothèse → rapport de cause racine → ticket Beads
+> **1 modification dans le hub → tous les projets à jour** au prochain `oc deploy`
+
+### Deux façons de l'utiliser
+
+| | **CLI `oc`** | **OpenCode** |
+|---|---|---|
+| **Quoi** | Commandes ciblées depuis le terminal | Session interactive avec un agent |
+| **Quand** | Gérer, déployer, lancer une action ponctuelle | Travailler sur une feature, un bug, un audit |
+| **Exemple** | `oc review` · `oc audit` · `oc deploy` | Dialoguer avec l'orchestrateur |
+
+---
+
+## Le CLI `oc` — gérer et agir
+
+### Gestion des projets
+```bash
+oc init <ID> <path>           # Enregistrer un projet dans le hub
+oc deploy <target> <ID>       # Déployer les agents (opencode | claude-code)
+oc status                     # État de tous les projets enregistrés
+oc upgrade                    # Mettre à jour le hub (git pull + rebuild)
 ```
 
-### Audit complet → `auditor`
-```
-auditor → security · performance · accessibility
-       → ecodesign · architecture · privacy · observability
-       → rapport consolidé multi-domaine avec sévérités
+### Actions directes — lancer un agent en une commande
+```bash
+oc review [ID]                # Review de code : analyse le diff, produit un rapport
+oc audit [ID]                 # Audit multi-domaine : sécu, perf, accessibilité, écodesign
+oc debug [ID]                 # (prochainement) Diagnostic de bug
+oc plan [ID]                  # (prochainement) Découpe un besoin en tickets Beads
+oc doc [ID]                   # (prochainement) Détecte les lacunes documentaires
 ```
 
 ---
 
-## Démo 1 — Installation & premier déploiement
-
-> **Scénario :** installer opencode-hub, enregistrer un projet, déployer les 27 agents en moins de 3 minutes
-
-<div class="demo-container">
-  <div class="video-placeholder">
-    <span class="play-icon">▶</span>
-    <strong>[ Insérer vidéo — Démo installation ]</strong>
-    <span class="video-label">⟵ remplacer par : &lt;video src="demo-install.mp4"&gt; ou lien YouTube embed</span>
-  </div>
-  <div class="demo-meta">
-    <span>⏱ Durée suggérée : ~2 min</span>
-    <span>📌 Commandes : oc init · oc deploy · oc start</span>
-  </div>
-</div>
-
----
-
-## Démo 2 — Feature de A à Z avec l'orchestrateur
-
-> **Scénario :** demander une feature à `orchestrator`, observer la délégation automatique vers planner → designer → developer → qa-engineer → reviewer
-
-<div class="demo-container">
-  <div class="video-placeholder">
-    <span class="play-icon">▶</span>
-    <strong>[ Insérer vidéo — Démo orchestrateur ]</strong>
-    <span class="video-label">⟵ remplacer par : &lt;video src="demo-orchestrator.mp4"&gt; ou lien YouTube embed</span>
-  </div>
-  <div class="demo-meta">
-    <span>⏱ Durée suggérée : ~4 min</span>
-    <span>📌 Agents : orchestrator · planner · developer-* · qa-engineer · reviewer</span>
-  </div>
-</div>
-
----
-
-## Démo 3 — Diagnostic de bug avec le debugger
-
-> **Scénario :** soumettre une stacktrace à `debugger`, obtenir le rapport de cause racine et la création automatique du ticket Beads
-
-<div class="demo-container">
-  <div class="video-placeholder">
-    <span class="play-icon">▶</span>
-    <strong>[ Insérer vidéo — Démo debugger ]</strong>
-    <span class="video-label">⟵ remplacer par : &lt;video src="demo-debugger.mp4"&gt; ou lien YouTube embed</span>
-  </div>
-  <div class="demo-meta">
-    <span>⏱ Durée suggérée : ~2 min</span>
-    <span>📌 Agents : debugger · Beads CLI</span>
-  </div>
-</div>
-
----
-
-## Checkpoints — l'humain garde le contrôle
-
-> L'orchestrateur **ne progresse jamais sans confirmation explicite**
-
-| Checkpoint | Déclencheur | Ce que vous décidez |
-|-----------|-------------|---------------------|
-| **CP-0** | Après planification | Valider le plan · choisir le mode (manuel / semi-auto / auto) |
-| **CP-spec** | Après spec UX/UI | Approuver · corriger · rejeter la spec |
-| **CP-audit** | Après audit | Corriger immédiatement · accepter le risque · ignorer |
-| **CP-2** | Après chaque ticket | Merger · demander une correction |
-| **CP-3** | Entre chaque ticket | Continuer · stopper la session |
-
-### Pourquoi c'est important
-Aucune action irréversible ne se produit sans votre accord. Vous pouvez **stopper à tout moment**, corriger le cap et reprendre.
-
----
-
-## Installation — 3 minutes chrono
+## OpenCode — travailler avec les agents
 
 ```bash
-# 1. Installation one-liner (clone, dépendances, alias oc, configuration LLM)
+oc start MON-APP              # Ouvre OpenCode dans le contexte du projet
+```
+
+> Une fois dans OpenCode, vous choisissez un agent et vous collaborez en temps réel.
+
+### L'agent principal — votre point d'entrée
+| Agent | Ce qu'il fait |
+|-------|--------------|
+| `orchestrator` | Pilote une feature de A à Z (plan → spec → code → tests → PR) |
+
+> 90% du temps, vous travaillez avec l'orchestrateur. Il délègue aux bons agents pour vous.
+
+### Les agents spécialisés — pour des besoins ciblés
+
+| Agent | Quand l'utiliser directement |
+|-------|------------------------------|
+| `debugger` | Diagnostiquer un bug précis |
+| `auditor` | Lancer un audit complet |
+| `documentarian` | Rédiger ou mettre à jour la documentation |
+| `reviewer` | Relire du code manuellement |
+| `planner` | Découper un besoin en tickets sans implémenter |
+| `onboarder` | Guider un nouveau dev dans le projet |
+
+---
+
+## Exemple concret — demander une feature dans OpenCode
+
+```
+Vous :  "Ajoute un export CSV des factures"
+
+orchestrator :
+  → planner              crée 3 tickets Beads              (sous-agent délégué)
+  ✋ CP-0                 "Voici le plan. On continue ?"          ← VOUS
+  → auditor-*            vérifie sécurité + perf           (sous-agent délégué)
+  ✋ CP-audit             "2 warnings sécu. On corrige ?"         ← VOUS
+  → orchestrator-dev :                                     (sous-agent délégué)
+      → developer-*      implémente le code                (sous-agent délégué)
+      → qa-engineer      écrit les tests                   (sous-agent délégué)
+      ✋ CP-2             "PR prête. On merge ?"                  ← VOUS
+      → reviewer         valide                            (sous-agent délégué)
+      ✋ CP-3             "Ticket suivant ?"                      ← VOUS
+
+Résultat : 3 commits propres, tests verts, PR prête à merger
+```
+
+> **Vous décidez à chaque ✋** — l'IA ne franchit aucune étape sans votre accord
+
+---
+
+## Checkpoints — le cœur du projet
+
+> **L'IA ne fait RIEN d'irréversible sans votre accord.**
+
+| Checkpoint | Quand | Vous décidez |
+|---|---|---|
+| **CP-0** | Après planification | Valider le plan · choisir le mode |
+| **CP-spec** | Après spec UX/UI | Approuver · corriger · rejeter |
+| **CP-audit** | Après audit | Corriger · accepter le risque · ignorer |
+| **CP-2** | Après implémentation | Merger · corriger · rejeter |
+| **CP-3** | Entre chaque ticket | Continuer · stopper |
+
+Stopper à tout moment · Corriger le cap · Changer de mode en cours de route
+
+> **Travailler avec l'IA** = garder la main sur chaque décision qui compte
+
+---
+
+## Beads — la mémoire du workflow
+
+> **Sans tickets, pas de traçabilité. Sans traçabilité, pas de collaboration.**
+
+### Ce que Beads apporte au workflow
+
+- **Découpage structuré** — le planner crée des tickets, pas du texte dans le vide
+- **Progression visible** — chaque ticket a un statut (`open` → `in_progress` → `review` → `closed`)
+- **Dépendances explicites** — l'IA sait quel ticket débloquer en premier
+- **Délégation contrôlée** — seuls les tickets `ai-delegated` sont traités par l'IA
+- **Historique** — chaque décision, correction, blocage est tracé dans les commentaires
+
+### Sans Beads
+L'IA fait "quelque chose" → pas de trace → impossible de reprendre ou de comprendre après coup
+
+### Avec Beads
+Chaque action a un ticket, un statut, un historique → **on sait où on en est, toujours**
+
+---
+
+## Configuration — globale et par projet
+
+### Configuration globale (dans le hub)
+Les agents, skills et workflows sont définis **une seule fois** dans le hub.
+Tous les projets héritent de cette base commune par défaut.
+
+### Configuration par projet (overrides)
+Chaque projet peut **surcharger** la configuration globale selon ses besoins :
+
+| Ce qu'on peut personnaliser | Exemple |
+|---|---|
+| Provider LLM | Projet A sur Anthropic, Projet B sur Bedrock |
+| Agents activés | Désactiver `ui-designer` sur un projet backend pur |
+| Skills injectés | Ajouter un skill métier spécifique (RGPD, fintech…) |
+| Conventions | Langue, format de commit, structure de dossiers |
+
+> **Global par défaut, local si besoin** — pas de copier/coller entre projets
+
+---
+
+## Démarrage — copier/coller et c'est parti
+
+```bash
+# Installation complète (clone, dépendances, alias oc, config LLM)
 curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
 source ~/.zshrc
-```
 
-```bash
-# 2. Enregistrer votre premier projet
+# Enregistrer un projet et déployer
 oc init MON-APP ~/workspace/mon-app
+oc deploy opencode MON-APP
 
-# 3. Déployer les 27 agents dans le projet
-oc deploy opencode MON-APP       # pour OpenCode
-oc deploy claude-code MON-APP    # pour Claude Code
-
-# 4. Lancer l'outil IA dans le projet
+# Lancer l'IA dans le contexte du projet
 oc start MON-APP
 ```
 
 ```bash
-# Maintenir le hub à jour
-oc upgrade          # met à jour les sources du hub (git pull)
-oc update           # met à jour opencode, Beads et les skills externes
+# Maintenance quotidienne
+oc upgrade    # git pull du hub
+oc status     # vue d'ensemble de tous les projets enregistrés
 ```
 
 ---
 
-## CLI — référence rapide
+## Démo live
 
-| Commande | Description |
-|----------|-------------|
-| `oc init <ID> <path>` | Enregistrer un nouveau projet |
-| `oc deploy <target> <ID>` | Déployer tous les agents (`opencode` ou `claude-code`) |
-| `oc agent deploy <agent-id> [ID]` | Redéployer un seul agent |
-| `oc status` | Vue d'ensemble de tous les projets |
-| `oc config set <ID>` | Configurer le provider LLM (menu interactif) |
-| `oc upgrade [version]` | Mettre à jour les sources du hub |
-| `oc update` | Mettre à jour les outils installés |
-| `oc skills validate [name]` | Vérifier la cohérence des skills |
-| `oc uninstall` | Désinstallation guidée étape par étape |
-
-> Référence complète : `docs/reference/cli.fr.md`
+<div class="demo-container">
+  <div class="video-placeholder">
+    <span class="play-icon">▶</span>
+    <strong>[ Démo : install → deploy → feature request → PR ]</strong>
+    <span class="video-label">⟵ remplacer par vidéo ou démo terminale live</span>
+  </div>
+  <div class="demo-meta">
+    <span>⏱ ~5 min</span>
+    <span>📌 oc init · oc deploy · orchestrator · developer-* · reviewer</span>
+  </div>
+</div>
 
 ---
 
-## Principes d'architecture
+## Next steps
 
-### Séparation identité / protocole
-Agent = *qui il est* · Skill = *comment il travaille*. Modifier un skill = mise à jour immédiate sur tous les agents qui l'utilisent, sans toucher aux agents eux-mêmes.
+### 🔧 En cours — un modèle par agent
+Chaque agent pourra être configuré avec son propre modèle LLM.
+Ex : un modèle léger pour les `developer-*` (pré-cadrés par le workflow et les tickets Beads), un modèle puissant pour le `reviewer` ou l'`orchestrator` qui doivent raisonner et décider.
 
-### Spécialisation plutôt que généralisme
-9 agents `developer-*` segmentés par domaine. Chaque agent reçoit **uniquement le contexte pertinent** à sa spécialité — pas de bruit, pas de confusion.
+### 🌿 À venir — git worktree pour le travail en parallèle
+Permettre à plusieurs agents de travailler **simultanément** sur des branches isolées
+grâce à `git worktree` — sans conflits, sans attente.
 
-### Lecture seule pour les agents d'analyse
-`auditor-*`, `reviewer`, `debugger` **n'écrivent jamais** dans le projet cible. Seuls `developer-*` et `qa-engineer` modifient des fichiers.
-
-### Checkpoints non négociables
-Aucune étape structurante ne peut être franchie sans confirmation explicite. Documenté dans [ADR-003](../architecture/adr/).
+### 🚀 À venir — nouvelles commandes directes
+`oc debug` · `oc plan` · `oc doc` — lancer un agent spécialisé en une commande, sans ouvrir OpenCode.
 
 ---
 
 <!-- _class: lead invert -->
 <!-- _paginate: false -->
 
-## Prêt à démarrer ?
+## Ce qu'il faut retenir
+
+### 🧠 Travailler AVEC l'IA — pas la faire travailler à notre place
+### 🎛️ Checkpoints — l'humain décide, l'IA exécute
+### 🏗️ Un hub, N projets — zéro duplication, un `oc deploy` et c'est à jour
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
 ```
 
-### Documentation
-`README.fr.md` · `docs/architecture/overview.fr.md`
-`docs/guides/workflows.fr.md` · `docs/reference/cli.fr.md`
+`README.fr.md` · `docs/guides/workflows.fr.md` · `docs/reference/cli.fr.md`
 
 ---
 
-**Questions ?**
+<!-- _class: lead invert -->
+<!-- _paginate: false -->
+
+# Des questions ?

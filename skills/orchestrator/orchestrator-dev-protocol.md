@@ -448,8 +448,8 @@ Construire le compte rendu en agrégeant les données structurées collectées a
 **Corrections demandées :** <oui/non>
 **Statut Beads :** clos
 
-**Fichiers modifiés :**
-<liste issue du ### Fichiers modifiés du retour developer — si disponible>
+**Changements par fichier :**
+<bloc `**Changements par fichier :**` intégral issu du retour developer — si disponible>
 
 **Couverture des critères d'acceptance :** <tous couverts | partielle — <critères non couverts>>
 <issue du ### Critères d'acceptance couverts du retour developer ou qa-engineer>
@@ -458,6 +458,9 @@ Construire le compte rendu en agrégeant les données structurées collectées a
 <issue du ### Points d'attention pour la review du retour developer — si renseigné>
 <issue du ### Zones non testables identifiées du retour qa-engineer — si renseigné>
 <"Aucun" si aucun point d'attention signalé>
+
+**Compte rendu d'implémentation complet :**
+<compte rendu narratif intégral produit par le developer-* — copié tel quel, sans résumé. Stocké pour inclusion dans le récap global.>
 
 ---
 
@@ -534,6 +537,17 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 - **Tickets ignorés :** Z
 - **Total cycles de review :** N
 - **Corrections demandées :** M fois
+
+### Comptes rendus d'implémentation
+
+<Pour chaque ticket traité, inclure le compte rendu d'implémentation narratif complet produit par le developer-* — copié tel quel, sans résumé ni reformulation. Ce contenu est ce qui permet à l'orchestrator feature de remonter le détail des modifications à l'utilisateur.>
+<"Aucun ticket traité" si la session est interrompue avant toute implémentation>
+
+#### Ticket #bd-XX — <titre>
+<compte rendu d'implémentation complet du developer-*>
+
+#### Ticket #bd-YY — <titre>
+<compte rendu d'implémentation complet du developer-*>
 
 ### Points d'attention
 <Agrégation des points d'attention techniques collectés à chaque étape 6 :

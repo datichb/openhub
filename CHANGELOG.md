@@ -11,6 +11,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
+- **`oc debug [PROJECT_ID]`** — lance l'agent debugger sur un projet pour diagnostiquer un bug (nouveau script `scripts/cmd-debug.sh`, intégration dans `oc.sh`, aide et i18n mis à jour)
 - **`oc project rename <OLD_ID> <NEW_ID>`** — renomme un projet dans tous les fichiers registre (`projects.md`, `paths.local.md`, `api-keys.local.md`) de façon atomique
 - **`oc project move <PROJECT_ID> <path>`** — change le chemin local d'un projet dans `paths.local.md`
 - **`oc skills validate [name]`** — valide la cohérence des skills (frontmatter `name`/`description`, correspondance nom/fichier, sources externes)

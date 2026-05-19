@@ -200,9 +200,11 @@ Aucun blocage rencontré.
 
 5. **Intégrer le `**Diff résumé**` et les `**Changements par fichier**`** dans le compte rendu d'étape (étape 6).
 
-6. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
+6. **Stocker le compte rendu d'implémentation complet** (texte narratif produit par le developer avant le bloc handoff) pour inclusion dans le récap global (section "Récap global — Fin de session"). Ce compte rendu est transmis intégralement à l'orchestrator feature — il ne doit jamais être réduit aux seules métadonnées du bloc handoff.
 
-7. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+7. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
+
+8. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
 
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
