@@ -21,7 +21,9 @@ _get_opencode_model() {
   if [ -z "$model" ] && command -v jq &>/dev/null && [ -f "$HUB_DIR/config/hub.json" ]; then
     model=$(jq -r '.default_provider.model // .opencode.model // empty' "$HUB_DIR/config/hub.json" 2>/dev/null)
   fi
-  echo "${model:-$DEFAULT_MODEL}"
+  model="${model:-$DEFAULT_MODEL}"
+  # Strip le préfixe provider (ex: "anthropic/claude-opus-4" → "claude-opus-4")
+  echo "${model##*/}"
 }
 
 # Résout le modèle pour un agent et retourne vide si identique au modèle global du projet.
@@ -35,6 +37,8 @@ _get_agent_model() {
 
   local resolved
   resolved=$(resolve_agent_model "$agent_file" "$project_id")
+  # Strip le préfixe provider pour opencode.json
+  resolved="${resolved##*/}"
 
   local global_model
   global_model=$(_get_opencode_model "$project_id")
