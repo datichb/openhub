@@ -19,3 +19,7 @@ skills/external/
 .opencode/bun.lock
 config/hub.json
 opencode.json
+
+# Fichiers providers — contiennent des clés API en clair (mammouth)
+# À recréer manuellement après clone (voir config/providers/README.md dans wjp.3)
+config/providers/*.json
