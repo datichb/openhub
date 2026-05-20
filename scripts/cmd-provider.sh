@@ -149,22 +149,10 @@ cmd_set_default() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Subcommande : oc provider init [--force]
-# Initialise les fichiers de configuration provider dans config/providers/
+# Templates des 5 providers — fonctions séparées pour compatibilité bash 3.2+
+# (declare -A requiert bash 4+ et n'est pas disponible sur macOS natif)
 # ────────────────────────────────────────────────────────────────────────────────
-cmd_init() {
-  local force=false
-  [ "${1:-}" = "--force" ] && force=true
-
-  local providers_dir="$HUB_DIR/config/providers"
-  mkdir -p "$providers_dir"
-
-  log_title "Initialisation des providers opencode"
-  echo ""
-
-  # Templates des 5 providers (utiliser des here-docs)
-  declare -A templates
-  templates[mammouth]=$(cat <<'TMPL'
+_template_mammouth() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "litellm/claude-sonnet-4-5",
@@ -179,8 +167,9 @@ cmd_init() {
   }
 }
 TMPL
-  )
-  templates[copilot]=$(cat <<'TMPL'
+}
+
+_template_copilot() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "github-copilot/claude-sonnet-4.5",
@@ -189,8 +178,9 @@ TMPL
   }
 }
 TMPL
-  )
-  templates[openrouter]=$(cat <<'TMPL'
+}
+
+_template_openrouter() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "openrouter/anthropic/claude-sonnet-4-5",
@@ -201,8 +191,9 @@ TMPL
   }
 }
 TMPL
-  )
-  templates[ollama]=$(cat <<'TMPL'
+}
+
+_template_ollama() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "ollama/REPLACE_ME",
@@ -213,8 +204,9 @@ TMPL
   }
 }
 TMPL
-  )
-  templates[bedrock]=$(cat <<'TMPL'
+}
+
+_template_bedrock() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0",
@@ -227,12 +219,26 @@ TMPL
   }
 }
 TMPL
-  )
+}
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Subcommande : oc provider init [--force]
+# Initialise les fichiers de configuration provider dans config/providers/
+# ────────────────────────────────────────────────────────────────────────────────
+cmd_init() {
+  local force=false
+  [ "${1:-}" = "--force" ] && force=true
+
+  local providers_dir="$HUB_DIR/config/providers"
+  mkdir -p "$providers_dir"
+
+  log_title "Initialisation des providers opencode"
+  echo ""
 
   for name in mammouth copilot openrouter ollama bedrock; do
     local file="$providers_dir/${name}.json"
     if [ ! -f "$file" ] || [ "$force" = true ]; then
-      echo "${templates[$name]}" > "$file"
+      "_template_${name}" > "$file"
       log_success "${name}.json [créé]"
     else
       log_info "${name}.json [existant]"
@@ -259,10 +265,10 @@ TMPL
 # ────────────────────────────────────────────────────────────────────────────────
 cmd_set_key() {
   local provider_name="${1:-}" api_key="${2:-}"
-  [ -z "$provider_name" ] || [ -z "$api_key" ] && {
+  if [ -z "$provider_name" ] || [ -z "$api_key" ]; then
     log_error "Usage : oc provider set-key <nom> <clé>"
     exit 1
-  }
+  fi
 
   local providers_dir="$HUB_DIR/config/providers"
   local provider_file="$providers_dir/${provider_name}.json"
@@ -273,7 +279,7 @@ cmd_set_key() {
     exit 1
   }
 
-  # Trouver et remplacer le premier champ apiKey dans le JSON
+  # Mettre à jour tous les champs apiKey récursivement (nécessaire pour mammouth : structure imbriquée)
   local tmp; tmp=$(mktemp)
   jq --arg key "$api_key" '
     walk(if type == "object" and has("apiKey") then .apiKey = $key else . end)
@@ -290,10 +296,10 @@ cmd_set_key() {
 # ────────────────────────────────────────────────────────────────────────────────
 cmd_set_model() {
   local provider_name="${1:-}" model="${2:-}"
-  [ -z "$provider_name" ] || [ -z "$model" ] && {
+  if [ -z "$provider_name" ] || [ -z "$model" ]; then
     log_error "Usage : oc provider set-model <nom> <modèle>"
     exit 1
-  }
+  fi
 
   local providers_dir="$HUB_DIR/config/providers"
   local provider_file="$providers_dir/${provider_name}.json"
