@@ -378,14 +378,30 @@ if [ "${#targets[@]}" -eq 0 ]; then
 fi
 
 for target in "${targets[@]}"; do
-  log_info "── Cible : $target"
+  echo -e "${BOLD}── Cible : $target${RESET}"
+  echo ""
   load_adapter "$target"
   adapter_validate || { log_error "Cible $target non disponible — déploiement ignoré"; echo ""; continue; }
-  _spinner_start "Déploiement vers ${target}…"
-  if adapter_deploy "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
-    _spinner_stop "Déployé → $target"
+
+  # ── Phase 1 : copie des fichiers agents ────────────────────────────────────
+  echo -e "${CYAN}▶  Phase 1 — Copie des agents${RESET}"
+  _spinner_start "Copie des agents vers ${target}…"
+  if adapter_deploy_files "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
+    _spinner_stop "$_DEPLOY_FILES_COUNT agent(s) déployés"
   else
-    _spinner_stop "Échec du déploiement → $target" 1
+    _spinner_stop "Échec de la copie des agents" 1
+    echo ""
+    continue
+  fi
+  echo ""
+
+  # ── Phase 2 : configuration provider / model ───────────────────────────────
+  echo -e "${CYAN}▶  Phase 2 — Configuration provider / model${RESET}"
+  _spinner_start "Application de la configuration provider/model…"
+  if adapter_deploy_config "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
+    _spinner_stop "Configuration appliquée"
+  else
+    _spinner_stop "Échec de la configuration" 1
   fi
   echo ""
 done

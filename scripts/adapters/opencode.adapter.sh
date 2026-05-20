@@ -187,19 +187,58 @@ _gitignore_opencode_json() {
   [ "$_added" = true ] && log_info "$(t init.gitignore_opencode_added)"
 }
 
+# ── Lecture des métadonnées agents ────────────────────────────────────────────
+# Scanne les agents canoniques et remplit les tableaux parallèles :
+#   _DEPLOY_FILES_AGENT_KEYS   — agent_id de chaque agent retenu
+#   _DEPLOY_FILES_AGENT_VALS   — mode effectif (primary/subagent/…)
+#   _DEPLOY_FILES_AGENT_FILES  — chemin source du fichier canonique
+#   _DEPLOY_FILES_COUNT        — nombre d'agents retenus
+#
+# Aucune écriture de fichier — appelable seul pour alimenter adapter_deploy_config().
+# $1 = project_id (optionnel)
+_load_agent_metadata() {
+  local project_id="${1:-}"
+
+  [ -d "$CANONICAL_AGENTS_DIR" ] || { log_error "[opencode] Dossier agents/ introuvable"; return 1; }
+
+  _DEPLOY_FILES_AGENT_KEYS=()
+  _DEPLOY_FILES_AGENT_VALS=()
+  _DEPLOY_FILES_AGENT_FILES=()
+  _DEPLOY_FILES_COUNT=0
+
+  while IFS= read -r agent_file; do
+    [ -f "$agent_file" ] || continue
+    agent_supports_target "$agent_file" "opencode" || continue
+
+    local agent_id; agent_id=$(get_agent_id "$agent_file")
+    should_deploy_agent "$project_id" "$agent_id" || continue
+
+    local eff_mode
+    eff_mode=$(get_effective_agent_mode "$agent_file" "$project_id")
+    _DEPLOY_FILES_AGENT_KEYS+=("$agent_id")
+    _DEPLOY_FILES_AGENT_VALS+=("$eff_mode")
+    _DEPLOY_FILES_AGENT_FILES+=("$agent_file")
+    _DEPLOY_FILES_COUNT=$((_DEPLOY_FILES_COUNT + 1))
+  done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+}
+
 adapter_validate() {
   command -v opencode &>/dev/null || { log_error "OpenCode non installé → oc install"; return 1; }
 }
 
 adapter_needs_node() { return 0; }
 
-adapter_deploy() {
+# ── Phase 1 : copie des fichiers agents ──────────────────────────────────────
+# Copie les agents canoniques vers .opencode/agents/ et charge les métadonnées
+# nécessaires à la phase de configuration via les variables globales :
+#   _DEPLOY_FILES_AGENT_KEYS / _DEPLOY_FILES_AGENT_VALS / _DEPLOY_FILES_AGENT_FILES / _DEPLOY_FILES_COUNT
+#
+# $1 = deploy_dir, $2 = project_id (optionnel), $3 = provider_override (ignoré — non utilisé en Phase 1)
+adapter_deploy_files() {
   local deploy_dir="${1:-$HUB_DIR}"
   local project_id="${2:-}"
-  local provider_override="${3:-}"
   local out_dir="$deploy_dir/.opencode/agents"
-  local effective_provider
-  effective_provider=$(get_effective_provider "$project_id" "$provider_override")
+
   mkdir -p "$out_dir"
   [ -d "$CANONICAL_AGENTS_DIR" ] || { log_error "[opencode] Dossier agents/ introuvable"; return 1; }
 
@@ -210,35 +249,41 @@ adapter_deploy() {
   fi
   lang=$(resolve_agent_lang "$lang")
 
-  local deployed=0
-  # Tableaux parallèles : agent_id → mode effectif + fichier source
-  # (bash 3.2 compatible — pas de declare -A)
-  local _agent_modes_keys=()
-  local _agent_modes_vals=()
-  # Tableau des fichiers source (même index) pour éviter le scan O(n²)
-  local _agent_modes_files=()
+  # Charger les métadonnées (réinitialise les tableaux _DEPLOY_FILES_*)
+  _load_agent_metadata "$project_id"
 
-  while IFS= read -r agent_file; do
-    [ -f "$agent_file" ] || continue
-    agent_supports_target "$agent_file" "opencode" || { log_warn "[opencode] Ignoré : $(basename "$agent_file")"; continue; }
+  # Copier chaque agent retenu dans le répertoire cible
+  local _i=0
+  while [ "$_i" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+    local _aid="${_DEPLOY_FILES_AGENT_KEYS[$_i]}"
+    local _asource="${_DEPLOY_FILES_AGENT_FILES[$_i]}"
 
-    local agent_id; agent_id=$(get_agent_id "$agent_file")
-    should_deploy_agent "$project_id" "$agent_id" || { log_info "[opencode] Filtré : $agent_id"; continue; }
-    log_info "[opencode] Génération : $agent_id"
-    build_agent_content "$agent_file" "opencode" "$lang" "$deploy_dir" > "$out_dir/${agent_id}.md"
-    log_success "[opencode] $agent_id"
-    deployed=$((deployed + 1))
+    build_agent_content "$_asource" "opencode" "$lang" "$deploy_dir" > "$out_dir/${_aid}.md"
+    log_success "  $_aid"
+    _i=$((_i + 1))
+  done
+}
 
-    # Résoudre le mode effectif (override projet > frontmatter > "primary")
-    local eff_mode
-    eff_mode=$(get_effective_agent_mode "$agent_file" "$project_id")
-    _agent_modes_keys+=("$agent_id")
-    _agent_modes_vals+=("$eff_mode")
-    _agent_modes_files+=("$agent_file")
-  done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
-
-  # Générer opencode.json à la racine du projet
+# ── Phase 2 : configuration provider/model (opencode.json) ───────────────────
+# Génère opencode.json à la racine du projet cible.
+# Autonome : charge elle-même les métadonnées agents via _load_agent_metadata()
+# si les tableaux _DEPLOY_FILES_* ne sont pas déjà remplis (appel direct sans Phase 1).
+#
+# $1 = deploy_dir, $2 = project_id (optionnel), $3 = provider_override (optionnel)
+adapter_deploy_config() {
+  local deploy_dir="${1:-$HUB_DIR}"
+  local project_id="${2:-}"
+  local provider_override="${3:-}"
   local config_file="$deploy_dir/opencode.json"
+
+  # Charger les métadonnées si les tableaux sont vides (appel direct sans Phase 1)
+  if [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]; then
+    _load_agent_metadata "$project_id"
+  fi
+
+  local effective_provider
+  effective_provider=$(get_effective_provider "$project_id" "$provider_override")
+
   local model; model=$(_get_opencode_model "$project_id" "$provider_override")
   local provider_json=""
   local has_api_key=false
@@ -263,13 +308,12 @@ adapter_deploy() {
   fi
 
   # Construire l'objet "agent" via jq pour garantir un JSON valide
-  # Chaque entrée est construite comme un objet jq puis fusionnée
   local agent_obj_json="{}"
   local _ai=0
-  while [ "$_ai" -lt "${#_agent_modes_keys[@]}" ]; do
-    local _aid="${_agent_modes_keys[$_ai]}"
-    local _amode="${_agent_modes_vals[$_ai]}"
-    local _asource="${_agent_modes_files[$_ai]}"
+  while [ "$_ai" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+    local _aid="${_DEPLOY_FILES_AGENT_KEYS[$_ai]}"
+    local _amode="${_DEPLOY_FILES_AGENT_VALS[$_ai]}"
+    local _asource="${_DEPLOY_FILES_AGENT_FILES[$_ai]}"
 
     # Extraire le bloc permission depuis le fichier source (déjà connu — pas de scan O(n²))
     local _perm_json=""
@@ -292,14 +336,12 @@ adapter_deploy() {
       _agent_model=$(_get_agent_model "$_asource" "$project_id" "$provider_override")
     fi
 
-    local _model_json="$_agent_model"
-
     # Fusionner le champ model si nécessaire
-    if [ -n "$_model_json" ]; then
+    if [ -n "$_agent_model" ]; then
       if [ -n "$_entry_json" ]; then
-        _entry_json=$(jq -n --argjson base "$_entry_json" --arg m "$_model_json" '$base + {model: $m}')
+        _entry_json=$(jq -n --argjson base "$_entry_json" --arg m "$_agent_model" '$base + {model: $m}')
       else
-        _entry_json=$(jq -n --arg m "$_model_json" '{model: $m}')
+        _entry_json=$(jq -n --arg m "$_agent_model" '{model: $m}')
       fi
     fi
 
@@ -376,24 +418,35 @@ adapter_deploy() {
     printf '%s\n' "$base_obj" > "$config_file"
 
     if [ "$has_api_key" = true ]; then
-      log_success "[opencode] opencode.json créé avec clé API (modèle : $model, provider : $effective_provider)"
+      log_success "  opencode.json  (modèle : $model, provider : $effective_provider)"
       chmod 600 "$config_file"
     else
       local subagent_count=0
       local _si=0
-      while [ "$_si" -lt "${#_agent_modes_vals[@]}" ]; do
-        [ "${_agent_modes_vals[$_si]}" != "primary" ] && subagent_count=$((subagent_count + 1))
+      while [ "$_si" -lt "${#_DEPLOY_FILES_AGENT_VALS[@]}" ]; do
+        [ "${_DEPLOY_FILES_AGENT_VALS[$_si]}" != "primary" ] && subagent_count=$((subagent_count + 1))
         _si=$((_si + 1))
       done
       local disabled_count=0
       [ -n "$disabled_csv" ] && disabled_count=$(echo "$disabled_csv" | tr ',' '\n' | grep -v '^$' | wc -l | tr -d ' ')
-      log_success "[opencode] opencode.json créé (modèle : $model, $subagent_count agent(s) en mode subagent, $disabled_count désactivé(s))"
+      log_success "  opencode.json  (modèle : $model, $subagent_count agent(s) en mode subagent, $disabled_count désactivé(s))"
     fi
   else
-    log_info "[opencode] opencode.json existant conservé"
+    log_info "  opencode.json conservé (aucun changement nécessaire)"
   fi
+}
 
-  log_success "[opencode] $deployed agent(s) → ${deploy_dir}/.opencode/agents/"
+# ── Wrapper de compatibilité ─────────────────────────────────────────────────
+# Enchaîne les deux phases pour les usages qui ne distinguent pas files/config
+# (cmd-deploy.sh --diff, cmd-sync, cmd-provider, etc.)
+adapter_deploy() {
+  local deploy_dir="${1:-$HUB_DIR}"
+  local project_id="${2:-}"
+  local provider_override="${3:-}"
+
+  adapter_deploy_files "$deploy_dir" "$project_id" "$provider_override"
+  adapter_deploy_config "$deploy_dir" "$project_id" "$provider_override"
+  log_success "[opencode] $_DEPLOY_FILES_COUNT agent(s) → ${deploy_dir}/.opencode/agents/"
 }
 
 adapter_install() {

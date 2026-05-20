@@ -205,3 +205,77 @@ AGENTEOF
   run _run_check "$DEPLOY_DIR/tmp_single" "$HUB_ROOT/skills"
   [ "$status" -eq 0 ]
 }
+
+# ── adapter_deploy_config autonome (sans Phase 1 préalable) ──────────────────
+# Vérifie que la Phase 2 est autonome et produit un opencode.json complet
+# même sans avoir exécuté adapter_deploy_files avant.
+
+@test "intégration : adapter_deploy_config seul génère opencode.json complet" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  bash -c "
+    export HUB_DIR='$HUB_ROOT'
+    export HUB_CONFIG='$HUB_CONFIG_TEST'
+    export CANONICAL_AGENTS_DIR='$HUB_ROOT/agents'
+    export SKILLS_DIR='$HUB_ROOT/skills'
+    source '$HUB_ROOT/scripts/common.sh'
+    source '$HUB_ROOT/scripts/lib/prompt-builder.sh'
+    source '$HUB_ROOT/scripts/adapters/opencode.adapter.sh'
+    log_info()    { true; }
+    log_success() { true; }
+    log_warn()    { true; }
+    # Appel direct de la Phase 2 sans Phase 1 préalable
+    adapter_deploy_config '$DEPLOY_DIR' ''
+  " 2>/dev/null
+
+  # opencode.json doit exister et être valide
+  [ -f "$DEPLOY_DIR/opencode.json" ]
+  run jq . "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+
+  # Le schéma doit être présent
+  result=$(jq -r '.["$schema"]' "$DEPLOY_DIR/opencode.json")
+  [ "$result" = "https://opencode.ai/config.json" ]
+}
+
+@test "intégration : adapter_deploy_config seul produit le même opencode.json que le déploiement complet" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  DEPLOY_FULL="$(mktemp -d)"
+  DEPLOY_CONFIG_ONLY="$(mktemp -d)"
+
+  # Déploiement complet (Phase 1 + Phase 2)
+  bash -c "
+    export HUB_DIR='$HUB_ROOT'
+    export HUB_CONFIG='$HUB_CONFIG_TEST'
+    export CANONICAL_AGENTS_DIR='$HUB_ROOT/agents'
+    export SKILLS_DIR='$HUB_ROOT/skills'
+    source '$HUB_ROOT/scripts/common.sh'
+    source '$HUB_ROOT/scripts/lib/prompt-builder.sh'
+    source '$HUB_ROOT/scripts/adapters/opencode.adapter.sh'
+    log_info()    { true; }
+    log_success() { true; }
+    log_warn()    { true; }
+    adapter_deploy '$DEPLOY_FULL' ''
+  " 2>/dev/null
+
+  # Phase 2 seule
+  bash -c "
+    export HUB_DIR='$HUB_ROOT'
+    export HUB_CONFIG='$HUB_CONFIG_TEST'
+    export CANONICAL_AGENTS_DIR='$HUB_ROOT/agents'
+    export SKILLS_DIR='$HUB_ROOT/skills'
+    source '$HUB_ROOT/scripts/common.sh'
+    source '$HUB_ROOT/scripts/lib/prompt-builder.sh'
+    source '$HUB_ROOT/scripts/adapters/opencode.adapter.sh'
+    log_info()    { true; }
+    log_success() { true; }
+    log_warn()    { true; }
+    adapter_deploy_config '$DEPLOY_CONFIG_ONLY' ''
+  " 2>/dev/null
+
+  # Les deux opencode.json doivent être identiques
+  diff "$DEPLOY_FULL/opencode.json" "$DEPLOY_CONFIG_ONLY/opencode.json"
+
+  rm -rf "$DEPLOY_FULL" "$DEPLOY_CONFIG_ONLY"
+}

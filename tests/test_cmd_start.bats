@@ -221,3 +221,46 @@ teardown() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"requiert Beads"* ]]
 }
+
+# ── Flag --provider avec agents déjà déployés ────────────────────────────────
+# Vérifie que seule adapter_deploy_config est appelée (pas adapter_deploy entier)
+
+@test "cmd-start --provider : appelle adapter_deploy_config si agents déjà déployés" {
+  # Préparer un projet avec agents déjà déployés
+  mkdir -p "$TEST_DIR/fake-project/.opencode/agents"
+  mkdir -p "$TEST_DIR/fake-project/.beads"
+
+  DEPLOY_CALLS_LOG="$TEST_DIR/deploy_calls.log"
+  : > "$DEPLOY_CALLS_LOG"
+
+  # Créer un adapter mock qui trace les appels dans le log
+  # cmd-start source l'adapter via load_adapter — on remplace le fichier source
+  ADAPTERS_DIR_MOCK="$TEST_DIR/adapters"
+  mkdir -p "$ADAPTERS_DIR_MOCK"
+  cat > "$ADAPTERS_DIR_MOCK/opencode.adapter.sh" << ADAPTEREOF
+adapter_validate()      { return 0; }
+adapter_needs_node()    { return 0; }
+adapter_deploy_files()  { echo "adapter_deploy_files called"  >> "$DEPLOY_CALLS_LOG"; }
+adapter_deploy_config() { echo "adapter_deploy_config called" >> "$DEPLOY_CALLS_LOG"; }
+adapter_deploy()        { echo "adapter_deploy called"        >> "$DEPLOY_CALLS_LOG"; }
+adapter_install()       { true; }
+adapter_update()        { true; }
+adapter_start()         { true; }
+ADAPTEREOF
+
+  run bash -c '
+    export PATH="'"$TEST_DIR/bin"':$PATH"
+    export HUB_CONFIG="'"$HUB_CONFIG"'"
+    export PROJECTS_FILE="'"$PROJECTS_FILE"'"
+    export PATHS_FILE="'"$PATHS_FILE"'"
+    export API_KEYS_FILE="'"$API_KEYS_FILE"'"
+    export ADAPTERS_DIR="'"$ADAPTERS_DIR_MOCK"'"
+    printf "\n" | bash "'"$CMD_START"'" TEST-PROJ --provider anthropic 2>/dev/null || true
+  '
+
+  # adapter_deploy_config doit avoir été appelé (Phase 2 seule)
+  grep -q "adapter_deploy_config called" "$DEPLOY_CALLS_LOG"
+
+  # adapter_deploy (complet) ne doit PAS avoir été appelé
+  ! grep -q "adapter_deploy called" "$DEPLOY_CALLS_LOG"
+}

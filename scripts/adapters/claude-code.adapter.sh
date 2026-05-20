@@ -9,10 +9,16 @@ adapter_validate() {
 
 adapter_needs_node() { return 0; }
 
-adapter_deploy() {
+# ── Phase 1 : copie des fichiers agents ──────────────────────────────────────
+# Copie les agents canoniques vers .claude/agents/.
+# Remplit _DEPLOY_FILES_COUNT pour le reporting dans cmd-deploy.sh.
+#
+# $1 = deploy_dir, $2 = project_id (optionnel), $3 = provider_override (ignoré — claude-code ne gère pas les providers)
+adapter_deploy_files() {
   local deploy_dir="${1:-$HUB_DIR}"
   local project_id="${2:-}"
   local out_dir="$deploy_dir/.claude/agents"
+
   mkdir -p "$out_dir"
   [ -d "$CANONICAL_AGENTS_DIR" ] || { log_error "[claude-code] Dossier agents/ introuvable"; return 1; }
 
@@ -23,7 +29,7 @@ adapter_deploy() {
   fi
   lang=$(resolve_agent_lang "$lang")
 
-  local deployed=0
+  _DEPLOY_FILES_COUNT=0
 
   while IFS= read -r agent_file; do
     [ -f "$agent_file" ] || continue
@@ -42,7 +48,6 @@ adapter_deploy() {
       cc_description="Sous-agent interne — invoquer uniquement via un agent coordinateur, ne pas appeler directement. ${description}"
     fi
 
-    log_info "[claude-code] Génération : $agent_id"
     {
       echo "---"
       echo "name: ${label}"
@@ -54,11 +59,31 @@ adapter_deploy() {
       echo ""
       build_agent_content "$agent_file" "claude-code" "$lang" "$deploy_dir"
     } > "$out_dir/${agent_id}.md"
-    log_success "[claude-code] $agent_id${eff_mode:+ ($eff_mode)}"
-    deployed=$((deployed + 1))
+    log_success "  $agent_id${eff_mode:+ ($eff_mode)}"
+    _DEPLOY_FILES_COUNT=$((_DEPLOY_FILES_COUNT + 1))
   done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+}
 
-  log_success "[claude-code] $deployed agent(s) → ${deploy_dir}/.claude/agents/"
+# ── Phase 2 : configuration provider/model ────────────────────────────────────
+# Claude Code ne gère pas de fichier de configuration provider via le hub.
+# Cette phase est un no-op — présente pour respecter le contrat adapter.
+#
+# $1 = deploy_dir, $2 = project_id (optionnel), $3 = provider_override (optionnel)
+adapter_deploy_config() {
+  log_info "  Aucune configuration provider/model à appliquer (non supporté par Claude Code)"
+}
+
+# ── Wrapper de compatibilité ─────────────────────────────────────────────────
+# Enchaîne les deux phases pour les usages qui ne distinguent pas files/config
+# (cmd-deploy.sh --diff, tests, etc.)
+adapter_deploy() {
+  local deploy_dir="${1:-$HUB_DIR}"
+  local project_id="${2:-}"
+  local provider_override="${3:-}"
+
+  adapter_deploy_files "$deploy_dir" "$project_id" "$provider_override"
+  adapter_deploy_config "$deploy_dir" "$project_id" "$provider_override"
+  log_success "[claude-code] $_DEPLOY_FILES_COUNT agent(s) → ${deploy_dir}/.claude/agents/"
 }
 
 adapter_install() {

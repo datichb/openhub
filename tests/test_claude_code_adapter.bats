@@ -101,3 +101,52 @@ teardown() {
   # Le build_agent_content doit injecter une instruction de langue
   grep -qi "english" "$DEPLOY_DIR/.claude/agents/test-agent.md"
 }
+
+# ── adapter_deploy_files (Phase 1 directe) ────────────────────────────────────
+
+@test "claude-code adapter_deploy_files : crée le dossier .claude/agents/" {
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  [ -d "$DEPLOY_DIR/.claude/agents" ]
+}
+
+@test "claude-code adapter_deploy_files : génère le fichier agent" {
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  [ -f "$DEPLOY_DIR/.claude/agents/test-agent.md" ]
+}
+
+@test "claude-code adapter_deploy_files : remplit _DEPLOY_FILES_COUNT" {
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  [ "$_DEPLOY_FILES_COUNT" -eq 1 ]
+}
+
+@test "claude-code adapter_deploy_files : remplit _DEPLOY_FILES_COUNT (seule variable de reporting)" {
+  # claude-code ne peuple pas _DEPLOY_FILES_AGENT_KEYS/VALS/FILES car sa Phase 2 est un no-op —
+  # seul _DEPLOY_FILES_COUNT est utilisé pour le reporting dans cmd-deploy.sh.
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]
+}
+
+@test "claude-code adapter_deploy_files : ne déploie pas un agent non compatible" {
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  [ ! -f "$DEPLOY_DIR/.claude/agents/opencode-only.md" ]
+}
+
+# ── adapter_deploy_config (Phase 2 — no-op pour claude-code) ──────────────────
+
+@test "claude-code adapter_deploy_config : ne produit aucun fichier de config" {
+  adapter_deploy_config "$DEPLOY_DIR" ""
+  [ ! -f "$DEPLOY_DIR/opencode.json" ]
+  [ ! -f "$DEPLOY_DIR/claude.json" ]
+}
+
+@test "claude-code adapter_deploy_config : appelable seul sans Phase 1 (no-op idempotent)" {
+  # Aucune Phase 1 préalable — ne doit pas planter
+  run adapter_deploy_config "$DEPLOY_DIR" ""
+  [ "$status" -eq 0 ]
+}
+
+@test "claude-code adapter_deploy_config : appelable après Phase 1 (no-op idempotent)" {
+  adapter_deploy_files "$DEPLOY_DIR" ""
+  run adapter_deploy_config "$DEPLOY_DIR" ""
+  [ "$status" -eq 0 ]
+}

@@ -7,33 +7,70 @@ d'un outil IA cible (opencode, claude-code, etc.).
 
 ## Contrat obligatoire
 
-Tout adapter (`scripts/adapters/<cible>.adapter.sh`) doit exporter **6 fonctions**.
+Tout adapter (`scripts/adapters/<cible>.adapter.sh`) doit exporter **8 fonctions**.
 Le chargement est effectué par `load_adapter()` dans `scripts/lib/adapter-manager.sh`,
-qui vérifie via `declare -F` que les 6 fonctions existent après le `source`.
+qui vérifie via `declare -F` que les 8 fonctions existent après le `source`.
 
 | Fonction | Rôle | Signature |
 |----------|------|-----------|
 | `adapter_validate` | Vérifie que l'outil cible est installé et accessible | `adapter_validate()` — retourne 0/1 |
 | `adapter_needs_node` | Indique si Node.js est requis pour l'outil | `adapter_needs_node()` — `return 0` (oui) ou `return 1` (non) |
-| `adapter_deploy` | Génère les fichiers agent dans le projet cible | `adapter_deploy deploy_dir project_id` |
+| `adapter_deploy_files` | **Phase 1** — Copie les agents canoniques vers le projet cible | `adapter_deploy_files deploy_dir project_id [provider_override]` |
+| `adapter_deploy_config` | **Phase 2** — Applique la configuration provider/model (ex: `opencode.json`) | `adapter_deploy_config deploy_dir project_id [provider_override]` |
+| `adapter_deploy` | Wrapper de compatibilité — enchaîne Phase 1 + Phase 2 | `adapter_deploy deploy_dir project_id [provider_override]` |
 | `adapter_install` | Installe l'outil cible (appelé par `oc install`) | `adapter_install()` |
 | `adapter_update` | Met à jour l'outil cible (appelé par `oc update`) | `adapter_update()` |
 | `adapter_start` | Lance l'outil dans le projet (appelé par `oc start`) | `adapter_start project_path prompt project_id` |
 
+### Séparation des phases
+
+`oc deploy` exécute les deux phases séquentiellement en affichant une section visuelle distincte pour chacune :
+
+```
+▶  Phase 1 — Copie des agents
+◆  12 agent(s) déployés
+
+▶  Phase 2 — Configuration provider / model
+◆  opencode.json  (modèle : amazon-bedrock/..., provider : bedrock)
+```
+
+`oc start --provider <provider>` n'exécute que **la Phase 2** lorsque les agents
+sont déjà en place — la Phase 1 est inutile dans ce cas.
+
 ### Détail des paramètres
 
-#### `adapter_deploy deploy_dir project_id`
+#### `adapter_deploy_files deploy_dir project_id [provider_override]`
 
 - `deploy_dir` : chemin du répertoire projet où déployer (ex: `/home/user/mon-projet`)
 - `project_id` : identifiant du projet dans `projects.md` (ex: `MON-PROJET`). Permet de
-  lire la langue (`get_project_language`) et les clés API (`get_project_api_*`).
+  lire la langue (`get_project_language`) et les filtres agents (`should_deploy_agent`).
+- `provider_override` : ignoré en Phase 1 — présent pour homogénéité de signature.
 
 Responsabilités :
 1. Créer l'arborescence de sortie (ex: `.opencode/agents/`, `.claude/agents/`)
-2. Itérer sur les agents canoniques dans `CANONICAL_AGENTS_DIR`
-3. Filtrer via `agent_supports_target` (ne déployer que les agents compatibles)
-4. Appeler `build_agent_content` (de `prompt-builder.sh`) pour assembler le contenu
-5. Écrire les fichiers dans le format attendu par l'outil cible
+2. Charger les métadonnées agents via `_load_agent_metadata` (scan sans écriture)
+3. Pour chaque agent retenu : appeler `build_agent_content` et écrire le fichier `.md`
+4. Remplir les variables globales `_DEPLOY_FILES_AGENT_KEYS/VALS/FILES/COUNT`
+
+#### `adapter_deploy_config deploy_dir project_id [provider_override]`
+
+- `deploy_dir` : chemin du répertoire projet
+- `project_id` : identifiant du projet (pour résoudre le provider et la clé API)
+- `provider_override` : override du provider (ex: `bedrock`, `anthropic`)
+
+Responsabilités :
+1. Charger les métadonnées agents si `_DEPLOY_FILES_AGENT_KEYS` est vide (appel direct sans Phase 1)
+2. Résoudre le modèle et le provider effectifs
+3. Construire et écrire le fichier de configuration (ex: `opencode.json`)
+4. Pour les adapters sans configuration (ex: `claude-code`) : no-op explicite
+
+**Autonomie :** cette fonction est appelable seule sans avoir exécuté `adapter_deploy_files`
+au préalable — elle charge elle-même les métadonnées nécessaires.
+
+#### `adapter_deploy deploy_dir project_id [provider_override]`
+
+Wrapper de compatibilité qui enchaîne `adapter_deploy_files` puis `adapter_deploy_config`.
+Utilisé par `cmd-deploy.sh --diff`, `cmd-sync.sh`, `cmd-provider.sh` et les tests.
 
 #### `adapter_start project_path prompt project_id`
 
@@ -62,11 +99,22 @@ Un adapter a accès aux fonctions de `common.sh` et `prompt-builder.sh` :
 | `get_project_api_key project_id` | Retourne la clé API |
 | `get_project_api_base_url project_id` | Retourne la base URL (ou vide) |
 
+### Variables globales remplies par `adapter_deploy_files` / `_load_agent_metadata`
+
+Ces variables sont disponibles pour `adapter_deploy_config` après la Phase 1 :
+
+| Variable | Contenu |
+|----------|---------|
+| `_DEPLOY_FILES_AGENT_KEYS` | Tableau des `agent_id` retenus |
+| `_DEPLOY_FILES_AGENT_VALS` | Tableau des modes effectifs (`primary`, `subagent`, …) |
+| `_DEPLOY_FILES_AGENT_FILES` | Tableau des chemins source canoniques |
+| `_DEPLOY_FILES_COUNT` | Nombre d'agents retenus |
+
 ---
 
 ## Créer un nouvel adapter
 
-1. Créer `scripts/adapters/<cible>.adapter.sh` avec les 6 fonctions
+1. Créer `scripts/adapters/<cible>.adapter.sh` avec les **8 fonctions** du contrat
 2. Ajouter la cible dans `config/hub.json` (`active_targets` et `default_target` si pertinent)
 3. Le fichier sera chargé automatiquement par `load_adapter` — aucune modification de
    `adapter-manager.sh` n'est nécessaire
@@ -84,7 +132,8 @@ adapter_validate() {
 
 adapter_needs_node() { return 1; }
 
-adapter_deploy() {
+# Phase 1 : copie des fichiers agents
+adapter_deploy_files() {
   local deploy_dir="${1:-$HUB_DIR}"
   local project_id="${2:-}"
   local out_dir="$deploy_dir/.mon-outil/agents"
@@ -93,13 +142,34 @@ adapter_deploy() {
   local lang=""
   [ -n "$project_id" ] && lang=$(get_project_language "$project_id")
 
+  _DEPLOY_FILES_AGENT_KEYS=()
+  _DEPLOY_FILES_AGENT_VALS=()
+  _DEPLOY_FILES_AGENT_FILES=()
+  _DEPLOY_FILES_COUNT=0
+
   while IFS= read -r f; do
     [ -f "$f" ] || continue
     agent_supports_target "$f" "mon-outil" || continue
     local agent_id; agent_id=$(get_agent_id "$f")
-    local content; content=$(build_agent_content "$f" "$lang")
-    printf '%s\n' "$content" > "$out_dir/${agent_id}.md"
+    should_deploy_agent "$project_id" "$agent_id" || continue
+    build_agent_content "$f" "mon-outil" "$lang" "$deploy_dir" > "$out_dir/${agent_id}.md"
+    local eff_mode; eff_mode=$(get_effective_agent_mode "$f" "$project_id")
+    _DEPLOY_FILES_AGENT_KEYS+=("$agent_id")
+    _DEPLOY_FILES_AGENT_VALS+=("$eff_mode")
+    _DEPLOY_FILES_AGENT_FILES+=("$f")
+    _DEPLOY_FILES_COUNT=$((_DEPLOY_FILES_COUNT + 1))
   done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+}
+
+# Phase 2 : configuration provider/model (no-op si non applicable)
+adapter_deploy_config() {
+  log_info "  Aucune configuration provider/model à appliquer (non supporté par mon-outil)"
+}
+
+# Wrapper de compatibilité
+adapter_deploy() {
+  adapter_deploy_files "${1:-}" "${2:-}" "${3:-}"
+  adapter_deploy_config "${1:-}" "${2:-}" "${3:-}"
 }
 
 adapter_install() {
@@ -125,8 +195,8 @@ adapter_start() {
 
 | Cible | Fichier | Node requis | Spécificités |
 |-------|---------|-------------|--------------|
-| opencode | `opencode.adapter.sh` | Oui | Génère `opencode.json` (avec bloc `"agent":` pour les subagents) + `.opencode/agents/*.md`, injecte les clés API |
-| claude-code | `claude-code.adapter.sh` | Oui | Génère `.claude/agents/*.md` — les subagents reçoivent une description préfixée pour orienter Claude vers la délégation |
+| opencode | `opencode.adapter.sh` | Oui | Phase 1 : `.opencode/agents/*.md` — Phase 2 : `opencode.json` (provider, model, modes subagent, permissions, agents désactivés) |
+| claude-code | `claude-code.adapter.sh` | Oui | Phase 1 : `.claude/agents/*.md` (subagents préfixés) — Phase 2 : no-op (pas de config provider) |
 
 ### Comportement par mode selon la cible
 

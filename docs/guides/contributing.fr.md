@@ -148,13 +148,13 @@ skills: [chemin/vers/mon-skill]
 
 Un adapter traduit les agents du format hub vers le format d'un outil cible.
 
-Le contrat complet (6 fonctions obligatoires, paramètres, fonctions utilitaires
+Le contrat complet (8 fonctions obligatoires, paramètres, fonctions utilitaires
 disponibles et exemple minimal) est documenté dans
 [docs/architecture/adapters.fr.md](../architecture/adapters.fr.md).
 
 ### Étapes rapides
 
-1. Créer `scripts/adapters/<cible>.adapter.sh` avec les 6 fonctions du contrat
+1. Créer `scripts/adapters/<cible>.adapter.sh` avec les 8 fonctions du contrat
 2. Ajouter la cible dans `config/hub.json`
 3. Tester avec `oc deploy <cible>` puis `oc agent list`
 
