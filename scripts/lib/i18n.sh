@@ -425,7 +425,7 @@ t() {
       install.jq_manual)      printf '%s' "Installer jq manuellement :" ;;
       install.targets_title)  printf '%s' "Cibles à configurer" ;;
       install.target_opencode) printf '%s' "OpenCode (recommandé)" ;;
-      install.choose_prompt)  printf '%s' "Choisir (défaut: 1) : " ;;" ;;
+      install.choose_prompt)  printf '%s' "Choisir (défaut: 1) : " ;;
       install.hub_json_exists) printf '%s' "config/hub.json existe déjà." ;;
       install.hub_json_overwrite) printf '%s' "Écraser avec les nouvelles cibles ? [y/N] : " ;;
       install.hub_json_kept)  printf '%s' "config/hub.json conservé tel quel." ;;
@@ -1046,7 +1046,7 @@ t_en() {
     install.jq_manual)      printf '%s' "Install jq manually:" ;;
     install.targets_title)  printf '%s' "Targets to configure" ;;
     install.target_opencode) printf '%s' "OpenCode (recommended)" ;;
-    install.choose_prompt)  printf '%s' "Choose (default: 1): " ;;" ;;
+    install.choose_prompt)  printf '%s' "Choose (default: 1): " ;;
     install.hub_json_exists) printf '%s' "config/hub.json already exists." ;;
     install.hub_json_overwrite) printf '%s' "Overwrite with new targets? [y/N]: " ;;
     install.hub_json_kept)  printf '%s' "config/hub.json kept as-is." ;;
