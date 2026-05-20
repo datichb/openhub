@@ -441,8 +441,9 @@ t() {
       install.provider_base_url) printf '%s' "URL de base" ;;
       install.provider_configured) printf '%s' "Fournisseur configuré :" ;;
       install.provider_skipped) printf '%s' "Fournisseur non configuré — utiliser : ./oc.sh provider set-default" ;;
-      install.projects_ready) printf '%s' "projects.md prêt" ;;
-      install.paths_created)  printf '%s' "paths.local.md créé" ;;
+      install.projects_ready)  printf '%s' "projects.md prêt" ;;
+      install.paths_created)   printf '%s' "paths.local.md créé" ;;
+      install.api_keys_ready)  printf '%s' "api-keys.local.md prêt (permissions 600)" ;;
       install.skills_tip)     printf '%s' "Tip : Enrichissez vos agents avec des skills tiers via context7 :" ;;
       install.beads_title)    printf '%s' "Installation de Beads (bd)" ;;
       install.beads_already)  printf '%s' "Beads déjà installé" ;;
@@ -1064,8 +1065,9 @@ t_en() {
     install.provider_base_url) printf '%s' "Base URL" ;;
     install.provider_configured) printf '%s' "Provider configured:" ;;
     install.provider_skipped) printf '%s' "Provider not configured — use: ./oc.sh provider set-default" ;;
-    install.projects_ready) printf '%s' "projects.md ready" ;;
-    install.paths_created)  printf '%s' "paths.local.md created" ;;
+    install.projects_ready)  printf '%s' "projects.md ready" ;;
+    install.paths_created)   printf '%s' "paths.local.md created" ;;
+    install.api_keys_ready)  printf '%s' "api-keys.local.md ready (permissions 600)" ;;
     install.skills_tip)     printf '%s' "Tip: Enrich your agents with third-party skills via context7:" ;;
     install.beads_title)    printf '%s' "Beads (bd) installation" ;;
     install.beads_already)  printf '%s' "Beads already installed" ;;

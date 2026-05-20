@@ -9,7 +9,7 @@
 # Ce script :
 #   1. Clone ou met à jour le repo dans ~/.opencode-hub
 #   2. Vérifie et installe les dépendances (jq, Node.js/npm, opencode, bun)
-#   3. Crée l'alias 'oc' dans le fichier rc shell de l'utilisateur
+#   3. Configure les alias shell ('oc' et 'ocp') dans le fichier rc
 #   4. Initialise les fichiers de config locaux
 #   5. Lance oc install pour finaliser la configuration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -250,9 +250,9 @@ fi
 _outro "Dépendances vérifiées"
 
 # ─────────────────────────────────────────
-# ÉTAPE 3 — ALIAS SHELL
+# ÉTAPE 3 — CONFIGURATION DES ALIAS SHELL
 # ─────────────────────────────────────────
-_intro "Configuration de l'alias 'oc'"
+_intro "Configuration des alias shell ('oc' et 'ocp')"
 
 # Déterminer le fichier rc à modifier
 _rc_file=""
@@ -321,18 +321,11 @@ else
   log_info "  $_alias_line"
 fi
 
-_outro "Alias configuré"
-
 # ── Alias ocp (provider switcher) ──────────────────────────────────────────
-# Note : $_rc_file est défini dans la section alias oc ci-dessus (lignes ~258-264) — dépendance implicite intentionnelle.
-_intro "Configuration de l'alias 'ocp'"
-echo ""
-
 _ocp_line="alias ocp=\"$INSTALL_DIR/ocp.sh\""
 
 if [ -n "$_rc_file" ]; then
   if grep -qF "alias ocp=" "$_rc_file" 2>/dev/null; then
-    log_info "Alias 'ocp' déjà présent dans $_rc_file — mis à jour"
     sed -i.bak "s|^alias ocp=.*|$_ocp_line|" "$_rc_file"
     rm -f "$_rc_file.bak"
     log_success "Alias 'ocp' mis à jour dans $_rc_file"
@@ -345,71 +338,28 @@ else
   log_warn "Shell non reconnu — ajouter manuellement : alias ocp=\"$INSTALL_DIR/ocp.sh\""
 fi
 
-_outro "Alias 'ocp' configuré"
+_outro "Alias 'oc' et 'ocp' configurés"
 
 # ─────────────────────────────────────────
 # ÉTAPE 4 — INIT CONFIG LOCAUX
 # ─────────────────────────────────────────
 _intro "Initialisation des fichiers locaux"
 
+# Charger les fonctions de project.sh pour éviter la duplication des templates
+source "$INSTALL_DIR/scripts/lib/project.sh"
+
+# Variables attendues par project.sh
 PROJECTS_DIR="$INSTALL_DIR/projects"
 PROJECTS_FILE="$PROJECTS_DIR/projects.md"
-PROJECTS_EXAMPLE="$PROJECTS_DIR/projects.example.md"
+PROJECTS_EXAMPLE_FILE="$PROJECTS_DIR/projects.example.md"
 PATHS_FILE="$PROJECTS_DIR/paths.local.md"
 API_KEYS_FILE="$PROJECTS_DIR/api-keys.local.md"
 
 mkdir -p "$PROJECTS_DIR"
 
-if [ ! -f "$PROJECTS_FILE" ]; then
-  if [ -f "$PROJECTS_EXAMPLE" ]; then
-    cp "$PROJECTS_EXAMPLE" "$PROJECTS_FILE"
-    log_success "projects.md créé depuis projects.example.md"
-  else
-    cat > "$PROJECTS_FILE" <<'PROJEOF'
-# Registre des projets
-
-<!-- FORMAT
-## <PROJECT_ID>
-- Nom : <nom lisible>
-- Stack : <technologies>
-- Board Beads : <PROJECT_ID>
-- Tracker : <jira|gitlab|none>
-- Labels : <liste séparée par virgules>
--->
-
----
-
-*Aucun projet enregistré pour l'instant.*
-*Ajouter un projet : oc init*
-PROJEOF
-    log_success "projects.md créé"
-  fi
-else
-  log_info "projects.md déjà présent — conservé"
-fi
-
-if [ ! -f "$PATHS_FILE" ]; then
-  echo "# Chemins locaux (ignoré par git)" > "$PATHS_FILE"
-  log_success "paths.local.md créé"
-else
-  log_info "paths.local.md déjà présent — conservé"
-fi
-
-if [ ! -f "$API_KEYS_FILE" ]; then
-  cat > "$API_KEYS_FILE" <<'KEYSEOF'
-# Clés API par projet (ignoré par git)
-# Format :
-#   [PROJECT_ID]
-#   model=claude-opus-4-5
-#   provider=anthropic
-#   api_key=sk-ant-...
-#   base_url=https://...  # optionnel
-KEYSEOF
-  chmod 600 "$API_KEYS_FILE"
-  log_success "api-keys.local.md créé (permissions 600)"
-else
-  log_info "api-keys.local.md déjà présent — conservé"
-fi
+ensure_projects_file
+ensure_paths_file
+ensure_api_keys_file
 
 _outro "Fichiers locaux initialisés"
 

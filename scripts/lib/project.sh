@@ -10,7 +10,7 @@
 # common.sh sans que le repo soit déjà cloné.
 #
 # Prérequis obligatoires avant sourçage direct :
-#   - log_info, log_warn, log_error, log_success définis
+#   - log_info, log_warn, log_error définis
 #   - PROJECTS_FILE, PROJECTS_EXAMPLE_FILE, PATHS_FILE, API_KEYS_FILE définis
 # ─────────────────────────────────────────────────────────────────────────────
 [ -n "${_PROJECT_LOADED:-}" ] && return 0
