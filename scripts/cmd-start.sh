@@ -11,18 +11,20 @@ ONBOARD_MODE=false
 DEV_LABEL=""
 DEV_ASSIGNEE=""
 AGENT_NAME=""
+PROVIDER_OVERRIDE=""
 ARGS=()
 _prev=""
 for arg in "$@"; do
   case "$_prev" in
-    --label)    DEV_LABEL="$arg";    _prev=""; continue ;;
-    --assignee) DEV_ASSIGNEE="$arg"; _prev=""; continue ;;
-    --agent)    AGENT_NAME="$arg";   _prev=""; continue ;;
+    --label)    DEV_LABEL="$arg";       _prev=""; continue ;;
+    --assignee) DEV_ASSIGNEE="$arg";    _prev=""; continue ;;
+    --agent)    AGENT_NAME="$arg";      _prev=""; continue ;;
+    --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
   esac
   case "$arg" in
     --dev)      DEV_MODE=true ;;
     --onboard)  ONBOARD_MODE=true ;;
-    --label|--assignee|--agent) _prev="$arg" ;;
+    --label|--assignee|--agent|--provider) _prev="$arg" ;;
     *)          ARGS+=("$arg") ;;
   esac
 done
@@ -76,6 +78,15 @@ PROJECT_ID=$(normalize_project_id "$PROJECT_ID")
 # ── Validation + résolution du chemin ─────
 PROJECT_PATH=$(resolve_project_path "$PROJECT_ID")
 
+# ── Validation du provider override si fourni ──────────────────────────────
+if [ -n "$PROVIDER_OVERRIDE" ]; then
+  provider_exists "$PROVIDER_OVERRIDE" || {
+    log_error "Provider inconnu : '$PROVIDER_OVERRIDE'"
+    log_info "Providers disponibles : $(jq -r '.providers | keys | join(", ")' "$PROVIDERS_FILE" 2>/dev/null)"
+    exit 1
+  }
+fi
+
 # ── Résolution de la cible ────────────────
 source "$LIB_DIR/adapter-manager.sh"
 default_target=$(get_default_target)
@@ -102,7 +113,7 @@ if [ -n "$agents_dir" ] && [ ! -d "$agents_dir" ] && [ -t 0 ]; then
   _prompt _deploy_now "$(t start.deploy_now)"
   if [[ "${_deploy_now:-Y}" =~ ^[Yy]$ ]]; then
     echo ""
-    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$default_target" "$PROJECT_ID"
+    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$default_target" "$PROJECT_ID" ${PROVIDER_OVERRIDE:+--provider "$PROVIDER_OVERRIDE"}
     echo ""
   else
     log_info "$(t deploy_later) ${default_target} ${PROJECT_ID}"
@@ -235,4 +246,4 @@ fi
 _outro "$(t start.press_enter) ${default_target}…"
 IFS= read -rp "" _ || true
 
-adapter_start "$PROJECT_PATH" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}"
+adapter_start "$PROJECT_PATH" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"

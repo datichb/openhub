@@ -40,8 +40,11 @@ _apply_provider_prefix() {
 #   2. variable d'env OPENCODE_MODEL
 #   3. config/hub.json → default_provider.model ou opencode.model
 #   4. fallback : claude-sonnet-4-5
+# $1 = project_id (optionnel)
+# $2 = provider_override (optionnel) — transmet l'override --provider de oc start/deploy
 _get_opencode_model() {
   local project_id="${1:-}"
+  local provider_override="${2:-}"
   local model=""
   # Niveau 1 : configuration projet (api-keys.local.md)
   if [ -n "$project_id" ]; then
@@ -58,16 +61,17 @@ _get_opencode_model() {
   model="${model##*/}"
   # Appliquer le préfixe et les aliases du provider effectif
   local provider
-  provider=$(get_effective_provider "$project_id")
+  provider=$(get_effective_provider "$project_id" "$provider_override")
   _apply_provider_prefix "$model" "$provider"
 }
 
 # Résout le modèle pour un agent et retourne vide si identique au modèle global du projet.
-# $1 = agent_file (chemin .md), $2 = project_id (optionnel)
+# $1 = agent_file (chemin .md), $2 = project_id (optionnel), $3 = provider_override (optionnel)
 # Retourne le modèle résolu sur stdout, ou rien si == modèle global projet.
 _get_agent_model() {
   local agent_file="$1"
   local project_id="${2:-}"
+  local provider_override="${3:-}"
 
   [ -z "$agent_file" ] && return 0
 
@@ -77,11 +81,11 @@ _get_agent_model() {
   resolved="${resolved##*/}"
   # Appliquer le préfixe et les aliases du provider effectif
   local provider
-  provider=$(get_effective_provider "$project_id")
+  provider=$(get_effective_provider "$project_id" "$provider_override")
   resolved=$(_apply_provider_prefix "$resolved" "$provider")
 
   local global_model
-  global_model=$(_get_opencode_model "$project_id")
+  global_model=$(_get_opencode_model "$project_id" "$provider_override")
 
   if [ "$resolved" = "$global_model" ]; then
     return 0
@@ -192,7 +196,10 @@ adapter_needs_node() { return 0; }
 adapter_deploy() {
   local deploy_dir="${1:-$HUB_DIR}"
   local project_id="${2:-}"
+  local provider_override="${3:-}"
   local out_dir="$deploy_dir/.opencode/agents"
+  local effective_provider
+  effective_provider=$(get_effective_provider "$project_id" "$provider_override")
   mkdir -p "$out_dir"
   [ -d "$CANONICAL_AGENTS_DIR" ] || { log_error "[opencode] Dossier agents/ introuvable"; return 1; }
 
@@ -232,7 +239,7 @@ adapter_deploy() {
 
   # Générer opencode.json à la racine du projet
   local config_file="$deploy_dir/opencode.json"
-  local model; model=$(_get_opencode_model "$project_id")
+  local model; model=$(_get_opencode_model "$project_id" "$provider_override")
   local provider_json=""
   local has_api_key=false
 
@@ -282,7 +289,7 @@ adapter_deploy() {
     # Résoudre le modèle pour cet agent (vide si == modèle global)
     local _agent_model=""
     if [ -n "$_asource" ]; then
-      _agent_model=$(_get_agent_model "$_asource" "$project_id")
+      _agent_model=$(_get_agent_model "$_asource" "$project_id" "$provider_override")
     fi
 
     local _model_json="$_agent_model"
@@ -366,7 +373,7 @@ adapter_deploy() {
     printf '%s\n' "$base_obj" > "$config_file"
 
     if [ "$has_api_key" = true ]; then
-      log_success "[opencode] opencode.json créé avec clé API (modèle : $model, provider : $(get_project_api_provider "$project_id"))"
+      log_success "[opencode] opencode.json créé avec clé API (modèle : $model, provider : $effective_provider)"
       chmod 600 "$config_file"
     else
       local subagent_count=0
@@ -404,18 +411,15 @@ adapter_update() {
 }
 
 adapter_start() {
-  local project_path="$1" prompt="${2:-}" project_id="${3:-}" agent="${4:-}"
+  local project_path="$1" prompt="${2:-}" project_id="${3:-}" agent="${4:-}" provider_override="${5:-}"
   cd "$project_path" || { log_error "[opencode] Impossible de naviguer vers $project_path"; exit 1; }
   local args=()
   [ -n "$agent"  ] && args+=(--agent "$agent")
   [ -n "$prompt" ] && args+=(--prompt "$prompt")
 
-  # Résoudre le provider effectif (projet > hub) et injecter les credentials si besoin
-  local effective_provider=""
-  if [ -n "$project_id" ] && api_keys_entry_exists "$project_id" 2>/dev/null; then
-    effective_provider=$(get_project_api_provider "$project_id" 2>/dev/null || echo "")
-  fi
-  [ -z "$effective_provider" ] && effective_provider=$(get_hub_default_provider 2>/dev/null || echo "")
+  # Résoudre le provider effectif (override > projet > hub) et injecter les credentials si besoin
+  local effective_provider
+  effective_provider=$(get_effective_provider "$project_id" "$provider_override")
 
   if [ "$effective_provider" = "bedrock" ]; then
     # Récupérer le bearer token depuis la config projet ou hub

@@ -280,7 +280,7 @@ _cmd_deploy_diff() {
   _prompt apply_answer "$(t deploy_apply_prompt)"
   apply_answer="${apply_answer:-Y}"
   if [[ "$apply_answer" =~ ^[Yy]$ ]]; then
-    bash "$HUB_DIR/oc.sh" deploy "${target:-all}" ${project_id:+"$project_id"}
+    bash "$HUB_DIR/oc.sh" deploy "${target:-all}" ${project_id:+"$project_id"} ${PROVIDER_OVERRIDE:+--provider "$PROVIDER_OVERRIDE"}
   else
     log_info "$(t deploy_cancelled)"
   fi
@@ -290,12 +290,19 @@ _cmd_deploy_diff() {
 # Analyser les arguments pour détecter --check / --diff (peut être en 1ère ou 2ème position)
 CHECK_MODE=false
 DIFF_MODE=false
+PROVIDER_OVERRIDE=""
 REMAINING_ARGS=()
+_prev=""
 for arg in "$@"; do
+  case "$_prev" in
+    --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
+  esac
   if [ "$arg" = "--check" ]; then
     CHECK_MODE=true
   elif [ "$arg" = "--diff" ]; then
     DIFF_MODE=true
+  elif [ "$arg" = "--provider" ]; then
+    _prev="$arg"
   else
     REMAINING_ARGS+=("$arg")
   fi
@@ -315,6 +322,15 @@ if [ "$DIFF_MODE" = true ]; then
 fi
 
 log_title "Déploiement des agents"
+
+# Valider le provider override si fourni
+if [ -n "$PROVIDER_OVERRIDE" ]; then
+  provider_exists "$PROVIDER_OVERRIDE" || {
+    log_error "Provider inconnu : '$PROVIDER_OVERRIDE'"
+    log_info "Providers disponibles : $(jq -r '.providers | keys | join(", ")' "$PROVIDERS_FILE" 2>/dev/null)"
+    exit 1
+  }
+fi
 
 # Résoudre les cibles : CLI > projet > global (hub.json)
 if [ -n "$TARGET" ] && [ "$TARGET" != "all" ]; then
@@ -366,7 +382,7 @@ for target in "${targets[@]}"; do
   load_adapter "$target"
   adapter_validate || { log_error "Cible $target non disponible — déploiement ignoré"; echo ""; continue; }
   _spinner_start "Déploiement vers ${target}…"
-  if adapter_deploy "$deploy_dir" "$PROJECT_ID"; then
+  if adapter_deploy "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
     _spinner_stop "Déployé → $target"
   else
     _spinner_stop "Échec du déploiement → $target" 1

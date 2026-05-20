@@ -66,9 +66,17 @@ get_hub_default_model() {
 }
 
 # Résout le provider effectif pour un projet
-# Priorité : api-keys.local.md projet > hub default > anthropic (fallback)
+# Priorité : override explicite > api-keys.local.md projet > hub default > anthropic (fallback)
+# $1 = project_id (optionnel)
+# $2 = provider_override (optionnel) — priorité absolue si fourni
 get_effective_provider() {
   local project_id="$1"
+  local provider_override="${2:-}"
+
+  # Niveau 0 : override explicite (--provider de oc start/deploy)
+  [ -n "$provider_override" ] && echo "$provider_override" && return 0
+
+  # Cascade existante inchangée
   local project_provider=""
   if [ -n "$project_id" ]; then
     project_provider=$(get_project_api_provider "$project_id")
