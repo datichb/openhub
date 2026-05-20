@@ -186,14 +186,14 @@ Cascade (7 levels) → Clamp (floor) → Strip existing prefix → Provider alia
 | Field | Type | Description |
 |-------|------|-------------|
 | `opencode_prefix` | `string \| null` | Opencode provider prefix. `null` = no prefix (litellm providers). |
-| `model_aliases` | `object` | Mapping internal name → provider-specific name. Empty object if names are identical. |
+| `model_aliases` | `object \| null` | Mapping internal name → provider-specific name. `null` if the provider does not use aliases. |
 
 ### Examples per provider
 
 | Provider | `opencode_prefix` | Internal model | Alias | Result in opencode.json |
 |----------|-------------------|----------------|-------|-------------------------|
 | `anthropic` | `"anthropic"` | `claude-sonnet-4-5` | — | `anthropic/claude-sonnet-4-5` |
-| `bedrock` | `"amazon-bedrock"` | `claude-sonnet-4-5` | `anthropic.claude-sonnet-4-5-v2-0` | `amazon-bedrock/anthropic.claude-sonnet-4-5-v2-0` |
+| `bedrock` | `"amazon-bedrock"` | `claude-sonnet-4-5` | `anthropic.claude-sonnet-4-5-20250929-v1:0` | `amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0` |
 | `github-copilot` | `"github-copilot"` | `claude-sonnet-4-5` | `claude-sonnet-4.5` | `github-copilot/claude-sonnet-4.5` |
 | `mammouth` | `null` | `claude-sonnet-4-5` | — | `claude-sonnet-4-5` |
 | `ollama` | `null` | `llama3.2` | — | `llama3.2` |

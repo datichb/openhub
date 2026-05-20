@@ -178,3 +178,18 @@ _collect_provider_credentials() {
     _cred_base_url="${_input_url:-$default_base_url}"
   fi
 }
+
+# Retourne le opencode_prefix d'un provider (vide si null)
+get_provider_opencode_prefix() {
+  local provider="$1"
+  jq -r --arg p "$provider" '.providers[$p].opencode_prefix // empty' "$PROVIDERS_FILE" 2>/dev/null
+}
+
+# Retourne l'alias d'un modèle pour un provider (retourne le modèle tel quel si pas d'alias)
+get_provider_model_alias() {
+  local provider="$1" model="$2"
+  local aliased
+  aliased=$(jq -r --arg p "$provider" --arg m "$model" \
+    '.providers[$p].model_aliases[$m] // empty' "$PROVIDERS_FILE" 2>/dev/null)
+  echo "${aliased:-$model}"
+}
