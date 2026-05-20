@@ -306,18 +306,50 @@ Si appelé sans flags, le flux est interactif avec les valeurs actuelles comme d
 
 ## `oc provider` — commande CLI
 
-Gère la configuration des providers LLM au niveau du hub (défaut) et des projets.
+Gère la configuration des providers LLM au niveau du hub, des projets, et des fichiers de switcher `ocp`.
 
 ### Sous-commandes
 
 ```
 oc provider list                          Lister tous les providers disponibles
 oc provider set-default                   Configurer le provider par défaut du hub
+oc provider init [--force]               Créer les fichiers config/providers/*.json (switcher ocp)
+oc provider set-key <nom> <clé>          Mettre à jour la clé API d'un fichier provider
+oc provider set-model <nom> <modèle>     Mettre à jour le modèle d'un fichier provider
 oc provider set <PROJECT_ID> [...]        Configurer un provider pour un projet
 oc provider get <PROJECT_ID>              Afficher la configuration effective d'un projet
 ```
 
-### Options de `oc provider set`
+### `oc provider init` — initialisation des fichiers switcher
+
+Crée le dossier `config/providers/` et génère les 5 fichiers JSON utilisés par `ocp` :
+`mammouth.json`, `copilot.json`, `openrouter.json`, `ollama.json`, `bedrock.json`.
+
+Crée également `config/providers/.gitignore` pour protéger les clés API en clair.
+
+Idempotent : sans `--force`, les fichiers existants ne sont pas réécrasés.
+
+```sh
+# Première initialisation
+./oc.sh provider init
+
+# Réinitialiser tous les fichiers
+./oc.sh provider init --force
+```
+
+### `oc provider set-key` et `oc provider set-model`
+
+Modifient un fichier provider existant dans `config/providers/` de façon atomique (tmpfile + mv).
+
+```sh
+# Configurer la clé openrouter
+./oc.sh provider set-key openrouter sk-or-v1-xxx...
+
+# Configurer le modèle ollama
+./oc.sh provider set-model ollama qwen2.5-coder:7b
+```
+
+### Options de `oc provider set` (projets)
 
 ```
 oc provider set <PROJECT_ID> [PROVIDER] [API_KEY] [BASE_URL]
@@ -331,6 +363,12 @@ Tous les paramètres après `PROJECT_ID` sont optionnels. Si omis, le flux devie
 # Lister les providers
 ./oc.sh provider list
 
+# Initialiser les fichiers switcher ocp
+./oc.sh provider init
+
+# Mettre à jour une clé
+./oc.sh provider set-key openrouter sk-or-v1-xxx
+
 # Configurer le hub par défaut (interactif)
 ./oc.sh provider set-default
 
@@ -343,6 +381,42 @@ Tous les paramètres après `PROJECT_ID` sont optionnels. Si omis, le flux devie
 # Afficher la configuration effective
 ./oc.sh provider get MON-PROJET
 ```
+
+---
+
+## `ocp` — switcher interactif de providers
+
+Fonction shell injectée dans `~/.zshrc` par le hub. Permet de lancer opencode
+en choisissant le provider à utiliser, tout en conservant la logique complète de `oc start`
+(déploiement des agents, mode `--dev`, sync Beads, onboarding, etc.).
+
+Requiert que `config/providers/` soit initialisé via `oc provider init`.
+
+### Usage
+
+```sh
+ocp                          # picker interactif du provider (fzf ou select natif)
+ocp mammouth                 # lancer avec mammouth (picker interactif du projet)
+ocp mammouth opencode-hub    # lancer le projet opencode-hub avec mammouth
+ocp bedrock MON-APP --dev    # mode --dev avec bedrock
+ocp --list                   # lister les providers disponibles
+```
+
+### Comportement
+
+`ocp <provider> [args...]` est équivalent à :
+```sh
+./oc.sh start --provider <provider> [args...]
+```
+
+Le flag `--provider` override le provider effectif pour la génération de `opencode.json` —
+les modèles par agent sont préfixés et aliasés selon le provider sélectionné (voir [Préfixage provider](model-resolution.fr.md#préfixage-provider-dans-opencodejson)).
+
+### Installation
+
+La fonction est injectée automatiquement dans `~/.zshrc` lors de `oc install`.
+Pour l'ajouter manuellement ou la mettre à jour, relancer `oc install` ou copier
+le bloc entre les délimiteurs `# >>> opencode providers switcher (ocp) >>>` / `# <<< opencode providers switcher (ocp) <<<`.
 
 ---
 
