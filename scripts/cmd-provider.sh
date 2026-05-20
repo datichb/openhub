@@ -169,7 +169,7 @@ _template_mammouth() { cat <<'TMPL'
 TMPL
 }
 
-_template_copilot() { cat <<'TMPL'
+_template_github-copilot() { cat <<'TMPL'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "github-copilot/claude-sonnet-4.5",
@@ -235,7 +235,7 @@ cmd_init() {
   log_title "Initialisation des providers opencode"
   echo ""
 
-  for name in mammouth copilot openrouter ollama bedrock; do
+  for name in mammouth github-copilot openrouter ollama bedrock; do
     local file="$providers_dir/${name}.json"
     if [ ! -f "$file" ] || [ "$force" = true ]; then
       "_template_${name}" > "$file"

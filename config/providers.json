@@ -9,7 +9,10 @@
       "requires_base_url": false,
       "litellm": false,
       "default_model": "claude-sonnet-4-5",
-      "supported_targets": ["opencode", "claude-code"],
+      "supported_targets": [
+        "opencode",
+        "claude-code"
+      ],
       "docs_url": "https://docs.anthropic.com/claude/reference/authentication",
       "opencode_prefix": "anthropic",
       "model_aliases": null
@@ -22,7 +25,9 @@
       "litellm": true,
       "default_base_url": "https://api.mammouth.ai/v1",
       "default_model": "claude-sonnet-4-5",
-      "supported_targets": ["opencode"],
+      "supported_targets": [
+        "opencode"
+      ],
       "docs_url": "https://mammouth.ai/docs",
       "opencode_prefix": null,
       "model_aliases": null
@@ -35,7 +40,9 @@
       "litellm": true,
       "default_base_url": "https://models.inference.ai.azure.com",
       "default_model": "gpt-4o",
-      "supported_targets": ["opencode"],
+      "supported_targets": [
+        "opencode"
+      ],
       "docs_url": "https://docs.github.com/en/github-models",
       "opencode_prefix": null,
       "model_aliases": null
@@ -50,7 +57,9 @@
       "default_base_url": "",
       "default_region": "eu-west-3",
       "default_model": "claude-sonnet-4-5",
-      "supported_targets": ["opencode"],
+      "supported_targets": [
+        "opencode"
+      ],
       "docs_url": "https://opencode.ai/docs/providers/#amazon-bedrock",
       "opencode_prefix": "amazon-bedrock",
       "model_aliases": {
@@ -67,7 +76,9 @@
       "litellm": true,
       "default_base_url": "http://localhost:11434/v1",
       "default_model": "llama3.2",
-      "supported_targets": ["opencode"],
+      "supported_targets": [
+        "opencode"
+      ],
       "docs_url": "https://ollama.ai",
       "opencode_prefix": null,
       "model_aliases": null
@@ -80,13 +91,29 @@
       "requires_base_url": false,
       "litellm": false,
       "default_model": "claude-sonnet-4-5",
-      "supported_targets": ["opencode"],
+      "supported_targets": [
+        "opencode"
+      ],
       "docs_url": "https://docs.github.com/en/copilot",
       "opencode_prefix": "github-copilot",
       "model_aliases": {
         "claude-sonnet-4-5": "claude-sonnet-4.5",
         "claude-haiku-4-5": "claude-haiku-4.5"
       }
+    },
+    "openrouter": {
+      "label": "OpenRouter",
+      "description": "Proxy OpenRouter — accès unifié à de nombreux LLMs via une seule clé API",
+      "requires_api_key": true,
+      "requires_base_url": false,
+      "litellm": false,
+      "default_model": "anthropic/claude-sonnet-4-5",
+      "supported_targets": [
+        "opencode"
+      ],
+      "docs_url": "https://openrouter.ai/docs/api-reference/overview",
+      "opencode_prefix": "openrouter",
+      "model_aliases": null
     }
   }
 }
