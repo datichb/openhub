@@ -333,8 +333,16 @@ cmd_set() {
     exit 1
   fi
 
-  # Clé API (saisie masquée)
-  if [ -z "$flag_api_key" ]; then
+  # Vérifier si le provider nécessite une clé API
+  # Note : get_provider_info utilise `// empty` qui absorbe le booléen false — requête directe ici
+  local requires_api_key="true"
+  if [ -f "$PROVIDERS_FILE" ] && command -v jq &>/dev/null; then
+    local _req; _req=$(jq -r --arg n "$flag_provider" '.providers[$n].requires_api_key | if . == false then "false" else "true" end' "$PROVIDERS_FILE" 2>/dev/null)
+    [ "$_req" = "false" ] && requires_api_key="false"
+  fi
+
+  # Clé API (saisie masquée — uniquement si le provider la requiert)
+  if [ "$requires_api_key" = "true" ] && [ -z "$flag_api_key" ]; then
     local masked_cur=""
     [ -n "$cur_api_key" ] && masked_cur=" [actuelle : ${cur_api_key:0:8}***]"
     # Restaurer l'écho terminal si l'utilisateur interrompt (Ctrl+C)
@@ -349,7 +357,7 @@ cmd_set() {
       log_info "Clé API inchangée"
     fi
   fi
-  if [ -z "$flag_api_key" ]; then
+  if [ "$requires_api_key" = "true" ] && [ -z "$flag_api_key" ]; then
     log_error "Clé API requise"
     exit 1
   fi

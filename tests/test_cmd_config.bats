@@ -338,6 +338,66 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
+# ── requires_api_key=false (providers sans clé OAuth) ────────────────────────
+
+@test "cmd_set : provider requires_api_key=false — pas d'exit 1 si --api-key absent" {
+  _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
+
+  # Préparer providers.json avec un provider sans clé
+  PROVIDERS_FILE="$TEST_DIR/providers.json"
+  printf '{"providers":{"no-key-provider":{"label":"No Key","requires_api_key":false,"requires_base_url":false}}}\n' > "$PROVIDERS_FILE"
+
+  normalize_project_id() { echo "$1"; }
+  require_project_id() { true; }
+
+  # cmd_set doit se terminer sans exit 1 malgré l'absence de --api-key
+  run bash -c "
+    source \"$BATS_TEST_DIRNAME/../scripts/common.sh\"
+    _CMD_CONFIG_SOURCE_ONLY=1 source \"$BATS_TEST_DIRNAME/../scripts/cmd-config.sh\"
+    API_KEYS_FILE=\"$TEST_DIR/api-keys.local.md\"
+    PROVIDERS_FILE=\"$TEST_DIR/providers.json\"
+    normalize_project_id() { echo \"\$1\"; }
+    require_project_id() { true; }
+    path_exists() { return 1; }
+    t() { echo \"\$1\"; }
+    log_info() { true; }
+    log_success() { true; }
+    log_warn() { true; }
+    log_error() { echo \"ERROR: \$*\" >&2; }
+    cmd_set \"MY-PROJ\" --provider no-key-provider --model claude-sonnet-4-5
+  "
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd_set : provider requires_api_key=false — api_key= vide écrit dans api-keys.local.md" {
+  # Vérifier que _write_section accepte une clé vide sans casser le fichier
+  _write_section "NO-KEY-PROJ" "claude-sonnet-4-5" "github-copilot" "" ""
+  run grep "api_key=" "$API_KEYS_FILE"
+  [ "$status" -eq 0 ]
+  run grep "\[NO-KEY-PROJ\]" "$API_KEYS_FILE"
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd_set : provider requires_api_key=true sans --api-key → exit 1" {
+  run bash -c "
+    source \"$BATS_TEST_DIRNAME/../scripts/common.sh\"
+    _CMD_CONFIG_SOURCE_ONLY=1 source \"$BATS_TEST_DIRNAME/../scripts/cmd-config.sh\"
+    API_KEYS_FILE=\"$TEST_DIR/api-keys.local.md\"
+    PROVIDERS_FILE=\"$TEST_DIR/providers.json\"
+    printf '{\"providers\":{\"anthropic\":{\"label\":\"Anthropic\",\"requires_api_key\":true}}}\n' > \"$TEST_DIR/providers.json\"
+    normalize_project_id() { echo \"\$1\"; }
+    require_project_id() { true; }
+    path_exists() { return 1; }
+    t() { echo \"\$1\"; }
+    log_info() { true; }
+    log_success() { true; }
+    log_warn() { true; }
+    log_error() { echo \"ERROR: \$*\" >&2; }
+    cmd_set \"MY-PROJ\" --provider anthropic --model claude-sonnet-4-5
+  "
+  [ "$status" -ne 0 ]
+}
+
 @test "cmd_set projet : --family-model idempotent — pas de doublon" {
   _CMD_CONFIG_SOURCE_ONLY=1 source "$BATS_TEST_DIRNAME/../scripts/cmd-config.sh"
 
