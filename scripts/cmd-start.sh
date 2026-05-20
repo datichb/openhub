@@ -96,9 +96,8 @@ adapter_validate || { log_error "$(t start.target_unavailable) (puis sélectionn
 
 # ── Vérifier que les agents sont déployés ──────────────
 case "$default_target" in
-  opencode)    agents_dir="$PROJECT_PATH/.opencode/agents" ;;
-  claude-code) agents_dir="$PROJECT_PATH/.claude/agents" ;;
-  *)           agents_dir="" ;;
+  opencode) agents_dir="$PROJECT_PATH/.opencode/agents" ;;
+  *)        agents_dir="" ;;
 esac
 
 # ── Bloc contextuel ───────────────────────────────────────────────────────────

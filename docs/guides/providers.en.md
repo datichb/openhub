@@ -10,7 +10,7 @@ OpenCode Hub supports multiple LLM providers, enabling you to choose the best so
 
 | Provider | Type | Targets | Credential | Default Base URL |
 |----------|------|---------|------------|------------------|
-| **Anthropic** | Native | OpenCode, Claude Code | API key | N/A |
+| **Anthropic** | Native | OpenCode, OpenCode | API key | N/A |
 | **MammouthAI** | OpenAI-compatible (litellm) | OpenCode | API key | `https://api.mammouth.ai/v1` |
 | **GitHub Models** | OpenAI-compatible (litellm) | OpenCode | API key | `https://models.inference.ai.azure.com` |
 | **AWS Bedrock** | Native (`amazon-bedrock`) | OpenCode | Bearer token | N/A |
@@ -19,7 +19,7 @@ OpenCode Hub supports multiple LLM providers, enabling you to choose the best so
 
 ### Important Notes
 
-- **Claude Code limitation**: Claude Code only supports the `anthropic` provider (architectural constraint). Using other providers will trigger a warning.
+- **OpenCode limitation**: OpenCode only supports the `anthropic` provider (architectural constraint). Using other providers will trigger a warning.
 - **Model priority**: Models are resolved in this order: 1) Project config → 2) Hub default → 3) Environment variable → 4) Hub opencode.model → 5) Default fallback
 
 ## Configuration Levels
@@ -98,7 +98,7 @@ Available LLM providers
 
 Anthropic (direct) ◆ (hub default)
   Direct Anthropic API for Claude models
-  Targets: ["opencode", "claude-code"]
+  Targets: ["opencode", "opencode"]
 
 MammouthAI
   OpenAI-compatible proxy to Claude (FR-hosted)
@@ -163,7 +163,7 @@ Shows the resolved configuration after merging project-level and hub-level setti
 
 ### Anthropic (Default)
 
-**Supported targets**: OpenCode, Claude Code
+**Supported targets**: OpenCode, OpenCode
 
 1. Get your API key from [console.anthropic.com](https://console.anthropic.com)
 2. Run `./oc.sh provider set-default` or `./oc.sh config set <PROJECT_ID>`
@@ -404,9 +404,9 @@ If you see this error, ensure you're using one of the supported providers:
 - `ollama`
 - `github-copilot`
 
-### Claude Code shows "provider not supported" warning
+### OpenCode shows "provider not supported" warning
 
-This is expected. Claude Code only supports Anthropic. If you need to use Claude Code:
+This is expected. OpenCode only supports Anthropic. If you need to use OpenCode:
 1. Configure an Anthropic API key at the hub level, or
 2. Override your project to use `anthropic` provider
 

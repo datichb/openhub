@@ -51,7 +51,7 @@ If non-empty, an instruction is inserted after the generated header comment:
 
 ### 4. Passing the language in adapters
 
-The 2 adapters (`opencode.adapter.sh`, `claude-code.adapter.sh`)
+The 2 adapters (`opencode.adapter.sh`)
 read the project language via `get_project_language "$PROJECT_ID"` and pass it
 as the 3rd argument to `build_agent_content`.
 

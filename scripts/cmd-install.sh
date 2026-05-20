@@ -32,16 +32,12 @@ fi
 log_title "$(t install.targets_title)"
 echo ""
 echo "  1. $(t install.target_opencode)"
-echo "  2. $(t install.target_claude)"
-echo "  3. $(t install.target_all)"
 echo ""
 read -rp "$(t install.choose_prompt)" tool_choice
 tool_choice="${tool_choice:-1}"
 
 active_targets=()
 case "$tool_choice" in
-  2) active_targets=("claude-code") ;;
-  3) active_targets=("opencode" "claude-code") ;;
   *) active_targets=("opencode") ;;
 esac
 

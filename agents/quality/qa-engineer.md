@@ -5,7 +5,7 @@ description: Ingénieur QA — reçoit une implémentation (diff, branche ou tic
 mode: primary
 permission:
   question: allow
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [developer/dev-standards-universal, developer/dev-standards-testing, developer/dev-standards-git, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
 ---
 

@@ -191,10 +191,10 @@ _pick_skills() {
 # @param {string} $1 — sélection courante (CSV de cibles)
 ##
 _pick_targets() {
-  local current_csv="${1:-opencode, claude-code}"
+  local current_csv="${1:-opencode}"
 
   # Initialiser _pick_items avec les cibles disponibles
-  _pick_items=("opencode" "claude-code")
+  _pick_items=("opencode")
   _pick_total=${#_pick_items[@]}
 
   # Nettoyer le CSV courant
@@ -353,9 +353,9 @@ cmd_create() {
 
   # ── 4. Cibles ─────────────────────────────────────────────────────────────
   PICKED_TARGETS=""
-  _pick_project_targets "opencode,claude-code"
+  _pick_project_targets "opencode"
   local targets_csv="$PICKED_TARGETS"
-  [ "$targets_csv" = "all" ] && targets_csv="opencode,claude-code"
+  [ "$targets_csv" = "all" ] && targets_csv="opencode"
 
   # ── 5. Skills ─────────────────────────────────────────────────────────────
   PICKED_SKILLS=""
@@ -546,7 +546,7 @@ cmd_edit() {
     PICKED_TARGETS=""
     _pick_project_targets "$cur_targets"
     new_targets="$PICKED_TARGETS"
-    [ "$new_targets" = "all" ] && new_targets="opencode,claude-code"
+    [ "$new_targets" = "all" ] && new_targets="opencode"
   fi
 
   # Skills (toujours proposé)
@@ -927,8 +927,8 @@ cmd_validate() {
       local t
       for t in $targets_clean; do
         case "$t" in
-          opencode|claude-code) ;;
-          *) issues="${issues}    target invalide : ${t} (attendu : opencode|claude-code)\n"
+          opencode) ;;
+          *) issues="${issues}    target invalide : ${t} (attendu : opencode)\n"
              has_err=1 ;;
         esac
       done
@@ -1063,10 +1063,7 @@ cmd_deploy() {
         out_dir="$deploy_dir/.opencode/agents"
         out_file="$out_dir/${agent_id}.md"
         ;;
-      claude-code)
-        out_dir="$deploy_dir/.claude/agents"
-        out_file="$out_dir/${agent_id}.md"
-        ;;
+
       *)
         log_warn "Cible non reconnue : $tgt — ignorée"
         continue

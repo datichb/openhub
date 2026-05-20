@@ -48,7 +48,7 @@ Global hub configuration. Created by `oc install` and editable manually.
 | Value | Target tool |
 |-------|-------------|
 | `opencode` | OpenCode (`opencode run`) |
-| `claude-code` | Claude Code |
+| `opencode` | OpenCode |
 
 ### Minimal example (OpenCode only)
 
@@ -94,7 +94,7 @@ Global hub configuration. Created by `oc install` and editable manually.
 {
   "version": "1.0.0",
   "default_target": "opencode",
-  "active_targets": ["opencode", "claude-code"],
+  "active_targets": ["opencode", "opencode"],
   "default_provider": {
     "name": "anthropic",
     "api_key": "sk-ant-xxx...",
@@ -126,7 +126,7 @@ their own. Automatically created from `projects/projects.example.md` on the firs
 - Labels: label1, label2, label3
 - Language: english        # optional — if absent: agents respond in French by default
 - Agents: all             # optional — all (default) or CSV list of agent-ids
-- Targets: opencode,claude-code  # optional — override of hub.json active_targets
+- Targets: opencode,opencode  # optional — override of hub.json active_targets
 - Modes: agent-id:mode,agent-id:mode  # optional — override primary/subagent modes per agent
 - Disable agents: plan,build  # optional — overrides hub.json for this project
 ```
@@ -149,7 +149,7 @@ their own. Automatically created from `projects/projects.example.md` on the firs
 - Labels: feature, fix, api
 - Language: english
 - Agents: orchestrator,orchestrator-dev,developer-backend,developer-api
-- Targets: opencode,claude-code
+- Targets: opencode,opencode
 - Modes: developer-backend:primary,developer-api:primary
 ```
 
@@ -159,7 +159,7 @@ their own. Automatically created from `projects/projects.example.md` on the firs
 - `Tracker`: `jira`, `gitlab` or `none`
 - `Language`: optional — free value (e.g. `english`, `spanish`) — if absent, agents respond in French
 - `Agents`: optional — `all` or CSV of agent identifiers — filtered at deployment
-- `Targets`: optional — CSV of targets (`opencode`, `claude-code`) — overrides `active_targets` in `hub.json`
+- `Targets`: optional — CSV of targets (`opencode`, `opencode`) — overrides `active_targets` in `hub.json`
 - `Modes`: optional — CSV of `agent-id:mode` pairs — overrides agent frontmatter. Modes: `primary`, `subagent`. Leave empty to revert to frontmatter values.
 - `Disable agents`: optional — CSV of native OpenCode agents to disable (`build`, `plan`, `general`, `explore`) — overrides `opencode.disabled_native_agents` in `hub.json`. Empty = use hub default.
 - This file is **local** — never commit it
@@ -239,7 +239,7 @@ base_url=https://models.inference.ai.azure.com
 
 | Provider | Targets | API Key required | Default base URL | Description |
 |----------|---------|-----------------|-----------------|-------------|
-| `anthropic` | OpenCode, Claude Code | yes | — | Direct Anthropic API |
+| `anthropic` | OpenCode, OpenCode | yes | — | Direct Anthropic API |
 | `mammouth` | OpenCode | yes | `https://api.mammouth.ai/v1` | OpenAI-compatible proxy (FR-hosted) |
 | `github-models` | OpenCode | yes | `https://models.inference.ai.azure.com` | GitHub Models API |
 | `bedrock` | OpenCode | yes | — (AWS-specific) | AWS Bedrock |
@@ -257,7 +257,7 @@ During `oc deploy opencode <PROJECT_ID>`, if an entry exists for the project:
 If `PROJECT_ID` is defined without an API key (or after `oc config unset`), `opencode.json` is
 also regenerated to remove any old `provider` block.
 
-For Claude Code, the key is injected as `ANTHROPIC_API_KEY` at `oc start` time (Anthropic only).
+For OpenCode, the key is injected as `ANTHROPIC_API_KEY` at `oc start` time (Anthropic only).
 
 ---
 

@@ -18,7 +18,7 @@ permission:
     "orchestrator-dev": allow
     "debugger": allow
 model: anthropic/claude-opus-4
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 

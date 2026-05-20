@@ -10,8 +10,7 @@
       "litellm": false,
       "default_model": "claude-sonnet-4-5",
       "supported_targets": [
-        "opencode",
-        "claude-code"
+        "opencode"
       ],
       "docs_url": "https://docs.anthropic.com/claude/reference/authentication",
       "opencode_prefix": "anthropic",

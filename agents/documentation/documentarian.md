@@ -5,7 +5,7 @@ description: Rédige et met à jour la documentation technique, fonctionnelle, a
 mode: primary
 permission:
   question: allow
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [developer/dev-standards-git, developer/beads-plan, developer/beads-dev, documentarian/doc-protocol, documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, posture/expert-posture, posture/tool-question, documentarian/documentarian-handoff-format]
 ---
 

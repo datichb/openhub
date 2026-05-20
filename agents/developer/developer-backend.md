@@ -3,7 +3,7 @@ id: developer-backend
 label: DeveloperBackend
 description: Assistant de développement backend — implémente les services, repositories, logique métier, migrations et sécurité applicative côté serveur. Agnostique du framework.
 mode: subagent
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---
 

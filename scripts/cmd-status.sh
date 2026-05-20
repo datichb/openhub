@@ -132,8 +132,7 @@ _show_project_status() {
     default_target=$(get_default_target)
     local agents_dir=""
     case "$default_target" in
-      opencode)    agents_dir="$path/.opencode/agents" ;;
-      claude-code) agents_dir="$path/.claude/agents" ;;
+      opencode) agents_dir="$path/.opencode/agents" ;;
     esac
 
     if [ -n "$agents_dir" ] && [ -d "$agents_dir" ]; then

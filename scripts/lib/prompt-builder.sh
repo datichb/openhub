@@ -40,7 +40,7 @@ extract_frontmatter_list() {
 
 # Lit le frontmatter d'un agent en une seule passe et expose les variables :
 #   _fm_id      : valeur du champ id
-#   _fm_targets : valeur brute du champ targets (ex: "[opencode, claude-code]")
+#   _fm_targets : valeur brute du champ targets (ex: "[opencode]")
 #   _fm_skills  : valeur brute du champ skills  (ex: "[skill/a, skill/b]")
 # Utilise uniquement des builtins bash (read, while) — pas de subprocess.
 # @param $1 — chemin absolu du fichier agent

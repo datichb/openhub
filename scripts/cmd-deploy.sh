@@ -90,7 +90,6 @@ _cmd_deploy_check() {
     local gen_dir=""
     case "$tgt" in
       opencode)     gen_dir="$deploy_dir/.opencode/agents" ;;
-      claude-code)  gen_dir="$deploy_dir/.claude/agents" ;;
       *)            log_warn "Cible inconnue pour --check : $tgt"; continue ;;
     esac
 
@@ -220,7 +219,6 @@ _cmd_deploy_diff() {
     local gen_dir=""
     case "$tgt" in
       opencode)    gen_dir="$deploy_dir/.opencode/agents" ;;
-      claude-code) gen_dir="$deploy_dir/.claude/agents" ;;
       *)           log_warn "Cible inconnue pour --diff : $tgt"; continue ;;
     esac
 
@@ -238,7 +236,7 @@ _cmd_deploy_diff() {
 
       local gen_file=""
       case "$tgt" in
-        opencode|claude-code) gen_file="$gen_dir/${agent_id}.md" ;;
+        opencode) gen_file="$gen_dir/${agent_id}.md" ;;
       esac
 
       # Générer le contenu cible dans un fichier temporaire

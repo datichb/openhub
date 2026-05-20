@@ -1,7 +1,7 @@
 # Adapters Architecture
 
 An **adapter** translates canonical hub agents to the native format
-of a target AI tool (opencode, claude-code, etc.).
+of a target AI tool (e.g., opencode).
 
 ---
 
@@ -47,7 +47,7 @@ Phase 1 is unnecessary in that case.
 - `provider_override`: ignored in Phase 1 — present for signature consistency.
 
 Responsibilities:
-1. Create the output directory structure (e.g. `.opencode/agents/`, `.claude/agents/`)
+1. Create the output directory structure (e.g. `.opencode/agents/`)
 2. Load agent metadata via `_load_agent_metadata` (scan without writing)
 3. For each retained agent: call `build_agent_content` and write the `.md` file
 4. Populate global variables `_DEPLOY_FILES_AGENT_KEYS/VALS/FILES/COUNT`
@@ -62,7 +62,7 @@ Responsibilities:
 1. Load agent metadata if `_DEPLOY_FILES_AGENT_KEYS` is empty (direct call without Phase 1)
 2. Resolve the effective model and provider
 3. Build and write the configuration file (e.g. `opencode.json`)
-4. For adapters without configuration (e.g. `claude-code`): explicit no-op
+4. For adapters without configuration: explicit no-op
 
 **Autonomy:** this function can be called standalone without having run `adapter_deploy_files`
 first — it loads the necessary metadata itself.
@@ -196,11 +196,10 @@ adapter_start() {
 | Target | File | Node required | Specifics |
 |--------|------|--------------|-----------|
 | opencode | `opencode.adapter.sh` | Yes | Phase 1: `.opencode/agents/*.md` — Phase 2: `opencode.json` (provider, model, subagent modes, permissions, disabled agents) |
-| claude-code | `claude-code.adapter.sh` | Yes | Phase 1: `.claude/agents/*.md` (prefixed subagents) — Phase 2: no-op (no provider config) |
 
 ### Mode Behavior by Target
 
-| Agent mode | opencode | claude-code |
-|-----------|----------|-------------|
-| `primary` | Deployed normally, absent from the `"agent":` block | Deployed normally |
-| `subagent` | Deployed normally, listed in `"agent": { "mode": "subagent" }` | Deployed with description prefixed `"Internal subagent — invoke only via a coordinator agent…"` |
+| Agent mode | opencode |
+|-----------|----------|
+| `primary` | Deployed normally, absent from the `"agent":` block |
+| `subagent` | Deployed normally, listed in `"agent": { "mode": "subagent" }` |

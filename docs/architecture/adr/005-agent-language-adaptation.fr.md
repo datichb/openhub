@@ -58,7 +58,7 @@ Si non vide, une instruction est insérée après le commentaire d'en-tête gén
 
 ### 4. Passage de la langue dans les adapters
 
-Les 2 adapters (`opencode.adapter.sh`, `claude-code.adapter.sh`)
+Les 2 adapters (`opencode.adapter.sh`)
 lisent la langue du projet via `get_project_language "$PROJECT_ID"` et la passent
 comme 3e argument à `build_agent_content`.
 

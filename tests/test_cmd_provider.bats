@@ -218,15 +218,7 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "claude-code.adapter.sh : vérifie le provider hub par défaut" {
-  run grep -q "get_hub_default_provider" "$BATS_TEST_DIRNAME/../scripts/adapters/claude-code.adapter.sh"
-  [ "$status" -eq 0 ]
-}
 
-@test "claude-code.adapter.sh : avertit sur les providers non-anthropic" {
-  run grep -q "warn" "$BATS_TEST_DIRNAME/../scripts/adapters/claude-code.adapter.sh"
-  [ "$status" -eq 0 ]
-}
 
 # ── Bedrock native : providers.json ──────────────────────────────────────────
 

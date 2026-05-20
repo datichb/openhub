@@ -9,7 +9,7 @@ permission:
   edit: deny
   write: deny
 model: anthropic/claude-opus-4
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [developer/beads-plan, planning/planner, posture/expert-posture, posture/tool-question, planning/planner-handoff-format]
 ---
 

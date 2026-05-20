@@ -199,7 +199,7 @@ label: DeveloperSecurity                  # ← PascalCase, affiché dans l'outi
 description: Assistant de développement   # ← une phrase, orientée usage
   sécurité applicative — [...]
 mode: subagent                            # ← subagent : invocable uniquement via orchestrator-dev
-targets: [opencode, claude-code]  # ← les 2 cibles supportées
+targets: [opencode]  # ← les 2 cibles supportées
 skills:                                   # ← du plus générique au plus spécifique
   - developer/dev-standards-universal     #   standards communs à tous les devs
   - developer/dev-standards-security      #   sécurité préventive

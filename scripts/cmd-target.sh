@@ -120,7 +120,6 @@ case "$SUBCOMMAND" in
     echo ""
     echo -e "${BOLD}$(t target.available)${RESET}"
     echo "  opencode     → .opencode/agents/"
-    echo "  claude-code  → .claude/agents/"
     echo ""
     echo "  $(t target.default_hint)"
     echo ""

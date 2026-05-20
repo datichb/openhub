@@ -93,7 +93,7 @@ t() {
       help.debug.desc)        printf '%s' "Lance une session de debug via l'agent debugger" ;;
       # Maintenance
       help.deploy.cmd)        printf '%s' "deploy [target] [PROJECT_ID]" ;;
-      help.deploy.desc)       printf '%s' "Déploie les agents (opencode/claude-code/all)" ;;
+      help.deploy.desc)       printf '%s' "Déploie les agents (opencode/all)" ;;
       help.deploy_check.cmd)  printf '%s' "deploy --check [target] [PROJECT_ID]" ;;
       help.deploy_check.desc) printf '%s' "Vérifie si les agents déployés sont à jour" ;;
       help.deploy_diff.cmd)   printf '%s' "deploy --diff [target] [PROJECT_ID]" ;;
@@ -127,7 +127,6 @@ t() {
       help.target_select.desc) printf '%s' "Choisit les cibles de déploiement (interactif)" ;;
       # Deploy targets
       help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-      help.deploy_target.claude)   printf '%s' "claude-code  → .claude/agents/" ;;
       help.deploy_target.all)      printf '%s' "all          → toutes les cibles actives" ;;
       # Agents
       help.agent_list.cmd)    printf '%s' "agent list" ;;
@@ -426,9 +425,7 @@ t() {
       install.jq_manual)      printf '%s' "Installer jq manuellement :" ;;
       install.targets_title)  printf '%s' "Cibles à configurer" ;;
       install.target_opencode) printf '%s' "OpenCode (recommandé)" ;;
-      install.target_claude)  printf '%s' "Claude Code" ;;
-      install.target_all)     printf '%s' "Tout" ;;
-      install.choose_prompt)  printf '%s' "Choisir (1-3, défaut: 1) : " ;;
+      install.choose_prompt)  printf '%s' "Choisir (défaut: 1) : " ;;" ;;
       install.hub_json_exists) printf '%s' "config/hub.json existe déjà." ;;
       install.hub_json_overwrite) printf '%s' "Écraser avec les nouvelles cibles ? [y/N] : " ;;
       install.hub_json_kept)  printf '%s' "config/hub.json conservé tel quel." ;;
@@ -708,7 +705,7 @@ t_en() {
     help.debug.desc)        printf '%s' "Start a debug session via the debugger agent" ;;
     # Maintenance
     help.deploy.cmd)        printf '%s' "deploy [target] [PROJECT_ID]" ;;
-    help.deploy.desc)       printf '%s' "Deploy agents (opencode/claude-code/all)" ;;
+    help.deploy.desc)       printf '%s' "Deploy agents (opencode/all)" ;;
     help.deploy_check.cmd)  printf '%s' "deploy --check [target] [PROJECT_ID]" ;;
     help.deploy_check.desc) printf '%s' "Check if deployed agents are up to date" ;;
     help.deploy_diff.cmd)   printf '%s' "deploy --diff [target] [PROJECT_ID]" ;;
@@ -742,7 +739,6 @@ t_en() {
     help.target_select.desc) printf '%s' "Choose deploy targets (interactive)" ;;
     # Deploy targets
     help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-    help.deploy_target.claude)   printf '%s' "claude-code  → .claude/agents/" ;;
     help.deploy_target.all)      printf '%s' "all          → all active targets" ;;
     # Agents
     help.agent_list.cmd)    printf '%s' "agent list" ;;
@@ -1050,9 +1046,7 @@ t_en() {
     install.jq_manual)      printf '%s' "Install jq manually:" ;;
     install.targets_title)  printf '%s' "Targets to configure" ;;
     install.target_opencode) printf '%s' "OpenCode (recommended)" ;;
-    install.target_claude)  printf '%s' "Claude Code" ;;
-    install.target_all)     printf '%s' "All" ;;
-    install.choose_prompt)  printf '%s' "Choose (1-3, default: 1): " ;;
+    install.choose_prompt)  printf '%s' "Choose (default: 1): " ;;" ;;
     install.hub_json_exists) printf '%s' "config/hub.json already exists." ;;
     install.hub_json_overwrite) printf '%s' "Overwrite with new targets? [y/N]: " ;;
     install.hub_json_kept)  printf '%s' "config/hub.json kept as-is." ;;

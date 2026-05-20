@@ -26,7 +26,7 @@ Follow the naming convention:
 id: <unique-identifier>
 label: <DisplayName>
 description: <Short description in one sentence — visible in agent lists>
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [path/to/skill, ...]
 ---
 ```

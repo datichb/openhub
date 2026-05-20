@@ -7,7 +7,7 @@ permission:
   question: allow
   bash: deny
   write: allow
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [planning/project-discovery, planning/project-conventions, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, planning/onboarder-handoff-format]
 ---
 

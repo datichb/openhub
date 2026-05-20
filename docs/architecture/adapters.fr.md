@@ -1,7 +1,7 @@
 # Architecture : Adapters
 
 Un **adapter** traduit les agents canoniques du hub vers le format natif
-d'un outil IA cible (opencode, claude-code, etc.).
+d'un outil IA cible (ex : opencode).
 
 ---
 
@@ -47,7 +47,7 @@ sont déjà en place — la Phase 1 est inutile dans ce cas.
 - `provider_override` : ignoré en Phase 1 — présent pour homogénéité de signature.
 
 Responsabilités :
-1. Créer l'arborescence de sortie (ex: `.opencode/agents/`, `.claude/agents/`)
+1. Créer l'arborescence de sortie (ex : `.opencode/agents/`)
 2. Charger les métadonnées agents via `_load_agent_metadata` (scan sans écriture)
 3. Pour chaque agent retenu : appeler `build_agent_content` et écrire le fichier `.md`
 4. Remplir les variables globales `_DEPLOY_FILES_AGENT_KEYS/VALS/FILES/COUNT`
@@ -62,7 +62,7 @@ Responsabilités :
 1. Charger les métadonnées agents si `_DEPLOY_FILES_AGENT_KEYS` est vide (appel direct sans Phase 1)
 2. Résoudre le modèle et le provider effectifs
 3. Construire et écrire le fichier de configuration (ex: `opencode.json`)
-4. Pour les adapters sans configuration (ex: `claude-code`) : no-op explicite
+4. Pour les adapters sans configuration : no-op explicite
 
 **Autonomie :** cette fonction est appelable seule sans avoir exécuté `adapter_deploy_files`
 au préalable — elle charge elle-même les métadonnées nécessaires.
@@ -196,11 +196,10 @@ adapter_start() {
 | Cible | Fichier | Node requis | Spécificités |
 |-------|---------|-------------|--------------|
 | opencode | `opencode.adapter.sh` | Oui | Phase 1 : `.opencode/agents/*.md` — Phase 2 : `opencode.json` (provider, model, modes subagent, permissions, agents désactivés) |
-| claude-code | `claude-code.adapter.sh` | Oui | Phase 1 : `.claude/agents/*.md` (subagents préfixés) — Phase 2 : no-op (pas de config provider) |
 
 ### Comportement par mode selon la cible
 
-| Mode agent | opencode | claude-code |
-|-----------|----------|-------------|
-| `primary` | Déployé normalement, absent du bloc `"agent":` | Déployé normalement |
-| `subagent` | Déployé normalement, listé dans `"agent": { "mode": "subagent" }` | Déployé avec description préfixée `"Sous-agent interne — invoquer uniquement via un agent coordinateur…"` |
+| Mode agent | opencode |
+|-----------|----------|
+| `primary` | Déployé normalement, absent du bloc `"agent":` |
+| `subagent` | Déployé normalement, listé dans `"agent": { "mode": "subagent" }` |

@@ -16,7 +16,7 @@ description: <Short description — visible in AI tools>
 mode: primary         # primary (default) | subagent
 permission:
   question: allow     # optional — enables OpenCode's question tool (interactive primary agents only)
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [path/to/skill, ...]
 ---
 
@@ -32,17 +32,17 @@ skills: [path/to/skill, ...]
 | `description` | Short phrase describing the role — appears in agent lists |
 | `mode` | `primary` (default) or `subagent` — controls visibility in target tools |
 | `permission.question` | `allow` — enables OpenCode's `question` tool for this agent. Reserved for interactive `primary` agents. Always paired with the `posture/tool-question` skill. |
-| `targets` | Supported targets: `opencode`, `claude-code` |
+| `targets` | Supported targets: `opencode`, `opencode` |
 | `skills` | Paths relative to `skills/` — injected in declaration order |
 
 ### Primary / Subagent Modes
 
 The `mode:` field controls how an agent is exposed in each target tool:
 
-| Mode | OpenCode | Claude Code |
+| Mode | OpenCode | OpenCode |
 |------|----------|-------------|
-| `primary` | Visible in the Tab picker | Present in `.claude/agents/` |
-| `subagent` | Listed in `opencode.json` with `"mode": "subagent"` — invocable by other agents, hidden in Tab picker | Present in `.claude/agents/` with delegation-oriented description |
+| `primary` | Visible in the Tab picker | Present in `.opencode/agents/` |
+| `subagent` | Listed in `opencode.json` with `"mode": "subagent"` — invocable by other agents, hidden in Tab picker | Present in `.opencode/agents/` with delegation-oriented description |
 
 The effective mode follows a priority: **project override** (`- Modes:` in `projects.md`) > **agent frontmatter** > **`primary`** (default).
 

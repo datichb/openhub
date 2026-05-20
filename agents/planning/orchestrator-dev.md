@@ -15,7 +15,7 @@ permission:
     "qa-engineer": allow
     "documentarian": allow
 model: anthropic/claude-opus-4
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-dev-protocol, posture/tool-question, developer/developer-handoff-format, reviewer/reviewer-handoff-format, qa/qa-handoff-format, documentarian/documentarian-handoff-format]
 ---
 

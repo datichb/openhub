@@ -98,7 +98,7 @@ else
       _items=""
       [ -d "$_proj_path/.opencode/agents" ]  && { _has_deployment=true; _items="$_items .opencode/agents/"; }
       [ -f "$_proj_path/opencode.json" ]      && { _has_deployment=true; _items="$_items opencode.json"; }
-      [ -d "$_proj_path/.claude/agents" ]     && { _has_deployment=true; _items="$_items .claude/agents/"; }
+
       if [ "$_has_deployment" = "true" ]; then
         echo -e "${DIM}│${RESET}    ${_proj_path}"
         echo -e "${DIM}│${RESET}      →${_items}"
@@ -120,8 +120,7 @@ else
             && log_success "Supprimé : $_proj_path/.opencode/agents/"
           [ -f "$_proj_path/opencode.json" ] && rm -f "$_proj_path/opencode.json" \
             && log_success "Supprimé : $_proj_path/opencode.json"
-          [ -d "$_proj_path/.claude/agents" ] && rm -rf "$_proj_path/.claude/agents" \
-            && log_success "Supprimé : $_proj_path/.claude/agents/"
+
           _projects_cleaned=$((_projects_cleaned + 1))
         done
         _outro "$_projects_cleaned projet(s) nettoyé(s)"

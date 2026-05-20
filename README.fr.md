@@ -5,7 +5,7 @@
 Hub central pour piloter des assistants IA sur plusieurs projets,
 avec des agents partagés, des skills injectables et un workflow Beads intégré.
 
-Supporte **OpenCode** et **Claude Code**.
+Supporte **OpenCode**.
 
 ---
 
@@ -27,8 +27,6 @@ opencode-hub/          ← source de vérité (éditer ici, jamais dans les proj
 opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md
                                    └►  mon-app/opencode.json
 
-         oc deploy claude-code MON-APP
-opencode-hub  ──────────────────────►  mon-app/.claude/agents/*.md
 ```
 
 Résultat : 27 agents spécialisés, toujours à jour, disponibles dans tous vos projets
@@ -98,7 +96,7 @@ Guide interactif en 4 étapes — tout est optionnel et demande confirmation :
 
 | Étape | Action | Défaut |
 |-------|--------|--------|
-| 1 | Nettoyer les agents déployés dans les projets (`.opencode/agents/`, `opencode.json`, `.claude/agents/`) | `[y/N]` |
+| 1 | Nettoyer les agents déployés dans les projets (`.opencode/agents/`, `opencode.json`) | `[y/N]` |
 | 2 | Supprimer le hub (`~/.opencode-hub`) | `[y/N]` |
 | 3 | Retirer l'alias `oc` et les exports bun du fichier rc | `[Y/n]` |
 | 4 | Désinstaller opencode, Beads, bun (séparément) | `[y/N]` |
@@ -129,7 +127,7 @@ oc start MON-APP
 
 27 agents en deux modes :
 
-- **`primary`** — visibles directement dans l'outil IA (tab picker OpenCode, liste Claude Code). Invocables par l'utilisateur.
+- **`primary`** — visibles directement dans l'outil IA (tab picker OpenCode). Invocables par l'utilisateur.
 - **`subagent`** — invisibles dans le picker. Invocables uniquement par délégation depuis un agent coordinateur.
 
 ### Agents primaires (invocables directement)

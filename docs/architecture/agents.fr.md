@@ -16,7 +16,7 @@ description: <Description courte — visible dans les outils IA>
 mode: primary         # primary (défaut) | subagent
 permission:
   question: allow     # optionnel — autorise l'outil question d'OpenCode (agents primary interactifs uniquement)
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [chemin/vers/skill, ...]
 ---
 
@@ -32,17 +32,17 @@ skills: [chemin/vers/skill, ...]
 | `description` | Phrase courte décrivant le rôle — apparaît dans les listes d'agents |
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans les outils cibles |
 | `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
-| `targets` | Cibles supportées : `opencode`, `claude-code` |
+| `targets` | Cibles supportées : `opencode`, `opencode` |
 | `skills` | Chemins relatifs à `skills/` — injectés dans l'ordre de déclaration |
 
 ### Modes primary / subagent
 
 Le champ `mode:` contrôle comment un agent est exposé dans chaque outil cible :
 
-| Mode | OpenCode | Claude Code |
+| Mode | OpenCode | OpenCode |
 |------|----------|-------------|
-| `primary` | Visible dans le Tab picker | Présent dans `.claude/agents/` |
-| `subagent` | Listé dans `opencode.json` avec `"mode": "subagent"` — invocable par d'autres agents, invisible dans le Tab picker | Présent dans `.claude/agents/` avec description orientée délégation |
+| `primary` | Visible dans le Tab picker | Présent dans `.opencode/agents/` |
+| `subagent` | Listé dans `opencode.json` avec `"mode": "subagent"` — invocable par d'autres agents, invisible dans le Tab picker | Présent dans `.opencode/agents/` avec description orientée délégation |
 
 Le mode effectif suit une priorité : **override projet** (`- Modes :` dans `projects.md`) > **frontmatter agent** > **`primary`** (défaut).
 

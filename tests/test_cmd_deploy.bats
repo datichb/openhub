@@ -32,7 +32,7 @@ id: test-agent
 label: TestAgent
 description: Agent de test minimal
 mode: primary
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: []
 ---
 

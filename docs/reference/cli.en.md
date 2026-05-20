@@ -32,7 +32,7 @@ oc install
 | Choice | Targets configured |
 |--------|--------------------|
 | 1 (default) | OpenCode |
-| 2 | Claude Code |
+| 2 | OpenCode |
 | 3 | All |
 
 ---
@@ -53,7 +53,7 @@ Guides the uninstallation through 4 optional steps, all with explicit confirmati
 
 | Step | Action | Default |
 |------|--------|---------|
-| 1 | Clean up deployed agents in projects (`.opencode/agents/`, `opencode.json`, `.claude/agents/`) | `[y/N]` |
+| 1 | Clean up deployed agents in projects (`.opencode/agents/`, `opencode.json`, `.opencode/agents/`) | `[y/N]` |
 | 2 | Remove the hub (`~/.opencode-hub`) | `[y/N]` |
 | 3 | Remove the `oc` alias and bun exports from the shell rc file | `[Y/n]` |
 | 4 | Uninstall system tools: `opencode`, `beads`, `bun` (separately) | `[y/N]` |
@@ -78,7 +78,7 @@ oc deploy --diff  [target] [PROJECT_ID]
 
 | Argument | Values | Description |
 |----------|--------|-------------|
-| `<target>` | `opencode`, `claude-code`, `all` | Target to deploy |
+| `<target>` | `opencode`, `opencode`, `all` | Target to deploy |
 | `[PROJECT_ID]` | ID of a registered project | Optional — deploys at hub level if absent (no stack detection) |
 
 **Options:**
@@ -111,7 +111,7 @@ oc deploy --diff all MY-APP     # show diff sources → deployed for MY-APP
 | Target | Generated files |
 |--------|----------------|
 | `opencode` | `.opencode/agents/*.md` + `opencode.json` (regenerated if an API key or PROJECT_ID is defined) |
-| `claude-code` | `.claude/agents/*.md` |
+| `opencode` | `.opencode/agents/*.md` |
 
 **`--check` exit codes:**
 - `0`: everything is up to date
@@ -538,7 +538,7 @@ oc remove <PROJECT_ID> [--clean]
 
 | Option | Description |
 |--------|-------------|
-| `--clean` | Also removes deployed agent files in the project directory (`.opencode/agents/`, `opencode.json`, `.claude/agents/` depending on active targets) |
+| `--clean` | Also removes deployed agent files in the project directory (`.opencode/agents/`, `opencode.json`, `.opencode/agents/` depending on active targets) |
 
 **Examples:**
 
@@ -678,7 +678,7 @@ oc agent <sub-command>
 1. **Identifier** — unique slug (e.g. `reviewer`)
 2. **Label** — short name displayed in the tool (e.g. `CodeReviewer`)
 3. **Description** — short phrase describing the role
-4. **Targets** — interactive selector ↑↓/space: `opencode`, `claude-code`
+4. **Targets** — interactive selector ↑↓/space: `opencode`, `opencode`
 5. **Skills** — interactive selector ↑↓/space with description panel
 6. **Body** — if `opencode` is available, offer to auto-generate via `opencode run`
 7. **Preview** — display of the complete `.md` file before writing
@@ -695,7 +695,7 @@ Verifies for each agent:
 - Required fields present (`id`, `label`, `description`, `targets`, `skills`)
 - `id` uniqueness across all agents
 - Valid `mode` (`primary` | `subagent` | `all`) if present
-- All targets in `targets` recognised (`opencode`, `claude-code`)
+- All targets in `targets` recognised (`opencode`, `opencode`)
 - All referenced skills exist (local or external)
 
 Returns exit code 1 if at least one error is detected.

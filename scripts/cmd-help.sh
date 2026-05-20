@@ -97,7 +97,6 @@ _cmd help.target_select
 
 _section help.section.deploy_targets
 _note "$(t help.deploy_target.opencode)"
-_note "$(t help.deploy_target.claude)"
 _note "$(t help.deploy_target.all)"
 
 _section help.section.agents

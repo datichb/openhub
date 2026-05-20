@@ -24,7 +24,7 @@ Respecter la convention de nommage :
 id: <identifiant-unique>
 label: <NomAffiché>
 description: <Description courte en une phrase — visible dans les listes d'agents>
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [chemin/vers/skill, ...]
 ---
 ```

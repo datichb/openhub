@@ -72,7 +72,6 @@ REQUIRED_AGENT="reviewer"
 # ── Dossier d'agents déployés selon la cible ─────────────────────────────────
 case "$default_target" in
   opencode)    agents_dir="$PROJECT_PATH/.opencode/agents" ;;
-  claude-code) agents_dir="$PROJECT_PATH/.claude/agents" ;;
   *)           agents_dir="" ;;
 esac
 

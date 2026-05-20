@@ -8,7 +8,7 @@ permission:
   bash: allow
   edit: deny
   write: deny
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [debugger/debug-protocol, posture/tool-question, quality/debugger-handoff-format]
 ---
 

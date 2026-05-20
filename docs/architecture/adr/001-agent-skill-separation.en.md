@@ -41,5 +41,5 @@ The hub assembles agent + skills at deployment time.
 **Everything in the agent**: files become too long, no reuse, hard to maintain.
 
 **Skills as Markdown imports**: technically possible but not natively supported
-by target tools (OpenCode, Claude Code) — hub-side assembly is the only
+by target tools (OpenCode, OpenCode) — hub-side assembly is the only
 portable approach.

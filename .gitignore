@@ -5,7 +5,6 @@ projects/api-keys.local.md
 
 # Sorties générées par oc deploy — ne pas committer
 .opencode/agents/
-.claude/
 .github/copilot-instructions.md
 .vscode/prompts/
 

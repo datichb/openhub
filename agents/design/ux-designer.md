@@ -8,7 +8,7 @@ permission:
   bash: deny
   edit: deny
   write: deny
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [designer/ux-protocol, developer/beads-plan, posture/expert-posture, posture/tool-question, design/design-handoff-format]
 ---
 

@@ -11,7 +11,7 @@ permission:
   task:
     "*": deny
     "auditor-*": allow
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [auditor/audit-protocol, posture/tool-question]
 ---
 

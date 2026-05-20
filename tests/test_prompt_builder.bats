@@ -27,7 +27,7 @@ setup() {
 id: test-agent
 label: TestAgent
 description: Agent de test minimal
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [developer/test-skill]
 ---
 

@@ -205,7 +205,7 @@ Créer un projet avec l'IA et OpenCode
 | 2 | 5 premiers agents | Markdown structuré avec workflow |
 | 3 | Système de skills injectables | Mécanisme de référence + injection |
 | 4 | CLI `oc` | Script shell avec sous-commandes |
-| 5 | Adapters opencode + claude-code | Traduction hub → format cible |
+| 5 | Adapters opencode + opencode | Traduction hub → format cible |
 | 6 | 22 agents supplémentaires | Spécialisation par domaine |
 | 7 | Beads (tickets IA) | Intégration workflow complet |
 | 8 | Documentation + ADR | 6 ADR, guides, référence CLI |
@@ -275,7 +275,7 @@ opencode-hub/                  ← source de vérité unique
 ### Gestion des projets
 ```bash
 oc init <ID> <path>           # Enregistrer un projet dans le hub
-oc deploy <target> <ID>       # Déployer les agents (opencode | claude-code)
+oc deploy <target> <ID>       # Déployer les agents (opencode | opencode)
 oc status                     # État de tous les projets enregistrés
 oc upgrade                    # Mettre à jour le hub (git pull + rebuild)
 ```

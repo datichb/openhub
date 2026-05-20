@@ -165,7 +165,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **Agents developer** : `skills:` mis à jour pour pointer vers les nouveaux chemins `stacks/` (`developer-mobile`, `developer-data`, `developer-devops`, `developer-platform`, `developer-frontend`, `developer-fullstack`)
 
-- **`oc deploy` / `--diff`** : passage de `deploy_dir` comme `project_path` aux adapters OpenCode et Claude Code — déclenche la détection de stack automatique pour tout déploiement sur un projet enregistré
+- **`oc deploy` / `--diff`** : passage de `deploy_dir` comme `project_path` à l'adapter OpenCode — déclenche la détection de stack automatique pour tout déploiement sur un projet enregistré
 
 ### Documentation
 
@@ -387,7 +387,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
-- Hub central multi-cible : OpenCode, Claude Code, VS Code / Copilot
+- Hub central multi-cible : OpenCode
 - CLI `oc.sh` avec 13 commandes : `init`, `deploy`, `start`, `list`, `remove`,
   `agent`, `skills`, `beads`, `sync`, `update`, `install`, `version`, `help`
 - 19 agents initiaux organisés en 5 familles :
@@ -400,7 +400,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Planification : `planner`
 - 27 skills organisés par domaine (`developer/`, `auditor/`, `orchestrator/`,
   `qa/`, `debugger/`, `reviewer/`)
-- 3 adapters : `opencode.adapter.sh`, `claude-code.adapter.sh`, `vscode.adapter.sh`
+- 1 adapter : `opencode.adapter.sh`
 - Intégration Beads (`bd`) pour la gestion des tickets : `cmd-beads.sh`,
   workflow `bd claim → implémenter → bd close` dans tous les agents developers
 - Commande `oc agent` : création interactive, édition, liste, info

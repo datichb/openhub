@@ -7,7 +7,7 @@ permission:
   bash: deny
   edit: deny
   write: deny
-targets: [opencode, claude-code]
+targets: [opencode]
 skills: [auditor/audit-protocol-light, auditor/audit-ecodesign, posture/expert-posture, auditor/audit-handoff-format]
 ---
 

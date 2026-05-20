@@ -67,16 +67,7 @@ if [ "$CLEAN_MODE" = true ]; then
           log_success "Supprimé : opencode.json"
         fi
         ;;
-      claude-code)
-        if [ -d "$PROJECT_PATH/.claude/agents" ]; then
-          rm -rf "$PROJECT_PATH/.claude/agents"
-          log_success "Supprimé : .claude/agents/"
-        fi
-        if [ -f "$PROJECT_PATH/.github/copilot-instructions.md" ]; then
-          rm -f "$PROJECT_PATH/.github/copilot-instructions.md"
-          log_success "Supprimé : .github/copilot-instructions.md"
-        fi
-        ;;
+
     esac
   done <<< "$local_targets"
 fi

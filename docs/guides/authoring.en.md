@@ -201,7 +201,7 @@ label: DeveloperSecurity                  # ← PascalCase, displayed in the too
 description: Application security         # ← one sentence, usage-oriented
   development assistant — [...]
 mode: subagent                            # ← subagent: invocable only via orchestrator-dev
-targets: [opencode, claude-code]  # ← both supported targets
+targets: [opencode]  # ← both supported targets
 skills:                                   # ← from most generic to most specific
   - developer/dev-standards-universal     #   standards common to all devs
   - developer/dev-standards-security      #   preventive security

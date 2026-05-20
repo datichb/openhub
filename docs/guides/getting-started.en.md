@@ -61,8 +61,8 @@ oc install
 | Choice | Targets configured |
 |--------|--------------------|
 | 1 (default) | OpenCode |
-| 2 | Claude Code |
-| 3 | Everything (OpenCode + Claude Code) |
+| 2 | OpenCode |
+| 3 | Everything (OpenCode + OpenCode) |
 
 > If `config/hub.json` already exists, confirmation is requested before overwriting
 > the configuration. Answer `N` to keep your existing configuration.
@@ -99,7 +99,7 @@ Expected output per target:
 | Target | Files generated in the project |
 |--------|-------------------------------|
 | `opencode` | `.opencode/agents/*.md` |
-| `claude-code` | `.claude/agents/*.md` |
+| `opencode` | `.opencode/agents/*.md` |
 
 ---
 

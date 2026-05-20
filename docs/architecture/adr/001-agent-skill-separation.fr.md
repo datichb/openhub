@@ -48,5 +48,5 @@ Le système hub assemble agent + skills au moment du déploiement.
 **Tout dans l'agent** : fichiers trop longs, pas de réutilisation, maintenance difficile.
 
 **Skills comme imports Markdown** : techniquement possible mais non supporté nativement
-par les outils cibles (OpenCode, Claude Code) — l'assemblage par le hub est la seule
+par les outils cibles (OpenCode, OpenCode) — l'assemblage par le hub est la seule
 approche portable.
