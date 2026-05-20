@@ -1,7 +1,17 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
 # project.sh — Registre projets (projects.md + paths.local.md) et native agents
-# Sourcé par common.sh — ne pas sourcer directement.
+#
+# Usage normal : sourcé par common.sh (qui garantit l'environnement complet).
+#
+# Exception documentée : install.sh source ce fichier directement (ÉTAPE 4),
+# en dehors de common.sh. Cette exception est intentionnelle : install.sh est
+# un script autonome (distribué via curl | bash) qui ne peut pas sourcer
+# common.sh sans que le repo soit déjà cloné.
+#
+# Prérequis obligatoires avant sourçage direct :
+#   - log_info, log_warn, log_error, log_success définis
+#   - PROJECTS_FILE, PROJECTS_EXAMPLE_FILE, PATHS_FILE, API_KEYS_FILE définis
 # ─────────────────────────────────────────────────────────────────────────────
 [ -n "${_PROJECT_LOADED:-}" ] && return 0
 _PROJECT_LOADED=1
@@ -33,6 +43,33 @@ ensure_projects_file() {
 PROJEOF
       log_info "projects.md créé"
     fi
+  fi
+}
+
+# S'assure que paths.local.md existe localement
+ensure_paths_file() {
+  if [ ! -f "$PATHS_FILE" ]; then
+    mkdir -p "$(dirname "$PATHS_FILE")"
+    echo "# Chemins locaux (ignoré par git)" > "$PATHS_FILE"
+    log_info "paths.local.md créé"
+  fi
+}
+
+# S'assure que api-keys.local.md existe localement avec permissions 600
+ensure_api_keys_file() {
+  if [ ! -f "$API_KEYS_FILE" ]; then
+    mkdir -p "$(dirname "$API_KEYS_FILE")"
+    cat > "$API_KEYS_FILE" <<'KEYSEOF'
+# Clés API par projet (ignoré par git)
+# Format :
+#   [PROJECT_ID]
+#   model=claude-opus-4-5
+#   provider=anthropic
+#   api_key=sk-ant-...
+#   base_url=https://...  # optionnel
+KEYSEOF
+    chmod 600 "$API_KEYS_FILE"
+    log_info "api-keys.local.md créé (permissions 600)"
   fi
 }
 

@@ -99,8 +99,15 @@ HUBJSON
   log_success "$(t install.hub_json_created) ${active_targets[*]})"
 fi
 
+# ── Installer chaque cible sélectionnée ──
+for target in "${active_targets[@]}"; do
+  load_adapter "$target"
+  adapter_install
+done
+
 # ── Fournisseur LLM par défaut ────────────────────────────────────────────────
-# Cette section s'exécute APRÈS l'écriture de hub.json pour ne pas être écrasée
+# Cette section s'exécute APRÈS adapter_install pour éviter de persister la clé
+# dans hub.json si l'installation des outils échoue.
 log_title "$(t install.provider_title)"
 echo ""
 log_info "$(t install.provider_choose)"
@@ -206,20 +213,10 @@ fi
 
 echo ""
 
-# ── Installer chaque cible sélectionnée ──
-for target in "${active_targets[@]}"; do
-  load_adapter "$target"
-  adapter_install
-done
-
 # ── Fichiers initiaux ────────────────────
 ensure_projects_file
-log_success "$(t install.projects_ready)"
-
-if [ ! -f "$PATHS_FILE" ]; then
-  echo "# Chemins locaux (ignoré par git)" > "$PATHS_FILE"
-  log_success "$(t install.paths_created)"
-fi
+ensure_paths_file
+ensure_api_keys_file
 
 echo ""
 log_info "$(t install.skills_tip)"
