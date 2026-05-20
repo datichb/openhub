@@ -67,6 +67,12 @@ _remove_section() {
   remove_api_keys_section "$1"
 }
 
+# Retourne "true" si le provider requiert une clé API, "false" sinon
+_resolve_requires_api_key() {
+  local provider="$1"
+  get_provider_bool "$provider" "requires_api_key"
+}
+
 # Écrit ou remplace une section complète (atomique via tmpfile + mv)
 _write_section() {
   local id="$1" model="$2" provider="$3" api_key="$4" base_url="$5"
@@ -334,32 +340,30 @@ cmd_set() {
   fi
 
   # Vérifier si le provider nécessite une clé API
-  # Note : get_provider_info utilise `// empty` qui absorbe le booléen false — requête directe ici
-  local requires_api_key="true"
-  if [ -f "$PROVIDERS_FILE" ] && command -v jq &>/dev/null; then
-    local _req; _req=$(jq -r --arg n "$flag_provider" '.providers[$n].requires_api_key | if . == false then "false" else "true" end' "$PROVIDERS_FILE" 2>/dev/null)
-    [ "$_req" = "false" ] && requires_api_key="false"
-  fi
+  local requires_api_key
+  requires_api_key=$(_resolve_requires_api_key "$flag_provider")
 
-  # Clé API (saisie masquée — uniquement si le provider la requiert)
-  if [ "$requires_api_key" = "true" ] && [ -z "$flag_api_key" ]; then
-    local masked_cur=""
-    [ -n "$cur_api_key" ] && masked_cur=" [actuelle : ${cur_api_key:0:8}***]"
-    # Restaurer l'écho terminal si l'utilisateur interrompt (Ctrl+C)
-    trap 'stty echo 2>/dev/null; echo ""; exit 130' INT TERM
-    read -rsp "  Clé API${masked_cur} : " flag_api_key
-    stty echo 2>/dev/null
-    trap - INT TERM
-    echo ""
-    # Si aucune nouvelle saisie et qu'une ancienne existe, conserver l'ancienne
-    if [ -z "$flag_api_key" ] && [ -n "$cur_api_key" ]; then
-      flag_api_key="$cur_api_key"
-      log_info "Clé API inchangée"
+  # Clé API (saisie masquée + validation — uniquement si le provider la requiert)
+  if [ "$requires_api_key" = "true" ]; then
+    if [ -z "$flag_api_key" ]; then
+      local masked_cur=""
+      [ -n "$cur_api_key" ] && masked_cur=" [actuelle : ${cur_api_key:0:8}***]"
+      # Restaurer l'écho terminal si l'utilisateur interrompt (Ctrl+C)
+      trap 'stty echo 2>/dev/null; echo ""; exit 130' INT TERM
+      read -rsp "  Clé API${masked_cur} : " flag_api_key
+      stty echo 2>/dev/null
+      trap - INT TERM
+      echo ""
+      # Si aucune nouvelle saisie et qu'une ancienne existe, conserver l'ancienne
+      if [ -z "$flag_api_key" ] && [ -n "$cur_api_key" ]; then
+        flag_api_key="$cur_api_key"
+        log_info "Clé API inchangée"
+      fi
     fi
-  fi
-  if [ "$requires_api_key" = "true" ] && [ -z "$flag_api_key" ]; then
-    log_error "Clé API requise"
-    exit 1
+    if [ -z "$flag_api_key" ]; then
+      log_error "Clé API requise"
+      exit 1
+    fi
   fi
 
   # Base URL (optionnel pour tous les providers, mais particulièrement utile pour litellm et autres)

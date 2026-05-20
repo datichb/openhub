@@ -99,14 +99,8 @@ _build_provider_json() {
   [ -z "$provider" ] && return 0
 
   # Vérifier si le provider requiert une clé API (défaut : true pour la rétrocompatibilité)
-  # Note : on n'utilise pas `// true` car false // true = true en jq (false est falsy)
-  local requires_api_key="true"
-  local providers_file="$HUB_DIR/config/providers.json"
-  if [ -f "$providers_file" ]; then
-    requires_api_key=$(jq -r --arg p "$provider" \
-      '.providers[$p].requires_api_key | if . == null then "true" else tostring end' \
-      "$providers_file" 2>/dev/null)
-  fi
+  local requires_api_key
+  requires_api_key=$(get_provider_bool "$provider" "requires_api_key")
 
   # Early return uniquement si la clé est vide ET que le provider en requiert une
   [ -z "$api_key" ] && [ "$requires_api_key" != "false" ] && return 0
@@ -153,14 +147,8 @@ _build_provider_block() {
   [ -z "$provider" ] && return 0
 
   # Vérifier si le provider requiert une clé API (défaut : true pour la rétrocompatibilité)
-  # Note : on n'utilise pas `// true` car false // true = true en jq (false est falsy)
-  local requires_api_key="true"
-  local providers_file="$HUB_DIR/config/providers.json"
-  if [ -f "$providers_file" ]; then
-    requires_api_key=$(jq -r --arg p "$provider" \
-      '.providers[$p].requires_api_key | if . == null then "true" else tostring end' \
-      "$providers_file" 2>/dev/null)
-  fi
+  local requires_api_key
+  requires_api_key=$(get_provider_bool "$provider" "requires_api_key")
 
   # Early return uniquement si la clé est vide ET que le provider en requiert une
   [ -z "$api_key" ] && [ "$requires_api_key" != "false" ] && return 0

@@ -16,6 +16,21 @@ get_provider_info() {
   jq -r --arg n "$provider_name" --arg f "$field" '.providers[$n][$f] // empty' "$PROVIDERS_FILE" 2>/dev/null
 }
 
+# Retourne "true" ou "false" pour un champ booléen d'un provider dans providers.json
+# Usage : get_provider_bool <provider_name> <field_name>
+# Exemple :
+#   get_provider_bool "github-copilot" "requires_api_key"  # → "false"
+#   get_provider_bool "anthropic" "requires_api_key"       # → "true"
+#   get_provider_bool "new-provider" "requires_api_key"    # → "true" (null par défaut)
+# Note : ne pas utiliser `// empty` ni `// true` car false est falsy en jq
+get_provider_bool() {
+  local provider="$1"
+  local field="$2"
+  jq -r --arg p "$provider" --arg f "$field" \
+    '.providers[$p][$f] | if . == null then "true" elif . == false then "false" else tostring end' \
+    "$PROVIDERS_FILE" 2>/dev/null
+}
+
 # Vérifier si un provider existe dans le catalogue
 provider_exists() {
   local provider_name="$1"
@@ -128,9 +143,9 @@ _build_provider_menu() {
 _collect_provider_credentials() {
   local provider_name="$1"
   local provider_label="$2"
-  local requires_api_key; requires_api_key=$(get_provider_info "$provider_name" "requires_api_key" 2>/dev/null || echo "true")
-  local requires_base_url; requires_base_url=$(get_provider_info "$provider_name" "requires_base_url" 2>/dev/null || echo "false")
-  local requires_region; requires_region=$(get_provider_info "$provider_name" "requires_region" 2>/dev/null || echo "false")
+  local requires_api_key; requires_api_key=$(get_provider_bool "$provider_name" "requires_api_key")
+  local requires_base_url; requires_base_url=$(get_provider_bool "$provider_name" "requires_base_url")
+  local requires_region; requires_region=$(get_provider_bool "$provider_name" "requires_region")
   local default_base_url; default_base_url=$(get_provider_info "$provider_name" "default_base_url" 2>/dev/null || echo "")
   local default_region; default_region=$(get_provider_info "$provider_name" "default_region" 2>/dev/null || echo "")
 
