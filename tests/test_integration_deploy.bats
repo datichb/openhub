@@ -279,3 +279,29 @@ AGENTEOF
 
   rm -rf "$DEPLOY_FULL" "$DEPLOY_CONFIG_ONLY"
 }
+
+@test "adapter_deploy_config : fonctionne sous set -u sans Phase 1 préalable — non-régression #opencode-hub-5s5" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  # Répertoire agents vide : _load_agent_metadata() doit exister mais ne retenir aucun agent
+  EMPTY_AGENTS_DIR="$DEPLOY_DIR/tmp_empty_agents"
+  mkdir -p "$EMPTY_AGENTS_DIR"
+
+  bash -c "
+    set -euo pipefail
+    export HUB_DIR='$HUB_ROOT'
+    export HUB_CONFIG='$HUB_CONFIG_TEST'
+    export CANONICAL_AGENTS_DIR='$EMPTY_AGENTS_DIR'
+    source '$HUB_ROOT/scripts/common.sh'
+    source '$HUB_ROOT/scripts/lib/prompt-builder.sh'
+    source '$HUB_ROOT/scripts/adapters/opencode.adapter.sh'
+    log_info()    { true; }
+    log_success() { true; }
+    log_warn()    { true; }
+    log_error()   { true; }
+    # Appel direct Phase 2 sans Phase 1 — réplique le scénario du bug sous set -u
+    adapter_deploy_config '$DEPLOY_DIR' ''
+  "
+
+  [ -f "$DEPLOY_DIR/opencode.json" ]
+}

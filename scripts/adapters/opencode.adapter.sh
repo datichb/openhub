@@ -3,6 +3,15 @@
 
 source "$HUB_DIR/scripts/lib/prompt-builder.sh"
 
+# Initialisations globales des tableaux _DEPLOY_FILES_* — obligatoires sous set -u.
+# Sans ces déclarations, adapter_deploy_config() appelée directement (Phase 2 sans Phase 1)
+# échoue à la garde «if [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]»
+# avec «variable sans liaison» car set -u est hérité de ocp.sh.
+_DEPLOY_FILES_AGENT_KEYS=()
+_DEPLOY_FILES_AGENT_VALS=()
+_DEPLOY_FILES_AGENT_FILES=()
+_DEPLOY_FILES_COUNT=0
+
 # Applique le préfixe opencode et les model_aliases du provider au modèle court.
 # $1 = modèle (nom court, ex: claude-sonnet-4-5)
 # $2 = provider_name (ex: anthropic, bedrock, github-copilot)
