@@ -31,7 +31,6 @@ case "$COMMAND" in
   provider)        bash "$SCRIPTS_DIR/cmd-provider.sh" "${@:2}" ;;
   skills)          bash "$SCRIPTS_DIR/cmd-skills.sh" "${@:2}" ;;
   agent)           bash "$SCRIPTS_DIR/cmd-agent.sh" "${@:2}" ;;
-  target)          bash "$SCRIPTS_DIR/cmd-target.sh" "${@:2}" ;;
   update)          bash "$SCRIPTS_DIR/cmd-update.sh" ;;
   upgrade)         bash "$SCRIPTS_DIR/cmd-upgrade.sh" "${@:2}" ;;
   conventions)     bash "$SCRIPTS_DIR/cmd-conventions.sh" "${@:2}" ;;
