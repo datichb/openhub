@@ -2,7 +2,6 @@
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 source "$LIB_DIR/agent-picker.sh"
-source "$LIB_DIR/target-picker.sh"
 resolve_oc_lang
 
 # S'assurer que projects.md et hub.json existent avant toute opération
@@ -24,7 +23,7 @@ _step() {
 # ── Récapitulatif final ────────────────────────────────────────────────────────
 _summary() {
   local id="$1" path="$2" name="$3" stack="$4" tracker="$5" beads_ok="$6"
-  local git_remote="$7" agents="$8" targets="$9" provider="${10}" deployed="${11}"
+  local git_remote="$7" agents="$8" provider="$9" deployed="${10}"
   local width=54
   local bar=""
   local i=0
@@ -45,7 +44,6 @@ _summary() {
   fi
   [ -n "$git_remote" ] && printf "${GREEN}│${RESET}  %-14s %-36s ${GREEN}│${RESET}\n" "Git remote"  "${git_remote:0:36}"
   [ -n "$agents"     ] && printf "${GREEN}│${RESET}  %-14s %-36s ${GREEN}│${RESET}\n" "Agents"      "${agents:0:36}"
-  [ -n "$targets"    ] && printf "${GREEN}│${RESET}  %-14s %-36s ${GREEN}│${RESET}\n" "Cibles"      "${targets:0:36}"
   [ -n "$provider"   ] && printf "${GREEN}│${RESET}  %-14s %-36s ${GREEN}│${RESET}\n" "Provider"    "${provider:0:36}"
   [ -n "$deployed"   ] && printf "${GREEN}│${RESET}  %-14s %-36s ${GREEN}│${RESET}\n" "Déployé"     "${deployed}"
   echo -e "${GREEN}│${RESET}"
@@ -288,39 +286,9 @@ else
   AGENTS_SUMMARY="tous (par défaut)"
 fi
 
-echo ""
-_prompt select_targets "Sélectionner les cibles de déploiement ? [y/N] : "
-TARGETS_SUMMARY=""
-# shellcheck disable=SC2154
-if [[ "$select_targets" =~ ^[Yy]$ ]]; then
-  PICKED_TARGETS=""
-  _pick_project_targets "all"
-  if [ -n "$PICKED_TARGETS" ] && [ "$PICKED_TARGETS" != "all" ]; then
-    _set_project_targets "$PROJECT_ID" "$PICKED_TARGETS"
-    _target_count=$(echo "$PICKED_TARGETS" | tr ',' '\n' | grep -v '^$' | wc -l | tr -d ' ')
-    log_success "$_target_count cible(s) sélectionnée(s) pour $PROJECT_ID"
-    TARGETS_SUMMARY="${PICKED_TARGETS}"
-  else
-    log_info "Toutes les cibles actives seront utilisées (par défaut)"
-    TARGETS_SUMMARY="toutes (par défaut)"
-  fi
-else
-  log_info "Toutes les cibles actives seront utilisées (par défaut)"
-  TARGETS_SUMMARY="toutes (par défaut)"
-fi
-
 # ── Agents natifs OpenCode (désactivation) ────────────────────────────────────
-# Proposé uniquement si opencode est une cible active pour ce projet
-_is_opencode_target=false
-if echo ",${PICKED_TARGETS:-}," | grep -qF ",opencode,"; then
-  _is_opencode_target=true
-elif [ -z "${PICKED_TARGETS:-}" ] || [ "${PICKED_TARGETS:-}" = "all" ]; then
-  # Pas de sélection explicite → vérifier les active_targets du hub
-  if command -v jq &>/dev/null && [ -f "$HUB_CONFIG" ] \
-     && jq -e '.active_targets | index("opencode")' "$HUB_CONFIG" &>/dev/null; then
-    _is_opencode_target=true
-  fi
-fi
+# opencode est toujours la cible active
+_is_opencode_target=true
 
 if [ "$_is_opencode_target" = true ] && [ -t 0 ]; then
   echo ""
@@ -506,7 +474,6 @@ _summary \
   "$BEADS_OK" \
   "${GIT_REMOTE_STATUS:-}" \
   "${AGENTS_SUMMARY:-}" \
-  "${TARGETS_SUMMARY:-}" \
   "${PROVIDER_SUMMARY:-}" \
   "${DEPLOYED:-}"
 _outro "Projet ${PROJECT_ID} prêt — ./oc.sh start ${PROJECT_ID}"
