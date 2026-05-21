@@ -284,7 +284,7 @@ EOF
   unset OPENCODE_MODEL
   run _get_agent_model "$TEST_DIR/agents/planning/orchestrator-dev.md" ""
   [ "$status" -eq 0 ]
-  [ "$output" = "claude-opus-4" ]
+  [ "$output" = "anthropic/claude-opus-4" ]
 }
 
 @test "_get_agent_model retourne vide quand agent_file est vide" {
@@ -298,5 +298,5 @@ EOF
   unset OPENCODE_MODEL
   local result
   result=$(_get_agent_model "$TEST_DIR/agents/planning/high-floor.md" "" 2>/dev/null)
-  [ "$result" = "claude-opus-4" ]
+  [ "$result" = "anthropic/claude-opus-4" ]
 }

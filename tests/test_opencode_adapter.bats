@@ -375,7 +375,7 @@ HUBEOF
   [ "$status" -eq 0 ]
   # L'agent doit avoir le champ model
   result=$(jq -r '.agent."orchestrator-dev".model' "$DEPLOY_DIR/opencode.json")
-  [ "$result" = "claude-opus-4" ]
+  [ "$result" = "anthropic/claude-opus-4" ]
 }
 
 @test "adapter_deploy : agent avec modèle résolu == global → pas de champ model" {
@@ -485,7 +485,7 @@ AGENTEOF
   [ "$status" -eq 0 ]
   # Le modèle clampé (opus) doit être injecté car > global (sonnet)
   result=$(jq -r '.agent."high-floor-agent".model // "ABSENT"' "$DEPLOY_DIR/opencode.json")
-  [ "$result" = "claude-opus-4" ]
+  [ "$result" = "anthropic/claude-opus-4" ]
 }
 
 @test "adapter_deploy : opencode.json valide avec mix d'agents avec et sans model" {
@@ -539,7 +539,7 @@ HUBEOF
   [ "$status" -eq 0 ]
   # Agent avec override → model présent
   result1=$(jq -r '.agent."agent-with-model".model // "ABSENT"' "$DEPLOY_DIR/opencode.json")
-  [ "$result1" = "claude-opus-4" ]
+  [ "$result1" = "anthropic/claude-opus-4" ]
   # Agent sans override → model absent
   result2=$(jq -r '.agent."agent-no-model".model // "ABSENT"' "$DEPLOY_DIR/opencode.json")
   [ "$result2" = "ABSENT" ]
