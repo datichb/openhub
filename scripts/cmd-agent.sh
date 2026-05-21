@@ -718,9 +718,9 @@ cmd_select() {
   read -rp "Redéployer maintenant ? [Y/n] : " redeploy </dev/tty
   redeploy="${redeploy:-Y}"
   if [[ "$redeploy" =~ ^[Yy]$ ]]; then
-    exec "$HUB_DIR/oc.sh" deploy all "$id"
+    exec "$HUB_DIR/oc.sh" deploy "$id"
   else
-    log_info "Déployer plus tard : ./oc.sh deploy all $id"
+    log_info "Déployer plus tard : ./oc.sh deploy $id"
   fi
 }
 
@@ -836,9 +836,9 @@ cmd_mode() {
   read -rp "Redéployer maintenant ? [Y/n] : " redeploy </dev/tty
   redeploy="${redeploy:-Y}"
   if [[ "$redeploy" =~ ^[Yy]$ ]]; then
-    exec "$HUB_DIR/oc.sh" deploy all "$id"
+    exec "$HUB_DIR/oc.sh" deploy "$id"
   else
-    log_info "Déployer plus tard : ./oc.sh deploy all $id"
+    log_info "Déployer plus tard : ./oc.sh deploy $id"
   fi
 }
 
