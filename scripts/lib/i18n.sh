@@ -121,13 +121,8 @@ t() {
       help.provider_list.desc) printf '%s' "Liste les providers disponibles" ;;
       help.provider_set_default.cmd)  printf '%s' "provider set-default" ;;
       help.provider_set_default.desc) printf '%s' "Configure le provider par défaut du hub (interactif)" ;;
-      help.target_info.cmd)   printf '%s' "target info <PROJECT_ID>" ;;
-      help.target_info.desc)  printf '%s' "Affiche les cibles de déploiement d'un projet" ;;
-      help.target_select.cmd) printf '%s' "target select <PROJECT_ID>" ;;
-      help.target_select.desc) printf '%s' "Choisit les cibles de déploiement (interactif)" ;;
       # Deploy targets
       help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-      help.deploy_target.all)      printf '%s' "all          → toutes les cibles actives" ;;
       # Agents
       help.agent_list.cmd)    printf '%s' "agent list" ;;
       help.agent_list.desc)   printf '%s' "Lister les agents canoniques" ;;
@@ -296,23 +291,6 @@ t() {
       board.watch_mode)       printf '%s' "Mode watch activé — rafraîchissement toutes les 5s" ;;
       board.watch_quit)       printf '%s' "pour quitter" ;;
       board.empty_column)     printf '%s' "— aucun ticket —" ;;
-
-      # ── cmd-target.sh ──────────────────────────────────────────────────────
-      target.title)           printf '%s' "oc target — Gestion des cibles de déploiement par projet" ;;
-      target.usage.info)      printf '%s' "Usage : oc target info <PROJECT_ID>" ;;
-      target.usage.select)    printf '%s' "Usage : oc target select <PROJECT_ID>" ;;
-      target.info_cmd)        printf '%s' "info <PROJECT_ID>     Afficher les cibles configurées pour un projet" ;;
-      target.select_cmd)      printf '%s' "select <PROJECT_ID>   Choisir les cibles de déploiement pour un projet" ;;
-      target.select.title)    printf '%s' "Sélection des cibles —" ;;
-      target.current_all)     printf '%s' "Sélection actuelle : toutes les cibles actives (hub.json)" ;;
-      target.reset_done)      printf '%s' "Cibles réinitialisées pour" ;;
-      target.reset_suffix)    printf '%s' "→ toutes les cibles actives seront utilisées" ;;
-      target.selected)        printf '%s' "cible(s) sélectionnée(s) pour" ;;
-      target.targets_label)   printf '%s' "Cibles pour" ;;
-      target.all_active)      printf '%s' "(toutes les cibles actives de hub.json)" ;;
-      target.available)       printf '%s' "Cibles disponibles :" ;;
-      target.default_hint)    printf '%s' "Par défaut (si non configuré), les cibles actives de hub.json sont utilisées." ;;
-      target.examples)        printf '%s' "Exemples :" ;;
 
       # ── cmd-provider.sh ────────────────────────────────────────────────────
       provider.title)         printf '%s' "Fournisseurs LLM disponibles" ;;
@@ -733,13 +711,8 @@ t_en() {
     help.provider_list.desc) printf '%s' "List available providers" ;;
     help.provider_set_default.cmd)  printf '%s' "provider set-default" ;;
     help.provider_set_default.desc) printf '%s' "Configure the hub default provider (interactive)" ;;
-    help.target_info.cmd)   printf '%s' "target info <PROJECT_ID>" ;;
-    help.target_info.desc)  printf '%s' "Show deploy targets for a project" ;;
-    help.target_select.cmd) printf '%s' "target select <PROJECT_ID>" ;;
-    help.target_select.desc) printf '%s' "Choose deploy targets (interactive)" ;;
     # Deploy targets
     help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-    help.deploy_target.all)      printf '%s' "all          → all active targets" ;;
     # Agents
     help.agent_list.cmd)    printf '%s' "agent list" ;;
     help.agent_list.desc)   printf '%s' "List canonical agents" ;;
@@ -917,23 +890,6 @@ t_en() {
     help.beads_board.desc)      printf '%s' "Display the kanban board in the terminal" ;;
     help.beads_board_watch.cmd) printf '%s' "beads board [PROJECT_ID] --watch [--interval N]" ;;
     help.beads_board_watch.desc) printf '%s' "Auto-refresh board (default: 5s)" ;;
-
-    # ── cmd-target.sh ────────────────────────────────────────────────────────
-    target.title)           printf '%s' "oc target — Deploy target management by project" ;;
-    target.usage.info)      printf '%s' "Usage: oc target info <PROJECT_ID>" ;;
-    target.usage.select)    printf '%s' "Usage: oc target select <PROJECT_ID>" ;;
-    target.info_cmd)        printf '%s' "info <PROJECT_ID>     Show configured targets for a project" ;;
-    target.select_cmd)      printf '%s' "select <PROJECT_ID>   Choose deploy targets for a project" ;;
-    target.select.title)    printf '%s' "Target selection —" ;;
-    target.current_all)     printf '%s' "Current selection: all active targets (hub.json)" ;;
-    target.reset_done)      printf '%s' "Targets reset for" ;;
-    target.reset_suffix)    printf '%s' "→ all active targets will be used" ;;
-    target.selected)        printf '%s' "target(s) selected for" ;;
-    target.targets_label)   printf '%s' "Targets:" ;;
-    target.all_active)      printf '%s' "(all active targets from hub.json)" ;;
-    target.available)       printf '%s' "Available targets:" ;;
-    target.default_hint)    printf '%s' "By default (if not configured), active targets from hub.json are used." ;;
-    target.examples)        printf '%s' "Examples:" ;;
 
     # ── cmd-provider.sh ──────────────────────────────────────────────────────
     provider.title)         printf '%s' "Available LLM providers" ;;
