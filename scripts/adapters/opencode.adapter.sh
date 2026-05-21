@@ -334,8 +334,10 @@ adapter_deploy_config() {
     fi
   fi
 
-  # Construire l'objet "agent" via jq pour garantir un JSON valide
-  local agent_obj_json="{}"
+  # Construire l'objet "agent" — accumulation en bash, une seule invocation jq finale
+  # Deux tableaux parallèles : identifiants et fragments JSON des agents à inclure
+  local _agent_ids=()
+  local _agent_jsons=()
 
   # Précalculer les 3 niveaux hub.json une seule fois (évite N×3 lectures de hub.json en boucle)
   # Si jq absent ou HUB_CONFIG inexistant, les vars restent vides → resolve_agent_model bascule sur le chemin lent (sed) — dégradation gracieuse.
@@ -356,39 +358,26 @@ adapter_deploy_config() {
     local _perm_json=""
     [ -n "$_asource" ] && _perm_json=$(extract_permission_json "$_asource")
 
-    # Construire l'entrée JSON pour cet agent via jq
-    local _entry_json=""
-    if [ "$_amode" != "primary" ] && [ -n "$_perm_json" ]; then
-      _entry_json=$(jq -n --arg mode "$_amode" --argjson perm "{${_perm_json}}" \
-        '{mode: $mode} + $perm')
-    elif [ "$_amode" != "primary" ]; then
-      _entry_json=$(jq -n --arg mode "$_amode" '{mode: $mode}')
-    elif [ -n "$_perm_json" ]; then
-      _entry_json=$(jq -n --argjson perm "{${_perm_json}}" '$perm')
-    fi
-
     # Résoudre le modèle pour cet agent (vide si == modèle global)
     local _agent_model=""
     if [ -n "$_asource" ]; then
       _agent_model=$(_get_agent_model "$_asource" "$project_id" "$provider_override" "$_hub_agent_models" "$_hub_family_models" "$_hub_global_model")
     fi
 
-    # Fusionner le champ model si nécessaire
-    if [ -n "$_agent_model" ]; then
-      if [ -n "$_entry_json" ]; then
-        _entry_json=$(jq -n --argjson base "$_entry_json" --arg m "$_agent_model" '$base + {model: $m}')
-      else
-        _entry_json=$(jq -n --arg m "$_agent_model" '{model: $m}')
-      fi
+    # Construire le fragment JSON de l'agent en bash (zéro fork)
+    # Ordre des champs : mode (si subagent) → permission → model — identique à l'implémentation jq précédente
+    local _json_parts=()
+    [ "$_amode" != "primary" ] && _json_parts+=('"mode": "'"${_amode}"'"')
+    [ -n "$_perm_json" ]       && _json_parts+=("${_perm_json}")
+    [ -n "$_agent_model" ]     && _json_parts+=('"model": "'"${_agent_model}"'"')
+
+    if [ "${#_json_parts[@]}" -gt 0 ]; then
+      local _parts_str
+      _parts_str=$(IFS=','; echo "${_json_parts[*]}")  # IFS réduit à ',' (supprime l'espace ambigu — comportement identique)
+      _agent_ids+=("$_aid")
+      _agent_jsons+=("{${_parts_str}}")
     fi
 
-    if [ -n "$_entry_json" ]; then
-      agent_obj_json=$(jq -n \
-        --argjson base "$agent_obj_json" \
-        --arg id "$_aid" \
-        --argjson entry "$_entry_json" \
-        '$base + {($id): $entry}')
-    fi
     _ai=$((_ai + 1))
   done
 
@@ -400,13 +389,30 @@ adapter_deploy_config() {
   if [ -z "$disabled_csv" ]; then
     disabled_csv=$(get_hub_disabled_native_agents)
   fi
-  for agent_name in $(echo "$disabled_csv" | tr ',' ' '); do
-    [ -z "$agent_name" ] && continue
-    agent_obj_json=$(jq -n \
-      --argjson base "$agent_obj_json" \
-      --arg id "$agent_name" \
-      '$base + {($id): {"disable": true}}')
-  done
+  if [ -n "$disabled_csv" ]; then
+    local _dname
+    IFS=',' read -ra _disabled_arr <<< "$disabled_csv"
+    for _dname in "${_disabled_arr[@]}"; do
+      _dname="${_dname#"${_dname%%[! ]*}"}"; _dname="${_dname%"${_dname##*[! ]}"}"  # trim complet leading/trailing
+      [ -z "$_dname" ] && continue
+      _agent_ids+=("$_dname")
+      _agent_jsons+=('{"disable": true}')
+    done
+  fi
+
+  # Assembler agent_obj_json en une seule invocation jq
+  # Construire la chaîne JSON brute "{\"id1\": {...}, \"id2\": {...}}" et valider via jq '.'
+  local agent_obj_json="{}"
+  if [ "${#_agent_ids[@]}" -gt 0 ]; then
+    local _tmp_json=""
+    local _ji=0
+    while [ "$_ji" -lt "${#_agent_ids[@]}" ]; do
+      [ -n "$_tmp_json" ] && _tmp_json="${_tmp_json},"
+      _tmp_json="${_tmp_json}\"${_agent_ids[$_ji]}\": ${_agent_jsons[$_ji]}"
+      _ji=$((_ji + 1))
+    done
+    agent_obj_json=$(printf '{%s}' "$_tmp_json" | jq '.')
+  fi
 
   # Régénérer si : fichier absent, clé API à injecter, project_id défini, ou provider_override fourni
   local should_write=false
@@ -451,21 +457,31 @@ adapter_deploy_config() {
         '$base + {"agent": $agents}')
     fi
 
-    # Écrire le fichier final
-    printf '%s\n' "$base_obj" > "$config_file"
+    # Écriture atomique : tmp puis mv pour éviter un état corrompu si le script est interrompu
+    local _tmp_config="${config_file}.tmp"
+    printf '%s\n' "$base_obj" > "$_tmp_config"
 
     if [ "$has_api_key" = true ]; then
+      chmod 600 "$_tmp_config"
+      mv "$_tmp_config" "$config_file"
       log_success "  opencode.json  (modèle : $model, provider : $effective_provider)"
-      chmod 600 "$config_file"
     else
+      mv "$_tmp_config" "$config_file"
       local subagent_count=0
       local _si=0
       while [ "$_si" -lt "${#_DEPLOY_FILES_AGENT_VALS[@]}" ]; do
         [ "${_DEPLOY_FILES_AGENT_VALS[$_si]}" != "primary" ] && subagent_count=$((subagent_count + 1))
         _si=$((_si + 1))
       done
+      # Compter les agents désactivés en bash pur (zéro fork)
       local disabled_count=0
-      [ -n "$disabled_csv" ] && disabled_count=$(echo "$disabled_csv" | tr ',' '\n' | grep -v '^$' | wc -l | tr -d ' ')
+      if [ -n "$disabled_csv" ]; then
+        IFS=',' read -ra _count_arr <<< "$disabled_csv"
+        for _entry in "${_count_arr[@]}"; do
+          _entry="${_entry#"${_entry%%[! ]*}"}"; _entry="${_entry%"${_entry##*[! ]}"}"  # trim complet leading/trailing
+          [ -n "$_entry" ] && disabled_count=$((disabled_count + 1))
+        done
+      fi
       log_success "  opencode.json  (modèle : $model, $subagent_count agent(s) en mode subagent, $disabled_count désactivé(s))"
     fi
   else
