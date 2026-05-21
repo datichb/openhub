@@ -92,12 +92,9 @@ _cmd help.config_unset
 _cmd help.config_language
 _cmd help.provider_list
 _cmd help.provider_set_default
-_cmd help.target_info
-_cmd help.target_select
 
 _section help.section.deploy_targets
 _note "$(t help.deploy_target.opencode)"
-_note "$(t help.deploy_target.all)"
 
 _section help.section.agents
 _cmd help.agent_list
