@@ -30,14 +30,7 @@ if [ ${#project_ids[@]} -eq 0 ]; then
   exit 0
 fi
 
-# Résoudre les cibles actives
-active_targets=()
-while IFS= read -r t; do [ -n "$t" ] && active_targets+=("$t"); done < <(get_active_targets)
-
-if [ "${#active_targets[@]}" -eq 0 ]; then
-  log_warn "$(t sync.no_targets)"
-  exit 0
-fi
+active_targets=("opencode")
 
 deployed_count=0
 skipped_count=0
