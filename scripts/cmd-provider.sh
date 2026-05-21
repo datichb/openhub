@@ -24,7 +24,7 @@ cmd_list() {
   jq -r '.providers | keys[]' "$PROVIDERS_FILE" | while read -r pname; do
     local label; label=$(get_provider_info "$pname" "label")
     local desc; desc=$(get_provider_info "$pname" "description")
-    local targets_raw; targets_raw=$(jq -r --arg n "$pname" '.providers[$n].supported_targets[]' "$PROVIDERS_FILE" 2>/dev/null | paste -sd ',' -)
+    local targets_raw; targets_raw=$(jq -r --arg n "$pname" '.providers[$n].supported_targets // [] | .[]' "$PROVIDERS_FILE" 2>/dev/null | paste -sd ',' -)
 
     # Statut hub
     local status=""
