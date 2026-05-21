@@ -242,6 +242,7 @@ _cmd_deploy_diff() {
       # Générer le contenu cible dans un fichier temporaire
       local tmpfile; tmpfile=$(mktemp /tmp/oc-diff-XXXXXX.md)
       local diff_deploy_dir="$deploy_dir"
+      # TODO perf: transmettre precomputed_stacks ici comme pour adapter_deploy_files et --check
       if ! build_agent_content "$agent_file" "$tgt" "$lang" "$diff_deploy_dir" > "$tmpfile" 2>/dev/null; then
         rm -f "$tmpfile"
         log_warn "  Génération échouée pour $agent_id — ignoré"

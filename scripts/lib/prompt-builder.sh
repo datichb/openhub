@@ -544,12 +544,17 @@ _get_precomputed_stack_skills() {
 # $2 (target) est réservé pour un futur filtrage par cible — non utilisé pour l'instant
 # $3 (lang) optionnel — si non vide, injecte une instruction de langue en tête de l'agent
 # $4 (project_path) optionnel — si non vide, détecte la stack et injecte les skills correspondants
+# $5 (precomputed_stacks) optionnel — si non vide, utilise les stack skills précalculés (chemin rapide)
+#   fourni par adapter_deploy_files via precompute_stack_skills ; zéro fork supplémentaire.
+#   Si vide, fallback sur detect_stack + resolve_stack_skills (rétrocompatibilité).
+#   Note : ignoré silencieusement si $4 (project_path) est vide ou inexistant.
 build_agent_content() {
   local agent_file="$1"
   # shellcheck disable=SC2034
   local target="${2:-opencode}"  # réservé : filtrage par cible (futur)
   local lang="${3:-}"
   local project_path="${4:-}"
+  local precomputed_stacks="${5:-}"
   [ -f "$agent_file" ] || { log_warn "Agent introuvable : $agent_file" >&2; return 1; }
 
   build_generated_header
@@ -571,24 +576,34 @@ build_agent_content() {
   if [ -n "$project_path" ] && [ -d "$project_path" ]; then
     local agent_id
     agent_id=$(get_agent_id "$agent_file")
-
     local stack_skills_config="${HUB_DIR:-}/config/stack-skills.json"
-
     if [ -f "$stack_skills_config" ]; then
-      local detected_stacks
-      detected_stacks=$(detect_stack "$project_path" | sort -u || true)
-
-      if [ -n "$detected_stacks" ]; then
+      if [ -n "$precomputed_stacks" ]; then
+        # Chemin rapide : utiliser les stack skills précalculés
         while IFS= read -r stack_skill; do
           [ -z "$stack_skill" ] && continue
-          # Vérifier que ce skill n'est pas déjà dans les skills déclarés
           local already_declared=0
           local declared_skill
           for declared_skill in "${skills[@]:-}"; do
             [ "$declared_skill" = "$stack_skill" ] && already_declared=1 && break
           done
           [ "$already_declared" = "0" ] && stack_skills+=("$stack_skill")
-        done < <(resolve_stack_skills "$agent_id" "$detected_stacks" "$stack_skills_config")
+        done < <(_get_precomputed_stack_skills "$agent_id" "$precomputed_stacks")
+      else
+        # Chemin lent (rétrocompatibilité) : détecter la stack à la volée
+        local detected_stacks
+        detected_stacks=$(detect_stack "$project_path" | sort -u || true)
+        if [ -n "$detected_stacks" ]; then
+          while IFS= read -r stack_skill; do
+            [ -z "$stack_skill" ] && continue
+            local already_declared=0
+            local declared_skill
+            for declared_skill in "${skills[@]:-}"; do
+              [ "$declared_skill" = "$stack_skill" ] && already_declared=1 && break
+            done
+            [ "$already_declared" = "0" ] && stack_skills+=("$stack_skill")
+          done < <(resolve_stack_skills "$agent_id" "$detected_stacks" "$stack_skills_config")
+        fi
       fi
     fi
   fi

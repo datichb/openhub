@@ -261,13 +261,25 @@ adapter_deploy_files() {
   # Charger les métadonnées (réinitialise les tableaux _DEPLOY_FILES_*)
   _load_agent_metadata "$project_id"
 
+  # Précalculer les stack skills une seule fois pour tous les agents (une seule invocation au lieu d'une par agent)
+  local _precomputed_stacks=""
+  local _detected_stacks=""
+  local _stack_skills_config="${HUB_DIR:-}/config/stack-skills.json"
+  if [ -n "$deploy_dir" ] && [ -d "$deploy_dir" ] && [ -f "$_stack_skills_config" ]; then
+    # deploy_dir est toujours non vide ici (fallback HUB_DIR), guard [ -n ] conservé par cohérence défensive
+    _detected_stacks=$(detect_stack "$deploy_dir" 2>/dev/null | sort -u || true)
+    if [ -n "$_detected_stacks" ]; then
+      _precomputed_stacks=$(precompute_stack_skills "$_detected_stacks" "$_stack_skills_config")
+    fi
+  fi
+
   # Copier chaque agent retenu dans le répertoire cible
   local _i=0
   while [ "$_i" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
     local _aid="${_DEPLOY_FILES_AGENT_KEYS[$_i]}"
     local _asource="${_DEPLOY_FILES_AGENT_FILES[$_i]}"
 
-    build_agent_content "$_asource" "opencode" "$lang" "$deploy_dir" > "$out_dir/${_aid}.md"
+    build_agent_content "$_asource" "opencode" "$lang" "$deploy_dir" "$_precomputed_stacks" > "$out_dir/${_aid}.md"
     log_success "  $_aid"
     _i=$((_i + 1))
   done
