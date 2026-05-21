@@ -308,12 +308,6 @@ _set_project_modes() {
   " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Modes : ${new_modes}" "$PROJECTS_FILE"; then
     return 0
   fi
-  # Insérer après "- Targets :" si présent
-  if perl -i -0777pe "
-    s{(^## \Q${id}\E\n.*?- Targets : [^\n]+\n)}{\${1}- Modes : ${new_modes}\n}ms
-  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Modes : ${new_modes}" "$PROJECTS_FILE"; then
-    return 0
-  fi
   # Fallback : insérer après "- Agents :"
   if perl -i -0777pe "
     s{(^## \Q${id}\E\n.*?- Agents : [^\n]+\n)}{\${1}- Modes : ${new_modes}\n}ms
@@ -400,7 +394,7 @@ get_project_disabled_native_agents() {
 
 # Écrit/met à jour "- Disable agents :" dans le bloc d'un projet dans projects.md
 # Si valeur vide → supprime le champ
-# Insérer après "- Targets :" si présent, sinon après "- Agents :"
+# Insérer après "- Agents :"
 # @param $1 — PROJECT_ID
 # @param $2 — valeur CSV (ou "" pour supprimer)
 _set_project_disabled_native_agents() {
@@ -415,12 +409,6 @@ _set_project_disabled_native_agents() {
   # Remplacer si existant
   if perl -i -0777pe "
     s{(^## \Q${id}\E\n.*?)(- Disable agents : [^\n]+)}{\${1}- Disable agents : ${new_val}}ms
-  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Disable agents : ${new_val}" "$PROJECTS_FILE"; then
-    return 0
-  fi
-  # Insérer après "- Targets :" si présent
-  if perl -i -0777pe "
-    s{(^## \Q${id}\E\n.*?- Targets : [^\n]+\n)}{\${1}- Disable agents : ${new_val}\n}ms
   " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Disable agents : ${new_val}" "$PROJECTS_FILE"; then
     return 0
   fi
