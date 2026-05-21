@@ -316,9 +316,14 @@ extract_permission_json() {
 }
 
 # Retourne le contenu d'un fichier Markdown en ignorant le bloc frontmatter YAML
+# Utilise le builtin read pour détecter "---" en première ligne (zéro fork).
+# Le || true est intentionnel : IFS= read -r retourne exit 1 sur EOF (fichier vide),
+# ce qui ferait planter la fonction sous set -euo pipefail sans ce guard.
 strip_frontmatter() {
   local file="$1"
-  if head -1 "$file" | grep -q '^---$'; then
+  local _first_line
+  IFS= read -r _first_line < "$file" || true  # EOF retourne exit 1 — || true : safe avec set -e
+  if [[ "$_first_line" = "---" ]]; then
     awk 'BEGIN{f=0;d=0} /^---$/{if(!f){f=1;next}else if(!d){d=1;next}} d{print}' "$file"
   else
     cat "$file"
@@ -557,9 +562,9 @@ precompute_stack_skills() {
   [ -f "$config_file" ] || return 0
   command -v jq &>/dev/null || return 0
 
-  # Construire un tableau jq de stacks depuis la liste bash
+  # Construire un tableau jq de stacks depuis la liste bash (une seule invocation jq — zéro fork supplémentaire)
   local stacks_json
-  stacks_json=$(printf '%s\n' "$stacks_list" | jq -R . | jq -s .)
+  stacks_json=$(printf '%s\n' "$stacks_list" | jq -Rs '[split("\n")[] | select(. != "")]')
 
   # En une seule invocation jq : pour chaque agent qui a un _agent_scope,
   # parcourir les catégories autorisées, puis les stacks détectées,

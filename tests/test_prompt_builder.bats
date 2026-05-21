@@ -97,6 +97,23 @@ EOF
   ! echo "$output" | grep -q "^---"
 }
 
+@test "strip_frontmatter : fichier vide — retourne vide sans erreur (non-régression set -e)" {
+  local empty_file="$TEST_DIR/empty.md"
+  : > "$empty_file"
+  run strip_frontmatter "$empty_file"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "strip_frontmatter : fichier sans frontmatter — retourne le contenu intégral" {
+  local f="$TEST_DIR/no-frontmatter.md"
+  printf 'body content\nline 2\n' > "$f"
+  run strip_frontmatter "$f"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "body content"
+  echo "$output" | grep -q "line 2"
+}
+
 # ── agent_supports_target ─────────────────────────────────────────────────────
 
 @test "agent_supports_target : retourne 0 pour une cible supportée (opencode)" {
