@@ -89,16 +89,13 @@ fi
 
 # ── Résolution de la cible ────────────────
 source "$LIB_DIR/adapter-manager.sh"
-default_target=$(get_default_target)
+default_target="opencode"
 
 load_adapter "$default_target"
 adapter_validate || { log_error "$(t start.target_unavailable) (puis sélectionner $default_target)"; exit 1; }
 
 # ── Vérifier que les agents sont déployés ──────────────
-case "$default_target" in
-  opencode) agents_dir="$PROJECT_PATH/.opencode/agents" ;;
-  *)        agents_dir="" ;;
-esac
+agents_dir="$PROJECT_PATH/.opencode/agents"
 
 # ── Bloc contextuel ───────────────────────────────────────────────────────────
 _intro "${PROJECT_ID}"
