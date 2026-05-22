@@ -368,7 +368,7 @@ _outro "Fichiers locaux initialisés"
 # ─────────────────────────────────────────
 _intro "Configuration des outils AI"
 
-log_info "Lancement de 'oc install' pour choisir vos cibles et configurer votre fournisseur LLM..."
+log_info "Lancement de 'oc install' pour configurer votre fournisseur LLM..."
 echo -e "${DIM}│${RESET}"
 
 if bash "$INSTALL_DIR/oc.sh" install < /dev/tty; then

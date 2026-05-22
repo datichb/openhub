@@ -28,32 +28,7 @@ else
   log_success "jq $(jq --version)"
 fi
 
-# ── Choisir les cibles ───────────────────
-log_title "$(t install.targets_title)"
-echo ""
-echo "  1. $(t install.target_opencode)"
-echo ""
-read -rp "$(t install.choose_prompt)" tool_choice
-tool_choice="${tool_choice:-1}"
-
-active_targets=()
-case "$tool_choice" in
-  *) active_targets=("opencode") ;;
-esac
-
-echo ""
-
-# ── Vérifier si une cible requiert Node.js ───────────────────────────────────
-needs_node=false
-for target in "${active_targets[@]}"; do
-  load_adapter "$target"
-  adapter_needs_node && needs_node=true && break
-done
-
-if [ "$needs_node" = true ]; then
-  source "$LIB_DIR/node-installer.sh"
-  ensure_node || exit 1
-fi
+active_targets=("opencode")
 
 # ── Dossiers requis ──────────────────────
 mkdir -p "$HUB_DIR/projects" "$HUB_DIR/skills" "$HUB_DIR/agents" \

@@ -401,8 +401,6 @@ t() {
       install.jq_failed)      printf '%s' "Échec installation jq — à installer manuellement" ;;
       install.jq_degraded)    printf '%s' "Certaines fonctionnalités (deploy, skills, beads) seront dégradées sans jq" ;;
       install.jq_manual)      printf '%s' "Installer jq manuellement :" ;;
-      install.targets_title)  printf '%s' "Cibles à configurer" ;;
-      install.target_opencode) printf '%s' "OpenCode (recommandé)" ;;
       install.choose_prompt)  printf '%s' "Choisir (défaut: 1) : " ;;
       install.hub_json_exists) printf '%s' "config/hub.json existe déjà." ;;
       install.hub_json_overwrite) printf '%s' "Écraser avec les nouvelles cibles ? [y/N] : " ;;
@@ -1000,8 +998,6 @@ t_en() {
     install.jq_failed)      printf '%s' "jq installation failed — install manually" ;;
     install.jq_degraded)    printf '%s' "Some features (deploy, skills, beads) will be degraded without jq" ;;
     install.jq_manual)      printf '%s' "Install jq manually:" ;;
-    install.targets_title)  printf '%s' "Targets to configure" ;;
-    install.target_opencode) printf '%s' "OpenCode (recommended)" ;;
     install.choose_prompt)  printf '%s' "Choose (default: 1): " ;;
     install.hub_json_exists) printf '%s' "config/hub.json already exists." ;;
     install.hub_json_overwrite) printf '%s' "Overwrite with new targets? [y/N]: " ;;
