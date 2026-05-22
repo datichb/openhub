@@ -395,6 +395,7 @@ t() {
       install.done)           printf '%s' "Installation terminée." ;;
       install.deps_required)  printf '%s' "Dépendances requises :" ;;
       install.os_detected)    printf '%s' "OS détecté :" ;;
+      install.os_done)        printf '%s' "OS configuré :" ;;
       install.jq_missing)     printf '%s' "jq non détecté — dépendance critique pour opencode-hub" ;;
       install.jq_install_brew) printf '%s' "Installer jq via Homebrew ? [Y/n] : " ;;
       install.jq_installed)   printf '%s' "jq installé" ;;
@@ -430,6 +431,11 @@ t() {
       install.beads_failed)   printf '%s' "Échec installation Beads — installer manuellement : brew install beads" ;;
       install.beads_no_tools) printf '%s' "Homebrew et curl introuvables — installer Beads manuellement :" ;;
       install.beads_later)    printf '%s' "Beads non installé — à installer plus tard : brew install beads" ;;
+      install.opencode_title) printf '%s' "Installation opencode" ;;
+      install.opencode_done)  printf '%s' "opencode installé" ;;
+      install.config_title)   printf '%s' "Fichiers de configuration" ;;
+      install.config_done)    printf '%s' "Fichiers initialisés" ;;
+      install.beads_done)     printf '%s' "Beads configuré" ;;
       install.ready)          printf '%s' "opencode-hub prêt !" ;;
       uninstall.title)        printf '%s' "Désinstallation opencode-hub" ;;
       uninstall.confirm)      printf '%s' "Désinstaller opencode-hub ? [y/N] " ;;
@@ -992,6 +998,7 @@ t_en() {
     install.done)           printf '%s' "Installation complete." ;;
     install.deps_required)  printf '%s' "Required dependencies:" ;;
     install.os_detected)    printf '%s' "OS detected:" ;;
+    install.os_done)        printf '%s' "OS configured:" ;;
     install.jq_missing)     printf '%s' "jq not detected — critical dependency for opencode-hub" ;;
     install.jq_install_brew) printf '%s' "Install jq via Homebrew? [Y/n]: " ;;
     install.jq_installed)   printf '%s' "jq installed" ;;
@@ -1027,6 +1034,11 @@ t_en() {
     install.beads_failed)   printf '%s' "Beads installation failed — install manually: brew install beads" ;;
     install.beads_no_tools) printf '%s' "Homebrew and curl not found — install Beads manually:" ;;
     install.beads_later)    printf '%s' "Beads not installed — install later: brew install beads" ;;
+    install.opencode_title) printf '%s' "opencode installation" ;;
+    install.opencode_done)  printf '%s' "opencode installed" ;;
+    install.config_title)   printf '%s' "Configuration files" ;;
+    install.config_done)    printf '%s' "Files initialized" ;;
+    install.beads_done)     printf '%s' "Beads configured" ;;
     install.ready)          printf '%s' "opencode-hub ready!" ;;
     uninstall.title)        printf '%s' "opencode-hub uninstall" ;;
     uninstall.confirm)      printf '%s' "Uninstall opencode-hub? [y/N] " ;;

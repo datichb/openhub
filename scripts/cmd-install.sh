@@ -3,7 +3,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 
-log_title "$(t install.title)"
+_intro "$(t install.title)"
 
 OS=$(detect_os)
 log_info "$(t install.os_detected) $OS"
@@ -28,7 +28,12 @@ else
   log_success "jq $(jq --version)"
 fi
 
+_outro "$(t install.os_done) $OS"
+
 active_targets=("opencode")
+
+# ── Installation opencode ────────────────
+_intro "$(t install.opencode_title)"
 
 # ── Dossiers requis ──────────────────────
 mkdir -p "$HUB_DIR/projects" "$HUB_DIR/skills" "$HUB_DIR/agents" \
@@ -73,13 +78,14 @@ for target in "${active_targets[@]}"; do
   adapter_install
 done
 
+_outro "$(t install.opencode_done)"
+
 # ── Fournisseur LLM par défaut ────────────────────────────────────────────────
 # Cette section s'exécute APRÈS adapter_install pour éviter de persister la clé
 # dans hub.json si l'installation des outils échoue.
-log_title "$(t install.provider_title)"
-echo ""
+_intro "$(t install.provider_title)"
 log_info "$(t install.provider_choose)"
-echo ""
+echo -e "${DIM}│${RESET}"
 
 # Construire le menu dynamiquement depuis providers.json
 _provider_names=()
@@ -171,29 +177,27 @@ if [ -n "$_selected_provider" ]; then
       fi
     fi
 
-    log_success "$(t install.provider_configured) ${_selected_label}"
+    _outro "$(t install.provider_configured) ${_selected_label}"
   else
-    log_info "$(t install.provider_skipped)"
+    _outro "$(t install.provider_skipped)"
   fi
 else
-  log_info "$(t install.provider_skipped)"
+  _outro "$(t install.provider_skipped)"
 fi
 
-echo ""
-
 # ── Fichiers initiaux ────────────────────
+_intro "$(t install.config_title)"
 ensure_projects_file
 ensure_paths_file
 ensure_api_keys_file
 
-echo ""
 log_info "$(t install.skills_tip)"
 log_info "  ./oc.sh skills search <query>        # Rechercher"
 log_info "  ./oc.sh skills add /owner/repo name  # Ajouter"
+_outro "$(t install.config_done)"
 
 # ── Installer Beads (bd) ─────────────────
-echo ""
-log_title "$(t install.beads_title)"
+_intro "$(t install.beads_title)"
 if command -v bd &>/dev/null; then
   bd_version=$(bd --version 2>/dev/null || bd version 2>/dev/null || echo '?')
   log_success "$(t install.beads_already) ($bd_version)"
@@ -231,6 +235,6 @@ else
     log_info "$(t install.beads_later)"
   fi
 fi
+_outro "$(t install.beads_done)"
 
-echo ""
 log_success "$(t install.ready)"
