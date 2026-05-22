@@ -159,9 +159,11 @@ teardown() {
 
 # ── cmd-provider.sh get ───────────────────────────────────────────────────────
 
-@test "cmd-provider.sh get : affiche l'ID projet dans la sortie" {
-  run bash "$BATS_TEST_DIRNAME/../scripts/cmd-provider.sh" get "NONEXISTENT-PROJECT" 2>&1 || true
-  [[ "$output" == *"NONEXISTENT-PROJECT"* ]]
+@test "cmd-provider.sh get : sous-commande supprimée — affiche un message d'erreur avec la commande de remplacement" {
+  run bash "$BATS_TEST_DIRNAME/../scripts/cmd-provider.sh" get
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"supprimé"* ]]
+  [[ "$output" == *"oc config get"* ]]
 }
 
 # ── Contenu de cmd-config.sh ──────────────────────────────────────────────────
@@ -227,9 +229,12 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "providers.json : le modèle par défaut bedrock utilise le préfixe amazon-bedrock/" {
+@test "providers.json : le modèle par défaut bedrock est sans préfixe (le préfixe amazon-bedrock/ est dans opencode_prefix)" {
   result=$(jq -r '.providers.bedrock.default_model' "$BATS_TEST_DIRNAME/../config/providers.json")
-  [[ "$result" == *"amazon-bedrock/"* ]]
+  [ -n "$result" ]
+  [[ "$result" != *"amazon-bedrock/"* ]]
+  prefix=$(jq -r '.providers.bedrock.opencode_prefix' "$BATS_TEST_DIRNAME/../config/providers.json")
+  [ "$prefix" = "amazon-bedrock" ]
 }
 
 @test "providers.json : bedrock.litellm est false (provider natif)" {
