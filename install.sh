@@ -323,19 +323,50 @@ fi
 
 # ── Alias ocp (provider switcher) ──────────────────────────────────────────
 _ocp_line="alias ocp=\"$INSTALL_DIR/ocp.sh\""
+_ocp_alias_name="ocp"
 
 if [ -n "$_rc_file" ]; then
   if grep -qF "alias ocp=" "$_rc_file" 2>/dev/null; then
-    sed -i.bak "s|^alias ocp=.*|$_ocp_line|" "$_rc_file"
-    rm -f "$_rc_file.bak"
-    log_success "Alias 'ocp' mis à jour dans $_rc_file"
+    log_warn "Un alias 'ocp' existe déjà dans $_rc_file"
+    echo ""
+    echo "  1. Garder l'existant (ne rien faire)"
+    echo "  2. Remplacer par le nouvel alias"
+    echo "  3. Utiliser un nom alternatif (ex: ocprov, hub-p)"
+    echo ""
+    read -rp "  Choisir (1-3, défaut: 1) : " _ocp_alias_choice </dev/tty
+    _ocp_alias_choice="${_ocp_alias_choice:-1}"
+    case "$_ocp_alias_choice" in
+      2)
+        sed -i.bak "s|^alias ocp=.*|$_ocp_line|" "$_rc_file"
+        rm -f "$_rc_file.bak"
+        log_success "Alias 'ocp' remplacé dans $_rc_file"
+        ;;
+      3)
+        read -rp "  Nom de l'alias à utiliser : " _ocp_alias_name </dev/tty
+        _ocp_alias_name="${_ocp_alias_name:-ocprov}"
+        _ocp_line="alias $_ocp_alias_name=\"$INSTALL_DIR/ocp.sh\""
+        {
+          echo ""
+          echo "# opencode-hub"
+          echo "$_ocp_line"
+        } >> "$_rc_file"
+        log_success "Alias '$_ocp_alias_name' ajouté dans $_rc_file"
+        ;;
+      *)
+        log_info "Alias 'ocp' existant conservé"
+        ;;
+    esac
   else
-    echo "" >> "$_rc_file"
-    echo "$_ocp_line" >> "$_rc_file"
+    {
+      echo ""
+      echo "# opencode-hub"
+      echo "$_ocp_line"
+    } >> "$_rc_file"
     log_success "Alias 'ocp' ajouté dans $_rc_file"
   fi
 else
-  log_warn "Shell non reconnu — ajouter manuellement : alias ocp=\"$INSTALL_DIR/ocp.sh\""
+  log_warn "Shell non reconnu — ajouter manuellement dans votre fichier rc :"
+  log_info "  $_ocp_line"
 fi
 
 _outro "Alias 'oc' et 'ocp' configurés"
