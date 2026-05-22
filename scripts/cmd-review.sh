@@ -101,7 +101,7 @@ if [ "$agents_csv" != "all" ]; then
       _prompt _redeploy "$(t review.redeploy_prompt)"
       if [[ "${_redeploy:-Y}" =~ ^[Yy]$ ]]; then
         echo ""
-        bash "$SCRIPTS_DIR/cmd-deploy.sh" "$default_target" "$PROJECT_ID"
+        bash "$SCRIPTS_DIR/cmd-deploy.sh" "$PROJECT_ID"
         echo ""
       else
         log_info "$(t review.redeploy_later)$default_target $PROJECT_ID"
@@ -118,7 +118,7 @@ if [ -n "$agents_dir" ] && [ ! -d "$agents_dir" ]; then
   _prompt _deploy_now "$(t review.deploy_now_prompt)"
   if [[ "${_deploy_now:-Y}" =~ ^[Yy]$ ]]; then
     echo ""
-    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$default_target" "$PROJECT_ID"
+    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$PROJECT_ID"
     echo ""
   else
     log_warn "$(t review.deploy_skipped)"
@@ -129,7 +129,7 @@ elif [ -n "$agents_dir" ] && [ -d "$agents_dir" ] && [ ! -f "$agents_dir/${REQUI
   _prompt _deploy_missing "$(t review.redeploy_prompt)"
   if [[ "${_deploy_missing:-Y}" =~ ^[Yy]$ ]]; then
     echo ""
-    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$default_target" "$PROJECT_ID"
+    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$PROJECT_ID"
     echo ""
   else
     log_warn "$(t review.deploy_skipped)"

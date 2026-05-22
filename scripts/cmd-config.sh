@@ -384,7 +384,7 @@ cmd_set() {
   if path_exists "$id"; then
     read -rp "  $(t config.apply_now)" apply_now
     if [[ "${apply_now:-Y}" =~ ^[Yy]$ ]]; then
-      PROJECT_ID="$id" bash "$SCRIPTS_DIR/cmd-deploy.sh" all "$id"
+      PROJECT_ID="$id" bash "$SCRIPTS_DIR/cmd-deploy.sh" "$id"
     else
       log_info "$(t config.apply_later)"
     fi
