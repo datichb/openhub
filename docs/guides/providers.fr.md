@@ -123,41 +123,7 @@ Vous serez invité à :
 
 La configuration est écrite dans `config/hub.json` **et `opencode.json` est régénéré immédiatement** — pas besoin de lancer `oc deploy` manuellement.
 
-### `oc provider set <PROJECT_ID> [PROVIDER] [API_KEY] [BASE_URL]`
-
-Configure un provider pour un projet spécifique :
-
-```bash
-# Interactif
-./oc.sh provider set MY-PROJECT
-
-# Non-interactif (direct)
-./oc.sh provider set MY-PROJECT mammouth "sk-xxx" "https://api.mammouth.ai/v1"
-```
-
-Si `PROVIDER`, `API_KEY` ou `BASE_URL` sont omis, vous serez invité à les saisir.
-
-La configuration est écrite dans `projects/api-keys.local.md`.
-
-### `oc provider get <PROJECT_ID>`
-
-Affiche la configuration effective du provider pour un projet :
-
-```bash
-./oc.sh provider get MY-PROJECT
-```
-
-Exemple de sortie :
-```
-Configuration effective pour MY-PROJECT
-
-  Provider : mammouth
-  Model    : claude-opus
-  API Key  : sk-xxx****
-  Base URL : https://api.mammouth.ai/v1
-```
-
-Affiche la configuration résolue après fusion des paramètres projet et hub.
+> **Note :** La configuration du provider par projet se gère via `oc config set <PROJECT_ID>` — voir `./oc.sh config set --help` ou la [référence de configuration](../reference/config.fr.md).
 
 ## Guides de configuration par fournisseur
 
@@ -412,7 +378,7 @@ C'est un comportement attendu. OpenCode ne supporte que Anthropic. Si vous avez 
 
 ### Modèle introuvable / Erreurs API
 
-1. Vérifiez que votre clé API est correcte : `./oc.sh provider get <PROJECT_ID>`
+1. Vérifiez que votre clé API est correcte : `./oc.sh config get <PROJECT_ID>`
 2. Vérifiez que l'URL de base est correcte pour votre provider
 3. Assurez-vous que le service provider est en cours d'exécution (notamment pour Ollama)
 4. Testez votre clé API directement avec la CLI ou l'API du provider
@@ -421,7 +387,7 @@ C'est un comportement attendu. OpenCode ne supporte que Anthropic. Si vous avez 
 
 Après `oc provider set-default`, `opencode.json` est automatiquement régénéré — aucune étape manuelle nécessaire.
 
-Pour les changements au niveau projet (`oc config set` ou `oc provider set`), redéployez :
+Pour les changements au niveau projet (`oc config set`), redéployez :
 
 ```bash
 ./oc.sh deploy all MON-PROJET

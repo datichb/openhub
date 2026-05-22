@@ -305,8 +305,6 @@ oc provider set-default                   Configurer le provider par défaut du 
 oc provider init [--force]               Créer les fichiers config/providers/*.json (switcher ocp)
 oc provider set-key <nom> <clé>          Mettre à jour la clé API d'un fichier provider
 oc provider set-model <nom> <modèle>     Mettre à jour le modèle d'un fichier provider
-oc provider set <PROJECT_ID> [...]        Configurer un provider pour un projet
-oc provider get <PROJECT_ID>              Afficher la configuration effective d'un projet
 ```
 
 ### `oc provider init` — initialisation des fichiers switcher
@@ -338,14 +336,6 @@ Modifient un fichier provider existant dans `config/providers/` de façon atomiq
 ./oc.sh provider set-model ollama qwen2.5-coder:7b
 ```
 
-### Options de `oc provider set` (projets)
-
-```
-oc provider set <PROJECT_ID> [PROVIDER] [API_KEY] [BASE_URL]
-```
-
-Tous les paramètres après `PROJECT_ID` sont optionnels. Si omis, le flux devient interactif.
-
 ### Exemple
 
 ```sh
@@ -360,16 +350,9 @@ Tous les paramètres après `PROJECT_ID` sont optionnels. Si omis, le flux devie
 
 # Configurer le hub par défaut (interactif)
 ./oc.sh provider set-default
-
-# Configurer un projet avec MammouthAI
-./oc.sh provider set MON-PROJET mammouth "sk-xxx" "https://api.mammouth.ai/v1"
-
-# Configurer interactif
-./oc.sh provider set MON-PROJET
-
-# Afficher la configuration effective
-./oc.sh provider get MON-PROJET
 ```
+
+> **Note :** La configuration du provider par projet se gère via `oc config set <PROJECT_ID>` (voir section `oc config` ci-dessus).
 
 ---
 
@@ -503,3 +486,12 @@ skills/external/            # skills téléchargés via oc skills add
 Le hub ne définit pas de variables d'environnement obligatoires.
 Les credentials pour les trackers (Jira, GitLab) sont stockés localement
 par `bd config set` — jamais dans des fichiers versionnés.
+
+Les variables suivantes sont lues par les scripts du hub si elles sont présentes dans l'environnement :
+
+| Variable | Défaut | Obligatoire | Description |
+|----------|--------|-------------|-------------|
+| `OPENCODE_HUB_DIR` | `~/.opencode-hub` | non | Répertoire d'installation du hub. Utilisé par `install.sh` et `uninstall.sh` pour choisir l'emplacement d'installation. Exemple : `OPENCODE_HUB_DIR=~/tools/oc bash install.sh` |
+| `OPENCODE_MODEL` | *(cascade hub.json)* | non | Modèle LLM à utiliser. Niveau 2 de la cascade de résolution du modèle (après la config projet `api-keys.local.md`, avant `hub.json`). Exemple : `OPENCODE_MODEL=claude-opus-4-5` |
+| `AWS_BEARER_TOKEN_BEDROCK` | — | non | Token d'authentification AWS Bedrock. Injecté automatiquement par `oc start` depuis la config projet ou hub quand le provider effectif est `bedrock` — ne pas définir manuellement sauf cas avancé. |
+| `HUB_DIR` | *(dossier du dépôt)* | non | Override du répertoire racine du hub en runtime. Auto-détecté depuis l'emplacement de `oc.sh` si absent. Utile pour les tests ou les configurations multi-hub. |

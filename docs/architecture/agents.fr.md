@@ -1,6 +1,6 @@
 # Référence des agents
 
-27 agents au total, organisés en 7 familles.
+27 agents au total, organisés en 6 familles.
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses cibles et ses skills.
 
@@ -32,17 +32,17 @@ skills: [chemin/vers/skill, ...]
 | `description` | Phrase courte décrivant le rôle — apparaît dans les listes d'agents |
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans les outils cibles |
 | `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
-| `targets` | Cibles supportées : `opencode`, `opencode` |
+| `targets` | Cibles supportées : `opencode` |
 | `skills` | Chemins relatifs à `skills/` — injectés dans l'ordre de déclaration |
 
 ### Modes primary / subagent
 
 Le champ `mode:` contrôle comment un agent est exposé dans chaque outil cible :
 
-| Mode | OpenCode | OpenCode |
-|------|----------|-------------|
-| `primary` | Visible dans le Tab picker | Présent dans `.opencode/agents/` |
-| `subagent` | Listé dans `opencode.json` avec `"mode": "subagent"` — invocable par d'autres agents, invisible dans le Tab picker | Présent dans `.opencode/agents/` avec description orientée délégation |
+| Mode | OpenCode |
+|------|----------|
+| `primary` | Visible dans le Tab picker — présent dans `.opencode/agents/` |
+| `subagent` | Listé dans `opencode.json` avec `"mode": "subagent"` — invocable par d'autres agents, invisible dans le Tab picker. Présent dans `.opencode/agents/` avec description orientée délégation. |
 
 Le mode effectif suit une priorité : **override projet** (`- Modes :` dans `projects.md`) > **frontmatter agent** > **`primary`** (défaut).
 

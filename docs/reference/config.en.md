@@ -304,17 +304,7 @@ Manages LLM provider configuration at the hub (default) and project levels.
 ```
 oc provider list                          List all available providers
 oc provider set-default                   Configure the hub default provider
-oc provider set <PROJECT_ID> [...]        Configure a provider for a project
-oc provider get <PROJECT_ID>              Display the effective configuration for a project
 ```
-
-### `oc provider set` options
-
-```
-oc provider set <PROJECT_ID> [PROVIDER] [API_KEY] [BASE_URL]
-```
-
-All parameters after `PROJECT_ID` are optional. If omitted, the flow becomes interactive.
 
 ### Example
 
@@ -324,16 +314,9 @@ All parameters after `PROJECT_ID` are optional. If omitted, the flow becomes int
 
 # Configure hub default (interactive)
 ./oc.sh provider set-default
-
-# Configure a project with MammouthAI
-./oc.sh provider set MY-PROJECT mammouth "sk-xxx" "https://api.mammouth.ai/v1"
-
-# Interactive configuration
-./oc.sh provider set MY-PROJECT
-
-# Display effective configuration
-./oc.sh provider get MY-PROJECT
 ```
+
+> **Note:** Per-project provider configuration is managed via `oc config set <PROJECT_ID>` (see the `oc config` section above).
 
 ---
 
@@ -431,3 +414,12 @@ skills/external/            # skills downloaded via oc skills add
 The hub does not define any mandatory environment variables.
 Credentials for trackers (Jira, GitLab) are stored locally
 by `bd config set` — never in versioned files.
+
+The following variables are read by hub scripts if present in the environment:
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `OPENCODE_HUB_DIR` | `~/.opencode-hub` | no | Hub installation directory. Used by `install.sh` and `uninstall.sh` to choose the installation path. Example: `OPENCODE_HUB_DIR=~/tools/oc bash install.sh` |
+| `OPENCODE_MODEL` | *(hub.json cascade)* | no | LLM model to use. Level 2 of the model resolution cascade (after project config `api-keys.local.md`, before `hub.json`). Example: `OPENCODE_MODEL=claude-opus-4-5` |
+| `AWS_BEARER_TOKEN_BEDROCK` | — | no | AWS Bedrock authentication token. Automatically injected by `oc start` from the project or hub config when the effective provider is `bedrock` — do not set manually except for advanced use cases. |
+| `HUB_DIR` | *(repo root directory)* | no | Runtime override of the hub root directory. Auto-detected from the location of `oc.sh` if absent. Useful for testing or multi-hub configurations. |

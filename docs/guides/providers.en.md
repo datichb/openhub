@@ -123,41 +123,7 @@ You'll be prompted to:
 
 The configuration is written to `config/hub.json` **and `opencode.json` is regenerated immediately** — no need to run `oc deploy` manually.
 
-### `oc provider set <PROJECT_ID> [PROVIDER] [API_KEY] [BASE_URL]`
-
-Configure a provider for a specific project:
-
-```bash
-# Interactive
-./oc.sh provider set MY-PROJECT
-
-# Non-interactive (direct)
-./oc.sh provider set MY-PROJECT mammouth "sk-xxx" "https://api.mammouth.ai/v1"
-```
-
-If `PROVIDER`, `API_KEY`, or `BASE_URL` are omitted, you'll be prompted.
-
-The configuration is written to `projects/api-keys.local.md`.
-
-### `oc provider get <PROJECT_ID>`
-
-Display the effective provider configuration for a project:
-
-```bash
-./oc.sh provider get MY-PROJECT
-```
-
-Example output:
-```
-Effective configuration for MY-PROJECT
-
-  Provider : mammouth
-  Model    : claude-opus
-  API Key  : sk-xxx****
-  Base URL : https://api.mammouth.ai/v1
-```
-
-Shows the resolved configuration after merging project-level and hub-level settings.
+> **Note:** Per-project provider configuration is managed via `oc config set <PROJECT_ID>` — see `./oc.sh config set --help` or the [configuration reference](../reference/config.en.md).
 
 ## Provider Setup Guides
 
@@ -412,7 +378,7 @@ This is expected. OpenCode only supports Anthropic. If you need to use OpenCode:
 
 ### Model not found / API errors
 
-1. Verify your API key is correct: `./oc.sh provider get <PROJECT_ID>`
+1. Verify your API key is correct: `./oc.sh config get <PROJECT_ID>`
 2. Check the base URL is correct for your provider
 3. Ensure the provider service is running (especially for Ollama)
 4. Test your API key directly with the provider's CLI or API
@@ -421,7 +387,7 @@ This is expected. OpenCode only supports Anthropic. If you need to use OpenCode:
 
 After `oc provider set-default`, `opencode.json` is automatically regenerated — no manual step needed.
 
-For project-level changes (`oc config set` or `oc provider set`), redeploy:
+For project-level changes (`oc config set`), redeploy:
 
 ```bash
 ./oc.sh deploy all MY-PROJECT

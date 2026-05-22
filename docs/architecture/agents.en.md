@@ -1,6 +1,6 @@
 # Agent Reference
 
-27 agents in total, organized into 7 families.
+27 agents in total, organized into 6 families.
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 targets, and skills.
 
@@ -32,17 +32,17 @@ skills: [path/to/skill, ...]
 | `description` | Short phrase describing the role — appears in agent lists |
 | `mode` | `primary` (default) or `subagent` — controls visibility in target tools |
 | `permission.question` | `allow` — enables OpenCode's `question` tool for this agent. Reserved for interactive `primary` agents. Always paired with the `posture/tool-question` skill. |
-| `targets` | Supported targets: `opencode`, `opencode` |
+| `targets` | Supported targets: `opencode` |
 | `skills` | Paths relative to `skills/` — injected in declaration order |
 
 ### Primary / Subagent Modes
 
 The `mode:` field controls how an agent is exposed in each target tool:
 
-| Mode | OpenCode | OpenCode |
-|------|----------|-------------|
-| `primary` | Visible in the Tab picker | Present in `.opencode/agents/` |
-| `subagent` | Listed in `opencode.json` with `"mode": "subagent"` — invocable by other agents, hidden in Tab picker | Present in `.opencode/agents/` with delegation-oriented description |
+| Mode | OpenCode |
+|------|----------|
+| `primary` | Visible in the Tab picker — present in `.opencode/agents/` |
+| `subagent` | Listed in `opencode.json` with `"mode": "subagent"` — invocable by other agents, hidden in Tab picker. Present in `.opencode/agents/` with delegation-oriented description. |
 
 The effective mode follows a priority: **project override** (`- Modes:` in `projects.md`) > **agent frontmatter** > **`primary`** (default).
 

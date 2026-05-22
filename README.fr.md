@@ -185,6 +185,10 @@ oc start MON-APP
 | Documenter une feature | `documentarian` | `"Documente [sujet]"` |
 | Découvrir un projet existant | `onboarder` | `"Onboarde-toi sur ce projet"` |
 | Planifier sans implémenter | `planner` | `"Décompose [feature] en tickets"` |
+| Déboguer un bug | `debugger` | `"oc debug"` |
+| Lancer un audit | `auditor` | `"oc audit"` |
+| Vérifier les conventions | `reviewer` | `"oc conventions"` |
+| Reviewer une branche | `reviewer` | `"oc review"` |
 
 > Scénarios détaillés avec diagrammes et prompts réels : [docs/guides/workflows.fr.md](docs/guides/workflows.fr.md)
 
@@ -200,6 +204,8 @@ oc start MON-APP
 | [Providers LLM](docs/guides/providers.fr.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
 | [Workflows](docs/guides/workflows.fr.md) | Feature complète, audit, debug — scénarios illustrés |
 | [Contribuer](docs/guides/contributing.fr.md) | Ajouter un agent, un skill, un adapter |
+| [Onboarding](docs/guides/onboarding.fr.md) | Guide d'utilisation de l'agent onboarder |
+| [Authoring](docs/guides/authoring.fr.md) | Guide de conception d'agents et skills |
 
 ### Architecture
 
@@ -208,7 +214,8 @@ oc start MON-APP
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes de flux, principes de design |
 | [Agents](docs/architecture/agents.fr.md) | Référence exhaustive des 27 agents |
 | [Skills](docs/architecture/skills.fr.md) | Référence exhaustive des skills et leurs dépendances |
-| [ADR](docs/architecture/adr/) | Décisions architecturales (6 ADR) |
+| [ADR](docs/architecture/adr/) | Décisions architecturales (9 ADR) |
+| [Adapters](docs/architecture/adapters.fr.md) | Architecture des adapters |
 
 ### Référence
 
@@ -216,6 +223,9 @@ oc start MON-APP
 |----------|-------------|
 | [CLI](docs/reference/cli.fr.md) | Toutes les commandes `oc` avec options et exemples |
 | [Configuration](docs/reference/config.fr.md) | hub.json, projects.md, paths.local.md |
+| [Modèle de données Beads](docs/reference/beads-model.fr.md) | Référence du modèle de données Beads |
+| [Outils d'audit](docs/reference/audit-tools.fr.md) | Référence des outils d'audit par domaine |
+| [Résolution de modèle](docs/reference/model-resolution.fr.md) | Résolution de modèle par agent |
 
 ---
 

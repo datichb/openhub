@@ -376,6 +376,50 @@ conventions rather than generic standards.
 
 ---
 
+## `oc debug`
+
+Launches a bug debugging session on a project by invoking the `debugger` agent.
+
+```bash
+oc debug [PROJECT_ID]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `[PROJECT_ID]` | Project ID — interactive selection if absent |
+
+**Behaviour:**
+
+1. **Project resolution** — normalises the ID and resolves the local path
+2. **projects.md check** — if the project has a restrictive agent selection (not `all`), verifies that `debugger` is included:
+   - If missing → offers to add it + redeploy
+3. **Physical deployment check** — if the agents folder is absent or `debugger.md` is missing, offers `oc deploy`
+4. **Launch** — builds the bootstrap prompt and opens the tool with `--agent debugger`
+
+**Examples:**
+
+```bash
+oc debug               # interactive project selection
+oc debug MY-APP        # launch the debugger on MY-APP
+```
+
+**Launch display:**
+
+```
+◆  oc debug  MY-APP
+│  Path          /Users/alice/workspace/my-app
+│  Target        opencode
+│  Agent         debugger
+│
+└  Launching opencode…
+```
+
+> The `debugger` agent analyses the described bug, explores the codebase and produces a structured diagnostic with hypotheses and recommended fixes.
+
+---
+
 ## `oc init`
 
 Registers a project in the hub. Guides the user through **5 numbered steps** and displays a coloured summary at the end.

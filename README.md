@@ -185,6 +185,10 @@ oc start MY-APP
 | Document a feature | `documentarian` | `"Document [topic]"` |
 | Discover an existing project | `onboarder` | `"Onboard yourself on this project"` |
 | Plan without implementing | `planner` | `"Break down [feature] into tickets"` |
+| Debug a bug | `debugger` | `"oc debug"` |
+| Run an audit | `auditor` | `"oc audit"` |
+| Check conventions | `reviewer` | `"oc conventions"` |
+| Review a branch | `reviewer` | `"oc review"` |
 
 > Detailed scenarios with diagrams and real prompts: [docs/guides/workflows.en.md](docs/guides/workflows.en.md)
 
@@ -200,6 +204,8 @@ oc start MY-APP
 | [LLM Providers](docs/guides/providers.en.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
 | [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug — illustrated scenarios |
 | [Contributing](docs/guides/contributing.en.md) | Adding an agent, a skill, an adapter |
+| [Onboarding](docs/guides/onboarding.en.md) | Onboarding agent guide (using the onboarder to discover a project) |
+| [Authoring](docs/guides/authoring.en.md) | Authoring guide (designing agents and skills) |
 
 ### Architecture
 
@@ -208,7 +214,8 @@ oc start MY-APP
 | [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
 | [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 27 agents |
 | [Skills](docs/architecture/skills.en.md) | Exhaustive reference for skills and their dependencies |
-| [ADR](docs/architecture/adr/) | Architectural decision records (6 ADRs) |
+| [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
+| [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |
 
 ### Reference
 
@@ -216,6 +223,9 @@ oc start MY-APP
 |----------|-------------|
 | [CLI](docs/reference/cli.en.md) | All `oc` commands with options and examples |
 | [Configuration](docs/reference/config.en.md) | hub.json, projects.md, paths.local.md |
+| [Beads data model](docs/reference/beads-model.en.md) | Beads data model reference |
+| [Audit tools](docs/reference/audit-tools.en.md) | Audit tools reference by domain |
+| [Model resolution](docs/reference/model-resolution.en.md) | Model resolution by agent |
 
 ---
 

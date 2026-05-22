@@ -46,6 +46,7 @@ Development standards skills. Shared between developer agents and the reviewer.
 | `developer/dev-standards-devops.md` | developer-devops | Shell scripts, secrets management, image registries, observability, IaC principles — **tool-agnostic** |
 | `developer/dev-standards-api.md` | developer-api | API versioning, pagination, uniform response format, HTTP codes, idempotency, schema-first contract, breaking changes, webhooks, rate limiting |
 | `developer/dev-standards-security-hardening.md` | developer-security | CORS, HTTP headers (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, revocation), sessions (httpOnly/secure/sameSite), rate limiting, AES-256-GCM encryption |
+| `developer/dev-standards-simplicity.md` | All developer-* | KISS, YAGNI, no premature abstraction, no premature optimisation, measurable complexity thresholds (function length, cyclomatic complexity, parameters, nesting depth, injected dependencies), over-engineering patterns to challenge |
 | `developer/developer-handoff-format.md` | All developer-*, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: files modified, tests written, Beads status `review`, acceptance criteria checked one by one, points of attention for the reviewer, blockers encountered, status (`implemented` / `partially-implemented` / `blocked`) |
 
 ### Stack-specific skills — `developer/stacks/`
@@ -221,6 +222,7 @@ Documentation skills. Used by the `documentarian` agent.
 | `documentarian/doc-api.md` | documentarian | OpenAPI 3.x (skeleton, endpoint, reusable schemas), HTTP codes, narrative documentation (usage guide, pagination, error handling), breaking change identification and documentation |
 | `documentarian/doc-changelog.md` | documentarian | Keep a Changelog (6 sections), SemVer (MAJOR/MINOR/PATCH), Conventional Commits → changelog sections, generation from git log, release workflow, extended release notes format |
 | `documentarian/doc-slides.md` | documentarian | Marp presentation generation (Markdown → HTML/PDF) — 4 templates (tech-demo, product-pitch, retrospective, onboarding), Marp directives (frontmatter, `---`, `_class`, `backgroundColor`), best practices (1 idea/slide, max 5 bullets, actionable titles), automatic Marp CLI detection post-generation with compilation proposal, fallback with installation options if absent |
+| `documentarian/documentarian-handoff-format.md` | documentarian, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: type of documentation produced, modified files, entry summary, status (`documented` / `partially-documented` / `blocked`) |
 
 ---
 
@@ -289,7 +291,8 @@ orchestrator-dev      → orchestrator/orchestrator-dev-protocol,
                          posture/tool-question,
                          developer/developer-handoff-format †,
                          reviewer/reviewer-handoff-format †,
-                         qa/qa-handoff-format †
+                         qa/qa-handoff-format †,
+                         documentarian/documentarian-handoff-format †
 onboarder             → planning/project-discovery, planning/project-conventions,
                          posture/expert-posture, posture/tool-question,
                          developer/beads-plan, developer/dev-standards-git,
@@ -342,18 +345,21 @@ documentarian         → dev-standards-git, beads-plan, beads-dev,
                          documentarian/doc-protocol, documentarian/doc-standards,
                          documentarian/doc-adr, documentarian/doc-api,
                          documentarian/doc-changelog, documentarian/doc-slides,
-                         posture/expert-posture, posture/tool-question
+                         posture/expert-posture, posture/tool-question,
+                         documentarian/documentarian-handoff-format †
 developer-frontend    → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend,
                          dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: language, frontend, test, api-spec] (dynamic)
 developer-backend     → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: language, backend, orm, test, api-spec] (dynamic)
 developer-fullstack   → dev-standards-universal, dev-standards-security,
@@ -361,6 +367,7 @@ developer-fullstack   → dev-standards-universal, dev-standards-security,
                          dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
                          dev-standards-backend, dev-standards-testing,
                          dev-standards-git, beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: language, frontend, backend, orm, test, api-spec] (dynamic)
 developer-data        → dev-standards-universal, dev-standards-security,
@@ -368,6 +375,7 @@ developer-data        → dev-standards-universal, dev-standards-security,
                          stacks/dev-standards-pandas, stacks/dev-standards-dbt,
                          stacks/dev-standards-airflow, stacks/dev-standards-pyspark,
                          dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: language, data, test] (dynamic)
 developer-devops      → dev-standards-universal, dev-standards-security,
@@ -375,24 +383,28 @@ developer-devops      → dev-standards-universal, dev-standards-security,
                          stacks/dev-standards-docker, stacks/dev-standards-github-actions,
                          stacks/dev-standards-gitlab-ci,
                          dev-standards-git, beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: infra] (dynamic)
 developer-mobile      → dev-standards-universal, dev-standards-security,
                          stacks/dev-standards-react-native, stacks/dev-standards-flutter,
                          stacks/dev-standards-swift, stacks/dev-standards-kotlin,
                          dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: mobile, test] (dynamic)
 developer-api         → dev-standards-universal, dev-standards-security,
                          dev-standards-backend, dev-standards-api,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
 developer-platform    → dev-standards-universal, dev-standards-security,
                          dev-standards-devops,
                          stacks/dev-standards-terraform, stacks/dev-standards-kubernetes,
                          stacks/dev-standards-helm, stacks/dev-standards-argocd,
                          dev-standards-git, beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
                          + [stacks: infra] (dynamic)
 developer-security    → dev-standards-universal, dev-standards-security,
@@ -400,5 +412,6 @@ developer-security    → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
                          dev-standards-testing, dev-standards-git,
                          beads-plan, beads-dev,
+                         developer/dev-standards-simplicity,
                          developer/developer-handoff-format †
 ```

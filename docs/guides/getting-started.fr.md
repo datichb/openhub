@@ -58,9 +58,7 @@ oc install
 
 | Choix | Cibles configurées |
 |-------|--------------------|
-| 1 (défaut) | OpenCode |
-| 2 | OpenCode |
-| 3 | Tout (OpenCode + OpenCode) |
+| 1 (défaut) | opencode |
 
 > Si `config/hub.json` existe déjà, une confirmation est demandée avant d'écraser
 > la configuration. Répondez `N` pour conserver votre configuration existante.
@@ -96,7 +94,6 @@ Résultat attendu selon la cible :
 
 | Cible | Fichiers générés dans le projet |
 |-------|---------------------------------|
-| `opencode` | `.opencode/agents/*.md` |
 | `opencode` | `.opencode/agents/*.md` |
 
 ---

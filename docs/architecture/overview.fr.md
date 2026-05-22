@@ -32,7 +32,7 @@ Voir [ADR-001](./adr/001-agent-skill-separation.fr.md) pour la décision de sép
 
 Un **adapter** est un script shell (`scripts/adapters/<cible>.adapter.sh`) qui
 traduit les agents + skills du format hub vers le format attendu par un outil cible.
-Trois adapters existent : `opencode`, `opencode`.
+Un seul adapter existe : `opencode`.
 
 ### Projet cible
 
@@ -51,13 +51,11 @@ flowchart LR
         PB --> ADP
         subgraph ADP["adapters/"]
             OC[opencode.adapter.sh]
-            CC[opencode.adapter.sh]
         end
     end
 
     subgraph PROJETS["Projets cibles"]
         OC -->|oc deploy opencode| P1[".opencode/agents/*.md"]
-        CC -->|oc deploy opencode| P2[".opencode/agents/*.md"]
     end
 ```
 
@@ -149,7 +147,7 @@ les fichiers agents lisibles.
 
 ### 2. Spécialisation plutôt que généralisme
 
-Les agents développeurs sont segmentés en 7 spécialisations pour que chaque agent
+Les agents développeurs sont segmentés en 9 spécialisations pour que chaque agent
 reçoive uniquement le contexte pertinent à son domaine.
 
 → [ADR-002](./adr/002-developer-segmentation.fr.md)
@@ -186,12 +184,16 @@ opencode-hub/
 │   ├── lib/         ← Helpers partagés (prompt-builder, adapter-manager)
 │   └── cmd-*.sh     ← Implémentation des commandes oc
 ├── config/
-│   └── hub.json     ← Configuration globale du hub
+│   ├── hub.json             ← Configuration globale du hub
+│   ├── stack-skills.json    ← Mapping stack → skills injectés dynamiquement
+│   └── providers/           ← Configuration des fournisseurs LLM
 ├── projects/
 │   ├── projects.md       ← Registre des projets (local, ignoré git)
 │   └── projects.example.md ← Template versionné
 └── docs/            ← Documentation (ce dossier)
     ├── architecture/
     ├── guides/
+    ├── dev/         ← Pièges bash et guides de développement
+    ├── presentations/ ← Présentations et slides
     └── reference/
 ```
