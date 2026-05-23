@@ -147,11 +147,13 @@ The mapping between detected stacks and skills to inject is declared in `config/
 
 ## Domain — `auditor/`
 
-Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
+Audit skills. The `auditor` coordinator injects `auditor-workflow` (unified 5-phase workflow). The 7 `auditor-*` subagents inject `audit-protocol-light` + their domain skill.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `auditor/audit-protocol.md` | auditor, all auditor-* | Common report format, 4 criticality levels (🔴/🟠/🟡/💡), /10 scoring, individual finding format |
+| `auditor/auditor-workflow.md` | auditor | **Unified coordinator workflow** — 5 phases (0 prerequisites check → 1 project context loading → 2 domain selection with stack compatibility → 3 subagent delegation → 4 consolidation executive summary) — systematic recaps, mandatory questions via `question`, backwards possible; orchestrator invocation marker detection for `## Return to orchestrator` block |
+| `auditor/audit-protocol-light.md` | all auditor-* | Common lightweight report format (subagents only): 4 criticality levels (🔴/🟠/🟡/💡), /10 scoring, individual finding format |
+| `auditor/audit-protocol-legacy.md` | *(archived)* | Previous version of `audit-protocol.md` — kept for historical reference |
 | `auditor/audit-security.md` | auditor-security | OWASP Top 10, injections, exposed secrets, auth, CORS, CVE |
 | `auditor/audit-performance.md` | auditor-performance | Core Web Vitals, LCP, CLS, TTI, N+1 queries, cache, bundle |
 | `auditor/audit-accessibility.md` | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, semantics, ARIA, keyboard navigation, contrast |
@@ -185,9 +187,11 @@ Audit skills. All auditor-* agents inject `audit-protocol` + their domain skill.
 
 ## Domain — `debugger/`
 
+> **Note:** The `skills/debugger/` folder only contains the archived skill. The active workflow is in `skills/quality/`.
+
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `debugger/debug-protocol.md` | debugger | 4-step methodology, reading stacktraces and logs, diagnostic report format with graduated hypotheses, Beads ticket creation protocol |
+| `debugger/debug-protocol-legacy.md` | *(archived)* | Previous 4-step methodology — kept for historical reference |
 
 ---
 
@@ -197,6 +201,7 @@ Quality skills for agents that are not qa-engineer or reviewer.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
+| `quality/debugger-workflow.md` | debugger | **Unified workflow** — 6 phases (0 artefact check → 1 contextual exploration → 2 complementary questions optional → 3 4-step diagnosis: reproduction/isolation/identification/graded hypothesis → 4 edge case detection: race condition, environment, data, configuration, dependencies, regression → 5 report + Beads ticket) — systematic recaps, graded hypotheses (high/medium/low probability), `## Return to orchestrator` block if invoked from orchestrator |
 | `quality/debugger-handoff-format.md` | debugger, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: root cause with certainty level (confirmed/probable/uncertain) + causal chain, explored hypotheses, impact and potential regressions, correction tickets created, emergency actions if bug in production, status (`diagnosed` / `partially-diagnosed` / `non-reproducible`) |
 
 ---
@@ -230,9 +235,11 @@ Documentation skills. Used by the `documentarian` agent.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `planning/planner.md` | planner | Phase 0 (codebase exploration + existing tickets + context summary), Phase 1 (contextualised questions + justified priority deduction), Phase 2 (hierarchical plan epics → tickets, >5 tickets rule), Phase 3 (creation with `--parent`, `--deps`, `--estimate`), Phase 4 (`bd children` verification), edge case handling (scope change, split, late dependency, duplicate) |
-| `planning/project-discovery.md` | onboarder | Stack detection (manifests, CI, infra), adaptive exploration by profile (Vue, React, Node.js, Python, API, Data/ML, DevOps, Mobile), context report format (stack, architecture, patterns, 🔴/🟠/🟡, blind spots, questions, agent map), agent recommendation matrix (priority by risk + recommended by stack + optional), `projects.md` update protocol |
-| `planning/project-conventions.md` | onboarder | Project-specific naming conventions and contribution standards, rules detected from the codebase (branches, commits, PRs, tickets) |
+| `planning/planner-workflow.md` | planner | **Unified planner workflow** — 7 phases (0 prerequisites → 1 contextual exploration + UX/UI signals → 1.5 optional design delegation → 2 complementary questions → 3 hierarchical plan: epics/tickets/priorities → 4 edge case detection: duplicates, oversized tickets, circular dependencies → 5 Beads creation with full enrichment → 5.5 optional ai-delegated delegation → 6 verification + handoff) — systematic recaps, iterative phases with backwards possible (max 3), `## Return to orchestrator` block if invoked |
+| `planning/planner-legacy.md` | *(archived)* | Previous version of `planning/planner.md` — kept for historical reference |
+| `planning/onboarder-workflow.md` | onboarder | **Unified onboarder workflow** — 6 phases (0 prerequisites → 1 adaptive exploration 7 profiles → 2 questions → 3 context report: stack/architecture/patterns/attention points/prioritized agent map → 4 edge cases: inconsistencies, CVE, hidden debt, hybrid architecture → 5 ONBOARDING.md + CONVENTIONS.md + optional projects.md + handoff) — merges previous `project-discovery.md` and `project-conventions.md` |
+| `planning/project-discovery-legacy.md` | *(archived)* | Previous version of `project-discovery.md` — kept for historical reference |
+| `planning/project-conventions-legacy.md` | *(archived)* | Previous version of `project-conventions.md` — kept for historical reference |
 | `planning/planner-handoff-format.md` | planner, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete tickets table with planned agent and dependencies, hypotheses and ambiguities, global estimate, identified risks, status (`complete-planning` / `partial-planning` / `blocked`) |
 | `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: detected tech stack (languages, frameworks, DB, infra, tools, key versions), identified conventions, technical debt (🔴/🟠/🟡), uncertainty zones, context files produced (`ONBOARDING.md`, `CONVENTIONS.md`), status (`context-established` / `partial-context` / `blocked`) |
 
@@ -293,11 +300,11 @@ orchestrator-dev      → orchestrator/orchestrator-dev-protocol,
                          reviewer/reviewer-handoff-format †,
                          qa/qa-handoff-format †,
                          documentarian/documentarian-handoff-format †
-onboarder             → planning/project-discovery, planning/project-conventions,
+onboarder             → planning/onboarder-workflow,
                          posture/expert-posture, posture/tool-question,
                          developer/beads-plan, developer/dev-standards-git,
                          planning/onboarder-handoff-format †
-planner               → developer/beads-plan, planning/planner,
+planner               → developer/beads-plan, planning/planner-workflow,
                          posture/expert-posture, posture/tool-question,
                          planning/planner-handoff-format †
 reviewer              → dev-standards-universal, dev-standards-security,
@@ -311,9 +318,9 @@ qa-engineer           → dev-standards-universal, dev-standards-testing,
                          dev-standards-git, posture/expert-posture,
                          posture/tool-question, qa/qa-protocol,
                          qa/qa-handoff-format †
-debugger              → debugger/debug-protocol, posture/tool-question,
+debugger              → quality/debugger-workflow, posture/tool-question,
                          quality/debugger-handoff-format †
-auditor               → auditor/audit-protocol, posture/tool-question
+auditor               → auditor/auditor-workflow, posture/tool-question
 auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
                          posture/expert-posture,
                          auditor/audit-handoff-format †

@@ -60,16 +60,20 @@ Agents that drive other agents without ever coding themselves.
 |--|--|
 | **Label** | Onboarder |
 | **File** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/project-discovery`, `planning/project-conventions`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `planning/onboarder-handoff-format` |
+| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git` |
 | **Invocation** | `"Onboard yourself on this project"` / `"Discover this project"` / `"Before starting, explore the project"` |
 
-Project discovery agent. Explores an existing project's codebase and produces
-a structured context report: detected stack, architecture, dominant patterns,
-attention points (🔴/🟠/🟡), blind spots, clarification questions, and a
-prioritized agent map (prioritized by detected risks, recommended by stack, optional).
+Project discovery agent. Explores an existing project's codebase in 6 structured phases
+(prerequisites check → adaptive exploration 7 profiles → questions → context report →
+edge case detection → deliverables production). Produces `ONBOARDING.md`, `CONVENTIONS.md`
+and optionally `projects.md`.
 
-Read-only — never modifies files (except `projects.md` on explicit confirmation
-to enrich the `Stack` field). Never automatically triggers another agent — it suggests invocations, the user decides.
+Detects edge cases: stack/conventions inconsistencies, known CVEs, hidden technical debt,
+undocumented hybrid architecture. Produces a prioritized agent map in 3 levels
+(priority by risk, recommended by stack, optional).
+
+Read-only — never modifies files (except the deliverables it produces).
+Never automatically triggers another agent — it suggests invocations, the user decides.
 
 Invocable directly, from `oc start` (suggestion displayed), or from the `orchestrator`
 (Mode C — pre-phase on unknown project).
@@ -129,12 +133,16 @@ CP-2 (commit or fix?) is always manual in all modes.
 |--|--|
 | **Label** | Auditor |
 | **File** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/audit-protocol`, `posture/tool-question` |
+| **Skills** | `auditor/auditor-workflow`, `posture/tool-question` |
 | **Invocation** | `"Audit [project/scope]"` / `"Audit [domain]"` |
 
-Multi-domain audit coordinator. Qualifies the request (full / targeted / express audit)
-and delegates to 7 specialized subagents. Produces a multi-domain executive summary.
-Read-only — never modifies files.
+Multi-domain audit coordinator. Drives audits in 5 structured phases: prerequisites check
+(scope, stack, file access) → project context loading (reads `ONBOARDING.md` first, or
+quick reconnaissance) → domain selection with stack compatibility check → delegation to
+7 specialized subagents → consolidation executive summary (global score, top 5 priority
+actions, cross-cutting recommendations).
+
+Produces a multi-domain executive summary. Read-only — never modifies files.
 
 ---
 
@@ -152,7 +160,7 @@ Auditor's subagents. All read-only. Invocable directly or via the auditor.
 | `auditor-privacy` | `agents/auditor/auditor-privacy.md` | Data protection | GDPR, EDPB, CNIL |
 | `auditor-observability` | `agents/auditor/auditor-observability.md` | Observability | RED method, SLOs, OpenTelemetry, alerting |
 
-All audit agents inject `auditor/audit-protocol` (common report format)
+All audit agents inject `auditor/audit-protocol-light` (common lightweight report format)
 + their domain-specific skill (`auditor/audit-<domain>`)
 + `auditor/audit-handoff-format` (structured return contract when invoked from the orchestrator).
 
@@ -280,12 +288,15 @@ tests are written by the developer themselves before implementation (red/green/r
 |--|--|
 | **Label** | Debugger |
 | **File** | `agents/quality/debugger.md` |
-| **Skills** | `debugger/debug-protocol`, `posture/tool-question`, `quality/debugger-handoff-format` |
+| **Skills** | `quality/debugger-workflow`, `posture/tool-question`, `quality/debugger-handoff-format` |
 | **Invocation** | `"This bug: [stacktrace]"` / `"Analyze these logs: [logs]"` |
 
-Diagnoses the root cause of a bug in 4 steps (reproduction → isolation →
-identification → hypothesis). Produces a diagnostic report with graded hypotheses.
-Creates a Beads correction ticket after explicit confirmation.
+Diagnoses the root cause of a bug in 6 structured phases: artefact verification
+(Phase 0 — pauses if insufficient) → contextual exploration → complementary questions
+(optional) → 4-step diagnosis (reproduction/isolation/identification/graded hypothesis
+high/medium/low) → edge case detection (race conditions, environment-specific, data,
+configuration, dependencies, regression). Produces a diagnostic report with graded
+hypotheses. Creates a Beads correction ticket after explicit confirmation.
 Never fixes the bug.
 
 > See [ADR-004](./adr/004-qa-debugger-separation.en.md).
@@ -300,20 +311,23 @@ Never fixes the bug.
 |--|--|
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format` |
 | **Invocation** | Natural language feature description |
 
 Functional and technical consultant who analyzes the project context before planning.
-Explores the codebase (routes, models, components according to the feature's nature) and
-existing Beads tickets, produces a context summary, asks contextualized questions,
-then proposes a hierarchical plan (epics → tickets) with deduced and justified priorities.
+Workflow in 7 phases: prerequisites check → contextual exploration (codebase, tickets,
+UX/UI signals) → optional design delegation (Phase 1.5) → complementary questions →
+hierarchical plan (epics → tickets, deduced and justified priorities) → edge case
+detection (duplicates, oversized tickets, circular dependencies) → Beads creation with
+full enrichment → optional ai-delegated delegation (Phase 5.5) → final verification.
 
 Creates epics in Beads if > 5 tickets (asks otherwise), uses `--parent` and `--deps`
 for hierarchy and dependencies. Handles contingencies: scope change, ticket splitting,
-late dependency, duplicate. Never codes.
+late dependency, duplicate. Never codes. Iterative phases with backwards possible
+(max 3 iterations per phase).
 
-**PHASE 1.5 — Design delegation (optional):** when UX or UI signals are detected
-in PHASE 0, the planner offers 3 options to the user:
+**Phase 1.5 — Design delegation (optional):** when UX or UI signals are detected
+in Phase 1, the planner offers 3 options to the user:
 - **Option A** (`"invoke UX/UI"`) — directly invokes `ux-designer` / `ui-designer`
   as a sub-agent, awaits the structured block `## SPEC UX/UI — …` and integrates the spec into the plan.
 - **Option B** — the user invokes the agents themselves and pastes the spec back.

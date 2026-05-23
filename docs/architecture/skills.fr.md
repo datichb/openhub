@@ -145,11 +145,13 @@ Le mapping entre les stacks détectées et les skills à injecter est déclaré 
 
 ## Domaine — `auditor/`
 
-Skills d'audit. Tous les agents auditor-* injectent `audit-protocol` + leur skill de domaine.
+Skills d'audit. Le coordinateur `auditor` injecte `auditor-workflow` (workflow unifié 5 phases). Les 7 sous-agents `auditor-*` injectent `audit-protocol-light` + leur skill de domaine.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `auditor/audit-protocol.md` | auditor, tous les auditor-* | Format de rapport commun, 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
+| `auditor/auditor-workflow.md` | auditor | **Workflow unifié coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires via `question`, retours en arrière possibles ; détection du marqueur d'invocation orchestrateur pour le bloc `## Retour vers orchestrator` |
+| `auditor/audit-protocol-light.md` | tous les auditor-* | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
+| `auditor/audit-protocol-legacy.md` | *(archivé)* | Ancienne version de `audit-protocol.md` — conservée pour référence historique |
 | `auditor/audit-security.md` | auditor-security | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
 | `auditor/audit-performance.md` | auditor-performance | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
 | `auditor/audit-accessibility.md` | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, sémantique, ARIA, navigation clavier, contrastes |
@@ -183,9 +185,11 @@ Skills d'audit. Tous les agents auditor-* injectent `audit-protocol` + leur skil
 
 ## Domaine — `debugger/`
 
+> **Note :** le dossier `skills/debugger/` contient uniquement le skill archivé. Le workflow actif est dans `skills/quality/`.
+
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `debugger/debug-protocol.md` | debugger | Méthodologie en 4 étapes, lecture de stacktraces et logs, format du rapport de diagnostic avec hypothèses graduées, protocole de création de ticket Beads |
+| `debugger/debug-protocol-legacy.md` | *(archivé)* | Ancienne méthodologie en 4 étapes — conservée pour référence historique |
 
 ---
 
@@ -195,6 +199,7 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
+| `quality/debugger-workflow.md` | debugger | **Workflow unifié** — 6 phases (0 vérification artefacts → 1 exploration contextuelle → 2 questions complémentaires optionnel → 3 diagnostic 4 étapes : reproduction/isolation/identification/hypothèse graduée → 4 détection cas particuliers : race condition, environnement, données, configuration, dépendances, régression → 5 rapport + ticket Beads) — récaps systématiques, hypothèses graduées (haute/moyenne/faible probabilité), bloc `## Retour vers orchestrator` si invoqué depuis orchestrateur |
 | `quality/debugger-handoff-format.md` | debugger, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : cause racine avec niveau de certitude (confirmé/probable/incertain) + chaîne causale, hypothèses explorées, impact et régressions potentielles, tickets de correction créés, actions d'urgence si bug en prod, statut (`diagnostiqué` / `partiellement-diagnostiqué` / `non-reproductible`) |
 
 ---
@@ -228,9 +233,11 @@ Skills de documentation. Utilisés par l'agent `documentarian`.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `planning/planner.md` | planner | Phase 0 (exploration codebase + tickets existants + résumé de contexte), Phase 1 (questions contextualisées + déduction des priorités justifiées), Phase 2 (plan hiérarchique epics → tickets, règle >5 tickets), Phase 3 (création avec `--parent`, `--deps`, `--estimate`), Phase 4 (vérification `bd children`), gestion des aléas (scope change, scission, dépendance tardive, doublon) |
-| `planning/project-discovery.md` | onboarder | Détection de stack (manifestes, CI, infra), exploration adaptative par profil (Vue, React, Node.js, Python, API, Data/ML, DevOps, Mobile), format du rapport de contexte (stack, architecture, patterns, 🔴/🟠/🟡, zones d'ombre, questions, carte agents), matrice de recommandation agents (prioritaires par risque + recommandés par stack + optionnels), protocole de mise à jour `projects.md` |
-| `planning/project-conventions.md` | onboarder | Conventions de nommage et standards de contribution propres au projet, règles détectées depuis la codebase (branches, commits, PR, tickets) |
+| `planning/planner-workflow.md` | planner | **Workflow unifié planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design optionnelle → 2 questions complémentaires → 3 plan hiérarchique : epics/tickets/priorités → 4 détection cas particuliers : doublons, tickets trop gros, dépendances circulaires → 5 création Beads avec enrichissement complet → 5.5 délégation ai-delegated optionnelle → 6 vérification + handoff) — récaps systématiques, phases itératives avec retours en arrière (max 3), format `## Retour vers orchestrator` si invoqué |
+| `planning/planner-legacy.md` | *(archivé)* | Ancienne version du skill `planning/planner.md` — conservée pour référence historique |
+| `planning/onboarder-workflow.md` | onboarder | **Workflow unifié onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte : stack/architecture/patterns/points d'attention/carte agents priorisée → 4 cas particuliers : incohérences, CVE, dette masquée, architecture hybride → 5 production ONBOARDING.md + CONVENTIONS.md + projects.md optionnel + handoff) — fusionne les anciens `project-discovery.md` et `project-conventions.md` |
+| `planning/project-discovery-legacy.md` | *(archivé)* | Ancienne version de `project-discovery.md` — conservée pour référence historique |
+| `planning/project-conventions-legacy.md` | *(archivé)* | Ancienne version de `project-conventions.md` — conservée pour référence historique |
 | `planning/planner-handoff-format.md` | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
 | `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
 
@@ -291,11 +298,11 @@ orchestrator-dev      → orchestrator/orchestrator-dev-protocol,
                          reviewer/reviewer-handoff-format †,
                          qa/qa-handoff-format †,
                          documentarian/documentarian-handoff-format †
-onboarder             → planning/project-discovery, planning/project-conventions,
+onboarder             → planning/onboarder-workflow,
                          posture/expert-posture, posture/tool-question,
                          developer/beads-plan, developer/dev-standards-git,
                          planning/onboarder-handoff-format †
-planner               → developer/beads-plan, planning/planner,
+planner               → developer/beads-plan, planning/planner-workflow,
                          posture/expert-posture, posture/tool-question,
                          planning/planner-handoff-format †
 reviewer              → dev-standards-universal, dev-standards-security,
@@ -309,9 +316,9 @@ qa-engineer           → dev-standards-universal, dev-standards-testing,
                          dev-standards-git, posture/expert-posture,
                          posture/tool-question, qa/qa-protocol,
                          qa/qa-handoff-format †
-debugger              → debugger/debug-protocol, posture/tool-question,
+debugger              → quality/debugger-workflow, posture/tool-question,
                          quality/debugger-handoff-format †
-auditor               → auditor/audit-protocol, posture/tool-question
+auditor               → auditor/auditor-workflow, posture/tool-question
 auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
                          posture/expert-posture,
                          auditor/audit-handoff-format †
