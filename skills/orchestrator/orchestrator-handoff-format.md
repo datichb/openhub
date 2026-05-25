@@ -38,6 +38,7 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 
 ## Retour vers orchestrator
 
+**Type de récap :** `partiel` | `final`
 **Tickets traités :** [bd-XX ✅, bd-YY ✅, ...]
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
@@ -53,6 +54,10 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 - <point 2>
 **Statut global :** succès | partiel | bloqué
 ```
+
+**Règle de remplissage du champ `Type de récap` :**
+- `partiel` → ce bloc est émis dans la même réponse que `## Question pour l'orchestrator` — la session n'est pas terminée
+- `final` → ce bloc est émis seul — tous les tickets ont été traités ou stop demandé, la session est terminée
 
 Ce bloc est **obligatoire** quand invoqué depuis l'orchestrateur feature. Il n'est pas produit quand invoqué standalone.
 
@@ -140,5 +145,8 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
   > `"Réponse de l'utilisateur au CP <phase> pour le ticket #<ID> : <réponse>. Reprendre depuis l'étape correspondante."`
 - Ne jamais construire une réponse à la place de l'utilisateur.
 - Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
+- **Autocontrôle pour distinguer récap partiel et final :**
+  > Un `## Retour vers orchestrator` avec `**Type de récap :** partiel` est émis dans la même réponse qu'un `## Question pour l'orchestrator`. Un `## Retour vers orchestrator` avec `**Type de récap :** final` est émis seul.
+  > ❌ Ne jamais construire le CP-feature à partir d'un récap `partiel`.
 - Si le résultat contient aussi `## Retour vers orchestrator` (présent après `## Question pour l'orchestrator`) : **afficher le `### État de la session` dans le texte de la discussion** (pour que l'utilisateur voie la progression), mais ne pas construire le CP-feature à partir de lui — ce récap est partiel. Attendre le récap final après que l'utilisateur ait répondu et que la session ait terminé normalement.
 - Pour un CP-2 : si le `### Rapport de review complet` est absent ou semble résumé, **redemander à `orchestrator-dev`** de transmettre le rapport intégral avant d'afficher quoi que ce soit à l'utilisateur.

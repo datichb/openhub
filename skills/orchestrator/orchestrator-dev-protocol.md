@@ -124,7 +124,23 @@ Enregistrer le mode pour toute la session.
 **Détection obligatoire au démarrage :** si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`, alors :
 1. Mémoriser : **CONTEXTE = orchestrateur_feature** — cette valeur reste active pour toute la session.
 2. Confirmer explicitement :
-   > `[orchestrator-dev] Contexte détecté : invoqué depuis l'orchestrateur feature. Le bloc ## Retour vers orchestrator sera produit en fin de session.`
+   > `[orchestrator-dev] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode de workflow reçu : <valeur canonique>. Le bloc ## Retour vers orchestrator sera produit en fin de session.`
+
+3. **Parser le mode de workflow** transmis dans le prompt selon la règle ci-dessous.
+
+**Règle de parsing du mode :**
+Rechercher dans le prompt l'une des trois valeurs canoniques suivantes (insensible à la casse) :
+- Contient `manuel` → mode `manuel`
+- Contient `semi-auto` → mode `semi-auto`
+- Contient `auto` (mais pas `semi-auto`) → mode `auto`
+
+**Si aucune valeur canonique n'est détectée :**
+Appliquer le fallback `manuel` et signaler :
+> `⚠️ [orchestrator-dev] Mode de workflow non détecté dans le prompt — mode manuel appliqué par défaut. Si incorrect, l'orchestrator peut relancer avec le mode souhaité.`
+
+**Si plusieurs valeurs canoniques sont détectées :**
+Appliquer la première occurrence dans le prompt et signaler :
+> `⚠️ [orchestrator-dev] Plusieurs modes détectés dans le prompt — mode [première valeur détectée] appliqué. Si incorrect, l'orchestrator peut corriger.`
 
 Le mode et la liste des tickets sont transmis en paramètre.
 Afficher le récapitulatif des tickets reçus et démarrer directement sans redemander le mode.
@@ -355,6 +371,7 @@ question({
 **En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter la session.
 
 > ⚠️ **Si CONTEXTE = orchestrateur_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.
+> **Champ `Type de récap` obligatoire :** quand le bloc `## Retour vers orchestrator` est émis avec `## Question pour l'orchestrator`, renseigner `**Type de récap :** partiel`. La session n'est pas terminée — des tickets restent à traiter après la réponse de l'utilisateur.
 
 **Autocontrôle obligatoire avant de produire le bloc CP-2 :**
 > « Le rapport de review complet est-il présent et non résumé dans la section `### Rapport de review complet` ? Si non, retourner à l'étape 4 et redemander le rapport intégral au reviewer. »
@@ -561,6 +578,7 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 ### Étape 2 — Bloc de retour structuré (obligatoire si invoqué depuis l'orchestrateur feature)
 
 > ⚠️ Ce bloc est **requis sans exception** — y compris en cas de stop, de ticket bloqué ou de session incomplète.
+> **Champ `Type de récap` obligatoire :** renseigner `**Type de récap :** final` — ce bloc est émis seul en fin de session, tous les tickets ont été traités ou stop demandé.
 > Il vient **après** le récap global complet — il en est le résumé structuré, il ne le remplace pas.
 > Ne jamais clore la session sans avoir produit les deux.
 
@@ -791,3 +809,6 @@ Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
 - Clore une session invoquée depuis l'orchestrateur feature sans avoir produit (1) le récap global complet ET (2) le bloc `## Retour vers orchestrator` — les deux sont obligatoires même en cas de stop, de ticket bloqué ou de session partielle
 - Accepter un retour du reviewer sans rapport de review complet — rapport et bloc handoff sont tous deux obligatoires
 - Copier le rapport de review dans `### Contexte complet` — le rapport va dans `### Rapport de review complet`, le contexte est réservé à la synthèse et au verdict
+- Omettre le champ `**Type de récap :**` dans le bloc `## Retour vers orchestrator` — ce champ est obligatoire et permet à l'orchestrator de distinguer récap partiel (émis avec une question montante) et récap final (émis seul en fin de session)
+- Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
+- Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte

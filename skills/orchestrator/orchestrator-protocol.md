@@ -409,6 +409,11 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
    - Le mode de workflow choisi en CP-0
    - Le contexte complet : specs UX/UI validées (champ `### Spec produite`) + contraintes d'implémentation (champ `### Contraintes d'implémentation`) + rapports d'audit (champ `### Recommandations priorisées`) si applicable — transmettre intégralement, sans résumer
    - Les tickets portant le label `tdd` (déjà identifiés au CP-0)
+   - **Le mode de workflow sous sa forme canonique** : `manuel`, `semi-auto` ou `auto` — ne jamais transmettre le label brut de l'option d'interface (ex : `"Manuel (Recommandé)"`)
+
+> **Autocontrôle obligatoire avant d'invoquer `task(orchestrator-dev)` :**
+> « Le prompt contient-il le mode de workflow sous forme canonique (`manuel`, `semi-auto` ou `auto`) ? Si non, l'ajouter avant d'invoquer. »
+
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois produire le bloc ## Retour vers orchestrator à la fin de ta session — sans exception, même en cas de stop, de ticket bloqué ou de session partielle.`
 
@@ -416,7 +421,7 @@ avant de router. Signaler à l'utilisateur et demander confirmation.
 
 4. À la réception du résultat de l'invocation, **détecter le type de retour** :
 
-   **Cas A — retour normal** : le résultat contient `## Retour vers orchestrator`
+   **Cas A — retour normal** : le résultat contient `## Retour vers orchestrator` mais **pas** de bloc `## Question pour l'orchestrator` (signal que le récap est **final**)
    → **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets traités avec agent, QA, cycles de review, critères couverts, statut + points d'attention agrégés) — ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
    → Si le récap global complet (texte précédant le bloc structuré) est absent, le demander explicitement à orchestrator-dev avant de continuer.
    → Lire ensuite le bloc structuré `## Retour vers orchestrator`. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
@@ -456,11 +461,13 @@ Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dép
 
 4. **Ré-invoquer orchestrator-dev avec `task_id`** (valeur dans le bloc `### État de la session`) en transmettant la réponse :
 
+   > **Transmission du mode obligatoire :** inclure toujours le mode de workflow sous sa forme canonique (`manuel`, `semi-auto` ou `auto`) dans chaque prompt de reprise — le mode n'est pas garanti d'être persisté dans la session `task_id`.
+
    ```
    Task(
      subagent_type: "orchestrator-dev",
      task_id: "<task_id du bloc>",
-     prompt: "Réponse de l'utilisateur au CP <phase> pour le ticket #<ID> : <réponse choisie>. Reprendre depuis l'étape correspondante."
+     prompt: "Réponse de l'utilisateur au CP <phase> pour le ticket #<ID> : <réponse choisie>. Mode de workflow : <valeur canonique — manuel|semi-auto|auto>. Reprendre depuis l'étape correspondante."
    )
    ```
 
@@ -611,3 +618,4 @@ question({
 - Résumer ou abréger les specs ou rapports d'audit — les transmettre intégralement
 - Diagnostiquer ou corriger un bug signalé — invoquer immédiatement le `debugger` sans analyse préalable
 - Construire un CP à partir d'un retour incomplet ou sans le bloc `## Retour vers orchestrator` attendu — demander explicitement à l'agent de le compléter
+- Construire le CP-feature à partir d'un récap `partiel` (champ `**Type de récap :** partiel`) — attendre le récap `final` après que l'utilisateur ait répondu à la question montante et que la session orchestrator-dev ait terminé normalement

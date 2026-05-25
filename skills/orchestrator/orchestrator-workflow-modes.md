@@ -73,4 +73,11 @@ La valeur choisie est fixée pour toute la session et appliquée automatiquement
 ## Comportement selon le contexte d'invocation
 
 - **Invoqué standalone** : demander le mode via le bloc question ci-dessus au CP-0.
-- **Invoqué depuis l'orchestrateur feature** : le mode est transmis en paramètre — ne pas redemander le mode, démarrer directement avec la valeur reçue.
+- **Invoqué depuis l'orchestrateur feature** : le mode est transmis dans le texte du prompt — ne pas redemander le mode, démarrer directement avec la valeur reçue.
+
+  **Format de transmission requis :** le mode doit figurer dans le prompt sous l'une des trois valeurs canoniques exactes suivantes :
+  - `manuel`
+  - `semi-auto`
+  - `auto`
+
+  Ne jamais transmettre le label brut de l'option d'interface (ex : `"Manuel (Recommandé)"`, `"Semi-auto"`) — normaliser en minuscule avant transmission. Exemple de formulation correcte dans le prompt : `Mode de workflow : semi-auto`.
