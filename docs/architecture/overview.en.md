@@ -73,7 +73,7 @@ sequenceDiagram
     participant O as Orchestrator
     participant PL as Planner
     participant DS as ux/ui-designer
-    participant AU as auditor-*
+    participant AU as auditor (coordinator)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
     participant QA as QA Engineer
@@ -93,6 +93,7 @@ sequenceDiagram
     opt Tickets label:audit-*
         O->>AU: Delegates audit
         AU-->>O: Audit report
+        Note over AU: delegates to specialized auditor-* subagents
         O->>U: [CP-audit] Fix / accept / ignore?
     end
 
@@ -166,10 +167,15 @@ to three different agents (developer, qa-engineer, debugger).
 
 → [ADR-004](./adr/004-qa-debugger-separation.en.md)
 
-### 5. Read-only for Non-Developer Agents
+### 5. Read-only for non-developer agents
 
-Auditor, reviewer, and debugger agents never write to the target project.
-Only developer and qa-engineer agents modify files.
+Agents `auditor-*`, `reviewer`, `ux-designer`, and `ui-designer` never write to the target project.
+Only `developer-*` and `qa-engineer` agents modify source code files.
+
+Documentary writing (`ONBOARDING.md`, `CONVENTIONS.md`) is reserved for the `documentarian`.
+Analysis agents (`auditor` coordinator, `planner`, `debugger`) may enrich these files
+only by delegating to the `documentarian` after explicit user confirmation
+(skill `living-docs-enrichment`). They never write directly.
 
 ---
 

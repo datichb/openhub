@@ -162,6 +162,7 @@ Audit skills. The `auditor` coordinator injects `auditor-workflow` (unified 5-ph
 | `auditor/audit-privacy.md` | auditor-privacy | GDPR articles 5/6/17/25/32, EDPB, CNIL, minimisation, consent |
 | `auditor/audit-observability.md` | auditor-observability | RED method (Rate/Errors/Duration), structured logs, OpenTelemetry, SLOs/error budget, alerting (actionable, runbooks), dashboards, 5-question grid |
 | `auditor/audit-handoff-format.md` | all auditor-*, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: audited scope, vulnerability table by severity, prioritized recommendations with effort estimate, residual risk, status (`corrections-required` / `acceptable` / `blocking`) |
+| `auditor/living-docs-enrichment.md` | auditor, planner, debugger | **Shared skill** — incremental enrichment of ONBOARDING.md and CONVENTIONS.md from audit, planning, or debug discoveries; delegates writing to documentarian after explicit user confirmation |
 
 ---
 
@@ -306,6 +307,7 @@ onboarder             → planning/onboarder-workflow,
                          planning/onboarder-handoff-format †
 planner               → developer/beads-plan, planning/planner-workflow,
                          posture/expert-posture, posture/tool-question,
+                         auditor/living-docs-enrichment,
                          planning/planner-handoff-format †
 reviewer              → dev-standards-universal, dev-standards-security,
                          dev-standards-backend,
@@ -319,8 +321,12 @@ qa-engineer           → dev-standards-universal, dev-standards-testing,
                          posture/tool-question, qa/qa-protocol,
                          qa/qa-handoff-format †
 debugger              → quality/debugger-workflow, posture/tool-question,
+                         posture/expert-posture,
+                         auditor/living-docs-enrichment,
                          quality/debugger-handoff-format †
-auditor               → auditor/auditor-workflow, posture/tool-question
+auditor               → auditor/auditor-workflow, posture/tool-question,
+                         auditor/living-docs-enrichment,
+                         auditor/audit-handoff-format †
 auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
                          posture/expert-posture,
                          auditor/audit-handoff-format †

@@ -134,6 +134,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Documentation
 
+- **Parité documentation EN/FR** — audit et correction de 13 divergences dans les fichiers `.en.md` :
+  - `docs/architecture/agents.en.md` : skills `developer-data/mobile/platform` mis à jour (injection dynamique), skills `auditor`/`debugger`/`planner` complétés, Phase 5 debugger (living docs) et Phase 6 planner (living docs) ajoutées
+  - `docs/architecture/skills.en.md` : skill `living-docs-enrichment` ajouté au domaine `auditor/`, matrice de dépendances `auditor`/`planner`/`debugger` complétée
+  - `docs/architecture/overview.en.md` : diagramme orchestrateur corrigé (coordinateur `auditor` visible), principe 5 complété (mention `documentarian`, délégation `living-docs-enrichment`)
+  - `docs/guides/authoring.en.md` : `audit-protocol` → `audit-protocol-light`
+  - `docs/guides/contributing.en.md` : dossier `skills/posture/` ajouté au tableau
+  - `docs/reference/cli.en.md` : doublons `opencode` supprimés (`oc deploy`, `oc agent create`)
+  - `docs/reference/config.en.md` : sections `oc provider init/set-key/set-model` et `ocp` (interactive provider switcher) ajoutées
+  - `docs/guides/workflows.en.md` : sections "Living docs enrichment" ajoutées dans les scénarios audit (Phase 4) et debug (Phase 5)
 - `docs/architecture/task-delegation.fr.md` : section `### Pas de parallélisme` remplacée par `### Parallélisme conditionnel (mode auto uniquement)` — explication du choix séquentiel par défaut, tableau des 4 critères, comportement en mode parallèle, limites (CP-2 reste séquentiel, bénéfice uniquement en mode auto)
 - `docs/architecture/task-delegation.fr.md` : section `### Zone d'ombre` renommée `### Le task_id est un ID de session OpenCode` — nature réelle documentée (session persistante, navigation TUI, SDK), tableau des points encore inconnus, référence au garde-fou
 - `docs/architecture/task-delegation.fr.md` : section `### task_id — mécanisme opaque` renommée `### task_id — risque de session introuvable` — tableau causes/probabilité/impact, description du garde-fou

@@ -318,6 +318,67 @@ oc provider set-default                   Configure the hub default provider
 
 > **Note:** Per-project provider configuration is managed via `oc config set <PROJECT_ID>` (see the `oc config` section above).
 
+### `oc provider init` — initializing switcher files
+
+Creates the `config/providers/` directory and generates 5 JSON files used by `ocp`:
+`mammouth.json`, `copilot.json`, `openrouter.json`, `ollama.json`, `bedrock.json`.
+
+Also creates `config/providers/.gitignore` to protect API keys.
+
+Idempotent: without `--force`, existing files are not overwritten.
+
+```sh
+# First initialization
+./oc.sh provider init
+
+# Reinitialize all files
+./oc.sh provider init --force
+```
+
+### `oc provider set-key` and `oc provider set-model`
+
+Modify an existing provider file in `config/providers/` atomically (tmpfile + mv).
+
+```sh
+# Set openrouter key
+./oc.sh provider set-key openrouter sk-or-v1-xxx...
+
+# Set ollama model
+./oc.sh provider set-model ollama qwen2.5-coder:7b
+```
+
+---
+
+## `ocp` — interactive provider switcher
+
+Shell function injected into `~/.zshrc` by the hub. Launches opencode with a chosen provider while preserving the full `oc start` logic (agent deployment, `--dev` mode, Beads sync, onboarding, etc.).
+
+Requires `config/providers/` to be initialized via `oc provider init`.
+
+### Usage
+
+```sh
+ocp                          # interactive provider picker (fzf or native select)
+ocp mammouth                 # launch with mammouth (interactive project picker)
+ocp mammouth opencode-hub    # launch opencode-hub project with mammouth
+ocp bedrock MY-APP --dev     # --dev mode with bedrock
+ocp --list                   # list available providers
+```
+
+### Behavior
+
+`ocp <provider> [args...]` is equivalent to:
+```sh
+./oc.sh start --provider <provider> [args...]
+```
+
+The `--provider` flag overrides the effective provider for `opencode.json` generation — per-agent models are prefixed and aliased according to the selected provider.
+
+### Installation
+
+The function is automatically injected into `~/.zshrc` during `oc install`.
+To add or update it manually, re-run `oc install` or copy the block between the delimiters `# >>> opencode providers switcher (ocp) >>>` / `# <<< opencode providers switcher (ocp) <<<`.
+
 ---
 
 ## `opencode.json`

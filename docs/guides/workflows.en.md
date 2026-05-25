@@ -278,6 +278,30 @@ The auditor delegates to `auditor-security`, `auditor-accessibility`, `auditor-p
 5. [Security 🟠] Misconfigured CORS — src/middleware/cors.ts
 ```
 
+#### 5. Living docs enrichment (Phase 4)
+
+After the executive summary, the auditor consolidates the `### Findings to document` sections
+surfaced by subagents and proposes to the user to capitalize the relevant discoveries.
+
+```
+## 💾 Living docs enrichment — Findings to capitalize
+
+### Proposed enrichments for ONBOARDING.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Critical issues 🔴` | Add | "SQL injection possible in UserController (security audit)" |
+
+### Proposed enrichments for CONVENTIONS.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Libraries & dependencies` | Add "Do not use" | "lodash 4.17.20 — CVE-2024-1234: prototype pollution" |
+
+→ question: Delegate writing to the documentarian?
+```
+
+If the user accepts, the auditor invokes the `documentarian` via `task` to enrich
+`ONBOARDING.md` and/or `CONVENTIONS.md` incrementally (see skill `living-docs-enrichment`).
+
 ---
 
 ## Scenario 3 — Debug → fix cycle
@@ -370,7 +394,30 @@ bd create "Fix missing null guard in UserService.findById" -p 0 -t bug --json
 → Ticket bd-42 created
 ```
 
-#### 4. Fix and review
+#### 4. Living docs enrichment (Phase 5)
+
+After ticket creation, the debugger identifies findings worth capitalizing:
+
+```
+## 💾 Living docs enrichment — Findings to capitalize
+
+### Proposed enrichments for ONBOARDING.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Blind spots` | Add | "UserService.findById does not return explicit 401 — returns null without guard (2025 diagnosis)" |
+
+### Proposed enrichments for CONVENTIONS.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Team-specific patterns` | Add | "Always check for null before accessing a repository return value property" |
+
+→ question: Delegate writing to the documentarian?
+```
+
+If the user accepts, the debugger invokes the `documentarian` via `task`
+(skill `living-docs-enrichment`) to enrich the files incrementally.
+
+#### 5. Fix and review
 
 The developer receives ticket bd-42, reads the diagnostic in the notes,
 implements the targeted fix, and the reviewer checks the PR.

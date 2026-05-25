@@ -72,7 +72,7 @@ An agent that audits (read-only) goes in `auditor/`.
 | Agent type | Recommended base skills |
 |------------|------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-security`, `beads-plan`, `beads-dev` + domain skills |
-| Auditor | `audit-protocol` + specific domain skill + `posture/expert-posture` |
+| Auditor | `audit-protocol-light` + specific domain skill + `posture/expert-posture` |
 | Coordinator (read-only) | Its own protocol — no `beads-dev` |
 | Expert advisor agent | `posture/expert-posture` |
 | Interactive primary agent | `posture/tool-question` (+ `permission: question: allow` in frontmatter) |

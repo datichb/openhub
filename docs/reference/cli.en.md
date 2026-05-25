@@ -78,7 +78,7 @@ oc deploy --diff  [target] [PROJECT_ID]
 
 | Argument | Values | Description |
 |----------|--------|-------------|
-| `<target>` | `opencode`, `opencode`, `all` | Target to deploy |
+| `<target>` | `opencode`, `all` | Target to deploy |
 | `[PROJECT_ID]` | ID of a registered project | Optional — deploys at hub level if absent (no stack detection) |
 
 **Options:**
@@ -111,7 +111,6 @@ oc deploy --diff all MY-APP     # show diff sources → deployed for MY-APP
 | Target | Generated files |
 |--------|----------------|
 | `opencode` | `.opencode/agents/*.md` + `opencode.json` (regenerated if an API key or PROJECT_ID is defined) |
-| `opencode` | `.opencode/agents/*.md` |
 
 **`--check` exit codes:**
 - `0`: everything is up to date
@@ -722,7 +721,7 @@ oc agent <sub-command>
 1. **Identifier** — unique slug (e.g. `reviewer`)
 2. **Label** — short name displayed in the tool (e.g. `CodeReviewer`)
 3. **Description** — short phrase describing the role
-4. **Targets** — interactive selector ↑↓/space: `opencode`, `opencode`
+4. **Targets** — interactive selector ↑↓/space: `opencode`
 5. **Skills** — interactive selector ↑↓/space with description panel
 6. **Body** — if `opencode` is available, offer to auto-generate via `opencode run`
 7. **Preview** — display of the complete `.md` file before writing
@@ -739,7 +738,7 @@ Verifies for each agent:
 - Required fields present (`id`, `label`, `description`, `targets`, `skills`)
 - `id` uniqueness across all agents
 - Valid `mode` (`primary` | `subagent` | `all`) if present
-- All targets in `targets` recognised (`opencode`, `opencode`)
+- All targets in `targets` recognised (`opencode`)
 - All referenced skills exist (local or external)
 
 Returns exit code 1 if at least one error is detected.

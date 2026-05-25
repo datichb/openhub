@@ -133,7 +133,7 @@ CP-2 (commit or fix?) is always manual in all modes.
 |--|--|
 | **Label** | Auditor |
 | **File** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/auditor-workflow`, `posture/tool-question` |
+| **Skills** | `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `auditor/living-docs-enrichment`, `posture/tool-question` |
 | **Invocation** | `"Audit [project/scope]"` / `"Audit [domain]"` |
 
 Multi-domain audit coordinator. Drives audits in 5 structured phases: prerequisites check
@@ -178,11 +178,11 @@ Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev
 | `developer-frontend` | `agents/developer/developer-frontend.md` | UI, components, Vue.js, CSS, a11y | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-vuejs`, `dev-standards-testing` |
 | `developer-backend` | `agents/developer/developer-backend.md` | Services, repositories, migrations | `dev-standards-backend`, `dev-standards-testing` |
 | `developer-fullstack` | `agents/developer/developer-fullstack.md` | Full-stack features | `dev-standards-frontend`, `dev-standards-backend`, `dev-standards-testing` |
-| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `dev-standards-data` |
+| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `stacks/* (dynamic injection)` |
 | `developer-devops` | `agents/developer/developer-devops.md` | Docker, CI/CD, shell scripts | `dev-standards-devops` |
-| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `dev-standards-mobile` |
+| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `stacks/* (dynamic injection)` |
 | `developer-api` | `agents/developer/developer-api.md` | REST, GraphQL, webhooks | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
-| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `dev-standards-platform` |
+| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `stacks/* (dynamic injection)` |
 | `developer-security` | `agents/developer/developer-security.md` | Application hardening post-audit | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
 
 > See [ADR-002](./adr/002-developer-segmentation.en.md) for the segmentation decision.
@@ -288,7 +288,7 @@ tests are written by the developer themselves before implementation (red/green/r
 |--|--|
 | **Label** | Debugger |
 | **File** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `posture/tool-question`, `quality/debugger-handoff-format` |
+| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `auditor/living-docs-enrichment`, `posture/expert-posture` |
 | **Invocation** | `"This bug: [stacktrace]"` / `"Analyze these logs: [logs]"` |
 
 Diagnoses the root cause of a bug in 6 structured phases: artefact verification
@@ -298,6 +298,8 @@ high/medium/low) → edge case detection (race conditions, environment-specific,
 configuration, dependencies, regression). Produces a diagnostic report with graded
 hypotheses. Creates a Beads correction ticket after explicit confirmation.
 Never fixes the bug.
+
+**Phase 5 — Living docs enrichment:** after the report, identifies blind spots uncovered by the diagnosis and error patterns worth remembering, then proposes to the user to enrich `ONBOARDING.md` and/or `CONVENTIONS.md`. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`). Cannot invoke the `documentarian` without explicit user confirmation.
 
 > See [ADR-004](./adr/004-qa-debugger-separation.en.md).
 
@@ -311,7 +313,7 @@ Never fixes the bug.
 |--|--|
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format`, `auditor/living-docs-enrichment` |
 | **Invocation** | Natural language feature description |
 
 Functional and technical consultant who analyzes the project context before planning.
@@ -333,6 +335,8 @@ in Phase 1, the planner offers 3 options to the user:
 - **Option B** — the user invokes the agents themselves and pastes the spec back.
 - **Option C** (`"continue without UX/UI"`) — proceeds with available context,
   partial `--design` fields + `bd comments add` to trace the missing spec.
+
+**Phase 6 — Living docs enrichment:** after plan validation, identifies architectural patterns and conventions observed in the codebase but absent from `ONBOARDING.md`/`CONVENTIONS.md`, and proposes to the user to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
 
 ---
 
