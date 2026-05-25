@@ -15,27 +15,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Section "Évaluation du parallélisme conditionnel" ajoutée dans `orchestrator-dev-protocol` (CP-0)
   - Section "Workflow parallèle" ajoutée dans `orchestrator-dev-protocol` (entre Étape 6 et Récap global)
   - Note de parallélisme et description enrichie de l'option `Auto` dans `orchestrator-workflow-modes`
-
-### Documentation
-
-- `docs/architecture/task-delegation.fr.md` : section `### Pas de parallélisme` remplacée par `### Parallélisme conditionnel (mode auto uniquement)` — explication du choix séquentiel par défaut, tableau des 4 critères, comportement en mode parallèle, limites (CP-2 reste séquentiel, bénéfice uniquement en mode auto)
-
-### Fixed
-
-- **`task_id` — nature clarifiée et garde-fou ajouté** (`task_id-delegation.fr.md`, `orchestrator-protocol.md`) :
-  - Le `task_id` est un ID de session OpenCode standard (session persistée côté serveur, non un état LLM) — la reprise de session est fiable tant que la session existe ; le risque de "perte de contexte LLM" n'existe pas
-  - Risque résiduel documenté : session introuvable si OpenCode redémarre pendant la fenêtre d'attente entre question montante et reprise
-  - Garde-fou ajouté dans `orchestrator-protocol` : "Cas C — session introuvable" — détecter l'absence de résultat après ré-invocation avec `task_id` et proposer à l'utilisateur de relancer depuis les tickets restants ou de stopper
-
-### Documentation
-
-- `docs/architecture/task-delegation.fr.md` : section `### Zone d'ombre` renommée `### Le task_id est un ID de session OpenCode` — nature réelle documentée (session persistante, navigation TUI, SDK), tableau des points encore inconnus, référence au garde-fou
-- `docs/architecture/task-delegation.fr.md` : section `### task_id — mécanisme opaque` renommée `### task_id — risque de session introuvable` — tableau causes/probabilité/impact, description du garde-fou
-
-### Added
-
 - **`docs/architecture/task-delegation.fr.md`** — nouveau document de référence sur le mécanisme de délégation inter-agents via l'outil `task` : mécanique de base (paramètres, sessions isolées, permissions par whitelist), hiérarchie des 4 niveaux d'agents, protocoles de communication (handoff contracts), reprise de session via `task_id`, marqueur de contexte d'invocation, checkpoints et compteurs anti-boucle, points d'attention et limites connues
-
 - **Skill `auditor/living-docs-enrichment`** — nouveau skill partagé entre `auditor` (coordinateur), `planner` et `debugger` permettant d'enrichir de manière incrémentale les fichiers `ONBOARDING.md` et `CONVENTIONS.md` du projet cible :
   - **Flux en 5 étapes** : identification des découvertes → résumé affiché en texte clair → confirmation via `question` → délégation au `documentarian` via `task` → confirmation de la délégation
   - **Aucune écriture directe** : le `documentarian` est le seul agent autorisé à écrire dans ces fichiers
@@ -44,38 +24,6 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - **Règles de qualité** : enrichissements factuels, concis, contextualisés, non redondants, actionnables
 - **Section `### Découvertes à documenter`** ajoutée dans le format de rapport des 7 agents `auditor-*` — remontée des découvertes à capitaliser vers le coordinateur, lecture seule stricte conservée (aucun appel `task`)
 - **Permissions `task.documentarian = allow`** ajoutées dans `opencode.json` pour `auditor`, `planner`, `debugger` et `orchestrator`
-
-### Changed
-
-- **Agent `auditor`** (`agents/auditor/auditor.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 4 enrichie — consolidation des sections `### Découvertes à documenter` et proposition d'enrichissement après la synthèse exécutive ; permission `task.documentarian = allow` ajoutée
-- **Agent `planner`** (`agents/planning/planner.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 6 enrichie — identification des patterns et conventions observés, proposition d'enrichissement après validation du plan ; permission `task.documentarian = allow` ajoutée
-- **Agent `debugger`** (`agents/quality/debugger.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 5 enrichie — identification des zones d'ombre levées et patterns d'erreur, proposition d'enrichissement après le rapport ; permission `task.documentarian = allow` ajoutée
-- **Agents `auditor-*`** (×7) : ajout de la section `### Découvertes à documenter` en fin de rapport — lecture seule stricte conservée (`write: deny`, aucun appel `task`)
-
-### Fixed
-
-- **Récap partiel vs final** (`orchestrator-handoff-format`, `orchestrator-protocol`, `orchestrator-dev-protocol`) — la distinction entre récap partiel (émis avec une question montante) et récap final (émis seul en fin de session) était implicite et reposait sur un signal contextuel ; rendu explicite par l'ajout d'un champ obligatoire `**Type de récap :** partiel | final` dans le bloc `## Retour vers orchestrator` ; règles de détection et d'interdiction ajoutées dans les trois skills concernés
-
-- **Transmission du mode de workflow** (`orchestrator-workflow-modes`, `orchestrator-protocol`, `orchestrator-dev-protocol`) — le mode (`manuel`/`semi-auto`/`auto`) était transmis via texte libre sans contrat de format ; cinq correctifs appliqués :
-  - Valeurs canoniques définies (`manuel`, `semi-auto`, `auto`) et interdiction des labels bruts d'interface
-  - Autocontrôle avant délégation côté orchestrator
-  - Re-transmission obligatoire du mode dans chaque prompt de reprise `task_id` (correctif critique — corrige une perte silencieuse du mode à chaque CP-2)
-  - Règle de parsing documentée côté orchestrator-dev avec fallback `manuel` explicite et signal d'alerte
-  - Confirmation visible du mode reçu dans le message de démarrage d'orchestrator-dev
-
-### Documentation
-
-- `docs/architecture/task-delegation.fr.md` : section `### Récap partiel vs final` enrichie — tableau comparatif, arbre de détection, diagramme d'état Mermaid, tableau des erreurs possibles
-- `docs/architecture/task-delegation.fr.md` : section `### Transmission du mode via prompt` enrichie — valeurs canoniques, 4 cas de défaillance avec probabilité et impact, résumé des correctifs appliqués
-- `docs/architecture/skills.fr.md` : ajout de `auditor/living-docs-enrichment` dans le domaine `auditor/`, mise à jour de la matrice de dépendances (`auditor`, `planner`, `debugger`)
-- `docs/architecture/agents.fr.md` : skills et descriptions mis à jour pour `auditor`, `planner`, `debugger` ; règles communes nuancées — distinction lecture seule stricte (`auditor-*`, `reviewer`) vs délégation documentaire autorisée (`auditor`, `planner`, `debugger`)
-- `docs/architecture/overview.fr.md` : principe 5 ("Lecture seule pour les agents non-développeurs") mis à jour — précise que l'écriture documentaire passe toujours par le `documentarian` via délégation explicite
-- `docs/guides/workflows.fr.md` : ajout d'une étape "Enrichissement des documents vivants" dans le scénario audit (Phase 4) et dans le scénario debug (Phase 5) avec exemples de blocs de proposition
-
----
-
-### Added
-
 - **Workflows unifiés pour les agents coordinateurs** — 4 agents refactorisés avec workflows natifs en 5-7 phases (récaps systématiques, questions obligatoires via `question`, itérations contrôlées, phases de détection des cas particuliers, format handoff) :
   - **`planner`** : workflow unifié `planner-workflow.md` (7 phases : 0 prérequis → 1 exploration → 1.5 délégation design → 2 questions → 3 plan hiérarchique → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification)
   - **`onboarder`** : workflow unifié `onboarder-workflow.md` (6 phases : 0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte → 4 cas particuliers → 5 production ONBOARDING.md + CONVENTIONS.md) — fusionne `project-discovery.md` et `project-conventions.md`
@@ -85,29 +33,6 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Itérations contrôlées** : compteur max 3 par phase dans tous les nouveaux workflows — évite les boucles infinies, propose le passage forcé à la suite à la 3ème itération
 - **Contexte d'invocation explicite** : détection du marqueur `[CONTEXTE] Invoqué depuis l'orchestrateur` dans tous les workflows — produit le bloc `## Retour vers orchestrator` en fin de workflow si détecté
 - **Gouvernance des workflows** documentée (voir `CHANGELOG` ou `skills/` correspondants) : quand créer un workflow unifié (agents coordinateurs, phases itératives, validations utilisateur) vs workflow technique simple (agents spécialisés, exécution linéaire)
-
-### Changed
-
-- **Agent `planner`** (`agents/planning/planner.md`) : skills mis à jour — `planning/planner-workflow` remplace `planning/planner` + les 3 skills `analysis/*` ; `planning/planner-handoff-format` conservé
-- **Agent `onboarder`** (`agents/planning/onboarder.md`) : skills mis à jour — `planning/onboarder-workflow` remplace `planning/project-discovery`, `planning/project-conventions` + les 3 skills `analysis/*` ; `planning/onboarder-handoff-format` conservé
-- **Agent `debugger`** (`agents/quality/debugger.md`) : skills mis à jour — `quality/debugger-workflow` remplace `debugger/debug-protocol` ; `quality/debugger-handoff-format` conservé
-- **Agent `auditor`** (`agents/auditor/auditor.md`) : skills mis à jour — `auditor/auditor-workflow` remplace `auditor/audit-protocol` + les 3 skills `analysis/*`
-- **Agents `auditor-*`** (7 sous-agents) : les 3 skills `analysis/*` retirés du frontmatter — les sous-agents spécialisés n'en avaient pas besoin (workflow technique simple)
-
-### Removed
-
-- **Skills `analysis/*` supprimés** : `skills/analysis/analysis-workflow.md` (545 L), `skills/analysis/analysis-templates.md` (510 L), `skills/analysis/analysis-questions.md` (276 L) — répertoire `skills/analysis/` supprimé. Remplacés par les 4 workflows unifiés natifs.
-- **Skills archivés** (renommés `*-legacy.md`) : `planning/planner.md` → `planner-legacy.md`, `planning/project-discovery.md` → `project-discovery-legacy.md`, `planning/project-conventions.md` → `project-conventions-legacy.md`, `debugger/debug-protocol.md` → `debug-protocol-legacy.md`, `auditor/audit-protocol.md` → `audit-protocol-legacy.md`
-
-### Documentation
-
-- `docs/architecture/skills.fr.md` et `skills.en.md` : domaines `planning/`, `debugger/`, `auditor/`, `quality/` mis à jour — nouveaux workflows unifiés, skills archivés, matrice de dépendances agents ↔ skills mise à jour
-- `docs/architecture/agents.fr.md` et `agents.en.md` : skills injectés mis à jour pour `planner`, `onboarder`, `debugger`, `auditor`
-
----
-
-### Added
-
 - **Support des providers OAuth** — github-copilot et ollama peuvent être configurés sans clé API (authentification OAuth native pour github-copilot, pas de clé requise pour ollama)
 - **Fix (adapter)** — correction du bug jq `false // true` dans la lecture de `requires_api_key` depuis `providers.json` — l'opérateur `//` traitait `false` comme `null`
 - **`oc debug [PROJECT_ID]`** — lance l'agent debugger sur un projet pour diagnostiquer un bug (nouveau script `scripts/cmd-debug.sh`, intégration dans `oc.sh`, aide et i18n mis à jour)
@@ -116,22 +41,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`oc skills validate [name]`** — valide la cohérence des skills (frontmatter `name`/`description`, correspondance nom/fichier, sources externes)
 - **`oc agent deploy <agent-id> [PROJECT_ID]`** — déploie un seul agent sans tout redéployer ; respecte les cibles du projet si fourni
 - **`oc status --short`** (`-s`) — vue compacte tableau id/chemin/statut (remplace `oc list`)
-
-### Changed
-
-- **`oc list`** — conservé comme alias silencieux vers `oc status --short` (backward compat), retiré du `oc help`
-- **`oc provider set <PROJECT_ID>`** et **`oc provider get <PROJECT_ID>`** — supprimés ; utiliser `oc config set/get <PROJECT_ID>` à la place (message d'erreur clair si l'ancienne forme est utilisée)
-- **`oc config set`** — le sélecteur de provider est désormais un menu numéroté dynamique depuis `providers.json` (au lieu d'une liste statique codée en dur)
-- **`oc update`** — description clarifiée : met à jour les outils installés (opencode, bd, skills externes)
-- **`oc upgrade`** — description clarifiée : met à jour les sources du hub via git (git pull ou checkout tag)
-- **`oc agent keytest`** — retiré du `oc help` (toujours utilisable, non documenté)
-- **`lib/providers.sh`** — helpers `_build_provider_menu` et `_collect_provider_credentials` extraits et partagés (plus de duplication entre `cmd-config.sh` et `cmd-provider.sh`)
-
-### Documentation
-
-- `docs/reference/cli.fr.md` et `cli.en.md` : mise à jour complète — `oc list` → `oc status --short`, nouvelles sections `oc project`, `oc provider` (hub-level uniquement), `oc agent deploy`, `oc skills validate`, clarification `update`/`upgrade`
-
-### Skill `documentarian/doc-slides`
+- **Skill `documentarian/doc-slides`** :
   - 4 templates prêts à l'emploi : `tech-demo`, `product-pitch`, `retrospective`, `onboarding`
   - Directives Marp complètes : frontmatter (`marp: true`, `theme`, `paginate`, `size`), directives locales (`_class`, `_backgroundColor`, `_paginate: false`), séparateurs `---`
   - Bonnes pratiques intégrées : 1 idée par slide, max 5 bullets, titres actionnables, taille recommandée par type de présentation
@@ -139,22 +49,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Détection automatique de Marp CLI post-génération (`which marp` / `npx @marp-team/marp-cli`) — proposition de compilation HTML/PDF via `question()` si disponible
   - Fallback si Marp absent : instructions claires (npx, installation globale, extension VS Code, web.marp.app)
   - Nommage normalisé (`kebab-case` + date ISO courte) et emplacement adaptatif (`docs/presentations/`, `docs/slides/`, ou racine)
-
-### Changed
-
-- **Agent `documentarian`** — frontmatter `skills:` enrichi avec `documentarian/doc-slides`
-- **Agent `documentarian`** — section "Ce que tu fais" : ajout de la génération de présentations Marp
-- **Agent `documentarian`** — table d'exemples : 2 nouveaux cas (`"Crée une présentation pour la démo v2.0"`, `"Slides de retrospective sprint 42"`)
-- **Skill `documentarian/doc-protocol`** — tableau de routing : ajout de la ligne `slides, présentation, deck, pitch, diaporama, démo visuelle, retro, onboarding formation` → `doc-slides`
-
-### Documentation
-
-- `docs/architecture/skills.fr.md` et `skills.en.md` : ajout de `documentarian/doc-slides` dans le domaine `documentarian/`, mise à jour de la matrice de dépendances
-- `docs/architecture/agents.fr.md` et `agents.en.md` : mise à jour des skills et de la description de l'agent `documentarian`
-
----
-
- — 9 skills de contrat de communication formalisés (voir [ADR-009](docs/architecture/adr/009-inter-agent-handoff-contracts.fr.md)) :
+- **9 skills de contrat de communication formalisés** (voir [ADR-009](docs/architecture/adr/009-inter-agent-handoff-contracts.fr.md)) :
   - `auditor/audit-handoff-format` : bloc structuré `## Retour vers orchestrator` pour les 7 agents `auditor-*` — périmètre audité, tableau des vulnérabilités par sévérité, recommandations priorisées avec effort estimé, risque résiduel, statut (`corrections-requises` / `acceptable` / `bloquant`)
   - `design/design-handoff-format` : bloc structuré pour `ux-designer` et `ui-designer` — spec produite intégrale, contraintes d'implémentation, points ouverts, alternatives écartées, statut (`spec-complète` / `spec-partielle` / `bloqué`)
   - `developer/developer-handoff-format` : bloc structuré pour les 9 `developer-*` → `orchestrator-dev` — fichiers modifiés, tests écrits, critères d'acceptance cochés, points d'attention pour la review, blocages rencontrés, statut (`implémenté` / `partiellement-implémenté` / `bloqué`)
@@ -163,12 +58,31 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - `qa/qa-handoff-format` : bloc structuré pour `qa-engineer` → `orchestrator-dev` — tests écrits avec fichiers et cas couverts, critères d'acceptance cochés, zones non testables, statut (`couverture-complète` / `couverture-partielle` / `non-testable`)
   - `quality/debugger-handoff-format` : bloc structuré pour `debugger` → `orchestrator` (Mode D) — cause racine avec niveau de certitude + chaîne causale, hypothèses explorées, impact et régressions, tickets créés, actions d'urgence si bug en prod, statut (`diagnostiqué` / `partiellement-diagnostiqué` / `non-reproductible`)
   - `reviewer/reviewer-handoff-format` : bloc structuré pour `reviewer` → `orchestrator-dev` — verdict actionnable (`commit` / `corriger` / `corriger-sécurité`), synthèse des problèmes par sévérité, corrections requises verbatim, routing recommandé (`retour-initial` / `developer-security`), statut (`approuvé` / `corrections-requises` / `bloquant-sécurité`)
-
 - Nouveau dossier `skills/design/` pour les skills des agents design
 - Nouveau dossier `skills/quality/` pour les skills des agents qualité (hors `qa/` et `reviewer/`)
 
 ### Changed
 
+- **Agent `auditor`** (`agents/auditor/auditor.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 4 enrichie — consolidation des sections `### Découvertes à documenter` et proposition d'enrichissement après la synthèse exécutive ; permission `task.documentarian = allow` ajoutée
+- **Agent `planner`** (`agents/planning/planner.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 6 enrichie — identification des patterns et conventions observés, proposition d'enrichissement après validation du plan ; permission `task.documentarian = allow` ajoutée
+- **Agent `debugger`** (`agents/quality/debugger.md`) : skill `auditor/living-docs-enrichment` ajouté ; Phase 5 enrichie — identification des zones d'ombre levées et patterns d'erreur, proposition d'enrichissement après le rapport ; permission `task.documentarian = allow` ajoutée
+- **Agents `auditor-*`** (×7) : ajout de la section `### Découvertes à documenter` en fin de rapport — lecture seule stricte conservée (`write: deny`, aucun appel `task`)
+- **Agent `planner`** (`agents/planning/planner.md`) : skills mis à jour — `planning/planner-workflow` remplace `planning/planner` + les 3 skills `analysis/*` ; `planning/planner-handoff-format` conservé
+- **Agent `onboarder`** (`agents/planning/onboarder.md`) : skills mis à jour — `planning/onboarder-workflow` remplace `planning/project-discovery`, `planning/project-conventions` + les 3 skills `analysis/*` ; `planning/onboarder-handoff-format` conservé
+- **Agent `debugger`** (`agents/quality/debugger.md`) : skills mis à jour — `quality/debugger-workflow` remplace `debugger/debug-protocol` ; `quality/debugger-handoff-format` conservé
+- **Agent `auditor`** (`agents/auditor/auditor.md`) : skills mis à jour — `auditor/auditor-workflow` remplace `auditor/audit-protocol` + les 3 skills `analysis/*`
+- **Agents `auditor-*`** (7 sous-agents) : les 3 skills `analysis/*` retirés du frontmatter — les sous-agents spécialisés n'en avaient pas besoin (workflow technique simple)
+- **`oc list`** — conservé comme alias silencieux vers `oc status --short` (backward compat), retiré du `oc help`
+- **`oc provider set <PROJECT_ID>`** et **`oc provider get <PROJECT_ID>`** — supprimés ; utiliser `oc config set/get <PROJECT_ID>` à la place (message d'erreur clair si l'ancienne forme est utilisée)
+- **`oc config set`** — le sélecteur de provider est désormais un menu numéroté dynamique depuis `providers.json` (au lieu d'une liste statique codée en dur)
+- **`oc update`** — description clarifiée : met à jour les outils installés (opencode, bd, skills externes)
+- **`oc upgrade`** — description clarifiée : met à jour les sources du hub via git (git pull ou checkout tag)
+- **`oc agent keytest`** — retiré du `oc help` (toujours utilisable, non documenté)
+- **`lib/providers.sh`** — helpers `_build_provider_menu` et `_collect_provider_credentials` extraits et partagés (plus de duplication entre `cmd-config.sh` et `cmd-provider.sh`)
+- **Agent `documentarian`** — frontmatter `skills:` enrichi avec `documentarian/doc-slides`
+- **Agent `documentarian`** — section "Ce que tu fais" : ajout de la génération de présentations Marp
+- **Agent `documentarian`** — table d'exemples : 2 nouveaux cas (`"Crée une présentation pour la démo v2.0"`, `"Slides de retrospective sprint 42"`)
+- **Skill `documentarian/doc-protocol`** — tableau de routing : ajout de la ligne `slides, présentation, deck, pitch, diaporama, démo visuelle, retro, onboarding formation` → `doc-slides`
 - **Agents producteurs** — frontmatter `skills:` mis à jour pour inclure le skill de handoff correspondant :
   - `ux-designer`, `ui-designer` → `design/design-handoff-format`
   - `auditor-security`, `auditor-performance`, `auditor-accessibility`, `auditor-ecodesign`, `auditor-architecture`, `auditor-privacy`, `auditor-observability` → `auditor/audit-handoff-format`
@@ -178,11 +92,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - `reviewer` → `reviewer/reviewer-handoff-format`
   - `qa-engineer` → `qa/qa-handoff-format`
   - Tous les `developer-*` (×9) → `developer/developer-handoff-format`
-
 - **Agent `orchestrator`** — frontmatter enrichi avec les 5 skills de handoff côté consommateur : `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/planner-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`
-
 - **Agent `orchestrator-dev`** — frontmatter enrichi avec les 3 skills de handoff côté consommateur : `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format`
-
 - **Skill `orchestrator/orchestrator-dev-protocol`** :
   - Étape 2 (délégation developer) : détection du bloc `## Retour vers orchestrator-dev` ; routing `bloqué` vers la gestion de blocage sans soumettre à review
   - Étape 3 (QA) : invocation qa-engineer enrichie avec les critères d'acceptance déjà couverts par le developer ; détection du statut QA avant de continuer ; transmission des critères non couverts au reviewer si `couverture-partielle`
@@ -193,12 +104,22 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Fixed
 
+- **`task_id` — nature clarifiée et garde-fou ajouté** (`task_id-delegation.fr.md`, `orchestrator-protocol.md`) :
+  - Le `task_id` est un ID de session OpenCode standard (session persistée côté serveur, non un état LLM) — la reprise de session est fiable tant que la session existe ; le risque de "perte de contexte LLM" n'existe pas
+  - Risque résiduel documenté : session introuvable si OpenCode redémarre pendant la fenêtre d'attente entre question montante et reprise
+  - Garde-fou ajouté dans `orchestrator-protocol` : "Cas C — session introuvable" — détecter l'absence de résultat après ré-invocation avec `task_id` et proposer à l'utilisateur de relancer depuis les tickets restants ou de stopper
+- **Récap partiel vs final** (`orchestrator-handoff-format`, `orchestrator-protocol`, `orchestrator-dev-protocol`) — la distinction entre récap partiel (émis avec une question montante) et récap final (émis seul en fin de session) était implicite et reposait sur un signal contextuel ; rendu explicite par l'ajout d'un champ obligatoire `**Type de récap :** partiel | final` dans le bloc `## Retour vers orchestrator` ; règles de détection et d'interdiction ajoutées dans les trois skills concernés
+- **Transmission du mode de workflow** (`orchestrator-workflow-modes`, `orchestrator-protocol`, `orchestrator-dev-protocol`) — le mode (`manuel`/`semi-auto`/`auto`) était transmis via texte libre sans contrat de format ; cinq correctifs appliqués :
+  - Valeurs canoniques définies (`manuel`, `semi-auto`, `auto`) et interdiction des labels bruts d'interface
+  - Autocontrôle avant délégation côté orchestrator
+  - Re-transmission obligatoire du mode dans chaque prompt de reprise `task_id` (correctif critique — corrige une perte silencieuse du mode à chaque CP-2)
+  - Règle de parsing documentée côté orchestrator-dev avec fallback `manuel` explicite et signal d'alerte
+  - Confirmation visible du mode reçu dans le message de démarrage d'orchestrator-dev
 - **`orchestrator-dev` → `orchestrator` — remontée du bloc `## Retour vers orchestrator` manquante** : le bloc de retour n'était pas produit de manière fiable en fin de session d'`orchestrator-dev` quand invoqué depuis l'orchestrateur feature, empêchant la construction du CP-feature. Corrections apportées :
   - Ajout d'une règle absolue (`✅`) dans la section "Règles absolues" d'`orchestrator-dev-protocol` : le bloc est obligatoire sans exception, y compris en cas de stop, ticket bloqué ou session partielle
   - Transformation de la note conditionnelle de fin de section en une **Étape 2 numérotée et obligatoire** dans la section "Récap global", avec autocontrôle explicite avant clôture de session
   - Ajout dans la section "Ce que tu ne fais PAS" : interdiction de clore la session sans avoir produit le bloc
   - Renforcement du skill `orchestrator/orchestrator-handoff-format` côté producteur : rappel explicite que le bloc est requis même en cas de stop ou de session incomplète, avec autocontrôle
-
 - **Skill `orchestrator/orchestrator-protocol`** :
   - Mode A : détection du bloc structuré `## Retour vers orchestrator` du planner ; présentation des hypothèses et risques au CP-0 avant de démarrer
   - Mode C : détection du bloc structuré de l'onboarder ; présentation des zones d'incertitude et dette technique au CP-onboard
@@ -206,8 +127,27 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - Tickets spec-ux/spec-ui : détection du bloc structuré des agents design ; transmission intégrale des `### Contraintes d'implémentation` à orchestrator-dev lors de l'implémentation
   - Tickets audit : détection du bloc structuré des auditors ; transmission intégrale des `### Recommandations priorisées` à orchestrator-dev
 
+### Removed
+
+- **Skills `analysis/*` supprimés** : `skills/analysis/analysis-workflow.md` (545 L), `skills/analysis/analysis-templates.md` (510 L), `skills/analysis/analysis-questions.md` (276 L) — répertoire `skills/analysis/` supprimé. Remplacés par les 4 workflows unifiés natifs.
+- **Skills archivés** (renommés `*-legacy.md`) : `planning/planner.md` → `planner-legacy.md`, `planning/project-discovery.md` → `project-discovery-legacy.md`, `planning/project-conventions.md` → `project-conventions-legacy.md`, `debugger/debug-protocol.md` → `debug-protocol-legacy.md`, `auditor/audit-protocol.md` → `audit-protocol-legacy.md`
+
 ### Documentation
 
+- `docs/architecture/task-delegation.fr.md` : section `### Pas de parallélisme` remplacée par `### Parallélisme conditionnel (mode auto uniquement)` — explication du choix séquentiel par défaut, tableau des 4 critères, comportement en mode parallèle, limites (CP-2 reste séquentiel, bénéfice uniquement en mode auto)
+- `docs/architecture/task-delegation.fr.md` : section `### Zone d'ombre` renommée `### Le task_id est un ID de session OpenCode` — nature réelle documentée (session persistante, navigation TUI, SDK), tableau des points encore inconnus, référence au garde-fou
+- `docs/architecture/task-delegation.fr.md` : section `### task_id — mécanisme opaque` renommée `### task_id — risque de session introuvable` — tableau causes/probabilité/impact, description du garde-fou
+- `docs/architecture/task-delegation.fr.md` : section `### Récap partiel vs final` enrichie — tableau comparatif, arbre de détection, diagramme d'état Mermaid, tableau des erreurs possibles
+- `docs/architecture/task-delegation.fr.md` : section `### Transmission du mode via prompt` enrichie — valeurs canoniques, 4 cas de défaillance avec probabilité et impact, résumé des correctifs appliqués
+- `docs/architecture/skills.fr.md` : ajout de `auditor/living-docs-enrichment` dans le domaine `auditor/`, mise à jour de la matrice de dépendances (`auditor`, `planner`, `debugger`)
+- `docs/architecture/agents.fr.md` : skills et descriptions mis à jour pour `auditor`, `planner`, `debugger` ; règles communes nuancées — distinction lecture seule stricte (`auditor-*`, `reviewer`) vs délégation documentaire autorisée (`auditor`, `planner`, `debugger`)
+- `docs/architecture/overview.fr.md` : principe 5 ("Lecture seule pour les agents non-développeurs") mis à jour — précise que l'écriture documentaire passe toujours par le `documentarian` via délégation explicite
+- `docs/guides/workflows.fr.md` : ajout d'une étape "Enrichissement des documents vivants" dans le scénario audit (Phase 4) et dans le scénario debug (Phase 5) avec exemples de blocs de proposition
+- `docs/architecture/skills.fr.md` et `skills.en.md` : domaines `planning/`, `debugger/`, `auditor/`, `quality/` mis à jour — nouveaux workflows unifiés, skills archivés, matrice de dépendances agents ↔ skills mise à jour
+- `docs/architecture/agents.fr.md` et `agents.en.md` : skills injectés mis à jour pour `planner`, `onboarder`, `debugger`, `auditor`
+- `docs/reference/cli.fr.md` et `cli.en.md` : mise à jour complète — `oc list` → `oc status --short`, nouvelles sections `oc project`, `oc provider` (hub-level uniquement), `oc agent deploy`, `oc skills validate`, clarification `update`/`upgrade`
+- `docs/architecture/skills.fr.md` et `skills.en.md` : ajout de `documentarian/doc-slides` dans le domaine `documentarian/`, mise à jour de la matrice de dépendances
+- `docs/architecture/agents.fr.md` et `agents.en.md` : mise à jour des skills et de la description de l'agent `documentarian`
 - `docs/architecture/skills.en.md` et `skills.fr.md` : ajout des 8 nouveaux skills de handoff dans leurs domaines respectifs, mise à jour de la matrice de dépendances agents ↔ skills
 - `docs/architecture/agents.en.md` et `agents.fr.md` : mise à jour des skills injectés pour tous les agents concernés
 - `docs/guides/workflows.en.md` et `workflows.fr.md` : ajout de notes sur les retours structurés dans les scénarios 1 et 3

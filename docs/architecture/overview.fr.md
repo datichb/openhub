@@ -73,7 +73,7 @@ sequenceDiagram
     participant O as Orchestrator
     participant PL as Planner
     participant DS as ux/ui-designer
-    participant AU as auditor-*
+    participant AU as auditor (coordinateur)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
     participant QA as QA Engineer
@@ -92,6 +92,7 @@ sequenceDiagram
 
     opt Tickets label:audit-*
         O->>AU: Délègue l'audit
+        Note over AU: délègue aux auditor-* spécialisés
         AU-->>O: Rapport d'audit
         O->>U: [CP-audit] Corriger / accepter / ignorer ?
     end

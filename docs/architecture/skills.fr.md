@@ -323,7 +323,8 @@ debugger              → quality/debugger-workflow, posture/tool-question,
                          auditor/living-docs-enrichment,
                          posture/expert-posture
 auditor               → auditor/auditor-workflow, posture/tool-question,
-                         auditor/living-docs-enrichment
+                         auditor/living-docs-enrichment,
+                         auditor/audit-handoff-format †
 auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
                          posture/expert-posture,
                          auditor/audit-handoff-format †

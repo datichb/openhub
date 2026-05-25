@@ -189,11 +189,11 @@ Skills communs à tous : `dev-standards-universal`, `dev-standards-security`, `d
 | `developer-frontend` | `agents/developer/developer-frontend.md` | UI, composants, Vue.js, CSS, a11y | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-vuejs`, `dev-standards-testing` |
 | `developer-backend` | `agents/developer/developer-backend.md` | Services, repositories, migrations | `dev-standards-backend`, `dev-standards-testing` |
 | `developer-fullstack` | `agents/developer/developer-fullstack.md` | Features front + back | `dev-standards-frontend`, `dev-standards-backend`, `dev-standards-testing` |
-| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `dev-standards-data` |
+| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `stacks/* (injection dynamique)` |
 | `developer-devops` | `agents/developer/developer-devops.md` | Docker, CI/CD, scripts shell | `dev-standards-devops` |
-| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `dev-standards-mobile` |
+| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `stacks/* (injection dynamique)` |
 | `developer-api` | `agents/developer/developer-api.md` | REST, GraphQL, webhooks | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
-| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `dev-standards-platform` |
+| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `stacks/* (injection dynamique)` |
 | `developer-security` | `agents/developer/developer-security.md` | Hardening applicatif post-audit | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
 
 > Voir [ADR-002](./adr/002-developer-segmentation.fr.md) pour la décision de segmentation.

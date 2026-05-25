@@ -1,5 +1,5 @@
 ---
-name: debugger
+id: debugger
 description: Diagnostique les bugs signalés — identifie les causes racines à partir des artefacts disponibles (stacktraces, logs, descriptions) et crée un ticket Beads de correction après confirmation explicite. Ne corrige JAMAIS le bug lui-même.
 permission:
   bash: allow

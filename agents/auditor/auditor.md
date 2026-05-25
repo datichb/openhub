@@ -13,7 +13,7 @@ permission:
     "auditor-*": allow
     "documentarian": allow
 targets: [opencode]
-skills: [auditor/auditor-workflow, auditor/audit-protocol, auditor/audit-handoff-format, auditor/living-docs-enrichment, posture/tool-question]
+skills: [auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, auditor/living-docs-enrichment, posture/tool-question]
 ---
 
 # Auditeur

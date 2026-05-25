@@ -435,7 +435,7 @@ Quand `orchestrator-dev` atteint un CP à enjeu fort, il produit **dans la même
 [tickets traités jusqu'ici, statut partiel]
 ```
 
-Le second bloc est **structurellement identique** au récap final — aucun champ ne distingue explicitement les deux. C'est leur **coprésence dans la même réponse** qui signale que le récap est partiel.
+Le second bloc est **structurellement presque identique** au récap final — la seule distinction explicite est le champ `**Type de récap :**` : `partiel` quand émis avec une question montante, `final` quand émis seul en fin de session.
 
 #### Ce que contient chaque type de récap
 

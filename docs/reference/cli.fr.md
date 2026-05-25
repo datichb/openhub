@@ -76,7 +76,7 @@ oc deploy --diff  [target] [PROJECT_ID]
 
 | Argument | Valeurs | Description |
 |----------|---------|-------------|
-| `<target>` | `opencode`, `opencode`, `all` | Cible à déployer |
+| `<target>` | `opencode`, `all` | Cible à déployer |
 | `[PROJECT_ID]` | ID d'un projet enregistré | Optionnel — déploie au niveau du hub si absent (pas de détection de stack) |
 
 **Options :**
@@ -109,7 +109,6 @@ oc deploy --diff all MON-APP    # affiche le diff sources → déployés pour MO
 | Cible | Fichiers générés |
 |-------|-----------------|
 | `opencode` | `.opencode/agents/*.md` + `opencode.json` (régénéré si une clé API ou un PROJECT_ID est défini) |
-| `opencode` | `.opencode/agents/*.md` |
 
 **Codes de sortie `--check` :**
 - `0` : tout est à jour

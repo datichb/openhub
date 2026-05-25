@@ -70,7 +70,7 @@ Un agent qui audite (lecture seule) va dans `auditor/`.
 | Type d'agent | Skills de base recommandés |
 |-------------|---------------------------|
 | Developer | `dev-standards-universal`, `dev-standards-security`, `beads-plan`, `beads-dev` + skills domaine |
-| Auditeur | `audit-protocol` + skill domaine spécifique + `posture/expert-posture` |
+| Auditeur | `audit-protocol-light` + skill domaine spécifique + `posture/expert-posture` |
 | Coordinateur (lecture seule) | Son protocole propre — pas de `beads-dev` |
 | Agent expert conseiller | `posture/expert-posture` |
 | Agent interactif primary | `posture/tool-question` (+ `permission: question: allow` dans le frontmatter) |
