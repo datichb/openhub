@@ -473,6 +473,26 @@ Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dép
 
 5. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
 
+**Cas C — session introuvable (redémarrage d'OpenCode) :** si la ré-invocation avec `task_id` ne produit pas de résultat ou retourne une erreur indiquant que la session n'existe plus :
+
+> ⚠️ La session `orchestrator-dev` (task_id: `<task_id>`) est introuvable — OpenCode a probablement redémarré pendant la fenêtre d'attente.
+
+Utiliser l'outil `question` :
+
+```
+question({
+  header: "Session perdue — #<ID>",
+  question: "[Orchestrator — Session introuvable | Ticket #<ID> — <titre>]\nLa session orchestrator-dev a été perdue (redémarrage probable). Comment reprendre ?",
+  options: [
+    { label: "Relancer depuis les tickets restants (Recommandé)", description: "Invoquer une nouvelle session orchestrator-dev avec les tickets non encore traités (liste dans ### État de la session)" },
+    { label: "Stop", description: "Arrêter le workflow et afficher le récap de l'état courant connu" }
+  ]
+})
+```
+
+- **Relancer** → invoquer `task(orchestrator-dev)` **sans `task_id`** (nouvelle session) en transmettant uniquement les tickets listés dans `**Tickets restants :**` du bloc `### État de la session` reçu, plus le mode et le marqueur `[CONTEXTE]`
+- **Stop** → construire le CP-feature à partir des informations disponibles dans le dernier `### État de la session` reçu, en marquant les tickets restants comme `⏸️ Non traités — session interrompue`
+
 > ❌ Ne jamais construire une réponse à la place de l'utilisateur.
 > ❌ Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
 > ❌ Pour un CP-2 : ne jamais poser la question sans avoir affiché le rapport de review complet au préalable.
@@ -619,3 +639,4 @@ question({
 - Diagnostiquer ou corriger un bug signalé — invoquer immédiatement le `debugger` sans analyse préalable
 - Construire un CP à partir d'un retour incomplet ou sans le bloc `## Retour vers orchestrator` attendu — demander explicitement à l'agent de le compléter
 - Construire le CP-feature à partir d'un récap `partiel` (champ `**Type de récap :** partiel`) — attendre le récap `final` après que l'utilisateur ait répondu à la question montante et que la session orchestrator-dev ait terminé normalement
+- Tenter de ré-invoquer avec un `task_id` sans gérer le cas où la session est introuvable — détecter l'absence de résultat et proposer les options de reprise à l'utilisateur

@@ -9,6 +9,18 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **`task_id` — nature clarifiée et garde-fou ajouté** (`task_id-delegation.fr.md`, `orchestrator-protocol.md`) :
+  - Le `task_id` est un ID de session OpenCode standard (session persistée côté serveur, non un état LLM) — la reprise de session est fiable tant que la session existe ; le risque de "perte de contexte LLM" n'existe pas
+  - Risque résiduel documenté : session introuvable si OpenCode redémarre pendant la fenêtre d'attente entre question montante et reprise
+  - Garde-fou ajouté dans `orchestrator-protocol` : "Cas C — session introuvable" — détecter l'absence de résultat après ré-invocation avec `task_id` et proposer à l'utilisateur de relancer depuis les tickets restants ou de stopper
+
+### Documentation
+
+- `docs/architecture/task-delegation.fr.md` : section `### Zone d'ombre` renommée `### Le task_id est un ID de session OpenCode` — nature réelle documentée (session persistante, navigation TUI, SDK), tableau des points encore inconnus, référence au garde-fou
+- `docs/architecture/task-delegation.fr.md` : section `### task_id — mécanisme opaque` renommée `### task_id — risque de session introuvable` — tableau causes/probabilité/impact, description du garde-fou
+
 ### Added
 
 - **`docs/architecture/task-delegation.fr.md`** — nouveau document de référence sur le mécanisme de délégation inter-agents via l'outil `task` : mécanique de base (paramètres, sessions isolées, permissions par whitelist), hiérarchie des 4 niveaux d'agents, protocoles de communication (handoff contracts), reprise de session via `task_id`, marqueur de contexte d'invocation, checkpoints et compteurs anti-boucle, points d'attention et limites connues

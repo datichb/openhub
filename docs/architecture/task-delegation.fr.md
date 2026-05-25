@@ -311,16 +311,24 @@ sequenceDiagram
 | **Dépendance non résolue** | Ticket bloqué par un parent | ID et statut du bloquant |
 | **Ticket bloqué** | Developer signale un blocage | Raison du blocage |
 
-### Zone d'ombre — mécanisme d'injection du `task_id`
+### Le `task_id` est un ID de session OpenCode
 
-Le mécanisme exact par lequel le SDK OpenCode injecte et gère le `task_id`
-n'est pas documenté publiquement. Ce qui est observable :
+Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de session OpenCode standard**. Quand un agent parent invoque `task(subagent_type, prompt)`, OpenCode crée une session enfant navigable dans le TUI (`session_child_first`, `session_child_cycle`) et accessible via le SDK (`session.children()`). L'ID retourné par l'outil `task` est l'ID de cette session.
 
-- Un `task_id` retourné par une session peut être passé à une invocation
-  ultérieure pour reprendre cette session
-- La session reprend avec l'historique de conversation du sous-agent intact
-- La durée de vie d'un `task_id` n'est pas spécifiée (probablement liée à
-  la session LLM sous-jacente)
+**Conséquences directes :**
+- La reprise via `task_id` est **fiable** : ce n'est pas un re-jeu de contexte LLM, c'est une reconnexion à une session existante côté serveur avec son historique de messages intact
+- Le risque de "perte de contexte LLM" lors d'une reprise n'existe pas — le contexte est persisté côté serveur OpenCode
+
+**Ce qui reste inconnu :**
+
+| Point | Statut |
+|-------|--------|
+| Comment l'agent enfant connaît son propre `task_id` | Probablement injecté en contexte système par OpenCode — non documenté publiquement |
+| Durée de vie d'une session | Les sessions persistent côté serveur (`session.delete()` existe) — TTL non documenté |
+| Comportement si `task_id` invalide | `session.get()` lève une erreur — comportement de l'outil `task` non spécifié |
+| `task` absent de la doc `/docs/tools` | L'outil existe (listé dans le schéma de permissions) mais n'est pas documenté dans la liste des built-ins — lacune ou intentionnel |
+
+**Risque résiduel — redémarrage d'OpenCode :** si OpenCode redémarre entre le moment où `orchestrator-dev` produit la question montante et le moment où l'orchestrateur ré-invoque avec le `task_id`, la session enfant peut avoir disparu. Ce cas n'est pas géré dans les skills — voir `### task_id — session introuvable` dans la section Points d'attention.
 
 ---
 
@@ -400,14 +408,20 @@ Pour éviter les boucles infinies, des limites sont imposées :
 
 ## Points d'attention et limites connues
 
-### `task_id` — mécanisme opaque
+### `task_id` — risque de session introuvable
 
-Le `task_id` est un identifiant opaque dont le comportement exact côté SDK
-n'est pas documenté. Points d'incertitude :
+Le `task_id` est un ID de session OpenCode standard — la reprise de session est fiable tant que la session existe côté serveur. Le seul risque réel est la **session introuvable** : si OpenCode redémarre entre la question montante et la reprise, la session enfant peut avoir disparu.
 
-- Durée de vie non spécifiée
-- Comportement en cas de timeout ou d'erreur non documenté
-- Mécanisme de stockage de l'historique de session inconnu
+| Cause | Probabilité | Impact |
+|-------|-------------|--------|
+| Redémarrage d'OpenCode entre question montante et reprise | Faible — nécessite un redémarrage pendant la fenêtre d'attente | Workflow interrompu — reprise impossible via `task_id` |
+| `task_id` mal copié dans le bloc `### État de la session` | Très faible — erreur LLM | Même impact |
+
+**Garde-fou dans `orchestrator-protocol.md` :** si la ré-invocation avec `task_id` échoue (pas de résultat, erreur), l'orchestrator doit détecter le cas et proposer à l'utilisateur de relancer `orchestrator-dev` depuis zéro avec les tickets restants — voir la section dédiée dans `orchestrator-protocol.md`.
+
+**Ce qui reste inconnu côté SDK :**
+- Comment l'agent enfant connaît son propre `task_id` pendant l'exécution (non documenté publiquement)
+- TTL des sessions (probablement illimité mais non spécifié)
 
 ### Récap partiel vs final
 
