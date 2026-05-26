@@ -301,7 +301,7 @@ question({
 ```
 ▶️ [CP-QA] Ticket TDD — tests écrits par le developer dans la boucle red/green/refactor. QA skippé.
 ```
-→ Passer directement à l'étape 4.
+→ Passer directement à l'étape 3.5 (Pre-review).
 
 **Sinon, selon le mode :**
 
@@ -319,7 +319,7 @@ question({
     }]
   })
   ```
-  - **Non** (défaut) → étape 4
+  - **Non** (défaut) → étape 3.5 (Pre-review)
   - **Oui** → invoquer `qa-engineer` avec le diff + l'ID du ticket
 
 - **`auto`** → utiliser la valeur fixée en CP-0 :
@@ -343,14 +343,118 @@ Invoquer `qa-engineer` en fournissant :
 
 2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
    - **Présent** → lire le `### Statut` :
-     - `couverture-complète` → continuer vers l'étape 4 normalement
+     - `couverture-complète` → continuer vers l'étape 3.5 (Pre-review) normalement
      - `couverture-partielle` → transmettre les critères non couverts au reviewer à l'étape 4
      - `non-testable` → noter dans le compte rendu d'étape (étape 6) comme point d'attention technique
    - **Absent** → demander explicitement au qa-engineer de produire le bloc avant de continuer.
 
 Le format attendu et les définitions des statuts sont définis dans le skill `qa/qa-handoff-format` — s'y référer comme source de vérité.
 
-> ❌ Ne jamais passer à l'étape 4 sans avoir reçu à la fois le rapport QA ET le bloc `## Retour vers orchestrator-dev`.
+> ❌ Ne jamais passer à l'étape 3.5 sans avoir reçu à la fois le rapport QA ET le bloc `## Retour vers orchestrator-dev`.
+
+---
+
+### Étape 3.5 — Pre-review automatique
+
+**Rôle :** Exécuter les vérifications automatiques (lint, types, tests, format) avant de soumettre à la review humaine. Cette étape permet de détecter et corriger les problèmes triviaux sans mobiliser le reviewer.
+
+**Contexte :** L'étape s'exécute automatiquement après l'implémentation (étape 2) et le QA optionnel (étape 3), avant la review (étape 4). Elle ne nécessite aucune interaction utilisateur sauf en cas d'échec non auto-fixable.
+
+#### Checks à exécuter (dans l'ordre)
+
+```bash
+# 1. Lint
+npm run lint
+
+# 2. Types (TypeScript)
+npx tsc --noEmit
+
+# 3. Tests
+npm test
+
+# 4. Format
+npx prettier --check .
+```
+
+> **Note :** Adapter les commandes selon la stack du projet (yarn, pnpm, etc.). Si le projet utilise un script unifié (`npm run check`), l'utiliser à la place.
+> 
+> **Détection du script unifié :** Vérifier via `npm run` (liste les scripts disponibles) ou lire directement le champ `scripts` de `package.json`. Exemple : si `"check": "eslint . && tsc --noEmit && vitest run"` existe, utiliser `npm run check` au lieu des commandes séparées.
+
+#### Mécanisme d'auto-fix
+
+Si un check échoue avec un problème **auto-fixable**, appliquer la correction immédiatement :
+
+```bash
+# Lint fix
+npm run lint -- --fix
+
+# Format fix
+npx prettier --write .
+```
+
+**Référence normative pour l'éligibilité :** Le skill `developer/quick-fix` est la **source de vérité** pour déterminer si une correction est auto-applicable sans review. Consulter ce skill en cas de doute. Résumé :
+- ✅ Lint fix (prefer-const, unused imports, etc.)
+- ✅ Formatage (indentation, espaces, trailing comma)
+- ✅ Point-virgule manquant/en trop
+- ❌ Renommage de variable, refactoring, changement de signature, logique métier
+
+> Seules les corrections **déterministes** et **sans impact sur la logique métier** sont appliquées automatiquement. En cas de doute, ne pas appliquer.
+
+#### Comportement selon le résultat
+
+**Si tous les checks passent (avec ou sans auto-fix) :**
+
+```
+▶️ [Pre-review] Checks passés.
+   - Lint : ✅ (2 auto-fixes appliqués)
+   - Types : ✅
+   - Tests : ✅ (42 tests, 0 échecs)
+   - Format : ✅ (3 fichiers reformatés)
+```
+
+→ Passer à l'étape 4 (Review automatique).
+
+**Si un check échoue avec un problème NON auto-fixable :**
+
+Retourner le ticket au developer avec un message clair :
+
+```bash
+bd comments add <ID> "Pre-review échouée : <détail de l'erreur>
+
+Erreur(s) détectée(s) :
+- <check> : <message d'erreur>
+
+Action requise : corriger les erreurs ci-dessus et repasser en review."
+bd update <ID> -s in_progress
+```
+
+```
+⚠️ [Pre-review] Échec — retour au developer.
+   - Lint : ✅
+   - Types : ❌ (TS2345: Argument of type 'string' is not assignable...)
+   - Tests : non exécuté (arrêt après échec types)
+   - Format : non exécuté
+```
+
+> « Je retourne le ticket à `<developer-xxx>` pour correction des erreurs de typage. »
+
+→ Reprendre à l'étape 2 (Délégation de l'implémentation).
+
+**Erreurs considérées comme NON auto-fixables :**
+- Erreurs de typage TypeScript
+- Tests en échec
+- Erreurs de lint sans `--fix` disponible (règles désactivées, erreurs de parsing)
+- Erreurs de syntaxe bloquantes
+
+#### Résumé des transitions
+
+| Résultat | Action |
+|----------|--------|
+| Tous checks ✅ | → Étape 4 (Review) |
+| Échec auto-fixable uniquement | Auto-fix + → Étape 4 (Review) |
+| Échec non auto-fixable | Commentaire Beads + → Étape 2 (Developer) |
+
+> **Compteur de cycles :** Les boucles "Pre-review échoue → retour developer → Pre-review" ne comptent **pas** dans la limite des 3 cycles de review (étape 4). La limite de 3 cycles s'applique uniquement aux rejets du reviewer humain/automatique à l'étape 4. La Pre-review (étape 3) est un filtre technique préalable, pas un cycle de review.
 
 ---
 
@@ -512,7 +616,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
   - `retour-initial` → retourner à l'agent développeur initial
 
   > « Je retourne le ticket à `<developer-xxx>` avec les corrections demandées. »
-  > Puis repasser étape 3 (QA optionnel) → étape 4 (review).
+  > Puis repasser étape 3 (QA optionnel) → étape 3.5 (Pre-review) → étape 4 (review).
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
 
