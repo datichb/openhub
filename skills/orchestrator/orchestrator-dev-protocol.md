@@ -390,9 +390,22 @@ Afficher le rapport de review intégralement dans le texte de la discussion (ne 
 
 **En mode standalone** → utiliser l'outil `question` pour CP-2.
 
-Utiliser le `### Verdict` du retour reviewer pour orienter les options présentées :
-- Verdict `commit` → présenter "Commit" comme option recommandée
-- Verdict `corriger` ou `corriger-sécurité` → présenter "Corriger" avec les corrections listées dans `### Corrections requises`
+#### Préparation des options selon le verdict
+
+Utiliser le `### Verdict` du retour reviewer pour construire dynamiquement les labels des options présentées au CP-2 :
+
+| Verdict | Option "Commit" | Option "Corriger" |
+|---------|-----------------|-------------------|
+| `commit` | `Commit (Recommandé — aucun problème bloquant)` | `Corriger` |
+| `corriger` | `Commit` | `Corriger (Recommandé — X problèmes à résoudre)` |
+| `corriger-sécurité` | `Commit` | `Corriger (Recommandé — problème de sécurité)` |
+| absent/invalide | `Commit` | `Corriger` |
+
+**Calcul de X pour verdict `corriger` :**
+- Compter le nombre total de 🔴 Critique + 🟠 Majeur depuis `### Synthèse des problèmes` du retour reviewer
+- Ne pas inclure 🟡 Mineur ni 💡 Suggestion dans le compte
+
+**Exemple avec verdict `commit` (les labels sont dynamiques selon le verdict reçu) :**
 
 ```
 question({
@@ -400,7 +413,7 @@ question({
     header: "CP-2 — Ticket #<ID>",
     question: "Le rapport de review est affiché ci-dessus. Quelle suite pour le ticket #<ID> ?",
     options: [
-      { label: "Commit", description: "Formuler le message Conventional Commits et demander au developer de commiter" },
+      { label: "Commit (Recommandé — aucun problème bloquant)", description: "Formuler le message Conventional Commits et demander au developer de commiter" },
       { label: "Corriger", description: "Retourner le ticket au developer avec les retours du reviewer" }
     ]
   }]
@@ -444,8 +457,24 @@ Pour remplir les sections du bloc, utiliser :
 Quelle suite pour le ticket #<ID> — <titre> ?
 
 ### Options disponibles
-- `Commit` : Formuler le message Conventional Commits et demander au developer de commiter
+Les labels sont dynamiques selon le verdict (même logique que le mode standalone) :
+
+| Verdict | Option "Commit" | Option "Corriger" |
+|---------|-----------------|-------------------|
+| `commit` | `Commit (Recommandé — aucun problème bloquant)` | `Corriger` |
+| `corriger` | `Commit` | `Corriger (Recommandé — X problèmes à résoudre)` |
+| `corriger-sécurité` | `Commit` | `Corriger (Recommandé — problème de sécurité)` |
+| absent/invalide | `Commit` | `Corriger` |
+
+**Exemple avec verdict `commit` :**
+- `Commit (Recommandé — aucun problème bloquant)` : Formuler le message Conventional Commits et demander au developer de commiter
 - `Corriger` : Retourner le ticket au developer avec les retours du reviewer
+
+**Exemple avec verdict `corriger` (3 🔴 Critique + 2 🟠 Majeur = 5 problèmes) :**
+- `Commit` : Formuler le message Conventional Commits et demander au developer de commiter
+- `Corriger (Recommandé — 5 problèmes à résoudre)` : Retourner le ticket au developer avec les retours du reviewer
+
+> ⚠️ Les labels ci-dessus sont dynamiques — adapter selon le verdict et le compte de problèmes du retour reviewer.
 
 ### État de la session
 **Tickets traités :** [bd-XX ✅, ...]
