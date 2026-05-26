@@ -39,6 +39,77 @@ Reformule en langage naturel dans la description du ticket.
 
 ---
 
+## Routing explicite pour l'orchestrateur
+
+### Responsabilité du planner
+
+Le planner est **la seule source de vérité** pour le routing des tickets vers les agents. L'orchestrateur ne fait jamais d'analyse de contenu pour déterminer l'agent — il suit strictement les instructions du planner.
+
+### Champs obligatoires dans le retour
+
+Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
+
+1. **Colonne `Agent prévu`** dans le tableau `### Tickets créés` — pour chaque ticket, indiquer l'agent qui doit le traiter
+2. **Section `### Ordre de traitement`** — séquence exacte d'exécution que l'orchestrateur suivra sans interprétation
+
+### Agents disponibles pour le routing
+
+| Agent | Domaine | Quand l'utiliser |
+|-------|---------|------------------|
+| `ux-designer` | Conception UX | Parcours utilisateur, flows, friction, expérience |
+| `ui-designer` | Conception UI | Design system, composants visuels, tokens, accessibilité |
+| `auditor-security` | Audit sécurité | OWASP, CVE, failles, hardening |
+| `auditor-performance` | Audit performance | Web Vitals, N+1, lazy loading |
+| `auditor-accessibility` | Audit accessibilité | WCAG, RGAA, navigation clavier |
+| `auditor-privacy` | Audit RGPD | Données personnelles, consentement |
+| `auditor-observability` | Audit observabilité | Métriques, logs, SLOs, alerting |
+| `auditor-ecodesign` | Audit éco-conception | RGESN, GreenIT, sobriété numérique |
+| `auditor-architecture` | Audit architecture | SOLID, dette technique, couplage |
+| `orchestrator-dev` | Implémentation | Tous les tickets d'implémentation — route ensuite vers les developers spécialisés |
+
+> **Note :** Cette liste couvre les agents vers lesquels **l'orchestrateur** route les tickets selon les instructions du planner. Les agents developer-* (developer-backend, developer-frontend, etc.), reviewer, qa-engineer et documentarian sont invoqués par `orchestrator-dev` lors de la phase d'implémentation, pas directement par l'orchestrateur feature.
+
+### Règle prescriptive
+
+> **Le champ `Agent prévu` est obligatoire et prescriptif — l'orchestrateur ne devine plus rien.**
+
+L'orchestrateur :
+- ❌ N'analyse jamais les labels, le titre ou la description pour deviner l'agent
+- ❌ Ne recalcule jamais l'ordre de traitement depuis les dépendances
+- ✅ Utilise directement le champ `Agent prévu` du tableau
+- ✅ Suit l'`### Ordre de traitement` tel quel
+
+### Exemple de routing
+
+Pour une feature touchant UX, sécurité et implémentation :
+
+```
+### Tickets créés
+
+| ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
+|----|-------|------|----------|--------|-------------|-----|-----------|
+| bd-10 | Analyse flow inscription | task | P1 | ux | ux-designer | — | — |
+| bd-11 | Audit sécurité auth | task | P1 | audit-security | auditor-security | — | — |
+| bd-12 | Endpoint POST /users | feature | P1 | backend | orchestrator-dev | ✅ | bd-10 |
+| bd-13 | Composant formulaire | feature | P2 | frontend | orchestrator-dev | — | bd-10, bd-12 |
+
+### Ordre de traitement
+1. bd-10 — spec UX fondation pour les autres tickets
+2. bd-11 — audit sécurité peut se faire en parallèle de bd-10
+3. bd-12 — après bd-10 (dépendance)
+4. bd-13 — après bd-10 et bd-12 (dépendances)
+```
+
+L'orchestrateur lira ce bloc et routera directement :
+- bd-10 → `ux-designer`
+- bd-11 → `auditor-security`
+- bd-12 → `orchestrator-dev`
+- bd-13 → `orchestrator-dev`
+
+Sans jamais analyser les labels ou le contenu des tickets.
+
+---
+
 ## Comportement selon le contexte d'invocation
 
 ### Détection du contexte
