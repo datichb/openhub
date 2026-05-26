@@ -26,6 +26,24 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers.
 ✅ Quand invoqué depuis l'orchestrateur feature, tu reçois le mode déjà choisi — tu ne le redemandes pas
 ✅ **Quand invoqué depuis l'orchestrateur feature : produire TOUJOURS le bloc `## Retour vers orchestrator` à la fin du récap global — sans exception, même en cas de stop, de ticket bloqué ou de session incomplète**
 
+---
+
+## Skill injecté — todowrite
+
+Ce protocole utilise l'outil `todowrite` pour afficher la progression des tickets en session.
+Les règles d'utilisation de l'outil sont définies dans le skill `skills/posture/tool-todowrite.md` — s'y référer comme source de vérité pour :
+- Le format de l'outil (paramètres `content`, `status`, `priority`)
+- Les états disponibles (`pending`, `in_progress`, `completed`, `cancelled`)
+- La contrainte d'une seule tâche `in_progress` à la fois
+- La mise à jour en temps réel à chaque transition
+
+**Usage spécifique à orchestrator-dev :**
+- **Une tâche = un ticket Beads** (pas de granularité inférieure)
+- Création au CP-0, mise à jour aux transitions clés (CP-1, fin de ticket)
+- Les phases intermédiaires (QA, review) sont notées dans le compte rendu d'étape mais ne déclenchent pas de mise à jour todowrite pour éviter l'overhead
+
+---
+
 ## Comportement selon le contexte d'invocation — CPs à enjeu fort
 
 Les **CPs à enjeu fort** sont : CP-2, blocage après 3 cycles de review, dépendance non résolue, ticket bloqué.
@@ -119,6 +137,29 @@ X tickets identifiés. Y en TDD (tests écrits avant l'implémentation — QA sk
 
 Enregistrer le mode pour toute la session.
 
+**Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) :
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
+
+**Mapping priorité Beads → priorité todowrite :**
+
+> Les priorités Beads P0 et P1 sont regroupées en `high` car elles représentent des tickets à traiter en priorité dans la session (blocants ou urgents). P2 correspond au flux normal (`medium`), P3 aux tâches secondaires (`low`).
+
+| Priorité Beads | Priorité todowrite |
+|----------------|-------------------|
+| P0 (critique)  | `high`            |
+| P1 (haute)     | `high`            |
+| P2 (normale)   | `medium`          |
+| P3 (basse)     | `low`             |
+
 ### Invoqué depuis l'orchestrateur feature
 
 **Détection obligatoire au démarrage :** si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`, alors :
@@ -144,6 +185,8 @@ Appliquer la première occurrence dans le prompt et signaler :
 
 Le mode et la liste des tickets sont transmis en paramètre.
 Afficher le récapitulatif des tickets reçus et démarrer directement sans redemander le mode.
+
+**Initialiser todowrite** avec 1 tâche par ticket (toutes en `pending`) — même format que le mode standalone.
 
 ---
 
@@ -219,16 +262,30 @@ Afficher le ticket :
     }]
   })
   ```
-  - **Oui — démarrer** → passer à l'étape 1b
+  - **Oui — démarrer** → mettre à jour todowrite (ticket en `in_progress`) → passer à l'étape 1b
   - **Voir le détail** → exécuter `bd show <ID>`, afficher la sortie intégrale, puis re-poser CP-1 (boucle — l'utilisateur peut demander le détail autant de fois que nécessaire)
-  - **Passer** → ticket ignoré, ticket suivant
+  - **Passer** → mettre à jour todowrite (ticket en `cancelled`) → ticket ignoré, ticket suivant
   - **Stop** → aller directement à la section **Récap global — Fin de session** (afficher le récap et produire le bloc `## Retour vers orchestrator` si CONTEXTE = orchestrateur_feature)
 
 - **`semi-auto` / `auto`** → enchaîner directement :
   ```
   ▶️ [CP-1] Démarrage automatique.
   ```
-  → passer à l'étape 1b
+  → mettre à jour todowrite (ticket en `in_progress`) → passer à l'étape 1b
+
+**Mise à jour todowrite au CP-1 (exemple : premier ticket démarre) :**
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court>", status: "in_progress", priority: "high" },  // ← premier ticket démarre
+    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
+
+> Rappel : exactement une tâche `in_progress` à la fois (règle du skill `skills/posture/tool-todowrite.md`).
 
 ---
 
@@ -684,6 +741,22 @@ Invoquer `documentarian` uniquement si l'utilisateur répond "Oui".
 
 Le format attendu et les définitions des statuts sont définis dans le skill `documentarian/documentarian-handoff-format` — s'y référer comme source de vérité.
 
+**Mise à jour todowrite (fin de ticket) :**
+
+Mettre à jour todowrite avec le ticket passé en `completed` :
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court>", status: "completed", priority: "high" },
+    { content: "#bd-13 — <titre court>", status: "completed", priority: "high" },  // ← ticket terminé
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
+
+> En mode `auto`, cette mise à jour intervient après le commit validé (CP-2 → commit) — c'est la seule mise à jour `todowrite` entre CP-1 et la fin du ticket pour limiter l'overhead.
+
 **Selon le mode :**
 
 - **`manuel`** → pause CP-3 via l'outil `question` :
@@ -1036,3 +1109,5 @@ Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
 - Omettre le champ `**Type de récap :**` dans le bloc `## Retour vers orchestrator` — ce champ est obligatoire et permet à l'orchestrator de distinguer récap partiel (émis avec une question montante) et récap final (émis seul en fin de session)
 - Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
 - Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte
+- Mettre à jour todowrite à chaque micro-étape (QA, review, pre-review) — uniquement aux transitions clés (CP-1 start, fin ticket) pour limiter l'overhead en mode auto
+- Avoir plusieurs tâches `in_progress` simultanément dans todowrite — exactement une à la fois (sauf workflow parallèle où chaque session gère son propre state)
