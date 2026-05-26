@@ -389,6 +389,20 @@ t() {
       start.dev_needs_dev_flag) printf '%s' "--label et --assignee nécessitent --dev" ;;
       start.dev_onboard_exclusive) printf '%s' "--dev et --onboard sont mutuellement exclusifs" ;;
 
+      # ── cmd-quick.sh ────────────────────────────────────────────────────────
+      quick.title)              printf '%s' "Exécution rapide de tâche" ;;
+      quick.usage)              printf '%s' "Usage : oc quick <PROJECT_ID> \"<prompt>\"" ;;
+      quick.project_required)   printf '%s' "PROJECT_ID requis" ;;
+      quick.prompt_required)    printf '%s' "Prompt requis" ;;
+      quick.launching)          printf '%s' "Lancement de l'implémentation..." ;;
+      quick.help.desc)          printf '%s' "Lance une tâche rapide avec agent auto-détecté" ;;
+      quick.help.options)       printf '%s' "Options :" ;;
+      quick.help.examples)      printf '%s' "Exemples :" ;;
+      quick.prompt.mode)        printf '%s' "Mode : semi-auto" ;;
+      quick.prompt.skip_cp0)    printf '%s' "Skip CP-0 : oui — passe directement à l'implémentation sans phase de planification." ;;
+      quick.prompt.cp2_pause)   printf '%s' "CP-2 reste une pause pour commit ou correction." ;;
+      quick.prompt.task)        printf '%s' "Tâche :" ;;
+
       # ── install/uninstall ──────────────────────────────────────────────────
       install.title)          printf '%s' "Installation opencode-hub" ;;
       install.already_done)   printf '%s' "Déjà installé." ;;
@@ -991,6 +1005,20 @@ t_en() {
     start.dev_label_exclusive) printf '%s' "--label and --assignee are mutually exclusive" ;;
     start.dev_needs_dev_flag) printf '%s' "--label and --assignee require --dev" ;;
     start.dev_onboard_exclusive) printf '%s' "--dev and --onboard are mutually exclusive" ;;
+
+    # ── cmd-quick.sh ──────────────────────────────────────────────────────────
+    quick.title)              printf '%s' "Quick task execution" ;;
+    quick.usage)              printf '%s' "Usage: oc quick <PROJECT_ID> \"<prompt>\"" ;;
+    quick.project_required)   printf '%s' "PROJECT_ID required" ;;
+    quick.prompt_required)    printf '%s' "Prompt required" ;;
+    quick.launching)          printf '%s' "Launching implementation..." ;;
+    quick.help.desc)          printf '%s' "Launch a quick task with auto-detected agent" ;;
+    quick.help.options)       printf '%s' "Options:" ;;
+    quick.help.examples)      printf '%s' "Examples:" ;;
+    quick.prompt.mode)        printf '%s' "Mode: semi-auto" ;;
+    quick.prompt.skip_cp0)    printf '%s' "Skip CP-0: yes — proceed directly to implementation without planning phase." ;;
+    quick.prompt.cp2_pause)   printf '%s' "CP-2 remains a pause for commit or correction." ;;
+    quick.prompt.task)        printf '%s' "Task:" ;;
 
     # ── install/uninstall ────────────────────────────────────────────────────
     install.title)          printf '%s' "opencode-hub installation" ;;
