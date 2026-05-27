@@ -1,6 +1,6 @@
 ---
 name: dev-standards-vuejs
-description: Bonnes pratiques Vue.js — Composition API, typage, templates, composables, watchers, performances, conventions de nommage.
+description: Bonnes pratiques Vue.js — Composition API, typage, templates, composables, watchers, performances, accessibilité, conventions de nommage.
 ---
 
 # Skill — Standards Vue.js
@@ -81,3 +81,19 @@ Tu proposes, l'utilisateur décide.
 - Props : camelCase en JS, kebab-case dans le template
 - Événements émis : kebab-case (`user-updated`)
 - Fichiers de store Pinia : camelCase suffixé store (`userStore.ts`)
+
+---
+
+## Accessibilité Vue.js
+
+Les règles générales d'accessibilité sont définies dans `skills/developer/dev-standards-frontend-a11y.md`.
+Cette section couvre les spécificités Vue.js.
+
+- Composants UI tiers vérifiés pour la conformité accessibilité avant adoption
+  (Headless UI, Radix Vue, ou équivalents accessibles privilégiés)
+- `v-show` vs `v-if` : `v-show` masque visuellement mais l'élément reste dans le DOM
+  et peut être lu par certains lecteurs d'écran — utiliser `aria-hidden` si nécessaire
+- `<Transition>` : respecter `prefers-reduced-motion` via media query CSS
+- `<Teleport>` : vérifier que le focus et le contexte ARIA restent cohérents
+- Composants dynamiques : annoncer les changements de contenu significatifs
+  via `aria-live` si nécessaire

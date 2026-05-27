@@ -1,6 +1,6 @@
 ---
 name: dev-standards-frontend-a11y
-description: Règles d'accessibilité frontend — WCAG 2.1 A/AA, HTML sémantique, ARIA, navigation clavier, formulaires, Vue.js.
+description: Règles d'accessibilité frontend — WCAG 2.1 A/AA, HTML sémantique, ARIA, navigation clavier, formulaires.
 ---
 
 # Skill — Standards Accessibilité Frontend
@@ -92,16 +92,10 @@ Si le projet déroge explicitement au niveau AA, l'utilisateur doit le préciser
 
 ---
 
-## Vue.js & Accessibilité
+## Standards spécifiques aux frameworks
 
-- Composants UI tiers vérifiés pour la conformité accessibilité avant adoption
-  (Headless UI, Radix Vue, ou équivalents accessibles privilégiés)
-- `v-show` vs `v-if` : `v-show` masque visuellement mais l'élément reste dans le DOM
-  et peut être lu par certains lecteurs d'écran — utiliser `aria-hidden` si nécessaire
-- `<Transition>` : respecter `prefers-reduced-motion` via media query CSS
-- `<Teleport>` : vérifier que le focus et le contexte ARIA restent cohérents
-- Composants dynamiques : annoncer les changements de contenu significatifs
-  via `aria-live` si nécessaire
+Les règles d'accessibilité spécifiques aux frameworks (Vue.js, React, Angular, etc.)
+sont définies dans les skills correspondants du dossier `skills/developer/stacks/`.
 
 ---
 
