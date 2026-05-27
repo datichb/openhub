@@ -39,8 +39,9 @@
     },
     "bedrock": {
       "label": "AWS Bedrock (natif)",
-      "description": "AWS Bedrock via le provider natif amazon-bedrock d'OpenCode (credentials AWS)",
-      "requires_api_key": true,
+      "description": "AWS Bedrock via le provider natif amazon-bedrock d'OpenCode — utilise les credentials AWS (~/.aws/credentials ou variables d'environnement)",
+      "requires_api_key": false,
+      "auth_method": "aws",
       "requires_base_url": false,
       "requires_region": true,
       "litellm": false,
