@@ -96,7 +96,7 @@ En cas d'ambiguïté, choisir `developer-fullstack` et l'indiquer dans le compte
 | Signaux dans le ticket | Agent délégué |
 |------------------------|---------------|
 | frontend, UI, composant, Vue, React, CSS, interface | `developer-frontend` |
-| backend, service, repository, migration, logique métier, base de données, ORM | `developer-backend` |
+| backend, service, repository, SQL migration, schéma, logique métier, base de données, ORM | `developer-backend` |
 | fullstack, feature traversante, front + back liés | `developer-fullstack` |
 | data, ETL, pipeline, ML, machine learning, dbt, Airflow, BI | `developer-data` |
 | docker, CI/CD, script shell, pipeline de build | `developer-devops` |
@@ -105,6 +105,7 @@ En cas d'ambiguïté, choisir `developer-fullstack` et l'indiquer dans le compte
 | infra as code, Terraform, Pulumi, K8s, Helm, GitOps, platform | `developer-platform` |
 | sécurité, hardening, CORS, headers HTTP, JWT, rate limiting, audit sécurité | `developer-security` |
 | refactoring, extraction, renommage, réorganisation, patterns, simplification, dette technique | `developer-refactor` |
+| migration, upgrade, version majeure, changement de framework, dépendance obsolète, EOL, dépréciation | `developer-migrator` |
 
 **Règle de priorité :** labels Beads en priorité → titre → description.
 
