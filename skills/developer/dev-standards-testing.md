@@ -256,58 +256,20 @@ Cette pratique permet de :
 
 ### Commandes par framework
 
-#### Vitest
+Les commandes de test (watch mode, couverture, exécution ciblée) sont définies dans le skill
+dédié au framework de test du projet :
 
-```bash
-# Watch mode — relance automatiquement les tests modifiés
-npx vitest
+- **Vitest** : `dev-standards-vitest.md`
+- **Jest** : `dev-standards-jest.md`
 
-# Tester un seul fichier
-npx vitest run src/services/__tests__/user.service.test.ts
+Principes généraux applicables à tous les frameworks :
 
-# Tester les fichiers liés aux modifications (changed files)
-npx vitest related src/services/user.service.ts
-
-# Watch sur un fichier spécifique
-npx vitest src/services/__tests__/user.service.test.ts
-```
-
-#### Jest
-
-```bash
-# Watch mode — relance les tests liés aux fichiers modifiés
-npx jest --watch
-
-# Watch all — relance tous les tests à chaque modification
-npx jest --watchAll
-
-# Tester un seul fichier
-npx jest src/services/__tests__/user.service.test.ts
-
-# Tester les fichiers liés aux modifications (depuis le dernier commit)
-npx jest --onlyChanged
-
-# Filtrer par nom de test
-npx jest -t "doit retourner null"
-```
-
-#### Vérifier la couverture
-
-Pour valider que les modifications sont bien couvertes par les tests :
-
-```bash
-# Vitest — couverture des fichiers modifiés
-npx vitest run --coverage
-
-# Jest — couverture avec rapport
-npx jest --coverage
-
-# Couverture ciblée sur un fichier
-npx vitest run --coverage src/services/user.service.ts
-npx jest --coverage src/services/__tests__/user.service.test.ts
-```
-
-> **Conseil :** Activer `--coverage` avant de commit pour s'assurer que les nouvelles fonctions sont testées.
+| Mode | Usage |
+|------|-------|
+| **Watch mode** | Relance automatique des tests modifiés — garder actif en arrière-plan |
+| **Run ciblé** | Tester un seul fichier après modification — feedback rapide |
+| **Related / Changed** | Tester les fichiers impactés par les dernières modifications |
+| **Coverage** | Vérifier que les nouvelles fonctions sont couvertes — avant commit |
 
 ### Bonnes pratiques
 

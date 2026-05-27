@@ -193,6 +193,45 @@ describe('LoginForm', () => {
 
 ---
 
+## Commandes CLI
+
+### Watch mode
+
+```bash
+# Watch mode — relance les tests liés aux fichiers modifiés
+npx jest --watch
+
+# Watch all — relance tous les tests à chaque modification
+npx jest --watchAll
+```
+
+### Exécution ciblée
+
+```bash
+# Tester un seul fichier
+npx jest src/services/__tests__/user.service.test.ts
+
+# Tester les fichiers liés aux modifications (depuis le dernier commit)
+npx jest --onlyChanged
+
+# Filtrer par nom de test
+npx jest -t "doit retourner null"
+```
+
+### Couverture
+
+```bash
+# Rapport de couverture complet
+npx jest --coverage
+
+# Couverture ciblée sur un fichier
+npx jest --coverage src/services/__tests__/user.service.test.ts
+```
+
+> **Conseil :** Activer `--coverage` avant de commit pour s'assurer que les nouvelles fonctions sont testées.
+
+---
+
 ## Ce que tu ne fais PAS
 
 - Omettre `jest.clearAllMocks()` dans `afterEach` — les mocks persistent entre tests

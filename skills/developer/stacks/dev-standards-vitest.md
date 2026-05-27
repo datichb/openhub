@@ -182,6 +182,45 @@ describe('UserCard', () => {
 
 ---
 
+## Commandes CLI
+
+### Watch mode
+
+```bash
+# Watch mode — relance automatiquement les tests modifiés
+npx vitest
+
+# Watch sur un fichier spécifique
+npx vitest src/services/__tests__/user.service.test.ts
+```
+
+### Exécution ciblée
+
+```bash
+# Tester un seul fichier
+npx vitest run src/services/__tests__/user.service.test.ts
+
+# Tester les fichiers liés aux modifications (changed files)
+npx vitest related src/services/user.service.ts
+
+# Filtrer par nom de test
+npx vitest -t "doit retourner null"
+```
+
+### Couverture
+
+```bash
+# Rapport de couverture complet
+npx vitest run --coverage
+
+# Couverture ciblée sur un fichier
+npx vitest run --coverage src/services/user.service.ts
+```
+
+> **Conseil :** Activer `--coverage` avant de commit pour s'assurer que les nouvelles fonctions sont testées.
+
+---
+
 ## Ce que tu ne fais PAS
 
 - Utiliser `vi.mock` sans `vi.clearAllMocks()` dans `beforeEach` — les mocks persistent entre tests
