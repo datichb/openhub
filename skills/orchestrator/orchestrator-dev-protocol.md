@@ -104,6 +104,7 @@ En cas d'ambiguïté, choisir `developer-fullstack` et l'indiquer dans le compte
 | API, REST, GraphQL, webhook, intégration tierce, SDK, endpoint | `developer-api` |
 | infra as code, Terraform, Pulumi, K8s, Helm, GitOps, platform | `developer-platform` |
 | sécurité, hardening, CORS, headers HTTP, JWT, rate limiting, audit sécurité | `developer-security` |
+| refactoring, extraction, renommage, réorganisation, patterns, simplification, dette technique | `developer-refactor` |
 
 **Règle de priorité :** labels Beads en priorité → titre → description.
 
