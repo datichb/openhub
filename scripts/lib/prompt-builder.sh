@@ -219,7 +219,8 @@ resolve_agent_model() {
 }
 
 # Extrait le bloc permission du frontmatter et le convertit en JSON inline
-# Supporte : permission.question (scalaire) et permission.task (map multi-ligne)
+# Supporte : scalaires directs (question: allow) et sous-blocs map (bash: { "*": deny, "cmd": allow })
+# Types supportés pour sous-blocs map : bash, read, edit, write, glob, task
 # Retourne une chaîne JSON partielle, ex: "\"permission\": { \"question\": \"allow\" }"
 # ou vide si aucune permission n'est déclarée
 # Zéro fork dans la boucle : tous les tests utilisent case/[[ =~ ]] et les extractions
@@ -236,35 +237,47 @@ extract_permission_json() {
   [[ "$frontmatter" == *$'\npermission:'* || "$frontmatter" == 'permission:'* ]] || return 0
 
   # Extraire tous les scalaires directs sous permission: (indentation 2 espaces)
-  # et le sous-bloc task: (indentation 4 espaces)
-  # Scalaires supportés : question, bash, edit, write, et tout futur scalaire
-  local in_permission=0 in_task=0
-  local scalar_fields="" task_entries=""
+  # et les sous-blocs map (indentation 4 espaces)
+  # Scalaires supportés : question, bash, edit, write, read, glob, task (format clé: valeur)
+  # Sous-blocs map supportés : bash, read, edit, write, glob, task (format clé: sans valeur, puis entrées indentées)
+  local in_permission=0 current_subblock=""
+  local scalar_fields=""
+  local bash_entries="" read_entries="" edit_entries="" write_entries="" glob_entries="" task_entries=""
 
   while IFS= read -r line; do
     case "$line" in
       permission:*)
-        in_permission=1; in_task=0; continue ;;
+        in_permission=1; current_subblock=""; continue ;;
     esac
 
     if [ "$in_permission" = "1" ]; then
       # Quitter le bloc permission si on revient à l'indentation racine (caractère non-espace en tête)
       case "$line" in
-        [!\ ]*)  in_permission=0; in_task=0; continue ;;  # retour indentation racine (ligne non indentée)
+        [!\ ]*)  in_permission=0; current_subblock=""; continue ;;  # retour indentation racine (ligne non indentée)
       esac
 
+      # Détecter le début d'un sous-bloc map (2 espaces + nom + : sans valeur après)
+      # Pattern : "  bash:" ou "  task:" (pas de valeur après le :)
       case "$line" in
-        '  task:'*)
-          in_task=1; continue ;;
+        '  bash:')   current_subblock="bash"; continue ;;
+        '  read:')   current_subblock="read"; continue ;;
+        '  edit:')   current_subblock="edit"; continue ;;
+        '  write:')  current_subblock="write"; continue ;;
+        '  glob:')   current_subblock="glob"; continue ;;
+        '  task:')   current_subblock="task"; continue ;;
       esac
 
-      if [ "$in_task" = "1" ]; then
-        # Ligne d'entrée task : "    \"*\": \"deny\"" ou "    \"developer-*\": \"allow\""
+      if [ -n "$current_subblock" ]; then
+        # Ligne d'entrée de sous-bloc : "    \"*\": deny" ou "    \"bd list\": allow"
+        # LIMITATION : les clés contenant ':' ne sont pas supportées (ex: "echo: test": allow)
+        # car le parsing utilise le premier ':' comme séparateur clé/valeur.
+        # En pratique, les clés sont des patterns de commande ou de fichier qui ne contiennent
+        # jamais ':' dans les cas d'usage réels des permissions opencode.
         case "$line" in
           '    '*)
             # Extraire clé et valeur — expansions de paramètre bash (zéro fork)
             local kv="${line#"${line%%[! ]*}"}"   # strip leading whitespace
-            local k="${kv%%:*}"                    # tout avant le premier ':'
+            local k="${kv%%:*}"                    # tout avant le premier ':' (limitation : clés avec ':' non supportées)
             k="${k#"${k%%[! ]*}"}"                # strip leading whitespace
             k="${k%"${k##*[! ]}"}"                # strip trailing whitespace
             k="${k#\"}"                            # strip guillemet ouvrant
@@ -275,18 +288,25 @@ extract_permission_json() {
             v="${v#\"}"                            # strip guillemet ouvrant si présent
             v="${v%\"}"                            # strip guillemet fermant si présent
             if [ -n "$k" ] && [ -n "$v" ]; then
-              [ -n "$task_entries" ] && task_entries="${task_entries}, "
-              task_entries="${task_entries}\"${k}\": \"${v}\""
+              local entry="\"${k}\": \"${v}\""
+              case "$current_subblock" in
+                bash)  [ -n "$bash_entries" ] && bash_entries="${bash_entries}, "; bash_entries="${bash_entries}${entry}" ;;
+                read)  [ -n "$read_entries" ] && read_entries="${read_entries}, "; read_entries="${read_entries}${entry}" ;;
+                edit)  [ -n "$edit_entries" ] && edit_entries="${edit_entries}, "; edit_entries="${edit_entries}${entry}" ;;
+                write) [ -n "$write_entries" ] && write_entries="${write_entries}, "; write_entries="${write_entries}${entry}" ;;
+                glob)  [ -n "$glob_entries" ] && glob_entries="${glob_entries}, "; glob_entries="${glob_entries}${entry}" ;;
+                task)  [ -n "$task_entries" ] && task_entries="${task_entries}, "; task_entries="${task_entries}${entry}" ;;
+              esac
             fi
             ;;
           *)
-            # Fin du bloc task
-            in_task=0 ;;
+            # Fin du sous-bloc (ligne non indentée à 4 espaces)
+            current_subblock="" ;;
         esac
       fi
 
-      # Scalaire direct sous permission: (2 espaces, pas task:, pas sous-bloc)
-      if [ "$in_task" = "0" ] && [[ "$line" =~ ^[[:space:]][[:space:]][a-zA-Z][a-zA-Z0-9_-]*:[[:space:]] ]]; then
+      # Scalaire direct sous permission: (2 espaces, pas dans un sous-bloc, format "clé: valeur")
+      if [ -z "$current_subblock" ] && [[ "$line" =~ ^[[:space:]][[:space:]][a-zA-Z][a-zA-Z0-9_-]*:[[:space:]] ]]; then
         local sk="${line#  }"     # strip les 2 espaces d'indentation
         sk="${sk%%:*}"             # tout avant le premier ':'
         sk="${sk%"${sk##*[! ]}"}" # strip trailing whitespace
@@ -303,6 +323,28 @@ extract_permission_json() {
 
   # Construire le JSON de permission
   local perm_fields="${scalar_fields}"
+  
+  # Ajouter chaque sous-bloc non vide comme objet JSON
+  if [ -n "$bash_entries" ]; then
+    [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
+    perm_fields="${perm_fields}\"bash\": { ${bash_entries} }"
+  fi
+  if [ -n "$read_entries" ]; then
+    [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
+    perm_fields="${perm_fields}\"read\": { ${read_entries} }"
+  fi
+  if [ -n "$edit_entries" ]; then
+    [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
+    perm_fields="${perm_fields}\"edit\": { ${edit_entries} }"
+  fi
+  if [ -n "$write_entries" ]; then
+    [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
+    perm_fields="${perm_fields}\"write\": { ${write_entries} }"
+  fi
+  if [ -n "$glob_entries" ]; then
+    [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
+    perm_fields="${perm_fields}\"glob\": { ${glob_entries} }"
+  fi
   if [ -n "$task_entries" ]; then
     [ -n "$perm_fields" ] && perm_fields="${perm_fields}, "
     perm_fields="${perm_fields}\"task\": { ${task_entries} }"
