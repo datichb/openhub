@@ -732,6 +732,8 @@ ou agent absent de `.opencode/agents/`), ne jamais silencieusement basculer vers
 | `ux-designer` | *(aucun substitut)* | — |
 | `ui-designer` | *(aucun substitut)* | — |
 
+> **Note :** Les agents `developer-*` listés comme substituts (`developer-security`, `developer-frontend`, `developer-fullstack`) sont invoqués **via `orchestrator-dev`**, jamais directement par l'orchestrator. L'orchestrator délègue à `orchestrator-dev` qui route ensuite vers le developer approprié.
+
 **Si un substitut existe**, utiliser l'outil `question` avec 3 options :
 
 ```
