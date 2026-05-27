@@ -803,17 +803,94 @@ Attendre les résultats de toutes les sessions. Pour chaque résultat reçu :
 
 Les phases QA et Review sont lancées pour chaque ticket dès que son implémentation est terminée — sans attendre les autres sessions. Les sessions QA et Review pour différents tickets peuvent donc se chevaucher.
 
-### CP-2 en séquentiel
+### CP-2 en batch conditionnel
 
-Lorsque N sessions atteignent CP-2 (chacune produit `## Question pour l'orchestrator`) :
+Lorsque N sessions atteignent CP-2 simultanément (chacune produit `## Question pour l'orchestrator`) :
+
+#### Étape 1 — Évaluation des verdicts
+
+Collecter les verdicts de tous les rapports de review en attente :
+- Extraire le `### Verdict` de chaque `## Question pour l'orchestrator`
+- Classer les tickets en deux catégories : verdict `commit` vs verdict `corriger` ou `corriger-sécurité`
+
+#### Étape 2 — Décision de batch ou éclatement
+
+**Si TOUS les verdicts sont `commit`** → proposer un batch groupé :
+
+```
+> 📋 [CP-2 — Batch disponible] X tickets prêts à commiter.
+> Tous les verdicts reviewer sont `commit` — aucun problème bloquant détecté.
+```
+
+Utiliser l'outil `question` :
+
+```
+question({
+  questions: [{
+    header: "CP-2 — Batch de X tickets",
+    question: "X tickets ont reçu un verdict `commit` du reviewer. Quelle action pour ce lot ?",
+    options: [
+      { label: "Commit tous", description: "Commiter les X tickets en séquence avec leurs messages Conventional Commits respectifs" },
+      { label: "Commit sélectif", description: "Choisir quels tickets commiter parmi les X disponibles" },
+      { label: "Voir détails", description: "Afficher le rapport de review de chaque ticket avant de décider" }
+    ]
+  }]
+})
+```
+
+**Comportement selon la réponse :**
+
+- **Commit tous** → pour chaque ticket du lot, dans l'ordre FIFO (ordre d'arrivée des sessions au CP-2) :
+  1. Formuler le message de commit selon Conventional Commits
+  2. Transmettre l'instruction de commit à l'agent développeur
+  3. Clore le ticket : `bd close <ID> --reason "Implemented in commit <hash>"`
+  4. Passer au ticket suivant du lot
+  5. Une fois tous les tickets commités, afficher le récap groupé et continuer
+
+- **Commit sélectif** → afficher la liste des tickets du lot avec leur titre, puis utiliser l'outil `question` :
+  ```
+  question({
+    questions: [{
+      header: "Sélection des tickets à commiter",
+      question: "Quels tickets commiter parmi les X disponibles ?",
+      multiple: true,
+      options: [
+        { label: "#<ID-1> — <titre-1>", description: "Verdict: commit" },
+        { label: "#<ID-2> — <titre-2>", description: "Verdict: commit" },
+        ...
+      ]
+    }]
+  })
+  ```
+  → Commiter uniquement les tickets sélectionnés, les autres retournent en séquentiel standard
+  → Si aucun ticket sélectionné (sélection vide), revenir au choix précédent sans action
+
+- **Voir détails** → passer en mode séquentiel standard (comportement ci-dessous)
+
+**Si AU MOINS UN verdict est `corriger` ou `corriger-sécurité`** → éclater le batch :
+
+```
+> 📋 [CP-2 — Batch éclaté] X tickets en attente, Y avec verdict `corriger`.
+> Traitement séquentiel : les tickets avec corrections requises seront présentés individuellement.
+```
+
+→ Passer en mode séquentiel standard.
+
+#### Mode séquentiel standard (éclatement ou choix explicite)
+
 - Présenter les rapports de review **un par un**, dans l'ordre d'arrivée
 - Recueillir la réponse de l'utilisateur pour chaque rapport avant de passer au suivant
 - Ré-invoquer chaque session via son `task_id` avec la réponse correspondante
 
 ```
-> 📋 [CP-2 — Revue parallèle] X rapports de review en attente.
+> 📋 [CP-2 — Revue séquentielle] X rapports de review en attente.
 > Traitement séquentiel : rapport 1/X affiché ci-dessus.
 ```
+
+#### Rappel — CP-2 reste une pause obligatoire
+
+Le batch ne supprime pas la validation humaine — il la regroupe pour les cas homogènes.
+CP-2 reste une pause dans **tous les modes** sans exception, y compris avec le batch.
 
 ### Récap global — synchronisation finale
 

@@ -147,3 +147,43 @@ La valeur choisie est fixée pour toute la session et appliquée automatiquement
   - `auto`
 
   Ne jamais transmettre le label brut de l'option d'interface (ex : `"Manuel (Recommandé)"`, `"Semi-auto"`) — normaliser en minuscule avant transmission. Exemple de formulation correcte dans le prompt : `Mode de workflow : semi-auto`.
+
+---
+
+## Option Batch CP-2 (mode `auto` avec parallélisme uniquement)
+
+### Contexte d'application
+
+Cette option ne s'applique que lorsque :
+- Le mode de workflow est `auto`
+- Le parallélisme conditionnel est actif (4 critères vérifiés)
+- Plusieurs tickets atteignent CP-2 simultanément
+
+### Comportement
+
+Lorsque N tickets arrivent au CP-2 avec leur rapport de review :
+
+1. **Évaluation des verdicts** : collecter le verdict (`commit`, `corriger`, `corriger-sécurité`) de chaque rapport
+2. **Décision automatique** :
+   - **Tous `commit`** → proposer le batch groupé
+   - **Au moins un `corriger`** → éclater le batch, traitement séquentiel
+
+### Options du batch (si tous les verdicts sont `commit`)
+
+| Option | Comportement |
+|--------|--------------|
+| **Commit tous** | Commiter les N tickets en séquence avec leurs messages Conventional Commits respectifs. Tous les tickets sont clos à la fin. |
+| **Commit sélectif** | Afficher la liste des tickets (sélection multiple), permettre de choisir lesquels commiter. Les tickets non sélectionnés retournent en mode séquentiel standard. Si aucun ticket sélectionné, retour au choix précédent. |
+| **Voir détails** | Passer en mode séquentiel standard : afficher chaque rapport un par un et recueillir une décision individuelle. |
+
+### Éclatement du batch
+
+Si au moins un ticket du lot a un verdict `corriger` ou `corriger-sécurité`, le batch est automatiquement éclaté :
+- Les tickets sont présentés un par un dans l'ordre d'arrivée
+- Chaque ticket reçoit une décision individuelle (commit ou corriger)
+- Le ticket avec verdict `corriger` est retourné au developer avec les corrections requises
+
+### Règle absolue préservée
+
+Le batch ne supprime pas CP-2 — il regroupe la validation pour les cas homogènes.
+CP-2 reste une **pause obligatoire** dans tous les modes, batch ou non.
