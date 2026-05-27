@@ -1226,6 +1226,74 @@ Chaque événement est une ligne JSON dans `.opencode/metrics.jsonl` :
 
 ---
 
+## État de session — Points d'intégration (Dashboard TUI)
+
+L'état de session permet au dashboard TUI (`oc dashboard`) d'afficher l'avancement en temps réel.
+L'état est stocké dans `.opencode/session-state.json`.
+
+Les fonctions de gestion sont définies dans `scripts/lib/session-state.sh` :
+
+| Fonction | Usage | Quand l'appeler |
+|----------|-------|-----------------|
+| `session_state_init <session_id> <mode>` | Initialise l'état de session | CP-0 — après choix du mode |
+| `session_state_add_ticket <id> <title>` | Ajoute un ticket à la session | CP-0 — pour chaque ticket à traiter |
+| `session_state_update_ticket <id> <status>` | Met à jour le statut d'un ticket | CP-1, Étape 6 — transitions de statut |
+| `session_state_set_current <id> <agent> <action>` | Définit le ticket en cours | CP-1, Étapes 3/4/5 — changement d'action |
+| `session_state_clear_current` | Efface le ticket en cours | Étape 6 — entre deux tickets |
+| `session_state_end` | Termine la session | Fin de session — supprime l'état |
+| `session_state_read` | Lit l'état JSON | Dashboard — pour afficher l'état |
+| `session_state_is_active` | Vérifie si une session est active | Dashboard — pour décider de l'affichage |
+
+### Séquence d'appels typique
+
+```
+# CP-0 — Initialisation
+session_state_init "ses_$(date +%s)" "semi-auto"
+session_state_add_ticket "bd-42" "Fix null guard"
+session_state_add_ticket "bd-43" "Add tests"
+
+# CP-1 — Démarrage d'un ticket
+session_state_update_ticket "bd-42" "in_progress"
+session_state_set_current "bd-42" "developer-backend" "implementing"
+
+# Étape 4 — Passage en review
+session_state_set_current "bd-42" "developer-backend" "reviewing"
+
+# Étape 5 — CP-2
+session_state_set_current "bd-42" "developer-backend" "waiting_cp2"
+
+# Étape 6 — Ticket terminé
+session_state_update_ticket "bd-42" "completed"
+session_state_clear_current
+
+# Fin de session
+session_state_end
+```
+
+### Valeurs de statut
+
+| Statut | Description | Emoji dashboard |
+|--------|-------------|-----------------|
+| `pending` | En attente de traitement | ⏳ |
+| `in_progress` | En cours d'implémentation | 🔄 |
+| `review` | En attente de review | 👁️ |
+| `completed` | Terminé et clos | ✅ |
+| `blocked` | Bloqué | 🚫 |
+
+### Valeurs d'action
+
+| Action | Description |
+|--------|-------------|
+| `implementing` | Implémentation en cours par le developer |
+| `testing` | Écriture des tests par le qa-engineer |
+| `reviewing` | Review en cours par le reviewer |
+| `waiting_cp2` | En attente de décision CP-2 |
+| `idle` | Pas d'action en cours |
+
+> **Note :** Le format complet de l'état JSON est défini dans `skills/orchestrator/session-state-protocol.md`.
+
+---
+
 ## Ce que tu ne fais PAS
 
 - Implémenter du code toi-même, même pour "débloquer" une situation
