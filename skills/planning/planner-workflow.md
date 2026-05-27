@@ -727,19 +727,101 @@ Quelques questions issues de l'exploration pour affiner la planification :
 2. **Design system** : Quels composants DSFR sont attendus ?
 ```
 
-Puis appeler l'outil `question` :
+Puis appeler l'outil `question` avec **une question par clarification** :
 
 ```
 question({
-  questions: [{
-    header: "Clarifications",
-    question: "[Planner — Phase 2 : Questions | Feature : <nom>]\nQuelques questions de clarification issues de l'exploration. Comment souhaitez-vous procéder ?",
-    options: [
-      { label: "Répondre aux questions", description: "Fournir les réponses pour affiner l'analyse" },
-      { label: "Skip / Passer", description: "Continuer sans répondre — l'analyse restera partielle sur ces points" }
-    ]
-  }]
+  questions: [
+    // Question métier — Objectif
+    {
+      header: "Objectif métier",
+      question: "[Planner — Phase 2 | Feature : <nom>]\nQuelle est la valeur apportée à l'utilisateur final ?",
+      options: [
+        { label: "Gain de temps", description: "Automatisation ou simplification d'un processus existant" },
+        { label: "Nouvelle capacité", description: "Fonction qui n'existait pas auparavant" },
+        { label: "Conformité", description: "Mise en conformité réglementaire ou technique" }
+      ]
+    },
+    // Question métier — Périmètre
+    {
+      header: "Hors périmètre",
+      question: "[Planner — Phase 2 | Feature : <nom>]\nQu'est-ce qui ne fait PAS partie de cette itération ?",
+      options: [
+        { label: "Rien de spécifique", description: "Tout ce qui est décrit est dans le scope" },
+        { label: "Optimisations", description: "Les optimisations de performance sont hors scope" },
+        { label: "Edge cases rares", description: "Les cas limites peu fréquents sont reportés" }
+      ]
+    },
+    // Questions techniques contextualisées (adapter selon Phase 1)
+    {
+      header: "[Sujet technique 1]",
+      question: "[Planner — Phase 2 | Feature : <nom>]\n[Question contextualisée issue de Phase 1 — ex: 'J'ai vu que le module X n'a pas de tests. Faut-il en prévoir dans ce périmètre ?']",
+      options: [
+        { label: "Oui", description: "À inclure dans le périmètre" },
+        { label: "Non", description: "Hors périmètre pour cette itération" },
+        { label: "À voir selon effort", description: "Inclure si l'effort reste raisonnable" }
+      ]
+    },
+    // Questions design (si applicable)
+    {
+      header: "Maquettes UX",
+      question: "[Planner — Phase 2 | Feature : <nom>]\nY a-t-il des maquettes ou specs UX disponibles ?",
+      options: [
+        { label: "Oui — disponibles", description: "Maquettes fournies, à suivre" },
+        { label: "Non — liberté", description: "Pas de maquettes, liberté d'implémentation" },
+        { label: "À produire", description: "Maquettes à créer avant implémentation" }
+      ]
+    },
+    // Option Skip globale en dernière position
+    {
+      header: "Skip questions",
+      question: "[Planner — Phase 2 | Feature : <nom>]\nSi vous préférez ne pas répondre aux questions ci-dessus, vous pouvez passer cette étape.",
+      options: [
+        { label: "J'ai répondu", description: "Continuer avec mes réponses" },
+        { label: "Skip toutes", description: "Passer les clarifications — l'analyse restera partielle" }
+      ]
+    }
+  ]
 })
+```
+
+> **Note :** L'option "Type your own answer" est ajoutée automatiquement par OpenCode à chaque question — ne pas la dupliquer. L'utilisateur peut toujours saisir une réponse libre si aucune option ne convient.
+
+### Traitement des réponses
+
+Les réponses sont retournées dans l'ordre des questions posées, sous forme de tableau de labels :
+```
+["Gain de temps", "Rien de spécifique", "Oui", "Non — liberté", "J'ai répondu"]
+```
+
+**Règles de traitement :**
+
+| Réponse | Action |
+|---------|--------|
+| Label prédéfini | Utiliser directement dans le récap de fin de Phase 2 |
+| Réponse libre (texte saisi) | Intégrer le texte complet dans le récap |
+| "Skip toutes" (dernière question) | Marquer toutes les questions précédentes comme "non répondu" — l'analyse restera partielle |
+
+**Mapping réponses → récap :**
+
+```typescript
+// Pseudo-code de traitement
+const [objectif, horsPerimetre, sujetTech1, maquettes, skipStatus] = reponses;
+
+// Si l'utilisateur a choisi "Skip toutes"
+if (skipStatus === "Skip toutes") {
+  // Marquer toutes les questions comme "non répondu"
+  recapPhase2.questions.forEach(q => q.reponse = "non répondu");
+  recapPhase2.zonesOmbrePersistantes.push("Questions de clarification non traitées");
+} else {
+  // Mapper chaque réponse
+  recapPhase2.questions = [
+    { question: "Objectif métier", reponse: objectif },
+    { question: "Hors périmètre", reponse: horsPerimetre },
+    { question: "[Sujet technique 1]", reponse: sujetTech1 },
+    { question: "Maquettes UX", reponse: maquettes }
+  ];
+}
 ```
 
 ### Déduction des priorités
@@ -762,18 +844,23 @@ Toujours expliquer le raisonnement :
 ```markdown
 ## [Phase 2] Questions complémentaires traitées
 
-**Questions posées :** X questions
+**Questions posées :** X questions (via outil question multi-questions)
 
 **Réponses reçues :**
-- Q1 : <question> → <réponse ou "non répondu">
-- Q2 : <question> → <réponse ou "non répondu">
-- ...
+| Question | Réponse |
+|----------|---------|
+| Objectif métier | <label sélectionné ou texte libre> |
+| Hors périmètre | <label sélectionné ou texte libre> |
+| [Sujet technique 1] | <label sélectionné ou texte libre> |
+| Maquettes UX | <label sélectionné ou texte libre> |
 
 **Zones d'ombre levées :**
-- <zone 1 qui était floue et qui est maintenant claire>
+- <zone 1 qui était floue et qui est maintenant claire grâce à la réponse>
+- <Exemple : "L'objectif métier est maintenant clair : gain de temps sur le processus de validation">
 
 **Zones d'ombre persistantes :**
 - <zone 1 qui reste floue — impact sur l'analyse>
+- <Si "Skip toutes" : "Questions de clarification non traitées — l'analyse restera partielle sur les points suivants : [liste]">
 
 **Priorités déduites :**
 - P0 : <tickets identifiés comme bloquants>
@@ -781,6 +868,8 @@ Toujours expliquer le raisonnement :
 - P2 : <tickets identifiés comme enrichissement>
 - P3 : <tickets identifiés comme nice-to-have>
 ```
+
+> **Traitement des réponses libres :** Si l'utilisateur a saisi une réponse libre (texte personnalisé), l'intégrer telle quelle dans le tableau. Ces réponses libres sont souvent plus précises que les labels prédéfinis.
 
 ### Question de validation obligatoire
 
