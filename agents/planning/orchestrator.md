@@ -5,8 +5,18 @@ description: Interface utilisateur — coordonne la communication agent-utilisat
 mode: primary
 permission:
   question: allow
-  bash: deny
+  bash:
+    "*": deny
+    "bd list": allow
+    "bd show": allow
+    "git status": allow
+    "ls": allow
+  read:
+    "*": deny
+    "ONBOARDING.md": allow
+    "CONVENTIONS.md": allow
   edit: deny
+  glob: deny
   write: deny
   task:
     "*": deny

@@ -153,7 +153,6 @@ Audit skills. The `auditor` coordinator injects `auditor-workflow` (unified 5-ph
 |------|----------------|---------|
 | `auditor/auditor-workflow.md` | auditor | **Unified coordinator workflow** — 5 phases (0 prerequisites check → 1 project context loading → 2 domain selection with stack compatibility → 3 subagent delegation → 4 consolidation executive summary) — systematic recaps, mandatory questions via `question`, backwards possible; orchestrator invocation marker detection for `## Return to orchestrator` block |
 | `auditor/audit-protocol-light.md` | all auditor-* | Common lightweight report format (subagents only): 4 criticality levels (🔴/🟠/🟡/💡), /10 scoring, individual finding format |
-| `auditor/audit-protocol-legacy.md` | *(archived)* | Previous version of `audit-protocol.md` — kept for historical reference |
 | `auditor/audit-security.md` | auditor-security | OWASP Top 10, injections, exposed secrets, auth, CORS, CVE |
 | `auditor/audit-performance.md` | auditor-performance | Core Web Vitals, LCP, CLS, TTI, N+1 queries, cache, bundle |
 | `auditor/audit-accessibility.md` | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, semantics, ARIA, keyboard navigation, contrast |
@@ -183,16 +182,6 @@ Audit skills. The `auditor` coordinator injects `auditor-workflow` (unified 5-ph
 |------|----------------|---------|
 | `qa/qa-protocol.md` | qa-engineer | Test types (unit/integration/E2E/component), tools by stack, systematic checklist (nominal/error/edge cases/acceptance), coverage report format, AAA structure |
 | `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: tests written with files and covered cases, acceptance criteria checked, non-testable zones, status (`complete-coverage` / `partial-coverage` / `non-testable`) |
-
----
-
-## Domain — `debugger/`
-
-> **Note:** The `skills/debugger/` folder only contains the archived skill. The active workflow is in `skills/quality/`.
-
-| File | Agents using it | Content |
-|------|----------------|---------|
-| `debugger/debug-protocol-legacy.md` | *(archived)* | Previous 4-step methodology — kept for historical reference |
 
 ---
 
@@ -237,10 +226,7 @@ Documentation skills. Used by the `documentarian` agent.
 | File | Agents using it | Content |
 |------|----------------|---------|
 | `planning/planner-workflow.md` | planner | **Unified planner workflow** — 7 phases (0 prerequisites → 1 contextual exploration + UX/UI signals → 1.5 optional design delegation → 2 complementary questions → 3 hierarchical plan: epics/tickets/priorities → 4 edge case detection: duplicates, oversized tickets, circular dependencies → 5 Beads creation with full enrichment → 5.5 optional ai-delegated delegation → 6 verification + handoff) — systematic recaps, iterative phases with backwards possible (max 3), `## Return to orchestrator` block if invoked |
-| `planning/planner-legacy.md` | *(archived)* | Previous version of `planning/planner.md` — kept for historical reference |
 | `planning/onboarder-workflow.md` | onboarder | **Unified onboarder workflow** — 6 phases (0 prerequisites → 1 adaptive exploration 7 profiles → 2 questions → 3 context report: stack/architecture/patterns/attention points/prioritized agent map → 4 edge cases: inconsistencies, CVE, hidden debt, hybrid architecture → 5 ONBOARDING.md + CONVENTIONS.md + optional projects.md + handoff) — merges previous `project-discovery.md` and `project-conventions.md` |
-| `planning/project-discovery-legacy.md` | *(archived)* | Previous version of `project-discovery.md` — kept for historical reference |
-| `planning/project-conventions-legacy.md` | *(archived)* | Previous version of `project-conventions.md` — kept for historical reference |
 | `planning/planner-handoff-format.md` | planner, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete tickets table with planned agent and dependencies, hypotheses and ambiguities, global estimate, identified risks, status (`complete-planning` / `partial-planning` / `blocked`) |
 | `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: detected tech stack (languages, frameworks, DB, infra, tools, key versions), identified conventions, technical debt (🔴/🟠/🟡), uncertainty zones, context files produced (`ONBOARDING.md`, `CONVENTIONS.md`), status (`context-established` / `partial-context` / `blocked`) |
 

@@ -151,7 +151,6 @@ Skills d'audit. Le coordinateur `auditor` injecte `auditor-workflow` (workflow u
 |---------|----------------------|---------|
 | `auditor/auditor-workflow.md` | auditor | **Workflow unifié coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires via `question`, retours en arrière possibles ; détection du marqueur d'invocation orchestrateur pour le bloc `## Retour vers orchestrator` |
 | `auditor/audit-protocol-light.md` | tous les auditor-* | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
-| `auditor/audit-protocol-legacy.md` | *(archivé)* | Ancienne version de `audit-protocol.md` — conservée pour référence historique |
 | `auditor/audit-security.md` | auditor-security | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
 | `auditor/audit-performance.md` | auditor-performance | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
 | `auditor/audit-accessibility.md` | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, sémantique, ARIA, navigation clavier, contrastes |
@@ -181,16 +180,6 @@ Skills d'audit. Le coordinateur `auditor` injecte `auditor-workflow` (workflow u
 |---------|----------------------|---------|
 | `qa/qa-protocol.md` | qa-engineer | Typologie des tests (unit/integration/E2E/composants), outils par stack, checklist systématique (nominal/erreur/edge cases/acceptance), format du rapport de couverture, structure type AAA |
 | `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : tests écrits avec fichiers et cas couverts, critères d'acceptance cochés, zones non testables, statut (`couverture-complète` / `couverture-partielle` / `non-testable`) |
-
----
-
-## Domaine — `debugger/`
-
-> **Note :** le dossier `skills/debugger/` contient uniquement le skill archivé. Le workflow actif est dans `skills/quality/`.
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `debugger/debug-protocol-legacy.md` | *(archivé)* | Ancienne méthodologie en 4 étapes — conservée pour référence historique |
 
 ---
 
@@ -235,10 +224,7 @@ Skills de documentation. Utilisés par l'agent `documentarian`.
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
 | `planning/planner-workflow.md` | planner | **Workflow unifié planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design optionnelle → 2 questions complémentaires → 3 plan hiérarchique : epics/tickets/priorités → 4 détection cas particuliers : doublons, tickets trop gros, dépendances circulaires → 5 création Beads avec enrichissement complet → 5.5 délégation ai-delegated optionnelle → 6 vérification + handoff) — récaps systématiques, phases itératives avec retours en arrière (max 3), format `## Retour vers orchestrator` si invoqué |
-| `planning/planner-legacy.md` | *(archivé)* | Ancienne version du skill `planning/planner.md` — conservée pour référence historique |
 | `planning/onboarder-workflow.md` | onboarder | **Workflow unifié onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte : stack/architecture/patterns/points d'attention/carte agents priorisée → 4 cas particuliers : incohérences, CVE, dette masquée, architecture hybride → 5 production ONBOARDING.md + CONVENTIONS.md + projects.md optionnel + handoff) — fusionne les anciens `project-discovery.md` et `project-conventions.md` |
-| `planning/project-discovery-legacy.md` | *(archivé)* | Ancienne version de `project-discovery.md` — conservée pour référence historique |
-| `planning/project-conventions-legacy.md` | *(archivé)* | Ancienne version de `project-conventions.md` — conservée pour référence historique |
 | `planning/planner-handoff-format.md` | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
 | `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
 

@@ -5,7 +5,13 @@ description: Orchestrateur d'implémentation — pilote le workflow Beads ticket
 mode: primary
 permission:
   question: allow
-  bash: deny
+  bash:
+    "*": deny
+    "bd": allow
+    "git": allow
+    "ls": allow
+  read: deny
+  glob: deny
   edit: deny
   write: deny
   task:
