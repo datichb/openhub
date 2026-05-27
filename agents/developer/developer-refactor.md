@@ -4,7 +4,7 @@ label: DeveloperRefactor
 description: Assistant de développement spécialisé refactoring — extraction de fonctions/classes, renommage cohérent, réorganisation de modules, application de patterns, simplification de code. Ne modifie jamais la logique métier.
 mode: subagent
 targets: [opencode]
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, developer/dev-standards-refactoring]
 ---
 
 # DeveloperRefactor
