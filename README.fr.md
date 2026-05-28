@@ -11,25 +11,28 @@ Supporte **OpenCode**.
 
 ## Comment ça marche
 
-opencode-hub repose sur trois concepts : **agents**, **skills** et **déploiement**.
+opencode-hub repose sur quatre concepts : **agents**, **skills**, **serveurs MCP** et **déploiement**.
 
 - Les **agents** définissent les rôles IA (qui fait quoi, comment, dans quel ordre).
 - Les **skills** sont des protocoles injectables (standards de code, checklists, formats de rapport) — déclarés une fois, réutilisés entre plusieurs agents.
-- Le **déploiement** assemble agents + skills et les copie dans vos projets cibles.
+- Les **serveurs MCP** fournissent des intégrations outils (Figma, Linear, etc.) disponibles pour tous les agents.
+- Le **déploiement** assemble agents + skills + serveurs MCP et les copie dans vos projets cibles.
 
 ```
 opencode-hub/          ← source de vérité (éditer ici, jamais dans les projets)
 ├── agents/            ← identité des rôles IA (~40-80 lignes par agent)
 ├── skills/            ← protocoles détaillés injectables
+├── servers/           ← serveurs MCP (intégration Figma, etc.)
 └── scripts/           ← assemblage et déploiement
 
          oc deploy opencode MON-APP
 opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md
+                                   ├►  mon-app/.opencode/servers/
                                    └►  mon-app/opencode.json
 
 ```
 
-Résultat : 27 agents spécialisés, toujours à jour, disponibles dans tous vos projets
+Résultat : 27 agents spécialisés + intégration Figma, toujours à jour, disponibles dans tous vos projets
 depuis une source de vérité unique.
 
 ---
@@ -194,6 +197,48 @@ oc start MON-APP
 
 ---
 
+## Intégration Figma
+
+opencode-hub s'intègre avec Figma pour enrichir les workflows de planification avec le contexte design.
+
+### Fonctionnalités
+
+- **Détection automatique de maquettes** : Scout et Planner recherchent les fichiers Figma par nom de feature
+- **Détection de signaux UX/UI** : Détection automatique des flows multi-étapes et composants visuels
+- **Estimation enrichie** : Ajustement de la complexité selon les composants et états détectés
+- **Pré-remplissage du contexte design** : Remplissage auto des champs `--design` dans les tickets avec les données Figma
+
+### Configuration
+
+1. **Obtenir vos tokens Figma** (Personal Access Token + Team ID)
+2. **Configurer** `~/.config/opencode/config.json` :
+   ```json
+   {
+     "env": {
+       "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
+       "FIGMA_TEAM_ID": "123456"
+     }
+   }
+   ```
+3. **Organiser vos fichiers Figma** selon les conventions (voir `config/figma.conventions.md`)
+4. **Déployer** vers vos projets avec `oc deploy opencode MON-APP`
+
+### Utilisation
+
+Les agents Scout et Planner interrogent automatiquement Figma lors de l'analyse de features UI :
+
+```bash
+# Scout avec enrichissement Figma
+> Scout cette feature: dashboard utilisateur
+
+# Planner avec contexte Figma (Phase 1.3)
+> Planifie cette feature: processus inscription
+```
+
+📖 **Documentation complète** : [Guide Intégration Figma](docs/guides/figma-integration.fr.md)
+
+---
+
 ## Documentation
 
 ### Guides
@@ -201,6 +246,7 @@ oc start MON-APP
 | Document | Description |
 |----------|-------------|
 | [Démarrage rapide](docs/guides/getting-started.fr.md) | Installation complète, premier déploiement |
+| [Intégration Figma](docs/guides/figma-integration.fr.md) | Configuration MCP Figma, setup et tests |
 | [Providers LLM](docs/guides/providers.fr.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
 | [Workflows](docs/guides/workflows.fr.md) | Feature complète, audit, debug — scénarios illustrés |
 | [Contribuer](docs/guides/contributing.fr.md) | Ajouter un agent, un skill, un adapter |
@@ -214,6 +260,7 @@ oc start MON-APP
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes de flux, principes de design |
 | [Agents](docs/architecture/agents.fr.md) | Référence exhaustive des 27 agents |
 | [Skills](docs/architecture/skills.fr.md) | Référence exhaustive des skills et leurs dépendances |
+| [Serveurs MCP](servers/README.md) | Architecture et développement des serveurs MCP |
 | [ADR](docs/architecture/adr/) | Décisions architecturales (9 ADR) |
 | [Adapters](docs/architecture/adapters.fr.md) | Architecture des adapters |
 
@@ -223,6 +270,7 @@ oc start MON-APP
 |----------|-------------|
 | [CLI](docs/reference/cli.fr.md) | Toutes les commandes `oc` avec options et exemples |
 | [Configuration](docs/reference/config.fr.md) | hub.json, projects.md, paths.local.md |
+| [Conventions Figma](config/figma.conventions.md) | Conventions d'organisation des fichiers Figma |
 | [Modèle de données Beads](docs/reference/beads-model.fr.md) | Référence du modèle de données Beads |
 | [Outils d'audit](docs/reference/audit-tools.fr.md) | Référence des outils d'audit par domaine |
 | [Résolution de modèle](docs/reference/model-resolution.fr.md) | Résolution de modèle par agent |

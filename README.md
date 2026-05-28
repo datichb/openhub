@@ -11,25 +11,28 @@ Supports **OpenCode**.
 
 ## How it works
 
-opencode-hub is built around three concepts: **agents**, **skills**, and **deployment**.
+opencode-hub is built around four concepts: **agents**, **skills**, **MCP servers**, and **deployment**.
 
 - **Agents** define AI roles (who does what, how, and in what order).
 - **Skills** are injectable protocols (code standards, checklists, report formats) — declared once, reused across multiple agents.
-- **Deployment** assembles agents + skills and copies them into your target projects.
+- **MCP Servers** provide tool integrations (Figma, Linear, etc.) available to all agents.
+- **Deployment** assembles agents + skills + MCP servers and copies them into your target projects.
 
 ```
 opencode-hub/          ← single source of truth (edit here, never in projects)
 ├── agents/            ← AI role definitions (~40-80 lines per agent)
 ├── skills/            ← detailed injectable protocols
+├── servers/           ← MCP servers (Figma integration, etc.)
 └── scripts/           ← assembly and deployment
 
          oc deploy opencode MY-APP
 opencode-hub  ──────────────────────►  my-app/.opencode/agents/*.md
+                                   ├►  my-app/.opencode/servers/
                                    └►  my-app/opencode.json
 
 ```
 
-Result: 27 specialized agents, always up to date, available across all your projects
+Result: 27 specialized agents + Figma integration, always up to date, available across all your projects
 from a single source of truth.
 
 ---
@@ -194,6 +197,48 @@ oc start MY-APP
 
 ---
 
+## Figma Integration
+
+opencode-hub integrates with Figma to enrich planning workflows with design context.
+
+### Features
+
+- **Automatic maquette detection**: Scout and Planner search Figma files by feature name
+- **UX/UI signal detection**: Automatic detection of multi-step flows and visual components
+- **Enriched estimation**: Adjust complexity based on detected components and states
+- **Design context pre-filling**: Auto-populate `--design` fields in tickets with Figma data
+
+### Setup
+
+1. **Get your Figma tokens** (Personal Access Token + Team ID)
+2. **Configure** `~/.config/opencode/config.json`:
+   ```json
+   {
+     "env": {
+       "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
+       "FIGMA_TEAM_ID": "123456"
+     }
+   }
+   ```
+3. **Organize your Figma files** according to conventions (see `config/figma.conventions.md`)
+4. **Deploy** to your projects with `oc deploy opencode MY-APP`
+
+### Usage
+
+The Scout and Planner agents automatically query Figma when analyzing UI features:
+
+```bash
+# Scout with Figma enrichment
+> Scout cette feature: dashboard utilisateur
+
+# Planner with Figma context (Phase 1.3)
+> Planifie cette feature: processus inscription
+```
+
+📖 **Full documentation**: [Figma Integration Guide](docs/guides/figma-integration.en.md)
+
+---
+
 ## Documentation
 
 ### Guides
@@ -201,6 +246,7 @@ oc start MY-APP
 | Document | Description |
 |----------|-------------|
 | [Getting started](docs/guides/getting-started.en.md) | Full installation, first deployment |
+| [Figma Integration](docs/guides/figma-integration.en.md) | Figma MCP setup, configuration, and testing |
 | [LLM Providers](docs/guides/providers.en.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
 | [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug — illustrated scenarios |
 | [Contributing](docs/guides/contributing.en.md) | Adding an agent, a skill, an adapter |
@@ -214,6 +260,7 @@ oc start MY-APP
 | [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
 | [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 27 agents |
 | [Skills](docs/architecture/skills.en.md) | Exhaustive reference for skills and their dependencies |
+| [MCP Servers](servers/README.md) | MCP servers architecture and development |
 | [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
 | [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |
 
@@ -223,6 +270,7 @@ oc start MY-APP
 |----------|-------------|
 | [CLI](docs/reference/cli.en.md) | All `oc` commands with options and examples |
 | [Configuration](docs/reference/config.en.md) | hub.json, projects.md, paths.local.md |
+| [Figma Conventions](config/figma.conventions.md) | Figma file organization conventions |
 | [Beads data model](docs/reference/beads-model.en.md) | Beads data model reference |
 | [Audit tools](docs/reference/audit-tools.en.md) | Audit tools reference by domain |
 | [Model resolution](docs/reference/model-resolution.en.md) | Model resolution by agent |

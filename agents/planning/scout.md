@@ -34,7 +34,8 @@ permission:
     "documentarian": allow
 model: anthropic/claude-sonnet-4
 targets: [opencode]
-skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, posture/tool-question]
+skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, adapters/figma-scout-protocol, posture/tool-question]
+mcpServers: [figma]
 ---
 
 # Scout

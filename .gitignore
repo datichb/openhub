@@ -22,3 +22,8 @@ opencode.json
 # Fichiers providers — contiennent des clés API en clair (mammouth)
 # À recréer manuellement après clone (voir config/providers/README.md dans wjp.3)
 config/providers/*.json
+
+# MCP Servers
+servers/*/dist/
+servers/*/node_modules/
+servers/*/.env

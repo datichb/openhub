@@ -28,6 +28,20 @@ est injecté dans tous les agents développeurs et dans le reviewer).
 Voir [skills.fr.md](./skills.fr.md) pour la référence complète.
 Voir [ADR-001](./adr/001-agent-skill-separation.fr.md) pour la décision de séparation.
 
+### Serveur MCP
+
+Un **serveur MCP** (Model Context Protocol) est un serveur TypeScript qui fournit
+des intégrations outils aux agents. Les serveurs MCP sont déployés avec les agents
+et exposent des tools via protocole stdin/stdout.
+
+Serveurs MCP actuels :
+- **figma-mcp** : Intégration API Figma (recherche fichiers, détection signaux UI, structure)
+
+Les serveurs MCP sont situés dans `servers/` et déployés dans `.opencode/servers/` des projets cibles.
+
+Voir [servers/README.md](../../servers/README.md) pour la documentation d'infrastructure.
+Voir [Guide Intégration Figma](../guides/figma-integration.fr.md) pour l'utilisation.
+
 ### Adapter
 
 Un **adapter** est un script shell (`scripts/adapters/<cible>.adapter.sh`) qui
