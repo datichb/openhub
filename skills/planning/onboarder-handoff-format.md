@@ -96,19 +96,37 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 
 ### À la réception du bloc `## Retour vers orchestrator` de l'onboarder
 
-1. **Afficher le rapport d'onboarding complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-onboard — ne jamais résumer.
-2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-onboard.
+⚠️ **RAPPEL IMPÉRATIF** : Le rapport et le bloc doivent être affichés EN TEXTE dans la discussion AVANT d'appeler `question`.
+
+> Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription.
+
+**Séquence obligatoire (ne jamais inverser) :**
+
+1. **Afficher le rapport d'onboarding complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer. Ce rapport contient la présentation narrative du projet : stack, conventions détectées, dette technique observée, fichiers produits, zones d'incertitude.
+
+2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
+
 3. **Vérifier la présence de tous les champs obligatoires** : `Stack technique`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement à l'onboarder de compléter avant de continuer.
+
 4. **Si le rapport d'onboarding complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.
+
 5. **Présenter les `### Zones d'incertitude`** à l'utilisateur au CP-onboard pour décision avant de démarrer la feature.
+
 6. **Signaler la `### Dette technique détectée`** au CP-onboard — notamment les éléments 🔴 qui pourraient impacter la feature.
+
 7. **Utiliser le `### Statut`** pour conditionner la suite :
    - `contexte-établi` → continuer vers CP-onboard puis Mode A ou B normalement
    - `contexte-partiel` → signaler les incertitudes à l'utilisateur, laisser décider
    - `bloqué` → ne pas démarrer la feature — demander à l'utilisateur comment débloquer
+
 8. **Intégrer la `### Stack technique`** dans le prompt de délégation à `orchestrator-dev` — elle aide à choisir les bons agents et à formuler les instructions d'implémentation.
 
-> ❌ Ne jamais construire le CP-onboard à partir d'un retour incomplet ou sans ce bloc structuré.
-> ❌ Ne jamais ignorer la dette technique — la signaler même si elle ne bloque pas la feature.
+> ❌ Ne jamais construire le CP-onboard sans avoir d'abord affiché le rapport ET le bloc en texte
+> ❌ Ne jamais résumer le rapport — l'afficher intégralement
+> ❌ Ne jamais accepter un bloc handoff sans rapport d'onboarding préalable — les deux sont obligatoires
+> ❌ Ne jamais appeler `question` avant d'avoir affiché le contenu
+> ❌ Ne jamais ignorer la dette technique — la signaler même si elle ne bloque pas la feature
+
+**Exemple de retranscription correcte :** Voir skill `posture/retranscription-coordinateur` section "Exemples".
 > ❌ Ne jamais accepter un bloc handoff sans rapport d'onboarding préalable — les deux sont obligatoires.

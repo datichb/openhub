@@ -173,8 +173,57 @@ Invoquer le `debugger` en lui transmettant :
    - **Absent** → demander explicitement au debugger de produire le rapport complet avant de continuer.
 
 2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-   - **Présent** → afficher le rapport de diagnostic complet dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis afficher l'intégralité du bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`). Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées, puis l'`### Impact et régressions potentielles`. Proposer à l'utilisateur d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable.
+   - **Présent** → continuer la vérification suivante
    - **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
+
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+
+> « Ai-je affiché le rapport de diagnostic complet en texte dans la discussion ? »
+> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+> → OUI : continuer vers question
+
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
+
+**Template de retranscription obligatoire :**
+
+```
+**[Retranscription du retour debugger]**
+
+---
+
+### Rapport de diagnostic
+
+<Copier-coller intégral du rapport de diagnostic reçu — ne jamais résumer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Rapport de diagnostic complet copié tel quel (aucune omission)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles`
+
+**Présenter en priorité :**
+- Les `### Actions d'urgence si bug en prod` si renseignées (afficher en premier)
+- L'`### Impact et régressions potentielles`
+- Proposer d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable
+
+**Maintenant seulement,** utiliser l'outil `question` pour la décision.
+```
+
+> ❌ Ne jamais appeler `question` comme première action
+> ❌ Ne jamais résumer le rapport — le copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure le rapport dans le champ `question` de l'outil
+
+---
 
 Le format attendu et les définitions des statuts du debugger sont définis dans le skill `quality/debugger-handoff-format` — s'y référer comme source de vérité.
 
@@ -231,8 +280,56 @@ question({
      - **Absent** → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.
 
   2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-     - **Présent** → afficher le rapport d'onboarding complet dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis afficher l'intégralité du bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`). Présenter les `### Zones d'incertitude` et la `### Dette technique détectée` à l'utilisateur pour décision.
+     - **Présent** → continuer la vérification suivante
      - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
+
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+
+> « Ai-je affiché le rapport d'onboarding complet en texte dans la discussion ? »
+> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+> → OUI : continuer vers question
+
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
+
+**Template de retranscription obligatoire :**
+
+```
+**[Retranscription du retour onboarder]**
+
+---
+
+### Rapport d'onboarding
+
+<Copier-coller intégral du rapport d'onboarding reçu — ne jamais résumer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Rapport d'onboarding complet copié tel quel (aucune omission)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : `### Zones d'incertitude`, `### Dette technique détectée`
+
+**Présenter à l'utilisateur pour décision :**
+- Les `### Zones d'incertitude` (éléments non déterminés qui pourraient impacter la feature)
+- La `### Dette technique détectée` (notamment les éléments 🔴 critiques)
+
+**Maintenant seulement,** utiliser l'outil `question` pour le CP-onboard.
+```
+
+> ❌ Ne jamais appeler `question` comme première action
+> ❌ Ne jamais résumer le rapport — le copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure le rapport dans le champ `question` de l'outil
+
+---
 
   Le format attendu et les définitions des statuts de l'onboarder sont définis dans le skill `planning/onboarder-handoff-format` — s'y référer comme source de vérité.
 
@@ -276,8 +373,56 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
       - **Absent** → demander explicitement au planner de produire le récapitulatif complet avant de continuer.
 
    2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-      - **Présent** → afficher le récapitulatif de planification complet dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis afficher l'intégralité du bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`). Présenter les `### Hypothèses et ambiguïtés` et les `### Risques identifiés` avant de poser le CP-0.
+      - **Présent** → continuer la vérification suivante
       - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
+
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+
+> « Ai-je affiché le récapitulatif de planification complet en texte dans la discussion ? »
+> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+> → OUI : continuer vers question
+
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
+
+**Template de retranscription obligatoire :**
+
+```
+**[Retranscription du retour planner]**
+
+---
+
+### Récapitulatif de planification
+
+<Copier-coller intégral du récapitulatif de planification reçu — ne jamais résumer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Récapitulatif de planification complet copié tel quel (aucune omission)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement`
+
+**Présenter à l'utilisateur avant de poser le CP-0 :**
+- Les `### Hypothèses et ambiguïtés` (ce qui a été inféré)
+- Les `### Risques identifiés` (pour que l'utilisateur en ait connaissance)
+
+**Maintenant seulement,** continuer vers le CP-0 (étape 5 ci-dessous).
+```
+
+> ❌ Ne jamais appeler `question` comme première action
+> ❌ Ne jamais résumer le récapitulatif — le copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure le récapitulatif dans le champ `question` de l'outil
+
+---
 
    Le format attendu, les champs obligatoires et les définitions des statuts du planner sont définis dans le skill `planning/planner-handoff-format` — s'y référer comme source de vérité.
 
@@ -439,8 +584,56 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
       - **Absente ou semble résumée** → demander explicitement à l'agent design de produire la spec complète avant de continuer.
 
    2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-      - **Présent** → afficher la spec complète dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis afficher l'intégralité du bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`). Signaler les `### Points ouverts` et les `### Contraintes d'implémentation` avant de poser le CP-spec.
+      - **Présent** → continuer la vérification suivante
       - **Absent** → demander explicitement à l'agent design de produire le récapitulatif structuré avant de continuer.
+
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+
+> « Ai-je affiché la spec complète en texte dans la discussion ? »
+> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+> → OUI : continuer vers question
+
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
+
+**Template de retranscription obligatoire :**
+
+```
+**[Retranscription du retour ux-designer / ui-designer]**
+
+---
+
+### Spec UX/UI complète
+
+<Copier-coller intégral de la spec complète reçue — ne jamais résumer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Spec complète copiée telle quelle (user flows, états, wireframes, tokens, critères d'acceptance UX/UI)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : `### Contraintes d'implémentation`, `### Points ouverts`
+
+**Signaler à l'utilisateur avant de poser le CP-spec :**
+- Les `### Points ouverts` (questions en suspens pour décision avant ou pendant implémentation)
+- Les `### Contraintes d'implémentation` (seront transmises à orchestrator-dev)
+
+**Maintenant seulement,** utiliser l'outil `question` pour le CP-spec (étape 5 ci-dessous).
+```
+
+> ❌ Ne jamais appeler `question` comme première action
+> ❌ Ne jamais résumer la spec — la copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure la spec dans le champ `question` de l'outil
+
+---
 
    Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `design/design-handoff-format` — s'y référer comme source de vérité.
 
@@ -520,8 +713,56 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
       - **Absent** → demander explicitement à l'agent auditeur de produire le rapport complet avant de continuer.
 
    2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-      - **Présent** → afficher le rapport d'audit complet dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis afficher l'intégralité du bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`) — notamment le `### Périmètre audité`, la `### Synthèse des problèmes identifiés` et le `### Risque résiduel si non corrigé`. Tenir compte du `### Statut` pour adapter la formulation du CP-audit.
+      - **Présent** → continuer la vérification suivante
       - **Absent** → demander explicitement à l'agent auditeur de produire le récapitulatif structuré avant de continuer.
+
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+
+> « Ai-je affiché le rapport d'audit complet en texte dans la discussion ? »
+> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+> → OUI : continuer vers question
+
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
+
+**Template de retranscription obligatoire :**
+
+```
+**[Retranscription du retour auditor-<domaine>]**
+
+---
+
+### Rapport d'audit complet
+
+<Copier-coller intégral du rapport d'audit reçu — ne jamais résumer ni filtrer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Rapport d'audit complet copié tel quel (analyse narrative, observations item par item, preuves)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : `### Périmètre audité`, `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé`
+
+**Tenir compte avant de poser le CP-audit :**
+- Le `### Statut` (corrections-requises, acceptable, bloquant) pour adapter la formulation de la question
+- Le `### Risque résiduel si non corrigé` (à mentionner dans la question si significatif)
+
+**Maintenant seulement,** utiliser l'outil `question` pour le CP-audit (étape 5 ci-dessous).
+```
+
+> ❌ Ne jamais appeler `question` comme première action
+> ❌ Ne jamais résumer ni filtrer le rapport — le copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure le rapport dans le champ `question` de l'outil
+
+---
 
    Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `auditor/audit-handoff-format` — s'y référer comme source de vérité.
 

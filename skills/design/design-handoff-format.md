@@ -85,17 +85,32 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ### À la réception du retour d'un agent design
 
-1. **Afficher la spec complète dans le texte de la discussion** (ne pas inclure dans l'outil `question`) avant de poser le CP-spec — ne jamais résumer.
-2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`).
+⚠️ **RAPPEL IMPÉRATIF** : La spec et le bloc doivent être affichés EN TEXTE dans la discussion AVANT d'appeler `question`.
+
+> Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription.
+
+**Séquence obligatoire (ne jamais inverser) :**
+
+1. **Afficher la spec complète dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer. Cette spec contient les user flows intégraux avec tous les états, wireframes textuels, tokens, composants, critères d'acceptance UX/UI.
+
+2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
+
 3. **Vérifier la présence de tous les champs obligatoires** : `Contraintes d'implémentation`, `Points ouverts`, `Statut`.
    - Si l'un de ces champs est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander explicitement à l'agent design de compléter avant de continuer.
+
 4. **Si la spec complète est absente** (le bloc handoff est présent sans spec préalable) → demander explicitement à l'agent design de produire la spec complète avant de continuer.
+
 5. **Intégrer les `### Contraintes d'implémentation`** dans le prompt de délégation à `orchestrator-dev` lors de la phase d'implémentation.
+
 6. **Signaler les `### Points ouverts`** à l'utilisateur lors du CP-spec pour décision avant implémentation.
+
 7. **Utiliser le `### Statut`** pour conditionner la suite :
    - `spec-complète` ou `spec-partielle` → continuer vers CP-spec normalement
    - `bloqué` → ne pas router vers orchestrator-dev — demander à l'utilisateur comment débloquer
 
-> ❌ Ne jamais construire le CP-spec à partir d'un retour incomplet ou sans ce bloc structuré.
-> ❌ Ne jamais résumer la spec avant de la présenter à l'utilisateur au CP-spec.
-> ❌ Ne jamais accepter un bloc handoff sans spec préalable — les deux sont obligatoires.
+> ❌ Ne jamais construire le CP-spec sans avoir d'abord affiché la spec ET le bloc en texte
+> ❌ Ne jamais résumer la spec — l'afficher intégralement
+> ❌ Ne jamais accepter un bloc handoff sans spec préalable — les deux sont obligatoires
+> ❌ Ne jamais appeler `question` avant d'avoir affiché le contenu
+
+**Exemple de retranscription correcte :** Voir skill `posture/retranscription-coordinateur` section "Exemples".

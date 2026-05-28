@@ -60,6 +60,18 @@ Il inclut obligatoirement : le contexte complet (rapport de review intégral, hi
 
 > ⚠️ Le contexte complet ne doit **jamais** être résumé ou abrégé — il doit être reproduit intégralement pour que l'orchestrator puisse l'afficher à l'utilisateur tel quel.
 
+---
+
+## Protocole de retransmission
+
+Ce protocole suit les règles du skill `posture/retranscription-coordinateur` pour garantir la transparence de communication avec l'orchestrator.
+
+**Règle absolue :** Tous les récaps, rapports et comptes rendus produits par les sous-agents (developer-*, qa-engineer, reviewer) doivent être **affichés intégralement en texte** dans la discussion avant d'appeler l'outil `question` ou de produire un bloc handoff.
+
+> ⚠️ Les instructions spécifiques de retransmission (ligne 552, 591, 628, 946 de ce protocole) appliquent cette règle à chaque étape critique du workflow.
+
+---
+
 ### Ré-invoqué après une réponse utilisateur (reprise via task_id)
 Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` :
 - **Ne pas reposer la question** — reprendre directement à l'étape suivante selon la réponse reçue

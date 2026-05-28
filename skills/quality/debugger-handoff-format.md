@@ -103,20 +103,37 @@ En standalone (invocation directe), le rapport de diagnostic précède égalemen
 
 ### À la réception du bloc `## Retour vers orchestrator` du debugger
 
-1. **Afficher l'intégralité du rapport de diagnostic dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer.
-2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer.
+⚠️ **RAPPEL IMPÉRATIF** : Le rapport et le bloc doivent être affichés EN TEXTE dans la discussion AVANT d'appeler `question`.
+
+> Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription.
+
+**Séquence obligatoire (ne jamais inverser) :**
+
+1. **Afficher l'intégralité du rapport de diagnostic dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer. Ce rapport contient la cause racine identifiée, la chaîne causale, les hypothèses explorées, l'impact et les régressions potentielles.
+
+2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
+
 3. **Vérifier la présence de tous les champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Statut`.
    - Si l'un de ces champs est absent → demander explicitement au debugger de compléter avant de continuer.
+
 4. **Si le rapport de diagnostic complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au debugger de produire le rapport complet avant de continuer.
+
 5. **Présenter les `### Actions d'urgence si bug en prod`** en premier si renseignées — elles sont prioritaires sur toute autre décision.
+
 6. **Utiliser les tickets créés** comme point d'entrée pour la suite :
    - Si des tickets ont été créés → proposer à l'utilisateur de les intégrer dans le workflow feature (Mode A ou B)
    - Si aucun ticket créé (cause non déterminée) → informer l'utilisateur et proposer les options disponibles
+
 7. **Utiliser le `### Statut`** pour informer l'utilisateur du niveau de confiance du diagnostic :
    - `diagnostiqué` → présenter la cause racine comme établie
    - `partiellement-diagnostiqué` → signaler l'incertitude explicitement
    - `non-reproductible` → ne pas créer de ticket de correction sans plus d'information
 
-> ❌ Ne jamais minimiser ou ignorer la section `### Impact et régressions potentielles`.
-> ❌ Ne jamais passer les tickets créés directement à orchestrator-dev sans les présenter à l'utilisateur.
-> ❌ Ne jamais accepter un bloc handoff sans rapport de diagnostic préalable — les deux sont obligatoires.
+> ❌ Ne jamais construire la décision sans avoir d'abord affiché le rapport ET le bloc en texte
+> ❌ Ne jamais résumer ni filtrer le rapport — l'afficher intégralement
+> ❌ Ne jamais accepter un bloc handoff sans rapport de diagnostic préalable — les deux sont obligatoires
+> ❌ Ne jamais appeler `question` avant d'avoir affiché le contenu
+> ❌ Ne jamais minimiser ou ignorer la section `### Impact et régressions potentielles`
+> ❌ Ne jamais passer les tickets créés directement à orchestrator-dev sans les présenter à l'utilisateur
+
+**Exemple de retranscription correcte :** Voir skill `posture/retranscription-coordinateur` section "Exemples".

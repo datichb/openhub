@@ -205,6 +205,8 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
 
 ## Règles pour l'orchestrator (consommateur)
 
+> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription et les règles complètes.
+
 ### À la réception d'un `## Retour vers orchestrator`
 - **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets) — ne jamais résumer ni omettre. L'utilisateur doit pouvoir suivre ce qui a été fait avant les questions.
 - Ce format structuré est requis pour construire le CP-feature.
