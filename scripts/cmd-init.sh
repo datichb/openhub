@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 source "$LIB_DIR/agent-picker.sh"
+source "$LIB_DIR/progress-bar.sh"
 resolve_oc_lang
 
 # S'assurer que projects.md et hub.json existent avant toute opération
@@ -16,6 +17,11 @@ _step() {
   local num="$1" total="$2" label="$3"
   echo ""
   echo -e "${DIM}│${RESET}"
+  
+  # Afficher une mini barre de progression pour le wizard
+  _progress_bar $num $total "$label"
+  _progress_done
+  
   echo -e "${CYAN}◇${RESET}  ${BOLD}Étape ${num}/${total} — ${label}${RESET}"
   echo -e "${DIM}│${RESET}"
 }

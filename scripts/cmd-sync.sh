@@ -5,6 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
+source "$LIB_DIR/progress-bar.sh"
 
 DRY_RUN=false
 for arg in "$@"; do
@@ -39,16 +40,21 @@ ok_count=0      # utilisé uniquement en dry-run
 
 echo ""
 
+# Boucle sur les projets avec barre de progression
+total_projects=${#project_ids[@]}
+current_project=0
+
 for project_id in "${project_ids[@]}"; do
-  echo -e "${BOLD}$(t sync.project_label)$project_id${RESET}"
+  current_project=$((current_project + 1))
+  
+  # Afficher la progression
+  _progress_bar $current_project $total_projects "$project_id"
 
   # Résoudre le chemin local
   local_path=$(get_project_path "$project_id" 2>/dev/null || true)
 
   if [ -z "$local_path" ]; then
-    log_info "  $(t sync.path_undefined)"
     skipped_count=$((skipped_count + 1))
-    echo ""
     continue
   fi
 
@@ -56,9 +62,7 @@ for project_id in "${project_ids[@]}"; do
   local_path="${local_path/#\~/$HOME}"
 
   if [ ! -d "$local_path" ]; then
-    log_warn "  $(t sync.dir_missing)$local_path — $(t sync.result_skipped)"
     skipped_count=$((skipped_count + 1))
-    echo ""
     continue
   fi
 
@@ -74,11 +78,22 @@ for project_id in "${project_ids[@]}"; do
         *) continue ;;
       esac
 
-      # Utiliser find pour inclure les sous-dossiers (auditor/, developer/, etc.)
-      # — cohérent avec cmd-deploy.sh qui utilise find
+      # Collecter les fichiers agents pour progression
+      agent_files=()
       while IFS= read -r agent_file; do
-        [ -f "$agent_file" ] || continue
+        [ -f "$agent_file" ] && agent_files+=("$agent_file")
+      done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+      
+      total_agents=${#agent_files[@]}
+      current_agent=0
+
+      # Boucle sur les agents avec progression
+      for agent_file in "${agent_files[@]}"; do
+        current_agent=$((current_agent + 1))
         agent_id=$(get_agent_id "$agent_file")
+        
+        # Afficher progression agents (sous-barre)
+        _progress_bar $current_agent $total_agents "$agent_id"
 
         gen_file=""
         case "$tgt" in
@@ -86,7 +101,6 @@ for project_id in "${project_ids[@]}"; do
         esac
 
         if [ ! -f "$gen_file" ]; then
-          echo -e "  ${RED}$(t sync.missing)${RESET}   [$tgt] $agent_id"
           project_stale=$((project_stale + 1))
           continue
         fi
@@ -114,13 +128,13 @@ for project_id in "${project_ids[@]}"; do
         fi
 
         if [ "$max_src_mtime" -gt "$gen_mtime" ]; then
-          echo -e "  ${YELLOW}$(t sync.stale)${RESET}   [$tgt] $agent_id  (${stale_reason:-source modifié})"
           project_stale=$((project_stale + 1))
         else
-          echo -e "  ${GREEN}$(t sync.ok)${RESET}     [$tgt] $agent_id"
           project_ok=$((project_ok + 1))
         fi
-      done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+      done
+      
+      _progress_done
     done
 
     stale_count=$((stale_count + project_stale))
@@ -132,10 +146,10 @@ for project_id in "${project_ids[@]}"; do
     for tgt in "${active_targets[@]}"; do
       load_adapter "$tgt"
       if adapter_validate 2>/dev/null; then
-        adapter_deploy "$local_path" "$project_id" && log_success "  [$tgt] $(t sync.deployed)" \
-          || { log_warn "  [$tgt] $(t sync.deploy_failed)"; deploy_ok=false; }
+        adapter_deploy "$local_path" "$project_id" >/dev/null 2>&1 && deploy_ok=true \
+          || deploy_ok=false
       else
-        log_warn "  [$tgt] $(t sync.target_unavailable)"
+        deploy_ok=false
       fi
     done
     if [ "$deploy_ok" = "true" ]; then
@@ -144,18 +158,35 @@ for project_id in "${project_ids[@]}"; do
       skipped_count=$((skipped_count + 1))
     fi
   fi
-
-  echo ""
 done
+
+_progress_done
+
+# Récapitulatif structuré
+echo ""
+if [ "$DRY_RUN" = true ]; then
+  summary_lines=()
+  summary_lines+=("$total_projects projets vérifiés")
+  [ "$ok_count" -gt 0 ] && summary_lines+=("  - $ok_count agents à jour")
+  [ "$stale_count" -gt 0 ] && summary_lines+=("  - $stale_count agents obsolètes")
+  [ "$skipped_count" -gt 0 ] && summary_lines+=("  - $skipped_count projets ignorés")
+  
+  _progress_summary "Vérification terminée" "${summary_lines[@]}"
+else
+  summary_lines=()
+  summary_lines+=("$total_projects projets traités")
+  [ "$deployed_count" -gt 0 ] && summary_lines+=("  - $deployed_count synchronisés")
+  [ "$skipped_count" -gt 0 ] && summary_lines+=("  - $skipped_count ignorés")
+  
+  _progress_summary "Synchronisation terminée" "${summary_lines[@]}"
+fi
+
+echo ""
 
 # ── Rapport final ─────────────────────────────────────────────────────────────
 if [ "$DRY_RUN" = true ]; then
-  echo -e "Résultat : ${GREEN}$ok_count $(t sync.result_ok)${RESET}  |  ${YELLOW}$stale_count $(t sync.result_stale)${RESET}  |  $skipped_count $(t sync.result_skipped)"
   if [ "$stale_count" -gt 0 ]; then
-    echo ""
     log_info "$(t sync.deploy_hint)"
     exit 1
   fi
-else
-  echo -e "Résultat : ${GREEN}$deployed_count $(t sync.result_deployed)${RESET}  |  $skipped_count $(t sync.result_skipped)"
 fi
