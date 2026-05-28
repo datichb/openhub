@@ -700,6 +700,30 @@ Les signaler dans la section "Recommandations stratégiques" si applicable.
 **Synthèse disponible ci-dessus.**
 ```
 
+---
+
+### ⚠️ Autocontrôle visuel — AVANT de produire le bloc handoff
+
+**STOP — Question obligatoire à te poser MAINTENANT :**
+
+> « Ai-je affiché la synthèse exécutive multi-domaines complète EN TEXTE dans la discussion ? »
+> → **NON** : STOP — produire et afficher la synthèse MAINTENANT (voir Phase 4, synthèse exécutive)
+> → **OUI** : vérifier que tous les éléments ci-dessous sont présents, puis continuer vers le bloc handoff
+
+**Vérifications obligatoires avant bloc handoff :**
+- ✅ Tableau récapitulatif multi-domaines (Score, Verdict, Problèmes par criticité)
+- ✅ Synthèse des problèmes identifiés (🔴 critiques, 🟠 majeurs, 🟡 mineurs)
+- ✅ Actions prioritaires recommandées
+- ✅ Risque résiduel si non corrigé documenté
+
+> ❌ Ne JAMAIS produire le bloc `## Retour vers orchestrator` sans avoir d'abord affiché la synthèse complète
+> ❌ Ne JAMAIS remplacer la synthèse narrative par le bloc structuré — les deux sont obligatoires et complémentaires
+> ❌ Ne JAMAIS résumer la synthèse — orchestrator doit pouvoir la retransmettre intégralement à l'utilisateur
+
+**Si la synthèse n'a pas encore été affichée → retour immédiat à "Récap de fin de Phase 4" ci-dessus.**
+
+---
+
 ### Format de retour final
 
 **Si CONTEXTE = orchestrateur_feature :**
@@ -709,9 +733,6 @@ Produire dans cet ordre :
 1. **La synthèse exécutive multi-domaines** (ci-dessus)
 
 2. **Le bloc `## Retour vers orchestrator`** (résumé structuré actionnable) — voir skill `audit-handoff-format`
-
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit la synthèse exécutive complète avant ce bloc ? Si non, la produire d'abord. »
 
 **Si CONTEXTE = standalone :**
 

@@ -1233,6 +1233,30 @@ Mettre à jour les champs manquants dans la section du projet concerné dans `pr
 - Agents recommandés : <liste>
 ```
 
+---
+
+### ⚠️ Autocontrôle visuel — AVANT de produire le bloc handoff
+
+**STOP — Question obligatoire à te poser MAINTENANT :**
+
+> « Ai-je affiché le rapport d'onboarding complet EN TEXTE dans la discussion ? »
+> → **NON** : STOP — produire et afficher le rapport MAINTENANT (voir Phase 3, rapport complet)
+> → **OUI** : vérifier que tous les éléments ci-dessous sont présents, puis continuer vers le bloc handoff
+
+**Vérifications obligatoires avant bloc handoff :**
+- ✅ Stack technique identifiée et décrite
+- ✅ Points d'attention détaillés (🔴 critiques, 🟠 importants, 🟡 informatifs)
+- ✅ Dette technique détectée documentée
+- ✅ Zones d'incertitude signalées
+
+> ❌ Ne JAMAIS produire le bloc `## Retour vers orchestrator` sans avoir d'abord affiché le rapport complet
+> ❌ Ne JAMAIS remplacer le rapport narratif par le bloc structuré — les deux sont obligatoires et complémentaires
+> ❌ Ne JAMAIS résumer le rapport — orchestrator doit pouvoir le retransmettre intégralement à l'utilisateur
+
+**Si le rapport n'a pas encore été affiché → retour immédiat à "Phase 3 — Analyse approfondie".**
+
+---
+
 ### Format de retour final
 
 **Si CONTEXTE = orchestrateur_feature :**
@@ -1242,9 +1266,6 @@ Produire dans cet ordre :
 1. **Le rapport d'onboarding complet** (ci-dessus en Phase 3)
 
 2. **Le bloc `## Retour vers orchestrator`** (voir skill `onboarder-handoff-format`)
-
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit le rapport d'onboarding complet avant ce bloc ? Si non, le produire d'abord. »
 
 **Si CONTEXTE = standalone :**
 
