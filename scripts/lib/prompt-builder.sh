@@ -41,11 +41,13 @@ extract_frontmatter_list() {
 # Lit le frontmatter d'un agent en une seule passe et expose les variables :
 #   _fm_id     : valeur du champ id
 #   _fm_skills : valeur brute du champ skills  (ex: "[skill/a, skill/b]")
+#   _fm_model  : valeur du champ model (optionnel)
+#   _fm_raw    : le frontmatter complet (toutes les lignes, pour extract_permission_json)
 # Utilise uniquement des builtins bash (read, while) — pas de subprocess.
 # @param $1 — chemin absolu du fichier agent
 read_agent_frontmatter() {
   local file="$1"
-  _fm_id="" _fm_skills="" _fm_model=""
+  _fm_id="" _fm_skills="" _fm_model="" _fm_raw=""
   local in_fm=0 fm_done=0
   while IFS= read -r line; do
     if [ "$in_fm" -eq 0 ] && [ "$line" = "---" ]; then
@@ -57,6 +59,9 @@ read_agent_frontmatter() {
       break
     fi
     if [ "$in_fm" -eq 1 ]; then
+      # Accumuler le frontmatter brut (pour extract_permission_json)
+      _fm_raw="${_fm_raw}${line}"$'\n'
+      
       # ⚠ Contrainte d'ordre : model: est optionnel et non inclus dans le early exit
       # (ligne ci-dessous). Il DOIT apparaître avant skills: dans le frontmatter
       # pour être lu avant la sortie anticipée.
@@ -68,7 +73,8 @@ read_agent_frontmatter() {
     fi
     # Arrêter dès qu'on a tout (optimisation : les champs utiles sont dans les 10 premières lignes)
     # _fm_model est optionnel — pas inclus dans la condition de sortie anticipée
-    [ -n "$_fm_id" ] && [ -n "$_fm_skills" ] && break
+    # Note : on ne peut pas sortir avant la fin du frontmatter car on a besoin de _fm_raw complet
+    # pour extract_permission_json. On optimise donc moins, mais on économise le sed.
   done < "$file"
 }
 
@@ -123,9 +129,8 @@ clamp_model() {
 # Ex: agents/planning/orchestrator.md → "planning"
 _get_agent_family() {
   local agent_file="$1"
-  local dir
-  dir=$(dirname "$agent_file")
-  basename "$dir"
+  local dir="${agent_file%/*}"      # Équivalent dirname (bash pur, 0 subprocess)
+  echo "${dir##*/}"                  # Équivalent basename
 }
 
 # Résout le modèle à utiliser pour un agent via une cascade à 7 niveaux + clamp.
@@ -225,11 +230,17 @@ resolve_agent_model() {
 # ou vide si aucune permission n'est déclarée
 # Zéro fork dans la boucle : tous les tests utilisent case/[[ =~ ]] et les extractions
 # de clé/valeur utilisent des expansions de paramètre bash (pas de echo|grep/sed/cut).
+# @param $1 — chemin du fichier agent (utilisé si $2 est vide)
+# @param $2 — frontmatter pré-lu (optionnel, pour éviter le sed)
 extract_permission_json() {
   local file="$1"
-  # Extraire uniquement le bloc frontmatter
-  local frontmatter
-  frontmatter=$(sed -n '/^---$/,/^---$/p' "$file" | sed '1d;$d')
+  local frontmatter="${2:-}"
+  
+  # Si le frontmatter n'est pas fourni, l'extraire avec sed (rétrocompatibilité)
+  if [ -z "$frontmatter" ]; then
+    frontmatter=$(sed -n '/^---$/,/^---$/p' "$file" | sed '1d;$d')
+  fi
+  
   [ -z "$frontmatter" ] && return 0
 
   # Détecter si un bloc permission: existe — test builtin (zéro fork)

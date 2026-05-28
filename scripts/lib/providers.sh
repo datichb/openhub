@@ -6,6 +6,10 @@
 [ -n "${_PROVIDERS_LOADED:-}" ] && return 0
 _PROVIDERS_LOADED=1
 
+# Cache global pour get_hub_default_provider (évite lectures multiples)
+_HUB_DEFAULT_PROVIDER_CACHE=""
+_HUB_DEFAULT_PROVIDER_CACHE_LOADED=0
+
 # Chemin du catalogue des providers
 PROVIDERS_FILE="$HUB_DIR/config/providers.json"
 
@@ -45,9 +49,20 @@ list_all_providers() {
 }
 
 # Hub-level default provider (lecture depuis hub.json)
+# Utilise un cache pour éviter les lectures multiples lors de boucles
 get_hub_default_provider() {
   [ -f "$HUB_CONFIG" ] || return 1
-  jq -r '.default_provider.name // empty' "$HUB_CONFIG" 2>/dev/null
+  
+  # Si le cache est déjà chargé, le retourner directement
+  if [ "$_HUB_DEFAULT_PROVIDER_CACHE_LOADED" = "1" ]; then
+    echo "$_HUB_DEFAULT_PROVIDER_CACHE"
+    return 0
+  fi
+  
+  # Charger depuis hub.json et mettre en cache
+  _HUB_DEFAULT_PROVIDER_CACHE=$(jq -r '.default_provider.name // empty' "$HUB_CONFIG" 2>/dev/null)
+  _HUB_DEFAULT_PROVIDER_CACHE_LOADED=1
+  echo "$_HUB_DEFAULT_PROVIDER_CACHE"
 }
 
 get_hub_default_api_key() {

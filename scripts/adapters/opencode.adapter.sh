@@ -307,8 +307,9 @@ adapter_deploy_files() {
       return 1
     fi
     
-    # Collecter la famille pour le comptage
-    local _family=$(dirname "$_asource" | xargs basename)
+    # Collecter la famille pour le comptage (bash pur, 0 subprocess)
+    local _dir="${_asource%/*}"        # Équivalent dirname
+    local _family="${_dir##*/}"        # Équivalent basename
     _families_list="${_families_list}${_family} "
     
     _i=$((_i + 1))
@@ -350,6 +351,11 @@ adapter_deploy_config() {
   _step=1
   _progress_bar $_step $_config_steps "Chargement métadonnées"
 
+  # Charger le cache api-keys une seule fois (évite 30+ lectures du fichier en boucle)
+  if [ -n "$project_id" ]; then
+    api_keys_load_cache "$project_id"
+  fi
+
   local effective_provider
   effective_provider=$(get_effective_provider "$project_id" "$provider_override")
 
@@ -383,11 +389,12 @@ adapter_deploy_config() {
 
   # Précalculer les 3 niveaux hub.json une seule fois (évite N×3 lectures de hub.json en boucle)
   # Si jq absent ou HUB_CONFIG inexistant, les vars restent vides → resolve_agent_model bascule sur le chemin lent (sed) — dégradation gracieuse.
-  local _hub_agent_models="" _hub_family_models="" _hub_global_model=""
+  local _hub_agent_models="" _hub_family_models="" _hub_global_model="" _hub_default_provider=""
   if command -v jq &>/dev/null && [ -f "$HUB_CONFIG" ]; then
     _hub_agent_models=$(jq -r '.agent_models.agents // {} | tojson' "$HUB_CONFIG" 2>/dev/null || true)
     _hub_family_models=$(jq -r '.agent_models.families // {} | tojson' "$HUB_CONFIG" 2>/dev/null || true)
     _hub_global_model=$(jq -r '.opencode.model // empty' "$HUB_CONFIG" 2>/dev/null || true)
+    _hub_default_provider=$(jq -r '.default_provider.name // empty' "$HUB_CONFIG" 2>/dev/null || true)
   fi
 
   local _ai=0
@@ -396,9 +403,13 @@ adapter_deploy_config() {
     local _amode="${_DEPLOY_FILES_AGENT_VALS[$_ai]}"
     local _asource="${_DEPLOY_FILES_AGENT_FILES[$_ai]}"
 
-    # Extraire le bloc permission depuis le fichier source (déjà connu — pas de scan O(n²))
+    # Lire le frontmatter UNE FOIS (économie de 30 appels sed)
+    # Fournit : _fm_id, _fm_model, _fm_skills, _fm_raw
+    read_agent_frontmatter "$_asource"
+
+    # Extraire le bloc permission en utilisant le frontmatter déjà lu (évite sed)
     local _perm_json=""
-    [ -n "$_asource" ] && _perm_json=$(extract_permission_json "$_asource")
+    [ -n "$_fm_raw" ] && _perm_json=$(extract_permission_json "$_asource" "$_fm_raw")
 
     # Résoudre le modèle pour cet agent (vide si == modèle global)
     local _agent_model=""

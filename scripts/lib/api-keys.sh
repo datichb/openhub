@@ -13,10 +13,83 @@
 [ -n "${_API_KEYS_LOADED:-}" ] && return 0
 _API_KEYS_LOADED=1
 
+# Variables globales de cache (lecture unique pour performances)
+_API_KEYS_CACHE_LOADED=0
+_API_KEYS_CACHE_PROJECT_ID=""
+_API_KEYS_CACHE_PROVIDER=""
+_API_KEYS_CACHE_MODEL=""
+_API_KEYS_CACHE_KEY=""
+_API_KEYS_CACHE_BASE_URL=""
+_API_KEYS_CACHE_REGION=""
+
+# Charge toutes les valeurs d'un projet en une seule lecture du fichier
+# Usage : api_keys_load_cache <PROJECT_ID>
+# Optimise les appels multiples à _api_keys_get pour le même projet
+api_keys_load_cache() {
+  local id="$1"
+  [ -f "$API_KEYS_FILE" ] || return 0
+  
+  _API_KEYS_CACHE_LOADED=1
+  _API_KEYS_CACHE_PROJECT_ID="$id"
+  _API_KEYS_CACHE_PROVIDER=""
+  _API_KEYS_CACHE_MODEL=""
+  _API_KEYS_CACHE_KEY=""
+  _API_KEYS_CACHE_BASE_URL=""
+  _API_KEYS_CACHE_REGION=""
+  
+  local in_section=0
+  while IFS= read -r line; do
+    # Détection section (ligne exacte "[PROJECT_ID]")
+    if [ "$line" = "[$id]" ]; then
+      in_section=1
+      continue
+    elif [[ "$line" =~ ^\[.*\]$ ]]; then
+      # Autre section, sortir
+      [ "$in_section" = "1" ] && break
+      in_section=0
+    fi
+    
+    # Extraction valeurs dans la section active
+    if [ "$in_section" = "1" ]; then
+      case "$line" in
+        provider=*)  _API_KEYS_CACHE_PROVIDER="${line#provider=}" ;;
+        model=*)     _API_KEYS_CACHE_MODEL="${line#model=}" ;;
+        api_key=*)   _API_KEYS_CACHE_KEY="${line#api_key=}" ;;
+        base_url=*)  _API_KEYS_CACHE_BASE_URL="${line#base_url=}" ;;
+        region=*)    _API_KEYS_CACHE_REGION="${line#region=}" ;;
+      esac
+    fi
+  done < "$API_KEYS_FILE"
+}
+
 # Lit une clé INI pour une section donnée
 # Usage : _api_keys_get <PROJECT_ID> <key>
+# Si le cache est chargé pour ce PROJECT_ID, utilise le cache (zéro I/O)
+# Sinon, utilise l'ancienne méthode awk (rétrocompatibilité)
 _api_keys_get() {
   local id="$1" key="$2"
+  
+  # Si le cache est chargé pour ce projet, l'utiliser
+  if [ "$_API_KEYS_CACHE_LOADED" = "1" ] && [ "$_API_KEYS_CACHE_PROJECT_ID" = "$id" ]; then
+    case "$key" in
+      provider)  echo "$_API_KEYS_CACHE_PROVIDER" ;;
+      model)     echo "$_API_KEYS_CACHE_MODEL" ;;
+      api_key)   echo "$_API_KEYS_CACHE_KEY" ;;
+      base_url)  echo "$_API_KEYS_CACHE_BASE_URL" ;;
+      region)    echo "$_API_KEYS_CACHE_REGION" ;;
+      *)         # Clés non supportées par le cache (ex: agent_models.agents.X)
+                 # Fallback sur l'ancienne méthode
+                 [ -f "$API_KEYS_FILE" ] || return 0
+                 awk -v section="[${id}]" -v key="${key}" '
+                   $0 == section { found=1; next }
+                   found && /^\[/ { found=0 }
+                   found && $0 ~ "^" key "=" { sub(/^[^=]+=/, ""); print; exit }
+                 ' "$API_KEYS_FILE" ;;
+    esac
+    return 0
+  fi
+  
+  # Cache non chargé ou autre projet : utiliser l'ancienne méthode
   [ -f "$API_KEYS_FILE" ] || return 0
   awk -v section="[${id}]" -v key="${key}" '
     $0 == section { found=1; next }
