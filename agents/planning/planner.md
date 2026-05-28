@@ -37,7 +37,7 @@ permission:
     "documentarian": allow
 model: anthropic/claude-opus-4
 targets: [opencode]
-skills: [posture/coordination-only, developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, posture/expert-posture, posture/tool-question, auditor/living-docs-enrichment]
+skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, posture/expert-posture, posture/tool-question, auditor/living-docs-enrichment]
 ---
 
 # ProjectPlanner
