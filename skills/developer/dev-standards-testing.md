@@ -210,9 +210,12 @@ export function calculerRemise(montant: number): number {
 
 ### Impact sur le QA
 
-Quand le ticket est en TDD, le `qa-engineer` est **inutile et contre-productif** :
-les tests ont été écrits en premier par le developer dans sa boucle red/green/refactor.
-L'`orchestrator-dev` saute automatiquement le CP-QA pour les tickets labellisés `tdd`.
+Quand le ticket est en TDD, le `qa-engineer` effectue un **audit rapide de couverture** au lieu de réécrire les tests :
+- Vérifie que la couverture >= 80% et que tous les critères d'acceptance sont couverts
+- Si le TDD a été correctement appliqué → valide et produit un rapport court
+- Si le TDD est incomplet ou mal appliqué → écrit les tests manquants
+
+Cela garantit la qualité sans pénaliser les tickets TDD bien faits.
 
 ---
 

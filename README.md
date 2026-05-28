@@ -142,7 +142,7 @@ oc start MY-APP
 | `ux-designer` | Design | UX spec — user flows, acceptance criteria |
 | `ui-designer` | Design | UI spec — tokens, components, visual guidelines |
 | `reviewer` | Quality | PR/MR review by severity |
-| `qa-engineer` | Quality | Missing tests (unit / integration / E2E) |
+| `qa-engineer` | Quality | Missing tests (unit / integration / E2E). **Automatically invoked for critical code** (API, services, >200 lines). Produces coverage report and review attention points. |
 | `debugger` | Quality | Bug diagnosis, root cause report |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 

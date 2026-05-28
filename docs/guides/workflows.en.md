@@ -160,8 +160,8 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 1. Presents each ticket `[CP-1]` (automatic in semi-auto/auto)
 2. Identifies the agent via the routing matrix and delegates
 3. Developer returns a structured `## Return to orchestrator-dev` block — files modified, acceptance criteria checked, **points of attention for the review** (fragile zones, technical trade-offs)
-4. Offers QA `[CP-QA]` (automatic in auto mode if enabled at CP-0 — automatically skipped if the ticket carries the `tdd` label); the qa-engineer returns a structured block with tests written and acceptance criteria coverage
-5. Launches review automatically — passing the developer's points of attention to the reviewer
+4. Automatically detects QA risk level (🔴 high: API/services/critical code → QA mandatory | 🟡 medium: utils/business logic → QA recommended | ⚪ low: UI/doc/config → QA optional); offers QA `[CP-QA]` based on risk and mode (automatic in auto mode if enabled at CP-0); for `tdd` tickets, performs a quick coverage audit instead of skipping; qa-engineer returns a structured block with tests written, acceptance criteria coverage, and **review attention points** (non-testable zones, edge cases, assumptions)
+5. Launches review automatically — passing the developer's AND qa-engineer's points of attention to the reviewer
 6. Reviewer returns a structured block with an **actionable verdict** (`commit` / `fix` / `fix-security`), problem summary by severity, and required corrections verbatim
 7. Presents the review report `[CP-2]` — **always a pause, no exception**
 8. If "fix": corrections are copied verbatim into the Beads comment — no manual summary; routing to `developer-security` if the verdict is `fix-security`

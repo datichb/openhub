@@ -123,16 +123,18 @@ En mode `auto`, poser également via l'outil `question` :
 question({
   questions: [{
     header: "QA global",
-    question: "QA activé pour tous les tickets d'implémentation ?",
+    question: "QA activé pour tous les tickets d'implémentation à risque moyen/faible ?",
     options: [
-      { label: "Non (Recommandé)", description: "QA skippé pour tous les tickets — review directe après implémentation" },
-      { label: "Oui", description: "QA activé pour tous les tickets — qa-engineer invoqué avant chaque review" }
+      { label: "Oui (Recommandé)", description: "QA activé — qa-engineer invoqué pour vérifier la couverture (tickets à risque élevé : toujours activé)" },
+      { label: "Non", description: "QA skippé sauf risque élevé — review directe après implémentation" }
     ]
   }]
 })
 ```
 
-La valeur choisie est fixée pour toute la session et appliquée automatiquement à chaque CP-QA.
+**Note :** Le QA est **toujours activé automatiquement** pour les tickets à risque élevé (modification API, services, code critique), quelle que soit la réponse à cette question. Cette question ne concerne que les tickets à risque moyen et faible.
+
+La valeur choisie est fixée pour toute la session et appliquée automatiquement à chaque CP-QA selon le niveau de risque détecté.
 
 ---
 

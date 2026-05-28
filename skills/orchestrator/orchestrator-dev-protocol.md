@@ -365,40 +365,112 @@ question({
 
 ---
 
-### Étape 3 — QA (optionnel)
+### Étape 3 — QA (optionnel selon risque)
+
+#### 3.1 — Détection automatique du niveau de risque QA
+
+Avant de décider si le QA est nécessaire, analyser le diff produit par le developer pour déterminer le niveau de risque.
+
+**🔴 Risque élevé (QA obligatoire) :**
+- Modification de fichiers dans les répertoires critiques :
+  - `src/services/`, `src/core/`, `src/api/`, `src/lib/`
+  - `server/services/`, `server/api/`, `server/core/`
+  - `app/services/`, `api/`, `lib/core/`
+- Modification d'endpoints API (patterns : `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`, `app.get(`, `app.post(`, `router.get(`, `router.post(`, `Route::`, `@app.route`)
+- Diff > 200 lignes de code fonctionnel (exclure les fichiers de tests `*.test.*`, `*.spec.*`, types `*.d.ts`, configs `*.config.*`, `*.json`, `*.yaml`)
+- Ticket avec label `critical`, `security`, `data-loss-risk`, `breaking-change`
+
+**🟡 Risque moyen (QA recommandé) :**
+- Modification dans `src/utils/`, `src/helpers/`, `src/hooks/`, `lib/`, `utils/`
+- Ajout de logique métier dans des composants (détection via >= 3 conditions : `if`, `switch`, `? :`, `&&`, `||`)
+- Modification de fichiers utilisés dans plusieurs endroits (détection via imports multiples si possible)
+- Ticket avec label `bug`, `refactoring`, `enhancement`
+- Diff entre 100 et 200 lignes de code fonctionnel
+
+**⚪ Risque faible (QA optionnel) :**
+- Composants UI de présentation uniquement (sans logique métier)
+- Documentation (`.md`, `README`, commentaires uniquement)
+- Configuration (`.json`, `.yaml`, `.env`, `*.config.*`)
+- Types TypeScript purs (`*.d.ts`, interfaces/types sans implémentation)
+- Styles CSS/SCSS sans JavaScript
+- Diff < 100 lignes
+
+> **Note :** Si plusieurs critères s'appliquent, prendre le niveau de risque le plus élevé. Par exemple, si le diff contient à la fois de la doc (risque faible) et une modification API (risque élevé), considérer le ticket comme risque élevé.
+
+#### 3.2 — Décision d'activation du QA
 
 **Si le ticket porte le label `tdd` :**
 
+Invoquer le qa-engineer en mode audit rapide pour valider que le TDD a été correctement appliqué :
+
 ```
-▶️ [CP-QA] Ticket TDD — tests écrits par le developer dans la boucle red/green/refactor. QA skippé.
+▶️ [CP-QA] Ticket TDD — validation de la couverture TDD.
 ```
-→ Passer directement à l'étape 3.5 (Pre-review).
 
-**Sinon, selon le mode :**
+Invoquer `qa-engineer` avec l'instruction :
+> "Ce ticket est en TDD. Vérifie rapidement la couverture des critères d'acceptance.
+> Si couverture >= 80% et tous les critères d'acceptance couverts : produire un rapport court validant le TDD.
+> Sinon : écrire les tests manquants (le TDD n'a pas été appliqué correctement)."
 
-- **`manuel` / `semi-auto`** → pause CP-QA via l'outil `question` :
+Attendre le rapport du qa-engineer avant de continuer vers l'étape 3.5 (Pre-review).
 
+**Sinon, selon le niveau de risque détecté et le mode :**
+
+- **Risque élevé (🔴)** → QA obligatoire, skip le checkpoint :
   ```
-  question({
-    questions: [{
-      header: "CP-QA — Ticket #<ID>",
-      question: "Passer par le QA avant la review pour le ticket #<ID> ?",
-      options: [
-        { label: "Non (Recommandé)", description: "Passer directement à la review" },
-        { label: "Oui", description: "Invoquer qa-engineer avec le diff et l'ID du ticket" }
-      ]
-    }]
-  })
+  ▶️ [CP-QA] Risque élevé détecté (modification API/services/code critique). QA obligatoire.
+  Je délègue au qa-engineer.
   ```
-  - **Non** (défaut) → étape 3.5 (Pre-review)
-  - **Oui** → invoquer `qa-engineer` avec le diff + l'ID du ticket
+  → Invoquer directement `qa-engineer` sans poser de question
 
-- **`auto`** → utiliser la valeur fixée en CP-0 :
-  ```
-  ▶️ [CP-QA] QA <activé/désactivé> (configuré au démarrage).
-  ```
+- **Risque moyen (🟡)** :
+  - **Mode `manuel` / `semi-auto`** → pause CP-QA via l'outil `question` avec recommandation "Oui" :
+    ```
+    question({
+      questions: [{
+        header: "CP-QA — Ticket #<ID>",
+        question: "Passer par le QA avant la review ? (risque moyen détecté : logique métier/utils modifiés)",
+        options: [
+          { label: "Oui (Recommandé)", description: "Invoquer qa-engineer pour vérifier la couverture" },
+          { label: "Non", description: "Passer directement à la review" }
+        ]
+      }]
+    })
+    ```
+    - **Oui** (recommandé) → invoquer `qa-engineer`
+    - **Non** → étape 3.5 (Pre-review)
+  
+  - **Mode `auto`** → utiliser la valeur fixée en CP-0 :
+    ```
+    ▶️ [CP-QA] Risque moyen — QA <activé/désactivé> (configuré au démarrage).
+    ```
 
-Si QA activé :
+- **Risque faible (⚪)** :
+  - **Mode `manuel` / `semi-auto`** → pause CP-QA via l'outil `question` avec recommandation "Non" :
+    ```
+    question({
+      questions: [{
+        header: "CP-QA — Ticket #<ID>",
+        question: "Passer par le QA avant la review ? (risque faible détecté : UI/doc/config uniquement)",
+        options: [
+          { label: "Non (Recommandé)", description: "Passer directement à la review" },
+          { label: "Oui", description: "Invoquer qa-engineer avec le diff et l'ID du ticket" }
+        ]
+      }]
+    })
+    ```
+    - **Non** (recommandé) → étape 3.5 (Pre-review)
+    - **Oui** → invoquer `qa-engineer`
+  
+  - **Mode `auto`** → utiliser la valeur fixée en CP-0 :
+    ```
+    ▶️ [CP-QA] Risque faible — QA <activé/désactivé> (configuré au démarrage).
+    ```
+
+#### 3.3 — Invocation du qa-engineer
+
+Si le QA est activé (par décision automatique, choix utilisateur, ou configuration mode auto) :
+
 > « Je délègue la vérification de couverture au qa-engineer. »
 
 Invoquer `qa-engineer` en fournissant :
@@ -539,6 +611,7 @@ Fournir au reviewer :
 - Le diff ou le nom de la branche produite (incluant les tests si QA activé)
 - L'ID du ticket Beads pour contexte (`bd show <ID>`)
 - Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
+- Si disponible depuis le retour qa-engineer : les `### Points d'attention pour la review` du qa-engineer (zones non testables, edge cases non couverts, hypothèses, suggestions)
 - Si disponible depuis le retour qa-engineer : les critères d'acceptance non couverts (statut `couverture-partielle`)
 
 À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :

@@ -142,7 +142,7 @@ oc start MON-APP
 | `ux-designer` | Design | Spec UX — user flows, critères d'acceptance |
 | `ui-designer` | Design | Spec UI — tokens, composants, guidelines visuelles |
 | `reviewer` | Qualité | Review de PR/MR par sévérité |
-| `qa-engineer` | Qualité | Tests manquants (unit / integration / E2E) |
+| `qa-engineer` | Qualité | Tests manquants (unit / integration / E2E). **Automatiquement invoqué pour le code critique** (API, services, >200 lignes). Produit un rapport de couverture et des points d'attention pour le reviewer. |
 | `debugger` | Qualité | Diagnostic de bugs, rapport de cause racine |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, doc API |
 

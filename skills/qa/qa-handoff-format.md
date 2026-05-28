@@ -53,6 +53,23 @@ Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il 
 - <module ou fonction non testable 1 — raison : couplage fort / absence d'injection / etc.>
 <"Aucune zone non testable identifiée" si tout est testable>
 
+### Points d'attention pour la review
+<Liste des éléments que le reviewer devrait vérifier en priorité :>
+- ⚠️ <Zone de code non testable et pourquoi (couplage fort, dépendances externes hard-codées, etc.)>
+- ⚠️ <Edge cases volontairement non couverts et justification>
+- ⚠️ <Hypothèses faites sur le comportement (ex: "j'ai supposé que userId est toujours défini")>
+- 💡 <Suggestion optionnelle : refactoring pour améliorer la testabilité>
+<"Aucun point d'attention particulier" si tout est couvert et testable>
+
+**Exemple :**
+```
+### Points d'attention pour la review
+
+- ⚠️ La méthode `AuthService.validateToken()` n'est pas testable en l'état car elle appelle directement `jwt.verify()` sans injection de dépendance. Le reviewer devrait vérifier manuellement la logique de gestion des tokens expirés.
+- ⚠️ Le edge case "userId null" n'est pas couvert car le type ne le permet pas, mais si l'API change, ce cas pourrait survenir.
+- 💡 Suggestion : extraire la logique de calcul de `getTotalPrice()` dans une fonction pure pour faciliter les tests unitaires.
+```
+
 ### Statut
 `couverture-complète` | `couverture-partielle` | `non-testable`
 ```
@@ -73,6 +90,7 @@ Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il 
 - **Toujours produire ce bloc** à la suite du rapport, même si le statut est `non-testable`
 - **La `### Couverture des critères d'acceptance`** doit être basée sur `bd show <ID>` — ne pas supposer les critères
 - **Signaler honnêtement les zones non testables** — `orchestrator-dev` en a besoin pour informer sur la qualité globale
+- **Remplir la section `### Points d'attention pour la review`** avec les éléments que le reviewer devrait vérifier en priorité — c'est ta valeur ajoutée pour faciliter la review
 - Si aucun test n'a été écrit (statut `non-testable`), expliquer clairement pourquoi dans les zones non testables
 
 > ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport QA complet.
@@ -92,11 +110,14 @@ Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il 
 2. **Intégrer les `### Tests écrits`** dans le prompt envoyé au reviewer à l'étape 4 :
    > Fournir au reviewer : le diff de la branche **incluant les tests QA ajoutés** + la liste des fichiers de test créés
 
-3. **Intégrer les `### Zones non testables identifiées`** dans le compte rendu d'étape (étape 6) comme point d'attention technique.
+3. **Intégrer les `### Points d'attention pour la review`** dans le prompt envoyé au reviewer à l'étape 4 :
+   > Fournir au reviewer : les points d'attention signalés par le qa-engineer (zones non testables, edge cases non couverts, hypothèses, suggestions)
 
-4. **Si le bloc est absent** → demander explicitement au qa-engineer de le produire avant de continuer.
+4. **Intégrer les `### Zones non testables identifiées`** dans le compte rendu d'étape (étape 6) comme point d'attention technique.
 
-5. **Si le rapport QA complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au qa-engineer de produire le rapport complet avant de continuer.
+5. **Si le bloc est absent** → demander explicitement au qa-engineer de le produire avant de continuer.
+
+6. **Si le rapport QA complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement au qa-engineer de produire le rapport complet avant de continuer.
 
 > ❌ Ne jamais passer à la review sans avoir vérifié le statut QA — une couverture `non-testable` doit être signalée.
 > ❌ Ne jamais ignorer les critères d'acceptance non couverts — les transmettre au reviewer.
