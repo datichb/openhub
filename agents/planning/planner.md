@@ -5,7 +5,31 @@ description: Consultant fonctionnel et technique qui analyse le contexte projet 
 mode: primary
 permission:
   question: allow
-  bash: allow
+  bash:
+    "*": deny
+    # Beads read-only
+    "bd list *": allow
+    "bd ready": allow
+    "bd show *": allow
+    "bd children *": allow
+    "bd label list-all": allow
+    "bd search *": allow
+    "bd count *": allow
+    "bd dep list *": allow
+    "bd dep tree *": allow
+    "bd dep cycles": allow
+    # Beads write (après validation uniquement)
+    "bd create *": allow
+    "bd update *": allow
+    "bd label add *": allow
+    "bd dep add *": allow
+    "bd dep remove *": allow
+    "bd duplicate *": allow
+    "bd supersede *": allow
+    "bd comments add *": allow
+    # Lecture codebase
+    "ls *": allow
+    "git log *": allow
   edit: deny
   write: deny
   task:
@@ -13,7 +37,7 @@ permission:
     "documentarian": allow
 model: anthropic/claude-opus-4
 targets: [opencode]
-skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, posture/expert-posture, posture/tool-question, auditor/living-docs-enrichment]
+skills: [posture/coordination-only, developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, posture/expert-posture, posture/tool-question, auditor/living-docs-enrichment]
 ---
 
 # ProjectPlanner

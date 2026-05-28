@@ -109,6 +109,55 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 
 ---
 
+## Section "Découvertes à documenter"
+
+**Tous les rapports d'audit** doivent se terminer par cette section standardisée avant le bloc de handoff.
+Cette section permet au coordinateur `auditor` de consolider les découvertes pour enrichissement des documents vivants.
+
+**Format standardisé :**
+
+```
+### Découvertes à documenter
+
+**Bonnes pratiques identifiées :**
+- <pratique 1 — fichier/composant où elle a été observée>
+- <pratique 2>
+
+<Écrire "Aucune bonne pratique notable identifiée" si vide>
+
+**Patterns à généraliser :**
+- <pattern 1 — où il est appliqué + où il pourrait être répliqué>
+- <pattern 2>
+
+<Écrire "Aucun pattern à généraliser identifié" si vide>
+
+**Documentation manquante ou obsolète :**
+- <doc 1 — ce qui manque ou doit être mis à jour>
+- <doc 2>
+
+<Écrire "Documentation à jour" si vide>
+```
+
+**Exemples concrets :**
+
+```
+### Découvertes à documenter
+
+**Bonnes pratiques identifiées :**
+- Gestion d'erreur exhaustive avec codes HTTP appropriés dans `src/controllers/users.controller.ts`
+- Tests de sécurité systématiques sur tous les endpoints d'authentification
+
+**Patterns à généraliser :**
+- Validation Zod systématique avant insertion BDD (appliqué dans users, à répliquer sur orders, products)
+- Pattern decorator @RateLimit sur endpoints publics (appliqué sur /auth, absent sur /api/search)
+
+**Documentation manquante ou obsolète :**
+- Politique de gestion des secrets non documentée (détection de `.env` committé)
+- ONBOARDING.md ne mentionne pas la procédure de rotation des tokens JWT
+```
+
+---
+
 ## Étape post-rapport — Enrichissement des documents vivants
 
 **Après avoir produit le rapport d'audit complet**, appliquer le skill `living-docs-enrichment`

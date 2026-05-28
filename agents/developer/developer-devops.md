@@ -3,6 +3,14 @@ id: developer-devops
 label: DeveloperDevOps
 description: Assistant de développement DevOps — implémente les Dockerfiles, pipelines CI/CD (GitHub Actions, GitLab CI), scripts shell, configurations d'infrastructure et gestion des secrets.
 mode: subagent
+permission:
+  question: deny
+  bash: allow
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  write: allow
 targets: [opencode]
 skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-devops, developer/stacks/dev-standards-docker, developer/stacks/dev-standards-github-actions, developer/stacks/dev-standards-gitlab-ci, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---

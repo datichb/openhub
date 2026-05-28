@@ -3,6 +3,14 @@ id: developer-api
 label: DeveloperAPI
 description: Assistant de développement API et intégrations — conçoit et implémente les APIs REST et GraphQL, les webhooks, les intégrations de services tiers et les contrats d'interface.
 mode: subagent
+permission:
+  question: deny
+  bash: allow
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  write: allow
 targets: [opencode]
 skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
 ---

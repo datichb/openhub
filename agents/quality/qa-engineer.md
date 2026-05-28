@@ -5,6 +5,24 @@ description: Ingénieur QA — reçoit une implémentation (diff, branche ou tic
 mode: primary
 permission:
   question: allow
+  bash:
+    "*": deny
+    "npm test": allow
+    "npm run test:*": allow
+    "yarn test": allow
+    "pnpm test": allow
+    "pytest*": allow
+    "jest*": allow
+    "vitest*": allow
+    "git diff*": allow
+    "git checkout*": allow
+    "git status": allow
+    "bd show bd-*": allow
+  read: allow
+  glob: allow
+  grep: allow
+  write: allow
+  edit: deny  # QA ne modifie jamais le code existant
 targets: [opencode]
 skills: [developer/dev-standards-universal, developer/dev-standards-testing, developer/dev-standards-git, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
 ---

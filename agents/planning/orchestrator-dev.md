@@ -5,13 +5,37 @@ description: Orchestrateur d'implémentation — pilote le workflow Beads ticket
 mode: primary
 permission:
   question: allow
+  todowrite: allow
   bash:
     "*": deny
-    "bd": allow
-    "git": allow
-    "ls": allow
-  read: deny
+    # Beads read-only
+    "bd show *": allow
+    "bd list *": allow
+    "bd children *": allow
+    "bd dep list *": allow
+    # Beads write (nécessaire pour workflow)
+    "bd comments add *": allow
+    "bd update * -s *": allow
+    "bd close *": allow
+    # Git read-only
+    "git status": allow
+    "git log *": allow
+    "git diff *": allow
+    # Autres
+    "ls *": allow
+    # Vérifications pre-review (étape 3.5)
+    "npm run lint*": allow
+    "npm test": allow
+    "npx tsc --noEmit": allow
+    "npx prettier --check*": allow
+    "npx prettier --write*": allow
+  read:
+    "*": deny
+    "ONBOARDING.md": allow
+    "CONVENTIONS.md": allow
+    "opencode.json": allow
   glob: deny
+  grep: deny
   edit: deny
   write: deny
   task:
@@ -22,7 +46,7 @@ permission:
     "documentarian": allow
 model: anthropic/claude-opus-4
 targets: [opencode]
-skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-dev-protocol, posture/tool-question, developer/developer-handoff-format, reviewer/reviewer-handoff-format, qa/qa-handoff-format, documentarian/documentarian-handoff-format]
+skills: [posture/coordination-only, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-dev-protocol, posture/tool-question, developer/developer-handoff-format, reviewer/reviewer-handoff-format, qa/qa-handoff-format, documentarian/documentarian-handoff-format]
 ---
 
 # OrchestratorDev

@@ -5,18 +5,26 @@ description: Interface utilisateur — coordonne la communication agent-utilisat
 mode: primary
 permission:
   question: allow
+  todowrite: allow
   bash:
     "*": deny
-    "bd list": allow
-    "bd show": allow
+    # Mode B uniquement — lire les IDs des tickets pour transmission au planner (ligne 124)
+    "bd show bd-*": allow
+    # Lecture de statut (non modifiant)
     "git status": allow
     "ls": allow
+    # ❌ INTERDITS : bd list, bd label, bd children → jamais utilisés dans le workflow, supprimés
   read:
     "*": deny
+    # Mode C uniquement — contextualisation projet (ligne 105)
     "ONBOARDING.md": allow
     "CONVENTIONS.md": allow
+    # Configuration workflow — lecture de workflow.defaultMode
+    "opencode.json": allow
+    # ❌ Aucun autre fichier — tout autre besoin doit passer par planner/onboarder
   edit: deny
   glob: deny
+  grep: deny
   write: deny
   task:
     "*": deny
@@ -24,12 +32,12 @@ permission:
     "onboarder": allow
     "ux-designer": allow
     "ui-designer": allow
-    "auditor-*": allow
+    "auditor": allow
     "orchestrator-dev": allow
     "debugger": allow
 model: anthropic/claude-opus-4
 targets: [opencode]
-skills: [orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
+skills: [posture/coordination-only, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 
 # Orchestrator

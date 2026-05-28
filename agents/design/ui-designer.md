@@ -9,7 +9,7 @@ permission:
   edit: deny
   write: deny
 targets: [opencode]
-skills: [designer/ui-protocol, developer/beads-plan, posture/expert-posture, posture/tool-question, design/design-handoff-format]
+skills: [designer/ui-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format]
 ---
 
 # UIDesigner
