@@ -410,7 +410,18 @@ adapter_deploy_config() {
       _tmp_json="${_tmp_json}\"${_agent_ids[$_ji]}\": ${_agent_jsons[$_ji]}"
       _ji=$((_ji + 1))
     done
-    agent_obj_json=$(printf '{%s}' "$_tmp_json" | jq '.')
+    
+    # Valider le JSON avec gestion d'erreur explicite
+    local _jq_error
+    if ! agent_obj_json=$(printf '{%s}' "$_tmp_json" | jq '.' 2>&1); then
+      _jq_error="$agent_obj_json"
+      log_error "Erreur de parsing JSON lors de la construction de opencode.json"
+      log_error "Détails jq: $_jq_error"
+      log_error "Taille du JSON: ${#_tmp_json} caractères"
+      # Afficher les 500 premiers caractères pour debug
+      log_error "Début du JSON: ${_tmp_json:0:500}..."
+      return 1
+    fi
   fi
 
   # Régénérer si : fichier absent, clé API à injecter, project_id défini, ou provider_override fourni

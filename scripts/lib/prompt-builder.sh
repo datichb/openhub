@@ -277,16 +277,32 @@ extract_permission_json() {
           '    '*)
             # Extraire clé et valeur — expansions de paramètre bash (zéro fork)
             local kv="${line#"${line%%[! ]*}"}"   # strip leading whitespace
-            local k="${kv%%:*}"                    # tout avant le premier ':' (limitation : clés avec ':' non supportées)
-            k="${k#"${k%%[! ]*}"}"                # strip leading whitespace
-            k="${k%"${k##*[! ]}"}"                # strip trailing whitespace
-            k="${k#\"}"                            # strip guillemet ouvrant
-            k="${k%\"}"                            # strip guillemet fermant
-            local v="${kv#*:}"                     # tout après le premier ':'
-            v="${v#"${v%%[! ]*}"}"                # strip leading whitespace
-            v="${v%"${v##*[! ]}"}"                # strip trailing whitespace
-            v="${v#\"}"                            # strip guillemet ouvrant si présent
-            v="${v%\"}"                            # strip guillemet fermant si présent
+            
+            # Ignorer les commentaires YAML (lignes commençant par #)
+            # Ces commentaires causent des erreurs de parsing JSON s'ils contiennent ':'
+            [[ "$kv" =~ ^# ]] && continue
+            
+            # Si la clé est entre guillemets, on doit trouver le ':' après le guillemet fermant
+            # Format attendu : "clé avec : dedans": valeur
+            local k v
+            if [[ "$kv" =~ ^\"([^\"]*)\":[[:space:]]*(.*) ]]; then
+              # Clé entre guillemets (peut contenir ':')
+              k="${BASH_REMATCH[1]}"
+              v="${BASH_REMATCH[2]}"
+            else
+              # Clé sans guillemets (ne peut pas contenir ':')
+              k="${kv%%:*}"                    # tout avant le premier ':'
+              k="${k#"${k%%[! ]*}"}"           # strip leading whitespace
+              k="${k%"${k##*[! ]}"}"           # strip trailing whitespace
+              v="${kv#*:}"                     # tout après le premier ':'
+            fi
+            
+            # Nettoyer la valeur
+            v="${v#"${v%%[! ]*}"}"             # strip leading whitespace
+            v="${v%"${v##*[! ]}"}"             # strip trailing whitespace
+            v="${v#\"}"                         # strip guillemet ouvrant si présent
+            v="${v%\"}"                         # strip guillemet fermant si présent
+            
             if [ -n "$k" ] && [ -n "$v" ]; then
               local entry="\"${k}\": \"${v}\""
               case "$current_subblock" in
@@ -312,6 +328,7 @@ extract_permission_json() {
         sk="${sk%"${sk##*[! ]}"}" # strip trailing whitespace
         local sv="${line#*:}"     # tout après le premier ':'
         sv="${sv#"${sv%%[! ]*}"}" # strip leading whitespace
+        sv="${sv%%#*}"             # strip commentaire YAML (tout après #)
         sv="${sv%"${sv##*[! ]}"}" # strip trailing whitespace
         if [ -n "$sk" ] && [ -n "$sv" ]; then
           [ -n "$scalar_fields" ] && scalar_fields="${scalar_fields}, "
