@@ -275,6 +275,13 @@ Les agents Scout et Planner interrogent automatiquement Figma lors de l'analyse 
 | [Outils d'audit](docs/reference/audit-tools.fr.md) | Référence des outils d'audit par domaine |
 | [Résolution de modèle](docs/reference/model-resolution.fr.md) | Résolution de modèle par agent |
 
+### Développement
+
+| Document | Description |
+|----------|-------------|
+| [Optimisations de performance](docs/dev/performance-optimizations.fr.md) | Améliorations de performance dans `oc deploy` |
+| [Pièges shell](docs/dev/shell-gotchas.md) | Pièges courants dans les scripts bash |
+
 ---
 
 ## Licence

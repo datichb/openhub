@@ -275,6 +275,13 @@ The Scout and Planner agents automatically query Figma when analyzing UI feature
 | [Audit tools](docs/reference/audit-tools.en.md) | Audit tools reference by domain |
 | [Model resolution](docs/reference/model-resolution.en.md) | Model resolution by agent |
 
+### Development
+
+| Document | Description |
+|----------|-------------|
+| [Performance optimizations](docs/dev/performance-optimizations.md) | Performance improvements in `oc deploy` |
+| [Shell gotchas](docs/dev/shell-gotchas.md) | Common pitfalls in bash scripting |
+
 ---
 
 ## License
