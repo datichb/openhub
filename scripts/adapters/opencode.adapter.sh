@@ -280,14 +280,49 @@ adapter_deploy_files() {
 
   # Copier chaque agent retenu dans le répertoire cible
   local _i=0
-  while [ "$_i" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+  local _total="${#_DEPLOY_FILES_AGENT_KEYS[@]}"
+  local _families_list=""  # Liste de toutes les familles pour comptage
+
+  while [ "$_i" -lt "$_total" ]; do
     local _aid="${_DEPLOY_FILES_AGENT_KEYS[$_i]}"
     local _asource="${_DEPLOY_FILES_AGENT_FILES[$_i]}"
-
-    build_agent_content "$_asource" "opencode" "$lang" "$deploy_dir" "$_precomputed_stacks" > "$out_dir/${_aid}.md"
-    log_success "  $_aid"
+    
+    # Afficher la progression
+    _progress_bar $((_i + 1)) "$_total" "$_aid"
+    
+    # Build avec gestion d'erreur
+    local _build_err=""
+    if ! _build_err=$(build_agent_content "$_asource" "opencode" "$lang" "$deploy_dir" "$_precomputed_stacks" 2>&1 > "$out_dir/${_aid}.md"); then
+      # Échec du build - afficher l'erreur
+      _progress_bar $((_i + 1)) "$_total" "$_aid" "error"
+      _progress_done
+      echo ""
+      log_error "Échec du build pour $_aid"
+      
+      # Afficher les 5 premières lignes de l'erreur
+      echo "$_build_err" | head -5 | while IFS= read -r line; do
+        log_error "   $line"
+      done
+      echo ""
+      return 1
+    fi
+    
+    # Collecter la famille pour le comptage
+    local _family=$(dirname "$_asource" | xargs basename)
+    _families_list="${_families_list}${_family} "
+    
     _i=$((_i + 1))
   done
+
+  # Finaliser la progression
+  _progress_done
+
+  # Compter les familles avec sort/uniq (compatible bash 3.2)
+  # Format résultat : "11 developer, 8 auditor, 3 planning, ..."
+  _DEPLOY_FILES_FAMILIES=$(echo "$_families_list" | tr ' ' '\n' | grep -v '^$' | sort | uniq -c | awk '{printf "%d %s, ", $1, $2}' | sed 's/, $//')
+
+  # Stocker les stacks détectés pour le récapitulatif
+  _DEPLOY_FILES_STACKS="$_detected_stacks"
 }
 
 # ── Phase 2 : configuration provider/model (opencode.json) ───────────────────
@@ -306,6 +341,14 @@ adapter_deploy_config() {
   if [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]; then
     _load_agent_metadata "$project_id"
   fi
+
+  # Définir les étapes de la Phase 2 pour la progression
+  local _config_steps=4
+  local _step=0
+
+  # Étape 1/4 : Chargement métadonnées
+  _step=1
+  _progress_bar $_step $_config_steps "Chargement métadonnées"
 
   local effective_provider
   effective_provider=$(get_effective_provider "$project_id" "$provider_override")
@@ -399,6 +442,10 @@ adapter_deploy_config() {
     done
   fi
 
+  # Étape 2/4 : Construction JSON agents terminée
+  _step=2
+  _progress_bar $_step $_config_steps "Construction JSON agents"
+
   # Assembler agent_obj_json en une seule invocation jq
   # Construire la chaîne JSON brute "{\"id1\": {...}, \"id2\": {...}}" et valider via jq '.'
   local agent_obj_json="{}"
@@ -442,6 +489,10 @@ adapter_deploy_config() {
       _gitignore_opencode_json "$deploy_dir"
     fi
 
+    # Étape 3/4 : Fusion des blocs
+    _step=3
+    _progress_bar $_step $_config_steps "Fusion configuration"
+
     # Assembler opencode.json en une seule invocation jq end-to-end
     local base_obj
     base_obj=$(jq -n \
@@ -467,6 +518,10 @@ adapter_deploy_config() {
         '$base + {"agent": $agents}')
     fi
 
+    # Étape 4/4 : Écriture du fichier
+    _step=4
+    _progress_bar $_step $_config_steps "Écriture opencode.json"
+
     # Écriture atomique : tmp puis mv pour éviter un état corrompu si le script est interrompu
     local _tmp_config="${config_file}.tmp"
     printf '%s\n' "$base_obj" > "$_tmp_config"
@@ -474,28 +529,66 @@ adapter_deploy_config() {
     if [ "$has_api_key" = true ]; then
       chmod 600 "$_tmp_config"
       mv "$_tmp_config" "$config_file"
-      log_success "  opencode.json  (modèle : $model, provider : $effective_provider)"
     else
       mv "$_tmp_config" "$config_file"
-      local subagent_count=0
-      local _si=0
-      while [ "$_si" -lt "${#_DEPLOY_FILES_AGENT_VALS[@]}" ]; do
-        [ "${_DEPLOY_FILES_AGENT_VALS[$_si]}" != "primary" ] && subagent_count=$((subagent_count + 1))
-        _si=$((_si + 1))
-      done
-      # Compter les agents désactivés en bash pur (zéro fork)
-      local disabled_count=0
-      if [ -n "$disabled_csv" ]; then
-        IFS=',' read -ra _count_arr <<< "$disabled_csv"
-        for _entry in "${_count_arr[@]}"; do
-          _entry="${_entry#"${_entry%%[! ]*}"}"; _entry="${_entry%"${_entry##*[! ]}"}"  # trim complet leading/trailing
-          [ -n "$_entry" ] && disabled_count=$((disabled_count + 1))
-        done
-      fi
-      log_success "  opencode.json  (modèle : $model, $subagent_count agent(s) en mode subagent, $disabled_count désactivé(s))"
     fi
+    
+    # Finaliser la progression
+    _progress_done
+    
+    # Calculer les statistiques pour le récapitulatif
+    local subagent_count=0
+    local _si=0
+    while [ "$_si" -lt "${#_DEPLOY_FILES_AGENT_VALS[@]}" ]; do
+      [ "${_DEPLOY_FILES_AGENT_VALS[$_si]}" != "primary" ] && subagent_count=$((subagent_count + 1))
+      _si=$((_si + 1))
+    done
+    
+    # Compter les agents désactivés en bash pur (zéro fork)
+    local disabled_count=0
+    if [ -n "$disabled_csv" ]; then
+      IFS=',' read -ra _count_arr <<< "$disabled_csv"
+      for _entry in "${_count_arr[@]}"; do
+        _entry="${_entry#"${_entry%%[! ]*}"}"; _entry="${_entry%"${_entry##*[! ]}"}"  # trim complet leading/trailing
+        [ -n "$_entry" ] && disabled_count=$((disabled_count + 1))
+      done
+    fi
+    
+    # Calculer la taille du fichier
+    local _file_size=""
+    if [ -f "$config_file" ]; then
+      _file_size=$(du -h "$config_file" 2>/dev/null | cut -f1)
+    fi
+    
+    # Compter les agents avec permissions personnalisées
+    local _perm_count=0
+    local _ji=0
+    while [ "$_ji" -lt "${#_agent_jsons[@]}" ]; do
+      case "${_agent_jsons[$_ji]}" in
+        *"permission"*) _perm_count=$((_perm_count + 1)) ;;
+      esac
+      _ji=$((_ji + 1))
+    done
+    
+    # Extraire la région pour bedrock
+    local _provider_detail="$effective_provider"
+    if [ "$effective_provider" = "bedrock" ] && [ -n "$project_id" ]; then
+      local _region=$(get_project_api_region "$project_id" 2>/dev/null || echo "")
+      [ -n "$_region" ] && _provider_detail="${effective_provider} (${_region})"
+    fi
+    
+    # Variables globales pour le récapitulatif (utilisées par cmd-deploy.sh)
+    _DEPLOY_CONFIG_MODEL="$model"
+    _DEPLOY_CONFIG_PROVIDER="$_provider_detail"
+    _DEPLOY_CONFIG_SIZE="${_file_size:-inconnu}"
+    _DEPLOY_CONFIG_TOTAL="${#_DEPLOY_FILES_AGENT_KEYS[@]}"
+    _DEPLOY_CONFIG_SUBAGENTS="$subagent_count"
+    _DEPLOY_CONFIG_DISABLED="$disabled_count"
+    _DEPLOY_CONFIG_PERMS="$_perm_count"
+    _DEPLOY_CONFIG_SKIP=false
   else
-    log_info "  opencode.json conservé (aucun changement nécessaire)"
+    _progress_done
+    _DEPLOY_CONFIG_SKIP=true
   fi
 }
 

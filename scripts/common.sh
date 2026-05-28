@@ -34,6 +34,10 @@ export EXTERNAL_SKILLS_DIR
 # shellcheck source=scripts/lib/colors.sh
 [ -f "$LIB_DIR/colors.sh" ] && source "$LIB_DIR/colors.sh"
 
+# Load progress bar library
+# shellcheck source=scripts/lib/progress-bar.sh
+[ -f "$LIB_DIR/progress-bar.sh" ] && source "$LIB_DIR/progress-bar.sh"
+
 # Load API keys INI parser
 # shellcheck source=scripts/lib/api-keys.sh
 [ -f "$LIB_DIR/api-keys.sh" ] && source "$LIB_DIR/api-keys.sh"

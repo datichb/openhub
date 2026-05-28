@@ -224,6 +224,8 @@ for arg in "$@"; do
     CHECK_MODE=true
   elif [ "$arg" = "--diff" ]; then
     DIFF_MODE=true
+  elif [ "$arg" = "--no-progress" ]; then
+    _progress_disable
   elif [ "$arg" = "--provider" ]; then
     _prev="$arg"
   else
@@ -244,6 +246,9 @@ if [ "$DIFF_MODE" = true ]; then
 fi
 
 log_title "Déploiement des agents"
+
+# Timer de déploiement (utilise SECONDS, bash builtin)
+SECONDS=0
 
 # Valider le provider override si fourni
 if [ -n "$PROVIDER_OVERRIDE" ]; then
@@ -272,25 +277,68 @@ load_adapter "opencode"
 adapter_validate || { log_error "opencode non disponible — déploiement ignoré"; exit 1; }
 
 # ── Phase 1 : copie des fichiers agents ────────────────────────────────────
-echo -e "${CYAN}▶  Phase 1 — Copie des agents${RESET}"
-_spinner_start "Copie des agents vers opencode…"
+echo -e "${CYAN}📦  Phase 1 — Copie des agents${RESET}"
+
 if adapter_deploy_files "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
-  _spinner_stop "$_DEPLOY_FILES_COUNT agent(s) déployés"
+  # Construire le résumé
+  summary_lines=()
+  summary_lines+=("$_DEPLOY_FILES_COUNT agents déployés")
+  
+  # Familles d'agents
+  if [ -n "$_DEPLOY_FILES_FAMILIES" ]; then
+    summary_lines+=("Familles : $_DEPLOY_FILES_FAMILIES")
+  fi
+  
+  # Stacks détectés (toujours afficher)
+  if [ -n "$_DEPLOY_FILES_STACKS" ]; then
+    stacks_formatted=$(echo "$_DEPLOY_FILES_STACKS" | tr '\n' ', ' | sed 's/, $//')
+    summary_lines+=("Stack skills : $stacks_formatted détectés")
+  else
+    summary_lines+=("Stack skills : Aucun stack détecté")
+  fi
+  
+  _progress_summary "Phase 1 terminée" "${summary_lines[@]}"
 else
-  _spinner_stop "Échec de la copie des agents" 1
   echo ""
+  log_error "Échec de la Phase 1"
   exit 1
 fi
 echo ""
 
 # ── Phase 2 : configuration provider / model ───────────────────────────────
-echo -e "${CYAN}▶  Phase 2 — Configuration provider / model${RESET}"
-_spinner_start "Application de la configuration provider/model…"
+echo -e "${CYAN}⚙️  Phase 2 — Configuration${RESET}"
+
 if adapter_deploy_config "$deploy_dir" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
-  _spinner_stop "Configuration appliquée"
+  # Cas particulier : fichier conservé (aucun changement)
+  if [ "$_DEPLOY_CONFIG_SKIP" = true ]; then
+    echo ""
+    log_info "   opencode.json conservé (aucun changement nécessaire)"
+  else
+    # Construire le récapitulatif détaillé
+    summary_lines=()
+    summary_lines+=("opencode.json généré ($_DEPLOY_CONFIG_SIZE)")
+    summary_lines+=("Modèle : $_DEPLOY_CONFIG_MODEL")
+    summary_lines+=("Provider : $_DEPLOY_CONFIG_PROVIDER")
+    summary_lines+=("Agents configurés : $_DEPLOY_CONFIG_TOTAL")
+    
+    # Sous-items (indentés avec espace + tiret)
+    if [ "$_DEPLOY_CONFIG_SUBAGENTS" -gt 0 ] || [ "$_DEPLOY_CONFIG_DISABLED" -gt 0 ]; then
+      [ "$_DEPLOY_CONFIG_SUBAGENTS" -gt 0 ] && summary_lines+=("  - $_DEPLOY_CONFIG_SUBAGENTS en mode subagent")
+      [ "$_DEPLOY_CONFIG_DISABLED" -gt 0 ] && summary_lines+=("  - $_DEPLOY_CONFIG_DISABLED désactivés")
+    fi
+    
+    # Permissions
+    if [ "$_DEPLOY_CONFIG_PERMS" -gt 0 ]; then
+      summary_lines+=("Permissions : $_DEPLOY_CONFIG_PERMS agents avec restrictions")
+    fi
+    
+    _progress_summary "Phase 2 terminée" "${summary_lines[@]}"
+  fi
 else
-  _spinner_stop "Échec de la configuration" 1
+  echo ""
+  log_error "Échec de la Phase 2"
+  exit 1
 fi
 echo ""
 
-log_success "Déploiement terminé"
+log_success "Déploiement terminé en ${SECONDS}s"
