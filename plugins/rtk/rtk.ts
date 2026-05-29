@@ -53,6 +53,11 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
   let sessionCommandsRewritten = 0
   let sessionCommandsNotRewritten = 0
   let sessionStarted = false
+  
+  // WebSearch tracking
+  let sessionWebSearchCalls = 0
+  let sessionWebFetchCalls = 0
+  let sessionWebSearchRateLimited = 0
 
   // ───────────────────────────────────────────────────────────────────────────
   // Helper: Get Project-Scoped RTK Stats
@@ -187,6 +192,29 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
           sessionCommandsNotRewritten++
         }
       }
+      
+      // Track WebSearch/WebFetch calls
+      if (tool === "websearch" || tool === "webfetch") {
+        await initSession()
+        
+        if (tool === "websearch") {
+          sessionWebSearchCalls++
+        } else {
+          sessionWebFetchCalls++
+        }
+        
+        await client.app.log({
+          body: {
+            service: "rtk-plugin",
+            level: "debug",
+            message: `${tool} call initiated`,
+            extra: {
+              session_websearch_calls: sessionWebSearchCalls,
+              session_webfetch_calls: sessionWebFetchCalls,
+            },
+          },
+        })
+      }
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -195,6 +223,28 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     
     "tool.execute.after": async (input, output) => {
       const tool = String(input?.tool ?? "").toLowerCase()
+      
+      // Track WebSearch rate limits
+      if (tool === "websearch") {
+        const errorMsg = String(output?.error ?? "")
+        if (errorMsg.toLowerCase().includes("rate limit")) {
+          sessionWebSearchRateLimited++
+          
+          await client.app.log({
+            body: {
+              service: "rtk-plugin",
+              level: "warn",
+              message: "WebSearch rate limit hit",
+              extra: {
+                session_rate_limits: sessionWebSearchRateLimited,
+              },
+            },
+          })
+        }
+        return
+      }
+      
+      // RTK tracking (existing code)
       if (tool !== "bash" && tool !== "shell") return
 
       const command = (output?.args as Record<string, unknown>)?.command
@@ -294,11 +344,42 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
           },
         },
       })
+      
+      // WebSearch summary
+      if (sessionWebSearchCalls > 0 || sessionWebFetchCalls > 0) {
+        let message = `🔍 WebSearch: ${sessionWebSearchCalls} queries, ${sessionWebFetchCalls} fetches`
+        if (sessionWebSearchRateLimited > 0) {
+          message += ` (${sessionWebSearchRateLimited} rate limits)`
+        }
+        
+        await client.tui.toast({
+          body: {
+            type: "info",
+            message,
+          },
+        })
+        
+        await client.app.log({
+          body: {
+            service: "rtk-plugin",
+            level: "info",
+            message: "WebSearch session summary",
+            extra: {
+              websearch_calls: sessionWebSearchCalls,
+              webfetch_calls: sessionWebFetchCalls,
+              rate_limits: sessionWebSearchRateLimited,
+            },
+          },
+        })
+      }
 
       // Reset for next session
       baselineTokensSaved = stats.totalSaved
       sessionCommandsRewritten = 0
       sessionCommandsNotRewritten = 0
+      sessionWebSearchCalls = 0
+      sessionWebFetchCalls = 0
+      sessionWebSearchRateLimited = 0
     },
   }
 }

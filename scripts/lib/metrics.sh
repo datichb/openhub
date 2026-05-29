@@ -232,6 +232,24 @@ metrics_correction() {
   metrics_log_event "correction" "$ticket_id" "" "" "$extra"
 }
 
+# Log un événement WebSearch
+# Usage : metrics_websearch "bd-42" "websearch" ["CVE lookup"]
+# @param $1 — ticket_id (required)
+# @param $2 — tool (websearch ou webfetch)
+# @param $3 — query_type (optional)
+metrics_websearch() {
+  local ticket_id="$1"
+  local tool="${2:-websearch}"
+  local query_type="${3:-}"
+  local extra=""
+  if [ -n "$query_type" ]; then
+    extra="\"query_type\":\"$(_metrics_escape "$query_type")\",\"tool\":\"$tool\""
+  else
+    extra="\"tool\":\"$tool\""
+  fi
+  metrics_log_event "websearch" "$ticket_id" "" "" "$extra"
+}
+
 # ─────────────────────────────────────────
 # AGGREGATION FUNCTIONS
 # ─────────────────────────────────────────
@@ -374,6 +392,36 @@ metrics_format_duration() {
   printf '%s' "$result"
 }
 
+# Compte le nombre de WebSearch calls
+# Usage : count=$(metrics_count_websearch)
+metrics_count_websearch() {
+  if ! metrics_file_exists; then
+    echo "0"
+    return 0
+  fi
+  local count
+  count=$(grep -c '"event":"websearch"' "$_METRICS_FILE" 2>/dev/null) || count=0
+  count=$(echo "$count" | tr -d '[:space:]')
+  echo "${count:-0}"
+}
+
+# Retourne le top N des types de queries WebSearch
+# Usage : metrics_top_websearch_types [N]
+metrics_top_websearch_types() {
+  local top_n="${1:-3}"
+  
+  if ! metrics_file_exists; then
+    return 0
+  fi
+  
+  grep '"event":"websearch"' "$_METRICS_FILE" 2>/dev/null | \
+    sed -n 's/.*"query_type":"\([^"]*\)".*/\1/p' | \
+    sort | uniq -c | sort -rn | head -n "$top_n" | \
+    while read -r count type; do
+      printf '%s|%s\n' "$type" "$count"
+    done
+}
+
 # Agrège toutes les métriques en un seul appel
 # Usage : metrics_aggregate
 # Returns : données formatées pour affichage (utilise des variables globales)
@@ -383,6 +431,8 @@ metrics_format_duration() {
 #   METRICS_AVG_DURATION_FMT — durée moyenne formatée
 #   METRICS_AVG_CYCLES — cycles review moyens
 #   METRICS_TOP_CORRECTIONS — tableau des top corrections (reason|count)
+#   METRICS_WEBSEARCH_COUNT — nombre de WebSearch calls
+#   METRICS_TOP_WEBSEARCH_TYPES — tableau des top query types (type|count)
 metrics_aggregate() {
   METRICS_TOTAL_TICKETS=$(metrics_count_completed)
   METRICS_AVG_DURATION=$(metrics_avg_duration)
@@ -394,4 +444,11 @@ metrics_aggregate() {
   while IFS= read -r line; do
     [ -n "$line" ] && METRICS_TOP_CORRECTIONS+=("$line")
   done < <(metrics_top_corrections 3)
+  
+  # WebSearch metrics
+  METRICS_WEBSEARCH_COUNT=$(metrics_count_websearch)
+  METRICS_TOP_WEBSEARCH_TYPES=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && METRICS_TOP_WEBSEARCH_TYPES+=("$line")
+  done < <(metrics_top_websearch_types 3)
 }

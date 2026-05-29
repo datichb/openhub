@@ -110,6 +110,28 @@ main() {
     done
   fi
 
+  # Section : WebSearch Usage
+  if [ "$(metrics_count_websearch)" -gt 0 ]; then
+    echo ""
+    _metrics_section "🔍 WebSearch Usage"
+    echo ""
+    
+    local ws_count
+    ws_count=$(metrics_count_websearch)
+    _metrics_item "Total queries" "${CYAN}${ws_count}${RESET}"
+    
+    # Top query types
+    if [ ${#METRICS_TOP_WEBSEARCH_TYPES[@]} -gt 0 ]; then
+      echo ""
+      echo -e "  ${DIM}Top query types:${RESET}"
+      for entry in "${METRICS_TOP_WEBSEARCH_TYPES[@]}"; do
+        local type="${entry%|*}"
+        local count="${entry#*|}"
+        printf "    ${DIM}•${RESET} %-25s ${CYAN}%s${RESET}\n" "$type" "$count"
+      done
+    fi
+  fi
+
   echo ""
   echo -e "${DIM}───────────────────────────────────────${RESET}"
   echo -e "${DIM}Source : ${metrics_file}${RESET}"
