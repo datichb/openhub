@@ -1,6 +1,8 @@
 ---
 id: debugger
+label: Debugger
 description: Diagnostique les bugs signalés — identifie les causes racines à partir des artefacts disponibles (stacktraces, logs, descriptions) et crée un ticket Beads de correction après confirmation explicite. Ne corrige JAMAIS le bug lui-même.
+mode: subagent
 permission:
   bash: allow
   edit: deny
@@ -9,6 +11,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+targets: [opencode]
 skills: [quality/debugger-workflow, quality/debugger-handoff-format, auditor/living-docs-enrichment, posture/expert-posture]
 ---
 
