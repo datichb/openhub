@@ -34,8 +34,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bats jq
       
+      - name: Make scripts executable
+        run: |
+          find scripts -name "*.sh" -exec chmod +x {} \;
+          chmod +x oc.sh
+      
       - name: Run config tests
         run: bats tests/test_cmd_config_websearch.bats
+        env:
+          BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       
       - name: Upload test results
         if: always()
@@ -58,6 +65,8 @@ jobs:
       
       - name: Run agent validation tests
         run: bats tests/test_agents_websearch.bats
+        env:
+          BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       
       - name: Verify 13 agents have websearch
         run: |
@@ -82,6 +91,8 @@ jobs:
       
       - name: Run skill validation tests
         run: bats tests/test_skills_websearch.bats
+        env:
+          BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       
       - name: Verify skill files exist
         run: |
@@ -122,8 +133,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bats jq
       
+      - name: Make scripts executable
+        run: |
+          find scripts -name "*.sh" -exec chmod +x {} \;
+          chmod +x oc.sh
+      
       - name: Run all WebSearch tests
         run: bats tests/test_*websearch*.bats
+        env:
+          BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       
       - name: Summary
         run: |
