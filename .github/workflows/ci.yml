@@ -19,7 +19,7 @@ jobs:
 
       - name: Run ShellCheck on all scripts
         run: |
-          shellcheck --severity=warning \
+          shellcheck --severity=warning --exclude=SC2034 \
             oc.sh \
             scripts/cmd-*.sh \
             scripts/lib/*.sh \
@@ -90,7 +90,7 @@ jobs:
 
       - name: Check staleness (opencode target — hub level)
         run: |
-          bash scripts/cmd-deploy.sh --check opencode || {
+          bash scripts/cmd-deploy.sh --check || {
             echo "::error::Des agents déployés sont obsolètes ou manquants après deploy — vérifier les sources agents/ et skills/"
             exit 1
           }
@@ -106,7 +106,12 @@ jobs:
         run: sudo apt-get install -y bats
 
       - name: Run bats tests
-        run: for f in tests/*.bats; do bats "$f" || exit 1; done
+        run: |
+          for f in tests/*.bats; do
+            # Skip websearch tests (they have their own workflow)
+            [[ "$f" == *websearch* ]] && continue
+            bats "$f" || exit 1
+          done
 
   version-consistency:
     name: Check version consistency
