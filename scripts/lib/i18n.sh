@@ -43,10 +43,8 @@ t() {
       help.section.maintenance) printf '%s' "Maintenance" ;;
       help.section.config)    printf '%s' "Configuration" ;;
       help.section.deploy_targets) printf '%s' "Cibles deploy" ;;
-      help.section.agents)    printf '%s' "Agents" ;;
-      help.section.skills)    printf '%s' "Skills externes (context7)" ;;
       help.section.beads)     printf '%s' "Beads (bd)" ;;
-      help.section.examples)  printf '%s' "Exemples skills" ;;
+      help.section.examples)  printf '%s' "Exemples" ;;
       # Setup
       help.install.cmd)       printf '%s' "install" ;;
       help.install.desc)      printf '%s' "Installe les outils IA et Beads (bd)" ;;
@@ -125,42 +123,6 @@ t() {
       help.provider_set_default.desc) printf '%s' "Configure le provider par défaut du hub (interactif)" ;;
       # Deploy targets
       help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-      # Agents
-      help.agent_list.cmd)    printf '%s' "agent list" ;;
-      help.agent_list.desc)   printf '%s' "Lister les agents canoniques" ;;
-      help.agent_create.cmd)  printf '%s' "agent create" ;;
-      help.agent_create.desc) printf '%s' "Créer un agent (interactif)" ;;
-      help.agent_edit.cmd)    printf '%s' "agent edit <agent-id>" ;;
-      help.agent_edit.desc)   printf '%s' "Modifier les skills et métadonnées" ;;
-      help.agent_info.cmd)    printf '%s' "agent info <agent-id>" ;;
-      help.agent_info.desc)   printf '%s' "Afficher le détail d'un agent" ;;
-      help.agent_select.cmd)  printf '%s' "agent select <PROJECT_ID>" ;;
-      help.agent_select.desc) printf '%s' "Choisir les agents à déployer pour un projet (interactif)" ;;
-      help.agent_mode.cmd)    printf '%s' "agent mode <PROJECT_ID>" ;;
-      help.agent_mode.desc)   printf '%s' "Afficher / overrider les modes primary/subagent par projet" ;;
-      help.agent_validate.cmd)  printf '%s' "agent validate [agent-id]" ;;
-      help.agent_validate.desc) printf '%s' "Valider la cohérence des agents (ou d'un seul)" ;;
-      help.agent_deploy.cmd)  printf '%s' "agent deploy <agent-id> [PROJECT_ID]" ;;
-      help.agent_deploy.desc) printf '%s' "Déploie un seul agent sur les cibles actives (ou celles du projet)" ;;
-      # Skills
-      help.skills_search.cmd) printf '%s' "skills search <query>" ;;
-      help.skills_search.desc) printf '%s' "Rechercher des skills sur context7" ;;
-      help.skills_info.cmd)   printf '%s' "skills info /owner/repo" ;;
-      help.skills_info.desc)  printf '%s' "Prévisualiser les skills d'un dépôt" ;;
-      help.skills_add.cmd)    printf '%s' "skills add /owner/repo [name]" ;;
-      help.skills_add.desc)   printf '%s' "Télécharger et ajouter un skill externe" ;;
-      help.skills_list.cmd)   printf '%s' "skills list" ;;
-      help.skills_list.desc)  printf '%s' "Lister tous les skills (locaux + externes)" ;;
-      help.skills_update.cmd) printf '%s' "skills update [name]" ;;
-      help.skills_update.desc) printf '%s' "Mettre à jour un skill externe (ou tous)" ;;
-      help.skills_used_by.cmd)  printf '%s' "skills used-by <skill>" ;;
-      help.skills_used_by.desc) printf '%s' "Lister les agents qui utilisent ce skill" ;;
-      help.skills_sync.cmd)   printf '%s' "skills sync" ;;
-      help.skills_sync.desc)  printf '%s' "Re-télécharger tous les skills (après clone)" ;;
-      help.skills_remove.cmd) printf '%s' "skills remove <name>" ;;
-      help.skills_remove.desc) printf '%s' "Supprimer un skill externe" ;;
-      help.skills_validate.cmd)  printf '%s' "skills validate [name]" ;;
-      help.skills_validate.desc) printf '%s' "Valider la cohérence des skills (frontmatter, sources)" ;;
       # Projects
       help.project_rename.cmd)  printf '%s' "project rename <OLD_ID> <NEW_ID>" ;;
       help.project_rename.desc) printf '%s' "Renomme un projet dans tous les registres" ;;
@@ -653,10 +615,8 @@ t_en() {
     help.section.maintenance) printf '%s' "Maintenance" ;;
     help.section.config)    printf '%s' "Configuration" ;;
     help.section.deploy_targets) printf '%s' "Deploy targets" ;;
-    help.section.agents)    printf '%s' "Agents" ;;
-    help.section.skills)    printf '%s' "External skills (context7)" ;;
     help.section.beads)     printf '%s' "Beads (bd)" ;;
-    help.section.examples)  printf '%s' "Skills examples" ;;
+    help.section.examples)  printf '%s' "Examples" ;;
     # Setup
     help.install.cmd)       printf '%s' "install" ;;
     help.install.desc)      printf '%s' "Install AI tools and Beads (bd)" ;;
@@ -735,42 +695,6 @@ t_en() {
     help.provider_set_default.desc) printf '%s' "Configure the hub default provider (interactive)" ;;
     # Deploy targets
     help.deploy_target.opencode) printf '%s' "opencode     → .opencode/agents/ + opencode.json" ;;
-    # Agents
-    help.agent_list.cmd)    printf '%s' "agent list" ;;
-    help.agent_list.desc)   printf '%s' "List canonical agents" ;;
-    help.agent_create.cmd)  printf '%s' "agent create" ;;
-    help.agent_create.desc) printf '%s' "Create an agent (interactive)" ;;
-    help.agent_edit.cmd)    printf '%s' "agent edit <agent-id>" ;;
-    help.agent_edit.desc)   printf '%s' "Edit skills and metadata" ;;
-    help.agent_info.cmd)    printf '%s' "agent info <agent-id>" ;;
-    help.agent_info.desc)   printf '%s' "Show agent details" ;;
-    help.agent_select.cmd)  printf '%s' "agent select <PROJECT_ID>" ;;
-    help.agent_select.desc) printf '%s' "Choose agents to deploy for a project (interactive)" ;;
-    help.agent_mode.cmd)    printf '%s' "agent mode <PROJECT_ID>" ;;
-    help.agent_mode.desc)   printf '%s' "Show / override primary/subagent modes per project" ;;
-    help.agent_validate.cmd)  printf '%s' "agent validate [agent-id]" ;;
-    help.agent_validate.desc) printf '%s' "Validate agent consistency (or a single one)" ;;
-    help.agent_deploy.cmd)  printf '%s' "agent deploy <agent-id> [PROJECT_ID]" ;;
-    help.agent_deploy.desc) printf '%s' "Deploy a single agent to active targets (or project targets)" ;;
-    # Skills
-    help.skills_search.cmd) printf '%s' "skills search <query>" ;;
-    help.skills_search.desc) printf '%s' "Search for skills on context7" ;;
-    help.skills_info.cmd)   printf '%s' "skills info /owner/repo" ;;
-    help.skills_info.desc)  printf '%s' "Preview skills in a repository" ;;
-    help.skills_add.cmd)    printf '%s' "skills add /owner/repo [name]" ;;
-    help.skills_add.desc)   printf '%s' "Download and add an external skill" ;;
-    help.skills_list.cmd)   printf '%s' "skills list" ;;
-    help.skills_list.desc)  printf '%s' "List all skills (local + external)" ;;
-    help.skills_update.cmd) printf '%s' "skills update [name]" ;;
-    help.skills_update.desc) printf '%s' "Update an external skill (or all)" ;;
-    help.skills_used_by.cmd)  printf '%s' "skills used-by <skill>" ;;
-    help.skills_used_by.desc) printf '%s' "List agents that use this skill" ;;
-    help.skills_sync.cmd)   printf '%s' "skills sync" ;;
-    help.skills_sync.desc)  printf '%s' "Re-download all skills (after clone)" ;;
-    help.skills_remove.cmd) printf '%s' "skills remove <name>" ;;
-    help.skills_remove.desc) printf '%s' "Remove an external skill" ;;
-    help.skills_validate.cmd)  printf '%s' "skills validate [name]" ;;
-    help.skills_validate.desc) printf '%s' "Validate skill consistency (frontmatter, sources)" ;;
     # Projects
     help.project_rename.cmd)  printf '%s' "project rename <OLD_ID> <NEW_ID>" ;;
     help.project_rename.desc) printf '%s' "Rename a project across all registry files" ;;
@@ -1239,6 +1163,37 @@ t_en() {
 
     # ── cmd-version.sh ───────────────────────────────────────────────────────
     version.unknown)        printf '%s' "unknown" ;;
+
+    # ── cmd-plugin.sh ────────────────────────────────────────────────────────
+    plugin.install_title)           printf '%s' "Plugin Installation" ;;
+    plugin.not_found)               printf '%s' "Plugin not found" ;;
+    plugin.available)               printf '%s' "Available plugins" ;;
+    plugin.none)                    printf '%s' "No plugins available" ;;
+    plugin.opencode_not_installed)  printf '%s' "OpenCode is not installed" ;;
+    plugin.install_opencode)        printf '%s' "Install OpenCode first" ;;
+    plugin.or)                      printf '%s' "or" ;;
+    plugin.rtk_not_installed)       printf '%s' "RTK is not installed" ;;
+    plugin.install_rtk)             printf '%s' "Install RTK first" ;;
+    plugin.rtk_outdated)            printf '%s' "RTK version is outdated" ;;
+    plugin.upgrade_rtk)             printf '%s' "Upgrade RTK" ;;
+    plugin.continue_anyway)         printf '%s' "Continue anyway?" ;;
+    plugin.rtk_version_ok)          printf '%s' "RTK version OK" ;;
+    plugin.backing_up)              printf '%s' "Backing up old plugin" ;;
+    plugin.copying)                 printf '%s' "Copying plugin" ;;
+    plugin.installed)               printf '%s' "Plugin installed" ;;
+    plugin.verification)            printf '%s' "Verification" ;;
+    plugin.file_present)            printf '%s' "File present" ;;
+    plugin.permissions)             printf '%s' "Permissions" ;;
+    plugin.file_missing)            printf '%s' "File missing after installation" ;;
+    plugin.next_steps)              printf '%s' "Next Steps" ;;
+    plugin.step1)                   printf '%s' "1. Restart OpenCode if running" ;;
+    plugin.restart_opencode)        printf '%s' "Close and restart OpenCode" ;;
+    plugin.step2)                   printf '%s' "2. Check logs" ;;
+    plugin.step3)                   printf '%s' "3. Test the plugin" ;;
+    plugin.rtk_test_command)        printf '%s' "Run a command with lots of output (e.g. git diff)" ;;
+    plugin.show_docs)               printf '%s' "Show plugin documentation?" ;;
+    plugin.no_docs)                 printf '%s' "No documentation available" ;;
+    plugin.done)                    printf '%s' "Installation complete" ;;
 
     # Fallback: return the key itself
     *) printf '%s' "$key" ;;

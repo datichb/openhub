@@ -1,0 +1,23 @@
+{
+  "name": "@opencode-hub/rtk-plugin",
+  "version": "1.0.0",
+  "description": "RTK (Rust Token Killer) plugin for OpenCode - automatic token optimization",
+  "type": "module",
+  "main": "rtk.ts",
+  "author": "opencode-hub contributors",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^0.1.0"
+  },
+  "keywords": [
+    "opencode",
+    "rtk",
+    "token-optimization",
+    "plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/datichb/opencode-hub.git",
+    "directory": "plugins/rtk"
+  }
+}

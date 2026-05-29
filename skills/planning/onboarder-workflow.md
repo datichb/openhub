@@ -1262,6 +1262,15 @@ pyproject.toml / setup.cfg
 
 Lire `package.json` (ou équivalent) :
 
+**Optimisation RTK (0.42.0+) :**
+```bash
+# D'abord inspecter la structure sans lire toutes les valeurs
+rtk json package.json --keys-only
+
+# Puis lire seulement les sections nécessaires
+read package.json | grep -A 20 '"dependencies"'
+```
+
 **Ce qu'on en extrait :**
 - Framework UI, state management, routing
 - Lib HTTP, framework test, lib validation, ORM
