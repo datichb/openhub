@@ -100,10 +100,58 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 ```
 0. L'utilisateur ouvre une session en décrivant un problème, une anomalie ou un bug
 1. NE PAS tenter de diagnostiquer ni de corriger
-2. Invoquer immédiatement l'agent `debugger` avec le problème tel quel
-3. Le debugger prend en charge l'analyse et la création du ticket de correction
-4. Afficher le rapport de diagnostic complet, puis proposer d'intégrer les tickets créés en Mode A ou B
+2. Invoquer immédiatement l'agent `debugger` via `task` avec le problème tel quel
+3. À la réception du retour du debugger :
+   
+   ⚠️ **PROTOCOLE DE RETRANSMISSION OBLIGATOIRE** (voir skill `posture/retranscription-coordinateur`) :
+   
+   a. **VÉRIFIER** la présence du rapport de diagnostic complet
+   b. **VÉRIFIER** la présence du bloc `## Retour vers orchestrator`
+   c. **AFFICHER le rapport complet en texte** dans la discussion (copier-coller intégral, jamais résumer)
+   d. **AFFICHER le bloc structuré en texte** dans la discussion (tous les champs obligatoires)
+   e. **VÉRIFIER les sections critiques** : `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles`
+   f. **AUTOCONTRÔLE** : « Ai-je affiché le rapport ET le bloc AVANT d'appeler question ? »
+   g. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
+   
+4. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées
+5. Proposer d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable
 ```
+
+**Template de retranscription (obligatoire) :**
+
+```
+**[Retranscription du retour debugger]**
+
+---
+
+### Rapport de diagnostic
+
+<Copier-coller intégral du rapport reçu — NE JAMAIS résumer>
+
+---
+
+### Bloc structuré
+
+<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification obligatoire :**
+- ✅ Rapport de diagnostic complet copié tel quel
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques vérifiées : Actions d'urgence, Impact et régressions
+
+**Maintenant seulement,** utiliser l'outil `question` pour la décision.
+```
+
+> ❌ Ne jamais appeler `question` sans avoir d'abord affiché le rapport et le bloc
+> ❌ Ne jamais résumer le rapport — le copier intégralement
+> ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais inclure le rapport dans le champ `question` de l'outil
+
+**Référence :** Voir `orchestrator/orchestrator-protocol` lignes 151-239 pour le protocole détaillé.
 
 ---
 

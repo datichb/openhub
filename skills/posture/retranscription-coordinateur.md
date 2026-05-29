@@ -235,6 +235,177 @@ Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 
 ---
 
+### ✅ CORRECT — Exemple debugger (Mode D)
+
+```
+[Orchestrator reçoit retour du debugger]
+
+**[Retranscription du retour debugger]**
+
+---
+
+### Rapport de diagnostic
+
+## [Phase 5] Diagnostic — TypeError sur l'endpoint POST /api/auth/login
+
+### Symptôme
+L'endpoint retourne une erreur 500 avec message "Cannot read property 'id' of undefined" quand l'utilisateur tente de se connecter avec des identifiants valides. Fréquence : systématique (100% des tentatives). Environnement : production.
+
+### Périmètre analysé
+Artefacts fournis : stacktrace complète (23 frames), logs applicatifs (fenêtre 5 min), description précise du comportement. Ticket Beads bd-156 consulté.
+
+### Localisation probable
+`src/services/auth.service.ts:47` — fonction `authenticateUser`
+
+### Cause racine
+
+#### Hypothèse principale — haute probabilité
+Le service d'authentification tente d'accéder à `user.id` alors que la requête BDD retourne `null` si l'utilisateur n'existe pas. Aucune vérification de nullité avant l'accès à la propriété.
+
+**Éléments qui l'étayent :**
+- Stacktrace : `TypeError: Cannot read property 'id' of undefined at authenticateUser (auth.service.ts:47)`
+- Log BDD : `SELECT * FROM users WHERE email = 'test@example.com' → 0 rows`
+- Code source ligne 47 : `const token = generateToken(user.id)` sans vérification préalable
+
+**Pour confirmer :**
+- Ajouter un breakpoint ligne 47 et vérifier la valeur de `user`
+- Tester avec un email inexistant pour reproduire
+
+#### Hypothèse secondaire — probabilité moyenne
+La requête BDD échoue silencieusement et retourne `undefined` au lieu de `null`, ce qui bypasse les vérifications de nullité existantes.
+
+**Éléments qui l'étayent :**
+- Pattern observé dans d'autres services utilisant le même ORM
+
+**Pour confirmer :**
+- Vérifier les logs ORM pour détecter des erreurs silencieuses
+
+### Fichiers impliqués
+| Fichier | Rôle dans le bug |
+|---------|-----------------|
+| `src/services/auth.service.ts:47` | Point d'origine — accès à `user.id` sans vérification |
+| `src/controllers/auth.controller.ts:23` | Point de propagation — retourne 500 au lieu de 401 |
+
+### ⚠️ Informations manquantes
+Aucune — tous les artefacts nécessaires étaient disponibles.
+
+### Ticket de correction suggéré
+**Titre :** Corriger le TypeError sur /api/auth/login avec identifiants invalides
+**Type :** bug
+**Priorité :** P0 (bug bloquant en production)
+**Description :** L'endpoint d'authentification plante avec une erreur 500 au lieu de retourner un 401 quand les identifiants sont invalides. Impact : tous les utilisateurs avec identifiants incorrects voient une erreur serveur au lieu d'un message d'erreur approprié.
+**Acceptance criteria :**
+- L'endpoint retourne 401 avec message "Invalid credentials" si l'utilisateur n'existe pas
+- L'endpoint retourne 401 avec message "Invalid credentials" si le mot de passe est incorrect
+- Aucune exception levée dans les logs applicatifs
+**Notes techniques :** Ajouter une vérification `if (!user)` ligne 46 avant d'accéder à `user.id`. Retourner une erreur 401 au controller au lieu de laisser l'exception se propager.
+
+---
+
+### Bloc structuré
+
+## Retour vers orchestrator
+
+**Agent :** debugger
+**Problème :** TypeError "Cannot read property 'id' of undefined" sur l'endpoint POST /api/auth/login
+
+### Cause racine
+**Hypothèse retenue :** Le service d'authentification tente d'accéder à `user.id` alors que la requête BDD retourne `null` si l'utilisateur n'existe pas. Aucune vérification de nullité avant l'accès à la propriété.
+**Niveau de certitude :** confirmé
+**Chaîne causale :**
+1. L'utilisateur envoie une requête POST /api/auth/login avec un email inexistant
+2. La requête BDD `SELECT * FROM users WHERE email = '...'` retourne 0 rows (valeur `null`)
+3. Le code ligne 47 tente d'accéder à `user.id` sans vérifier que `user` n'est pas `null`
+4. Une exception TypeError est levée et propagée au controller
+5. Le controller retourne une erreur 500 au lieu d'un 401
+
+### Hypothèses explorées
+- `Accès à user.id sans vérification de nullité` : **confirmée** — stacktrace et code source confirment
+- `Requête BDD échoue silencieusement` : **insuffisamment documentée** — logs ORM incomplets, nécessiterait instrumentation supplémentaire
+- `Pattern répété dans d'autres services` : **insuffisamment documentée** — nécessiterait audit global du codebase
+
+### Impact et régressions potentielles
+- **Authentification compromise** : tous les utilisateurs avec identifiants incorrects voient une erreur 500 au lieu d'un message d'erreur approprié
+- **Exposition d'informations sensibles** : la stacktrace complète est retournée dans la réponse 500, exposant la structure interne de l'application
+- **Pattern répété** : le même bug pourrait exister dans d'autres endpoints utilisant le même pattern (à auditer)
+
+### Tickets de correction créés
+
+| ID | Titre | Priorité | Labels |
+|----|-------|----------|--------|
+| bd-157 | Corriger le TypeError sur /api/auth/login avec identifiants invalides | P0 | bug, backend, auth, security, from-diagnostic |
+
+### Actions d'urgence si bug en prod
+1. **Hotfix immédiat** : déployer une vérification `if (!user) return { error: 'Invalid credentials', status: 401 }` ligne 46 de `auth.service.ts`
+2. **Désactiver l'exposition de stacktraces** : configurer l'environnement de production pour ne pas retourner de stacktraces dans les réponses 500
+3. **Monitoring** : ajouter une alerte sur le nombre d'erreurs 500 sur l'endpoint /api/auth/login
+4. **Communication** : informer l'équipe support que les utilisateurs voient actuellement des erreurs 500 au lieu de messages d'erreur clairs
+
+### Statut
+`diagnostiqué`
+
+---
+
+**[Fin de retranscription]**
+
+**Vérifications effectuées :**
+- ✅ Rapport de diagnostic complet copié tel quel (symptôme, cause racine, fichiers, ticket)
+- ✅ Bloc structuré avec tous les champs obligatoires présents
+- ✅ Sections critiques présentes : Actions d'urgence (4 steps), Impact et régressions (3 points)
+- ✅ Statut : `diagnostiqué` (ticket bd-157 créé avec priorité P0)
+
+**Actions d'urgence détectées :** ⚠️ Ce bug est en PRODUCTION avec impact sécurité — présenter les 4 actions d'urgence en PRIORITÉ.
+
+→ **Maintenant seulement**, appeler question({
+    questions: [{
+      header: "Bug critique en production",
+      question: "[Orchestrator — Mode D | Bug : TypeError /api/auth/login]\n\n⚠️ BUG CRITIQUE EN PRODUCTION détecté avec 4 actions d'urgence listées ci-dessus.\n\nTicket de correction bd-157 créé (P0). Comment souhaitez-vous procéder ?",
+      options: [
+        { label: "Implémenter le hotfix immédiatement", description: "Router bd-157 vers orchestrator-dev en mode manuel avec priorité maximale" },
+        { label: "Désactiver la feature en attendant", description: "Désactiver l'endpoint /api/auth/login temporairement" },
+        { label: "Voir les détails techniques", description: "Consulter le code source concerné avant de décider" }
+      ]
+    }]
+  })
+```
+
+**Pourquoi c'est correct :**
+- ✅ Le rapport complet (symptôme, cause, hypothèses, fichiers, ticket) est affiché AVANT la question
+- ✅ Le bloc structuré est affiché avec TOUS les champs obligatoires
+- ✅ Les actions d'urgence sont présentées en PRIORITÉ avec un avertissement visuel
+- ✅ Les vérifications sont listées explicitement pour validation visuelle
+- ✅ La question est posée APRÈS l'affichage complet du contexte
+- ✅ Les options proposées sont adaptées à la gravité (bug P0 en production)
+
+---
+
+### ❌ INTERDIT — Exemple debugger (ce qui arrive actuellement)
+
+```
+[Orchestrator reçoit retour du debugger]
+
+→ Appelle directement question({
+    questions: [{
+      header: "Bug diagnostiqué",
+      question: "Le debugger a terminé le diagnostic. Quelle suite ?",
+      options: [
+        { label: "Implémenter la correction", description: "Router vers orchestrator-dev" },
+        { label: "Voir le rapport", description: "Afficher le rapport de diagnostic" }
+      ]
+    }]
+  }) sans afficher le rapport ni le bloc
+```
+
+**Problèmes :**
+- ❌ L'utilisateur ne voit PAS le rapport de diagnostic avant de décider
+- ❌ L'utilisateur ne connaît PAS la cause racine identifiée
+- ❌ L'utilisateur ne connaît PAS les actions d'urgence si le bug est en production
+- ❌ L'utilisateur ne connaît PAS le ticket créé ni sa priorité
+- ❌ L'utilisateur doit choisir "Voir le rapport" pour obtenir le contexte (ordre inversé)
+- ❌ Les sections critiques (impact, régressions, actions d'urgence) sont invisibles au moment de la décision
+
+---
+
 ## Injection de ce skill
 
 Ce skill doit être injecté dans les 3 agents coordinateurs :

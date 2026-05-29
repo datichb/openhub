@@ -114,6 +114,36 @@ Avant d'appeler l'outil `question`, te poser cette question :
 
 ---
 
+### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
+
+**STOP — Vérifier MAINTENANT :**
+
+| Vérification | Fait ? |
+|--------------|--------|
+| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
+| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
+| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
+| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
+| ✅ Le récap n'est PAS inclus dans le champ `question` de l'outil | ⬜ |
+
+**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le récap MAINTENANT.**
+
+**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
+
+---
+
+### ❌ Erreurs fréquentes à éviter
+
+| Erreur | Impact | Correction |
+|--------|--------|------------|
+| Appeler `question` en premier, récap après | L'utilisateur voit la question sans contexte | **Inverser l'ordre** : récap d'abord, question ensuite |
+| Inclure le récap dans le champ `question` de l'outil | Le récap n'est visible que dans le popup de question | **Séparer** : récap en texte, question dans l'outil |
+| Résumer le récap "pour aller plus vite" | L'utilisateur perd des informations critiques | **Ne jamais résumer** : afficher le récap complet |
+| Omettre des sections du récap "parce qu'elles sont vides" | L'utilisateur ne sait pas ce qui n'a pas été trouvé | **Afficher les sections vides** avec mention explicite (ex : "Aucun risque identifié") |
+| Oublier de produire le récap en Phase 0 ou Phase 2 | L'utilisateur ne comprend pas pourquoi la question est posée | **Toutes les phases** ont un récap, même les courtes |
+
+---
+
 ## Les 6 phases du workflow
 
 ```
@@ -198,6 +228,8 @@ question({
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **RAPPEL** : Le récap de fin de Phase 0 (ci-dessus, lignes 213-228) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -284,6 +316,8 @@ Si une **information critique** émerge pendant l'exploration qui nécessite une
 
 ### Question de validation obligatoire
 
+⚠️ **RAPPEL** : Le récap de fin de Phase 1 (ci-dessus, lignes 294-315) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -361,6 +395,8 @@ question({
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **RAPPEL** : Le récap de fin de Phase 2 (ci-dessus, lignes 379-395) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -493,6 +529,8 @@ Hypothèse 2 (probabilité moyenne) : <description>
 
 ### Question de validation obligatoire
 
+⚠️ **RAPPEL** : Le récap de fin de Phase 3 (ci-dessus, lignes 493-528) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -557,6 +595,8 @@ Si un **cas particulier critique** est détecté (ex : race condition confirmée
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **RAPPEL** : Le récap de fin de Phase 4 (ci-dessus, lignes 576-595) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -657,6 +697,8 @@ Afficher le contexte en texte :
 <cause racine, fichiers à modifier, points d'attention>
 ```
 
+⚠️ **RAPPEL** : Le contexte du ticket suggéré (ci-dessus, lignes 680-698) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → afficher le ticket suggéré MAINTENANT.
+
 Puis appeler l'outil `question` :
 
 ```
@@ -755,6 +797,8 @@ Produire dans cet ordre :
 Produire uniquement le récap de Phase 5, **sans** le bloc `## Retour vers orchestrator`.
 
 ### Question de validation obligatoire
+
+⚠️ **RAPPEL** : Le récap de fin de Phase 5 (ci-dessus, lignes 745-757) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
