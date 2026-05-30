@@ -50,6 +50,8 @@ _cmd_deploy_check() {
     # Lire le frontmatter en une seule passe (builtins bash uniquement — pas de subprocess)
     read_agent_frontmatter "$agent_file"
 
+    # _fm_id is set by read_agent_frontmatter() called above
+    # shellcheck disable=SC2154
     local agent_id="$_fm_id"
     [ -z "$agent_id" ] && agent_id=$(basename "$agent_file" .md)
 

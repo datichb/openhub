@@ -107,7 +107,6 @@ for project_id in "${project_ids[@]}"; do
 
         gen_mtime=$(stat -f %m "$gen_file" 2>/dev/null || stat -c %Y "$gen_file" 2>/dev/null)
         max_src_mtime=0
-        stale_reason=""
 
         agent_mtime=$(stat -f %m "$agent_file" 2>/dev/null || stat -c %Y "$agent_file" 2>/dev/null)
         [ "$agent_mtime" -gt "$max_src_mtime" ] && max_src_mtime=$agent_mtime
@@ -119,13 +118,8 @@ for project_id in "${project_ids[@]}"; do
           skill_mtime=$(stat -f %m "$skill_file" 2>/dev/null || stat -c %Y "$skill_file" 2>/dev/null)
           if [ "$skill_mtime" -gt "$max_src_mtime" ]; then
             max_src_mtime=$skill_mtime
-            stale_reason="skill: $skill"
           fi
         done < <(extract_frontmatter_list "$agent_file" "skills")
-
-        if [ "$agent_mtime" -gt "$gen_mtime" ] && [ "$max_src_mtime" -eq "$agent_mtime" ]; then
-          stale_reason="agent source modifié"
-        fi
 
         if [ "$max_src_mtime" -gt "$gen_mtime" ]; then
           project_stale=$((project_stale + 1))

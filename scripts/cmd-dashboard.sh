@@ -119,16 +119,13 @@ _show_active_dashboard() {
   local state_json="$1"
 
   # Parser les données JSON avec jq
-  local session_id started_at mode last_update
-  session_id=$(echo "$state_json" | jq -r '.session_id // ""')
+  local started_at mode
   started_at=$(echo "$state_json" | jq -r '.started_at // ""')
   mode=$(echo "$state_json" | jq -r '.mode // ""')
-  last_update=$(echo "$state_json" | jq -r '.last_update // ""')
 
   # Current ticket
-  local current_id current_title current_agent current_action
+  local current_id current_agent current_action
   current_id=$(echo "$state_json" | jq -r '.current_ticket.id // ""')
-  current_title=$(echo "$state_json" | jq -r '.current_ticket.title // ""')
   current_agent=$(echo "$state_json" | jq -r '.current_ticket.agent // ""')
   current_action=$(echo "$state_json" | jq -r '.current_ticket.action // ""')
 

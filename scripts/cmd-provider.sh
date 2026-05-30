@@ -275,7 +275,7 @@ cmd_set_key() {
 
   [ ! -f "$provider_file" ] && {
     log_error "Provider '${provider_name}' introuvable : $provider_file"
-    log_info "Providers disponibles : $(ls "$providers_dir"/*.json 2>/dev/null | xargs -n1 basename | sed 's/\.json//' | tr '\n' ' ')"
+    log_info "Providers disponibles : $(cd "$providers_dir" 2>/dev/null && for f in *.json; do [ -e "$f" ] && basename "$f" .json; done | tr '\n' ' ')"
     exit 1
   }
 

@@ -235,12 +235,12 @@ cmd_list() {
         local category=""
         case "$filename" in
           dev-standards-typescript*|dev-standards-python*)  category="langages" ;;
+          dev-standards-react-native*|dev-standards-flutter*|dev-standards-swift*|dev-standards-kotlin*) category="mobile" ;;
           dev-standards-vue*|dev-standards-react*|dev-standards-next*|dev-standards-nuxt*|dev-standards-angular*) category="frontend" ;;
           dev-standards-nestjs*|dev-standards-express*|dev-standards-django*|dev-standards-fastapi*|dev-standards-laravel*|dev-standards-rails*|dev-standards-springboot*) category="backend" ;;
           dev-standards-prisma*|dev-standards-typeorm*|dev-standards-sqlalchemy*|dev-standards-mongodb*) category="orm / bdd" ;;
           dev-standards-openapi*) category="api-spec" ;;
           dev-standards-vitest*|dev-standards-jest*|dev-standards-playwright*|dev-standards-cypress*) category="test" ;;
-          dev-standards-react-native*|dev-standards-flutter*|dev-standards-swift*|dev-standards-kotlin*) category="mobile" ;;
           dev-standards-pandas*|dev-standards-dbt*|dev-standards-airflow*|dev-standards-pyspark*) category="data / ml" ;;
           dev-standards-docker*|dev-standards-github-actions*|dev-standards-gitlab-ci*) category="devops / ci-cd" ;;
           dev-standards-terraform*|dev-standards-kubernetes*|dev-standards-helm*|dev-standards-argocd*) category="platform / infra" ;;

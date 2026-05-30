@@ -48,14 +48,13 @@ extract_frontmatter_list() {
 read_agent_frontmatter() {
   local file="$1"
   _fm_id="" _fm_skills="" _fm_model="" _fm_raw=""
-  local in_fm=0 fm_done=0
+  local in_fm=0
   while IFS= read -r line; do
     if [ "$in_fm" -eq 0 ] && [ "$line" = "---" ]; then
       in_fm=1
       continue
     fi
     if [ "$in_fm" -eq 1 ] && [ "$line" = "---" ]; then
-      fm_done=1
       break
     fi
     if [ "$in_fm" -eq 1 ]; then
@@ -583,7 +582,7 @@ detect_stack() {
 
   # Kubernetes — prune + limiter à maxdepth 4
   { find "$project_path" "${_prune_args[@]}" \( -name "*.yaml" -o -name "*.yml" \) -print 2>/dev/null | \
-    xargs grep -l 'kind: Deployment\|kind: Service\|kind: Ingress' 2>/dev/null | grep -q .; } && echo "kubernetes" || true
+    while IFS= read -r file; do grep -l 'kind: Deployment\|kind: Service\|kind: Ingress' "$file" 2>/dev/null; done | grep -q .; } && echo "kubernetes" || true
 
   # Helm — prune
   { [ -f "${project_path}/Chart.yaml" ] || \
@@ -591,7 +590,7 @@ detect_stack() {
 
   # ArgoCD — prune
   { find "$project_path" "${_prune_args[@]}" \( -name "*.yaml" -o -name "*.yml" \) -print 2>/dev/null | \
-    xargs grep -l 'argoproj.io\|kind: Application' 2>/dev/null | grep -q .; } && echo "argocd" || true
+    while IFS= read -r file; do grep -l 'argoproj.io\|kind: Application' "$file" 2>/dev/null; done | grep -q .; } && echo "argocd" || true
 }
 
 # Résout la liste des skills stack à injecter pour un agent donné.

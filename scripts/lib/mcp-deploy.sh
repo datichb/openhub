@@ -28,7 +28,6 @@ check_and_build_mcp() {
 # Déploie les MCP servers vers un projet
 deploy_mcp_servers() {
   local deploy_dir=$1
-  local project_id=${2:-}
   
   echo -e "${CYAN}📦  Phase 3 — Déploiement des MCP servers${RESET}"
   echo ""
@@ -43,7 +42,8 @@ deploy_mcp_servers() {
   for server_dir in "$HUB_DIR/servers/"*/; do
     [ ! -d "$server_dir" ] && continue
     
-    local server_name=$(basename "$server_dir")
+    local server_name
+    server_name=$(basename "$server_dir")
     
     # Vérifier que le build existe
     if [ ! -d "$server_dir/dist" ]; then
@@ -96,7 +96,6 @@ deploy_mcp_servers() {
 # Configure opencode.json avec les MCP servers
 configure_mcp_in_project() {
   local deploy_dir=$1
-  local project_id=${2:-}
   local opencode_json="$deploy_dir/opencode.json"
   
   # Vérifier que opencode.json existe
@@ -114,7 +113,8 @@ configure_mcp_in_project() {
   for server_dir in "$deploy_dir/.opencode/servers/"*/; do
     [ ! -d "$server_dir" ] && continue
     
-    local server_name=$(basename "$server_dir")
+    local server_name
+    server_name=$(basename "$server_dir")
     
     echo "  → Configuration de $server_name"
     

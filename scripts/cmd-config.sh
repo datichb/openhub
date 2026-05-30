@@ -177,7 +177,7 @@ _cmd_set_hub() {
         [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
         local fm_key="${2%%=*}" fm_value="${2#*=}"
         [ "$fm_key" = "$2" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
-        _validate_family_name "$fm_key" || { log_error "Unknown family '$fm_key' — available: $(ls -d "$CANONICAL_AGENTS_DIR"/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ', ' | sed 's/,$//')"; exit 1; }
+        _validate_family_name "$fm_key" || { log_error "Unknown family '$fm_key' — available: $(cd "$CANONICAL_AGENTS_DIR" 2>/dev/null && printf '%s, ' */ | sed 's/, $//')"; exit 1; }
         _warn_unknown_model "$fm_value"
         local tmp; tmp=$(mktemp)
         jq --arg k "$fm_key" --arg v "$fm_value" '.agent_models.families[$k] = $v' "$HUB_CONFIG" > "$tmp" && mv "$tmp" "$HUB_CONFIG"
@@ -259,7 +259,7 @@ cmd_set() {
     for entry in "${flag_family_models[@]}"; do
       local fk="${entry%%=*}" fv="${entry#*=}"
       [ "$fk" = "$entry" ] && { log_error "--family-model requiert le format key=value"; exit 1; }
-      _validate_family_name "$fk" || { log_error "Unknown family '$fk' — available: $(ls -d "$CANONICAL_AGENTS_DIR"/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ', ' | sed 's/,$//')"; exit 1; }
+      _validate_family_name "$fk" || { log_error "Unknown family '$fk' — available: $(cd "$CANONICAL_AGENTS_DIR" 2>/dev/null && printf '%s, ' */ | sed 's/, $//')"; exit 1; }
       _warn_unknown_model "$fv"
       _upsert_api_keys_field "$id" "agent_models.families.${fk}" "$fv"
       log_success "Project $id family model set: $fk=$fv"

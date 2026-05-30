@@ -615,7 +615,8 @@ adapter_deploy_config() {
     # Extraire la région pour bedrock
     local _provider_detail="$effective_provider"
     if [ "$effective_provider" = "bedrock" ] && [ -n "$project_id" ]; then
-      local _region=$(get_project_api_region "$project_id" 2>/dev/null || echo "")
+      local _region
+      _region=$(get_project_api_region "$project_id" 2>/dev/null || echo "")
       [ -n "$_region" ] && _provider_detail="${effective_provider} (${_region})"
     fi
     

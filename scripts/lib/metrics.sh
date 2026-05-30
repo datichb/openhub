@@ -435,9 +435,13 @@ metrics_top_websearch_types() {
 #   METRICS_TOP_WEBSEARCH_TYPES — tableau des top query types (type|count)
 metrics_aggregate() {
   METRICS_TOTAL_TICKETS=$(metrics_count_completed)
+  export METRICS_TOTAL_TICKETS
   METRICS_AVG_DURATION=$(metrics_avg_duration)
+  export METRICS_AVG_DURATION
   METRICS_AVG_DURATION_FMT=$(metrics_format_duration "$METRICS_AVG_DURATION")
+  export METRICS_AVG_DURATION_FMT
   METRICS_AVG_CYCLES=$(metrics_avg_review_cycles)
+  export METRICS_AVG_CYCLES
 
   # Top corrections dans un tableau
   METRICS_TOP_CORRECTIONS=()
@@ -447,6 +451,7 @@ metrics_aggregate() {
   
   # WebSearch metrics
   METRICS_WEBSEARCH_COUNT=$(metrics_count_websearch)
+  export METRICS_WEBSEARCH_COUNT
   METRICS_TOP_WEBSEARCH_TYPES=()
   while IFS= read -r line; do
     [ -n "$line" ] && METRICS_TOP_WEBSEARCH_TYPES+=("$line")

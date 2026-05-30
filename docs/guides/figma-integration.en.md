@@ -225,8 +225,8 @@ DEPLOY_DIR=~/workspace/my-test-project
 
 # Déployer
 check_and_build_mcp
-deploy_mcp_servers "$DEPLOY_DIR" "MY-TEST-PROJECT"
-configure_mcp_in_project "$DEPLOY_DIR" "MY-TEST-PROJECT"
+deploy_mcp_servers "$DEPLOY_DIR"
+configure_mcp_in_project "$DEPLOY_DIR"
 ```
 
 ---
