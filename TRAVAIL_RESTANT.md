@@ -1,10 +1,26 @@
 # 📋 Ce qui reste à faire - Tests opencode-hub
 
 **Date** : 30 mai 2026  
-**État actuel** : 965 tests, 41 fichiers  
+**État actuel après Session 3** : ~1027 tests, 45 fichiers  
 **Couverture lib/** : ✅ 100% (15/15 modules testés)
 
 > ⚠️ **Note importante** : Les commandes **cmd-agent** et **cmd-skills** sont **exclues** de ce plan car elles sont en cours de dépréciation et seront retirées du projet.
+
+---
+
+## 🎉 SESSION 3 TERMINÉE (30 mai 2026)
+
+**Objectif** : Tests priorité HAUTE (commandes critiques + workflow MCP)  
+**Réalisé** : ✅ 4 fichiers de tests créés, 62 tests ajoutés (60 passent, 2 skippés)
+
+### Nouveaux fichiers créés
+1. ✅ **test_cmd_dashboard.bats** (19 tests) - Dashboard TUI session
+2. ✅ **test_cmd_sync.bats** (14 tests) - Synchronisation multi-projets  
+3. ✅ **test_cmd_audit.bats** (17 tests, 2 skippés) - Audit IA avec types spécialisés
+4. ✅ **test_integration_mcp_workflow.bats** (12 tests) - Workflow MCP end-to-end
+
+**Progression** : 965 → ~1027 tests (+62 tests, +6.4%)  
+**Couverture estimée** : ~73-76% → **~77-80%** ✅
 
 ---
 
@@ -27,12 +43,14 @@
 - ✅ spinner.sh (9 tests)
 - ✅ tui-picker.sh (5 tests)
 
-### Commandes cmd-* - Partiellement testées (14/26 commandes)
+### Commandes cmd-* - Partiellement testées (17/26 commandes)
 > Note : cmd-agent et cmd-skills exclus (dépréciés)
+- ✅ test_cmd_audit.bats (Session 3) 🔥
 - ✅ test_cmd_beads.bats
 - ✅ test_cmd_board.bats (Session 2)
 - ✅ test_cmd_config.bats
 - ✅ test_cmd_config_websearch.bats
+- ✅ test_cmd_dashboard.bats (Session 3) 🔥
 - ✅ test_cmd_deploy.bats
 - ✅ test_cmd_init.bats
 - ✅ test_cmd_install.bats (Session 2)
@@ -42,11 +60,13 @@
 - ✅ test_cmd_remove.bats
 - ✅ test_cmd_review.bats
 - ✅ test_cmd_start.bats
+- ✅ test_cmd_sync.bats (Session 3) 🔥
 - ✅ test_cmd_upgrade.bats
 
-### Intégration - 2 workflows testés
+### Intégration - 4 workflows testés
 - ✅ test_integration_agent_workflow.bats (Session 2)
 - ✅ test_integration_deploy.bats
+- ✅ test_integration_mcp_workflow.bats (Session 3) 🔥
 - ✅ test_integration_project_lifecycle.bats (Session 2)
 
 ### Autres tests (10 fichiers)
@@ -65,28 +85,10 @@
 
 ## 🔄 CE QUI RESTE À FAIRE
 
-### Phase 6 : Commandes cmd-* (12 commandes sans tests)
+### Phase 6 : Commandes cmd-* (9 commandes sans tests)
 
-> ⚠️ **Exclusions** : cmd-agent et cmd-skills ne sont PAS inclus (en cours de dépréciation)
-
-**PRIORITÉ HAUTE** (commandes critiques - 3 commandes)
-
-1. **cmd-dashboard** (220 lignes) - 🔥🔥
-   - Dashboard global projets
-   - Estimation : 15-20 tests, ~180 lignes
-   - Complexité : ⭐⭐ (agrégation données)
-
-2. **cmd-audit** (220 lignes) - 🔥
-   - Audit projet (sécurité, qualité)
-   - Estimation : 15-20 tests, ~180 lignes
-   - Complexité : ⭐⭐ (analyse fichiers)
-
-3. **cmd-sync** (186 lignes) - 🔥
-   - Synchronisation projets
-   - Estimation : 12-15 tests, ~150 lignes
-   - Complexité : ⭐⭐ (sync fichiers)
-
-**Sous-total HAUTE** : ~42-55 tests, ~510 lignes, **6-7h**
+> ⚠️ **Exclusions** : cmd-agent et cmd-skills ne sont PAS inclus (en cours de dépréciation)  
+> ✅ **Session 3 complétée** : cmd-dashboard, cmd-audit, cmd-sync testées !
 
 **PRIORITÉ MOYENNE** (commandes utilitaires - 4 commandes)
 
@@ -145,7 +147,7 @@
 
 ---
 
-**Total Phase 6** : ~95-139 tests, ~1110 lignes, **12-15h** (au lieu de 15.5-19h avec agent/skills)
+**Total Phase 6 restant** : ~36-47 tests (MOYENNE) + ~17-27 tests (BASSE) = **~53-74 tests**, ~600 lignes, **6.5-8h**
 
 ---
 
@@ -153,17 +155,18 @@
 
 **7.1 : Workflows utilisateur complets**
 
-1. **test_integration_mcp_workflow.bats** - 🔥
+> ✅ **Session 3 complétée** : test_integration_mcp_workflow.bats créé !
+
+1. ~~**test_integration_mcp_workflow.bats**~~ - ✅ **FAIT** (Session 3)
    - Install Node → build MCP → deploy → configure
-   - Estimation : 10-12 tests, ~200 lignes
-   - Complexité : ⭐⭐
+   - ✅ 12 tests créés, tous passent
 
 2. **test_integration_multi_projects.bats** - 🔥
    - Créer plusieurs projets → switch → isolation
    - Estimation : 10-12 tests, ~180 lignes
    - Complexité : ⭐⭐
 
-**Total 7.1** : ~20-24 tests, ~380 lignes, ~2h
+**Total 7.1 restant** : ~10-12 tests, ~180 lignes, ~1h
 
 **7.2 : Tests de performance**
 
@@ -215,7 +218,7 @@
 
 **Total 7.3** : ~31-40 tests, ~450 lignes, ~2-3h
 
-**Total Phase 7** : ~66-88 tests, ~1250 lignes, **6-8h** (au lieu de 7-10h avec workflows supplémentaires)
+**Total Phase 7 restant** : ~56-76 tests, ~1050 lignes, **5-7h** (au lieu de 6-8h avec MCP workflow)
 
 ---
 
@@ -552,19 +555,20 @@ Si vous décidez d'optimiser maintenant, voici les 4 changements précis à fair
 
 ## 📊 ESTIMATION GLOBALE DU TRAVAIL RESTANT
 
-> ⚠️ **Mise à jour** : Estimations recalculées sans cmd-agent et cmd-skills (dépréciés)
+> ⚠️ **Mise à jour Session 3** : Recalculée après implémentation priorité HAUTE
 
 ### Résumé par priorité
 
-**HAUTE PRIORITÉ** (recommandé)
-- Phase 6 (3 commandes critiques) : ~42-55 tests, ~510 lignes, 6-7h
-- Phase 7.1 (intégration workflows) : ~20-24 tests, ~380 lignes, 2h
-- **Total HAUTE** : ~62-79 tests, ~890 lignes, **8-9h**
+**HAUTE PRIORITÉ** ✅ **COMPLÉTÉE** (Session 3)
+- ~~Phase 6 (3 commandes critiques)~~ : ✅ 50 tests créés (dashboard, audit, sync)
+- ~~Phase 7.1 (workflow MCP)~~ : ✅ 12 tests créés (test_integration_mcp_workflow)
+- **Total réalisé** : **62 tests**, **~77-80% couverture atteinte** ✅
 
 **MOYENNE PRIORITÉ** (optionnel)
 - Phase 6 (4 commandes utilitaires) : ~36-47 tests, ~400 lignes, 4.5-5.5h
+- Phase 7.1 (workflow multi-projets) : ~10-12 tests, ~180 lignes, 1h  
 - Phase 7.2 (tests performance) : ~15-24 tests, ~420 lignes, 2-3h
-- **Total MOYENNE** : ~51-71 tests, ~820 lignes, **6.5-8.5h**
+- **Total MOYENNE** : ~61-83 tests, ~1000 lignes, **7.5-9.5h**
 
 **BASSE PRIORITÉ** (nice to have)
 - Phase 6 (5 commandes simples) : ~17-27 tests, ~200 lignes, 2-2.5h
@@ -575,71 +579,67 @@ Si vous décidez d'optimiser maintenant, voici les 4 changements précis à fair
 
 ### Objectif final si TOUT est complété
 
-**Tests totaux visés** : 965 (actuel) + 161-217 (restant) = **~1126-1182 tests**  
-**Fichiers totaux visés** : 41 (actuel) + 18-23 (nouveaux) = **~59-64 fichiers**  
-**Temps total estimé** : **25-32 heures** (au lieu de 29-38h avant Session 2)  
+**Tests totaux visés** : 1027 (actuel après S3) + 109-150 (restant) = **~1136-1177 tests**  
+**Fichiers totaux visés** : 45 (actuel) + 14-19 (nouveaux) = **~59-64 fichiers**  
+**Temps total estimé restant** : **18-24 heures** (au lieu de 25-32h avant Session 3)  
 **Couverture estimée finale** : **~85-90%** du code critique
 
 ---
 
 ## 🎯 RECOMMANDATIONS ACTUALISÉES
 
-> ⚠️ **Maj** : Sans cmd-agent et cmd-skills (dépréciés)
+> ✅ **Session 3 complétée** : Priorité HAUTE terminée ! (cmd-dashboard, cmd-audit, cmd-sync, MCP workflow)
 
-### Scénario 1 : Minimum viable (8-9h) ⭐
-✅ **Phase 6 - 3 commandes critiques** (cmd-dashboard, cmd-audit, cmd-sync)  
-✅ **Phase 7.1 - Workflows intégration** (MCP, multi-projets)
+### ~~Scénario 1 : Minimum viable (8-9h)~~ ✅ **ATTEINT !**
+✅ ~~Phase 6 - 3 commandes critiques~~  
+✅ ~~Phase 7.1 - Workflow MCP~~
 
-**Résultat** : ~1027-1044 tests, couverture **77-80%**
+**Résultat actuel** : **~1027 tests, couverture ~77-80%** ✅
 
-### Scénario 2 : Couverture solide (15-17h) ⭐⭐
-✅ Scénario 1  
-✅ **Phase 6 - 4 commandes utilitaires** (cmd-status, cmd-quick, cmd-plugin, cmd-debug)  
-✅ **Phase 7.2 - Tests performance**
+### Scénario 2 : Couverture solide (7.5-9.5h supplémentaires) ⭐⭐
+✅ Scénario 1 (déjà fait)  
+➕ **Phase 6 - 4 commandes utilitaires** (cmd-status, cmd-quick, cmd-plugin, cmd-debug)  
+➕ **Phase 7.1 - Workflow multi-projets**  
+➕ **Phase 7.2 - Tests performance**
 
-**Résultat** : ~1078-1115 tests, couverture **80-83%**
+**Résultat visé** : ~1088-1110 tests, couverture **80-83%**
 
-### Scénario 3 : Exhaustif (25-32h) ⭐⭐⭐
+### Scénario 3 : Exhaustif (18-24h supplémentaires) ⭐⭐⭐
 ✅ Scénario 2  
-✅ **Phase 6 - 5 commandes simples** (cmd-help, cmd-conventions, cmd-update, cmd-version, cmd-uninstall)  
-✅ **Phase 7.3 - Edge cases**  
-✅ **Phase 8 - Améliorations existants**  
-✅ **Phase 9 - Optimisation performances** (si nécessaire)
+➕ **Phase 6 - 5 commandes simples** (cmd-help, cmd-conventions, cmd-update, cmd-version, cmd-uninstall)  
+➕ **Phase 7.3 - Edge cases**  
+➕ **Phase 8 - Améliorations existants**  
+➕ **Phase 9 - Optimisation performances** (si nécessaire)
 
-**Résultat** : ~1126-1182 tests, couverture **85-90%**
+**Résultat visé** : ~1136-1177 tests, couverture **85-90%**
 
 ---
 
 ## 🚀 PROCHAINE SESSION - Plan d'action
 
-> ✅ **Session 2 complétée !** : cmd-board + cmd-install + 2 workflows intégration
+> ✅ **Session 2 complétée !** : cmd-board + cmd-install + 2 workflows intégration  
+> ✅ **Session 3 complétée !** : cmd-dashboard + cmd-audit + cmd-sync + workflow MCP 🎉
 
 Si vous voulez continuer, je recommande de commencer par :
 
-**Session 3 (4-5h)** : **cmd-dashboard + cmd-audit + cmd-sync + test_integration_mcp_workflow**
-- 3 commandes importantes pour monitoring
-- Workflow MCP complet
-- ~52-67 tests
-- Finalisation des fonctionnalités critiques
+**Session 4 (7.5-9.5h)** : **Scénario 2 - Couverture solide**
+- 4 commandes utilitaires (cmd-status, cmd-quick, cmd-plugin, cmd-debug)
+- Workflow multi-projets (test_integration_multi_projects.bats)
+- Tests de performance (scalabilité registre, prompts, concurrence)
+- ~61-83 tests
+- **Résultat** : ~1088-1110 tests, couverture **80-83%**
 
-**Session 4 (3-4h)** : **cmd-status + cmd-quick + cmd-plugin + test_performance**
-- 3 commandes utilitaires
-- Tests de performance (scalabilité)
-- ~51-71 tests
-- Couverture medium priority complète
-
-Avec ces 2 sessions supplémentaires (7-9h), vous atteignez :
-- ✅ **~1068-1113 tests** (+10-15% supplémentaire)
-- ✅ **Couverture ~80-83%**
-- ✅ **Toutes les fonctionnalités critiques + utilitaires testées**
-
-Le reste (cmd-debug, cmd-help, edge cases, etc.) a un ROI décroissant car moins critique.
+**Session 5+ (optionnel, 10-14.5h)** : **Scénario 3 - Exhaustif**
+- 5 commandes simples restantes
+- Edge cases (corruption, permissions, caractères spéciaux, limites)
+- Amélioration tests existants (résoudre skips)
+- Optimisation performances si nécessaire
+- **Résultat final** : ~1136-1177 tests, couverture **85-90%**
 
 ---
 
-**État actuel** : ✅✅ **Très bonne couverture** (965 tests, 73-76% code critique)  
-**État si Session 3** : ✅✅✅ **Excellente couverture** (~1017-1032 tests, 77-80%)  
-**État si Session 4** : 🏆 **Couverture production-ready** (~1068-1103 tests, 80-83%)  
-**État si Scénario 3** : 🏆🏆 **Couverture exceptionnelle** (~1126-1182 tests, 85-90%)
+**État actuel après Session 3** : 🏆 **Excellente couverture** (~1027 tests, 77-80% code critique) ✅  
+**État si Session 4** : 🏆🏆 **Couverture production-ready** (~1088-1110 tests, 80-83%)  
+**État si Scénario 3** : 🏆🏆🏆 **Couverture exceptionnelle** (~1136-1177 tests, 85-90%)
 
-Le choix dépend de vos contraintes de temps et du niveau de confiance souhaité !
+Le niveau actuel (77-80%) est déjà très bon pour un projet de cette taille. Les sessions suivantes améliorent progressivement la robustesse mais ont un ROI décroissant.
