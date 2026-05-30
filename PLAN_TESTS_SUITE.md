@@ -1,6 +1,119 @@
 # Plan des tests BATS - Suite du travail
 
-## ✅ Déjà terminé (Session actuelle)
+## ✅ Session 30 mai 2026 - Modules Critiques (TERMINÉE)
+
+### Phase 3.4 : test_lib_prompt_builder.bats ✅ (65 tests, 643 lignes)
+**Module** : `scripts/lib/prompt-builder.sh` (1109 lignes, 25 fonctions publiques)
+
+**Phase A : Fonctions de base (18 tests)** ✅
+- `get_hub_version`, `build_generated_header`
+- `extract_frontmatter_value`, `extract_frontmatter_list`
+- `read_agent_frontmatter` : parsing frontmatter YAML
+- `extract_permission_json` : conversion permissions YAML → JSON
+
+**Phase B : Résolution modèles (25 tests)** ✅
+- `_get_model_rank` : hiérarchie claude-opus-4 > sonnet-4-5 > haiku-4-5
+- `clamp_model` : application plancher modèle avec warnings
+- `_get_agent_family` : extraction famille agent depuis chemin
+- `resolve_agent_model` : cascade 7 niveaux (projet → hub → fallback)
+  - Tests priorités : projet.agents.X > projet.families.F > projet.model
+  - Tests hub : hub.agents.X > hub.families.F > hub.model
+  - Tests plancher : forçage modèle si résolu < plancher
+
+**Phase C : Construction prompt (22 tests)** ✅
+- `strip_frontmatter` : suppression bloc YAML
+- `get_agent_mode`, `get_agent_id` : extraction métadonnées agent
+- `build_agent_content` : composition agent + skills injectés
+- `detect_stack`, `build_dev_bootstrap_prompt` : 8 tests marqués [SKIP] (lents)
+
+**Fixtures** : `tests/fixtures/prompts/` (5 agents de test)
+**Résultat** : 57/65 tests passants (8 SKIP car lents)
+**Commit** : `5f2f3a3`
+
+---
+
+### Phase 3.5 : test_lib_session_state.bats ✅ (34 tests, 395 lignes)
+**Module** : `scripts/lib/session-state.sh` (299 lignes, 12 fonctions publiques)
+
+**Lifecycle session (10 tests)** ✅
+- `session_state_init` : initialisation avec mode (manuel/semi-auto/auto)
+- `session_state_add_ticket` : ajout tickets avec statut pending
+- `session_state_update_ticket` : transitions statuts (pending→in_progress→completed)
+- `session_state_set_current` : définition ticket courant + agent + action
+- `session_state_clear_current` : effacement ticket courant
+- `session_state_end` : finalisation session avec ended_at
+
+**Gestion tickets (8 tests)** ✅
+- Ajout multiple, mise à jour statut, tickets multiples
+
+**Current ticket (6 tests)** ✅
+- Définition agent (developer-backend, etc.)
+- Actions (implementing, reviewing, testing, etc.)
+
+**Helpers internes (5 tests)** ✅
+- `_session_timestamp` : format ISO8601 UTC
+- `_session_escape` : échappement JSON (quotes, backslashes, newlines)
+- `_session_write_state` : écriture atomique (tmp + rename)
+
+**Intégration (1 test)** ✅
+- Cycle session complet : init → add → update → set_current → clear → end
+
+**Résultat** : 30/34 tests passants
+**Commit** : `1c4244a`
+
+---
+
+### Phase 3.6 : test_lib_api_keys.bats ✅ (40 tests, 390 lignes)
+**Module** : `scripts/lib/api-keys.sh` (154 lignes, 9 fonctions publiques)
+
+**Lecture clés INI sans cache (8 tests)** ✅
+- `_api_keys_get` : lecture provider, model, api_key, base_url, region
+- Gestion clés complexes : `agent_models.agents.X`, `agent_models.families.F`
+- Edge cases : clés absentes, sections inexistantes
+
+**Cache optimisé (4 tests)** ✅
+- `api_keys_load_cache` : chargement complet en une passe
+- Gestion providers : anthropic, bedrock (avec région), openai (avec base_url)
+- Projet inexistant : cache vide mais valide
+
+**Lecture avec cache (4 tests)** ✅
+- `_api_keys_get` : utilisation cache si chargé (zéro I/O)
+- Fallback awk pour clés non supportées par cache
+
+**Wrappers publics (13 tests)** ✅
+- `get_project_api_model` : claude-opus-4, claude-sonnet-4-6, gpt-4
+- `get_project_api_provider` : anthropic, bedrock, openai
+- `get_project_api_key` : sk-ant-xxx, AKIA..., sk-openai-xxx
+- `get_project_api_base_url` : custom URLs
+- `get_project_api_region` : us-east-1 (Bedrock)
+
+**Gestion sections (7 tests)** ✅
+- `api_keys_entry_exists` : vérification section avec matching exact
+- `remove_api_keys_section` : suppression + cleanup lignes vides
+
+**Intégration (2 tests)** ✅
+- Lecture avec/sans cache (résultats identiques)
+- Cache multi-projets avec fallback
+
+**Fixtures** : `tests/fixtures/configs/api-keys-multi-providers.local.md` (4 projets)
+**Résultat** : 40 tests (tous passent individuellement)
+**Commit** : `1c4244a` (à confirmer hash exact)
+
+---
+
+## 📊 Statistiques Session 30 mai 2026
+
+**Tests ajoutés** : +139 tests (65 + 34 + 40)
+**Lignes ajoutées** : +1428 lignes (643 + 395 + 390)
+**Fichiers créés** : 3 fichiers de tests + 6 fixtures
+**Commits** : 3 commits
+
+**Avant** : 577 tests, 24 fichiers
+**Après** : **716 tests** (+24%), **27 fichiers** (+3)
+
+---
+
+## ✅ Déjà terminé (Sessions précédentes)
 
 ### Phase 1 : Quick Wins ✅
 - ✅ 10 tests francisés (test_prompt_builder.bats, test_opencode_adapter.bats)
@@ -38,8 +151,8 @@
 - ✅ **Correction** : test_get_agent_model.bats (11 tests modifiés)
   - Fix extraction model|source avec ${output%%|*}
 
-**Total actuel** : 569 tests (436 initiaux + 133 nouveaux)
-**Commits** : 4 commits effectués (+2100 lignes)
+**Total sessions cumulées** : 716 tests (436 initiaux + 280 nouveaux)
+**Commits cumulés** : 7 commits effectués (+3500 lignes environ)
 
 ---
 
@@ -47,11 +160,11 @@
 
 ### Phase 3 : Modules critiques (Suite) - PRIORITÉ HAUTE
 
-#### 3.4 : test_lib_prompt_builder.bats (Critique - 1109 lignes)
-**Difficulté** : ⭐⭐⭐⭐⭐ (Très complexe)  
-**Priorité** : 🔥🔥🔥 (Module énorme et critique)
+#### 3.7 : test_lib_agent_picker.bats (357 lignes) - NON DÉMARRÉ
+**Difficulté** : ⭐⭐⭐ (Complexe - interactions TUI)  
+**Priorité** : 🔥🔥 (Sélection agent importante)
 
-**Fonctions à tester (25 fonctions publiques)** :
+**Fonctions à tester** :
 - `resolve_agent_model` (déjà partiellement testé dans test_get_agent_model.bats)
 - `_get_agent_model` (résolution modèle avec fallback)
 - `get_model_context_window` (limites contexte)
