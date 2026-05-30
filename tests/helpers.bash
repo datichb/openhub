@@ -390,15 +390,19 @@ common_setup() {
   export HUB_ROOT="${HUB_ROOT:-$BATS_TEST_DIRNAME/..}"
   export HUB_CONFIG="${HUB_CONFIG:-$TEST_DIR/hub.json}"
   export PROJECTS_FILE="${PROJECTS_FILE:-$TEST_DIR/projects.md}"
+  export PROJECTS_EXAMPLE_FILE="${PROJECTS_EXAMPLE_FILE:-$HUB_ROOT/config/projects.example.md}"
   export API_KEYS_FILE="${API_KEYS_FILE:-$TEST_DIR/api-keys.local.md}"
+  export PATHS_FILE="${PATHS_FILE:-$TEST_DIR/paths.local.md}"
   
   # Créer les fichiers vides par défaut
   mkdir -p "$(dirname "$HUB_CONFIG")"
   mkdir -p "$(dirname "$PROJECTS_FILE")"
   mkdir -p "$(dirname "$API_KEYS_FILE")"
+  mkdir -p "$(dirname "$PATHS_FILE")"
   
   touch "$PROJECTS_FILE"
   touch "$API_KEYS_FILE"
+  touch "$PATHS_FILE"
   
   # Mock get_hub_version par défaut
   get_hub_version() {
