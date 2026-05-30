@@ -1,0 +1,20 @@
+{
+  "version": "test",
+  "default_target": "opencode",
+  "active_targets": ["opencode"],
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": []
+  },
+  "agent_models": {
+    "families": {
+      "planning": "claude-opus-4"
+    },
+    "agents": {
+      "test-agent": "claude-haiku-4-5"
+    }
+  },
+  "cli": {
+    "language": "fr"
+  }
+}

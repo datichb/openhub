@@ -412,3 +412,198 @@ common_setup() {
 common_teardown() {
   [ -n "$TEST_DIR" ] && rm -rf "$TEST_DIR"
 }
+
+# ── Helpers spécifiques tests cmd-beads ───────────────────────────────────────
+
+# Crée un registre de projets complet pour tests Beads
+# Usage : make_beads_test_projects
+make_beads_test_projects() {
+  cat > "$PROJECTS_FILE" <<'PROJEOF'
+# Registre de test
+
+## PROJ-FULL
+- Nom : Projet complet
+- Stack : Test
+- Board Beads : PROJ-FULL
+- Tracker : jira
+- Labels : feature,fix
+
+## PROJ-NO-TRACKER
+- Nom : Sans Tracker
+- Stack : Test
+- Board Beads : PROJ-NO-TRACKER
+- Labels : test
+
+## PROJ-NONE
+- Nom : Tracker none
+- Stack : Test
+- Board Beads : PROJ-NONE
+- Tracker : none
+- Labels : test
+
+## PROJ-NO-LABELS
+- Nom : Sans Labels
+- Stack : Test
+- Board Beads : PROJ-NO-LABELS
+
+## PROJ-CASE
+- Nom : Casse incorrecte
+- Stack : Test
+- Board Beads : PROJ-CASE
+- Tracker : Jira
+- Labels : test
+PROJEOF
+}
+
+# Crée un fichier paths.local.md pour tests Beads
+# Usage : make_beads_paths_file "/path/to/fake-project"
+make_beads_paths_file() {
+  local project_path="${1:-$TEST_DIR/fake-project}"
+  local paths_file="${PATHS_FILE:-$TEST_DIR/paths.local.md}"
+  
+  mkdir -p "$project_path"
+  cat > "$paths_file" <<EOF
+PROJ-FULL=$project_path
+PROJ-NO-TRACKER=$project_path
+PROJ-NONE=$project_path
+PROJ-NO-LABELS=$project_path
+PROJ-CASE=$project_path
+EOF
+}
+
+# Setup complet pour tests cmd-beads (mocks + fixtures)
+# Usage : beads_setup
+beads_setup() {
+  common_setup
+  
+  # Variables spécifiques Beads
+  export PATHS_FILE="${PATHS_FILE:-$TEST_DIR/paths.local.md}"
+  export BD_CALLS_LOG="$TEST_DIR/bd_calls.log"
+  export GIT_CALLS_LOG="$TEST_DIR/git_calls.log"
+  
+  # Mock bd avec comportement init
+  touch "$BD_CALLS_LOG"
+  bd() {
+    echo "bd $*" >> "$BD_CALLS_LOG"
+    if [ "$1" = "init" ]; then
+      mkdir -p .beads
+    fi
+    return 0
+  }
+  export -f bd
+  
+  # Mock git avec comportement remote
+  REAL_GIT="$(command -v git)"
+  export REAL_GIT
+  touch "$GIT_CALLS_LOG"
+  git() {
+    echo "git $*" >> "$GIT_CALLS_LOG"
+    if [ "${1:-}" = "remote" ]; then
+      if [ "${2:-}" = "get-url" ]; then
+        return 1
+      elif [ "${2:-}" = "add" ]; then
+        return 0
+      fi
+      return 0
+    fi
+    "$REAL_GIT" "$@"
+  }
+  export -f git
+  
+  # Fonctions guard simplifiées
+  _require_bd() { return 0; }
+  require_project_id() { 
+    [ -z "${1:-}" ] && { 
+      echo "PROJECT_ID requis" >&2
+      return 1
+    }
+    return 0
+  }
+  export -f _require_bd require_project_id
+  
+  # Créer les fixtures
+  make_beads_test_projects
+  make_beads_paths_file
+}
+
+# ── Helpers spécifiques tests prompt-builder ──────────────────────────────────
+
+# Crée un fichier stack-skills.json
+# Usage : make_stack_skills_config
+make_stack_skills_config() {
+  local config_file="${1:-$TEST_DIR/config/stack-skills.json}"
+  
+  mkdir -p "$(dirname "$config_file")"
+  cat > "$config_file" <<'EOF'
+{
+  "language": {
+    "typescript": ["developer/stacks/dev-standards-typescript"],
+    "python": ["developer/stacks/dev-standards-python"]
+  },
+  "frontend": {
+    "react": ["developer/stacks/frontend-react"],
+    "vue": ["developer/stacks/frontend-vue"]
+  },
+  "backend": {
+    "nestjs": ["developer/stacks/backend-nestjs"]
+  },
+  "_agent_scope": {
+    "developer-frontend": ["language", "frontend"],
+    "developer-backend": ["language", "backend"],
+    "developer-fullstack": ["language", "frontend", "backend"]
+  }
+}
+EOF
+}
+
+# Crée un agent avec scope pour tests stack
+# Usage : make_scoped_agent "agent-id" "family" ["scope1" "scope2"]
+make_scoped_agent() {
+  local id="${1:?ID requis}"
+  local family="${2:-developer}"
+  shift 2
+  local scopes=("$@")
+  
+  # Construire la liste des scopes pour stack-skills.json
+  local scope_array="[]"
+  if [ ${#scopes[@]} -gt 0 ]; then
+    scope_array="["
+    for i in "${!scopes[@]}"; do
+      scope_array+="\"${scopes[$i]}\""
+      [ $i -lt $((${#scopes[@]} - 1)) ] && scope_array+=", "
+    done
+    scope_array+="]"
+  fi
+  
+  mkdir -p "$TEST_DIR/agents/$family"
+  cat > "$TEST_DIR/agents/$family/${id}.md" <<EOF
+---
+id: $id
+label: $(echo "$id" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1')
+description: Agent $id avec scope
+targets: [opencode]
+skills: []
+---
+
+# Agent $id
+EOF
+}
+
+# Setup complet pour tests prompt-builder avec stack
+# Usage : prompt_builder_stack_setup
+prompt_builder_stack_setup() {
+  common_setup
+  
+  # Variables spécifiques prompt-builder
+  export SKILLS_DIR="$TEST_DIR/skills"
+  export CANONICAL_AGENTS_DIR="$TEST_DIR/agents"
+  
+  mkdir -p "$SKILLS_DIR/developer"
+  mkdir -p "$TEST_DIR/agents"
+  
+  # Créer stack-skills.json
+  make_stack_skills_config "$TEST_DIR/config/stack-skills.json"
+  
+  # Surcharger HUB_DIR
+  export HUB_DIR="$TEST_DIR"
+}
