@@ -16,6 +16,11 @@ setup() {
   # Mock log functions
   mock_log_functions
   
+  # Mock bd and brew to prevent interactive installs in CI/non-TTY environments
+  mock_bd ""
+  brew() { return 0; }
+  export -f brew
+  
   # Variables pour le projet de test
   export TEST_PROJECT_ID="INTEGRATION-TEST"
   export TEST_PROJECT_PATH="$TEST_DIR/integration-project"

@@ -5,13 +5,6 @@ source "$LIB_DIR/agent-picker.sh"
 source "$LIB_DIR/progress-bar.sh"
 resolve_oc_lang
 
-# S'assurer que projects.md et hub.json existent avant toute opération
-ensure_projects_file
-ensure_hub_config
-
-PROJECT_ID="${1:-}"
-PROJECT_PATH="${2:-}"
-
 # ── Helper d'affichage wizard ──────────────────────────────────────────────────
 _step() {
   local num="$1" total="$2" label="$3"
@@ -58,6 +51,15 @@ _summary() {
   printf "${GREEN}│${RESET}  %-52s ${GREEN}│${RESET}\n" "Déployer  → ./oc.sh deploy all ${id}"
   echo -e "${GREEN}└─${bar}┘${RESET}"
 }
+
+# ── Fonction principale ───────────────────────────────────────────────────────
+cmd_init() {
+local PROJECT_ID="${1:-}"
+local PROJECT_PATH="${2:-}"
+
+# S'assurer que projects.md et hub.json existent avant toute opération
+ensure_projects_file
+ensure_hub_config
 
 # ── Titre de la commande ───────────────────────────────────────────────────────
 _intro "Initialisation d'un projet"
@@ -483,3 +485,8 @@ _summary \
   "${PROVIDER_SUMMARY:-}" \
   "${DEPLOYED:-}"
 _outro "Projet ${PROJECT_ID} prêt — ./oc.sh start ${PROJECT_ID}"
+}
+
+# ── Exécution directe uniquement (pas quand sourcé) ──────────────────────────
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
+cmd_init "$@"

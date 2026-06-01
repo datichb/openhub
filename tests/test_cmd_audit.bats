@@ -67,10 +67,18 @@ HUBEOF
   export CANONICAL_AGENTS_DIR="$FAKE_HUB/agents"
   export PROJECTS_FILE
   export PATHS_FILE
+
+  # Mock opencode binary so adapter_validate passes in CI (where opencode is not installed)
+  MOCK_BIN_DIR="$(mktemp -d)"
+  printf '#!/bin/bash\nexit 0\n' > "$MOCK_BIN_DIR/opencode"
+  chmod +x "$MOCK_BIN_DIR/opencode"
+  export PATH="$MOCK_BIN_DIR:$PATH"
+  export _MOCK_BIN_DIR="$MOCK_BIN_DIR"
 }
 
 teardown() {
   rm -rf "$FAKE_HUB"
+  rm -rf "${_MOCK_BIN_DIR:-}"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

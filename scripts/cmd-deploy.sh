@@ -212,6 +212,16 @@ _cmd_deploy_diff() {
 }
 
 # ── Dispatch : --check, --diff ou déploiement normal ─────────────────────────
+# Only runs when executed directly (not sourced)
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
+
+# ── Vérifier s'il y a des cibles actives ────────────────────────────────────
+_hub_active_targets=$(jq -r '.active_targets // [] | length' "$HUB_CONFIG" 2>/dev/null || echo "0")
+if [ "$_hub_active_targets" = "0" ]; then
+  log_info "Aucune cible active dans hub.json — déploiement ignoré."
+  exit 0
+fi
+
 # Analyser les arguments pour détecter --check / --diff (peut être en 1ère ou 2ème position)
 CHECK_MODE=false
 DIFF_MODE=false

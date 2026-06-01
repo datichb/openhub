@@ -4,9 +4,11 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 resolve_oc_lang
 
+# ── Fonction principale ───────────────────────────────────────────────────────
+cmd_remove() {
 # ── Parsing des arguments ─────────────────
-CLEAN_MODE=false
-ARGS=()
+local CLEAN_MODE=false
+local ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --clean) CLEAN_MODE=true ;;
@@ -14,7 +16,7 @@ for arg in "$@"; do
   esac
 done
 
-PROJECT_ID="${ARGS[0]:-}"
+local PROJECT_ID="${ARGS[0]:-}"
 require_project_id "$PROJECT_ID"
 PROJECT_ID=$(normalize_project_id "$PROJECT_ID")
 
@@ -25,7 +27,7 @@ if ! project_exists "$PROJECT_ID"; then
 fi
 
 # Résoudre le chemin AVANT suppression du registre (nécessaire pour --clean)
-PROJECT_PATH=""
+local PROJECT_PATH=""
 if [ "$CLEAN_MODE" = true ]; then
   PROJECT_PATH=$(get_project_path "$PROJECT_ID" 2>/dev/null || true)
   PROJECT_PATH="${PROJECT_PATH/#\~/$HOME}"
@@ -35,10 +37,13 @@ if [ "$CLEAN_MODE" = true ]; then
   fi
 fi
 
+local confirm
 if [ "$CLEAN_MODE" = true ]; then
+  local _confirm_msg
   _confirm_msg=$(t remove.confirm_clean | sed "s/PROJECT/$PROJECT_ID/;s|PATH|$PROJECT_PATH|")
   read -rp "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")" confirm
 else
+  local _confirm_msg
   _confirm_msg=$(t remove.confirm | sed "s/PROJECT/$PROJECT_ID/")
   read -rp "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")" confirm
 fi
@@ -49,7 +54,7 @@ if [ "$CLEAN_MODE" = true ]; then
   source "$LIB_DIR/adapter-manager.sh"
 
   # Déterminer les cibles actives
-  local_targets="opencode"
+  local local_targets="opencode"
 
   log_info "Nettoyage des fichiers déployés dans ${PROJECT_PATH}…"
 
@@ -92,3 +97,8 @@ fi
 
 echo ""
 log_success "$PROJECT_ID $(t remove.done)"
+}
+
+# ── Exécution directe uniquement (pas quand sourcé) ──────────────────────────
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
+cmd_remove "$@"

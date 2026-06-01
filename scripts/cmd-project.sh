@@ -141,8 +141,9 @@ cmd_move() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Main dispatcher
+# Main dispatcher — only runs when executed directly (not sourced)
 # ────────────────────────────────────────────────────────────────────────────────
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
 SUBCOMMAND="${1:-}"
 case "$SUBCOMMAND" in
