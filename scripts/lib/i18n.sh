@@ -210,8 +210,6 @@ t() {
       config.created)         printf '%s' "créé" ;;
       config.exists)          printf '%s' "existant" ;;
       websearch.manage_desc)  printf '%s' "Gérer l'intégration WebSearch (Exa AI)" ;;
-      config.no_path)         printf '%s' "Chemin non enregistré pour" ;;
-      config.apply_via)       printf '%s' "— appliquer via : ./oc.sh deploy all" ;;
       config.api_key.required) printf '%s' "Clé API requise" ;;
       config.api_key.unchanged) printf '%s' "Clé API inchangée" ;;
       config.language.invalid) printf '%s' "Valeur de langue invalide (accepté : en, fr)" ;;
