@@ -2,7 +2,7 @@
 # Créateur et modificateur d'agents canoniques.
 # Usage : ./oc.sh agent <commande> [args]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
 source "$LIB_DIR/tui-picker.sh"
 source "$LIB_DIR/agent-picker.sh"

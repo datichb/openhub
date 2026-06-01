@@ -39,8 +39,8 @@ adapter_update() { return 0; }
 adapter_start() { return 0; }
 EOF
   
-  run load_adapter "test"
-  [ "$status" -eq 0 ]
+  # Appeler sans run pour que les fonctions restent visibles dans le shell courant
+  load_adapter "test"
   
   # Vérifier que les fonctions sont définies
   run declare -F adapter_validate

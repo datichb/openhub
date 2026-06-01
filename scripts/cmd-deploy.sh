@@ -2,7 +2,7 @@
 # Déploie les agents canoniques vers la cible opencode.
 # Usage : oc deploy [PROJECT_ID] [--check] [--diff]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/spinner.sh"
 

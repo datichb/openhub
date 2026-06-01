@@ -2,7 +2,7 @@
 # oc conventions [PROJECT_ID]
 # Détecte et documente les conventions d'un projet dans CONVENTIONS.md
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
 

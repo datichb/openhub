@@ -75,8 +75,8 @@ teardown() {
   f1=$(mktemp)
   sleep 0.1
   f2=$(mktemp)
-  t1=$(stat -f %m "$f1" 2>/dev/null || stat -c %Y "$f1" 2>/dev/null)
-  t2=$(stat -f %m "$f2" 2>/dev/null || stat -c %Y "$f2" 2>/dev/null)
+  t1=$(stat -c %Y "$f1" 2>/dev/null || stat -f %m "$f1" 2>/dev/null)
+  t2=$(stat -c %Y "$f2" 2>/dev/null || stat -f %m "$f2" 2>/dev/null)
   rm -f "$f1" "$f2"
   [ "$t2" -ge "$t1" ]
 }

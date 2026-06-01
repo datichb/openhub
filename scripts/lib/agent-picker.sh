@@ -334,22 +334,30 @@ _pick_native_agents() {
 ##
 _set_project_agents() {
   local id="$1" new_agents="$2"
+  # Contraindre le match au bloc du projet uniquement (stopper avant le prochain ## header)
+  # Le pattern (?:(?!^##)[^\n]*\n)* matche des lignes qui ne commencent pas par ##
+  # Helper de vérification : s'assure que le champ Agents est bien dans le bloc ${id}
+  _verify_agents_in_block() {
+    # Extraire uniquement le bloc du projet (jusqu'au prochain ## header ou fin de fichier)
+    awk "/^## ${id}/{found=1; next} found && /^## /{exit} found{print}" "$PROJECTS_FILE" \
+      | grep -qF -- "- Agents : ${new_agents}"
+  }
   # Tenter de remplacer une ligne "- Agents : *" existante dans le bloc du projet
   if perl -i -0777pe "
-    s{(^## \Q${id}\E\n.*?)(- Agents : [^\n]+)}{\${1}- Agents : ${new_agents}}ms
-  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Agents : ${new_agents}" "$PROJECTS_FILE"; then
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?)(- Agents : [^\n]+)}{\${1}- Agents : ${new_agents}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && _verify_agents_in_block; then
     return 0
   fi
   # Si le champ n'existe pas encore, l'ajouter après "- Labels :"
   if perl -i -0777pe "
-    s{(^## \Q${id}\E\n.*?- Labels : [^\n]+\n)}{\${1}- Agents : ${new_agents}\n}ms
-  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Agents : ${new_agents}" "$PROJECTS_FILE"; then
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?- Labels : [^\n]+\n)}{\${1}- Agents : ${new_agents}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && _verify_agents_in_block; then
     return 0
   fi
   # Fallback : ajouter après le dernier champ "- " du bloc projet
   if perl -i -0777pe "
-    s{(^## \Q${id}\E\n.*?- [^\n]+\n)}{\${1}- Agents : ${new_agents}\n}ms
-  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Agents : ${new_agents}" "$PROJECTS_FILE"; then
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?- [^\n]+\n)}{\${1}- Agents : ${new_agents}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && _verify_agents_in_block; then
     return 0
   fi
   log_error "Impossible d'insérer le champ Agents dans le bloc $id de projects.md"

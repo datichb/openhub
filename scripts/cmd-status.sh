@@ -4,7 +4,7 @@
 #   ./oc.sh status          → vue détaillée (Beads, API, agents déployés)
 #   ./oc.sh status --short  → tableau compact (id, chemin, statut)
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 
 # ── Parse flags ──────────────────────────────────────────────────────────────

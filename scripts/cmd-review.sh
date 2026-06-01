@@ -2,7 +2,7 @@
 # Lance une code review sur une branche via l'agent reviewer.
 # Usage : oc review [PROJECT_ID] [--branch <branch>]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
 

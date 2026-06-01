@@ -2,7 +2,7 @@
 # Synchronise les agents déployés sur tous les projets enregistrés localement.
 # Usage : oc sync [--dry-run]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
 source "$LIB_DIR/progress-bar.sh"
@@ -105,17 +105,17 @@ for project_id in "${project_ids[@]}"; do
           continue
         fi
 
-        gen_mtime=$(stat -f %m "$gen_file" 2>/dev/null || stat -c %Y "$gen_file" 2>/dev/null)
+        gen_mtime=$(stat -c %Y "$gen_file" 2>/dev/null || stat -f %m "$gen_file" 2>/dev/null)
         max_src_mtime=0
 
-        agent_mtime=$(stat -f %m "$agent_file" 2>/dev/null || stat -c %Y "$agent_file" 2>/dev/null)
+        agent_mtime=$(stat -c %Y "$agent_file" 2>/dev/null || stat -f %m "$agent_file" 2>/dev/null)
         [ "$agent_mtime" -gt "$max_src_mtime" ] && max_src_mtime=$agent_mtime
 
         while IFS= read -r skill; do
           [ -z "$skill" ] && continue
           skill_file="$SKILLS_DIR/${skill}.md"
           [ -f "$skill_file" ] || continue
-          skill_mtime=$(stat -f %m "$skill_file" 2>/dev/null || stat -c %Y "$skill_file" 2>/dev/null)
+          skill_mtime=$(stat -c %Y "$skill_file" 2>/dev/null || stat -f %m "$skill_file" 2>/dev/null)
           if [ "$skill_mtime" -gt "$max_src_mtime" ]; then
             max_src_mtime=$skill_mtime
           fi

@@ -4,7 +4,7 @@
 #   oc project rename <OLD_ID> <NEW_ID>   — renomme un projet dans tous les fichiers registre
 #   oc project move <PROJECT_ID> <path>   — change le chemin local d'un projet
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
 
 # ────────────────────────────────────────────────────────────────────────────────

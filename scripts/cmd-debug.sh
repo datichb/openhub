@@ -2,7 +2,7 @@
 # Lance une session de debug sur un projet via l'agent debugger.
 # Usage : oc debug [PROJECT_ID]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
 

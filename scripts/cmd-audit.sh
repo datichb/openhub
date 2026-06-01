@@ -2,7 +2,7 @@
 # Lance un audit IA sur un projet via l'agent auditor (+ sous-agents optionnels).
 # Usage : oc audit [PROJECT_ID] [--type <type>]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/prompt-builder.sh"
 

@@ -3,7 +3,7 @@
 # Usage: oc plugin install rtk
 
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 PLUGIN_NAME="${1:-rtk}"
 PLUGIN_SOURCE="$HUB_DIR/plugins/$PLUGIN_NAME/${PLUGIN_NAME}.ts"

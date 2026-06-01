@@ -2,7 +2,7 @@
 # Gestion des skills externes (context7, etc.)
 # Usage : ./oc.sh skills <commande> [args]
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
 
 # SOURCES_FILE : provenance des skills externes

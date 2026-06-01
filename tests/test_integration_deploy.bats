@@ -88,7 +88,7 @@ HUBEOF
     LIB_DIR="$HUB_ROOT/scripts/lib" \
     ADAPTERS_DIR="$HUB_ROOT/scripts/adapters" \
     SCRIPTS_DIR="$HUB_ROOT/scripts" \
-      bash "$HUB_ROOT/scripts/cmd-deploy.sh" --check opencode
+      bash "$HUB_ROOT/scripts/cmd-deploy.sh" --check
   }
 }
 
@@ -274,8 +274,10 @@ AGENTEOF
     adapter_deploy_config '$DEPLOY_CONFIG_ONLY' ''
   " 2>/dev/null
 
-  # Les deux opencode.json doivent être identiques
-  diff "$DEPLOY_FULL/opencode.json" "$DEPLOY_CONFIG_ONLY/opencode.json"
+  # Les deux opencode.json doivent être identiques (comparaison normalisée via jq)
+  json_full=$(jq --sort-keys . "$DEPLOY_FULL/opencode.json")
+  json_config=$(jq --sort-keys . "$DEPLOY_CONFIG_ONLY/opencode.json")
+  [ "$json_full" = "$json_config" ]
 
   rm -rf "$DEPLOY_FULL" "$DEPLOY_CONFIG_ONLY"
 }

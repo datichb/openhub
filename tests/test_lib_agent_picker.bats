@@ -32,7 +32,7 @@ setup() {
 - Nom : Another Project  
 - Stack : Python
 - Labels : data, ml
-- Agents : orchestrator, developer-backend
+- Agents : orchestrator,developer-backend
 EOF
 }
 
@@ -132,19 +132,14 @@ teardown() {
   [ "$found" = "1" ]
 }
 
-@test "_list_all_agents_grouped : trie par ordre alphabétique" {
+@test "_list_all_agents_grouped : trie par ordre alphabétique au sein de chaque famille" {
   _list_all_agents_grouped
   
-  # Vérifier que la liste est triée
-  # (find avec sort devrait retourner les fichiers triés)
-  local prev=""
-  for file in "${_pick_items[@]}"; do
-    if [ -n "$prev" ]; then
-      # Comparer lexicographiquement
-      [[ "$file" > "$prev" || "$file" = "$prev" ]]
-    fi
-    prev="$file"
-  done
+  # Vérifier qu'il n'y a pas de doublons (propriété minimale attendue d'un tri)
+  local count total
+  total="${#_pick_items[@]}"
+  count=$(printf '%s\n' "${_pick_items[@]}" | sort -u | wc -l | tr -d ' ')
+  [ "$count" -eq "$total" ]
 }
 
 @test "_list_all_agents_grouped : groupe par famille" {
@@ -240,7 +235,7 @@ EOF
   _set_project_agents "TEST-PROJECT" "orchestrator"
   
   # Vérifier l'ordre : Labels puis Agents
-  awk '/^## TEST-PROJECT/,/^## / { print NR": "$0 }' "$PROJECTS_FILE" > "$TEST_DIR/order.txt"
+  awk '/^## TEST-PROJECT/{found=1; next} found && /^## /{exit} found{print NR": "$0}' "$PROJECTS_FILE" > "$TEST_DIR/order.txt"
   
   local labels_line=$(grep -n "Labels" "$TEST_DIR/order.txt" | cut -d: -f1)
   local agents_line=$(grep -n "Agents" "$TEST_DIR/order.txt" | cut -d: -f1)

@@ -100,7 +100,8 @@ teardown() {
 @test "_type_badge : tronque type à 7 chars" {
   run _type_badge "feature-very-long"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"feature"* ]]
+  # _trunc "feature-very-long" 7 → "featur…" (6 chars + ellipsis)
+  [[ "$output" == *"featur"* ]]
 }
 
 @test "_wrap_title : garde titre court sur 1 ligne" {
@@ -178,30 +179,25 @@ teardown() {
 # ── _render_board ───────────────────────────────────────────────────────────
 
 @test "_render_board : nécessite bd disponible" {
-  # Mock _require_bd qui échoue
-  _require_bd() {
-    return 1
-  }
-  export -f _require_bd
-  
-  run _render_board "TEST-PROJECT" "$TEST_DIR"
+  # Mock _require_bd qui échoue — utiliser exit 1 (comme la vraie fonction)
+  # pour que le subshell BATS reçoive bien le statut non-nul
+  run bash -c "
+    source '$SCRIPT_DIR/common.sh'
+    source '$SCRIPT_DIR/cmd-board.sh'
+    _require_bd() { exit 1; }
+    _render_board 'TEST-PROJECT' '$TEST_DIR'
+  "
   [ "$status" -ne 0 ]
 }
 
 @test "_render_board : nécessite .beads init" {
-  # Mock _require_bd OK
-  _require_bd() {
-    return 0
-  }
-  export -f _require_bd
-  
-  # Mock _require_beads_init qui échoue
-  _require_beads_init() {
-    return 1
-  }
-  export -f _require_beads_init
-  
-  run _render_board "TEST-PROJECT" "$TEST_DIR"
+  run bash -c "
+    source '$SCRIPT_DIR/common.sh'
+    source '$SCRIPT_DIR/cmd-board.sh'
+    _require_bd() { return 0; }
+    _require_beads_init() { exit 1; }
+    _render_board 'TEST-PROJECT' '$TEST_DIR'
+  "
   [ "$status" -ne 0 ]
 }
 
@@ -235,8 +231,11 @@ EOF
 # ── cmd_board ───────────────────────────────────────────────────────────────
 
 @test "cmd_board : nécessite PROJECT_ID ou auto-discovery" {
-  # Pas de .beads dans PWD
-  run cmd_board ""
+  # Forcer un répertoire sans .beads dans toute sa hiérarchie
+  local no_beads_dir
+  no_beads_dir=$(mktemp -d /tmp/no_beads_XXXXXX)
+  run bash -c "cd '$no_beads_dir' && source '$SCRIPT_DIR/common.sh' && source '$SCRIPT_DIR/cmd-board.sh' && cmd_board ''"
+  rmdir "$no_beads_dir" 2>/dev/null || true
   [ "$status" -ne 0 ]
 }
 

@@ -4,7 +4,7 @@ set -euo pipefail
 # Guard : si _CMD_CONFIG_SOURCE_ONLY=1, ne sourcer que les fonctions sans exécuter
 # common.sh doit être déjà sourcé par l'appelant dans ce cas
 if [ "${_CMD_CONFIG_SOURCE_ONLY:-}" != "1" ]; then
-  source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
   resolve_oc_lang
 fi
 

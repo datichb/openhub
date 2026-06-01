@@ -152,7 +152,7 @@ EOF
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
 
   # Répondre 'N' pour refuser l'ajout d'agents
-  run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj < <(yes n | head -20)
+  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" test-proj"
   [[ "$output" == *"auditor"* ]] || [[ "$output" == *"manquant"* ]] || [[ "$output" == *"missing"* ]]
 }
 
@@ -188,7 +188,7 @@ EOF
   cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
 
   # auditor-security manque
-  run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type security < <(yes n | head -20)
+  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" test-proj --type security"
   [[ "$output" == *"auditor-security"* ]] || [[ "$output" == *"manquant"* ]]
 }
 
@@ -211,7 +211,7 @@ EOF
   # NE PAS créer .opencode/agents/
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
 
-  run bash "$HUB_ROOT/scripts/cmd-audit.sh" TEST-PROJ < <(yes n | head -20)
+  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" TEST-PROJ"
   [[ "$output" == *"déployés"* ]] || [[ "$output" == *"deployed"* ]] || [[ "$output" == *"absent"* ]]
 }
 
@@ -230,7 +230,7 @@ EOF
   # Dossier existe mais fichier auditor.md absent
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
 
-  run bash "$HUB_ROOT/scripts/cmd-audit.sh" TEST-PROJ < <(yes n | head -20)
+  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" TEST-PROJ"
   [[ "$output" == *"déployés"* ]] || [[ "$output" == *"auditor"* ]]
 }
 

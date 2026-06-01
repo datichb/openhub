@@ -7,7 +7,7 @@
 #   oc upgrade v1.1.0       → git fetch --tags + git checkout v1.1.0
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
-source "$(cd "$(dirname "$0")" && pwd)/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 # ── Argument optionnel : version cible ────────────────────────────────────────
 _raw_ref="${1:-}"
