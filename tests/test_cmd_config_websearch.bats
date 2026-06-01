@@ -127,7 +127,7 @@ teardown() {
   run cmd_websearch_enable "TEST-PROJ-1"
   [ "$status" -eq 0 ]
   
-  local proj_config="/test-project-1/.opencode/opencode.json"
+  local proj_config="$TEST_DIR/test-project-1/.opencode/opencode.json"
   [ -f "$proj_config" ]
   
   run jq -r '.permission.websearch' "$proj_config"
@@ -147,7 +147,7 @@ teardown() {
   [ "$status" -eq 0 ]
   
   # Vérifier que le fichier est toujours valide
-  local proj_config="/test-project-1/.opencode/opencode.json"
+  local proj_config="$TEST_DIR/test-project-1/.opencode/opencode.json"
   run jq -r '.permission.websearch' "$proj_config"
   [ "$output" = "allow" ]
 }
@@ -167,7 +167,7 @@ teardown() {
   run cmd_websearch_disable "TEST-PROJ-1"
   [ "$status" -eq 0 ]
   
-  local proj_config="/test-project-1/.opencode/opencode.json"
+  local proj_config="$TEST_DIR/test-project-1/.opencode/opencode.json"
   
   # Vérifier que permission.websearch est deny
   run jq -r '.permission.websearch' "$proj_config"
