@@ -1,105 +1,104 @@
 #!/usr/bin/env bats
 # Tests pour scripts/cmd-help.sh
 # Vérifie : sections affichées, commandes listées, code de sortie, i18n
+# Optimisation : cmd-help.sh est exécuté UNE SEULE FOIS dans setup_file,
+# son output est mis en cache dans BATS_FILE_TMPDIR — chaque test lit le cache.
 
 load helpers
 
-setup() {
-  common_setup
-
+setup_file() {
   export HUB_DIR="$BATS_TEST_DIRNAME/.."
-  export HUB_CONFIG="$TEST_DIR/hub.json"
+  export HUB_CONFIG="$BATS_FILE_TMPDIR/hub.json"
+
+  mkdir -p "$BATS_FILE_TMPDIR"
   printf '{"version":"1.0.0","default_target":"opencode","active_targets":["opencode"],"cli":{"language":"fr"}}\n' \
     > "$HUB_CONFIG"
 
-  CMD_HELP="$BATS_TEST_DIRNAME/../scripts/cmd-help.sh"
+  # Exécuter cmd-help.sh une seule fois et mettre l'output en cache
+  bash "$BATS_TEST_DIRNAME/../scripts/cmd-help.sh" > "$BATS_FILE_TMPDIR/help_output" 2>&1
+  export HELP_STATUS=$?
+  export HELP_OUTPUT_FILE="$BATS_FILE_TMPDIR/help_output"
+}
+
+setup() {
+  # Rien à initialiser per-test : toutes les fixtures sont dans setup_file
+  export HUB_DIR="$BATS_TEST_DIRNAME/.."
+  export HUB_CONFIG="$BATS_FILE_TMPDIR/hub.json"
 }
 
 teardown() {
-  common_teardown
+  true
+}
+
+# Helper : charge l'output mis en cache
+_help_output() {
+  cat "$HELP_OUTPUT_FILE"
 }
 
 # ── Comportement général ──────────────────────────────────────────────────────
 
 @test "help : s'exécute sans erreur" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
+  [ "$HELP_STATUS" -eq 0 ]
 }
 
 @test "help : output non vide" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [ -n "$output" ]
+  [ "$HELP_STATUS" -eq 0 ]
+  [ -s "$HELP_OUTPUT_FILE" ]
 }
 
 @test "help : affiche plusieurs lignes" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
   local lines
-  lines=$(echo "$output" | grep -c .)
+  lines=$(wc -l < "$HELP_OUTPUT_FILE" | tr -d ' ')
   [ "$lines" -gt 10 ]
 }
 
 # ── Sections ──────────────────────────────────────────────────────────────────
 
 @test "help : contient une section setup/installation" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Ss]etup ]] || [[ "$output" =~ [Ii]nstall ]] || [[ "$output" =~ [Cc]onfiguration ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Ss]etup ]] || [[ "$out" =~ [Ii]nstall ]] || [[ "$out" =~ [Cc]onfiguration ]]
 }
 
 @test "help : contient une section projets/projects" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Pp]rojet ]] || [[ "$output" =~ [Pp]roject ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Pp]rojet ]] || [[ "$out" =~ [Pp]roject ]]
 }
 
 @test "help : contient une section lancement/launch" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Ll]ancement ]] || [[ "$output" =~ [Ll]aunch ]] || [[ "$output" =~ [Ss]tart ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Ll]ancement ]] || [[ "$out" =~ [Ll]aunch ]] || [[ "$out" =~ [Ss]tart ]]
 }
 
 @test "help : contient une section analyse/analysis" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Aa]nalyse ]] || [[ "$output" =~ [Aa]nalysis ]] || [[ "$output" =~ [Aa]udit ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Aa]nalyse ]] || [[ "$out" =~ [Aa]nalysis ]] || [[ "$out" =~ [Aa]udit ]]
 }
 
 @test "help : contient une section maintenance" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Mm]aintenance ]] || [[ "$output" =~ [Mm]aintien ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Mm]aintenance ]] || [[ "$out" =~ [Mm]aintien ]]
 }
 
 @test "help : contient une section config" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ [Cc]onfig ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ [Cc]onfig ]]
 }
 
 # ── Commandes listées ─────────────────────────────────────────────────────────
 
 @test "help : mentionne la commande start" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "start" ]]
+  grep -q "start" "$HELP_OUTPUT_FILE"
 }
 
 @test "help : mentionne la commande deploy" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "deploy" ]]
+  grep -q "deploy" "$HELP_OUTPUT_FILE"
 }
 
 @test "help : mentionne la commande audit" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "audit" ]]
+  grep -q "audit" "$HELP_OUTPUT_FILE"
 }
 
 @test "help : mentionne des exemples d'utilisation" {
-  run bash "$CMD_HELP"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "oc.sh" ]] || [[ "$output" =~ "oc " ]]
+  local out; out=$(_help_output)
+  [[ "$out" =~ "oc.sh" ]] || [[ "$out" =~ "oc " ]]
 }

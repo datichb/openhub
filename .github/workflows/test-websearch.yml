@@ -139,7 +139,7 @@ jobs:
           chmod +x oc.sh
       
       - name: Run all WebSearch tests
-        run: bats -j 2 tests/test_*websearch*.bats
+        run: bats -j 4 tests/test_*websearch*.bats
         env:
           BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       

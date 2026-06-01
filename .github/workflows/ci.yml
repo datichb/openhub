@@ -102,8 +102,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install bats-core
-        run: sudo apt-get install -y bats
+      - name: Install bats-core and parallel
+        run: sudo apt-get install -y bats parallel
 
       - name: Run bats tests
         run: |
@@ -114,8 +114,8 @@ jobs:
             tests_to_run+=("$f")
           done
           
-          # Run tests in parallel (4 jobs) for faster CI execution
-          bats -j 4 "${tests_to_run[@]}" || exit 1
+          # Run tests in parallel (8 jobs) for faster CI execution
+          bats -j 8 "${tests_to_run[@]}" || exit 1
 
   version-consistency:
     name: Check version consistency

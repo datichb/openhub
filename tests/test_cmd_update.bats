@@ -1,85 +1,89 @@
 #!/usr/bin/env bats
 # Tests pour scripts/cmd-update.sh
 # Vérifie : adapter_update appelé, gestion bd absent, gestion brew absent, skills_none
+# Optimisation : cmd-update.sh est exécuté UNE SEULE FOIS dans setup_file,
+# son output est mis en cache dans BATS_FILE_TMPDIR.
 
 load helpers
 
-setup() {
-  common_setup
-
+setup_file() {
   export HUB_DIR="$BATS_TEST_DIRNAME/.."
-  export HUB_CONFIG="$TEST_DIR/hub.json"
+  export HUB_CONFIG="$BATS_FILE_TMPDIR/hub.json"
+  mkdir -p "$BATS_FILE_TMPDIR/bin"
+
   printf '{"version":"1.0.0","default_target":"opencode","active_targets":["opencode"],"cli":{"language":"fr"}}\n' \
     > "$HUB_CONFIG"
 
-  CMD_UPDATE="$BATS_TEST_DIRNAME/../scripts/cmd-update.sh"
-
-  # Mock opencode (adapter_update appelle npm update -g opencode-ai via adapter)
-  mkdir -p "$TEST_DIR/bin"
-  cat > "$TEST_DIR/bin/opencode" <<'OCEOF'
+  # Mock opencode
+  cat > "$BATS_FILE_TMPDIR/bin/opencode" <<'OCEOF'
 #!/bin/bash
 echo "opencode $*"
 exit 0
 OCEOF
-  chmod +x "$TEST_DIR/bin/opencode"
+  chmod +x "$BATS_FILE_TMPDIR/bin/opencode"
 
-  # Mock npm pour simuler la mise à jour
-  cat > "$TEST_DIR/bin/npm" <<'NPMEOF'
+  # Mock npm
+  cat > "$BATS_FILE_TMPDIR/bin/npm" <<'NPMEOF'
 #!/bin/bash
 echo "npm $*"
 exit 0
 NPMEOF
-  chmod +x "$TEST_DIR/bin/npm"
+  chmod +x "$BATS_FILE_TMPDIR/bin/npm"
 
-  export PATH="$TEST_DIR/bin:$PATH"
+  export PATH="$BATS_FILE_TMPDIR/bin:$PATH"
+  export UPDATE_OUTPUT_FILE="$BATS_FILE_TMPDIR/update_output"
+
+  # Exécuter une seule fois avec réponse N à la question sync
+  bash -c 'printf "N\n" | bash "$1"' _ "$BATS_TEST_DIRNAME/../scripts/cmd-update.sh" \
+    > "$UPDATE_OUTPUT_FILE" 2>&1
+  export UPDATE_STATUS=$?
+}
+
+setup() {
+  # Rien à initialiser per-test : toutes les fixtures sont dans setup_file
+  # On exporte juste les variables nécessaires
+  export HUB_DIR="$BATS_TEST_DIRNAME/.."
+  export HUB_CONFIG="$BATS_FILE_TMPDIR/hub.json"
+  export PATH="$BATS_FILE_TMPDIR/bin:$PATH"
 }
 
 teardown() {
-  common_teardown
+  true
 }
 
 # ── Exécution générale ────────────────────────────────────────────────────────
 
 @test "update : s'exécute sans erreur (bd absent, no skills)" {
-  # Sans bd dans le PATH, le script doit gérer gracieusement
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
+  [ "$UPDATE_STATUS" -eq 0 ]
 }
 
 @test "update : affiche le titre" {
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "Mise à jour" ]]
+  local out; out=$(cat "$UPDATE_OUTPUT_FILE")
+  [[ "$out" =~ "Mise à jour" ]]
 }
 
 @test "update : affiche succès en fin d'exécution" {
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "terminée" ]]
+  local out; out=$(cat "$UPDATE_OUTPUT_FILE")
+  [[ "$out" =~ "terminée" ]]
 }
 
 # ── Gestion bd absent ─────────────────────────────────────────────────────────
 
 @test "update : bd absent → warning mais pas d'erreur fatale" {
-  # bd n'est pas dans le PATH de test
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
-  # Le message i18n update.bd_missing contient "bd"
-  [[ "$output" =~ "bd" ]]
+  [ "$UPDATE_STATUS" -eq 0 ]
+  local out; out=$(cat "$UPDATE_OUTPUT_FILE")
+  [[ "$out" =~ "bd" ]]
 }
 
 # ── Gestion skills ────────────────────────────────────────────────────────────
 
 @test "update : sans fichier .sources.json → message skills_none" {
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
-  # Le message i18n update.skills_none
-  [[ "$output" =~ "Aucun skill externe" ]]
+  local out; out=$(cat "$UPDATE_OUTPUT_FILE")
+  [[ "$out" =~ "Aucun skill externe" ]]
 }
 
 # ── Proposition sync après mise à jour skills ─────────────────────────────────
 
 @test "update : réponse N à sync_now → pas de sync" {
-  run bash -c 'printf "N\n" | bash "$1"' _ "$CMD_UPDATE"
-  [ "$status" -eq 0 ]
+  [ "$UPDATE_STATUS" -eq 0 ]
 }
