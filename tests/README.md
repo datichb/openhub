@@ -5,8 +5,8 @@ Ce guide documente l'architecture, les conventions et les bonnes pratiques pour 
 ## 📊 Vue d'ensemble
 
 **Framework** : BATS (Bash Automated Testing System)  
-**Fichiers de tests** : 19+ fichiers `.bats` dans `tests/`  
-**Total de tests** : 450+ tests  
+**Fichiers de tests** : 62 fichiers `.bats` dans `tests/`  
+**Total de tests** : 1 172+ tests  
 **Exécution parallèle** : `bats -j 4 tests/*.bats`
 
 ## 🏗️ Architecture
@@ -370,18 +370,32 @@ bash -x -c "source scripts/common.sh; ma_fonction"
 
 ## 📈 Métriques & couverture
 
-### État actuel (post-Phase 2)
-- **Tests totaux** : 460+
-- **Fichiers de tests** : 20
-- **Couverture commandes** : 41% (11/27)
-- **Couverture librairies** : 20% (3/15)
-- **Score qualité** : 9.6/10
+### État actuel (post-passe de cohérence, Juin 2026)
 
-### Objectifs Phase 5
-- **Tests totaux** : 600+
-- **Couverture commandes** : 70% (19/27)
-- **Couverture librairies** : 40% (6/15)
-- **Score qualité** : 9.8/10
+- **Tests totaux** : 1 172
+- **Fichiers de tests** : 62
+- **Couverture commandes** : ~80 % (cmd-*)
+- **Couverture librairies** : 100 % (15/15 modules lib/)
+- **Couverture globale estimée** : ~85-90 %
+
+### Historique des sessions
+
+| Session | Date | Tests ajoutés | Total cumulé |
+|---------|------|--------------|--------------|
+| Sessions 1-2 | 30 mai 2026 | +716 | 716 |
+| Session 3 | 31 mai 2026 | +151 | 867 |
+| Sessions 4-5 | 31 mai – 1 juin 2026 | +145 | ~1 012 |
+| Passe de cohérence | 1 juin 2026 | +160 | ~1 172 |
+
+### Corrections appliquées lors de la passe de cohérence
+
+- `rtk grep` / `rtk awk` → `grep` / `awk` (commandes inexistantes supprimées)
+- `exec 3</dev/tty` supprimé → mock `read()` (fragile en CI sans TTY)
+- Séparateur `|` → `=` dans `PATHS_FILE` (format attendu par `get_project_path`)
+- Chemins `/tmp` hardcodés → `$TEST_DIR` (isolation complète, CI-safe)
+- Guards `jq` / `node` ajoutés dans `setup()` (skip gracieux si absent)
+- `grep -A N` → `sed -n '/pattern/,/^}/p'` (extraction de fonction robuste)
+- Assertions triviales (`|| [ "$status" -ne 0 ]`) renforcées avec vraies chaînes i18n
 
 ## 🐛 Debugging de tests échoués
 
@@ -455,5 +469,5 @@ Pour toute question ou problème :
 
 ---
 
-**Dernière mise à jour** : Phase 2.4 (Mai 2026)  
-**Version du guide** : 1.0
+**Dernière mise à jour** : Juin 2026 (passe de cohérence)  
+**Version du guide** : 1.1

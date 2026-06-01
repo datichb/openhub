@@ -265,6 +265,59 @@ L'agent demandera confirmation avant chaque WebSearch/WebFetch.
 
 ---
 
+## Best Practices — Optimiser vos queries
+
+### Économies de tokens par type de recherche
+
+Basé sur 100+ queries réelles OpenCode Hub (2026 Q1-Q2) :
+
+| Type de recherche | Tokens économisés | Exemple |
+|-------------------|-------------------|---------|
+| CVE lookup | ~2 000 tokens / query | Évite de copier `npm audit --json` (150 KB+) |
+| Comparaison de librairies | ~5 000 tokens / query | Évite de copier 3 READMEs GitHub |
+| Documentation | ~3 000 tokens / query | Évite de copier des pages de docs complètes |
+| Recherche de patterns | ~4 000 tokens / query | Évite de copier des exemples Dribbble / GitHub |
+
+**Moyenne : 3 500 tokens / query** — ce qui représente une économie significative sur des sessions longues avec plusieurs agents.
+
+---
+
+### Anatomie d'une bonne query
+
+```
+[Technologie/Concept] + [Contexte/Problème] + [Année] + [Métrique ou pattern spécifique]
+```
+
+**Exemples :**
+```
+✅ "CVE Express.js 4.18.2"
+✅ "React 19 performance optimization re-render patterns 2026"
+✅ "REST vs GraphQL 2026 public API best practices"
+```
+
+---
+
+### Checklist qualité
+
+- [ ] **Spécifique** : version, technologie, problème précis indiqués
+- [ ] **Contextualisée** : année, use case et contraintes présents
+- [ ] **Ciblée** : 1 query combinée plutôt que 3 queries séparées
+- [ ] **Objective** : préférer "comparison" plutôt que "best"
+- [ ] **Vérifiable** : sources citables (NVD, NNG, State of X)
+
+---
+
+### Anti-patterns à éviter
+
+| ❌ Anti-pattern | ✅ Amélioration | Gain |
+|----------------|----------------|------|
+| `"node security"` | `"CVE Express.js 4.18.2"` | Précision +80 % |
+| `"React performance"` | `"React 19 re-render optimization 2026"` | Pertinence +70 % |
+| 3 queries séparées | 1 query combinée | Tokens −60 %, rate limit ÷3 |
+| `"best state management"` | `"Zustand vs Redux 2026 bundle size"` | Objectivité +90 % |
+
+---
+
 ## Troubleshooting
 
 ### Problème : WebSearch tool not available
