@@ -189,22 +189,38 @@ EOF
     local agent_id
     agent_id=$(basename "$agent_file" .md)
 
-    # Extraire la liste de skills du frontmatter
-    local skills_line
+    # Extraire les listes skills: et native_skills: du frontmatter
+    local skills_line native_skills_line
     skills_line=$(awk '/^---$/{n++; next} n==1 && /^skills:/' "$agent_file")
-    [ -z "$skills_line" ] && continue
+    native_skills_line=$(awk '/^---$/{n++; next} n==1 && /^native_skills:/' "$agent_file")
 
-    # Parser la liste [a, b, c]
-    local skills_csv
-    skills_csv=$(echo "$skills_line" | sed 's/^skills: *\[//;s/\] *$//')
-    local IFS=','
-    for skill in $skills_csv; do
-      skill=$(echo "$skill" | sed 's/^ *//;s/ *$//')
-      local skill_file="$real_skills_dir/${skill}.md"
-      if [ ! -f "$skill_file" ]; then
-        missing="${missing}  ${agent_id} → ${skill}\n"
-      fi
-    done
+    # Traiter skills:
+    if [ -n "$skills_line" ]; then
+      local skills_csv
+      skills_csv=$(echo "$skills_line" | sed 's/^skills: *\[//;s/\] *$//')
+      local IFS=','
+      for skill in $skills_csv; do
+        skill=$(echo "$skill" | sed 's/^ *//;s/ *$//')
+        local skill_file="$real_skills_dir/${skill}.md"
+        if [ ! -f "$skill_file" ]; then
+          missing="${missing}  ${agent_id} → ${skill}\n"
+        fi
+      done
+    fi
+
+    # Traiter native_skills:
+    if [ -n "$native_skills_line" ]; then
+      local native_skills_csv
+      native_skills_csv=$(echo "$native_skills_line" | sed 's/^native_skills: *\[//;s/\] *$//')
+      local IFS=','
+      for skill in $native_skills_csv; do
+        skill=$(echo "$skill" | sed 's/^ *//;s/ *$//')
+        local skill_file="$real_skills_dir/${skill}.md"
+        if [ ! -f "$skill_file" ]; then
+          missing="${missing}  ${agent_id} (native) → ${skill}\n"
+        fi
+      done
+    fi
   done
 
   if [ -n "$missing" ]; then

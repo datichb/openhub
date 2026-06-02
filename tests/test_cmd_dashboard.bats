@@ -33,6 +33,12 @@ HUBEOF
   export HUB_DIR="$FAKE_HUB"
 }
 
+# Helper pour exécuter le script dashboard depuis FAKE_HUB
+# Évite les problèmes de quoting avec `run bash -c "..."` (BW01)
+_run_dashboard() {
+  cd "$FAKE_HUB" && bash "$HUB_ROOT/scripts/cmd-dashboard.sh"
+}
+
 teardown() {
   rm -rf "$FAKE_HUB"
 }
@@ -44,7 +50,7 @@ teardown() {
 @test "dashboard : affiche 'Aucune session active' si pas de fichier session" {
   rm -f "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Aucune session active"* ]]
 }
@@ -52,7 +58,7 @@ teardown() {
 @test "dashboard : affiche 'Aucune session active' si fichier session vide" {
   echo "" > "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Aucune session active"* ]]
 }
@@ -60,7 +66,7 @@ teardown() {
 @test "dashboard : suggère commande 'oc start' quand pas de session" {
   rm -f "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"oc start"* ]]
 }
@@ -68,7 +74,7 @@ teardown() {
 @test "dashboard : affiche le header 'OpenCode Dashboard' en mode idle" {
   rm -f "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"OpenCode Dashboard"* ]]
 }
@@ -76,7 +82,7 @@ teardown() {
 @test "dashboard : validation bordures TUI (╭ ╮ ╰ ╯) en mode idle" {
   rm -f "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"╭"* ]]
   [[ "$output" == *"╮"* ]]
@@ -102,7 +108,7 @@ teardown() {
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Session Active"* ]]
 }
@@ -122,7 +128,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   # Vérifier que les emojis sont présents (⏳ 🔄 ✅ 🚫)
   [[ "$output" == *"⏳"* ]] || [[ "$output" == *"pending"* ]]
@@ -144,7 +150,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"PROJ-123"*"◀"* ]]
 }
@@ -161,7 +167,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"developer"* ]]
   [[ "$output" == *"Implémentation"* ]] || [[ "$output" == *"implementing"* ]]
@@ -177,7 +183,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"10:30 UTC"* ]]
 }
@@ -192,7 +198,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Aucun ticket"* ]]
 }
@@ -207,7 +213,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Semi-auto"* ]] || [[ "$output" == *"semi-auto"* ]]
 }
@@ -228,7 +234,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"PROJ-123"* ]]
   [[ "$output" == *"PROJ-124"* ]]
@@ -249,7 +255,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   [[ "$output" == *"Review"* ]] || [[ "$output" == *"reviewing"* ]]
 }
@@ -278,7 +284,7 @@ EOF
 {"started_at": "2024-01-15T10:30:00Z", "mode": "manuel", "tickets": []}
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   
   # Nettoyer
   rm -rf "$FAKE_PATH"
@@ -291,7 +297,7 @@ EOF
   # Créer un JSON invalide
   echo "{ invalid json" > "$SESSION_STATE_FILE"
   
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   # Doit fallback sur idle dashboard
   [[ "$output" == *"Aucune session active"* ]] || [[ "$output" == *"corrompu"* ]]
@@ -307,7 +313,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   # Doit gérer les valeurs null gracieusement
 }
@@ -324,7 +330,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   # Doit afficher l'agent et action même si ticket non trouvé
   [[ "$output" == *"ghost"* ]]
@@ -342,7 +348,7 @@ EOF
 }
 EOF
 
-  run bash -c "cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'"
+  run _run_dashboard
   [ "$status" -eq 0 ]
   # Doit afficher emoji par défaut ou le statut tel quel
   [[ "$output" == *"PROJ-123"* ]]

@@ -1,5 +1,9 @@
 #!/bin/bash
 # Assemble le contenu d'un agent canonique (agents/) avec ses skills injectés.
+# Architecture hybride :
+#   - skills (Bucket A, obligatoires) → inlinées dans le body de l'agent
+#   - native_skills (Bucket B, optionnelles) → déployées en .opencode/skills/<name>/SKILL.md
+#   - stack skills (dynamiques, Bucket B) → déployées en .opencode/skills/ via stack-skills.json
 # Usage : source ce fichier, puis appeler build_agent_content <agent_file>
 
 # Guard contre le double sourcing
@@ -39,15 +43,16 @@ extract_frontmatter_list() {
 }
 
 # Lit le frontmatter d'un agent en une seule passe et expose les variables :
-#   _fm_id     : valeur du champ id
-#   _fm_skills : valeur brute du champ skills  (ex: "[skill/a, skill/b]")
-#   _fm_model  : valeur du champ model (optionnel)
-#   _fm_raw    : le frontmatter complet (toutes les lignes, pour extract_permission_json)
+#   _fm_id           : valeur du champ id
+#   _fm_skills       : valeur brute du champ skills        (ex: "[skill/a, skill/b]")
+#   _fm_native_skills: valeur brute du champ native_skills (ex: "[skill/c, skill/d]")
+#   _fm_model        : valeur du champ model (optionnel)
+#   _fm_raw          : le frontmatter complet (toutes les lignes, pour extract_permission_json)
 # Utilise uniquement des builtins bash (read, while) — pas de subprocess.
 # @param $1 — chemin absolu du fichier agent
 read_agent_frontmatter() {
   local file="$1"
-  _fm_id="" _fm_skills="" _fm_model="" _fm_raw=""
+  _fm_id="" _fm_skills="" _fm_native_skills="" _fm_model="" _fm_raw=""
   local in_fm=0
   while IFS= read -r line; do
     if [ "$in_fm" -eq 0 ] && [ "$line" = "---" ]; then
@@ -65,9 +70,10 @@ read_agent_frontmatter() {
       # (ligne ci-dessous). Il DOIT apparaître avant skills: dans le frontmatter
       # pour être lu avant la sortie anticipée.
       case "$line" in
-        id:*)    _fm_id="${line#id:}";    _fm_id="${_fm_id# }"    ;;
-        skills:*) _fm_skills="${line#skills:}"; _fm_skills="${_fm_skills# }" ;;
-        model:*)  _fm_model="${line#model:}";  _fm_model="${_fm_model# }"  ;;
+        id:*)           _fm_id="${line#id:}";            _fm_id="${_fm_id# }"            ;;
+        skills:*)       _fm_skills="${line#skills:}";    _fm_skills="${_fm_skills# }"    ;;
+        native_skills:*) _fm_native_skills="${line#native_skills:}"; _fm_native_skills="${_fm_native_skills# }" ;;
+        model:*)        _fm_model="${line#model:}";      _fm_model="${_fm_model# }"      ;;
       esac
     fi
     # Arrêter dès qu'on a tout (optimisation : les champs utiles sont dans les 10 premières lignes)
@@ -696,13 +702,61 @@ _get_precomputed_stack_skills() {
   done <<< "$precomputed"
 }
 
+# Retourne le nom d'une skill au format opencode (kebab-case, basename sans .md)
+# Conforme à la contrainte de nommage opencode : ^[a-z0-9]+(-[a-z0-9]+)*$
+# Ex: developer/stacks/dev-standards-vuejs → dev-standards-vuejs
+# Ex: auditor/audit-security               → audit-security
+to_skill_name() {
+  local skill_path="$1"
+  basename "$skill_path" .md
+}
+
+# Génère la section "## Skills disponibles" dans le body de l'agent.
+# Liste les skills natives chargeable à la demande via l'outil skill d'opencode.
+# @param $@ — liste de chemins de skills relatifs à SKILLS_DIR
+#             (ex: "developer/dev-standards-frontend" "developer/stacks/dev-standards-vuejs")
+_build_native_skills_guide() {
+  [ $# -eq 0 ] && return 0
+  local _native_list=("$@")
+
+  echo ""
+  echo "---"
+  echo ""
+  echo "## Skills disponibles"
+  echo ""
+  echo "Charge les skills pertinentes **avant de commencer** via l'outil \`skill\`."
+  echo "Sélectionne uniquement celles qui correspondent au contexte de la tâche en cours."
+  echo ""
+  echo "| Skill | Description |"
+  echo "|-------|-------------|"
+
+  local skill skill_name skill_file desc
+  for skill in "${_native_list[@]}"; do
+    [ -z "$skill" ] && continue
+    skill_name=$(to_skill_name "$skill")
+    skill_file="$SKILLS_DIR/${skill}.md"
+    if [ -f "$skill_file" ]; then
+      desc=$(extract_frontmatter_value "$skill_file" "description")
+    else
+      desc=""
+    fi
+    [ -z "$desc" ] && desc="—"
+    echo "| \`${skill_name}\` | ${desc} |"
+  done
+}
+
 # Construit le contenu final : corps de l'agent + skills injectés → stdout
 # $2 (lang) optionnel — si non vide, injecte une instruction de langue en tête de l'agent
-# $3 (project_path) optionnel — si non vide, détecte la stack et injecte les skills correspondants
+# $3 (project_path) optionnel — si non vide, détecte la stack et prépare les skills stack
 # $4 (precomputed_stacks) optionnel — si non vide, utilise les stack skills précalculés (chemin rapide)
 #   fourni par adapter_deploy_files via precompute_stack_skills ; zéro fork supplémentaire.
 #   Si vide, fallback sur detect_stack + resolve_stack_skills (rétrocompatibilité).
 #   Note : ignoré silencieusement si $3 (project_path) est vide ou inexistant.
+#
+# Architecture hybride :
+#   - skills:        → inlinées dans le body (Bucket A, obligatoires, toujours actives)
+#   - native_skills: → listées dans le guide "Skills disponibles" (Bucket B, chargement à la demande)
+#   - stack skills   → listées dans le guide "Skills disponibles" (Bucket B, dynamiques)
 build_agent_content() {
   local agent_file="$1"
   local lang="${2:-}"
@@ -718,13 +772,25 @@ build_agent_content() {
   fi
   strip_frontmatter "$agent_file"
 
-  # ── Skills déclarés dans le frontmatter ─────────────────────────────────
+  # ── Skills INLINE : déclarés dans le frontmatter (Bucket A — obligatoires) ──
+  # Ces skills sont injectées directement dans le system prompt de l'agent.
+  # Le LLM les reçoit TOUJOURS — protocoles, workflows, handoffs, chaînes de délégation.
   local skills=()
   while IFS= read -r skill; do
     skills+=("$skill")
   done < <(extract_frontmatter_list "$agent_file" "skills")
 
-  # ── Skills dynamiques basés sur la stack détectée ────────────────────────
+  # ── Skills NATIVES : déclarées dans le frontmatter (Bucket B — optionnelles) ──
+  # Ces skills sont déployées dans .opencode/skills/<name>/SKILL.md et chargées à la demande.
+  # Elles n'apparaissent PAS dans le system prompt — seulement dans le guide ci-dessous.
+  local native_skills_from_fm=()
+  while IFS= read -r ns; do
+    native_skills_from_fm+=("$ns")
+  done < <(extract_frontmatter_list "$agent_file" "native_skills")
+
+  # ── Stack skills : résolues dynamiquement (Bucket B — optionnelles) ──────────
+  # Déployées en .opencode/skills/ selon la stack détectée dans le projet cible.
+  # Ne sont plus inlinées depuis la migration vers l'architecture hybride.
   local stack_skills=()
   if [ -n "$project_path" ] && [ -d "$project_path" ]; then
     local agent_id
@@ -735,9 +801,10 @@ build_agent_content() {
         # Chemin rapide : utiliser les stack skills précalculés
         while IFS= read -r stack_skill; do
           [ -z "$stack_skill" ] && continue
+          # Dédupliquer contre les skills déjà déclarées (inline ou native)
           local already_declared=0
           local declared_skill
-          for declared_skill in "${skills[@]:-}"; do
+          for declared_skill in "${skills[@]:-}" "${native_skills_from_fm[@]:-}"; do
             [ "$declared_skill" = "$stack_skill" ] && already_declared=1 && break
           done
           [ "$already_declared" = "0" ] && stack_skills+=("$stack_skill")
@@ -751,7 +818,7 @@ build_agent_content() {
             [ -z "$stack_skill" ] && continue
             local already_declared=0
             local declared_skill
-            for declared_skill in "${skills[@]:-}"; do
+            for declared_skill in "${skills[@]:-}" "${native_skills_from_fm[@]:-}"; do
               [ "$declared_skill" = "$stack_skill" ] && already_declared=1 && break
             done
             [ "$already_declared" = "0" ] && stack_skills+=("$stack_skill")
@@ -761,14 +828,12 @@ build_agent_content() {
     fi
   fi
 
-  # ── Injection des skills (déclarés + stack) ──────────────────────────────
-  local all_skills=("${skills[@]:-}" "${stack_skills[@]:-}")
-
-  if [ ${#all_skills[@]} -gt 0 ]; then
+  # ── Injection des skills INLINE (obligatoires) ───────────────────────────────
+  if [ ${#skills[@]} -gt 0 ]; then
     echo ""
     echo "---"
     echo ""
-    for skill in "${all_skills[@]}"; do
+    for skill in "${skills[@]}"; do
       [ -z "$skill" ] && continue
       local skill_file="$SKILLS_DIR/${skill}.md"
       if [ -f "$skill_file" ]; then
@@ -778,6 +843,14 @@ build_agent_content() {
         log_warn "Skill introuvable : ${skill}.md" >&2
       fi
     done
+  fi
+
+  # ── Guide des skills natives (Bucket B — chargement à la demande) ────────────
+  # Injecte un tableau listant les skills natives + stack skills disponibles.
+  # Le LLM voit la liste mais charge uniquement les skills utiles via l'outil `skill`.
+  local all_native=("${native_skills_from_fm[@]:-}" "${stack_skills[@]:-}")
+  if [ ${#all_native[@]} -gt 0 ]; then
+    _build_native_skills_guide "${all_native[@]}"
   fi
 }
 

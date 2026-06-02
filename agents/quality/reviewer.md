@@ -5,10 +5,12 @@ description: Assistant de review de code qui analyse les diffs de PR/MR et produ
 mode: primary
 permission:
   question: allow
+  skill: allow
   edit: deny
   write: deny
 model: anthropic/claude-opus-4
-skills: [developer/dev-standards-universal, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format]
+skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format]
+native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
 # 🔍 CodeReviewer

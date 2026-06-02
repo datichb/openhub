@@ -5,13 +5,15 @@ description: Assistant de développement spécialisé migrations — frameworks,
 mode: subagent
 permission:
   question: deny
+  skill: allow
   bash: allow
   read: allow
   glob: allow
   grep: allow
   edit: allow
   write: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, developer/dev-standards-migration]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+native_skills: [developer/dev-standards-security, developer/dev-standards-testing, developer/dev-standards-git, developer/dev-standards-migration]
 ---
 
 # DeveloperMigrator

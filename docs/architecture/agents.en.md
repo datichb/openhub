@@ -16,7 +16,9 @@ description: <Short description — visible in AI tools>
 mode: primary         # primary (default) | subagent
 permission:
   question: allow     # optional — enables OpenCode's question tool (interactive primary agents only)
-skills: [path/to/skill, ...]
+  skill: allow        # allow | deny — enables the native skill tool (Bucket B)
+skills: [path/to/skill, ...]          # Bucket A — assembled inline at deploy time
+native_skills: [path/to/skill, ...]   # Bucket B — deployed to .opencode/skills/, loaded on-demand
 ---
 
 # <Title>
@@ -31,7 +33,11 @@ skills: [path/to/skill, ...]
 | `description` | Short phrase describing the role — appears in agent lists |
 | `mode` | `primary` (default) or `subagent` — controls visibility in OpenCode |
 | `permission.question` | `allow` — enables OpenCode's `question` tool for this agent. Reserved for interactive `primary` agents. Always paired with the `posture/tool-question` skill. |
-| `skills` | Paths relative to `skills/` — injected in declaration order |
+| `permission.skill` | `allow` — enables the native `skill` tool so the agent can load Bucket B skills on-demand. Set to `deny` for coordinators/orchestrators that never need contextual skills. |
+| `skills` | **Bucket A** — paths relative to `skills/`, injected inline at deploy time, always active from the first token. Workflow protocols, handoff formats, universal principles. |
+| `native_skills` | **Bucket B** — paths relative to `skills/`, deployed to `.opencode/skills/<name>/SKILL.md`, loaded on-demand by the LLM via the `skill` tool. Domain standards, stack skills, checklists. |
+
+See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the rationale behind the Bucket A / Bucket B split.
 
 ### Primary / Subagent Modes
 

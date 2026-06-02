@@ -19,14 +19,20 @@ Voir [agents.fr.md](./agents.fr.md) pour la référence complète.
 ### Skill
 
 Un **skill** est un bloc de protocole injectable : format de rapport, checklist,
-règles de comportement, exemples. Les skills sont déclarés dans le frontmatter
-de l'agent (`skills: [...]`) et assemblés au déploiement.
+règles de comportement, exemples. Le hub utilise une **architecture hybride** avec
+deux chemins de déploiement :
+
+| Chemin | Champ frontmatter | Quand chargé |
+|--------|------------------|-------------|
+| **Bucket A — Inline** | `skills: [...]` | Toujours — assemblé dans le system prompt au déploiement |
+| **Bucket B — Natif** | `native_skills: [...]` | À la demande — le LLM charge depuis `.opencode/skills/` via l'outil `skill` |
 
 Un skill peut être partagé entre plusieurs agents (ex: `dev-standards-universal`
-est injecté dans tous les agents développeurs et dans le reviewer).
+est Bucket A dans tous les agents développeurs et dans le reviewer).
 
 Voir [skills.fr.md](./skills.fr.md) pour la référence complète.
 Voir [ADR-001](./adr/001-agent-skill-separation.fr.md) pour la décision de séparation.
+Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour la séparation inline vs natif.
 
 ### Serveur MCP
 
@@ -69,7 +75,8 @@ flowchart LR
     end
 
     subgraph PROJETS["Projets cibles"]
-        OC -->|oc deploy opencode| P1[".opencode/agents/*.md"]
+        OC -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
+        OC -->|"Bucket B (natif)"| P2[".opencode/skills/**/SKILL.md"]
     end
 ```
 
@@ -158,7 +165,12 @@ L'agent définit **qui** il est, le skill définit **comment** il travaille.
 Cette séparation permet la réutilisation des protocoles entre agents et maintient
 les fichiers agents lisibles.
 
+Les skills sont en outre répartis en deux buckets : Bucket A (toujours actif, inline)
+pour les protocoles obligatoires et les contrats de workflow, et Bucket B (natif, à la demande)
+pour les contextes de domaine chargés uniquement quand la tâche le requiert.
+
 → [ADR-001](./adr/001-agent-skill-separation.fr.md)
+→ [ADR-010](./adr/010-hybrid-skills-architecture.fr.md)
 
 ### 2. Spécialisation plutôt que généralisme
 

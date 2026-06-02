@@ -11,6 +11,8 @@ _DEPLOY_FILES_AGENT_KEYS=()
 _DEPLOY_FILES_AGENT_VALS=()
 _DEPLOY_FILES_AGENT_FILES=()
 _DEPLOY_FILES_COUNT=0
+_DEPLOY_NATIVE_SKILLS_COUNT=0
+_DEPLOY_NATIVE_SKILLS_SKIPPED=0
 
 # Applique le préfixe opencode et les model_aliases du provider au modèle court.
 # $1 = modèle (nom court, ex: claude-sonnet-4-5)
@@ -241,6 +243,121 @@ adapter_validate() {
   command -v opencode &>/dev/null || { log_error "OpenCode non installé → oc install"; return 1; }
 }
 
+# ── Phase 1b : Déploiement des skills natives ─────────────────────────────────
+# Crée .opencode/skills/<name>/SKILL.md pour chaque skill native unique :
+#   - native_skills déclarées dans le frontmatter de chaque agent (Bucket B explicite)
+#   - stack skills résolues via precomputed_stacks (Bucket B dynamique)
+# La déduplication est faite par nom de skill (basename sans .md).
+# Le répertoire .opencode/skills/ est recréé à chaque déploiement (nettoyage des anciennes skills).
+# Doit être appelée APRÈS _load_agent_metadata() (tableaux _DEPLOY_FILES_* remplis).
+# $1 = deploy_dir
+# $2 = precomputed_stacks (optionnel — chaîne "agent_id:skill_path\n..." depuis precompute_stack_skills)
+deploy_native_skills() {
+  local deploy_dir="$1"
+  local precomputed_stacks="${2:-}"
+  local skills_out_dir="$deploy_dir/.opencode/skills"
+
+  [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ] && return 0
+
+  # Collecter toutes les skills natives uniques (native_skills + stack skills pour tous les agents)
+  local _all_native_paths=()
+  local _seen_names=()
+
+  local _ai=0
+  while [ "$_ai" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+    local _aid="${_DEPLOY_FILES_AGENT_KEYS[$_ai]}"
+    local _asource="${_DEPLOY_FILES_AGENT_FILES[$_ai]}"
+
+    # 1. native_skills explicites du frontmatter agent
+    local _ns
+    while IFS= read -r _ns; do
+      [ -z "$_ns" ] && continue
+      local _ns_name; _ns_name=$(basename "$_ns" .md)
+      local _already_seen=0
+      local _s
+      for _s in "${_seen_names[@]:-}"; do
+        [ "$_s" = "$_ns_name" ] && _already_seen=1 && break
+      done
+      if [ "$_already_seen" = "0" ]; then
+        _seen_names+=("$_ns_name")
+        _all_native_paths+=("$_ns")
+      fi
+    done < <(extract_frontmatter_list "$_asource" "native_skills")
+
+    # 2. Stack skills de l'agent (depuis precomputed)
+    if [ -n "$precomputed_stacks" ]; then
+      local _ss
+      while IFS= read -r _ss; do
+        [ -z "$_ss" ] && continue
+        local _ss_name; _ss_name=$(basename "$_ss" .md)
+        local _already_seen=0
+        local _s
+        for _s in "${_seen_names[@]:-}"; do
+          [ "$_s" = "$_ss_name" ] && _already_seen=1 && break
+        done
+        if [ "$_already_seen" = "0" ]; then
+          _seen_names+=("$_ss_name")
+          _all_native_paths+=("$_ss")
+        fi
+      done < <(_get_precomputed_stack_skills "$_aid" "$precomputed_stacks")
+    fi
+
+    _ai=$((_ai + 1))
+  done
+
+  # Nettoyer les anciennes skills (toujours, pour garantir cohérence)
+  rm -rf "$skills_out_dir" 2>/dev/null || true
+
+  # Pas de skills natives à déployer
+  if [ ${#_all_native_paths[@]} -eq 0 ]; then
+    _DEPLOY_NATIVE_SKILLS_COUNT=0
+    _DEPLOY_NATIVE_SKILLS_SKIPPED=0
+    return 0
+  fi
+
+  # Recréer le répertoire
+  mkdir -p "$skills_out_dir"
+
+  # Déployer chaque skill native
+  local _deployed=0 _skipped=0
+  local _skill_path
+  for _skill_path in "${_all_native_paths[@]}"; do
+    [ -z "$_skill_path" ] && continue
+    local _skill_name; _skill_name=$(basename "$_skill_path" .md)
+    local _skill_src="$SKILLS_DIR/${_skill_path}.md"
+
+    if [ ! -f "$_skill_src" ]; then
+      log_warn "Skill native introuvable : ${_skill_path}.md" >&2
+      _skipped=$((_skipped + 1))
+      continue
+    fi
+
+    # Lire le frontmatter pour name et description
+    local _skill_name_fm; _skill_name_fm=$(extract_frontmatter_value "$_skill_src" "name")
+    local _skill_desc; _skill_desc=$(extract_frontmatter_value "$_skill_src" "description")
+
+    # Utiliser le nom du frontmatter si présent, sinon le basename
+    local _final_name="${_skill_name_fm:-$_skill_name}"
+
+    # Créer le dossier et générer SKILL.md
+    local _skill_out_dir="${skills_out_dir}/${_final_name}"
+    mkdir -p "$_skill_out_dir"
+    {
+      echo "---"
+      echo "name: ${_final_name}"
+      echo "description: ${_skill_desc:-${_final_name}}"
+      echo "---"
+      echo ""
+      strip_frontmatter "$_skill_src"
+    } > "${_skill_out_dir}/SKILL.md"
+
+    _deployed=$((_deployed + 1))
+  done
+
+  _DEPLOY_NATIVE_SKILLS_COUNT="$_deployed"
+  _DEPLOY_NATIVE_SKILLS_SKIPPED="$_skipped"
+}
+
 adapter_needs_node() { return 0; }
 
 # ── Phase 1 : copie des fichiers agents ──────────────────────────────────────
@@ -318,6 +435,9 @@ adapter_deploy_files() {
 
   # Finaliser la progression
   _progress_done
+
+  # ── Phase 1b : Déploiement des skills natives ─────────────────────────────
+  deploy_native_skills "$deploy_dir" "$_precomputed_stacks"
 
   # Compter les familles avec sort/uniq (compatible bash 3.2)
   # Format résultat : "11 developer, 8 auditor, 3 planning, ..."

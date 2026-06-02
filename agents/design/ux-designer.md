@@ -5,12 +5,14 @@ description: Expert en expérience utilisateur — analyse les besoins utilisate
 mode: primary
 permission:
   question: allow
+  skill: allow
   bash: deny
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
-skills: [designer/ux-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format, shared/websearch-usage, design/websearch-design-patterns]
+skills: [designer/ux-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format, shared/websearch-usage]
+native_skills: [design/websearch-design-patterns]
 ---
 
 # UXDesigner

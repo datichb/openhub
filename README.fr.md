@@ -3,7 +3,7 @@
 # opencode-hub
 
 Hub central pour piloter des assistants IA sur plusieurs projets,
-avec des agents partagés, des skills injectables et un workflow Beads intégré.
+avec des agents partagés, des skills hybrides et un workflow Beads intégré.
 
 Supporte **OpenCode**.
 
@@ -13,18 +13,20 @@ Supporte **OpenCode**.
 
 opencode-hub repose sur trois concepts : **agents**, **serveurs MCP** et **déploiement**.
 
-- Les **agents** définissent les rôles IA (qui fait quoi, comment, dans quel ordre) avec leurs protocoles intégrés (standards de code, checklists, formats de rapport).
+- Les **agents** définissent les rôles IA (qui fait quoi, comment, dans quel ordre) avec leurs protocoles intégrés. Chaque agent possède des **skills Bucket A** (protocoles obligatoires, toujours inline) et des **skills Bucket B** (contexte de domaine, chargées à la demande).
 - Les **serveurs MCP** fournissent des intégrations outils (Figma, Linear, etc.) disponibles pour tous les agents.
 - Le **déploiement** assemble agents + serveurs MCP et les copie dans vos projets cibles.
 
 ```
 opencode-hub/          ← source de vérité (éditer ici, jamais dans les projets)
 ├── agents/            ← identité des rôles IA avec protocoles intégrés
+├── skills/            ← protocoles : Bucket A (inline) + Bucket B (natif, à la demande)
 ├── servers/           ← serveurs MCP (intégration Figma, etc.)
 └── scripts/           ← assemblage et déploiement
 
          oc deploy opencode MON-APP
-opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md
+opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md        (Bucket A inline)
+                                   ├►  mon-app/.opencode/skills/*/SKILL.md   (Bucket B natif)
                                    ├►  mon-app/.opencode/servers/
                                    └►  mon-app/opencode.json
 

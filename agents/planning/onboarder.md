@@ -5,11 +5,13 @@ description: Agent de découverte d'un projet existant — explore la codebase, 
 mode: primary
 permission:
   question: allow
+  skill: allow
   bash: deny
   write: allow
   websearch: allow
   webfetch: allow
-skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, planning/websearch-stack-research]
+skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage]
+native_skills: [planning/websearch-stack-research]
 mcpServers: [figma]
 ---
 

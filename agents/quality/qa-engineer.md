@@ -5,6 +5,7 @@ description: Ingénieur QA — reçoit une implémentation (diff, branche ou tic
 mode: primary
 permission:
   question: allow
+  skill: allow
   bash:
     "*": deny
     "npm test": allow
@@ -23,7 +24,8 @@ permission:
   grep: allow
   write: allow
   edit: deny  # QA ne modifie jamais le code existant
-skills: [developer/dev-standards-universal, developer/dev-standards-testing, developer/dev-standards-git, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
+skills: [developer/dev-standards-universal, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
+native_skills: [developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
 # QAEngineer

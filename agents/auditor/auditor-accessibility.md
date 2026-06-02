@@ -4,12 +4,14 @@ label: AuditeurAccessibilité
 description: Sous-agent d'audit accessibilité numérique en lecture seule — analyse WCAG 2.1 AA et RGAA 4.1 sur le code HTML, CSS, JavaScript et les composants d'interface. Invoquer pour tout audit d'accessibilité.
 mode: subagent
 permission:
+  skill: allow
   bash: deny
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
-skills: [auditor/audit-protocol-light, auditor/audit-accessibility, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+skills: [auditor/audit-protocol-light, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+native_skills: [auditor/audit-accessibility]
 ---
 
 # AuditeurAccessibilité

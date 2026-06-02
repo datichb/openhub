@@ -16,7 +16,9 @@ description: <Description courte — visible dans les outils IA>
 mode: primary         # primary (défaut) | subagent
 permission:
   question: allow     # optionnel — autorise l'outil question d'OpenCode (agents primary interactifs uniquement)
-skills: [chemin/vers/skill, ...]
+  skill: allow        # allow | deny — active l'outil skill natif (Bucket B)
+skills: [chemin/vers/skill, ...]          # Bucket A — assemblées inline au déploiement
+native_skills: [chemin/vers/skill, ...]   # Bucket B — déployées vers .opencode/skills/, chargées à la demande
 ---
 
 # <Titre>
@@ -31,7 +33,11 @@ skills: [chemin/vers/skill, ...]
 | `description` | Phrase courte décrivant le rôle — apparaît dans les listes d'agents |
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans OpenCode |
 | `permission.question` | `allow` — active l'outil `question` d'OpenCode pour cet agent. Réservé aux agents `primary` interactifs. Toujours associé à la skill `posture/tool-question`. |
-| `skills` | Chemins relatifs à `skills/` — injectés dans l'ordre de déclaration |
+| `permission.skill` | `allow` — active l'outil `skill` natif pour que l'agent puisse charger les skills Bucket B à la demande. Mettre `deny` pour les coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contextuelles. |
+| `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline au déploiement, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
+| `native_skills` | **Bucket B** — chemins relatifs à `skills/`, déployés vers `.opencode/skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
+
+Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement derrière la séparation Bucket A / Bucket B.
 
 ### Modes primary / subagent
 

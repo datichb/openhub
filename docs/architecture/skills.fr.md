@@ -1,8 +1,21 @@
 # Référence des skills
 
-Les skills sont des blocs Markdown injectés dans les agents au moment du déploiement.
-Ils contiennent les protocoles détaillés, formats de sortie, checklists et règles
-que les agents appliquent.
+Les skills contiennent des protocoles détaillés, des formats de sortie, des checklists et des règles que les agents appliquent.
+Le hub utilise une **architecture hybride** avec deux chemins de déploiement — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
+
+## Chemins de déploiement
+
+| Chemin | Champ frontmatter | Déployé vers | Quand chargé |
+|--------|------------------|--------------|--------------|
+| **Inline (Bucket A)** | `skills: [...]` | Assemblé dans le system prompt de l'agent au déploiement | Toujours — dès le premier token |
+| **Natif (Bucket B)** | `native_skills: [...]` | `.opencode/skills/<name>/SKILL.md` | À la demande — le LLM les charge via l'outil `skill` quand la tâche le requiert |
+
+**Bucket A** — Protocoles de workflow, formats de handoff, principes universels, skills de posture, skills d'exécution de base (`beads-plan`, `beads-dev`, `quick-fix`). Doit être actif dès le premier token.
+
+**Bucket B** — Standards de domaine, skills spécifiques aux stacks, checklists d'audit, skills de type documentaire, skills de recherche contextuelle. Chargées uniquement quand la tâche de l'agent nécessite ce contexte de domaine spécifique.
+
+Les agents qui utilisent des skills natives ont `permission: skill: allow` dans leur frontmatter.
+Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contextuelles ont `permission: skill: deny`.
 
 ---
 
@@ -28,28 +41,30 @@ description: <Description courte — visible dans oc agent edit et oc skills lis
 
 Skills de standards de développement. Partagés entre les agents développeurs et le reviewer.
 
-### Skills génériques (toujours chargés)
+### Skills génériques
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `developer/beads-plan.md` | Tous les developer-*, planner, onboarder, designers, documentarian | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, `bd label list-all`, liens externes |
-| `developer/beads-dev.md` | Tous les developer-*, designers, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
-| `developer/dev-standards-universal.md` | Tous les developer-*, reviewer | Clean Code, SOLID complet, nommage, structure — **agnostique du langage** |
-| `developer/dev-standards-security.md` | Tous les developer-*, reviewer | Secrets/config, validation des inputs, injections (SQL/shell/LDAP), auth/autorisation, logs sans données sensibles, audit des dépendances — **agnostique des outils** |
-| `developer/dev-standards-backend.md` | developer-backend, developer-fullstack, developer-api, reviewer | Architecture en couches, DTOs, services, repositories, sécurité API |
-| `developer/dev-standards-frontend.md` | developer-frontend, developer-fullstack, reviewer | Séparation logique/présentation, performance, bundle, lazy loading |
-| `developer/dev-standards-frontend-a11y.md` | developer-frontend, developer-fullstack, reviewer | WCAG 2.1 A/AA, sémantique HTML, ARIA, contrastes |
-| `developer/dev-standards-testing.md` | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data, qa-engineer | Stratégie de tests, pyramide, coverage, TDD — **agnostique des outils** |
-| `developer/dev-standards-git.md` | Tous les developer-*, reviewer | Conventional Commits, branches, PR, messages de commit |
-| `developer/dev-standards-devops.md` | developer-devops | Scripts shell, gestion des secrets, registries d'images, observabilité, principes IaC — **agnostique des outils** |
-| `developer/dev-standards-api.md` | developer-api | Versioning d'API, pagination, format de réponse uniforme, codes HTTP, idempotence, contrat schema-first, breaking changes, webhooks, rate limiting |
-| `developer/dev-standards-security-hardening.md` | developer-security | CORS, headers HTTP (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, révocation), sessions (httpOnly/secure/sameSite), rate limiting, chiffrement AES-256-GCM |
-| `developer/dev-standards-simplicity.md` | Tous les developer-* | KISS, YAGNI, pas d'abstraction prématurée, pas d'optimisation prématurée, limites de complexité mesurables (longueur de fonction, cyclomatique, paramètres, imbrication, dépendances injectées), signaux d'over-engineering à challenger |
-| `developer/developer-handoff-format.md` | Tous les developer-*, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : fichiers modifiés, tests écrits, statut Beads `review`, critères d'acceptance cochés un par un, points d'attention pour la review, blocages rencontrés, statut (`implémenté` / `partiellement-implémenté` / `bloqué`) |
+Les skills marqués **(A)** sont Bucket A — toujours inline. Les skills marqués **(B)** sont Bucket B — natifs, chargés à la demande.
 
-### Skills spécifiques aux stacks — `developer/stacks/`
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `developer/beads-plan.md` | **A** | Tous les developer-*, planner, onboarder, designers, documentarian | Lecture et création de tickets Beads : `bd list`, `bd show`, `bd create`, `bd label list-all`, liens externes |
+| `developer/beads-dev.md` | **A** | Tous les developer-*, designers, documentarian | Workflow exécuteur Beads : `bd update --claim`, `bd close --suggest-next`, règles `ai-delegated` |
+| `developer/dev-standards-universal.md` | **A** | Tous les developer-*, reviewer | Clean Code, SOLID complet, nommage, structure — **agnostique du langage** |
+| `developer/dev-standards-security.md` | **B** | Tous les developer-*, reviewer | Secrets/config, validation des inputs, injections (SQL/shell/LDAP), auth/autorisation, logs sans données sensibles, audit des dépendances — **agnostique des outils** |
+| `developer/dev-standards-backend.md` | **B** | developer-backend, developer-fullstack, developer-api, reviewer | Architecture en couches, DTOs, services, repositories, sécurité API |
+| `developer/dev-standards-frontend.md` | **B** | developer-frontend, developer-fullstack, reviewer | Séparation logique/présentation, performance, bundle, lazy loading |
+| `developer/dev-standards-frontend-a11y.md` | **B** | developer-frontend, developer-fullstack, reviewer | WCAG 2.1 A/AA, sémantique HTML, ARIA, contrastes |
+| `developer/dev-standards-testing.md` | **B** | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data, qa-engineer | Stratégie de tests, pyramide, coverage, TDD — **agnostique des outils** |
+| `developer/dev-standards-git.md` | **B** | Tous les developer-*, reviewer | Conventional Commits, branches, PR, messages de commit |
+| `developer/dev-standards-devops.md` | **B** | developer-devops | Scripts shell, gestion des secrets, registries d'images, observabilité, principes IaC — **agnostique des outils** |
+| `developer/dev-standards-api.md` | **B** | developer-api | Versioning d'API, pagination, format de réponse uniforme, codes HTTP, idempotence, contrat schema-first, breaking changes, webhooks, rate limiting |
+| `developer/dev-standards-security-hardening.md` | **B** | developer-security | CORS, headers HTTP (CSP, HSTS, X-Frame-Options), bcrypt/argon2id, JWT (rotation, révocation), sessions (httpOnly/secure/sameSite), rate limiting, chiffrement AES-256-GCM |
+| `developer/dev-standards-simplicity.md` | **A** | Tous les developer-* | KISS, YAGNI, pas d'abstraction prématurée, pas d'optimisation prématurée, limites de complexité mesurables (longueur de fonction, cyclomatique, paramètres, imbrication, dépendances injectées), signaux d'over-engineering à challenger |
+| `developer/developer-handoff-format.md` | **A** | Tous les developer-*, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : fichiers modifiés, tests écrits, statut Beads `review`, critères d'acceptance cochés un par un, points d'attention pour la review, blocages rencontrés, statut (`implémenté` / `partiellement-implémenté` / `bloqué`) |
 
-Ces skills sont injectés **dynamiquement au déploiement** quand la stack correspondante est détectée dans le projet cible (`detect_stack()` dans `prompt-builder.sh`). Ils sont **additifs** — ils complètent les skills génériques ci-dessus.
+### Skills spécifiques aux stacks — `developer/stacks/` (Bucket B — natif)
+
+Ces skills sont **Bucket B — natifs**. Au déploiement, `deploy_native_skills()` les déploie vers `.opencode/skills/` en fonction de la stack détectée dans le projet cible par `detect_stack()`. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
 
 Le mapping entre les stacks détectées et les skills à injecter est déclaré dans `config/stack-skills.json`. Chaque type d'agent (`developer-frontend`, `developer-backend`, etc.) a un scope défini qui limite les catégories de stack skills qu'il reçoit.
 
@@ -145,21 +160,21 @@ Le mapping entre les stacks détectées et les skills à injecter est déclaré 
 
 ## Domaine — `auditor/`
 
-Skills d'audit. Le coordinateur `auditor` injecte `auditor-workflow` (workflow unifié 5 phases). Les 7 sous-agents `auditor-*` injectent `audit-protocol-light` + leur skill de domaine.
+Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `auditor/auditor-workflow.md` | auditor | **Workflow unifié coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires via `question`, retours en arrière possibles ; détection du marqueur d'invocation orchestrateur pour le bloc `## Retour vers orchestrator` |
-| `auditor/audit-protocol-light.md` | tous les auditor-* | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
-| `auditor/audit-security.md` | auditor-security | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
-| `auditor/audit-performance.md` | auditor-performance | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
-| `auditor/audit-accessibility.md` | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, sémantique, ARIA, navigation clavier, contrastes |
-| `auditor/audit-ecodesign.md` | auditor-ecodesign | RGESN, GreenIT, Écoindex, transfert de données, ressources, obsolescence |
-| `auditor/audit-architecture.md` | auditor-architecture | SOLID, Clean Architecture, dette technique, couplage, cohésion |
-| `auditor/audit-privacy.md` | auditor-privacy | RGPD articles 5/6/17/25/32, EDPB, CNIL, minimisation, consentement |
-| `auditor/audit-observability.md` | auditor-observability | Méthode RED (Rate/Errors/Duration), logs structurés, OpenTelemetry, SLOs/error budget, alerting (actionnable, runbooks), dashboards, grille des 5 questions |
-| `auditor/audit-handoff-format.md` | tous les auditor-*, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : périmètre audité, tableau des vulnérabilités par sévérité, recommandations priorisées avec estimation d'effort, risque résiduel, statut (`corrections-requises` / `acceptable` / `bloquant`) |
-| `auditor/living-docs-enrichment.md` | auditor, planner, debugger | **Enrichissement des documents vivants** — protocole de capitalisation incrémentale dans `ONBOARDING.md` et `CONVENTIONS.md` : identification des découvertes (auditor : sections `### Découvertes à documenter` des rapports sous-agents ; planner : patterns détectés en Phase 1 ; debugger : zones d'ombre levées en Phase 3) → résumé des enrichissements proposés → confirmation via `question` → délégation au `documentarian` via `task` → affichage confirmation. Aucune écriture directe — le `documentarian` est le seul agent autorisé à écrire. Tableau de correspondance origine → sections prioritaires ONBOARDING.md / CONVENTIONS.md |
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `auditor/auditor-workflow.md` | **A** | auditor | **Workflow unifié coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires via `question`, retours en arrière possibles ; détection du marqueur d'invocation orchestrateur pour le bloc `## Retour vers orchestrator` |
+| `auditor/audit-protocol-light.md` | **A** | tous les auditor-* | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
+| `auditor/audit-security.md` | **B** | auditor-security | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
+| `auditor/audit-performance.md` | **B** | auditor-performance | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
+| `auditor/audit-accessibility.md` | **B** | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, sémantique, ARIA, navigation clavier, contrastes |
+| `auditor/audit-ecodesign.md` | **B** | auditor-ecodesign | RGESN, GreenIT, Écoindex, transfert de données, ressources, obsolescence |
+| `auditor/audit-architecture.md` | **B** | auditor-architecture | SOLID, Clean Architecture, dette technique, couplage, cohésion |
+| `auditor/audit-privacy.md` | **B** | auditor-privacy | RGPD articles 5/6/17/25/32, EDPB, CNIL, minimisation, consentement |
+| `auditor/audit-observability.md` | **B** | auditor-observability | Méthode RED (Rate/Errors/Duration), logs structurés, OpenTelemetry, SLOs/error budget, alerting (actionnable, runbooks), dashboards, grille des 5 questions |
+| `auditor/audit-handoff-format.md` | **A** | tous les auditor-*, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : périmètre audité, tableau des vulnérabilités par sévérité, recommandations priorisées avec estimation d'effort, risque résiduel, statut (`corrections-requises` / `acceptable` / `bloquant`) |
+| `auditor/living-docs-enrichment.md` | **A** | auditor, planner, debugger | **Enrichissement des documents vivants** — protocole de capitalisation incrémentale dans `ONBOARDING.md` et `CONVENTIONS.md` : identification des découvertes (auditor : sections `### Découvertes à documenter` des rapports sous-agents ; planner : patterns détectés en Phase 1 ; debugger : zones d'ombre levées en Phase 3) → résumé des enrichissements proposés → confirmation via `question` → délégation au `documentarian` via `task` → affichage confirmation. Aucune écriture directe — le `documentarian` est le seul agent autorisé à écrire. Tableau de correspondance origine → sections prioritaires ONBOARDING.md / CONVENTIONS.md |
 
 ---
 
@@ -205,28 +220,30 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 
 ## Domaine — `documentarian/`
 
-Skills de documentation. Utilisés par l'agent `documentarian`.
+Skills de documentation. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `documentarian/doc-protocol.md` | documentarian | Exploration obligatoire avant rédaction, tableau d'adaptation en 4 situations (format conforme / améliorable / absent / partiel), routing par type de doc, checklist de lacunes, workflow Beads et direct |
-| `documentarian/doc-standards.md` | documentarian | Framework Diataxis (4 quadrants), principes de lisibilité, structures type par document (README, how-to, référence), anti-patterns courants, critères de qualité, documentation fonctionnelle |
-| `documentarian/doc-adr.md` | documentarian | Détection du format existant (Nygard / MADR / Y-Statements / maison), format MADR de référence, règles de nommage, statuts (proposed/accepted/deprecated/superseded), critères de création |
-| `documentarian/doc-api.md` | documentarian | OpenAPI 3.x (squelette, endpoint, schemas réutilisables), codes HTTP, documentation narrative (guide d'utilisation, pagination, gestion des erreurs), identification et documentation des breaking changes |
-| `documentarian/doc-changelog.md` | documentarian | Keep a Changelog (6 sections), SemVer (MAJOR/MINOR/PATCH), Conventional Commits → sections changelog, génération depuis git log, workflow de release, release notes format étendu |
-| `documentarian/doc-slides.md` | documentarian | Génération de présentations Marp (Markdown → HTML/PDF) — 4 templates (tech-demo, product-pitch, retrospective, onboarding), directives Marp (frontmatter, `---`, `_class`, `backgroundColor`), bonnes pratiques (1 idée/slide, max 5 bullets, titres actionnables), détection automatique de Marp CLI post-génération et proposition de compilation, fallback avec options d'installation si absent |
-| `documentarian/documentarian-handoff-format.md` | documentarian, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : type de documentation produite, fichiers modifiés, résumé de l'entrée, statut (`documenté` / `partiellement-documenté` / `bloqué`) |
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `documentarian/doc-protocol.md` | **A** | documentarian | Exploration obligatoire avant rédaction, tableau d'adaptation en 4 situations (format conforme / améliorable / absent / partiel), routing par type de doc, checklist de lacunes, workflow Beads et direct |
+| `documentarian/doc-standards.md` | **B** | documentarian | Framework Diataxis (4 quadrants), principes de lisibilité, structures type par document (README, how-to, référence), anti-patterns courants, critères de qualité, documentation fonctionnelle |
+| `documentarian/doc-adr.md` | **B** | documentarian | Détection du format existant (Nygard / MADR / Y-Statements / maison), format MADR de référence, règles de nommage, statuts (proposed/accepted/deprecated/superseded), critères de création |
+| `documentarian/doc-api.md` | **B** | documentarian | OpenAPI 3.x (squelette, endpoint, schemas réutilisables), codes HTTP, documentation narrative (guide d'utilisation, pagination, gestion des erreurs), identification et documentation des breaking changes |
+| `documentarian/doc-changelog.md` | **B** | documentarian | Keep a Changelog (6 sections), SemVer (MAJOR/MINOR/PATCH), Conventional Commits → sections changelog, génération depuis git log, workflow de release, release notes format étendu |
+| `documentarian/doc-slides.md` | **B** | documentarian | Génération de présentations Marp (Markdown → HTML/PDF) — 4 templates (tech-demo, product-pitch, retrospective, onboarding), directives Marp (frontmatter, `---`, `_class`, `backgroundColor`), bonnes pratiques (1 idée/slide, max 5 bullets, titres actionnables), détection automatique de Marp CLI post-génération et proposition de compilation, fallback avec options d'installation si absent |
+| `documentarian/documentarian-handoff-format.md` | **A** | documentarian, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : type de documentation produite, fichiers modifiés, résumé de l'entrée, statut (`documenté` / `partiellement-documenté` / `bloqué`) |
 
 ---
 
 ## Domaine — `planning/`
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `planning/planner-workflow.md` | planner | **Workflow unifié planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design optionnelle → 2 questions complémentaires → 3 plan hiérarchique : epics/tickets/priorités → 4 détection cas particuliers : doublons, tickets trop gros, dépendances circulaires → 5 création Beads avec enrichissement complet → 5.5 délégation ai-delegated optionnelle → 6 vérification + handoff) — récaps systématiques, phases itératives avec retours en arrière (max 3), format `## Retour vers orchestrator` si invoqué |
-| `planning/onboarder-workflow.md` | onboarder | **Workflow unifié onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte : stack/architecture/patterns/points d'attention/carte agents priorisée → 4 cas particuliers : incohérences, CVE, dette masquée, architecture hybride → 5 production ONBOARDING.md + CONVENTIONS.md + projects.md optionnel + handoff) — fusionne les anciens `project-discovery.md` et `project-conventions.md` |
-| `planning/planner-handoff-format.md` | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
-| `planning/onboarder-handoff-format.md` | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
+Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
+
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `planning/planner-workflow.md` | **A** | planner | **Workflow unifié planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design optionnelle → 2 questions complémentaires → 3 plan hiérarchique : epics/tickets/priorités → 4 détection cas particuliers : doublons, tickets trop gros, dépendances circulaires → 5 création Beads avec enrichissement complet → 5.5 délégation ai-delegated optionnelle → 6 vérification + handoff) — récaps systématiques, phases itératives avec retours en arrière (max 3), format `## Retour vers orchestrator` si invoqué |
+| `planning/onboarder-workflow.md` | **A** | onboarder | **Workflow unifié onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte : stack/architecture/patterns/points d'attention/carte agents priorisée → 4 cas particuliers : incohérences, CVE, dette masquée, architecture hybride → 5 production ONBOARDING.md + CONVENTIONS.md + projects.md optionnel + handoff) — fusionne les anciens `project-discovery.md` et `project-conventions.md` |
+| `planning/planner-handoff-format.md` | **A** | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
+| `planning/onboarder-handoff-format.md` | **A** | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
 
 ---
 
@@ -276,153 +293,140 @@ Skills de posture transverse. Injectables dans tout agent nécessitant une postu
 
 ## Matrice de dépendances agents ↔ skills
 
-> **Note :** Les skills spécifiques aux stacks dans `developer/stacks/` sont injectés **dynamiquement** au déploiement selon la stack du projet cible. Seuls les skills déclarés statiquement sont listés ci-dessous. Voir `config/stack-skills.json` pour le mapping complet.
-> **Les skills de handoff** sont marqués avec `†` — injectés à la fois dans l'agent producteur et dans l'agent consommateur pour garantir le contrat partagé.
+> **Note :** Les skills sont répartis en deux buckets (voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md)) :
+> - **(A)** = Bucket A — inline, toujours actif (depuis le champ frontmatter `skills:`)
+> - **(B)** = Bucket B — natif, chargé à la demande (depuis le champ frontmatter `native_skills:`, déployé vers `.opencode/skills/`)
+>
+> Les skills spécifiques aux stacks dans `developer/stacks/` sont toujours Bucket B. L'ensemble déployé dépend de la stack du projet cible. Voir `config/stack-skills.json` pour le mapping complet.
+> **Les skills de handoff** sont marqués avec `†` — injectés à la fois dans l'agent producteur et dans l'agent consommateur pour garantir le contrat partagé. Tous les skills de handoff sont Bucket A.
 
 ```
-orchestrator          → orchestrator/orchestrator-protocol,
-                         orchestrator/orchestrator-workflow-modes,
-                         orchestrator/orchestrator-handoff-format,
-                         developer/beads-plan, posture/tool-question,
-                         design/design-handoff-format †,
-                         auditor/audit-handoff-format †,
-                         planning/planner-handoff-format †,
-                         planning/onboarder-handoff-format †,
-                         quality/debugger-handoff-format †
-orchestrator-dev      → orchestrator/orchestrator-dev-protocol,
-                         orchestrator/orchestrator-handoff-format,
-                         orchestrator/orchestrator-workflow-modes,
-                         posture/tool-question,
-                         developer/developer-handoff-format †,
-                         reviewer/reviewer-handoff-format †,
-                         qa/qa-handoff-format †,
-                         documentarian/documentarian-handoff-format †
-onboarder             → planning/onboarder-workflow,
-                         posture/expert-posture, posture/tool-question,
-                         developer/beads-plan, developer/dev-standards-git,
-                         planning/onboarder-handoff-format †,
-                         adapters/figma-onboarder-protocol (si mcpServer figma)
-planner               → developer/beads-plan, planning/planner-workflow,
-                         posture/expert-posture, posture/tool-question,
-                         planning/planner-handoff-format †,
-                         auditor/living-docs-enrichment,
-                         adapters/figma-planner-protocol (si mcpServer figma)
-reviewer              → dev-standards-universal, dev-standards-security,
-                         dev-standards-backend,
-                         dev-standards-frontend, dev-standards-frontend-a11y,
-                         dev-standards-testing,
-                         dev-standards-git, reviewer/review-protocol,
-                         posture/tool-question,
-                         reviewer/reviewer-handoff-format †
-qa-engineer           → dev-standards-universal, dev-standards-testing,
-                         dev-standards-git, posture/expert-posture,
-                         posture/tool-question, qa/qa-protocol,
-                         qa/qa-handoff-format †
-debugger              → quality/debugger-workflow, posture/tool-question,
-                         quality/debugger-handoff-format †,
-                         auditor/living-docs-enrichment,
-                         posture/expert-posture
-auditor               → auditor/auditor-workflow, posture/tool-question,
-                         auditor/living-docs-enrichment,
-                         auditor/audit-handoff-format †
-auditor-security      → auditor/audit-protocol-light, auditor/audit-security,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-performance   → auditor/audit-protocol-light, auditor/audit-performance,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-accessibility → auditor/audit-protocol-light, auditor/audit-accessibility,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-ecodesign     → auditor/audit-protocol-light, auditor/audit-ecodesign,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-architecture  → auditor/audit-protocol-light, auditor/audit-architecture,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-privacy       → auditor/audit-protocol-light, auditor/audit-privacy,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-auditor-observability → auditor/audit-protocol-light, auditor/audit-observability,
-                         posture/expert-posture,
-                         auditor/audit-handoff-format †
-ux-designer           → designer/ux-protocol, developer/beads-plan, developer/beads-dev,
-                         posture/expert-posture, posture/tool-question,
-                         design/design-handoff-format †
-ui-designer           → designer/ui-protocol, developer/beads-plan, developer/beads-dev,
-                         posture/expert-posture, posture/tool-question,
-                         design/design-handoff-format †
-documentarian         → dev-standards-git, beads-plan, beads-dev,
-                         documentarian/doc-protocol, documentarian/doc-standards,
-                         documentarian/doc-adr, documentarian/doc-api,
-                         documentarian/doc-changelog, documentarian/doc-slides,
-                         posture/expert-posture, posture/tool-question,
-                         documentarian/documentarian-handoff-format †
-developer-frontend    → dev-standards-universal, dev-standards-security,
-                         dev-standards-frontend,
-                         dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
-                         dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: language, frontend, test, api-spec] (dynamique)
-developer-backend     → dev-standards-universal, dev-standards-security,
-                         dev-standards-backend,
-                         dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: language, backend, orm, test, api-spec] (dynamique)
-developer-fullstack   → dev-standards-universal, dev-standards-security,
-                         dev-standards-frontend,
-                         dev-standards-frontend-a11y, stacks/dev-standards-vuejs,
-                         dev-standards-backend, dev-standards-testing,
-                         dev-standards-git, beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: language, frontend, backend, orm, test, api-spec] (dynamique)
-developer-data        → dev-standards-universal, dev-standards-security,
-                         stacks/dev-standards-python,
-                         stacks/dev-standards-pandas, stacks/dev-standards-dbt,
-                         stacks/dev-standards-airflow, stacks/dev-standards-pyspark,
-                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: language, data, test] (dynamique)
-developer-devops      → dev-standards-universal, dev-standards-security,
-                         dev-standards-devops,
-                         stacks/dev-standards-docker, stacks/dev-standards-github-actions,
-                         stacks/dev-standards-gitlab-ci,
-                         dev-standards-git, beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: infra] (dynamique)
-developer-mobile      → dev-standards-universal, dev-standards-security,
-                         stacks/dev-standards-react-native, stacks/dev-standards-flutter,
-                         stacks/dev-standards-swift, stacks/dev-standards-kotlin,
-                         dev-standards-testing, dev-standards-git, beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: mobile, test] (dynamique)
-developer-api         → dev-standards-universal, dev-standards-security,
-                         dev-standards-backend, dev-standards-api,
-                         dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-developer-platform    → dev-standards-universal, dev-standards-security,
-                         dev-standards-devops,
-                         stacks/dev-standards-terraform, stacks/dev-standards-kubernetes,
-                         stacks/dev-standards-helm, stacks/dev-standards-argocd,
-                         dev-standards-git, beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
-                         + [stacks: infra] (dynamique)
-developer-security    → dev-standards-universal, dev-standards-security,
-                         dev-standards-security-hardening,
-                         dev-standards-backend,
-                         dev-standards-testing, dev-standards-git,
-                         beads-plan, beads-dev,
-                         developer/dev-standards-simplicity,
-                         developer/developer-handoff-format †
+orchestrator          → (A) orchestrator/orchestrator-protocol,
+                             orchestrator/orchestrator-workflow-modes,
+                             orchestrator/orchestrator-handoff-format,
+                             developer/beads-plan, posture/tool-question,
+                             design/design-handoff-format †,
+                             auditor/audit-handoff-format †,
+                             planning/planner-handoff-format †,
+                             planning/onboarder-handoff-format †,
+                             quality/debugger-handoff-format †
+                        skill: deny
+orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
+                             orchestrator/orchestrator-handoff-format,
+                             orchestrator/orchestrator-workflow-modes,
+                             posture/tool-question,
+                             developer/developer-handoff-format †,
+                             reviewer/reviewer-handoff-format †,
+                             qa/qa-handoff-format †,
+                             documentarian/documentarian-handoff-format †
+                        skill: deny
+onboarder             → (A) planning/onboarder-workflow,
+                             posture/expert-posture, posture/tool-question,
+                             developer/beads-plan, developer/dev-standards-git,
+                             planning/onboarder-handoff-format †
+planner               → (A) developer/beads-plan, planning/planner-workflow,
+                             posture/expert-posture, posture/tool-question,
+                             auditor/living-docs-enrichment,
+                             planning/planner-handoff-format †
+reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
+                             posture/tool-question,
+                             reviewer/reviewer-handoff-format †
+                        (B) dev-standards-security, dev-standards-backend,
+                             dev-standards-frontend, dev-standards-frontend-a11y,
+                             dev-standards-testing, dev-standards-git
+qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
+                             posture/tool-question, qa/qa-protocol,
+                             qa/qa-handoff-format †
+                        (B) dev-standards-testing, dev-standards-git
+debugger              → (A) quality/debugger-workflow, posture/tool-question,
+                             posture/expert-posture,
+                             auditor/living-docs-enrichment,
+                             quality/debugger-handoff-format †
+auditor               → (A) auditor/auditor-workflow, posture/tool-question,
+                             auditor/living-docs-enrichment,
+                             auditor/audit-handoff-format †
+                        skill: deny
+auditor-security      → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-security
+auditor-performance   → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-performance
+auditor-accessibility → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-accessibility
+auditor-ecodesign     → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-ecodesign
+auditor-architecture  → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-architecture
+auditor-privacy       → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-privacy
+auditor-observability → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             auditor/audit-handoff-format †
+                        (B) auditor/audit-observability
+ux-designer           → (A) designer/ux-protocol, developer/beads-plan, developer/beads-dev,
+                             posture/expert-posture, posture/tool-question,
+                             design/design-handoff-format †
+ui-designer           → (A) designer/ui-protocol, developer/beads-plan, developer/beads-dev,
+                             posture/expert-posture, posture/tool-question,
+                             design/design-handoff-format †
+documentarian         → (A) dev-standards-git, beads-plan, beads-dev,
+                             documentarian/doc-protocol, posture/expert-posture,
+                             posture/tool-question,
+                             documentarian/documentarian-handoff-format †
+                        (B) documentarian/doc-standards, documentarian/doc-adr,
+                             documentarian/doc-api, documentarian/doc-changelog,
+                             documentarian/doc-slides
+developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-frontend,
+                             dev-standards-frontend-a11y, dev-standards-testing,
+                             dev-standards-git
+                             + [stacks: language, frontend, test, api-spec]
+developer-backend     → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-backend,
+                             dev-standards-testing, dev-standards-git
+                             + [stacks: language, backend, orm, test, api-spec]
+developer-fullstack   → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-frontend,
+                             dev-standards-frontend-a11y, dev-standards-backend,
+                             dev-standards-testing, dev-standards-git
+                             + [stacks: language, frontend, backend, orm, test, api-spec]
+developer-data        → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-testing, dev-standards-git
+                             + [stacks: language, data, test]
+developer-devops      → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-devops, dev-standards-git
+                             + [stacks: infra]
+developer-mobile      → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-testing, dev-standards-git
+                             + [stacks: mobile, test]
+developer-api         → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-backend, dev-standards-api,
+                             dev-standards-testing, dev-standards-git
+developer-platform    → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-devops, dev-standards-git
+                             + [stacks: infra]
+developer-security    → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-security-hardening,
+                             dev-standards-backend, dev-standards-testing, dev-standards-git
+developer-migrator    → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-testing,
+                             dev-standards-git, dev-standards-migration
+developer-refactor    → (A) dev-standards-universal, dev-standards-simplicity,
+                             beads-plan, beads-dev, developer/developer-handoff-format †
+                        (B) dev-standards-security, dev-standards-testing,
+                             dev-standards-git, dev-standards-refactoring
 ```

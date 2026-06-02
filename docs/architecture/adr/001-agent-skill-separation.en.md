@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — **Evolved by [ADR-010](./010-hybrid-skills-architecture.en.md)**
+
+The core separation (agent identity vs. skill protocol) remains valid. ADR-010 extends the deployment model: skills are now split into two buckets — Bucket A (inline, always-on via `skills:`) and Bucket B (native, on-demand via `native_skills:`). The assembly-at-deploy-time principle still applies to Bucket A; Bucket B skills are deployed as separate files and loaded at inference time.
 
 ## Context
 

@@ -5,6 +5,7 @@ description: Diagnostique les bugs signalés — identifie les causes racines à
 mode: subagent
 permission:
   bash: allow
+  skill: allow
   edit: deny
   write: deny
   question: allow

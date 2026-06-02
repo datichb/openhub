@@ -24,7 +24,10 @@ Respecter la convention de nommage :
 id: <identifiant-unique>
 label: <NomAffiché>
 description: <Description courte en une phrase — visible dans les listes d'agents>
-skills: [chemin/vers/skill, ...]
+permission:
+  skill: allow        # allow pour les agents utilisant des skills natives ; deny pour les coordinateurs
+skills: [chemin/vers/skill, ...]          # Bucket A — skills inline toujours actives
+native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la demande (optionnel)
 ---
 ```
 
@@ -32,7 +35,11 @@ skills: [chemin/vers/skill, ...]
 - `id` : slug unique, minuscules, tirets autorisés, pas d'espaces
 - `label` : PascalCase, affiché dans l'outil IA
 - `description` : une phrase, commence par un verbe ou un nom de rôle
-- `skills` : chemins relatifs à `skills/`, dans l'ordre d'injection souhaité
+- `skills` : chemins Bucket A relatifs à `skills/` — protocoles de workflow, formats de handoff, principes universels (toujours actifs)
+- `native_skills` : chemins Bucket B relatifs à `skills/` — standards de domaine, checklists, skills contextuelles (chargées à la demande via l'outil `skill`)
+- `permission.skill` : `allow` si l'agent utilise des skills natives ; `deny` pour les coordinateurs/orchestrateurs
+
+Voir [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement Bucket A / B.
 
 ### 3. Corps de l'agent
 
@@ -131,15 +138,26 @@ Voir `skills/reviewer/review-protocol.md` ou `skills/qa/qa-protocol.md` comme ex
 
 ### 4. Référencer le skill dans un agent
 
-Ajouter le chemin dans le frontmatter de l'agent (sans l'extension `.md`) :
+Déterminer si le skill est Bucket A ou Bucket B (voir [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md)) :
 
+**Bucket A** — ajouter dans `skills:` du frontmatter de l'agent :
 ```markdown
 ---
 skills: [chemin/vers/mon-skill]
 ---
 ```
 
-**Skills de handoff :** si votre skill définit un format de retour structuré entre deux agents (un bloc `## Retour vers ...`), l'injecter dans **les deux** agents — l'agent producteur (celui qui produit le bloc) et l'agent consommateur (celui qui lit le bloc). Cela garantit que les deux agents partagent le même contrat. Voir `skills/reviewer/reviewer-handoff-format.md` ou `skills/auditor/audit-handoff-format.md` comme exemples.
+**Bucket B** — ajouter dans `native_skills:` du frontmatter de l'agent, et ajouter `permission: skill: allow` :
+```markdown
+---
+permission:
+  skill: allow
+native_skills: [chemin/vers/mon-skill]
+---
+```
+Ajouter également une ligne dans la section guide "## Skills disponibles" du corps de l'agent avec le déclencheur de chargement.
+
+**Skills de handoff :** si votre skill définit un format de retour structuré entre deux agents (un bloc `## Retour vers ...`), il est toujours **Bucket A** — l'injecter dans **les deux** agents — l'agent producteur (celui qui produit le bloc) et l'agent consommateur (celui qui lit le bloc). Cela garantit que les deux agents partagent le même contrat. Voir `skills/reviewer/reviewer-handoff-format.md` ou `skills/auditor/audit-handoff-format.md` comme exemples.
 
 ---
 
@@ -237,9 +255,12 @@ oc agent list
 
 - [ ] Le fichier agent respecte la structure minimale (frontmatter + corps)
 - [ ] Le skill a un frontmatter avec `name` et `description`
+- [ ] Les skills Bucket A sont dans `skills:`, les skills Bucket B sont dans `native_skills:` — raisonnement documenté dans [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md)
+- [ ] Si l'agent utilise `native_skills:`, `permission: skill: allow` est défini ; si c'est un coordinateur, `skill: deny` est défini
+- [ ] Si l'agent a des skills natives, le corps de l'agent a une section guide "## Skills disponibles" les listant avec les déclencheurs de chargement
 - [ ] L'agent est référencé dans `README.md` et `docs/architecture/agents.fr.md`
-- [ ] Le skill est référencé dans `docs/architecture/skills.fr.md`
-- [ ] Si le skill définit un format de retour structuré : injecté dans l'agent producteur ET l'agent consommateur
+- [ ] Le skill est référencé dans `docs/architecture/skills.fr.md` avec son marqueur de bucket (A) ou (B)
+- [ ] Si le skill définit un format de retour structuré : injecté dans l'agent producteur ET l'agent consommateur (toujours Bucket A)
 - [ ] Si décision architecturale : un ADR est créé dans `docs/architecture/adr/`
 - [ ] Le commit respecte les Conventional Commits
 - [ ] `oc deploy opencode` et `oc deploy --check opencode` passent sans erreur

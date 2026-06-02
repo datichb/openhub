@@ -67,22 +67,27 @@ Un agent qui audite (lecture seule) va dans `auditor/`.
 
 ### Skills à injecter selon le type d'agent
 
-| Type d'agent | Skills de base recommandés |
-|-------------|---------------------------|
-| Developer | `dev-standards-universal`, `dev-standards-security`, `beads-plan`, `beads-dev` + skills domaine |
-| Auditeur | `audit-protocol-light` + skill domaine spécifique + `posture/expert-posture` |
-| Coordinateur (lecture seule) | Son protocole propre — pas de `beads-dev` |
-| Agent expert conseiller | `posture/expert-posture` |
-| Agent interactif primary | `posture/tool-question` (+ `permission: question: allow` dans le frontmatter) |
-| Agent qui gère des tickets | `beads-plan` (lecture + création), `beads-dev` (exécution) |
-| Agent qui produit du code à tester | `dev-standards-testing` |
-| Agent qui commit | `dev-standards-git` |
+Le hub utilise une architecture hybride — voir [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md) :
+- **Bucket A** (`skills: [...]`) — toujours actif, inline. Protocoles de workflow, formats de handoff, principes universels.
+- **Bucket B** (`native_skills: [...]`) — à la demande via l'outil `skill`. Standards de domaine, stack skills, checklists.
 
-### Skills spécifiques aux stacks (injection dynamique)
+Les agents utilisant des skills natives doivent avoir `permission: skill: allow`. Les coordinateurs définissent `permission: skill: deny`.
 
-Les agents developer reçoivent automatiquement des skills spécifiques à la stack au déploiement, en fonction de ce qui est détecté dans le projet cible. Cette injection dynamique est gérée par `detect_stack()` et `resolve_stack_skills()` dans `scripts/lib/prompt-builder.sh`, configurée par `config/stack-skills.json`.
+| Type d'agent | Bucket A (toujours inline) | Bucket B (natif, à la demande) |
+|-------------|---------------------------|-------------------------------|
+| Developer | `dev-standards-universal`, `dev-standards-simplicity`, `beads-plan`, `beads-dev` | `dev-standards-security`, skills de domaine, stack skills |
+| Sous-agent auditeur | `audit-protocol-light`, `audit-handoff-format`, `posture/expert-posture` | Checklist d'audit du domaine (`audit-security`, `audit-accessibility`, etc.) |
+| Coordinateur (lecture seule) | Son protocole propre + formats de handoff consommés — pas de `beads-dev` | aucune (`skill: deny`) |
+| Agent expert conseiller | `posture/expert-posture` | — |
+| Agent interactif primary | `posture/tool-question` (+ `permission: question: allow`) | — |
+| Agent qui gère des tickets | `beads-plan` (lecture + création), `beads-dev` (exécution) | — |
+| Agent qui commit | Inline via `beads-dev` | `dev-standards-git` (natif) |
 
-**Il n'est pas nécessaire de déclarer les skills spécifiques aux stacks dans les frontmatters des agents.** Ils sont injectés automatiquement pour les types d'agents concernés.
+### Stack skills (Bucket B — natif)
+
+Les stack skills sont **toujours Bucket B**. Au déploiement, `deploy_native_skills()` les déploie vers `.opencode/skills/` en fonction de la stack détectée dans le projet cible. Le LLM charge ceux qui sont pertinents à la demande lors de l'inférence.
+
+**Il n'est pas nécessaire de déclarer les skills spécifiques aux stacks dans les frontmatters des agents.** Ils sont déployés automatiquement pour les types d'agents concernés (ceux dont le scope `native_skills` couvre cette catégorie de stack, selon `config/stack-skills.json`).
 
 Le périmètre d'injection dynamique par type d'agent :
 
@@ -96,7 +101,7 @@ Le périmètre d'injection dynamique par type d'agent :
 | `developer-devops` | infra |
 | `developer-platform` | infra |
 
-**Ajouter une nouvelle stack :** ajouter la signature de détection dans `detect_stack()` et l'entrée de mapping dans `config/stack-skills.json`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire.
+**Ajouter une nouvelle stack :** ajouter la signature de détection dans `detect_stack()` et l'entrée de mapping dans `config/stack-skills.json`. Créer le fichier skill dans `skills/developer/stacks/`. Aucun changement de frontmatter d'agent nécessaire — le skill sera automatiquement déployé comme skill natif pour les agents concernés.
 
 ---
 
@@ -161,6 +166,19 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 | Protocole de format de sortie spécifique à un agent | Nouveau skill dédié |
 | Règles de domaine technique distinct (ex: API vs backend) | Nouveau skill |
 
+### Bucket A ou Bucket B ?
+
+| Critère | Bucket A (inline) | Bucket B (natif) |
+|---------|------------------|-----------------|
+| Doit être actif dès le premier token | ✅ | ❌ |
+| Définit un contrat de handoff entre deux agents | ✅ | ❌ |
+| Workflow / protocole universel (toujours applicable) | ✅ | ❌ |
+| Spécifique à un domaine — pertinent uniquement pour un sous-ensemble de tâches | ❌ | ✅ |
+| Convention spécifique à une stack | ❌ | ✅ |
+| Checklist d'audit pour un domaine spécifique | ❌ | ✅ |
+| Standard de type de documentation (ADR, API, changelog…) | ❌ | ✅ |
+| Protocole de recherche contextuelle | ❌ | ✅ |
+
 ---
 
 ## Checklist avant de créer
@@ -170,22 +188,25 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] La `description` tient en une phrase sans "et" abusif
 - [ ] La famille est correcte (placement dans le bon sous-dossier)
 - [ ] Le champ `mode:` est défini : `primary` pour un agent invocable directement, `subagent` pour un spécialiste délégué
-- [ ] Les skills injectés sont cohérents avec le type d'agent (voir tableau ci-dessus)
-- [ ] Le corps contient : identité + ce qu'il fait + ce qu'il NE fait PAS + workflow
+- [ ] `permission: skill: allow` est défini si l'agent utilise des skills natives (Bucket B) ; `skill: deny` pour les coordinateurs
+- [ ] Les skills Bucket A (`skills:`) sont cohérents avec le type d'agent : protocoles de workflow, formats de handoff, principes universels
+- [ ] Les skills Bucket B (`native_skills:`) sont cohérents avec le type d'agent : standards de domaine, checklists, skills contextuelles
+- [ ] Le corps contient : identité + ce qu'il fait + ce qu'il NE fait PAS + workflow + section guide des skills natives
 - [ ] Les limites explicites pointent vers le bon agent alternatif si applicable
-- [ ] `posture/expert-posture` est injecté si l'agent a un rôle de conseil ou d'expertise
-- [ ] `posture/tool-question` est injecté **et** `permission: question: allow` est dans le frontmatter si l'agent `primary` a besoin de poser des questions structurées à l'utilisateur
-- [ ] `beads-plan` est injecté si l'agent lit ou crée des tickets Beads
-- [ ] `beads-dev` est injecté en plus si l'agent exécute (clame, implémente, clôt) des tickets
-- [ ] La matrice de dépendances dans `docs/architecture/skills.md` est mise à jour
+- [ ] `posture/expert-posture` est dans `skills:` (Bucket A) si l'agent a un rôle de conseil ou d'expertise
+- [ ] `posture/tool-question` est dans `skills:` (Bucket A) **et** `permission: question: allow` est dans le frontmatter si l'agent `primary` a besoin de poser des questions structurées à l'utilisateur
+- [ ] `beads-plan` est dans `skills:` (Bucket A) si l'agent lit ou crée des tickets Beads
+- [ ] `beads-dev` est en plus dans `skills:` (Bucket A) si l'agent exécute (clame, implémente, clôt) des tickets
+- [ ] La matrice de dépendances dans `docs/architecture/skills.fr.md` est mise à jour
 
 ### Skill
 
 - [ ] La `description` dans le frontmatter est renseignée
 - [ ] Le contenu est opérationnel (règles + exemples) — pas théorique
 - [ ] Pas de duplication avec les skills existants
-- [ ] Le skill est ajouté dans le tableau du bon domaine dans `docs/architecture/skills.md`
-- [ ] **Skills génériques** (`developer/`) : les agents qui en ont besoin l'ont dans leur frontmatter `skills` ; matrice de dépendances mise à jour
+- [ ] Le skill est ajouté dans le tableau du bon domaine dans `docs/architecture/skills.fr.md` avec son marqueur de bucket (A) ou (B)
+- [ ] **Skills Bucket A** : les agents qui en ont besoin l'ont dans leur frontmatter `skills:` ; matrice de dépendances mise à jour
+- [ ] **Skills Bucket B** : les agents qui en ont besoin l'ont dans leur frontmatter `native_skills:` ; la section guide du corps de l'agent liste le skill avec une description du déclencheur de chargement
 - [ ] **Skills spécifiques aux stacks** (`developer/stacks/`) : détection ajoutée dans `detect_stack()`, mapping ajouté dans `config/stack-skills.json` — aucun changement de frontmatter d'agent nécessaire
 
 ---
@@ -199,19 +220,40 @@ label: DeveloperSecurity                  # ← PascalCase, affiché dans l'outi
 description: Assistant de développement   # ← une phrase, orientée usage
   sécurité applicative — [...]
 mode: subagent                            # ← subagent : invocable uniquement via orchestrator-dev
-skills:                                   # ← du plus générique au plus spécifique
-  - developer/dev-standards-universal     #   standards communs à tous les devs
-  - developer/dev-standards-security      #   sécurité préventive
-  - developer/dev-standards-security-hardening  # domaine spécifique de l'agent
+permission:
+  skill: allow                            # ← active l'outil skill natif (Bucket B)
+skills:                                   # ← Bucket A : toujours actif dès le premier token
+  - developer/dev-standards-universal     #   principes communs à tous les devs
+  - developer/dev-standards-simplicity    #   KISS/YAGNI — toujours actif
+  - developer/beads-plan                  #   lit et crée des tickets
+  - developer/beads-dev                   #   exécute des tickets
+  - developer/developer-handoff-format    #   contrat de handoff (Bucket A — obligatoire)
+native_skills:                            # ← Bucket B : chargés à la demande via l'outil skill
+  - developer/dev-standards-security      #   principes de sécurité
+  - developer/dev-standards-security-hardening  # spécificités de hardening
   - developer/dev-standards-backend       #   contexte d'application
   - developer/dev-standards-testing       #   il écrit des tests
   - developer/dev-standards-git           #   il commit
-  - developer/beads-plan                  #   il lit et crée des tickets
-  - developer/beads-dev                   #   il exécute des tickets
 ---
 ```
 
-**Ordre des skills recommandé :** universel → sécurité → domaine spécifique → contexte → tests → git → beads.
+**Ordre recommandé pour les skills Bucket A :** universel → simplicity → beads-plan → beads-dev → format de handoff.
+
+**Section guide des skills natives** (obligatoire dans le corps de l'agent quand `native_skills` est non vide) :
+
+```markdown
+## Skills disponibles
+
+Chargez la ou les skills pertinentes via l'outil `skill` avant de commencer :
+
+| Skill | Charger quand |
+|-------|--------------|
+| `dev-standards-security` | Toute tâche impliquant l'auth, la validation des inputs, les secrets, les injections |
+| `dev-standards-security-hardening` | CORS, headers HTTP, JWT, sessions, rate limiting, chiffrement |
+| `dev-standards-backend` | Architecture en couches, DTOs, services, repositories |
+| `dev-standards-testing` | Écriture ou review de tests |
+| `dev-standards-git` | Commit ou review de l'historique git |
+```
 
 ---
 

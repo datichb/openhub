@@ -4,12 +4,14 @@ label: AuditeurPerformance
 description: Sous-agent d'audit performance web en lecture seule — analyse N+1, bundle size, Web Vitals, cache, requêtes base de données et lazy loading. Invoquer pour tout audit de performance.
 mode: subagent
 permission:
+  skill: allow
   bash: deny
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
-skills: [auditor/audit-protocol-light, auditor/audit-performance, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage, auditor/websearch-performance-research]
+skills: [auditor/audit-protocol-light, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+native_skills: [auditor/audit-performance, auditor/websearch-performance-research]
 ---
 
 # AuditeurPerformance

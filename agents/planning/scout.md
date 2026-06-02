@@ -5,6 +5,7 @@ description: Agent de reconnaissance rapide et flexible — explore le contexte 
 mode: primary
 permission:
   question: allow
+  skill: allow
   bash:
     "*": deny
     # Beads read-only
@@ -35,7 +36,8 @@ permission:
     "*": deny
     "documentarian": allow
 model: anthropic/claude-sonnet-4-6
-skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, adapters/figma-scout-protocol, posture/tool-question, shared/websearch-usage, planning/websearch-stack-research]
+skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, adapters/figma-scout-protocol, posture/tool-question, shared/websearch-usage]
+native_skills: [planning/websearch-stack-research]
 mcpServers: [figma]
 ---
 

@@ -5,13 +5,9 @@ description: Assistant de développement API et intégrations — conçoit et im
 mode: subagent
 permission:
   question: deny
+  skill: allow
   bash: allow
-  read: allow
-  glob: allow
-  grep: allow
-  edit: allow
-  write: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
 # DeveloperAPI

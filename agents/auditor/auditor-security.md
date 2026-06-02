@@ -4,12 +4,14 @@ label: AuditeurSécurité
 description: Sous-agent d'audit sécurité applicative en lecture seule — analyse OWASP Top 10, secrets dans le code, CVE des dépendances, headers HTTP et checklist infra RGS. Invoquer pour tout audit de sécurité.
 mode: subagent
 permission:
+  skill: allow
   bash: deny
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
-skills: [auditor/audit-protocol-light, auditor/audit-security, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage, auditor/websearch-cve-lookup]
+skills: [auditor/audit-protocol-light, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+native_skills: [auditor/audit-security, auditor/websearch-cve-lookup]
 ---
 
 # AuditeurSécurité

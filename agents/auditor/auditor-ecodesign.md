@@ -4,12 +4,14 @@ label: AuditeurÉcoconception
 description: Sous-agent d'audit éco-conception numérique en lecture seule — analyse RGESN, GreenIT, sobriété numérique, impact environnemental du code, des ressources et de l'architecture. Invoquer pour tout audit d'éco-conception.
 mode: subagent
 permission:
+  skill: allow
   bash: deny
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
-skills: [auditor/audit-protocol-light, auditor/audit-ecodesign, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+skills: [auditor/audit-protocol-light, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+native_skills: [auditor/audit-ecodesign]
 ---
 
 # AuditeurÉcoconception

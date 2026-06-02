@@ -609,6 +609,61 @@ HUBEOF
   [ "$output" = "claude-sonnet-4-5" ]
 }
 
+@test "deploy_native_skills : génère SKILL.md pour native_skills d'un agent" {
+  local family_dir="$AGENTS_DIR/developer"
+  mkdir -p "$family_dir"
+
+  # Créer un agent avec native_skills
+  cat > "$family_dir/developer-test.md" <<'AGENTEOF'
+---
+id: developer-test
+label: Developer Test
+description: Test agent
+targets: [opencode]
+skills: [developer/dev-standards-universal]
+native_skills: [developer/dev-standards-testing]
+permission:
+  skill: allow
+---
+
+# Developer Test
+AGENTEOF
+
+  CANONICAL_AGENTS_DIR="$AGENTS_DIR"
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  # La skill native doit être déployée dans .opencode/skills/
+  [ -f "$DEPLOY_DIR/.opencode/skills/dev-standards-testing/SKILL.md" ]
+}
+
+@test "deploy_native_skills : le dossier .opencode/skills/ est vidé puis recréé à chaque déploiement" {
+  local family_dir="$AGENTS_DIR/developer"
+  mkdir -p "$family_dir"
+
+  # Pré-peupler avec une skill obsolète
+  mkdir -p "$DEPLOY_DIR/.opencode/skills/obsolete-skill"
+  echo "old content" > "$DEPLOY_DIR/.opencode/skills/obsolete-skill/SKILL.md"
+
+  # Aucun agent avec native_skills → le dossier doit être nettoyé
+  cat > "$family_dir/developer-noskills.md" <<'AGENTEOF'
+---
+id: developer-noskills
+label: Developer No Skills
+description: Test agent
+targets: [opencode]
+skills: []
+---
+
+# Developer No Skills
+AGENTEOF
+
+  CANONICAL_AGENTS_DIR="$AGENTS_DIR"
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  # La skill obsolète ne doit plus exister
+  [ ! -f "$DEPLOY_DIR/.opencode/skills/obsolete-skill/SKILL.md" ]
+}
+
 @test "_apply_provider_prefix : github-copilot avec alias → 'github-copilot/claude-sonnet-4.5'" {
   command -v jq &>/dev/null || skip "jq non disponible"
   HUB_DIR="$BATS_TEST_DIRNAME/.."

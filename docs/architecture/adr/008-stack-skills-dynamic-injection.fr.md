@@ -4,7 +4,9 @@
 
 ## Statut
 
-Accepté
+Accepté — **Évolué par [ADR-010](./010-hybrid-skills-architecture.fr.md)**
+
+Le mécanisme de détection de stack (`detect_stack()`, `config/stack-skills.json`) reste valide. L'ADR-010 change le chemin de déploiement : les stack skills ne sont plus assemblées inline dans les system prompts des agents. Elles sont désormais déployées vers `.opencode/skills/` par `deploy_native_skills()` et chargées à la demande à l'inférence via l'outil `skill` (Bucket B). Cela complète l'intention de l'ADR-008 — les agents ne reçoivent le contexte de stack que quand la tâche le requiert.
 
 ## Contexte
 

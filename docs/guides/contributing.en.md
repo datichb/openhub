@@ -26,7 +26,10 @@ Follow the naming convention:
 id: <unique-identifier>
 label: <DisplayName>
 description: <Short description in one sentence — visible in agent lists>
-skills: [path/to/skill, ...]
+permission:
+  skill: allow        # allow for agents using native skills; deny for coordinators
+skills: [path/to/skill, ...]          # Bucket A — always-on inline skills
+native_skills: [path/to/skill, ...]   # Bucket B — on-demand native skills (optional)
 ---
 ```
 
@@ -34,7 +37,11 @@ skills: [path/to/skill, ...]
 - `id`: unique slug, lowercase, hyphens allowed, no spaces
 - `label`: PascalCase, displayed in the AI tool
 - `description`: one sentence, starts with a verb or a role name
-- `skills`: paths relative to `skills/`, in the desired injection order
+- `skills`: Bucket A paths relative to `skills/` — workflow protocols, handoff formats, universal principles (always active)
+- `native_skills`: Bucket B paths relative to `skills/` — domain standards, checklists, contextual skills (loaded on-demand via the `skill` tool)
+- `permission.skill`: `allow` if the agent uses native skills; `deny` for coordinators/orchestrators
+
+See [ADR-010](../architecture/adr/010-hybrid-skills-architecture.en.md) for the Bucket A / B rationale.
 
 ### 3. Agent body
 
@@ -133,15 +140,26 @@ See `skills/reviewer/review-protocol.md` or `skills/qa/qa-protocol.md` as exampl
 
 ### 4. Reference the skill in an agent
 
-Add the path in the agent frontmatter (without the `.md` extension):
+Decide whether the skill is Bucket A or Bucket B (see [ADR-010](../architecture/adr/010-hybrid-skills-architecture.en.md)):
 
+**Bucket A** — add to `skills:` in the agent frontmatter:
 ```markdown
 ---
 skills: [path/to/my-skill]
 ---
 ```
 
-**Handoff skills:** if your skill defines a structured return format between two agents (a `## Return to ...` block), inject it in **both** the producing agent (the one that returns the block) and the consuming agent (the one that reads it). This guarantees the two agents share the same contract. See `skills/reviewer/reviewer-handoff-format.md` or `skills/auditor/audit-handoff-format.md` as examples.
+**Bucket B** — add to `native_skills:` in the agent frontmatter, and add `permission: skill: allow`:
+```markdown
+---
+permission:
+  skill: allow
+native_skills: [path/to/my-skill]
+---
+```
+Also add a row to the "## Available skills" guide section in the agent body with the loading trigger.
+
+**Handoff skills:** if your skill defines a structured return format between two agents (a `## Return to ...` block), it is always **Bucket A** — inject it in **both** the producing agent and the consuming agent. This guarantees the two agents share the same contract. See `skills/reviewer/reviewer-handoff-format.md` or `skills/auditor/audit-handoff-format.md` as examples.
 
 ---
 
@@ -239,9 +257,12 @@ oc agent list
 
 - [ ] The agent file follows the minimal structure (frontmatter + body)
 - [ ] The skill has a frontmatter with `name` and `description`
+- [ ] Bucket A skills are in `skills:`, Bucket B skills are in `native_skills:` — rationale documented in [ADR-010](../architecture/adr/010-hybrid-skills-architecture.en.md)
+- [ ] If the agent uses `native_skills:`, `permission: skill: allow` is set; if it's a coordinator, `skill: deny` is set
+- [ ] If the agent has native skills, the agent body has a "## Available skills" guide section listing them with loading triggers
 - [ ] The agent is referenced in `README.md` and `docs/architecture/agents.en.md`
-- [ ] The skill is referenced in `docs/architecture/skills.en.md`
-- [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent
+- [ ] The skill is referenced in `docs/architecture/skills.en.md` with its bucket marker (A) or (B)
+- [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent (always Bucket A)
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
 - [ ] `oc deploy opencode` and `oc deploy --check opencode` pass without errors

@@ -18,15 +18,20 @@ See [agents.en.md](./agents.en.md) for the complete reference.
 
 ### Skill
 
-A **skill** is an injectable protocol block: report format, checklist,
-behavior rules, examples. Skills are declared in the agent's frontmatter
-(`skills: [...]`) and assembled at deployment.
+A **skill** is a protocol block: report format, checklist, behavior rules, examples.
+The hub uses a **hybrid architecture** with two deployment paths:
+
+| Path | Frontmatter field | When loaded |
+|------|------------------|-------------|
+| **Bucket A — Inline** | `skills: [...]` | Always — assembled into the system prompt at deploy time |
+| **Bucket B — Native** | `native_skills: [...]` | On-demand — the LLM loads from `.opencode/skills/` via the `skill` tool |
 
 A skill can be shared across multiple agents (e.g. `dev-standards-universal`
-is injected into all developer agents and the reviewer).
+is Bucket A in all developer agents and the reviewer).
 
 See [skills.en.md](./skills.en.md) for the complete reference.
 See [ADR-001](./adr/001-agent-skill-separation.en.md) for the separation decision.
+See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the inline vs native split.
 
 ### MCP Server
 
@@ -69,7 +74,8 @@ flowchart LR
     end
 
     subgraph PROJECTS["Target Projects"]
-        OC -->|oc deploy opencode| P1[".opencode/agents/*.md"]
+        OC -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
+        OC -->|"Bucket B (native)"| P2[".opencode/skills/**/SKILL.md"]
     end
 ```
 
@@ -158,7 +164,12 @@ The agent defines **who** it is, the skill defines **how** it works.
 This separation enables protocol reuse across agents and keeps
 agent files readable.
 
+Skills are further split into two buckets: Bucket A (always-on, inline)
+for mandatory protocols and workflow contracts, and Bucket B (native, on-demand)
+for domain-specific context loaded only when the task requires it.
+
 → [ADR-001](./adr/001-agent-skill-separation.en.md)
+→ [ADR-010](./adr/010-hybrid-skills-architecture.en.md)
 
 ### 2. Specialization over Generalism
 

@@ -5,6 +5,7 @@ description: Agent coordinateur d'audit multi-domaine — analyse la demande et 
 mode: primary
 permission:
   question: allow
+  skill: deny
   bash: deny
   edit: deny
   write: deny

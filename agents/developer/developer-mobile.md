@@ -5,13 +5,15 @@ description: Assistant de développement mobile — implémente les écrans, la 
 mode: subagent
 permission:
   question: deny
+  skill: allow
   bash: allow
   read: allow
   glob: allow
   grep: allow
   edit: allow
   write: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/dev-standards-security, developer/quick-fix, developer/stacks/dev-standards-react-native, developer/stacks/dev-standards-flutter, developer/stacks/dev-standards-swift, developer/stacks/dev-standards-kotlin, developer/dev-standards-testing, developer/dev-standards-git, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+native_skills: [developer/dev-standards-security, developer/dev-standards-testing, developer/dev-standards-git, developer/stacks/dev-standards-react-native, developer/stacks/dev-standards-flutter, developer/stacks/dev-standards-swift, developer/stacks/dev-standards-kotlin]
 ---
 
 # DeveloperMobile
