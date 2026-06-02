@@ -6,6 +6,10 @@
 setup() {
   TEST_DIR="$(mktemp -d)"
 
+  # Ces tests valident le flux interactif via stdin pipé — désactiver le
+  # court-circuit non-interactif qui ignore stdin (utilisé en CI globalement).
+  export OC_NON_INTERACTIVE=0
+
   export PROJECTS_FILE="$TEST_DIR/projects.md"
   export PATHS_FILE="$TEST_DIR/paths.local.md"
   export API_KEYS_FILE="$TEST_DIR/api-keys.local.md"
