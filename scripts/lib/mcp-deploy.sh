@@ -122,16 +122,16 @@ configure_mcp_in_project() {
     case "$server_name" in
       figma-mcp)
         # Ajouter la config Figma dans opencode.json
-        jq '.mcpServers.figma = {
+        # Utiliser `if jq ...; then` : évite un exit prématuré sous set -e si jq échoue
+        if jq '.mcpServers.figma = {
           "command": "node",
           "args": [".opencode/servers/figma-mcp/dist/index.js"]
-        }' "$opencode_json" > "$opencode_json.tmp"
-        
-        if [ $? -eq 0 ]; then
+        }' "$opencode_json" > "$opencode_json.tmp"; then
           mv "$opencode_json.tmp" "$opencode_json"
           configured_count=$((configured_count + 1))
         else
           log_error "Erreur lors de la configuration de $server_name"
+          rm -f "$opencode_json.tmp"
           mv "$opencode_json.bak" "$opencode_json"
         fi
         ;;

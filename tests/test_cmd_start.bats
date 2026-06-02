@@ -15,6 +15,10 @@ setup() {
   export HUB_CONFIG="$TEST_DIR/hub.json"
   echo '{"cli":{"language":"fr"}}' > "$HUB_CONFIG"
 
+  # OC_NON_INTERACTIVE=0 : les prompts lisent stdin (pipe) au lieu de retourner vide.
+  # Nécessaire pour les tests 7 et 8 qui vérifient la lecture de l'URL upstream.
+  export OC_NON_INTERACTIVE=0
+
   CMD_START="$BATS_TEST_DIRNAME/../scripts/cmd-start.sh"
 
   # ── Données de test ──────────────────────────────────────────────────────────
