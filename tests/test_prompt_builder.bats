@@ -413,7 +413,8 @@ EOF
 
 @test "orchestrator : bash, edit et write sont bien à deny dans le frontmatter" {
   local agent_file="$BATS_TEST_DIRNAME/../agents/planning/orchestrator.md"
-  grep -q 'bash: deny' "$agent_file"
+  # bash est un objet YAML avec deny par défaut + allowlist restreinte (lecture seule)
+  grep -A1 '  bash:' "$agent_file" | grep -q '"*": deny'
   grep -q 'edit: deny' "$agent_file"
   grep -q 'write: deny' "$agent_file"
 }
