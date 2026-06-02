@@ -293,25 +293,19 @@ teardown() {
 
 @test "session_state_end : ajoute ended_at timestamp" {
   session_state_init "ses_test" "semi-auto"
+  [ -f "$SESSION_STATE_FILE" ]
   run session_state_end
   [ "$status" -eq 0 ]
-  
-  if command -v jq &>/dev/null; then
-    result=$(jq -r '.ended_at' "$SESSION_STATE_FILE")
-    [ -n "$result" ]
-    [[ "$result" != "null" ]]
-  fi
+  # session_state_end supprime le fichier d'état
+  [ ! -f "$SESSION_STATE_FILE" ]
 }
 
 @test "session_state_end : marque session terminée" {
   session_state_init "ses_test" "semi-auto"
+  [ -f "$SESSION_STATE_FILE" ]
   session_state_end
-  
-  # Vérifier que ended_at existe
-  if command -v jq &>/dev/null; then
-    result=$(jq -r 'has("ended_at")' "$SESSION_STATE_FILE")
-    [ "$result" = "true" ]
-  fi
+  # Le fichier est supprimé après la fin de session
+  [ ! -f "$SESSION_STATE_FILE" ]
 }
 
 # ── Helpers internes ───────────────────────────────────────────────────────────
@@ -334,7 +328,7 @@ teardown() {
 
 @test "_session_escape : échappe newlines" {
   result=$(_session_escape $'Line 1\nLine 2')
-  [[ "$result" == *'\\n'* ]]
+  [[ "$result" == *'\n'* ]]
 }
 
 @test "_session_write_state : écriture atomique (tmp+rename)" {
@@ -385,11 +379,7 @@ teardown() {
     [ "$current" = "null" ]
   fi
   
-  # Terminer session
+  # Terminer session — supprime le fichier d'état
   session_state_end
-  
-  if command -v jq &>/dev/null; then
-    has_ended=$(jq -r 'has("ended_at")' "$SESSION_STATE_FILE")
-    [ "$has_ended" = "true" ]
-  fi
+  [ ! -f "$SESSION_STATE_FILE" ]
 }

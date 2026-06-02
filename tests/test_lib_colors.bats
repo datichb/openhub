@@ -92,15 +92,12 @@ teardown() {
 }
 
 @test "_prompt : affiche gouttière et prompt" {
-  # Mock read qui écrit dans la variable
-  read() {
-    eval "$5='test_value'"
-    return 0
-  }
-  export -f read
-  
-  _prompt my_var "Enter value: "
-  
+  # Désactiver le mode non-interactif pour tester la lecture réelle.
+  # Stdin redirigé depuis un fichier (non-TTY) → branche read -t 1 -r.
+  # On N'utilise PAS un pipe (créerait un sous-shell, my_var ne remonterait pas).
+  export OC_NON_INTERACTIVE=0
+  echo "test_value" > "$TEST_DIR/prompt_input.txt"
+  _prompt my_var "Enter value: " < "$TEST_DIR/prompt_input.txt"
   [ "$my_var" = "test_value" ]
 }
 

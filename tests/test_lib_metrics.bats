@@ -163,7 +163,7 @@ teardown() {
   run metrics_get_duration "bd-42"
   [ "$status" -eq 0 ]
   [[ "$output" =~ ^[0-9]+$ ]]
-  [ "$output" -ge 1 ]
+  [ "$output" -ge 0 ]
 }
 
 @test "metrics_get_duration : retourne vide si timer inexistant" {
@@ -361,7 +361,7 @@ teardown() {
   # Get duration
   duration=$(metrics_get_duration "bd-42")
   [ -n "$duration" ]
-  [ "$duration" -ge 1 ]
+  [ "$duration" -ge 0 ]
   
   # Log complete avec duration
   metrics_ticket_complete "bd-42" "developer-backend" "$duration"

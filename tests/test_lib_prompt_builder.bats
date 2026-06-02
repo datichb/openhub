@@ -514,7 +514,7 @@ AGENT
 
 @test "build_agent_content : injecte langue de travail" {
   local agent_file="$BATS_TEST_DIRNAME/fixtures/prompts/agent-simple.md"
-  result=$(build_agent_content "$agent_file" "" "français")
+  result=$(build_agent_content "$agent_file" "français")
   [[ "$result" == *"Langue de travail : français"* ]]
 }
 
