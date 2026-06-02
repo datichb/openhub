@@ -36,7 +36,29 @@
 
 ### 1. Configuration des tokens Figma
 
-Créer le fichier `~/.config/opencode/config.json` avec vos tokens :
+La méthode recommandée est d'utiliser la commande `oc service setup` :
+
+```bash
+oc service setup figma
+# or via alias:
+oc figma setup
+```
+
+This command will:
+1. Prompt for your **Personal Access Token**
+2. Prompt for your **Team ID**
+3. Validate the Figma API connection
+4. Save config to `~/.config/opencode/config.json`
+5. Auto-build the MCP server if needed
+
+Check status at any time:
+```bash
+oc service status figma
+```
+
+### Alternative: manual configuration
+
+Create `~/.config/opencode/config.json` manually:
 
 ```bash
 mkdir -p ~/.config/opencode
@@ -51,7 +73,7 @@ cat > ~/.config/opencode/config.json << 'EOF'
 EOF
 ```
 
-#### Comment obtenir ces valeurs :
+#### How to get these values:
 
 **FIGMA_PERSONAL_ACCESS_TOKEN :**
 1. Aller sur https://www.figma.com/developers/api#authentication

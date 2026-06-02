@@ -94,6 +94,12 @@ _cmd help.config_unset
 _cmd help.config_language
 _cmd help.config_init_providers
 
+_section help.section.services
+_cmd help.service_setup
+_cmd help.service_status
+_cmd help.service_list
+_cmd help.service_remove
+
 _section help.section.beads
 _cmd help.beads_status
 _cmd help.beads_init

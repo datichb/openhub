@@ -33,6 +33,9 @@ case "$COMMAND" in
   plugin)          bash "$SCRIPTS_DIR/cmd-plugin.sh" "${@:2}" ;;
   update)          bash "$SCRIPTS_DIR/cmd-update.sh" ;;
   upgrade)         bash "$SCRIPTS_DIR/cmd-upgrade.sh" "${@:2}" ;;
+  service)         bash "$SCRIPTS_DIR/cmd-service.sh" "${@:2}" ;;
+  figma)           bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" figma ;;
+  gitlab)          bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" gitlab ;;
   conventions)     bash "$SCRIPTS_DIR/cmd-conventions.sh" "${@:2}" ;;
   beads)           bash "$SCRIPTS_DIR/cmd-beads.sh" "${@:2}" ;;
   quick)           bash "$SCRIPTS_DIR/cmd-quick.sh" "${@:2}" ;;

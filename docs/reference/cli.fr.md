@@ -872,4 +872,27 @@ oc beads board MON-APP --watch --interval 10   # rafraîchissement toutes les 10
 
 > Le board s'adapte à la largeur du terminal. Les titres de tickets sont tronqués si nécessaire.
 > Badges de priorité : **P0** en rouge, P1 en jaune, P2/P3 en grisé.
+
+---
+
+## `oc service`
+
+Gestion des services et intégrations externes via MCP. Voir la [référence complète](services.fr.md).
+
+```bash
+oc service [setup|status|list|remove] [nom-du-service]
+```
+
+**Exemples :**
+
+```bash
+oc service list                     # liste les services disponibles
+oc service setup figma              # configure Figma (wizard interactif)
+oc service status                   # état de tous les services
+oc service remove gitlab            # supprime la config GitLab
+
+# Aliases raccourcis
+oc figma setup                      # = oc service setup figma
+oc gitlab status                    # = oc service status gitlab
+```
 > Couleurs des bordures de colonnes : grisé (open), bleu (in progress), jaune (review), rouge (blocked).

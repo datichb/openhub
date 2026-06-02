@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Catalogue des services/intégrations MCP — définit les credentials requis, endpoints de validation et paramètres par défaut",
+  "services": {
+    "figma": {
+      "label": "Figma",
+      "description_en": "Design files, tokens & UI signals via MCP",
+      "description_fr": "Fichiers design, tokens & signaux UI via MCP",
+      "mcp_server": "figma-mcp",
+      "docs_url": "https://www.figma.com/developers/api#authentication",
+      "validation": {
+        "endpoint": "https://api.figma.com/v1/me",
+        "header": "X-Figma-Token",
+        "token_field": "FIGMA_PERSONAL_ACCESS_TOKEN",
+        "success_field": ".handle"
+      },
+      "credentials": [
+        {
+          "key": "FIGMA_PERSONAL_ACCESS_TOKEN",
+          "label_en": "Personal Access Token",
+          "label_fr": "Token d'accès personnel",
+          "secret": true,
+          "required": true,
+          "validation_pattern": "^figd_",
+          "help_en": "Create a token at https://www.figma.com/developers/api#authentication\nRequired scopes: file:read, projects:read",
+          "help_fr": "Créez un token sur https://www.figma.com/developers/api#authentication\nScopes requis : file:read, projects:read"
+        },
+        {
+          "key": "FIGMA_TEAM_ID",
+          "label_en": "Team ID",
+          "label_fr": "Team ID",
+          "secret": false,
+          "required": true,
+          "help_en": "Found in the Figma URL: https://www.figma.com/files/team/<TEAM_ID>/...",
+          "help_fr": "Visible dans l'URL Figma : https://www.figma.com/files/team/<TEAM_ID>/..."
+        }
+      ]
+    },
+    "gitlab": {
+      "label": "GitLab",
+      "description_en": "Repos, issues, merge requests & CI/CD via MCP",
+      "description_fr": "Repos, issues, merge requests & CI/CD via MCP",
+      "mcp_server": "gitlab-mcp",
+      "docs_url": "https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html",
+      "validation": {
+        "endpoint": "https://gitlab.com/api/v4/user",
+        "header": "PRIVATE-TOKEN",
+        "token_field": "GITLAB_PERSONAL_ACCESS_TOKEN",
+        "success_field": ".username",
+        "base_url_field": "GITLAB_BASE_URL"
+      },
+      "credentials": [
+        {
+          "key": "GITLAB_PERSONAL_ACCESS_TOKEN",
+          "label_en": "Personal Access Token",
+          "label_fr": "Token d'accès personnel",
+          "secret": true,
+          "required": true,
+          "validation_pattern": "^glpat-",
+          "help_en": "Create a token at GitLab > Settings > Access Tokens\nRequired scopes: api, read_user",
+          "help_fr": "Créez un token sur GitLab > Paramètres > Access Tokens\nScopes requis : api, read_user"
+        },
+        {
+          "key": "GITLAB_BASE_URL",
+          "label_en": "Instance URL",
+          "label_fr": "URL de l'instance",
+          "secret": false,
+          "required": false,
+          "default": "https://gitlab.com",
+          "help_en": "Your GitLab instance URL (leave empty for gitlab.com)",
+          "help_fr": "URL de votre instance GitLab (laisser vide pour gitlab.com)"
+        }
+      ]
+    }
+  }
+}

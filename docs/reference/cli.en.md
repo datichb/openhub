@@ -874,3 +874,26 @@ oc beads board MY-APP --watch --interval 10   # refresh every 10s
 > The board adapts to your terminal width. Ticket titles are truncated to fit.
 > Priority badges: **P0** in red, P1 in yellow, P2/P3 dimmed.
 > Column borders are colour-coded: dim (open), blue (in progress), yellow (review), red (blocked).
+
+---
+
+## `oc service`
+
+Manage external services and MCP integrations. See the [full reference](services.en.md).
+
+```bash
+oc service [setup|status|list|remove] [service-name]
+```
+
+**Examples:**
+
+```bash
+oc service list                     # list available services
+oc service setup figma              # configure Figma (interactive wizard)
+oc service status                   # status of all services
+oc service remove gitlab            # remove GitLab config
+
+# Short aliases
+oc figma setup                      # = oc service setup figma
+oc gitlab status                    # = oc service status gitlab
+```

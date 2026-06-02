@@ -17,6 +17,34 @@ L'intégration Figma enrichit les workflows de planification (Scout et Planner) 
 
 ## Configuration rapide
 
+### 1. Configurer via `oc service`
+
+La méthode recommandée est d'utiliser la commande `oc service setup` qui vous guide interactivement :
+
+```bash
+oc service setup figma
+# ou via l'alias :
+oc figma setup
+```
+
+Cette commande va :
+1. Vous demander votre **Personal Access Token** Figma
+2. Vous demander votre **Team ID**
+3. Valider la connexion à l'API Figma
+4. Sauvegarder la configuration dans `~/.config/opencode/config.json`
+5. Builder automatiquement le serveur MCP si nécessaire
+
+Vérifier l'état à tout moment :
+```bash
+oc service status figma
+# ou :
+oc figma status
+```
+
+### 2. Configuration manuelle (alternative)
+
+Si vous préférez configurer manuellement, créez `~/.config/opencode/config.json` :
+
 ### 1. Obtenir vos tokens Figma
 
 **Personal Access Token :**
@@ -28,8 +56,6 @@ L'intégration Figma enrichit les workflows de planification (Scout et Planner) 
 1. Ouvrir votre team Figma
 2. L'ID est dans l'URL : `https://www.figma.com/files/team/123456/...`
 3. Copier `123456`
-
-### 2. Configurer OpenCode
 
 Créer `~/.config/opencode/config.json` :
 

@@ -43,6 +43,7 @@ t() {
       help.section.maintenance) printf '%s' "Maintenance" ;;
       help.section.config)    printf '%s' "Configuration" ;;
       help.section.beads)     printf '%s' "Beads (bd)" ;;
+      help.section.services)  printf '%s' "Services & intégrations MCP" ;;
       help.section.examples)  printf '%s' "Exemples" ;;
       # Setup
       help.install.cmd)       printf '%s' "install" ;;
@@ -125,6 +126,15 @@ t() {
       help.project_rename.desc) printf '%s' "Renomme un projet dans tous les registres" ;;
       help.project_move.cmd)    printf '%s' "project move <PROJECT_ID> <path>" ;;
       help.project_move.desc)   printf '%s' "Change le chemin local d'un projet" ;;
+      # Services
+      help.service_setup.cmd)   printf '%s' "service setup [nom]" ;;
+      help.service_setup.desc)  printf '%s' "Configure un service interactivement (Figma, GitLab…)" ;;
+      help.service_status.cmd)  printf '%s' "service status [nom]" ;;
+      help.service_status.desc) printf '%s' "Vérifie l'état d'un service (config, token, MCP)" ;;
+      help.service_list.cmd)    printf '%s' "service list" ;;
+      help.service_list.desc)   printf '%s' "Liste les services disponibles et leur état" ;;
+      help.service_remove.cmd)  printf '%s' "service remove <nom>" ;;
+      help.service_remove.desc) printf '%s' "Supprime la configuration d'un service" ;;
       # Beads
       help.beads_status.cmd)  printf '%s' "beads status [PROJECT_ID]" ;;
       help.beads_status.desc) printf '%s' "Vérifie si Beads est initialisé (tous si sans ID)" ;;
@@ -212,6 +222,66 @@ t() {
       config.language.invalid) printf '%s' "Valeur de langue invalide (accepté : en, fr)" ;;
       config.language.saved)  printf '%s' "Langue CLI définie à" ;;
       config.language.current) printf '%s' "Langue CLI actuelle :" ;;
+
+      # ── cmd-service.sh ─────────────────────────────────────────────────────
+      service.step)                   printf '%s' "Étape" ;;
+      service.list.title)             printf '%s' "Services & intégrations MCP" ;;
+      service.list.hint)              printf '%s' "Utilisez 'oc service setup <nom>' pour configurer un service" ;;
+      service.status.title)           printf '%s' "État des services" ;;
+      service.status.configured)      printf '%s' "Configuré" ;;
+      service.status.not_configured)  printf '%s' "Non configuré" ;;
+      service.status.valid)           printf '%s' "Token valide" ;;
+      service.status.invalid)         printf '%s' "Token invalide" ;;
+      service.status.built)           printf '%s' "buildé" ;;
+      service.status.not_built)       printf '%s' "non buildé" ;;
+      service.col.name)               printf '%s' "Service" ;;
+      service.col.description)        printf '%s' "Description" ;;
+      service.col.status)             printf '%s' "État" ;;
+      service.catalogue.empty)        printf '%s' "Aucun service disponible dans le catalogue" ;;
+      service.unknown)                printf '%s' "Service inconnu" ;;
+      service.id.required)            printf '%s' "Nom du service requis" ;;
+      service.setup.title)            printf '%s' "Configuration du service" ;;
+      service.setup.select)           printf '%s' "Quel service souhaitez-vous configurer ?" ;;
+      service.setup.choose)           printf '%s' "Choix" ;;
+      service.setup.help)             printf '%s' "Comment obtenir cette valeur :" ;;
+      service.setup.existing)         printf '%s' "Valeur existante détectée" ;;
+      service.setup.keep)             printf '%s' "Conserver la valeur existante ?" ;;
+      service.setup.kept)             printf '%s' "Valeur conservée" ;;
+      service.setup.required)         printf '%s' "Cette valeur est obligatoire" ;;
+      service.setup.invalid_format)   printf '%s' "Format invalide" ;;
+      service.setup.expected)         printf '%s' "attendu" ;;
+      service.setup.retry)            printf '%s' "Réessayer ?" ;;
+      service.setup.continue_anyway)  printf '%s' "Continuer malgré l'échec de validation ?" ;;
+      service.setup.done)             printf '%s' "configuré" ;;
+      service.setup.status_hint)      printf '%s' "Vérifier l'état" ;;
+      service.setup.outro)            printf '%s' "Service configuré avec succès !" ;;
+      service.validation.title)       printf '%s' "Validation de la connexion" ;;
+      service.validation.testing)     printf '%s' "Test de la connexion" ;;
+      service.validation.ok)          printf '%s' "Connexion validée" ;;
+      service.validation.ko)          printf '%s' "Échec de la connexion" ;;
+      service.validation.skip)        printf '%s' "Pas d'endpoint de validation défini — étape ignorée" ;;
+      service.save.title)             printf '%s' "Sauvegarde & build MCP" ;;
+      service.saved)                  printf '%s' "enregistré" ;;
+      service.build.start)            printf '%s' "Build du serveur MCP en cours" ;;
+      service.build.done)             printf '%s' "Build terminé avec succès" ;;
+      service.build.failed)           printf '%s' "Échec du build MCP — à relancer manuellement" ;;
+      service.build.manual)           printf '%s' "Build manuel" ;;
+      service.build.hint)             printf '%s' "Pour lancer la configuration" ;;
+      service.remove.title)           printf '%s' "Suppression de la configuration" ;;
+      service.remove.confirm)         printf '%s' "Supprimer la configuration de" ;;
+      service.remove.done)            printf '%s' "Configuration supprimée" ;;
+      service.remove.not_configured)  printf '%s' "Aucune configuration à supprimer pour" ;;
+      service.help.title)             printf '%s' "oc service — gestion des intégrations MCP" ;;
+      service.help.usage)             printf '%s' "Usage : oc service <sous-commande> [service]" ;;
+      service.help.setup_cmd)         printf '%s' "setup [nom]" ;;
+      service.help.setup_desc)        printf '%s' "Configure un service interactivement" ;;
+      service.help.status_cmd)        printf '%s' "status [nom]" ;;
+      service.help.status_desc)       printf '%s' "Vérifie l'état d'un service (config, token, MCP)" ;;
+      service.help.list_cmd)          printf '%s' "list" ;;
+      service.help.list_desc)         printf '%s' "Liste les services disponibles" ;;
+      service.help.remove_cmd)        printf '%s' "remove <nom>" ;;
+      service.help.remove_desc)       printf '%s' "Supprime la configuration d'un service" ;;
+      service.help.aliases)           printf '%s' "Aliases : oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
 
       # ── cmd-beads.sh ───────────────────────────────────────────────────────
       beads.title)            printf '%s' "Gestion Beads :" ;;
@@ -611,6 +681,7 @@ t_en() {
     help.section.maintenance) printf '%s' "Maintenance" ;;
     help.section.config)    printf '%s' "Configuration" ;;
     help.section.beads)     printf '%s' "Beads (bd)" ;;
+    help.section.services)  printf '%s' "Services & MCP integrations" ;;
     help.section.examples)  printf '%s' "Examples" ;;
     # Setup
     help.install.cmd)       printf '%s' "install" ;;
@@ -693,6 +764,15 @@ t_en() {
     help.project_rename.desc) printf '%s' "Rename a project across all registry files" ;;
     help.project_move.cmd)    printf '%s' "project move <PROJECT_ID> <path>" ;;
     help.project_move.desc)   printf '%s' "Change the local path of a project" ;;
+    # Services
+    help.service_setup.cmd)   printf '%s' "service setup [name]" ;;
+    help.service_setup.desc)  printf '%s' "Configure a service interactively (Figma, GitLab…)" ;;
+    help.service_status.cmd)  printf '%s' "service status [name]" ;;
+    help.service_status.desc) printf '%s' "Check a service status (config, token, MCP)" ;;
+    help.service_list.cmd)    printf '%s' "service list" ;;
+    help.service_list.desc)   printf '%s' "List available services and their status" ;;
+    help.service_remove.cmd)  printf '%s' "service remove <name>" ;;
+    help.service_remove.desc) printf '%s' "Remove a service configuration" ;;
     # Beads
     help.beads_status.cmd)  printf '%s' "beads status [PROJECT_ID]" ;;
     help.beads_status.desc) printf '%s' "Check if Beads is initialized (all if no ID)" ;;
@@ -784,6 +864,66 @@ t_en() {
     config.language.invalid) printf '%s' "Invalid language value (accepted: en, fr)" ;;
     config.language.saved)  printf '%s' "CLI language set to" ;;
     config.language.current) printf '%s' "Current CLI language:" ;;
+
+    # ── cmd-service.sh ───────────────────────────────────────────────────────
+    service.step)                   printf '%s' "Step" ;;
+    service.list.title)             printf '%s' "Services & MCP integrations" ;;
+    service.list.hint)              printf '%s' "Use 'oc service setup <name>' to configure a service" ;;
+    service.status.title)           printf '%s' "Services status" ;;
+    service.status.configured)      printf '%s' "Configured" ;;
+    service.status.not_configured)  printf '%s' "Not configured" ;;
+    service.status.valid)           printf '%s' "Valid token" ;;
+    service.status.invalid)         printf '%s' "Invalid token" ;;
+    service.status.built)           printf '%s' "built" ;;
+    service.status.not_built)       printf '%s' "not built" ;;
+    service.col.name)               printf '%s' "Service" ;;
+    service.col.description)        printf '%s' "Description" ;;
+    service.col.status)             printf '%s' "Status" ;;
+    service.catalogue.empty)        printf '%s' "No services available in catalog" ;;
+    service.unknown)                printf '%s' "Unknown service" ;;
+    service.id.required)            printf '%s' "Service name required" ;;
+    service.setup.title)            printf '%s' "Service setup" ;;
+    service.setup.select)           printf '%s' "Which service would you like to configure?" ;;
+    service.setup.choose)           printf '%s' "Choice" ;;
+    service.setup.help)             printf '%s' "How to get this value:" ;;
+    service.setup.existing)         printf '%s' "Existing value detected" ;;
+    service.setup.keep)             printf '%s' "Keep existing value?" ;;
+    service.setup.kept)             printf '%s' "Value kept" ;;
+    service.setup.required)         printf '%s' "This value is required" ;;
+    service.setup.invalid_format)   printf '%s' "Invalid format" ;;
+    service.setup.expected)         printf '%s' "expected" ;;
+    service.setup.retry)            printf '%s' "Retry?" ;;
+    service.setup.continue_anyway)  printf '%s' "Continue despite validation failure?" ;;
+    service.setup.done)             printf '%s' "configured" ;;
+    service.setup.status_hint)      printf '%s' "Check status" ;;
+    service.setup.outro)            printf '%s' "Service configured successfully!" ;;
+    service.validation.title)       printf '%s' "Connection validation" ;;
+    service.validation.testing)     printf '%s' "Testing connection" ;;
+    service.validation.ok)          printf '%s' "Connection validated" ;;
+    service.validation.ko)          printf '%s' "Connection failed" ;;
+    service.validation.skip)        printf '%s' "No validation endpoint defined — step skipped" ;;
+    service.save.title)             printf '%s' "Save & MCP build" ;;
+    service.saved)                  printf '%s' "saved" ;;
+    service.build.start)            printf '%s' "Building MCP server" ;;
+    service.build.done)             printf '%s' "Build completed successfully" ;;
+    service.build.failed)           printf '%s' "MCP build failed — run manually" ;;
+    service.build.manual)           printf '%s' "Manual build" ;;
+    service.build.hint)             printf '%s' "To run setup" ;;
+    service.remove.title)           printf '%s' "Remove configuration" ;;
+    service.remove.confirm)         printf '%s' "Remove configuration for" ;;
+    service.remove.done)            printf '%s' "Configuration removed" ;;
+    service.remove.not_configured)  printf '%s' "No configuration to remove for" ;;
+    service.help.title)             printf '%s' "oc service — MCP integration management" ;;
+    service.help.usage)             printf '%s' "Usage: oc service <subcommand> [service]" ;;
+    service.help.setup_cmd)         printf '%s' "setup [name]" ;;
+    service.help.setup_desc)        printf '%s' "Configure a service interactively" ;;
+    service.help.status_cmd)        printf '%s' "status [name]" ;;
+    service.help.status_desc)       printf '%s' "Check service status (config, token, MCP)" ;;
+    service.help.list_cmd)          printf '%s' "list" ;;
+    service.help.list_desc)         printf '%s' "List available services" ;;
+    service.help.remove_cmd)        printf '%s' "remove <name>" ;;
+    service.help.remove_desc)       printf '%s' "Remove a service configuration" ;;
+    service.help.aliases)           printf '%s' "Aliases: oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
 
     # ── cmd-beads.sh ─────────────────────────────────────────────────────────
     beads.title)            printf '%s' "Beads management:" ;;

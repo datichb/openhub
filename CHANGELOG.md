@@ -20,6 +20,21 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
+- **`oc service` — gestion générique des intégrations MCP** — nouvelle commande unifiée pour configurer, valider et gérer les services externes connectés via MCP :
+  - `oc service list` : catalogue des services disponibles avec leur état (configuré / non configuré)
+  - `oc service setup [nom]` : wizard interactif en N+2 étapes (credentials → validation API → sauvegarde & build MCP)
+  - `oc service status [nom]` : état détaillé (credentials masqués, validité token, build MCP)
+  - `oc service remove <nom>` : suppression de la configuration (avec confirmation)
+  - Aliases raccourcis : `oc figma <cmd>` et `oc gitlab <cmd>` redirigent vers `oc service`
+  - Catalogue extensible via `config/services.json` — ajouter un service = ajouter une entrée JSON, aucune modification de code
+  - Bilingue FR/EN (détection via `OC_LANG`)
+  - Compatible mode non-interactif (`OC_NON_INTERACTIVE=1` + env vars pré-définies pour CI/CD)
+  - Stockage dans `~/.config/opencode/config.json` (section `env`) — compatible avec le mécanisme MCP existant
+  - Services disponibles : **Figma** (`figma-mcp`) et **GitLab** (`gitlab-mcp`, serveur MCP à venir)
+  - Nouvelle bibliothèque partagée `scripts/lib/services.sh` — 37 tests unitaires
+  - 20 tests d'intégration pour `cmd-service.sh`
+  - Documentation : `docs/reference/services.fr.md` + `docs/reference/services.en.md`
+
 - **`oc config set` unifié (hub-level)** — `oc config set` sans PROJECT_ID supporte désormais tous les flags provider :
   - Mode interactif (sans flags) : lance le wizard de sélection provider identique à l'ancien `oc provider set-default`
   - `--provider <nom>` — configure le provider par défaut du hub
