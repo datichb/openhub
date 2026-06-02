@@ -7,7 +7,11 @@ load helpers
 
 setup() {
   common_setup
-  
+
+  # Les tests rename/move pipent des réponses via <<<. Pour que _prompt lise
+  # stdin (au lieu de court-circuiter avec OC_NON_INTERACTIVE=1), on le désactive.
+  export OC_NON_INTERACTIVE=0
+
   # Variables d'environnement pour cmd-project.sh
   export HUB_DIR="$BATS_TEST_DIRNAME/.."
   
