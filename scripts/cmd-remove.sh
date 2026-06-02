@@ -41,11 +41,11 @@ local confirm
 if [ "$CLEAN_MODE" = true ]; then
   local _confirm_msg
   _confirm_msg=$(t remove.confirm_clean | sed "s/PROJECT/$PROJECT_ID/;s|PATH|$PROJECT_PATH|")
-  read -rp "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")" confirm
+  _prompt confirm "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")"
 else
   local _confirm_msg
   _confirm_msg=$(t remove.confirm | sed "s/PROJECT/$PROJECT_ID/")
-  read -rp "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")" confirm
+  _prompt confirm "$(echo -e "  ${YELLOW}⚠${RESET}  ${_confirm_msg}")"
 fi
 [[ "$confirm" =~ ^[Yy]$ ]] || { log_info "$(t cancelled)"; exit 0; }
 
@@ -79,7 +79,7 @@ fi
 # ── Supprimer du projects.md ──────────────
 # Supprime le bloc ## PROJECT_ID jusqu'au prochain ## ou fin de fichier
 command -v perl &>/dev/null || { log_error "perl requis pour cette opération"; exit 1; }
-perl -i.bak -0pe 's/\n## \Q'"${PROJECT_ID}"'\E\n.*?(?=\n## |\z)//s' "$PROJECTS_FILE" \
+perl -i.bak -0pe 's/\n?## \Q'"${PROJECT_ID}"'\E\n.*?(?=\n## |\z)\n?//s' "$PROJECTS_FILE" \
   && rm -f "${PROJECTS_FILE}.bak"
 log_success "$(t remove.projects_removed) : $PROJECT_ID"
 

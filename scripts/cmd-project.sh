@@ -43,7 +43,7 @@ cmd_rename() {
   printf "  %-16s %s\n" "Ancien ID :" "$old_id"
   printf "  %-16s %s\n" "Nouvel ID :" "$new_id"
   echo ""
-  read -rp "  Confirmer le renommage ? [y/N] : " confirm
+  _prompt confirm "  Confirmer le renommage ? [y/N] : "
   [[ "${confirm:-N}" =~ ^[Yy]$ ]] || { log_info "$(t cancelled)"; exit 0; }
 
   local changed=0
@@ -106,7 +106,7 @@ cmd_move() {
   # Vérifier que le nouveau chemin existe
   if [ ! -d "$new_path" ]; then
     log_warn "Le dossier n'existe pas encore : $new_path"
-    read -rp "  Continuer quand même ? [y/N] : " cont
+    _prompt cont "  Continuer quand même ? [y/N] : "
     [[ "${cont:-N}" =~ ^[Yy]$ ]] || { log_info "$(t cancelled)"; exit 0; }
   fi
 
@@ -120,7 +120,7 @@ cmd_move() {
   printf "  %-18s %s\n" "Chemin actuel :"  "$current_path"
   printf "  %-18s %s\n" "Nouveau chemin :" "$new_path"
   echo ""
-  read -rp "  Confirmer ? [y/N] : " confirm
+  _prompt confirm "  Confirmer ? [y/N] : "
   [[ "${confirm:-N}" =~ ^[Yy]$ ]] || { log_info "$(t cancelled)"; exit 0; }
 
   # Mettre à jour paths.local.md

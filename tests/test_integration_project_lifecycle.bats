@@ -42,17 +42,19 @@ teardown() {
   # Sourcer cmd-init
   source "$SCRIPT_DIR/cmd-init.sh"
   
-  # Mock user input
-  read() {
-    case "${!#}" in
-      *"Nom"*) eval "$2='Integration Test Project'" ;;
-      *"Stack"*) eval "$2='TypeScript'" ;;
-      *"Labels"*) eval "$2='test,integration'" ;;
-      *) eval "$2=''" ;;
+  # Mock _prompt instead of read: cmd-init uses _prompt() for all interactive input.
+  # Mocking read globally would break "while IFS= read -r" loops → infinite hang.
+  # Use printf -v to respect bash dynamic scoping (sets the caller's local variable).
+  _prompt() {
+    local _var="$1"
+    case "$_var" in
+      PROJECT_NAME)   printf -v "$_var" '%s' 'Integration Test Project' ;;
+      PROJECT_STACK)  printf -v "$_var" '%s' 'TypeScript' ;;
+      PROJECT_LABELS) printf -v "$_var" '%s' 'test,integration' ;;
+      *)              printf -v "$_var" '%s' '' ;;
     esac
-    return 0
   }
-  export -f read
+  export -f _prompt
   
   mkdir -p "$TEST_PROJECT_PATH"
   cd "$TEST_PROJECT_PATH"
@@ -98,14 +100,14 @@ EOF
 $TEST_PROJECT_ID=$TEST_PROJECT_PATH
 EOF
   
-  # Ajouter clé API dans api-keys.local.md
+  # Ajouter clé API dans api-keys.local.md (format INI : [ID] + key=value sans espaces)
   mkdir -p "$(dirname "$API_KEYS_FILE")"
   cat >> "$API_KEYS_FILE" <<EOF
 
-## $TEST_PROJECT_ID
-provider = anthropic
-model = claude-sonnet-4
-api_key = sk-test-key-123
+[$TEST_PROJECT_ID]
+provider=anthropic
+model=claude-sonnet-4
+api_key=sk-test-key-123
 EOF
   
   # Vérifier lecture
@@ -138,6 +140,9 @@ EOF
   mkdir -p "$TEST_PROJECT_PATH"
   cd "$TEST_PROJECT_PATH"
   
+  # Unset the bd function mock from setup so the PATH binary takes over
+  unset -f bd
+  
   # Mock bd command
   export PATH="$TEST_DIR/bin:$PATH"
   mkdir -p "$TEST_DIR/bin"
@@ -165,6 +170,9 @@ EOF
 @test "Lifecycle : beads sync récupère tickets" {
   mkdir -p "$TEST_PROJECT_PATH/.beads"
   cd "$TEST_PROJECT_PATH"
+  
+  # Unset the bd function mock from setup so the PATH binary takes over
+  unset -f bd
   
   # Mock bd command
   export PATH="$TEST_DIR/bin:$PATH"
@@ -211,10 +219,11 @@ EOF
 
 @test "Lifecycle : deploy copie agents natifs" {
   mkdir -p "$TEST_PROJECT_PATH"
-  mkdir -p "$HUB_DIR/agents/orchestrator"
+  # Use TEST_DIR (temp dir) not HUB_DIR to avoid polluting the real repo
+  mkdir -p "$TEST_DIR/agents/orchestrator"
   
   # Créer agent de test
-  cat > "$HUB_DIR/agents/orchestrator/orchestrator.md" <<'EOF'
+  cat > "$TEST_DIR/agents/orchestrator/orchestrator.md" <<'EOF'
 ---
 id: orchestrator
 ---
@@ -225,7 +234,7 @@ EOF
   _deploy_agents() {
     local target="$1"
     mkdir -p "$target/.opencode/agents"
-    cp -r "$HUB_DIR/agents/orchestrator" "$target/.opencode/agents/" 2>/dev/null || true
+    cp -r "$TEST_DIR/agents/orchestrator" "$target/.opencode/agents/" 2>/dev/null || true
   }
   export -f _deploy_agents
   
@@ -277,12 +286,9 @@ EOF
   # Sourcer cmd-remove
   source "$SCRIPT_DIR/cmd-remove.sh"
   
-  # Mock confirmation
-  read() {
-    eval "$2='Y'"
-    return 0
-  }
-  export -f read
+  # Mock _prompt: use printf -v to respect dynamic scoping (sets caller's local var)
+  _prompt() { local _var="$1"; printf -v "$_var" '%s' 'Y'; }
+  export -f _prompt
   
   run cmd_remove "$TEST_PROJECT_ID"
   [ "$status" -eq 0 ]
@@ -307,18 +313,15 @@ EOF
   
   source "$SCRIPT_DIR/cmd-remove.sh"
   
-  # Mock confirmation
-  read() {
-    eval "$2='Y'"
-    return 0
-  }
-  export -f read
+  # Mock _prompt: use printf -v to respect dynamic scoping (sets caller's local var)
+  _prompt() { local _var="$1"; printf -v "$_var" '%s' 'Y'; }
+  export -f _prompt
   
   run cmd_remove "$TEST_PROJECT_ID" --clean
   [ "$status" -eq 0 ]
   
-  # Vérifier cleanup
-  [ ! -d "$TEST_PROJECT_PATH/.opencode" ]
+  # Vérifier cleanup : cmd_remove --clean supprime .opencode/agents/ et opencode.json
+  [ ! -d "$TEST_PROJECT_PATH/.opencode/agents" ]
 }
 
 # ── Workflow complet ────────────────────────────────────────────────────────
@@ -365,8 +368,8 @@ EOF
   
   # 6. Remove
   source "$SCRIPT_DIR/cmd-remove.sh"
-  read() { eval "$2='Y'"; return 0; }
-  export -f read
+  _prompt() { local _var="$1"; printf -v "$_var" '%s' 'Y'; }
+  export -f _prompt
   
   run cmd_remove "$TEST_PROJECT_ID" --clean
   [ "$status" -eq 0 ]
@@ -445,9 +448,9 @@ EOF
   # Sourcer cmd-project pour rename
   source "$SCRIPT_DIR/cmd-project.sh"
   
-  # Mock confirmation
-  read() { eval "$2='Y'"; return 0; }
-  export -f read
+  # Mock _prompt: use printf -v to respect dynamic scoping (sets caller's local var)
+  _prompt() { local _var="$1"; printf -v "$_var" '%s' 'Y'; }
+  export -f _prompt
   
   run cmd_rename "$old_id" "$new_id"
   [ "$status" -eq 0 ]
