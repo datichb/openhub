@@ -136,7 +136,8 @@ Sinon :
 
 2. **PUIS appeler l'outil `question` pour la validation**
    - Le champ `question` doit commencer par `[Planner — Phase X | Feature : <nom>]` si invoqué depuis orchestrateur
-   - Le champ `question` contient uniquement la question, pas le récap
+   - **Si CONTEXTE = orchestrateur_feature** : le champ `question` doit inclure un **condensé structuré des découvertes clés** de la phase (3-5 points bullets), car le texte de la session enfant n'est pas visible dans la session parent de l'utilisateur
+   - **Si CONTEXTE = standalone** : le champ `question` contient uniquement la question (le récap est déjà visible dans la même session)
 
 **Séquence obligatoire :**
 ```
@@ -210,6 +211,36 @@ Avant d'appeler l'outil `question`, te poser cette question :
 ❌ Ne jamais appeler `question` sans avoir d'abord affiché le contexte en texte.
 
 > ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 doit contenir la **liste narrative détaillée** de tous les tickets (descriptions + acceptance + notes + hypothèses + risques) — pas juste les IDs et titres. Orchestrator retransmettra ce récap intégralement à l'utilisateur pour le CP-0.
+
+---
+
+### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
+
+**STOP — Vérifier MAINTENANT :**
+
+| Vérification | Fait ? |
+|--------------|--------|
+| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
+| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
+| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
+| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
+| ✅ Si CONTEXTE = orchestrateur_feature : le champ `question` inclut un condensé des découvertes clés | ⬜ |
+
+**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le récap MAINTENANT.**
+
+**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
+
+---
+
+### ❌ Erreurs fréquentes à éviter
+
+| Erreur | Impact | Correction |
+|--------|--------|------------|
+| Appeler `question` en premier, récap après | L'utilisateur voit la question sans contexte | **Inverser l'ordre** : récap d'abord, question ensuite |
+| Inclure le récap dans le champ `question` | Le récap n'est visible que dans le popup | **Séparer** : récap en texte, condensé actionnable dans question |
+| Ne pas inclure de condensé quand CONTEXTE = orchestrateur_feature | L'utilisateur dans la session parent n'a aucun contexte | **Toujours inclure** 3-5 points de synthèse dans le champ question |
+| Résumer le récap "pour aller plus vite" | L'utilisateur perd des informations critiques | **Ne jamais résumer** : afficher le récap complet |
+| Oublier de produire le récap en Phase 0 ou Phase 2 | L'utilisateur ne comprend pas pourquoi la question est posée | **Toutes les phases** ont un récap, même les courtes |
 
 ---
 
@@ -294,6 +325,8 @@ question({
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 0 (ci-dessus) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -463,12 +496,14 @@ Ce skill prescrit exactement :
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 1 (ci-dessus — fichiers explorés, observations, signaux design, zones d'ombre) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 ```
 question({
   questions: [{
     header: "Délégation design",
-    question: "[Planner — Phase 1 complétée | Feature : <nom>]\nExploration terminée (codebase<+ Y maquettes Figma analysées si applicable>). Signal <UX/UI> détecté (<raison>). Comment procéder ?",
+    question: "[Planner — Phase 1 complétée | Feature : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Architecture : <pattern détecté — ex : Clean Architecture, composants Vue>\n- Tests existants : <état — ex : couverture partielle sur le périmètre>\n- Signal <UX/UI> détecté : <raison concrète — ex : nouveau composant formulaire multi-étapes>\n- Zones d'ombre : <liste courte — ex : comportement modal non documenté>\n\nComment procéder ?",
     options: [
       { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer <ux-designer/ui-designer> avant de planifier" },
       { label: "Skip design — Phase 2", description: "Passer aux questions complémentaires sans spec design" },
@@ -483,7 +518,7 @@ Si **aucun signal design** :
 question({
   questions: [{
     header: "Questions complémentaires",
-    question: "[Planner — Phase 1 complétée | Feature : <nom>]\nExploration terminée — X fichiers lus, Y observations. Passer aux questions complémentaires (Phase 2) ?",
+    question: "[Planner — Phase 1 complétée | Feature : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Architecture : <pattern détecté>\n- Tests existants : <état>\n- Aucun signal design détecté\n- Zones d'ombre : <liste courte ou 'Aucune'>\n- Tickets existants liés : <IDs ou 'Aucun'>\n\nPasser aux questions complémentaires (Phase 2) ?",
     options: [
       { label: "Passer à Phase 2 (Recommandé)", description: "Poser les questions de clarification identifiées" },
       { label: "Explorer davantage", description: "Lire d'autres fichiers avant de poser des questions" }
@@ -491,6 +526,8 @@ question({
   }]
 })
 ```
+
+> **Note :** Le condensé dans le champ `question` est obligatoire quand CONTEXTE = orchestrateur_feature — c'est le seul contenu visible par l'utilisateur dans la session parent. En standalone, il est facultatif mais recommandé pour la clarté.
 
 **Selon la réponse :**
 - **Phase 1.5** → Phase 1.5 (délégation design)
@@ -679,6 +716,8 @@ Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concern
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 1.5 (ci-dessus — specs UX/UI reçues ou skippées, intégration dans la planification) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -757,13 +796,17 @@ Quelques questions issues de l'exploration pour affiner la planification :
 
 Puis appeler l'outil `question` avec **une question par clarification** :
 
+⚠️ **AUTOCONTRÔLE** : Le contexte Phase 2 en texte (ci-dessus — liste des questions avec leur contexte) **doit être affiché** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → afficher le contexte MAINTENANT.
+
+> **Si CONTEXTE = orchestrateur_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+
 ```
 question({
   questions: [
-    // Question métier — Objectif
+    // Question métier — Objectif (avec condensé Phase 1 si orchestrateur)
     {
       header: "Objectif métier",
-      question: "[Planner — Phase 2 | Feature : <nom>]\nQuelle est la valeur apportée à l'utilisateur final ?",
+      question: "[Planner — Phase 2 | Feature : <nom>]\n\n**Contexte de l'exploration (Phase 1) :**\n- Architecture : <pattern détecté>\n- Zones d'ombre identifiées : <liste courte ou 'Aucune'>\n- Points d'attention : <liste courte ou 'Aucun'>\n\nQuelle est la valeur apportée à l'utilisateur final ?",
       options: [
         { label: "Gain de temps", description: "Automatisation ou simplification d'un processus existant" },
         { label: "Nouvelle capacité", description: "Fonction qui n'existait pas auparavant" },
@@ -901,6 +944,8 @@ Toujours expliquer le raisonnement :
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 2 (ci-dessus — questions posées, réponses reçues, zones d'ombre levées/persistantes, priorités déduites) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -1002,6 +1047,8 @@ Un seul critère ne suffit pas à proposer un découpage. Si un découpage sembl
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le plan hiérarchique Phase 3 (ci-dessus — epics, tickets, ordre d'implémentation, risques) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le plan MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -1068,6 +1115,8 @@ Si un **cas particulier critique** est détecté (ex : doublon avéré, dépenda
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 4 (ci-dessus — cas particuliers vérifiés, détectés, impact sur le plan) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -1470,6 +1519,8 @@ Le label `ai-delegated` indique qu'un ticket peut être délégué à un agent I
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 5.5 (ci-dessus — tickets éligibles à la délégation) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -1676,6 +1727,8 @@ Produire uniquement le récapitulatif de planification complet, **sans** le bloc
 ---
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récapitulatif complet Phase 6 (ci-dessus — liste narrative détaillée de tous les tickets avec descriptions + acceptance + notes + dépendances + risques + hypothèses) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récapitulatif MAINTENANT. Ce récap est ce que l'orchestrateur retransmettra à l'utilisateur au CP-0 — il ne peut pas être résumé.
 
 ```
 question({

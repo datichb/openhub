@@ -77,6 +77,22 @@ Avant d'appeler `question`, vérifier :
 - ✅ Le bloc structuré est affiché en texte avec tous les champs obligatoires
 - ✅ Les sections critiques sont présentes (ex : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Contraintes d'implémentation`, etc. selon l'agent)
 
+### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
+
+**STOP — Vérifier MAINTENANT :**
+
+| Vérification | Fait ? |
+|--------------|--------|
+| ✅ J'ai affiché le récap narratif complet du sous-agent en texte (copier-coller intégral, non résumé) | ⬜ |
+| ✅ J'ai affiché le bloc structuré `## Retour vers orchestrator` en entier | ⬜ |
+| ✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Règles par type de retour") | ⬜ |
+| ✅ Le contenu est affiché AVANT cet appel à `question`, PAS après | ⬜ |
+| ✅ Le récap n'est PAS inclus dans le champ `question` de l'outil | ⬜ |
+
+**Si une seule case est ⬜ (non cochée) → ARRÊTER et afficher le contenu manquant MAINTENANT.**
+
+**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
+
 **Autocontrôle visuel :**
 
 > « Ai-je affiché le récap ET le bloc AVANT d'appeler question ? »

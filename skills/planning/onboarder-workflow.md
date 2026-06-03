@@ -58,7 +58,8 @@ Sinon :
 
 2. **PUIS appeler l'outil `question` pour la validation**
    - Le champ `question` doit commencer par `[Onboarder — Phase X | Projet : <nom>]` si invoqué depuis orchestrateur
-   - Le champ `question` contient uniquement la question, pas le récap
+   - **Si CONTEXTE = orchestrateur_feature** : le champ `question` doit inclure un **condensé structuré des découvertes clés** de la phase (3-5 points bullets), car le texte de la session enfant n'est pas visible dans la session parent de l'utilisateur
+   - **Si CONTEXTE = standalone** : le champ `question` contient uniquement la question (le récap est déjà visible dans la même session)
 
 **Séquence obligatoire :**
 ```
@@ -109,6 +110,35 @@ Avant d'appeler l'outil `question`, te poser cette question :
 > - **Oui** → appeler `question`
 
 ❌ Ne jamais appeler `question` sans avoir d'abord affiché le contexte en texte.
+
+---
+
+### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
+
+**STOP — Vérifier MAINTENANT :**
+
+| Vérification | Fait ? |
+|--------------|--------|
+| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
+| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
+| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
+| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
+| ✅ Si CONTEXTE = orchestrateur_feature : le champ `question` inclut un condensé des découvertes clés | ⬜ |
+
+**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le récap MAINTENANT.**
+
+**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
+
+---
+
+### ❌ Erreurs fréquentes à éviter
+
+| Erreur | Impact | Correction |
+|--------|--------|------------|
+| Appeler `question` en premier, récap après | L'utilisateur voit la question sans contexte | **Inverser l'ordre** : récap d'abord, question ensuite |
+| Ne pas inclure de condensé quand CONTEXTE = orchestrateur_feature | L'utilisateur dans la session parent n'a aucun contexte | **Toujours inclure** 3-5 points de synthèse dans le champ question |
+| Résumer le récap "pour aller plus vite" | L'utilisateur perd des informations critiques | **Ne jamais résumer** : afficher le récap complet |
+| Oublier de produire le récap en Phase 0 | L'utilisateur ne comprend pas pourquoi la question est posée | **Toutes les phases** ont un récap, même les courtes |
 
 ---
 
@@ -185,6 +215,8 @@ question({
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 0 (ci-dessus — projet identifié, fichiers structurants, prérequis manquants) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -720,11 +752,13 @@ Si une **information critique** émerge pendant l'exploration qui nécessite une
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 1 (ci-dessus — stack, profil, architecture, tickets Beads, contexte métier, Figma, stratégie de test, points d'attention, zones d'ombre) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+
 ```
 question({
   questions: [{
     header: "Questions complémentaires",
-    question: "[Onboarder — Phase 1 complétée | Projet : <nom>]\nExploration terminée — X fichiers lus. Passer aux questions complémentaires (Phase 2) ?",
+    question: "[Onboarder — Phase 1 complétée | Projet : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Stack : <langages/frameworks détectés>\n- Architecture : <pattern observé>\n- Contexte métier : <domaine détecté ou 'Non documenté'>\n- Points d'attention : <liste courte ou 'Aucun'>\n- Zones d'ombre : <liste courte ou 'Aucune'>\n\nPasser aux questions complémentaires (Phase 2) ?",
     options: [
       { label: "Passer à Phase 2 (Recommandé)", description: "Poser les questions de clarification identifiées" },
       { label: "Explorer davantage", description: "Lire d'autres fichiers avant de poser des questions" }
@@ -812,11 +846,15 @@ Quelques questions issues de l'exploration pour affiner l'analyse :
 
 Puis appeler l'outil `question` :
 
+⚠️ **AUTOCONTRÔLE** : Le contexte Phase 2 en texte (ci-dessus — liste des questions avec leur contexte issu de Phase 1) **doit être affiché** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → afficher le contexte MAINTENANT.
+
+> **Si CONTEXTE = orchestrateur_feature** : enrichir le champ `question` avec un condensé des observations Phase 1 (stack, zones d'ombre, points d'attention) — c'est la seule information visible dans la session parent.
+
 ```
 question({
   questions: [{
     header: "Clarifications projet",
-    question: "[Onboarder — Phase 2 : Questions | Projet : <nom>]\nQuelques questions de clarification issues de l'exploration. Comment souhaitez-vous procéder ?",
+    question: "[Onboarder — Phase 2 : Questions | Projet : <nom>]\n\n**Contexte de l'exploration (Phase 1) :**\n- Stack détectée : <langages/frameworks>\n- Points d'attention : <liste courte ou 'Aucun'>\n- Zones d'ombre : <liste courte ou 'Aucune'>\n\nQuelques questions de clarification issues de l'exploration. Comment souhaitez-vous procéder ?",
     options: [
       { label: "Répondre aux questions", description: "Fournir les réponses pour affiner l'analyse" },
       { label: "Skip / Passer", description: "Continuer sans répondre — l'analyse restera partielle sur ces points" }
@@ -845,6 +883,8 @@ question({
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 2 (ci-dessus — questions posées, réponses reçues, zones d'ombre levées/persistantes) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({
@@ -1030,6 +1070,8 @@ bd ready                  # Tickets prêts à travailler
 
 ### Question de validation obligatoire
 
+⚠️ **AUTOCONTRÔLE** : Le rapport de contexte Phase 3 (ci-dessus — stack, architecture, patterns, points d'attention, zones d'ombre, agents recommandés) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le rapport MAINTENANT.
+
 ```
 question({
   questions: [{
@@ -1094,6 +1136,8 @@ Si un **cas particulier critique** est détecté (ex : CVE critiques, incohéren
 ```
 
 ### Question de validation obligatoire
+
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 4 (ci-dessus — cas particuliers vérifiés, détectés, écartés, impact sur le rapport) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
 
 ```
 question({

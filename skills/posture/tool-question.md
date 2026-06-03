@@ -222,7 +222,33 @@ session enfant.
 <Question proprement dite>
 ```
 
-### Exemple
+### Format enrichi — obligatoire quand CONTEXTE = orchestrateur_feature
+
+Quand tu es invoqué via l'outil `task` depuis un orchestrateur, le texte affiché dans ta session
+enfant **n'est pas visible** par l'utilisateur dans la session parent. La question est le **seul
+contenu qui remonte** dans la session parent.
+
+Pour cette raison, **si CONTEXTE = orchestrateur_feature**, le champ `question` doit inclure
+un **condensé structuré des découvertes clés** de la phase en cours (3-5 points maximum) :
+
+```
+[<Nom de l'agent> — <Phase> | <Feature>]
+
+**<Titre du condensé — ex : "Résumé de l'exploration" ou "Contexte de la pause"> :**
+- <découverte clé 1>
+- <découverte clé 2>
+- <découverte clé 3>
+
+<Question proprement dite>
+```
+
+**Règles du condensé :**
+- 3 à 5 points maximum — rester actionnable, pas exhaustif
+- Inclure uniquement les informations qui influencent la décision demandée
+- Reprendre les termes exacts (noms de fichiers, patterns, warnings) — ne pas paraphraser
+- Le récap complet reste affiché en texte dans la session enfant pour la traçabilité
+
+### Exemple — standalone
 
 ```
 question({
@@ -237,11 +263,28 @@ question({
 })
 ```
 
+### Exemple — invoqué depuis orchestrateur (CONTEXTE = orchestrateur_feature)
+
+```
+question({
+  questions: [{
+    header: "Phase 1 complétée",
+    question: "[Planner — Phase 1 complétée | Feature : authentification JWT]\n\n**Résumé de l'exploration (8 fichiers lus) :**\n- Architecture : Clean Architecture — use cases + repositories\n- Tests existants : couverture partielle (42%), module auth non couvert\n- Signal UX détecté : formulaire multi-étapes avec validation complexe\n- Zones d'ombre : stratégie refresh tokens non documentée\n\nComment procéder ?",
+    options: [
+      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer ux-designer avant de planifier" },
+      { label: "Skip design — Phase 2", description: "Passer aux questions sans spec design" }
+    ]
+  }]
+})
+```
+
 ### Règles
 
 ✅ Toujours inclure le bloc de contexte quand tu es invoqué en tant que sous-agent
 ✅ Le bloc de contexte doit identifier : qui tu es, quelle phase est en cours, la feature ou le ticket concerné
+✅ **Si CONTEXTE = orchestrateur_feature** : enrichir avec un condensé des découvertes clés (3-5 points)
 ❌ Ne pas omettre le contexte même pour une question courte — l'utilisateur n'a pas accès à ta session enfant sans naviguer manuellement
+❌ Ne pas inclure le récap complet dans le champ `question` — uniquement le condensé actionnable
 
 ---
 
