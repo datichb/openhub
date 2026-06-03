@@ -12,7 +12,7 @@
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/services.sh"
-source "$LIB_DIR/project.sh"
+source "$LIB_DIR/mcp-deploy.sh"
 resolve_oc_lang
 
 # ── Helper wizard ─────────────────────────────────────────────────────────────
@@ -611,6 +611,65 @@ cmd_service_setup() {
   _outro "$(t service.setup.outro)"
 }
 
+# ── Sous-commande : deploy ────────────────────────────────────────────────────
+
+cmd_service_deploy() {
+  # Parse --project
+  _svc_parse_project_flag "$@"
+  set -- "${SVC_REMAINING_ARGS[@]+"${SVC_REMAINING_ARGS[@]}"}"
+
+  local service_id="${1:-}"
+  if [ -z "$service_id" ]; then
+    log_error "$(t service.id.required)"
+    exit 1
+  fi
+
+  if ! svc_exists "$service_id"; then
+    log_error "$(t service.unknown) : $service_id"
+    exit 1
+  fi
+
+  local mcp_server
+  mcp_server=$(svc_get_field "$service_id" "mcp_server" 2>/dev/null || echo "")
+  if [ -z "$mcp_server" ]; then
+    log_error "$(t service.deploy.no_mcp) : $service_id"
+    exit 1
+  fi
+
+  local label
+  label=$(svc_get_field "$service_id" "label")
+
+  _intro "$(t service.deploy.title) — $label"
+
+  if [ -n "$SVC_PROJECT_ID" ]; then
+    # ── Mode projet : déployer dans le projet cible ─────────────────────────
+    local opencode_json="$SVC_PROJECT_PATH/opencode.json"
+
+    if [ ! -f "$opencode_json" ]; then
+      log_error "$(t service.deploy.no_project) $SVC_PROJECT_ID"
+      exit 1
+    fi
+
+    log_info "Projet : $SVC_PROJECT_ID ($SVC_PROJECT_PATH)"
+    echo ""
+
+    check_and_build_mcp || true
+    deploy_mcp_servers "$SVC_PROJECT_PATH"
+    configure_mcp_in_project "$SVC_PROJECT_PATH"
+
+    _svc_ok "$(t service.deploy.done) : $label → $SVC_PROJECT_ID"
+  else
+    # ── Mode global : rebuild uniquement ────────────────────────────────────
+    log_info "$(t service.deploy.build_only)"
+    echo ""
+
+    svc_build_mcp "$service_id"
+    _svc_ok "$(t service.deploy.build_done) : $mcp_server"
+  fi
+
+  _outro ""
+}
+
 # ── Sous-commande : help ──────────────────────────────────────────────────────
 
 cmd_service_help() {
@@ -622,6 +681,7 @@ cmd_service_help() {
   echo -e "  ${CYAN}$(t service.help.status_cmd)${RESET}   $(t service.help.status_desc)"
   echo -e "  ${CYAN}$(t service.help.list_cmd)${RESET}     $(t service.help.list_desc)"
   echo -e "  ${CYAN}$(t service.help.remove_cmd)${RESET}   $(t service.help.remove_desc)"
+  echo -e "  ${CYAN}$(t service.help.deploy_cmd)${RESET}   $(t service.help.deploy_desc)"
   echo ""
   echo -e "  ${DIM}Flags :${RESET}"
   echo -e "    ${CYAN}--project <PROJECT_ID>${RESET}  $(t service.project.flag_desc)"
@@ -644,6 +704,7 @@ case "$SUBCOMMAND" in
   status)   cmd_service_status "$@" ;;
   list)     cmd_service_list ;;
   remove)   cmd_service_remove "$@" ;;
+  deploy)   cmd_service_deploy "$@" ;;
   help|--help|-h) cmd_service_help ;;
   "")       cmd_service_list ;;
   *)

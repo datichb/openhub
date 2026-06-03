@@ -518,3 +518,72 @@ PROJEOF
   # Le global doit être intact
   assert_json_field "$OPENCODE_GLOBAL_CONFIG" '.env.FIGMA_PERSONAL_ACCESS_TOKEN' "figd_global"
 }
+
+# ── cmd_service_deploy ─────────────────────────────────────────────────────────
+
+@test "cmd_service_deploy : sans argument -- retourne 1" {
+  run cmd_service_deploy
+  [ "$status" -ne 0 ]
+}
+
+@test "cmd_service_deploy : service inexistant -- retourne 1" {
+  run cmd_service_deploy "unknown_service"
+  [ "$status" -ne 0 ]
+}
+
+@test "cmd_service_deploy : figma sans --project -- rebuild uniquement (svc_build_mcp appelé)" {
+  # Mocker svc_build_mcp pour capturer l'appel sans build réel
+  svc_build_mcp() { echo "BUILD_CALLED:$1"; return 0; }
+  export -f svc_build_mcp
+
+  run cmd_service_deploy figma
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"BUILD_CALLED:figma"* ]]
+}
+
+@test "cmd_service_deploy : figma --project sans opencode.json -- retourne 1" {
+  local project_dir="$TEST_DIR/no-json-project"
+  mkdir -p "$project_dir"
+  # Pas de opencode.json
+
+  resolve_project_path() { echo "$project_dir"; }
+  export -f resolve_project_path
+
+  run cmd_service_deploy --project NO-JSON figma
+  [ "$status" -ne 0 ]
+}
+
+@test "cmd_service_deploy : figma --project -- déploie et configure le MCP" {
+  local project_dir="$TEST_DIR/deploy-project"
+  mkdir -p "$project_dir"
+  printf '{"$schema":"https://opencode.ai/config.json","model":"claude"}\n' \
+    > "$project_dir/opencode.json"
+
+  # Mocker les fonctions mcp-deploy pour ne pas faire de vrai build/copie
+  check_and_build_mcp() { echo "CHECK_BUILD"; return 0; }
+  deploy_mcp_servers()  { echo "DEPLOY_SERVERS:$1"; return 0; }
+  configure_mcp_in_project() { echo "CONFIGURE_MCP:$1"; return 0; }
+  export -f check_and_build_mcp deploy_mcp_servers configure_mcp_in_project
+
+  resolve_project_path() { echo "$project_dir"; }
+  export -f resolve_project_path
+
+  run cmd_service_deploy --project MY-PROJECT figma
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"DEPLOY_SERVERS"* ]]
+  [[ "$output" == *"CONFIGURE_MCP"* ]]
+}
+
+# ── Alias oc figma deploy (via oc.sh) ─────────────────────────────────────────
+
+@test "alias oc figma deploy -- sous-commande inconnue absent de la sortie" {
+  run bash -c "
+    export SERVICES_FILE='$SERVICES_FILE'
+    export OPENCODE_GLOBAL_CONFIG='$OPENCODE_GLOBAL_CONFIG'
+    export HUB_DIR='$HUB_DIR'
+    export OC_LANG=en
+    bash '$BATS_TEST_DIRNAME/../oc.sh' figma deploy 2>&1 || true
+  "
+  [[ "$output" != *"Unknown subcommand"* ]]
+  [[ "$output" != *"sous-commande inconnue"* ]]
+}

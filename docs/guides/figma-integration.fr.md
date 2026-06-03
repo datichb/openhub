@@ -80,10 +80,25 @@ Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.c
 ### 4. Déployer
 
 ```bash
-oc deploy opencode MY-PROJECT
+oc deploy MY-PROJECT
 ```
 
-Le MCP Server Figma sera déployé automatiquement avec les agents.
+Le MCP Server Figma sera déployé automatiquement avec les agents (Phase 4 du déploiement).
+
+Si vous souhaitez déployer uniquement le serveur MCP dans un projet existant :
+
+```bash
+# Déployer le MCP figma dans un projet spécifique
+oc service figma deploy --project MY-PROJECT
+# ou via l'alias :
+oc figma deploy --project MY-PROJECT
+```
+
+Pour rebuilder uniquement le serveur (sans déployer dans un projet) :
+
+```bash
+oc figma deploy
+```
 
 ---
 

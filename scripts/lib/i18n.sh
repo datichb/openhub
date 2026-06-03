@@ -267,11 +267,17 @@ t() {
       service.build.failed)           printf '%s' "Échec du build MCP — à relancer manuellement" ;;
       service.build.manual)           printf '%s' "Build manuel" ;;
       service.build.hint)             printf '%s' "Pour lancer la configuration" ;;
-      service.remove.title)           printf '%s' "Suppression de la configuration" ;;
-      service.remove.confirm)         printf '%s' "Supprimer la configuration de" ;;
-      service.remove.done)            printf '%s' "Configuration supprimée" ;;
-      service.remove.not_configured)  printf '%s' "Aucune configuration à supprimer pour" ;;
-      service.help.title)             printf '%s' "oc service — gestion des intégrations MCP" ;;
+     service.remove.title)           printf '%s' "Suppression de la configuration" ;;
+     service.remove.confirm)         printf '%s' "Supprimer la configuration de" ;;
+     service.remove.done)            printf '%s' "Configuration supprimée" ;;
+     service.remove.not_configured)  printf '%s' "Aucune configuration à supprimer pour" ;;
+     service.deploy.title)           printf '%s' "Déploiement du serveur MCP" ;;
+     service.deploy.build_only)      printf '%s' "Build du serveur MCP (pas de projet cible)" ;;
+     service.deploy.done)            printf '%s' "Serveur MCP déployé avec succès" ;;
+     service.deploy.build_done)      printf '%s' "Build terminé avec succès" ;;
+     service.deploy.no_project)      printf '%s' "opencode.json introuvable — lancez d'abord : oc deploy" ;;
+     service.deploy.no_mcp)          printf '%s' "Aucun serveur MCP associé à ce service" ;;
+     service.help.title)             printf '%s' "oc service — gestion des intégrations MCP" ;;
       service.help.usage)             printf '%s' "Usage : oc service <sous-commande> [service]" ;;
       service.help.setup_cmd)         printf '%s' "setup [nom]" ;;
       service.help.setup_desc)        printf '%s' "Configure un service interactivement" ;;
@@ -279,9 +285,11 @@ t() {
       service.help.status_desc)       printf '%s' "Vérifie l'état d'un service (config, token, MCP)" ;;
       service.help.list_cmd)          printf '%s' "list" ;;
       service.help.list_desc)         printf '%s' "Liste les services disponibles" ;;
-      service.help.remove_cmd)        printf '%s' "remove <nom>" ;;
-      service.help.remove_desc)       printf '%s' "Supprime la configuration d'un service" ;;
-      service.help.aliases)           printf '%s' "Aliases : oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
+     service.help.remove_cmd)        printf '%s' "remove <nom>" ;;
+     service.help.remove_desc)       printf '%s' "Supprime la configuration d'un service" ;;
+     service.help.deploy_cmd)        printf '%s' "deploy <nom> [--project ID]" ;;
+     service.help.deploy_desc)       printf '%s' "Déploie le serveur MCP dans un projet" ;;
+     service.help.aliases)           printf '%s' "Aliases : oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
 
       # ── cmd-beads.sh ───────────────────────────────────────────────────────
       beads.title)            printf '%s' "Gestion Beads :" ;;
@@ -913,6 +921,12 @@ t_en() {
     service.remove.confirm)         printf '%s' "Remove configuration for" ;;
     service.remove.done)            printf '%s' "Configuration removed" ;;
     service.remove.not_configured)  printf '%s' "No configuration to remove for" ;;
+    service.deploy.title)           printf '%s' "Deploy MCP server" ;;
+    service.deploy.build_only)      printf '%s' "Building MCP server (no target project)" ;;
+    service.deploy.done)            printf '%s' "MCP server deployed successfully" ;;
+    service.deploy.build_done)      printf '%s' "Build completed successfully" ;;
+    service.deploy.no_project)      printf '%s' "opencode.json not found — run first: oc deploy" ;;
+    service.deploy.no_mcp)          printf '%s' "No MCP server associated with this service" ;;
     service.help.title)             printf '%s' "oc service — MCP integration management" ;;
     service.help.usage)             printf '%s' "Usage: oc service <subcommand> [service]" ;;
     service.help.setup_cmd)         printf '%s' "setup [name]" ;;
@@ -923,6 +937,8 @@ t_en() {
     service.help.list_desc)         printf '%s' "List available services" ;;
     service.help.remove_cmd)        printf '%s' "remove <name>" ;;
     service.help.remove_desc)       printf '%s' "Remove a service configuration" ;;
+    service.help.deploy_cmd)        printf '%s' "deploy <name> [--project ID]" ;;
+    service.help.deploy_desc)       printf '%s' "Deploy the MCP server into a project" ;;
     service.help.aliases)           printf '%s' "Aliases: oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
 
     # ── cmd-beads.sh ─────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
 - ✅ **Scripts de build et déploiement**
   - `scripts/build-mcp.sh` : Compile les MCP servers
   - `scripts/check-mcp.sh` : Vérifie l'état de build
-  - `scripts/lib/mcp-deploy.sh` : Fonctions de déploiement MCP
+  - `scripts/lib/mcp-deploy.sh` : Fonctions de déploiement MCP (appelées automatiquement par `oc deploy`)
 
 - ✅ **Skills d'intégration**
   - `skills/adapters/figma-scout-protocol.md` : Enrichissement Scout
@@ -121,22 +121,33 @@ npm start
 # Ctrl+C pour arrêter
 ```
 
-### 4. Déployer vers un projet test
+### 4. Deploy to a project
 
 ```bash
-# Depuis la racine du hub
+# From the hub root
 ./oc.sh deploy MY-TEST-PROJECT
 
-# Le script va :
-# 1. Vérifier l'état de build des MCP
-# 2. Proposer de les compiler si nécessaire
-# 3. Copier les agents + skills + MCP vers le projet
-# 4. Configurer opencode.json du projet
+# The script will:
+# 1. Copy agents + skills to the project
+# 2. Generate opencode.json with provider/model config
+# 3. Build the MCP server if needed (Phase 4)
+# 4. Copy MCP files to .opencode/servers/
+# 5. Write the mcp block into opencode.json
 ```
 
-**Note :** Le déploiement automatique des MCP n'est pas encore intégré dans `cmd-deploy.sh`. Vous devrez soit :
-- Modifier `cmd-deploy.sh` pour sourcer `scripts/lib/mcp-deploy.sh` et appeler les fonctions
-- Ou déployer manuellement le MCP après le déploiement standard
+To deploy only the MCP server into an already-deployed project:
+
+```bash
+oc service figma deploy --project MY-TEST-PROJECT
+# or via alias:
+oc figma deploy --project MY-TEST-PROJECT
+```
+
+To rebuild the MCP server globally (without deploying to a project):
+
+```bash
+oc figma deploy
+```
 
 ### 5. Organiser vos fichiers Figma
 
@@ -183,8 +194,7 @@ opencode
 
 ### Déploiement
 - [ ] Projet test enregistré dans le hub (`./oc.sh init TEST-PROJECT`)
-- [ ] Agents déployés (`./oc.sh deploy TEST-PROJECT`)
-- [ ] MCP copié vers `.opencode/servers/figma-mcp/`
+- [ ] Agents + MCP déployés (`./oc.sh deploy TEST-PROJECT`)
 - [ ] `opencode.json` contient la config MCP
 
 ### Organisation Figma
@@ -265,25 +275,18 @@ npm install
 npm run build
 ```
 
-### Le déploiement ignore les MCP
+### Le MCP n'est pas configuré dans opencode.json
 
-**Cause :** Le script `cmd-deploy.sh` n'appelle pas encore les fonctions MCP.
+**Cause :** Le projet n'a pas encore été déployé, ou le déploiement a été fait avec une ancienne version du hub.
 
-**Solution temporaire :**
-Déployer manuellement après le déploiement standard :
+**Solution :** Relancer le déploiement complet ou déployer uniquement le MCP :
 
 ```bash
-# Depuis la racine du hub
-source scripts/lib/mcp-deploy.sh
+# Redéploiement complet
+./oc.sh deploy MY-PROJECT
 
-# Définir les variables
-HUB_DIR=$(pwd)
-DEPLOY_DIR=~/workspace/my-test-project
-
-# Déployer
-check_and_build_mcp
-deploy_mcp_servers "$DEPLOY_DIR"
-configure_mcp_in_project "$DEPLOY_DIR"
+# Ou uniquement le MCP dans un projet existant
+oc figma deploy --project MY-PROJECT
 ```
 
 ---

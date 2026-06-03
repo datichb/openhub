@@ -5,6 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/spinner.sh"
+source "$LIB_DIR/mcp-deploy.sh"
 
 # ── Mode --check ─────────────────────────────────────────────────────────────
 # Vérifie si les fichiers générés sont à jour par rapport aux sources.
@@ -462,6 +463,17 @@ else
   echo ""
   log_error "Échec de la Phase 3"
   exit 1
+fi
+echo ""
+
+# ── Phase 4 : déploiement des serveurs MCP ─────────────────────────────────
+echo -e "${CYAN}🔌  Phase 4 — Serveurs MCP${RESET}"
+
+if check_and_build_mcp && deploy_mcp_servers "$deploy_dir" && configure_mcp_in_project "$deploy_dir"; then
+  true
+else
+  echo ""
+  log_warn "Phase 4 : déploiement MCP incomplet (vérifiez les tokens et le build)"
 fi
 echo ""
 

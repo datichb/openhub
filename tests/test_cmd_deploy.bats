@@ -292,3 +292,43 @@ SKILLEOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"À JOUR"* ]]
 }
+
+# ── Phase 4 : déploiement MCP ─────────────────────────────────────────────────
+
+@test "deploy Phase 4 : cmd-deploy.sh source mcp-deploy.sh (fonctions disponibles)" {
+  # Vérifie que les fonctions de mcp-deploy.sh sont bien déclarées après sourcing de cmd-deploy.sh
+  run bash -c "
+    export HUB_DIR='$FAKE_HUB'
+    export _CMD_DEPLOY_SOURCE_ONLY=1
+    source '$HUB_ROOT/scripts/cmd-deploy.sh' 2>/dev/null || true
+    declare -F check_and_build_mcp deploy_mcp_servers configure_mcp_in_project
+  "
+  [[ "$output" == *"check_and_build_mcp"* ]]
+  [[ "$output" == *"deploy_mcp_servers"* ]]
+  [[ "$output" == *"configure_mcp_in_project"* ]]
+}
+
+@test "deploy Phase 4 : deploy_mcp_servers copie dist/ dans .opencode/servers/" {
+  # Test direct de la fonction (pas via cmd-deploy.sh entier)
+  local project_dir
+  project_dir=$(mktemp -d)
+
+  # Créer un faux serveur buildé dans le FAKE_HUB
+  mkdir -p "$FAKE_HUB/servers/figma-mcp/dist"
+  echo '{}' > "$FAKE_HUB/servers/figma-mcp/package.json"
+  echo 'console.log("ok")' > "$FAKE_HUB/servers/figma-mcp/dist/index.js"
+
+  run bash -c "
+    export HUB_DIR='$FAKE_HUB'
+    source '$HUB_ROOT/scripts/common.sh'
+    source '$HUB_ROOT/scripts/lib/mcp-deploy.sh'
+    # Mocker npm pour éviter un vrai install
+    npm() { return 0; }
+    export -f npm
+    deploy_mcp_servers '$project_dir'
+  "
+  [ "$status" -eq 0 ]
+  [ -f "$project_dir/.opencode/servers/figma-mcp/dist/index.js" ]
+
+  rm -rf "$project_dir"
+}

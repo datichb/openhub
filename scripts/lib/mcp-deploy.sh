@@ -29,7 +29,7 @@ check_and_build_mcp() {
 deploy_mcp_servers() {
   local deploy_dir=$1
   
-  echo -e "${CYAN}📦  Phase 3 — Déploiement des MCP servers${RESET}"
+  echo -e "${CYAN}📦  Déploiement des MCP servers${RESET}"
   echo ""
   
   # Créer .opencode/servers/
@@ -87,7 +87,7 @@ deploy_mcp_servers() {
     local summary_lines=()
     summary_lines+=("$deployed_count MCP server(s) déployé(s)")
     summary_lines+=("Serveurs : ${servers_list[*]}")
-    _progress_summary "Phase 3 terminée" "${summary_lines[@]}"
+    _progress_summary "MCP servers déployés" "${summary_lines[@]}"
   fi
   
   echo ""
