@@ -174,6 +174,8 @@ teardown() {
 # ── --check : skills natives ──────────────────────────────────────────────────
 
 # Ajoute une skill native dans l'agent de test et crée le fichier source
+# Note : on remplace le symlink skills/ par un vrai répertoire isolé pour éviter
+# que les fichiers de test soient créés dans le vrai skills/ du repo.
 _setup_native_skill() {
   cat > "$FAKE_HUB/agents/quality/test-agent.md" <<'AGENTEOF'
 ---
@@ -191,6 +193,8 @@ native_skills: [shared/test-native-skill]
 Contenu de l'agent de test.
 AGENTEOF
 
+  # Remplacer le symlink skills/ par un répertoire isolé (évite de polluer le vrai skills/)
+  rm -f "$FAKE_HUB/skills"
   mkdir -p "$FAKE_HUB/skills/shared"
   cat > "$FAKE_HUB/skills/shared/test-native-skill.md" <<'SKILLEOF'
 ---
