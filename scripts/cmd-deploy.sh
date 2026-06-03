@@ -467,24 +467,12 @@ echo ""
 
 log_success "Déploiement terminé en ${SECONDS}s"
 
-# ── Graphe de dépendances (optionnel, non-bloquant) ──────────────────────────
+# ── Graphe de dépendances (optionnel, fire-and-forget) ───────────────────────
 # Généré uniquement si le projet contient des fichiers TS/JS.
-# Exécuté en background avec un timeout de 30s pour ne jamais bloquer la fin du deploy.
+# Lancé en background sans bloquer la fin du deploy.
 if [ -n "$PROJECT_ID" ] && [ -n "$deploy_dir" ]; then
   source "$LIB_DIR/dependency-graph.sh"
+  log_info "Graphe de dépendances : génération en arrière-plan..."
   (generate_dependency_graph "$deploy_dir" 2>/dev/null) &
-  _depgraph_pid=$!
-  _depgraph_waited=0
-  while kill -0 "$_depgraph_pid" 2>/dev/null && [ "$_depgraph_waited" -lt 30 ]; do
-    sleep 1
-    _depgraph_waited=$((_depgraph_waited + 1))
-  done
-  if kill -0 "$_depgraph_pid" 2>/dev/null; then
-    kill "$_depgraph_pid" 2>/dev/null || true
-    wait "$_depgraph_pid" 2>/dev/null || true
-    log_warn "Graphe de dépendances ignoré (timeout 30s — projet trop volumineux)"
-  else
-    wait "$_depgraph_pid" 2>/dev/null && \
-      log_info "Graphe de dépendances généré : .opencode/dependency-graph.json ($(depgraph_stats "$deploy_dir" 2>/dev/null || echo "stats indisponibles"))" || true
-  fi
+  disown 2>/dev/null || true
 fi
