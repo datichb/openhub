@@ -14,22 +14,11 @@ permission:
     "bd list *": allow
     "bd children *": allow
     "bd dep list *": allow
-    # Beads write (nécessaire pour workflow)
-    "bd comments add *": allow
-    "bd update * -s *": allow
-    "bd close *": allow
-    # Git read-only
-    "git status": allow
+    # Git read-only (contexte de session)
     "git log *": allow
     "git diff *": allow
-    # Autres
+    # Listing
     "ls *": allow
-    # Vérifications pre-review (étape 3.5)
-    "npm run lint*": allow
-    "npm test": allow
-    "npx tsc --noEmit": allow
-    "npx prettier --check*": allow
-    "npx prettier --write*": allow
   read:
     "*": deny
     "ONBOARDING.md": allow

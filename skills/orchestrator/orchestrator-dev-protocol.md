@@ -18,9 +18,10 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers.
 
 ❌ Tu ne modifies JAMAIS un fichier du projet
 ❌ Tu n'implémentes JAMAIS du code toi-même — **même pour une ligne, même pour débloquer**
-❌ Tu ne clores JAMAIS un ticket sans que le reviewer ait produit son rapport
+❌ Tu ne clores JAMAIS un ticket toi-même — le `bd close` est exécuté par le developer-* dans le prompt de commit
+❌ Tu ne poses JAMAIS de commentaire Beads toi-même — `bd comments add` est délégué au developer-* dans le prompt de re-délégation
 ❌ Tu ne passes JAMAIS en mode `semi-auto` ou `auto` sans que ce mode ait été choisi explicitement
-❌ **Tu n'utilises JAMAIS les outils `write`, `edit`, `bash` ou `read` pour implémenter du code** — ces outils sont réservés aux agents `developer-*`
+❌ **Tu n'utilises JAMAIS les outils `write`, `edit` pour implémenter du code** — ces outils sont réservés aux agents `developer-*`
 ✅ **CP-2 (commit ou corriger ?) est une pause dans TOUS les modes sans exception**
 ✅ L'utilisateur peut taper "stop" à n'importe quel moment — tous les modes l'honorent
 ✅ Quand invoqué depuis l'orchestrateur feature, tu reçois le mode déjà choisi — tu ne le redemandes pas
@@ -578,16 +579,21 @@ npx prettier --write .
 
 **Si un check échoue avec un problème NON auto-fixable :**
 
-Retourner le ticket au developer avec un message clair :
+Retourner le ticket au developer avec un message clair incluant les détails de l'erreur.
+Le developer est responsable de poser le commentaire Beads et de reprendre le ticket.
 
-```bash
-bd comments add <ID> "Pre-review échouée : <détail de l'erreur>
+Transmettre au developer dans le prompt de re-délégation :
 
+```
+[Pre-review échouée]
+Ticket : <ID>
 Erreur(s) détectée(s) :
 - <check> : <message d'erreur>
 
-Action requise : corriger les erreurs ci-dessus et repasser en review."
-bd update <ID> -s in_progress
+Action requise :
+1. bd comments add <ID> "Pre-review échouée : <détail de l'erreur>\n\nErreur(s) détectée(s) :\n- <check> : <message d'erreur>\n\nAction requise : corriger les erreurs ci-dessus et repasser en review."
+2. Corriger les erreurs
+3. Repasser en review (bd update <ID> -s review)
 ```
 
 ```
@@ -755,23 +761,31 @@ CP-2 est **toujours une pause, dans tous les modes**.
 - **commit** →
   1. Formuler le message de commit selon Conventional Commits :
      `<type>(<scope>): <description>` — basé sur le type du ticket, l'ID et son titre
-  2. Transmettre l'instruction à l'agent développeur :
-     > « Crée le commit final :
-     > `git commit -m "<type>(<scope>): <description>"` »
-  3. Une fois le commit confirmé, clore le ticket :
-     `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`
+  2. Transmettre l'instruction au developer dans le prompt de re-délégation :
+     > « Crée le commit final et clos le ticket :
+     > 1. `git commit -m "<type>(<scope>): <description>"`
+     > 2. `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` »
   → étape 6
 
-- **corriger** → utiliser le champ `### Corrections requises` du retour reviewer pour remplir le commentaire Beads :
+- **corriger** → transmettre les retours reviewer au developer dans le prompt de re-délégation.
+  Le developer est responsable de poser le commentaire Beads et de reprendre le ticket.
 
-  ```bash
-  bd comments add <ID> "Retours reviewer : <contenu intégral de ### Corrections requises>"
-  bd update <ID> -s in_progress
+  Transmettre au developer dans le prompt de re-délégation :
+
+  ```
+  [Retours reviewer — CP-2]
+  Ticket : <ID>
+  
+  Action requise :
+  1. bd comments add <ID> "Retours reviewer : <contenu intégral de ### Corrections requises — copier tel quel, sans résumer>"
+  2. Appliquer les corrections ci-dessous
+  3. Repasser en review (bd update <ID> -s review)
+  
+  ### Corrections requises
+  <contenu intégral du champ ### Corrections requises du retour reviewer>
   ```
 
-  > **Ordre obligatoire :** poser le commentaire **avant** de repasser en `in_progress`,
-  > pour que le developer agent trouve les retours dès qu'il reprend le ticket via `bd show <ID>`.
-  > Ne jamais résumer ni reformuler les corrections — les copier telles quelles depuis le retour reviewer.
+  > **Règle de transmission :** copier les `### Corrections requises` telles quelles dans le prompt — ne jamais résumer ni reformuler.
 
   **Routing de la correction — basé sur le `### Routing recommandé` du retour reviewer :**
   - `developer-security` → router vers `developer-security`
@@ -946,10 +960,12 @@ question({
 
 - **Commit tous** → pour chaque ticket du lot, dans l'ordre FIFO (ordre d'arrivée des sessions au CP-2) :
   1. Formuler le message de commit selon Conventional Commits
-  2. Transmettre l'instruction de commit à l'agent développeur
-  3. Clore le ticket : `bd close <ID> --reason "Implemented in commit <hash>"`
-  4. Passer au ticket suivant du lot
-  5. Une fois tous les tickets commités, afficher le récap groupé et continuer
+  2. Transmettre au developer dans le prompt de re-délégation :
+     > « Crée le commit final et clos le ticket :
+     > 1. `git commit -m "<type>(<scope>): <description>"`
+     > 2. `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next` »
+  3. Passer au ticket suivant du lot
+  4. Une fois tous les tickets commités, afficher le récap groupé et continuer
 
 - **Commit sélectif** → afficher la liste des tickets du lot avec leur titre, puis utiliser l'outil `question` :
   ```
@@ -1211,18 +1227,24 @@ Le ticket #<ID> a subi 3 cycles de review sans résolution. Une intervention man
 
 ### Ticket bloqué en cours d'implémentation
 
-Si le developer signale un blocage :
+Si le developer signale un blocage dans son handoff, lui demander de mettre à jour le ticket
+avant de signaler le blocage à l'orchestrateur parent.
 
-```bash
-bd update <ID> -s blocked
-bd comments add <ID> "Bloqué par : <raison signalée par le developer>"
+Transmettre au developer dans le prompt :
+
+```
+[Ticket bloqué — action requise avant escalade]
+Ticket : <ID>
+
+Action requise :
+1. bd update <ID> -s blocked
+2. bd comments add <ID> "Bloqué par : <raison signalée>"
+3. Ajouter un label si applicable :
+   - bd label add <ID> needs-decision  (en attente d'une décision humaine)
+   - bd label add <ID> needs-clarification  (description ou acceptance insuffisants)
 ```
 
-Ajouter un label système si applicable :
-- `needs-decision` — en attente d'une décision humaine
-- `needs-clarification` — description ou acceptance insuffisants
-
-**En mode standalone** → utiliser l'outil `question` :
+Une fois confirmé par le developer :
 
 ```
 question({
@@ -1272,7 +1294,7 @@ Le ticket #<ID> est bloqué : <raison>. Comment procéder ?
 **task_id :** <task_id de la session en cours>
 ```
 
-Si résolu : `bd update <ID> -s in_progress` puis reprendre l'implémentation.
+Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in_progress`) puis reprendre l'implémentation.
 
 ---
 

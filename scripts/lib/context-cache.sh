@@ -347,3 +347,37 @@ cache_invalidate() {
   fi
   return 1
 }
+
+# Injecte le champ "instructions" dans opencode.json selon l'état du cache
+# Priorité : cache valide > ONBOARDING.md/CONVENTIONS.md > suppression du champ
+# Usage : _inject_context_instructions "$PROJECT_PATH"
+_inject_context_instructions() {
+  local project_path="${1:?}"
+  local config_file="$project_path/opencode.json"
+
+  # opencode.json doit exister pour être modifiable
+  [ -f "$config_file" ] || return 0
+
+  local instructions_json="[]"
+  local cache_file
+  cache_file=$(cache_file_path "$project_path")
+
+  if [ -f "$cache_file" ] && validate_context_cache "$project_path" 2>/dev/null; then
+    # Cache valide — source de vérité unique
+    instructions_json='[".opencode/context.json"]'
+  else
+    # Pas de cache valide — fallback sur les fichiers de contexte présents
+    [ -f "$project_path/ONBOARDING.md" ]  && instructions_json=$(jq -n --argjson a "$instructions_json" '$a + ["ONBOARDING.md"]')
+    [ -f "$project_path/CONVENTIONS.md" ] && instructions_json=$(jq -n --argjson a "$instructions_json" '$a + ["CONVENTIONS.md"]')
+  fi
+
+  # Mettre à jour opencode.json (écriture atomique)
+  local _tmp_config="${config_file}.instructions.tmp"
+  if [ "$instructions_json" = "[]" ]; then
+    # Aucun contexte disponible — supprimer le champ instructions si présent
+    jq 'del(.instructions)' "$config_file" > "$_tmp_config" && mv "$_tmp_config" "$config_file"
+  else
+    jq --argjson instr "$instructions_json" '. + {"instructions": $instr}' "$config_file" > "$_tmp_config" \
+      && mv "$_tmp_config" "$config_file"
+  fi
+}

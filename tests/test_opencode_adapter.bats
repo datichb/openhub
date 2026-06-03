@@ -204,6 +204,82 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
+# ── Injection du champ instructions selon le contexte projet ─────────────────
+
+@test "adapter_deploy : pas de champ instructions si aucun fichier contexte ni cache" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  # Aucun ONBOARDING.md, CONVENTIONS.md ni context.json dans DEPLOY_DIR
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq 'has("instructions")' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "false" ]
+}
+
+@test "adapter_deploy : injecte ONBOARDING.md dans instructions si présent" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  touch "$DEPLOY_DIR/ONBOARDING.md"
+
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq -r '.instructions[]' "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ONBOARDING.md"* ]]
+}
+
+@test "adapter_deploy : injecte CONVENTIONS.md dans instructions si présent" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  touch "$DEPLOY_DIR/CONVENTIONS.md"
+
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq -r '.instructions[]' "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CONVENTIONS.md"* ]]
+}
+
+@test "adapter_deploy : injecte les deux fichiers si ONBOARDING.md et CONVENTIONS.md présents" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  touch "$DEPLOY_DIR/ONBOARDING.md"
+  touch "$DEPLOY_DIR/CONVENTIONS.md"
+
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq -r '.instructions | length' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "2" ]
+}
+
+@test "adapter_deploy : préfère context.json valide à ONBOARDING.md" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  touch "$DEPLOY_DIR/ONBOARDING.md"
+
+  # Créer un context.json minimal valide
+  mkdir -p "$DEPLOY_DIR/.opencode"
+  # Mock validate_context_cache pour retourner succès
+  validate_context_cache() { return 0; }
+
+  cat > "$DEPLOY_DIR/.opencode/context.json" <<'EOF'
+{"version":"1.0","generated_at":"2026-01-01T00:00:00Z","stack":{"languages":["typescript"]},"conventions":{"source":"CONVENTIONS.md","hash":"sha256:abc"},"key_files":{}}
+EOF
+
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq -r '.instructions[]' "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".opencode/context.json"* ]]
+  [[ "$output" != *"ONBOARDING.md"* ]]
+}
+
+@test "adapter_deploy : opencode.json avec instructions est du JSON valide" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  touch "$DEPLOY_DIR/ONBOARDING.md"
+  touch "$DEPLOY_DIR/CONVENTIONS.md"
+
+  adapter_deploy "$DEPLOY_DIR" ""
+
+  run jq . "$DEPLOY_DIR/opencode.json"
+  [ "$status" -eq 0 ]
+}
+
 # ── Filtrage par should_deploy_agent ─────────────────────────────────────────
 
 @test "adapter_deploy : ne déploie pas un agent filtré par should_deploy_agent" {

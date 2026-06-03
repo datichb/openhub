@@ -172,11 +172,41 @@ Session OpenCode
 │   └── Réduit les tokens API pour chaque échange avec le modèle
 │
 └── Cache projet (.opencode/context.json)
-    └── Évite la re-lecture des fichiers projet à chaque session
-        └── L'orchestrateur charge le contexte sans re-lire ONBOARDING.md intégralement
+    └── Injecté automatiquement dans la session via le champ instructions
+        └── L'orchestrateur dispose du contexte sans aucune lecture de fichier
 ```
 
 Le cache natif agit au niveau de l'API (économie de tokens), le cache projet agit au niveau du contexte de l'agent (économie de temps et d'efforts d'exploration).
+
+---
+
+## Injection automatique dans la session (champ `instructions`)
+
+Le cache projet est injecté dans chaque session OpenCode via le champ `instructions` de `opencode.json`. Ce mécanisme est géré automatiquement par les scripts — l'orchestrateur n'a jamais besoin de lire de fichier.
+
+### Priorité d'injection
+
+```
+1. Cache valide (.opencode/context.json)  → instructions: [".opencode/context.json"]
+2. Fallback : fichiers contexte présents  → instructions: ["ONBOARDING.md", "CONVENTIONS.md"]
+3. Aucun contexte disponible              → champ instructions supprimé (Mode C proposé)
+```
+
+### Déclencheurs
+
+| Événement | Action |
+|-----------|--------|
+| `oc deploy opencode <project>` | Injection au moment de l'écriture de `opencode.json` |
+| `oc start <project>` | Injection/mise à jour à chaque démarrage |
+| `oc start --onboard <project>` | Injection avec fallback fichiers (avant génération cache) |
+| `oc start --onboard --refresh <project>` | Invalidation cache + fallback fichiers |
+
+### Fonction technique
+
+La fonction `_inject_context_instructions()` dans `scripts/lib/context-cache.sh` gère cette logique :
+- Vérifie l'existence et la validité du cache
+- Met à jour `opencode.json` de façon atomique (écriture via fichier tmp)
+- Supprime le champ `instructions` si aucun contexte n'est disponible
 
 ---
 
@@ -184,10 +214,10 @@ Le cache natif agit au niveau de l'API (économie de tokens), le cache projet ag
 
 | Fichier | Rôle |
 |---------|------|
-| `scripts/lib/context-cache.sh` | Lib bash : génération, validation, lecture du cache projet |
+| `scripts/lib/context-cache.sh` | Lib bash : génération, validation, lecture, injection instructions du cache projet |
 | `scripts/lib/dependency-graph.sh` | Lib bash : génération et requêtes du graphe de dépendances |
-| `scripts/cmd-start.sh` | Valide le cache au démarrage (`--refresh` pour invalider) |
-| `scripts/cmd-deploy.sh` | Génère le graphe de dépendances après le déploiement |
+| `scripts/cmd-start.sh` | Valide le cache au démarrage, injecte instructions (`--refresh` pour invalider) |
+| `scripts/adapters/opencode.adapter.sh` | Injecte instructions lors de la génération de `opencode.json` |
 | `skills/planning/onboarder-workflow.md` | Étape 5.4 : génère `.opencode/context.json` |
-| `skills/orchestrator/orchestrator-protocol.md` | Étape 0.0 CP-0 : charge le cache si valide |
+| `skills/orchestrator/orchestrator-protocol.md` | CP-0 : contexte disponible via session (plus de lecture directe) |
 | `skills/orchestrator/orchestrator-dev-protocol.md` | Détection de conflits via graphe avant parallélisme |

@@ -7,14 +7,14 @@ description: Workflow exécuteur Beads (bd) — clamer, implémenter, passer en 
 
 ```
 1. bd ready --label ai-delegated --json  → tickets délégués à l'agent
-2. bd show <ID>                          → lire le détail (description, acceptance, notes, commentaires reviewer)
+2. bd show <ID>                          → lire le détail (description, acceptance, notes, commentaires)
 3. bd update <ID> --claim                → clamer avant de commencer
 4. [implémenter + tester]
 5. bd update <ID> -s review              → passer en review (attente reviewer)
-6. [review — accepté ou rejeté]
-   → accepté : bd close <ID> --suggest-next
-   → rejeté  : lire les retours (bd show <ID>), corriger, retour étape 5
-7. bd close <ID> --suggest-next          → clore et voir le ticket suivant
+6. [review — verdict de orchestrator-dev]
+   → commit  : git commit -m "..." + bd close <ID> --reason "..." --suggest-next
+   → corriger : bd comments add <ID> "Retours reviewer : ..." + bd update <ID> -s in_progress + corriger + retour étape 5
+   → pre-review échouée : bd comments add <ID> "Pre-review échouée : ..." + corriger + retour étape 5
 ```
 
 ---
@@ -43,30 +43,53 @@ bd update <ID> -s review
 Le ticket est maintenant en attente de validation par le **reviewer humain**.
 Le reviewer consulte l'implémentation et décide :
 
-### Si la review accepte :
+### Si la review accepte (via instruction commit de l'orchestrator-dev) :
+
+Quand orchestrator-dev te transmet l'instruction de commit, tu exécutes les deux actions :
 
 ```bash
-bd close <ID> --reason "Implémenté dans le commit abc123" --suggest-next
+git commit -m "<type>(<scope>): <description>"
+bd close <ID> --reason "Implemented in commit <hash>" --suggest-next
 ```
 
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
-### Si la review rejette (retours formulés) :
+### Si la review rejette (retours formulés par orchestrator-dev) :
 
-Le reviewer pose son commentaire et repasse le ticket en `in_progress` :
+Quand orchestrator-dev te retransmet les retours reviewer dans le prompt de re-délégation,
+tu es responsable de :
 
-```bash
-bd comments add <ID> "Retours : <détail des corrections attendues>"
-bd update <ID> -s in_progress
-```
+1. Poser le commentaire Beads avec les retours (tels quels, sans résumer) :
+   ```bash
+   bd comments add <ID> "Retours reviewer : <contenu intégral des corrections requises>"
+   ```
+2. Reprendre le ticket en `in_progress` :
+   ```bash
+   bd update <ID> -s in_progress
+   ```
+3. Appliquer les corrections
+4. Repasser en review : `bd update <ID> -s review`
 
-En tant que developer agent, quand tu reprends un ticket rejeté :
-1. Lire le commentaire du reviewer : `bd show <ID>` (les commentaires sont visibles dans le détail)
-2. Appliquer les corrections demandées
+> **Règle :** Ne jamais résumer ni reformuler les retours dans le commentaire — les copier tels quels depuis le prompt reçu.
+
+> **Limite :** après 3 cycles de correction sans résolution, signaler le blocage à orchestrator-dev.
+
+### Si la pre-review échoue (instruction de l'orchestrator-dev) :
+
+Quand orchestrator-dev te retourne un ticket suite à un échec de pre-review, tu es responsable de :
+
+1. Poser le commentaire Beads avec le détail de l'erreur :
+   ```bash
+   bd comments add <ID> "Pre-review échouée : <détail de l'erreur>
+
+   Erreur(s) détectée(s) :
+   - <check> : <message d'erreur>
+
+   Action requise : corriger les erreurs ci-dessus et repasser en review."
+   ```
+2. Corriger les erreurs signalées
 3. Repasser en review : `bd update <ID> -s review`
-
-> **Limite :** après 3 cycles de correction sans résolution, signaler le blocage à l'utilisateur.
 
 ---
 

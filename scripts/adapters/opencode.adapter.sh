@@ -2,6 +2,7 @@
 # Adaptateur OpenCode — déploie vers .opencode/agents/ + opencode.json
 
 source "$HUB_DIR/scripts/lib/prompt-builder.sh"
+source "$HUB_DIR/scripts/lib/context-cache.sh"
 
 # Initialisations globales des tableaux _DEPLOY_FILES_* — obligatoires sous set -u.
 # Sans ces déclarations, adapter_deploy_config() appelée directement (Phase 3 sans Phase 1+2)
@@ -718,6 +719,35 @@ adapter_deploy_config() {
         --argjson base "$base_obj" \
         --argjson agents "$agent_obj_json" \
         '$base + {"agent": $agents}')
+    fi
+
+    # Fusionner le bloc instructions selon l'état du cache de contexte
+    # Priorité : cache valide > fichiers contexte présents > rien
+    local _instructions_json=""
+    local _cache_file="$deploy_dir/.opencode/context.json"
+    if [ -f "$_cache_file" ]; then
+      # Valider le cache via context-cache.sh
+      if validate_context_cache "$deploy_dir" 2>/dev/null; then
+        _instructions_json='[".opencode/context.json"]'
+      elif [ -f "$deploy_dir/ONBOARDING.md" ] || [ -f "$deploy_dir/CONVENTIONS.md" ]; then
+        # Cache invalide mais fichiers présents — fallback sur les fichiers
+        local _instr_arr="[]"
+        [ -f "$deploy_dir/ONBOARDING.md" ] && _instr_arr=$(jq -n --argjson a "$_instr_arr" '$a + ["ONBOARDING.md"]')
+        [ -f "$deploy_dir/CONVENTIONS.md" ] && _instr_arr=$(jq -n --argjson a "$_instr_arr" '$a + ["CONVENTIONS.md"]')
+        _instructions_json="$_instr_arr"
+      fi
+    elif [ -f "$deploy_dir/ONBOARDING.md" ] || [ -f "$deploy_dir/CONVENTIONS.md" ]; then
+      # Pas de cache — fichiers contexte directement
+      local _instr_arr="[]"
+      [ -f "$deploy_dir/ONBOARDING.md" ] && _instr_arr=$(jq -n --argjson a "$_instr_arr" '$a + ["ONBOARDING.md"]')
+      [ -f "$deploy_dir/CONVENTIONS.md" ] && _instr_arr=$(jq -n --argjson a "$_instr_arr" '$a + ["CONVENTIONS.md"]')
+      _instructions_json="$_instr_arr"
+    fi
+    if [ -n "$_instructions_json" ] && [ "$_instructions_json" != "[]" ]; then
+      base_obj=$(jq -n \
+        --argjson base "$base_obj" \
+        --argjson instructions "$_instructions_json" \
+        '$base + {"instructions": $instructions}')
     fi
 
     # Étape 4/4 : Écriture du fichier

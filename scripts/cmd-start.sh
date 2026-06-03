@@ -114,9 +114,13 @@ if cache_exists "$PROJECT_PATH"; then
   if validate_context_cache "$PROJECT_PATH"; then
     _cache_date=$(cache_get_generated_at "$PROJECT_PATH")
     printf "${DIM}│${RESET}  %-10s %s\n" "Contexte" "✅ Cache valide (${_cache_date})"
+    _inject_context_instructions "$PROJECT_PATH"
   else
     printf "${DIM}│${RESET}  %-10s %s\n" "Contexte" "⚠️  Cache invalide — oc start --onboard --refresh recommandé"
+    _inject_context_instructions "$PROJECT_PATH"
   fi
+else
+  _inject_context_instructions "$PROJECT_PATH"
 fi
 
 # Agents non déployés : proposer le déploiement (uniquement en mode interactif)
@@ -263,6 +267,8 @@ if [ "$ONBOARD_MODE" = true ]; then
     source "$LIB_DIR/context-cache.sh"
     if cache_invalidate "$PROJECT_PATH"; then
       log_info "Cache de contexte supprimé — re-onboarding complet"
+      # Mettre à jour les instructions (fallback sur fichiers contexte ou rien)
+      _inject_context_instructions "$PROJECT_PATH"
     fi
   fi
   PROMPT=$(build_onboard_bootstrap_prompt "$PROJECT_PATH" "$PROJECT_ID" "$HUB_DIR")

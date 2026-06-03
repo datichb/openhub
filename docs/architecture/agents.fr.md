@@ -115,13 +115,15 @@ phase. Ne code jamais.
 
 **Quatre modes d'entrée :**
 - **Mode D** — bug signalé → délègue immédiatement au `debugger`, sans analyse
-- **Mode C** — projet inconnu → lit `ONBOARDING.md` / `CONVENTIONS.md` en premier ; propose l'`onboarder` uniquement si les deux fichiers sont absents
+- **Mode C** — aucun contexte projet dans la session → propose l'`onboarder` si nécessaire
 - **Mode A** — feature en langage naturel → délègue au `planner`
-- **Mode B** — tickets Beads existants → démarrage direct
+- **Mode B** — tickets Beads existants → transmet les IDs directement au `planner` (aucun `bd show`)
 
 Ne route jamais directement vers les `developer-*` — délègue toujours à `orchestrator-dev`.
 
-**Permissions techniques :** `bash`, `edit`, `write` désactivés. Agit uniquement via `task` (délégation) et `question` (checkpoints). Liste des agents invocables explicitement restreinte dans le frontmatter.
+**Permissions techniques :** `bash`, `read`, `edit`, `write` tous désactivés. Agit uniquement via `task` (délégation) et `question` (checkpoints). Liste des agents invocables explicitement restreinte dans le frontmatter.
+
+**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session via le champ `instructions` de `opencode.json` (cache valide `.opencode/context.json` ou `ONBOARDING.md`/`CONVENTIONS.md`). L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent de la session, il propose l'`onboarder`.
 
 **Gestion des agents manquants :** si un agent requis n'est pas déployé dans le projet, l'orchestrateur pose une question structurée avec les options : déployer via `!oc deploy` sans quitter OpenCode / utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Ne bascule jamais silencieusement vers un autre agent.
 
@@ -142,6 +144,8 @@ supervise le QA optionnel et la review. Trois modes : `manuel` (défaut), `semi-
 `auto`. Invocable standalone ou depuis l'`orchestrator`.
 
 CP-2 (commit ou corriger ?) est toujours manuel dans tous les modes.
+
+`bd close`, `bd comments add` et `bd update` sont toujours exécutés par les agents `developer-*` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
 > Voir [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md) — les modes s'appliquent à `orchestrator-dev` uniquement.
 

@@ -267,3 +267,61 @@ ADAPTEREOF
   # adapter_deploy (complet) ne doit PAS avoir été appelé
   ! grep -q "adapter_deploy called" "$DEPLOY_CALLS_LOG"
 }
+
+# ── _inject_context_instructions : mise à jour de opencode.json ──────────────
+
+@test "cmd-start : _inject_context_instructions injecte ONBOARDING.md si présent" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  # Préparer un projet avec opencode.json existant et ONBOARDING.md
+  local proj="$TEST_DIR/fake-project"
+  mkdir -p "$proj/.beads"
+  echo '{"$schema":"https://opencode.ai/config.json","model":"claude-sonnet-4"}' > "$proj/opencode.json"
+  touch "$proj/ONBOARDING.md"
+
+  # Sourcer context-cache.sh et appeler la fonction directement
+  source "$BATS_TEST_DIRNAME/../scripts/lib/context-cache.sh"
+  cache_exists() { return 1; }  # Pas de cache
+  _inject_context_instructions "$proj"
+
+  run jq -r '.instructions[]' "$proj/opencode.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ONBOARDING.md"* ]]
+}
+
+@test "cmd-start : _inject_context_instructions injecte context.json si cache valide" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  local proj="$TEST_DIR/fake-project"
+  mkdir -p "$proj/.opencode" "$proj/.beads"
+  echo '{"$schema":"https://opencode.ai/config.json","model":"claude-sonnet-4"}' > "$proj/opencode.json"
+  echo '{"version":"1.0","generated_at":"2026-01-01T00:00:00Z","stack":{},"conventions":{},"key_files":{}}' > "$proj/.opencode/context.json"
+  touch "$proj/ONBOARDING.md"  # présent mais le cache doit avoir la priorité
+
+  source "$BATS_TEST_DIRNAME/../scripts/lib/context-cache.sh"
+  # Mock validate_context_cache pour retourner succès
+  validate_context_cache() { return 0; }
+  _inject_context_instructions "$proj"
+
+  run jq -r '.instructions[]' "$proj/opencode.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".opencode/context.json"* ]]
+  [[ "$output" != *"ONBOARDING.md"* ]]
+}
+
+@test "cmd-start : _inject_context_instructions supprime instructions si aucun contexte" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  local proj="$TEST_DIR/fake-project"
+  mkdir -p "$proj/.beads"
+  # opencode.json avec instructions préexistantes
+  echo '{"$schema":"https://opencode.ai/config.json","model":"claude-sonnet-4","instructions":["OLD.md"]}' > "$proj/opencode.json"
+  # Aucun fichier contexte, pas de cache
+
+  source "$BATS_TEST_DIRNAME/../scripts/lib/context-cache.sh"
+  cache_exists() { return 1; }
+  _inject_context_instructions "$proj"
+
+  run jq 'has("instructions")' "$proj/opencode.json"
+  [ "$output" = "false" ]
+}

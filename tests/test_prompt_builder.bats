@@ -411,10 +411,11 @@ EOF
 
 # ── Intégrité des règles orchestrateur ────────────────────────────────────────
 
-@test "orchestrator : bash, edit et write sont bien à deny dans le frontmatter" {
+@test "orchestrator : bash, read, edit et write sont tous à deny (coordination pure)" {
   local agent_file="$BATS_TEST_DIRNAME/../agents/planning/orchestrator.md"
-  # bash est un objet YAML avec deny par défaut + allowlist restreinte (lecture seule)
-  grep -A1 '  bash:' "$agent_file" | grep -q '"*": deny'
+  # Coordination pure — aucun accès fichier ni commande shell
+  grep -q 'bash: deny' "$agent_file"
+  grep -q 'read: deny' "$agent_file"
   grep -q 'edit: deny' "$agent_file"
   grep -q 'write: deny' "$agent_file"
 }
@@ -425,6 +426,14 @@ EOF
   grep -q '"planner": allow' "$agent_file"
   grep -q '"orchestrator-dev": allow' "$agent_file"
   grep -q '"debugger": allow' "$agent_file"
+}
+
+@test "orchestrator : aucune commande bd show dans les permissions" {
+  local agent_file="$BATS_TEST_DIRNAME/../agents/planning/orchestrator.md"
+  # bd show ne doit plus apparaître dans la section permission du frontmatter
+  # On vérifie que la section frontmatter (entre les --- YAML) n'en contient pas
+  run bash -c "awk '/^---/{n++; if(n==2) exit} n==1' '$agent_file' | grep -c 'bd show'"
+  [ "$output" = "0" ]
 }
 
 @test "orchestrator protocol : section 'Agent requis non disponible' présente" {
@@ -448,10 +457,14 @@ EOF
   grep -q 'oc deploy opencode' "$skill_file"
 }
 
-@test "orchestrator protocol : Mode C conditionné à l'absence des fichiers de contexte" {
+@test "orchestrator protocol : Mode C conditionné à l'absence de contexte dans la session (pas de lecture fichier)" {
   local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-protocol.md"
-  grep -q 'ONBOARDING.md' "$skill_file"
-  grep -q 'CONVENTIONS.md' "$skill_file"
+  # Mode C est déclenché sur absence de contexte dans la session, pas sur lecture de fichiers
+  grep -q 'contexte projet' "$skill_file"
+  grep -q 'instructions' "$skill_file"
+  # Plus de lecture directe de ONBOARDING.md dans la logique de déclenchement
+  run bash -c "grep -c 'Tenter de lire' '$skill_file'"
+  [ "$output" = "0" ]
 }
 
 @test "tool-question skill : règle de contexte pour les sous-agents présente" {
@@ -464,6 +477,64 @@ EOF
   local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-protocol.md"
   grep -q 'Afficher dans le texte de la discussion' "$skill_file"
   grep -q 'Demander le mode via l.*outil.*question' "$skill_file"
+}
+
+@test "orchestrator protocol : Mode B ne fait plus de bd show — les IDs sont transmis directement au planner" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-protocol.md"
+  # Mode B doit contenir l'interdiction explicite de bd show et la règle de transmission directe
+  grep -q 'Ne jamais faire.*bd show.*avant de transmettre au planner' "$skill_file"
+  grep -q 'IDs fournis par l.*utilisateur' "$skill_file"
+}
+
+@test "orchestrator protocol : CP-0 ne lit plus le cache manuellement" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-protocol.md"
+  # L'étape 0.0 n'utilise plus read ni validate_context_cache
+  run bash -c "grep -c 'validate_context_cache\|Charger les informations de stack' '$skill_file'"
+  [ "$output" = "0" ]
+}
+
+@test "orchestrator-dev : bd comments add et bd close absents des permissions" {
+  local agent_file="$BATS_TEST_DIRNAME/../agents/planning/orchestrator-dev.md"
+  run bash -c "awk '/^---/{n++; if(n==2) exit} n==1' '$agent_file' | grep -c 'bd comments\|bd close'"
+  [ "$output" = "0" ]
+}
+
+@test "orchestrator-dev protocol : bd close délégué au developer dans le prompt commit" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-dev-protocol.md"
+  # La règle absolue dit que bd close est exécuté par le developer
+  grep -q 'bd close.*developer\|developer.*bd close' "$skill_file"
+}
+
+@test "orchestrator-dev protocol : bd comments add délégué au developer dans le prompt" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/orchestrator/orchestrator-dev-protocol.md"
+  # La règle absolue dit que bd comments add est délégué au developer
+  grep -q 'bd comments add.*délégué\|jamais de commentaire Beads' "$skill_file"
+}
+
+@test "beads-dev skill : cas commit + bd close présent pour le developer" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/developer/beads-dev.md"
+  grep -q 'bd close' "$skill_file"
+  grep -q 'git commit' "$skill_file"
+}
+
+@test "beads-dev skill : cas retour reviewer avec bd comments add présent" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/developer/beads-dev.md"
+  grep -q 'Retours reviewer' "$skill_file"
+  grep -q 'bd comments add' "$skill_file"
+}
+
+@test "beads-dev skill : cas pre-review échouée avec bd comments add présent" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/developer/beads-dev.md"
+  grep -q 'Pre-review échouée' "$skill_file"
+  grep -q 'bd comments add' "$skill_file"
+}
+
+@test "coordination-only skill : bash absent du tableau des outils autorisés" {
+  local skill_file="$BATS_TEST_DIRNAME/../skills/posture/coordination-only.md"
+  # Le tableau Outils autorisés ne doit pas avoir bash comme outil listé (ligne | `bash` | ...)
+  # On extrait uniquement les lignes de tableau (commençant par | `...`) dans la section Outils autorisés
+  run bash -c "awk '/## Outils autorisés/{found=1} found && /^## / && !/## Outils autorisés/{exit} found && /^\| \`bash\`/' '$skill_file'"
+  [ -z "$output" ]
 }
 
 # ── Intégrité release.sh ──────────────────────────────────────────────────────

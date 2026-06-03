@@ -100,13 +100,15 @@ phase. Never codes.
 
 **Four entry modes:**
 - **Mode D** — bug reported → delegates immediately to `debugger`, no analysis
-- **Mode C** — unknown project → reads `ONBOARDING.md` / `CONVENTIONS.md` first; proposes `onboarder` only if both files are absent
+- **Mode C** — no project context in session → proposes `onboarder` if needed
 - **Mode A** — feature in natural language → delegates to `planner`
-- **Mode B** — existing Beads tickets → direct start
+- **Mode B** — existing Beads tickets → transmits IDs directly to `planner` (no `bd show`)
 
 Never routes directly to `developer-*` — always delegates to `orchestrator-dev`.
 
-**Technical permissions:** `bash`, `edit`, `write` disabled. Acts only via `task` (delegation) and `question` (checkpoints). List of invocable agents explicitly restricted in the frontmatter.
+**Technical permissions:** `bash`, `read`, `edit`, `write` all disabled. Acts only via `task` (delegation) and `question` (checkpoints). List of invocable agents explicitly restricted in the frontmatter.
+
+**Context injection:** project context (stack, conventions) is automatically injected into the session via the `instructions` field of `opencode.json` (valid cache `.opencode/context.json` or `ONBOARDING.md`/`CONVENTIONS.md`). The orchestrator never reads files directly — if context is absent from the session, it proposes the `onboarder`.
 
 **Missing agent handling:** if a required agent is not deployed in the project, the orchestrator asks a structured question with options: deploy via `!oc deploy` without leaving OpenCode / use a substitute (substitution table by domain) / skip the ticket. Never silently falls back to another agent.
 
@@ -126,6 +128,8 @@ Beads tickets, routes to the 9 `developer-*` agents, supervises optional QA and 
 Three modes: `manual` (default), `semi-auto`, `auto`. Invocable standalone or from the `orchestrator`.
 
 CP-2 (commit or fix?) is always manual in all modes.
+
+`bd close`, `bd comments add`, and `bd update` are always executed by the `developer-*` agents in delegation prompts — never directly by `orchestrator-dev`. The orchestrator-dev only reads Beads tickets (`bd show`, `bd list`).
 
 > See [ADR-006](./adr/006-orchestrator-configurable-mode.en.md) — modes apply to `orchestrator-dev` only.
 
