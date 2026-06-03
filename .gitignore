@@ -27,3 +27,6 @@ config/providers/*.json
 servers/*/dist/
 servers/*/node_modules/
 servers/*/.env
+
+# Fichiers temporaires laissés par les tests (ex: crash avant teardown)
+tests/tmp_*
