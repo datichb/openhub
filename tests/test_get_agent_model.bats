@@ -85,10 +85,10 @@ teardown() {
   [ "$result" = "claude-sonnet-4-5" ]
 }
 
-@test "clamp_model émet un log_warn quand le plancher est appliqué" {
-  # Capturer stderr pour le warning
-  result=$(clamp_model "claude-haiku-4-5" "claude-opus-4" "test-agent" 2>&1)
-  echo "$result" | grep -q "plancher appliqué"
+@test "clamp_model accumule dans _CLAMP_APPLIED_AGENTS quand le plancher est appliqué" {
+  _CLAMP_APPLIED_AGENTS=""
+  clamp_model "claude-haiku-4-5" "claude-opus-4" "test-agent" > /dev/null
+  echo "$_CLAMP_APPLIED_AGENTS" | grep -q "test-agent"
 }
 
 @test "clamp_model retourne le résolu quand pas de plancher" {
