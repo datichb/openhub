@@ -357,6 +357,48 @@ teardown() {
   [[ "$output" == *"setup"* ]] || [[ "$output" == *"service"* ]]
 }
 
+# ── Alias oc figma / oc gitlab (via oc.sh) ─────────────────────────────────────
+
+@test "alias oc figma status -- retourne 0 sans 'Unknown subcommand'" {
+  run bash -c "
+    export SERVICES_FILE='$SERVICES_FILE'
+    export OPENCODE_GLOBAL_CONFIG='$OPENCODE_GLOBAL_CONFIG'
+    export HUB_DIR='$HUB_DIR'
+    export OC_LANG=en
+    export FIGMA_PERSONAL_ACCESS_TOKEN='figd_testtoken1234'
+    export FIGMA_TEAM_ID='123456789'
+    bash '$BATS_TEST_DIRNAME/../oc.sh' figma status 2>&1
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Unknown subcommand"* ]]
+  [[ "$output" == *"Figma"* ]]
+}
+
+@test "alias oc figma list -- retourne 0 sans 'Unknown subcommand'" {
+  run bash -c "
+    export SERVICES_FILE='$SERVICES_FILE'
+    export OPENCODE_GLOBAL_CONFIG='$OPENCODE_GLOBAL_CONFIG'
+    export HUB_DIR='$HUB_DIR'
+    export OC_LANG=en
+    bash '$BATS_TEST_DIRNAME/../oc.sh' figma list 2>&1
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Unknown subcommand"* ]]
+}
+
+@test "alias oc gitlab status -- retourne 0 sans 'Unknown subcommand'" {
+  run bash -c "
+    export SERVICES_FILE='$SERVICES_FILE'
+    export OPENCODE_GLOBAL_CONFIG='$OPENCODE_GLOBAL_CONFIG'
+    export HUB_DIR='$HUB_DIR'
+    export OC_LANG=en
+    bash '$BATS_TEST_DIRNAME/../oc.sh' gitlab status 2>&1
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Unknown subcommand"* ]]
+  [[ "$output" == *"GitLab"* ]]
+}
+
 # ── --project flag ─────────────────────────────────────────────────────────────
 
 @test "cmd_service_setup : figma --project -- écrit dans mcp.environment du projet" {
