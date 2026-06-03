@@ -364,30 +364,51 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
 
 1. Déléguer au `planner` :
    > « Je délègue la planification au `planner` pour la feature : <nom de la feature>.
-   > Le planner va explorer le projet et poser des questions de contexte — elles apparaîtront ici avec leur contexte identifié. »
+   > Le planner va explorer le projet, poser des questions de contexte et produire les tickets — les récaps et questions apparaîtront ici avec leur contexte identifié. »
 
-2. À la réception du résultat du `planner`, effectuer les vérifications suivantes dans l'ordre :
+   Invoquer le planner en transmettant :
+   - La feature à planifier (description verbatim de l'utilisateur)
+   - **Le marqueur de contexte d'invocation (obligatoire) :**
+     > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session (blocs ## Retour intermédiaire vers orchestrateur + ## Question pour l'orchestrateur) à chaque fin de phase et chaque pause, et produire le bloc ## Retour vers orchestrator en fin de planification — sans exception.`
 
-   1. **Détecter la présence du récapitulatif de planification complet** (liste narrative des tickets créés, dépendances, risques) :
+2. À la réception du résultat du `planner`, **détecter le type de retour** :
+
+   **Cas A — retour final :** le résultat contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+   → Effectuer les vérifications suivantes dans l'ordre :
+
+   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** (récaps de phases accumulés) :
+      - **Présents** → les afficher intégralement en texte dans la discussion, dans l'ordre, AVANT le reste
+      - **Absents** → continuer directement avec le récapitulatif final
+
+   2. **Détecter la présence du récapitulatif de planification complet** (liste narrative des tickets créés, dépendances, risques) :
       - **Présent** → continuer la vérification suivante
       - **Absent** → demander explicitement au planner de produire le récapitulatif complet avant de continuer.
 
-   2. **Détecter la présence du bloc `## Retour vers orchestrator`** :
-      - **Présent** → continuer la vérification suivante
+   3. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+      - **Présent** → continuer
       - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
 
-⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` :**
+   **Cas B — question montante :** le résultat contient `## Question pour l'orchestrateur`
+   → Voir section "Réception d'une question montante depuis le planner" ci-dessous.
 
-> « Ai-je affiché le récapitulatif de planification complet en texte dans la discussion ? »
-> → NON : STOP — produire le texte MAINTENANT (voir template ci-dessous), puis appeler question
+⚠️ **AUTOCONTRÔLE OBLIGATOIRE avant d'appeler `question` (Cas A) :**
+
+> « Ai-je affiché les blocs `## Retour intermédiaire` ET le récapitulatif de planification complet en texte dans la discussion ? »
+> → NON : STOP — afficher le contenu manquant MAINTENANT, puis appeler question
 > → OUI : continuer vers question
 
 > ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` — s'y référer pour les règles complètes.
 
-**Template de retranscription obligatoire :**
+**Template de retranscription obligatoire (Cas A — retour final) :**
 
 ```
 **[Retranscription du retour planner]**
+
+---
+
+### Récaps intermédiaires (si présents)
+
+<Copier-coller intégral de chaque bloc ## Retour intermédiaire vers orchestrateur reçu — dans l'ordre>
 
 ---
 
@@ -406,6 +427,7 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
 **[Fin de retranscription]**
 
 **Vérification obligatoire :**
+- ✅ Blocs intermédiaires copiés dans l'ordre (ou mention explicite "aucun bloc intermédiaire")
 - ✅ Récapitulatif de planification complet copié tel quel (aucune omission)
 - ✅ Bloc structuré avec tous les champs obligatoires présents
 - ✅ Sections critiques vérifiées : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement`
@@ -424,9 +446,68 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
 
 ---
 
+### Réception d'une question montante depuis le planner
+
+Quand le planner atteint un checkpoint (fin de phase ou clarification critique), il termine sa session avec un bloc `## Question pour l'orchestrateur`.
+
+> ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS afficher le contenu du bloc `## Retour intermédiaire vers orchestrateur` AVANT d'appeler l'outil `question`. Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte.
+
+**Comportement obligatoire :**
+
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrateur`** dans la discussion — ne jamais résumer ni abréger.
+
+2. **Lire le bloc `## Question pour l'orchestrateur`** — récupérer : question, options, `task_id`, instruction de reprise.
+
+3. **Poser la question à l'utilisateur** via l'outil `question` en reprenant exactement la question et les options du bloc :
+
+   ```
+   question({
+     questions: [{
+       header: "[Planner] Phase X — Feature : <nom>",
+       question: "[Planner — Phase X | Feature : <nom>]\n<question exacte du bloc>",
+       options: [
+         { label: "<label-option-1>", description: "<description du bloc>" },
+         { label: "<label-option-2>", description: "<description du bloc>" }
+       ]
+     }]
+   })
+   ```
+
+4. **Ré-invoquer le planner avec `task_id`** (valeur dans le bloc `## Question pour l'orchestrateur`) en transmettant la réponse :
+
+   ```
+   task(
+     subagent_type: "planner",
+     task_id: "<task_id du bloc>",
+     prompt: "<Instruction de reprise du bloc>. Réponse : <option choisie>. [Information fournie si applicable.]"
+   )
+   ```
+
+   > **Toujours reprendre le marqueur `[CONTEXTE]` :** si l'instruction de reprise ne le contient pas déjà, ajouter :
+   > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif.`
+
+5. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
+
+**Cas C — session introuvable :** si la ré-invocation avec `task_id` ne produit pas de résultat :
+
+```
+question({
+  questions: [{
+    header: "Session planner perdue",
+    question: "[Orchestrator — Session introuvable | Planner]\nLa session planner a été perdue (redémarrage probable). Comment reprendre ?",
+    options: [
+      { label: "Relancer depuis le début (Recommandé)", description: "Invoquer une nouvelle session planner" },
+      { label: "Stop", description: "Arrêter la planification" }
+    ]
+  }]
+})
+```
+
+---
+
    Le format attendu, les champs obligatoires et les définitions des statuts du planner sont définis dans le skill `planning/planner-handoff-format` — s'y référer comme source de vérité.
 
-   > ❌ Ne jamais accepter un bloc handoff sans récapitulatif de planification préalable — les deux sont obligatoires.
+   > ❌ Ne jamais accepter un bloc handoff final sans récapitulatif de planification préalable — les deux sont obligatoires.
 
 3. **Récupérer les instructions de routing depuis le retour planner :**
    - Lire le champ `Agent prévu` dans le tableau `### Tickets créés` pour chaque ticket — c'est l'agent à utiliser

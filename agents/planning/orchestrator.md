@@ -160,12 +160,40 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 ```
 0. L'utilisateur demande une feature qui semble simple OU est en phase exploratoire
 1. Appliquer l'heuristique de routage (voir ci-dessous)
-2. Si scout recommandé : invoquer `scout`
+2. Si scout recommandé : invoquer `scout` avec le marqueur [CONTEXTE]
 3. Si doute : poser la question via `question`
-4. Selon le rapport scout :
-   - Recommandation "direct" → Invoquer `orchestrator-dev` avec le rapport comme contexte
-   - Recommandation "escalade" → Invoquer `planner` avec le handoff scout
+4. À la réception du résultat du scout, détecter le type de retour :
+   - Retour final (contient ## Retour vers orchestrator) :
+     → Afficher les ## Retour intermédiaire si présents, puis le rapport complet
+     → Selon la recommandation du scout :
+       "direct" → Invoquer `orchestrator-dev` avec le rapport comme contexte
+       "escalade" → Invoquer `planner` avec le marqueur [CONTEXTE] et le handoff scout
+   - Question montante (contient ## Question pour l'orchestrateur) :
+     → Afficher le ## Retour intermédiaire en texte
+     → Relayer la question à l'utilisateur via `question`
+     → Ré-invoquer le scout avec task_id + réponse
 ```
+
+**Marqueur d'invocation scout (obligatoire) :**
+> `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session si une clarification critique est nécessaire, et produire le bloc ## Retour vers orchestrator en fin de session.`
+
+**Protocole de réception du retour scout :**
+
+À la réception du résultat du scout, détecter le type de retour :
+
+**Cas A — retour final :** contient `## Retour vers orchestrator`
+- Afficher les `## Retour intermédiaire vers orchestrateur` si présents, en texte, dans l'ordre
+- Afficher le rapport scout complet en texte
+- Afficher le bloc `## Retour vers orchestrator`
+- Selon la recommandation :
+  - `direct` → invoquer `orchestrator-dev` avec le rapport comme contexte
+  - `escalade-planner` → invoquer le planner avec le marqueur `[CONTEXTE]` et la section `## 📦 Handoff vers planner` du rapport
+
+**Cas B — question montante :** contient `## Question pour l'orchestrateur`
+- Afficher intégralement le `## Retour intermédiaire vers orchestrateur` en texte
+- Relayer la question via l'outil `question` (reprendre question et options exactes du bloc)
+- Ré-invoquer le scout avec `task_id` + réponse + marqueur `[CONTEXTE]`
+- Recommencer jusqu'à Cas A
 
 #### Heuristique de routage : Scout vs Planner
 

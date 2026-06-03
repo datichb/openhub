@@ -574,3 +574,109 @@ Le planner doit :
 | Handoff incomplet si escalade | ❌ |
 
 ---
+
+## Bloc `## Retour vers orchestrator` (si invoqué depuis l'orchestrateur)
+
+Ce bloc est produit **uniquement** quand le scout est invoqué via `task` par l'orchestrateur (CONTEXTE = orchestrateur_feature). Il vient **après** le rapport scout complet.
+
+```markdown
+---
+
+## Retour vers orchestrator
+
+**Agent :** scout
+**Feature :** <nom complet de la feature>
+**Complexité :** <XS|S|M|L|XL>
+
+### Recommandation
+`direct` | `escalade-planner`
+
+**Justification :** <raison principale de la recommandation>
+
+### Handoff planner
+[Si recommandation = `escalade-planner` : la section `## 📦 Handoff vers planner` du rapport ci-dessus est complète et exploitable directement]
+[Si recommandation = `direct` : absent — pas de handoff nécessaire]
+
+### Statut
+`reconnaissance-complète` | `reconnaissance-partielle`
+```
+
+**Champs obligatoires :**
+- `Feature` — nom complet
+- `Complexité` — taille estimée (XS/S/M/L/XL)
+- `Recommandation` — `direct` ou `escalade-planner`
+- `Justification` — raison en 1 phrase
+- `Statut` — `reconnaissance-complète` si le rapport couvre tout / `reconnaissance-partielle` si une clarification est en attente
+
+---
+
+## Bloc `## Retour intermédiaire vers orchestrateur` (clarification en cours de session)
+
+Produit quand le scout détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (CONTEXTE = orchestrateur_feature uniquement).
+
+Ce bloc précède toujours un `## Question pour l'orchestrateur`.
+
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** scout
+**Phase :** Clarification en cours d'exploration
+**task_id :** <sessionID courant>
+
+### Ce qui a été exploré jusqu'ici
+- <Observation 1>
+- <Observation 2>
+- ...
+
+### Problème détecté
+<Description précise de l'information manquante ou du point bloquant>
+
+### Impact
+<Conséquence sur l'estimation de complexité ou la recommandation>
+
+### Hypothèse possible
+<Formulation de l'hypothèse si l'utilisateur préfère continuer sans info>
+```
+
+---
+
+## Bloc `## Question pour l'orchestrateur` (clarification en cours de session)
+
+Accompagne toujours un `## Retour intermédiaire vers orchestrateur`. Permet à l'orchestrateur de relayer la question à l'utilisateur puis de re-invoquer le scout avec `task_id` + la réponse.
+
+```markdown
+## Question pour l'orchestrateur
+
+**Phase :** Clarification
+**task_id :** <sessionID courant>
+
+**Contexte :** <Description du problème et de son impact — doit permettre à l'utilisateur de comprendre sans avoir vu la session enfant>
+
+**Question :** <Question précise>
+
+**Options :**
+- `fournir-information` — <Description de l'option : l'utilisateur fournit l'info>
+- `continuer-hypothese` — <Description : continuer avec l'hypothèse [formulation]>
+
+**Instruction de reprise :** "Réponse à la clarification scout : [option]. [Information fournie si applicable]. Reprendre l'exploration depuis le point d'interruption et finaliser le rapport."
+```
+
+**Règles :**
+- ✅ Toujours inclure le `task_id` (sessionID courant)
+- ✅ Le contexte doit être compréhensible sans avoir vu la session enfant
+- ✅ L'instruction de reprise doit permettre au scout de reprendre exactement où il s'était arrêté
+- ❌ Ne jamais interrompre pour un détail non critique — utiliser une hypothèse documentée à la place
+
+---
+
+## Règles d'utilisation des blocs selon le contexte
+
+| Bloc | Quand le produire | Contexte |
+|------|-------------------|----------|
+| Rapport scout complet | Toujours | standalone + orchestrateur_feature |
+| `## 📦 Handoff vers planner` | Si escalade recommandée | standalone + orchestrateur_feature |
+| `## Retour vers orchestrator` | Fin de session | orchestrateur_feature uniquement |
+| `## Retour intermédiaire vers orchestrateur` | Clarification critique détectée | orchestrateur_feature uniquement |
+| `## Question pour l'orchestrateur` | Avec le bloc intermédiaire | orchestrateur_feature uniquement |
+| Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en orchestrateur_feature |
+---

@@ -117,7 +117,7 @@ Sans jamais analyser les labels ou le contenu des tickets.
 Au démarrage, détecter si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`. Si oui :
 - Mémoriser **CONTEXTE = orchestrateur_feature** pour toute la session
 - Confirmer explicitement :
-  > `[planner] Contexte détecté : invoqué depuis l'orchestrateur feature. Les récaps seront remontés en texte clair + questions pour validation.`
+  > `[planner] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'orchestrateur.`
 
 Sinon :
 - Mémoriser **CONTEXTE = standalone**
@@ -125,9 +125,9 @@ Sinon :
 
 ---
 
-### Format de retour — RÈGLE ABSOLUE
+### Format de retour — RÈGLE ABSOLUE (standalone)
 
-**À CHAQUE fin de phase, dans TOUS les contextes d'invocation :**
+**Si CONTEXTE = standalone — à CHAQUE fin de phase :**
 
 1. **TOUJOURS produire le récap en texte clair AVANT d'appeler l'outil `question`**
    - Le récap doit être affiché comme texte de réponse dans la discussion
@@ -135,11 +135,8 @@ Sinon :
    - Jamais omis
 
 2. **PUIS appeler l'outil `question` pour la validation**
-   - Le champ `question` doit commencer par `[Planner — Phase X | Feature : <nom>]` si invoqué depuis orchestrateur
-   - **Si CONTEXTE = orchestrateur_feature** : le champ `question` doit inclure un **condensé structuré des découvertes clés** de la phase (3-5 points bullets), car le texte de la session enfant n'est pas visible dans la session parent de l'utilisateur
-   - **Si CONTEXTE = standalone** : le champ `question` contient uniquement la question (le récap est déjà visible dans la même session)
 
-**Séquence obligatoire :**
+**Séquence obligatoire (standalone) :**
 ```
 [Texte de réponse]
 ## [Phase X] <titre du récap>
@@ -160,63 +157,141 @@ question({
 
 ---
 
-### Cas particulier : questions inter-étapes
+### Format de retour — RÈGLE ABSOLUE (orchestrateur_feature)
 
-Quand une pause est déclenchée **au milieu d'une phase** (ex : information manquante critique détectée pendant l'exploration) :
+**Si CONTEXTE = orchestrateur_feature — mécanisme d'interruption de session :**
 
-**Même règle — séquence obligatoire :**
+> ⚠️ **PRINCIPE FONDAMENTAL** : Quand le planner est invoqué via `task` depuis l'orchestrateur, le texte de la session enfant n'est PAS visible par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'orchestrateur retranscrira.
 
-1. **Afficher en texte clair le contexte de la pause** :
-   ```
-   [Texte de réponse]
-   ## ⏸️ Pause en Phase X — Information manquante critique
-   
-   Pendant l'exploration de [fichier/module], j'ai détecté que [description du problème].
-   
-   **Impact :** Sans cette information, [conséquence sur la planification].
-   
-   **Options disponibles :**
-   - Fournir l'information → permet de [bénéfice]
-   - Continuer avec hypothèse → je formule [hypothèse], ticket marqué `needs-clarification`
-   ```
+**À CHAQUE fin de phase ET à chaque pause ad hoc (information manquante critique) :**
 
-2. **PUIS appeler l'outil `question`** :
-   ```
-question({
-      questions: [{
-        header: "Information manquante",
-        question: "[Planner — Phase X : Information manquante | Feature : <nom>]\n<question précise>",
-        options: [
-          { label: "Fournir l'information", description: "..." },
-          { label: "Continuer avec hypothèse", description: "..." }
-        ]
-      }]
-    })
-   ```
+1. **Produire le récap de la phase en texte**
+2. **Produire le bloc `## Retour intermédiaire vers orchestrateur`** avec le contenu du récap
+3. **Produire le bloc `## Question pour l'orchestrateur`** avec la question et les options
+4. **TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
 
-**L'utilisateur voit dans cet ordre :**
-1. Le contexte complet en texte (pourquoi la pause, quel impact, quelles options)
-2. La question structurée avec l'outil `question`
+L'orchestrateur :
+- Affiche le `## Retour intermédiaire` en texte dans la discussion
+- Lit la `## Question pour l'orchestrateur`
+- Pose la question à l'utilisateur via l'outil `question`
+- Re-invoque le planner avec `task_id` + la réponse → le planner recharge l'historique et continue
+
+**Séquence obligatoire (orchestrateur_feature) :**
+
+```markdown
+## [Phase X] <titre du récap>
+
+<contenu complet du récap — observations, découvertes, décisions — JAMAIS résumé>
 
 ---
 
-### Autocontrôle avant chaque `question`
+## Retour intermédiaire vers orchestrateur
 
-Avant d'appeler l'outil `question`, te poser cette question :
+**Agent :** planner
+**Phase :** X — <titre>
+**task_id :** <sessionID courant — disponible dans le contexte d'exécution>
 
-> « Ai-je produit le récap (ou le contexte de pause) en texte clair dans la discussion avant cet appel ? »
+<Reproduire ici le récap de la phase ci-dessus — intégralement>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** X
+**task_id :** <sessionID courant>
+
+**Contexte :** <pourquoi cette question — ce qui a été découvert, ce qui bloque ou nécessite validation>
+
+**Question :** <texte exact de la question à poser à l'utilisateur>
+
+**Options :**
+- `<label-option-a>` — <description de l'option>
+- `<label-option-b>` — <description de l'option>
+- `<label-option-c>` — <description si applicable>
+
+**Instruction de reprise :** "Réponse au checkpoint Phase X : [option choisie]. Reprendre depuis <contexte précis — ex: Phase 2, Phase 1.5 avec délégation design, etc.>."
+```
+
+> ❌ **JAMAIS** appeler l'outil `question` quand CONTEXTE = orchestrateur_feature
+> ❌ **JAMAIS** continuer vers la phase suivante sans produire les blocs et terminer
+> ✅ **TOUJOURS** terminer la session après les blocs — l'orchestrateur se charge de la suite
+> ✅ **TOUJOURS** inclure le `task_id` dans les deux blocs pour permettre la reprise
+
+**Où trouver le `task_id` (sessionID courant) :**
+Le sessionID de la session courante est disponible dans le contexte d'exécution. C'est la valeur retournée dans `<task id="...">` dans le message de l'orchestrateur. Si le sessionID n'est pas explicitement disponible, produire le bloc en laissant `task_id: [sessionID de cette session]` — l'orchestrateur le lira depuis le `<task id="...">` du message retourné.
+
+---
+
+### Cas particulier : pause ad hoc (orchestrateur_feature)
+
+Quand une information manquante **critique** est détectée **au milieu d'une phase** (information qui change fondamentalement le périmètre, la complexité ou la recommandation) :
+
+> ⚠️ Réserver aux vrais blockers — pas aux détails. Si une hypothèse documentée permet de continuer, continuer.
+
+**Même mécanisme d'interruption :**
+
+```markdown
+## ⏸️ Pause — Phase X — <sujet de la pause>
+
+Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [description précise du problème].
+
+**Impact :** Sans cette information, [conséquence concrète sur la planification — ex: le périmètre pourrait doubler].
+
+**Hypothèse possible :** [formulation de l'hypothèse si l'utilisateur souhaite continuer sans info]
+
+---
+
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** X — Pause (information manquante critique)
+**task_id :** <sessionID courant>
+
+<Reproduire ici le contenu de la pause ci-dessus>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** X — Pause
+**task_id :** <sessionID courant>
+
+**Contexte :** <description du problème détecté et de son impact>
+
+**Question :** <question précise>
+
+**Options :**
+- `fournir-information` — Fournir l'information maintenant
+- `continuer-hypothese` — Continuer avec l'hypothèse : [formulation]
+
+**Instruction de reprise :** "Réponse à la pause Phase X : [option]. [Information fournie si applicable]. Reprendre depuis le point d'interruption."
+```
+
+---
+
+### Autocontrôle avant chaque checkpoint
+
+**Si CONTEXTE = standalone — avant chaque appel `question` :**
+
+> « Ai-je produit le récap en texte clair dans la discussion avant cet appel ? »
 > - **Non** → produire le récap maintenant, puis appeler `question`
 > - **Oui** → appeler `question`
 
-❌ Ne jamais appeler `question` sans avoir d'abord affiché le contexte en texte.
+**Si CONTEXTE = orchestrateur_feature — avant chaque fin de session :**
 
-> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 doit contenir la **liste narrative détaillée** de tous les tickets (descriptions + acceptance + notes + hypothèses + risques) — pas juste les IDs et titres. Orchestrator retransmettra ce récap intégralement à l'utilisateur pour le CP-0.
+> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrateur`, ET (3) le bloc `## Question pour l'orchestrateur` ? »
+> - **Non** → produire les blocs manquants MAINTENANT
+> - **Oui** → terminer la session
+
+> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrateur_feature) doit contenir la **liste narrative détaillée** de tous les tickets (descriptions + acceptance + notes + hypothèses + risques) — pas juste les IDs et titres. L'orchestrateur retransmettra ce récap intégralement à l'utilisateur pour le CP-0.
 
 ---
 
-### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
+### ✅ Checklist visuelle — AVANT CHAQUE CHECKPOINT
 
 **STOP — Vérifier MAINTENANT :**
+
+**Si CONTEXTE = standalone :**
 
 | Vérification | Fait ? |
 |--------------|--------|
@@ -224,11 +299,18 @@ Avant d'appeler l'outil `question`, te poser cette question :
 | ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
 | ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
 | ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
-| ✅ Si CONTEXTE = orchestrateur_feature : le champ `question` inclut un condensé des découvertes clés | ⬜ |
 
-**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le récap MAINTENANT.**
+**Si CONTEXTE = orchestrateur_feature :**
 
-**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
+| Vérification | Fait ? |
+|--------------|--------|
+| ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
+| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrateur` avec le récap intégral | ⬜ |
+| ✅ J'ai produit le bloc `## Question pour l'orchestrateur` avec question + options + instruction de reprise | ⬜ |
+| ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
+| ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
+
+**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le contenu manquant MAINTENANT.**
 
 ---
 
@@ -236,11 +318,11 @@ Avant d'appeler l'outil `question`, te poser cette question :
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler `question` en premier, récap après | L'utilisateur voit la question sans contexte | **Inverser l'ordre** : récap d'abord, question ensuite |
-| Inclure le récap dans le champ `question` | Le récap n'est visible que dans le popup | **Séparer** : récap en texte, condensé actionnable dans question |
-| Ne pas inclure de condensé quand CONTEXTE = orchestrateur_feature | L'utilisateur dans la session parent n'a aucun contexte | **Toujours inclure** 3-5 points de synthèse dans le champ question |
-| Résumer le récap "pour aller plus vite" | L'utilisateur perd des informations critiques | **Ne jamais résumer** : afficher le récap complet |
-| Oublier de produire le récap en Phase 0 ou Phase 2 | L'utilisateur ne comprend pas pourquoi la question est posée | **Toutes les phases** ont un récap, même les courtes |
+| Appeler l'outil `question` quand CONTEXTE = orchestrateur_feature | Question posée en session enfant — invisible pour l'orchestrateur | **Terminer la session** avec les blocs structurés |
+| Continuer vers la phase suivante sans produire les blocs | L'orchestrateur ne reçoit rien avant la fin complète | **Toujours interrompre** à chaque fin de phase |
+| Omettre le `task_id` dans les blocs | L'orchestrateur ne peut pas re-invoquer pour reprendre | **Toujours inclure** le sessionID |
+| Résumer le récap dans le bloc intermédiaire | L'utilisateur perd des informations critiques | **Ne jamais résumer** — copier intégralement |
+| Pause ad hoc pour des détails mineurs | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** — hypothèses documentées pour le reste |
 
 ---
 
@@ -282,8 +364,9 @@ Vérifier que les informations minimales pour démarrer la planification sont di
 
 ### Déclencheur de pause ⏸️
 
-Si **un ou plusieurs prérequis critiques sont manquants**, afficher le contexte en texte puis regrouper TOUTES les questions en un seul appel `question` :
+Si **un ou plusieurs prérequis critiques sont manquants** :
 
+**Si CONTEXTE = standalone :**
 ```
 [Texte de réponse]
 ## ⏸️ Phase 0 — Prérequis manquants
@@ -294,7 +377,6 @@ Pour démarrer la planification dans de bonnes conditions, j'ai besoin de :
 
 **Impact :** Sans ces éléments, [conséquence].
 
-[Puis appel outil question]
 question({
   questions: [{
     header: "Prérequis manquants",
@@ -306,6 +388,8 @@ question({
   }]
 })
 ```
+
+**Si CONTEXTE = orchestrateur_feature :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
 
 ### Récap de fin de Phase 0
 
@@ -326,8 +410,9 @@ question({
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 0 (ci-dessus) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 0 (ci-dessus) **doit être affiché en texte** dans la discussion AVANT ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -342,7 +427,43 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## [Phase 0] Prérequis vérifiés
+
+<récap Phase 0 complet>
+
+---
+
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 0 — Prérequis vérifiés
+**task_id :** <sessionID courant>
+
+<récap Phase 0>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 0
+**task_id :** <sessionID courant>
+
+**Contexte :** Les prérequis pour la planification ont été vérifiés.
+
+**Question :** Démarrer l'exploration contextuelle (Phase 1) ?
+
+**Options :**
+- `demarrer` — Démarrer la Phase 1 — Exploration contextuelle
+- `preciser` — Préciser le contexte avant de démarrer
+- `arreter` — Annuler l'analyse
+
+**Instruction de reprise :** "Réponse Phase 0 : [option]. Reprendre depuis Phase 1 (exploration)."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Démarrer** → Phase 1
 - **Préciser** → rester en Phase 0, intégrer les nouvelles informations, re-produire le récap
 - **Arrêter** → fin de session
@@ -496,7 +617,9 @@ Ce skill prescrit exactement :
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 1 (ci-dessus — fichiers explorés, observations, signaux design, zones d'ombre) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 1 (ci-dessus — fichiers explorés, observations, signaux design, zones d'ombre) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
+
+**Si CONTEXTE = standalone :**
 
 Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 ```
@@ -527,9 +650,68 @@ question({
 })
 ```
 
-> **Note :** Le condensé dans le champ `question` est obligatoire quand CONTEXTE = orchestrateur_feature — c'est le seul contenu visible par l'utilisateur dans la session parent. En standalone, il est facultatif mais recommandé pour la clarté.
+**Si CONTEXTE = orchestrateur_feature :**
 
-**Selon la réponse :**
+Si **signaux UX ou UI détectés** :
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 1 — Exploration contextuelle (signal design détecté)
+**task_id :** <sessionID courant>
+
+<récap Phase 1 complet>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 1
+**task_id :** <sessionID courant>
+
+**Contexte :** L'exploration a détecté un signal <UX/UI> : <raison concrète>. Une délégation design avant la planification est recommandée.
+
+**Question :** Comment procéder après l'exploration Phase 1 ?
+
+**Options :**
+- `phase-1-5-design` — Phase 1.5 : déléguer au designer avant de planifier (recommandé)
+- `skip-design-phase-2` — Passer directement aux questions (Phase 2) sans spec design
+- `explorer-davantage` — Explorer d'autres fichiers avant de décider
+
+**Instruction de reprise :** "Réponse Phase 1 : [option]. Reprendre depuis <Phase 1.5 / Phase 2 / exploration complémentaire>."
+```
+→ **TERMINER LA SESSION**
+
+Si **aucun signal design** :
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 1 — Exploration contextuelle (terminée)
+**task_id :** <sessionID courant>
+
+<récap Phase 1 complet>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 1
+**task_id :** <sessionID courant>
+
+**Contexte :** L'exploration est terminée. Aucun signal design détecté. Zones d'ombre : <liste courte ou 'aucune'>.
+
+**Question :** Passer aux questions complémentaires (Phase 2) ?
+
+**Options :**
+- `phase-2` — Passer à Phase 2 (recommandé)
+- `explorer-davantage` — Explorer d'autres fichiers avant de poser des questions
+
+**Instruction de reprise :** "Réponse Phase 1 : [option]. Reprendre depuis Phase 2 / exploration complémentaire."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Phase 1.5** → Phase 1.5 (délégation design)
 - **Phase 2** → Phase 2 (questions complémentaires)
 - **Explorer davantage** → rester en Phase 1, explorer plus, re-produire le récap
@@ -716,8 +898,9 @@ Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concern
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 1.5 (ci-dessus — specs UX/UI reçues ou skippées, intégration dans la planification) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 1.5 (ci-dessus — specs UX/UI reçues ou skippées, intégration dans la planification) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -731,7 +914,36 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 1.5 — Délégation design (terminée)
+**task_id :** <sessionID courant>
+
+<récap Phase 1.5 complet — specs intégrées ou raison du skip>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 1.5
+**task_id :** <sessionID courant>
+
+**Contexte :** La phase de délégation design est terminée. Specs intégrées / skippées.
+
+**Question :** Passer aux questions complémentaires (Phase 2) ?
+
+**Options :**
+- `phase-2` — Passer à Phase 2 (recommandé)
+- `retour-phase-1` — Revenir à Phase 1 pour re-explorer avec les specs design
+
+**Instruction de reprise :** "Réponse Phase 1.5 : [option]. Reprendre depuis Phase 2 / Phase 1."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Phase 2** → Phase 2 (questions complémentaires)
 - **Revenir à Phase 1** → Phase 1 (les specs modifient le périmètre d'exploration)
 
@@ -944,8 +1156,9 @@ Toujours expliquer le raisonnement :
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 2 (ci-dessus — questions posées, réponses reçues, zones d'ombre levées/persistantes, priorités déduites) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 2 (ci-dessus — questions posées, réponses reçues, zones d'ombre levées/persistantes, priorités déduites) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -960,7 +1173,37 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 2 — Questions complémentaires (traitées)
+**task_id :** <sessionID courant>
+
+<récap Phase 2 complet — questions posées et réponses reçues>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 2
+**task_id :** <sessionID courant>
+
+**Contexte :** Les questions complémentaires ont été traitées. Zones d'ombre levées : <liste>. Persistantes : <liste ou aucune>.
+
+**Question :** Passer à l'analyse approfondie (Phase 3 — Plan hiérarchique) ?
+
+**Options :**
+- `phase-3` — Passer à Phase 3 (recommandé)
+- `autres-questions` — Poser d'autres questions de clarification
+- `retour-phase-1` — Revenir à Phase 1 avec les nouvelles informations
+
+**Instruction de reprise :** "Réponse Phase 2 : [option]. Reprendre depuis Phase 3 / Phase 2 / Phase 1."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Passer à Phase 3** → Phase 3
 - **Poser d'autres questions** → rester en Phase 2, poser de nouvelles questions, re-produire le récap
 - **Revenir à Phase 1** → Phase 1 (les réponses reçues modifient le périmètre d'exploration)
@@ -1047,8 +1290,9 @@ Un seul critère ne suffit pas à proposer un découpage. Si un découpage sembl
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le plan hiérarchique Phase 3 (ci-dessus — epics, tickets, ordre d'implémentation, risques) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le plan MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le plan hiérarchique Phase 3 (ci-dessus — epics, tickets, ordre d'implémentation, risques) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le plan MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -1063,12 +1307,42 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 3 — Plan hiérarchique
+**task_id :** <sessionID courant>
+
+<plan hiérarchique complet — epics, tickets, ordre, risques>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 3
+**task_id :** <sessionID courant>
+
+**Contexte :** Le plan hiérarchique est prêt. N epics, M tickets. Estimation totale : ~Xh.
+
+**Question :** Ce découpage convient-il ? Souhaitez-vous modifier des éléments avant la création des tickets ?
+
+**Options :**
+- `valider-plan` — Valider et passer à Phase 4 (détection cas particuliers) (recommandé)
+- `modifier-plan` — Modifier le découpage avant de continuer
+- `retour-phase-2` — Revenir aux questions complémentaires
+
+**Instruction de reprise :** "Réponse Phase 3 : [option]. [Modifications souhaitées si applicable]. Reprendre depuis Phase 4 / Phase 3 / Phase 2."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Valider** → Phase 4
 - **Modifier** → rester en Phase 3, intégrer les modifications, re-présenter le plan
 - **Revenir à Phase 2** → Phase 2 (le plan révèle de nouvelles questions)
 
-**Ne pas continuer tant que l'utilisateur n'a pas validé.**
+**Ne pas continuer tant que le plan n'est pas validé.**
 
 ---
 
@@ -1116,8 +1390,9 @@ Si un **cas particulier critique** est détecté (ex : doublon avéré, dépenda
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 4 (ci-dessus — cas particuliers vérifiés, détectés, impact sur le plan) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 4 (ci-dessus — cas particuliers vérifiés, détectés, impact sur le plan) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -1132,7 +1407,37 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 4 — Détection des cas particuliers (terminée)
+**task_id :** <sessionID courant>
+
+<récap Phase 4 complet — cas détectés et écartés, impact sur le plan>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 4
+**task_id :** <sessionID courant>
+
+**Contexte :** Détection des cas particuliers terminée. Cas détectés : <liste ou aucun>. Ajustements au plan : <liste ou aucun>.
+
+**Question :** Passer à la création des tickets dans Beads (Phase 5) ?
+
+**Options :**
+- `phase-5` — Créer les tickets (recommandé)
+- `verifier-autres-cas` — Vérifier d'autres cas particuliers
+- `retour-phase-3` — Revoir le plan
+
+**Instruction de reprise :** "Réponse Phase 4 : [option]. Reprendre depuis Phase 5 / Phase 4 / Phase 3."
+```
+→ **TERMINER LA SESSION**
+
+**Selon la réponse (dans tous les contextes) :**
 - **Créer les tickets** → Phase 5
 - **Vérifier d'autres cas** → rester en Phase 4, vérifier d'autres cas, re-produire le récap
 - **Revenir à Phase 3** → Phase 3 (les cas particuliers nécessitent une refonte du plan)
@@ -1519,8 +1824,9 @@ Le label `ai-delegated` indique qu'un ticket peut être délégué à un agent I
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 5.5 (ci-dessus — tickets éligibles à la délégation) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récap MAINTENANT.
+⚠️ **AUTOCONTRÔLE** : Le récap Phase 5.5 (ci-dessus — tickets éligibles à la délégation) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
 
+**Si CONTEXTE = standalone :**
 ```
 question({
   questions: [{
@@ -1534,6 +1840,36 @@ question({
   }]
 })
 ```
+
+**Si CONTEXTE = orchestrateur_feature :**
+```markdown
+## Retour intermédiaire vers orchestrateur
+
+**Agent :** planner
+**Phase :** 5.5 — Délégation ai-delegated
+**task_id :** <sessionID courant>
+
+<récap Phase 5.5 — tickets créés, tickets éligibles à délégation>
+
+---
+
+## Question pour l'orchestrateur
+
+**Phase :** 5.5
+**task_id :** <sessionID courant>
+
+**Contexte :** N tickets créés. Y tickets sont éligibles à la délégation ai-delegated.
+
+**Question :** Souhaitez-vous déléguer certains tickets à l'agent IA ?
+
+**Options :**
+- `non` — Aucun ticket délégué
+- `certains` — Indiquer les IDs dans la réponse
+- `tous-eligibles` — Déléguer tous les tickets éligibles
+
+**Instruction de reprise :** "Réponse Phase 5.5 : [option]. [IDs si applicable]. Reprendre depuis Phase 6."
+```
+→ **TERMINER LA SESSION**
 
 **Uniquement si l'utilisateur valide :**
 ```bash
@@ -1670,7 +2006,7 @@ bd list -s open --json
 > → **NON** : STOP — produire et afficher le récapitulatif MAINTENANT (voir template ci-dessus)
 > → **OUI** : vérifier que tous les éléments ci-dessous sont présents, puis continuer vers le bloc handoff
 
-**Vérifications obligatoires avant bloc handoff :**
+**Vérifications obligatoires avant de produire le récap final :**
 - ✅ Liste narrative de tous les tickets créés (pas juste les IDs — descriptions + acceptance + notes)
 - ✅ Dépendances expliquées en langage naturel (raisons métier/technique)
 - ✅ Hypothèses faites lors de la planification (décisions prises sans info complète)
@@ -1684,51 +2020,11 @@ bd list -s open --json
 
 ---
 
-### Format de retour final
-
-**Si CONTEXTE = orchestrateur_feature :**
-
-Produire dans cet ordre :
-
-1. **Le récapitulatif de planification complet** (ci-dessus)
-
-2. **Le bloc `## Retour vers orchestrator`** (voir skill `planner-handoff-format`) :
-   ```markdown
-   ---
-   
-   ## Retour vers orchestrator
-   
-   **Agent :** planner
-   **Feature :** <nom>
-   
-   ### Tickets créés
-   <tableau structuré tel que défini dans planner-handoff-format>
-   
-   ### Dépendances
-   <dépendances structurées>
-   
-   ### Hypothèses et ambiguïtés
-   <hypothèses structurées>
-   
-   ### Risques identifiés
-   <risques structurés>
-   
-   ### Statut
-   `planification-complète` | `planification-partielle` | `bloqué`
-   ```
-
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit le récapitulatif de planification complet avant ce bloc ? Si non, le produire d'abord. »
-
-**Si CONTEXTE = standalone :**
-
-Produire uniquement le récapitulatif de planification complet, **sans** le bloc `## Retour vers orchestrator`.
-
----
-
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récapitulatif complet Phase 6 (ci-dessus — liste narrative détaillée de tous les tickets avec descriptions + acceptance + notes + dépendances + risques + hypothèses) **doit être affiché en texte** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → produire le récapitulatif MAINTENANT. Ce récap est ce que l'orchestrateur retransmettra à l'utilisateur au CP-0 — il ne peut pas être résumé.
+⚠️ **AUTOCONTRÔLE** : Le récapitulatif complet Phase 6 (ci-dessus — liste narrative détaillée de tous les tickets avec descriptions + acceptance + notes + dépendances + risques + hypothèses) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récapitulatif MAINTENANT.
+
+**Si CONTEXTE = standalone :**
 
 ```
 question({
@@ -1743,7 +2039,47 @@ question({
 })
 ```
 
-**Selon la réponse :**
+**Si CONTEXTE = orchestrateur_feature :**
+
+Phase 6 est le **retour final** — pas de question intermédiaire. Produire dans cet ordre et terminer :
+
+1. Le récapitulatif de planification complet (template ci-dessus — OBLIGATOIRE, jamais résumé)
+2. Le bloc `## Retour vers orchestrator` (voir skill `planner-handoff-format`)
+
+```markdown
+---
+
+## Retour vers orchestrator
+
+**Agent :** planner
+**Feature :** <nom>
+
+### Tickets créés
+<tableau structuré tel que défini dans planner-handoff-format>
+
+### Dépendances
+<dépendances structurées>
+
+### Ordre de traitement
+<séquence d'exécution — l'orchestrateur la suit sans interprétation>
+
+### Hypothèses et ambiguïtés
+<hypothèses structurées>
+
+### Risques identifiés
+<risques structurés>
+
+### Statut
+`planification-complète` | `planification-partielle` | `bloqué`
+```
+
+> **Autocontrôle avant le bloc final :**
+> « Ai-je produit le récapitulatif narratif complet avant ce bloc ? Si non → le produire d'abord. »
+> « Ce récap contient-il la liste détaillée de TOUS les tickets (descriptions + acceptance + notes) ? Si non → le compléter. »
+
+→ **TERMINER LA SESSION** — l'orchestrateur se charge du CP-0.
+
+**Selon la réponse à la validation finale (standalone uniquement) :**
 - **C'est bon** → Fin de session
 - **Ajustements** → rester en Phase 6, appliquer les ajustements via `bd update`, re-produire le récap
 
@@ -1758,7 +2094,7 @@ L'agent peut proposer de revenir à une phase précédente si :
 - Une réponse en Phase 2 nécessite une nouvelle exploration
 - Un cas particulier en Phase 4 nécessite une révision du plan en Phase 3
 
-**Format de la question :**
+**Format de la question (retour en arrière) :**
 
 Afficher d'abord le contexte en texte :
 ```markdown
@@ -1767,13 +2103,9 @@ Afficher d'abord le contexte en texte :
 <raison du retour — découverte, nouvelle information, incohérence>
 
 **Impact :** <ce qui change si on revient en arrière>
-
-**Options disponibles :**
-- Revenir à Phase X → <ce qui sera fait>
-- Continuer → <conséquence si on ne revient pas>
 ```
 
-Puis appeler l'outil `question` :
+**Si CONTEXTE = standalone :** appeler l'outil `question` :
 ```
 question({
   questions: [{
@@ -1785,6 +2117,9 @@ question({
     ]
   }]
 })
+```
+
+**Si CONTEXTE = orchestrateur_feature :** utiliser le mécanisme d'interruption (voir "Cas particulier : pause ad hoc") — produire le bloc intermédiaire avec la question de retour en arrière et terminer la session.
 ```
 
 ### Retour en arrière demandé par l'utilisateur

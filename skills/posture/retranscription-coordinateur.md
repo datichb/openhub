@@ -32,25 +32,33 @@ Quand tu invoques un sous-agent via `task`, tu DOIS retranscrire son retour comp
 
 **Séquence obligatoire — sans exception :**
 
-1. Recevoir le retour du sous-agent (récap + bloc structuré)
-2. **Afficher le récap complet en texte** dans la discussion
-3. **Afficher le bloc structuré** dans la discussion
-4. **Puis seulement** appeler l'outil `question`
+1. Recevoir le retour du sous-agent
+2. **Si le retour contient des blocs `## Retour intermédiaire vers orchestrateur`** → les afficher en texte dans l'ordre, en premier
+3. **Afficher le récap final / rapport complet en texte** dans la discussion
+4. **Afficher le bloc structuré** (`## Retour vers orchestrator`) dans la discussion
+5. **Puis seulement** appeler l'outil `question`
 
 > ❌ Ne jamais appeler `question` comme première action après réception d'un retour
 > ❌ Ne jamais résumer le récap — le copier intégralement
 > ❌ Ne jamais omettre le bloc structuré
+> ❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
 
 ---
 
 ## Format de retranscription
 
-### Template standard
+### Template standard (retour final)
 
-Utiliser ce template après chaque réception de retour :
+Utiliser ce template après chaque réception de retour final :
 
 ```
 **[Retranscription du retour <agent>]**
+
+---
+
+### Blocs intermédiaires (si présents)
+
+<Copier-coller intégral de chaque ## Retour intermédiaire vers orchestrateur, dans l'ordre — uniquement si présents>
 
 ---
 
@@ -69,10 +77,35 @@ Utiliser ce template après chaque réception de retour :
 **[Fin de retranscription]**
 ```
 
+### Template pour une question montante (planner / scout)
+
+Quand le planner ou le scout termine sa session avec `## Question pour l'orchestrateur` :
+
+```
+**[Retranscription — question montante <agent>]**
+
+---
+
+### Récap intermédiaire
+
+<Copier-coller intégral du bloc ## Retour intermédiaire vers orchestrateur>
+
+---
+
+**[Fin de retranscription]**
+
+**Vérification :**
+- ✅ Récap intermédiaire complet affiché (aucun résumé, aucune omission)
+- ✅ task_id noté pour la ré-invocation : <task_id>
+
+**Maintenant seulement,** utiliser l'outil `question` pour relayer la question à l'utilisateur.
+```
+
 ### Vérification obligatoire avant question
 
 Avant d'appeler `question`, vérifier :
 
+- ✅ Les blocs `## Retour intermédiaire vers orchestrateur` sont affichés (si présents)
 - ✅ Le récap complet est affiché en texte (aucune omission, aucun résumé)
 - ✅ Le bloc structuré est affiché en texte avec tous les champs obligatoires
 - ✅ Les sections critiques sont présentes (ex : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Contraintes d'implémentation`, etc. selon l'agent)
@@ -83,6 +116,7 @@ Avant d'appeler `question`, vérifier :
 
 | Vérification | Fait ? |
 |--------------|--------|
+| ✅ Les blocs `## Retour intermédiaire vers orchestrateur` sont affichés en texte (si présents) | ⬜ |
 | ✅ J'ai affiché le récap narratif complet du sous-agent en texte (copier-coller intégral, non résumé) | ⬜ |
 | ✅ J'ai affiché le bloc structuré `## Retour vers orchestrator` en entier | ⬜ |
 | ✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Règles par type de retour") | ⬜ |
@@ -95,7 +129,7 @@ Avant d'appeler `question`, vérifier :
 
 **Autocontrôle visuel :**
 
-> « Ai-je affiché le récap ET le bloc AVANT d'appeler question ? »
+> « Ai-je affiché les blocs intermédiaires + le récap + le bloc structuré AVANT d'appeler question ? »
 > → NON : STOP — afficher MAINTENANT
 > → OUI : continuer
 
@@ -103,10 +137,13 @@ Avant d'appeler `question`, vérifier :
 
 ## Règles par type de retour
 
-| Agent source | Récap à retranscrire | Sections critiques à vérifier |
-|--------------|----------------------|-------------------------------|
-| **planner** | Récapitulatif de planification | `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement` |
-| **auditor-*** | Rapport d'audit complet | `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
+| Agent source | Type de retour | Récap à retranscrire | Sections critiques à vérifier |
+|--------------|---------------|----------------------|-------------------------------|
+| **planner** (final) | `## Retour vers orchestrator` | Récapitulatif de planification + blocs intermédiaires si présents | `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement` |
+| **planner** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contenu de la phase, contexte de la question, `task_id` |
+| **scout** (final) | `## Retour vers orchestrator` | Rapport scout complet + blocs intermédiaires si présents | `## Recommandation`, `## Signaux détectés`, `## Handoff vers planner` si escalade |
+| **scout** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Ce qui a été exploré, problème détecté, `task_id` |
+| **auditor-*** | Rapport d'audit complet | `## Synthèse des problèmes identifiés`, `## Risque résiduel si non corrigé` |
 | **ux-designer, ui-designer** | Spec complète (user flows, wireframes, tokens) | `### Contraintes d'implémentation`, `### Points ouverts` |
 | **debugger** | Rapport de diagnostic complet | `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles` |
 | **onboarder** | Rapport d'onboarding complet | `### Zones d'incertitude`, `### Dette technique détectée` |

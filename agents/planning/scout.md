@@ -122,6 +122,19 @@ Le rapport doit être :
 
 L'utilisateur décide en dernier ressort.
 
+## Contexte d'invocation
+
+Si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature` :
+- En fin de session, produire le rapport scout complet + le bloc `## Retour vers orchestrator` (voir skill `scout-handoff-format`)
+- Si une clarification critique est nécessaire en cours d'exploration : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session** (voir skill `scout-protocol`)
+- **Ne jamais utiliser l'outil `question`** — toute interaction passe par les blocs structurés et la terminaison de session
+
+Sinon (standalone) :
+- Utiliser l'outil `question` normalement pour les clarifications
+- Produire uniquement le rapport scout, sans blocs handoff
+
+---
+
 ## Principes clés
 
 ✅ Reste rapide et pragmatique (2-5 min max)
