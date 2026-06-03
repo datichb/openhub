@@ -243,6 +243,7 @@ teardown() {
 adapter_validate()      { return 0; }
 adapter_needs_node()    { return 0; }
 adapter_deploy_files()  { echo "adapter_deploy_files called"  >> "$DEPLOY_CALLS_LOG"; }
+adapter_deploy_skills() { echo "adapter_deploy_skills called" >> "$DEPLOY_CALLS_LOG"; }
 adapter_deploy_config() { echo "adapter_deploy_config called" >> "$DEPLOY_CALLS_LOG"; }
 adapter_deploy()        { echo "adapter_deploy called"        >> "$DEPLOY_CALLS_LOG"; }
 adapter_install()       { true; }
