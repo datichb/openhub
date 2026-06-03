@@ -208,13 +208,11 @@ generate_dependency_graph() {
   fi
 
   # Phase 1 : construire le mapping imports pour chaque fichier
-  # Stockage dans des tableaux parallèles (compatible bash 3.2 sans declare -A)
-  # On génère directement le JSON au fur et à mesure
+  # Les nœuds JSON sont écrits directement dans tmp_file au fur et à mesure
+  # (évite la concaténation O(n²) d'une grande string bash)
 
   local total_imports=0
-
-  # Tableau de JSON nodes
-  local nodes_json=""
+  local nodes_tmp_file="${graph_file}.nodes.tmp.$$"
   local first_node=true
 
   local f rel_path
@@ -260,23 +258,28 @@ generate_dependency_graph() {
     local escaped_rel
     escaped_rel=$(_depgraph_escape_json "$rel_path")
 
+    # Append direct dans le fichier temporaire — O(1) par nœud au lieu de O(n) en bash string
     if [ "$first_node" = true ]; then
-      nodes_json="${nodes_json}\"${escaped_rel}\":{\"imports\":${imports_json},\"imported_by\":[]}"
+      printf '"%s":{"imports":%s,"imported_by":[]}' "$escaped_rel" "$imports_json" >> "$nodes_tmp_file"
       first_node=false
     else
-      nodes_json="${nodes_json},\"${escaped_rel}\":{\"imports\":${imports_json},\"imported_by\":[]}"
+      printf ',"%s":{"imports":%s,"imported_by":[]}' "$escaped_rel" "$imports_json" >> "$nodes_tmp_file"
     fi
   done
 
   # Phase 2 : construire les imported_by via post-processing jq
-  # On écrit d'abord la structure sans imported_by, puis on l'enrichit
+  # Assembler le JSON complet depuis le fichier de nœuds (pas de string multi-Mo en mémoire bash)
+  local nodes_content=""
+  [ -f "$nodes_tmp_file" ] && nodes_content=$(cat "$nodes_tmp_file")
+  rm -f "$nodes_tmp_file"
+
   local pre_json
   pre_json=$(printf '{"version":"1.0","generated_at":"%s","root":"%s","stats":{"files_scanned":%d,"total_imports":%d},"nodes":{%s}}' \
     "$(_depgraph_escape_json "$generated_at")" \
     "$(_depgraph_escape_json "$project_path")" \
     "${#files[@]}" \
     "$total_imports" \
-    "$nodes_json")
+    "$nodes_content")
 
   # Utiliser jq pour calculer les imported_by (inversion du graphe imports)
   local final_json

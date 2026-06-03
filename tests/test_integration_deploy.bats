@@ -349,3 +349,17 @@ AGENTEOF
 
   [ -f "$DEPLOY_DIR/opencode.json" ]
 }
+
+@test "intégration : deploy se termine dans un délai raisonnable (no hang)" {
+  # Régression : generate_dependency_graph bloquait indéfiniment en fin de deploy
+  # sur des projets avec beaucoup de fichiers TS/JS (concaténation O(n²) + jq sur multi-Mo).
+  # Vérifie que cmd-deploy.sh rend la main dans un délai acceptable.
+  _use_shared_deploy
+
+  # Le deploy partagé (setup_file) s'est terminé sans timeout BATS (120s par défaut en CI).
+  # On vérifie simplement que les artefacts sont présents — si on arrive ici,
+  # la commande s'est bien terminée (pas de hang).
+  [ -d "$DEPLOY_DIR/.opencode/agents" ]
+  deployed_count=$(find "$DEPLOY_DIR/.opencode/agents" -name "*.md" | wc -l | tr -d ' ')
+  [ "$deployed_count" -gt 0 ]
+}

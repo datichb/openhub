@@ -588,17 +588,27 @@ detect_stack() {
   # Terraform — prune les dossiers lourds
   { find "$project_path" "${_prune_args[@]}" -name "*.tf" -print 2>/dev/null | grep -q .; } && echo "terraform" || true
 
-  # Kubernetes — prune + limiter à maxdepth 4
-  { find "$project_path" "${_prune_args[@]}" \( -name "*.yaml" -o -name "*.yml" \) -print 2>/dev/null | \
-    while IFS= read -r file; do grep -l 'kind: Deployment\|kind: Service\|kind: Ingress' "$file" 2>/dev/null; done | grep -q .; } && echo "kubernetes" || true
+  # Kubernetes — grep récursif (un seul processus au lieu d'un fork par fichier YAML)
+  { grep -rql --include="*.yaml" --include="*.yml" \
+      -e 'kind: Deployment' -e 'kind: Service' -e 'kind: Ingress' \
+      --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+      --exclude-dir=build --exclude-dir=.next --exclude-dir=.nuxt \
+      --exclude-dir=.output --exclude-dir=__pycache__ --exclude-dir=.venv \
+      --exclude-dir=venv --exclude-dir=vendor \
+      "$project_path" 2>/dev/null; } && echo "kubernetes" || true
 
   # Helm — prune
   { [ -f "${project_path}/Chart.yaml" ] || \
     find "$project_path" "${_prune_args[@]}" -name "Chart.yaml" -print 2>/dev/null | grep -q .; } && echo "helm" || true
 
-  # ArgoCD — prune
-  { find "$project_path" "${_prune_args[@]}" \( -name "*.yaml" -o -name "*.yml" \) -print 2>/dev/null | \
-    while IFS= read -r file; do grep -l 'argoproj.io\|kind: Application' "$file" 2>/dev/null; done | grep -q .; } && echo "argocd" || true
+  # ArgoCD — grep récursif (un seul processus au lieu d'un fork par fichier YAML)
+  { grep -rql --include="*.yaml" --include="*.yml" \
+      -e 'argoproj.io' -e 'kind: Application' \
+      --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+      --exclude-dir=build --exclude-dir=.next --exclude-dir=.nuxt \
+      --exclude-dir=.output --exclude-dir=__pycache__ --exclude-dir=.venv \
+      --exclude-dir=venv --exclude-dir=vendor \
+      "$project_path" 2>/dev/null; } && echo "argocd" || true
 }
 
 # Résout la liste des skills stack à injecter pour un agent donné.

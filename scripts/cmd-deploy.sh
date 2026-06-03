@@ -133,8 +133,14 @@ _cmd_deploy_check() {
     should_deploy_agent "$project_id" "$agent_id" || continue
 
     # native_skills explicites du frontmatter
+    # Réutilise $_fm_native_skills déjà lu par read_agent_frontmatter — zéro subprocess
     local _ns
-    while IFS= read -r _ns; do
+    local _raw_ns="${_fm_native_skills:-}"
+    _raw_ns="${_raw_ns#[}"; _raw_ns="${_raw_ns%]}"
+    IFS=',' read -ra _ns_items <<< "$_raw_ns"
+    for _ns_item in "${_ns_items[@]:-}"; do
+      # Trim whitespace
+      _ns="${_ns_item#"${_ns_item%%[![:space:]]*}"}"; _ns="${_ns%"${_ns##*[![:space:]]}"}"
       [ -z "$_ns" ] && continue
       local _ns_name; _ns_name=$(basename "$_ns" .md)
       local _already=0
@@ -146,7 +152,7 @@ _cmd_deploy_check() {
         _expected_skill_names+=("$_ns_name")
         _expected_skill_sources+=("$SKILLS_DIR/${_ns}.md")
       fi
-    done < <(extract_frontmatter_list "$agent_file" "native_skills")
+    done
 
     # Stack skills dynamiques
     if [ -n "$_check_precomputed_stack_skills" ]; then
@@ -462,10 +468,23 @@ echo ""
 log_success "Déploiement terminé en ${SECONDS}s"
 
 # ── Graphe de dépendances (optionnel, non-bloquant) ──────────────────────────
-# Généré uniquement si le projet contient des fichiers TS/JS
+# Généré uniquement si le projet contient des fichiers TS/JS.
+# Exécuté en background avec un timeout de 30s pour ne jamais bloquer la fin du deploy.
 if [ -n "$PROJECT_ID" ] && [ -n "$deploy_dir" ]; then
   source "$LIB_DIR/dependency-graph.sh"
-  if generate_dependency_graph "$deploy_dir" 2>/dev/null; then
-    log_info "Graphe de dépendances généré : .opencode/dependency-graph.json ($(depgraph_stats "$deploy_dir" 2>/dev/null || echo "stats indisponibles"))"
+  (generate_dependency_graph "$deploy_dir" 2>/dev/null) &
+  _depgraph_pid=$!
+  _depgraph_waited=0
+  while kill -0 "$_depgraph_pid" 2>/dev/null && [ "$_depgraph_waited" -lt 30 ]; do
+    sleep 1
+    _depgraph_waited=$((_depgraph_waited + 1))
+  done
+  if kill -0 "$_depgraph_pid" 2>/dev/null; then
+    kill "$_depgraph_pid" 2>/dev/null || true
+    wait "$_depgraph_pid" 2>/dev/null || true
+    log_warn "Graphe de dépendances ignoré (timeout 30s — projet trop volumineux)"
+  else
+    wait "$_depgraph_pid" 2>/dev/null && \
+      log_info "Graphe de dépendances généré : .opencode/dependency-graph.json ($(depgraph_stats "$deploy_dir" 2>/dev/null || echo "stats indisponibles"))" || true
   fi
 fi
