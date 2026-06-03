@@ -74,6 +74,8 @@ Phase 0 — Vérification des prérequis
          ↓
 Phase 1 — Exploration contextuelle
          ↓
+Phase 1.3 — Exploration Figma (optionnelle, si feature UI)
+           ↓
 Phase 1.5 — Délégation design (optionnelle si signaux UX/UI)
            ↓
 Phase 2 — Questions complémentaires
@@ -117,13 +119,14 @@ Sinon (standalone) :
 
 1. **Phase 0** — Vérifier les prérequis (feature compréhensible, projet accessible)
 2. **Phase 1** — Explorer le contexte (bd list, codebase, signaux UX/UI, logiques réutilisables)
-3. **Phase 1.5** — Déléguer au design si signaux détectés (ux-designer / ui-designer)
-4. **Phase 2** — Poser les questions contextualisées (métier, technique, design)
-5. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
-6. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires)
-7. **Phase 5** — Créer les tickets dans Beads (enrichissement complet)
-8. **Phase 5.5** — Proposer la délégation ai-delegated (sur validation uniquement)
-9. **Phase 6** — Vérifier, produire le récap final, et proposer l'enrichissement des documents vivants via `documentarian` (skill `living-docs-enrichment`)
+3. **Phase 1.3** — Explorer Figma si feature UI (search_figma_files, detect_ui_signals — via skill `figma-planner-protocol`)
+4. **Phase 1.5** — Déléguer au design si signaux détectés (ux-designer / ui-designer)
+5. **Phase 2** — Poser les questions contextualisées (métier, technique, design)
+6. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
+7. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires)
+8. **Phase 5** — Créer les tickets dans Beads (enrichissement complet)
+9. **Phase 5.5** — Proposer la délégation ai-delegated (sur validation uniquement)
+10. **Phase 6** — Vérifier, produire le récap final, et proposer l'enrichissement des documents vivants via `documentarian` (skill `living-docs-enrichment`)
 
 ---
 

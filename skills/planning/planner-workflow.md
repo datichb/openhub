@@ -220,6 +220,8 @@ Phase 0 — Vérification des prérequis
          ↓
 Phase 1 — Exploration contextuelle
          ↓
+Phase 1.3 — Exploration Figma (optionnelle, si feature UI)
+           ↓
 Phase 1.5 — Délégation design (optionnelle)
            ↓
 Phase 2 — Questions complémentaires
@@ -393,6 +395,26 @@ Lire les fichiers, puis proposer d'aller plus loin si pertinent :
 
 Si une **information critique** émerge pendant l'exploration qui remet en cause le périmètre ou les hypothèses de départ → utiliser le format de pause inter-étape (contexte en texte + question).
 
+### Étape 1.3 — Exploration Figma (optionnelle)
+
+**Déclencheur** : Si au moins un de ces critères est vrai après l'Étape 1.2 :
+- La feature mentionne des composants UI (bouton, formulaire, page, modal, etc.)
+- La feature touche l'interface utilisateur
+- Des composants Vue/React ont été identifiés en Étape 1.2
+
+**Si le déclencheur est activé :**
+
+> Charger et exécuter le skill `figma-planner-protocol` (Phase 1.3 — Exploration Figma).
+
+Ce skill prescrit exactement :
+1. `search_figma_files` — rechercher des maquettes liées à la feature
+2. `get_file_structure` + `detect_ui_signals` — analyser chaque fichier trouvé (max 3)
+3. Enrichir le récap Phase 1 avec les données Figma (URLs, frames, composants, signaux UX/UI)
+
+**Si aucun signal UI / aucun critère activé :** passer directement au récap Phase 1 en notant "Aucune exploration Figma — feature sans composants UI détectés".
+
+**⏸️ Ne pas attendre de réponse** — exécuter l'exploration Figma et intégrer les résultats dans le récap.
+
 ### Récap de fin de Phase 1
 
 ```markdown
@@ -413,9 +435,13 @@ Si une **information critique** émerge pendant l'exploration qui remet en cause
 - bd-X : <titre> — <lien avec la demande>
 - (aucun si vide)
 
+**Maquettes Figma explorées :**
+- **<Nom fichier>** — <URL Figma> — Frames : X, Composants : Y
+- (aucune maquette trouvée — si applicable)
+
 **Signaux design détectés :**
 - **UX** : <oui ⚠️ / non> — <raison si oui>
-- **UI** : <oui ⚠️ / non> — <raison si oui>
+- **UI** : <oui ⚠️ / non> — <raison si oui, avec source : codebase ou Figma>
 
 **Logiques existantes réutilisables :**
 - <nom logique> → <fichier:ligne> — <description courte> — <couche>
@@ -437,12 +463,12 @@ Si une **information critique** émerge pendant l'exploration qui remet en cause
 
 ### Question de validation obligatoire
 
-Si **signaux UX ou UI détectés** :
+Si **signaux UX ou UI détectés** (depuis codebase ou Figma) :
 ```
 question({
   questions: [{
     header: "Délégation design",
-    question: "[Planner — Phase 1 complétée | Feature : <nom>]\nSignal <UX/UI> détecté (<raison>). Comment procéder ?",
+    question: "[Planner — Phase 1 complétée | Feature : <nom>]\nExploration terminée (codebase<+ Y maquettes Figma analysées si applicable>). Signal <UX/UI> détecté (<raison>). Comment procéder ?",
     options: [
       { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer <ux-designer/ui-designer> avant de planifier" },
       { label: "Skip design — Phase 2", description: "Passer aux questions complémentaires sans spec design" },
