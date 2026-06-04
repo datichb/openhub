@@ -3,6 +3,7 @@
 
 source "$HUB_DIR/scripts/lib/prompt-builder.sh"
 source "$HUB_DIR/scripts/lib/context-cache.sh"
+source "$HUB_DIR/scripts/lib/agent-discovery.sh"
 
 # Initialisations globales des tableaux _DEPLOY_FILES_* — obligatoires sous set -u.
 # Sans ces déclarations, adapter_deploy_config() appelée directement (Phase 3 sans Phase 1+2)
@@ -216,10 +217,16 @@ _gitignore_opencode_json() {
 #   _DEPLOY_FILES_AGENT_FILES  — chemin source du fichier canonique
 #   _DEPLOY_FILES_COUNT        — nombre d'agents retenus
 #
+# Après le scan des agents hub, applique les entrées "External agents" du projet :
+#   - :substitute:hub-id → remplace la source du hub-id par le fichier projet
+#   - :complement        → ajoute un nouvel agent en plus des agents hub
+#
 # Aucune écriture de fichier — appelable seul pour alimenter adapter_deploy_config().
 # $1 = project_id (optionnel)
+# $2 = deploy_dir (optionnel — requis pour résoudre les chemins relatifs des agents externes)
 _load_agent_metadata() {
   local project_id="${1:-}"
+  local deploy_dir="${2:-}"
 
   [ -d "$CANONICAL_AGENTS_DIR" ] || { log_error "[opencode] Dossier agents/ introuvable"; return 1; }
 
@@ -241,6 +248,91 @@ _load_agent_metadata() {
     _DEPLOY_FILES_AGENT_FILES+=("$agent_file")
     _DEPLOY_FILES_COUNT=$((_DEPLOY_FILES_COUNT + 1))
   done < <(find "$CANONICAL_AGENTS_DIR" -name "*.md" | sort)
+
+  # ── Appliquer les agents externes déclarés dans "External agents" ─────────
+  [ -z "$project_id" ] && return 0
+  [ -z "$deploy_dir" ] && return 0
+
+  # Substitutions : remplacer la source d'un agent hub par l'agent projet
+  local subst_line
+  while IFS= read -r subst_line; do
+    [ -z "$subst_line" ] && continue
+    local ext_path="${subst_line%%:*}"
+    local hub_id="${subst_line##*:}"
+
+    # Résoudre le chemin absolu (relatif au deploy_dir si non absolu)
+    local abs_path
+    if [[ "$ext_path" == /* ]]; then
+      abs_path="$ext_path"
+    else
+      abs_path="${deploy_dir}/${ext_path}"
+    fi
+
+    [ -f "$abs_path" ] || {
+      log_warn "[external-agents] Fichier substitut introuvable : $abs_path — ignoré"
+      continue
+    }
+
+    # Chercher l'index du hub-id dans les tableaux
+    local _idx=0
+    local _found=0
+    while [ "$_idx" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+      if [ "${_DEPLOY_FILES_AGENT_KEYS[$_idx]}" = "$hub_id" ]; then
+        _DEPLOY_FILES_AGENT_FILES[$_idx]="$abs_path"
+        _found=1
+        break
+      fi
+      _idx=$((_idx + 1))
+    done
+
+    if [ "$_found" = "0" ]; then
+      log_warn "[external-agents] Agent hub '$hub_id' non trouvé pour substitution — ignoré"
+    fi
+  done < <(get_project_substitute_agents "$project_id")
+
+  # Compléments : ajouter de nouveaux agents en plus des agents hub
+  local comp_path
+  while IFS= read -r comp_path; do
+    [ -z "$comp_path" ] && continue
+
+    # Résoudre le chemin absolu
+    local abs_comp_path
+    if [[ "$comp_path" == /* ]]; then
+      abs_comp_path="$comp_path"
+    else
+      abs_comp_path="${deploy_dir}/${comp_path}"
+    fi
+
+    [ -f "$abs_comp_path" ] || {
+      log_warn "[external-agents] Fichier complément introuvable : $abs_comp_path — ignoré"
+      continue
+    }
+
+    local comp_id; comp_id=$(get_agent_id "$abs_comp_path" 2>/dev/null || basename "$abs_comp_path" .md)
+
+    # Vérifier qu'un agent avec ce même ID n'existe pas déjà (éviter les doublons)
+    local _dup=0
+    local _di=0
+    while [ "$_di" -lt "${#_DEPLOY_FILES_AGENT_KEYS[@]}" ]; do
+      if [ "${_DEPLOY_FILES_AGENT_KEYS[$_di]}" = "$comp_id" ]; then
+        _dup=1
+        break
+      fi
+      _di=$((_di + 1))
+    done
+
+    if [ "$_dup" = "1" ]; then
+      log_warn "[external-agents] Agent complément '$comp_id' en doublon avec un agent existant — ignoré"
+      continue
+    fi
+
+    local comp_mode
+    comp_mode=$(get_effective_agent_mode "$abs_comp_path" "$project_id")
+    _DEPLOY_FILES_AGENT_KEYS+=("$comp_id")
+    _DEPLOY_FILES_AGENT_VALS+=("$comp_mode")
+    _DEPLOY_FILES_AGENT_FILES+=("$abs_comp_path")
+    _DEPLOY_FILES_COUNT=$((_DEPLOY_FILES_COUNT + 1))
+  done < <(get_project_complement_agents "$project_id")
 }
 
 adapter_validate() {
@@ -378,7 +470,7 @@ adapter_deploy_skills() {
 
   # Charger les métadonnées agents si les tableaux sont vides (appel direct sans Phase 1)
   if [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]; then
-    _load_agent_metadata "$project_id"
+    _load_agent_metadata "$project_id" "$deploy_dir"
   fi
 
   # Réutiliser les stacks précalculés par la Phase 1, ou recalculer si appel autonome
@@ -419,7 +511,7 @@ adapter_deploy_files() {
   lang=$(resolve_agent_lang "$lang")
 
   # Charger les métadonnées (réinitialise les tableaux _DEPLOY_FILES_*)
-  _load_agent_metadata "$project_id"
+  _load_agent_metadata "$project_id" "$deploy_dir"
 
   # Précalculer les stack skills une seule fois pour tous les agents (une seule invocation au lieu d'une par agent)
   local _precomputed_stacks=""

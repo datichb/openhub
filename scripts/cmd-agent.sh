@@ -6,6 +6,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
 source "$LIB_DIR/tui-picker.sh"
 source "$LIB_DIR/agent-picker.sh"
+source "$LIB_DIR/agent-discovery.sh"
 
 # EXTERNAL_SKILLS_DIR est défini dans common.sh
 
@@ -950,6 +951,48 @@ cmd_deploy() {
   echo ""
 }
 
+# ── DISCOVER ──────────────────────────────────────────────────────────────────
+
+##
+# Découvre les agents existants d'un projet non générés par le hub,
+# propose de les intégrer (substitution ou complément) et persiste les choix.
+# @param {string} $1 — PROJECT_ID
+##
+cmd_discover() {
+  local project_id="${1:-}"
+  [ -z "$project_id" ] && { log_error "Usage : oc agent discover <PROJECT_ID>"; exit 1; }
+
+  project_id=$(normalize_project_id "$project_id")
+  local deploy_dir
+  deploy_dir=$(resolve_project_path "$project_id")
+
+  # Source cmd-deploy.sh pour utiliser _cmd_deploy_discover
+  # (on source uniquement les fonctions — pas le bloc dispatch grâce à la garde BASH_SOURCE)
+  source "$SCRIPTS_DIR/cmd-deploy.sh"
+
+  log_title "Découverte des agents du projet : $project_id"
+  echo ""
+
+  _cmd_deploy_discover "$project_id" "$deploy_dir"
+
+  # Afficher un résumé de la configuration résultante
+  local ext_agents
+  ext_agents=$(get_project_external_agents "$project_id")
+  if [ -n "$ext_agents" ]; then
+    echo ""
+    log_info "Configuration 'External agents' du projet $project_id :"
+    echo "$ext_agents" | tr '|' '\n' | while IFS= read -r entry; do
+      echo "  - $entry"
+    done
+    echo ""
+    log_info "Pour appliquer : ./oc.sh deploy $project_id"
+  else
+    echo ""
+    log_info "Aucun agent externe configuré pour $project_id"
+    log_info "Placez des agents dans $deploy_dir/.opencode/agents/ puis relancez : ./oc.sh agent discover $project_id"
+  fi
+}
+
 # ── DISPATCH ─────────────────────────────────────────────────────────────────
 
 SUBCOMMAND="${1:-}"
@@ -964,6 +1007,7 @@ case "$SUBCOMMAND" in
   mode)     cmd_mode "$@" ;;
   validate) cmd_validate "$@" ;;
   deploy)   cmd_deploy "$@" ;;
+  discover) cmd_discover "$@" ;;
   keytest)  cmd_keytest ;;
   *)
     echo -e "${BOLD}$(t agent.title)${RESET}"
@@ -976,6 +1020,7 @@ case "$SUBCOMMAND" in
     echo "  $(t agent.mode_cmd)"
     echo "  $(t agent.validate_cmd)"
     echo "  $(t agent.deploy_cmd)"
+    echo "  ./oc.sh agent discover <PROJECT_ID>  — découvrir et intégrer les agents existants du projet"
     echo ""
     echo -e "${BOLD}$(t agent.examples)${RESET}"
     echo "  ./oc.sh agent list"
@@ -988,6 +1033,7 @@ case "$SUBCOMMAND" in
     echo "  ./oc.sh agent validate planner"
     echo "  ./oc.sh agent deploy planner"
     echo "  ./oc.sh agent deploy planner MY-PROJECT"
+    echo "  ./oc.sh agent discover MY-PROJECT"
     echo "  ./oc.sh agent keytest"
     echo ""
     ;;

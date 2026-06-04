@@ -704,6 +704,7 @@ oc agent <sous-commande>
 | `mode <PROJECT_ID>` | Affiche / overrides les modes `primary`/`subagent` par projet |
 | `validate [agent-id]` | Valide la cohérence des agents (champs requis, skills existants, unicité des id) |
 | `deploy <agent-id> [PROJECT_ID]` | Déploie **un seul agent** |
+| `discover <PROJECT_ID>` | Découvre les agents existants du projet et propose de les intégrer |
 
 ### `oc agent create` — workflow interactif
 
@@ -746,6 +747,40 @@ Déploie **un seul agent** sans tout redéployer. Utile après modification d'un
 ```bash
 oc agent deploy planner            # déploie planner dans le hub
 oc agent deploy planner MON-APP    # déploie planner dans MON-APP uniquement
+```
+
+### `oc agent discover`
+
+```bash
+oc agent discover <PROJECT_ID>
+```
+
+Scanne `.opencode/agents/` du projet, détecte les agents **non générés par le hub**, résout leur similarité sémantique avec les agents hub, et propose interactivement de les intégrer.
+
+**Deux modes d'intégration :**
+
+| Mode | Comportement | Exemple |
+|------|-------------|---------|
+| `substitute` | L'agent projet **remplace** l'agent hub correspondant lors du deploy | `my-planner.md` remplace `planner` du hub |
+| `complement` | L'agent projet **s'ajoute** en plus des agents hub | `custom-agent.md` coexiste avec tous les agents hub |
+
+**Résolution de similarité (3 niveaux) :**
+1. Match exact d'ID (ex: `planner` → `planner`)
+2. Lookup dans `config/agent-aliases.json` (ex: `plan` → `planner`, `frontend` → `developer-frontend`)
+3. Normalisation avancée avec strip des préfixes courants (`dev-`, `my-`, `agent-`)
+
+**Persistance :** les choix sont écrits dans le champ `External agents` de `projects.md` :
+```markdown
+- External agents : .opencode/agents/my-planner.md:substitute:planner|.opencode/agents/custom.md:complement
+```
+
+**Comportement au deploy :** `oc deploy PROJECT_ID` déclenche automatiquement la découverte si de nouveaux agents non-hub sont présents (sauf en mode non-interactif `OC_NON_INTERACTIVE=1`).
+
+**Exemples :**
+
+```bash
+oc agent discover MON-APP          # découverte interactive
+oc deploy MON-APP                  # découverte automatique + deploy
 ```
 
 > Le sélecteur interactif (agents) utilise l'écran alternatif (`smcup`/`rmcup`) — le contenu du terminal parent est intégralement préservé à la fermeture.

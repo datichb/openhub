@@ -14,6 +14,9 @@
 - Langue : <langue de travail>  # optionnel — ex: english, français. Surcharge oc config set language
 - Agents : <agents sélectionnés>  # optionnel — ex: planner,reviewer (ou "all")
 - Disable agents : <agents natifs à désactiver>  # optionnel — surcharge hub.json — ex: plan,build
+- External agents : <intégrations agents projet>  # optionnel — généré par : oc agent discover <PROJECT_ID>
+  # Format : chemin:substitute:hub-id (remplace un agent hub) ou chemin:complement (s'ajoute)
+  # Exemple : .opencode/agents/planner.md:substitute:planner|.opencode/agents/my-qa.md:complement
 -->
 
 ---

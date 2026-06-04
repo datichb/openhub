@@ -6,6 +6,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/spinner.sh"
 source "$LIB_DIR/mcp-deploy.sh"
+source "$LIB_DIR/agent-discovery.sh"
 
 # ── Mode --check ─────────────────────────────────────────────────────────────
 # Vérifie si les fichiers générés sont à jour par rapport aux sources.
@@ -309,6 +310,152 @@ _cmd_deploy_diff() {
   fi
 }
 
+# ── Phase 0 : découverte des agents projet ────────────────────────────────────
+# Détecte les agents existants dans le projet qui ne sont pas générés par le hub,
+# résout leur similarité avec les agents hub, et propose à l'utilisateur de les
+# intégrer (substitution ou complément). Les choix sont persistés dans projects.md.
+#
+# En mode non-interactif (OC_NON_INTERACTIVE=1 ou pas de TTY) → skip silencieux.
+# Appelée aussi depuis cmd-agent.sh (oc agents discover PROJECT_ID).
+#
+# @param $1 — PROJECT_ID
+# @param $2 — deploy_dir (chemin résolu du projet)
+_cmd_deploy_discover() {
+  local project_id="$1"
+  local deploy_dir="$2"
+
+  # Skip si non-interactif (CI, pipes, etc.)
+  if [ "${OC_NON_INTERACTIVE:-0}" = "1" ] || [ ! -t 0 ]; then
+    return 0
+  fi
+
+  # Découvrir les agents du projet non générés par le hub
+  local discovered_agents=()
+  while IFS= read -r agent_file; do
+    discovered_agents+=("$agent_file")
+  done < <(discover_project_agents "$deploy_dir")
+
+  [ ${#discovered_agents[@]} -eq 0 ] && return 0
+
+  # Lire la config déjà persistée pour ne pas re-proposer ce qui est déjà configuré
+  local already_configured
+  already_configured=$(get_project_external_agents "$project_id")
+
+  # Filtrer les agents pas encore configurés
+  local new_agents=()
+  for agent_file in "${discovered_agents[@]}"; do
+    local rel_path="${agent_file#"$deploy_dir/"}"
+    if ! echo "$already_configured" | grep -qF "$rel_path"; then
+      new_agents+=("$agent_file")
+    fi
+  done
+
+  [ ${#new_agents[@]} -eq 0 ] && return 0
+
+  echo ""
+  echo -e "${BOLD}── Agents existants détectés dans le projet${RESET}"
+  echo ""
+  log_info "${#new_agents[@]} agent(s) non générés par le hub trouvé(s) dans $deploy_dir/.opencode/agents/"
+  echo ""
+
+  local new_entries=""
+
+  for agent_file in "${new_agents[@]}"; do
+    local agent_id
+    agent_id=$(get_discovery_agent_id "$agent_file")
+    local rel_path="${agent_file#"$deploy_dir/"}"
+
+    # Résoudre la similarité avec les agents hub
+    local similar_hub_ids
+    similar_hub_ids=$(resolve_agent_similarity "$agent_id")
+
+    echo -e "  ${CYAN}●${RESET} Agent trouvé : ${BOLD}${agent_id}${RESET}  (${rel_path})"
+
+    local choice=""
+    if [ -n "$similar_hub_ids" ]; then
+      # Match trouvé : proposer substitution / complément / ignorer
+      echo -e "    ${YELLOW}→ Similaire à l'agent hub :${RESET} ${similar_hub_ids}"
+      echo ""
+      echo "    Que voulez-vous faire ?"
+      echo "      [s] Substituer notre agent '${similar_hub_ids}' par cet agent"
+      echo "      [c] Ajouter en complément (les deux coexistent)"
+      echo "      [i] Ignorer (ne pas intégrer)"
+      echo ""
+      while true; do
+        read -rp "    Votre choix [s/c/i] : " choice </dev/tty
+        choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+        case "$choice" in
+          s|substitute) choice="s"; break ;;
+          c|complement) choice="c"; break ;;
+          i|ignore)     choice="i"; break ;;
+          *) echo "    Choix invalide. Entrez s, c ou i." ;;
+        esac
+      done
+
+      case "$choice" in
+        s)
+          # Prendre le premier hub-id en cas de liste (ex: "ux-designer,ui-designer")
+          local primary_hub_id="${similar_hub_ids%%,*}"
+          local entry="${rel_path}:substitute:${primary_hub_id}"
+          new_entries="${new_entries:+${new_entries}|}${entry}"
+          log_success "  → Substitution : '${agent_id}' remplacera '${primary_hub_id}' pour ce projet"
+          ;;
+        c)
+          local entry="${rel_path}:complement"
+          new_entries="${new_entries:+${new_entries}|}${entry}"
+          log_success "  → Complément : '${agent_id}' sera ajouté aux agents hub"
+          ;;
+        i)
+          log_info "  → Ignoré"
+          ;;
+      esac
+    else
+      # Pas de match : proposer complément / ignorer seulement
+      echo -e "    ${BLUE}→ Aucun agent hub équivalent trouvé${RESET}"
+      echo ""
+      echo "    Que voulez-vous faire ?"
+      echo "      [c] Ajouter en complément des agents hub"
+      echo "      [i] Ignorer (ne pas intégrer)"
+      echo ""
+      while true; do
+        read -rp "    Votre choix [c/i] : " choice </dev/tty
+        choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+        case "$choice" in
+          c|complement) choice="c"; break ;;
+          i|ignore)     choice="i"; break ;;
+          *) echo "    Choix invalide. Entrez c ou i." ;;
+        esac
+      done
+
+      case "$choice" in
+        c)
+          local entry="${rel_path}:complement"
+          new_entries="${new_entries:+${new_entries}|}${entry}"
+          log_success "  → Complément : '${agent_id}' sera ajouté aux agents hub"
+          ;;
+        i)
+          log_info "  → Ignoré"
+          ;;
+      esac
+    fi
+    echo ""
+  done
+
+  # Persister les nouveaux choix dans projects.md
+  if [ -n "$new_entries" ]; then
+    local merged="${already_configured:+${already_configured}|}${new_entries}"
+    # Nettoyer les pipes de début/fin
+    merged="${merged#|}"
+    merged="${merged%|}"
+    if _set_project_external_agents "$project_id" "$merged"; then
+      echo ""
+      log_success "Choix persistés dans projects.md (champ 'External agents')"
+    else
+      log_warn "Impossible de persister les choix — continuez avec : oc agents discover $project_id"
+    fi
+  fi
+}
+
 # ── Dispatch : --check, --diff ou déploiement normal ─────────────────────────
 # Only runs when executed directly (not sourced)
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
@@ -378,6 +525,11 @@ echo -e "${BOLD}── Déploiement opencode${RESET}"
 echo ""
 load_adapter
 adapter_validate || { log_error "opencode non disponible — déploiement ignoré"; exit 1; }
+
+# ── Phase 0 : découverte des agents existants du projet ────────────────────
+if [ -n "$PROJECT_ID" ]; then
+  _cmd_deploy_discover "$PROJECT_ID" "$deploy_dir"
+fi
 
 # ── Phase 1 : copie des fichiers agents ────────────────────────────────────
 echo -e "${CYAN}📦  Phase 1 — Copie des agents${RESET}"

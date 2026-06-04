@@ -410,3 +410,89 @@ _set_project_disabled_native_agents() {
   log_error "Impossible d'insérer le champ 'Disable agents' dans le bloc $id de projects.md"
   return 1
 }
+
+# ─────────────────────────────────────────
+# EXTERNAL AGENTS — agents projet externes
+# ─────────────────────────────────────────
+
+# Retourne la valeur brute du champ "External agents" d'un projet
+# Format : "path:substitute:hub-id|path:complement|..."
+# Retourne "" si le champ est absent
+# @param $1 — PROJECT_ID
+get_project_external_agents() {
+  local raw
+  raw=$(_get_project_field "$1" "External agents")
+  echo "${raw:-}"
+}
+
+# Écrit/met à jour le champ "External agents" dans le bloc d'un projet dans projects.md
+# Si valeur vide → supprime le champ
+# @param $1 — PROJECT_ID
+# @param $2 — valeur (ou "" pour supprimer)
+_set_project_external_agents() {
+  local id="$1" new_val="$2"
+  if [ -z "$new_val" ]; then
+    # Supprimer le champ si valeur vide
+    perl -i -0777pe "
+      s{(^## \Q${id}\E\n.*?)- External agents : [^\n]+\n}{\$1}ms
+    " "$PROJECTS_FILE" 2>/dev/null
+    return 0
+  fi
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- External agents : [^\n]+)}{\${1}- External agents : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -qF -- "- External agents : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Fallback : insérer après "- Agents :"
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Agents : [^\n]+\n)}{\${1}- External agents : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -qF -- "- External agents : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Fallback : insérer après "- Disable agents :"
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Disable agents : [^\n]+\n)}{\${1}- External agents : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -qF -- "- External agents : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ 'External agents' dans le bloc $id de projects.md"
+  return 1
+}
+
+# Retourne les entrées de type "substitution" du champ External agents
+# Format de sortie : une entrée par ligne "path:hub-id"
+# @param $1 — PROJECT_ID
+get_project_substitute_agents() {
+  local raw
+  raw=$(get_project_external_agents "$1")
+  [ -z "$raw" ] && return 0
+  # Splitter sur | et filtrer les :substitute:
+  echo "$raw" | tr '|' '\n' | while IFS= read -r entry; do
+    entry="${entry#"${entry%%[![:space:]]*}"}"  # trim left
+    entry="${entry%"${entry##*[![:space:]]}"}"  # trim right
+    [[ "$entry" == *":substitute:"* ]] || continue
+    local path hub_id
+    path="${entry%%:substitute:*}"
+    hub_id="${entry##*:substitute:}"
+    [ -n "$path" ] && [ -n "$hub_id" ] && echo "${path}:${hub_id}"
+  done
+}
+
+# Retourne les entrées de type "complement" du champ External agents
+# Format de sortie : un chemin par ligne
+# @param $1 — PROJECT_ID
+get_project_complement_agents() {
+  local raw
+  raw=$(get_project_external_agents "$1")
+  [ -z "$raw" ] && return 0
+  # Splitter sur | et filtrer les :complement
+  echo "$raw" | tr '|' '\n' | while IFS= read -r entry; do
+    entry="${entry#"${entry%%[![:space:]]*}"}"  # trim left
+    entry="${entry%"${entry##*[![:space:]]}"}"  # trim right
+    [[ "$entry" == *":complement" ]] || continue
+    local path
+    path="${entry%:complement}"
+    [ -n "$path" ] && echo "$path"
+  done
+}
