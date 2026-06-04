@@ -207,6 +207,10 @@ _gitignore_opencode_json() {
     echo ".opencode/" >> "$exclude_file"
     _added=true
   fi
+  if [ ! -f "$exclude_file" ] || ! grep -qx ".worktrees/" "$exclude_file"; then
+    echo ".worktrees/" >> "$exclude_file"
+    _added=true
+  fi
   [ "$_added" = true ] && log_info "$(t init.gitignore_opencode_added)"
 }
 

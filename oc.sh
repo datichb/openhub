@@ -37,6 +37,7 @@ case "$COMMAND" in
   figma)           bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" figma ;;
   gitlab)          bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" gitlab ;;
   conventions)     bash "$SCRIPTS_DIR/cmd-conventions.sh" "${@:2}" ;;
+  worktree)        bash "$SCRIPTS_DIR/cmd-worktree.sh" "${@:2}" ;;
   beads)           bash "$SCRIPTS_DIR/cmd-beads.sh" "${@:2}" ;;
   quick)           bash "$SCRIPTS_DIR/cmd-quick.sh" "${@:2}" ;;
   metrics)         bash "$SCRIPTS_DIR/cmd-metrics.sh" "${@:2}" ;;

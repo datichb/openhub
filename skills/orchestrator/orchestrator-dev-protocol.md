@@ -346,6 +346,15 @@ question({
 - **Oui** → transmettre le nom de branche à l'agent développeur avec l'instruction :
   > « Crée et bascule sur la branche `<nom>` avant de démarrer :
   > `git checkout -b <nom>` »
+
+  > **Worktrees activés (`worktree.enabled = true` dans `opencode.json`)** : utiliser `git worktree` au lieu de `git checkout -b`.
+  > Créer le worktree à `.worktrees/<slug>` où `<slug>` = nom de branche avec `/` remplacés par `-`.
+  > Transmettre à l'agent développeur :
+  > « Crée le worktree et travaille dedans :
+  > `git worktree add -b <nom> .worktrees/<slug>`
+  > Tous tes changements doivent être faits dans `.worktrees/<slug>/`. »
+  > À CP-2 après commit validé, proposer : `git worktree remove .worktrees/<slug>` si la branche est prête pour PR.
+
 - **Non** → continuer sur la branche courante, ne pas créer de branche
 
 → étape 2

@@ -383,3 +383,63 @@ teardown() {
   session_state_end
   [ ! -f "$SESSION_STATE_FILE" ]
 }
+
+# ── worktree_path ──────────────────────────────────────────────────────────────
+
+@test "session_state_add_ticket : accepte worktree_path optionnel" {
+  session_state_init "ses_test" "semi-auto"
+  run session_state_add_ticket "BD-42" "Fix null guard" ".worktrees/feat-bd-42"
+  [ "$status" -eq 0 ]
+
+  if command -v jq &>/dev/null; then
+    result=$(jq -r '.tickets[0].worktree_path' "$SESSION_STATE_FILE")
+    [ "$result" = ".worktrees/feat-bd-42" ]
+  fi
+}
+
+@test "session_state_add_ticket : worktree_path null si non fourni" {
+  session_state_init "ses_test" "semi-auto"
+  session_state_add_ticket "BD-42" "Fix null guard"
+
+  if command -v jq &>/dev/null; then
+    result=$(jq -r '.tickets[0].worktree_path' "$SESSION_STATE_FILE")
+    [ "$result" = "null" ]
+  fi
+}
+
+@test "session_state_set_current : worktree_path présent dans current_ticket" {
+  session_state_init "ses_test" "semi-auto"
+  session_state_add_ticket "BD-42" "Task" ".worktrees/feat-bd-42"
+  run session_state_set_current "BD-42" "developer-backend" "implementing" ".worktrees/feat-bd-42"
+  [ "$status" -eq 0 ]
+
+  if command -v jq &>/dev/null; then
+    result=$(jq -r '.current_ticket.worktree_path' "$SESSION_STATE_FILE")
+    [ "$result" = ".worktrees/feat-bd-42" ]
+  fi
+}
+
+@test "session_state_set_current : worktree_path null si non fourni" {
+  session_state_init "ses_test" "semi-auto"
+  session_state_add_ticket "BD-42" "Task"
+  run session_state_set_current "BD-42" "developer-backend" "implementing"
+  [ "$status" -eq 0 ]
+
+  if command -v jq &>/dev/null; then
+    result=$(jq -r '.current_ticket.worktree_path' "$SESSION_STATE_FILE")
+    [ "$result" = "null" ]
+  fi
+}
+
+@test "session_state_set_current : hérite worktree_path du ticket si non fourni en paramètre" {
+  session_state_init "ses_test" "semi-auto"
+  session_state_add_ticket "BD-42" "Task" ".worktrees/feat-inherited"
+  # Pas de worktree_path en paramètre — doit hériter du ticket
+  run session_state_set_current "BD-42" "developer-backend" "implementing"
+  [ "$status" -eq 0 ]
+
+  if command -v jq &>/dev/null; then
+    result=$(jq -r '.current_ticket.worktree_path' "$SESSION_STATE_FILE")
+    [ "$result" = ".worktrees/feat-inherited" ]
+  fi
+}

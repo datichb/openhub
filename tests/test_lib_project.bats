@@ -234,3 +234,97 @@ EOF
   language=$(get_project_language "PROJ-VIRTUAL")
   [ "$language" = "Go" ]
 }
+
+# ── get_project_worktree_enabled ───────────────────────────────────────────────
+
+@test "get_project_worktree_enabled : retourne enabled si configuré" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## PROJ-WT
+- Nom : Projet Worktree
+- Stack : TypeScript
+- Worktree : enabled
+EOF
+
+  run get_project_worktree_enabled "PROJ-WT"
+  [ "$status" -eq 0 ]
+  [ "$output" = "enabled" ]
+}
+
+@test "get_project_worktree_enabled : retourne disabled si champ absent" {
+  run get_project_worktree_enabled "PROJ-A"
+  [ "$status" -eq 0 ]
+  [ "$output" = "disabled" ]
+}
+
+@test "get_project_worktree_enabled : insensible à la casse" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## PROJ-WT-CASE
+- Nom : Test casse
+- Stack : TypeScript
+- Worktree : Enabled
+EOF
+
+  run get_project_worktree_enabled "PROJ-WT-CASE"
+  [ "$status" -eq 0 ]
+  [ "$output" = "enabled" ]
+}
+
+# ── get_project_worktree_auto_cleanup ──────────────────────────────────────────
+
+@test "get_project_worktree_auto_cleanup : retourne true si configuré" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## PROJ-WTA
+- Nom : Projet Worktree AutoCleanup
+- Stack : TypeScript
+- Worktree auto cleanup : true
+EOF
+
+  run get_project_worktree_auto_cleanup "PROJ-WTA"
+  [ "$status" -eq 0 ]
+  [ "$output" = "true" ]
+}
+
+@test "get_project_worktree_auto_cleanup : retourne false si champ absent" {
+  run get_project_worktree_auto_cleanup "PROJ-A"
+  [ "$status" -eq 0 ]
+  [ "$output" = "false" ]
+}
+
+@test "get_project_worktree_auto_cleanup : retourne false si configuré false" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## PROJ-WTF
+- Nom : Projet Worktree False
+- Stack : TypeScript
+- Worktree auto cleanup : false
+EOF
+
+  run get_project_worktree_auto_cleanup "PROJ-WTF"
+  [ "$status" -eq 0 ]
+  [ "$output" = "false" ]
+}
+
+# ── get_project_worktree_base_branch ──────────────────────────────────────────
+
+@test "get_project_worktree_base_branch : retourne main par défaut" {
+  run get_project_worktree_base_branch "PROJ-A"
+  [ "$status" -eq 0 ]
+  [ "$output" = "main" ]
+}
+
+@test "get_project_worktree_base_branch : retourne valeur configurée" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## PROJ-WTBB
+- Nom : Projet Base Branch
+- Stack : TypeScript
+- Worktree base branch : develop
+EOF
+
+  run get_project_worktree_base_branch "PROJ-WTBB"
+  [ "$status" -eq 0 ]
+  [ "$output" = "develop" ]
+}

@@ -101,12 +101,14 @@ EOF
 }
 
 # Ajoute un ticket à la session
-# Usage : session_state_add_ticket "bd-42" "Fix null guard"
+# Usage : session_state_add_ticket "bd-42" "Fix null guard" [".worktrees/feat-bd-42"]
 # @param $1 — ticket_id (required)
 # @param $2 — title (required)
+# @param $3 — worktree_path (optional)
 session_state_add_ticket() {
   local ticket_id="$1"
   local title="$2"
+  local worktree_path="${3:-}"
 
   [ -z "$ticket_id" ] && return 1
   [ -z "$title" ] && return 1
@@ -125,10 +127,18 @@ session_state_add_ticket() {
   ts=$(_session_timestamp)
 
   local new_ticket
-  new_ticket=$(jq -n \
-    --arg id "$ticket_id" \
-    --arg title "$title" \
-    '{id: $id, status: "pending", title: $title}')
+  if [ -n "$worktree_path" ]; then
+    new_ticket=$(jq -n \
+      --arg id "$ticket_id" \
+      --arg title "$title" \
+      --arg wt "$worktree_path" \
+      '{id: $id, status: "pending", title: $title, worktree_path: $wt}')
+  else
+    new_ticket=$(jq -n \
+      --arg id "$ticket_id" \
+      --arg title "$title" \
+      '{id: $id, status: "pending", title: $title, worktree_path: null}')
+  fi
 
   local updated
   updated=$(jq \
@@ -174,14 +184,16 @@ session_state_update_ticket() {
 }
 
 # Définit le ticket en cours avec agent et action
-# Usage : session_state_set_current "bd-42" "developer-backend" "implementing"
+# Usage : session_state_set_current "bd-42" "developer-backend" "implementing" [".worktrees/feat-bd-42"]
 # @param $1 — ticket_id (required)
 # @param $2 — agent (required)
 # @param $3 — action : "implementing", "testing", "reviewing", "waiting_cp2", "idle" (required)
+# @param $4 — worktree_path (optional)
 session_state_set_current() {
   local ticket_id="$1"
   local agent="$2"
   local action="$3"
+  local worktree_path="${4:-}"
 
   [ -z "$ticket_id" ] && return 1
   [ -z "$agent" ] && return 1
@@ -201,19 +213,33 @@ session_state_set_current() {
   # Récupérer le titre et le statut du ticket en une seule requête jq
   local ticket_info
   ticket_info=$(jq -r --arg id "$ticket_id" \
-    '.tickets[] | select(.id == $id) | "\(.title // "")\t\(.status // "in_progress")"' \
+    '.tickets[] | select(.id == $id) | "\(.title // "")\t\(.status // "in_progress")\t\(.worktree_path // "")"' \
     "$_SESSION_STATE_FILE")
   local ticket_title="${ticket_info%%	*}"
-  local ticket_status="${ticket_info##*	}"
+  local _rest="${ticket_info#*	}"
+  local ticket_status="${_rest%%	*}"
+  # Prefer explicit worktree_path param; fall back to stored value
+  local resolved_wt="${worktree_path:-${_rest##*	}}"
 
   local current_ticket
-  current_ticket=$(jq -n \
-    --arg id "$ticket_id" \
-    --arg title "$ticket_title" \
-    --arg ticket_status "$ticket_status" \
-    --arg agent "$agent" \
-    --arg action "$action" \
-    '{id: $id, title: $title, status: $ticket_status, agent: $agent, action: $action}')
+  if [ -n "$resolved_wt" ]; then
+    current_ticket=$(jq -n \
+      --arg id "$ticket_id" \
+      --arg title "$ticket_title" \
+      --arg ticket_status "$ticket_status" \
+      --arg agent "$agent" \
+      --arg action "$action" \
+      --arg wt "$resolved_wt" \
+      '{id: $id, title: $title, status: $ticket_status, agent: $agent, action: $action, worktree_path: $wt}')
+  else
+    current_ticket=$(jq -n \
+      --arg id "$ticket_id" \
+      --arg title "$ticket_title" \
+      --arg ticket_status "$ticket_status" \
+      --arg agent "$agent" \
+      --arg action "$action" \
+      '{id: $id, title: $title, status: $ticket_status, agent: $agent, action: $action, worktree_path: null}')
+  fi
 
   local updated
   updated=$(jq \

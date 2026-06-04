@@ -7,3 +7,6 @@
 - Tracker : gitlab
 - Repo : user/test-project
 - Labels : feature,fix,test
+- Worktree : enabled
+- Worktree auto cleanup : true
+- Worktree base branch : main

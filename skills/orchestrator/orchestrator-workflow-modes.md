@@ -21,6 +21,8 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 > Quand un CP est `▶️ auto`, l'orchestrateur affiche quand même l'information mais enchaîne sans attendre de confirmation.
 
 > **Parallélisme conditionnel (mode `auto` uniquement) :** en mode `auto`, `orchestrator-dev` peut traiter plusieurs tickets simultanément si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, maximum 3 tickets. Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. Voir `orchestrator-dev-protocol` pour le protocole complet.
+>
+> **Isolation filesystem via worktrees (`worktree.enabled = true`) :** si les worktrees sont activés pour le projet, l'étape 1b utilise `git worktree add` au lieu de `git checkout -b`. Chaque ticket reçoit un répertoire isolé `.worktrees/<slug>/` — les agents `developer-*` travaillent dans leur worktree sans risque de conflit filesystem. À CP-2 après commit validé, le worktree est proposé à la suppression.
 
 ---
 

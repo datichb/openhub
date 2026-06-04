@@ -2,6 +2,7 @@
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
+source "$LIB_DIR/worktree.sh"
 
 ensure_projects_file
 
@@ -9,6 +10,9 @@ ensure_projects_file
 DEV_MODE=false
 ONBOARD_MODE=false
 REFRESH_MODE=false
+PARALLEL_MODE=false
+WORKTREE_MODE=false
+WORKTREE_BRANCH=""
 DEV_LABEL=""
 DEV_ASSIGNEE=""
 AGENT_NAME=""
@@ -17,25 +21,47 @@ ARGS=()
 _prev=""
 for arg in "$@"; do
   case "$_prev" in
-    --label)    DEV_LABEL="$arg";       _prev=""; continue ;;
-    --assignee) DEV_ASSIGNEE="$arg";    _prev=""; continue ;;
-    --agent)    AGENT_NAME="$arg";      _prev=""; continue ;;
+    --label)    DEV_LABEL="$arg";         _prev=""; continue ;;
+    --assignee) DEV_ASSIGNEE="$arg";      _prev=""; continue ;;
+    --agent)    AGENT_NAME="$arg";        _prev=""; continue ;;
     --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
+    --worktree) WORKTREE_BRANCH="$arg";   _prev=""; continue ;;
   esac
   case "$arg" in
     --dev)      DEV_MODE=true ;;
     --onboard)  ONBOARD_MODE=true ;;
     --refresh)  REFRESH_MODE=true ;;
+    --parallel) PARALLEL_MODE=true ;;
+    --worktree) WORKTREE_MODE=true; _prev="$arg" ;;
     --label|--assignee|--agent|--provider) _prev="$arg" ;;
     *)          ARGS+=("$arg") ;;
   esac
 done
+# --worktree sans valeur : WORKTREE_BRANCH reste vide, sera demandé interactivement
 PROJECT_ID="${ARGS[0]:-}"
 PROMPT="${ARGS[1]:-}"
 
 # --dev et --onboard sont mutuellement exclusifs
 if [ "$DEV_MODE" = true ] && [ "$ONBOARD_MODE" = true ]; then
   log_error "$(t start.dev_onboard_exclusive)"
+  exit 1
+fi
+
+# --parallel et --onboard sont mutuellement exclusifs
+if [ "$PARALLEL_MODE" = true ] && [ "$ONBOARD_MODE" = true ]; then
+  log_error "--parallel et --onboard sont mutuellement exclusifs"
+  exit 1
+fi
+
+# --parallel et --worktree sont mutuellement exclusifs
+if [ "$PARALLEL_MODE" = true ] && [ "$WORKTREE_MODE" = true ]; then
+  log_error "--parallel et --worktree sont mutuellement exclusifs"
+  exit 1
+fi
+
+# --dev et --parallel sont mutuellement exclusifs
+if [ "$DEV_MODE" = true ] && [ "$PARALLEL_MODE" = true ]; then
+  log_error "--dev et --parallel sont mutuellement exclusifs"
   exit 1
 fi
 
@@ -257,6 +283,119 @@ if [ "$DEV_MODE" = true ]; then
   else
     log_info "Mode --dev  tickets ai-delegated  agent: ${AGENT_NAME}"
   fi
+fi
+
+# ── Mode --parallel : orchestrator-dev dans des worktrees isolés ─────────────
+if [ "$PARALLEL_MODE" = true ]; then
+  if ! command -v bd &>/dev/null; then
+    log_error "bd (Beads) est requis pour le mode --parallel"
+    exit 1
+  fi
+
+  _wt_enabled=$(get_project_worktree_enabled "$PROJECT_ID")
+  if [ "$_wt_enabled" != "enabled" ]; then
+    log_warn "Worktrees non activés pour ce projet (Worktree: enabled requis dans projects.md)"
+    log_info "Activation possible via : oc config set WORKTREE_ENABLED true $PROJECT_ID"
+  fi
+
+  # Auto-cleanup si activé
+  _wt_auto_cleanup=$(get_project_worktree_auto_cleanup "$PROJECT_ID")
+  if [ "$_wt_auto_cleanup" = "true" ]; then
+    _wt_base=$(get_project_worktree_base_branch "$PROJECT_ID")
+    log_info "Auto-cleanup des worktrees mergés…"
+    worktree_cleanup_merged "$PROJECT_PATH" "$_wt_base" 2>/dev/null || true
+  fi
+
+  # Sync non-bloquant
+  _tracker=$(get_project_tracker "$PROJECT_ID")
+  if [ "$_tracker" != "none" ]; then
+    echo ""
+    log_info "Sync ${_tracker} --pull-only avant démarrage…"
+    if (cd "$PROJECT_PATH" && bd "$_tracker" sync --pull-only) 2>/dev/null; then
+      log_success "Sync $_tracker terminé"
+    else
+      log_warn "Sync $_tracker échoué — les tickets locaux seront utilisés"
+    fi
+  fi
+
+  source "$LIB_DIR/prompt-builder.sh"
+  AGENT_NAME="${AGENT_NAME:-orchestrator-dev}"
+
+  # Récupérer les tickets disponibles
+  _tickets=$(cd "$PROJECT_PATH" && bd ready --label ai-delegated --json 2>/dev/null) || _tickets="[]"
+  if [ -z "$_tickets" ] || [[ "$_tickets" != \[* ]]; then _tickets="[]"; fi
+
+  if [ "$_tickets" = "[]" ] || [ "$_tickets" = "null" ]; then
+    log_warn "Aucun ticket ai-delegated prêt — utilisez oc start --dev pour le mode séquentiel"
+    exit 0
+  fi
+
+  # Construire le prompt de bootstrap avec contexte parallel
+  PROMPT=$(build_dev_bootstrap_prompt "$PROJECT_PATH" "ai-delegated" "")
+
+  # Créer le worktree pour cette session parallel
+  _parallel_branch="parallel/$(date +%Y%m%d-%H%M%S)"
+  _wt_path=$(worktree_get_path "$PROJECT_PATH" "$_parallel_branch")
+  if ! worktree_create "$PROJECT_PATH" "$_parallel_branch" >/dev/null 2>&1; then
+    log_warn "Impossible de créer le worktree — lancement dans le répertoire principal"
+    _wt_path="$PROJECT_PATH"
+  fi
+
+  echo ""
+  log_info "Mode --parallel  worktree: ${_wt_path}  agent: ${AGENT_NAME}"
+  echo -e "${DIM}│${RESET}  ${DIM}Le worktree sera supprimé via : oc worktree cleanup ${PROJECT_ID}${RESET}"
+
+  # Lancer dans le worktree si créé correctement
+  if [ "$_wt_path" != "$PROJECT_PATH" ] && [ -d "$_wt_path" ]; then
+    _outro "$(t start.press_enter) opencode…"
+    _prompt _ ""
+    adapter_start "$_wt_path" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"
+    exit 0
+  fi
+fi
+
+# ── Mode --worktree : session libre dans un worktree isolé ───────────────────
+if [ "$WORKTREE_MODE" = true ]; then
+  # Demander le nom de branche si non fourni
+  if [ -z "$WORKTREE_BRANCH" ]; then
+    _current_branch=$(git -C "$PROJECT_PATH" branch --show-current 2>/dev/null || echo "main")
+    echo -e "${DIM}│${RESET}"
+    _prompt WORKTREE_BRANCH "Nom de la nouvelle branche (ex: feat/ma-feature) : "
+    if [ -z "$WORKTREE_BRANCH" ]; then
+      log_error "Nom de branche requis pour --worktree"
+      exit 1
+    fi
+  fi
+
+  # Auto-cleanup si activé
+  _wt_auto_cleanup=$(get_project_worktree_auto_cleanup "$PROJECT_ID")
+  if [ "$_wt_auto_cleanup" = "true" ]; then
+    _wt_base=$(get_project_worktree_base_branch "$PROJECT_ID")
+    log_info "Auto-cleanup des worktrees mergés…"
+    worktree_cleanup_merged "$PROJECT_PATH" "$_wt_base" 2>/dev/null || true
+  fi
+
+  # Créer ou réutiliser le worktree
+  if worktree_exists "$PROJECT_PATH" "$WORKTREE_BRANCH"; then
+    _wt_path=$(worktree_get_path "$PROJECT_PATH" "$WORKTREE_BRANCH")
+    log_info "Réutilisation du worktree existant : $_wt_path"
+  else
+    _wt_path=$(worktree_get_path "$PROJECT_PATH" "$WORKTREE_BRANCH")
+    if ! worktree_create "$PROJECT_PATH" "$WORKTREE_BRANCH" >/dev/null; then
+      log_error "Impossible de créer le worktree pour : $WORKTREE_BRANCH"
+      exit 1
+    fi
+  fi
+
+  echo ""
+  log_info "Mode --worktree  branche: ${WORKTREE_BRANCH}  worktree: ${_wt_path}"
+  echo -e "${DIM}│${RESET}  ${DIM}Session libre — pas de lien Beads obligatoire${RESET}"
+  echo -e "${DIM}│${RESET}  ${DIM}Supprimer plus tard : oc worktree remove ${WORKTREE_BRANCH} ${PROJECT_ID}${RESET}"
+
+  _outro "$(t start.press_enter) opencode…"
+  _prompt _ ""
+  adapter_start "$_wt_path" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"
+  exit 0
 fi
 
 # ── Mode --onboard : prompt de découverte projet ────────────────────────────

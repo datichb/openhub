@@ -17,6 +17,11 @@ permission:
     # Git read-only (contexte de session)
     "git log *": allow
     "git diff *": allow
+    # Git worktree (pour l'isolation filesystem en mode auto)
+    "git worktree add *": allow
+    "git worktree remove *": allow
+    "git worktree list": allow
+    "git worktree prune": allow
     # Listing
     "ls *": allow
   read:

@@ -496,3 +496,37 @@ get_project_complement_agents() {
     [ -n "$path" ] && echo "$path"
   done
 }
+
+# ─────────────────────────────────────────
+# WORKTREE — configuration par projet
+# ─────────────────────────────────────────
+
+# Retourne le statut d'activation des worktrees pour un projet
+# Valeurs : "enabled" | "disabled" (défaut si champ absent)
+# @param $1 — PROJECT_ID
+get_project_worktree_enabled() {
+  local raw
+  raw=$(_get_project_field "$1" "Worktree")
+  raw=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+  echo "${raw:-disabled}"
+}
+
+# Retourne la configuration d'auto-cleanup des worktrees pour un projet
+# Valeurs : "true" | "false" (défaut si champ absent)
+# @param $1 — PROJECT_ID
+get_project_worktree_auto_cleanup() {
+  local raw
+  raw=$(_get_project_field "$1" "Worktree auto cleanup")
+  raw=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+  echo "${raw:-false}"
+}
+
+# Retourne la branche de base pour le cleanup des worktrees
+# Valeurs : "main" | "master" | toute branche (défaut : "main")
+# @param $1 — PROJECT_ID
+get_project_worktree_base_branch() {
+  local raw
+  raw=$(_get_project_field "$1" "Worktree base branch")
+  raw=$(echo "$raw" | tr -d '[:space:]')
+  echo "${raw:-main}"
+}

@@ -462,6 +462,41 @@ if [ -d "$PROJECT_PATH" ]; then
       fi
     fi
   fi
+
+  # ── Configuration worktrees ────────────────────────────────────────────────
+  if [ -t 0 ] && [ -d "$PROJECT_PATH/.git" ]; then
+    echo ""
+    _prompt _enable_worktree "Activer les git worktrees pour le travail en parallèle ? [y/N] : "
+    if [[ "${_enable_worktree:-N}" =~ ^[Yy]$ ]]; then
+      # Écrire Worktree: enabled dans projects.md
+      if perl -i -0777pe "
+        s{(^## \Q${PROJECT_ID}\E\n.*?)(- Tracker : [^\n]+\n)}{\${1}\${2}- Worktree : enabled\n}ms
+      " "$PROJECTS_FILE" 2>/dev/null && grep -q "- Worktree : enabled" "$PROJECTS_FILE"; then
+        log_success "Worktrees activés pour $PROJECT_ID"
+      else
+        # Fallback : insérer après le bloc du projet
+        perl -i -0777pe "
+          s{(^## \Q${PROJECT_ID}\E\n(?:- [^\n]+\n)*)}{\${1}- Worktree : enabled\n}ms
+        " "$PROJECTS_FILE" 2>/dev/null || true
+        log_success "Worktrees activés pour $PROJECT_ID"
+      fi
+
+      # Auto-cleanup
+      _prompt _auto_cleanup "Activer le nettoyage automatique des worktrees mergés ? [Y/n] : "
+      if [[ "${_auto_cleanup:-Y}" =~ ^[Yy]$ ]]; then
+        perl -i -0777pe "
+          s{(^## \Q${PROJECT_ID}\E\n.*?- Worktree : enabled\n)}{\${1}- Worktree auto cleanup : true\n}ms
+        " "$PROJECTS_FILE" 2>/dev/null || true
+        log_success "Auto-cleanup activé"
+      fi
+
+      # S'assurer que .worktrees/ est dans .git/info/exclude
+      source "$LIB_DIR/worktree.sh"
+      worktree_ensure_exclude "$PROJECT_PATH" 2>/dev/null || true
+    else
+      log_info "Worktrees désactivés — activer plus tard dans projects.md (Worktree: enabled)"
+    fi
+  fi
 else
   log_warn "Déploiement impossible — dossier $PROJECT_PATH introuvable"
   DEPLOYED="impossible (dossier absent)"

@@ -325,3 +325,82 @@ ADAPTEREOF
   run jq 'has("instructions")' "$proj/opencode.json"
   [ "$output" = "false" ]
 }
+
+# ── Mode --worktree ───────────────────────────────────────────────────────────
+
+@test "cmd-start : --parallel et --onboard sont mutuellement exclusifs" {
+  run bash -c '
+    printf "\n" | bash "$1" TEST-PROJ --parallel --onboard
+  ' _ "$CMD_START"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mutuellement exclusifs"* ]]
+}
+
+@test "cmd-start : --parallel et --worktree sont mutuellement exclusifs" {
+  run bash -c '
+    printf "\n" | bash "$1" TEST-PROJ --parallel --worktree feat/test
+  ' _ "$CMD_START"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mutuellement exclusifs"* ]]
+}
+
+@test "cmd-start : --dev et --parallel sont mutuellement exclusifs" {
+  mkdir -p "$TEST_DIR/fake-project/.beads"
+  run bash -c '
+    printf "\n" | bash "$1" TEST-PROJ --dev --parallel
+  ' _ "$CMD_START"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mutuellement exclusifs"* ]]
+}
+
+@test "cmd-start : --worktree échoue si BRANCH vide en mode non-interactif" {
+  mkdir -p "$TEST_DIR/fake-project/.beads"
+  mkdir -p "$TEST_DIR/fake-project/.opencode/agents"
+  # OC_NON_INTERACTIVE=1 → _prompt retourne vide → WORKTREE_BRANCH reste vide
+  run bash -c '
+    export OC_NON_INTERACTIVE=1
+    printf "\n" | bash "$1" TEST-PROJ --worktree
+  ' _ "$CMD_START"
+  # Doit échouer car pas de branche fournie et non-interactif
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"requis"* ]] || [[ "$output" == *"branche"* ]]
+}
+
+@test "cmd-start : --worktree avec branche crée le worktree et lance opencode" {
+  mkdir -p "$TEST_DIR/fake-project/.beads"
+  mkdir -p "$TEST_DIR/fake-project/.opencode/agents"
+  # Requis par _worktree_require_git qui vérifie l'existence de .git/
+  mkdir -p "$TEST_DIR/fake-project/.git/info"
+  touch "$TEST_DIR/fake-project/.git/info/exclude"
+
+  # Mock git pour worktree add
+  cat > "$TEST_DIR/bin/git" <<'GITEOF'
+#!/bin/bash
+echo "git $*" >> "$GIT_CALLS_LOG"
+case "${1:-}" in
+  "worktree")
+    case "${2:-}" in
+      "add")
+        TARGET="${5:-${4:-${3:-}}}"
+        [ -n "$TARGET" ] && mkdir -p "$TARGET"
+        exit 0 ;;
+      *) exit 0 ;;
+    esac ;;
+  "rev-parse")
+    [ "${2:-}" = "--verify" ] && exit 1
+    [ "${2:-}" = "--abbrev-ref" ] && echo "main" && exit 0
+    exit 0 ;;
+  "branch") echo "  main"; exit 0 ;;
+  "remote") exit 1 ;;
+esac
+exec "$REAL_GIT" "$@"
+GITEOF
+  chmod +x "$TEST_DIR/bin/git"
+
+  run bash -c '
+    export OC_NON_INTERACTIVE=1
+    printf "\n" | bash "$1" TEST-PROJ --worktree feat/test-feature
+  ' _ "$CMD_START"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"worktree"* ]]
+}
