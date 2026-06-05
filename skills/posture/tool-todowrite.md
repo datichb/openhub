@@ -294,3 +294,85 @@ Agent: "Le projet suit une architecture hexagonale avec les dossiers suivants...
 | Fragmenter en micro-étapes (ouvrir fichier, sauvegarder...) | ❌ |
 | Avoir 0 ou 2+ tâches `in_progress` simultanément | ❌ |
 | Faire un batch de mises à jour en fin de session | ❌ |
+
+---
+
+## Usage par type d'agent
+
+### Contrainte d'isolation des sessions
+
+> ⚠️ Dans OpenCode, chaque agent invoqué via l'outil `task` dispose de sa propre
+> session isolée avec son propre `session_id`. La todo list est stockée dans une
+> table SQLite clé par `(session_id, position)` — un sous-agent ne peut donc
+> **jamais** mettre à jour la liste de son parent.
+>
+> **Conséquence directe :** seul l'agent de plus haut niveau invoqué directement
+> par l'utilisateur maintient une liste visible dans l'interface OpenCode.
+> Les listes des sous-agents sont invisibles pour l'utilisateur.
+
+### Tableau de responsabilité
+
+| Agent | Contexte d'invocation | Liste visible ? | Responsabilité |
+|-------|-----------------------|-----------------|----------------|
+| `orchestrator` | Invoqué par l'utilisateur | ✅ Oui | Maintient la liste des phases + 1 tâche par ticket dev |
+| `orchestrator-dev` | Invoqué directement par l'utilisateur | ✅ Oui | Maintient la liste des tickets avec phase en suffixe |
+| `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | ❌ Non (session isolée) | Sa liste est interne — l'orchestrator gère la liste visible |
+| `developer-*`, `reviewer`, `qa-engineer`… | Invoqués via `task` | ❌ Non | Sous-agents — todowrite non utilisé |
+
+> **Référence architecture :** voir `docs/architecture/todowrite-session-isolation.fr.md`
+> pour l'analyse complète du comportement interne d'OpenCode et le schéma de visibilité.
+
+---
+
+### Suffixes de phase — orchestrator-dev standalone
+
+Quand `orchestrator-dev` est invoqué **directement par l'utilisateur** (sa liste est visible),
+mettre à jour le label de la tâche à chaque phase clé pour refléter l'état réel en cours.
+
+| Phase | Label de la tâche | Statut |
+|-------|-------------------|--------|
+| En attente | `#bd-12 — Titre` | `pending` |
+| Implémentation démarrée | `#bd-12 — Titre [dev]` | `in_progress` |
+| QA en cours | `#bd-12 — Titre [QA]` | `in_progress` |
+| Review en cours | `#bd-12 — Titre [review]` | `in_progress` |
+| En attente décision CP-2 | `#bd-12 — Titre [CP-2]` | `in_progress` |
+| Terminé (commit validé) | `#bd-12 — Titre` | `completed` |
+| Ignoré (skip ou cancelled) | `#bd-12 — Titre` | `cancelled` |
+
+**Exemple de séquence :**
+
+```
+// CP-1 démarrage
+todowrite({ todos: [
+  { content: "#bd-12 — Endpoint POST /users [dev]", status: "in_progress", priority: "high" },
+  { content: "#bd-13 — Migration DB users", status: "pending", priority: "high" }
+]})
+
+// QA activé
+todowrite({ todos: [
+  { content: "#bd-12 — Endpoint POST /users [QA]", status: "in_progress", priority: "high" },
+  { content: "#bd-13 — Migration DB users", status: "pending", priority: "high" }
+]})
+
+// Review lancée
+todowrite({ todos: [
+  { content: "#bd-12 — Endpoint POST /users [review]", status: "in_progress", priority: "high" },
+  { content: "#bd-13 — Migration DB users", status: "pending", priority: "high" }
+]})
+
+// CP-2 en attente de décision
+todowrite({ todos: [
+  { content: "#bd-12 — Endpoint POST /users [CP-2]", status: "in_progress", priority: "high" },
+  { content: "#bd-13 — Migration DB users", status: "pending", priority: "high" }
+]})
+
+// Commit validé → completed
+todowrite({ todos: [
+  { content: "#bd-12 — Endpoint POST /users", status: "completed", priority: "high" },
+  { content: "#bd-13 — Migration DB users", status: "in_progress", priority: "high" }
+]})
+```
+
+> Ces suffixes ne s'appliquent qu'en mode standalone. En mode sous-agent (invoqué depuis
+> l'orchestrator), la liste est dans une session isolée et invisible pour l'utilisateur —
+> la maintenir reste utile pour le débogage de session mais non obligatoire.

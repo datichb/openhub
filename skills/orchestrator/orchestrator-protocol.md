@@ -632,23 +632,35 @@ question({
    - Noter la présence du label `tdd` depuis la colonne `TDD` du tableau
    - *Voir règles de routing dans le noyau `orchestrator.md`*
 
-4. **Initialiser la liste todowrite** — construire la liste des phases selon les agents prévus :
+4. **Initialiser la liste todowrite** — construire la liste avec 1 tâche par phase ET 1 tâche par ticket dev :
+
+   > ⚠️ **Contrainte d'isolation des sessions :** la todo list d'`orchestrator-dev` (invoqué via `task`) est dans une session isolée — elle n'est pas visible par l'utilisateur. L'orchestrator feature est le seul responsable de la liste visible. Il doit donc maintenir une granularité suffisante pour refléter l'avancement réel ticket par ticket.
+   >
+   > Référence : `skills/posture/tool-todowrite.md` section "Usage par type d'agent".
 
    ```
    todowrite({
      todos: [
        { content: "Planification feature", status: "completed", priority: "high" },
-       // Inclure si tickets spec-ux identifiés :
-       { content: "Spec UX — [nombre] ticket(s)", status: "pending", priority: "high" },
-       // Inclure si tickets spec-ui identifiés :
-       { content: "Spec UI — [nombre] ticket(s)", status: "pending", priority: "high" },
-       // Inclure si tickets audit identifiés :
-       { content: "Audit(s) — [nombre] ticket(s)", status: "pending", priority: "medium" },
-       // Toujours inclure :
-       { content: "Implémentation — [nombre] ticket(s)", status: "pending", priority: "high" }
+       // Inclure si tickets spec-ux identifiés — une tâche par ticket :
+       { content: "Spec UX — #bd-10 <titre court>", status: "pending", priority: "high" },
+       // Inclure si tickets spec-ui identifiés — une tâche par ticket :
+       { content: "Spec UI — #bd-11 <titre court>", status: "pending", priority: "high" },
+       // Inclure si tickets audit identifiés — une tâche par ticket :
+       { content: "Audit sécurité — #bd-13 <titre court>", status: "pending", priority: "medium" },
+       // Une tâche par ticket dev (agent prévu = orchestrator-dev) :
+       { content: "#bd-12 — <titre court>", status: "pending", priority: "high" },
+       { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
      ]
    })
    ```
+
+   **Règles de construction :**
+   - Tickets `spec-ux` → `"Spec UX — #bd-XX <titre>"` (une tâche par ticket)
+   - Tickets `spec-ui` → `"Spec UI — #bd-XX <titre>"` (une tâche par ticket)
+   - Tickets `audit` → `"Audit <domaine> — #bd-XX <titre>"` (une tâche par ticket)
+   - Tickets `dev` (routés vers orchestrator-dev) → `"#bd-XX — <titre>"` (une tâche par ticket)
+   - Priorité : mapping direct depuis la priorité Beads (P0/P1 → `high`, P2 → `medium`, P3 → `low`)
 
    > La phase "Planification" est immédiatement `completed` puisqu'on vient de la terminer.
 
@@ -672,20 +684,21 @@ L'utilisateur fournit directement un ou plusieurs IDs de tickets.
 
 2. À la réception du résultat du planner, lire le champ `Agent prévu` pour chaque ticket et la section `### Ordre de traitement`.
 
-3. **Initialiser la liste todowrite** — construire la liste des phases selon les agents prévus :
+3. **Initialiser la liste todowrite** — construire la liste avec 1 tâche par ticket :
 
    ```
    todowrite({
      todos: [
-       // Inclure si tickets audit identifiés :
-       { content: "Audit(s) — [nombre] ticket(s)", status: "pending", priority: "medium" },
-       // Toujours inclure :
-       { content: "Implémentation — [nombre] ticket(s)", status: "pending", priority: "high" }
+       // Inclure si tickets audit identifiés — une tâche par ticket :
+       { content: "Audit sécurité — #bd-09 <titre court>", status: "pending", priority: "medium" },
+       // Une tâche par ticket dev (routé vers orchestrator-dev) :
+       { content: "#bd-10 — <titre court>", status: "pending", priority: "high" },
+       { content: "#bd-11 — <titre court>", status: "pending", priority: "medium" }
      ]
    })
    ```
 
-   > En Mode B, la planification n'a pas lieu — les tickets existent déjà. Seules les phases audit (si applicable) et implémentation sont suivies.
+   > En Mode B, la planification n'a pas lieu — les tickets existent déjà. La liste ne contient que les phases audit (si applicable) et les tickets dev, au même format granulaire que le Mode A.
 
 4. **[CP-0]** — voir section CP-0 ci-dessous.
 
@@ -746,30 +759,32 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 
 ### Ticket `spec-ux` ou `spec-ui`
 
-1. **Mettre à jour todowrite** — passer la phase Spec UX ou Spec UI en `in_progress` :
+1. **Mettre à jour todowrite** — passer le ticket Spec UX ou Spec UI courant en `in_progress` :
 
-   **Exemple Spec UX :**
+   **Exemple Spec UX — ticket #bd-10 démarre :**
    ```
    todowrite({
      todos: [
        { content: "Planification feature", status: "completed", priority: "high" },
-       { content: "Spec UX — [nombre] ticket(s)", status: "in_progress", priority: "high" },
-       { content: "Spec UI — [nombre] ticket(s)", status: "pending", priority: "high" },
-       { content: "Audit(s) — [nombre] ticket(s)", status: "pending", priority: "medium" },
-       { content: "Implémentation — [nombre] ticket(s)", status: "pending", priority: "high" }
+       { content: "Spec UX — #bd-10 Analyse flow inscription", status: "in_progress", priority: "high" },
+       { content: "Spec UI — #bd-11 Composant formulaire", status: "pending", priority: "high" },
+       { content: "Audit sécurité — #bd-13 Auth", status: "pending", priority: "medium" },
+       { content: "#bd-12 — Endpoint POST /users", status: "pending", priority: "high" },
+       { content: "#bd-14 — Migration DB users", status: "pending", priority: "medium" }
      ]
    })
    ```
 
-   **Exemple Spec UI (après Spec UX terminée) :**
+   **Exemple Spec UI — #bd-11 démarre (après #bd-10 terminé) :**
    ```
    todowrite({
      todos: [
        { content: "Planification feature", status: "completed", priority: "high" },
-       { content: "Spec UX — [nombre] ticket(s)", status: "completed", priority: "high" },
-       { content: "Spec UI — [nombre] ticket(s)", status: "in_progress", priority: "high" },
-       { content: "Audit(s) — [nombre] ticket(s)", status: "pending", priority: "medium" },
-       { content: "Implémentation — [nombre] ticket(s)", status: "pending", priority: "high" }
+       { content: "Spec UX — #bd-10 Analyse flow inscription", status: "completed", priority: "high" },
+       { content: "Spec UI — #bd-11 Composant formulaire", status: "in_progress", priority: "high" },
+       { content: "Audit sécurité — #bd-13 Auth", status: "pending", priority: "medium" },
+       { content: "#bd-12 — Endpoint POST /users", status: "pending", priority: "high" },
+       { content: "#bd-14 — Migration DB users", status: "pending", priority: "medium" }
      ]
    })
    ```
@@ -879,7 +894,7 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
    })
    ```
 
-- **Valider** → mettre à jour todowrite (phase Spec UX/UI → `completed` si tous les tickets spec de ce type sont traités), puis transmettre la spec validée **et les `### Contraintes d'implémentation`** à `orchestrator-dev` pour implémentation
+- **Valider** → mettre à jour todowrite (ticket Spec UX/UI courant → `completed`), puis transmettre la spec validée **et les `### Contraintes d'implémentation`** à `orchestrator-dev` pour implémentation
 - **Réviser** → retourner à l'agent design avec les corrections, incrémenter le compteur de révisions, nouveau CP-spec
 
   **Compteur de révisions :** maintenir un compteur interne par ticket spec.
@@ -905,21 +920,22 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 
 ### Ticket `audit`
 
-1. **Mettre à jour todowrite** — passer la phase Audit en `in_progress` :
+1. **Mettre à jour todowrite** — passer le ticket audit courant en `in_progress` :
 
    ```
    todowrite({
      todos: [
        { content: "Planification feature", status: "completed", priority: "high" },
-       { content: "Spec UX — [nombre] ticket(s)", status: "completed", priority: "high" },
-       { content: "Spec UI — [nombre] ticket(s)", status: "completed", priority: "high" },
-       { content: "Audit(s) — [nombre] ticket(s)", status: "in_progress", priority: "medium" },
-       { content: "Implémentation — [nombre] ticket(s)", status: "pending", priority: "high" }
+       { content: "Spec UX — #bd-10 <titre>", status: "completed", priority: "high" },
+       { content: "Spec UI — #bd-11 <titre>", status: "completed", priority: "high" },
+       { content: "Audit sécurité — #bd-13 <titre>", status: "in_progress", priority: "medium" },
+       { content: "#bd-12 — <titre>", status: "pending", priority: "high" },
+       { content: "#bd-14 — <titre>", status: "pending", priority: "medium" }
      ]
    })
    ```
 
-   > Adapter les phases selon ce qui existe réellement dans la feature (omettre Spec UX/UI si absentes).
+   > Omettre les phases Spec UX/UI si absentes de la feature. La liste doit refléter exactement les tickets présents.
 
 2. Annoncer la phase d'audit :
    > « Je délègue l'audit à `auditor-<domaine>` pour le ticket #<ID> — <titre>.
@@ -1062,28 +1078,29 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
   })
   ```
 
-- **Accepter** → mettre à jour todowrite (phase Audit → `completed` si tous les tickets audit sont traités), noter le ticket comme audité sans corrections nécessaires
-- **Ignorer** → mettre à jour todowrite (phase Audit → `completed` si c'était le dernier ticket audit), noter le ticket comme ignoré
+- **Accepter** → mettre à jour todowrite (ticket audit courant → `completed`), noter le ticket comme audité sans corrections nécessaires
+- **Ignorer** → mettre à jour todowrite (ticket audit courant → `cancelled`), noter le ticket comme ignoré
 
 ---
 
 ### Ticket `dev` (ou phase d'implémentation après spec/audit)
 
-1. **Mettre à jour todowrite** — passer la phase Implémentation en `in_progress` :
+1. **Mettre à jour todowrite** — passer le(s) premier(s) ticket(s) dev en `in_progress` :
 
    ```
    todowrite({
      todos: [
        { content: "Planification feature", status: "completed", priority: "high" },
-       { content: "Spec UX — [nombre] ticket(s)", status: "completed", priority: "high" },
-       { content: "Spec UI — [nombre] ticket(s)", status: "completed", priority: "high" },
-       { content: "Audit(s) — [nombre] ticket(s)", status: "completed", priority: "medium" },
-       { content: "Implémentation — [nombre] ticket(s)", status: "in_progress", priority: "high" }
+       { content: "Spec UX — #bd-10 <titre>", status: "completed", priority: "high" },
+       { content: "Spec UI — #bd-11 <titre>", status: "completed", priority: "high" },
+       { content: "Audit sécurité — #bd-13 <titre>", status: "completed", priority: "medium" },
+       { content: "#bd-12 — Endpoint POST /users", status: "in_progress", priority: "high" },
+       { content: "#bd-14 — Migration DB users", status: "pending", priority: "medium" }
      ]
    })
    ```
 
-   > Adapter les phases selon ce qui existe réellement dans la feature. **orchestrator-dev gère sa propre liste todowrite au niveau des tickets** — les deux listes sont complémentaires.
+   > Adapter selon les phases réellement présentes. **La liste reste visible pour l'utilisateur pendant toute la durée de l'implémentation** — l'orchestrator est le seul responsable de sa mise à jour car orchestrator-dev s'exécute dans une session isolée.
 
 2. Annoncer la délégation :
    > « Je délègue l'implémentation à `orchestrator-dev` pour les tickets : <liste des IDs>.
@@ -1122,6 +1139,42 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 Quand orchestrator-dev atteint un CP à enjeu fort (CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué), il arrête sa session et remonte un bloc `## Question pour l'orchestrator`.
 
 > ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS produire du texte de réponse (rapport, contexte, état de session) AVANT d'appeler l'outil `question`. Ne jamais appeler `question` comme première action — toujours afficher d'abord le contenu dans la discussion.
+
+**Mise à jour todowrite à la réception de chaque bloc :**
+
+Lire le champ `### Phase` du bloc `## Question pour l'orchestrator` pour déterminer la mise à jour :
+
+| Phase dans le bloc | Action todowrite |
+|--------------------|-----------------|
+| `CP-1` (ticket sur le point de démarrer) | Ticket `#bd-XX` → `in_progress` |
+| `CP-QA`, `CP-2` (ticket déjà en cours) | Aucune mise à jour (ticket déjà `in_progress`) |
+| `CP-3` avec option `passer` choisie | Ticket `#bd-XX` → `cancelled` |
+| Récap partiel après CP-2 commit validé | Ticket `#bd-XX` commité → `completed`, prochain ticket → `in_progress` |
+
+> La mise à jour todowrite est effectuée **avant** d'afficher le rapport et **avant** d'appeler l'outil `question`.
+
+**Exemple — CP-1 reçu pour #bd-14 (deuxième ticket) :**
+
+```
+todowrite({
+  todos: [
+    { content: "Planification feature", status: "completed", priority: "high" },
+    { content: "#bd-12 — Endpoint POST /users", status: "completed", priority: "high" },
+    { content: "#bd-14 — Migration DB users", status: "in_progress", priority: "medium" }
+  ]
+})
+```
+
+**Exemple — CP-2 commit validé pour #bd-12, CP-3 enchaîne sur #bd-14 :**
+
+```
+todowrite({
+  todos: [
+    { content: "Planification feature", status: "completed", priority: "high" },
+    { content: "#bd-12 — Endpoint POST /users", status: "completed", priority: "high" },
+    { content: "#bd-14 — Migration DB users", status: "in_progress", priority: "medium" }
+  ]
+})
 
 **Comportement obligatoire :**
 
@@ -1192,21 +1245,26 @@ question({
 
 Afficher en fin de feature (tous les tickets traités ou après un **stop**).
 
-**Mettre à jour todowrite** — toutes les phases passent à leur statut final :
+**Mettre à jour todowrite** — tous les tickets passent à leur statut final :
 
 ```
 todowrite({
   todos: [
     { content: "Planification feature", status: "completed", priority: "high" },
-    { content: "Spec UX — [nombre] ticket(s)", status: "completed", priority: "high" },
-    { content: "Spec UI — [nombre] ticket(s)", status: "completed", priority: "high" },
-    { content: "Audit(s) — [nombre] ticket(s)", status: "completed", priority: "medium" },
-    { content: "Implémentation — [nombre] ticket(s)", status: "completed", priority: "high" }
+    // Spec UX — une tâche par ticket avec statut final :
+    { content: "Spec UX — #bd-10 <titre>", status: "completed", priority: "high" },
+    // Spec UI — une tâche par ticket avec statut final :
+    { content: "Spec UI — #bd-11 <titre>", status: "completed", priority: "high" },
+    // Audit — une tâche par ticket avec statut final :
+    { content: "Audit sécurité — #bd-13 <titre>", status: "completed", priority: "medium" },
+    // Tickets dev — une tâche par ticket avec statut final :
+    { content: "#bd-12 — Endpoint POST /users", status: "completed", priority: "high" },
+    { content: "#bd-14 — Migration DB users", status: "completed", priority: "medium" }
   ]
 })
 ```
 
-> Utiliser `cancelled` pour les phases abandonnées (tickets ignorés). Adapter selon les phases réellement présentes.
+> Utiliser `cancelled` pour les tickets ignorés ou abandonnés. Adapter selon les tickets réellement présents dans la feature.
 
 **Avant de construire ce récap**, reproduire intégralement dans le texte de la discussion le récap global complet reçu d'orchestrator-dev (s'il n'a pas déjà été affiché). Puis produire le récap consolidé ci-dessous :
 

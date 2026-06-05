@@ -40,8 +40,40 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 **Usage spécifique à orchestrator-dev :**
 - **Une tâche = un ticket Beads** (pas de granularité inférieure)
-- Création au CP-0, mise à jour aux transitions clés (CP-1, fin de ticket)
-- Les phases intermédiaires (QA, review) sont notées dans le compte rendu d'étape mais ne déclenchent pas de mise à jour todowrite pour éviter l'overhead
+- Création au CP-0, mise à jour aux transitions clés
+
+### Comportement selon le contexte d'invocation
+
+> ⚠️ **Contrainte d'isolation des sessions :** dans OpenCode, chaque agent invoqué via `task`
+> dispose de sa propre session isolée. La todo list est strictement per-session — un sous-agent
+> ne peut pas mettre à jour la liste de son parent.
+>
+> Référence : `skills/posture/tool-todowrite.md` section "Usage par type d'agent" et
+> `docs/architecture/todowrite-session-isolation.fr.md`.
+
+**Invoqué en standalone (directement par l'utilisateur) :**
+
+Sa todo list est dans la session **visible par l'utilisateur**. Maintenir la liste en temps réel
+avec les labels de phase pour refléter l'état courant à chaque étape :
+
+| Moment | Mise à jour du label | Statut |
+|--------|---------------------|--------|
+| CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
+| CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
+| Étape 3.3 — QA activé | `#bd-12 — <titre> [QA]` | `in_progress` |
+| Étape 4 — review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
+| Étape 5 — CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
+| CP-2 commit validé | `#bd-12 — <titre>` | `completed` |
+| CP-1 passer / ticket ignoré | `#bd-12 — <titre>` | `cancelled` |
+
+**Invoqué via `task` depuis orchestrator (CONTEXTE = orchestrateur_feature) :**
+
+Sa todo list est dans une session **isolée et non visible** par l'utilisateur.
+L'orchestrator feature est le seul responsable de la liste visible — il la met à jour
+à partir des checkpoints transmis via les blocs `## Question pour l'orchestrator`.
+
+Maintenir une liste interne reste utile pour le débogage de session mais non obligatoire.
+Ne pas considérer cette liste comme un mécanisme de communication avec l'utilisateur.
 
 ---
 
@@ -346,12 +378,14 @@ Afficher le ticket :
   ```
   → mettre à jour todowrite (ticket en `in_progress`) → passer à l'étape 1b
 
-**Mise à jour todowrite au CP-1 (exemple : premier ticket démarre) :**
+**Mise à jour todowrite au CP-1 — standalone uniquement (exemple : premier ticket démarre) :**
+
+> En mode sous-agent (CONTEXTE = orchestrateur_feature), cette mise à jour reste locale à la session isolée et n'est pas visible par l'utilisateur. L'orchestrator feature gère sa propre liste.
 
 ```
 todowrite({
   todos: [
-    { content: "#bd-12 — <titre court>", status: "in_progress", priority: "high" },  // ← premier ticket démarre
+    { content: "#bd-12 — <titre court> [dev]", status: "in_progress", priority: "high" },  // ← label [dev] ajouté
     { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
     { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
   ]
@@ -648,6 +682,18 @@ Attendre le rapport du qa-engineer avant de continuer vers l'étape 3.5 (Pre-rev
 
 Si le QA est activé (par décision automatique, choix utilisateur, ou configuration mode auto) :
 
+**Mise à jour todowrite — standalone uniquement :**
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court> [QA]", status: "in_progress", priority: "high" },  // ← label [QA]
+    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
+
 > « Je délègue la vérification de couverture au qa-engineer. »
 
 Invoquer `qa-engineer` en fournissant :
@@ -787,6 +833,18 @@ Action requise :
 
 Dès que le developer (et optionnellement le qa-engineer) a terminé, invoquer **automatiquement** le `reviewer` :
 
+**Mise à jour todowrite — standalone uniquement :**
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court> [review]", status: "in_progress", priority: "high" },  // ← label [review]
+    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
+
 > « Implémentation terminée — je soumets au reviewer. »
 
 Fournir au reviewer :
@@ -819,6 +877,18 @@ Le format attendu, les définitions des verdicts et du routing sont définis dan
 Afficher le rapport de review intégralement dans le texte de la discussion (ne pas inclure dans l'outil `question`).
 
 **En mode standalone** → utiliser l'outil `question` pour CP-2.
+
+**Mise à jour todowrite avant de poser la question — standalone uniquement :**
+
+```
+todowrite({
+  todos: [
+    { content: "#bd-12 — <titre court> [CP-2]", status: "in_progress", priority: "high" },  // ← label [CP-2]
+    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
+    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
+  ]
+})
+```
 
 #### Préparation des options selon le verdict
 
@@ -1020,19 +1090,20 @@ Le format attendu et les définitions des statuts sont définis dans le skill `d
 
 **Mise à jour todowrite (fin de ticket) :**
 
-Mettre à jour todowrite avec le ticket passé en `completed` :
+Mettre à jour todowrite avec le ticket passé en `completed` — le suffixe de phase est retiré :
 
 ```
 todowrite({
   todos: [
-    { content: "#bd-12 — <titre court>", status: "completed", priority: "high" },
+    { content: "#bd-12 — <titre court>", status: "completed", priority: "high" },  // ← sans suffixe, completed
     { content: "#bd-13 — <titre court>", status: "completed", priority: "high" },  // ← ticket terminé
     { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
   ]
 })
 ```
 
-> En mode `auto`, cette mise à jour intervient après le commit validé (CP-2 → commit) — c'est la seule mise à jour `todowrite` entre CP-1 et la fin du ticket pour limiter l'overhead.
+> En mode sous-agent (CONTEXTE = orchestrateur_feature), cette mise à jour est locale à la session isolée. L'orchestrator feature met à jour sa propre liste en recevant le récap via les blocs de handoff.
+> En mode standalone, cette mise à jour est immédiatement visible par l'utilisateur.
 
 **Selon le mode :**
 
