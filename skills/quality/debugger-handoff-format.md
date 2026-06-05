@@ -15,7 +15,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 Quand tu es invoqué depuis l'`orchestrator` (Mode D — bug signalé par l'utilisateur),
 tu **dois** produire dans cet ordre :
 
-1. **Le rapport de diagnostic complet** — cause racine identifiée, chaîne causale, hypothèses explorées (confirmées / écartées / insuffisamment documentées), impact et régressions potentielles. **Ce rapport doit être produit même si le diagnostic est partiel ou le bug non reproductible.**
+1. **Le rapport de diagnostic complet** — analyse narrative du symptôme observé (comportement attendu vs. réel, conditions de déclenchement, fréquence), périmètre analysé (artefacts disponibles et manquants), hypothèses explorées avec les **preuves et éléments qui les étayent ou les écartent**, localisation probable (fichier:ligne), informations manquantes pour confirmer certaines hypothèses. **Ce rapport doit être produit même si le diagnostic est partiel ou le bug non reproductible.** Il n'a pas à répéter la cause racine structurée ni les listes d'hypothèses — celles-ci sont dans le bloc structuré qui suit.
 2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable.
 
 En standalone (invocation directe), le rapport de diagnostic précède également ce bloc.
@@ -86,7 +86,7 @@ En standalone (invocation directe), le rapport de diagnostic précède égalemen
 
 ## Règles pour le producteur (debugger)
 
-- **Toujours produire le rapport de diagnostic complet** avant ce bloc — même si le diagnostic est `non-reproductible`. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire le rapport de diagnostic complet** avant ce bloc — même si le diagnostic est `non-reproductible`. Le rapport est obligatoire dans tous les cas. Il apporte **les preuves, l'analyse et le raisonnement** (symptôme détaillé, éléments qui étayent ou écartent chaque hypothèse) — pas un ré-encodage des champs structurés du bloc.
 - **Toujours produire ce bloc** à la suite du rapport, même si le statut est `non-reproductible`
 - **Ne jamais affirmer une cause racine sans éléments probants** — utiliser "confirmé / probable / incertain" dans `Niveau de certitude`
 - **Renseigner toutes les sections** — même si vides, utiliser la mention explicite correspondante

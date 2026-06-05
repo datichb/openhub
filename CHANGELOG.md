@@ -9,6 +9,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Suppression de la duplication des retours agents/sous-agents** — le contenu narratif et le bloc structuré de handoff réencodaient les mêmes données, produisant des retours redondants visibles par l'utilisateur. Le principe adopté : le narratif apporte le *contexte et le raisonnement* (preuves, décisions, pourquoi), le bloc structuré apporte les *métadonnées actionnables* (tableaux, statuts, routing). Les deux sont complémentaires et non redondants.
+  - `skills/orchestrator/orchestrator-dev-protocol.md` : le template `## Récap implémentation` ne contient plus le tableau des tickets ni les statistiques (traités/ignorés/cycles/corrections) — ces données restent dans le bloc structuré `## Retour vers orchestrator`. Le récap narratif contient désormais uniquement les comptes rendus d'implémentation verbatim et les points d'attention agrégés.
+  - `skills/orchestrator/orchestrator-handoff-format.md` : description du point 1 mise à jour pour refléter que le récap narratif ne réencode pas le tableau (qui est dans le bloc structuré).
+  - `skills/planning/planner-handoff-format.md` + `skills/planning/planner-workflow.md` : le récapitulatif de planification apporte le contexte et le raisonnement, pas un ré-encodage du tableau des tickets du bloc structuré.
+  - `skills/developer/developer-handoff-format.md` : le compte rendu d'implémentation = prose (décisions, contexte) sans répétition des listes techniques du bloc.
+  - `skills/qa/qa-handoff-format.md` : le rapport QA = analyse narrative (raisonnement sur la couverture) sans répétition des listes de tests du bloc.
+  - `skills/quality/debugger-handoff-format.md` : le rapport de diagnostic = symptôme + preuves + contexte sans répétition de la cause racine structurée du bloc.
+  - `skills/auditor/audit-handoff-format.md` : le rapport d'audit = preuves et chemins d'exploitation sans répétition du tableau de synthèse du bloc.
+  - `skills/planning/onboarder-handoff-format.md` : le rapport d'onboarding = récit de découverte sans répétition des listes structurées (stack, conventions, dette) du bloc.
+  - Documentation mise à jour : `docs/architecture/task-delegation.fr.md`, `docs/architecture/adr/009-inter-agent-handoff-contracts.fr.md` + `.en.md`, `docs/architecture/skills.fr.md`, `docs/guides/workflows.fr.md` + `.en.md`, `docs/architecture/overview.fr.md` + `.en.md`, `docs/guides/inter-agent-interruption.fr.md`.
+
 ### Breaking Changes
 
 - **`oc provider` supprimé** — toute la configuration provider passe désormais par `oc config` :

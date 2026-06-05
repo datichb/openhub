@@ -283,7 +283,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 > - **Non** → produire les blocs manquants MAINTENANT
 > - **Oui** → terminer la session
 
-> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrateur_feature) doit contenir la **liste narrative détaillée** de tous les tickets (descriptions + acceptance + notes + hypothèses + risques) — pas juste les IDs et titres. L'orchestrateur retransmettra ce récap intégralement à l'utilisateur pour le CP-0.
+> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrateur_feature) doit contenir le **contexte et le raisonnement** derrière les décisions de planification — pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses, quels risques. Il n'a **pas** à reproduire le tableau des tickets ni les listes formelles (dépendances, ordre, risques) — ceux-ci sont dans le bloc structuré `## Retour vers orchestrator`. L'orchestrateur retransmettra ce récap narratif intégralement à l'utilisateur pour le CP-0.
 
 ---
 

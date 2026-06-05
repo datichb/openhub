@@ -15,7 +15,7 @@ Il est injecté dans le `qa-engineer` et dans `orchestrator-dev` — producteur 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
 tu **dois** produire dans cet ordre :
 
-1. **Le rapport QA complet** — liste détaillée des tests écrits, analyse de la couverture par critère d'acceptance, justification des zones non testables. **Ce rapport doit être produit même si aucun test n'a pu être écrit (statut `non-testable`).**
+1. **Le rapport QA complet** — analyse narrative de la couverture : raisonnement sur les critères couverts ou non, justification détaillée des zones non testables et pourquoi elles ne peuvent pas être testées. **Ce rapport doit être produit même si aucun test n'a pu être écrit (statut `non-testable`).** Il n'a pas à reproduire les listes de tests ou les checkmarks — ceux-ci sont dans le bloc structuré qui suit.
 2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé structuré actionnable.
 
 Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il ne le remplace pas.
@@ -86,7 +86,7 @@ Ce bloc vient **après** le rapport QA — il en est le résumé structuré. Il 
 
 ## Règles pour le producteur (qa-engineer)
 
-- **Toujours produire le rapport QA complet** avant ce bloc — même si aucun test n'a pu être écrit. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire le rapport QA complet** avant ce bloc — même si aucun test n'a pu être écrit. Le rapport est obligatoire dans tous les cas. Il apporte **l'analyse et le raisonnement** (pourquoi cette couverture, pourquoi ces zones sont non testables) — pas un ré-encodage des listes du bloc structuré.
 - **Toujours produire ce bloc** à la suite du rapport, même si le statut est `non-testable`
 - **La `### Couverture des critères d'acceptance`** doit être basée sur `bd show <ID>` — ne pas supposer les critères
 - **Signaler honnêtement les zones non testables** — `orchestrator-dev` en a besoin pour informer sur la qualité globale

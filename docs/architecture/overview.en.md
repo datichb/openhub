@@ -132,7 +132,7 @@ sequenceDiagram
         OD->>U: [CP-2] Merge or fix? ← ALWAYS PAUSED
         OD->>U: [CP-3] Next ticket or stop?
     end
-    OD-->>O: Full implementation recap (narrative + per-ticket table) + structured block
+    OD-->>O: Narrative recap (verbatim reports + attention points) + structured block
 
     O->>U: [CP-feature] Global feature summary
 ```

@@ -1227,17 +1227,6 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 ```
 ## Récap implémentation — <nom de la feature ou session>
 
-| ID | Titre | Agent | QA | Cycles review | Critères couverts | Statut |
-|----|-------|-------|----|---------------|-------------------|--------|
-| bd-XX | ... | developer-frontend | oui — <NB_TESTS> tests | 1 | tous | ✅ Terminé |
-| bd-XX | ... | developer-backend  | non | 2 | partielle | ✅ Terminé |
-| bd-XX | ... | developer-api      | non | 1 | — | ⏭️ Ignoré  |
-
-- **Tickets traités :** <NB_TRAITES> / <NB_TOTAL>
-- **Tickets ignorés :** <NB_IGNORES>
-- **Total cycles de review :** <NB_CYCLES>
-- **Corrections demandées :** <NB_CORRECTIONS> fois
-
 ### Comptes rendus d'implémentation
 
 <Pour chaque ticket traité, inclure le compte rendu d'implémentation narratif complet produit par le developer-* — copié tel quel, sans résumé ni reformulation. Ce contenu est ce qui permet à l'orchestrator feature de remonter le détail des modifications à l'utilisateur.>
@@ -1254,9 +1243,10 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
  - Points signalés par les developer-* (décisions techniques, compromis, dette)
  - Zones non testables signalées par le qa-engineer
  - Points récurrents signalés par le reviewer sur plusieurs tickets>
+<"Aucun point d'attention" si aucun point n'a été signalé en cours de session>
 ```
 
-> ❌ Ne jamais résumer ce récap — c'est le seul contenu que l'orchestrator affichera dans son fil de discussion pour informer l'utilisateur de ce qui a été fait.
+> ❌ Ne jamais résumer ce récap — il contient les comptes rendus d'implémentation verbatim et les points d'attention. Le tableau de synthèse des tickets et les statistiques sont dans le bloc structuré `## Retour vers orchestrator` qui suit.
 
 ### Étape 2 — Bloc de retour structuré (obligatoire si invoqué depuis l'orchestrateur feature)
 

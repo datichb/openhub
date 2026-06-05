@@ -15,7 +15,7 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 Quand tu es invoqué depuis l'`orchestrator` (et non en standalone),
 tu **dois** produire dans cet ordre :
 
-1. **Le rapport d'audit complet** — analyse narrative et détaillée du périmètre : observations item par item, contexte de chaque problème identifié, preuves, chemins d'exploitation si applicable. **Ce rapport doit être produit même si aucun problème n'est identifié.**
+1. **Le rapport d'audit complet** — analyse narrative et détaillée du périmètre : observations item par item, contexte de chaque problème identifié, **preuves et chemins d'exploitation** si applicable. **Ce rapport doit être produit même si aucun problème n'est identifié.** Il n'a pas à reproduire le tableau des problèmes ni les listes de recommandations — ceux-ci sont dans le bloc structuré qui suit.
 2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — synthèse structurée et actionnelle du rapport.
 
 En standalone, le rapport d'audit complet précède également ce bloc.
@@ -81,7 +81,7 @@ En standalone, le rapport d'audit complet précède également ce bloc.
 
 ## Règles pour le producteur (auditor-*)
 
-- **Toujours produire le rapport d'audit complet** avant ce bloc — même si aucun problème n'est identifié. Le rapport est obligatoire dans tous les cas.
+- **Toujours produire le rapport d'audit complet** avant ce bloc — même si aucun problème n'est identifié. Le rapport est obligatoire dans tous les cas. Il apporte **les preuves, le contexte et les chemins d'exploitation** — pas un ré-encodage du tableau de synthèse du bloc structuré.
 - **Toujours produire ce bloc** à la suite du rapport, même si le statut est `acceptable`
 - **Le tableau `### Synthèse des problèmes identifiés`** est une synthèse — le détail complet est dans le rapport narratif qui précède
 - **Toujours renseigner le `### Périmètre audité`** — même si le périmètre est complet, l'indiquer explicitement
@@ -103,7 +103,7 @@ En standalone, le rapport d'audit complet précède également ce bloc.
 
 **Séquence obligatoire (ne jamais inverser) :**
 
-1. **Afficher le rapport d'audit complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer. Ce rapport contient l'analyse narrative et détaillée du périmètre : observations item par item, contexte de chaque problème identifié, preuves, chemins d'exploitation si applicable.
+1. **Afficher le rapport d'audit complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni filtrer. Ce rapport contient l'analyse narrative et détaillée du périmètre : observations item par item, contexte de chaque problème identifié, preuves, chemins d'exploitation si applicable — informations uniques qui ne se trouvent pas dans le bloc structuré.
 
 2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
 

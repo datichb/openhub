@@ -26,8 +26,8 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — le producteur et l
 
 Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, il **doit** produire, dans cet ordre :
 
-1. **Le récap global complet** (texte libre) — tableau des tickets traités, points d'attention agrégés, détail des cycles de review. Ce récap est le contenu que l'orchestrator affichera dans son fil de discussion. **Il ne peut pas être résumé ni omis.**
-2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable pour l'orchestrator.
+1. **Le récap global complet** (texte libre) — comptes rendus d'implémentation verbatim par ticket et points d'attention agrégés. Ce récap est le contenu que l'orchestrator affichera dans son fil de discussion. **Il ne peut pas être résumé ni omis.** Le tableau de synthèse des tickets et les statistiques ne font **pas** partie de ce récap narratif — ils sont dans le bloc structuré qui suit.
+2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable pour l'orchestrator, incluant le tableau de détail par ticket et les statistiques.
 
 > **Autocontrôle obligatoire avant de produire ce bloc :**
 > « Ai-je produit le récap global complet (texte + tableau) avant ce bloc ? Si non, le produire d'abord. »
@@ -208,7 +208,7 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
 > ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription et les règles complètes.
 
 ### À la réception d'un `## Retour vers orchestrator`
-- **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets) — ne jamais résumer ni omettre. L'utilisateur doit pouvoir suivre ce qui a été fait avant les questions.
+- **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (comptes rendus d'implémentation verbatim par ticket + points d'attention agrégés) — ne jamais résumer ni omettre. L'utilisateur doit pouvoir suivre le détail de ce qui a été fait avant les questions. Le tableau de synthèse est dans le bloc structuré `## Retour vers orchestrator` qui accompagne ce récap.
 - Ce format structuré est requis pour construire le CP-feature.
 - Si le récap global complet (texte + tableau) est absent ou si le bloc structuré ne contient pas les champs requis, les demander explicitement à `orchestrator-dev` avant de continuer.
 - Ne jamais construire le CP-feature à partir d'un récap incomplet ou ambigu.

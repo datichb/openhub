@@ -188,13 +188,19 @@ Cette indirection permet de :
 
 Chaque sous-agent, quand invoqué via `task`, produit **dans cet ordre** :
 
-1. **Contenu narratif complet** — le travail réalisé en détail (rapport, compte
-   rendu d'implémentation, diagnostic...)
+1. **Contenu narratif complet** — le travail réalisé avec son contexte et son
+   raisonnement (rapport, compte rendu d'implémentation, diagnostic...).
+   Ce contenu apporte ce que le bloc structuré ne peut pas contenir : le
+   *pourquoi* des décisions, les preuves, le contexte de découverte.
+   **Il ne réencode pas les données déjà présentes dans le bloc structuré**
+   (listes de fichiers, tableaux, champs normalisés).
 2. **Bloc structuré `## Retour vers <parent>`** — résumé actionnable avec des
-   champs normalisés
+   champs normalisés (statut, routing, verdict, tableaux de synthèse).
 
-Le bloc structuré **vient après** le contenu complet — il en est le résumé,
-pas le substitut.
+Le bloc structuré **vient après** le contenu narratif — il le complète avec des
+données structurées actionnables. Les deux sont complémentaires et non
+redondants : le narratif apporte le contexte, le bloc structuré apporte
+les métadonnées de routing et de décision.
 
 ```markdown
 ## Contenu complet du travail réalisé
@@ -246,18 +252,23 @@ Le bloc `## Question pour l'orchestrator` contient :
 | `planning/onboarder-handoff-format` | `onboarder` | `orchestrator` | Stack, conventions, dette, incertitudes |
 | `quality/debugger-handoff-format` | `debugger` | `orchestrator` | Cause racine, certitude, impact, actions urgentes |
 
-### La règle de non-résumé
+### La règle de non-résumé et de non-duplication
 
 > **Ne jamais résumer le contenu produit par un sous-agent.**
+> **Ne jamais réencoder dans le contenu narratif les données déjà présentes dans le bloc structuré.**
 
-Cette règle est répétée dans chaque skill de handoff car elle est critique :
+Ces deux règles sont répétées dans chaque skill de handoff car elles sont critiques :
 
 - Le consommateur affiche le contenu narratif **intégralement** avant de poser
   un checkpoint à l'utilisateur
 - Les corrections du reviewer sont copiées **verbatim** dans les commentaires Beads
 - Le rapport de review est transmis **tel quel** à l'utilisateur au CP-2
+- Le narratif apporte ce que le bloc structuré ne peut pas donner : preuves,
+  contexte, raisonnement — pas une répétition des tableaux et champs du bloc
 
 Un résumé perd de l'information et peut mener à des décisions incorrectes.
+Une duplication entre narratif et bloc structuré produit des retours redondants
+visibles par l'utilisateur.
 
 → [ADR-009](./adr/009-inter-agent-handoff-contracts.fr.md)
 

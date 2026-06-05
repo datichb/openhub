@@ -14,7 +14,7 @@ Il est injecté dans le `planner` et dans l'`orchestrator` — producteur et con
 
 Quand tu es invoqué depuis l'`orchestrator`, tu **dois** produire dans cet ordre :
 
-1. **Le récapitulatif de planification complet** — présentation narrative des tickets créés, des dépendances identifiées, des hypothèses faites, des risques. **Ce récapitulatif doit être produit même si la planification est partielle ou bloquée.**
+1. **Le récapitulatif de planification complet** — présentation narrative du contexte et du raisonnement ayant mené aux décisions de décomposition : pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses, quels risques identifiés. **Ce récapitulatif doit être produit même si la planification est partielle ou bloquée.** Il n'a pas à reproduire le tableau des tickets ni les listes formelles — ceux-ci sont dans le bloc structuré qui suit.
 2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous, après avoir terminé la Phase 4 (vérification + validation finale).
 
 En standalone, le récapitulatif de planification précède également ce bloc.
@@ -84,7 +84,7 @@ En standalone, le récapitulatif de planification précède également ce bloc.
 
 ## Règles pour le producteur (planner)
 
-- **Toujours produire le récapitulatif de planification complet** avant ce bloc — même si la planification est partielle ou bloquée. Le récapitulatif est obligatoire dans tous les cas.
+- **Toujours produire le récapitulatif de planification complet** avant ce bloc — même si la planification est partielle ou bloquée. Le récapitulatif est obligatoire dans tous les cas. Il apporte le **contexte et le raisonnement** (pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses) — pas un ré-encodage du tableau du bloc structuré.
 - **Toujours produire ce bloc** à la suite du récapitulatif, même si le statut est `bloqué`
 - **Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs
 - **Renseigner la colonne `Dépend de`** pour chaque ticket — mettre `—` si aucune dépendance
@@ -108,7 +108,7 @@ En standalone, le récapitulatif de planification précède également ce bloc.
 
 **Séquence obligatoire (ne jamais inverser) :**
 
-1. **Afficher le récapitulatif de planification complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni omettre. Ce récap contient la liste narrative des tickets créés, des dépendances identifiées, des hypothèses faites et des risques.
+1. **Afficher le récapitulatif de planification complet dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer ni omettre. Ce récap contient le contexte et le raisonnement derrière les décisions de planification (pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses faites, quels risques identifiés).
 
 2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
 

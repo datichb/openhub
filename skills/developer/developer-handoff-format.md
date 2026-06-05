@@ -15,7 +15,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
 tu **dois** produire dans cet ordre :
 
-1. **Le compte rendu d'implémentation complet** — description narrative de ce qui a été fait, décisions prises, fichiers touchés, tests écrits, critères couverts. **Ce compte rendu doit être produit même si l'implémentation est partielle ou bloquée.**
+1. **Le compte rendu d'implémentation complet** — description narrative de ce qui a été fait, décisions prises et leur justification, contexte des blocages rencontrés. **Ce compte rendu doit être produit même si l'implémentation est partielle ou bloquée.** Il n'a pas à répéter les listes techniques (fichiers modifiés, tests, critères) — celles-ci sont dans le bloc structuré qui suit.
 2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé structuré actionnable.
 
 Ce bloc vient **après** le compte rendu d'implémentation — il en est le résumé structuré. Il ne le remplace pas.
@@ -166,7 +166,7 @@ Aucun blocage rencontré.
 
 ## Règles pour le producteur (developer-*)
 
-- **Toujours produire le compte rendu d'implémentation complet** avant ce bloc — même si l'implémentation est partielle ou bloquée. Le compte rendu est obligatoire dans tous les cas.
+- **Toujours produire le compte rendu d'implémentation complet** avant ce bloc — même si l'implémentation est partielle ou bloquée. Le compte rendu est obligatoire dans tous les cas. Il apporte le **contexte et les décisions** (pourquoi ces choix techniques, quels compromis) — pas un ré-encodage des données techniques du bloc structuré.
 - **Toujours produire ce bloc** à la suite du compte rendu, quelle que soit la complexité de l'implémentation
 - **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée
 - **`**Changements par fichier**`** : pour chaque fichier du diff, lister les symboles changés avec la notation `+/-/~` — ne pas inventer, ne pas résumer arbitrairement

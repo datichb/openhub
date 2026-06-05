@@ -197,8 +197,8 @@ Ajouter les nouvelles lignes dans le tableau "Règles par type de retour".
 
 2. **Pour un retour final** :
    - Afficher les `## Retour intermédiaire vers orchestrateur` en texte, dans l'ordre
-   - Afficher le récap narratif complet
-   - Afficher le bloc structuré `## Retour vers orchestrator`
+   - Afficher le récap narratif complet (contexte, raisonnement, preuves — contenu unique non répété dans le bloc structuré)
+   - Afficher le bloc structuré `## Retour vers orchestrator` (tableau de synthèse, métadonnées de routing, statut)
    - Puis seulement appeler `question` pour le checkpoint utilisateur
 
 3. **Pour une question montante** :

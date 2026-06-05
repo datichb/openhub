@@ -69,13 +69,13 @@ Formaliser **tous** les contrats de communication inter-agents comme skills déd
 
 **Contexte :** après le déploiement initial, un manque a été identifié à la frontière `orchestrator-dev` → `orchestrator` : le bloc structuré `## Retour vers orchestrator` ne contenait qu'un résumé minimal (tickets traités, points d'attention, statut global). L'orchestrateur n'avait aucune visibilité sur le détail de l'implémentation (fichiers modifiés, cycles de review, couverture des critères d'acceptance) avant de présenter le [CP-feature] à l'utilisateur.
 
-**Décision :** étendre les skills `orchestrator/orchestrator-handoff-format` et `orchestrator-dev-protocol` pour formaliser un **retour en deux étapes obligatoires** :
+**Décision :** étendre les skills `orchestrator/orchestrator-handoff-format` et `orchestrator-dev-protocol` pour formaliser un **retour en deux étapes obligatoires et complémentaires** :
 
-1. `orchestrator-dev` doit émettre un **récap narratif complet** (texte + tableau par ticket : agent, QA, cycles de review, critères couverts, statut + points d'attention agrégés) **avant** le bloc structuré `## Retour vers orchestrator` — sur le même pattern que les developer-* émettent un compte rendu d'implémentation complet avant leur bloc handoff.
-2. Le bloc structuré `## Retour vers orchestrator` gagne un nouveau champ `### Détail par ticket`, rendant les données structurées auto-suffisantes.
+1. `orchestrator-dev` doit émettre un **récap narratif** (comptes rendus d'implémentation verbatim par ticket + points d'attention agrégés) **avant** le bloc structuré `## Retour vers orchestrator` — sur le même pattern que les developer-* émettent un compte rendu d'implémentation avant leur bloc handoff. Ce récap narratif apporte le **contexte et le détail** que le bloc structuré ne contient pas : les comptes rendus verbatim des developer-*, les décisions et compromis techniques. Il ne réencode **pas** les données déjà dans le bloc structuré (tableau des tickets, statistiques).
+2. Le bloc structuré `## Retour vers orchestrator` contient le tableau de détail par ticket et les statistiques — données actionnables non présentes dans le récap narratif.
 3. La règle consommateur de l'`orchestrator` est mise à jour : il doit **afficher le récap narratif complet dans son fil de discussion** avant de construire le [CP-feature] — symétrique avec l'affichage du rapport de review avant le [CP-2].
 
-**Impact :** le fil de discussion de l'orchestrateur affiche désormais le récap d'implémentation complet avant chaque [CP-feature], donnant à l'utilisateur une visibilité totale sur ce qui a été réalisé sur tous les tickets dev avant de lui poser une question.
+**Impact :** le fil de discussion de l'orchestrateur affiche désormais le récap d'implémentation complet (sans duplication) avant chaque [CP-feature], donnant à l'utilisateur une visibilité totale sur ce qui a été réalisé sur tous les tickets dev avant de lui poser une question.
 
 ### Négatives / compromis
 

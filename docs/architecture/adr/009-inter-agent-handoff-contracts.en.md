@@ -69,13 +69,13 @@ Formalize **all** inter-agent communication contracts as dedicated skills, follo
 
 **Context:** after initial deployment, a gap was identified at the `orchestrator-dev` → `orchestrator` boundary: the structured `## Return to orchestrator` block contained only a minimal summary (handled tickets, attention points, global status). The orchestrator had no visibility into implementation details (files modified, review cycles, acceptance criteria coverage) before presenting the [CP-feature] to the user.
 
-**Decision:** extend the `orchestrator/orchestrator-handoff-format` and `orchestrator-dev-protocol` skills to formalize a **mandatory two-step return**:
+**Decision:** extend the `orchestrator/orchestrator-handoff-format` and `orchestrator-dev-protocol` skills to formalize a **mandatory two-step, complementary return**:
 
-1. `orchestrator-dev` must emit a **full narrative recap** (text + per-ticket table: agent, QA, review cycles, acceptance criteria covered, status + aggregated attention points) **before** the structured `## Return to orchestrator` block — on the same pattern as developer-* emitting a full implementation report before their handoff block.
-2. The structured `## Return to orchestrator` block gains a new `### Per-ticket detail` table field, making the structured data self-sufficient.
+1. `orchestrator-dev` must emit a **narrative recap** (developer-* implementation reports verbatim per ticket + aggregated attention points) **before** the structured `## Return to orchestrator` block — on the same pattern as developer-* emitting an implementation report before their handoff block. This narrative recap brings **context and detail** that the structured block does not contain: the verbatim developer-* reports, technical decisions and trade-offs. It does **not** re-encode data already in the structured block (ticket table, statistics).
+2. The structured `## Return to orchestrator` block contains the per-ticket detail table and statistics — actionable data not present in the narrative recap.
 3. The `orchestrator` consumer rule is updated: it must **display the full narrative recap in its discussion thread** before building [CP-feature] — symmetric with how the review report is displayed before [CP-2].
 
-**Impact:** the orchestrator's discussion thread now shows the complete implementation summary before every [CP-feature], giving the user full visibility into what was done across all dev tickets before being asked any question.
+**Impact:** the orchestrator's discussion thread now shows the complete implementation summary (without duplication) before every [CP-feature], giving the user full visibility into what was done across all dev tickets before being asked any question.
 
 ### Negative / trade-offs
 
