@@ -3,7 +3,7 @@
  * Couvre : withRetry, classifyFigmaError, timeout via config
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 import { classifyFigmaError } from '../client.js';
 
@@ -115,6 +115,16 @@ describe('getConfig timeout parsing', () => {
   beforeEach(() => {
     vi.resetModules();
     // Nettoyer les env vars entre les tests
+    delete process.env.FIGMA_TIMEOUT;
+    delete process.env.FIGMA_MAX_RETRIES;
+    delete process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
+    delete process.env.FIGMA_TEAM_ID;
+  });
+
+  afterEach(() => {
+    // Garantir le nettoyage même si le test échoue
+    delete process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
+    delete process.env.FIGMA_TEAM_ID;
     delete process.env.FIGMA_TIMEOUT;
     delete process.env.FIGMA_MAX_RETRIES;
   });

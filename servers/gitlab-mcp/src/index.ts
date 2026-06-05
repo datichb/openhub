@@ -24,15 +24,17 @@ import { listMilestonesTool, listMilestones } from './tools/list-milestones.js';
 // Initialisation
 // ---------------------------------------------------------------------------
 
-let gitlabClient: GitLabClient;
-
-try {
-  const config = getConfig();
-  gitlabClient = new GitLabClient(config);
-} catch (error) {
-  console.error('Failed to initialize GitLab MCP Server:', error);
-  process.exit(1);
+function initClient(): GitLabClient {
+  try {
+    const config = getConfig();
+    return new GitLabClient(config);
+  } catch (error) {
+    console.error('Failed to initialize GitLab MCP Server:', error);
+    process.exit(1);
+  }
 }
+
+const gitlabClient = initClient();
 
 // ---------------------------------------------------------------------------
 // Serveur MCP

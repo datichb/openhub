@@ -449,19 +449,23 @@ strip_frontmatter() {
 # Valeurs possibles : "primary" | "subagent" | "all"
 # Fallback : "primary" si le champ est absent
 get_agent_mode() {
-  local mode
-  mode=$(extract_frontmatter_value "$1" "mode")
-  echo "${mode:-primary}"
+  read_agent_frontmatter "$1"
+  local raw_mode=""
+  while IFS= read -r line; do
+    case "$line" in
+      mode:*) raw_mode="${line#mode:}"; raw_mode="${raw_mode# }"; break ;;
+    esac
+  done <<< "$_fm_raw"
+  echo "${raw_mode:-primary}"
 }
 
 # Retourne l'identifiant d'un agent (frontmatter id, ou nom de fichier sans extension)
 get_agent_id() {
-  local id
-  id=$(extract_frontmatter_value "$1" "id")
-  if [ -z "$id" ]; then
+  read_agent_frontmatter "$1"
+  if [ -z "$_fm_id" ]; then
     basename "$1" .md
   else
-    echo "$id"
+    echo "$_fm_id"
   fi
 }
 

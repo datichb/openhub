@@ -21,15 +21,17 @@ import { extractDesignTokensTool, extractDesignTokens } from './tools/extract-de
 import { getNodeDetailsTool, getNodeDetails } from './tools/get-node-details.js';
 
 // Initialisation
-let figmaClient: FigmaClient;
-
-try {
-  const config = getConfig();
-  figmaClient = new FigmaClient(config);
-} catch (error) {
-  console.error('Failed to initialize Figma MCP Server:', error);
-  process.exit(1);
+function initClient(): FigmaClient {
+  try {
+    const config = getConfig();
+    return new FigmaClient(config);
+  } catch (error) {
+    console.error('Failed to initialize Figma MCP Server:', error);
+    process.exit(1);
+  }
 }
+
+const figmaClient = initClient();
 
 // Créer le serveur MCP
 const server = new Server(

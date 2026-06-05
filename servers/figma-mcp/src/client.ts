@@ -61,12 +61,6 @@ export interface FigmaFileResponse {
   document: FigmaNode;
 }
 
-export interface FigmaNodeDetail {
-  node: FigmaNode;
-  fileId: string;
-  nodeId: string;
-}
-
 /** Codes d'erreur axios considérés comme des erreurs réseau/timeout retriables */
 const RETRYABLE_AXIOS_CODES = new Set(['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK', 'ECONNRESET']);
 
@@ -327,8 +321,8 @@ export class FigmaClient {
             const varValue = variable.valuesByMode?.[firstModeId];
             if (varValue === undefined) continue;
 
-            if (varType === 'COLOR') {
-              const { r, g, b, a } = varValue;
+            if (varType === 'COLOR' && typeof varValue === 'object' && varValue !== null && 'r' in (varValue as object)) {
+              const { r, g, b, a } = varValue as { r: number; g: number; b: number; a: number };
               const hex = this.rgbaToHex(r, g, b, a);
               colors.push({ name: varName, value: hex, type: 'color' });
             } else if (varType === 'FLOAT') {
@@ -354,13 +348,7 @@ export class FigmaClient {
               fontFamily: style.fontFamily || 'Sans-serif',
               fontWeight: style.fontWeight || 400,
             });
-          }
-        }
-      }
-
-      if (stylesData.meta && stylesData.meta.styles) {
-        for (const style of Object.values(stylesData.meta.styles) as any[]) {
-          if (style.style_type === 'EFFECT') {
+          } else if (style.style_type === 'EFFECT') {
             effects.push({
               name: style.name,
               type: style.type || 'UNKNOWN',
@@ -396,28 +384,3 @@ export class FigmaClient {
   }
 }
 
-export interface FigmaFile {
-  key: string;
-  name: string;
-  thumbnail_url?: string;
-  last_modified: string;
-}
-
-export interface FigmaProject {
-  id: string;
-  name: string;
-}
-
-export interface FigmaNode {
-  id: string;
-  name: string;
-  type: string;
-  children?: FigmaNode[];
-}
-
-export interface FigmaFileResponse {
-  name: string;
-  lastModified: string;
-  thumbnailUrl?: string;
-  document: FigmaNode;
-}

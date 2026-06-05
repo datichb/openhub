@@ -237,6 +237,6 @@ get_provider_model_alias() {
   local provider="$1" model="$2"
   local aliased
   aliased=$(jq -r --arg p "$provider" --arg m "$model" \
-    '.providers[$p].model_aliases[$m] // empty' "$PROVIDERS_FILE" 2>/dev/null)
+    '.providers[$p].model_aliases // {} | .[$m] // empty' "$PROVIDERS_FILE" 2>/dev/null)
   echo "${aliased:-$model}"
 }

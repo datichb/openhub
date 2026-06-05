@@ -127,6 +127,31 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     
     "tool.execute.before": async (input, output) => {
       const tool = String(input?.tool ?? "").toLowerCase()
+
+      // Track WebSearch/WebFetch calls (must be before the bash/shell guard)
+      if (tool === "websearch" || tool === "webfetch") {
+        await initSession()
+        
+        if (tool === "websearch") {
+          sessionWebSearchCalls++
+        } else {
+          sessionWebFetchCalls++
+        }
+        
+        await client.app.log({
+          body: {
+            service: "rtk-plugin",
+            level: "debug",
+            message: `${tool} call initiated`,
+            extra: {
+              session_websearch_calls: sessionWebSearchCalls,
+              session_webfetch_calls: sessionWebFetchCalls,
+            },
+          },
+        })
+        return
+      }
+
       if (tool !== "bash" && tool !== "shell") return
 
       await initSession()
@@ -191,29 +216,6 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
           // Both methods failed — pass through unchanged
           sessionCommandsNotRewritten++
         }
-      }
-      
-      // Track WebSearch/WebFetch calls
-      if (tool === "websearch" || tool === "webfetch") {
-        await initSession()
-        
-        if (tool === "websearch") {
-          sessionWebSearchCalls++
-        } else {
-          sessionWebFetchCalls++
-        }
-        
-        await client.app.log({
-          body: {
-            service: "rtk-plugin",
-            level: "debug",
-            message: `${tool} call initiated`,
-            extra: {
-              session_websearch_calls: sessionWebSearchCalls,
-              session_webfetch_calls: sessionWebFetchCalls,
-            },
-          },
-        })
       }
     },
 
@@ -380,6 +382,7 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
       sessionWebSearchCalls = 0
       sessionWebFetchCalls = 0
       sessionWebSearchRateLimited = 0
+      sessionStarted = false
     },
   }
 }
