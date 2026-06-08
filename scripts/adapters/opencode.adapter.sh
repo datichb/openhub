@@ -817,6 +817,19 @@ adapter_deploy_config() {
         '$base + {"agent": $agents}')
     fi
 
+    # Préserver le bloc mcp existant s'il était déjà dans opencode.json
+    # (écrit lors d'un déploiement précédent par configure_mcp_in_project)
+    if [ -f "$config_file" ]; then
+      local _existing_mcp
+      _existing_mcp=$(jq '.mcp // empty' "$config_file" 2>/dev/null || true)
+      if [ -n "$_existing_mcp" ]; then
+        base_obj=$(jq -n \
+          --argjson base "$base_obj" \
+          --argjson mcp "$_existing_mcp" \
+          '$base + {"mcp": $mcp}')
+      fi
+    fi
+
     # Fusionner le bloc instructions selon l'état du cache de contexte
     # Priorité : cache valide > fichiers contexte présents > rien
     local _instructions_json=""

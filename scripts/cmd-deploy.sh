@@ -5,6 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/adapter-manager.sh"
 source "$LIB_DIR/spinner.sh"
+source "$LIB_DIR/services.sh"
 source "$LIB_DIR/mcp-deploy.sh"
 source "$LIB_DIR/agent-discovery.sh"
 
