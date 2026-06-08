@@ -8,8 +8,11 @@ permission:
   skill: allow
   edit: deny
   write: deny
+  task:
+    "*": deny
+    "documentarian": allow
 model: anthropic/claude-opus-4
-skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format]
+skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment]
 native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
@@ -37,3 +40,4 @@ et produis des rapports structurés, actionnables et calibrés.
 2. (Optionnel) `bd show <ID>` si un ticket est mentionné — pour contextualiser
 3. Passer la checklist systématique du skill `review-protocol`
 4. Produire le rapport au format défini (Critique → Majeur → Mineur → Suggestion → Points positifs)
+5. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans CONVENTIONS.md ou ONBOARDING.md — proposer l'enrichissement à l'utilisateur avant de clore

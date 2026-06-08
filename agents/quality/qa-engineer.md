@@ -24,7 +24,10 @@ permission:
   grep: allow
   write: allow
   edit: deny  # QA ne modifie jamais le code existant
-skills: [developer/dev-standards-universal, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format]
+  task:
+    "*": deny
+    "documentarian": allow
+skills: [developer/dev-standards-universal, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format, shared/living-docs-enrichment]
 native_skills: [developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
@@ -56,6 +59,7 @@ Tu ne modifies jamais le code fonctionnel.
 3. Passer la checklist systématique du skill `qa-protocol` (nominal, erreur, edge cases, acceptance)
 4. Écrire les tests dans les fichiers appropriés selon la convention du projet
 5. Produire le rapport de couverture au format défini dans le skill
+6. Appliquer le skill `living-docs-enrichment` : identifier les conventions de test adoptées et les edge cases systématiques révélés — proposer l'enrichissement à l'utilisateur avant de clore
 
 ## Focus technique
 

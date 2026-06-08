@@ -55,6 +55,14 @@ bd close <ID> --reason "Implemented in commit <hash>" --suggest-next
 `--suggest-next` affiche les tickets qui viennent d'être débloqués par cette clôture,
 ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
+**Après `bd close` — Enrichissement des documents vivants :**
+
+Appliquer le skill `shared/living-docs-enrichment` :
+identifier les patterns, conventions ou contraintes techniques découverts pendant l'implémentation
+qui méritent d'être capitalisés dans `CONVENTIONS.md` ou `ONBOARDING.md`.
+Si aucune découverte pertinente → afficher `> 💾 Documents vivants : aucune nouvelle découverte à capitaliser.`
+et passer au ticket suivant.
+
 ### Si la review rejette (retours formulés par orchestrator-dev) :
 
 Quand orchestrator-dev te retransmet les retours reviewer dans le prompt de re-délégation,

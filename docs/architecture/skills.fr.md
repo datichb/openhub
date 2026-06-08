@@ -174,7 +174,6 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 | `auditor/audit-privacy.md` | **B** | auditor-privacy | RGPD articles 5/6/17/25/32, EDPB, CNIL, minimisation, consentement |
 | `auditor/audit-observability.md` | **B** | auditor-observability | Méthode RED (Rate/Errors/Duration), logs structurés, OpenTelemetry, SLOs/error budget, alerting (actionnable, runbooks), dashboards, grille des 5 questions |
 | `auditor/audit-handoff-format.md` | **A** | tous les auditor-*, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : périmètre audité, tableau des vulnérabilités par sévérité, recommandations priorisées avec estimation d'effort, risque résiduel, statut (`corrections-requises` / `acceptable` / `bloquant`) |
-| `auditor/living-docs-enrichment.md` | **A** | auditor, planner, debugger | **Enrichissement des documents vivants** — protocole de capitalisation incrémentale dans `ONBOARDING.md` et `CONVENTIONS.md` : identification des découvertes (auditor : sections `### Découvertes à documenter` des rapports sous-agents ; planner : patterns détectés en Phase 1 ; debugger : zones d'ombre levées en Phase 3) → résumé des enrichissements proposés → confirmation via `question` → délégation au `documentarian` via `task` → affichage confirmation. Aucune écriture directe — le `documentarian` est le seul agent autorisé à écrire. Tableau de correspondance origine → sections prioritaires ONBOARDING.md / CONVENTIONS.md |
 
 ---
 
@@ -295,6 +294,16 @@ Skills de posture transverse. Injectables dans tout agent nécessitant une postu
 
 ---
 
+## Domaine — `shared/`
+
+Skills transverses partagés entre plusieurs familles d'agents. Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)** sont Bucket B — natifs.
+
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, scout, reviewer, qa-engineer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, QA, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
+
+---
+
 ## Matrice de dépendances agents ↔ skills
 
 > **Note :** Les skills sont répartis en deux buckets (voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md)) :
@@ -327,27 +336,33 @@ orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
 onboarder             → (A) planning/onboarder-workflow,
                              posture/expert-posture, posture/tool-question,
                              developer/beads-plan, developer/dev-standards-git,
+                             shared/living-docs-enrichment,
                              planning/onboarder-handoff-format †
 planner               → (A) developer/beads-plan, planning/planner-workflow,
                              posture/expert-posture, posture/tool-question,
-                             auditor/living-docs-enrichment,
+                             shared/living-docs-enrichment,
                              planning/planner-handoff-format †
+scout                 → (A) shared/living-docs-enrichment,
+                             planning/scout-handoff-format †
+                        (B) planning/websearch-stack-research
 reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              posture/tool-question,
+                             shared/living-docs-enrichment,
                              reviewer/reviewer-handoff-format †
                         (B) dev-standards-security, dev-standards-backend,
                              dev-standards-frontend, dev-standards-frontend-a11y,
                              dev-standards-testing, dev-standards-git
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
                              posture/tool-question, qa/qa-protocol,
+                             shared/living-docs-enrichment,
                              qa/qa-handoff-format †
                         (B) dev-standards-testing, dev-standards-git
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
-                             auditor/living-docs-enrichment,
+                             shared/living-docs-enrichment,
                              quality/debugger-handoff-format †
 auditor               → (A) auditor/auditor-workflow, posture/tool-question,
-                             auditor/living-docs-enrichment,
+                             shared/living-docs-enrichment,
                              auditor/audit-handoff-format †
                         skill: deny
 auditor-security      → (A) auditor/audit-protocol-light, posture/expert-posture,
@@ -385,52 +400,74 @@ documentarian         → (A) dev-standards-git, beads-plan, beads-dev,
                              documentarian/doc-api, documentarian/doc-changelog,
                              documentarian/doc-slides
 developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-frontend,
                              dev-standards-frontend-a11y, dev-standards-testing,
                              dev-standards-git
                              + [stacks: language, frontend, test, api-spec]
 developer-backend     → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-backend,
                              dev-standards-testing, dev-standards-git
                              + [stacks: language, backend, orm, test, api-spec]
 developer-fullstack   → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-frontend,
                              dev-standards-frontend-a11y, dev-standards-backend,
                              dev-standards-testing, dev-standards-git
                              + [stacks: language, frontend, backend, orm, test, api-spec]
 developer-data        → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing, dev-standards-git
                              + [stacks: language, data, test]
 developer-devops      → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-devops, dev-standards-git
                              + [stacks: infra]
 developer-mobile      → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing, dev-standards-git
                              + [stacks: mobile, test]
 developer-api         → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-backend, dev-standards-api,
                              dev-standards-testing, dev-standards-git
 developer-platform    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-devops, dev-standards-git
                              + [stacks: infra]
 developer-security    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-security-hardening,
                              dev-standards-backend, dev-standards-testing, dev-standards-git
 developer-migrator    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing,
                              dev-standards-git, dev-standards-migration
 developer-refactor    → (A) dev-standards-universal, dev-standards-simplicity,
-                             beads-plan, beads-dev, developer/developer-handoff-format †
+                             beads-plan, beads-dev,
+                             shared/living-docs-enrichment,
+                             developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing,
                              dev-standards-git, dev-standards-refactoring
 ```

@@ -7,7 +7,10 @@ permission:
   question: deny
   skill: allow
   bash: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+  task:
+    "*": deny
+    "documentarian": allow
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, shared/living-docs-enrichment]
 native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-api, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 

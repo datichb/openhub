@@ -422,7 +422,56 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 
 ---
 
-## Scénario 4 — Review seule
+## Scénario 4 — Implémentation feature → docs vivants (developer-*)
+
+**Contexte :** un développeur vient de clore le ticket bd-15 (implémentation filtrage utilisateurs).
+
+#### Enrichissement des documents vivants (post-ticket)
+
+Après `bd close bd-15`, le developer identifie des découvertes à capitaliser :
+
+```
+## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+
+### Enrichissements proposés pour CONVENTIONS.md
+| Section | Action | Contenu proposé |
+|---------|--------|-----------------|
+| `## Architecture & structure` | Ajouter | "La logique de filtrage est toujours co-localisée dans un dossier `<feature>/filters/` dédié (observé sur users, ticket bd-15)" |
+| `## Patterns spécifiques à l'équipe` | Ajouter | "Toujours utiliser TanStack Query avec un `staleTime: 60_000` par défaut pour les endpoints de liste" |
+
+→ question : Déléguer l'écriture au documentarian ?
+```
+
+Si l'utilisateur accepte, le developer invoque le `documentarian` via `task`
+(skill `shared/living-docs-enrichment`) pour enrichir les fichiers de manière incrémentale.
+
+---
+
+## Scénario 5 — Code review → docs vivants (reviewer)
+
+**Contexte :** un reviewer analyse le diff de la branche `feat/bd-15-user-filters`.
+
+#### Enrichissement des documents vivants (post-rapport)
+
+Après avoir produit le rapport de review, le reviewer identifie des conventions à capitaliser :
+
+```
+## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+
+### Enrichissements proposés pour CONVENTIONS.md
+| Section | Action | Contenu proposé |
+|---------|--------|-----------------|
+| `## Nommage` | Ajouter | "Les composables de filtrage sont toujours nommés `use<Entité>Filters` (observé sur feat/bd-15-user-filters)" |
+
+→ question : Déléguer l'écriture au documentarian ?
+```
+
+Si l'utilisateur accepte, le reviewer invoque le `documentarian` via `task`
+(skill `shared/living-docs-enrichment`) pour enrichir les fichiers de manière incrémentale.
+
+---
+
+## Scénario 6 — Review seule
 
 **Contexte :** vous avez développé une feature manuellement et voulez une review
 avant de merger.
@@ -444,7 +493,7 @@ systématique, et produit un rapport structuré.
 
 ---
 
-## Scénario 5 — Spec UX/UI puis implémentation (designers standalone)
+## Scénario 7 — Spec UX/UI puis implémentation (designers standalone)
 
 **Contexte :** vous voulez concevoir l'expérience et l'interface d'une feature
 avant de coder, sans passer par l'orchestrateur complet. Utile quand les specs
@@ -530,7 +579,7 @@ Prompt : "Implémente les tickets bd-11 à bd-15 — mode semi-auto"
 
 ---
 
-## Scénario 6 — Documentation d'une feature livrée
+## Scénario 8 — Documentation d'une feature livrée
 
 **Contexte :** une feature vient d'être mergée. Vous voulez documenter ce qui a changé :
 README, guides utilisateur, ADR si une décision architecturale a été prise, CHANGELOG,
@@ -616,7 +665,7 @@ document :
 
 ---
 
-## Scénario 7 — Planification avec délégation design (planner → ux-designer / ui-designer)
+## Scénario 9 — Planification avec délégation design (planner → ux-designer / ui-designer)
 
 **Contexte :** vous voulez planifier une feature qui implique un parcours utilisateur
 ou de nouveaux composants visuels, et souhaitez que le planner prenne en charge la

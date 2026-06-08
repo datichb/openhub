@@ -64,7 +64,7 @@ Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
 |--|--|
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `adapters/figma-onboarder-protocol`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git` |
+| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `adapters/figma-onboarder-protocol`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/living-docs-enrichment` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` / `"Avant de commencer, explore le projet"` |
 
@@ -95,6 +95,8 @@ Ne déclenche jamais automatiquement un autre agent — il suggère des invocati
 
 Invocable directement, depuis `oc start` (suggestion affichée), ou depuis l'`orchestrator`
 (Mode C — pré-phase sur projet inconnu).
+
+**Phase 5 — Enrichissement incrémental :** quand `ONBOARDING.md` et `CONVENTIONS.md` existent déjà (enrichis par d'autres agents), propose un enrichissement incrémental plutôt qu'une réécriture complète. Délègue les mises à jour incrémentielles au `documentarian` via `task` (skill `living-docs-enrichment`). La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
 
 En mode `orchestrateur_feature` : utilise le mécanisme d'interruption de session — chaque fin de phase (0 à 4) produit un bloc `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et termine la session.
 
@@ -161,7 +163,7 @@ En mode `orchestrateur_feature` : tous les CPs (CP-1, CP-QA, CP-3, branche dédi
 |--|--|
 | **Label** | Auditeur |
 | **Fichier** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/auditor-workflow`, `auditor/audit-handoff-format`, `auditor/living-docs-enrichment`, `posture/tool-question` |
+| **Skills** | `auditor/auditor-workflow`, `auditor/audit-handoff-format`, `shared/living-docs-enrichment`, `posture/tool-question` |
 | **Invocation** | `"Audite [projet/périmètre]"` / `"Audit [domaine]"` |
 
 Coordinateur d'audit multi-domaine. Pilote la réalisation d'audits en 5 phases structurées :
@@ -211,7 +213,7 @@ Les sous-agents eux-mêmes ne font jamais d'appel `task` — leur lecture seule 
 9 agents spécialisés par domaine technique. Tous suivent le même workflow Beads
 (`bd claim → implémenter → tester → bd close`).
 
-Skills communs à tous : `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`.
+Skills communs à tous : `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
 
 | Agent | Fichier | Domaine | Skills spécifiques |
 |-------|---------|---------|-------------------|
@@ -235,6 +237,8 @@ Terraform/Pulumi, manifests Kubernetes, Helm charts, ArgoCD/Flux.
 exclusivement après un audit `auditor-security` pour corriger les failles identifiées
 (headers HTTP, CORS, hashing, JWT, sessions, rate limiting, chiffrement). Il ne
 réalise pas d'audit.
+
+**Post-ticket — Enrichissement des documents vivants :** après chaque `bd close`, identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose à l'utilisateur de les capitaliser (skill `living-docs-enrichment`).
 
 ---
 
@@ -299,12 +303,14 @@ Agents dédiés à la qualité du code, invocables standalone ou via l'orchestra
 |--|--|
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format` |
+| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/living-docs-enrichment` |
 | **Invocation** | Diff collé / nom de branche / URL de PR + optionnellement `bd show <ID>` |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
 Majeur / Mineur / Suggestion / Points positifs). Lecture seule — ne modifie jamais
 de fichiers.
+
+**Post-rapport — Enrichissement des documents vivants :** après la production du rapport de review, identifie les conventions et patterns observés dans le diff qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
 
 ---
 
@@ -314,7 +320,7 @@ de fichiers.
 |--|--|
 | **Label** | QAEngineer |
 | **Fichier** | `agents/quality/qa-engineer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format` |
+| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment` |
 | **Invocation** | `"Écris les tests pour la branche [X]"` / `"QA sur le ticket [ID]"` |
 
 Écrit les tests manquants (unit / integration / E2E) à partir d'un diff ou d'un
@@ -326,6 +332,8 @@ les tests sont écrits par le developer lui-même avant l'implémentation (boucl
 red/green/refactor). L'`orchestrator-dev` saute automatiquement le CP-QA pour
 ces tickets — le `qa-engineer` n'est pas invoqué.
 
+**Post-rapport — Enrichissement des documents vivants :** après la production du rapport de couverture, identifie les conventions de test adoptées et les cas limites systématiques révélés par les tests qui sont absents de `CONVENTIONS.md`, et propose de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
+
 > Voir [ADR-004](./adr/004-qa-debugger-separation.fr.md).
 
 ---
@@ -336,7 +344,7 @@ ces tickets — le `qa-engineer` n'est pas invoqué.
 |--|--|
 | **Label** | Debugger |
 | **Fichier** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `auditor/living-docs-enrichment`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture`, `posture/tool-question` |
 | **Invocation** | `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
 
 Diagnostique la cause racine d'un bug en 6 phases structurées : vérification des artefacts
@@ -366,7 +374,7 @@ En mode `orchestrateur_feature` : utilise le mécanisme d'interruption de sessio
 |--|--|
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `auditor/living-docs-enrichment`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | Description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
@@ -403,7 +411,7 @@ délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichme
 |--|--|
 | **Label** | Scout |
 | **Fichier** | `agents/planning/scout.md` |
-| **Skills** | `developer/beads-plan`, `planning/scout-protocol`, `planning/scout-handoff-format`, `posture/tool-question`, `adapters/figma-scout-protocol`, `adapters/gitlab-scout-protocol` |
+| **Skills** | `developer/beads-plan`, `planning/scout-protocol`, `planning/scout-handoff-format`, `posture/tool-question`, `adapters/figma-scout-protocol`, `adapters/gitlab-scout-protocol`, `shared/living-docs-enrichment` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Scout la feature [X]"` / `"Estime la complexité de [feature]"` / `"Scout le ticket #42"` |
 
@@ -416,6 +424,8 @@ Workflow libre — pas de phases rigides. Suggère l'escalade vers le planner si
 
 **Enrichissement Figma (optionnel) :** si la feature touche une interface utilisateur, utilise
 `figma-scout-protocol` pour détecter les composants Figma et ajuster la complexité.
+
+**Post-rapport — Enrichissement des documents vivants :** après la production du rapport, identifie les patterns architecturaux et conventions observés lors de la reconnaissance qui sont absents de `ONBOARDING.md`/`CONVENTIONS.md`, et propose à l'utilisateur de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
 
 ---
 
@@ -444,7 +454,7 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 - **Agents en lecture seule** : auditor-*, reviewer — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
 - **Agents qui écrivent du code** : developer-*, qa-engineer — modifient uniquement les fichiers de leur domaine
-- **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md`
+- **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
 - **Agents qui créent des tickets** : planner (tickets feature), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : tous peuvent faire `bd show <ID>` pour contextualiser leur travail
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents

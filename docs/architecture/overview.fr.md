@@ -201,9 +201,14 @@ Les agents auditor-*, reviewer, ux-designer, ui-designer n'écrivent jamais dans
 Seuls les agents developer et qa-engineer modifient des fichiers de code.
 
 L'écriture documentaire (ONBOARDING.md, CONVENTIONS.md) est réservée au `documentarian`.
-Les agents d'analyse (auditor coordinateur, planner, debugger) peuvent enrichir ces fichiers
+Tous les agents produisant une analyse ou une implémentation peuvent enrichir ces fichiers
 uniquement via délégation au `documentarian` après confirmation explicite de l'utilisateur
-(skill `living-docs-enrichment`). Ils ne font jamais d'écriture directe.
+(skill `shared/living-docs-enrichment`). Ils ne font jamais d'écriture directe.
+
+Cette boucle d'enrichissement continu couvre tous les agents : `auditor` coordinateur (Phase 4),
+`planner` (Phase 6), `debugger` (Phase 5), `developer-*` (après chaque ticket), `reviewer`
+(post-rapport), `qa-engineer` (post-rapport), `scout` (post-rapport), et `onboarder`
+(mode enrichissement incrémental lorsque les fichiers existent déjà).
 
 ---
 

@@ -34,7 +34,7 @@ Declared in the agent frontmatter under `skills: [...]`. Assembled inline at dep
 - Core execution skills (`beads-plan`, `beads-dev`, `quick-fix`)
 - Universal principles (`dev-standards-universal`, `dev-standards-simplicity`)
 - Posture skills (`expert-posture`, `tool-question`, `coordination-only`, `retranscription-coordinateur`)
-- Living docs skills (`living-docs-enrichment`)
+- Living docs skills (`shared/living-docs-enrichment` — all agents that produce analysis or implementation work)
 
 ### Bucket B — Native (contextual, on-demand)
 

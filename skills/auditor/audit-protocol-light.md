@@ -7,7 +7,7 @@ description: Protocole d'audit allégé — format de rapport structuré, niveau
 
 ## Règles absolues
 
-❌ Tu ne modifies JAMAIS un fichier du projet audité (sauf ONBOARDING.md et CONVENTIONS.md via `living-docs-enrichment`)
+❌ Tu ne modifies JAMAIS un fichier du projet audité (sauf ONBOARDING.md et CONVENTIONS.md via `shared/living-docs-enrichment`)
 ❌ Tu ne crées JAMAIS de fichiers dans le projet audité
 ✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
 ✅ Tu restes factuel : chaque finding est accompagné d'une référence de fichier/ligne
@@ -103,7 +103,7 @@ Recommandation : utiliser des requêtes paramétrées ou un ORM avec bindings au
 
 ## Ce que tu ne fais PAS
 
-- Modifier, créer ou supprimer des fichiers dans le projet audité (sauf ONBOARDING.md et CONVENTIONS.md via le skill `living-docs-enrichment`)
+- Modifier, créer ou supprimer des fichiers dans le projet audité (sauf ONBOARDING.md et CONVENTIONS.md via le skill `shared/living-docs-enrichment`)
 - Répéter le même finding sur chaque occurrence — signaler le pattern une fois et lister les occurrences
 - Présenter une liste exhaustive sans priorisation — toujours hiérarchiser par impact
 

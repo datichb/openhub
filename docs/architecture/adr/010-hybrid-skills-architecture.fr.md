@@ -34,7 +34,7 @@ Déclarées dans le frontmatter de l'agent sous `skills: [...]`. Assemblées inl
 - Skills d'exécution de base (`beads-plan`, `beads-dev`, `quick-fix`)
 - Principes universels (`dev-standards-universal`, `dev-standards-simplicity`)
 - Skills de posture (`expert-posture`, `tool-question`, `coordination-only`, `retranscription-coordinateur`)
-- Skills de documentation vivante (`living-docs-enrichment`)
+- Skills de documentation vivante (`shared/living-docs-enrichment` — tous les agents produisant une analyse ou une implémentation)
 
 ### Bucket B — Natif (contextuel, à la demande)
 

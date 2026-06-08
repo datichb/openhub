@@ -64,7 +64,7 @@ Agents that drive other agents without ever coding themselves.
 |--|--|
 | **Label** | Onboarder |
 | **File** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git` |
+| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/living-docs-enrichment` |
 | **Invocation** | `"Onboard yourself on this project"` / `"Discover this project"` / `"Before starting, explore the project"` |
 
 Project discovery agent. Explores an existing project's codebase in 6 structured phases
@@ -81,6 +81,8 @@ Never automatically triggers another agent — it suggests invocations, the user
 
 Invocable directly, from `oc start` (suggestion displayed), or from the `orchestrator`
 (Mode C — pre-phase on unknown project).
+
+**Phase 5 — Incremental enrichment:** when `ONBOARDING.md` and `CONVENTIONS.md` already exist (enriched by other agents), proposes incremental enrichment rather than a full overwrite. Delegates incremental updates to the `documentarian` via `task` (skill `living-docs-enrichment`). Full overwrite remains available with an explicit warning about losing accumulated enrichments.
 
 ---
 
@@ -141,7 +143,7 @@ CP-2 (commit or fix?) is always manual in all modes.
 |--|--|
 | **Label** | Auditor |
 | **File** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `auditor/living-docs-enrichment`, `posture/tool-question` |
+| **Skills** | `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `shared/living-docs-enrichment`, `posture/tool-question` |
 | **Invocation** | `"Audit [project/scope]"` / `"Audit [domain]"` |
 
 Multi-domain audit coordinator. Drives audits in 5 structured phases: prerequisites check
@@ -179,7 +181,7 @@ All audit agents inject `auditor/audit-protocol-light` (common lightweight repor
 9 agents specialized by technical domain. All follow the same Beads workflow
 (`bd claim → implement → test → bd close`).
 
-Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`.
+Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
 
 | Agent | File | Domain | Specific Skills |
 |-------|------|--------|----------------|
@@ -203,6 +205,8 @@ Terraform/Pulumi, Kubernetes manifests, Helm charts, ArgoCD/Flux.
 exclusively after an `auditor-security` audit to fix identified vulnerabilities
 (HTTP headers, CORS, hashing, JWT, sessions, rate limiting, encryption). It does not
 perform audits.
+
+**Post-ticket — Living docs enrichment:** after each `bd close`, identifies patterns, conventions, or technical constraints discovered during implementation that are absent from `CONVENTIONS.md` or `ONBOARDING.md`, and proposes to the user to capitalize them (skill `living-docs-enrichment`).
 
 ---
 
@@ -262,11 +266,13 @@ Agents dedicated to code quality, invocable standalone or via the orchestrator.
 |--|--|
 | **Label** | CodeReviewer |
 | **File** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format` |
+| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/living-docs-enrichment` |
 | **Invocation** | Pasted diff / branch name / PR URL + optionally `bd show <ID>` |
 
 Analyzes PR/MR diffs. Produces a structured report by severity (Critical /
 Major / Minor / Suggestion / Positive points). Read-only — never modifies files.
+
+**Post-report — Living docs enrichment:** after producing the review report, identifies conventions and patterns observed in the diff that are absent from `CONVENTIONS.md` or `ONBOARDING.md`, and proposes to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
 
 ---
 
@@ -276,7 +282,7 @@ Major / Minor / Suggestion / Positive points). Read-only — never modifies file
 |--|--|
 | **Label** | QAEngineer |
 | **File** | `agents/quality/qa-engineer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format` |
+| **Skills** | `dev-standards-universal`, `dev-standards-testing`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment` |
 | **Invocation** | `"Write tests for branch [X]"` / `"QA on ticket [ID]"` |
 
 Writes missing tests (unit / integration / E2E) from a diff or a
@@ -285,6 +291,8 @@ Beads ticket. Produces a before/after coverage report. Never modifies functional
 **Not relevant for TDD tickets**: when a ticket carries the `tdd` label,
 tests are written by the developer themselves before implementation (red/green/refactor loop).
 `orchestrator-dev` automatically skips CP-QA for these tickets — `qa-engineer` is not invoked.
+
+**Post-report — Living docs enrichment:** after producing the coverage report, identifies test conventions adopted and systematic edge cases revealed by the tests that are absent from `CONVENTIONS.md`, and proposes to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
 
 > See [ADR-004](./adr/004-qa-debugger-separation.en.md).
 
@@ -296,7 +304,7 @@ tests are written by the developer themselves before implementation (red/green/r
 |--|--|
 | **Label** | Debugger |
 | **File** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `auditor/living-docs-enrichment`, `posture/expert-posture` |
+| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture` |
 | **Invocation** | `"This bug: [stacktrace]"` / `"Analyze these logs: [logs]"` |
 
 Diagnoses the root cause of a bug in 6 structured phases: artefact verification
@@ -321,7 +329,7 @@ Never fixes the bug.
 |--|--|
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format`, `auditor/living-docs-enrichment` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format`, `shared/living-docs-enrichment` |
 | **Invocation** | Natural language feature description |
 
 Functional and technical consultant who analyzes the project context before planning.
@@ -372,7 +380,7 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 
 - **Read-only agents**: auditor-*, reviewer, debugger, ux-designer, ui-designer — never modify files
 - **Agents that write code**: developer-*, qa-engineer — only modify files in their domain
-- **Agents that write documentation**: documentarian — only modifies documentation files
+- **Agents that write documentation**: documentarian — only modifies documentation files (all other agents may propose enrichments to `ONBOARDING.md`/`CONVENTIONS.md` via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation)
 - **Agents that create tickets**: planner (feature tickets), debugger (bug tickets after confirmation)
 - **Agents that read tickets**: all can do `bd show <ID>` to contextualize their work
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents

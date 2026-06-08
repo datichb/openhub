@@ -9,7 +9,29 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
-### Fixed
+### Added
+
+- **Enrichissement continu des documents vivants — extension à tous les agents** — le mécanisme d'amélioration continue de `ONBOARDING.md` et `CONVENTIONS.md` est étendu de 3 agents (auditor, planner, debugger) à l'ensemble du hub. Chaque agent propose désormais systématiquement la capitalisation de ses découvertes après son travail, toujours avec confirmation explicite de l'utilisateur et délégation au `documentarian` :
+  - `skills/auditor/living-docs-enrichment.md` → déplacé vers `skills/shared/living-docs-enrichment.md` (nouveau path) + enrichi avec les nouvelles sources de découvertes (developer-*, reviewer, qa-engineer, scout, onboarder en mode re-onboarding)
+  - `agents/planning/onboarder.md` : ajout du skill `shared/living-docs-enrichment` + comportement Phase 5 adapté — si `ONBOARDING.md`/`CONVENTIONS.md` existent déjà, propose enrichissement incrémental (via `documentarian`) plutôt que réécriture silencieuse ; réécriture complète reste disponible avec avertissement explicite sur la perte des enrichissements accumulés
+  - `agents/planning/scout.md` : ajout du skill `shared/living-docs-enrichment` — propose la capitalisation des patterns architecturaux détectés en fin de rapport
+  - `agents/quality/reviewer.md` : ajout du skill `shared/living-docs-enrichment` + permission `task.documentarian: allow` — propose la capitalisation des conventions observées dans le diff après le rapport de review
+  - `agents/quality/qa-engineer.md` : ajout du skill `shared/living-docs-enrichment` + permission `task.documentarian: allow` — propose la capitalisation des conventions de test et edge cases systématiques révélés après le rapport de couverture
+  - `agents/developer/*.md` (11 agents) : ajout du skill `shared/living-docs-enrichment` + permission `task.documentarian: allow` dans tous les agents developer-*
+  - `skills/developer/beads-dev.md` : déclenchement du skill `shared/living-docs-enrichment` explicitement documenté après chaque `bd close`
+  - `skills/planning/onboarder-workflow.md` Phase 5 : blocs "⚠️ Si ONBOARDING.md / CONVENTIONS.md existe déjà" remplacés — 3 options désormais proposées (enrichissement incrémental recommandé / réécriture complète avec avertissement / conserver l'existant)
+  - `skills/auditor/audit-protocol-light.md` : référence `living-docs-enrichment` → `shared/living-docs-enrichment`
+  - Agents existants (auditor, planner, debugger) : référence `auditor/living-docs-enrichment` → `shared/living-docs-enrichment` dans leur frontmatter
+
+- **Documentation mise à jour** :
+  - `docs/architecture/skills.en.md` + `.fr.md` : entrée `living-docs-enrichment` déplacée du domaine `auditor/` vers un nouveau bloc `shared/` ; agents mis à jour (onboarder, scout, reviewer, qa-engineer, developer-* ajoutés) ; matrice de dépendances mise à jour pour tous les agents concernés
+  - `docs/architecture/agents.en.md` + `.fr.md` : paths `auditor/living-docs-enrichment` → `shared/living-docs-enrichment` ; paragraphes "living docs enrichment" ajoutés pour onboarder, scout, reviewer, qa-engineer et developer-* ; règles communes mises à jour
+  - `docs/architecture/overview.en.md` + `.fr.md` : Principe 5 étendu — liste tous les agents participants à la boucle d'enrichissement continu
+  - `docs/architecture/adr/010-hybrid-skills-architecture.en.md` + `.fr.md` : path `shared/living-docs-enrichment` mis à jour
+  - `docs/guides/workflows.en.md` + `.fr.md` : Scénarios 4 (implémentation feature → docs vivants) et 5 (code review → docs vivants) ajoutés ; scénarios existants renumérotés (4-7 → 6-9)
+  - `docs/guides/onboarding.en.md` + `.fr.md` : comportement incrémental documenté (description read-only + nouvelle section "Re-onboarding — incremental mode")
+
+
 
 - **Suppression de la duplication des retours agents/sous-agents** — le contenu narratif et le bloc structuré de handoff réencodaient les mêmes données, produisant des retours redondants visibles par l'utilisateur. Le principe adopté : le narratif apporte le *contexte et le raisonnement* (preuves, décisions, pourquoi), le bloc structuré apporte les *métadonnées actionnables* (tableaux, statuts, routing). Les deux sont complémentaires et non redondants.
   - `skills/orchestrator/orchestrator-dev-protocol.md` : le template `## Récap implémentation` ne contient plus le tableau des tickets ni les statistiques (traités/ignorés/cycles/corrections) — ces données restent dans le bloc structuré `## Retour vers orchestrator`. Le récap narratif contient désormais uniquement les comptes rendus d'implémentation verbatim et les points d'attention agrégés.

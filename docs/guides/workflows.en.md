@@ -424,7 +424,56 @@ implements the targeted fix, and the reviewer checks the PR.
 
 ---
 
-## Scenario 4 — Review only
+## Scenario 4 — Feature implementation → living docs (developer-*)
+
+**Context:** a developer completes ticket bd-15 (implement user filtering feature).
+
+#### Living docs enrichment (post-ticket)
+
+After `bd close bd-15`, the developer identifies discoveries worth capitalizing:
+
+```
+## 💾 Living docs enrichment — Findings to capitalize
+
+### Proposed enrichments for CONVENTIONS.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Architecture & structure` | Add | "Filtering logic is always co-located in a dedicated `<feature>/filters/` folder (observed in users, ticket bd-15)" |
+| `## Patterns specific to the team` | Add | "Always use TanStack Query with a `staleTime: 60_000` default for list endpoints" |
+
+→ question: Delegate writing to the documentarian?
+```
+
+If the user accepts, the developer invokes the `documentarian` via `task`
+(skill `shared/living-docs-enrichment`) to enrich the files incrementally.
+
+---
+
+## Scenario 5 — Code review → living docs (reviewer)
+
+**Context:** a reviewer analyses the diff for branch `feat/bd-15-user-filters`.
+
+#### Living docs enrichment (post-report)
+
+After producing the review report, the reviewer identifies conventions worth capitalizing:
+
+```
+## 💾 Living docs enrichment — Findings to capitalize
+
+### Proposed enrichments for CONVENTIONS.md
+| Section | Action | Proposed content |
+|---------|--------|-----------------|
+| `## Naming` | Add | "Filter composables are always named `use<Entity>Filters` (observed in feat/bd-15-user-filters)" |
+
+→ question: Delegate writing to the documentarian?
+```
+
+If the user accepts, the reviewer invokes the `documentarian` via `task`
+(skill `shared/living-docs-enrichment`) to enrich the files incrementally.
+
+---
+
+## Scenario 6 — Review only
 
 **Context:** you developed a feature manually and want a review
 before merging.
@@ -446,7 +495,7 @@ checklist, and produces a structured report.
 
 ---
 
-## Scenario 5 — UX/UI spec then implementation (standalone designers)
+## Scenario 7 — UX/UI spec then implementation (standalone designers)
 
 **Context:** you want to design the experience and interface of a feature
 before coding, without going through the full orchestrator. Useful when specs
@@ -532,7 +581,7 @@ Prompt: "Implement tickets bd-11 to bd-15 — semi-auto mode"
 
 ---
 
-## Scenario 6 — Documenting a delivered feature
+## Scenario 8 — Documenting a delivered feature
 
 **Context:** a feature has just been merged. You want to document what changed:
 README, user guides, ADR if an architectural decision was made, CHANGELOG,
@@ -618,7 +667,7 @@ document:
 
 ---
 
-## Scenario 7 — Planning with design delegation (planner → ux-designer / ui-designer)
+## Scenario 9 — Planning with design delegation (planner → ux-designer / ui-designer)
 
 **Context:** you want to plan a feature that involves a user journey or new visual
 components, and want the planner to handle delegation to design agents — without

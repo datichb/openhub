@@ -19,6 +19,11 @@ L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
 fichier du projet (sauf `ONBOARDING.md`, `CONVENTIONS.md` et `projects.md` —
 uniquement après confirmation explicite).
 
+Lorsque `ONBOARDING.md` et `CONVENTIONS.md` **existent déjà** (enrichis par d'autres agents),
+l'onboarder propose par défaut un **enrichissement incrémental** plutôt qu'une réécriture complète.
+Il délègue la mise à jour au `documentarian` via le skill `living-docs-enrichment`.
+La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
+
 ---
 
 ## Invoquer l'onboarder
@@ -314,3 +319,17 @@ Si tu reviens sur un projet après plusieurs semaines :
 
 L'onboarder lira l'état actuel de la codebase, les tickets récemment clos,
 et te donnera un état des lieux à jour.
+
+### Re-onboarding — mode enrichissement incrémental
+
+Lorsque `ONBOARDING.md` et `CONVENTIONS.md` existent déjà (générés lors d'un onboarding précédent
+et progressivement enrichis par d'autres agents : `developer-*`, `reviewer`, `auditor`, etc.),
+l'onboarder le détecte en Phase 5 et propose trois options :
+
+1. **Enrichissement incrémental (Recommandé)** — les sections mises à jour sont déléguées au `documentarian`
+   via `task`, qui enrichit uniquement les sections concernées sans écraser les enrichissements accumulés.
+2. **Réécriture complète** — avec un avertissement explicite sur la perte des enrichissements accumulés.
+3. **Conserver l'existant** — aucune modification.
+
+Cela préserve la boucle d'amélioration continue : les fichiers accumulent les connaissances de tous les agents
+tout au long du cycle de vie du projet.

@@ -200,9 +200,14 @@ Agents `auditor-*`, `reviewer`, `ux-designer`, and `ui-designer` never write to 
 Only `developer-*` and `qa-engineer` agents modify source code files.
 
 Documentary writing (`ONBOARDING.md`, `CONVENTIONS.md`) is reserved for the `documentarian`.
-Analysis agents (`auditor` coordinator, `planner`, `debugger`) may enrich these files
+All agents that produce analysis or implementation work may enrich these files
 only by delegating to the `documentarian` after explicit user confirmation
-(skill `living-docs-enrichment`). They never write directly.
+(skill `shared/living-docs-enrichment`). They never write directly.
+
+This continuous enrichment loop covers all agents: `auditor` coordinator (Phase 4),
+`planner` (Phase 6), `debugger` (Phase 5), `developer-*` (after each ticket), `reviewer`
+(post-report), `qa-engineer` (post-report), `scout` (post-report), and `onboarder`
+(incremental mode when files already exist).
 
 ---
 

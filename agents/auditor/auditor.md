@@ -13,7 +13,7 @@ permission:
     "*": deny
     "auditor-*": allow
     "documentarian": allow
-skills: [posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, auditor/living-docs-enrichment, posture/tool-question]
+skills: [posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, shared/living-docs-enrichment, posture/tool-question]
 ---
 
 # Auditeur

@@ -12,7 +12,10 @@ permission:
   grep: allow
   edit: allow
   write: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format]
+  task:
+    "*": deny
+    "documentarian": allow
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, shared/living-docs-enrichment]
 native_skills: [developer/dev-standards-security, developer/dev-standards-devops, developer/dev-standards-git, developer/stacks/dev-standards-docker, developer/stacks/dev-standards-github-actions, developer/stacks/dev-standards-gitlab-ci]
 ---
 

@@ -36,7 +36,7 @@ permission:
     "*": deny
     "documentarian": allow
 model: anthropic/claude-sonnet-4-6
-skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, adapters/figma-scout-protocol, adapters/gitlab-scout-protocol, posture/tool-question, shared/websearch-usage]
+skills: [developer/beads-plan, planning/scout-protocol, planning/scout-handoff-format, adapters/figma-scout-protocol, adapters/gitlab-scout-protocol, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment]
 native_skills: [planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---
@@ -144,3 +144,4 @@ Sinon (standalone) :
 ✅ Recommande, ne force jamais
 ✅ Produis un rapport exploitable
 ✅ Demande confirmation avant toute création de ticket (permissions ask)
+✅ Propose l'enrichissement des documents vivants en fin de rapport si des découvertes sont à capitaliser (skill `living-docs-enrichment`)

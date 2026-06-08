@@ -1519,13 +1519,16 @@ npm run test:coverage  # Rapport de couverture
 
 **⚠️ Si ONBOARDING.md existe déjà :**
 
-Lire la date de génération, puis afficher le contexte en texte et utiliser l'outil `question` :
+Lire le fichier existant, noter la date de génération, vérifier s'il contient des lignes de traçabilité (enrichissements précédents). Afficher le contexte en texte et utiliser l'outil `question` :
 
 ```
 [Texte de réponse]
 ## ⚠️ ONBOARDING.md existant
 
-ONBOARDING.md existe déjà (généré le <DATE>). Ce fichier va être écrasé par le nouveau rapport.
+ONBOARDING.md existe déjà (généré le <DATE>). Il contient <X enrichissements accumulés / aucune ligne de traçabilité>.
+
+**Option recommandée :** enrichissement incrémental — les sections du rapport ayant évolué sont mises à jour
+sans écraser les enrichissements apportés par d'autres agents (auditor, developer, reviewer, etc.)
 
 [Puis appel outil question]
 question({
@@ -1533,12 +1536,18 @@ question({
     header: "ONBOARDING.md existant",
     question: "[Onboarder — Phase 5 : ONBOARDING.md | Projet : <nom>]\nONBOARDING.md existe déjà (généré le <DATE>). Comment procéder ?",
     options: [
-      { label: "Écraser", description: "Remplacer l'existant par le nouveau rapport" },
-      { label: "Conserver l'existant", description: "Annuler l'écriture de ONBOARDING.md" }
+      { label: "Enrichissement incrémental (Recommandé)", description: "Déléguer au documentarian pour mettre à jour les sections concernées sans écraser les enrichissements accumulés" },
+      { label: "Réécriture complète", description: "⚠️ Écraser entièrement — tous les enrichissements accumulés seront perdus" },
+      { label: "Conserver l'existant", description: "Ne pas modifier ONBOARDING.md" }
     ]
   }]
 })
 ```
+
+**Selon la réponse :**
+- **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les découvertes du nouveau rapport de re-onboarding
+- **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
+- **Conserver** → Passer à ÉTAPE 5.2 sans modifier ONBOARDING.md
 
 **Après l'écriture :**
 
@@ -1847,13 +1856,16 @@ dossiers non accessibles, conventions implicites non documentées.>
 
 **⚠️ Si CONVENTIONS.md existe déjà :**
 
-Lire la date de génération, puis afficher le contexte en texte et utiliser l'outil `question` :
+Lire le fichier existant, noter la date de génération, vérifier s'il contient des lignes de traçabilité (enrichissements précédents). Afficher le contexte en texte et utiliser l'outil `question` :
 
 ```
 [Texte de réponse]
 ## ⚠️ CONVENTIONS.md existant
 
-CONVENTIONS.md existe déjà (généré le <DATE>). Ce fichier va être écrasé par les nouvelles conventions détectées.
+CONVENTIONS.md existe déjà (généré le <DATE>). Il contient <X enrichissements accumulés / aucune ligne de traçabilité>.
+
+**Option recommandée :** enrichissement incrémental — les sections des conventions ayant évolué sont mises à jour
+sans écraser les conventions et patterns ajoutés par d'autres agents (developer, reviewer, qa-engineer, etc.)
 
 [Puis appel outil question]
 question({
@@ -1861,12 +1873,18 @@ question({
     header: "CONVENTIONS.md existant",
     question: "[Onboarder — Phase 5 : CONVENTIONS.md | Projet : <nom>]\nCONVENTIONS.md existe déjà (généré le <DATE>). Comment procéder ?",
     options: [
-      { label: "Écraser", description: "Remplacer l'existant par les nouvelles conventions détectées" },
-      { label: "Conserver l'existant", description: "Annuler l'écriture de CONVENTIONS.md" }
+      { label: "Enrichissement incrémental (Recommandé)", description: "Déléguer au documentarian pour mettre à jour les sections concernées sans écraser les conventions accumulées" },
+      { label: "Réécriture complète", description: "⚠️ Écraser entièrement — toutes les conventions et patterns accumulés seront perdus" },
+      { label: "Conserver l'existant", description: "Ne pas modifier CONVENTIONS.md" }
     ]
   }]
 })
 ```
+
+**Selon la réponse :**
+- **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les nouvelles conventions détectées lors du re-onboarding
+- **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
+- **Conserver** → Passer à ÉTAPE 5.3 sans modifier CONVENTIONS.md
 
 **Après l'écriture :**
 
@@ -1974,9 +1992,9 @@ biome.json, CONVENTIONS.md, ONBOARDING.md
 ```markdown
 ## [Phase 5] Fichiers générés
 
-**Fichiers créés/modifiés :**
-- ✅ `ONBOARDING.md` — créé/écrasé à la racine du projet
-- ✅ `CONVENTIONS.md` — créé/écrasé à la racine du projet
+**Fichiers créés/enrichis :**
+- ✅ `ONBOARDING.md` — créé / réécrit / enrichi incrementalement à la racine du projet
+- ✅ `CONVENTIONS.md` — créé / réécrit / enrichi incrementalement à la racine du projet
 - ✅ `.opencode/context.json` — cache de contexte généré
 - ✅ `.git/info/exclude` — ONBOARDING.md, CONVENTIONS.md et .opencode/context.json ajoutés
 - ✅ `projects.md` — champ Stack mis à jour (si applicable)
