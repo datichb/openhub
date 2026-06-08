@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **`oc deploy` bloqué si `jq` absent — les agents natifs OpenCode n'étaient pas désactivés** — sur une installation fraîche où `jq` était refusé lors de l'install, `get_hub_disabled_native_agents()` retournait silencieusement `""` (guard `return 0`), et `adapter_deploy_config()` ne générait aucune entrée `{"disable": true}` dans `opencode.json`. Les agents natifs OpenCode (`build`, `plan`, `general`, `explore`, `scout`) restaient actifs alors qu'ils devaient être masqués :
+  - `scripts/adapters/opencode.adapter.sh` — `adapter_validate()` : `jq` est désormais vérifié au même titre qu'`opencode` ; deploy bloqué avec message d'erreur si `jq` absent
+  - `scripts/lib/project.sh` — `get_hub_disabled_native_agents()` : fallback bash (grep/sed) implémenté pour parser `disabled_native_agents` depuis `hub.json` sans `jq` ; la désactivation des agents natifs fonctionne même si `jq` est temporairement absent
+  - `scripts/adapters/opencode.adapter.sh` — `adapter_deploy_config()` : warning explicite si `disabled_csv` est vide alors que la clé `disabled_native_agents` est absente de `hub.json`
+  - `install.sh` : message de déclin de `jq` précisé — `"Sans jq, oc deploy sera bloqué"` au lieu de `"Certaines fonctionnalités seront dégradées"`
+  - `tests/test_lib_project.bats` : 5 nouveaux tests pour `get_hub_disabled_native_agents()` (array non-vide, array vide, hub.json absent, fallback bash CSV, fallback bash vide)
+  - `tests/test_opencode_adapter.bats` : 3 nouveaux tests pour la génération `{"disable": true}` dans `opencode.json` (agents désactivés hub, tableau vide, priorité projet > hub)
+  - `tests/fixtures/configs/hub_with_disabled_agents.json` : nouveau fichier fixture avec les 5 agents natifs désactivés
+
 ### Changed
 
 - **Agent natif `scout` désactivé par défaut** — OpenCode v1.16.0 introduit un agent natif `scout` (subagent read-only pour la recherche de documentation et dépendances externes) dont l'ID entre en collision avec l'agent hub `planning/scout`. Il est maintenant masqué au même titre que `build`, `plan`, `general` et `explore` :

@@ -341,6 +341,7 @@ _load_agent_metadata() {
 
 adapter_validate() {
   command -v opencode &>/dev/null || { log_error "OpenCode non installé → oc install"; return 1; }
+  command -v jq &>/dev/null || { log_error "jq non installé — requis pour le déploiement → brew install jq / sudo apt-get install jq"; return 1; }
 }
 
 # ── Phase 1b : Déploiement des skills natives ─────────────────────────────────
@@ -739,6 +740,14 @@ adapter_deploy_config() {
       _agent_ids+=("$_dname")
       _agent_jsons+=('{"disable": true}')
     done
+  elif [ -f "$HUB_CONFIG" ]; then
+    # hub.json présent mais disabled_csv vide : vérifier si c'est intentionnel (tableau [])
+    # ou si la lecture a échoué (clé absente → comportement normal, pas de warning)
+    if grep -q '"disabled_native_agents"' "$HUB_CONFIG" 2>/dev/null; then
+      : # tableau explicitement vide dans hub.json — intentionnel, pas de warning
+    else
+      log_warn "disabled_native_agents absent de hub.json — les agents natifs OpenCode (build, plan, general, explore, scout) ne seront PAS désactivés"
+    fi
   fi
 
   # Étape 2/4 : Construction JSON agents terminée

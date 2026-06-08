@@ -328,3 +328,103 @@ EOF
   [ "$status" -eq 0 ]
   [ "$output" = "develop" ]
 }
+
+# ── get_hub_disabled_native_agents ────────────────────────────────────────────
+
+@test "get_hub_disabled_native_agents : retourne CSV pour un tableau non-vide" {
+  command -v jq >/dev/null 2>&1 || skip "jq requis pour ce test"
+
+  cat > "$HUB_CONFIG" <<'EOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": ["build", "plan", "general", "explore", "scout"]
+  }
+}
+EOF
+
+  run get_hub_disabled_native_agents
+  [ "$status" -eq 0 ]
+  [ "$output" = "build,plan,general,explore,scout" ]
+}
+
+@test "get_hub_disabled_native_agents : retourne vide pour un tableau vide []" {
+  command -v jq >/dev/null 2>&1 || skip "jq requis pour ce test"
+
+  cat > "$HUB_CONFIG" <<'EOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": []
+  }
+}
+EOF
+
+  run get_hub_disabled_native_agents
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
+@test "get_hub_disabled_native_agents : retourne vide si hub.json absent" {
+  rm -f "$HUB_CONFIG"
+
+  run get_hub_disabled_native_agents
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
+@test "get_hub_disabled_native_agents : fallback bash sans jq retourne CSV correct" {
+  # Ce test vérifie le fallback bash en mockant jq comme absent
+  cat > "$HUB_CONFIG" <<'EOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": ["build", "plan", "general"]
+  }
+}
+EOF
+
+  # Mocker la commande pour simuler l'absence de jq
+  command() {
+    if [ "$1" = "-v" ] && [ "$2" = "jq" ]; then
+      return 1
+    fi
+    builtin command "$@"
+  }
+  export -f command
+
+  run get_hub_disabled_native_agents
+  [ "$status" -eq 0 ]
+  [ "$output" = "build,plan,general" ]
+
+  unset -f command
+}
+
+@test "get_hub_disabled_native_agents : fallback bash retourne vide pour tableau vide" {
+  cat > "$HUB_CONFIG" <<'EOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": []
+  }
+}
+EOF
+
+  command() {
+    if [ "$1" = "-v" ] && [ "$2" = "jq" ]; then
+      return 1
+    fi
+    builtin command "$@"
+  }
+  export -f command
+
+  run get_hub_disabled_native_agents
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+
+  unset -f command
+}

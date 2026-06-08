@@ -37,6 +37,17 @@ from a single source of truth.
 
 ---
 
+## Requirements
+
+- **[OpenCode](https://opencode.ai)** — AI coding agent
+- **[jq](https://jqlang.github.io/jq/)** — required for `oc deploy` (generates `opencode.json`)
+- **[git](https://git-scm.com/)**, **[node](https://nodejs.org/)**, **[bun](https://bun.sh/)** — standard toolchain
+- **[Beads](https://beads.sh/)** *(optional)* — task tracker integration
+
+The install script detects and installs missing dependencies automatically (Homebrew on macOS, apt-get on Linux).
+
+---
+
 ## Installation
 
 ### One-liner (recommended)

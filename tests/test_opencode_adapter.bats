@@ -747,3 +747,89 @@ AGENTEOF
   [ "$status" -eq 0 ]
   [ "$output" = "github-copilot/claude-sonnet-4.5" ]
 }
+
+# ── disabled_native_agents dans opencode.json ────────────────────────────────
+
+@test "adapter_deploy : injecte {disable:true} pour chaque agent natif désactivé depuis hub.json" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  cat > "$HUB_CONFIG" <<'HUBEOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": ["build", "plan", "general"]
+  }
+}
+HUBEOF
+
+  adapter_deploy "$DEPLOY_DIR" "PROJ-DIS"
+
+  # Chaque agent listé doit avoir {"disable": true} dans opencode.json
+  run jq -r '.agent.build.disable' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "true" ]
+
+  run jq -r '.agent.plan.disable' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "true" ]
+
+  run jq -r '.agent.general.disable' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "true" ]
+}
+
+@test "adapter_deploy : pas d'entrée disable si disabled_native_agents est vide" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  cat > "$HUB_CONFIG" <<'HUBEOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": []
+  }
+}
+HUBEOF
+
+  adapter_deploy "$DEPLOY_DIR" "PROJ-NODIS"
+
+  # Aucun agent natif ne doit avoir de bloc disable
+  run jq 'has("agent") and (.agent | has("build"))' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "false" ]
+}
+
+@test "adapter_deploy : priorité projet > hub pour disabled_native_agents" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+
+  HUB_CONFIG="$TEST_DIR/hub.json"
+  cat > "$HUB_CONFIG" <<'HUBEOF'
+{
+  "version": "test",
+  "opencode": {
+    "model": "claude-sonnet-4-5",
+    "disabled_native_agents": ["build", "plan"]
+  }
+}
+HUBEOF
+
+  # Configurer un override projet qui ne désactive que "build"
+  cat > "$PROJECTS_FILE" <<'EOF'
+## PROJ-OVERRIDE
+- Nom : Projet Override
+- Stack : TypeScript
+- Disable agents : build
+EOF
+
+  PATHS_FILE="$TEST_DIR/paths.local.md"
+  echo "PROJ-OVERRIDE=$DEPLOY_DIR" > "$PATHS_FILE"
+
+  adapter_deploy "$DEPLOY_DIR" "PROJ-OVERRIDE"
+
+  # build doit être désactivé (vient du projet)
+  run jq -r '.agent.build.disable' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "true" ]
+
+  # plan NE doit PAS être désactivé (le projet override prend précédence sur le hub)
+  run jq 'has("agent") and (.agent | has("plan"))' "$DEPLOY_DIR/opencode.json"
+  [ "$output" = "false" ]
+}

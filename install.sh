@@ -141,7 +141,7 @@ if ! command -v jq &>/dev/null; then
         exit 1
       fi
     else
-      log_warn "Certaines fonctionnalités seront dégradées sans jq"
+      log_warn "Sans jq, oc deploy sera bloqué (jq requis pour générer opencode.json)"
     fi
   elif [ "$OS" = "linux" ] && command -v apt-get &>/dev/null; then
     read -rp "  Installer jq via apt-get ? [Y/n] : " _jq_linux </dev/tty
@@ -153,7 +153,7 @@ if ! command -v jq &>/dev/null; then
         exit 1
       fi
     else
-      log_warn "Certaines fonctionnalités seront dégradées sans jq"
+      log_warn "Sans jq, oc deploy sera bloqué (jq requis pour générer opencode.json)"
     fi
   else
     log_warn "Installer jq manuellement :"

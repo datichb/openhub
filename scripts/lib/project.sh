@@ -364,13 +364,38 @@ detect_os() {
 
 # Lit opencode.disabled_native_agents dans hub.json (tableau JSON → CSV)
 # Retourne "" si le champ est absent ou si le tableau est vide
+# Fallback bash si jq est absent ; retourne 1 avec log_error si les deux échouent
 get_hub_disabled_native_agents() {
   [ -f "$HUB_CONFIG" ] || return 0
-  command -v jq &>/dev/null || return 0
-  local arr
-  arr=$(jq -r '(.opencode.disabled_native_agents // []) | @csv' "$HUB_CONFIG" 2>/dev/null \
-    | tr -d '"')
-  echo "${arr:-}"
+
+  if command -v jq &>/dev/null; then
+    local arr
+    arr=$(jq -r '(.opencode.disabled_native_agents // []) | @csv' "$HUB_CONFIG" 2>/dev/null \
+      | tr -d '"')
+    echo "${arr:-}"
+    return 0
+  fi
+
+  # Fallback bash sans jq : parse le tableau JSON avec grep/sed
+  # Format attendu : "disabled_native_agents": ["val1","val2",...]
+  local raw_array
+  raw_array=$(grep -o '"disabled_native_agents"[[:space:]]*:[[:space:]]*\[[^]]*\]' "$HUB_CONFIG" 2>/dev/null \
+    | grep -o '\[[^]]*\]' | tr -d '[]"' | tr ',' '\n' | tr -d ' ' | grep -v '^$' | paste -sd ',' -)
+
+  if [ -n "$raw_array" ]; then
+    echo "$raw_array"
+    return 0
+  fi
+
+  # Vérifier si la clé est présente mais vide (tableau vide [])
+  if grep -q '"disabled_native_agents"' "$HUB_CONFIG" 2>/dev/null; then
+    echo ""
+    return 0
+  fi
+
+  # Clé absente du hub.json — comportement normal, pas d'erreur
+  echo ""
+  return 0
 }
 
 # Lit "- Disable agents :" dans projects.md pour un projet donné
