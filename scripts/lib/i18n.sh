@@ -236,6 +236,7 @@ t() {
       service.status.invalid)         printf '%s' "Token invalide" ;;
       service.status.built)           printf '%s' "buildé" ;;
       service.status.not_built)       printf '%s' "non buildé" ;;
+      service.status.default)         printf '%s' "défaut" ;;
       service.col.name)               printf '%s' "Service" ;;
       service.col.description)        printf '%s' "Description" ;;
       service.col.status)             printf '%s' "État" ;;
@@ -902,6 +903,7 @@ t_en() {
     service.status.invalid)         printf '%s' "Invalid token" ;;
     service.status.built)           printf '%s' "built" ;;
     service.status.not_built)       printf '%s' "not built" ;;
+    service.status.default)         printf '%s' "default" ;;
     service.col.name)               printf '%s' "Service" ;;
     service.col.description)        printf '%s' "Description" ;;
     service.col.status)             printf '%s' "Status" ;;

@@ -186,7 +186,19 @@ cmd_service_status() {
           echo -e "  ${GREEN}✓${RESET}  ${cred_label} : ${value}${value_source}"
         fi
       else
-        _svc_fail "${cred_label} : $(t service.status.not_configured)"
+        local cred_required
+        cred_required=$(svc_get_credential_bool "$svc_id" "$i" "required")
+        if [ "$cred_required" = "false" ]; then
+          local cred_default
+          cred_default=$(svc_get_credential "$svc_id" "$i" "default" 2>/dev/null || echo "")
+          if [ -n "$cred_default" ]; then
+            _svc_info "${cred_label} : $(t service.status.not_configured) ${DIM}($(t service.status.default): ${cred_default})${RESET}"
+          else
+            _svc_info "${cred_label} : $(t service.status.not_configured)"
+          fi
+        else
+          _svc_fail "${cred_label} : $(t service.status.not_configured)"
+        fi
       fi
     done
 
