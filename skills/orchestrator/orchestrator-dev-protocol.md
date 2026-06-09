@@ -457,13 +457,13 @@ question({
   > « Crée et bascule sur la branche `<nom>` avant de démarrer :
   > `git checkout -b <nom>` »
 
-  > **Worktrees activés (`worktree.enabled = true` dans `opencode.json`)** : utiliser `git worktree` au lieu de `git checkout -b`.
+  > **Worktrees activés (`worktree.enabled = true` dans `opencode.json`) — mode séquentiel uniquement** : utiliser `git worktree` au lieu de `git checkout -b`.
   > Créer le worktree à `.worktrees/<slug>` où `<slug>` = nom de branche avec `/` remplacés par `-`.
   > Transmettre à l'agent développeur :
-  > « Crée le worktree et travaille dedans :
-  > `git worktree add -b <nom> .worktrees/<slug>`
-  > Tous tes changements doivent être faits dans `.worktrees/<slug>/`. »
+  > « Travaille dans le worktree pré-créé `.worktrees/<slug>/`. Tous tes changements doivent être faits dans ce répertoire. »
   > À CP-2 après commit validé, proposer : `git worktree remove .worktrees/<slug>` si la branche est prête pour PR.
+  >
+  > ⚠️ **Mode parallèle (`auto` avec N tickets simultanés) : ne pas déléguer la création du worktree au developer agent.** Les worktrees sont pré-créés séquentiellement par l'orchestrator-dev lui-même avant le lancement parallèle (voir section "Workflow parallèle"). Chaque developer reçoit uniquement le chemin du worktree déjà existant.
 
 - **Non** → continuer sur la branche courante, ne pas créer de branche
 
@@ -1171,9 +1171,32 @@ todowrite({
 
 Ce workflow s'applique uniquement quand les 4 critères de parallélisabilité sont vérifiés.
 
+### Phase 0 — Pré-création séquentielle des worktrees (si `worktree.enabled = true`)
+
+> ⚠️ **Cette phase est obligatoire avant tout lancement parallèle quand les worktrees sont activés.**
+> Les developer agents ne doivent jamais créer leurs worktrees eux-mêmes en mode parallèle — cela provoquerait une contention sur `.git/index.lock` et une perte d'isolation.
+
+Pour chaque ticket du batch, **dans l'ordre, un par un** :
+
+1. Calculer le nom de branche : `<type>/<ticket-id>-<description-courte>`
+2. Calculer le slug : remplacer `/` par `-` → `<type>-<ticket-id>-<description-courte>`
+3. Exécuter directement (via bash) :
+   ```bash
+   git worktree add -b <nom-branche> .worktrees/<slug>
+   ```
+4. Vérifier le succès de la commande avant de passer au ticket suivant
+5. En cas d'échec (branche déjà existante, verrou git, etc.) : résoudre le conflit avant de continuer — ne pas lancer les sessions parallèles tant que tous les worktrees ne sont pas créés
+
+Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: ".worktrees/<slug>" }`
+
+**SEULEMENT une fois tous les worktrees créés avec succès**, passer au lancement simultané.
+
 ### Lancement simultané
 
 Invoquer N sessions `developer-*` dans le même appel — chacune reçoit son ticket, son contexte, et l'instruction TDD si applicable. Maximum 3 sessions simultanées.
+
+Quand les worktrees sont activés, chaque developer reçoit dans son prompt le chemin du worktree **déjà existant** :
+> « Travaille exclusivement dans `.worktrees/<slug>/`. Le worktree et la branche `<nom-branche>` ont déjà été créés — ne pas relancer `git worktree add`. Tous tes changements doivent être faits depuis ce répertoire. »
 
 ### Attente et agrégation des résultats
 
