@@ -66,6 +66,11 @@ _cmd help.start_dev
 _cmd help.start_dev_label
 _cmd help.start_dev_assignee
 _cmd help.start_onboard
+_cmd help.start_onboard_refresh
+_cmd help.start_parallel
+_cmd help.start_worktree
+_cmd help.start_agent
+_cmd help.start_provider
 _cmd help.quick
 _cmd help.dashboard
 

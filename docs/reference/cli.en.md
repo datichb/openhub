@@ -136,7 +136,13 @@ oc sync --dry-run   # check without deploying
 Launches the default tool in a project's directory.
 
 ```bash
-oc start [PROJECT_ID] [prompt] [--dev [--label <label>] [--assignee <user>]] [--onboard]
+oc start [PROJECT_ID] [prompt]
+         [--dev [--label <label>] [--assignee <user>]]
+         [--onboard [--refresh]]
+         [--parallel]
+         [--worktree [<branch>]]
+         [--agent <name>]
+         [--provider <p>]
 ```
 
 **Arguments:**
@@ -150,12 +156,22 @@ oc start [PROJECT_ID] [prompt] [--dev [--label <label>] [--assignee <user>]] [--
 
 | Option | Description |
 |--------|-------------|
-| `--dev` | Development mode — loads open `ai-delegated` tickets into the startup prompt. Automatically performs a tracker sync `--pull-only` before launch. |
+| `--dev` | Development mode — loads open `ai-delegated` tickets into the startup prompt. Automatically performs a tracker sync `--pull-only` before launch. Runs in the project's main directory. |
 | `--dev --label <label>` | Like `--dev`, but filters tickets with label `<label>` |
 | `--dev --assignee <user>` | Like `--dev`, but filters tickets assigned to `<user>` |
 | `--onboard` | Injects a project discovery prompt to onboard the agent on the codebase |
+| `--onboard --refresh` | Resets the onboarding context before re-running discovery |
+| `--parallel` | Launches an `orchestrator-dev` in an **isolated worktree** (`parallel/TIMESTAMP`) to process multiple `ai-delegated` tickets simultaneously in `auto` mode. Use when several independent tickets are ready. Requires `Worktree: enabled` in `projects.md`. |
+| `--worktree [<branch>]` | Opens a **free session in an isolated worktree** on a named branch. If the branch is omitted, it is prompted interactively. Ideal for starting independent development in parallel with an ongoing session. Creates the worktree if absent, reuses it otherwise. |
+| `--agent <name>` | Force the startup agent (e.g. `orchestrator`, `developer-fullstack`) |
+| `--provider <p>` | Override the LLM provider for this session (e.g. `anthropic`, `openai`). Regenerates `opencode.json` if agents are already deployed. |
 
-> `--dev` and `--onboard` are mutually exclusive. `--label` and `--assignee` are mutually exclusive.
+> **Mutual exclusivity:** `--dev`, `--parallel` and `--worktree` are mutually exclusive with each other, and all are incompatible with `--onboard`. `--label` and `--assignee` are mutually exclusive. `--refresh` requires `--onboard`.
+
+> **Choosing between `--dev`, `--parallel` and `--worktree`:**
+> - `--dev`: sequential session in the main repo, tickets processed one by one
+> - `--parallel`: multi-ticket orchestrator in a dedicated worktree (auto mode, filesystem isolation)
+> - `--worktree`: free session on an isolated branch, no mandatory Beads link — for independent parallel development
 
 **Examples:**
 
@@ -167,6 +183,12 @@ oc start MY-APP --dev                           # load ai-delegated tickets
 oc start MY-APP --dev --label ai-delegated      # filter by label
 oc start MY-APP --dev --assignee alice          # filter by assignee
 oc start MY-APP --onboard                       # project discovery prompt
+oc start MY-APP --onboard --refresh             # re-discovery with context reset
+oc start MY-APP --parallel                      # multi-ticket orchestrator in isolated worktree
+oc start MY-APP --worktree feat/my-feature      # free session on isolated branch
+oc start MY-APP --worktree                      # free session, branch name prompted interactively
+oc start MY-APP --agent developer-fullstack     # force startup agent
+oc start MY-APP --provider openai               # override LLM provider
 ```
 
 **Launch display:**

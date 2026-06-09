@@ -74,6 +74,16 @@ t() {
       help.start_dev_assignee.desc) printf '%s' "Bootstrap tickets filtrés par assignee" ;;
       help.start_onboard.cmd) printf '%s' "start [PROJECT_ID] --onboard" ;;
       help.start_onboard.desc) printf '%s' "Déclenche l'agent onboarder (découverte projet)" ;;
+      help.start_onboard_refresh.cmd) printf '%s' "start [PROJECT_ID] --onboard --refresh" ;;
+      help.start_onboard_refresh.desc) printf '%s' "Réinitialise le contexte d'onboarding avant redécouverte" ;;
+      help.start_parallel.cmd) printf '%s' "start [PROJECT_ID] --parallel" ;;
+      help.start_parallel.desc) printf '%s' "Orchestrator-dev sur tickets ai-delegated dans un worktree isolé (mode auto multi-tickets)" ;;
+      help.start_worktree.cmd) printf '%s' "start [PROJECT_ID] --worktree [<branche>]" ;;
+      help.start_worktree.desc) printf '%s' "Session libre dans un worktree isolé sur une branche nommée (développement parallèle indépendant)" ;;
+      help.start_agent.cmd) printf '%s' "start [PROJECT_ID] --agent <nom>" ;;
+      help.start_agent.desc) printf '%s' "Force l'agent de démarrage (ex : orchestrator, developer-fullstack)" ;;
+      help.start_provider.cmd) printf '%s' "start [PROJECT_ID] --provider <p>" ;;
+      help.start_provider.desc) printf '%s' "Surcharge le provider LLM pour cette session (ex : anthropic, openai)" ;;
       # Analysis
       help.audit.cmd)         printf '%s' "audit [PROJECT_ID]" ;;
       help.audit.desc)        printf '%s' "Lance un audit global du projet" ;;
@@ -459,6 +469,10 @@ t() {
       start.dev_label_exclusive) printf '%s' "--label et --assignee sont mutuellement exclusifs" ;;
       start.dev_needs_dev_flag) printf '%s' "--label et --assignee nécessitent --dev" ;;
       start.dev_onboard_exclusive) printf '%s' "--dev et --onboard sont mutuellement exclusifs" ;;
+      start.parallel_onboard_exclusive) printf '%s' "--parallel et --onboard sont mutuellement exclusifs" ;;
+      start.parallel_worktree_exclusive) printf '%s' "--parallel et --worktree sont mutuellement exclusifs" ;;
+      start.dev_parallel_exclusive) printf '%s' "--dev et --parallel sont mutuellement exclusifs" ;;
+      start.refresh_needs_onboard) printf '%s' "--refresh nécessite --onboard (usage : oc start --onboard --refresh \$PROJECT_ID)" ;;
 
       # ── cmd-quick.sh ────────────────────────────────────────────────────────
       quick.title)              printf '%s' "Exécution rapide de tâche" ;;
@@ -757,6 +771,16 @@ t_en() {
     help.start_dev_assignee.desc) printf '%s' "Bootstrap tickets filtered by assignee" ;;
     help.start_onboard.cmd) printf '%s' "start [PROJECT_ID] --onboard" ;;
     help.start_onboard.desc) printf '%s' "Trigger the onboarder agent (project discovery)" ;;
+    help.start_onboard_refresh.cmd) printf '%s' "start [PROJECT_ID] --onboard --refresh" ;;
+    help.start_onboard_refresh.desc) printf '%s' "Reset onboarding context before re-discovery" ;;
+    help.start_parallel.cmd) printf '%s' "start [PROJECT_ID] --parallel" ;;
+    help.start_parallel.desc) printf '%s' "Orchestrator-dev on ai-delegated tickets in an isolated worktree (auto multi-ticket mode)" ;;
+    help.start_worktree.cmd) printf '%s' "start [PROJECT_ID] --worktree [<branch>]" ;;
+    help.start_worktree.desc) printf '%s' "Free session in an isolated worktree on a named branch (independent parallel development)" ;;
+    help.start_agent.cmd) printf '%s' "start [PROJECT_ID] --agent <name>" ;;
+    help.start_agent.desc) printf '%s' "Force the startup agent (e.g. orchestrator, developer-fullstack)" ;;
+    help.start_provider.cmd) printf '%s' "start [PROJECT_ID] --provider <p>" ;;
+    help.start_provider.desc) printf '%s' "Override the LLM provider for this session (e.g. anthropic, openai)" ;;
     # Analysis
     help.audit.cmd)         printf '%s' "audit [PROJECT_ID]" ;;
     help.audit.desc)        printf '%s' "Run a global project audit" ;;
@@ -1151,6 +1175,10 @@ t_en() {
     start.dev_label_exclusive) printf '%s' "--label and --assignee are mutually exclusive" ;;
     start.dev_needs_dev_flag) printf '%s' "--label and --assignee require --dev" ;;
     start.dev_onboard_exclusive) printf '%s' "--dev and --onboard are mutually exclusive" ;;
+    start.parallel_onboard_exclusive) printf '%s' "--parallel and --onboard are mutually exclusive" ;;
+    start.parallel_worktree_exclusive) printf '%s' "--parallel and --worktree are mutually exclusive" ;;
+    start.dev_parallel_exclusive) printf '%s' "--dev and --parallel are mutually exclusive" ;;
+    start.refresh_needs_onboard) printf '%s' "--refresh requires --onboard (usage: oc start --onboard --refresh \$PROJECT_ID)" ;;
 
     # ── cmd-quick.sh ──────────────────────────────────────────────────────────
     quick.title)              printf '%s' "Quick task execution" ;;

@@ -25,7 +25,15 @@ for arg in "$@"; do
     --assignee) DEV_ASSIGNEE="$arg";      _prev=""; continue ;;
     --agent)    AGENT_NAME="$arg";        _prev=""; continue ;;
     --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
-    --worktree) WORKTREE_BRANCH="$arg";   _prev=""; continue ;;
+    --worktree) # Consommer le token suivant comme WORKTREE_BRANCH seulement s'il contient un "/"
+                # (convention : les noms de branche sont toujours de la forme type/description).
+                # Un token sans "/" est un PROJECT_ID — le laisser tomber dans ARGS.
+                if [[ "$arg" == */* ]]; then
+                  WORKTREE_BRANCH="$arg"
+                else
+                  ARGS+=("$arg")
+                fi
+                _prev=""; continue ;;
   esac
   case "$arg" in
     --dev)      DEV_MODE=true ;;
@@ -49,25 +57,25 @@ fi
 
 # --parallel et --onboard sont mutuellement exclusifs
 if [ "$PARALLEL_MODE" = true ] && [ "$ONBOARD_MODE" = true ]; then
-  log_error "--parallel et --onboard sont mutuellement exclusifs"
+  log_error "$(t start.parallel_onboard_exclusive)"
   exit 1
 fi
 
 # --parallel et --worktree sont mutuellement exclusifs
 if [ "$PARALLEL_MODE" = true ] && [ "$WORKTREE_MODE" = true ]; then
-  log_error "--parallel et --worktree sont mutuellement exclusifs"
+  log_error "$(t start.parallel_worktree_exclusive)"
   exit 1
 fi
 
 # --dev et --parallel sont mutuellement exclusifs
 if [ "$DEV_MODE" = true ] && [ "$PARALLEL_MODE" = true ]; then
-  log_error "--dev et --parallel sont mutuellement exclusifs"
+  log_error "$(t start.dev_parallel_exclusive)"
   exit 1
 fi
 
 # --refresh nécessite --onboard
 if [ "$REFRESH_MODE" = true ] && [ "$ONBOARD_MODE" = false ]; then
-  log_error "--refresh nécessite --onboard (usage : oc start --onboard --refresh $PROJECT_ID)"
+  log_error "$(t start.refresh_needs_onboard)"
   exit 1
 fi
 
