@@ -595,8 +595,10 @@ adapter_deploy_config() {
   local config_file="$deploy_dir/opencode.json"
 
   # Charger les métadonnées si les tableaux sont vides (appel direct sans Phase 1)
+  # Passer deploy_dir pour que la résolution des agents externes (substituts/compléments)
+  # fonctionne correctement, notamment lors d'un appel depuis un worktree.
   if [ "${#_DEPLOY_FILES_AGENT_KEYS[@]}" -eq 0 ]; then
-    _load_agent_metadata "$project_id"
+    _load_agent_metadata "$project_id" "$deploy_dir"
   fi
 
   # Définir les étapes de la Phase 3 pour la progression

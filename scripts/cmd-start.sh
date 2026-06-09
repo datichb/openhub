@@ -357,7 +357,10 @@ if [ "$PARALLEL_MODE" = true ]; then
   if [ "$_wt_path" != "$PROJECT_PATH" ] && [ -d "$_wt_path" ]; then
     # Déployer la configuration hub (agents, skills, opencode.json) dans le worktree
     log_info "Déploiement de la configuration hub dans le worktree…"
-    adapter_deploy "$_wt_path" "$PROJECT_ID" "$PROVIDER_OVERRIDE"
+    if ! adapter_deploy "$_wt_path" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
+      log_error "Échec du déploiement de la configuration dans le worktree — lancement annulé"
+      exit 1
+    fi
     _outro "$(t start.press_enter) opencode…"
     _prompt _ ""
     adapter_start "$_wt_path" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"
@@ -405,7 +408,10 @@ if [ "$WORKTREE_MODE" = true ]; then
 
   # Déployer la configuration hub (agents, skills, opencode.json) dans le worktree
   log_info "Déploiement de la configuration hub dans le worktree…"
-  adapter_deploy "$_wt_path" "$PROJECT_ID" "$PROVIDER_OVERRIDE"
+  if ! adapter_deploy "$_wt_path" "$PROJECT_ID" "$PROVIDER_OVERRIDE"; then
+    log_error "Échec du déploiement de la configuration dans le worktree — lancement annulé"
+    exit 1
+  fi
 
   _outro "$(t start.press_enter) opencode…"
   _prompt _ ""
