@@ -432,6 +432,12 @@ _set_project_disabled_native_agents() {
   " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Disable agents : ${new_val}" "$PROJECTS_FILE"; then
     return 0
   fi
+  # Fallback générique : insérer après le dernier champ du bloc
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?- [^\n]+\n)}{\${1}- Disable agents : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Disable agents : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
   log_error "Impossible d'insérer le champ 'Disable agents' dans le bloc $id de projects.md"
   return 1
 }
@@ -589,6 +595,237 @@ should_deploy_mcp() {
 # ─────────────────────────────────────────
 # WORKTREE — configuration par projet
 # ─────────────────────────────────────────
+
+# ─────────────────────────────────────────
+# SETTERS — champs de base du projet
+# ─────────────────────────────────────────
+
+# Met à jour le champ "- Langue :" dans le bloc d'un projet dans projects.md
+# Si valeur vide → supprime le champ
+# @param $1 — PROJECT_ID
+# @param $2 — valeur (ex: "english", "spanish") ou "" pour supprimer
+_set_project_language() {
+  local id="$1" new_val="$2"
+  if [ -z "$new_val" ]; then
+    perl -i -0777pe "
+      s{(^## \Q${id}\E\n.*?)- Langue : [^\n]+\n}{\$1}ms
+    " "$PROJECTS_FILE" 2>/dev/null
+    return 0
+  fi
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Langue : [^\n]+)}{\${1}- Langue : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Langue : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Labels :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Labels : [^\n]+\n)}{\${1}- Langue : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Langue : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Tracker :"
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Tracker : [^\n]+\n)}{\${1}- Langue : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Langue : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Fallback : insérer après le dernier champ du bloc
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?- [^\n]+\n)}{\${1}- Langue : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Langue : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ Langue dans le bloc $id de projects.md"
+  return 1
+}
+
+# Met à jour le champ "- Tracker :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — valeur : jira | gitlab | none
+_set_project_tracker() {
+  local id="$1" new_val="$2"
+  case "$new_val" in
+    jira|gitlab|none) ;;
+    *) log_error "Tracker invalide : $new_val (jira | gitlab | none)"; return 1 ;;
+  esac
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Tracker : [^\n]+)}{\${1}- Tracker : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Tracker : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Stack :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Stack : [^\n]+\n)}{\${1}- Tracker : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Tracker : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ Tracker dans le bloc $id de projects.md"
+  return 1
+}
+
+# Met à jour le champ "- Stack :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — valeur libre (ex: "Vue 3 + Laravel")
+_set_project_stack() {
+  local id="$1" new_val="$2"
+  [ -z "$new_val" ] && { log_error "Stack ne peut pas être vide"; return 1; }
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Stack : [^\n]+)}{\${1}- Stack : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Stack : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Nom :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Nom : [^\n]+\n)}{\${1}- Stack : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Stack : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ Stack dans le bloc $id de projects.md"
+  return 1
+}
+
+# Met à jour le champ "- Labels :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — valeur CSV (ex: "feature,fix,front,back") ou "" pour vider
+_set_project_labels() {
+  local id="$1" new_val="$2"
+  if [ -z "$new_val" ]; then
+    perl -i -0777pe "
+      s{(^## \Q${id}\E\n.*?)(- Labels : [^\n]+)}{${1}- Labels : }ms
+    " "$PROJECTS_FILE" 2>/dev/null
+    return 0
+  fi
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Labels : [^\n]+)}{\${1}- Labels : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Labels : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Tracker :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Tracker : [^\n]+\n)}{\${1}- Labels : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Labels : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Fallback : insérer après "- Stack :"
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Stack : [^\n]+\n)}{\${1}- Labels : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Labels : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ Labels dans le bloc $id de projects.md"
+  return 1
+}
+
+# ─────────────────────────────────────────
+# WORKTREE — configuration par projet
+# ─────────────────────────────────────────
+
+# Met à jour le champ "- Worktree :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — valeur : enabled | disabled
+_set_project_worktree_enabled() {
+  local id="$1" new_val="$2"
+  case "$new_val" in
+    enabled|disabled) ;;
+    *) log_error "Worktree invalide : $new_val (enabled | disabled)"; return 1 ;;
+  esac
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Worktree : [^\n]+)}{\${1}- Worktree : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Tracker :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Tracker : [^\n]+\n)}{\${1}- Worktree : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Fallback : insérer après le dernier champ du bloc
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n(?:(?!^##)[^\n]*\n)*?- [^\n]+\n)}{\${1}- Worktree : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ Worktree dans le bloc $id de projects.md"
+  return 1
+}
+
+# Met à jour le champ "- Worktree auto cleanup :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — valeur : true | false
+_set_project_worktree_auto_cleanup() {
+  local id="$1" new_val="$2"
+  case "$new_val" in
+    true|false) ;;
+    *) log_error "Worktree auto cleanup invalide : $new_val (true | false)"; return 1 ;;
+  esac
+  if [ "$new_val" = "false" ]; then
+    # Supprimer le champ si false (valeur par défaut)
+    perl -i -0777pe "
+      s{(^## \Q${id}\E\n.*?)- Worktree auto cleanup : [^\n]+\n}{\$1}ms
+    " "$PROJECTS_FILE" 2>/dev/null
+    return 0
+  fi
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Worktree auto cleanup : [^\n]+)}{\${1}- Worktree auto cleanup : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree auto cleanup : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Worktree :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Worktree : [^\n]+\n)}{\${1}- Worktree auto cleanup : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree auto cleanup : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ 'Worktree auto cleanup' dans le bloc $id de projects.md"
+  return 1
+}
+
+# Met à jour le champ "- Worktree base branch :" dans le bloc d'un projet dans projects.md
+# @param $1 — PROJECT_ID
+# @param $2 — nom de branche (ex: "main", "master", "develop")
+_set_project_worktree_base_branch() {
+  local id="$1" new_val="$2"
+  [ -z "$new_val" ] && { log_error "Worktree base branch ne peut pas être vide"; return 1; }
+  # Validation légère : pas d'espaces
+  if echo "$new_val" | grep -q '[[:space:]]'; then
+    log_error "Worktree base branch invalide : pas d'espaces autorisés"
+    return 1
+  fi
+  if [ "$new_val" = "main" ]; then
+    # Supprimer le champ si "main" (valeur par défaut)
+    perl -i -0777pe "
+      s{(^## \Q${id}\E\n.*?)- Worktree base branch : [^\n]+\n}{\$1}ms
+    " "$PROJECTS_FILE" 2>/dev/null
+    return 0
+  fi
+  # Remplacer si existant
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?)(- Worktree base branch : [^\n]+)}{\${1}- Worktree base branch : ${new_val}}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree base branch : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Worktree auto cleanup :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Worktree auto cleanup : [^\n]+\n)}{\${1}- Worktree base branch : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree base branch : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  # Insérer après "- Worktree :" si présent
+  if perl -i -0777pe "
+    s{(^## \Q${id}\E\n.*?- Worktree : [^\n]+\n)}{\${1}- Worktree base branch : ${new_val}\n}ms
+  " "$PROJECTS_FILE" 2>/dev/null && grep -q -- "- Worktree base branch : ${new_val}" "$PROJECTS_FILE"; then
+    return 0
+  fi
+  log_error "Impossible d'insérer le champ 'Worktree base branch' dans le bloc $id de projects.md"
+  return 1
+}
 
 # Retourne le statut d'activation des worktrees pour un projet
 # Valeurs : "enabled" | "disabled" (défaut si champ absent)

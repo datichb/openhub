@@ -318,6 +318,57 @@ oc config init-providers [--force]     Initialise switcher files in config/provi
 
 ---
 
+## `oc project` — project management CLI
+
+Manages project registry entries in `projects/projects.md` and `projects/paths.local.md`.
+
+### Sub-commands
+
+```
+oc project rename <OLD_ID> <NEW_ID>      Rename a project in all registry files
+oc project move <PROJECT_ID> <path>      Change a project's local path
+oc project configure [PROJECT_ID]        Reconfigure an existing project's fields
+```
+
+### `oc project configure`
+
+Interactive wizard to update any field in `projects.md` for an existing project.
+If no `PROJECT_ID` is provided, an interactive numbered list is displayed.
+
+For each field, the current value is shown. Press **Enter** to keep it unchanged.
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `Stack` | free text | Technologies used (e.g. `Vue 3 + Laravel`) |
+| `Tracker` | `none` \| `jira` \| `gitlab` | External issue tracker |
+| `Labels` | CSV | Beads labels (e.g. `feature,fix,front,back`) |
+| `Language` | free text | Agent language (`english`, `spanish` — absent = French) |
+| `Disable agents` | CSV | Native OpenCode agents to disable (`build`, `plan`, `general`, `explore`, `scout`) — use `none` to clear |
+| `MCP` | `all` \| `none` \| CSV | MCP servers to enable |
+| `Worktree` | `enabled` \| `disabled` | Enable git worktrees for parallel work |
+| `Worktree auto cleanup` | `true` \| `false` | Auto-remove merged worktrees *(only shown if Worktree is enabled)* |
+| `Worktree base branch` | branch name | Base branch for cleanup (default: `main`) *(only shown if Worktree is enabled)* |
+
+> Note: `Agents` and `Modes` fields have dedicated commands — use `oc agent select` and `oc agent mode`.
+
+### Examples
+
+```sh
+# Interactive wizard (project picker)
+./oc.sh project configure
+
+# Configure a specific project
+./oc.sh project configure MY-APP
+
+# Rename a project
+./oc.sh project rename MY-APP MY-APP-V2
+
+# Move a project to a new path
+./oc.sh project move MY-APP ~/workspace/my-app-new
+```
+
+---
+
 ## `ocp` — interactive provider switcher
 
 Shell function injected into `~/.zshrc` by the hub. Launches opencode with a chosen provider while preserving the full `oc start` logic (agent deployment, `--dev` mode, Beads sync, onboarding, etc.).

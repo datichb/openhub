@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests unitaires pour scripts/cmd-project.sh
-# Commandes testées : oc project rename, oc project move
+# Commandes testées : oc project rename, oc project move, oc project configure
 # Note : cmd-project.sh est exécuté directement (pas sourcé) car il utilise set -euo pipefail
 
 load helpers
@@ -364,4 +364,229 @@ teardown() {
   
   # Au moins projects.md devrait être modifié
   assert_file_contains "$PROJECTS_FILE" "## PROJ-ADOPTED"
+}
+
+# ── cmd_configure : validation ────────────────────────────────────────────────
+
+@test "cmd_configure : échoue si projet inexistant" {
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "INEXISTANT" <<< ""
+  [ "$status" -ne 0 ]
+}
+
+@test "cmd_configure : exit 0 si projet valide et Entrée pour tout" {
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < /dev/null
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd_configure : normalise le PROJECT_ID en majuscules" {
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "proj-old" < /dev/null
+  [ "$status" -eq 0 ]
+}
+
+# ── cmd_configure : modification Stack ────────────────────────────────────────
+
+@test "cmd_configure : met à jour le champ Stack" {
+  # Séquence stdin dans l'ordre des prompts :
+  # 1. Stack (modifié), 2. Tracker, 3. Labels, 4. Langue, 5. Disable, 6. MCP, 7. Worktree
+  local input_file="$TEST_DIR/input.txt"
+  printf 'Go + Gin\n\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Stack : Go + Gin"
+}
+
+@test "cmd_configure : préserve les autres champs si Stack modifié" {
+  local input_file="$TEST_DIR/input.txt"
+  printf 'Ruby on Rails\n\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "## PROJ-OLD"
+  assert_file_contains "$PROJECTS_FILE" "- Nom : Ancien Projet"
+}
+
+# ── cmd_configure : modification Tracker ──────────────────────────────────────
+
+@test "cmd_configure : met à jour le Tracker vers jira" {
+  # 1. Stack (conserver), 2. Tracker=2 (jira), reste conserver
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n2\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Tracker : jira"
+}
+
+@test "cmd_configure : met à jour le Tracker vers gitlab" {
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n3\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Tracker : gitlab"
+}
+
+@test "cmd_configure : met à jour le Tracker vers none" {
+  local input_file="$TEST_DIR/input.txt"
+  # D'abord forcer jira
+  printf '\n2\n\n\n\n\n\n' > "$input_file"
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  # Remettre à none
+  printf '\n1\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Tracker : none"
+}
+
+# ── cmd_configure : modification Labels ───────────────────────────────────────
+
+@test "cmd_configure : met à jour les Labels" {
+  # 1. Stack, 2. Tracker, 3. Labels=feature,fix,api, reste conserver
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\nfeature,fix,api\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Labels : feature,fix,api"
+}
+
+# ── cmd_configure : modification Langue ───────────────────────────────────────
+
+@test "cmd_configure : met à jour la Langue" {
+  # 1. Stack, 2. Tracker, 3. Labels, 4. Langue=english, reste conserver
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\nenglish\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Langue : english"
+}
+
+@test "cmd_configure : normalise la langue en minuscules" {
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\nENGLISH\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Langue : english"
+}
+
+# ── cmd_configure : modification Disable agents ───────────────────────────────
+
+@test "cmd_configure : met à jour Disable agents" {
+  # 1. Stack, 2. Tracker, 3. Labels, 4. Langue, 5. Disable=build,plan, reste conserver
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\n\nbuild,plan\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Disable agents : build,plan"
+}
+
+@test "cmd_configure : vide Disable agents avec 'none'" {
+  local input_file="$TEST_DIR/input.txt"
+  # D'abord ajouter disable agents
+  printf '\n\n\n\nbuild\n\n\n' > "$input_file"
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  # Puis le vider
+  printf '\n\n\n\nnone\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_not_contains "$PROJECTS_FILE" "- Disable agents : build"
+}
+
+# ── cmd_configure : modification MCP ──────────────────────────────────────────
+
+@test "cmd_configure : met à jour le champ MCP" {
+  # 1. Stack, 2. Tracker, 3. Labels, 4. Langue, 5. Disable, 6. MCP=all, 7. Worktree
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\n\n\nall\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- MCP : all"
+}
+
+# ── cmd_configure : modification Worktree ─────────────────────────────────────
+
+@test "cmd_configure : active les worktrees" {
+  # 1. Stack, 2. Tracker, 3. Labels, 4. Langue, 5. Disable, 6. MCP, 7. Worktree=enabled
+  # Quand worktree=enabled, 2 prompts supplémentaires : auto-cleanup, base-branch
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\n\n\n\nenabled\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
+}
+
+@test "cmd_configure : active les worktrees avec 'y'" {
+  local input_file="$TEST_DIR/input.txt"
+  printf '\n\n\n\n\n\ny\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
+}
+
+@test "cmd_configure : désactive les worktrees" {
+  local input_file="$TEST_DIR/input.txt"
+  # D'abord activer
+  printf '\n\n\n\n\n\nenabled\n\n\n' > "$input_file"
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  # Puis désactiver
+  printf '\n\n\n\n\n\ndisabled\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Worktree : disabled"
+}
+
+@test "cmd_configure : configure auto-cleanup quand worktrees enabled" {
+  local input_file="$TEST_DIR/input.txt"
+  # Worktree=enabled, auto-cleanup=true, base-branch conserver
+  printf '\n\n\n\n\n\nenabled\ntrue\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
+  assert_file_contains "$PROJECTS_FILE" "- Worktree auto cleanup : true"
+}
+
+@test "cmd_configure : configure base branch non-main" {
+  local input_file="$TEST_DIR/input.txt"
+  # Worktree=enabled, auto-cleanup conserver, base-branch=develop
+  printf '\n\n\n\n\n\nenabled\n\ndevelop\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "- Worktree base branch : develop"
+}
+
+# ── cmd_configure : ne touche pas aux autres projets ──────────────────────────
+
+@test "cmd_configure : ne modifie pas les autres projets" {
+  local input_file="$TEST_DIR/input.txt"
+  printf 'New Stack\n\n\n\n\n\n\n' > "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  [ "$status" -eq 0 ]
+
+  assert_file_contains "$PROJECTS_FILE" "## PROJ-KEEP"
+  assert_file_contains "$PROJECTS_FILE" "- Nom : Projet à Conserver"
+}
+
+# ── cmd_configure : help / sous-commande ──────────────────────────────────────
+
+@test "cmd_configure : affiche dans le help" {
+  run bash "$HUB_DIR/scripts/cmd-project.sh"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "configure"
+}
+
+@test "sous-commande inconnue : erreur avec exit non-0" {
+  run bash "$HUB_DIR/scripts/cmd-project.sh" unknown-cmd
+  [ "$status" -ne 0 ]
 }

@@ -316,6 +316,57 @@ oc config init-providers [--force]     Initialiser les fichiers switcher dans co
 
 ---
 
+## `oc project` — gestion des projets CLI
+
+Gère les entrées du registre de projets dans `projects/projects.md` et `projects/paths.local.md`.
+
+### Sous-commandes
+
+```
+oc project rename <OLD_ID> <NEW_ID>      Renomme un projet dans tous les fichiers registre
+oc project move <PROJECT_ID> <path>      Change le chemin local d'un projet
+oc project configure [PROJECT_ID]        Reconfigure les champs d'un projet existant
+```
+
+### `oc project configure`
+
+Wizard interactif pour mettre à jour n'importe quel champ de `projects.md` pour un projet existant.
+Si aucun `PROJECT_ID` n'est fourni, une liste numérotée interactive s'affiche.
+
+Pour chaque champ, la valeur actuelle est affichée. Appuyer sur **Entrée** pour la conserver.
+
+| Champ | Valeurs | Description |
+|-------|---------|-------------|
+| `Stack` | texte libre | Technologies utilisées (ex: `Vue 3 + Laravel`) |
+| `Tracker` | `none` \| `jira` \| `gitlab` | Tracker externe |
+| `Labels` | CSV | Labels Beads (ex: `feature,fix,front,back`) |
+| `Langue` | texte libre | Langue des agents (`english`, `spanish` — absent = français) |
+| `Disable agents` | CSV | Agents natifs OpenCode à désactiver (`build`, `plan`, `general`, `explore`, `scout`) — `none` pour vider |
+| `MCP` | `all` \| `none` \| CSV | Serveurs MCP à activer |
+| `Worktree` | `enabled` \| `disabled` | Activer les git worktrees pour le travail en parallèle |
+| `Worktree auto cleanup` | `true` \| `false` | Supprimer automatiquement les worktrees mergés *(affiché uniquement si Worktree est activé)* |
+| `Worktree base branch` | nom de branche | Branche de base pour le cleanup (défaut : `main`) *(affiché uniquement si Worktree est activé)* |
+
+> Note : les champs `Agents` et `Modes` ont des commandes dédiées — utiliser `oc agent select` et `oc agent mode`.
+
+### Exemples
+
+```sh
+# Wizard interactif (liste de projets)
+./oc.sh project configure
+
+# Configurer un projet spécifique
+./oc.sh project configure MON-APP
+
+# Renommer un projet
+./oc.sh project rename MON-APP MON-APP-V2
+
+# Déplacer un projet vers un nouveau chemin
+./oc.sh project move MON-APP ~/workspace/mon-app-new
+```
+
+---
+
 ## `ocp` — switcher interactif de providers
 
 Fonction shell injectée dans `~/.zshrc` par le hub. Permet de lancer opencode
