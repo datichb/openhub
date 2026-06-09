@@ -58,6 +58,7 @@ _cmd help.remove
 _cmd help.remove_clean
 _cmd help.project_rename
 _cmd help.project_move
+_cmd help.project_configure
 
 _section help.section.launch
 _cmd help.start
@@ -65,6 +66,8 @@ _cmd help.start_dev
 _cmd help.start_dev_label
 _cmd help.start_dev_assignee
 _cmd help.start_onboard
+_cmd help.quick
+_cmd help.dashboard
 
 _section help.section.analysis
 _cmd help.audit
@@ -84,6 +87,11 @@ _cmd help.sync
 _cmd help.sync_dryrun
 _cmd help.update
 _cmd help.upgrade
+_cmd help.worktree_list
+_cmd help.worktree_create
+_cmd help.worktree_remove
+_cmd help.worktree_cleanup
+_cmd help.worktree_status
 
 _section help.section.config
 _cmd help.config_set
@@ -93,6 +101,8 @@ _cmd help.config_list_providers
 _cmd help.config_unset
 _cmd help.config_language
 _cmd help.config_init_providers
+_cmd help.config_websearch
+_cmd help.plugin_install
 
 _section help.section.services
 _cmd help.service_setup
