@@ -622,12 +622,7 @@ echo ""
 # ── Phase 4 : déploiement des serveurs MCP ─────────────────────────────────
 echo -e "${CYAN}🔌  Phase 4 — Serveurs MCP${RESET}"
 
-if check_and_build_mcp && deploy_mcp_servers "$deploy_dir" && configure_mcp_in_project "$deploy_dir"; then
-  true
-else
-  echo ""
-  log_warn "Phase 4 : déploiement MCP incomplet (vérifiez les tokens et le build)"
-fi
+adapter_deploy_mcp "$deploy_dir" "$PROJECT_ID" || true
 echo ""
 
 log_success "Déploiement terminé en ${SECONDS}s"

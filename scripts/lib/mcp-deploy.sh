@@ -230,3 +230,21 @@ configure_mcp_in_project() {
 
   echo ""
 }
+
+# ── Wrapper Phase 4 — réutilisable depuis cmd-deploy.sh et cmd-start.sh ────────
+# Enchaîne les trois étapes de la Phase 4 : vérification/build des serveurs MCP,
+# déploiement des binaires, injection du bloc mcp dans opencode.json.
+# Retourne 1 (non-bloquant) si une étape échoue — ne doit jamais arrêter un start.
+adapter_deploy_mcp() {
+  local deploy_dir="$1"
+  local project_id="${2:-}"
+
+  if check_and_build_mcp \
+      && deploy_mcp_servers "$deploy_dir" "$project_id" \
+      && configure_mcp_in_project "$deploy_dir" "$project_id"; then
+    return 0
+  else
+    log_warn "Phase 4 : déploiement MCP incomplet (vérifiez les tokens et le build)"
+    return 1
+  fi
+}

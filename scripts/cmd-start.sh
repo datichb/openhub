@@ -361,6 +361,9 @@ if [ "$PARALLEL_MODE" = true ]; then
       log_error "Échec du déploiement de la configuration dans le worktree — lancement annulé"
       exit 1
     fi
+    # Phase 4 — MCP (non-bloquant : tokens ou build potentiellement absents)
+    source "$LIB_DIR/mcp-deploy.sh"
+    adapter_deploy_mcp "$_wt_path" "$PROJECT_ID" || true
     _outro "$(t start.press_enter) opencode…"
     _prompt _ ""
     adapter_start "$_wt_path" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"
@@ -412,6 +415,9 @@ if [ "$WORKTREE_MODE" = true ]; then
     log_error "Échec du déploiement de la configuration dans le worktree — lancement annulé"
     exit 1
   fi
+  # Phase 4 — MCP (non-bloquant : tokens ou build potentiellement absents)
+  source "$LIB_DIR/mcp-deploy.sh"
+  adapter_deploy_mcp "$_wt_path" "$PROJECT_ID" || true
 
   _outro "$(t start.press_enter) opencode…"
   _prompt _ ""
