@@ -18,7 +18,7 @@ Before invoking an agent, identify your situation:
 | UX/UI specifications only, without implementing | `ux-designer` / `ui-designer` | `"UX spec for [feature]"` |
 | Audit before going to production | `auditor` | `"Audit the project"` |
 | Production bug with stacktrace or logs | `debugger` | `"This bug: [stacktrace]"` |
-| Review of a manually developed PR | `reviewer` | `"Review my PR — diff: [...]"` |
+| Review of a manually developed PR | `reviewer` | `"Review my PR — branch: [name]"` |
 | Plan a feature without implementing it | `planner` | `"Break down [feature] into tickets"` |
 | Plan + delegate UX/UI specs via the planner | `planner` | `"Plan [feature]"` then `"invoke UX"` / `"invoke UI"` |
 | Document a delivered feature or a decision | `documentarian` | `"Document [topic]"` |
@@ -479,9 +479,7 @@ If the user accepts, the reviewer invokes the `documentarian` via `task`
 before merging.
 
 ```
-Prompt: "Review my PR — here is the diff:
-
-<paste git diff or branch name>"
+Prompt: "Review my PR — branch: <branch name>"
 ```
 
 Or with Beads context:

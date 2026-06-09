@@ -248,7 +248,7 @@ Workflow:
 
 ## `oc review`
 
-Launches an AI code review on a branch by invoking the `reviewer` agent with the full diff injected into the prompt.
+Launches an AI code review on a branch by invoking the `reviewer` agent with the branch name in the prompt — the reviewer fetches the diff itself via `git diff`.
 
 ```bash
 oc review [PROJECT_ID] [--branch <branch>]

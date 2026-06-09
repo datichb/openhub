@@ -304,7 +304,7 @@ Agents dédiés à la qualité du code, invocables standalone ou via l'orchestra
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
 | **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/living-docs-enrichment` |
-| **Invocation** | Diff collé / nom de branche / URL de PR + optionnellement `bd show <ID>` |
+| **Invocation** | Nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
 Majeur / Mineur / Suggestion / Points positifs). Lecture seule — ne modifie jamais

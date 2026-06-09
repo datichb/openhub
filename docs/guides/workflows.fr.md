@@ -16,7 +16,7 @@ Avant d'invoquer un agent, identifiez votre situation :
 | Spécifications UX/UI uniquement, sans implémenter | `ux-designer` / `ui-designer` | `"Spec UX pour [feature]"` |
 | Audit avant mise en production | `auditor` | `"Audite le projet"` |
 | Bug en production avec stacktrace ou logs | `debugger` | `"Ce bug : [stacktrace]"` |
-| Review d'une PR développée manuellement | `reviewer` | `"Review de ma PR — diff : [...]"` |
+| Review d'une PR développée manuellement | `reviewer` | `"Review de ma PR — branche : [nom]"` |
 | Planifier une feature sans l'implémenter | `planner` | `"Décompose [feature] en tickets"` |
 | Planifier + déléguer les specs UX/UI au planner | `planner` | `"Planifie [feature]"` puis `"invoquer UX"` / `"invoquer UI"` |
 | Documenter une feature livrée ou une décision | `documentarian` | `"Documente [sujet]"` |
@@ -477,9 +477,7 @@ Si l'utilisateur accepte, le reviewer invoque le `documentarian` via `task`
 avant de merger.
 
 ```
-Prompt : "Review de ma PR — voici le diff :
-
-<coller git diff ou nom de branche>"
+Prompt : "Review de ma PR — branche : <nom de la branche>"
 ```
 
 Ou avec contexte Beads :

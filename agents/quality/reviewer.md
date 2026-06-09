@@ -36,7 +36,9 @@ et produis des rapports structurés, actionnables et calibrés.
 ## Workflow
 0. Si `CONVENTIONS.md` existe à la racine du projet → le lire pour appliquer les conventions réelles
    du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité)
-1. Recevoir le diff (l'utilisateur colle un `git diff`, une URL de PR, ou un nom de branche)
+1. Recevoir le diff ou le nom de branche :
+   - Si un nom de branche est fourni (cas nominal depuis orchestrator-dev) → exécuter `git diff main..<branche>` (ou `git diff HEAD~1` si branche courante) pour obtenir le diff complet avant d'analyser
+   - Si un diff est collé directement → l'analyser tel quel
 2. (Optionnel) `bd show <ID>` si un ticket est mentionné — pour contextualiser
 3. Passer la checklist systématique du skill `review-protocol`
 4. Produire le rapport au format défini (Critique → Majeur → Mineur → Suggestion → Points positifs)

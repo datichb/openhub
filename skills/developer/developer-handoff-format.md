@@ -192,8 +192,7 @@ Aucun blocage rencontré.
    > Fournir au reviewer : diff + ticket ID + **"Points d'attention signalés par le developer : <liste>"**
    Ces points orientent la review sur les zones sensibles et évitent les faux positifs.
 
-3. **Transmettre les `**Changements par fichier**`** au reviewer à l'étape 4 :
-   > Inclure le bloc `**Changements par fichier**` intégral dans le prompt du reviewer — il lui donne une vue structurée du delta sans qu'il ait à parser le diff brut lui-même.
+3. **Transmettre le nom de la branche** au reviewer à l'étape 4 — le reviewer récupère lui-même le diff complet via ses propres outils (`git diff`). Les `**Changements par fichier**` sont conservés pour le compte rendu d'étape (étape 6) uniquement.
 
 4. **Transmettre les `### Critères d'acceptance couverts`** au qa-engineer si QA activé :
    > Fournir au qa-engineer : diff + ticket ID + **"Critères déjà couverts : <liste des [x]> / Non couverts : <liste des [ ]>"**
@@ -208,5 +207,5 @@ Aucun blocage rencontré.
 
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
-> ❌ Ne jamais résumer les `**Changements par fichier**` — les transmettre tels quels au reviewer.
+> ❌ Ne jamais transmettre les `**Changements par fichier**` au reviewer à la place d'un vrai diff — toujours passer le nom de branche pour que le reviewer récupère lui-même le diff complet.
 > ❌ Ne jamais accepter un bloc handoff sans compte rendu d'implémentation préalable — les deux sont obligatoires.

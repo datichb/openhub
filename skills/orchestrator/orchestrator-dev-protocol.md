@@ -850,7 +850,7 @@ todowrite({
 > « Implémentation terminée — je soumets au reviewer. »
 
 Fournir au reviewer :
-- Le diff ou le nom de la branche produite (incluant les tests si QA activé)
+- Le nom de la branche produite (le reviewer récupère lui-même le diff complet via `git diff` — ne pas tenter de construire ou transmettre le diff depuis orchestrator-dev)
 - L'ID du ticket Beads pour contexte (`bd show <ID>`)
 - Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
 - Si disponible depuis le retour qa-engineer : les `### Points d'attention pour la review` du qa-engineer (zones non testables, edge cases non couverts, hypothèses, suggestions)

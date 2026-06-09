@@ -247,7 +247,7 @@ Workflow :
 
 ## `oc review`
 
-Lance une code review IA sur une branche en invoquant l'agent `reviewer` avec le diff complet injecté dans le prompt.
+Lance une code review IA sur une branche en invoquant l'agent `reviewer` avec le nom de la branche dans le prompt — le reviewer récupère lui-même le diff via `git diff`.
 
 ```bash
 oc review [PROJECT_ID] [--branch <branche>]
