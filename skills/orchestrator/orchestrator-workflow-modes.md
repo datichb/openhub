@@ -72,15 +72,16 @@ Le mode de workflow peut être pré-configuré dans `opencode.json` pour éviter
 
 ### Détection de la configuration projet
 
-Avant de poser la question, vérifier si `opencode.json` contient une configuration `workflow.defaultMode` :
+La configuration de workflow est injectée automatiquement dans la session au démarrage via le champ `instructions` de `opencode.json`.
 
-1. Lire `opencode.json` à la racine du projet
-2. Vérifier si `workflow.defaultMode` existe et contient une valeur valide : `"manuel"`, `"semi-auto"`, ou `"auto"`
-3. **Si valide** → appliquer le mode sans poser la question, afficher :
-   > Mode de workflow : `<mode>` (configuré dans opencode.json)
-4. **Si absent, invalide, ou `opencode.json` inexistant** → poser la question normalement
+Si `workflow.defaultMode` est disponible dans le contexte de session :
+- Valeur valide (`"manuel"`, `"semi-auto"`, `"auto"`) → appliquer le mode sans poser la question, afficher :
+  > Mode de workflow : `<mode>` (configuré dans opencode.json)
+- Valeur absente ou invalide → poser la question normalement
 
-> **Cas d'erreur :** si `opencode.json` existe mais contient du JSON invalide (erreur de parsing) ou si une erreur d'accès fichier survient → traiter comme "absent" et poser la question normalement.
+> ❌ Ne jamais utiliser l'outil `read` pour accéder à `opencode.json` — le contexte est injecté automatiquement dans la session. Si la valeur n'est pas disponible dans la session, elle est absente : poser la question.
+>
+> **Note pour `orchestrator-dev`** : si `opencode.json` est explicitement autorisé en lecture directe (permission `read.opencode.json: allow` dans le frontmatter), `orchestrator-dev` peut utiliser l'outil `read` pour lire ce fichier. Cette restriction ne s'applique qu'à l'orchestrateur feature qui n'a pas cette permission.
 
 ### Question interactive (si non configuré)
 
@@ -108,14 +109,16 @@ Enregistrer le mode pour toute la session.
 
 ### Détection de la configuration projet
 
-Avant de poser la question, vérifier si `opencode.json` contient une configuration `workflow.qaEnabled` :
+La configuration QA est injectée automatiquement dans la session au démarrage.
 
-1. Vérifier si `workflow.qaEnabled` existe et est **strictement un booléen JSON** (`true` ou `false`)
-2. **Si défini** → appliquer la valeur sans poser la question, afficher :
-   > QA global : `<activé/désactivé>` (configuré dans opencode.json)
-3. **Si absent ou non booléen** → poser la question normalement
+Si `workflow.qaEnabled` est disponible dans le contexte de session et est **strictement un booléen JSON** (`true` ou `false`) :
+- **Si défini** → appliquer la valeur sans poser la question, afficher :
+  > QA global : `<activé/désactivé>` (configuré dans opencode.json)
+- **Si absent ou non booléen** → poser la question normalement
 
 > **Type strict :** seuls les booléens JSON `true` et `false` sont acceptés. Toute autre valeur (string `"true"`, nombre `1` ou `0`, `null`, etc.) est ignorée et déclenche la question interactive.
+>
+> ❌ Ne jamais utiliser l'outil `read` pour lire `opencode.json` — même restriction que pour `defaultMode`.
 
 ### Question interactive (si non configuré)
 

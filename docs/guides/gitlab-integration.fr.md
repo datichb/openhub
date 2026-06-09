@@ -86,7 +86,7 @@ oc gitlab deploy --project MON-PROJET
 
 ### Avec l'Orchestrator
 
-L'Orchestrator peut lire un ticket pour router au bon agent :
+L'Orchestrator ne lit pas les tickets GitLab directement. Quand l'utilisateur fournit un ID de ticket, il le transmet tel quel au `pathfinder` ou au `planner` qui effectuent la lecture dans leur propre session :
 
 ```
 "Implémente le ticket #42 du projet mon-groupe/mon-projet"
@@ -94,7 +94,7 @@ L'Orchestrator peut lire un ticket pour router au bon agent :
 "Travaille sur la MR !15"
 ```
 
-Il utilise le skill `gitlab-orchestrator-protocol` pour lire le ticket et déterminer quel agent invoquer (planner, pathfinder, debugger…) sans jamais analyser le contenu lui-même.
+L'Orchestrator transmet l'ID brut (`#42`, `!15`) au `pathfinder` ou `planner` — c'est ces agents qui lisent le ticket via leurs propres accès MCP GitLab et routent en conséquence.
 
 ### Avec le Pathfinder
 
@@ -149,9 +149,9 @@ Et dans `CONVENTIONS.md` :
 
 | Tool | Description | Utilisé par |
 |---|---|---|
-| `get_gitlab_issue` | Lit un ticket complet (titre, description, labels, milestone, commentaires) | Orchestrator, Pathfinder, Planner |
+| `get_gitlab_issue` | Lit un ticket complet (titre, description, labels, milestone, commentaires) | Pathfinder, Planner |
 | `list_gitlab_issues` | Liste les tickets avec filtres (état, labels, recherche) | Planner, Pathfinder, Onboarder |
-| `get_gitlab_merge_request` | Lit une MR (titre, branches, état, changements) | Orchestrator, Pathfinder |
+| `get_gitlab_merge_request` | Lit une MR (titre, branches, état, changements) | Pathfinder |
 | `list_gitlab_labels` | Liste tous les labels du projet | Onboarder, Planner |
 | `list_gitlab_milestones` | Liste les milestones actifs/fermés | Onboarder, Planner |
 
@@ -177,8 +177,7 @@ servers/gitlab-mcp/
 skills/adapters/
 ├── gitlab-planner-protocol.md
 ├── gitlab-pathfinder-protocol.md
-├── gitlab-onboarder-protocol.md
-└── gitlab-orchestrator-protocol.md
+└── gitlab-onboarder-protocol.md
 ```
 
 ---
