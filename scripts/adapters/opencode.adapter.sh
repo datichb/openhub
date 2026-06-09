@@ -742,11 +742,13 @@ adapter_deploy_config() {
     done
   elif [ -f "$HUB_CONFIG" ]; then
     # hub.json présent mais disabled_csv vide : vérifier si c'est intentionnel (tableau [])
-    # ou si la lecture a échoué (clé absente → comportement normal, pas de warning)
+    # ou si la clé est absente (probablement un hub.json créé avant la version 2.0.0)
     if grep -q '"disabled_native_agents"' "$HUB_CONFIG" 2>/dev/null; then
       : # tableau explicitement vide dans hub.json — intentionnel, pas de warning
     else
       log_warn "disabled_native_agents absent de hub.json — les agents natifs OpenCode (build, plan, general, explore, scout) ne seront PAS désactivés"
+      log_warn "Ajouter dans config/hub.json : \"disabled_native_agents\": [\"build\",\"plan\",\"general\",\"explore\",\"scout\"]"
+      log_warn "Ou relancer : ./oc.sh install  (met à jour hub.json avec les valeurs par défaut)"
     fi
   fi
 

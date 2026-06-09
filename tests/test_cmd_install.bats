@@ -130,6 +130,40 @@ EOF
   [ "$output" = "claude-sonnet-4" ]
 }
 
+@test "install : hub.json généré contient disabled_native_agents" {
+  # Simuler l'écriture du hub.json comme le fait cmd-install.sh
+  local DEFAULT_MODEL="claude-sonnet-4-5"
+  mkdir -p "$HUB_DIR/config"
+  cat > "$HUB_DIR/config/hub.json" << HUBJSON
+{
+  "version": "2.0.0",
+  "default_provider": {
+    "name": "anthropic",
+    "api_key": "",
+    "base_url": "",
+    "model": ""
+  },
+  "opencode": {
+    "model": "${DEFAULT_MODEL}",
+    "disabled_native_agents": [
+      "build",
+      "plan",
+      "general",
+      "explore",
+      "scout"
+    ]
+  }
+}
+HUBJSON
+
+  # Vérifier que la clé est présente et contient les 5 agents
+  run jq -r '.opencode.disabled_native_agents | length' "$HUB_DIR/config/hub.json"
+  [ "$output" = "5" ]
+
+  run jq -r '.opencode.disabled_native_agents | contains(["build","plan","general","explore","scout"])' "$HUB_DIR/config/hub.json"
+  [ "$output" = "true" ]
+}
+
 @test "install : propose d'écraser hub.json s'il existe" {
   # Créer hub.json existant avec un provider configuré (sinon considéré squelette vide)
   cat > "$HUB_DIR/config/hub.json" <<'EOF'

@@ -71,7 +71,14 @@ if [ "$_write_hub_json" = true ]; then
     "model": ""
   },
   "opencode": {
-    "model": "${DEFAULT_MODEL}"
+    "model": "${DEFAULT_MODEL}",
+    "disabled_native_agents": [
+      "build",
+      "plan",
+      "general",
+      "explore",
+      "scout"
+    ]
   }
 }
 HUBJSON
