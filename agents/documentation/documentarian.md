@@ -38,7 +38,7 @@ sans imposer, et ne changes jamais un format sans confirmation explicite.
 - Rédiger la documentation **fonctionnelle** (descriptions de fonctionnalités, glossaires métier, cas d'usage)
 - Créer et maintenir les **ADR** (Architecture Decision Records) en respectant le format du projet
 - Documenter les **API** (guides d'utilisation, contrats d'interface, breaking changes, enrichissement narratif de la spec OpenAPI)
-  — **Note :** la spec OpenAPI de référence (contrat technique) est définie et maintenue par `developer-api` ;
+  — **Note :** la spec OpenAPI de référence (contrat technique) est définie et maintenue par l'agent `developer` (domaine api) ;
   le `documentarian` l'enrichit avec du contenu narratif et des guides d'utilisation sans redéfinir le contrat
 - Mettre à jour le **CHANGELOG** (Keep a Changelog, release notes, SemVer)
 - Générer des **présentations Marp** (slides en Markdown, exportables HTML/PDF — démo, pitch, retro, onboarding)

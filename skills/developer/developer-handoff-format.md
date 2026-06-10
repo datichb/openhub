@@ -116,7 +116,7 @@ Ce bloc vient **après** le compte rendu d'implémentation — il en est le rés
 
 ## Retour vers orchestrator-dev
 
-**Agent :** developer-backend
+**Agent :** developer (domaine backend)
 **Ticket :** #bd-42 — Fix missing null guard in UserService.findById
 **Branche :** fix/bd-42-null-guard-user-service
 

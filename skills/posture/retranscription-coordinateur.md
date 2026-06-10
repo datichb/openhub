@@ -203,15 +203,15 @@ Avant d'appeler `question`, vérifier :
 
 Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 
-- **bd-42** : Créer l'endpoint POST /auth/login (P1, developer-backend)
+- **bd-42** : Créer l'endpoint POST /auth/login (P1, developer domaine backend)
   - Critères d'acceptance : endpoint retourne un token JWT valide avec expiration 24h
   - Dépendances : aucune — ticket fondation
   
-- **bd-43** : Implémenter le middleware de vérification JWT (P1, developer-backend)
+- **bd-43** : Implémenter le middleware de vérification JWT (P1, developer domaine backend)
   - Critères d'acceptance : middleware rejette les requêtes sans token ou avec token invalide/expiré
   - Dépendances : bd-42 (consomme le service d'auth créé par bd-42)
   
-- **bd-44** : Créer la page de login (P1, developer-frontend)
+- **bd-44** : Créer la page de login (P1, developer domaine frontend)
   - Critères d'acceptance : formulaire login/password, appel API /auth/login, stockage token localStorage
   - Dépendances : bd-42 (consomme l'endpoint créé par bd-42)
 
@@ -244,9 +244,9 @@ Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 
 | ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
 |----|-------|------|----------|--------|-------------|-----|-----------|
-| bd-42 | Créer endpoint POST /auth/login | feature | P1 | backend, api, auth | developer-backend | — | — |
-| bd-43 | Implémenter middleware vérification JWT | feature | P1 | backend, middleware, auth | developer-backend | ✅ | bd-42 |
-| bd-44 | Créer page de login | feature | P1 | frontend, ui, auth | developer-frontend | — | bd-42 |
+| bd-42 | Créer endpoint POST /auth/login | feature | P1 | backend, api, auth | developer (backend) | — | — |
+| bd-43 | Implémenter middleware vérification JWT | feature | P1 | backend, middleware, auth | developer (backend) | ✅ | bd-42 |
+| bd-44 | Créer page de login | feature | P1 | frontend, ui, auth | developer (frontend) | — | bd-42 |
 
 **Total :** 3 tickets créés (0 epics + 3 tickets fils)
 

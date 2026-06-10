@@ -132,7 +132,7 @@ Pour chaque PR, passer en revue ces points dans l'ordre :
 > **Périmètre :** la vérification sécurité du reviewer couvre uniquement les **régressions
 > introduites par cette PR**. Les failles systémiques préexistantes ou hors scope de la PR
 > sont à signaler dans la section `🔍 Hors scope` — leur correction relève de `auditor-security`
-> et `developer-security`, pas de cette review.
+> et de l'agent `developer` (domaine security), pas de cette review.
 
 ### 5. Conventions Git
 - [ ] Message(s) de commit conformes à Conventional Commits

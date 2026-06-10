@@ -44,14 +44,14 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
 ### Détail par ticket
-| ID | Agent | QA | Cycles review | Critères couverts | Statut |
-|----|-------|----|---------------|-------------------|--------|
-| bd-XX | developer-frontend | oui — 3 tests | 1 | tous | ✅ Terminé |
-| bd-YY | developer-backend  | non | 2 | partielle | ✅ Terminé |
-| bd-ZZ | developer-api      | non | — | — | ⏭️ Ignoré  |
+| ID | Agent (domaine) | QA | Cycles review | Critères couverts | Statut |
+|----|----------------|----|---------------|-------------------|--------|
+| bd-XX | developer (frontend) | oui — 3 tests | 1 | tous | ✅ Terminé |
+| bd-YY | developer (backend)  | non | 2 | partielle | ✅ Terminé |
+| bd-ZZ | developer (api)      | non | — | — | ⏭️ Ignoré  |
 
 **Points d'attention :**
-- <point 1 — agrégation des points signalés par developer-*, qa-engineer, reviewer>
+- <point 1 — agrégation des points signalés par developer, developer-refactor, developer-migrator, qa-engineer, reviewer>
 - <point 2>
 **Statut global :** succès | partiel | bloqué
 ```
@@ -135,11 +135,11 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
 
 ### Récapitulatif du batch
 
-| ID | Titre | Agent | Verdict | Cycles |
-|-----|-------|-------|---------|--------|
-| bd-XX | <titre court — max 40 car.> | developer-frontend | commit | 1 |
-| bd-YY | <titre court> | developer-backend | commit | 2 |
-| bd-ZZ | <titre court> | developer-api | commit | 1 |
+| ID | Titre | Agent (domaine) | Verdict | Cycles |
+|-----|-------|----------------|---------|--------|
+| bd-XX | <titre court — max 40 car.> | developer (frontend) | commit | 1 |
+| bd-YY | <titre court> | developer (backend) | commit | 2 |
+| bd-ZZ | <titre court> | developer (api) | commit | 1 |
 
 > Tous les verdicts sont `commit` — aucun problème bloquant détecté sur ces tickets.
 

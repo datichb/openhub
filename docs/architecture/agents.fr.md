@@ -1,6 +1,6 @@
 # Référence des agents
 
-27 agents au total, organisés en 6 familles.
+19 agents au total, organisés en 6 familles.
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 
@@ -143,13 +143,13 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 | **Invocation** | `"Implémente les tickets [IDs]"` / `"Workflow dev sur [feature]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
-liste de tickets Beads prêts à implémenter, route vers les 9 agents `developer-*`,
+liste de tickets Beads prêts à implémenter, route vers l'agent `developer` avec le domaine approprié précisé dans le prompt d'invocation,
 supervise le QA optionnel et la review. Trois modes : `manuel` (défaut), `semi-auto`,
 `auto`. Invocable standalone ou depuis l'`orchestrator`.
 
 CP-2 (commit ou corriger ?) est toujours manuel dans tous les modes.
 
-`bd close`, `bd comments add` et `bd update` sont toujours exécutés par les agents `developer-*` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
+`bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
 En mode `orchestrateur_feature` : tous les CPs (CP-1, CP-QA, CP-3, branche dédiée, CP-2, blocage, ticket bloqué) produisent un bloc `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel) et terminent la session pour que l'orchestrateur relaie la question à l'utilisateur.
 
@@ -210,33 +210,41 @@ Les sous-agents eux-mêmes ne font jamais d'appel `task` — leur lecture seule 
 
 ## Famille — Agents développeurs
 
-9 agents spécialisés par domaine technique. Tous suivent le même workflow Beads
-(`bd claim → implémenter → tester → bd close`).
+1 agent générique spécialisé par domaine au moment de l'invocation.
+Suit le même workflow Beads (`bd claim → implémenter → tester → bd close`).
 
-Skills communs à tous : `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
+Le **domaine** et les **native_skills à charger** sont transmis par `orchestrator-dev` dans le prompt d'invocation.
+Chaque instance `task` s'exécute dans sa propre session isolée — les invocations parallèles avec des domaines différents sont totalement indépendantes.
 
-| Agent | Fichier | Domaine | Skills spécifiques |
-|-------|---------|---------|-------------------|
-| `developer-frontend` | `agents/developer/developer-frontend.md` | UI, composants, Vue.js, CSS, a11y | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-vuejs`, `dev-standards-testing` |
-| `developer-backend` | `agents/developer/developer-backend.md` | Services, repositories, migrations | `dev-standards-backend`, `dev-standards-testing` |
-| `developer-fullstack` | `agents/developer/developer-fullstack.md` | Features front + back | `dev-standards-frontend`, `dev-standards-backend`, `dev-standards-testing` |
-| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `stacks/* (injection dynamique)` |
-| `developer-devops` | `agents/developer/developer-devops.md` | Docker, CI/CD, scripts shell | `dev-standards-devops` |
-| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `stacks/* (injection dynamique)` |
-| `developer-api` | `agents/developer/developer-api.md` | REST, GraphQL, webhooks | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
-| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `stacks/* (injection dynamique)` |
-| `developer-security` | `agents/developer/developer-security.md` | Hardening applicatif post-audit | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+Skills communs à tous les domaines : `dev-standards-universal`, `dev-standards-simplicity`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
 
-> Voir [ADR-002](./adr/002-developer-segmentation.fr.md) pour la décision de segmentation.
+| Agent | Fichier | Domaine | Native Skills spécifiques |
+|-------|---------|---------|--------------------------|
+| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security — domaine précisé à l'invocation | Skills de domaine injectés via le prompt d'invocation (voir `orchestrator-dev-protocol`) |
 
-`developer-platform` se distingue de `developer-devops` : DevOps couvre Dockerfile,
-docker-compose, GitHub Actions et scripts shell applicatifs ; Platform couvre
-Terraform/Pulumi, manifests Kubernetes, Helm charts, ArgoCD/Flux.
+**Agents séparés (workflow distinct) :**
 
-`developer-security` se distingue de `developer-backend` : il intervient
-exclusivement après un audit `auditor-security` pour corriger les failles identifiées
-(headers HTTP, CORS, hashing, JWT, sessions, rate limiting, chiffrement). Il ne
-réalise pas d'audit.
+| Agent | Fichier | Domaine |
+|-------|---------|---------|
+| `developer-refactor` | `agents/developer/developer-refactor.md` | Refactoring structurel uniquement — ne modifie jamais le comportement observable |
+| `developer-migrator` | `agents/developer/developer-migrator.md` | Migrations incrémentales — upgrades de framework, versions majeures, dépendances EOL |
+
+> Voir [ADR-013](./adr/013-developer-agent-consolidation.fr.md) pour la décision de consolidation.
+> Voir [ADR-002](./adr/002-developer-segmentation.fr.md) (remplacé) pour la justification de la segmentation précédente.
+
+**Mapping domaine → native_skills (résumé) :**
+
+| Domaine | Native skills |
+|---------|--------------|
+| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
+| `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
+| `mobile` | `dev-standards-testing` + stacks mobile détectées |
+| `data` | `dev-standards-testing` + stacks data détectées |
+| `devops` | `dev-standards-devops` + stacks infra détectées |
+| `platform` | `dev-standards-devops` + stacks platform détectées |
+| `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
 
 **Post-ticket — Enrichissement des documents vivants :** après chaque `bd close`, identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose à l'utilisateur de les capitaliser (skill `living-docs-enrichment`).
 
@@ -453,11 +461,11 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 
 - **Agents en lecture seule** : auditor-*, reviewer — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
-- **Agents qui écrivent du code** : developer-*, qa-engineer — modifient uniquement les fichiers de leur domaine
+- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `qa-engineer` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
 - **Agents qui créent des tickets** : planner (tickets feature), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : tous peuvent faire `bd show <ID>` pour contextualiser leur travail
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — lecture seule, explore et rapporte, ne pilote pas d'autres agents
 - **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — visibles directement par l'utilisateur
-- **Agents `subagent`** : tous les `developer-*` et `auditor-*` (sauf `auditor` lui-même) — invocables par des agents coordinateurs
+- **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et tous les `auditor-*` (sauf `auditor` lui-même) — invocables par des agents coordinateurs

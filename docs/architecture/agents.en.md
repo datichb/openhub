@@ -1,6 +1,6 @@
 # Agent Reference
 
-27 agents in total, organized into 6 families.
+19 agents in total, organized into 6 families.
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 skills, and mode.
 
@@ -126,7 +126,8 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 | **Invocation** | `"Implement tickets [IDs]"` / `"Dev workflow for [feature]"` |
 
 AI tech lead specialized in driving implementation. Takes a list of ready-to-implement
-Beads tickets, routes to the 9 `developer-*` agents, supervises optional QA and review.
+Beads tickets, routes to the `developer` agent with the appropriate domain specified in the
+invocation prompt, supervises optional QA and review.
 Three modes: `manual` (default), `semi-auto`, `auto`. Invocable standalone or from the `orchestrator`.
 
 CP-2 (commit or fix?) is always manual in all modes.
@@ -178,33 +179,41 @@ All audit agents inject `auditor/audit-protocol-light` (common lightweight repor
 
 ## Family — Developer Agents
 
-9 agents specialized by technical domain. All follow the same Beads workflow
-(`bd claim → implement → test → bd close`).
+1 generic agent specialized by domain at invocation time.
+Follows the same Beads workflow (`bd claim → implement → test → bd close`).
 
-Common skills for all: `dev-standards-universal`, `dev-standards-security`, `dev-standards-git`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
+The **domain** and the **native_skills to load** are passed by `orchestrator-dev` in the invocation prompt.
+Each `task` instance runs in its own isolated session — parallel invocations with different domains are fully independent.
 
-| Agent | File | Domain | Specific Skills |
-|-------|------|--------|----------------|
-| `developer-frontend` | `agents/developer/developer-frontend.md` | UI, components, Vue.js, CSS, a11y | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-vuejs`, `dev-standards-testing` |
-| `developer-backend` | `agents/developer/developer-backend.md` | Services, repositories, migrations | `dev-standards-backend`, `dev-standards-testing` |
-| `developer-fullstack` | `agents/developer/developer-fullstack.md` | Full-stack features | `dev-standards-frontend`, `dev-standards-backend`, `dev-standards-testing` |
-| `developer-data` | `agents/developer/developer-data.md` | Pipelines, ETL, ML, dbt | `stacks/* (dynamic injection)` |
-| `developer-devops` | `agents/developer/developer-devops.md` | Docker, CI/CD, shell scripts | `dev-standards-devops` |
-| `developer-mobile` | `agents/developer/developer-mobile.md` | React Native, Flutter, iOS, Android | `stacks/* (dynamic injection)` |
-| `developer-api` | `agents/developer/developer-api.md` | REST, GraphQL, webhooks | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
-| `developer-platform` | `agents/developer/developer-platform.md` | Terraform, K8s, Helm, GitOps, infra as code | `stacks/* (dynamic injection)` |
-| `developer-security` | `agents/developer/developer-security.md` | Application hardening post-audit | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+Common skills for all domains: `dev-standards-universal`, `dev-standards-simplicity`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-handoff-format`, `shared/living-docs-enrichment`.
 
-> See [ADR-002](./adr/002-developer-segmentation.en.md) for the segmentation decision.
+| Agent | File | Domain | Specific Native Skills |
+|-------|------|--------|----------------------|
+| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security — domain passed at invocation | Domain skills injected via invocation prompt (see `orchestrator-dev-protocol`) |
 
-`developer-platform` differs from `developer-devops`: DevOps covers Dockerfile,
-docker-compose, GitHub Actions and application shell scripts; Platform covers
-Terraform/Pulumi, Kubernetes manifests, Helm charts, ArgoCD/Flux.
+**Separate agents (distinct workflow):**
 
-`developer-security` differs from `developer-backend`: it intervenes
-exclusively after an `auditor-security` audit to fix identified vulnerabilities
-(HTTP headers, CORS, hashing, JWT, sessions, rate limiting, encryption). It does not
-perform audits.
+| Agent | File | Domain |
+|-------|------|--------|
+| `developer-refactor` | `agents/developer/developer-refactor.md` | Structural refactoring only — never changes observable behavior |
+| `developer-migrator` | `agents/developer/developer-migrator.md` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
+
+> See [ADR-013](./adr/013-developer-agent-consolidation.en.md) for the consolidation decision.
+> See [ADR-002](./adr/002-developer-segmentation.en.md) (superseded) for the previous segmentation rationale.
+
+**Domain → native_skills mapping (summary):**
+
+| Domain | Native skills |
+|--------|--------------|
+| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing` + detected stacks |
+| `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + detected stacks |
+| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + detected stacks |
+| `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
+| `mobile` | `dev-standards-testing` + detected mobile stacks |
+| `data` | `dev-standards-testing` + detected data stacks |
+| `devops` | `dev-standards-devops` + detected infra stacks |
+| `platform` | `dev-standards-devops` + detected platform stacks |
+| `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
 
 **Post-ticket — Living docs enrichment:** after each `bd close`, identifies patterns, conventions, or technical constraints discovered during implementation that are absent from `CONVENTIONS.md` or `ONBOARDING.md`, and proposes to the user to capitalize them (skill `living-docs-enrichment`).
 
@@ -386,4 +395,4 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — read-only, explores and reports, doesn't drive other agents
 - **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — directly visible to the user
-- **`subagent` agents**: all `developer-*` and `auditor-*` (except `auditor` itself) — invocable by coordinator agents
+- **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and all `auditor-*` (except `auditor` itself) — invocable by coordinator agents

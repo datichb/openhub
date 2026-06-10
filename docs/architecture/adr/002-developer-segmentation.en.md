@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-013](./013-developer-agent-consolidation.en.md)**
+
+The 9 specialized agents have been consolidated back into a single generic `developer` agent.
+Specialization is now handled at invocation time via the prompt (domain + native_skills list),
+leveraging the Bucket B architecture introduced in ADR-010.
+
+---
 
 ## Context
 

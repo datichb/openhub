@@ -32,7 +32,8 @@ Un fichier absent ou vide signifie qu'aucune session n'est active.
     "id": "bd-42",
     "title": "Fix null guard",
     "status": "in_progress",
-    "agent": "developer-backend",
+    "agent": "developer",
+    "domain": "backend",
     "action": "implementing"
   },
   "tickets": [
@@ -64,7 +65,8 @@ Un fichier absent ou vide signifie qu'aucune session n'est active.
 | `id` | string | ID du ticket Beads (ex: `bd-42`) |
 | `title` | string | Titre court du ticket |
 | `status` | string | Statut du ticket (voir valeurs ci-dessous) |
-| `agent` | string | Agent délégué (ex: `developer-backend`) |
+| `agent` | string | Agent délégué (toujours `developer`, `developer-refactor` ou `developer-migrator`) |
+| `domain` | string | Domaine du ticket (ex: `backend`, `frontend`, `api`) — présent si agent = `developer` |
 | `action` | string | Action en cours (voir valeurs ci-dessous) |
 
 ### Objet ticket dans `tickets[]`
@@ -99,7 +101,7 @@ Un fichier absent ou vide signifie qu'aucune session n'est active.
 | `waiting_cp2` | En attente de décision CP-2 (commit ou corriger) |
 | `idle` | Pas d'action en cours (entre deux tickets) |
 
-> **Note :** Le champ `agent` dans `current_ticket` représente l'agent **assigné au ticket** (celui qui a fait l'implémentation), pas nécessairement l'agent qui exécute l'action en cours. Par exemple, lors d'une action `reviewing`, l'`agent` reste `developer-backend` car c'est lui qui est assigné au ticket, même si c'est le reviewer qui effectue la review.
+> **Note :** Le champ `agent` dans `current_ticket` représente l'agent **assigné au ticket** (celui qui a fait l'implémentation), pas nécessairement l'agent qui exécute l'action en cours. Par exemple, lors d'une action `reviewing`, l'`agent` reste `developer` (domaine `backend`) car c'est lui qui est assigné au ticket, même si c'est le reviewer qui effectue la review.
 
 ### `mode` (mode de workflow)
 
@@ -141,13 +143,13 @@ session_state_add_ticket "bd-44" "Update docs"
 
 # CP-1 — Premier ticket démarre
 session_state_update_ticket "bd-42" "in_progress"
-session_state_set_current "bd-42" "developer-backend" "implementing"
+session_state_set_current "bd-42" "developer" "implementing"
 
 # Étape 4 — Passage en review
-session_state_set_current "bd-42" "developer-backend" "reviewing"
+session_state_set_current "bd-42" "developer" "reviewing"
 
 # Étape 5 — CP-2
-session_state_set_current "bd-42" "developer-backend" "waiting_cp2"
+session_state_set_current "bd-42" "developer" "waiting_cp2"
 
 # Étape 6 — Ticket terminé
 session_state_update_ticket "bd-42" "completed"
@@ -155,7 +157,7 @@ session_state_clear_current
 
 # CP-1 — Deuxième ticket
 session_state_update_ticket "bd-43" "in_progress"
-session_state_set_current "bd-43" "developer-backend" "implementing"
+session_state_set_current "bd-43" "developer" "implementing"
 
 # ... etc ...
 

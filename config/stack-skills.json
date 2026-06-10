@@ -138,13 +138,15 @@
     ]
   },
   "_agent_scope": {
-    "developer-frontend": ["language", "frontend", "test", "api-spec"],
-    "developer-backend": ["language", "backend", "orm", "test", "api-spec"],
-    "developer-fullstack": ["language", "frontend", "backend", "orm", "test", "api-spec"],
-    "developer-api": ["language", "backend", "api-spec"],
-    "developer-mobile": ["mobile", "test"],
-    "developer-data": ["language", "data", "test"],
-    "developer-devops": ["infra"],
-    "developer-platform": ["infra"]
+    "developer": {
+      "frontend": ["language", "frontend", "test", "api-spec"],
+      "backend": ["language", "backend", "orm", "test", "api-spec"],
+      "fullstack": ["language", "frontend", "backend", "orm", "test", "api-spec"],
+      "api": ["language", "backend", "api-spec"],
+      "mobile": ["mobile", "test"],
+      "data": ["language", "data", "test"],
+      "devops": ["infra"],
+      "platform": ["infra"]
+    }
   }
 }

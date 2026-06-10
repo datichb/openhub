@@ -2,7 +2,13 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-013](./013-developer-agent-consolidation.fr.md)**
+
+Les 9 agents spécialisés ont été fusionnés en un unique agent `developer` générique.
+La spécialisation est désormais transmise au moment de l'invocation via le prompt (domaine + liste de native_skills),
+en s'appuyant sur l'architecture Bucket B introduite par l'ADR-010.
+
+---
 
 ## Contexte
 

@@ -82,7 +82,7 @@ Chaque étape de migration doit :
 | Changement de DB (MySQL → PostgreSQL) | Très élevée | Dual-write puis switch |
 | Upgrade majeur ORM | Moyenne | Suivre le guide officiel, tester les requêtes |
 
-**Attention :** Ne pas confondre avec les SQL migrations de schéma (scope developer-backend).
+**Attention :** Ne pas confondre avec les SQL migrations de schéma (scope du domaine backend).
 
 ### Build tools
 

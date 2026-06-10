@@ -32,7 +32,7 @@ opencode-hub  ──────────────────────
 
 ```
 
-Result: 27 specialized agents + Figma integration, always up to date, available across all your projects
+Result: 19 specialized agents + Figma integration, always up to date, available across all your projects
 from a single source of truth.
 
 ---
@@ -139,7 +139,7 @@ oc start MY-APP
 
 ## Available agents
 
-27 agents in two modes:
+19 agents in two modes:
 
 - **`primary`** — directly visible in the AI tool (OpenCode tab picker). Invocable by the user.
 - **`subagent`** — hidden from the picker. Only invocable by delegation from a coordinator agent.
@@ -149,7 +149,7 @@ oc start MY-APP
 | Agent | Family | Role |
 |-------|--------|------|
 | `orchestrator` | Coordinator | Feature end-to-end — delegates spec, audit, implementation |
-| `orchestrator-dev` | Coordinator | Ticket implementation — drives `developer-*` agents |
+| `orchestrator-dev` | Coordinator | Ticket implementation — drives `developer` agent (domain passed at invocation) |
 | `auditor` | Coordinator | Multi-domain audit — delegates to 7 `auditor-*` agents |
 | `onboarder` | Coordinator | Discovery of existing projects — detects stack, business domain, Figma designs, test strategy, and produces context report |
 | `planner` | Planning | Breaks down a feature into Beads tickets |
@@ -164,15 +164,9 @@ oc start MY-APP
 
 | Agent | Delegated by | Domain |
 |-------|-------------|--------|
-| `developer-frontend` | `orchestrator-dev` | UI, components, Vue.js, CSS, a11y |
-| `developer-backend` | `orchestrator-dev` | Services, repositories, migrations |
-| `developer-fullstack` | `orchestrator-dev` | Full-stack features |
-| `developer-data` | `orchestrator-dev` | Pipelines, ETL, ML, dbt |
-| `developer-devops` | `orchestrator-dev` | Docker, CI/CD, shell scripts |
-| `developer-mobile` | `orchestrator-dev` | React Native, Flutter, iOS, Android |
-| `developer-api` | `orchestrator-dev` | REST, GraphQL, webhooks |
-| `developer-platform` | `orchestrator-dev` | Terraform, K8s, Helm, GitOps |
-| `developer-security` | `orchestrator-dev` | Hardening after security audit |
+| `developer` | `orchestrator-dev` | Implementation — domain passed at invocation: frontend, backend, fullstack, api, mobile, data, devops, platform, security |
+| `developer-refactor` | `orchestrator-dev` | Structural refactoring — never changes observable behavior |
+| `developer-migrator` | `orchestrator-dev` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
 | `auditor-security` | `auditor` | OWASP Top 10, CVE, RGS |
 | `auditor-performance` | `auditor` | Core Web Vitals, N+1, cache |
 | `auditor-accessibility` | `auditor` | WCAG 2.1 AA, RGAA 4.1 |
@@ -275,7 +269,7 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 | Document | Description |
 |----------|-------------|
 | [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
-| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 27 agents |
+| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 19 agents |
 | [MCP Servers](servers/README.md) | MCP servers architecture and development |
 | [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
 | [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |

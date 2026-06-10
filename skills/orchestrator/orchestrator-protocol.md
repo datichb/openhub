@@ -1338,17 +1338,17 @@ ou agent absent de `.opencode/agents/`), ne jamais silencieusement basculer vers
 
 | Agent manquant | Substitut proposé | Limitation |
 |----------------|-------------------|------------|
-| `auditor-security` | `developer-security` | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
-| `auditor-accessibility` | `developer-frontend` | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
-| `auditor-architecture` | `developer-fullstack` | Pas d'analyse SOLID/couplage structurée — revue partielle |
-| `auditor-performance` | `developer-fullstack` | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
+| `auditor-security` | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
+| `auditor-accessibility` | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
+| `auditor-architecture` | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
+| `auditor-performance` | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
 | `auditor-privacy` | *(aucun substitut)* | — |
 | `auditor-ecodesign` | *(aucun substitut)* | — |
 | `auditor-observability` | *(aucun substitut)* | — |
 | `ux-designer` | *(aucun substitut)* | — |
 | `ui-designer` | *(aucun substitut)* | — |
 
-> **Note :** Les agents `developer-*` listés comme substituts (`developer-security`, `developer-frontend`, `developer-fullstack`) sont invoqués **via `orchestrator-dev`**, jamais directement par l'orchestrator. L'orchestrator délègue à `orchestrator-dev` qui route ensuite vers le developer approprié.
+> **Note :** L'agent `developer` listé comme substitut est invoqué **via `orchestrator-dev`** avec le domaine approprié, jamais directement par l'orchestrator. L'orchestrator délègue à `orchestrator-dev` qui route ensuite vers `developer` avec le bon domaine.
 
 **Si un substitut existe**, utiliser l'outil `question` avec 3 options :
 

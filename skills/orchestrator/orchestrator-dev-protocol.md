@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-protocol
-description: Protocole de l'orchestrateur développement — pilote le workflow Beads ticket par ticket, route vers les 9 agents developer-*, gère les étapes QA et review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'orchestrateur feature.
+description: Protocole de l'orchestrateur développement — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère les étapes QA et review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'orchestrateur feature.
 ---
 
 # Skill — Protocole Orchestrateur Dev
@@ -117,7 +117,7 @@ Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` 
 
 | Action | Outil à utiliser | Interdit |
 |--------|-----------------|---------|
-| Déléguer à un `developer-*` | `Task(subagent_type: "developer-frontend")` etc. | Écrire le code soi-même |
+| Déléguer à l'agent `developer` | `Task(subagent_type: "developer")` avec prompt contenant domaine + skills | Écrire le code soi-même |
 | Déléguer au `reviewer` | `Task(subagent_type: "reviewer")` | Résumer ou évaluer le code soi-même |
 | Déléguer au `qa-engineer` | `Task(subagent_type: "qa-engineer")` | Écrire les tests soi-même |
 | Déléguer au `documentarian` | `Task(subagent_type: "documentarian")` | Mettre à jour le CHANGELOG soi-même |
@@ -133,26 +133,60 @@ Le tableau des trois modes (manuel/semi-auto/auto), les règles absolues associ�
 
 ---
 
-## Matrice de routing — quel developer pour quel ticket ?
+## Matrice de routing — quel domaine pour quel ticket ?
 
-Analyser le titre, la description et les labels du ticket.
-En cas d'ambiguïté, choisir `developer-fullstack` et l'indiquer dans le compte rendu.
+Analyser le titre, la description et les labels du ticket pour déterminer le **domaine**.
+L'agent invoqué est toujours `developer` — c'est le **domaine** qui change dans le prompt d'invocation.
+En cas d'ambiguïté, choisir le domaine `fullstack` et l'indiquer dans le compte rendu.
 
-| Signaux dans le ticket | Agent délégué |
-|------------------------|---------------|
-| frontend, UI, composant, Vue, React, CSS, interface | `developer-frontend` |
-| backend, service, repository, SQL migration, schéma, logique métier, base de données, ORM | `developer-backend` |
-| fullstack, feature traversante, front + back liés | `developer-fullstack` |
-| data, ETL, pipeline, ML, machine learning, dbt, Airflow, BI | `developer-data` |
-| docker, CI/CD, script shell, pipeline de build | `developer-devops` |
-| mobile, React Native, Flutter, Swift, Kotlin, iOS, Android | `developer-mobile` |
-| API, REST, GraphQL, webhook, intégration tierce, SDK, endpoint | `developer-api` |
-| infra as code, Terraform, Pulumi, K8s, Helm, GitOps, platform | `developer-platform` |
-| sécurité, hardening, CORS, headers HTTP, JWT, rate limiting, audit sécurité | `developer-security` |
-| refactoring, extraction, renommage, réorganisation, patterns, simplification, dette technique | `developer-refactor` |
-| migration, upgrade, version majeure, changement de framework, dépendance obsolète, EOL, dépréciation | `developer-migrator` |
+| Signaux dans le ticket | Domaine | Native skills à injecter |
+|------------------------|---------|--------------------------|
+| frontend, UI, composant, Vue, React, CSS, interface | `frontend` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
+| backend, service, repository, SQL migration, schéma, logique métier, base de données, ORM | `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| fullstack, feature traversante, front + back liés | `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| data, ETL, pipeline, ML, machine learning, dbt, Airflow, BI | `data` | `dev-standards-testing` + stacks data détectées |
+| docker, CI/CD, script shell, pipeline de build | `devops` | `dev-standards-devops` + stacks infra détectées |
+| mobile, React Native, Flutter, Swift, Kotlin, iOS, Android | `mobile` | `dev-standards-testing` + stacks mobile détectées |
+| API, REST, GraphQL, webhook, intégration tierce, SDK, endpoint | `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
+| infra as code, Terraform, Pulumi, K8s, Helm, GitOps, platform | `platform` | `dev-standards-devops` + stacks platform détectées |
+| sécurité, hardening, CORS, headers HTTP, JWT, rate limiting, audit sécurité | `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+| refactoring, extraction, renommage, réorganisation, patterns, simplification, dette technique | — | Agent `developer-refactor` (agent dédié, pas `developer`) |
+| migration, upgrade, version majeure, changement de framework, dépendance obsolète, EOL, dépréciation | — | Agent `developer-migrator` (agent dédié, pas `developer`) |
 
 **Règle de priorité :** labels Beads en priorité → titre → description.
+
+### Format du prompt d'invocation vers `developer`
+
+Chaque appel `task` vers `developer` DOIT inclure dans son prompt :
+
+```
+Tu agis en tant que developer [DOMAINE].
+
+Charge et applique les skills suivants :
+- [liste des native_skills selon le tableau ci-dessus]
+
+Ticket :
+[contenu complet de bd show <ID>]
+```
+
+**Exemple — domaine frontend avec Vue.js + Vitest détectés :**
+
+```
+Tu agis en tant que developer frontend.
+
+Charge et applique les skills suivants :
+- dev-standards-frontend
+- dev-standards-frontend-a11y
+- dev-standards-testing
+- stacks/dev-standards-vuejs
+- stacks/dev-standards-vitest
+
+Ticket :
+[contenu complet de bd show bd-12]
+```
+
+> Les stacks détectées dans le projet (cf. `ONBOARDING.md` ou `stack-skills.json`) sont à inclure selon le domaine.
+> En l'absence de `ONBOARDING.md`, inclure uniquement les skills génériques du domaine.
 
 ---
 
@@ -169,11 +203,11 @@ Afficher le tableau récapitulatif :
 ```
 ## Tickets à implémenter
 
-| ID | Titre | Priorité | Type | Agent identifié | TDD |
-|----|-------|----------|------|-----------------|-----|
-| bd-12 | ...  | P1 | feature | developer-frontend | —   |
-| bd-13 | ...  | P1 | task    | developer-backend  | ✅  |
-| bd-14 | ...  | P2 | feature | developer-platform | —   |
+| ID | Titre | Priorité | Type | Domaine identifié | TDD |
+|----|-------|----------|------|-------------------|-----|
+| bd-12 | ...  | P1 | feature | developer (frontend) | —   |
+| bd-13 | ...  | P1 | task    | developer (backend)  | ✅  |
+| bd-14 | ...  | P2 | feature | developer (platform) | —   |
 
 <NB_TICKETS> tickets identifiés. <NB_TDD> en TDD (tests écrits avant l'implémentation — QA skippé).
 ```
@@ -244,7 +278,7 @@ En mode `auto`, avant de démarrer le traitement ticket par ticket, évaluer si 
 **Les 4 critères — tous doivent être vérifiés :**
 
 1. **Pas de dépendance formelle entre tickets du lot** : pour chaque ticket, `bd dep list <ID>` — l'intersection avec les IDs du lot est vide
-2. **Agents distincts et domaines disjoints** : tous les tickets sont routés vers des `developer-*` différents, pas de `developer-fullstack` dans le lot
+2. **Domaines disjoints** : tous les tickets sont routés vers des domaines différents de l'agent `developer`, pas de domaine `fullstack` dans le lot
 3. **Pas de fichiers transverses prévisibles** : aucune mention de types partagés, migrations de base de données, ou fichiers de configuration globaux dans les descriptions
 4. **Maximum 3 tickets dans le lot parallèle**
 
@@ -1017,11 +1051,11 @@ CP-2 est **toujours une pause, dans tous les modes**.
   > **Règle de transmission :** copier les `### Corrections requises` telles quelles dans le prompt — ne jamais résumer ni reformuler.
 
   **Routing de la correction — basé sur le `### Routing recommandé` du retour reviewer :**
-  - `developer-security` → router vers `developer-security`
-    > « La correction est de nature sécurité — je route vers `developer-security`. »
-  - `retour-initial` → retourner à l'agent développeur initial
+  - `developer-security` → router vers `developer` (domaine `security`)
+    > « La correction est de nature sécurité — je route vers `developer` (domaine security). »
+  - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
-  > « Je retourne le ticket à `<developer-xxx>` avec les corrections demandées. »
+  > « Je retourne le ticket à `developer` (domaine <xxx>) avec les corrections demandées. »
   > Puis repasser étape 3 (QA optionnel) → étape 3.5 (Pre-review) → étape 4 (review).
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
@@ -1362,11 +1396,11 @@ Ajouter immédiatement après le récap global le bloc `## Retour vers orchestra
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
 ### Détail par ticket
-| ID | Agent | QA | Cycles review | Critères couverts | Statut |
-|----|-------|----|---------------|-------------------|--------|
-| bd-XX | developer-frontend | oui — <NB_TESTS> tests | 1 | tous | ✅ Terminé |
-| bd-YY | developer-backend  | non | 2 | partielle | ✅ Terminé |
-| bd-ZZ | developer-api      | non | — | — | ⏭️ Ignoré  |
+| ID | Agent (domaine) | QA | Cycles review | Critères couverts | Statut |
+|----|----------------|----|---------------|-------------------|--------|
+| bd-XX | developer (frontend) | oui — <NB_TESTS> tests | 1 | tous | ✅ Terminé |
+| bd-YY | developer (backend)  | non | 2 | partielle | ✅ Terminé |
+| bd-ZZ | developer (api)      | non | — | — | ⏭️ Ignoré  |
 
 **Points d'attention :**
 - <agrégation des points d'attention techniques collectés à chaque étape 6>
@@ -1444,8 +1478,8 @@ question({
     header: "Agent non identifié",
     question: "Aucun agent clairement identifié pour le ticket #<ID>. Quel agent utiliser ?",
     options: [
-      { label: "developer-fullstack (Recommandé)", description: "Agent généraliste — couvre les cas ambigus front + back" },
-      { label: "Préciser manuellement", description: "Indiquer l'agent à utiliser dans la réponse libre" }
+      { label: "developer (domaine fullstack — Recommandé)", description: "Agent généraliste — couvre les cas ambigus front + back" },
+      { label: "Préciser manuellement", description: "Indiquer le domaine à utiliser dans la réponse libre" }
     ]
   }]
 })
@@ -1598,7 +1632,7 @@ Les fonctions de logging sont définies dans `scripts/lib/metrics.sh` :
 ```
 # CP-1 — Démarrage du ticket
 metrics_start_timer "bd-42"
-metrics_ticket_start "bd-42" "developer-backend"
+metrics_ticket_start "bd-42" "developer"
 
 # Étape 4 — Premier passage en review
 metrics_review_cycle "bd-42" 1
@@ -1611,7 +1645,7 @@ metrics_review_cycle "bd-42" 2
 
 # Étape 6 — Ticket terminé
 duration=$(metrics_get_duration "bd-42")
-metrics_ticket_complete "bd-42" "developer-backend" "$duration"
+metrics_ticket_complete "bd-42" "developer" "$duration"
 metrics_clear_timer "bd-42"
 ```
 
@@ -1620,11 +1654,11 @@ metrics_clear_timer "bd-42"
 Chaque événement est une ligne JSON dans `.opencode/metrics.jsonl` :
 
 ```json
-{"timestamp":"2024-01-15T10:30:00Z","event":"ticket_start","ticket_id":"bd-42","agent":"developer-backend"}
+{"timestamp":"2024-01-15T10:30:00Z","event":"ticket_start","ticket_id":"bd-42","agent":"developer","domain":"backend"}
 {"timestamp":"2024-01-15T10:35:00Z","event":"review_cycle","ticket_id":"bd-42","cycle":1}
 {"timestamp":"2024-01-15T10:40:00Z","event":"correction","ticket_id":"bd-42","reason":"lint errors"}
 {"timestamp":"2024-01-15T10:42:00Z","event":"review_cycle","ticket_id":"bd-42","cycle":2}
-{"timestamp":"2024-01-15T10:45:00Z","event":"ticket_complete","ticket_id":"bd-42","agent":"developer-backend","duration_seconds":900}
+{"timestamp":"2024-01-15T10:45:00Z","event":"ticket_complete","ticket_id":"bd-42","agent":"developer","domain":"backend","duration_seconds":900}
 ```
 
 > **Note :** Ces fonctions sont destinées à être appelées par les agents orchestrateurs qui pilotent le workflow. Les agents `developer-*` n'appellent pas directement les fonctions de métriques — c'est l'orchestrateur qui trace les événements.
@@ -1659,13 +1693,13 @@ session_state_add_ticket "bd-43" "Add tests"
 
 # CP-1 — Démarrage d'un ticket
 session_state_update_ticket "bd-42" "in_progress"
-session_state_set_current "bd-42" "developer-backend" "implementing"
+session_state_set_current "bd-42" "developer" "implementing"
 
 # Étape 4 — Passage en review
-session_state_set_current "bd-42" "developer-backend" "reviewing"
+session_state_set_current "bd-42" "developer" "reviewing"
 
 # Étape 5 — CP-2
-session_state_set_current "bd-42" "developer-backend" "waiting_cp2"
+session_state_set_current "bd-42" "developer" "waiting_cp2"
 
 # Étape 6 — Ticket terminé
 session_state_update_ticket "bd-42" "completed"
@@ -1708,7 +1742,7 @@ session_state_end
 - Modifier les tickets Beads sans validation de l'utilisateur
 - Lancer plusieurs tickets en parallèle en mode `manuel` ou `semi-auto` — le parallélisme conditionnel est réservé au mode `auto` avec les 4 critères vérifiés
 - Lancer plus de 3 sessions parallèles simultanées
-- Lancer en parallèle des tickets avec des dépendances formelles entre eux (`bd dep list` révèle une intersection non vide avec le lot), un `developer-fullstack` dans le lot, ou des types/migrations/configs partagés mentionnés dans la description
+- Lancer en parallèle des tickets avec des dépendances formelles entre eux (`bd dep list` révèle une intersection non vide avec le lot), un ticket de domaine `fullstack` dans le lot, ou des types/migrations/configs partagés mentionnés dans la description
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité
 - Résumer les `### Corrections requises` du reviewer dans le commentaire Beads — les copier telles quelles
 - Continuer vers la review sans avoir reçu le bloc `## Retour vers orchestrator-dev` du developer

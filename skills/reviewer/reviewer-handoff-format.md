@@ -67,7 +67,7 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
 |---------|-----------|
 | `commit` | Aucun Critique, aucun Majeur — le code peut être commité |
 | `corriger` | Au moins un Critique ou Majeur non lié à la sécurité |
-| `corriger-sécurité` | Au moins un Critique de nature sécurité — routing vers `developer-security` recommandé |
+   - `corriger-sécurité` | Au moins un Critique de nature sécurité — routing vers `developer` (domaine security) recommandé
 
 **Définitions du statut :**
 
@@ -85,7 +85,7 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
 - **Toujours produire ce bloc** à la suite du rapport, même si le rapport est minimal
 - **La section `### Corrections requises`** doit être suffisamment précise pour qu'`orchestrator-dev` puisse la coller directement dans un commentaire Beads sans reformulation
 - Si verdict = `commit` → `### Corrections requises` est vide ou contient "Aucune correction requise"
-- **Le `### Routing recommandé`** est `developer-security` si et seulement si au moins un 🔴 Critique est de nature sécurité — sinon `retour-initial`
+   - **Le `### Routing recommandé`** est `developer-security` (token indiquant domaine security) si et seulement si au moins un 🔴 Critique est de nature sécurité — sinon `retour-initial`
 
 > ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport de review complet.
 > ❌ Ne jamais résumer le rapport — le bloc handoff est un résumé structuré, pas un substitut.
@@ -109,8 +109,8 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
    Ne jamais reformuler ou résumer ces corrections — les coller telles quelles.
 
 4. **Utiliser le `### Routing recommandé`** pour router la correction :
-   - `developer-security` → router vers `developer-security` pour la correction
-   - `retour-initial` → retourner à l'agent developer initial
+   - `developer-security` → router vers l'agent `developer` avec domaine `security` pour la correction
+   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
 5. **Si le bloc est absent** → demander explicitement au reviewer de le produire avant de continuer.
 
