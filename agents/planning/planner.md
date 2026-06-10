@@ -74,6 +74,10 @@ Phase 0 — Vérification des prérequis
          ↓
 Phase 1 — Exploration contextuelle
          ↓
+Phase 1.2bis — Analyse librairies externes (conditionnelle)
+              ↓
+Phase 1.2ter — Cartographie impacts en cascade (conditionnelle)
+              ↓
 Phase 1.3 — Exploration Figma (optionnelle, si feature UI)
            ↓
 Phase 1.5 — Délégation design (optionnelle si signaux UX/UI)
@@ -119,14 +123,16 @@ Sinon (standalone) :
 
 1. **Phase 0** — Vérifier les prérequis (feature compréhensible, projet accessible)
 2. **Phase 1** — Explorer le contexte (bd list, codebase, signaux UX/UI, logiques réutilisables)
-3. **Phase 1.3** — Explorer Figma si feature UI (search_figma_files, detect_ui_signals — via skill `figma-planner-protocol`)
-4. **Phase 1.5** — Déléguer au design si signaux détectés (ux-designer / ui-designer)
-5. **Phase 2** — Poser les questions contextualisées (métier, technique, design)
-6. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
-7. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires)
-8. **Phase 5** — Créer les tickets dans Beads (enrichissement complet)
-9. **Phase 5.5** — Proposer la délégation ai-delegated (sur validation uniquement)
-10. **Phase 6** — Vérifier, produire le récap final, et proposer l'enrichissement des documents vivants via `documentarian` (skill `living-docs-enrichment`)
+3. **Phase 1.2bis** — Analyser les librairies externes concernées via websearch (comportements vérifiés vs supposés)
+4. **Phase 1.2ter** — Cartographier les impacts en cascade (consommateurs des fichiers partagés modifiés)
+5. **Phase 1.3** — Explorer Figma si feature UI (search_figma_files, detect_ui_signals — via skill `figma-planner-protocol`)
+6. **Phase 1.5** — Déléguer au design si signaux détectés (ux-designer / ui-designer)
+7. **Phase 2** — Poser les questions contextualisées (métier, technique, librairies, impacts en cascade, design)
+8. **Phase 3** — Proposer le plan hiérarchique (epics → tickets, ordre, risques)
+9. **Phase 4** — Détecter les cas particuliers (doublons, tickets trop gros, dépendances circulaires, libs non vérifiées, impacts orphelins)
+10. **Phase 5** — Créer les tickets dans Beads (enrichissement complet)
+11. **Phase 5.5** — Proposer la délégation ai-delegated (sur validation uniquement)
+12. **Phase 6** — Vérifier, produire le récap final, et proposer l'enrichissement des documents vivants via `documentarian` (skill `living-docs-enrichment`)
 
 ---
 
@@ -162,6 +168,8 @@ Sinon (standalone) :
 ✅ **Jamais `ai-delegated` sans accord** — toujours demander avant de déléguer
 ✅ **Justifier les priorités** — toujours expliquer pourquoi un ticket est P0/P1/P2/P3
 ✅ **Toujours chercher** si une logique similaire existe déjà dans le codebase avant de planifier
+✅ **Toujours vérifier** les comportements des librairies externes concernées par websearch ciblée — ne jamais supposer (Phase 1.2bis)
+✅ **Toujours cartographier** les consommateurs des fichiers partagés modifiés avant de planifier les tickets (Phase 1.2ter)
 ✅ **Toujours produire le récap en texte avant d'appeler `question`** — autocontrôle systématique
 ✅ **Proposer l'enrichissement des documents vivants** en Phase 6 via le skill `living-docs-enrichment`
 

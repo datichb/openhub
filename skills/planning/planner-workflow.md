@@ -549,6 +549,56 @@ Lire les fichiers, puis proposer d'aller plus loin si pertinent :
 
 Si une **information critique** émerge pendant l'exploration qui remet en cause le périmètre ou les hypothèses de départ → utiliser le format de pause inter-étape (contexte en texte + question).
 
+### Étape 1.2bis — Analyse des librairies externes (conditionnelle)
+
+**Déclencheur** : si la feature implique le comportement non trivial d'une librairie externe déjà présente dans le codebase — utilisation d'un hook, option d'une méthode, événement spécifique, side effect documenté, comportement version-dépendant.
+
+**Ne pas déclencher si** : la lib n'est utilisée que de façon triviale (imports de types, utilitaires simples), ou si le comportement concerné est déjà parfaitement documenté dans le codebase (tests, commentaires, ADR existants).
+
+**Pour chaque librairie identifiée comme concernée :**
+
+1. Formuler précisément le comportement supposé ou l'usage prévu
+2. Lancer une websearch ciblée :
+   ```
+   "[lib] [méthode/option/hook] [comportement attendu] [version ou année]"
+   ```
+3. Classer le résultat :
+   - **Vérifié** ✅ : comportement confirmé par la doc officielle ou une source fiable
+   - **Partiellement vérifié** ⚠️ : comportement probable mais dépendant de la version ou du contexte — préciser la condition
+   - **Supposition** ❌ : pas de source trouvée — documenter l'hypothèse explicitement
+
+> ⚠️ **Règle absolue** : ne jamais écrire dans un ticket une description qui suppose le comportement d'une librairie sans l'avoir vérifié. Si la vérification est impossible (websearch sans résultat), le noter comme hypothèse dans les notes du ticket avec le label `needs-clarification`.
+
+**Si une supposition s'avère incorrecte après recherche** → déclencheur de pause ⏸️ avec description de l'impact sur le périmètre du plan.
+
+---
+
+### Étape 1.2ter — Cartographie des impacts en cascade (conditionnelle)
+
+**Déclencheur** : si au moins un fichier **partagé** sera modifié — service, composable, type TypeScript, utilitaire, DTO, interface, repository, store Pinia, hook React, mixin.
+
+**Pour chaque fichier/interface identifié comme à modifier :**
+
+1. Rechercher ses consommateurs directs dans le codebase (imports, injections, usages)
+2. Pour chaque consommateur, évaluer :
+   - **Impact neutre** : le consommateur n'est pas affecté (pas de changement de signature ni de comportement observable)
+   - **Adapté automatiquement** : le consommateur devra être mis à jour — déjà inclus dans un ticket prévu
+   - **Ticket séparé nécessaire** : l'impact sur ce consommateur n'est pas couvert par le plan actuel → noter comme futur ticket potentiel
+
+**Format de l'impact map :**
+```
+[Fichier modifié]   → [Consommateurs identifiés]              → [Évaluation]
+UserService         → AuthController, ProfileUseCase            → impact neutre (signature inchangée)
+UserDTO             → 4 endpoints + 2 composants Vue            → ticket séparé nécessaire
+useFilters.ts       → FilterPanel.vue, SearchPage.vue           → adapté automatiquement (dans ticket bd-X)
+```
+
+Les entrées **"ticket séparé nécessaire"** alimentent directement la Phase 3 — elles doivent apparaître dans le plan hiérarchique.
+
+**⏸️ Ne pas attendre de réponse** — continuer avec l'impact map et l'intégrer dans le récap Phase 1.
+
+---
+
 ### Étape 1.3 — Exploration Figma (optionnelle)
 
 **Déclencheur** : Si au moins un de ces critères est vrai après l'Étape 1.2 :
@@ -600,6 +650,15 @@ Ce skill prescrit exactement :
 **Logiques existantes réutilisables :**
 - <nom logique> → <fichier:ligne> — <description courte> — <couche>
 - Risque de duplication : <oui ⚠️ / non>
+
+**Librairies externes analysées (étape 1.2bis) :**
+- `<lib@version>` — comportement de `<méthode/option>` : ✅ vérifié / ⚠️ partiel / ❌ supposé
+  → Source : <URL ou "aucune source trouvée — hypothèse documentée">
+- (étape non déclenchée — aucune lib externe non triviale concernée)
+
+**Impact en cascade (étape 1.2ter) :**
+- `<fichier modifié>` → consommateurs : <liste> → <neutre / adapté (ticket bd-X) / ticket séparé nécessaire>
+- (étape non déclenchée — aucun fichier partagé modifié)
 
 **Zones d'ombre identifiées :**
 - <zone 1 — ce qui n'a pas pu être déterminé depuis le codebase>
@@ -977,6 +1036,24 @@ Exemples :
 - "La migration [Y] est ouverte. Cette feature en dépend-elle ?"
 - "Le composant [Z] est partagé par 3 pages. La modification doit-elle rester rétrocompatible ?"
 - "Le pattern [use case / aggregate / etc.] est utilisé sur des features similaires. Faut-il s'y conformer ?"
+
+#### Questions librairies externes (si comportements ⚠️ ou ❌ en étape 1.2bis)
+
+Poser une question par librairie avec comportement non entièrement vérifié :
+
+- "J'ai supposé que `[lib.méthode()]` [description du comportement supposé — ex : déclenche un re-render synchrone]. Des contraintes de version ou des comportements spécifiques à l'environnement à clarifier ?"
+- "La doc de `[lib]` indique que [comportement partiel] mais ne précise pas [point d'ambiguïté]. Faut-il traiter ce cas dans ce périmètre ?"
+
+> **Règle** : ne poser cette question que si au moins un comportement est classé ⚠️ ou ❌ dans l'étape 1.2bis. Si tout est ✅ vérifié, skip.
+
+#### Questions impacts en cascade (si "ticket séparé nécessaire" dans l'impact map de l'étape 1.2ter)
+
+Poser une question par fichier partagé avec impact non couvert :
+
+- "La modification de `[fichier partagé]` impacte [N] consommateurs : [liste courte — ex : AuthController, ProfileUseCase, AdminController]. Tous doivent-ils être mis à jour dans ce périmètre, ou certains sont hors scope de cette itération ?"
+- "Le type `[NomType]` est utilisé dans [N] endroits. La modification de sa structure impacte [liste de consommateurs]. Traite-t-on tous ces impacts maintenant ou seulement [partie prioritaire] ?"
+
+> **Règle** : ne poser cette question que si au moins un consommateur est classé "ticket séparé nécessaire" dans l'impact map 1.2ter. Si tous les impacts sont neutres ou couverts, skip.
 
 #### Questions de design / UX (pour les features avec une interface)
 - Y a-t-il des maquettes ou des specs UX disponibles ?
@@ -1361,6 +1438,8 @@ Vérifier les cas limites qui pourraient avoir été manqués lors de la décomp
 - ✅ **Logiques existantes réutilisables** : Y a-t-il un risque de dupliquer du code existant ?
 - ✅ **Impacts indirects** : Y a-t-il des impacts sur d'autres parties du projet non couverts par le plan ?
 - ✅ **Configurations spécifiques** : Y a-t-il des configurations (env, feature flags) qui changent le comportement ?
+- ✅ **Comportements de librairies vérifiés** : Les suppositions de Phase 1.2bis ont-elles toutes été validées (✅) ou documentées comme hypothèses (`needs-clarification`) ? Y a-t-il des risques liés à des comportements non documentés ou version-dépendants ?
+- ✅ **Impact en cascade complet** : Tous les consommateurs des fichiers partagés modifiés (Phase 1.2ter) ont-ils un ticket prévu ou une justification explicite d'exclusion ? Aucun consommateur classé "ticket séparé nécessaire" ne doit rester sans traitement dans le plan.
 
 ### Déclencheur de pause ⏸️
 
