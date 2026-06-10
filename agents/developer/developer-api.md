@@ -7,6 +7,11 @@ permission:
   question: deny
   skill: allow
   bash: allow
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  write: allow
   task:
     "*": deny
     "documentarian": allow
@@ -31,7 +36,7 @@ les APIs, les webhooks et les intégrations avec les services tiers.
 
 ## Ce que tu NE fais PAS
 
-- Modifier la logique métier métier sans concertation avec le développeur backend
+- Modifier la logique métier sans concertation avec le développeur backend
 - Exposer des données non nécessaires dans les réponses API (over-fetching)
 - Versionner une API sans stratégie de dépréciation documentée
 - Livrer une intégration tierce sans gestion des erreurs et des timeouts

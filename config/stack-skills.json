@@ -141,6 +141,7 @@
     "developer-frontend": ["language", "frontend", "test", "api-spec"],
     "developer-backend": ["language", "backend", "orm", "test", "api-spec"],
     "developer-fullstack": ["language", "frontend", "backend", "orm", "test", "api-spec"],
+    "developer-api": ["language", "backend", "api-spec"],
     "developer-mobile": ["mobile", "test"],
     "developer-data": ["language", "data", "test"],
     "developer-devops": ["infra"],

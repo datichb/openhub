@@ -42,13 +42,7 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 | `planner` | planning | Décompose une feature en tickets Beads structurés (7 phases complètes) |
 | `ux-designer` | design | Analyse les flows utilisateur, produit les specs UX |
 | `ui-designer` | design | Conçoit le système visuel, spécifie les composants |
-| `auditor-security` | auditor | Audit sécurité applicative (OWASP, CVE) |
-| `auditor-performance` | auditor | Audit performance web (Web Vitals, N+1) |
-| `auditor-accessibility` | auditor | Audit accessibilité (WCAG, RGAA) |
-| `auditor-privacy` | auditor | Audit protection des données (RGPD) |
-| `auditor-observability` | auditor | Audit observabilité (métriques, logs, SLOs) |
-| `auditor-ecodesign` | auditor | Audit éco-conception (RGESN, GreenIT, sobriété numérique) |
-| `auditor-architecture` | auditor | Audit architecture & dette technique (SOLID, couplage) |
+| `auditor` | auditor | Coordinateur d'audit multi-domaine — délègue aux sous-agents selon le périmètre (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité) |
 | `orchestrator-dev` | planning | Pilote l'implémentation Beads — developer-* + QA + review + CHANGELOG |
 | `debugger` | quality | Diagnostique un bug signalé, crée le ticket de correction |
 
