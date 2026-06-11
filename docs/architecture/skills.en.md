@@ -55,6 +55,7 @@ Skills marked **(A)** are Bucket A — always inline. Skills marked **(B)** are 
 | `developer/dev-standards-security.md` | **B** | All developer-*, reviewer | Secrets/config, input validation, injections (SQL/shell/LDAP), auth/authorization, logs without sensitive data, dependency auditing — **tool-agnostic** |
 | `developer/dev-standards-backend.md` | **B** | developer-backend, developer-fullstack, developer-api, reviewer | Layered architecture, DTOs, services, repositories, API security |
 | `developer/dev-standards-frontend.md` | **B** | developer-frontend, developer-fullstack, reviewer | Logic/presentation separation, performance, bundle, lazy loading |
+| `developer/dev-standards-frontend-data.md` | **B** | developer-frontend, developer-fullstack, reviewer | Frontend data management — 5 characterization questions, decision matrix (local state, Context Provider, Store, Queries, Cookies, WebStorage, IndexedDB, Query String), detailed cards with trade-offs, golden rule "trim your data" |
 | `developer/dev-standards-frontend-a11y.md` | **B** | developer-frontend, developer-fullstack, reviewer | WCAG 2.1 A/AA, semantic HTML, ARIA, contrast |
 | `developer/dev-standards-testing.md` | **B** | developer-frontend, developer-backend, developer-fullstack, developer-api, developer-data | Testing strategy, pyramid, coverage, TDD — **tool-agnostic** |
 | `developer/dev-standards-git.md` | **B** | All developer-*, reviewer | Conventional Commits, branches, PRs, commit messages |

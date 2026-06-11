@@ -64,9 +64,9 @@ Chaque appel `task` vers `developer` DOIT inclure dans son prompt :
 
 | Domaine | Native skills |
 |---------|--------------|
-| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
+| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
 | `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
-| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
 | `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
 | `mobile` | `dev-standards-testing` + stacks mobile détectées |
 | `data` | `dev-standards-testing` + stacks data détectées |
@@ -81,6 +81,7 @@ Tu agis en tant que developer frontend.
 
 Charge et applique les skills suivants :
 - dev-standards-frontend
+- dev-standards-frontend-data
 - dev-standards-frontend-a11y
 - dev-standards-testing
 - stacks/dev-standards-vuejs (si détecté Vue.js dans le projet)

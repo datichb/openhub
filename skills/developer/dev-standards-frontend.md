@@ -22,6 +22,9 @@ Toute décision liée à la gestion de données côté frontend est soumise
 - Stratégie de cache des requêtes API
 - Gestion des états asynchrones (loading, error, success)
 
+Pour le guide complet de décision (état local, Context Provider, Store, Queries, Cookies,
+Web Storage, IndexedDB, Query String), voir `dev-standards-frontend-data`.
+
 ---
 
 ## Architecture & Organisation

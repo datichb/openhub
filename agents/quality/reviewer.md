@@ -13,7 +13,7 @@ permission:
     "documentarian": allow
 model: anthropic/claude-opus-4
 skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment]
-native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git]
+native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
 # 🔍 CodeReviewer

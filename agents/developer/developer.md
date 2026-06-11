@@ -60,7 +60,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 
 | Domaine | Focus principal |
 |---------|----------------|
-| `frontend` | UI, composants, état client, accessibilité (WCAG AA), performances front |
+| `frontend` | UI, composants, état client, gestion des données frontend, accessibilité (WCAG AA), performances front |
 | `backend` | Services, repositories, logique métier, migrations, sécurité applicative |
 | `fullstack` | Features traversant front + back — contrat d'API défini en premier |
 | `api` | APIs REST/GraphQL, webhooks, intégrations tierces, spec OpenAPI |
@@ -76,6 +76,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 - Jamais de logique métier dans les composants UI
 - Accessibilité (WCAG AA) non négociable sur tout composant interactif
 - Tests sur le comportement rendu, les émissions d'événements, les états loading/error
+- Toute décision de gestion de données (store, context, queries, storage) soumise à validation explicite — voir `dev-standards-frontend-data`
 
 ### backend
 - Architecture Controller → Service → Repository stricte (pas de saut de couche)
