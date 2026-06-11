@@ -1,6 +1,6 @@
 ---
 name: onboarder-workflow
-description: Workflow complet de l'onboarder en 6 phases (0 à 5) — détection de stack, exploration adaptative, questions de clarification, rapport de contexte, vérification des incohérences, génération des fichiers ONBOARDING.md et CONVENTIONS.md. Récaps systématiques et validations à chaque étape.
+description: Workflow complet de l'onboarder en 6 phases (0 à 5) — détection de stack, exploration adaptative, questions de clarification, rapport de contexte, vérification des incohérences, génération des fichiers ONBOARDING.md, CONVENTIONS.md et docs/context/ (technical.md + business/<domaine>.md). Récaps systématiques et validations à chaque étape.
 ---
 
 # Skill — Workflow Onboarder
@@ -12,8 +12,10 @@ produire un rapport de contexte honnête et actionnable — pas un document de
 communication, un état des lieux réel.
 
 Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception de :
-- `ONBOARDING.md` — que tu crées/écrases à la racine du projet en Phase 5
-- `CONVENTIONS.md` — que tu crées/écrases à la racine du projet en Phase 5
+- `ONBOARDING.md` — résumé exécutif compact, créé/écrasé à la racine en Phase 5
+- `CONVENTIONS.md` — conventions de code condensées, créé/écrasé à la racine en Phase 5
+- `docs/context/technical.md` — documentation technique détaillée, créé en Phase 5
+- `docs/context/business/<domaine>.md` — contexte métier par domaine, créés dynamiquement en Phase 5
 - `.git/info/exclude` — auquel tu ajoutes ces fichiers (exclusion locale uniquement)
 - `projects.md` — après confirmation explicite (chemin fourni dans le prompt)
 
@@ -28,6 +30,7 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 - Produire un rapport optimiste qui cache les problèmes
 - Inventer des observations non fondées sur des fichiers réellement lus
 - Écrire ONBOARDING.md ou CONVENTIONS.md avant la Phase 5
+- Écrire docs/context/technical.md ou docs/context/business/*.md avant la Phase 5
 - Appeler l'outil `question` sans avoir d'abord affiché le récap en texte clair dans la discussion
 
 ---
@@ -1452,55 +1455,17 @@ question({
 
 ### ÉTAPE 5.1 — Écrire ONBOARDING.md
 
-**Structure exacte à respecter :**
+**Structure exacte à respecter — résumé exécutif compact :**
 
 ```markdown
 # Onboarding — <NOM_PROJET>
 > Généré le <DATE>
 
 ## Stack détectée
-<langages, frameworks, outils détectés>
+<tableau condensé — langages, frameworks, DB, infra, versions clés>
 
 ## Architecture
-<structure du projet, patterns dominants, conventions>
-
-## Contexte métier
-<Domaine d'application, utilisateurs cibles, concepts clés détectés>
-<"Non documenté" si aucun contexte identifiable>
-
-## Design et maquettes
-**Fichiers Figma :**
-- [Nom fichier — URL](lien)
-
-**Design system :**
-- Framework : <DSFR / Material / Custom / Aucun>
-- Composants : <liste>
-
-**Design tokens :**
-- Couleurs : <liste des tokens principaux>
-- Typographie : <liste>
-- Espacements : <liste>
-
-<"Non disponible" si pas de Figma ou projet backend>
-
-## Stratégie de test
-**Frameworks :**
-- Unitaires : <Vitest / Jest / pytest / PHPUnit>
-- E2E : <Playwright / Cypress / Aucun>
-
-**Couverture :**
-- Seuil configuré : <X%>
-- Ratio actuel : <Y fichiers test pour Z fichiers source>
-
-**Philosophie :**
-- <TDD encouragé / BDD avec Cucumber / Test-after>
-
-**Commandes :**
-```bash
-npm test               # Tests unitaires
-npm run test:e2e       # Tests E2E
-npm run test:coverage  # Rapport de couverture
-```
+<3–5 lignes — pattern dominant, organisation des modules, particularités notables>
 
 ## Points critiques 🔴
 <problèmes bloquants ou risques majeurs — vide si aucun>
@@ -1508,14 +1473,19 @@ npm run test:coverage  # Rapport de couverture
 ## Points importants 🟠
 <points d'attention significatifs>
 
-## Améliorations suggérées 🟡
-<pistes d'amélioration non urgentes>
-
 ## Zones d'ombre
 <ce qui n'a pas pu être déterminé depuis la codebase>
+
+## Agents recommandés
+<prioritaires / recommandés / optionnels>
+
+## Contexte détaillé
+- [Domaines métier](docs/context/business/) — <liste des fichiers créés, ex : auth.md, billing.md>
+- [Documentation technique](docs/context/technical.md) — architecture, tests, librairies
 ```
 
-> Les sections **Agents recommandés** et **Commandes utiles** ne figurent pas dans ce fichier — elles restent dans la conversation uniquement.
+> Les sections **Contexte métier** (détaillé), **Design et maquettes**, **Stratégie de test** et **Améliorations suggérées 🟡** ne figurent pas dans ce fichier — elles sont dans `docs/context/`.
+> Les sections **Agents recommandés** et **Commandes utiles** ne figurent que dans la conversation.
 
 **⚠️ Si ONBOARDING.md existe déjà :**
 
@@ -1547,7 +1517,16 @@ question({
 **Selon la réponse :**
 - **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les découvertes du nouveau rapport de re-onboarding
 - **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
-- **Conserver** → Passer à ÉTAPE 5.2 sans modifier ONBOARDING.md
+- **Conserver** → Passer à ÉTAPE 5.1b sans modifier ONBOARDING.md
+
+**Re-onboarding : gestion des fichiers docs/context/ existants**
+
+Si `docs/context/technical.md` existe :
+- Proposer un enrichissement incrémental via `shared/living-docs-enrichment` avec les nouvelles découvertes techniques
+
+Si des fichiers `docs/context/business/<domaine>.md` existent :
+- Proposer un enrichissement incrémental de chaque fichier concerné via `shared/living-docs-enrichment`
+- Si un **nouveau domaine** est détecté lors du re-onboarding → passer par l'ÉTAPE 5.1b pour proposer sa création
 
 **Après l'écriture :**
 
@@ -1555,6 +1534,159 @@ Ajouter ONBOARDING.md au `.git/info/exclude` (exclusion locale uniquement) :
 - Créer `.git/info/` si n'existe pas
 - Créer `.git/info/exclude` si n'existe pas
 - Ajouter `ONBOARDING.md` s'il n'y est pas déjà
+- Ne JAMAIS modifier `.gitignore`
+
+---
+
+### ÉTAPE 5.1b — Détection et proposition des domaines métier
+
+À partir des artefacts explorés en Phase 1 (modules, routes, entités, bounded contexts), identifier les domaines métier du projet.
+
+**Workflow :**
+
+1. Analyser la sémantique de la codebase (noms de modules, routes, modèles, services) pour déduire les grands domaines
+2. Afficher la proposition en texte :
+
+```
+## 🗂️ Domaines métier détectés
+
+J'ai identifié les domaines suivants pour ce projet. Souhaitez-vous ajuster le découpage ?
+
+- `<domaine-1>` — <périmètre fonctionnel détecté>
+- `<domaine-2>` — <périmètre fonctionnel détecté>
+- `<domaine-3>` — <périmètre fonctionnel détecté>
+```
+
+3. Appeler l'outil `question` :
+
+```
+question({
+  questions: [{
+    header: "Domaines métier",
+    question: "[Onboarder — Phase 5 : domaines métier | Projet : <nom>]\nJ'ai détecté <N> domaines métier. Valider ce découpage pour créer les fichiers docs/context/business/ ?",
+    options: [
+      { label: "Valider ce découpage (Recommandé)", description: "Créer un fichier par domaine dans docs/context/business/" },
+      { label: "Modifier les domaines", description: "Ajuster les noms ou le périmètre avant création" },
+      { label: "Passer", description: "Créer un seul fichier docs/context/business/general.md avec le contexte métier global" }
+    ]
+  }]
+})
+```
+
+4. Selon la réponse :
+   - **Valider** → Créer `docs/context/business/<domaine>.md` pour chaque domaine avec la structure ci-dessous
+   - **Modifier** → Intégrer les ajustements de l'utilisateur, puis créer les fichiers
+   - **Passer** → Créer uniquement `docs/context/business/general.md`
+
+**Template `docs/context/business/<domaine>.md` :**
+
+```markdown
+# Domaine — <NOM_DOMAINE>
+> Généré le <DATE> | Projet : <NOM_PROJET>
+
+## Règles de gestion
+<règles métier observées dans le code — conditions, contraintes, invariants>
+
+## Flux principaux
+<flux utilisateur ou système clés — séquences importantes>
+
+## Entités clés
+<objets métier centraux — leur rôle, leurs relations>
+
+## Risques et points d'attention
+- 🔴 <risque critique lié à ce domaine>
+- 🟠 <point important>
+
+## Zones d'ombre
+<incertitudes non résolues sur ce domaine>
+```
+
+**Après écriture :**
+- Créer `docs/context/business/` si le dossier n'existe pas
+- Ajouter `docs/context/business/` au `.git/info/exclude`
+- Ne JAMAIS modifier `.gitignore`
+
+---
+
+### ÉTAPE 5.1c — Générer docs/context/technical.md
+
+À partir des données collectées en Phase 1 (exploration architecture, tests, librairies, Figma), générer le fichier de documentation technique.
+
+**Template `docs/context/technical.md` :**
+
+```markdown
+# Documentation technique — <NOM_PROJET>
+> Générée le <DATE>
+
+## Architecture
+<description détaillée : pattern dominant, organisation des modules, couches, couplages notables, frontières>
+
+<Structure observée :>
+src/
+├── <dossiers principaux avec leur rôle>
+
+## Stratégie de tests
+
+### Frameworks
+- Unitaires : <Vitest / Jest / pytest / PHPUnit>
+- E2E : <Playwright / Cypress / aucun>
+
+### Couverture
+- Seuil configuré : <X%>
+- Ratio actuel : <Y fichiers test pour Z fichiers source>
+- Commandes :
+  ```bash
+  <commande test unitaires>
+  <commande test E2E>
+  <commande couverture>
+  ```
+
+### Conventions de test
+- Philosophie : <TDD encouragé / BDD avec Cucumber / Test-after>
+- Co-location : <oui — *.spec.ts à côté des sources / non — dossier tests/ séparé>
+- Nommage : <`it('doit X quand Y')` / `test('should X')` / libre>
+- Mocking : <vi.mock / jest.mock / pytest monkeypatch / MSW>
+
+## Librairies externes clés
+
+| Rôle | Lib retenue | Alternatives écartées | Notes |
+|------|-------------|----------------------|-------|
+| State management | <lib> | <alternatives> | |
+| Requêtes HTTP | <lib> | <alternatives> | |
+| Validation | <lib> | <alternatives> | |
+| ORM / DB | <lib> | <alternatives> | |
+| UI / Design system | <lib> | <alternatives> | |
+| Dates | <lib> | <alternatives> | <moment — interdit si applicable> |
+
+## Design et maquettes
+
+**Fichiers Figma :**
+- [<Nom fichier>](<URL>)
+
+**Design system :**
+- Framework : <DSFR / Material / Custom / Aucun>
+- Composants : <liste>
+
+**Design tokens :**
+- Source : <Figma Variables / Code CSS/SCSS / Aucun>
+- Couleurs : <liste des tokens principaux — max 15>
+- Typographie : <liste — max 10>
+- Espacements : <liste — max 8>
+- Synchronisation : <Manuel / Plugin / Non configurée>
+
+<"Non applicable (projet backend)" si pas de Figma ni de frontend>
+
+## Zones d'ombre techniques
+<incertitudes architecturales ou techniques non résolues lors de l'exploration>
+```
+
+**⚠️ Si docs/context/technical.md existe déjà :**
+
+Appliquer le skill `shared/living-docs-enrichment` avec les nouvelles découvertes techniques — ne pas écraser.
+
+**Après écriture :**
+- Créer `docs/context/` si le dossier n'existe pas
+- Ajouter `docs/context/technical.md` au `.git/info/exclude`
 - Ne JAMAIS modifier `.gitignore`
 
 ---
@@ -1702,6 +1834,8 @@ Et observer :
 > Généré le <DATE> — mis à jour via : oc conventions <PROJECT_ID>
 > Ce fichier est un référentiel vivant. Les agents s'en servent comme source de
 > vérité pour respecter les conventions du projet.
+>
+> Architecture, librairies et stratégie de tests → [docs/context/technical.md](docs/context/technical.md)
 
 ---
 
@@ -1726,21 +1860,6 @@ Et observer :
 
 ---
 
-## Librairies & dépendances
-
-| Rôle | Lib retenue | À ne pas utiliser |
-|------|------------|-------------------|
-| State management | <Pinia / Zustand / RTK / ...> | <moment, lodash, etc. si exclus> |
-| Requêtes HTTP | <TanStack Query / axios / fetch natif / ...> | |
-| Validation | <Zod / Valibot / Yup / Pydantic / ...> | |
-| ORM / DB | <Prisma / Drizzle / SQLAlchemy / ...> | |
-| Tests unitaires | <Vitest / Jest / pytest / ...> | |
-| Tests E2E | <Playwright / Cypress / aucun> | |
-| UI / Design system | <shadcn-vue / Vuetify / Tailwind / ...> | |
-| Dates | <date-fns / Temporal / dayjs / ...> | <moment — interdit> |
-
----
-
 ## Nommage
 
 | Élément | Convention | Exemple |
@@ -1758,21 +1877,6 @@ Et observer :
 
 ---
 
-## Architecture & structure
-
-- **Organisation** : <feature-based / layer-based / domain-driven>
-- **Couches** : <Controller → Service → Repository / MVC / MVVM / etc.>
-- **Monorepo** : <oui (workspaces: ...) / non>
-- **Barrel exports** : <oui (`index.ts` systématique) / non>
-- **Tests** : <co-localisés (`*.spec.ts` à côté des sources) / dossier `tests/` séparé>
-- **Structure observée** :
-  ```
-  src/
-  ├── <dossiers principaux avec leur rôle>
-  ```
-
----
-
 ## Conventions Git
 
 - **Format de commit** : <Conventional Commits / libre / autre>
@@ -1783,56 +1887,12 @@ Et observer :
 
 ---
 
-## Standards de test
-
-- **Framework unitaire** : <Vitest / Jest / pytest / ...>
-- **Framework E2E** : <Playwright / Cypress / aucun>
-- **Couverture minimale** : <X% configuré / non configuré>
-- **Convention de nommage** : <`it('doit X quand Y')` / `test('should X')` / libre>
-- **Co-location** : <oui / non>
-- **Mocking** : <vi.mock / jest.mock / pytest monkeypatch / MSW pour les APIs>
-
----
-
 ## Config & secrets
 
 - **Variables d'env requises** : <liste depuis `.env.example`>
 - **Préfixe exposé côté client** : <`VITE_` / `NEXT_PUBLIC_` / `NUXT_PUBLIC_` / aucun>
 - **`.env` dans `.gitignore`** : <oui / ⚠️ non — à corriger>
 - **Gestion des secrets** : <vault / GitHub secrets / .env local uniquement>
-
----
-
-## Design tokens
-
-**Source :** <Figma Variables (fichier : [Design System](URL)) / Code CSS/SCSS / Aucun>
-
-**Tokens couleurs :**
-- `color/primary` : <valeur hex>
-- `color/secondary` : <valeur hex>
-- `color/error` : <valeur hex>
-- `color/success` : <valeur hex>
-<liste complète si Figma Variables configurées — max 15 tokens>
-
-**Tokens typographie :**
-- `text/heading-1` : <font-family, size, weight>
-- `text/body` : <font-family, size, weight>
-- `text/caption` : <font-family, size, weight>
-<liste complète — max 10 tokens>
-
-**Tokens espacements :**
-- `space/xs` : <valeur>px
-- `space/sm` : <valeur>px
-- `space/md` : <valeur>px
-- `space/lg` : <valeur>px
-- `space/xl` : <valeur>px
-<liste complète — max 8 tokens>
-
-**Synchronisation :** <Manuel / Plugin Figma Tokens → CSS / Non configurée>
-
-> ⚠️ Source de vérité : <Figma / Code CSS>
-
-<Vide si aucun design token détecté — ne rien afficher dans ce cas>
 
 ---
 
@@ -1885,10 +1945,6 @@ question({
 - **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les nouvelles conventions détectées lors du re-onboarding
 - **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
 - **Conserver** → Passer à ÉTAPE 5.3 sans modifier CONVENTIONS.md
-
-**Après l'écriture :**
-
-Ajouter CONVENTIONS.md au `.git/info/exclude` (exclusion locale uniquement) — même protocole que ONBOARDING.md.
 
 ---
 
@@ -1993,10 +2049,12 @@ biome.json, CONVENTIONS.md, ONBOARDING.md
 ## [Phase 5] Fichiers générés
 
 **Fichiers créés/enrichis :**
-- ✅ `ONBOARDING.md` — créé / réécrit / enrichi incrementalement à la racine du projet
-- ✅ `CONVENTIONS.md` — créé / réécrit / enrichi incrementalement à la racine du projet
+- ✅ `ONBOARDING.md` — créé / réécrit / enrichi incrementalement à la racine du projet (résumé exécutif)
+- ✅ `CONVENTIONS.md` — créé / réécrit / enrichi incrementalement à la racine du projet (conventions condensées)
+- ✅ `docs/context/technical.md` — créé / mis à jour
+- ✅ `docs/context/business/` — <X fichier(s) créé(s) : <liste des domaines>> / aucun
 - ✅ `.opencode/context.json` — cache de contexte généré
-- ✅ `.git/info/exclude` — ONBOARDING.md, CONVENTIONS.md et .opencode/context.json ajoutés
+- ✅ `.git/info/exclude` — fichiers ajoutés
 - ✅ `projects.md` — champ Stack mis à jour (si applicable)
 
 **Résumé du rapport :**
@@ -2192,7 +2250,7 @@ Phase 5 → Phase X (ajustements — demander quelle phase)
 ✅ **Agents prioritaires avant recommandés** : ne pas noyer l'utilisateur dans une liste plate
 ✅ **Rapport concis** : viser 1-2 pages — si le projet est simple, le rapport est court
 ❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
-❌ **Ne jamais écrire ONBOARDING.md ou CONVENTIONS.md avant Phase 5**
+❌ **Ne jamais écrire ONBOARDING.md, CONVENTIONS.md, docs/context/technical.md ou docs/context/business/*.md avant Phase 5**
 ❌ **Ne jamais appeler `question` sans avoir d'abord affiché le récap ou le contexte en texte**
 ❌ **Ne jamais modifier `.gitignore`** — utiliser `.git/info/exclude` uniquement
 ❌ **Ne jamais modifier `projects.md` sans confirmation explicite**

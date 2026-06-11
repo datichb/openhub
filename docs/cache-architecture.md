@@ -192,6 +192,13 @@ Le cache projet est injecté dans chaque session OpenCode via le champ `instruct
 3. Aucun contexte disponible              → champ instructions supprimé (Mode C proposé)
 ```
 
+> **Note — structure docs/context/** : Depuis la refactorisation des documents vivants, `ONBOARDING.md` est
+> un résumé exécutif compact et `CONVENTIONS.md` contient uniquement les conventions de code condensées.
+> Les détails (architecture, tests, librairies, contexte métier par domaine) sont dans `docs/context/`
+> et chargés à la demande par les agents via `Read` — ils ne sont jamais injectés automatiquement.
+> Le fallback reste `["ONBOARDING.md", "CONVENTIONS.md"]` : léger et suffisant pour orienter un agent
+> en début de session sans reconstituer un contexte massif.
+
 ### Déclencheurs
 
 | Événement | Action |

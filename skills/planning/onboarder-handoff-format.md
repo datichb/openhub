@@ -82,6 +82,8 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 ### Fichiers de contexte produits
 - `ONBOARDING.md` — <créé | mis à jour | non créé (raison)>
 - `CONVENTIONS.md` — <créé | mis à jour | non créé (raison)>
+- `docs/context/technical.md` — <créé | mis à jour | non créé (raison)>
+- `docs/context/business/` — <liste des fichiers créés/mis à jour, ex : auth.md, billing.md | aucun>
 
 ### Statut
 `contexte-établi` | `contexte-partiel` | `bloqué`
@@ -126,6 +128,7 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 2. **Afficher l'intégralité du bloc `## Retour vers orchestrator` dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — vérifier que tous les champs obligatoires sont présents.
 
 3. **Vérifier la présence de tous les champs obligatoires** : `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`.
+   - `Fichiers de contexte produits` doit mentionner ONBOARDING.md, CONVENTIONS.md, docs/context/technical.md et docs/context/business/.
    - Si l'un de ces champs est absent → demander explicitement à l'onboarder de compléter avant de continuer.
 
 4. **Si le rapport d'onboarding complet est absent** (le bloc handoff est présent sans rapport préalable) → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.
