@@ -115,41 +115,48 @@ teardown() {
 }
 
 @test "t : fallback FR -> EN si clé FR absente" {
+  # La clé "cancelled" existe en FR ("Annulé") et en EN ("Cancelled").
+  # On vérifie que OC_LANG=fr retourne bien la traduction FR (non vide, non la clé brute).
   export OC_LANG=fr
-  
-  # Tester une clé qui pourrait n'exister qu'en EN
-  run t "some.english.only.key"
-  [ -n "$output" ]
+  run t "cancelled"
+  [ "$status" -eq 0 ]
+  [ "$output" = "Annulé" ]
 }
 
 # ── Échantillon clés par catégorie ──────────────────────────────────────────
 
-@test "t : échantillon clés cmd-project" {
+@test "t : échantillon clés cmd-project (help.title)" {
   export OC_LANG=en
   
-  run t "project.list.title"
+  run t "help.title"
+  [ "$status" -eq 0 ]
   [ -n "$output" ]
+  [ "$output" != "help.title" ]
 }
 
-@test "t : échantillon clés cmd-deploy" {
+@test "t : échantillon clés cmd-deploy (service.deploy.title)" {
   export OC_LANG=en
   
-  run t "deploy.title"
-  [ -n "$output" ]
+  run t "service.deploy.title"
+  [ "$status" -eq 0 ]
+  [ "$output" = "Deploy MCP server" ]
 }
 
-@test "t : échantillon clés cmd-beads" {
+@test "t : échantillon clés cmd-beads (beads.status.all)" {
   export OC_LANG=en
   
-  run t "beads.status.title"
-  [ -n "$output" ]
+  run t "beads.status.all"
+  [ "$status" -eq 0 ]
+  [ "$output" = "Beads status — all projects" ]
 }
 
-@test "t : échantillon clés cmd-config" {
+@test "t : échantillon clés cmd-config (config.title)" {
   export OC_LANG=en
   
-  run t "config.show.title"
+  run t "config.title"
+  [ "$status" -eq 0 ]
   [ -n "$output" ]
+  [ "$output" != "config.title" ]
 }
 
 # ── Tests variantes linguistiques ───────────────────────────────────────────

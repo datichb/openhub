@@ -516,7 +516,7 @@ EOF
 }
 
 @test "resolve_project_path : exit 1 si le projet n'existe pas" {
-  run resolve_project_path "INEXISTANT"
+  run bash -c "source \"$BATS_TEST_DIRNAME/../scripts/common.sh\" 2>/dev/null; PATHS_FILE=\"$PATHS_FILE\" resolve_project_path INEXISTANT 2>&1"
   [ "$status" -eq 1 ]
   [[ "$output" == *"introuvable"* ]]
 }
@@ -524,14 +524,14 @@ EOF
 @test "resolve_project_path : exit 1 si le chemin est vide" {
   # PROJ-NO-LABELS existe dans projects.md mais n'a pas d'entrée dans paths.local.md
   printf '' > "$PATHS_FILE"
-  run resolve_project_path "PROJ-NO-LABELS"
+  run bash -c "source \"$BATS_TEST_DIRNAME/../scripts/common.sh\" 2>/dev/null; PATHS_FILE=\"$PATHS_FILE\" resolve_project_path PROJ-NO-LABELS 2>&1"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Aucun chemin"* ]]
 }
 
 @test "resolve_project_path : exit 1 si le dossier n'existe pas sur le disque" {
   printf 'PROJ-FR=/tmp/dossier-inexistant-%s\n' "$$" > "$PATHS_FILE"
-  run resolve_project_path "PROJ-FR"
+  run bash -c "source \"$BATS_TEST_DIRNAME/../scripts/common.sh\" 2>/dev/null; PATHS_FILE=\"$PATHS_FILE\" resolve_project_path PROJ-FR 2>&1"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Dossier introuvable"* ]]
 }

@@ -55,6 +55,9 @@ setup() {
 
 teardown() {
   rm -rf "$TEST_DIR"
+  # Nettoyer les fonctions définies dans setup() pour éviter la pollution inter-tests
+  unset -f log_info log_success log_warn log_error 2>/dev/null || true
+  unset -f _ensure_api_keys_file _write_section _remove_section 2>/dev/null || true
 }
 
 # ── _write_section : écriture initiale ───────────────────────────────────────

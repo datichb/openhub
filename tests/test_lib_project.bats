@@ -123,11 +123,10 @@ EOF
   [ "$output" = "jira" ]
 }
 
-@test "get_project_tracker : retourne vide si champ Tracker absent" {
-  skip "get_project_tracker retourne une valeur par défaut au lieu de vide"
+@test "get_project_tracker : retourne 'none' si champ Tracker absent" {
   run get_project_tracker "PROJ-B"
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  [ "$output" = "none" ]
 }
 
 # ── get_project_labels ─────────────────────────────────────────────────────────
@@ -160,11 +159,10 @@ EOF
   [ "$output" = "code-review, security" ]
 }
 
-@test "get_project_agents : retourne vide si pas d'agents" {
-  skip "get_project_agents retourne une valeur par défaut"
+@test "get_project_agents : retourne 'all' si pas d'agents" {
   run get_project_agents "PROJ-B"
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  [ "$output" = "all" ]
 }
 
 # ── path_exists ────────────────────────────────────────────────────────────────
@@ -188,11 +186,14 @@ EOF
 
 # ── get_project_language ───────────────────────────────────────────────────────
 
-@test "get_project_language : retourne le Stack comme language" {
-  skip "get_project_language doit avoir une logique différente de Stack"
-  run get_project_language "PROJ-A"
+@test "get_project_language : retourne le champ Langue du projet" {
+  # get_project_language lit le champ "Langue", pas "Stack".
+  # Ajouter un projet avec le champ Langue explicite.
+  echo -e "\n## PROJ-LANG\n- Nom : Projet Langue\n- Stack : Go\n- Langue : english" >> "$PROJECTS_FILE"
+  
+  run get_project_language "PROJ-LANG"
   [ "$status" -eq 0 ]
-  [ "$output" = "TypeScript" ]
+  [ "$output" = "english" ]
 }
 
 @test "get_project_language : retourne vide si pas de Stack" {
@@ -219,7 +220,6 @@ EOF
 }
 
 @test "Intégration : gestion projet sans chemin" {
-  skip "get_project_language nécessite un fix"
   echo -e "\n## PROJ-VIRTUAL\n- Nom : Projet Virtuel\n- Stack : Go" >> "$PROJECTS_FILE"
   
   # Le projet existe
@@ -231,8 +231,10 @@ EOF
   [ "$status" -eq 1 ]
   
   # On peut quand même lire ses métadonnées
-  language=$(get_project_language "PROJ-VIRTUAL")
-  [ "$language" = "Go" ]
+  # (get_project_language lit "Langue", pas "Stack" — champ Langue absent → vide)
+  run get_project_language "PROJ-VIRTUAL"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
 
 # ── get_project_worktree_enabled ───────────────────────────────────────────────

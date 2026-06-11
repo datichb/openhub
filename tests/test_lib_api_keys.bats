@@ -122,26 +122,27 @@ EOF
 @test "_api_keys_get : utilise cache si chargé" {
   api_keys_load_cache "PROJ-ANTHROPIC"
   
-  # L'appel doit utiliser le cache (pas de lecture fichier)
-  run _api_keys_get "PROJ-ANTHROPIC" "provider"
-  [ "$status" -eq 0 ]
-  [ "$output" = "anthropic" ]
+  # Appel direct (pas run) pour que les variables de cache du shell parent soient visibles.
+  # run crée un sous-shell qui n'hérite pas les variables non-exportées.
+  local result
+  result=$(_api_keys_get "PROJ-ANTHROPIC" "provider")
+  [ "$result" = "anthropic" ]
 }
 
 @test "_api_keys_get : utilise cache pour model" {
   api_keys_load_cache "PROJ-BEDROCK"
   
-  run _api_keys_get "PROJ-BEDROCK" "model"
-  [ "$status" -eq 0 ]
-  [ "$output" = "claude-sonnet-4-6" ]
+  local result
+  result=$(_api_keys_get "PROJ-BEDROCK" "model")
+  [ "$result" = "claude-sonnet-4-6" ]
 }
 
 @test "_api_keys_get : utilise cache pour region" {
   api_keys_load_cache "PROJ-BEDROCK"
   
-  run _api_keys_get "PROJ-BEDROCK" "region"
-  [ "$status" -eq 0 ]
-  [ "$output" = "us-east-1" ]
+  local result
+  result=$(_api_keys_get "PROJ-BEDROCK" "region")
+  [ "$result" = "us-east-1" ]
 }
 
 @test "_api_keys_get : fallback awk si clé non supportée par cache" {

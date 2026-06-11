@@ -16,7 +16,7 @@ function makeAxiosError(
     message?: string;
     timeout?: number;
   } = {}
-): ReturnType<typeof axios.isAxiosError> {
+): any {
   const err: any = new Error(options.message || 'axios error');
   err.isAxiosError = true;
   err.code = options.code;

@@ -1,6 +1,6 @@
 /**
  * Tests unitaires pour le plugin RTK
- * Couvre : tool.execute.before, tool.execute.after, session.idle
+ * Couvre : tool.execute.before, tool.execute.after, dispose
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -90,7 +90,7 @@ describe('RtkOpenCodePlugin — initialisation', () => {
     });
     expect(hooks).toHaveProperty('tool.execute.before');
     expect(hooks).toHaveProperty('tool.execute.after');
-    expect(hooks).toHaveProperty('session.idle');
+    expect(hooks).toHaveProperty('dispose');
   });
 });
 
@@ -207,16 +207,18 @@ describe('tool.execute.after', () => {
   });
 });
 
-// ── session.idle ──────────────────────────────────────────────────────────────
+// ── dispose ───────────────────────────────────────────────────────────────────
+// Le hook "dispose" est le hook officiel de fin de session (@opencode-ai/plugin).
+// Il remplace le hook non-existant "session.idle".
 
-describe('session.idle', () => {
+describe('dispose', () => {
   it('ne fait rien si sessionStarted est false', async () => {
     const { hooks, client } = await initPlugin({
       'which rtk': { stdout: '/usr/local/bin/rtk' },
       'rtk --version': { stdout: 'rtk 0.42.0' },
     });
-    const idle = hooks['session.idle']!;
-    await idle();
+    const dispose = hooks['dispose']!;
+    await dispose();
     expect((client.tui.toast as any).mock.calls.length).toBe(0);
   });
 
@@ -232,15 +234,15 @@ describe('session.idle', () => {
     const before = hooks['tool.execute.before']!;
     await before({ tool: 'bash' }, { args: { command: 'cat file.ts' } } as any);
 
-    const idle = hooks['session.idle']!;
-    await idle();
+    const dispose = hooks['dispose']!;
+    await dispose();
 
     expect((client.tui.toast as any).mock.calls.length).toBeGreaterThan(0);
     const toastMsg = (client.tui.toast as any).mock.calls[0][0].body.message;
     expect(toastMsg).toContain('RTK');
   });
 
-  it('remet sessionStarted à false après idle (permet une 2e session)', async () => {
+  it('remet sessionStarted à false après dispose (permet une 2e session)', async () => {
     const { hooks, client } = await initPlugin({
       'which rtk': { stdout: '/usr/local/bin/rtk' },
       'rtk --version': { stdout: 'rtk 0.42.0' },
@@ -251,8 +253,8 @@ describe('session.idle', () => {
     const before = hooks['tool.execute.before']!;
     await before({ tool: 'bash' }, { args: { command: 'cat file.ts' } } as any);
 
-    const idle = hooks['session.idle']!;
-    await idle();
+    const dispose = hooks['dispose']!;
+    await dispose();
 
     // Réinitialiser les mocks et s'assurer qu'une seconde session peut démarrer
     (client.app.log as any).mockClear();
@@ -279,8 +281,8 @@ describe('session.idle', () => {
     await before({ tool: 'bash' }, { args: { command: 'cat file.ts' } } as any);
     await before({ tool: 'websearch' }, {} as any);
 
-    const idle = hooks['session.idle']!;
-    await idle();
+    const dispose = hooks['dispose']!;
+    await dispose();
 
     const toastCalls = (client.tui.toast as any).mock.calls;
     const wsToast = toastCalls.find((c: any) => c[0]?.body?.message?.toLowerCase().includes('websearch'));

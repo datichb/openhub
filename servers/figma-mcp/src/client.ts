@@ -2,8 +2,8 @@
  * Client pour l'API Figma
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { FigmaConfig } from './config.js';
+import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import type { FigmaConfig } from './config.js';
 
 export interface FigmaFile {
   key: string;

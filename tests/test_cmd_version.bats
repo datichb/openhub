@@ -45,6 +45,7 @@ teardown() {
 }
 
 @test "version : la version lue correspond à hub.json.example" {
+  command -v jq &>/dev/null || skip "jq non disponible"
   local expected
   expected=$(jq -r '.version' "$HUB_DIR/config/hub.json.example" 2>/dev/null)
   local out; out=$(cat "$VERSION_OUTPUT_FILE")

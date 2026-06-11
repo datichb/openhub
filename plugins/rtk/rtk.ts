@@ -224,11 +224,14 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     // ─────────────────────────────────────────────────────────────────────────
     
     "tool.execute.after": async (input, output) => {
+      // Cast explicite : le SDK type output comme { title, output, metadata }
+      // mais certains hooks peuvent inclure des champs supplémentaires à l'exécution.
+      const out = output as Record<string, unknown> | undefined
       const tool = String(input?.tool ?? "").toLowerCase()
       
       // Track WebSearch rate limits
       if (tool === "websearch") {
-        const errorMsg = String(output?.error ?? "")
+        const errorMsg = String(out?.["error"] ?? "")
         if (errorMsg.toLowerCase().includes("rate limit")) {
           sessionWebSearchRateLimited++
           
@@ -249,7 +252,8 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
       // RTK tracking (existing code)
       if (tool !== "bash" && tool !== "shell") return
 
-      const command = (output?.args as Record<string, unknown>)?.command
+      const args = out?.["args"] as Record<string, unknown> | undefined
+      const command = args?.["command"]
       if (typeof command !== "string" || !command?.startsWith("rtk ")) return
 
       // Get current project-scoped stats

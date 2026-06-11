@@ -7,6 +7,10 @@ load helpers
 setup() {
   common_setup
   
+  # Réinitialiser la garde de chargement pour permettre un re-sourçage propre
+  # entre les tests (common_teardown unset les fonctions mais pas la garde).
+  unset _COLORS_LOADED
+  
   # Sourcer le module
   source "$BATS_TEST_DIRNAME/../scripts/lib/colors.sh"
 }
@@ -102,14 +106,16 @@ teardown() {
 }
 
 @test "_prompt : gère EOF sans échouer" {
-  # Mock read qui simule EOF
-  read() {
-    return 1
-  }
-  export -f read
-  
-  run _prompt my_var "Enter value: "
+  # Simuler un EOF en redirigeant stdin depuis /dev/null.
+  # On ne mocke pas le builtin read (non fiable cross-bash) : _prompt utilise
+  # "read -t 1 -r || printf -v var ''" ce qui gère naturellement un stdin vide.
+  run bash -c "
+    source \"$BATS_TEST_DIRNAME/../scripts/lib/colors.sh\"
+    _prompt my_var 'Enter value: ' < /dev/null
+    echo \"exit:\$?\"
+  "
   [ "$status" -eq 0 ]
+  [[ "$output" == *"exit:0"* ]]
 }
 
 # ── Intégration ─────────────────────────────────────────────────────────────
