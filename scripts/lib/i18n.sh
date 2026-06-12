@@ -162,7 +162,7 @@ t() {
       help.config_websearch.cmd)  printf '%s' "config websearch <enable|disable|status> [PROJECT_ID]" ;;
       help.config_websearch.desc) printf '%s' "Gérer la permission WebSearch (Exa AI)" ;;
       help.plugin_install.cmd)   printf '%s' "plugin install <name>" ;;
-      help.plugin_install.desc)  printf '%s' "Installer un plugin OpenCode (ex : rtk)" ;;
+      help.plugin_install.desc)  printf '%s' "Installer un plugin OpenCode (rtk | context-mode)" ;;
       # Services
       help.service_setup.cmd)   printf '%s' "service setup [nom]" ;;
       help.service_setup.desc)  printf '%s' "Configure un service interactivement (Figma, GitLab…)" ;;
@@ -866,7 +866,7 @@ t_en() {
     help.config_websearch.cmd)  printf '%s' "config websearch <enable|disable|status> [PROJECT_ID]" ;;
     help.config_websearch.desc) printf '%s' "Manage WebSearch (Exa AI) permission" ;;
     help.plugin_install.cmd)   printf '%s' "plugin install <name>" ;;
-    help.plugin_install.desc)  printf '%s' "Install an OpenCode plugin (e.g. rtk)" ;;
+    help.plugin_install.desc)  printf '%s' "Install an OpenCode plugin (rtk | context-mode)" ;;
     # Services
     help.service_setup.cmd)   printf '%s' "service setup [name]" ;;
     help.service_setup.desc)  printf '%s' "Configure a service interactively (Figma, GitLab…)" ;;
