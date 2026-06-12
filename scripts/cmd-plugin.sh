@@ -1,15 +1,23 @@
 #!/bin/bash
-# Install RTK plugin for OpenCode
-# Usage: oc plugin install rtk
+# Manage OpenCode plugins
+# Usage: oc plugin install <name>
 
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-PLUGIN_NAME="${1:-rtk}"
+SUBCOMMAND="${1:-}"
+PLUGIN_NAME="${2:-rtk}"
 PLUGIN_SOURCE="$HUB_DIR/plugins/$PLUGIN_NAME/${PLUGIN_NAME}.ts"
 PLUGIN_TARGET="$HOME/.config/opencode/plugins/${PLUGIN_NAME}.ts"
 
 resolve_oc_lang
+
+# Seule sous-commande supportée : install
+if [ "$SUBCOMMAND" != "install" ]; then
+  log_error "$(t plugin.not_found): $SUBCOMMAND"
+  log_info "$(t help.plugin_install.cmd)"
+  exit 1
+fi
 
 log_title "$(t plugin.install_title): $PLUGIN_NAME"
 
