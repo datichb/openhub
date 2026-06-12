@@ -15,7 +15,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, shared/living-docs-enrichment]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing]
 ---
 
@@ -31,7 +31,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 
 - Implémenter les fonctionnalités décrites dans le ticket Beads reçu
 - Appliquer les standards du domaine précisé (chargés via les skills injectés)
-- Respecter les conventions du projet (`CONVENTIONS.md` s'il existe)
+- Respecter les conventions du projet (`docs/wiki/technical/conventions.md` s'il existe, sinon `CONVENTIONS.md`)
 - Écrire les tests appropriés au domaine
 - Lire et clore les tickets Beads (`ai-delegated`)
 
@@ -46,7 +46,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 ## Workflow
 
 0. **Lire le domaine et les skills** indiqués dans ton contexte d'invocation → les charger via l'outil `skill`
-1. Si `CONVENTIONS.md` existe à la racine du projet → le lire avant toute action
+1. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` si pertinent pour la tâche. Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
 2. `bd show <ID>` — lire le détail du ticket (critères d'acceptance, contraintes, contexte)
 3. `bd update <ID> --claim` — clamer le ticket
 4. Implémenter selon les standards du domaine chargés

@@ -18,12 +18,11 @@ an existing project: stack, architecture, risks, and agents to prioritise.
 | The orchestrator detects an unknown project (Mode C) | The orchestrator offers to invoke the onboarder — you can accept or skip |
 
 The onboarder is **read-only**. It writes no code, modifies no project
-files (except `ONBOARDING.md`, `CONVENTIONS.md`, `docs/context/technical.md`,
-`docs/context/business/<domain>.md` and `projects.md` — only after explicit confirmation).
+files (except `docs/wiki/`, minimal `ONBOARDING.md` and `projects.md` — only after explicit confirmation).
 
-When these files already exist (enriched by other agents),
+When `docs/wiki/index.md` **already exists** (enriched by other agents),
 the onboarder proposes **incremental enrichment** by default rather than a full overwrite.
-It delegates the update to the `documentarian` via the `living-docs-enrichment` skill.
+It applies the `living-docs-enrichment` skill and delegates to the `documentarian`.
 Full overwrite remains available with an explicit warning about losing accumulated enrichments.
 
 ---
@@ -198,16 +197,21 @@ Generate? (Generate / Cancel)
 → Generate
 ```
 
-### 7. File generation
+### 7. Wiki generation
 
 The onboarder produces the following files and adds them to `.git/info/exclude` (local exclusion, invisible to other devs):
 
-- **`ONBOARDING.md`** — compact executive summary: stack, architecture in 3-5 lines, active critical points, recommended agents, and links to the detailed files
-- **`CONVENTIONS.md`** — condensed code conventions: linting, naming, Git, config, team patterns
-- **`docs/context/technical.md`** — detailed technical documentation: architecture, test strategy, key libraries, design/Figma
-- **`docs/context/business/<domain>.md`** — one file per detected business domain: business rules, flows, entities, risks
+- **`docs/wiki/index.md`** — global map: critical stack, architecture, god nodes (most connected concepts), business domain map, active critical points, dark zones
+- **`docs/wiki/technical/architecture.md`** — detailed architecture, layering, structural decisions
+- **`docs/wiki/technical/stack.md`** — full stack, versions, key libraries, environment variables
+- **`docs/wiki/technical/tests.md`** — test strategy, frameworks, coverage thresholds, conventions
+- **`docs/wiki/technical/conventions.md`** — linting, naming, git, config, team patterns
+- **`docs/wiki/business/index.md`** — business domain map
+- **`docs/wiki/business/<domain>.md`** — one file per detected business domain: business rules, flows, entities, risks
+- **`ONBOARDING.md`** — minimal summary at the root (15-25 lines), redirects to `docs/wiki/index.md`
 
-> `ONBOARDING.md` and `CONVENTIONS.md` remain at the root and compact — they are injected as startup context. The detailed files in `docs/context/` are loaded on demand by agents, depending on the scope of their task.
+> The wiki replaces the old `CONVENTIONS.md`, `docs/context/technical.md` and `docs/context/business/` files. The `index.md` identifies "god nodes" — key concepts appearing in multiple pages — to guide agents to the essentials first.
+> Each enrichment carries a confidence tag: `` `CONFIRMÉ` `` (direct code observation), `` `DÉDUIT` `` (contextual reasoning) or `` `INCERTAIN` `` (hypothesis to validate).
 
 ### 8. `projects.md` update proposal
 
@@ -252,30 +256,33 @@ the context files. The files thus reflect the enriched analysis, not the first d
 
 ---
 
-## Structure of generated context files
+## Structure of the generated wiki
 
-The onboarder generates a two-level structure to optimise the context size injected at session start:
+The onboarder generates a two-level wiki structure optimising context loading in sessions:
 
 ```
-ONBOARDING.md                        ← executive summary — injected at startup (cache fallback)
-CONVENTIONS.md                       ← condensed conventions — injected at startup (cache fallback)
-docs/context/
-  technical.md                       ← architecture, tests, libraries — loaded on demand
-  business/
-    <domain-1>.md                    ← business context per domain — loaded on demand
-    <domain-2>.md
-    ...
+docs/wiki/
+├── index.md                    ← always read first — 40-80 lines
+├── technical/
+│   ├── architecture.md         ← loaded if task concerns architecture
+│   ├── stack.md                ← loaded if task concerns dependencies
+│   ├── tests.md                ← loaded if task concerns tests
+│   └── conventions.md          ← loaded if task concerns code
+└── business/
+    ├── index.md                ← domain map
+    └── <domain>.md             ← loaded if task concerns this domain
+ONBOARDING.md                   ← minimal, redirects to docs/wiki/index.md
 ```
 
-**`ONBOARDING.md`** contains: stack (condensed table), architecture in 3-5 lines, active critical points (🔴🟠), blind spots, recommended agents, and links to `docs/context/`.
+**`docs/wiki/index.md`** contains: critical stack (3-5 lines), architecture (2-3 lines),
+god nodes table (critical concepts appearing in multiple pages), business domain map,
+active critical points, dark zones.
 
-**`CONVENTIONS.md`** contains: linting, language & typing, naming, Git conventions, config & secrets, team patterns.
+**`docs/wiki/technical/conventions.md`** contains: linting, language & typing, naming,
+Git conventions, config & secrets, team patterns, do-not-use.
 
-**`docs/context/technical.md`** contains: detailed architecture, full test strategy, libraries and alternatives, design/Figma.
-
-**`docs/context/business/<domain>.md`** contains: business rules, main flows, key entities, domain-specific risks.
-
-> The `docs/context/` files are never automatically injected into the context. Agents read them via `Read` when their task requires it — for example, a `developer` working on the billing module will read `docs/context/business/billing.md`.
+The other `technical/` and `business/<domain>.md` pages are loaded on demand by
+agents according to their current task — never all at once.
 
 ---
 
@@ -354,17 +361,17 @@ and give you an up-to-date overview.
 
 ### Re-onboarding — incremental mode
 
-When context files already exist (generated by a previous onboarding
+When `docs/wiki/index.md` already exists (generated by a previous onboarding
 and progressively enriched by other agents: `developer-*`, `reviewer`, `auditor`, etc.),
 the onboarder detects this in Phase 5 and proposes three options:
 
-1. **Incremental enrichment (Recommended)** — the updated sections are delegated to the `documentarian`
-   via `task`, which enriches only the relevant sections without overwriting accumulated enrichments.
+1. **Incremental enrichment (Recommended)** — wiki pages are enriched via the `living-docs-enrichment`
+   skill which delegates to the `documentarian`; existing enrichments (with their confidence tags) are preserved.
 2. **Full overwrite** — with an explicit warning that accumulated enrichments will be lost.
 3. **Keep existing** — make no changes.
 
-If a **new business domain** is discovered during re-onboarding, the onboarder also proposes
-creating a new `docs/context/business/<new-domain>.md` file.
+If a **new business domain** is discovered during re-onboarding, the onboarder proposes
+creating a new `docs/wiki/business/<new-domain>.md` page and updating `docs/wiki/business/index.md`.
 
-This preserves the continuous improvement loop: the files accumulate knowledge from all agents
-over the entire project lifecycle.
+This preserves the continuous improvement loop: the wiki accumulates knowledge from all agents
+over the entire project lifecycle, with each enrichment traceable by agent, date and confidence level.

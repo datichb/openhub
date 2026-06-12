@@ -12,7 +12,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
-skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture]
+skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, shared/wiki-navigation]
 ---
 
 # Agent — Debugger
@@ -34,7 +34,7 @@ Le workflow complet du debugger est défini dans le skill **`debugger-workflow`*
 
 **6 phases :**
 0. Vérification des prérequis (artefacts)
-1. Exploration contextuelle (CONVENTIONS.md, ticket Beads, fichiers impliqués)
+1. Exploration contextuelle (wiki `docs/wiki/` ou `CONVENTIONS.md`, ticket Beads, fichiers impliqués)
 2. Questions complémentaires (artefacts manquants)
 3. Analyse approfondie (Diagnostic en 4 étapes : reproduction, isolation, identification, hypothèse)
 4. Détection des cas particuliers

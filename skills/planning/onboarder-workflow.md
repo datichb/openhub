@@ -1,6 +1,6 @@
 ---
 name: onboarder-workflow
-description: Workflow complet de l'onboarder en 6 phases (0 à 5) — détection de stack, exploration adaptative, questions de clarification, rapport de contexte, vérification des incohérences, génération des fichiers ONBOARDING.md, CONVENTIONS.md et docs/context/ (technical.md + business/<domaine>.md). Récaps systématiques et validations à chaque étape.
+description: Workflow complet de l'onboarder en 6 phases (0 à 5) — détection de stack, exploration adaptative, questions de clarification, rapport de contexte, vérification des incohérences, génération du wiki documentaire vivant (docs/wiki/ + ONBOARDING.md minimaliste). Récaps systématiques et validations à chaque étape.
 ---
 
 # Skill — Workflow Onboarder
@@ -12,10 +12,14 @@ produire un rapport de contexte honnête et actionnable — pas un document de
 communication, un état des lieux réel.
 
 Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception de :
-- `ONBOARDING.md` — résumé exécutif compact, créé/écrasé à la racine en Phase 5
-- `CONVENTIONS.md` — conventions de code condensées, créé/écrasé à la racine en Phase 5
-- `docs/context/technical.md` — documentation technique détaillée, créé en Phase 5
-- `docs/context/business/<domaine>.md` — contexte métier par domaine, créés dynamiquement en Phase 5
+- `docs/wiki/index.md` — carte globale du wiki, créé en Phase 5
+- `docs/wiki/technical/architecture.md` — patterns dominants, découpage, créé en Phase 5
+- `docs/wiki/technical/stack.md` — stack complète, versions, librairies, créé en Phase 5
+- `docs/wiki/technical/tests.md` — stratégie de test, créé en Phase 5
+- `docs/wiki/technical/conventions.md` — conventions de code, créé en Phase 5
+- `docs/wiki/business/index.md` — carte des domaines métier, créé en Phase 5
+- `docs/wiki/business/<domain>.md` — contexte métier par domaine, créés dynamiquement en Phase 5
+- `ONBOARDING.md` — résumé minimaliste à la racine, créé en Phase 5 (redirige vers le wiki)
 - `.git/info/exclude` — auquel tu ajoutes ces fichiers (exclusion locale uniquement)
 - `projects.md` — après confirmation explicite (chemin fourni dans le prompt)
 
@@ -29,8 +33,7 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 - Invoquer automatiquement un autre agent — tu suggères, l'utilisateur décide
 - Produire un rapport optimiste qui cache les problèmes
 - Inventer des observations non fondées sur des fichiers réellement lus
-- Écrire ONBOARDING.md ou CONVENTIONS.md avant la Phase 5
-- Écrire docs/context/technical.md ou docs/context/business/*.md avant la Phase 5
+- Écrire les pages du wiki avant la Phase 5
 - Appeler l'outil `question` sans avoir d'abord affiché le récap en texte clair dans la discussion
 
 ---
@@ -218,7 +221,7 @@ Phase 3 — Analyse approfondie (Rapport de contexte)
          ↓
 Phase 4 — Détection des cas particuliers
          ↓
-Phase 5 — Production du livrable (ONBOARDING.md + CONVENTIONS.md + projects.md opt.)
+Phase 5 — Production du livrable (wiki docs/wiki/ + ONBOARDING.md minimaliste + projects.md opt.)
 ```
 
 ---
@@ -1404,7 +1407,7 @@ question({
     header: "Génération des fichiers",
     question: "[Onboarder — Phase 4 complétée | Projet : <nom>]\nDétection des cas particuliers terminée. Passer à la génération des fichiers (Phase 5) ?",
     options: [
-      { label: "Générer les fichiers (Recommandé)", description: "Passer à la Phase 5 — Écriture ONBOARDING.md + CONVENTIONS.md" },
+      { label: "Générer le wiki (Recommandé)", description: "Passer à la Phase 5 — Génération du wiki documentaire vivant (docs/wiki/ + ONBOARDING.md minimaliste)" },
       { label: "Vérifier d'autres cas", description: "Rester en Phase 4 pour vérifier d'autres cas particuliers" },
       { label: "Revenir à Phase 3", description: "Revoir le rapport après détection de cas particuliers critiques" }
     ]
@@ -1453,98 +1456,140 @@ question({
 
 **Uniquement après validation explicite.**
 
-### ÉTAPE 5.1 — Écrire ONBOARDING.md
+Charger le skill `doc-wiki-protocol` avant d'écrire quoi que ce soit — il définit
+les formats canoniques de chaque page wiki.
 
-**Structure exacte à respecter — résumé exécutif compact :**
+**Vérifier si `docs/wiki/index.md` existe déjà :**
+- **Si oui** → mode re-onboarding : appliquer le skill `shared/living-docs-enrichment`
+  avec les découvertes du rapport, puis proposer les 3 options (enrichissement incrémental
+  recommandé / réécriture complète / conserver). Ne pas passer aux étapes suivantes
+  sans confirmation.
+- **Si non** → mode création : suivre les étapes 5.1 à 5.5 dans l'ordre.
+
+---
+
+### ÉTAPE 5.1 — Créer `docs/wiki/index.md`
+
+**Format canonique (voir skill `doc-wiki-protocol` — section `docs/wiki/index.md`) :**
 
 ```markdown
-# Onboarding — <NOM_PROJET>
-> Généré le <DATE>
+---
+updated: <DATE>
+confidence: confirmed
+agents: [onboarder]
+---
 
-## Stack détectée
-<tableau condensé — langages, frameworks, DB, infra, versions clés>
+# <NOM_PROJET> — Index Wiki
 
-## Architecture
-<3–5 lignes — pattern dominant, organisation des modules, particularités notables>
+## Stack critique
+<3-5 lignes condensées : langages, frameworks principaux, BDD, infra — les éléments
+qui conditionnent tout le reste>
+— `CONFIRMÉ` · onboarder · <DATE> · package.json
 
-## Points critiques 🔴
-<problèmes bloquants ou risques majeurs — vide si aucun>
+## Architecture (résumé)
+<2-3 lignes : pattern dominant, découpage, communication entre couches>
+— `CONFIRMÉ` · onboarder · <DATE>
 
-## Points importants 🟠
-<points d'attention significatifs>
+## God nodes — concepts les plus connectés
+
+| Concept | Pages liées | Criticité |
+|---------|-------------|-----------|
+
+*(Rempli après génération des autres pages — voir ÉTAPE 5.6)*
+
+## Carte des domaines métier
+
+- [<domain>](business/<domain>.md) — <description courte>
+
+*(Vide si aucun domaine métier détecté)*
+
+## Points critiques actifs 🔴
+
+<Points critiques détectés en Phase 3 — vide si aucun>
+— `CONFIRMÉ` · onboarder · <DATE> · <fichier:ligne si disponible>
 
 ## Zones d'ombre
-<ce qui n'a pas pu être déterminé depuis la codebase>
 
-## Agents recommandés
-<prioritaires / recommandés / optionnels>
-
-## Contexte détaillé
-- [Domaines métier](docs/context/business/) — <liste des fichiers créés, ex : auth.md, billing.md>
-- [Documentation technique](docs/context/technical.md) — architecture, tests, librairies
+<Ce qui n'a pas pu être déterminé — vide si tout est documenté>
 ```
 
-> Les sections **Contexte métier** (détaillé), **Design et maquettes**, **Stratégie de test** et **Améliorations suggérées 🟡** ne figurent pas dans ce fichier — elles sont dans `docs/context/`.
-> Les sections **Agents recommandés** et **Commandes utiles** ne figurent que dans la conversation.
-
-**⚠️ Si ONBOARDING.md existe déjà :**
-
-Lire le fichier existant, noter la date de génération, vérifier s'il contient des lignes de traçabilité (enrichissements précédents). Afficher le contexte en texte et utiliser l'outil `question` :
-
-```
-[Texte de réponse]
-## ⚠️ ONBOARDING.md existant
-
-ONBOARDING.md existe déjà (généré le <DATE>). Il contient <X enrichissements accumulés / aucune ligne de traçabilité>.
-
-**Option recommandée :** enrichissement incrémental — les sections du rapport ayant évolué sont mises à jour
-sans écraser les enrichissements apportés par d'autres agents (auditor, developer, reviewer, etc.)
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "ONBOARDING.md existant",
-    question: "[Onboarder — Phase 5 : ONBOARDING.md | Projet : <nom>]\nONBOARDING.md existe déjà (généré le <DATE>). Comment procéder ?",
-    options: [
-      { label: "Enrichissement incrémental (Recommandé)", description: "Déléguer au documentarian pour mettre à jour les sections concernées sans écraser les enrichissements accumulés" },
-      { label: "Réécriture complète", description: "⚠️ Écraser entièrement — tous les enrichissements accumulés seront perdus" },
-      { label: "Conserver l'existant", description: "Ne pas modifier ONBOARDING.md" }
-    ]
-  }]
-})
-```
-
-**Selon la réponse :**
-- **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les découvertes du nouveau rapport de re-onboarding
-- **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
-- **Conserver** → Passer à ÉTAPE 5.1b sans modifier ONBOARDING.md
-
-**Re-onboarding : gestion des fichiers docs/context/ existants**
-
-Si `docs/context/technical.md` existe :
-- Proposer un enrichissement incrémental via `shared/living-docs-enrichment` avec les nouvelles découvertes techniques
-
-Si des fichiers `docs/context/business/<domaine>.md` existent :
-- Proposer un enrichissement incrémental de chaque fichier concerné via `shared/living-docs-enrichment`
-- Si un **nouveau domaine** est détecté lors du re-onboarding → passer par l'ÉTAPE 5.1b pour proposer sa création
-
-**Après l'écriture :**
-
-Ajouter ONBOARDING.md au `.git/info/exclude` (exclusion locale uniquement) :
-- Créer `.git/info/` si n'existe pas
-- Créer `.git/info/exclude` si n'existe pas
-- Ajouter `ONBOARDING.md` s'il n'y est pas déjà
+**Après écriture :**
+- Créer `docs/wiki/` si le dossier n'existe pas
+- Ajouter `docs/wiki/` au `.git/info/exclude` (exclusion locale uniquement)
 - Ne JAMAIS modifier `.gitignore`
 
 ---
 
-### ÉTAPE 5.1b — Détection et proposition des domaines métier
+### ÉTAPE 5.2 — Créer les pages `docs/wiki/technical/`
 
-À partir des artefacts explorés en Phase 1 (modules, routes, entités, bounded contexts), identifier les domaines métier du projet.
+Créer les 4 pages technical en utilisant les formats canoniques du skill `doc-wiki-protocol`.
+
+**`docs/wiki/technical/stack.md`** — à partir des données Phase 1 :
+- Tableau des dépendances principales avec versions (depuis `package.json` ou équivalent)
+- Librairies clés et leur rôle
+- Variables d'environnement requises (depuis `.env.example`)
+- Tag `CONFIRMÉ` sur chaque item avec référence `package.json`
+
+**`docs/wiki/technical/architecture.md`** — à partir de l'analyse Phase 1 :
+- Structure globale (monorepo / monolithe / microservices)
+- Découpage en couches observé
+- Communication entre modules
+- Décisions architecturales notables si documentées (ADR)
+- Points de fragilité détectés (🔴/🟠 de Phase 3 liés à l'architecture)
+
+**`docs/wiki/technical/tests.md`** — à partir de l'analyse Phase 1.6 :
+- Frameworks (unitaires + E2E)
+- Organisation (co-localisés / séparés)
+- Seuil de couverture (depuis config)
+- Philosophie (TDD / BDD / test-after)
+- Commandes (depuis `package.json`)
+- Conventions de nommage observées
+
+**`docs/wiki/technical/conventions.md`** — à partir de l'analyse Phase 5 (détection conventions) :
+
+Le protocole de détection des conventions reste identique à l'ancien workflow.
+Les sections à générer correspondent au format canonique du skill `doc-wiki-protocol` :
+
+```
+## Linting & formatage    ← depuis .eslintrc*, biome.json, .prettierrc*, etc.
+## Nommage                ← inféré de 5-10 fichiers représentatifs
+## Git                    ← depuis .commitlintrc, git log, CONTRIBUTING.md
+## Configuration & secrets ← depuis .env.example
+## Patterns spécifiques à l'équipe ← depuis CONTRIBUTING.md, ADR, patterns observés
+## À ne pas utiliser      ← librairies ou patterns explicitement exclus
+```
+
+**Détection des conventions — protocole complet (identique à l'ancien ÉTAPE 5.2) :**
+
+Lire dans l'ordre :
+1. Config linting : `.eslintrc*`, `eslint.config.*`, `.prettierrc*`, `biome.json`, `ruff.toml`
+2. Config TypeScript/langage : `tsconfig.json`, `pyproject.toml`
+3. Dépendances : `package.json` (optimisation RTK : `rtk json package.json --keys-only` puis lecture ciblée)
+4. Git : `.commitlintrc`, `.husky/`, `CONTRIBUTING.md`, `git log --oneline -20`
+5. Nommage : 5-10 fichiers représentatifs dans `src/components/`, `src/services/`, `src/stores/`
+6. Architecture : structure `src/`
+7. Tests : `vitest.config.ts`, `jest.config.ts`, `pytest.ini`
+8. Config/secrets : `.env.example`
+9. Patterns équipe : `CONTRIBUTING.md`, `README.md`, `docs/`, `adr/`
+
+Chaque convention détectée porte le tag de confiance approprié :
+- Convention issue d'un fichier config → `CONFIRMÉ` avec le fichier config
+- Convention inférée de la codebase → `CONFIRMÉ` avec exemple de fichier:ligne
+- Convention supposée → `DÉDUIT` avec le fichier source
+
+**⚠️ Si des pages `docs/wiki/technical/` existent déjà (re-onboarding) :**
+Appliquer le skill `shared/living-docs-enrichment` avec les nouvelles découvertes.
+
+---
+
+### ÉTAPE 5.3 — Créer les pages `docs/wiki/business/`
+
+À partir des artefacts explorés en Phase 1 (modules, routes, entités, bounded contexts),
+identifier les domaines métier du projet.
 
 **Workflow :**
 
-1. Analyser la sémantique de la codebase (noms de modules, routes, modèles, services) pour déduire les grands domaines
+1. Analyser la sémantique de la codebase pour déduire les grands domaines
 2. Afficher la proposition en texte :
 
 ```
@@ -1552,9 +1597,8 @@ Ajouter ONBOARDING.md au `.git/info/exclude` (exclusion locale uniquement) :
 
 J'ai identifié les domaines suivants pour ce projet. Souhaitez-vous ajuster le découpage ?
 
-- `<domaine-1>` — <périmètre fonctionnel détecté>
-- `<domaine-2>` — <périmètre fonctionnel détecté>
-- `<domaine-3>` — <périmètre fonctionnel détecté>
+- `<domain-1>` — <périmètre fonctionnel détecté>
+- `<domain-2>` — <périmètre fonctionnel détecté>
 ```
 
 3. Appeler l'outil `question` :
@@ -1563,392 +1607,81 @@ J'ai identifié les domaines suivants pour ce projet. Souhaitez-vous ajuster le 
 question({
   questions: [{
     header: "Domaines métier",
-    question: "[Onboarder — Phase 5 : domaines métier | Projet : <nom>]\nJ'ai détecté <N> domaines métier. Valider ce découpage pour créer les fichiers docs/context/business/ ?",
+    question: "[Onboarder — Phase 5 : domaines métier | Projet : <nom>]\nJ'ai détecté <N> domaines métier. Valider ce découpage pour créer les pages docs/wiki/business/ ?",
     options: [
-      { label: "Valider ce découpage (Recommandé)", description: "Créer un fichier par domaine dans docs/context/business/" },
+      { label: "Valider ce découpage (Recommandé)", description: "Créer une page par domaine dans docs/wiki/business/" },
       { label: "Modifier les domaines", description: "Ajuster les noms ou le périmètre avant création" },
-      { label: "Passer", description: "Créer un seul fichier docs/context/business/general.md avec le contexte métier global" }
+      { label: "Passer", description: "Créer uniquement docs/wiki/business/general.md avec le contexte métier global" }
     ]
   }]
 })
 ```
 
 4. Selon la réponse :
-   - **Valider** → Créer `docs/context/business/<domaine>.md` pour chaque domaine avec la structure ci-dessous
+   - **Valider** → Créer `docs/wiki/business/index.md` + `docs/wiki/business/<domain>.md` pour chaque domaine
    - **Modifier** → Intégrer les ajustements de l'utilisateur, puis créer les fichiers
-   - **Passer** → Créer uniquement `docs/context/business/general.md`
+   - **Passer** → Créer uniquement `docs/wiki/business/general.md`
 
-**Template `docs/context/business/<domaine>.md` :**
+Utiliser les formats canoniques du skill `doc-wiki-protocol` pour chaque page créée.
+
+**Après écriture :**
+- Créer `docs/wiki/business/` si le dossier n'existe pas
+- Le dossier `docs/wiki/` est déjà dans `.git/info/exclude` (ajouté en ÉTAPE 5.1)
+
+---
+
+### ÉTAPE 5.4 — Créer `ONBOARDING.md` minimaliste à la racine
 
 ```markdown
-# Domaine — <NOM_DOMAINE>
-> Généré le <DATE> | Projet : <NOM_PROJET>
+# <NOM_PROJET>
 
-## Règles de gestion
-<règles métier observées dans le code — conditions, contraintes, invariants>
+> Documentation vivante disponible dans [`docs/wiki/index.md`](docs/wiki/index.md)
 
-## Flux principaux
-<flux utilisateur ou système clés — séquences importantes>
+## Démarrage rapide
 
-## Entités clés
-<objets métier centraux — leur rôle, leurs relations>
+<Commandes de démarrage détectées en Phase 1 — 1-3 lignes maximum>
 
-## Risques et points d'attention
-- 🔴 <risque critique lié à ce domaine>
-- 🟠 <point important>
+## Liens
 
-## Zones d'ombre
-<incertitudes non résolues sur ce domaine>
+- [Index wiki](docs/wiki/index.md) — vue globale, god nodes, points critiques
+- [Conventions](docs/wiki/technical/conventions.md)
+- [Architecture](docs/wiki/technical/architecture.md)
+```
+
+**Règles :** 15-25 lignes maximum. Ne pas dupliquer le contenu du wiki.
+
+**⚠️ Si `ONBOARDING.md` existe déjà :**
+Le remplacer par la version minimaliste — il s'agit d'un changement de format intentionnel
+(rupture propre vers le wiki). Afficher en texte avant de procéder :
+
+```
+## ⚠️ ONBOARDING.md existant — remplacement par version minimaliste
+
+L'ancien ONBOARDING.md sera remplacé par une version minimaliste qui redirige
+vers le wiki documentaire vivant (docs/wiki/index.md).
 ```
 
 **Après écriture :**
-- Créer `docs/context/business/` si le dossier n'existe pas
-- Ajouter `docs/context/business/` au `.git/info/exclude`
+- Ajouter `ONBOARDING.md` au `.git/info/exclude` si pas déjà présent
 - Ne JAMAIS modifier `.gitignore`
 
 ---
 
-### ÉTAPE 5.1c — Générer docs/context/technical.md
+### ÉTAPE 5.5 — Mise à jour de `docs/wiki/index.md` — God nodes
 
-À partir des données collectées en Phase 1 (exploration architecture, tests, librairies, Figma), générer le fichier de documentation technique.
+Après avoir créé toutes les pages wiki, réévaluer le tableau des god nodes dans `index.md`.
 
-**Template `docs/context/technical.md` :**
+Appliquer l'algorithme du skill `wiki-navigation` :
+1. Recenser les concepts mentionnés dans chaque page créée
+2. Identifier les concepts cités dans ≥ 2 pages distinctes → candidats god nodes
+3. Remplir le tableau des god nodes avec les pages liées et la criticité
+4. Mettre à jour le frontmatter `updated`
 
-```markdown
-# Documentation technique — <NOM_PROJET>
-> Générée le <DATE>
-
-## Architecture
-<description détaillée : pattern dominant, organisation des modules, couches, couplages notables, frontières>
-
-<Structure observée :>
-src/
-├── <dossiers principaux avec leur rôle>
-
-## Stratégie de tests
-
-### Frameworks
-- Unitaires : <Vitest / Jest / pytest / PHPUnit>
-- E2E : <Playwright / Cypress / aucun>
-
-### Couverture
-- Seuil configuré : <X%>
-- Ratio actuel : <Y fichiers test pour Z fichiers source>
-- Commandes :
-  ```bash
-  <commande test unitaires>
-  <commande test E2E>
-  <commande couverture>
-  ```
-
-### Conventions de test
-- Philosophie : <TDD encouragé / BDD avec Cucumber / Test-after>
-- Co-location : <oui — *.spec.ts à côté des sources / non — dossier tests/ séparé>
-- Nommage : <`it('doit X quand Y')` / `test('should X')` / libre>
-- Mocking : <vi.mock / jest.mock / pytest monkeypatch / MSW>
-
-## Librairies externes clés
-
-| Rôle | Lib retenue | Alternatives écartées | Notes |
-|------|-------------|----------------------|-------|
-| State management | <lib> | <alternatives> | |
-| Requêtes HTTP | <lib> | <alternatives> | |
-| Validation | <lib> | <alternatives> | |
-| ORM / DB | <lib> | <alternatives> | |
-| UI / Design system | <lib> | <alternatives> | |
-| Dates | <lib> | <alternatives> | <moment — interdit si applicable> |
-
-## Design et maquettes
-
-**Fichiers Figma :**
-- [<Nom fichier>](<URL>)
-
-**Design system :**
-- Framework : <DSFR / Material / Custom / Aucun>
-- Composants : <liste>
-
-**Design tokens :**
-- Source : <Figma Variables / Code CSS/SCSS / Aucun>
-- Couleurs : <liste des tokens principaux — max 15>
-- Typographie : <liste — max 10>
-- Espacements : <liste — max 8>
-- Synchronisation : <Manuel / Plugin / Non configurée>
-
-<"Non applicable (projet backend)" si pas de Figma ni de frontend>
-
-## Zones d'ombre techniques
-<incertitudes architecturales ou techniques non résolues lors de l'exploration>
-```
-
-**⚠️ Si docs/context/technical.md existe déjà :**
-
-Appliquer le skill `shared/living-docs-enrichment` avec les nouvelles découvertes techniques — ne pas écraser.
-
-**Après écriture :**
-- Créer `docs/context/` si le dossier n'existe pas
-- Ajouter `docs/context/technical.md` au `.git/info/exclude`
-- Ne JAMAIS modifier `.gitignore`
+Si aucun concept n'apparaît dans ≥ 2 pages → laisser le tableau vide avec la note `*(Vide)*`.
 
 ---
 
-### ÉTAPE 5.2 — Écrire CONVENTIONS.md
-
-Le protocole de détection et le format exact sont définis ci-dessous.
-
-#### Détection des conventions
-
-##### 1. Config de linting et formatting
-
-Lire en priorité :
-
-```
-.eslintrc* / eslint.config.*
-.prettierrc* / .prettierignore
-.stylelintrc* / stylelint.config.js
-.editorconfig
-biome.json
-ruff.toml / pyproject.toml [tool.ruff]
-.flake8 / setup.cfg [flake8]
-mypy.ini / pyproject.toml [tool.mypy]
-```
-
-**Ce qu'on en extrait :**
-- Indentation, guillemets, semicolons, longueur ligne
-- Règles activées/désactivées notables
-- Extensions/plugins actifs
-
-##### 2. Configuration TypeScript / langage
-
-```
-tsconfig.json / tsconfig.base.json
-.babelrc / babel.config.js
-pyproject.toml / setup.cfg
-```
-
-**Ce qu'on en extrait :**
-- Mode strict, paths (alias), target/module
-- Decorators, modules Python
-
-##### 3. Dépendances et librairies choisies
-
-Lire `package.json` (ou équivalent) :
-
-**Optimisation RTK (0.42.0+) :**
-```bash
-# D'abord inspecter la structure sans lire toutes les valeurs
-rtk json package.json --keys-only
-
-# Puis lire seulement les sections nécessaires
-read package.json | grep -A 20 '"dependencies"'
-```
-
-**Ce qu'on en extrait :**
-- Framework UI, state management, routing
-- Lib HTTP, framework test, lib validation, ORM
-- Lib dates, UI lib/design system
-
-##### 4. Conventions Git
-
-```
-.commitlintrc / commitlint.config.js
-.husky/ / .lefthook.yml
-CONTRIBUTING.md
-.github/PULL_REQUEST_TEMPLATE.md
-.github/CODEOWNERS
-```
-
-Lire aussi :
-```bash
-git log --oneline -20
-```
-
-**Ce qu'on en extrait :**
-- Format de commit (Conventional Commits / autre)
-- Types utilisés, nommage branches
-- Processus PR, reviewers
-
-##### 5. Nommage — inféré de la codebase
-
-Lire 5 à 10 fichiers représentatifs :
-
-```
-src/components/           → nommage composants
-src/composables/ ou hooks/→ préfixe use* ?
-src/services/             → suffix Service ?
-src/stores/               → nommage stores
-test files                → suffixe .test.ts / .spec.ts ?
-```
-
-**Ce qu'on extrait :**
-- Convention fichiers, composants/classes/fonctions
-- Structure dossiers, co-location tests
-
-##### 6. Structure et architecture
-
-Lire la structure `src/` (ou racine) :
-
-**Ce qu'on extrait :**
-- Organisation : feature-based / layer-based / domain-driven
-- Couches, monorepo, barrel exports, imports
-
-##### 7. Standards de test
-
-```
-vitest.config.ts / jest.config.ts
-pytest.ini / pyproject.toml [tool.pytest]
-playwright.config.ts / cypress.config.ts
-```
-
-**Ce qu'on extrait :**
-- Framework test unitaire/intégration/E2E
-- Seuil couverture, convention nommage, co-location
-
-##### 8. Config et secrets
-
-```
-.env.example / .env.local.example
-.env.schema
-```
-
-**Ce qu'on extrait :**
-- Variables requises, convention nommage
-- Secrets jamais dans le code
-
-##### 9. Patterns spécifiques à l'équipe
-
-Lire :
-```
-CONTRIBUTING.md
-README.md
-docs/
-adr/
-```
-
-Et observer :
-- Patterns gestion erreurs, auth, logging, feature flags
-
-#### Structure exacte de CONVENTIONS.md
-
-```markdown
-# Conventions — <NOM_PROJET>
-> Généré le <DATE> — mis à jour via : oc conventions <PROJECT_ID>
-> Ce fichier est un référentiel vivant. Les agents s'en servent comme source de
-> vérité pour respecter les conventions du projet.
->
-> Architecture, librairies et stratégie de tests → [docs/context/technical.md](docs/context/technical.md)
-
----
-
-## Linting & formatting
-
-- **Formatter** : <Prettier / Biome / ruff / gofmt / aucun>
-- **Linter** : <ESLint v9 flat config / ruff / golangci-lint / aucun>
-- **Indentation** : <2 espaces / 4 espaces / tabs>
-- **Guillemets** : <simple / double>
-- **Semicolons** : <oui / non>
-- **Longueur de ligne** : <80 / 100 / 120 / non configurée>
-- **Plugins notables** : <liste>
-
----
-
-## Langage & typage
-
-- **Langage** : <TypeScript 5.x strict / Python 3.12 + mypy / Go 1.22 / etc.>
-- **Mode strict** : <oui / non — préciser les options clés>
-- **Alias d'imports** : <`@/` → `src/` / `~` → `src/` / aucun>
-- **Particularités** : <decorators activés, paths configurés, etc.>
-
----
-
-## Nommage
-
-| Élément | Convention | Exemple |
-|---------|-----------|---------|
-| Fichiers composants | <PascalCase / kebab-case> | `UserCard.vue` / `user-card.vue` |
-| Fichiers utilitaires | <camelCase / kebab-case> | `formatDate.ts` / `format-date.ts` |
-| Composants / Classes | PascalCase | `UserCard`, `AuthService` |
-| Fonctions / méthodes | camelCase | `getUserById`, `formatDate` |
-| Composables / hooks | camelCase préfixé `use` | `useAuth`, `useUserStore` |
-| Stores | camelCase préfixé `use` | `useUserStore`, `useCartStore` |
-| Types / Interfaces | PascalCase <sans / avec suffix> | `User`, `UserDto`, `IUserService` |
-| Variables d'env | UPPER_SNAKE_CASE <+ préfixe> | `VITE_API_URL`, `DATABASE_URL` |
-| Fichiers de test | <même nom + `.spec.ts` / `.test.ts`> | `UserCard.spec.ts` |
-| Branches Git | <convention observée> | `feat/bd-42-user-auth` |
-
----
-
-## Conventions Git
-
-- **Format de commit** : <Conventional Commits / libre / autre>
-- **Types utilisés** : <feat, fix, chore, docs, refactor, test, perf, ci>
-- **Branches** : <convention observée — ex: `feat/<ticket-id>-<description>`>
-- **PR/MR** : <squash merge / merge commit / rebase / non configuré>
-- **Hooks** : <pre-commit (lint-staged) / pre-push (tests) / aucun>
-
----
-
-## Config & secrets
-
-- **Variables d'env requises** : <liste depuis `.env.example`>
-- **Préfixe exposé côté client** : <`VITE_` / `NEXT_PUBLIC_` / `NUXT_PUBLIC_` / aucun>
-- **`.env` dans `.gitignore`** : <oui / ⚠️ non — à corriger>
-- **Gestion des secrets** : <vault / GitHub secrets / .env local uniquement>
-
----
-
-## Patterns spécifiques à l'équipe
-
-<Décrire ici les patterns observés qui ne rentrent pas dans les catégories
-précédentes — gestion d'erreurs custom, pattern Result, middleware d'auth,
-feature flags, conventions de logging, etc.>
-
-<Vide si aucun pattern spécifique détecté — ne pas inventer.>
-
----
-
-## Zones d'ombre
-
-<Ce qui n'a pas pu être déterminé depuis la codebase — config manquante,
-dossiers non accessibles, conventions implicites non documentées.>
-
-<Vide si tout a pu être déterminé.>
-```
-
-**⚠️ Si CONVENTIONS.md existe déjà :**
-
-Lire le fichier existant, noter la date de génération, vérifier s'il contient des lignes de traçabilité (enrichissements précédents). Afficher le contexte en texte et utiliser l'outil `question` :
-
-```
-[Texte de réponse]
-## ⚠️ CONVENTIONS.md existant
-
-CONVENTIONS.md existe déjà (généré le <DATE>). Il contient <X enrichissements accumulés / aucune ligne de traçabilité>.
-
-**Option recommandée :** enrichissement incrémental — les sections des conventions ayant évolué sont mises à jour
-sans écraser les conventions et patterns ajoutés par d'autres agents (developer, reviewer, qa-engineer, etc.)
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "CONVENTIONS.md existant",
-    question: "[Onboarder — Phase 5 : CONVENTIONS.md | Projet : <nom>]\nCONVENTIONS.md existe déjà (généré le <DATE>). Comment procéder ?",
-    options: [
-      { label: "Enrichissement incrémental (Recommandé)", description: "Déléguer au documentarian pour mettre à jour les sections concernées sans écraser les conventions accumulées" },
-      { label: "Réécriture complète", description: "⚠️ Écraser entièrement — toutes les conventions et patterns accumulés seront perdus" },
-      { label: "Conserver l'existant", description: "Ne pas modifier CONVENTIONS.md" }
-    ]
-  }]
-})
-```
-
-**Selon la réponse :**
-- **Enrichissement incrémental** → Appliquer le skill `shared/living-docs-enrichment` (ÉTAPE 1 à 5) avec les nouvelles conventions détectées lors du re-onboarding
-- **Réécriture complète** → Écrire le nouveau fichier (comportement standard ci-dessus)
-- **Conserver** → Passer à ÉTAPE 5.3 sans modifier CONVENTIONS.md
-
----
-
-### ÉTAPE 5.3 — Mise à jour de projects.md (optionnelle)
+### ÉTAPE 5.6 — Mise à jour de `projects.md` (optionnelle)
 
 Si le chemin vers `projects.md` est fourni dans le prompt ET que des champs sont absents ou incomplets :
 
@@ -1962,10 +1695,6 @@ J'ai détecté que le champ **Stack** est <absent / incomplet / générique> dan
 
 **Stack détectée :**
 <stack complète détectée en Phase 1>
-
-**Autres champs à mettre à jour (si applicable) :**
-- Nom : <"Projet inconnu" → nom détecté>
-- Description : <vide → description générée depuis README>
 
 [Puis appel outil question]
 question({
@@ -1982,28 +1711,27 @@ question({
 
 **Uniquement si l'utilisateur valide :**
 Mettre à jour les champs manquants dans la section du projet concerné dans `projects.md`.
-
 **Ne jamais modifier `projects.md` sans confirmation explicite.**
 
 ---
 
-### ÉTAPE 5.4 — Générer le cache de contexte
+### ÉTAPE 5.7 — Générer le cache de contexte
 
-**Toujours exécuter cette étape après CONVENTIONS.md et projects.md**, sauf si le CONTEXTE initial contient `no-cache: true`.
+**Toujours exécuter cette étape après les pages wiki**, sauf si le CONTEXTE initial contient `no-cache: true`.
 
 Générer `.opencode/context.json` avec :
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.0",
   "generated_at": "<timestamp ISO8601 UTC>",
   "stack": {
     "languages": ["<langages détectés en Phase 1>"],
     "frameworks": ["<frameworks détectés en Phase 1>"]
   },
-  "conventions": {
-    "source": "CONVENTIONS.md",
-    "hash": "<sha256 du fichier CONVENTIONS.md>"
+  "wiki": {
+    "source": "docs/wiki/index.md",
+    "hash": "<sha256 du fichier docs/wiki/index.md>"
   },
   "key_files": {
     "<fichier_structurant>": "<sha256>",
@@ -2018,7 +1746,7 @@ Générer `.opencode/context.json` avec :
 package.json, tsconfig.json, tsconfig.base.json, pyproject.toml, Cargo.toml,
 go.mod, composer.json, pom.xml, Gemfile, requirements.txt,
 eslint.config.js, eslint.config.mjs, .eslintrc.json, .prettierrc, .prettierrc.json,
-biome.json, CONVENTIONS.md, ONBOARDING.md
+biome.json, docs/wiki/index.md
 ```
 
 **Calcul des hashes :**
@@ -2027,7 +1755,7 @@ biome.json, CONVENTIONS.md, ONBOARDING.md
 
 **Protocole d'écriture :**
 1. S'assurer que le dossier `.opencode/` existe à la racine du projet (le créer si absent)
-2. Écrire `.opencode/context.json` avec le contenu structuré ci-dessus
+2. Écrire `.opencode/context.json`
 3. Ajouter `.opencode/context.json` au `.git/info/exclude` (si pas déjà présent)
 4. Ne pas modifier `.gitignore`
 
@@ -2046,19 +1774,24 @@ biome.json, CONVENTIONS.md, ONBOARDING.md
 ### Récap de fin de Phase 5
 
 ```markdown
-## [Phase 5] Fichiers générés
+## [Phase 5] Wiki documentaire généré
 
-**Fichiers créés/enrichis :**
-- ✅ `ONBOARDING.md` — créé / réécrit / enrichi incrementalement à la racine du projet (résumé exécutif)
-- ✅ `CONVENTIONS.md` — créé / réécrit / enrichi incrementalement à la racine du projet (conventions condensées)
-- ✅ `docs/context/technical.md` — créé / mis à jour
-- ✅ `docs/context/business/` — <X fichier(s) créé(s) : <liste des domaines>> / aucun
+**Pages créées/enrichies :**
+- ✅ `docs/wiki/index.md` — index global (god nodes, points critiques, carte domaines)
+- ✅ `docs/wiki/technical/stack.md` — stack complète et dépendances
+- ✅ `docs/wiki/technical/architecture.md` — architecture et décisions
+- ✅ `docs/wiki/technical/tests.md` — stratégie de test
+- ✅ `docs/wiki/technical/conventions.md` — conventions de code
+- ✅ `docs/wiki/business/index.md` — carte des domaines métier
+- ✅ `docs/wiki/business/` — <X fichier(s) créé(s) : <liste des domaines>> / aucun
+- ✅ `ONBOARDING.md` — version minimaliste à la racine (redirige vers le wiki)
 - ✅ `.opencode/context.json` — cache de contexte généré
 - ✅ `.git/info/exclude` — fichiers ajoutés
 - ✅ `projects.md` — champ Stack mis à jour (si applicable)
 
 **Résumé du rapport :**
 - Stack : <résumé>
+- God nodes identifiés : <liste ou "aucun">
 - Points critiques 🔴 : X
 - Points importants 🟠 : Y
 - Agents prioritaires : <liste>
@@ -2109,7 +1842,7 @@ Produire uniquement le récap de Phase 5, **sans** le bloc `## Retour vers orche
 question({
   questions: [{
     header: "Onboarding terminé",
-    question: "[Onboarder — Phase 5 complétée | Projet : <nom>]\nOnboarding terminé. Les fichiers ont été générés. Besoin d'ajustements ?",
+    question: "[Onboarder — Phase 5 complétée | Projet : <nom>]\nOnboarding terminé. Le wiki documentaire a été généré. Besoin d'ajustements ?",
     options: [
       { label: "Terminer", description: "Onboarding complet" },
       { label: "Ajustements", description: "Revenir à une phase pour ajuster" }

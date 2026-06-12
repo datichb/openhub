@@ -282,23 +282,23 @@ Après la synthèse exécutive, l'auditeur consolide les sections `### Découver
 remontées par les sous-agents et propose à l'utilisateur de capitaliser les découvertes pertinentes.
 
 ```
-## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+## 💾 Enrichissement du wiki documentaire — Découvertes à capitaliser
 
-### Enrichissements proposés pour ONBOARDING.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Points critiques 🔴` | Ajouter | "Injection SQL possible dans UserController (audit sécurité)" |
+### Enrichissements proposés pour `docs/wiki/index.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Points critiques actifs 🔴` | Ajouter | "Injection SQL possible dans UserController" | `CONFIRMÉ` · src/controllers/user.controller.ts:34 |
 
-### Enrichissements proposés pour CONVENTIONS.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Librairies & dépendances` | Ajouter "À ne pas utiliser" | "lodash 4.17.20 — CVE-2024-1234 : prototype pollution" |
+### Enrichissements proposés pour `docs/wiki/technical/stack.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Librairies clés` | Ajouter "À ne pas utiliser" | "lodash 4.17.20 — CVE-2024-1234 : prototype pollution" | `CONFIRMÉ` · package.json |
 
 → question : Déléguer l'écriture au documentarian ?
 ```
 
 Si l'utilisateur accepte, l'auditeur invoque le `documentarian` via `task` pour enrichir
-`ONBOARDING.md` et/ou `CONVENTIONS.md` de manière incrémentale (voir skill `living-docs-enrichment`).
+les pages wiki de manière incrémentale (voir skill `living-docs-enrichment`).
 
 ---
 
@@ -397,23 +397,23 @@ bd create "Corriger l'absence de guard null dans UserService.findById" -p 0 -t b
 Après la création du ticket, le debugger identifie les découvertes à capitaliser :
 
 ```
-## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+## 💾 Enrichissement du wiki documentaire — Découvertes à capitaliser
 
-### Enrichissements proposés pour ONBOARDING.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Zones d'ombre` | Ajouter | "UserService.findById ne retourne pas d'erreur 401 explicite — retourne null sans guard (diagnostic 2025)" |
+### Enrichissements proposés pour `docs/wiki/index.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Zones d'ombre` | Ajouter | "UserService.findById ne retourne pas d'erreur 401 — retourne null sans guard" | `CONFIRMÉ` · src/services/user.service.ts:47 |
 
-### Enrichissements proposés pour CONVENTIONS.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Patterns spécifiques à l'équipe` | Ajouter | "Toujours vérifier le null avant d'accéder à une propriété de retour de repository" |
+### Enrichissements proposés pour `docs/wiki/technical/conventions.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Patterns spécifiques à l'équipe` | Ajouter | "Toujours vérifier le null avant d'accéder à une propriété de retour de repository" | `CONFIRMÉ` · src/services/user.service.ts:47 |
 
 → question : Déléguer l'écriture au documentarian ?
 ```
 
 Si l'utilisateur accepte, le debugger invoque le `documentarian` via `task`
-(skill `living-docs-enrichment`) pour enrichir les fichiers de manière incrémentale.
+(skill `living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
 
 #### 5. Correction et review
 
@@ -431,43 +431,43 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 Après `bd close bd-15`, le developer identifie des découvertes à capitaliser :
 
 ```
-## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+## 💾 Enrichissement du wiki documentaire — Découvertes à capitaliser
 
-### Enrichissements proposés pour CONVENTIONS.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Architecture & structure` | Ajouter | "La logique de filtrage est toujours co-localisée dans un dossier `<feature>/filters/` dédié (observé sur users, ticket bd-15)" |
-| `## Patterns spécifiques à l'équipe` | Ajouter | "Toujours utiliser TanStack Query avec un `staleTime: 60_000` par défaut pour les endpoints de liste" |
+### Enrichissements proposés pour `docs/wiki/technical/conventions.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Patterns spécifiques à l'équipe` | Ajouter | "La logique de filtrage est toujours co-localisée dans un dossier `<feature>/filters/` dédié" | `CONFIRMÉ` · src/users/filters/ · ticket bd-15 |
+| `## Patterns spécifiques à l'équipe` | Ajouter | "Toujours utiliser TanStack Query avec un `staleTime: 60_000` par défaut pour les endpoints de liste" | `CONFIRMÉ` · src/users/hooks/useUsers.ts:12 |
 
 → question : Déléguer l'écriture au documentarian ?
 ```
 
 Si l'utilisateur accepte, le developer invoque le `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) pour enrichir les fichiers de manière incrémentale.
+(skill `shared/living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
 
 ---
 
-## Scénario 5 — Code review → docs vivants (reviewer)
+## Scénario 5 — Code review → wiki documentaire (reviewer)
 
 **Contexte :** un reviewer analyse le diff de la branche `feat/bd-15-user-filters`.
 
-#### Enrichissement des documents vivants (post-rapport)
+#### Enrichissement du wiki documentaire (post-rapport)
 
 Après avoir produit le rapport de review, le reviewer identifie des conventions à capitaliser :
 
 ```
-## 💾 Enrichissement des documents vivants — Découvertes à capitaliser
+## 💾 Enrichissement du wiki documentaire — Découvertes à capitaliser
 
-### Enrichissements proposés pour CONVENTIONS.md
-| Section | Action | Contenu proposé |
-|---------|--------|-----------------|
-| `## Nommage` | Ajouter | "Les composables de filtrage sont toujours nommés `use<Entité>Filters` (observé sur feat/bd-15-user-filters)" |
+### Enrichissements proposés pour `docs/wiki/technical/conventions.md`
+| Section | Action | Contenu proposé | Confiance |
+|---------|--------|-----------------|-----------|
+| `## Nommage` | Ajouter | "Les composables de filtrage sont toujours nommés `use<Entité>Filters`" | `CONFIRMÉ` · src/users/hooks/useUserFilters.ts:1 |
 
 → question : Déléguer l'écriture au documentarian ?
 ```
 
 Si l'utilisateur accepte, le reviewer invoque le `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) pour enrichir les fichiers de manière incrémentale.
+(skill `shared/living-docs-enrichment`) pour enrichir le wiki de manière incrémentale.
 
 ---
 

@@ -12,7 +12,7 @@ permission:
     "*": deny
     "documentarian": allow
 model: anthropic/claude-opus-4
-skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment]
+skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git]
 ---
 
@@ -34,8 +34,7 @@ et produis des rapports structurés, actionnables et calibrés.
 - Proposer des refactorisations massives hors scope de la PR
 
 ## Workflow
-0. Si `CONVENTIONS.md` existe à la racine du projet → le lire pour appliquer les conventions réelles
-   du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité)
+0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` pour appliquer les conventions réelles du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité). Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
 1. Recevoir le diff ou le nom de branche :
    - Si un nom de branche est fourni (cas nominal depuis orchestrator-dev) → exécuter `git diff main..<branche>` (ou `git diff HEAD~1` si branche courante) pour obtenir le diff complet avant d'analyser
    - Si un diff est collé directement → l'analyser tel quel

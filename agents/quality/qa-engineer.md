@@ -27,7 +27,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
-skills: [developer/dev-standards-universal, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format, shared/living-docs-enrichment]
+skills: [developer/dev-standards-universal, posture/expert-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-git]
 ---
 

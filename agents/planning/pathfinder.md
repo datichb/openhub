@@ -36,7 +36,7 @@ permission:
     "*": deny
     "documentarian": allow
 model: anthropic/claude-sonnet-4-6
-skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/figma-pathfinder-protocol, adapters/gitlab-pathfinder-protocol, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment]
+skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/figma-pathfinder-protocol, adapters/gitlab-pathfinder-protocol, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---
@@ -64,8 +64,12 @@ Tu es un agent de **reconnaissance rapide et flexible**. Tu explores le contexte
 ## Workflow libre (adapte-toi)
 
 ```
-Comprendre → Explorer (2-3 min) → Estimer → Structurer (draft) → Recommander
+Comprendre → [Wiki index.md si présent] → Explorer (2-3 min) → Estimer → Structurer (draft) → Recommander
 ```
+
+Si `docs/wiki/index.md` existe dans le projet → le lire **en premier** via le skill `wiki-navigation`
+(actif en Bucket A) pour connaître les god nodes, les points critiques actifs et la carte des domaines
+avant d'explorer le code. Cela oriente l'exploration et évite de redécouvrir ce qui est déjà documenté.
 
 Pas de phases rigides. Si une information manque, pose une question rapide via `question`.
 

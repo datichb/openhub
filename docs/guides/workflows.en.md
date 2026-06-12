@@ -284,23 +284,23 @@ After the executive summary, the auditor consolidates the `### Findings to docum
 surfaced by subagents and proposes to the user to capitalize the relevant discoveries.
 
 ```
-## 💾 Living docs enrichment — Findings to capitalize
+## 💾 Wiki enrichment — Findings to capitalize
 
-### Proposed enrichments for ONBOARDING.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Critical issues 🔴` | Add | "SQL injection possible in UserController (security audit)" |
+### Proposed enrichments for `docs/wiki/index.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Active critical points 🔴` | Add | "SQL injection possible in UserController" | `CONFIRMÉ` · src/controllers/user.controller.ts:34 |
 
-### Proposed enrichments for CONVENTIONS.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Libraries & dependencies` | Add "Do not use" | "lodash 4.17.20 — CVE-2024-1234: prototype pollution" |
+### Proposed enrichments for `docs/wiki/technical/stack.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Key libraries` | Add "Do not use" | "lodash 4.17.20 — CVE-2024-1234: prototype pollution" | `CONFIRMÉ` · package.json |
 
 → question: Delegate writing to the documentarian?
 ```
 
 If the user accepts, the auditor invokes the `documentarian` via `task` to enrich
-`ONBOARDING.md` and/or `CONVENTIONS.md` incrementally (see skill `living-docs-enrichment`).
+the wiki incrementally (see skill `living-docs-enrichment`).
 
 ---
 
@@ -399,23 +399,23 @@ bd create "Fix missing null guard in UserService.findById" -p 0 -t bug --json
 After ticket creation, the debugger identifies findings worth capitalizing:
 
 ```
-## 💾 Living docs enrichment — Findings to capitalize
+## 💾 Wiki enrichment — Findings to capitalize
 
-### Proposed enrichments for ONBOARDING.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Blind spots` | Add | "UserService.findById does not return explicit 401 — returns null without guard (2025 diagnosis)" |
+### Proposed enrichments for `docs/wiki/index.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Blind spots` | Add | "UserService.findById does not return explicit 401 — returns null without guard" | `CONFIRMÉ` · src/services/user.service.ts:47 |
 
-### Proposed enrichments for CONVENTIONS.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Team-specific patterns` | Add | "Always check for null before accessing a repository return value property" |
+### Proposed enrichments for `docs/wiki/technical/conventions.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Team-specific patterns` | Add | "Always check for null before accessing a repository return value property" | `CONFIRMÉ` · src/services/user.service.ts:47 |
 
 → question: Delegate writing to the documentarian?
 ```
 
 If the user accepts, the debugger invokes the `documentarian` via `task`
-(skill `living-docs-enrichment`) to enrich the files incrementally.
+(skill `living-docs-enrichment`) to enrich the wiki incrementally.
 
 #### 5. Fix and review
 
@@ -424,52 +424,52 @@ implements the targeted fix, and the reviewer checks the PR.
 
 ---
 
-## Scenario 4 — Feature implementation → living docs (developer-*)
+## Scenario 4 — Feature implementation → living wiki (developer-*)
 
 **Context:** a developer completes ticket bd-15 (implement user filtering feature).
 
-#### Living docs enrichment (post-ticket)
+#### Living wiki enrichment (post-ticket)
 
 After `bd close bd-15`, the developer identifies discoveries worth capitalizing:
 
 ```
-## 💾 Living docs enrichment — Findings to capitalize
+## 💾 Wiki enrichment — Findings to capitalize
 
-### Proposed enrichments for CONVENTIONS.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Architecture & structure` | Add | "Filtering logic is always co-located in a dedicated `<feature>/filters/` folder (observed in users, ticket bd-15)" |
-| `## Patterns specific to the team` | Add | "Always use TanStack Query with a `staleTime: 60_000` default for list endpoints" |
+### Proposed enrichments for `docs/wiki/technical/conventions.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Team-specific patterns` | Add | "Filtering logic is always co-located in a dedicated `<feature>/filters/` folder" | `CONFIRMÉ` · src/users/filters/ · ticket bd-15 |
+| `## Team-specific patterns` | Add | "Always use TanStack Query with a `staleTime: 60_000` default for list endpoints" | `CONFIRMÉ` · src/users/hooks/useUsers.ts:12 |
 
 → question: Delegate writing to the documentarian?
 ```
 
 If the user accepts, the developer invokes the `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) to enrich the files incrementally.
+(skill `shared/living-docs-enrichment`) to enrich the wiki incrementally.
 
 ---
 
-## Scenario 5 — Code review → living docs (reviewer)
+## Scenario 5 — Code review → living wiki (reviewer)
 
 **Context:** a reviewer analyses the diff for branch `feat/bd-15-user-filters`.
 
-#### Living docs enrichment (post-report)
+#### Living wiki enrichment (post-report)
 
 After producing the review report, the reviewer identifies conventions worth capitalizing:
 
 ```
-## 💾 Living docs enrichment — Findings to capitalize
+## 💾 Wiki enrichment — Findings to capitalize
 
-### Proposed enrichments for CONVENTIONS.md
-| Section | Action | Proposed content |
-|---------|--------|-----------------|
-| `## Naming` | Add | "Filter composables are always named `use<Entity>Filters` (observed in feat/bd-15-user-filters)" |
+### Proposed enrichments for `docs/wiki/technical/conventions.md`
+| Section | Action | Proposed content | Confidence |
+|---------|--------|-----------------|------------|
+| `## Naming` | Add | "Filter composables are always named `use<Entity>Filters`" | `CONFIRMÉ` · src/users/hooks/useUserFilters.ts:1 |
 
 → question: Delegate writing to the documentarian?
 ```
 
 If the user accepts, the reviewer invokes the `documentarian` via `task`
-(skill `shared/living-docs-enrichment`) to enrich the files incrementally.
+(skill `shared/living-docs-enrichment`) to enrich the wiki incrementally.
 
 ---
 

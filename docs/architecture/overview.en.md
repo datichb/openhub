@@ -199,15 +199,18 @@ to three different agents (developer, qa-engineer, debugger).
 Agents `auditor-*`, `reviewer`, `ux-designer`, and `ui-designer` never write to the target project.
 Only `developer-*` and `qa-engineer` agents modify source code files.
 
-Documentary writing (`ONBOARDING.md`, `CONVENTIONS.md`) is reserved for the `documentarian`.
-All agents that produce analysis or implementation work may enrich these files
-only by delegating to the `documentarian` after explicit user confirmation
-(skill `shared/living-docs-enrichment`). They never write directly.
+Documentary writing (wiki `docs/wiki/` and minimal `ONBOARDING.md`) is reserved for
+the `onboarder` (initial generation) and `documentarian` (enrichments). All agents that
+produce analysis or implementation work may enrich the wiki only by delegating to the
+`documentarian` after explicit user confirmation (skill `shared/living-docs-enrichment`).
+They never write directly.
 
 This continuous enrichment loop covers all agents: `auditor` coordinator (Phase 4),
 `planner` (Phase 6), `debugger` (Phase 5), `developer-*` (after each ticket), `reviewer`
 (post-report), `qa-engineer` (post-report), `pathfinder` (post-report), and `onboarder`
-(incremental mode when files already exist).
+(incremental mode when `docs/wiki/index.md` already exists).
+
+See [Living Documentation Wiki](./living-wiki.en.md) for the complete system architecture.
 
 ---
 

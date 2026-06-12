@@ -16,12 +16,11 @@ un projet existant : stack, architecture, risques, et agents à prioriser.
 | L'orchestrator détecte un projet inconnu (Mode C) | L'orchestrator te propose d'invoquer l'onboarder — tu peux accepter ou skipper |
 
 L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
-fichier du projet (sauf `ONBOARDING.md`, `CONVENTIONS.md`, `docs/context/technical.md`,
-`docs/context/business/<domaine>.md` et `projects.md` — uniquement après confirmation explicite).
+fichier du projet (sauf `docs/wiki/`, `ONBOARDING.md` minimaliste et `projects.md` — uniquement après confirmation explicite).
 
-Lorsque ces fichiers **existent déjà** (enrichis par d'autres agents),
+Lorsque `docs/wiki/index.md` **existe déjà** (enrichi par d'autres agents),
 l'onboarder propose par défaut un **enrichissement incrémental** plutôt qu'une réécriture complète.
-Il délègue la mise à jour au `documentarian` via le skill `living-docs-enrichment`.
+Il applique le skill `living-docs-enrichment` et délègue au `documentarian`.
 La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
 
 ---
@@ -196,16 +195,21 @@ Je génère ? (Générer / Annuler)
 → Générer
 ```
 
-### 7. Génération des fichiers
+### 7. Génération du wiki documentaire
 
 L'onboarder produit les fichiers suivants et les ajoute au `.git/info/exclude` (exclusion locale, invisible pour les autres devs) :
 
-- **`ONBOARDING.md`** — résumé exécutif compact : stack, architecture en 3-5 lignes, points critiques actifs, agents recommandés, et liens vers les fichiers détaillés
-- **`CONVENTIONS.md`** — conventions de code condensées : linting, nommage, Git, config, patterns équipe
-- **`docs/context/technical.md`** — documentation technique détaillée : architecture, stratégie de tests, librairies clés, design/Figma
-- **`docs/context/business/<domaine>.md`** — un fichier par domaine métier détecté : règles de gestion, flux, entités, risques
+- **`docs/wiki/index.md`** — carte globale : stack critique, architecture, god nodes (concepts les plus connectés), carte des domaines métier, points critiques actifs, zones d'ombre
+- **`docs/wiki/technical/architecture.md`** — architecture détaillée, découpage, décisions structurantes
+- **`docs/wiki/technical/stack.md`** — stack complète, versions, librairies clés, variables d'environnement
+- **`docs/wiki/technical/tests.md`** — stratégie de test, frameworks, couverture, conventions
+- **`docs/wiki/technical/conventions.md`** — linting, nommage, git, config, patterns équipe
+- **`docs/wiki/business/index.md`** — carte des domaines métier
+- **`docs/wiki/business/<domaine>.md`** — un fichier par domaine métier détecté : règles de gestion, flux, entités, risques
+- **`ONBOARDING.md`** — résumé minimaliste à la racine (15-25 lignes), redirige vers `docs/wiki/index.md`
 
-> `ONBOARDING.md` et `CONVENTIONS.md` restent à la racine et compacts — ce sont eux qui sont injectés comme contexte de démarrage. Les fichiers détaillés dans `docs/context/` sont chargés à la demande par les agents, selon le périmètre de leur tâche.
+> Le wiki remplace les anciens fichiers `CONVENTIONS.md`, `docs/context/technical.md` et `docs/context/business/`. L'`index.md` identifie les "god nodes" — les concepts clés apparaissant dans plusieurs pages — pour guider les agents vers l'essentiel.
+> Chaque enrichissement porte un tag de confiance : `` `CONFIRMÉ` `` (observation directe dans le code), `` `DÉDUIT` `` (raisonnement contextuel) ou `` `INCERTAIN` `` (hypothèse à valider).
 
 ### 8. Proposition de mise à jour `projects.md`
 
@@ -250,30 +254,33 @@ les fichiers de contexte. Ils reflètent ainsi l'analyse enrichie, pas le premie
 
 ---
 
-## Structure des fichiers de contexte produits
+## Structure du wiki documentaire produit
 
-L'onboarder génère une structure à deux niveaux pour optimiser la taille du contexte injecté en session :
+L'onboarder génère une structure wiki à deux niveaux optimisant le chargement de contexte en session :
 
 ```
-ONBOARDING.md                        ← résumé exécutif — injecté au démarrage (fallback cache)
-CONVENTIONS.md                       ← conventions condensées — injecté au démarrage (fallback cache)
-docs/context/
-  technical.md                       ← architecture, tests, librairies — chargé à la demande
-  business/
-    <domaine-1>.md                   ← contexte métier par domaine — chargé à la demande
-    <domaine-2>.md
-    ...
+docs/wiki/
+├── index.md                    ← toujours lu en premier — 40-80 lignes
+├── technical/
+│   ├── architecture.md         ← chargé si la tâche concerne l'architecture
+│   ├── stack.md                ← chargé si la tâche concerne les dépendances
+│   ├── tests.md                ← chargé si la tâche concerne les tests
+│   └── conventions.md          ← chargé si la tâche concerne le code
+└── business/
+    ├── index.md                ← carte des domaines
+    └── <domaine>.md            ← chargé si la tâche concerne ce domaine
+ONBOARDING.md                   ← minimaliste, redirige vers docs/wiki/index.md
 ```
 
-**`ONBOARDING.md`** contient : stack (tableau condensé), architecture en 3-5 lignes, points critiques actifs (🔴🟠), zones d'ombre, agents recommandés, et liens vers `docs/context/`.
+**`docs/wiki/index.md`** contient : stack critique (3-5 lignes), architecture (2-3 lignes),
+tableau des god nodes (concepts critiques apparaissant dans plusieurs pages), carte des
+domaines métier, points critiques actifs, zones d'ombre.
 
-**`CONVENTIONS.md`** contient : linting, langage & typage, nommage, conventions Git, config & secrets, patterns équipe.
+**`docs/wiki/technical/conventions.md`** contient : linting, langage & typage, nommage,
+conventions Git, config & secrets, patterns équipe, à ne pas utiliser.
 
-**`docs/context/technical.md`** contient : architecture détaillée, stratégie de tests complète, librairies et alternatives, design/Figma.
-
-**`docs/context/business/<domaine>.md`** contient : règles de gestion, flux principaux, entités clés, risques spécifiques au domaine.
-
-> Les fichiers `docs/context/` ne sont jamais injectés automatiquement en contexte. Les agents les lisent via `Read` quand leur tâche le nécessite — par exemple, un `developer` travaillant sur le module de facturation lira `docs/context/business/billing.md`.
+Les autres pages `technical/` et `business/<domaine>.md` sont chargées à la demande par
+les agents selon leur tâche courante — jamais toutes en même temps.
 
 ---
 
@@ -352,17 +359,20 @@ et te donnera un état des lieux à jour.
 
 ### Re-onboarding — mode enrichissement incrémental
 
-Lorsque les fichiers de contexte existent déjà (générés lors d'un onboarding précédent
-et progressivement enrichis par d'autres agents : `developer-*`, `reviewer`, `auditor`, etc.),
-l'onboarder les détecte en Phase 5 et propose trois options :
+Lorsque `docs/wiki/index.md` existe déjà (généré lors d'un onboarding précédent
+et progressivement enrichi par d'autres agents : `developer-*`, `reviewer`, `auditor`, etc.),
+l'onboarder le détecte en Phase 5 et propose trois options :
 
-1. **Enrichissement incrémental (Recommandé)** — les sections mises à jour sont déléguées au `documentarian`
-   via `task`, qui enrichit uniquement les sections concernées sans écraser les enrichissements accumulés.
+1. **Enrichissement incrémental (Recommandé)** — les pages wiki concernées sont enrichies
+   via le skill `living-docs-enrichment` qui délègue au `documentarian` ; les enrichissements
+   existants (avec leurs tags de confiance) sont préservés.
 2. **Réécriture complète** — avec un avertissement explicite sur la perte des enrichissements accumulés.
 3. **Conserver l'existant** — aucune modification.
 
-Si un **nouveau domaine métier** est découvert lors du re-onboarding, l'onboarder propose également
-la création d'un nouveau fichier `docs/context/business/<nouveau-domaine>.md`.
+Si un **nouveau domaine métier** est découvert lors du re-onboarding, l'onboarder propose
+la création d'une nouvelle page `docs/wiki/business/<nouveau-domaine>.md` et la mise à
+jour de `docs/wiki/business/index.md`.
 
-Cela préserve la boucle d'amélioration continue : les fichiers accumulent les connaissances de tous les agents
-tout au long du cycle de vie du projet.
+Cela préserve la boucle d'amélioration continue : le wiki accumule les connaissances de
+tous les agents tout au long du cycle de vie du projet, chaque enrichissement étant traçable
+avec son agent source, sa date et son niveau de confiance.

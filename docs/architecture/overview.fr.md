@@ -200,15 +200,18 @@ Implémenter, tester et diagnostiquer sont trois responsabilités distinctes con
 Les agents auditor-*, reviewer, ux-designer, ui-designer n'écrivent jamais dans le projet cible.
 Seuls les agents developer et qa-engineer modifient des fichiers de code.
 
-L'écriture documentaire (ONBOARDING.md, CONVENTIONS.md) est réservée au `documentarian`.
-Tous les agents produisant une analyse ou une implémentation peuvent enrichir ces fichiers
-uniquement via délégation au `documentarian` après confirmation explicite de l'utilisateur
-(skill `shared/living-docs-enrichment`). Ils ne font jamais d'écriture directe.
+L'écriture documentaire (wiki `docs/wiki/` et `ONBOARDING.md` minimaliste) est réservée à
+l'`onboarder` (génération initiale) et au `documentarian` (enrichissements). Tous les agents
+produisant une analyse ou une implémentation peuvent enrichir le wiki uniquement via délégation
+au `documentarian` après confirmation explicite de l'utilisateur (skill `shared/living-docs-enrichment`).
+Ils ne font jamais d'écriture directe.
 
 Cette boucle d'enrichissement continu couvre tous les agents : `auditor` coordinateur (Phase 4),
 `planner` (Phase 6), `debugger` (Phase 5), `developer-*` (après chaque ticket), `reviewer`
 (post-rapport), `qa-engineer` (post-rapport), `pathfinder` (post-rapport), et `onboarder`
-(mode enrichissement incrémental lorsque les fichiers existent déjà).
+(mode enrichissement incrémental lorsque `docs/wiki/index.md` existe déjà).
+
+Voir [Wiki Documentaire Vivant](./living-wiki.fr.md) pour l'architecture complète du système.
 
 ---
 
