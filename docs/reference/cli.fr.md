@@ -962,3 +962,80 @@ oc figma setup                      # = oc service setup figma
 oc gitlab status                    # = oc service status gitlab
 ```
 > Couleurs des bordures de colonnes : grisé (open), bleu (in progress), jaune (review), rouge (blocked).
+
+---
+
+## `oc metrics`
+
+Affiche les métriques de vélocité, coûts et usage du hub OpenCode.
+
+```bash
+oc metrics                  # 7 derniers jours (défaut)
+oc metrics --period today   # aujourd'hui seulement
+oc metrics --period week    # 7 derniers jours
+oc metrics --period month   # 30 derniers jours
+```
+
+**Sources de données :**
+
+| Source | Données collectées | Prérequis |
+|--------|-------------------|-----------|
+| `~/.local/share/opencode/opencode.db` | Sessions, coûts, tokens, modèles, agents | `sqlite3` |
+| `bd list` par projet | Tickets par statut | `bd` (optionnel) |
+| `.opencode/metrics.jsonl` | Vélocité workflow (rétrocompat.) | — |
+
+**Sections affichées :**
+
+- **Vue globale** : sessions totales, coût USD, tokens input/output, cache write/read, cache hit rate + économies estimées
+- **Coût par projet** : répartition des dépenses par répertoire de projet
+- **Top agents** : agents triés par coût décroissant
+- **Top modèles** : modèles LLM triés par coût
+- **Sessions récentes** : 5 dernières sessions avec titre, agent, coût et date
+- **Tickets** : état des tickets Beads par projet (si `bd` disponible)
+- **Vélocité workflow** : tickets complétés, temps moyen, cycles review (si `metrics.jsonl` présent)
+
+**Options :**
+
+| Option | Description |
+|--------|-------------|
+| `--period today` | Données de la journée en cours uniquement |
+| `--period week` | 7 derniers jours (défaut) |
+| `--period month` | 30 derniers jours |
+
+**Comportement si `sqlite3` absent :** Message d'aide affiché, exit 0 (non bloquant). Les sections Tickets et Vélocité restent disponibles.
+
+**Prérequis :** `sqlite3` (natif macOS — `sudo apt-get install sqlite3` sur Linux)
+
+---
+
+## `oc dashboard`
+
+Affiche le dashboard multi-projet du hub OpenCode. Vue synthétique de l'état de tous les projets, du budget sessions et de l'activité récente.
+
+```bash
+oc dashboard
+```
+
+**Sources de données :**
+
+| Source | Données collectées | Prérequis |
+|--------|-------------------|-----------|
+| `~/.local/share/opencode/opencode.db` | Budget sessions, sessions récentes, top agents | `sqlite3` |
+| `bd list` par projet | Tickets actifs, bloqués, complétés | `bd` (optionnel) |
+| `.opencode/session-state.json` | Session orchestrateur active (rétrocompat.) | `jq` |
+
+**Sections affichées :**
+
+- **Projets** : pour chaque projet configuré avec Beads — ticket en cours, compteurs par statut (✅ / 🔄 / ⏳ / 🚫)
+- **Session orchestrateur active** : si une session est en cours via `oc start`, affiche l'agent actif, le ticket courant et l'action
+- **Budget sessions** : dépenses aujourd'hui / cette semaine / ce mois, nombre de sessions, cache hit rate
+- **Sessions récentes** : 5 dernières sessions (titre, agent, coût, date)
+- **Top agents** : agents triés par coût décroissant sur 7 jours, avec pourcentage relatif
+
+**Comportement si `sqlite3` absent :** Les sections Budget, Sessions récentes et Top agents affichent un message d'aide. La section Projets (bd) reste disponible.
+
+**Comportement si `bd` absent :** La section Projets affiche un message d'aide. Les sections SQLite restent disponibles.
+
+**Prérequis :** `sqlite3` pour les sections coûts/sessions ; `bd` (optionnel) pour les tickets
+
+> Pour voir les métriques détaillées sur une période personnalisée, utiliser `oc metrics --period month`.

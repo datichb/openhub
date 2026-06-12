@@ -9,7 +9,9 @@ Ce guide vous permet d'installer le hub et de lancer votre premier agent en moin
 | Git | 2.x | `git --version` |
 | curl | — | `curl --version` |
 
-> Les autres dépendances (`jq`, `Node.js`, `opencode`, `bun`) sont proposées à l'installation — **chaque outil demande une confirmation explicite** avant d'être installé.
+> Les autres dépendances (`jq`, `Node.js`, `opencode`, `bun`, `sqlite3`) sont proposées à l'installation — **chaque outil demande une confirmation explicite** avant d'être installé.
+>
+> **`sqlite3`** est requis pour `oc metrics` et `oc dashboard` (lecture de la base de sessions OpenCode). Il est **natif sur macOS** (`/usr/bin/sqlite3`) ; sur Linux il sera proposé à l'installation via `apt-get`.
 >
 > **Beads (`bd`)** est proposé à l'installation par `oc install` (via `brew install beads` ou curl).
 > Le board kanban terminal (`oc beads board`) est intégré — aucune installation supplémentaire requise.

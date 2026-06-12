@@ -42,7 +42,8 @@ from a single source of truth.
 - **[OpenCode](https://opencode.ai)** — AI coding agent
 - **[jq](https://jqlang.github.io/jq/)** — required for `oc deploy` (generates `opencode.json`)
 - **[git](https://git-scm.com/)**, **[node](https://nodejs.org/)**, **[bun](https://bun.sh/)** — standard toolchain
-- **[Beads](https://beads.sh/)** *(optional)* — task tracker integration
+- **[sqlite3](https://sqlite.org/)** — required for `oc metrics` and `oc dashboard` (reads OpenCode session database). Native on macOS; on Linux: `sudo apt-get install sqlite3`
+- **[Beads](https://beads.sh/)** *(optional)* — task tracker integration for ticket views in metrics and dashboard
 
 The install script detects and installs missing dependencies automatically (Homebrew on macOS, apt-get on Linux).
 

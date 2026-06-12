@@ -963,3 +963,80 @@ oc service remove gitlab            # remove GitLab config
 oc figma setup                      # = oc service setup figma
 oc gitlab status                    # = oc service status gitlab
 ```
+
+---
+
+## `oc metrics`
+
+Displays velocity metrics, costs and usage data for the OpenCode hub.
+
+```bash
+oc metrics                  # last 7 days (default)
+oc metrics --period today   # today only
+oc metrics --period week    # last 7 days
+oc metrics --period month   # last 30 days
+```
+
+**Data sources:**
+
+| Source | Data collected | Prerequisite |
+|--------|---------------|-------------|
+| `~/.local/share/opencode/opencode.db` | Sessions, costs, tokens, models, agents | `sqlite3` |
+| `bd list` per project | Tickets by status | `bd` (optional) |
+| `.opencode/metrics.jsonl` | Workflow velocity (legacy) | — |
+
+**Displayed sections:**
+
+- **Overview**: total sessions, USD cost, input/output tokens, cache write/read, cache hit rate + estimated savings
+- **Cost by project**: spending breakdown by project directory
+- **Top agents**: agents sorted by descending cost
+- **Top models**: LLM models sorted by cost
+- **Recent sessions**: last 5 sessions with title, agent, cost and date
+- **Tickets**: Beads ticket status per project (if `bd` available)
+- **Workflow velocity**: completed tickets, average time, review cycles (if `metrics.jsonl` present)
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--period today` | Current day only |
+| `--period week` | Last 7 days (default) |
+| `--period month` | Last 30 days |
+
+**If `sqlite3` is absent:** Help message displayed, exit 0 (non-blocking). Tickets and Velocity sections remain available.
+
+**Prerequisite:** `sqlite3` (native on macOS — `sudo apt-get install sqlite3` on Linux)
+
+---
+
+## `oc dashboard`
+
+Displays the multi-project dashboard for the OpenCode hub. Synthetic view of all projects status, session budget and recent activity.
+
+```bash
+oc dashboard
+```
+
+**Data sources:**
+
+| Source | Data collected | Prerequisite |
+|--------|---------------|-------------|
+| `~/.local/share/opencode/opencode.db` | Session budget, recent sessions, top agents | `sqlite3` |
+| `bd list` per project | Active, blocked, completed tickets | `bd` (optional) |
+| `.opencode/session-state.json` | Active orchestrator session (legacy) | `jq` |
+
+**Displayed sections:**
+
+- **Projects**: for each project configured with Beads — current ticket, counters by status (✅ / 🔄 / ⏳ / 🚫)
+- **Active orchestrator session**: if a session is running via `oc start`, shows the active agent, current ticket and action
+- **Session budget**: spending today / this week / this month, session count, cache hit rate
+- **Recent sessions**: last 5 sessions (title, agent, cost, date)
+- **Top agents**: agents sorted by descending cost over 7 days, with relative percentage
+
+**If `sqlite3` is absent:** Budget, Recent sessions and Top agents sections display a help message. The Projects (bd) section remains available.
+
+**If `bd` is absent:** Projects section displays a help message. SQLite sections remain available.
+
+**Prerequisites:** `sqlite3` for cost/session sections; `bd` (optional) for tickets
+
+> For detailed metrics over a custom period, use `oc metrics --period month`.

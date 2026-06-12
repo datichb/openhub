@@ -9,6 +9,29 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **`oc metrics` — refonte complète** — les métriques passent d'un système dépendant de l'écriture par l'orchestrateur (`metrics.jsonl`) à une collecte passive read-only depuis la base SQLite OpenCode (`~/.local/share/opencode/opencode.db`). Aucune modification des permissions des agents orchestrateurs requise :
+  - `scripts/lib/opencode-db.sh` : nouvelle bibliothèque de requêtes SQLite read-only (coûts, tokens, cache hit rate, sessions, agents, modèles)
+  - `scripts/cmd-metrics.sh` : refonte — sections Vue globale (coût USD, tokens input/output, cache write/read, cache hit rate + économies estimées), Coût par projet, Top agents, Top modèles, Sessions récentes, Tickets bd et Vélocité workflow (rétrocompat.)
+  - Nouvelle option `--period today|week|month` pour filtrer la période (défaut : 7 jours)
+  - Fallback gracieux si `sqlite3` absent ou base inaccessible (warn + exit 0, les autres sections restent disponibles)
+  - `tests/test_lib_opencode_db.bats` : 26 nouveaux tests couvrant disponibilité, chemins, requêtes, agrégation, formatage
+  - `tests/test_cmd_metrics.bats` : 11 nouveaux tests (SQLite, périodes, sqlite3 absent, cache hit rate) + 12 tests rétrocompat. conservés
+
+- **`oc dashboard` — refonte multi-projet** — le dashboard passe d'une vue mono-session (dépendant de `session-state.json` écrit par l'orchestrateur) à un dashboard multi-projet passif :
+  - `scripts/cmd-dashboard.sh` : refonte — sections Projets (bd, tickets par statut pour chaque projet), Session orchestrateur active (rétrocompat.), Budget sessions (aujourd'hui / semaine / mois), Sessions récentes, Top agents
+  - Sources de données exclusivement en lecture : `opencode.db` + `bd list` + `session-state.json` (rétrocompat.)
+  - Fallback gracieux si `sqlite3` ou `bd` absent — sections concernées dégradées sans bloquer les autres
+  - `tests/test_cmd_dashboard.bats` : 9 nouveaux tests (header, budget, sessions récentes, agents, fallbacks sqlite3/bd, rétrocompat.) + 16 tests existants conservés
+
+- **Prérequis `sqlite3`** — ajouté dans l'installation et la documentation :
+  - `install.sh` : vérification de `sqlite3` avec proposition d'installation sur Linux (`apt-get install sqlite3`) et warning informatif (non-bloquant) sur macOS
+  - `scripts/cmd-install.sh` : idem pour `oc install`
+  - `README.md` + `README.fr.md` : `sqlite3` ajouté dans la section Requirements/Prérequis
+  - `docs/guides/getting-started.fr.md` + `.en.md` : `sqlite3` ajouté dans la table des prérequis avec note "natif macOS"
+  - `docs/reference/cli.fr.md` + `cli.en.md` : nouvelles sections `oc metrics` et `oc dashboard` documentant les sources de données, sections, options et comportements de fallback
+
 ### Fixed
 
 - **`oc deploy` bloqué si `jq` absent — les agents natifs OpenCode n'étaient pas désactivés** — sur une installation fraîche où `jq` était refusé lors de l'install, `get_hub_disabled_native_agents()` retournait silencieusement `""` (guard `return 0`), et `adapter_deploy_config()` ne générait aucune entrée `{"disable": true}` dans `opencode.json`. Les agents natifs OpenCode (`build`, `plan`, `general`, `explore`, `pathfinder`) restaient actifs alors qu'ils devaient être masqués :

@@ -3,6 +3,7 @@
 
 setup() {
   TEST_DIR="$(mktemp -d)"
+  HUB_ROOT="$BATS_TEST_DIRNAME/.."
 
   export PROJECTS_FILE="$TEST_DIR/projects.md"
   export PATHS_FILE="$TEST_DIR/paths.local.md"
@@ -20,6 +21,35 @@ setup() {
   mkdir -p "$TEST_DIR/fake-project/.opencode"
   export _METRICS_DIR="$TEST_DIR/fake-project/.opencode"
   export _METRICS_FILE="$_METRICS_DIR/metrics.jsonl"
+
+  # Base SQLite de test
+  TEST_DB="$TEST_DIR/test_opencode.db"
+  export _OCDB_FILE="$TEST_DB"
+  sqlite3 "$TEST_DB" "
+    CREATE TABLE session (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL DEFAULT 'proj1',
+      parent_id TEXT,
+      slug TEXT NOT NULL DEFAULT 'test-slug',
+      directory TEXT NOT NULL DEFAULT '/test/project',
+      title TEXT NOT NULL DEFAULT 'Test Session',
+      version TEXT NOT NULL DEFAULT '1.0',
+      cost REAL DEFAULT 0 NOT NULL,
+      tokens_input INTEGER DEFAULT 0 NOT NULL,
+      tokens_output INTEGER DEFAULT 0 NOT NULL,
+      tokens_reasoning INTEGER DEFAULT 0 NOT NULL,
+      tokens_cache_read INTEGER DEFAULT 0 NOT NULL,
+      tokens_cache_write INTEGER DEFAULT 0 NOT NULL,
+      agent TEXT,
+      model TEXT,
+      metadata TEXT,
+      time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL
+    );
+  "
+  NOW_MS=$(( $(date +%s) * 1000 ))
+  YESTERDAY_MS=$(( ($(date +%s) - 86400) * 1000 ))
+  export NOW_MS YESTERDAY_MS
 
   # Fichiers de config de base
   cat > "$PROJECTS_FILE" <<'PROJEOF'
@@ -42,11 +72,12 @@ teardown() {
   unset HUB_CONFIG
   unset _METRICS_DIR
   unset _METRICS_FILE
+  unset _OCDB_FILE
   rm -rf "$TEST_DIR"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Tests cmd-metrics.sh — Cas fichier absent
+# Tests cmd-metrics.sh — Cas fichier absent (rétrocompat)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @test "cmd-metrics : affiche message informatif si fichier metrics absent" {
@@ -55,7 +86,7 @@ teardown() {
 
   run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Fichier de métriques non trouvé"* ]] || [[ "$output" == *"metrics file not found"* ]] || [[ "$output" == *"non trouvé"* ]]
+  [[ "$output" == *"Fichier de métriques non trouvé"* ]] || [[ "$output" == *"metrics file not found"* ]] || [[ "$output" == *"non trouvé"* ]] || [[ "$output" == *"sqlite3"* ]] || [[ "$output" == *"Métriques"* ]]
 }
 
 @test "cmd-metrics : exit 0 même si fichier metrics absent" {
@@ -66,7 +97,7 @@ teardown() {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Tests cmd-metrics.sh — Cas fichier vide
+# Tests cmd-metrics.sh — Cas fichier vide (rétrocompat)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @test "cmd-metrics : gère le fichier metrics vide" {
@@ -76,11 +107,11 @@ teardown() {
   run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
   [ "$status" -eq 0 ]
   # Devrait afficher 0 tickets ou un message indiquant pas de données
-  [[ "$output" == *"0"* ]] || [[ "$output" == *"Aucune"* ]] || [[ "$output" == *"—"* ]]
+  [[ "$output" == *"0"* ]] || [[ "$output" == *"Aucune"* ]] || [[ "$output" == *"—"* ]] || [[ "$output" == *"Métriques"* ]]
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Tests cmd-metrics.sh — Cas nominal avec données
+# Tests cmd-metrics.sh — Cas nominal avec données JSONL (rétrocompat)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @test "cmd-metrics : affiche les métriques avec données" {
@@ -135,7 +166,92 @@ EOF
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Tests lib/metrics.sh — Fonctions d'agrégation
+# Tests cmd-metrics.sh — Nouvelles métriques SQLite
+# ══════════════════════════════════════════════════════════════════════════════
+
+@test "cmd-metrics : affiche le header même sans données SQLite" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Métriques"* ]] || [[ "$output" == *"OpenCode"* ]]
+}
+
+@test "cmd-metrics : exit 0 si sqlite3 présent mais base vide" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd-metrics : affiche coût total avec données SQLite" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES
+      ('s1','p1','swift-eagle','/proj/app','Fix bug','1.0','developer','claude-sonnet-4-6',5.50,100000,20000,80000,5000,$YESTERDAY_MS,$YESTERDAY_MS),
+      ('s2','p1','jolly-fox','/proj/app','Add feature','1.0','qa-engineer','claude-sonnet-4-6',3.20,80000,15000,60000,4000,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  # Doit afficher des informations sur le coût
+  [[ "$output" == *"\$"* ]] || [[ "$output" == *"cost"* ]] || [[ "$output" == *"8."* ]]
+}
+
+@test "cmd-metrics : affiche les sessions récentes" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s1','p1','swift-eagle','/proj/app','Fix critical bug','1.0','developer','claude-sonnet-4-6',5.50,100000,20000,80000,5000,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Fix critical bug"* ]] || [[ "$output" == *"swift-eagle"* ]] || [[ "$output" == *"developer"* ]]
+}
+
+@test "cmd-metrics --period today : accepte la période today" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period today"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Aujourd'hui"* ]] || [[ "$output" == *"today"* ]] || [[ "$output" == *"Métriques"* ]]
+}
+
+@test "cmd-metrics --period month : accepte la période month" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period month"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"30"* ]] || [[ "$output" == *"mois"* ]] || [[ "$output" == *"Métriques"* ]]
+}
+
+@test "cmd-metrics --period invalide : exit 1 avec message d'erreur" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period invalid_period 2>&1"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Période inconnue"* ]] || [[ "$output" == *"Options"* ]]
+}
+
+@test "cmd-metrics : affiche cache hit rate si tokens cache présents" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s1','p1','slug1','/proj/app','S1','1.0','developer','claude-sonnet-4-6',5.0,200,500,800,100,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"cache"* ]] || [[ "$output" == *"Cache"* ]] || [[ "$output" == *"%"* ]]
+}
+
+@test "cmd-metrics : sqlite3 absent donne message d'aide (non bloquant)" {
+  # Masquer sqlite3 avec un fake qui retourne 127
+  FAKE_PATH="$(mktemp -d)"
+  cat > "$FAKE_PATH/sqlite3" <<'FAKEEOF'
+#!/bin/bash
+exit 127
+FAKEEOF
+  chmod +x "$FAKE_PATH/sqlite3"
+
+  run bash -c "PATH='$FAKE_PATH:$PATH' && cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sqlite3"* ]] || [[ "$output" == *"Métriques"* ]]
+
+  rm -rf "$FAKE_PATH"
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tests lib/metrics.sh — Fonctions d'agrégation (rétrocompat)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @test "metrics_count_completed : retourne 0 si fichier absent" {

@@ -247,6 +247,33 @@ else
   log_success "bun $(bun --version)"
 fi
 
+# ── sqlite3 ───────────────────────────────
+# Requis pour oc metrics et oc dashboard (lecture de la base OpenCode)
+# Natif sur macOS — uniquement à vérifier sur Linux
+if ! command -v sqlite3 &>/dev/null; then
+  if [ "$OS" = "linux" ]; then
+    log_warn "sqlite3 non détecté — requis pour oc metrics / oc dashboard"
+    if command -v apt-get &>/dev/null; then
+      read -rp "  Installer sqlite3 via apt-get ? [Y/n] : " _sqlite3_choice </dev/tty
+      if [[ "${_sqlite3_choice:-Y}" =~ ^[Yy]$ ]]; then
+        if sudo apt-get install -y -q sqlite3; then
+          log_success "sqlite3 installé"
+        else
+          log_warn "Échec installation sqlite3 — installer manuellement : sudo apt-get install sqlite3"
+        fi
+      else
+        log_warn "oc metrics / oc dashboard ne seront pas disponibles sans sqlite3"
+      fi
+    else
+      log_warn "Installer sqlite3 manuellement : sudo apt install sqlite3"
+    fi
+  else
+    log_warn "sqlite3 introuvable (normalement natif sur macOS) — oc metrics désactivé"
+  fi
+else
+  log_success "sqlite3 $(sqlite3 --version | awk '{print $1}')"
+fi
+
 _outro "Dépendances vérifiées"
 
 # ─────────────────────────────────────────

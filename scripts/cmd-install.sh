@@ -28,6 +28,27 @@ else
   log_success "jq $(jq --version)"
 fi
 
+# ── Vérifier sqlite3 ─────────────────────
+# Requis pour oc metrics / oc dashboard (lecture base OpenCode)
+# Natif sur macOS — vérification informationnelle uniquement
+if ! command -v sqlite3 &>/dev/null; then
+  log_warn "sqlite3 non trouvé — requis pour oc metrics / oc dashboard"
+  if [ "$OS" = "linux" ] && command -v apt-get &>/dev/null; then
+    read -rp "  Installer sqlite3 via apt-get ? [Y/n] : " sqlite3_choice
+    if [[ "${sqlite3_choice:-Y}" =~ ^[Yy]$ ]]; then
+      sudo apt-get install -y -q sqlite3 && log_success "sqlite3 installé" \
+        || log_warn "Échec — installer manuellement : sudo apt-get install sqlite3"
+    else
+      log_warn "oc metrics / oc dashboard désactivés sans sqlite3"
+    fi
+  else
+    log_info "  macOS  : sqlite3 est natif — vérifier /usr/bin/sqlite3"
+    log_info "  Linux  : sudo apt-get install sqlite3"
+  fi
+else
+  log_success "sqlite3 $(sqlite3 --version | awk '{print $1}')"
+fi
+
 _outro "$(t install.os_done) $OS"
 
 # ── Installation opencode ────────────────
