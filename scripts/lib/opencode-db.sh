@@ -430,3 +430,290 @@ ocdb_aggregate() {
 
   return 0
 }
+
+# ─────────────────────────────────────────
+# FONCTIONS TOOL-USE (table part)
+# ─────────────────────────────────────────
+
+# Statistiques des tool calls par nom d'outil sur N jours
+# Retourne des lignes "tool|count" triées par count décroissant
+# Usage : ocdb_tool_stats [days=30] [limit=20]
+ocdb_tool_stats() {
+  local days="${1:-30}"
+  local limit="${2:-20}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  _ocdb_query "
+    SELECT
+      json_extract(p.data, '$.tool')  AS tool_name,
+      COUNT(*)                        AS cnt
+    FROM part p
+    JOIN session s ON p.session_id = s.id
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND json_extract(p.data, '$.type') = 'tool'
+      AND tool_name IS NOT NULL
+    GROUP BY tool_name
+    ORDER BY cnt DESC
+    LIMIT ${limit};
+  "
+}
+
+# Décompte d'un outil spécifique sur N jours
+# Usage : ocdb_tool_count "edit" [days=30]
+ocdb_tool_count() {
+  local tool="${1:?tool requis}"
+  local days="${2:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  local result
+  result=$(_ocdb_query "
+    SELECT COUNT(*)
+    FROM part p
+    JOIN session s ON p.session_id = s.id
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND json_extract(p.data, '$.type') = 'tool'
+      AND json_extract(p.data, '$.tool') = '${tool}';
+  ")
+  echo "${result:-0}"
+}
+
+# Taux d'erreurs sur les tool calls sur N jours (en %)
+# Usage : ocdb_tool_error_rate [days=30]
+ocdb_tool_error_rate() {
+  local days="${1:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  local row
+  row=$(_ocdb_query "
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN json_extract(p.data, '$.state.status') = 'error' THEN 1 ELSE 0 END) AS errors
+    FROM part p
+    JOIN session s ON p.session_id = s.id
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND json_extract(p.data, '$.type') = 'tool';
+  ")
+  local total errors
+  total=$(echo "$row" | cut -d'|' -f1)
+  errors=$(echo "$row" | cut -d'|' -f2)
+  total="${total:-0}"
+  errors="${errors:-0}"
+  if [ "$total" -eq 0 ] 2>/dev/null; then
+    echo "0.0"
+    return
+  fi
+  LC_ALL=C awk "BEGIN { printf \"%.1f\", $errors/$total*100 }"
+}
+
+# Répartition des sessions par catégorie d'activité sur N jours
+# Catégories déterministes basées sur les tool-use patterns :
+#   code        : sessions avec edit ou write
+#   exploration : sessions avec read/grep/glob mais sans edit/write
+#   planification : sessions avec task > 2 ou agent contient orchestrator
+#   review      : sessions avec agent contenant reviewer
+#   debug       : sessions avec agent contenant debugger
+#   conversation : sessions sans aucun tool call
+#
+# Retourne des lignes "category|session_count|total_cost"
+# Usage : ocdb_activity_breakdown [days=7]
+ocdb_activity_breakdown() {
+  local days="${1:-7}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+
+  _ocdb_query "
+    WITH session_tools AS (
+      SELECT
+        s.id                                                  AS session_id,
+        s.cost                                                AS cost,
+        s.agent                                               AS agent,
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') IN ('edit','write') THEN 1 END)       AS edit_count,
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') IN ('read','grep','glob') THEN 1 END) AS read_count,
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') = 'task' THEN 1 END)                  AS task_count,
+        COUNT(CASE WHEN json_extract(p.data, '$.type') = 'tool' THEN 1 END)                  AS tool_total
+      FROM session s
+      LEFT JOIN part p ON p.session_id = s.id
+      WHERE s.parent_id IS NULL
+        AND s.time_created >= ${since_ts}
+      GROUP BY s.id
+    ),
+    categorized AS (
+      SELECT
+        CASE
+          WHEN agent LIKE '%reviewer%'                              THEN 'review'
+          WHEN agent LIKE '%debugger%'                              THEN 'debug'
+          WHEN agent LIKE '%orchestrator%' OR task_count > 2        THEN 'planification'
+          WHEN edit_count > 0                                        THEN 'code'
+          WHEN read_count > 0 AND edit_count = 0                   THEN 'exploration'
+          WHEN tool_total = 0                                        THEN 'conversation'
+          ELSE 'autre'
+        END AS category,
+        cost
+      FROM session_tools
+    )
+    SELECT
+      category,
+      COUNT(*)            AS session_count,
+      ROUND(SUM(cost), 4) AS total_cost
+    FROM categorized
+    GROUP BY category
+    ORDER BY total_cost DESC;
+  "
+}
+
+# Sessions coûteuses sans aucun edit/write sur N jours
+# Retourne des lignes "slug|title|agent|cost"
+# Usage : ocdb_sessions_no_edit [days=30] [min_cost=1.0]
+ocdb_sessions_no_edit() {
+  local days="${1:-30}"
+  local min_cost="${2:-1.0}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  _ocdb_query "
+    SELECT
+      s.slug,
+      REPLACE(REPLACE(s.title, '|', '/'), CHAR(10), ' '),
+      COALESCE(s.agent, ''),
+      ROUND(s.cost, 4)
+    FROM session s
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND s.cost >= ${min_cost}
+      AND NOT EXISTS (
+        SELECT 1 FROM part p
+        WHERE p.session_id = s.id
+          AND json_extract(p.data, '$.type') = 'tool'
+          AND json_extract(p.data, '$.tool') IN ('edit', 'write')
+      )
+    ORDER BY s.cost DESC
+    LIMIT 10;
+  "
+}
+
+# Ratio Read/Edit moyen sur N jours (idéal >= 2.0)
+# Usage : ocdb_avg_read_edit_ratio [days=30]
+ocdb_avg_read_edit_ratio() {
+  local days="${1:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  local row
+  row=$(_ocdb_query "
+    SELECT
+      SUM(read_cnt) AS total_read,
+      SUM(edit_cnt) AS total_edit
+    FROM (
+      SELECT
+        s.id,
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') IN ('read','grep','glob') THEN 1 END) AS read_cnt,
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') IN ('edit','write') THEN 1 END)       AS edit_cnt
+      FROM session s
+      JOIN part p ON p.session_id = s.id
+      WHERE s.parent_id IS NULL
+        AND s.time_created >= ${since_ts}
+      GROUP BY s.id
+      HAVING edit_cnt > 0
+    );
+  ")
+  local total_read total_edit
+  total_read=$(echo "$row" | cut -d'|' -f1)
+  total_edit=$(echo "$row" | cut -d'|' -f2)
+  total_read="${total_read:-0}"
+  total_edit="${total_edit:-0}"
+  if [ "$total_edit" -eq 0 ] 2>/dev/null; then
+    echo "0.0"
+    return
+  fi
+  LC_ALL=C awk "BEGIN { printf \"%.1f\", $total_read/$total_edit }"
+}
+
+# Nombre de sessions avec délégation lourde (tool=task > 40% des tools) sur N jours
+# Usage : ocdb_sessions_heavy_delegation [days=30]
+ocdb_sessions_heavy_delegation() {
+  local days="${1:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  local result
+  result=$(_ocdb_query "
+    SELECT COUNT(*) FROM (
+      SELECT s.id
+      FROM session s
+      JOIN part p ON p.session_id = s.id
+      WHERE s.parent_id IS NULL
+        AND s.time_created >= ${since_ts}
+        AND json_extract(p.data, '$.type') = 'tool'
+      GROUP BY s.id
+      HAVING
+        COUNT(CASE WHEN json_extract(p.data, '$.tool') = 'task' THEN 1 END) * 100.0
+        / COUNT(*) > 40
+    );
+  ")
+  echo "${result:-0}"
+}
+
+# Fichiers re-lus >= threshold fois dans une même session sur N jours
+# Retourne des lignes "filename|read_count"
+# Usage : ocdb_repeated_reads [days=30] [threshold=5]
+ocdb_repeated_reads() {
+  local days="${1:-30}"
+  local threshold="${2:-5}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  _ocdb_query "
+    SELECT
+      json_extract(p.data, '$.state.input.path') AS file_path,
+      COUNT(*)                                    AS read_count
+    FROM part p
+    JOIN session s ON p.session_id = s.id
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND json_extract(p.data, '$.type') = 'tool'
+      AND json_extract(p.data, '$.tool') = 'read'
+      AND file_path IS NOT NULL
+    GROUP BY p.session_id, file_path
+    HAVING read_count >= ${threshold}
+    ORDER BY read_count DESC
+    LIMIT 10;
+  " | while IFS='|' read -r fpath cnt; do
+    local short
+    short=$(basename "$fpath" 2>/dev/null || echo "$fpath")
+    echo "${short}|${cnt}"
+  done
+}
+
+# Détecte les MCP servers déployés mais inutilisés sur N jours
+# Compare les tools *-mcp_* utilisés vs les servers présents dans servers/
+# Retourne les noms de MCP servers inutilisés (un par ligne)
+# Usage : ocdb_unused_mcp [days=30]
+ocdb_unused_mcp() {
+  local days="${1:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+
+  local used_tools
+  used_tools=$(_ocdb_query "
+    SELECT DISTINCT json_extract(p.data, '$.tool') AS tool_name
+    FROM part p
+    JOIN session s ON p.session_id = s.id
+    WHERE s.parent_id IS NULL
+      AND s.time_created >= ${since_ts}
+      AND json_extract(p.data, '$.type') = 'tool'
+      AND tool_name LIKE '%-mcp_%';
+  ")
+
+  local hub_dir="${HUB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+  local servers_dir="${hub_dir}/servers"
+
+  [ -d "$servers_dir" ] || return
+
+  for server_dir in "$servers_dir"/*/; do
+    local server_name
+    server_name=$(basename "$server_dir")
+    local prefix="${server_name%%-mcp}-mcp"
+    if ! echo "$used_tools" | grep -q "^${prefix}_" 2>/dev/null; then
+      echo "$server_name"
+    fi
+  done
+}

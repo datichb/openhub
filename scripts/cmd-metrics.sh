@@ -117,6 +117,58 @@ _fmt_cost() {
 }
 
 # ─────────────────────────────────────────
+# SECTION : ACTIVITÉ (tool-use patterns)
+# ─────────────────────────────────────────
+
+_show_activity_section() {
+  local days="$1"
+
+  local rows=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && rows+=("$line")
+  done < <(ocdb_activity_breakdown "$days" 2>/dev/null || true)
+
+  [ ${#rows[@]} -eq 0 ] && return
+
+  _metrics_section "🎯 Activité"
+  echo ""
+
+  # Labels affichés par catégorie
+  local total_cost=0
+  for row in "${rows[@]}"; do
+    local cost
+    cost=$(echo "$row" | cut -d'|' -f3)
+    total_cost=$(LC_ALL=C awk "BEGIN { printf \"%.4f\", $total_cost + ${cost:-0} }")
+  done
+
+  for row in "${rows[@]}"; do
+    local category count cost
+    category=$(echo "$row" | cut -d'|' -f1)
+    count=$(echo "$row"    | cut -d'|' -f2)
+    cost=$(echo "$row"     | cut -d'|' -f3)
+
+    local label emoji color
+    case "$category" in
+      code)          label="Code";          emoji="💻"; color="${GREEN}" ;;
+      planification) label="Planification"; emoji="🗺️"; color="${CYAN}" ;;
+      exploration)   label="Exploration";   emoji="🔍"; color="${CYAN}" ;;
+      review)        label="Review";        emoji="👁️"; color="${YELLOW}" ;;
+      debug)         label="Debug";         emoji="🐛"; color="${YELLOW}" ;;
+      conversation)  label="Conversation";  emoji="💬"; color="${DIM}" ;;
+      *)             label="$category";     emoji="•";  color="${DIM}" ;;
+    esac
+
+    local pct=0
+    if awk "BEGIN { exit !($total_cost > 0) }" 2>/dev/null; then
+      pct=$(LC_ALL=C awk "BEGIN { printf \"%d\", $cost/$total_cost*100 }")
+    fi
+
+    printf "  ${DIM}•${RESET}  %s %-16s  ${color}%-3s sessions${RESET}  ${DIM}\$%-10s (%s%%)${RESET}\n" \
+      "$emoji" "$label" "$count" "$cost" "$pct"
+  done
+}
+
+# ─────────────────────────────────────────
 # SECTION : TICKETS (bd)
 # ─────────────────────────────────────────
 
@@ -387,6 +439,9 @@ main() {
       done
     fi
   fi
+
+  # ── Activité (tool-use patterns) ─────────
+  _show_activity_section "$_PERIOD_DAYS"
 
   # ── Tickets bd ───────────────────────────
   _show_tickets_section

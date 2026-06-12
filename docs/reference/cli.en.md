@@ -1040,3 +1040,86 @@ oc dashboard
 **Prerequisites:** `sqlite3` for cost/session sections; `bd` (optional) for tickets
 
 > For detailed metrics over a custom period, use `oc metrics --period month`.
+
+---
+
+## `oc optimize`
+
+Scans token waste patterns and produces a graded report.
+
+```bash
+oc optimize                      # last 30 days (default)
+oc optimize --period week        # last 7 days
+oc optimize --period today       # today only
+oc optimize --project T-SRU      # filter to one project
+```
+
+**9 deterministic analyses (no LLM calls):**
+
+| Analysis | Level | Signal |
+|----------|-------|--------|
+| Unused MCP servers | Critical | Deployed server with 0 calls in period |
+| Sessions without edits | Critical/Warning | Costly sessions with no edit/write tool calls |
+| Low Read/Edit ratio | Critical/Warning | < 1.0 → critical, < 2.0 → warning (ideal ≥ 2.0) |
+| High error rate | Critical/Warning | > 25% → critical, > 10% → warning |
+| Repeatedly read files | Warning | Same file read 5+ times in one session |
+| Heavy delegation | Info | > 40% of tool calls = `task` |
+| Unused Bucket B skills | Warning | No `skill` loads in period |
+| Pure conversation sessions | Info | Sessions with no tool calls |
+| Low cache hit rate | Warning | < 30% — input tokens reloaded unnecessarily |
+
+**Grading:**
+
+| Grade | Score (criticals × 3 + warnings) |
+|-------|----------------------------------|
+| A | 0 |
+| B | 1–2 |
+| C | 3–5 |
+| D | 6–9 |
+| E | 10–14 |
+| F | 15+ |
+
+Each finding includes a description and a ready-to-paste fix suggestion.
+
+**Prerequisite:** `sqlite3`
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--period today\|week\|month` | Analysis period (default: 30 days) |
+| `--project PROJECT_ID` | Filter to a single project |
+
+---
+
+## `oc yield`
+
+Correlates OpenCode sessions with git commits to measure real productivity.
+
+```bash
+oc yield                      # last 7 days (default)
+oc yield --period today       # today only
+oc yield --period month       # last 30 days
+oc yield --project T-SRU      # filter to one project
+```
+
+**Session classification:**
+
+| Category | Definition | Cost display |
+|----------|-----------|-------------|
+| **Productive** | At least one git commit within 24h after the session | Green |
+| **Abandoned** | No commit found in the 24h window | Yellow |
+| **Reverted** | Commit found but message starts with `Revert` | Red |
+
+**Worktree resolution:** sessions in git worktrees (e.g. `~/workspace/t-sru-2/`) are automatically linked to the main repository via `git rev-parse --show-toplevel`.
+
+**Prerequisites:** `sqlite3` + `git`
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--period today\|week\|month` | Analysis period (default: 7 days) |
+| `--project PROJECT_ID` | Filter to a single project |
+
+> Costly abandoned sessions → use `oc optimize` to identify root causes.

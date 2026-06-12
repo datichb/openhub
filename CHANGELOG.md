@@ -11,6 +11,42 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
+- **`oc optimize` — analyse de gaspillage de tokens** — nouvelle commande qui scanne les patterns de gaspillage sans LLM et produit un rapport avec grade global A–F :
+  - 9 analyses déterministes : MCP inutilisés, sessions sans edit, ratio Read/Edit, taux d'erreurs, fichiers re-lus, délégation lourde, skills inutilisées, sessions pure conversation, cache hit rate
+  - Grade global basé sur le nombre et la sévérité des findings (critique × 3 + warning)
+  - Options `--period today|week|month` (défaut 30j) et `--project PROJECT_ID`
+  - `scripts/cmd-optimize.sh` (nouveau)
+  - `tests/test_cmd_optimize.bats` : 20 tests (nouveau)
+
+- **`oc yield` — corrélation sessions ↔ commits git** — nouvelle commande qui mesure le rendement réel des sessions OpenCode :
+  - Classifie chaque session : Productive (commit dans les 24h), Abandonnée (aucun commit), Revertée (commit suivi d'un revert)
+  - Résolution automatique des worktrees git vers le dépôt principal
+  - Options `--period today|week|month` (défaut 7j) et `--project PROJECT_ID`
+  - `scripts/cmd-yield.sh` (nouveau)
+  - `tests/test_cmd_yield.bats` : 15 tests (nouveau)
+
+- **`oc metrics` — section Activité** — nouvelle section dans les métriques basée sur les tool-use patterns :
+  - 6 catégories déterministes : Code, Planification, Exploration, Review, Debug, Conversation
+  - Affiche : nombre de sessions, coût total et pourcentage par catégorie
+  - `tests/test_cmd_metrics.bats` : +4 tests section Activité
+
+- **`scripts/lib/opencode-db.sh` — nouvelles fonctions tool-use** :
+  - `ocdb_tool_stats(days, limit)` — statistiques des outils par fréquence
+  - `ocdb_tool_count(tool, days)` — décompte d'un outil spécifique
+  - `ocdb_tool_error_rate(days)` — taux d'erreurs des tool calls
+  - `ocdb_activity_breakdown(days)` — répartition sessions par catégorie d'activité
+  - `ocdb_sessions_no_edit(days, min_cost)` — sessions coûteuses sans modification
+  - `ocdb_avg_read_edit_ratio(days)` — ratio Read/Edit moyen
+  - `ocdb_sessions_heavy_delegation(days)` — sessions à délégation lourde
+  - `ocdb_repeated_reads(days, threshold)` — fichiers re-lus excessivement
+  - `ocdb_unused_mcp(days)` — MCP servers déployés mais inutilisés
+  - `tests/test_lib_opencode_db.bats` : table `part` ajoutée au schéma de test
+
+- **`oc.sh`** : ajout des commandes `optimize` et `yield`
+- **`docs/reference/cli.fr.md` + `cli.en.md`** : sections `oc optimize` et `oc yield` documentées
+
+### Added
+
 - **`oc metrics` — refonte complète** — les métriques passent d'un système dépendant de l'écriture par l'orchestrateur (`metrics.jsonl`) à une collecte passive read-only depuis la base SQLite OpenCode (`~/.local/share/opencode/opencode.db`). Aucune modification des permissions des agents orchestrateurs requise :
   - `scripts/lib/opencode-db.sh` : nouvelle bibliothèque de requêtes SQLite read-only (coûts, tokens, cache hit rate, sessions, agents, modèles)
   - `scripts/cmd-metrics.sh` : refonte — sections Vue globale (coût USD, tokens input/output, cache write/read, cache hit rate + économies estimées), Coût par projet, Top agents, Top modèles, Sessions récentes, Tickets bd et Vélocité workflow (rétrocompat.)

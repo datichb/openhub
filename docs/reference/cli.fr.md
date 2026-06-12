@@ -1039,3 +1039,86 @@ oc dashboard
 **Prérequis :** `sqlite3` pour les sections coûts/sessions ; `bd` (optionnel) pour les tickets
 
 > Pour voir les métriques détaillées sur une période personnalisée, utiliser `oc metrics --period month`.
+
+---
+
+## `oc optimize`
+
+Analyse les patterns de gaspillage de tokens du hub et produit un rapport avec un grade global.
+
+```bash
+oc optimize                      # 30 derniers jours (défaut)
+oc optimize --period week        # 7 derniers jours
+oc optimize --period today       # aujourd'hui
+oc optimize --project T-SRU      # filtré sur un projet
+```
+
+**9 analyses déterministes (sans LLM) :**
+
+| Analyse | Niveau | Signal détecté |
+|---------|--------|---------------|
+| MCP servers inutilisés | Critique | Server déployé mais 0 appels sur la période |
+| Sessions sans modification | Critique/Warning | Sessions coûteuses sans aucun edit/write de fichier |
+| Ratio Read/Edit faible | Critique/Warning | < 1.0 → critique, < 2.0 → warning (idéal ≥ 2.0) |
+| Taux d'erreurs élevé | Critique/Warning | > 25% → critique, > 10% → warning |
+| Fichiers re-lus excessivement | Warning | Même fichier lu 5+ fois dans une session |
+| Délégation intensive | Info | > 40% de tool calls = `task` |
+| Skills Bucket B inutilisées | Warning | Aucun chargement via `skill` sur la période |
+| Sessions pure conversation | Info | Sessions sans aucun tool call |
+| Cache hit rate faible | Warning | < 30% — tokens input rechargés inutilement |
+
+**Grading :**
+
+| Grade | Score (critiques × 3 + warnings) |
+|-------|----------------------------------|
+| A | 0 |
+| B | 1–2 |
+| C | 3–5 |
+| D | 6–9 |
+| E | 10–14 |
+| F | 15+ |
+
+Chaque finding inclut une description et une correction suggérée prête à copier-coller.
+
+**Prérequis :** `sqlite3`
+
+**Options :**
+
+| Option | Description |
+|--------|-------------|
+| `--period today\|week\|month` | Période d'analyse (défaut : 30 jours) |
+| `--project PROJECT_ID` | Filtrer sur un seul projet |
+
+---
+
+## `oc yield`
+
+Corrèle les sessions OpenCode avec les commits git pour mesurer le rendement réel.
+
+```bash
+oc yield                      # 7 derniers jours (défaut)
+oc yield --period today       # aujourd'hui
+oc yield --period month       # 30 derniers jours
+oc yield --project T-SRU      # filtré sur un projet
+```
+
+**Classification de chaque session :**
+
+| Catégorie | Définition | Coût affiché |
+|-----------|-----------|-------------|
+| **Productive** | Au moins un commit git dans les 24h suivant la session | En vert |
+| **Abandonnée** | Aucun commit dans la fenêtre de 24h | En jaune |
+| **Revertée** | Commit trouvé mais son message commence par `Revert` | En rouge |
+
+**Résolution worktrees :** les sessions dans des worktrees git (ex: `~/workspace/t-sru-2/`) sont automatiquement associées au dépôt principal via `git rev-parse --show-toplevel`.
+
+**Prérequis :** `sqlite3` + `git`
+
+**Options :**
+
+| Option | Description |
+|--------|-------------|
+| `--period today\|week\|month` | Période d'analyse (défaut : 7 jours) |
+| `--project PROJECT_ID` | Filtrer sur un seul projet |
+
+> Sessions abandonnées coûteuses → utiliser `oc optimize` pour identifier les causes.

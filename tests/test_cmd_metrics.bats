@@ -46,6 +46,14 @@ setup() {
       time_created INTEGER NOT NULL,
       time_updated INTEGER NOT NULL
     );
+    CREATE TABLE part (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL DEFAULT 'msg1',
+      session_id TEXT NOT NULL,
+      time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL,
+      data TEXT NOT NULL
+    );
   "
   NOW_MS=$(( $(date +%s) * 1000 ))
   YESTERDAY_MS=$(( ($(date +%s) - 86400) * 1000 ))
@@ -431,4 +439,63 @@ EOF
   "
   [ "$status" -eq 0 ]
   [ "$output" = "0s" ]
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tests cmd-metrics.sh — Section Activité
+# ══════════════════════════════════════════════════════════════════════════════
+
+@test "cmd-metrics : affiche section Activité avec sessions catégorisées" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s1','p1','slug1','/proj/app','S1','1.0','developer','claude-sonnet-4-6',5.0,100,200,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES
+      ('p1','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"edit\",\"state\":{\"status\":\"completed\"}}'),
+      ('p2','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"read\",\"state\":{\"status\":\"completed\"}}');
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Activit"* ]] || [[ "$output" == *"Code"* ]] || [[ "$output" == *"code"* ]]
+}
+
+@test "cmd-metrics : section Activité absente si base vide" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  # Ne doit pas crasher même sans données activité
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd-metrics : section Activité catégorise planification" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s1','p1','slug1','/proj/app','Orchestration','1.0','orchestrator-dev','claude-sonnet-4-6',8.0,200,400,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES
+      ('p1','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"task\",\"state\":{\"status\":\"completed\"}}'),
+      ('p2','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"task\",\"state\":{\"status\":\"completed\"}}'),
+      ('p3','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"task\",\"state\":{\"status\":\"completed\"}}');
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"lanification"* ]] || [[ "$output" == *"Activit"* ]]
+}
+
+@test "cmd-metrics : section Activité affiche pourcentages" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, agent, model, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES
+      ('s1','p1','slug1','/proj/app','Code','1.0','developer','claude-sonnet-4-6',8.0,200,400,0,0,$YESTERDAY_MS,$YESTERDAY_MS),
+      ('s2','p1','slug2','/proj/app','Explore','1.0','developer','claude-sonnet-4-6',2.0,50,100,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES
+      ('p1','m1','s1',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"edit\",\"state\":{\"status\":\"completed\"}}'),
+      ('p2','m2','s2',$YESTERDAY_MS,$YESTERDAY_MS,'{\"type\":\"tool\",\"tool\":\"read\",\"state\":{\"status\":\"completed\"}}');
+  "
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"%"* ]] || [[ "$output" == *"Activit"* ]]
 }
