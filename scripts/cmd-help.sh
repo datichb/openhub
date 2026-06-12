@@ -72,7 +72,6 @@ _cmd help.start_worktree
 _cmd help.start_agent
 _cmd help.start_provider
 _cmd help.quick
-_cmd help.dashboard
 
 _section help.section.analysis
 _cmd help.audit
@@ -82,7 +81,12 @@ _cmd help.conventions_force
 _cmd help.review
 _cmd help.review_branch
 _cmd help.debug
+
+_section help.section.observability
+_cmd help.dashboard
 _cmd help.metrics
+_cmd help.optimize
+_cmd help.yield
 
 _section help.section.maintenance
 _cmd help.deploy

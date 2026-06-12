@@ -44,6 +44,7 @@ t() {
       help.section.config)    printf '%s' "Configuration" ;;
       help.section.beads)     printf '%s' "Beads (bd)" ;;
       help.section.services)  printf '%s' "Services & intégrations MCP" ;;
+      help.section.observability) printf '%s' "Observabilité" ;;
       help.section.examples)  printf '%s' "Exemples" ;;
       # Setup
       help.install.cmd)       printf '%s' "install" ;;
@@ -99,8 +100,14 @@ t() {
       help.review_branch.desc) printf '%s' "Review d'une branche spécifique (défaut : branche courante)" ;;
       help.debug.cmd)         printf '%s' "debug [PROJECT_ID]" ;;
       help.debug.desc)        printf '%s' "Lance une session de debug via l'agent debugger" ;;
-      help.metrics.cmd)       printf '%s' "metrics" ;;
-      help.metrics.desc)      printf '%s' "Affiche les métriques de vélocité du workflow" ;;
+      help.metrics.cmd)       printf '%s' "metrics [--period today|week|month]" ;;
+      help.metrics.desc)      printf '%s' "Métriques de coûts, tokens, activité et tickets (SQLite + bd)" ;;
+      help.dashboard.cmd)     printf '%s' "dashboard" ;;
+      help.dashboard.desc)    printf '%s' "Dashboard multi-projet : budget, sessions récentes, top agents" ;;
+      help.optimize.cmd)      printf '%s' "optimize [--period today|week|month] [--project ID]" ;;
+      help.optimize.desc)     printf '%s' "Analyse les gaspillages de tokens — grade A–F, 9 analyses" ;;
+      help.yield.cmd)         printf '%s' "yield [--period today|week|month] [--project ID]" ;;
+      help.yield.desc)        printf '%s' "Corrèle sessions OpenCode ↔ commits git (Productive/Abandonnée/Revertée)" ;;
       # Maintenance
       help.deploy.cmd)        printf '%s' "deploy [PROJECT_ID]" ;;
       help.deploy.desc)       printf '%s' "Déploie les agents" ;;
@@ -741,6 +748,7 @@ t_en() {
     help.section.config)    printf '%s' "Configuration" ;;
     help.section.beads)     printf '%s' "Beads (bd)" ;;
     help.section.services)  printf '%s' "Services & MCP integrations" ;;
+    help.section.observability) printf '%s' "Observability" ;;
     help.section.examples)  printf '%s' "Examples" ;;
     # Setup
     help.install.cmd)       printf '%s' "install" ;;
@@ -796,8 +804,14 @@ t_en() {
     help.review_branch.desc) printf '%s' "Review a specific branch (default: current branch)" ;;
     help.debug.cmd)         printf '%s' "debug [PROJECT_ID]" ;;
     help.debug.desc)        printf '%s' "Start a debug session via the debugger agent" ;;
-    help.metrics.cmd)       printf '%s' "metrics" ;;
-    help.metrics.desc)      printf '%s' "Display workflow velocity metrics" ;;
+    help.metrics.cmd)       printf '%s' "metrics [--period today|week|month]" ;;
+    help.metrics.desc)      printf '%s' "Cost, token, activity and ticket metrics (SQLite + bd)" ;;
+    help.dashboard.cmd)     printf '%s' "dashboard" ;;
+    help.dashboard.desc)    printf '%s' "Multi-project dashboard: budget, recent sessions, top agents" ;;
+    help.optimize.cmd)      printf '%s' "optimize [--period today|week|month] [--project ID]" ;;
+    help.optimize.desc)     printf '%s' "Scan token waste — grade A–F, 9 deterministic analyses" ;;
+    help.yield.cmd)         printf '%s' "yield [--period today|week|month] [--project ID]" ;;
+    help.yield.desc)        printf '%s' "Correlate OpenCode sessions ↔ git commits (Productive/Abandoned/Reverted)" ;;
     # Maintenance
     help.deploy.cmd)        printf '%s' "deploy [PROJECT_ID]" ;;
     help.deploy.desc)       printf '%s' "Deploy agents" ;;
