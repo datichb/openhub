@@ -13,51 +13,85 @@ import type { Plugin } from "@opencode-ai/plugin"
 // - Copy this file to ~/.config/opencode/plugins/rtk.ts
 // - Or use: oc plugin install rtk
 //
-// Version: 1.1.0 (2026-06-08)
+// Version: 1.2.0 (2026-06-12)
 // Compatible with: RTK 0.42.0+, OpenCode 1.15.0+
+//
+// Changelog v1.2.0:
+// - Lazy init: RTK binary check moved to first tool call to avoid startup freeze
 
 export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
   // ───────────────────────────────────────────────────────────────────────────
-  // Initialization & Validation
-  // ───────────────────────────────────────────────────────────────────────────
-  
-  try {
-    await $`which rtk`.quiet()
-  } catch {
-    console.warn("[rtk-plugin] rtk binary not found in PATH — plugin disabled")
-    console.warn("[rtk-plugin] Install with: brew install rtk")
-    return {}
-  }
-
-  // Check RTK version
-  let rtkVersion = "unknown"
-  try {
-    const versionResult = await $`rtk --version`.quiet()
-    rtkVersion = String(versionResult.stdout).trim().split(" ")[1] || "unknown"
-    
-    // Warn if version is too old (< 0.33.0)
-    const [major, minor] = rtkVersion.split(".").map(Number)
-    if (major === 0 && minor < 33) {
-      console.warn(`[rtk-plugin] RTK ${rtkVersion} is outdated. Please upgrade to 0.42.0+`)
-      console.warn("[rtk-plugin] Run: brew upgrade rtk")
-    }
-  } catch {
-    // Version check failed, continue anyway
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
   // Session State
   // ───────────────────────────────────────────────────────────────────────────
-  
+
+  let rtkVersion = "unknown"
+  let rtkAvailable: boolean | null = null  // null = not yet checked
+  let sessionInitDone = false
   let baselineTokensSaved = 0
   let sessionCommandsRewritten = 0
   let sessionCommandsNotRewritten = 0
   let sessionStarted = false
-  
+
   // WebSearch tracking
   let sessionWebSearchCalls = 0
   let sessionWebFetchCalls = 0
   let sessionWebSearchRateLimited = 0
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Lazy Initialization — performed on first tool call, not at plugin load time
+  //
+  // Calling `which rtk` or `rtk --version` at plugin load blocks OpenCode's
+  // TUI startup (blank screen). Init is deferred to the first tool execution.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  let initPending: Promise<void> | null = null
+
+  const initRtk = async (): Promise<void> => {
+    if (rtkAvailable !== null) return  // already initialized
+
+    // Only one concurrent init
+    if (initPending !== null) return initPending
+
+    initPending = (async () => {
+      try {
+        await $`which rtk`.quiet()
+        rtkAvailable = true
+      } catch {
+        rtkAvailable = false
+        console.warn("[rtk-plugin] rtk binary not found in PATH — plugin disabled")
+        console.warn("[rtk-plugin] Install with: brew install rtk")
+        initPending = null
+        return
+      }
+
+      // Check RTK version
+      try {
+        const versionResult = await $`rtk --version`.quiet()
+        rtkVersion = String(versionResult.stdout).trim().split(" ")[1] || "unknown"
+
+        // Warn if version is too old (< 0.33.0)
+        const [major, minor] = rtkVersion.split(".").map(Number)
+        if (major === 0 && minor < 33) {
+          console.warn(`[rtk-plugin] RTK ${rtkVersion} is outdated. Please upgrade to 0.42.0+`)
+          console.warn("[rtk-plugin] Run: brew upgrade rtk")
+        }
+      } catch {
+        // Version check failed, continue anyway
+      }
+
+      await client.app.log({
+        body: {
+          service: "rtk-plugin",
+          level: "info",
+          message: "RTK plugin initialized (lazy)",
+          extra: { rtk_version: rtkVersion },
+        },
+      })
+    })()
+
+    await initPending
+    initPending = null
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Helper: Get Project-Scoped RTK Stats
@@ -90,12 +124,12 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Helper: Initialize Session Baseline
+  // Helper: Initialize Session Baseline (once per session, after RTK init)
   // ───────────────────────────────────────────────────────────────────────────
   
   const initSession = async () => {
-    if (sessionStarted) return
-    sessionStarted = true
+    if (sessionInitDone) return
+    sessionInitDone = true
     
     const stats = await getRtkStats()
     if (stats) {
@@ -106,7 +140,7 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
       body: {
         service: "rtk-plugin",
         level: "info",
-        message: "RTK plugin initialized",
+        message: "RTK session started",
         extra: {
           rtk_version: rtkVersion,
           baseline_saved: baselineTokensSaved,
@@ -114,6 +148,7 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
         },
       },
     })
+    sessionStarted = true
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -126,6 +161,10 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     // ─────────────────────────────────────────────────────────────────────────
     
     "tool.execute.before": async (input, output) => {
+      // Lazy init on first tool call — never blocks startup
+      await initRtk()
+      if (!rtkAvailable) return
+
       const tool = String(input?.tool ?? "").toLowerCase()
 
       // Track WebSearch/WebFetch calls (must be before the bash/shell guard)
@@ -224,6 +263,8 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     // ─────────────────────────────────────────────────────────────────────────
     
     "tool.execute.after": async (input, output) => {
+      if (!rtkAvailable) return
+
       // Cast explicite : le SDK type output comme { title, output, metadata }
       // mais certains hooks peuvent inclure des champs supplémentaires à l'exécution.
       const out = output as Record<string, unknown> | undefined
@@ -300,7 +341,7 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
     // ─────────────────────────────────────────────────────────────────────────
     
     "dispose": async () => {
-      if (!sessionStarted) return
+      if (!rtkAvailable || !sessionStarted) return
       
       // Don't show summary if no commands were rewritten
       if (sessionCommandsRewritten === 0) {
@@ -389,6 +430,7 @@ export const RtkOpenCodePlugin: Plugin = async ({ $, client }) => {
       sessionWebFetchCalls = 0
       sessionWebSearchRateLimited = 0
       sessionStarted = false
+      sessionInitDone = false
     },
   }
 }
