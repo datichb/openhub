@@ -11,14 +11,7 @@ Ce guide explique comment installer le plugin context-mode pour OpenCode depuis 
    opencode --version
    ```
 
-2. **Node.js** >= 22.5.0 installé
-   ```bash
-   node --version
-   brew install node  # Si pas installé
-   brew upgrade node  # Si version < 22.5.0
-   ```
-
-3. **opencode-hub** cloné et configuré
+2. **opencode-hub** cloné et configuré
    ```bash
    cd ~/.opencode-hub
    git pull
@@ -33,28 +26,18 @@ oc plugin install context-mode
 ```
 
 Le script va :
-1. Vérifier Node.js >= 22.5.0
-2. Installer le package npm `context-mode` globalement si absent
-3. Sauvegarder l'ancien plugin si existant
-4. Copier le plugin dans `~/.config/opencode/plugins/context-mode.ts`
+1. Vérifier qu'OpenCode est installé
+2. Ajouter `"context-mode"` au tableau `"plugin"` dans `.opencode/opencode.json`
+
+OpenCode installera automatiquement le package npm `context-mode` depuis son cache au prochain démarrage, via son runtime Bun natif.
 
 ---
 
-## Installation manuelle
+## Comment ça marche
 
-```bash
-# Installer le package npm
-npm install -g context-mode
+context-mode est un **npm plugin natif OpenCode** (déclaré via `"plugin": ["context-mode"]` dans `opencode.json`). OpenCode gère l'installation, la mise à jour et le chargement automatiquement — aucun wrapper `.ts` ni gestion manuelle de `node_modules` nécessaire.
 
-# Créer le dossier plugins si nécessaire
-mkdir -p ~/.config/opencode/plugins
-
-# Copier le plugin
-cp ~/.opencode-hub/plugins/context-mode/context-mode.ts ~/.config/opencode/plugins/context-mode.ts
-
-# Vérifier
-ls -lah ~/.config/opencode/plugins/context-mode.ts
-```
+Le package est mis en cache dans `~/.cache/opencode/node_modules/` et chargé par le runtime Bun intégré d'OpenCode.
 
 ---
 
@@ -62,18 +45,20 @@ ls -lah ~/.config/opencode/plugins/context-mode.ts
 
 ### 1. Redémarrer OpenCode
 
-Si OpenCode est en cours d'exécution, fermez-le et relancez-le.
+Si OpenCode est en cours d'exécution, fermez-le et relancez-le depuis le répertoire du hub :
+
+```bash
+cd ~/.opencode-hub
+opencode
+```
 
 ### 2. Vérifier les logs
 
 ```bash
-tail -f ~/.cache/opencode/logs/opencode.log | grep context-mode-plugin
+tail -f ~/.cache/opencode/logs/opencode.log | grep context-mode
 ```
 
-Au démarrage de session, vous devriez voir :
-```
-service: "context-mode-plugin", level: "info", message: "Context-mode plugin initialized"
-```
+Au démarrage de session, vous devriez voir le plugin chargé.
 
 ### 3. Tester le plugin
 
@@ -145,7 +130,7 @@ Le plugin instruite l'agent à écrire un script d'analyse ciblé plutôt que de
 RTK et context-mode sont **orthogonaux** — ils couvrent des couches différentes :
 
 ```
-Commande bash   → RTK intercepte → output compressé avant injection
+Commande bash       → RTK intercepte        → output compressé avant injection
 Appel read/webfetch → context-mode intercepte → output indexé hors-contexte
 ```
 
@@ -159,13 +144,18 @@ Les deux plugins peuvent cohabiter sans conflit. L'ordre d'installation n'a pas 
 
 ## Troubleshooting
 
-### Le package npm `context-mode` n'est pas trouvé au runtime
+### OpenCode ne charge pas context-mode
 
-Le plugin tente d'abord `require('context-mode')`, puis `npx --yes context-mode`. Si les deux échouent :
+Vérifier que `.opencode/opencode.json` du hub contient bien `"context-mode"` dans le tableau `"plugin"` :
 
 ```bash
-npm install -g context-mode
-# Puis relancer OpenCode
+cat .opencode/opencode.json
+# Attendu : { "$schema": "...", "plugin": ["context-mode"] }
+```
+
+Si absent, relancer l'installation :
+```bash
+oc plugin install context-mode
 ```
 
 ### Les hooks `experimental.*` ne sont pas actifs
@@ -200,17 +190,17 @@ Si vous avez déjà un MCP server `context-mode` installé, le plugin OpenCode p
 
 ```bash
 cd ~/.opencode-hub && git pull
-oc plugin install context-mode  # Réinstalle depuis la version mise à jour du hub
+# opencode met à jour le package automatiquement au prochain démarrage
 ```
 
 ## Désinstallation
 
 ```bash
-rm ~/.config/opencode/plugins/context-mode.ts
-npm uninstall -g context-mode  # Optionnel
+oc plugin remove context-mode
+# Puis relancer OpenCode
 ```
 
 ---
 
-**Version :** 1.0.0 (2026-06-12)
-**Compatible avec :** context-mode npm ^1.0.0, OpenCode >= 1.15.0, Node.js >= 22.5.0
+**Version :** 2.0.0 (2026-06-12)
+**Compatible avec :** context-mode npm ^1.0.0, OpenCode >= 1.15.0
