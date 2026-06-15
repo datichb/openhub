@@ -12,7 +12,10 @@ Automatically rewrites bash commands to use [RTK (Rust Token Killer)](https://ww
 
 ## Requirements
 
-- **RTK** >= 0.42.0 (install with `brew install rtk`)
+- **RTK** >= 0.42.0 — installed automatically by `oc plugin install rtk`, or manually:
+  - macOS: `brew install rtk`
+  - Rust/Cargo: `cargo install rtk`
+  - Other: [rtk-ai.app](https://www.rtk-ai.app/)
 - **OpenCode** >= 1.15.0 with plugin support
 
 ## Installation
@@ -23,6 +26,12 @@ Automatically rewrites bash commands to use [RTK (Rust Token Killer)](https://ww
 cd ~/.opencode-hub
 oc plugin install rtk
 ```
+
+If RTK is not yet installed, the script will offer to install it automatically.
+You can also install RTK manually beforehand:
+- macOS: `brew install rtk`
+- Rust/Cargo: `cargo install rtk`
+- Other: [rtk-ai.app](https://www.rtk-ai.app/)
 
 ### Manual
 
@@ -136,6 +145,11 @@ grep "rtk-plugin" ~/.cache/opencode/logs/opencode.log
 # Test if a command can be rewritten
 rtk hook check "git diff HEAD~5 HEAD"
 # Should output: rtk git diff HEAD~5 HEAD
+
+# Update RTK
+brew upgrade rtk
+# or with Rust/Cargo:
+cargo install rtk
 
 # Check logs for "not rewritable" messages
 grep "not rewritable" ~/.cache/opencode/logs/opencode.log

@@ -80,14 +80,14 @@ teardown() {
   # On teste avec le vrai plugin rtk si présent, sinon on skip
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  echo "n" | bash "$CMD_PLUGIN" "rtk"
+  OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ -f "$HOME/.config/opencode/plugins/rtk.ts" ]
 }
 
 @test "plugin rtk : contenu installé correspond à la source" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  echo "n" | bash "$CMD_PLUGIN" "rtk"
+  OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   diff "$real_plugin" "$HOME/.config/opencode/plugins/rtk.ts"
 }
 
@@ -95,7 +95,7 @@ teardown() {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
   rm -rf "$HOME/.config/opencode/plugins"
-  echo "n" | bash "$CMD_PLUGIN" "rtk"
+  OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ -d "$HOME/.config/opencode/plugins" ]
 }
 
@@ -103,16 +103,16 @@ teardown() {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
   echo "old version" > "$HOME/.config/opencode/plugins/rtk.ts"
-  echo "n" | bash "$CMD_PLUGIN" "rtk"
+  run bash -c 'OC_NON_INTERACTIVE=1 bash "$1" install rtk' _ "$CMD_PLUGIN"
   local backups
-  backups=$(ls "$HOME/.config/opencode/plugins/rtk.ts.backup."* 2>/dev/null | wc -l | tr -d ' ')
+  backups=$(ls "$HOME/.config/opencode/plugins/.backup/rtk.ts."* 2>/dev/null | wc -l | tr -d ' ')
   [ "$backups" -ge 1 ]
 }
 
 @test "plugin rtk : code de sortie 0 après installation réussie" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  run bash -c 'echo "n" | bash "$1" rtk' _ "$CMD_PLUGIN"
+  run bash -c 'OC_NON_INTERACTIVE=1 bash "$1" install rtk' _ "$CMD_PLUGIN"
   [ "$status" -eq 0 ]
 }
 
@@ -121,13 +121,91 @@ teardown() {
 @test "plugin rtk : affiche les étapes suivantes après installation" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  run bash -c 'echo "n" | bash "$1" rtk' _ "$CMD_PLUGIN"
+  run bash -c 'OC_NON_INTERACTIVE=1 bash "$1" install rtk' _ "$CMD_PLUGIN"
   [[ "$output" =~ "opencode" ]] || [[ "$output" =~ "tail" ]] || [[ "$output" =~ "log" ]]
 }
 
 @test "plugin rtk : affiche message de succès" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  run bash -c 'echo "n" | bash "$1" rtk' _ "$CMD_PLUGIN"
+  run bash -c 'OC_NON_INTERACTIVE=1 bash "$1" install rtk' _ "$CMD_PLUGIN"
   [[ "$output" =~ "✓" ]] || [[ "$output" =~ "success" ]] || [[ "$output" =~ "installé" ]] || [[ "$output" =~ "installed" ]]
+}
+
+# ── Status ────────────────────────────────────────────────────────────────────
+
+@test "plugin status : sans plugin installé → ne mentionne pas le binaire" {
+  # Plugin absent → pas de vérification du binaire, pas de message "introuvable"
+  rm -f "$HOME/.config/opencode/plugins/rtk.ts"
+  run bash "$CMD_PLUGIN" status
+  [[ ! "$output" =~ "introuvable" ]]
+  [[ ! "$output" =~ "Binary not found" ]]
+}
+
+@test "plugin status : avec plugin installé et binaire absent → mentionne le binaire" {
+  # Plugin présent mais binaire rtk absent du PATH → signaler le problème
+  local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
+  [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
+  # Installer le plugin
+  OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
+  # Masquer le binaire rtk : créer un dossier sans rtk en tête de PATH
+  # On garde le PATH système mais on retire $TEST_DIR/bin (qui contient le mock rtk)
+  local path_without_rtk
+  path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
+  run env PATH="$path_without_rtk" bash "$CMD_PLUGIN" status
+  [[ "$output" =~ "introuvable" ]] || [[ "$output" =~ "Binary not found" ]]
+}
+
+# ── Install sans binaire ──────────────────────────────────────────────────────
+
+@test "plugin install rtk : sans binaire + réponse n → exit 1 + instructions" {
+  local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
+  [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
+  # PATH sans le mock rtk (mais avec tous les outils système)
+  local path_without_rtk
+  path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
+  run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
+  [ "$status" -ne 0 ]
+  # Les instructions manuelles doivent apparaître
+  [[ "$output" =~ "rtk-ai.app" ]] || [[ "$output" =~ "cargo" ]] || [[ "$output" =~ "brew" ]]
+}
+
+@test "plugin install rtk : sans binaire + OC_NON_INTERACTIVE=1 → exit 1 proprement" {
+  local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
+  [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
+  # PATH sans le mock rtk
+  local path_without_rtk
+  path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
+  run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
+  [ "$status" -ne 0 ]
+  [[ "$output" =~ "rtk-ai.app" ]] || [[ "$output" =~ "cargo" ]] || [[ "$output" =~ "brew" ]]
+}
+
+@test "plugin install rtk : sans binaire + brew mocké → exit 0 + plugin installé" {
+  local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
+  [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
+  # Créer un dossier avec brew mocké mais sans rtk (en tête de PATH)
+  mkdir -p "$TEST_DIR/bin_mock"
+  # Mock brew qui installe rtk en le créant dans bin_mock
+  cat > "$TEST_DIR/bin_mock/brew" <<BREWEOF
+#!/bin/bash
+if [ "\$1" = "install" ] && [ "\$2" = "rtk" ]; then
+  cat > "$TEST_DIR/bin_mock/rtk" <<'RTKEOF'
+#!/bin/bash
+echo "rtk 0.50.0"
+exit 0
+RTKEOF
+  chmod +x "$TEST_DIR/bin_mock/rtk"
+  exit 0
+fi
+exit 1
+BREWEOF
+  chmod +x "$TEST_DIR/bin_mock/brew"
+  # PATH : bin_mock en tête (brew présent, rtk absent au départ), sans bin (mock rtk)
+  local path_without_rtk
+  path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
+  run env PATH="$TEST_DIR/bin_mock:$path_without_rtk" OC_NON_INTERACTIVE=0 \
+    bash -c "echo 'y' | bash '$CMD_PLUGIN' install rtk"
+  [ "$status" -eq 0 ]
+  [ -f "$HOME/.config/opencode/plugins/rtk.ts" ]
 }

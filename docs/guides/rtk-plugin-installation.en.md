@@ -11,11 +11,10 @@ Before installing the plugin, make sure you have:
    opencode --version
    ```
 
-2. **RTK** >= 0.42.0 installed
+2. **RTK** >= 0.42.0 — installed automatically by `oc plugin install rtk` if missing
    ```bash
+   # Check if already installed
    rtk --version
-   brew install rtk  # If not installed
-   brew upgrade rtk  # If version < 0.42.0
    ```
 
 3. **opencode-hub** cloned and configured
@@ -36,11 +35,12 @@ oc plugin install rtk
 ```
 
 The script will:
-1. Check that OpenCode and RTK are installed
-2. Verify the RTK version (>= 0.42.0 recommended)
-3. Back up the existing plugin if present
-4. Copy the new plugin to `~/.config/opencode/plugins/rtk.ts`
-5. Display verification instructions
+1. Check that OpenCode is installed
+2. If RTK is missing, offer to install it automatically (brew or cargo)
+3. Verify the RTK version (>= 0.42.0 recommended), with option to upgrade automatically
+4. Back up the existing plugin if present
+5. Copy the new plugin to `~/.config/opencode/plugins/rtk.ts`
+6. Display verification instructions
 
 ---
 
@@ -193,6 +193,8 @@ Comment out lines 209–214 in the plugin:
 3. **RTK version too old**: Update RTK
    ```bash
    brew upgrade rtk
+   # or with Rust/Cargo:
+   cargo install rtk
    ```
 
 ### No Toast Notification
@@ -304,5 +306,5 @@ Then restart OpenCode.
 
 ---
 
-**Version:** 1.0.0 (2026-05-29)  
+**Version:** 1.1.0 (2026-06-15)  
 **Compatible with:** RTK 0.42.0+, OpenCode 1.15.0+
