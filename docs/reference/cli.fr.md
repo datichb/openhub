@@ -983,16 +983,18 @@ oc metrics --period month   # 30 derniers jours
 | `~/.local/share/opencode/opencode.db` | Sessions, coûts, tokens, modèles, agents | `sqlite3` |
 | `bd list` par projet | Tickets par statut | `bd` (optionnel) |
 | `.opencode/metrics.jsonl` | Vélocité workflow (rétrocompat.) | — |
+| `~/.claude/context-mode/sessions/` | Tokens économisés par context-mode | context-mode (optionnel) |
+| `rtk gain` | Tokens économisés par RTK | RTK 0.42+ (optionnel) |
 
-**Sections affichées :**
+**Sections affichées (dans l'ordre) :**
 
-- **Vue globale** : sessions totales, coût USD, tokens input/output, cache write/read, cache hit rate + économies estimées
-- **Coût par projet** : répartition des dépenses par répertoire de projet
-- **Top agents** : agents triés par coût décroissant
-- **Top modèles** : modèles LLM triés par coût
-- **Sessions récentes** : 5 dernières sessions avec titre, agent, coût et date
-- **Tickets** : état des tickets Beads par projet (si `bd` disponible)
-- **Vélocité workflow** : tickets complétés, temps moyen, cycles review (si `metrics.jsonl` présent)
+1. **Vue globale** : sessions, coût total, tokens input/output, cache write/read, cache hit rate + économies estimées
+   - **Économies plugins** *(si context-mode ou RTK installé)* : tokens économisés, dollars économisés et réduction de contexte. La période correspond au filtre `--period` pour context-mode ; RTK affiche toujours ses statistiques globales.
+2. **Coût** : sous-sections par projet, par agent, par modèle (vue fusionnée)
+3. **Activité** : répartition des sessions par catégorie d'usage (code, exploration, planification, review, debug, conversation) avec coût et pourcentage
+4. **Sessions récentes** : 5 dernières sessions avec titre, agent, coût et date
+5. **Tickets par projet** *(si `bd` disponible)* : compteurs par statut pour chaque projet Beads
+6. **Vélocité workflow** *(si `metrics.jsonl` présent)* : tickets complétés, temps moyen, cycles review
 
 **Options :**
 
@@ -1010,7 +1012,7 @@ oc metrics --period month   # 30 derniers jours
 
 ## `oc dashboard`
 
-Affiche le dashboard multi-projet du hub OpenCode. Vue synthétique de l'état de tous les projets, du budget sessions et de l'activité récente.
+Affiche une vue synthétique du hub OpenCode — conçu pour un check rapide quotidien (10 secondes). Les informations financières apparaissent en premier.
 
 ```bash
 oc dashboard
@@ -1020,21 +1022,23 @@ oc dashboard
 
 | Source | Données collectées | Prérequis |
 |--------|-------------------|-----------|
-| `~/.local/share/opencode/opencode.db` | Budget sessions, sessions récentes, top agents | `sqlite3` |
+| `~/.local/share/opencode/opencode.db` | Budget sessions, sessions récentes | `sqlite3` |
 | `bd list` par projet | Tickets actifs, bloqués, complétés | `bd` (optionnel) |
 | `.opencode/session-state.json` | Session orchestrateur active (rétrocompat.) | `jq` |
+| `~/.claude/context-mode/sessions/` | Tokens économisés par context-mode (lifetime) | context-mode (optionnel) |
+| `rtk gain` | Tokens économisés par RTK (global) | RTK 0.42+ (optionnel) |
 
-**Sections affichées :**
+**Sections affichées (dans l'ordre) :**
 
-- **Projets** : pour chaque projet configuré avec Beads — ticket en cours, compteurs par statut (✅ / 🔄 / ⏳ / 🚫)
-- **Session orchestrateur active** : si une session est en cours via `oc start`, affiche l'agent actif, le ticket courant et l'action
-- **Budget sessions** : dépenses aujourd'hui / cette semaine / ce mois, nombre de sessions, cache hit rate
-- **Sessions récentes** : 5 dernières sessions (titre, agent, coût, date)
-- **Top agents** : agents triés par coût décroissant sur 7 jours, avec pourcentage relatif
+1. **Budget** : dépenses aujourd'hui (avec cache hit rate inline) / cette semaine / ce mois, nombre de sessions
+2. **Économies IA** *(si context-mode ou RTK installé)* : tokens économisés (lifetime), dollars économisés, réduction de contexte. Silencieusement absente si aucun plugin installé.
+3. **Session active** *(si orchestrateur en cours via `oc start`)* : agent, ticket courant, action, heure de démarrage
+4. **Projets** : pour chaque projet Beads — ticket en cours et compteurs par statut (✅ / 🔄 / ⏳ / 🚫)
+5. **Sessions récentes** : 5 dernières sessions (titre, agent, coût, date)
 
-**Comportement si `sqlite3` absent :** Les sections Budget, Sessions récentes et Top agents affichent un message d'aide. La section Projets (bd) reste disponible.
+**Comportement si `sqlite3` absent :** Les sections Budget et Sessions récentes affichent un message d'aide. Les sections Projets (bd) et Économies IA restent disponibles.
 
-**Comportement si `bd` absent :** La section Projets affiche un message d'aide. Les sections SQLite restent disponibles.
+**Comportement si `bd` absent :** La section Projets affiche un message d'aide. Les autres sections restent disponibles.
 
 **Prérequis :** `sqlite3` pour les sections coûts/sessions ; `bd` (optionnel) pour les tickets
 

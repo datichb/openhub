@@ -3,30 +3,34 @@
 # cmd-dashboard.sh — Dashboard multi-projet du hub OpenCode
 # ─────────────────────────────────────────────────────────────────────────────
 # Usage :
-#   oc dashboard          → dashboard multi-projet (tous les projets)
+#   oc dashboard          → vue synthétique (check rapide quotidien)
 #
-# Affiche :
-# - Vue multi-projet : tickets actifs, bloqués, complétés (via bd)
-# - Budget sessions : aujourd'hui / semaine / mois (via SQLite OpenCode)
-# - Sessions récentes (via SQLite OpenCode)
-# - Top agents actifs (via SQLite OpenCode)
+# Sections (dans l'ordre) :
+#   1. Budget sessions     — coût aujourd'hui / semaine / mois + cache hit rate
+#   2. Économies IA        — context-mode + RTK (si installés)
+#   3. Projets             — tickets par projet (via bd)
+#   4. Sessions récentes   — 5 dernières sessions (via SQLite)
+#   5. Session active      — orchestrateur en cours (rétrocompat)
 #
-# Sources de données (lecture seule — aucune écriture requise) :
+# Sources de données (lecture seule) :
 #   - ~/.local/share/opencode/opencode.db
 #   - bd list (par projet)
 #   - session-state.json (rétrocompatiblité)
+#   - ~/.claude/context-mode/sessions/ (context-mode)
+#   - rtk gain (RTK)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 source "$LIB_DIR/opencode-db.sh"
 source "$LIB_DIR/session-state.sh"
+source "$LIB_DIR/ai-savings.sh"
 
 # ─────────────────────────────────────────
 # TUI HELPERS
 # ─────────────────────────────────────────
 
-BOX_WIDTH=56
+BOX_WIDTH=62
 
 _draw_line() {
   local char="${1:-─}"
@@ -56,9 +60,83 @@ _draw_section() {
   echo -e "${BOLD}${BLUE}$1${RESET}"
 }
 
-_draw_item() {
-  printf "  ${DIM}•${RESET}  %-28s " "$1"
-  echo -e "$2"
+# ─────────────────────────────────────────
+# SECTION : BUDGET (SQLite)
+# Affiche coût + sessions par période, cache hit rate inline
+# ─────────────────────────────────────────
+
+_show_budget_section() {
+  _draw_section "💰 Budget"
+  echo ""
+
+  if ! ocdb_check_available 2>/dev/null; then
+    echo -e "  ${DIM}sqlite3 ou base OpenCode non disponible${RESET}"
+    echo -e "  ${DIM}Installer sqlite3 pour voir les coûts.${RESET}"
+    return
+  fi
+
+  local cost_today cost_week cost_month
+  local sessions_today sessions_week sessions_month hit_rate
+
+  cost_today=$(ocdb_total_cost 1)
+  sessions_today=$(ocdb_sessions_count 1)
+  cost_week=$(ocdb_total_cost 7)
+  sessions_week=$(ocdb_sessions_count 7)
+  cost_month=$(ocdb_total_cost 30)
+  sessions_month=$(ocdb_sessions_count 30)
+  hit_rate=$(ocdb_cache_hit_rate 7)
+
+  # Couleur du cache hit rate
+  local hit_color="${DIM}"
+  if awk "BEGIN { exit !($hit_rate >= 80) }" 2>/dev/null; then
+    hit_color="${GREEN}"
+  elif awk "BEGIN { exit !($hit_rate >= 50) }" 2>/dev/null; then
+    hit_color="${CYAN}"
+  elif awk "BEGIN { exit !($hit_rate > 0) }" 2>/dev/null; then
+    hit_color="${YELLOW}"
+  fi
+
+  # Ligne aujourd'hui avec cache hit rate inline
+  printf "  ${DIM}•${RESET}  %-14s  ${GREEN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}" \
+    "Aujourd'hui" "$cost_today" "$sessions_today"
+  if awk "BEGIN { exit !($hit_rate > 0) }" 2>/dev/null; then
+    printf "  ${DIM}cache ${RESET}${hit_color}%s%%${RESET}" "$hit_rate"
+  fi
+  echo ""
+
+  printf "  ${DIM}•${RESET}  %-14s  ${CYAN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
+    "Cette semaine" "$cost_week" "$sessions_week"
+  printf "  ${DIM}•${RESET}  %-14s  ${DIM}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
+    "Ce mois" "$cost_month" "$sessions_month"
+}
+
+# ─────────────────────────────────────────
+# SECTION : ÉCONOMIES IA (context-mode + RTK)
+# ─────────────────────────────────────────
+
+_show_ai_savings_section() {
+  local ctx_ok=0 rtk_ok=0
+  aisavings_load_ctx_stats 0 && ctx_ok=1 || true
+  aisavings_load_rtk_stats && rtk_ok=1 || true
+
+  [ "$ctx_ok" -eq 0 ] && [ "$rtk_ok" -eq 0 ] && return
+
+  _draw_section "🔋 Économies IA  ${DIM}(lifetime)${RESET}"
+  echo ""
+
+  if [ "$ctx_ok" -eq 1 ]; then
+    local fmt_tokens
+    fmt_tokens=$(aisavings_format_tokens "$CTX_TOKENS_SAVED")
+    printf "  ${DIM}•${RESET}  %-14s  ${CYAN}%s tokens${RESET}  ${DIM}·${RESET}  ${GREEN}\$%s${RESET}  ${DIM}·${RESET}  réduction ${CYAN}%s%%${RESET}\n" \
+      "context-mode" "$fmt_tokens" "$CTX_DOLLARS_SAVED" "$CTX_REDUCTION_PCT"
+  fi
+
+  if [ "$rtk_ok" -eq 1 ]; then
+    local fmt_rtk
+    fmt_rtk=$(aisavings_format_tokens "$RTK_TOTAL_SAVED")
+    printf "  ${DIM}•${RESET}  %-14s  ${CYAN}%s tokens${RESET}  ${DIM}·${RESET}  ${GREEN}%s%%${RESET}  ${DIM}·${RESET}  %s cmds\n" \
+      "RTK" "$fmt_rtk" "$RTK_AVG_SAVINGS_PCT" "$RTK_TOTAL_COMMANDS"
+  fi
 }
 
 # ─────────────────────────────────────────
@@ -70,7 +148,6 @@ _show_projects_section() {
 
   if ! command -v bd &>/dev/null; then
     echo -e "  ${DIM}bd non disponible — installer Beads pour voir les tickets${RESET}"
-    echo -e "  ${DIM}brew install beads  ou  https://beads.sh${RESET}"
     return
   fi
 
@@ -82,7 +159,6 @@ _show_projects_section() {
     return
   fi
 
-  # Extraire les IDs de projet
   local project_ids=()
   while IFS= read -r line; do
     if [[ "$line" =~ ^##[[:space:]]+([A-Z0-9_-]+)$ ]]; then
@@ -98,7 +174,6 @@ _show_projects_section() {
   local any_shown=false
 
   for proj_id in "${project_ids[@]}"; do
-    # Résoudre le chemin
     local proj_path=""
     while IFS='=' read -r key val; do
       [[ "$key" =~ ^[[:space:]]*# ]] && continue
@@ -110,17 +185,13 @@ _show_projects_section() {
       fi
     done < "$paths_file"
 
-    if [ "$proj_path" = "." ]; then
-      proj_path="$HUB_DIR"
-    fi
-
+    [ "$proj_path" = "." ] && proj_path="$HUB_DIR"
     [ -z "$proj_path" ] && continue
     [ ! -d "$proj_path" ] && continue
     [ ! -d "$proj_path/.beads" ] && continue
 
-    # Compter tickets par statut
-    local done_count=0 inprogress_count=0 todo_count=0 blocked_count=0 total_count=0
-    local current_ticket_title="" current_ticket_agent=""
+    local done_count=0 inprogress_count=0 todo_count=0 blocked_count=0
+    local current_ticket_title=""
 
     local bd_output
     if bd_output=$(cd "$proj_path" && bd list --format json 2>/dev/null); then
@@ -129,85 +200,32 @@ _show_projects_section() {
         inprogress_count=$(echo "$bd_output" | jq '[.[] | select(.status == "in_progress")] | length' 2>/dev/null || echo "0")
         todo_count=$(echo "$bd_output" | jq '[.[] | select(.status == "todo" or .status == "pending")] | length' 2>/dev/null || echo "0")
         blocked_count=$(echo "$bd_output" | jq '[.[] | select(.status == "blocked")] | length' 2>/dev/null || echo "0")
-        total_count=$(echo "$bd_output" | jq 'length' 2>/dev/null || echo "0")
-        # Ticket en cours
         current_ticket_title=$(echo "$bd_output" | jq -r '[.[] | select(.status == "in_progress")] | first | .title // ""' 2>/dev/null || echo "")
       fi
     fi
 
     any_shown=true
     echo ""
-    echo -e "  ${BOLD}${CYAN}[${proj_id}]${RESET}"
 
-    if [ -n "$current_ticket_title" ]; then
-      # Tronquer à 38 chars
-      if [ ${#current_ticket_title} -gt 38 ]; then
-        current_ticket_title="${current_ticket_title:0:36}…"
-      fi
-      echo -e "  ${DIM}En cours${RESET} : ${current_ticket_title}"
-    fi
-
-    printf "  Tickets   : "
-    printf "${GREEN}✅ %-4s${RESET}" "$done_count"
-    printf "${CYAN}🔄 %-4s${RESET}" "$inprogress_count"
-    printf "${DIM}⏳ %-4s${RESET}" "$todo_count"
-    [ "$blocked_count" -gt 0 ] && printf "${YELLOW}🚫 %-4s${RESET}" "$blocked_count"
+    # Ligne principale : [ID]  ✅ N  🔄 N  ⏳ N  [🚫 N]
+    printf "  ${BOLD}${CYAN}[%-12s${RESET}${BOLD}${CYAN}]${RESET}  " "$proj_id"
+    printf "${GREEN}✅ %-3s${RESET}" "$done_count"
+    printf "  ${CYAN}🔄 %-3s${RESET}" "$inprogress_count"
+    printf "  ${DIM}⏳ %-3s${RESET}" "$todo_count"
+    [ "$blocked_count" -gt 0 ] && printf "  ${YELLOW}🚫 %-3s${RESET}" "$blocked_count"
     echo ""
+
+    # Ticket en cours (si existe)
+    if [ -n "$current_ticket_title" ]; then
+      [ ${#current_ticket_title} -gt 44 ] && current_ticket_title="${current_ticket_title:0:42}…"
+      echo -e "  ${DIM}  └─ En cours${RESET} : ${current_ticket_title}"
+    fi
   done
 
   if [ "$any_shown" = "false" ]; then
     echo -e "  ${DIM}Aucun projet avec Beads initialisé${RESET}"
     echo -e "  ${DIM}Utiliser : oc beads init <PROJECT_ID>${RESET}"
   fi
-}
-
-# ─────────────────────────────────────────
-# SECTION : BUDGET SESSIONS (SQLite)
-# ─────────────────────────────────────────
-
-_show_budget_section() {
-  _draw_section "💰 Budget sessions"
-  echo ""
-
-  if ! ocdb_check_available 2>/dev/null; then
-    echo -e "  ${DIM}sqlite3 ou base OpenCode non disponible${RESET}"
-    echo -e "  ${DIM}Installer sqlite3 pour voir les coûts.${RESET}"
-    return
-  fi
-
-  local cost_today cost_week cost_month
-  local sessions_today sessions_week sessions_month
-
-  cost_today=$(ocdb_total_cost 1)
-  sessions_today=$(ocdb_sessions_count 1)
-  cost_week=$(ocdb_total_cost 7)
-  sessions_week=$(ocdb_sessions_count 7)
-  cost_month=$(ocdb_total_cost 30)
-  sessions_month=$(ocdb_sessions_count 30)
-
-  # Cache hit rate semaine
-  local hit_rate
-  hit_rate=$(ocdb_cache_hit_rate 7)
-
-  printf "  ${DIM}•${RESET}  %-14s  ${GREEN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
-    "Aujourd'hui" "$cost_today" "$sessions_today"
-  printf "  ${DIM}•${RESET}  %-14s  ${CYAN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
-    "Cette semaine" "$cost_week" "$sessions_week"
-  printf "  ${DIM}•${RESET}  %-14s  ${DIM}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
-    "Ce mois" "$cost_month" "$sessions_month"
-  echo ""
-
-  # Cache hit rate
-  local hit_color="${DIM}"
-  if awk "BEGIN { exit !($hit_rate >= 80) }" 2>/dev/null; then
-    hit_color="${GREEN}"
-  elif awk "BEGIN { exit !($hit_rate >= 50) }" 2>/dev/null; then
-    hit_color="${CYAN}"
-  elif awk "BEGIN { exit !($hit_rate > 0) }" 2>/dev/null; then
-    hit_color="${YELLOW}"
-  fi
-  printf "  ${DIM}•${RESET}  %-14s  ${hit_color}%s%%${RESET}  ${DIM}(7 derniers jours)${RESET}\n" \
-    "Cache hit rate" "$hit_rate"
 }
 
 # ─────────────────────────────────────────
@@ -234,8 +252,7 @@ _show_recent_sessions_section() {
   fi
 
   for entry in "${sessions[@]}"; do
-    local slug title agent cost ts_ms
-    slug=$(echo "$entry" | cut -d'|' -f1)
+    local title agent cost ts_ms
     title=$(echo "$entry" | cut -d'|' -f2)
     agent=$(echo "$entry" | cut -d'|' -f3)
     cost=$(echo "$entry" | cut -d'|' -f4)
@@ -244,60 +261,10 @@ _show_recent_sessions_section() {
     local date_str
     date_str=$(ocdb_format_date "$ts_ms")
 
-    # Tronquer le titre
-    if [ ${#title} -gt 32 ]; then
-      title="${title:0:30}…"
-    fi
+    [ ${#title} -gt 34 ] && title="${title:0:32}…"
 
-    printf "  ${DIM}•${RESET}  %-32s  %-18s  ${GREEN}\$%-7s${RESET}  ${DIM}%s${RESET}\n" \
+    printf "  ${DIM}•${RESET}  %-34s  ${DIM}%-20s${RESET}  ${GREEN}\$%s${RESET}  ${DIM}%s${RESET}\n" \
       "$title" "${agent:-—}" "$cost" "$date_str"
-  done
-}
-
-# ─────────────────────────────────────────
-# SECTION : TOP AGENTS (SQLite)
-# ─────────────────────────────────────────
-
-_show_agents_section() {
-  _draw_section "🤖 Top agents (7j)"
-  echo ""
-
-  if ! ocdb_check_available 2>/dev/null; then
-    echo -e "  ${DIM}sqlite3 non disponible${RESET}"
-    return
-  fi
-
-  local agents=()
-  while IFS= read -r line; do
-    [ -n "$line" ] && agents+=("$line")
-  done < <(ocdb_cost_by_agent 7 5)
-
-  if [ ${#agents[@]} -eq 0 ]; then
-    echo -e "  ${DIM}Aucun agent ces 7 derniers jours${RESET}"
-    return
-  fi
-
-  # Trouver le max pour pourcentage
-  local max_cost=0
-  for entry in "${agents[@]}"; do
-    local cost="${entry##*|}"
-    if awk "BEGIN { exit !($cost > $max_cost) }" 2>/dev/null; then
-      max_cost="$cost"
-    fi
-  done
-
-  for entry in "${agents[@]}"; do
-    local agent="${entry%|*}"
-    local cost="${entry##*|}"
-    [ -z "$agent" ] || [ "$agent" = "unknown" ] && continue
-
-    local pct="0"
-    if awk "BEGIN { exit !($max_cost > 0) }" 2>/dev/null; then
-      pct=$(awk "BEGIN { printf \"%d\", ($cost/$max_cost)*100 }")
-    fi
-
-    printf "  ${DIM}•${RESET}  %-22s  ${CYAN}\$%-8s${RESET}  ${DIM}%3s%%${RESET}\n" \
-      "$agent" "$cost" "$pct"
   done
 }
 
@@ -317,15 +284,12 @@ _show_active_session_compat() {
 
   [ -z "$current_agent" ] && [ -z "$current_id" ] && return
 
-  _draw_section "⚡ Session orchestrateur active"
+  _draw_section "⚡ Session active"
   echo ""
 
-  if [ -n "$current_agent" ]; then
-    echo -e "  ${BOLD}🤖 Agent actif${RESET} : ${GREEN}${current_agent}${RESET}"
-  fi
-  if [ -n "$current_id" ]; then
-    echo -e "  ${BOLD}🎫 Ticket${RESET}     : ${CYAN}${current_id}${RESET}"
-  fi
+  [ -n "$current_agent" ] && echo -e "  ${DIM}Agent${RESET}   ${GREEN}${current_agent}${RESET}"
+  [ -n "$current_id" ]    && echo -e "  ${DIM}Ticket${RESET}  ${CYAN}${current_id}${RESET}"
+
   if [ -n "$current_action" ]; then
     local action_label
     case "$current_action" in
@@ -336,14 +300,13 @@ _show_active_session_compat() {
       idle)         action_label="En attente" ;;
       *)            action_label="$current_action" ;;
     esac
-    echo -e "  ${BOLD}🎬 Action${RESET}     : ${CYAN}${action_label}${RESET}"
+    echo -e "  ${DIM}Action${RESET}  ${CYAN}${action_label}${RESET}"
   fi
+
   if [ -n "$started_at" ]; then
     local started_time="--:--"
-    if [[ "$started_at" =~ T([0-9]{2}):([0-9]{2}) ]]; then
-      started_time="${BASH_REMATCH[1]}:${BASH_REMATCH[2]} UTC"
-    fi
-    echo -e "  ${DIM}⏱️  Démarrée à ${started_time} — Mode: ${mode}${RESET}"
+    [[ "$started_at" =~ T([0-9]{2}):([0-9]{2}) ]] && started_time="${BASH_REMATCH[1]}:${BASH_REMATCH[2]} UTC"
+    echo -e "  ${DIM}Depuis ${started_time} — Mode: ${mode}${RESET}"
   fi
 }
 
@@ -356,10 +319,13 @@ main() {
   _draw_header "OpenCode Hub — Dashboard"
   echo ""
 
-  # ── Section projets (bd) ─────────────────
-  _show_projects_section
+  # 1. Budget (coût + cache hit rate inline)
+  _show_budget_section
 
-  # ── Session orchestrateur active (rétrocompat) ──
+  # 2. Économies IA (si plugins installés)
+  _show_ai_savings_section
+
+  # 3. Session orchestrateur active (rétrocompat — affiché seulement si actif)
   local state_json=""
   if command -v jq &>/dev/null; then
     state_json=$(session_state_read 2>/dev/null || echo "")
@@ -368,31 +334,16 @@ main() {
     fi
   fi
   if [ -n "$state_json" ]; then
-    # Vérifier qu'il y a bien un ticket actif (session non vide)
     local has_current
     has_current=$(echo "$state_json" | jq -r '.current_ticket.id // ""' 2>/dev/null || echo "")
-    if [ -n "$has_current" ]; then
-      _show_active_session_compat "$state_json"
-    fi
+    [ -n "$has_current" ] && _show_active_session_compat "$state_json"
   fi
 
-  echo ""
-  _draw_separator
+  # 4. Projets (bd)
+  _show_projects_section
 
-  # ── Budget sessions (SQLite) ─────────────
-  _show_budget_section
-
-  echo ""
-  _draw_separator
-
-  # ── Sessions récentes (SQLite) ───────────
+  # 5. Sessions récentes
   _show_recent_sessions_section
-
-  echo ""
-  _draw_separator
-
-  # ── Top agents (SQLite) ──────────────────
-  _show_agents_section
 
   echo ""
   _draw_separator

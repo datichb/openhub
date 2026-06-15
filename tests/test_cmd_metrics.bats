@@ -499,3 +499,148 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"%"* ]] || [[ "$output" == *"Activit"* ]]
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tests cmd-metrics.sh — section Économies plugins (context-mode + RTK)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Helper : crée une fixture stats-pid-*.json dans un répertoire temporaire
+_make_ctx_stats_metrics() {
+  local pid="$1" session_start_ms="$2" tokens_saved="$3" dollars_saved="$4" reduction_pct="$5"
+  local stats_dir="$TEST_DIR/ctx-stats"
+  mkdir -p "$stats_dir"
+  python3 -c "
+import json
+data = {
+    'schemaVersion': 2, 'version': '1.0.162',
+    'updated_at': ${session_start_ms} + 3600000,
+    'session_start': ${session_start_ms},
+    'uptime_ms': 3600000, 'total_calls': 3,
+    'bytes_returned': 22000, 'bytes_indexed': 31000,
+    'bytes_sandboxed': 0, 'cache_hits': 0, 'cache_bytes_saved': 0,
+    'kept_out': 31000, 'total_processed': 53000,
+    'reduction_pct': ${reduction_pct},
+    'tokens_saved': ${tokens_saved},
+    'dollars_saved_session': ${dollars_saved},
+    'tokens_saved_lifetime': 0, 'dollars_saved_lifetime': 0,
+    'by_tool': {}
+}
+print(json.dumps(data))
+" > "$stats_dir/stats-pid-${pid}.json"
+}
+
+@test "cmd-metrics : section Économies plugins absente si aucun plugin disponible" {
+  # SQLite présent mais ni RTK ni ctx-mode
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ep1','p1','slug1','/proj','Test','1.0',1.0,1000,500,200,100,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/empty-ctx-stats'
+    mkdir -p '$TEST_DIR/empty-ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && PATH='/usr/bin:/bin' bash '$CMD_METRICS'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Économies plugins"* ]]
+}
+
+@test "cmd-metrics : section Économies plugins présente avec context-mode" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ep2','p1','slug2','/proj','Test','1.0',1.0,1000,500,200,100,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+  _make_ctx_stats_metrics 8001 "$YESTERDAY_MS" 7931 0.04 59
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Économies plugins"* ]]
+  [[ "$output" == *"context-mode"* ]]
+}
+
+@test "cmd-metrics --period today : label (aujourd'hui) pour context-mode" {
+  local today_start_ms
+  today_start_ms=$(python3 -c "
+import time
+from datetime import datetime, timezone
+t = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+print(int(t.timestamp() * 1000))
+")
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ep3','p1','slug3','/proj','Test','1.0',1.0,1000,500,200,100,$today_start_ms,$today_start_ms);
+  "
+  _make_ctx_stats_metrics 8002 "$today_start_ms" 5000 0.03 55
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period today
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"aujourd'hui"* ]]
+}
+
+@test "cmd-metrics --period week : label (7 derniers jours) pour context-mode" {
+  _make_ctx_stats_metrics 8003 "$YESTERDAY_MS" 4000 0.02 50
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period week
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"7 derniers jours"* ]]
+}
+
+@test "cmd-metrics --period month : label (30 derniers jours) pour context-mode" {
+  _make_ctx_stats_metrics 8004 "$YESTERDAY_MS" 4000 0.02 50
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period month
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"30 derniers jours"* ]]
+}
+
+@test "cmd-metrics : RTK toujours affiché avec label (global)" {
+  _make_ctx_stats_metrics 8005 "$YESTERDAY_MS" 4000 0.02 50
+
+  local mock_dir="$TEST_DIR/mock-rtk-bin"
+  mkdir -p "$mock_dir"
+  cat > "$mock_dir/rtk" <<'MOCK'
+#!/bin/bash
+echo '{"summary":{"total_commands":500,"total_saved":800000,"avg_savings_pct":18.5}}'
+MOCK
+  chmod +x "$mock_dir/rtk"
+
+  run bash -c "
+    export PATH='$mock_dir:$PATH'
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RTK"* ]]
+  [[ "$output" == *"(global)"* ]]
+}
+
+@test "cmd-metrics --period today : section absente si aucune session ctx du jour" {
+  # Seule une session d'hier → ne doit pas apparaître avec --period today
+  _make_ctx_stats_metrics 8006 "$YESTERDAY_MS" 5000 0.03 55
+
+  run bash -c "
+    export CTX_STATS_DIR='$TEST_DIR/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    cd '$TEST_DIR/fake-project' && PATH='/usr/bin:/bin' bash '$CMD_METRICS' --period today
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"context-mode"* ]] || [[ "$output" != *"Économies plugins"* ]]
+}

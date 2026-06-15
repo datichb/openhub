@@ -481,3 +481,120 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"BD-42"* ]] || [[ "$output" == *"developer"* ]]
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# F. Dashboard — section Économies IA (context-mode + RTK)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Helper : crée un fichier stats-pid-*.json de fixture dans CTX_STATS_DIR
+_make_ctx_stats_dashboard() {
+  local pid="$1" session_start_ms="$2" tokens_saved="$3" dollars_saved="$4" reduction_pct="$5"
+  local stats_dir="$FAKE_HUB/ctx-stats"
+  mkdir -p "$stats_dir"
+  python3 -c "
+import json
+data = {
+    'schemaVersion': 2, 'version': '1.0.162',
+    'updated_at': ${session_start_ms} + 3600000,
+    'session_start': ${session_start_ms},
+    'uptime_ms': 3600000, 'total_calls': 3,
+    'bytes_returned': 22000, 'bytes_indexed': 31000,
+    'bytes_sandboxed': 0, 'cache_hits': 0, 'cache_bytes_saved': 0,
+    'kept_out': 31000, 'total_processed': 53000,
+    'reduction_pct': ${reduction_pct},
+    'tokens_saved': ${tokens_saved},
+    'dollars_saved_session': ${dollars_saved},
+    'tokens_saved_lifetime': 0, 'dollars_saved_lifetime': 0,
+    'by_tool': {}
+}
+print(json.dumps(data))
+" > "$stats_dir/stats-pid-${pid}.json"
+}
+
+@test "dashboard : section Économies IA absente si aucun plugin disponible" {
+  # Ni RTK mock, ni stats ctx-mode → section doit être silencieusement absente
+  export CTX_STATS_DIR="$FAKE_HUB/empty-ctx-stats"
+  mkdir -p "$CTX_STATS_DIR"
+
+  run bash -c "
+    export CTX_STATS_DIR='$FAKE_HUB/empty-ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    export HUB_DIR='$FAKE_HUB'
+    export PROJECTS_FILE='$FAKE_HUB/projects/projects.md'
+    export PATHS_FILE='$FAKE_HUB/projects/paths.local.md'
+    export API_KEYS_FILE='$FAKE_HUB/projects/api-keys.local.md'
+    export HUB_CONFIG='$FAKE_HUB/config/hub.json'
+    cd '$FAKE_HUB' && PATH='/usr/bin:/bin' bash '$HUB_ROOT/scripts/cmd-dashboard.sh'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Économies IA"* ]]
+}
+
+@test "dashboard : section Économies IA présente avec stats context-mode" {
+  local now_ms
+  now_ms=$(python3 -c "import time; print(int(time.time() * 1000))")
+  _make_ctx_stats_dashboard 9001 "$now_ms" 7931 0.04 59
+
+  run bash -c "
+    export CTX_STATS_DIR='$FAKE_HUB/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    export HUB_DIR='$FAKE_HUB'
+    export PROJECTS_FILE='$FAKE_HUB/projects/projects.md'
+    export PATHS_FILE='$FAKE_HUB/projects/paths.local.md'
+    export API_KEYS_FILE='$FAKE_HUB/projects/api-keys.local.md'
+    export HUB_CONFIG='$FAKE_HUB/config/hub.json'
+    cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Économies IA"* ]]
+  [[ "$output" == *"context-mode"* ]]
+}
+
+@test "dashboard : section Économies IA affiche les tokens context-mode formatés" {
+  local now_ms
+  now_ms=$(python3 -c "import time; print(int(time.time() * 1000))")
+  _make_ctx_stats_dashboard 9002 "$now_ms" 7931 0.04 59
+
+  run bash -c "
+    export CTX_STATS_DIR='$FAKE_HUB/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    export HUB_DIR='$FAKE_HUB'
+    export PROJECTS_FILE='$FAKE_HUB/projects/projects.md'
+    export PATHS_FILE='$FAKE_HUB/projects/paths.local.md'
+    export API_KEYS_FILE='$FAKE_HUB/projects/api-keys.local.md'
+    export HUB_CONFIG='$FAKE_HUB/config/hub.json'
+    cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'
+  "
+  [ "$status" -eq 0 ]
+  # 7931 tokens → 7.9K
+  [[ "$output" == *"7.9K"* ]]
+}
+
+@test "dashboard : section Économies IA affiche RTK si disponible" {
+  local now_ms
+  now_ms=$(python3 -c "import time; print(int(time.time() * 1000))")
+  _make_ctx_stats_dashboard 9003 "$now_ms" 7931 0.04 59
+
+  local mock_dir="$FAKE_HUB/mock-bin"
+  mkdir -p "$mock_dir"
+  cat > "$mock_dir/rtk" <<'MOCK'
+#!/bin/bash
+echo '{"summary":{"total_commands":7221,"total_saved":1630415,"avg_savings_pct":22.0}}'
+MOCK
+  chmod +x "$mock_dir/rtk"
+
+  run bash -c "
+    export PATH='$mock_dir:$PATH'
+    export CTX_STATS_DIR='$FAKE_HUB/ctx-stats'
+    export _OCDB_FILE='$TEST_DB'
+    export HUB_DIR='$FAKE_HUB'
+    export PROJECTS_FILE='$FAKE_HUB/projects/projects.md'
+    export PATHS_FILE='$FAKE_HUB/projects/paths.local.md'
+    export API_KEYS_FILE='$FAKE_HUB/projects/api-keys.local.md'
+    export HUB_CONFIG='$FAKE_HUB/config/hub.json'
+    cd '$FAKE_HUB' && bash '$HUB_ROOT/scripts/cmd-dashboard.sh'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RTK"* ]]
+  [[ "$output" == *"1.6M"* ]]
+}
