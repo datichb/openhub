@@ -669,11 +669,14 @@ adapter_deploy_config() {
   # Précalculer les 3 niveaux hub.json une seule fois (évite N×3 lectures de hub.json en boucle)
   # Si jq absent ou HUB_CONFIG inexistant, les vars restent vides → resolve_agent_model bascule sur le chemin lent (sed) — dégradation gracieuse.
   local _hub_agent_models="" _hub_family_models="" _hub_global_model="" _hub_default_provider=""
+  local _hub_provider_cache="" _hub_compaction=""
   if command -v jq &>/dev/null && [ -f "$HUB_CONFIG" ]; then
     _hub_agent_models=$(jq -r '.agent_models.agents // {} | tojson' "$HUB_CONFIG" 2>/dev/null || true)
     _hub_family_models=$(jq -r '.agent_models.families // {} | tojson' "$HUB_CONFIG" 2>/dev/null || true)
     _hub_global_model=$(jq -r '.opencode.model // empty' "$HUB_CONFIG" 2>/dev/null || true)
     _hub_default_provider=$(jq -r '.default_provider.name // empty' "$HUB_CONFIG" 2>/dev/null || true)
+    _hub_provider_cache=$(jq -r '.opencode_cache.provider // empty | if . == null then empty else . end | tojson' "$HUB_CONFIG" 2>/dev/null || true)
+    _hub_compaction=$(jq -r '.opencode_cache.compaction // empty | if . == null then empty else . end | tojson' "$HUB_CONFIG" 2>/dev/null || true)
   fi
 
   local _ai=0
@@ -859,6 +862,27 @@ adapter_deploy_config() {
           --argjson mcp "$_existing_mcp" \
           '$base + {"mcp": $mcp}')
       fi
+    fi
+
+    # Injecter le plugin context-mode (toujours présent dans les projets déployés)
+    base_obj=$(jq -n \
+      --argjson base "$base_obj" \
+      '$base + {"plugin": ["context-mode"]}')
+
+    # Fusionner les options de cache provider si définies dans hub.json (.opencode_cache.provider)
+    if [ -n "$_hub_provider_cache" ] && [ "$_hub_provider_cache" != "null" ]; then
+      base_obj=$(jq -n \
+        --argjson base "$base_obj" \
+        --argjson cache "$_hub_provider_cache" \
+        '$base * {"provider": $cache}')
+    fi
+
+    # Fusionner le bloc compaction si défini dans hub.json (.opencode_cache.compaction)
+    if [ -n "$_hub_compaction" ] && [ "$_hub_compaction" != "null" ]; then
+      base_obj=$(jq -n \
+        --argjson base "$base_obj" \
+        --argjson compaction "$_hub_compaction" \
+        '$base + {"compaction": $compaction}')
     fi
 
     # Fusionner le bloc instructions selon l'état du cache de contexte

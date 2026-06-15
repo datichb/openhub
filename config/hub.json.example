@@ -22,5 +22,19 @@
   },
   "cli": {
     "language": "fr"
+  },
+  "opencode_cache": {
+    "provider": {
+      "anthropic": {
+        "options": {
+          "setCacheKey": true
+        }
+      }
+    },
+    "compaction": {
+      "auto": true,
+      "prune": true,
+      "reserved": 10000
+    }
   }
 }
