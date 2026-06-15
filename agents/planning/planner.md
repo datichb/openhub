@@ -38,7 +38,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
-model: anthropic/claude-opus-4
+model: anthropic/claude-sonnet-4-6
 skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, adapters/figma-planner-protocol, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage]
 native_skills: [planning/websearch-stack-research]
 mcpServers: [figma, gitlab]

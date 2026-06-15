@@ -23,7 +23,7 @@ permission:
     "auditor": allow
     "orchestrator-dev": allow
     "debugger": allow
-model: anthropic/claude-opus-4
+model: anthropic/claude-sonnet-4-6
 skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/pathfinder-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 
