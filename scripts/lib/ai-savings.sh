@@ -44,9 +44,9 @@ aisavings_format_tokens() {
     return
   fi
   if [ "$n" -ge 1000000 ]; then
-    awk "BEGIN { printf \"%.1fM\", $n / 1000000 }"
+    LC_ALL=C awk "BEGIN { printf \"%.1fM\", $n / 1000000 }"
   elif [ "$n" -ge 1000 ]; then
-    awk "BEGIN { printf \"%.1fK\", $n / 1000 }"
+    LC_ALL=C awk "BEGIN { printf \"%.1fK\", $n / 1000 }"
   else
     echo "$n"
   fi
@@ -92,12 +92,22 @@ aisavings_load_ctx_stats() {
   fi
 
   # Calculer le seuil en millisecondes (epoch ms)
+  # Pour since_days=1 : minuit du jour courant (date calendaire, pas 24h glissantes)
+  # Pour since_days>1 : fenêtre glissante (now - N*86400s)
   local threshold_ms=0
   if [ "$since_days" -gt 0 ]; then
-    threshold_ms=$(python3 -c "
+    if [ "$since_days" -eq 1 ]; then
+      threshold_ms=$(python3 -c "
+from datetime import datetime, date, time as dtime
+midnight = datetime.combine(date.today(), dtime.min)
+print(int(midnight.timestamp() * 1000))
+" 2>/dev/null || echo "0")
+    else
+      threshold_ms=$(python3 -c "
 import time
 print(int((time.time() - ${since_days} * 86400) * 1000))
 " 2>/dev/null || echo "0")
+    fi
   fi
 
   # Agréger via python3 (évite les problèmes de parsing JSON en bash pur)

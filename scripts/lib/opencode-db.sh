@@ -86,14 +86,26 @@ _ocdb_query() {
   sqlite3 -separator "|" "file:${db_path}?mode=ro" "$sql" 2>/dev/null || true
 }
 
-# Calcule le timestamp Unix pour "il y a N jours"
+# Calcule le timestamp Unix de début de période
 # Usage : _ocdb_since_ts 7   → retourne epoch en millisecondes
+# Pour days=1 : minuit du jour courant (date calendaire, pas 24h glissantes)
+# Pour days>1 : now - N*86400s (fenêtre glissante)
 _ocdb_since_ts() {
   local days="${1:-7}"
-  local now_s
-  now_s=$(date +%s)
-  # La db stocke time_created en millisecondes (epoch * 1000)
-  echo $(( (now_s - days * 86400) * 1000 ))
+  if [ "$days" -eq 1 ]; then
+    # Minuit du jour courant — compatible macOS (BSD date) et Linux via python3
+    python3 -c "
+from datetime import datetime, date, time as dtime
+import sys
+midnight = datetime.combine(date.today(), dtime.min)
+print(int(midnight.timestamp() * 1000))
+" 2>/dev/null || echo $(( ($(date +%s) - 86400) * 1000 ))
+  else
+    local now_s
+    now_s=$(date +%s)
+    # La db stocke time_created en millisecondes (epoch * 1000)
+    echo $(( (now_s - days * 86400) * 1000 ))
+  fi
 }
 
 # ─────────────────────────────────────────

@@ -158,19 +158,19 @@ _show_global_section() {
   if [ "$_ctx_ok" -eq 1 ] || [ "$_rtk_ok" -eq 1 ]; then
     _metrics_subsection "Économies plugins"
 
-    if [ "$_ctx_ok" -eq 1 ]; then
-      local _ctx_fmt
-      _ctx_fmt=$(aisavings_format_tokens "$CTX_TOKENS_SAVED")
-      _metrics_subitem "context-mode ${DIM}${CTX_PERIOD_LABEL}${RESET}" \
-        "${CYAN}${_ctx_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}\$${CTX_DOLLARS_SAVED}${RESET}  ${DIM}· -${CTX_REDUCTION_PCT}%${RESET}"
-    fi
+      if [ "$_ctx_ok" -eq 1 ]; then
+        local _ctx_fmt
+        _ctx_fmt=$(aisavings_format_tokens "$CTX_TOKENS_SAVED")
+        _metrics_subitem "context-mode" \
+          "${DIM}${CTX_PERIOD_LABEL}${RESET}  ${CYAN}${_ctx_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}\$${CTX_DOLLARS_SAVED}${RESET}  ${DIM}· -${CTX_REDUCTION_PCT}%${RESET}"
+      fi
 
-    if [ "$_rtk_ok" -eq 1 ]; then
-      local _rtk_fmt
-      _rtk_fmt=$(aisavings_format_tokens "$RTK_TOTAL_SAVED")
-      _metrics_subitem "RTK ${DIM}(global)${RESET}" \
-        "${CYAN}${_rtk_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}${RTK_AVG_SAVINGS_PCT}%${RESET}  ${DIM}· ${RTK_TOTAL_COMMANDS} cmds${RESET}"
-    fi
+      if [ "$_rtk_ok" -eq 1 ]; then
+        local _rtk_fmt
+        _rtk_fmt=$(aisavings_format_tokens "$RTK_TOTAL_SAVED")
+        _metrics_subitem "RTK" \
+          "${DIM}(global)${RESET}  ${CYAN}${_rtk_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}${RTK_AVG_SAVINGS_PCT}%${RESET}  ${DIM}· ${RTK_TOTAL_COMMANDS} cmds${RESET}"
+      fi
   fi
 }
 
