@@ -49,7 +49,8 @@ L'orchestrateur parent :
 **Phase :** X — <titre de la phase>
 **task_id :** <sessionID courant>
 
-<Récap complet de la phase ou du contexte actuel — jamais résumé>
+**Résumé :** <2-3 phrases sur ce qui a été fait dans cette phase>
+**Points clés :** <liste courte — découvertes importantes, décisions, blocages>
 ```
 
 ### Bloc `## Question pour l'orchestrateur`

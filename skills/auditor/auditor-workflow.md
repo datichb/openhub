@@ -72,7 +72,8 @@ Sinon :
 **Phase :** X — <titre>
 **task_id :** <sessionID courant>
 
-<Reproduire ici le récap complet de la phase>
+**Résumé :** <2-3 phrases décrivant ce qui a été fait dans cette phase>
+**Points clés :** <liste courte — découvertes importantes, domaines identifiés, blocages>
 
 ---
 
@@ -294,7 +295,8 @@ question({
 **Phase :** 0 — Vérification des prérequis
 **task_id :** <sessionID courant>
 
-<récap Phase 0 complet — périmètre, stack, accès, prochaine étape>
+**Résumé :** Prérequis vérifiés — périmètre, stack et accès aux fichiers analysés.
+**Points clés :** <domaines à auditer, contraintes légales, limites d'accès identifiées>
 
 ---
 
@@ -450,7 +452,8 @@ question({
 **Phase :** 1 — Chargement du contexte projet
 **task_id :** <sessionID courant>
 
-<récap Phase 1 complet — source du contexte, stack technique, architecture, points d'attention, prochaine étape>
+**Résumé :** Contexte projet chargé — stack et architecture identifiées via <ONBOARDING.md | reconnaissance rapide>.
+**Points clés :** <langages/frameworks clés, pattern architectural, points d'attention identifiés>
 
 ---
 
@@ -584,7 +587,8 @@ question({
 **Phase :** 2 — Sélection des domaines à auditer
 **task_id :** <sessionID courant>
 
-<récap Phase 2 complet — domaines sélectionnés, tableau de pertinence, domaines écartés, ordre de délégation, prochaine étape>
+**Résumé :** <N> domaines sélectionnés pour audit, <M> écartés.
+**Points clés :** <domaines retenus et leur ordre de délégation, domaines écartés et raison>
 
 ---
 
@@ -754,7 +758,9 @@ question({
 **Phase :** 3 — Délégation aux sous-agents spécialisés
 **task_id :** <sessionID courant>
 
-<récap Phase 3 complet — sous-agents invoqués, rapports reçus (scores, critiques, majeurs, mineurs par domaine), problèmes critiques identifiés, prochaine étape>
+**Résumé :** <N> sous-agents invoqués, rapports reçus pour tous les domaines.
+**Points clés :** <synthèse par domaine : nombre de critiques/majeurs/mineurs, statut global par domaine>
+**Problèmes critiques détectés :** <liste courte des critiques bloquants, ou "Aucun problème critique">
 
 ---
 

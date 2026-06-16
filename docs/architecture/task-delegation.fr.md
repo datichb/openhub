@@ -259,7 +259,7 @@ Le bloc `## Question pour l'orchestrator` contient :
 
 Ces deux règles sont répétées dans chaque skill de handoff car elles sont critiques :
 
-- Le consommateur affiche le contenu narratif **intégralement** avant de poser
+- Le consommateur affiche la synthèse condensée (statut, fichiers clés, points d'attention par ticket) avant de poser
   un checkpoint à l'utilisateur
 - Les corrections du reviewer sont copiées **verbatim** dans les commentaires Beads
 - Le rapport de review est transmis **tel quel** à l'utilisateur au CP-2

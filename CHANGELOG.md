@@ -9,6 +9,34 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed
+
+- **Réduction de la verbosité des hand-offs et récapitulatifs agents** — suppression des duplications dans les chaînes de retour inter-agents :
+
+  - **Récap global `orchestrator-dev` → `orchestrator`** : le `## Récap implémentation` passe d'une copie verbatim des comptes rendus narratifs developer-* à une synthèse structurée par ticket (statut, fichiers clés, critères couverts, points d'attention). Supprime N comptes rendus complets dans le fil de discussion pour N tickets traités.
+    - `skills/orchestrator/orchestrator-dev-protocol.md` : section "Récap global — Fin de session" (Étape 1)
+    - `skills/orchestrator/orchestrator-handoff-format.md` : règle de production et règle consommateur
+    - `skills/developer/developer-handoff-format.md` : règle consommateur orchestrator-dev (point 6)
+
+  - **Blocage 3 cycles** : le `### Contexte complet` du bloc `## Question pour l'orchestrator` passe de 3 rapports de review complets à une synthèse des problèmes persistants + résumé 1 ligne par cycle. Supprime jusqu'à 3 rapports de review complets dans le bloc de question.
+    - `skills/orchestrator/orchestrator-dev-protocol.md` : section "Blocage après 3 cycles de review" (mode invoqué)
+    - `skills/orchestrator/orchestrator-handoff-format.md` : tableau des CPs (ligne Blocage 3 cycles)
+
+  - **Blocs `## Retour intermédiaire vers orchestrateur` (planner, auditor)** : le contenu des blocs passe de "récap de la phase reproduit intégralement" à "synthèse condensée (résumé 2-3 phrases + points clés)". La prose libre de la phase reste inchangée (valeur CoT). Supprime la double écriture du même contenu dans chaque réponse de phase.
+    - `skills/planning/planner-workflow.md` : template générique + blocs des phases 0, 1 (×2), 1.5, 2, 3, 4, 5.5
+    - `skills/auditor/auditor-workflow.md` : template générique + blocs des phases 0, 1, 2, 3
+
+  - **CP-feature orchestrator** : suppression de la re-reproduction du récap global au CP-feature (il est déjà affiché lors de la réception du retour final Cas A).
+    - `skills/orchestrator/orchestrator-protocol.md` : section "CP-feature — Récap global"
+
+- **Documentation mise à jour** en cohérence avec les changements ci-dessus :
+  - `docs/architecture/adr/009-inter-agent-handoff-contracts.fr.md` + `.en.md` : amendement "Récap d'implémentation condensé"
+  - `docs/guides/workflows.fr.md` + `.en.md` : diagramme Mermaid + description étape 10
+  - `docs/architecture/overview.fr.md` + `.en.md` : diagramme Mermaid
+  - `docs/architecture/task-delegation.fr.md` : règle verbatim récap
+  - `docs/architecture/skills.fr.md` + `.en.md` : description `orchestrator-handoff-format`
+  - `docs/guides/inter-agent-interruption.fr.md` : format du bloc `## Retour intermédiaire`
+
 ### Added
 
 - **`oc optimize` — analyse de gaspillage de tokens** — nouvelle commande qui scanne les patterns de gaspillage sans LLM et produit un rapport avec grade global A–F :

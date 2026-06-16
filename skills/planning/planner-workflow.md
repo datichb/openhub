@@ -191,7 +191,9 @@ L'orchestrateur :
 **Phase :** X — <titre>
 **task_id :** <sessionID courant — disponible dans le contexte d'exécution>
 
-<Reproduire ici le récap de la phase ci-dessus — intégralement>
+**Résumé :** <2-3 phrases décrivant ce qui a été fait dans cette phase>
+**Points clés :** <liste courte — découvertes importantes, décisions prises, hypothèses formulées>
+**Zones d'ombre / Blocages :** <si applicable, sinon omettre>
 
 ---
 
@@ -247,7 +249,8 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 **Phase :** X — Pause (information manquante critique)
 **task_id :** <sessionID courant>
 
-<Reproduire ici le contenu de la pause ci-dessus>
+**Résumé :** <description en 1-2 phrases du problème détecté>
+**Impact :** <conséquence concrète sur la planification si non résolu>
 
 ---
 
@@ -305,7 +308,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrateur` avec le récap intégral | ⬜ |
+| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrateur` avec la synthèse condensée (résumé + points clés) | ⬜ |
 | ✅ J'ai produit le bloc `## Question pour l'orchestrateur` avec question + options + instruction de reprise | ⬜ |
 | ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
 | ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
@@ -441,7 +444,8 @@ question({
 **Phase :** 0 — Prérequis vérifiés
 **task_id :** <sessionID courant>
 
-<récap Phase 0>
+**Résumé :** Prérequis vérifiés — feature identifiée, board Beads localisé.
+**Points clés :** <prérequis manquants et hypothèses formulées, ou "Aucun prérequis manquant">
 
 ---
 
@@ -719,7 +723,8 @@ Si **signaux UX ou UI détectés** :
 **Phase :** 1 — Exploration contextuelle (signal design détecté)
 **task_id :** <sessionID courant>
 
-<récap Phase 1 complet>
+**Résumé :** Exploration contextuelle terminée — signal <UX/UI> détecté : <raison concrète>.
+**Points clés :** architecture <pattern détecté>, tests <état>, signal design <description>, zones d'ombre <liste courte ou "aucune">
 
 ---
 
@@ -749,7 +754,8 @@ Si **aucun signal design** :
 **Phase :** 1 — Exploration contextuelle (terminée)
 **task_id :** <sessionID courant>
 
-<récap Phase 1 complet>
+**Résumé :** Exploration contextuelle terminée — aucun signal design détecté.
+**Points clés :** architecture <pattern détecté>, tests <état>, zones d'ombre <liste courte ou "aucune">, tickets existants liés <IDs ou "aucun">
 
 ---
 
@@ -981,7 +987,8 @@ question({
 **Phase :** 1.5 — Délégation design (terminée)
 **task_id :** <sessionID courant>
 
-<récap Phase 1.5 complet — specs intégrées ou raison du skip>
+**Résumé :** Délégation design terminée — specs <UX/UI> <reçues et intégrées | skippées>.
+**Points clés :** <specs reçues (composants/parcours concernés) ou "aucune spec — tracé via bd comments add en Phase 5">
 
 ---
 
@@ -1258,7 +1265,8 @@ question({
 **Phase :** 2 — Questions complémentaires (traitées)
 **task_id :** <sessionID courant>
 
-<récap Phase 2 complet — questions posées et réponses reçues>
+**Résumé :** Questions complémentaires traitées — <N> questions posées, réponses intégrées.
+**Points clés :** <décisions clés issues des réponses, hypothèses confirmées ou levées, zones d'ombre restantes>
 
 ---
 
@@ -1392,7 +1400,8 @@ question({
 **Phase :** 3 — Plan hiérarchique
 **task_id :** <sessionID courant>
 
-<plan hiérarchique complet — epics, tickets, ordre, risques>
+**Résumé :** Plan hiérarchique produit — <N> epics, <M> tickets créés, ordre de traitement défini.
+**Points clés :** <dépendances critiques, risques identifiés, hypothèses structurantes>
 
 ---
 
@@ -1494,7 +1503,8 @@ question({
 **Phase :** 4 — Détection des cas particuliers (terminée)
 **task_id :** <sessionID courant>
 
-<récap Phase 4 complet — cas détectés et écartés, impact sur le plan>
+**Résumé :** Détection des cas particuliers terminée — <N> cas détectés, <M> écartés.
+**Points clés :** <cas retenus et leur impact sur le plan, ou "Aucun cas particulier détecté">
 
 ---
 
@@ -1928,7 +1938,8 @@ question({
 **Phase :** 5.5 — Délégation ai-delegated
 **task_id :** <sessionID courant>
 
-<récap Phase 5.5 — tickets créés, tickets éligibles à délégation>
+**Résumé :** <N> tickets créés — <Y> tickets éligibles à délégation ai-delegated.
+**Points clés :** <IDs des tickets éligibles et pourquoi, ou "Aucun ticket éligible">
 
 ---
 

@@ -199,7 +199,7 @@ Aucun blocage rencontré.
 
 5. **Intégrer le `**Diff résumé**` et les `**Changements par fichier**`** dans le compte rendu d'étape (étape 6).
 
-6. **Stocker le compte rendu d'implémentation complet** (texte narratif produit par le developer avant le bloc handoff) pour inclusion dans le récap global (section "Récap global — Fin de session"). Ce compte rendu est transmis intégralement à l'orchestrator feature — il ne doit jamais être réduit aux seules métadonnées du bloc handoff.
+6. **Utiliser les données structurées du bloc handoff** (statut, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) pour alimenter le compte rendu d'étape (étape 6) et la synthèse du récap global (section "Récap global — Fin de session"). Le compte rendu narratif complet reste disponible dans la session developer et peut être consulté sur demande.
 
 7. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 

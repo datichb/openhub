@@ -81,7 +81,7 @@ sequenceDiagram
         OD->>U: [CP-2] Merger ou corriger ? ← TOUJOURS PAUSE
         U->>OD: "merge"
     end
-    OD-->>O: Récap narratif (comptes rendus verbatim + points d'attention) + bloc structuré
+    OD-->>O: Récap condensé (synthèse par ticket : statut, fichiers clés, points d'attention) + bloc structuré
 
     O->>U: [CP-feature] Récap global feature
 ```
@@ -164,7 +164,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 7. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
 8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`
 9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
-10. Après tous les tickets : `orchestrator-dev` émet un **récap narratif** (comptes rendus d'implémentation verbatim par ticket + points d'attention agrégés) suivi du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires sans duplication ; l'orchestrateur **affiche ce récap narratif dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
+10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'orchestrateur **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
 
 > **Questions des sous-agents :** quand un sous-agent (planner, ux-designer, reviewer…) pose une question,
 > elle remonte dans la session parente avec un bloc de contexte identifiant l'agent et la phase en cours —

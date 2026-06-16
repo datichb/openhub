@@ -1036,7 +1036,7 @@ todowrite({
 
 > Utiliser `cancelled` pour les tickets ignorés ou abandonnés. Adapter selon les tickets réellement présents dans la feature.
 
-**Avant de construire ce récap**, reproduire intégralement dans le texte de la discussion le récap global complet reçu d'orchestrator-dev (s'il n'a pas déjà été affiché). Puis produire le récap consolidé ci-dessous :
+**Avant de construire ce récap**, vérifier que le récap global d'orchestrator-dev a bien été affiché lors de la réception du retour final (Cas A — il ne doit pas être reproduit ici une seconde fois). Puis produire le récap consolidé ci-dessous à partir du bloc structuré `## Retour vers orchestrator` :
 
 ```
 ## Récap feature — <nom de la feature>

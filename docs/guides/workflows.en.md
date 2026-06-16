@@ -83,7 +83,7 @@ sequenceDiagram
         OD->>U: [CP-2] Merge or fix? ← ALWAYS PAUSE
         U->>OD: "merge"
     end
-    OD-->>O: Narrative recap (verbatim reports + attention points) + structured block
+    OD-->>O: Condensed recap (per-ticket summary: status, key files, attention points) + structured block
 
     O->>U: [CP-feature] Global feature recap
 ```
@@ -166,7 +166,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 7. Presents the review report `[CP-2]` — **always a pause, no exception**
 8. If "fix": corrections are copied verbatim into the Beads comment — no manual summary; routing to `developer-security` if the verdict is `fix-security`
 9. Closes and moves to the next `[CP-3]` (automatic in semi-auto/auto)
-10. After all tickets: `orchestrator-dev` emits a **narrative recap** (developer-* implementation reports verbatim per ticket + aggregated attention points) followed by the **structured** `## Return to orchestrator` **block** (per-ticket detail table, statistics, global status) — the two are complementary without duplication; the orchestrator **displays this narrative recap in its discussion thread** before presenting the [CP-feature] to the user
+10. After all tickets: `orchestrator-dev` emits a **condensed per-ticket summary** (status, key files, covered criteria, attention points + aggregated global attention points) followed by the **structured** `## Return to orchestrator` **block** (per-ticket detail table, statistics, global status) — the two are complementary; the orchestrator **displays this summary in its discussion thread** before presenting the [CP-feature] to the user
 
 > **Subagent questions:** when a subagent (planner, ux-designer, reviewer…) asks a question,
 > it surfaces in the parent session with a context block identifying the agent and current phase —

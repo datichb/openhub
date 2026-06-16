@@ -1357,18 +1357,26 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 ```
 ## Récap implémentation — <nom de la feature ou session>
 
-### Comptes rendus d'implémentation
+### Synthèse par ticket
 
-<Pour chaque ticket traité, inclure le compte rendu d'implémentation narratif complet produit par le developer-* — copié tel quel, sans résumé ni reformulation. Ce contenu est ce qui permet à l'orchestrator feature de remonter le détail des modifications à l'utilisateur.>
+<Pour chaque ticket traité, inclure la synthèse structurée issue du bloc handoff developer-* et du compte rendu d'étape (étape 6).>
 <"Aucun ticket traité" si la session est interrompue avant toute implémentation>
 
 #### Ticket #bd-XX — <titre>
-<compte rendu d'implémentation complet du developer-*>
+**Statut :** `implémenté` | `partiellement-implémenté` | `bloqué`
+**Agent :** developer (<domaine>)
+**Fichiers clés :** <1-3 fichiers les plus significatifs modifiés>
+**Critères couverts :** tous | partielle — <critères non couverts>
+**Points d'attention :** <liste issue du ### Points d'attention pour la review du developer — ou "Aucun">
 
 #### Ticket #bd-YY — <titre>
-<compte rendu d'implémentation complet du developer-*>
+**Statut :** ...
+**Agent :** ...
+**Fichiers clés :** ...
+**Critères couverts :** ...
+**Points d'attention :** ...
 
-### Points d'attention
+### Points d'attention globaux
 <Agrégation des points d'attention techniques collectés à chaque étape 6 :
  - Points signalés par les developer-* (décisions techniques, compromis, dette)
  - Zones non testables signalées par le qa-engineer
@@ -1376,7 +1384,7 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 <"Aucun point d'attention" si aucun point n'a été signalé en cours de session>
 ```
 
-> ❌ Ne jamais résumer ce récap — il contient les comptes rendus d'implémentation verbatim et les points d'attention. Le tableau de synthèse des tickets et les statistiques sont dans le bloc structuré `## Retour vers orchestrator` qui suit.
+> ❌ Ne jamais omettre ce récap — il contient la synthèse par ticket et les points d'attention. Le tableau de synthèse des tickets et les statistiques sont dans le bloc structuré `## Retour vers orchestrator` qui suit.
 
 ### Étape 2 — Bloc de retour structuré (obligatoire si invoqué depuis l'orchestrateur feature)
 
@@ -1516,13 +1524,12 @@ question({
 **Phase :** Blocage 3 cycles
 
 ### Contexte complet
-**Cycle 1 :** <rapport de review complet du cycle 1>
+**Problèmes persistants (non résolus après 3 cycles) :** <liste des points signalés à chaque cycle sans résolution>
 
-**Cycle 2 :** <rapport de review complet du cycle 2>
-
-**Cycle 3 :** <rapport de review complet du cycle 3>
-
-**Problèmes persistants non résolus :** <liste des points toujours signalés après 3 cycles>
+**Historique des cycles :**
+- Cycle 1 : verdict <commit|corriger> — <synthèse en 1 ligne : N problèmes, thème principal>
+- Cycle 2 : verdict <corriger> — <synthèse en 1 ligne>
+- Cycle 3 : verdict <corriger> — <synthèse en 1 ligne>
 
 ### Question en attente
 Le ticket #<ID> a subi 3 cycles de review sans résolution. Une intervention manuelle est recommandée. Comment procéder ?
