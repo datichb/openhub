@@ -121,9 +121,23 @@ _show_global_section() {
   _metrics_section "📈 Vue globale"
   echo ""
 
-  # ── Résumé coût / sessions ──
-  _metrics_item "Sessions"   "${GREEN}${OCDB_TOTAL_SESSIONS}${RESET}"
-  _metrics_item "Coût total" "${GREEN}\$${OCDB_TOTAL_COST}${RESET}"
+  # ── Sessions : actives (steps) + créées ──
+  ocdb_exact_sessions "$_PERIOD_DAYS" || true
+  local _active="${OCDB_SESSIONS_ACTIVE:-0}"
+  local _created="${OCDB_SESSIONS_CREATED:-0}"
+  local _sessions_label
+  if [ "$_active" -gt "$_created" ]; then
+    _sessions_label="${GREEN}${_active} actives${RESET}  ${DIM}(dont ${_created} créées)${RESET}"
+  else
+    _sessions_label="${GREEN}${_active}${RESET}"
+  fi
+
+  # ── Coût exact (steps dans la période) ──
+  local _exact_cost
+  _exact_cost=$(ocdb_exact_cost "$_PERIOD_DAYS")
+
+  _metrics_item "Sessions"   "$_sessions_label"
+  _metrics_item "Coût total" "${GREEN}\$${_exact_cost}${RESET}  ${DIM}(steps dans la période)${RESET}"
   echo ""
 
   # ── Tokens ──
@@ -133,8 +147,8 @@ _show_global_section() {
   fmt_cache_read=$(ocdb_format_tokens "$OCDB_TOKENS_CACHE_READ")
   fmt_cache_write=$(ocdb_format_tokens "$OCDB_TOKENS_CACHE_WRITE")
 
-  _metrics_item "Tokens input"      "${CYAN}${fmt_input}${RESET}"
-  _metrics_item "Tokens output"     "${CYAN}${fmt_output}${RESET}"
+  _metrics_item "Tokens input"       "${CYAN}${fmt_input}${RESET}"
+  _metrics_item "Tokens output"      "${CYAN}${fmt_output}${RESET}"
   _metrics_item "Cache write / read" "${DIM}${fmt_cache_write}${RESET}  ${DIM}/  ${fmt_cache_read}${RESET}"
   echo ""
 
@@ -158,20 +172,69 @@ _show_global_section() {
   if [ "$_ctx_ok" -eq 1 ] || [ "$_rtk_ok" -eq 1 ]; then
     _metrics_subsection "Économies plugins"
 
-      if [ "$_ctx_ok" -eq 1 ]; then
-        local _ctx_fmt
-        _ctx_fmt=$(aisavings_format_tokens "$CTX_TOKENS_SAVED")
-        _metrics_subitem "context-mode" \
-          "${DIM}${CTX_PERIOD_LABEL}${RESET}  ${CYAN}${_ctx_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}\$${CTX_DOLLARS_SAVED}${RESET}  ${DIM}· -${CTX_REDUCTION_PCT}%${RESET}"
-      fi
+    if [ "$_ctx_ok" -eq 1 ]; then
+      local _ctx_fmt
+      _ctx_fmt=$(aisavings_format_tokens "$CTX_TOKENS_SAVED")
+      _metrics_subitem "context-mode" \
+        "${DIM}${CTX_PERIOD_LABEL}${RESET}  ${CYAN}${_ctx_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}\$${CTX_DOLLARS_SAVED}${RESET}  ${DIM}· -${CTX_REDUCTION_PCT}%${RESET}"
+    fi
 
-      if [ "$_rtk_ok" -eq 1 ]; then
-        local _rtk_fmt
-        _rtk_fmt=$(aisavings_format_tokens "$RTK_TOTAL_SAVED")
-        _metrics_subitem "RTK" \
-          "${DIM}(global)${RESET}  ${CYAN}${_rtk_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}${RTK_AVG_SAVINGS_PCT}%${RESET}  ${DIM}· ${RTK_TOTAL_COMMANDS} cmds${RESET}"
-      fi
+    if [ "$_rtk_ok" -eq 1 ]; then
+      local _rtk_fmt
+      _rtk_fmt=$(aisavings_format_tokens "$RTK_TOTAL_SAVED")
+      _metrics_subitem "RTK" \
+        "${DIM}(global)${RESET}  ${CYAN}${_rtk_fmt} tokens${RESET}  ${DIM}·${RESET}  ${GREEN}${RTK_AVG_SAVINGS_PCT}%${RESET}  ${DIM}· ${RTK_TOTAL_COMMANDS} cmds${RESET}"
+    fi
   fi
+}
+
+# ─────────────────────────────────────────
+# SECTION : COÛT TOTAL (lifetime + breakdown par période)
+# Toujours affiché avec les 3 fenêtres fixes (today/week/month)
+# La ligne correspondant au --period actif est mise en évidence
+# ─────────────────────────────────────────
+
+_show_total_cost_section() {
+  # Vérifier qu'il y a des données (au moins un step)
+  local _has_steps
+  _has_steps=$(_ocdb_query "
+    SELECT COUNT(*) FROM part
+    WHERE json_extract(data,'$.type') = 'step-finish'
+    LIMIT 1;
+  " 2>/dev/null || echo "0")
+  [ "${_has_steps:-0}" -eq 0 ] && return
+
+  _metrics_section "💳 Coût total"
+  echo ""
+
+  # Lifetime (depuis session.cost — agrégat complet)
+  local _lifetime
+  _lifetime=$(ocdb_total_cost_all_time)
+  _metrics_item "Lifetime" "${BOLD}${GREEN}\$${_lifetime}${RESET}"
+  echo ""
+  echo -e "  ${DIM}──────────────────────────────────────────${RESET}"
+
+  # Les 3 périodes fixes — toujours affichées indépendamment du --period
+  local _cost_today _cost_week _cost_month
+  _cost_today=$(ocdb_exact_cost 1)
+  _cost_week=$(ocdb_exact_cost 7)
+  _cost_month=$(ocdb_exact_cost 30)
+
+  # Couleur selon si la ligne correspond au --period actif
+  local _col_today="${CYAN}" _col_week="${CYAN}" _col_month="${CYAN}"
+  local _mark_today="" _mark_week="" _mark_month=""
+  case "$_PERIOD" in
+    today) _col_today="${GREEN}";  _mark_today="  ${DIM}← période active${RESET}" ;;
+    week)  _col_week="${GREEN}";   _mark_week="  ${DIM}← période active${RESET}" ;;
+    month) _col_month="${GREEN}";  _mark_month="  ${DIM}← période active${RESET}" ;;
+  esac
+
+  printf "  ${DIM}•${RESET}  %-18s  ${_col_today}\$%-10s${RESET}%s\n" \
+    "Aujourd'hui  (steps)" "$_cost_today" "$_mark_today"
+  printf "  ${DIM}•${RESET}  %-18s  ${_col_week}\$%-10s${RESET}%s\n" \
+    "7 jours      (steps)" "$_cost_week" "$_mark_week"
+  printf "  ${DIM}•${RESET}  %-18s  ${_col_month}\$%-10s${RESET}%s\n" \
+    "30 jours     (steps)" "$_cost_month" "$_mark_month"
 }
 
 # ─────────────────────────────────────────
@@ -425,10 +488,13 @@ main() {
   else
     ocdb_aggregate "$_PERIOD_DAYS" || true
 
-    # 1. Vue globale (sessions, tokens, cache, économies plugins)
+    # 1. Vue globale (sessions exactes, coût exact période, tokens, cache, économies plugins)
     _show_global_section
 
-    # 2. Coût fusionné (projet / agent / modèle)
+    # 2. Coût total (lifetime + breakdown today/week/month par steps)
+    _show_total_cost_section
+
+    # 3. Coût fusionné (projet / agent / modèle)
     _show_cost_section
 
     # 3. Activité (tool-use patterns)

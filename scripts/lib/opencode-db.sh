@@ -93,13 +93,15 @@ _ocdb_query() {
 _ocdb_since_ts() {
   local days="${1:-7}"
   if [ "$days" -eq 1 ]; then
-    # Minuit du jour courant — compatible macOS (BSD date) et Linux via python3
-    python3 -c "
+    # Minuit du jour courant — BSD date (macOS) d'abord, python3 en fallback
+    local midnight_s
+    midnight_s=$(date -v0H -v0M -v0S +%s 2>/dev/null) || \
+    midnight_s=$(python3 -c "
 from datetime import datetime, date, time as dtime
-import sys
-midnight = datetime.combine(date.today(), dtime.min)
-print(int(midnight.timestamp() * 1000))
-" 2>/dev/null || echo $(( ($(date +%s) - 86400) * 1000 ))
+print(int(datetime.combine(date.today(), dtime.min).timestamp()))
+" 2>/dev/null) || \
+    midnight_s=$(( $(date +%s) - 86400 ))
+    echo $(( midnight_s * 1000 ))
   else
     local now_s
     now_s=$(date +%s)
@@ -728,4 +730,64 @@ ocdb_unused_mcp() {
       echo "$server_name"
     fi
   done
+}
+
+# ─────────────────────────────────────────
+# COÛT EXACT PAR STEPS (granularité step-finish)
+# ─────────────────────────────────────────
+
+# Coût exact sur N jours via part.step-finish.time_created
+# Contrairement à ocdb_total_cost, inclut les sessions créées avant la période
+# mais toujours actives (sessions multi-jours).
+# Usage : ocdb_exact_cost [days=7]
+ocdb_exact_cost() {
+  local days="${1:-7}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  _ocdb_query "
+    SELECT PRINTF('%.2f',
+      COALESCE(SUM(CAST(json_extract(data,'$.cost') AS REAL)), 0))
+    FROM part
+    WHERE json_extract(data,'$.type') = 'step-finish'
+      AND time_created >= ${since_ts};
+  "
+}
+
+# Coût total lifetime (toutes sessions confondues, depuis session.cost)
+# Usage : ocdb_total_cost_all_time
+ocdb_total_cost_all_time() {
+  _ocdb_query "
+    SELECT PRINTF('%.2f', COALESCE(SUM(cost), 0))
+    FROM session
+    WHERE parent_id IS NULL;
+  "
+}
+
+# Nombre de sessions racines actives et créées sur N jours (via steps)
+# Exporte :
+#   OCDB_SESSIONS_ACTIVE  — sessions racines ayant eu des steps dans la période
+#   OCDB_SESSIONS_CREATED — sessions racines créées dans la période
+# Usage : ocdb_exact_sessions [days=7]
+ocdb_exact_sessions() {
+  local days="${1:-7}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+
+  OCDB_SESSIONS_ACTIVE=$(_ocdb_query "
+    SELECT COUNT(DISTINCT p.session_id)
+    FROM part p
+    JOIN session s ON s.id = p.session_id
+    WHERE json_extract(p.data,'$.type') = 'step-finish'
+      AND p.time_created >= ${since_ts}
+      AND s.parent_id IS NULL;
+  ")
+
+  OCDB_SESSIONS_CREATED=$(_ocdb_query "
+    SELECT COUNT(*)
+    FROM session
+    WHERE parent_id IS NULL
+      AND time_created >= ${since_ts};
+  ")
+
+  export OCDB_SESSIONS_ACTIVE OCDB_SESSIONS_CREATED
 }

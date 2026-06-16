@@ -989,13 +989,16 @@ oc metrics --period month   # last 30 days
 
 **Displayed sections (in order):**
 
-1. **Overview**: sessions, total cost, input/output tokens, cache write/read, cache hit rate + estimated savings
+1. **Overview**: active sessions (including created), exact cost for the period (based on executed steps — includes multi-day sessions), input/output tokens, cache write/read, cache hit rate + estimated savings
    - **Plugin savings** *(if context-mode or RTK is installed)*: tokens saved, dollars saved and context reduction. The period matches the `--period` filter for context-mode; RTK always shows global statistics.
-2. **Cost**: sub-sections by project, by agent, by model (merged view)
-3. **Activity**: session breakdown by usage category (code, exploration, planning, review, debug, conversation) with cost and percentage
-4. **Recent sessions**: last 5 sessions with title, agent, cost and date
-5. **Tickets per project** *(if `bd` available)*: status counters for each Beads project
-6. **Workflow velocity** *(if `metrics.jsonl` present)*: completed tickets, average time, review cycles
+2. **Total cost**: lifetime (all sessions) + breakdown Today / 7 days / 30 days by steps. The line matching the active `--period` is highlighted. Always shown with all 3 fixed windows regardless of the chosen period.
+3. **Cost**: sub-sections by project, by agent, by model (merged view)
+4. **Activity**: session breakdown by usage category (code, exploration, planning, review, debug, conversation) with cost and percentage
+5. **Recent sessions**: last 5 sessions with title, agent, cost and date
+6. **Tickets per project** *(if `bd` available)*: status counters for each Beads project
+7. **Workflow velocity** *(if `metrics.jsonl` present)*: completed tickets, average time, review cycles
+
+> **Note on exact cost**: cost values are calculated from steps (`part.step-finish`) by execution date, not by session creation date. A session started yesterday but still active today contributes to the current day's cost (`--period today`).
 
 **Options:**
 
@@ -1031,7 +1034,7 @@ oc dashboard
 
 **Displayed sections (in order):**
 
-1. **Budget**: spending today (with inline cache hit rate) / this week / this month, session count
+1. **Budget**: exact cost by steps (today since calendar midnight / this week / this month), active sessions (including created), inline cache hit rate, and **Total lifetime** line. Costs are based on executed steps — a session opened yesterday but still active contributes to today's cost.
 2. **AI savings** *(if context-mode or RTK is installed)*: tokens saved (lifetime), dollars saved, context reduction. Silently absent if no plugin is installed.
 3. **Active session** *(if orchestrator is running via `oc start`)*: agent, current ticket, action, start time
 4. **Projects**: for each Beads project — current ticket and status counters (✅ / 🔄 / ⏳ / 🚫)

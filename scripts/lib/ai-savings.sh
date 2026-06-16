@@ -97,11 +97,14 @@ aisavings_load_ctx_stats() {
   local threshold_ms=0
   if [ "$since_days" -gt 0 ]; then
     if [ "$since_days" -eq 1 ]; then
-      threshold_ms=$(python3 -c "
+      # BSD date (macOS) d'abord, python3 en fallback
+      local midnight_s
+      midnight_s=$(date -v0H -v0M -v0S +%s 2>/dev/null) || \
+      midnight_s=$(python3 -c "
 from datetime import datetime, date, time as dtime
-midnight = datetime.combine(date.today(), dtime.min)
-print(int(midnight.timestamp() * 1000))
-" 2>/dev/null || echo "0")
+print(int(datetime.combine(date.today(), dtime.min).timestamp()))
+" 2>/dev/null) || midnight_s=$(( $(date +%s) - 86400 ))
+      threshold_ms=$(( midnight_s * 1000 ))
     else
       threshold_ms=$(python3 -c "
 import time

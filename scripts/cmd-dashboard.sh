@@ -75,16 +75,26 @@ _show_budget_section() {
     return
   fi
 
-  local cost_today cost_week cost_month
-  local sessions_today sessions_week sessions_month hit_rate
+  local cost_today cost_week cost_month lifetime hit_rate
+  local active_today created_today active_week active_month
 
-  cost_today=$(ocdb_total_cost 1)
-  sessions_today=$(ocdb_sessions_count 1)
-  cost_week=$(ocdb_total_cost 7)
-  sessions_week=$(ocdb_sessions_count 7)
-  cost_month=$(ocdb_total_cost 30)
-  sessions_month=$(ocdb_sessions_count 30)
+  # Coûts exacts par steps
+  cost_today=$(ocdb_exact_cost 1)
+  cost_week=$(ocdb_exact_cost 7)
+  cost_month=$(ocdb_exact_cost 30)
+  lifetime=$(ocdb_total_cost_all_time)
   hit_rate=$(ocdb_cache_hit_rate 7)
+
+  # Sessions exactes par steps
+  ocdb_exact_sessions 1 || true
+  active_today="${OCDB_SESSIONS_ACTIVE:-0}"
+  created_today="${OCDB_SESSIONS_CREATED:-0}"
+
+  ocdb_exact_sessions 7 || true
+  active_week="${OCDB_SESSIONS_ACTIVE:-0}"
+
+  ocdb_exact_sessions 30 || true
+  active_month="${OCDB_SESSIONS_ACTIVE:-0}"
 
   # Couleur du cache hit rate
   local hit_color="${DIM}"
@@ -96,18 +106,26 @@ _show_budget_section() {
     hit_color="${YELLOW}"
   fi
 
-  # Ligne aujourd'hui avec cache hit rate inline
-  printf "  ${DIM}•${RESET}  %-14s  ${GREEN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}" \
-    "Aujourd'hui" "$cost_today" "$sessions_today"
+  # Ligne aujourd'hui : sessions avec mention "(dont X créées)" si multi-jours
+  local sessions_today_label="${active_today} actives"
+  if [ "${active_today}" -gt "${created_today}" ] 2>/dev/null; then
+    sessions_today_label="${active_today} actives  ${DIM}(dont ${created_today} créées)${RESET}"
+  fi
+
+  printf "  ${DIM}•${RESET}  %-14s  ${GREEN}\$%-10s${RESET}  ${DIM}%s${RESET}" \
+    "Aujourd'hui" "$cost_today" "$sessions_today_label"
   if awk "BEGIN { exit !($hit_rate > 0) }" 2>/dev/null; then
     printf "  ${DIM}cache ${RESET}${hit_color}%s%%${RESET}" "$hit_rate"
   fi
   echo ""
 
-  printf "  ${DIM}•${RESET}  %-14s  ${CYAN}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
-    "Cette semaine" "$cost_week" "$sessions_week"
-  printf "  ${DIM}•${RESET}  %-14s  ${DIM}\$%-10s${RESET}  ${DIM}%s sessions${RESET}\n" \
-    "Ce mois" "$cost_month" "$sessions_month"
+  printf "  ${DIM}•${RESET}  %-14s  ${CYAN}\$%-10s${RESET}  ${DIM}%s actives${RESET}\n" \
+    "Cette semaine" "$cost_week" "$active_week"
+  printf "  ${DIM}•${RESET}  %-14s  ${DIM}\$%-10s${RESET}  ${DIM}%s actives${RESET}\n" \
+    "Ce mois" "$cost_month" "$active_month"
+  echo ""
+  printf "  ${DIM}•${RESET}  %-14s  ${BOLD}${GREEN}\$%s${RESET}\n" \
+    "Total lifetime" "$lifetime"
 }
 
 # ─────────────────────────────────────────

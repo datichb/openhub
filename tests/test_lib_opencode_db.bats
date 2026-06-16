@@ -478,3 +478,121 @@ _source_ocdb() {
   [ "$status" -eq 0 ]
   [ "$output" = "200|400|600|800" ]
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# N. ocdb_exact_cost, ocdb_total_cost_all_time, ocdb_exact_sessions
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Helper : insère un step-finish dans la table part avec un coût et un timestamp
+_insert_step() {
+  local pid="$1" sess_id="$2" ts_ms="$3" cost="$4"
+  sqlite3 "$TEST_DB" "
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES (
+      '${pid}', 'msg1', '${sess_id}', ${ts_ms}, ${ts_ms},
+      '{\"type\":\"step-finish\",\"reason\":\"end\",\"snapshot\":\"abc\",\"tokens\":{\"total\":1000,\"input\":10,\"output\":90,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0}},\"cost\":${cost}}'
+    );
+  "
+}
+
+@test "ocdb_exact_cost : retourne 0.00 si base vide" {
+  run _source_ocdb "ocdb_exact_cost 7"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0.00" ]
+}
+
+@test "ocdb_exact_cost : somme correcte des step-finish dans la fenêtre" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ec1','p1','slug1','/proj','S1','1.0',0.50,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+  _insert_step "p_ec1" "s_ec1" "$YESTERDAY_MS" "0.30"
+  _insert_step "p_ec2" "s_ec1" "$YESTERDAY_MS" "0.20"
+
+  run _source_ocdb "ocdb_exact_cost 7"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0.50" ]
+}
+
+@test "ocdb_exact_cost : exclut les steps hors fenêtre temporelle" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ec2','p1','slug2','/proj','S2','1.0',1.00,0,0,0,0,$OLD_MS,$OLD_MS);
+  "
+  _insert_step "p_ec3" "s_ec2" "$OLD_MS"      "0.80"  # hors fenêtre 7j
+  _insert_step "p_ec4" "s_ec2" "$YESTERDAY_MS" "0.20"  # dans la fenêtre
+
+  run _source_ocdb "ocdb_exact_cost 7"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0.20" ]
+}
+
+@test "ocdb_exact_cost 1 : filtre depuis minuit calendaire (pas 24h glissantes)" {
+  # Insérer une session créée il y a 2 jours avec steps hier et aujourd'hui
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ec3','p1','slug3','/proj','S3','1.0',0.60,0,0,0,0,$WEEK_AGO_MS,$NOW_MS);
+  "
+  _insert_step "p_ec5" "s_ec3" "$YESTERDAY_MS" "0.40"  # hier — hors today
+  _insert_step "p_ec6" "s_ec3" "$NOW_MS"        "0.20"  # maintenant — dans today
+
+  run _source_ocdb "ocdb_exact_cost 1"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0.20" ]
+}
+
+@test "ocdb_total_cost_all_time : retourne 0.00 si base vide" {
+  run _source_ocdb "ocdb_total_cost_all_time"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0.00" ]
+}
+
+@test "ocdb_total_cost_all_time : somme toutes les sessions racines" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES
+      ('s_lt1','p1','slug1','/proj','S1','1.0',1.50,0,0,0,0,$OLD_MS,$OLD_MS),
+      ('s_lt2','p1','slug2','/proj','S2','1.0',2.50,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+    INSERT INTO session (id, project_id, parent_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_lt3','p1','s_lt1','slug3','/proj','S3','1.0',9.99,0,0,0,0,$OLD_MS,$OLD_MS);
+  "
+  run _source_ocdb "ocdb_total_cost_all_time"
+  [ "$status" -eq 0 ]
+  # 1.50 + 2.50 = 4.00 (session enfant s_lt3 exclue car parent_id non null)
+  [ "$output" = "4.00" ]
+}
+
+@test "ocdb_exact_sessions : OCDB_SESSIONS_ACTIVE = 0 si base vide" {
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_exact_sessions 7
+    echo \"\$OCDB_SESSIONS_ACTIVE|\$OCDB_SESSIONS_CREATED\"
+  "
+  [ "$status" -eq 0 ]
+  [ "$output" = "0|0" ]
+}
+
+@test "ocdb_exact_sessions : compte actives et créées correctement" {
+  # s_es1 créée hier (dans 7j) avec step hier → active=1, created=1
+  # s_es2 créée il y a 10j (hors 7j) avec step hier → active=1, created=0
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES
+      ('s_es1','p1','slug1','/proj','S1','1.0',0.10,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS),
+      ('s_es2','p1','slug2','/proj','S2','1.0',0.10,0,0,0,0,$OLD_MS,$YESTERDAY_MS);
+  "
+  _insert_step "p_es1" "s_es1" "$YESTERDAY_MS" "0.05"
+  _insert_step "p_es2" "s_es2" "$YESTERDAY_MS" "0.05"
+
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_exact_sessions 7
+    echo \"\$OCDB_SESSIONS_ACTIVE|\$OCDB_SESSIONS_CREATED\"
+  "
+  [ "$status" -eq 0 ]
+  [ "$output" = "2|1" ]
+}

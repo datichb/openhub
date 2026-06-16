@@ -988,13 +988,16 @@ oc metrics --period month   # 30 derniers jours
 
 **Sections affichées (dans l'ordre) :**
 
-1. **Vue globale** : sessions, coût total, tokens input/output, cache write/read, cache hit rate + économies estimées
+1. **Vue globale** : sessions actives (dont créées), coût exact de la période (basé sur les steps exécutés — inclut les sessions multi-jours), tokens input/output, cache write/read, cache hit rate + économies estimées
    - **Économies plugins** *(si context-mode ou RTK installé)* : tokens économisés, dollars économisés et réduction de contexte. La période correspond au filtre `--period` pour context-mode ; RTK affiche toujours ses statistiques globales.
-2. **Coût** : sous-sections par projet, par agent, par modèle (vue fusionnée)
-3. **Activité** : répartition des sessions par catégorie d'usage (code, exploration, planification, review, debug, conversation) avec coût et pourcentage
-4. **Sessions récentes** : 5 dernières sessions avec titre, agent, coût et date
-5. **Tickets par projet** *(si `bd` disponible)* : compteurs par statut pour chaque projet Beads
-6. **Vélocité workflow** *(si `metrics.jsonl` présent)* : tickets complétés, temps moyen, cycles review
+2. **Coût total** : lifetime (toutes sessions) + breakdown Aujourd'hui / 7 jours / 30 jours par steps. La ligne correspondant au `--period` actif est mise en évidence. Toujours affiché avec les 3 fenêtres fixes quelle que soit la période choisie.
+3. **Coût** : sous-sections par projet, par agent, par modèle (vue fusionnée)
+4. **Activité** : répartition des sessions par catégorie d'usage (code, exploration, planification, review, debug, conversation) avec coût et pourcentage
+5. **Sessions récentes** : 5 dernières sessions avec titre, agent, coût et date
+6. **Tickets par projet** *(si `bd` disponible)* : compteurs par statut pour chaque projet Beads
+7. **Vélocité workflow** *(si `metrics.jsonl` présent)* : tickets complétés, temps moyen, cycles review
+
+> **Note sur le coût exact** : les valeurs de coût sont calculées à partir des steps (`part.step-finish`) par date d'exécution, pas par date de création de session. Une session démarrée hier mais toujours active aujourd'hui contribue au coût de la journée en cours (`--period today`).
 
 **Options :**
 
@@ -1030,7 +1033,7 @@ oc dashboard
 
 **Sections affichées (dans l'ordre) :**
 
-1. **Budget** : dépenses aujourd'hui (avec cache hit rate inline) / cette semaine / ce mois, nombre de sessions
+1. **Budget** : coût exact par steps (aujourd'hui depuis minuit calendaire / cette semaine / ce mois), sessions actives (dont créées), cache hit rate inline, et ligne **Total lifetime**. Les coûts sont basés sur les steps exécutés — une session ouverte la veille mais toujours active contribue au coût d'aujourd'hui.
 2. **Économies IA** *(si context-mode ou RTK installé)* : tokens économisés (lifetime), dollars économisés, réduction de contexte. Silencieusement absente si aucun plugin installé.
 3. **Session active** *(si orchestrateur en cours via `oc start`)* : agent, ticket courant, action, heure de démarrage
 4. **Projets** : pour chaque projet Beads — ticket en cours et compteurs par statut (✅ / 🔄 / ⏳ / 🚫)

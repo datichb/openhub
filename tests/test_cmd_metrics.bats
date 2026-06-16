@@ -644,3 +644,79 @@ MOCK
   [ "$status" -eq 0 ]
   [[ "$output" != *"context-mode"* ]] || [[ "$output" != *"Économies plugins"* ]]
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tests cmd-metrics.sh — section Coût total + sessions exactes
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Helper : insère un step-finish avec un coût dans la table part
+_insert_step_finish_metrics() {
+  local pid="$1" sess_id="$2" ts_ms="$3" cost="$4"
+  sqlite3 "$TEST_DB" "
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES (
+      '${pid}', 'msg_step', '${sess_id}', ${ts_ms}, ${ts_ms},
+      '{\"type\":\"step-finish\",\"reason\":\"end\",\"snapshot\":\"abc\",\"tokens\":{\"total\":500,\"input\":5,\"output\":45,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0}},\"cost\":${cost}}'
+    );
+  "
+}
+
+@test "cmd-metrics : section Coût total absente si base vide" {
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"💳"* ]] || [[ "$output" != *"Coût total"* ]]
+}
+
+@test "cmd-metrics : section Coût total présente avec des steps" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ct1','p1','slug1','/proj','S1','1.0',0.50,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+  _insert_step_finish_metrics "p_ct1" "s_ct1" "$YESTERDAY_MS" "0.50"
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Coût total"* ]]
+  [[ "$output" == *"Lifetime"* ]]
+}
+
+@test "cmd-metrics : section Coût total affiche Aujourd'hui et 7 jours et 30 jours" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ct2','p1','slug2','/proj','S2','1.0',0.30,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+  _insert_step_finish_metrics "p_ct2" "s_ct2" "$YESTERDAY_MS" "0.30"
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Aujourd'hui"* ]]
+  [[ "$output" == *"7 jours"* ]]
+  [[ "$output" == *"30 jours"* ]]
+}
+
+@test "cmd-metrics --period today : marque la ligne Aujourd'hui comme période active" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ct3','p1','slug3','/proj','S3','1.0',0.20,0,0,0,0,$NOW_MS,$NOW_MS);
+  "
+  _insert_step_finish_metrics "p_ct3" "s_ct3" "$NOW_MS" "0.20"
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period today"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"période active"* ]]
+}
+
+@test "cmd-metrics : Vue globale affiche sessions actives (dont créées) si multi-jours" {
+  # Session créée il y a 10 jours mais avec step hier (dans la fenêtre 7j)
+  local old_ms=$(( ($(date +%s) - 10 * 86400) * 1000 ))
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_ma1','p1','slugma1','/proj','MA1','1.0',0.10,0,0,0,0,${old_ms},${YESTERDAY_MS});
+  "
+  _insert_step_finish_metrics "p_ma1" "s_ma1" "$YESTERDAY_MS" "0.10"
+
+  run bash -c "cd '$TEST_DIR/fake-project' && bash '$CMD_METRICS' --period week"
+  [ "$status" -eq 0 ]
+  # 1 session active mais 0 créées dans les 7 derniers jours → affiche "dont"
+  [[ "$output" == *"actives"* ]]
+}

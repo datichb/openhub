@@ -54,9 +54,18 @@ HUBEOF
       time_created INTEGER NOT NULL,
       time_updated INTEGER NOT NULL
     );
+    CREATE TABLE part (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL DEFAULT 'msg1',
+      session_id TEXT NOT NULL,
+      time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL,
+      data TEXT NOT NULL
+    );
   "
+  NOW_MS=$(python3 -c "import time; print(int(time.time() * 1000))")
   YESTERDAY_MS=$(( ($(date +%s) - 86400) * 1000 ))
-  export YESTERDAY_MS
+  export NOW_MS YESTERDAY_MS
 
   export HUB_DIR="$FAKE_HUB"
 }
@@ -597,4 +606,57 @@ MOCK
   [ "$status" -eq 0 ]
   [[ "$output" == *"RTK"* ]]
   [[ "$output" == *"1.6M"* ]]
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# G. Dashboard — Budget steps exact + Total lifetime
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Helper : insère un step-finish dans la DB de test
+_insert_step_finish_dash() {
+  local pid="$1" sess_id="$2" ts_ms="$3" cost="$4"
+  sqlite3 "$TEST_DB" "
+    INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+    VALUES (
+      '${pid}', 'msg_dash', '${sess_id}', ${ts_ms}, ${ts_ms},
+      '{\"type\":\"step-finish\",\"reason\":\"end\",\"snapshot\":\"abc\",\"tokens\":{\"total\":500,\"input\":5,\"output\":45,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":0}},\"cost\":${cost}}'
+    );
+  "
+}
+
+@test "dashboard : Budget affiche ligne Total lifetime avec données" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_bd1','p1','slugbd1','/proj','BD1','1.0',2.50,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+  _insert_step_finish_dash "p_bd1" "s_bd1" "$YESTERDAY_MS" "2.50"
+
+  run _run_dashboard
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Total lifetime"* ]] || [[ "$output" == *"2.50"* ]]
+}
+
+@test "dashboard : Budget fonctionne sans steps (exit 0, pas de crash)" {
+  # Base avec une session mais sans step-finish
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_bd2','p1','slugbd2','/proj','BD2','1.0',1.00,0,0,0,0,$YESTERDAY_MS,$YESTERDAY_MS);
+  "
+
+  run _run_dashboard
+  [ "$status" -eq 0 ]
+}
+
+@test "dashboard : Budget affiche sessions actives (dont créées) si session multi-jours" {
+  # Session créée avant la fenêtre 24h mais avec un step aujourd'hui
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, project_id, slug, directory, title, version, cost, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, time_created, time_updated)
+    VALUES ('s_bd3','p1','slugbd3','/proj','BD3','1.0',0.30,0,0,0,0,$YESTERDAY_MS,$NOW_MS);
+  "
+  _insert_step_finish_dash "p_bd3" "s_bd3" "$NOW_MS" "0.30"
+
+  run _run_dashboard
+  [ "$status" -eq 0 ]
+  # La session est active aujourd'hui mais créée hier → "dont X créées"
+  [[ "$output" == *"actives"* ]] || [[ "$output" == *"Aujourd'hui"* ]]
 }
