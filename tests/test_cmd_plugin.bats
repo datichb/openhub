@@ -205,7 +205,7 @@ BREWEOF
   local path_without_rtk
   path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
   run env PATH="$TEST_DIR/bin_mock:$path_without_rtk" OC_NON_INTERACTIVE=0 \
-    bash -c "echo 'y' | bash '$CMD_PLUGIN' install rtk"
+    bash -c "printf 'y\ny\n' | bash '$CMD_PLUGIN' install rtk"
   [ "$status" -eq 0 ]
   [ -f "$HOME/.config/opencode/plugins/rtk.ts" ]
 }
