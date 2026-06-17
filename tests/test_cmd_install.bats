@@ -105,7 +105,7 @@ EOF
   
   [ -f "$HUB_DIR/config/hub.json" ]
   run jq -r '.version' "$HUB_DIR/config/hub.json"
-  [ "$output" = "2.0.0" ]
+  [ "$output" = "1.5.0" ]
 }
 
 @test "install : hub.json contient version et default_provider" {
@@ -446,5 +446,5 @@ EOF
   [ -d "$HUB_DIR/projects" ]
   [ -f "$HUB_DIR/config/hub.json" ]
   run jq -r '.version' "$HUB_DIR/config/hub.json"
-  [ "$output" = "2.0.0" ]
+  [ "$output" = "1.5.0" ]
 }
