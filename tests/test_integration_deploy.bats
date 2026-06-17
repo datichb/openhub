@@ -91,7 +91,7 @@ setup() {
        "$TMP_AGENTS_DIR/auditor/"
     cp "$HUB_ROOT/agents/auditor/auditor-architecture.md" \
        "$TMP_AGENTS_DIR/auditor/"
-    cp "$HUB_ROOT/agents/developer/developer-api.md" \
+    cp "$HUB_ROOT/agents/developer/developer.md" \
        "$TMP_AGENTS_DIR/developer/"
 
     # Copier l'intégralité des skills (petits fichiers markdown)
