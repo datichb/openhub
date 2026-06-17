@@ -224,6 +224,7 @@ question({
 ❌ **Ne jamais bloquer** : Si un appel Figma échoue, continuer sans et le mentionner dans le récap Phase 1 :
    - Message contient `indisponible` ou `timeout` → `⚠️ Figma indisponible (timeout) — contexte design non disponible`
    - Message contient `401` ou `Token Figma invalide` → `⚠️ Token Figma invalide — demander à l'utilisateur de vérifier : oc figma status`
+   - Message contient `404` ou `Team ID invalide` → `⚠️ Team ID Figma invalide ou inaccessible — demander à l'utilisateur de vérifier : oc figma status`
    - Message contient `403` ou `scopes` → `⚠️ Permissions Figma insuffisantes — vérifier les scopes du token`
    - Résultat vide → `ℹ️ Aucun fichier Figma trouvé pour cette feature`
    - Autre erreur → noter le message brut dans le récap

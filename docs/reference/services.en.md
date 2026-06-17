@@ -29,6 +29,7 @@ oc service setup [service-name]
 - If an existing value is detected, offers to keep it.
 - Validates token format if a `validation_pattern` is defined in the catalog.
 - Performs an API validation call (if a `validation.endpoint` is defined).
+- Validates team/resource accessibility (if a `team_validation.endpoint` is defined) — **blocking**: setup cannot complete if team ID is invalid.
 - Saves credentials to `~/.config/opencode/config.json` (section `env`).
 - Automatically builds the MCP server if needed.
 
@@ -69,7 +70,8 @@ oc service status [service-name]
 - If `service-name` is omitted, shows the status of all services in the catalog.
 - For each service, displays:
   - Each credential: present (masked value for secrets) or missing.
-  - Token validation: quick API call if an endpoint is defined.
+  - Token validation: quick API call if a `validation.endpoint` is defined.
+  - Team ID validation: accessibility check if a `team_validation.endpoint` is defined (Figma only).
   - MCP build status: presence of `dist/index.js`.
 
 **Arguments:**
@@ -194,6 +196,8 @@ The command is driven by the `config/services.json` catalog. Each entry defines:
 | `docs_url` | Official documentation URL |
 | `validation.endpoint` | URL to validate the token (optional) |
 | `validation.header` | HTTP header name for the token |
+| `team_validation.endpoint` | URL to validate team/resource accessibility (optional, URL template with `{FIELD_NAME}`) |
+| `team_validation.team_field` | Name of the credential holding the team/resource ID |
 | `credentials[]` | List of required credentials |
 
 **Adding a new service:**

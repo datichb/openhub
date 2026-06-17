@@ -113,7 +113,7 @@ teardown() {
             svc_get_env_value svc_set_env_value svc_remove_env_values \
             svc_get_project_env_value svc_set_project_env_value svc_remove_project_env_values \
             svc_get_all_env_for_service \
-            svc_is_configured svc_validate_token svc_is_mcp_built svc_build_mcp \
+            svc_is_configured svc_validate_token svc_validate_team svc_is_mcp_built svc_build_mcp \
             _svc_ensure_config_file _svc_step _svc_ok _svc_fail _svc_info _svc_mask \
             2>/dev/null || true
 }
@@ -193,9 +193,13 @@ teardown() {
 
 @test "cmd_service_status : validation OK -- affiche handle utilisateur" {
   mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
-  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_valid"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_valid","FIGMA_TEAM_ID":"123456"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
 
   curl() {
+    if [[ "$*" == *"teams/"* ]]; then
+      printf '{"name":"Test Team","projects":[]}'
+      return 0
+    fi
     printf '{"handle":"john","email":"john@example.com"}'
     return 0
   }
@@ -206,9 +210,47 @@ teardown() {
   [[ "$output" == *"john"* ]]
 }
 
+@test "cmd_service_status : validation OK + team valid -- affiche team accessible" {
+  mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_valid","FIGMA_TEAM_ID":"999888"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+
+  curl() {
+    if [[ "$*" == *"teams/999888/projects"* ]]; then
+      printf '{"name":"Mon Equipe Design","projects":[]}'
+      return 0
+    fi
+    printf '{"handle":"john","email":"john@example.com"}'
+    return 0
+  }
+  export -f curl
+
+  run cmd_service_status "figma"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Mon Equipe Design"* ]]
+}
+
+@test "cmd_service_status : team invalid -- affiche team invalide" {
+  mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_valid","FIGMA_TEAM_ID":"000000"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+
+  curl() {
+    if [[ "$*" == *"teams/000000/projects"* ]]; then
+      return 1
+    fi
+    printf '{"handle":"john","email":"john@example.com"}'
+    return 0
+  }
+  export -f curl
+
+  run cmd_service_status "figma"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"invalid"* ]] || [[ "$output" == *"invalide"* ]] || \
+  [[ "$output" == *"service.validation.team.ko"* ]]
+}
+
 @test "cmd_service_status : validation KO -- affiche invalid" {
   mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
-  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_invalid"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_invalid","FIGMA_TEAM_ID":"123456"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
 
   curl() { return 1; }
   export -f curl
@@ -227,8 +269,12 @@ teardown() {
   export FIGMA_PERSONAL_ACCESS_TOKEN="figd_testtoken"
   export FIGMA_TEAM_ID="123456"
 
-  # Mock curl pour la validation
+  # Mock curl pour la validation token + team
   curl() {
+    if [[ "$*" == *"teams/"* ]]; then
+      printf '{"name":"Test Team","projects":[]}'
+      return 0
+    fi
     printf '{"handle":"testuser"}'
     return 0
   }
@@ -416,7 +462,7 @@ teardown() {
   resolve_project_path() { echo "$project_dir"; }
   export -f resolve_project_path
 
-  # Mock curl pour la validation
+  # Mock curl pour la validation token + team
   curl() { printf '{"handle":"testuser"}'; return 0; }
   export -f curl
 

@@ -352,6 +352,49 @@ svc_validate_token() {
   return 0
 }
 
+# Valide le team_id d'un service via son endpoint team_validation
+# Affiche le nom de la team retourné si succès
+# Usage : svc_validate_team "figma"  → 0 si OK, 1 si KO
+svc_validate_team() {
+  local service_id="$1"
+  local endpoint_tpl
+  endpoint_tpl=$(jq -r --arg s "$service_id" '.services[$s].team_validation.endpoint // empty' "$SERVICES_FILE" 2>/dev/null)
+  [ -z "$endpoint_tpl" ] && return 0  # Pas de team_validation → skip
+
+  local header_name
+  header_name=$(jq -r --arg s "$service_id" '.services[$s].team_validation.header // empty' "$SERVICES_FILE" 2>/dev/null)
+  local token_field
+  token_field=$(jq -r --arg s "$service_id" '.services[$s].team_validation.token_field // empty' "$SERVICES_FILE" 2>/dev/null)
+  local team_field
+  team_field=$(jq -r --arg s "$service_id" '.services[$s].team_validation.team_field // empty' "$SERVICES_FILE" 2>/dev/null)
+  local success_field
+  success_field=$(jq -r --arg s "$service_id" '.services[$s].team_validation.success_field // empty' "$SERVICES_FILE" 2>/dev/null)
+
+  local token team_id
+  token=$(svc_get_env_value "$token_field")
+  team_id=$(svc_get_env_value "$team_field")
+  [ -z "$token" ] && return 1
+  [ -z "$team_id" ] && return 1
+
+  # Interpoler le team_id dans l'URL template
+  local endpoint="${endpoint_tpl/\{$team_field\}/$team_id}"
+
+  local response
+  response=$(curl -sf --max-time 10 -H "${header_name}: ${token}" "$endpoint" 2>/dev/null)
+  local exit_code=$?
+
+  if [ $exit_code -ne 0 ] || [ -z "$response" ]; then
+    return 1
+  fi
+
+  if [ -n "$success_field" ] && command -v jq &>/dev/null; then
+    local team_name
+    team_name=$(echo "$response" | jq -r "$success_field // empty" 2>/dev/null)
+    [ -n "$team_name" ] && printf '%s' "$team_name"
+  fi
+  return 0
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MCP server helpers
 # ─────────────────────────────────────────────────────────────────────────────

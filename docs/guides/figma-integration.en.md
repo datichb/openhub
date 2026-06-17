@@ -47,7 +47,7 @@ oc figma setup
 This command will:
 1. Prompt for your **Personal Access Token**
 2. Prompt for your **Team ID**
-3. Validate the Figma API connection
+3. Validate the Figma API connection (token + team ID accessibility — blocking if team ID is invalid)
 4. Save config to `~/.config/opencode/config.json`
 5. Auto-build the MCP server if needed
 
@@ -55,6 +55,12 @@ Check status at any time:
 ```bash
 oc service status figma
 ```
+
+The status command shows:
+- Each credential (token masked, team ID in clear)
+- Token validity (via `GET /v1/me`)
+- Team ID accessibility (via `GET /v1/teams/{id}/projects`)
+- MCP server build state
 
 ### Alternative: manual configuration
 
@@ -260,6 +266,26 @@ oc service setup figma
 - Vérifier le Team ID dans l'URL Figma
 - Renommer les fichiers selon les conventions
 - Vérifier les scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
+
+### Team ID invalide ou inaccessible
+
+**Erreur :** `Team ID invalid or inaccessible` lors de `oc figma setup` ou `oc figma status`
+
+**Causes possibles :**
+1. Team ID copié depuis la mauvaise URL (projet vs team)
+2. Le token n'a pas le scope `projects:read`
+3. Le compte n'est pas membre de la team
+
+**Comment trouver le bon Team ID :**
+- Ouvrir Figma et naviguer vers la page de la team
+- L'URL doit ressembler à : `https://www.figma.com/files/team/<TEAM_ID>/...`
+- Copier la valeur numérique entre `/team/` et le slash suivant
+
+**Solution :**
+```bash
+oc service setup figma
+# Resaisir le FIGMA_TEAM_ID avec la valeur correcte
+```
 
 ### Erreur lors du build TypeScript
 

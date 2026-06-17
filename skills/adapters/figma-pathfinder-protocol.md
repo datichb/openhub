@@ -134,6 +134,7 @@ Ajouter cette section dans le rapport Pathfinder si maquettes trouvées :
 ❌ **Ne jamais bloquer** : Si un appel Figma échoue, continuer sans et noter la cause dans le rapport :
    - Message contient `indisponible` ou `timeout` → noter `⚠️ Figma indisponible (timeout)` dans la section Figma Context
    - Message contient `401` ou `Token Figma invalide` → noter `⚠️ Token Figma invalide — vérifier : oc figma status`
+   - Message contient `404` ou `Team ID invalide` → noter `⚠️ Team ID Figma invalide ou inaccessible — vérifier : oc figma status`
    - Message contient `403` ou `scopes` → noter `⚠️ Permissions insuffisantes — vérifier les scopes du token`
    - Résultat vide (aucun fichier trouvé) → noter `ℹ️ Aucun fichier Figma correspondant`
    - Autre erreur → noter le message brut

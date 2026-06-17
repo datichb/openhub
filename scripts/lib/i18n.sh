@@ -300,6 +300,10 @@ t() {
       service.validation.ok)          printf '%s' "Connexion validée" ;;
       service.validation.ko)          printf '%s' "Échec de la connexion" ;;
       service.validation.skip)        printf '%s' "Pas d'endpoint de validation défini — étape ignorée" ;;
+      service.validation.team.testing) printf '%s' "Vérification du Team ID" ;;
+      service.validation.team.ok)    printf '%s' "Team ID valide" ;;
+      service.validation.team.ko)    printf '%s' "Team ID invalide ou inaccessible" ;;
+      service.validation.team.hint)  printf '%s' "Visible dans l'URL Figma : figma.com/files/team/<TEAM_ID>/..." ;;
       service.save.title)             printf '%s' "Sauvegarde & build MCP" ;;
       service.saved)                  printf '%s' "enregistré" ;;
       service.build.start)            printf '%s' "Build du serveur MCP en cours" ;;
@@ -1089,8 +1093,12 @@ t_en() {
     service.validation.testing)     printf '%s' "Testing connection" ;;
     service.validation.ok)          printf '%s' "Connection validated" ;;
     service.validation.ko)          printf '%s' "Connection failed" ;;
-    service.validation.skip)        printf '%s' "No validation endpoint defined — step skipped" ;;
-    service.save.title)             printf '%s' "Save & MCP build" ;;
+     service.validation.skip)        printf '%s' "No validation endpoint defined — step skipped" ;;
+     service.validation.team.testing) printf '%s' "Checking Team ID" ;;
+     service.validation.team.ok)    printf '%s' "Team ID valid" ;;
+     service.validation.team.ko)    printf '%s' "Team ID invalid or inaccessible" ;;
+     service.validation.team.hint)  printf '%s' "Found in Figma URL: figma.com/files/team/<TEAM_ID>/..." ;;
+     service.save.title)             printf '%s' "Save & MCP build" ;;
     service.saved)                  printf '%s' "saved" ;;
     service.build.start)            printf '%s' "Building MCP server" ;;
     service.build.done)             printf '%s' "Build completed successfully" ;;

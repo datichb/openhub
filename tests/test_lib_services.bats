@@ -5,7 +5,7 @@
 #                     svc_localized, svc_localized_credential,
 #                     svc_get_env_value, svc_set_env_value,
 #                     svc_remove_env_values, svc_is_configured,
-#                     svc_validate_token, svc_is_mcp_built
+#                     svc_validate_token, svc_validate_team, svc_is_mcp_built
 
 load helpers
 
@@ -29,6 +29,13 @@ setup() {
         "header": "X-Figma-Token",
         "token_field": "FIGMA_PERSONAL_ACCESS_TOKEN",
         "success_field": ".handle"
+      },
+      "team_validation": {
+        "endpoint": "https://api.figma.com/v1/teams/{FIGMA_TEAM_ID}/projects",
+        "header": "X-Figma-Token",
+        "token_field": "FIGMA_PERSONAL_ACCESS_TOKEN",
+        "team_field": "FIGMA_TEAM_ID",
+        "success_field": ".name"
       },
       "credentials": [
         {
@@ -106,7 +113,7 @@ teardown() {
             svc_get_env_value svc_set_env_value svc_remove_env_values \
             svc_get_project_env_value svc_set_project_env_value svc_remove_project_env_values \
             svc_get_all_env_for_service \
-            svc_is_configured svc_validate_token svc_is_mcp_built svc_build_mcp \
+            svc_is_configured svc_validate_token svc_validate_team svc_is_mcp_built svc_build_mcp \
             _svc_ensure_config_file 2>/dev/null || true
 }
 
@@ -405,6 +412,65 @@ teardown() {
 }
 EOF
   run svc_validate_token "novalidation"
+  [ "$status" -eq 0 ]
+}
+
+# ── svc_validate_team ──────────────────────────────────────────────────────────
+
+@test "svc_validate_team : mock curl OK -- retourne 0 et le nom de la team" {
+  mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_test","FIGMA_TEAM_ID":"123456789"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+
+  # Mock curl qui retourne une réponse Figma team valide
+  curl() {
+    if [[ "$*" == *"teams/123456789/projects"* ]]; then
+      printf '{"name":"Mon Equipe Design","projects":[]}'
+      return 0
+    fi
+    return 1
+  }
+  export -f curl
+
+  run svc_validate_team "figma"
+  [ "$status" -eq 0 ]
+  [ "$output" = "Mon Equipe Design" ]
+}
+
+@test "svc_validate_team : mock curl KO -- retourne 1" {
+  mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_test","FIGMA_TEAM_ID":"000000000"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+
+  curl() { return 1; }
+  export -f curl
+
+  run svc_validate_team "figma"
+  [ "$status" -ne 0 ]
+}
+
+@test "svc_validate_team : team_id absent -- retourne 1" {
+  mkdir -p "$(dirname "$OPENCODE_GLOBAL_CONFIG")"
+  printf '{"env":{"FIGMA_PERSONAL_ACCESS_TOKEN":"figd_test"}}\n' > "$OPENCODE_GLOBAL_CONFIG"
+
+  run svc_validate_team "figma"
+  [ "$status" -ne 0 ]
+}
+
+@test "svc_validate_team : service sans team_validation -- retourne 0 (skip)" {
+  # Créer un service sans team_validation dans le catalogue
+  export SERVICES_FILE="$TEST_DIR/services_no_team_validation.json"
+  cat > "$SERVICES_FILE" <<'EOF'
+{
+  "services": {
+    "noteamvalidation": {
+      "label": "NoTeamValidation",
+      "credentials": [
+        {"key": "NO_TEAM_KEY", "secret": false, "required": true}
+      ]
+    }
+  }
+}
+EOF
+  run svc_validate_team "noteamvalidation"
   [ "$status" -eq 0 ]
 }
 

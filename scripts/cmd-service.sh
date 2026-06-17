@@ -218,6 +218,23 @@ cmd_service_status() {
       fi
     fi
 
+    # Validation Team ID (si team_validation défini dans le catalogue)
+    local team_validation_endpoint
+    team_validation_endpoint=$(jq -r --arg s "$svc_id" '.services[$s].team_validation.endpoint // empty' "$SERVICES_FILE" 2>/dev/null || echo "")
+    if [ -n "$team_validation_endpoint" ]; then
+      local team_name
+      if team_name=$(svc_validate_team "$svc_id" 2>/dev/null); then
+        if [ -n "$team_name" ]; then
+          _svc_ok "$(t service.validation.team.ok) (${team_name})"
+        else
+          _svc_ok "$(t service.validation.team.ok)"
+        fi
+      else
+        _svc_fail "$(t service.validation.team.ko)"
+        _svc_info "$(t service.validation.team.hint)"
+      fi
+    fi
+
     # MCP build
     if [ -n "$mcp_server" ]; then
       if svc_is_mcp_built "$svc_id" 2>/dev/null; then
@@ -538,9 +555,44 @@ cmd_service_setup() {
       log_warn "$(t service.validation.ko)"
       _prompt continue_anyway "$(t service.setup.continue_anyway) [y/N] : "
       if [[ ! "${continue_anyway:-N}" =~ ^[Yy]$ ]]; then
-        # Nettoyer les valeurs temporaires
-        svc_remove_env_values "$service_id" 2>/dev/null || true
         _outro "$(t cancelled)"
+        # Nettoyer les valeurs temporaires seulement si l'utilisateur annule
+        svc_remove_env_values "$service_id" 2>/dev/null || true
+        exit 1
+      fi
+    fi
+
+    # Validation Team ID — bloquante (pas de continue_anyway)
+    local team_validation_endpoint
+    team_validation_endpoint=$(jq -r --arg s "$service_id" '.services[$s].team_validation.endpoint // empty' \
+      "$SERVICES_FILE" 2>/dev/null || echo "")
+    if [ -n "$team_validation_endpoint" ]; then
+      local team_name team_ok=false team_retry=0
+      while [ $team_retry -lt 3 ]; do
+        _svc_info "$(t service.validation.team.testing)..."
+        if team_name=$(svc_validate_team "$service_id" 2>/dev/null); then
+          team_ok=true
+          if [ -n "${team_name:-}" ]; then
+            _svc_ok "$(t service.validation.team.ok) (${team_name})"
+          else
+            _svc_ok "$(t service.validation.team.ok)"
+          fi
+          break
+        fi
+        team_retry=$((team_retry + 1))
+        _svc_fail "$(t service.validation.team.ko)"
+        _svc_info "$(t service.validation.team.hint)"
+        if [ $team_retry -lt 3 ]; then
+          _prompt retry_team "$(t service.setup.retry) [Y/n] : "
+          if [[ ! "${retry_team:-Y}" =~ ^[Yy]$ ]]; then
+            break
+          fi
+        fi
+      done
+
+      if ! $team_ok; then
+        _outro "$(t cancelled)"
+        svc_remove_env_values "$service_id" 2>/dev/null || true
         exit 1
       fi
     fi
