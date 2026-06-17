@@ -1,297 +1,221 @@
-# Intégration Figma - Guide de démarrage
+# Figma Integration - Getting Started Guide
 
-## ✅ Ce qui a été implémenté
+> 🇫🇷 [Lire en français](figma-integration.fr.md)
 
-### Infrastructure
+## Overview
 
-- ✅ **MCP Server Figma** (`servers/figma-mcp/`)
-  - Client API Figma avec gestion d'erreurs
-  - 3 tools MCP : `search_figma_files`, `get_file_structure`, `detect_ui_signals`
-  - Configuration TypeScript + build system
-  
-- ✅ **Scripts de build et déploiement**
-  - `scripts/build-mcp.sh` : Compile les MCP servers
-  - `scripts/check-mcp.sh` : Vérifie l'état de build
-  - `scripts/lib/mcp-deploy.sh` : Fonctions de déploiement MCP (appelées automatiquement par `oc deploy`)
+The Figma integration enriches planning workflows (Scout and Planner) with design context by automatically querying the Figma API to detect mockups, components, and UX/UI signals.
 
-- ✅ **Skills d'intégration**
-  - `skills/adapters/figma-pathfinder-protocol.md` : Enrichissement Pathfinder
-  - `skills/adapters/figma-planner-protocol.md` : Enrichissement Planner
+### Features
 
-- ✅ **Agents modifiés**
-  - `agents/planning/pathfinder.md` : Référence skill + MCP server
-  - `agents/planning/planner.md` : Référence skill + MCP server
-
-- ✅ **Documentation**
-  - `config/figma.conventions.md` : Conventions d'organisation Figma
-  - `servers/README.md` : Documentation infrastructure MCP
-  - `servers/figma-mcp/README.md` : Documentation spécifique Figma
-
-- ✅ **Configuration**
-  - `.gitignore` modifié (ignore dist/, node_modules/ des MCP)
+- **Automatic search** for Figma files by feature name
+- **UX/UI signal detection**: multi-step flows, visual components, states
+- **Estimation adjustment** based on number of detected components
+- **Automatic enrichment** of Scout reports and Planner plans
 
 ---
 
-## 🚀 Prochaines étapes
+## Quick Setup
 
-### 1. Configuration des tokens Figma
+### 1. Get your Figma tokens
 
-La méthode recommandée est d'utiliser la commande `oc service setup` :
+**Personal Access Token:**
+1. Go to https://www.figma.com/developers/api#authentication
+2. "Personal access tokens" section
+3. Create a token with scopes: `file:read`, `projects:read`
 
-```bash
-oc service setup figma
-# or via alias:
-oc figma setup
-```
+**Team ID:**
+1. Open your Figma team
+2. The ID is in the URL: `https://www.figma.com/files/team/123456/...`
+3. Copy `123456`
 
-This command will:
-1. Prompt for your **Personal Access Token**
-2. Prompt for your **Team ID**
-3. Validate the Figma API connection (token + team ID accessibility — blocking if team ID is invalid)
-4. Save config to `~/.config/opencode/config.json`
-5. Auto-build the MCP server if needed
+### 2. Configure OpenCode
 
-Check status at any time:
-```bash
-oc service status figma
-```
+Create `~/.config/opencode/config.json`:
 
-The status command shows:
-- Each credential (token masked, team ID in clear)
-- Token validity (via `GET /v1/me`)
-- Team ID accessibility (via `GET /v1/teams/{id}/projects`)
-- MCP server build state
-
-### Alternative: manual configuration
-
-Create `~/.config/opencode/config.json` manually:
-
-```bash
-mkdir -p ~/.config/opencode
-cat > ~/.config/opencode/config.json << 'EOF'
+```json
 {
   "$schema": "https://opencode.ai/config.json",
   "env": {
-    "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_VOTRE_TOKEN_ICI",
-    "FIGMA_TEAM_ID": "VOTRE_TEAM_ID_ICI"
+    "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
+    "FIGMA_TEAM_ID": "123456"
   }
 }
-EOF
 ```
 
-#### How to get these values:
+### 3. Organize your Figma files
 
-**FIGMA_PERSONAL_ACCESS_TOKEN :**
-1. Aller sur https://www.figma.com/settings (onglet **Security**)
-2. Section "Personal access tokens" → cliquer **Generate new token**
-3. Sélectionner les scopes suivants (voir détail ci-dessous) :
-   - `current_user:read` — requis pour valider le token via `/v1/me`
-   - `file_content:read` — lire le contenu des fichiers Figma
-   - `file_metadata:read` — lire les métadonnées des fichiers
-   - `projects:read` — lister les projets et fichiers d'une team
-   - `library_assets:read` — lire les composants et styles publiés
-   - `file_variables:read` _(optionnel, Enterprise uniquement)_ — lire les variables/design tokens
+Follow conventions in [`config/figma.conventions.md`](../../config/figma.conventions.md):
 
-> **Note :** Les anciens scopes `file:read` et `files:read` sont **dépréciés** par Figma. Utiliser les scopes granulaires ci-dessus.
-> Référence officielle : https://developers.figma.com/docs/rest-api/scopes
+- **Naming**: `[Project] - [Feature] - [Type]`
+- **Tags**: `#feature-xxx`, `#ready-dev`, `#wip`
+- **Pages**: Cover, Flows, UI Design, States, Dev Notes
 
-**FIGMA_TEAM_ID :**
-1. Aller sur votre team Figma
-2. L'ID est dans l'URL : `https://www.figma.com/files/team/123456/...`
-3. Copier `123456`
-
-### 2. Tester le build du MCP
-
-Le MCP a déjà été compilé avec succès, mais vous pouvez le reconstruire :
+### 4. Deploy
 
 ```bash
-# Depuis la racine du hub
-bash scripts/build-mcp.sh
-
-# Ou build un seul MCP
-bash scripts/build-mcp.sh figma-mcp
+oc deploy opencode MY-PROJECT
 ```
 
-### 3. Tester manuellement le MCP (optionnel)
+The Figma MCP Server will be deployed automatically with the agents.
+
+---
+
+## Usage
+
+### With Scout
 
 ```bash
-cd servers/figma-mcp
-
-# Avec vos tokens
-FIGMA_PERSONAL_ACCESS_TOKEN=figd_xxx \
-FIGMA_TEAM_ID=123456 \
-npm start
-
-# Le serveur démarre et attend des commandes via stdin
-# Ctrl+C pour arrêter
+> Scout this feature: user dashboard
 ```
 
-### 4. Deploy to a project
+Scout will:
+1. Explore the codebase (normal workflow)
+2. Search in Figma: `search_figma_files("dashboard")`
+3. Analyze found files: `detect_ui_signals(fileId)`
+4. Include Figma data in its report
 
-```bash
-# From the hub root
-./oc.sh deploy MY-TEST-PROJECT
-
-# The script will:
-# 1. Copy agents + skills to the project
-# 2. Generate opencode.json with provider/model config
-# 3. Build the MCP server if needed (Phase 4)
-# 4. Copy MCP files to .opencode/servers/
-# 5. Write the mcp block into opencode.json
+**Enriched report:**
+```markdown
+## 🎨 Figma Context Detected
+- Files: Dashboard - UI (Figma URL)
+- Components: 7 detected
+- Signals: UX ⚠️ | UI ⚠️
+- Adjusted complexity: S → M
 ```
 
-To deploy only the MCP server into an already-deployed project:
+### With Planner
 
 ```bash
-oc service figma deploy --project MY-TEST-PROJECT
-# or via alias:
-oc figma deploy --project MY-TEST-PROJECT
+> Plan this feature: registration process
 ```
 
-To rebuild the MCP server globally (without deploying to a project):
+Planner will:
+1. **Phase 1.2**: Explore codebase
+2. **Phase 1.3**: Explore Figma (new)
+   - Search for related mockups
+   - Automatically detect UX/UI signals
+3. **Phase 1.5**: Suggest designer delegation if signals detected
+4. **Phase 5**: Pre-fill `--design` fields in tickets with Figma data
 
-```bash
-oc figma deploy
+---
+
+## Available MCP Tools
+
+### `search_figma_files`
+
+Search for Figma files by name.
+
+```typescript
+Input: { query: "dashboard" }
+Output: [
+  { id: "abc123", name: "MyApp - Dashboard - UI", url: "...", lastModified: "..." }
+]
 ```
 
-### 5. Organiser vos fichiers Figma
+### `get_file_structure`
 
-Suivre les conventions définies dans `config/figma.conventions.md` :
+Get file structure (frames, components).
 
-- **Nommage :** `[Projet] - [Feature] - [Type]`
-- **Tags :** `#feature-xxx`, `#ready-dev`, `#wip`
-- **Pages :** Cover, Flows, UI Design, States, Dev Notes
-- **Frames :** `[Type] - [Nom] - [État]`
+```typescript
+Input: { fileId: "abc123" }
+Output: {
+  frames: [...],
+  componentsCount: 7
+}
+```
 
-### 6. Tester l'intégration end-to-end
+### `detect_ui_signals`
 
-Une fois le projet déployé :
+Automatically detect UX/UI signals and estimate complexity.
 
-```bash
-cd ~/workspace/my-test-project
-
-# Lancer OpenCode
-opencode
-
-# Invoquer le pathfinder avec une feature UI
-> Pathfinder cette feature : tableau de bord utilisateur
-
-# Le pathfinder devrait :
-# 1. Explorer la codebase (normal)
-# 2. Chercher dans Figma (nouveau)
-# 3. Inclure les données Figma dans son rapport
+```typescript
+Input: { fileId: "abc123" }
+Output: {
+  hasUXSignal: true,
+  hasUISignal: true,
+  componentsCount: 7,
+  complexity: "M",
+  reasoning: [...],
+  recommendations: [...]
+}
 ```
 
 ---
 
-## 📋 Checklist de validation
+## Architecture
 
-### Infrastructure
-- [ ] MCP compilé sans erreurs (`bash scripts/build-mcp.sh`)
-- [ ] Dépendances installées (`servers/figma-mcp/node_modules/` existe)
-- [ ] Fichiers dist présents (`servers/figma-mcp/dist/index.js` existe)
-
-### Configuration
-- [ ] Token Figma obtenu
-- [ ] Team ID récupéré
-- [ ] `~/.config/opencode/config.json` créé avec les bonnes valeurs
-- [ ] Permissions token Figma : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
-
-### Déploiement
-- [ ] Projet test enregistré dans le hub (`./oc.sh init TEST-PROJECT`)
-- [ ] Agents + MCP déployés (`./oc.sh deploy TEST-PROJECT`)
-- [ ] `opencode.json` contient la config MCP
-
-### Organisation Figma
-- [ ] Fichiers Figma renommés selon conventions
-- [ ] Tags ajoutés (`#feature-xxx`, `#ready-dev`)
-- [ ] Pages organisées (Flows, UI, States, etc.)
-- [ ] Dev Resources ajoutés (liens vers tickets si existants)
-
-### Test end-to-end
-- [ ] Pathfinder invoqué sur une feature UI
-- [ ] Recherche Figma effectuée
-- [ ] Données Figma incluses dans le rapport
-- [ ] Signaux UX/UI détectés automatiquement
-- [ ] URLs Figma présentes dans le rapport
+```
+openhub/
+├── servers/figma-mcp/        ← TypeScript MCP Server
+│   ├── src/
+│   │   ├── index.ts          ← Entry point
+│   │   ├── client.ts         ← Figma API wrapper
+│   │   ├── config.ts         ← Token configuration
+│   │   └── tools/            ← 3 MCP tools
+│   └── dist/                 ← Compiled
+├── skills/adapters/
+│   ├── figma-scout-protocol.md
+│   └── figma-planner-protocol.md
+└── scripts/
+    ├── build-mcp.sh          ← Build MCP
+    ├── check-mcp.sh          ← Check build
+    └── lib/mcp-deploy.sh     ← Deployment
+```
 
 ---
 
-## 🔧 Dépannage
+## Testing
 
-### Le token est refusé ("token invalide")
+### Test 1: Simple Scout
 
-**Erreur :** `Invalid scope(s): ... This endpoint requires the current_user:read scope`
-
-**Cause :** Le Personal Access Token a été créé sans le scope `current_user:read`, qui est obligatoire pour l'endpoint de validation `/v1/me` utilisé par `oc service status figma`.
-
-**Solution :** Régénérer un nouveau token en cochant tous les scopes requis :
-
-| Scope | Usage |
-|---|---|
-| `current_user:read` | Validation du token (endpoint `/v1/me`) |
-| `file_content:read` | Lecture du contenu des fichiers Figma |
-| `file_metadata:read` | Lecture des métadonnées de fichiers |
-| `projects:read` | Listage des projets et fichiers d'une team |
-| `library_assets:read` | Lecture des composants et styles publiés |
-| `file_variables:read` | _(Optionnel, Enterprise uniquement)_ Design tokens |
-
-> Les anciens scopes `file:read` / `files:read` sont **dépréciés** — ne pas les utiliser.
-
-Une fois le nouveau token créé, le mettre à jour :
 ```bash
-oc service setup figma
+# In a project with Figma mockups
+> Scout this feature: settings page
+
+# Check in the report:
+- "🎨 Figma Context" section present
+- Valid Figma URLs
+- Components listed
+- Adjusted estimation if > 3 components
 ```
 
-### Le MCP ne trouve pas le token
+### Test 2: Planner with signals
 
-**Erreur :** `FIGMA_PERSONAL_ACCESS_TOKEN environment variable is required`
-
-**Solution :**
-1. Vérifier que `~/.config/opencode/config.json` existe
-2. Vérifier que le token est bien dans la section `env`
-3. Redémarrer OpenCode après modification de la config
-
-### Aucun fichier Figma trouvé
-
-**Erreur :** `Aucun fichier Figma trouvé pour la recherche : "xxx"`
-
-**Causes possibles :**
-1. Team ID incorrect
-2. Fichiers Figma mal nommés (pas de match avec la recherche)
-3. Permissions token insuffisantes
-4. Fichiers dans un autre team
-
-**Solution :**
-- Vérifier le Team ID dans l'URL Figma
-- Renommer les fichiers selon les conventions
-- Vérifier les scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`
-
-### Team ID invalide ou inaccessible
-
-**Erreur :** `Team ID invalid or inaccessible` lors de `oc figma setup` ou `oc figma status`
-
-**Causes possibles :**
-1. Team ID copié depuis la mauvaise URL (projet vs team)
-2. Le token n'a pas le scope `projects:read`
-3. Le compte n'est pas membre de la team
-
-**Comment trouver le bon Team ID :**
-- Ouvrir Figma et naviguer vers la page de la team
-- L'URL doit ressembler à : `https://www.figma.com/files/team/<TEAM_ID>/...`
-- Copier la valeur numérique entre `/team/` et le slash suivant
-
-**Solution :**
 ```bash
-oc service setup figma
-# Resaisir le FIGMA_TEAM_ID avec la valeur correcte
+> Plan this feature: registration flow
+
+# Check:
+- Phase 1.3 executed (Figma exploration)
+- Phase 1 summary contains Figma data
+- Phase 1.5 suggested if signals detected
+- Tickets created with pre-filled --design
 ```
 
-### Erreur lors du build TypeScript
+---
 
-**Erreur :** `tsc: command not found` ou erreurs de compilation
+## Troubleshooting
 
-**Solution :**
+### No Figma files found
+
+**Error:** `No Figma files found for search: "xxx"`
+
+**Solutions:**
+- Verify Team ID is correct
+- Rename Figma files according to conventions (`[Project] - [Feature] - [Type]`)
+- Check token scopes: `file:read`, `projects:read`
+
+### Token not recognized
+
+**Error:** `FIGMA_PERSONAL_ACCESS_TOKEN environment variable is required`
+
+**Solutions:**
+- Verify `~/.config/opencode/config.json` exists
+- Check JSON syntax (commas, quotes)
+- Restart OpenCode after modification
+
+### MCP build fails
+
 ```bash
 cd servers/figma-mcp
 rm -rf node_modules package-lock.json
@@ -299,111 +223,51 @@ npm install
 npm run build
 ```
 
-### Timeout API Figma
+---
 
-**Symptôme :** The agent reports `⚠️ Figma indisponible (timeout)` in its output.
+## Current Limitations (v1)
 
-**Causes:** slow connection, large Figma file, Figma API overloaded.
+- ❌ No webhooks (real-time notifications)
+- ❌ No Figma comment creation (read-only)
+- ❌ No ticket → Figma links (Dev Resources)
+- ❌ No design token extraction (Figma Variables)
+- ❌ No cache (each call = API request)
 
-The client automatically retries **2 times** with exponential backoff (1s, then 2s) before giving up.
-
-To increase the timeout (default: 30s):
-
-```bash
-# Via oc service setup
-oc figma setup
-# → enter a value for "Request timeout (ms)", e.g.: 60000
-
-# Or directly via environment variable
-FIGMA_TIMEOUT=60000
-```
-
-### Le MCP n'est pas configuré dans opencode.json
-
-**Cause :** Le projet n'a pas encore été déployé, ou le déploiement a été fait avec une ancienne version du hub.
-
-**Solution :** Relancer le déploiement complet ou déployer uniquement le MCP :
-
-```bash
-# Redéploiement complet
-./oc.sh deploy MY-PROJECT
-
-# Ou uniquement le MCP dans un projet existant
-oc figma deploy --project MY-PROJECT
-```
+These features can be added in v2+ based on needs.
 
 ---
 
-## 🎯 Tests suggérés
+## Future Enhancements
 
-### Test 1 : Recherche simple
+**v2: Bidirectional traceability**
+- `create_figma_comment(fileId, message)`
+- `link_ticket_to_figma(fileId, ticketId)`
 
-**Feature :** "Dashboard utilisateur"
+**v3: Design tokens**
+- `get_design_tokens(fileId)`
+- `get_component_specs(componentId)`
 
-**Attendu :**
-- `search_figma_files("dashboard")` trouve des fichiers
-- URLs Figma valides retournées
-- Dates de dernière modification présentes
-
-### Test 2 : Détection de signaux
-
-**Feature :** "Flow inscription multi-étapes"
-
-**Attendu :**
-- Recherche trouve le fichier inscription
-- `detect_ui_signals` détecte le flow multi-étapes
-- Signaux UX et UI marqués à true
-- Complexité estimée (L ou XL)
-- Recommandations d'escalade au planner
-
-### Test 3 : Enrichissement Pathfinder
-
-**Feature :** "Page de paramètres"
-
-**Attendu :**
-- Pathfinder cherche dans Figma automatiquement
-- Rapport contient section "🎨 Contexte Figma"
-- Composants listés
-- Estimation ajustée selon composants détectés
-
-### Test 4 : Enrichissement Planner
-
-**Feature :** "Interface de gestion des tags"
-
-**Attendu :**
-- Planner exécute Phase 1.3 (Exploration Figma)
-- Récap Phase 1 contient données Figma
-- Phase 1.5 proposée si signaux détectés
-- Tickets créés avec champ `--design` pré-rempli
+**v4: Webhooks**
+- Real-time notifications on Figma changes
+- Automatic synchronization
 
 ---
 
-## 📚 Ressources
+## Resources
 
-- **Documentation Figma API :** https://www.figma.com/developers/api
-- **MCP Protocol :** https://modelcontextprotocol.io/
-- **OpenCode Docs :** https://opencode.ai/docs
-
----
-
-## 🚧 Limitations actuelles (v1)
-
-- ❌ Pas de webhooks (notifications temps réel)
-- ❌ Pas de création de commentaires Figma (lecture seule)
-- ❌ Pas de création de Dev Resources (liens tickets → Figma)
-- ❌ Pas d'extraction de design tokens (Variables Figma)
-- ❌ Pas de cache intelligent (chaque appel = requête API)
-
-Ces fonctionnalités pourront être ajoutées dans les versions futures selon les besoins.
+- **Figma API**: https://www.figma.com/developers/api
+- **Figma Conventions**: [`config/figma.conventions.md`](../../config/figma.conventions.md)
+- **MCP Infrastructure**: [`servers/README.md`](../../servers/README.md)
+- **MCP Protocol**: https://modelcontextprotocol.io/
 
 ---
 
-## 📞 Support
+## Support
 
-En cas de problème :
-1. Vérifier les logs OpenCode
-2. Tester le MCP manuellement (voir section 3)
-3. Vérifier les tokens et permissions Figma
-4. Consulter `config/figma.conventions.md` pour l'organisation
+If you encounter issues:
+1. Consult this troubleshooting guide
+2. Check OpenCode logs
+3. Test MCP manually: `cd servers/figma-mcp && npm start`
+4. Verify Figma token configuration
 
-**Le MCP Server Figma est maintenant prêt à être testé !**
+**The Figma integration is ready to enrich your planning workflows!** 🎨

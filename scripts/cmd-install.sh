@@ -84,7 +84,7 @@ fi
 if [ "$_write_hub_json" = true ]; then
   cat > "$HUB_DIR/config/hub.json" << HUBJSON
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "anthropic",
     "api_key": "",

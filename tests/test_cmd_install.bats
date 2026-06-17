@@ -96,7 +96,7 @@ teardown() {
   mkdir -p "$HUB_DIR/config"
   cat > "$HUB_DIR/config/hub.json" <<'EOF'
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "anthropic"
   }
@@ -111,7 +111,7 @@ EOF
 @test "install : hub.json contient version et default_provider" {
   cat > "$HUB_DIR/config/hub.json" <<'EOF'
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "anthropic",
     "api_key": "",
@@ -136,7 +136,7 @@ EOF
   mkdir -p "$HUB_DIR/config"
   cat > "$HUB_DIR/config/hub.json" << HUBJSON
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "anthropic",
     "api_key": "",
@@ -290,7 +290,7 @@ EOF
 @test "install : sauvegarde provider dans hub.json" {
   cat > "$HUB_DIR/config/hub.json" <<'EOF'
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "",
     "api_key": "",
@@ -420,7 +420,7 @@ EOF
   # 2. Créer hub.json
   cat > "$HUB_DIR/config/hub.json" <<'EOF'
 {
-  "version": "2.0.0",
+  "version": "1.5.0",
   "default_provider": {
     "name": "anthropic",
     "api_key": "sk-test"

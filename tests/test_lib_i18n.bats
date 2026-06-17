@@ -39,7 +39,7 @@ teardown() {
   export OC_LANG=en
   
   run t "help.title"
-  [[ "$output" == *"opencode"* ]]
+  [[ "$output" == *"openhub"* ]]
   
   run t "help.usage"
   [[ "$output" == *"sage"* ]]
@@ -78,7 +78,7 @@ teardown() {
   export OC_LANG=fr
   
   run t "help.title"
-  [[ "$output" == *"opencode"* ]]
+  [[ "$output" == *"openhub"* ]]
   
   run t "help.section.setup"
   [ -n "$output" ]
