@@ -102,8 +102,6 @@ t() {
       help.debug.desc)        printf '%s' "Lance une session de debug via l'agent debugger" ;;
       help.metrics.cmd)       printf '%s' "metrics [--period today|week|month]" ;;
       help.metrics.desc)      printf '%s' "Métriques de coûts, tokens, activité et tickets (SQLite + bd)" ;;
-      help.dashboard.cmd)     printf '%s' "dashboard" ;;
-      help.dashboard.desc)    printf '%s' "Dashboard multi-projet : budget, sessions récentes, top agents" ;;
       help.optimize.cmd)      printf '%s' "optimize [--period today|week|month] [--project ID]" ;;
       help.optimize.desc)     printf '%s' "Analyse les gaspillages de tokens — grade A–F, 9 analyses" ;;
       help.yield.cmd)         printf '%s' "yield [--period today|week|month] [--project ID]" ;;
@@ -892,8 +890,6 @@ t_en() {
     help.debug.desc)        printf '%s' "Start a debug session via the debugger agent" ;;
     help.metrics.cmd)       printf '%s' "metrics [--period today|week|month]" ;;
     help.metrics.desc)      printf '%s' "Cost, token, activity and ticket metrics (SQLite + bd)" ;;
-    help.dashboard.cmd)     printf '%s' "dashboard" ;;
-    help.dashboard.desc)    printf '%s' "Multi-project dashboard: budget, recent sessions, top agents" ;;
     help.optimize.cmd)      printf '%s' "optimize [--period today|week|month] [--project ID]" ;;
     help.optimize.desc)     printf '%s' "Scan token waste — grade A–F, 9 deterministic analyses" ;;
     help.yield.cmd)         printf '%s' "yield [--period today|week|month] [--project ID]" ;;

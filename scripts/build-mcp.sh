@@ -11,7 +11,8 @@ SERVER_NAME="${1:-}"
 
 build_server() {
   local server_dir=$1
-  local server_name=$(basename "$server_dir")
+  local server_name
+  server_name=$(basename "$server_dir")
   
   if [ ! -f "$server_dir/package.json" ]; then
     echo "⚠️  No package.json found in $server_name, skipping"

@@ -90,6 +90,7 @@ if [ "$GIT_SYNC_OK" = "0" ]; then
   echo -e "${DIM}│${RESET}"
   _prompt _continue_anyway "$(t review.git_sync_continue)"
   # En mode non-interactif (_prompt retourne ""), on continue par défaut (Y)
+  # shellcheck disable=SC2154  # _continue_anyway est assigné par _prompt via printf -v
   if [[ "${_continue_anyway}" = "n" ]] || [[ "${_continue_anyway}" = "N" ]]; then
     log_info "$(t review.git_sync_aborted)"
     exit 0

@@ -230,8 +230,7 @@ _analyze_project_yield() {
   local cost_productive=0 cost_abandoned=0 cost_reverted=0
 
   for entry in "${sessions[@]}"; do
-    local sess_id cost start_ts end_ts
-    sess_id=$(echo "$entry" | cut -d'|' -f1)
+    local cost start_ts end_ts
     cost=$(echo "$entry"    | cut -d'|' -f2)
     start_ts=$(echo "$entry" | cut -d'|' -f3)
     end_ts=$(echo "$entry"  | cut -d'|' -f4)

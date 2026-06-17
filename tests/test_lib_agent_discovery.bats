@@ -207,10 +207,10 @@ EOF
   [ -z "$output" ]
 }
 
-@test "resolve_agent_similarity : match via alias (explore → scout)" {
+@test "resolve_agent_similarity : match via alias (explorer → pathfinder)" {
   run resolve_agent_similarity "explorer"
   [ "$status" -eq 0 ]
-  [ "$output" = "scout" ]
+  [ "$output" = "pathfinder" ]
 }
 
 @test "resolve_agent_similarity : match via alias (coordinator → orchestrator)" {

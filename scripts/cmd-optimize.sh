@@ -114,9 +114,7 @@ _grade_color() {
 
 # Analyse 1 : MCP servers déployés mais inutilisés
 _analyze_unused_mcp() {
-  local unused
   while IFS= read -r server; do
-    [ -n "$server" ] && unused="$server"
     [ -n "$server" ] && _add_finding "critical" \
       "MCP inutilisé : ${server}" \
       "Aucun appel ${server}_* sur les ${_PERIOD_LABEL}" \
@@ -154,9 +152,6 @@ _analyze_sessions_no_edit() {
 _analyze_read_edit_ratio() {
   local ratio
   ratio=$(ocdb_avg_read_edit_ratio "$_PERIOD_DAYS" 2>/dev/null || echo "0.0")
-
-  local ratio_num
-  ratio_num=$(LC_ALL=C awk "BEGIN { printf \"%d\", $ratio * 10 }")
 
   if awk "BEGIN { exit !($ratio < 1.0 && $ratio > 0) }" 2>/dev/null; then
     _add_finding "critical" \

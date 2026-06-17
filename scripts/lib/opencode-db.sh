@@ -384,6 +384,7 @@ ocdb_format_tokens() {
 #   OCDB_CACHE_HIT_RATE, OCDB_CACHE_SAVINGS,
 #   OCDB_TOP_PROJECTS, OCDB_TOP_AGENTS, OCDB_TOP_MODELS,
 #   OCDB_RECENT_SESSIONS
+# shellcheck disable=SC2034  # Variables lues par les appelants via source (cmd-metrics.sh, cmd-dashboard.sh, etc.)
 ocdb_aggregate() {
   local days="${1:-7}"
 

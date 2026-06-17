@@ -59,14 +59,10 @@ if [ "$SUBCOMMAND" = "status" ]; then
     fi
   fi
 
-  # Vérifier que RTK est déclaré dans la config OpenCode (global)
-  OC_GLOBAL_CONFIG="$HOME/.config/opencode/opencode.jsonc"
-  RTK_IN_CONFIG=false
   # OpenCode charge automatiquement les fichiers .ts dans ~/.config/opencode/plugins/
   # donc si le fichier existe, il est actif — pas besoin d'entrée dans opencode.jsonc
   if [ -f "$RTK_FILE" ]; then
     log_success "$(t plugin.status_active): global (auto-load depuis plugins/)"
-    RTK_IN_CONFIG=true
   fi
 
   # Dernières activités RTK dans les logs

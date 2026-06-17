@@ -188,14 +188,13 @@ cmd_configure() {
 
   # ── Lecture des valeurs courantes ────────────────────────────────────────────
   local cur_stack cur_tracker cur_labels cur_language
-  local cur_agents cur_disable cur_mcp
+  local cur_disable cur_mcp
   local cur_wt_enabled cur_wt_auto_cleanup cur_wt_base_branch
 
   cur_stack=$(_get_project_field "$project_id" "Stack")
   cur_tracker=$(get_project_tracker "$project_id")
   cur_labels=$(get_project_labels "$project_id")
   cur_language=$(get_project_language "$project_id")
-  cur_agents=$(get_project_agents "$project_id")
   cur_disable=$(get_project_disabled_native_agents "$project_id")
   cur_mcp=$(get_project_mcp "$project_id")
   cur_wt_enabled=$(get_project_worktree_enabled "$project_id")
