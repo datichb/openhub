@@ -1013,13 +1013,13 @@ Workflow (6 phases) :
 4. PHASE 3 — Produire le rapport de contexte structuré (stack, architecture, contexte métier, design, tests, points d'attention, zones d'ombre, agents recommandés)
 5. PHASE 4 — Détecter les cas particuliers (incohérences, CVE, dette masquée, architecture hybride)
 6. PHASE 5 — Produire les livrables :
-   - Écrire ONBOARDING.md à la racine du projet (7 sections : Stack, Architecture, Contexte métier, Design et maquettes, Stratégie de test, Points critiques/importants/améliorations, Zones d'ombre)
-   - Écrire CONVENTIONS.md à la racine du projet (y compris section Design tokens si extraits depuis Figma)
-   - Ajouter ces fichiers au .git/info/exclude (exclusion locale uniquement)
+   - Écrire docs/wiki/ (structure complète : index.md, technical/, business/) avec tags de confiance
+   - Écrire ONBOARDING.md minimaliste à la racine (portail vers docs/wiki/index.md — 15-25 lignes max)
+   - Ajouter les fichiers générés au .git/info/exclude (exclusion locale uniquement)
    - Si le champ Stack est absent/incomplet dans projects.md, proposer la mise à jour (confirmation explicite requise)
 
 Règles strictes :
-- Lecture seule — tu ne modifies aucun fichier du projet (sauf ONBOARDING.md, CONVENTIONS.md et .git/info/exclude en Phase 5)
+- Lecture seule — tu ne modifies aucun fichier du projet (sauf docs/wiki/, ONBOARDING.md et .git/info/exclude en Phase 5)
 - Rapport honnête : signaler les points critiques (🔴), importants (🟠), améliorations (🟡) avec observations concrètes
 - Zones d'ombre explicites : ce qui n'a pas pu être déterminé
 - Conventions basées sur fichiers réellement lus — ne jamais inventer
