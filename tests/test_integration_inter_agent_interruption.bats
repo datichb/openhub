@@ -17,8 +17,8 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
   [ "$output" -ge 1 ]
 }
 
-@test "scout-protocol contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/planning/scout-protocol.md"
+@test "pathfinder-protocol contient la détection CONTEXTE = orchestrateur_feature" {
+  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/planning/pathfinder-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -79,14 +79,14 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
   [ "$output" -ge 1 ]
 }
 
-@test "scout-protocol contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/scout-protocol.md"
+@test "pathfinder-protocol contient le bloc Retour intermédiaire vers orchestrateur" {
+  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/pathfinder-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
-@test "scout-handoff-format contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/scout-handoff-format.md"
+@test "pathfinder-handoff-format contient le bloc Retour intermédiaire vers orchestrateur" {
+  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -111,8 +111,8 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
   [ "$output" -ge 1 ]
 }
 
-@test "scout-handoff-format contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/planning/scout-handoff-format.md"
+@test "pathfinder-handoff-format contient le bloc Question pour l'orchestrateur" {
+  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -157,8 +157,8 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
 
 # ── Interdiction de l'outil question en mode orchestrateur_feature ────────────
 
-@test "scout-protocol documente l'interdiction de l'outil question en mode orchestrateur" {
-  run grep -c "JAMAIS.*question\|question.*JAMAIS\|Ne jamais.*question\|jamais.*outil.*question" "$SKILLS_DIR/planning/scout-protocol.md"
+@test "pathfinder-protocol documente l'interdiction de l'outil question en mode orchestrateur" {
+  run grep -c "JAMAIS.*question\|question.*JAMAIS\|Ne jamais.*question\|jamais.*outil.*question" "$SKILLS_DIR/planning/pathfinder-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -241,8 +241,8 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
   [ "$output" -ge 1 ]
 }
 
-@test "scout-handoff-format contient le bloc Retour vers orchestrator" {
-  run grep -c "## Retour vers orchestrator" "$SKILLS_DIR/planning/scout-handoff-format.md"
+@test "pathfinder-handoff-format contient le bloc Retour vers orchestrator" {
+  run grep -c "## Retour vers orchestrator" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
