@@ -1015,23 +1015,92 @@ Quelques questions issues de l'exploration pour affiner l'analyse :
 1. **[Sujet 1]** : <question contextualisée issue de Phase 1>
 ```
 
-Puis appeler l'outil `question` :
+Puis appeler l'outil `question` avec **une question par clarification** :
 
 ⚠️ **AUTOCONTRÔLE** : Le contexte Phase 2 en texte (ci-dessus — liste des questions avec leur contexte issu de Phase 1) **doit être affiché** dans la discussion AVANT ce checkpoint. Si ce n'est pas fait → afficher le contexte MAINTENANT.
 
-**Si CONTEXTE = standalone :**
+> **Si CONTEXTE = orchestrateur_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+
+**Si CONTEXTE = standalone ou orchestrateur_feature :**
 ```
 question({
-  questions: [{
-    header: "Clarifications projet",
-    question: "[Onboarder — Phase 2 : Questions | Projet : <nom>]\nQuelques questions de clarification issues de l'exploration. Comment souhaitez-vous procéder ?",
-    options: [
-      { label: "Répondre aux questions", description: "Fournir les réponses pour affiner l'analyse" },
-      { label: "Skip / Passer", description: "Continuer sans répondre — l'analyse restera partielle sur ces points" }
-    ]
-  }]
+  questions: [
+    // Question stratégie — Architecture (avec condensé Phase 1 si orchestrateur)
+    {
+      header: "Architecture cible",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\n\n**Contexte de l'exploration (Phase 1) :**\n- Architecture détectée : <pattern détecté>\n- Zones d'ombre : <liste courte ou 'Aucune'>\n- Points d'attention : <liste courte ou 'Aucun'>\n\nL'architecture actuelle (<pattern détecté>) est-elle celle à conserver ?",
+      options: [
+        { label: "Conserver (Recommandé)", description: "L'architecture actuelle est la cible — pas de migration prévue" },
+        { label: "Migration prévue", description: "Une cible de migration existe — la préciser en réponse libre" },
+        { label: "À définir", description: "Pas de décision prise — à traiter comme zone d'ombre" }
+      ]
+    },
+    // Question stratégie — Dette technique (si dette identifiée en Phase 1)
+    {
+      header: "Dette technique",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\nJ'ai identifié <X points> de dette technique. Cette dette est-elle connue et acceptée ?",
+      options: [
+        { label: "Connue et acceptée", description: "La dette est documentée et priorisée consciemment" },
+        { label: "À prioriser", description: "La dette doit être traitée — la documenter dans le wiki" },
+        { label: "À ignorer pour l'instant", description: "Hors périmètre — noter sans recommandation urgente" }
+      ]
+    },
+    // Question conventions (si ambiguïté détectée en Phase 1 — adapter selon les fichiers lus)
+    {
+      header: "Convention de code",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\n[Fichier A] utilise <convention A>, [Fichier B] utilise <convention B>. Quelle convention suivre pour les nouvelles contributions ?",
+      options: [
+        { label: "<Convention A>", description: "Aligner sur la convention observée dans [Fichier A]" },
+        { label: "<Convention B>", description: "Aligner sur la convention observée dans [Fichier B]" },
+        { label: "Pas de préférence", description: "Documenter la coexistence sans imposer une norme" }
+      ]
+    },
+    // Question zones d'ombre — Déploiement (si runbook absent)
+    {
+      header: "Processus de déploiement",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\nLe processus de déploiement n'est pas documenté. Y a-t-il un runbook ou une procédure existante ?",
+      options: [
+        { label: "Oui — à documenter", description: "Un runbook existe — me le transmettre pour l'intégrer au wiki" },
+        { label: "CI/CD automatisée", description: "Le déploiement est entièrement automatisé via la pipeline" },
+        { label: "Non documenté", description: "Pas de runbook — noter comme zone d'ombre persistante" }
+      ]
+    },
+    // Question stratégie de test (si ambiguïté détectée en Phase 1)
+    {
+      header: "Stratégie de test",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\nQuelle est la philosophie de test privilégiée sur ce projet ?",
+      options: [
+        { label: "TDD systématique", description: "Tests écrits avant l'implémentation — obligation sur toute logique métier" },
+        { label: "Tests après implémentation", description: "Tests rédigés après le code — couverture cible à préciser" },
+        { label: "Pas de stratégie définie", description: "Documenter l'absence comme zone d'ombre" }
+      ]
+    },
+    // Question Figma (uniquement si des fichiers Figma ont été trouvés en Phase 1 mais leur statut est ambigu)
+    {
+      header: "Statut des maquettes",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\nDes références Figma ont été trouvées. Ces maquettes sont-elles à jour et ready-for-dev ?",
+      options: [
+        { label: "À jour — ready-for-dev", description: "Les maquettes font foi — les intégrer comme source de vérité" },
+        { label: "En WIP", description: "Maquettes en cours — ne pas s'y fier pour les specs techniques" },
+        { label: "Obsolètes", description: "Maquettes dépassées — le code CSS est la source de vérité" }
+      ]
+    },
+    // Option Skip globale en dernière position
+    {
+      header: "Skip questions",
+      question: "[Onboarder — Phase 2 | Projet : <nom>]\nSi vous préférez ne pas répondre aux questions ci-dessus, vous pouvez passer cette étape.",
+      options: [
+        { label: "J'ai répondu", description: "Continuer avec mes réponses" },
+        { label: "Skip toutes", description: "Passer les clarifications — l'analyse restera partielle" }
+      ]
+    }
+  ]
 })
 ```
+
+> **Note :** L'option "Type your own answer" est ajoutée automatiquement par OpenCode à chaque question — ne pas la dupliquer. L'utilisateur peut toujours saisir une réponse libre si aucune option ne convient.
+
+> **Règle d'adaptation** : N'inclure que les questions pertinentes selon ce qui a été découvert en Phase 1. Si aucune ambiguïté de convention n'a été détectée, retirer la question "Convention de code". Si aucun fichier Figma n'a été trouvé, retirer la question "Statut des maquettes". Adapter les labels des options au contenu réel observé (remplacer `<pattern détecté>`, `[Fichier A]`, `<convention A>`, etc.).
 
 **Si CONTEXTE = orchestrateur_feature :**
 ```markdown
@@ -1050,17 +1119,70 @@ question({
 **Phase :** 2 — Questions complémentaires
 **task_id :** <sessionID courant>
 
-**Contexte :** Des questions de clarification ont été identifiées suite à l'exploration. Les réponses permettront d'affiner l'analyse.
+**Contexte :** Des questions de clarification ont été identifiées suite à l'exploration Phase 1.
 
-**Question :** Comment souhaitez-vous procéder avec les questions de clarification ?
+**Questions :**
 
-**Options :**
-- `repondre-aux-questions` — Fournir les réponses pour affiner l'analyse
-- `skip` — Continuer sans répondre — l'analyse restera partielle sur ces points
+1. **Architecture cible** : L'architecture actuelle (<pattern détecté>) est-elle celle à conserver ?
+   - `conserver` — Pas de migration prévue
+   - `migration-prevue` — Une cible de migration existe
+   - `a-definir` — Pas de décision prise
 
-**Instruction de reprise :** "Réponse Phase 2 questions onboarder : [option]. [Réponses aux questions si applicable]. Reprendre depuis Phase 2 (traitement des réponses)."
+2. **Dette technique** : La dette identifiée (<X points>) est-elle connue et acceptée ?
+   - `connue-acceptee` — Documentée et priorisée consciemment
+   - `a-prioriser` — Doit être traitée
+   - `ignorer` — Hors périmètre pour l'instant
+
+3. **Convention de code** : [Question contextualisée issue de Phase 1 selon ambiguïté détectée]
+   - `<option-a>` — <description>
+   - `<option-b>` — <description>
+
+4. *(Adapter selon les zones d'ombre détectées en Phase 1)*
+
+- `skip` — Passer les clarifications — l'analyse restera partielle
+
+**Instruction de reprise :** "Réponse Phase 2 questions onboarder : [réponses question par question]. Reprendre depuis Phase 2 (traitement des réponses)."
 ```
 → **TERMINER LA SESSION**
+
+### Traitement des réponses
+
+Les réponses sont retournées dans l'ordre des questions posées, sous forme de tableau de labels :
+```
+["Conserver (Recommandé)", "Connue et acceptée", "<Convention A>", "CI/CD automatisée", "TDD systématique", "À jour — ready-for-dev", "J'ai répondu"]
+```
+
+**Règles de traitement :**
+
+| Réponse | Action |
+|---------|--------|
+| Label prédéfini | Utiliser directement dans le récap de fin de Phase 2 |
+| Réponse libre (texte saisi) | Intégrer le texte complet dans le récap |
+| "Skip toutes" (dernière question) | Marquer toutes les questions précédentes comme "non répondu" — l'analyse restera partielle |
+
+**Mapping réponses → récap :**
+
+```typescript
+// Pseudo-code de traitement
+const [architecture, dette, convention, deploiement, tests, figma, skipStatus] = reponses;
+
+// Si l'utilisateur a choisi "Skip toutes"
+if (skipStatus === "Skip toutes") {
+  recapPhase2.questions.forEach(q => q.reponse = "non répondu");
+  recapPhase2.zonesOmbrePersistantes.push("Questions de clarification non traitées");
+} else {
+  recapPhase2.questions = [
+    { question: "Architecture cible", reponse: architecture },
+    { question: "Dette technique", reponse: dette },
+    { question: "Convention de code", reponse: convention },
+    { question: "Processus de déploiement", reponse: deploiement },
+    { question: "Stratégie de test", reponse: tests },
+    { question: "Statut des maquettes", reponse: figma } // si applicable
+  ];
+}
+```
+
+> **Note :** Adapter le mapping selon les questions effectivement posées (certaines sont conditionnelles à ce qui a été détecté en Phase 1).
 
 ### Récap de fin de Phase 2
 
