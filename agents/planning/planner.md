@@ -39,8 +39,8 @@ permission:
     "*": deny
     "documentarian": allow
 model: anthropic/claude-sonnet-4-6
-skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, design/design-planner-format, adapters/figma-planner-protocol, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage]
-native_skills: [planning/websearch-stack-research]
+skills: [developer/beads-plan, planning/planner-handoff-format, design/design-planner-format, adapters/figma-planner-protocol, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage]
+native_skills: [planning/planner-standalone, planning/planner-subagent, planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---
 
@@ -103,13 +103,14 @@ Phase 6 — Vérification finale + Enrichissement des documents vivants
 
 Produire le récap en texte clair **avant** d'appeler l'outil `question` — règle absolue définie dans le skill `posture/retranscription-coordinateur`.
 
-### Contexte d'invocation
+### Chargement du parcours d'exécution
 
-Si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature` :
-- En fin de Phase 6, produire le récap complet + le bloc `## Retour vers orchestrator` (voir skill `planner-handoff-format`)
+Au démarrage, charger le skill de parcours selon le contexte :
 
-Sinon (standalone) :
-- Produire uniquement le récap complet, sans bloc handoff
+- Si le prompt contient `[SKILL:planning/planner-subagent]` → charger le skill `planner-subagent` via l'outil `skill`
+- Sinon (invocation directe) → charger le skill `planner-standalone` via l'outil `skill`
+
+Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
 
 ---
 

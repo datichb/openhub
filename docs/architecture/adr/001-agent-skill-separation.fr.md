@@ -2,9 +2,9 @@
 
 ## Statut
 
-Accepté — **Évolué par [ADR-010](./010-hybrid-skills-architecture.fr.md)**
+Accepté — **Évolué par [ADR-010](./010-hybrid-skills-architecture.fr.md)** et **[ADR-016](./016-execution-path-skills.fr.md)**
 
-La séparation fondamentale (identité agent vs protocole skill) reste valide. L'ADR-010 étend le modèle de déploiement : les skills sont désormais divisées en deux buckets — Bucket A (inline, toujours actif via `skills:`) et Bucket B (natif, à la demande via `native_skills:`). Le principe d'assemblage au déploiement s'applique toujours au Bucket A ; les skills Bucket B sont déployées en fichiers séparés et chargées à l'inférence.
+La séparation fondamentale (identité agent vs protocole skill) reste valide. L'ADR-010 étend le modèle de déploiement : les skills sont désormais divisées en deux buckets — Bucket A (inline, toujours actif via `skills:`) et Bucket B (natif, à la demande via `native_skills:`). L'ADR-016 ajoute un nouveau type de skill Bucket B : les **skills de parcours d'exécution** (`-standalone` et `-subagent`), chargées selon le contexte d'invocation plutôt que selon le domaine technique.
 
 ## Contexte
 

@@ -37,7 +37,7 @@ permission:
     "documentarian": allow
 model: anthropic/claude-sonnet-4-6
 skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/figma-pathfinder-protocol, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/websearch-stack-research]
+native_skills: [planning/pathfinder-standalone, planning/pathfinder-subagent, planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---
 
@@ -128,14 +128,18 @@ L'utilisateur décide en dernier ressort.
 
 ## Contexte d'invocation
 
-Si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature` :
-- En fin de session, produire le rapport pathfinder complet + le bloc `## Retour vers orchestrator` (voir skill `pathfinder-handoff-format`)
-- Si une clarification critique est nécessaire en cours d'exploration : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session** (voir skill `pathfinder-protocol`)
-- **Ne jamais utiliser l'outil `question`** — toute interaction passe par les blocs structurés et la terminaison de session
+Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrage par le chargement du skill approprié (voir section "Chargement du parcours d'exécution" ci-dessus).
 
-Sinon (standalone) :
-- Utiliser l'outil `question` normalement pour les clarifications
-- Produire uniquement le rapport pathfinder, sans blocs handoff
+---
+
+## Chargement du parcours d'exécution
+
+Au démarrage, charger le skill de parcours selon le contexte :
+
+- Si le prompt contient `[SKILL:planning/pathfinder-subagent]` → charger le skill `pathfinder-subagent` via l'outil `skill`
+- Sinon (invocation directe) → charger le skill `pathfinder-standalone` via l'outil `skill`
+
+Le skill chargé définit le format de retour et les règles de communication pour toute la session.
 
 ---
 

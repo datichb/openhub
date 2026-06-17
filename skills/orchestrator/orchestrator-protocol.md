@@ -168,6 +168,8 @@ Invoquer le `debugger` en lui transmettant :
 - Tout contexte disponible (fichier mentionné, comportement attendu vs observé, stacktrace)
 - **Le marqueur de contexte d'invocation (obligatoire) :**
   > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque checkpoint et produire le bloc ## Retour vers orchestrator en fin de session.`
+- **Le skill de parcours (obligatoire) :**
+  > `[SKILL:quality/debugger-subagent]`
 
 À la réception du résultat, **détecter le type de retour** :
 
@@ -288,6 +290,7 @@ question({
 
   Invoquer avec le marqueur de contexte (obligatoire) :
   > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque fin de phase et produire le bloc ## Retour vers orchestrator en fin de session.`
+  > `[SKILL:planning/onboarder-subagent]`
 
   À la réception du résultat, **détecter le type de retour** :
 
@@ -398,6 +401,8 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
    - La feature à planifier (description verbatim de l'utilisateur)
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session (blocs ## Retour intermédiaire vers orchestrateur + ## Question pour l'orchestrateur) à chaque fin de phase et chaque pause, et produire le bloc ## Retour vers orchestrator en fin de planification — sans exception.`
+   - **Le skill de parcours (obligatoire) :**
+     > `[SKILL:planning/planner-subagent]`
 
 2. À la réception du résultat du `planner`, **détecter le type de retour** :
 
@@ -464,8 +469,9 @@ Quand le planner atteint un checkpoint (fin de phase ou clarification critique),
    )
    ```
 
-   > **Toujours reprendre le marqueur `[CONTEXTE]` :** si l'instruction de reprise ne le contient pas déjà, ajouter :
+   > **Toujours reprendre le marqueur `[CONTEXTE]` et le skill :** si l'instruction de reprise ne les contient pas déjà, ajouter :
    > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif.`
+   > `[SKILL:planning/planner-subagent]`
 
 5. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
 
@@ -662,6 +668,8 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
    - Le contexte global de la feature
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session si une clarification critique est nécessaire, et produire le bloc ## Retour vers orchestrator en fin de session.`
+   - **Le skill de parcours (obligatoire) :**
+     > `[SKILL:designer/ux-subagent]` ou `[SKILL:designer/ui-subagent]` selon l'agent invoqué
 
 4. À la réception du résultat, **détecter le type de retour** :
 
@@ -763,6 +771,8 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
    - Le périmètre à auditer
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session à chaque fin de phase et produire le bloc ## Retour vers orchestrator en fin de session.`
+   - **Le skill de parcours (obligatoire) :**
+     > `[SKILL:auditor/auditor-subagent]`
 
 4. À la réception du résultat, **détecter le type de retour** :
 
@@ -888,6 +898,8 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 
    - **Le marqueur de contexte d'invocation (obligatoire) :**
      > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois produire le bloc ## Retour vers orchestrator à la fin de ta session — sans exception, même en cas de stop, de ticket bloqué ou de session partielle.`
+   - **Le skill de parcours (obligatoire) :**
+     > `[SKILL:orchestrator/orchestrator-dev-subagent]`
 
 3. orchestrator-dev pilote l'implémentation complète (developer-* → QA → review).
 

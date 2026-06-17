@@ -44,6 +44,12 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 
 ### Comportement selon le contexte d'invocation
 
+> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
+> - **`orchestrator/orchestrator-dev-standalone`** — CP-0 demande le mode, tous les CPs via outil `question`, todo list visible
+> - **`orchestrator/orchestrator-dev-subagent`** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator`, todo list isolée
+>
+> Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `orchestrator-dev.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+
 > ⚠️ **Contrainte d'isolation des sessions :** dans OpenCode, chaque agent invoqué via `task`
 > dispose de sa propre session isolée. La todo list est strictement per-session — un sous-agent
 > ne peut pas mettre à jour la liste de son parent.
@@ -51,47 +57,15 @@ Les règles d'utilisation de l'outil sont définies dans le skill `skills/postur
 > Référence : `skills/posture/tool-todowrite.md` section "Usage par type d'agent" et
 > `docs/architecture/todowrite-session-isolation.fr.md`.
 
-**Invoqué en standalone (directement par l'utilisateur) :**
-
-Sa todo list est dans la session **visible par l'utilisateur**. Maintenir la liste en temps réel
-avec les labels de phase pour refléter l'état courant à chaque étape :
-
-| Moment | Mise à jour du label | Statut |
-|--------|---------------------|--------|
-| CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
-| CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
-| Étape 3.3 — QA activé | `#bd-12 — <titre> [QA]` | `in_progress` |
-| Étape 4 — review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
-| Étape 5 — CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
-| CP-2 commit validé | `#bd-12 — <titre>` | `completed` |
-| CP-1 passer / ticket ignoré | `#bd-12 — <titre>` | `cancelled` |
-
-**Invoqué via `task` depuis orchestrator (CONTEXTE = orchestrateur_feature) :**
-
-Sa todo list est dans une session **isolée et non visible** par l'utilisateur.
-L'orchestrator feature est le seul responsable de la liste visible — il la met à jour
-à partir des checkpoints transmis via les blocs `## Question pour l'orchestrator`.
-
-Maintenir une liste interne reste utile pour le débogage de session mais non obligatoire.
-Ne pas considérer cette liste comme un mécanisme de communication avec l'utilisateur.
-
 ---
 
 ## Comportement selon le contexte d'invocation — CPs à enjeu fort
 
 Les **CPs à enjeu fort** sont : CP-2, blocage après 3 cycles de review, dépendance non résolue, ticket bloqué.
 
-### Invoqué en standalone (sans parent orchestrator)
-Comportement normal — poser les questions directement via l'outil `question` comme décrit dans chaque section.
+Le comportement de chaque CP selon le contexte est défini dans les skills `orchestrator-dev-standalone` et `orchestrator-dev-subagent`.
 
-### Invoqué depuis l'orchestrator (via Task)
-Pour les CPs à enjeu fort, **ne pas poser la question soi-même**.
-À la place : produire le bloc `## Question pour l'orchestrator` et arrêter la session.
-
-Le format exact de ce bloc est défini dans le skill `orchestrator-handoff-format` — s'y référer comme source de vérité.
-Il inclut obligatoirement : le contexte complet (rapport de review intégral, historique, raison du blocage), la question, les options, l'état de session (tickets traités / en cours / restants) et le `task_id` courant.
-
-> ⚠️ Le contexte complet ne doit **jamais** être résumé ou abrégé — il doit être reproduit intégralement pour que l'orchestrator puisse l'afficher à l'utilisateur tel quel.
+Le format exact des blocs `## Question pour l'orchestrator` (pour le mode sous-agent) est défini dans le skill `orchestrator-handoff-format` — s'y référer comme source de vérité.
 
 ---
 
@@ -243,12 +217,7 @@ todowrite({
 
 ### Invoqué depuis l'orchestrateur feature
 
-**Détection obligatoire au démarrage :** si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`, alors :
-1. Mémoriser : **CONTEXTE = orchestrateur_feature** — cette valeur reste active pour toute la session.
-2. Confirmer explicitement :
-   > `[orchestrator-dev] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode de workflow reçu : <valeur canonique>. Mode interruption actif — CP-1, CP-QA, CP-3 et branche dédiée produisent des blocs ## Question pour l'orchestrator et terminent la session. Le bloc ## Retour vers orchestrator (final ou partiel) sera produit à chaque arrêt de session.`
-
-3. **Parser le mode de workflow** transmis dans le prompt selon la règle ci-dessous.
+> Le comportement détaillé (confirmation du contexte, parsing du mode, gestion des CPs) est défini dans le skill `orchestrator-dev-subagent` — chargé automatiquement quand `[SKILL:orchestrator/orchestrator-dev-subagent]` est présent dans le prompt.
 
 **Règle de parsing du mode :**
 Rechercher dans le prompt l'une des trois valeurs canoniques suivantes (insensible à la casse) :
@@ -259,10 +228,6 @@ Rechercher dans le prompt l'une des trois valeurs canoniques suivantes (insensib
 **Si aucune valeur canonique n'est détectée :**
 Appliquer le fallback `manuel` et signaler :
 > `⚠️ [orchestrator-dev] Mode de workflow non détecté dans le prompt — mode manuel appliqué par défaut. Si incorrect, l'orchestrator peut relancer avec le mode souhaité.`
-
-**Si plusieurs valeurs canoniques sont détectées :**
-Appliquer la première occurrence dans le prompt et signaler :
-> `⚠️ [orchestrator-dev] Plusieurs modes détectés dans le prompt — mode [première valeur détectée] appliqué. Si incorrect, l'orchestrator peut corriger.`
 
 Le mode et la liste des tickets sont transmis en paramètre.
 Afficher le récapitulatif des tickets reçus et démarrer directement sans redemander le mode.
@@ -734,6 +699,8 @@ Invoquer `qa-engineer` en fournissant :
 - Le diff ou le nom de la branche produite
 - L'ID du ticket Beads
 - Les critères d'acceptance déjà couverts par le developer (champ `### Critères d'acceptance couverts` du retour developer, si disponible)
+- **Le skill de parcours (obligatoire) :**
+  > `[SKILL:qa/qa-subagent]`
 
 À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 
@@ -889,6 +856,8 @@ Fournir au reviewer :
 - Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
 - Si disponible depuis le retour qa-engineer : les `### Points d'attention pour la review` du qa-engineer (zones non testables, edge cases non couverts, hypothèses, suggestions)
 - Si disponible depuis le retour qa-engineer : les critères d'acceptance non couverts (statut `couverture-partielle`)
+- **Le skill de parcours (obligatoire) :**
+  > `[SKILL:reviewer/reviewer-subagent]`
 
 À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 

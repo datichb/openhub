@@ -345,20 +345,38 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 
 ## Le marqueur de contexte d'invocation
 
-### Chaîne de détection
+### Convention de chargement du parcours d'exécution
 
-Quand l'`orchestrator` invoque `orchestrator-dev`, il inclut dans le prompt :
+Depuis l'ADR-016, l'orchestrateur injecte deux marqueurs dans les prompts `task` vers les agents primaires :
 
 ```
-[CONTEXTE] Invoqué depuis l'orchestrateur feature
+[CONTEXTE] Invoqué depuis l'orchestrateur feature.
+[SKILL:planning/planner-subagent]
 ```
 
-Cette chaîne permet à `orchestrator-dev` d'adapter son comportement.
+Le marqueur `[SKILL:<nom>]` indique à l'agent quel skill de parcours charger au démarrage :
+- Présent → l'agent charge le skill sous-agent (mécanisme d'interruption actif)
+- Absent → l'agent charge le skill standalone par défaut (outil `question` actif)
+
+Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans les agents — la logique de bifurcation est désormais entièrement dans les skills dédiés.
+
+> **Skills de parcours disponibles :**
+>
+> | Agent | Standalone | Sous-agent |
+> |-------|-----------|-----------|
+> | planner | `planning/planner-standalone` | `planning/planner-subagent` |
+> | pathfinder | `planning/pathfinder-standalone` | `planning/pathfinder-subagent` |
+> | onboarder | `planning/onboarder-standalone` | `planning/onboarder-subagent` |
+> | auditor | `auditor/auditor-standalone` | `auditor/auditor-subagent` |
+> | orchestrator-dev | `orchestrator/orchestrator-dev-standalone` | `orchestrator/orchestrator-dev-subagent` |
+> | reviewer | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
+> | qa-engineer | `qa/qa-standalone` | `qa/qa-subagent` |
 
 ### Comportement standalone vs depuis orchestrateur
 
 | Aspect | Standalone | Depuis orchestrateur |
 |--------|-----------|---------------------|
+| Skill de parcours | `-standalone` (défaut implicite) | `-subagent` (injecté via `[SKILL:...]`) |
 | Mode de workflow | Demandé au CP-0 | Transmis en paramètre |
 | Questions CP | Posées via `question` | Bloc `## Question pour l'orchestrator` |
 | Récap global | Affiché à l'utilisateur | Transmis à l'orchestrator |
@@ -366,7 +384,7 @@ Cette chaîne permet à `orchestrator-dev` d'adapter son comportement.
 
 ### Agents implémentant le mécanisme d'interruption
 
-Les agents suivants implémentent le mécanisme d'interruption de session quand ils reçoivent ce marqueur :
+Les agents suivants implémentent le mécanisme d'interruption de session quand le skill sous-agent est chargé :
 
 | Agent | Granularité des interruptions | Type d'interruption |
 |-------|------------------------------|---------------------|
@@ -379,16 +397,19 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 | **ux-designer** | Clarification critique (design system, informations utilisateur) | Ad hoc uniquement |
 | **ui-designer** | Clarification critique (design system inexistant) | Ad hoc uniquement |
 
-### Détection au démarrage
+### Ré-invocation avec task_id
 
-```markdown
-**Détection obligatoire au démarrage :** si le prompt contient
-`[CONTEXTE] Invoqué depuis l'orchestrateur feature`, alors :
-1. Mémoriser : **CONTEXTE = orchestrateur_feature**
-2. Confirmer :
-   > `[orchestrator-dev] Contexte détecté : invoqué depuis l'orchestrateur
-   > feature. Le bloc ## Retour vers orchestrator sera produit en fin de session.`
+Lors des ré-invocations avec `task_id`, l'orchestrateur **doit toujours re-transmettre** le marqueur `[SKILL:...]` :
+
 ```
+task(
+  subagent_type: "planner",
+  task_id: "<task_id>",
+  prompt: "Réponse Phase 1 : [option]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-subagent]"
+)
+```
+
+Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement dégradé mais non cassé.
 
 ---
 

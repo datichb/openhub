@@ -165,7 +165,9 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 
 | Fichier | Bucket | Agents qui l'utilisent | Contenu |
 |---------|--------|----------------------|---------|
-| `auditor/auditor-workflow.md` | **A** | auditor | **Workflow unifié coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires via `question`, retours en arrière possibles ; détection du marqueur d'invocation orchestrateur pour le bloc `## Retour vers orchestrator` |
+| `auditor/auditor-workflow.md` | **A** | auditor | **Workflow du coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `auditor/auditor-standalone.md` | **B** | auditor | **Parcours standalone** — récaps texte avant outil `question`, questions de validation par phase, synthèse finale sans bloc handoff |
+| `auditor/auditor-subagent.md` | **B** | auditor | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés `## Retour intermédiaire` + `## Question pour l'orchestrateur`, `task_id` obligatoire |
 | `auditor/audit-protocol-light.md` | **A** | tous les auditor-* | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
 | `auditor/audit-security.md` | **B** | auditor-security | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
 | `auditor/audit-performance.md` | **B** | auditor-performance | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
@@ -183,7 +185,9 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
 | `orchestrator/orchestrator-protocol.md` | orchestrator | Workflow feature complet, matrice de routing (3 familles : design, auditor, dev via orchestrator-dev), format des checkpoints ([CP-0], [CP-spec], [CP-audit], [CP-feature]), gestion des cas particuliers, validation des retours structurés pour chaque type de sous-agent |
-| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Workflow Beads ticket par ticket, matrice de routing developer-* (9 signaux → 9 agents), format des checkpoints ([CP-1] à [CP-3] + [CP-QA]), 3 modes (manuel/semi-auto/auto), détection du label `tdd`, exploitation des retours structurés (points d'attention developer → reviewer, critères QA non couverts → reviewer, corrections reviewer verbatim → commentaire Beads), **récap global en deux étapes obligatoires et complémentaires** : (1) récap narratif (comptes rendus d'implémentation verbatim par ticket + points d'attention agrégés — sans tableau ni statistiques) avant le bloc structuré, (2) bloc `## Retour vers orchestrator` (tableau de détail par ticket, statistiques, statut global) — les deux étapes doivent être produites dans cet ordre sans duplication |
+| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Workflow Beads ticket par ticket, matrice de routing developer-* (9 signaux → 9 agents), format des checkpoints ([CP-1] à [CP-3] + [CP-QA]), 3 modes (manuel/semi-auto/auto), détection du label `tdd`, exploitation des retours structurés. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `orchestrator/orchestrator-dev-standalone.md` | **B** | orchestrator-dev | **Parcours standalone** — CP-0 demande le mode, tous les CPs via outil `question`, todo list visible et mise à jour avec labels de phase |
+| `orchestrator/orchestrator-dev-subagent.md` | **B** | orchestrator-dev | **Parcours sous-agent** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel), session terminée après chaque CP à enjeu fort |
 | `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Contrat de handoff** — deux formats : `## Retour vers orchestrator` (fin de session : le producteur émet d'abord la synthèse condensée par ticket (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés), puis le bloc structuré avec tableau de détail par ticket — agent, QA, cycles de review, critères couverts, statut — plus points d'attention et statut global `succès`/`partiel`/`bloqué` ; le consommateur affiche cette synthèse dans son fil de discussion avant de construire le [CP-feature]) et `## Question pour l'orchestrator` (CPs à enjeu fort : CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué — contexte complet, question en attente, options, `task_id` pour reprise de session) |
 | `orchestrator/orchestrator-workflow-modes.md` | orchestrator, orchestrator-dev | Source de vérité unique pour les 3 modes de workflow (manuel/semi-auto/auto) — blocs question canoniques, règles absolues par mode |
 
@@ -193,7 +197,9 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `qa/qa-protocol.md` | qa-engineer | Typologie des tests (unit/integration/E2E/composants), outils par stack, checklist systématique (nominal/erreur/edge cases/acceptance), format du rapport de couverture, structure type AAA |
+| `qa/qa-protocol.md` | qa-engineer | Protocole QA — typologie des tests (unit/integration/E2E/composants), outils par stack, checklist systématique, format du rapport. La logique standalone/sous-agent est dans les skills de parcours dédiés. |
+| `qa/qa-standalone.md` | **B** | qa-engineer | **Parcours standalone** — rapport QA sans bloc handoff |
+| `qa/qa-subagent.md` | **B** | qa-engineer | **Parcours sous-agent** — rapport QA + bloc `## Retour vers orchestrator-dev` obligatoire |
 | `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : tests écrits avec fichiers et cas couverts, critères d'acceptance cochés, zones non testables, statut (`couverture-complète` / `couverture-partielle` / `non-testable`) |
 
 ---
@@ -213,7 +219,9 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `reviewer/review-protocol.md` | reviewer | Format du rapport de review (Critique/Majeur/Mineur/Suggestion/Points positifs/Hors scope), 4 niveaux de sévérité, checklist systématique en 6 catégories, format des commentaires individuels, mode "audit complet" |
+| `reviewer/review-protocol.md` | reviewer | Protocole de review — format du rapport, niveaux de sévérité, checklist, mode "audit complet". La logique standalone/sous-agent est dans les skills de parcours dédiés. |
+| `reviewer/reviewer-standalone.md` | **B** | reviewer | **Parcours standalone** — rapport de review sans bloc handoff |
+| `reviewer/reviewer-subagent.md` | **B** | reviewer | **Parcours sous-agent** — rapport de review + bloc `## Retour vers orchestrator-dev` obligatoire |
 | `reviewer/reviewer-handoff-format.md` | reviewer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : verdict actionnable (`commit` / `corriger` / `corriger-sécurité`), synthèse des problèmes par sévérité, corrections requises verbatim (collées directement dans le commentaire Beads), routing recommandé (`retour-initial` / `developer-security`), statut (`approuvé` / `corrections-requises` / `bloquant-sécurité`) |
 
 ---
@@ -240,8 +248,15 @@ Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)*
 
 | Fichier | Bucket | Agents qui l'utilisent | Contenu |
 |---------|--------|----------------------|---------|
-| `planning/planner-workflow.md` | **A** | planner | **Workflow unifié planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design optionnelle → 2 questions complémentaires → 3 plan hiérarchique : epics/tickets/priorités → 4 détection cas particuliers : doublons, tickets trop gros, dépendances circulaires → 5 création Beads avec enrichissement complet → 5.5 délégation ai-delegated optionnelle → 6 vérification + handoff) — récaps systématiques, phases itératives avec retours en arrière (max 3), format `## Retour vers orchestrator` si invoqué |
-| `planning/onboarder-workflow.md` | **A** | onboarder | **Workflow unifié onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte : stack/architecture/patterns/points d'attention/carte agents priorisée → 4 cas particuliers : incohérences, CVE, dette masquée, architecture hybride → 5 production ONBOARDING.md + CONVENTIONS.md + projects.md optionnel + handoff) — fusionne les anciens `project-discovery.md` et `project-conventions.md` |
+| `planning/planner-workflow.md` | **A** | planner | **Workflow planner** — 7 phases (0 prérequis → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design → 2 questions → 3 plan hiérarchique → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification) — récaps systématiques, phases itératives. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `planning/planner-standalone.md` | **B** | planner | **Parcours standalone** — récaps texte avant outil `question`, format des questions de validation par phase, sans bloc handoff orchestrateur |
+| `planning/planner-subagent.md` | **B** | planner | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire, terminaison de session après chaque checkpoint |
+| `planning/onboarder-workflow.md` | **A** | onboarder | **Workflow onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte → 4 cas particuliers → 5 production wiki + handoff). La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `planning/onboarder-standalone.md` | **B** | onboarder | **Parcours standalone** — récaps texte avant outil `question`, sans bloc handoff orchestrateur |
+| `planning/onboarder-subagent.md` | **B** | onboarder | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire |
+| `planning/pathfinder-protocol.md` | **A** | pathfinder | **Protocole pathfinder** — exploration rapide, estimation XS→XL, draft de plan, recommandation direct/escalade. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `planning/pathfinder-standalone.md` | **B** | pathfinder | **Parcours standalone** — outil `question` pour les pauses, rapport final sans bloc handoff |
+| `planning/pathfinder-subagent.md` | **B** | pathfinder | **Parcours sous-agent** — session unique ou interruption si clarification critique, bloc handoff obligatoire |
 | `planning/planner-handoff-format.md` | **A** | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
 | `planning/onboarder-handoff-format.md` | **A** | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
 

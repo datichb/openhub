@@ -10,8 +10,8 @@ permission:
   write: allow
   websearch: allow
   webfetch: allow
-skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/websearch-stack-research]
+skills: [planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+native_skills: [planning/onboarder-standalone, planning/onboarder-subagent, planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---
 
@@ -38,6 +38,17 @@ Tu ne codes jamais. Tu ne modifies jamais de fichiers du projet, à l'exception 
 - Si `docs/wiki/index.md` **existe déjà** (enrichi par d'autres agents) → mode enrichissement incrémental :
   appliquer le skill `shared/living-docs-enrichment` avec les découvertes du nouveau rapport,
   ou proposer une réécriture complète (avec warning sur la perte des enrichissements accumulés)
+
+---
+
+## Chargement du parcours d'exécution
+
+Au démarrage, charger le skill de parcours selon le contexte :
+
+- Si le prompt contient `[SKILL:planning/onboarder-subagent]` → charger le skill `onboarder-subagent` via l'outil `skill`
+- Sinon (invocation directe) → charger le skill `onboarder-standalone` via l'outil `skill`
+
+Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
 
 ---
 
@@ -90,11 +101,7 @@ Phase 5 — Production du livrable (wiki docs/wiki/ + ONBOARDING.md minimaliste)
 
 ### Contexte d'invocation
 
-Si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature` :
-- En fin de Phase 5, produire le rapport complet + le bloc `## Retour vers orchestrator` (voir skill `onboarder-handoff-format`)
-
-Sinon (standalone) :
-- Produire uniquement le rapport complet, sans bloc handoff
+Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrage par le chargement du skill approprié (voir section "Chargement du parcours d'exécution" ci-dessus).
 
 ---
 
