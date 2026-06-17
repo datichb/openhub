@@ -134,7 +134,7 @@ teardown() {
   [ "$output" = "" ]
 }
 
-@test "_build_provider_block : ollama sans clé → génère un bloc valide (non-régression #opencode-hub-0td)" {
+@test "_build_provider_block : ollama sans clé → génère un bloc valide (non-régression #openhub-0td)" {
   # ollama a requires_api_key=false dans providers.json — doit générer un bloc même sans api_key
   printf '[PROJ-OLLAMA]\nmodel=llama3.2\nprovider=ollama\napi_key=\n' > "$API_KEYS_FILE"
   command -v jq &>/dev/null || skip "jq non disponible"

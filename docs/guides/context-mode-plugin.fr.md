@@ -2,7 +2,7 @@
 
 # Guide d'installation du Plugin context-mode
 
-Ce guide explique comment installer le plugin context-mode pour OpenCode depuis opencode-hub.
+Ce guide explique comment installer le plugin context-mode pour OpenCode depuis openhub.
 
 ## Prérequis
 
@@ -11,9 +11,9 @@ Ce guide explique comment installer le plugin context-mode pour OpenCode depuis 
    opencode --version
    ```
 
-2. **opencode-hub** cloné et configuré
+2. **openhub** cloné et configuré
    ```bash
-   cd ~/.opencode-hub
+   cd ~/.openhub
    git pull
    ```
 
@@ -48,7 +48,7 @@ Le package est mis en cache dans `~/.cache/opencode/node_modules/` et chargé pa
 Si OpenCode est en cours d'exécution, fermez-le et relancez-le depuis le répertoire du hub :
 
 ```bash
-cd ~/.opencode-hub
+cd ~/.openhub
 opencode
 ```
 
@@ -189,7 +189,7 @@ Si vous avez déjà un MCP server `context-mode` installé, le plugin OpenCode p
 ## Mise à jour
 
 ```bash
-cd ~/.opencode-hub && git pull
+cd ~/.openhub && git pull
 # opencode met à jour le package automatiquement au prochain démarrage
 ```
 

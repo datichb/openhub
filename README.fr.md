@@ -1,6 +1,6 @@
 > 🇬🇧 [Read in English](README.md)
 
-# opencode-hub
+# openhub
 
 Hub central pour piloter des assistants IA sur plusieurs projets,
 avec des agents partagés, des skills hybrides et un workflow Beads intégré.
@@ -11,21 +11,21 @@ Supporte **OpenCode**.
 
 ## Comment ça marche
 
-opencode-hub repose sur trois concepts : **agents**, **serveurs MCP** et **déploiement**.
+openhub repose sur trois concepts : **agents**, **serveurs MCP** et **déploiement**.
 
 - Les **agents** définissent les rôles IA (qui fait quoi, comment, dans quel ordre) avec leurs protocoles intégrés. Chaque agent possède des **skills Bucket A** (protocoles obligatoires, toujours inline) et des **skills Bucket B** (contexte de domaine, chargées à la demande).
 - Les **serveurs MCP** fournissent des intégrations outils (Figma, Linear, etc.) disponibles pour tous les agents.
 - Le **déploiement** assemble agents + serveurs MCP et les copie dans vos projets cibles.
 
 ```
-opencode-hub/          ← source de vérité (éditer ici, jamais dans les projets)
+openhub/          ← source de vérité (éditer ici, jamais dans les projets)
 ├── agents/            ← identité des rôles IA avec protocoles intégrés
 ├── skills/            ← protocoles : Bucket A (inline) + Bucket B (natif, à la demande)
 ├── servers/           ← serveurs MCP (intégration Figma, etc.)
 └── scripts/           ← assemblage et déploiement
 
          oc deploy opencode MON-APP
-opencode-hub  ──────────────────────►  mon-app/.opencode/agents/*.md        (Bucket A inline)
+openhub  ──────────────────────►  mon-app/.opencode/agents/*.md        (Bucket A inline)
                                    ├►  mon-app/.opencode/skills/*/SKILL.md   (Bucket B natif)
                                    ├►  mon-app/.opencode/servers/
                                    └►  mon-app/opencode.json
@@ -54,10 +54,10 @@ Le script d'installation détecte et installe les dépendances manquantes automa
 ### One-liner (recommandé)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
-Le script automatise tout : clone dans `~/.opencode-hub`, vérification des dépendances
+Le script automatise tout : clone dans `~/.openhub`, vérification des dépendances
 avec confirmation, création de l'alias `oc`, et configuration du fournisseur LLM.
 
 Après l'installation, recharger le shell :
@@ -69,15 +69,15 @@ source ~/.zshrc   # ou source ~/.bashrc
 ### Installation manuelle
 
 ```bash
-git clone https://github.com/datichb/opencode-hub.git ~/.opencode-hub
-echo 'alias oc="~/.opencode-hub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
+git clone https://github.com/datichb/openhub.git ~/.openhub
+echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 oc install
 ```
 
 ### Installer une version spécifique
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.0.0 bash
 ```
 
 ---
@@ -104,7 +104,7 @@ oc update
 ```bash
 oc uninstall
 # ou directement :
-bash ~/.opencode-hub/uninstall.sh
+bash ~/.openhub/uninstall.sh
 ```
 
 Guide interactif en 4 étapes — tout est optionnel et demande confirmation :
@@ -112,7 +112,7 @@ Guide interactif en 4 étapes — tout est optionnel et demande confirmation :
 | Étape | Action | Défaut |
 |-------|--------|--------|
 | 1 | Nettoyer les agents déployés dans les projets (`.opencode/agents/`, `opencode.json`) | `[y/N]` |
-| 2 | Supprimer le hub (`~/.opencode-hub`) | `[y/N]` |
+| 2 | Supprimer le hub (`~/.openhub`) | `[y/N]` |
 | 3 | Retirer l'alias `oc` et les exports bun du fichier rc | `[Y/n]` |
 | 4 | Désinstaller opencode, Beads, bun (séparément) | `[y/N]` |
 
@@ -205,7 +205,7 @@ oc start MON-APP
 
 ## Intégration Figma
 
-opencode-hub s'intègre avec Figma pour enrichir les workflows de planification avec le contexte design.
+openhub s'intègre avec Figma pour enrichir les workflows de planification avec le contexte design.
 
 ### Fonctionnalités
 

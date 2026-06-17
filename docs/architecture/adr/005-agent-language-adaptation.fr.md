@@ -6,7 +6,7 @@ Accepté
 
 ## Contexte
 
-Le hub opencode-hub est rédigé entièrement en français : agents, skills, documentation.
+Le hub openhub est rédigé entièrement en français : agents, skills, documentation.
 Cependant, les projets sur lesquels les agents sont déployés peuvent avoir des langues
 de travail différentes (anglais, espagnol, etc.).
 

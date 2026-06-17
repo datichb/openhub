@@ -6,12 +6,12 @@
 
 ## Purpose
 
-This skill provides best practices for using the `websearch` tool effectively in opencode-hub agents. WebSearch enables agents to discover current information, documentation, CVEs, best practices, and design trends beyond the training data cutoff.
+This skill provides best practices for using the `websearch` tool effectively in openhub agents. WebSearch enables agents to discover current information, documentation, CVEs, best practices, and design trends beyond the training data cutoff.
 
 ## Prerequisites
 
 ### Hub-level Activation
-WebSearch must be enabled in `opencode-hub/opencode.json`:
+WebSearch must be enabled in `openhub/opencode.json`:
 
 ```json
 {
@@ -272,7 +272,7 @@ oc start auditor security
 ### WebSearch Not Available
 ```bash
 # Check hub config
-cat opencode-hub/opencode.json | jq '.permission.websearch'
+cat openhub/opencode.json | jq '.permission.websearch'
 
 # Check agent config
 cat agents/auditor/security-auditor.md | grep -A5 'permission:'

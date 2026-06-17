@@ -4,7 +4,7 @@
 
 ## Introduction
 
-The progress bar system provides **real-time visual feedback** for long-running operations in opencode-hub, particularly during the `oc deploy` workflow. It consists of three main components:
+The progress bar system provides **real-time visual feedback** for long-running operations in openhub, particularly during the `oc deploy` workflow. It consists of three main components:
 
 - **`_progress_bar()`**: Real-time progress display on a single line
 - **`_progress_done()`**: Finalize the progress bar

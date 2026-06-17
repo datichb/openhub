@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# opencode-hub — Script de désinstallation
+# openhub — Script de désinstallation
 #
 # Usage :
 #   bash uninstall.sh
@@ -11,7 +11,7 @@ set -euo pipefail
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
-INSTALL_DIR="${OPENCODE_HUB_DIR:-$HOME/.opencode-hub}"
+INSTALL_DIR="${OPENCODE_HUB_DIR:-$HOME/.openhub}"
 
 # ─────────────────────────────────────────
 # COLORS & LOGGERS
@@ -49,13 +49,13 @@ OS=$(detect_os)
 # INTRO
 # ─────────────────────────────────────────
 echo ""
-echo -e "${BOLD}◆  Désinstallation de opencode-hub${RESET}"
+echo -e "${BOLD}◆  Désinstallation de openhub${RESET}"
 echo -e "${DIM}│${RESET}"
 echo -e "${DIM}│${RESET}  Hub détecté : ${INSTALL_DIR}"
 echo -e "${DIM}│${RESET}"
 echo -e "${DIM}│${RESET}  Ce script va vous guider pour supprimer :"
 echo -e "${DIM}│${RESET}    • Les agents déployés dans vos projets"
-echo -e "${DIM}│${RESET}    • Le hub lui-même (~/.opencode-hub)"
+echo -e "${DIM}│${RESET}    • Le hub lui-même (~/.openhub)"
 echo -e "${DIM}│${RESET}    • L'alias shell et les exports bun"
 echo -e "${DIM}│${RESET}    • Les outils installés (opencode, beads, bun)"
 echo -e "${DIM}│${RESET}"
@@ -185,18 +185,18 @@ if [ -z "$_rc_file" ] || [ ! -f "$_rc_file" ]; then
 else
   _has_alias=false
   _has_bun=false
-  grep -qF "# opencode-hub" "$_rc_file" 2>/dev/null && _has_alias=true
+  grep -qF "# openhub" "$_rc_file" 2>/dev/null && _has_alias=true
   # Couvrir aussi le cas où l'alias existe sans le commentaire
-  grep -qF "opencode-hub/oc.sh" "$_rc_file" 2>/dev/null && _has_alias=true
+  grep -qF "openhub/oc.sh" "$_rc_file" 2>/dev/null && _has_alias=true
   grep -qF "BUN_INSTALL" "$_rc_file" 2>/dev/null && _has_bun=true
 
   if [ "$_has_alias" = "false" ] && [ "$_has_bun" = "false" ]; then
-    log_info "Aucun alias opencode-hub ni export bun trouvé dans $_rc_file"
+    log_info "Aucun alias openhub ni export bun trouvé dans $_rc_file"
     _outro "Fichier rc déjà propre"
   else
     echo -e "${DIM}│${RESET}  Fichier rc : $_rc_file"
     echo -e "${DIM}│${RESET}"
-    [ "$_has_alias" = "true" ] && echo -e "${DIM}│${RESET}    • Bloc '# opencode-hub' + alias 'oc' (ou équivalent)"
+    [ "$_has_alias" = "true" ] && echo -e "${DIM}│${RESET}    • Bloc '# openhub' + alias 'oc' (ou équivalent)"
     [ "$_has_bun" = "true" ]   && echo -e "${DIM}│${RESET}    • Exports BUN_INSTALL / PATH bun"
     echo -e "${DIM}│${RESET}"
 
@@ -204,11 +204,11 @@ else
     if [[ "${_clean_rc:-Y}" =~ ^[Yy]$ ]]; then
       cp "$_rc_file" "$_rc_file.bak"
       if [ "$_has_alias" = "true" ]; then
-        # Retirer la ligne "# opencode-hub" et la ligne alias qui suit
-        sed -i.tmp '/^# opencode-hub$/d' "$_rc_file"
-        sed -i.tmp '/opencode-hub\/oc\.sh/d' "$_rc_file"
+        # Retirer la ligne "# openhub" et la ligne alias qui suit
+        sed -i.tmp '/^# openhub$/d' "$_rc_file"
+        sed -i.tmp '/openhub\/oc\.sh/d' "$_rc_file"
         rm -f "$_rc_file.tmp"
-        log_success "Alias opencode-hub retiré de $_rc_file"
+        log_success "Alias openhub retiré de $_rc_file"
       fi
       if [ "$_has_bun" = "true" ]; then
         sed -i.tmp '/BUN_INSTALL/d' "$_rc_file"
@@ -273,7 +273,7 @@ fi
 # ── bun ───────────────────────────────────
 if [ -d "$HOME/.bun" ]; then
   echo -e "${DIM}│${RESET}  bun détecté : $HOME/.bun"
-  log_warn "bun peut être utilisé par d'autres outils — supprimer uniquement si installé exclusivement pour opencode-hub."
+  log_warn "bun peut être utilisé par d'autres outils — supprimer uniquement si installé exclusivement pour openhub."
   echo -e "${DIM}│${RESET}"
   read -rp "  Supprimer bun (~/.bun) ? [y/N] : " _rm_bun </dev/tty
   if [[ "${_rm_bun:-N}" =~ ^[Yy]$ ]]; then

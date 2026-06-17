@@ -814,7 +814,7 @@ cmd_websearch_enable() {
   
   # Si aucun ID fourni → activer au niveau hub
   if [ -z "$id" ]; then
-    log_info "Enabling WebSearch at hub level (opencode-hub/opencode.json)..."
+    log_info "Enabling WebSearch at hub level (openhub/opencode.json)..."
     
     local hub_opencode_config="$REPO_ROOT/opencode.json"
     
@@ -953,7 +953,7 @@ cmd_websearch_status() {
   local hub_opencode_config="$REPO_ROOT/opencode.json"
   
   if [ -f "$hub_opencode_config" ]; then
-    echo "  Hub (opencode-hub):"
+    echo "  Hub (openhub):"
     if command -v jq >/dev/null 2>&1; then
       local hub_perm
       hub_perm=$(jq -r '.permission.websearch // "not set"' "$hub_opencode_config" 2>/dev/null)

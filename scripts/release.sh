@@ -1,6 +1,6 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# release.sh — Créer une release versionnée de opencode-hub
+# release.sh — Créer une release versionnée de openhub
 #
 # Usage : bash scripts/release.sh <version> [--dry-run]
 #   ex  : bash scripts/release.sh 1.1.0
@@ -87,9 +87,9 @@ fi
 TAG="v${VERSION}"
 
 if [ "$DRY_RUN" = true ]; then
-  log_title "◆  [DRY-RUN] Release opencode-hub ${TAG}"
+  log_title "◆  [DRY-RUN] Release openhub ${TAG}"
 else
-  log_title "◆  Release opencode-hub ${TAG}"
+  log_title "◆  Release openhub ${TAG}"
 fi
 echo ""
 
@@ -219,12 +219,12 @@ if [[ "${_push:-Y}" =~ ^[Yy]$ ]]; then
   log_success "Release ${TAG} publiée."
   echo ""
   log_info "One-liner pour cette version :"
-  echo -e "  ${DIM}curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=${TAG} bash${RESET}"
+  echo -e "  ${DIM}curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=${TAG} bash${RESET}"
 else
   log_warn "Push non effectué — lancer manuellement :"
   echo ""
   echo -e "  ${BOLD}git push && git push --tags${RESET}"
   echo ""
   log_info "One-liner pour cette version (disponible après le push) :"
-  echo -e "  ${DIM}curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=${TAG} bash${RESET}"
+  echo -e "  ${DIM}curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=${TAG} bash${RESET}"
 fi

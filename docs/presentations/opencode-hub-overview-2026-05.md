@@ -137,7 +137,7 @@ style: |
 <!-- _class: lead invert -->
 <!-- _paginate: false -->
 
-# opencode-hub
+# openhub
 
 ### Hub central pour piloter vos assistants IA sur tous vos projets
 
@@ -149,9 +149,9 @@ style: |
 ## Sommaire
 
 ### Partie 1 — Créer un projet avec l'IA
-Comment j'ai utilisé OpenCode pour concevoir et construire opencode-hub de A à Z
+Comment j'ai utilisé OpenCode pour concevoir et construire openhub de A à Z
 
-### Partie 2 — Utiliser opencode-hub
+### Partie 2 — Utiliser openhub
 Ce que le projet fait, comment l'installer et comment l'utiliser au quotidien
 
 ---
@@ -245,14 +245,14 @@ Créer un projet avec l'IA et OpenCode
 <!-- _paginate: false -->
 
 # Partie 2
-Utiliser opencode-hub
+Utiliser openhub
 
 ---
 
 ## En bref — ce que fait le hub
 
 ```
-opencode-hub/                  ← source de vérité unique
+openhub/                  ← source de vérité unique
 ├── agents/    ← 27 rôles IA (Markdown, ~50 lignes chacun)
 ├── skills/    ← ~40 protocoles injectables (partagés entre agents)
 └── scripts/   ← CLI `oc` + adapters par outil cible
@@ -405,7 +405,7 @@ Chaque projet peut **surcharger** la configuration globale selon ses besoins :
 
 ```bash
 # Installation complète (clone, dépendances, alias oc, config LLM)
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 source ~/.zshrc
 
 # Enregistrer un projet et déployer
@@ -465,7 +465,7 @@ grâce à `git worktree` — sans conflits, sans attente.
 ### 🏗️ Un hub, N projets — zéro duplication, un `oc deploy` et c'est à jour
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
 `README.fr.md` · `docs/guides/workflows.fr.md` · `docs/reference/cli.fr.md`

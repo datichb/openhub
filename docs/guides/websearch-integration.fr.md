@@ -1,14 +1,14 @@
-# Guide d'intégration WebSearch — opencode-hub
+# Guide d'intégration WebSearch — openhub
 
 **Version**: 1.0.0  
 **Date**: 2026-05-29  
-**Public**: Utilisateurs opencode-hub déployant des agents avec capacités de recherche web
+**Public**: Utilisateurs openhub déployant des agents avec capacités de recherche web
 
 ---
 
 ## Vue d'ensemble
 
-WebSearch permet aux agents opencode-hub de **rechercher sur le web** via Exa AI (hébergé par OpenCode) pour accéder à des informations actuelles non disponibles dans les données d'entraînement du modèle. Cette capacité est particulièrement utile pour :
+WebSearch permet aux agents openhub de **rechercher sur le web** via Exa AI (hébergé par OpenCode) pour accéder à des informations actuelles non disponibles dans les données d'entraînement du modèle. Cette capacité est particulièrement utile pour :
 
 - **Audits de sécurité** : Recherche de CVE et advisories
 - **Planification** : Comparaison de stacks, découverte de librairies, documentation
@@ -17,7 +17,7 @@ WebSearch permet aux agents opencode-hub de **rechercher sur le web** via Exa AI
 
 ### Prérequis
 
-- opencode-hub v1.0+ installé et configuré
+- openhub v1.0+ installé et configuré
 - OpenCode CLI v1.32+ (avec support WebSearch)
 
 ---
@@ -25,7 +25,7 @@ WebSearch permet aux agents opencode-hub de **rechercher sur le web** via Exa AI
 ## Architecture
 
 ```
-opencode-hub/
+openhub/
 ├── opencode.json                   ← Configuration hub (permissions)
 ├── agents/
 │   ├── auditor/
@@ -67,7 +67,7 @@ Après déploiement:
 
 #### Option A: Configuration manuelle
 
-Éditer `opencode-hub/opencode.json` :
+Éditer `openhub/opencode.json` :
 
 ```json
 {
@@ -82,7 +82,7 @@ Après déploiement:
 #### Option B: Script automatisé (recommandé)
 
 ```bash
-cd opencode-hub
+cd openhub
 ./oc.sh config websearch enable
 ```
 
@@ -164,7 +164,7 @@ Agent:
 ```
 WebSearch Status
 
-  Hub (opencode-hub):
+  Hub (openhub):
     permission.websearch: allow
     Status: ✓ Enabled
 
@@ -330,7 +330,7 @@ Agent: [ERROR] WebSearch tool not available
 **Solutions** :
 1. Vérifier que la permission `websearch` est `allow`
    ```bash
-   cat opencode-hub/opencode.json | jq '.permission.websearch'
+   cat openhub/opencode.json | jq '.permission.websearch'
    ```
 2. Redéployer l'agent
    ```bash
@@ -442,7 +442,7 @@ WebSearch Stats (30 days):
 
 Si vous voulez désactiver WebSearch pour tous les projets :
 
-1. Éditer `opencode-hub/opencode.json` :
+1. Éditer `openhub/opencode.json` :
    ```json
    {
      "permission": {
@@ -460,7 +460,7 @@ Si vous voulez désactiver WebSearch pour tous les projets :
 
 En cas de problème, revenir à l'état antérieur :
 ```bash
-cd opencode-hub
+cd openhub
 git checkout opencode.json
 ./oc.sh deploy all
 ```
@@ -474,7 +474,7 @@ git checkout opencode.json
 - Permissions: https://opencode.ai/docs/permissions/
 - Environment variables: https://opencode.ai/docs/config/
 
-### Skills opencode-hub
+### Skills openhub
 - `skills/shared/websearch-usage.md` — Best practices WebSearch
 - `skills/auditor/websearch-cve-lookup.md` — Protocole CVE lookup
 - `skills/planning/websearch-stack-research.md` — Recherche de stack
@@ -484,7 +484,7 @@ git checkout opencode.json
 - `docs/guides/websearch-usage-examples.fr.md` — Cas d'usage réels
 
 ### Support
-- Issues opencode-hub: https://github.com/anomalyco/opencode/issues
+- Issues openhub: https://github.com/anomalyco/opencode/issues
 - Discord OpenCode: https://opencode.ai/discord
 
 ---
@@ -499,5 +499,5 @@ git checkout opencode.json
 
 ---
 
-**Contributeurs** : opencode-hub team  
+**Contributeurs** : openhub team  
 **License** : MIT

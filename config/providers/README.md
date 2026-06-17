@@ -11,8 +11,8 @@
 ## Usage
 
 ```
-ocp mammouth opencode-hub        # lancer avec mammouth
-ocp bedrock opencode-hub --dev   # mode dev avec bedrock
+ocp mammouth openhub        # lancer avec mammouth
+ocp bedrock openhub --dev   # mode dev avec bedrock
 ocp --list                       # lister les providers
 ocp                              # picker interactif
 ```

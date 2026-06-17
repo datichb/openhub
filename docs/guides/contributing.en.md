@@ -338,5 +338,5 @@ git tag -a v1.2.0 -m "Release v1.2.0"
 After pushing, the one-liner to install this version is:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.2.0 bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.2.0 bash
 ```

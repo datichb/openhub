@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# opencode-hub — Script d'installation
+# openhub — Script d'installation
 #
 # Usage :
-#   curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 #   ou : bash install.sh
 #
 # Ce script :
-#   1. Clone ou met à jour le repo dans ~/.opencode-hub
+#   1. Clone ou met à jour le repo dans ~/.openhub
 #   2. Vérifie et installe les dépendances (jq, Node.js/npm, opencode, bun)
 #   3. Configure les alias shell ('oc' et 'ocp') dans le fichier rc
 #   4. Initialise les fichiers de config locaux
@@ -18,8 +18,8 @@ set -euo pipefail
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
-REPO_URL="https://github.com/datichb/opencode-hub.git"
-INSTALL_DIR="${OPENCODE_HUB_DIR:-$HOME/.opencode-hub}"
+REPO_URL="https://github.com/datichb/openhub.git"
+INSTALL_DIR="${OPENCODE_HUB_DIR:-$HOME/.openhub}"
 
 # VERSION optionnelle — accepte "v1.1.0" ou "1.1.0", normalise avec préfixe v
 # Laisser vide (défaut) pour installer HEAD de main.
@@ -73,7 +73,7 @@ OS=$(detect_os)
 # ─────────────────────────────────────────
 # ÉTAPE 1 — CLONE / UPDATE DU REPO
 # ─────────────────────────────────────────
-_intro "Récupération de opencode-hub${INSTALL_REF:+ ${INSTALL_REF}}"
+_intro "Récupération de openhub${INSTALL_REF:+ ${INSTALL_REF}}"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   log_info "Repo existant détecté dans $INSTALL_DIR"
@@ -203,7 +203,7 @@ fi
 # ── opencode ─────────────────────────────
 if ! command -v opencode &>/dev/null; then
   if command -v npm &>/dev/null; then
-    log_warn "opencode non détecté — requis pour utiliser opencode-hub"
+    log_warn "opencode non détecté — requis pour utiliser openhub"
     read -rp "  Installer opencode via npm ? [Y/n] : " _oc_choice </dev/tty
     if [[ "${_oc_choice:-Y}" =~ ^[Yy]$ ]]; then
       if npm install -g opencode-ai --silent; then
@@ -316,7 +316,7 @@ if [ -n "$_rc_file" ]; then
         _alias_line="alias $_alias_name=\"$INSTALL_DIR/oc.sh\""
         {
           echo ""
-          echo "# opencode-hub"
+          echo "# openhub"
           echo "$_alias_line"
         } >> "$_rc_file"
         log_success "Alias '$_alias_name' ajouté dans $_rc_file"
@@ -328,7 +328,7 @@ if [ -n "$_rc_file" ]; then
   else
     {
       echo ""
-      echo "# opencode-hub"
+      echo "# openhub"
       echo "$_alias_line"
     } >> "$_rc_file"
     log_success "Alias 'oc' ajouté dans $_rc_file"
@@ -374,7 +374,7 @@ if [ -n "$_rc_file" ]; then
         _ocp_line="alias $_ocp_alias_name=\"$INSTALL_DIR/ocp.sh\""
         {
           echo ""
-          echo "# opencode-hub"
+          echo "# openhub"
           echo "$_ocp_line"
         } >> "$_rc_file"
         log_success "Alias '$_ocp_alias_name' ajouté dans $_rc_file"
@@ -386,7 +386,7 @@ if [ -n "$_rc_file" ]; then
   else
     {
       echo ""
-      echo "# opencode-hub"
+      echo "# openhub"
       echo "$_ocp_line"
     } >> "$_rc_file"
     log_success "Alias 'ocp' ajouté dans $_rc_file"
@@ -440,7 +440,7 @@ fi
 # RÉSUMÉ FINAL
 # ─────────────────────────────────────────
 echo ""
-echo -e "${BOLD}◆  opencode-hub installé avec succès !${RESET}"
+echo -e "${BOLD}◆  openhub installé avec succès !${RESET}"
 echo -e "${DIM}│${RESET}"
 echo -e "${DIM}│${RESET}  Répertoire : ${INSTALL_DIR}"
 echo -e "${DIM}│${RESET}"

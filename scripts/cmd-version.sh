@@ -14,4 +14,4 @@ fi
 
 HUB_VERSION="${HUB_VERSION:-$(t version.unknown)}"
 
-echo -e "${BOLD}opencode-hub${RESET} v${HUB_VERSION}"
+echo -e "${BOLD}openhub${RESET} v${HUB_VERSION}"

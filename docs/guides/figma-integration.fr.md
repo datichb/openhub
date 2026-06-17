@@ -193,7 +193,7 @@ Output: {
 ## Architecture
 
 ```
-opencode-hub/
+openhub/
 ├── servers/figma-mcp/        ← MCP Server TypeScript
 │   ├── src/
 │   │   ├── index.ts          ← Entry point

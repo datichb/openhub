@@ -25,11 +25,11 @@ This guide gets you up and running with the hub and your first agent in under 10
 ### Option A — One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
 The script automates:
-- Cloning the repo to `~/.opencode-hub`
+- Cloning the repo to `~/.openhub`
 - Checking for missing dependencies (`jq`, `Node.js`, `opencode`, `bun`) — **confirmation requested before each installation**
 - Creating the `oc` alias in `~/.zshrc` or `~/.bashrc` (offers to keep / replace / rename if an `oc` alias already exists)
 - Initialising local config files
@@ -49,10 +49,10 @@ source ~/.zshrc   # or source ~/.bashrc
 
 ```bash
 # 1. Clone
-git clone https://github.com/datichb/opencode-hub.git ~/.opencode-hub
+git clone https://github.com/datichb/openhub.git ~/.openhub
 
 # 2. Shell alias
-echo 'alias oc="~/.opencode-hub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
+echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 
 # 3. Configure
 oc install
@@ -198,7 +198,7 @@ oc upgrade v1.1.0
 Equivalent to the one-liner:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.1.0 bash
 ```
 
 ---
@@ -222,7 +222,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.s
 ```bash
 oc uninstall
 # or from anywhere:
-bash ~/.opencode-hub/uninstall.sh
+bash ~/.openhub/uninstall.sh
 ```
 
 The script guides the uninstallation through 4 optional steps (all with confirmation):
@@ -230,6 +230,6 @@ The script guides the uninstallation through 4 optional steps (all with confirma
 | Step | Action | Default |
 |------|--------|---------|
 | 1 | Clean up deployed agents in projects | `[y/N]` |
-| 2 | Remove `~/.opencode-hub` | `[y/N]` |
+| 2 | Remove `~/.openhub` | `[y/N]` |
 | 3 | Remove the alias and bun exports from the rc file | `[Y/n]` |
 | 4 | Uninstall opencode, Beads, bun (separately) | `[y/N]` |

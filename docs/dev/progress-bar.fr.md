@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Le système de barre de progression fournit un **feedback visuel en temps réel** pour les opérations longues dans opencode-hub, particulièrement pendant le workflow `oc deploy`. Il est composé de trois fonctions principales :
+Le système de barre de progression fournit un **feedback visuel en temps réel** pour les opérations longues dans openhub, particulièrement pendant le workflow `oc deploy`. Il est composé de trois fonctions principales :
 
 - **`_progress_bar()`** : Affichage de la progression en temps réel sur une ligne
 - **`_progress_done()`** : Finalisation de la barre de progression

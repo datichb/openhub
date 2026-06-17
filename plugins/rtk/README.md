@@ -20,10 +20,10 @@ Automatically rewrites bash commands to use [RTK (Rust Token Killer)](https://ww
 
 ## Installation
 
-### Automatic (via opencode-hub)
+### Automatic (via openhub)
 
 ```bash
-cd ~/.opencode-hub
+cd ~/.openhub
 oc plugin install rtk
 ```
 
@@ -182,7 +182,7 @@ rtk gain --history
 
 ## Contributing
 
-This plugin is part of [opencode-hub](https://github.com/datichb/opencode-hub).
+This plugin is part of [openhub](https://github.com/datichb/openhub).
 
 Issues and PRs welcome!
 

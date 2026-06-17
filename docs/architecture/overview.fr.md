@@ -4,7 +4,7 @@
 
 ### Hub
 
-Le **hub** (`opencode-hub`) est le dépôt central qui contient les sources canoniques
+Le **hub** (`openhub`) est le dépôt central qui contient les sources canoniques
 de tous les agents et skills. C'est la source de vérité — on édite toujours ici,
 jamais dans les projets cibles.
 
@@ -67,7 +67,7 @@ via `oc deploy`. Le hub connaît les projets via `projects/projects.md`.
 
 ```mermaid
 flowchart LR
-    subgraph HUB["opencode-hub (source de vérité)"]
+    subgraph HUB["openhub (source de vérité)"]
         A[agents/*.md] --> PB[prompt-builder.sh]
         S[skills/**/*.md] --> PB
         PB --> ADP
@@ -218,7 +218,7 @@ Voir [Wiki Documentaire Vivant](./living-wiki.fr.md) pour l'architecture complè
 ## Structure des fichiers
 
 ```
-opencode-hub/
+openhub/
 ├── agents/          ← Sources canoniques des agents (éditer ici)
 ├── skills/          ← Protocoles et standards injectables
 ├── scripts/

@@ -380,7 +380,7 @@ Requires `config/providers/` to be initialized via `oc config init-providers`.
 ```sh
 ocp                          # interactive provider picker (fzf or native select)
 ocp mammouth                 # launch with mammouth (interactive project picker)
-ocp mammouth opencode-hub    # launch opencode-hub project with mammouth
+ocp mammouth openhub    # launch openhub project with mammouth
 ocp bedrock MY-APP --dev     # --dev mode with bedrock
 ocp --list                   # list available providers
 ```
@@ -500,7 +500,7 @@ The following variables are read by hub scripts if present in the environment:
 
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
-| `OPENCODE_HUB_DIR` | `~/.opencode-hub` | no | Hub installation directory. Used by `install.sh` and `uninstall.sh` to choose the installation path. Example: `OPENCODE_HUB_DIR=~/tools/oc bash install.sh` |
+| `OPENCODE_HUB_DIR` | `~/.openhub` | no | Hub installation directory. Used by `install.sh` and `uninstall.sh` to choose the installation path. Example: `OPENCODE_HUB_DIR=~/tools/oc bash install.sh` |
 | `OPENCODE_MODEL` | *(hub.json cascade)* | no | LLM model to use. Level 2 of the model resolution cascade (after project config `api-keys.local.md`, before `hub.json`). Example: `OPENCODE_MODEL=claude-opus-4-5` |
 | `AWS_BEARER_TOKEN_BEDROCK` | — | no | AWS Bedrock authentication token. Automatically injected by `oc start` from the project or hub config when the effective provider is `bedrock` — do not set manually except for advanced use cases. |
 | `HUB_DIR` | *(repo root directory)* | no | Runtime override of the hub root directory. Auto-detected from the location of `oc.sh` if absent. Useful for testing or multi-hub configurations. |

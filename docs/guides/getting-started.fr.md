@@ -23,11 +23,11 @@ Ce guide vous permet d'installer le hub et de lancer votre premier agent en moin
 ### Option A — One-liner (recommandé)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
 Le script automatise :
-- Clone du repo dans `~/.opencode-hub`
+- Clone du repo dans `~/.openhub`
 - Vérification des dépendances manquantes (`jq`, `Node.js`, `opencode`, `bun`) — **confirmation demandée avant chaque installation**
 - Création de l'alias `oc` dans `~/.zshrc` ou `~/.bashrc` (propose garder / remplacer / renommer si un alias `oc` existe déjà)
 - Initialisation des fichiers de config locaux
@@ -47,10 +47,10 @@ source ~/.zshrc   # ou source ~/.bashrc
 
 ```bash
 # 1. Cloner
-git clone https://github.com/datichb/opencode-hub.git ~/.opencode-hub
+git clone https://github.com/datichb/openhub.git ~/.openhub
 
 # 2. Alias shell
-echo 'alias oc="~/.opencode-hub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
+echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 
 # 3. Configurer
 oc install
@@ -191,7 +191,7 @@ oc upgrade v1.1.0
 Équivalent au one-liner :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.1.0 bash
 ```
 
 ---
@@ -215,7 +215,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.s
 ```bash
 oc uninstall
 # ou depuis n'importe où :
-bash ~/.opencode-hub/uninstall.sh
+bash ~/.openhub/uninstall.sh
 ```
 
 Le script guide la désinstallation en 4 étapes optionnelles (toutes avec confirmation) :
@@ -223,6 +223,6 @@ Le script guide la désinstallation en 4 étapes optionnelles (toutes avec confi
 | Étape | Action | Défaut |
 |-------|--------|--------|
 | 1 | Nettoyer les agents déployés dans les projets | `[y/N]` |
-| 2 | Supprimer `~/.opencode-hub` | `[y/N]` |
+| 2 | Supprimer `~/.openhub` | `[y/N]` |
 | 3 | Retirer l'alias et les exports bun du fichier rc | `[Y/n]` |
 | 4 | Désinstaller opencode, Beads, bun (séparément) | `[y/N]` |

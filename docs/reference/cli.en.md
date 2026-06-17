@@ -30,12 +30,12 @@ oc install
 
 ## `oc uninstall`
 
-Uninstalls opencode-hub and cleans up artefacts created during installation.
+Uninstalls openhub and cleans up artefacts created during installation.
 
 ```bash
 oc uninstall
 # equivalent to:
-bash ~/.opencode-hub/uninstall.sh
+bash ~/.openhub/uninstall.sh
 ```
 
 **Behaviour:**
@@ -45,7 +45,7 @@ Guides the uninstallation through 4 optional steps, all with explicit confirmati
 | Step | Action | Default |
 |------|--------|---------|
 | 1 | Clean up deployed agents in projects (`.opencode/agents/`, `opencode.json`, `.opencode/agents/`) | `[y/N]` |
-| 2 | Remove the hub (`~/.opencode-hub`) | `[y/N]` |
+| 2 | Remove the hub (`~/.openhub`) | `[y/N]` |
 | 3 | Remove the `oc` alias and bun exports from the shell rc file | `[Y/n]` |
 | 4 | Uninstall system tools: `opencode`, `beads`, `bun` (separately) | `[y/N]` |
 

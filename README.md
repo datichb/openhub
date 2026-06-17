@@ -1,6 +1,6 @@
 > 🇫🇷 [Lire en français](README.fr.md)
 
-# opencode-hub
+# openhub
 
 Central hub for managing AI assistants across multiple projects,
 with shared agents, hybrid skills, and an integrated Beads workflow.
@@ -11,21 +11,21 @@ Supports **OpenCode**.
 
 ## How it works
 
-opencode-hub is built around three concepts: **agents**, **MCP servers**, and **deployment**.
+openhub is built around three concepts: **agents**, **MCP servers**, and **deployment**.
 
 - **Agents** define AI roles (who does what, how, and in what order) with integrated protocols (code standards, checklists, report formats). Each agent has **Bucket A skills** (mandatory protocols, always inline) and **Bucket B skills** (domain context, loaded on-demand).
 - **MCP Servers** provide tool integrations (Figma, Linear, etc.) available to all agents.
 - **Deployment** assembles agents + MCP servers and copies them into your target projects.
 
 ```
-opencode-hub/          ← single source of truth (edit here, never in projects)
+openhub/          ← single source of truth (edit here, never in projects)
 ├── agents/            ← AI role definitions with integrated protocols
 ├── skills/            ← protocols: Bucket A (inline) + Bucket B (native, on-demand)
 ├── servers/           ← MCP servers (Figma integration, etc.)
 └── scripts/           ← assembly and deployment
 
          oc deploy opencode MY-APP
-opencode-hub  ──────────────────────►  my-app/.opencode/agents/*.md       (Bucket A inline)
+openhub  ──────────────────────►  my-app/.opencode/agents/*.md       (Bucket A inline)
                                    ├►  my-app/.opencode/skills/*/SKILL.md  (Bucket B native)
                                    ├►  my-app/.opencode/servers/
                                    └►  my-app/opencode.json
@@ -54,10 +54,10 @@ The install script detects and installs missing dependencies automatically (Home
 ### One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
-The script automates everything: clones to `~/.opencode-hub`, checks dependencies
+The script automates everything: clones to `~/.openhub`, checks dependencies
 with confirmation prompts, creates the `oc` alias, and configures the LLM provider.
 
 After installation, reload your shell:
@@ -69,15 +69,15 @@ source ~/.zshrc   # or source ~/.bashrc
 ### Manual installation
 
 ```bash
-git clone https://github.com/datichb/opencode-hub.git ~/.opencode-hub
-echo 'alias oc="~/.opencode-hub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
+git clone https://github.com/datichb/openhub.git ~/.openhub
+echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 oc install
 ```
 
 ### Install a specific version
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/opencode-hub/main/install.sh | VERSION=v1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.0.0 bash
 ```
 
 ---
@@ -104,7 +104,7 @@ oc update
 ```bash
 oc uninstall
 # or directly:
-bash ~/.opencode-hub/uninstall.sh
+bash ~/.openhub/uninstall.sh
 ```
 
 Interactive 4-step guide — everything is optional and requires confirmation:
@@ -112,7 +112,7 @@ Interactive 4-step guide — everything is optional and requires confirmation:
 | Step | Action | Default |
 |------|--------|---------|
 | 1 | Clean deployed agents from projects (`.opencode/agents/`, `opencode.json`) | `[y/N]` |
-| 2 | Remove the hub (`~/.opencode-hub`) | `[y/N]` |
+| 2 | Remove the hub (`~/.openhub`) | `[y/N]` |
 | 3 | Remove the `oc` alias and bun exports from the rc file | `[Y/n]` |
 | 4 | Uninstall opencode, Beads, bun (separately) | `[y/N]` |
 
@@ -205,7 +205,7 @@ oc start MY-APP
 
 ## Figma Integration
 
-opencode-hub integrates with Figma to enrich planning workflows with design context.
+openhub integrates with Figma to enrich planning workflows with design context.
 
 ### Features
 

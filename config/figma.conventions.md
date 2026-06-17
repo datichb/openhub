@@ -1,4 +1,4 @@
-# Conventions Figma pour opencode-hub
+# Conventions Figma pour openhub
 
 Ce document définit les conventions d'organisation des fichiers Figma pour faciliter l'intégration avec les agents Pathfinder et Planner.
 

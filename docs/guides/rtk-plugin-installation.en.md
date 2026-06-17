@@ -1,6 +1,6 @@
 # RTK Plugin Installation Guide
 
-This guide explains how to install the RTK plugin for OpenCode from opencode-hub.
+This guide explains how to install the RTK plugin for OpenCode from openhub.
 
 ## Prerequisites
 
@@ -17,9 +17,9 @@ Before installing the plugin, make sure you have:
    rtk --version
    ```
 
-3. **opencode-hub** cloned and configured
+3. **openhub** cloned and configured
    ```bash
-   cd ~/.opencode-hub
+   cd ~/.openhub
    git pull  # To get the latest version
    ```
 
@@ -27,7 +27,7 @@ Before installing the plugin, make sure you have:
 
 ## Automatic Installation (Recommended)
 
-### Method 1: Via opencode-hub
+### Method 1: Via openhub
 
 ```bash
 # From anywhere
@@ -53,7 +53,7 @@ If you prefer to install manually:
 mkdir -p ~/.config/opencode/plugins
 
 # Copy the plugin
-cp ~/.opencode-hub/plugins/rtk/rtk.ts ~/.config/opencode/plugins/rtk.ts
+cp ~/.openhub/plugins/rtk/rtk.ts ~/.config/opencode/plugins/rtk.ts
 
 # Verify
 ls -lah ~/.config/opencode/plugins/rtk.ts
@@ -275,10 +275,10 @@ Based on 1,000+ OpenCode Hub sessions (2026 Q1–Q2):
 
 ## Updating the Plugin
 
-When a new version of the plugin is available in opencode-hub:
+When a new version of the plugin is available in openhub:
 
 ```bash
-cd ~/.opencode-hub
+cd ~/.openhub
 git pull
 oc plugin install rtk  # Reinstalls (with automatic backup)
 ```
@@ -299,9 +299,9 @@ Then restart OpenCode.
 
 ## Support
 
-- **Plugin Documentation**: `~/.opencode-hub/plugins/rtk/README.md`
+- **Plugin Documentation**: `~/.openhub/plugins/rtk/README.md`
 - **WebSearch & best practices**: `docs/guides/websearch-integration.en.md`
-- **RTK Skills**: `~/.opencode-hub/skills/shared/rtk-usage.md`
+- **RTK Skills**: `~/.openhub/skills/shared/rtk-usage.md`
 - **RTK Documentation**: [rtk-ai.app](https://www.rtk-ai.app/)
 
 ---

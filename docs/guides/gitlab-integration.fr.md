@@ -46,7 +46,7 @@ oc gitlab status
 
 1. Aller sur `<votre-gitlab>/-/profile/personal_access_tokens`
 2. Cliquer sur **"Add new token"**
-3. Choisir un nom (ex: `opencode-hub`)
+3. Choisir un nom (ex: `openhub`)
 4. Sélectionner les scopes requis :
    - `api` — accès complet aux issues, MRs, labels, milestones
    - `read_user` — validation d'identité

@@ -35,8 +35,8 @@ teardown() {
   [ "$VERSION_STATUS" -eq 0 ]
 }
 
-@test "version : affiche 'opencode-hub'" {
-  grep -q "opencode-hub" "$VERSION_OUTPUT_FILE"
+@test "version : affiche 'openhub'" {
+  grep -q "openhub" "$VERSION_OUTPUT_FILE"
 }
 
 @test "version : affiche un numéro de version avec format vX.Y.Z" {

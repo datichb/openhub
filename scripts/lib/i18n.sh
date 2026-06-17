@@ -1,5 +1,5 @@
 #!/bin/bash
-# i18n.sh — CLI string table for opencode-hub (EN / FR)
+# i18n.sh — CLI string table for openhub (EN / FR)
 # Sourced by common.sh. Do not execute directly.
 # Compatible with bash 3.2+ (no associative arrays).
 #
@@ -34,7 +34,7 @@ t() {
       deploy_cancelled)       printf '%s' "Déploiement annulé." ;;
 
       # ── cmd-help.sh ────────────────────────────────────────────────────────
-      help.title)             printf '%s' "opencode-hub — gestionnaire d'agents IA" ;;
+      help.title)             printf '%s' "openhub — gestionnaire d'agents IA" ;;
       help.usage)             printf '%s' "Usage :" ;;
       help.section.setup)     printf '%s' "Setup" ;;
       help.section.projects)  printf '%s' "Projets" ;;
@@ -50,7 +50,7 @@ t() {
       help.install.cmd)       printf '%s' "install" ;;
       help.install.desc)      printf '%s' "Installe les outils IA et Beads (bd)" ;;
       help.uninstall.cmd)     printf '%s' "uninstall" ;;
-      help.uninstall.desc)    printf '%s' "Désinstalle opencode-hub et nettoie les artefacts" ;;
+      help.uninstall.desc)    printf '%s' "Désinstalle openhub et nettoie les artefacts" ;;
       help.init.cmd)          printf '%s' "init [PROJECT_ID] [path]" ;;
       help.init.desc)         printf '%s' "Initialise ou adopte un projet" ;;
       help.version.cmd)       printf '%s' "version" ;;
@@ -500,13 +500,13 @@ t() {
       quick.prompt.task)        printf '%s' "Tâche :" ;;
 
       # ── install/uninstall ──────────────────────────────────────────────────
-      install.title)          printf '%s' "Installation opencode-hub" ;;
+      install.title)          printf '%s' "Installation openhub" ;;
       install.already_done)   printf '%s' "Déjà installé." ;;
       install.done)           printf '%s' "Installation terminée." ;;
       install.deps_required)  printf '%s' "Dépendances requises :" ;;
       install.os_detected)    printf '%s' "OS détecté :" ;;
       install.os_done)        printf '%s' "OS configuré :" ;;
-      install.jq_missing)     printf '%s' "jq non détecté — dépendance critique pour opencode-hub" ;;
+      install.jq_missing)     printf '%s' "jq non détecté — dépendance critique pour openhub" ;;
       install.jq_install_brew) printf '%s' "Installer jq via Homebrew ? [Y/n] : " ;;
       install.jq_installed)   printf '%s' "jq installé" ;;
       install.jq_failed)      printf '%s' "Échec installation jq — à installer manuellement" ;;
@@ -546,9 +546,9 @@ t() {
       install.config_title)   printf '%s' "Fichiers de configuration" ;;
       install.config_done)    printf '%s' "Fichiers initialisés" ;;
       install.beads_done)     printf '%s' "Beads configuré" ;;
-      install.ready)          printf '%s' "opencode-hub prêt !" ;;
-      uninstall.title)        printf '%s' "Désinstallation opencode-hub" ;;
-      uninstall.confirm)      printf '%s' "Désinstaller opencode-hub ? [y/N] " ;;
+      install.ready)          printf '%s' "openhub prêt !" ;;
+      uninstall.title)        printf '%s' "Désinstallation openhub" ;;
+      uninstall.confirm)      printf '%s' "Désinstaller openhub ? [y/N] " ;;
       uninstall.done)         printf '%s' "Désinstallation terminée." ;;
       uninstall.cancelled)    printf '%s' "Désinstallation annulée." ;;
 
@@ -824,7 +824,7 @@ t_en() {
     deploy_cancelled)       printf '%s' "Deployment cancelled." ;;
 
     # ── cmd-help.sh ──────────────────────────────────────────────────────────
-    help.title)             printf '%s' "opencode-hub — AI agent workspace manager" ;;
+    help.title)             printf '%s' "openhub — AI agent workspace manager" ;;
     help.usage)             printf '%s' "Usage:" ;;
     help.section.setup)     printf '%s' "Setup" ;;
     help.section.projects)  printf '%s' "Projects" ;;
@@ -840,7 +840,7 @@ t_en() {
     help.install.cmd)       printf '%s' "install" ;;
     help.install.desc)      printf '%s' "Install AI tools and Beads (bd)" ;;
     help.uninstall.cmd)     printf '%s' "uninstall" ;;
-    help.uninstall.desc)    printf '%s' "Uninstall opencode-hub and clean up artifacts" ;;
+    help.uninstall.desc)    printf '%s' "Uninstall openhub and clean up artifacts" ;;
     help.init.cmd)          printf '%s' "init [PROJECT_ID] [path]" ;;
     help.init.desc)         printf '%s' "Initialize or adopt a project" ;;
     help.version.cmd)       printf '%s' "version" ;;
@@ -1299,13 +1299,13 @@ t_en() {
     quick.prompt.task)        printf '%s' "Task:" ;;
 
     # ── install/uninstall ────────────────────────────────────────────────────
-    install.title)          printf '%s' "opencode-hub installation" ;;
+    install.title)          printf '%s' "openhub installation" ;;
     install.already_done)   printf '%s' "Already installed." ;;
     install.done)           printf '%s' "Installation complete." ;;
     install.deps_required)  printf '%s' "Required dependencies:" ;;
     install.os_detected)    printf '%s' "OS detected:" ;;
     install.os_done)        printf '%s' "OS configured:" ;;
-    install.jq_missing)     printf '%s' "jq not detected — critical dependency for opencode-hub" ;;
+    install.jq_missing)     printf '%s' "jq not detected — critical dependency for openhub" ;;
     install.jq_install_brew) printf '%s' "Install jq via Homebrew? [Y/n]: " ;;
     install.jq_installed)   printf '%s' "jq installed" ;;
     install.jq_failed)      printf '%s' "jq installation failed — install manually" ;;
@@ -1345,9 +1345,9 @@ t_en() {
     install.config_title)   printf '%s' "Configuration files" ;;
     install.config_done)    printf '%s' "Files initialized" ;;
     install.beads_done)     printf '%s' "Beads configured" ;;
-    install.ready)          printf '%s' "opencode-hub ready!" ;;
-    uninstall.title)        printf '%s' "opencode-hub uninstall" ;;
-    uninstall.confirm)      printf '%s' "Uninstall opencode-hub? [y/N] " ;;
+    install.ready)          printf '%s' "openhub ready!" ;;
+    uninstall.title)        printf '%s' "openhub uninstall" ;;
+    uninstall.confirm)      printf '%s' "Uninstall openhub? [y/N] " ;;
     uninstall.done)         printf '%s' "Uninstall complete." ;;
     uninstall.cancelled)    printf '%s' "Uninstall cancelled." ;;
 

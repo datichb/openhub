@@ -2,7 +2,7 @@
 
 **Date :** 2026-06-04
 **Statut :** Accepté
-**Auteurs :** opencode-hub
+**Auteurs :** openhub
 
 ---
 
@@ -16,7 +16,7 @@ Par ailleurs, les développeurs souhaitent parfois travailler sur une nouvelle f
 
 ## Décision
 
-Introduire le support de **`git worktree`** dans opencode-hub selon deux axes complémentaires :
+Introduire le support de **`git worktree`** dans openhub selon deux axes complémentaires :
 
 ### Axe 1 — Isolation du mode auto (complément)
 

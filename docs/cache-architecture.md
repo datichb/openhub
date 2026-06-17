@@ -1,8 +1,8 @@
-# Architecture du cache — opencode-hub
+# Architecture du cache — openhub
 
 ## Vue d'ensemble
 
-opencode-hub utilise deux niveaux de cache complémentaires, chacun avec un rôle distinct.
+openhub utilise deux niveaux de cache complémentaires, chacun avec un rôle distinct.
 
 ---
 

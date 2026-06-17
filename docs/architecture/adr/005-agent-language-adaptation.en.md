@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The opencode-hub is written entirely in French: agents, skills, documentation.
+The openhub is written entirely in French: agents, skills, documentation.
 However, projects on which agents are deployed may have different working languages (English, Spanish, etc.).
 
 Currently, an agent deployed on an English-speaking project will produce its reports, summaries, and messages in French, which creates friction for non-French-speaking teams.

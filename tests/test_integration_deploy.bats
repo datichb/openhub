@@ -324,7 +324,7 @@ AGENTEOF
   [ "$json_full" = "$json_config" ]
 }
 
-@test "adapter_deploy_config : fonctionne sous set -u sans Phase 1 préalable — non-régression #opencode-hub-5s5" {
+@test "adapter_deploy_config : fonctionne sous set -u sans Phase 1 préalable — non-régression #openhub-5s5" {
   command -v jq &>/dev/null || skip "jq non disponible"
 
   # Répertoire agents vide : _load_agent_metadata() doit exister mais ne retenir aucun agent

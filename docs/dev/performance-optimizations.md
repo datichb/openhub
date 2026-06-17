@@ -1,6 +1,6 @@
 # Performance Optimizations
 
-> Documentation des optimisations de performance implémentées dans opencode-hub
+> Documentation des optimisations de performance implémentées dans openhub
 
 ## Vue d'ensemble
 
