@@ -306,8 +306,10 @@ GITEOF
   chmod +x "$TEST_DIR/bin/git"
 
   # Répondre n au prompt → annulation
+  # OC_NON_INTERACTIVE doit être 0 pour que _prompt lise le stdin pipe (read -t 1)
+  # Sinon _prompt retourne "" et on continue par défaut (comportement non-interactif)
   run bash -c '
-    printf "n\n" | bash "$1" TEST-PROJ --branch feat/test
+    OC_NON_INTERACTIVE=0 printf "n\n" | OC_NON_INTERACTIVE=0 bash "$1" TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   # opencode NE doit PAS avoir été appelé
