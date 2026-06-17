@@ -201,6 +201,8 @@ fi
 exit 1
 BREWEOF
   chmod +x "$TEST_DIR/bin_mock/brew"
+  # opencode mock doit aussi être dans bin_mock (bin est retiré du PATH)
+  cp "$TEST_DIR/bin/opencode" "$TEST_DIR/bin_mock/opencode"
   # PATH : bin_mock en tête (brew présent, rtk absent au départ), sans bin (mock rtk)
   local path_without_rtk
   path_without_rtk=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
