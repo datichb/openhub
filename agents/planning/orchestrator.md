@@ -5,7 +5,7 @@ description: Interface utilisateur — coordonne la communication agent-utilisat
 mode: primary
 permission:
   question: allow
-  skill: deny
+  skill: allow
   todowrite: allow
   bash: deny
   read: deny
