@@ -634,3 +634,41 @@ REQ
   result=$(build_dev_bootstrap_prompt "$TEST_DIR/project-beads" "ai-delegated" "john@example.com")
   [[ "$result" == *"john@example.com"* ]]
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# build_audit_bootstrap_prompt
+# ══════════════════════════════════════════════════════════════════════════════
+
+@test "build_audit_bootstrap_prompt : contient le chemin projet" {
+  mkdir -p "$TEST_DIR/my-project"
+  result=$(build_audit_bootstrap_prompt "$TEST_DIR/my-project" "my-project" "")
+  [[ "$result" == *"my-project"* ]]
+}
+
+@test "build_audit_bootstrap_prompt : inclut le type dans le prompt quand fourni" {
+  mkdir -p "$TEST_DIR/my-project"
+  result=$(build_audit_bootstrap_prompt "$TEST_DIR/my-project" "my-project" "security")
+  [[ "$result" == *"security"* ]]
+}
+
+@test "build_audit_bootstrap_prompt : fonctionne sans type (audit complet)" {
+  mkdir -p "$TEST_DIR/my-project"
+  result=$(build_audit_bootstrap_prompt "$TEST_DIR/my-project" "my-project" "")
+  # Ne doit pas contenir de nom d'agent spécialisé supprimé
+  [[ "$result" != *"auditor-security"* ]]
+  [[ "$result" != *"auditor-performance"* ]]
+  [[ "$result" != *"auditor-architecture"* ]]
+}
+
+@test "build_audit_bootstrap_prompt : mentionne la délégation aux sous-agents" {
+  mkdir -p "$TEST_DIR/my-project"
+  result=$(build_audit_bootstrap_prompt "$TEST_DIR/my-project" "my-project" "")
+  [[ "$result" == *"sous-agent"* ]] || [[ "$result" == *"audit"* ]]
+}
+
+@test "build_audit_bootstrap_prompt : type privacy transmis dans le prompt" {
+  mkdir -p "$TEST_DIR/my-project"
+  result=$(build_audit_bootstrap_prompt "$TEST_DIR/my-project" "my-project" "privacy")
+  [[ "$result" == *"privacy"* ]]
+  [[ "$result" != *"auditor-privacy"* ]]
+}

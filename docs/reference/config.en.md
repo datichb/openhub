@@ -414,7 +414,7 @@ defined (to remove an old provider block), or if the file is absent**; kept as-i
   "$schema": "https://opencode.ai/config.json",
   "model": "claude-sonnet-4-5",
   "agent": {
-    "auditor-security": { "mode": "subagent" },
+    "auditor-subagent": { "mode": "subagent" },
     "developer-backend": { "mode": "subagent" },
     "build": { "disable": true },
     "plan": { "disable": true }

@@ -168,15 +168,7 @@ oc start MON-APP
 | `developer` | `orchestrator-dev` | Implémentation — domaine précisé à l'invocation : frontend, backend, fullstack, api, mobile, data, devops, platform, security |
 | `developer-refactor` | `orchestrator-dev` | Refactoring structurel — ne modifie jamais le comportement observable |
 | `developer-migrator` | `orchestrator-dev` | Migrations incrémentales — upgrades de framework, versions majeures, dépendances EOL |
-| `auditor-security` | `auditor` | OWASP Top 10, CVE, RGS |
-| `auditor-performance` | `auditor` | Core Web Vitals, N+1, cache |
-| `auditor-accessibility` | `auditor` | WCAG 2.1 AA, RGAA 4.1 |
-| `auditor-ecodesign` | `auditor` | RGESN, GreenIT, Écoindex |
-| `auditor-architecture` | `auditor` | SOLID, Clean Architecture, dette technique |
-| `auditor-privacy` | `auditor` | RGPD, EDPB, CNIL |
-| `auditor-observability` | `auditor` | Méthode RED, SLOs, OpenTelemetry |
-
-> Les sous-agents sont aussi invocables directement si besoin (ex : `auditor-security` seul sans passer par `auditor`).
+| `auditor-subagent` | `auditor` | Tous les domaines d'audit : security (OWASP Top 10, CVE, RGS), performance (Core Web Vitals, N+1, cache), accessibility (WCAG 2.1 AA, RGAA 4.1), ecodesign (RGESN, GreenIT, Écoindex), architecture (SOLID, Clean Architecture), privacy (RGPD, EDPB, CNIL), observability (Méthode RED, SLOs, OpenTelemetry) |
 
 > Référence complète : [docs/architecture/agents.fr.md](docs/architecture/agents.fr.md)
 

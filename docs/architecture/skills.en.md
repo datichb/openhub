@@ -168,17 +168,17 @@ Audit skills. Skills marked **(A)** are Bucket A — inline. Skills marked **(B)
 | File | Bucket | Agents using it | Content |
 |------|--------|----------------|---------|
 | `auditor/auditor-workflow.md` | **A** | auditor | **Unified coordinator workflow** — 5 phases (0 prerequisites check → 1 project context loading → 2 domain selection with stack compatibility → 3 subagent delegation → 4 consolidation executive summary) — systematic recaps, mandatory questions via `question`, backwards possible; orchestrator invocation marker detection for `## Return to orchestrator` block |
-| `auditor/audit-protocol-light.md` | **A** | all auditor-* | Common lightweight report format (subagents only): 4 criticality levels (🔴/🟠/🟡/💡), /10 scoring, individual finding format |
-| `auditor/audit-security.md` | **B** | auditor-security | OWASP Top 10, injections, exposed secrets, auth, CORS, CVE |
-| `auditor/audit-performance.md` | **B** | auditor-performance | Core Web Vitals, LCP, CLS, TTI, N+1 queries, cache, bundle |
-| `auditor/audit-accessibility.md` | **B** | auditor-accessibility | WCAG 2.1 AA, RGAA 4.1, semantics, ARIA, keyboard navigation, contrast |
-| `auditor/audit-ecodesign.md` | **B** | auditor-ecodesign | RGESN, GreenIT, Écoindex, data transfer, resources, obsolescence |
-| `auditor/audit-architecture.md` | **B** | auditor-architecture | SOLID, Clean Architecture, technical debt, coupling, cohesion |
-| `auditor/audit-privacy.md` | **B** | auditor-privacy | GDPR articles 5/6/17/25/32, EDPB, CNIL, minimisation, consent |
-| `auditor/audit-observability.md` | **B** | auditor-observability | RED method (Rate/Errors/Duration), structured logs, OpenTelemetry, SLOs/error budget, alerting (actionable, runbooks), dashboards, 5-question grid |
-| `auditor/audit-handoff-format.md` | **A** | all auditor-*, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: audited scope, vulnerability table by severity, prioritized recommendations with effort estimate, residual risk, status (`corrections-required` / `acceptable` / `blocking`) |
-| `auditor/websearch-cve-lookup.md` | **B** | auditor-security | CVE/NVD lookup protocol via websearch |
-| `auditor/websearch-performance-research.md` | **B** | auditor-performance | Performance benchmark and regression research protocol via websearch |
+| `auditor/audit-protocol-light.md` | **A** | auditor-subagent | Common lightweight report format (subagents only): 4 criticality levels (🔴/🟠/🟡/💡), /10 scoring, individual finding format |
+| `auditor/audit-security.md` | **B** | auditor-subagent | OWASP Top 10, injections, exposed secrets, auth, CORS, CVE |
+| `auditor/audit-performance.md` | **B** | auditor-subagent | Core Web Vitals, LCP, CLS, TTI, N+1 queries, cache, bundle |
+| `auditor/audit-accessibility.md` | **B** | auditor-subagent | WCAG 2.1 AA, RGAA 4.1, semantics, ARIA, keyboard navigation, contrast |
+| `auditor/audit-ecodesign.md` | **B** | auditor-subagent | RGESN, GreenIT, Écoindex, data transfer, resources, obsolescence |
+| `auditor/audit-architecture.md` | **B** | auditor-subagent | SOLID, Clean Architecture, technical debt, coupling, cohesion |
+| `auditor/audit-privacy.md` | **B** | auditor-subagent | GDPR articles 5/6/17/25/32, EDPB, CNIL, minimisation, consent |
+| `auditor/audit-observability.md` | **B** | auditor-subagent | RED method (Rate/Errors/Duration), structured logs, OpenTelemetry, SLOs/error budget, alerting (actionable, runbooks), dashboards, 5-question grid |
+| `auditor/audit-handoff-format.md` | **A** | auditor-subagent, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: audited scope, vulnerability table by severity, prioritized recommendations with effort estimate, residual risk, status (`corrections-required` / `acceptable` / `blocking`) |
+| `auditor/websearch-cve-lookup.md` | **B** | auditor-subagent | CVE/NVD lookup protocol via websearch |
+| `auditor/websearch-performance-research.md` | **B** | auditor-subagent | Performance benchmark and regression research protocol via websearch |
 
 ---
 
@@ -280,7 +280,7 @@ Cross-cutting posture skills. Injectable into any agent requiring an expert post
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `posture/expert-posture.md` | auditor-security, auditor-performance, auditor-accessibility, auditor-ecodesign, auditor-architecture, auditor-privacy, auditor-observability, onboarder, ux-designer, ui-designer, planner, documentarian, qa-engineer | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
+| `posture/expert-posture.md` | auditor-subagent, onboarder, ux-designer, ui-designer, planner, documentarian, qa-engineer | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
 | `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, ux-designer, ui-designer | Usage of OpenCode's `question` tool — `question({ questions: [{...}] })` syntax, multi-questions support in a single call, multi-selection (`multiple: true`), automatic "Type your own answer" option (don't duplicate), response format (array of labels), mandatory structure (`header` ≤ 30 chars, `question`, `options` with `label` + `description`), recommended option first with `(Recommended)`, mandatory context block when invoked as sub-agent |
 | `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer | **(A)** — Concision posture level `lite`: drops valueless intro phrases ("Sure!", "I'm going to...", "Here is..."), known-context restatements, redundant transitions between titled sections, closing formulas. Does not touch handoff blocks, mandatory narrative recaps, formal reports, or technical content. Tunable via `token_optimization.output_verbosity` in `hub.json`. See [ADR-015](./adr/015-concision-posture.en.md). |
 
@@ -359,27 +359,11 @@ auditor               → (A) auditor/auditor-workflow, posture/tool-question,
                              shared/living-docs-enrichment,
                              auditor/audit-handoff-format †
                         skill: deny
-auditor-security      → (A) auditor/audit-protocol-light, posture/expert-posture,
+auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-posture,
+                             posture/subagent-concision-posture,
                              auditor/audit-handoff-format †
-                        (B) auditor/audit-security, auditor/websearch-cve-lookup
-auditor-performance   → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-performance, auditor/websearch-performance-research
-auditor-accessibility → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-accessibility
-auditor-ecodesign     → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-ecodesign
-auditor-architecture  → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-architecture
-auditor-privacy       → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-privacy
-auditor-observability → (A) auditor/audit-protocol-light, posture/expert-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-observability
+                        (B) auditor/audit-<domain>  ← injected by coordinator via [SKILL:...]
+                             shared/websearch-usage
 ux-designer           → (A) designer/ux-protocol, developer/beads-plan, developer/beads-dev,
                              posture/expert-posture, posture/tool-question,
                              design/design-handoff-format †

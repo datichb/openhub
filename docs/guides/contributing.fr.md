@@ -14,7 +14,7 @@ touch agents/<famille>/<id>.md
 ```
 
 Respecter la convention de nommage :
-- `<domaine>-<spécialité>.md` pour les sous-agents (ex: `auditor-security.md`)
+- `<domaine>-<spécialité>.md` pour les sous-agents (ex: `auditor-subagent.md`)
 - `<rôle>.md` pour les agents principaux (ex: `orchestrator.md`)
 
 ### 2. Structure minimale du frontmatter

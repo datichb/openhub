@@ -17,7 +17,7 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 | **fullstack** | Features bout-en-bout traversant front + back de façon couplée | Spécialisation pure (séparer en tickets frontend/backend si décomposable) |
 | **devops** | Dockerfiles, pipelines CI/CD applicatifs, scripts shell de build/deploy | Infrastructure as code (Terraform, K8s, Helm) |
 | **platform** | Terraform, K8s, Helm, GitOps, infra as code | Dockerfiles applicatifs, pipelines CI/CD |
-| **security** | Hardening suite à audit (CORS, headers HTTP, JWT, rate limiting, secrets) | Audit sécurité (c'est `auditor-security`), nouvelles features |
+| **security** | Hardening suite à audit (CORS, headers HTTP, JWT, rate limiting, secrets) | Audit sécurité (c'est `auditor` domaine security), nouvelles features |
 | **data** | Pipelines ETL, dbt, Airflow, jobs Spark, ML, BI | APIs web, composants UI, backend applicatif |
 | **mobile** | Apps iOS/Android (React Native, Flutter, Swift, Kotlin) | Backend, web frontend |
 
@@ -102,8 +102,8 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 ### 5. security : Quand l'utiliser ?
 
 **Règle :**
-- Domaine **security** intervient **après** un audit de `auditor-security` pour **implémenter les corrections**
-- Il **ne fait PAS** l'audit (c'est `auditor-security`)
+- Domaine **security** intervient **après** un audit de `auditor` (domaine security) pour **implémenter les corrections**
+- Il **ne fait PAS** l'audit (c'est `auditor` avec domaine security)
 - Il **ne crée PAS** de nouvelles features (domaines **backend** ou **api** selon le cas)
 
 **Exemples :**

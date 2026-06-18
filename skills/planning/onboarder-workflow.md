@@ -29,7 +29,7 @@ Tu ne codes JAMAIS. Tu ne modifies JAMAIS de fichiers du projet, à l'exception 
 
 ### Tu ne dois JAMAIS :
 - Implémenter du code ou modifier des fichiers du projet
-- Réaliser un audit approfondi — c'est le rôle des agents `auditor-*`
+- Réaliser un audit approfondi — c'est le rôle de l'agent `auditor`
 - Invoquer automatiquement un autre agent — tu suggères, l'utilisateur décide
 - Produire un rapport optimiste qui cache les problèmes
 - Inventer des observations non fondées sur des fichiers réellement lus
@@ -1162,7 +1162,7 @@ Produire le rapport de contexte structuré avec la carte des agents recommandés
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `auditor-security` | [observation concrète] | `"Audite la sécurité de ce projet"` |
+| `auditor` (security) | [observation concrète] | `"Audite la sécurité de ce projet"` |
 | `developer-security` | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
 
 *(Section absente si aucun 🔴/🟠 pertinent)*
@@ -1178,8 +1178,8 @@ Produire le rapport de contexte structuré avec la carte des agents recommandés
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `auditor-accessibility` | [observation] | `"Audite l'accessibilité"` |
-| `auditor-ecodesign` | [observation] | `"Audite l'éco-conception"` |
+| `auditor` (accessibility) | [observation] | `"Audite l'accessibilité"` |
+| `auditor` (ecodesign) | [observation] | `"Audite l'éco-conception"` |
 
 ---
 
@@ -1212,18 +1212,18 @@ bd ready                  # Tickets prêts à travailler
 
 | Signal détecté | Agents prioritaires |
 |---------------|---------------------|
-| Secrets en dur dans le code | `auditor-security` → `developer-security` |
-| Pas de validation des inputs côté serveur | `auditor-security` → `developer-security` |
-| Dépendances avec versions très anciennes (potentiel CVE) | `auditor-security` |
-| Hashing faible ou absent (MD5, SHA1, plain text) | `auditor-security` → `developer-security` |
-| CORS trop permissif (`*`) ou absent | `auditor-security` → `developer-security` |
-| Données personnelles sans chiffrement ni contrôle d'accès | `auditor-privacy` |
+| Secrets en dur dans le code | `auditor` (security) → `developer-security` |
+| Pas de validation des inputs côté serveur | `auditor` (security) → `developer-security` |
+| Dépendances avec versions très anciennes (potentiel CVE) | `auditor` (security) |
+| Hashing faible ou absent (MD5, SHA1, plain text) | `auditor` (security) → `developer-security` |
+| CORS trop permissif (`*`) ou absent | `auditor` (security) → `developer-security` |
+| Données personnelles sans chiffrement ni contrôle d'accès | `auditor` (privacy) |
 | Pas de tests (dossier `tests/` vide ou absent) | `qa-engineer` |
 | Ratio fichiers source / fichiers test très déséquilibré | `qa-engineer` |
-| Requêtes N+1 visibles dans les relations ORM | `auditor-performance` |
-| Bundle non optimisé (pas de lazy loading, assets non compressés) | `auditor-performance` |
-| Pas de logs structurés / monitoring absent | `auditor-observability` |
-| Imports circulaires, God classes, couplage fort évident | `auditor-architecture` |
+| Requêtes N+1 visibles dans les relations ORM | `auditor` (performance) |
+| Bundle non optimisé (pas de lazy loading, assets non compressés) | `auditor` (performance) |
+| Pas de logs structurés / monitoring absent | `auditor` (observability) |
+| Imports circulaires, God classes, couplage fort évident | `auditor` (architecture) |
 | Migrations en attente non appliquées | `developer-backend` (traitement prioritaire) |
 
 #### Agents recommandés (activés par la stack)
@@ -1251,9 +1251,9 @@ bd ready                  # Tickets prêts à travailler
 
 | Observation | Agent optionnel |
 |-------------|----------------|
-| Aucun attribut ARIA visible, sémantique HTML absente | `auditor-accessibility` |
-| Assets lourds, aucune optimisation visible | `auditor-ecodesign` |
-| SLOs non définis, alerting absent | `auditor-observability` |
+| Aucun attribut ARIA visible, sémantique HTML absente | `auditor` (accessibility) |
+| Assets lourds, aucune optimisation visible | `auditor` (ecodesign) |
+| SLOs non définis, alerting absent | `auditor` (observability) |
 | Architecture non documentée, pas d'ADR | `documentarian` |
 
 ### Récap de fin de Phase 3
@@ -1354,7 +1354,7 @@ Si un **cas particulier critique** est détecté (ex : CVE critiques, incohéren
 
 **Impact sur le rapport :**
 - <ajustement 1 — ex : ajout de 2 points d'attention 🟠>
-- <ajustement 2 — ex : mise à jour de la carte des agents (auditor-security prioritaire)>
+- <ajustement 2 — ex : mise à jour de la carte des agents (auditor prioritaire pour le domaine security)>
 - (aucun ajustement si tous les cas écartés)
 ```
 

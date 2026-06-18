@@ -30,22 +30,19 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **C-1** | `orchestrator` : `skill: deny` bloquait l'intégralité des skills — confirmé par le code source OpenCode (`session/system.ts` + `skill/index.ts`). L'orchestrator tournait sans aucune posture ni format handoff. | `agents/planning/orchestrator.md` | `00ef56c` |
 | ✅ **C-4** | `coordination-only.md` : tableau récap `bash ❌` sans nuance → contradiction avec les exceptions worktree déclarées dans `orchestrator-dev`. | `skills/posture/coordination-only.md` | `00ef56c` |
 | ✅ **subagent-concision** | Création du skill `subagent-concision-posture` (niveau compact, machine-to-machine). Câblage sur les 11 agents `mode: subagent`. Allègement de `concision-posture` (portée resserrée aux agents primaires). ADR-015 mis à jour (fr + en). | `skills/posture/subagent-concision-posture.md`, `skills/posture/concision-posture.md`, 11 agents, `config/hub.json`, ADR-015 | `c5f61a4` |
+| ✅ **C-2** | Conflit `expert-posture` vs `subagent-concision-posture` sur les auditors — résolu par ADR-017 : consolidation des 7 `auditor-*` en un seul `auditor-subagent`. L'agent unique reçoit les deux skills sans conflit structurel car le domaine est injecté dynamiquement ; les risques critiques remontent via le champ `risques` du bloc handoff. | `agents/auditor/auditor-subagent.md`, docs architecture/skills, docs guides/workflows | ADR-017 |
+| ✅ **C-5** | Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor` — résolu par ADR-017 : remplacement par `"auditor-subagent": allow` (permission explicite, sans wildcard). | `agents/auditor/auditor.md`, `docs/architecture/task-delegation.fr.md` | ADR-017 |
+| ✅ **m-3** | `subagent-concision-posture` listait `debugger` dans sa portée (hybride standalone/subagent) — résolu conjointement avec C-3 (debugger → `mode: primary`) et ADR-017 (suppression des 7 `auditor-*` de la portée, remplacés par `auditor-subagent`). | `skills/posture/subagent-concision-posture.md` | ADR-017 |
 
 ---
 
 ## Points restants — 🔴 Critique (3)
 
-### C-2 — Conflit `expert-posture` vs `subagent-concision-posture` sur les auditors
+### ✅ C-2 — Conflit `expert-posture` vs `subagent-concision-posture` sur les auditors *(résolu — ADR-017)*
 
-**Agents concernés :** `auditor-architecture`, `auditor-security`, `auditor-observability`, `auditor-ecodesign`, `auditor-accessibility`, `auditor-performance`, `auditor-privacy`
+**Agents concernés :** `auditor-subagent` (remplace les 7 `auditor-*` supprimés)
 
-**Problème :** Les 7 sous-agents d'audit chargent à la fois `posture/expert-posture` et `posture/subagent-concision-posture`. La section 3 d'`expert-posture` prescrit d'appeler l'outil `question` avant toute action à risque élevé irréversible. `subagent-concision-posture` stipule que l'output est consommé par un coordinateur et que l'interactivité directe est inappropriée. Aucune règle de priorité entre les deux skills.
-
-**Cas métier réel :** un audit détectant une faille critique en production déclencherait une tentative d'appel `question` — bloqué ou non selon l'interprétation du modèle.
-
-**Pistes de résolution :**
-- Option A : Créer une variante `expert-posture-readonly` sans la section 3 (pause de confirmation) pour les `mode: subagent`
-- Option B : Ajouter une règle de priorité explicite dans `subagent-concision-posture` : "En cas de conflit avec `expert-posture`, `subagent-concision-posture` prévaut — les risques critiques sont remontés via le champ `risques` du bloc handoff, jamais via `question`"
+**Résolution (ADR-017) :** Consolidation des 7 sous-agents `auditor-*` en un seul `auditor-subagent`. Le conflit de posture disparaît structurellement : l'agent unique reçoit `expert-posture` + `subagent-concision-posture` ; la règle de priorité est que les risques critiques remontent via le champ `risques` du bloc handoff, jamais via l'outil `question`.
 
 ---
 
@@ -65,17 +62,11 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### C-5 — Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor`
+### ✅ C-5 — Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor` *(résolu — ADR-017)*
 
 **Agent concerné :** `agents/auditor/auditor.md`
 
-**Problème :** La permission `task: { "auditor-*": allow }` utilise un wildcard. Si OpenCode ne supporte pas les wildcards dans les permissions `task`, aucun sous-agent auditor ne peut être invoqué par le coordinateur `auditor`. Non documenté dans le code source.
-
-**À vérifier :** chercher dans `packages/opencode/src/permission/` comment les patterns sont évalués pour `task`.
-
-**Résolution selon résultat :**
-- Wildcard supporté → documenter et fermer
-- Wildcard non supporté → remplacer par la liste explicite des 7 sous-agents
+**Résolution (ADR-017) :** La permission `task: { "auditor-*": allow }` a été remplacée par `task: { "auditor-subagent": allow }` — permission explicite sans wildcard. Le risque de non-support des wildcards est éliminé.
 
 ---
 
@@ -181,7 +172,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 |----|---------|----------------------|
 | m-1 | Terminologie `orchestrateur` vs `orchestrator` (avec/sans accent) dans les templates de blocs structurés — double nomenclature | Multiples skills et agents |
 | m-2 | `concision-posture` : liste d'agents éligibles figée dans le texte — pas auto-extensible à de nouveaux agents | `skills/posture/concision-posture.md` |
-| m-3 | `subagent-concision-posture` : `debugger` listé dans la portée alors qu'il est hybride — à corriger en même temps que C-3 | `skills/posture/subagent-concision-posture.md` |
+| m-3 | ✅ `subagent-concision-posture` : `debugger` retiré de la portée (résolu conjointement avec C-3 + ADR-017 — les 7 `auditor-*` supprimés, remplacés par `auditor-subagent`) | `skills/posture/subagent-concision-posture.md` |
 | m-4 | `planner` : `expert-posture` + `concision-posture` sans priorité (identique à M-1) | `agents/planning/planner.md` |
 | m-5 | `onboarder` absent de la portée de `concision-posture` sans justification documentée, alors que `planner` et `pathfinder` y sont | `skills/posture/concision-posture.md` |
 | m-6 | Chaîne `living-docs-enrichment` → documentarian → wiki-navigation → index : complexité de dépendances non documentée | `skills/shared/living-docs-enrichment.md` |
@@ -208,13 +199,11 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ### Lot 3 — Conflits de posture (1-2h)
 
-5. **C-2** : résoudre `expert-posture` vs `subagent-concision-posture` sur les auditors
-6. **M-1 / m-4** : note de priorité `expert-posture` vs `concision-posture`
+5. **M-1 / m-4** : note de priorité `expert-posture` vs `concision-posture`
 
 ### Lot 4 — Vérifications système (30 min)
 
-7. **C-5** : vérifier sémantique wildcard `auditor-*` dans le code OpenCode
-8. **M-3** : vérifier comportement `read` non déclaré dans OpenCode (allow ou deny par défaut ?)
+6. **M-3** : vérifier comportement `read` non déclaré dans OpenCode (allow ou deny par défaut ?)
 
 ### Lot 5 — Nettoyage documentaire (1h)
 
@@ -233,4 +222,4 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 - **`skill: deny` bloque tout** : supprime la section "Available Skills" du system prompt (`session/system.ts` ligne `if (Permission.disabled(["skill"]...)`), et bloque l'outil `skill`. Un agent avec `skill: deny` tourne sans aucun skill.
 - **`native_skills:` n'est pas non plus un champ natif OpenCode.** Convention documentaire du hub.
 - **`skill: allow` est requis** pour que les agents voient la liste des skills disponibles et puissent les charger via l'outil `skill`.
-- **Le wildcard dans `task: { "auditor-*": allow }` : statut non vérifié.** À investiguer dans `packages/opencode/src/permission/`.
+- **Le wildcard dans `task: { "auditor-*": allow }` : résolu par ADR-017** — remplacé par `"auditor-subagent": allow` (permission explicite).

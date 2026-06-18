@@ -115,7 +115,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 - Secrets uniquement via External Secrets Operator ou Vault — jamais en clair dans Git
 
 ### security
-- Intervient après un audit `auditor-security` pour corriger les failles identifiées
+- Intervient après un audit `auditor` (domaine security) pour corriger les failles identifiées
 - Chaque correction est accompagnée d'un test qui prouve que la faille est corrigée
 - Soumettre au `reviewer` avant de clore — même en invocation directe hors `orchestrator-dev`
 - Jamais de cryptographie maison — uniquement les bibliothèques éprouvées

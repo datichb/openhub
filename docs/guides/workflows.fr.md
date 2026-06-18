@@ -129,7 +129,7 @@ puis pose une question courte pour le mode de workflow :
 |------|--------------------------------|---------------|-------------------|
 | bd-1 | Spec UX — flow auth            | spec-ux       | ux-designer       |
 | bd-2 | Spec UI — composants auth      | spec-ui       | ui-designer       |
-| bd-3 | Audit sécurité périmètre auth  | audit         | auditor-security  |
+| bd-3 | Audit sécurité périmètre auth  | audit         | auditor-subagent  |
 | bd-4 | Modèle User + migrations       | task          | developer-backend |
 | bd-5 | Service JWT                    | feature       | developer-backend |
 | bd-6 | Endpoints login/logout/refresh | feature       | developer-backend |
@@ -146,7 +146,7 @@ L'orchestrateur traite d'abord les tickets de type `spec-*` et `audit` :
 - Invoque `ux-designer` → spec UX produite → **[CP-spec]** valider / réviser / ignorer
   - L'agent design retourne un bloc structuré `## Retour vers orchestrator` avec la spec complète, les contraintes d'implémentation et les points ouverts. L'orchestrateur valide la présence de ce bloc avant de continuer.
 - Invoque `ui-designer` → spec UI produite → **[CP-spec]** valider / réviser / ignorer
-- Invoque `auditor-security` → rapport d'audit → **[CP-audit]** corriger / accepter / ignorer
+- Invoque `auditor-subagent` (domaine sécurité) → rapport d'audit → **[CP-audit]** corriger / accepter / ignorer
   - L'auditeur retourne un bloc structuré avec le tableau des vulnérabilités par sévérité, les recommandations priorisées, le risque résiduel et un statut (`corrections-requises` / `acceptable` / `bloquant`).
   - Si "corriger" : un ticket de correction est ajouté à la liste dev
 
@@ -183,7 +183,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 |------|--------------------------------|----------|-------------------|------------|
 | bd-1 | Spec UX — flow auth            | design   | ux-designer       | ✅ Validé  |
 | bd-2 | Spec UI — composants auth      | design   | ui-designer       | ✅ Validé  |
-| bd-3 | Audit sécurité périmètre auth  | audit    | auditor-security  | ✅ Accepté |
+| bd-3 | Audit sécurité périmètre auth  | audit    | auditor-subagent  | ✅ Accepté |
 | bd-4 | Modèle User + migrations       | dev      | developer-backend | ✅ Mergé   |
 | bd-5 | Service JWT                    | dev      | developer-backend | ✅ Mergé   |
 | bd-6 | Endpoints login/logout/refresh | dev      | developer-backend | ✅ Mergé   |
@@ -205,13 +205,13 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 ```mermaid
 flowchart TD
     U[Utilisateur\n'Audite le projet'] --> A[Auditeur]
-    A --> |Qualifie : audit complet| AS[auditor-security]
-    A --> AP[auditor-performance]
-    A --> AA[auditor-accessibility]
-    A --> AE[auditor-ecodesign]
-    A --> AR[auditor-architecture]
-    A --> APR[auditor-privacy]
-    A --> AO[auditor-observability]
+    A --> |Qualifie : audit complet| AS[auditor-subagent\ndomaine: sécurité]
+    A --> AP[auditor-subagent\ndomaine: performance]
+    A --> AA[auditor-subagent\ndomaine: accessibilité]
+    A --> AE[auditor-subagent\ndomaine: éco-conception]
+    A --> AR[auditor-subagent\ndomaine: architecture]
+    A --> APR[auditor-subagent\ndomaine: privacy]
+    A --> AO[auditor-subagent\ndomaine: observabilité]
     AS --> S[Synthèse exécutive\nmulti-domaines]
     AP --> S
     AA --> S
@@ -230,7 +230,7 @@ flowchart TD
 Prompt : "Audite le projet"
 ```
 
-L'auditeur qualifie la demande comme un **audit complet** et délègue aux 7 sous-agents.
+L'auditeur qualifie la demande comme un **audit complet** et délègue à `auditor-subagent` pour chacun des 7 domaines (une invocation par domaine, domaine + native_skill transmis dans le prompt).
 
 #### 2. Audit ciblé
 
@@ -238,7 +238,7 @@ L'auditeur qualifie la demande comme un **audit complet** et délègue aux 7 sou
 Prompt : "Audite la sécurité et vérifie le RGPD"
 ```
 
-L'auditeur délègue uniquement à `auditor-security` et `auditor-privacy`.
+L'auditeur délègue uniquement à `auditor-subagent` avec les domaines `sécurité` et `privacy`.
 
 #### 3. Audit express (quick audit)
 
@@ -246,7 +246,7 @@ L'auditeur délègue uniquement à `auditor-security` et `auditor-privacy`.
 Prompt : "Quick audit"
 ```
 
-L'auditeur délègue à `auditor-security`, `auditor-accessibility`, `auditor-performance`.
+L'auditeur délègue à `auditor-subagent` pour les domaines `sécurité`, `accessibilité`, `performance`.
 
 #### 4. Format du rapport de synthèse
 

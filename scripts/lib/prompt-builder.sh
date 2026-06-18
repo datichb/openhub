@@ -720,7 +720,7 @@ _get_precomputed_stack_skills() {
 # Retourne le nom d'une skill au format opencode (kebab-case, basename sans .md)
 # Conforme à la contrainte de nommage opencode : ^[a-z0-9]+(-[a-z0-9]+)*$
 # Ex: developer/stacks/dev-standards-vuejs → dev-standards-vuejs
-# Ex: auditor/audit-security               → audit-security
+# Ex: auditor/audit-architecture             → audit-architecture
 to_skill_name() {
   local skill_path="$1"
   basename "$skill_path" .md

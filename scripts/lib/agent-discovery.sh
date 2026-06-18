@@ -119,8 +119,7 @@ resolve_agent_similarity() {
     "reviewer" "qa-engineer" "debugger"
     "documentarian"
     "ux-designer" "ui-designer"
-    "auditor" "auditor-security" "auditor-performance" "auditor-accessibility"
-    "auditor-architecture" "auditor-privacy" "auditor-ecodesign" "auditor-observability"
+    "auditor" "auditor-subagent"
   )
   for hub_id in "${hub_ids[@]}"; do
     if [ "$normalized" = "$hub_id" ]; then

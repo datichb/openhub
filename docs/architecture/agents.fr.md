@@ -1,6 +1,6 @@
 # Référence des agents
 
-19 agents au total, organisés en 6 familles.
+13 agents au total, organisés en 6 familles.
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 
@@ -169,7 +169,7 @@ En mode `orchestrateur_feature` : tous les CPs (CP-1, CP-QA, CP-3, branche dédi
 Coordinateur d'audit multi-domaine. Pilote la réalisation d'audits en 5 phases structurées :
 vérification prérequis (périmètre, stack, accès fichiers) → chargement contexte projet (lit
 `ONBOARDING.md` en priorité ou reconnaissance rapide) → sélection domaines avec vérification
-compatibilité stack → délégation aux 7 sous-agents spécialisés → consolidation synthèse exécutive
+compatibilité stack → délégation à l'agent `auditor-subagent` (invoqué autant de fois que nécessaire, un domaine par invocation) → consolidation synthèse exécutive
 (score global, top 5 actions prioritaires, recommandations transverses).
 
 Produit une synthèse exécutive multi-domaines. Lecture seule — ne modifie jamais de fichiers directement.
@@ -185,26 +185,21 @@ En mode `orchestrateur_feature` : utilise le mécanisme d'interruption de sessio
 
 ## Famille — Agents d'audit
 
-Sous-agents de l'auditeur. Tous en lecture seule. Invocables directement ou via l'auditeur.
+Sous-agent unique de l'auditeur (ADR-017). Lecture seule. Invocable via l'auditeur ou directement.
 
 | Agent | Fichier | Domaine | Référentiels |
 |-------|---------|---------|-------------|
-| `auditor-security` | `agents/auditor/auditor-security.md` | Sécurité applicative | OWASP Top 10, CVE, RGS |
-| `auditor-performance` | `agents/auditor/auditor-performance.md` | Performance web | Core Web Vitals, N+1, cache |
-| `auditor-accessibility` | `agents/auditor/auditor-accessibility.md` | Accessibilité | WCAG 2.1 AA, RGAA 4.1 |
-| `auditor-ecodesign` | `agents/auditor/auditor-ecodesign.md` | Éco-conception | RGESN, GreenIT, Écoindex |
-| `auditor-architecture` | `agents/auditor/auditor-architecture.md` | Architecture & dette | SOLID, Clean Architecture |
-| `auditor-privacy` | `agents/auditor/auditor-privacy.md` | Protection des données | RGPD, EDPB, CNIL |
-| `auditor-observability` | `agents/auditor/auditor-observability.md` | Observabilité | Méthode RED, SLOs, OpenTelemetry, alerting |
+| `auditor-subagent` | `agents/auditor/auditor-subagent.md` | Sécurité, Performance, Accessibilité, Éco-conception, Architecture, Privacy, Observabilité — domaine précisé à l'invocation | OWASP Top 10, Core Web Vitals, WCAG 2.1 AA / RGAA 4.1, RGESN / GreenIT, SOLID / Clean Architecture, RGPD / EDPB / CNIL, Méthode RED / SLOs / OpenTelemetry |
 
-Tous les agents d'audit injectent `auditor/audit-protocol-light` (format de rapport commun allégé)
-+ leur skill de domaine spécifique (`auditor/audit-<domaine>`)
+L'agent `auditor-subagent` reçoit le domaine + la `native_skill` à charger dans le prompt d'invocation du coordinateur `auditor`.
+Il injecte `auditor/audit-protocol-light` (format de rapport commun allégé)
++ la skill de domaine spécifique (`auditor/audit-<domaine>`) chargée à la demande
 + `auditor/audit-handoff-format` (contrat de retour structuré quand invoqué depuis l'orchestrator).
 
-Tous les rapports produits par les sous-agents incluent une section **`### Découvertes à documenter`**
+Tous les rapports produits incluent une section **`### Découvertes à documenter`**
 en fin de rapport — les découvertes à capitaliser dans `ONBOARDING.md` / `CONVENTIONS.md`.
 Cette section est consolidée par le coordinateur `auditor` en Phase 4 (skill `living-docs-enrichment`).
-Les sous-agents eux-mêmes ne font jamais d'appel `task` — leur lecture seule est stricte.
+L'agent ne fait jamais d'appel `task` — sa lecture seule est stricte.
 
 ---
 
@@ -459,7 +454,7 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 
 ## Règles communes à tous les agents
 
-- **Agents en lecture seule** : auditor-*, reviewer — ne modifient jamais de fichiers directement
+- **Agents en lecture seule** : auditor-subagent, reviewer — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
 - **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `qa-engineer` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
@@ -468,4 +463,4 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — lecture seule, explore et rapporte, ne pilote pas d'autres agents
 - **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — visibles directement par l'utilisateur
-- **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et tous les `auditor-*` (sauf `auditor` lui-même) — invocables par des agents coordinateurs
+- **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et `auditor-subagent` — invocables par des agents coordinateurs

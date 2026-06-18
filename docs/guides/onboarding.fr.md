@@ -129,7 +129,7 @@ client généré). Redis utilisé pour les sessions et le cache.
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `auditor-security` | Secret en dur dans `server/config/db.ts:12` | `"Audite la sécurité de ce projet"` |
+| `auditor` (security) | Secret en dur dans `server/config/db.ts:12` | `"Audite la sécurité de ce projet"` |
 | `developer-security` | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
 | `qa-engineer` | Logique métier dans `server/services/` entièrement non testée | `"Écris les tests manquants sur les services backend"` |
 
@@ -144,8 +144,8 @@ client généré). Redis utilisé pour les sessions et le cache.
 
 | Agent | Pourquoi | Invocation suggérée |
 |-------|----------|---------------------|
-| `auditor-accessibility` | Formulaires sans ARIA dans `src/components/forms/` | `"Audite l'accessibilité"` |
-| `auditor-performance` | Bundle JS de 1.2MB non splitté | `"Audite les performances"` |
+| `auditor` (accessibility) | Formulaires sans ARIA dans `src/components/forms/` | `"Audite l'accessibilité"` |
+| `auditor` (performance) | Bundle JS de 1.2MB non splitté | `"Audite les performances"` |
 | `documentarian` | Pas de README — setup non documenté | `"Documente le setup et l'architecture de ce projet"` |
 
 ---
@@ -339,7 +339,7 @@ L'onboarder signale un risque sécurité prioritaire → tu lances l'audit cibl�
    → Rapport : secret en dur, CORS absent
 
 2. "Audite la sécurité de ce projet"
-   → L'auditor-security approfondit l'analyse
+   → L'auditor approfondit l'analyse (domaine security)
 
 3. "Implémente le hardening suite à l'audit sécurité"
    → Le developer-security corrige les failles

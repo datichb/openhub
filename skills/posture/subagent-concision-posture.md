@@ -8,9 +8,7 @@ description: Posture de concision pour les agents mode:subagent — les outputs 
 ## Portée
 
 Ce skill s'applique exclusivement aux agents `mode: subagent` :
-developer, developer-refactor, developer-migrator, debugger,
-auditor-architecture, auditor-security, auditor-observability,
-auditor-ecodesign, auditor-accessibility, auditor-performance, auditor-privacy.
+developer, developer-refactor, developer-migrator, debugger, auditor-subagent.
 
 **Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a pas besoin de narration — il a besoin de données et du bloc de handoff. Tout le reste est du bruit qui augmente le coût de traitement sans apporter de valeur.
 

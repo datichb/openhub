@@ -131,7 +131,7 @@ then asks a short question for the workflow mode:
 |------|---------------------------------|---------------|-------------------|
 | bd-1 | UX spec — auth flow             | spec-ux       | ux-designer       |
 | bd-2 | UI spec — auth components       | spec-ui       | ui-designer       |
-| bd-3 | Security audit auth scope       | audit         | auditor-security  |
+| bd-3 | Security audit auth scope       | audit         | auditor-subagent  |
 | bd-4 | User model + migrations         | task          | developer-backend |
 | bd-5 | JWT service                     | feature       | developer-backend |
 | bd-6 | Login/logout/refresh endpoints  | feature       | developer-backend |
@@ -148,7 +148,7 @@ The orchestrator first handles `spec-*` and `audit` tickets:
 - Invokes `ux-designer` → UX spec produced → **[CP-spec]** validate / revise / skip
   - The designer returns a structured block `## Return to orchestrator` with the complete spec, implementation constraints, and open points. The orchestrator validates the presence of this block before proceeding.
 - Invokes `ui-designer` → UI spec produced → **[CP-spec]** validate / revise / skip
-- Invokes `auditor-security` → audit report → **[CP-audit]** fix / accept / skip
+- Invokes `auditor-subagent` (security domain) → audit report → **[CP-audit]** fix / accept / skip
   - The auditor returns a structured block with the vulnerability table by severity, prioritized recommendations, residual risk, and a status (`corrections-required` / `acceptable` / `blocking`).
   - If "fix": a correction ticket is added to the dev list
 
@@ -185,7 +185,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 |------|---------------------------------|--------|-------------------|-------------|
 | bd-1 | UX spec — auth flow             | design | ux-designer       | ✅ Validated |
 | bd-2 | UI spec — auth components       | design | ui-designer       | ✅ Validated |
-| bd-3 | Security audit auth scope       | audit  | auditor-security  | ✅ Accepted  |
+| bd-3 | Security audit auth scope       | audit  | auditor-subagent  | ✅ Accepted  |
 | bd-4 | User model + migrations         | dev    | developer-backend | ✅ Merged    |
 | bd-5 | JWT service                     | dev    | developer-backend | ✅ Merged    |
 | bd-6 | Login/logout/refresh endpoints  | dev    | developer-backend | ✅ Merged    |
@@ -207,13 +207,13 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 ```mermaid
 flowchart TD
     U[User\n'Audit the project'] --> A[Auditor]
-    A --> |Qualifies: full audit| AS[auditor-security]
-    A --> AP[auditor-performance]
-    A --> AA[auditor-accessibility]
-    A --> AE[auditor-ecodesign]
-    A --> AR[auditor-architecture]
-    A --> APR[auditor-privacy]
-    A --> AO[auditor-observability]
+    A --> |Qualifies: full audit| AS[auditor-subagent\ndomain: security]
+    A --> AP[auditor-subagent\ndomain: performance]
+    A --> AA[auditor-subagent\ndomain: accessibility]
+    A --> AE[auditor-subagent\ndomain: ecodesign]
+    A --> AR[auditor-subagent\ndomain: architecture]
+    A --> APR[auditor-subagent\ndomain: privacy]
+    A --> AO[auditor-subagent\ndomain: observability]
     AS --> S[Executive summary\nmulti-domain]
     AP --> S
     AA --> S
@@ -232,7 +232,7 @@ flowchart TD
 Prompt: "Audit the project"
 ```
 
-The auditor qualifies the request as a **full audit** and delegates to the 7 sub-agents.
+The auditor qualifies the request as a **full audit** and delegates to `auditor-subagent` for each of the 7 domains (one invocation per domain, domain + native_skill passed in the prompt).
 
 #### 2. Targeted audit
 
@@ -240,7 +240,7 @@ The auditor qualifies the request as a **full audit** and delegates to the 7 sub
 Prompt: "Audit security and check GDPR compliance"
 ```
 
-The auditor delegates only to `auditor-security` and `auditor-privacy`.
+The auditor delegates only to `auditor-subagent` with domains `security` and `privacy`.
 
 #### 3. Express audit (quick audit)
 
@@ -248,7 +248,7 @@ The auditor delegates only to `auditor-security` and `auditor-privacy`.
 Prompt: "Quick audit"
 ```
 
-The auditor delegates to `auditor-security`, `auditor-accessibility`, `auditor-performance`.
+The auditor delegates to `auditor-subagent` for the `security`, `accessibility`, `performance` domains.
 
 #### 4. Synthesis report format
 

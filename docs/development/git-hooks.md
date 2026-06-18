@@ -82,15 +82,15 @@ echo "✅ Pre-commit hook installed"
 Une fois installé, le hook s'exécute automatiquement avant chaque commit :
 
 ```bash
-git add agents/auditor/auditor-security.md
-git commit -m "feat: update auditor-security agent"
+git add agents/auditor/auditor-subagent.md
+git commit -m "feat: update auditor-subagent agent"
 
 # Output:
 # 🔍 Validating WebSearch configuration...
 # Running agent validation tests...
 # Running skill validation tests...
 # ✅ WebSearch validation passed
-# [main 3391e13] feat: update auditor-security agent
+# [main 3391e13] feat: update auditor-subagent agent
 ```
 
 ### Bypass (si nécessaire)

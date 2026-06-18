@@ -1,6 +1,6 @@
 # Agent Reference
 
-19 agents in total, organized into 6 families.
+13 agents in total, organized into 6 families.
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 skills, and mode.
 
@@ -150,7 +150,7 @@ CP-2 (commit or fix?) is always manual in all modes.
 Multi-domain audit coordinator. Drives audits in 5 structured phases: prerequisites check
 (scope, stack, file access) → project context loading (reads `ONBOARDING.md` first, or
 quick reconnaissance) → domain selection with stack compatibility check → delegation to
-7 specialized subagents → consolidation executive summary (global score, top 5 priority
+the `auditor-subagent` agent (invoked as many times as needed, one domain per invocation) → consolidation executive summary (global score, top 5 priority
 actions, cross-cutting recommendations).
 
 Produces a multi-domain executive summary. Read-only — never modifies files.
@@ -159,21 +159,21 @@ Produces a multi-domain executive summary. Read-only — never modifies files.
 
 ## Family — Audit Agents
 
-Auditor's subagents. All read-only. Invocable directly or via the auditor.
+Single subagent of the auditor (ADR-017). Read-only. Invocable via the auditor or directly.
 
 | Agent | File | Domain | References |
 |-------|------|--------|-----------|
-| `auditor-security` | `agents/auditor/auditor-security.md` | Application security | OWASP Top 10, CVE, RGS |
-| `auditor-performance` | `agents/auditor/auditor-performance.md` | Web performance | Core Web Vitals, N+1, cache |
-| `auditor-accessibility` | `agents/auditor/auditor-accessibility.md` | Accessibility | WCAG 2.1 AA, RGAA 4.1 |
-| `auditor-ecodesign` | `agents/auditor/auditor-ecodesign.md` | Eco-design | RGESN, GreenIT, Écoindex |
-| `auditor-architecture` | `agents/auditor/auditor-architecture.md` | Architecture & debt | SOLID, Clean Architecture |
-| `auditor-privacy` | `agents/auditor/auditor-privacy.md` | Data protection | GDPR, EDPB, CNIL |
-| `auditor-observability` | `agents/auditor/auditor-observability.md` | Observability | RED method, SLOs, OpenTelemetry, alerting |
+| `auditor-subagent` | `agents/auditor/auditor-subagent.md` | Security, Performance, Accessibility, Ecodesign, Architecture, Privacy, Observability — domain specified at invocation | OWASP Top 10, Core Web Vitals, WCAG 2.1 AA / RGAA 4.1, RGESN / GreenIT, SOLID / Clean Architecture, GDPR / EDPB / CNIL, RED method / SLOs / OpenTelemetry |
 
-All audit agents inject `auditor/audit-protocol-light` (common lightweight report format)
-+ their domain-specific skill (`auditor/audit-<domain>`)
+The `auditor-subagent` receives the domain + `native_skill` to load in the invocation prompt from the `auditor` coordinator.
+It injects `auditor/audit-protocol-light` (common lightweight report format)
++ its domain-specific skill (`auditor/audit-<domain>`) loaded on-demand
 + `auditor/audit-handoff-format` (structured return contract when invoked from the orchestrator).
+
+All reports produced include a **`### Findings to document`** section
+at the end — findings to capitalize in `ONBOARDING.md` / `CONVENTIONS.md`.
+This section is consolidated by the `auditor` coordinator in Phase 4 (skill `living-docs-enrichment`).
+The agent never makes `task` calls — its read-only constraint is strict.
 
 ---
 
@@ -387,7 +387,7 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 
 ## Rules Common to All Agents
 
-- **Read-only agents**: auditor-*, reviewer, debugger, ux-designer, ui-designer — never modify files
+- **Read-only agents**: auditor-subagent, reviewer, debugger, ux-designer, ui-designer — never modify files
 - **Agents that write code**: developer-*, qa-engineer — only modify files in their domain
 - **Agents that write documentation**: documentarian — only modifies documentation files (all other agents may propose enrichments to `ONBOARDING.md`/`CONVENTIONS.md` via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation)
 - **Agents that create tickets**: planner (feature tickets), debugger (bug tickets after confirmation)
@@ -395,4 +395,4 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — read-only, explores and reports, doesn't drive other agents
 - **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — directly visible to the user
-- **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and all `auditor-*` (except `auditor` itself) — invocable by coordinator agents
+- **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and `auditor-subagent` — invocable by coordinator agents

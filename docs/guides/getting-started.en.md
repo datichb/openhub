@@ -166,7 +166,7 @@ my-app/
 
 You can now invoke any agent in OpenCode:
 - `"Implement the user login feature"` → `orchestrator` agent
-- `"Audit the project security"` → `auditor-security` agent
+- `"Audit the project security"` → `auditor` agent (security domain)
 - `"Plan the payment module"` → `planner` agent
 
 ---

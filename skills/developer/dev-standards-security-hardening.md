@@ -11,7 +11,7 @@ Ce skill couvre l'implémentation des mécanismes de sécurité applicative avan
 Il complète `dev-standards-security.md` (pratiques préventives) en fournissant
 les patterns d'implémentation concrets pour le durcissement applicatif.
 
-Pour l'audit de la sécurité existante, utiliser `auditor-security`.
+Pour l'audit de la sécurité existante, utiliser `auditor` (domaine security).
 
 ---
 
@@ -201,4 +201,4 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 - Désactiver les vérifications de certificat SSL en production (`rejectUnauthorized: false`)
 - Introduire une dépendance de sécurité sans vérification préalable (`npm audit`)
 - Merger un changement de configuration de sécurité sans review explicite
-- Effectuer un audit de sécurité — c'est le rôle de `auditor-security`
+- Effectuer un audit de sécurité — c'est le rôle de `auditor` (domaine security)

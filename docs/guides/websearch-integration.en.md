@@ -29,8 +29,7 @@ openhub/
 ├── opencode.json                   ← Hub configuration (permissions)
 ├── agents/
 │   ├── auditor/
-│   │   ├── auditor-security.md    ← websearch permission enabled
-│   │   └── auditor-performance.md ← websearch permission enabled
+│   │   └── auditor-subagent.md    ← websearch permission enabled
 │   ├── planning/
 │   │   ├── pathfinder.md               ← websearch permission enabled
 │   │   ├── onboarder.md           ← websearch permission enabled
@@ -181,14 +180,8 @@ WebSearch Status
 
 | Family | Agent | WebSearch use cases |
 |--------|-------|---------------------|
-| **Auditors** (7) | | |
-| | `auditor-security` | CVE lookup, security advisories, OWASP updates |
-| | `auditor-performance` | Performance benchmarks, optimization techniques |
-| | `auditor-accessibility` | WCAG 2.2 guidelines, ARIA patterns |
-| | `auditor-architecture` | Design patterns, SOLID principles, refactoring strategies |
-| | `auditor-ecodesign` | Green coding practices, RGESN guidelines |
-| | `auditor-observability` | Observability patterns, SLO examples |
-| | `auditor-privacy` | GDPR updates, privacy best practices |
+| **Auditors** (1) | | |
+| | `auditor-subagent` | CVE lookup, security advisories, OWASP updates, performance benchmarks, WCAG guidelines, design patterns, green coding, observability patterns, GDPR updates |
 | **Planning** (3) | | |
 | | `pathfinder` | Quick stack research, library comparison |
 | | `onboarder` | Tech stack documentation, setup guides |
@@ -490,7 +483,7 @@ git checkout opencode.json
 ## Changelog
 
 ### v1.0.0 (2026-05-29)
-- WebSearch enabled for 13 agents (7 auditors, 3 planning, 2 design, 1 documentation)
+- WebSearch enabled for 7 agents (1 auditor-subagent, 3 planning, 2 design, 1 documentation)
 - 4 specialised skills created (CVE lookup, performance research, stack research, design patterns)
 - `oc config websearch enable|disable|status` script
 - Full documentation (integration + examples)

@@ -11,7 +11,7 @@ permission:
   write: deny
   task:
     "*": deny
-    "auditor-*": allow
+    "auditor-subagent": allow
     "documentarian": allow
 skills: [posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, shared/living-docs-enrichment, posture/tool-question]
 native_skills: [auditor/auditor-standalone, auditor/auditor-subagent]
@@ -58,22 +58,50 @@ Le workflow complet du coordinateur auditor est défini dans le skill **`auditor
 
 ---
 
-## Sous-agents disponibles
+## Mapping domaine → native_skill à injecter
 
-| Sous-agent | Domaine | Référentiels |
-|-----------|---------|-------------|
-| `auditor-security` | Sécurité applicative | OWASP Top 10, CVE, RGS |
-| `auditor-performance` | Performance web | Core Web Vitals, N+1, cache |
-| `auditor-accessibility` | Accessibilité | WCAG 2.1 AA, RGAA 4.1 |
-| `auditor-ecodesign` | Éco-conception | RGESN, GreenIT, Écoindex |
-| `auditor-architecture` | Architecture & dette | SOLID, Clean Architecture |
-| `auditor-privacy` | Protection des données | RGPD, EDPB, CNIL |
-| `auditor-observability` | Observabilité | Méthode RED, SLOs, OpenTelemetry, alerting |
+Le coordinateur invoque toujours `auditor-subagent`. Le domaine et le native_skill
+sont injectés dans le prompt d'invocation — c'est l'agent qui se spécialise selon
+ce qui lui est transmis, pas l'ID de l'agent qui change.
 
-Chaque sous-agent est en **lecture seule stricte**. Il remonte ses découvertes à capitaliser
-dans la section `### Découvertes à documenter` de son rapport. Le coordinateur consolide
-ces découvertes et propose l'enrichissement des documents vivants via le `documentarian`
-après confirmation de l'utilisateur (voir skill `living-docs-enrichment`).
+| Domaine | Native skill | Référentiels |
+|---------|-------------|-------------|
+| `security` | `auditor/audit-security` | OWASP Top 10, CVE, RGS |
+| `performance` | `auditor/audit-performance` | Core Web Vitals, N+1, cache |
+| `accessibility` | `auditor/audit-accessibility` | WCAG 2.1 AA, RGAA 4.1 |
+| `ecodesign` | `auditor/audit-ecodesign` | RGESN, GreenIT, Écoindex |
+| `architecture` | `auditor/audit-architecture` | SOLID, Clean Architecture |
+| `privacy` | `auditor/audit-privacy` | RGPD, EDPB, CNIL |
+| `observability` | `auditor/audit-observability` | Méthode RED, SLOs, OpenTelemetry |
+
+### Format du prompt d'invocation vers `auditor-subagent`
+
+```
+[Contexte projet transmis par le coordinateur auditor]
+
+**Stack technique :**
+- Langages : <liste>
+- Frameworks : <liste>
+- Base de données : <liste>
+- Infrastructure : <liste>
+
+**Architecture :**
+- Pattern : <pattern détecté>
+- Découpage : <répertoires principaux>
+
+**Points d'attention identifiés :**
+- <point 1>
+
+**Périmètre de cet audit :**
+- Domaine : <domaine>
+- Fichiers/modules ciblés : <périmètre ou "tout le projet">
+- Contraintes légales : <ou "aucune">
+
+Tu agis en tant que sous-agent d'audit [DOMAINE].
+Charge et applique le skill : [NATIVE_SKILL]
+
+Produis un rapport d'audit structuré selon le skill audit-protocol-light.
+```
 
 ---
 
@@ -82,13 +110,13 @@ après confirmation de l'utilisateur (voir skill `living-docs-enrichment`).
 | Demande utilisateur | Action |
 |--------------------|--------|
 | "Audite mon projet" | Audit complet — tous les sous-agents |
-| "Audit sécurité" | `auditor-security` uniquement |
-| "Vérifie le RGPD et la sécurité" | `auditor-privacy` + `auditor-security` |
-| "Quick audit" | `auditor-security` + `auditor-accessibility` + `auditor-performance` |
-| "Audit accessibilité RGAA" | `auditor-accessibility` uniquement |
-| "La dette technique de ce module" | `auditor-architecture` sur le périmètre indiqué |
-| "On est conforme RGESN ?" | `auditor-ecodesign` uniquement |
-| "Audit observabilité de l'API" | `auditor-observability` uniquement |
+| "Audit sécurité" | `auditor-subagent` (domaine : security) uniquement |
+| "Vérifie le RGPD et la sécurité" | `auditor-subagent` (domaine : privacy) + `auditor-subagent` (domaine : security) |
+| "Quick audit" | `auditor-subagent` (domaine : security) + `auditor-subagent` (domaine : accessibility) + `auditor-subagent` (domaine : performance) |
+| "Audit accessibilité RGAA" | `auditor-subagent` (domaine : accessibility) uniquement |
+| "La dette technique de ce module" | `auditor-subagent` (domaine : architecture) sur le périmètre indiqué |
+| "On est conforme RGESN ?" | `auditor-subagent` (domaine : ecodesign) uniquement |
+| "Audit observabilité de l'API" | `auditor-subagent` (domaine : observability) uniquement |
 
 ---
 

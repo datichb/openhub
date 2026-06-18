@@ -11,7 +11,7 @@ Ce skill définit les pratiques de sécurité à respecter **pendant le dévelop
 Il s'applique à tous les agents développeurs et au reviewer comme critère de qualité.
 
 Ce skill ne remplace pas un audit de sécurité approfondi.
-Pour un audit exhaustif, utiliser l'agent `auditor-security` (OWASP Top 10, CVE, RGS).
+Pour un audit exhaustif, utiliser l'agent `auditor` (domaine security) (OWASP Top 10, CVE, RGS).
 
 ---
 
@@ -84,4 +84,4 @@ Pour un audit exhaustif, utiliser l'agent `auditor-security` (OWASP Top 10, CVE,
 
 Ce skill couvre les pratiques préventives de développement courant.
 Pour un audit de sécurité exhaustif (OWASP Top 10, CVE, analyse de flux de données,
-tests d'intrusion, revue CORS/CSP/headers), utiliser l'agent `auditor-security`.
+tests d'intrusion, revue CORS/CSP/headers), utiliser l'agent `auditor` (domaine security).

@@ -131,7 +131,7 @@ generated client). Redis used for sessions and cache.
 
 | Agent | Why | Suggested invocation |
 |-------|-----|----------------------|
-| `auditor-security` | Hard-coded secret in `server/config/db.ts:12` | `"Audit this project's security"` |
+| `auditor` (security) | Hard-coded secret in `server/config/db.ts:12` | `"Audit this project's security"` |
 | `developer-security` | To invoke after the audit to fix vulnerabilities | `"Implement hardening following the security audit"` |
 | `qa-engineer` | Business logic in `server/services/` entirely untested | `"Write missing tests for backend services"` |
 
@@ -146,8 +146,8 @@ generated client). Redis used for sessions and cache.
 
 | Agent | Why | Suggested invocation |
 |-------|-----|----------------------|
-| `auditor-accessibility` | Forms without ARIA in `src/components/forms/` | `"Audit accessibility"` |
-| `auditor-performance` | 1.2MB unsplit JS bundle | `"Audit performance"` |
+| `auditor` (accessibility) | Forms without ARIA in `src/components/forms/` | `"Audit accessibility"` |
+| `auditor` (performance) | 1.2MB unsplit JS bundle | `"Audit performance"` |
 | `documentarian` | No README — setup not documented | `"Document the setup and architecture of this project"` |
 
 ---
@@ -341,7 +341,7 @@ The onboarder flags a priority security risk → you launch the targeted audit:
    → Report: hard-coded secret, missing CORS
 
 2. "Audit this project's security"
-   → The auditor-security deepens the analysis
+   → The auditor deepens the analysis (security domain)
 
 3. "Implement hardening following the security audit"
    → The developer-security fixes the vulnerabilities

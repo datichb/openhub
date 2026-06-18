@@ -16,7 +16,7 @@ touch agents/<family>/<id>.md
 ```
 
 Follow the naming convention:
-- `<domain>-<speciality>.md` for sub-agents (e.g. `auditor-security.md`)
+- `<domain>-<speciality>.md` for sub-agents (e.g. `auditor-subagent.md`)
 - `<role>.md` for primary agents (e.g. `orchestrator.md`)
 
 ### 2. Minimal frontmatter structure

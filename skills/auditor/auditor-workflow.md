@@ -61,17 +61,20 @@ Phase 4 — Consolidation et synthèse exécutive
 
 ---
 
-## Sous-agents disponibles
+## Sous-agent disponible
 
-| Sous-agent | Domaine | Référentiels | Skills |
-|-----------|---------|-------------|--------|
-| `auditor-security` | Sécurité applicative | OWASP Top 10, CVE, RGS | `audit-protocol-light`, `audit-security` |
-| `auditor-performance` | Performance web | Core Web Vitals, N+1, cache | `audit-protocol-light`, `audit-performance` |
-| `auditor-accessibility` | Accessibilité | WCAG 2.1 AA, RGAA 4.1 | `audit-protocol-light`, `audit-accessibility` |
-| `auditor-ecodesign` | Éco-conception | RGESN, GreenIT, Écoindex | `audit-protocol-light`, `audit-ecodesign` |
-| `auditor-architecture` | Architecture & dette | SOLID, Clean Architecture | `audit-protocol-light`, `audit-architecture` |
-| `auditor-privacy` | Protection des données | RGPD, EDPB, CNIL | `audit-protocol-light`, `audit-privacy` |
-| `auditor-observability` | Observabilité | Méthode RED, SLOs, OpenTelemetry | `audit-protocol-light`, `audit-observability` |
+Un seul agent générique `auditor-subagent` est invoqué pour tous les domaines.
+Le coordinateur injecte le domaine et le native_skill dans le prompt d'invocation.
+
+| Domaine | Native skill | Référentiels |
+|---------|-------------|-------------|
+| `security` | `auditor/audit-security` | OWASP Top 10, CVE, RGS |
+| `performance` | `auditor/audit-performance` | Core Web Vitals, N+1, cache |
+| `accessibility` | `auditor/audit-accessibility` | WCAG 2.1 AA, RGAA 4.1 |
+| `ecodesign` | `auditor/audit-ecodesign` | RGESN, GreenIT, Écoindex |
+| `architecture` | `auditor/audit-architecture` | SOLID, Clean Architecture |
+| `privacy` | `auditor/audit-privacy` | RGPD, EDPB, CNIL |
+| `observability` | `auditor/audit-observability` | Méthode RED, SLOs, OpenTelemetry |
 
 ---
 
@@ -380,28 +383,27 @@ Identifier l'intention dans la demande :
 - → Tous les sous-agents (7 domaines)
 
 **Audit ciblé :**
-- `"audite la sécurité"`, `"audit sécu"` → `auditor-security`
-- `"vérifie le RGPD"`, `"audit privacy"` → `auditor-privacy`
-- `"audit accessibilité"`, `"RGAA"`, `"WCAG"` → `auditor-accessibility`
-- `"audit perfs"`, `"performance"`, `"Web Vitals"` → `auditor-performance`
-- `"audit éco-conception"`, `"RGESN"`, `"GreenIT"` → `auditor-ecodesign`
-- `"audit architecture"`, `"dette technique"` → `auditor-architecture`
-- `"audit observabilité"`, `"monitoring"`, `"SLOs"` → `auditor-observability`
+- `"audite la sécurité"`, `"audit sécu"` → domaine `security`
+- `"vérifie le RGPD"`, `"audit privacy"` → domaine `privacy`
+- `"audit accessibilité"`, `"RGAA"`, `"WCAG"` → domaine `accessibility`
+- `"audit perfs"`, `"performance"`, `"Web Vitals"` → domaine `performance`
+- `"audit éco-conception"`, `"RGESN"`, `"GreenIT"` → domaine `ecodesign`
+- `"audit architecture"`, `"dette technique"` → domaine `architecture`
+- `"audit observabilité"`, `"monitoring"`, `"SLOs"` → domaine `observability`
 
 **Audit express :**
 - `"quick audit"`, `"audit rapide"`, `"audit essentiel"`
 - → Sécurité + Accessibilité + Performance (3 domaines prioritaires)
 
 **Audit multi-domaines :**
-- `"vérifie le RGPD et la sécurité"` → `auditor-privacy` + `auditor-security`
-- `"audit sécu + perfs"` → `auditor-security` + `auditor-performance`
+- `"vérifie le RGPD et la sécurité"` → domaines `privacy` + `security`
+- `"audit sécu + perfs"` → domaines `security` + `performance`
 
 #### ÉTAPE 2.2 — Vérifier la compatibilité avec la stack
 
 Certains domaines d'audit ne sont pertinents que pour certaines stacks :
 
 | Domaine | Pertinent si... | Signaler si absent |
-|---------|----------------|-------------------|
 | Performance | Frontend (Web Vitals) ou backend (N+1) | Non pertinent pour CLI pure, lib, script batch |
 | Accessibilité | Frontend avec UI (HTML/CSS/JS) | Non pertinent pour API pure, CLI, backend |
 | Éco-conception | Application déployée (web, mobile, serveur) | Moins pertinent pour lib, SDK |
@@ -422,13 +424,13 @@ Si la **demande est ambiguë** ou si un **domaine demandé n'est pas pertinent p
 
 | Domaine | Sous-agent | Pertinence | Priorité |
 |---------|-----------|-----------|----------|
-| Sécurité | auditor-security | ✅ Pertinent | Haute |
-| Performance | auditor-performance | ✅ Pertinent | Haute |
-| Accessibilité | auditor-accessibility | ⚠️ Partielle (API sans UI) | Moyenne |
-| Éco-conception | auditor-ecodesign | ✅ Pertinent | Moyenne |
-| Architecture | auditor-architecture | ✅ Pertinent | Moyenne |
-| Privacy | auditor-privacy | ✅ Pertinent | Haute |
-| Observabilité | auditor-observability | ✅ Pertinent | Moyenne |
+| Sécurité | auditor-subagent (security) | ✅ Pertinent | Haute |
+| Performance | auditor-subagent (performance) | ✅ Pertinent | Haute |
+| Accessibilité | auditor-subagent (accessibility) | ⚠️ Partielle (API sans UI) | Moyenne |
+| Éco-conception | auditor-subagent (ecodesign) | ✅ Pertinent | Moyenne |
+| Architecture | auditor-subagent (architecture) | ✅ Pertinent | Moyenne |
+| Privacy | auditor-subagent (privacy) | ✅ Pertinent | Haute |
+| Observabilité | auditor-subagent (observability) | ✅ Pertinent | Moyenne |
 
 **Domaines écartés :**
 - <domaine écartés — raison>
@@ -541,23 +543,37 @@ Pour chaque sous-agent à invoquer, préparer un prompt complet avec :
 Produis un rapport d'audit structuré selon le skill `audit-protocol-light`.
 ```
 
-#### ÉTAPE 3.2 — Invoquer les sous-agents
+#### ÉTAPE 3.2 — Invoquer le sous-agent
 
-Invoquer les sous-agents via l'outil `task` :
+Invoquer `auditor-subagent` via l'outil `task` en injectant le domaine et le native_skill :
 
 ```
 task({
-  subagent_type: "auditor-security",
+  subagent_type: "auditor-subagent",
   prompt: "<contexte de délégation complet ci-dessus>",
-  description: "Audit sécurité — <nom du projet>"
+  description: "Audit <domaine> — <nom du projet>"
 })
 ```
 
-**Si plusieurs sous-agents :** les invoquer **séquentiellement** (un par un) — pas en parallèle — pour éviter les conflits de lecture et permettre de stopper si un audit critique bloque.
+Le prompt doit inclure à la fin :
+
+```
+Tu agis en tant que sous-agent d'audit [DOMAINE].
+Charge et applique le skill : auditor/audit-[DOMAINE]
+```
+
+Exemple pour le domaine `security` :
+
+```
+Tu agis en tant que sous-agent d'audit security.
+Charge et applique le skill : auditor/audit-security
+```
+
+**Si plusieurs domaines :** les invoquer **séquentiellement** (un par un) — pas en parallèle — pour éviter les conflits de lecture et permettre de stopper si un audit critique bloque.
 
 #### ÉTAPE 3.3 — Collecter les rapports
 
-Pour chaque sous-agent invoqué, collecter :
+Pour chaque invocation, collecter :
 - Le rapport d'audit complet (format `audit-protocol-light`)
 - Le score global /10
 - Le nombre de problèmes par criticité (🔴 Critique, 🟠 Majeur, 🟡 Mineur)
@@ -565,7 +581,7 @@ Pour chaque sous-agent invoqué, collecter :
 
 ### Déclencheur de pause ⏸️
 
-Si un sous-agent retourne un **statut `bloquant`** (ex : faille critique détectée en Phase 0 d'un sous-agent) → afficher le contexte en texte puis utiliser l'outil `question` :
+Si le sous-agent retourne un **statut `bloquant`** (faille critique détectée) → afficher le contexte en texte puis utiliser l'outil `question` :
 
 ```
 [Texte de réponse]
@@ -578,18 +594,17 @@ L'audit <domaine> a détecté un problème critique bloquant :
 
 Les audits suivants n'ont pas encore été lancés : <liste des domaines restants>
 
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "Audit bloquant",
-    question: "[Auditeur — Phase 3 : Délégation | Projet : <nom>]\nAudit <domaine> a détecté un problème bloquant. Comment procéder ?",
-    options: [
-      { label: "Continuer les autres audits", description: "Lancer les audits restants — le problème bloquant sera signalé dans la synthèse" },
-      { label: "Arrêter tous les audits", description: "Stopper l'audit global — corriger le problème critique avant de continuer" }
-    ]
-  }]
-})
-```
+  [Puis appel outil question]
+  question({
+    questions: [{
+      header: "Audit bloquant",
+      question: "[Auditeur — Phase 3 : Délégation | Projet : <nom>]\nAudit <domaine> a détecté un problème bloquant. Comment procéder ?",
+      options: [
+        { label: "Continuer les autres audits", description: "Lancer les audits restants — le problème bloquant sera signalé dans la synthèse" },
+        { label: "Arrêter tous les audits", description: "Stopper l'audit global — corriger le problème critique avant de continuer" }
+      ]
+    }]
+  })
 
 ### Récap de fin de Phase 3
 

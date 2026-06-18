@@ -61,7 +61,7 @@ Chaque agent déclare quels sous-agents il peut invoquer :
           "onboarder": "allow",
           "ux-designer": "allow",
           "ui-designer": "allow",
-          "auditor-*": "allow",
+          "auditor-subagent": "allow",
           "orchestrator-dev": "allow",
           "debugger": "allow"
         }
@@ -116,7 +116,7 @@ flowchart TB
 
     subgraph L4["Niveau 4 — Implémenteurs subagent"]
         DEV["developer-*<br/>(9 agents)"]
-        AUD["auditor-*<br/>(7 sous-agents)"]
+        AUD["auditor-subagent"]
     end
 
     U --> O
@@ -151,9 +151,9 @@ flowchart TB
 
 | Agent appelant | Peut invoquer via `task` |
 |---------------|--------------------------|
-| `orchestrator` | `planner`, `onboarder`, `ux-designer`, `ui-designer`, `auditor-*`, `orchestrator-dev`, `debugger` |
+| `orchestrator` | `planner`, `onboarder`, `ux-designer`, `ui-designer`, `auditor-subagent`, `orchestrator-dev`, `debugger` |
 | `orchestrator-dev` | `developer-*`, `reviewer`, `qa-engineer`, `documentarian` |
-| `auditor` | `auditor-*`, `documentarian` |
+| `auditor` | `auditor-subagent`, `documentarian` |
 | `planner` | `documentarian` |
 | `debugger` | `documentarian` |
 
@@ -164,7 +164,7 @@ flowchart TB
 | `primary` | Visible dans le Tab picker | Directe par l'utilisateur ou via `task` |
 | `subagent` | Invisible dans le Tab picker | Uniquement via `task` par un parent autorisé |
 
-Les agents `developer-*` et `auditor-*` (sauf le coordinateur `auditor`) sont
+Les agents `developer-*` et `auditor-subagent` sont
 en mode `subagent` — ils n'apparaissent pas dans l'interface utilisateur et
 ne peuvent être invoqués que par leur parent désigné.
 

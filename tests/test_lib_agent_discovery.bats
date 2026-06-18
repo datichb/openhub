@@ -219,6 +219,60 @@ EOF
   [ "$output" = "orchestrator" ]
 }
 
+@test "resolve_agent_similarity : match exact de l'ID hub (auditor)" {
+  run resolve_agent_similarity "auditor"
+  [ "$status" -eq 0 ]
+  [ "$output" = "auditor" ]
+}
+
+@test "resolve_agent_similarity : match exact de l'ID hub (auditor-subagent)" {
+  run resolve_agent_similarity "auditor-subagent"
+  [ "$status" -eq 0 ]
+  [ "$output" = "auditor-subagent" ]
+}
+
+@test "resolve_agent_similarity : auditor-security ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-security"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-architecture ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-architecture"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-performance ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-performance"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-accessibility ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-accessibility"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-privacy ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-privacy"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-ecodesign ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-ecodesign"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "resolve_agent_similarity : auditor-observability ne matche plus (agent supprimé — ADR-017)" {
+  run resolve_agent_similarity "auditor-observability"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 # ── get_discovery_agent_id ────────────────────────────────────────────────────
 
 @test "get_discovery_agent_id : lit le champ id: du frontmatter" {

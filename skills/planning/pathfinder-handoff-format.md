@@ -441,7 +441,7 @@ Cette feature présente une complexité et des signaux nécessitant une planific
 1. **Complexité L** (6 tickets, ~14h estimés)
 2. **Signal architecture FORT** - Nouveau système structurant, choix technologique majeur (WebSocket vs SSE)
 3. **Signal design** - UI NotificationCenter nécessite consultation `ux-designer` et `ui-designer`
-4. **Signal performance** - Connexions temps réel, scaling, nécessite potentiellement `auditor-performance`
+4. **Signal performance** - Connexions temps réel, scaling, nécessite potentiellement `auditor` (domaine performance)
 5. **Risques moyens-élevés** - Architecture réversible difficilement, impact global
 6. **Questions critiques** - Plusieurs décisions techniques/métier à trancher
 
@@ -525,7 +525,7 @@ Cette feature présente une complexité et des signaux nécessitant une planific
 |--------|--------|---------|
 | **UX/UI** | ✅ FORT | NotificationCenter nécessite design complet (position dans layout, animations d'apparition, gestion focus, accessibilité clavier). Consultation `ux-designer` et `ui-designer` recommandée. |
 | **Sécurité** | ⚠️ MOYEN | Authentification des connexions WebSocket à sécuriser (token JWT dans handshake ? Validation côté serveur ?). Pas critique mais à adresser. |
-| **Performance** | ✅ FORT | Connexions persistantes multiples, charge serveur temps réel, nécessite stratégie scaling (horizontal ? load balancing ?). Consultation `auditor-performance` potentiellement utile. |
+| **Performance** | ✅ FORT | Connexions persistantes multiples, charge serveur temps réel, nécessite stratégie scaling (horizontal ? load balancing ?). Consultation `auditor` (domaine performance) potentiellement utile. |
 | **Accessibilité** | ⚠️ MOYEN | Notifications doivent être annoncées aux screen readers (aria-live), gestion focus lors apparition, navigation clavier dans le centre de notifs. |
 | **Architecture** | ✅ FORT | Nouveau système structurant, choix technologique majeur (WS vs SSE), impact sur toute l'architecture backend/frontend. Décision difficilement réversible. |
 
@@ -552,7 +552,7 @@ Le planner doit :
 - **Phase 1.5** : Consulter `ui-designer` pour le design du NotificationCenter (composants, animations, design system)
 - **Phase 2** : Trancher la question WebSocket vs SSE (avec argumentation technique)
 - **Phase 3** : Affiner la structure proposée avec enrichissement complet des tickets
-- **Phase 4** : Envisager consultation `auditor-performance` si scaling critique
+- **Phase 4** : Envisager consultation `auditor` (domaine performance) si scaling critique
 - **Phase 5** : Créer les tickets Beads enrichis avec routing vers `orchestrator-dev`
 
 ---

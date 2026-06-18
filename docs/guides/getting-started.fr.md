@@ -159,7 +159,7 @@ mon-app/
 
 Vous pouvez maintenant invoquer n'importe quel agent dans OpenCode :
 - `"Implémente la feature de connexion utilisateur"` → agent `orchestrator`
-- `"Audite la sécurité du projet"` → agent `auditor-security`
+- `"Audite la sécurité du projet"` → agent `auditor` (domaine security)
 - `"Planifie le module de paiement"` → agent `planner`
 
 ---

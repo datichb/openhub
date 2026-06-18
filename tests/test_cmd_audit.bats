@@ -17,7 +17,7 @@ setup() {
   ln -s "$HUB_ROOT/scripts" "$FAKE_HUB/scripts"
   ln -s "$HUB_ROOT/skills"  "$FAKE_HUB/skills"
 
-  # Agents audit minimaux
+  # Agent coordinateur minimal
   cat > "$FAKE_HUB/agents/audit/auditor.md" <<'AGENTEOF'
 ---
 id: auditor
@@ -31,17 +31,18 @@ skills: []
 Agent d'audit principal.
 AGENTEOF
 
-  cat > "$FAKE_HUB/agents/audit/auditor-security.md" <<'AGENTEOF'
+  # Agent sous-agent générique (remplace les 7 agents spécialisés)
+  cat > "$FAKE_HUB/agents/audit/auditor-subagent.md" <<'AGENTEOF'
 ---
-id: auditor-security
-label: SecurityAuditor
-description: Agent d'audit sécurité
-mode: assistant
+id: auditor-subagent
+label: AuditeurSousAgent
+description: Sous-agent d'audit générique
+mode: subagent
 targets: [opencode]
 skills: []
 ---
-# SecurityAuditor
-Agent d'audit sécurité spécialisé.
+# AuditeurSousAgent
+Sous-agent d'audit générique.
 AGENTEOF
 
   # hub.json minimal
@@ -105,18 +106,17 @@ EOF
 
 ## TEST-PROJ
 - Nom : Test Project
-- Agents : auditor, auditor-security
+- Agents : auditor
 EOF
 
   PROJECT_DIR="$FAKE_HUB/test-proj"
   mkdir -p "$PROJECT_DIR/.opencode/agents"
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
   
-  # Copier les agents pour éviter prompt déploiement
+  # Seul auditor est nécessaire — plus besoin de auditor-security
   cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
-  cp "$FAKE_HUB/agents/audit/auditor-security.md" "$PROJECT_DIR/.opencode/agents/"
 
-  # Test avec --type security (devrait être accepté)
+  # Test avec --type security (devrait être accepté sans requérir auditor-security)
   run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type security < /dev/null
   # Le script peut échouer pour d'autres raisons (opencode non installé) mais ne doit pas rejeter le type
   [[ "$output" != *"Type invalide"* ]] && [[ "$output" != *"invalid"*"type"* ]]
@@ -180,7 +180,7 @@ EOF
   [[ "$output" != *"ajouter"* ]] && [[ "$output" != *"add"*"agent"* ]]
 }
 
-@test "audit --type security : requiert auditor-security" {
+@test "audit --type security : seul auditor requis, pas auditor-security" {
   cat >> "$PROJECTS_FILE" <<'EOF'
 
 ## TEST-PROJ
@@ -193,9 +193,76 @@ EOF
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
   cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
 
-  # auditor-security manque
-  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" test-proj --type security"
-  [[ "$output" == *"auditor-security"* ]] || [[ "$output" == *"manquant"* ]]
+  # Avec la refonte, --type ne génère plus un REQUIRED_AGENTS avec auditor-security.
+  # Seul auditor est requis — le type est un paramètre de prompt.
+  run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type security < /dev/null
+  # Ne doit PAS signaler auditor-security comme manquant
+  [[ "$output" != *"auditor-security"* ]]
+  [[ "$output" != *"manquant"* ]] || [[ "$output" == *"auditor"* ]]
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# B-bis. Agent unique — comportement post-refonte ADR-017
+# ══════════════════════════════════════════════════════════════════════════════
+
+@test "audit : REQUIRED_AGENTS contient uniquement auditor, quel que soit le --type" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## TEST-PROJ
+- Nom : Test Project
+- Agents : auditor
+EOF
+
+  PROJECT_DIR="$FAKE_HUB/test-proj"
+  mkdir -p "$PROJECT_DIR/.opencode/agents"
+  echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
+  cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
+
+  # Avec la refonte, REQUIRED_AGENTS = ("auditor") dans tous les cas.
+  # Le label affiché ne doit contenir que "auditor", pas "auditor-security" etc.
+  run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type security < /dev/null
+  [[ "$output" != *"auditor-security"* ]]
+  [[ "$output" != *"auditor-privacy"* ]]
+  [[ "$output" != *"auditor-performance"* ]]
+}
+
+@test "audit --type privacy : seul auditor requis, pas auditor-privacy" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## TEST-PROJ
+- Nom : Test Project
+- Agents : auditor
+EOF
+
+  PROJECT_DIR="$FAKE_HUB/test-proj"
+  mkdir -p "$PROJECT_DIR/.opencode/agents"
+  echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
+  cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
+
+  run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type privacy < /dev/null
+  [[ "$output" != *"auditor-privacy"* ]]
+  [[ "$output" != *"Type invalide"* ]]
+}
+
+@test "audit : scan physique reconnaît auditor et auditor-subagent" {
+  cat >> "$PROJECTS_FILE" <<'EOF'
+
+## TEST-PROJ
+- Nom : Test Project
+- Agents : other-agent
+EOF
+
+  PROJECT_DIR="$FAKE_HUB/test-proj"
+  mkdir -p "$PROJECT_DIR/.opencode/agents"
+  echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
+
+  # Déployer auditor et auditor-subagent mais pas les anciens agents spécialisés
+  cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
+  cp "$FAKE_HUB/agents/audit/auditor-subagent.md" "$PROJECT_DIR/.opencode/agents/"
+
+  # Le scan ne doit pas échouer avec "aucun agent audit disponible"
+  run bash -c "printf 'n\\n1\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" test-proj"
+  [[ "$output" != *"Aucun agent"* ]] || [[ "$output" == *"auditor"* ]]
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -354,36 +421,27 @@ EOF
   [[ "$output" == *"architecture"* ]]
 }
 
-@test "audit --type ecodesign : accepté" {
+@test "audit --type ecodesign : accepté sans agent auditor-ecodesign" {
   cat >> "$PROJECTS_FILE" <<'EOF'
 
 ## TEST-PROJ
 - Nom : Test Project
-- Agents : auditor, auditor-ecodesign
+- Agents : auditor
 EOF
 
   PROJECT_DIR="$FAKE_HUB/test-proj"
   mkdir -p "$PROJECT_DIR/.opencode/agents"
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
   
+  # Seul auditor suffit — pas besoin de auditor-ecodesign
   cp "$FAKE_HUB/agents/audit/auditor.md" "$PROJECT_DIR/.opencode/agents/"
-  
-  # Créer agent ecodesign
-  cat > "$FAKE_HUB/agents/audit/auditor-ecodesign.md" <<'EOF'
----
-id: auditor-ecodesign
-label: EcodesignAuditor
-targets: [opencode]
----
-# EcodesignAuditor
-EOF
-  cp "$FAKE_HUB/agents/audit/auditor-ecodesign.md" "$PROJECT_DIR/.opencode/agents/"
 
   run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type ecodesign < /dev/null
   [[ "$output" != *"Type invalide"* ]]
+  [[ "$output" != *"auditor-ecodesign"* ]]
 }
 
-@test "audit --type performance : accepté" {
+@test "audit --type performance : accepté sans agent auditor-performance" {
   cat >> "$PROJECTS_FILE" <<'EOF'
 
 ## TEST-PROJ
@@ -398,4 +456,5 @@ EOF
 
   run bash "$HUB_ROOT/scripts/cmd-audit.sh" test-proj --type performance < /dev/null
   [[ "$output" != *"Type invalide"* ]]
+  [[ "$output" != *"auditor-performance"* ]]
 }

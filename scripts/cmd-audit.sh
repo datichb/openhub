@@ -1,5 +1,7 @@
 #!/bin/bash
-# Lance un audit IA sur un projet via l'agent auditor (+ sous-agents optionnels).
+# Lance un audit IA sur un projet via l'agent auditor.
+# Le type d'audit (--type) est transmis comme paramètre de prompt au coordinateur
+# qui délègue à l'agent auditor-subagent avec le domaine et le skill appropriés.
 # Usage : oc audit [PROJECT_ID] [--type <type>]
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -73,8 +75,10 @@ load_adapter
 adapter_validate || { log_error "opencode non disponible → oc install"; exit 1; }
 
 # ── Agents nécessaires ────────────────────────────────────────────────────────
+# Seul l'agent coordinateur auditor est requis, quel que soit le --type.
+# Le type est transmis dans le prompt — c'est le coordinateur qui invoque
+# auditor-subagent avec le domaine et le native_skill appropriés.
 REQUIRED_AGENTS=("auditor")
-[ -n "$AUDIT_TYPE" ] && REQUIRED_AGENTS+=("auditor-${AUDIT_TYPE}")
 
 # ── Dossier d'agents déployés ────────────────────────────────────────────────
 agents_dir="$PROJECT_PATH/.opencode/agents"
@@ -132,12 +136,12 @@ if [ "$agents_csv" != "all" ]; then
 
       available_audit_agents=()
       if [ -d "$agents_dir" ]; then
-        while IFS= read -r f; do
-          agent_name=$(basename "$f" .md)
-          case "$agent_name" in
-            auditor|auditor-*) available_audit_agents+=("$agent_name") ;;
-          esac
-        done < <(find "$agents_dir" -name "*.md" | sort)
+          while IFS= read -r f; do
+            agent_name=$(basename "$f" .md)
+            case "$agent_name" in
+              auditor|auditor-subagent) available_audit_agents+=("$agent_name") ;;
+            esac
+          done < <(find "$agents_dir" -name "*.md" | sort)
       fi
 
       if [ ${#available_audit_agents[@]} -eq 0 ]; then

@@ -58,13 +58,13 @@ Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
 |-------|---------|------------------|
 | `ux-designer` | Conception UX | Parcours utilisateur, flows, friction, expérience |
 | `ui-designer` | Conception UI | Design system, composants visuels, tokens, accessibilité |
-| `auditor-security` | Audit sécurité | OWASP, CVE, failles, hardening |
-| `auditor-performance` | Audit performance | Web Vitals, N+1, lazy loading |
-| `auditor-accessibility` | Audit accessibilité | WCAG, RGAA, navigation clavier |
-| `auditor-privacy` | Audit RGPD | Données personnelles, consentement |
-| `auditor-observability` | Audit observabilité | Métriques, logs, SLOs, alerting |
-| `auditor-ecodesign` | Audit éco-conception | RGESN, GreenIT, sobriété numérique |
-| `auditor-architecture` | Audit architecture | SOLID, dette technique, couplage |
+| `auditor` | Audit sécurité | OWASP, CVE, failles, hardening — avec domaine `security` |
+| `auditor` | Audit performance | Web Vitals, N+1, lazy loading — avec domaine `performance` |
+| `auditor` | Audit accessibilité | WCAG, RGAA, navigation clavier — avec domaine `accessibility` |
+| `auditor` | Audit RGPD | Données personnelles, consentement — avec domaine `privacy` |
+| `auditor` | Audit observabilité | Métriques, logs, SLOs, alerting — avec domaine `observability` |
+| `auditor` | Audit éco-conception | RGESN, GreenIT, sobriété numérique — avec domaine `ecodesign` |
+| `auditor` | Audit architecture | SOLID, dette technique, couplage — avec domaine `architecture` |
 | `orchestrator-dev` | Implémentation | Tous les tickets d'implémentation — route ensuite vers les developers spécialisés |
 
 > **Note :** Cette liste couvre les agents vers lesquels **l'orchestrateur** route les tickets selon les instructions du planner. Les agents developer-* (developer-backend, developer-frontend, etc.), reviewer, qa-engineer et documentarian sont invoqués par `orchestrator-dev` lors de la phase d'implémentation, pas directement par l'orchestrateur feature.
@@ -89,7 +89,7 @@ Pour une feature touchant UX, sécurité et implémentation :
 | ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
 |----|-------|------|----------|--------|-------------|-----|-----------|
 | bd-10 | Analyse flow inscription | task | P1 | ux | ux-designer | — | — |
-| bd-11 | Audit sécurité auth | task | P1 | audit-security | auditor-security | — | — |
+| bd-11 | Audit sécurité auth | task | P1 | audit-security | auditor | — | — |
 | bd-12 | Endpoint POST /users | feature | P1 | backend | orchestrator-dev | ✅ | bd-10 |
 | bd-13 | Composant formulaire | feature | P2 | frontend | orchestrator-dev | — | bd-10, bd-12 |
 
@@ -102,7 +102,7 @@ Pour une feature touchant UX, sécurité et implémentation :
 
 L'orchestrateur lira ce bloc et routera directement :
 - bd-10 → `ux-designer`
-- bd-11 → `auditor-security`
+- bd-11 → `auditor`
 - bd-12 → `orchestrator-dev`
 - bd-13 → `orchestrator-dev`
 

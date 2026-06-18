@@ -599,7 +599,7 @@ Afficher les tickets selon l'`### Ordre de traitement` défini par le planner.
 |-------|----|-------|----------|-------------|-----|
 | 1 | bd-10 | Analyse flow inscription | P1 | ux-designer | — |
 | 2 | bd-11 | Composant formulaire | P1 | ui-designer → orchestrator-dev | — |
-| 3 | bd-13 | Audit sécurité auth | P2 | auditor-security → orchestrator-dev | — |
+| 3 | bd-13 | Audit sécurité auth | P2 | auditor → orchestrator-dev | — |
 | 4 | bd-12 | Endpoint POST /users | P1 | orchestrator-dev | ✅ |
 
 X tickets identifiés — Y phases au total. Z en TDD (QA skippé, tests écrits avant implémentation).
@@ -763,7 +763,7 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
    > Omettre les phases Spec UX/UI si absentes de la feature. La liste doit refléter exactement les tickets présents.
 
 2. Annoncer la phase d'audit :
-   > « Je délègue l'audit à `auditor-<domaine>` pour le ticket #<ID> — <titre>.
+   > « Je délègue l'audit à `auditor` pour le ticket #<ID> — <titre>.
    > Si des questions apparaissent ici, elles viennent de cet agent et incluront leur contexte. »
 
 3. Invoquer l'agent auditeur avec :
@@ -1060,7 +1060,7 @@ todowrite({
 | bd-10 | ... | Spec UX | ux-designer | ✅ Spec validée |
 | bd-11 | ... | Spec UI → Impl | ui-designer → dev | ✅ Terminé |
 | bd-12 | ... | Impl | orchestrator-dev | ✅ Terminé |
-| bd-13 | ... | Audit → Impl | auditor-security → dev | ✅ Corrigé |
+| bd-13 | ... | Audit → Impl | auditor → dev | ✅ Corrigé |
 
 ### Résumé
 - **Tickets traités :** X / Y
@@ -1115,13 +1115,13 @@ ou agent absent de `.opencode/agents/`), ne jamais silencieusement basculer vers
 
 | Agent manquant | Substitut proposé | Limitation |
 |----------------|-------------------|------------|
-| `auditor-security` | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
-| `auditor-accessibility` | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
-| `auditor-architecture` | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
-| `auditor-performance` | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
-| `auditor-privacy` | *(aucun substitut)* | — |
-| `auditor-ecodesign` | *(aucun substitut)* | — |
-| `auditor-observability` | *(aucun substitut)* | — |
+| `auditor` (security) | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
+| `auditor` (accessibility) | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
+| `auditor` (architecture) | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
+| `auditor` (performance) | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
+| `auditor` (privacy) | *(aucun substitut)* | — |
+| `auditor` (ecodesign) | *(aucun substitut)* | — |
+| `auditor` (observability) | *(aucun substitut)* | — |
 | `ux-designer` | *(aucun substitut)* | — |
 | `ui-designer` | *(aucun substitut)* | — |
 

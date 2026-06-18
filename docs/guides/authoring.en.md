@@ -24,7 +24,7 @@ The first question to ask before creating anything.
 - If you answer "invoke [X] to do Y" → **agent**
 - If you answer "apply these rules / this protocol when doing Y" → **skill**
 
-**Example:** `auditor-security` is an agent (invocable), `audit-protocol` is a skill (format checklist injected into all auditors).
+**Example:** `auditor-subagent` is an agent (invocable), `audit-protocol` is a skill (format checklist injected into all auditors).
 
 ---
 

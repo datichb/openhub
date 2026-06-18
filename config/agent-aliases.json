@@ -145,27 +145,27 @@
     "audit":               ["auditor"],
     "auditeur":            ["auditor"],
 
-    "auditor-security":    ["auditor-security"],
-    "security-audit":      ["auditor-security"],
+    "auditor-security":    ["auditor-subagent"],
+    "security-audit":      ["auditor-subagent"],
 
-    "auditor-performance": ["auditor-performance"],
-    "performance-audit":   ["auditor-performance"],
+    "auditor-performance": ["auditor-subagent"],
+    "performance-audit":   ["auditor-subagent"],
 
-    "auditor-accessibility": ["auditor-accessibility"],
-    "accessibility-audit":   ["auditor-accessibility"],
-    "a11y-audit":            ["auditor-accessibility"],
+    "auditor-accessibility": ["auditor-subagent"],
+    "accessibility-audit":   ["auditor-subagent"],
+    "a11y-audit":            ["auditor-subagent"],
 
-    "auditor-architecture":  ["auditor-architecture"],
-    "architecture-audit":    ["auditor-architecture"],
+    "auditor-architecture":  ["auditor-subagent"],
+    "architecture-audit":    ["auditor-subagent"],
 
-    "auditor-privacy":     ["auditor-privacy"],
-    "privacy-audit":       ["auditor-privacy"],
-    "rgpd":                ["auditor-privacy"],
+    "auditor-privacy":     ["auditor-subagent"],
+    "privacy-audit":       ["auditor-subagent"],
+    "rgpd":                ["auditor-subagent"],
 
-    "auditor-ecodesign":   ["auditor-ecodesign"],
-    "ecodesign-audit":     ["auditor-ecodesign"],
+    "auditor-ecodesign":   ["auditor-subagent"],
+    "ecodesign-audit":     ["auditor-subagent"],
 
-    "auditor-observability": ["auditor-observability"],
-    "observability-audit":   ["auditor-observability"]
+    "auditor-observability": ["auditor-subagent"],
+    "observability-audit":   ["auditor-subagent"]
   }
 }

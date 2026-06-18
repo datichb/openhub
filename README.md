@@ -168,15 +168,7 @@ oc start MY-APP
 | `developer` | `orchestrator-dev` | Implementation — domain passed at invocation: frontend, backend, fullstack, api, mobile, data, devops, platform, security |
 | `developer-refactor` | `orchestrator-dev` | Structural refactoring — never changes observable behavior |
 | `developer-migrator` | `orchestrator-dev` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
-| `auditor-security` | `auditor` | OWASP Top 10, CVE, RGS |
-| `auditor-performance` | `auditor` | Core Web Vitals, N+1, cache |
-| `auditor-accessibility` | `auditor` | WCAG 2.1 AA, RGAA 4.1 |
-| `auditor-ecodesign` | `auditor` | RGESN, GreenIT, Écoindex |
-| `auditor-architecture` | `auditor` | SOLID, Clean Architecture, technical debt |
-| `auditor-privacy` | `auditor` | GDPR, EDPB, CNIL |
-| `auditor-observability` | `auditor` | RED method, SLOs, OpenTelemetry |
-
-> Subagents can also be invoked directly when needed (e.g. `auditor-security` alone without going through `auditor`).
+| `auditor-subagent` | `auditor` | All audit domains: security (OWASP Top 10, CVE, RGS), performance (Core Web Vitals, N+1, cache), accessibility (WCAG 2.1 AA, RGAA 4.1), ecodesign (RGESN, GreenIT, Écoindex), architecture (SOLID, Clean Architecture), privacy (GDPR, EDPB, CNIL), observability (RED method, SLOs, OpenTelemetry) |
 
 > Full reference: [docs/architecture/agents.en.md](docs/architecture/agents.en.md)
 

@@ -24,7 +24,7 @@ Ce guide présente 5 exemples concrets d'utilisation de WebSearch dans différen
 
 ### Contexte
 
-Audit de sécurité d'une API Node.js utilisant Express 4.18.2 et lodash 4.17.20. L'agent `auditor-security` doit identifier les vulnérabilités connues dans les dépendances.
+Audit de sécurité d'une API Node.js utilisant Express 4.18.2 et lodash 4.17.20. L'agent `auditor` (domaine security) doit identifier les vulnérabilités connues dans les dépendances.
 
 ### Conversation (extrait)
 
@@ -241,7 +241,7 @@ Avec WebSearch :
 
 ### Contexte
 
-Application React avec problèmes de performance (re-renders excessifs). L'agent `auditor-performance` doit identifier les patterns d'optimisation recommandés en 2026.
+Application React avec problèmes de performance (re-renders excessifs). L'agent `auditor` (domaine performance) doit identifier les patterns d'optimisation recommandés en 2026.
 
 ### Conversation (extrait)
 
