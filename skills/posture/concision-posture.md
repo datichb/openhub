@@ -1,17 +1,19 @@
 ---
 name: concision-posture
-description: Posture de concision niveau "lite" — supprime les formules de remplissage sans valeur (intro, reformulation du contexte connu, transitions redondantes) sans altérer la complétude technique ni le formalisme des livrables. Calibrable via output_verbosity dans hub.json.
+description: Posture de concision niveau "lite" pour les agents primaires — supprime les formules de remplissage sans valeur (intro, reformulation du contexte connu, transitions redondantes) sans altérer la complétude technique ni le formalisme des livrables. Pour les agents mode:subagent, voir posture/subagent-concision-posture.
 ---
 
 # Skill — Posture de concision (niveau lite)
 
 ## Portée
 
-Ce skill s'applique aux agents de **coordination et d'implémentation internes** :
-orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer.
+Ce skill s'applique aux agents **primaires** (`mode: primary`) de coordination et d'implémentation :
+orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer.
 
-Il ne s'applique **pas** aux agents dont les outputs sont des livrables formels destinés à l'utilisateur final ou à d'autres systèmes :
-auditor-*, documentarian, ux-designer, ui-designer, debugger.
+Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
+
+Les agents dont les outputs sont des livrables formels destinés à l'utilisateur final n'utilisent aucun skill de concision :
+documentarian, ux-designer, ui-designer.
 
 ---
 
@@ -79,7 +81,7 @@ Ces blocs sont des **contrats fonctionnels** — leur format et leur complétude
 - `## Retour vers orchestrator` / `## Retour vers orchestrator-dev` — blocs de handoff structurés
 - `## Question pour l'orchestrateur` / `## Question pour l'orchestrator` — mécanisme de reprise de session
 - `## Retour intermédiaire vers orchestrateur` — blocs de contexte pour les checkpoints
-- Récapitulatifs narratifs obligatoires (planner, debugger, onboarder, auditor, designers)
+- Récapitulatifs narratifs obligatoires (planner, onboarder, designers)
 - Rapports de review, rapports QA, rapports de diagnostic
 
 ### Contenu technique
@@ -116,3 +118,5 @@ Le niveau actif est défini dans `config/hub.json` sous `token_optimization.outp
 |--------|-------------|
 | `off` | Ce skill n'est pas injecté — comportement par défaut du modèle |
 | `lite` | Ce skill est actif — suppression du filler uniquement **(défaut)** |
+
+Pour les agents `mode: subagent`, voir `config/hub.json` → `token_optimization.subagent_verbosity` et le skill `posture/subagent-concision-posture`.

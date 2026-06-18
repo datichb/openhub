@@ -29,6 +29,7 @@
   },
   "token_optimization": {
     "output_verbosity": "lite",
+    "subagent_verbosity": "subagent",
     "plugins": {
       "rtk": {
         "requires_binary": true,

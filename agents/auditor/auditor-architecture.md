@@ -10,7 +10,7 @@ permission:
   write: deny
   websearch: allow
   webfetch: allow
-skills: [auditor/audit-protocol-light, posture/expert-posture, auditor/audit-handoff-format, shared/websearch-usage]
+skills: [auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage]
 native_skills: [auditor/audit-architecture]
 ---
 

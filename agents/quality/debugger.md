@@ -12,7 +12,7 @@ permission:
   task:
     "*": deny
     "documentarian": allow
-skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, shared/wiki-navigation]
+skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, posture/subagent-concision-posture, shared/wiki-navigation]
 ---
 
 # Agent — Debugger
