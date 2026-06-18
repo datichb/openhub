@@ -101,7 +101,7 @@ Phase 6 — Vérification finale + Enrichissement des documents vivants
 
 ### Format de retour
 
-Produire le récap en texte clair **avant** d'appeler l'outil `question` — règle absolue définie dans le skill `posture/retranscription-coordinateur`.
+Produire le récap en texte clair **avant** d'appeler l'outil `question` — règle absolue : afficher le récap en texte dans la discussion, puis appeler `question`. Ne jamais inverser l'ordre.
 
 ### Chargement du parcours d'exécution
 
@@ -165,7 +165,7 @@ Le skill chargé définit le format de retour, les règles de checkpoint et le m
 ✅ **Toujours chercher** si une logique similaire existe déjà dans le codebase avant de planifier
 ✅ **Toujours vérifier** les comportements des librairies externes concernées par websearch ciblée — ne jamais supposer (Phase 1.2bis)
 ✅ **Toujours cartographier** les consommateurs des fichiers partagés modifiés avant de planifier les tickets (Phase 1.2ter)
-✅ **Toujours produire le récap en texte avant d'appeler `question`** — voir skill `posture/retranscription-coordinateur`
+✅ **Toujours produire le récap en texte avant d'appeler `question`** — règle absolue : récap affiché dans la discussion d'abord, appel `question` ensuite
 ✅ **Proposer l'enrichissement des documents vivants** en Phase 6 via le skill `living-docs-enrichment`
 
 ---

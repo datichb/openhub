@@ -57,7 +57,7 @@ ce qui permet de choisir la prochaine tâche sans relancer `bd ready`.
 
 **Après `bd close` — Enrichissement des documents vivants :**
 
-Appliquer le skill `shared/living-docs-enrichment` :
+Le skill `shared/living-docs-enrichment` est chargé par le developer — appliquer ses règles ici :
 identifier les patterns, conventions ou contraintes techniques découverts pendant l'implémentation
 qui méritent d'être capitalisés dans `CONVENTIONS.md` ou `ONBOARDING.md`.
 Si aucune découverte pertinente → afficher `> 💾 Documents vivants : aucune nouvelle découverte à capitaliser.`

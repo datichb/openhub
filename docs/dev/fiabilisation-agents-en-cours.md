@@ -38,6 +38,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **M-1 / m-4** | Conflit `expert-posture` + `concision-posture` sans règle de priorité — résolu par déclaration explicite de dépendance dans les deux skills : `expert-posture` déclare sa priorité sur `concision-posture` ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` | voir commit suivant |
 | ✅ **M-2** | `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor` — ajouté dans les `skills:` des deux agents. | `agents/developer/developer-migrator.md`, `agents/developer/developer-refactor.md` | voir commit suivant |
 | ✅ **M-7** | Skills `designer/ux-subagent` et `designer/ui-subagent` inexistants — créés, calqués sur `pathfinder-subagent` (session unique sans interruption de phase, sauf clarification critique). Agents `ux-designer` et `ui-designer` mis à jour avec le pattern double-rôle (`[SKILL:designer/ux-subagent]`). `design-handoff-format.md` migré de la détection `[CONTEXTE]` vers `[SKILL:]`. | `skills/designer/ux-subagent.md`, `skills/designer/ui-subagent.md`, `agents/design/ux-designer.md`, `agents/design/ui-designer.md`, `skills/design/design-handoff-format.md` | voir commit suivant |
+| ✅ **M-3** | `onboarder` : `read` non déclaré — vérifié sur le code source OpenCode (v1.17.5). Les defaults système injectent `read: { "*": "allow" }` pour tous les agents customs avant fusion avec le frontmatter. Permission `read` est `allow` par défaut. Aucune modification nécessaire. | — | — |
+| ✅ **M-5** | `planner` : références à `posture/retranscription-coordinateur` dans le body (L.104, L.168) — skill non chargé par le planner (il est producteur des blocs, pas consommateur). Références remplacées par du texte inline autonome. | `agents/planning/planner.md` | voir commit suivant |
+| ✅ **M-6** | `documentarian` : `beads-dev` référence `living-docs-enrichment` — la référence s'applique au developer (qui charge ce skill), pas au documentarian. Formulation clarifiée dans `beads-dev.md` pour lever l'ambiguïté. | `skills/developer/beads-dev.md` | voir commit suivant |
 
 ---
 
@@ -65,15 +68,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-3 — `onboarder` : `read` non déclaré mais workflow Phase 5 nécessite de lire les pages wiki
+### ✅ M-3 — `onboarder` : `read` non déclaré *(résolu — aucune modification nécessaire)*
 
-**Agent concerné :** `agents/planning/onboarder.md`
-
-**Problème :** La Phase 5 du workflow onboarder dit "Si `docs/wiki/index.md` existe déjà → lire la page existante (Read)". La permission `read` n'est pas déclarée dans le frontmatter. Si `deny` est la valeur par défaut pour les outils non déclarés, le mode enrichissement incrémental est techniquement bloqué.
-
-**À vérifier :** comportement OpenCode pour les outils non déclarés (`allow` ou `deny` par défaut ?).
-
-**Résolution probable :** Ajouter `read: allow` (et `glob: allow`, `grep: allow`) dans les permissions de l'onboarder.
+**Vérification :** Les defaults système OpenCode (v1.17.5) injectent `read: { "*": "allow" }` pour tous les agents customs avant toute fusion avec le frontmatter. La permission `read` est `allow` par défaut — le mode enrichissement incrémental de la Phase 5 fonctionne sans déclaration explicite.
 
 ---
 
@@ -87,23 +84,15 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-5 — `planner` : référence à `retranscription-coordinateur` dans le body mais skill absent
+### ✅ M-5 — `planner` : référence à `retranscription-coordinateur` *(résolu)*
 
-**Agent concerné :** `agents/planning/planner.md` (ligne ~104)
-
-**Problème :** Le body du planner dit "règle absolue définie dans le skill `posture/retranscription-coordinateur`" — mais ce skill n'est pas dans ses `skills:`. Référence cassée vers un skill non chargé.
-
-**Résolution :** Soit supprimer la référence et inliner la règle dans le body, soit clarifier que le planner est "producteur" du format et n'a pas besoin de charger le skill de retransmission (qui s'applique aux coordinateurs consommateurs).
+**Résolution :** Le planner est producteur des blocs structurés, pas consommateur — `retranscription-coordinateur` ne s'applique pas à lui. Les deux références (L.104, L.168) remplacées par du texte inline autonome décrivant la règle directement.
 
 ---
 
-### M-6 — `documentarian` : `beads-dev` référence `living-docs-enrichment` mais skill absent
+### ✅ M-6 — `documentarian` : `beads-dev` référence `living-docs-enrichment` *(résolu)*
 
-**Agent concerné :** `agents/documentation/documentarian.md`
-
-**Problème :** `beads-dev.md` (chargé par le documentarian) contient en fin de workflow "Appliquer le skill `shared/living-docs-enrichment`". Ce skill n'est pas dans les `skills:` du documentarian. Référence vers un skill non disponible dans ce contexte.
-
-**Résolution :** Ajouter `shared/living-docs-enrichment` dans les skills du documentarian, ou clarifier que la référence dans `beads-dev` s'applique au contexte de l'invocateur (le developer), pas du documentarian.
+**Résolution :** La référence dans `beads-dev.md` s'applique au developer (qui charge ce skill), pas au documentarian. Formulation clarifiée : "Le skill `shared/living-docs-enrichment` est chargé par le developer — appliquer ses règles ici." Aucune modification du documentarian.
 
 ---
 
@@ -162,14 +151,12 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ### Lot 4 — Vérifications système (30 min)
 
-4. **M-3** : vérifier comportement `read` non déclaré dans OpenCode (allow ou deny par défaut ?)
+*(lot terminé)*
 
 ### Lot 5 — Nettoyage documentaire (1h)
 
-5. **M-5** : planner / référence `retranscription-coordinateur`
-6. **M-6** : documentarian / `living-docs-enrichment`
-7. **m-1** : normaliser terminologie `orchestrateur` / `orchestrator`
-8. Remaining mineurs
+5. **m-1** : normaliser terminologie `orchestrateur` / `orchestrator`
+6. Remaining mineurs
 
 ---
 
@@ -182,3 +169,4 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 - **`native_skills:` n'est pas non plus un champ natif OpenCode.** Convention documentaire du hub.
 - **`skill: allow` est requis** pour que les agents voient la liste des skills disponibles et puissent les charger via l'outil `skill`.
 - **Le wildcard dans `task: { "auditor-*": allow }` : résolu par ADR-017** — remplacé par `"auditor-subagent": allow` (permission explicite).
+- **Permission non déclarée dans un agent custom = `allow` par défaut** (via la règle catch-all `"*": "allow"` dans les defaults système de `agent.ts`). Exception : `question`, `plan_enter`, `plan_exit` → `deny` par défaut. Fichiers `.env` → `ask`. Le fallback ultime (aucune règle ne matche) est `ask`, jamais `deny`.
