@@ -41,6 +41,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **M-3** | `onboarder` : `read` non déclaré — vérifié sur le code source OpenCode (v1.17.5). Les defaults système injectent `read: { "*": "allow" }` pour tous les agents customs avant fusion avec le frontmatter. Permission `read` est `allow` par défaut. Aucune modification nécessaire. | — | — |
 | ✅ **M-5** | `planner` : références à `posture/retranscription-coordinateur` dans le body (L.104, L.168) — skill non chargé par le planner (il est producteur des blocs, pas consommateur). Références remplacées par du texte inline autonome. | `agents/planning/planner.md` | voir commit suivant |
 | ✅ **M-6** | `documentarian` : `beads-dev` référence `living-docs-enrichment` — la référence s'applique au developer (qui charge ce skill), pas au documentarian. Formulation clarifiée dans `beads-dev.md` pour lever l'ambiguïté. | `skills/developer/beads-dev.md` | voir commit suivant |
+| ✅ **M-4** | `reviewer` : standards dev prescriptifs sans adaptation au contexte review — préambule ajouté dans le body : usage des standards pour référence uniquement, signalement des violations, correction déléguée au developer. | `agents/quality/reviewer.md` | voir commit suivant |
 
 ---
 
@@ -50,7 +51,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-## Points restants — 🟠 Majeur (9)
+## Points restants — 🟠 Majeur (1)
 
 ### ✅ M-1 — `expert-posture` + `concision-posture` sans règle de priorité *(résolu)*
 
@@ -58,13 +59,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-2 — `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor`
+### ✅ M-2 — `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor` *(résolu)*
 
-**Agents concernés :** `agents/developer/developer-migrator.md`, `agents/developer/developer-refactor.md`
-
-**Problème :** `developer.md` charge `wiki-navigation` pour lire les conventions avant d'implémenter. Les deux variantes spécialisées ne l'ont pas — agents aveugles aux conventions wiki alors qu'une migration ou un refactoring sans connaître les conventions est plus risqué que l'implémentation de base.
-
-**Résolution :** Ajouter `shared/wiki-navigation` dans les `skills:` des deux agents.
+**Résolution :** `shared/wiki-navigation` ajouté dans les `skills:` des deux agents.
 
 ---
 
@@ -74,13 +71,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-4 — `reviewer` : 7 `native_skills` standards dev sans adaptation au contexte review
+### ✅ M-4 — `reviewer` : standards dev prescriptifs sans adaptation au contexte review *(résolu)*
 
-**Agent concerné :** `agents/quality/reviewer.md`
-
-**Problème :** Les standards `dev-standards-backend`, `dev-standards-frontend`, etc. sont écrits en mode prescriptif ("tu dois faire X"). Le reviewer les charge pour juger, pas pour appliquer. Aucun de ces skills ne contient de section "en review, tu signales seulement". Risque de confusion entre signaler (rôle reviewer) et corriger (rôle developer).
-
-**Résolution :** Ajouter un préambule dans le body du reviewer : "Tu charges ces standards pour référence uniquement. Tu ne les appliques jamais — tu signales les violations, tu ne les corriges pas."
+**Résolution :** Préambule "Usage des standards de développement" ajouté dans le body du reviewer : les standards sont chargés pour référence uniquement, les violations sont signalées (pas corrigées), la correction reste le rôle du developer.
 
 ---
 
@@ -102,19 +95,17 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-8 — `orchestrator` avec `skill: allow` : risque de chargement de skills non pertinents
+### M-8 — `orchestrator` avec `skill: allow` : risque de chargement de skills non pertinents *(surveillance)*
 
 **Agent concerné :** `agents/planning/orchestrator.md`
 
-**Contexte :** Fix C-1 a passé l'orchestrator de `skill: deny` à `skill: allow`. L'orchestrator voit désormais **tous** les skills disponibles dans son system prompt (via `Skill.fmt`).
+**Contexte :** Fix C-1 a passé l'orchestrator de `skill: deny` à `skill: allow`. L'orchestrator voit désormais **tous** les skills disponibles dans son system prompt.
 
-**Risque modéré :** L'orchestrator pourrait charger des skills techniques (ex: `developer/dev-standards-backend`) par confusion. À monitorer en utilisation réelle.
-
-**Résolution si nécessaire :** Ajouter une règle dans le body de l'orchestrator : "Tu ne charges que les skills de posture et de format — jamais les skills techniques (dev-standards-*, audit-*, qa-*)."
+**Risque modéré — à monitorer en utilisation réelle.** Résolution si observé en pratique : ajouter une règle dans le body de l'orchestrator : "Tu ne charges que les skills de posture et de format — jamais les skills techniques (dev-standards-*, audit-*, qa-*)."
 
 ---
 
-### M-9 — ✅ `skills/quality/debugger-subagent.md` inexistant *(résolu — fix C-3)*
+### ✅ M-9 — `skills/quality/debugger-subagent.md` inexistant *(résolu — fix C-3)*
 
 **Résolution :** Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent`, chargé conditionnellement quand l'orchestrateur injecte `[SKILL:quality/debugger-subagent]`.
 
