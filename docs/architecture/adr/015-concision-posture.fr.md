@@ -68,7 +68,7 @@ Créer deux skills :
 
 **Règle de décision :** "Ce contenu est-il dans le bloc de handoff ? → OUI : ne pas le répéter en prose. NON : est-ce une donnée technique brute que le coordinateur doit recevoir ? → NON : ne pas l'écrire."
 
-**Agents concernés :** developer, developer-refactor, developer-migrator, debugger, auditor-architecture, auditor-security, auditor-observability, auditor-ecodesign, auditor-accessibility, auditor-performance, auditor-privacy
+**Agents concernés :** developer, developer-refactor, developer-migrator, auditor-architecture, auditor-security, auditor-observability, auditor-ecodesign, auditor-accessibility, auditor-performance, auditor-privacy
 
 **Note sur les auditor-* :** précédemment exclus de tout skill de concision (leurs rapports étaient considérés comme des livrables formels). Cette décision est révisée : les rapports d'audit sont consommés par le coordinateur `auditor` qui retranscrit à l'utilisateur. Le skill `subagent-concision-posture` ne supprime pas le contenu du bloc de handoff — il élimine uniquement la prose d'encadrement.
 
@@ -111,7 +111,7 @@ Créer deux skills :
 | `agents/developer/developer.md` | Modifié — `posture/concision-posture` remplacé par `posture/subagent-concision-posture` |
 | `agents/developer/developer-refactor.md` | Modifié — `posture/subagent-concision-posture` ajouté |
 | `agents/developer/developer-migrator.md` | Modifié — `posture/subagent-concision-posture` ajouté |
-| `agents/quality/debugger.md` | Modifié — `posture/subagent-concision-posture` ajouté |
+| `agents/quality/debugger.md` | Modifié — `posture/subagent-concision-posture` retiré (fix C-3 : passage à `mode: primary`, pattern double-rôle via `debugger-subagent`) |
 | `agents/auditor/auditor-architecture.md` | Modifié — `posture/subagent-concision-posture` ajouté |
 | `agents/auditor/auditor-security.md` | Modifié — `posture/subagent-concision-posture` ajouté |
 | `agents/auditor/auditor-observability.md` | Modifié — `posture/subagent-concision-posture` ajouté |

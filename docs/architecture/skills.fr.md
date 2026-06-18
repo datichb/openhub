@@ -212,6 +212,7 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 |---------|----------------------|---------|
 | `quality/debugger-workflow.md` | debugger | **Workflow unifié** — 6 phases (0 vérification artefacts → 1 exploration contextuelle → 2 questions complémentaires optionnel → 3 diagnostic 4 étapes : reproduction/isolation/identification/hypothèse graduée → 4 détection cas particuliers : race condition, environnement, données, configuration, dépendances, régression → 5 rapport + ticket Beads) — récaps systématiques, hypothèses graduées (haute/moyenne/faible probabilité), bloc `## Retour vers orchestrator` si invoqué depuis orchestrateur |
 | `quality/debugger-handoff-format.md` | debugger, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : cause racine avec niveau de certitude (confirmé/probable/incertain) + chaîne causale, hypothèses explorées, impact et régressions potentielles, tickets de correction créés, actions d'urgence si bug en prod, statut (`diagnostiqué` / `partiellement-diagnostiqué` / `non-reproductible`) |
+| `quality/debugger-subagent.md` | debugger (conditionnel) | **Parcours sous-agent** — chargé par le debugger quand `[SKILL:quality/debugger-subagent]` est détecté dans le prompt (injection orchestrateur). Mécanisme d'interruption de session à chaque phase, blocs `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` avec `task_id`, interdiction de l'outil `question`. Calqué sur le pattern `planner-subagent`. |
 
 ---
 
@@ -377,6 +378,7 @@ debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
                              shared/living-docs-enrichment,
                              quality/debugger-handoff-format †
+                        (C) quality/debugger-subagent [conditionnel — injecté par orchestrateur]
 auditor               → (A) auditor/auditor-workflow, posture/tool-question,
                              shared/living-docs-enrichment,
                              auditor/audit-handoff-format †

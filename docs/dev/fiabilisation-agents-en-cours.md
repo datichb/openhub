@@ -33,40 +33,14 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **C-2** | Conflit `expert-posture` vs `subagent-concision-posture` sur les auditors — résolu par ADR-017 : consolidation des 7 `auditor-*` en un seul `auditor-subagent`. L'agent unique reçoit les deux skills sans conflit structurel car le domaine est injecté dynamiquement ; les risques critiques remontent via le champ `risques` du bloc handoff. | `agents/auditor/auditor-subagent.md`, docs architecture/skills, docs guides/workflows | ADR-017 |
 | ✅ **C-5** | Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor` — résolu par ADR-017 : remplacement par `"auditor-subagent": allow` (permission explicite, sans wildcard). | `agents/auditor/auditor.md`, `docs/architecture/task-delegation.fr.md` | ADR-017 |
 | ✅ **m-3** | `subagent-concision-posture` listait `debugger` dans sa portée (hybride standalone/subagent) — résolu conjointement avec C-3 (debugger → `mode: primary`) et ADR-017 (suppression des 7 `auditor-*` de la portée, remplacés par `auditor-subagent`). | `skills/posture/subagent-concision-posture.md` | ADR-017 |
+| ✅ **C-3** | `debugger` : `mode: subagent` → `mode: primary`. Retrait de `subagent-concision-posture` des skills. Section "Contexte d'invocation" remplacée par le pattern double-rôle (condition sur `[SKILL:quality/debugger-subagent]`). `debugger-workflow.md` mis à jour (détection signal). | `agents/quality/debugger.md`, `skills/quality/debugger-workflow.md` | voir M-9 |
+| ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrateur` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
 
 ---
 
-## Points restants — 🔴 Critique (3)
+## Points restants — 🔴 Critique (0)
 
-### ✅ C-2 — Conflit `expert-posture` vs `subagent-concision-posture` sur les auditors *(résolu — ADR-017)*
-
-**Agents concernés :** `auditor-subagent` (remplace les 7 `auditor-*` supprimés)
-
-**Résolution (ADR-017) :** Consolidation des 7 sous-agents `auditor-*` en un seul `auditor-subagent`. Le conflit de posture disparaît structurellement : l'agent unique reçoit `expert-posture` + `subagent-concision-posture` ; la règle de priorité est que les risques critiques remontent via le champ `risques` du bloc handoff, jamais via l'outil `question`.
-
----
-
-### C-3 — `debugger` : `mode: subagent` incompatible avec son comportement réel
-
-**Agent concerné :** `agents/quality/debugger.md`
-
-**Problème :** Le debugger est déclaré `mode: subagent` mais :
-- A `question: allow` dans ses permissions
-- A un workflow standalone 6 phases complet dans son body
-- Est invocable directement par l'utilisateur
-- `subagent-concision-posture` (ajouté en c5f61a4) lui prescrit de ne produire que le bloc handoff — incompatible avec un workflow standalone narratif
-
-**Comparaison :** le `reviewer` dans la même situation est `mode: primary`.
-
-**Résolution :** `mode: subagent` → `mode: primary` dans `agents/quality/debugger.md`. Corriger également m-3 (retirer `debugger` de la portée déclarée dans `subagent-concision-posture`).
-
----
-
-### ✅ C-5 — Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor` *(résolu — ADR-017)*
-
-**Agent concerné :** `agents/auditor/auditor.md`
-
-**Résolution (ADR-017) :** La permission `task: { "auditor-*": allow }` a été remplacée par `task: { "auditor-subagent": allow }` — permission explicite sans wildcard. Le risque de non-support des wildcards est éliminé.
+*Tous les points critiques ont été résolus.*
 
 ---
 
@@ -156,13 +130,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-9 — `skills/quality/debugger-subagent.md` inexistant
+### M-9 — ✅ `skills/quality/debugger-subagent.md` inexistant *(résolu — fix C-3)*
 
-**Agent concerné :** `debugger` (via `orchestrator-protocol`)
-
-**Problème :** `orchestrator-protocol.md` injecte `[SKILL:quality/debugger-subagent]` lors des invocations du debugger. Ce fichier n'existe pas. Tous les autres agents ont leur variante `*-subagent` correspondante (planner, onboarder, qa, reviewer) — le debugger est le seul manquant.
-
-**Résolution :** Créer `skills/quality/debugger-subagent.md` (à coupler avec la résolution C-3 — si le debugger passe en `mode: primary`, ce skill définit son comportement quand invoqué depuis l'orchestrator).
+**Résolution :** Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent`, chargé conditionnellement quand l'orchestrateur injecte `[SKILL:quality/debugger-subagent]`.
 
 ---
 
@@ -189,28 +159,26 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ### Lot 1 — Rapide, fort impact (< 30 min)
 
-1. **C-3** : `debugger` → `mode: primary` (1 ligne) + m-3 (retirer `debugger` de la portée de `subagent-concision-posture`)
-2. **M-2** : ajouter `shared/wiki-navigation` à `developer-migrator` et `developer-refactor` (2 lignes)
+1. **M-2** : ajouter `shared/wiki-navigation` à `developer-migrator` et `developer-refactor` (2 lignes)
 
 ### Lot 2 — Fichiers manquants (1-2h)
 
-3. **M-9** : créer `skills/quality/debugger-subagent.md`
-4. **M-7** : créer `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md`
+2. **M-7** : créer `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md`
 
 ### Lot 3 — Conflits de posture (1-2h)
 
-5. **M-1 / m-4** : note de priorité `expert-posture` vs `concision-posture`
+3. **M-1 / m-4** : note de priorité `expert-posture` vs `concision-posture`
 
 ### Lot 4 — Vérifications système (30 min)
 
-6. **M-3** : vérifier comportement `read` non déclaré dans OpenCode (allow ou deny par défaut ?)
+4. **M-3** : vérifier comportement `read` non déclaré dans OpenCode (allow ou deny par défaut ?)
 
 ### Lot 5 — Nettoyage documentaire (1h)
 
-9. **M-5** : planner / référence `retranscription-coordinateur`
-10. **M-6** : documentarian / `living-docs-enrichment`
-11. **m-1** : normaliser terminologie `orchestrateur` / `orchestrator`
-12. Remaining mineurs
+5. **M-5** : planner / référence `retranscription-coordinateur`
+6. **M-6** : documentarian / `living-docs-enrichment`
+7. **m-1** : normaliser terminologie `orchestrateur` / `orchestrator`
+8. Remaining mineurs
 
 ---
 

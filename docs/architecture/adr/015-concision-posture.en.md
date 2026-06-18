@@ -68,7 +68,7 @@ Create two skills:
 
 **Decision rule:** "Is this content in the handoff block? → If yes: do not repeat in prose. If no: is it raw technical data the coordinator must receive? → If no: do not write it."
 
-**Agents in scope:** developer, developer-refactor, developer-migrator, debugger, auditor-architecture, auditor-security, auditor-observability, auditor-ecodesign, auditor-accessibility, auditor-performance, auditor-privacy
+**Agents in scope:** developer, developer-refactor, developer-migrator, auditor-architecture, auditor-security, auditor-observability, auditor-ecodesign, auditor-accessibility, auditor-performance, auditor-privacy
 
 **Note on auditor-* agents:** previously excluded from any concision skill (their reports were considered formal deliverables). This decision is revised: auditor reports are consumed by the `auditor` coordinator which retranscribes them to the user. The subagent-concision-posture skill does not suppress handoff block content — it eliminates only the prose wrapper around it.
 
@@ -111,7 +111,7 @@ Create two skills:
 | `agents/developer/developer.md` | Modified — `posture/concision-posture` replaced by `posture/subagent-concision-posture` |
 | `agents/developer/developer-refactor.md` | Modified — `posture/subagent-concision-posture` added |
 | `agents/developer/developer-migrator.md` | Modified — `posture/subagent-concision-posture` added |
-| `agents/quality/debugger.md` | Modified — `posture/subagent-concision-posture` added |
+| `agents/quality/debugger.md` | Modified — `posture/subagent-concision-posture` removed (fix C-3: switched to `mode: primary`, dual-role pattern via `debugger-subagent`) |
 | `agents/auditor/auditor-architecture.md` | Modified — `posture/subagent-concision-posture` added |
 | `agents/auditor/auditor-security.md` | Modified — `posture/subagent-concision-posture` added |
 | `agents/auditor/auditor-observability.md` | Modified — `posture/subagent-concision-posture` added |
