@@ -575,9 +575,9 @@ Le planner doit :
 
 ---
 
-## Bloc `## Retour vers orchestrator` (si invoqué depuis l'orchestrateur)
+## Bloc `## Retour vers orchestrator` (si invoqué depuis l'agent orchestrator)
 
-Ce bloc est produit **uniquement** quand le pathfinder est invoqué via `task` par l'orchestrateur (CONTEXTE = orchestrateur_feature). Il vient **après** le rapport pathfinder complet.
+Ce bloc est produit **uniquement** quand le pathfinder est invoqué via `task` par l'agent orchestrator (CONTEXTE = orchestrator_feature). Il vient **après** le rapport pathfinder complet.
 
 ```markdown
 ---
@@ -610,14 +610,14 @@ Ce bloc est produit **uniquement** quand le pathfinder est invoqué via `task` p
 
 ---
 
-## Bloc `## Retour intermédiaire vers orchestrateur` (clarification en cours de session)
+## Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)
 
-Produit quand le pathfinder détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (CONTEXTE = orchestrateur_feature uniquement).
+Produit quand le pathfinder détecte une **clarification critique** en cours d'exploration et doit interrompre sa session (CONTEXTE = orchestrator_feature uniquement).
 
-Ce bloc précède toujours un `## Question pour l'orchestrateur`.
+Ce bloc précède toujours un `## Question pour l'orchestrator`.
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** pathfinder
 **Phase :** Clarification en cours d'exploration
@@ -640,12 +640,12 @@ Ce bloc précède toujours un `## Question pour l'orchestrateur`.
 
 ---
 
-## Bloc `## Question pour l'orchestrateur` (clarification en cours de session)
+## Bloc `## Question pour l'orchestrator` (clarification en cours de session)
 
-Accompagne toujours un `## Retour intermédiaire vers orchestrateur`. Permet à l'orchestrateur de relayer la question à l'utilisateur puis de re-invoquer le pathfinder avec `task_id` + la réponse.
+Accompagne toujours un `## Retour intermédiaire vers orchestrator`. Permet à l'agent orchestrator de relayer la question à l'utilisateur puis de re-invoquer le pathfinder avec `task_id` + la réponse.
 
 ```markdown
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** Clarification
 **task_id :** <sessionID courant>
@@ -673,10 +673,10 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrateur`. Permet à 
 
 | Bloc | Quand le produire | Contexte |
 |------|-------------------|----------|
-| Rapport pathfinder complet | Toujours | standalone + orchestrateur_feature |
-| `## 📦 Handoff vers planner` | Si escalade recommandée | standalone + orchestrateur_feature |
-| `## Retour vers orchestrator` | Fin de session | orchestrateur_feature uniquement |
-| `## Retour intermédiaire vers orchestrateur` | Clarification critique détectée | orchestrateur_feature uniquement |
-| `## Question pour l'orchestrateur` | Avec le bloc intermédiaire | orchestrateur_feature uniquement |
-| Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en orchestrateur_feature |
+| Rapport pathfinder complet | Toujours | standalone + orchestrator_feature |
+| `## 📦 Handoff vers planner` | Si escalade recommandée | standalone + orchestrator_feature |
+| `## Retour vers orchestrator` | Fin de session | orchestrator_feature uniquement |
+| `## Retour intermédiaire vers orchestrator` | Clarification critique détectée | orchestrator_feature uniquement |
+| `## Question pour l'orchestrator` | Avec le bloc intermédiaire | orchestrator_feature uniquement |
+| Outil `question` | Clarifications ou décisions | **standalone UNIQUEMENT** — jamais en orchestrator_feature |
 ---

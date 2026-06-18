@@ -135,5 +135,5 @@ Le skill chargé définit le format de retour, les règles de checkpoint et le m
 ✅ Signaler explicitement ce qui manque pour compléter le diagnostic
 ✅ Demander les informations manquantes via l'outil `question` si les artefacts sont insuffisants
 ✅ Afficher le récap en texte clair AVANT d'appeler l'outil `question` à chaque fin de phase
-✅ Produire le bloc handoff si invoqué depuis l'orchestrateur (CONTEXTE = orchestrateur_feature)
+✅ Produire le bloc handoff si invoqué depuis l'agent orchestrator (CONTEXTE = orchestrator_feature)
 ✅ Proposer l'enrichissement des documents vivants après le rapport (skill `living-docs-enrichment`)

@@ -1,6 +1,6 @@
 ---
 name: orchestrator-protocol
-description: Protocole de l'orchestrateur feature — interface utilisateur qui coordonne la communication agent-utilisateur. Route vers les agents selon les instructions explicites du planner (champ Agent prévu et Ordre de traitement). Gère les checkpoints CP-spec et CP-audit. Les modes de workflow (manuel/semi-auto/auto) sont délégués à orchestrator-dev.
+description: Protocole de l'agent orchestrator feature — interface utilisateur qui coordonne la communication agent-utilisateur. Route vers les agents selon les instructions explicites du planner (champ Agent prévu et Ordre de traitement). Gère les checkpoints CP-spec et CP-audit. Les modes de workflow (manuel/semi-auto/auto) sont délégués à orchestrator-dev.
 ---
 
 # Skill — Protocole Orchestrateur Feature
@@ -173,10 +173,10 @@ Invoquer le `debugger` en lui transmettant :
 
 À la réception du résultat, **détecter le type de retour** :
 
-**Cas A — retour final :** le résultat contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+**Cas A — retour final :** le résultat contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrator`
 → Effectuer les vérifications :
 
-1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** (récaps de phases accumulés) :
+1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrator`** (récaps de phases accumulés) :
    - **Présents** → les afficher intégralement en texte dans la discussion, dans l'ordre, AVANT le reste
    - **Absents** → continuer directement
 
@@ -188,7 +188,7 @@ Invoquer le `debugger` en lui transmettant :
    - **Présent** → continuer
    - **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
 
-**Cas B — question montante :** le résultat contient `## Question pour l'orchestrateur`
+**Cas B — question montante :** le résultat contient `## Question pour l'orchestrator`
 → Voir section "Réception d'une question montante depuis le debugger" ci-dessous.
 
 > Template de retranscription, checklist et autocontrôle complets → skill `posture/retranscription-coordinateur`.
@@ -202,15 +202,15 @@ Invoquer le `debugger` en lui transmettant :
 
 ### Réception d'une question montante depuis le debugger
 
-Quand le debugger atteint un checkpoint (fin de phase, pause, confirmation d'action irréversible), il termine sa session avec un bloc `## Question pour l'orchestrateur`.
+Quand le debugger atteint un checkpoint (fin de phase, pause, confirmation d'action irréversible), il termine sa session avec un bloc `## Question pour l'orchestrator`.
 
-> ⚠️ **RAPPEL IMPÉRATIF** : Afficher le `## Retour intermédiaire vers orchestrateur` AVANT d'appeler l'outil `question`.
+> ⚠️ **RAPPEL IMPÉRATIF** : Afficher le `## Retour intermédiaire vers orchestrator` AVANT d'appeler l'outil `question`.
 
 **Comportement obligatoire :**
 
-1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrateur`** dans la discussion — ne jamais résumer.
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — ne jamais résumer.
 
-2. **Lire le bloc `## Question pour l'orchestrateur`** — récupérer : question, options, `task_id`, instruction de reprise.
+2. **Lire le bloc `## Question pour l'orchestrator`** — récupérer : question, options, `task_id`, instruction de reprise.
 
 3. **Poser la question à l'utilisateur** via l'outil `question` :
 
@@ -294,10 +294,10 @@ question({
 
   À la réception du résultat, **détecter le type de retour** :
 
-  **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+  **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrator`
   → Effectuer les vérifications dans l'ordre :
 
-  1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** :
+  1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrator`** :
      - **Présents** → les afficher intégralement en texte dans l'ordre, AVANT le reste
      - **Absents** → continuer directement
 
@@ -309,7 +309,7 @@ question({
      - **Présent** → continuer
      - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
 
-  **Cas B — question montante :** contient `## Question pour l'orchestrateur`
+  **Cas B — question montante :** contient `## Question pour l'orchestrator`
   → Voir section "Réception d'une question montante depuis l'onboarder" ci-dessous.
 
 > Template de retranscription, checklist et autocontrôle complets → skill `posture/retranscription-coordinateur`.
@@ -323,15 +323,15 @@ question({
 
 ### Réception d'une question montante depuis l'onboarder
 
-Quand l'onboarder atteint un checkpoint (fin de phase), il termine sa session avec un bloc `## Question pour l'orchestrateur`.
+Quand l'onboarder atteint un checkpoint (fin de phase), il termine sa session avec un bloc `## Question pour l'orchestrator`.
 
-> ⚠️ **RAPPEL IMPÉRATIF** : Afficher le `## Retour intermédiaire vers orchestrateur` AVANT d'appeler l'outil `question`.
+> ⚠️ **RAPPEL IMPÉRATIF** : Afficher le `## Retour intermédiaire vers orchestrator` AVANT d'appeler l'outil `question`.
 
 **Comportement obligatoire :**
 
-1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrateur`** dans la discussion.
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion.
 
-2. **Lire le bloc `## Question pour l'orchestrateur`** — récupérer : question, options, `task_id`, instruction de reprise.
+2. **Lire le bloc `## Question pour l'orchestrator`** — récupérer : question, options, `task_id`, instruction de reprise.
 
 3. **Poser la question à l'utilisateur** via l'outil `question` :
 
@@ -400,16 +400,16 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
    Invoquer le planner en transmettant :
    - La feature à planifier (description verbatim de l'utilisateur)
    - **Le marqueur de contexte d'invocation (obligatoire) :**
-     > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session (blocs ## Retour intermédiaire vers orchestrateur + ## Question pour l'orchestrateur) à chaque fin de phase et chaque pause, et produire le bloc ## Retour vers orchestrator en fin de planification — sans exception.`
+     > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session (blocs ## Retour intermédiaire vers orchestrator + ## Question pour l'orchestrator) à chaque fin de phase et chaque pause, et produire le bloc ## Retour vers orchestrator en fin de planification — sans exception.`
    - **Le skill de parcours (obligatoire) :**
      > `[SKILL:planning/planner-subagent]`
 
 2. À la réception du résultat du `planner`, **détecter le type de retour** :
 
-   **Cas A — retour final :** le résultat contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+   **Cas A — retour final :** le résultat contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrator`
    → Effectuer les vérifications suivantes dans l'ordre :
 
-   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** (récaps de phases accumulés) :
+   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrator`** (récaps de phases accumulés) :
       - **Présents** → les afficher intégralement en texte dans la discussion, dans l'ordre, AVANT le reste
       - **Absents** → continuer directement avec le récapitulatif final
 
@@ -421,7 +421,7 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
       - **Présent** → continuer
       - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
 
-   **Cas B — question montante :** le résultat contient `## Question pour l'orchestrateur`
+   **Cas B — question montante :** le résultat contient `## Question pour l'orchestrator`
    → Voir section "Réception d'une question montante depuis le planner" ci-dessous.
 
 > Template de retranscription, checklist et autocontrôle complets → skill `posture/retranscription-coordinateur`.
@@ -434,15 +434,15 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
 
 ### Réception d'une question montante depuis le planner
 
-Quand le planner atteint un checkpoint (fin de phase ou clarification critique), il termine sa session avec un bloc `## Question pour l'orchestrateur`.
+Quand le planner atteint un checkpoint (fin de phase ou clarification critique), il termine sa session avec un bloc `## Question pour l'orchestrator`.
 
-> ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS afficher le contenu du bloc `## Retour intermédiaire vers orchestrateur` AVANT d'appeler l'outil `question`. Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte.
+> ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS afficher le contenu du bloc `## Retour intermédiaire vers orchestrator` AVANT d'appeler l'outil `question`. Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte.
 
 **Comportement obligatoire :**
 
-1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrateur`** dans la discussion — ne jamais résumer ni abréger.
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — ne jamais résumer ni abréger.
 
-2. **Lire le bloc `## Question pour l'orchestrateur`** — récupérer : question, options, `task_id`, instruction de reprise.
+2. **Lire le bloc `## Question pour l'orchestrator`** — récupérer : question, options, `task_id`, instruction de reprise.
 
 3. **Poser la question à l'utilisateur** via l'outil `question` en reprenant exactement la question et les options du bloc :
 
@@ -459,7 +459,7 @@ Quand le planner atteint un checkpoint (fin de phase ou clarification critique),
    })
    ```
 
-4. **Ré-invoquer le planner avec `task_id`** (valeur dans le bloc `## Question pour l'orchestrateur`) en transmettant la réponse :
+4. **Ré-invoquer le planner avec `task_id`** (valeur dans le bloc `## Question pour l'orchestrator`) en transmettant la réponse :
 
    ```
    task(
@@ -673,9 +673,9 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 
 4. À la réception du résultat, **détecter le type de retour** :
 
-   **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+   **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrator`
 
-   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** :
+   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrator`** :
       - **Présents** → les afficher en texte dans l'ordre, AVANT le reste
       - **Absents** → continuer
 
@@ -687,8 +687,8 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
       - **Présent** → continuer
       - **Absent** → demander explicitement à l'agent design de produire le récapitulatif structuré avant de continuer.
 
-   **Cas B — question montante :** contient `## Question pour l'orchestrateur`
-   → Afficher le `## Retour intermédiaire vers orchestrateur` en texte, relayer la question via `question`, ré-invoquer avec `task_id` + réponse + marqueur `[CONTEXTE]`.
+   **Cas B — question montante :** contient `## Question pour l'orchestrator`
+   → Afficher le `## Retour intermédiaire vers orchestrator` en texte, relayer la question via `question`, ré-invoquer avec `task_id` + réponse + marqueur `[CONTEXTE]`.
 
 > Template de retranscription, checklist et autocontrôle complets → skill `posture/retranscription-coordinateur`.
 
@@ -776,9 +776,9 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
 
 4. À la réception du résultat, **détecter le type de retour** :
 
-   **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrateur`
+   **Cas A — retour final :** contient `## Retour vers orchestrator` mais **pas** de `## Question pour l'orchestrator`
 
-   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrateur`** :
+   1. **Détecter la présence des blocs `## Retour intermédiaire vers orchestrator`** :
       - **Présents** → les afficher en texte dans l'ordre, AVANT le reste
       - **Absents** → continuer
 
@@ -790,8 +790,8 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
       - **Présent** → continuer
       - **Absent** → demander explicitement à l'agent auditeur de produire le récapitulatif structuré avant de continuer.
 
-   **Cas B — question montante :** contient `## Question pour l'orchestrateur`
-   → Afficher le `## Retour intermédiaire vers orchestrateur` en texte, relayer la question via `question`, ré-invoquer avec `task_id` + réponse + marqueur `[CONTEXTE]`.
+   **Cas B — question montante :** contient `## Question pour l'orchestrator`
+   → Afficher le `## Retour intermédiaire vers orchestrator` en texte, relayer la question via `question`, ré-invoquer avec `task_id` + réponse + marqueur `[CONTEXTE]`.
 
 > Template de retranscription, checklist et autocontrôle complets → skill `posture/retranscription-coordinateur`.
 
@@ -1081,7 +1081,7 @@ todowrite({
 
 ### Ticket mixte (spec + dev dans le même ticket)
 
-Ce cas est détecté par le planner, pas par l'orchestrateur. Si le planner signale un ticket mixte
+Ce cas est détecté par le planner, pas par l'agent orchestrator. Si le planner signale un ticket mixte
 dans son retour, utiliser l'outil `question` :
 
 ```

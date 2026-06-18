@@ -18,7 +18,7 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 | `semi-auto` | ⏸️ pause | ▶️ auto | ⏸️ pause | ⏸️ **pause** | ▶️ auto |
 | `auto` | ⏸️ pause (+ choix QA global) | ▶️ auto | ▶️ valeur fixée en CP-0 | ⏸️ **pause** | ▶️ auto |
 
-> Quand un CP est `▶️ auto`, l'orchestrateur affiche quand même l'information mais enchaîne sans attendre de confirmation.
+> Quand un CP est `▶️ auto`, l'agent orchestrator affiche quand même l'information mais enchaîne sans attendre de confirmation.
 
 > **Parallélisme conditionnel (mode `auto` uniquement) :** en mode `auto`, `orchestrator-dev` peut traiter plusieurs tickets simultanément si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, maximum 3 tickets. Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. Voir `orchestrator-dev-protocol` pour le protocole complet.
 >
@@ -83,7 +83,7 @@ Si `workflow.defaultMode` est disponible dans le contexte de session :
 
 > ❌ Ne jamais utiliser l'outil `read` pour accéder à `opencode.json` — le contexte est injecté automatiquement dans la session. Si la valeur n'est pas disponible dans la session, elle est absente : poser la question.
 >
-> **Note pour `orchestrator-dev`** : si `opencode.json` est explicitement autorisé en lecture directe (permission `read.opencode.json: allow` dans le frontmatter), `orchestrator-dev` peut utiliser l'outil `read` pour lire ce fichier. Cette restriction ne s'applique qu'à l'orchestrateur feature qui n'a pas cette permission.
+> **Note pour `orchestrator-dev`** : si `opencode.json` est explicitement autorisé en lecture directe (permission `read.opencode.json: allow` dans le frontmatter), `orchestrator-dev` peut utiliser l'outil `read` pour lire ce fichier. Cette restriction ne s'applique qu'à l'agent orchestrator feature qui n'a pas cette permission.
 
 ### Question interactive (si non configuré)
 
@@ -148,7 +148,7 @@ La valeur choisie est fixée pour toute la session et appliquée automatiquement
 ## Comportement selon le contexte d'invocation
 
 - **Invoqué standalone** : demander le mode via le bloc question ci-dessus au CP-0.
-- **Invoqué depuis l'orchestrateur feature** : le mode est transmis dans le texte du prompt — ne pas redemander le mode, démarrer directement avec la valeur reçue.
+- **Invoqué depuis l'agent orchestrator feature** : le mode est transmis dans le texte du prompt — ne pas redemander le mode, démarrer directement avec la valeur reçue.
 
   **Format de transmission requis :** le mode doit figurer dans le prompt sous l'une des trois valeurs canoniques exactes suivantes :
   - `manuel`

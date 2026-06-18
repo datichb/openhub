@@ -104,7 +104,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
 ## ⏸️ Phase 0 — Prérequis manquants
 
@@ -116,7 +116,7 @@ Pour démarrer l'onboarding, j'ai besoin de :
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 0 — Prérequis manquants
@@ -130,7 +130,7 @@ Pour démarrer l'onboarding, j'ai besoin de :
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0 — Pause prérequis
 **task_id :** <sessionID courant>
@@ -183,9 +183,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 0 — Prérequis vérifiés
@@ -195,7 +195,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -749,9 +749,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 1 — Exploration contextuelle
@@ -761,7 +761,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -859,9 +859,9 @@ Puis appeler l'outil `question` avec **une question par clarification** :
 
 ⚠️ **AUTOCONTRÔLE** : Le contexte Phase 2 en texte (ci-dessus — liste des questions avec leur contexte issu de Phase 1) **doit être affiché** dans la discussion AVANT ce checkpoint. Si ce n'est pas fait → afficher le contexte MAINTENANT.
 
-> **Si CONTEXTE = orchestrateur_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+> **Si CONTEXTE = orchestrator_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
 
-**Si CONTEXTE = standalone ou orchestrateur_feature :**
+**Si CONTEXTE = standalone ou orchestrator_feature :**
 ```
 question({
   questions: [
@@ -942,9 +942,9 @@ question({
 
 > **Règle d'adaptation** : N'inclure que les questions pertinentes selon ce qui a été découvert en Phase 1. Si aucune ambiguïté de convention n'a été détectée, retirer la question "Convention de code". Si aucun fichier Figma n'a été trouvé, retirer la question "Statut des maquettes". Adapter les labels des options au contenu réel observé (remplacer `<pattern détecté>`, `[Fichier A]`, `<convention A>`, etc.).
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 2 — Questions complémentaires (proposition)
@@ -954,7 +954,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2 — Questions complémentaires
 **task_id :** <sessionID courant>
@@ -1062,9 +1062,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 2 — Questions complémentaires traitées
@@ -1074,7 +1074,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -1279,9 +1279,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 3 — Rapport de contexte
@@ -1291,7 +1291,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -1377,9 +1377,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 4 — Détection des cas particuliers
@@ -1389,7 +1389,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 4
 **task_id :** <sessionID courant>
@@ -1786,7 +1786,7 @@ biome.json, docs/wiki/index.md
 
 ### Format de retour final
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 
 Produire dans cet ordre :
 
@@ -1935,7 +1935,7 @@ Phase 5 → Phase X (ajustements — demander quelle phase)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Onboarder — Phase X | Projet : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrateur_feature en fin de Phase 5
+✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 5
 ✅ **Baser chaque convention sur un fichier réellement lu** — ne jamais inventer
 ✅ **Citer la source** quand c'est utile : "(observé dans `eslint.config.js`)"
 ✅ **Signaler les incohérences** : si config dit X mais le code fait Y → noter dans "Zones d'ombre"

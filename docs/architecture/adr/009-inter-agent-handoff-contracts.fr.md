@@ -65,7 +65,7 @@ Formaliser **tous** les contrats de communication inter-agents comme skills déd
 
 ---
 
-## Amendement — Récap d'implémentation condensé dans le fil de l'orchestrateur
+## Amendement — Récap d'implémentation condensé dans le fil de l'agent orchestrator
 
 **Contexte :** après le déploiement initial, un manque a été identifié à la frontière `orchestrator-dev` → `orchestrator` : le bloc structuré `## Retour vers orchestrator` ne contenait qu'un résumé minimal (tickets traités, points d'attention, statut global). L'orchestrateur n'avait aucune visibilité sur le détail de l'implémentation (fichiers modifiés, cycles de review, couverture des critères d'acceptance) avant de présenter le [CP-feature] à l'utilisateur.
 
@@ -75,7 +75,7 @@ Formaliser **tous** les contrats de communication inter-agents comme skills déd
 2. Le bloc structuré `## Retour vers orchestrator` contient le tableau de détail par ticket et les statistiques — données actionnables non présentes dans le récap.
 3. La règle consommateur de l'`orchestrator` est mise à jour : il doit **afficher ce récap dans son fil de discussion** avant de construire le [CP-feature] — symétrique avec l'affichage du rapport de review avant le [CP-2].
 
-**Impact :** le fil de discussion de l'orchestrateur affiche une synthèse d'implémentation concise avant chaque [CP-feature], donnant à l'utilisateur une visibilité ciblée sur ce qui a été réalisé sans surcharger le fil avec N comptes rendus narratifs complets.
+**Impact :** le fil de discussion de l'agent orchestrator affiche une synthèse d'implémentation concise avant chaque [CP-feature], donnant à l'utilisateur une visibilité ciblée sur ce qui a été réalisé sans surcharger le fil avec N comptes rendus narratifs complets.
 
 ---
 

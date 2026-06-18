@@ -33,7 +33,7 @@ Quand tu invoques un sous-agent via `task`, tu DOIS retranscrire son retour comp
 **Séquence obligatoire — sans exception :**
 
 1. Recevoir le retour du sous-agent
-2. **Si le retour contient des blocs `## Retour intermédiaire vers orchestrateur`** → les afficher en texte dans l'ordre, en premier
+2. **Si le retour contient des blocs `## Retour intermédiaire vers orchestrator`** → les afficher en texte dans l'ordre, en premier
 3. **Afficher le récap final / rapport complet en texte** dans la discussion
 4. **Afficher le bloc structuré** (`## Retour vers orchestrator`) dans la discussion
 5. **Puis seulement** appeler l'outil `question`
@@ -58,7 +58,7 @@ Utiliser ce template après chaque réception de retour final :
 
 ### Blocs intermédiaires (si présents)
 
-<Copier-coller intégral de chaque ## Retour intermédiaire vers orchestrateur, dans l'ordre — uniquement si présents>
+<Copier-coller intégral de chaque ## Retour intermédiaire vers orchestrator, dans l'ordre — uniquement si présents>
 
 ---
 
@@ -79,7 +79,7 @@ Utiliser ce template après chaque réception de retour final :
 
 ### Template pour une question montante (planner / pathfinder / onboarder / auditor / debugger / designers)
 
-Quand un sous-agent termine sa session avec `## Question pour l'orchestrateur` (ou `## Question pour l'orchestrator` pour orchestrator-dev) :
+Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` (ou `## Question pour l'orchestrator` pour orchestrator-dev) :
 
 ```
 **[Retranscription — question montante <agent>]**
@@ -88,7 +88,7 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrateur` (
 
 ### Récap intermédiaire
 
-<Copier-coller intégral du bloc ## Retour intermédiaire vers orchestrateur (ou ## Retour vers orchestrator partiel pour orchestrator-dev)>
+<Copier-coller intégral du bloc ## Retour intermédiaire vers orchestrator (ou ## Retour vers orchestrator partiel pour orchestrator-dev)>
 
 ---
 
@@ -105,7 +105,7 @@ Quand un sous-agent termine sa session avec `## Question pour l'orchestrateur` (
 
 Avant d'appeler `question`, vérifier :
 
-- ✅ Les blocs `## Retour intermédiaire vers orchestrateur` sont affichés (si présents)
+- ✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés (si présents)
 - ✅ Le récap complet est affiché en texte (aucune omission, aucun résumé)
 - ✅ Le bloc structuré est affiché en texte avec tous les champs obligatoires
 - ✅ Les sections critiques sont présentes (ex : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Contraintes d'implémentation`, etc. selon l'agent)
@@ -116,7 +116,7 @@ Avant d'appeler `question`, vérifier :
 
 | Vérification | Fait ? |
 |--------------|--------|
-| ✅ Les blocs `## Retour intermédiaire vers orchestrateur` sont affichés en texte (si présents) | ⬜ |
+| ✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés en texte (si présents) | ⬜ |
 | ✅ J'ai affiché le récap narratif complet du sous-agent en texte (copier-coller intégral, non résumé) | ⬜ |
 | ✅ J'ai affiché le bloc structuré `## Retour vers orchestrator` en entier | ⬜ |
 | ✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Règles par type de retour") | ⬜ |
@@ -140,20 +140,20 @@ Avant d'appeler `question`, vérifier :
 | Agent source | Type de retour | Récap à retranscrire | Sections critiques à vérifier |
 |--------------|---------------|----------------------|-------------------------------|
 | **planner** (final) | `## Retour vers orchestrator` | Récapitulatif de planification + blocs intermédiaires si présents | `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement` |
-| **planner** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contenu de la phase, contexte de la question, `task_id` |
+| **planner** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu de la phase, contexte de la question, `task_id` |
 | **pathfinder** (final) | `## Retour vers orchestrator` | Rapport pathfinder complet + blocs intermédiaires si présents | `## Recommandation`, `## Signaux détectés`, `## Handoff vers planner` si escalade |
-| **pathfinder** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Ce qui a été exploré, problème détecté, `task_id` |
+| **pathfinder** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Ce qui a été exploré, problème détecté, `task_id` |
 | **onboarder** (final) | `## Retour vers orchestrator` | Rapport d'onboarding complet + blocs intermédiaires si présents | `### Zones d'incertitude`, `### Dette technique détectée` |
-| **onboarder** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contenu de la phase explorée, `task_id` |
+| **onboarder** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu de la phase explorée, `task_id` |
 | **auditor** coordinateur (final) | `## Retour vers orchestrator` | Synthèse exécutive multi-domaines + blocs intermédiaires si présents | `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
-| **auditor** coordinateur (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Domaines audités, état des sous-agents, `task_id` |
+| **auditor** coordinateur (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Domaines audités, état des sous-agents, `task_id` |
 | **auditor-*** sous-agents (final) | `## Retour vers orchestrator` | Rapport d'audit complet | `### Périmètre audité`, `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
 | **debugger** (final) | `## Retour vers orchestrator` | Rapport de diagnostic complet + blocs intermédiaires si présents | `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles` |
-| **debugger** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contenu du diagnostic en cours, `task_id` |
+| **debugger** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu du diagnostic en cours, `task_id` |
 | **ux-designer** (final) | `## Retour vers orchestrator` | Spec UX complète + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
-| **ux-designer** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contexte clarification, `task_id` |
+| **ux-designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification, `task_id` |
 | **ui-designer** (final) | `## Retour vers orchestrator` | Spec UI complète + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
-| **ui-designer** (question montante) | `## Question pour l'orchestrateur` | `## Retour intermédiaire vers orchestrateur` | Contexte clarification (design system), `task_id` |
+| **ui-designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification (design system), `task_id` |
 | **orchestrator-dev** (final) | `## Retour vers orchestrator` | Récap global complet (tableau + comptes rendus + points d'attention) | `### Détail par ticket`, `### Points d'attention` |
 | **orchestrator-dev** (CP à enjeu fort : CP-2, blocage, ticket bloqué) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel + rapport review | `### Rapport de review complet`, `### État de la session`, `task_id` |
 | **orchestrator-dev** (CPs intermédiaires : CP-1, CP-QA, CP-3, branche) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel | Contexte du CP, état de la session, `task_id` |

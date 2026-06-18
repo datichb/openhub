@@ -23,7 +23,7 @@ permission:
   glob: allow
   grep: allow
   write: allow
-  edit: deny  # QA ne modifie jamais le code existant
+  edit: allow  # QA peut modifier les fichiers de tests existants
   task:
     "*": deny
     "documentarian": allow

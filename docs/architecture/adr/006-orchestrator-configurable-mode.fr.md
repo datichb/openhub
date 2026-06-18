@@ -1,4 +1,4 @@
-# ADR-006 — Mode de workflow configurable pour l'orchestrateur dev
+# ADR-006 — Mode de workflow configurable pour l'agent orchestrator dev
 
 ## Statut
 
@@ -6,7 +6,7 @@ Accepté
 
 ## Contexte
 
-L'ADR-003 a établi un workflow entièrement manuel pour l'orchestrateur : chaque
+L'ADR-003 a établi un workflow entièrement manuel pour l'agent orchestrator : chaque
 checkpoint (`[CP-0]` à `[CP-3]`) attend une réponse explicite de l'utilisateur
 avant de continuer. Cette décision était justifiée pour garantir le contrôle et
 éviter la propagation d'erreurs.
@@ -20,7 +20,7 @@ tâches de refactoring répétitives). L'utilisateur y tape `oui`, `suivant`, `o
 L'ADR-003 avait explicitement noté le mode configurable comme *"possible en évolution
 future"*, sans preuve immédiate de valeur. Cette preuve est maintenant établie.
 
-Depuis, l'orchestrateur a été scindé en deux niveaux (voir la refonte de l'architecture) :
+Depuis, l'agent orchestrator a été scindé en deux niveaux (voir la refonte de l'architecture) :
 - `orchestrator` — chef de projet feature (conception → audit → implémentation)
 - `orchestrator-dev` — tech lead d'implémentation (developer-* + QA + review)
 
@@ -78,7 +78,7 @@ comportement d'un agent spécifique. Peut être greffé sur cette décision en
 évolution future si le besoin se confirme.
 
 **Suppression de CP-0** : rejetée — CP-0 est le consentement initial au démarrage
-du workflow. Le supprimer signifierait qu'une invocation accidentelle de l'orchestrateur
+du workflow. Le supprimer signifierait qu'une invocation accidentelle de l'agent orchestrator
 démarrerait un workflow complet sans confirmation.
 
 **CP-2 automatique avec score de confiance** : rejetée — un score de confiance sur

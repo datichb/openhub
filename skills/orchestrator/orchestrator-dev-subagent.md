@@ -1,18 +1,18 @@
 ---
 name: orchestrator-dev-subagent
-description: Parcours d'exécution de l'orchestrateur dev en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — CPs à enjeu fort produisent des blocs Question pour l'orchestrator + Retour vers orchestrator (partiel), session terminée après chaque CP à enjeu fort. Bloc Retour vers orchestrator (final) obligatoire en fin de session.
+description: Parcours d'exécution de l'agent orchestrator dev en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — CPs à enjeu fort produisent des blocs Question pour l'orchestrator + Retour vers orchestrator (partiel), session terminée après chaque CP à enjeu fort. Bloc Retour vers orchestrator (final) obligatoire en fin de session.
 ---
 
 # Skill — Parcours Orchestrator-dev Sous-agent
 
-> Ce skill est chargé quand l'orchestrator-dev est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:orchestrator/orchestrator-dev-subagent]` dans le prompt.
+> Ce skill est chargé quand l'orchestrator-dev est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:orchestrator/orchestrator-dev-subagent]` dans le prompt.
 
 ## Principe fondamental
 
 Quand l'orchestrator-dev est invoqué via `task`, sa todo list est dans une session **isolée et non visible** par l'utilisateur. L'orchestrator feature est le seul responsable de la liste visible.
 
 **Confirmer le contexte au démarrage :**
-> `[orchestrator-dev] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode de workflow reçu : <valeur canonique>. Mode interruption actif — CP-1, CP-QA (modes manuel/semi-auto), branche dédiée et CP-2 produisent des blocs ## Question pour l'orchestrator et terminent la session. Le bloc ## Retour vers orchestrator sera produit à chaque arrêt de session.`
+> `[orchestrator-dev] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode de workflow reçu : <valeur canonique>. Mode interruption actif — CP-1, CP-QA (modes manuel/semi-auto), branche dédiée et CP-2 produisent des blocs ## Question pour l'orchestrator et terminent la session. Le bloc ## Retour vers orchestrator sera produit à chaque arrêt de session.`
 
 ---
 
@@ -27,7 +27,7 @@ Pour chaque CP à enjeu fort : **ne pas poser la question via l'outil `question`
 
 ---
 
-## CP-0 — Initialisation depuis l'orchestrateur feature
+## CP-0 — Initialisation depuis l'agent orchestrator feature
 
 Le mode de workflow est transmis en paramètre — ne pas le redemander.
 

@@ -266,7 +266,7 @@ openhub/                  ← source de vérité unique
 |---|---|---|
 | **Quoi** | Commandes ciblées depuis le terminal | Session interactive avec un agent |
 | **Quand** | Gérer, déployer, lancer une action ponctuelle | Travailler sur une feature, un bug, un audit |
-| **Exemple** | `oc review` · `oc audit` · `oc deploy` | Dialoguer avec l'orchestrateur |
+| **Exemple** | `oc review` · `oc audit` · `oc deploy` | Dialoguer avec l'agent orchestrator |
 
 ---
 
@@ -304,7 +304,7 @@ oc start MON-APP              # Ouvre OpenCode dans le contexte du projet
 |-------|--------------|
 | `orchestrator` | Pilote une feature de A à Z (plan → spec → code → tests → PR) |
 
-> 90% du temps, vous travaillez avec l'orchestrateur. Il délègue aux bons agents pour vous.
+> 90% du temps, vous travaillez avec l'agent orchestrator. Il délègue aux bons agents pour vous.
 
 ### Les agents spécialisés — pour des besoins ciblés
 

@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-standalone
-description: Parcours d'exécution de l'orchestrateur dev en mode standalone (invoqué directement par l'utilisateur) — CP-0 demande le mode, tous les CPs posent les questions via l'outil question, todo list visible par l'utilisateur.
+description: Parcours d'exécution de l'agent orchestrator dev en mode standalone (invoqué directement par l'utilisateur) — CP-0 demande le mode, tous les CPs posent les questions via l'outil question, todo list visible par l'utilisateur.
 ---
 
 # Skill — Parcours Orchestrator-dev Standalone

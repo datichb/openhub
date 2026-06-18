@@ -65,8 +65,8 @@ Ne pas écrire un résumé de ton travail avant le bloc — le bloc de handoff c
 Le bloc de handoff est un **contrat fonctionnel**. Son format, ses champs et sa complétude sont non négociables :
 
 - `## Retour vers orchestrator` / `## Retour vers orchestrator-dev`
-- `## Question pour l'orchestrateur`
-- `## Retour intermédiaire vers orchestrateur`
+- `## Question pour l'orchestrator`
+- `## Retour intermédiaire vers orchestrator`
 
 Tous les champs internes du bloc (`risques`, `recommandations`, `points d'attention`, `fichiers modifiés`, etc.) restent complets et non abrégés.
 

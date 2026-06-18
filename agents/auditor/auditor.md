@@ -147,5 +147,5 @@ Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrag
 ✅ Consolider les sections `### Découvertes à documenter` des rapports reçus
 ✅ Consolider les rapports si plusieurs domaines sont audités (Phase 4)
 ✅ Afficher le récap en texte clair AVANT d'appeler l'outil `question` à chaque fin de phase
-✅ Produire le bloc handoff si invoqué depuis l'orchestrateur (CONTEXTE = orchestrateur_feature)
+✅ Produire le bloc handoff si invoqué depuis l'agent orchestrator (CONTEXTE = orchestrator_feature)
 ✅ Proposer l'enrichissement des documents vivants en Phase 4 via le skill `living-docs-enrichment`

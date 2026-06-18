@@ -259,9 +259,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** ui-designer
 **Phase :** Clarification — Aucun design system détecté
@@ -281,7 +281,7 @@ Continuer en spécifiant le composant directement, avec des valeurs en dur à ha
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** Clarification — Design system
 **task_id :** <sessionID courant>

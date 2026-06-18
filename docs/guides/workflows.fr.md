@@ -88,7 +88,7 @@ sequenceDiagram
 
 ### Étapes détaillées
 
-#### 1. Lancer l'orchestrateur
+#### 1. Lancer l'agent orchestrator
 
 ```
 Prompt : "Implémente la feature d'authentification JWT pour notre API REST"
@@ -164,13 +164,13 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 7. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
 8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`
 9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
-10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'orchestrateur **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
+10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'agent orchestrator **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
 
 > **Questions des sous-agents :** quand un sous-agent (planner, ux-designer, reviewer…) pose une question,
 > elle remonte dans la session parente avec un bloc de contexte identifiant l'agent et la phase en cours —
 > ex. `[Planner — Phase 0 | Feature : authentification JWT]`. Aucun besoin de naviguer dans la session enfant.
 
-> **Agent non déployé :** si un agent requis est absent du projet, l'orchestrateur affiche une question
+> **Agent non déployé :** si un agent requis est absent du projet, l'agent orchestrator affiche une question
 > structurée : déployer via `!oc deploy opencode <PROJECT_ID>` directement dans OpenCode / utiliser un
 > substitut (table par domaine) / ignorer le ticket. Il ne bascule jamais silencieusement.
 
@@ -494,7 +494,7 @@ systématique, et produit un rapport structuré.
 ## Scénario 7 — Spec UX/UI puis implémentation (designers standalone)
 
 **Contexte :** vous voulez concevoir l'expérience et l'interface d'une feature
-avant de coder, sans passer par l'orchestrateur complet. Utile quand les specs
+avant de coder, sans passer par l'agent orchestrator complet. Utile quand les specs
 doivent être validées par une équipe ou un client avant tout développement.
 
 ### Diagramme

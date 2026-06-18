@@ -12,7 +12,7 @@ Le mécanisme de détection de stack (`detect_stack()`, `config/stack-skills.jso
 
 Les agents developer avaient des skills spécifiques à leur stack codés en dur dans leur frontmatter (ex : `dev-standards-vuejs` toujours injecté dans `developer-frontend`, quelle que soit la stack du projet). Cela forçait tous les projets à recevoir des conventions Vue.js même pour des codebases React ou Angular.
 
-Avec l'introduction de 38 skills spécifiques aux stacks couvrant 9 catégories (langages, frontend, backend, ORMs, outils de test, mobile, data/ML, DevOps, platform), maintenir des variantes d'agents par stack n'était pas viable. Une approche `developer-frontend-vue`, `developer-frontend-react`, etc. aurait créé N × M combinaisons non maintenables et incompatibles avec la matrice de routing de l'orchestrateur.
+Avec l'introduction de 38 skills spécifiques aux stacks couvrant 9 catégories (langages, frontend, backend, ORMs, outils de test, mobile, data/ML, DevOps, platform), maintenir des variantes d'agents par stack n'était pas viable. Une approche `developer-frontend-vue`, `developer-frontend-react`, etc. aurait créé N × M combinaisons non maintenables et incompatibles avec la matrice de routing de l'agent orchestrator.
 
 Les skills génériques (`dev-standards-universal`, `dev-standards-backend`, etc.) contenaient également des références framework-spécifiques qui s'étaient accumulées au fil du temps, en faisant des doublons partiels des skills spécifiques.
 
@@ -44,7 +44,7 @@ Les skills génériques (`dev-standards-universal`, `dev-standards-backend`, etc
 
 ## Alternatives rejetées
 
-**Variantes d'agents par stack** (`developer-frontend-vue`, `developer-frontend-react`, etc.) : rejeté car N agents × M stacks est non maintenable, casse la matrice de routing de l'orchestrateur, et duplique la logique du corps des agents.
+**Variantes d'agents par stack** (`developer-frontend-vue`, `developer-frontend-react`, etc.) : rejeté car N agents × M stacks est non maintenable, casse la matrice de routing de l'agent orchestrator, et duplique la logique du corps des agents.
 
 **Stack déclarée dans `hub.json`** : déclarer la stack du projet dans la config du hub et générer les frontmatters correspondants. Rejeté car cela crée un couplage fort entre la config hub et les agents canoniques, nécessite une maintenance manuelle à chaque changement de stack, et ne supporte pas la détection automatique.
 

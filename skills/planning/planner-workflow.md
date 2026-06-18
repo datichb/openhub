@@ -39,7 +39,7 @@ Reformule en langage naturel dans la description du ticket.
 
 ---
 
-## Routing explicite pour l'orchestrateur
+## Routing explicite pour l'agent orchestrator
 
 ### Responsabilité du planner
 
@@ -50,7 +50,7 @@ Le planner est **la seule source de vérité** pour le routing des tickets vers 
 Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
 
 1. **Colonne `Agent prévu`** dans le tableau `### Tickets créés` — pour chaque ticket, indiquer l'agent qui doit le traiter
-2. **Section `### Ordre de traitement`** — séquence exacte d'exécution que l'orchestrateur suivra sans interprétation
+2. **Section `### Ordre de traitement`** — séquence exacte d'exécution que l'agent orchestrator suivra sans interprétation
 
 ### Agents disponibles pour le routing
 
@@ -67,11 +67,11 @@ Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
 | `auditor` | Audit architecture | SOLID, dette technique, couplage — avec domaine `architecture` |
 | `orchestrator-dev` | Implémentation | Tous les tickets d'implémentation — route ensuite vers les developers spécialisés |
 
-> **Note :** Cette liste couvre les agents vers lesquels **l'orchestrateur** route les tickets selon les instructions du planner. Les agents developer-* (developer-backend, developer-frontend, etc.), reviewer, qa-engineer et documentarian sont invoqués par `orchestrator-dev` lors de la phase d'implémentation, pas directement par l'orchestrateur feature.
+> **Note :** Cette liste couvre les agents vers lesquels **l'agent orchestrator** route les tickets selon les instructions du planner. Les agents developer-* (developer-backend, developer-frontend, etc.), reviewer, qa-engineer et documentarian sont invoqués par `orchestrator-dev` lors de la phase d'implémentation, pas directement par l'agent orchestrator feature.
 
 ### Règle prescriptive
 
-> **Le champ `Agent prévu` est obligatoire et prescriptif — l'orchestrateur ne devine plus rien.**
+> **Le champ `Agent prévu` est obligatoire et prescriptif — l'agent orchestrator ne devine plus rien.**
 
 L'orchestrateur :
 - ❌ N'analyse jamais les labels, le titre ou la description pour deviner l'agent
@@ -183,7 +183,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
+**Si CONTEXTE = orchestrator_feature :** utiliser le format d'interruption de session (voir section "Cas particulier : pause ad hoc").
 
 ### Récap de fin de Phase 0
 
@@ -221,7 +221,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
 ## [Phase 0] Prérequis vérifiés
 
@@ -229,7 +229,7 @@ question({
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 0 — Prérequis vérifiés
@@ -240,7 +240,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -504,11 +504,11 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 
 Si **signaux UX ou UI détectés** :
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1 — Exploration contextuelle (signal design détecté)
@@ -519,7 +519,7 @@ Si **signaux UX ou UI détectés** :
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -539,7 +539,7 @@ Si **signaux UX ou UI détectés** :
 
 Si **aucun signal design** :
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1 — Exploration contextuelle (terminée)
@@ -550,7 +550,7 @@ Si **aucun signal design** :
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -770,9 +770,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1.5 — Délégation design (terminée)
@@ -783,7 +783,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1.5
 **task_id :** <sessionID courant>
@@ -885,7 +885,7 @@ Puis appeler l'outil `question` avec **une question par clarification** :
 
 ⚠️ **AUTOCONTRÔLE** : Le contexte Phase 2 en texte (ci-dessus — liste des questions avec leur contexte) **doit être affiché** dans la discussion AVANT cet appel `question`. Si ce n'est pas fait → afficher le contexte MAINTENANT.
 
-> **Si CONTEXTE = orchestrateur_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+> **Si CONTEXTE = orchestrator_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
 
 ```
 question({
@@ -1048,9 +1048,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 2 — Questions complémentaires (traitées)
@@ -1061,7 +1061,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -1183,9 +1183,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 3 — Plan hiérarchique
@@ -1196,7 +1196,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -1286,9 +1286,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 4 — Détection des cas particuliers (terminée)
@@ -1299,7 +1299,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 4
 **task_id :** <sessionID courant>
@@ -1721,9 +1721,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 5.5 — Délégation ai-delegated
@@ -1734,7 +1734,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 5.5
 **task_id :** <sessionID courant>
@@ -1920,7 +1920,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 
 Phase 6 est le **retour final** — pas de question intermédiaire. Produire dans cet ordre et terminer :
 
@@ -1942,7 +1942,7 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 <dépendances structurées>
 
 ### Ordre de traitement
-<séquence d'exécution — l'orchestrateur la suit sans interprétation>
+<séquence d'exécution — l'agent orchestrator la suit sans interprétation>
 
 ### Hypothèses et ambiguïtés
 <hypothèses structurées>
@@ -1958,7 +1958,7 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 > « Ai-je produit le récapitulatif narratif complet avant ce bloc ? Si non → le produire d'abord. »
 > « Ce récap contient-il la liste détaillée de TOUS les tickets (descriptions + acceptance + notes) ? Si non → le compléter. »
 
-→ **TERMINER LA SESSION** — l'orchestrateur se charge du CP-0.
+→ **TERMINER LA SESSION** — l'agent orchestrator se charge du CP-0.
 
 **Selon la réponse à la validation finale (standalone uniquement) :**
 - **C'est bon** → Fin de session
@@ -2000,7 +2000,7 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :** utiliser le mécanisme d'interruption (voir "Cas particulier : pause ad hoc") — produire le bloc intermédiaire avec la question de retour en arrière et terminer la session.
+**Si CONTEXTE = orchestrator_feature :** utiliser le mécanisme d'interruption (voir "Cas particulier : pause ad hoc") — produire le bloc intermédiaire avec la question de retour en arrière et terminer la session.
 ```
 
 ### Retour en arrière demandé par l'utilisateur
@@ -2089,7 +2089,7 @@ Phase 6 → Phase 6 (ajustements)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Planner — Phase X | Feature : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrateur_feature en fin de Phase 6
+✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 6
 ❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 ❌ **Ne jamais appeler `question` sans avoir d'abord affiché le récap ou le contexte en texte**

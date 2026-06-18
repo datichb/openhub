@@ -182,7 +182,7 @@ Le cache natif agit au niveau de l'API (économie de tokens), le cache projet ag
 
 ## Injection automatique dans la session (champ `instructions`)
 
-Le cache projet est injecté dans chaque session OpenCode via le champ `instructions` de `opencode.json`. Ce mécanisme est géré automatiquement par les scripts — l'orchestrateur n'a jamais besoin de lire de fichier.
+Le cache projet est injecté dans chaque session OpenCode via le champ `instructions` de `opencode.json`. Ce mécanisme est géré automatiquement par les scripts — l'agent orchestrator n'a jamais besoin de lire de fichier.
 
 ### Priorité d'injection
 

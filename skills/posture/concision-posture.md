@@ -7,13 +7,20 @@ description: Posture de concision niveau "lite" pour les agents primaires — su
 
 ## Portée
 
-Ce skill s'applique aux agents **primaires** (`mode: primary`) de coordination et d'implémentation :
-orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer.
+Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
+
+Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer.
 
 Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
 
-Les agents dont les outputs sont des livrables formels destinés à l'utilisateur final n'utilisent aucun skill de concision :
-documentarian, ux-designer, ui-designer.
+**Agents exclus — livrables formels :**
+
+| Agent | Raison de l'exclusion |
+|-------|----------------------|
+| `documentarian` | Produit de la documentation technique destinée aux développeurs |
+| `ux-designer`, `ui-designer` | Produisent des specs UX/UI destinées à l'utilisateur et aux développeurs |
+| `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
+| `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
 
 ---
 
@@ -79,8 +86,8 @@ Supprimer :
 Ces blocs sont des **contrats fonctionnels** — leur format et leur complétude sont non négociables :
 
 - `## Retour vers orchestrator` / `## Retour vers orchestrator-dev` — blocs de handoff structurés
-- `## Question pour l'orchestrateur` / `## Question pour l'orchestrator` — mécanisme de reprise de session
-- `## Retour intermédiaire vers orchestrateur` — blocs de contexte pour les checkpoints
+- `## Question pour l'orchestrator` / `## Question pour l'orchestrator` — mécanisme de reprise de session
+- `## Retour intermédiaire vers orchestrator` — blocs de contexte pour les checkpoints
 - Récapitulatifs narratifs obligatoires (planner, onboarder, designers)
 - Rapports de review, rapports QA, rapports de diagnostic
 

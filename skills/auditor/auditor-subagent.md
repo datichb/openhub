@@ -1,18 +1,18 @@
 ---
 name: auditor-subagent
-description: Parcours d'exécution de l'auditor en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — mécanisme d'interruption de session à chaque fin de phase (0 à 3), blocs structurés Retour intermédiaire + Question pour l'orchestrateur, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
+description: Parcours d'exécution de l'auditor en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — mécanisme d'interruption de session à chaque fin de phase (0 à 3), blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
 ---
 
 # Skill — Parcours Auditor Sous-agent
 
-> Ce skill est chargé quand l'auditor est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:auditor/auditor-subagent]` dans le prompt.
+> Ce skill est chargé quand l'auditor est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:auditor/auditor-subagent]` dans le prompt.
 
 ## Principe fondamental
 
 Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
 
 **Confirmer le contexte au démarrage :**
-> `[auditor] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'orchestrateur.`
+> `[auditor] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'agent orchestrator.`
 
 ---
 
@@ -21,15 +21,15 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 **À CHAQUE fin de phase (0 à 3) :**
 
 1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrateur`
-3. Produire le bloc `## Question pour l'orchestrateur`
+2. Produire le bloc `## Retour intermédiaire vers orchestrator`
+3. Produire le bloc `## Question pour l'orchestrator`
 4. **TERMINER LA SESSION**
 
 ---
 
 ## Autocontrôle avant chaque fin de session
 
-> « Ai-je produit (1) le récap, (2) le bloc `## Retour intermédiaire vers orchestrateur`, ET (3) le bloc `## Question pour l'orchestrateur` ? »
+> « Ai-je produit (1) le récap, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
 > - **Non** → produire les blocs manquants MAINTENANT
 > - **Oui** → terminer la session
 
@@ -38,7 +38,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 ## Format des blocs structurés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** X — <titre>
@@ -49,7 +49,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** X
 **task_id :** <sessionID courant>
@@ -73,7 +73,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 ### Phase 0 — Prérequis vérifiés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 0 — Vérification des prérequis
@@ -84,7 +84,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -105,7 +105,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 ### Phase 1 — Contexte chargé
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 1 — Chargement du contexte projet
@@ -116,7 +116,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -137,7 +137,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 ### Phase 2 — Domaines sélectionnés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 2 — Sélection des domaines à auditer
@@ -148,7 +148,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -169,7 +169,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 ### Phase 3 — Audits réalisés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 3 — Délégation aux sous-agents spécialisés
@@ -181,7 +181,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -219,7 +219,7 @@ Phase 4 est le **retour final**. Produire dans cet ordre :
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler l'outil `question` | Question invisible pour l'orchestrateur | **Terminer la session** avec les blocs structurés |
+| Appeler l'outil `question` | Question invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
 | Continuer sans produire les blocs | L'orchestrateur ne reçoit rien | **Toujours interrompre** à chaque fin de phase |
 | Omettre le `task_id` | L'orchestrateur ne peut pas reprendre | **Toujours inclure** le sessionID |
 | Résumer le récap | L'utilisateur perd des informations | **Ne jamais résumer** |

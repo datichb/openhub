@@ -1,18 +1,18 @@
 ---
 name: ux-subagent
-description: Parcours d'exécution du ux-designer en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — session unique sans interruption de phase sauf clarification critique, spec complète obligatoire avant le bloc Retour vers orchestrator, outil question interdit.
+description: Parcours d'exécution du ux-designer en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — session unique sans interruption de phase sauf clarification critique, spec complète obligatoire avant le bloc Retour vers orchestrator, outil question interdit.
 ---
 
 # Skill — Parcours UXDesigner Sous-agent
 
-> Ce skill est chargé quand le ux-designer est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:designer/ux-subagent]` dans le prompt.
+> Ce skill est chargé quand le ux-designer est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:designer/ux-subagent]` dans le prompt.
 
 ## Principe fondamental
 
-Quand le ux-designer est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'orchestrateur retranscrira.
+Quand le ux-designer est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'agent orchestrator retranscrira.
 
 **Confirmer le contexte au démarrage :**
-> `[ux-designer] Contexte détecté : invoqué depuis l'orchestrateur feature. Session unique — je produirai la spec complète + le bloc Retour vers orchestrator et terminerai la session.`
+> `[ux-designer] Contexte détecté : invoqué depuis l'agent orchestrator feature. Session unique — je produirai la spec complète + le bloc Retour vers orchestrator et terminerai la session.`
 
 ---
 
@@ -50,7 +50,7 @@ Pendant [l'exploration de / l'analyse de] [contexte], j'ai détecté que [descri
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** ux-designer
 **Phase :** Clarification en cours de session
@@ -71,7 +71,7 @@ Pendant [l'exploration de / l'analyse de] [contexte], j'ai détecté que [descri
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** Clarification UX
 **task_id :** <sessionID courant>
@@ -121,7 +121,7 @@ Produire dans cet ordre et terminer :
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'orchestrateur | Formuler une hypothèse et continuer, ou produire les blocs d'interruption |
+| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'agent orchestrator | Formuler une hypothèse et continuer, ou produire les blocs d'interruption |
 | Produire le bloc handoff sans la spec complète | L'orchestrateur reçoit un résumé sans la spec | **Toujours produire la spec d'abord** |
 | Interrompre pour un détail non bloquant | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** — hypothèse si possible |
 | Résumer la spec "pour aller plus vite" | L'utilisateur perd des informations critiques | **Spec complète obligatoire** |

@@ -13,10 +13,10 @@ Le problème se pose particulièrement pour les agents avec un workflow phasé (
 
 ## Principe de la solution
 
-Au lieu d'utiliser l'outil `question` (qui pause la session enfant mais reste invisible pour l'agent parent), les agents en mode `orchestrateur_feature` :
+Au lieu d'utiliser l'outil `question` (qui pause la session enfant mais reste invisible pour l'agent parent), les agents en mode `orchestrator_feature` :
 
-1. Produisent un bloc `## Retour intermédiaire vers orchestrateur` contenant le récap de la phase ou le contexte courant
-2. Produisent un bloc `## Question pour l'orchestrateur` contenant la question, les options et le `task_id`
+1. Produisent un bloc `## Retour intermédiaire vers orchestrator` contenant le récap de la phase ou le contexte courant
+2. Produisent un bloc `## Question pour l'orchestrator` contenant la question, les options et le `task_id`
 3. **Terminent leur session**
 
 L'orchestrateur parent :
@@ -40,10 +40,10 @@ L'orchestrateur parent :
 
 ## Format des blocs
 
-### Bloc `## Retour intermédiaire vers orchestrateur`
+### Bloc `## Retour intermédiaire vers orchestrator`
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** <nom de l'agent>
 **Phase :** X — <titre de la phase>
@@ -53,10 +53,10 @@ L'orchestrateur parent :
 **Points clés :** <liste courte — découvertes importantes, décisions, blocages>
 ```
 
-### Bloc `## Question pour l'orchestrateur`
+### Bloc `## Question pour l'orchestrator`
 
 ```markdown
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** X
 **task_id :** <sessionID courant>
@@ -84,14 +84,14 @@ Les agents détectent leur contexte d'invocation via le marqueur dans le prompt 
 [CONTEXTE] Invoqué depuis l'orchestrateur feature. Tu dois utiliser le mécanisme d'interruption de session...
 ```
 
-Ce marqueur est injecté par l'orchestrateur dans chaque invocation `task(...)`.
+Ce marqueur est injecté par l'agent orchestrator dans chaque invocation `task(...)`.
 
 ### Comportement selon le contexte
 
 | Contexte | Appel `question` | Blocs structurés | Terminaison de session |
 |----------|-----------------|-----------------|----------------------|
 | **standalone** | Utilisé normalement | Non produits | Session reste ouverte |
-| **orchestrateur_feature** | Interdit | Produits à chaque checkpoint | Obligatoire après les blocs |
+| **orchestrator_feature** | Interdit | Produits à chaque checkpoint | Obligatoire après les blocs |
 
 ## Reprise de session avec task_id
 
@@ -101,7 +101,7 @@ Le `task_id` est l'ID de session OpenCode — une session persistante avec son h
 
 ```
 1. Agent (ex: planner Phase 1) produit les blocs + termine
-   → task_result contient ## Retour intermédiaire + ## Question pour l'orchestrateur (task_id: "sess_abc")
+   → task_result contient ## Retour intermédiaire + ## Question pour l'orchestrator (task_id: "sess_abc")
 
 2. Orchestrateur affiche le récap intermédiaire en texte
 
@@ -135,7 +135,7 @@ Dans le skill workflow de l'agent, ajouter en début de fichier :
 ### Détection du contexte d'invocation
 
 Au démarrage, détecter si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`. Si oui :
-- Mémoriser **CONTEXTE = orchestrateur_feature**
+- Mémoriser **CONTEXTE = orchestrator_feature**
 - Confirmer : `[<agent>] Contexte détecté : mode interruption actif.`
 ```
 
@@ -144,12 +144,12 @@ Au démarrage, détecter si le prompt contient `[CONTEXTE] Invoqué depuis l'orc
 Définir le format des blocs pour chaque checkpoint :
 
 ```markdown
-### Format de retour — RÈGLE ABSOLUE (orchestrateur_feature)
+### Format de retour — RÈGLE ABSOLUE (orchestrator_feature)
 
 À CHAQUE checkpoint :
 1. Produire le récap en texte
-2. Produire ## Retour intermédiaire vers orchestrateur
-3. Produire ## Question pour l'orchestrateur
+2. Produire ## Retour intermédiaire vers orchestrator
+3. Produire ## Question pour l'orchestrator
 4. TERMINER LA SESSION
 ```
 
@@ -163,11 +163,11 @@ Pour chaque appel `question({...})` :
 question({...})  [inchangé]
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 ...
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 ...
 ```
 → TERMINER LA SESSION
@@ -190,21 +190,21 @@ Ajouter les nouvelles lignes dans le tableau "Règles par type de retour".
 
 ## Côté orchestrateur : recevoir et retransmettre
 
-À la réception de chaque résultat d'une invocation `task`, l'orchestrateur doit :
+À la réception de chaque résultat d'une invocation `task`, l'agent orchestrator doit :
 
 1. **Détecter le type de retour** :
-   - Contient `## Question pour l'orchestrateur` (ou `## Question pour l'orchestrator`) → question montante
+   - Contient `## Question pour l'orchestrator` (ou `## Question pour l'orchestrator`) → question montante
    - Contient `## Retour vers orchestrator` sans question montante → retour final
 
 2. **Pour un retour final** :
-   - Afficher les `## Retour intermédiaire vers orchestrateur` en texte, dans l'ordre
+   - Afficher les `## Retour intermédiaire vers orchestrator` en texte, dans l'ordre
    - Afficher le récap narratif complet (contexte, raisonnement, preuves — contenu unique non répété dans le bloc structuré)
    - Afficher le bloc structuré `## Retour vers orchestrator` (tableau de synthèse, métadonnées de routing, statut)
    - Puis seulement appeler `question` pour le checkpoint utilisateur
 
 3. **Pour une question montante** :
-   - Afficher le `## Retour intermédiaire vers orchestrateur` en texte
-   - Lire le `## Question pour l'orchestrateur` — récupérer question, options, task_id
+   - Afficher le `## Retour intermédiaire vers orchestrator` en texte
+   - Lire le `## Question pour l'orchestrator` — récupérer question, options, task_id
    - Relayer la question via `question()`
    - Ré-invoquer avec task_id + réponse + marqueur [CONTEXTE]
    - Répéter jusqu'au retour final
@@ -213,4 +213,4 @@ Ajouter les nouvelles lignes dans le tableau "Règles par type de retour".
 
 - **Session introuvable** : si OpenCode redémarre, le `task_id` peut ne plus être valide. Voir "Risque : session introuvable" ci-dessus.
 - **Transmission du mode** : pour orchestrator-dev, le mode de workflow (manuel/semi-auto/auto) doit être retransmis dans chaque ré-invocation via `task_id`.
-- **Accumulation des blocs** : si plusieurs phases se terminent sans question (transition automatique), les blocs intermédiaires s'accumulent dans le message final — l'orchestrateur doit tous les afficher dans l'ordre.
+- **Accumulation des blocs** : si plusieurs phases se terminent sans question (transition automatique), les blocs intermédiaires s'accumulent dans le message final — l'agent orchestrator doit tous les afficher dans l'ordre.

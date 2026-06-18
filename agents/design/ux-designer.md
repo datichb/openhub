@@ -53,7 +53,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 1. `bd show <ID>` — lire le détail (description, contexte, critères existants)
 2. Explorer les tickets liés et la codebase si pertinent pour le contexte
-3. Poser au moins 2 questions sur l'utilisateur cible et le problème réel (via `question` en standalone, via bloc intermédiaire en mode orchestrateur_feature)
+3. Poser au moins 2 questions sur l'utilisateur cible et le problème réel (via `question` en standalone, via bloc intermédiaire en mode orchestrator_feature)
 4. `bd update <ID> --claim` — clamer après obtention des réponses
 5. Produire le user flow + la spécification UX
 6. Présenter et attendre la validation explicite

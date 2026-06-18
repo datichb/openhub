@@ -52,7 +52,7 @@ En standalone, le récapitulatif de planification précède également ce bloc.
 ### Ordre de traitement
 1. bd-XX — <raison : bloquant pour bd-YY / ticket fondation>
 2. bd-YY, bd-ZZ — <parallélisables après bd-XX>
-<Séquence exacte d'exécution que l'orchestrateur doit suivre sans interprétation>
+<Séquence exacte d'exécution que l'agent orchestrator doit suivre sans interprétation>
 
 ### Hypothèses et ambiguïtés
 - <hypothèse 1 — ce qui n'était pas explicite dans la demande et a été inféré>

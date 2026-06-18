@@ -339,7 +339,7 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 | Comportement si `task_id` invalide | `session.get()` lève une erreur — comportement de l'outil `task` non spécifié |
 | `task` absent de la doc `/docs/tools` | L'outil existe (listé dans le schéma de permissions) mais n'est pas documenté dans la liste des built-ins — lacune ou intentionnel |
 
-**Risque résiduel — redémarrage d'OpenCode :** si OpenCode redémarre entre le moment où `orchestrator-dev` produit la question montante et le moment où l'orchestrateur ré-invoque avec le `task_id`, la session enfant peut avoir disparu. Ce cas n'est pas géré dans les skills — voir `### task_id — session introuvable` dans la section Points d'attention.
+**Risque résiduel — redémarrage d'OpenCode :** si OpenCode redémarre entre le moment où `orchestrator-dev` produit la question montante et le moment où l'agent orchestrator ré-invoque avec le `task_id`, la session enfant peut avoir disparu. Ce cas n'est pas géré dans les skills — voir `### task_id — session introuvable` dans la section Points d'attention.
 
 ---
 
@@ -347,7 +347,7 @@ Le `task_id` n'est pas un identifiant LLM propriétaire — c'est un **ID de ses
 
 ### Convention de chargement du parcours d'exécution
 
-Depuis l'ADR-016, l'orchestrateur injecte deux marqueurs dans les prompts `task` vers les agents primaires :
+Depuis l'ADR-016, l'agent orchestrator injecte deux marqueurs dans les prompts `task` vers les agents primaires :
 
 ```
 [CONTEXTE] Invoqué depuis l'orchestrateur feature.
@@ -372,7 +372,7 @@ Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans l
 > | reviewer | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
 > | qa-engineer | `qa/qa-standalone` | `qa/qa-subagent` |
 
-### Comportement standalone vs depuis orchestrateur
+### Comportement standalone vs depuis l'agent orchestrator
 
 | Aspect | Standalone | Depuis orchestrateur |
 |--------|-----------|---------------------|
@@ -399,7 +399,7 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 
 ### Ré-invocation avec task_id
 
-Lors des ré-invocations avec `task_id`, l'orchestrateur **doit toujours re-transmettre** le marqueur `[SKILL:...]` :
+Lors des ré-invocations avec `task_id`, l'agent orchestrator **doit toujours re-transmettre** le marqueur `[SKILL:...]` :
 
 ```
 task(
@@ -417,7 +417,7 @@ Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement
 
 ### Tableau complet des checkpoints
 
-| CP | Agent | Moment | Pause modes | **Mécanisme en mode orchestrateur_feature** |
+| CP | Agent | Moment | Pause modes | **Mécanisme en mode orchestrator_feature** |
 |----|-------|--------|-------------|----------------------------------------------|
 | **CP-onboard** | `orchestrator` | Après `onboarder`, avant planification | Toujours manuel | Question montante de l'onboarder → task_id |
 | **CP-0** | `orchestrator` | Après planification, avant conception | Toujours manuel | Question montante du planner → task_id |
@@ -443,11 +443,11 @@ Cette règle ne peut pas être outrepassée, même en mode `auto`. Justification
 
 ### Note : Deux variantes du bloc de question montante
 
-Deux noms de blocs coexistent selon l'agent producteur — ils sont sémantiquement équivalents mais l'orchestrateur doit détecter les deux :
+Deux noms de blocs coexistent selon l'agent producteur — ils sont sémantiquement équivalents mais l'agent orchestrator doit détecter les deux :
 
 | Bloc | Producteurs | Détection |
 |------|-------------|-----------|
-| `## Question pour l'orchestrateur` (avec accent) | planner, pathfinder, onboarder, auditor, debugger, ux-designer, ui-designer | Contient `task_id` pour reprise |
+| `## Question pour l'orchestrator` (avec accent) | planner, pathfinder, onboarder, auditor, debugger, ux-designer, ui-designer | Contient `task_id` pour reprise |
 | `## Question pour l'orchestrator` (sans accent) | orchestrator-dev | Contient `task_id` pour reprise |
 
 Les deux déclenchent le même comportement côté orchestrateur : afficher le récap intermédiaire, relayer la question via `question`, ré-invoquer avec `task_id`.

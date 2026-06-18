@@ -11,7 +11,7 @@ Accepté
 Les agents primaires invocables directement (`planner`, `pathfinder`, `onboarder`, `auditor`, `orchestrator-dev`, `reviewer`, `qa-engineer`) peuvent être invoqués de deux façons :
 
 1. **Standalone** — directement par l'utilisateur : communication via l'outil `question`, récaps texte visibles dans la discussion, pas de blocs handoff orchestrateur
-2. **Sous-agent** — via `task` depuis l'orchestrateur : mécanisme d'interruption de session, blocs structurés `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur`, `task_id` obligatoire, outil `question` interdit
+2. **Sous-agent** — via `task` depuis l'agent orchestrator : mécanisme d'interruption de session, blocs structurés `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`, `task_id` obligatoire, outil `question` interdit
 
 Avant cette décision, les deux parcours cohabitaient dans les skills workflow des agents (ex. `planner-workflow.md`), séparés par un branchement conditionnel détecté au démarrage :
 
@@ -73,7 +73,7 @@ Pour chaque agent concerné, deux skills Bucket B sont créés :
 - Confirmation du contexte au démarrage
 - Mécanisme d'interruption : produire récap + blocs structurés + terminer session
 - Autocontrôle avant chaque fin de session
-- Format des blocs `## Retour intermédiaire vers orchestrateur` et `## Question pour l'orchestrateur` avec `task_id`
+- Format des blocs `## Retour intermédiaire vers orchestrator` et `## Question pour l'orchestrator` avec `task_id`
 - Format final (avec bloc handoff orchestrateur)
 - Liste des erreurs fréquentes à éviter
 
@@ -89,7 +89,7 @@ Les skills sources (`planner-workflow`, `onboarder-workflow`, etc.) conservent l
 - **Clarté** : chaque skill a une responsabilité unique, sans branchement conditionnel.
 - **Testabilité** : les deux parcours peuvent être testés et validés indépendamment.
 - **Extensibilité** : ajouter un comportement à un parcours ne risque plus de perturber l'autre.
-- **Observabilité** : l'orchestrateur contrôle explicitement quel parcours est activé via l'injection `[SKILL:...]`.
+- **Observabilité** : l'agent orchestrator contrôle explicitement quel parcours est activé via l'injection `[SKILL:...]`.
 
 ### À surveiller
 
@@ -101,7 +101,7 @@ Les skills sources (`planner-workflow`, `onboarder-workflow`, etc.) conservent l
 
 ### Option A — Auto-détection complète par l'agent
 
-L'agent détecte lui-même le marqueur `[CONTEXTE]` et charge le bon skill. Cette option a été rejetée car elle maintient la logique de détection dans l'agent et ne permet pas à l'orchestrateur de contrôler explicitement le parcours activé.
+L'agent détecte lui-même le marqueur `[CONTEXTE]` et charge le bon skill. Cette option a été rejetée car elle maintient la logique de détection dans l'agent et ne permet pas à l'agent orchestrator de contrôler explicitement le parcours activé.
 
 ### Option B2 — Standalone en native_skill auto-load
 

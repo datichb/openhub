@@ -60,7 +60,7 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 - `partiel` → ce bloc est émis dans la même réponse que `## Question pour l'orchestrator` — la session n'est pas terminée
 - `final` → ce bloc est émis seul — tous les tickets ont été traités ou stop demandé, la session est terminée
 
-Ce bloc est **obligatoire** quand invoqué depuis l'orchestrateur feature. Il n'est pas produit quand invoqué standalone.
+Ce bloc est **obligatoire** quand invoqué depuis l'agent orchestrator feature. Il n'est pas produit quand invoqué standalone.
 
 > ⚠️ Ce bloc doit être produit **même en cas de stop, de ticket bloqué ou de session partielle** — le récap global est incomplet sans lui.
 > Autocontrôle avant de clore la session : « Ai-je produit le récap global complet ET ce bloc ? Si non, les produire maintenant. »
@@ -105,7 +105,7 @@ il **ne pose pas la question lui-même** — il arrête sa session en produisant
 **task_id :** <task_id de la session en cours>
 ```
 
-Ce bloc est **obligatoire** pour les CPs à enjeu fort quand invoqué depuis l'orchestrateur feature.
+Ce bloc est **obligatoire** pour les CPs à enjeu fort quand invoqué depuis l'agent orchestrator feature.
 En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'outil `question` — comportement inchangé.
 
 ### CPs à enjeu fort qui déclenchent ce bloc

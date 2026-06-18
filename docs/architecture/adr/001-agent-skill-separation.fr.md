@@ -15,7 +15,7 @@ l'identité de l'agent (qui il est, ce qu'il fait) de son protocole (comment il 
 Le premier prototype concentrait tout dans le fichier agent. Cela rendait les fichiers
 longs (200-300 lignes), difficiles à maintenir, et empêchait la réutilisation des
 protocoles entre agents. Par exemple, le format de rapport de review était dupliqué
-dans le reviewer et dans l'orchestrateur.
+dans le reviewer et dans l'agent orchestrator.
 
 ## Décision
 

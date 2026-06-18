@@ -1,18 +1,18 @@
 ---
 name: pathfinder-subagent
-description: Parcours d'exécution du pathfinder en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — session unique sans interruption si aucune clarification critique, ou mécanisme d'interruption si clarification critique détectée. Bloc Retour vers orchestrator obligatoire en fin de session.
+description: Parcours d'exécution du pathfinder en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — session unique sans interruption si aucune clarification critique, ou mécanisme d'interruption si clarification critique détectée. Bloc Retour vers orchestrator obligatoire en fin de session.
 ---
 
 # Skill — Parcours Pathfinder Sous-agent
 
-> Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-subagent]` dans le prompt.
+> Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-subagent]` dans le prompt.
 
 ## Principe fondamental
 
 Quand le pathfinder est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
 
 **Confirmer le contexte au démarrage :**
-> `[pathfinder] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode interruption actif — je terminerai ma session pour remonter le rapport et les éventuelles clarifications à l'orchestrateur.`
+> `[pathfinder] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session pour remonter le rapport et les éventuelles clarifications à l'agent orchestrator.`
 
 ---
 
@@ -68,7 +68,7 @@ Pendant l'exploration de [contexte], j'ai détecté que [description précise du
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** pathfinder
 **Phase :** Clarification en cours d'exploration
@@ -79,7 +79,7 @@ Ce qui a été exploré jusqu'ici : <résumé rapide des observations>
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** Clarification
 **task_id :** <sessionID courant>
@@ -102,7 +102,7 @@ Ce qui a été exploré jusqu'ici : <résumé rapide des observations>
 
 - [ ] Ai-je produit le rapport pathfinder complet ?
 - [ ] Ai-je produit le bloc `## Retour vers orchestrator` ?
-- [ ] En cas de clarification interrompue : ai-je produit `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` avec le `task_id` ?
+- [ ] En cas de clarification interrompue : ai-je produit `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` avec le `task_id` ?
 - [ ] Ai-je terminé la session sans appeler l'outil `question` ?
 
 > ❌ Ne JAMAIS appeler l'outil `question` dans ce mode

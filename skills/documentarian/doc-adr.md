@@ -277,7 +277,7 @@ Nous avons décidé de créer deux agents distincts :
 
 ### Positives
 - Chaque agent a un workflow clair et un périmètre défini
-- Le qa-engineer peut être invoqué optionnellement par l'orchestrateur
+- Le qa-engineer peut être invoqué optionnellement par l'agent orchestrator
 - Le debugger ne crée un ticket de correction qu'après confirmation explicite
 
 ### Négatives / Compromis

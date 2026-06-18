@@ -222,13 +222,13 @@ session enfant.
 <Question proprement dite>
 ```
 
-### Format enrichi — obligatoire quand CONTEXTE = orchestrateur_feature
+### Format enrichi — obligatoire quand CONTEXTE = orchestrator_feature
 
 Quand tu es invoqué via l'outil `task` depuis un orchestrateur, le texte affiché dans ta session
 enfant **n'est pas visible** par l'utilisateur dans la session parent. La question est le **seul
 contenu qui remonte** dans la session parent.
 
-Pour cette raison, **si CONTEXTE = orchestrateur_feature**, le champ `question` doit inclure
+Pour cette raison, **si CONTEXTE = orchestrator_feature**, le champ `question` doit inclure
 un **condensé structuré des découvertes clés** de la phase en cours (3-5 points maximum) :
 
 ```
@@ -263,7 +263,7 @@ question({
 })
 ```
 
-### Exemple — invoqué depuis orchestrateur (CONTEXTE = orchestrateur_feature)
+### Exemple — invoqué depuis l'agent orchestrator (CONTEXTE = orchestrator_feature)
 
 ```
 question({
@@ -282,7 +282,7 @@ question({
 
 ✅ Toujours inclure le bloc de contexte quand tu es invoqué en tant que sous-agent
 ✅ Le bloc de contexte doit identifier : qui tu es, quelle phase est en cours, la feature ou le ticket concerné
-✅ **Si CONTEXTE = orchestrateur_feature** : enrichir avec un condensé des découvertes clés (3-5 points)
+✅ **Si CONTEXTE = orchestrator_feature** : enrichir avec un condensé des découvertes clés (3-5 points)
 ❌ Ne pas omettre le contexte même pour une question courte — l'utilisateur n'a pas accès à ta session enfant sans naviguer manuellement
 ❌ Ne pas inclure le récap complet dans le champ `question` — uniquement le condensé actionnable
 

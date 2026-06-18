@@ -11,7 +11,7 @@ Accepted
 Directly-invocable primary agents (`planner`, `pathfinder`, `onboarder`, `auditor`, `orchestrator-dev`, `reviewer`, `qa-engineer`) can be invoked in two ways:
 
 1. **Standalone** — directly by the user: communication via the `question` tool, text recaps visible in the discussion, no orchestrator handoff blocks
-2. **Subagent** — via `task` from the orchestrator: session interruption mechanism, structured blocks `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur`, mandatory `task_id`, `question` tool forbidden
+2. **Subagent** — via `task` from the orchestrator: session interruption mechanism, structured blocks `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`, mandatory `task_id`, `question` tool forbidden
 
 Before this decision, both paths coexisted in agent workflow skills (e.g. `planner-workflow.md`), separated by a conditional branch detected at startup:
 
@@ -73,7 +73,7 @@ For each affected agent, two Bucket B skills are created:
 - Context confirmation at startup
 - Interruption mechanism: produce recap + structured blocks + terminate session
 - Self-check before each session end
-- Format of `## Retour intermédiaire vers orchestrateur` and `## Question pour l'orchestrateur` blocks with `task_id`
+- Format of `## Retour intermédiaire vers orchestrator` and `## Question pour l'orchestrator` blocks with `task_id`
 - Final output format (with orchestrator handoff block)
 - List of common errors to avoid
 

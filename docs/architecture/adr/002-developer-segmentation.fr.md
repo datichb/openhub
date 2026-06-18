@@ -19,7 +19,7 @@ tous les skills de tous les domaines, ce qui posait plusieurs problèmes :
 - Le contexte injecté dans l'outil IA devenait très long (tous les standards en même temps)
 - L'agent ne pouvait pas avoir une identité focalisée : il était à la fois frontend,
   backend, data, devops, mobile et API
-- La matrice de routing de l'orchestrateur ne pouvait pas déléguer avec précision
+- La matrice de routing de l'agent orchestrator ne pouvait pas déléguer avec précision
 
 ## Décision
 

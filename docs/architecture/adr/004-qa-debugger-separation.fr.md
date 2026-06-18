@@ -26,7 +26,7 @@ Deux agents dédiés sont créés :
 - **`qa-engineer`** : reçoit une implémentation, écrit les tests manquants
   (unit / integration / E2E), produit un rapport de couverture. Ne modifie jamais
   le code fonctionnel. Invocable standalone ou comme étape optionnelle `[CP-QA]`
-  dans l'orchestrateur.
+  dans l'agent orchestrator.
 
 - **`debugger`** : reçoit une stacktrace ou des logs, applique une méthodologie
   de diagnostic en 4 étapes, produit un rapport de cause racine avec hypothèses

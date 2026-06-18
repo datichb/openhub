@@ -17,17 +17,17 @@ Il est injecté dans `ux-designer`, `ui-designer` et `orchestrator` — producte
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:designer/ux-subagent]` ou `[SKILL:designer/ui-subagent]` → charger le skill correspondant via l'outil `skill`
-  - Mémoriser **CONTEXTE = orchestrateur_feature** pour toute la session
+  - Mémoriser **CONTEXTE = orchestrator_feature** pour toute la session
   - Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
   - En fin de session : produire la spec complète + le bloc `## Retour vers orchestrator`
-  - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session**
+  - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et **terminer la session**
 - Sinon (standalone ou depuis `planner`) :
   - Utiliser l'outil `question` normalement
   - Produire la spec sans le bloc `## Retour vers orchestrator`
 
 ---
 
-Quand CONTEXTE = orchestrateur_feature, produire dans cet ordre :
+Quand CONTEXTE = orchestrator_feature, produire dans cet ordre :
 
 1. **La spec complète** — user flows intégraux avec tous les états, wireframes textuels, tokens, composants, critères d'acceptance UX/UI. **Cette spec doit être produite dans sa totalité, jamais résumée, même si elle est longue.** Elle est produite après la validation explicite de l'utilisateur.
 2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — synthèse structurée avec les métadonnées, contraintes et statut.
@@ -95,14 +95,14 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ---
 
-## Bloc `## Retour intermédiaire vers orchestrateur` (clarification en cours de session)
+## Bloc `## Retour intermédiaire vers orchestrator` (clarification en cours de session)
 
-Produit quand une **clarification critique** est nécessaire en cours de session (CONTEXTE = orchestrateur_feature uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
+Produit quand une **clarification critique** est nécessaire en cours de session (CONTEXTE = orchestrator_feature uniquement) — ex : aucun design system détecté, informations utilisateur insuffisantes, décision de direction artistique bloquante.
 
 > ⚠️ Réserver aux vrais blockers. Formuler une hypothèse documentée et continuer si possible.
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** ux-designer | ui-designer
 **Phase :** Clarification en cours de session
@@ -124,12 +124,12 @@ Produit quand une **clarification critique** est nécessaire en cours de session
 
 ---
 
-## Bloc `## Question pour l'orchestrateur` (clarification en cours de session)
+## Bloc `## Question pour l'orchestrator` (clarification en cours de session)
 
-Accompagne toujours un `## Retour intermédiaire vers orchestrateur`.
+Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 
 ```markdown
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** Clarification design
 **task_id :** <sessionID courant>

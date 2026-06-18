@@ -1,18 +1,18 @@
 ---
 name: onboarder-subagent
-description: Parcours d'exécution de l'onboarder en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — mécanisme d'interruption de session à chaque fin de phase, blocs structurés Retour intermédiaire + Question pour l'orchestrateur, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
+description: Parcours d'exécution de l'onboarder en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — mécanisme d'interruption de session à chaque fin de phase, blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
 ---
 
 # Skill — Parcours Onboarder Sous-agent
 
-> Ce skill est chargé quand l'onboarder est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:planning/onboarder-subagent]` dans le prompt.
+> Ce skill est chargé quand l'onboarder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/onboarder-subagent]` dans le prompt.
 
 ## Principe fondamental
 
 Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
 
 **Confirmer le contexte au démarrage :**
-> `[onboarder] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'orchestrateur.`
+> `[onboarder] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'agent orchestrator.`
 
 ---
 
@@ -21,15 +21,15 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 **À CHAQUE fin de phase :**
 
 1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrateur`
-3. Produire le bloc `## Question pour l'orchestrateur`
+2. Produire le bloc `## Retour intermédiaire vers orchestrator`
+3. Produire le bloc `## Question pour l'orchestrator`
 4. **TERMINER LA SESSION**
 
 ---
 
 ## Autocontrôle avant chaque fin de session
 
-> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrateur`, ET (3) le bloc `## Question pour l'orchestrateur` ? »
+> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
 > - **Non** → produire les blocs manquants MAINTENANT
 > - **Oui** → terminer la session
 
@@ -40,8 +40,8 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrateur` avec le récap intégral | ⬜ |
-| ✅ J'ai produit le bloc `## Question pour l'orchestrateur` avec question + options + instruction de reprise | ⬜ |
+| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrator` avec le récap intégral | ⬜ |
+| ✅ J'ai produit le bloc `## Question pour l'orchestrator` avec question + options + instruction de reprise | ⬜ |
 | ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
 | ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
 
@@ -50,7 +50,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ## Format des blocs structurés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** X — <titre>
@@ -60,7 +60,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** X
 **task_id :** <sessionID courant>
@@ -84,7 +84,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ### Phase 0 — Prérequis vérifiés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 0 — Prérequis vérifiés
@@ -94,7 +94,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -115,7 +115,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ### Phase 1 — Exploration contextuelle
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 1 — Exploration contextuelle
@@ -125,7 +125,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -145,7 +145,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ### Phase 2 — Questions complémentaires
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 2 — Questions complémentaires traitées
@@ -155,7 +155,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -176,7 +176,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ### Phase 3 — Rapport de contexte
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 3 — Rapport de contexte produit
@@ -186,7 +186,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -206,7 +206,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 ### Phase 4 — Vérification des incohérences
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** onboarder
 **Phase :** 4 — Vérification des incohérences terminée
@@ -216,7 +216,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 4
 **task_id :** <sessionID courant>
@@ -253,7 +253,7 @@ Phase 5 est le **retour final**. Produire dans cet ordre :
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler l'outil `question` | Question invisible pour l'orchestrateur | **Terminer la session** avec les blocs structurés |
+| Appeler l'outil `question` | Question invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
 | Continuer sans produire les blocs | L'orchestrateur ne reçoit rien | **Toujours interrompre** à chaque fin de phase |
 | Omettre le `task_id` | L'orchestrateur ne peut pas reprendre | **Toujours inclure** le sessionID |
 | Résumer le récap | L'utilisateur perd des informations | **Ne jamais résumer** — afficher le récap complet |

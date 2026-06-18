@@ -34,7 +34,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **C-5** | Wildcard `"auditor-*": allow` dans les permissions `task` de l'`auditor` — résolu par ADR-017 : remplacement par `"auditor-subagent": allow` (permission explicite, sans wildcard). | `agents/auditor/auditor.md`, `docs/architecture/task-delegation.fr.md` | ADR-017 |
 | ✅ **m-3** | `subagent-concision-posture` listait `debugger` dans sa portée (hybride standalone/subagent) — résolu conjointement avec C-3 (debugger → `mode: primary`) et ADR-017 (suppression des 7 `auditor-*` de la portée, remplacés par `auditor-subagent`). | `skills/posture/subagent-concision-posture.md` | ADR-017 |
 | ✅ **C-3** | `debugger` : `mode: subagent` → `mode: primary`. Retrait de `subagent-concision-posture` des skills. Section "Contexte d'invocation" remplacée par le pattern double-rôle (condition sur `[SKILL:quality/debugger-subagent]`). `debugger-workflow.md` mis à jour (détection signal). | `agents/quality/debugger.md`, `skills/quality/debugger-workflow.md` | voir M-9 |
-| ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrateur` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
+| ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrator` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
 | ✅ **M-1 / m-4** | Conflit `expert-posture` + `concision-posture` sans règle de priorité — résolu par déclaration explicite de dépendance dans les deux skills : `expert-posture` déclare sa priorité sur `concision-posture` ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` | voir commit suivant |
 | ✅ **M-2** | `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor` — ajouté dans les `skills:` des deux agents. | `agents/developer/developer-migrator.md`, `agents/developer/developer-refactor.md` | voir commit suivant |
 | ✅ **M-7** | Skills `designer/ux-subagent` et `designer/ui-subagent` inexistants — créés, calqués sur `pathfinder-subagent` (session unique sans interruption de phase, sauf clarification critique). Agents `ux-designer` et `ui-designer` mis à jour avec le pattern double-rôle (`[SKILL:designer/ux-subagent]`). `design-handoff-format.md` migré de la détection `[CONTEXTE]` vers `[SKILL:]`. | `skills/designer/ux-subagent.md`, `skills/designer/ui-subagent.md`, `agents/design/ux-designer.md`, `agents/design/ui-designer.md`, `skills/design/design-handoff-format.md` | voir commit suivant |
@@ -107,7 +107,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ### ✅ M-9 — `skills/quality/debugger-subagent.md` inexistant *(résolu — fix C-3)*
 
-**Résolution :** Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent`, chargé conditionnellement quand l'orchestrateur injecte `[SKILL:quality/debugger-subagent]`.
+**Résolution :** Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent`, chargé conditionnellement quand l'agent orchestrator injecte `[SKILL:quality/debugger-subagent]`.
 
 ---
 
@@ -115,39 +115,24 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 | ID | Problème | Fichier(s) concerné(s) |
 |----|---------|----------------------|
-| m-1 | Terminologie `orchestrateur` vs `orchestrator` (avec/sans accent) dans les templates de blocs structurés — double nomenclature | Multiples skills et agents |
-| m-2 | `concision-posture` : liste d'agents éligibles figée dans le texte — pas auto-extensible à de nouveaux agents | `skills/posture/concision-posture.md` |
-| m-3 | ✅ `subagent-concision-posture` : `debugger` retiré de la portée (résolu conjointement avec C-3 + ADR-017 — les 7 `auditor-*` supprimés, remplacés par `auditor-subagent`) | `skills/posture/subagent-concision-posture.md` |
-| m-4 | ✅ `planner` : `expert-posture` + `concision-posture` sans priorité — résolu conjointement avec M-1 | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` |
-| m-5 | `onboarder` absent de la portée de `concision-posture` sans justification documentée, alors que `planner` et `pathfinder` y sont | `skills/posture/concision-posture.md` |
-| m-6 | Chaîne `living-docs-enrichment` → documentarian → wiki-navigation → index : complexité de dépendances non documentée | `skills/shared/living-docs-enrichment.md` |
-| m-7 | `qa-engineer` : `edit: deny` + `write: allow` → pour ajouter un test dans un fichier existant, le QA doit réécrire le fichier entier via `write` | `agents/quality/qa-engineer.md` |
-| m-8 | `developer` : `living-docs-enrichment` référencé dans ses `skills:` ET dans `beads-dev` — doublon de référence | `agents/developer/developer.md` |
-| m-9 | `auditor-workflow` contient une note "ne pas dupliquer les règles de parcours" puis les duplique dans le même skill | `skills/auditor/auditor-workflow.md` |
-| m-10 | `orchestrator-dev` : pas d'`expert-posture` → règle d'interdiction `git push` non couverte par une posture générique | `agents/planning/orchestrator-dev.md` |
-| m-11 | `pathfinder` : permission `ask` (confirmation système) + outil `question` — double mécanisme de confirmation, relation non définie | `agents/planning/pathfinder.md` |
-| m-12 | `concision-posture` ne documente pas pourquoi `auditor` (mode: primary, coordinateur) est exclu de sa portée | `skills/posture/concision-posture.md` |
+| ✅ m-1 | Migration terminologie `orchestrateur` → `orchestrator` dans tous les headers de blocs structurés — 506 remplacements dans 49 fichiers (opérationnels + docs). Signaux `[CONTEXTE]` préservés (encore actifs). Prose descriptive française maintenue. | Multiples |
+| ✅ m-2 | `concision-posture` : liste figée remplacée par un critère explicite : "agents `mode: primary` de coordination dont les outputs sont des échanges intermédiaires, pas des livrables formels". | `skills/posture/concision-posture.md` |
+| ✅ m-3 | `subagent-concision-posture` : `debugger` retiré de la portée (résolu conjointement avec C-3 + ADR-017). | `skills/posture/subagent-concision-posture.md` |
+| ✅ m-4 | `planner` : `expert-posture` + `concision-posture` sans priorité — résolu conjointement avec M-1. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` |
+| ✅ m-5 | `onboarder` absent de la portée de `concision-posture` sans justification — documenté dans la table des exclusions : l'onboarder produit un livrable formel (documentation + rapport), même statut que les agents design. | `skills/posture/concision-posture.md` |
+| ✅ m-6 | Chaîne `living-docs-enrichment` → documentarian → wiki-navigation → index non documentée — schéma ASCII ajouté dans `living-docs-enrichment.md` avec le rôle de chaque maillon. | `skills/shared/living-docs-enrichment.md` |
+| ✅ m-7 | `qa-engineer` : `edit: deny` → `edit: allow` — le QA peut maintenant modifier les fichiers de tests existants sans devoir les réécrire entièrement. | `agents/quality/qa-engineer.md` |
+| ✅ m-8 | `developer` : `living-docs-enrichment` en double — non un doublon : le frontmatter charge le skill, `beads-dev` définit quand l'appliquer. Fermé sans modification. | — |
+| ✅ m-9 | `auditor-workflow` : note "ne pas dupliquer" incohérente avec le contenu — note mise à jour pour distinguer ce qui appartient aux skills dédiés (mécanisme de session) vs ce qui reste dans le workflow (formats de sortie par phase selon le contexte). | `skills/auditor/auditor-workflow.md` |
+| ✅ m-10 | `orchestrator-dev` : règle `git push` absente — section "Règle absolue — git push" ajoutée dans le body. | `agents/planning/orchestrator-dev.md` |
+| ✅ m-11 | `pathfinder` : `ask` + `question` — by design. `ask` = permission système avant action irréversible. `question` = collecte d'information auprès de l'utilisateur. Mécanismes orthogonaux, aucun conflit. Fermé sans modification. | — |
+| ✅ m-12 | `concision-posture` ne documentait pas l'exclusion de `auditor` — table des exclusions ajoutée avec justification pour chaque agent exclu. | `skills/posture/concision-posture.md` |
 
 ---
 
 ## Priorités recommandées (prochaines sessions)
 
-### Lot 1 — Rapide, fort impact (< 30 min)
-
-*(lot terminé)*
-
-### Lot 2 — Fichiers manquants (1-2h)
-
-*(lot terminé)*
-
-### Lot 4 — Vérifications système (30 min)
-
-*(lot terminé)*
-
-### Lot 5 — Nettoyage documentaire (1h)
-
-5. **m-1** : normaliser terminologie `orchestrateur` / `orchestrator`
-6. Remaining mineurs
+**Tous les lots sont terminés.** Le seul point en surveillance passive est M-8 (`orchestrator` avec `skill: allow` — risque modéré, à monitorer en utilisation réelle).
 
 ---
 
@@ -161,3 +146,4 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 - **`skill: allow` est requis** pour que les agents voient la liste des skills disponibles et puissent les charger via l'outil `skill`.
 - **Le wildcard dans `task: { "auditor-*": allow }` : résolu par ADR-017** — remplacé par `"auditor-subagent": allow` (permission explicite).
 - **Permission non déclarée dans un agent custom = `allow` par défaut** (via la règle catch-all `"*": "allow"` dans les defaults système de `agent.ts`). Exception : `question`, `plan_enter`, `plan_exit` → `deny` par défaut. Fichiers `.env` → `ask`. Le fallback ultime (aucune règle ne matche) est `ask`, jamais `deny`.
+- **`ask` vs `question` — mécanismes orthogonaux** : `ask` est la permission système (OpenCode demande confirmation à l'utilisateur avant d'exécuter une action — configurable dans le frontmatter). `question` est l'outil LLM (l'agent pose une question ouverte à l'utilisateur pour collecter de l'information). Les deux peuvent coexister sur un même agent sans conflit.

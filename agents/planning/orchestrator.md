@@ -150,7 +150,7 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
      → Selon la recommandation du pathfinder :
        "direct" → Invoquer `orchestrator-dev` avec le rapport comme contexte
        "escalade" → Invoquer `planner` avec le marqueur [CONTEXTE] et le handoff pathfinder
-   - Question montante (contient ## Question pour l'orchestrateur) :
+   - Question montante (contient ## Question pour l'orchestrator) :
      → Afficher le ## Retour intermédiaire en texte
      → Relayer la question à l'utilisateur via `question`
      → Ré-invoquer le pathfinder avec task_id + réponse
@@ -164,15 +164,15 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 À la réception du résultat du pathfinder, détecter le type de retour :
 
 **Cas A — retour final :** contient `## Retour vers orchestrator`
-- Afficher les `## Retour intermédiaire vers orchestrateur` si présents, en texte, dans l'ordre
+- Afficher les `## Retour intermédiaire vers orchestrator` si présents, en texte, dans l'ordre
 - Afficher le rapport pathfinder complet en texte
 - Afficher le bloc `## Retour vers orchestrator`
 - Selon la recommandation :
   - `direct` → invoquer `orchestrator-dev` avec le rapport comme contexte
   - `escalade-planner` → invoquer le planner avec le marqueur `[CONTEXTE]` et la section `## 📦 Handoff vers planner` du rapport
 
-**Cas B — question montante :** contient `## Question pour l'orchestrateur`
-- Afficher intégralement le `## Retour intermédiaire vers orchestrateur` en texte
+**Cas B — question montante :** contient `## Question pour l'orchestrator`
+- Afficher intégralement le `## Retour intermédiaire vers orchestrator` en texte
 - Relayer la question via l'outil `question` (reprendre question et options exactes du bloc)
 - Ré-invoquer le pathfinder avec `task_id` + réponse + marqueur `[CONTEXTE]`
 - Recommencer jusqu'à Cas A

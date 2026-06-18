@@ -1,18 +1,18 @@
 ---
 name: planner-subagent
-description: Parcours d'exécution du planner en mode sous-agent (invoqué via task depuis l'orchestrateur feature) — mécanisme d'interruption de session, blocs structurés Retour intermédiaire + Question pour l'orchestrateur, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
+description: Parcours d'exécution du planner en mode sous-agent (invoqué via task depuis l'agent orchestrator feature) — mécanisme d'interruption de session, blocs structurés Retour intermédiaire + Question pour l'agent orchestrator, task_id obligatoire. Ne jamais appeler l'outil question dans ce mode.
 ---
 
 # Skill — Parcours Planner Sous-agent
 
-> Ce skill est chargé quand le planner est invoqué via `task` depuis l'orchestrateur feature. L'orchestrateur injecte `[SKILL:planning/planner-subagent]` dans le prompt.
+> Ce skill est chargé quand le planner est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/planner-subagent]` dans le prompt.
 
 ## Principe fondamental
 
-Quand le planner est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'orchestrateur retranscrira.
+Quand le planner est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'agent orchestrator retranscrira.
 
 **Confirmer le contexte au démarrage :**
-> `[planner] Contexte détecté : invoqué depuis l'orchestrateur feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'orchestrateur.`
+> `[planner] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'agent orchestrator.`
 
 ---
 
@@ -21,13 +21,13 @@ Quand le planner est invoqué via `task`, le texte de la session enfant n'est **
 **À CHAQUE fin de phase ET à chaque pause ad hoc :**
 
 1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrateur`
-3. Produire le bloc `## Question pour l'orchestrateur`
+2. Produire le bloc `## Retour intermédiaire vers orchestrator`
+3. Produire le bloc `## Question pour l'orchestrator`
 4. **TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
 
 L'orchestrateur :
 - Affiche le `## Retour intermédiaire` en texte dans la discussion
-- Lit la `## Question pour l'orchestrateur`
+- Lit la `## Question pour l'orchestrator`
 - Pose la question à l'utilisateur via l'outil `question`
 - Re-invoque le planner avec `task_id` + la réponse → le planner recharge l'historique et continue
 
@@ -35,11 +35,11 @@ L'orchestrateur :
 
 ## Autocontrôle avant chaque fin de session
 
-> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrateur`, ET (3) le bloc `## Question pour l'orchestrateur` ? »
+> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
 > - **Non** → produire les blocs manquants MAINTENANT
 > - **Oui** → terminer la session
 
-> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrateur_feature) doit contenir le **contexte et le raisonnement** derrière les décisions de planification — pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses, quels risques. Il n'a **pas** à reproduire le tableau des tickets ni les listes formelles — ceux-ci sont dans le bloc structuré `## Retour vers orchestrator`. L'orchestrateur retransmettra ce récap narratif intégralement à l'utilisateur pour le CP-0.
+> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrator_feature) doit contenir le **contexte et le raisonnement** derrière les décisions de planification — pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses, quels risques. Il n'a **pas** à reproduire le tableau des tickets ni les listes formelles — ceux-ci sont dans le bloc structuré `## Retour vers orchestrator`. L'orchestrateur retransmettra ce récap narratif intégralement à l'utilisateur pour le CP-0.
 
 ---
 
@@ -50,8 +50,8 @@ L'orchestrateur :
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrateur` avec la synthèse condensée (résumé + points clés) | ⬜ |
-| ✅ J'ai produit le bloc `## Question pour l'orchestrateur` avec question + options + instruction de reprise | ⬜ |
+| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrator` avec la synthèse condensée (résumé + points clés) | ⬜ |
+| ✅ J'ai produit le bloc `## Question pour l'orchestrator` avec question + options + instruction de reprise | ⬜ |
 | ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
 | ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
 
@@ -70,7 +70,7 @@ L'orchestrateur :
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** X — <titre>
@@ -82,7 +82,7 @@ L'orchestrateur :
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** X
 **task_id :** <sessionID courant>
@@ -117,7 +117,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** X — Pause (information manquante critique)
@@ -128,7 +128,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** X — Pause
 **task_id :** <sessionID courant>
@@ -152,7 +152,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 0 — Prérequis vérifiés
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 0 — Prérequis vérifiés
@@ -163,7 +163,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -184,7 +184,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 1 — Signal design détecté
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1 — Exploration contextuelle (signal design détecté)
@@ -195,7 +195,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -216,7 +216,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 1 — Aucun signal design
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1 — Exploration contextuelle (terminée)
@@ -227,7 +227,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -247,7 +247,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 1.5 — Délégation design terminée
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 1.5 — Délégation design (terminée)
@@ -258,7 +258,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1.5
 **task_id :** <sessionID courant>
@@ -278,7 +278,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 2 — Questions complémentaires traitées
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 2 — Questions complémentaires (traitées)
@@ -289,7 +289,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -310,7 +310,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 3 — Plan hiérarchique
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 3 — Plan hiérarchique
@@ -321,7 +321,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -342,7 +342,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 4 — Cas particuliers
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 4 — Détection des cas particuliers (terminée)
@@ -353,7 +353,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 4
 **task_id :** <sessionID courant>
@@ -374,7 +374,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ### Phase 5.5 — Délégation ai-delegated
 
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** planner
 **Phase :** 5.5 — Délégation ai-delegated
@@ -385,7 +385,7 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 5.5
 **task_id :** <sessionID courant>
@@ -425,7 +425,7 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 <dépendances structurées>
 
 ### Ordre de traitement
-<séquence d'exécution — l'orchestrateur la suit sans interprétation>
+<séquence d'exécution — l'agent orchestrator la suit sans interprétation>
 
 ### Hypothèses et ambiguïtés
 <hypothèses structurées>
@@ -449,7 +449,7 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'orchestrateur | **Terminer la session** avec les blocs structurés |
+| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
 | Continuer vers la phase suivante sans produire les blocs | L'orchestrateur ne reçoit rien avant la fin complète | **Toujours interrompre** à chaque fin de phase |
 | Omettre le `task_id` dans les blocs | L'orchestrateur ne peut pas re-invoquer pour reprendre | **Toujours inclure** le sessionID |
 | Résumer le récap dans le bloc intermédiaire | L'utilisateur perd des informations critiques | **Ne jamais résumer** — copier intégralement |

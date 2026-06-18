@@ -30,6 +30,26 @@ L'agent qui applique ce skill ne fait que :
 3. Proposer l'enrichissement à l'utilisateur
 4. Invoquer le `documentarian` si l'utilisateur accepte
 
+**Chaîne de dépendances complète :**
+
+```
+Agent (auditor, planner, debugger, developer-*, reviewer, qa-engineer…)
+  │  applique ce skill après son rapport/livrable
+  ↓
+living-docs-enrichment
+  │  consolide les découvertes + propose à l'utilisateur
+  ↓  (sur confirmation)
+documentarian  ←  invoqué via task
+  │  charge wiki-navigation pour localiser les pages concernées
+  ↓
+docs/wiki/index.md  (god nodes, points critiques, carte des domaines)
+docs/wiki/technical/conventions.md  (patterns, nommage, git…)
+docs/wiki/technical/architecture.md  (patterns dominants, décisions…)
+docs/wiki/business/<domain>.md  (règles de gestion, flux…)
+```
+
+Chaque maillon a un rôle distinct : ce skill consolide et propose, le `documentarian` écrit, `wiki-navigation` localise.
+
 ---
 
 ## Contraintes absolues

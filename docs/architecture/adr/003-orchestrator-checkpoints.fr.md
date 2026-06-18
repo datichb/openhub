@@ -8,9 +8,9 @@ Accepté
 
 Lors de la conception de l'agent `orchestrator`, deux philosophies s'opposaient :
 
-1. **Automatisation complète** : l'orchestrateur enchaîne planner → developer → qa →
+1. **Automatisation complète** : l'agent orchestrator enchaîne planner → developer → qa →
    reviewer sans interruption, et présente un résultat final à l'utilisateur.
-2. **Checkpoints explicites** : l'orchestrateur pause à chaque étape clé et attend
+2. **Checkpoints explicites** : l'agent orchestrator pause à chaque étape clé et attend
    une confirmation explicite avant de continuer.
 
 L'automatisation complète semblait plus fluide, mais elle présentait des risques

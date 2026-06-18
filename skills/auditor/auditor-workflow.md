@@ -37,11 +37,13 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 
 ## Comportement selon le contexte d'invocation
 
-> Le parcours d'exécution (standalone vs sous-agent) est entièrement défini dans les skills dédiés :
+> Le parcours d'exécution (standalone vs sous-agent) est défini dans les skills dédiés :
 > - **`auditor/auditor-standalone`** — récaps texte + outil `question`, synthèse finale sans bloc handoff
 > - **`auditor/auditor-subagent`** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés, `task_id`
 >
-> Ces skills sont chargés automatiquement au démarrage selon le contexte (voir section "Chargement du parcours d'exécution" dans `auditor.md`). **Ne pas dupliquer** les règles de parcours dans ce skill.
+> Ces skills sont chargés au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
+>
+> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist d'autocontrôle) — celles-ci sont dans les skills dédiés ci-dessus.
 
 ---
 
@@ -172,9 +174,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 0 — Vérification des prérequis
@@ -185,7 +187,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 0
 **task_id :** <sessionID courant>
@@ -329,9 +331,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 1 — Chargement du contexte projet
@@ -342,7 +344,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 1
 **task_id :** <sessionID courant>
@@ -463,9 +465,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 2 — Sélection des domaines à auditer
@@ -476,7 +478,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 2
 **task_id :** <sessionID courant>
@@ -647,9 +649,9 @@ question({
 })
 ```
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 ```markdown
-## Retour intermédiaire vers orchestrateur
+## Retour intermédiaire vers orchestrator
 
 **Agent :** auditor
 **Phase :** 3 — Délégation aux sous-agents spécialisés
@@ -661,7 +663,7 @@ question({
 
 ---
 
-## Question pour l'orchestrateur
+## Question pour l'orchestrator
 
 **Phase :** 3
 **task_id :** <sessionID courant>
@@ -808,7 +810,7 @@ Les signaler dans la section "Recommandations stratégiques" si applicable.
 
 ### Format de retour final
 
-**Si CONTEXTE = orchestrateur_feature :**
+**Si CONTEXTE = orchestrator_feature :**
 
 Produire dans cet ordre :
 
@@ -957,7 +959,7 @@ Phase 4 → Phase 4 (revoir consolidation)
 ✅ **Respecter le format des questions** — header court, question complète avec `[Auditeur — Phase X | Projet : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
-✅ **Produire le bloc handoff** si CONTEXTE = orchestrateur_feature en fin de Phase 4
+✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 4
 ✅ **Transmettre le contexte projet complet** aux sous-agents en préambule — ils ne ré-explorent pas
 ✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
 ❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
