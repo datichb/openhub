@@ -35,6 +35,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **m-3** | `subagent-concision-posture` listait `debugger` dans sa portée (hybride standalone/subagent) — résolu conjointement avec C-3 (debugger → `mode: primary`) et ADR-017 (suppression des 7 `auditor-*` de la portée, remplacés par `auditor-subagent`). | `skills/posture/subagent-concision-posture.md` | ADR-017 |
 | ✅ **C-3** | `debugger` : `mode: subagent` → `mode: primary`. Retrait de `subagent-concision-posture` des skills. Section "Contexte d'invocation" remplacée par le pattern double-rôle (condition sur `[SKILL:quality/debugger-subagent]`). `debugger-workflow.md` mis à jour (détection signal). | `agents/quality/debugger.md`, `skills/quality/debugger-workflow.md` | voir M-9 |
 | ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrateur` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
+| ✅ **M-1 / m-4** | Conflit `expert-posture` + `concision-posture` sans règle de priorité — résolu par déclaration explicite de dépendance dans les deux skills : `expert-posture` déclare sa priorité sur `concision-posture` ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` | voir commit suivant |
 
 ---
 
@@ -46,13 +47,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ## Points restants — 🟠 Majeur (9)
 
-### M-1 — `expert-posture` + `concision-posture` sans règle de priorité
+### ✅ M-1 — `expert-posture` + `concision-posture` sans règle de priorité *(résolu)*
 
-**Agents concernés :** `qa-engineer`, `planner`
-
-**Problème :** Les deux skills coexistent sans hiérarchie. `expert-posture` prescrit des recommandations argumentées en prose ; `concision-posture` prescrit d'éliminer les phrases sans valeur immédiate. Un agent peut légitimement interpréter une recommandation argumentée comme du "filler" à supprimer.
-
-**Résolution :** Ajouter dans `concision-posture` une note de priorité explicite : "Ce skill ne supprime jamais les justifications de décision, avertissements ou recommandations prescrits par `expert-posture`."
+**Résolution :** Déclaration explicite de dépendance dans les deux skills. `expert-posture` déclare sa priorité ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles (bloc `⚠️ Recommandation contraire`, trade-offs, formulation à la première personne, zones d'incertitude, pauses de confirmation).
 
 ---
 
@@ -143,7 +140,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | m-1 | Terminologie `orchestrateur` vs `orchestrator` (avec/sans accent) dans les templates de blocs structurés — double nomenclature | Multiples skills et agents |
 | m-2 | `concision-posture` : liste d'agents éligibles figée dans le texte — pas auto-extensible à de nouveaux agents | `skills/posture/concision-posture.md` |
 | m-3 | ✅ `subagent-concision-posture` : `debugger` retiré de la portée (résolu conjointement avec C-3 + ADR-017 — les 7 `auditor-*` supprimés, remplacés par `auditor-subagent`) | `skills/posture/subagent-concision-posture.md` |
-| m-4 | `planner` : `expert-posture` + `concision-posture` sans priorité (identique à M-1) | `agents/planning/planner.md` |
+| m-4 | ✅ `planner` : `expert-posture` + `concision-posture` sans priorité — résolu conjointement avec M-1 | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` |
 | m-5 | `onboarder` absent de la portée de `concision-posture` sans justification documentée, alors que `planner` et `pathfinder` y sont | `skills/posture/concision-posture.md` |
 | m-6 | Chaîne `living-docs-enrichment` → documentarian → wiki-navigation → index : complexité de dépendances non documentée | `skills/shared/living-docs-enrichment.md` |
 | m-7 | `qa-engineer` : `edit: deny` + `write: allow` → pour ajouter un test dans un fichier existant, le QA doit réécrire le fichier entier via `write` | `agents/quality/qa-engineer.md` |
@@ -161,13 +158,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 1. **M-2** : ajouter `shared/wiki-navigation` à `developer-migrator` et `developer-refactor` (2 lignes)
 
-### Lot 2 — Fichiers manquants (1-2h)
+### Lot 2 — Conflits de posture (1-2h)
 
 2. **M-7** : créer `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md`
-
-### Lot 3 — Conflits de posture (1-2h)
-
-3. **M-1 / m-4** : note de priorité `expert-posture` vs `concision-posture`
 
 ### Lot 4 — Vérifications système (30 min)
 

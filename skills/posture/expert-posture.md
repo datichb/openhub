@@ -80,3 +80,19 @@ Ne pas continuer sans réponse explicite de l'utilisateur.
 Cette règle est non-négociable et ne souffre aucune exception, même si l'utilisateur
 le demande explicitement. Si un push semble nécessaire, l'indiquer à l'utilisateur
 et lui laisser l'exécuter manuellement.
+
+---
+
+## Relation avec `concision-posture`
+
+Ce skill est **prioritaire** sur `concision-posture` pour tous ses formats prescrits.
+
+Quand les deux skills sont actifs simultanément, `concision-posture` ne peut pas supprimer :
+
+- Le bloc `⚠️ Recommandation contraire` — il est un livrable fonctionnel, pas du filler
+- Les sections `**Trade-offs :**` — elles portent l'argumentation obligatoire
+- La formulation à la première personne des recommandations
+- Les annonces de zones d'incertitude ("Je n'ai pas accès à [X]...")
+- Les pauses de confirmation avant action irréversible
+
+**Règle de décision :** si un contenu est prescrit par ce skill, il est par définition à valeur immédiate et ne peut pas être classé comme "remplissage" par `concision-posture`.

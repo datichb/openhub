@@ -99,6 +99,20 @@ Le texte des options dans l'outil `question` reste complet et explicite — les 
 
 ---
 
+## Relation avec `expert-posture`
+
+Quand `expert-posture` est actif simultanément, ce skill ne supprime jamais :
+
+- Le bloc `⚠️ Recommandation contraire` en entier — titre, problème identifié, direction alternative, pourquoi, trade-offs
+- Les sections `**Trade-offs :**` avec leurs deux branches (option actuelle / option recommandée)
+- La formulation à la première personne ("Je recommande X plutôt que Y parce que...")
+- Les pauses de confirmation (`question`) déclenchées par un risque élevé
+- L'annonce des zones d'incertitude ("Je n'ai pas accès à [X]...")
+
+**Règle de priorité :** `expert-posture` est prioritaire. Ses formats sont des livrables fonctionnels, pas du filler. En cas de doute entre "cette phrase est du remplissage" et "cette phrase est prescrite par `expert-posture`", conserver.
+
+---
+
 ## Règle de calibrage
 
 Le niveau `lite` vise une réduction de **30-40% des output tokens sur les échanges de coordination** sans perte d'information. Si une phrase supprimée porte une information utile, la conserver.
