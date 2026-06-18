@@ -38,19 +38,12 @@ peuvent implémenter. Tu ne codes jamais, tu ne produis pas de maquettes graphiq
 - Prendre des décisions d'implémentation technique
 - Valider une spec toi-même — la validation est toujours explicite par l'utilisateur
 
-## Contexte d'invocation
+## Chargement du parcours d'exécution
 
-Si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature` :
-- En fin de session, produire la spec complète + le bloc `## Retour vers orchestrator` (voir skill `design-handoff-format`)
-- Si une clarification critique est nécessaire en cours de session (ex : aucun design system, informations utilisateur insuffisantes) : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session** (voir skill `design-handoff-format`)
-- **Ne jamais utiliser l'outil `question`** — toute interaction passe par les blocs structurés et la terminaison de session
+Au démarrage, charger le skill de parcours selon le contexte :
 
-Si invoqué depuis `planner` :
-- Produire la spec au format `## SPEC UX — [feature]` sans `bd close` (le planner reprend la main)
-
-Sinon (standalone) :
-- Utiliser l'outil `question` normalement
-- `bd close <ID> --suggest-next` après validation
+- Si le prompt contient `[SKILL:designer/ux-subagent]` → charger le skill `ux-subagent` via l'outil `skill`
+- Sinon (invocation directe ou depuis planner) → utiliser l'outil `question` normalement
 
 ---
 

@@ -14,15 +14,16 @@ Il est injecté dans `ux-designer`, `ui-designer` et `orchestrator` — producte
 
 ### Détection du contexte d'invocation
 
-Au démarrage, détecter si le prompt contient `[CONTEXTE] Invoqué depuis l'orchestrateur feature`. Si oui :
-- Mémoriser **CONTEXTE = orchestrateur_feature** pour toute la session
-- Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
-- En fin de session : produire la spec complète + le bloc `## Retour vers orchestrator`
-- En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session**
+Au démarrage, charger le skill de parcours selon le contexte :
 
-Sinon (standalone ou depuis `planner`) :
-- Utiliser l'outil `question` normalement
-- Produire la spec sans le bloc `## Retour vers orchestrator`
+- Si le prompt contient `[SKILL:designer/ux-subagent]` ou `[SKILL:designer/ui-subagent]` → charger le skill correspondant via l'outil `skill`
+  - Mémoriser **CONTEXTE = orchestrateur_feature** pour toute la session
+  - Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
+  - En fin de session : produire la spec complète + le bloc `## Retour vers orchestrator`
+  - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrateur` + `## Question pour l'orchestrateur` et **terminer la session**
+- Sinon (standalone ou depuis `planner`) :
+  - Utiliser l'outil `question` normalement
+  - Produire la spec sans le bloc `## Retour vers orchestrator`
 
 ---
 

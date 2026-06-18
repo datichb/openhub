@@ -37,6 +37,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrateur` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
 | ✅ **M-1 / m-4** | Conflit `expert-posture` + `concision-posture` sans règle de priorité — résolu par déclaration explicite de dépendance dans les deux skills : `expert-posture` déclare sa priorité sur `concision-posture` ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` | voir commit suivant |
 | ✅ **M-2** | `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor` — ajouté dans les `skills:` des deux agents. | `agents/developer/developer-migrator.md`, `agents/developer/developer-refactor.md` | voir commit suivant |
+| ✅ **M-7** | Skills `designer/ux-subagent` et `designer/ui-subagent` inexistants — créés, calqués sur `pathfinder-subagent` (session unique sans interruption de phase, sauf clarification critique). Agents `ux-designer` et `ui-designer` mis à jour avec le pattern double-rôle (`[SKILL:designer/ux-subagent]`). `design-handoff-format.md` migré de la détection `[CONTEXTE]` vers `[SKILL:]`. | `skills/designer/ux-subagent.md`, `skills/designer/ui-subagent.md`, `agents/design/ux-designer.md`, `agents/design/ui-designer.md`, `skills/design/design-handoff-format.md` | voir commit suivant |
 
 ---
 
@@ -106,13 +107,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ---
 
-### M-7 — Skills `ux-subagent` et `ui-subagent` inexistants
+### ✅ M-7 — Skills `ux-subagent` et `ui-subagent` inexistants *(résolu)*
 
-**Agents concernés :** `ux-designer`, `ui-designer` (via `orchestrator-protocol`)
-
-**Problème :** `orchestrator-protocol.md` injecte `[SKILL:designer/ux-subagent]` et `[SKILL:designer/ui-subagent]` dans les invocations des designers. Ces fichiers n'existent pas.
-
-**Résolution :** Créer `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md` avec les règles de comportement en mode sous-agent (format handoff, pas de question directe à l'utilisateur, etc.).
+**Résolution :** Création de `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md`, calqués sur `pathfinder-subagent`. Agents mis à jour avec le pattern double-rôle. `design-handoff-format.md` migré vers la détection par `[SKILL:]`.
 
 ---
 
@@ -159,9 +156,9 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 *(lot terminé)*
 
-### Lot 2 — Conflits de posture (1-2h)
+### Lot 2 — Fichiers manquants (1-2h)
 
-2. **M-7** : créer `skills/designer/ux-subagent.md` et `skills/designer/ui-subagent.md`
+*(lot terminé)*
 
 ### Lot 4 — Vérifications système (30 min)
 
