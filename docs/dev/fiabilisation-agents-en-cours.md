@@ -36,6 +36,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 | ✅ **C-3** | `debugger` : `mode: subagent` → `mode: primary`. Retrait de `subagent-concision-posture` des skills. Section "Contexte d'invocation" remplacée par le pattern double-rôle (condition sur `[SKILL:quality/debugger-subagent]`). `debugger-workflow.md` mis à jour (détection signal). | `agents/quality/debugger.md`, `skills/quality/debugger-workflow.md` | voir M-9 |
 | ✅ **M-9** | Création de `skills/quality/debugger-subagent.md` — parcours sous-agent calqué sur `planner-subagent` (mécanisme d'interruption de session, blocs `## Retour intermédiaire` + `## Question pour l'orchestrateur` par phase). Retrait de `debugger` de la portée de `subagent-concision-posture`. Documentation mise à jour (ADR-015 FR+EN, skills.fr.md, skills.en.md). | `skills/quality/debugger-subagent.md`, `skills/posture/subagent-concision-posture.md`, `docs/architecture/adr/015-concision-posture.fr.md`, `docs/architecture/adr/015-concision-posture.en.md`, `docs/architecture/skills.fr.md`, `docs/architecture/skills.en.md` | — |
 | ✅ **M-1 / m-4** | Conflit `expert-posture` + `concision-posture` sans règle de priorité — résolu par déclaration explicite de dépendance dans les deux skills : `expert-posture` déclare sa priorité sur `concision-posture` ; `concision-posture` liste exhaustivement les formats `expert-posture` non suppressibles. | `skills/posture/expert-posture.md`, `skills/posture/concision-posture.md` | voir commit suivant |
+| ✅ **M-2** | `shared/wiki-navigation` absent de `developer-migrator` et `developer-refactor` — ajouté dans les `skills:` des deux agents. | `agents/developer/developer-migrator.md`, `agents/developer/developer-refactor.md` | voir commit suivant |
 
 ---
 
@@ -156,7 +157,7 @@ Analyse exhaustive de l'ensemble des agents (22) et skills (~120) du hub.
 
 ### Lot 1 — Rapide, fort impact (< 30 min)
 
-1. **M-2** : ajouter `shared/wiki-navigation` à `developer-migrator` et `developer-refactor` (2 lignes)
+*(lot terminé)*
 
 ### Lot 2 — Conflits de posture (1-2h)
 
