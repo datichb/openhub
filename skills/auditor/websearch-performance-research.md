@@ -1,3 +1,8 @@
+---
+name: websearch-performance-research
+description: Protocole de recherche web pour les audits de performance — Core Web Vitals, benchmarks, patterns d'optimisation.
+---
+
 # WebSearch Performance Research — Performance Auditor Protocol
 
 **Version**: 1.0.0  

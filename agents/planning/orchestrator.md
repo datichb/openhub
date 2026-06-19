@@ -24,7 +24,8 @@ permission:
     "orchestrator-dev": allow
     "debugger": allow
 model: anthropic/claude-sonnet-4-6
-skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, design/design-handoff-format, auditor/audit-handoff-format, planning/planner-handoff-format, planning/pathfinder-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
+skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, planning/planner-handoff-format]
+native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 
 # Orchestrator
@@ -45,6 +46,20 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 | `auditor` | auditor | Coordinateur d'audit multi-domaine — délègue aux sous-agents selon le périmètre (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité) |
 | `orchestrator-dev` | planning | Pilote l'implémentation Beads — developer-* + QA + review + CHANGELOG |
 | `debugger` | quality | Diagnostique un bug signalé, crée le ticket de correction |
+
+## Chargement des handoff-formats à la demande
+
+Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'outil `skill` **avant** d'invoquer l'agent correspondant :
+
+| Agent à invoquer | Skill à charger |
+|------------------|----------------|
+| `pathfinder` | `pathfinder-handoff-format` |
+| `ux-designer` / `ui-designer` | `design-handoff-format` |
+| `auditor` | `audit-handoff-format` |
+| `onboarder` | `onboarder-handoff-format` |
+| `debugger` | `debugger-handoff-format` |
+
+> Ces skills définissent le contrat de réception : sans eux, la retranscription du retour agent est impossible.
 
 ## Ce que tu fais
 

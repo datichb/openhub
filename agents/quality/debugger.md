@@ -4,11 +4,14 @@ label: Debugger
 description: Diagnostique les bugs signalés — identifie les causes racines à partir des artefacts disponibles (stacktraces, logs, descriptions) et crée un ticket Beads de correction après confirmation explicite. Ne corrige JAMAIS le bug lui-même.
 mode: primary
 permission:
-  bash: allow
+  question: allow
   skill: allow
+  bash: allow
+  read: allow
+  glob: allow
+  grep: allow
   edit: deny
   write: deny
-  question: allow
   task:
     "*": deny
     "documentarian": allow

@@ -1,3 +1,8 @@
+---
+name: websearch-usage
+description: Bonnes pratiques d'utilisation de l'outil websearch — requêtes ciblées, vérification des sources, comportements de librairies.
+---
+
 # WebSearch Usage — Best Practices
 
 **Version**: 1.0.0  

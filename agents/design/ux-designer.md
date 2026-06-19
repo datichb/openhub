@@ -6,13 +6,20 @@ mode: primary
 permission:
   question: allow
   skill: allow
-  bash: deny
+  bash:
+    "*": deny
+    "bd show *": allow
+    "bd list *": allow
+  read: allow
+  glob: allow
+  grep: allow
   edit: deny
   write: deny
   websearch: allow
   webfetch: allow
+mcpServers: [figma]
 skills: [designer/ux-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format, shared/websearch-usage]
-native_skills: [design/websearch-design-patterns]
+native_skills: [designer/ux-subagent, design/websearch-design-patterns]
 ---
 
 # UXDesigner
@@ -43,8 +50,7 @@ peuvent implémenter. Tu ne codes jamais, tu ne produis pas de maquettes graphiq
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:designer/ux-subagent]` → charger le skill `ux-subagent` via l'outil `skill`
-- Si CONTEXTE = orchestrator_feature → Ne jamais utiliser l'outil `question` directement ; toute clarification passe par le mécanisme d'interruption (blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`)
-- Sinon (invocation directe ou depuis planner) → utiliser l'outil `question` normalement
+- Sinon (invocation directe) → utiliser l'outil `question` normalement
 
 ---
 

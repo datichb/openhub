@@ -1,3 +1,8 @@
+---
+name: rtk-usage
+description: Guide d'utilisation de RTK (Rust Token Killer) — commandes token-optimisées pour réduire la consommation contextuelle de 60-90%.
+---
+
 # RTK Usage — Token-Optimized Commands
 
 **RTK (Rust Token Killer)** filtre automatiquement les sorties de commandes CLI pour économiser **60-90% de tokens** lors de l'interaction avec l'outil IA.

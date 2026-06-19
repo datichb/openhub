@@ -7,6 +7,10 @@ permission:
   question: allow
   skill: allow
   bash: deny
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
   write: allow
   websearch: allow
   webfetch: allow

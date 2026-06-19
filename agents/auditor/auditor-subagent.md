@@ -6,6 +6,9 @@ mode: subagent
 permission:
   skill: allow
   bash: deny
+  read: allow
+  glob: allow
+  grep: allow
   edit: deny
   write: deny
   websearch: allow

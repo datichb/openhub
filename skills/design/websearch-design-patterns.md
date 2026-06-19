@@ -1,3 +1,8 @@
+---
+name: websearch-design-patterns
+description: Protocole de recherche web pour les agents design — patterns UI/UX, composants, accessibilité, design systems de référence.
+---
+
 # WebSearch Design Patterns — Design Agent Protocol
 
 **Version**: 1.0.0  

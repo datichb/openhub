@@ -6,6 +6,16 @@ mode: primary
 permission:
   question: allow
   skill: allow
+  bash:
+    "*": deny
+    "git diff*": allow
+    "git log*": allow
+    "git show*": allow
+    "git status": allow
+    "bd show *": allow
+  read: allow
+  glob: allow
+  grep: allow
   edit: deny
   write: deny
   task:
