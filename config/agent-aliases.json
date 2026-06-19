@@ -145,27 +145,6 @@
     "audit":               ["auditor"],
     "auditeur":            ["auditor"],
 
-    "auditor-security":    ["auditor-subagent"],
-    "security-audit":      ["auditor-subagent"],
-
-    "auditor-performance": ["auditor-subagent"],
-    "performance-audit":   ["auditor-subagent"],
-
-    "auditor-accessibility": ["auditor-subagent"],
-    "accessibility-audit":   ["auditor-subagent"],
-    "a11y-audit":            ["auditor-subagent"],
-
-    "auditor-architecture":  ["auditor-subagent"],
-    "architecture-audit":    ["auditor-subagent"],
-
-    "auditor-privacy":     ["auditor-subagent"],
-    "privacy-audit":       ["auditor-subagent"],
-    "rgpd":                ["auditor-subagent"],
-
-    "auditor-ecodesign":   ["auditor-subagent"],
-    "ecodesign-audit":     ["auditor-subagent"],
-
-    "auditor-observability": ["auditor-subagent"],
-    "observability-audit":   ["auditor-subagent"]
+    "auditor-subagent":    ["auditor-subagent"]
   }
 }

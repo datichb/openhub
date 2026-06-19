@@ -87,9 +87,9 @@ setup() {
 
     # Copier 3 agents (2 auditor + 1 developer qui référence dev-standards-universal)
     mkdir -p "$TMP_AGENTS_DIR/auditor" "$TMP_AGENTS_DIR/developer"
-    cp "$HUB_ROOT/agents/auditor/auditor-accessibility.md" \
+    cp "$HUB_ROOT/agents/auditor/auditor.md" \
        "$TMP_AGENTS_DIR/auditor/"
-    cp "$HUB_ROOT/agents/auditor/auditor-architecture.md" \
+    cp "$HUB_ROOT/agents/auditor/auditor-subagent.md" \
        "$TMP_AGENTS_DIR/auditor/"
     cp "$HUB_ROOT/agents/developer/developer.md" \
        "$TMP_AGENTS_DIR/developer/"

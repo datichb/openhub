@@ -1115,13 +1115,13 @@ ou agent absent de `.opencode/agents/`), ne jamais silencieusement basculer vers
 
 | Agent manquant | Substitut proposé | Limitation |
 |----------------|-------------------|------------|
-| `auditor` (security) | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
-| `auditor` (accessibility) | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
-| `auditor` (architecture) | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
-| `auditor` (performance) | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
-| `auditor` (privacy) | *(aucun substitut)* | — |
-| `auditor` (ecodesign) | *(aucun substitut)* | — |
-| `auditor` (observability) | *(aucun substitut)* | — |
+| `auditor-security` | `developer` (domaine security) | Pas de rapport structuré OWASP — analyse ad hoc uniquement |
+| `auditor-accessibility` | `developer` (domaine frontend) | Pas de rapport WCAG/RGAA — vérifications basiques uniquement |
+| `auditor-architecture` | `developer` (domaine fullstack) | Pas d'analyse SOLID/couplage structurée — revue partielle |
+| `auditor-performance` | `developer` (domaine fullstack) | Pas de rapport Web Vitals/N+1 — analyse ad hoc |
+| `auditor-privacy` | *(aucun substitut)* | — |
+| `auditor-ecodesign` | *(aucun substitut)* | — |
+| `auditor-observability` | *(aucun substitut)* | — |
 | `ux-designer` | *(aucun substitut)* | — |
 | `ui-designer` | *(aucun substitut)* | — |
 
