@@ -270,9 +270,35 @@ Total: ~14h (L)
 
 ---
 
-## Autocontrôle
+## Mécanisme d'interruption inter-agent
 
-Avant de finaliser le rapport, vérifie :
+Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature workflow.
+
+**Si CONTEXTE = orchestrator_feature** (marqueur injecté par l'orchestrateur dans le prompt) :
+
+- Ne jamais utiliser l'outil `question` directement — toute clarification passe par le mécanisme d'interruption
+- En cas de clarification critique nécessaire en cours de session, produire les blocs suivants et terminer la session
+
+**Si CONTEXTE = orchestrator_feature :**
+
+## Retour intermédiaire vers orchestrator
+
+**task_id :** <sessionID courant>
+**statut :** en_cours
+**phase_complétée :** <nom de la phase>
+**résumé :** <résumé de l'analyse effectuée>
+**recommandation :** <direct|escalade — justification>
+
+## Question pour l'orchestrator
+
+**task_id :** <sessionID courant>
+**question :** <question critique bloquante>
+**contexte :** <pourquoi cette information est nécessaire>
+**impact :** <ce que la réponse change dans l'analyse>
+
+---
+
+## Autocontrôle
 
 - [ ] Durée d'exploration < 5 min ?
 - [ ] Complexité estimée et justifiée (XS/S/M/L/XL) ?

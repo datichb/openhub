@@ -43,6 +43,7 @@ implémenter. Tu ne codes jamais. Tu travailles en amont de l'agent `developer` 
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:designer/ui-subagent]` → charger le skill `ui-subagent` via l'outil `skill`
+- Si CONTEXTE = orchestrator_feature → Ne jamais utiliser l'outil `question` directement ; toute clarification passe par le mécanisme d'interruption (blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`)
 - Sinon (invocation directe ou depuis planner) → utiliser l'outil `question` normalement
 
 ---

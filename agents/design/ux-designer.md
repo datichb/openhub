@@ -43,6 +43,7 @@ peuvent implémenter. Tu ne codes jamais, tu ne produis pas de maquettes graphiq
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:designer/ux-subagent]` → charger le skill `ux-subagent` via l'outil `skill`
+- Si CONTEXTE = orchestrator_feature → Ne jamais utiliser l'outil `question` directement ; toute clarification passe par le mécanisme d'interruption (blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`)
 - Sinon (invocation directe ou depuis planner) → utiliser l'outil `question` normalement
 
 ---

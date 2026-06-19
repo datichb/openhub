@@ -12,87 +12,87 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
 # ── Détection du contexte d'invocation ───────────────────────────────────────
 
 @test "planner-workflow contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/planning/planner-workflow.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/planning/planner-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "pathfinder-protocol contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/planning/pathfinder-protocol.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/planning/pathfinder-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "onboarder-workflow contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/planning/onboarder-workflow.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/planning/onboarder-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "auditor-workflow contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/auditor/auditor-workflow.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/auditor/auditor-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "debugger-workflow contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/quality/debugger-workflow.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/quality/debugger-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "orchestrator-dev-protocol contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/orchestrator/orchestrator-dev-protocol.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/orchestrator/orchestrator-dev-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "design-handoff-format contient la détection CONTEXTE = orchestrateur_feature" {
-  run grep -c "CONTEXTE = orchestrateur_feature" "$SKILLS_DIR/design/design-handoff-format.md"
+  run grep -c "CONTEXTE = orchestrator_feature" "$SKILLS_DIR/design/design-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
-# ── Présence du bloc ## Retour intermédiaire vers orchestrateur ───────────────
+# ── Présence du bloc ## Retour intermédiaire vers orchestrator ───────────────
 
 @test "planner-workflow contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/planner-workflow.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/planning/planner-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "onboarder-workflow contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/onboarder-workflow.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/planning/onboarder-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "auditor-workflow contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/auditor/auditor-workflow.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/auditor/auditor-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "debugger-workflow contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/quality/debugger-workflow.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/quality/debugger-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "pathfinder-protocol contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/pathfinder-protocol.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/planning/pathfinder-protocol.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "pathfinder-handoff-format contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "design-handoff-format contient le bloc Retour intermédiaire vers orchestrateur" {
-  run grep -c "## Retour intermédiaire vers orchestrateur" "$SKILLS_DIR/design/design-handoff-format.md"
+  run grep -c "## Retour intermédiaire vers orchestrator" "$SKILLS_DIR/design/design-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -100,7 +100,7 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
 # ── Présence du bloc ## Question pour l'orchestrateur (ou orchestrator) ───────
 
 @test "planner-workflow contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/planning/planner-workflow.md"
+  run grep -c "## Question pour l'orchestrator" "$SKILLS_DIR/planning/planner-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
@@ -112,25 +112,25 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
 }
 
 @test "pathfinder-handoff-format contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
+  run grep -c "## Question pour l'orchestrator" "$SKILLS_DIR/planning/pathfinder-handoff-format.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "debugger-workflow contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/quality/debugger-workflow.md"
+  run grep -c "## Question pour l'orchestrator" "$SKILLS_DIR/quality/debugger-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "onboarder-workflow contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/planning/onboarder-workflow.md"
+  run grep -c "## Question pour l'orchestrator" "$SKILLS_DIR/planning/onboarder-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
 
 @test "auditor-workflow contient le bloc Question pour l'orchestrateur" {
-  run grep -c "## Question pour l'orchestrateur" "$SKILLS_DIR/auditor/auditor-workflow.md"
+  run grep -c "## Question pour l'orchestrator" "$SKILLS_DIR/auditor/auditor-workflow.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
