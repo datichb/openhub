@@ -144,7 +144,8 @@ describe('getNodeDetails', () => {
   // ── Gestion des erreurs ──────────────────────────────────────────────────
 
   it('retourne un message timeout si erreur indisponible', async () => {
-    const err = new Error('⚠️ Figma indisponible (timeout 30s, tentative 3/2)');
+    // On simule le message produit par classifyFigmaError pour un timeout
+    const err = new Error('indisponible timeout 30s tentative 3/2');
     const client = makeClient(err);
     const result = await getNodeDetails(client as FigmaClient, 'ABC', '122-29189');
     const text = result.content[0].text;
@@ -152,16 +153,28 @@ describe('getNodeDetails', () => {
     expect(text).toContain('122-29189');
   });
 
-  it('retourne un message auth si erreur 401', async () => {
-    const err = new Error('⚠️ Token Figma invalide (401)');
+  it('retourne un message authentification si erreur 401/Token Figma', async () => {
+    // getNodeDetails classifie l'erreur via son propre catch — on teste le comportement,
+    // pas le format exact produit par classifyFigmaError
+    const err = new Error('Token Figma invalide — 401');
     const client = makeClient(err);
     const result = await getNodeDetails(client as FigmaClient, 'ABC', '1-8');
     const text = result.content[0].text;
     expect(text).toContain('authentification');
   });
 
+  it('retourne le message d\'erreur et ne propage pas l\'exception', async () => {
+    // getNodeDetails doit capturer toute erreur et retourner un résultat MCP valide
+    const err = new Error('erreur réseau inattendue');
+    const client = makeClient(err);
+    const result = await getNodeDetails(client as FigmaClient, 'ABC', '1-9');
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    expect(result.content[0].text).toContain('erreur réseau inattendue');
+  });
+
   it('retourne un message introuvable si nœud absent', async () => {
-    const err = new Error('ℹ️ Nœud Figma introuvable (ID: 999-999)');
+    const err = new Error('introuvable ID: 999-999');
     const client = makeClient(err);
     const result = await getNodeDetails(client as FigmaClient, 'ABC', '999-999');
     const text = result.content[0].text;

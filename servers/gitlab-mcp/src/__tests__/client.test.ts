@@ -4,88 +4,39 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import axios from 'axios';
 import { classifyGitlabError } from '../client.js';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function makeAxiosError(
-  options: {
-    code?: string;
-    status?: number;
-    message?: string;
-    timeout?: number;
-  } = {}
-): any {
-  const err: any = new Error(options.message || 'axios error');
-  err.isAxiosError = true;
-  err.code = options.code;
-  err.config = { timeout: options.timeout ?? 30000 };
-  if (options.status !== undefined) {
-    err.response = {
-      status: options.status,
-      data: {},
-    };
-  }
-  return err;
-}
+import { makeAxiosError } from './test-utils.js';
 
 // ── classifyGitlabError ───────────────────────────────────────────────────────
 
 describe('classifyGitlabError', () => {
-  it('identifie un token invalide (401)', () => {
-    const err = makeAxiosError({ status: 401 });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('authentication');
-    expect(msg.toLowerCase()).toContain('token');
+  it.each([
+    [401, ['authentication', 'token']],
+    [403, ['forbidden', 'scopes']],
+    [404, ['not found']],
+    [429, ['rate limit']],
+    [503, ['unavailable']],
+  ])('identifie le statut HTTP %i', (status, keywords: string[]) => {
+    const err = makeAxiosError({ status });
+    const msg = classifyGitlabError(err).toLowerCase();
+    for (const kw of keywords) expect(msg).toContain(kw);
   });
 
-  it('identifie un accès refusé (403)', () => {
-    const err = makeAxiosError({ status: 403 });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('forbidden');
-    expect(msg.toLowerCase()).toContain('scopes');
-  });
-
-  it('identifie une ressource introuvable (404)', () => {
-    const err = makeAxiosError({ status: 404 });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('not found');
-  });
-
-  it('identifie un rate-limit (429)', () => {
-    const err = makeAxiosError({ status: 429 });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('rate limit');
-  });
-
-  it('identifie une indisponibilité temporaire (503)', () => {
-    const err = makeAxiosError({ status: 503 });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('unavailable');
-  });
-
-  it('identifie un timeout (ECONNABORTED)', () => {
-    const err = makeAxiosError({ code: 'ECONNABORTED' });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('timed out');
-  });
-
-  it('identifie un timeout (ETIMEDOUT)', () => {
-    const err = makeAxiosError({ code: 'ETIMEDOUT' });
-    const msg = classifyGitlabError(err);
-    expect(msg.toLowerCase()).toContain('timed out');
+  it.each([
+    ['ECONNABORTED'],
+    ['ETIMEDOUT'],
+  ])('identifie un timeout (%s)', (code) => {
+    const err = makeAxiosError({ code });
+    expect(classifyGitlabError(err).toLowerCase()).toContain('timed out');
   });
 
   it('retourne le message brut pour une erreur non-axios', () => {
     const err = new Error('unexpected failure');
-    const msg = classifyGitlabError(err);
-    expect(msg).toContain('unexpected failure');
+    expect(classifyGitlabError(err)).toContain('unexpected failure');
   });
 
   it('retourne "Unknown error" pour une valeur non-Error non-axios', () => {
-    const msg = classifyGitlabError({ foo: 'bar' });
-    expect(msg).toContain('Unknown error');
+    expect(classifyGitlabError({ foo: 'bar' })).toContain('Unknown error');
   });
 
   it('inclut le message axios pour un statut inconnu', () => {
@@ -122,68 +73,36 @@ describe('getConfig', () => {
   it('retourne la config avec le token fourni', async () => {
     process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test-token';
     const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.token).toBe('glpat-test-token');
+    expect(getConfig().token).toBe('glpat-test-token');
   });
 
   it('utilise https://gitlab.com comme baseUrl par défaut', async () => {
     process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
     const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.baseUrl).toBe('https://gitlab.com');
+    expect(getConfig().baseUrl).toBe('https://gitlab.com');
   });
 
-  it('lit GITLAB_BASE_URL depuis l\'env et supprime le slash final', async () => {
+  it("lit GITLAB_BASE_URL depuis l'env et supprime le slash final", async () => {
     process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
     process.env.GITLAB_BASE_URL = 'https://my-gitlab.example.com/';
     const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.baseUrl).toBe('https://my-gitlab.example.com');
+    expect(getConfig().baseUrl).toBe('https://my-gitlab.example.com');
   });
 
-  it('utilise 30000ms par défaut si GITLAB_TIMEOUT absent', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(30000);
-  });
-
-  it('lit GITLAB_TIMEOUT depuis l\'env', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    process.env.GITLAB_TIMEOUT = '60000';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(60000);
-  });
-
-  it('ignore une valeur GITLAB_TIMEOUT invalide et utilise le défaut', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    process.env.GITLAB_TIMEOUT = 'not-a-number';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(30000);
-  });
-
-  it('utilise 2 retries par défaut si GITLAB_MAX_RETRIES absent', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.maxRetries).toBe(2);
-  });
-
-  it('lit GITLAB_MAX_RETRIES depuis l\'env', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    process.env.GITLAB_MAX_RETRIES = '5';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.maxRetries).toBe(5);
-  });
-
-  it('ignore une valeur GITLAB_MAX_RETRIES invalide et utilise le défaut', async () => {
-    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
-    process.env.GITLAB_MAX_RETRIES = 'bad';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.maxRetries).toBe(2);
-  });
+  it.each([
+    ['GITLAB_TIMEOUT',     'timeout',    undefined,     30000],
+    ['GITLAB_TIMEOUT',     'timeout',    '60000',       60000],
+    ['GITLAB_TIMEOUT',     'timeout',    'not-a-number',30000],
+    ['GITLAB_MAX_RETRIES', 'maxRetries', undefined,     2],
+    ['GITLAB_MAX_RETRIES', 'maxRetries', '5',           5],
+    ['GITLAB_MAX_RETRIES', 'maxRetries', 'bad',         2],
+  ] as [string, 'timeout' | 'maxRetries', string | undefined, number][])(
+    'parse %s=%s → %s=%d',
+    async (envKey, configKey, envVal, expected) => {
+      process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
+      if (envVal !== undefined) process.env[envKey] = envVal;
+      const { getConfig } = await import('../config.js');
+      expect(getConfig()[configKey]).toBe(expected);
+    }
+  );
 });

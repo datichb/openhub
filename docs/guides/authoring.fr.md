@@ -189,6 +189,7 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] La famille est correcte (placement dans le bon sous-dossier)
 - [ ] Le champ `mode:` est défini : `primary` pour un agent invocable directement, `subagent` pour un spécialiste délégué
 - [ ] `permission: skill: allow` est défini si l'agent utilise des skills natives (Bucket B) ; `skill: deny` pour les coordinateurs
+- [ ] Les permissions ctx sont déclarées selon le type d'agent (les outils ctx ne sont PAS hérités — ils doivent être explicites) : orchestrateurs → `ctx_search`, `ctx_stats`, `ctx_batch_execute` ; développeurs → ajouter `ctx_execute`, `ctx_execute_file`, `ctx_fetch_and_index`, `ctx_index` ; qualité/audit → `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` ; design/planning → `ctx_search`, `ctx_batch_execute`
 - [ ] Les skills Bucket A (`skills:`) sont cohérents avec le type d'agent : protocoles de workflow, formats de handoff, principes universels
 - [ ] Les skills Bucket B (`native_skills:`) sont cohérents avec le type d'agent : standards de domaine, checklists, skills contextuelles
 - [ ] Le corps contient : identité + ce qu'il fait + ce qu'il NE fait PAS + workflow + section guide des skills natives

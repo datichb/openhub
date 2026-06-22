@@ -17,6 +17,8 @@ permission:
   write: deny
   websearch: allow
   webfetch: allow
+  ctx_search: allow
+  ctx_batch_execute: allow
 mcpServers: [figma]
 skills: [designer/ui-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format, shared/websearch-usage]
 native_skills: [designer/ui-subagent, design/websearch-design-patterns]

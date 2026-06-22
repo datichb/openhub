@@ -26,6 +26,7 @@ label: <NomAffiché>
 description: <Description courte en une phrase — visible dans les listes d'agents>
 permission:
   skill: allow        # allow pour les agents utilisant des skills natives ; deny pour les coordinateurs
+  ctx_search: allow   # allow pour les agents qui analysent du code ou des données
 skills: [chemin/vers/skill, ...]          # Bucket A — skills inline toujours actives
 native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la demande (optionnel)
 ---
@@ -38,6 +39,19 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la de
 - `skills` : chemins Bucket A relatifs à `skills/` — protocoles de workflow, formats de handoff, principes universels (toujours actifs)
 - `native_skills` : chemins Bucket B relatifs à `skills/` — standards de domaine, checklists, skills contextuelles (chargées à la demande via l'outil `skill`)
 - `permission.skill` : `allow` si l'agent utilise des skills natives ; `deny` pour les coordinateurs/orchestrateurs
+- `permission.ctx_*` : les outils ctx doivent être explicitement autorisés par agent — ils ne sont **pas** hérités. Voir le tableau ci-dessous pour le jeu recommandé par type d'agent.
+
+**Permissions ctx par type d'agent :**
+
+| Type d'agent | Permissions ctx recommandées |
+|---|---|
+| Orchestrateurs (planning) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
+| Développeurs (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
+| Qualité (qa-engineer, debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
+| Planning (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
+| Design (ui-designer, ux-designer) | `ctx_search`, `ctx_batch_execute` |
+| Documentation (documentarian) | `ctx_search`, `ctx_batch_execute`, `ctx_index` |
+| Audit (auditor, auditor-subagent) | `ctx_search`, `ctx_batch_execute` |
 
 Voir [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md) pour le raisonnement Bucket A / B.
 
@@ -257,6 +271,7 @@ oc agent list
 - [ ] Le skill a un frontmatter avec `name` et `description`
 - [ ] Les skills Bucket A sont dans `skills:`, les skills Bucket B sont dans `native_skills:` — raisonnement documenté dans [ADR-010](../architecture/adr/010-hybrid-skills-architecture.fr.md)
 - [ ] Si l'agent utilise `native_skills:`, `permission: skill: allow` est défini ; si c'est un coordinateur, `skill: deny` est défini
+- [ ] Les permissions ctx (`ctx_search`, `ctx_batch_execute`, etc.) sont déclarées selon le type d'agent — elles ne sont PAS héritées et doivent être explicites (voir les règles frontmatter ci-dessus)
 - [ ] Si l'agent a des skills natives, le corps de l'agent a une section guide "## Skills disponibles" les listant avec les déclencheurs de chargement
 - [ ] L'agent est référencé dans `README.md` et `docs/architecture/agents.fr.md`
 - [ ] Le skill est référencé dans `docs/architecture/skills.fr.md` avec son marqueur de bucket (A) ou (B)

@@ -27,6 +27,10 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+  ctx_search: allow
+  ctx_execute: allow
+  ctx_execute_file: allow
+  ctx_batch_execute: allow
 skills: [developer/dev-standards-universal, posture/expert-posture, posture/concision-posture, posture/tool-question, qa/qa-protocol, qa/qa-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [qa/qa-standalone, qa/qa-subagent, developer/dev-standards-git]
 ---

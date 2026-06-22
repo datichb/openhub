@@ -38,6 +38,9 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+  ctx_search: allow
+  ctx_stats: allow
+  ctx_batch_execute: allow
 model: anthropic/claude-sonnet-4-6
 skills: [developer/beads-plan, planning/planner-handoff-format, design/design-planner-format, adapters/figma-planner-protocol, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage]
 native_skills: [planning/planner-standalone, planning/planner-subagent, planning/websearch-stack-research]

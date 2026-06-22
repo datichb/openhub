@@ -28,6 +28,7 @@ label: <DisplayName>
 description: <Short description in one sentence — visible in agent lists>
 permission:
   skill: allow        # allow for agents using native skills; deny for coordinators
+  ctx_search: allow   # allow for agents that analyse code or data
 skills: [path/to/skill, ...]          # Bucket A — always-on inline skills
 native_skills: [path/to/skill, ...]   # Bucket B — on-demand native skills (optional)
 ---
@@ -40,6 +41,19 @@ native_skills: [path/to/skill, ...]   # Bucket B — on-demand native skills (op
 - `skills`: Bucket A paths relative to `skills/` — workflow protocols, handoff formats, universal principles (always active)
 - `native_skills`: Bucket B paths relative to `skills/` — domain standards, checklists, contextual skills (loaded on-demand via the `skill` tool)
 - `permission.skill`: `allow` if the agent uses native skills; `deny` for coordinators/orchestrators
+- `permission.ctx_*`: ctx tools must be explicitly allowed per agent — they are **not** inherited. See the table below for the recommended set per agent type.
+
+**ctx permissions by agent type:**
+
+| Agent type | Recommended ctx permissions |
+|---|---|
+| Orchestrators (planning) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
+| Developers (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
+| Quality agents (qa-engineer, debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
+| Planning agents (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
+| Design agents (ui-designer, ux-designer) | `ctx_search`, `ctx_batch_execute` |
+| Documentation (documentarian) | `ctx_search`, `ctx_batch_execute`, `ctx_index` |
+| Audit agents (auditor, auditor-subagent) | `ctx_search`, `ctx_batch_execute` |
 
 See [ADR-010](../architecture/adr/010-hybrid-skills-architecture.en.md) for the Bucket A / B rationale.
 
@@ -259,6 +273,7 @@ oc agent list
 - [ ] The skill has a frontmatter with `name` and `description`
 - [ ] Bucket A skills are in `skills:`, Bucket B skills are in `native_skills:` — rationale documented in [ADR-010](../architecture/adr/010-hybrid-skills-architecture.en.md)
 - [ ] If the agent uses `native_skills:`, `permission: skill: allow` is set; if it's a coordinator, `skill: deny` is set
+- [ ] ctx permissions (`ctx_search`, `ctx_batch_execute`, etc.) are declared according to the agent type — they are NOT inherited and must be explicit (see frontmatter rules above)
 - [ ] If the agent has native skills, the agent body has a "## Available skills" guide section listing them with loading triggers
 - [ ] The agent is referenced in `README.md` and `docs/architecture/agents.en.md`
 - [ ] The skill is referenced in `docs/architecture/skills.en.md` with its bucket marker (A) or (B)

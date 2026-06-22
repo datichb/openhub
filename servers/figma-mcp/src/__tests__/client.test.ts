@@ -4,108 +4,53 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import axios from 'axios';
 import { classifyFigmaError } from '../client.js';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function makeAxiosError(
-  options: {
-    code?: string;
-    status?: number;
-    message?: string;
-    timeout?: number;
-  } = {}
-): any {
-  const err: any = new Error(options.message || 'axios error');
-  err.isAxiosError = true;
-  err.code = options.code;
-  err.config = { timeout: options.timeout ?? 30000 };
-  if (options.status !== undefined) {
-    err.response = {
-      status: options.status,
-      data: {},
-    };
-  }
-  return err;
-}
+import { makeAxiosError } from './test-utils.js';
 
 // ── classifyFigmaError ────────────────────────────────────────────────────────
 
 describe('classifyFigmaError', () => {
-  it('identifie un timeout (ECONNABORTED)', () => {
-    const err = makeAxiosError({ code: 'ECONNABORTED', timeout: 30000 });
-    const msg = classifyFigmaError(err, 3, 2);
-    expect(msg).toContain('indisponible');
-    expect(msg).toContain('timeout 30s');
-    expect(msg).toContain('tentative 3/2');
-  });
-
-  it('identifie un timeout (ETIMEDOUT)', () => {
-    const err = makeAxiosError({ code: 'ETIMEDOUT', timeout: 10000 });
+  it.each([
+    ['ECONNABORTED', 30000, ['indisponible', 'timeout 30s']],
+    ['ETIMEDOUT',    10000, ['indisponible', 'timeout 10s']],
+    ['ERR_NETWORK',  30000, ['indisponible']],
+  ] as [string, number, string[]][])('identifie un timeout/réseau (%s)', (code, timeout, keywords) => {
+    const err = makeAxiosError({ code, timeout });
     const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('indisponible');
-    expect(msg).toContain('timeout 10s');
+    for (const kw of keywords) expect(msg).toContain(kw);
   });
 
-  it('identifie une erreur réseau (ERR_NETWORK)', () => {
-    const err = makeAxiosError({ code: 'ERR_NETWORK' });
+  it.each([
+    [401, ['401', 'Token Figma invalide', 'oc figma status']],
+    [403, ['403', 'scopes']],
+    [404, ['404', 'introuvable']],
+    [429, ['429']],
+    [503, ['503', 'temporairement indisponible']],
+    [504, ['504']],
+  ] as [number, string[]][])('identifie le statut HTTP %i', (status, keywords) => {
+    const err = makeAxiosError({ status });
     const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('indisponible');
+    for (const kw of keywords) expect(msg).toContain(kw);
   });
 
-  it('identifie un token invalide (401)', () => {
-    const err = makeAxiosError({ status: 401 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('401');
-    expect(msg).toContain('Token Figma invalide');
-    expect(msg).toContain('oc figma status');
-  });
-
-  it('identifie un accès refusé (403)', () => {
-    const err = makeAxiosError({ status: 403 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('403');
-    expect(msg).toContain('scopes');
-  });
-
-  it('identifie une ressource introuvable (404)', () => {
-    const err = makeAxiosError({ status: 404 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('404');
-    expect(msg).toContain('introuvable');
-  });
-
-  it('identifie un rate-limit (429)', () => {
+  it('identifie un rate-limit (429) — contient "limite"', () => {
     const err = makeAxiosError({ status: 429 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('429');
-    expect(msg.toLowerCase()).toContain('limite');
-  });
-
-  it('identifie une indisponibilité temporaire (503)', () => {
-    const err = makeAxiosError({ status: 503 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('503');
-    expect(msg).toContain('temporairement indisponible');
-  });
-
-  it('identifie une indisponibilité temporaire (504)', () => {
-    const err = makeAxiosError({ status: 504 });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('504');
+    expect(classifyFigmaError(err, 1, 2).toLowerCase()).toContain('limite');
   });
 
   it('retourne le message brut pour une erreur non-axios', () => {
     const err = new Error('unexpected failure');
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('unexpected failure');
+    expect(classifyFigmaError(err, 1, 2)).toContain('unexpected failure');
   });
 
   it('retourne une erreur générique pour un statut inconnu', () => {
     const err = makeAxiosError({ status: 500, message: 'server crash' });
-    const msg = classifyFigmaError(err, 1, 2);
-    expect(msg).toContain('500');
+    expect(classifyFigmaError(err, 1, 2)).toContain('500');
+  });
+
+  it('inclut le contexte tentative dans le message timeout', () => {
+    const err = makeAxiosError({ code: 'ECONNABORTED', timeout: 30000 });
+    expect(classifyFigmaError(err, 3, 2)).toContain('tentative 3/2');
   });
 });
 
@@ -114,7 +59,6 @@ describe('classifyFigmaError', () => {
 describe('getConfig timeout parsing', () => {
   beforeEach(() => {
     vi.resetModules();
-    // Nettoyer les env vars entre les tests
     delete process.env.FIGMA_TIMEOUT;
     delete process.env.FIGMA_MAX_RETRIES;
     delete process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
@@ -122,55 +66,40 @@ describe('getConfig timeout parsing', () => {
   });
 
   afterEach(() => {
-    // Garantir le nettoyage même si le test échoue
     delete process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
     delete process.env.FIGMA_TEAM_ID;
     delete process.env.FIGMA_TIMEOUT;
     delete process.env.FIGMA_MAX_RETRIES;
   });
 
-  it('utilise 30000ms par défaut si FIGMA_TIMEOUT absent', async () => {
-    process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
+  it('lève une erreur si FIGMA_PERSONAL_ACCESS_TOKEN est absent', async () => {
     process.env.FIGMA_TEAM_ID = '123';
-    delete process.env.FIGMA_TIMEOUT;
+    delete process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
     const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(30000);
+    expect(() => getConfig()).toThrow('FIGMA_PERSONAL_ACCESS_TOKEN');
   });
 
-  it('lit FIGMA_TIMEOUT depuis l\'env', async () => {
+  it('lève une erreur si FIGMA_TEAM_ID est absent', async () => {
     process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
-    process.env.FIGMA_TEAM_ID = '123';
-    process.env.FIGMA_TIMEOUT = '60000';
+    delete process.env.FIGMA_TEAM_ID;
     const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(60000);
+    expect(() => getConfig()).toThrow('FIGMA_TEAM_ID');
   });
 
-  it('ignore une valeur FIGMA_TIMEOUT invalide et utilise le défaut', async () => {
-    process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
-    process.env.FIGMA_TEAM_ID = '123';
-    process.env.FIGMA_TIMEOUT = 'not-a-number';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.timeout).toBe(30000);
-  });
-
-  it('utilise 2 retries par défaut si FIGMA_MAX_RETRIES absent', async () => {
-    process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
-    process.env.FIGMA_TEAM_ID = '123';
-    delete process.env.FIGMA_MAX_RETRIES;
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.maxRetries).toBe(2);
-  });
-
-  it('lit FIGMA_MAX_RETRIES depuis l\'env', async () => {
-    process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
-    process.env.FIGMA_TEAM_ID = '123';
-    process.env.FIGMA_MAX_RETRIES = '3';
-    const { getConfig } = await import('../config.js');
-    const config = getConfig();
-    expect(config.maxRetries).toBe(3);
-  });
+  it.each([
+    ['FIGMA_TIMEOUT',     'timeout',    undefined,     30000],
+    ['FIGMA_TIMEOUT',     'timeout',    '60000',       60000],
+    ['FIGMA_TIMEOUT',     'timeout',    'not-a-number',30000],
+    ['FIGMA_MAX_RETRIES', 'maxRetries', undefined,     2],
+    ['FIGMA_MAX_RETRIES', 'maxRetries', '3',           3],
+  ] as [string, 'timeout' | 'maxRetries', string | undefined, number][])(
+    'parse %s=%s → %s=%d',
+    async (envKey, configKey, envVal, expected) => {
+      process.env.FIGMA_PERSONAL_ACCESS_TOKEN = 'figd_test';
+      process.env.FIGMA_TEAM_ID = '123';
+      if (envVal !== undefined) process.env[envKey] = envVal;
+      const { getConfig } = await import('../config.js');
+      expect(getConfig()[configKey]).toBe(expected);
+    }
+  );
 });

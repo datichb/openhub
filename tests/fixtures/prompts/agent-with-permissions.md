@@ -6,6 +6,8 @@ skills: []
 permission:
   websearch: allow
   webfetch: deny
+  ctx_search: allow
+  ctx_batch_execute: allow
 ---
 
 # Test Agent With Permissions

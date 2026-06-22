@@ -15,6 +15,10 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+  ctx_search: allow
+  ctx_execute: allow
+  ctx_execute_file: allow
+  ctx_batch_execute: allow
 skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, shared/wiki-navigation]
 ---
 
