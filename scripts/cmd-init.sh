@@ -182,7 +182,7 @@ if command -v bd &>/dev/null && [ -d "$PROJECT_PATH" ] && [ ! -d "$PROJECT_PATH/
   echo ""
   _prompt init_beads "Initialiser Beads dans le projet ? [Y/n] : "
   if [[ "${init_beads:-Y}" =~ ^[Yy]$ ]]; then
-    if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID" --skip-hooks); then
+    if bd -C "$PROJECT_PATH" init --prefix "$PROJECT_ID" --skip-hooks; then
       log_success "Beads initialisé dans $PROJECT_PATH"
       BEADS_OK=1
 
@@ -232,7 +232,7 @@ if command -v bd &>/dev/null && [ -d "$PROJECT_PATH" ] && [ ! -d "$PROJECT_PATH/
         while IFS= read -r _lbl; do
           _lbl=$(printf '%s' "$_lbl" | sed 's/^ *//;s/ *$//')
           [ -z "$_lbl" ] && continue
-          if ! (cd "$PROJECT_PATH" && bd label create "$_lbl"); then
+          if ! bd -C "$PROJECT_PATH" label create "$_lbl"; then
             _labels_ok=0
           fi
         done < <(printf '%s\n' "$_init_labels" | tr ',' '\n')

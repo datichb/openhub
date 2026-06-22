@@ -185,4 +185,4 @@ Récap global
 |---------|--------|
 | `"Implémente les tickets bd-12, bd-13"` | Lecture tickets → routing → workflow dev |
 | `"Workflow dev en semi-auto sur bd-20 à bd-25"` | Mode semi-auto — CP-1 et CP-3 automatiques |
-| `"Continue les tickets ai-delegated ouverts"` | `bd list --status open --label ai-delegated` → workflow |
+| `"Continue les tickets ai-delegated ouverts"` | `bd list -s open --label ai-delegated` → workflow |

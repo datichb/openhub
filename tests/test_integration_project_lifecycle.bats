@@ -148,6 +148,8 @@ EOF
   mkdir -p "$TEST_DIR/bin"
   cat > "$TEST_DIR/bin/bd" <<'EOF'
 #!/bin/bash
+# Gérer bd -C <path> <cmd> ... : consommer les 2 premiers args si $1 == -C
+if [ "$1" = "-C" ]; then shift 2; fi
 case "$1" in
   init)
     mkdir -p .beads
@@ -161,8 +163,8 @@ exit 0
 EOF
   chmod +x "$TEST_DIR/bin/bd"
   
-  # Init beads
-  run bd init
+  # Init beads via bd -C (nouveau style v1.0.4)
+  run bd -C "$TEST_PROJECT_PATH" init
   [ "$status" -eq 0 ]
   [ -d ".beads" ]
 }
@@ -179,10 +181,18 @@ EOF
   mkdir -p "$TEST_DIR/bin"
   cat > "$TEST_DIR/bin/bd" <<'EOF'
 #!/bin/bash
+# Gérer bd -C <path> <cmd> ... : consommer les 2 premiers args si $1 == -C
+if [ "$1" = "-C" ]; then shift 2; fi
 case "$1" in
-  sync)
-    echo "Synced 5 tickets"
-    exit 0
+  jira|gitlab|linear|ado)
+    # bd <tracker> sync [pull|push] — nouvelle syntaxe v1.0.4
+    shift
+    case "$1" in
+      sync)
+        echo "Synced 5 tickets"
+        exit 0
+        ;;
+    esac
     ;;
   list)
     echo '[{"id":"bd-1","title":"Test"}]'
@@ -192,7 +202,8 @@ esac
 EOF
   chmod +x "$TEST_DIR/bin/bd"
   
-  run bd sync
+  # Sync via nouvelle syntaxe : bd -C <path> <tracker> sync pull
+  run bd -C "$TEST_PROJECT_PATH" jira sync pull
   [ "$status" -eq 0 ]
   [[ "$output" == *"Synced"* ]]
 }

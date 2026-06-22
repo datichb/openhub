@@ -259,8 +259,8 @@ The hub supports two trackers: **Jira** and **GitLab**.
 | `oc beads tracker setup <PROJECT_ID>` | Interactive credential configuration |
 | `oc beads tracker set-sync-mode <PROJECT_ID> [mode]` | Set default sync direction (`bidirectional` \| `pull-only` \| `push-only`) |
 | `oc beads sync <PROJECT_ID>` | Synchronise using the configured `Sync mode` (default: bidirectional) |
-| `oc beads sync <PROJECT_ID> --pull-only` | Import only from the tracker (overrides `Sync mode`) |
-| `oc beads sync <PROJECT_ID> --push-only` | Export only to the tracker (overrides `Sync mode`) |
+| `oc beads sync <PROJECT_ID> pull` | Import only from the tracker (overrides `Sync mode`) |
+| `oc beads sync <PROJECT_ID> push` | Export only to the tracker (overrides `Sync mode`) |
 | `oc beads sync <PROJECT_ID> --dry-run` | Simulation without writing |
 | `oc beads tracker status <PROJECT_ID>` | Tracker connection status |
 
@@ -288,7 +288,7 @@ After setup, the connection is tested automatically via `bd gitlab status`.
 If it fails, the configured values are displayed to help diagnose the issue.
 
 > **`Sync mode` field** — stored in `projects.md` under `- Sync mode : <bidirectional|pull-only|push-only>`.
-> Default value when absent: `bidirectional`. A CLI flag (`--pull-only`, `--push-only`) always takes precedence over the configured mode.
+> Default value when absent: `bidirectional`. A CLI subcommand (`pull`, `push`) always takes precedence over the configured mode.
 
 ### External references
 

@@ -201,7 +201,7 @@ if [ ! -d "$PROJECT_PATH/.beads" ]; then
     log_warn "$(t start.beads_not_init)"
     _prompt _init_beads "$(t start.init_beads_now)"
     if [[ "${_init_beads:-Y}" =~ ^[Yy]$ ]]; then
-      if (cd "$PROJECT_PATH" && bd init --prefix "$PROJECT_ID" --skip-hooks); then
+      if bd -C "$PROJECT_PATH" init --prefix "$PROJECT_ID" --skip-hooks; then
         log_success "$(t beads.initialized) $PROJECT_PATH"
 
         # Exclure .beads/ et AGENTS.md du suivi git (exclusion locale)
@@ -238,7 +238,7 @@ if [ ! -d "$PROJECT_PATH/.beads" ]; then
           while IFS= read -r _lbl; do
             _lbl=$(printf '%s' "$_lbl" | sed 's/^ *//;s/ *$//')
             [ -z "$_lbl" ] && continue
-            if ! (cd "$PROJECT_PATH" && bd label create "$_lbl"); then
+            if ! bd -C "$PROJECT_PATH" label create "$_lbl"; then
               _labels_ok=0
             fi
           done < <(printf '%s\n' "$_start_labels" | tr ',' '\n')
@@ -272,8 +272,8 @@ if [ "$DEV_MODE" = true ]; then
   _tracker=$(get_project_tracker "$PROJECT_ID")
   if [ "$_tracker" != "none" ]; then
     echo ""
-    log_info "Sync ${_tracker} --pull-only avant démarrage…"
-    if (cd "$PROJECT_PATH" && bd "$_tracker" sync --pull-only) 2>/dev/null; then
+    log_info "Sync ${_tracker} pull avant démarrage…"
+    if bd -C "$PROJECT_PATH" "$_tracker" sync pull 2>/dev/null; then
       log_success "Sync $_tracker terminé"
     else
       log_warn "Sync $_tracker échoué — les tickets locaux seront utilisés"
@@ -318,8 +318,8 @@ if [ "$PARALLEL_MODE" = true ]; then
   _tracker=$(get_project_tracker "$PROJECT_ID")
   if [ "$_tracker" != "none" ]; then
     echo ""
-    log_info "Sync ${_tracker} --pull-only avant démarrage…"
-    if (cd "$PROJECT_PATH" && bd "$_tracker" sync --pull-only) 2>/dev/null; then
+    log_info "Sync ${_tracker} pull avant démarrage…"
+    if bd -C "$PROJECT_PATH" "$_tracker" sync pull 2>/dev/null; then
       log_success "Sync $_tracker terminé"
     else
       log_warn "Sync $_tracker échoué — les tickets locaux seront utilisés"
@@ -330,7 +330,7 @@ if [ "$PARALLEL_MODE" = true ]; then
   AGENT_NAME="${AGENT_NAME:-orchestrator-dev}"
 
   # Récupérer les tickets disponibles
-  _tickets=$(cd "$PROJECT_PATH" && bd ready --label ai-delegated --json 2>/dev/null) || _tickets="[]"
+  _tickets=$(bd -C "$PROJECT_PATH" ready --label ai-delegated --json 2>/dev/null) || _tickets="[]"
   if [ -z "$_tickets" ] || [[ "$_tickets" != \[* ]]; then _tickets="[]"; fi
 
   if [ "$_tickets" = "[]" ] || [ "$_tickets" = "null" ]; then

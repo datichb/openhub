@@ -235,12 +235,13 @@ _render_board() {
   _require_bd
   _require_beads_init "$project_path" "$project_id"
 
-  # Récupérer les tickets par statut
-  local t_open t_inprog t_review t_blocked
-  t_open=$(cd "$project_path" && bd list -s open --json 2>/dev/null || echo "[]")
-  t_inprog=$(cd "$project_path" && bd list -s in_progress --json 2>/dev/null || echo "[]")
-  t_review=$(cd "$project_path" && bd list -s review --json 2>/dev/null || echo "[]")
-  t_blocked=$(cd "$project_path" && bd list -s blocked --json 2>/dev/null || echo "[]")
+  # Récupérer les tickets par statut (1 appel au lieu de 4)
+  local _all_tickets t_open t_inprog t_review t_blocked
+  _all_tickets=$(bd -C "$project_path" list --status open,in_progress,review,blocked --json --no-tree 2>/dev/null || echo "[]")
+  t_open=$(echo    "$_all_tickets" | jq '[.[] | select(.status == "open")]'        2>/dev/null || echo "[]")
+  t_inprog=$(echo  "$_all_tickets" | jq '[.[] | select(.status == "in_progress")]' 2>/dev/null || echo "[]")
+  t_review=$(echo  "$_all_tickets" | jq '[.[] | select(.status == "review")]'      2>/dev/null || echo "[]")
+  t_blocked=$(echo "$_all_tickets" | jq '[.[] | select(.status == "blocked")]'     2>/dev/null || echo "[]")
 
   # ── Layout adaptatif ──
   local term_w

@@ -185,7 +185,7 @@ t() {
       help.beads_create.desc) printf '%s' "Crée un ticket (non-interactif si titre fourni)" ;;
       help.beads_open.cmd)    printf '%s' "beads open <PROJECT_ID>" ;;
       help.beads_open.desc)   printf '%s' "Affiche le chemin pour utiliser bd manuellement" ;;
-      help.beads_sync.cmd)    printf '%s' "beads sync <PROJECT_ID> [--pull-only|--push-only|--dry-run]" ;;
+      help.beads_sync.cmd)    printf '%s' "beads sync <PROJECT_ID> [pull|push|--dry-run]" ;;
       help.beads_sync.desc)   printf '%s' "Synchronise avec le tracker externe (Jira/GitLab)" ;;
       help.beads_tracker_status.cmd)  printf '%s' "beads tracker status <PROJECT_ID>" ;;
       help.beads_tracker_status.desc) printf '%s' "Affiche le statut de connexion au tracker" ;;
@@ -973,7 +973,7 @@ t_en() {
     help.beads_create.desc) printf '%s' "Create a ticket (non-interactive if title provided)" ;;
     help.beads_open.cmd)    printf '%s' "beads open <PROJECT_ID>" ;;
     help.beads_open.desc)   printf '%s' "Show path to use bd manually" ;;
-    help.beads_sync.cmd)    printf '%s' "beads sync <PROJECT_ID> [--pull-only|--push-only|--dry-run]" ;;
+    help.beads_sync.cmd)    printf '%s' "beads sync <PROJECT_ID> [pull|push|--dry-run]" ;;
     help.beads_sync.desc)   printf '%s' "Sync with external tracker (Jira/GitLab)" ;;
     help.beads_tracker_status.cmd)  printf '%s' "beads tracker status <PROJECT_ID>" ;;
     help.beads_tracker_status.desc) printf '%s' "Show tracker connection status" ;;

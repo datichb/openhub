@@ -155,7 +155,7 @@ oc start [PROJECT_ID] [prompt]
 
 | Option | Description |
 |--------|-------------|
-| `--dev` | Mode développement — charge les tickets `ai-delegated` ouverts dans le prompt de démarrage. Effectue un sync tracker `--pull-only` automatique avant le lancement. Lance dans le répertoire principal du projet. |
+| `--dev` | Mode développement — charge les tickets `ai-delegated` ouverts dans le prompt de démarrage. Effectue un `sync pull` tracker automatique avant le lancement. Lance dans le répertoire principal du projet. |
 | `--dev --label <label>` | Comme `--dev`, mais filtre les tickets ayant le label `<label>` |
 | `--dev --assignee <user>` | Comme `--dev`, mais filtre les tickets assignés à `<user>` |
 | `--onboard` | Injecte un prompt de découverte projet pour onboarder l'agent sur le codebase |
@@ -903,8 +903,8 @@ oc beads create MON-APP "Fix race condition" --type fix --label bug  # avec flag
 
 | Option | Description |
 |--------|-------------|
-| `--pull-only` | Importe seulement depuis le tracker (surcharge le `Sync mode` du projet) |
-| `--push-only` | Exporte seulement vers le tracker (surcharge le `Sync mode` du projet) |
+| `pull` | Importe seulement depuis le tracker (surcharge le `Sync mode` du projet) |
+| `push` | Exporte seulement vers le tracker (surcharge le `Sync mode` du projet) |
 | `--dry-run` | Simule sans modifier |
 
 > La direction par défaut de `oc beads sync` est contrôlée par le champ `Sync mode` dans `projects.md`

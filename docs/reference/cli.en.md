@@ -156,7 +156,7 @@ oc start [PROJECT_ID] [prompt]
 
 | Option | Description |
 |--------|-------------|
-| `--dev` | Development mode — loads open `ai-delegated` tickets into the startup prompt. Automatically performs a tracker sync `--pull-only` before launch. Runs in the project's main directory. |
+| `--dev` | Development mode — loads open `ai-delegated` tickets into the startup prompt. Automatically performs a tracker `sync pull` before launch. Runs in the project's main directory. |
 | `--dev --label <label>` | Like `--dev`, but filters tickets with label `<label>` |
 | `--dev --assignee <user>` | Like `--dev`, but filters tickets assigned to `<user>` |
 | `--onboard` | Injects a project discovery prompt to onboard the agent on the codebase |
@@ -904,8 +904,8 @@ oc beads create MY-APP "Fix race condition" --type fix --label bug  # with flags
 
 | Option | Description |
 |--------|-------------|
-| `--pull-only` | Import only from the tracker (overrides the project `Sync mode`) |
-| `--push-only` | Export only to the tracker (overrides the project `Sync mode`) |
+| `pull` | Import only from the tracker (overrides the project `Sync mode`) |
+| `push` | Export only to the tracker (overrides the project `Sync mode`) |
 | `--dry-run` | Simulate without modifying |
 
 > The default direction of `oc beads sync` is controlled by the `Sync mode` field in `projects.md`

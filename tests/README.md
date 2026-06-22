@@ -171,7 +171,7 @@ mock_log_functions
 # Mock bd avec capture
 BD_LOG="$TEST_DIR/bd.log"
 mock_bd_with_log "$BD_LOG"
-bd list
+bd -C "$TEST_PROJECT_PATH" list -s open --json
 assert_file_contains "$BD_LOG" "bd list"
 
 # Mock git avec capture
@@ -256,7 +256,7 @@ curl() { echo '{"mock": "response"}'; }
 ❌ **À ÉVITER** :
 ```bash
 # Appeler de vrais outils externes (lent, fragile)
-bd list  # Appel réel
+bd -C "$PROJECT_PATH" list -s open --json  # Appel réel — utiliser mock_bd à la place
 ```
 
 ### 5. Documenter les edge cases

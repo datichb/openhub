@@ -881,9 +881,9 @@ build_dev_bootstrap_prompt() {
   local tickets
 
   if [ -n "$assignee" ]; then
-    tickets=$(cd "$project_path" && bd ready --assignee "$assignee" --json 2>/dev/null) || tickets="[]"
+    tickets=$(bd -C "$project_path" ready --assignee "$assignee" --json 2>/dev/null) || tickets="[]"
   else
-    tickets=$(cd "$project_path" && bd ready --label "$label" --json 2>/dev/null) || tickets="[]"
+    tickets=$(bd -C "$project_path" ready --label "$label" --json 2>/dev/null) || tickets="[]"
   fi
   # Valider que la sortie est un JSON array — si bd retourne du texte d'erreur, ignorer
   if [ -z "$tickets" ] || [[ "$tickets" != \[* ]]; then

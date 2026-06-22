@@ -275,13 +275,19 @@ mock_log_functions() {
 
 # Mock simple de bd (Beads) qui retourne un JSON configurable
 # Usage : mock_bd '[]' ou mock_bd '[{"id":"BD-1"}]'
+# Gère la forme bd -C <path> <cmd> ... (v1.0.4+)
 mock_bd() {
   local json_output="${1:-[]}"
   export BD_MOCK_OUTPUT="$json_output"
   
   bd() {
+    # Consommer bd -C <path> : ignorer les 2 premiers args si $1 == -C
+    local args=("$@")
+    if [ "${args[0]:-}" = "-C" ]; then
+      args=("${args[@]:2}")
+    fi
     # Si --json est demandé, retourner le mock JSON
-    if [[ "$*" == *"--json"* ]]; then
+    if [[ "${args[*]}" == *"--json"* ]]; then
       echo "$BD_MOCK_OUTPUT"
     fi
     return 0

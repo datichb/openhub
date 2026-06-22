@@ -162,7 +162,7 @@ cmd_init() {
   fi
 
   log_info "Initialisation de Beads dans : $path"
-  (cd "$path" && bd init --prefix "$id" --skip-hooks) || { log_error "$(t beads.init_failed)"; exit 1; }
+  bd -C "$path" init --prefix "$id" --skip-hooks || { log_error "$(t beads.init_failed)"; exit 1; }
   log_success "$(t beads.initialized) $id ($path/.beads)"
 
   # Proposer de configurer l'upstream git si absent (ni upstream ni origin trouvé)
@@ -195,7 +195,7 @@ cmd_init() {
     while IFS= read -r _lbl; do
       _lbl=$(printf '%s' "$_lbl" | sed 's/^ *//;s/ *$//')
       [ -z "$_lbl" ] && continue
-      if ! (cd "$path" && bd label create "$_lbl"); then
+      if ! bd -C "$path" label create "$_lbl"; then
         _labels_ok=0
       fi
     done < <(printf '%s\n' "$labels" | tr ',' '\n')
@@ -239,7 +239,7 @@ cmd_list() {
 
   log_title "$(t beads.status.open_tickets) $id"
   echo ""
-  (cd "$path" && bd list -s open) || { log_error "Échec de bd list"; exit 1; }
+  bd -C "$path" list -s open || { log_error "Échec de bd list"; exit 1; }
 }
 
 # ══════════════════════════════════════════
@@ -261,7 +261,7 @@ cmd_show() {
     exit 1
   fi
 
-  (cd "$path" && bd show "$ticket_id") || { log_error "Ticket introuvable : $ticket_id"; exit 1; }
+  bd -C "$path" show "$ticket_id" || { log_error "Ticket introuvable : $ticket_id"; exit 1; }
 }
 
 # ══════════════════════════════════════════
@@ -304,29 +304,32 @@ cmd_sync() {
   local tracker
   tracker=$(_resolve_tracker "$id")
 
-  # Appliquer le Sync mode du projet si aucun flag de direction n'est passé en CLI
-  local has_direction_flag=false
+  # Appliquer le sync mode du projet si aucun flag de direction n'est passé en CLI
+  # Accepte l'ancienne syntaxe (--pull-only / --push-only) et la nouvelle (pull / push)
+  local sync_direction="" remaining_flags=()
   for f in "${extra_flags[@]+"${extra_flags[@]}"}"; do
     case "$f" in
-      --pull-only|--push-only) has_direction_flag=true; break ;;
+      --pull-only|pull) sync_direction="pull" ;;
+      --push-only|push) sync_direction="push" ;;
+      *) remaining_flags+=("$f") ;;
     esac
   done
 
-  if [ "$has_direction_flag" = false ]; then
+  if [ -z "$sync_direction" ]; then
     local sync_mode
     sync_mode=$(get_project_sync_mode "$id")
     case "$sync_mode" in
-      pull-only)  extra_flags=("--pull-only"  "${extra_flags[@]+"${extra_flags[@]}"}") ;;
-      push-only)  extra_flags=("--push-only"  "${extra_flags[@]+"${extra_flags[@]}"}") ;;
-      bidirectional|*) ;; # pas de flag à injecter
+      pull-only)  sync_direction="pull" ;;
+      push-only)  sync_direction="push" ;;
+      bidirectional|*) ;; # pas de direction à injecter
     esac
-    [ "$sync_mode" != "bidirectional" ] && log_info "$(t beads.sync_mode.applied) ${sync_mode}  [$id]"
+    [ -n "$sync_direction" ] && log_info "$(t beads.sync_mode.applied) ${sync_mode}  [$id]"
   fi
 
   log_info "Sync $tracker ← → Beads  [$id]"
-  # Protection bash 3.2 : ${extra_flags[@]+...} évite le crash si le tableau est vide avec set -u
-  (cd "$path" && bd "$tracker" sync ${extra_flags[@]+"${extra_flags[@]}"}) \
-    || { log_error "$(t beads.sync.failed) $tracker"; exit 1; }
+  bd -C "$path" "$tracker" sync ${sync_direction:+"$sync_direction"} \
+      ${remaining_flags[@]+"${remaining_flags[@]}"} \
+      || { log_error "$(t beads.sync.failed) $tracker"; exit 1; }
   log_success "$(t beads.sync.done) $id"
 }
 
@@ -350,7 +353,7 @@ cmd_tracker_status() {
 
   log_info "Tracker : $tracker  [$id]"
   echo ""
-  (cd "$path" && bd "$tracker" status) || { log_error "Échec de bd $tracker status"; exit 1; }
+  bd -C "$path" "$tracker" status || { log_error "Échec de bd $tracker status"; exit 1; }
 }
 
 # tracker setup — configuration interactive des credentials
@@ -502,18 +505,17 @@ _setup_jira() {
   echo ""
   [ -z "$jira_token" ] && { log_error "Token Jira requis"; exit 1; }
 
-  (
-    cd "$path"
-    bd config set jira.url "$jira_url"
-    bd config set jira.project "$jira_project"
-    bd config set jira.username "$jira_user"
-    bd config set jira.api_token "$jira_token"
-  ) || { log_error "Échec de la configuration Jira"; exit 1; }
+  bd -C "$path" config set-many \
+    jira.url="$jira_url" \
+    jira.project="$jira_project" \
+    jira.username="$jira_user" \
+    jira.api_token="$jira_token" \
+    || { log_error "Échec de la configuration Jira"; exit 1; }
 
   log_success "Jira configuré pour $id"
   echo ""
   log_info "Tester la connexion : ./oc.sh beads tracker status $id"
-  log_info "Synchroniser        : ./oc.sh beads sync $id --pull-only --dry-run"
+  log_info "Synchroniser        : ./oc.sh beads sync $id pull --dry-run"
 }
 
 _setup_gitlab() {
@@ -530,8 +532,9 @@ _setup_gitlab() {
   # Lister les projets accessibles pour aider à trouver l'ID
   echo ""
   log_info "Récupération des projets accessibles avec ce token..."
-  (cd "$path" && bd config set gitlab.url "$gl_url" && bd config set gitlab.token "$gl_token" \
-    && bd gitlab projects) 2>/dev/null && echo "" || log_warn "Impossible de lister les projets (vérifier l'URL et le token)"
+  (bd -C "$path" config set gitlab.url "$gl_url" \
+    && bd -C "$path" config set gitlab.token "$gl_token" \
+    && bd -C "$path" gitlab projects) 2>/dev/null && echo "" || log_warn "Impossible de lister les projets (vérifier l'URL et le token)"
 
   read -rp "  ID ou chemin du projet GitLab (ex: 12345 ou namespace/project) : " gl_project_id
   [ -z "$gl_project_id" ] && { log_error "ID de projet GitLab requis"; exit 1; }
@@ -541,7 +544,7 @@ _setup_gitlab() {
     || exit 1
 
   # url et token déjà configurés ci-dessus — ajouter uniquement project_id
-  (cd "$path" && bd config set gitlab.project_id "$gl_project_id") \
+  bd -C "$path" config set gitlab.project_id "$gl_project_id" \
     || { log_error "Échec de la configuration GitLab"; exit 1; }
 
   log_success "GitLab configuré pour $id"
@@ -549,7 +552,7 @@ _setup_gitlab() {
 
   # Vérifier immédiatement la connexion pour détecter les erreurs de config tôt
   log_info "Vérification de la connexion GitLab..."
-  if (cd "$path" && bd gitlab status) 2>/dev/null; then
+  if bd -C "$path" gitlab status 2>/dev/null; then
     log_success "Connexion GitLab OK"
   else
     log_warn "Connexion GitLab échouée — vérifier l'URL, le token et le project_id"
@@ -577,9 +580,9 @@ _fetch_tracker_labels() {
 
   # ── Tentative GitLab ──────────────────────────────────────────────────────
   local gl_url gl_token gl_project_id
-  gl_url=$(cd "$path"    && bd config get gitlab.url        2>/dev/null || true)
-  gl_token=$(cd "$path"  && bd config get gitlab.token      2>/dev/null || true)
-  gl_project_id=$(cd "$path" && bd config get gitlab.project_id 2>/dev/null || true)
+  gl_url=$(bd -C "$path"          config get gitlab.url        2>/dev/null || true)
+  gl_token=$(bd -C "$path"        config get gitlab.token      2>/dev/null || true)
+  gl_project_id=$(bd -C "$path"   config get gitlab.project_id 2>/dev/null || true)
 
   if [ -n "$gl_url" ] && [ -n "$gl_token" ] && [ -n "$gl_project_id" ]; then
     log_info "$(t beads.labels.fetching_gitlab)"
@@ -593,7 +596,7 @@ _fetch_tracker_labels() {
       local count=0
       while IFS= read -r lbl; do
         [ -z "$lbl" ] && continue
-        (cd "$path" && bd label create "$lbl" 2>/dev/null) && count=$((count + 1)) || true
+        bd -C "$path" label create "$lbl" 2>/dev/null && count=$((count + 1)) || true
       done < <(printf '%s' "$labels_json" | jq -r '.[].name' 2>/dev/null)
       if [ "$count" -gt 0 ]; then
         log_success "$(t beads.labels.imported_gitlab) $count"
@@ -604,9 +607,9 @@ _fetch_tracker_labels() {
 
   # ── Tentative Jira ────────────────────────────────────────────────────────
   local jira_url jira_user jira_token
-  jira_url=$(cd "$path"   && bd config get jira.url   2>/dev/null || true)
-  jira_user=$(cd "$path"  && bd config get jira.user  2>/dev/null || true)
-  jira_token=$(cd "$path" && bd config get jira.token 2>/dev/null || true)
+  jira_url=$(bd -C "$path"    config get jira.url   2>/dev/null || true)
+  jira_user=$(bd -C "$path"   config get jira.user  2>/dev/null || true)
+  jira_token=$(bd -C "$path"  config get jira.token 2>/dev/null || true)
 
   if [ -n "$jira_url" ] && [ -n "$jira_user" ] && [ -n "$jira_token" ]; then
     log_info "$(t beads.labels.fetching_jira)"
@@ -617,7 +620,7 @@ _fetch_tracker_labels() {
       local count=0
       while IFS= read -r lbl; do
         [ -z "$lbl" ] && continue
-        (cd "$path" && bd label create "$lbl" 2>/dev/null) && count=$((count + 1)) || true
+        bd -C "$path" label create "$lbl" 2>/dev/null && count=$((count + 1)) || true
       done < <(printf '%s' "$labels_json" | jq -r '.values[]' 2>/dev/null)
       if [ "$count" -gt 0 ]; then
         log_success "$(t beads.labels.imported_jira) $count"
@@ -718,7 +721,7 @@ cmd_create() {
     [ -n "$desc"  ] && bd_args+=("--desc"  "$desc")
 
     log_info "$(t beads.create.creating) ${id}…"
-    (cd "$path" && bd "${bd_args[@]}") || { log_error "$(t beads.create.failed)"; exit 1; }
+    bd -C "$path" "${bd_args[@]}" || { log_error "$(t beads.create.failed)"; exit 1; }
     return 0
   fi
 
@@ -744,7 +747,7 @@ cmd_create() {
 
   echo ""
   log_info "$(t beads.create.creating) ${id}…"
-  (cd "$path" && bd "${bd_args[@]}") || { log_error "$(t beads.create.failed)"; exit 1; }
+  bd -C "$path" "${bd_args[@]}" || { log_error "$(t beads.create.failed)"; exit 1; }
 }
 
 # ── Dispatch (exécuté seulement si le script est lancé directement) ────────

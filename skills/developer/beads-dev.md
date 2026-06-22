@@ -139,6 +139,57 @@ bd comments add <ID> "Texte du commentaire"
 
 ---
 
+## Raccourcis v1.0+ utiles
+
+### `bd done` — alias de `bd close`
+
+```bash
+# Equivalent court pour fermer un ticket avec une raison
+bd done <ID> "Implemented in commit <hash>"
+```
+
+`bd done` accepte aussi `--suggest-next` : `bd done <ID> "..." --suggest-next`
+
+---
+
+### `bd show --current` — ticket en cours sans répéter l'ID
+
+Après un `--claim`, `bd` connaît le ticket en cours.
+Utile pour relire le contexte après une interruption :
+
+```bash
+bd show --current
+```
+
+---
+
+### `bd ready --explain` — diagnostiquer un ready vide
+
+Quand `bd ready --label ai-delegated --json` retourne `[]`, utiliser `--explain`
+pour comprendre pourquoi sans faire un `bd show` sur chaque ticket :
+
+```bash
+bd ready --label ai-delegated --json --explain
+```
+
+Retourne le raisonnement par ticket : dépendance bloquante, statut incorrect, label manquant, etc.
+
+---
+
+### `bd close --reason-file` — raison depuis stdin
+
+Pour les raisons longues ou multi-lignes construites par l'agent :
+
+```bash
+# Depuis stdin
+echo "Implemented X, fixed Y, validated against Z" | bd close <ID> --reason-file -
+
+# Depuis un fichier temporaire
+bd close <ID> --reason-file /tmp/close-reason.txt
+```
+
+---
+
 ## Règles strictes
 
 - Toujours `bd show <ID>` avant d'implémenter — ne jamais supposer le contenu d'un ticket

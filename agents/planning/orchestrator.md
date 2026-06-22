@@ -290,7 +290,7 @@ de labels, de titre ou de description pour déterminer l'agent.
 |---------|------|--------|
 | `"Implémente la feature d'authentification JWT"` | A | planner → routing selon instructions planner |
 | `"Prends en charge bd-12, bd-13, bd-14"` | B | Transmet les IDs au planner → routing |
-| `"Tout le sprint courant"` | B | `bd list --status open` → routing |
+| `"Tout le sprint courant"` | B | `bd list -s open` → routing |
 | `"Je débarque sur ce projet, implémente [feature]"` | C → A | onboarder → CP-onboard → planner → routing |
 | `"J'ai un bug sur [composant]"` | D | debugger → ticket de correction |
 | `"Ça plante quand je fais X"` | D | debugger → ticket de correction |

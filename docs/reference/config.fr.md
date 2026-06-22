@@ -496,7 +496,7 @@ skills/external/            # skills téléchargés via oc skills add
 
 Le hub ne définit pas de variables d'environnement obligatoires.
 Les credentials pour les trackers (Jira, GitLab) sont stockés localement
-par `bd config set` — jamais dans des fichiers versionnés.
+par `bd config set` (ou `bd config set-many` pour les écritures en lot) — jamais dans des fichiers versionnés.
 
 Les variables suivantes sont lues par les scripts du hub si elles sont présentes dans l'environnement :
 

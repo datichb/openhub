@@ -212,7 +212,7 @@ _show_projects_section() {
     local current_ticket_title=""
 
     local bd_output
-    if bd_output=$(cd "$proj_path" && bd list --format json 2>/dev/null); then
+    if bd_output=$(bd -C "$proj_path" list --json --no-tree 2>/dev/null); then
       if command -v jq &>/dev/null && echo "$bd_output" | jq empty 2>/dev/null; then
         done_count=$(echo "$bd_output" | jq '[.[] | select(.status == "done")] | length' 2>/dev/null || echo "0")
         inprogress_count=$(echo "$bd_output" | jq '[.[] | select(.status == "in_progress")] | length' 2>/dev/null || echo "0")

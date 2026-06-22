@@ -412,10 +412,10 @@ Si Beads est initialisé (`.beads/` présent à la racine du projet) :
 
 ```bash
 # Tickets ouverts — état du backlog
-bd list --status open --json
+bd list -s open --json
 
 # Tickets récemment clos — ce qui vient d'être livré
-bd list --status closed --limit 10 --json
+bd list -s closed --limit 10 --json
 ```
 
 Identifier :
