@@ -34,9 +34,16 @@ setup() {
     local _oifs="${IFS-}" ; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
-    # bd init → créer .beads/ dans le répertoire courant
-    if [ "$1" = "init" ]; then
-      mkdir -p .beads
+    # Gérer le flag -C <path> (bd -C <path> <cmd> ...)
+    local _bd_dir="."
+    local _args=("$@")
+    if [ "${1:-}" = "-C" ]; then
+      _bd_dir="$2"
+      shift 2
+    fi
+    # bd init → créer .beads/ dans le répertoire cible
+    if [ "${1:-}" = "init" ]; then
+      mkdir -p "$_bd_dir/.beads"
     fi
     return 0
   }
@@ -225,23 +232,23 @@ EOF
   # Nettoyer le log bd et le .beads potentiel
   : > "$BD_CALLS_LOG"
   rm -rf "$TEST_DIR/fake-project/.beads"
-  run cmd_init "PROJ-FULL"
+  run cmd_init "PROJ-FULL" < /dev/null
   [ "$status" -eq 0 ]
-  # bd init a été appelé
-  grep -q "bd init" "$BD_CALLS_LOG"
+  # bd init a été appelé (avec ou sans flag -C)
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
   # Les labels feature,fix ont été propagés via bd label create
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
 }
 
 @test "cmd_init : ne propage rien si aucun label configuré" {
   : > "$BD_CALLS_LOG"
   rm -rf "$TEST_DIR/fake-project/.beads"
-  run cmd_init "PROJ-NO-LABELS"
+  run cmd_init "PROJ-NO-LABELS" < /dev/null
   [ "$status" -eq 0 ]
   # bd init appelé, mais pas bd label create
-  grep -q "bd init" "$BD_CALLS_LOG"
-  ! grep -q "bd label create" "$BD_CALLS_LOG"
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
+  ! grep -q "label create" "$BD_CALLS_LOG"
 }
 
 @test "cmd_init : exit si .beads existe déjà" {
@@ -256,12 +263,11 @@ EOF
 # ── cmd_init — proposition upstream git ──────────────────────────────────────
 
 @test "cmd_init : propose upstream et avertit URL vide si stdin vide" {
-  # run fournit /dev/null comme stdin → read retourne vide
-  # _setup_upstream vide → default Y → URL vide → avertissement
+  # Fournir explicitement /dev/null comme stdin — read retourne immédiatement avec valeur vide
   : > "$BD_CALLS_LOG"
   : > "$GIT_CALLS_LOG"
   rm -rf "$TEST_DIR/fake-project/.beads"
-  run cmd_init "PROJ-FULL"
+  run cmd_init "PROJ-FULL" < /dev/null
   [ "$status" -eq 0 ]
 
   # git remote get-url upstream a été testé
@@ -304,7 +310,7 @@ EOF
   : > "$BD_CALLS_LOG"
   rm -rf "$TEST_DIR/fake-project/.beads"
   mkdir -p "$TEST_DIR/fake-project/.git/info"
-  run cmd_init "PROJ-FULL"
+  run cmd_init "PROJ-FULL" < /dev/null
   [ "$status" -eq 0 ]
 
   # .beads/ doit être présent dans le fichier exclude
@@ -317,7 +323,7 @@ EOF
   mkdir -p "$TEST_DIR/fake-project/.git/info"
   echo ".beads/" > "$TEST_DIR/fake-project/.git/info/exclude"
 
-  run cmd_init "PROJ-FULL"
+  run cmd_init "PROJ-FULL" < /dev/null
   [ "$status" -eq 0 ]
 
   # Compter les occurrences — doit être exactement 1
@@ -425,6 +431,8 @@ EOF
     local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
+    # Ignorer le flag -C <path> si présent
+    if [ "${1:-}" = "-C" ]; then shift 2; fi
     case "${1:-} ${2:-} ${3:-}" in
       "config get gitlab.url")        printf 'https://gitlab.example.com' ;;
       "config get gitlab.token")      printf 'glpat-test-token' ;;
@@ -441,10 +449,10 @@ EOF
 
   # curl a été appelé avec l'URL GitLab
   grep -q "gitlab.example.com" "$CURL_CALLS_LOG"
-  # Les 3 labels ont été créés
-  grep -q "bd label create frontend" "$BD_CALLS_LOG"
-  grep -q "bd label create backend"  "$BD_CALLS_LOG"
-  grep -q "bd label create hotfix"   "$BD_CALLS_LOG"
+  # Les 3 labels ont été créés (format : bd -C <path> label create <name>)
+  grep -q "label create frontend" "$BD_CALLS_LOG"
+  grep -q "label create backend"  "$BD_CALLS_LOG"
+  grep -q "label create hotfix"   "$BD_CALLS_LOG"
   # Message de succès présent
   [[ "$output" == *"GitLab"* ]] || [[ "$output" == *"3"* ]]
 }
@@ -464,6 +472,7 @@ EOF
     local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
+    if [ "${1:-}" = "-C" ]; then shift 2; fi
     case "${1:-} ${2:-} ${3:-}" in
       "config get gitlab.url")        printf 'https://gitlab.example.com' ;;
       "config get gitlab.token")      printf 'glpat-test' ;;
@@ -496,6 +505,7 @@ EOF
     local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
+    if [ "${1:-}" = "-C" ]; then shift 2; fi
     case "${1:-} ${2:-} ${3:-}" in
       "config get gitlab.url")   printf '' ;;
       "config get gitlab.token") printf '' ;;
@@ -513,10 +523,10 @@ EOF
 
   # curl a été appelé avec l'URL Jira
   grep -q "jira.example.com" "$CURL_CALLS_LOG"
-  # Les 3 labels ont été créés
-  grep -q "bd label create bug"         "$BD_CALLS_LOG"
-  grep -q "bd label create improvement" "$BD_CALLS_LOG"
-  grep -q "bd label create task"        "$BD_CALLS_LOG"
+  # Les 3 labels ont été créés (format : bd -C <path> label create <name>)
+  grep -q "label create bug"         "$BD_CALLS_LOG"
+  grep -q "label create improvement" "$BD_CALLS_LOG"
+  grep -q "label create task"        "$BD_CALLS_LOG"
 }
 
 @test "_fetch_tracker_labels : GitLab prioritaire sur Jira si les deux sont configurés" {
@@ -535,6 +545,7 @@ EOF
     local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
+    if [ "${1:-}" = "-C" ]; then shift 2; fi
     case "${1:-} ${2:-} ${3:-}" in
       "config get gitlab.url")        printf 'https://gitlab.example.com' ;;
       "config get gitlab.token")      printf 'glpat-test' ;;
@@ -563,6 +574,7 @@ EOF
     local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
     IFS="$_oifs"
+    if [ "${1:-}" = "-C" ]; then shift 2; fi
     case "${1:-} ${2:-} ${3:-}" in
       "config get gitlab.url")        printf 'https://gitlab.example.com' ;;
       "config get gitlab.token")      printf 'glpat-test' ;;
@@ -576,7 +588,7 @@ EOF
   run _fetch_tracker_labels "PROJ-FULL" "$TEST_DIR/fake-project"
   [ "$status" -eq 0 ]
   # Aucun label créé
-  ! grep -q "bd label create" "$BD_CALLS_LOG"
+  ! grep -q "label create" "$BD_CALLS_LOG"
 }
 
 # ── cmd_board — vérifications de base ────────────────────────────────────────
@@ -613,16 +625,15 @@ EOF
   mkdir -p "$TEST_DIR/fake-project/.beads"
 
   bd() {
+    local _oifs="${IFS-}"; IFS=' '
     echo "bd $*" >> "$BD_CALLS_LOG"
+    IFS="$_oifs"
     echo "[]"
   }
   export -f bd
   export BD_CALLS_LOG
 
   run cmd_board "TEST-PROJECT"
-  # Vérifier que bd list a été appelé pour les 4 statuts actifs
-  grep -q "bd list -s open"        "$BD_CALLS_LOG"
-  grep -q "bd list -s in_progress" "$BD_CALLS_LOG"
-  grep -q "bd list -s review"      "$BD_CALLS_LOG"
-  grep -q "bd list -s blocked"     "$BD_CALLS_LOG"
+  # Vérifier que bd list a été appelé avec tous les statuts actifs (1 appel groupé)
+  grep -q "list --status open,in_progress,review,blocked" "$BD_CALLS_LOG"
 }
