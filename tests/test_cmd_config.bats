@@ -382,6 +382,7 @@ teardown() {
 }
 
 @test "cmd_set : provider requires_api_key=true sans --api-key → exit 1" {
+  # < /dev/null : read -rsp retourne immédiatement avec flag_api_key="" → log_error + exit 1
   run bash -c "
     source \"$BATS_TEST_DIRNAME/../scripts/common.sh\"
     _CMD_CONFIG_SOURCE_ONLY=1 source \"$BATS_TEST_DIRNAME/../scripts/cmd-config.sh\"
@@ -397,7 +398,7 @@ teardown() {
     log_warn() { true; }
     log_error() { echo \"ERROR: \$*\" >&2; }
     cmd_set \"MY-PROJ\" --provider anthropic --model claude-sonnet-4-5
-  "
+  " < /dev/null
   [ "$status" -ne 0 ]
 }
 

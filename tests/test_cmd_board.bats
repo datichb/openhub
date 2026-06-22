@@ -324,20 +324,19 @@ EOF
   mkdir -p "$TEST_DIR/project/.beads"
   
   # Mock bd pour retourner des tickets
+  # _render_board appelle : bd -C <path> list --status open,in_progress,review,blocked --json --no-tree
+  # Le mock doit : (1) ignorer le flag -C <path>, (2) répondre à "list", (3) inclure le champ "status"
+  # pour que le filtrage jq '[.[] | select(.status == "open")]' fonctionne
   cat > "$TEST_DIR/bin/bd" <<'EOF'
 #!/bin/bash
-case "$3" in
-  open)
-    echo '[{"id":"bd-1","title":"Open task","priority":"1","type":"feature"}]'
-    ;;
-  in_progress)
-    echo '[{"id":"bd-2","title":"In progress","priority":"0","type":"bug"}]'
-    ;;
-  review)
-    echo '[]'
-    ;;
-  blocked)
-    echo '[]'
+# Ignorer le flag -C <path>
+args=("$@")
+if [ "${args[0]}" = "-C" ]; then
+  args=("${args[@]:2}")
+fi
+case "${args[0]}" in
+  list)
+    echo '[{"id":"bd-1","title":"Open task","priority":"1","type":"feature","status":"open"},{"id":"bd-2","title":"In progress","priority":"0","type":"bug","status":"in_progress"}]'
     ;;
 esac
 EOF
