@@ -28,5 +28,8 @@ servers/*/dist/
 servers/*/node_modules/
 servers/*/.env
 
+# Plugins
+plugins/*/node_modules/
+
 # Fichiers temporaires laissés par les tests (ex: crash avant teardown)
 tests/tmp_*
