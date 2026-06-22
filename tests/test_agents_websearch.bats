@@ -11,7 +11,7 @@ setup() {
 @test "7 agents ont la permission websearch allow" {
   local expected_agents=(
     "auditor/auditor-subagent"
-    "planning/scout"
+    "planning/pathfinder"
     "planning/onboarder"
     "planning/planner"
     "design/ux-designer"
@@ -41,7 +41,7 @@ setup() {
 @test "les agents websearch ont la permission webfetch" {
   local expected_agents=(
     "auditor/auditor-subagent"
-    "planning/scout"
+    "planning/pathfinder"
     "design/ux-designer"
     "documentation/documentarian"
   )
@@ -119,7 +119,7 @@ setup() {
 @test "shared/websearch-usage skill est référencée dans tous les agents websearch" {
   local websearch_agents=(
     "auditor/auditor-subagent"
-    "planning/scout"
+    "planning/pathfinder"
     "planning/onboarder"
     "planning/planner"
     "design/ux-designer"
