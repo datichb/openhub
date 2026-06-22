@@ -693,6 +693,12 @@ cmd_service_deploy() {
     exit 1
   fi
 
+  # Argument positionnel optionnel : oc service deploy figma t-sru
+  if [ -z "$SVC_PROJECT_ID" ] && [ -n "${2:-}" ]; then
+    SVC_PROJECT_ID=$(normalize_project_id "$2")
+    SVC_PROJECT_PATH=$(resolve_project_path "$SVC_PROJECT_ID")
+  fi
+
   local mcp_server
   mcp_server=$(svc_get_field "$service_id" "mcp_server" 2>/dev/null || echo "")
   if [ -z "$mcp_server" ]; then
