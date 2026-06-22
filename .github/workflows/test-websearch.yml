@@ -73,16 +73,16 @@ jobs:
         env:
           BATS_TEST_DIRNAME: ${{ github.workspace }}/tests
       
-      - name: Verify 13 agents have websearch
+      - name: Verify 7 agents have websearch
         run: |
-          echo "Checking that exactly 13 agents have websearch permissions..."
+          echo "Checking that exactly 7 agents have websearch permissions..."
           count=$(grep -r "websearch: allow" agents/ | wc -l)
           echo "Found $count agents with websearch: allow"
-          if [ "$count" -ne 13 ]; then
-            echo "::error::Expected 13 agents with websearch, found $count"
+          if [ "$count" -ne 7 ]; then
+            echo "::error::Expected 7 agents with websearch, found $count"
             exit 1
           fi
-          echo "✅ All 13 agents have websearch permissions"
+          echo "✅ All 7 agents have websearch permissions"
 
   test-websearch-skills:
     name: Validate WebSearch Skills
