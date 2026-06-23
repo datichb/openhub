@@ -148,14 +148,13 @@ teardown() {
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
   # Installer le plugin
   OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
-  # Trouver le répertoire du vrai rtk système (en excluant le mock dans TEST_DIR/bin)
-  local tmp_path; tmp_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
-  local rtk_real_dir; rtk_real_dir=$(dirname "$(PATH="$tmp_path" command -v rtk 2>/dev/null || echo /nonexistent)")
+  # Construire un PATH sans aucun répertoire contenant le binaire rtk
   local path_without_rtk
-  path_without_rtk=$(echo "$PATH" | tr ':' '\n' \
-    | grep -v "$TEST_DIR/bin$" \
-    | grep -vF "$rtk_real_dir" \
-    | tr '\n' ':' | sed 's/:$//')
+  path_without_rtk=$(echo "$PATH" | tr ':' '\n' | while IFS= read -r dir; do
+    [[ "$dir" == "$TEST_DIR/bin" ]] && continue
+    [ -x "$dir/rtk" ] && continue
+    echo "$dir"
+  done | tr '\n' ':' | sed 's/:$//')
   run env PATH="$path_without_rtk" bash "$CMD_PLUGIN" status
   [[ "$output" =~ "introuvable" ]] || [[ "$output" =~ "Binary not found" ]]
 }
@@ -165,17 +164,15 @@ teardown() {
 @test "plugin install rtk : sans binaire + réponse n → exit 1 + instructions" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  # Trouver le répertoire du vrai rtk système (en excluant le mock dans TEST_DIR/bin)
-  local tmp_path; tmp_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
-  local rtk_real_dir; rtk_real_dir=$(dirname "$(PATH="$tmp_path" command -v rtk 2>/dev/null || echo /nonexistent)")
-  # Conserver opencode dans un répertoire séparé pour ne pas bloquer la vérification opencode
+  # Conserver opencode dans un répertoire séparé, supprimer TOUS les dirs contenant rtk
   mkdir -p "$TEST_DIR/opencode-bin"
   cp "$TEST_DIR/bin/opencode" "$TEST_DIR/opencode-bin/opencode"
   local path_without_rtk
-  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' \
-    | grep -v "$TEST_DIR/bin$" \
-    | grep -vF "$rtk_real_dir" \
-    | tr '\n' ':' | sed 's/:$//')"
+  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' | while IFS= read -r dir; do
+    [[ "$dir" == "$TEST_DIR/bin" ]] && continue
+    [ -x "$dir/rtk" ] && continue
+    echo "$dir"
+  done | tr '\n' ':' | sed 's/:$//')"
   run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ "$status" -ne 0 ]
   # Les instructions manuelles doivent apparaître
@@ -185,17 +182,15 @@ teardown() {
 @test "plugin install rtk : sans binaire + OC_NON_INTERACTIVE=1 → exit 1 proprement" {
   local real_plugin="$HUB_DIR/plugins/rtk/rtk.ts"
   [ -f "$real_plugin" ] || skip "plugin rtk absent du hub"
-  # Trouver le répertoire du vrai rtk système (en excluant le mock dans TEST_DIR/bin)
-  local tmp_path; tmp_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
-  local rtk_real_dir; rtk_real_dir=$(dirname "$(PATH="$tmp_path" command -v rtk 2>/dev/null || echo /nonexistent)")
-  # Conserver opencode dans un répertoire séparé pour ne pas bloquer la vérification opencode
+  # Conserver opencode dans un répertoire séparé, supprimer TOUS les dirs contenant rtk
   mkdir -p "$TEST_DIR/opencode-bin"
   cp "$TEST_DIR/bin/opencode" "$TEST_DIR/opencode-bin/opencode"
   local path_without_rtk
-  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' \
-    | grep -v "$TEST_DIR/bin$" \
-    | grep -vF "$rtk_real_dir" \
-    | tr '\n' ':' | sed 's/:$//')"
+  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' | while IFS= read -r dir; do
+    [[ "$dir" == "$TEST_DIR/bin" ]] && continue
+    [ -x "$dir/rtk" ] && continue
+    echo "$dir"
+  done | tr '\n' ':' | sed 's/:$//')"
   run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ "$status" -ne 0 ]
   [[ "$output" =~ "rtk-ai.app" ]] || [[ "$output" =~ "cargo" ]] || [[ "$output" =~ "brew" ]]
