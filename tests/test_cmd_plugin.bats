@@ -168,11 +168,14 @@ teardown() {
   # Trouver le répertoire du vrai rtk système (en excluant le mock dans TEST_DIR/bin)
   local tmp_path; tmp_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
   local rtk_real_dir; rtk_real_dir=$(dirname "$(PATH="$tmp_path" command -v rtk 2>/dev/null || echo /nonexistent)")
+  # Conserver opencode dans un répertoire séparé pour ne pas bloquer la vérification opencode
+  mkdir -p "$TEST_DIR/opencode-bin"
+  cp "$TEST_DIR/bin/opencode" "$TEST_DIR/opencode-bin/opencode"
   local path_without_rtk
-  path_without_rtk=$(echo "$PATH" | tr ':' '\n' \
+  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' \
     | grep -v "$TEST_DIR/bin$" \
     | grep -vF "$rtk_real_dir" \
-    | tr '\n' ':' | sed 's/:$//')
+    | tr '\n' ':' | sed 's/:$//')"
   run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ "$status" -ne 0 ]
   # Les instructions manuelles doivent apparaître
@@ -185,11 +188,14 @@ teardown() {
   # Trouver le répertoire du vrai rtk système (en excluant le mock dans TEST_DIR/bin)
   local tmp_path; tmp_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$TEST_DIR/bin$" | tr '\n' ':' | sed 's/:$//')
   local rtk_real_dir; rtk_real_dir=$(dirname "$(PATH="$tmp_path" command -v rtk 2>/dev/null || echo /nonexistent)")
+  # Conserver opencode dans un répertoire séparé pour ne pas bloquer la vérification opencode
+  mkdir -p "$TEST_DIR/opencode-bin"
+  cp "$TEST_DIR/bin/opencode" "$TEST_DIR/opencode-bin/opencode"
   local path_without_rtk
-  path_without_rtk=$(echo "$PATH" | tr ':' '\n' \
+  path_without_rtk="$TEST_DIR/opencode-bin:$(echo "$PATH" | tr ':' '\n' \
     | grep -v "$TEST_DIR/bin$" \
     | grep -vF "$rtk_real_dir" \
-    | tr '\n' ':' | sed 's/:$//')
+    | tr '\n' ':' | sed 's/:$//')"
   run env PATH="$path_without_rtk" OC_NON_INTERACTIVE=1 bash "$CMD_PLUGIN" install rtk
   [ "$status" -ne 0 ]
   [[ "$output" =~ "rtk-ai.app" ]] || [[ "$output" =~ "cargo" ]] || [[ "$output" =~ "brew" ]]

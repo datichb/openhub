@@ -52,7 +52,7 @@ if [ "$SUBCOMMAND" = "status" ]; then
       RTK_VER=$(rtk --version 2>/dev/null | awk '{print $2}' || echo "?")
       log_success "$(t plugin.status_binary): rtk $RTK_VER"
     else
-      log_error "$(t plugin.status_binary_missing): rtk"
+      echo -e "  \033[31m◆\033[0m  $(t plugin.status_binary_missing): rtk"
       log_info "  macOS  : brew install rtk"
       log_info "  Rust   : cargo install rtk"
       log_info "  Autre  : https://www.rtk-ai.app/"
