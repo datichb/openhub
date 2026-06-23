@@ -62,8 +62,16 @@ OCEOF
   cat > "$TEST_DIR/bin/bd" <<'BDEOF'
 #!/bin/bash
 echo "bd $*" >> "$BD_CALLS_LOG"
-if [ "${1:-}" = "init" ]; then
-  mkdir -p .beads
+# Gérer le flag -C <path> (bd -C <path> <cmd> ...)
+_args=("$@")
+if [ "${_args[0]:-}" = "-C" ]; then
+  _bd_dir="${_args[1]}"
+  _args=("${_args[@]:2}")
+else
+  _bd_dir="."
+fi
+if [ "${_args[0]:-}" = "init" ]; then
+  mkdir -p "$_bd_dir/.beads"
 fi
 exit 0
 BDEOF
@@ -139,10 +147,10 @@ teardown() {
   [ "$status" -eq 0 ]
 
   # bd init a été appelé
-  grep -q "bd init" "$BD_CALLS_LOG"
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
   # Les labels ont été propagés
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
 }
 
 @test "cmd-start : respecte le refus de bd init (n)" {
@@ -153,7 +161,7 @@ teardown() {
   [ "$status" -eq 0 ]
 
   # bd init ne doit PAS avoir été appelé
-  ! grep -q "bd init" "$BD_CALLS_LOG"
+  ! grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
   # Mais opencode doit quand même être lancé
   [ -s "$OPENCODE_LOG" ]
 }
@@ -181,9 +189,9 @@ teardown() {
   [ "$status" -eq 0 ]
 
   # Vérifier les appels bd
-  grep -q "bd init" "$BD_CALLS_LOG"
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
 }
 
 # ── Proposition upstream git ──────────────────────────────────────────────────

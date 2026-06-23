@@ -53,6 +53,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:designer/ui-subagent]` → charger le skill `ui-subagent` via l'outil `skill`
 - Sinon (invocation directe) → utiliser l'outil `question` normalement
+- En mode orchestrateur : Ne jamais utiliser l'outil `question` — passer par bloc intermédiaire ou déléguer via sous-agent
 
 ---
 

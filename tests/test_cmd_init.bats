@@ -66,8 +66,16 @@ PROJEOF
   cat > "$TEST_DIR/bin/bd" <<'BDEOF'
 #!/bin/bash
 echo "bd $*" >> "$BD_CALLS_LOG"
-if [ "${1:-}" = "init" ]; then
-  mkdir -p .beads
+# Gérer le flag -C <path> (bd -C <path> <cmd> ...)
+_args=("$@")
+if [ "${_args[0]:-}" = "-C" ]; then
+  _bd_dir="${_args[1]}"
+  _args=("${_args[@]:2}")
+else
+  _bd_dir="."
+fi
+if [ "${_args[0]:-}" = "init" ]; then
+  mkdir -p "$_bd_dir/.beads"
 fi
 exit 0
 BDEOF
@@ -127,11 +135,11 @@ _run_init() {
   [ "$status" -eq 0 ]
 
   # bd init a été appelé
-  grep -q "bd init" "$BD_CALLS_LOG"
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
   # Les labels ont été propagés
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
-  grep -q "bd label create back" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
+  grep -q "label create back" "$BD_CALLS_LOG"
 }
 
 @test "cmd-init : ne propose pas bd init si .beads existe déjà" {
@@ -143,7 +151,7 @@ _run_init() {
   [ "$status" -eq 0 ]
 
   # bd init ne doit PAS avoir été appelé
-  ! grep -q "bd init" "$BD_CALLS_LOG"
+  ! grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
 }
 
 @test "cmd-init : respecte le refus de bd init (n)" {
@@ -154,7 +162,7 @@ _run_init() {
   [ "$status" -eq 0 ]
 
   # bd init ne doit PAS avoir été appelé
-  ! grep -q "bd init" "$BD_CALLS_LOG"
+  ! grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
 }
 
 @test "cmd-init : ne propose pas bd init si bd absent du PATH" {
@@ -180,9 +188,9 @@ _run_init() {
   [ "$status" -eq 0 ]
 
   # Les labels doivent être trimés
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
-  grep -q "bd label create back" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
+  grep -q "label create back" "$BD_CALLS_LOG"
 }
 
 # ── Labels par défaut ────────────────────────────────────────────────────────
@@ -196,10 +204,10 @@ _run_init() {
   [ "$status" -eq 0 ]
 
   # bd init a été appelé
-  grep -q "bd init" "$BD_CALLS_LOG"
+  grep -qE "bd( -C [^ ]+)? init" "$BD_CALLS_LOG"
   # Les labels par défaut (feature,fix) doivent être propagés
-  grep -q "bd label create feature" "$BD_CALLS_LOG"
-  grep -q "bd label create fix" "$BD_CALLS_LOG"
+  grep -q "label create feature" "$BD_CALLS_LOG"
+  grep -q "label create fix" "$BD_CALLS_LOG"
 }
 
 # ── Proposition upstream git ─────────────────────────────────────────────────
