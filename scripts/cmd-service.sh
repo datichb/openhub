@@ -757,8 +757,9 @@ cmd_service_help() {
   echo -e "    ${CYAN}--project <PROJECT_ID>${RESET}  $(t service.project.flag_desc)"
   echo ""
   echo -e "  ${DIM}$(t service.help.aliases)${RESET}"
-  echo -e "    ${CYAN}oc figma${RESET}  →  oc service ... figma"
-  echo -e "    ${CYAN}oc gitlab${RESET} →  oc service ... gitlab"
+  echo -e "    ${CYAN}oc figma${RESET}   →  oc service ... figma"
+  echo -e "    ${CYAN}oc gitlab${RESET}  →  oc service ... gitlab"
+  echo -e "    ${CYAN}oc gslides${RESET} →  oc service ... gslides"
   echo ""
 }
 

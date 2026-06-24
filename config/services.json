@@ -98,6 +98,59 @@
           "help_fr": "Timeout en millisecondes pour les requêtes API GitLab (défaut : 30000 = 30s). Augmenter pour les instances self-hosted lentes."
         }
       ]
+    },
+    "gslides": {
+      "label": "Google Slides",
+      "description_en": "Branding extraction from company Google Slides templates via MCP",
+      "description_fr": "Extraction de branding depuis les templates Google Slides d'entreprise via MCP",
+      "mcp_server": "gslides-mcp",
+      "docs_url": "https://console.cloud.google.com/apis/library/slides.googleapis.com",
+      "validation": {
+        "endpoint": "https://www.googleapis.com/drive/v3/files?q=mimeType%3D'application%2Fvnd.google-apps.presentation'&pageSize=1",
+        "auth": "service_account",
+        "token_field": "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "success_field": ".files"
+      },
+      "credentials": [
+        {
+          "key": "GOOGLE_SERVICE_ACCOUNT_KEY",
+          "label_en": "Service Account Key (base64)",
+          "label_fr": "Clé Service Account (base64)",
+          "secret": true,
+          "required": true,
+          "help_en": "Base64-encoded content of your Google Service Account JSON key.\nSteps:\n1. Google Cloud Console → IAM → Service Accounts → Create\n2. Download JSON key\n3. Encode: base64 -i sa-key.json | tr -d '\\n'\n4. Enable APIs: Google Slides API + Google Drive API\n5. Share templates with the SA email (Viewer role)",
+          "help_fr": "Contenu base64 de votre clé Service Account Google (JSON).\nÉtapes :\n1. Google Cloud Console → IAM → Comptes de service → Créer\n2. Télécharger la clé JSON\n3. Encoder : base64 -i sa-key.json | tr -d '\\n'\n4. Activer les APIs : Google Slides API + Google Drive API\n5. Partager les templates avec l'email du SA (rôle Lecteur)"
+        },
+        {
+          "key": "GOOGLE_SLIDES_TEMPLATE_ID",
+          "label_en": "Default template ID",
+          "label_fr": "ID du template par défaut",
+          "secret": false,
+          "required": false,
+          "help_en": "ID of the default Google Slides template for this project.\nFound in the URL: https://docs.google.com/presentation/d/{ID}/edit\nCan be left empty and provided on demand to get_template_branding.",
+          "help_fr": "ID du template Google Slides par défaut pour ce projet.\nVisible dans l'URL : https://docs.google.com/presentation/d/{ID}/edit\nPeut être laissé vide et fourni à la demande à get_template_branding."
+        },
+        {
+          "key": "GOOGLE_SLIDES_TIMEOUT",
+          "label_en": "Request timeout (ms)",
+          "label_fr": "Timeout des requêtes (ms)",
+          "secret": false,
+          "required": false,
+          "default": "30000",
+          "help_en": "Timeout in milliseconds for Google API requests (default: 30000 = 30s).",
+          "help_fr": "Timeout en millisecondes pour les requêtes API Google (défaut : 30000 = 30s)."
+        },
+        {
+          "key": "GOOGLE_SLIDES_MAX_RETRIES",
+          "label_en": "Max retries",
+          "label_fr": "Nombre de tentatives",
+          "secret": false,
+          "required": false,
+          "default": "2",
+          "help_en": "Number of retries on network errors (default: 2).",
+          "help_fr": "Nombre de tentatives en cas d'erreur réseau (défaut : 2)."
+        }
+      ]
     }
   }
 }

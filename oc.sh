@@ -36,6 +36,7 @@ case "$COMMAND" in
   service)         bash "$SCRIPTS_DIR/cmd-service.sh" "${@:2}" ;;
   figma)           bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" figma ;;
   gitlab)          bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" gitlab ;;
+  gslides)         bash "$SCRIPTS_DIR/cmd-service.sh" "${2:-list}" "${@:3}" gslides ;;
   conventions)     bash "$SCRIPTS_DIR/cmd-conventions.sh" "${@:2}" ;;
   worktree)        bash "$SCRIPTS_DIR/cmd-worktree.sh" "${@:2}" ;;
   beads)           bash "$SCRIPTS_DIR/cmd-beads.sh" "${@:2}" ;;

@@ -331,7 +331,7 @@ t() {
      service.help.remove_desc)       printf '%s' "Supprime la configuration d'un service" ;;
      service.help.deploy_cmd)        printf '%s' "deploy <nom> [--project ID]" ;;
      service.help.deploy_desc)       printf '%s' "Déploie le serveur MCP dans un projet" ;;
-     service.help.aliases)           printf '%s' "Aliases : oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
+     service.help.aliases)           printf '%s' "Aliases : oc figma → oc service figma, oc gitlab → oc service gitlab, oc gslides → oc service gslides" ;;
 
       # ── cmd-beads.sh ───────────────────────────────────────────────────────
       beads.title)            printf '%s' "Gestion Beads :" ;;
@@ -1123,7 +1123,7 @@ t_en() {
     service.help.remove_desc)       printf '%s' "Remove a service configuration" ;;
     service.help.deploy_cmd)        printf '%s' "deploy <name> [--project ID]" ;;
     service.help.deploy_desc)       printf '%s' "Deploy the MCP server into a project" ;;
-    service.help.aliases)           printf '%s' "Aliases: oc figma → oc service figma, oc gitlab → oc service gitlab" ;;
+    service.help.aliases)           printf '%s' "Aliases: oc figma → oc service figma, oc gitlab → oc service gitlab, oc gslides → oc service gslides" ;;
 
     # ── cmd-beads.sh ─────────────────────────────────────────────────────────
     beads.title)            printf '%s' "Beads management:" ;;

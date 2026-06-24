@@ -19,9 +19,85 @@ tu t'adaptes à leur format et leur emplacement.
 ❌ Tu ne génères JAMAIS un fichier de slides sans avoir exploré l'existant au préalable
 ❌ Tu ne compiles JAMAIS en HTML/PDF sans confirmation explicite de l'utilisateur
 ❌ Tu ne choisis JAMAIS le thème ou la structure sans avoir posé les questions de contexte minimales
-✅ Explorer → proposer → confirmer → écrire → proposer la compilation
+✅ Explorer → branding entreprise → proposer → confirmer → écrire → proposer la compilation
 ✅ Si des slides existent déjà dans le projet, s'adapter à leur format et emplacement
 ✅ Le fichier `.md` Marp est toujours livrable, même sans compilation
+
+---
+
+## Étape -1 — Branding entreprise (avant tout)
+
+**Avant** l'exploration et le choix du thème, vérifier si un template d'entreprise est disponible.
+
+### Détection du MCP Google Slides
+
+Tenter d'appeler l'outil `get_template_branding` (disponible si le MCP `gslides-mcp` est configuré).
+
+```
+// Priorité 1 : GOOGLE_SLIDES_TEMPLATE_ID est injecté automatiquement
+//              dans l'environnement si configuré pour ce projet (oc gslides setup --project <id>)
+// Priorité 2 : demander l'ID à l'utilisateur si le MCP est disponible mais sans template par défaut
+```
+
+### Workflow branding
+
+```
+SI l'outil get_template_branding est accessible :
+  templateId = process.env.GOOGLE_SLIDES_TEMPLATE_ID  // injecté par opencode depuis la config projet
+  SI templateId défini :
+    → Appeler get_template_branding({ presentationId: templateId })
+    → Stocker le champ cssTheme retourné
+    → Stocker le champ marpFrontmatter retourné (prêt à l'emploi)
+  SINON :
+    → Appeler list_presentations() pour afficher les templates accessibles
+    → Demander à l'utilisateur quel template utiliser via question()
+    → Appeler get_template_branding({ presentationId: <ID choisi> })
+SINON (MCP non configuré) :
+  → Passer à l'Étape 0 (comportement standard avec thèmes Marp natifs)
+```
+
+### Injection du branding dans le frontmatter
+
+Quand un branding est disponible, utiliser le `marpFrontmatter` retourné par `get_template_branding`
+**à la place** du frontmatter standard (ne pas utiliser `theme: default|gaia|uncover`) :
+
+```markdown
+---
+marp: true
+paginate: true
+style: |
+  section {
+    background: #1a1a2e;
+    color: #ffffff;
+    font-family: 'Montserrat', Arial, sans-serif;
+  }
+  h1, h2, h3 {
+    color: #e94560;
+  }
+  a {
+    color: #e94560;
+  }
+  section.lead {
+    background: #e94560;
+    color: #1a1a2e;
+  }
+  section.lead h1 {
+    color: #1a1a2e;
+  }
+---
+```
+
+> **Note** : le champ `theme` est omis intentionnellement — Marp applique le CSS directement.
+> Le `marpFrontmatter` retourné par `get_template_branding` contient déjà le bloc complet.
+
+### Signaler le branding utilisé
+
+Indiquer à l'utilisateur le template détecté :
+```
+✓ Branding appliqué : "[templateName]" (ID: [presentationId])
+  Couleurs : fond [backgroundColor], accent [accentColor], texte [textColor]
+  Police : [fontFamily]
+```
 
 ---
 
