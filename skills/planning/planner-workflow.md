@@ -270,6 +270,8 @@ question({
 ### Objectif
 Explorer le projet de manière ciblée selon le type de feature demandé.
 
+> **Si une ambiguité est détectée** sur le périmètre, les besoins ou les parties prenantes à ce stade ou pendant cette phase : charger le skill `shared/elicitation-techniques` (bucket-B) via l'outil `skill` pour choisir la technique d'élicitation adaptée avant de continuer.
+
 ### Étape 1.1 — Projet et tickets existants
 
 ```bash

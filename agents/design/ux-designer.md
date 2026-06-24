@@ -21,7 +21,7 @@ permission:
   ctx_batch_execute: allow
 mcpServers: [figma]
 skills: [designer/ux-protocol, developer/beads-plan, design/design-planner-format, posture/expert-posture, posture/tool-question, design/design-handoff-format, shared/websearch-usage]
-native_skills: [designer/ux-subagent, design/websearch-design-patterns]
+native_skills: [designer/ux-subagent, design/websearch-design-patterns, shared/elicitation-techniques]
 ---
 
 # UXDesigner

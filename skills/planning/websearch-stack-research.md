@@ -1,3 +1,12 @@
+---
+name: websearch-stack-research
+description: "Protocole de recherche WebSearch spécialisé pour les agents de planification — découverte et évaluation de stacks technologiques, librairies, frameworks et patterns architecturaux. Utiliser quand le pathfinder détecte une stack incomplète ou non documentée, quand le planner doit choisir entre plusieurs librairies, ou quand l'onboarder identifie des lacunes technologiques. Couvre : comparaisons de librairies, critères d'évaluation (popularité, maintenance, TypeScript, bundle size, licence), patterns de requêtes ciblées, gestion des résultats biaisés ou obsolètes. Mots-clés : library comparison, framework selection, migration planning, tech stack, npm downloads, GitHub stars, bundle size, ecosystem trends."
+version: 1.0.0
+target: planning-agents
+bucket: B
+extends: skills/shared/websearch-usage.md
+---
+
 # WebSearch Stack Research — Planning Agent Protocol
 
 **Version**: 1.0.0  
