@@ -228,6 +228,33 @@ bd show <ID>
 
 ---
 
+## Gate de complétion — Avant tout handoff
+
+Avant de produire le rapport final et le bloc `## Retour vers orchestrator-dev`,
+passer les 3 checks suivants **dans l'ordre** :
+
+### Check 1 — Tests passent
+
+✅ Tous les tests écrits dans cette session passent (green)
+✅ Les tests existants du projet ne sont pas cassés (aucune régression introduite)
+❌ Si un test est rouge : documenter pourquoi dans `### ⚠️ Zones non testables identifiées`
+
+### Check 2 — Comportement observable conforme à la spec
+
+✅ Chaque critère d'acceptance du ticket a au moins un test associé (ou une justification documentée)
+✅ Les critères négatifs ("ne doit pas faire X") sont couverts
+❌ Critère non couvert → reporter dans `### Gaps restants` du tableau de couverture, jamais ignorer
+
+### Check 3 — Aucune régression connue non documentée
+
+✅ Aucun test existant n'a été supprimé ou contourné sans justification
+✅ Les tests écrits testent bien le comportement observable, pas les détails d'implémentation
+❌ Si une zone non testable est identifiée : signaler dans `### ⚠️ Zones non testables identifiées`
+
+**Règle absolue :** les 3 checks doivent être passés ou leur impossibilité explicitement documentée dans le rapport.
+
+---
+
 ## Ce que tu ne fais PAS
 
 - Modifier le code fonctionnel pour le rendre plus testable (signaler, ne pas corriger)

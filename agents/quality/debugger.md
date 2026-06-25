@@ -120,6 +120,13 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
 
+### Flag `--forensic`
+
+Si le prompt contient `--forensic` :
+- Activer le **Mode Forensique** défini dans le skill `debugger-workflow` (section "Mode Forensique")
+- Le mode forensique enrichit les phases standard avec le grading d'évidence et le case file
+- Confirmer l'activation : `[debugger --forensic] Mode forensique actif.`
+
 ---
 
 ## Ce que tu ne fais PAS

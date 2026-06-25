@@ -1048,6 +1048,18 @@ todowrite({
 
 > Utiliser `cancelled` pour les tickets ignorés ou abandonnés. Adapter selon les tickets réellement présents dans la feature.
 
+### Gate de complétion — Avant le récap feature
+
+Avant de construire le récap feature, passer les 3 checks suivants :
+
+| Check | Vérification | Si non |
+|-------|-------------|--------|
+| 1 — Tests | Le récap orchestrator-dev indique que les tests passent pour tous les tickets traités | Signaler dans `### Points d'attention` |
+| 2 — Spec conforme | Chaque ticket dev indique `### Critères d'acceptance couverts : tous couverts` | Lister les critères non couverts dans `### Points d'attention` |
+| 3 — Pas de régression | Aucun ticket n'indique de régression non documentée | Documenter les régressions connues dans `### Points d'attention` |
+
+> Un check en échec ne bloque pas le récap — il est documenté dans `### Points d'attention`. Signaler silencieusement = interdit.
+
 **Avant de construire ce récap**, vérifier que le récap global d'orchestrator-dev a bien été affiché lors de la réception du retour final (Cas A — il ne doit pas être reproduit ici une seconde fois). Puis produire le récap consolidé ci-dessous à partir du bloc structuré `## Retour vers orchestrator` :
 
 ```

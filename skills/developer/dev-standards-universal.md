@@ -80,6 +80,35 @@ Ne pas supprimer avant réponse explicite de l'utilisateur.
 
 ---
 
+## Gate de complétion — Avant tout `DONE` / `TERMINÉ`
+
+Avant de signaler une tâche comme terminée ou de produire un bloc handoff,
+passer les 3 checks suivants **dans l'ordre** :
+
+### Check 1 — Tests passent
+
+✅ Les tests existants passent (`npm test` / `pytest` / équivalent)
+✅ Les nouveaux tests écrits pour cette tâche passent
+❌ Si aucun test n'existe pour le périmètre concerné : documenter explicitement dans le handoff :
+> `### Couverture tests : aucun test sur ce périmètre — raison : [...]`
+
+### Check 2 — Comportement observable conforme à la spec
+
+✅ Relire les critères d'acceptance du ticket
+✅ Vérifier le comportement attendu (entrées → sorties, états, effets de bord publics)
+❌ Tout écart → documenter dans le handoff avant de déclarer terminé
+
+### Check 3 — Aucune régression connue non documentée
+
+✅ Vérifier que les fonctionnalités existantes liées ne sont pas cassées
+✅ Vérifier via `git diff` que les modifications sont dans le périmètre attendu
+❌ Toute régression détectée → corriger ou documenter explicitement (jamais ignorer silencieusement)
+
+**Règle absolue :** les 3 checks doivent être passés ou leur impossibilité explicitement documentée.
+Un `DONE` sans gate = handoff invalide.
+
+---
+
 ## Mode Auditeur
 
 Déclenchement : `@dev-standards audit`
