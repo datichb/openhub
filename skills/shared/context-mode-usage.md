@@ -89,6 +89,11 @@ La commande se termine toute seule ?
 
 ## Valeurs de `timeout` recommandées
 
+> **Important — `timeout` est un paramètre de l'outil MCP (millisecondes), pas une commande shell.**
+> Ne jamais utiliser `timeout yarn dev` ou `gtimeout yarn dev` dans le champ `code` :
+> la commande `timeout` n'existe pas nativement sur macOS (`gtimeout` nécessite GNU coreutils)
+> et est de toute façon le mauvais outil — c'est le paramètre de l'outil qui gère l'interruption.
+
 | Type de commande | Timeout suggéré |
 |---|---|
 | Lecture/listing (`ls`, `bd show`, `git status`) | `10000` (10s) |
@@ -119,4 +124,59 @@ ctx_batch_execute(
   timeout: 30000,
   concurrency: 2
 )
+
+// ❌ commande shell timeout/gtimeout — indisponible sur macOS, mauvaise approche
+ctx_execute(language: "shell", code: "timeout 10 yarn dev")
+ctx_execute(language: "shell", code: "gtimeout 10 yarn dev")
 ```
+
+---
+
+## Capturer les erreurs de démarrage d'un serveur
+
+Quand un serveur dev crashe au boot (port occupé, mauvaise config, dépendance manquante...),
+`ctx_execute` avec `background: true` capture automatiquement les logs de démarrage
+**avant** le détachement — l'erreur est dans l'output retourné.
+
+### Toujours rediriger stderr vers stdout
+
+```
+// ✅ capture stdout + stderr (erreurs de boot incluses)
+ctx_execute(
+  language: "shell",
+  code: "yarn dev 2>&1",
+  background: true
+)
+```
+
+Sans `2>&1`, les erreurs écrites sur stderr (la majorité des crashs) ne sont **pas** retournées.
+
+### Lire l'output retourné
+
+`ctx_execute` avec `background: true` retourne l'output partiel accumulé pendant le démarrage.
+Si le serveur crashe immédiatement → l'output contient l'erreur complète.
+Si le serveur démarre correctement → l'output contient les premières lignes (port, mode, URL).
+
+```
+// Exemple de retour en cas de crash :
+// Error: listen EADDRINUSE: address already in use :::3000
+//   at Server.setupListenHandle [as _listen2] (node:net:1738:16)
+
+// Exemple de retour en cas de succès :
+// vite v5.0.0  ready in 312 ms
+// ➜  Local:   http://localhost:3000/
+```
+
+### Pattern complet — démarrer et vérifier
+
+```
+// 1. Lancer le serveur en background (stderr capturé)
+ctx_execute(language: "shell", code: "yarn dev 2>&1", background: true)
+
+// 2. Lire l'output retourné pour détecter un crash
+//    → erreur présente : diagnostiquer sans relancer
+//    → démarrage OK    : continuer avec l'URL affichée
+```
+
+Il n'est **pas nécessaire** d'utiliser `sleep`, `wait`, ou des boucles de polling —
+le détachement intervient après que le process a produit ses premiers outputs.
