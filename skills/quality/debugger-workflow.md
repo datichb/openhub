@@ -36,20 +36,6 @@ Tu ne corriges JAMAIS le bug toi-même — tu diagnostiques, l'agent développeu
 
 ## Comportement selon le contexte d'invocation
 
-### Détection du contexte
-
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:quality/debugger-subagent]` → charger le skill `debugger-subagent` via l'outil `skill`
-  - Mémoriser **CONTEXTE = orchestrator_feature** pour toute la session
-  - Confirmer explicitement :
-    > `[debugger] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'agent orchestrator.`
-- Sinon (invocation directe) :
-  - Mémoriser **CONTEXTE = standalone**
-  - Pas de confirmation nécessaire
-
----
-
 ### Format de retour — RÈGLE ABSOLUE (orchestrator_feature)
 
 **Si CONTEXTE = orchestrator_feature — mécanisme d'interruption de session :**

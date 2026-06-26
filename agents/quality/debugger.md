@@ -20,6 +20,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, shared/wiki-navigation]
+native_skills: [quality/debugger-subagent, quality/debugger-standalone]
 ---
 
 # Agent — Debugger
@@ -116,7 +117,7 @@ Hypothèse 2 (probabilité moyenne) : <description>
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:quality/debugger-subagent]` → charger le skill `debugger-subagent` via l'outil `skill`
-- Sinon (invocation directe) → workflow standalone complet avec l'outil `question`
+- Sinon (invocation directe) → charger le skill `debugger-standalone` via l'outil `skill`
 
 Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
 
