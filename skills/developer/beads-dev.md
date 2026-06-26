@@ -190,6 +190,22 @@ bd close <ID> --reason-file /tmp/close-reason.txt
 
 ---
 
+## Exécution de commandes shell — règle obligatoire
+
+Avant de lancer une commande via les outils context-mode :
+
+```
+La commande se termine toute seule (tsc, jest, git, curl...) ?
+├── OUI → ctx_batch_execute  — timeout OBLIGATOIRE, ne jamais omettre
+└── NON → ctx_execute avec background: true
+          (yarn dev, npm run dev, vite, nodemon, tsc --watch, tail -f...)
+```
+
+**Ne jamais passer une commande non-terminante dans `ctx_batch_execute`** — cela bloque
+le batch indéfiniment. Voir le skill `shared/context-mode-usage` pour les détails et valeurs de timeout.
+
+---
+
 ## Règles strictes
 
 - Toujours `bd show <ID>` avant d'implémenter — ne jamais supposer le contenu d'un ticket

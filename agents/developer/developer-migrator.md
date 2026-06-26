@@ -21,7 +21,7 @@ permission:
   ctx_batch_execute: allow
   ctx_fetch_and_index: allow
   ctx_index: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/living-docs-enrichment, shared/wiki-navigation, shared/context-mode-usage]
 native_skills: [developer/dev-standards-security, developer/dev-standards-testing, developer/dev-standards-git, developer/dev-standards-migration]
 ---
 

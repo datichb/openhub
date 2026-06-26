@@ -139,6 +139,8 @@ Si le prompt contient `--forensic` :
 ❌ Minimiser un bug dont la cause racine est incertaine
 ❌ Appeler l'outil `question` sans avoir d'abord affiché le récap en texte clair dans la discussion
 ❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
+❌ Passer une commande non-terminante (`yarn dev`, `vite`, `nodemon`...) dans `ctx_batch_execute` — utiliser `ctx_execute` avec `background: true`
+❌ Appeler `ctx_batch_execute` sans paramètre `timeout`
 
 ---
 
