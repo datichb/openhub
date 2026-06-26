@@ -50,6 +50,7 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 - Faire un `git push` — jamais, sans exception
 - Passer une commande non-terminante (`yarn dev`, `vite`, `nodemon`...) dans `ctx_batch_execute` — utiliser `ctx_execute` avec `background: true`
 - Appeler `ctx_batch_execute` sans paramètre `timeout`
+- Laisser un process background tourner en fin de tâche — tout process lancé doit être arrêté via `Bash("pkill -f '...'")`
 
 ## Workflow
 

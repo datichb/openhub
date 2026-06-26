@@ -83,6 +83,7 @@ La commande se termine toute seule ?
 │
 └── NON → ctx_execute avec background: true
           (yarn dev, vite, nodemon, watchers, tail -f, etc.)
+          ⚠️  Arrêter le process en fin de tâche : Bash("pkill -f '...'")
 ```
 
 ---
@@ -128,6 +129,12 @@ ctx_batch_execute(
 // ❌ commande shell timeout/gtimeout — indisponible sur macOS, mauvaise approche
 ctx_execute(language: "shell", code: "timeout 10 yarn dev")
 ctx_execute(language: "shell", code: "gtimeout 10 yarn dev")
+
+// ❌ terminer la tâche sans arrêter le process background
+// → port occupé, process zombie, run suivant cassé
+ctx_execute(language: "shell", code: "yarn dev", background: true)
+// [utiliser le serveur]
+// FIN DE TÂCHE — sans pkill → process toujours en vie
 ```
 
 ---
@@ -180,3 +187,47 @@ ctx_execute(language: "shell", code: "yarn dev 2>&1", background: true)
 
 Il n'est **pas nécessaire** d'utiliser `sleep`, `wait`, ou des boucles de polling —
 le détachement intervient après que le process a produit ses premiers outputs.
+
+---
+
+## Arrêter un process background — obligatoire
+
+**Tout process lancé en background doit être arrêté avant la fin de la tâche, sans exception.**
+
+Un process oublié occupe le port pour la session suivante et consomme des ressources inutilement.
+
+### Pattern d'arrêt — par nom de commande
+
+```bash
+# Via Bash (hors sandbox — effet réel sur le système)
+Bash("pkill -f 'yarn dev'")
+Bash("pkill -f 'npm run start:dev'")
+Bash("pkill -f 'tsc --watch'")
+Bash("pkill -f 'vite'")
+```
+
+### Pattern d'arrêt — par PID (plus précis si plusieurs serveurs tournent)
+
+```
+// 1. Au démarrage, capturer le PID
+ctx_execute(language: "shell", code: "yarn dev 2>&1 & echo \"PID:$!\"", background: true)
+// → l'output contient "PID:12345" — noter la valeur
+
+// 2. En fin de tâche, tuer précisément ce process
+Bash("kill 12345")
+```
+
+### Timing obligatoire
+
+```
+1. ctx_execute(..., background: true)   ← démarrer
+2. [utiliser le serveur : tests, vérifications, requêtes]
+3. Bash("pkill -f 'yarn dev'")          ← arrêter AVANT de clore la tâche
+```
+
+### Anti-patterns à ajouter à la vigilance
+
+```
+// ❌ terminer la tâche sans arrêter le process background
+// → port occupé, process zombie, run suivant cassé
+```

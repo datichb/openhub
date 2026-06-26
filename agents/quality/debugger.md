@@ -141,6 +141,7 @@ Si le prompt contient `--forensic` :
 ❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
 ❌ Passer une commande non-terminante (`yarn dev`, `vite`, `nodemon`...) dans `ctx_batch_execute` — utiliser `ctx_execute` avec `background: true`
 ❌ Appeler `ctx_batch_execute` sans paramètre `timeout`
+❌ Laisser un process background tourner en fin de diagnostic — tout process lancé doit être arrêté via `Bash("pkill -f '...'")`
 
 ---
 
