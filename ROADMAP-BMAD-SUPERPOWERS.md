@@ -116,9 +116,9 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 2. Comportement observable conforme à la spec
 3. Aucune régression connue non documentée
 
-- [ ] Ajouter section "Gate de complétion" dans `skills/developer/dev-standards-universal.md`
-- [ ] Ajouter gate explicite avant handoff dans `skills/qa/qa-protocol.md`
-- [ ] Ajouter vérification avant clôture de tâche Beads dans `skills/orchestrator/orchestrator-protocol.md`
+- [x] Ajouter section "Gate de complétion" dans `skills/developer/dev-standards-universal.md`
+- [x] Ajouter gate explicite avant handoff dans `skills/qa/qa-protocol.md`
+- [x] Ajouter vérification avant clôture de tâche Beads dans `skills/orchestrator/orchestrator-protocol.md`
 
 **Fichiers modifiés :** 3 fichiers skills existants
 
@@ -140,11 +140,11 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 - Missing evidence = finding en soi
 - Delegation discipline : >5 fichiers ou >10K tokens → déléguer à subagent (JSON structuré)
 
-- [ ] Étendre `skills/qa/debugger-workflow.md` avec section "Mode Forensique"
+- [x] Étendre `skills/qa/debugger-workflow.md` avec section "Mode Forensique"
   - Case file `.investigation-{slug}.md` créé dès accord sur le slug
   - Template case file (hypothèses, évidence, timeline, conclusion)
   - Protocole de résumé à chaque reprise de session (open hypotheses, backlog, missing evidence)
-- [ ] Modifier `agents/quality/debugger.md` pour exposer le flag `--forensic`
+- [x] Modifier `agents/quality/debugger.md` pour exposer le flag `--forensic`
 
 **Fichiers modifiés :** `skills/qa/debugger-workflow.md`, `agents/quality/debugger.md`
 
@@ -164,13 +164,14 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 2. Revenir à l'état précédent (git revert + nouvelle approche)
 3. Bifurquer : créer une tâche de refactoring pré-requisite
 
-- [ ] Créer `skills/developer/dev-drift-detection.md`
+- [x] Créer `skills/developer/dev-drift-detection.md`
   - Critères de dérive (liste de signaux)
   - Process de décision avec les 3 options
   - Template de rapport de dérive pour l'orchestrateur
-- [ ] Ajouter trigger de détection dans `skills/orchestrator/orchestrator-dev-protocol.md`
+- [x] Ajouter trigger de détection dans `skills/orchestrator/orchestrator-dev-protocol.md`
   - Condition : developer-subagent retourne un status `BLOCKED_ARCHITECTURE`
-  - Action : activer `dev-drift-detection`
+  - Action : appel explicite `skill("developer/dev-drift-detection")`
+- [x] Documenter signal `BLOCKED_ARCHITECTURE` côté émetteur dans `skills/developer/dev-standards-universal.md`
 
 **Fichiers créés :** `skills/developer/dev-drift-detection.md`  
 **Fichiers modifiés :** `skills/orchestrator/orchestrator-dev-protocol.md`
@@ -196,7 +197,7 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 - **Large (11–13 pts)** → pathfinder obligatoire + audit pré-implem, tickets structurés
 - **Enterprise (14–16 pts)** → toutes phases + onboarder pre-flight, architecture review
 
-- [ ] Modifier `skills/planning/planner-workflow.md` — ajouter Étape 0 "Complexity Scoring" avant Phase 1
+- [x] Modifier `skills/planning/planner-workflow.md` — ajouter Étape 0 "Complexity Scoring" avant Phase 1
   - Grille de scoring
   - Comportement conditionnel par tier
   - Intégration avec la décision pathfinder/planner direct dans `hub-workflow-reference` (Phase 3)

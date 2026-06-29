@@ -109,6 +109,47 @@ Un `DONE` sans gate = handoff invalide.
 
 ---
 
+## Signal BLOCKED_ARCHITECTURE — Dérive architecturale
+
+Émettre le statut `BLOCKED_ARCHITECTURE` dans le bloc `## Retour vers orchestrator-dev`
+quand **au moins un** de ces signaux est présent :
+
+- La spec assume une abstraction, interface ou couche absente du codebase réel
+- L'implémentation nécessite de modifier >3 fichiers non prévus dans le ticket
+- Le contrat d'interface (type, DTO, signature) est incompatible et le modifier casserait des consommateurs existants
+- La feature suppose un pattern architectural (use case, aggregate, port/adapter) absent du projet
+- Une dépendance entre tickets rend l'implémentation impossible sans modifier un ticket précédent
+- L'estimation initiale est dépassée de plus de 2× sans révision de spec
+
+**Format du rapport à produire avant de terminer la session :**
+
+```markdown
+## Rapport de dérive — #<ID>
+
+**Statut :** BLOCKED_ARCHITECTURE
+
+### Dérive identifiée
+<description précise avec path:line — grade [Confirmed]>
+
+### Fichiers concernés
+<liste des fichiers impactés>
+
+### Options proposées
+- **Option A — Réviser la tâche Beads** : <adaptation du périmètre proposée>
+- **Option B — Revert + nouvelle approche** : <approche alternative>
+- **Option C — Bifurquer (ticket refactoring prérequis)** : <description du ticket à créer>
+
+### Recommandation
+<option recommandée + justification>
+```
+
+❌ Ne jamais continuer l'implémentation si un signal de dérive est détecté.
+❌ Ne jamais choisir une option sans la présenter à l'orchestrator-dev.
+✅ Toujours documenter la dérive avec `path:line` (grade [Confirmed]).
+✅ Toujours estimer l'effort pour chaque option.
+
+---
+
 ## Mode Auditeur
 
 Déclenchement : `@dev-standards audit`

@@ -9,6 +9,34 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Gate de complétion — enforcement CP-feature** (`skills/orchestrator/orchestrator-protocol.md`) :
+  validation bloquante avant construction du CP-feature — vérifie que le rapport final
+  d'orchestrator-dev documente les 3 checks (tests passés, comportement observable conforme,
+  régressions documentées ou absence justifiée). Si absent → question à l'utilisateur :
+  redemander à orchestrator-dev (avec `task_id`) / accepter / stop.
+
+- **Signal `BLOCKED_ARCHITECTURE`** (`skills/developer/dev-standards-universal.md`) :
+  documentation côté émetteur — 6 conditions de déclenchement (spec contradictoire, >3 fichiers
+  imprévus, contrat d'interface incompatible, pattern architectural absent, dépendance bloquante,
+  estimation dépassée ×2), format du rapport de dérive avec graduation des preuves, 3 options
+  proposées à l'orchestrator-dev (réviser scope / revert / bifurquer).
+
+- **Appel explicite `skill()` pour drift detection** (`skills/orchestrator/orchestrator-dev-protocol.md`) :
+  remplacement de "activer le skill" par instruction explicite `skill("developer/dev-drift-detection")`
+  lors de la réception du statut `BLOCKED_ARCHITECTURE` — garantit l'appel réel à l'outil.
+
+- **Forensic debugger** (`skills/quality/debugger-workflow.md`, implémenté en v1.5.0, documenté maintenant) :
+  mode `--forensic` avec graduation de preuves Confirmed/Deduced/Hypothesized, stronghold-first,
+  case file `.investigation-{slug}.md`, missing evidence = finding, délégation si >5 fichiers
+  ou >10K tokens.
+
+- **Scale-Domain-Adaptive Planning** (`skills/planning/planner-workflow.md`, implémenté en v1.5.0, documenté maintenant) :
+  Phase 0.5 — scoring de complexité 4 critères × 4 pts (domaines, intégrations, sécurité, taille
+  codebase), 4 tiers Small/Medium/Large/Enterprise, conditionne pathfinder obligatoire et
+  audit pré-implémentation selon le tier.
+
 ### Changed
 
 - **Réduction de la verbosité des hand-offs et récapitulatifs agents** — suppression des duplications dans les chaînes de retour inter-agents :

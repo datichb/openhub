@@ -909,10 +909,47 @@ Le routing est entièrement délégué au planner. Voir règles de routing dans 
    → **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets traités avec agent, QA, cycles de review, critères couverts, statut + points d'attention agrégés) — ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
    → Si le récap global complet (texte précédant le bloc structuré) est absent, le demander explicitement à orchestrator-dev avant de continuer.
    → Lire ensuite le bloc structuré `## Retour vers orchestrator`. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
-   > Si le bloc structuré ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
+    > Si le bloc structuré ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
 
-   **Cas B — question montante** : le résultat contient `## Question pour l'orchestrator`
+    → **Valider le gate de complétion** (voir section ci-dessous) avant de construire le CP-feature.
+
+    **Cas B — question montante** : le résultat contient `## Question pour l'orchestrator`
    → Voir section ci-dessous.
+
+---
+
+### Validation du gate de complétion (obligatoire avant CP-feature)
+
+Avant de construire le CP-feature, vérifier que la documentation du gate de complétion
+est présente dans le rapport final d'orchestrator-dev.
+
+**Indicateurs attendus** (dans `### Points d'attention` ou le récap global) :
+- Mention des tests passés — ou justification explicite si aucun test sur le périmètre
+- Mention du comportement observable conforme aux specs
+- Mention de l'absence de régressions connues — ou leur documentation explicite
+
+**Si le gate est absent ou incomplet → ne pas construire le CP-feature :**
+
+```
+question({
+  questions: [{
+    header: "Gate de complétion absent",
+    question: "[Orchestrator — Validation gate | Feature : <nom>]\nLe rapport final d'orchestrator-dev ne documente pas le gate de complétion (3 checks : tests, comportement observable, régressions).\n\nComment procéder ?",
+    options: [
+      { label: "Redemander à orchestrator-dev (Recommandé)", description: "Invoquer orchestrator-dev avec task_id pour compléter le rapport" },
+      { label: "Accepter et continuer", description: "Considérer le gate comme implicitement passé — risque : régressions non détectées" },
+      { label: "Stop", description: "Arrêter le workflow — investigation manuelle requise" }
+    ]
+  }]
+})
+```
+
+**Si "Redemander à orchestrator-dev"** → invoquer `task(orchestrator-dev)` avec le `task_id`
+de la session précédente en précisant :
+> « Le rapport final doit documenter explicitement le gate de complétion : tests passés,
+> comportement observable conforme, régressions documentées ou absence justifiée. »
+
+❌ Ne jamais construire le CP-feature sans gate documenté — sauf choix explicite "Accepter et continuer".
 
 ---
 

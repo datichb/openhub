@@ -131,6 +131,8 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 
 **Gestion des agents manquants :** si un agent requis n'est pas déployé dans le projet, l'agent orchestrator pose une question structurée avec les options : déployer via `!oc deploy` sans quitter OpenCode / utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Ne bascule jamais silencieusement vers un autre agent.
 
+**Gate de complétion (CP-feature) :** avant de construire le CP-feature, vérifie que le rapport final d'orchestrator-dev documente les 3 checks de complétion (tests passés, comportement observable conforme, régressions documentées). Si absent → bloquant : question à l'utilisateur (redemander à orchestrator-dev / accepter / stop).
+
 ---
 
 ### `orchestrator-dev`
@@ -152,6 +154,8 @@ CP-2 (commit ou corriger ?) est toujours manuel dans tous les modes.
 `bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
 En mode `orchestrator_feature` : tous les CPs (CP-1, CP-QA, CP-3, branche dédiée, CP-2, blocage, ticket bloqué) produisent un bloc `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel) et terminent la session pour que l'agent orchestrator relaie la question à l'utilisateur.
+
+**Dérive architecturale (BLOCKED_ARCHITECTURE) :** quand un developer retourne ce statut, charge le skill `developer/dev-drift-detection` via l'outil `skill` et présente 3 options à l'utilisateur : réviser le scope du ticket Beads / revert + nouvelle approche / bifurquer vers un ticket de refactoring prérequis (mis en `blocked` jusqu'à résolution).
 
 > Voir [ADR-006](./adr/006-orchestrator-configurable-mode.fr.md) — les modes s'appliquent à `orchestrator-dev` uniquement.
 
@@ -358,6 +362,12 @@ environnement-spécifique, données, configuration, dépendances, régression). 
 rapport de diagnostic avec hypothèses graduées. Crée un ticket Beads de correction après
 confirmation explicite. Ne corrige jamais le bug.
 
+**Mode `--forensic`** : analyse criminalistique renforcée avec graduation de preuves
+(Confirmed / Deduced / Hypothesized). Stronghold-first — ancrage sur une preuve Confirmed
+avant tout raisonnement. Produit un case file `.investigation-{slug}.md` (table d'hypothèses,
+preuves, timeline, preuves manquantes). Evidence manquante = finding en soi. Délégation
+obligatoire si >5 fichiers ou >10K tokens.
+
 **Phase 5 — Enrichissement des documents vivants :** après le rapport, identifie les zones d'ombre
 levées par le diagnostic et les patterns d'erreur à mémoriser, puis propose à l'utilisateur d'enrichir
 `ONBOARDING.md` et/ou `CONVENTIONS.md`. Si accepté, délègue l'écriture au `documentarian` via `task`
@@ -382,7 +392,10 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 | **Invocation** | Description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
 Consultant fonctionnel et technique qui analyse le contexte projet avant de planifier.
-Workflow en 7 phases : vérification prérequis → exploration contextuelle (codebase, tickets,
+Workflow en 7 phases : vérification prérequis → **complexity scoring** (Phase 0.5 — 4 critères :
+domaines techniques, intégrations tiers, sensibilité sécurité, taille codebase ; score 4–16 pts ;
+tiers Small/Medium/Large/Enterprise ; conditionne pathfinder obligatoire et audit pré-implémentation)
+→ exploration contextuelle (codebase, tickets,
 signaux UX/UI) → délégation design optionnelle (Phase 1.5) → questions complémentaires →
 plan hiérarchique (epics → tickets, priorités déduites et justifiées) → détection cas
 particuliers (doublons, tickets trop gros, dépendances circulaires) → création Beads avec

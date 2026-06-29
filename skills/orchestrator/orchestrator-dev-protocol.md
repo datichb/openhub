@@ -495,10 +495,11 @@ question({
        - **Présent** → lire le `### Statut` :
          - `implémenté` ou `partiellement-implémenté` → continuer vers l'étape 3
          - `bloqué` → traiter comme un "Ticket bloqué en cours d'implémentation" (voir section dédiée)
-         - `BLOCKED_ARCHITECTURE` → **activer le skill `developer/dev-drift-detection`** :
-           1. Lire le rapport de dérive fourni par le developer
-           2. Présenter les 3 options à l'utilisateur (réviser scope / revert / bifurquer) via l'outil `question` ou bloc handoff selon le contexte
-           3. Appliquer la décision : modifier le ticket Beads (Option A), relancer depuis l'étape 1b (Option B), ou créer le ticket de refactoring et mettre le ticket courant en `blocked` (Option C)
+          - `BLOCKED_ARCHITECTURE` → **charger puis appliquer le skill de gestion de dérive** :
+            0. Appeler `skill("developer/dev-drift-detection")` pour charger le protocole
+            1. Lire le rapport de dérive fourni par le developer
+            2. Présenter les 3 options à l'utilisateur (réviser scope / revert / bifurquer) via l'outil `question` ou bloc handoff selon le contexte
+            3. Appliquer la décision : modifier le ticket Beads (Option A), relancer depuis l'étape 1b (Option B), ou créer le ticket de refactoring et mettre le ticket courant en `blocked` (Option C)
        - **Absent** → demander explicitement au developer de produire le bloc avant de continuer.
 
    Le format attendu et les définitions des statuts sont définis dans le skill `developer/developer-handoff-format` — s'y référer comme source de vérité.
