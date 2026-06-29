@@ -267,20 +267,20 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 
 ## Récapitulatif fichiers
 
-### Fichiers créés (11)
+### Fichiers créés — Phases 1–3 (8 créés) + Phase 4 (2 à créer)
 
-| Fichier | Phase | Item |
-|---|---|---|
-| `skills/reviewer/reviewer-reception.md` | 1 | B |
-| `skills/reviewer/reviewer-adversarial.md` | 1 | I |
-| `skills/reviewer/reviewer-edge-case.md` | 1 | I |
-| `skills/shared/elicitation-techniques.md` | 1 | M |
-| `skills/developer/dev-drift-detection.md` | 2 | J |
-| `skills/shared/hub-workflow-reference.md` | 3 | A |
-| `docs/architecture/adr/018-hub-workflow-reference.fr.md` | 3 | A |
-| `docs/architecture/adr/018-hub-workflow-reference.en.md` | 3 | A |
-| `docs/guides/authoring-skills.md` | 4 | F |
-| `skills/shared/skill-authoring-protocol.md` | 4 | F |
+| Fichier | Phase | Item | Statut |
+|---|---|---|---|
+| `skills/reviewer/reviewer-reception.md` | 1 | B | ✅ créé |
+| `skills/reviewer/reviewer-adversarial.md` | 1 | I | ✅ créé |
+| `skills/reviewer/reviewer-edge-case.md` | 1 | I | ✅ créé |
+| `skills/shared/elicitation-techniques.md` | 1 | M | ✅ créé |
+| `skills/developer/dev-drift-detection.md` | 2 | J | ✅ créé |
+| `skills/shared/hub-workflow-reference.md` | 3 | A | ✅ créé |
+| `docs/architecture/adr/018-hub-workflow-reference.fr.md` | 3 | A | ✅ créé |
+| `docs/architecture/adr/018-hub-workflow-reference.en.md` | 3 | A | ✅ créé |
+| `docs/guides/authoring-skills.md` | 4 | F | ⏳ à faire |
+| `skills/shared/skill-authoring-protocol.md` | 4 | F | ⏳ à faire |
 
 ### Fichiers modifiés (12)
 

@@ -358,11 +358,14 @@ orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              qa/qa-handoff-format †,
                              documentarian/documentarian-handoff-format †
                         (B) developer/dev-drift-detection,
-                             orchestrator/session-state-protocol
+                             orchestrator/session-state-protocol,
+                             orchestrator/orchestrator-dev-standalone,
+                             orchestrator/orchestrator-dev-subagent
                         skill: allow
 onboarder             → (A) planning/onboarder-workflow,
                              posture/expert-posture, posture/tool-question,
                              developer/beads-plan, developer/dev-standards-git,
+                             shared/websearch-usage,
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              planning/onboarder-handoff-format †,
                              adapters/figma-onboarder-protocol,
@@ -370,8 +373,10 @@ onboarder             → (A) planning/onboarder-workflow,
                         (B) planning/onboarder-standalone, planning/onboarder-subagent,
                              planning/websearch-stack-research
 planner               → (A) developer/beads-plan, planning/planner-workflow,
-                             posture/expert-posture, posture/tool-question,
-                             shared/living-docs-enrichment,
+                             design/design-planner-format,
+                             posture/expert-posture, posture/concision-posture,
+                             posture/tool-question,
+                             shared/living-docs-enrichment, shared/websearch-usage,
                              planning/planner-handoff-format †,
                              shared/hub-workflow-reference
                         (B) planning/planner-standalone, planning/planner-subagent,
@@ -386,18 +391,21 @@ pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol
                         (B) planning/pathfinder-standalone, planning/pathfinder-subagent,
                              planning/websearch-stack-research
 reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
-                             posture/tool-question,
-                             shared/living-docs-enrichment,
+                             posture/concision-posture, posture/tool-question,
+                             shared/living-docs-enrichment, shared/wiki-navigation,
                              reviewer/reviewer-handoff-format †
-                         (B) dev-standards-security, dev-standards-backend,
-                              dev-standards-frontend, dev-standards-frontend-a11y,
-                              dev-standards-testing, dev-standards-git,
-                              reviewer/reviewer-adversarial, reviewer/reviewer-edge-case
+                         (B) reviewer/reviewer-standalone, reviewer/reviewer-subagent,
+                              reviewer/reviewer-adversarial, reviewer/reviewer-edge-case,
+                              dev-standards-security, dev-standards-backend,
+                              dev-standards-frontend, dev-standards-frontend-data,
+                              dev-standards-frontend-a11y,
+                              dev-standards-testing, dev-standards-git
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
-                             posture/tool-question, qa/qa-protocol,
-                             shared/living-docs-enrichment,
+                             posture/concision-posture, posture/tool-question,
+                             qa/qa-protocol,
+                             shared/living-docs-enrichment, shared/wiki-navigation,
                              qa/qa-handoff-format †
-                         (B) dev-standards-git
+                         (B) qa/qa-standalone, qa/qa-subagent, dev-standards-git
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
                              shared/living-docs-enrichment, shared/wiki-navigation,
@@ -433,6 +441,7 @@ ui-designer           → (A) designer/ui-protocol, developer/beads-plan,
                         (B) designer/ui-subagent, design/websearch-design-patterns,
                              adapters/figma-ui-designer-protocol
 documentarian         → (A) dev-standards-git, developer/beads-plan,
+                             developer/beads-dev,
                              documentarian/doc-protocol, posture/expert-posture,
                              posture/tool-question,
                              documentarian/documentarian-handoff-format †,

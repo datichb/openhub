@@ -64,7 +64,7 @@ Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
 |--|--|
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `adapters/figma-onboarder-protocol`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/living-docs-enrichment`, `shared/wiki-navigation` |
+| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `adapters/figma-onboarder-protocol`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/websearch-usage`, `shared/living-docs-enrichment`, `shared/wiki-navigation` — native : `planning/onboarder-standalone`, `planning/onboarder-subagent`, `planning/websearch-stack-research` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` / `"Avant de commencer, explore le projet"` |
 
@@ -141,7 +141,7 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 |--|--|
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format`, `documentarian/documentarian-handoff-format` |
+| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format`, `documentarian/documentarian-handoff-format` — native : `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol` |
 | **Invocation** | `"Implémente les tickets [IDs]"` / `"Workflow dev sur [feature]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
@@ -310,7 +310,7 @@ Agents dédiés à la qualité du code, invocables standalone ou via l'agent orc
 |--|--|
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/living-docs-enrichment` |
+| **Skills** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native : `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git` |
 | **Invocation** | Nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
@@ -327,7 +327,7 @@ de fichiers.
 |--|--|
 | **Label** | QAEngineer |
 | **Fichier** | `agents/quality/qa-engineer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment` |
+| **Skills** | `developer/dev-standards-universal`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment`, `shared/wiki-navigation` — native : `qa/qa-standalone`, `qa/qa-subagent`, `developer/dev-standards-git` |
 | **Invocation** | `"Écris les tests pour la branche [X]"` / `"QA sur le ticket [ID]"` |
 
 Écrit les tests manquants (unit / integration / E2E) à partir d'un diff ou d'un
@@ -351,7 +351,7 @@ ces tickets — le `qa-engineer` n'est pas invoqué.
 |--|--|
 | **Label** | Debugger |
 | **Fichier** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture`, `posture/tool-question`, `shared/wiki-navigation` — native : `quality/debugger-standalone`, `quality/debugger-subagent` |
 | **Invocation** | `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
 
 Diagnostique la cause racine d'un bug en 6 phases structurées : vérification des artefacts
@@ -387,7 +387,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/hub-workflow-reference`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `design/design-planner-format`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `shared/hub-workflow-reference`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` — native : `planning/planner-standalone`, `planning/planner-subagent`, `planning/websearch-stack-research` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | Description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
@@ -427,7 +427,7 @@ délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichme
 |--|--|
 | **Label** | Pathfinder |
 | **Fichier** | `agents/planning/pathfinder.md` |
-| **Skills** | `developer/beads-plan`, `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `posture/tool-question`, `adapters/figma-pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol`, `shared/living-docs-enrichment` |
+| **Skills** | `developer/beads-plan`, `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `adapters/figma-pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol` — native : `planning/pathfinder-standalone`, `planning/pathfinder-subagent`, `planning/websearch-stack-research` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
@@ -453,7 +453,7 @@ Workflow libre — pas de phases rigides. Suggère l'escalade vers le planner si
 |--|--|
 | **Label** | Documentarian |
 | **Fichier** | `agents/documentation/documentarian.md` |
-| **Skills** | `developer/dev-standards-git`, `developer/beads-plan`, `developer/beads-dev`, `documentarian/doc-protocol`, `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | `developer/dev-standards-git`, `developer/beads-plan`, `developer/beads-dev`, `documentarian/doc-protocol`, `posture/expert-posture`, `posture/tool-question`, `documentarian/documentarian-handoff-format`, `shared/websearch-usage` — native : `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `documentarian/doc-wiki-protocol` |
 | **Invocation** | `"Documente [sujet]"` / `"Crée un ADR pour [décision]"` / `"Mets à jour le CHANGELOG"` / `"Qu'est-ce qui manque dans la doc ?"` / `"Crée une présentation pour [sujet]"` |
 
 Rédige et met à jour la documentation technique, fonctionnelle, architecturale, API,

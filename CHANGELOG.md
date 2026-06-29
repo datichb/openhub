@@ -61,8 +61,6 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **`agents/planning/planner.md`** : ajout `shared/hub-workflow-reference` dans `skills:`.
 
-### Changed (suite)
-
 - **Réduction de la verbosité des hand-offs et récapitulatifs agents** — suppression des duplications dans les chaînes de retour inter-agents :
 
   - **Récap global `orchestrator-dev` → `orchestrator`** : le `## Récap implémentation` passe d'une copie verbatim des comptes rendus narratifs developer-* à une synthèse structurée par ticket (statut, fichiers clés, critères couverts, points d'attention). Supprime N comptes rendus complets dans le fil de discussion pour N tickets traités.
