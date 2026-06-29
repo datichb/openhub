@@ -40,7 +40,7 @@ permission:
   ctx_batch_execute: allow
 model: anthropic/claude-sonnet-4-6
 skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/figma-pathfinder-protocol, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/pathfinder-standalone, planning/pathfinder-subagent, planning/websearch-stack-research]
+native_skills: [planning/pathfinder-standalone, planning/pathfinder-subagent, planning/websearch-stack-research, shared/rtk-usage]
 mcpServers: [figma, gitlab]
 ---
 

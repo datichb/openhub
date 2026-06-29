@@ -26,7 +26,7 @@ permission:
   ctx_batch_execute: allow
   ctx_index: allow
 skills: [developer/dev-standards-git, developer/beads-plan, developer/beads-dev, documentarian/doc-protocol, posture/expert-posture, posture/tool-question, documentarian/documentarian-handoff-format, shared/websearch-usage]
-native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol]
+native_skills: [documentarian/doc-standards, documentarian/doc-adr, documentarian/doc-api, documentarian/doc-changelog, documentarian/doc-slides, documentarian/doc-wiki-protocol, shared/skill-authoring-protocol, shared/rtk-usage]
 ---
 
 # Documentarian

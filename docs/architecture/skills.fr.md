@@ -318,6 +318,7 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 | Fichier | Bucket | Agents qui l'utilisent | Contenu |
 |---------|--------|----------------------|---------|
 | `shared/hub-workflow-reference.md` | **A** | orchestrator, planner | **Source de vérité canonique** — catalogue des agents (famille, mode, quand invoquer, output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de doute), séquences standard par type de feature (solo/UX/audit/complète), table des handoffs (émetteur → format skill → récepteur). Toute modification d'un agent doit inclure une mise à jour de ce skill. `source-of-truth: true` |
+| `shared/rtk-usage.md` | **B** | Tous les agents (16) | **Guide RTK** — commandes token-optimisées pour réduire la consommation contextuelle de 60–90%. Charger via `skill("shared/rtk-usage")` quand le contexte approche de la limite ou pour optimiser les lectures de fichiers. Déclaré dans `native_skills:` de tous les agents. |
 | `shared/skill-authoring-protocol.md` | **B** | documentarian | **Protocole d'authoring condensé** — TDD RED/GREEN/REFACTOR pour skills, SDO checklist (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization table template, checklist de validation 12 points. Charger via `skill("shared/skill-authoring-protocol")` lors de la création ou amélioration d'un skill. |
 | `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, qa-engineer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, QA, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
 
@@ -347,7 +348,8 @@ orchestrator          → (A) orchestrator/orchestrator-protocol,
                              auditor/audit-handoff-format †,
                              planning/onboarder-handoff-format †,
                              quality/debugger-handoff-format †
-                        skill: allow
+                        skill: allow,
+              shared/rtk-usage
 orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              orchestrator/orchestrator-handoff-format,
                              orchestrator/orchestrator-workflow-modes,
@@ -362,7 +364,8 @@ orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              orchestrator/session-state-protocol,
                              orchestrator/orchestrator-dev-standalone,
                              orchestrator/orchestrator-dev-subagent
-                        skill: allow
+                        skill: allow,
+              shared/rtk-usage
 onboarder             → (A) planning/onboarder-workflow,
                              posture/expert-posture, posture/tool-question,
                              developer/beads-plan, developer/dev-standards-git,
@@ -372,16 +375,20 @@ onboarder             → (A) planning/onboarder-workflow,
                              adapters/figma-onboarder-protocol,
                              adapters/gitlab-onboarder-protocol
                         (B) planning/onboarder-standalone, planning/onboarder-subagent,
-                             planning/websearch-stack-research
+                             planning/websearch-stack-research,
+              shared/rtk-usage
 planner               → (A) developer/beads-plan, planning/planner-workflow,
                              design/design-planner-format,
                              posture/expert-posture, posture/concision-posture,
                              posture/tool-question,
                              shared/living-docs-enrichment, shared/websearch-usage,
                              planning/planner-handoff-format †,
-                             shared/hub-workflow-reference
+                             shared/hub-workflow-reference,
+                             adapters/figma-planner-protocol,
+                             adapters/gitlab-planner-protocol
                         (B) planning/planner-standalone, planning/planner-subagent,
-                             planning/websearch-stack-research
+                             planning/websearch-stack-research,
+              shared/rtk-usage
 pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol,
                              posture/concision-posture, posture/tool-question,
                              shared/living-docs-enrichment, shared/wiki-navigation,
@@ -390,7 +397,8 @@ pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol
                              adapters/figma-pathfinder-protocol,
                              adapters/gitlab-pathfinder-protocol
                         (B) planning/pathfinder-standalone, planning/pathfinder-subagent,
-                             planning/websearch-stack-research
+                             planning/websearch-stack-research,
+              shared/rtk-usage
 reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              posture/concision-posture, posture/tool-question,
                              shared/living-docs-enrichment, shared/wiki-navigation,
@@ -400,32 +408,37 @@ reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                               dev-standards-security, dev-standards-backend,
                               dev-standards-frontend, dev-standards-frontend-data,
                               dev-standards-frontend-a11y,
-                              dev-standards-testing, dev-standards-git
+                              dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
                              posture/concision-posture, posture/tool-question,
                              qa/qa-protocol,
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              qa/qa-handoff-format †
-                         (B) qa/qa-standalone, qa/qa-subagent, dev-standards-git
+                         (B) qa/qa-standalone, qa/qa-subagent, dev-standards-git,
+              shared/rtk-usage
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              quality/debugger-handoff-format †
-                         (B) quality/debugger-standalone, quality/debugger-subagent
+                         (B) quality/debugger-standalone, quality/debugger-subagent,
+              shared/rtk-usage
 auditor               → (A) auditor/auditor-workflow, posture/tool-question,
                              posture/coordination-only, posture/retranscription-coordinateur,
                              auditor/audit-protocol-light,
                              shared/living-docs-enrichment,
                              auditor/audit-handoff-format †
                         (B) auditor/auditor-standalone, auditor/auditor-subagent
-                        skill: allow
+                        skill: allow,
+              shared/rtk-usage
 auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-posture,
                              posture/subagent-concision-posture,
                              auditor/audit-handoff-format †,
                              shared/websearch-usage
                          (B) auditor/audit-<domaine>  ← injecté par le coordinateur via [SKILL:...]
                               auditor/websearch-cve-lookup,
-                              auditor/websearch-performance-research
+                              auditor/websearch-performance-research,
+              shared/rtk-usage
 ux-designer           → (A) designer/ux-protocol, developer/beads-plan,
                              design/design-planner-format,
                              posture/expert-posture, posture/tool-question,
@@ -433,14 +446,16 @@ ux-designer           → (A) designer/ux-protocol, developer/beads-plan,
                              shared/websearch-usage
                         (B) designer/ux-subagent, design/websearch-design-patterns,
                              shared/elicitation-techniques,
-                             adapters/figma-ux-designer-protocol
+                             adapters/figma-ux-designer-protocol,
+              shared/rtk-usage
 ui-designer           → (A) designer/ui-protocol, developer/beads-plan,
                              design/design-planner-format,
                              posture/expert-posture, posture/tool-question,
                              design/design-handoff-format †,
                              shared/websearch-usage
                         (B) designer/ui-subagent, design/websearch-design-patterns,
-                             adapters/figma-ui-designer-protocol
+                             adapters/figma-ui-designer-protocol,
+              shared/rtk-usage
 documentarian         → (A) dev-standards-git, developer/beads-plan,
                              developer/beads-dev,
                              documentarian/doc-protocol, posture/expert-posture,
@@ -450,21 +465,24 @@ documentarian         → (A) dev-standards-git, developer/beads-plan,
                          (B) documentarian/doc-standards, documentarian/doc-adr,
                               documentarian/doc-api, documentarian/doc-changelog,
                               documentarian/doc-slides, documentarian/doc-wiki-protocol,
-                              shared/skill-authoring-protocol
+                              shared/skill-authoring-protocol,
+              shared/rtk-usage
 developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-frontend,
                              dev-standards-frontend-a11y, dev-standards-testing,
-                             dev-standards-git
+                             dev-standards-git,
+              shared/rtk-usage
                              + [stacks: language, frontend, test, api-spec]
 developer-backend     → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-backend,
-                             dev-standards-testing, dev-standards-git
+                             dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: language, backend, orm, test, api-spec]
 developer-fullstack   → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
@@ -472,54 +490,63 @@ developer-fullstack   → (A) dev-standards-universal, dev-standards-simplicity,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-frontend,
                              dev-standards-frontend-a11y, dev-standards-backend,
-                             dev-standards-testing, dev-standards-git
+                             dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: language, frontend, backend, orm, test, api-spec]
 developer-data        → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing, dev-standards-git
+                        (B) dev-standards-security, dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: language, data, test]
 developer-devops      → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-devops, dev-standards-git
+                        (B) dev-standards-security, dev-standards-devops, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: infra]
 developer-mobile      → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-testing, dev-standards-git
+                        (B) dev-standards-security, dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: mobile, test]
 developer-api         → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-backend, dev-standards-api,
-                             dev-standards-testing, dev-standards-git
+                             dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
 developer-platform    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
-                        (B) dev-standards-security, dev-standards-devops, dev-standards-git
+                        (B) dev-standards-security, dev-standards-devops, dev-standards-git,
+              shared/rtk-usage
                              + [stacks: infra]
 developer-security    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-security-hardening,
-                             dev-standards-backend, dev-standards-testing, dev-standards-git
+                             dev-standards-backend, dev-standards-testing, dev-standards-git,
+              shared/rtk-usage
 developer-migrator    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing,
-                             dev-standards-git, dev-standards-migration
+                             dev-standards-git, dev-standards-migration,
+              shared/rtk-usage
 developer-refactor    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,
                              developer/developer-handoff-format †
                         (B) dev-standards-security, dev-standards-testing,
-                             dev-standards-git, dev-standards-refactoring
+                             dev-standards-git, dev-standards-refactoring,
+              shared/rtk-usage
 ```

@@ -267,7 +267,7 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 
 ## Récapitulatif fichiers
 
-### Fichiers créés — Phases 1–3 (8 créés) + Phase 4 (2 à créer)
+### Fichiers créés — Phases 1–4 (10 créés)
 
 | Fichier | Phase | Item | Statut |
 |---|---|---|---|

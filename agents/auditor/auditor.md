@@ -16,7 +16,7 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
 skills: [posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, shared/living-docs-enrichment, posture/tool-question]
-native_skills: [auditor/auditor-standalone, auditor/auditor-subagent]
+native_skills: [auditor/auditor-standalone, auditor/auditor-subagent, shared/rtk-usage]
 ---
 
 # Auditeur
