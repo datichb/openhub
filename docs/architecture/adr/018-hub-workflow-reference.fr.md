@@ -4,7 +4,7 @@
 
 ## Statut
 
-Proposé
+Accepté — implémenté le 2026-06-29
 
 ## Contexte
 

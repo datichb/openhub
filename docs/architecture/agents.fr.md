@@ -108,7 +108,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | Orchestrator |
 | **Fichier** | `agents/planning/orchestrator.md` |
-| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format` — native : `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format` |
+| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` — native : `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format` |
 | **MCP Servers** | _(aucun)_ |
 | **Invocation** | `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` / `"Implémente le ticket #42"` |
 
@@ -387,7 +387,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` |
+| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/hub-workflow-reference`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | Description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 

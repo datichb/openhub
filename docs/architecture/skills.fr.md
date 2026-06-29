@@ -317,6 +317,7 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 
 | Fichier | Bucket | Agents qui l'utilisent | Contenu |
 |---------|--------|----------------------|---------|
+| `shared/hub-workflow-reference.md` | **A** | orchestrator, planner | **Source de vérité canonique** — catalogue des agents (famille, mode, quand invoquer, output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de doute), séquences standard par type de feature (solo/UX/audit/complète), table des handoffs (émetteur → format skill → récepteur). Toute modification d'un agent doit inclure une mise à jour de ce skill. `source-of-truth: true` |
 | `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, qa-engineer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, QA, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
 
 ---
@@ -338,7 +339,8 @@ orchestrator          → (A) orchestrator/orchestrator-protocol,
                              posture/coordination-only, posture/concision-posture,
                              posture/retranscription-coordinateur,
                              posture/tool-question, posture/tool-todowrite,
-                             planning/planner-handoff-format †
+                             planning/planner-handoff-format †,
+                             shared/hub-workflow-reference
                         (B) planning/pathfinder-handoff-format,
                              design/design-handoff-format †,
                              auditor/audit-handoff-format †,
@@ -370,7 +372,8 @@ onboarder             → (A) planning/onboarder-workflow,
 planner               → (A) developer/beads-plan, planning/planner-workflow,
                              posture/expert-posture, posture/tool-question,
                              shared/living-docs-enrichment,
-                             planning/planner-handoff-format †
+                             planning/planner-handoff-format †,
+                             shared/hub-workflow-reference
                         (B) planning/planner-standalone, planning/planner-subagent,
                              planning/websearch-stack-research
 pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol,

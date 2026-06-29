@@ -621,7 +621,7 @@ Enregistrer le mode pour transmission à `orchestrator-dev`.
 
 ## Routing
 
-Le routing est entièrement délégué au planner. Voir règles de routing dans le noyau `orchestrator.md`.
+Le routing est entièrement délégué au planner. Catalogue agents et heuristique pathfinder/planner : skill `shared/hub-workflow-reference`.
 
 ---
 

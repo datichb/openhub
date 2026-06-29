@@ -220,19 +220,19 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 
 **Prérequis :** Phase 1 + Phase 2 terminées (tous les nouveaux agents/skills connus avant de figer le catalogue).
 
-- [ ] Créer `skills/shared/hub-workflow-reference.md`
+- [x] Créer `skills/shared/hub-workflow-reference.md`
   - Catalogue des agents (famille, rôle, mode primary/subagent, quand invoquer, output attendu)
   - Heuristique routing : pathfinder vs planner (critères de décision formalisés)
   - Tableau des handoffs (émetteur → format → récepteur)
   - Ordre d'enchaînement standard et variantes (solo / avec UX / avec audit)
   - Intégration du complexity scoring (K) pour conditionner le routing
-- [ ] Remplacer les sections dupliquées :
-  - [ ] `agents/planning/orchestrator.md` — remplacer catalogue+routing par `@hub-workflow-reference`
-  - [ ] `skills/orchestrator/orchestrator-protocol.md` — remplacer section routing par pointeur
-  - [ ] `skills/planning/planner-workflow.md` lignes 42–110 — remplacer par pointeur
-  - [ ] `agents/planning/orchestrator-dev.md` — remplacer heuristique routing par pointeur (conserver mapping domain→agent)
-- [ ] Créer `docs/architecture/adr/018-hub-workflow-reference.fr.md`
-- [ ] Créer `docs/architecture/adr/018-hub-workflow-reference.en.md`
+- [x] Remplacer les sections dupliquées :
+  - [x] `agents/planning/orchestrator.md` — remplacer catalogue+routing par pointeur vers `hub-workflow-reference`
+  - [x] `skills/orchestrator/orchestrator-protocol.md` — remplacer section routing par pointeur
+  - [x] `skills/planning/planner-workflow.md` lignes 42–110 — remplacer par pointeur
+  - [x] `agents/planning/orchestrator-dev.md` — mapping domain→agent conservé (unique, non dupliqué)
+- [x] ADR `docs/architecture/adr/018-hub-workflow-reference.fr.md` — statut Accepted
+- [x] ADR `docs/architecture/adr/018-hub-workflow-reference.en.md` — statut Accepted
 
 **Fichiers créés :** `skills/shared/hub-workflow-reference.md`, 2 ADRs  
 **Fichiers modifiés :** 4 fichiers agents/skills existants

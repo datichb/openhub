@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Accepted — implemented 2026-06-29
 
 ## Context
 

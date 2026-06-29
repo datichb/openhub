@@ -37,7 +37,31 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   codebase), 4 tiers Small/Medium/Large/Enterprise, conditionne pathfinder obligatoire et
   audit pré-implémentation selon le tier.
 
+- **`skills/shared/hub-workflow-reference.md`** — source de vérité canonique du hub
+  (`source-of-truth: true`, bucket A). Catalogue des agents (famille, mode, quand invoquer,
+  output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de
+  doute), séquences standard par type de feature, table des handoffs (émetteur → format skill
+  → récepteur). Chargé automatiquement par `orchestrator` et `planner`.
+
+- **ADR-018** (`docs/architecture/adr/018-hub-workflow-reference.fr.md` + `.en.md`) —
+  statut Proposed → Accepted, implémenté le 2026-06-29.
+
 ### Changed
+
+- **`agents/planning/orchestrator.md`** : ajout `shared/hub-workflow-reference` dans `skills:` ;
+  `## Agents disponibles` → pointeur ; heuristique pathfinder/planner (Mode E) → pointeur.
+  Supprime ~80 lignes de duplication.
+
+- **`skills/planning/planner-workflow.md`** : reformulation de "seule source de vérité"
+  (décision de routing ≠ catalogue) ; `### Agents disponibles pour le routing` → pointeur.
+  Supprime ~15 lignes de duplication.
+
+- **`skills/orchestrator/orchestrator-protocol.md`** : `## Routing` — pointeur mis à jour
+  de `orchestrator.md` vers `shared/hub-workflow-reference`.
+
+- **`agents/planning/planner.md`** : ajout `shared/hub-workflow-reference` dans `skills:`.
+
+### Changed (suite)
 
 - **Réduction de la verbosité des hand-offs et récapitulatifs agents** — suppression des duplications dans les chaînes de retour inter-agents :
 

@@ -43,7 +43,7 @@ Reformule en langage naturel dans la description du ticket.
 
 ### Responsabilité du planner
 
-Le planner est **la seule source de vérité** pour le routing des tickets vers les agents. L'orchestrateur ne fait jamais d'analyse de contenu pour déterminer l'agent — il suit strictement les instructions du planner.
+Le planner est la seule source de vérité pour la **décision de routing** (via le champ `Agent prévu` et la section `Ordre de traitement`). Le catalogue des agents disponibles et l'heuristique pathfinder/planner sont définis dans le skill `shared/hub-workflow-reference`.
 
 ### Champs obligatoires dans le retour
 
@@ -54,20 +54,7 @@ Quand tu produis le bloc `## Retour vers orchestrator`, tu **dois** renseigner :
 
 ### Agents disponibles pour le routing
 
-| Agent | Domaine | Quand l'utiliser |
-|-------|---------|------------------|
-| `ux-designer` | Conception UX | Parcours utilisateur, flows, friction, expérience |
-| `ui-designer` | Conception UI | Design system, composants visuels, tokens, accessibilité |
-| `auditor` | Audit sécurité | OWASP, CVE, failles, hardening — avec domaine `security` |
-| `auditor` | Audit performance | Web Vitals, N+1, lazy loading — avec domaine `performance` |
-| `auditor` | Audit accessibilité | WCAG, RGAA, navigation clavier — avec domaine `accessibility` |
-| `auditor` | Audit RGPD | Données personnelles, consentement — avec domaine `privacy` |
-| `auditor` | Audit observabilité | Métriques, logs, SLOs, alerting — avec domaine `observability` |
-| `auditor` | Audit éco-conception | RGESN, GreenIT, sobriété numérique — avec domaine `ecodesign` |
-| `auditor` | Audit architecture | SOLID, dette technique, couplage — avec domaine `architecture` |
-| `orchestrator-dev` | Implémentation | Tous les tickets d'implémentation — route ensuite vers les developers spécialisés |
-
-> **Note :** Cette liste couvre les agents vers lesquels **l'agent orchestrator** route les tickets selon les instructions du planner. Les agents developer-* (developer-backend, developer-frontend, etc.), reviewer, qa-engineer et documentarian sont invoqués par `orchestrator-dev` lors de la phase d'implémentation, pas directement par l'agent orchestrator feature.
+Voir skill `shared/hub-workflow-reference` pour la liste complète et les conditions d'invocation.
 
 ### Règle prescriptive
 

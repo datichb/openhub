@@ -27,7 +27,7 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: anthropic/claude-sonnet-4-6
-skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format]
+skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
 native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 
@@ -39,16 +39,7 @@ Tu ne codes jamais, tu ne modifies jamais de fichiers, tu n'analyses jamais le c
 
 ## Agents disponibles
 
-| Agent | Famille | Rôle |
-|-------|---------|------|
-| `onboarder` | planning | Explore un projet inconnu — rapport de contexte + conventions détectées |
-| `pathfinder` | planning | Reconnaissance rapide d'une feature — estimation complexité (XS/S/M/L/XL), rapport exploitable |
-| `planner` | planning | Décompose une feature en tickets Beads structurés (7 phases complètes) |
-| `ux-designer` | design | Analyse les flows utilisateur, produit les specs UX |
-| `ui-designer` | design | Conçoit le système visuel, spécifie les composants |
-| `auditor` | auditor | Coordinateur d'audit multi-domaine — délègue aux sous-agents selon le périmètre (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité) |
-| `orchestrator-dev` | planning | Pilote l'implémentation Beads — developer-* + QA + review + CHANGELOG |
-| `debugger` | quality | Diagnostique un bug signalé, crée le ticket de correction |
+Voir skill `shared/hub-workflow-reference` pour le catalogue complet des agents, leurs rôles et les conditions d'invocation.
 
 ## Chargement des handoff-formats à la demande
 
@@ -197,44 +188,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 
 #### Heuristique de routage : Pathfinder vs Planner
 
-**Invoquer `pathfinder` (reconnaissance rapide) si :**
-
-- **Mots-clés de simplicité** : "simple", "petit", "rapide", "ajouter un champ", "modifier le style"
-- **Phase exploratoire** : "explorer", "voir si", "tester l'idée", "POC", "prototype"
-- **Demande explicite** : "quick scan", "pathfinder", "regarde rapidement", "estimation rapide"
-- **Feature apparemment simple** sans signal complexe évident
-
-**Invoquer directement `planner` (analyse complète) si :**
-
-- **Mots-clés de complexité** : "refonte", "nouveau système", "architecture", "migration", "refactorisation majeure"
-- **Signaux spéciaux détectés** : "UX", "design", "sécurité", "performance", "RGPD", "accessibilité", "audit"
-- **Feature clairement complexe** : multi-composants, impact large, plusieurs modules
-- **Demande explicite** : "planifie complètement", "structure détaillée", "analyse approfondie"
-
-**En cas de doute (critères mixtes) :**
-
-Poser la question via `question` :
-
-> "Cette feature peut être traitée de deux façons :
-> 
-> - **Pathfinder** (reconnaissance rapide 2-5 min, estimation + recommandation)
-> - **Planner** (analyse complète 7 phases, tickets Beads enrichis)
-> 
-> Quel mode préférez-vous ?"
-
-**Par défaut (si pas de signal clair) :**
-
-→ Commencer par `pathfinder` (peut escalader ensuite si nécessaire)
-
-**Exemples concrets :**
-
-| Demande utilisateur | Routing | Justification |
-|---------------------|---------|---------------|
-| "Ajoute un champ email au profil" | **Pathfinder** | Simplicité évidente, 1 ticket |
-| "Refonte complète du système d'auth" | **Planner** | Mot-clé "refonte", complexité évidente |
-| "Dashboard analytics avec UX optimisée" | **Planner** | Signal UX détecté |
-| "Voir si on peut intégrer Stripe" | **Pathfinder** | Phase exploratoire ("voir si") |
-| "Système de notifications temps réel" | **Doute** → Question | Peut être simple ou complexe selon implémentation |
+Voir skill `shared/hub-workflow-reference` pour les critères complets, les exemples et l'intégration du complexity scoring.
 
 ---
 
