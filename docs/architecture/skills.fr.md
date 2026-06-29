@@ -318,6 +318,7 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 | Fichier | Bucket | Agents qui l'utilisent | Contenu |
 |---------|--------|----------------------|---------|
 | `shared/hub-workflow-reference.md` | **A** | orchestrator, planner | **Source de vérité canonique** — catalogue des agents (famille, mode, quand invoquer, output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de doute), séquences standard par type de feature (solo/UX/audit/complète), table des handoffs (émetteur → format skill → récepteur). Toute modification d'un agent doit inclure une mise à jour de ce skill. `source-of-truth: true` |
+| `shared/skill-authoring-protocol.md` | **B** | documentarian | **Protocole d'authoring condensé** — TDD RED/GREEN/REFACTOR pour skills, SDO checklist (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization table template, checklist de validation 12 points. Charger via `skill("shared/skill-authoring-protocol")` lors de la création ou amélioration d'un skill. |
 | `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, qa-engineer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, QA, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
 
 ---
@@ -448,7 +449,8 @@ documentarian         → (A) dev-standards-git, developer/beads-plan,
                              shared/websearch-usage
                          (B) documentarian/doc-standards, documentarian/doc-adr,
                               documentarian/doc-api, documentarian/doc-changelog,
-                              documentarian/doc-slides, documentarian/doc-wiki-protocol
+                              documentarian/doc-slides, documentarian/doc-wiki-protocol,
+                              shared/skill-authoring-protocol
 developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,

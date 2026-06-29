@@ -210,6 +210,8 @@ Ce skill définit... Il complète <autre-skill> si applicable.
 - [ ] **Skills Bucket B** : les agents qui en ont besoin l'ont dans leur frontmatter `native_skills:` ; la section guide du corps de l'agent liste le skill avec une description du déclencheur de chargement
 - [ ] **Skills spécifiques aux stacks** (`developer/stacks/`) : détection ajoutée dans `detect_stack()`, mapping ajouté dans `config/stack-skills.json` — aucun changement de frontmatter d'agent nécessaire
 
+> **Pour aller plus loin :** voir [authoring-skills.md](authoring-skills.md) pour la méthodologie qualitative complète — TDD RED/GREEN/REFACTOR, SDO, rationalization table, anti-patterns.
+
 ---
 
 ## Exemple commenté — Créer un agent `developer-security`

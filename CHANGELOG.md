@@ -46,6 +46,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **ADR-018** (`docs/architecture/adr/018-hub-workflow-reference.fr.md` + `.en.md`) —
   statut Proposed → Accepted, implémenté le 2026-06-29.
 
+- **`docs/guides/authoring-skills.md`** — nouveau guide dédié à la méthodologie d'authoring skills :
+  4 types (Technique/Pattern/Reference/Discipline), TDD RED/GREEN/REFACTOR, SDO checklist
+  (description discriminante, keyword coverage, token efficiency, cross-refs), rationalization
+  table template, 5 anti-patterns (narrative, bilingue, label générique, code flowchart,
+  over-spec), checklist de validation 12 points, règle de gouvernance hub-workflow-reference.
+  Complémentaire à `docs/guides/authoring.fr.md`.
+
+- **`skills/shared/skill-authoring-protocol.md`** — skill condensé bucket B, invocable par le
+  `documentarian` via `skill("shared/skill-authoring-protocol")`. Version actionnable du guide
+  authoring-skills.md : TDD en 3 étapes, SDO checklist tableau, rationalization table template,
+  anti-patterns en 1 ligne, checklist 12 points.
+  Ajouté dans `native_skills:` du `documentarian`.
+
 ### Changed
 
 - **`agents/planning/orchestrator.md`** : ajout `shared/hub-workflow-reference` dans `skills:` ;

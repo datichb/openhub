@@ -249,7 +249,7 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 - **GREEN** — écrire le skill minimal qui passe le scénario
 - **REFACTOR** — fermer les loopholes, ajouter la rationalization table, Red Flags list
 
-- [ ] Créer `docs/guides/authoring-skills.md`
+- [x] Créer `docs/guides/authoring-skills.md`
   - Guide complet : quand créer un skill, types (Technique / Pattern / Reference / Discipline)
   - TDD pour skills avec exemples
   - SDO checklist (description riche, keyword coverage, token efficiency, cross-references)
@@ -257,7 +257,7 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
   - Rationalization table template
   - Checklist de validation finale
   - Règle : tout nouvel agent → MAJ obligatoire de `hub-workflow-reference`
-- [ ] Créer `skills/shared/skill-authoring-protocol.md`
+- [x] Créer `skills/shared/skill-authoring-protocol.md`
   - Version condensée invocable in-session par l'agent documentarian
   - Checklist TDD + SDO en format actionnable
 
@@ -279,8 +279,8 @@ Skills purs, aucune dépendance inter-items, entièrement parallélisables.
 | `skills/shared/hub-workflow-reference.md` | 3 | A | ✅ créé |
 | `docs/architecture/adr/018-hub-workflow-reference.fr.md` | 3 | A | ✅ créé |
 | `docs/architecture/adr/018-hub-workflow-reference.en.md` | 3 | A | ✅ créé |
-| `docs/guides/authoring-skills.md` | 4 | F | ⏳ à faire |
-| `skills/shared/skill-authoring-protocol.md` | 4 | F | ⏳ à faire |
+| `docs/guides/authoring-skills.md` | 4 | F | ✅ créé |
+| `skills/shared/skill-authoring-protocol.md` | 4 | F | ✅ créé |
 
 ### Fichiers modifiés (12)
 
