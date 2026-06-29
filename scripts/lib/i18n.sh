@@ -36,15 +36,16 @@ t() {
       # ── cmd-help.sh ────────────────────────────────────────────────────────
       help.title)             printf '%s' "openhub — gestionnaire d'agents IA" ;;
       help.usage)             printf '%s' "Usage :" ;;
-      help.section.setup)     printf '%s' "Setup" ;;
-      help.section.projects)  printf '%s' "Projets" ;;
-      help.section.launch)    printf '%s' "Lancement" ;;
-      help.section.analysis)  printf '%s' "Analyse" ;;
-      help.section.maintenance) printf '%s' "Maintenance" ;;
-      help.section.config)    printf '%s' "Configuration" ;;
-      help.section.beads)     printf '%s' "Beads (bd)" ;;
-      help.section.services)  printf '%s' "Services & intégrations MCP" ;;
-      help.section.observability) printf '%s' "Observabilité" ;;
+      help.hint)              printf '%s' "oc help <1-9> pour afficher une section" ;;
+      help.section.setup)     printf '%s' "[1] Setup" ;;
+      help.section.projects)  printf '%s' "[2] Projets" ;;
+      help.section.launch)    printf '%s' "[3] Lancement" ;;
+      help.section.analysis)  printf '%s' "[4] Analyse" ;;
+      help.section.observability) printf '%s' "[5] Observabilité" ;;
+      help.section.maintenance) printf '%s' "[6] Maintenance" ;;
+      help.section.config)    printf '%s' "[7] Configuration" ;;
+      help.section.services)  printf '%s' "[8] Services & intégrations MCP" ;;
+      help.section.beads)     printf '%s' "[9] Beads (bd)" ;;
       help.section.examples)  printf '%s' "Exemples" ;;
       # Setup
       help.install.cmd)       printf '%s' "install" ;;
@@ -824,15 +825,16 @@ t_en() {
     # ── cmd-help.sh ──────────────────────────────────────────────────────────
     help.title)             printf '%s' "openhub — AI agent workspace manager" ;;
     help.usage)             printf '%s' "Usage:" ;;
-    help.section.setup)     printf '%s' "Setup" ;;
-    help.section.projects)  printf '%s' "Projects" ;;
-    help.section.launch)    printf '%s' "Launch" ;;
-    help.section.analysis)  printf '%s' "Analysis" ;;
-    help.section.maintenance) printf '%s' "Maintenance" ;;
-    help.section.config)    printf '%s' "Configuration" ;;
-    help.section.beads)     printf '%s' "Beads (bd)" ;;
-    help.section.services)  printf '%s' "Services & MCP integrations" ;;
-    help.section.observability) printf '%s' "Observability" ;;
+    help.hint)              printf '%s' "oc help <1-9> to display a single section" ;;
+    help.section.setup)     printf '%s' "[1] Setup" ;;
+    help.section.projects)  printf '%s' "[2] Projects" ;;
+    help.section.launch)    printf '%s' "[3] Launch" ;;
+    help.section.analysis)  printf '%s' "[4] Analysis" ;;
+    help.section.observability) printf '%s' "[5] Observability" ;;
+    help.section.maintenance) printf '%s' "[6] Maintenance" ;;
+    help.section.config)    printf '%s' "[7] Configuration" ;;
+    help.section.services)  printf '%s' "[8] Services & MCP integrations" ;;
+    help.section.beads)     printf '%s' "[9] Beads (bd)" ;;
     help.section.examples)  printf '%s' "Examples" ;;
     # Setup
     help.install.cmd)       printf '%s' "install" ;;

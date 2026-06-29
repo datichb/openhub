@@ -1015,17 +1015,21 @@ cmd_websearch_status() {
 if [ "${_CMD_CONFIG_SOURCE_ONLY:-}" = "1" ]; then return 0 2>/dev/null || exit 0; fi
 
 _config_usage() {
-  echo -e "${BOLD}$(t config.title)${RESET}"
+  _help_title "oc config <subcommand> [options]"
+
+  _help_cmd "set [PROJECT_ID]"                  "$(t help.config_set.desc)"
+  _help_sub "--model <m>  --provider <p>"        ""
+  _help_sub "--api-key <k>  --base-url <u>"      ""
+  _help_sub "--family-model <f=m>  --agent-model <a=m>" ""
+  _help_cmd "get <PROJECT_ID>"                  "$(t help.config_get.desc)"
+  _help_cmd "list"                              "$(t help.config_list.desc)"
+  _help_sub "--providers"                       "$(t help.config_list_providers.desc)"
+  _help_cmd "unset <PROJECT_ID>"               "$(t help.config_unset.desc)"
+  _help_cmd "set language <en|fr>"             "$(t help.config_language.desc)"
+  _help_cmd "init-providers [--force]"          "$(t help.config_init_providers.desc)"
+  _help_cmd "websearch <enable|disable|status>" "$(t help.config_websearch.desc)"
+
   echo ""
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_set.cmd)"              "$(t help.config_set.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_get.cmd)"              "$(t help.config_get.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_list.cmd)"             "$(t help.config_list.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_list_providers.cmd)"   "$(t help.config_list_providers.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_unset.cmd)"            "$(t help.config_unset.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_language.cmd)"         "$(t help.config_language.desc)"
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "$(t help.config_init_providers.cmd)"   "$(t help.config_init_providers.desc)"
-  echo ""
-  printf "  ${CYAN}%-56s${RESET}  %s\n" "oc config websearch <enable|disable|status> [PROJECT_ID]" "$(t websearch.manage_desc)"
 }
 
 case "$SUBCOMMAND" in

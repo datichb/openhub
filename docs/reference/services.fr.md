@@ -12,6 +12,18 @@ Gestion des services et intégrations externes connectés via le protocole MCP (
 oc service <sous-commande> [service] [options]
 ```
 
+**Référence rapide** — aussi accessible via `oc help 8` ou `oc service --help` :
+
+| Sous-commande | Description |
+|---|---|
+| `setup [nom]` | Configure un service interactivement (Figma, GitLab…) |
+| `status [nom]` | Vérifie l'état d'un service (config, token, MCP) |
+| `list` | Liste les services disponibles et leur état |
+| `remove <nom>` | Supprime la configuration d'un service |
+| `deploy <nom> [--project ID]` | Déploie le serveur MCP dans un projet |
+
+**Aliases :** `oc figma` · `oc gitlab` · `oc gslides` → `oc service ... <nom>`
+
 ---
 
 ## `oc service setup`

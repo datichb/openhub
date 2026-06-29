@@ -46,7 +46,7 @@ case "$COMMAND" in
   optimize)        bash "$SCRIPTS_DIR/cmd-optimize.sh" "${@:2}" ;;
   yield)           bash "$SCRIPTS_DIR/cmd-yield.sh" "${@:2}" ;;
   version|--version) bash "$SCRIPTS_DIR/cmd-version.sh" ;;
-  help|--help|-h)  bash "$SCRIPTS_DIR/cmd-help.sh" ;;
+  help|--help|-h)  bash "$SCRIPTS_DIR/cmd-help.sh" "${@:2}" ;;
   "")              bash "$SCRIPTS_DIR/cmd-help.sh" ;;
   *)
     resolve_oc_lang

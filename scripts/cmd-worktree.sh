@@ -21,21 +21,20 @@ shift || true
 
 # ── Aide ─────────────────────────────────────────────────────────────────────
 _worktree_help() {
-  echo ""
-  echo -e "${BOLD}oc worktree${RESET} — Gestion des git worktrees"
-  echo ""
-  echo "  Commandes :"
-  echo -e "    ${CYAN}list${RESET}   [PROJECT_ID]          Liste les worktrees actifs"
-  echo -e "    ${CYAN}create${RESET} BRANCH [PROJECT_ID]   Crée un worktree pour BRANCH"
-  echo -e "    ${CYAN}remove${RESET} BRANCH [PROJECT_ID]   Supprime un worktree"
-  echo -e "    ${CYAN}cleanup${RESET} [PROJECT_ID]         Supprime les worktrees mergés"
-  echo -e "    ${CYAN}status${RESET} [PROJECT_ID]          Résumé des worktrees du projet"
-  echo ""
-  echo "  Exemples :"
-  echo "    oc worktree create feat/bd-42 MY-APP"
-  echo "    oc worktree list MY-APP"
-  echo "    oc worktree remove feat/bd-42 MY-APP"
-  echo "    oc worktree cleanup MY-APP"
+  _help_title "oc worktree <subcommand> [options]"
+
+  _help_cmd "list [PROJECT_ID]"              "$(t help.worktree_list.desc)"
+  _help_cmd "create <BRANCH> [PROJECT_ID]"   "$(t help.worktree_create.desc)"
+  _help_cmd "remove <BRANCH> [PROJECT_ID]"   "$(t help.worktree_remove.desc)"
+  _help_cmd "cleanup [PROJECT_ID]"           "$(t help.worktree_cleanup.desc)"
+  _help_cmd "status [PROJECT_ID]"            "$(t help.worktree_status.desc)"
+
+  _help_section "Examples"
+  _help_sub "oc worktree create feat/bd-42 MY-APP" ""
+  _help_sub "oc worktree list MY-APP"              ""
+  _help_sub "oc worktree remove feat/bd-42 MY-APP" ""
+  _help_sub "oc worktree cleanup MY-APP"           ""
+
   echo ""
 }
 

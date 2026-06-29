@@ -1,3 +1,5 @@
+> 🇬🇧 [Read in English](cli.en.md)
+
 # Référence CLI — commandes `oc`
 
 Toutes les commandes disponibles via le point d'entrée `oc.sh` (alias recommandé : `oc`).
@@ -9,6 +11,21 @@ Toutes les commandes disponibles via le point d'entrée `oc.sh` (alias recommand
 ```
 oc <commande> [sous-commande] [options] [arguments]
 ```
+
+`oc help` affiche la liste complète des commandes organisée en 9 sections numérotées.  
+Utilisez `oc help <1-9>` pour n'afficher qu'une section :
+
+| # | Section | Commandes principales |
+|---|---------|----------------------|
+| 1 | Setup | `install`, `uninstall`, `init`, `version` |
+| 2 | Projets | `status`, `remove`, `project` |
+| 3 | Lancement | `start`, `quick` |
+| 4 | Analyse | `audit`, `conventions`, `review`, `debug` |
+| 5 | Observabilité | `dashboard`, `metrics`, `optimize`, `yield` |
+| 6 | Maintenance | `deploy`, `sync`, `update`, `upgrade`, `worktree` |
+| 7 | Configuration | `config`, `plugin` |
+| 8 | Services & MCP | `service`, `figma`, `gitlab`, `gslides` |
+| 9 | Beads (bd) | `beads` |
 
 ---
 

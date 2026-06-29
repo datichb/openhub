@@ -12,6 +12,21 @@ All commands available via the `oc.sh` entry point (recommended alias: `oc`).
 oc <command> [sub-command] [options] [arguments]
 ```
 
+`oc help` displays the full command list organized in 9 numbered sections.  
+Use `oc help <1-9>` to display only a specific section:
+
+| # | Section | Key commands |
+|---|---------|-------------|
+| 1 | Setup | `install`, `uninstall`, `init`, `version` |
+| 2 | Projects | `status`, `remove`, `project` |
+| 3 | Launch | `start`, `quick` |
+| 4 | Analysis | `audit`, `conventions`, `review`, `debug` |
+| 5 | Observability | `dashboard`, `metrics`, `optimize`, `yield` |
+| 6 | Maintenance | `deploy`, `sync`, `update`, `upgrade`, `worktree` |
+| 7 | Configuration | `config`, `plugin` |
+| 8 | Services & MCP | `service`, `figma`, `gitlab`, `gslides` |
+| 9 | Beads (bd) | `beads` |
+
 ---
 
 ## `oc install`

@@ -123,3 +123,44 @@ resolve_agent_lang() {
 # Auto-resolve language on source so t() works without explicit call
 resolve_oc_lang
 
+# ─────────────────────────────────────────
+# HELP FORMATTING — shared helpers
+# Used by cmd-beads.sh, cmd-config.sh, cmd-service.sh, cmd-worktree.sh, …
+# ─────────────────────────────────────────
+# Column width for sub-command help tables (narrower than cmd-help.sh global).
+_HELP_CMD_W=38
+
+# Print a sub-command help header.
+# Usage: _help_title "oc beads <subcommand> [options]"
+_help_title() {
+  echo ""
+  echo -e "${BOLD}$1${RESET}"
+  printf '%.0s─' $(seq 1 52); echo
+}
+
+# Print one command row in a sub-command help table.
+# Usage: _help_cmd "subcommand [args]" "Description text"
+_help_cmd() {
+  local cmd="$1" desc="$2"
+  if [ "${#cmd}" -le "$_HELP_CMD_W" ]; then
+    printf "  ${CYAN}%-${_HELP_CMD_W}s${RESET}  %s\n" "$cmd" "$desc"
+  else
+    printf "  ${CYAN}%s${RESET}\n" "$cmd"
+    printf "  %*s  %s\n" "$_HELP_CMD_W" "" "$desc"
+  fi
+}
+
+# Print a flag/variant row indented under the parent command.
+# Usage: _help_sub "--flag [val]" "Description text"
+_help_sub() {
+  local flag="$1" desc="$2"
+  printf "  %2s${DIM}%-$((${_HELP_CMD_W} - 2))s${RESET}  %s\n" "" "$flag" "$desc"
+}
+
+# Print a section divider within a sub-command help.
+# Usage: _help_section "Tracker"
+_help_section() {
+  echo ""
+  echo -e "  ${BOLD}$1${RESET}"
+}
+

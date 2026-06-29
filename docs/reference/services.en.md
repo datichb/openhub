@@ -12,6 +12,18 @@ Manage external services and integrations connected via the MCP (Model Context P
 oc service <subcommand> [service] [options]
 ```
 
+**Quick reference** — also accessible via `oc help 8` or `oc service --help`:
+
+| Subcommand | Description |
+|---|---|
+| `setup [name]` | Configure a service interactively (Figma, GitLab…) |
+| `status [name]` | Check a service status (config, token, MCP) |
+| `list` | List available services and their status |
+| `remove <name>` | Remove a service configuration |
+| `deploy <name> [--project ID]` | Deploy the MCP server into a project |
+
+**Aliases:** `oc figma` · `oc gitlab` · `oc gslides` → `oc service ... <name>`
+
 ---
 
 ## `oc service setup`

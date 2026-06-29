@@ -245,15 +245,20 @@ For OpenCode, the key is injected as `ANTHROPIC_API_KEY` at `oc start` time (Ant
 
 Manages entries in `projects/api-keys.local.md` as well as hub-level LLM provider configuration (`config/hub.json`).
 
+Also accessible via `oc help 7` or `oc config --help`.
+
 ### Sub-commands
 
-```
-oc config set [PROJECT_ID] [options]   Create or update a configuration (project or hub)
-oc config get <PROJECT_ID>             Display the configuration (masked key)
-oc config list [--providers]           List all configurations, or providers in the catalogue
-oc config unset <PROJECT_ID>           Delete a configuration
-oc config init-providers [--force]     Initialise switcher files in config/providers/
-```
+| Sub-command | Description |
+|---|---|
+| `set [PROJECT_ID] [options]` | Create or update a configuration (project or hub) |
+| `get <PROJECT_ID>` | Display the configuration (masked key) |
+| `list` | List all configurations |
+| `list --providers` | List providers in the catalogue |
+| `unset <PROJECT_ID>` | Delete a configuration |
+| `set language <en\|fr>` | Set CLI display language (global) |
+| `init-providers [--force]` | Initialise switcher files in `config/providers/` |
+| `websearch <enable\|disable\|status>` | Manage WebSearch (Exa AI) permission |
 
 ### `oc config set` options
 

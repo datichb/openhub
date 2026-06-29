@@ -243,15 +243,20 @@ Pour OpenCode, la clé est injectée comme `ANTHROPIC_API_KEY` au moment du `oc 
 
 Gère les entrées de `projects/api-keys.local.md` ainsi que la configuration des providers LLM au niveau du hub (`config/hub.json`).
 
+Aussi accessible via `oc help 7` ou `oc config --help`.
+
 ### Sous-commandes
 
-```
-oc config set [PROJECT_ID] [options]   Créer ou mettre à jour une configuration (projet ou hub)
-oc config get <PROJECT_ID>             Afficher la configuration (clé masquée)
-oc config list [--providers]           Lister toutes les configurations, ou les providers du catalogue
-oc config unset <PROJECT_ID>           Supprimer une configuration
-oc config init-providers [--force]     Initialiser les fichiers switcher dans config/providers/
-```
+| Sous-commande | Description |
+|---|---|
+| `set [PROJECT_ID] [options]` | Créer ou mettre à jour une configuration (projet ou hub) |
+| `get <PROJECT_ID>` | Afficher la configuration (clé masquée) |
+| `list` | Lister toutes les configurations |
+| `list --providers` | Lister les providers du catalogue |
+| `unset <PROJECT_ID>` | Supprimer une configuration |
+| `set language <en\|fr>` | Définir la langue d'affichage CLI (global) |
+| `init-providers [--force]` | Initialiser les fichiers switcher dans `config/providers/` |
+| `websearch <enable\|disable\|status>` | Gérer la permission WebSearch (Exa AI) |
 
 ### Options de `oc config set`
 

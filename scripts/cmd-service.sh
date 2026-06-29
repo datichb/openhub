@@ -743,23 +743,22 @@ cmd_service_deploy() {
 # ── Sous-commande : help ──────────────────────────────────────────────────────
 
 cmd_service_help() {
-  echo -e "${BOLD}$(t service.help.title)${RESET}"
-  echo ""
-  echo -e "  $(t service.help.usage)"
-  echo ""
-  echo -e "  ${CYAN}$(t service.help.setup_cmd)${RESET}    $(t service.help.setup_desc)"
-  echo -e "  ${CYAN}$(t service.help.status_cmd)${RESET}   $(t service.help.status_desc)"
-  echo -e "  ${CYAN}$(t service.help.list_cmd)${RESET}     $(t service.help.list_desc)"
-  echo -e "  ${CYAN}$(t service.help.remove_cmd)${RESET}   $(t service.help.remove_desc)"
-  echo -e "  ${CYAN}$(t service.help.deploy_cmd)${RESET}   $(t service.help.deploy_desc)"
-  echo ""
-  echo -e "  ${DIM}Flags :${RESET}"
-  echo -e "    ${CYAN}--project <PROJECT_ID>${RESET}  $(t service.project.flag_desc)"
-  echo ""
-  echo -e "  ${DIM}$(t service.help.aliases)${RESET}"
-  echo -e "    ${CYAN}oc figma${RESET}   →  oc service ... figma"
-  echo -e "    ${CYAN}oc gitlab${RESET}  →  oc service ... gitlab"
-  echo -e "    ${CYAN}oc gslides${RESET} →  oc service ... gslides"
+  _help_title "oc service <subcommand> [options]"
+
+  _help_cmd "$(t service.help.setup_cmd)"   "$(t service.help.setup_desc)"
+  _help_cmd "$(t service.help.status_cmd)"  "$(t service.help.status_desc)"
+  _help_cmd "$(t service.help.list_cmd)"    "$(t service.help.list_desc)"
+  _help_cmd "$(t service.help.remove_cmd)"  "$(t service.help.remove_desc)"
+  _help_cmd "$(t service.help.deploy_cmd)"  "$(t service.help.deploy_desc)"
+
+  _help_section "Flags"
+  _help_sub "--project <PROJECT_ID>"        "$(t service.project.flag_desc)"
+
+  _help_section "Aliases"
+  _help_sub "oc figma   →  oc service ... figma"   ""
+  _help_sub "oc gitlab  →  oc service ... gitlab"  ""
+  _help_sub "oc gslides →  oc service ... gslides" ""
+
   echo ""
 }
 
