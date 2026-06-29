@@ -17,7 +17,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-skills: [planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [planning/onboarder-standalone, planning/onboarder-subagent, planning/websearch-stack-research]
 mcpServers: [figma, gitlab]
 ---

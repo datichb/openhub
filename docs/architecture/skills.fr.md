@@ -334,73 +334,109 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 orchestrator          → (A) orchestrator/orchestrator-protocol,
                              orchestrator/orchestrator-workflow-modes,
                              orchestrator/orchestrator-handoff-format,
-                             developer/beads-plan, posture/tool-question,
+                             developer/beads-plan,
+                             posture/coordination-only, posture/concision-posture,
+                             posture/retranscription-coordinateur,
+                             posture/tool-question, posture/tool-todowrite,
+                             planning/planner-handoff-format †
+                        (B) planning/pathfinder-handoff-format,
                              design/design-handoff-format †,
                              auditor/audit-handoff-format †,
-                             planning/planner-handoff-format †,
                              planning/onboarder-handoff-format †,
                              quality/debugger-handoff-format †
-                        skill: deny
+                        skill: allow
 orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              orchestrator/orchestrator-handoff-format,
                              orchestrator/orchestrator-workflow-modes,
-                             posture/tool-question,
+                             posture/coordination-only, posture/concision-posture,
+                             posture/retranscription-coordinateur,
+                             posture/tool-question, posture/tool-todowrite,
                              developer/developer-handoff-format †,
                              reviewer/reviewer-handoff-format †,
                              qa/qa-handoff-format †,
                              documentarian/documentarian-handoff-format †
-                        skill: deny
+                        (B) developer/dev-drift-detection,
+                             orchestrator/session-state-protocol
+                        skill: allow
 onboarder             → (A) planning/onboarder-workflow,
                              posture/expert-posture, posture/tool-question,
                              developer/beads-plan, developer/dev-standards-git,
-                             shared/living-docs-enrichment,
-                             planning/onboarder-handoff-format †
+                             shared/living-docs-enrichment, shared/wiki-navigation,
+                             planning/onboarder-handoff-format †,
+                             adapters/figma-onboarder-protocol,
+                             adapters/gitlab-onboarder-protocol
+                        (B) planning/onboarder-standalone, planning/onboarder-subagent,
+                             planning/websearch-stack-research
 planner               → (A) developer/beads-plan, planning/planner-workflow,
                              posture/expert-posture, posture/tool-question,
                              shared/living-docs-enrichment,
                              planning/planner-handoff-format †
-pathfinder                 → (A) shared/living-docs-enrichment,
-                             planning/pathfinder-handoff-format †
-                        (B) planning/websearch-stack-research
+                        (B) planning/planner-standalone, planning/planner-subagent,
+                             planning/websearch-stack-research
+pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol,
+                             posture/concision-posture, posture/tool-question,
+                             shared/living-docs-enrichment, shared/wiki-navigation,
+                             shared/websearch-usage,
+                             planning/pathfinder-handoff-format †,
+                             adapters/figma-pathfinder-protocol,
+                             adapters/gitlab-pathfinder-protocol
+                        (B) planning/pathfinder-standalone, planning/pathfinder-subagent,
+                             planning/websearch-stack-research
 reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              posture/tool-question,
                              shared/living-docs-enrichment,
                              reviewer/reviewer-handoff-format †
-                        (B) dev-standards-security, dev-standards-backend,
-                             dev-standards-frontend, dev-standards-frontend-a11y,
-                             dev-standards-testing, dev-standards-git
+                         (B) dev-standards-security, dev-standards-backend,
+                              dev-standards-frontend, dev-standards-frontend-a11y,
+                              dev-standards-testing, dev-standards-git,
+                              reviewer/reviewer-adversarial, reviewer/reviewer-edge-case
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
                              posture/tool-question, qa/qa-protocol,
                              shared/living-docs-enrichment,
                              qa/qa-handoff-format †
-                        (B) dev-standards-git
+                         (B) dev-standards-git
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
-                             shared/living-docs-enrichment,
+                             shared/living-docs-enrichment, shared/wiki-navigation,
                              quality/debugger-handoff-format †
-                        (C) quality/debugger-subagent [conditionnel — injecté par orchestrateur]
+                         (B) quality/debugger-standalone, quality/debugger-subagent
 auditor               → (A) auditor/auditor-workflow, posture/tool-question,
+                             posture/coordination-only, posture/retranscription-coordinateur,
+                             auditor/audit-protocol-light,
                              shared/living-docs-enrichment,
                              auditor/audit-handoff-format †
-                        skill: deny
+                        (B) auditor/auditor-standalone, auditor/auditor-subagent
+                        skill: allow
 auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-posture,
                              posture/subagent-concision-posture,
-                             auditor/audit-handoff-format †
-                        (B) auditor/audit-<domaine>  ← injecté par le coordinateur via [SKILL:...]
+                             auditor/audit-handoff-format †,
                              shared/websearch-usage
-ux-designer           → (A) designer/ux-protocol, developer/beads-plan, developer/beads-dev,
+                         (B) auditor/audit-<domaine>  ← injecté par le coordinateur via [SKILL:...]
+                              auditor/websearch-cve-lookup,
+                              auditor/websearch-performance-research
+ux-designer           → (A) designer/ux-protocol, developer/beads-plan,
+                             design/design-planner-format,
                              posture/expert-posture, posture/tool-question,
-                             design/design-handoff-format †
-ui-designer           → (A) designer/ui-protocol, developer/beads-plan, developer/beads-dev,
+                             design/design-handoff-format †,
+                             shared/websearch-usage
+                        (B) designer/ux-subagent, design/websearch-design-patterns,
+                             shared/elicitation-techniques,
+                             adapters/figma-ux-designer-protocol
+ui-designer           → (A) designer/ui-protocol, developer/beads-plan,
+                             design/design-planner-format,
                              posture/expert-posture, posture/tool-question,
-                             design/design-handoff-format †
-documentarian         → (A) dev-standards-git, beads-plan, beads-dev,
+                             design/design-handoff-format †,
+                             shared/websearch-usage
+                        (B) designer/ui-subagent, design/websearch-design-patterns,
+                             adapters/figma-ui-designer-protocol
+documentarian         → (A) dev-standards-git, developer/beads-plan,
                              documentarian/doc-protocol, posture/expert-posture,
                              posture/tool-question,
-                             documentarian/documentarian-handoff-format †
-                        (B) documentarian/doc-standards, documentarian/doc-adr,
-                             documentarian/doc-api, documentarian/doc-changelog,
-                             documentarian/doc-slides
+                             documentarian/documentarian-handoff-format †,
+                             shared/websearch-usage
+                         (B) documentarian/doc-standards, documentarian/doc-adr,
+                              documentarian/doc-api, documentarian/doc-changelog,
+                              documentarian/doc-slides, documentarian/doc-wiki-protocol
 developer-frontend    → (A) dev-standards-universal, dev-standards-simplicity,
                              beads-plan, beads-dev,
                              shared/living-docs-enrichment,

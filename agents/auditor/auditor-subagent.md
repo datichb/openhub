@@ -16,6 +16,7 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
 skills: [auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage]
+native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research]
 ---
 
 # AuditeurSousAgent

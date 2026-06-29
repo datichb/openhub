@@ -27,7 +27,7 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: anthropic/claude-sonnet-4-6
-skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, planning/planner-handoff-format]
+skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format]
 native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format]
 ---
 

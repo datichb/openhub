@@ -19,7 +19,7 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, shared/wiki-navigation]
+skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
 native_skills: [quality/debugger-subagent, quality/debugger-standalone]
 ---
 
