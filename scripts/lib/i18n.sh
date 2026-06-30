@@ -108,9 +108,15 @@ t() {
       help.optimize.desc)     printf '%s' "Analyse les gaspillages de tokens — grade A–F, 9 analyses" ;;
       help.yield.cmd)         printf '%s' "yield [-p PROJECT_ID] [--period/-d today|week|month]" ;;
       help.yield.desc)        printf '%s' "Corrèle sessions OpenCode ↔ commits git (Productive/Abandonnée/Revertée)" ;;
+      help.metrics_period.desc)   printf '%s' "Période d'analyse (défaut : week)" ;;
+      help.optimize_project.desc) printf '%s' "Filtrer sur un projet" ;;
+      help.optimize_period.desc)  printf '%s' "Période d'analyse (défaut : month)" ;;
+      help.yield_project.desc)    printf '%s' "Filtrer sur un projet" ;;
+      help.yield_period.desc)     printf '%s' "Période d'analyse (défaut : week)" ;;
       # Maintenance
       help.deploy.cmd)        printf '%s' "deploy [-p PROJECT_ID]" ;;
       help.deploy.desc)       printf '%s' "Déploie les agents" ;;
+      help.deploy_provider.desc)  printf '%s' "Surcharge le provider pour ce déploiement" ;;
       help.deploy_check.cmd)  printf '%s' "deploy [-p PROJECT_ID] --check/-c" ;;
       help.deploy_check.desc) printf '%s' "Vérifie si les agents déployés sont à jour" ;;
       help.deploy_diff.cmd)   printf '%s' "deploy [-p PROJECT_ID] --diff/-D" ;;
@@ -126,6 +132,12 @@ t() {
       # Config
       help.config_set.cmd)    printf '%s' "config set [-p PROJECT_ID] [--model/-m m] [--provider/-P p] [--api-key/-k k]" ;;
       help.config_set.desc)   printf '%s' "Configure le modèle, la clé API et les modèles par agent/famille d'un projet (ou du hub si pas de PROJECT_ID)" ;;
+      help.config_set_model.desc)    printf '%s' "Modèle IA" ;;
+      help.config_set_provider.desc) printf '%s' "Provider (anthropic, bedrock, ollama, litellm…)" ;;
+      help.config_set_apikey.desc)   printf '%s' "Clé API" ;;
+      help.config_set_baseurl.desc)  printf '%s' "URL de base (litellm uniquement)" ;;
+      help.config_set_family.desc)   printf '%s' "Modèle par famille d'agents (ex : orchestrator=claude-opus-4)" ;;
+      help.config_set_agent.desc)    printf '%s' "Modèle par agent spécifique" ;;
       help.config_get.cmd)    printf '%s' "config get -p <PROJECT_ID>" ;;
       help.config_get.desc)   printf '%s' "Affiche la configuration d'un projet" ;;
       help.config_list.cmd)   printf '%s' "config list" ;;
@@ -185,6 +197,12 @@ t() {
       help.beads_show.desc)   printf '%s' "Affiche le détail d'un ticket" ;;
       help.beads_create.cmd)  printf '%s' "beads create -p <PROJECT_ID> [--title/-T t] [--label/-l l]" ;;
       help.beads_create.desc) printf '%s' "Crée un ticket (non-interactif si titre fourni)" ;;
+      help.beads_create_title.desc) printf '%s' "Titre du ticket" ;;
+      help.beads_create_label.desc) printf '%s' "Label du ticket" ;;
+      help.beads_create_type.desc)  printf '%s' "Type de ticket" ;;
+      help.beads_create_desc.desc)  printf '%s' "Description du ticket" ;;
+      help.beads_sync_dir.desc)     printf '%s' "Direction explicite de sync" ;;
+      help.beads_sync_dry.desc)     printf '%s' "Simulation sans modifier" ;;
       help.beads_open.cmd)    printf '%s' "beads open -p <PROJECT_ID>" ;;
       help.beads_open.desc)   printf '%s' "Affiche le chemin pour utiliser bd manuellement" ;;
       help.beads_sync.cmd)    printf '%s' "beads sync -p <PROJECT_ID> [pull|push] [--dry-run/-n]" ;;
@@ -898,9 +916,15 @@ t_en() {
     help.optimize.desc)     printf '%s' "Scan token waste — grade A–F, 9 deterministic analyses" ;;
     help.yield.cmd)         printf '%s' "yield [-p PROJECT_ID] [--period/-d today|week|month]" ;;
     help.yield.desc)        printf '%s' "Correlate OpenCode sessions ↔ git commits (Productive/Abandoned/Reverted)" ;;
+    help.metrics_period.desc)   printf '%s' "Analysis period (default: week)" ;;
+    help.optimize_project.desc) printf '%s' "Filter by project" ;;
+    help.optimize_period.desc)  printf '%s' "Analysis period (default: month)" ;;
+    help.yield_project.desc)    printf '%s' "Filter by project" ;;
+    help.yield_period.desc)     printf '%s' "Analysis period (default: week)" ;;
     # Maintenance
     help.deploy.cmd)        printf '%s' "deploy [-p PROJECT_ID]" ;;
     help.deploy.desc)       printf '%s' "Deploy agents" ;;
+    help.deploy_provider.desc)  printf '%s' "Override provider for this deployment" ;;
     help.deploy_check.cmd)  printf '%s' "deploy [-p PROJECT_ID] --check/-c" ;;
     help.deploy_check.desc) printf '%s' "Check if deployed agents are up to date" ;;
     help.deploy_diff.cmd)   printf '%s' "deploy [-p PROJECT_ID] --diff/-D" ;;
@@ -916,6 +940,12 @@ t_en() {
     # Config
     help.config_set.cmd)    printf '%s' "config set [-p PROJECT_ID] [--model/-m m] [--provider/-P p] [--api-key/-k k]" ;;
     help.config_set.desc)   printf '%s' "Configure model, API key and per-agent/family models for a project (or hub if no -p)" ;;
+    help.config_set_model.desc)    printf '%s' "AI model" ;;
+    help.config_set_provider.desc) printf '%s' "Provider (anthropic, bedrock, ollama, litellm…)" ;;
+    help.config_set_apikey.desc)   printf '%s' "API key" ;;
+    help.config_set_baseurl.desc)  printf '%s' "Base URL (litellm only)" ;;
+    help.config_set_family.desc)   printf '%s' "Model per agent family (e.g. orchestrator=claude-opus-4)" ;;
+    help.config_set_agent.desc)    printf '%s' "Model per specific agent" ;;
     help.config_get.cmd)    printf '%s' "config get -p <PROJECT_ID>" ;;
     help.config_get.desc)   printf '%s' "Show project configuration" ;;
     help.config_list.cmd)   printf '%s' "config list" ;;
@@ -975,6 +1005,12 @@ t_en() {
     help.beads_show.desc)   printf '%s' "Show ticket details" ;;
     help.beads_create.cmd)  printf '%s' "beads create -p <PROJECT_ID> [--title/-T t] [--label/-l l]" ;;
     help.beads_create.desc) printf '%s' "Create a ticket (non-interactive if --title provided)" ;;
+    help.beads_create_title.desc) printf '%s' "Ticket title" ;;
+    help.beads_create_label.desc) printf '%s' "Ticket label" ;;
+    help.beads_create_type.desc)  printf '%s' "Ticket type" ;;
+    help.beads_create_desc.desc)  printf '%s' "Ticket description" ;;
+    help.beads_sync_dir.desc)     printf '%s' "Explicit sync direction" ;;
+    help.beads_sync_dry.desc)     printf '%s' "Simulate without modifying" ;;
     help.beads_open.cmd)    printf '%s' "beads open -p <PROJECT_ID>" ;;
     help.beads_open.desc)   printf '%s' "Show path to use bd manually" ;;
     help.beads_sync.cmd)    printf '%s' "beads sync -p <PROJECT_ID> [pull|push] [--dry-run/-n]" ;;
