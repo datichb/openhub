@@ -17,15 +17,16 @@ Use `oc help <1-9>` to display only a specific section:
 
 | # | Section | Key commands |
 |---|---------|-------------|
-| 1 | Setup | `install`, `uninstall`, `init`, `version` |
-| 2 | Projects | `status`, `remove`, `project` |
+| 1 | Setup | `install`, `uninstall`, `init`, `version`, `plugin install` |
+| 2 | Projects | `status`, `remove`, `project`, `worktree` |
 | 3 | Launch | `start`, `quick` |
 | 4 | Analysis | `audit`, `conventions`, `review`, `debug` |
 | 5 | Observability | `dashboard`, `metrics`, `optimize`, `yield` |
-| 6 | Maintenance | `deploy`, `sync`, `update`, `upgrade`, `worktree` |
-| 7 | Configuration | `config`, `plugin` |
-| 8 | Services & MCP | `service`, `figma`, `gitlab`, `gslides` |
-| 9 | Beads (bd) | `beads` |
+| 6 | Deployment | `deploy`, `sync` |
+| 7 | Updates | `update`, `upgrade` |
+| 8 | Configuration | `config` |
+| 9 | Services & MCP | `service`, `figma`, `gitlab`, `gslides` |
+| 10 | Beads (bd) | `beads` |
 
 ---
 

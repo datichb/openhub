@@ -36,16 +36,17 @@ t() {
       # ── cmd-help.sh ────────────────────────────────────────────────────────
       help.title)             printf '%s' "openhub — gestionnaire d'agents IA" ;;
       help.usage)             printf '%s' "Usage :" ;;
-      help.hint)              printf '%s' "oc help <1-9> pour afficher une section" ;;
+      help.hint)              printf '%s' "oc help <1-10> pour afficher une section" ;;
       help.section.setup)     printf '%s' "[1] Setup" ;;
       help.section.projects)  printf '%s' "[2] Projets" ;;
       help.section.launch)    printf '%s' "[3] Lancement" ;;
       help.section.analysis)  printf '%s' "[4] Analyse" ;;
       help.section.observability) printf '%s' "[5] Observabilité" ;;
-      help.section.maintenance) printf '%s' "[6] Maintenance" ;;
-      help.section.config)    printf '%s' "[7] Configuration" ;;
-      help.section.services)  printf '%s' "[8] Services & intégrations MCP" ;;
-      help.section.beads)     printf '%s' "[9] Beads (bd)" ;;
+      help.section.deployment) printf '%s' "[6] Déploiement" ;;
+      help.section.updates)   printf '%s' "[7] Mises à jour" ;;
+      help.section.config)    printf '%s' "[8] Configuration" ;;
+      help.section.services)  printf '%s' "[9] Services & intégrations MCP" ;;
+      help.section.beads)     printf '%s' "[10] Beads (bd)" ;;
       help.section.examples)  printf '%s' "Exemples" ;;
       # Setup
       help.install.cmd)       printf '%s' "install" ;;
@@ -825,16 +826,17 @@ t_en() {
     # ── cmd-help.sh ──────────────────────────────────────────────────────────
     help.title)             printf '%s' "openhub — AI agent workspace manager" ;;
     help.usage)             printf '%s' "Usage:" ;;
-    help.hint)              printf '%s' "oc help <1-9> to display a single section" ;;
+    help.hint)              printf '%s' "oc help <1-10> to display a single section" ;;
     help.section.setup)     printf '%s' "[1] Setup" ;;
     help.section.projects)  printf '%s' "[2] Projects" ;;
     help.section.launch)    printf '%s' "[3] Launch" ;;
     help.section.analysis)  printf '%s' "[4] Analysis" ;;
     help.section.observability) printf '%s' "[5] Observability" ;;
-    help.section.maintenance) printf '%s' "[6] Maintenance" ;;
-    help.section.config)    printf '%s' "[7] Configuration" ;;
-    help.section.services)  printf '%s' "[8] Services & MCP integrations" ;;
-    help.section.beads)     printf '%s' "[9] Beads (bd)" ;;
+    help.section.deployment) printf '%s' "[6] Deployment" ;;
+    help.section.updates)   printf '%s' "[7] Updates" ;;
+    help.section.config)    printf '%s' "[8] Configuration" ;;
+    help.section.services)  printf '%s' "[9] Services & MCP integrations" ;;
+    help.section.beads)     printf '%s' "[10] Beads (bd)" ;;
     help.section.examples)  printf '%s' "Examples" ;;
     # Setup
     help.install.cmd)       printf '%s' "install" ;;

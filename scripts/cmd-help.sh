@@ -5,13 +5,11 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 resolve_oc_lang
 
 # ── Layout constants ──────────────────────────────────────────────────────────
-# CMD_W: width of the command column. Sized to fit the longest command string.
 CMD_W=40
-SUB_INDENT=2   # extra spaces for variant lines
+SUB_INDENT=2
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
-# Print a section header: bold numbered title + separator.
 _section() {
   local title
   title="$(t "$1")"
@@ -20,7 +18,6 @@ _section() {
   printf '%.0s─' $(seq 1 52); echo
 }
 
-# Print one command row: cyan command column + description.
 _cmd() {
   local cmd desc
   cmd="$(t "$1.cmd")"
@@ -33,20 +30,15 @@ _cmd() {
   fi
 }
 
-# Print a variant/sub-option row indented under the parent command.
-# $1 = flag/variant text (e.g. "--dev")  $2 = description
 _sub() {
   local flag desc
   flag="$(t "$1.cmd")"
   desc="$(t "$1.desc")"
-  # Strip the base command prefix to keep only the flag part for readability
-  # e.g. "start [PROJECT_ID] --dev" → "--dev"
   flag="${flag##* --}"; flag="--${flag}"
   printf "  %*s${DIM}%-$((CMD_W - SUB_INDENT))s${RESET}  %s\n" \
     "$SUB_INDENT" "" "$flag" "$desc"
 }
 
-# Print a plain indented note (used for examples).
 _note() {
   echo "  $1"
 }
@@ -59,6 +51,7 @@ _section_1() {
   _cmd help.uninstall
   _cmd help.init
   _cmd help.version
+  _cmd help.plugin_install
 }
 
 _section_2() {
@@ -70,6 +63,11 @@ _section_2() {
   _cmd    help.project_rename
   _cmd    help.project_move
   _cmd    help.project_configure
+  _cmd    help.worktree_list
+  _cmd    help.worktree_create
+  _cmd    help.worktree_remove
+  _cmd    help.worktree_cleanup
+  _cmd    help.worktree_status
 }
 
 _section_3() {
@@ -107,22 +105,21 @@ _section_5() {
 }
 
 _section_6() {
-  _section help.section.maintenance
+  _section help.section.deployment
   _cmd help.deploy
   _sub help.deploy_check
   _sub help.deploy_diff
   _cmd help.sync
   _sub help.sync_dryrun
-  _cmd help.update
-  _cmd help.upgrade
-  _cmd help.worktree_list
-  _cmd help.worktree_create
-  _cmd help.worktree_remove
-  _cmd help.worktree_cleanup
-  _cmd help.worktree_status
 }
 
 _section_7() {
+  _section help.section.updates
+  _cmd help.update
+  _cmd help.upgrade
+}
+
+_section_8() {
   _section help.section.config
   _cmd help.config_set
   _cmd help.config_get
@@ -132,10 +129,9 @@ _section_7() {
   _cmd help.config_language
   _cmd help.config_init_providers
   _cmd help.config_websearch
-  _cmd help.plugin_install
 }
 
-_section_8() {
+_section_9() {
   _section help.section.services
   _cmd help.service_setup
   _cmd help.service_status
@@ -144,7 +140,7 @@ _section_8() {
   _cmd help.service_deploy
 }
 
-_section_9() {
+_section_10() {
   _section help.section.beads
   _cmd help.beads_status
   _cmd help.beads_init
@@ -165,20 +161,20 @@ _section_9() {
 
 FILTER="${1:-}"
 
-# Header always shown
 echo -e "${BOLD}$(t help.title)${RESET}"
 echo -e "$(t help.usage) oc <command> [arguments]  ${DIM}·  $(t help.hint)${RESET}"
 
 case "$FILTER" in
-  1) _section_1 ;;
-  2) _section_2 ;;
-  3) _section_3 ;;
-  4) _section_4 ;;
-  5) _section_5 ;;
-  6) _section_6 ;;
-  7) _section_7 ;;
-  8) _section_8 ;;
-  9) _section_9 ;;
+  1)  _section_1 ;;
+  2)  _section_2 ;;
+  3)  _section_3 ;;
+  4)  _section_4 ;;
+  5)  _section_5 ;;
+  6)  _section_6 ;;
+  7)  _section_7 ;;
+  8)  _section_8 ;;
+  9)  _section_9 ;;
+  10) _section_10 ;;
   "")
     _section_1
     _section_2
@@ -189,6 +185,7 @@ case "$FILTER" in
     _section_7
     _section_8
     _section_9
+    _section_10
 
     _section help.section.examples
     _note "oc start"
@@ -196,7 +193,7 @@ case "$FILTER" in
     _note "oc deploy all"
     ;;
   *)
-    echo -e "${DIM}Section inconnue : $FILTER. Utilise un numéro de 1 à 9.${RESET}"
+    echo -e "${DIM}Section inconnue : $FILTER. Utilise un numéro de 1 à 10.${RESET}"
     ;;
 esac
 
