@@ -113,7 +113,7 @@ directement par l'utilisateur est visible dans l'interface OpenCode.
 | `orchestrator` | Invoqué par l'utilisateur | Principale | ✅ Oui | Maintient la liste des tickets (1 tâche par ticket) |
 | `orchestrator-dev` | Invoqué directement par l'utilisateur | Principale | ✅ Oui | Maintient la liste des tickets avec labels de phase |
 | `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
-| `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `ux-designer`, `ui-designer` | Invoqués via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
+| `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
 | `developer-*`, `reviewer`, `qa-engineer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant) | ❌ Non | Pas de liste todowrite |
 
 ---

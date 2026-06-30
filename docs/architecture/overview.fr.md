@@ -95,7 +95,7 @@ sequenceDiagram
     participant U as Utilisateur
     participant O as Orchestrator
     participant PL as Planner
-    participant DS as ux/ui-designer
+    participant DS as designer
     participant AU as auditor (coordinateur)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
@@ -108,7 +108,7 @@ sequenceDiagram
     O->>U: [CP-0] Plan + mode de workflow ?
 
     opt Tickets spec-ux / spec-ui
-        O->>DS: Délègue la conception
+        O->>DS: Délègue la conception (mode : ux/ui/ux+ui)
         DS-->>O: Spec produite
         O->>U: [CP-spec] Valider la spec ?
     end
@@ -197,7 +197,7 @@ Implémenter, tester et diagnostiquer sont trois responsabilités distinctes con
 
 ### 5. Lecture seule pour les agents non-développeurs
 
-Les agents auditor-*, reviewer, ux-designer, ui-designer n'écrivent jamais dans le projet cible.
+Les agents auditor-*, reviewer, designer n'écrivent jamais dans le projet cible.
 Seuls les agents developer et qa-engineer modifient des fichiers de code.
 
 L'écriture documentaire (wiki `docs/wiki/` et `ONBOARDING.md` minimaliste) est réservée à

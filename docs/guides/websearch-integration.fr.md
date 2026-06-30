@@ -35,8 +35,7 @@ openhub/
 │   │   ├── onboarder.md           ← Permission websearch activée
 │   │   └── planner.md             ← Permission websearch activée
 │   ├── design/
-│   │   ├── ux-designer.md         ← Permission websearch activée
-│   │   └── ui-designer.md         ← Permission websearch activée
+│   │   └── designer.md            ← Permission websearch activée
 │   └── documentation/
 │       └── documentarian.md       ← Permission websearch activée
 ├── skills/
@@ -134,7 +133,7 @@ oc start auditor security
 oc start pathfinder
 
 # Design avec recherche de patterns
-oc start ux-designer
+oc start designer
 ```
 
 **Exemple de conversation (auditor security)** :
@@ -186,9 +185,8 @@ WebSearch Status
 | | `pathfinder` | Quick stack research, library comparison |
 | | `onboarder` | Tech stack documentation, setup guides |
 | | `planner` | Library comparison, architecture patterns, integration guides |
-| **Design** (2) | | |
-| | `ux-designer` | UX patterns, interaction best practices, usability research |
-| | `ui-designer` | UI patterns, design systems, visual trends |
+| **Design** (1) | | |
+| | `designer` | UX patterns, interaction best practices, usability research, UI patterns, design systems, visual trends |
 | **Documentation** (1) | | |
 | | `documentarian` | Documentation examples, API reference formats, changelog standards |
 

@@ -12,7 +12,7 @@ L'architecture multi-agents du hub repose sur une chaîne d'orchestration où le
 
 **Niveau 1 — orchestrator-dev → orchestrator :** déjà formalisé en v1.3.0 via `orchestrator/orchestrator-handoff-format`. Ce skill définissait les blocs `## Retour vers orchestrator` et `## Question pour l'orchestrator`, partagés entre producteur et consommateur.
 
-**Niveau 2 — tous les autres sous-agents → leurs consommateurs respectifs :** non formalisé. Les sous-agents (developer-*, reviewer, qa-engineer, planner, onboarder, debugger, ux-designer, ui-designer, auditor-*) retournaient des résultats en texte libre. Les agents consommateurs (orchestrator-dev, orchestrator) devaient extraire manuellement les informations de ces sorties non structurées, causant :
+**Niveau 2 — tous les autres sous-agents → leurs consommateurs respectifs :** non formalisé. Les sous-agents (developer-*, reviewer, qa-engineer, planner, onboarder, debugger, designer, auditor-*) retournaient des résultats en texte libre. Les agents consommateurs (orchestrator-dev, orchestrator) devaient extraire manuellement les informations de ces sorties non structurées, causant :
 
 - Des récapitulatifs incomplets : le récap global d'orchestrator-dev était mal rempli car il manquait de données structurées provenant de ses sous-agents
 - Un routing inconsistant : la décision de router vers `developer-security` après une review de sécurité nécessitait une analyse manuelle du texte du rapport, plutôt que la lecture d'un champ `### Routing recommandé`
@@ -40,7 +40,7 @@ Formaliser **tous** les contrats de communication inter-agents comme skills déd
 | `reviewer/reviewer-handoff-format` | reviewer | orchestrator-dev | **Verdict actionnable** (commit/corriger/corriger-sécurité), corrections verbatim, **routing recommandé** |
 | `qa/qa-handoff-format` | qa-engineer | orchestrator-dev | Tests écrits, critères cochés, zones non testables |
 | `auditor/audit-handoff-format` | auditor-* | orchestrator | Tableau des vulnérabilités, recommandations priorisées, risque résiduel |
-| `design/design-handoff-format` | ux-designer, ui-designer | orchestrator | Spec complète, **contraintes d'implémentation**, points ouverts |
+| `design/design-handoff-format` | designer | orchestrator | Spec complète, **contraintes d'implémentation**, points ouverts |
 | `planning/planner-handoff-format` | planner | orchestrator | Tableau complet des tickets avec agents prévus et dépendances |
 | `planning/onboarder-handoff-format` | onboarder | orchestrator | Stack, conventions, dette technique, zones d'incertitude |
 | `quality/debugger-handoff-format` | debugger | orchestrator | Cause racine avec niveau de certitude, impact, actions d'urgence |

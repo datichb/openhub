@@ -35,8 +35,7 @@ L'orchestrateur parent :
 | **onboarder** | Fin de chaque phase (0 à 4) + pauses ad hoc | Systématique |
 | **auditor** (coordinateur) | Fin de chaque phase (0 à 3) + pauses ad hoc | Systématique |
 | **debugger** | Fin de chaque phase + confirmations d'actions irréversibles | Systématique |
-| **ux-designer** | Clarification critique (design system, informations utilisateur insuffisantes) | Ad hoc uniquement |
-| **ui-designer** | Clarification critique (design system inexistant) | Ad hoc uniquement |
+| **designer** | Clarification critique (design system, informations utilisateur insuffisantes, mode non précisé) | Ad hoc uniquement |
 
 ## Format des blocs
 

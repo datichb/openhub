@@ -18,9 +18,7 @@ permission:
     "pathfinder": allow
     "planner": allow
     "onboarder": allow
-    "ux-designer": allow
-    "ui-designer": allow
-    "auditor": allow
+    "designer": allow
     "orchestrator-dev": allow
     "debugger": allow
   ctx_search: allow
@@ -48,7 +46,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 | Agent à invoquer | Skill à charger |
 |------------------|----------------|
 | `pathfinder` | `pathfinder-handoff-format` |
-| `ux-designer` / `ui-designer` | `design-handoff-format` |
+| `designer` | `design-handoff-format` |
 | `auditor` | `audit-handoff-format` |
 | `onboarder` | `onboarder-handoff-format` |
 | `debugger` | `debugger-handoff-format` |
@@ -74,7 +72,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 - Automatiser CP-spec ou CP-audit — ces checkpoints sont toujours manuels
 - Démarrer sans avoir qualifié la feature (mode A) ou transmis les tickets au planner (mode B)
 - Diagnostiquer ou corriger un bug signalé — router immédiatement vers `debugger`
-- Agir sans passer par l'outil `task` — toute délégation (planner, ux-designer, orchestrator-dev, debugger, onboarder) passe UNIQUEMENT par l'outil `task`
+- Agir sans passer par l'outil `task` — toute délégation (planner, designer, orchestrator-dev, debugger, onboarder) passe UNIQUEMENT par l'outil `task`
 - Lire, modifier ou analyser des fichiers du projet — `read`, `bash`, `edit`, `write` sont tous interdits
 - Analyser le contenu des tickets pour déterminer l'agent — utiliser le champ `Agent prévu` du retour planner
 - Router de façon autonome — suivre l'`### Ordre de traitement` du retour planner

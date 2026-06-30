@@ -19,8 +19,8 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [quality/debugger-workflow, quality/debugger-handoff-format, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
-native_skills: [quality/debugger-subagent, quality/debugger-standalone, shared/rtk-usage]
+skills: [quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
+native_skills: [quality/debugger-execution-modes, shared/rtk-usage]
 ---
 
 # Agent — Debugger

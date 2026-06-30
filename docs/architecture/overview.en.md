@@ -94,7 +94,7 @@ sequenceDiagram
     participant U as User
     participant O as Orchestrator
     participant PL as Planner
-    participant DS as ux/ui-designer
+    participant DS as designer
     participant AU as auditor (coordinator)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
@@ -107,7 +107,7 @@ sequenceDiagram
     O->>U: [CP-0] Plan + workflow mode?
 
     opt Spec-ux / spec-ui tickets
-        O->>DS: Delegates design
+        O->>DS: Delegates design (mode: ux/ui/ux+ui)
         DS-->>O: Spec produced
         O->>U: [CP-spec] Validate spec?
     end
@@ -196,7 +196,7 @@ to three different agents (developer, qa-engineer, debugger).
 
 ### 5. Read-only for non-developer agents
 
-Agents `auditor-*`, `reviewer`, `ux-designer`, and `ui-designer` never write to the target project.
+Agents `auditor-*`, `reviewer`, and `designer` never write to the target project.
 Only `developer-*` and `qa-engineer` agents modify source code files.
 
 Documentary writing (wiki `docs/wiki/` and minimal `ONBOARDING.md`) is reserved for

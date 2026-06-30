@@ -13,7 +13,7 @@ Avant d'invoquer un agent, identifiez votre situation :
 |-----------|--------------------------|-------------|
 | Feature à concevoir + implémenter de zéro | `orchestrator` | `"Implémente [feature]"` |
 | Tickets Beads déjà planifiés, prêts à coder | `orchestrator-dev` | `"Implémente les tickets bd-X à bd-Y"` |
-| Spécifications UX/UI uniquement, sans implémenter | `ux-designer` / `ui-designer` | `"Spec UX pour [feature]"` |
+| Spécifications UX/UI uniquement, sans implémenter | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
 | Audit avant mise en production | `auditor` | `"Audite le projet"` |
 | Bug en production avec stacktrace ou logs | `debugger` | `"Ce bug : [stacktrace]"` |
 | Review d'une PR développée manuellement | `reviewer` | `"Review de ma PR — branche : [nom]"` |
@@ -87,8 +87,8 @@ sequenceDiagram
     participant U as Utilisateur
     participant O as Orchestrator
     participant PL as Planner
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant UX as designer
+    participant UI as designer
     participant AU as auditor-*
     participant OD as OrchestratorDev
     participant DEV as Developer-*
@@ -174,8 +174,8 @@ puis pose une question courte pour le mode de workflow :
 
 | ID   | Titre                          | Type          | Agent prévu       |
 |------|--------------------------------|---------------|-------------------|
-| bd-1 | Spec UX — flow auth            | spec-ux       | ux-designer       |
-| bd-2 | Spec UI — composants auth      | spec-ui       | ui-designer       |
+| bd-1 | Spec UX — flow auth            | spec-ux       | designer          |
+| bd-2 | Spec UI — composants auth      | spec-ui       | designer          |
 | bd-3 | Audit sécurité périmètre auth  | audit         | auditor-subagent  |
 | bd-4 | Modèle User + migrations       | task          | developer-backend |
 | bd-5 | Service JWT                    | feature       | developer-backend |
@@ -190,9 +190,9 @@ Puis une question structurée (courte) : **"Quel mode de workflow ?"** — Manue
 
 L'orchestrateur traite d'abord les tickets de type `spec-*` et `audit` :
 
-- Invoque `ux-designer` → spec UX produite → **[CP-spec]** valider / réviser / ignorer
+- Invoque `designer` (Mode : ux) → spec UX produite → **[CP-spec]** valider / réviser / ignorer
   - L'agent design retourne un bloc structuré `## Retour vers orchestrator` avec la spec complète, les contraintes d'implémentation et les points ouverts. L'orchestrateur valide la présence de ce bloc avant de continuer.
-- Invoque `ui-designer` → spec UI produite → **[CP-spec]** valider / réviser / ignorer
+- Invoque `designer` (Mode : ui) → spec UI produite → **[CP-spec]** valider / réviser / ignorer
 - Invoque `auditor-subagent` (domaine sécurité) → rapport d'audit → **[CP-audit]** corriger / accepter / ignorer
   - L'auditeur retourne un bloc structuré avec le tableau des vulnérabilités par sévérité, les recommandations priorisées, le risque résiduel et un statut (`corrections-requises` / `acceptable` / `bloquant`).
   - Si "corriger" : un ticket de correction est ajouté à la liste dev
@@ -213,7 +213,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 9. Clôture et passe au suivant `[CP-3]` (automatique en semi-auto/auto)
 10. Après tous les tickets : `orchestrator-dev` émet une **synthèse condensée par ticket** (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) suivie du **bloc structuré** `## Retour vers orchestrator` (tableau de détail des tickets, statistiques, statut global) — les deux sont complémentaires ; l'agent orchestrator **affiche cette synthèse dans son fil de discussion** avant de présenter le [CP-feature] à l'utilisateur
 
-> **Questions des sous-agents :** quand un sous-agent (planner, ux-designer, reviewer…) pose une question,
+> **Questions des sous-agents :** quand un sous-agent (planner, designer, reviewer…) pose une question,
 > elle remonte dans la session parente avec un bloc de contexte identifiant l'agent et la phase en cours —
 > ex. `[Planner — Phase 0 | Feature : authentification JWT]`. Aucun besoin de naviguer dans la session enfant.
 
@@ -228,8 +228,8 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 
 | ID   | Titre                          | Phase    | Agent             | Statut     |
 |------|--------------------------------|----------|-------------------|------------|
-| bd-1 | Spec UX — flow auth            | design   | ux-designer       | ✅ Validé  |
-| bd-2 | Spec UI — composants auth      | design   | ui-designer       | ✅ Validé  |
+| bd-1 | Spec UX — flow auth            | design   | designer          | ✅ Validé  |
+| bd-2 | Spec UI — composants auth      | design   | designer          | ✅ Validé  |
 | bd-3 | Audit sécurité périmètre auth  | audit    | auditor-subagent  | ✅ Accepté |
 | bd-4 | Modèle User + migrations       | dev      | developer-backend | ✅ Mergé   |
 | bd-5 | Service JWT                    | dev      | developer-backend | ✅ Mergé   |
@@ -538,31 +538,31 @@ systématique, et produit un rapport structuré.
 
 ---
 
-## Scénario 7 — Spec UX/UI puis implémentation (designers standalone)
+## Scénario 7 — Design standalone (designer — modes : ux, ui, ux+ui)
 
 **Contexte :** vous voulez concevoir l'expérience et l'interface d'une feature
 avant de coder, sans passer par l'agent orchestrator complet. Utile quand les specs
 doivent être validées par une équipe ou un client avant tout développement.
+Invoquez `designer` avec Mode : ux, ui ou ux+ui selon votre besoin.
 
 ### Diagramme
 
 ```mermaid
 sequenceDiagram
     participant U as Utilisateur
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant D as designer
     participant OD as orchestrator-dev
     participant DEV as Developer-*
     participant R as Reviewer
 
-    U->>UX: "Spec UX pour le flow d'onboarding utilisateur"
-    UX->>UX: Questions de contexte (min. 2)
-    UX-->>U: Spec UX — user flows + critères d'acceptance + tickets Beads
+    U->>D: "Spec UX pour le flow d'onboarding utilisateur" [Mode: ux]
+    D->>D: Questions de contexte (min. 2)
+    D-->>U: Spec UX — user flows + critères d'acceptance + tickets Beads
     U->>U: Validation de la spec UX
 
-    U->>UI: "Spec UI pour les écrans d'onboarding — spec UX : bd-10"
-    UI->>UI: Lecture spec UX (bd show bd-10)
-    UI-->>U: Spec UI — tokens + composants + guidelines + tickets Beads
+    U->>D: "Spec UI pour les écrans d'onboarding — spec UX : bd-10" [Mode: ui]
+    D->>D: Lecture spec UX (bd show bd-10)
+    D-->>U: Spec UI — tokens + composants + guidelines + tickets Beads
     U->>U: Validation de la spec UI
 
     U->>OD: "Implémente les tickets bd-11 à bd-15"
@@ -584,9 +584,10 @@ sequenceDiagram
 ```
 Prompt : "Spec UX pour le flow d'onboarding utilisateur —
 notre app est une plateforme B2B SaaS de gestion de projets"
+[Mode: ux]
 ```
 
-Le `ux-designer` pose au minimum 2 questions de contexte avant de produire :
+Le `designer` pose au minimum 2 questions de contexte avant de produire :
 
 ```
 Questions :
@@ -605,9 +606,10 @@ Puis produit la spec UX avec :
 
 ```
 Prompt : "Spec UI pour les écrans d'onboarding — spec UX disponible dans bd-10"
+[Mode: ui]
 ```
 
-Le `ui-designer` lit la spec UX via `bd show bd-10`, puis produit :
+Le `designer` lit la spec UX via `bd show bd-10`, puis produit :
 - Tokens de design utilisés (couleurs, typographie, espacement)
 - Spécification des composants (variants, états, do/don't)
 - Guidelines visuelles spécifiques au flow
@@ -710,7 +712,7 @@ document :
 
 ---
 
-## Scénario 9 — Planification avec délégation design (planner → ux-designer / ui-designer)
+## Scénario 9 — Planification avec délégation design (planner → designer)
 
 **Contexte :** vous voulez planifier une feature qui implique un parcours utilisateur
 ou de nouveaux composants visuels, et souhaitez que le planner prenne en charge la
@@ -722,8 +724,8 @@ délégation aux agents de design — sans avoir à ouvrir des sessions manuelle
 sequenceDiagram
     participant U as Utilisateur
     participant PL as Planner
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant UX as designer
+    participant UI as designer
 
     U->>PL: "Planifie la feature d'inscription"
     PL->>PL: PHASE 0 — explore codebase + détecte signaux UX et UI
@@ -731,14 +733,14 @@ sequenceDiagram
     PL-->>U: ⚠️ Signaux UX et UI détectés — 3 options proposées
     U->>PL: "invoquer UX"
 
-    PL->>UX: Délègue avec contexte complet (feature, métier, utilisateurs, interaction)
+    PL->>UX: Délègue avec contexte complet (feature, métier, utilisateurs, interaction) [Mode: ux]
     UX->>UX: Questions de contexte (min. 2) + production spec
     UX-->>PL: ## SPEC UX — Inscription\n(user flow + alternatifs + erreurs + acceptance)
 
     PL-->>U: ⚠️ Spec UI — 3 options proposées
     U->>PL: "invoquer UI"
 
-    PL->>UI: Délègue avec contexte complet (composant, feature, spec UX)
+    PL->>UI: Délègue avec contexte complet (composant, feature, spec UX) [Mode: ui]
     UI->>UI: Exploration design system + production spec
     UI-->>PL: ## SPEC UI — FormulaireInscription\n(composants + états + tokens + a11y)
 
@@ -780,14 +782,14 @@ Option C — Continuer sans spec UX
 > Tapez "continuer sans UX"
 ```
 
-#### 3. Invocation directe de ux-designer (Option A)
+#### 3. Invocation directe de designer — Mode : ux (Option A)
 
 ```
 Prompt : "invoquer UX"
 ```
 
-Le planner annonce l'invocation et transmet le contexte complet à `ux-designer`.
-`ux-designer` pose ses questions, produit la spec, et la retourne au planner
+Le planner annonce l'invocation et transmet le contexte complet à `designer` (Mode : ux).
+`designer` pose ses questions, produit la spec, et la retourne au planner
 au format standardisé :
 
 ```
@@ -814,10 +816,10 @@ au format standardisé :
 - L'email de vérification arrive en < 30s
 ```
 
-#### 4. Invocation directe de ui-designer (Option A)
+#### 4. Invocation directe de designer — Mode : ui (Option A)
 
 Même mécanique pour l'UI — le planner propose, l'utilisateur confirme avec `"invoquer UI"`.
-`ui-designer` reçoit le contexte composant + la spec UX déjà produite,
+`designer` (Mode : ui) reçoit le contexte composant + la spec UX déjà produite,
 et retourne la spec UI au format standardisé :
 
 ```

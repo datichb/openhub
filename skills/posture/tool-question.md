@@ -271,7 +271,7 @@ question({
     header: "Phase 1 complétée",
     question: "[Planner — Phase 1 complétée | Feature : authentification JWT]\n\n**Résumé de l'exploration (8 fichiers lus) :**\n- Architecture : Clean Architecture — use cases + repositories\n- Tests existants : couverture partielle (42%), module auth non couvert\n- Signal UX détecté : formulaire multi-étapes avec validation complexe\n- Zones d'ombre : stratégie refresh tokens non documentée\n\nComment procéder ?",
     options: [
-      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer ux-designer avant de planifier" },
+      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer designer (Mode: ux) avant de planifier" },
       { label: "Skip design — Phase 2", description: "Passer aux questions sans spec design" }
     ]
   }]

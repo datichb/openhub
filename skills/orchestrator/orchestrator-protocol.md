@@ -597,8 +597,8 @@ Afficher les tickets selon l'`### Ordre de traitement` défini par le planner.
 
 | Ordre | ID | Titre | Priorité | Agent prévu | TDD |
 |-------|----|-------|----------|-------------|-----|
-| 1 | bd-10 | Analyse flow inscription | P1 | ux-designer | — |
-| 2 | bd-11 | Composant formulaire | P1 | ui-designer → orchestrator-dev | — |
+| 1 | bd-10 | Analyse flow inscription | P1 | designer | — |
+| 2 | bd-11 | Composant formulaire | P1 | designer → orchestrator-dev | — |
 | 3 | bd-13 | Audit sécurité auth | P2 | auditor → orchestrator-dev | — |
 | 4 | bd-12 | Endpoint POST /users | P1 | orchestrator-dev | ✅ |
 
@@ -660,7 +660,7 @@ Le routing est entièrement délégué au planner. Catalogue agents et heuristiq
    ```
 
 2. Annoncer la phase de conception :
-   > « Je délègue la spécification à `ux-designer` / `ui-designer` pour le ticket #<ID> — <titre>.
+   > « Je délègue la spécification à `designer` / `designer` pour le ticket #<ID> — <titre>.
    > Si des questions apparaissent ici, elles viennent de cet agent et incluront leur contexte. »
 
 3. Invoquer l'agent design avec :
@@ -1106,8 +1106,8 @@ Avant de construire le récap feature, passer les 3 checks suivants :
 
 | ID | Titre | Phase(s) | Agent(s) | Statut |
 |----|-------|----------|---------|--------|
-| bd-10 | ... | Spec UX | ux-designer | ✅ Spec validée |
-| bd-11 | ... | Spec UI → Impl | ui-designer → dev | ✅ Terminé |
+| bd-10 | ... | Spec UX | designer | ✅ Spec validée |
+| bd-11 | ... | Spec UI → Impl | designer → dev | ✅ Terminé |
 | bd-12 | ... | Impl | orchestrator-dev | ✅ Terminé |
 | bd-13 | ... | Audit → Impl | auditor → dev | ✅ Corrigé |
 
@@ -1171,8 +1171,8 @@ ou agent absent de `.opencode/agents/`), ne jamais silencieusement basculer vers
 | `auditor-privacy` | *(aucun substitut)* | — |
 | `auditor-ecodesign` | *(aucun substitut)* | — |
 | `auditor-observability` | *(aucun substitut)* | — |
-| `ux-designer` | *(aucun substitut)* | — |
-| `ui-designer` | *(aucun substitut)* | — |
+| `designer` | *(aucun substitut)* | — |
+| `designer` | *(aucun substitut)* | — |
 
 > **Note :** L'agent `developer` listé comme substitut est invoqué **via `orchestrator-dev`** avec le domaine approprié, jamais directement par l'orchestrator. L'orchestrator délègue à `orchestrator-dev` qui route ensuite vers `developer` avec le bon domaine.
 

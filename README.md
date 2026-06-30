@@ -32,7 +32,7 @@ openhub  ──────────────────────►  
 
 ```
 
-Result: 19 specialized agents + Figma integration, always up to date, available across all your projects
+Result: 18 specialized agents + Figma integration, always up to date, available across all your projects
 from a single source of truth.
 
 ---
@@ -140,7 +140,7 @@ oc start MY-APP
 
 ## Available agents
 
-19 agents in two modes:
+18 agents in two modes:
 
 - **`primary`** — directly visible in the AI tool (OpenCode tab picker). Invocable by the user.
 - **`subagent`** — hidden from the picker. Only invocable by delegation from a coordinator agent.
@@ -154,8 +154,7 @@ oc start MY-APP
 | `auditor` | Coordinator | Multi-domain audit — delegates to 7 `auditor-*` agents |
 | `onboarder` | Coordinator | Discovery of existing projects — detects stack, business domain, Figma designs, test strategy, and produces context report |
 | `planner` | Planning | Breaks down a feature into Beads tickets |
-| `ux-designer` | Design | UX spec — user flows, acceptance criteria |
-| `ui-designer` | Design | UI spec — tokens, components, visual guidelines |
+| `designer` | Design | Analyse Figma, UX flows and UI component specs — 4 modes: recon, ux, ui, ux+ui. Only agent with Figma MCP access. |
 | `reviewer` | Quality | PR/MR review by severity |
 | `qa-engineer` | Quality | Missing tests (unit / integration / E2E). **Automatically invoked for critical code** (API, services, >200 lines). Produces coverage report and review attention points. |
 | `debugger` | Quality | Bug diagnosis, root cause report |
@@ -182,7 +181,7 @@ oc start MY-APP
 | Ready-to-code tickets | `orchestrator-dev` | `"Implement tickets bd-X to bd-Y"` |
 | Pre-production audit | `auditor` | `"Audit the project"` |
 | Production bug | `debugger` | `"This bug: [stacktrace]"` |
-| Standalone UX/UI spec | `ux-designer` / `ui-designer` | `"UX spec for [feature]"` |
+| Standalone UX/UI spec | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
 | Document a feature | `documentarian` | `"Document [topic]"` |
 | Discover an existing project | `onboarder` | `"Onboard yourself on this project"` |
 | Plan without implementing | `planner` | `"Break down [feature] into tickets"` |
@@ -262,7 +261,7 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 | Document | Description |
 |----------|-------------|
 | [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
-| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 19 agents |
+| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 18 agents |
 | [MCP Servers](servers/README.md) | MCP servers architecture and development |
 | [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
 | [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |

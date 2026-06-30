@@ -132,6 +132,20 @@ interpréter ainsi :
 Quand un enrichissement `INCERTAIN` est pertinent pour la tâche courante,
 lire le fichier source mentionné pour confirmer avant d'agir.
 
+## Vérification de fraîcheur
+
+Après lecture du frontmatter d'une page wiki, évaluer le champ `updated` :
+
+| Ancienneté de `updated` | Action recommandée |
+|------------------------|-------------------|
+| < 30 jours | Confiance normale — utiliser sans précaution |
+| 30 à 90 jours | Signaler : `⚠️ Page potentiellement obsolète (dernière MAJ : {date})` — vérifier les sections sensibles dans le code |
+| > 90 jours | Signaler : `⚠️⚠️ Page obsolète — recommandation : relancer l'onboarder sur ce périmètre avant de s'appuyer sur ces informations` |
+
+**Règle complémentaire :** tout fait marqué `` `INCERTAIN` `` datant de plus de 14 jours
+est considéré **non fiable par défaut**. Vérifier directement dans le code source
+avant toute décision basée sur ce fait.
+
 ---
 
 ## Mise à jour des god nodes — règle pour le documentarian

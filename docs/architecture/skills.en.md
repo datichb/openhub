@@ -256,22 +256,26 @@ Skills marked **(A)** are Bucket A — inline. Skills marked **(B)** are Bucket 
 
 ## Domain — `designer/`
 
-Design skills. Used by the `ux-designer` and `ui-designer` agents.
+Design skills. Used by the `designer` agent.
 
-| File | Agents using it | Content |
-|------|----------------|---------|
-| `designer/ux-protocol.md` | ux-designer | Nielsen heuristics (10 principles), 5-question UX grid, user flow format (nominal/alternatives/errors), UX spec format with acceptance criteria, friction audit protocol |
-| `designer/ui-protocol.md` | ui-designer | Design tokens (colours, typography, spacing, radius, shadows), component spec format (variants/states/tokens/do-don't), visual consistency rules, inconsistency audit protocol, typographic modular scale |
+| File | Bucket | Agents using it | Content |
+|------|--------|----------------|---------|
+| `designer/designer-protocol.md` | **A** | designer | **Unified designer protocol** — 4 invocation modes (recon/ux/ui/ux+ui), mode detection from prompt, routing logic, Figma access gate (only in recon mode), session interruption mechanism |
+| `designer/ux-protocol.md` | **B** | designer | Nielsen heuristics (10 principles), 5-question UX grid, user flow format (nominal/alternatives/errors), UX spec format with acceptance criteria, friction audit protocol |
+| `designer/ui-protocol.md` | **B** | designer | Design tokens (colours, typography, spacing, radius, shadows), component spec format (variants/states/tokens/do-don't), visual consistency rules, inconsistency audit protocol, typographic modular scale |
+| `designer/figma-recon-protocol.md` | **B** | designer | Figma reconnaissance protocol — file search by feature name, component tree exploration, design system detection (DSFR, Material, Custom), token extraction (Figma Variables: colours, typography, spacing), output format for planning agents |
+| `designer/figma-deep-protocol.md` | **B** | designer | Figma deep analysis — component variant enumeration, state mapping, responsive breakpoints, design-to-dev annotation extraction, handoff checklist |
+| `designer/designer-execution-modes.md` | **B** | designer | **Execution paths** — standalone path (question tool active, no handoff block) and subagent path (session interruption mechanism, `## Question pour l'orchestrator` + `task_id` blocks) |
 
 ---
 
 ## Domain — `design/`
 
-Handoff skills for design agents. Injected in the design agent (producer) and in `orchestrator` (consumer).
+Handoff skills for the designer agent. Injected in `designer` (producer) and in `orchestrator` (consumer).
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `design/design-handoff-format.md` | ux-designer, ui-designer, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete spec (never summarized), implementation constraints, open points, rejected alternatives, status (`complete-spec` / `partial-spec` / `blocked`) — produced only when invoked from the orchestrator, after explicit user validation |
+| `design/design-handoff-format.md` | designer, orchestrator | **Handoff contract** — structured `## Return to orchestrator` block: complete spec (never summarized), implementation constraints, open points, rejected alternatives, status (`complete-spec` / `partial-spec` / `blocked`) — produced only when invoked from the orchestrator, after explicit user validation |
 
 ---
 
@@ -281,8 +285,8 @@ Cross-cutting posture skills. Injectable into any agent requiring an expert post
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `posture/expert-posture.md` | auditor-subagent, onboarder, ux-designer, ui-designer, planner, documentarian, qa-engineer | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
-| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, ux-designer, ui-designer | Usage of OpenCode's `question` tool — `question({ questions: [{...}] })` syntax, multi-questions support in a single call, multi-selection (`multiple: true`), automatic "Type your own answer" option (don't duplicate), response format (array of labels), mandatory structure (`header` ≤ 30 chars, `question`, `options` with `label` + `description`), recommended option first with `(Recommended)`, mandatory context block when invoked as sub-agent |
+| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian, qa-engineer | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
+| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, designer | Usage of OpenCode's `question` tool — `question({ questions: [{...}] })` syntax, multi-questions support in a single call, multi-selection (`multiple: true`), automatic "Type your own answer" option (don't duplicate), response format (array of labels), mandatory structure (`header` ≤ 30 chars, `question`, `options` with `label` + `description`), recommended option first with `(Recommended)`, mandatory context block when invoked as sub-agent |
 | `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer | **(A)** — Concision posture level `lite`: drops valueless intro phrases ("Sure!", "I'm going to...", "Here is..."), known-context restatements, redundant transitions between titled sections, closing formulas. Does not touch handoff blocks, mandatory narrative recaps, formal reports, or technical content. Tunable via `token_optimization.output_verbosity` in `hub.json`. See [ADR-015](./adr/015-concision-posture.en.md). |
 
 ---
@@ -366,14 +370,13 @@ auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-postu
                              auditor/audit-handoff-format †
                         (B) auditor/audit-<domain>  ← injected by coordinator via [SKILL:...]
                              shared/websearch-usage
-ux-designer           → (A) designer/ux-protocol, developer/beads-plan, developer/beads-dev,
-                             posture/expert-posture, posture/tool-question,
+designer              → (A) designer/designer-protocol,
+                             design/design-planner-format,
                              design/design-handoff-format †
-                        (B) design/websearch-design-patterns
-ui-designer           → (A) designer/ui-protocol, developer/beads-plan, developer/beads-dev,
-                             posture/expert-posture, posture/tool-question,
-                             design/design-handoff-format †
-                        (B) design/websearch-design-patterns
+                        (B) designer/ux-protocol, designer/ui-protocol,
+                             designer/figma-recon-protocol, designer/figma-deep-protocol,
+                             designer/designer-execution-modes,
+                             design/websearch-design-patterns
 documentarian         → (A) dev-standards-git, beads-plan, beads-dev,
                              documentarian/doc-protocol, posture/expert-posture,
                              posture/tool-question,

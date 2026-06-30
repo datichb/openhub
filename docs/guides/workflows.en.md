@@ -15,7 +15,7 @@ Before invoking an agent, identify your situation:
 |-----------|------------------------|----------------|
 | Feature to design + implement from scratch | `orchestrator` | `"Implement [feature]"` |
 | Beads tickets already planned, ready to code | `orchestrator-dev` | `"Implement tickets bd-X to bd-Y"` |
-| UX/UI specifications only, without implementing | `ux-designer` / `ui-designer` | `"UX spec for [feature]"` |
+| UX/UI specifications only, without implementing | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
 | Audit before going to production | `auditor` | `"Audit the project"` |
 | Production bug with stacktrace or logs | `debugger` | `"This bug: [stacktrace]"` |
 | Review of a manually developed PR | `reviewer` | `"Review my PR — branch: [name]"` |
@@ -89,8 +89,8 @@ sequenceDiagram
     participant U as User
     participant O as Orchestrator
     participant PL as Planner
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant UX as designer
+    participant UI as designer
     participant AU as auditor-*
     participant OD as OrchestratorDev
     participant DEV as Developer-*
@@ -176,8 +176,8 @@ then asks a short question for the workflow mode:
 
 | ID   | Title                           | Type          | Planned agent     |
 |------|---------------------------------|---------------|-------------------|
-| bd-1 | UX spec — auth flow             | spec-ux       | ux-designer       |
-| bd-2 | UI spec — auth components       | spec-ui       | ui-designer       |
+| bd-1 | UX spec — auth flow             | spec-ux       | designer          |
+| bd-2 | UI spec — auth components       | spec-ui       | designer          |
 | bd-3 | Security audit auth scope       | audit         | auditor-subagent  |
 | bd-4 | User model + migrations         | task          | developer-backend |
 | bd-5 | JWT service                     | feature       | developer-backend |
@@ -192,9 +192,9 @@ Then a short structured question: **"Which workflow mode?"** — Manual / Semi-a
 
 The orchestrator first handles `spec-*` and `audit` tickets:
 
-- Invokes `ux-designer` → UX spec produced → **[CP-spec]** validate / revise / skip
+- Invokes `designer` (Mode: ux) → UX spec produced → **[CP-spec]** validate / revise / skip
   - The designer returns a structured block `## Return to orchestrator` with the complete spec, implementation constraints, and open points. The orchestrator validates the presence of this block before proceeding.
-- Invokes `ui-designer` → UI spec produced → **[CP-spec]** validate / revise / skip
+- Invokes `designer` (Mode: ui) → UI spec produced → **[CP-spec]** validate / revise / skip
 - Invokes `auditor-subagent` (security domain) → audit report → **[CP-audit]** fix / accept / skip
   - The auditor returns a structured block with the vulnerability table by severity, prioritized recommendations, residual risk, and a status (`corrections-required` / `acceptable` / `blocking`).
   - If "fix": a correction ticket is added to the dev list
@@ -215,7 +215,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 9. Closes and moves to the next `[CP-3]` (automatic in semi-auto/auto)
 10. After all tickets: `orchestrator-dev` emits a **condensed per-ticket summary** (status, key files, covered criteria, attention points + aggregated global attention points) followed by the **structured** `## Return to orchestrator` **block** (per-ticket detail table, statistics, global status) — the two are complementary; the orchestrator **displays this summary in its discussion thread** before presenting the [CP-feature] to the user
 
-> **Subagent questions:** when a subagent (planner, ux-designer, reviewer…) asks a question,
+> **Subagent questions:** when a subagent (planner, designer, reviewer…) asks a question,
 > it surfaces in the parent session with a context block identifying the agent and current phase —
 > e.g. `[Planner — Phase 0 | Feature: JWT authentication]`. No need to navigate to the child session.
 
@@ -230,8 +230,8 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 
 | ID   | Title                           | Phase  | Agent             | Status      |
 |------|---------------------------------|--------|-------------------|-------------|
-| bd-1 | UX spec — auth flow             | design | ux-designer       | ✅ Validated |
-| bd-2 | UI spec — auth components       | design | ui-designer       | ✅ Validated |
+| bd-1 | UX spec — auth flow             | design | designer          | ✅ Validated |
+| bd-2 | UI spec — auth components       | design | designer          | ✅ Validated |
 | bd-3 | Security audit auth scope       | audit  | auditor-subagent  | ✅ Accepted  |
 | bd-4 | User model + migrations         | dev    | developer-backend | ✅ Merged    |
 | bd-5 | JWT service                     | dev    | developer-backend | ✅ Merged    |
@@ -540,31 +540,31 @@ checklist, and produces a structured report.
 
 ---
 
-## Scenario 7 — UX/UI spec then implementation (standalone designers)
+## Scenario 7 — Standalone design (designer — modes: ux, ui, ux+ui)
 
 **Context:** you want to design the experience and interface of a feature
 before coding, without going through the full orchestrator. Useful when specs
 must be validated by a team or client before any development.
+Invoke `designer` with Mode: ux, ui, or ux+ui depending on what you need.
 
 ### Diagram
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant D as designer
     participant OD as orchestrator-dev
     participant DEV as Developer-*
     participant R as Reviewer
 
-    U->>UX: "UX spec for the user onboarding flow"
-    UX->>UX: Context questions (min. 2)
-    UX-->>U: UX spec — user flows + acceptance criteria + Beads tickets
+    U->>D: "UX spec for the user onboarding flow" [Mode: ux]
+    D->>D: Context questions (min. 2)
+    D-->>U: UX spec — user flows + acceptance criteria + Beads tickets
     U->>U: UX spec validation
 
-    U->>UI: "UI spec for onboarding screens — UX spec: bd-10"
-    UI->>UI: Read UX spec (bd show bd-10)
-    UI-->>U: UI spec — tokens + components + guidelines + Beads tickets
+    U->>D: "UI spec for onboarding screens — UX spec: bd-10" [Mode: ui]
+    D->>D: Read UX spec (bd show bd-10)
+    D-->>U: UI spec — tokens + components + guidelines + Beads tickets
     U->>U: UI spec validation
 
     U->>OD: "Implement tickets bd-11 to bd-15"
@@ -586,9 +586,10 @@ sequenceDiagram
 ```
 Prompt: "UX spec for the user onboarding flow —
 our app is a B2B SaaS project management platform"
+[Mode: ux]
 ```
 
-The `ux-designer` asks at least 2 context questions before producing:
+The `designer` asks at least 2 context questions before producing:
 
 ```
 Questions:
@@ -607,9 +608,10 @@ Then produces the UX spec with:
 
 ```
 Prompt: "UI spec for onboarding screens — UX spec available in bd-10"
+[Mode: ui]
 ```
 
-The `ui-designer` reads the UX spec via `bd show bd-10`, then produces:
+The `designer` reads the UX spec via `bd show bd-10`, then produces:
 - Design tokens used (colours, typography, spacing)
 - Component specification (variants, states, do/don't)
 - Flow-specific visual guidelines
@@ -712,7 +714,7 @@ document:
 
 ---
 
-## Scenario 9 — Planning with design delegation (planner → ux-designer / ui-designer)
+## Scenario 9 — Planning with design delegation (planner → designer)
 
 **Context:** you want to plan a feature that involves a user journey or new visual
 components, and want the planner to handle delegation to design agents — without
@@ -724,8 +726,8 @@ having to open sessions manually.
 sequenceDiagram
     participant U as User
     participant PL as Planner
-    participant UX as ux-designer
-    participant UI as ui-designer
+    participant UX as designer
+    participant UI as designer
 
     U->>PL: "Plan the user registration feature"
     PL->>PL: PHASE 0 — explores codebase + detects UX and UI signals
@@ -733,14 +735,14 @@ sequenceDiagram
     PL-->>U: ⚠️ UX and UI signals detected — 3 options offered
     U->>PL: "invoke UX"
 
-    PL->>UX: Delegates with full context (feature, business, users, interaction)
+    PL->>UX: Delegates with full context (feature, business, users, interaction) [Mode: ux]
     UX->>UX: Context questions (min. 2) + spec production
     UX-->>PL: ## SPEC UX — Registration\n(user flow + alternatives + errors + acceptance)
 
     PL-->>U: ⚠️ UI spec — 3 options offered
     U->>PL: "invoke UI"
 
-    PL->>UI: Delegates with full context (component, feature, UX spec)
+    PL->>UI: Delegates with full context (component, feature, UX spec) [Mode: ui]
     UI->>UI: Design system exploration + spec production
     UI-->>PL: ## SPEC UI — RegistrationForm\n(components + states + tokens + a11y)
 
@@ -782,14 +784,14 @@ Option C — Continue without UX spec
 > Type "continue without UX"
 ```
 
-#### 3. Direct invocation of ux-designer (Option A)
+#### 3. Direct invocation of designer — Mode: ux (Option A)
 
 ```
 Prompt: "invoke UX"
 ```
 
-The planner announces the invocation and passes the full context to `ux-designer`.
-`ux-designer` asks its questions, produces the spec, and returns it to the planner
+The planner announces the invocation and passes the full context to `designer` (Mode: ux).
+`designer` asks its questions, produces the spec, and returns it to the planner
 in the standardized format:
 
 ```
@@ -816,10 +818,10 @@ in the standardized format:
 - Verification email arrives in < 30s
 ```
 
-#### 4. Direct invocation of ui-designer (Option A)
+#### 4. Direct invocation of designer — Mode: ui (Option A)
 
 Same mechanism for UI — the planner proposes, the user confirms with `"invoke UI"`.
-`ui-designer` receives the component context + the already-produced UX spec,
+`designer` (Mode: ui) receives the component context + the already-produced UX spec,
 and returns the UI spec in the standardized format:
 
 ```

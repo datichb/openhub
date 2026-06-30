@@ -187,7 +187,7 @@ Le pathfinder recommande l'escalade pour les raisons suivantes :
 Le planner doit :
 - Affiner la structure proposée
 - Résoudre les questions ouvertes
-- [Action spécifique 1 si applicable : ex. Consulter ux-designer pour les flows]
+- [Action spécifique 1 si applicable : ex. Consulter designer pour les flows]
 - [Action spécifique 2 : ex. Envisager audit sécurité]
 
 ---
@@ -440,7 +440,7 @@ Cette feature présente une complexité et des signaux nécessitant une planific
 **Justification :**
 1. **Complexité L** (6 tickets, ~14h estimés)
 2. **Signal architecture FORT** - Nouveau système structurant, choix technologique majeur (WebSocket vs SSE)
-3. **Signal design** - UI NotificationCenter nécessite consultation `ux-designer` et `ui-designer`
+3. **Signal design** - UI NotificationCenter nécessite consultation `designer` et `designer`
 4. **Signal performance** - Connexions temps réel, scaling, nécessite potentiellement `auditor` (domaine performance)
 5. **Risques moyens-élevés** - Architecture réversible difficilement, impact global
 6. **Questions critiques** - Plusieurs décisions techniques/métier à trancher
@@ -523,7 +523,7 @@ Cette feature présente une complexité et des signaux nécessitant une planific
 
 | Signal | Statut | Détails |
 |--------|--------|---------|
-| **UX/UI** | ✅ FORT | NotificationCenter nécessite design complet (position dans layout, animations d'apparition, gestion focus, accessibilité clavier). Consultation `ux-designer` et `ui-designer` recommandée. |
+| **UX/UI** | ✅ FORT | NotificationCenter nécessite design complet (position dans layout, animations d'apparition, gestion focus, accessibilité clavier). Consultation `designer` et `designer` recommandée. |
 | **Sécurité** | ⚠️ MOYEN | Authentification des connexions WebSocket à sécuriser (token JWT dans handshake ? Validation côté serveur ?). Pas critique mais à adresser. |
 | **Performance** | ✅ FORT | Connexions persistantes multiples, charge serveur temps réel, nécessite stratégie scaling (horizontal ? load balancing ?). Consultation `auditor` (domaine performance) potentiellement utile. |
 | **Accessibilité** | ⚠️ MOYEN | Notifications doivent être annoncées aux screen readers (aria-live), gestion focus lors apparition, navigation clavier dans le centre de notifs. |
@@ -548,8 +548,8 @@ Le pathfinder recommande fortement l'escalade au planner complet pour les raison
 5. **Risques moyens-élevés** - Plusieurs points de complexité technique nécessitent planification rigoureuse
 
 Le planner doit :
-- **Phase 1.5** : Consulter `ux-designer` pour les flows de notification (quand afficher, comment interagir, où positionner)
-- **Phase 1.5** : Consulter `ui-designer` pour le design du NotificationCenter (composants, animations, design system)
+- **Phase 1.5** : Consulter `designer` pour les flows de notification (quand afficher, comment interagir, où positionner)
+- **Phase 1.5** : Consulter `designer` pour le design du NotificationCenter (composants, animations, design system)
 - **Phase 2** : Trancher la question WebSocket vs SSE (avec argumentation technique)
 - **Phase 3** : Affiner la structure proposée avec enrichissement complet des tickets
 - **Phase 4** : Envisager consultation `auditor` (domaine performance) si scaling critique

@@ -1,6 +1,6 @@
 # Agent Reference
 
-13 agents in total, organized into 6 families.
+18 agents in total, organized into 6 families.
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 skills, and mode.
 
@@ -96,7 +96,7 @@ Invocable directly, from `oc start` (suggestion displayed), or from the `orchest
 | **Invocation** | `"Implement [feature]"` / `"Handle tickets [IDs]"` |
 
 AI project manager. Drives the complete delivery of a feature by mobilizing all
-necessary agents: design (ux-designer, ui-designer), audit (auditor-*),
+necessary agents: design (`designer`), audit (auditor-*),
 implementation (via orchestrator-dev). Enforces explicit checkpoints at each
 phase. Never codes.
 
@@ -221,47 +221,39 @@ Common skills for all domains: `dev-standards-universal`, `dev-standards-simplic
 
 ## Family — Design Agents
 
-UX/UI design agents. Work upstream of implementation.
-Never code. Invocable directly or via the `orchestrator`.
+UX/UI design agent. Works upstream of implementation.
+Never codes. Invocable directly or via the `orchestrator`.
 
-### `ux-designer`
-
-| | |
-|--|--|
-| **Label** | UXDesigner |
-| **File** | `agents/design/ux-designer.md` |
-| **Skills** | `designer/ux-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format` |
-| **Invocation** | `"Analyze the flow for [feature]"` / `"UX spec for [ticket]"` / `"UX audit of [screen]"` |
-
-User experience expert. Analyzes needs, identifies friction, produces textual user flows
-and actionable UX specifications with acceptance criteria. Asks at least 2 context
-questions before specifying. Reads and closes Beads tickets. Does not produce graphic mockups.
-
-Invocable directly, via the `orchestrator`, or via the `planner` (PHASE 1.5 —
-optional design delegation). When invoked from the `planner`, produces the spec
-in the standardized format `## SPEC UX — [feature]` to allow automatic reintegration
-into the plan (no `bd close` — the planner resumes control).
-
----
-
-### `ui-designer`
+### `designer`
 
 | | |
 |--|--|
-| **Label** | UIDesigner |
-| **File** | `agents/design/ui-designer.md` |
-| **Skills** | `designer/ui-protocol`, `developer/beads-plan`, `developer/beads-dev`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format` |
-| **Invocation** | `"UI spec for [component]"` / `"Design system [project]"` / `"Harmonize [screen]"` |
+| **Label** | Designer |
+| **File** | `agents/design/designer.md` |
+| **Mode** | `primary` |
+| **Permissions** | No `write`, no `edit`. `bash` deny-by-default (allowlist: `bd show *`, `bd list *`). MCP Figma access (sole agent with this permission). |
+| **Skills (inline)** | `designer/designer-protocol`, `design/design-planner-format`, `design/design-handoff-format` |
+| **Skills (native)** | `designer/ux-protocol`, `designer/ui-protocol`, `designer/figma-recon-protocol`, `designer/figma-deep-protocol`, `designer/designer-execution-modes` |
+| **Invocation** | `"Explore Figma for [feature]"` / `"UX spec for [ticket]"` / `"UI spec for [component]"` / `"Full design spec for [feature]"` |
 
-Interface design expert. Defines design system foundations (tokens),
-specifies visual components with variants and states, produces actionable UI guidelines
-for `developer-frontend`. Uses only tokens — never hard-coded values. Always proposes
-options for art direction decisions.
+Unified design agent. Operates in four modes specified at invocation:
 
-Invocable directly, via the `orchestrator`, or via the `planner` (PHASE 1.5 —
-optional design delegation). When invoked from the `planner`, produces the spec
-in the standardized format `## SPEC UI — [ComponentName]` to allow automatic reintegration
-into the plan (no `bd close` — the planner resumes control).
+| Mode | Trigger | Output |
+|------|---------|--------|
+| `recon` | Figma exploration requested (by planner/pathfinder/onboarder via `task`) | Figma findings: components, tokens, design system detected |
+| `ux` | UX spec requested | User flows, heuristics (Nielsen), acceptance criteria — no graphic mockups |
+| `ui` | UI spec requested | Design tokens, component variants/states, UI guidelines for `developer-frontend` |
+| `ux+ui` | Full design spec requested | Complete UX phase then UI phase in a single session |
+
+**Sole Figma agent:** `designer` is the only agent in the hub with MCP Figma access.
+`planner`, `pathfinder`, and `onboarder` delegate all Figma needs to `designer` via
+`task` (mode `recon`) instead of calling the MCP directly.
+
+**When invoked from `planner` (Phase 1.5 — optional design delegation):** produces
+the spec in standardized format `## SPEC UX — [feature]` and/or `## SPEC UI — [ComponentName]`
+for automatic reintegration into the plan (no `bd close` — the planner resumes control).
+
+**Delegation:** invoked by `orchestrator`, `planner`, `pathfinder`, `onboarder`.
 
 ---
 
@@ -355,10 +347,10 @@ late dependency, duplicate. Never codes. Iterative phases with backwards possibl
 
 **Phase 1.5 — Design delegation (optional):** when UX or UI signals are detected
 in Phase 1, the planner offers 3 options to the user:
-- **Option A** (`"invoke UX/UI"`) — directly invokes `ux-designer` / `ui-designer`
-  as a sub-agent, awaits the structured block `## SPEC UX/UI — …` and integrates the spec into the plan.
-- **Option B** — the user invokes the agents themselves and pastes the spec back.
-- **Option C** (`"continue without UX/UI"`) — proceeds with available context,
+- **Option A** (`"invoke design"`) — directly invokes `designer`
+  as a sub-agent (mode `ux`, `ui`, or `ux+ui`), awaits the structured block `## SPEC UX/UI — …` and integrates the spec into the plan.
+- **Option B** — the user invokes the agent themselves and pastes the spec back.
+- **Option C** (`"continue without design"`) — proceeds with available context,
   partial `--design` fields + `bd comments add` to trace the missing spec.
 
 **Phase 6 — Living docs enrichment:** after plan validation, identifies architectural patterns and conventions observed in the codebase but absent from `ONBOARDING.md`/`CONVENTIONS.md`, and proposes to the user to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
@@ -387,12 +379,12 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 
 ## Rules Common to All Agents
 
-- **Read-only agents**: auditor-subagent, reviewer, debugger, ux-designer, ui-designer — never modify files
+- **Read-only agents**: auditor-subagent, reviewer, debugger, designer — never modify files
 - **Agents that write code**: developer-*, qa-engineer — only modify files in their domain
 - **Agents that write documentation**: documentarian — only modifies documentation files (all other agents may propose enrichments to `ONBOARDING.md`/`CONVENTIONS.md` via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation)
 - **Agents that create tickets**: planner (feature tickets), debugger (bug tickets after confirmation)
 - **Agents that read tickets**: all can do `bd show <ID>` to contextualize their work
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — read-only, explores and reports, doesn't drive other agents
-- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — directly visible to the user
+- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, qa-engineer, reviewer — directly visible to the user
 - **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and `auditor-subagent` — invocable by coordinator agents

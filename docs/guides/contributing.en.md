@@ -51,7 +51,7 @@ native_skills: [path/to/skill, ...]   # Bucket B — on-demand native skills (op
 | Developers (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
 | Quality agents (qa-engineer, debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
 | Planning agents (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
-| Design agents (ui-designer, ux-designer) | `ctx_search`, `ctx_batch_execute` |
+| Design agents (designer) | `ctx_search`, `ctx_batch_execute` |
 | Documentation (documentarian) | `ctx_search`, `ctx_batch_execute`, `ctx_index` |
 | Audit agents (auditor, auditor-subagent) | `ctx_search`, `ctx_batch_execute` |
 
@@ -121,7 +121,7 @@ Skills are organised by domain in `skills/`:
 | `skills/debugger/` | Diagnostic protocols |
 | `skills/reviewer/` | Review protocols |
 | `skills/documentarian/` | Documentation protocols |
-| `skills/designer/` | Design protocols (ux-designer, ui-designer) |
+| `skills/designer/` | Design protocols (designer) |
 | `skills/design/` | Design handoff contracts |
 | `skills/quality/` | Quality handoff contracts (debugger and agents not in qa/ or reviewer/) |
 

@@ -49,7 +49,7 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la de
 | Développeurs (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
 | Qualité (qa-engineer, debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
 | Planning (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
-| Design (ui-designer, ux-designer) | `ctx_search`, `ctx_batch_execute` |
+| Design (designer) | `ctx_search`, `ctx_batch_execute` |
 | Documentation (documentarian) | `ctx_search`, `ctx_batch_execute`, `ctx_index` |
 | Audit (auditor, auditor-subagent) | `ctx_search`, `ctx_batch_execute` |
 
@@ -118,7 +118,7 @@ Les skills sont organisés par domaine dans `skills/` :
 | `skills/debugger/` | Protocoles de diagnostic |
 | `skills/reviewer/` | Protocoles de review |
 | `skills/documentarian/` | Protocoles de documentation |
-| `skills/designer/` | Protocoles de design (ux-designer, ui-designer) |
+| `skills/designer/` | Protocoles de design (designer) |
 | `skills/design/` | Contrats de handoff design |
 | `skills/quality/` | Contrats de handoff qualité (debugger et agents hors `qa/` et `reviewer/`) |
 | `skills/posture/` | Posture et comportement transversal (`expert-posture`, `tool-question`) |

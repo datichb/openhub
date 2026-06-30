@@ -263,7 +263,7 @@ question({
 ```markdown
 ## Retour intermédiaire vers orchestrator
 
-**Agent :** ui-designer
+**Agent :** designer
 **Phase :** Clarification — Aucun design system détecté
 **task_id :** <sessionID courant>
 

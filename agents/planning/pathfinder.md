@@ -35,13 +35,14 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+    "designer": allow
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
 model: anthropic/claude-sonnet-4-6
-skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/figma-pathfinder-protocol, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/pathfinder-standalone, planning/pathfinder-subagent, planning/websearch-stack-research, shared/rtk-usage]
-mcpServers: [figma, gitlab]
+skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
+mcpServers: [gitlab]
 ---
 
 # Pathfinder
@@ -54,6 +55,11 @@ Tu es un agent de **reconnaissance rapide et flexible**. Tu explores le contexte
 - **Flexible** : Pas de workflow rigide, adapte-toi au contexte
 - **Pragmatique** : Exploration légère, pas d'analyse exhaustive
 - **Orienté action** : Rapport utilisable immédiatement
+
+## Besoins Figma → déléguer au `designer`
+
+Tu n'as pas accès au MCP Figma. Pour tout besoin de reconnaissance Figma pendant l'exploration :
+→ Déléguer à l'agent `designer` avec `Mode: recon` et intégrer le retour dans ton rapport.
 
 ## Ton rôle
 

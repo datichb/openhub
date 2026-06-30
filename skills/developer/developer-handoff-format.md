@@ -75,6 +75,17 @@ Ce bloc vient **après** le compte rendu d'implémentation — il en est le rés
 - <point 2 — zone fragile, dépendance externe, comportement edge-case à vérifier>
 <"Aucun point d'attention particulier" si l'implémentation est standard>
 
+### Migration destructive (si applicable)
+```
+⚠️ MIGRATION DESTRUCTIVE DÉTECTÉE
+Type : [DROP COLUMN / TRUNCATE / DELETE masse / ...]
+Table(s) impactée(s) : [liste]
+Données perdues si exécutée : [estimation / "irréversible"]
+Réversibilité : [commande de rollback / non-réversible]
+Dry-run output : [résultat de la commande de preview]
+```
+<Omettre cette section si aucune migration destructive n'est présente>
+
 ### Blocages rencontrés
 - <blocage 1 — résolu ou non, et comment>
 <"Aucun blocage rencontré" si l'implémentation s'est déroulée normalement>

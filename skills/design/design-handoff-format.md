@@ -1,12 +1,12 @@
 ---
 name: design-handoff-format
-description: Source de vérité pour le format de retour des agents ux-designer et ui-designer vers l'orchestrator. Définit le bloc structuré à produire quand un agent design termine sa spec et est invoqué depuis l'orchestrator. Injecté dans ux-designer, ui-designer et orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour de l'agent designer vers l'orchestrator. Définit le bloc structuré à produire quand le designer termine sa spec et est invoqué depuis l'orchestrator. Injecté dans designer et orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff design → orchestrator
 
-Ce skill est la **source de vérité** pour le format de retour des agents design vers l'orchestrator.
-Il est injecté dans `ux-designer`, `ui-designer` et `orchestrator` — producteur et consommateur partagent le même contrat.
+Ce skill est la **source de vérité** pour le format de retour de l'agent designer vers l'orchestrator.
+Il est injecté dans `designer` et `orchestrator` — producteur et consommateur partagent le même contrat.
 
 ---
 
@@ -16,7 +16,7 @@ Il est injecté dans `ux-designer`, `ui-designer` et `orchestrator` — producte
 
 Au démarrage, charger le skill de parcours selon le contexte :
 
-- Si le prompt contient `[SKILL:designer/ux-subagent]` ou `[SKILL:designer/ui-subagent]` → charger le skill correspondant via l'outil `skill`
+- Si le prompt contient `[SKILL:designer/designer-subagent]` → charger le skill correspondant via l'outil `skill`
   - Mémoriser **CONTEXTE = orchestrator_feature** pour toute la session
   - Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
   - En fin de session : produire la spec complète + le bloc `## Retour vers orchestrator`
@@ -46,7 +46,7 @@ En standalone ou quand invoqué depuis le `planner`, la spec est produite sans c
 
 ## Retour vers orchestrator
 
-**Agent :** ux-designer | ui-designer
+**Agent :** designer
 **Ticket :** #<ID> — <titre>
 
 ### Spec produite
@@ -81,7 +81,7 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ---
 
-## Règles pour le producteur (ux-designer / ui-designer)
+## Règles pour le producteur (designer)
 
 - **Toujours produire la spec complète** avant ce bloc — jamais résumée ni abrégée. La spec est obligatoire dans tous les cas.
 - **Toujours produire ce bloc** à la suite de la spec, même si le statut est `bloqué`
@@ -104,7 +104,8 @@ Produit quand une **clarification critique** est nécessaire en cours de session
 ```markdown
 ## Retour intermédiaire vers orchestrator
 
-**Agent :** ux-designer | ui-designer
+**Agent :** designer
+**Mode :** <recon|ux|ui|ux+ui>
 **Phase :** Clarification en cours de session
 **task_id :** <sessionID courant>
 

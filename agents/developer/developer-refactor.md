@@ -6,7 +6,92 @@ mode: subagent
 permission:
   question: deny
   skill: allow
-  bash: allow
+  bash:
+    "*": deny
+    # Beads CLI
+    "bd *": allow
+    # Git — lecture
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git branch*": allow
+    "git show*": allow
+    "git rev-parse*": allow
+    # Git — écriture sûre (push/merge/rebase absents intentionnellement)
+    "git add*": allow
+    "git commit*": allow
+    "git checkout*": allow
+    "git switch*": allow
+    "git pull*": allow
+    "git stash*": allow
+    "git worktree*": allow
+    "git revert*": allow
+    # Package managers
+    "npm *": allow
+    "npx *": allow
+    "yarn *": allow
+    "pnpm *": allow
+    "bun *": allow
+    "pip *": allow
+    "pip3 *": allow
+    "poetry *": allow
+    "cargo *": allow
+    "go *": allow
+    "bundle *": allow
+    "gem *": allow
+    "composer *": allow
+    # Test runners directs
+    "pytest*": allow
+    "python -m pytest*": allow
+    "python manage.py test*": allow
+    "rspec*": allow
+    "rake*": allow
+    "playwright*": allow
+    "dbt *": allow
+    # Lint / type-check directs
+    "tsc*": allow
+    "ruff*": allow
+    "mypy*": allow
+    "golangci-lint*": allow
+    "rubocop*": allow
+    "phpstan*": allow
+    "phpcs*": allow
+    # RTK (wrapper token-optimisé)
+    "rtk *": allow
+    # Filesystem — lecture
+    "ls*": allow
+    "tree*": allow
+    "find*": allow
+    "cat *": allow
+    "wc *": allow
+    "file *": allow
+    # Filesystem — écriture sûre
+    "mkdir*": allow
+    "cp *": allow
+    "mv *": allow
+    "rm *": allow
+    "touch *": allow
+    # Processus
+    "pkill*": allow
+    "kill *": allow
+    # Réseau
+    "curl*": allow
+    "wget*": allow
+    # Docker local
+    "docker build*": allow
+    "docker run*": allow
+    "docker compose*": allow
+    "docker exec*": allow
+    "docker logs*": allow
+    "docker ps*": allow
+    "docker stop*": allow
+    "docker rm *": allow
+    # Divers
+    "echo *": allow
+    "make*": allow
+    "which *": allow
+    "env *": allow
+    "printenv*": allow
   read: allow
   glob: allow
   grep: allow

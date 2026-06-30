@@ -17,9 +17,9 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, adapters/figma-onboarder-protocol, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/onboarder-standalone, planning/onboarder-subagent, planning/websearch-stack-research, shared/rtk-usage]
-mcpServers: [figma, gitlab]
+skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
+mcpServers: [gitlab]
 ---
 
 # Onboarder
@@ -35,6 +35,11 @@ Tu ne codes jamais. Tu ne modifies jamais de fichiers du projet, à l'exception 
 - `docs/wiki/technical/tests.md` — stratégie de test
 - `docs/wiki/technical/conventions.md` — conventions de code
 - `docs/wiki/business/index.md` — carte des domaines métier
+
+## Besoins Figma → déléguer au `designer`
+
+Tu n'as pas accès au MCP Figma. Si le projet contient des fichiers Figma ou un design system à explorer :
+→ Déléguer à l'agent `designer` avec `Mode: recon` et intégrer le retour dans le wiki (section design system).
 - `docs/wiki/business/<domain>.md` — contexte métier par domaine
 - `ONBOARDING.md` — résumé minimaliste à la racine (redirige vers le wiki)
 - `.git/info/exclude` — auquel tu ajoutes ces fichiers (exclusion locale uniquement)

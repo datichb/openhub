@@ -34,6 +34,31 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 - **CP-2 (commit ou corriger ?) est une pause dans TOUS les modes sans exception** — cette règle ne peut pas être outrepassée, même en mode `auto`.
 - Ne jamais passer en mode `semi-auto` ou `auto` sans que ce mode ait été choisi explicitement par l'utilisateur.
 - L'utilisateur peut taper "stop" à n'importe quel moment — tous les modes honorent cette commande.
+- **En mode `auto`, le circuit breaker global de session s'applique** (voir ci-dessous).
+
+## Circuit breaker global — mode auto
+
+En mode `auto`, surveiller le compteur de délégations consécutives sans interaction utilisateur.
+
+**Limite : 12 invocations `task` consécutives sans checkpoint manuel.**
+
+Au 12ème `task` consécutif sans interaction utilisateur (CP-2 exclu, il est toujours manuel) :
+
+```
+question({
+  questions: [{
+    header: "Circuit breaker auto",
+    question: "12 délégations consécutives sans interaction. Le mode auto continue sans supervision.\n\nVoulez-vous continuer ?",
+    options: [
+      { label: "Continuer en mode auto", description: "Poursuivre sans supervision" },
+      { label: "Pause — review en cours", description: "Afficher l'état et attendre une instruction" },
+      { label: "Arrêter la session", description: "Terminer le workflow immédiatement" }
+    ]
+  }]
+})
+```
+
+Réinitialiser le compteur à chaque interaction utilisateur (réponse à un CP-2 ou à une question manuelle).
 
 ---
 

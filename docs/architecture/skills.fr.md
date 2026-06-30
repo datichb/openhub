@@ -168,6 +168,7 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 | `auditor/auditor-workflow.md` | **A** | auditor | **Workflow du coordinateur** — 5 phases (0 vérification prérequis → 1 chargement contexte projet → 2 sélection domaines avec compatibilité stack → 3 délégation sous-agents → 4 consolidation synthèse exécutive) — récaps systématiques, questions obligatoires. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
 | `auditor/auditor-standalone.md` | **B** | auditor | **Parcours standalone** — récaps texte avant outil `question`, questions de validation par phase, synthèse finale sans bloc handoff |
 | `auditor/auditor-subagent.md` | **B** | auditor | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase (0-3), blocs structurés `## Retour intermédiaire` + `## Question pour l'orchestrator`, `task_id` obligatoire |
+| `auditor/auditor-execution-modes.md` | **B** | auditor | **Modes d'exécution** — consolidation des parcours standalone et sous-agent en un seul fichier de référence |
 | `auditor/audit-protocol-light.md` | **A** | auditor-subagent | Format de rapport commun allégé (sous-agents uniquement) : 4 niveaux de criticité (🔴/🟠/🟡/💡), scoring /10, format des findings individuels |
 | `auditor/audit-security.md` | **B** | auditor-subagent | OWASP Top 10, injections, secrets exposés, auth, CORS, CVE |
 | `auditor/audit-performance.md` | **B** | auditor-subagent | Core Web Vitals, LCP, CLS, TTI, requêtes N+1, cache, bundle |
@@ -213,6 +214,8 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 | `quality/debugger-workflow.md` | debugger | **Workflow unifié** — 6 phases (0 vérification artefacts → 1 exploration contextuelle → 2 questions complémentaires optionnel → 3 diagnostic 4 étapes : reproduction/isolation/identification/hypothèse graduée → 4 détection cas particuliers : race condition, environnement, données, configuration, dépendances, régression → 5 rapport + ticket Beads) — récaps systématiques, hypothèses graduées (haute/moyenne/faible probabilité), bloc `## Retour vers orchestrator` si invoqué depuis l'agent orchestrator. **Mode `--forensic`** : graduation de preuves Confirmed/Deduced/Hypothesized, stronghold-first, case file `.investigation-{slug}.md`, missing evidence = finding, délégation si >5 fichiers ou >10K tokens. |
 | `quality/debugger-handoff-format.md` | debugger, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : cause racine avec niveau de certitude (confirmé/probable/incertain) + chaîne causale, hypothèses explorées, impact et régressions potentielles, tickets de correction créés, actions d'urgence si bug en prod, statut (`diagnostiqué` / `partiellement-diagnostiqué` / `non-reproductible`) |
 | `quality/debugger-subagent.md` | debugger (conditionnel) | **Parcours sous-agent** — chargé par le debugger quand `[SKILL:quality/debugger-subagent]` est détecté dans le prompt (injection orchestrateur). Mécanisme d'interruption de session à chaque phase, blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` avec `task_id`, interdiction de l'outil `question`. Calqué sur le pattern `planner-subagent`. |
+| `quality/debugger-forensic.md` | **B** | debugger | **Mode forensic** — protocole d'analyse criminalistique renforcée : graduation de preuves (Confirmed/Deduced/Hypothesized), stronghold-first (ancrage sur preuve Confirmed avant tout raisonnement), format du case file `.investigation-{slug}.md` (table d'hypothèses, preuves, timeline, preuves manquantes), règle "Evidence manquante = finding", seuils de délégation (>5 fichiers ou >10K tokens) |
+| `quality/debugger-report-templates.md` | **B** | debugger | **Templates de rapport** — formats canoniques de rapport de diagnostic par type de bug (null pointer, race condition, régression, bug environnement-spécifique, bug de données), structure des hypothèses graduées, format du ticket Beads de correction |
 
 ---
 
@@ -252,12 +255,18 @@ Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)*
 | `planning/planner-workflow.md` | **A** | planner | **Workflow planner** — 7 phases (0 prérequis → **0.5 complexity scoring** (4 critères × 4 pts : domaines techniques, intégrations tiers, sensibilité sécurité, taille codebase ; tiers Small 4–6 / Medium 7–10 / Large 11–13 / Enterprise 14–16 ; conditionne pathfinder obligatoire et audit pré-implémentation) → 1 exploration contextuelle + signaux UX/UI → 1.5 délégation design → 2 questions → 3 plan hiérarchique → 4 cas particuliers → 5 création Beads → 5.5 ai-delegated → 6 vérification) — récaps systématiques, phases itératives. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
 | `planning/planner-standalone.md` | **B** | planner | **Parcours standalone** — récaps texte avant outil `question`, format des questions de validation par phase, sans bloc handoff orchestrateur |
 | `planning/planner-subagent.md` | **B** | planner | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire, terminaison de session après chaque checkpoint |
+| `planning/planner-execution-modes.md` | **B** | planner | **Modes d'exécution** — consolidation des parcours standalone et sous-agent en un seul fichier de référence, règles de détection du mode, invariants par mode |
+| `planning/planner-design-templates.md` | **B** | planner | Templates de délégation design — formats de prompts `task: designer` pour les modes recon, ux, ui et ux+ui, intégration des résultats dans le plan, gestion des cas d'échec |
+| `planning/planner-beads-templates.md` | **B** | planner | Templates de tickets Beads — formats canoniques par type de feature (frontend, backend, fullstack, audit, design, migration), champs obligatoires, règles `--design` et `--deps` |
 | `planning/onboarder-workflow.md` | **A** | onboarder | **Workflow onboarder** — 6 phases (0 prérequis → 1 exploration adaptative 7 profils → 2 questions → 3 rapport contexte → 4 cas particuliers → 5 production wiki + handoff). La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
 | `planning/onboarder-standalone.md` | **B** | onboarder | **Parcours standalone** — récaps texte avant outil `question`, sans bloc handoff orchestrateur |
 | `planning/onboarder-subagent.md` | **B** | onboarder | **Parcours sous-agent** — mécanisme d'interruption session à chaque phase, blocs structurés, `task_id` obligatoire |
+| `planning/onboarder-execution-modes.md` | **B** | onboarder | **Modes d'exécution** — consolidation des parcours standalone et sous-agent, règles de détection du mode d'invocation |
+| `planning/onboarder-profiles.md` | **B** | onboarder | **Profils d'exploration** — 7 profils adaptatifs (nouvelle feature, dette technique, sécurité, performance, migration, architecture, onboarding équipe), critères de sélection du profil, questions clés par profil |
 | `planning/pathfinder-protocol.md` | **A** | pathfinder | **Protocole pathfinder** — exploration rapide, estimation XS→XL, draft de plan, recommandation direct/escalade. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
 | `planning/pathfinder-standalone.md` | **B** | pathfinder | **Parcours standalone** — outil `question` pour les pauses, rapport final sans bloc handoff |
 | `planning/pathfinder-subagent.md` | **B** | pathfinder | **Parcours sous-agent** — session unique ou interruption si clarification critique, bloc handoff obligatoire |
+| `planning/pathfinder-execution-modes.md` | **B** | pathfinder | **Modes d'exécution** — consolidation des parcours standalone et sous-agent |
 | `planning/planner-handoff-format.md` | **A** | planner, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : tableau complet des tickets créés avec agent prévu et dépendances, hypothèses et ambiguïtés, estimation globale, risques identifiés, statut (`planification-complète` / `planification-partielle` / `bloqué`) |
 | `planning/onboarder-handoff-format.md` | **A** | onboarder, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : stack technique détaillée (langages, frameworks, BDD, infra, outils, versions clés), conventions identifiées, dette technique (🔴/🟠/🟡), zones d'incertitude, fichiers de contexte produits (`ONBOARDING.md`, `CONVENTIONS.md`), statut (`contexte-établi` / `contexte-partiel` / `bloqué`) |
 
@@ -265,34 +274,38 @@ Les skills marqués **(A)** sont Bucket A — inline. Les skills marqués **(B)*
 
 ## Domaine — `designer/`
 
-Skills de design. Utilisés par les agents `ux-designer` et `ui-designer`.
+Skills de design. Utilisés par l'agent `designer`.
 
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `designer/ux-protocol.md` | ux-designer | Heuristiques Nielsen (10 principes), grille des 5 questions UX, format user flow (nominal/alternatifs/erreurs), format spec UX avec critères d'acceptance, protocole d'audit friction |
-| `designer/ui-protocol.md` | ui-designer | Tokens de design (couleurs, typographie, espacement, radius, ombres), format spec composant (variants/états/tokens/do-don't), règles de cohérence visuelle, protocole d'audit d'incohérences, échelle modulaire typographique |
+| Fichier | Bucket | Agents qui l'utilisent | Contenu |
+|---------|--------|----------------------|---------|
+| `designer/designer-protocol.md` | **A** | designer | **Protocole designer unifié** — 4 modes d'invocation (recon/ux/ui/ux+ui), détection du mode depuis le prompt, logique de routing, gate d'accès Figma (mode recon uniquement), mécanisme d'interruption de session |
+| `designer/ux-protocol.md` | **B** | designer | Heuristiques Nielsen (10 principes), grille des 5 questions UX, format user flow (nominal/alternatifs/erreurs), format spec UX avec critères d'acceptance, protocole d'audit friction |
+| `designer/ui-protocol.md` | **B** | designer | Tokens de design (couleurs, typographie, espacement, radius, ombres), format spec composant (variants/états/tokens/do-don't), règles de cohérence visuelle, protocole d'audit d'incohérences, échelle modulaire typographique |
+| `designer/figma-recon-protocol.md` | **B** | designer | Protocole de reconnaissance Figma — recherche de fichiers par nom de feature, exploration de l'arbre de composants, détection du design system (DSFR, Material, Custom), extraction des tokens (Figma Variables : couleurs, typographie, espacement), format de sortie pour les agents de planification |
+| `designer/figma-deep-protocol.md` | **B** | designer | Analyse Figma approfondie — énumération des variants de composants, cartographie des états, breakpoints responsives, extraction des annotations design-to-dev, checklist de handoff |
+| `designer/designer-execution-modes.md` | **B** | designer | **Parcours d'exécution** — parcours standalone (outil `question` actif, pas de bloc handoff) et parcours sous-agent (mécanisme d'interruption de session, blocs `## Question pour l'orchestrator` + `task_id`) |
 
 ---
 
 ## Domaine — `design/`
 
-Skills de handoff pour les agents design. Injectés dans l'agent design (producteur) et dans l'`orchestrator` (consommateur).
+Skills de handoff pour l'agent designer. Injectés dans l'agent `designer` (producteur) et dans l'`orchestrator` (consommateur).
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `design/design-handoff-format.md` | ux-designer, ui-designer, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : spec produite intégrale (jamais résumée), contraintes d'implémentation, points ouverts, alternatives écartées, statut (`spec-complète` / `spec-partielle` / `bloqué`) — produit uniquement quand invoqué depuis l'orchestrator, après validation explicite de l'utilisateur |
+| `design/design-handoff-format.md` | designer, orchestrator | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator` : spec produite intégrale (jamais résumée), contraintes d'implémentation, points ouverts, alternatives écartées, statut (`spec-complète` / `spec-partielle` / `bloqué`) — produit uniquement quand invoqué depuis l'orchestrator, après validation explicite de l'utilisateur |
 
 ---
 
 ## Domaine — `adapters/`
 
-Skills d'intégration avec des outils externes (Figma, GitLab, etc.). Ces skills sont chargés en fonction des `mcpServers` déclarés dans l'agent.
+Skills d'intégration avec des outils externes (GitLab, etc.). Ces skills sont chargés en fonction des `mcpServers` déclarés dans l'agent.
+
+> **Note :** Les skills d'intégration Figma ont été centralisés dans le domaine `designer/` (ADR-020).
+> `planner`, `pathfinder` et `onboarder` délèguent désormais tous leurs besoins Figma à l'agent `designer` via `task`.
 
 | Fichier | Agents qui l'utilisent | MCP Server | Contenu |
 |---------|----------------------|------------|---------|
-| `adapters/figma-pathfinder-protocol.md` | pathfinder | `figma` | Protocole d'enrichissement Figma pour Pathfinder — recherche automatique de maquettes par nom de feature, détection de signaux UX/UI (flow multi-étapes, composants, états visuels), ajustement d'estimation (+1 ticket UI / +1 niveau complexité), recommandation d'escalade au planner si complexité L/XL + signaux design forts |
-| `adapters/figma-planner-protocol.md` | planner | `figma` | Protocole d'enrichissement Figma pour Planner — Phase 1.3 optionnelle (exploration Figma), recherche de maquettes par nom de feature, analyse de structure + signaux UX/UI, enrichissement récap Phase 1 avec URLs Figma et composants identifiés, déclenchement Phase 1.5 (délégation design) si signaux détectés, pré-remplissage champ `--design` des tickets avec données Figma |
-| `adapters/figma-onboarder-protocol.md` | onboarder | `figma` | Protocole d'enrichissement Figma pour Onboarder — Phase 1.5 optionnelle (si frontend détecté), recherche de maquettes par nom de projet, analyse de 3 fichiers max, détection automatique du design system (DSFR, Material, Ant Design, Custom), extraction des design tokens depuis Figma Variables (couleurs, typographie, espacements, effets), intégration dans ONBOARDING.md et CONVENTIONS.md (section Design tokens) |
 | `adapters/gitlab-pathfinder-protocol.md` | pathfinder | `gitlab` | Protocole d'enrichissement GitLab pour le Pathfinder — lecture d'un ticket pour affiner l'estimation de complexité (ACs détaillés, labels priorité, milestone, blockers dans les commentaires), détection de MR existantes sur le même périmètre, ajustement selon les contraintes temporelles du milestone |
 | `adapters/gitlab-planner-protocol.md` | planner | `gitlab` | Protocole d'enrichissement GitLab pour le Planner — Phase 1.2bis optionnelle, lecture du ticket source comme cahier des charges, extraction des critères d'acceptation, exploitation des labels/milestone pour calibrer la priorité, détection des tickets liés pour identifier les dépendances, enrichissement du récap Phase 1 avec contexte GitLab |
 | `adapters/gitlab-onboarder-protocol.md` | onboarder | `gitlab` | Protocole d'intégration GitLab pour l'Onboarder — Phase 1.4bis optionnelle (si projet GitLab détecté), cartographie des labels par catégorie (types, priorités, domaines, workflow), milestones actifs pour comprendre la cadence de livraison, aperçu du backlog, enrichissement de ONBOARDING.md (section Gestion de projet) et CONVENTIONS.md (conventions de labelling) |
@@ -305,8 +318,8 @@ Skills de posture transverse. Injectables dans tout agent nécessitant une postu
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `posture/expert-posture.md` | auditor-subagent, onboarder, ux-designer, ui-designer, planner, documentarian, qa-engineer | Exploration systématique avant de répondre (annonce des artefacts consultés, identification des zones d'incertitude), recommandation contraire argumentée (format ⚠️ avec problème/alternative/pourquoi/trade-offs, formulation à la première personne), pause de confirmation avant toute action à risque élevé (format 🛑 avec question binaire explicite) |
-| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, ux-designer, ui-designer | Utilisation de l'outil `question` d'OpenCode — syntaxe `question({ questions: [{...}] })`, support multi-questions en un seul appel, multi-sélection (`multiple: true`), option "Type your own answer" automatique (ne pas dupliquer), format des réponses (tableau de labels), structure obligatoire (`header` ≤ 30 chars, `question`, `options` avec `label` + `description`), option recommandée en premier avec `(Recommandé)`, bloc de contexte obligatoire en tant que sous-agent |
+| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian, qa-engineer | Exploration systématique avant de répondre (annonce des artefacts consultés, identification des zones d'incertitude), recommandation contraire argumentée (format ⚠️ avec problème/alternative/pourquoi/trade-offs, formulation à la première personne), pause de confirmation avant toute action à risque élevé (format 🛑 avec question binaire explicite) |
+| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, designer | Utilisation de l'outil `question` d'OpenCode — syntaxe `question({ questions: [{...}] })`, support multi-questions en un seul appel, multi-sélection (`multiple: true`), option "Type your own answer" automatique (ne pas dupliquer), format des réponses (tableau de labels), structure obligatoire (`header` ≤ 30 chars, `question`, `options` avec `label` + `description`), option recommandée en premier avec `(Recommandé)`, bloc de contexte obligatoire en tant que sous-agent |
 | `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer | **(A)** — Posture de concision niveau `lite` : suppression des formules d'intro sans valeur ("Bien sûr !", "Je vais...", "Voici..."), reformulations du contexte déjà connu, transitions redondantes entre sections titrées, formules de clôture. Ne touche pas aux blocs handoff, récapitulatifs narratifs obligatoires, rapports formels ni au contenu technique. Calibré via `token_optimization.output_verbosity` dans `hub.json`. Voir [ADR-015](./adr/015-concision-posture.fr.md). |
 
 ---
@@ -372,7 +385,6 @@ onboarder             → (A) planning/onboarder-workflow,
                              shared/websearch-usage,
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              planning/onboarder-handoff-format †,
-                             adapters/figma-onboarder-protocol,
                              adapters/gitlab-onboarder-protocol
                         (B) planning/onboarder-standalone, planning/onboarder-subagent,
                              planning/websearch-stack-research,
@@ -384,7 +396,6 @@ planner               → (A) developer/beads-plan, planning/planner-workflow,
                              shared/living-docs-enrichment, shared/websearch-usage,
                              planning/planner-handoff-format †,
                              shared/hub-workflow-reference,
-                             adapters/figma-planner-protocol,
                              adapters/gitlab-planner-protocol
                         (B) planning/planner-standalone, planning/planner-subagent,
                              planning/websearch-stack-research,
@@ -394,7 +405,6 @@ pathfinder            → (A) developer/beads-plan, planning/pathfinder-protocol
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              shared/websearch-usage,
                              planning/pathfinder-handoff-format †,
-                             adapters/figma-pathfinder-protocol,
                              adapters/gitlab-pathfinder-protocol
                         (B) planning/pathfinder-standalone, planning/pathfinder-subagent,
                              planning/websearch-stack-research,
@@ -439,22 +449,13 @@ auditor-subagent      → (A) auditor/audit-protocol-light, posture/expert-postu
                               auditor/websearch-cve-lookup,
                               auditor/websearch-performance-research,
               shared/rtk-usage
-ux-designer           → (A) designer/ux-protocol, developer/beads-plan,
+designer              → (A) designer/designer-protocol,
                              design/design-planner-format,
-                             posture/expert-posture, posture/tool-question,
-                             design/design-handoff-format †,
-                             shared/websearch-usage
-                        (B) designer/ux-subagent, design/websearch-design-patterns,
-                             shared/elicitation-techniques,
-                             adapters/figma-ux-designer-protocol,
-              shared/rtk-usage
-ui-designer           → (A) designer/ui-protocol, developer/beads-plan,
-                             design/design-planner-format,
-                             posture/expert-posture, posture/tool-question,
-                             design/design-handoff-format †,
-                             shared/websearch-usage
-                        (B) designer/ui-subagent, design/websearch-design-patterns,
-                             adapters/figma-ui-designer-protocol,
+                             design/design-handoff-format †
+                        (B) designer/ux-protocol, designer/ui-protocol,
+                             designer/figma-recon-protocol, designer/figma-deep-protocol,
+                             designer/designer-execution-modes,
+                             design/websearch-design-patterns,
               shared/rtk-usage
 documentarian         → (A) dev-standards-git, developer/beads-plan,
                              developer/beads-dev,

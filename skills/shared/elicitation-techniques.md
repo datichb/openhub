@@ -1,6 +1,6 @@
 ---
 name: elicitation-techniques
-description: "Utiliser quand une ambiguité est détectée dans les requirements, quand le périmètre est flou, quand plusieurs parties prenantes ont des visions divergentes, ou quand une décision de conception est difficile à trancher. Référence de 25 techniques d'élicitation structurées avec critères de sélection contextuelle. Injecté dans ux-designer et planner quand des clarifications sont nécessaires. Couvre : convergence/divergence, exploration des contraintes, gestion des parties prenantes, prise de décision sous incertitude. Mots-clés : elicitation, requirements, ambiguity, stakeholders, design thinking, brainstorming, decision making, clarification techniques."
+description: "Utiliser quand une ambiguité est détectée dans les requirements, quand le périmètre est flou, quand plusieurs parties prenantes ont des visions divergentes, ou quand une décision de conception est difficile à trancher. Référence de 25 techniques d'élicitation structurées avec critères de sélection contextuelle. Injecté dans designer et planner quand des clarifications sont nécessaires. Couvre : convergence/divergence, exploration des contraintes, gestion des parties prenantes, prise de décision sous incertitude. Mots-clés : elicitation, requirements, ambiguity, stakeholders, design thinking, brainstorming, decision making, clarification techniques."
 bucket: B
 ---
 

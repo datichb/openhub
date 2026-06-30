@@ -32,7 +32,7 @@ openhub  ──────────────────────►  
 
 ```
 
-Résultat : 19 agents spécialisés + intégration Figma, toujours à jour, disponibles dans tous vos projets
+Résultat : 18 agents spécialisés + intégration Figma, toujours à jour, disponibles dans tous vos projets
 depuis une source de vérité unique.
 
 ---
@@ -140,7 +140,7 @@ oc start MON-APP
 
 ## Agents disponibles
 
-19 agents en deux modes :
+18 agents en deux modes :
 
 - **`primary`** — visibles directement dans l'outil IA (tab picker OpenCode). Invocables par l'utilisateur.
 - **`subagent`** — invisibles dans le picker. Invocables uniquement par délégation depuis un agent coordinateur.
@@ -154,8 +154,7 @@ oc start MON-APP
 | `auditor` | Coordinateur | Audit multi-domaine — délègue aux 7 `auditor-*` |
 | `onboarder` | Coordinateur | Découverte de projet existant — détecte la stack, le domaine métier, les designs Figma, la stratégie de test, et produit un rapport de contexte |
 | `planner` | Planification | Décompose une feature en tickets Beads |
-| `ux-designer` | Design | Spec UX — user flows, critères d'acceptance |
-| `ui-designer` | Design | Spec UI — tokens, composants, guidelines visuelles |
+| `designer` | Design | Analyse Figma, flows UX et specs de composants UI — 4 modes : recon, ux, ui, ux+ui. Seul agent avec accès MCP Figma. |
 | `reviewer` | Qualité | Review de PR/MR par sévérité |
 | `qa-engineer` | Qualité | Tests manquants (unit / integration / E2E). **Automatiquement invoqué pour le code critique** (API, services, >200 lignes). Produit un rapport de couverture et des points d'attention pour le reviewer. |
 | `debugger` | Qualité | Diagnostic de bugs, rapport de cause racine |
@@ -182,7 +181,7 @@ oc start MON-APP
 | Tickets prêts à coder | `orchestrator-dev` | `"Implémente les tickets bd-X à bd-Y"` |
 | Audit avant mise en prod | `auditor` | `"Audite le projet"` |
 | Bug en production | `debugger` | `"Ce bug : [stacktrace]"` |
-| Spec UX/UI standalone | `ux-designer` / `ui-designer` | `"Spec UX pour [feature]"` |
+| Spec UX/UI standalone | `designer` | `"Spec UX pour [feature]"` (Mode : ux, ui ou ux+ui) |
 | Documenter une feature | `documentarian` | `"Documente [sujet]"` |
 | Découvrir un projet existant | `onboarder` | `"Onboarde-toi sur ce projet"` |
 | Planifier sans implémenter | `planner` | `"Décompose [feature] en tickets"` |
@@ -262,7 +261,7 @@ Les agents Pathfinder, Planner et Onboarder interrogent automatiquement Figma lo
 | Document | Description |
 |----------|-------------|
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes de flux, principes de design |
-| [Agents](docs/architecture/agents.fr.md) | Référence exhaustive des 19 agents |
+| [Agents](docs/architecture/agents.fr.md) | Référence exhaustive des 18 agents |
 | [Serveurs MCP](servers/README.md) | Architecture et développement des serveurs MCP |
 | [ADR](docs/architecture/adr/) | Décisions architecturales (9 ADR) |
 | [Adapters](docs/architecture/adapters.fr.md) | Architecture des adapters |

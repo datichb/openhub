@@ -6,7 +6,7 @@ description: Protocole de recherche web pour les agents design — patterns UI/U
 # WebSearch Design Patterns — Design Agent Protocol
 
 **Version**: 1.0.0  
-**Target**: Design agents (ux-designer, ui-designer)  
+**Target**: Design agents (designer, designer)  
 **Extends**: `skills/shared/websearch-usage.md`
 
 ## Purpose

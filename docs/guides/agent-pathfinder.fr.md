@@ -319,7 +319,7 @@ L'orchestrator invoquera automatiquement le pathfinder.
 
 ### Q: Pathfinder peut-il consulter les designers/auditors ?
 
-**R:** Non, seul le planner peut déléguer aux agents spécialisés (ux-designer, auditor-*, etc.). C'est une raison d'escalader si ces signaux sont forts.
+**R:** Non, seul le planner peut déléguer aux agents spécialisés (designer, auditor-*, etc.). C'est une raison d'escalader si ces signaux sont forts.
 
 ### Q: Comment forcer le planner sans passer par pathfinder ?
 

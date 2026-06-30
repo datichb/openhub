@@ -11,7 +11,7 @@ Ce skill s'adresse aux **agents coordinateurs** (orchestrator, auditor, orchestr
 
 | Perspective | Agent concerné | Skill de référence | Responsabilité |
 |-------------|---------------|-------------------|----------------|
-| **Producteur** | planner, auditor-*, ux-designer, ui-designer, developer-*, qa-engineer, reviewer, debugger, onboarder | `planner-workflow`, `auditor-workflow`, `ux-protocol`, `ui-protocol`, `developer-handoff-format`, `qa-protocol`, `reviewer-protocol`, `debugger-workflow`, `onboarder-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |
+| **Producteur** | planner, auditor-*, designer, developer-*, qa-engineer, reviewer, debugger, onboarder | `planner-workflow`, `auditor-workflow`, `designer-protocol`, `developer-handoff-format`, `qa-protocol`, `reviewer-protocol`, `debugger-workflow`, `onboarder-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |der-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |
 | **Consommateur** | orchestrator, auditor (coordinateur), orchestrator-dev | **Ce skill** (`retranscription-coordinateur`) | **Retransmettre** le récap reçu d'un sous-agent avant d'appeler `question` |
 
 **Exemple de flux complet :**
@@ -150,10 +150,8 @@ Avant d'appeler `question`, vérifier :
 | **auditor-*** sous-agents (final) | `## Retour vers orchestrator` | Rapport d'audit complet | `### Périmètre audité`, `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
 | **debugger** (final) | `## Retour vers orchestrator` | Rapport de diagnostic complet + blocs intermédiaires si présents | `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles` |
 | **debugger** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu du diagnostic en cours, `task_id` |
-| **ux-designer** (final) | `## Retour vers orchestrator` | Spec UX complète + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
-| **ux-designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification, `task_id` |
-| **ui-designer** (final) | `## Retour vers orchestrator` | Spec UI complète + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
-| **ui-designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification (design system), `task_id` |
+| **designer** (final) | `## Retour vers orchestrator` | Spec complète (UX/UI selon mode) + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
+| **designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification, mode actif, `task_id` |
 | **orchestrator-dev** (final) | `## Retour vers orchestrator` | Récap global complet (tableau + comptes rendus + points d'attention) | `### Détail par ticket`, `### Points d'attention` |
 | **orchestrator-dev** (CP à enjeu fort : CP-2, blocage, ticket bloqué) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel + rapport review | `### Rapport de review complet`, `### État de la session`, `task_id` |
 | **orchestrator-dev** (CPs intermédiaires : CP-1, CP-QA, CP-3, branche) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel | Contexte du CP, état de la session, `task_id` |

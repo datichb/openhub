@@ -31,6 +31,50 @@ Chaque étape de migration doit :
 
 ---
 
+## 🛑 Protocole pré-migration destructive
+
+Une migration est **destructive** si elle contient l'un des patterns suivants :
+- `DROP TABLE` / `DROP COLUMN` / `DROP INDEX`
+- `TRUNCATE`
+- `DELETE` sans clause `WHERE` (suppression masse)
+- `ALTER TABLE ... DROP ...`
+- Renommage de colonne référencée par d'autres services ou migrations
+
+### Workflow OBLIGATOIRE si migration destructive détectée
+
+**Étape 1 — Dry-run** : exécuter la commande de preview de la migration
+
+| ORM / Framework | Commande de preview |
+|----------------|---------------------|
+| Prisma | `npx prisma migrate diff` |
+| Alembic | `alembic history --verbose` + lire le fichier de migration |
+| TypeORM | `npx typeorm migration:show -d <datasource>` |
+| Django | `python manage.py migrate --plan` |
+| Rails | `rails db:migrate:status` + lire le fichier de migration |
+
+**Étape 2 — Documenter** dans le bloc de handoff :
+
+```
+⚠️ MIGRATION DESTRUCTIVE DÉTECTÉE
+Type : [DROP COLUMN / TRUNCATE / DELETE masse / ...]
+Table(s) impactée(s) : [liste]
+Données perdues si exécutée : [estimation / "irréversible"]
+Réversibilité : [rollback possible via <commande> / non-réversible]
+Dry-run output : [résultat de la commande de preview ci-dessus]
+```
+
+**Étape 3 — STOP** : marquer le statut `bloqué` et retourner à orchestrator-dev.
+
+```bash
+bd update <ID> -s blocked
+bd comments add <ID> "Migration destructive détectée — escalade requise avant exécution. Voir handoff."
+```
+
+> Le developer-migrator NE PEUT PAS exécuter une migration destructive de manière autonome.
+> Seul l'utilisateur peut autoriser l'exécution via un checkpoint explicite (CP-2).
+
+---
+
 ## Types de migrations
 
 ### Frameworks frontend

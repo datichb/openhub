@@ -59,8 +59,7 @@ Chaque agent déclare quels sous-agents il peut invoquer :
           "*": "deny",
           "planner": "allow",
           "onboarder": "allow",
-          "ux-designer": "allow",
-          "ui-designer": "allow",
+          "designer": "allow",
           "auditor-subagent": "allow",
           "orchestrator-dev": "allow",
           "debugger": "allow"
@@ -103,8 +102,7 @@ flowchart TB
         PL[planner]
         ON[onboarder]
         DB[debugger]
-        UX[ux-designer]
-        UI[ui-designer]
+        DS[designer<br/>4 modes: recon/ux/ui/ux+ui]
         DOC[documentarian]
         QA[qa-engineer]
         R[reviewer]
@@ -124,16 +122,14 @@ flowchart TB
     U --> PL
     U --> ON
     U --> DB
-    U --> UX
-    U --> UI
+    U --> DS
     U --> DOC
     U --> QA
     U --> R
 
     O -->|task| PL
     O -->|task| ON
-    O -->|task| UX
-    O -->|task| UI
+    O -->|task| DS
     O -->|task| AUD
     O -->|task| OD
     O -->|task| DB
@@ -151,7 +147,7 @@ flowchart TB
 
 | Agent appelant | Peut invoquer via `task` |
 |---------------|--------------------------|
-| `orchestrator` | `planner`, `onboarder`, `ux-designer`, `ui-designer`, `auditor-subagent`, `orchestrator-dev`, `debugger` |
+| `orchestrator` | `planner`, `onboarder`, `designer`, `auditor-subagent`, `orchestrator-dev`, `debugger` |
 | `orchestrator-dev` | `developer-*`, `reviewer`, `qa-engineer`, `documentarian` |
 | `auditor` | `auditor-subagent`, `documentarian` |
 | `planner` | `documentarian` |
@@ -247,7 +243,7 @@ Le bloc `## Question pour l'orchestrator` contient :
 | `documentarian/documentarian-handoff-format` | `documentarian` | `orchestrator-dev` | Type, fichiers modifiés, résumé |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Tickets traités, détail par ticket, points d'attention, statut global |
 | `auditor/audit-handoff-format` | `auditor-*` | `orchestrator` | Vulnérabilités, recommandations, risque résiduel |
-| `design/design-handoff-format` | `ux-designer`, `ui-designer` | `orchestrator` | Spec complète, contraintes, points ouverts |
+| `design/design-handoff-format` | `designer` | `orchestrator` | Spec complète, contraintes, points ouverts |
 | `planning/planner-handoff-format` | `planner` | `orchestrator` | Tableau des tickets, agents prévus, dépendances |
 | `planning/onboarder-handoff-format` | `onboarder` | `orchestrator` | Stack, conventions, dette, incertitudes |
 | `quality/debugger-handoff-format` | `debugger` | `orchestrator` | Cause racine, certitude, impact, actions urgentes |
@@ -394,8 +390,7 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 | **onboarder** | Fin de chaque phase (0 à 4) + pauses ad hoc | Systématique |
 | **auditor** (coordinateur) | Fin de chaque phase (0 à 3) + pauses ad hoc | Systématique |
 | **debugger** | Fin de chaque phase + confirmations d'action irréversible | Systématique |
-| **ux-designer** | Clarification critique (design system, informations utilisateur) | Ad hoc uniquement |
-| **ui-designer** | Clarification critique (design system inexistant) | Ad hoc uniquement |
+| **designer** | Clarification critique (design system, informations utilisateur, mode ambigu) | Ad hoc uniquement |
 
 ### Ré-invocation avec task_id
 
@@ -447,7 +442,7 @@ Deux noms de blocs coexistent selon l'agent producteur — ils sont sémantiquem
 
 | Bloc | Producteurs | Détection |
 |------|-------------|-----------|
-| `## Question pour l'orchestrator` (avec accent) | planner, pathfinder, onboarder, auditor, debugger, ux-designer, ui-designer | Contient `task_id` pour reprise |
+| `## Question pour l'orchestrator` (avec accent) | planner, pathfinder, onboarder, auditor, debugger, designer | Contient `task_id` pour reprise |
 | `## Question pour l'orchestrator` (sans accent) | orchestrator-dev | Contient `task_id` pour reprise |
 
 Les deux déclenchent le même comportement côté orchestrateur : afficher le récap intermédiaire, relayer la question via `question`, ré-invoquer avec `task_id`.

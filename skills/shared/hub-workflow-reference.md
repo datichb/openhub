@@ -18,8 +18,7 @@ source-of-truth: true
 | `onboarder` | planning | primary | Projet inconnu — aucun contexte disponible en session | `ONBOARDING.md`, `CONVENTIONS.md`, carte des agents recommandés |
 | `pathfinder` | planning | primary | Feature simple ou exploratoire — score complexity ≤ Medium (≤ 10 pts) | Rapport reconnaissance + estimation XS/S/M/L/XL + recommandation `direct` ou `escalade-planner` |
 | `planner` | planning | primary | Feature complexe — signal UX/audit détecté ou score ≥ Large (≥ 11 pts) | Tickets Beads enrichis + champ `Agent prévu` par ticket + `Ordre de traitement` |
-| `ux-designer` | design | primary | Parcours utilisateur, flows, friction, spec UX | Spec UX avec user flows, états, critères d'acceptance UX |
-| `ui-designer` | design | primary | Design system, composants visuels, tokens, accessibilité | Spec UI avec tokens, variants, états, guidelines a11y |
+| `designer` | design | primary | Spec UX (flows, friction, états) et/ou spec UI (tokens, composants, accessibilité). Seul agent avec accès Figma. Modes : recon, ux, ui, ux+ui. | Spec UX/UI complète selon le mode — user flows, tokens, critères d'acceptance, handoff vers orchestrator |
 | `auditor` | auditor | primary | Sécurité, performance, accessibilité, RGPD, éco-conception, architecture, observabilité | Rapport d'audit structuré + recommandations priorisées + statut `corrections-requises`/`acceptable`/`bloquant` |
 | `orchestrator-dev` | planning | primary | Implémentation de tickets Beads prêts (statut `ready`) | Récap implémentation par ticket — statut, fichiers clés, critères couverts, points d'attention |
 | `debugger` | quality | primary | Bug signalé avec artefacts (stacktrace, logs, description reproductible) | Rapport de diagnostic avec hypothèses graduées + ticket de correction Beads |
@@ -88,10 +87,10 @@ Ces séquences sont des références — pas des contraintes rigides.
 |----------|---------|
 | **Solo simple** | `pathfinder` → `orchestrator-dev` |
 | **Solo complet** | `planner` → `orchestrator-dev` |
-| **Avec conception UX** | `planner` → `ux-designer` → `orchestrator-dev` |
-| **Avec conception complète** | `planner` → `ux-designer` → `ui-designer` → `orchestrator-dev` |
+| **Avec conception UX** | `planner` → `designer` (Mode: ux) → `orchestrator-dev` |
+| **Avec conception complète** | `planner` → `designer` (Mode: ux+ui) → `orchestrator-dev` |
 | **Avec audit** | `planner` → `auditor` → `orchestrator-dev` |
-| **Complète** | `planner` → `ux-designer` → `ui-designer` → `auditor` → `orchestrator-dev` |
+| **Complète** | `planner` → `designer` (Mode: ux+ui) → `auditor` → `orchestrator-dev` |
 | **Bug isolé** | `debugger` → `orchestrator-dev` (si ticket de correction créé) |
 | **Projet inconnu** | `onboarder` → Mode A ou B |
 
@@ -104,7 +103,7 @@ Ces séquences sont des références — pas des contraintes rigides.
 | `planner` | `planning/planner-handoff-format` | `orchestrator` | A |
 | `pathfinder` | `planning/pathfinder-handoff-format` | `orchestrator` | B |
 | `onboarder` | `planning/onboarder-handoff-format` | `orchestrator` | B |
-| `ux-designer` / `ui-designer` | `design/design-handoff-format` | `orchestrator` | B |
+| `designer` | `design/design-handoff-format` | `orchestrator` | B |
 | `auditor` | `auditor/audit-handoff-format` | `orchestrator` | B |
 | `debugger` | `quality/debugger-handoff-format` | `orchestrator` | B |
 | `orchestrator-dev` | `orchestrator/orchestrator-handoff-format` | `orchestrator` | A |

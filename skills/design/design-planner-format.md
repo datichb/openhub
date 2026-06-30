@@ -1,18 +1,18 @@
 ---
 name: design-planner-format
-description: Source de vérité pour le format de handoff planner → ux-designer / ui-designer. Définit le contexte obligatoire à transmettre lors de la délégation design en Phase 1.5. Injecté dans planner, ux-designer et ui-designer pour garantir que le producteur et les consommateurs partagent le même contrat.
+description: Source de vérité pour le format de handoff planner → designer. Définit le contexte obligatoire à transmettre lors de la délégation design en Phase 1.5. Injecté dans planner et designer pour garantir que le producteur et les consommateurs partagent le même contrat.
 ---
 
 # Skill — Format de handoff planner → design
 
-Ce skill est la **source de vérité** pour le format de délégation du `planner` vers les agents design (`ux-designer` / `ui-designer`).
-Il est injecté dans `planner`, `ux-designer` et `ui-designer` — producteur et consommateurs partagent le même contrat.
+Ce skill est la **source de vérité** pour le format de délégation du `planner` vers l'agent `designer`.
+Il est injecté dans `planner` et `designer` — producteur et consommateur partagent le même contrat.
 
 ---
 
 ## Quand produire ce handoff
 
-Le `planner` délègue à un agent design en **Phase 1.5** (après Phase 1 d'exploration, avant Phase 2 de questions) si **au moins un signal design** a été identifié lors de l'exploration contexte.
+Le `planner` délègue à l'agent `designer` en **Phase 1.5** (après Phase 1 d'exploration, avant Phase 2 de questions) si **au moins un signal design** a été identifié lors de l'exploration contexte.
 
 **Signaux déclencheurs (Phase 1.5 — ligne 93 du workflow planner) :**
 - Mention de "interface", "UX", "UI", "wireframe", "maquette", "design system", "composant réutilisable"
@@ -20,19 +20,22 @@ Le `planner` délègue à un agent design en **Phase 1.5** (après Phase 1 d'exp
 - Absence de composants existants réutilisables (nécessite création de nouveaux composants)
 - Feature traversant plusieurs écrans avec interactions complexes
 
-**Choix d'agent :**
-- **ux-designer** : parcours utilisateur, user flows, architecture de l'information, états d'interface, accessibilité structurelle
-- **ui-designer** : tokens, design system, composants réutilisables, cohérence visuelle, accessibilité visuelle (contraste, taille)
+**Choix du mode :**
+- **Mode `ux`** : parcours utilisateur, user flows, architecture de l'information, états d'interface, accessibilité structurelle
+- **Mode `ui`** : tokens, design system, composants réutilisables, cohérence visuelle, accessibilité visuelle (contraste, taille)
+- **Mode `ux+ui`** : les deux dimensions sont présentes → commencer par UX
+- **Mode `recon`** : exploration Figma légère avant de décider (ex : Phase 1.3)
 
-> Si les deux dimensions sont présentes → commencer par **ux-designer**.
-> Si seul le visuel est concerné (ex : nouveau bouton, palette de couleurs) → **ui-designer** directement.
+> Si les deux dimensions sont présentes → mode `ux+ui`.
+> Si seul le visuel est concerné (ex : nouveau bouton, palette de couleurs) → mode `ui` directement.
 
 ---
 
-## Format du prompt de délégation planner → design
+## Format du prompt de délégation planner → designer
 
 ```
-Agent : ux-designer | ui-designer
+Agent : designer
+Mode: recon | ux | ui | ux+ui
 
 Objectif : <résumé en 1-2 phrases de ce que l'agent design doit produire>
 
@@ -72,14 +75,15 @@ Objectif : <résumé en 1-2 phrases de ce que l'agent design doit produire>
 
 ## Format du bloc `## Retour vers planner`
 
-**Produit par l'agent design (ux-designer / ui-designer) à la fin de sa spec :**
+**Produit par l'agent designer à la fin de sa spec :**
 
 ```
 ---
 
 ## Retour vers planner
 
-**Agent :** ux-designer | ui-designer
+**Agent :** designer
+**Mode :** ux | ui | ux+ui
 **Feature :** <titre de la feature>
 
 ### Spec produite
@@ -121,14 +125,14 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 ## Règles pour le producteur (planner)
 
 - **Toujours vérifier les signaux design** avant de déléguer (ligne 93 du workflow planner)
-- **Choisir le bon agent** : ux-designer (flows, états) vs ui-designer (tokens, composants)
+- **Choisir le bon mode** : ux (flows, états) vs ui (tokens, composants) vs ux+ui vs recon
 - **Ne jamais déléguer si aucun signal design** n'a été identifié — le planner continue en Phase 2 directement
 - **Transmettre tout le contexte** identifié en Phase 1 — composants existants, stack technique, conventions front
 - **Ne jamais poser les questions de Phase 2** avant d'avoir reçu le retour design — le design peut modifier les questions à poser
 
 ---
 
-## Règles pour les consommateurs (ux-designer / ui-designer)
+## Règles pour le consommateur (designer)
 
 - **Toujours lire le contexte complet** avant de commencer la spec — composants existants, contraintes techniques, stack front
 - **Réutiliser l'existant d'abord** — ne créer de nouveaux composants que si nécessaire
@@ -144,13 +148,13 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ## Règles pour le consommateur final (planner après réception du retour design)
 
-### À la réception du retour d'un agent design
+### À la réception du retour de l'agent designer
 
 1. **Afficher la spec complète dans le texte de la discussion** (ne pas inclure dans l'outil `question`) — ne jamais résumer.
 2. **Afficher l'intégralité du bloc dans le texte de la discussion** (ne pas inclure dans l'outil `question`).
 3. **Vérifier la présence de tous les champs obligatoires** : `Composants à créer`, `Tokens design requis`, `Statut`.
-   - Si l'un de ces champs est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander explicitement à l'agent design de compléter avant de continuer.
-4. **Si la spec complète est absente** (le bloc handoff est présent sans spec préalable) → demander explicitement à l'agent design de produire la spec complète avant de continuer.
+   - Si l'un de ces champs est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander explicitement au designer de compléter avant de continuer.
+4. **Si la spec complète est absente** (le bloc handoff est présent sans spec préalable) → demander explicitement au designer de produire la spec complète avant de continuer.
 5. **Intégrer les `### Composants à créer` et `### Tokens design requis`** dans les questions de Phase 2 si validation utilisateur nécessaire.
 6. **Ajouter les `### Questions pour l'utilisateur`** aux questions de Phase 2 (ne pas les poser immédiatement — les regrouper avec les autres questions contextuelles).
 7. **Utiliser le `### Statut`** pour conditionner la suite :
@@ -158,7 +162,7 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
    - `spec-partielle` → continuer vers Phase 2 en incluant les questions design dans le questionnaire
    - `bloqué` → demander à l'utilisateur comment débloquer avant de continuer
 
-> ❌ Ne jamais continuer vers Phase 2 sans avoir reçu ce bloc structuré de l'agent design.
+> ❌ Ne jamais continuer vers Phase 2 sans avoir reçu ce bloc structuré de l'agent designer.
 > ❌ Ne jamais résumer la spec avant de la présenter à l'utilisateur.
 > ❌ Ne jamais accepter un bloc handoff sans spec préalable — les deux sont obligatoires.
 
@@ -166,10 +170,11 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ## Exemple complet
 
-### Prompt de délégation (planner → ux-designer)
+### Prompt de délégation (planner → designer)
 
 ```
-Agent : ux-designer
+Agent : designer
+Mode: ux
 
 Objectif : Définir le parcours utilisateur complet pour la gestion des favoris dans l'interface de recherche.
 
@@ -213,14 +218,15 @@ Permettre aux utilisateurs de sauvegarder leurs recherches favorites et de les r
 **Format de retour :** Utiliser le skill `design-planner-format` (bloc `## Retour vers planner` défini ci-dessous).
 ```
 
-### Retour de l'agent design (ux-designer → planner)
+### Retour de l'agent designer (designer → planner)
 
 ```
 ---
 
 ## Retour vers planner
 
-**Agent :** ux-designer
+**Agent :** designer
+**Mode :** ux
 **Feature :** Gestion des favoris dans l'interface de recherche
 
 ### Spec produite
@@ -255,4 +261,4 @@ Voir spec complète ci-dessus (user flows, wireframes, états, critères UX).
 **Source :** Workflow planner Phase 1.5 (ligne 93 de `planner-workflow.md`)  
 **Contrat complémentaire :** `design-handoff-format.md` (handoff design → orchestrator)
 
-**Mise à jour :** 28 mai 2026
+**Mise à jour :** 30 juin 2026

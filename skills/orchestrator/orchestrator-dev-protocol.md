@@ -1484,6 +1484,30 @@ question({
 })
 ```
 
+### Détection de ping-pong reviewer
+
+Si le reviewer retourne **les mêmes findings** sur le même ticket lors de **2 cycles consécutifs**, ne pas re-déléguer automatiquement au developer.
+
+**Critère de détection :** les champs `corrections requises` du bloc de handoff reviewer contiennent des libellés identiques (ou quasi-identiques) à ceux du cycle précédent.
+
+**Action obligatoire :** escalade immédiate à l'utilisateur, même en mode `semi-auto` ou `auto` :
+
+```
+question({
+  questions: [{
+    header: "Ping-pong détecté",
+    question: "Le reviewer signale les mêmes problèmes depuis 2 cycles sur #<ID>.\nLe developer n'arrive pas à corriger ces points :\n\n<liste des findings répétés>\n\nUne intervention manuelle est nécessaire.",
+    options: [
+      { label: "Reprendre manuellement ce ticket", description: "Vous corrigez vous-même avant de relancer la review" },
+      { label: "Passer ce ticket", description: "Ignorer et continuer avec les tickets suivants" },
+      { label: "Arrêter la session", description: "Terminer le workflow ici" }
+    ]
+  }]
+})
+```
+
+Ne JAMAIS lancer un 3ème cycle sur les mêmes findings sans validation explicite de l'utilisateur.
+
 **En mode invoqué depuis l'orchestrator** → produire le bloc `## Question pour l'orchestrator` et arrêter :
 
 > ⚠️ **Si CONTEXTE = orchestrator_feature** : ajouter le bloc `## Retour vers orchestrator` **immédiatement après** le bloc `## Question pour l'orchestrator`, avant de clore la session. Les deux blocs sont émis ensemble.

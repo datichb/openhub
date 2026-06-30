@@ -18,7 +18,7 @@ Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concisi
 | Agent | Raison de l'exclusion |
 |-------|----------------------|
 | `documentarian` | Produit de la documentation technique destinée aux développeurs |
-| `ux-designer`, `ui-designer` | Produisent des specs UX/UI destinées à l'utilisateur et aux développeurs |
+| `designer` | Produit des specs UX/UI destinées à l'utilisateur et aux développeurs |
 | `onboarder` | Produit un livrable formel (documentation + rapport d'onboarding) — même statut que les agents design |
 | `auditor` | Coordinateur `mode: primary` qui retranscrit les rapports d'audit directement à l'utilisateur — la concision sur ses outputs dégraderait l'information remontée |
 

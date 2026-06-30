@@ -75,7 +75,7 @@ Pour une feature touchant UX, sécurité et implémentation :
 
 | ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
 |----|-------|------|----------|--------|-------------|-----|-----------|
-| bd-10 | Analyse flow inscription | task | P1 | ux | ux-designer | — | — |
+| bd-10 | Analyse flow inscription | task | P1 | ux | designer | — | — |
 | bd-11 | Audit sécurité auth | task | P1 | audit-security | auditor | — | — |
 | bd-12 | Endpoint POST /users | feature | P1 | backend | orchestrator-dev | ✅ | bd-10 |
 | bd-13 | Composant formulaire | feature | P2 | frontend | orchestrator-dev | — | bd-10, bd-12 |
@@ -88,7 +88,7 @@ Pour une feature touchant UX, sécurité et implémentation :
 ```
 
 L'orchestrateur lira ce bloc et routera directement :
-- bd-10 → `ux-designer`
+- bd-10 → `designer` (Mode: ux)
 - bd-11 → `auditor`
 - bd-12 → `orchestrator-dev`
 - bd-13 → `orchestrator-dev`
@@ -441,7 +441,7 @@ Les entrées **"ticket séparé nécessaire"** alimentent directement la Phase 3
 
 **Si le déclencheur est activé :**
 
-> Charger et exécuter le skill `figma-planner-protocol` (Phase 1.3 — Exploration Figma).
+> Déléguer à l'agent `designer` avec `Mode: recon` (Phase 1.3 — Exploration Figma).
 
 Ce skill prescrit exactement :
 1. `search_figma_files` — rechercher des maquettes liées à la feature
@@ -520,7 +520,7 @@ question({
     header: "Délégation design",
     question: "[Planner — Phase 1 complétée | Feature : <nom>]\n\n**Résumé de l'exploration (X fichiers lus) :**\n- Architecture : <pattern détecté — ex : Clean Architecture, composants Vue>\n- Tests existants : <état — ex : couverture partielle sur le périmètre>\n- Signal <UX/UI> détecté : <raison concrète — ex : nouveau composant formulaire multi-étapes>\n- Zones d'ombre : <liste courte — ex : comportement modal non documenté>\n\nComment procéder ?",
     options: [
-      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer <ux-designer/ui-designer> avant de planifier" },
+      { label: "Phase 1.5 — Délégation design (Recommandé)", description: "Invoquer l'agent designer (mode ux/ui/ux+ui) avant de planifier" },
       { label: "Skip design — Phase 2", description: "Passer aux questions complémentaires sans spec design" },
       { label: "Explorer davantage", description: "Lire d'autres fichiers avant de décider" }
     ]
@@ -612,235 +612,19 @@ Si **aucun signal design** :
 
 ---
 
-## Phase 1.5 — Délégation design (optionnelle)
+## Phase 1.5 — Délégation design (si signaux détectés)
 
-**Déclenchée si :** signal UX ou UI détecté en Phase 1.
+SI signaux UX ou UI détectés à la Phase 1 :
+→ Invoquer l'agent `designer` avec le champ `Mode: recon | ux | ui | ux+ui` approprié.
+→ Charger le skill `design/design-planner-format` pour les templates de délégation et formats de retour.
 
-Cette phase se place **avant** Phase 2 car les specs UX/UI influencent directement le découpage en tickets.
-Elle se traite en sessions séparées — le planner ne continue pas tant que l'utilisateur n'a pas rapporté les specs (ou explicitement décidé de les ignorer).
+**Choix du mode :**
+- Signal UX uniquement → `Mode: ux`
+- Signal UI uniquement → `Mode: ui`
+- Les deux → `Mode: ux+ui`
+- Besoin de reconnaissance Figma légère d'abord → `Mode: recon`
 
----
-
-### Délégation UX
-
-**Condition** : signal UX détecté (parcours multi-étapes, changement d'interaction, formulaire complexe, flow critique).
-
-Présenter le message suivant :
-
-```markdown
-## ⚠️ Spec UX recommandée avant planification
-
-Cette feature [modifie le parcours de sélection / introduit un flow multi-étapes / change une interaction existante].
-Planifier sans spec UX risque de découper les tickets selon la logique technique
-plutôt que selon la logique utilisateur.
-
-Je recommande d'invoquer l'UX Designer en premier pour :
-- Modéliser le user flow (nominal + alternatifs + états d'erreur)
-- Identifier les frictions et les cas limites du parcours
-- Produire des critères d'acceptance orientés utilisateur
-
-Ces éléments alimenteront directement le découpage en tickets et leurs critères d'acceptance.
-
-### Comment souhaitez-vous procéder ?
-
-**Option A — Je l'invoque directement** *(recommandé)*
-> Tapez "invoquer UX" — j'invoque l'agent **ux-designer** en sous-agent maintenant,
-> avec le contexte complet de la feature, et j'intègre sa spec dès qu'il a terminé.
-
-**Option B — Vous l'invoquez vous-même**
-> Ouvrez une session avec l'agent **ux-designer** et donnez-lui ce contexte :
-> ---
-> Feature : [nom de la feature]
-> Contexte métier : [résumé du besoin collecté]
-> Utilisateurs concernés : [rôles / personas identifiés]
-> Interaction à analyser : [description précise du parcours ou de l'écran concerné]
-> Tickets existants liés : [IDs si applicable]
-> ---
-> Demandez : "Spec UX pour [nom de la feature]"
-> Puis revenez ici en disant : "Voici la spec UX — continue la planification avec ce contexte."
-
-**Option C — Continuer sans spec UX**
-> Tapez "continuer sans UX" — je procéderai avec le contexte disponible
-> et signalerai les critères d'acceptance UX à compléter ticket par ticket.
-```
-
-**Si l'utilisateur choisit l'Option A ("invoquer UX") :**
-
-Annoncer puis invoquer directement :
-> "J'invoque l'agent **ux-designer** avec le contexte de la feature."
-
-Transmettre au sous-agent :
-```
-Feature : [nom de la feature]
-Contexte métier : [résumé du besoin collecté en Phase 1]
-Utilisateurs concernés : [rôles / personas identifiés]
-Interaction à analyser : [description précise du parcours ou de l'écran concerné]
-Tickets existants liés : [IDs si applicable]
-
-Demande : Spec UX pour [nom de la feature]
-```
-
-Attendre la réponse de **ux-designer** au format `## SPEC UX — [feature]` puis reprendre directement avec la section "Reprise après spec UX" ci-dessous.
-
-**Reprise après spec UX** — quand l'utilisateur rapporte la spec UX :
-
-1. Lire le user flow nominal et les flows alternatifs
-2. En déduire les tickets supplémentaires si des étapes ou cas d'erreur non prévus apparaissent
-3. Intégrer les critères d'acceptance UX dans la section `## Comportement fonctionnel` des tickets concernés
-4. Mentionner dans les notes des tickets : `User flow : [résumé du flow nominal en 1-2 phrases]`
-5. Annoncer : "J'ai intégré la spec UX. Je continue vers Phase 2."
-
----
-
-### Délégation UI
-
-**Condition** : signal UI détecté (nouveau composant, composant profondément modifié, variantes à spécifier).
-
-Présenter le message suivant **en même temps que la délégation UX** si les deux sont nécessaires, ou seul sinon :
-
-```markdown
-## ⚠️ Spec UI recommandée avant planification
-
-Cette feature [crée un nouveau composant / modifie profondément [NomComposant] / nécessite des variantes visuelles].
-Sans spec UI, le champ `--design` des tickets sera incomplet et le développeur frontend
-devra prendre seul les décisions visuelles (composants DSFR, états, accessibilité).
-
-Je recommande d'invoquer l'UI Designer pour chaque composant concerné :
-- Identifier les composants DSFR à utiliser (et leurs variantes)
-- Spécifier les états visuels (default, hover, focus, disabled, error, loading)
-- Définir les règles d'accessibilité (ARIA, contraste, navigation clavier)
-
-### Comment souhaitez-vous procéder ?
-
-**Option A — Je l'invoque directement** *(recommandé)*
-> Tapez "invoquer UI" — j'invoque l'agent **ui-designer** en sous-agent maintenant,
-> composant par composant, et j'intègre ses specs dès qu'il a terminé.
-
-**Option B — Vous l'invoquez vous-même**
-> Pour chaque composant concerné, ouvrez une session avec l'agent **ui-designer**
-> et donnez-lui ce contexte :
-> ---
-> Composant : [NomDuComposant.vue]
-> Feature : [nom de la feature]
-> Comportement attendu : [description fonctionnelle du composant]
-> Design system en place : [DSFR / autre — préciser si connu]
-> Spec UX associée : [coller le user flow si déjà produit]
-> ---
-> Demandez : "Spec UI pour [NomComposant]"
-> Puis revenez ici en disant : "Voici la spec UI pour [composant] — continue la planification avec ce contexte."
-
-**Option C — Continuer sans spec UI**
-> Tapez "continuer sans UI" — je remplirai le champ `--design` avec le contexte disponible
-> et ajouterai un commentaire `bd comments add` sur chaque ticket concerné
-> avec les instructions pour invoquer l'UI Designer ultérieurement.
-```
-
-**Si l'utilisateur choisit l'Option A ("invoquer UI") :**
-
-Annoncer puis invoquer directement, composant par composant :
-> "J'invoque l'agent **ui-designer** pour [NomComposant]."
-
-Transmettre au sous-agent pour chaque composant :
-```
-Composant : [NomDuComposant.vue]
-Feature : [nom de la feature]
-Comportement attendu : [description fonctionnelle du composant]
-Design system en place : [DSFR / autre]
-Spec UX associée : [user flow si déjà produit]
-
-Demande : Spec UI pour [NomComposant]
-```
-
-Attendre la réponse de **ui-designer** au format `## SPEC UI — [NomComposant]` puis reprendre directement avec la section "Reprise après spec UI" ci-dessous.
-
-**Reprise après spec UI** — quand l'utilisateur rapporte la spec UI :
-
-1. Identifier le(s) ticket(s) concerné(s) par cette spec
-2. Intégrer la spec dans le template `--design` du/des ticket(s) concerné(s)
-3. Compléter l'acceptance avec les critères visuels issus de la spec (états, contrastes, ARIA)
-4. Annoncer : "J'ai intégré la spec UI pour [composant]. Je continue vers Phase 2."
-
----
-
-### Si "continuer sans UX/UI"
-
-Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concerné, ajouter un `bd comments add` avec les instructions d'invocation précises (voir Phase 5 — Tickets sans spec design).
-
----
-
-### Récap de fin de Phase 1.5
-
-```markdown
-## [Phase 1.5] Délégation design terminée
-
-**Specs UX produites :**
-- <feature ou parcours concerné> — spec reçue de ux-designer
-- (aucune si skip)
-
-**Specs UI produites :**
-- <composant 1> — spec reçue de ui-designer
-- <composant 2> — spec reçue de ui-designer
-- (aucune si skip)
-
-**Intégration dans la planification :**
-- <élément 1 — ex : ajout de 2 tickets pour gérer les états d'erreur identifiés dans la spec UX>
-- <élément 2 — ex : champ --design des tickets frontend pré-rempli avec la spec UI>
-
-**Specs manquantes (si skip) :**
-- <composant ou parcours> — sera tracé via bd comments add en Phase 5
-```
-
-### Question de validation obligatoire
-
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 1.5 (ci-dessus — specs UX/UI reçues ou skippées, intégration dans la planification) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
-
-**Si CONTEXTE = standalone :**
-```
-question({
-  questions: [{
-    header: "Questions complémentaires",
-    question: "[Planner — Phase 1.5 complétée | Feature : <nom>]\nSpecs design intégrées. Passer aux questions complémentaires (Phase 2) ?",
-    options: [
-      { label: "Passer à Phase 2 (Recommandé)", description: "Poser les questions de clarification identifiées" },
-      { label: "Revenir à Phase 1", description: "Explorer à nouveau avec les specs design reçues" }
-    ]
-  }]
-})
-```
-
-**Si CONTEXTE = orchestrator_feature :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** planner
-**Phase :** 1.5 — Délégation design (terminée)
-**task_id :** <sessionID courant>
-
-**Résumé :** Délégation design terminée — specs <UX/UI> <reçues et intégrées | skippées>.
-**Points clés :** <specs reçues (composants/parcours concernés) ou "aucune spec — tracé via bd comments add en Phase 5">
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 1.5
-**task_id :** <sessionID courant>
-
-**Contexte :** La phase de délégation design est terminée. Specs intégrées / skippées.
-
-**Question :** Passer aux questions complémentaires (Phase 2) ?
-
-**Options :**
-- `phase-2` — Passer à Phase 2 (recommandé)
-- `retour-phase-1` — Revenir à Phase 1 pour re-explorer avec les specs design
-
-**Instruction de reprise :** "Réponse Phase 1.5 : [option]. Reprendre depuis Phase 2 / Phase 1."
-```
-→ **TERMINER LA SESSION**
-
-**Selon la réponse (dans tous les contextes) :**
-- **Phase 2** → Phase 2 (questions complémentaires)
-- **Revenir à Phase 1** → Phase 1 (les specs modifient le périmètre d'exploration)
+Le planner n'a pas accès au MCP Figma — toute exploration Figma est déléguée au `designer`.
 
 ---
 
@@ -1366,13 +1150,7 @@ question({
 
 **Uniquement après validation explicite du plan.**
 
-### Ordre de création
-
-1. Créer les epics en premier (si applicable) et les enrichir immédiatement
-2. Créer les tickets fils avec `--parent`
-3. Enrichir chaque ticket avec description + acceptance + notes + estimate + design (si UI)
-4. Ajouter les dépendances via `bd dep add` après création
-5. Ajouter les labels pertinents (`-l` à la création ou `bd label add` après)
+→ Charger le skill `planning/planner-beads-templates` via l'outil `skill` pour les templates complets de création (epics, features, tasks, dépendances, labels, estimations, règles d'enrichissement).
 
 ---
 
@@ -1581,7 +1359,7 @@ EOF
 
 bd comments add $T_ID "⚠️ Spec UI à compléter — ce ticket nécessite une spécification visuelle.
 
-Invoquer l'agent ui-designer avec ce contexte :
+Invoquer l'agent designer (Mode: ui) avec ce contexte :
 ---
 Composant : [NomComposant.vue]
 Feature : [nom de la feature]
@@ -1715,7 +1493,7 @@ T=$(bd create "Titre" -t task -p 2 -l ai-delegated -a dev-agent --parent $EPIC_I
 - bd-V : needs-clarification (raison : [raison])
 
 **Specs design tracées (si Phase 1.5 skippée) :**
-- bd-Y : commentaire ajouté avec instructions pour invoquer ui-designer
+- bd-Y : commentaire ajouté avec instructions pour invoquer designer (Mode: ui)
 ```
 
 ### Transition automatique

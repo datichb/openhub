@@ -1,6 +1,6 @@
 # Référence des agents
 
-13 agents au total, organisés en 6 familles.
+18 agents au total, organisés en 6 familles.
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 
@@ -113,7 +113,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 | **Invocation** | `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` / `"Implémente le ticket #42"` |
 
 Chef de projet IA. Pilote la réalisation complète d'une feature en mobilisant tous
-les agents nécessaires : conception (ux-designer, ui-designer), audit (auditor-*),
+les agents nécessaires : conception (`designer`), audit (auditor-*),
 implémentation (via orchestrator-dev). Impose des checkpoints explicites à chaque
 phase. Ne code jamais.
 
@@ -251,52 +251,43 @@ Skills communs à tous les domaines : `dev-standards-universal`, `dev-standards-
 
 ## Famille — Agents de design
 
-Agents de conception UX/UI. Travaillent en amont de l'implémentation.
-Ne codent jamais. Invocables directement ou via l'`orchestrator`.
+Agent de conception UX/UI. Travaille en amont de l'implémentation.
+Ne code jamais. Invocable directement ou via l'`orchestrator`.
 
-### `ux-designer`
-
-| | |
-|--|--|
-| **Label** | UXDesigner |
-| **Fichier** | `agents/design/ux-designer.md` |
-| **Skills** | `designer/ux-protocol`, `developer/beads-plan`, `design/design-planner-format`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format`, `shared/websearch-usage` — native : `designer/ux-subagent`, `design/websearch-design-patterns`, `shared/elicitation-techniques`, `adapters/figma-ux-designer-protocol`, `shared/rtk-usage` |
-| **Invocation** | `"Analyse le flow de [feature]"` / `"Spec UX pour [ticket]"` / `"Audit UX de [écran]"` |
-
-Expert en expérience utilisateur. Analyse les besoins, identifie les frictions,
-produit des user flows textuels et des spécifications UX actionnables avec critères
-d'acceptance. Pose au moins 2 questions de contexte avant de spécifier.
-Lit et clôt les tickets Beads. Ne produit pas de maquettes graphiques.
-
-Invocable directement, via l'`orchestrator`, ou via le `planner` (PHASE 1.5 —
-délégation design optionnelle). Quand invoqué depuis le `planner`, produit la spec
-au format standardisé `## SPEC UX — [feature]` pour permettre la réintégration
-automatique dans le plan (pas de `bd close` — le planner reprend la main).
-
-En mode `orchestrator_feature` : n'utilise jamais l'outil `question` — les clarifications critiques passent par les blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` avec terminaison de session.
-
----
-
-### `ui-designer`
+### `designer`
 
 | | |
 |--|--|
-| **Label** | UIDesigner |
-| **Fichier** | `agents/design/ui-designer.md` |
-| **Skills** | `designer/ui-protocol`, `developer/beads-plan`, `design/design-planner-format`, `posture/expert-posture`, `posture/tool-question`, `design/design-handoff-format`, `shared/websearch-usage` — native : `designer/ui-subagent`, `design/websearch-design-patterns`, `adapters/figma-ui-designer-protocol`, `shared/rtk-usage` |
-| **Invocation** | `"Spec UI pour [composant]"` / `"Design system [projet]"` / `"Harmonise [écran]"` |
+| **Label** | Designer |
+| **Fichier** | `agents/design/designer.md` |
+| **Mode** | `primary` |
+| **Permissions** | Pas de `write`, pas d'`edit`. `bash` deny-by-default (allowlist : `bd show *`, `bd list *`). Accès MCP Figma (seul agent du hub avec cette permission). |
+| **Skills (inline)** | `designer/designer-protocol`, `design/design-planner-format`, `design/design-handoff-format` |
+| **Skills (native)** | `designer/ux-protocol`, `designer/ui-protocol`, `designer/figma-recon-protocol`, `designer/figma-deep-protocol`, `designer/designer-execution-modes` |
+| **Invocation** | `"Explore Figma pour [feature]"` / `"Spec UX pour [ticket]"` / `"Spec UI pour [composant]"` / `"Spec design complète pour [feature]"` |
 
-Expert en design d'interface. Définit les fondations d'un design system (tokens),
-spécifie les composants visuels avec variants et états, produit des guidelines UI
-actionnables pour `developer-frontend`. Utilise uniquement des tokens — jamais de
-valeurs en dur. Propose toujours des options pour les décisions de direction artistique.
+Agent de design unifié. Opère en quatre modes précisés à l'invocation :
 
-Invocable directement, via l'`orchestrator`, ou via le `planner` (PHASE 1.5 —
-délégation design optionnelle). Quand invoqué depuis le `planner`, produit la spec
-au format standardisé `## SPEC UI — [NomComposant]` pour permettre la réintégration
-automatique dans le plan (pas de `bd close` — le planner reprend la main).
+| Mode | Déclencheur | Sortie |
+|------|-------------|--------|
+| `recon` | Exploration Figma demandée (par planner/pathfinder/onboarder via `task`) | Découvertes Figma : composants, tokens, design system détecté |
+| `ux` | Spec UX demandée | Flows utilisateurs, heuristiques Nielsen, critères d'acceptance — pas de maquettes graphiques |
+| `ui` | Spec UI demandée | Tokens de design, variants/états des composants, guidelines UI pour `developer-frontend` |
+| `ux+ui` | Spec design complète demandée | Phase UX complète puis phase UI dans une seule session |
 
-En mode `orchestrator_feature` : n'utilise jamais l'outil `question` — les clarifications critiques passent par les blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` avec terminaison de session.
+**Seul agent Figma :** `designer` est le seul agent du hub avec accès MCP Figma.
+`planner`, `pathfinder` et `onboarder` délèguent tous leurs besoins Figma au `designer`
+via `task` (mode `recon`) au lieu d'appeler le MCP directement.
+
+**Quand invoqué depuis le `planner` (Phase 1.5 — délégation design optionnelle) :** produit
+la spec au format standardisé `## SPEC UX — [feature]` et/ou `## SPEC UI — [NomComposant]`
+pour permettre la réintégration automatique dans le plan (pas de `bd close` — le planner reprend la main).
+
+En mode `orchestrator_feature` : n'utilise jamais l'outil `question` — les clarifications
+critiques passent par les blocs `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`
+avec terminaison de session.
+
+**Délégation :** invoqué par `orchestrator`, `planner`, `pathfinder`, `onboarder`.
 
 ---
 
@@ -408,10 +399,10 @@ possibles (max 3 itérations par phase).
 
 **Phase 1.5 — Délégation design (optionnelle) :** quand des signaux UX ou UI sont détectés
 en Phase 1, le planner propose 3 options à l'utilisateur :
-- **Option A** (`"invoquer UX/UI"`) — invoque directement `ux-designer` / `ui-designer`
-  en sous-agent, attend le bloc structuré `## SPEC UX/UI — …` et intègre la spec dans le plan.
-- **Option B** — l'utilisateur invoque lui-même les agents et colle la spec.
-- **Option C** (`"continuer sans UX/UI"`) — poursuit avec le contexte disponible,
+- **Option A** (`"invoquer design"`) — invoque directement `designer`
+  en sous-agent (mode `ux`, `ui` ou `ux+ui`), attend le bloc structuré `## SPEC UX/UI — …` et intègre la spec dans le plan.
+- **Option B** — l'utilisateur invoque lui-même l'agent et colle la spec.
+- **Option C** (`"continuer sans design"`) — poursuit avec le contexte disponible,
   tickets `--design` partiels + `bd comments add` pour tracer la spec manquante.
 
 **Phase 6 — Enrichissement des documents vivants :** après validation du plan, identifie les
@@ -467,7 +458,7 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 
 ## Règles communes à tous les agents
 
-- **Agents en lecture seule** : auditor-subagent, reviewer — ne modifient jamais de fichiers directement
+- **Agents en lecture seule** : auditor-subagent, reviewer, designer — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
 - **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `qa-engineer` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
@@ -475,5 +466,5 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 - **Agents qui lisent les tickets** : tous peuvent faire `bd show <ID>` pour contextualiser leur travail
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — lecture seule, explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, ui-designer, ux-designer, documentarian, onboarder, debugger, qa-engineer, reviewer — visibles directement par l'utilisateur
+- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, qa-engineer, reviewer — visibles directement par l'utilisateur
 - **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et `auditor-subagent` — invocables par des agents coordinateurs
