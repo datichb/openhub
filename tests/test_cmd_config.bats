@@ -335,7 +335,7 @@ teardown() {
   normalize_project_id() { echo "$1"; }
   require_project_id() { true; }
 
-  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
+  cmd_set --project "MY-APP" --family-model "planning=claude-opus-4"
 
   run grep "agent_models.families.planning=claude-opus-4" "$API_KEYS_FILE"
   [ "$status" -eq 0 ]
@@ -367,7 +367,7 @@ teardown() {
     log_success() { true; }
     log_warn() { true; }
     log_error() { echo \"ERROR: \$*\" >&2; }
-    cmd_set \"MY-PROJ\" --provider no-key-provider --model claude-sonnet-4-5
+    cmd_set --project \"MY-PROJ\" --provider no-key-provider --model claude-sonnet-4-5
   "
   [ "$status" -eq 0 ]
 }
@@ -397,7 +397,7 @@ teardown() {
     log_success() { true; }
     log_warn() { true; }
     log_error() { echo \"ERROR: \$*\" >&2; }
-    cmd_set \"MY-PROJ\" --provider anthropic --model claude-sonnet-4-5
+    cmd_set --project \"MY-PROJ\" --provider anthropic --model claude-sonnet-4-5
   " < /dev/null
   [ "$status" -ne 0 ]
 }
@@ -415,8 +415,8 @@ teardown() {
   normalize_project_id() { echo "$1"; }
   require_project_id() { true; }
 
-  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
-  cmd_set "MY-APP" --family-model "planning=claude-opus-4"
+  cmd_set --project "MY-APP" --family-model "planning=claude-opus-4"
+  cmd_set --project "MY-APP" --family-model "planning=claude-opus-4"
 
   count=$(grep -c "agent_models.families.planning" "$API_KEYS_FILE")
   [ "$count" -eq 1 ]

@@ -115,7 +115,7 @@ teardown() {
   # .beads existe → pas de question bd init ; juste Enter pour le gate
   mkdir -p "$TEST_DIR/fake-project/.beads"
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ
+    printf "\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -129,7 +129,7 @@ teardown() {
   mkdir -p "$TEST_DIR/fake-project/.beads"
   mkdir -p "$TEST_DIR/fake-project/.opencode/agents"
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ
+    printf "\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -142,7 +142,7 @@ teardown() {
 @test "cmd-start : propose bd init si .beads absent et bd disponible" {
   # Pas de .beads → Y(bd init), n(upstream), Enter(gate)
   run bash -c '
-    printf "Y\nn\n\n" | bash "$1" TEST-PROJ
+    printf "Y\nn\n\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -156,7 +156,7 @@ teardown() {
 @test "cmd-start : respecte le refus de bd init (n)" {
   # Pas de .beads → question → n, puis Enter gate
   run bash -c '
-    printf "n\n\n" | bash "$1" TEST-PROJ
+    printf "n\n\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -171,7 +171,7 @@ teardown() {
   rm -f "$TEST_DIR/bin/bd"
   run bash -c '
     export PATH="'"$TEST_DIR/bin"':/usr/bin:/bin"
-    printf "\n" | bash "$1" TEST-PROJ
+    printf "\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -184,7 +184,7 @@ teardown() {
 @test "cmd-start : propage les labels après bd init" {
   # Pas de .beads → Y(bd init), n(upstream), Enter(gate)
   run bash -c '
-    printf "Y\nn\n\n" | bash "$1" TEST-PROJ
+    printf "Y\nn\n\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -199,7 +199,7 @@ teardown() {
 @test "cmd-start : propose git remote add upstream après bd init" {
   # Pas de .beads → Y(bd init), Y(upstream), URL, Enter(gate)
   run bash -c '
-    printf "Y\nY\nhttps://github.com/test/repo.git\n\n" | bash "$1" TEST-PROJ
+    printf "Y\nY\nhttps://github.com/test/repo.git\n\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -212,7 +212,7 @@ teardown() {
   # Pas de .beads → Y(bd init), n(upstream), Enter(gate)
   : > "$GIT_CALLS_LOG"
   run bash -c '
-    printf "Y\nn\n\n" | bash "$1" TEST-PROJ
+    printf "Y\nn\n\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
 
@@ -226,7 +226,7 @@ teardown() {
 @test "cmd-start : --dev exit si .beads absent" {
   # --dev requiert .beads — doit exit 1
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --dev
+    printf "\n" | bash "$1" --project TEST-PROJ --dev
   ' _ "$CMD_START"
   [ "$status" -ne 0 ]
   [[ "$output" == *"requiert Beads"* ]]
@@ -266,7 +266,7 @@ ADAPTEREOF
     export PATHS_FILE="'"$PATHS_FILE"'"
     export API_KEYS_FILE="'"$API_KEYS_FILE"'"
     export ADAPTERS_DIR="'"$ADAPTERS_DIR_MOCK"'"
-    printf "\n" | bash "'"$CMD_START"'" TEST-PROJ --provider anthropic 2>/dev/null || true
+    printf "\n" | bash "'"$CMD_START"'" --project TEST-PROJ --provider anthropic 2>/dev/null || true
   '
 
   # adapter_deploy_config doit avoir été appelé (Phase 2 seule)
@@ -338,7 +338,7 @@ ADAPTEREOF
 
 @test "cmd-start : --parallel et --onboard sont mutuellement exclusifs" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --parallel --onboard
+    printf "\n" | bash "$1" --project TEST-PROJ --parallel --onboard
   ' _ "$CMD_START"
   [ "$status" -ne 0 ]
   [[ "$output" == *"mutuellement exclusifs"* ]]
@@ -346,7 +346,7 @@ ADAPTEREOF
 
 @test "cmd-start : --parallel et --worktree sont mutuellement exclusifs" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --parallel --worktree feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --parallel --worktree feat/test
   ' _ "$CMD_START"
   [ "$status" -ne 0 ]
   [[ "$output" == *"mutuellement exclusifs"* ]]
@@ -355,7 +355,7 @@ ADAPTEREOF
 @test "cmd-start : --dev et --parallel sont mutuellement exclusifs" {
   mkdir -p "$TEST_DIR/fake-project/.beads"
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --dev --parallel
+    printf "\n" | bash "$1" --project TEST-PROJ --dev --parallel
   ' _ "$CMD_START"
   [ "$status" -ne 0 ]
   [[ "$output" == *"mutuellement exclusifs"* ]]
@@ -367,7 +367,7 @@ ADAPTEREOF
   # OC_NON_INTERACTIVE=1 → _prompt retourne vide → WORKTREE_BRANCH reste vide
   run bash -c '
     export OC_NON_INTERACTIVE=1
-    printf "\n" | bash "$1" TEST-PROJ --worktree
+    printf "\n" | bash "$1" --project TEST-PROJ --worktree
   ' _ "$CMD_START"
   # Doit échouer car pas de branche fournie et non-interactif
   [ "$status" -ne 0 ]
@@ -407,7 +407,7 @@ GITEOF
 
   run bash -c '
     export OC_NON_INTERACTIVE=1
-    printf "\n" | bash "$1" TEST-PROJ --worktree feat/test-feature
+    printf "\n" | bash "$1" --project TEST-PROJ --worktree feat/test-feature
   ' _ "$CMD_START"
   [ "$status" -eq 0 ]
   [[ "$output" == *"worktree"* ]]

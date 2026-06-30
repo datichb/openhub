@@ -73,9 +73,9 @@ _help_output() {
   [[ "$out" =~ [Aa]nalyse ]] || [[ "$out" =~ [Aa]nalysis ]] || [[ "$out" =~ [Aa]udit ]]
 }
 
-@test "help : contient une section maintenance" {
+@test "help : contient une section updates/mise à jour" {
   local out; out=$(_help_output)
-  [[ "$out" =~ [Mm]aintenance ]] || [[ "$out" =~ [Mm]aintien ]]
+  [[ "$out" =~ [Uu]pdate ]] || [[ "$out" =~ [Mm]ise.à.jour ]] || [[ "$out" =~ [Uu]pgrade ]]
 }
 
 @test "help : contient une section config" {

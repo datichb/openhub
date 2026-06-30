@@ -72,22 +72,22 @@ teardown() {
 }
 
 @test "cmd_rename : échoue si NEW_ID manquant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD"
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_rename : échoue si projet OLD_ID inexistant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "INEXISTANT" "PROJ-NEW" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "INEXISTANT" --to "PROJ-NEW" <<< "y"
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_rename : échoue si projet NEW_ID existe déjà" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-KEEP" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-KEEP" <<< "y"
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_rename : exit 0 si OLD_ID == NEW_ID (identiques)" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-OLD" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-OLD" <<< "y"
   [ "$status" -eq 0 ]
 }
 
@@ -97,7 +97,7 @@ teardown() {
   echo -e "\n## proj-lower\n- Nom : Lower" >> "$PROJECTS_FILE"
   echo "proj-lower=$TEST_DIR/lower-project" >> "$PATHS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "proj-lower" "PROJ-UPPER" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "proj-lower" --to "PROJ-UPPER" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-UPPER"
@@ -107,7 +107,7 @@ teardown() {
 # ── cmd_rename : confirmation utilisateur ─────────────────────────────────────
 
 @test "cmd_rename : annule si utilisateur répond 'n'" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< "n"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< "n"
   [ "$status" -eq 0 ]
   
   # Fichier non modifié
@@ -116,14 +116,14 @@ teardown() {
 }
 
 @test "cmd_rename : annule si utilisateur répond vide (défaut=N)" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< ""
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< ""
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-OLD"
 }
 
 @test "cmd_rename : exécute si utilisateur répond 'y'" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-NEW"
@@ -131,7 +131,7 @@ teardown() {
 }
 
 @test "cmd_rename : exécute si utilisateur répond 'Y'" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< "Y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< "Y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-NEW"
@@ -140,7 +140,7 @@ teardown() {
 # ── cmd_rename : modification de projects.md ──────────────────────────────────
 
 @test "cmd_rename : renomme le header ## dans projects.md" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-RENAMED"
@@ -148,7 +148,7 @@ teardown() {
 }
 
 @test "cmd_rename : préserve les autres champs du projet" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "- Nom : Ancien Projet"
@@ -156,7 +156,7 @@ teardown() {
 }
 
 @test "cmd_rename : ne touche pas aux autres projets" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-KEEP"
@@ -166,7 +166,7 @@ teardown() {
 # ── cmd_rename : modification de paths.local.md ───────────────────────────────
 
 @test "cmd_rename : renomme la clé dans paths.local.md" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-RENAMED=$TEST_DIR/old-project"
@@ -174,14 +174,14 @@ teardown() {
 }
 
 @test "cmd_rename : préserve le chemin du projet" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-RENAMED=$TEST_DIR/old-project"
 }
 
 @test "cmd_rename : ne touche pas aux autres entrées paths" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-KEEP=$TEST_DIR/keep-project"
@@ -190,7 +190,7 @@ teardown() {
 # ── cmd_rename : modification de api-keys.local.md ────────────────────────────
 
 @test "cmd_rename : renomme la section [ID] dans api-keys" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$API_KEYS_FILE" "[PROJ-RENAMED]"
@@ -198,7 +198,7 @@ teardown() {
 }
 
 @test "cmd_rename : préserve les clés API du projet" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$API_KEYS_FILE" "provider: anthropic"
@@ -206,7 +206,7 @@ teardown() {
 }
 
 @test "cmd_rename : ne touche pas aux autres sections api-keys" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-RENAMED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-RENAMED" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$API_KEYS_FILE" "[PROJ-KEEP]"
@@ -218,7 +218,7 @@ teardown() {
 @test "cmd_rename : fonctionne si paths.local.md absent" {
   rm "$PATHS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-NEW"
@@ -227,7 +227,7 @@ teardown() {
 @test "cmd_rename : fonctionne si api-keys.local.md absent" {
   rm "$API_KEYS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-OLD" "PROJ-NEW" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-OLD" --to "PROJ-NEW" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-NEW"
@@ -236,17 +236,17 @@ teardown() {
 # ── cmd_move : tests de validation ────────────────────────────────────────────
 
 @test "cmd_move : échoue si PROJECT_ID manquant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move ""
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p ""
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_move : échoue si path manquant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE"
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_move : échoue si projet inexistant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "INEXISTANT" "$TEST_DIR/new-path" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "INEXISTANT" "$TEST_DIR/new-path" <<< "y"
   [ "$status" -ne 0 ]
 }
 
@@ -255,14 +255,14 @@ teardown() {
   echo "proj-lower=$TEST_DIR/lower" >> "$PATHS_FILE"
   echo -e "\n## proj-lower\n- Nom : Lower" >> "$PROJECTS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "proj-lower" "$TEST_DIR/new-path" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "proj-lower" "$TEST_DIR/new-path" <<< "y"
   [ "$status" -eq 0 ]
 }
 
 # ── cmd_move : confirmation utilisateur ───────────────────────────────────────
 
 @test "cmd_move : annule si utilisateur répond 'n'" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "n"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "n"
   [ "$status" -eq 0 ]
   
   # Chemin non modifié
@@ -270,7 +270,7 @@ teardown() {
 }
 
 @test "cmd_move : exécute si utilisateur répond 'y'" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-MOVE=$TEST_DIR/new-location"
@@ -279,7 +279,7 @@ teardown() {
 # ── cmd_move : modification de paths.local.md ─────────────────────────────────
 
 @test "cmd_move : change le chemin dans paths.local.md" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-MOVE=$TEST_DIR/new-location"
@@ -287,7 +287,7 @@ teardown() {
 }
 
 @test "cmd_move : ne touche pas aux autres projets" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-KEEP=$TEST_DIR/keep-project"
@@ -297,7 +297,7 @@ teardown() {
   skip "Chemins relatifs - nécessite cd dans test"
   cd "$TEST_DIR" || exit 1
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "./relative-path" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "./relative-path" <<< "y"
   [ "$status" -eq 0 ]
   
   # Le chemin doit être absolu dans paths.local.md
@@ -306,7 +306,7 @@ teardown() {
 
 @test "cmd_move : expand ~ dans le chemin" {
   skip "Expansion ~ - comportement spécifique shell"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "~/projects/test" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "~/projects/test" <<< "y"
   [ "$status" -eq 0 ]
   
   # ~ doit être expandé vers $HOME
@@ -318,7 +318,7 @@ teardown() {
 @test "cmd_move : ne modifie pas projects.md" {
   cp "$PROJECTS_FILE" "$TEST_DIR/projects.md.backup"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
   [ "$status" -eq 0 ]
   
   diff "$PROJECTS_FILE" "$TEST_DIR/projects.md.backup"
@@ -327,7 +327,7 @@ teardown() {
 @test "cmd_move : ne modifie pas api-keys.local.md" {
   cp "$API_KEYS_FILE" "$TEST_DIR/api-keys.backup"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/new-location" <<< "y"
   [ "$status" -eq 0 ]
   
   diff "$API_KEYS_FILE" "$TEST_DIR/api-keys.backup"
@@ -339,7 +339,7 @@ teardown() {
   echo -e "\n## PROJ-WITH-DASH\n- Nom : Test" >> "$PROJECTS_FILE"
   echo "PROJ-WITH-DASH=$TEST_DIR/test" >> "$PATHS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-WITH-DASH" "PROJ-NEW-DASH" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-WITH-DASH" --to "PROJ-NEW-DASH" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PROJECTS_FILE" "## PROJ-NEW-DASH"
@@ -349,7 +349,7 @@ teardown() {
 @test "cmd_move : gère les chemins avec espaces" {
   mkdir -p "$TEST_DIR/path with spaces"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" move "PROJ-MOVE" "$TEST_DIR/path with spaces" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" move -p "PROJ-MOVE" "$TEST_DIR/path with spaces" <<< "y"
   [ "$status" -eq 0 ]
   
   assert_file_contains "$PATHS_FILE" "PROJ-MOVE=$TEST_DIR/path with spaces"
@@ -359,7 +359,7 @@ teardown() {
   # Projet existe dans projects.md mais pas dans paths/api-keys
   echo -e "\n## PROJ-ORPHAN\n- Nom : Orphan" >> "$PROJECTS_FILE"
   
-  run bash "$HUB_DIR/scripts/cmd-project.sh" rename "PROJ-ORPHAN" "PROJ-ADOPTED" <<< "y"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" rename --from "PROJ-ORPHAN" --to "PROJ-ADOPTED" <<< "y"
   [ "$status" -eq 0 ]
   
   # Au moins projects.md devrait être modifié
@@ -369,17 +369,17 @@ teardown() {
 # ── cmd_configure : validation ────────────────────────────────────────────────
 
 @test "cmd_configure : échoue si projet inexistant" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "INEXISTANT" <<< ""
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "INEXISTANT" <<< ""
   [ "$status" -ne 0 ]
 }
 
 @test "cmd_configure : exit 0 si projet valide et Entrée pour tout" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < /dev/null
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < /dev/null
   [ "$status" -eq 0 ]
 }
 
 @test "cmd_configure : normalise le PROJECT_ID en majuscules" {
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "proj-old" < /dev/null
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "proj-old" < /dev/null
   [ "$status" -eq 0 ]
 }
 
@@ -390,7 +390,7 @@ teardown() {
   # 1. Stack (modifié), 2. Tracker, 3. Labels, 4. Langue, 5. Disable, 6. MCP, 7. Worktree
   local input_file="$TEST_DIR/input.txt"
   printf 'Go + Gin\n\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Stack : Go + Gin"
@@ -399,7 +399,7 @@ teardown() {
 @test "cmd_configure : préserve les autres champs si Stack modifié" {
   local input_file="$TEST_DIR/input.txt"
   printf 'Ruby on Rails\n\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "## PROJ-OLD"
@@ -412,7 +412,7 @@ teardown() {
   # 1. Stack (conserver), 2. Tracker=2 (jira), reste conserver
   local input_file="$TEST_DIR/input.txt"
   printf '\n2\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Tracker : jira"
@@ -421,7 +421,7 @@ teardown() {
 @test "cmd_configure : met à jour le Tracker vers gitlab" {
   local input_file="$TEST_DIR/input.txt"
   printf '\n3\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Tracker : gitlab"
@@ -431,10 +431,10 @@ teardown() {
   local input_file="$TEST_DIR/input.txt"
   # D'abord forcer jira
   printf '\n2\n\n\n\n\n\n' > "$input_file"
-  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
   # Remettre à none
   printf '\n1\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Tracker : none"
@@ -446,7 +446,7 @@ teardown() {
   # 1. Stack, 2. Tracker, 3. Labels=feature,fix,api, reste conserver
   local input_file="$TEST_DIR/input.txt"
   printf '\n\nfeature,fix,api\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Labels : feature,fix,api"
@@ -458,7 +458,7 @@ teardown() {
   # 1. Stack, 2. Tracker, 3. Labels, 4. Langue=english, reste conserver
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\nenglish\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Langue : english"
@@ -467,7 +467,7 @@ teardown() {
 @test "cmd_configure : normalise la langue en minuscules" {
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\nENGLISH\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Langue : english"
@@ -479,7 +479,7 @@ teardown() {
   # 1. Stack, 2. Tracker, 3. Labels, 4. Langue, 5. Disable=build,plan, reste conserver
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\n\nbuild,plan\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Disable agents : build,plan"
@@ -489,10 +489,10 @@ teardown() {
   local input_file="$TEST_DIR/input.txt"
   # D'abord ajouter disable agents
   printf '\n\n\n\nbuild\n\n\n' > "$input_file"
-  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
   # Puis le vider
   printf '\n\n\n\nnone\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_not_contains "$PROJECTS_FILE" "- Disable agents : build"
@@ -504,7 +504,7 @@ teardown() {
   # 1. Stack, 2. Tracker, 3. Labels, 4. Langue, 5. Disable, 6. MCP=all, 7. Worktree
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\n\n\nall\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- MCP : all"
@@ -517,7 +517,7 @@ teardown() {
   # Quand worktree=enabled, 2 prompts supplémentaires : auto-cleanup, base-branch
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\n\n\n\nenabled\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
@@ -526,7 +526,7 @@ teardown() {
 @test "cmd_configure : active les worktrees avec 'y'" {
   local input_file="$TEST_DIR/input.txt"
   printf '\n\n\n\n\n\ny\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
@@ -536,10 +536,10 @@ teardown() {
   local input_file="$TEST_DIR/input.txt"
   # D'abord activer
   printf '\n\n\n\n\n\nenabled\n\n\n' > "$input_file"
-  bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
+  bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file" >/dev/null 2>&1 || true
   # Puis désactiver
   printf '\n\n\n\n\n\ndisabled\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Worktree : disabled"
@@ -549,7 +549,7 @@ teardown() {
   local input_file="$TEST_DIR/input.txt"
   # Worktree=enabled, auto-cleanup=true, base-branch conserver
   printf '\n\n\n\n\n\nenabled\ntrue\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Worktree : enabled"
@@ -560,7 +560,7 @@ teardown() {
   local input_file="$TEST_DIR/input.txt"
   # Worktree=enabled, auto-cleanup conserver, base-branch=develop
   printf '\n\n\n\n\n\nenabled\n\ndevelop\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "- Worktree base branch : develop"
@@ -571,7 +571,7 @@ teardown() {
 @test "cmd_configure : ne modifie pas les autres projets" {
   local input_file="$TEST_DIR/input.txt"
   printf 'New Stack\n\n\n\n\n\n\n' > "$input_file"
-  run bash "$HUB_DIR/scripts/cmd-project.sh" configure "PROJ-OLD" < "$input_file"
+  run bash "$HUB_DIR/scripts/cmd-project.sh" configure -p "PROJ-OLD" < "$input_file"
   [ "$status" -eq 0 ]
 
   assert_file_contains "$PROJECTS_FILE" "## PROJ-KEEP"

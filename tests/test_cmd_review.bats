@@ -127,7 +127,7 @@ teardown() {
 
 @test "cmd-review : détecte automatiquement la branche courante et affiche le bloc intro" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ
+    printf "\n" | bash "$1" --project TEST-PROJ
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"feature/my-branch"* ]]
@@ -135,7 +135,7 @@ teardown() {
 
 @test "cmd-review : accepte --branch et utilise la branche fournie" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch my-feature
+    printf "\n" | bash "$1" --project TEST-PROJ --branch my-feature
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"my-feature"* ]]
@@ -143,7 +143,7 @@ teardown() {
 
 @test "cmd-review : affiche le bloc intro avec Chemin, Branche, Agent" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Chemin"* ]]
@@ -153,7 +153,7 @@ teardown() {
 
 @test "cmd-review : lance opencode avec --agent reviewer" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "opencode" "$OPENCODE_LOG"
@@ -162,7 +162,7 @@ teardown() {
 
 @test "cmd-review : affiche la confirmation avant lancement" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Lancement de la review"* ]]
@@ -172,7 +172,7 @@ teardown() {
 
 @test "cmd-review : exit si PROJECT_ID invalide" {
   run bash -c '
-    printf "\n" | bash "$1" INEXISTANT --branch main
+    printf "\n" | bash "$1" --project INEXISTANT --branch main
   ' _ "$CMD_REVIEW"
   [ "$status" -ne 0 ]
 }
@@ -182,7 +182,7 @@ teardown() {
 @test "cmd-review : avertit si reviewer absent de la sélection projet" {
   run bash -c '
     # Y = ajouter reviewer, n = ne pas redéployer, Enter = gate
-    printf "Y\nn\n\n" | bash "$1" TEST-RESTRICTED --branch feat/test
+    printf "Y\nn\n\n" | bash "$1" --project TEST-RESTRICTED --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"reviewer"* ]]
@@ -191,7 +191,7 @@ teardown() {
 @test "cmd-review : continue même si refus d'ajout de reviewer dans la sélection" {
   # Répondre n = refus d'ajout, Enter = gate
   run bash -c '
-    printf "n\n\n" | bash "$1" TEST-RESTRICTED --branch feat/test
+    printf "n\n\n" | bash "$1" --project TEST-RESTRICTED --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   # opencode doit quand même être appelé
@@ -202,7 +202,7 @@ teardown() {
 
 @test "cmd-review : --branch avant PROJECT_ID est accepté" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch release/v2.0
+    printf "\n" | bash "$1" --project TEST-PROJ --branch release/v2.0
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   [[ "$output" == *"release/v2.0"* ]]
@@ -210,7 +210,7 @@ teardown() {
 
 @test "cmd-review : passe --prompt à opencode avec les instructions de review" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "\-\-prompt" "$OPENCODE_LOG"
@@ -218,7 +218,7 @@ teardown() {
 
 @test "cmd-review : le prompt contient la commande git diff exacte" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "git diff main...feat/test" "$OPENCODE_LOG"
@@ -226,7 +226,7 @@ teardown() {
 
 @test "cmd-review : le prompt utilise la branche de base du projet (develop)" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-DEVELOP-BASE --branch feat/test
+    printf "\n" | bash "$1" --project TEST-DEVELOP-BASE --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "git diff develop...feat/test" "$OPENCODE_LOG"
@@ -236,7 +236,7 @@ teardown() {
 
 @test "cmd-review : exécute git fetch avant le diff" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "fetch" "$GIT_CALLS_LOG"
@@ -244,7 +244,7 @@ teardown() {
 
 @test "cmd-review : exécute git pull --ff-only origin main (branche de base par défaut)" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "pull --ff-only origin main" "$GIT_CALLS_LOG"
@@ -252,7 +252,7 @@ teardown() {
 
 @test "cmd-review : utilise la branche de base depuis projects.md (develop)" {
   run bash -c '
-    printf "\n" | bash "$1" TEST-DEVELOP-BASE --branch feat/test
+    printf "\n" | bash "$1" --project TEST-DEVELOP-BASE --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   grep -q "pull --ff-only origin develop" "$GIT_CALLS_LOG"
@@ -278,7 +278,7 @@ GITEOF
 
   # Répondre Y au prompt de confirmation, puis Enter pour le gate de lancement
   run bash -c '
-    printf "Y\n\n" | bash "$1" TEST-PROJ --branch feat/test
+    printf "Y\n\n" | bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   # L'avertissement de fetch échoué doit apparaître
@@ -309,7 +309,7 @@ GITEOF
   # OC_NON_INTERACTIVE doit être 0 pour que _prompt lise le stdin pipe (read -t 1)
   # Sinon _prompt retourne "" et on continue par défaut (comportement non-interactif)
   run bash -c '
-    OC_NON_INTERACTIVE=0 printf "n\n" | OC_NON_INTERACTIVE=0 bash "$1" TEST-PROJ --branch feat/test
+    OC_NON_INTERACTIVE=0 printf "n\n" | OC_NON_INTERACTIVE=0 bash "$1" --project TEST-PROJ --branch feat/test
   ' _ "$CMD_REVIEW"
   [ "$status" -eq 0 ]
   # opencode NE doit PAS avoir été appelé
