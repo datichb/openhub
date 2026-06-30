@@ -303,14 +303,14 @@ _cmd_set_hub() {
   local flag_family_models=() flag_agent_models=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --provider) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_provider="$2"; shift 2 ;;
-      --model)    [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_model="$2";    shift 2 ;;
-      --api-key)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_api_key="$2";  shift 2 ;;
-      --base-url) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_base_url="$2"; shift 2 ;;
-      --family-model)
+      --provider|-P) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_provider="$2"; shift 2 ;;
+      --model|-m)    [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_model="$2";    shift 2 ;;
+      --api-key|-k)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_api_key="$2";  shift 2 ;;
+      --base-url|-u) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_base_url="$2"; shift 2 ;;
+      --family-model|-F)
         [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
         flag_family_models+=("$2"); shift 2 ;;
-      --agent-model)
+      --agent-model|-a)
         [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur (format: key=value)"; exit 1; }
         flag_agent_models+=("$2"); shift 2 ;;
       *) log_error "Option inconnue : $1"; exit 1 ;;
@@ -479,36 +479,39 @@ _upsert_api_keys_field() {
 }
 
 cmd_set() {
-  local id="${1:-}"
-
   # Special case: oc config set language <en|fr>
-  if [ "$id" = "language" ]; then
+  if [ "${1:-}" = "language" ]; then
     shift; cmd_set_language "$@"
     return
   fi
 
-  # Si le premier arg est un flag → pas de project_id, opération sur le hub
-  if [ -z "$id" ] || [[ "$id" == --* ]]; then
-    _cmd_set_hub "$@"
-    return
-  fi
-
-  shift || true
-
-  # Flags optionnels
-  local flag_model="" flag_provider="" flag_api_key="" flag_base_url=""
+  # Parse --project/-p et les flags
+  local id="" flag_model="" flag_provider="" flag_api_key="" flag_base_url=""
   local flag_family_models=() flag_agent_models=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --model)    [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_model="$2";    shift 2 ;;
-      --provider) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_provider="$2"; shift 2 ;;
-      --api-key)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_api_key="$2";  shift 2 ;;
-      --base-url) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_base_url="$2"; shift 2 ;;
-      --family-model) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_family_models+=("$2"); shift 2 ;;
-      --agent-model)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_agent_models+=("$2");  shift 2 ;;
+      --project|-p) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; id="$2";             shift 2 ;;
+      --model|-m)   [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_model="$2";    shift 2 ;;
+      --provider|-P)[ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_provider="$2"; shift 2 ;;
+      --api-key|-k) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_api_key="$2";  shift 2 ;;
+      --base-url|-u)[ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_base_url="$2"; shift 2 ;;
+      --family-model|-F) [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_family_models+=("$2"); shift 2 ;;
+      --agent-model|-a)  [ $# -ge 2 ] || { log_error "Option $1 requiert une valeur"; exit 1; }; flag_agent_models+=("$2");  shift 2 ;;
       *) log_error "Option inconnue : $1"; exit 1 ;;
     esac
   done
+
+  # Si pas de --project → opération sur le hub
+  if [ -z "$id" ]; then
+    _cmd_set_hub \
+      ${flag_provider:+--provider "$flag_provider"} \
+      ${flag_model:+--model "$flag_model"} \
+      ${flag_api_key:+--api-key "$flag_api_key"} \
+      ${flag_base_url:+--base-url "$flag_base_url"} \
+      ${flag_family_models[@]+"${flag_family_models[@]/#/--family-model }"}  \
+      ${flag_agent_models[@]+"${flag_agent_models[@]/#/--agent-model }"}
+    return
+  fi
 
   # Si --family-model ou --agent-model utilisés → écriture autonome, pas de flow interactif
   if [ ${#flag_family_models[@]} -gt 0 ] || [ ${#flag_agent_models[@]} -gt 0 ]; then
@@ -652,14 +655,17 @@ cmd_set() {
 }
 
 cmd_get() {
-  local id="${1:-}"
-  [ -z "$id" ] && { log_error "Usage : oc config get <PROJECT_ID>"; exit 1; }
-
   # Special case: oc config get language
-  if [ "$id" = "language" ]; then
-    cmd_get_language
-    return
+  if [ "${1:-}" = "language" ]; then
+    cmd_get_language; return
   fi
+
+  local id="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) id="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
+  [ -z "$id" ] && { log_error "Usage : oc config get --project <PROJECT_ID>"; exit 1; }
 
   id=$(normalize_project_id "$id")
   if ! api_keys_entry_exists "$id"; then
@@ -764,8 +770,12 @@ cmd_init_providers() {
 }
 
 cmd_unset() {
-  local id="${1:-}"
-  [ -z "$id" ] && { log_error "Usage : oc config unset <PROJECT_ID>"; exit 1; }
+  local id="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) id="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
+  [ -z "$id" ] && { log_error "Usage : oc config unset --project <PROJECT_ID>"; exit 1; }
   id=$(normalize_project_id "$id")
   if ! api_keys_entry_exists "$id"; then
     log_warn "$(t config.no_entry) $id"

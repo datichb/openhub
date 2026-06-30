@@ -33,17 +33,20 @@ show_help() {
 # ── Argument parsing ──────────────────────────────────────────────────────────
 PROJECT_ID=""
 PROMPT=""
+_prev=""
 
 for arg in "$@"; do
+  case "$_prev" in
+    --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
+  esac
   case "$arg" in
     --help|-h)
       show_help
       exit 0
       ;;
+    --project|-p) _prev="$arg" ;;
     *)
-      if [ -z "$PROJECT_ID" ]; then
-        PROJECT_ID="$arg"
-      elif [ -z "$PROMPT" ]; then
+      if [ -z "$PROMPT" ]; then
         PROMPT="$arg"
       fi
       ;;
@@ -52,9 +55,25 @@ done
 
 # ── Validation ────────────────────────────────────────────────────────────────
 if [ -z "$PROJECT_ID" ]; then
-  log_error "$(t quick.project_required)"
-  show_help
-  exit 1
+  ids=()
+  while IFS= read -r line; do ids+=("$line"); done < <(grep "^## " "$PROJECTS_FILE" | sed 's/^## //')
+  if [ ${#ids[@]} -eq 0 ]; then
+    log_error "$(t quick.project_required)"
+    show_help
+    exit 1
+  fi
+  echo -e "${BOLD}Choisir un projet :${RESET}"
+  echo ""
+  for i in "${!ids[@]}"; do
+    printf "  ${BLUE}%d${RESET}) %s\n" "$((i+1))" "${ids[$i]}"
+  done
+  echo ""
+  read -rp "  Numéro : " choice
+  if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#ids[@]}" ]; then
+    log_error "Choix invalide : $choice"
+    exit 1
+  fi
+  PROJECT_ID="${ids[$((choice-1))]}"
 fi
 
 if [ -z "$PROMPT" ]; then

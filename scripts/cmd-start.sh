@@ -6,7 +6,7 @@ source "$LIB_DIR/worktree.sh"
 
 ensure_projects_file
 
-# ── Parsing des arguments (--dev, --onboard, --label, --assignee sont des flags libres) ───
+# ── Parsing des arguments ─────────────────────────────────────────────────────
 DEV_MODE=false
 ONBOARD_MODE=false
 REFRESH_MODE=false
@@ -17,37 +17,32 @@ DEV_LABEL=""
 DEV_ASSIGNEE=""
 AGENT_NAME=""
 PROVIDER_OVERRIDE=""
-ARGS=()
+PROJECT_ID=""
+PROMPT=""
 _prev=""
 for arg in "$@"; do
   case "$_prev" in
-    --label)    DEV_LABEL="$arg";         _prev=""; continue ;;
-    --assignee) DEV_ASSIGNEE="$arg";      _prev=""; continue ;;
-    --agent)    AGENT_NAME="$arg";        _prev=""; continue ;;
-    --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
-    --worktree) # Consommer le token suivant comme WORKTREE_BRANCH seulement s'il contient un "/"
-                # (convention : les noms de branche sont toujours de la forme type/description).
-                # Un token sans "/" est un PROJECT_ID — le laisser tomber dans ARGS.
-                if [[ "$arg" == */* ]]; then
-                  WORKTREE_BRANCH="$arg"
-                else
-                  ARGS+=("$arg")
-                fi
-                _prev=""; continue ;;
+    --project|-p)  PROJECT_ID="$arg";       _prev=""; continue ;;
+    --label|-l)    DEV_LABEL="$arg";         _prev=""; continue ;;
+    --assignee|-a) DEV_ASSIGNEE="$arg";      _prev=""; continue ;;
+    --agent|-A)    AGENT_NAME="$arg";        _prev=""; continue ;;
+    --provider|-P) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
+    --worktree|-w) WORKTREE_BRANCH="$arg";   _prev=""; continue ;;
   esac
   case "$arg" in
-    --dev)      DEV_MODE=true ;;
-    --onboard)  ONBOARD_MODE=true ;;
-    --refresh)  REFRESH_MODE=true ;;
-    --parallel) PARALLEL_MODE=true ;;
-    --worktree) WORKTREE_MODE=true; _prev="$arg" ;;
-    --label|--assignee|--agent|--provider) _prev="$arg" ;;
-    *)          ARGS+=("$arg") ;;
+    --dev|-d)               DEV_MODE=true ;;
+    --onboard|-o)           ONBOARD_MODE=true ;;
+    --refresh|-r)           REFRESH_MODE=true ;;
+    --parallel|-x)          PARALLEL_MODE=true ;;
+    --worktree|-w)          WORKTREE_MODE=true; _prev="$arg" ;;
+    --project|-p)           _prev="$arg" ;;
+    --label|-l)             _prev="$arg" ;;
+    --assignee|-a)          _prev="$arg" ;;
+    --agent|-A)             _prev="$arg" ;;
+    --provider|-P)          _prev="$arg" ;;
+    *)                      if [ -z "$PROMPT" ]; then PROMPT="$arg"; fi ;;
   esac
 done
-# --worktree sans valeur : WORKTREE_BRANCH reste vide, sera demandé interactivement
-PROJECT_ID="${ARGS[0]:-}"
-PROMPT="${ARGS[1]:-}"
 
 # --dev et --onboard sont mutuellement exclusifs
 if [ "$DEV_MODE" = true ] && [ "$ONBOARD_MODE" = true ]; then

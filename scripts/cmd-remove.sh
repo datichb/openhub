@@ -8,15 +8,17 @@ resolve_oc_lang
 cmd_remove() {
 # ── Parsing des arguments ─────────────────
 local CLEAN_MODE=false
-local ARGS=()
+local PROJECT_ID=""
+local _prev=""
 for arg in "$@"; do
+  case "$_prev" in
+    --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
+  esac
   case "$arg" in
-    --clean) CLEAN_MODE=true ;;
-    *)       ARGS+=("$arg") ;;
+    --clean|-c)   CLEAN_MODE=true ;;
+    --project|-p) _prev="$arg" ;;
   esac
 done
-
-local PROJECT_ID="${ARGS[0]:-}"
 require_project_id "$PROJECT_ID"
 PROJECT_ID=$(normalize_project_id "$PROJECT_ID")
 

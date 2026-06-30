@@ -31,7 +31,7 @@ _PROJECT_FILTER=""
 _parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      --period)
+      --period|-d)
         shift
         case "${1:-}" in
           today) _PERIOD_DAYS=1;  _PERIOD_LABEL="Aujourd'hui" ;;
@@ -48,7 +48,7 @@ _parse_args() {
         set -- "--period" "$val" "${@:2}"
         continue
         ;;
-      --project)
+      --project|-p)
         shift
         _PROJECT_FILTER="${1:-}"
         ;;

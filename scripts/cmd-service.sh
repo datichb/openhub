@@ -59,7 +59,7 @@ _svc_parse_project_flag() {
   SVC_REMAINING_ARGS=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --project)
+      --project|-p)
         [ $# -ge 2 ] || { log_error "--project requiert un PROJECT_ID"; exit 1; }
         SVC_PROJECT_ID=$(normalize_project_id "$2")
         shift 2

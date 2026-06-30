@@ -461,30 +461,25 @@ _cmd_deploy_discover() {
 # Only runs when executed directly (not sourced)
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
-# Analyser les arguments pour détecter --check / --diff (peut être en 1ère ou 2ème position)
+# Analyser les arguments pour détecter --check / --diff / --project / --provider
 CHECK_MODE=false
 DIFF_MODE=false
 PROVIDER_OVERRIDE=""
-REMAINING_ARGS=()
+PROJECT_ID=""
 _prev=""
 for arg in "$@"; do
   case "$_prev" in
-    --provider) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
+    --project|-p)  PROJECT_ID="$arg";      _prev=""; continue ;;
+    --provider|-P) PROVIDER_OVERRIDE="$arg"; _prev=""; continue ;;
   esac
-  if [ "$arg" = "--check" ]; then
-    CHECK_MODE=true
-  elif [ "$arg" = "--diff" ]; then
-    DIFF_MODE=true
-  elif [ "$arg" = "--no-progress" ]; then
-    _progress_disable
-  elif [ "$arg" = "--provider" ]; then
-    _prev="$arg"
-  else
-    REMAINING_ARGS+=("$arg")
-  fi
+  case "$arg" in
+    --check|-c)    CHECK_MODE=true ;;
+    --diff|-D)     DIFF_MODE=true ;;
+    --no-progress) _progress_disable ;;
+    --project|-p)  _prev="$arg" ;;
+    --provider|-P) _prev="$arg" ;;
+  esac
 done
-
-PROJECT_ID="${REMAINING_ARGS[0]:-}"
 
 if [ "$CHECK_MODE" = true ]; then
   _cmd_deploy_check "$PROJECT_ID"
@@ -516,8 +511,29 @@ if [ -n "$PROJECT_ID" ]; then
   deploy_dir=$(resolve_project_path "$PROJECT_ID")
   log_info "Projet : $PROJECT_ID ($deploy_dir)"
 else
-  deploy_dir="$HUB_DIR"
-  log_info "Déploiement au niveau du hub"
+  # Sélection interactive
+  ids=()
+  while IFS= read -r line; do ids+=("$line"); done < <(grep "^## " "$PROJECTS_FILE" | sed 's/^## //')
+  if [ ${#ids[@]} -gt 0 ]; then
+    echo -e "${BOLD}Choisir un projet :${RESET}"
+    echo ""
+    for i in "${!ids[@]}"; do
+      printf "  ${BLUE}%d${RESET}) %s\n" "$((i+1))" "${ids[$i]}"
+    done
+    echo ""
+    read -rp "  Numéro : " choice
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#ids[@]}" ]; then
+      log_error "Choix invalide : $choice"
+      exit 1
+    fi
+    PROJECT_ID="${ids[$((choice-1))]}"
+    PROJECT_ID=$(normalize_project_id "$PROJECT_ID")
+    deploy_dir=$(resolve_project_path "$PROJECT_ID")
+    log_info "Projet : $PROJECT_ID ($deploy_dir)"
+  else
+    deploy_dir="$HUB_DIR"
+    log_info "Déploiement au niveau du hub"
+  fi
 fi
 
 echo ""

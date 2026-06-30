@@ -3,11 +3,11 @@
 # cmd-worktree.sh — Gestion des git worktrees pour le travail en parallèle
 # ─────────────────────────────────────────────────────────────────────────────
 # Usage :
-#   oc worktree list [PROJECT_ID]
-#   oc worktree create BRANCH [PROJECT_ID]
-#   oc worktree remove BRANCH [PROJECT_ID]
-#   oc worktree cleanup [PROJECT_ID]
-#   oc worktree status [PROJECT_ID]
+#   oc worktree list [-p PROJECT_ID]
+#   oc worktree create --branch/-b <BRANCH> [-p PROJECT_ID]
+#   oc worktree remove --branch/-b <BRANCH> [-p PROJECT_ID]
+#   oc worktree cleanup [-p PROJECT_ID]
+#   oc worktree status [-p PROJECT_ID]
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -23,17 +23,22 @@ shift || true
 _worktree_help() {
   _h_section "oc worktree <subcommand> [options]"
 
-  _h_cmd "list [PROJECT_ID]"              "$(t help.worktree_list.desc)"
-  _h_cmd "create <BRANCH> [PROJECT_ID]"   "$(t help.worktree_create.desc)"
-  _h_cmd "remove <BRANCH> [PROJECT_ID]"   "$(t help.worktree_remove.desc)"
-  _h_cmd "cleanup [PROJECT_ID]"           "$(t help.worktree_cleanup.desc)"
-  _h_cmd "status [PROJECT_ID]"            "$(t help.worktree_status.desc)"
+  _h_cmd "list"                                  "$(t help.worktree_list.desc)"
+  _h_sub "  -p, --project <id>"                  "Projet cible (interactif si absent)"
+  _h_cmd "create --branch/-b <BRANCH>"           "$(t help.worktree_create.desc)"
+  _h_sub "  -p, --project <id>"                  "Projet cible (interactif si absent)"
+  _h_cmd "remove --branch/-b <BRANCH>"           "$(t help.worktree_remove.desc)"
+  _h_sub "  -p, --project <id>"                  "Projet cible (interactif si absent)"
+  _h_cmd "cleanup"                               "$(t help.worktree_cleanup.desc)"
+  _h_sub "  -p, --project <id>"                  "Projet cible (interactif si absent)"
+  _h_cmd "status"                                "$(t help.worktree_status.desc)"
+  _h_sub "  -p, --project <id>"                  "Projet cible (interactif si absent)"
 
   _h_section "Examples"
-  _h_note "oc worktree create feat/bd-42 MY-APP"
-  _h_note "oc worktree list MY-APP"
-  _h_note "oc worktree remove feat/bd-42 MY-APP"
-  _h_note "oc worktree cleanup MY-APP"
+  _h_note "oc worktree create --branch feat/bd-42 -p MY-APP"
+  _h_note "oc worktree list -p MY-APP"
+  _h_note "oc worktree remove --branch feat/bd-42 -p MY-APP"
+  _h_note "oc worktree cleanup -p MY-APP"
 
   echo ""
 }
@@ -72,8 +77,13 @@ _resolve_project() {
 
 # ── oc worktree list ──────────────────────────────────────────────────────────
 _cmd_list() {
+  local project_id_arg="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) project_id_arg="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
   local project_id
-  project_id=$(_resolve_project "${1:-}")
+  project_id=$(_resolve_project "$project_id_arg")
   local project_path
   project_path=$(resolve_project_path "$project_id")
   local base_branch
@@ -92,15 +102,24 @@ _cmd_list() {
 
 # ── oc worktree create ────────────────────────────────────────────────────────
 _cmd_create() {
-  local branch="${1:-}"
-  local project_id
+  local branch="" project_id_arg="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in
+      --project|-p) project_id_arg="$arg"; _prev=""; continue ;;
+      --branch|-b)  branch="$arg";         _prev=""; continue ;;
+    esac
+    case "$arg" in
+      --project|-p) _prev="$arg" ;;
+      --branch|-b)  _prev="$arg" ;;
+    esac
+  done
 
   if [ -z "$branch" ]; then
-    log_error "Usage : oc worktree create BRANCH [PROJECT_ID]"
+    log_error "Usage : oc worktree create --branch <BRANCH> [-p PROJECT_ID]"
     exit 1
   fi
-  shift || true
-  project_id=$(_resolve_project "${1:-}")
+  local project_id
+  project_id=$(_resolve_project "$project_id_arg")
   local project_path
   project_path=$(resolve_project_path "$project_id")
 
@@ -118,15 +137,24 @@ _cmd_create() {
 
 # ── oc worktree remove ────────────────────────────────────────────────────────
 _cmd_remove() {
-  local branch="${1:-}"
-  local project_id
+  local branch="" project_id_arg="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in
+      --project|-p) project_id_arg="$arg"; _prev=""; continue ;;
+      --branch|-b)  branch="$arg";         _prev=""; continue ;;
+    esac
+    case "$arg" in
+      --project|-p) _prev="$arg" ;;
+      --branch|-b)  _prev="$arg" ;;
+    esac
+  done
 
   if [ -z "$branch" ]; then
-    log_error "Usage : oc worktree remove BRANCH [PROJECT_ID]"
+    log_error "Usage : oc worktree remove --branch <BRANCH> [-p PROJECT_ID]"
     exit 1
   fi
-  shift || true
-  project_id=$(_resolve_project "${1:-}")
+  local project_id
+  project_id=$(_resolve_project "$project_id_arg")
   local project_path
   project_path=$(resolve_project_path "$project_id")
 
@@ -155,8 +183,13 @@ _cmd_remove() {
 
 # ── oc worktree cleanup ───────────────────────────────────────────────────────
 _cmd_cleanup() {
+  local project_id_arg="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) project_id_arg="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
   local project_id
-  project_id=$(_resolve_project "${1:-}")
+  project_id=$(_resolve_project "$project_id_arg")
   local project_path
   project_path=$(resolve_project_path "$project_id")
   local base_branch
@@ -175,8 +208,13 @@ _cmd_cleanup() {
 
 # ── oc worktree status ────────────────────────────────────────────────────────
 _cmd_status() {
+  local project_id_arg="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) project_id_arg="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
   local project_id
-  project_id=$(_resolve_project "${1:-}")
+  project_id=$(_resolve_project "$project_id_arg")
   local project_path
   project_path=$(resolve_project_path "$project_id")
   local base_branch

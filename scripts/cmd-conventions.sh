@@ -10,14 +10,17 @@ ensure_projects_file
 
 # ── Parsing des arguments ──────────────────────────────────────────────────────
 FORCE=false
-ARGS=()
+PROJECT_ID=""
+_prev=""
 for arg in "$@"; do
+  case "$_prev" in
+    --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
+  esac
   case "$arg" in
-    --force|-f) FORCE=true ;;
-    *)          ARGS+=("$arg") ;;
+    --force|-f)   FORCE=true ;;
+    --project|-p) _prev="$arg" ;;
   esac
 done
-PROJECT_ID="${ARGS[0]:-}"
 
 # ── Sélection interactive si pas d'ID ─────────────────────────────────────────
 if [ -z "$PROJECT_ID" ]; then

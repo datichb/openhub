@@ -14,10 +14,20 @@ source "$LIB_DIR/project.sh"
 # Renomme un projet dans projects.md, paths.local.md, api-keys.local.md
 # ────────────────────────────────────────────────────────────────────────────────
 cmd_rename() {
-  local old_id="${1:-}" new_id="${2:-}"
+  local old_id="" new_id="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in
+      --from|-f) old_id="$arg"; _prev=""; continue ;;
+      --to|-t)   new_id="$arg"; _prev=""; continue ;;
+    esac
+    case "$arg" in
+      --from|-f) _prev="$arg" ;;
+      --to|-t)   _prev="$arg" ;;
+    esac
+  done
 
-  [ -z "$old_id" ] && { log_error "Usage : oc project rename <OLD_ID> <NEW_ID>"; exit 1; }
-  [ -z "$new_id" ] && { log_error "Usage : oc project rename <OLD_ID> <NEW_ID>"; exit 1; }
+  [ -z "$old_id" ] && { log_error "Usage : oc project rename --from <OLD_ID> --to <NEW_ID>"; exit 1; }
+  [ -z "$new_id" ] && { log_error "Usage : oc project rename --from <OLD_ID> --to <NEW_ID>"; exit 1; }
 
   old_id=$(normalize_project_id "$old_id")
   new_id=$(normalize_project_id "$new_id")
@@ -87,10 +97,19 @@ cmd_rename() {
 # Change le chemin local d'un projet dans paths.local.md
 # ────────────────────────────────────────────────────────────────────────────────
 cmd_move() {
-  local project_id="${1:-}" new_path="${2:-}"
+  local project_id="" new_path="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in
+      --project|-p) project_id="$arg"; _prev=""; continue ;;
+    esac
+    case "$arg" in
+      --project|-p) _prev="$arg" ;;
+      *)            if [ -z "$new_path" ]; then new_path="$arg"; fi ;;
+    esac
+  done
 
-  [ -z "$project_id" ] && { log_error "Usage : oc project move <PROJECT_ID> <path>"; exit 1; }
-  [ -z "$new_path"   ] && { log_error "Usage : oc project move <PROJECT_ID> <path>"; exit 1; }
+  [ -z "$project_id" ] && { log_error "Usage : oc project move --project <PROJECT_ID> <path>"; exit 1; }
+  [ -z "$new_path"   ] && { log_error "Usage : oc project move --project <PROJECT_ID> <path>"; exit 1; }
 
   project_id=$(normalize_project_id "$project_id")
 
@@ -147,7 +166,11 @@ cmd_move() {
 # Reconfigure les champs d'un projet existant dans projects.md
 # ────────────────────────────────────────────────────────────────────────────────
 cmd_configure() {
-  local project_id="${1:-}"
+  local project_id="" _prev=""
+  for arg in "$@"; do
+    case "$_prev" in --project|-p) project_id="$arg"; _prev=""; continue ;; esac
+    case "$arg" in --project|-p) _prev="$arg" ;; esac
+  done
 
   # ── Résolution du projet ────────────────────────────────────────────────────
   if [ -z "$project_id" ]; then
@@ -371,17 +394,13 @@ case "$SUBCOMMAND" in
   move)      cmd_move      "${@:2}" ;;
   configure) cmd_configure "${@:2}" ;;
   *)
-    echo -e "${BOLD}oc project — Gestion des projets${RESET}"
-    echo ""
-    echo "  project rename <OLD_ID> <NEW_ID>      Renomme un projet dans tous les registres"
-    echo "  project move <PROJECT_ID> <path>      Change le chemin local d'un projet"
-    echo "  project configure [PROJECT_ID]        Reconfigure les champs d'un projet existant"
-    echo ""
-    echo -e "${BOLD}Exemples :${RESET}"
-    echo "  ./oc.sh project rename MY-APP MY-APP-V2"
-    echo "  ./oc.sh project move MY-APP ~/workspace/my-app-new"
-    echo "  ./oc.sh project configure MY-APP"
-    echo "  ./oc.sh project configure"
+    _h_section "oc project <subcommand> [options]"
+    _h_cmd "rename"                                   "Renomme un projet dans tous les registres"
+    _h_sub "  --from/-f <OLD_ID>  --to/-t <NEW_ID>"  "Requis"
+    _h_cmd "move"                                     "Change le chemin local d'un projet"
+    _h_sub "  --project/-p <id>  <new_path>"          "Projet requis, path positionnel"
+    _h_cmd "configure"                                "Reconfigure les champs d'un projet existant"
+    _h_sub "  --project/-p <id>"                      "Interactif si absent"
     echo ""
     [ -n "$SUBCOMMAND" ] && { log_error "Sous-commande inconnue : $SUBCOMMAND"; exit 1; }
     exit 0

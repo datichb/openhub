@@ -9,7 +9,16 @@ source "$LIB_DIR/prompt-builder.sh"
 ensure_projects_file
 
 # ── Parsing des arguments ─────────────────────────────────────────────────────
-PROJECT_ID="${1:-}"
+PROJECT_ID=""
+_prev=""
+for arg in "$@"; do
+  case "$_prev" in
+    --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
+  esac
+  case "$arg" in
+    --project|-p) _prev="$arg" ;;
+  esac
+done
 
 # ── Sélection interactive si pas d'ID ────────────────────────────────────────
 if [ -z "$PROJECT_ID" ]; then

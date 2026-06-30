@@ -55,8 +55,18 @@ _summary() {
 
 # ── Fonction principale ───────────────────────────────────────────────────────
 cmd_init() {
-local PROJECT_ID="${1:-}"
-local PROJECT_PATH="${2:-}"
+local PROJECT_ID=""
+local PROJECT_PATH=""
+local _prev=""
+for arg in "$@"; do
+  case "$_prev" in
+    --name|-n) PROJECT_ID="$arg";   _prev=""; continue ;;
+  esac
+  case "$arg" in
+    --name|-n) _prev="$arg" ;;
+    *)         if [ -z "$PROJECT_PATH" ]; then PROJECT_PATH="$arg"; fi ;;
+  esac
+done
 
 # S'assurer que projects.md et hub.json existent avant toute opération
 ensure_projects_file

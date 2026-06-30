@@ -18,25 +18,32 @@ _require_bd() {
 _beads_usage() {
   _h_section "oc beads <subcommand> [options]"
 
-  _h_cmd "status [PROJECT_ID]"              "$(t help.beads_status.desc)"
-  _h_cmd "init <PROJECT_ID>"                "$(t help.beads_init.desc)"
-  _h_cmd "list <PROJECT_ID>"                "$(t help.beads_list.desc)"
-  _h_cmd "show <PROJECT_ID> <TICKET_ID>"    "$(t help.beads_show.desc)"
-  _h_cmd "create <PROJECT_ID> [title]"      "$(t help.beads_create.desc)"
-  _h_sub "  --label <l>  --type <t>  --desc <d>" ""
-  _h_cmd "open <PROJECT_ID>"                "$(t help.beads_open.desc)"
+  _h_cmd "status"                              "$(t help.beads_status.desc)"
+  _h_sub "  -p, --project <id>"               "Interactif si absent"
+  _h_cmd "init"                                "$(t help.beads_init.desc)"
+  _h_sub "  -p, --project <id>"               "Requis"
+  _h_cmd "list"                                "$(t help.beads_list.desc)"
+  _h_sub "  -p, --project <id>"               "Requis"
+  _h_cmd "show"                                "$(t help.beads_show.desc)"
+  _h_sub "  -p, --project <id>  --ticket/-i <id>" "Requis"
+  _h_cmd "create"                              "$(t help.beads_create.desc)"
+  _h_sub "  -p, --project <id>  --title/-T <title>" ""
+  _h_sub "  --label/-l <l>  --type/-t <t>  --desc/-d <d>" ""
+  _h_cmd "open"                                "$(t help.beads_open.desc)"
+  _h_sub "  -p, --project <id>"               "Requis"
 
   _h_section "$(t beads.tracker.title)"
-  _h_cmd "sync <PROJECT_ID> [pull|push]"     "$(t help.beads_sync.desc)"
-  _h_sub "  --dry-run"                       ""
-  _h_cmd "tracker status <PROJECT_ID>"       "$(t help.beads_tracker_status.desc)"
-  _h_cmd "tracker setup <PROJECT_ID>"        "$(t help.beads_tracker_setup.desc)"
-  _h_cmd "tracker switch <PROJECT_ID>"       "$(t help.beads_tracker_switch.desc)"
-  _h_cmd "tracker set-sync-mode <ID> [mode]" "$(t help.beads_tracker_set_sync_mode.desc)"
+  _h_cmd "sync"                                "$(t help.beads_sync.desc)"
+  _h_sub "  -p, --project <id>  [pull|push]  --dry-run/-n" ""
+  _h_cmd "tracker status"                      "$(t help.beads_tracker_status.desc)"
+  _h_cmd "tracker setup"                       "$(t help.beads_tracker_setup.desc)"
+  _h_cmd "tracker switch"                      "$(t help.beads_tracker_switch.desc)"
+  _h_cmd "tracker set-sync-mode [mode]"        "$(t help.beads_tracker_set_sync_mode.desc)"
+  _h_sub "  -p, --project <id>"               "Requis"
 
   _h_section "$(t beads.board.title)"
-  _h_cmd "board <PROJECT_ID>"               "$(t help.beads_board.desc)"
-  _h_cmd "board --watch <PROJECT_ID>"       "$(t help.beads_board_watch.desc)"
+  _h_cmd "board"                               "$(t help.beads_board.desc)"
+  _h_sub "  -p, --project <id>  --watch/-w"   ""
 
   echo ""
 }
@@ -756,32 +763,87 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then  source "$(cd "$(dirname "$0")" && pw
   resolve_oc_lang
 
   SUBCMD="${1:-}"
-  # NOTE : pour la sous-commande "tracker", $2 vaut la sous-sous-commande (setup/status/switch),
-  # pas le PROJECT_ID. Le PROJECT_ID est alors $3. Voir le dispatch ci-dessous.
-  PROJECT_ID="${2:-}"
+  shift || true
+
+  # ── Parser --project/-p et les flags spécifiques depuis les args restants ──
+  _BEADS_PROJECT=""
+  _BEADS_TITLE=""
+  _BEADS_LABEL=""
+  _BEADS_TYPE=""
+  _BEADS_DESC=""
+  _BEADS_TICKET=""
+  _BEADS_SYNC_DIR=""
+  _BEADS_SYNC_FLAGS=()
+  _BEADS_WATCH=false
+  _beads_prev=""
+  for _arg in "$@"; do
+    case "$_beads_prev" in
+      --project|-p) _BEADS_PROJECT="$_arg";    _beads_prev=""; continue ;;
+      --title|-T)   _BEADS_TITLE="$_arg";      _beads_prev=""; continue ;;
+      --label|-l)   _BEADS_LABEL="$_arg";      _beads_prev=""; continue ;;
+      --type|-t)    _BEADS_TYPE="$_arg";        _beads_prev=""; continue ;;
+      --desc|-d)    _BEADS_DESC="$_arg";        _beads_prev=""; continue ;;
+      --ticket|-i)  _BEADS_TICKET="$_arg";      _beads_prev=""; continue ;;
+    esac
+    case "$_arg" in
+      --project|-p) _beads_prev="$_arg" ;;
+      --title|-T)   _beads_prev="$_arg" ;;
+      --label|-l)   _beads_prev="$_arg" ;;
+      --type|-t)    _beads_prev="$_arg" ;;
+      --desc|-d)    _beads_prev="$_arg" ;;
+      --ticket|-i)  _beads_prev="$_arg" ;;
+      --watch|-w)   _BEADS_WATCH=true ;;
+      pull|push)    _BEADS_SYNC_DIR="$_arg" ;;
+      --dry-run|-n) _BEADS_SYNC_FLAGS+=("$_arg") ;;
+    esac
+  done
+
+  # ── Résolution interactive du projet si absent ────────────────────────────
+  if [ -z "$_BEADS_PROJECT" ] && [ "$SUBCMD" != "" ] && [ "$SUBCMD" != "--help" ] && [ "$SUBCMD" != "-h" ]; then
+    _ids=()
+    while IFS= read -r _line; do _ids+=("$_line"); done < <(grep "^## " "$PROJECTS_FILE" | sed 's/^## //')
+    if [ ${#_ids[@]} -gt 0 ]; then
+      echo -e "${BOLD}Choisir un projet :${RESET}"
+      echo ""
+      for _i in "${!_ids[@]}"; do
+        printf "  ${BLUE}%d${RESET}) %s\n" "$((_i+1))" "${_ids[$_i]}"
+      done
+      echo ""
+      read -rp "  Numéro : " _choice
+      if ! [[ "$_choice" =~ ^[0-9]+$ ]] || [ "$_choice" -lt 1 ] || [ "$_choice" -gt "${#_ids[@]}" ]; then
+        log_error "Choix invalide : $_choice"
+        exit 1
+      fi
+      _BEADS_PROJECT="${_ids[$((_choice-1))]}"
+    fi
+  fi
 
   case "$SUBCMD" in
-    status)  cmd_status  "$PROJECT_ID" ;;
-    init)    cmd_init    "$PROJECT_ID" ;;
-    list)    cmd_list    "$PROJECT_ID" ;;
-    show)    cmd_show    "$PROJECT_ID" "${3:-}" ;;
-    create)  cmd_create  "$PROJECT_ID" "${@:3}" ;;
-    open)    cmd_open    "$PROJECT_ID" ;;
-    sync)    cmd_sync    "$PROJECT_ID" "${@:3}" ;;
-    board)   cmd_board   "$PROJECT_ID" "${@:3}" ;;
+    status)  cmd_status  "$_BEADS_PROJECT" ;;
+    init)    cmd_init    "$_BEADS_PROJECT" ;;
+    list)    cmd_list    "$_BEADS_PROJECT" ;;
+    show)    cmd_show    "$_BEADS_PROJECT" "$_BEADS_TICKET" ;;
+    create)  cmd_create  "$_BEADS_PROJECT" "$_BEADS_TITLE" \
+               ${_BEADS_LABEL:+--label "$_BEADS_LABEL"} \
+               ${_BEADS_TYPE:+--type  "$_BEADS_TYPE"}  \
+               ${_BEADS_DESC:+--desc  "$_BEADS_DESC"} ;;
+    open)    cmd_open    "$_BEADS_PROJECT" ;;
+    sync)    cmd_sync    "$_BEADS_PROJECT" \
+               ${_BEADS_SYNC_DIR:+"$_BEADS_SYNC_DIR"} \
+               ${_BEADS_SYNC_FLAGS[@]+"${_BEADS_SYNC_FLAGS[@]}"} ;;
+    board)   cmd_board   "$_BEADS_PROJECT" ${_BEADS_WATCH:+--watch} ;;
     tracker)
-      TRACKER_SUBCMD="${2:-}"
-      TRACKER_PROJECT="${3:-}"
-      case "$TRACKER_SUBCMD" in
-        status)        cmd_tracker_status       "$TRACKER_PROJECT" ;;
-        setup)         cmd_tracker_setup        "$TRACKER_PROJECT" ;;
-        switch)        cmd_tracker_switch       "$TRACKER_PROJECT" ;;
-        set-sync-mode) cmd_tracker_set_sync_mode "$TRACKER_PROJECT" "${4:-}" ;;
+      _TRACKER_SUBCMD="${1:-}"
+      case "$_TRACKER_SUBCMD" in
+        status)        cmd_tracker_status        "$_BEADS_PROJECT" ;;
+        setup)         cmd_tracker_setup         "$_BEADS_PROJECT" ;;
+        switch)        cmd_tracker_switch        "$_BEADS_PROJECT" ;;
+        set-sync-mode) cmd_tracker_set_sync_mode "$_BEADS_PROJECT" "${2:-}" ;;
         ""|--help|-h)
           echo ""
           echo -e "${BOLD}$(t beads.tracker.usage)${RESET}"
           ;;
-        *) log_error "$(t beads.tracker.unknown_subcmd) $TRACKER_SUBCMD"; exit 1 ;;
+        *) log_error "$(t beads.tracker.unknown_subcmd) $_TRACKER_SUBCMD"; exit 1 ;;
       esac
       ;;
     ""|--help|-h) _beads_usage ;;

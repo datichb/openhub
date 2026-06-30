@@ -41,7 +41,7 @@ _PERIOD_LABEL="7 derniers jours"
 _parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      --period)
+      --period|-d)
         shift
         case "${1:-}" in
           today)

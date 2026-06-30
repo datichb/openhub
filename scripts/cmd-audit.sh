@@ -15,18 +15,18 @@ VALID_AUDIT_TYPES="security accessibility architecture ecodesign observability p
 
 # ── Parsing des arguments ─────────────────────────────────────────────────────
 AUDIT_TYPE=""
-ARGS=()
+PROJECT_ID=""
 _prev=""
 for arg in "$@"; do
   case "$_prev" in
-    --type) AUDIT_TYPE="$arg"; _prev=""; continue ;;
+    --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
+    --type|-t)    AUDIT_TYPE="$arg"; _prev=""; continue ;;
   esac
   case "$arg" in
-    --type) _prev="$arg" ;;
-    *)      ARGS+=("$arg") ;;
+    --project|-p) _prev="$arg" ;;
+    --type|-t)    _prev="$arg" ;;
   esac
 done
-PROJECT_ID="${ARGS[0]:-}"
 
 # ── Validation --type ─────────────────────────────────────────────────────────
 if [ -n "$AUDIT_TYPE" ]; then
