@@ -33,8 +33,13 @@ fi
 
 deployed_count=0
 skipped_count=0
+failed_count=0
 stale_count=0   # utilisé uniquement en dry-run
 ok_count=0      # utilisé uniquement en dry-run
+
+# Fichier temp pour stocker les erreurs de déploiement (bash 3.2 : pas de declare -A)
+_sync_errors_file=$(mktemp "${TMPDIR:-/tmp}/oc-sync-errors-XXXXXX")
+trap 'rm -f "$_sync_errors_file"' EXIT
 
 echo ""
 
@@ -127,17 +132,23 @@ for project_id in "${project_ids[@]}"; do
     # ── Mode déploiement ──────────────────────────────────────────────────────
     deploy_ok=true
     load_adapter
-    if adapter_validate 2>/dev/null; then
-      adapter_deploy "$local_path" "$project_id" >/dev/null 2>&1 && deploy_ok=true \
-        || deploy_ok=false
-    else
-      deploy_ok=false
-    fi
-    if [ "$deploy_ok" = "true" ]; then
-      deployed_count=$((deployed_count + 1))
-    else
+    if ! adapter_validate 2>/dev/null; then
+      # opencode non disponible sur ce projet → ignoré (pas une erreur de déploiement)
       skipped_count=$((skipped_count + 1))
+      continue
     fi
+    _err_tmp=$(mktemp "${TMPDIR:-/tmp}/oc-sync-err-XXXXXX")
+    adapter_deploy "$local_path" "$project_id" >/dev/null 2>"$_err_tmp" \
+      && deploy_ok=true || deploy_ok=false
+    if [ "$deploy_ok" = false ]; then
+      # Stocker l'erreur (première ligne significative) avec l'ID projet
+      _first_err=$(grep -v '^$' "$_err_tmp" | head -1 || true)
+      printf '%s\t%s\n' "$project_id" "${_first_err:-deploy error}" >> "$_sync_errors_file"
+      failed_count=$((failed_count + 1))
+    else
+      deployed_count=$((deployed_count + 1))
+    fi
+    rm -f "$_err_tmp"
   fi
 done
 
@@ -156,10 +167,20 @@ if [ "$DRY_RUN" = true ]; then
 else
   summary_lines=()
   summary_lines+=("$total_projects projets traités")
-  [ "$deployed_count" -gt 0 ] && summary_lines+=("  - $deployed_count synchronisés")
-  [ "$skipped_count" -gt 0 ] && summary_lines+=("  - $skipped_count ignorés")
+  [ "$deployed_count" -gt 0 ] && summary_lines+=("  - $deployed_count $(t sync.result_deployed)")
+  [ "$skipped_count"  -gt 0 ] && summary_lines+=("  - $skipped_count $(t sync.result_skipped)")
+  [ "$failed_count"   -gt 0 ] && summary_lines+=("  - $failed_count $(t sync.failed_count)")
   
   _progress_summary "Synchronisation terminée" "${summary_lines[@]}"
+
+  # Détail des projets en échec
+  if [ "$failed_count" -gt 0 ] && [ -s "$_sync_errors_file" ]; then
+    echo ""
+    log_warn "$(t sync.failed_projects)"
+    while IFS=$'\t' read -r _fail_id _fail_msg; do
+      printf "  ${RED}✗${RESET} ${BOLD}%s${RESET} — %s\n" "$_fail_id" "$_fail_msg"
+    done < "$_sync_errors_file"
+  fi
 fi
 
 echo ""
@@ -170,4 +191,9 @@ if [ "$DRY_RUN" = true ]; then
     log_info "$(t sync.deploy_hint)"
     exit 1
   fi
+fi
+
+# Echec si des projets n'ont pas pu être déployés
+if [ "$failed_count" -gt 0 ]; then
+  exit 1
 fi

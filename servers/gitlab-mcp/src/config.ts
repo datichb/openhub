@@ -19,7 +19,29 @@ export function getConfig(): GitLabConfig {
     );
   }
 
-  const baseUrl = (process.env.GITLAB_BASE_URL ?? 'https://gitlab.com').replace(/\/$/, '');
+  const rawBaseUrl = (process.env.GITLAB_BASE_URL ?? 'https://gitlab.com').replace(/\/$/, '');
+
+  // Valider que l'URL est bien formée
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawBaseUrl);
+  } catch {
+    throw new Error(
+      `GITLAB_BASE_URL is not a valid URL: "${rawBaseUrl}". ` +
+      'Expected format: https://your-gitlab.example.com'
+    );
+  }
+
+  // Forcer HTTPS sauf opt-out explicite (instances internes dev/CI)
+  if (parsedUrl.protocol !== 'https:' && process.env.GITLAB_ALLOW_HTTP !== '1') {
+    throw new Error(
+      `GITLAB_BASE_URL must use HTTPS (got "${parsedUrl.protocol}//"). ` +
+      'Sending tokens over unencrypted HTTP is not allowed. ' +
+      'Set GITLAB_ALLOW_HTTP=1 to bypass this check for internal/dev instances.'
+    );
+  }
+
+  const baseUrl = rawBaseUrl;
 
   const rawTimeout = parseInt(process.env.GITLAB_TIMEOUT ?? '30000', 10);
   const timeout = isNaN(rawTimeout) || rawTimeout <= 0 ? 30000 : rawTimeout;

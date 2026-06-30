@@ -161,3 +161,56 @@ EOF
   grep -q "^PROJ-A=" "$PATHS_FILE"
   grep -q "^PROJ-B=" "$PATHS_FILE"
 }
+
+# ── Mode --dry-run ────────────────────────────────────────────────────────────
+
+@test "cmd-remove --dry-run : n'efface rien dans projects.md" {
+  run bash "$CMD_REMOVE" --project PROJ-A --dry-run
+  [ "$status" -eq 0 ]
+  grep -q "^## PROJ-A" "$PROJECTS_FILE"
+}
+
+@test "cmd-remove --dry-run : n'efface rien dans paths.local.md" {
+  run bash "$CMD_REMOVE" --project PROJ-A --dry-run
+  [ "$status" -eq 0 ]
+  grep -q "^PROJ-A=" "$PATHS_FILE"
+}
+
+@test "cmd-remove --dry-run : n'efface rien dans api-keys.local.md" {
+  run bash "$CMD_REMOVE" --project PROJ-A --dry-run
+  [ "$status" -eq 0 ]
+  grep -q "^\[PROJ-A\]" "$API_KEYS_FILE"
+}
+
+@test "cmd-remove --dry-run : affiche les actions simulées" {
+  run bash "$CMD_REMOVE" --project PROJ-A --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run"* ]]
+}
+
+@test "cmd-remove --dry-run (-n) : syntaxe courte fonctionne" {
+  run bash "$CMD_REMOVE" --project PROJ-A -n
+  [ "$status" -eq 0 ]
+  grep -q "^## PROJ-A" "$PROJECTS_FILE"
+}
+
+@test "cmd-remove --dry-run : ne demande pas de confirmation" {
+  # Sans pipe "y" — doit quand même réussir en dry-run
+  run bash "$CMD_REMOVE" --project PROJ-A --dry-run
+  [ "$status" -eq 0 ]
+}
+
+@test "cmd-remove --dry-run --clean : affiche les fichiers qui seraient supprimés" {
+  # Créer un faux dossier projet avec agents
+  local proj_dir="$TEST_DIR/alpha"
+  mkdir -p "$proj_dir/.opencode/agents"
+  touch "$proj_dir/opencode.json"
+  # Mettre à jour le path
+  printf 'PROJ-A=%s\n' "$proj_dir" >> "$PATHS_FILE"
+
+  run bash "$CMD_REMOVE" --project PROJ-A --clean --dry-run
+  [ "$status" -eq 0 ]
+  grep -q "^## PROJ-A" "$PROJECTS_FILE"
+  [ -d "$proj_dir/.opencode/agents" ]
+  [ -f "$proj_dir/opencode.json" ]
+}

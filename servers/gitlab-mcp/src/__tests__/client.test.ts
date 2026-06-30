@@ -63,6 +63,7 @@ describe('getConfig', () => {
     delete process.env.GITLAB_BASE_URL;
     delete process.env.GITLAB_TIMEOUT;
     delete process.env.GITLAB_MAX_RETRIES;
+    delete process.env.GITLAB_ALLOW_HTTP;
   });
 
   it('lève une erreur si GITLAB_PERSONAL_ACCESS_TOKEN est absent', async () => {
@@ -87,6 +88,36 @@ describe('getConfig', () => {
     process.env.GITLAB_BASE_URL = 'https://my-gitlab.example.com/';
     const { getConfig } = await import('../config.js');
     expect(getConfig().baseUrl).toBe('https://my-gitlab.example.com');
+  });
+
+  it('rejette une URL HTTP non-HTTPS (sécurité token)', async () => {
+    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
+    process.env.GITLAB_BASE_URL = 'http://my-gitlab.example.com';
+    const { getConfig } = await import('../config.js');
+    expect(() => getConfig()).toThrow('HTTPS');
+  });
+
+  it('rejette une URL invalide (malformée)', async () => {
+    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
+    process.env.GITLAB_BASE_URL = 'not-a-valid-url';
+    const { getConfig } = await import('../config.js');
+    expect(() => getConfig()).toThrow('valid URL');
+  });
+
+  it('accepte HTTP si GITLAB_ALLOW_HTTP=1 (opt-out explicite)', async () => {
+    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
+    process.env.GITLAB_BASE_URL = 'http://internal-gitlab.corp.local';
+    process.env.GITLAB_ALLOW_HTTP = '1';
+    const { getConfig } = await import('../config.js');
+    expect(getConfig().baseUrl).toBe('http://internal-gitlab.corp.local');
+    delete process.env.GITLAB_ALLOW_HTTP;
+  });
+
+  it('accepte une URL HTTPS valide sans slash final', async () => {
+    process.env.GITLAB_PERSONAL_ACCESS_TOKEN = 'glpat-test';
+    process.env.GITLAB_BASE_URL = 'https://gitlab.company.io';
+    const { getConfig } = await import('../config.js');
+    expect(getConfig().baseUrl).toBe('https://gitlab.company.io');
   });
 
   it.each([

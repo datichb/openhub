@@ -62,7 +62,9 @@ cmd_rename() {
 
   # ── projects.md : renommer l'en-tête de section ──────────────────────────
   if [ -f "$PROJECTS_FILE" ] && grep -q "^## ${old_id}$" "$PROJECTS_FILE"; then
+    _acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || { log_error "filelock: timeout"; exit 1; }
     perl -i -0777pe "s{^## \Q${old_id}\E$}{## ${new_id}}mg" "$PROJECTS_FILE"
+    _release_lock "${OC_LOCK_PROJECTS:-projects}"
     log_success "projects.md : $old_id → $new_id"
     changed=$((changed + 1))
   fi
@@ -76,7 +78,9 @@ cmd_rename() {
 
   # ── api-keys.local.md : renommer la section ──────────────────────────────
   if [ -f "$API_KEYS_FILE" ] && grep -q "^\[${old_id}\]" "$API_KEYS_FILE"; then
+    _acquire_lock "${OC_LOCK_API_KEYS:-api-keys}" 10 || { log_error "filelock: timeout"; exit 1; }
     perl -i -pe "s{^\[${old_id}\]}{[${new_id}]}" "$API_KEYS_FILE"
+    _release_lock "${OC_LOCK_API_KEYS:-api-keys}"
     log_success "api-keys.local.md : [$old_id] → [$new_id]"
     changed=$((changed + 1))
   fi

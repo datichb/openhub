@@ -548,6 +548,34 @@ if [ -n "$PROJECT_ID" ]; then
   _cmd_deploy_discover "$PROJECT_ID" "$deploy_dir"
 fi
 
+# ── Snapshot pré-déploiement (pour rollback en cas d'interruption) ─────────
+_deploy_backup=""
+if [ -n "$deploy_dir" ]; then
+  _deploy_backup=$(mktemp -d "${TMPDIR:-/tmp}/oc-deploy-bak-XXXXXX")
+  [ -d "$deploy_dir/.opencode" ] && cp -a "$deploy_dir/.opencode" "$_deploy_backup/"
+  [ -f "$deploy_dir/opencode.json" ] && cp -f "$deploy_dir/opencode.json" "$_deploy_backup/"
+fi
+
+# ── Rollback sur interruption ou erreur ────────────────────────────────────
+_deploy_rollback() {
+  if [ -n "${_deploy_backup:-}" ] && [ -d "${_deploy_backup:-}" ]; then
+    log_warn "Interruption détectée — rollback en cours..."
+    if [ -d "$_deploy_backup/.opencode" ]; then
+      rm -rf "$deploy_dir/.opencode"
+      cp -a "$_deploy_backup/.opencode" "$deploy_dir/"
+      log_info "  .opencode/ restauré"
+    fi
+    if [ -f "$_deploy_backup/opencode.json" ]; then
+      cp -f "$_deploy_backup/opencode.json" "$deploy_dir/"
+      log_info "  opencode.json restauré"
+    fi
+    rm -rf "$_deploy_backup"
+    log_warn "Rollback terminé — état précédent restauré."
+  fi
+}
+trap '_deploy_rollback; exit 130' INT TERM
+trap '_deploy_rollback' ERR
+
 # ── Phase 1 : copie des fichiers agents ────────────────────────────────────
 echo -e "${CYAN}📦  Phase 1 — Copie des agents${RESET}"
 
@@ -640,6 +668,10 @@ echo -e "${CYAN}🔌  Phase 4 — Serveurs MCP${RESET}"
 
 adapter_deploy_mcp "$deploy_dir" "$PROJECT_ID" || true
 echo ""
+
+# Déploiement réussi — désactiver trap et supprimer le snapshot
+trap - INT TERM ERR
+[ -n "${_deploy_backup:-}" ] && rm -rf "$_deploy_backup"
 
 log_success "Déploiement terminé en ${SECONDS}s"
 

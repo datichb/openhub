@@ -60,6 +60,12 @@ api_keys_load_cache() {
       esac
     fi
   done < "$API_KEYS_FILE"
+
+  # Si la clé API est un marqueur keychain, la résoudre depuis le backend sécurisé
+  if [ "${_API_KEYS_CACHE_KEY:-}" = "__KEYCHAIN__" ] && command -v _secret_get &>/dev/null; then
+    local _resolved; _resolved=$(_secret_get "$id" "api_key" 2>/dev/null || true)
+    _API_KEYS_CACHE_KEY="${_resolved:-}"
+  fi
 }
 
 # Lit une clé INI pour une section donnée

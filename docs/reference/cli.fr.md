@@ -613,23 +613,56 @@ oc project move MON-APP ~/workspace/mon-app   # met à jour le chemin local
 Supprime un projet du registre (avec confirmation).
 
 ```bash
-oc remove <PROJECT_ID> [--clean]
+oc remove <PROJECT_ID> [--clean] [--dry-run]
 ```
 
 **Options :**
 
-| Option | Description |
-|--------|-------------|
-| `--clean` | Supprime également les fichiers agents déployés dans le répertoire du projet (`.opencode/agents/`, `opencode.json`) |
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--clean` | `-c` | Supprime également les fichiers agents déployés dans le répertoire du projet (`.opencode/agents/`, `opencode.json`) |
+| `--dry-run` | `-n` | Simule la suppression sans effectuer aucune modification. Affiche ce qui serait supprimé. |
 
 **Exemples :**
 
 ```bash
-oc remove MON-APP           # retire du registre uniquement
-oc remove MON-APP --clean   # retire du registre + nettoie les fichiers déployés
+oc remove MON-APP                     # retire du registre uniquement
+oc remove MON-APP --clean             # retire du registre + nettoie les fichiers déployés
+oc remove MON-APP --clean --dry-run   # prévisualise ce qui serait supprimé
+oc remove MON-APP -n                  # syntaxe courte dry-run
 ```
 
-> Demande confirmation dans les deux cas. Retire aussi l'entrée de `paths.local.md` et `api-keys.local.md`.
+> Demande confirmation dans les deux cas (sauf `--dry-run`). Retire aussi l'entrée de `paths.local.md` et `api-keys.local.md`.
+
+---
+
+## `oc doctor`
+
+Diagnostique la santé du hub : outils installés, fichiers de configuration, état des projets.
+
+```bash
+oc doctor
+```
+
+**Vérifications effectuées :**
+
+| Catégorie | Checks |
+|-----------|--------|
+| Outils externes | `jq`, `git`, `opencode`, `node`, `perl` (critiques), `sqlite3`, `bd` (importants), `fzf`, `bun`, `npx` (optionnels) |
+| Configuration | `hub.json` (valide, version), `providers.json`, `api-keys.local.md` (permissions 600) |
+| Projets | Chemins accessibles, agents déployés, `opencode.json` présent, clé API configurée |
+
+**Codes de sortie :**
+
+| Code | Signification |
+|------|--------------|
+| `0` | Tous les contrôles passés |
+| `1` | Au moins un problème critique (FAIL) |
+| `2` | Avertissements uniquement (WARN) |
+
+```bash
+oc doctor && echo "Hub sain"
+```
 
 ---
 

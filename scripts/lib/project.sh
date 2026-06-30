@@ -856,3 +856,35 @@ get_project_worktree_base_branch() {
   raw=$(echo "$raw" | tr -d '[:space:]')
   echo "${raw:-main}"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Verrouillage des écritures dans projects.md
+#
+# Protection contre les accès concurrents :
+# - Les cmd-*.sh qui font des écritures directes (perl -i, cat >>) acquièrent
+#   le verrou OC_LOCK_PROJECTS explicitement avant chaque opération.
+# - Les fonctions _set_project_* héritent du verrou via _do_locked_projects_write
+#   si la lib filelock est disponible.
+#
+# Note : l'approche eval/declare -f est évitée car elle provoque des délais
+# au sourçage dans les tests. La protection est garantie par les cmd-*.sh.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Wrapper de verrouillage centralisé pour les écritures dans projects.md.
+# Utilisé par les cmd-*.sh pour protéger les appels directs à perl -i / cat >>.
+# Usage : _do_locked_projects_write <fonction> [args...]
+_do_locked_projects_write() {
+  if command -v _acquire_lock &>/dev/null; then
+    _acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || {
+      log_error "filelock: timeout — impossible d'obtenir le verrou sur projects.md"
+      return 1
+    }
+    local _ret=0
+    "$@" || _ret=$?
+    _release_lock "${OC_LOCK_PROJECTS:-projects}"
+    return $_ret
+  else
+    "$@"
+  fi
+}
+

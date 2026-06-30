@@ -50,6 +50,20 @@ export EXTERNAL_SKILLS_DIR
 # shellcheck source=scripts/lib/project.sh
 [ -f "$LIB_DIR/project.sh" ] && source "$LIB_DIR/project.sh"
 
+# Load portable file locking library
+# shellcheck source=scripts/lib/filelock.sh
+[ -f "$LIB_DIR/filelock.sh" ] && source "$LIB_DIR/filelock.sh"
+
+# Load secrets/keychain abstraction layer
+# shellcheck source=scripts/lib/secrets.sh
+[ -f "$LIB_DIR/secrets.sh" ] && source "$LIB_DIR/secrets.sh"
+
+# Noms de verrous canoniques (partagés entre tous les scripts)
+OC_LOCK_PROJECTS="projects"
+OC_LOCK_API_KEYS="api-keys"
+OC_LOCK_HUB="hub"
+export OC_LOCK_PROJECTS OC_LOCK_API_KEYS OC_LOCK_HUB
+
 # ─────────────────────────────────────────
 # DEFAULTS
 # ─────────────────────────────────────────
@@ -65,7 +79,7 @@ export DEFAULT_MODEL
 get_hub_language() {
   [ -f "$HUB_CONFIG" ] || return 0
   command -v jq >/dev/null 2>&1 || return 0
-  jq -r '.cli.language // empty' "$HUB_CONFIG" 2>/dev/null
+  jq -r '.cli.language // empty' "$HUB_CONFIG" 2>/dev/null || true
 }
 
 # Resolves and exports OC_LANG for the current invocation.

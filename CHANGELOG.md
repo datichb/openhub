@@ -9,7 +9,52 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
-### Breaking Changes
+### Security
+
+- **Fix #7 — Validation HTTPS pour `GITLAB_BASE_URL`** (`servers/gitlab-mcp/src/config.ts`) :
+  le serveur MCP GitLab rejette désormais les URLs HTTP pour éviter d'envoyer le token en clair.
+  Opt-out possible via `GITLAB_ALLOW_HTTP=1` pour les instances internes/dev.
+
+- **Fix #4 — Stockage sécurisé des clés API (keychain multi-OS)** (`scripts/lib/secrets.sh`) :
+  nouvelle librairie d'abstraction des secrets avec détection automatique du backend :
+  macOS Keychain (`security`), Linux GNOME Keyring (`secret-tool`), fallback fichier chmod 600.
+  Les clés dans `api-keys.local.md` peuvent désormais pointer vers le keychain via le marqueur `__KEYCHAIN__`.
+  Override : `OC_SECRET_BACKEND=keychain|secret-tool|file`.
+
+### Fixed
+
+- **Fix #1 — Verrouillage de fichiers multi-OS** (`scripts/lib/filelock.sh`) :
+  les écritures concurrentes dans `projects.md`, `api-keys.local.md` et `hub.json`
+  sont désormais protégées par un verrou exclusif. Stratégie : `flock` (Linux),
+  `/usr/bin/lockf` (macOS), `mkdir + PID` (fallback universel).
+  API : `_acquire_lock`, `_release_lock`, `_with_lock`.
+
+- **Fix #2 — Rollback transactionnel pour `oc deploy`** (`scripts/cmd-deploy.sh`) :
+  un snapshot de l'état pré-déploiement est créé avant la Phase 1.
+  En cas d'interruption (Ctrl+C) ou d'échec, `.opencode/agents/` et `opencode.json`
+  sont restaurés automatiquement via trap `INT TERM ERR`.
+
+- **Fix #3 — `oc sync` propage les erreurs de déploiement** (`scripts/cmd-sync.sh`) :
+  les échecs de `adapter_deploy` ne sont plus masqués par `>/dev/null 2>&1`.
+  Nouveau compteur `failed_count` distingué de `skipped_count`.
+  Les projets en échec apparaissent dans le résumé avec la première ligne d'erreur.
+  Exit code 1 si au moins un projet échoue.
+
+### Added
+
+- **Fix #5 — Commande `oc doctor`** (`scripts/cmd-doctor.sh`) :
+  nouvelle commande de diagnostic du hub. Vérifie les outils externes (jq, git, opencode, node, perl, sqlite3, bd),
+  les fichiers de configuration (hub.json, providers.json, api-keys.local.md permissions),
+  et l'état de déploiement de tous les projets enregistrés.
+  Exit codes : 0 (tout OK), 1 (FAIL critique), 2 (WARN uniquement).
+  Supporte i18n (FR/EN).
+
+- **Fix #6 — `oc remove --dry-run`** (`scripts/cmd-remove.sh`) :
+  nouveau flag `--dry-run / -n` qui simule la suppression sans effectuer de modifications.
+  Affiche les fichiers/sections qui seraient supprimés. Pas de confirmation demandée.
+  Compatible avec `--clean` : affiche aussi les fichiers déployés qui seraient supprimés.
+
+
 
 
 - **`oc provider` supprimé** — toute la configuration provider passe désormais par `oc config` :

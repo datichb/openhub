@@ -8,6 +8,7 @@ resolve_oc_lang
 cmd_remove() {
 # ── Parsing des arguments ─────────────────
 local CLEAN_MODE=false
+local DRY_RUN=false
 local PROJECT_ID=""
 local _prev=""
 for arg in "$@"; do
@@ -15,8 +16,11 @@ for arg in "$@"; do
     --project|-p) PROJECT_ID="$arg"; _prev=""; continue ;;
   esac
   case "$arg" in
-    --clean|-c)   CLEAN_MODE=true ;;
-    --project|-p) _prev="$arg" ;;
+    --clean|-c)    CLEAN_MODE=true ;;
+    --dry-run|-n)  DRY_RUN=true ;;
+    --project|-p)  _prev="$arg" ;;
+    -*)            : ;;  # ignorer les flags inconnus
+    *)             [ -z "$PROJECT_ID" ] && PROJECT_ID="$arg" ;;
   esac
 done
 require_project_id "$PROJECT_ID"
@@ -40,6 +44,25 @@ if [ "$CLEAN_MODE" = true ]; then
 fi
 
 local confirm
+if [ "$DRY_RUN" = true ]; then
+  log_title "$(t remove.dryrun_title)"
+  echo ""
+  if [ "$CLEAN_MODE" = true ]; then
+    if [ -d "$PROJECT_PATH/.opencode/agents" ]; then
+      log_warn "$(t remove.dryrun_would_delete_agents) ($PROJECT_PATH/.opencode/agents/)"
+    fi
+    if [ -f "$PROJECT_PATH/opencode.json" ]; then
+      log_warn "$(t remove.dryrun_would_delete_config) ($PROJECT_PATH/opencode.json)"
+    fi
+  fi
+  log_info "$(t remove.dryrun_would_unregister) $PROJECT_ID (projects.md)"
+  path_exists "$PROJECT_ID" && log_info "$(t remove.dryrun_would_remove_path) $PROJECT_ID"
+  api_keys_entry_exists "$PROJECT_ID" && log_info "$(t remove.dryrun_would_remove_key) $PROJECT_ID"
+  echo ""
+  log_info "$(t remove.dryrun_no_changes)"
+  exit 0
+fi
+
 if [ "$CLEAN_MODE" = true ]; then
   local _confirm_msg
   _confirm_msg=$(t remove.confirm_clean | sed "s/PROJECT/$PROJECT_ID/;s|PATH|$PROJECT_PATH|")
@@ -71,8 +94,10 @@ fi
 # ── Supprimer du projects.md ──────────────
 # Supprime le bloc ## PROJECT_ID jusqu'au prochain ## ou fin de fichier
 command -v perl &>/dev/null || { log_error "perl requis pour cette opération"; exit 1; }
+_acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || { log_error "filelock: timeout"; exit 1; }
 perl -i.bak -0pe 's/\n?## \Q'"${PROJECT_ID}"'\E\n.*?(?=\n## |\z)\n?//s' "$PROJECTS_FILE" \
   && rm -f "${PROJECTS_FILE}.bak"
+_release_lock "${OC_LOCK_PROJECTS:-projects}"
 log_success "$(t remove.projects_removed) : $PROJECT_ID"
 
 # ── Supprimer du paths.local.md ───────────

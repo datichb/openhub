@@ -130,7 +130,8 @@ else
   esac
   log_info "Tracker : ${BOLD}${PROJECT_TRACKER}${RESET}"
 
-  # Ajouter dans projects.md
+  # Ajouter dans projects.md (sous verrou pour éviter les corruptions concurrentes)
+  _acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || { log_error "filelock: timeout"; exit 1; }
   cat >> "$PROJECTS_FILE" <<EOF
 
 ## $PROJECT_ID
@@ -140,6 +141,7 @@ else
 - Labels : ${PROJECT_LABELS:-feature,fix}
 - Agents : all
 EOF
+  _release_lock "${OC_LOCK_PROJECTS:-projects}"
 
   log_success "Projet $PROJECT_ID ajouté dans projects.md"
 fi

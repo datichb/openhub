@@ -474,6 +474,13 @@ t() {
       remove.path_removed)    printf '%s' "Chemin supprimé de paths.local.md" ;;
       remove.api_key_removed) printf '%s' "Clé API supprimée de api-keys.local.md" ;;
       remove.projects_removed) printf '%s' "supprimé de projects.md" ;;
+      remove.dryrun_title)    printf '%s' "Simulation de suppression (dry-run)" ;;
+      remove.dryrun_would_delete_agents) printf '%s' "[dry-run] Supprimerait : .opencode/agents/" ;;
+      remove.dryrun_would_delete_config) printf '%s' "[dry-run] Supprimerait : opencode.json" ;;
+      remove.dryrun_would_unregister)    printf '%s' "[dry-run] Retirerait du registre :" ;;
+      remove.dryrun_would_remove_path)   printf '%s' "[dry-run] Retirerait de paths.local.md :" ;;
+      remove.dryrun_would_remove_key)    printf '%s' "[dry-run] Retirerait de api-keys.local.md :" ;;
+      remove.dryrun_no_changes)          printf '%s' "Simulation terminée — aucune modification effectuée." ;;
 
       # ── cmd-start.sh ───────────────────────────────────────────────────────
       start.no_projects)      printf '%s' "Aucun projet enregistré → ./oc.sh init" ;;
@@ -644,6 +651,36 @@ t() {
       sync.result_skipped)    printf '%s' "ignoré(s)" ;;
       sync.deploy_hint)       printf '%s' "Pour déployer : ./oc.sh sync" ;;
       sync.result_deployed)   printf '%s' "déployé(s)" ;;
+      sync.failed_count)      printf '%s' "échoué(s)" ;;
+      sync.failed_projects)   printf '%s' "Projets en échec :" ;;
+      sync.error_detail)      printf '%s' "Erreur :" ;;
+
+      # ── cmd-doctor.sh ──────────────────────────────────────────────────────
+      doctor.title)           printf '%s' "Diagnostic du hub" ;;
+      doctor.section.tools)   printf '%s' "Outils externes" ;;
+      doctor.section.config)  printf '%s' "Fichiers de configuration" ;;
+      doctor.section.projects) printf '%s' "Projets enregistrés" ;;
+      doctor.ok)              printf '%s' "OK" ;;
+      doctor.warn)            printf '%s' "AVERT" ;;
+      doctor.fail)            printf '%s' "ÉCHEC" ;;
+      doctor.tool_missing_critical) printf '%s' "introuvable — requis pour les opérations principales" ;;
+      doctor.tool_missing_warn)     printf '%s' "introuvable — certaines fonctionnalités indisponibles" ;;
+      doctor.tool_missing_info)     printf '%s' "introuvable — optionnel" ;;
+      doctor.tool_ok)               printf '%s' "trouvé" ;;
+      doctor.config_missing)        printf '%s' "absent" ;;
+      doctor.config_invalid)        printf '%s' "JSON invalide" ;;
+      doctor.config_ok)             printf '%s' "valide" ;;
+      doctor.config_version_drift)  printf '%s' "version différente de hub.json.example" ;;
+      doctor.perms_warn)            printf '%s' "permissions incorrectes (600 attendu)" ;;
+      doctor.perms_ok)              printf '%s' "permissions correctes (600)" ;;
+      doctor.project_path_missing)  printf '%s' "dossier introuvable" ;;
+      doctor.project_agents_missing) printf '%s' "agents non déployés (.opencode/agents/ absent)" ;;
+      doctor.project_config_missing) printf '%s' "opencode.json non déployé" ;;
+      doctor.project_no_api_key)    printf '%s' "aucune clé API configurée" ;;
+      doctor.project_ok)            printf '%s' "OK" ;;
+      doctor.summary_ok)            printf '%s' "Tous les contrôles sont passés." ;;
+      doctor.summary_warn)          printf '%s' "avertissements détectés — voir ci-dessus." ;;
+      doctor.summary_fail)          printf '%s' "problèmes critiques détectés — lancez : oc install" ;;
 
       # ── cmd-update.sh ──────────────────────────────────────────────────────
       update.title)           printf '%s' "Mise à jour des outils" ;;
@@ -1487,6 +1524,47 @@ t_en() {
     sync.result_skipped)    printf '%s' "skipped" ;;
     sync.deploy_hint)       printf '%s' "To deploy: ./oc.sh sync" ;;
     sync.result_deployed)   printf '%s' "deployed" ;;
+    sync.failed_count)      printf '%s' "failed" ;;
+    sync.failed_projects)   printf '%s' "Failed projects:" ;;
+    sync.error_detail)      printf '%s' "Error:" ;;
+
+    # ── cmd-remove.sh (dry-run) ───────────────────────────────────────────────
+    remove.dryrun_title)    printf '%s' "Removal simulation (dry-run)" ;;
+    remove.dryrun_would_delete_agents) printf '%s' "[dry-run] Would delete: .opencode/agents/" ;;
+    remove.dryrun_would_delete_config) printf '%s' "[dry-run] Would delete: opencode.json" ;;
+    remove.dryrun_would_unregister)    printf '%s' "[dry-run] Would remove from registry:" ;;
+    remove.dryrun_would_remove_path)   printf '%s' "[dry-run] Would remove from paths.local.md:" ;;
+    remove.dryrun_would_remove_key)    printf '%s' "[dry-run] Would remove from api-keys.local.md:" ;;
+    remove.dryrun_no_changes)          printf '%s' "Simulation complete — no changes made." ;;
+
+    # ── cmd-doctor.sh ─────────────────────────────────────────────────────────
+    doctor.title)           printf '%s' "Hub health check" ;;
+    doctor.section.tools)   printf '%s' "External tools" ;;
+    doctor.section.config)  printf '%s' "Configuration files" ;;
+    doctor.section.projects) printf '%s' "Registered projects" ;;
+    doctor.ok)              printf '%s' "OK" ;;
+    doctor.warn)            printf '%s' "WARN" ;;
+    doctor.fail)            printf '%s' "FAIL" ;;
+    doctor.tool_missing_critical) printf '%s' "not found — required for core operations" ;;
+    doctor.tool_missing_warn)     printf '%s' "not found — some features unavailable" ;;
+    doctor.tool_missing_info)     printf '%s' "not found — optional" ;;
+    doctor.tool_ok)               printf '%s' "found" ;;
+    doctor.config_missing)        printf '%s' "missing" ;;
+    doctor.config_invalid)        printf '%s' "invalid JSON" ;;
+    doctor.config_ok)             printf '%s' "valid" ;;
+    doctor.config_version_drift)  printf '%s' "version mismatch with hub.json.example" ;;
+    doctor.perms_warn)            printf '%s' "permissions should be 600" ;;
+    doctor.perms_ok)              printf '%s' "permissions OK (600)" ;;
+    doctor.project_path_missing)  printf '%s' "directory not found" ;;
+    doctor.project_agents_missing) printf '%s' "agents not deployed (.opencode/agents/ missing)" ;;
+    doctor.project_config_missing) printf '%s' "opencode.json not deployed" ;;
+    doctor.project_no_api_key)    printf '%s' "no API key configured" ;;
+    doctor.project_ok)            printf '%s' "OK" ;;
+    doctor.summary_ok)            printf '%s' "All checks passed." ;;
+    doctor.summary_warn)          printf '%s' "warnings found — review above." ;;
+    doctor.summary_fail)          printf '%s' "critical issues found — run: oc install" ;;
+
+    # ── cmd-doctor.sh ─────────────────────────────────────────────────────────
 
     # ── cmd-update.sh ────────────────────────────────────────────────────────
     update.title)           printf '%s' "Updating tools" ;;
