@@ -1015,19 +1015,19 @@ cmd_websearch_status() {
 if [ "${_CMD_CONFIG_SOURCE_ONLY:-}" = "1" ]; then return 0 2>/dev/null || exit 0; fi
 
 _config_usage() {
-  _help_title "oc config <subcommand> [options]"
+  _h_section "oc config <subcommand> [options]"
 
-  _help_cmd "set [PROJECT_ID]"                  "$(t help.config_set.desc)"
-  _help_sub "--model <m>  --provider <p>"        ""
-  _help_sub "--api-key <k>  --base-url <u>"      ""
-  _help_sub "--family-model <f=m>  --agent-model <a=m>" ""
-  _help_cmd "get <PROJECT_ID>"                  "$(t help.config_get.desc)"
-  _help_cmd "list"                              "$(t help.config_list.desc)"
-  _help_sub "--providers"                       "$(t help.config_list_providers.desc)"
-  _help_cmd "unset <PROJECT_ID>"               "$(t help.config_unset.desc)"
-  _help_cmd "set language <en|fr>"             "$(t help.config_language.desc)"
-  _help_cmd "init-providers [--force]"          "$(t help.config_init_providers.desc)"
-  _help_cmd "websearch <enable|disable|status>" "$(t help.config_websearch.desc)"
+  _h_cmd "set [PROJECT_ID]"                  "$(t help.config_set.desc)"
+  _h_sub "  --model <m>  --provider <p>"     ""
+  _h_sub "  --api-key <k>  --base-url <u>"   ""
+  _h_sub "  --family-model <f=m>  --agent-model <a=m>" ""
+  _h_cmd "get <PROJECT_ID>"                  "$(t help.config_get.desc)"
+  _h_cmd "list"                              "$(t help.config_list.desc)"
+  _h_sub "  --providers"                     "$(t help.config_list_providers.desc)"
+  _h_cmd "unset <PROJECT_ID>"               "$(t help.config_unset.desc)"
+  _h_cmd "set language <en|fr>"             "$(t help.config_language.desc)"
+  _h_cmd "init-providers [--force]"          "$(t help.config_init_providers.desc)"
+  _h_cmd "websearch <enable|disable|status>" "$(t help.config_websearch.desc)"
 
   echo ""
 }

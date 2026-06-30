@@ -16,27 +16,27 @@ _require_bd() {
 
 # ── Aide interne ──────────────────────────
 _beads_usage() {
-  _help_title "oc beads <subcommand> [options]"
+  _h_section "oc beads <subcommand> [options]"
 
-  _help_cmd "status [PROJECT_ID]"              "$(t help.beads_status.desc)"
-  _help_cmd "init <PROJECT_ID>"                "$(t help.beads_init.desc)"
-  _help_cmd "list <PROJECT_ID>"                "$(t help.beads_list.desc)"
-  _help_cmd "show <PROJECT_ID> <TICKET_ID>"    "$(t help.beads_show.desc)"
-  _help_cmd "create <PROJECT_ID> [title]"      "$(t help.beads_create.desc)"
-  _help_sub "  --label <l>  --type <t>  --desc <d>" ""
-  _help_cmd "open <PROJECT_ID>"                "$(t help.beads_open.desc)"
+  _h_cmd "status [PROJECT_ID]"              "$(t help.beads_status.desc)"
+  _h_cmd "init <PROJECT_ID>"                "$(t help.beads_init.desc)"
+  _h_cmd "list <PROJECT_ID>"                "$(t help.beads_list.desc)"
+  _h_cmd "show <PROJECT_ID> <TICKET_ID>"    "$(t help.beads_show.desc)"
+  _h_cmd "create <PROJECT_ID> [title]"      "$(t help.beads_create.desc)"
+  _h_sub "  --label <l>  --type <t>  --desc <d>" ""
+  _h_cmd "open <PROJECT_ID>"                "$(t help.beads_open.desc)"
 
-  _help_section "$(t beads.tracker.title)"
-  _help_cmd "sync <PROJECT_ID> [pull|push]"    "$(t help.beads_sync.desc)"
-  _help_sub "  --dry-run"                      ""
-  _help_cmd "tracker status <PROJECT_ID>"      "$(t help.beads_tracker_status.desc)"
-  _help_cmd "tracker setup <PROJECT_ID>"       "$(t help.beads_tracker_setup.desc)"
-  _help_cmd "tracker switch <PROJECT_ID>"      "$(t help.beads_tracker_switch.desc)"
-  _help_cmd "tracker set-sync-mode <ID> [mode]" "$(t help.beads_tracker_set_sync_mode.desc)"
+  _h_section "$(t beads.tracker.title)"
+  _h_cmd "sync <PROJECT_ID> [pull|push]"     "$(t help.beads_sync.desc)"
+  _h_sub "  --dry-run"                       ""
+  _h_cmd "tracker status <PROJECT_ID>"       "$(t help.beads_tracker_status.desc)"
+  _h_cmd "tracker setup <PROJECT_ID>"        "$(t help.beads_tracker_setup.desc)"
+  _h_cmd "tracker switch <PROJECT_ID>"       "$(t help.beads_tracker_switch.desc)"
+  _h_cmd "tracker set-sync-mode <ID> [mode]" "$(t help.beads_tracker_set_sync_mode.desc)"
 
-  _help_section "$(t beads.board.title)"
-  _help_cmd "board <PROJECT_ID>"               "$(t help.beads_board.desc)"
-  _help_cmd "board --watch <PROJECT_ID>"       "$(t help.beads_board_watch.desc)"
+  _h_section "$(t beads.board.title)"
+  _h_cmd "board <PROJECT_ID>"               "$(t help.beads_board.desc)"
+  _h_cmd "board --watch <PROJECT_ID>"       "$(t help.beads_board_watch.desc)"
 
   echo ""
 }

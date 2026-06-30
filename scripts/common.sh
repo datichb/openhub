@@ -125,42 +125,40 @@ resolve_oc_lang
 
 # ─────────────────────────────────────────
 # HELP FORMATTING — shared helpers
-# Used by cmd-beads.sh, cmd-config.sh, cmd-service.sh, cmd-worktree.sh, …
+# Single set of functions used by cmd-help.sh and all sub-command scripts.
 # ─────────────────────────────────────────
-# Column width for sub-command help tables (narrower than cmd-help.sh global).
-_HELP_CMD_W=38
+OC_HELP_W=40   # width of the command column (shared by all help renderers)
 
-# Print a sub-command help header.
-# Usage: _help_title "oc beads <subcommand> [options]"
-_help_title() {
+# Print a section header: bold title + separator line.
+# Usage: _h_section "Title text"
+_h_section() {
   echo ""
   echo -e "${BOLD}$1${RESET}"
   printf '%.0s─' $(seq 1 52); echo
 }
 
-# Print one command row in a sub-command help table.
-# Usage: _help_cmd "subcommand [args]" "Description text"
-_help_cmd() {
+# Print one command row: cyan command column + description.
+# Usage: _h_cmd "command [args]" "Description text"
+_h_cmd() {
   local cmd="$1" desc="$2"
-  if [ "${#cmd}" -le "$_HELP_CMD_W" ]; then
-    printf "  ${CYAN}%-${_HELP_CMD_W}s${RESET}  %s\n" "$cmd" "$desc"
+  if [ "${#cmd}" -le "$OC_HELP_W" ]; then
+    printf "  ${CYAN}%-${OC_HELP_W}s${RESET}  %s\n" "$cmd" "$desc"
   else
     printf "  ${CYAN}%s${RESET}\n" "$cmd"
-    printf "  %*s  %s\n" "$_HELP_CMD_W" "" "$desc"
+    printf "  %*s  %s\n" "$OC_HELP_W" "" "$desc"
   fi
 }
 
 # Print a flag/variant row indented under the parent command.
-# Usage: _help_sub "--flag [val]" "Description text"
-_help_sub() {
+# Usage: _h_sub "--flag [val]" "Description text"
+_h_sub() {
   local flag="$1" desc="$2"
-  printf "  %2s${DIM}%-$((${_HELP_CMD_W} - 2))s${RESET}  %s\n" "" "$flag" "$desc"
+  printf "  %2s${DIM}%-$((OC_HELP_W - 2))s${RESET}  %s\n" "" "$flag" "$desc"
 }
 
-# Print a section divider within a sub-command help.
-# Usage: _help_section "Tracker"
-_help_section() {
-  echo ""
-  echo -e "  ${BOLD}$1${RESET}"
+# Print a plain indented note (examples, free text).
+# Usage: _h_note "oc start"
+_h_note() {
+  echo "  $1"
 }
 

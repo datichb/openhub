@@ -743,21 +743,21 @@ cmd_service_deploy() {
 # ── Sous-commande : help ──────────────────────────────────────────────────────
 
 cmd_service_help() {
-  _help_title "oc service <subcommand> [options]"
+  _h_section "oc service <subcommand> [options]"
 
-  _help_cmd "$(t service.help.setup_cmd)"   "$(t service.help.setup_desc)"
-  _help_cmd "$(t service.help.status_cmd)"  "$(t service.help.status_desc)"
-  _help_cmd "$(t service.help.list_cmd)"    "$(t service.help.list_desc)"
-  _help_cmd "$(t service.help.remove_cmd)"  "$(t service.help.remove_desc)"
-  _help_cmd "$(t service.help.deploy_cmd)"  "$(t service.help.deploy_desc)"
+  _h_cmd "$(t service.help.setup_cmd)"   "$(t service.help.setup_desc)"
+  _h_cmd "$(t service.help.status_cmd)"  "$(t service.help.status_desc)"
+  _h_cmd "$(t service.help.list_cmd)"    "$(t service.help.list_desc)"
+  _h_cmd "$(t service.help.remove_cmd)"  "$(t service.help.remove_desc)"
+  _h_cmd "$(t service.help.deploy_cmd)"  "$(t service.help.deploy_desc)"
 
-  _help_section "Flags"
-  _help_sub "--project <PROJECT_ID>"        "$(t service.project.flag_desc)"
+  _h_section "Flags"
+  _h_sub "--project <PROJECT_ID>"        "$(t service.project.flag_desc)"
 
-  _help_section "Aliases"
-  _help_sub "oc figma   →  oc service ... figma"   ""
-  _help_sub "oc gitlab  →  oc service ... gitlab"  ""
-  _help_sub "oc gslides →  oc service ... gslides" ""
+  _h_section "Aliases"
+  _h_sub "oc figma   →  oc service ... figma"   ""
+  _h_sub "oc gitlab  →  oc service ... gitlab"  ""
+  _h_sub "oc gslides →  oc service ... gslides" ""
 
   echo ""
 }
