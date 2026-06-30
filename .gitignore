@@ -6,7 +6,7 @@ projects/api-keys.local.md
 # Sorties générées par oc deploy — ne pas committer
 .opencode/agents/
 .github/copilot-instructions.md
-.vscode/prompts/
+.vscode/
 
 # Skills téléchargés depuis des sources externes — ne pas committer
 # Utilisez : oc skills sync   pour les re-télécharger après un clone
@@ -33,3 +33,5 @@ plugins/*/node_modules/
 
 # Fichiers temporaires laissés par les tests (ex: crash avant teardown)
 tests/tmp_*
+
+docs/presentations/

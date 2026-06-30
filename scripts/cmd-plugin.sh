@@ -556,6 +556,32 @@ if [ "$PLUGIN_NAME" = "context-mode" ]; then
     fi
   fi
 
+  # ── Variables context-mode dans le shell profile (réduction overhead CPU/chaleur) ──
+  _cm_rc_file=""
+  if [ -n "${ZSH_VERSION:-}" ] || [ "${SHELL:-}" = "/bin/zsh" ] || [ "${SHELL:-}" = "/usr/bin/zsh" ]; then
+    _cm_rc_file="$HOME/.zshrc"
+  elif [ -n "${BASH_VERSION:-}" ] || [ "${SHELL:-}" = "/bin/bash" ] || [ "${SHELL:-}" = "/usr/bin/bash" ]; then
+    _cm_rc_file="$HOME/.bashrc"
+    [ "$(uname)" = "Darwin" ] && _cm_rc_file="$HOME/.bash_profile"
+  fi
+
+  if [ -n "$_cm_rc_file" ] && [ -f "$_cm_rc_file" ]; then
+    if ! grep -qF "# openhub context-mode" "$_cm_rc_file" 2>/dev/null; then
+      {
+        echo ""
+        echo "# openhub context-mode"
+        echo "export CONTEXT_MODE_HOOK_STDIN_IDLE_MS=300"
+        echo "export CONTEXT_MODE_SESSION_SUFFIX="
+        echo "export CONTEXT_MODE_EXTERNAL_MCP_NUDGE_EVERY=100"
+        echo "export CONTEXT_MODE_BASH_NUDGE_MIN_COMMAND_BYTES=500"
+      } >> "$_cm_rc_file"
+      log_success "Variables context-mode ajoutées dans $_cm_rc_file"
+      log_info "Relancer votre shell ou : source $_cm_rc_file"
+    else
+      log_info "Variables context-mode déjà présentes dans $_cm_rc_file"
+    fi
+  fi
+
   log_success "$(t plugin.done)"
   exit 0
 fi

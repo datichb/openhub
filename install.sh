@@ -333,6 +333,20 @@ if [ -n "$_rc_file" ]; then
     } >> "$_rc_file"
     log_success "Alias 'oc' ajouté dans $_rc_file"
   fi
+
+  # ── Variables context-mode (réduction overhead CPU/chaleur) ──────────────────
+  if ! grep -qF "# openhub context-mode" "$_rc_file" 2>/dev/null; then
+    {
+      echo ""
+      echo "# openhub context-mode"
+      echo "export CONTEXT_MODE_HOOK_STDIN_IDLE_MS=300"
+      echo "export CONTEXT_MODE_SESSION_SUFFIX="
+      echo "export CONTEXT_MODE_EXTERNAL_MCP_NUDGE_EVERY=100"
+      echo "export CONTEXT_MODE_BASH_NUDGE_MIN_COMMAND_BYTES=500"
+    } >> "$_rc_file"
+    log_success "Variables context-mode ajoutées dans $_rc_file"
+  fi
+
   # Ajouter bun au PATH dans le rc si pas déjà présent
   if ! grep -qF 'BUN_INSTALL' "$_rc_file" 2>/dev/null && [ -d "$HOME/.bun" ]; then
     {

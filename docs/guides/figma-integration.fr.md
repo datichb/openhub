@@ -247,7 +247,14 @@ openhub/
 
 **Erreur :** `Aucun fichier Figma trouvé pour la recherche : "xxx"`
 
-**Solutions :**
+L'onboarder effectue une recherche progressive automatique avant de conclure à l'absence de résultats :
+1. Nom du dossier racine ou `package.json "name"`
+2. ID du projet (ex. `t-sru`)
+3. Champ `Nom` dans `projects.md` (ex. `SRU`)
+
+Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fichier Figma.
+
+**Si la recherche reste infructueuse :**
 - Vérifier que le Team ID est correct
 - Renommer fichiers Figma selon conventions (`[Projet] - [Feature] - [Type]`)
 - Vérifier scopes du token : `current_user:read`, `file_content:read`, `file_metadata:read`, `projects:read`, `library_assets:read`

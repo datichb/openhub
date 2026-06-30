@@ -982,7 +982,14 @@ build_onboard_bootstrap_prompt() {
 
   local project_info=""
   if [ -n "$project_id" ]; then
-    project_info="Projet : ${project_id}
+    local project_nom=""
+    if [ -n "$projects_file" ] && [ -f "$projects_file" ]; then
+      project_nom=$(_get_project_field "$project_id" "Nom" 2>/dev/null || true)
+    fi
+    project_info="Projet : ${project_id}"
+    [ -n "$project_nom" ] && project_info="${project_info}
+Nom : ${project_nom}"
+    project_info="${project_info}
 Chemin : ${project_path}"
   else
     project_info="Chemin : ${project_path}"
@@ -996,36 +1003,9 @@ projects.md : ${projects_file}"
   fi
 
   cat <<EOF
-Effectue une exploration complète du projet pour produire un rapport de contexte enrichi.
+Lance l'onboarding de ce projet.
 
 ${project_info}${hub_info}
-
-Workflow (6 phases) :
-1. PHASE 0 — Vérifier les prérequis (projet accessible, fichiers structurants)
-2. PHASE 1 — Explorer le projet de manière adaptative :
-   - ÉTAPE 1.1 : Détecter la stack (langages, frameworks, bases de données, infra)
-   - ÉTAPE 1.2 : Explorer selon le profil détecté (frontend/backend/fullstack/data/mobile/devops)
-   - ÉTAPE 1.3 : Lire les tickets Beads (bd list -s open) + ADRs si disponibles
-   - ÉTAPE 1.4 : Analyser le contexte métier (domaine, utilisateurs, concepts clés, glossaire)
-   - ÉTAPE 1.5 : Explorer Figma si frontend (maquettes, design system, design tokens)
-   - ÉTAPE 1.6 : Analyser la stratégie de test (frameworks, couverture, philosophie TDD/BDD)
-3. PHASE 2 — Poser les questions de clarification (stratégie projet, conventions ambiguës, zones d'ombre, métier, tests, Figma)
-4. PHASE 3 — Produire le rapport de contexte structuré (stack, architecture, contexte métier, design, tests, points d'attention, zones d'ombre, agents recommandés)
-5. PHASE 4 — Détecter les cas particuliers (incohérences, CVE, dette masquée, architecture hybride)
-6. PHASE 5 — Produire les livrables :
-   - Écrire docs/wiki/ (structure complète : index.md, technical/, business/) avec tags de confiance
-   - Écrire ONBOARDING.md minimaliste à la racine (portail vers docs/wiki/index.md — 15-25 lignes max)
-   - Ajouter les fichiers générés au .git/info/exclude (exclusion locale uniquement)
-   - Si le champ Stack est absent/incomplet dans projects.md, proposer la mise à jour (confirmation explicite requise)
-
-Règles strictes :
-- Lecture seule — tu ne modifies aucun fichier du projet (sauf docs/wiki/, ONBOARDING.md et .git/info/exclude en Phase 5)
-- Rapport honnête : signaler les points critiques (🔴), importants (🟠), améliorations (🟡) avec observations concrètes
-- Zones d'ombre explicites : ce qui n'a pas pu être déterminé
-- Conventions basées sur fichiers réellement lus — ne jamais inventer
-- Phase 1.5 (Figma) : optionnelle, déclenchée uniquement si frontend détecté
-- Ne jamais modifier .gitignore — utiliser uniquement .git/info/exclude
-- Produire le rapport complet dans la conversation AVANT d'écrire les fichiers
 EOF
 }
 

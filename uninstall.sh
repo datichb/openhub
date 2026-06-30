@@ -209,6 +209,11 @@ else
         sed -i.tmp '/openhub\/oc\.sh/d' "$_rc_file"
         rm -f "$_rc_file.tmp"
         log_success "Alias openhub retiré de $_rc_file"
+        # Retirer le bloc context-mode si présent
+        sed -i.tmp '/^# openhub context-mode$/d' "$_rc_file"
+        sed -i.tmp '/^export CONTEXT_MODE_/d' "$_rc_file"
+        rm -f "$_rc_file.tmp"
+        log_success "Variables context-mode retirées de $_rc_file"
       fi
       if [ "$_has_bun" = "true" ]; then
         sed -i.tmp '/BUN_INSTALL/d' "$_rc_file"

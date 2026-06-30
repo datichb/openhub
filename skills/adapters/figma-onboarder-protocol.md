@@ -33,19 +33,38 @@ Lancer Phase 1.5 si :
 **Annoncer avant d'explorer :**
 > "Je vais rechercher les maquettes Figma liées au projet."
 
+Stratégie de recherche progressive — s'arrêter à la première tentative qui retourne des résultats :
+
+**Tentative 1 :** `search_figma_files(<nom depuis package.json "name"> ou <nom du dossier racine>)`
+
+**Tentative 2 (si aucun résultat) :** `search_figma_files(<ID du projet — disponible dans le bootstrap prompt>)`
+
+**Tentative 3 (si aucun résultat) :** `search_figma_files(<champ "Nom" du projet — disponible dans le bootstrap prompt>)`
+
+**Si toujours aucun résultat après les 3 tentatives :**
+
+Afficher :
+> "J'ai recherché les fichiers Figma avec les termes [terme1], [terme2], [terme3] — aucun résultat."
+
+Puis appeler `question` :
+
 ```
-Utiliser l'outil : search_figma_files
-Argument : <nom du projet> (depuis package.json "name" ou déduit du dossier racine)
+question({
+  questions: [{
+    header: "Fichiers Figma",
+    question: "[Onboarder — Phase 1.5 | Projet : <nom>]\nJe n'ai trouvé aucun fichier Figma pour les termes suivants :\n- [terme1]\n- [terme2]\n- [terme3]\n\nComment procéder ?",
+    options: [
+      { label: "Fournir le nom du fichier", description: "Préciser le nom exact ou l'URL du fichier Figma à analyser" },
+      { label: "Pas de maquettes Figma", description: "Ce projet n'a pas de maquettes Figma — passer à Phase 1.6" },
+      { label: "Ignorer pour l'instant", description: "Continuer l'onboarding sans les maquettes" }
+    ]
+  }]
+})
 ```
 
-**Si aucun fichier trouvé :**
-```markdown
-**Maquettes Figma détectées :**
-- Aucune maquette Figma trouvée
-```
-→ Ajouter au récap Phase 1, puis passer à Phase 1.6
+→ Ajouter au récap Phase 1 selon la réponse, puis passer à Phase 1.6
 
-**Si fichier(s) trouvé(s) :**
+**Si fichier(s) trouvé(s) (quelle que soit la tentative) :**
 → Continuer vers Étape 2
 
 #### Étape 2 : Analyse des fichiers Figma (max 3 fichiers pertinents)
@@ -198,10 +217,12 @@ Ajouter cette section après "## Config & secrets" :
 ## Règles importantes
 
 ✅ **Phase 1.5 est optionnelle** : Ne la déclencher que si le projet contient du code frontend  
+✅ **Recherche progressive** : Essayer dans l'ordre — nom dossier/package.json → ID projet → Nom projet → question utilisateur  
 ✅ **Maximum 3 fichiers Figma** : Garder les plus pertinents pour ne pas surcharger le récap  
 ✅ **Toujours mentionner** : Même si aucun fichier trouvé, le dire explicitement dans le récap Phase 1  
 ✅ **Extraction tokens** : Utiliser `extract_design_tokens` — ne pas analyser manuellement  
 ✅ **URLs complètes** : Toujours inclure les liens directs vers les fichiers Figma  
+❌ **Ne jamais abandonner sans question** : Si les 3 tentatives échouent, appeler `question` — ne pas passer à Phase 1.6 silencieusement  
 ❌ **Ne jamais bloquer** : Si erreur Figma (API, permissions), continuer sans et le mentionner dans "Zones d'ombre"  
 ❌ **Ne pas analyser manuellement** : Utiliser les outils MCP, pas d'inspection visuelle des maquettes  
 ❌ **Ne pas dupliquer** : Les données Figma enrichissent le récap Phase 1, pas une section séparée complète
@@ -270,6 +291,9 @@ Ajouter cette section après "## Config & secrets" :
 **Phase 1.5 :**
 
 1. `search_figma_files("MonProjet")` → Aucun fichier trouvé
+2. `search_figma_files("mp-monprojet")` (ID projet) → Aucun fichier trouvé
+3. `search_figma_files("Mon Projet")` (Nom projet) → Aucun fichier trouvé
+4. Appel `question` → utilisateur répond "Pas de maquettes Figma"
 
 **Récap Phase 1 :**
 ```markdown
@@ -309,7 +333,8 @@ Ajouter cette section après "## Config & secrets" :
 Avant de passer à Phase 1.6, vérifier :
 
 - [ ] Phase 1.5 déclenchée uniquement si frontend détecté ?
-- [ ] Recherche Figma effectuée (même si retourne 0 résultat) ?
+- [ ] Les 3 tentatives de recherche effectuées (nom dossier/package → ID projet → Nom projet) avant de conclure à l'absence de résultats ?
+- [ ] Si 3 tentatives échouées, `question` appelée pour demander à l'utilisateur ?
 - [ ] Fichiers Figma trouvés mentionnés dans le récap avec URLs ?
 - [ ] `extract_design_tokens` exécuté si fichiers pertinents trouvés ?
 - [ ] Design system identifié si présent ?

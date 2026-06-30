@@ -200,7 +200,14 @@ openhub/
 
 **Error:** `No Figma files found for search: "xxx"`
 
-**Solutions:**
+The onboarder runs a progressive search automatically before concluding that no files exist:
+1. Root folder name or `package.json "name"`
+2. Project ID (e.g. `t-sru`)
+3. `Nom` field in `projects.md` (e.g. `SRU`)
+
+If all 3 attempts fail, the onboarder asks you to provide the exact Figma file name or URL.
+
+**If the search still returns nothing:**
 - Verify Team ID is correct
 - Rename Figma files according to conventions (`[Project] - [Feature] - [Type]`)
 - Check token scopes: `file:read`, `projects:read`
