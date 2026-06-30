@@ -82,6 +82,7 @@ _acquire_lock() {
       done
       echo $$ > "$pidfile"
       # Nettoyage garanti à la sortie du processus
+      # shellcheck disable=SC2064
       trap "rm -rf '${lockdir}' 2>/dev/null; exit" INT TERM HUP
       ;;
   esac

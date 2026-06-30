@@ -163,14 +163,8 @@ AGENTS_DIR="$BATS_TEST_DIRNAME/../agents"
   [ "$output" -ge 1 ]
 }
 
-@test "ux-designer documente l'interdiction de l'outil question en mode orchestrateur" {
-  run grep -c "Ne jamais utiliser l'outil .question\|jamais.*question\|JAMAIS.*question" "$AGENTS_DIR/design/ux-designer.md"
-  [ "$status" -eq 0 ]
-  [ "$output" -ge 1 ]
-}
-
-@test "ui-designer documente l'interdiction de l'outil question en mode orchestrateur" {
-  run grep -c "Ne jamais utiliser l'outil .question\|jamais.*question\|JAMAIS.*question" "$AGENTS_DIR/design/ui-designer.md"
+@test "designer documente l'interdiction de l'outil question en mode orchestrateur" {
+  run grep -c "Ne jamais utiliser l'outil .question\|jamais.*question\|JAMAIS.*question" "$AGENTS_DIR/design/designer.md"
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }

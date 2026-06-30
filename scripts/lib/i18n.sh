@@ -1091,11 +1091,6 @@ t_en() {
     help.beads_ui_status.desc) printf '%s' "Show beads-ui server status" ;;
     help.beads_ui_install.cmd)  printf '%s' "beads ui install" ;;
     help.beads_ui_install.desc) printf '%s' "Install beads-ui (npm install -g beads-ui)" ;;
-    help.beads_board.cmd)   printf '%s' "beads board -p <PROJECT_ID>" ;;
-    help.beads_board.desc)  printf '%s' "Open the Kanban board in terminal" ;;
-    help.beads_board_watch.cmd)  printf '%s' "beads board -p <PROJECT_ID> --watch/-w" ;;
-    help.beads_board_watch.desc) printf '%s' "Watch mode for the Kanban board" ;;
-
     # ── cmd-agent.sh ─────────────────────────────────────────────────────────
     agent.title)            printf '%s' "oc agent — Canonical agent management" ;;
     agent.list)             printf '%s' "list                  List available agents" ;;

@@ -175,8 +175,7 @@ has_permission() {
 
 @test "agents design ont ctx_search et ctx_batch_execute" {
   local design_agents=(
-    "design/ui-designer"
-    "design/ux-designer"
+    "design/designer"
   )
   local required_perms=("ctx_search" "ctx_batch_execute")
 

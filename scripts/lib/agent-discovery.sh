@@ -118,7 +118,7 @@ resolve_agent_similarity() {
     "developer-security" "developer-refactor" "developer-migrator"
     "reviewer" "qa-engineer" "debugger"
     "documentarian"
-    "ux-designer" "ui-designer"
+    "ux-designer" "ui-designer" "designer"
     "auditor" "auditor-subagent"
   )
   for hub_id in "${hub_ids[@]}"; do
