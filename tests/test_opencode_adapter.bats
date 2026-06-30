@@ -833,3 +833,59 @@ EOF
   run jq 'has("agent") and (.agent | has("plan"))' "$DEPLOY_DIR/opencode.json"
   [ "$output" = "false" ]
 }
+
+# ── adapter_start : passage du titre de session ───────────────────────────────
+
+@test "adapter_start : passe --title si session_title fourni" {
+  # Créer un mock opencode dans le PATH du sous-shell
+  local mock_bin="$TEST_DIR/mock-bin"
+  local oc_log="$TEST_DIR/oc_title.log"
+  mkdir -p "$mock_bin"
+  cat > "$mock_bin/opencode" <<'OCEOF'
+#!/bin/bash
+echo "opencode $*" >> "$OPENCODE_LOG"
+exit 0
+OCEOF
+  chmod +x "$mock_bin/opencode"
+
+  run bash -c "
+    export OPENCODE_LOG='$oc_log'
+    export HUB_CONFIG='$TEST_DIR/hub.json'
+    export API_KEYS_FILE='$API_KEYS_FILE'
+    export PATH='$mock_bin:\$PATH'
+    source '$BATS_TEST_DIRNAME/../scripts/common.sh'
+    source '$BATS_TEST_DIRNAME/../scripts/adapters/opencode.adapter.sh'
+    log_info()  { true; }
+    log_error() { true; }
+    adapter_start '$DEPLOY_DIR' '' '' '' '' 'mon titre de session'
+  "
+  [ "$status" -eq 0 ]
+  grep -q -- '--title' "$oc_log"
+  grep -q -- 'mon titre de session' "$oc_log"
+}
+
+@test "adapter_start : omet --title si session_title vide" {
+  local mock_bin="$TEST_DIR/mock-bin2"
+  local oc_log="$TEST_DIR/oc_notitle.log"
+  mkdir -p "$mock_bin"
+  cat > "$mock_bin/opencode" <<'OCEOF'
+#!/bin/bash
+echo "opencode $*" >> "$OPENCODE_LOG"
+exit 0
+OCEOF
+  chmod +x "$mock_bin/opencode"
+
+  run bash -c "
+    export OPENCODE_LOG='$oc_log'
+    export HUB_CONFIG='$TEST_DIR/hub.json'
+    export API_KEYS_FILE='$API_KEYS_FILE'
+    export PATH='$mock_bin:\$PATH'
+    source '$BATS_TEST_DIRNAME/../scripts/common.sh'
+    source '$BATS_TEST_DIRNAME/../scripts/adapters/opencode.adapter.sh'
+    log_info()  { true; }
+    log_error() { true; }
+    adapter_start '$DEPLOY_DIR' '' '' '' '' ''
+  "
+  [ "$status" -eq 0 ]
+  ! grep -q -- '--title' "$oc_log"
+}

@@ -160,6 +160,7 @@ oc start [PROJECT_ID] [prompt]
          [--worktree [<branche>]]
          [--agent <nom>]
          [--provider <p>]
+         [--resume]
 ```
 
 **Arguments :**
@@ -180,10 +181,11 @@ oc start [PROJECT_ID] [prompt]
 | `--onboard --refresh` | Réinitialise le contexte d'onboarding avant de relancer la découverte |
 | `--parallel` | Lance un `orchestrator-dev` dans un **worktree isolé** (`parallel/TIMESTAMP`) pour traiter plusieurs tickets `ai-delegated` simultanément en mode `auto`. À utiliser quand plusieurs tickets indépendants sont prêts. Requiert `Worktree: enabled` dans `projects.md`. |
 | `--worktree [<branche>]` | Ouvre une **session libre dans un worktree isolé** sur une branche nommée. Si la branche est omise, elle est demandée interactivement. Idéal pour démarrer un développement indépendant en parallèle d'une session en cours. Crée le worktree s'il n'existe pas, le réutilise sinon. |
-| `--agent <nom>` | Force l'agent de démarrage (ex : `orchestrator`, `developer-fullstack`) |
-| `--provider <p>` | Surcharge le provider LLM pour cette session (ex : `anthropic`, `openai`). Régénère `opencode.json` si les agents sont déjà déployés. |
+ | `--agent <nom>` | Force l'agent de démarrage (ex : `orchestrator`, `developer-fullstack`) |
+ | `--provider <p>` | Surcharge le provider LLM pour cette session (ex : `anthropic`, `openai`). Régénère `opencode.json` si les agents sont déjà déployés. |
+ | `--resume` / `-R` | Affiche les 10 dernières sessions du projet (30 jours) et reprend celle choisie. Requiert un `PROJECT_ID` explicite (`-p`). Incompatible avec `--dev`, `--onboard` et `--parallel`. |
 
-> **Exclusivités mutuelles :** `--dev`, `--parallel` et `--worktree` sont mutuellement exclusifs entre eux, et tous incompatibles avec `--onboard`. `--label` et `--assignee` sont mutuellement exclusifs. `--refresh` requiert `--onboard`.
+ > **Exclusivités mutuelles :** `--dev`, `--parallel` et `--worktree` sont mutuellement exclusifs entre eux, et tous incompatibles avec `--onboard`. `--label` et `--assignee` sont mutuellement exclusifs. `--refresh` requiert `--onboard`. `--resume` est incompatible avec `--dev`, `--onboard` et `--parallel`.
 
 > **Choisir entre `--dev`, `--parallel` et `--worktree` :**
 > - `--dev` : session séquentielle dans le repo principal, tickets traités un par un
@@ -206,6 +208,7 @@ oc start MON-APP --worktree feat/ma-feature     # session libre sur branche isol
 oc start MON-APP --worktree                     # session libre, nom de branche demandé interactivement
 oc start MON-APP --agent developer-fullstack    # force l'agent de démarrage
 oc start MON-APP --provider openai              # surcharge le provider LLM
+oc start --resume -p MON-APP                   # reprend une session existante du projet
 ```
 
 **Rendu au lancement :**

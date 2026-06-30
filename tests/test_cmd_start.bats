@@ -412,3 +412,230 @@ GITEOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"worktree"* ]]
 }
+
+# ── _build_session_title ──────────────────────────────────────────────────────
+# _build_session_title est définie dans scripts/lib/session-title.sh (sourceable).
+
+_bt() {
+  # Helper : exécute _build_session_title dans un sous-shell propre
+  bash -c "
+    export HUB_CONFIG='$HUB_CONFIG'
+    source '$BATS_TEST_DIRNAME/../scripts/common.sh'
+    resolve_oc_lang
+    source '$BATS_TEST_DIRNAME/../scripts/lib/session-title.sh'
+    _build_session_title $*
+  "
+}
+
+@test "_build_session_title : prompt simple extrait les mots significatifs" {
+  run _bt "false false false 'je veux ajouter le nommage des sessions' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nommage"* ]]
+  [[ "$output" == *"sessions"* ]]
+  [[ "$output" != *" je "* ]]
+  [[ "$output" != *" veux "* ]]
+}
+
+@test "_build_session_title : stop-words FR supprimés" {
+  run _bt "false false false 'je veux que tu fasses une feature de cache' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *" je "* ]]
+  [[ "$output" != *" veux "* ]]
+  [[ "$output" != *" une "* ]]
+  [[ "$output" == *"feature"* ]]
+  [[ "$output" == *"cache"* ]]
+}
+
+@test "_build_session_title : stop-words EN supprimés" {
+  run _bt "false false false 'fix the broken login page with a new handler' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *" the "* ]]
+  [[ "$output" != *" a "* ]]
+  [[ "$output" != *" with "* ]]
+  [[ "$output" == *"fix"* ]]
+  [[ "$output" == *"broken"* ]]
+  [[ "$output" == *"login"* ]]
+}
+
+@test "_build_session_title : référence ticket préfixée en premier" {
+  run _bt "false false false 'fix CP-3 crash on login' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CP-3"* ]]
+  local pos_ticket pos_other
+  pos_ticket=$(echo "$output" | awk '{print index($0,"CP-3")}')
+  pos_other=$(echo "$output" | awk '{print index($0,"crash")}')
+  [ "$pos_ticket" -lt "$pos_other" ]
+}
+
+@test "_build_session_title : mode onboard retourne onboard: PROJECT_ID" {
+  run _bt "false true false '' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"onboard"*"MYPROJ"* ]]
+}
+
+@test "_build_session_title : mode parallel retourne parallel: BRANCH" {
+  run _bt "false false true '' 'MYPROJ' 'feat/my-feature'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"parallel"*"feat/my-feature"* ]]
+}
+
+@test "_build_session_title : mode dev avec contexte ticket" {
+  run _bt "true false false '' 'MYPROJ' '' 'CP-5' 'Fix auth bug on login'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dev"* ]]
+  [[ "$output" == *"CP-5"* ]]
+}
+
+@test "_build_session_title : prompt vide retourne PROJECT_ID et date" {
+  run _bt "false false false '' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"MYPROJ"* ]]
+  [[ "$output" =~ [0-9]{4}-[0-9]{2}-[0-9]{2} ]]
+}
+
+@test "_build_session_title : titre tronqué à 50 caractères max" {
+  run _bt "false false false 'implement complex authentication system with oauth tokens refresh mechanism' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [ "${#output}" -le 52 ]
+}
+
+@test "_build_session_title : prompt mixte FR/EN filtre les deux langues" {
+  run _bt "false false false 'je want to fix the bug de cache' 'MYPROJ'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *" je "* ]]
+  [[ "$output" != *" the "* ]]
+  [[ "$output" == *"fix"* ]]
+  [[ "$output" == *"bug"* ]]
+  [[ "$output" == *"cache"* ]]
+}
+# ── --resume ──────────────────────────────────────────────────────────────────
+
+@test "cmd-start --resume : sans PROJECT_ID affiche erreur et exit 1" {
+  run bash "$CMD_START" --resume
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"PROJECT_ID"* ]] || [[ "$output" == *"requis"* ]] || [[ "$output" == *"requires"* ]]
+}
+
+@test "cmd-start --resume : incompatible avec --dev exit 1" {
+  run bash "$CMD_START" --resume --dev -p TEST-PROJ
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"incompatible"* ]] || [[ "$output" == *"exclusive"* ]]
+}
+
+@test "cmd-start --resume : incompatible avec --onboard exit 1" {
+  run bash "$CMD_START" --resume --onboard -p TEST-PROJ
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"incompatible"* ]] || [[ "$output" == *"exclusive"* ]]
+}
+
+@test "cmd-start --resume : aucune session trouvée affiche suggestion" {
+  # Base SQLite vide
+  export _OCDB_FILE="$TEST_DIR/empty.db"
+  sqlite3 "$TEST_DIR/empty.db" "
+    CREATE TABLE session (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL DEFAULT 'p',
+      parent_id TEXT, slug TEXT NOT NULL DEFAULT 's',
+      directory TEXT NOT NULL DEFAULT '/d', title TEXT NOT NULL DEFAULT 't',
+      version TEXT NOT NULL DEFAULT '1', share_url TEXT,
+      cost REAL DEFAULT 0, tokens_input INTEGER DEFAULT 0,
+      tokens_output INTEGER DEFAULT 0, tokens_reasoning INTEGER DEFAULT 0,
+      tokens_cache_read INTEGER DEFAULT 0, tokens_cache_write INTEGER DEFAULT 0,
+      agent TEXT, model TEXT, metadata TEXT,
+      time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL
+    );
+    CREATE TABLE part (
+      id TEXT PRIMARY KEY, message_id TEXT NOT NULL DEFAULT 'msg',
+      session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL, data TEXT NOT NULL
+    );
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DIR/empty.db'
+    export OC_NON_INTERACTIVE=1
+    export PROJECTS_FILE='$PROJECTS_FILE'
+    export PATHS_FILE='$PATHS_FILE'
+    export API_KEYS_FILE='$API_KEYS_FILE'
+    export HUB_CONFIG='$HUB_CONFIG'
+    export PATH='$TEST_DIR/bin:$PATH'
+    bash '$CMD_START' --resume -p TEST-PROJ
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"session"* ]]
+}
+
+@test "cmd-start --resume : sélection valide lance opencode -s <id>" {
+  export _OCDB_FILE="$TEST_DIR/resume.db"
+  # Créer .beads pour éviter le prompt d'initialisation beads
+  mkdir -p "$TEST_DIR/fake-project/.beads"
+  local NOW_MS=$(( $(date +%s) * 1000 ))
+  sqlite3 "$TEST_DIR/resume.db" "
+    CREATE TABLE session (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL DEFAULT 'p',
+      parent_id TEXT, slug TEXT NOT NULL DEFAULT 's',
+      directory TEXT NOT NULL DEFAULT '/d', title TEXT NOT NULL DEFAULT 't',
+      version TEXT NOT NULL DEFAULT '1', share_url TEXT,
+      cost REAL DEFAULT 0, tokens_input INTEGER DEFAULT 0,
+      tokens_output INTEGER DEFAULT 0, tokens_reasoning INTEGER DEFAULT 0,
+      tokens_cache_read INTEGER DEFAULT 0, tokens_cache_write INTEGER DEFAULT 0,
+      agent TEXT, model TEXT, metadata TEXT,
+      time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL
+    );
+    CREATE TABLE part (
+      id TEXT PRIMARY KEY, message_id TEXT NOT NULL DEFAULT 'msg',
+      session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL, data TEXT NOT NULL
+    );
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+    VALUES ('session-abc', 'my-slug', '$TEST_DIR/fake-project', 'Test session', 'explore', 0.05, $NOW_MS, $NOW_MS);
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DIR/resume.db'
+    export OC_NON_INTERACTIVE=0
+    export PROJECTS_FILE='$PROJECTS_FILE'
+    export PATHS_FILE='$PATHS_FILE'
+    export API_KEYS_FILE='$API_KEYS_FILE'
+    export HUB_CONFIG='$HUB_CONFIG'
+    export OPENCODE_LOG='$OPENCODE_LOG'
+    export PATH='$TEST_DIR/bin:$PATH'
+    printf '1\n\n' | bash '$CMD_START' --resume -p TEST-PROJ
+  "
+  [ "$status" -eq 0 ]
+  grep -q '\-s session-abc' "$OPENCODE_LOG"
+}
+
+@test "cmd-start --resume : sélection hors plage affiche erreur" {
+  export _OCDB_FILE="$TEST_DIR/resume2.db"
+  local NOW_MS=$(( $(date +%s) * 1000 ))
+  sqlite3 "$TEST_DIR/resume2.db" "
+    CREATE TABLE session (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL DEFAULT 'p',
+      parent_id TEXT, slug TEXT NOT NULL DEFAULT 's',
+      directory TEXT NOT NULL DEFAULT '/d', title TEXT NOT NULL DEFAULT 't',
+      version TEXT NOT NULL DEFAULT '1', share_url TEXT,
+      cost REAL DEFAULT 0, tokens_input INTEGER DEFAULT 0,
+      tokens_output INTEGER DEFAULT 0, tokens_reasoning INTEGER DEFAULT 0,
+      tokens_cache_read INTEGER DEFAULT 0, tokens_cache_write INTEGER DEFAULT 0,
+      agent TEXT, model TEXT, metadata TEXT,
+      time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL
+    );
+    CREATE TABLE part (
+      id TEXT PRIMARY KEY, message_id TEXT NOT NULL DEFAULT 'msg',
+      session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
+      time_updated INTEGER NOT NULL, data TEXT NOT NULL
+    );
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+    VALUES ('session-xyz', 'slug-xyz', '$TEST_DIR/fake-project', 'Test', 'explore', 0.01, $NOW_MS, $NOW_MS);
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DIR/resume2.db'
+    export OC_NON_INTERACTIVE=0
+    export PROJECTS_FILE='$PROJECTS_FILE'
+    export PATHS_FILE='$PATHS_FILE'
+    export API_KEYS_FILE='$API_KEYS_FILE'
+    export HUB_CONFIG='$HUB_CONFIG'
+    export PATH='$TEST_DIR/bin:$PATH'
+    printf '99\n' | bash '$CMD_START' --resume -p TEST-PROJ
+  "
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"invalide"* ]] || [[ "$output" == *"Invalid"* ]]
+}

@@ -87,6 +87,7 @@ t() {
       help.start_agent.desc) printf '%s' "Force l'agent de démarrage (ex : orchestrator, developer-fullstack)" ;;
       help.start_provider.cmd) printf '%s' "start --provider/-P <p>" ;;
       help.start_provider.desc) printf '%s' "Surcharge le provider LLM pour cette session (ex : anthropic, openai)" ;;
+      help.start_resume.desc)  printf '%s' "Reprend une session existante du projet (10 dernières, 30 jours)" ;;
       # Analysis
       help.audit.cmd)         printf '%s' "audit [-p PROJECT_ID]" ;;
       help.audit.desc)        printf '%s' "Lance un audit global du projet" ;;
@@ -507,6 +508,15 @@ t() {
       start.config_mcp)         printf '%s' "MCP" ;;
       start.config_plugins)     printf '%s' "Plugins" ;;
       start.config_not_deployed) printf '%s' "non déployé" ;;
+      start.resume_flag)          printf '%s' "--resume nécessite un PROJECT_ID" ;;
+      start.resume_exclusive)     printf '%s' "--resume est incompatible avec --dev, --onboard et --parallel" ;;
+      start.resume_no_sessions)   printf '%s' "Aucune session trouvée pour ce projet (30 derniers jours)" ;;
+      start.resume_hint)          printf '%s' "Lancez une nouvelle session : oc start" ;;
+      start.resume_choose)        printf '%s' "Choisir une session à reprendre" ;;
+      start.resume_invalid)       printf '%s' "Numéro invalide" ;;
+      start.session_title_dev)    printf '%s' "dev" ;;
+      start.session_title_onboard) printf '%s' "onboard" ;;
+      start.session_title_parallel) printf '%s' "parallel" ;;
       start.dev_label_exclusive) printf '%s' "--label et --assignee sont mutuellement exclusifs" ;;
       start.dev_needs_dev_flag) printf '%s' "--label et --assignee nécessitent --dev" ;;
       start.dev_onboard_exclusive) printf '%s' "--dev et --onboard sont mutuellement exclusifs" ;;
@@ -905,8 +915,9 @@ t_en() {
     help.start_worktree.desc) printf '%s' "Free session in an isolated worktree on a named branch (independent parallel development)" ;;
     help.start_agent.cmd) printf '%s' "start --agent/-A <name>" ;;
     help.start_agent.desc) printf '%s' "Force the startup agent (e.g. orchestrator, developer-fullstack)" ;;
-    help.start_provider.cmd) printf '%s' "start --provider/-P <p>" ;;
-    help.start_provider.desc) printf '%s' "Override the LLM provider for this session (e.g. anthropic, openai)" ;;
+     help.start_provider.cmd) printf '%s' "start --provider/-P <p>" ;;
+     help.start_provider.desc) printf '%s' "Override the LLM provider for this session (e.g. anthropic, openai)" ;;
+     help.start_resume.desc)  printf '%s' "Resume an existing session for the project (last 10, 30 days)" ;;
     # Analysis
     help.audit.cmd)         printf '%s' "audit [-p PROJECT_ID]" ;;
     help.audit.desc)        printf '%s' "Run a global project audit" ;;
@@ -1340,6 +1351,15 @@ t_en() {
     start.config_mcp)         printf '%s' "MCP" ;;
     start.config_plugins)     printf '%s' "Plugins" ;;
     start.config_not_deployed) printf '%s' "not deployed" ;;
+    start.resume_flag)          printf '%s' "--resume requires a PROJECT_ID" ;;
+    start.resume_exclusive)     printf '%s' "--resume is incompatible with --dev, --onboard and --parallel" ;;
+    start.resume_no_sessions)   printf '%s' "No sessions found for this project (last 30 days)" ;;
+    start.resume_hint)          printf '%s' "Start a new session: oc start" ;;
+    start.resume_choose)        printf '%s' "Choose a session to resume" ;;
+    start.resume_invalid)       printf '%s' "Invalid number" ;;
+    start.session_title_dev)    printf '%s' "dev" ;;
+    start.session_title_onboard) printf '%s' "onboard" ;;
+    start.session_title_parallel) printf '%s' "parallel" ;;
     start.dev_label_exclusive) printf '%s' "--label and --assignee are mutually exclusive" ;;
     start.dev_needs_dev_flag) printf '%s' "--label and --assignee require --dev" ;;
     start.dev_onboard_exclusive) printf '%s' "--dev and --onboard are mutually exclusive" ;;

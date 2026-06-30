@@ -30,6 +30,53 @@ Before invoking an agent, identify your situation:
 
 ---
 
+## Resuming an existing session
+
+Every opencode session automatically receives a **generated title** derived from key words in the initial prompt (FR+EN stop-words filtered, ticket references detected). This title is visible in `oc dashboard` and serves as a reference point to find the context of a previous session.
+
+### Automatic naming
+
+The title is built according to the following priority:
+
+| Situation | Generated title |
+|-----------|----------------|
+| Free prompt | Extracted keywords, 50 chars max |
+| Prompt with ticket reference | `CP-3 — fix crash login` |
+| `--dev` mode | `dev: CP-3 — auth bug` |
+| `--onboard` mode | `onboard: MY-APP` |
+| `--parallel` mode | `parallel: feat/my-branch` |
+| No prompt | `MY-APP — 2026-06-30` |
+
+### Resuming with `--resume`
+
+```bash
+oc start --resume -p MY-APP
+```
+
+Lists the last 10 sessions for the project (last 30 days), with title, agent, cost and date:
+
+```
+Choose a session to resume [MY-APP] :
+
+  1)  session naming                          onboarder           $0.12  30 Jun
+  2)  CP-3 — fix crash login                  explore             $0.04  28 Jun
+  3)  MY-APP — 2026-06-25                     general             $0.08  25 Jun
+```
+
+Enter the number of the session to resume. opencode is launched with `-s <session_id>`, restoring the full conversation history.
+
+> **Note:** `--resume` requires an explicit `-p PROJECT_ID`. It is incompatible with `--dev`, `--onboard` and `--parallel`.
+
+### Viewing recent sessions
+
+```bash
+oc dashboard
+```
+
+Recent sessions now display their `slug` as a dim suffix, usable as an identifier for `oc start --resume` if needed.
+
+---
+
 ## Scenario 1 — Full feature (orchestrator)
 
 **Context:** you want to implement a new feature from A to Z,

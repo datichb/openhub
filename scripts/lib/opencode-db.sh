@@ -332,6 +332,32 @@ ocdb_recent_sessions() {
   "
 }
 
+# Sessions d'un projet spécifique, filtrées par répertoire
+# Retourne des lignes "id|slug|title|agent|cost|timestamp_ms"
+# Usage : ocdb_project_sessions <project_path> [limit=10] [days=30]
+ocdb_project_sessions() {
+  local project_path="$1"
+  local limit="${2:-10}"
+  local days="${3:-30}"
+  local since_ts
+  since_ts=$(_ocdb_since_ts "$days")
+  _ocdb_query "
+    SELECT
+      id,
+      slug,
+      REPLACE(REPLACE(title, '|', '/'), CHAR(10), ' '),
+      COALESCE(agent, ''),
+      ROUND(cost, 4),
+      time_created
+    FROM session
+    WHERE parent_id IS NULL
+      AND directory = '${project_path}'
+      AND time_created >= ${since_ts}
+    ORDER BY time_created DESC
+    LIMIT ${limit};
+  "
+}
+
 # ─────────────────────────────────────────
 # FORMATAGE
 # ─────────────────────────────────────────

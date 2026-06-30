@@ -28,6 +28,53 @@ Avant d'invoquer un agent, identifiez votre situation :
 
 ---
 
+## Reprendre une session existante
+
+Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oc dashboard` et sert de point de repère pour retrouver le contexte d'une session.
+
+### Nommage automatique
+
+Le titre est construit selon la priorité suivante :
+
+| Situation | Titre généré |
+|-----------|-------------|
+| Prompt libre | Mots clés extraits, 50 chars max |
+| Prompt avec référence ticket | `CP-3 — fix crash login` |
+| Mode `--dev` | `dev: CP-3 — auth bug` |
+| Mode `--onboard` | `onboard: MON-APP` |
+| Mode `--parallel` | `parallel: feat/ma-branche` |
+| Sans prompt | `MON-APP — 2026-06-30` |
+
+### Reprendre avec `--resume`
+
+```bash
+oc start --resume -p MON-APP
+```
+
+Affiche les 10 dernières sessions du projet (30 jours), avec titre, agent, coût et date :
+
+```
+Choisir une session à reprendre [MON-APP] :
+
+  1)  nommage sessions                        onboarder           $0.12  30 juin
+  2)  CP-3 — fix crash login                  explore             $0.04  28 juin
+  3)  MON-APP — 2026-06-25                    general             $0.08  25 juin
+```
+
+Saisir le numéro de la session à reprendre. opencode est relancé avec `-s <session_id>`, restaurant l'historique complet de la conversation.
+
+> **Note :** `--resume` requiert `-p PROJECT_ID` explicite. Il est incompatible avec `--dev`, `--onboard` et `--parallel`.
+
+### Voir les sessions récentes
+
+```bash
+oc dashboard
+```
+
+Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oc start --resume` si besoin.
+
+---
+
 ## Scénario 1 — Feature complète (orchestrateur)
 
 **Contexte :** vous voulez implémenter une nouvelle feature de A à Z,

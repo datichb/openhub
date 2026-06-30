@@ -596,3 +596,107 @@ _insert_step() {
   [ "$status" -eq 0 ]
   [ "$output" = "2|1" ]
 }
+
+# ── ocdb_project_sessions ─────────────────────────────────────────────────────
+
+@test "ocdb_project_sessions : retourne les sessions du bon répertoire" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+    VALUES
+      ('id-a', 'slug-a', '/proj/myapp', 'Session A', 'explore', 0.05, $NOW_MS, $NOW_MS),
+      ('id-b', 'slug-b', '/proj/other', 'Session B', 'general', 0.10, $NOW_MS, $NOW_MS);
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/myapp'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"slug-a"* ]]
+  [[ "$output" != *"slug-b"* ]]
+}
+
+@test "ocdb_project_sessions : exclut les sessions d'autres projets" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+    VALUES
+      ('id-c', 'slug-c', '/proj/myapp', 'Session C', 'explore', 0.01, $NOW_MS, $NOW_MS),
+      ('id-d', 'slug-d', '/proj/other', 'Session D', 'general', 0.02, $NOW_MS, $NOW_MS),
+      ('id-e', 'slug-e', '/proj/third', 'Session E', 'general', 0.03, $NOW_MS, $NOW_MS);
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/myapp'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"slug-c"* ]]
+  [[ "$output" != *"slug-d"* ]]
+  [[ "$output" != *"slug-e"* ]]
+}
+
+@test "ocdb_project_sessions : respecte la limite" {
+  for i in $(seq 1 15); do
+    sqlite3 "$TEST_DB" "
+      INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+      VALUES ('id-lim-$i', 'slug-lim-$i', '/proj/limited', 'Session $i', 'explore', 0.01, $((NOW_MS + i * 1000)), $NOW_MS);
+    "
+  done
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/limited' 5
+  "
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | grep -c 'slug-lim-')" -eq 5 ]
+}
+
+@test "ocdb_project_sessions : respecte le filtre de jours" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated)
+    VALUES
+      ('id-recent', 'slug-recent', '/proj/dated', 'Recent',   'explore', 0.01, $YESTERDAY_MS, $YESTERDAY_MS),
+      ('id-old',    'slug-old',    '/proj/dated', 'Old',      'explore', 0.01, $OLD_MS,       $OLD_MS);
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/dated' 10 7
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"slug-recent"* ]]
+  [[ "$output" != *"slug-old"* ]]
+}
+
+@test "ocdb_project_sessions : retourne vide si aucune session" {
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/nonexistent'
+  "
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "ocdb_project_sessions : exclut les sous-sessions (parent_id NOT NULL)" {
+  sqlite3 "$TEST_DB" "
+    INSERT INTO session (id, slug, directory, title, agent, cost, time_created, time_updated, parent_id)
+    VALUES
+      ('id-parent', 'slug-parent', '/proj/sub', 'Parent',    'explore', 0.05, $NOW_MS, $NOW_MS, NULL),
+      ('id-child',  'slug-child',  '/proj/sub', 'Sous-sess', 'explore', 0.02, $NOW_MS, $NOW_MS, 'id-parent');
+  "
+  run bash -c "
+    export _OCDB_FILE='$TEST_DB'
+    source '$COMMON_SH'
+    source '$LIB_OCDB'
+    ocdb_project_sessions '/proj/sub'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"slug-parent"* ]]
+  [[ "$output" != *"slug-child"* ]]
+}

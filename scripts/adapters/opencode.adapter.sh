@@ -1027,11 +1027,12 @@ adapter_update() {
 }
 
 adapter_start() {
-  local project_path="$1" prompt="${2:-}" project_id="${3:-}" agent="${4:-}" provider_override="${5:-}"
+  local project_path="$1" prompt="${2:-}" project_id="${3:-}" agent="${4:-}" provider_override="${5:-}" session_title="${6:-}"
   cd "$project_path" || { log_error "[opencode] Impossible de naviguer vers $project_path"; exit 1; }
   local args=()
-  [ -n "$agent"  ] && args+=(--agent "$agent")
-  [ -n "$prompt" ] && args+=(--prompt "$prompt")
+  [ -n "$agent"         ] && args+=(--agent "$agent")
+  [ -n "$prompt"        ] && args+=(--prompt "$prompt")
+  [ -n "$session_title" ] && args+=(--title "$session_title")
 
   # Résoudre le provider effectif (override > projet > hub) et injecter les credentials si besoin
   local effective_provider

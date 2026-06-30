@@ -43,6 +43,7 @@ _section_3() {
   _h_sub "  --worktree/-w [<branch>]"           "$(t help.start_worktree.desc)"
   _h_sub "  --agent/-A <name>"                  "$(t help.start_agent.desc)"
   _h_sub "  --provider/-P <p>"                  "$(t help.start_provider.desc)"
+  _h_sub "  --resume/-R <project>"              "$(t help.start_resume.desc)"
   _h_cmd "$(t help.quick.cmd)"                  "$(t help.quick.desc)"
 }
 

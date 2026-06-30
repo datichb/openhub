@@ -12,6 +12,7 @@ ONBOARD_MODE=false
 REFRESH_MODE=false
 PARALLEL_MODE=false
 WORKTREE_MODE=false
+RESUME_MODE=false
 WORKTREE_BRANCH=""
 DEV_LABEL=""
 DEV_ASSIGNEE=""
@@ -34,6 +35,7 @@ for arg in "$@"; do
     --onboard|-o)           ONBOARD_MODE=true ;;
     --refresh|-r)           REFRESH_MODE=true ;;
     --parallel|-x)          PARALLEL_MODE=true ;;
+    --resume|-R)            RESUME_MODE=true ;;
     --worktree|-w)          WORKTREE_MODE=true; _prev="$arg" ;;
     --project|-p)           _prev="$arg" ;;
     --label|-l)             _prev="$arg" ;;
@@ -68,6 +70,12 @@ if [ "$DEV_MODE" = true ] && [ "$PARALLEL_MODE" = true ]; then
   exit 1
 fi
 
+# --resume est incompatible avec --dev, --onboard et --parallel
+if [ "$RESUME_MODE" = true ] && { [ "$DEV_MODE" = true ] || [ "$ONBOARD_MODE" = true ] || [ "$PARALLEL_MODE" = true ]; }; then
+  log_error "$(t start.resume_exclusive)"
+  exit 1
+fi
+
 # --refresh nécessite --onboard
 if [ "$REFRESH_MODE" = true ] && [ "$ONBOARD_MODE" = false ]; then
   log_error "$(t start.refresh_needs_onboard)"
@@ -87,6 +95,12 @@ if [ -n "$DEV_LABEL" ] && [ -n "$DEV_ASSIGNEE" ]; then
 fi
 
 # ── Sélection interactive si pas d'ID ─────
+# --resume exige un PROJECT_ID explicite (pas de sélection interactive)
+if [ "$RESUME_MODE" = true ] && [ -z "$PROJECT_ID" ]; then
+  log_error "$(t start.resume_flag)"
+  exit 1
+fi
+
 if [ -z "$PROJECT_ID" ]; then
   ids=()
   while IFS= read -r line; do ids+=("$line"); done < <(grep "^## " "$PROJECTS_FILE" | sed 's/^## //')
@@ -126,9 +140,12 @@ fi
 
 # ── Validation opencode ──────────────────
 source "$LIB_DIR/adapter-manager.sh"
+source "$LIB_DIR/session-title.sh"
 
 load_adapter
 adapter_validate || { log_error "$(t start.target_unavailable) (puis sélectionner opencode)"; exit 1; }
+
+SESSION_TITLE=""
 
 # ── Vérifier que les agents sont déployés ──────────────
 agents_dir="$PROJECT_PATH/.opencode/agents"
@@ -278,6 +295,9 @@ if [ "$DEV_MODE" = true ]; then
   source "$LIB_DIR/prompt-builder.sh"
   PROMPT=$(build_dev_bootstrap_prompt "$PROJECT_PATH" "$DEV_LABEL" "$DEV_ASSIGNEE")
   AGENT_NAME="${AGENT_NAME:-orchestrator-dev}"
+  # Stocker le contexte dev pour le titre de session
+  _DEV_TICKET_ID="${DEV_LABEL:-${DEV_ASSIGNEE:-}}"
+  _DEV_TICKET_TITLE=""
   echo ""
   if [ -n "$DEV_ASSIGNEE" ]; then
     log_info "Mode --dev  tickets assignés à '${DEV_ASSIGNEE}'  agent: ${AGENT_NAME}"
@@ -500,7 +520,60 @@ if [ -f "$HUB_CONFIG" ]; then
 fi
 
 # ── Confirmation avant lancement ──────────────────────────────────────────────
+
+# Mode --resume : sélection et reprise d'une session existante
+if [ "$RESUME_MODE" = true ]; then
+  source "$LIB_DIR/opencode-db.sh"
+  _resume_sessions=()
+  _resume_ids=()
+  while IFS= read -r _line; do
+    [ -n "$_line" ] && _resume_sessions+=("$_line")
+  done < <(ocdb_project_sessions "$PROJECT_PATH" 10 30)
+
+  if [ ${#_resume_sessions[@]} -eq 0 ]; then
+    log_warn "$(t start.resume_no_sessions)"
+    log_info "$(t start.resume_hint) $PROJECT_ID"
+    exit 0
+  fi
+
+  echo ""
+  echo -e "${BOLD}$(t start.resume_choose) [${PROJECT_ID}] :${RESET}"
+  echo ""
+  for _i in "${!_resume_sessions[@]}"; do
+    _entry="${_resume_sessions[$_i]}"
+    _sid=$(echo "$_entry"   | cut -d'|' -f1)
+    _slug=$(echo "$_entry"  | cut -d'|' -f2)
+    _rtitle=$(echo "$_entry" | cut -d'|' -f3)
+    _ragent=$(echo "$_entry" | cut -d'|' -f4)
+    _rcost=$(echo "$_entry"  | cut -d'|' -f5)
+    _rts=$(echo "$_entry"    | cut -d'|' -f6)
+    _rdate=$(ocdb_format_date "$_rts" 2>/dev/null || echo "—")
+    [ ${#_rtitle} -gt 36 ] && _rtitle="${_rtitle:0:34}…"
+    printf "  ${BLUE}%2d${RESET})  %-38s  ${DIM}%-18s${RESET}  ${GREEN}\$%s${RESET}  ${DIM}%s${RESET}\n" \
+      "$((_i+1))" "$_rtitle" "${_ragent:-—}" "$_rcost" "$_rdate"
+    _resume_ids+=("$_sid")
+  done
+  echo ""
+  _prompt _resume_choice "Numéro"
+  if ! [[ "${_resume_choice:-}" =~ ^[0-9]+$ ]] || \
+     [ "${_resume_choice:-0}" -lt 1 ] || \
+     [ "${_resume_choice:-0}" -gt "${#_resume_ids[@]}" ]; then
+    log_error "$(t start.resume_invalid) (attendu 1-${#_resume_ids[@]})"
+    exit 1
+  fi
+  _chosen_id="${_resume_ids[$((_resume_choice-1))]}"
+  _outro "$(t start.press_enter) opencode…"
+  _prompt _ ""
+  exec opencode -s "$_chosen_id"
+fi
+
+# ── Génération du titre de session ────────────────────────────────────────────
+SESSION_TITLE=$(_build_session_title \
+  "$DEV_MODE" "$ONBOARD_MODE" "$PARALLEL_MODE" \
+  "$PROMPT" "$PROJECT_ID" "${WORKTREE_BRANCH:-}" \
+  "${_DEV_TICKET_ID:-}" "${_DEV_TICKET_TITLE:-}")
+
 _outro "$(t start.press_enter) opencode…"
 _prompt _ ""
 
-adapter_start "$PROJECT_PATH" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE"
+adapter_start "$PROJECT_PATH" "$PROMPT" "$PROJECT_ID" "${AGENT_NAME:-}" "$PROVIDER_OVERRIDE" "$SESSION_TITLE"

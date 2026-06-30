@@ -270,10 +270,11 @@ _show_recent_sessions_section() {
   fi
 
   for entry in "${sessions[@]}"; do
-    local title agent cost ts_ms
+    local title agent cost ts_ms slug
+    slug=$(echo "$entry"  | cut -d'|' -f1)
     title=$(echo "$entry" | cut -d'|' -f2)
     agent=$(echo "$entry" | cut -d'|' -f3)
-    cost=$(echo "$entry" | cut -d'|' -f4)
+    cost=$(echo "$entry"  | cut -d'|' -f4)
     ts_ms=$(echo "$entry" | cut -d'|' -f5)
 
     local date_str
@@ -281,8 +282,8 @@ _show_recent_sessions_section() {
 
     [ ${#title} -gt 34 ] && title="${title:0:32}…"
 
-    printf "  ${DIM}•${RESET}  %-34s  ${DIM}%-20s${RESET}  ${GREEN}\$%s${RESET}  ${DIM}%s${RESET}\n" \
-      "$title" "${agent:-—}" "$cost" "$date_str"
+    printf "  ${DIM}•${RESET}  %-34s  ${DIM}%-20s${RESET}  ${GREEN}\$%s${RESET}  ${DIM}%s  %s${RESET}\n" \
+      "$title" "${agent:-—}" "$cost" "$date_str" "$slug"
   done
 }
 
