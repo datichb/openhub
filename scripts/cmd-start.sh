@@ -442,6 +442,63 @@ if [ "$ONBOARD_MODE" = true ]; then
   fi
 fi
 
+# ── Récapitulatif de la configuration ─────────────────────────────────────────
+if [ -f "$HUB_CONFIG" ]; then
+  # Provider & modèle — cascade projet → hub
+  _cfg_provider=$(get_effective_provider "$PROJECT_ID")
+  _cfg_model=$(get_effective_llm_model "$PROJECT_ID")
+
+  # Région bedrock si applicable
+  _cfg_region=$(get_project_api_region "$PROJECT_ID" 2>/dev/null || true)
+  if [ -z "$_cfg_region" ] && [ "$_cfg_provider" = "amazon-bedrock" ]; then
+    _cfg_region=$(jq -r '.opencode_cache.provider["amazon-bedrock"].options.region // empty' "$HUB_CONFIG" 2>/dev/null || true)
+  fi
+  if [ -n "$_cfg_region" ]; then
+    _cfg_provider_label="${_cfg_provider}  (${_cfg_region})"
+  else
+    _cfg_provider_label="${_cfg_provider}"
+  fi
+
+  # Langue, compaction, agents
+  _cfg_lang=$(jq -r '.cli.language // "—"' "$HUB_CONFIG" 2>/dev/null)
+  _cfg_cache_auto=$(jq -r '.opencode_cache.compaction.auto // false' "$HUB_CONFIG" 2>/dev/null)
+  _cfg_cache_reserved=$(jq -r '.opencode_cache.compaction.reserved // ""' "$HUB_CONFIG" 2>/dev/null)
+  if [ "$_cfg_cache_auto" = "true" ]; then
+    _cfg_cache_label="$(t start.config_cache_on)"
+    [ -n "$_cfg_cache_reserved" ] && _cfg_cache_label="${_cfg_cache_label}  (${_cfg_cache_reserved} $(t start.config_cache_tokens))"
+  else
+    _cfg_cache_label="$(t start.config_cache_off)"
+  fi
+  _cfg_disabled=$(jq -r '.opencode.disabled_native_agents // [] | join(", ")' "$HUB_CONFIG" 2>/dev/null)
+
+  # MCP — lu depuis projects.md
+  _cfg_mcp=$(get_project_mcp "$PROJECT_ID" 2>/dev/null || true)
+  [ -z "$_cfg_mcp" ] && _cfg_mcp="none"
+
+  # Plugins — lu depuis opencode.json du projet
+  _proj_opencode_json="$PROJECT_PATH/opencode.json"
+  if [ -f "$_proj_opencode_json" ]; then
+    _cfg_plugins=$(jq -r '.plugin // [] | join(", ")' "$_proj_opencode_json" 2>/dev/null)
+    [ -z "$_cfg_plugins" ] && _cfg_plugins="—"
+  else
+    _cfg_plugins="$(t start.config_not_deployed)"
+  fi
+
+  _cfg_version=$(jq -r '.version // "—"' "$HUB_CONFIG" 2>/dev/null)
+
+  echo ""
+  _intro "$(t start.config_title)"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_provider)" "$_cfg_provider_label"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_model)" "$_cfg_model"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_language)" "$_cfg_lang"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_cache)" "$_cfg_cache_label"
+  [ -n "$_cfg_disabled" ] && printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_agents_off)" "$_cfg_disabled"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_mcp)" "$_cfg_mcp"
+  printf "${DIM}│${RESET}  %-14s %s\n" "$(t start.config_plugins)" "$_cfg_plugins"
+  _outro "hub.json v${_cfg_version}"
+  echo ""
+fi
+
 # ── Confirmation avant lancement ──────────────────────────────────────────────
 _outro "$(t start.press_enter) opencode…"
 _prompt _ ""
