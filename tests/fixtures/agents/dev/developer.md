@@ -1,4 +1,4 @@
 ---
-id: developer-backend
+id: developer
 ---
-# Developer Backend
+# Developer
