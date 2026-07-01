@@ -111,7 +111,7 @@ teardown() {
 # ── oc worktree list ───────────────────────────────────────────────────────────
 
 @test "cmd-worktree list : affiche message si aucun worktree" {
-  run bash "$CMD_WORKTREE" list WT-PROJ
+  run bash "$CMD_WORKTREE" list -p WT-PROJ
   [ "$status" -eq 0 ]
   [[ "$output" == *"aucun worktree"* ]]
 }
@@ -134,20 +134,20 @@ exec "$REAL_GIT" "$@"
 GITEOF
   chmod +x "$TEST_DIR/bin/git"
 
-  run bash "$CMD_WORKTREE" list WT-PROJ
+  run bash "$CMD_WORKTREE" list -p WT-PROJ
   [ "$status" -eq 0 ]
   [[ "$output" == *"feat-bd-42"* ]]
 }
 
 @test "cmd-worktree list : erreur si projet inconnu" {
-  run bash "$CMD_WORKTREE" list INEXISTANT
+  run bash "$CMD_WORKTREE" list -p INEXISTANT
   [ "$status" -ne 0 ]
 }
 
 # ── oc worktree create ─────────────────────────────────────────────────────────
 
 @test "cmd-worktree create : crée le worktree pour la branche donnée" {
-  run bash "$CMD_WORKTREE" create feat/test WT-PROJ
+  run bash "$CMD_WORKTREE" create -b feat/test -p WT-PROJ
   [ "$status" -eq 0 ]
   # Le répertoire worktree a été créé (via le mock git qui fait mkdir -p)
   [ -d "$FAKE_PROJECT/.worktrees/feat-test" ]
@@ -161,12 +161,12 @@ GITEOF
 
 @test "cmd-worktree create : erreur si worktree déjà existant" {
   mkdir -p "$FAKE_PROJECT/.worktrees/feat-existing"
-  run bash "$CMD_WORKTREE" create feat/existing WT-PROJ
+  run bash "$CMD_WORKTREE" create -b feat/existing -p WT-PROJ
   [ "$status" -ne 0 ]
 }
 
 @test "cmd-worktree create : erreur si projet inconnu" {
-  run bash "$CMD_WORKTREE" create feat/test INEXISTANT
+  run bash "$CMD_WORKTREE" create -b feat/test -p INEXISTANT
   [ "$status" -ne 0 ]
 }
 
@@ -174,7 +174,7 @@ GITEOF
 
 @test "cmd-worktree remove : supprime le worktree existant (non-interactif)" {
   mkdir -p "$FAKE_PROJECT/.worktrees/feat-to-remove"
-  run bash "$CMD_WORKTREE" remove feat/to-remove WT-PROJ
+  run bash "$CMD_WORKTREE" remove -b feat/to-remove -p WT-PROJ
   [ "$status" -eq 0 ]
   # En mode non-interactif, OC_NON_INTERACTIVE=1 → _prompt retourne vide
   # ${_confirm:-Y} → "Y" → confirmation acceptée → worktree supprimé (git mock le rm)
@@ -187,38 +187,38 @@ GITEOF
 }
 
 @test "cmd-worktree remove : réussit (avertissement) si worktree inexistant" {
-  run bash "$CMD_WORKTREE" remove feat/inexistant WT-PROJ
+  run bash "$CMD_WORKTREE" remove -b feat/inexistant -p WT-PROJ
   [ "$status" -eq 0 ]
 }
 
 # ── oc worktree cleanup ────────────────────────────────────────────────────────
 
 @test "cmd-worktree cleanup : ne fait rien si aucun worktree" {
-  run bash "$CMD_WORKTREE" cleanup WT-PROJ
+  run bash "$CMD_WORKTREE" cleanup -p WT-PROJ
   [ "$status" -eq 0 ]
   [[ "$output" == *"nettoyer"* ]] || [[ "$output" == *"Nettoyage"* ]]
 }
 
 @test "cmd-worktree cleanup : erreur si projet inconnu" {
-  run bash "$CMD_WORKTREE" cleanup INEXISTANT
+  run bash "$CMD_WORKTREE" cleanup -p INEXISTANT
   [ "$status" -ne 0 ]
 }
 
 # ── oc worktree status ─────────────────────────────────────────────────────────
 
 @test "cmd-worktree status : affiche le résumé du projet" {
-  run bash "$CMD_WORKTREE" status WT-PROJ
+  run bash "$CMD_WORKTREE" status -p WT-PROJ
   [ "$status" -eq 0 ]
   [[ "$output" == *"Worktree"* ]]
 }
 
 @test "cmd-worktree status : affiche worktree enabled" {
-  run bash "$CMD_WORKTREE" status WT-PROJ
+  run bash "$CMD_WORKTREE" status -p WT-PROJ
   [ "$status" -eq 0 ]
   [[ "$output" == *"enabled"* ]]
 }
 
 @test "cmd-worktree status : erreur si projet inconnu" {
-  run bash "$CMD_WORKTREE" status INEXISTANT
+  run bash "$CMD_WORKTREE" status -p INEXISTANT
   [ "$status" -ne 0 ]
 }

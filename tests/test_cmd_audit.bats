@@ -158,7 +158,7 @@ EOF
   echo "TEST-PROJ=$PROJECT_DIR" >> "$PATHS_FILE"
 
   # Répondre 'N' pour refuser l'ajout d'agents
-  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" test-proj"
+  run bash -c "printf 'n\\n%.0s' {1..20} | bash \"$HUB_ROOT/scripts/cmd-audit.sh\" -p test-proj"
   [[ "$output" == *"auditor"* ]] || [[ "$output" == *"manquant"* ]] || [[ "$output" == *"missing"* ]]
 }
 
