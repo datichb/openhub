@@ -1105,6 +1105,7 @@ adapter_start() {
   # _warn_provider_if_needed ici affiche un log_warn minimal pour les autres cmds.
   if [ "${_PROVIDER_WARNINGS_LOADED:-}" != "1" ]; then
     local _pw_lib="${HUB_DIR}/scripts/lib/provider-warnings.sh"
+    # shellcheck source=scripts/lib/provider-warnings.sh
     [ -f "$_pw_lib" ] && source "$_pw_lib" || true
   fi
   if declare -f _warn_provider_if_needed &>/dev/null; then
