@@ -1,0 +1,15 @@
+# Build artifacts
+bin/
+dist/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store

@@ -1,0 +1,52 @@
+version: 2
+
+project_name: oh
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: oh
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/datichb/openhub/cli/cmd.Version={{.Version}}
+      - -X github.com/datichb/openhub/cli/cmd.Commit={{.ShortCommit}}
+      - -X github.com/datichb/openhub/cli/cmd.BuildDate={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - repository:
+      owner: datichb
+      name: homebrew-openhub
+    directory: Formula
+    homepage: "https://github.com/datichb/openhub"
+    description: "OpenHub CLI — orchestrateur pour opencode"
+    license: "MIT"
+    install: |
+      bin.install "oh"
+    test: |
+      system "#{bin}/oh", "version"

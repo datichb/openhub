@@ -1,0 +1,22 @@
+{
+  "app.name": "OpenHub",
+  "cmd.version.title": "oh version",
+  "cmd.start.preparing": "Preparation de la session...",
+  "cmd.start.launching": "Lancement d'opencode...",
+  "cmd.init.welcome": "Bienvenue dans OpenHub !",
+  "cmd.init.project_name": "Nom du projet",
+  "cmd.init.project_path": "Chemin du projet",
+  "cmd.init.language": "Langue",
+  "cmd.config.saved": "Configuration sauvegardee.",
+  "cmd.config.key_not_found": "Cle introuvable : %s",
+  "cmd.doctor.checking": "Verification du systeme...",
+  "cmd.doctor.ok": "Toutes les verifications sont passees.",
+  "cmd.doctor.fail": "Certaines verifications ont echoue.",
+  "tui.picker.select": "Selectionnez un element",
+  "tui.picker.confirm": "Confirmer la selection",
+  "tui.picker.cancel": "Annuler",
+  "tui.spinner.loading": "Chargement...",
+  "error.config_load": "Impossible de charger la configuration",
+  "error.project_not_found": "Projet introuvable : %s",
+  "error.opencode_not_installed": "opencode n'est pas installe. Lancez : oh upgrade opencode"
+}
