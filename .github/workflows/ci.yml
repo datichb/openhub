@@ -1,4 +1,4 @@
-name: CI — Shell & Agents
+name: CI — Shell, Agents & Go CLI
 
 on:
   push:
@@ -160,3 +160,31 @@ jobs:
           fi
 
           echo "Versions cohérentes : ${example_version}"
+
+  go-cli:
+    name: Go CLI (oh)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: cli/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -v -race -count=1
+
+      - name: Build
+        run: go build -o bin/oh .
