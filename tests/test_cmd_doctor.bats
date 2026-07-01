@@ -28,6 +28,13 @@ HUBEOF
   export PATHS_FILE="$TEST_DIR/projects/paths.local.md"
   export API_KEYS_FILE="$TEST_DIR/projects/api-keys.local.md"
 
+  # Mocks pour opencode et node — absents en CI mais critiques pour _check_tools
+  mkdir -p "$TEST_DIR/bin"
+  printf '#!/bin/bash\nexit 0\n' > "$TEST_DIR/bin/opencode"
+  printf '#!/bin/bash\nexit 0\n' > "$TEST_DIR/bin/node"
+  chmod +x "$TEST_DIR/bin/opencode" "$TEST_DIR/bin/node"
+  export PATH="$TEST_DIR/bin:$PATH"
+
   CMD_DOCTOR="$BATS_TEST_DIRNAME/../scripts/cmd-doctor.sh"
 }
 
