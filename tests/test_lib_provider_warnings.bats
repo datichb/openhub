@@ -326,6 +326,7 @@ EOF
 
 @test "connectivity : bedrock — retourne PW_NO_CREDS si aucune credential AWS" {
   unset AWS_BEARER_TOKEN_BEDROCK AWS_ACCESS_KEY_ID AWS_PROFILE 2>/dev/null || true
+  export _PW_AUTH_JSON="$TEST_DIR/inexistant/auth.json"
   local _real_home="$HOME"
   export HOME="$TEST_DIR"
   aws() { return 1; }
@@ -335,6 +336,23 @@ EOF
   export HOME="$_real_home"
   unset -f aws
   [ "$rc" -eq "$_PW_NO_CREDS" ]
+}
+
+@test "connectivity : bedrock — retourne PW_OK si bearer token dans auth.json" {
+  unset AWS_BEARER_TOKEN_BEDROCK AWS_ACCESS_KEY_ID AWS_PROFILE 2>/dev/null || true
+  mkdir -p "$TEST_DIR/.local/share/opencode"
+  echo '{"amazon-bedrock": {"type": "bearer", "key": "ABSK-test-token"}}' \
+    > "$TEST_DIR/.local/share/opencode/auth.json"
+  export _PW_AUTH_JSON="$TEST_DIR/.local/share/opencode/auth.json"
+  local _real_home="$HOME"
+  export HOME="$TEST_DIR"
+  aws() { return 1; }
+  export -f aws
+  run _validate_provider_connectivity "bedrock" "" ""
+  local rc=$status
+  export HOME="$_real_home"
+  unset -f aws
+  [ "$rc" -eq "$_PW_OK" ]
 }
 
 @test "connectivity : github-copilot — retourne PW_OK si token dans auth.json" {
@@ -502,8 +520,10 @@ EOF
     export PROVIDERS_FILE='$PROVIDERS_FILE'
     export HUB_CONFIG='$HUB_CONFIG'
     export API_KEYS_FILE='$API_KEYS_FILE'
+    export _PW_AUTH_JSON='$TEST_DIR/inexistant/auth.json'
     export OC_LANG=fr
     source '$BATS_TEST_DIRNAME/../scripts/common.sh'
+    source '$BATS_TEST_DIRNAME/../scripts/adapters/opencode.adapter.sh'
     source '$BATS_TEST_DIRNAME/../scripts/lib/provider-warnings.sh'
     _display_provider_status '' '' '$TEST_DIR/opencode.json'
   "

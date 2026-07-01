@@ -151,13 +151,23 @@ _validate_provider_connectivity() {
       ;;
 
     bedrock)
-      # Bearer token injecté → OK (sera validé au runtime par OpenCode)
+      # Bearer token dans l'env ou dans la config projet/hub → OK
       [ -n "${AWS_BEARER_TOKEN_BEDROCK:-}" ] && return $_PW_OK
+      [ -n "$api_key" ] && return $_PW_OK
 
-      # Vérifier la présence de credentials AWS
+      # Credentials dans auth.json d'OpenCode (écrites par /connect dans le TUI)
+      if [ -f "$_PW_AUTH_JSON" ] && command -v jq &>/dev/null; then
+        jq -e '."amazon-bedrock".key // empty' "$_PW_AUTH_JSON" >/dev/null 2>&1 \
+          && return $_PW_OK
+      fi
+
+      # Vérifier la présence de credentials AWS via aws sts (avec timeout portable)
       if command -v aws &>/dev/null; then
         local _region="${aws_region:-eu-west-3}"
-        aws sts get-caller-identity --region "$_region" >/dev/null 2>&1 \
+        local _timeout_cmd=""
+        command -v timeout  &>/dev/null && _timeout_cmd="timeout 3"
+        command -v gtimeout &>/dev/null && _timeout_cmd="gtimeout 3"
+        $_timeout_cmd aws sts get-caller-identity --region "$_region" >/dev/null 2>&1 \
           && return $_PW_OK
       fi
 
@@ -239,8 +249,8 @@ _display_provider_status() {
   # ── Approche A : Pre-flight connectivité ────────────────────────────────────
   local connectivity_code=$_PW_OK
   _validate_provider_connectivity \
-    "$effective_provider" "$api_key" "$base_url" "$aws_region"
-  connectivity_code=$?
+    "$effective_provider" "$api_key" "$base_url" "$aws_region" \
+    || connectivity_code=$?
 
   # ── Affichage du statut ──────────────────────────────────────────────────────
   local label="Provider"
@@ -323,8 +333,8 @@ _warn_provider_if_needed() {
 
   local connectivity_code=$_PW_OK
   _validate_provider_connectivity \
-    "$effective_provider" "$api_key" "$base_url" "$aws_region"
-  connectivity_code=$?
+    "$effective_provider" "$api_key" "$base_url" "$aws_region" \
+    || connectivity_code=$?
 
   case "$connectivity_code" in
     "$_PW_NO_PROVIDER")

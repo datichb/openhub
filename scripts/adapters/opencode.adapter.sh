@@ -1093,7 +1093,6 @@ adapter_start() {
   local args=()
   [ -n "$agent"         ] && args+=(--agent "$agent")
   [ -n "$prompt"        ] && args+=(--prompt "$prompt")
-  [ -n "$session_title" ] && args+=(--title "$session_title")
 
   # Résoudre le provider effectif (override > projet > hub) et injecter les credentials si besoin
   local effective_provider
@@ -1108,7 +1107,7 @@ adapter_start() {
     # shellcheck source=scripts/lib/provider-warnings.sh
     [ -f "$_pw_lib" ] && source "$_pw_lib" || true
   fi
-  if declare -f _warn_provider_if_needed &>/dev/null; then
+  if [ "${_PROVIDER_STATUS_DISPLAYED:-}" != "1" ] && declare -f _warn_provider_if_needed &>/dev/null; then
     _warn_provider_if_needed "$project_id" "$provider_override" || true
   fi
 

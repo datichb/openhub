@@ -157,6 +157,7 @@ printf "${DIM}│${RESET}  %-10s %s\n" "Chemin"  "$PROJECT_PATH"
 # ── Statut du provider (validation transparente) ─────────────────────────────
 source "$LIB_DIR/provider-warnings.sh"
 _display_provider_status "$PROJECT_ID" "$PROVIDER_OVERRIDE" "$PROJECT_PATH/opencode.json"
+_PROVIDER_STATUS_DISPLAYED=1
 
 # ── Validation du cache de contexte ──────────────────────────────────────────
 source "$LIB_DIR/context-cache.sh"
