@@ -65,7 +65,7 @@ teardown() {
 }
 
 @test "quick : sans prompt → erreur et code non-zéro" {
-  run bash "$CMD_QUICK" "MY-APP"
+  run bash "$CMD_QUICK" -p "MY-APP"
   [ "$status" -ne 0 ]
 }
 
@@ -81,7 +81,7 @@ teardown() {
 }
 
 @test "quick : projet inexistant → erreur" {
-  run bash "$CMD_QUICK" "INEXISTANT" "Ajoute un bouton"
+  run bash "$CMD_QUICK" -p "INEXISTANT" "Ajoute un bouton"
   [ "$status" -ne 0 ]
 }
 
@@ -125,7 +125,7 @@ teardown() {
 # ── Lancement ─────────────────────────────────────────────────────────────────
 
 @test "quick : projet valide + prompt → lance opencode" {
-  run bash "$CMD_QUICK" "MY-APP" "Ajoute un bouton de connexion"
+  run bash "$CMD_QUICK" -p "MY-APP" "Ajoute un bouton de connexion"
   [ "$status" -eq 0 ]
   [ -f "$OPENCODE_LOG" ]
   grep -q "opencode" "$OPENCODE_LOG"

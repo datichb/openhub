@@ -56,20 +56,20 @@ teardown() {
 # ── Validation ────────────────────────────────────────────────────────────────
 
 @test "conventions : projet inexistant → erreur" {
-  run bash "$CMD_CONVENTIONS" "INEXISTANT"
+  run bash "$CMD_CONVENTIONS" -p "INEXISTANT"
   [ "$status" -ne 0 ]
 }
 
 # ── CONVENTIONS.md absent — lancement direct ──────────────────────────────────
 
 @test "conventions : CONVENTIONS.md absent → lance opencode" {
-  run bash -c 'printf "\n" | bash "$1" CONV-PROJ' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "\n" | bash "$1" -p CONV-PROJ' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   grep -q "opencode" "$OPENCODE_LOG"
 }
 
 @test "conventions : affiche le chemin du projet" {
-  run bash -c 'printf "\n" | bash "$1" CONV-PROJ' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "\n" | bash "$1" -p CONV-PROJ' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "$TEST_DIR/proj-conv" ]]
 }
@@ -79,7 +79,7 @@ teardown() {
 @test "conventions : CONVENTIONS.md existant + réponse N → annule" {
   echo "# Conventions existantes" > "$TEST_DIR/proj-conv/CONVENTIONS.md"
   # Réponse N pour ne pas écraser
-  run bash -c 'printf "N\n" | bash "$1" CONV-PROJ' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "N\n" | bash "$1" -p CONV-PROJ' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   # opencode ne doit pas avoir été appelé
   [ ! -s "$OPENCODE_LOG" ]
@@ -88,7 +88,7 @@ teardown() {
 @test "conventions : CONVENTIONS.md existant + réponse Y → lance opencode" {
   echo "# Conventions existantes" > "$TEST_DIR/proj-conv/CONVENTIONS.md"
   # Réponse Y pour écraser, puis Enter pour confirmation lancement
-  run bash -c 'printf "y\n\n" | bash "$1" CONV-PROJ' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "y\n\n" | bash "$1" -p CONV-PROJ' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   grep -q "opencode" "$OPENCODE_LOG"
 }
@@ -98,14 +98,14 @@ teardown() {
 @test "conventions : --force bypass la confirmation d'écrasement" {
   echo "# Conventions existantes" > "$TEST_DIR/proj-conv/CONVENTIONS.md"
   # Avec --force, pas de question → Enter pour lancement
-  run bash -c 'printf "\n" | bash "$1" CONV-PROJ --force' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "\n" | bash "$1" -p CONV-PROJ --force' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   grep -q "opencode" "$OPENCODE_LOG"
 }
 
 @test "conventions : -f est alias de --force" {
   echo "# Conventions existantes" > "$TEST_DIR/proj-conv/CONVENTIONS.md"
-  run bash -c 'printf "\n" | bash "$1" CONV-PROJ -f' _ "$CMD_CONVENTIONS"
+  run bash -c 'printf "\n" | bash "$1" -p CONV-PROJ -f' _ "$CMD_CONVENTIONS"
   [ "$status" -eq 0 ]
   grep -q "opencode" "$OPENCODE_LOG"
 }

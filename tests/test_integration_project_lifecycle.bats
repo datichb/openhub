@@ -59,7 +59,7 @@ teardown() {
   mkdir -p "$TEST_PROJECT_PATH"
   cd "$TEST_PROJECT_PATH"
   
-  run cmd_init "$TEST_PROJECT_ID" "$TEST_PROJECT_PATH"
+  run cmd_init --name "$TEST_PROJECT_ID" "$TEST_PROJECT_PATH"
   [ "$status" -eq 0 ]
   
   # Vérifier que le projet est dans projects.md
@@ -463,7 +463,7 @@ EOF
   _prompt() { local _var="$1"; printf -v "$_var" '%s' 'Y'; }
   export -f _prompt
   
-  run cmd_rename "$old_id" "$new_id"
+  run cmd_rename --from "$old_id" --to "$new_id"
   [ "$status" -eq 0 ]
   
   # Vérifier cohérence
