@@ -124,7 +124,7 @@ get_effective_provider() {
     echo "$project_provider"
   else
     local hub_provider; hub_provider=$(get_hub_default_provider)
-    echo "${hub_provider:-anthropic}"
+    echo "$hub_provider"
   fi
 }
 

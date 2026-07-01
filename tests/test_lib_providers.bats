@@ -303,23 +303,23 @@ EOF
   [ "$result" = "anthropic" ]
 }
 
-@test "get_effective_provider : fallback anthropic si hub.json vide" {
+@test "get_effective_provider : retourne vide si hub.json n'a pas de default_provider" {
   # Mock get_project_api_provider retourne vide
   get_project_api_provider() {
     return 0
   }
   export -f get_project_api_provider
-  
-  # Hub sans default_provider
+
+  # Hub sans default_provider — ne doit plus fallback sur anthropic
   cat > "$HUB_CONFIG" <<'EOF'
 {
   "version": "test"
 }
 EOF
   _HUB_DEFAULT_PROVIDER_CACHE_LOADED=0
-  
+
   result=$(get_effective_provider "" "")
-  [ "$result" = "anthropic" ]
+  [ -z "$result" ]
 }
 
 @test "get_effective_provider : override prime sur projet et hub" {

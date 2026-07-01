@@ -211,21 +211,20 @@ EOF
   unset -f command
 }
 
-@test "connectivity : skip si pas de TTY (stdout redirigé)" {
-  # Forcer stdout à ne pas être un TTY en redirigeant vers un fichier
-  result_file="$TEST_DIR/out.txt"
-  _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1" \
-    >"$result_file" 2>&1
-  # Doit retourner 0 (skip gracieux) car pas de TTY
-  local rc=$?
-  [ "$rc" -eq 0 ]
+@test "connectivity : skip si pas de TTY et _PW_FORCE_TTY absent" {
+  # Désactiver le forçage TTY pour ce test — simule un vrai environnement non-TTY
+  export _PW_FORCE_TTY=0
+  # run crée un sous-shell sans TTY — doit retourner PW_OK (skip gracieux)
+  run _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1"
+  [ "$status" -eq 0 ]
+  export _PW_FORCE_TTY=1  # restaurer pour les tests suivants
 }
 
 @test "connectivity : mammouth — retourne 0 si curl réussit" {
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1"
-  local rc=$?
+  run _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_OK" ]
 }
@@ -233,8 +232,8 @@ EOF
 @test "connectivity : mammouth — retourne PW_UNREACHABLE si curl échoue (timeout)" {
   curl() { return 28; }
   export -f curl
-  _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1"
-  local rc=$?
+  run _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_UNREACHABLE" ]
 }
@@ -242,8 +241,8 @@ EOF
 @test "connectivity : mammouth — retourne PW_NO_KEY si api_key vide" {
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "mammouth" "" "https://api.mammouth.ai/v1"
-  local rc=$?
+  run _validate_provider_connectivity "mammouth" "" "https://api.mammouth.ai/v1"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_NO_KEY" ]
 }
@@ -251,19 +250,18 @@ EOF
 @test "connectivity : mammouth — retourne PW_BAD_URL si baseURL contient /chat/completions" {
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1/chat/completions"
-  local rc=$?
+  run _validate_provider_connectivity "mammouth" "sk-test" "https://api.mammouth.ai/v1/chat/completions"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_BAD_URL" ]
 }
 
 @test "connectivity : mammouth — retourne PW_NO_CREDS si base_url vide et pas de default" {
-  # Vider le providers.json pour ce test
   echo '{"providers": {"mammouth": {"requires_api_key": true, "litellm": true}}}' > "$PROVIDERS_FILE"
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "mammouth" "sk-test" ""
-  local rc=$?
+  run _validate_provider_connectivity "mammouth" "sk-test" ""
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_NO_CREDS" ]
 }
@@ -274,8 +272,8 @@ EOF
     return 0
   }
   export -f curl
-  _validate_provider_connectivity "anthropic" "sk-invalid"
-  local rc=$?
+  run _validate_provider_connectivity "anthropic" "sk-invalid"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_OK" ]
 }
@@ -286,8 +284,8 @@ EOF
     return 0
   }
   export -f curl
-  _validate_provider_connectivity "anthropic" "sk-test"
-  local rc=$?
+  run _validate_provider_connectivity "anthropic" "sk-test"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_OK" ]
 }
@@ -298,8 +296,8 @@ EOF
     return 0
   }
   export -f curl
-  _validate_provider_connectivity "anthropic" "sk-test"
-  local rc=$?
+  run _validate_provider_connectivity "anthropic" "sk-test"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_UNREACHABLE" ]
 }
@@ -307,37 +305,33 @@ EOF
 @test "connectivity : anthropic — retourne PW_NO_KEY si api_key vide" {
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "anthropic" ""
-  local rc=$?
+  run _validate_provider_connectivity "anthropic" ""
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_NO_KEY" ]
 }
 
 @test "connectivity : bedrock — retourne PW_OK si AWS_BEARER_TOKEN_BEDROCK défini" {
   export AWS_BEARER_TOKEN_BEDROCK="test-bearer-token"
-  _validate_provider_connectivity "bedrock" "" ""
-  local rc=$?
-  [ "$rc" -eq "$_PW_OK" ]
+  run _validate_provider_connectivity "bedrock" "" ""
+  [ "$status" -eq "$_PW_OK" ]
 }
 
 @test "connectivity : bedrock — retourne PW_OK si AWS_ACCESS_KEY_ID défini" {
   unset AWS_BEARER_TOKEN_BEDROCK 2>/dev/null || true
   export AWS_ACCESS_KEY_ID="AKIATEST"
-  _validate_provider_connectivity "bedrock" "" ""
-  local rc=$?
-  [ "$rc" -eq "$_PW_OK" ]
+  run _validate_provider_connectivity "bedrock" "" ""
+  [ "$status" -eq "$_PW_OK" ]
 }
 
 @test "connectivity : bedrock — retourne PW_NO_CREDS si aucune credential AWS" {
   unset AWS_BEARER_TOKEN_BEDROCK AWS_ACCESS_KEY_ID AWS_PROFILE 2>/dev/null || true
-  # Pas de ~/.aws/credentials dans TEST_DIR
   local _real_home="$HOME"
   export HOME="$TEST_DIR"
-  # Mock aws pour qu'il échoue
   aws() { return 1; }
   export -f aws
-  _validate_provider_connectivity "bedrock" "" ""
-  local rc=$?
+  run _validate_provider_connectivity "bedrock" "" ""
+  local rc=$status
   export HOME="$_real_home"
   unset -f aws
   [ "$rc" -eq "$_PW_NO_CREDS" ]
@@ -347,9 +341,8 @@ EOF
   mkdir -p "$TEST_DIR/.local/share/opencode"
   echo '{"github-copilot": {"token": "ghu_test"}}' > "$TEST_DIR/.local/share/opencode/auth.json"
   export _PW_AUTH_JSON="$TEST_DIR/.local/share/opencode/auth.json"
-  _validate_provider_connectivity "github-copilot" ""
-  local rc=$?
-  [ "$rc" -eq "$_PW_OK" ]
+  run _validate_provider_connectivity "github-copilot" ""
+  [ "$status" -eq "$_PW_OK" ]
 }
 
 @test "connectivity : github-copilot — retourne PW_NO_CREDS si auth.json absent" {
@@ -361,8 +354,8 @@ EOF
 @test "connectivity : openrouter — retourne PW_OK si curl réussit" {
   curl() { return 0; }
   export -f curl
-  _validate_provider_connectivity "openrouter" "sk-or-test"
-  local rc=$?
+  run _validate_provider_connectivity "openrouter" "sk-or-test"
+  local rc=$status
   unset -f curl
   [ "$rc" -eq "$_PW_OK" ]
 }
@@ -376,9 +369,14 @@ EOF
   [ "$rc" -eq "$_PW_NO_KEY" ]
 }
 
+@test "connectivity : provider vide — retourne PW_NO_PROVIDER" {
+  run _validate_provider_connectivity "" "" ""
+  [ "$status" -eq "$_PW_NO_PROVIDER" ]
+}
+
 @test "connectivity : provider inconnu — retourne PW_OK (skip gracieux)" {
-  _validate_provider_connectivity "unknown-provider" "key" "url"
-  [ $? -eq "$_PW_OK" ]
+  run _validate_provider_connectivity "unknown-provider" "key" "url"
+  [ "$status" -eq "$_PW_OK" ]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

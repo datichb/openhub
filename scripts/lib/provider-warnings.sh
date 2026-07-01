@@ -21,6 +21,7 @@ readonly _PW_UNREACHABLE=1
 readonly _PW_NO_CREDS=2
 readonly _PW_BAD_URL=3
 readonly _PW_NO_KEY=4
+readonly _PW_NO_PROVIDER=5
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _pw_line — Affiche une ligne dans le format du bloc contextuel oc start
@@ -100,6 +101,9 @@ _validate_provider_connectivity() {
   # La variable _PW_FORCE_TTY permet de forcer le check dans les tests BATS.
   command -v curl &>/dev/null || return $_PW_OK
   if [ "${_PW_FORCE_TTY:-0}" != "1" ] && ! [ -t 1 ]; then return $_PW_OK; fi
+
+  # Aucun provider configuré — cas explicite, pas de test réseau possible
+  [ -z "$provider" ] && return $_PW_NO_PROVIDER
 
   case "$provider" in
 
@@ -241,7 +245,13 @@ _display_provider_status() {
   # ── Affichage du statut ──────────────────────────────────────────────────────
   local label="Provider"
 
-  if [ -n "$config_warning" ]; then
+  if [ "$connectivity_code" -eq "$_PW_NO_PROVIDER" ]; then
+    # Aucun provider configuré ni au niveau projet ni au niveau hub
+    _pw_line "$label" "⚠️  $(t provider.status_not_configured)"
+    _pw_hint "$(t provider.hint_connect)"
+    _pw_hint "$(t provider.hint_hub_config)"
+
+  elif [ -n "$config_warning" ]; then
     # Incohérence model/provider (Approche C)
     _pw_line "$label" "⚠️  ${effective_provider} — ${config_warning}"
     _pw_hint "$(t provider.hint_connect)"
@@ -317,6 +327,11 @@ _warn_provider_if_needed() {
   connectivity_code=$?
 
   case "$connectivity_code" in
+    "$_PW_NO_PROVIDER")
+      log_warn "$(t provider.status_not_configured)"
+      log_warn "$(t provider.hint_connect)"
+      log_warn "$(t provider.hint_hub_config)"
+      ;;
     "$_PW_BAD_URL")
       log_warn "Provider ${effective_provider} — $(t provider.status_bad_url)"
       log_warn "$(t provider.hint_check_url) : ${base_url%/chat/completions}"

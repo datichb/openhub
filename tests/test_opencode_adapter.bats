@@ -433,10 +433,12 @@ Contenu de test.
 AGENTEOF
 
   # Configurer hub.json avec un override agent → modèle différent du global
+  # default_provider.name est requis pour que le préfixe "anthropic/" soit appliqué
   HUB_CONFIG="$TEST_DIR/hub.json"
   cat > "$HUB_CONFIG" <<'HUBEOF'
 {
   "version": "0.0.0-test",
+  "default_provider": {"name": "anthropic", "api_key": "", "base_url": ""},
   "agent_models": {
     "families": {},
     "agents": { "orchestrator-dev": "claude-opus-4" }
@@ -553,9 +555,9 @@ skills: []
 Contenu de test.
 AGENTEOF
 
-  # Pas d'override explicite — le clamp doit remonter au-dessus du global
+  # default_provider.name est requis pour que le préfixe "anthropic/" soit appliqué
   HUB_CONFIG="$TEST_DIR/hub.json"
-  echo '{"version":"0.0.0-test"}' > "$HUB_CONFIG"
+  echo '{"version":"0.0.0-test","default_provider":{"name":"anthropic","api_key":"","base_url":""}}' > "$HUB_CONFIG"
 
   adapter_deploy "$DEPLOY_DIR" ""
 
@@ -603,6 +605,7 @@ AGENTEOF
   cat > "$HUB_CONFIG" <<'HUBEOF'
 {
   "version": "0.0.0-test",
+  "default_provider": {"name": "anthropic", "api_key": "", "base_url": ""},
   "agent_models": {
     "families": {},
     "agents": { "agent-with-model": "claude-opus-4" }

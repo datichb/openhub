@@ -435,6 +435,7 @@ t() {
       provider.status_model_orphan)  printf '%s' "modèle déclaré sans bloc provider dans opencode.json" ;;
       provider.status_bad_url)       printf '%s' "baseURL contient /chat/completions (doublon probable)" ;;
       provider.status_no_key)        printf '%s' "clé API absente — provider non injecté" ;;
+      provider.status_not_configured) printf '%s' "aucun provider configuré" ;;
       provider.hint_connect)         printf '%s' "Utilisez /connect dans OpenCode pour configurer ce provider" ;;
       provider.hint_hub_config)      printf '%s' "Ou reconfigurez via le hub : oc config set provider" ;;
       provider.hint_aws_creds)       printf '%s' "Configurez AWS_PROFILE, AWS_ACCESS_KEY_ID ou AWS_BEARER_TOKEN_BEDROCK" ;;
@@ -1324,6 +1325,7 @@ t_en() {
     provider.status_model_orphan)  printf '%s' "model declared without matching provider block in opencode.json" ;;
     provider.status_bad_url)       printf '%s' "baseURL contains /chat/completions (likely duplicate suffix)" ;;
     provider.status_no_key)        printf '%s' "API key missing — provider not injected" ;;
+    provider.status_not_configured) printf '%s' "no provider configured" ;;
     provider.hint_connect)         printf '%s' "Use /connect in OpenCode to configure this provider" ;;
     provider.hint_hub_config)      printf '%s' "Or reconfigure via hub: oc config set provider" ;;
     provider.hint_aws_creds)       printf '%s' "Configure AWS_PROFILE, AWS_ACCESS_KEY_ID or AWS_BEARER_TOKEN_BEDROCK" ;;

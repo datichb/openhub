@@ -745,17 +745,25 @@ adapter_deploy_config() {
       if [ -z "$_agent_model" ] || [ "$_agent_model" = "null" ]; then
         local provider
         provider=$(get_effective_provider "$project_id" "$provider_override")
-        
-        local provider_default
-        provider_default=$(get_provider_default_model "$provider")
-        
-        if [ -n "$provider_default" ]; then
-          _agent_model=$(_apply_provider_prefix "$provider_default" "$provider")
-          _agent_model_source="provider_default"
-          log_warn "Agent ${_aid} has no model configured, using provider default: $_agent_model"
+
+        # Si aucun provider configuré, utiliser le DEFAULT_MODEL sans préfixe
+        # (OpenCode résoudra le provider depuis son propre auth.json)
+        if [ -z "$provider" ]; then
+          _agent_model="${DEFAULT_MODEL:-claude-sonnet-4-5}"
+          _agent_model_source="no_provider_default"
+          log_warn "Agent ${_aid} has no model configured and no provider is set, using bare default: $_agent_model"
         else
-          log_error "Agent ${_aid} has no model configured and provider '$provider' has no default"
-          return 1
+          local provider_default
+          provider_default=$(get_provider_default_model "$provider")
+
+          if [ -n "$provider_default" ]; then
+            _agent_model=$(_apply_provider_prefix "$provider_default" "$provider")
+            _agent_model_source="provider_default"
+            log_warn "Agent ${_aid} has no model configured, using provider default: $_agent_model"
+          else
+            log_error "Agent ${_aid} has no model configured and provider '$provider' has no default"
+            return 1
+          fi
         fi
       fi
     fi

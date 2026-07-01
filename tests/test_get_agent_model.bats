@@ -284,9 +284,13 @@ EOF
 # ── _get_agent_model ──────────────────────────────────────────────────────────
 
 @test "_get_agent_model retourne vide quand modèle résolu == modèle global" {
-  # Pas de hub.json → fallback = claude-sonnet-4-5 = DEFAULT_MODEL
-  # CHANGEMENT : _get_agent_model retourne maintenant toujours MODEL|SOURCE
-  HUB_CONFIG="$TEST_DIR/nonexistent.json"
+  # default_provider.name = "anthropic" pour que le préfixe soit appliqué
+  cat > "$TEST_DIR/hub.json" <<'EOF'
+{
+  "default_provider": {"name": "anthropic", "api_key": "", "base_url": ""}
+}
+EOF
+  HUB_CONFIG="$TEST_DIR/hub.json"
   unset OPENCODE_MODEL
   run _get_agent_model "$TEST_DIR/agents/planning/orchestrator-dev.md" ""
   [ "$status" -eq 0 ]
@@ -296,6 +300,7 @@ EOF
 @test "_get_agent_model retourne le modèle quand différent du global" {
   cat > "$TEST_DIR/hub.json" <<'EOF'
 {
+  "default_provider": {"name": "anthropic", "api_key": "", "base_url": ""},
   "opencode": { "model": "claude-sonnet-4-5" },
   "agent_models": {
     "families": {},
@@ -317,7 +322,13 @@ EOF
 }
 
 @test "_get_agent_model avec clamp retourne le plancher quand global < plancher" {
-  HUB_CONFIG="$TEST_DIR/nonexistent.json"
+  # default_provider.name = "anthropic" pour que le préfixe soit appliqué
+  cat > "$TEST_DIR/hub.json" <<'EOF'
+{
+  "default_provider": {"name": "anthropic", "api_key": "", "base_url": ""}
+}
+EOF
+  HUB_CONFIG="$TEST_DIR/hub.json"
   unset OPENCODE_MODEL
   local result
   result=$(_get_agent_model "$TEST_DIR/agents/planning/high-floor.md" "" 2>/dev/null)

@@ -30,7 +30,7 @@ Configuration globale du hub. Créé par `oc install` et modifiable manuellement
 |-----|------|--------|-------------|
 | `version` | string | — | Version du hub (lue par `oc version`) |
 | `default_provider` | object | — | Configuration du provider LLM par défaut pour tous les projets |
-| `default_provider.name` | string | `"anthropic"` | Nom du provider (`anthropic`, `mammouth`, `github-models`, `bedrock`, `ollama`) |
+| `default_provider.name` | string | `""` | Nom du provider (`anthropic`, `mammouth`, `github-models`, `bedrock`, `ollama`). Si vide, OpenCode résout le provider depuis son propre `auth.json` (via `/connect`) |
 | `default_provider.api_key` | string | `""` | Clé API du provider (masquée en affichage, auto-ignorée par git si définie) |
 | `default_provider.base_url` | string | `""` | URL de base customisée (optionnel pour litellm et autres) |
 | `default_provider.model` | string | `""` | Modèle IA par défaut pour ce provider (si vide : fallback à `opencode.model`) |
