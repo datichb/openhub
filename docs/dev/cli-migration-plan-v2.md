@@ -362,4 +362,36 @@ cd cli && go build -o oh . && mv oh /usr/local/bin/
 
 ---
 
+## Avancement
+
+> Mis à jour le 1er juillet 2026 après complétion des 7 phases.
+
+| Phase | Statut | Livrables |
+|-------|--------|-----------|
+| Phase 1 — Fondations | DONE | go mod, Cobra root, config TOML, i18n JSON, project SQLite, keychain, TUI styles, Makefile, GoReleaser, CI |
+| Phase 2 — Registre et config | DONE | `oh init`, `oh config`, `oh project`, `oh status`, `oh doctor`, picker TUI full-screen |
+| Phase 3 — Session et lancement | DONE | `oh start`, `oh quick`, `oh worktree`, modules opencode (exec/find), prompt (stack detect) |
+| Phase 4 — Déploiement | DONE | `oh deploy` (transactionnel avec rollback), `oh sync`, `oh agent`, `oh skills`, `oh plugin` |
+| Phase 5 — TUI avancé | DONE | `oh board` (kanban Bubbletea), `oh dashboard`, `oh metrics`, `oh optimize`, `oh yield` |
+| Phase 6 — MCP servers | DONE | `oh mcp serve` (figma/gitlab/gslides), protocole JSON-RPC stdio |
+| Phase 7 — Finalisation | DONE | `oh audit/review/debug/conventions/beads/service/upgrade`, shell completion |
+| Post-Phase 7 — Production readiness | À FAIRE | Voir `docs/dev/cli-remaining-work.md` |
+
+---
+
+## Métriques du prototype
+
+| Métrique | Valeur |
+|----------|--------|
+| Commandes | 30 |
+| Binaire (darwin/arm64, stripped) | 12.8 Mo |
+| Tests | 50 |
+| LoC Go (hors go.sum) | ~4 500 |
+| MCP servers intégrés | 3 |
+| Startup estimé | <5ms |
+| Compilation | ~3s (incrémental <1s) |
+
+---
+
 *Document produit le 1er juillet 2026 — Révision de cli-migration-analysis.md*
+*Mis à jour le 1er juillet 2026 — Ajout avancement + métriques post-Phase 7*

@@ -2,6 +2,8 @@
 
 > Ce document décrit l'architecture logicielle du CLI `oh`, ses principes
 > directeurs, et les conventions à respecter lors de l'ajout de fonctionnalités.
+>
+> Mis à jour le 1er juillet 2026 — reflète l'état post-Phase 7.
 
 ---
 
@@ -15,6 +17,10 @@ Les dépendances vont **toujours vers l'intérieur** :
 cmd/ → internal/app/ → internal/domain/
               ↓
        internal/storage/
+       internal/opencode/
+       internal/prompt/
+       internal/deploy/
+       internal/mcp/
        internal/tui/
 ```
 
@@ -22,6 +28,7 @@ cmd/ → internal/app/ → internal/domain/
 - `storage/` implémente les interfaces définies dans `domain/`
 - `cmd/` orchestre, ne contient pas de logique métier
 - `tui/` dépend de `domain/` pour les types, jamais l'inverse
+- `mcp/` est autonome (protocole + handlers API)
 
 ### 2. Interface-Driven Design
 
@@ -32,16 +39,16 @@ Les contrats sont définis comme interfaces dans `domain/`. Les implémentations
 
 ### 3. Dependency Injection via App Factory
 
-Toutes les dépendances sont injectées via `*app.App` (pattern Factory, similaire à `gh`). Les commandes reçoivent `App` et accèdent aux stores via ses champs.
+Toutes les dépendances sont injectées via `*app.App` (pattern Factory, similaire à `gh`). Les commandes accèdent aux stores via `GetApp()` dans le package `cmd`.
 
 ### 4. Commandes Cobra minces
 
 Les fonctions `RunE` dans `cmd/` ne font que :
 1. Parser les flags
-2. Appeler un service ou un store
+2. Appeler un module interne (store, service, deploy)
 3. Formater l'output (ou lancer un TUI)
 
-La logique métier vit dans `internal/service/` (à venir) ou directement dans les stores pour les cas simples.
+La logique métier vit dans les packages `internal/` dédiés.
 
 ---
 
@@ -49,89 +56,168 @@ La logique métier vit dans `internal/service/` (à venir) ou directement dans l
 
 ```
 cli/
-├── main.go                         # Point d'entrée unique, appelle cmd.Execute()
+├── main.go                              # Point d'entrée unique → cmd.Execute()
 │
-├── cmd/                            # Commandes Cobra (wiring + UI)
-│   ├── root.go                     # Root command, PersistentPreRunE (init App)
-│   ├── version.go                  # oh version
-│   └── <group>/                    # Futures commandes groupées par domaine
-│       ├── <group>.go              # Commande parent
-│       └── <subcommand>.go         # Sous-commande
+├── cmd/                                 # Commandes Cobra (30 commandes)
+│   ├── root.go                          # Root command, PersistentPreRunE, GetApp(), initApp()
+│   ├── version.go                       # oh version
+│   ├── init.go                          # oh init (wizard Huh)
+│   ├── status.go                        # oh status
+│   ├── doctor.go                        # oh doctor
+│   ├── start.go                         # oh start (résolution projet, exec opencode)
+│   ├── quick.go                         # oh quick (sélection rapide)
+│   ├── project.go                       # oh project (parent)
+│   ├── project_list.go                  # oh project list
+│   ├── project_add.go                   # oh project add (interactif ou flags)
+│   ├── project_remove.go               # oh project remove
+│   ├── config.go                        # oh config [get|set|list|path]
+│   ├── deploy.go                        # oh deploy (transactionnel)
+│   ├── sync.go                          # oh sync
+│   ├── agent.go                         # oh agent [list]
+│   ├── skills.go                        # oh skills [list]
+│   ├── plugin.go                        # oh plugin [list]
+│   ├── mcp.go                           # oh mcp [serve|list]
+│   ├── board.go                         # oh board (lance TUI kanban)
+│   ├── dashboard_cmd.go                 # oh dashboard (lance TUI dashboard)
+│   ├── metrics.go                       # oh metrics
+│   ├── optimize_yield.go               # oh optimize + oh yield
+│   ├── worktree.go                      # oh worktree [list|add|remove]
+│   ├── audit_review_debug.go           # oh audit, oh review, oh debug
+│   ├── misc.go                          # oh conventions, beads, service, upgrade, update
+│   └── completion.go                    # oh completion [bash|zsh|fish|powershell]
 │
 ├── internal/
-│   ├── app/                        # Factory / DI Container
-│   │   └── app.go                  # struct App + constructeur New()
+│   ├── app/                             # Factory / DI Container
+│   │   └── app.go                       # struct App { Config, Projects, Sessions, Secrets, IO }
 │   │
-│   ├── domain/                     # Coeur métier (ZERO DEPS)
-│   │   ├── errors.go               # Sentinel errors (ErrNotFound, etc.)
-│   │   ├── project.go              # Entité Project + interface ProjectStore
-│   │   ├── session.go              # Entité Session + interface SessionStore
-│   │   └── secret.go               # Interface SecretStore
+│   ├── domain/                          # Coeur métier (ZERO DEPS INFRA)
+│   │   ├── errors.go                    # ErrNotFound, ErrAlreadyExists, ErrInvalidInput
+│   │   ├── project.go                   # Entité Project + interface ProjectStore
+│   │   ├── session.go                   # Entité Session + interface SessionStore
+│   │   └── secret.go                    # Interface SecretStore
 │   │
-│   ├── service/                    # Cas d'usage / orchestration (à venir)
-│   │   └── (project_service.go)    # Logique multi-store, validations complexes
-│   │
-│   ├── storage/                    # Implémentations des interfaces domain
+│   ├── storage/                         # Implémentations des interfaces domain
 │   │   ├── sqlite/
-│   │   │   ├── store.go            # Connexion, migrations, WAL, FK
-│   │   │   ├── project_store.go    # Implémente domain.ProjectStore
-│   │   │   ├── session_store.go    # Implémente domain.SessionStore
-│   │   │   └── *_test.go
+│   │   │   ├── store.go                 # Connexion SQLite, WAL, FK, migrations
+│   │   │   ├── project_store.go         # Implémente domain.ProjectStore (+ tests)
+│   │   │   └── session_store.go         # Implémente domain.SessionStore (+ tests)
 │   │   └── keychain/
-│   │       └── store.go            # Implémente domain.SecretStore (OS keyring)
+│   │       └── store.go                 # Implémente domain.SecretStore (OS keyring)
 │   │
-│   ├── config/                     # Configuration TOML (Viper)
-│   │   ├── config.go
+│   ├── config/                          # Configuration TOML (Viper)
+│   │   ├── config.go                    # Load(), Reset(), HubDir(), ConfigPath()
 │   │   └── config_test.go
 │   │
-│   ├── i18n/                       # Internationalisation
-│   │   ├── i18n.go                 # T() / Tf() avec fallback
+│   ├── i18n/                            # Internationalisation
+│   │   ├── i18n.go                      # T(), Tf(), SetLocale() — embedded JSON
 │   │   ├── i18n_test.go
-│   │   └── locales/                # Fichiers JSON embedded (go:embed)
+│   │   └── locales/                     # go:embed
 │   │       ├── en.json
 │   │       └── fr.json
 │   │
-│   └── tui/                        # Couche présentation TUI (Bubbletea)
+│   ├── opencode/                        # Gestion du binaire opencode
+│   │   ├── opencode.go                  # FindBinary(), Exec(), Run(), Version()
+│   │   └── opencode_test.go             # Tests args/env building, path expansion
+│   │
+│   ├── prompt/                          # Détection stack & construction contexte
+│   │   ├── prompt.go                    # DetectStack(), BuildContext()
+│   │   └── prompt_test.go              # Tests Go/TS/Python/Rust/Docker/CI/NextJS
+│   │
+│   ├── deploy/                          # Déploiement transactionnel
+│   │   ├── deploy.go                    # Execute(), Snapshot, Rollback, Phases
+│   │   └── deploy_test.go              # Tests full deploy, rollback, merge config
+│   │
+│   ├── mcp/                             # Serveurs MCP intégrés
+│   │   ├── protocol/
+│   │   │   └── server.go               # JSON-RPC stdio server (initialize, tools/list, tools/call)
+│   │   ├── figma/
+│   │   │   └── server.go               # figma_get_file, figma_get_node, figma_get_styles
+│   │   ├── gitlab/
+│   │   │   └── server.go               # gitlab_get_project, gitlab_list_issues, gitlab_list_mrs
+│   │   └── gslides/
+│   │       └── server.go               # gslides_get_presentation, gslides_get_slide
+│   │
+│   └── tui/                             # Couche présentation TUI (Bubbletea)
 │       ├── common/
-│       │   ├── styles.go           # Palette, styles Lipgloss partagés
-│       │   └── keys.go             # Keybindings partagés (à venir)
-│       ├── components/             # Composants réutilisables (à venir)
-│       │   ├── spinner/
-│       │   ├── picker/
-│       │   ├── statusbar/
-│       │   └── dialog/
-│       └── views/                  # Vues plein-écran (à venir)
+│       │   └── styles.go               # Palette couleurs, styles Lipgloss, icônes
+│       ├── components/
+│       │   └── picker/
+│       │       ├── picker.go           # Picker full-screen (single/multi, filter, scroll)
+│       │       └── picker_test.go      # 13 tests (navigation, sélection, filtre, scroll)
+│       └── views/
 │           ├── board/
-│           ├── dashboard/
-│           └── projects/
+│           │   └── board.go            # Kanban 4 colonnes, live refresh, cards
+│           └── dashboard/
+│               └── dashboard.go        # Multi-panneaux (projets, sessions, tokens)
 │
-├── Makefile                        # build, test, lint, install
-└── .goreleaser.yml                 # Release multi-arch + Homebrew
+├── Makefile                             # build, test, lint, clean, install, deps
+└── .goreleaser.yml                      # Multi-arch + Homebrew tap auto
 ```
 
 ---
 
 ## Flux de données typique
 
+### Commande simple (oh project list)
+
 ```
-[User] → oh project list
+[User] → oh project list --status active
          │
          ▼
-    cmd/root.go          PersistentPreRunE → initApp()
-         │                  ↓
-         │               app.New() → config.Load() → i18n.SetLocale()
-         │               sqlite.OpenDefault() → NewProjectStore()
-         │               keychain.New()
-         │               → *app.App{Projects, Sessions, Secrets, IO}
+    cmd/root.go        PersistentPreRunE → initApp()
+         │                ↓
+         │             app.New() → config.Load() → i18n.SetLocale()
+         │             sqlite.OpenDefault() → NewProjectStore(), NewSessionStore()
+         │             keychain.New()
+         │             → *app.App{Projects, Sessions, Secrets, IO}
          │
          ▼
-    cmd/project/list.go  RunE: app.Projects.List(status) → format output
+    cmd/project_list.go  RunE: GetApp().Projects.List("active") → tabwriter → stdout
          │
          ▼
-    storage/sqlite/      ProjectStore.List() → SQL query → []domain.Project
+    storage/sqlite/      ProjectStore.List() → SQL → []domain.Project
          │
          ▼
-    [stdout]             Rendered table / JSON
+    [stdout]             Table formatée
+```
+
+### Commande TUI (oh board)
+
+```
+[User] → oh board --watch
+         │
+         ▼
+    cmd/board.go        fetchTickets() → bd list --json → []board.Ticket
+         │
+         ▼
+    tui/views/board/    board.Run(Config{Tickets, RefreshFunc})
+         │
+         ▼
+    Bubbletea           Init → EnterAltScreen + tickCmd
+                        Update(tickMsg) → RefreshFunc() → re-render
+                        Update(KeyMsg "q") → tea.Quit
+         │
+         ▼
+    [terminal]           Kanban full-screen, live
+```
+
+### Commande exec (oh start)
+
+```
+[User] → oh start --agent coder
+         │
+         ▼
+    cmd/start.go        resolveProject() → détection cwd ou picker
+                        prompt.DetectStack() → StackInfo
+                        secrets.Get("bedrock-token-*") → bearer token
+         │
+         ▼
+    opencode/           opencode.Exec(StartOpts{Path, Agent, Token})
+                        → os.Chdir(project.Path)
+                        → syscall.Exec(opencode_binary, args, env)
+         │
+         ▼
+    [opencode process]   Remplace le process oh (exec)
 ```
 
 ---
@@ -142,11 +228,12 @@ cli/
 
 | Élément | Convention | Exemple |
 |---------|-----------|---------|
-| Package | court, singulier, lowercase | `config`, `domain`, `sqlite` |
-| Interface | verbe-er ou nom abstrait | `ProjectStore`, `SecretStore` |
+| Package | court, singulier, lowercase | `config`, `domain`, `sqlite`, `figma` |
+| Interface | nom abstrait | `ProjectStore`, `SecretStore` |
 | Impl struct | nom concret | `sqlite.ProjectStore`, `keychain.Store` |
 | Constructeur | `New` + type | `NewProjectStore(s *Store)` |
 | Sentinel errors | `Err` + condition | `ErrNotFound`, `ErrAlreadyExists` |
+| Fichiers cmd | `<domaine>.go` ou `<domaine>_<action>.go` | `project.go`, `project_add.go` |
 | Test files | `*_test.go` dans le même package | `project_store_test.go` |
 
 ### Erreurs
@@ -176,11 +263,12 @@ if errors.Is(err, domain.ErrNotFound) {
 
 ### Ajouter une nouvelle commande
 
-1. Créer un package dans `cmd/<group>/`
+1. Créer un fichier dans `cmd/` (un fichier par commande ou groupe logique)
 2. Définir la commande avec `&cobra.Command{}`
-3. Accéder aux stores via `App()` (fonction globale dans `cmd/root.go`)
-4. Formater l'output vers `App().IO.Out`
-5. Retourner les erreurs (jamais `os.Exit` dans un handler)
+3. Enregistrer via `init()` : `rootCmd.AddCommand(...)` ou comme sous-commande
+4. Accéder aux stores via `GetApp()` (nil-safe après PersistentPreRunE)
+5. Formater l'output vers `GetApp().IO.Out`
+6. Retourner les erreurs (jamais `os.Exit` dans un handler)
 
 ### Ajouter une nouvelle entité
 
@@ -197,31 +285,56 @@ if errors.Is(err, domain.ErrNotFound) {
 2. Implémenter `tea.Model` (Init, Update, View)
 3. Les composants reçoivent les données domain en entrée (pas les stores)
 4. Les composants émettent des `tea.Msg` pour communiquer vers le parent
+5. Exposer une fonction `Run(config) error` pour usage standalone
+
+### Ajouter une vue TUI (plein écran)
+
+1. Créer un package dans `internal/tui/views/<name>/`
+2. Implémenter `tea.Model` avec `tea.EnterAltScreen` dans `Init()`
+3. Gérer `tea.WindowSizeMsg` pour la responsivité
+4. Exposer `Run(config) error` comme API publique
+5. La commande `cmd/<name>.go` appelle `views.<name>.Run(cfg)`
+
+### Ajouter un serveur MCP
+
+1. Créer un package dans `internal/mcp/<name>/`
+2. Implémenter une fonction `Serve() error`
+3. Créer un `protocol.NewServer(name, version)`
+4. Enregistrer les tools via `server.RegisterTool(tool, handler)`
+5. Chaque handler reçoit `json.RawMessage` et retourne `*protocol.ToolResult`
+6. Ajouter le case dans `cmd/mcp.go:mcpServeCmd()`
 
 ---
 
 ## Diagramme de dépendances
 
 ```
-                    ┌───────────┐
-                    │  main.go  │
-                    └─────┬─────┘
-                          │
-                    ┌─────▼─────┐
-                    │   cmd/    │  ← Cobra commands, mince
-                    └─────┬─────┘
-                          │
-                    ┌─────▼─────┐
-                    │   app/    │  ← Factory, DI wiring
-                    └──┬──┬──┬──┘
-                       │  │  │
-          ┌────────────┘  │  └────────────┐
-          ▼               ▼               ▼
-    ┌───────────┐   ┌──────────┐   ┌───────────┐
-    │ storage/  │   │  config/ │   │   tui/    │
-    │  sqlite/  │   │          │   │           │
-    │ keychain/ │   └──────────┘   └───────────┘
-    └─────┬─────┘
+                         ┌───────────┐
+                         │  main.go  │
+                         └─────┬─────┘
+                               │
+                         ┌─────▼─────┐
+                         │   cmd/    │  ← 30 commandes Cobra
+                         └─────┬─────┘
+                               │
+                         ┌─────▼─────┐
+                         │   app/    │  ← Factory, DI wiring
+                         └──┬──┬──┬──┘
+                            │  │  │
+          ┌─────────────────┼──┼──┼─────────────────┐
+          │                 │  │  │                  │
+          ▼                 ▼  │  ▼                  ▼
+    ┌───────────┐   ┌─────────┐│┌──────────┐  ┌──────────┐
+    │ storage/  │   │ config/ │││  tui/    │  │opencode/ │
+    │  sqlite/  │   └─────────┘│└──────────┘  └──────────┘
+    │ keychain/ │              │
+    └─────┬─────┘              │
+          │                    ▼
+          │            ┌──────────────┐
+          │            │   deploy/    │
+          │            │   prompt/    │
+          │            │   mcp/       │
+          │            └──────────────┘
           │
           │  implémente
           ▼
@@ -238,15 +351,18 @@ if errors.Is(err, domain.ErrNotFound) {
 
 | Besoin | Package | Rôle |
 |--------|---------|------|
-| CLI | `cobra` | Commandes, flags, completion |
-| Config | `viper` | TOML, env vars, defaults |
-| TUI | `bubbletea` + `lipgloss` + `bubbles` + `huh` | Architecture Elm, composants |
-| DB | `modernc.org/sqlite` | Pur Go, pas de CGO |
-| Keychain | `go-keyring` | macOS/Windows/Linux |
-| i18n | Embedded JSON + `go:embed` | Custom (léger, adapté) |
-| Tests | `testing` + `testify` | Stdlib + assertions |
-| Release | `goreleaser` | Multi-arch + Homebrew |
+| CLI | `github.com/spf13/cobra` | Commandes, flags, shell completion |
+| Config | `github.com/spf13/viper` | TOML, env vars, defaults |
+| TUI engine | `github.com/charmbracelet/bubbletea` | Architecture Elm, event loop |
+| TUI styling | `github.com/charmbracelet/lipgloss` | CSS-like, tables, layouts |
+| TUI forms | `github.com/charmbracelet/huh` | Wizards interactifs |
+| DB | `modernc.org/sqlite` | Pur Go, pas de CGO, cross-compile trivial |
+| Keychain | `github.com/zalando/go-keyring` | macOS/Windows/Linux |
+| i18n | Embedded JSON + `go:embed` | Custom, léger |
+| UUID | `github.com/google/uuid` | Génération IDs projets |
+| Tests | `testing` + `github.com/stretchr/testify` | Stdlib + assertions |
+| Release | `goreleaser` | Multi-arch + Homebrew tap |
 
 ---
 
-*Document mis à jour le 1er juillet 2026*
+*Document mis à jour le 1er juillet 2026 — Post-Phase 7*
