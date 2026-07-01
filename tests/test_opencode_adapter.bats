@@ -889,3 +889,70 @@ OCEOF
   [ "$status" -eq 0 ]
   ! grep -q -- '--title' "$oc_log"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _build_provider_json — Approche B : bloc models{} pour litellm + fix openrouter
+# ─────────────────────────────────────────────────────────────────────────────
+
+@test "_build_provider_json : mammouth inclut bloc models avec default_model" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  printf '[PROJ-MAM]\nprovider=mammouth\napi_key=sk-test\nbase_url=https://api.mammouth.ai/v1\n' > "$API_KEYS_FILE"
+  run _build_provider_json "mammouth" "sk-test" "https://api.mammouth.ai/v1" ""
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.provider.litellm.models' >/dev/null 2>&1
+}
+
+@test "_build_provider_json : mammouth inclut name (label du provider)" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  run _build_provider_json "mammouth" "sk-test" "https://api.mammouth.ai/v1" ""
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.provider.litellm.name' >/dev/null 2>&1
+}
+
+@test "_build_provider_json : ollama inclut bloc models" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  run _build_provider_json "ollama" "nokey" "http://localhost:11434/v1" ""
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.provider.litellm.models' >/dev/null 2>&1
+}
+
+@test "_build_provider_json : openrouter génère un bloc provider valide" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  run _build_provider_json "openrouter" "sk-or-test" "" ""
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.provider.openrouter.apiKey' >/dev/null 2>&1
+}
+
+@test "_build_provider_json : anthropic ne contient pas de bloc models (pas litellm)" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  run _build_provider_json "anthropic" "sk-ant-test" "" ""
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  # Le bloc anthropic ne doit pas avoir de models
+  local has_models
+  has_models=$(echo "$output" | jq -r '.provider.anthropic.models // "null"')
+  [ "$has_models" = "null" ]
+}
+
+@test "_build_provider_json : merge opencode_cache.provider ne supprime pas apiKey anthropic" {
+  command -v jq &>/dev/null || skip "jq non disponible"
+  # Simuler le merge effectué dans adapter_deploy_config
+  local provider_json
+  provider_json=$(_build_provider_json "anthropic" "sk-ant-secret" "" "")
+  local cache_json='{"anthropic": {"options": {"setCacheKey": true}}}'
+
+  local merged
+  merged=$(jq -n \
+    --argjson base "$provider_json" \
+    --argjson cache "$cache_json" \
+    '$base * {"provider": $cache}')
+
+  # La clé API doit être préservée après le merge
+  local api_key
+  api_key=$(echo "$merged" | jq -r '.provider.anthropic.apiKey // empty')
+  [ "$api_key" = "sk-ant-secret" ]
+}

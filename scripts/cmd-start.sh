@@ -154,6 +154,10 @@ agents_dir="$PROJECT_PATH/.opencode/agents"
 _intro "${PROJECT_ID}"
 printf "${DIM}│${RESET}  %-10s %s\n" "Chemin"  "$PROJECT_PATH"
 
+# ── Statut du provider (validation transparente) ─────────────────────────────
+source "$LIB_DIR/provider-warnings.sh"
+_display_provider_status "$PROJECT_ID" "$PROVIDER_OVERRIDE" "$PROJECT_PATH/opencode.json"
+
 # ── Validation du cache de contexte ──────────────────────────────────────────
 source "$LIB_DIR/context-cache.sh"
 if cache_exists "$PROJECT_PATH"; then

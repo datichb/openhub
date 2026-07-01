@@ -406,6 +406,72 @@ Pour les changements au niveau projet (`oc config set`), redéployez :
 ./oc.sh deploy all MON-PROJET
 ```
 
+## Diagnostic et résolution des erreurs provider
+
+### Messages de statut au lancement (`oc start`)
+
+Lors de `oc start`, le hub affiche le statut du provider dans le bloc contextuel :
+
+| Indicateur | Signification | Action recommandée |
+|-----------|---------------|--------------------|
+| ✅ `clé configurée` | Provider joignable et credentials valides | Aucune — tout est bon |
+| ⚠️ `endpoint injoignable (timeout 3s)` | Le serveur LLM ne répond pas | Vérifier la connexion réseau ou la validité de l'URL |
+| ⚠️ `credentials non détectées` | Pas de clé API / pas de credentials AWS | Configurer via `oc config set` ou `/connect` dans OpenCode |
+| ⚠️ `clé API absente — provider non injecté` | Clé manquante dans la config hub/projet | Ajouter la clé avec `oc config set` |
+| ⚠️ `modèle déclaré sans bloc provider` | Le modèle référence un provider non configuré dans opencode.json | Redéployer (`oc deploy`) ou utiliser `/connect` |
+| ⚠️ `baseURL contient /chat/completions` | Suffixe en doublon dans l'URL (le SDK l'ajoute automatiquement) | Corriger l'URL — utiliser la racine `/v1` sans suffixe |
+
+Ces messages sont **non bloquants** : OpenCode se lance quand même et vous pouvez configurer le provider depuis l'interface.
+
+### Configurer un provider directement dans OpenCode
+
+Si le hub ne parvient pas à injecter les credentials (clé absente, expirée ou invalide), vous pouvez configurer le provider directement dans OpenCode via la commande `/connect` :
+
+1. Lancez OpenCode : `./oc.sh start MON-PROJET`
+2. Dans le TUI, tapez `/connect`
+3. Sélectionnez votre provider et suivez les instructions
+4. Les credentials sont stockées dans `~/.local/share/opencode/auth.json`
+
+> **Note :** La configuration via `/connect` est complémentaire à la configuration hub. Les credentials OpenCode natifs servent de fallback si le hub n'injecte pas de bloc provider dans `opencode.json`.
+
+### Erreurs courantes remontées par OpenCode
+
+| Erreur OpenCode | Cause probable | Solution |
+|----------------|----------------|----------|
+| `ProviderInitError` | Configuration invalide dans `opencode.json` | `oc deploy MON-PROJET` pour régénérer, ou `/connect` |
+| `ProviderModelNotFoundError` | Model ID incorrect ou provider litellm sans déclaration de modèle | Vérifier avec `opencode models` ou `/models` dans le TUI |
+| Notification "provider not available" au choix d'un agent | Clé API expirée, endpoint KO ou misconfiguration | Voir les messages ⚠️ dans `oc start`, puis `/connect` ou `oc config set provider` |
+
+### Cas spécifique : AWS Bedrock
+
+Si la notification apparaît avec Bedrock, vérifiez les credentials dans cet ordre :
+
+```bash
+# Option 1 : bearer token (recommandé avec le hub)
+export AWS_BEARER_TOKEN_BEDROCK=<votre-token>
+
+# Option 2 : profil AWS nommé
+export AWS_PROFILE=mon-profil
+
+# Option 3 : clés d'accès IAM
+export AWS_ACCESS_KEY_ID=AKIA...
+export AWS_SECRET_ACCESS_KEY=...
+
+# Puis relancer
+./oc.sh start MON-PROJET
+```
+
+### Cas spécifique : MammouthAI (litellm)
+
+L'URL correcte pour MammouthAI est `https://api.mammouth.ai/v1` **sans** suffixe `/chat/completions`. Le hub détecte et signale ce problème au démarrage :
+
+```bash
+# Corriger dans api-keys.local.md ou via la commande
+./oc.sh config set provider mammouth --project MON-PROJET
+# Ou au niveau hub
+./oc.sh config set provider mammouth
+```
+
 ## Commandes associées
 
 - `./oc.sh config set` — Gérer la configuration du provider et du modèle au niveau hub ou projet

@@ -9,6 +9,46 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Validation transparente des providers LLM** (`scripts/lib/provider-warnings.sh`) :
+  nouveau système de diagnostic non bloquant intégré à `oc start`.
+  Affiche le statut du provider (✅/⚠️) dans le bloc contextuel avec des hints actionnables.
+  - **Approche A — Pre-flight check** : test de connectivité curl (3s) avant le lancement d'OpenCode,
+    avec skip automatique en mode non-TTY (CI/CD).
+  - **Approche C — Validation post-deploy** : détection des incohérences model ↔ bloc provider
+    dans `opencode.json` (signale les modèles orphelins sans bloc provider correspondant).
+  - Détection des `baseURL` malformées (suffixe `/chat/completions` en doublon).
+  - Couverture de tous les chemins d'entrée via `_warn_provider_if_needed` dans `adapter_start()`
+    (couvre `oc start`, `oc quick`, `oc review`, `oc audit`, `oc conventions`, `oc debug`).
+  - Messages i18n FR/EN avec hints vers `/connect` OpenCode et `oc config set`.
+
+- **Bloc `models{}` pour providers litellm** (`scripts/adapters/opencode.adapter.sh`) :
+  les providers OpenAI-compatible (mammouth, ollama, github-models) déclarent désormais
+  un `name` et un bloc `models` dans `opencode.json`, résolvant les erreurs
+  `ProviderModelNotFoundError` au choix d'un agent dans OpenCode.
+
+- **Support provider openrouter** (`scripts/adapters/opencode.adapter.sh`) :
+  ajout du cas `openrouter` dans `_build_provider_json()` — précédemment manquant,
+  ce qui laissait `provider_json` vide pour les projets configurés sur openrouter.
+
+- **16 nouvelles clés i18n** (`scripts/lib/i18n.sh`, FR + EN) :
+  `provider.status_ok`, `provider.status_unreachable`, `provider.status_no_creds`,
+  `provider.status_model_orphan`, `provider.status_bad_url`, `provider.status_no_key`,
+  `provider.hint_connect`, `provider.hint_hub_config`, `provider.hint_aws_creds`,
+  `provider.hint_check_url`, `provider.hint_check_network`, `provider.warn_deploy_hint`.
+
+- **Tests BATS** (`tests/test_lib_provider_warnings.bats`) :
+  ~35 tests couvrant la validation de config (Approche C), le pre-flight de connectivité
+  (Approche A avec mocks curl), l'affichage du statut provider, et le warning minimal.
+  Tests additionnels dans `test_opencode_adapter.bats` (+6 : bloc models litellm,
+  openrouter, merge opencode_cache.provider) et `test_lib_i18n.bats` (+3 : nouvelles clés).
+
+- **Documentation** (`docs/guides/providers.fr.md`, `docs/guides/providers.en.md`) :
+  nouvelle section "Diagnostic et résolution des erreurs provider" avec tableau des messages
+  de statut, guide de configuration via `/connect`, erreurs courantes OpenCode,
+  et cas spécifiques Bedrock et MammouthAI.
+
 ### Security
 
 - **Fix #7 — Validation HTTPS pour `GITLAB_BASE_URL`** (`servers/gitlab-mcp/src/config.ts`) :

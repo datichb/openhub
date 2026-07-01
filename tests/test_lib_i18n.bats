@@ -294,3 +294,85 @@ teardown() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"cancelled"* ]]
 }
+
+# ── Clés provider-warnings.sh ────────────────────────────────────────────────
+
+@test "t : clés provider.status_* FR existent et retournent du texte" {
+  export OC_LANG=fr
+
+  run t "provider.status_ok"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_unreachable"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_no_creds"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_model_orphan"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_bad_url"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_no_key"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+}
+
+@test "t : clés provider.hint_* FR existent et retournent du texte" {
+  export OC_LANG=fr
+
+  run t "provider.hint_connect"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_hub_config"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_aws_creds"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_check_url"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_check_network"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.warn_deploy_hint"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+}
+
+@test "t : clés provider.status_* et provider.hint_* EN existent et retournent du texte" {
+  export OC_LANG=en
+
+  run t "provider.status_ok"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_connect"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.hint_aws_creds"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.status_model_orphan"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+
+  run t "provider.warn_deploy_hint"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+}

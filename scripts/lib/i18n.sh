@@ -428,6 +428,20 @@ t() {
       provider.source_hub)    printf '%s' "Source : fournisseur par défaut du hub" ;;
       provider.apply_hint)    printf '%s' "Appliquer aux projets : ./oc.sh deploy all <PROJECT_ID>" ;;
 
+      # ── provider-warnings.sh — statut et hints ─────────────────────────────
+      provider.status_ok)            printf '%s' "clé configurée" ;;
+      provider.status_unreachable)   printf '%s' "endpoint injoignable (timeout 3s)" ;;
+      provider.status_no_creds)      printf '%s' "credentials non détectées" ;;
+      provider.status_model_orphan)  printf '%s' "modèle déclaré sans bloc provider dans opencode.json" ;;
+      provider.status_bad_url)       printf '%s' "baseURL contient /chat/completions (doublon probable)" ;;
+      provider.status_no_key)        printf '%s' "clé API absente — provider non injecté" ;;
+      provider.hint_connect)         printf '%s' "Utilisez /connect dans OpenCode pour configurer ce provider" ;;
+      provider.hint_hub_config)      printf '%s' "Ou reconfigurez via le hub : oc config set provider" ;;
+      provider.hint_aws_creds)       printf '%s' "Configurez AWS_PROFILE, AWS_ACCESS_KEY_ID ou AWS_BEARER_TOKEN_BEDROCK" ;;
+      provider.hint_check_url)       printf '%s' "Corrigez le baseURL — utilisez la racine v1 sans suffixe" ;;
+      provider.hint_check_network)   printf '%s' "Vérifiez la connexion réseau ou la validité de l'URL" ;;
+      provider.warn_deploy_hint)     printf '%s' "Redéployez pour regénérer opencode.json : oc deploy" ;;
+
       # ── cmd-skills.sh ──────────────────────────────────────────────────────
       skills.title)           printf '%s' "oc skills — Gestion des skills externes" ;;
       skills.available)       printf '%s' "Skills disponibles" ;;
@@ -1302,6 +1316,20 @@ t_en() {
     provider.source_project) printf '%s' "Source: project configuration" ;;
     provider.source_hub)    printf '%s' "Source: hub default provider" ;;
     provider.apply_hint)    printf '%s' "Apply to projects: ./oc.sh deploy all <PROJECT_ID>" ;;
+
+    # ── provider-warnings.sh — status and hints ──────────────────────────────
+    provider.status_ok)            printf '%s' "key configured" ;;
+    provider.status_unreachable)   printf '%s' "endpoint unreachable (timeout 3s)" ;;
+    provider.status_no_creds)      printf '%s' "credentials not detected" ;;
+    provider.status_model_orphan)  printf '%s' "model declared without matching provider block in opencode.json" ;;
+    provider.status_bad_url)       printf '%s' "baseURL contains /chat/completions (likely duplicate suffix)" ;;
+    provider.status_no_key)        printf '%s' "API key missing — provider not injected" ;;
+    provider.hint_connect)         printf '%s' "Use /connect in OpenCode to configure this provider" ;;
+    provider.hint_hub_config)      printf '%s' "Or reconfigure via hub: oc config set provider" ;;
+    provider.hint_aws_creds)       printf '%s' "Configure AWS_PROFILE, AWS_ACCESS_KEY_ID or AWS_BEARER_TOKEN_BEDROCK" ;;
+    provider.hint_check_url)       printf '%s' "Fix the baseURL — use the v1 root without suffix" ;;
+    provider.hint_check_network)   printf '%s' "Check your network connection or the URL validity" ;;
+    provider.warn_deploy_hint)     printf '%s' "Redeploy to regenerate opencode.json: oc deploy" ;;
 
     # ── cmd-skills.sh ────────────────────────────────────────────────────────
     skills.title)           printf '%s' "oc skills — External skill management" ;;

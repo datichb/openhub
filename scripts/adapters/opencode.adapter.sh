@@ -18,6 +18,7 @@ _DEPLOY_NATIVE_SKILLS_SKIPPED=0
 _DEPLOY_PRECOMPUTED_STACKS=""
 _CLAMP_APPLIED_AGENTS=""
 _DEPLOY_CONFIG_CLAMPS=0
+_DEPLOY_PROVIDER_WARNING=""
 
 # Applique le préfixe opencode et les model_aliases du provider au modèle court.
 # $1 = modèle (nom court, ex: claude-sonnet-4-5)
@@ -151,13 +152,48 @@ _build_provider_json() {
       ;;
     mammouth|github-models|ollama|litellm)
       # Providers OpenAI-compatible via litellm
+      # Inclut un bloc "models" avec le modèle par défaut du provider et un "name"
+      # pour éviter les ProviderModelNotFoundError dans OpenCode.
+      local _litellm_label _litellm_default_model
+      _litellm_label=$(get_provider_info "$provider" "label" 2>/dev/null || echo "Custom LLM")
+      _litellm_default_model=$(get_provider_default_model "$provider" 2>/dev/null || echo "")
+
       if [ -n "$base_url" ]; then
-        jq -n --arg key "$api_key" --arg url "$base_url" \
-          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key, "baseURL": $url}}}}'
+        jq -n \
+          --arg key "$api_key" \
+          --arg url "$base_url" \
+          --arg label "${_litellm_label}" \
+          --arg dm "${_litellm_default_model}" \
+          '{
+            "provider": {
+              "litellm": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": $label,
+                "options": {"apiKey": $key, "baseURL": $url},
+                "models": (if $dm != "" then {($dm): {"name": $dm}} else {} end)
+              }
+            }
+          }'
       else
-        jq -n --arg key "$api_key" \
-          '{"provider": {"litellm": {"npm": "@ai-sdk/openai-compatible", "options": {"apiKey": $key}}}}'
+        jq -n \
+          --arg key "$api_key" \
+          --arg label "${_litellm_label}" \
+          --arg dm "${_litellm_default_model}" \
+          '{
+            "provider": {
+              "litellm": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": $label,
+                "options": {"apiKey": $key},
+                "models": (if $dm != "" then {($dm): {"name": $dm}} else {} end)
+              }
+            }
+          }'
       fi
+      ;;
+    openrouter)
+      jq -n --arg key "$api_key" \
+        '{"provider": {"openrouter": {"apiKey": $key}}}'
       ;;
   esac
 }
@@ -928,6 +964,23 @@ adapter_deploy_config() {
     else
       mv "$_tmp_config" "$config_file"
     fi
+
+    # ── Approche C : Validation post-écriture (cohérence model ↔ provider) ────
+    # Non bloquant — stocke le résultat dans _DEPLOY_PROVIDER_WARNING pour
+    # que _display_provider_status (cmd-start.sh) puisse l'afficher.
+    _DEPLOY_PROVIDER_WARNING=""
+    if [ -n "$model" ] && command -v jq &>/dev/null; then
+      local _mp="${model%%/*}"
+      if [ "$_mp" != "$model" ]; then
+        local _has_block
+        _has_block=$(jq -r --arg p "$_mp" \
+          'if .provider[$p] != null then "true" else "false" end' \
+          "$config_file" 2>/dev/null || echo "false")
+        if [ "$_has_block" = "false" ]; then
+          _DEPLOY_PROVIDER_WARNING="$model"
+        fi
+      fi
+    fi
     
     # Finaliser la progression
     _progress_done
@@ -1037,6 +1090,18 @@ adapter_start() {
   # Résoudre le provider effectif (override > projet > hub) et injecter les credentials si besoin
   local effective_provider
   effective_provider=$(get_effective_provider "$project_id" "$provider_override")
+
+  # ── Warning provider (Approche A — couvre tous les chemins d'entrée) ────────
+  # Charge provider-warnings.sh si pas encore sourcé, puis exécute le check léger.
+  # _display_provider_status dans cmd-start.sh affiche le bloc contextuel complet ;
+  # _warn_provider_if_needed ici affiche un log_warn minimal pour les autres cmds.
+  if [ "${_PROVIDER_WARNINGS_LOADED:-}" != "1" ]; then
+    local _pw_lib="${HUB_DIR}/scripts/lib/provider-warnings.sh"
+    [ -f "$_pw_lib" ] && source "$_pw_lib" || true
+  fi
+  if declare -f _warn_provider_if_needed &>/dev/null; then
+    _warn_provider_if_needed "$project_id" "$provider_override" || true
+  fi
 
   if [ "$effective_provider" = "bedrock" ]; then
     # Récupérer le bearer token depuis la config projet ou hub
