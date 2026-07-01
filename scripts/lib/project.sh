@@ -16,33 +16,12 @@
 [ -n "${_PROJECT_LOADED:-}" ] && return 0
 _PROJECT_LOADED=1
 
-# S'assure que projects.md existe localement (copié depuis projects.example.md si absent)
+# S'assure que projects.md existe localement (fichier vide si absent)
 ensure_projects_file() {
   if [ ! -f "$PROJECTS_FILE" ]; then
-    if [ -f "$PROJECTS_EXAMPLE_FILE" ]; then
-      cp "$PROJECTS_EXAMPLE_FILE" "$PROJECTS_FILE"
-      log_info "projects.md créé depuis projects.example.md"
-    else
-      mkdir -p "$(dirname "$PROJECTS_FILE")"
-      cat > "$PROJECTS_FILE" <<'PROJEOF'
-# Registre des projets
-
-<!-- FORMAT
-## <PROJECT_ID>
-- Nom : <nom lisible>
-- Stack : <technologies>
-- Board Beads : <PROJECT_ID>
-- Tracker : <jira|gitlab|none>
-- Labels : <liste séparée par virgules>
--->
-
----
-
-*Aucun projet enregistré pour l'instant.*
-*Ajouter un projet : ./oc.sh init*
-PROJEOF
-      log_info "projects.md créé"
-    fi
+    mkdir -p "$(dirname "$PROJECTS_FILE")"
+    touch "$PROJECTS_FILE"
+    log_info "projects.md créé"
   fi
 }
 
