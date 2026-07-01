@@ -472,7 +472,7 @@ if [ -d "$PROJECT_PATH" ]; then
     _prompt deploy_now "Déployer les agents maintenant ? [Y/n] : "
   fi
   if [ -t 0 ] && [[ "${deploy_now:-Y}" =~ ^[Yy]$ ]]; then
-    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$PROJECT_ID"
+    bash "$SCRIPTS_DIR/cmd-deploy.sh" -p "$PROJECT_ID"
     DEPLOYED="oui"
   else
     log_info "Déployer plus tard : ./oc.sh deploy $PROJECT_ID"

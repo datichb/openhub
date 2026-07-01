@@ -176,7 +176,7 @@ if [ -n "$agents_dir" ] && [ ! -d "$agents_dir" ] && [ -t 0 ]; then
   _prompt _deploy_now "$(t start.deploy_now)"
   if [[ "${_deploy_now:-Y}" =~ ^[Yy]$ ]]; then
     echo ""
-    bash "$SCRIPTS_DIR/cmd-deploy.sh" "$PROJECT_ID" ${PROVIDER_OVERRIDE:+--provider "$PROVIDER_OVERRIDE"}
+    bash "$SCRIPTS_DIR/cmd-deploy.sh" -p "$PROJECT_ID" ${PROVIDER_OVERRIDE:+--provider "$PROVIDER_OVERRIDE"}
     echo ""
   else
     log_info "$(t deploy_later) opencode ${PROJECT_ID}"
