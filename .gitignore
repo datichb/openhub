@@ -3,6 +3,9 @@ projects/paths.local.md
 projects/api-keys.local.md
 .DS_Store
 
+# Lock files — artefacts runtime de filelock.sh
+.locks/*.lock
+
 # Sorties générées par oc deploy — ne pas committer
 .opencode/agents/
 .github/copilot-instructions.md
