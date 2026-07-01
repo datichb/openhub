@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+---
+
+## [2.0.0] — 2026-07-01
+
 ### Added
 
 - **Validation transparente des providers LLM** (`scripts/lib/provider-warnings.sh`) :
