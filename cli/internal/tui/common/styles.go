@@ -1,5 +1,5 @@
-// Package tui provides shared TUI components and styles for the oh CLI.
-package tui
+// Package common provides shared TUI styles and constants for the oh CLI.
+package common
 
 import (
 	"github.com/charmbracelet/lipgloss"

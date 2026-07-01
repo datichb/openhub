@@ -15,7 +15,7 @@ var (
 	// application is the shared App instance, initialized in PersistentPreRunE.
 	application *app.App
 
-	// storeClosed tracks whether we've already cleaned up.
+	// store holds the SQLite connection for cleanup.
 	store *sqlite.Store
 )
 
@@ -29,7 +29,7 @@ et fournit un TUI interactif pour le suivi de développement.`,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip heavy init for commands that don't need it
-		if cmd.Name() == "version" || cmd.Name() == "help" {
+		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" {
 			return nil
 		}
 		return initApp()
@@ -51,12 +51,15 @@ func Execute() error {
 	return nil
 }
 
-// App returns the application instance. Panics if called before initialization.
-func App() *app.App {
-	if application == nil {
-		panic("App() called before initialization")
-	}
+// GetApp returns the application instance. Returns nil before initialization.
+// Commands that run after PersistentPreRunE can safely assume it's non-nil.
+func GetApp() *app.App {
 	return application
+}
+
+// RootCmd returns the root cobra command (used by subpackages to register commands).
+func RootCmd() *cobra.Command {
+	return rootCmd
 }
 
 // initApp wires up all dependencies.
