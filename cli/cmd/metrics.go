@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -26,84 +26,57 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh metrics  "))
 	fmt.Fprintln(a.IO.Out)
 
-	sessions, _ := a.Sessions.List("")
-
-	// Per-project stats
-	type projectStats struct {
-		sessions  int
-		tokensIn  int64
-		tokensOut int64
+	// Open opencode's database for real metrics
+	db, err := opencode.OpenStatsDB()
+	if err != nil {
+		fmt.Fprintf(a.IO.Out, "  %s Impossible d'ouvrir la base opencode: %v\n",
+			common.WarningStyle.Render(common.IconWarning), err)
+		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Aucune donnée de session disponible."))
+		return nil
 	}
-	stats := make(map[string]*projectStats)
+	if db == nil {
+		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Base de données opencode non trouvée."))
+		return nil
+	}
+	defer db.Close()
 
-	for _, s := range sessions {
-		ps, ok := stats[s.ProjectID]
-		if !ok {
-			ps = &projectStats{}
-			stats[s.ProjectID] = ps
-		}
-		ps.sessions++
-		ps.tokensIn += s.TokensIn
-		ps.tokensOut += s.TokensOut
+	// Get aggregate stats
+	stats, err := opencode.TotalStats(db)
+	if err != nil {
+		return fmt.Errorf("lecture métriques: %w", err)
 	}
 
-	// Display
-	fmt.Fprintf(a.IO.Out, "  Sessions totales: %d\n\n", len(sessions))
+	fmt.Fprintf(a.IO.Out, "  Sessions totales:    %d\n", stats.TotalSessions)
+	fmt.Fprintf(a.IO.Out, "  Sessions aujourd'hui: %d\n", stats.TodaySessions)
+	fmt.Fprintf(a.IO.Out, "  Projets actifs:      %d\n", stats.ActiveProjects)
+	fmt.Fprintf(a.IO.Out, "  Coût total:          $%.2f\n", stats.TotalCost)
+	fmt.Fprintln(a.IO.Out)
 
-	if len(stats) == 0 {
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Aucune session enregistrée."))
+	// Per-project stats using oh registered projects
+	projects, _ := a.Projects.List("")
+	if len(projects) == 0 {
+		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Aucun projet enregistré dans oh."))
 		return nil
 	}
 
-	// Get project names
-	projects, _ := a.Projects.List("")
-	nameMap := make(map[string]string)
-	for _, p := range projects {
-		nameMap[p.ID] = p.Name
-	}
-
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "  PROJET\tSESSIONS\tTOKENS IN\tTOKENS OUT")
-	for id, ps := range stats {
-		name := nameMap[id]
-		if name == "" {
-			name = id
+	fmt.Fprintln(w, "  PROJET\tSESSIONS\tTOKENS IN\tTOKENS OUT\tCOÛT")
+
+	for _, p := range projects {
+		pStats, err := opencode.ProjectStats(db, p.Path)
+		if err != nil || pStats.TotalSessions == 0 {
+			continue
 		}
-		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\n",
-			name, ps.sessions,
-			formatTokenCount(ps.tokensIn), formatTokenCount(ps.tokensOut))
+		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\t$%.2f\n",
+			p.Name, pStats.TotalSessions,
+			formatTokenCount(pStats.TotalTokensIn),
+			formatTokenCount(pStats.TotalTokensOut),
+			pStats.TotalCost)
 	}
 	w.Flush()
 
-	// Totals
-	var totalIn, totalOut int64
-	for _, ps := range stats {
-		totalIn += ps.tokensIn
-		totalOut += ps.tokensOut
-	}
 	fmt.Fprintf(a.IO.Out, "\n  Total tokens: %s in / %s out\n",
-		formatTokenCount(totalIn), formatTokenCount(totalOut))
-
-	// Status breakdown
-	running := 0
-	completed := 0
-	failed := 0
-	for _, s := range sessions {
-		switch s.Status {
-		case domain.SessionStatusRunning:
-			running++
-		case domain.SessionStatusCompleted:
-			completed++
-		case domain.SessionStatusFailed:
-			failed++
-		}
-	}
-
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s %d complétées  %s %d en cours  %s %d échouées\n",
-		common.SuccessStyle.Render(common.IconSuccess), completed,
-		common.WarningStyle.Render(common.IconInfo), running,
-		common.ErrorStyle.Render(common.IconError), failed)
+		formatTokenCount(stats.TotalTokensIn), formatTokenCount(stats.TotalTokensOut))
 
 	return nil
 }

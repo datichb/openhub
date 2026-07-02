@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -111,7 +112,21 @@ func runStart(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "%s Lancement d'opencode...\n\n",
 		common.SuccessStyle.Render(common.IconArrow))
 
-	return opencode.Exec(opencode.StartOpts{
+	// Create session in oh DB
+	session := &domain.Session{
+		ProjectID: project.ID,
+		Status:    domain.SessionStatusRunning,
+		Provider:  provider,
+	}
+	if a.Sessions != nil {
+		if err := a.Sessions.Create(session); err != nil {
+			// Non-fatal — don't block the launch
+			fmt.Fprintf(a.IO.ErrOut, "  warning: session tracking: %v\n", err)
+		}
+	}
+
+	// Run opencode as subprocess (not exec) to retain control for post-session updates
+	runErr := opencode.Run(opencode.StartOpts{
 		ProjectPath: project.Path,
 		ProjectID:   project.ID,
 		Agent:       agent,
@@ -119,6 +134,20 @@ func runStart(cmd *cobra.Command, args []string) error {
 		Provider:    provider,
 		BearerToken: bearerToken,
 	})
+
+	// Update session status after opencode exits
+	if a.Sessions != nil && session.ID != "" {
+		if runErr != nil {
+			session.Status = domain.SessionStatusFailed
+		} else {
+			session.Status = domain.SessionStatusCompleted
+		}
+		now := time.Now()
+		session.EndedAt = &now
+		_ = a.Sessions.Update(session)
+	}
+
+	return runErr
 }
 
 // ensureOpencode checks that the opencode binary is available.

@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/views/dashboard"
 )
 
@@ -21,7 +22,7 @@ func init() {
 func runDashboard(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 
-	// Gather stats
+	// Gather project stats from oh DB
 	projects, _ := a.Projects.List("")
 	active := 0
 	for _, p := range projects {
@@ -35,11 +36,18 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		topProject = projects[0].Name
 	}
 
-	sessions, _ := a.Sessions.List("")
-	var totalTokensIn, totalTokensOut int64
-	for _, s := range sessions {
-		totalTokensIn += s.TokensIn
-		totalTokensOut += s.TokensOut
+	// Gather real metrics from opencode DB
+	var totalSessions, todaySessions int
+	var tokensUsed int64
+	db, err := opencode.OpenStatsDB()
+	if err == nil && db != nil {
+		defer db.Close()
+		stats, err := opencode.TotalStats(db)
+		if err == nil {
+			totalSessions = stats.TotalSessions
+			todaySessions = stats.TodaySessions
+			tokensUsed = stats.TotalTokensIn + stats.TotalTokensOut
+		}
 	}
 
 	cfg := dashboard.Config{
@@ -47,9 +55,9 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		Stats: dashboard.Stats{
 			TotalProjects:  len(projects),
 			ActiveProjects: active,
-			TotalSessions:  len(sessions),
-			TodaySessions:  0, // TODO: filter by today
-			TokensUsed:     totalTokensIn + totalTokensOut,
+			TotalSessions:  totalSessions,
+			TodaySessions:  todaySessions,
+			TokensUsed:     tokensUsed,
 			TokensSaved:    0, // TODO: from RTK metrics
 			TopProject:     topProject,
 		},
