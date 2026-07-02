@@ -28,15 +28,15 @@ func TestProjectStore_CRUD(t *testing.T) {
 
 	// Create
 	p := &domain.Project{
-		ID:       "test-1",
-		Name:     "Test Project",
-		Path:     "/tmp/test-project",
-		Language: "go",
-		Tracker:  "github",
-		Labels:   []string{"backend", "cli"},
-		Agents:   []string{"coder", "reviewer"},
-		MCP:      []string{"gitlab"},
-		Status:   domain.ProjectStatusActive,
+		ID:        "test-1",
+		Name:      "Test Project",
+		Path:      "/tmp/test-project",
+		Language:  "go",
+		Tracker:   "github",
+		Labels:    []string{"backend", "cli"},
+		Agents:    []string{"coder", "reviewer"},
+		MCP:       []string{"gitlab"},
+		Status:    domain.ProjectStatusActive,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

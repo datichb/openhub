@@ -30,7 +30,7 @@ func projectAddCmd() *cobra.Command {
 		Short:   "Enregistre un nouveau projet",
 		Long:    "Enregistre un projet dans le hub. Si aucun flag n'est fourni, lance un wizard interactif.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			// If no flags provided, run interactive form
 			if name == "" && path == "" {

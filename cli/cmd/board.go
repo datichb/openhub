@@ -28,7 +28,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 	tickets := fetchTickets()
 
 	if len(tickets) == 0 {
-		a := GetApp()
+		a := MustApp()
 		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun ticket trouvé. Configurez un tracker avec `oh project add --tracker`."))
 		return nil
 	}

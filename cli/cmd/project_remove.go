@@ -21,7 +21,7 @@ func projectRemoveCmd() *cobra.Command {
 		Long:    "Supprime un projet du registre (ne supprime pas les fichiers sur disque).",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			var projectID string
 			if len(args) > 0 {

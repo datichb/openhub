@@ -21,7 +21,7 @@ func init() {
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh metrics  "))
 	fmt.Fprintln(a.IO.Out)

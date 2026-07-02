@@ -37,17 +37,17 @@ type Result struct {
 
 // Model is the Bubbletea model for the picker.
 type Model struct {
-	config   Config
-	items    []Item    // filtered items
-	allItems []Item    // original items
-	cursor   int       // current cursor position
-	filter   string    // search filter text
-	filtering bool     // whether we're in filter mode
-	offset   int       // scroll offset for viewport
-	width    int
-	height   int
-	result   Result
-	done     bool
+	config    Config
+	items     []Item // filtered items
+	allItems  []Item // original items
+	cursor    int    // current cursor position
+	filter    string // search filter text
+	filtering bool   // whether we're in filter mode
+	offset    int    // scroll offset for viewport
+	width     int
+	height    int
+	result    Result
+	done      bool
 }
 
 // New creates a new picker Model.
@@ -179,7 +179,7 @@ func (m Model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "backspace":
-		if len(m.filter) > 0 {
+		if m.filter != "" {
 			m.filter = m.filter[:len(m.filter)-1]
 			m.items = m.applyFilter(m.filter)
 			m.cursor = 0

@@ -33,7 +33,7 @@ func worktreeListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Liste les worktrees du projet",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 			worktrees, err := listWorktrees()
 			if err != nil {
 				return err
@@ -63,7 +63,7 @@ func worktreeAddCmd() *cobra.Command {
 		Long:  "Crée un worktree pour une branche. Lance un wizard si aucune branche n'est fournie.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			var branch string
 			if len(args) > 0 {
@@ -93,10 +93,10 @@ func worktreeAddCmd() *cobra.Command {
 			wtPath := filepath.Join(parentDir, repoName+"-"+branch)
 
 			// Create worktree
-			out, err := exec.Command("git", "worktree", "add", "-b", branch, wtPath).CombinedOutput()
+			_, err := exec.Command("git", "worktree", "add", "-b", branch, wtPath).CombinedOutput()
 			if err != nil {
 				// Try without -b (branch already exists)
-				out, err = exec.Command("git", "worktree", "add", wtPath, branch).CombinedOutput()
+				out, err := exec.Command("git", "worktree", "add", wtPath, branch).CombinedOutput()
 				if err != nil {
 					return fmt.Errorf("git worktree add: %s", strings.TrimSpace(string(out)))
 				}
@@ -119,7 +119,7 @@ func worktreeRemoveCmd() *cobra.Command {
 		Short:   "Supprime un worktree",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			var wtPath string
 			if len(args) > 0 {

@@ -14,7 +14,7 @@ var auditCmd = &cobra.Command{
 	Short: "Lance un audit de code via opencode",
 	Long:  "Lance une session opencode avec l'agent auditor pour réaliser un audit.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		projectID, _ := cmd.Flags().GetString("project")
 		project, err := resolveProject(a, projectID)
 		if err != nil {
@@ -41,7 +41,7 @@ var reviewCmd = &cobra.Command{
 	Short: "Lance une review de code via opencode",
 	Long:  "Lance une session opencode avec l'agent reviewer.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		projectID, _ := cmd.Flags().GetString("project")
 		project, err := resolveProject(a, projectID)
 		if err != nil {
@@ -65,7 +65,7 @@ var debugCmd = &cobra.Command{
 	Short: "Lance une session de debug via opencode",
 	Long:  "Lance une session opencode avec l'agent debugger.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		projectID, _ := cmd.Flags().GetString("project")
 		project, err := resolveProject(a, projectID)
 		if err != nil {

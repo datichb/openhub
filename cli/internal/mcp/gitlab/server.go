@@ -124,7 +124,7 @@ func gitlabAPI(path string) ([]byte, error) {
 		return nil, fmt.Errorf("GITLAB_TOKEN environment variable not set")
 	}
 
-	req, err := http.NewRequest("GET", baseURL+path, nil)
+	req, err := http.NewRequest("GET", baseURL+path, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

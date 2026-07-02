@@ -16,7 +16,7 @@ var conventionsCmd = &cobra.Command{
 	Use:   "conventions",
 	Short: "Affiche les conventions du projet",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		projectID, _ := cmd.Flags().GetString("project")
 		project, err := resolveProject(a, projectID)
 		if err != nil {
@@ -67,7 +67,7 @@ var serviceCmd = &cobra.Command{
 	Use:   "service",
 	Short: "Gestion des services MCP projet",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		projectID, _ := cmd.Flags().GetString("project")
 		project, err := resolveProject(a, projectID)
 		if err != nil {
@@ -101,7 +101,7 @@ var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Met à jour oh et/ou opencode",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh upgrade  "))
 		fmt.Fprintln(a.IO.Out)
 		fmt.Fprintf(a.IO.Out, "  oh:       %s\n", Version)

@@ -18,7 +18,7 @@ func projectListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Liste les projets enregistrés",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			projects, err := a.Projects.List(domain.ProjectStatus(status))
 			if err != nil {

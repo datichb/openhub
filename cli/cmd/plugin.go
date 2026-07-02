@@ -24,7 +24,7 @@ func pluginListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Liste les plugins installés",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			// For now, RTK is the only built-in plugin
 			fmt.Fprintln(a.IO.Out, common.Bold.Render("Plugins intégrés:"))

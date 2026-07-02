@@ -51,8 +51,27 @@ func Execute() error {
 	return nil
 }
 
+// MustApp returns the initialized application instance.
+// It panics if the app has not been initialized — this indicates a programming
+// error (command registered without PersistentPreRunE running first).
+func MustApp() *app.App {
+	if application == nil {
+		fmt.Fprintln(os.Stderr, "oh: erreur interne — application non initialisée.")
+		fmt.Fprintln(os.Stderr, "Vérifiez que la configuration (~/.oh/hub.toml) est accessible.")
+		os.Exit(1)
+	}
+	return application
+}
+
+// TryApp returns the application instance or nil if initialization failed.
+// Use only in commands that explicitly handle the nil case (e.g., doctor checks).
+func TryApp() *app.App {
+	return application
+}
+
 // GetApp returns the application instance. Returns nil before initialization.
-// Commands that run after PersistentPreRunE can safely assume it's non-nil.
+// Deprecated: use MustApp() for commands that require an initialized app,
+// or TryApp() for commands that handle the nil case.
 func GetApp() *app.App {
 	return application
 }

@@ -142,6 +142,6 @@ func TestDeployConfig_MergesExisting(t *testing.T) {
 
 	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
 	content := string(data)
-	assert.Contains(t, content, `"custom"`)    // preserved
-	assert.Contains(t, content, `"bedrock"`)   // added
+	assert.Contains(t, content, `"custom"`)  // preserved
+	assert.Contains(t, content, `"bedrock"`) // added
 }

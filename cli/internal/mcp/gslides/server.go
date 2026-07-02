@@ -82,7 +82,7 @@ func slidesAPI(path string) ([]byte, error) {
 		return nil, fmt.Errorf("GOOGLE_ACCESS_TOKEN environment variable not set")
 	}
 
-	req, err := http.NewRequest("GET", "https://slides.googleapis.com"+path, nil)
+	req, err := http.NewRequest("GET", "https://slides.googleapis.com"+path, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

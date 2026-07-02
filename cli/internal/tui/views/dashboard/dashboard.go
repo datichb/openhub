@@ -20,13 +20,13 @@ type Panel struct {
 
 // Stats holds dashboard statistics.
 type Stats struct {
-	TotalProjects   int
-	ActiveProjects  int
-	TotalSessions   int
-	TodaySessions   int
-	TokensUsed      int64
-	TokensSaved     int64
-	TopProject      string
+	TotalProjects  int
+	ActiveProjects int
+	TotalSessions  int
+	TodaySessions  int
+	TokensUsed     int64
+	TokensSaved    int64
+	TopProject     string
 }
 
 // Config configures the dashboard view.

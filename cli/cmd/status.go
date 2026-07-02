@@ -24,7 +24,7 @@ func init() {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh status  "))
 	fmt.Fprintln(a.IO.Out)

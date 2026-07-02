@@ -19,7 +19,7 @@ func init() {
 }
 
 func runDashboard(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	// Gather stats
 	projects, _ := a.Projects.List("")

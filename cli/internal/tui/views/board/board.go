@@ -25,10 +25,10 @@ type Ticket struct {
 
 // Config configures the board view.
 type Config struct {
-	Title        string
-	Tickets      []Ticket
-	RefreshFunc  func() []Ticket // called on tick for live update
-	RefreshRate  time.Duration
+	Title       string
+	Tickets     []Ticket
+	RefreshFunc func() []Ticket // called on tick for live update
+	RefreshRate time.Duration
 }
 
 // Column definitions.
@@ -47,13 +47,13 @@ type columnDef struct {
 
 // Model is the Bubbletea model for the board.
 type Model struct {
-	config    Config
-	tickets   []Ticket
-	width     int
-	height    int
-	cursor    int // active column
-	done      bool
-	lastTick  time.Time
+	config   Config
+	tickets  []Ticket
+	width    int
+	height   int
+	cursor   int // active column
+	done     bool
+	lastTick time.Time
 }
 
 type tickMsg time.Time
@@ -220,7 +220,7 @@ func renderColumn(tickets []Ticket, width, maxRows int, color lipgloss.Color) st
 		cards = append(cards, empty)
 	}
 
-	col := lipgloss.NewStyle().Width(width + 2).Padding(0, 1)
+	col := lipgloss.NewStyle().Width(width+2).Padding(0, 1)
 	return col.Render(strings.Join(cards, "\n"))
 }
 

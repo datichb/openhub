@@ -10,12 +10,12 @@ import (
 
 // StackInfo holds detected technology stack information for a project.
 type StackInfo struct {
-	Language    string
-	Framework   string
+	Language       string
+	Framework      string
 	PackageManager string
-	TestRunner  string
-	HasDocker   bool
-	HasCI       bool
+	TestRunner     string
+	HasDocker      bool
+	HasCI          bool
 }
 
 // DetectStack analyzes a project directory to detect its technology stack.
@@ -34,24 +34,26 @@ func DetectStack(projectPath string) StackInfo {
 		}
 	case fileExists(projectPath, "package.json"):
 		info.Language = "typescript"
-		if fileExists(projectPath, "bun.lockb") || fileExists(projectPath, "bunfig.toml") {
+		switch {
+		case fileExists(projectPath, "bun.lockb") || fileExists(projectPath, "bunfig.toml"):
 			info.PackageManager = "bun"
-		} else if fileExists(projectPath, "pnpm-lock.yaml") {
+		case fileExists(projectPath, "pnpm-lock.yaml"):
 			info.PackageManager = "pnpm"
-		} else if fileExists(projectPath, "yarn.lock") {
+		case fileExists(projectPath, "yarn.lock"):
 			info.PackageManager = "yarn"
-		} else {
+		default:
 			info.PackageManager = "npm"
 		}
 		info.TestRunner = detectJSTestRunner(projectPath)
 		info.Framework = detectJSFramework(projectPath)
 	case fileExists(projectPath, "pyproject.toml") || fileExists(projectPath, "setup.py"):
 		info.Language = "python"
-		if fileExists(projectPath, "poetry.lock") {
+		switch {
+		case fileExists(projectPath, "poetry.lock"):
 			info.PackageManager = "poetry"
-		} else if fileExists(projectPath, "Pipfile") {
+		case fileExists(projectPath, "Pipfile"):
 			info.PackageManager = "pipenv"
-		} else {
+		default:
 			info.PackageManager = "pip"
 		}
 		info.TestRunner = "pytest"

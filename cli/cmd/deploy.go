@@ -28,7 +28,7 @@ func init() {
 }
 
 func runDeploy(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	// Resolve project
 	projectID, _ := cmd.Flags().GetString("project")

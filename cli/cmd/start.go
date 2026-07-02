@@ -35,7 +35,7 @@ func init() {
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	// --- Resume mode ---
 	resumeID, _ := cmd.Flags().GetString("resume")

@@ -12,7 +12,7 @@ var optimizeCmd = &cobra.Command{
 	Use:   "optimize",
 	Short: "Analyse et suggestions d'optimisation",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 
 		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh optimize  "))
 		fmt.Fprintln(a.IO.Out)
@@ -57,7 +57,7 @@ var yieldCmd = &cobra.Command{
 	Use:   "yield",
 	Short: "Affiche le rapport sessions ↔ commits",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a := GetApp()
+		a := MustApp()
 
 		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh yield — Sessions ↔ Commits  "))
 		fmt.Fprintln(a.IO.Out)

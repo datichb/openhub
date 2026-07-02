@@ -110,7 +110,7 @@ func figmaAPI(path string) ([]byte, error) {
 		return nil, fmt.Errorf("FIGMA_TOKEN environment variable not set")
 	}
 
-	req, err := http.NewRequest("GET", "https://api.figma.com"+path, nil)
+	req, err := http.NewRequest("GET", "https://api.figma.com"+path, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ func skillsListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Liste les skills disponibles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			hubDir := findHubDir()
 			if hubDir == "" {
@@ -42,9 +42,9 @@ func skillsListCmd() *cobra.Command {
 			}
 
 			var skills []skillInfo
-			filepath.WalkDir(skillsDir, func(path string, d os.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return nil
+			err := filepath.WalkDir(skillsDir, func(path string, d os.DirEntry, walkErr error) error {
+				if walkErr != nil || d.IsDir() {
+					return walkErr
 				}
 				if filepath.Ext(path) != ".md" {
 					return nil
@@ -65,6 +65,9 @@ func skillsListCmd() *cobra.Command {
 				})
 				return nil
 			})
+			if err != nil {
+				return fmt.Errorf("walking skills directory: %w", err)
+			}
 
 			if len(skills) == 0 {
 				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun skill trouvé."))

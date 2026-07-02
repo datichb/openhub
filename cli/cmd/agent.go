@@ -28,7 +28,7 @@ func agentListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Liste les agents disponibles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := GetApp()
+			a := MustApp()
 
 			hubDir := findHubDir()
 			if hubDir == "" {

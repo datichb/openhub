@@ -174,7 +174,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.26"
           cache-dependency-path: cli/go.sum
 
       - name: Download dependencies
@@ -182,6 +182,12 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: cli
 
       - name: Test
         run: go test ./... -v -race -count=1

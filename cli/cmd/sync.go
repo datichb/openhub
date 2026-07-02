@@ -22,7 +22,7 @@ func init() {
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	projectID, _ := cmd.Flags().GetString("project")
 	project, err := resolveProject(a, projectID)

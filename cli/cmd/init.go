@@ -30,12 +30,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(os.Stdout)
 
 	var (
-		language     string
-		projectName  string
-		projectPath  string
-		projectLang  string
-		tracker      string
-		opencodeVer  string
+		language    string
+		projectName string
+		projectPath string
+		projectLang string
+		tracker     string
+		opencodeVer string
 	)
 
 	cwd, _ := os.Getwd()
@@ -153,7 +153,7 @@ install_dir = "~/.oh/bin"
 		return err
 	}
 
-	a := GetApp()
+	a := MustApp()
 	if err := doCreateProject(a, projectName, absPath, projectLang, tracker); err != nil {
 		return err
 	}

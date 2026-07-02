@@ -21,12 +21,12 @@ func init() {
 }
 
 type check struct {
-	name    string
-	test    func() (string, bool)
+	name string
+	test func() (string, bool)
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
-	a := GetApp()
+	a := MustApp()
 
 	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
@@ -94,7 +94,7 @@ func checkBinary(name string) func() (string, bool) {
 }
 
 func checkConfig() (string, bool) {
-	a := GetApp()
+	a := TryApp()
 	if a == nil || a.Config == nil {
 		return "non chargée", false
 	}
@@ -102,7 +102,7 @@ func checkConfig() (string, bool) {
 }
 
 func checkDatabase() (string, bool) {
-	a := GetApp()
+	a := TryApp()
 	if a == nil || a.Projects == nil {
 		return "non connectée", false
 	}
