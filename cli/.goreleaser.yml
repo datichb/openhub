@@ -24,7 +24,8 @@ builds:
       - -X github.com/datichb/openhub/cli/cmd.BuildDate={{.Date}}
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
