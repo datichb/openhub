@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -64,6 +65,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			deploy.DeployAgents(hubDir),
 			deploy.DeploySkills(hubDir),
 			deploy.DeployConfig(provider, model),
+			deploy.DeployMCP(buildMCPServers(a), "oh"),
 		},
 	}
 
@@ -114,4 +116,19 @@ func findHubDir() string {
 		}
 	}
 	return ""
+}
+
+// buildMCPServers constructs MCP server definitions from the app config.
+func buildMCPServers(a *app.App) []deploy.MCPServerDef {
+	enabled := map[string]bool{
+		"figma":   a.Config.MCP.Figma.Enabled,
+		"gitlab":  a.Config.MCP.Gitlab.Enabled,
+		"gslides": a.Config.MCP.Gslides.Enabled,
+	}
+	tokenKeys := map[string]string{
+		"figma":   a.Config.MCP.Figma.Token,
+		"gitlab":  a.Config.MCP.Gitlab.Token,
+		"gslides": a.Config.MCP.Gslides.Token,
+	}
+	return deploy.DefaultMCPServers(enabled, tokenKeys)
 }
