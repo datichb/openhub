@@ -1,0 +1,10 @@
+{
+  "oh_versions": {
+    "2.0": {
+      "opencode_min": "1.15.0",
+      "opencode_max": "1.99.99",
+      "rtk_min": "0.42.0",
+      "notes": "Première release Go CLI"
+    }
+  }
+}

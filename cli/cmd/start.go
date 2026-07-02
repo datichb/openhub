@@ -42,6 +42,16 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// --- Compatibility warning ---
+	if ocVersion, err := opencode.Version(); err == nil {
+		compat := opencode.CheckCompatibility(Version, ocVersion)
+		if !compat.Compatible {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.WarningStyle.Render(common.IconWarning),
+				compat.Warning)
+		}
+	}
+
 	// --- Resume mode ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {

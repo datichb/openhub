@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -36,6 +37,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"Go runtime", checkGoRuntime},
 		{"git", checkBinary("git")},
 		{"opencode", checkBinary("opencode")},
+		{"Compatibilité oh ↔ opencode", checkCompatibility},
 		{"Configuration hub.toml", checkConfig},
 		{"Base de données", checkDatabase},
 	}
@@ -111,6 +113,18 @@ func checkDatabase() (string, bool) {
 		return fmt.Sprintf("erreur: %v", err), false
 	}
 	return fmt.Sprintf("OK (%d projets)", len(projects)), true
+}
+
+func checkCompatibility() (string, bool) {
+	ocVersion, err := opencode.Version()
+	if err != nil {
+		return "opencode non disponible", false
+	}
+	result := opencode.CheckCompatibility(Version, ocVersion)
+	if result.Compatible {
+		return fmt.Sprintf("oh %s ↔ opencode %s — OK", Version, ocVersion), true
+	}
+	return result.Warning, false
 }
 
 func indexOf(s string, c byte) int {
