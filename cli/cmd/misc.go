@@ -97,26 +97,12 @@ var serviceCmd = &cobra.Command{
 	},
 }
 
-var upgradeCmd = &cobra.Command{
-	Use:   "upgrade",
-	Short: "Met à jour oh et/ou opencode",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		a := MustApp()
-		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh upgrade  "))
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  oh:       %s\n", Version)
-		fmt.Fprintf(a.IO.Out, "  opencode: %s\n", a.Config.Opencode.Version)
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Pour mettre à jour oh: brew upgrade datichb/openhub/oh"))
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Pour mettre à jour opencode: oh config set opencode.version <version>"))
-		return nil
-	},
-}
-
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Alias pour upgrade",
-	RunE:  upgradeCmd.RunE,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return upgradeCmd.RunE(cmd, args)
+	},
 }
 
 func init() {
@@ -128,6 +114,5 @@ func init() {
 	rootCmd.AddCommand(serviceCmd)
 	serviceCmd.Flags().StringP("project", "j", "", "ID du projet")
 
-	rootCmd.AddCommand(upgradeCmd)
 	rootCmd.AddCommand(updateCmd)
 }

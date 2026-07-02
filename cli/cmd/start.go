@@ -37,6 +37,11 @@ func init() {
 func runStart(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 
+	// --- Ensure opencode is installed ---
+	if err := ensureOpencode(a); err != nil {
+		return err
+	}
+
 	// --- Resume mode ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
@@ -104,6 +109,79 @@ func runStart(cmd *cobra.Command, args []string) error {
 		Provider:    provider,
 		BearerToken: bearerToken,
 	})
+}
+
+// ensureOpencode checks that the opencode binary is available.
+// If not found, prompts the user to install it via Homebrew or auto-download.
+func ensureOpencode(a *app.App) error {
+	_, err := opencode.FindBinary()
+	if err == nil {
+		return nil // already installed
+	}
+
+	fmt.Fprintf(a.IO.Out, "%s opencode non trouvé.\n\n",
+		common.WarningStyle.Render(common.IconWarning))
+
+	var choice string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Comment installer opencode ?").
+				Options(
+					huh.NewOption("brew install anomalyco/tap/opencode (recommandé)", "brew"),
+					huh.NewOption("Télécharger automatiquement", "download"),
+					huh.NewOption("Annuler", "cancel"),
+				).
+				Value(&choice),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return fmt.Errorf("sélection annulée")
+	}
+
+	switch choice {
+	case "brew":
+		fmt.Fprintf(a.IO.Out, "\n  Exécutez: %s\n\n",
+			common.Bold.Render("brew install anomalyco/tap/opencode"))
+		return fmt.Errorf("opencode requis — installez-le puis relancez oh start")
+	case "download":
+		return downloadOpencode(a)
+	default:
+		return fmt.Errorf("opencode requis pour lancer une session")
+	}
+}
+
+// downloadOpencode downloads and installs the opencode binary.
+func downloadOpencode(a *app.App) error {
+	installDir := a.Config.Opencode.InstallDir
+	version := a.Config.Opencode.Version
+
+	if version == "" {
+		version = "latest"
+	}
+
+	fmt.Fprintf(a.IO.Out, "%s Téléchargement d'opencode...\n",
+		common.SuccessStyle.Render(common.IconArrow))
+
+	var lastPercent int
+	_, err := opencode.Download(version, installDir, func(downloaded, total int64) {
+		if total > 0 {
+			percent := int(downloaded * 100 / total)
+			if percent != lastPercent && percent%5 == 0 {
+				lastPercent = percent
+				fmt.Fprintf(a.IO.Out, "\r  Progression: %d%% (%d/%d MB)",
+					percent, downloaded/1024/1024, total/1024/1024)
+			}
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("échec du téléchargement: %w", err)
+	}
+
+	fmt.Fprintln(a.IO.Out) // newline after progress
+	fmt.Fprintf(a.IO.Out, "%s opencode installé avec succès.\n\n",
+		common.SuccessStyle.Render(common.IconSuccess))
+	return nil
 }
 
 // resolveProject finds the project to use. Priority:

@@ -26,6 +26,11 @@ func init() {
 func runQuick(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 
+	// Ensure opencode is installed before proceeding
+	if err := ensureOpencode(a); err != nil {
+		return err
+	}
+
 	projects, err := a.Projects.List(domain.ProjectStatusActive)
 	if err != nil {
 		return err
