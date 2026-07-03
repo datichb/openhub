@@ -1,9 +1,9 @@
 # Travail restant — CLI oh v2.0.0
 
 > Backlog structuré pour atteindre une release production-ready.
-> Mis à jour le 2 juillet 2026 — Post P0+P1.
+> Mis à jour le 3 juillet 2026 — Post P0+P1+Blocs 1-4+Audits+Phases A-F.
 >
-> **P0 et P1 terminés.** Ce document décrit le travail P2 restant avant la release v2.0.0.
+> **Blocs 1-4, audit qualité, et phases d'amélioration (A-F) terminés.** Il reste uniquement le Bloc 5 (Cleanup + Documentation).
 
 ---
 
@@ -28,75 +28,143 @@
 
 ---
 
-## P2 — Avant release v2.0.0
+## P2 — Bloc 1 : Parité fonctionnelle — ✅ DONE
 
-### Bloc 1 : Parité fonctionnelle commandes (~3-4 jours)
+> 11 commandes complétées + 3 tâches transverses.
 
-Objectif : iso-fonctionnel avec le bash CLI pour toutes les commandes conservées.
+| # | Commande | Livrable |
+|---|----------|----------|
+| 1.1 | `start --worktree` | Nouveau package `internal/worktree/` (Slug, SiblingPath, ResolveOrCreate, List, IsMerged, CleanupMerged), flag `-w`, prompt interactif, auto-cleanup, deploy dans worktree |
+| 1.2 | `deploy --check/--diff` | Nouveau module `internal/deploy/diff.go` (ComputeDiff, FormatDiffReport), comparaison SHA-256 hub↔projet, exit code 1 si stale |
+| 1.3 | `init` enrichi | Wizard MCP multi-select, tracker bd init, auto-deploy agents/skills, git excludes, summary |
+| 1.4 | `sync --all/--dry-run` | Multi-projet, dry-run avec diff, sync complet (agents+skills+config+MCP) |
+| 1.5 | `metrics --period` | Filtrage 7d/30d/all, section AI Savings (cache ratio, estimations), per-project cache % |
+| 1.6 | `audit` +4 types | accessibility, ecodesign, observability, privacy — validation type, prompts enrichis |
+| 1.7 | `project rename/move/configure` | 3 sous-commandes, wizard interactif, ProjectStore.Update() |
+| 1.8 | `config unset/language` | Suppression de clé, changement de langue avec validation |
+| 1.9 | `service setup/status/remove` | Wizard token + keychain, status enrichi (env/keychain/missing), remove avec delete keychain |
+| 1.10 | `doctor` enrichi | Checks optionnels bd/fzf, validation clés API (env + keychain), messages guidance |
+| 1.11 | `worktree cleanup` | Sous-commande + `--base` flag, détection via `git branch --merged` |
 
-| # | Commande | Ce qui manque | Effort |
-|---|----------|---------------|--------|
-| 1.1 | `start` | `--worktree` : créer un git worktree + lancer opencode dedans | 0.5j |
-| 1.2 | `deploy` | `--check` (freshness — détecte si les agents/skills ont changé depuis le dernier deploy), `--diff` (preview les changements avant d'écrire) | 0.5j |
-| 1.3 | `init` | Wizard enrichi : sélection MCP interactive, intégration tracker (bd), deploy automatique à la fin du wizard | 0.5j |
-| 1.4 | `sync` | Multi-projet (itérer sur tous les projets actifs), `--dry-run` | 0.5j |
-| 1.5 | `metrics` | `--period` (7d/30d/all), section AI savings (lecture stats context-mode + RTK) | 0.5j |
-| 1.6 | `audit` | Ajouter 4 types d'audit : accessibility, ecodesign, observability, privacy (actuellement 3 : security, performance, architecture) | 0.25j |
-| 1.7 | `project` | Sous-commandes `rename`, `move` (update path en DB), `configure` (persister model/provider par projet) | 0.5j |
-| 1.8 | `config` | `unset` (supprimer une clé), `language` (changer la langue), per-project model/provider/agent overrides | 0.5j |
-| 1.9 | `service` | Setup wizard interactif (configure les tokens MCP dans le keychain), affichage status enrichi, `remove` | 0.5j |
-| 1.10 | `doctor` | Checks supplémentaires : `bd` (tracker), `fzf`, validation clés API (test connectivité rapide) | 0.25j |
-| 1.11 | `worktree` | `cleanup` : supprime les worktrees dont la branche est mergée dans main | 0.25j |
-
-**Sous-tâches transverses Bloc 1 :**
-- Ajouter `ProjectStore.Update()` pour supporter rename/move/configure
-- Enrichir `hub.toml` Config struct : `DefaultProvider`, `DefaultModel`, `ProjectOverrides`
-- Créer helper `runAgentSession(agentName, prompt)` pour audit/review/debug (évite la duplication)
+**Tâches transverses livrées :**
+- `ProjectStore.Update()` déjà dans l'interface domain + implémenté SQLite
+- `hub.toml` enrichi avec `WorktreeConfig` (auto_cleanup, base_branch)
+- Helper `runAgentSession()` factorisé pour audit/review/debug
 
 ---
 
-### Bloc 2 : i18n complète (~1.5 jours)
+## P2 — Audit qualité (initial) — ✅ DONE
 
-Objectif : toutes les chaînes user-facing passent par `i18n.T()` / `i18n.Tf()`.
+> 16 findings corrigés sur 5 axes.
 
-| # | Tâche | Détail |
-|---|-------|--------|
-| 2.1 | Identifier les strings hardcodées | ~43 dans cmd/*.go, ~10 dans internal/tui/views/ |
-| 2.2 | Définir les clés JSON | ~50-60 nouvelles clés, structurées par namespace (`cmd.start.launching`, `cmd.deploy.phase_mcp`, `tui.board.no_tickets`, etc.) |
-| 2.3 | Migrer cmd/*.go | Remplacer chaque string FR par `i18n.T("clé")` ou `i18n.Tf("clé", args...)` |
-| 2.4 | Migrer TUI views | Board (colonnes, refresh, quit) + Dashboard (labels panels) |
-| 2.5 | Cobra Short/Long | Pattern : `Short: i18n.T("cmd.start.short")` — un appel à init déféré |
-| 2.6 | Test parité en/fr | CI test qui vérifie que les deux locales JSON ont les mêmes clés |
-| 2.7 | Compléter `en.json` | Traduction de toutes les clés FR → EN |
+| Sévérité | Count | Corrections clés |
+|----------|-------|------------------|
+| CRITICAL | 1 | Session ID jamais généré → `uuid.New().String()` |
+| HIGH | 3 | URL injection MCP (PathEscape + url.Values), branch name validation (--/.. rejetés), beads proxy (DisableFlagParsing) |
+| MEDIUM | 7 | fileHash streaming, erreurs silencieuses corrigées, config.Reset thread-safe, isSubPath idiomatique, board bd detection, findHubDir guidance, MCP graceful shutdown |
+| LOW | 5 | Nil pointer guards, HTTP timeout 30s, io.LimitReader 50MB, ProjectStatus validation |
 
----
-
-### Bloc 3 : TUI Polish (~0.5-1 jour)
-
-| # | Tâche | Détail |
-|---|-------|--------|
-| 3.1 | Board — détection `bd` absent | `exec.LookPath("bd")` → message actionnable : "Installez bd pour afficher les tickets" |
-| 3.2 | Board — mouse support | `tea.WithMouseCellMotion()`, gérer `tea.MouseMsg` (clic colonne, scroll) |
-| 3.3 | Dashboard — empty state | Si 0 sessions : guide "Lancez `oh start` pour commencer" au lieu de panneaux vides |
-| 3.4 | Guard terminal trop petit | Si < 80 cols ou < 20 lignes → message d'erreur au lieu d'un render cassé |
-| 3.5 | Board — scroll vertical | Si plus de tickets que la hauteur disponible dans une colonne, permettre le défilement |
+**Fichiers impactés :** 16 fichiers modifiés (cmd/, internal/config, internal/deploy, internal/worktree, internal/mcp/)
 
 ---
 
-### Bloc 4 : Keychain Fallback (~1 jour)
+## P2 — Bloc 2 : i18n (initial) — ✅ DONE
 
-| # | Tâche | Détail |
-|---|-------|--------|
-| 4.1 | Créer `internal/storage/filecrypt/store.go` | Implémente `domain.SecretStore` avec AES-256-GCM |
-| 4.2 | Format de stockage | `~/.oh/secrets.enc` — JSON chiffré, salt en header |
-| 4.3 | Dérivation de clé | Argon2id (passphrase utilisateur + salt aléatoire) |
-| 4.4 | Détection auto | Dans `app.go` : tenter go-keyring, si erreur → fallback filecrypt + warning console |
-| 4.5 | Prompt passphrase | `huh.Input` avec masquage au premier usage, garder en mémoire pour la session |
-| 4.6 | Tests | Cycle encrypt/decrypt, passphrase incorrecte → erreur claire, fichier corrompu → erreur + recovery |
+> 272 clés fr/en, hook dynamique Cobra, 12 fichiers cmd migrés.
 
 ---
 
-### Bloc 5 : Cleanup repo + Documentation (~1 jour)
+## P2 — Bloc 3 : TUI Polish — ✅ DONE
+
+> Board enrichi (scroll, mouse, détection bd), Dashboard empty state, guard terminal.
+
+---
+
+## P2 — Bloc 4 : Keychain Fallback — ✅ DONE
+
+> AES-256-GCM + Argon2id, stratégie A+B, 14 tests.
+
+| # | Tâche | Livrable |
+|---|-------|----------|
+| 4.1 | `internal/storage/filecrypt/store.go` | Implémente `domain.SecretStore` — AES-256-GCM, atomic write (tmp+rename), permissions 0600 |
+| 4.2 | Format de stockage | `~/.oh/secrets.enc` — header binaire OHSF v1 + salt + nonce + ciphertext |
+| 4.3 | Dérivation de clé | Argon2id (t=3, memory=64MB, threads=4, keyLen=32) — conforme OWASP |
+| 4.4 | Détection auto (`resolveSecretStore`) | Probe keychain via `Get` (lecture seule, pas de prompt macOS), fallback filecrypt |
+| 4.5 | Stratégie passphrase (A+B) | 1. Terminal → prompt huh (création + confirmation, min 8 chars) ; 2. `OH_PASSPHRASE` env var ; 3. Secrets=nil + slog.Warn |
+| 4.6 | Tests | 14 tests (round-trip, wrong passphrase, corruption, delete, list, empty store, atomic write, concurrency, env var, overwrite, verify) |
+
+**Clés i18n ajoutées :** `secrets.fallback.*` (8 clés fr/en)
+
+---
+
+## Audit v2 + Phases d'amélioration — ✅ DONE
+
+> Audit global (33 findings) + 6 phases de remédiation. Réalisé le 3 juillet 2026.
+
+### Phase A — Bugs critiques (5 corrections)
+
+| # | Fix | Fichier |
+|---|-----|---------|
+| A.1 | Supprimé `updateCmd` (nil panic sur `upgradeCmd.RunE`) | `cmd/misc.go` |
+| A.2 | Fix extraction tar — condition `&&` → checks séparés + `filepath.Base` | `internal/opencode/download.go` |
+| A.3 | Ajouté `recover()` top-level dans `Execute()` | `cmd/root.go` |
+| A.4 | Fix `generateProjectID` slug vide → fallback "project" + trim dashes | `cmd/project_add.go` |
+| A.5 | Pre-check `exec.LookPath("bd")` avec message actionnable | `cmd/misc.go` |
+
+### Phase B — Sécurité (6 corrections)
+
+| # | Fix | Fichier |
+|---|-----|---------|
+| B.1 | Checksum SHA256 **obligatoire** (refus strict si absent) | `internal/opencode/download.go` |
+| B.2 | Validation `GITLAB_URL` (https only + bloquer IPs privées/loopback/link-local) | `internal/mcp/gitlab/server.go` |
+| B.3 | Argon2id `time=1` → `time=3` (OWASP) | `internal/storage/filecrypt/store.go` |
+| B.4 | Minimum passphrase 8 chars + clé i18n | `cmd/root.go` |
+| B.5 | Permissions `~/.oh/` → 0700, `hub.toml` → 0600 | `sqlite/store.go`, `cmd/init.go` |
+| B.6 | Ajouter `--` dans git worktree remove + flags avant path | `internal/worktree/worktree.go` |
+
+### Phase D — Architecture (5 améliorations)
+
+| # | Amélioration | Impact |
+|---|-------------|--------|
+| D.1 | `context.Context` propagé | 14 interfaces, 18 implémentations, ~30 call sites — cancellation/timeout ready |
+| D.2 | Deploy plan builder extrait | `buildDeployPlan()` — 4 sites dupliqués → 1 helper |
+| D.3 | Semver dedup → `internal/semver/` | Package partagé, 2 implémentations locales supprimées |
+| D.5 | Schema versioning SQLite | Table `schema_migrations`, migrations numérotées, upgrade incrémental |
+| D.6 | `log/slog` + `--verbose` flag | Logger structuré, 3 warnings migrés, base observabilité |
+
+### Phase C — i18n complet (280 → 455 clés)
+
+| # | Tâche | Résultat |
+|---|-------|----------|
+| C.1 | Cobra Short/Long descriptions | Toutes les commandes couvertes via `localizeCommands()` |
+| C.2 | Table headers | 7 headers migrés vers `i18n.T()` |
+| C.3 | Labels huh (options, titres, descriptions) | ~40 strings migrées |
+| C.4 | Messages stdout/stderr (status, progress, labels) | ~60 strings migrées |
+| C.5 | Erreurs user-facing (`fmt.Errorf`) | ~25 strings migrées |
+| C.6 | Flag descriptions | `localizeCommands()` étendu pour localiser les flags via `pflag.VisitAll`, 37 clés ajoutées |
+| C.7 | Parity test enrichi | `TestFormatVerbParity` — vérifie que les format verbs (%s, %d) matchent entre fr/en |
+
+### Phase E — UX polish
+
+| # | Amélioration | Résultat |
+|---|-------------|----------|
+| E.1 | `--json` output | 7 commandes list (project, agent, skills, worktree, mcp, config, status) |
+| E.2 | Shell completion dynamique | `--project` (project IDs), `mcp serve` (server names), `plugin install`, `config get/unset` |
+| E.3 | Confirmations destructives | `worktree cleanup`, `plugin remove`, `service remove` — `--force` bypass |
+| E.4 | Provider configurable | `hub.toml` → `opencode.default_provider`, résolution : flag > config > "bedrock" |
+
+### Phase F — Tests (+48 tests)
+
+| # | Package | Tests ajoutés |
+|---|---------|---------------|
+| F.1 | `internal/mcp/protocol/` | 10 tests (JSON-RPC dispatch, initialize, errors, notifications) |
+| F.2 | `internal/app/` | 8 tests (New, With*, nil safety, IO streams) |
+| F.3 | `internal/mcp/gitlab/` | 12 tests (URL validation, private IPs, loopback, link-local) |
+| F.4 | `cmd/` (helpers) | 11 tests (generateProjectID, buildDeployPlan, cmdI18nKey) |
+
+---
+
+## P2 — Bloc 5 : Cleanup repo + Documentation — ⏳ À FAIRE (~1 jour)
 
 > Ce bloc est le dernier — il prépare directement la release.
 
@@ -112,6 +180,7 @@ Objectif : toutes les chaînes user-facing passent par `i18n.T()` / `i18n.Tf()`.
 | 5.8 | Créer `MIGRATION.md` | Guide `oc` → `oh` : breaking changes, équivalences commandes, config migration hub.json→hub.toml, comment re-deploy |
 | 5.9 | Archiver | `docs/legacy/README-bash.md` (pour référence historique) |
 | 5.10 | Mettre à jour `opencode.json` | Vérifier que les mcpServers pointent vers `oh mcp serve <name>` |
+| 5.11 | `.goreleaser.yml` | Ajouter `depends_on "datichb/tap/bd"` (recommended) dans la formula Homebrew |
 
 ---
 
@@ -121,12 +190,12 @@ Objectif : toutes les chaînes user-facing passent par `i18n.T()` / `i18n.Tf()`.
 |---|---|---|
 | `uninstall` | Supprimé | Géré par `brew uninstall oh` |
 | `upgrade` (hub self-update via git pull) | Supprimé | Géré par `brew upgrade oh` |
+| `update` (adapter + bd + skills) | Supprimé | `brew upgrade` pour oh, `oh upgrade opencode` pour opencode, `bd` se gère seul |
 | `agent create/edit/add-skill/remove-skill` | Supprimé | Gestion manuelle des fichiers .md, pas de valeur dans le CLI |
 | `skills install/remove/update` (ctx7) | Supprimé | Gestion manuelle des fichiers skill |
 | Session state machine | Supprimé | Opencode gère nativement les reprises de session |
 | Session title generation | Supprimé | Opencode génère automatiquement des titres intelligents |
 | Node.js installer | Supprimé | Go CLI n'a aucune dépendance Node.js |
-| `update` (adapter + bd + skills) | Supprimé | `brew upgrade` pour oh, `oh upgrade opencode` pour opencode, `bd` se gère seul |
 
 ---
 
@@ -134,34 +203,33 @@ Objectif : toutes les chaînes user-facing passent par `i18n.T()` / `i18n.Tf()`.
 
 | Feature | Justification du report |
 |---|---|
-| Context cache (freshness check SHA-256) | 90% couvert par context-mode + CLAUDE.md. Le 10% restant (warning si fichier structurel modifié) peut être ajouté post-release |
-| Dependency graph (analyse imports TS/JS) | Pertinence à étudier — feature avancée, usage incertain, probablement mieux dans un MCP dédié |
-| AI savings reporting complet | Dépend de l'évolution des APIs context-mode et RTK. Implémentation basique dans `oh metrics` suffit pour v2.0 |
-| `oh beads` enrichi (beyond exec `bd`) | L'intégration complète est complexe (sync, tracker setup). L'exec delegation vers `bd` suffit pour v2.0 |
+| Context cache (freshness check SHA-256) | 90% couvert par context-mode + CLAUDE.md. Le 10% restant peut être ajouté post-release |
+| Dependency graph (analyse imports TS/JS) | Pertinence à étudier — probablement mieux dans un MCP dédié |
+| AI savings reporting complet | Dépend de l'évolution des APIs context-mode et RTK. Basique dans `oh metrics` suffit pour v2.0 |
+| `oh beads` enrichi (beyond exec `bd`) | L'exec delegation vers `bd` suffit pour v2.0 |
 | `oh yield` enrichi | La corrélation session-commit est complexe. Le ratio basique suffit pour v2.0 |
+| Board — modal détail ticket | Overlay modal au clic sur un ticket. Report post-release. |
 
 ---
 
-## Estimation totale
+## Estimation restante
 
-| Bloc | Effort estimé |
-|------|---------------|
-| Bloc 1 — Parité fonctionnelle | 3-4 jours |
-| Bloc 2 — i18n | 1.5 jours |
-| Bloc 3 — TUI Polish | 0.5-1 jour |
-| Bloc 4 — Keychain Fallback | 1 jour |
-| Bloc 5 — Cleanup + Documentation | 1 jour |
-| **Total P2** | **~7-8.5 jours** |
+| Bloc | Effort estimé | Statut |
+|------|---------------|--------|
+| Bloc 1 — Parité fonctionnelle | 3-4 jours | ✅ DONE |
+| Audit qualité (initial) | 0.5 jour | ✅ DONE |
+| Bloc 2 — i18n (initial) | 2 jours | ✅ DONE |
+| Bloc 3 — TUI Polish | 0.5 jour | ✅ DONE |
+| Bloc 4 — Keychain Fallback | 1 jour | ✅ DONE |
+| Audit v2 + Phases A-F | 2 jours | ✅ DONE |
+| Bloc 5 — Cleanup + Documentation | 1 jour | ⏳ À faire |
+| **Total restant** | **~1 jour** | |
 
 ---
 
-## Ordre d'exécution
+## Ordre d'exécution (restant)
 
 ```
-1. Bloc 1 — Parité fonctionnelle    [critique — iso bash CLI]
-2. Bloc 2 — i18n                     [qualité — multilingue]
-3. Bloc 3 — TUI Polish              [UX — rapide]
-4. Bloc 4 — Keychain Fallback       [robustesse — edge cases]
 5. Bloc 5 — Cleanup + Documentation [release gate — en dernier]
 ```
 
@@ -173,18 +241,22 @@ Après le Bloc 5 :
 
 ---
 
-## Métriques actuelles (post P0+P1)
+## Métriques actuelles (post Phases A-F)
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 103 |
-| Packages testés | 20 |
-| Linter | golangci-lint clean (11 linters) |
+| Tests | 196 |
+| Packages testés | 23 |
+| Linter / Vet | clean (0 issues) |
 | Binaire | ~5.5 MB (stripped, CGO_ENABLED=0) |
 | Commandes | 30 |
-| Sous-commandes | 15 |
+| Sous-commandes | 19 |
+| Clés i18n | 455 (parité fr/en, format verb parity checked) |
+| Locales supportées | fr, en |
 | Plateformes | darwin/amd64, darwin/arm64, linux/amd64, linux/arm64 |
+| Features UX | `--json` (7 cmd), shell completion, `--verbose`, confirmations destructives |
+| Architecture | context.Context propagé, schema versioning, slog, semver partagé |
 
 ---
 
-*Mis à jour le 2 juillet 2026 — Post P0+P1, session planification P2*
+*Mis à jour le 3 juillet 2026 — Post Blocs 1-4 + Audit v2 + Phases A-F*
