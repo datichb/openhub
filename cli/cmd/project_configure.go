@@ -124,7 +124,7 @@ Ne déplace PAS physiquement le dossier.`,
 				return fmt.Errorf("%s", i18n.T("cmd.project.move.empty_path"))
 			}
 
-			absPath, err := filepath.Abs(newPath)
+			absPath, err := filepath.Abs(expandPath(newPath))
 			if err != nil {
 				return fmt.Errorf("resolving path: %w", err)
 			}

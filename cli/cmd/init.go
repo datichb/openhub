@@ -171,7 +171,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if projectPath == "" {
 		projectPath = cwd
 	}
-	absPath, err := filepath.Abs(projectPath)
+	absPath, err := filepath.Abs(expandPath(projectPath))
 	if err != nil {
 		return fmt.Errorf("resolving path: %w", err)
 	}

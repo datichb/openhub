@@ -48,7 +48,7 @@ func projectAddCmd() *cobra.Command {
 				path = "."
 			}
 
-			absPath, err := filepath.Abs(path)
+			absPath, err := filepath.Abs(expandPath(path))
 			if err != nil {
 				return fmt.Errorf("resolving path: %w", err)
 			}
@@ -126,7 +126,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	if path == "" {
 		path = cwd
 	}
-	absPath, err := filepath.Abs(path)
+	absPath, err := filepath.Abs(expandPath(path))
 	if err != nil {
 		return fmt.Errorf("resolving path: %w", err)
 	}
@@ -185,4 +185,20 @@ func generateProjectID(name string) string {
 	slug = strings.TrimRight(slug, "-")
 	short := uuid.New().String()[:8]
 	return slug + "-" + short
+}
+
+// expandPath resolves ~ to the user's home directory.
+// Go's filepath.Abs does not handle ~ expansion.
+func expandPath(path string) string {
+	if path == "~" {
+		home, _ := os.UserHomeDir()
+		return home
+	}
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
 }
