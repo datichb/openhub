@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// DisabledNativeAgents is the list of opencode built-in agents that are disabled
+// when hub agents are deployed. Our agents replace their functionality.
+var DisabledNativeAgents = []string{"build", "plan", "general", "explore", "scout"}
+
 // Plan represents a deployment plan with all phases.
 type Plan struct {
 	ProjectPath      string
@@ -265,6 +269,25 @@ func DeployConfig(provider, model string) Phase {
 				permCfg["webfetch"] = "allow"
 				config["permission"] = permCfg
 			}
+
+			// Inject disabled native agents (always — our agents replace opencode's)
+			agentCfg, ok := config["agent"].(map[string]interface{})
+			if !ok {
+				agentCfg = make(map[string]interface{})
+			}
+			for _, native := range DisabledNativeAgents {
+				if _, exists := agentCfg[native]; !exists {
+					agentCfg[native] = map[string]interface{}{"disable": true}
+				} else {
+					// Preserve existing config but ensure disable is set
+					if m, ok := agentCfg[native].(map[string]interface{}); ok {
+						m["disable"] = true
+					} else {
+						agentCfg[native] = map[string]interface{}{"disable": true}
+					}
+				}
+			}
+			config["agent"] = agentCfg
 
 			// Write atomically (temp file + rename)
 			data, err := json.MarshalIndent(config, "", "  ")

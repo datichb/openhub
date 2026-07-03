@@ -3,7 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -40,7 +43,7 @@ func projectAddCmd() *cobra.Command {
 				return runProjectAddInteractive(ctx, a)
 			}
 
-			// Non-interactive mode
+			// Non-interactive mode (minimal — no agents/provider wizard)
 			if name == "" {
 				return fmt.Errorf("%s", i18n.T("cmd.project.add.name_required"))
 			}
@@ -53,7 +56,7 @@ func projectAddCmd() *cobra.Command {
 				return fmt.Errorf("resolving path: %w", err)
 			}
 
-			return doCreateProject(ctx, a, name, absPath, language, tracker)
+			return doCreateProjectMinimal(ctx, a, name, absPath, language, tracker)
 		},
 	}
 
@@ -65,6 +68,7 @@ func projectAddCmd() *cobra.Command {
 	return cmd
 }
 
+// runProjectAddInteractive is the full 6-step wizard for adding a project.
 func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	var (
 		name     string
@@ -75,7 +79,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	cwd, _ := os.Getwd()
 
-	form := huh.NewForm(
+	// ── Step 1: Project identity ──
+	form1 := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title(i18n.T("cmd.init.project_name")).
@@ -118,8 +123,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				Value(&tracker),
 		),
 	)
-
-	if err := form.Run(); err != nil {
+	if err := form1.Run(); err != nil {
 		return err
 	}
 
@@ -130,19 +134,327 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	if err != nil {
 		return fmt.Errorf("resolving path: %w", err)
 	}
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
+	}
 
-	return doCreateProject(ctx, a, name, absPath, language, tracker)
+	// ── Step 2: Tracker / Beads ──
+	if tracker != "" {
+		initBeads(a, absPath, generateProjectID(name), tracker)
+	}
+
+	// ── Step 3: Provider & Model ──
+	provider, model, err := wizardProviderModel(a)
+	if err != nil {
+		return err
+	}
+
+	// ── Step 4: Agents ──
+	agents, err := wizardAgents()
+	if err != nil {
+		return err
+	}
+
+	// ── Step 5: MCP Services ──
+	mcpServices, err := wizardMCP(a, ctx)
+	if err != nil {
+		return err
+	}
+
+	// ── Create project in DB ──
+	id := generateProjectID(name)
+	now := time.Now()
+	p := &domain.Project{
+		ID:        id,
+		Name:      name,
+		Path:      absPath,
+		Language:  language,
+		Tracker:   tracker,
+		Provider:  provider,
+		Model:     model,
+		Agents:    agents,
+		MCP:       mcpServices,
+		Status:    domain.ProjectStatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := a.Projects.Create(ctx, p); err != nil {
+		return fmt.Errorf("creating project: %w", err)
+	}
+
+	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
+		common.SuccessStyle.Render(common.IconSuccess),
+		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath))
+
+	// ── Step 6: Deploy ──
+	var doDeploy bool
+	huh.NewConfirm().
+		Title(i18n.T("form.project.deploy_now")).
+		Value(&doDeploy).
+		Affirmative(i18n.T("form.yes")).
+		Negative(i18n.T("form.no")).
+		Run()
+
+	if doDeploy {
+		hubDir := findHubDir()
+		if hubDir == "" {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
+		} else {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconArrow), i18n.T("form.project.deploying"))
+
+			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model)
+			results, err := deploy.Execute(plan)
+			if err != nil {
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					common.ErrorStyle.Render(common.IconError), err.Error())
+			} else {
+				for _, r := range results {
+					icon := common.SuccessStyle.Render(common.IconSuccess)
+					if !r.Success {
+						icon = common.ErrorStyle.Render(common.IconError)
+					}
+					fmt.Fprintf(a.IO.Out, "  %s %s\n", icon, r.Name)
+				}
+			}
+		}
+
+		// Add .opencode/ and opencode.json to git excludes
+		addGitExcludes(absPath)
+	}
+
+	// ── Summary ──
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "%s\n", common.Title.Render("  "+i18n.T("form.project.summary")+"  "))
+	fmt.Fprintf(a.IO.Out, "  %-14s %s\n", i18n.T("form.project.summary_id"), common.Bold.Render(id))
+	fmt.Fprintf(a.IO.Out, "  %-14s %s\n", i18n.T("form.project.summary_name"), name)
+	fmt.Fprintf(a.IO.Out, "  %-14s %s\n", i18n.T("form.project.summary_path"), absPath)
+	fmt.Fprintf(a.IO.Out, "  %-14s %s\n", i18n.T("form.project.summary_lang"), displayOrDefault(language, "—"))
+	if provider != "" {
+		fmt.Fprintf(a.IO.Out, "  %-14s %s\n", "Provider:", provider)
+	}
+	if model != "" {
+		fmt.Fprintf(a.IO.Out, "  %-14s %s\n", "Model:", model)
+	}
+	if len(agents) > 0 {
+		fmt.Fprintf(a.IO.Out, "  %-14s %d agents\n", "Agents:", len(agents))
+	}
+	if len(mcpServices) > 0 {
+		fmt.Fprintf(a.IO.Out, "  %-14s %s\n", "MCP:", strings.Join(mcpServices, ", "))
+	}
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("form.project.next_step", common.Bold.Render("oh start -j "+id)))
+
+	return nil
 }
 
-func doCreateProject(ctx context.Context, a *app.App, name, absPath, language, tracker string) error {
-	// Check path exists
+// ── Wizard sub-steps ──
+
+// wizardProviderModel asks the user to configure a project-specific provider or use hub default.
+func wizardProviderModel(a *app.App) (string, string, error) {
+	hubProvider := a.Config.Opencode.DefaultProvider
+	if hubProvider == "" {
+		hubProvider = "bedrock"
+	}
+
+	var useCustom bool
+	huh.NewConfirm().
+		Title(i18n.Tf("form.project.provider_custom", hubProvider)).
+		Description(i18n.T("form.project.provider_custom_desc")).
+		Value(&useCustom).
+		Affirmative(i18n.T("form.project.provider_specific")).
+		Negative(i18n.Tf("form.project.provider_hub", hubProvider)).
+		Run()
+
+	if !useCustom {
+		return "", "", nil // use hub default (empty = inherit)
+	}
+
+	var provider, model, apiKey string
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title(i18n.T("form.project.provider_select")).
+				Options(
+					huh.NewOption("Amazon Bedrock", "bedrock"),
+					huh.NewOption("Anthropic (direct)", "anthropic"),
+					huh.NewOption("OpenAI", "openai"),
+					huh.NewOption("OpenRouter", "openrouter"),
+					huh.NewOption(i18n.T("form.option.other"), "other"),
+				).
+				Value(&provider),
+
+			huh.NewInput().
+				Title(i18n.T("form.project.model_input")).
+				Description(i18n.T("form.project.model_input_desc")).
+				Value(&model).
+				Placeholder("claude-sonnet-4-5"),
+
+			huh.NewInput().
+				Title(i18n.T("form.project.api_key")).
+				Description(i18n.T("form.project.api_key_desc")).
+				EchoMode(huh.EchoModePassword).
+				Value(&apiKey),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return "", "", err
+	}
+
+	// Store API key in keychain if provided
+	if apiKey != "" && a.Secrets != nil {
+		keyName := provider + "-token-project"
+		if err := a.Secrets.Set(context.Background(), keyName, apiKey); err != nil {
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				common.WarningStyle.Render(common.IconWarning),
+				i18n.Tf("form.project.api_key_warning", err))
+		} else {
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess),
+				i18n.T("form.project.api_key_stored"))
+		}
+	}
+
+	if model == "" {
+		model = "claude-sonnet-4-5"
+	}
+
+	return provider, model, nil
+}
+
+// wizardAgents dynamically lists available agents from the hub agents/ dir and lets the user pick.
+func wizardAgents() ([]string, error) {
+	hubDir := findHubDir()
+	if hubDir == "" {
+		return nil, nil // no hub → skip agent selection
+	}
+
+	agentsDir := filepath.Join(hubDir, "agents")
+	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	// Discover agents from .md files
+	var available []string
+	filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) == ".md" {
+			name := strings.TrimSuffix(d.Name(), ".md")
+			available = append(available, name)
+		}
+		return nil
+	})
+
+	if len(available) == 0 {
+		return nil, nil
+	}
+
+	// Build multi-select options (all selected by default)
+	options := make([]huh.Option[string], len(available))
+	for i, name := range available {
+		options[i] = huh.NewOption(name, name)
+	}
+
+	var selected []string
+	// Default: all selected
+	selected = append(selected, available...)
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title(i18n.T("form.project.agents_select")).
+				Description(i18n.Tf("form.project.agents_select_desc", len(available))).
+				Options(options...).
+				Value(&selected),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return nil, err
+	}
+
+	return selected, nil
+}
+
+// wizardMCP lets the user select which MCP services to enable.
+func wizardMCP(a *app.App, ctx context.Context) ([]string, error) {
+	options := []huh.Option[string]{
+		huh.NewOption("Figma ("+i18n.T("form.project.mcp_requires")+" FIGMA_TOKEN)", "figma"),
+		huh.NewOption("GitLab ("+i18n.T("form.project.mcp_requires")+" GITLAB_TOKEN)", "gitlab"),
+		huh.NewOption("Google Slides ("+i18n.T("form.project.mcp_requires")+" GOOGLE_ACCESS_TOKEN)", "gslides"),
+	}
+
+	var selected []string
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title(i18n.T("form.project.mcp_select")).
+				Description(i18n.T("form.project.mcp_select_desc")).
+				Options(options...).
+				Value(&selected),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return nil, err
+	}
+
+	return selected, nil
+}
+
+// initBeads initializes Beads in the project if bd is available.
+func initBeads(a *app.App, projectPath, projectID, tracker string) {
+	if _, err := exec.LookPath("bd"); err != nil {
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			common.Subtitle.Render(common.IconArrow),
+			i18n.T("form.project.bd_not_found"))
+		return
+	}
+
+	var doInit bool
+	huh.NewConfirm().
+		Title(i18n.T("form.project.beads_init")).
+		Value(&doInit).
+		Affirmative(i18n.T("form.yes")).
+		Negative(i18n.T("form.no")).
+		Run()
+
+	if !doInit {
+		return
+	}
+
+	// bd init --prefix PROJECT_ID --skip-hooks
+	cmd := exec.Command("bd", "-C", projectPath, "init", "--prefix", projectID, "--skip-hooks")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(a.IO.Out, "  %s bd init: %s\n",
+			common.WarningStyle.Render(common.IconWarning),
+			strings.TrimSpace(string(output)))
+	} else {
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.T("form.project.beads_initialized"))
+	}
+
+	// Register default labels
+	for _, label := range []string{"ai-delegated", "feature", "fix"} {
+		exec.Command("bd", "-C", projectPath, "label", "create", label).Run()
+	}
+}
+
+// ── Non-interactive (minimal) ──
+
+// doCreateProjectMinimal creates a project with only basic fields (CLI flags mode).
+func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, language, tracker string) error {
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
 	}
 
 	id := generateProjectID(name)
 	now := time.Now()
-
 	p := &domain.Project{
 		ID:        id,
 		Name:      name,
@@ -160,15 +472,15 @@ func doCreateProject(ctx context.Context, a *app.App, name, absPath, language, t
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath),
-	)
+		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath))
 	return nil
 }
+
+// ── Helpers ──
 
 func generateProjectID(name string) string {
 	slug := strings.ToLower(strings.TrimSpace(name))
 	slug = strings.ReplaceAll(slug, " ", "-")
-	// Remove non-alphanumeric chars except dashes
 	var clean strings.Builder
 	for _, r := range slug {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {

@@ -193,13 +193,12 @@ Sans flags, lance un wizard interactif.`,
 			// Apply flag values
 			changed := false
 			if cmd.Flags().Changed("provider") {
-				// Store as a label for now — actual override mechanism in config task (1.8)
+				project.Provider = provider
 				changed = true
-				fmt.Fprintf(a.IO.Out, "  Provider: %s\n", provider)
 			}
 			if cmd.Flags().Changed("model") {
+				project.Model = model
 				changed = true
-				fmt.Fprintf(a.IO.Out, "  Model: %s\n", model)
 			}
 			if cmd.Flags().Changed("language") {
 				project.Language = language
@@ -238,6 +237,8 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 
 	language := project.Language
 	tracker := project.Tracker
+	provider := project.Provider
+	model := project.Model
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -251,7 +252,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 					huh.NewOption("Rust", "rust"),
 					huh.NewOption("Java", "java"),
 					huh.NewOption(i18n.T("form.option.other"), "other"),
-					huh.NewOption(i18n.T("form.option.no_change"), ""),
+					huh.NewOption(i18n.T("form.option.no_change"), "_keep"),
 				).
 				Value(&language),
 
@@ -267,6 +268,18 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 					huh.NewOption(i18n.T("form.option.no_change"), "_keep"),
 				).
 				Value(&tracker),
+
+			huh.NewInput().
+				Title(i18n.T("form.project.provider_select")).
+				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Provider, i18n.T("form.configure.hub_default")))).
+				Placeholder(displayOrDefault(project.Provider, "")).
+				Value(&provider),
+
+			huh.NewInput().
+				Title(i18n.T("form.project.model_input")).
+				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Model, i18n.T("form.configure.hub_default")))).
+				Placeholder(displayOrDefault(project.Model, "claude-sonnet-4-5")).
+				Value(&model),
 		),
 	)
 
@@ -275,13 +288,39 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 	}
 
 	changed := false
-	if language != "" && language != project.Language {
+	if language != "_keep" && language != project.Language {
 		project.Language = language
 		changed = true
 	}
 	if tracker != "_keep" && tracker != project.Tracker {
 		project.Tracker = tracker
 		changed = true
+	}
+	if provider != project.Provider {
+		project.Provider = provider
+		changed = true
+	}
+	if model != project.Model {
+		project.Model = model
+		changed = true
+	}
+
+	// Agents modification
+	var modifyAgents bool
+	huh.NewConfirm().
+		Title(i18n.T("form.configure.modify_agents")).
+		Description(i18n.Tf("form.configure.agents_current", len(project.Agents))).
+		Value(&modifyAgents).
+		Affirmative(i18n.T("form.yes")).
+		Negative(i18n.T("form.no")).
+		Run()
+
+	if modifyAgents {
+		agents, err := wizardAgents()
+		if err == nil && agents != nil {
+			project.Agents = agents
+			changed = true
+		}
 	}
 
 	if !changed {

@@ -24,7 +24,7 @@ func NewProjectStore(s *Store) *ProjectStore {
 var _ domain.ProjectStore = (*ProjectStore)(nil)
 
 func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) ([]domain.Project, error) {
-	query := `SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects`
+	query := `SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects`
 	var args []interface{}
 	if status != "" {
 		query += " WHERE status = ?"
@@ -51,7 +51,7 @@ func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) (
 
 func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
-		`SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE id = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE id = ?`,
 		id,
 	)
 	p, err := scanProjectRow(row)
@@ -66,7 +66,7 @@ func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, er
 
 func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
-		`SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE path = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE path = ?`,
 		path,
 	)
 	p, err := scanProjectRow(row)
@@ -88,9 +88,9 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	}
 
 	_, err := ps.db.Exec(
-		`INSERT INTO projects (id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Path, p.Language, p.Tracker,
+		`INSERT INTO projects (id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Path, p.Language, p.Tracker, p.Provider, p.Model,
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.CreatedAt, p.UpdatedAt,
 	)
@@ -106,9 +106,9 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	p.UpdatedAt = time.Now()
 	result, err := ps.db.Exec(
-		`UPDATE projects SET name=?, path=?, language=?, tracker=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
+		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
 		 WHERE id=?`,
-		p.Name, p.Path, p.Language, p.Tracker,
+		p.Name, p.Path, p.Language, p.Tracker, p.Provider, p.Model,
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.UpdatedAt, p.ID,
 	)
@@ -139,7 +139,7 @@ func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
 func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	var p domain.Project
 	var labels, agents, mcp, status string
-	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker,
+	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker, &p.Provider, &p.Model,
 		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scanning project: %w", err)
@@ -154,7 +154,7 @@ func scanProject(rows *sql.Rows) (*domain.Project, error) {
 func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	var p domain.Project
 	var labels, agents, mcp, status string
-	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker,
+	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker, &p.Provider, &p.Model,
 		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err

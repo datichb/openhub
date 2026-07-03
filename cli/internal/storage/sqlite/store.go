@@ -117,6 +117,8 @@ func (s *Store) migrate() error {
 		)`},
 		{5, `CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)`},
 		{6, `CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`},
+		{7, `ALTER TABLE projects ADD COLUMN provider TEXT NOT NULL DEFAULT ''`},
+		{8, `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`},
 	}
 
 	// Apply only unapplied migrations
