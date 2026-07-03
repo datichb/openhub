@@ -453,5 +453,32 @@
   "tui.picker.no_results": "No results",
   "tui.picker.select": "Select an item",
   "tui.spinner.loading": "Loading...",
-  "tui.terminal_too_small": "Terminal too small (%dx%d). Minimum required: %dx%d"
+  "tui.terminal_too_small": "Terminal too small (%dx%d). Minimum required: %dx%d",
+
+  "cmd.start.dev_syncing": "Syncing tickets...",
+  "cmd.start.dev_sync_warning": "Sync failed — using local tickets",
+  "cmd.start.dev_no_bd": "bd is not installed. Install it: brew install datichb/tap/bd",
+  "cmd.start.dev_no_tickets": "No ready tickets (label: %s)",
+  "cmd.start.dev_picker_title": "Select a ticket or epic to work on",
+  "cmd.start.dev_selected_epic": "Epic selected: %s (%d tickets)",
+  "cmd.start.dev_selected_ticket": "Ticket selected: %s — %s",
+  "cmd.start.dev_launching": "Launching orchestrator-dev...",
+  "cmd.start.onboard_launching": "Launching onboarder — creating project wiki...",
+  "cmd.start.onboard_refresh": "Refresh mode — non-destructive wiki re-discovery",
+  "cmd.start.label_assignee_exclusive": "--label and --assignee are mutually exclusive",
+  "cmd.start.flag_requires_dev": "--%s requires --dev",
+  "cmd.start.refresh_requires_onboard": "--refresh requires --onboard",
+  "cmd.start.dev_onboard_exclusive": "--dev and --onboard are mutually exclusive",
+  "cmd.start.flags.label": "Filter tickets by label (requires --dev)",
+  "cmd.start.flags.assignee": "Filter tickets by assignee (requires --dev)",
+  "cmd.start.flags.onboard": "Onboarding mode — creates/enriches project wiki",
+  "cmd.start.flags.refresh": "Force wiki re-discovery (requires --onboard)",
+
+  "cmd.config.websearch.short": "Manage WebSearch/WebFetch permissions (Exa AI)",
+  "cmd.config.websearch_enabled": "WebSearch enabled — agents can perform web searches",
+  "cmd.config.websearch_disabled": "WebSearch disabled",
+  "cmd.config.websearch_status": "WebSearch: %s",
+  "cmd.config.websearch_on": "enabled",
+  "cmd.config.websearch_off": "disabled",
+  "cmd.config.websearch_deploy_hint": "Run `oh deploy` to propagate to projects"
 }

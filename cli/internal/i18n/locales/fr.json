@@ -453,5 +453,32 @@
   "tui.picker.no_results": "Aucun résultat",
   "tui.picker.select": "Sélectionnez un élément",
   "tui.spinner.loading": "Chargement...",
-  "tui.terminal_too_small": "Terminal trop petit (%dx%d). Minimum requis : %dx%d"
+  "tui.terminal_too_small": "Terminal trop petit (%dx%d). Minimum requis : %dx%d",
+
+  "cmd.start.dev_syncing": "Synchronisation des tickets...",
+  "cmd.start.dev_sync_warning": "Synchronisation échouée — utilisation des tickets locaux",
+  "cmd.start.dev_no_bd": "bd n'est pas installé. Installez-le : brew install datichb/tap/bd",
+  "cmd.start.dev_no_tickets": "Aucun ticket prêt (label: %s)",
+  "cmd.start.dev_picker_title": "Sélectionnez un ticket ou une epic à traiter",
+  "cmd.start.dev_selected_epic": "Epic sélectionnée : %s (%d tickets)",
+  "cmd.start.dev_selected_ticket": "Ticket sélectionné : %s — %s",
+  "cmd.start.dev_launching": "Lancement orchestrator-dev...",
+  "cmd.start.onboard_launching": "Lancement onboarder — création du wiki projet...",
+  "cmd.start.onboard_refresh": "Mode refresh — re-découverte non destructrice du wiki",
+  "cmd.start.label_assignee_exclusive": "--label et --assignee sont mutuellement exclusifs",
+  "cmd.start.flag_requires_dev": "--%s requiert --dev",
+  "cmd.start.refresh_requires_onboard": "--refresh requiert --onboard",
+  "cmd.start.dev_onboard_exclusive": "--dev et --onboard sont mutuellement exclusifs",
+  "cmd.start.flags.label": "Filtrer tickets par label (requiert --dev)",
+  "cmd.start.flags.assignee": "Filtrer tickets par assignee (requiert --dev)",
+  "cmd.start.flags.onboard": "Mode onboarding — crée/enrichit le wiki projet",
+  "cmd.start.flags.refresh": "Force la re-découverte du wiki (requiert --onboard)",
+
+  "cmd.config.websearch.short": "Gère les permissions WebSearch/WebFetch (Exa AI)",
+  "cmd.config.websearch_enabled": "WebSearch activé — les agents peuvent effectuer des recherches web",
+  "cmd.config.websearch_disabled": "WebSearch désactivé",
+  "cmd.config.websearch_status": "WebSearch : %s",
+  "cmd.config.websearch_on": "activé",
+  "cmd.config.websearch_off": "désactivé",
+  "cmd.config.websearch_deploy_hint": "Relancez `oh deploy` pour propager aux projets"
 }
