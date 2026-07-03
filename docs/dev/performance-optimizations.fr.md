@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Ce document décrit les optimisations de performance apportées au workflow `oc deploy`, en particulier pour réduire le nombre d'appels subprocess et améliorer les temps d'exécution.
+Ce document décrit les optimisations de performance apportées au workflow `oh deploy`, en particulier pour réduire le nombre d'appels subprocess et améliorer les temps d'exécution.
 
 ## Métriques
 
@@ -184,7 +184,7 @@ for i in {1..30}; do _api_keys_get "PROJECT_ID" "provider"; done
 ### End-to-end
 
 ```bash
-time ./oc.sh deploy PROJECT_ID
+time ./oh deploy PROJECT_ID
 # Avant : ~40s
 # Après : ~38s (-5%)
 ```
@@ -236,7 +236,7 @@ Réécrire les fonctions les plus coûteuses en Go/Rust :
 
 ### Commits
 
-- `fafbabd` : perf: optimize oc deploy performance (-5%)
+- `fafbabd` : perf: optimize oh deploy performance (-5%)
 
 ### Fichiers modifiés
 
@@ -251,10 +251,10 @@ Relancer les benchmarks :
 
 ```bash
 # Test complet
-time ./oc.sh deploy PROJECT_ID
+time ./oh deploy PROJECT_ID
 
 # Test avec --no-progress (légèrement plus rapide)
-time ./oc.sh deploy PROJECT_ID --no-progress
+time ./oh deploy PROJECT_ID --no-progress
 ```
 
 ## Principes de performance bash

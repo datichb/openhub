@@ -59,7 +59,7 @@ Un seul adapter existe : `opencode`.
 ### Projet cible
 
 Un **projet cible** est un dépôt applicatif sur lequel les agents sont déployés
-via `oc deploy`. Le hub connaît les projets via `projects/projects.md`.
+via `oh deploy`. Le hub connaît les projets via `projects/projects.md`.
 
 ---
 

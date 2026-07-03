@@ -30,7 +30,7 @@ Avant d'invoquer un agent, identifiez votre situation :
 
 ## Reprendre une session existante
 
-Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oc dashboard` et sert de point de repère pour retrouver le contexte d'une session.
+Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oh dashboard` et sert de point de repère pour retrouver le contexte d'une session.
 
 ### Nommage automatique
 
@@ -48,7 +48,7 @@ Le titre est construit selon la priorité suivante :
 ### Reprendre avec `--resume`
 
 ```bash
-oc start --resume -p MON-APP
+oh start --resume -p MON-APP
 ```
 
 Affiche les 10 dernières sessions du projet (30 jours), avec titre, agent, coût et date :
@@ -68,10 +68,10 @@ Saisir le numéro de la session à reprendre. opencode est relancé avec `-s <se
 ### Voir les sessions récentes
 
 ```bash
-oc dashboard
+oh dashboard
 ```
 
-Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oc start --resume` si besoin.
+Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oh start --resume` si besoin.
 
 ---
 
@@ -218,7 +218,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 > ex. `[Planner — Phase 0 | Feature : authentification JWT]`. Aucun besoin de naviguer dans la session enfant.
 
 > **Agent non déployé :** si un agent requis est absent du projet, l'agent orchestrator affiche une question
-> structurée : déployer via `!oc deploy opencode <PROJECT_ID>` directement dans OpenCode / utiliser un
+> structurée : déployer via `!oh deploy opencode <PROJECT_ID>` directement dans OpenCode / utiliser un
 > substitut (table par domaine) / ignorer le ticket. Il ne bascule jamais silencieusement.
 
 #### 6. [CP-feature] Récap global

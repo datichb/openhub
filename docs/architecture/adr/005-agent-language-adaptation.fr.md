@@ -69,7 +69,7 @@ n'est injectée.
 
 ### Option B — Traduction des skills par l'adapter
 
-Le déploiement (`oc deploy`) traduit automatiquement les fichiers skills via l'API
+Le déploiement (`oh deploy`) traduit automatiquement les fichiers skills via l'API
 d'un LLM avant injection. Les agents déployés sont dans la langue du projet.
 
 **Rejetée** : coût API à chaque déploiement, temps de déploiement allongé, maintenance

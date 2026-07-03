@@ -23,7 +23,7 @@ Intégrer le plugin OpenCode `context-mode` en installation globale (`~/.config/
 **Raisons du choix :**
 - Plugin npm avec plugin OpenCode natif — pas de proxy HTTP requis, pas de dépendance Python/Rust
 - Couverture orthogonale à RTK : RTK gère bash, context-mode gère les outils natifs
-- Installation globale via `oc plugin install context-mode` — pas d'AGENTS.md par projet requis grâce au hook `experimental.chat.system.transform` qui injecte les instructions dans chaque session
+- Installation globale via `oh plugin install context-mode` — pas d'AGENTS.md par projet requis grâce au hook `experimental.chat.system.transform` qui injecte les instructions dans chaque session
 - Complémentarité avec le mécanisme de compaction existant (`compaction.auto`, `compaction.prune`)
 
 **Architecture :**

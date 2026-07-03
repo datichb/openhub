@@ -177,7 +177,7 @@
 | 5.5 | Supprimer `plugins/rtk/*.test.ts`, `vitest.config.ts` | Source test TS (rtk.ts embedded dans le binaire Go) |
 | 5.6 | Nettoyer `.github/workflows/ci.yml` | Retirer jobs : shellcheck, bats, validate-agents, check-staleness, version-consistency. Garder uniquement `go-cli`. |
 | 5.7 | Réécrire `README.md` | Installation (brew + curl), Quick start (oh init → oh start), Commandes principales, Architecture |
-| 5.8 | Créer `MIGRATION.md` | Guide `oc` → `oh` : breaking changes, équivalences commandes, config migration hub.json→hub.toml, comment re-deploy |
+| 5.8 | Créer `MIGRATION.md` | Guide `oh` → `oh` : breaking changes, équivalences commandes, config migration hub.json→hub.toml, comment re-deploy |
 | 5.9 | Archiver | `docs/legacy/README-bash.md` (pour référence historique) |
 | 5.10 | Mettre à jour `opencode.json` | Vérifier que les mcpServers pointent vers `oh mcp serve <name>` |
 | 5.11 | `.goreleaser.yml` | Ajouter `depends_on "datichb/tap/bd"` (recommended) dans la formula Homebrew |

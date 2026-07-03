@@ -17,14 +17,14 @@ L'intégration Figma enrichit les workflows de planification (Pathfinder et Plan
 
 ## Configuration rapide
 
-### 1. Configurer via `oc service`
+### 1. Configurer via `oh service`
 
-La méthode recommandée est d'utiliser la commande `oc service setup` qui vous guide interactivement :
+La méthode recommandée est d'utiliser la commande `oh service setup` qui vous guide interactivement :
 
 ```bash
-oc service setup figma
+oh service setup figma
 # ou via l'alias :
-oc figma setup
+oh figma setup
 ```
 
 Cette commande va :
@@ -36,9 +36,9 @@ Cette commande va :
 
 Vérifier l'état à tout moment :
 ```bash
-oc service status figma
+oh service status figma
 # ou :
-oc figma status
+oh figma status
 ```
 
 La commande status affiche :
@@ -86,7 +86,7 @@ Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.c
 ### 4. Déployer
 
 ```bash
-oc deploy MY-PROJECT
+oh deploy MY-PROJECT
 ```
 
 Le MCP Server Figma sera déployé automatiquement avec les agents (Phase 4 du déploiement).
@@ -95,15 +95,15 @@ Si vous souhaitez déployer uniquement le serveur MCP dans un projet existant :
 
 ```bash
 # Déployer le MCP figma dans un projet spécifique
-oc service figma deploy --project MY-PROJECT
+oh service figma deploy --project MY-PROJECT
 # ou via l'alias :
-oc figma deploy --project MY-PROJECT
+oh figma deploy --project MY-PROJECT
 ```
 
 Pour rebuilder uniquement le serveur (sans déployer dans un projet) :
 
 ```bash
-oc figma deploy
+oh figma deploy
 ```
 
 ---
@@ -261,7 +261,7 @@ Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fic
 
 ### Team ID invalide ou inaccessible
 
-**Erreur :** `Team ID invalide ou inaccessible` lors de `oc figma setup` ou `oc figma status`
+**Erreur :** `Team ID invalide ou inaccessible` lors de `oh figma setup` ou `oh figma status`
 
 **Causes possibles :**
 1. Team ID copié depuis la mauvaise URL (projet vs team)
@@ -275,7 +275,7 @@ Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fic
 
 **Solution :**
 ```bash
-oc service setup figma
+oh service setup figma
 # Resaisir le FIGMA_TEAM_ID avec la valeur correcte
 ```
 
@@ -308,8 +308,8 @@ Le client effectue automatiquement **2 retries** avec backoff (1s, puis 2s) avan
 Pour augmenter le timeout (défaut : 30s) :
 
 ```bash
-# Via oc service setup
-oc figma setup
+# Via oh service setup
+oh figma setup
 # → saisir une valeur pour "Timeout des requêtes (ms)", ex : 60000
 
 # Ou directement dans ~/.config/opencode/services-env.json

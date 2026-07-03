@@ -31,7 +31,7 @@ OpenCode Hub supports provider configuration at two levels:
 Set a provider that applies to all projects by default:
 
 ```bash
-./oc.sh config set
+./oh config set
 ```
 
 This prompts you to:
@@ -59,17 +59,17 @@ The configuration is stored in `config/hub.json` in the `default_provider` block
 Configure a different provider for a specific project:
 
 ```bash
-./oc.sh init MY-PROJECT
+./oh init MY-PROJECT
 # or
-./oc.sh config set MY-PROJECT
+./oh config set MY-PROJECT
 ```
 
-During `oc init`, you'll be prompted for an optional project-level provider (step 4).
+During `oh init`, you'll be prompted for an optional project-level provider (step 4).
 
-During `oc config set`, you can specify `--provider` and related flags:
+During `oh config set`, you can specify `--provider` and related flags:
 
 ```bash
-./oc.sh config set MY-PROJECT --provider github-models --api-key sk-xxx
+./oh config set MY-PROJECT --provider github-models --api-key sk-xxx
 ```
 
 Project-level config is stored in `projects/api-keys.local.md` (not committed to git):
@@ -84,12 +84,12 @@ model=claude-opus
 
 ## Command Reference
 
-### `oc config list --providers`
+### `oh config list --providers`
 
 Display all available providers with their status (default, configured):
 
 ```bash
-./oc.sh config list --providers
+./oh config list --providers
 ```
 
 Example output:
@@ -108,12 +108,12 @@ MammouthAI
 ...
 ```
 
-### `oc config set`
+### `oh config set`
 
 Interactively configure the hub default provider:
 
 ```bash
-./oc.sh config set
+./oh config set
 ```
 
 You'll be prompted to:
@@ -121,22 +121,22 @@ You'll be prompted to:
 2. Enter API credentials (masked input for security)
 3. Optionally enter a custom base URL
 
-The configuration is written to `config/hub.json` **and `opencode.json` is regenerated immediately** — no need to run `oc deploy` manually.
+The configuration is written to `config/hub.json` **and `opencode.json` is regenerated immediately** — no need to run `oh deploy` manually.
 
 In non-interactive mode, you can pass flags directly:
 
 ```bash
 # Configure a provider with an API key
-./oc.sh config set --provider anthropic --api-key sk-...
+./oh config set --provider anthropic --api-key sk-...
 
 # Configure a provider without an API key (e.g. AWS credentials)
-./oc.sh config set --provider bedrock
+./oh config set --provider bedrock
 
 # Update only the hub default model
-./oc.sh config set --model claude-opus-4
+./oh config set --model claude-opus-4
 ```
 
-> **Note:** Per-project provider configuration is managed via `oc config set <PROJECT_ID>` — see `./oc.sh config set --help` or the [configuration reference](../reference/config.en.md).
+> **Note:** Per-project provider configuration is managed via `oh config set <PROJECT_ID>` — see `./oh config set --help` or the [configuration reference](../reference/config.en.md).
 
 ## Provider Setup Guides
 
@@ -144,7 +144,7 @@ In non-interactive mode, you can pass flags directly:
 
 
 1. Get your API key from [console.anthropic.com](https://console.anthropic.com)
-2. Run `./oc.sh config set` or `./oc.sh config set <PROJECT_ID>`
+2. Run `./oh config set` or `./oh config set <PROJECT_ID>`
 3. Choose "Anthropic" and enter your API key
 
 ### MammouthAI
@@ -153,13 +153,13 @@ In non-interactive mode, you can pass flags directly:
 MammouthAI is an OpenAI-compatible proxy hosted in France that works with Anthropic models.
 
 1. Get your API key from [mammouth.ai](https://mammouth.ai)
-2. Run `./oc.sh config set`
+2. Run `./oh config set`
 3. Choose "MammouthAI" (option 2)
 4. Enter your API key (default base URL will be used: `https://api.mammouth.ai/v1`)
 
 ```bash
 # Or via config:
-./oc.sh config set MY-PROJECT --provider mammouth --api-key sk-xxx
+./oh config set MY-PROJECT --provider mammouth --api-key sk-xxx
 ```
 
 ### GitHub Models
@@ -168,14 +168,14 @@ MammouthAI is an OpenAI-compatible proxy hosted in France that works with Anthro
 GitHub Models provides access to various models via the GitHub/Copilot API.
 
 1. Get your token from [github.com/settings/tokens](https://github.com/settings/tokens)
-2. Run `./oc.sh config set`
+2. Run `./oh config set`
 3. Choose "GitHub Models" (option 3)
 4. Enter your GitHub token
 5. Optionally override the base URL (default: `https://models.inference.ai.azure.com`)
 
 ```bash
 # Or via config:
-./oc.sh config set MY-PROJECT \
+./oh config set MY-PROJECT \
   --provider github-models \
   --api-key ghp_xxx \
   --base-url https://models.inference.ai.azure.com
@@ -189,11 +189,11 @@ AWS Bedrock uses the **native `amazon-bedrock` provider** built into OpenCode. I
 **How it works:**
 - The bearer token is stored in `config/hub.json` (never in `opencode.json`)
 - `opencode.json` is generated with an empty `amazon-bedrock` provider block
-- When you run `oc start`, the token is injected as `AWS_BEARER_TOKEN_BEDROCK` automatically
+- When you run `oh start`, the token is injected as `AWS_BEARER_TOKEN_BEDROCK` automatically
 
 1. Generate a bearer token from the [Amazon Bedrock console](https://console.aws.amazon.com/bedrock/) under **API Keys**
 2. Request model access in the **Model catalog** for the models you want
-3. Run `./oc.sh config set`
+3. Run `./oh config set`
 4. Choose "AWS Bedrock (natif)" and enter your bearer token
 
 The generated `opencode.json` will look like:
@@ -207,14 +207,14 @@ The generated `opencode.json` will look like:
 }
 ```
 
-At launch, `oc start` injects:
+At launch, `oh start` injects:
 ```bash
 AWS_BEARER_TOKEN_BEDROCK=<token> opencode
 ```
 
 ```bash
 # Or configure per-project:
-./oc.sh config set MY-PROJECT --provider bedrock --api-key <bearer-token>
+./oh config set MY-PROJECT --provider bedrock --api-key <bearer-token>
 ```
 
 ### Ollama (Local)
@@ -224,13 +224,13 @@ Ollama allows you to run LLMs locally.
 
 1. Install Ollama from [ollama.ai](https://ollama.ai)
 2. Start the Ollama server: `ollama serve`
-3. Run `./oc.sh config set`
+3. Run `./oh config set`
 4. Choose "Ollama" (option 5)
 5. The default base URL (`http://localhost:11434/v1`) will be used
 
 ```bash
 # Or via config:
-./oc.sh config set MY-PROJECT \
+./oh config set MY-PROJECT \
   --provider ollama \
   --base-url http://localhost:11434/v1
 ```
@@ -261,14 +261,14 @@ opencode auth
 2. Set GitHub Copilot as the hub default provider:
 
 ```bash
-./oc.sh config set
+./oh config set
 # → Choose "GitHub Copilot"
 ```
 
 3. Or configure it for a specific project:
 
 ```bash
-./oc.sh config set MY-PROJECT --provider github-copilot
+./oh config set MY-PROJECT --provider github-copilot
 # No --api-key required
 ```
 
@@ -305,14 +305,14 @@ The generated `opencode.json` will look like:
 
 ```bash
 # Set hub default to Anthropic
-./oc.sh config set
+./oh config set
 # → Choose Anthropic
 
 # Override specific project to use GitHub Models
-./oc.sh config set MY-PYTHON-PROJECT --provider github-models --api-key ghp_xxx
+./oh config set MY-PYTHON-PROJECT --provider github-models --api-key ghp_xxx
 
 # Another project uses MammouthAI
-./oc.sh config set MY-JS-PROJECT --provider mammouth --api-key sk-xxx
+./oh config set MY-JS-PROJECT --provider mammouth --api-key sk-xxx
 ```
 
 ### Switching Providers
@@ -321,10 +321,10 @@ To change a provider configuration:
 
 ```bash
 # For hub default:
-./oc.sh config set
+./oh config set
 
 # For a project:
-./oc.sh config set MY-PROJECT
+./oh config set MY-PROJECT
 # → Follow prompts to update provider/key/model
 ```
 
@@ -335,11 +335,11 @@ To change a provider configuration:
 ollama serve
 
 # Configure your project to use Ollama:
-./oc.sh config set MY-PROJECT --provider ollama
+./oh config set MY-PROJECT --provider ollama
 
 # Deploy and start:
-./oc.sh deploy all MY-PROJECT
-./oc.sh start MY-PROJECT
+./oh deploy all MY-PROJECT
+./oh start MY-PROJECT
 ```
 
 ## Security
@@ -362,7 +362,7 @@ A safe, secret-free template is committed at `config/hub.json.example`. On first
 
 ```bash
 # After a fresh clone, run this to configure your provider:
-./oc.sh config set
+./oh config set
 ```
 
 ## Troubleshooting
@@ -385,34 +385,34 @@ This is expected. OpenCode only supports Anthropic. If you need to use OpenCode:
 
 ### Model not found / API errors
 
-1. Verify your API key is correct: `./oc.sh config get <PROJECT_ID>`
+1. Verify your API key is correct: `./oh config get <PROJECT_ID>`
 2. Check the base URL is correct for your provider
 3. Ensure the provider service is running (especially for Ollama)
 4. Test your API key directly with the provider's CLI or API
 
 ### Provider changes not applied
 
-After `oc config set`, `opencode.json` is automatically regenerated — no manual step needed.
+After `oh config set`, `opencode.json` is automatically regenerated — no manual step needed.
 
-For project-level changes (`oc config set`), redeploy:
+For project-level changes (`oh config set`), redeploy:
 
 ```bash
-./oc.sh deploy all MY-PROJECT
+./oh deploy all MY-PROJECT
 ```
 
 ## Diagnosing and Resolving Provider Errors
 
-### Status messages at startup (`oc start`)
+### Status messages at startup (`oh start`)
 
-When you run `oc start`, the hub displays the provider status in the context block:
+When you run `oh start`, the hub displays the provider status in the context block:
 
 | Indicator | Meaning | Recommended action |
 |-----------|---------|-------------------|
 | ✅ `key configured` | Provider is reachable and credentials are valid | None — everything is fine |
 | ⚠️ `endpoint unreachable (timeout 3s)` | The LLM server is not responding | Check your network connection or the URL validity |
-| ⚠️ `credentials not detected` | No API key / no AWS credentials found | Configure via `oc config set` or `/connect` in OpenCode |
-| ⚠️ `API key missing — provider not injected` | Key is missing from hub/project config | Add the key with `oc config set` |
-| ⚠️ `model declared without matching provider block` | Model references a provider not configured in opencode.json | Redeploy (`oc deploy`) or use `/connect` |
+| ⚠️ `credentials not detected` | No API key / no AWS credentials found | Configure via `oh config set` or `/connect` in OpenCode |
+| ⚠️ `API key missing — provider not injected` | Key is missing from hub/project config | Add the key with `oh config set` |
+| ⚠️ `model declared without matching provider block` | Model references a provider not configured in opencode.json | Redeploy (`oh deploy`) or use `/connect` |
 | ⚠️ `baseURL contains /chat/completions` | Duplicate suffix in URL (the AI SDK adds it automatically) | Fix the URL — use the `/v1` root without suffix |
 
 These messages are **non-blocking**: OpenCode still launches and you can configure the provider from the interface.
@@ -421,7 +421,7 @@ These messages are **non-blocking**: OpenCode still launches and you can configu
 
 If the hub cannot inject credentials (key missing, expired, or invalid), you can configure the provider directly in OpenCode using the `/connect` command:
 
-1. Launch OpenCode: `./oc.sh start MY-PROJECT`
+1. Launch OpenCode: `./oh start MY-PROJECT`
 2. In the TUI, type `/connect`
 3. Select your provider and follow the instructions
 4. Credentials are stored in `~/.local/share/opencode/auth.json`
@@ -432,9 +432,9 @@ If the hub cannot inject credentials (key missing, expired, or invalid), you can
 
 | OpenCode error | Likely cause | Solution |
 |----------------|--------------|----------|
-| `ProviderInitError` | Invalid configuration in `opencode.json` | Run `oc deploy MY-PROJECT` to regenerate, or use `/connect` |
+| `ProviderInitError` | Invalid configuration in `opencode.json` | Run `oh deploy MY-PROJECT` to regenerate, or use `/connect` |
 | `ProviderModelNotFoundError` | Incorrect model ID or litellm provider without model declaration | Check with `opencode models` or `/models` in the TUI |
-| "provider not available" notification on agent selection | Expired API key, endpoint down, or misconfiguration | Check ⚠️ messages in `oc start`, then use `/connect` or `oc config set provider` |
+| "provider not available" notification on agent selection | Expired API key, endpoint down, or misconfiguration | Check ⚠️ messages in `oh start`, then use `/connect` or `oh config set provider` |
 
 ### Specific case: AWS Bedrock
 
@@ -452,7 +452,7 @@ export AWS_ACCESS_KEY_ID=AKIA...
 export AWS_SECRET_ACCESS_KEY=...
 
 # Then restart
-./oc.sh start MY-PROJECT
+./oh start MY-PROJECT
 ```
 
 ### Specific case: MammouthAI (litellm)
@@ -461,17 +461,17 @@ The correct URL for MammouthAI is `https://api.mammouth.ai/v1` **without** the `
 
 ```bash
 # Fix in api-keys.local.md or via the command
-./oc.sh config set provider mammouth --project MY-PROJECT
+./oh config set provider mammouth --project MY-PROJECT
 # Or at hub level
-./oc.sh config set provider mammouth
+./oh config set provider mammouth
 ```
 
 ## Related Commands
 
-- `./oc.sh config set` — Manage hub-level or project-level provider and model configuration
-- `./oc.sh config list --providers` — Display available providers and their status
-- `./oc.sh config get` — View effective configuration for a project
-- `./oc.sh config init-providers [--force]` — Initialize provider configuration
-- `./oc.sh deploy all` — Deploy agents with current provider config
-- `./oc.sh start` — Start OpenCode with the configured provider
-- `./oc.sh init` — Set up a new project (includes provider step)
+- `./oh config set` — Manage hub-level or project-level provider and model configuration
+- `./oh config list --providers` — Display available providers and their status
+- `./oh config get` — View effective configuration for a project
+- `./oh config init-providers [--force]` — Initialize provider configuration
+- `./oh deploy all` — Deploy agents with current provider config
+- `./oh start` — Start OpenCode with the configured provider
+- `./oh init` — Set up a new project (includes provider step)

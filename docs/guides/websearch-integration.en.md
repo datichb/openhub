@@ -49,7 +49,7 @@ openhub/
 │   └── design/
 │       └── websearch-design-patterns.md
 └── scripts/
-    └── cmd-config.sh              ← Script: oc config websearch enable
+    └── cmd-config.sh              ← Script: oh config websearch enable
 
 After deployment:
 /path/to/project/
@@ -81,24 +81,24 @@ Edit `openhub/opencode.json`:
 
 ```bash
 cd openhub
-./oc.sh config websearch enable
+./oh config websearch enable
 ```
 
 **Expected output**:
 ```
 ✓ WebSearch enabled at hub level
 → All deployed projects will inherit this configuration
-→ Run './oc.sh deploy all' to apply to all projects
+→ Run './oh deploy all' to apply to all projects
 ```
 
 ### 2. Deploy agents to projects
 
 ```bash
 # Deploy to a specific project
-./oc.sh deploy my-project
+./oh deploy my-project
 
 # OR deploy to all registered projects
-./oc.sh deploy all
+./oh deploy all
 ```
 
 **Verification**:
@@ -127,13 +127,13 @@ Must include (inherited from hub or explicit):
 cd /path/to/my-project
 
 # Security audit with CVE lookup
-oc start auditor security
+oh start auditor security
 
 # Planning with stack research
-oc start pathfinder
+oh start pathfinder
 
 # Design with pattern research
-oc start designer
+oh start designer
 ```
 
 **Example conversation (auditor security)**:
@@ -152,10 +152,10 @@ Agent:
 
 ```bash
 # Hub status
-./oc.sh config websearch status
+./oh config websearch status
 
 # Specific project status
-./oc.sh config websearch status my-project
+./oh config websearch status my-project
 ```
 
 **Expected output**:
@@ -209,7 +209,7 @@ WebSearch Status
 If you want to enable WebSearch for a single project without enabling it at the hub level:
 
 ```bash
-./oc.sh config websearch enable my-project
+./oh config websearch enable my-project
 ```
 
 Creates/updates `/path/to/my-project/.opencode/opencode.json`:
@@ -226,7 +226,7 @@ Creates/updates `/path/to/my-project/.opencode/opencode.json`:
 ### Disable WebSearch for a specific project
 
 ```bash
-./oc.sh config websearch disable my-project
+./oh config websearch disable my-project
 ```
 
 Updates `/path/to/my-project/.opencode/opencode.json`:
@@ -323,11 +323,11 @@ Agent: [ERROR] WebSearch tool not available
    ```
 2. Redeploy the agent
    ```bash
-   ./oc.sh deploy my-project
+   ./oh deploy my-project
    ```
 3. Check the OpenCode CLI version (requires v1.32+)
    ```bash
-   oc --version
+   oh --version
    ```
 
 ### Problem: Rate limit exceeded
@@ -442,7 +442,7 @@ To disable WebSearch for all projects:
 
 2. Redeploy all projects:
    ```bash
-   ./oc.sh deploy all
+   ./oh deploy all
    ```
 
 ### Rollback
@@ -451,7 +451,7 @@ In case of issues, revert to the previous state:
 ```bash
 cd openhub
 git checkout opencode.json
-./oc.sh deploy all
+./oh deploy all
 ```
 
 ---
@@ -483,7 +483,7 @@ git checkout opencode.json
 ### v1.0.0 (2026-05-29)
 - WebSearch enabled for 7 agents (1 auditor-subagent, 3 planning, 2 design, 1 documentation)
 - 4 specialised skills created (CVE lookup, performance research, stack research, design patterns)
-- `oc config websearch enable|disable|status` script
+- `oh config websearch enable|disable|status` script
 - Full documentation (integration + examples)
 
 ---

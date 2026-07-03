@@ -54,7 +54,7 @@ Follow conventions in [`config/figma.conventions.md`](../../config/figma.convent
 ### 4. Deploy
 
 ```bash
-oc deploy opencode MY-PROJECT
+oh deploy opencode MY-PROJECT
 ```
 
 The Figma MCP Server will be deployed automatically with the agents.

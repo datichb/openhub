@@ -28,7 +28,7 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — déployées vers .openc
 
 | Champ | Rôle |
 |-------|------|
-| `id` | Identifiant unique, utilisé par les adapters et `oc agent` |
+| `id` | Identifiant unique, utilisé par les adapters et `oh agent` |
 | `label` | Nom affiché dans l'outil |
 | `description` | Phrase courte décrivant le rôle — apparaît dans les listes d'agents |
 | `mode` | `primary` (défaut) ou `subagent` — contrôle la visibilité dans OpenCode |
@@ -50,7 +50,7 @@ Le champ `mode:` contrôle comment un agent est exposé dans OpenCode :
 
 Le mode effectif suit une priorité : **override projet** (`- Modes :` dans `projects.md`) > **frontmatter agent** > **`primary`** (défaut).
 
-Pour modifier les modes d'un projet sans toucher aux frontmatter : `oc agent mode <PROJECT_ID>`.
+Pour modifier les modes d'un projet sans toucher aux frontmatter : `oh agent mode <PROJECT_ID>`.
 
 ---
 
@@ -93,7 +93,7 @@ architecture hybride non documentée. Produit une carte des agents recommandés 
 Lecture seule — ne modifie jamais de fichiers (sauf les livrables produits).
 Ne déclenche jamais automatiquement un autre agent — il suggère des invocations, l'utilisateur décide.
 
-Invocable directement, depuis `oc start` (suggestion affichée), ou depuis l'`orchestrator`
+Invocable directement, depuis `oh start` (suggestion affichée), ou depuis l'`orchestrator`
 (Mode C — pré-phase sur projet inconnu).
 
 **Phase 5 — Enrichissement incrémental :** quand `ONBOARDING.md` et `CONVENTIONS.md` existent déjà (enrichis par d'autres agents), propose un enrichissement incrémental plutôt qu'une réécriture complète. Délègue les mises à jour incrémentielles au `documentarian` via `task` (skill `living-docs-enrichment`). La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
@@ -129,7 +129,7 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 
 **Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session via le champ `instructions` de `opencode.json` (cache valide `.opencode/context.json` ou `ONBOARDING.md`/`CONVENTIONS.md`). L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent de la session, il propose l'`onboarder`.
 
-**Gestion des agents manquants :** si un agent requis n'est pas déployé dans le projet, l'agent orchestrator pose une question structurée avec les options : déployer via `!oc deploy` sans quitter OpenCode / utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Ne bascule jamais silencieusement vers un autre agent.
+**Gestion des agents manquants :** si un agent requis n'est pas déployé dans le projet, l'agent orchestrator pose une question structurée avec les options : déployer via `!oh deploy` sans quitter OpenCode / utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Ne bascule jamais silencieusement vers un autre agent.
 
 **Gate de complétion (CP-feature) :** avant de construire le CP-feature, vérifie que le rapport final d'orchestrator-dev documente les 3 checks de complétion (tests passés, comportement observable conforme, régressions documentées). Si absent → bloquant : question à l'utilisateur (redemander à orchestrator-dev / accepter / stop).
 

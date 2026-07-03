@@ -47,6 +47,10 @@ brews:
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"
     license: "MIT"
+    dependencies:
+      - name: git
+      - name: datichb/tap/bd
+        type: recommended
     install: |
       bin.install "oh"
     test: |

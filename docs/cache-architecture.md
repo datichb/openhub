@@ -82,8 +82,8 @@ openhub utilise deux niveaux de cache complémentaires, chacun avec un rôle dis
 |--------|----------|
 | Réduire les tokens API | Cache natif (`setCacheKey`) |
 | Accélérer le démarrage d'une session | Cache projet (`.opencode/context.json`) |
-| Projet ou conventions modifiés | `oc start --onboard --refresh` |
-| Re-onboarder sans effacer le cache | `oc start --onboard` (cache écrasé automatiquement) |
+| Projet ou conventions modifiés | `oh start --onboard --refresh` |
+| Re-onboarder sans effacer le cache | `oh start --onboard` (cache écrasé automatiquement) |
 | Diagnostiquer un démarrage lent | Vérifier si le cache projet est valide |
 
 ---
@@ -94,17 +94,17 @@ openhub utilise deux niveaux de cache complémentaires, chacun avec un rôle dis
 
 Le cache `.opencode/context.json` est généré automatiquement par l'agent **onboarder** à la fin de la Phase 5 (étape 5.4).
 
-**Déclencheur :** `oc start --onboard [PROJECT_ID]`
+**Déclencheur :** `oh start --onboard [PROJECT_ID]`
 
 **Contenu :** Stack détectée en Phase 1, hashes SHA-256 des fichiers structurants (package.json, tsconfig.json, CONVENTIONS.md, etc.)
 
 ### Validation au démarrage
 
-À chaque `oc start`, le hub vérifie le cache avant d'afficher le contexte :
+À chaque `oh start`, le hub vérifie le cache avant d'afficher le contexte :
 
 1. Cache absent → pas d'affichage (comportement normal)
 2. Cache valide (hashes identiques) → `✅ Cache contexte valide (2026-05-28)`
-3. Cache invalide (un fichier a changé) → `⚠️ Cache invalide — oc start --onboard --refresh recommandé`
+3. Cache invalide (un fichier a changé) → `⚠️ Cache invalide — oh start --onboard --refresh recommandé`
 
 La validation n'est jamais bloquante.
 
@@ -112,7 +112,7 @@ La validation n'est jamais bloquante.
 
 ```bash
 # Invalider le cache et re-onboarder
-oc start --onboard --refresh [PROJECT_ID]
+oh start --onboard --refresh [PROJECT_ID]
 ```
 
 Comportement :
@@ -133,7 +133,7 @@ Le cache est considéré invalide si :
 
 **Fichier :** `.opencode/dependency-graph.json` (optionnel)
 
-**Génération :** Automatiquement lors de `oc deploy [PROJECT_ID]`, si le projet contient des fichiers TypeScript ou JavaScript.
+**Génération :** Automatiquement lors de `oh deploy [PROJECT_ID]`, si le projet contient des fichiers TypeScript ou JavaScript.
 
 **Format :**
 ```json
@@ -203,10 +203,10 @@ Le cache projet est injecté dans chaque session OpenCode via le champ `instruct
 
 | Événement | Action |
 |-----------|--------|
-| `oc deploy opencode <project>` | Injection au moment de l'écriture de `opencode.json` |
-| `oc start <project>` | Injection/mise à jour à chaque démarrage |
-| `oc start --onboard <project>` | Injection avec fallback fichiers (avant génération cache) |
-| `oc start --onboard --refresh <project>` | Invalidation cache + fallback fichiers |
+| `oh deploy opencode <project>` | Injection au moment de l'écriture de `opencode.json` |
+| `oh start <project>` | Injection/mise à jour à chaque démarrage |
+| `oh start --onboard <project>` | Injection avec fallback fichiers (avant génération cache) |
+| `oh start --onboard --refresh <project>` | Invalidation cache + fallback fichiers |
 
 ### Fonction technique
 

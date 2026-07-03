@@ -204,7 +204,7 @@ Créer un projet avec l'IA et OpenCode
 | 1 | Structure de base | Arborescence agents/skills/scripts |
 | 2 | 5 premiers agents | Markdown structuré avec workflow |
 | 3 | Système de skills injectables | Mécanisme de référence + injection |
-| 4 | CLI `oc` | Script shell avec sous-commandes |
+| 4 | CLI `oh` | Script shell avec sous-commandes |
 | 5 | Adapters opencode + opencode | Traduction hub → format cible |
 | 6 | 22 agents supplémentaires | Spécialisation par domaine |
 | 7 | Beads (tickets IA) | Intégration workflow complet |
@@ -255,38 +255,38 @@ Utiliser openhub
 openhub/                  ← source de vérité unique
 ├── agents/    ← 27 rôles IA (Markdown, ~50 lignes chacun)
 ├── skills/    ← ~40 protocoles injectables (partagés entre agents)
-└── scripts/   ← CLI `oc` + adapters par outil cible
+└── scripts/   ← CLI `oh` + adapters par outil cible
 ```
 
-> **1 modification dans le hub → tous les projets à jour** au prochain `oc deploy`
+> **1 modification dans le hub → tous les projets à jour** au prochain `oh deploy`
 
 ### Deux façons de l'utiliser
 
-| | **CLI `oc`** | **OpenCode** |
+| | **CLI `oh`** | **OpenCode** |
 |---|---|---|
 | **Quoi** | Commandes ciblées depuis le terminal | Session interactive avec un agent |
 | **Quand** | Gérer, déployer, lancer une action ponctuelle | Travailler sur une feature, un bug, un audit |
-| **Exemple** | `oc review` · `oc audit` · `oc deploy` | Dialoguer avec l'agent orchestrator |
+| **Exemple** | `oh review` · `oh audit` · `oh deploy` | Dialoguer avec l'agent orchestrator |
 
 ---
 
-## Le CLI `oc` — gérer et agir
+## Le CLI `oh` — gérer et agir
 
 ### Gestion des projets
 ```bash
-oc init <ID> <path>           # Enregistrer un projet dans le hub
-oc deploy <target> <ID>       # Déployer les agents (opencode | opencode)
-oc status                     # État de tous les projets enregistrés
-oc upgrade                    # Mettre à jour le hub (git pull + rebuild)
+oh init <ID> <path>           # Enregistrer un projet dans le hub
+oh deploy <target> <ID>       # Déployer les agents (opencode | opencode)
+oh status                     # État de tous les projets enregistrés
+oh upgrade                    # Mettre à jour le hub (git pull + rebuild)
 ```
 
 ### Actions directes — lancer un agent en une commande
 ```bash
-oc review [ID]                # Review de code : analyse le diff, produit un rapport
-oc audit [ID]                 # Audit multi-domaine : sécu, perf, accessibilité, écodesign
-oc debug [ID]                 # (prochainement) Diagnostic de bug
-oc plan [ID]                  # (prochainement) Découpe un besoin en tickets Beads
-oc doc [ID]                   # (prochainement) Détecte les lacunes documentaires
+oh review [ID]                # Review de code : analyse le diff, produit un rapport
+oh audit [ID]                 # Audit multi-domaine : sécu, perf, accessibilité, écodesign
+oh debug [ID]                 # (prochainement) Diagnostic de bug
+oh plan [ID]                  # (prochainement) Découpe un besoin en tickets Beads
+oh doc [ID]                   # (prochainement) Détecte les lacunes documentaires
 ```
 
 ---
@@ -294,7 +294,7 @@ oc doc [ID]                   # (prochainement) Détecte les lacunes documentair
 ## OpenCode — travailler avec les agents
 
 ```bash
-oc start MON-APP              # Ouvre OpenCode dans le contexte du projet
+oh start MON-APP              # Ouvre OpenCode dans le contexte du projet
 ```
 
 > Une fois dans OpenCode, vous choisissez un agent et vous collaborez en temps réel.
@@ -409,17 +409,17 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | b
 source ~/.zshrc
 
 # Enregistrer un projet et déployer
-oc init MON-APP ~/workspace/mon-app
-oc deploy opencode MON-APP
+oh init MON-APP ~/workspace/mon-app
+oh deploy opencode MON-APP
 
 # Lancer l'IA dans le contexte du projet
-oc start MON-APP
+oh start MON-APP
 ```
 
 ```bash
 # Maintenance quotidienne
-oc upgrade    # git pull du hub
-oc status     # vue d'ensemble de tous les projets enregistrés
+oh upgrade    # git pull du hub
+oh status     # vue d'ensemble de tous les projets enregistrés
 ```
 
 ---
@@ -434,7 +434,7 @@ oc status     # vue d'ensemble de tous les projets enregistrés
   </div>
   <div class="demo-meta">
     <span>⏱ ~5 min</span>
-    <span>📌 oc init · oc deploy · orchestrator · developer-* · reviewer</span>
+    <span>📌 oh init · oh deploy · orchestrator · developer-* · reviewer</span>
   </div>
 </div>
 
@@ -451,7 +451,7 @@ Permettre à plusieurs agents de travailler **simultanément** sur des branches 
 grâce à `git worktree` — sans conflits, sans attente.
 
 ### 🚀 À venir — nouvelles commandes directes
-`oc debug` · `oc plan` · `oc doc` — lancer un agent spécialisé en une commande, sans ouvrir OpenCode.
+`oh debug` · `oh plan` · `oh doc` — lancer un agent spécialisé en une commande, sans ouvrir OpenCode.
 
 ---
 
@@ -462,7 +462,7 @@ grâce à `git worktree` — sans conflits, sans attente.
 
 ### 🧠 Travailler AVEC l'IA — pas la faire travailler à notre place
 ### 🎛️ Checkpoints — l'humain décide, l'IA exécute
-### 🏗️ Un hub, N projets — zéro duplication, un `oc deploy` et c'est à jour
+### 🏗️ Un hub, N projets — zéro duplication, un `oh deploy` et c'est à jour
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash

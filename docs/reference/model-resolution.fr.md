@@ -141,16 +141,16 @@ Dans cet exemple :
 
 ## Configuration via CLI
 
-> **Note :** les flags `--family-model` et `--agent-model` nécessitent l'amélioration `oc config set` (ticket .6). Si elle n'est pas encore implémentée, configurer `hub.json` et `api-keys.local.md` manuellement comme montré dans les exemples ci-dessus.
+> **Note :** les flags `--family-model` et `--agent-model` nécessitent l'amélioration `oh config set` (ticket .6). Si elle n'est pas encore implémentée, configurer `hub.json` et `api-keys.local.md` manuellement comme montré dans les exemples ci-dessus.
 
 ```bash
 # Niveau hub
-oc config set --family-model planning=claude-opus-4
-oc config set --agent-model debugger=claude-sonnet-4-5
+oh config set --family-model planning=claude-opus-4
+oh config set --agent-model debugger=claude-sonnet-4-5
 
 # Niveau projet
-oc config set MY-APP --family-model planning=claude-opus-4
-oc config set MY-APP --agent-model reviewer=claude-sonnet-4-5
+oh config set MY-APP --family-model planning=claude-opus-4
+oh config set MY-APP --agent-model reviewer=claude-sonnet-4-5
 ```
 
 ---

@@ -13,10 +13,10 @@ This guide gets you up and running with the hub and your first agent in under 10
 
 > Other dependencies (`jq`, `Node.js`, `opencode`, `bun`, `sqlite3`) are offered during installation — **each tool requires explicit confirmation** before being installed.
 >
-> **`sqlite3`** is required for `oc metrics` and `oc dashboard` (reads the OpenCode session database). It is **native on macOS** (`/usr/bin/sqlite3`); on Linux it will be offered via `apt-get` during install.
+> **`sqlite3`** is required for `oh metrics` and `oh dashboard` (reads the OpenCode session database). It is **native on macOS** (`/usr/bin/sqlite3`); on Linux it will be offered via `apt-get` during install.
 >
-> **Beads (`bd`)** is offered during `oc install` (via `brew install beads` or curl).
-> The terminal kanban board (`oc beads board`) is built-in — no additional installation required.
+> **Beads (`bd`)** is offered during `oh install` (via `brew install beads` or curl).
+> The terminal kanban board (`oh beads board`) is built-in — no additional installation required.
 
 ---
 
@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | b
 The script automates:
 - Cloning the repo to `~/.openhub`
 - Checking for missing dependencies (`jq`, `Node.js`, `opencode`, `bun`) — **confirmation requested before each installation**
-- Creating the `oc` alias in `~/.zshrc` or `~/.bashrc` (offers to keep / replace / rename if an `oc` alias already exists)
+- Creating the `oh` alias in `~/.zshrc` or `~/.bashrc` (offers to keep / replace / rename if an `oh` alias already exists)
 - Initialising local config files
 - Interactive configuration of the LLM provider
 
@@ -55,10 +55,10 @@ git clone https://github.com/datichb/openhub.git ~/.openhub
 echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 
 # 3. Configure
-oc install
+oh install
 ```
 
-`oc install` is interactive and configures the opencode integration:
+`oh install` is interactive and configures the opencode integration:
 
 | Choice | Target configured |
 |--------|-------------------|
@@ -72,7 +72,7 @@ oc install
 ## 2. Register a project
 
 ```bash
-oc init MY-APP ~/workspace/my-app
+oh init MY-APP ~/workspace/my-app
 ```
 
 This command:
@@ -86,11 +86,11 @@ This command:
 
 ## 3. Deploy agents
 
-If you did not deploy during `oc init`:
+If you did not deploy during `oh init`:
 
 ```bash
 # Deploy to a specific project
-oc deploy MY-APP
+oh deploy MY-APP
 ```
 
 
@@ -103,7 +103,7 @@ oc deploy MY-APP
 ## 4. Launch the tool
 
 ```bash
-oc start MY-APP
+oh start MY-APP
 ```
 
 Launches the default tool (defined in `config/hub.json`) in the project directory.
@@ -111,20 +111,20 @@ Launches the default tool (defined in `config/hub.json`) in the project director
 With a startup prompt:
 
 ```bash
-oc start MY-APP "explain the project architecture"
+oh start MY-APP "explain the project architecture"
 ```
 
 In development mode (loads open `ai-delegated` tickets):
 
 ```bash
-oc start MY-APP --dev
+oh start MY-APP --dev
 ```
 
 With the terminal kanban board open in a second pane:
 
 ```bash
-oc beads board MY-APP            # display the board once
-oc beads board MY-APP --watch    # live refresh every 5s
+oh beads board MY-APP            # display the board once
+oh beads board MY-APP --watch    # live refresh every 5s
 ```
 
 ---
@@ -132,16 +132,16 @@ oc beads board MY-APP --watch    # live refresh every 5s
 ## 5. Verify the deployment
 
 ```bash
-oc deploy --check opencode MY-APP
+oh deploy --check opencode MY-APP
 ```
 
 Shows for each agent: `✓ UP TO DATE`, `⚠ OUTDATED` or `✗ MISSING`.
 
-After a `git pull` on the hub (or `oc update`):
+After a `git pull` on the hub (or `oh update`):
 
 ```bash
-oc sync            # redeploys on all projects
-oc sync --dry-run  # checks without deploying
+oh sync            # redeploys on all projects
+oh sync --dry-run  # checks without deploying
 ```
 
 ---
@@ -176,23 +176,23 @@ You can now invoke any agent in OpenCode:
 ### Update installed tools
 
 ```bash
-oc update
+oh update
 ```
 
-Updates opencode, Beads, Beads UI, and external skills. If skills are modified, offers to re-run `oc sync`.
+Updates opencode, Beads, Beads UI, and external skills. If skills are modified, offers to re-run `oh sync`.
 
 ### Upgrade hub sources
 
 ```bash
-oc upgrade
+oh upgrade
 ```
 
-Pulls the latest hub scripts and agents (`git pull`). Offers to re-run `oc sync` after a successful update.
+Pulls the latest hub scripts and agents (`git pull`). Offers to re-run `oh sync` after a successful update.
 
 To switch to a specific version:
 
 ```bash
-oc upgrade v1.1.0
+oh upgrade v1.1.0
 ```
 
 Equivalent to the one-liner:
@@ -209,9 +209,9 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | V
 |---------|----------|
 | `oc: command not found` | Re-run `source ~/.zshrc` (or `~/.bashrc`) after installation |
 | `curl: command not found` | Install curl, then re-run the one-liner |
-| `Node.js not found` | Re-run `oc install` — offers available installers |
-| Agent missing in the tool | Re-run `oc deploy MY-APP` |
-| Outdated agent (`⚠ OUTDATED`) | `oc deploy MY-APP` to resynchronise |
+| `Node.js not found` | Re-run `oh install` — offers available installers |
+| Agent missing in the tool | Re-run `oh deploy MY-APP` |
+| Outdated agent (`⚠ OUTDATED`) | `oh deploy MY-APP` to resynchronise |
 | `bd: command not found` | Install Beads: `brew install beads` |
 | Install directory already exists | `OPENCODE_HUB_DIR=~/other-path bash install.sh` |
 
@@ -220,7 +220,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | V
 ## Uninstall the hub
 
 ```bash
-oc uninstall
+oh uninstall
 # or from anywhere:
 bash ~/.openhub/uninstall.sh
 ```

@@ -8,7 +8,7 @@ Accepté
 
 ## Contexte
 
-Le hub openhub déploie ses propres agents (`agents/`) et skills (`skills/`) dans chaque projet cible via `oc deploy`. Cependant, de nombreux projets existants ont déjà des agents définis dans leur `.opencode/agents/` — soit écrits manuellement, soit générés par leur propre outil — sans lien avec le hub.
+Le hub openhub déploie ses propres agents (`agents/`) et skills (`skills/`) dans chaque projet cible via `oh deploy`. Cependant, de nombreux projets existants ont déjà des agents définis dans leur `.opencode/agents/` — soit écrits manuellement, soit générés par leur propre outil — sans lien avec le hub.
 
 Deux cas se posaient :
 
@@ -55,15 +55,15 @@ Les chemins sont **relatifs au `project_path`** résolu (ou absolus si commença
 
 ### 4. Découverte automatique au deploy (`_cmd_deploy_discover` dans `cmd-deploy.sh`)
 
-Avant la Phase 1 du deploy, si un `PROJECT_ID` est fourni et que le contexte est interactif (TTY + `OC_NON_INTERACTIVE != 1`) :
+Avant la Phase 1 du deploy, si un `PROJECT_ID` est fourni et que le contexte est interactif (TTY + `OH_NON_INTERACTIVE != 1`) :
 1. `discover_project_agents()` scanne `.opencode/agents/`
 2. Les agents non déjà configurés dans `External agents` sont présentés à l'utilisateur
 3. Pour chaque agent : si un match hub est trouvé → `[s]ubstituer / [c]omplément / [i]gnorer` ; sinon → `[c]omplément / [i]gnorer`
 4. Les choix sont persistés dans `projects.md` avant de passer à la Phase 1
 
-En mode CI (`OC_NON_INTERACTIVE=1`) : skip silencieux, le deploy continue normalement.
+En mode CI (`OH_NON_INTERACTIVE=1`) : skip silencieux, le deploy continue normalement.
 
-### 5. Sous-commande `oc agent discover PROJECT_ID`
+### 5. Sous-commande `oh agent discover PROJECT_ID`
 
 Permet de déclencher la découverte à la demande, sans lancer un deploy complet. Affiche un résumé de la configuration résultante et rappelle la commande deploy à exécuter.
 

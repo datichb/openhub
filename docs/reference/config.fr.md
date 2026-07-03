@@ -4,7 +4,7 @@
 
 ## `config/hub.json`
 
-Configuration globale du hub. Créé par `oc install` et modifiable manuellement.
+Configuration globale du hub. Créé par `oh install` et modifiable manuellement.
 
 ### Structure complète
 
@@ -28,7 +28,7 @@ Configuration globale du hub. Créé par `oc install` et modifiable manuellement
 
 | Clé | Type | Défaut | Description |
 |-----|------|--------|-------------|
-| `version` | string | — | Version du hub (lue par `oc version`) |
+| `version` | string | — | Version du hub (lue par `oh version`) |
 | `default_provider` | object | — | Configuration du provider LLM par défaut pour tous les projets |
 | `default_provider.name` | string | `""` | Nom du provider (`anthropic`, `mammouth`, `github-models`, `bedrock`, `ollama`). Si vide, OpenCode résout le provider depuis son propre `auth.json` (via `/connect`) |
 | `default_provider.api_key` | string | `""` | Clé API du provider (masquée en affichage, auto-ignorée par git si définie) |
@@ -94,7 +94,7 @@ Configuration globale du hub. Créé par `oc install` et modifiable manuellement
 
 Registre local des projets. **Ignoré par git** — chaque développeur maintient
 le sien. Créé automatiquement depuis `projects/projects.example.md` au premier
-`oc install` ou `oc init`.
+`oh install` ou `oh init`.
 
 ### Format
 
@@ -180,7 +180,7 @@ AUTRE-APP=~/dev/autre-app
 
 ## `projects/api-keys.local.md`
 
-Stocke les clés API et modèles configurés par projet via `oc config`.
+Stocke les clés API et modèles configurés par projet via `oh config`.
 **Ignoré par git** — ne jamais committer ce fichier.
 
 ### Format
@@ -226,24 +226,24 @@ base_url=https://models.inference.ai.azure.com
 
 ### Effets lors du déploiement
 
-Lors d'un `oc deploy <PROJECT_ID>`, si une entrée existe pour le projet :
+Lors d'un `oh deploy <PROJECT_ID>`, si une entrée existe pour le projet :
 
 - `opencode.json` et `.opencode/` sont ajoutés au `.git/info/exclude` du projet cible **avant** l'écriture du fichier (exclusion locale, invisible pour les autres devs)
 - `opencode.json` est régénéré avec le bloc `provider` complet
 - Le fichier est créé avec les permissions `600`
 
-Si `PROJECT_ID` est défini sans clé API (ou après un `oc config unset`), `opencode.json` est
+Si `PROJECT_ID` est défini sans clé API (ou après un `oh config unset`), `opencode.json` est
 également régénéré pour retirer tout ancien bloc `provider`.
 
-Pour OpenCode, la clé est injectée comme `ANTHROPIC_API_KEY` au moment du `oc start` (Anthropic uniquement).
+Pour OpenCode, la clé est injectée comme `ANTHROPIC_API_KEY` au moment du `oh start` (Anthropic uniquement).
 
 ---
 
-## `oc config` — commande CLI
+## `oh config` — commande CLI
 
 Gère les entrées de `projects/api-keys.local.md` ainsi que la configuration des providers LLM au niveau du hub (`config/hub.json`).
 
-Aussi accessible via `oc help 7` ou `oc config --help`.
+Aussi accessible via `oh help 7` ou `oh config --help`.
 
 ### Sous-commandes
 
@@ -258,7 +258,7 @@ Aussi accessible via `oc help 7` ou `oc config --help`.
 | `init-providers [--force]` | Initialiser les fichiers switcher dans `config/providers/` |
 | `websearch <enable\|disable\|status>` | Gérer la permission WebSearch (Exa AI) |
 
-### Options de `oc config set`
+### Options de `oh config set`
 
 | Option | Description |
 |--------|-------------|
@@ -271,69 +271,69 @@ Aussi accessible via `oc help 7` ou `oc config --help`.
 
 **Comportement selon les arguments :**
 
-- `oc config set <PROJECT_ID>` — interactif, configure le provider et la clé pour ce projet
-- `oc config set` (sans `PROJECT_ID`) — wizard interactif de configuration du provider **hub**
-- `oc config set --provider anthropic --api-key sk-...` — configure le provider hub en mode non-interactif
-- `oc config set --provider bedrock` — provider hub sans clé API
-- `oc config set --model claude-opus-4` — met à jour uniquement le modèle par défaut du hub
-- `oc config set --provider p --api-key k --model m` — configure provider, clé et modèle hub en une commande
+- `oh config set <PROJECT_ID>` — interactif, configure le provider et la clé pour ce projet
+- `oh config set` (sans `PROJECT_ID`) — wizard interactif de configuration du provider **hub**
+- `oh config set --provider anthropic --api-key sk-...` — configure le provider hub en mode non-interactif
+- `oh config set --provider bedrock` — provider hub sans clé API
+- `oh config set --model claude-opus-4` — met à jour uniquement le modèle par défaut du hub
+- `oh config set --provider p --api-key k --model m` — configure provider, clé et modèle hub en une commande
 
-`oc config list --providers` liste tous les providers du catalogue avec leur statut hub.
+`oh config list --providers` liste tous les providers du catalogue avec leur statut hub.
 
-`oc config init-providers` crée `config/providers/` et génère les fichiers JSON utilisés par `ocp` (`mammouth.json`, `copilot.json`, `openrouter.json`, `ollama.json`, `bedrock.json`) ainsi que `config/providers/.gitignore`. Sans `--force`, les fichiers existants ne sont pas écrasés.
+`oh config init-providers` crée `config/providers/` et génère les fichiers JSON utilisés par `ocp` (`mammouth.json`, `copilot.json`, `openrouter.json`, `ollama.json`, `bedrock.json`) ainsi que `config/providers/.gitignore`. Sans `--force`, les fichiers existants ne sont pas écrasés.
 
 ### Exemple
 
 ```sh
 # Wizard interactif hub (provider par défaut)
-./oc.sh config set
+./oh config set
 
 # Configurer le provider hub en ligne de commande
-./oc.sh config set --provider anthropic --api-key sk-ant-...
+./oh config set --provider anthropic --api-key sk-ant-...
 
 # Provider hub sans clé API (ex. Bedrock)
-./oc.sh config set --provider bedrock
+./oh config set --provider bedrock
 
 # Mettre à jour uniquement le modèle hub
-./oc.sh config set --model claude-opus-4
+./oh config set --model claude-opus-4
 
 # Configuration projet interactive
-./oc.sh config set MON-PROJET
+./oh config set MON-PROJET
 
 # Configuration projet en ligne de commande
-./oc.sh config set MON-PROJET --model claude-opus-4-5 --provider anthropic
+./oh config set MON-PROJET --model claude-opus-4-5 --provider anthropic
 
 # Avec MammouthAI
-./oc.sh config set MON-PROJET --provider mammouth --api-key sk-xxx
+./oh config set MON-PROJET --provider mammouth --api-key sk-xxx
 
 # Lister les providers du catalogue
-./oc.sh config list --providers
+./oh config list --providers
 
 # Initialiser les fichiers switcher ocp
-./oc.sh config init-providers
+./oh config init-providers
 
 # Vérifier
-./oc.sh config get MON-PROJET
+./oh config get MON-PROJET
 
 # Supprimer
-./oc.sh config unset MON-PROJET
+./oh config unset MON-PROJET
 ```
 
 ---
 
-## `oc project` — gestion des projets CLI
+## `oh project` — gestion des projets CLI
 
 Gère les entrées du registre de projets dans `projects/projects.md` et `projects/paths.local.md`.
 
 ### Sous-commandes
 
 ```
-oc project rename <OLD_ID> <NEW_ID>      Renomme un projet dans tous les fichiers registre
-oc project move <PROJECT_ID> <path>      Change le chemin local d'un projet
-oc project configure [PROJECT_ID]        Reconfigure les champs d'un projet existant
+oh project rename <OLD_ID> <NEW_ID>      Renomme un projet dans tous les fichiers registre
+oh project move <PROJECT_ID> <path>      Change le chemin local d'un projet
+oh project configure [PROJECT_ID]        Reconfigure les champs d'un projet existant
 ```
 
-### `oc project configure`
+### `oh project configure`
 
 Wizard interactif pour mettre à jour n'importe quel champ de `projects.md` pour un projet existant.
 Si aucun `PROJECT_ID` n'est fourni, une liste numérotée interactive s'affiche.
@@ -352,22 +352,22 @@ Pour chaque champ, la valeur actuelle est affichée. Appuyer sur **Entrée** pou
 | `Worktree auto cleanup` | `true` \| `false` | Supprimer automatiquement les worktrees mergés *(affiché uniquement si Worktree est activé)* |
 | `Worktree base branch` | nom de branche | Branche de base pour le cleanup (défaut : `main`) *(affiché uniquement si Worktree est activé)* |
 
-> Note : les champs `Agents` et `Modes` ont des commandes dédiées — utiliser `oc agent select` et `oc agent mode`.
+> Note : les champs `Agents` et `Modes` ont des commandes dédiées — utiliser `oh agent select` et `oh agent mode`.
 
 ### Exemples
 
 ```sh
 # Wizard interactif (liste de projets)
-./oc.sh project configure
+./oh project configure
 
 # Configurer un projet spécifique
-./oc.sh project configure MON-APP
+./oh project configure MON-APP
 
 # Renommer un projet
-./oc.sh project rename MON-APP MON-APP-V2
+./oh project rename MON-APP MON-APP-V2
 
 # Déplacer un projet vers un nouveau chemin
-./oc.sh project move MON-APP ~/workspace/mon-app-new
+./oh project move MON-APP ~/workspace/mon-app-new
 ```
 
 ---
@@ -375,10 +375,10 @@ Pour chaque champ, la valeur actuelle est affichée. Appuyer sur **Entrée** pou
 ## `ocp` — switcher interactif de providers
 
 Fonction shell injectée dans `~/.zshrc` par le hub. Permet de lancer opencode
-en choisissant le provider à utiliser, tout en conservant la logique complète de `oc start`
+en choisissant le provider à utiliser, tout en conservant la logique complète de `oh start`
 (déploiement des agents, mode `--dev`, sync Beads, onboarding, etc.).
 
-Requiert que `config/providers/` soit initialisé via `oc config init-providers`.
+Requiert que `config/providers/` soit initialisé via `oh config init-providers`.
 
 ### Usage
 
@@ -394,7 +394,7 @@ ocp --list                   # lister les providers disponibles
 
 `ocp <provider> [args...]` est équivalent à :
 ```sh
-./oc.sh start --provider <provider> [args...]
+./oh start --provider <provider> [args...]
 ```
 
 Le flag `--provider` override le provider effectif pour la génération de `opencode.json` —
@@ -402,8 +402,8 @@ les modèles par agent sont préfixés et aliasés selon le provider sélectionn
 
 ### Installation
 
-La fonction est injectée automatiquement dans `~/.zshrc` lors de `oc install`.
-Pour l'ajouter manuellement ou la mettre à jour, relancer `oc install` ou copier
+La fonction est injectée automatiquement dans `~/.zshrc` lors de `oh install`.
+Pour l'ajouter manuellement ou la mettre à jour, relancer `oh install` ou copier
 le bloc entre les délimiteurs `# >>> opencode providers switcher (ocp) >>>` / `# <<< opencode providers switcher (ocp) <<<`.
 
 ---
@@ -411,7 +411,7 @@ le bloc entre les délimiteurs `# >>> opencode providers switcher (ocp) >>>` / `
 ## `opencode.json`
 
 Fichier de configuration OpenCode à la racine d'un projet cible.
-Créé par `oc deploy` — **régénéré si une clé API est configurée, si `PROJECT_ID` est
+Créé par `oh deploy` — **régénéré si une clé API est configurée, si `PROJECT_ID` est
 défini (pour retirer un ancien bloc provider), ou si le fichier est absent** ; conservé tel quel sinon.
 
 ### Contenu sans clé API
@@ -475,7 +475,7 @@ Le modèle est résolu par priorité :
 4. Fallback : `claude-sonnet-4-5`
 
 > Si une clé API est injectée, ce fichier **ne doit pas être commité** dans le projet cible
-> (ajouté automatiquement au `.git/info/exclude` du projet par `oc deploy` — exclusion locale, invisible pour les autres devs).
+> (ajouté automatiquement au `.git/info/exclude` du projet par `oh deploy` — exclusion locale, invisible pour les autres devs).
 > Sans clé API, le fichier **peut être commité**.
 
 ---
@@ -492,7 +492,7 @@ projects/api-keys.local.md  # clés API par projet
 .opencode/node_modules/     # dépendances OpenCode
 .opencode/bun.lock
 .opencode/package.json
-skills/external/            # skills téléchargés via oc skills add
+skills/external/            # skills téléchargés via oh skills add
 ```
 
 ---
@@ -509,5 +509,5 @@ Les variables suivantes sont lues par les scripts du hub si elles sont présente
 |----------|--------|-------------|-------------|
 | `OPENCODE_HUB_DIR` | `~/.openhub` | non | Répertoire d'installation du hub. Utilisé par `install.sh` et `uninstall.sh` pour choisir l'emplacement d'installation. Exemple : `OPENCODE_HUB_DIR=~/tools/oc bash install.sh` |
 | `OPENCODE_MODEL` | *(cascade hub.json)* | non | Modèle LLM à utiliser. Niveau 2 de la cascade de résolution du modèle (après la config projet `api-keys.local.md`, avant `hub.json`). Exemple : `OPENCODE_MODEL=claude-opus-4-5` |
-| `AWS_BEARER_TOKEN_BEDROCK` | — | non | Token d'authentification AWS Bedrock. Injecté automatiquement par `oc start` depuis la config projet ou hub quand le provider effectif est `bedrock` — ne pas définir manuellement sauf cas avancé. |
+| `AWS_BEARER_TOKEN_BEDROCK` | — | non | Token d'authentification AWS Bedrock. Injecté automatiquement par `oh start` depuis la config projet ou hub quand le provider effectif est `bedrock` — ne pas définir manuellement sauf cas avancé. |
 | `HUB_DIR` | *(dossier du dépôt)* | non | Override du répertoire racine du hub en runtime. Auto-détecté depuis l'emplacement de `oc.sh` si absent. Utile pour les tests ou les configurations multi-hub. |

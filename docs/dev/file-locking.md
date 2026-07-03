@@ -6,7 +6,7 @@
 
 ## Contexte
 
-Plusieurs fichiers du hub peuvent être modifiés par plusieurs invocations simultanées de `oc` (deux terminaux, scripts en parallèle) :
+Plusieurs fichiers du hub peuvent être modifiés par plusieurs invocations simultanées de `oh` (deux terminaux, scripts en parallèle) :
 
 - `projects/projects.md` — registre des projets (~40 sites d'écriture via `perl -i`)
 - `projects/api-keys.local.md` — clés API
@@ -83,17 +83,17 @@ Le fichier `scripts/lib/project.sh` expose `_do_locked_projects_write` comme wra
 
 ```bash
 # Dans cmd-init.sh — append d'un bloc projet
-_acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || exit 1
+_acquire_lock "${OH_LOCK_PROJECTS:-projects}" 10 || exit 1
 cat >> "$PROJECTS_FILE" <<EOF
 ## $PROJECT_ID
 ...
 EOF
-_release_lock "${OC_LOCK_PROJECTS:-projects}"
+_release_lock "${OH_LOCK_PROJECTS:-projects}"
 
 # Dans cmd-remove.sh — suppression d'un bloc projet
-_acquire_lock "${OC_LOCK_PROJECTS:-projects}" 10 || exit 1
+_acquire_lock "${OH_LOCK_PROJECTS:-projects}" 10 || exit 1
 perl -i.bak -0pe '...' "$PROJECTS_FILE"
-_release_lock "${OC_LOCK_PROJECTS:-projects}"
+_release_lock "${OH_LOCK_PROJECTS:-projects}"
 ```
 
 **Périmètre actuel du locking :**
@@ -101,7 +101,7 @@ _release_lock "${OC_LOCK_PROJECTS:-projects}"
 - `cmd-remove.sh` — suppression d'un bloc projet
 - `cmd-project.sh` — renommage d'un projet (projects.md et api-keys.local.md)
 
-**Note :** Les fonctions `_set_project_*` (appelées par `oc agent`, `oc beads`, etc.) peuvent être wrappées via `_do_locked_projects_write` si le besoin de protection en accès concurrent se confirme sur ces chemins d'écriture.
+**Note :** Les fonctions `_set_project_*` (appelées par `oh agent`, `oh beads`, etc.) peuvent être wrappées via `_do_locked_projects_write` si le besoin de protection en accès concurrent se confirme sur ces chemins d'écriture.
 
 ```
 Appelant (cmd-init.sh)

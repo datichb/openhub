@@ -58,7 +58,7 @@ One adapter exists: `opencode`.
 ### Target Project
 
 A **target project** is an application repository onto which agents are deployed
-via `oc deploy`. The hub knows projects via `projects/projects.md`.
+via `oh deploy`. The hub knows projects via `projects/projects.md`.
 
 ---
 
@@ -223,7 +223,7 @@ openhub/
 ├── scripts/
 │   ├── adapters/    ← Translation hub → target tool format
 │   ├── lib/         ← Shared helpers (prompt-builder, adapter-manager)
-│   └── cmd-*.sh     ← Implementation of oc commands
+│   └── cmd-*.sh     ← Implementation of oh commands
 ├── config/
 │   ├── hub.json             ← Global hub configuration
 │   ├── stack-skills.json    ← Stack → dynamically injected skills mapping

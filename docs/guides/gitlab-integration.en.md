@@ -18,14 +18,14 @@ The GitLab integration enriches planning workflows (Orchestrator, Pathfinder, Pl
 
 ## Quick Setup
 
-### 1. Configure via `oc service`
+### 1. Configure via `oh service`
 
-The recommended method is to use the `oc service setup` command which guides you interactively:
+The recommended method is to use the `oh service setup` command which guides you interactively:
 
 ```bash
-oc service setup gitlab
+oh service setup gitlab
 # or via the alias:
-oc gitlab setup
+oh gitlab setup
 ```
 
 This command will:
@@ -37,9 +37,9 @@ This command will:
 
 Check status at any time:
 ```bash
-oc service status gitlab
+oh service status gitlab
 # or:
-oc gitlab status
+oh gitlab status
 ```
 
 ### 2. Obtain your Personal Access Token
@@ -73,11 +73,11 @@ Create or edit `~/.config/opencode/config.json`:
 ### 4. Deploy to a project
 
 ```bash
-oc deploy opencode MY-PROJECT
+oh deploy opencode MY-PROJECT
 # or only the GitLab MCP:
-oc service deploy gitlab --project MY-PROJECT
+oh service deploy gitlab --project MY-PROJECT
 # or via the alias:
-oc gitlab deploy --project MY-PROJECT
+oh gitlab deploy --project MY-PROJECT
 ```
 
 ---
@@ -192,7 +192,7 @@ Error: GITLAB_PERSONAL_ACCESS_TOKEN is required
 
 **Solution:** Check that the token is configured:
 ```bash
-oc gitlab status
+oh gitlab status
 ```
 
 ### Access denied (403)
@@ -209,9 +209,9 @@ The project path is incorrect or the token doesn't have access to that project. 
 
 Check that `GITLAB_BASE_URL` is set:
 ```bash
-oc gitlab status
+oh gitlab status
 # If missing:
-oc gitlab setup
+oh gitlab setup
 ```
 
 ### Request timeouts
@@ -219,7 +219,7 @@ oc gitlab setup
 Increase the timeout for slow instances:
 ```bash
 # During setup
-GITLAB_TIMEOUT=60000 oc gitlab setup
+GITLAB_TIMEOUT=60000 oh gitlab setup
 ```
 
 ### MCP server build fails
@@ -254,13 +254,13 @@ npm run build
 
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
-- [`oc service` CLI Reference](../reference/services.en.md)
+- [`oh service` CLI Reference](../reference/services.en.md)
 - [MCP Servers Architecture](../../servers/README.md)
 
 ---
 
 ## Support
 
-- `oc gitlab status` — check configuration
-- `oc gitlab setup` — reconfigure the service
+- `oh gitlab status` — check configuration
+- `oh gitlab setup` — reconfigure the service
 - Persistent issue → report on [GitHub Issues](https://github.com/anomalyco/opencode)

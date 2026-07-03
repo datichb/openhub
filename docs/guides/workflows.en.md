@@ -32,7 +32,7 @@ Before invoking an agent, identify your situation:
 
 ## Resuming an existing session
 
-Every opencode session automatically receives a **generated title** derived from key words in the initial prompt (FR+EN stop-words filtered, ticket references detected). This title is visible in `oc dashboard` and serves as a reference point to find the context of a previous session.
+Every opencode session automatically receives a **generated title** derived from key words in the initial prompt (FR+EN stop-words filtered, ticket references detected). This title is visible in `oh dashboard` and serves as a reference point to find the context of a previous session.
 
 ### Automatic naming
 
@@ -50,7 +50,7 @@ The title is built according to the following priority:
 ### Resuming with `--resume`
 
 ```bash
-oc start --resume -p MY-APP
+oh start --resume -p MY-APP
 ```
 
 Lists the last 10 sessions for the project (last 30 days), with title, agent, cost and date:
@@ -70,10 +70,10 @@ Enter the number of the session to resume. opencode is launched with `-s <sessio
 ### Viewing recent sessions
 
 ```bash
-oc dashboard
+oh dashboard
 ```
 
-Recent sessions now display their `slug` as a dim suffix, usable as an identifier for `oc start --resume` if needed.
+Recent sessions now display their `slug` as a dim suffix, usable as an identifier for `oh start --resume` if needed.
 
 ---
 
@@ -220,7 +220,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 > e.g. `[Planner — Phase 0 | Feature: JWT authentication]`. No need to navigate to the child session.
 
 > **Missing agent:** if a required agent is not deployed in the project, the orchestrator displays
-> a structured question: deploy via `!oc deploy opencode <PROJECT_ID>` directly in OpenCode / use a
+> a structured question: deploy via `!oh deploy opencode <PROJECT_ID>` directly in OpenCode / use a
 > substitute (table by domain) / skip the ticket. Never falls back silently.
 
 #### 6. [CP-feature] Global recap

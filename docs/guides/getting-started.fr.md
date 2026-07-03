@@ -11,10 +11,10 @@ Ce guide vous permet d'installer le hub et de lancer votre premier agent en moin
 
 > Les autres dépendances (`jq`, `Node.js`, `opencode`, `bun`, `sqlite3`) sont proposées à l'installation — **chaque outil demande une confirmation explicite** avant d'être installé.
 >
-> **`sqlite3`** est requis pour `oc metrics` et `oc dashboard` (lecture de la base de sessions OpenCode). Il est **natif sur macOS** (`/usr/bin/sqlite3`) ; sur Linux il sera proposé à l'installation via `apt-get`.
+> **`sqlite3`** est requis pour `oh metrics` et `oh dashboard` (lecture de la base de sessions OpenCode). Il est **natif sur macOS** (`/usr/bin/sqlite3`) ; sur Linux il sera proposé à l'installation via `apt-get`.
 >
-> **Beads (`bd`)** est proposé à l'installation par `oc install` (via `brew install beads` ou curl).
-> Le board kanban terminal (`oc beads board`) est intégré — aucune installation supplémentaire requise.
+> **Beads (`bd`)** est proposé à l'installation par `oh install` (via `brew install beads` ou curl).
+> Le board kanban terminal (`oh beads board`) est intégré — aucune installation supplémentaire requise.
 
 ---
 
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | b
 Le script automatise :
 - Clone du repo dans `~/.openhub`
 - Vérification des dépendances manquantes (`jq`, `Node.js`, `opencode`, `bun`) — **confirmation demandée avant chaque installation**
-- Création de l'alias `oc` dans `~/.zshrc` ou `~/.bashrc` (propose garder / remplacer / renommer si un alias `oc` existe déjà)
+- Création de l'alias `oh` dans `~/.zshrc` ou `~/.bashrc` (propose garder / remplacer / renommer si un alias `oh` existe déjà)
 - Initialisation des fichiers de config locaux
 - Configuration du fournisseur LLM
 
@@ -53,7 +53,7 @@ git clone https://github.com/datichb/openhub.git ~/.openhub
 echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
 
 # 3. Configurer
-oc install
+oh install
 ```
 
 > Si `config/hub.json` existe déjà, une confirmation est demandée avant d'écraser
@@ -64,7 +64,7 @@ oc install
 ## 2. Enregistrer un projet
 
 ```bash
-oc init MON-APP ~/workspace/mon-app
+oh init MON-APP ~/workspace/mon-app
 ```
 
 Cette commande :
@@ -78,11 +78,11 @@ Cette commande :
 
 ## 3. Déployer les agents
 
-Si vous n'avez pas déployé lors du `oc init` :
+Si vous n'avez pas déployé lors du `oh init` :
 
 ```bash
 # Déployer dans un projet spécifique
-oc deploy MON-APP
+oh deploy MON-APP
 ```
 
 Résultat attendu :
@@ -96,7 +96,7 @@ Résultat attendu :
 ## 4. Lancer l'outil
 
 ```bash
-oc start MON-APP
+oh start MON-APP
 ```
 
 Lance l'outil par défaut (défini dans `config/hub.json`) dans le répertoire du projet.
@@ -104,20 +104,20 @@ Lance l'outil par défaut (défini dans `config/hub.json`) dans le répertoire d
 Avec un prompt de démarrage :
 
 ```bash
-oc start MON-APP "explique l'architecture du projet"
+oh start MON-APP "explique l'architecture du projet"
 ```
 
 En mode développement (charge les tickets `ai-delegated` ouverts) :
 
 ```bash
-oc start MON-APP --dev
+oh start MON-APP --dev
 ```
 
 Avec le board kanban terminal ouvert dans un second volet :
 
 ```bash
-oc beads board MON-APP            # affiche le board une fois
-oc beads board MON-APP --watch    # rafraîchissement en direct toutes les 5s
+oh beads board MON-APP            # affiche le board une fois
+oh beads board MON-APP --watch    # rafraîchissement en direct toutes les 5s
 ```
 
 ---
@@ -125,16 +125,16 @@ oc beads board MON-APP --watch    # rafraîchissement en direct toutes les 5s
 ## 5. Vérifier le déploiement
 
 ```bash
-oc deploy --check opencode MON-APP
+oh deploy --check opencode MON-APP
 ```
 
 Affiche pour chaque agent : `✓ À JOUR`, `⚠ OBSOLÈTE` ou `✗ MANQUANT`.
 
-Après un `git pull` sur le hub (ou `oc update`) :
+Après un `git pull` sur le hub (ou `oh update`) :
 
 ```bash
-oc sync            # redéploie sur tous les projets
-oc sync --dry-run  # vérifie sans déployer
+oh sync            # redéploie sur tous les projets
+oh sync --dry-run  # vérifie sans déployer
 ```
 
 ---
@@ -169,23 +169,23 @@ Vous pouvez maintenant invoquer n'importe quel agent dans OpenCode :
 ### Mettre à jour les outils installés
 
 ```bash
-oc update
+oh update
 ```
 
-Met à jour opencode, Beads, Beads UI, et les skills externes. Si des skills sont modifiés, propose de relancer `oc sync`.
+Met à jour opencode, Beads, Beads UI, et les skills externes. Si des skills sont modifiés, propose de relancer `oh sync`.
 
 ### Mettre à jour les sources du hub
 
 ```bash
-oc upgrade
+oh upgrade
 ```
 
-Récupère les derniers scripts et agents du hub (`git pull`). Propose de relancer `oc sync` après une mise à jour réussie.
+Récupère les derniers scripts et agents du hub (`git pull`). Propose de relancer `oh sync` après une mise à jour réussie.
 
 Pour basculer sur une version spécifique :
 
 ```bash
-oc upgrade v1.1.0
+oh upgrade v1.1.0
 ```
 
 Équivalent au one-liner :
@@ -202,9 +202,9 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | V
 |----------|----------|
 | `oc: command not found` | Relancer `source ~/.zshrc` (ou `~/.bashrc`) après installation |
 | `curl: command not found` | Installer curl, puis relancer le one-liner |
-| `Node.js introuvable` | Relancer `oc install` — propose les installeurs disponibles |
-| Agent absent dans l'outil | Relancer `oc deploy MON-APP` |
-| Agent obsolète (`⚠ OBSOLÈTE`) | `oc deploy MON-APP` pour resynchroniser |
+| `Node.js introuvable` | Relancer `oh install` — propose les installeurs disponibles |
+| Agent absent dans l'outil | Relancer `oh deploy MON-APP` |
+| Agent obsolète (`⚠ OBSOLÈTE`) | `oh deploy MON-APP` pour resynchroniser |
 | `bd: command not found` | Installer Beads : `brew install beads` |
 | Dossier d'install déjà existant | `OPENCODE_HUB_DIR=~/autre-chemin bash install.sh` |
 
@@ -213,7 +213,7 @@ curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | V
 ## Désinstaller le hub
 
 ```bash
-oc uninstall
+oh uninstall
 # ou depuis n'importe où :
 bash ~/.openhub/uninstall.sh
 ```

@@ -20,11 +20,11 @@ The generic skills (`dev-standards-universal`, `dev-standards-backend`, etc.) al
 
 - Create a `skills/developer/stacks/` directory for atomic stack-specific skills (one file per stack, one responsibility per file).
 - Declare the mapping between detected stacks and skills to inject in `config/stack-skills.json`. Each agent type has a defined scope (`_agent_scope`) that limits which categories of stack skills it receives.
-- Detect the project stack at every `oc deploy` via `detect_stack(project_path)`: reads `package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, `pom.xml`, `pubspec.yaml`, and infrastructure files (`Dockerfile`, `.github/workflows/`, `*.tf`, `Chart.yaml`, ArgoCD manifests, etc.).
+- Detect the project stack at every `oh deploy` via `detect_stack(project_path)`: reads `package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, `pom.xml`, `pubspec.yaml`, and infrastructure files (`Dockerfile`, `.github/workflows/`, `*.tf`, `Chart.yaml`, ArgoCD manifests, etc.).
 - Inject the corresponding skills dynamically via `resolve_stack_skills(agent_id, stacks, config)`, which filters by agent scope and deduplicates skills already declared in the frontmatter.
 - Stack skills are **additive**: they are appended after the static skills declared in the agent frontmatter — never replacing them.
 - Purge all framework-specific references from generic skills (`dev-standards-universal`, `dev-standards-testing`, `dev-standards-api`, `dev-standards-security`, `dev-standards-devops`) so that they remain truly tool-agnostic.
-- Extend `oc deploy --check` to re-detect the stack and verify the mtimes of dynamically injected stack skills, so that modifications to `skills/developer/stacks/*.md` correctly trigger staleness for affected agents.
+- Extend `oh deploy --check` to re-detect the stack and verify the mtimes of dynamically injected stack skills, so that modifications to `skills/developer/stacks/*.md` correctly trigger staleness for affected agents.
 
 ## Consequences
 
@@ -34,7 +34,7 @@ The generic skills (`dev-standards-universal`, `dev-standards-backend`, etc.) al
 - Adding a new stack requires only one skill file + one entry in `config/stack-skills.json` — no agent frontmatter changes needed.
 - Standards are as precise as possible for the project's real stack.
 - Generic skills are clean and truly agnostic: they focus on principles, not tools.
-- `oc deploy --check` correctly detects staleness caused by stack skill changes.
+- `oh deploy --check` correctly detects staleness caused by stack skill changes.
 
 ### Negative / trade-offs
 

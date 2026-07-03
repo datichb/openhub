@@ -19,13 +19,13 @@ which verifies via `declare -F` that the 9 functions exist after the `source`.
 | `adapter_deploy_skills` | **Phase 2** — Deploys native skills to `.opencode/skills/` | `adapter_deploy_skills deploy_dir project_id` |
 | `adapter_deploy_config` | **Phase 3** — Applies provider/model configuration (e.g. `opencode.json`) | `adapter_deploy_config deploy_dir project_id [provider_override]` |
 | `adapter_deploy` | Compatibility wrapper — chains Phase 1 + Phase 2 + Phase 3 | `adapter_deploy deploy_dir project_id [provider_override]` |
-| `adapter_install` | Installs the target tool (called by `oc install`) | `adapter_install()` |
-| `adapter_update` | Updates the target tool (called by `oc update`) | `adapter_update()` |
-| `adapter_start` | Launches the tool in the project (called by `oc start`) | `adapter_start project_path prompt project_id` |
+| `adapter_install` | Installs the target tool (called by `oh install`) | `adapter_install()` |
+| `adapter_update` | Updates the target tool (called by `oh update`) | `adapter_update()` |
+| `adapter_start` | Launches the tool in the project (called by `oh start`) | `adapter_start project_path prompt project_id` |
 
 ### Phase separation
 
-`oc deploy` runs all three phases sequentially with a distinct visual section for each:
+`oh deploy` runs all three phases sequentially with a distinct visual section for each:
 
 ```
 ▶  Phase 1 — Copy agents
@@ -38,7 +38,7 @@ which verifies via `declare -F` that the 9 functions exist after the `source`.
 ◆  opencode.json  (model: amazon-bedrock/..., provider: bedrock)
 ```
 
-`oc start --provider <provider>` only runs **Phase 3** when agents are already in place —
+`oh start --provider <provider>` only runs **Phase 3** when agents are already in place —
 Phases 1 and 2 are unnecessary in that case.
 
 ### Parameter Details
@@ -158,7 +158,7 @@ Variables exposed by `adapter_deploy_config` after Phase 3:
 1. Create `scripts/adapters/<target>.adapter.sh` with the **9 contract functions**
 2. The file will be loaded automatically by `load_adapter` — no modification of
    `adapter-manager.sh` is needed
-3. Test: `oc deploy <target>` then verify the generated files
+3. Test: `oh deploy <target>` then verify the generated files
 
 ### Minimal Example
 

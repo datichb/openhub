@@ -96,10 +96,10 @@ If the agent requires a dedicated protocol, create the corresponding skill
 ### 5. Deploy and test
 
 ```bash
-oc deploy opencode
+oh deploy opencode
 # Verify the agent appears
-oc agent list
-oc agent info <id>
+oh agent list
+oh agent info <id>
 ```
 
 ---
@@ -132,7 +132,7 @@ For a new domain, create a new sub-folder.
 ```markdown
 ---
 name: <skill-name>
-description: <Short description — visible in oc agent edit and oc skills list>
+description: <Short description — visible in oh agent edit and oh skills list>
 ---
 ```
 
@@ -189,7 +189,7 @@ and minimal example) is documented in
 
 1. Create `scripts/adapters/<target>.adapter.sh` with the 8 contract functions
 2. Add the target to `config/hub.json`
-3. Test with `oc deploy <target>` then `oc agent list`
+3. Test with `oh deploy <target>` then `oh agent list`
 
 ---
 
@@ -258,11 +258,11 @@ Before submitting a PR:
 
 ```bash
 # Verify agents deploy correctly
-oc deploy opencode
-oc deploy --check opencode
+oh deploy opencode
+oh deploy --check opencode
 
 # List agents to verify consistency
-oc agent list
+oh agent list
 ```
 
 ---
@@ -280,8 +280,8 @@ oc agent list
 - [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent (always Bucket A)
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
-- [ ] `oc deploy opencode` and `oc deploy --check opencode` pass without errors
-- [ ] `oc deploy --diff opencode` shows no unexpected divergence
+- [ ] `oh deploy opencode` and `oh deploy --check opencode` pass without errors
+- [ ] `oh deploy --diff opencode` shows no unexpected divergence
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## Introduction
 
-The progress bar system provides **real-time visual feedback** for long-running operations in openhub, particularly during the `oc deploy` workflow. It consists of three main components:
+The progress bar system provides **real-time visual feedback** for long-running operations in openhub, particularly during the `oh deploy` workflow. It consists of three main components:
 
 - **`_progress_bar()`**: Real-time progress display on a single line
 - **`_progress_done()`**: Finalize the progress bar
@@ -464,14 +464,14 @@ fi
 **Test**:
 ```bash
 # TTY: bar displayed
-./oc.sh deploy
+./oh deploy
 
 # Non-TTY: bar hidden
-./oc.sh deploy | cat
-./oc.sh deploy > output.txt
+./oh deploy | cat
+./oh deploy > output.txt
 
 # Forced: bar hidden
-./oc.sh deploy --no-progress
+./oh deploy --no-progress
 ```
 
 **Why auto-detect?**
@@ -514,9 +514,9 @@ fi
 
 5. **Test with and without TTY**
    ```bash
-   ./oc.sh deploy              # With bar
-   ./oc.sh deploy | cat        # Without bar
-   ./oc.sh deploy --no-progress  # Without bar (forced)
+   ./oh deploy              # With bar
+   ./oh deploy | cat        # Without bar
+   ./oh deploy --no-progress  # Without bar (forced)
    ```
 
 6. **Use 1-based indexing for `current`**
@@ -700,13 +700,13 @@ graph TB
 
 ```bash
 # Test 1: TTY detected (bar displayed)
-./oc.sh deploy PROJECT_ID
+./oh deploy PROJECT_ID
 
 # Test 2: Non-TTY (bar hidden)
-./oc.sh deploy PROJECT_ID | cat
+./oh deploy PROJECT_ID | cat
 
 # Test 3: --no-progress flag (forced)
-./oc.sh deploy PROJECT_ID --no-progress
+./oh deploy PROJECT_ID --no-progress
 
 # Test 4: Error simulation
 # (Temporarily modify an agent to cause a build error)
@@ -755,7 +755,7 @@ _progress_summary "Test completed" "10 items processed" "  - 5 in test mode"
 **Verify ANSI codes**:
 ```bash
 # Display raw output
-./oc.sh deploy PROJECT_ID 2>&1 | od -c | grep -E '\\r|\\033'
+./oh deploy PROJECT_ID 2>&1 | od -c | grep -E '\\r|\\033'
 ```
 
 ---

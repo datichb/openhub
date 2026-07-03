@@ -61,7 +61,7 @@ If `PROJECT_ID` is empty (hub-level deployment without a target project), no ins
 
 ### Option B — Skill translation by the adapter
 
-The deployment (`oc deploy`) automatically translates skill files via an LLM API before injection. Deployed agents are in the project's language.
+The deployment (`oh deploy`) automatically translates skill files via an LLM API before injection. Deployed agents are in the project's language.
 
 **Rejected**: API cost on every deployment, increased deployment time, translation maintenance hard to version and audit.
 

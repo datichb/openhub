@@ -18,14 +18,14 @@ L'intégration GitLab enrichit les workflows de planification (Orchestrator, Pat
 
 ## Configuration rapide
 
-### 1. Configurer via `oc service`
+### 1. Configurer via `oh service`
 
-La méthode recommandée est d'utiliser la commande `oc service setup` qui vous guide interactivement :
+La méthode recommandée est d'utiliser la commande `oh service setup` qui vous guide interactivement :
 
 ```bash
-oc service setup gitlab
+oh service setup gitlab
 # ou via l'alias :
-oc gitlab setup
+oh gitlab setup
 ```
 
 Cette commande va :
@@ -37,9 +37,9 @@ Cette commande va :
 
 Vérifier l'état à tout moment :
 ```bash
-oc service status gitlab
+oh service status gitlab
 # ou :
-oc gitlab status
+oh gitlab status
 ```
 
 ### 2. Obtenir votre Personal Access Token
@@ -73,11 +73,11 @@ Créer ou éditer `~/.config/opencode/config.json` :
 ### 4. Déployer sur un projet
 
 ```bash
-oc deploy opencode MON-PROJET
+oh deploy opencode MON-PROJET
 # ou uniquement le MCP GitLab :
-oc service deploy gitlab --project MON-PROJET
+oh service deploy gitlab --project MON-PROJET
 # ou via l'alias :
-oc gitlab deploy --project MON-PROJET
+oh gitlab deploy --project MON-PROJET
 ```
 
 ---
@@ -192,7 +192,7 @@ Error: GITLAB_PERSONAL_ACCESS_TOKEN is required
 
 **Solution :** Vérifier que le token est bien configuré :
 ```bash
-oc gitlab status
+oh gitlab status
 ```
 
 ### Accès refusé (403)
@@ -209,9 +209,9 @@ Le chemin de projet est incorrect ou le token n'a pas accès à ce projet. Véri
 
 Vérifier que `GITLAB_BASE_URL` est bien défini :
 ```bash
-oc gitlab status
+oh gitlab status
 # Si absent :
-oc gitlab setup
+oh gitlab setup
 ```
 
 ### Timeout sur les requêtes
@@ -219,7 +219,7 @@ oc gitlab setup
 Augmenter le timeout pour les instances lentes :
 ```bash
 # Lors du setup
-GITLAB_TIMEOUT=60000 oc gitlab setup
+GITLAB_TIMEOUT=60000 oh gitlab setup
 ```
 
 ### Build du serveur MCP échoue
@@ -254,13 +254,13 @@ npm run build
 
 - [Documentation API GitLab](https://docs.gitlab.com/ee/api/)
 - [Personal Access Tokens GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
-- [Référence CLI `oc service`](../reference/services.fr.md)
+- [Référence CLI `oh service`](../reference/services.fr.md)
 - [Architecture MCP servers](../../servers/README.md)
 
 ---
 
 ## Support
 
-- `oc gitlab status` — vérifier la configuration
-- `oc gitlab setup` — reconfigurer le service
+- `oh gitlab status` — vérifier la configuration
+- `oh gitlab setup` — reconfigurer le service
 - Problème persistant → reporter sur [GitHub Issues](https://github.com/anomalyco/opencode)

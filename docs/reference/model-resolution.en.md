@@ -143,16 +143,16 @@ In this example:
 
 ## CLI configuration
 
-> **Note:** the `--family-model` and `--agent-model` flags require the `oc config set` enhancement (ticket .6). If not yet implemented, configure `hub.json` and `api-keys.local.md` manually as shown in the examples above.
+> **Note:** the `--family-model` and `--agent-model` flags require the `oh config set` enhancement (ticket .6). If not yet implemented, configure `hub.json` and `api-keys.local.md` manually as shown in the examples above.
 
 ```bash
 # Hub level
-oc config set --family-model planning=claude-opus-4
-oc config set --agent-model debugger=claude-sonnet-4-5
+oh config set --family-model planning=claude-opus-4
+oh config set --agent-model debugger=claude-sonnet-4-5
 
 # Project level
-oc config set MY-APP --family-model planning=claude-opus-4
-oc config set MY-APP --agent-model reviewer=claude-sonnet-4-5
+oh config set MY-APP --family-model planning=claude-opus-4
+oh config set MY-APP --agent-model reviewer=claude-sonnet-4-5
 ```
 
 ---

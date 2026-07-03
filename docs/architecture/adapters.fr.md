@@ -19,13 +19,13 @@ qui vérifie via `declare -F` que les 9 fonctions existent après le `source`.
 | `adapter_deploy_skills` | **Phase 2** — Déploie les skills natives dans `.opencode/skills/` | `adapter_deploy_skills deploy_dir project_id` |
 | `adapter_deploy_config` | **Phase 3** — Applique la configuration provider/model (ex: `opencode.json`) | `adapter_deploy_config deploy_dir project_id [provider_override]` |
 | `adapter_deploy` | Wrapper de compatibilité — enchaîne Phase 1 + Phase 2 + Phase 3 | `adapter_deploy deploy_dir project_id [provider_override]` |
-| `adapter_install` | Installe l'outil cible (appelé par `oc install`) | `adapter_install()` |
-| `adapter_update` | Met à jour l'outil cible (appelé par `oc update`) | `adapter_update()` |
-| `adapter_start` | Lance l'outil dans le projet (appelé par `oc start`) | `adapter_start project_path prompt project_id` |
+| `adapter_install` | Installe l'outil cible (appelé par `oh install`) | `adapter_install()` |
+| `adapter_update` | Met à jour l'outil cible (appelé par `oh update`) | `adapter_update()` |
+| `adapter_start` | Lance l'outil dans le projet (appelé par `oh start`) | `adapter_start project_path prompt project_id` |
 
 ### Séparation des phases
 
-`oc deploy` exécute les trois phases séquentiellement en affichant une section visuelle distincte pour chacune :
+`oh deploy` exécute les trois phases séquentiellement en affichant une section visuelle distincte pour chacune :
 
 ```
 ▶  Phase 1 — Copie des agents
@@ -38,7 +38,7 @@ qui vérifie via `declare -F` que les 9 fonctions existent après le `source`.
 ◆  opencode.json  (modèle : amazon-bedrock/..., provider : bedrock)
 ```
 
-`oc start --provider <provider>` n'exécute que **la Phase 3** lorsque les agents
+`oh start --provider <provider>` n'exécute que **la Phase 3** lorsque les agents
 sont déjà en place — les Phases 1 et 2 sont inutiles dans ce cas.
 
 ### Détail des paramètres
@@ -158,7 +158,7 @@ Variables exposées par `adapter_deploy_config` après la Phase 3 :
 1. Créer `scripts/adapters/<cible>.adapter.sh` avec les **8 fonctions** du contrat
 2. Le fichier sera chargé automatiquement par `load_adapter` — aucune modification de
    `adapter-manager.sh` n'est nécessaire
-3. Tester : `oc deploy <cible>` puis vérifier les fichiers générés
+3. Tester : `oh deploy <cible>` puis vérifier les fichiers générés
 
 ### Exemple minimal
 

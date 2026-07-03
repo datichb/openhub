@@ -1,4 +1,4 @@
-# CLI Reference — `oc service` command
+# CLI Reference — `oh service` command
 
 > [Lire en français](services.fr.md)
 
@@ -9,10 +9,10 @@ Manage external services and integrations connected via the MCP (Model Context P
 ## Synopsis
 
 ```bash
-oc service <subcommand> [service] [options]
+oh service <subcommand> [service] [options]
 ```
 
-**Quick reference** — also accessible via `oc help 8` or `oc service --help`:
+**Quick reference** — also accessible via `oh help 8` or `oh service --help`:
 
 | Subcommand | Description |
 |---|---|
@@ -22,16 +22,16 @@ oc service <subcommand> [service] [options]
 | `remove <name>` | Remove a service configuration |
 | `deploy <name> [--project ID]` | Deploy the MCP server into a project |
 
-**Aliases:** `oc figma` · `oc gitlab` · `oc gslides` → `oc service ... <name>`
+**Aliases:** `oh figma` · `oh gitlab` · `oh gslides` → `oh service ... <name>`
 
 ---
 
-## `oc service setup`
+## `oh service setup`
 
 Interactively configure a service (credentials, validation, MCP build).
 
 ```bash
-oc service setup [service-name]
+oh service setup [service-name]
 ```
 
 **Behavior:**
@@ -55,27 +55,27 @@ oc service setup [service-name]
 
 ```bash
 # Interactive mode — selection menu
-oc service setup
+oh service setup
 
 # Configure Figma directly
-oc service setup figma
+oh service setup figma
 
 # Configure GitLab (alias)
-oc gitlab setup
+oh gitlab setup
 
 # Non-interactive mode (CI/CD)
 FIGMA_PERSONAL_ACCESS_TOKEN=figd_xxx FIGMA_TEAM_ID=123456 \
-  OC_NON_INTERACTIVE=1 oc service setup figma
+  OH_NON_INTERACTIVE=1 oh service setup figma
 ```
 
 ---
 
-## `oc service status`
+## `oh service status`
 
 Check the status of one or all services (configuration, token validity, MCP build).
 
 ```bash
-oc service status [service-name]
+oh service status [service-name]
 ```
 
 **Behavior:**
@@ -96,44 +96,44 @@ oc service status [service-name]
 
 ```bash
 # Status of all services
-oc service status
+oh service status
 
 # Figma status only
-oc service status figma
+oh service status figma
 
 # Via alias
-oc figma status
+oh figma status
 ```
 
 ---
 
-## `oc service list`
+## `oh service list`
 
 List all available services in the catalog with their configuration status.
 
 ```bash
-oc service list
+oh service list
 ```
 
 **Behavior:**
 - Displays a table with: service name, description, status (Configured / Not configured).
-- Equivalent to `oc service` with no argument.
+- Equivalent to `oh service` with no argument.
 
 **Examples:**
 
 ```bash
-oc service list
-oc service
+oh service list
+oh service
 ```
 
 ---
 
-## `oc service remove`
+## `oh service remove`
 
 Remove a service configuration (removes environment variables from `~/.config/opencode/config.json`).
 
 ```bash
-oc service remove <service-name>
+oh service remove <service-name>
 ```
 
 **Behavior:**
@@ -150,8 +150,8 @@ oc service remove <service-name>
 **Examples:**
 
 ```bash
-oc service remove figma
-oc service remove gitlab
+oh service remove figma
+oh service remove gitlab
 ```
 
 ---
@@ -162,16 +162,16 @@ Common services have aliases to shorten commands:
 
 | Alias | Equivalent |
 |-------|-----------|
-| `oc figma <cmd> [args]` | `oc service <cmd> [args] figma` |
-| `oc gitlab <cmd> [args]` | `oc service <cmd> [args] gitlab` |
+| `oh figma <cmd> [args]` | `oh service <cmd> [args] figma` |
+| `oh gitlab <cmd> [args]` | `oh service <cmd> [args] gitlab` |
 
 **Examples with aliases:**
 
 ```bash
-oc figma setup          # = oc service setup figma
-oc figma status         # = oc service status figma
-oc gitlab setup         # = oc service setup gitlab
-oc gitlab status        # = oc service status gitlab
+oh figma setup          # = oh service setup figma
+oh figma status         # = oh service status figma
+oh gitlab setup         # = oh service setup gitlab
+oh gitlab status        # = oh service status gitlab
 ```
 
 ---
@@ -244,11 +244,11 @@ Simply add an entry to `config/services.json`. No code changes required.
 
 ## Per-project MCP selection
 
-By default, **no MCP server is deployed** to a project (opt-in). The selection is stored as the `- MCP :` field in `projects/projects.md` and applied on every `oc deploy`.
+By default, **no MCP server is deployed** to a project (opt-in). The selection is stored as the `- MCP :` field in `projects/projects.md` and applied on every `oh deploy`.
 
-**Setting up during `oc init`:**
+**Setting up during `oh init`:**
 
-Step 4 of the `oc init` wizard prompts:
+Step 4 of the `oh init` wizard prompts:
 
 ```
 ◇  Step 4/6 — MCP Services
@@ -260,7 +260,7 @@ Answer `Y` to open a multi-select picker listing all configured services. The re
 
 **Manual configuration:**
 
-Edit `projects/projects.md` directly and re-run `oc deploy <PROJECT_ID>`:
+Edit `projects/projects.md` directly and re-run `oh deploy <PROJECT_ID>`:
 
 ```markdown
 ## MY-APP
@@ -275,7 +275,7 @@ Edit `projects/projects.md` directly and re-run `oc deploy <PROJECT_ID>`:
 
 ```bash
 # After editing projects.md:
-oc deploy MY-APP
+oh deploy MY-APP
 ```
 
 The `- MCP :` field is read during the deploy phase and controls which servers are copied to `.opencode/servers/` and configured in `opencode.json`.
