@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -39,7 +40,11 @@ func init() {
 	startCmd.Flags().StringP("project", "j", "", "ID du projet (détection auto sinon)")
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
 	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
-	startCmd.Flags().Bool("dev", false, "Mode développement")
+	startCmd.Flags().Bool("dev", false, "Mode développement (orchestrator-dev + tickets)")
+	startCmd.Flags().StringP("label", "l", "", "Filtrer tickets par label (requiert --dev)")
+	startCmd.Flags().StringP("assignee", "A", "", "Filtrer tickets par assignee (requiert --dev)")
+	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
+	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
 
 	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
@@ -71,6 +76,29 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return opencode.Exec(opencode.StartOpts{
 			ResumeSessionID: resumeID,
 		})
+	}
+
+	// --- Validate flag combinations ---
+	devMode, _ := cmd.Flags().GetBool("dev")
+	onboardMode, _ := cmd.Flags().GetBool("onboard")
+	labelFlag, _ := cmd.Flags().GetString("label")
+	assigneeFlag, _ := cmd.Flags().GetString("assignee")
+	refreshFlag, _ := cmd.Flags().GetBool("refresh")
+
+	if labelFlag != "" && !devMode {
+		return fmt.Errorf("%s", i18n.Tf("cmd.start.flag_requires_dev", "label"))
+	}
+	if assigneeFlag != "" && !devMode {
+		return fmt.Errorf("%s", i18n.Tf("cmd.start.flag_requires_dev", "assignee"))
+	}
+	if labelFlag != "" && assigneeFlag != "" {
+		return fmt.Errorf("%s", i18n.T("cmd.start.label_assignee_exclusive"))
+	}
+	if refreshFlag && !onboardMode {
+		return fmt.Errorf("%s", i18n.T("cmd.start.refresh_requires_onboard"))
+	}
+	if devMode && onboardMode {
+		return fmt.Errorf("%s", i18n.T("cmd.start.dev_onboard_exclusive"))
 	}
 
 	// --- Resolve project ---
@@ -115,6 +143,30 @@ func runStart(cmd *cobra.Command, args []string) error {
 	stack := prompt.DetectStack(launchPath)
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
+
+	// --- Dev mode ---
+	if devMode {
+		devAgent, devPrompt, err := handleDevMode(cmd, a, project, launchPath)
+		if err != nil {
+			return err
+		}
+		agent = devAgent
+		userPrompt = devPrompt
+	}
+
+	// --- Onboard mode ---
+	if onboardMode {
+		agent = "onboarder"
+		hubDir := findHubDir()
+		userPrompt = prompt.BuildOnboardPrompt(project, hubDir, refreshFlag || prompt.WikiExists(launchPath))
+		if refreshFlag {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.onboard_refresh"))
+		} else {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.onboard_launching"))
+		}
+	}
 
 	// --- Display summary ---
 	fmt.Fprintln(a.IO.Out)
@@ -422,4 +474,162 @@ func displayOrDefault(detected, fallback string) string {
 		return fallback
 	}
 	return "—"
+}
+
+// handleDevMode orchestrates the --dev workflow:
+// 1. Verify bd is available
+// 2. Sync tracker
+// 3. Query epics and orphan tickets
+// 4. Present picker (3 sections: epics, labeled tickets, other tickets)
+// 5. Resolve selected tickets
+// 6. Build prompt for orchestrator-dev
+// Returns the agent name and constructed prompt.
+func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (string, string, error) {
+	// 1. Verify bd is available
+	if err := beads.Available(); err != nil {
+		return "", "", fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
+	}
+
+	labelFilter, _ := cmd.Flags().GetString("label")
+	assigneeFilter, _ := cmd.Flags().GetString("assignee")
+
+	// 2. Sync tracker
+	if project.Tracker != "" && project.Tracker != "none" {
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_syncing"))
+		if err := beads.SyncPull(launchPath, project.Tracker); err != nil {
+			slog.Warn("beads sync failed", "error", err)
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.dev_sync_warning"))
+		}
+	}
+
+	// 3. Query tickets
+	// Get epics with ready children
+	epics, err := beads.ListEpicsWithReadyChildren(launchPath)
+	if err != nil {
+		slog.Warn("failed to list epics", "error", err)
+	}
+
+	// Get orphan tickets (no parent)
+	withLabel, withoutLabel, err := beads.OrphanTickets(launchPath, labelFilter)
+	if err != nil {
+		return "", "", fmt.Errorf("querying tickets: %w", err)
+	}
+
+	// Apply assignee filter if set (re-query with assignee)
+	if assigneeFilter != "" {
+		readyOpts := beads.ReadyOpts{Assignee: assigneeFilter}
+		filtered, err := beads.ListReady(launchPath, readyOpts)
+		if err != nil {
+			return "", "", fmt.Errorf("querying tickets by assignee: %w", err)
+		}
+		// Partition filtered tickets into labeled/unlabeled orphans
+		withLabel = nil
+		withoutLabel = nil
+		for _, t := range filtered {
+			if t.Parent != "" || t.Type == "epic" {
+				continue
+			}
+			if beads.HasLabelExported(t, "ai-delegated") {
+				withLabel = append(withLabel, t)
+			} else {
+				withoutLabel = append(withoutLabel, t)
+			}
+		}
+	}
+
+	// 4. Check we have something to show
+	totalOptions := len(epics) + len(withLabel) + len(withoutLabel)
+	if totalOptions == 0 {
+		label := "ai-delegated"
+		if labelFilter != "" {
+			label = labelFilter
+		}
+		return "", "", fmt.Errorf("%s", i18n.Tf("cmd.start.dev_no_tickets", label))
+	}
+
+	// 5. Build picker options
+	type pickerItem struct {
+		label    string
+		isEpic   bool
+		epicID   string
+		ticket   beads.Ticket
+	}
+
+	var items []pickerItem
+
+	// Section: Epics
+	for _, e := range epics {
+		items = append(items, pickerItem{
+			label:  fmt.Sprintf("[Epic] %s (%d tickets)", e.Ticket.Title, e.ReadyCount),
+			isEpic: true,
+			epicID: e.Ticket.ID,
+			ticket: e.Ticket,
+		})
+	}
+
+	// Section: Tickets with ai-delegated label
+	for _, t := range withLabel {
+		items = append(items, pickerItem{
+			label:  fmt.Sprintf("[ai-delegated] %s — %s", t.ID, t.Title),
+			isEpic: false,
+			ticket: t,
+		})
+	}
+
+	// Section: Other ready tickets
+	for _, t := range withoutLabel {
+		items = append(items, pickerItem{
+			label:  fmt.Sprintf("%s — %s", t.ID, t.Title),
+			isEpic: false,
+			ticket: t,
+		})
+	}
+
+	// 6. Present picker
+	options := make([]huh.Option[int], len(items))
+	for i, item := range items {
+		options[i] = huh.NewOption(item.label, i)
+	}
+
+	var selectedIdx int
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[int]().
+				Title(i18n.T("cmd.start.dev_picker_title")).
+				Options(options...).
+				Value(&selectedIdx),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return "", "", err
+	}
+
+	selected := items[selectedIdx]
+
+	// 7. Resolve tickets for the selected item
+	var tickets []beads.Ticket
+	if selected.isEpic {
+		children, err := beads.ReadyChildren(launchPath, selected.epicID)
+		if err != nil {
+			return "", "", fmt.Errorf("querying epic children: %w", err)
+		}
+		tickets = children
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.start.dev_selected_epic", selected.ticket.Title, len(tickets)))
+	} else {
+		tickets = []beads.Ticket{selected.ticket}
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.start.dev_selected_ticket", selected.ticket.ID, selected.ticket.Title))
+	}
+
+	// 8. Build prompt
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_launching"))
+
+	devPrompt := prompt.BuildDevPrompt(tickets)
+	return "orchestrator-dev", devPrompt, nil
 }
