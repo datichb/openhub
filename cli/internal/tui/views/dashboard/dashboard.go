@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -34,6 +35,11 @@ type Config struct {
 	Title string
 	Stats Stats
 }
+
+const (
+	minWidth  = 80
+	minHeight = 20
+)
 
 // Model is the Bubbletea model for the dashboard.
 type Model struct {
@@ -79,8 +85,20 @@ func (m Model) View() string {
 		return ""
 	}
 
-	var b strings.Builder
+	// Guard: terminal too small
+	if m.width < minWidth || m.height < minHeight {
+		msg := i18n.Tf("tui.terminal_too_small", m.width, m.height, minWidth, minHeight)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, msg)
+	}
+
 	s := m.config.Stats
+
+	// Empty state: no data at all
+	if s.TotalSessions == 0 && s.TotalProjects == 0 {
+		return m.renderEmptyState()
+	}
+
+	var b strings.Builder
 
 	// Title
 	titleStyle := lipgloss.NewStyle().
@@ -98,15 +116,15 @@ func (m Model) View() string {
 		halfWidth = 30
 	}
 
-	projectsPanel := m.renderPanel("Projets", halfWidth, []string{
-		fmt.Sprintf("Total:  %d", s.TotalProjects),
-		fmt.Sprintf("Actifs: %d", s.ActiveProjects),
-		fmt.Sprintf("Top:    %s", s.TopProject),
+	projectsPanel := m.renderPanel(i18n.T("tui.dashboard.projects"), halfWidth, []string{
+		i18n.Tf("tui.dashboard.total", s.TotalProjects),
+		i18n.Tf("tui.dashboard.active", s.ActiveProjects),
+		i18n.Tf("tui.dashboard.top", s.TopProject),
 	})
 
-	sessionsPanel := m.renderPanel("Sessions", halfWidth, []string{
-		fmt.Sprintf("Total:      %d", s.TotalSessions),
-		fmt.Sprintf("Aujourd'hui: %d", s.TodaySessions),
+	sessionsPanel := m.renderPanel(i18n.T("tui.dashboard.sessions"), halfWidth, []string{
+		i18n.Tf("tui.dashboard.total_sessions", s.TotalSessions),
+		i18n.Tf("tui.dashboard.today_sessions", s.TodaySessions),
 	})
 
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, projectsPanel, "  ", sessionsPanel))
@@ -114,10 +132,10 @@ func (m Model) View() string {
 
 	// Row 2: Token usage
 	fullWidth := m.width - 4
-	tokensPanel := m.renderPanel("Tokens", fullWidth, []string{
-		fmt.Sprintf("Utilisés: %s", formatTokens(s.TokensUsed)),
-		fmt.Sprintf("Économisés (RTK): %s", formatTokens(s.TokensSaved)),
-		fmt.Sprintf("Ratio économie: %s", formatRatio(s.TokensSaved, s.TokensUsed)),
+	tokensPanel := m.renderPanel(i18n.T("tui.dashboard.tokens"), fullWidth, []string{
+		i18n.Tf("tui.dashboard.tokens_used", formatTokens(s.TokensUsed)),
+		i18n.Tf("tui.dashboard.tokens_saved", formatTokens(s.TokensSaved)),
+		i18n.Tf("tui.dashboard.tokens_ratio", formatRatio(s.TokensSaved, s.TokensUsed)),
 		"",
 		renderBar(s.TokensSaved, s.TokensUsed+s.TokensSaved, fullWidth-8),
 	})
@@ -126,9 +144,27 @@ func (m Model) View() string {
 	// Footer
 	b.WriteString("\n\n")
 	footer := lipgloss.NewStyle().Foreground(common.Subtle)
-	b.WriteString(footer.Render("  q quitter"))
+	b.WriteString(footer.Render("  " + i18n.T("tui.dashboard.quit")))
 
 	return b.String()
+}
+
+func (m Model) renderEmptyState() string {
+	content := strings.Join([]string{
+		i18n.T("tui.dashboard.empty_welcome"),
+		"",
+		i18n.T("tui.dashboard.empty_commands"),
+		"  " + i18n.T("tui.dashboard.empty_init"),
+		"  " + i18n.T("tui.dashboard.empty_start"),
+		"  " + i18n.T("tui.dashboard.empty_add"),
+	}, "\n")
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(common.Primary).
+		Padding(2, 4)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box.Render(content))
 }
 
 func (m Model) renderPanel(title string, width int, lines []string) string {

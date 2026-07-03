@@ -1,6 +1,6 @@
 // Package board provides a full-screen Kanban board TUI view.
 // It displays tickets in columns (todo, in_progress, done, blocked)
-// with live refresh support.
+// with live refresh support, mouse navigation, and vertical scrolling.
 package board
 
 import (
@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -45,13 +46,19 @@ type columnDef struct {
 	color  lipgloss.Color
 }
 
+const (
+	minWidth  = 80
+	minHeight = 20
+)
+
 // Model is the Bubbletea model for the board.
 type Model struct {
 	config   Config
 	tickets  []Ticket
 	width    int
 	height   int
-	cursor   int // active column
+	cursor   int   // active column
+	offsets  []int // scroll offset per column
 	done     bool
 	lastTick time.Time
 }
@@ -68,6 +75,7 @@ func New(cfg Config) Model {
 		tickets:  cfg.Tickets,
 		width:    120,
 		height:   30,
+		offsets:  make([]int, len(columns)),
 		lastTick: time.Now(),
 	}
 }
@@ -107,10 +115,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(columns)-1 {
 				m.cursor++
 			}
+		case "down", "j":
+			maxOffset := m.maxOffsetForColumn(m.cursor)
+			if m.offsets[m.cursor] < maxOffset {
+				m.offsets[m.cursor]++
+			}
+		case "up", "k":
+			if m.offsets[m.cursor] > 0 {
+				m.offsets[m.cursor]--
+			}
 		case "r":
 			// Manual refresh
 			if m.config.RefreshFunc != nil {
 				m.tickets = m.config.RefreshFunc()
+			}
+		}
+		return m, nil
+
+	case tea.MouseMsg:
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			if m.offsets[m.cursor] > 0 {
+				m.offsets[m.cursor]--
+			}
+		case tea.MouseButtonWheelDown:
+			maxOffset := m.maxOffsetForColumn(m.cursor)
+			if m.offsets[m.cursor] < maxOffset {
+				m.offsets[m.cursor]++
+			}
+		case tea.MouseButtonLeft:
+			// Click on column header area → switch column
+			colWidth := m.colWidth()
+			if colWidth > 0 {
+				clickedCol := msg.X / colWidth
+				if clickedCol >= 0 && clickedCol < len(columns) {
+					m.cursor = clickedCol
+				}
 			}
 		}
 		return m, nil
@@ -131,6 +171,12 @@ func (m Model) View() string {
 		return ""
 	}
 
+	// Guard: terminal too small
+	if m.width < minWidth || m.height < minHeight {
+		msg := i18n.Tf("tui.terminal_too_small", m.width, m.height, minWidth, minHeight)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, msg)
+	}
+
 	var b strings.Builder
 
 	// Title bar
@@ -144,10 +190,7 @@ func (m Model) View() string {
 	b.WriteString("\n\n")
 
 	// Calculate column width
-	colWidth := (m.width - 4) / len(columns)
-	if colWidth < 20 {
-		colWidth = 20
-	}
+	colWidth := m.colWidth()
 
 	// Render columns header
 	var headers []string
@@ -174,15 +217,19 @@ func (m Model) View() string {
 	b.WriteString("\n")
 
 	// Render ticket cards per column
-	maxRows := m.height - 8 // reserve space for header, footer
-	if maxRows < 5 {
-		maxRows = 5
-	}
+	maxRows := m.maxRows()
 
 	var colViews []string
-	for _, col := range columns {
+	for i, col := range columns {
 		tickets := m.ticketsByStatus(col.status)
-		colView := renderColumn(tickets, colWidth-2, maxRows, col.color)
+		offset := m.offsets[i]
+
+		// Clamp offset
+		if offset > len(tickets) {
+			offset = len(tickets)
+		}
+
+		colView := m.renderColumn(tickets, offset, colWidth-2, maxRows, col.color, i == m.cursor)
 		colViews = append(colViews, colView)
 	}
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, colViews...))
@@ -191,23 +238,36 @@ func (m Model) View() string {
 	b.WriteString("\n\n")
 	footerStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 	b.WriteString(footerStyle.Render(
-		fmt.Sprintf("  ←/→ colonnes • r rafraîchir • q quitter — dernière MAJ: %s — %d ticket(s) total",
-			m.lastTick.Format("15:04:05"), len(m.tickets))))
+		fmt.Sprintf("  %s", i18n.Tf("tui.board.footer", m.lastTick.Format("15:04:05"), len(m.tickets)))))
 
 	return b.String()
 }
 
-func renderColumn(tickets []Ticket, width, maxRows int, color lipgloss.Color) string {
+func (m Model) renderColumn(tickets []Ticket, offset, width, maxRows int, color lipgloss.Color, active bool) string {
 	var cards []string
-	for i, t := range tickets {
-		if i >= maxRows {
-			remaining := len(tickets) - maxRows
-			more := lipgloss.NewStyle().Foreground(common.Subtle).Width(width).Render(
-				fmt.Sprintf("  +%d autres...", remaining))
-			cards = append(cards, more)
-			break
-		}
-		cards = append(cards, renderCard(t, width, color))
+
+	// Scroll-up indicator
+	if offset > 0 {
+		indicator := lipgloss.NewStyle().Foreground(common.Subtle).Width(width).Align(lipgloss.Center)
+		cards = append(cards, indicator.Render("▲"))
+	}
+
+	// Visible tickets
+	end := offset + maxRows
+	if end > len(tickets) {
+		end = len(tickets)
+	}
+
+	for i := offset; i < end; i++ {
+		cards = append(cards, renderCard(tickets[i], width, color))
+	}
+
+	// Scroll-down indicator or overflow count
+	if end < len(tickets) {
+		remaining := len(tickets) - end
+		indicator := lipgloss.NewStyle().Foreground(common.Subtle).Width(width).Align(lipgloss.Center)
+		cards = append(cards, indicator.Render(
+			fmt.Sprintf("▼ %s", i18n.Tf("tui.board.overflow", remaining))))
 	}
 
 	if len(cards) == 0 {
@@ -220,7 +280,7 @@ func renderColumn(tickets []Ticket, width, maxRows int, color lipgloss.Color) st
 		cards = append(cards, empty)
 	}
 
-	col := lipgloss.NewStyle().Width(width+2).Padding(0, 1)
+	col := lipgloss.NewStyle().Width(width + 2).Padding(0, 1)
 	return col.Render(strings.Join(cards, "\n"))
 }
 
@@ -257,6 +317,35 @@ func renderCard(t Ticket, width int, color lipgloss.Color) string {
 	return cardStyle.Render(content)
 }
 
+func (m Model) colWidth() int {
+	w := (m.width - 4) / len(columns)
+	if w < 20 {
+		w = 20
+	}
+	return w
+}
+
+func (m Model) maxRows() int {
+	r := m.height - 8
+	if r < 5 {
+		r = 5
+	}
+	return r
+}
+
+func (m Model) maxOffsetForColumn(col int) int {
+	if col < 0 || col >= len(columns) {
+		return 0
+	}
+	tickets := m.ticketsByStatus(columns[col].status)
+	maxRows := m.maxRows()
+	maxOff := len(tickets) - maxRows
+	if maxOff < 0 {
+		return 0
+	}
+	return maxOff
+}
+
 func (m Model) countByStatus(status string) int {
 	count := 0
 	for _, t := range m.tickets {
@@ -280,7 +369,7 @@ func (m Model) ticketsByStatus(status string) []Ticket {
 // Run launches the board as a standalone program.
 func Run(cfg Config) error {
 	model := New(cfg)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err := p.Run()
 	return err
 }

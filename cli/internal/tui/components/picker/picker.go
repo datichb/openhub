@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -239,7 +240,7 @@ func (m Model) View() string {
 
 	if len(m.items) == 0 {
 		noResults := lipgloss.NewStyle().Foreground(common.Subtle).Italic(true)
-		b.WriteString(noResults.Render("  Aucun résultat"))
+		b.WriteString(noResults.Render("  " + i18n.T("tui.picker.no_results")))
 		b.WriteString("\n")
 	}
 
@@ -303,9 +304,9 @@ func (m Model) View() string {
 	b.WriteString("\n")
 	helpStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 	if m.config.MultiSelect {
-		b.WriteString(helpStyle.Render("  ↑/↓ naviguer • espace sélectionner • * tout • / filtrer • enter confirmer • esc annuler"))
+		b.WriteString(helpStyle.Render("  " + i18n.T("tui.picker.help_multi")))
 	} else {
-		b.WriteString(helpStyle.Render("  ↑/↓ naviguer • / filtrer • enter sélectionner • esc annuler"))
+		b.WriteString(helpStyle.Render("  " + i18n.T("tui.picker.help_single")))
 	}
 
 	return b.String()
