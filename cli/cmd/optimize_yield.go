@@ -10,8 +10,9 @@ import (
 )
 
 var optimizeCmd = &cobra.Command{
-	Use:   "optimize",
-	Short: "Analyse et suggestions d'optimisation",
+	Use:    "optimize",
+	Short:  "Analyse et suggestions d'optimisation",
+	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a := MustApp()
 		ctx := cmd.Context()
@@ -59,8 +60,9 @@ var optimizeCmd = &cobra.Command{
 }
 
 var yieldCmd = &cobra.Command{
-	Use:   "yield",
-	Short: "Affiche le rapport sessions ↔ commits",
+	Use:    "yield",
+	Short:  "Affiche le rapport sessions ↔ commits",
+	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a := MustApp()
 		ctx := cmd.Context()

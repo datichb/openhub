@@ -210,6 +210,7 @@ func promptUnlockPassphrase() (string, error) {
 func init() {
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
+	rootCmd.SetHelpFunc(customHelpFunc)
 }
 
 // localizeCommands recursively traverses the command tree and replaces

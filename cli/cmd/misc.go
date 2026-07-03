@@ -14,44 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
-var conventionsCmd = &cobra.Command{
-	Use:   "conventions",
-	Short: "Affiche les conventions du projet",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		a := MustApp()
-		ctx := cmd.Context()
-		projectID, _ := cmd.Flags().GetString("project")
-		project, err := resolveProject(ctx, a, projectID)
-		if err != nil {
-			return err
-		}
-
-		// Look for convention files
-		conventions := []string{
-			".editorconfig", "CONVENTIONS.md", "CONTRIBUTING.md",
-			".eslintrc.json", ".prettierrc", "rustfmt.toml",
-			"pyproject.toml", ".golangci.yml",
-		}
-
-		fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-			common.Title.Render("oh conventions"), i18n.Tf("cmd.conventions.title", project.Name))
-
-		found := false
-		for _, f := range conventions {
-			path := filepath.Join(project.Path, f)
-			if _, err := os.Stat(path); err == nil {
-				fmt.Fprintf(a.IO.Out, "  %s %s\n", common.SuccessStyle.Render(common.IconSuccess), f)
-				found = true
-			}
-		}
-
-		if !found {
-			fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.conventions.none_found")))
-		}
-		return nil
-	},
-}
-
 var beadsCmd = &cobra.Command{
 	Use:                "beads",
 	Short:              "Gestion des tickets beads (proxy vers bd)",
@@ -302,10 +264,6 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(conventionsCmd)
-	conventionsCmd.Flags().StringP("project", "j", "", "ID du projet")
-	_ = conventionsCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
-
 	rootCmd.AddCommand(beadsCmd)
 
 	rootCmd.AddCommand(serviceCmd)
