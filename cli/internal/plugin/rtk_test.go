@@ -102,7 +102,7 @@ func TestIsVersionAtLeast(t *testing.T) {
 		{"0.42.1", "0.42.0", true},
 	}
 	for _, tt := range tests {
-		result := isVersionAtLeast(tt.version, tt.minimum)
+		result := IsVersionAtLeast(tt.version, tt.minimum)
 		assert.Equal(t, tt.expected, result, "version=%s minimum=%s", tt.version, tt.minimum)
 	}
 }

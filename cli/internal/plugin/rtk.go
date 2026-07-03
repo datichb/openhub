@@ -7,9 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/semver"
 )
 
 //go:embed rtk.ts
@@ -78,7 +79,7 @@ func RTKInstall() error {
 	}
 
 	// Check version
-	if !isVersionAtLeast(ver, RTKMinVersion) {
+	if !IsVersionAtLeast(ver, RTKMinVersion) {
 		return fmt.Errorf("rtk %s est trop ancien (minimum requis: %s). Mettez à jour avec:\n  brew upgrade rtk\n  ou: cargo install rtk --force", ver, RTKMinVersion)
 	}
 
@@ -146,49 +147,9 @@ func CheckRTKBinary() (string, error) {
 	return version, nil
 }
 
-// isVersionAtLeast checks if version >= minimum (simple semver comparison).
-func isVersionAtLeast(version, minimum string) bool {
-	v := parseSemver(version)
-	m := parseSemver(minimum)
-	return !v.less(m)
-}
-
-// IsVersionAtLeast is the exported version of isVersionAtLeast.
+// IsVersionAtLeast checks if version >= minimum (semantic version comparison).
 func IsVersionAtLeast(version, minimum string) bool {
-	return isVersionAtLeast(version, minimum)
-}
-
-type simpleSemver struct {
-	major, minor, patch int
-}
-
-func parseSemver(s string) simpleSemver {
-	s = strings.TrimPrefix(s, "v")
-	if idx := strings.IndexByte(s, '-'); idx > 0 {
-		s = s[:idx]
-	}
-	var v simpleSemver
-	parts := strings.SplitN(s, ".", 4)
-	if len(parts) >= 1 {
-		v.major, _ = strconv.Atoi(parts[0])
-	}
-	if len(parts) >= 2 {
-		v.minor, _ = strconv.Atoi(parts[1])
-	}
-	if len(parts) >= 3 {
-		v.patch, _ = strconv.Atoi(parts[2])
-	}
-	return v
-}
-
-func (v simpleSemver) less(other simpleSemver) bool {
-	if v.major != other.major {
-		return v.major < other.major
-	}
-	if v.minor != other.minor {
-		return v.minor < other.minor
-	}
-	return v.patch < other.patch
+	return semver.IsAtLeast(version, minimum)
 }
 
 func copyPluginFile(src, dst string) error {
