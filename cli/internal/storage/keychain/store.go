@@ -2,6 +2,7 @@
 package keychain
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -25,7 +26,7 @@ func New() *Store {
 // Ensure interface compliance at compile time.
 var _ domain.SecretStore = (*Store)(nil)
 
-func (s *Store) Get(key string) (string, error) {
+func (s *Store) Get(ctx context.Context, key string) (string, error) {
 	val, err := keyring.Get(serviceName, key)
 	if err != nil {
 		if err == keyring.ErrNotFound {
@@ -36,7 +37,7 @@ func (s *Store) Get(key string) (string, error) {
 	return val, nil
 }
 
-func (s *Store) Set(key, value string) error {
+func (s *Store) Set(ctx context.Context, key, value string) error {
 	if err := keyring.Set(serviceName, key, value); err != nil {
 		return fmt.Errorf("keychain set %q: %w", key, err)
 	}
@@ -46,7 +47,7 @@ func (s *Store) Set(key, value string) error {
 	return nil
 }
 
-func (s *Store) Delete(key string) error {
+func (s *Store) Delete(ctx context.Context, key string) error {
 	if err := keyring.Delete(serviceName, key); err != nil {
 		if err == keyring.ErrNotFound {
 			return nil
@@ -59,7 +60,7 @@ func (s *Store) Delete(key string) error {
 	return nil
 }
 
-func (s *Store) List() ([]string, error) {
+func (s *Store) List(ctx context.Context) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := make([]string, len(s.keys))
@@ -83,4 +84,22 @@ func (s *Store) removeKey(key string) {
 			return
 		}
 	}
+}
+
+// Probe tests whether the OS keychain is functional by attempting a read.
+// A read (Get) does not trigger macOS Security Agent prompts and returns
+// immediately if the keychain is unavailable.
+// Returns nil if the keychain is working, or an error describing why it's not.
+func Probe() error {
+	_, err := keyring.Get(serviceName, "__oh_keychain_probe__")
+	if err == keyring.ErrNotFound {
+		// Keychain is functional — the key simply doesn't exist
+		return nil
+	}
+	if err != nil {
+		// Keychain is not available (no D-Bus, no keychain file, etc.)
+		return err
+	}
+	// Key actually exists (shouldn't happen, but keychain is working)
+	return nil
 }
