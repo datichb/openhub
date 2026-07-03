@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ func openTestStore(t *testing.T) *Store {
 func TestProjectStore_CRUD(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
+	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Second)
 
@@ -40,10 +42,10 @@ func TestProjectStore_CRUD(t *testing.T) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	require.NoError(t, ps.Create(p))
+	require.NoError(t, ps.Create(ctx, p))
 
 	// Get
-	got, err := ps.Get("test-1")
+	got, err := ps.Get(ctx, "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, "Test Project", got.Name)
 	assert.Equal(t, "/tmp/test-project", got.Path)
@@ -53,48 +55,49 @@ func TestProjectStore_CRUD(t *testing.T) {
 	assert.Equal(t, []string{"coder", "reviewer"}, got.Agents)
 
 	// GetByPath
-	byPath, err := ps.GetByPath("/tmp/test-project")
+	byPath, err := ps.GetByPath(ctx, "/tmp/test-project")
 	require.NoError(t, err)
 	assert.Equal(t, "test-1", byPath.ID)
 
 	// List
-	projects, err := ps.List("")
+	projects, err := ps.List(ctx, "")
 	require.NoError(t, err)
 	assert.Len(t, projects, 1)
 
 	// Update
 	got.Language = "rust"
 	got.Labels = []string{"backend", "cli", "systems"}
-	require.NoError(t, ps.Update(got))
-	updated, err := ps.Get("test-1")
+	require.NoError(t, ps.Update(ctx, got))
+	updated, err := ps.Get(ctx, "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, "rust", updated.Language)
 	assert.Equal(t, []string{"backend", "cli", "systems"}, updated.Labels)
 
 	// Delete
-	require.NoError(t, ps.Delete("test-1"))
-	_, err = ps.Get("test-1")
+	require.NoError(t, ps.Delete(ctx, "test-1"))
+	_, err = ps.Get(ctx, "test-1")
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestProjectStore_ListByStatus(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
+	ctx := context.Background()
 
 	now := time.Now()
-	require.NoError(t, ps.Create(&domain.Project{ID: "p1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
-	require.NoError(t, ps.Create(&domain.Project{ID: "p2", Name: "P2", Path: "/p2", Status: domain.ProjectStatusArchived, CreatedAt: now, UpdatedAt: now}))
-	require.NoError(t, ps.Create(&domain.Project{ID: "p3", Name: "P3", Path: "/p3", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
+	require.NoError(t, ps.Create(ctx, &domain.Project{ID: "p1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
+	require.NoError(t, ps.Create(ctx, &domain.Project{ID: "p2", Name: "P2", Path: "/p2", Status: domain.ProjectStatusArchived, CreatedAt: now, UpdatedAt: now}))
+	require.NoError(t, ps.Create(ctx, &domain.Project{ID: "p3", Name: "P3", Path: "/p3", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
 
-	active, err := ps.List(domain.ProjectStatusActive)
+	active, err := ps.List(ctx, domain.ProjectStatusActive)
 	require.NoError(t, err)
 	assert.Len(t, active, 2)
 
-	archived, err := ps.List(domain.ProjectStatusArchived)
+	archived, err := ps.List(ctx, domain.ProjectStatusArchived)
 	require.NoError(t, err)
 	assert.Len(t, archived, 1)
 
-	all, err := ps.List("")
+	all, err := ps.List(ctx, "")
 	require.NoError(t, err)
 	assert.Len(t, all, 3)
 }
@@ -102,28 +105,31 @@ func TestProjectStore_ListByStatus(t *testing.T) {
 func TestProjectStore_GetNotFound(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
+	ctx := context.Background()
 
-	_, err := ps.Get("nonexistent")
+	_, err := ps.Get(ctx, "nonexistent")
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestProjectStore_CreateDuplicate(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
+	ctx := context.Background()
 
 	now := time.Now()
 	p := &domain.Project{ID: "p1", Name: "P1", Path: "/same/path", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	require.NoError(t, ps.Create(p))
+	require.NoError(t, ps.Create(ctx, p))
 
 	p2 := &domain.Project{ID: "p2", Name: "P2", Path: "/same/path", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	err := ps.Create(p2)
+	err := ps.Create(ctx, p2)
 	assert.ErrorIs(t, err, domain.ErrAlreadyExists)
 }
 
 func TestProjectStore_DeleteNotFound(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
+	ctx := context.Background()
 
-	err := ps.Delete("nonexistent")
+	err := ps.Delete(ctx, "nonexistent")
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }

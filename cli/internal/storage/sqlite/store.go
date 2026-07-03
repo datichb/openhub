@@ -24,7 +24,7 @@ func DBPath() string {
 // Open opens (or creates) the SQLite database and runs migrations.
 func Open(path string) (*Store, error) {
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating db directory: %w", err)
 	}
 
@@ -70,8 +70,25 @@ func (s *Store) DB() *sql.DB {
 }
 
 func (s *Store) migrate() error {
-	migrations := []string{
-		`CREATE TABLE IF NOT EXISTS projects (
+	// Ensure schema_migrations table exists
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+		version    INTEGER PRIMARY KEY,
+		applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`); err != nil {
+		return fmt.Errorf("creating schema_migrations table: %w", err)
+	}
+
+	// Get current schema version
+	currentVersion := 0
+	row := s.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`)
+	_ = row.Scan(&currentVersion)
+
+	// Define migrations (ordered by version)
+	migrations := []struct {
+		version int
+		sql     string
+	}{
+		{1, `CREATE TABLE IF NOT EXISTS projects (
 			id         TEXT PRIMARY KEY,
 			name       TEXT NOT NULL,
 			path       TEXT NOT NULL UNIQUE,
@@ -83,10 +100,10 @@ func (s *Store) migrate() error {
 			status     TEXT NOT NULL DEFAULT 'active',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)`,
-		`CREATE TABLE IF NOT EXISTS sessions (
+		)`},
+		{2, `CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status)`},
+		{3, `CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)`},
+		{4, `CREATE TABLE IF NOT EXISTS sessions (
 			id         TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
 			started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -97,14 +114,21 @@ func (s *Store) migrate() error {
 			tokens_in  INTEGER NOT NULL DEFAULT 0,
 			tokens_out INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
+		)`},
+		{5, `CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)`},
+		{6, `CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`},
 	}
 
+	// Apply only unapplied migrations
 	for _, m := range migrations {
-		if _, err := s.db.Exec(m); err != nil {
-			return fmt.Errorf("migration: %w", err)
+		if m.version <= currentVersion {
+			continue
+		}
+		if _, err := s.db.Exec(m.sql); err != nil {
+			return fmt.Errorf("migration v%d: %w", m.version, err)
+		}
+		if _, err := s.db.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
+			return fmt.Errorf("recording migration v%d: %w", m.version, err)
 		}
 	}
 	return nil

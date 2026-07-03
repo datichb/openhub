@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Session represents an opencode session launched via oh.
 type Session struct {
@@ -27,11 +30,11 @@ const (
 // SessionStore defines the contract for session persistence.
 type SessionStore interface {
 	// List returns sessions for a project. Empty projectID returns all.
-	List(projectID string) ([]Session, error)
+	List(ctx context.Context, projectID string) ([]Session, error)
 	// Get retrieves a session by ID.
-	Get(id string) (*Session, error)
+	Get(ctx context.Context, id string) (*Session, error)
 	// Create inserts a new session.
-	Create(s *Session) error
+	Create(ctx context.Context, s *Session) error
 	// Update modifies an existing session.
-	Update(s *Session) error
+	Update(ctx context.Context, s *Session) error
 }

@@ -3,7 +3,10 @@
 // but never imports them (Dependency Rule).
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Project represents a registered project in the hub.
 type Project struct {
@@ -31,15 +34,15 @@ const (
 // ProjectStore defines the contract for project persistence.
 type ProjectStore interface {
 	// List returns projects filtered by status. Empty status returns all.
-	List(status ProjectStatus) ([]Project, error)
+	List(ctx context.Context, status ProjectStatus) ([]Project, error)
 	// Get retrieves a project by ID. Returns ErrNotFound if absent.
-	Get(id string) (*Project, error)
+	Get(ctx context.Context, id string) (*Project, error)
 	// GetByPath retrieves a project by its filesystem path.
-	GetByPath(path string) (*Project, error)
+	GetByPath(ctx context.Context, path string) (*Project, error)
 	// Create inserts a new project.
-	Create(p *Project) error
+	Create(ctx context.Context, p *Project) error
 	// Update modifies an existing project.
-	Update(p *Project) error
+	Update(ctx context.Context, p *Project) error
 	// Delete removes a project by ID.
-	Delete(id string) error
+	Delete(ctx context.Context, id string) error
 }

@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -21,7 +22,7 @@ func NewSessionStore(s *Store) *SessionStore {
 // Ensure interface compliance at compile time.
 var _ domain.SessionStore = (*SessionStore)(nil)
 
-func (ss *SessionStore) List(projectID string) ([]domain.Session, error) {
+func (ss *SessionStore) List(ctx context.Context, projectID string) ([]domain.Session, error) {
 	query := `SELECT id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out FROM sessions`
 	var args []interface{}
 	if projectID != "" {
@@ -54,7 +55,7 @@ func (ss *SessionStore) List(projectID string) ([]domain.Session, error) {
 	return sessions, rows.Err()
 }
 
-func (ss *SessionStore) Get(id string) (*domain.Session, error) {
+func (ss *SessionStore) Get(ctx context.Context, id string) (*domain.Session, error) {
 	var s domain.Session
 	var status string
 	var endedAt sql.NullTime
@@ -76,7 +77,7 @@ func (ss *SessionStore) Get(id string) (*domain.Session, error) {
 	return &s, nil
 }
 
-func (ss *SessionStore) Create(s *domain.Session) error {
+func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 	if s.StartedAt.IsZero() {
 		s.StartedAt = time.Now()
 	}
@@ -92,7 +93,7 @@ func (ss *SessionStore) Create(s *domain.Session) error {
 	return nil
 }
 
-func (ss *SessionStore) Update(s *domain.Session) error {
+func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.Exec(
 		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?
 		 WHERE id=?`,

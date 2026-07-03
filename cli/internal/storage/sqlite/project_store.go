@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -22,7 +23,7 @@ func NewProjectStore(s *Store) *ProjectStore {
 // Ensure interface compliance at compile time.
 var _ domain.ProjectStore = (*ProjectStore)(nil)
 
-func (ps *ProjectStore) List(status domain.ProjectStatus) ([]domain.Project, error) {
+func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) ([]domain.Project, error) {
 	query := `SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects`
 	var args []interface{}
 	if status != "" {
@@ -48,7 +49,7 @@ func (ps *ProjectStore) List(status domain.ProjectStatus) ([]domain.Project, err
 	return projects, rows.Err()
 }
 
-func (ps *ProjectStore) Get(id string) (*domain.Project, error) {
+func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
 		`SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE id = ?`,
 		id,
@@ -63,7 +64,7 @@ func (ps *ProjectStore) Get(id string) (*domain.Project, error) {
 	return p, nil
 }
 
-func (ps *ProjectStore) GetByPath(path string) (*domain.Project, error) {
+func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
 		`SELECT id, name, path, language, tracker, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE path = ?`,
 		path,
@@ -78,7 +79,7 @@ func (ps *ProjectStore) GetByPath(path string) (*domain.Project, error) {
 	return p, nil
 }
 
-func (ps *ProjectStore) Create(p *domain.Project) error {
+func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	if p.CreatedAt.IsZero() {
 		p.CreatedAt = time.Now()
 	}
@@ -102,7 +103,7 @@ func (ps *ProjectStore) Create(p *domain.Project) error {
 	return nil
 }
 
-func (ps *ProjectStore) Update(p *domain.Project) error {
+func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	p.UpdatedAt = time.Now()
 	result, err := ps.db.Exec(
 		`UPDATE projects SET name=?, path=?, language=?, tracker=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
@@ -121,7 +122,7 @@ func (ps *ProjectStore) Update(p *domain.Project) error {
 	return nil
 }
 
-func (ps *ProjectStore) Delete(id string) error {
+func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
 	result, err := ps.db.Exec("DELETE FROM projects WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("deleting project %s: %w", id, err)

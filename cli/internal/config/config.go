@@ -14,6 +14,13 @@ type Config struct {
 	CLI      CLIConfig      `mapstructure:"cli"`
 	Opencode OpencodeConfig `mapstructure:"opencode"`
 	MCP      MCPConfig      `mapstructure:"mcp"`
+	Worktree WorktreeConfig `mapstructure:"worktree"`
+}
+
+// WorktreeConfig holds git worktree management settings.
+type WorktreeConfig struct {
+	AutoCleanup bool   `mapstructure:"auto_cleanup"`
+	BaseBranch  string `mapstructure:"base_branch"` // empty = auto-detect (main/master)
 }
 
 // CLIConfig holds CLI-specific settings.
@@ -23,10 +30,11 @@ type CLIConfig struct {
 
 // OpencodeConfig holds opencode dependency settings.
 type OpencodeConfig struct {
-	Version    string `mapstructure:"version"`
-	Channel    string `mapstructure:"channel"`
-	AutoUpdate bool   `mapstructure:"auto_update"`
-	InstallDir string `mapstructure:"install_dir"`
+	Version         string `mapstructure:"version"`
+	Channel         string `mapstructure:"channel"`
+	AutoUpdate      bool   `mapstructure:"auto_update"`
+	InstallDir      string `mapstructure:"install_dir"`
+	DefaultProvider string `mapstructure:"default_provider"`
 }
 
 // MCPConfig holds MCP server configuration.
@@ -46,6 +54,7 @@ var (
 	cfg     *Config
 	cfgOnce sync.Once
 	cfgErr  error
+	cfgMu   sync.Mutex
 )
 
 // HubDir returns the path to the .oh configuration directory.
@@ -76,6 +85,8 @@ func Load() (*Config, error) {
 		v.SetDefault("opencode.channel", "stable")
 		v.SetDefault("opencode.auto_update", false)
 		v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
+		v.SetDefault("worktree.auto_cleanup", true)
+		v.SetDefault("worktree.base_branch", "")
 
 		if err := v.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -92,7 +103,10 @@ func Load() (*Config, error) {
 }
 
 // Reset clears the cached config (useful for tests).
+// Must not be called concurrently with Load.
 func Reset() {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
 	cfgOnce = sync.Once{}
 	cfg = nil
 	cfgErr = nil
