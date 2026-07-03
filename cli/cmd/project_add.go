@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -31,15 +33,16 @@ func projectAddCmd() *cobra.Command {
 		Long:    "Enregistre un projet dans le hub. Si aucun flag n'est fourni, lance un wizard interactif.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
+			ctx := cmd.Context()
 
 			// If no flags provided, run interactive form
 			if name == "" && path == "" {
-				return runProjectAddInteractive(a)
+				return runProjectAddInteractive(ctx, a)
 			}
 
 			// Non-interactive mode
 			if name == "" {
-				return fmt.Errorf("--name est requis en mode non-interactif")
+				return fmt.Errorf("%s", i18n.T("cmd.project.add.name_required"))
 			}
 			if path == "" {
 				path = "."
@@ -50,7 +53,7 @@ func projectAddCmd() *cobra.Command {
 				return fmt.Errorf("resolving path: %w", err)
 			}
 
-			return doCreateProject(a, name, absPath, language, tracker)
+			return doCreateProject(ctx, a, name, absPath, language, tracker)
 		},
 	}
 
@@ -62,7 +65,7 @@ func projectAddCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectAddInteractive(a *app.App) error {
+func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	var (
 		name     string
 		path     string
@@ -75,38 +78,38 @@ func runProjectAddInteractive(a *app.App) error {
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Nom du projet").
-				Description("Un identifiant court et lisible").
+				Title(i18n.T("cmd.init.project_name")).
+				Description(i18n.T("form.project.add_name_desc")).
 				Value(&name).
 				Validate(func(s string) error {
 					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("le nom est requis")
+						return fmt.Errorf("%s", i18n.T("cmd.init.project_name_required"))
 					}
 					return nil
 				}),
 
 			huh.NewInput().
-				Title("Chemin du projet").
-				Description("Répertoire racine du projet").
+				Title(i18n.T("cmd.init.project_path")).
+				Description(i18n.T("form.project.add_path_desc")).
 				Value(&path).
 				Placeholder(cwd),
 
 			huh.NewSelect[string]().
-				Title("Langage principal").
+				Title(i18n.T("cmd.init.language")).
 				Options(
 					huh.NewOption("Go", "go"),
 					huh.NewOption("TypeScript", "typescript"),
 					huh.NewOption("Python", "python"),
 					huh.NewOption("Rust", "rust"),
 					huh.NewOption("Java", "java"),
-					huh.NewOption("Autre", "other"),
+					huh.NewOption(i18n.T("form.option.other"), "other"),
 				).
 				Value(&language),
 
 			huh.NewSelect[string]().
-				Title("Issue tracker").
+				Title(i18n.T("cmd.init.tracker")).
 				Options(
-					huh.NewOption("Aucun", ""),
+					huh.NewOption(i18n.T("form.option.none"), ""),
 					huh.NewOption("GitHub Issues", "github"),
 					huh.NewOption("GitLab Issues", "gitlab"),
 					huh.NewOption("Jira", "jira"),
@@ -128,13 +131,13 @@ func runProjectAddInteractive(a *app.App) error {
 		return fmt.Errorf("resolving path: %w", err)
 	}
 
-	return doCreateProject(a, name, absPath, language, tracker)
+	return doCreateProject(ctx, a, name, absPath, language, tracker)
 }
 
-func doCreateProject(a *app.App, name, absPath, language, tracker string) error {
+func doCreateProject(ctx context.Context, a *app.App, name, absPath, language, tracker string) error {
 	// Check path exists
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		return fmt.Errorf("le répertoire n'existe pas: %s", absPath)
+		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
 	}
 
 	id := generateProjectID(name)
@@ -151,14 +154,13 @@ func doCreateProject(a *app.App, name, absPath, language, tracker string) error 
 		UpdatedAt: now,
 	}
 
-	if err := a.Projects.Create(p); err != nil {
+	if err := a.Projects.Create(ctx, p); err != nil {
 		return fmt.Errorf("creating project: %w", err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Projet %s enregistré (%s)\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(name),
-		absPath,
+		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath),
 	)
 	return nil
 }
@@ -173,10 +175,14 @@ func generateProjectID(name string) string {
 			clean.WriteRune(r)
 		}
 	}
-	slug = clean.String()
+	slug = strings.Trim(clean.String(), "-")
+	if slug == "" {
+		slug = "project"
+	}
 	if len(slug) > 32 {
 		slug = slug[:32]
 	}
+	slug = strings.TrimRight(slug, "-")
 	short := uuid.New().String()[:8]
 	return slug + "-" + short
 }

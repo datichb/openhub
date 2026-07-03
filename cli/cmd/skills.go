@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -23,7 +25,7 @@ func init() {
 }
 
 func skillsListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "Liste les skills disponibles",
@@ -32,12 +34,16 @@ func skillsListCmd() *cobra.Command {
 
 			hubDir := findHubDir()
 			if hubDir == "" {
-				return fmt.Errorf("impossible de trouver le répertoire hub")
+				return fmt.Errorf("%s", i18n.T("cmd.project.hub_not_found"))
 			}
 
 			skillsDir := filepath.Join(hubDir, "skills")
 			if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun skill trouvé."))
+				jsonOut, _ := cmd.Flags().GetBool("json")
+				if jsonOut {
+					return json.NewEncoder(os.Stdout).Encode([]struct{}{})
+				}
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.skills.none")))
 				return nil
 			}
 
@@ -56,8 +62,11 @@ func skillsListCmd() *cobra.Command {
 				if len(parts) > 1 {
 					category = parts[0]
 				}
-				info, _ := d.Info()
-				skills = append(skills, skillInfo{
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+			skills = append(skills, skillInfo{
 					name:     name,
 					category: category,
 					file:     rel,
@@ -69,21 +78,39 @@ func skillsListCmd() *cobra.Command {
 				return fmt.Errorf("walking skills directory: %w", err)
 			}
 
+			jsonOut, _ := cmd.Flags().GetBool("json")
+			if jsonOut {
+				type skillJSON struct {
+					Name     string `json:"name"`
+					Category string `json:"category"`
+					File     string `json:"file"`
+					Size     int64  `json:"size"`
+				}
+				out := make([]skillJSON, len(skills))
+				for i, s := range skills {
+					out[i] = skillJSON{Name: s.name, Category: s.category, File: s.file, Size: s.size}
+				}
+				return json.NewEncoder(os.Stdout).Encode(out)
+			}
+
 			if len(skills) == 0 {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun skill trouvé."))
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.skills.none")))
 				return nil
 			}
 
 			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "SKILL\tCATÉGORIE\tFICHIER")
+			fmt.Fprintln(w, i18n.T("cmd.skills.list.header"))
 			for _, s := range skills {
 				fmt.Fprintf(w, "%s\t%s\t%s\n", s.name, s.category, s.file)
 			}
 			w.Flush()
-			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(fmt.Sprintf("%d skill(s)", len(skills))))
+			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(i18n.Tf("cmd.skills.list.count", len(skills))))
 			return nil
 		},
 	}
+
+	cmd.Flags().Bool("json", false, "Output in JSON format")
+	return cmd
 }
 
 type skillInfo struct {

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -25,19 +26,20 @@ func init() {
 
 func runQuick(cmd *cobra.Command, args []string) error {
 	a := MustApp()
+	ctx := cmd.Context()
 
 	// Ensure opencode is installed before proceeding
 	if err := ensureOpencode(a); err != nil {
 		return err
 	}
 
-	projects, err := a.Projects.List(domain.ProjectStatusActive)
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
 		return err
 	}
 
 	if len(projects) == 0 {
-		return fmt.Errorf("aucun projet enregistré. Lancez `oh init` ou `oh project add`")
+		return fmt.Errorf("%s", i18n.T("cmd.quick.no_projects"))
 	}
 
 	var selectedID string
@@ -54,7 +56,7 @@ func runQuick(cmd *cobra.Command, args []string) error {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Title("Choisir un projet").
+					Title(i18n.T("form.project.choose")).
 					Options(options...).
 					Value(&selectedID),
 			),
@@ -73,7 +75,7 @@ func runQuick(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if project == nil {
-		return fmt.Errorf("projet non trouvé")
+		return fmt.Errorf("%s", i18n.T("cmd.quick.not_found"))
 	}
 
 	// Detect stack
@@ -90,9 +92,9 @@ func runQuick(cmd *cobra.Command, args []string) error {
 	// Get token
 	var bearerToken string
 	if a.Secrets != nil {
-		token, _ := a.Secrets.Get("bedrock-token-" + project.ID)
+		token, _ := a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
 		if token == "" {
-			token, _ = a.Secrets.Get("bedrock-token-default")
+			token, _ = a.Secrets.Get(ctx, "bedrock-token-default")
 		}
 		bearerToken = token
 	}

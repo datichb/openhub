@@ -1,20 +1,26 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/huh"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 var startCmd = &cobra.Command{
@@ -32,11 +38,15 @@ func init() {
 	startCmd.Flags().StringP("provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
 	startCmd.Flags().StringP("project", "j", "", "ID du projet (détection auto sinon)")
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
+	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
 	startCmd.Flags().Bool("dev", false, "Mode développement")
+
+	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
 	a := MustApp()
+	ctx := cmd.Context()
 
 	// --- Ensure opencode is installed ---
 	if err := ensureOpencode(a); err != nil {
@@ -56,8 +66,8 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// --- Resume mode ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
-		fmt.Fprintf(a.IO.Out, "%s Reprise de la session %s\n",
-			common.SuccessStyle.Render(common.IconArrow), resumeID)
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
 		return opencode.Exec(opencode.StartOpts{
 			ResumeSessionID: resumeID,
 		})
@@ -65,28 +75,44 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	// --- Resolve project ---
 	projectID, _ := cmd.Flags().GetString("project")
-	project, err := resolveProject(a, projectID)
+	project, err := resolveProject(ctx, a, projectID)
 	if err != nil {
 		return err
+	}
+
+	// --- Worktree mode ---
+	wtBranch, _ := cmd.Flags().GetString("worktree")
+	var launchPath string
+
+	if wtBranch != "" || cmd.Flags().Changed("worktree") {
+		launchPath, err = handleWorktreeMode(a, project, wtBranch)
+		if err != nil {
+			return err
+		}
+	} else {
+		launchPath = project.Path
 	}
 
 	// --- Resolve provider + bearer token ---
 	provider, _ := cmd.Flags().GetString("provider")
 	if provider == "" {
-		provider = "bedrock" // default
+		provider = a.Config.Opencode.DefaultProvider
+	}
+	if provider == "" {
+		provider = "bedrock" // ultimate fallback
 	}
 
 	var bearerToken string
 	if provider == "bedrock" && a.Secrets != nil {
-		token, _ := a.Secrets.Get("bedrock-token-" + project.ID)
+		token, _ := a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
 		if token == "" {
-			token, _ = a.Secrets.Get("bedrock-token-default")
+			token, _ = a.Secrets.Get(ctx, "bedrock-token-default")
 		}
 		bearerToken = token
 	}
 
 	// --- Detect stack and build context ---
-	stack := prompt.DetectStack(project.Path)
+	stack := prompt.DetectStack(launchPath)
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
 
@@ -94,40 +120,44 @@ func runStart(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n", common.Title.Render("oh start"), common.Subtitle.Render(project.Name))
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  Projet:   %s (%s)\n", project.Name, project.Path)
-	fmt.Fprintf(a.IO.Out, "  Langage:  %s\n", displayOrDefault(stack.Language, project.Language))
-	if stack.Framework != "" {
-		fmt.Fprintf(a.IO.Out, "  Framework: %s\n", stack.Framework)
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_project", project.Name, project.Path))
+	if launchPath != project.Path {
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_worktree", common.Bold.Render(launchPath)))
 	}
-	fmt.Fprintf(a.IO.Out, "  Provider: %s\n", provider)
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_language", displayOrDefault(stack.Language, project.Language)))
+	if stack.Framework != "" {
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_framework", stack.Framework))
+	}
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_provider", provider))
 	if agent != "" {
-		fmt.Fprintf(a.IO.Out, "  Agent:    %s\n", agent)
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_agent", agent))
 	}
 	if bearerToken != "" {
-		fmt.Fprintf(a.IO.Out, "  Token:    %s\n", common.SuccessStyle.Render(common.IconSuccess+" configuré"))
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_token", common.SuccessStyle.Render(common.IconSuccess+" "+i18n.T("cmd.start.token_configured"))))
 	}
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Launch ---
-	fmt.Fprintf(a.IO.Out, "%s Lancement d'opencode...\n\n",
-		common.SuccessStyle.Render(common.IconArrow))
+	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
+		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.launching"))
 
 	// Create session in oh DB
 	session := &domain.Session{
+		ID:        uuid.New().String(),
 		ProjectID: project.ID,
 		Status:    domain.SessionStatusRunning,
 		Provider:  provider,
 	}
 	if a.Sessions != nil {
-		if err := a.Sessions.Create(session); err != nil {
+		if err := a.Sessions.Create(ctx, session); err != nil {
 			// Non-fatal — don't block the launch
-			fmt.Fprintf(a.IO.ErrOut, "  warning: session tracking: %v\n", err)
+			slog.Warn("session tracking failed", "error", err)
 		}
 	}
 
 	// Run opencode as subprocess (not exec) to retain control for post-session updates
 	runErr := opencode.Run(opencode.StartOpts{
-		ProjectPath: project.Path,
+		ProjectPath: launchPath,
 		ProjectID:   project.ID,
 		Agent:       agent,
 		Prompt:      userPrompt,
@@ -144,10 +174,102 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 		now := time.Now()
 		session.EndedAt = &now
-		_ = a.Sessions.Update(session)
+		_ = a.Sessions.Update(ctx, session)
 	}
 
 	return runErr
+}
+
+// handleWorktreeMode manages the worktree workflow:
+// 1. Prompt for branch if empty
+// 2. Auto-cleanup merged worktrees (if configured)
+// 3. Create or reuse worktree
+// 4. Deploy hub config into worktree
+// Returns the launch path (worktree directory).
+func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (string, error) {
+	// Verify git repo
+	if !worktree.IsGitRepo(project.Path) {
+		return "", fmt.Errorf("%s", i18n.Tf("cmd.start.worktree_not_git", project.Name))
+	}
+
+	// Prompt for branch name if not provided
+	if branch == "" {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.T("cmd.worktree.branch_name")).
+					Description(i18n.T("cmd.worktree.branch_desc")).
+					Value(&branch),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return "", err
+		}
+		if branch == "" {
+			return "", fmt.Errorf("%s", i18n.T("cmd.start.worktree_branch_required"))
+		}
+	}
+
+	// Auto-cleanup merged worktrees if configured
+	if a.Config.Worktree.AutoCleanup {
+		baseBranch := a.Config.Worktree.BaseBranch
+		if baseBranch == "" {
+			baseBranch = worktree.DetectBaseBranch(project.Path)
+		}
+
+		removed, _ := worktree.CleanupMerged(project.Path, baseBranch)
+		if len(removed) > 0 {
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.start.worktree_cleanup", len(removed)))
+			for _, b := range removed {
+				fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), b)
+			}
+		}
+	}
+
+	// Create or reuse worktree
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.start.worktree_prep", common.Bold.Render(branch)))
+
+	wtPath, err := worktree.ResolveOrCreate(project.Path, branch)
+	if err != nil {
+		return "", fmt.Errorf("worktree: %w", err)
+	}
+
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.worktree_path", wtPath))
+
+	// Deploy hub config into worktree
+	hubDir := findHubDir()
+	if hubDir == "" {
+		// Not a fatal error — worktree can work without hub deploy
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
+		return wtPath, nil
+	}
+
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.worktree_deploy"))
+
+	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "")
+
+	results, err := deploy.Execute(plan)
+	if err != nil {
+		return "", fmt.Errorf("%s", i18n.Tf("cmd.start.worktree_deploy_failed", err))
+	}
+
+	// Show deployment results (compact)
+	for _, r := range results {
+		if r.Success {
+			fmt.Fprintf(a.IO.Out, "    %s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess), r.Name)
+		} else {
+			fmt.Fprintf(a.IO.Out, "    %s %s: %s\n",
+				common.ErrorStyle.Render(common.IconError), r.Name, r.Message)
+		}
+	}
+	fmt.Fprintln(a.IO.Out)
+
+	return wtPath, nil
 }
 
 // ensureOpencode checks that the opencode binary is available.
@@ -158,35 +280,35 @@ func ensureOpencode(a *app.App) error {
 		return nil // already installed
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s opencode non trouvé.\n\n",
-		common.WarningStyle.Render(common.IconWarning))
+	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
+		common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.opencode_not_found"))
 
 	var choice string
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Comment installer opencode ?").
+				Title(i18n.T("cmd.start.install_choice")).
 				Options(
-					huh.NewOption("brew install anomalyco/tap/opencode (recommandé)", "brew"),
-					huh.NewOption("Télécharger automatiquement", "download"),
-					huh.NewOption("Annuler", "cancel"),
+					huh.NewOption(i18n.T("cmd.start.install_brew"), "brew"),
+					huh.NewOption(i18n.T("cmd.start.install_download"), "download"),
+					huh.NewOption(i18n.T("cmd.start.install_cancel"), "cancel"),
 				).
 				Value(&choice),
 		),
 	)
 	if err := form.Run(); err != nil {
-		return fmt.Errorf("sélection annulée")
+		return fmt.Errorf("selection cancelled")
 	}
 
 	switch choice {
 	case "brew":
-		fmt.Fprintf(a.IO.Out, "\n  Exécutez: %s\n\n",
-			common.Bold.Render("brew install anomalyco/tap/opencode"))
-		return fmt.Errorf("opencode requis — installez-le puis relancez oh start")
+		fmt.Fprintf(a.IO.Out, "\n  %s\n\n",
+			i18n.Tf("cmd.start.install_run_brew", common.Bold.Render("brew install anomalyco/tap/opencode")))
+		return fmt.Errorf("%s", i18n.T("cmd.start.install_required"))
 	case "download":
 		return downloadOpencode(a)
 	default:
-		return fmt.Errorf("opencode requis pour lancer une session")
+		return fmt.Errorf("%s", i18n.T("cmd.start.install_required_generic"))
 	}
 }
 
@@ -199,8 +321,8 @@ func downloadOpencode(a *app.App) error {
 		version = "latest"
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Téléchargement d'opencode...\n",
-		common.SuccessStyle.Render(common.IconArrow))
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.downloading"))
 
 	var lastPercent int
 	_, err := opencode.Download(version, installDir, func(downloaded, total int64) {
@@ -208,18 +330,18 @@ func downloadOpencode(a *app.App) error {
 			percent := int(downloaded * 100 / total)
 			if percent != lastPercent && percent%5 == 0 {
 				lastPercent = percent
-				fmt.Fprintf(a.IO.Out, "\r  Progression: %d%% (%d/%d MB)",
-					percent, downloaded/1024/1024, total/1024/1024)
+				fmt.Fprintf(a.IO.Out, "\r  %s",
+					i18n.Tf("cmd.start.download_progress", percent, downloaded/1024/1024, total/1024/1024))
 			}
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("échec du téléchargement: %w", err)
+		return fmt.Errorf("download failed: %w", err)
 	}
 
 	fmt.Fprintln(a.IO.Out) // newline after progress
-	fmt.Fprintf(a.IO.Out, "%s opencode installé avec succès.\n\n",
-		common.SuccessStyle.Render(common.IconSuccess))
+	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
+		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.start.installed"))
 	return nil
 }
 
@@ -227,10 +349,10 @@ func downloadOpencode(a *app.App) error {
 // 1. --project flag (explicit ID)
 // 2. Current directory detection
 // 3. Interactive selection if multiple projects exist
-func resolveProject(a *app.App, projectID string) (*domain.Project, error) {
+func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.Project, error) {
 	// Explicit ID
 	if projectID != "" {
-		p, err := a.Projects.Get(projectID)
+		p, err := a.Projects.Get(ctx, projectID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return nil, fmt.Errorf("projet %q introuvable", projectID)
@@ -242,13 +364,13 @@ func resolveProject(a *app.App, projectID string) (*domain.Project, error) {
 
 	// Auto-detect from cwd
 	cwd, _ := os.Getwd()
-	projects, err := a.Projects.List(domain.ProjectStatusActive)
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(projects) == 0 {
-		return nil, fmt.Errorf("aucun projet enregistré. Lancez `oh init` ou `oh project add`")
+		return nil, fmt.Errorf("%s", i18n.T("cmd.project.no_projects"))
 	}
 
 	// Check if cwd matches a project
@@ -289,7 +411,7 @@ func resolveProject(a *app.App, projectID string) (*domain.Project, error) {
 			return &projects[i], nil
 		}
 	}
-	return nil, fmt.Errorf("projet non trouvé")
+	return nil, fmt.Errorf("%s", i18n.T("cmd.quick.not_found"))
 }
 
 func displayOrDefault(detected, fallback string) string {

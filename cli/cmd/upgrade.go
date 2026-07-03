@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -43,29 +44,29 @@ func upgradeOpencodeCmd() *cobra.Command {
 			// Check current version
 			currentVersion := opencode.InstalledVersion(installDir)
 			if currentVersion != "" {
-				fmt.Fprintf(a.IO.Out, "  Version actuelle: %s\n", currentVersion)
+				fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.upgrade.current_version", currentVersion))
 			}
 
 			// Resolve latest if needed
 			if targetVersion == "" {
-				fmt.Fprintf(a.IO.Out, "%s Recherche de la dernière version...\n",
-					common.SuccessStyle.Render(common.IconArrow))
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.upgrade.checking"))
 
 				release, err := opencode.LatestRelease()
 				if err != nil {
-					return fmt.Errorf("impossible de vérifier les mises à jour: %w", err)
+					return fmt.Errorf("%s", i18n.Tf("cmd.upgrade.check_failed", err))
 				}
 				targetVersion = release.Version()
 
 				if currentVersion == targetVersion {
-					fmt.Fprintf(a.IO.Out, "%s opencode est déjà à jour (v%s)\n",
-						common.SuccessStyle.Render(common.IconSuccess), currentVersion)
+					fmt.Fprintf(a.IO.Out, "%s %s\n",
+						common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.upgrade.already_uptodate", currentVersion))
 					return nil
 				}
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s Téléchargement de opencode v%s...\n",
-				common.SuccessStyle.Render(common.IconArrow), targetVersion)
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.upgrade.downloading", targetVersion))
 
 			// Download with progress
 			var lastPercent int
@@ -74,18 +75,18 @@ func upgradeOpencodeCmd() *cobra.Command {
 					percent := int(downloaded * 100 / total)
 					if percent != lastPercent && percent%5 == 0 {
 						lastPercent = percent
-						fmt.Fprintf(a.IO.Out, "\r  Progression: %d%% (%d/%d MB)",
-							percent, downloaded/1024/1024, total/1024/1024)
+						fmt.Fprintf(a.IO.Out, "\r  %s",
+							i18n.Tf("cmd.upgrade.progress", percent, downloaded/1024/1024, total/1024/1024))
 					}
 				}
 			})
 			if err != nil {
-				return fmt.Errorf("échec du téléchargement: %w", err)
+				return fmt.Errorf("%s", i18n.Tf("cmd.upgrade.download_failed", err))
 			}
 
 			fmt.Fprintln(a.IO.Out) // newline after progress
-			fmt.Fprintf(a.IO.Out, "%s opencode v%s installé: %s\n",
-				common.SuccessStyle.Render(common.IconSuccess), targetVersion, binPath)
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.upgrade.installed", targetVersion, binPath))
 
 			return nil
 		},

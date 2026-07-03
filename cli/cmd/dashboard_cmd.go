@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -21,9 +23,13 @@ func init() {
 
 func runDashboard(cmd *cobra.Command, args []string) error {
 	a := MustApp()
+	ctx := cmd.Context()
 
 	// Gather project stats from oh DB
-	projects, _ := a.Projects.List("")
+	projects, err := a.Projects.List(ctx, "")
+	if err != nil {
+		return fmt.Errorf("lecture projets: %w", err)
+	}
 	active := 0
 	for _, p := range projects {
 		if p.Status == domain.ProjectStatusActive {

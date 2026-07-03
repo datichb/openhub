@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/plugin"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -32,20 +34,20 @@ func pluginListCmd() *cobra.Command {
 
 			status := plugin.RTKStatus()
 
-			fmt.Fprintln(a.IO.Out, common.Bold.Render("Plugins:"))
+			fmt.Fprintln(a.IO.Out, common.Bold.Render(i18n.T("cmd.plugin.title_plugins")))
 			icon := common.ErrorStyle.Render(common.IconError)
-			state := "non installé"
+			state := i18n.T("cmd.plugin.state_not_installed")
 			if status.Installed {
 				icon = common.SuccessStyle.Render(common.IconSuccess)
-				state = "installé"
+				state = i18n.T("cmd.plugin.state_installed")
 			}
-			fmt.Fprintf(a.IO.Out, "  %s rtk — Token optimization (%s)\n", icon, state)
+			fmt.Fprintf(a.IO.Out, "  %s %s\n", icon, i18n.Tf("cmd.plugin.rtk_label", state))
 
 			if status.BinaryFound {
-				fmt.Fprintf(a.IO.Out, "    binaire rtk: v%s\n", status.BinaryVer)
+				fmt.Fprintf(a.IO.Out, "    %s\n", i18n.Tf("cmd.plugin.rtk_binary_version", status.BinaryVer))
 			} else {
-				fmt.Fprintf(a.IO.Out, "    binaire rtk: %s\n",
-					common.WarningStyle.Render("non trouvé"))
+				fmt.Fprintf(a.IO.Out, "    %s\n",
+					common.WarningStyle.Render(i18n.T("cmd.plugin.rtk_binary_not_found")))
 			}
 
 			return nil
@@ -58,33 +60,36 @@ func pluginInstallCmd() *cobra.Command {
 		Use:   "install <name>",
 		Short: "Installe un plugin",
 		Args:  cobra.ExactArgs(1),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return []string{"rtk"}, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			name := args[0]
 
 			switch name {
 			case "rtk":
-				fmt.Fprintf(a.IO.Out, "%s Installation du plugin RTK...\n",
-					common.SuccessStyle.Render(common.IconArrow))
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.plugin.installing"))
 
 				if err := plugin.RTKInstall(); err != nil {
 					return err
 				}
 
-				fmt.Fprintf(a.IO.Out, "%s Plugin RTK installé.\n",
-					common.SuccessStyle.Render(common.IconSuccess))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Redémarrez opencode pour activer le plugin."))
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.plugin.installed"))
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.restart_hint")))
 				return nil
 
 			default:
-				return fmt.Errorf("plugin inconnu: %s (disponible: rtk)", name)
+				return fmt.Errorf("%s", i18n.Tf("cmd.plugin.unknown", name))
 			}
 		},
 	}
 }
 
 func pluginRemoveCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "remove <name>",
 		Aliases: []string{"rm", "uninstall"},
 		Short:   "Supprime un plugin",
@@ -93,20 +98,35 @@ func pluginRemoveCmd() *cobra.Command {
 			a := MustApp()
 			name := args[0]
 
+			force, _ := cmd.Flags().GetBool("force")
+			if !force {
+				var confirm bool
+				huh.NewConfirm().
+					Title(i18n.Tf("cmd.plugin.remove.confirm", name)).
+					Value(&confirm).
+					Run()
+				if !confirm {
+					return nil
+				}
+			}
+
 			switch name {
 			case "rtk":
 				if err := plugin.RTKRemove(); err != nil {
 					return err
 				}
-				fmt.Fprintf(a.IO.Out, "%s Plugin RTK supprimé.\n",
-					common.SuccessStyle.Render(common.IconSuccess))
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.plugin.removed"))
 				return nil
 
 			default:
-				return fmt.Errorf("plugin inconnu: %s", name)
+				return fmt.Errorf("%s", i18n.Tf("cmd.plugin.unknown_generic", name))
 			}
 		},
 	}
+
+	cmd.Flags().BoolP("force", "f", false, "Skip confirmation")
+	return cmd
 }
 
 func pluginStatusCmd() *cobra.Command {
@@ -122,25 +142,25 @@ func pluginStatusCmd() *cobra.Command {
 			fmt.Fprintln(a.IO.Out)
 
 			if status.Installed {
-				fmt.Fprintf(a.IO.Out, "  %s Installé: %s\n",
-					common.SuccessStyle.Render(common.IconSuccess), status.Path)
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.plugin.status_installed", status.Path))
 			} else {
-				fmt.Fprintf(a.IO.Out, "  %s Non installé\n",
-					common.ErrorStyle.Render(common.IconError))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Installez avec: oh plugin install rtk"))
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					common.ErrorStyle.Render(common.IconError), i18n.T("cmd.plugin.status_not_installed"))
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
 			}
 
 			if status.BinaryFound {
-				fmt.Fprintf(a.IO.Out, "  %s Binaire rtk: v%s\n",
-					common.SuccessStyle.Render(common.IconSuccess), status.BinaryVer)
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.plugin.status_binary_version", status.BinaryVer))
 				if !isVersionAtLeast(status.BinaryVer, plugin.RTKMinVersion) {
-					fmt.Fprintf(a.IO.Out, "  %s Version trop ancienne (min: %s)\n",
-						common.WarningStyle.Render(common.IconWarning), plugin.RTKMinVersion)
+					fmt.Fprintf(a.IO.Out, "  %s %s\n",
+						common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.plugin.status_version_old", plugin.RTKMinVersion))
 				}
 			} else {
-				fmt.Fprintf(a.IO.Out, "  %s Binaire rtk non trouvé\n",
-					common.ErrorStyle.Render(common.IconError))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  Installez avec: brew install rtk"))
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					common.ErrorStyle.Render(common.IconError), i18n.T("cmd.plugin.status_binary_not_found"))
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
 			}
 
 			return nil

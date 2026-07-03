@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -23,7 +25,7 @@ func init() {
 }
 
 func agentListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "Liste les agents disponibles",
@@ -32,7 +34,7 @@ func agentListCmd() *cobra.Command {
 
 			hubDir := findHubDir()
 			if hubDir == "" {
-				return fmt.Errorf("impossible de trouver le répertoire hub")
+				return fmt.Errorf("%s", i18n.T("cmd.project.hub_not_found"))
 			}
 
 			agentsDir := filepath.Join(hubDir, "agents")
@@ -47,7 +49,10 @@ func agentListCmd() *cobra.Command {
 					continue
 				}
 				name := strings.TrimSuffix(entry.Name(), ".md")
-				info, _ := entry.Info()
+				info, err := entry.Info()
+				if err != nil {
+					continue
+				}
 				agents = append(agents, agentInfo{
 					name: name,
 					file: entry.Name(),
@@ -55,21 +60,38 @@ func agentListCmd() *cobra.Command {
 				})
 			}
 
+			jsonOut, _ := cmd.Flags().GetBool("json")
+			if jsonOut {
+				type agentJSON struct {
+					Name string `json:"name"`
+					File string `json:"file"`
+					Size int64  `json:"size"`
+				}
+				out := make([]agentJSON, len(agents))
+				for i, ag := range agents {
+					out[i] = agentJSON{Name: ag.name, File: ag.file, Size: ag.size}
+				}
+				return json.NewEncoder(os.Stdout).Encode(out)
+			}
+
 			if len(agents) == 0 {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun agent trouvé."))
+				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.agent.none")))
 				return nil
 			}
 
 			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "AGENT\tFICHIER\tTAILLE")
+			fmt.Fprintln(w, i18n.T("cmd.agent.list.header"))
 			for _, ag := range agents {
-				fmt.Fprintf(w, "%s\t%s\t%d octets\n", ag.name, ag.file, ag.size)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", ag.name, ag.file, i18n.Tf("cmd.agent.list.bytes", ag.size))
 			}
 			w.Flush()
-			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(fmt.Sprintf("%d agent(s)", len(agents))))
+			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(i18n.Tf("cmd.agent.list.count", len(agents))))
 			return nil
 		},
 	}
+
+	cmd.Flags().Bool("json", false, "Output in JSON format")
+	return cmd
 }
 
 type agentInfo struct {

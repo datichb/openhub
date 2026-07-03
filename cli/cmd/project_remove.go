@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -22,18 +23,19 @@ func projectRemoveCmd() *cobra.Command {
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
+			ctx := cmd.Context()
 
 			var projectID string
 			if len(args) > 0 {
 				projectID = args[0]
 			} else {
 				// Interactive selection
-				projects, err := a.Projects.List(domain.ProjectStatusActive)
+				projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 				if err != nil {
 					return err
 				}
 				if len(projects) == 0 {
-					fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun projet à supprimer."))
+					fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("form.project.none_to_remove")))
 					return nil
 				}
 
@@ -45,7 +47,7 @@ func projectRemoveCmd() *cobra.Command {
 				selectForm := huh.NewForm(
 					huh.NewGroup(
 						huh.NewSelect[string]().
-							Title("Projet à supprimer").
+							Title(i18n.T("form.project.select_remove")).
 							Options(options...).
 							Value(&projectID),
 					),
@@ -56,10 +58,10 @@ func projectRemoveCmd() *cobra.Command {
 			}
 
 			// Verify project exists
-			project, err := a.Projects.Get(projectID)
+			project, err := a.Projects.Get(ctx, projectID)
 			if err != nil {
 				if errors.Is(err, domain.ErrNotFound) {
-					return fmt.Errorf("projet %q introuvable", projectID)
+					return fmt.Errorf("%s", i18n.Tf("cmd.project.not_found", projectID))
 				}
 				return err
 			}
@@ -70,8 +72,8 @@ func projectRemoveCmd() *cobra.Command {
 				confirmForm := huh.NewForm(
 					huh.NewGroup(
 						huh.NewConfirm().
-							Title(fmt.Sprintf("Supprimer %q ?", project.Name)).
-							Description("Les fichiers sur disque ne seront pas supprimés.").
+							Title(i18n.Tf("form.project.confirm_delete", project.Name)).
+							Description(i18n.T("form.project.delete_hint")).
 							Value(&confirm),
 					),
 				)
@@ -79,18 +81,18 @@ func projectRemoveCmd() *cobra.Command {
 					return err
 				}
 				if !confirm {
-					fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Annulé."))
+					fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("form.project.cancelled")))
 					return nil
 				}
 			}
 
-			if err := a.Projects.Delete(projectID); err != nil {
+			if err := a.Projects.Delete(ctx, projectID); err != nil {
 				return fmt.Errorf("deleting project: %w", err)
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s Projet %s supprimé du registre.\n",
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				common.SuccessStyle.Render(common.IconSuccess),
-				common.Bold.Render(project.Name),
+				i18n.Tf("form.project.removed", common.Bold.Render(project.Name)),
 			)
 			return nil
 		},

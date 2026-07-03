@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/views/board"
 )
@@ -25,11 +26,16 @@ func init() {
 }
 
 func runBoard(cmd *cobra.Command, args []string) error {
+	a := MustApp()
 	tickets := fetchTickets()
 
 	if len(tickets) == 0 {
-		a := MustApp()
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("Aucun ticket trouvé. Configurez un tracker avec `oh project add --tracker`."))
+		// Distinguish "bd not installed" from "0 tickets"
+		if _, err := exec.LookPath("bd"); err != nil {
+			fmt.Fprintln(a.IO.Out, common.WarningStyle.Render(common.IconWarning)+" "+i18n.T("tui.board.bd_not_installed"))
+		} else {
+			fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("tui.board.no_tickets_hint")))
+		}
 		return nil
 	}
 
@@ -48,7 +54,12 @@ func runBoard(cmd *cobra.Command, args []string) error {
 }
 
 // fetchTickets attempts to get tickets from the beads system (bd list).
+// Returns nil if bd is not installed or returns no data.
 func fetchTickets() []board.Ticket {
+	if _, err := exec.LookPath("bd"); err != nil {
+		return nil // bd not installed — caller handles the message
+	}
+
 	out, err := exec.Command("bd", "list", "--json").Output()
 	if err != nil {
 		return nil

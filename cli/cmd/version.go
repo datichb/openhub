@@ -5,6 +5,8 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // Build-time variables injected via -ldflags.
@@ -19,10 +21,10 @@ var versionCmd = &cobra.Command{
 	Short: "Affiche la version de oh",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("oh %s\n", Version)
-		fmt.Printf("  commit:  %s\n", Commit)
-		fmt.Printf("  built:   %s\n", BuildDate)
-		fmt.Printf("  go:      %s\n", runtime.Version())
-		fmt.Printf("  os/arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("  %s\n", i18n.Tf("cmd.version.commit", Commit))
+		fmt.Printf("  %s\n", i18n.Tf("cmd.version.built", BuildDate))
+		fmt.Printf("  %s\n", i18n.Tf("cmd.version.go", runtime.Version()))
+		fmt.Printf("  %s\n", i18n.Tf("cmd.version.os_arch", runtime.GOOS, runtime.GOARCH))
 	},
 }
 
