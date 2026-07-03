@@ -219,12 +219,17 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 // buildDeployPlan creates a standard deployment plan with all phases.
 // provider and model can be empty to inherit from project config.
 func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string) *deploy.Plan {
+	// Read websearch setting from hub config
+	v := configViper()
+	websearchEnabled := v.GetBool("websearch.enabled")
+
 	return &deploy.Plan{
-		ProjectPath: projectPath,
-		ProjectID:   projectID,
-		HubDir:      hubDir,
-		Provider:    provider,
-		Model:       model,
+		ProjectPath:      projectPath,
+		ProjectID:        projectID,
+		HubDir:           hubDir,
+		Provider:         provider,
+		Model:            model,
+		WebsearchEnabled: websearchEnabled,
 		Phases: []deploy.Phase{
 			deploy.DeployAgents(hubDir),
 			deploy.DeploySkills(hubDir),

@@ -13,12 +13,13 @@ import (
 
 // Plan represents a deployment plan with all phases.
 type Plan struct {
-	ProjectPath string
-	ProjectID   string
-	HubDir      string // source hub directory (agents/, skills/, etc.)
-	Provider    string
-	Model       string
-	Phases      []Phase
+	ProjectPath      string
+	ProjectID        string
+	HubDir           string // source hub directory (agents/, skills/, etc.)
+	Provider         string
+	Model            string
+	WebsearchEnabled bool // inject permission.websearch/webfetch = "allow"
+	Phases           []Phase
 }
 
 // Phase represents a single deployment phase.
@@ -252,6 +253,17 @@ func DeployConfig(provider, model string) Phase {
 				}
 				modelCfg["default"] = model
 				config["model"] = modelCfg
+			}
+
+			// Inject websearch/webfetch permissions if enabled
+			if ctx.Plan.WebsearchEnabled {
+				permCfg, ok := config["permission"].(map[string]interface{})
+				if !ok {
+					permCfg = make(map[string]interface{})
+				}
+				permCfg["websearch"] = "allow"
+				permCfg["webfetch"] = "allow"
+				config["permission"] = permCfg
 			}
 
 			// Write atomically (temp file + rename)

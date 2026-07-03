@@ -29,6 +29,7 @@ func init() {
 	configCmd.AddCommand(configListCmd())
 	configCmd.AddCommand(configPathCmd())
 	configCmd.AddCommand(configLanguageCmd())
+	configCmd.AddCommand(configWebsearchCmd())
 }
 
 func configGetCmd() *cobra.Command {
@@ -235,7 +236,66 @@ func configViper() *viper.Viper {
 	v.SetDefault("opencode.channel", "stable")
 	v.SetDefault("opencode.auto_update", false)
 	v.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
+	v.SetDefault("websearch.enabled", false)
 
 	_ = v.ReadInConfig() // OK if not found
 	return v
+}
+
+func configWebsearchCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "websearch [enable|disable|status]",
+		Short: "Gère les permissions WebSearch/WebFetch (Exa AI)",
+		Long: `Active ou désactive les permissions websearch et webfetch pour les agents.
+Lorsqu'activé, les agents peuvent effectuer des recherches web via Exa AI.
+La permission est injectée globalement dans opencode.json au deploy.`,
+		Args:  cobra.ExactArgs(1),
+		ValidArgs: []string{"enable", "disable", "status"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			action := args[0]
+
+			v := configViper()
+			cfgPath := config.ConfigPath()
+
+			switch action {
+			case "enable":
+				v.Set("websearch.enabled", true)
+				if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+					return fmt.Errorf("creating config directory: %w", err)
+				}
+				if err := v.WriteConfigAs(cfgPath); err != nil {
+					return fmt.Errorf("writing config: %w", err)
+				}
+				fmt.Fprintf(os.Stdout, "%s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					i18n.T("cmd.config.websearch_enabled"))
+				fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
+
+			case "disable":
+				v.Set("websearch.enabled", false)
+				if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+					return fmt.Errorf("creating config directory: %w", err)
+				}
+				if err := v.WriteConfigAs(cfgPath); err != nil {
+					return fmt.Errorf("writing config: %w", err)
+				}
+				fmt.Fprintf(os.Stdout, "%s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					i18n.T("cmd.config.websearch_disabled"))
+
+			case "status":
+				enabled := v.GetBool("websearch.enabled")
+				status := i18n.T("cmd.config.websearch_off")
+				if enabled {
+					status = i18n.T("cmd.config.websearch_on")
+				}
+				fmt.Fprintf(os.Stdout, "%s\n",
+					i18n.Tf("cmd.config.websearch_status", status))
+
+			default:
+				return fmt.Errorf("action invalide %q : utiliser enable, disable ou status", action)
+			}
+			return nil
+		},
+	}
 }
