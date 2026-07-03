@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
@@ -62,7 +64,7 @@ func handleGetFile(params json.RawMessage) (*protocol.ToolResult, error) {
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s", args.FileKey))
+	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s", url.PathEscape(args.FileKey)))
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +81,7 @@ func handleGetNode(params json.RawMessage) (*protocol.ToolResult, error) {
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/nodes?ids=%s", args.FileKey, args.NodeID))
+	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/nodes?ids=%s", url.PathEscape(args.FileKey), url.QueryEscape(args.NodeID)))
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +97,7 @@ func handleGetStyles(params json.RawMessage) (*protocol.ToolResult, error) {
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/styles", args.FileKey))
+	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/styles", url.PathEscape(args.FileKey)))
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +105,10 @@ func handleGetStyles(params json.RawMessage) (*protocol.ToolResult, error) {
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}, nil
 }
+
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
+const maxResponseSize = 50 << 20 // 50 MB
 
 func figmaAPI(path string) ([]byte, error) {
 	token := os.Getenv("FIGMA_TOKEN")
@@ -116,13 +122,13 @@ func figmaAPI(path string) ([]byte, error) {
 	}
 	req.Header.Set("X-Figma-Token", token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Figma API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return nil, err
 	}

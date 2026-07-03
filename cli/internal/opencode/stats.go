@@ -61,6 +61,8 @@ type AggregateStats struct {
 	TotalCost      float64
 	TodaySessions  int
 	ActiveProjects int
+	CacheReadTokens int64
+	ReasoningTokens int64
 }
 
 // ProjectSessions returns recent sessions for a project (matched by worktree path).
@@ -121,9 +123,11 @@ func TotalStats(db *sql.DB) (*AggregateStats, error) {
 
 	// Total counts
 	err := db.QueryRow(`
-		SELECT COUNT(*), COALESCE(SUM(tokens_input), 0), COALESCE(SUM(tokens_output), 0), COALESCE(SUM(cost), 0)
+		SELECT COUNT(*), COALESCE(SUM(tokens_input), 0), COALESCE(SUM(tokens_output), 0),
+		       COALESCE(SUM(cost), 0), COALESCE(SUM(tokens_cache_read), 0), COALESCE(SUM(tokens_reasoning), 0)
 		FROM session
-	`).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut, &stats.TotalCost)
+	`).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut,
+		&stats.TotalCost, &stats.CacheReadTokens, &stats.ReasoningTokens)
 	if err != nil {
 		return nil, fmt.Errorf("querying total stats: %w", err)
 	}
@@ -144,6 +148,95 @@ func TotalStats(db *sql.DB) (*AggregateStats, error) {
 	return stats, nil
 }
 
+// PeriodStats returns aggregate statistics for sessions within a time period.
+// period: "7d", "30d", "all". Anything else defaults to "all".
+func PeriodStats(db *sql.DB, period string) (*AggregateStats, error) {
+	if db == nil {
+		return &AggregateStats{}, nil
+	}
+
+	if period == "all" || period == "" {
+		return TotalStats(db)
+	}
+
+	var days int
+	switch period {
+	case "7d":
+		days = 7
+	case "30d":
+		days = 30
+	default:
+		return TotalStats(db)
+	}
+
+	since := time.Now().AddDate(0, 0, -days).UnixMilli()
+	stats := &AggregateStats{}
+
+	err := db.QueryRow(`
+		SELECT COUNT(*), COALESCE(SUM(tokens_input), 0), COALESCE(SUM(tokens_output), 0),
+		       COALESCE(SUM(cost), 0), COALESCE(SUM(tokens_cache_read), 0), COALESCE(SUM(tokens_reasoning), 0)
+		FROM session
+		WHERE time_created >= ?
+	`, since).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut,
+		&stats.TotalCost, &stats.CacheReadTokens, &stats.ReasoningTokens)
+	if err != nil {
+		return nil, fmt.Errorf("querying period stats: %w", err)
+	}
+
+	// Today's sessions
+	todayStart := startOfDay(time.Now()).UnixMilli()
+	err = db.QueryRow(`SELECT COUNT(*) FROM session WHERE time_created >= ?`, todayStart).Scan(&stats.TodaySessions)
+	if err != nil {
+		stats.TodaySessions = 0
+	}
+
+	// Active projects in this period
+	err = db.QueryRow(`SELECT COUNT(DISTINCT project_id) FROM session WHERE time_created >= ?`, since).Scan(&stats.ActiveProjects)
+	if err != nil {
+		stats.ActiveProjects = 0
+	}
+
+	return stats, nil
+}
+
+// ProjectPeriodStats returns aggregate stats for a specific project within a time period.
+func ProjectPeriodStats(db *sql.DB, projectPath, period string) (*AggregateStats, error) {
+	if db == nil {
+		return &AggregateStats{}, nil
+	}
+
+	if period == "all" || period == "" {
+		return ProjectStats(db, projectPath)
+	}
+
+	var days int
+	switch period {
+	case "7d":
+		days = 7
+	case "30d":
+		days = 30
+	default:
+		return ProjectStats(db, projectPath)
+	}
+
+	since := time.Now().AddDate(0, 0, -days).UnixMilli()
+	stats := &AggregateStats{}
+
+	err := db.QueryRow(`
+		SELECT COUNT(*), COALESCE(SUM(s.tokens_input), 0), COALESCE(SUM(s.tokens_output), 0),
+		       COALESCE(SUM(s.cost), 0), COALESCE(SUM(s.tokens_cache_read), 0), COALESCE(SUM(s.tokens_reasoning), 0)
+		FROM session s
+		JOIN project p ON s.project_id = p.id
+		WHERE p.worktree = ? AND s.time_created >= ?
+	`, projectPath, since).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut,
+		&stats.TotalCost, &stats.CacheReadTokens, &stats.ReasoningTokens)
+	if err != nil {
+		return nil, fmt.Errorf("querying project period stats: %w", err)
+	}
+
+	return stats, nil
+}
+
 // ProjectStats returns aggregate stats for a specific project (by worktree path).
 func ProjectStats(db *sql.DB, projectPath string) (*AggregateStats, error) {
 	if db == nil {
@@ -152,11 +245,13 @@ func ProjectStats(db *sql.DB, projectPath string) (*AggregateStats, error) {
 
 	stats := &AggregateStats{}
 	err := db.QueryRow(`
-		SELECT COUNT(*), COALESCE(SUM(s.tokens_input), 0), COALESCE(SUM(s.tokens_output), 0), COALESCE(SUM(s.cost), 0)
+		SELECT COUNT(*), COALESCE(SUM(s.tokens_input), 0), COALESCE(SUM(s.tokens_output), 0),
+		       COALESCE(SUM(s.cost), 0), COALESCE(SUM(s.tokens_cache_read), 0), COALESCE(SUM(s.tokens_reasoning), 0)
 		FROM session s
 		JOIN project p ON s.project_id = p.id
 		WHERE p.worktree = ?
-	`, projectPath).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut, &stats.TotalCost)
+	`, projectPath).Scan(&stats.TotalSessions, &stats.TotalTokensIn, &stats.TotalTokensOut,
+		&stats.TotalCost, &stats.CacheReadTokens, &stats.ReasoningTokens)
 	if err != nil {
 		return nil, fmt.Errorf("querying project stats: %w", err)
 	}

@@ -4,10 +4,13 @@ package protocol
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 // Request represents a JSON-RPC request.
@@ -79,27 +82,48 @@ func (s *Server) RegisterTool(tool Tool, handler Handler) {
 }
 
 // Serve starts the server, reading from stdin and writing to stdout.
+// It exits gracefully on EOF, SIGINT, or SIGTERM.
 func (s *Server) Serve() error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	reader := bufio.NewReader(os.Stdin)
 	writer := os.Stdout
 
+	// Channel for lines read from stdin
+	lines := make(chan []byte)
+	errs := make(chan error, 1)
+
+	go func() {
+		for {
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				errs <- err
+				return
+			}
+			lines <- line
+		}
+	}()
+
 	for {
-		line, err := reader.ReadBytes('\n')
-		if err != nil {
+		select {
+		case <-ctx.Done():
+			return nil // graceful shutdown on signal
+		case err := <-errs:
 			if err == io.EOF {
 				return nil
 			}
 			return fmt.Errorf("reading stdin: %w", err)
-		}
+		case line := <-lines:
+			var req Request
+			if err := json.Unmarshal(line, &req); err != nil {
+				s.writeError(writer, nil, -32700, "Parse error")
+				continue
+			}
 
-		var req Request
-		if err := json.Unmarshal(line, &req); err != nil {
-			s.writeError(writer, nil, -32700, "Parse error")
-			continue
+			resp := s.handleRequest(&req)
+			s.writeResponse(writer, resp)
 		}
-
-		resp := s.handleRequest(&req)
-		s.writeResponse(writer, resp)
 	}
 }
 

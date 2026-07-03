@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
@@ -50,7 +52,7 @@ func handleGetPresentation(params json.RawMessage) (*protocol.ToolResult, error)
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s", args.PresentationID))
+	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s", url.PathEscape(args.PresentationID)))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +69,7 @@ func handleGetSlide(params json.RawMessage) (*protocol.ToolResult, error) {
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s/pages/%s", args.PresentationID, args.SlideID))
+	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s/pages/%s", url.PathEscape(args.PresentationID), url.PathEscape(args.SlideID)))
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +77,10 @@ func handleGetSlide(params json.RawMessage) (*protocol.ToolResult, error) {
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}, nil
 }
+
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
+const maxResponseSize = 50 << 20 // 50 MB
 
 func slidesAPI(path string) ([]byte, error) {
 	token := os.Getenv("GOOGLE_ACCESS_TOKEN")
@@ -88,13 +94,13 @@ func slidesAPI(path string) ([]byte, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Google Slides API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return nil, err
 	}

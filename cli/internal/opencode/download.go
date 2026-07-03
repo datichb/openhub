@@ -157,12 +157,14 @@ func Download(version, installDir string, progress ProgressFunc) (string, error)
 	}
 	tmpFile.Close()
 
-	// Verify checksum
+	// Verify checksum — mandatory for security
 	expectedSHA := asset.SHA256()
-	if expectedSHA != "" {
-		if err := verifyChecksum(tmpPath, expectedSHA); err != nil {
-			return "", err
-		}
+	if expectedSHA == "" {
+		os.Remove(tmpPath)
+		return "", fmt.Errorf("no checksum available for %s — refusing to install unverified binary", asset.Name)
+	}
+	if err := verifyChecksum(tmpPath, expectedSHA); err != nil {
+		return "", err
 	}
 
 	// Extract binary
@@ -322,7 +324,12 @@ func extractFromTarGz(archivePath, destPath string) error {
 			return fmt.Errorf("reading tar: %w", err)
 		}
 
-		if header.Name != BinaryName && header.Typeflag != tar.TypeReg {
+		// Skip non-regular files (directories, symlinks, etc.)
+		if header.Typeflag != tar.TypeReg {
+			continue
+		}
+		// Match binary name (handle archives with directory prefix)
+		if filepath.Base(header.Name) != BinaryName {
 			continue
 		}
 		return extractTarEntry(tr, destPath)
