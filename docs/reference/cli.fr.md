@@ -8,31 +8,15 @@ Le binaire `oh` est le point d'entree unique du hub opencode. Il orchestre les s
 oh [--verbose] <commande> [sous-commande] [options] [arguments]
 ```
 
-| Flag global | Description |
-|-------------|-------------|
-| `--verbose` | Active les logs detailles |
+## Flags globaux
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--verbose` | `-v` | Active la sortie verbose |
 
 ---
 
-## Session
-
-### oh init
-
-Assistant de configuration initiale.
-
-```
-oh init
-```
-
-Lance un wizard interactif qui configure : langue, opencode, projet, serveurs MCP, base de donnees et deploiement.
-
-**Exemple :**
-
-```bash
-oh init
-```
-
----
+## Sessions
 
 ### oh start
 
@@ -46,39 +30,42 @@ oh start [options]
 |------|-------|-------------|
 | `--agent` | `-a` | Agent a utiliser |
 | `--prompt` | `-p` | Prompt initial |
-| `--provider` | `-P` | Provider LLM |
-| `--project` | `-j` | Projet cible |
-| `--resume` | `-r` | Reprendre la derniere session |
-| `--worktree` | `-w` | Utiliser un worktree dedie |
-| `--dev` | | Mode developpement |
-| `--label` | `-l` | Label de la session |
-| `--assignee` | `-A` | Assignee du ticket |
-| `--onboard` | | Active l'onboarding |
-| `--refresh` | | Force le rafraichissement du contexte |
+| `--provider` | `-P` | Provider LLM (bedrock, anthropic, openai) |
+| `--project` | `-j` | ID du projet (detection auto sinon) |
+| `--resume` | `-r` | Reprendre une session existante (ID de session) |
+| `--worktree` | `-w` | Branche pour lancer dans un git worktree |
+| `--dev` | | Mode dev : picker epics/tickets + orchestrator-dev |
+| `--label` | `-l` | Filtrer tickets par label (requiert --dev) |
+| `--assignee` | `-A` | Filtrer tickets par assignee (requiert --dev) |
+| `--onboard` | | Mode onboarding : cree/enrichit le wiki projet |
+| `--refresh` | | Force la re-decouverte du wiki (requiert --onboard) |
+| `--yes` | `-y` | Lancer directement sans confirmation |
 
 **Exemple :**
 
 ```bash
 oh start -j mon-projet -a coder -p "Ajoute un endpoint /health"
-oh start --resume
-oh start --worktree -l "feat/auth"
+oh start --resume abc123-def456
+oh start --worktree feat/auth --dev -l "priority:high"
+oh start --onboard --refresh
 ```
 
 ---
 
 ### oh quick
 
-Tache rapide avec selection interactive du projet.
+Lancement rapide. Detection auto du projet depuis le repertoire courant.
 
 ```
 oh quick
 ```
 
-Ouvre un selecteur de projet puis lance une session courte.
+Pas de flags. Detecte automatiquement le projet et lance une session courte.
 
 **Exemple :**
 
 ```bash
+cd ~/projects/api-gateway
 oh quick
 ```
 
@@ -86,7 +73,7 @@ oh quick
 
 ### oh audit
 
-Audit de code selon un type d'analyse.
+Lance un audit de code via opencode.
 
 ```
 oh audit [options]
@@ -94,8 +81,8 @@ oh audit [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | Projet cible |
-| `--type` | `-t` | Type d'audit |
+| `--project` | `-j` | ID du projet |
+| `--type` | `-t` | Type d'audit (defaut : security) |
 
 Types disponibles : `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`.
 
@@ -104,13 +91,14 @@ Types disponibles : `security`, `performance`, `architecture`, `accessibility`, 
 ```bash
 oh audit -j api-gateway -t security
 oh audit --type performance
+oh audit -t ecodesign
 ```
 
 ---
 
 ### oh review
 
-Revue de code du projet.
+Lance une review de code via opencode.
 
 ```
 oh review [options]
@@ -118,19 +106,20 @@ oh review [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | Projet cible |
+| `--project` | `-j` | ID du projet |
 
 **Exemple :**
 
 ```bash
 oh review -j frontend
+oh review
 ```
 
 ---
 
 ### oh debug
 
-Session de debug ciblee.
+Lance une session de debug via opencode.
 
 ```
 oh debug [options]
@@ -138,69 +127,54 @@ oh debug [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | Projet cible |
-| `--issue` | `-i` | Numero du ticket a debugger |
+| `--project` | `-j` | ID du projet |
+| `--issue` | `-i` | Description du probleme |
 
 **Exemple :**
 
 ```bash
-oh debug -j backend -i 42
-```
-
----
-
-### oh conventions
-
-Affiche les conventions du projet.
-
-```
-oh conventions [options]
-```
-
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-j` | Projet cible |
-
-**Exemple :**
-
-```bash
-oh conventions -j mon-projet
+oh debug -j backend -i "Timeout sur les requetes POST /api/users"
+oh debug --issue "Memory leak dans le worker pool"
 ```
 
 ---
 
 ### oh beads
 
-Proxy vers la commande `bd` (beads). Tous les arguments sont transmis directement.
+Proxy vers `bd` (Beads CLI). Tous les arguments sont passes directement a `bd`.
 
 ```
 oh beads [arguments...]
 ```
+
+Necessite `bd` installe et accessible dans le PATH.
 
 **Exemple :**
 
 ```bash
 oh beads list
 oh beads run mon-bead
+oh beads status
 ```
 
 ---
 
-## Projet
+## Projets
 
 ### oh project list
 
 Liste les projets enregistres.
 
+**Alias :** `oh project ls`
+
 ```
 oh project list [options]
-oh project ls [options]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--status` | `-s` | Filtrer par statut |
-| `--json` | | Sortie JSON |
+| `--status` | `-s` | Filtrer par statut (active, archived) |
+| `--json` | | Sortie au format JSON |
 
 **Exemple :**
 
@@ -216,38 +190,41 @@ oh project list -s active
 
 Enregistre un nouveau projet.
 
+**Alias :** `oh project register`
+
 ```
 oh project add [options]
-oh project register [options]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--name` | `-n` | Nom du projet |
-| `--path` | `-p` | Chemin du projet |
+| `--path` | `-p` | Chemin du projet (defaut : repertoire courant) |
 | `--language` | `-l` | Langage principal |
-| `--tracker` | `-t` | URL du tracker |
+| `--tracker` | `-t` | Issue tracker (github, gitlab, jira, linear) |
 
 **Exemple :**
 
 ```bash
-oh project add -n api -p ./services/api -l go -t https://github.com/org/api/issues
+oh project add -n api -p ./services/api -l go -t github
+oh project register -n frontend --language typescript
 ```
 
 ---
 
 ### oh project remove
 
-Supprime un projet du registre.
+Supprime un projet.
+
+**Alias :** `oh project rm`
 
 ```
-oh project remove [options]
-oh project rm [options]
+oh project remove [project-id]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--force` | `-f` | Suppression sans confirmation |
+| `--force` | `-f` | Supprimer sans confirmation |
 
 **Exemple :**
 
@@ -263,8 +240,10 @@ oh project rm -f legacy-app
 Renomme un projet.
 
 ```
-oh project rename <ancien-nom> <nouveau-nom>
+oh project rename [project-id] [new-name]
 ```
+
+Interactif si arguments omis.
 
 **Exemple :**
 
@@ -276,11 +255,13 @@ oh project rename api api-v2
 
 ### oh project move
 
-Change le chemin d'un projet.
+Deplace un projet (change le chemin enregistre).
 
 ```
-oh project move <nom> <nouveau-chemin>
+oh project move [project-id] [new-path]
 ```
+
+Interactif si arguments omis.
 
 **Exemple :**
 
@@ -292,51 +273,127 @@ oh project move api ../new-location/api
 
 ### oh project configure
 
-Configure les options d'un projet.
+Configure un projet.
 
 ```
-oh project configure <nom> [options]
+oh project configure [project-id] [options]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--provider` | `-P` | Provider LLM |
-| `--model` | `-m` | Modele a utiliser |
+| `--model` | `-m` | Modele LLM |
 | `--language` | `-l` | Langage principal |
-| `--tracker` | `-t` | URL du tracker |
+| `--tracker` | `-t` | Issue tracker |
 
 **Exemple :**
 
 ```bash
 oh project configure api -P anthropic -m claude-sonnet-4-20250514
+oh project configure frontend --tracker linear
+```
+
+---
+
+## Deploiement
+
+### oh deploy
+
+Deploie agents, skills et config dans un projet.
+
+```
+oh deploy [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-j` | ID du projet |
+| `--provider` | `-P` | Provider a configurer |
+| `--model` | `-m` | Modele a configurer |
+| `--check` | | Verifie si les agents/skills ont change |
+| `--diff` | | Affiche les changements sans les appliquer |
+
+**Exemple :**
+
+```bash
+oh deploy -j api
+oh deploy --check --diff
+oh deploy -P anthropic -m claude-sonnet-4-20250514
+```
+
+---
+
+### oh sync
+
+Synchronise agents, skills et config vers les projets.
+
+```
+oh sync [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-j` | ID du projet |
+| `--all` | | Synchroniser tous les projets actifs |
+| `--dry-run` | | Afficher les changements sans les appliquer |
+
+**Exemple :**
+
+```bash
+oh sync --all
+oh sync -j frontend --dry-run
 ```
 
 ---
 
 ## Configuration
 
-### oh config get
+### oh config list
 
-Affiche la valeur d'une cle de configuration.
+Affiche la configuration.
+
+**Alias :** `oh config ls`
 
 ```
-oh config get <cle>
+oh config list [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Sortie au format JSON |
+
+**Exemple :**
+
+```bash
+oh config list
+oh config ls --json
+```
+
+---
+
+### oh config get
+
+Lire une valeur de configuration.
+
+```
+oh config get <key>
 ```
 
 **Exemple :**
 
 ```bash
 oh config get default_provider
+oh config get language
 ```
 
 ---
 
 ### oh config set
 
-Modifie une valeur de configuration.
+Definir une valeur de configuration.
 
 ```
-oh config set <cle> <valeur>
+oh config set <key> <value>
 ```
 
 **Exemple :**
@@ -350,38 +407,16 @@ oh config set language fr
 
 ### oh config unset
 
-Supprime une cle de configuration.
+Supprimer une cle de configuration.
 
 ```
-oh config unset <cle>
+oh config unset <key>
 ```
 
 **Exemple :**
 
 ```bash
 oh config unset custom_model
-```
-
----
-
-### oh config list
-
-Affiche toute la configuration.
-
-```
-oh config list [options]
-oh config ls [options]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie JSON |
-
-**Exemple :**
-
-```bash
-oh config list
-oh config ls --json
 ```
 
 ---
@@ -405,26 +440,25 @@ oh config path
 
 ### oh config language
 
-Affiche ou change la langue de l'interface.
+Changer la langue de l'interface.
 
 ```
-oh config language [lang]
+oh config language [fr|en]
 ```
-
-Langues supportees : `fr`, `en`.
 
 **Exemple :**
 
 ```bash
 oh config language        # Affiche la langue courante
 oh config language fr     # Passe en francais
+oh config language en     # Passe en anglais
 ```
 
 ---
 
 ### oh config websearch
 
-Gere les permissions de recherche web.
+Gerer les permissions de recherche web (WebSearch).
 
 ```
 oh config websearch [enable|disable|status]
@@ -435,66 +469,52 @@ oh config websearch [enable|disable|status]
 ```bash
 oh config websearch status
 oh config websearch enable
+oh config websearch disable
 ```
 
 ---
 
-## Deploiement
+## Infrastructure
 
-### oh deploy
+### oh init
 
-Deploie les agents, skills, configuration et serveurs MCP vers un projet.
+Initialise oh pour la premiere fois. Wizard interactif.
 
 ```
-oh deploy [options]
+oh init
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-j` | Projet cible |
-| `--provider` | `-P` | Provider LLM |
-| `--model` | `-m` | Modele a utiliser |
-| `--check` | | Verification sans deploiement |
-| `--diff` | | Affiche les differences |
+Pas de flags. Configure : langue, opencode, projet, serveurs MCP, base de donnees et deploiement.
 
 **Exemple :**
 
 ```bash
-oh deploy -j api
-oh deploy --check --diff
-oh deploy -P anthropic -m claude-sonnet-4-20250514
+oh init
 ```
 
 ---
 
-### oh sync
+### oh doctor
 
-Synchronise la configuration des projets.
+Verifie l'etat du systeme.
 
 ```
-oh sync [options]
+oh doctor
 ```
 
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--project` | `-j` | Projet cible (defaut: tous) |
-| `--all` | | Synchroniser tous les projets |
-| `--dry-run` | | Simulation sans modification |
+Pas de flags. Checks : OS, git, opencode, bd, fzf, compatibilite, config, BDD, cles API.
 
 **Exemple :**
 
 ```bash
-oh sync --all
-oh sync -j frontend --dry-run
+oh doctor
 ```
 
 ---
-
-## Analytique
 
 ### oh status
 
-Affiche l'etat du hub et du projet courant.
+Affiche l'etat du hub.
 
 ```
 oh status [options]
@@ -502,7 +522,7 @@ oh status [options]
 
 | Flag | Description |
 |------|-------------|
-| `--json` | Sortie JSON |
+| `--json` | Sortie au format JSON |
 
 **Exemple :**
 
@@ -513,160 +533,15 @@ oh status --json
 
 ---
 
-### oh metrics
-
-Affiche les metriques d'utilisation.
-
-```
-oh metrics [options]
-```
-
-| Flag | Court | Description |
-|------|-------|-------------|
-| `--period` | `-p` | Periode : `7d`, `30d`, `all` |
-
-**Exemple :**
-
-```bash
-oh metrics
-oh metrics -p 30d
-```
-
----
-
-### oh dashboard
-
-Tableau de bord interactif (TUI).
-
-```
-oh dashboard
-```
-
-Lance une interface terminale interactive avec vue d'ensemble des projets, sessions et metriques.
-
-**Exemple :**
-
-```bash
-oh dashboard
-```
-
----
-
-### oh board
-
-Kanban interactif des tickets.
-
-```
-oh board [options]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--watch` | Rafraichissement automatique |
-
-**Exemple :**
-
-```bash
-oh board
-oh board --watch
-```
-
----
-
-### oh optimize
-
-Affiche des suggestions d'optimisation pour le projet courant.
-
-```
-oh optimize
-```
-
-**Exemple :**
-
-```bash
-oh optimize
-```
-
----
-
-### oh yield
-
-Rapport detaille des sessions et commits.
-
-```
-oh yield
-```
-
-**Exemple :**
-
-```bash
-oh yield
-```
-
----
-
-## Infrastructure
-
-### oh doctor
-
-Diagnostic systeme complet.
-
-```
-oh doctor
-```
-
-Verifie : binaires requis, configuration, connectivite, serveurs MCP, permissions.
-
-**Exemple :**
-
-```bash
-oh doctor
-```
-
----
-
-### oh version
-
-Affiche la version du binaire `oh`.
-
-```
-oh version
-```
-
-**Exemple :**
-
-```bash
-oh version
-# oh v1.2.0 (go1.22, darwin/arm64)
-```
-
----
-
-### oh completion
-
-Genere le script de completion pour le shell indique.
-
-```
-oh completion [bash|zsh|fish|powershell]
-```
-
-**Exemple :**
-
-```bash
-oh completion zsh > ~/.zfunc/_oh
-oh completion bash > /etc/bash_completion.d/oh
-oh completion fish > ~/.config/fish/completions/oh.fish
-```
-
----
-
 ### oh upgrade opencode
 
-Met a jour opencode vers une version donnee.
+Met a jour opencode.
 
 ```
 oh upgrade opencode [version]
 ```
+
+Pas de flags. Argument version optionnel (derniere version si omis).
 
 **Exemple :**
 
@@ -677,21 +552,82 @@ oh upgrade opencode 0.3.1   # Version specifique
 
 ---
 
-## Plugin
+### oh mcp serve
 
-### oh plugin list
-
-Liste les plugins installes.
+Lance un serveur MCP integre via stdio.
 
 ```
-oh plugin list
-oh plugin ls
+oh mcp serve <name>
+```
+
+Sert un serveur MCP natif (figma, gitlab, gslides).
+
+**Exemple :**
+
+```bash
+oh mcp serve gitlab
+oh mcp serve figma
+oh mcp serve gslides
+```
+
+---
+
+### oh mcp list
+
+Liste les serveurs MCP disponibles.
+
+**Alias :** `oh mcp ls`
+
+```
+oh mcp list [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Sortie au format JSON |
+
+**Exemple :**
+
+```bash
+oh mcp list
+oh mcp ls --json
+```
+
+---
+
+### oh service setup
+
+Configure un service MCP. Wizard interactif. Stocke les tokens dans le keychain.
+
+```
+oh service setup
 ```
 
 **Exemple :**
 
 ```bash
-oh plugin list
+oh service setup
+```
+
+---
+
+### oh service remove
+
+Supprime un service.
+
+```
+oh service remove [service-name]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--force` | `-f` | Supprimer sans confirmation |
+
+**Exemple :**
+
+```bash
+oh service remove gitlab
+oh service remove -f figma
 ```
 
 ---
@@ -716,15 +652,15 @@ oh plugin install rtk
 
 Supprime un plugin.
 
+**Alias :** `oh plugin rm`, `oh plugin uninstall`
+
 ```
 oh plugin remove <name>
-oh plugin rm <name>
-oh plugin uninstall <name>
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--force` | `-f` | Suppression sans confirmation |
+| `--force` | `-f` | Supprimer sans confirmation |
 
 **Exemple :**
 
@@ -735,9 +671,28 @@ oh plugin rm -f rtk
 
 ---
 
+### oh plugin list
+
+Liste les plugins installes.
+
+**Alias :** `oh plugin ls`
+
+```
+oh plugin list
+```
+
+**Exemple :**
+
+```bash
+oh plugin list
+oh plugin ls
+```
+
+---
+
 ### oh plugin status
 
-Affiche l'etat des plugins installes.
+Affiche le statut des plugins installes.
 
 ```
 oh plugin status
@@ -751,20 +706,21 @@ oh plugin status
 
 ---
 
-## Worktree
+## Git Worktree
 
 ### oh worktree list
 
 Liste les worktrees du projet.
 
+**Alias :** `oh worktree ls`
+
 ```
 oh worktree list [options]
-oh worktree ls [options]
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--json` | Sortie JSON |
+| `--json` | Sortie au format JSON |
 
 **Exemple :**
 
@@ -777,11 +733,13 @@ oh worktree ls --json
 
 ### oh worktree add
 
-Cree un nouveau worktree.
+Cree un worktree.
 
 ```
 oh worktree add [branch]
 ```
+
+Interactif si branche omise.
 
 **Exemple :**
 
@@ -796,14 +754,15 @@ oh worktree add fix/bug-123
 
 Supprime un worktree.
 
+**Alias :** `oh worktree rm`
+
 ```
 oh worktree remove [path]
-oh worktree rm [path]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--force` | `-f` | Suppression forcee |
+| `--force` | `-f` | Forcer la suppression |
 
 **Exemple :**
 
@@ -816,7 +775,7 @@ oh worktree rm -f ../project-fix-old
 
 ### oh worktree cleanup
 
-Supprime les worktrees dont la branche a ete mergee.
+Nettoie les worktrees dont la branche a ete mergee.
 
 ```
 oh worktree cleanup [options]
@@ -824,8 +783,8 @@ oh worktree cleanup [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--base` | `-b` | Branche de reference (defaut: main) |
-| `--force` | `-f` | Suppression sans confirmation |
+| `--base` | `-b` | Branche de base (defaut : auto-detect) |
+| `--force` | `-f` | Supprimer sans confirmation |
 
 **Exemple :**
 
@@ -836,144 +795,103 @@ oh worktree cleanup -b develop --force
 
 ---
 
-## MCP
+## Analytique
 
-### oh mcp serve
+### oh metrics
 
-Lance un serveur MCP en mode stdio.
-
-```
-oh mcp serve <name>
-```
-
-**Exemple :**
-
-```bash
-oh mcp serve gitlab
-oh mcp serve figma
-```
-
----
-
-### oh mcp list
-
-Liste les serveurs MCP disponibles.
+Affiche les metriques d'utilisation.
 
 ```
-oh mcp list [options]
-oh mcp ls [options]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie JSON |
-
-**Exemple :**
-
-```bash
-oh mcp list
-oh mcp ls --json
-```
-
----
-
-## Agents / Skills
-
-### oh agent list
-
-Liste les agents disponibles.
-
-```
-oh agent list [options]
-oh agent ls [options]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie JSON |
-
-**Exemple :**
-
-```bash
-oh agent list
-oh agent ls --json
-```
-
----
-
-### oh skills list
-
-Liste les skills disponibles.
-
-```
-oh skills list [options]
-oh skills ls [options]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--json` | Sortie JSON |
-
-**Exemple :**
-
-```bash
-oh skills list
-oh skills ls --json
-```
-
----
-
-## Services
-
-### oh service
-
-Affiche l'etat des services configures (comportement par defaut).
-
-```
-oh service
-```
-
-**Exemple :**
-
-```bash
-oh service
-```
-
----
-
-### oh service setup
-
-Wizard interactif de configuration d'un service.
-
-```
-oh service setup
-```
-
-**Exemple :**
-
-```bash
-oh service setup
-```
-
----
-
-### oh service remove
-
-Supprime un service.
-
-```
-oh service remove [name]
+oh metrics [options]
 ```
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--force` | `-f` | Suppression sans confirmation |
+| `--period` | `-p` | Periode d'analyse (7d, 30d, all). Defaut : all |
 
 **Exemple :**
 
 ```bash
-oh service remove gitlab
-oh service remove -f figma
+oh metrics
+oh metrics -p 30d
+oh metrics -p 7d
+```
+
+---
+
+### oh dashboard
+
+Tableau de bord interactif (TUI).
+
+```
+oh dashboard
+```
+
+Pas de flags. Lance une interface terminale interactive avec vue d'ensemble des projets, sessions et metriques.
+
+**Exemple :**
+
+```bash
+oh dashboard
+```
+
+---
+
+### oh board
+
+Tableau kanban des tickets.
+
+```
+oh board [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--watch` | Rafraichissement auto toutes les 5s |
+
+**Exemple :**
+
+```bash
+oh board
+oh board --watch
+```
+
+---
+
+## Utilitaires
+
+### oh version
+
+Affiche la version du binaire `oh`.
+
+```
+oh version
+```
+
+**Exemple :**
+
+```bash
+oh version
+# oh v1.2.0 (go1.22, darwin/arm64)
+```
+
+---
+
+### oh completion
+
+Genere le script d'autocompletion pour le shell indique.
+
+```
+oh completion [bash|zsh|fish|powershell]
+```
+
+**Exemple :**
+
+```bash
+oh completion zsh > "${fpath[1]}/_oh"
+oh completion bash > /etc/bash_completion.d/oh
+oh completion fish > ~/.config/fish/completions/oh.fish
+oh completion powershell | Out-String | Invoke-Expression
 ```
 
 ---
@@ -985,35 +903,3 @@ oh service remove -f figma
 | `0` | Succes |
 | `1` | Erreur |
 | `2` | Avertissement |
-
----
-
-## Completion shell
-
-Pour activer la completion automatique :
-
-**Zsh :**
-
-```bash
-oh completion zsh > "${fpath[1]}/_oh"
-source ~/.zshrc
-```
-
-**Bash :**
-
-```bash
-oh completion bash > /etc/bash_completion.d/oh
-source /etc/bash_completion.d/oh
-```
-
-**Fish :**
-
-```bash
-oh completion fish > ~/.config/fish/completions/oh.fish
-```
-
-**PowerShell :**
-
-```powershell
-oh completion powershell | Out-String | Invoke-Expression
-```

@@ -251,6 +251,27 @@ func List(projectPath string) ([]Entry, error) {
 	return entries, nil
 }
 
+// CurrentBranch returns the current branch name for the given directory.
+// If HEAD is detached, it returns "(detached) <short-sha>".
+// Returns an empty string and error if not a git repo or git fails.
+func CurrentBranch(dir string) (string, error) {
+	cmd := exec.Command("git", "symbolic-ref", "--short", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// Detached HEAD — return short SHA
+	cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
+	cmd.Dir = dir
+	out, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not a git repo or git failed: %w", err)
+	}
+	return "(detached) " + strings.TrimSpace(string(out)), nil
+}
+
 // IsGitRepo checks if the given path is inside a git repository.
 func IsGitRepo(path string) bool {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")

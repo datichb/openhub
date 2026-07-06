@@ -92,7 +92,7 @@ oh deploy -j mon-projet
 | `oc audit --type TYPE` | `oh audit --type TYPE` | |
 | `oc review` | `oh review` | |
 | `oc debug` | `oh debug` | Support `--issue` |
-| `oc conventions` | `oh conventions` | |
+| `oc conventions` | *Supprimé* | Conventions gérées via skills |
 | `oc doctor` | `oh doctor` | |
 | `oc version` | `oh version` | |
 | `oc metrics --period` | `oh metrics --period` | 7d/30d/all |

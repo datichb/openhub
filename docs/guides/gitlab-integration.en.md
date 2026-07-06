@@ -159,25 +159,30 @@ And in `CONVENTIONS.md`:
 
 ## Architecture
 
+The GitLab MCP server is **built into the `oh` binary** — there is no separate source directory. The implementation lives in `cli/internal/mcp/gitlab/`.
+
 ```
-servers/gitlab-mcp/
-├── src/
-│   ├── index.ts              ← MCP entry point (5 tools)
-│   ├── config.ts             ← Environment variables
-│   ├── client.ts             ← GitLabClient (axios + retry)
-│   └── tools/
-│       ├── get-issue.ts
-│       ├── list-issues.ts
-│       ├── get-merge-request.ts
-│       ├── list-labels.ts
-│       └── list-milestones.ts
-├── dist/                     ← Compiled output (gitignored)
-└── package.json
+cli/internal/mcp/
+└── gitlab/             ← Go implementation of the GitLab MCP server
+    ├── server.go       ← MCP entry point (stdio JSON-RPC, 5 tools)
+    ├── client.go       ← GitLabClient (HTTP + retry)
+    ├── config.go       ← Environment variables
+    └── tools/
+        ├── get_issue.go
+        ├── list_issues.go
+        ├── get_merge_request.go
+        ├── list_labels.go
+        └── list_milestones.go
 
 skills/adapters/
 ├── gitlab-planner-protocol.md
 ├── gitlab-pathfinder-protocol.md
 └── gitlab-onboarder-protocol.md
+```
+
+At runtime, the server is started via:
+```bash
+oh mcp serve gitlab
 ```
 
 ---
@@ -222,12 +227,15 @@ Increase the timeout for slow instances:
 GITLAB_TIMEOUT=60000 oh gitlab setup
 ```
 
-### MCP server build fails
+### MCP server issues
+
+Since the GitLab MCP server is built into the `oh` binary, there is no separate build step. If the server fails to start:
 
 ```bash
-cd servers/gitlab-mcp
-npm install
-npm run build
+# Check the server runs correctly
+oh mcp serve gitlab
+# Reconfigure the service
+oh gitlab setup
 ```
 
 ---
@@ -255,7 +263,7 @@ npm run build
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
 - [`oh service` CLI Reference](../reference/services.en.md)
-- [MCP Servers Architecture](../../servers/README.md)
+- [MCP Protocol](https://modelcontextprotocol.io/)
 
 ---
 

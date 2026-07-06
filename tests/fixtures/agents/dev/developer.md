@@ -1,4 +1,0 @@
----
-id: developer
----
-# Developer

@@ -48,8 +48,8 @@ openhub/
 │   │   └── websearch-stack-research.md
 │   └── design/
 │       └── websearch-design-patterns.md
-└── scripts/
-    └── cmd-config.sh              ← Script: oh config websearch enable
+└── cli/
+    └── cmd/config.go                ← Commande: oh config websearch enable
 
 Après déploiement:
 /path/to/project/

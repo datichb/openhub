@@ -44,13 +44,21 @@ The title is built according to the following priority:
 | Prompt with ticket reference | `CP-3 — fix crash login` |
 | `--dev` mode | `dev: CP-3 — auth bug` |
 | `--onboard` mode | `onboard: MY-APP` |
-| `--parallel` mode | `parallel: feat/my-branch` |
+| `--dev` mode (ticket branch) | `dev: feat/my-branch` |
 | No prompt | `MY-APP — 2026-06-30` |
 
 ### Resuming with `--resume`
 
 ```bash
-oh start --resume -p MY-APP
+oh start -r <session-id>
+```
+
+Resumes a specific session by its ID. To find a session ID, use `oh dashboard`.
+
+To list recent sessions for a given project:
+
+```bash
+oh dashboard -j MY-APP
 ```
 
 Lists the last 10 sessions for the project (last 30 days), with title, agent, cost and date:
@@ -65,7 +73,7 @@ Choose a session to resume [MY-APP] :
 
 Enter the number of the session to resume. opencode is launched with `-s <session_id>`, restoring the full conversation history.
 
-> **Note:** `--resume` requires an explicit `-p PROJECT_ID`. It is incompatible with `--dev`, `--onboard` and `--parallel`.
+> **Note:** `--resume` / `-r` requires a session ID argument (e.g. `oh start -r <session-id>`). It is incompatible with `--dev` and `--onboard`.
 
 ### Viewing recent sessions
 
@@ -73,7 +81,7 @@ Enter the number of the session to resume. opencode is launched with `-s <sessio
 oh dashboard
 ```
 
-Recent sessions now display their `slug` as a dim suffix, usable as an identifier for `oh start --resume` if needed.
+Recent sessions now display their `slug` as a dim suffix, usable as an identifier for `oh start -r <session-id>` if needed.
 
 ---
 
@@ -220,7 +228,7 @@ The orchestrator passes dev tickets to `orchestrator-dev` with the chosen mode.
 > e.g. `[Planner — Phase 0 | Feature: JWT authentication]`. No need to navigate to the child session.
 
 > **Missing agent:** if a required agent is not deployed in the project, the orchestrator displays
-> a structured question: deploy via `!oh deploy opencode <PROJECT_ID>` directly in OpenCode / use a
+> a structured question: deploy via `!oh deploy -j <PROJECT_ID>` directly in OpenCode / use a
 > substitute (table by domain) / skip the ticket. Never falls back silently.
 
 #### 6. [CP-feature] Global recap

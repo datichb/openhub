@@ -1,4 +1,0 @@
----
-id: orchestrator
----
-# Orchestrator

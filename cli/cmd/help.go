@@ -126,6 +126,7 @@ func buildHelpSections() []helpSection {
 						{"assignee", "A", i18n.T("help.flag.start.assignee")},
 						{"onboard", "", i18n.T("help.flag.start.onboard")},
 						{"refresh", "", i18n.T("help.flag.start.refresh")},
+						{"yes", "y", i18n.T("help.flag.start.yes")},
 					},
 				},
 				{

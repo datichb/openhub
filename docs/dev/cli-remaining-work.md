@@ -1,9 +1,9 @@
 # Travail restant — CLI oh v2.0.0
 
 > Backlog structuré pour atteindre une release production-ready.
-> Mis à jour le 3 juillet 2026 — Post P0+P1+Blocs 1-4+Audits+Phases A-F.
+> Mis à jour le 6 juillet 2026 — **Migration 100% terminée.** Tous les blocs (P0, P1, P2 Blocs 1-5, Audit v2, Phases A-F) sont DONE.
 >
-> **Blocs 1-4, audit qualité, et phases d'amélioration (A-F) terminés.** Il reste uniquement le Bloc 5 (Cleanup + Documentation).
+> **Prêt pour release v2.0.0.**
 
 ---
 
@@ -164,23 +164,31 @@
 
 ---
 
-## P2 — Bloc 5 : Cleanup repo + Documentation — ⏳ À FAIRE (~1 jour)
+## P2 — Bloc 5 : Cleanup repo + Documentation — ✅ DONE
 
-> Ce bloc est le dernier — il prépare directement la release.
+> Réalisé le 6 juillet 2026.
 
-| # | Tâche | Détail |
-|---|-------|--------|
-| 5.1 | Supprimer `scripts/` | 62 fichiers shell (cmd-*.sh, lib/*.sh, adapters/) |
-| 5.2 | Supprimer `oc.sh`, `ocp.sh`, `uninstall.sh` | Entry points bash CLI |
-| 5.3 | Supprimer `tests/` | 82 fichiers .bats |
-| 5.4 | Supprimer `servers/` | MCP servers TypeScript (remplacés par Go dans `cli/internal/mcp/`) |
-| 5.5 | Supprimer `plugins/rtk/*.test.ts`, `vitest.config.ts` | Source test TS (rtk.ts embedded dans le binaire Go) |
-| 5.6 | Nettoyer `.github/workflows/ci.yml` | Retirer jobs : shellcheck, bats, validate-agents, check-staleness, version-consistency. Garder uniquement `go-cli`. |
-| 5.7 | Réécrire `README.md` | Installation (brew + curl), Quick start (oh init → oh start), Commandes principales, Architecture |
-| 5.8 | Créer `MIGRATION.md` | Guide `oh` → `oh` : breaking changes, équivalences commandes, config migration hub.json→hub.toml, comment re-deploy |
-| 5.9 | Archiver | `docs/legacy/README-bash.md` (pour référence historique) |
-| 5.10 | Mettre à jour `opencode.json` | Vérifier que les mcpServers pointent vers `oh mcp serve <name>` |
-| 5.11 | `.goreleaser.yml` | Ajouter `depends_on "datichb/tap/bd"` (recommended) dans la formula Homebrew |
+| # | Tâche | Détail | Statut |
+|---|-------|--------|--------|
+| 5.1 | Supprimer `scripts/` | 62 fichiers shell (cmd-*.sh, lib/*.sh, adapters/) | ✅ |
+| 5.2 | Supprimer `oc.sh`, `ocp.sh`, `uninstall.sh` | Entry points bash CLI | ✅ |
+| 5.3 | Supprimer `tests/` | 82 fichiers .bats | ✅ |
+| 5.4 | Supprimer `servers/` | MCP servers TypeScript (remplacés par Go dans `cli/internal/mcp/`) | ✅ |
+| 5.5 | Supprimer `plugins/rtk/` | Tests TS, node_modules, vitest (rtk.ts embedded dans `cli/internal/plugin/`) | ✅ |
+| 5.6 | Nettoyer `.github/workflows/ci.yml` | Retiré jobs legacy (shellcheck, bats, validate-agents, check-staleness, version-consistency). Ne reste que `go-cli`. | ✅ |
+| 5.7 | Vérifier `README.md` | Déjà réécrit pour le CLI Go — aucune référence legacy restante | ✅ |
+| 5.8 | Vérifier `MIGRATION.md` | Déjà créé (commit 3f2915c2) — cohérent avec le CLI actuel | ✅ |
+| 5.9 | Archiver | Non — git history suffit comme référence | ✅ (skip) |
+| 5.10 | `opencode.json` | Pas de mcpServers au hub level — déployé par `oh deploy` dans chaque projet | ✅ (N/A) |
+| 5.11 | `.goreleaser.yml` | `depends_on "datichb/tap/bd"` déjà présent | ✅ (déjà fait) |
+
+**Suppléments réalisés dans cette session :**
+- Enrichissement du récap `oh start` (2 blocs lipgloss : Projet + Configuration)
+- Ajout confirmation interactive avant lancement (`huh.NewConfirm()`)
+- Flag `--yes`/`-y` pour bypass la confirmation
+- Nouveau helper `opencode.ReadProjectConfig()` (model, plugins, compaction)
+- Nouveau helper `worktree.CurrentBranch()` (branche git courante)
+- Suppression de `config/` (hub.json.example obsolète)
 
 ---
 
@@ -222,18 +230,18 @@
 | Bloc 3 — TUI Polish | 0.5 jour | ✅ DONE |
 | Bloc 4 — Keychain Fallback | 1 jour | ✅ DONE |
 | Audit v2 + Phases A-F | 2 jours | ✅ DONE |
-| Bloc 5 — Cleanup + Documentation | 1 jour | ⏳ À faire |
-| **Total restant** | **~1 jour** | |
+| Bloc 5 — Cleanup + Documentation | 1 jour | ✅ DONE |
+| **Total restant** | **0** | **Migration terminée** |
 
 ---
 
 ## Ordre d'exécution (restant)
 
 ```
-5. Bloc 5 — Cleanup + Documentation [release gate — en dernier]
+Tout terminé — prêt pour release.
 ```
 
-Après le Bloc 5 :
+Prochaines étapes release :
 - Créer le repo `datichb/homebrew-openhub` (public, vide avec Formula/)
 - Tag `v2.0.0` + `goreleaser release --clean`
 - Vérifier Homebrew : `brew install datichb/openhub/oh`
@@ -241,22 +249,22 @@ Après le Bloc 5 :
 
 ---
 
-## Métriques actuelles (post Phases A-F)
+## Métriques actuelles (post Bloc 5)
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 196 |
-| Packages testés | 23 |
+| Tests | 213 |
+| Packages testés | 24 |
 | Linter / Vet | clean (0 issues) |
 | Binaire | ~5.5 MB (stripped, CGO_ENABLED=0) |
 | Commandes | 30 |
 | Sous-commandes | 19 |
-| Clés i18n | 455 (parité fr/en, format verb parity checked) |
+| Clés i18n | 474 (parité fr/en, format verb parity checked) |
 | Locales supportées | fr, en |
 | Plateformes | darwin/amd64, darwin/arm64, linux/amd64, linux/arm64 |
-| Features UX | `--json` (7 cmd), shell completion, `--verbose`, confirmations destructives |
+| Features UX | `--json` (7 cmd), shell completion, `--verbose`, `--yes`, confirmations destructives, enriched pre-launch recap |
 | Architecture | context.Context propagé, schema versioning, slog, semver partagé |
 
 ---
 
-*Mis à jour le 3 juillet 2026 — Post Blocs 1-4 + Audit v2 + Phases A-F*
+*Mis à jour le 6 juillet 2026 — Migration 100% terminée, prêt pour release v2.0.0*

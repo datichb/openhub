@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -45,6 +46,7 @@ func init() {
 	startCmd.Flags().StringP("assignee", "A", "", "Filtrer tickets par assignee (requiert --dev)")
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
+	startCmd.Flags().BoolP("yes", "y", false, "Skip confirmation and launch immediately")
 
 	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
@@ -169,25 +171,99 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// --- Display summary ---
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s %s\n", common.Title.Render("oh start"), common.Subtitle.Render(project.Name))
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_project", project.Name, project.Path))
-	if launchPath != project.Path {
-		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_worktree", common.Bold.Render(launchPath)))
+	projCfg := opencode.ReadProjectConfig(launchPath)
+
+	// Resolve display values
+	branch := "—"
+	if b, err := worktree.CurrentBranch(launchPath); err == nil {
+		branch = b
 	}
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_language", displayOrDefault(stack.Language, project.Language)))
-	if stack.Framework != "" {
-		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_framework", stack.Framework))
+
+	model := projCfg.Model
+	if model == "" {
+		model = "—"
 	}
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_provider", provider))
-	if agent != "" {
-		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_agent", agent))
+
+	compactionStatus := i18n.T("cmd.start.compaction_disabled")
+	if projCfg.Compaction != nil && projCfg.Compaction.Auto {
+		compactionStatus = i18n.T("cmd.start.compaction_auto")
 	}
+
+	// MCP servers enabled
+	var mcpNames []string
+	if a.Config.MCP.Figma.Enabled {
+		mcpNames = append(mcpNames, "figma")
+	}
+	if a.Config.MCP.Gitlab.Enabled {
+		mcpNames = append(mcpNames, "gitlab")
+	}
+	if a.Config.MCP.Gslides.Enabled {
+		mcpNames = append(mcpNames, "gslides")
+	}
+	mcpDisplay := i18n.T("cmd.start.mcp_none")
+	if len(mcpNames) > 0 {
+		mcpDisplay = strings.Join(mcpNames, ", ")
+	}
+
+	// Plugins
+	pluginsDisplay := i18n.T("cmd.start.mcp_none")
+	if len(projCfg.Plugins) > 0 {
+		pluginsDisplay = strings.Join(projCfg.Plugins, ", ")
+	}
+
+	// Provider status line
+	providerStatus := provider
 	if bearerToken != "" {
-		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.summary_token", common.SuccessStyle.Render(common.IconSuccess+" "+i18n.T("cmd.start.token_configured"))))
+		providerStatus = common.SuccessStyle.Render(common.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
 	}
+
+	// --- Block 1: Project ---
+	gutter := common.Subtitle.Render("│")
+	header := common.Title.Render("◆")
+	footer := common.Subtitle.Render("└")
+
 	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, common.Bold.Render(project.Name))
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_path"), launchPath)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_branch"), branch)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider"), providerStatus)
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintln(a.IO.Out)
+
+	// --- Block 2: Configuration ---
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, common.Bold.Render(i18n.T("cmd.start.section_config")))
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), provider)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_language"), displayOrDefault(stack.Language, project.Language))
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_compaction"), compactionStatus)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_mcp"), mcpDisplay)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_plugins"), pluginsDisplay)
+	if agent != "" {
+		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
+	}
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, common.Subtitle.Render(i18n.Tf("cmd.start.summary_version", Version)))
+	fmt.Fprintln(a.IO.Out)
+
+	// --- Confirmation ---
+	skipConfirm, _ := cmd.Flags().GetBool("yes")
+	if !skipConfirm {
+		var confirm bool
+		err := huh.NewForm(
+			huh.NewGroup(
+				huh.NewConfirm().
+					Title(i18n.T("cmd.start.confirm_launch")).
+					Affirmative("Launch").
+					Negative("Cancel").
+					Value(&confirm),
+			),
+		).Run()
+		if err != nil || !confirm {
+			fmt.Fprintf(a.IO.Out, "%s %s\n", common.Subtitle.Render(common.IconArrow), i18n.T("cmd.start.cancelled"))
+			return nil
+		}
+	}
 
 	// --- Launch ---
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",

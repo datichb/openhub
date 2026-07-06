@@ -36,30 +36,32 @@ Voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md) pour la séparation i
 
 ### Serveur MCP
 
-Un **serveur MCP** (Model Context Protocol) est un serveur TypeScript qui fournit
-des intégrations outils aux agents. Les serveurs MCP sont déployés avec les agents
-et exposent des tools via protocole stdin/stdout.
+Un **serveur MCP** (Model Context Protocol) est une implémentation **Go native** dans
+`cli/internal/mcp/` qui fournit des intégrations outils aux agents. Les serveurs MCP
+tournent via `oh mcp serve <name>` (protocole stdio JSON-RPC).
 
 Serveurs MCP actuels :
-- **figma-mcp** : Intégration API Figma (recherche fichiers, détection signaux UI, structure)
-- **gitlab-mcp** : Intégration API GitLab (tickets, merge requests, labels, milestones)
+- **figma** : Intégration API Figma (recherche fichiers, détection signaux UI, structure)
+- **gitlab** : Intégration API GitLab (tickets, merge requests, labels, milestones)
+- **gslides** : Intégration API Google Slides
 
-Les serveurs MCP sont situés dans `servers/` et déployés dans `.opencode/servers/` des projets cibles.
+Les serveurs MCP sont déployés dans les projets en tant qu'entrées `mcpServers` dans `opencode.json`.
 
-Voir [servers/README.md](../../servers/README.md) pour la documentation d'infrastructure.
-Voir [Guide Intégration Figma](../guides/figma-integration.fr.md) pour l'utilisation de figma-mcp.
-Voir [Guide Intégration GitLab](../guides/gitlab-integration.fr.md) pour l'utilisation de gitlab-mcp.
+Voir [Guide Intégration Figma](../guides/figma-integration.fr.md) pour l'utilisation de figma.
+Voir [Guide Intégration GitLab](../guides/gitlab-integration.fr.md) pour l'utilisation de gitlab.
 
-### Adapter
+### Déploiement
 
-Un **adapter** est un script shell (`scripts/adapters/<cible>.adapter.sh`) qui
-traduit les agents + skills du format hub vers le format attendu par un outil cible.
-Un seul adapter existe : `opencode`.
+Le déploiement est géré par le package `cli/internal/deploy/` (Go). Il effectue un
+**déploiement transactionnel** : agents, skills, config et serveurs MCP sont injectés
+dans le `opencode.json` du projet cible.
+
+Commandes : `oh deploy`, `oh sync`.
 
 ### Projet cible
 
 Un **projet cible** est un dépôt applicatif sur lequel les agents sont déployés
-via `oh deploy`. Le hub connaît les projets via `projects/projects.md`.
+via `oh deploy`.
 
 ---
 
@@ -68,17 +70,15 @@ via `oh deploy`. Le hub connaît les projets via `projects/projects.md`.
 ```mermaid
 flowchart LR
     subgraph HUB["openhub (source de vérité)"]
-        A[agents/*.md] --> PB[prompt-builder.sh]
-        S[skills/**/*.md] --> PB
-        PB --> ADP
-        subgraph ADP["adapters/"]
-            OC[opencode.adapter.sh]
-        end
+        A[agents/*.md] --> DEP[cli/internal/deploy]
+        S[skills/**/*.md] --> DEP
+        MCP[cli/internal/mcp] --> DEP
     end
 
     subgraph PROJETS["Projets cibles"]
-        OC -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
-        OC -->|"Bucket B (natif)"| P2[".opencode/skills/**/SKILL.md"]
+        DEP -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
+        DEP -->|"Bucket B (natif)"| P2[".opencode/skills/**/SKILL.md"]
+        DEP -->|"mcpServers"| P3["opencode.json"]
     end
 ```
 
@@ -219,23 +219,23 @@ Voir [Wiki Documentaire Vivant](./living-wiki.fr.md) pour l'architecture complè
 
 ```
 openhub/
-├── agents/          ← Sources canoniques des agents (éditer ici)
-├── skills/          ← Protocoles et standards injectables
-├── scripts/
-│   ├── adapters/    ← Traduction hub → format outil cible
-│   ├── lib/         ← Helpers partagés (prompt-builder, adapter-manager)
-│   └── cmd-*.sh     ← Implémentation des commandes oc
-├── config/
-│   ├── hub.json             ← Configuration globale du hub
-│   ├── stack-skills.json    ← Mapping stack → skills injectés dynamiquement
-│   └── providers/           ← Configuration des fournisseurs LLM
-├── projects/
-│   ├── projects.md       ← Registre des projets (local, ignoré git)
-│   └── projects.example.md ← Template versionné
-└── docs/            ← Documentation (ce dossier)
-    ├── architecture/
-    ├── guides/
-    ├── dev/         ← Pièges bash et guides de développement
-    ├── presentations/ ← Présentations et slides
-    └── reference/
+├── agents/              ← Définitions de rôles IA (18 agents)
+├── skills/              ← Protocoles : Bucket A (inline) + Bucket B (à la demande)
+├── cli/                 ← Binaire CLI Go (oh)
+│   ├── cmd/             ← Commandes Cobra
+│   └── internal/
+│       ├── app/         ← Contexte applicatif
+│       ├── beads/       ← Intégration tickets Beads
+│       ├── config/      ← Configuration hub.toml
+│       ├── deploy/      ← Moteur de déploiement transactionnel
+│       ├── domain/      ← Types domaine (Project, Session, Secret)
+│       ├── i18n/        ← Internationalisation (fr/en)
+│       ├── mcp/         ← Serveurs MCP natifs (figma, gitlab, gslides)
+│       ├── opencode/    ← Gestion binaire, compatibilité, config projet
+│       ├── plugin/      ← Système de plugins (RTK embarqué)
+│       ├── prompt/      ← Détection stack, prompt builders
+│       ├── storage/     ← SQLite + keychain + filecrypt
+│       ├── tui/         ← Vues BubbleTea (dashboard, board, picker)
+│       └── worktree/    ← Gestion worktree Git
+└── docs/                ← Documentation (bilingue fr/en)
 ```

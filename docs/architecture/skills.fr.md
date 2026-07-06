@@ -24,7 +24,7 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 ```markdown
 ---
 name: <nom-du-skill>
-description: <Description courte — visible dans oh agent edit et oh skills list>
+description: <Description courte — utilisée lors du déploiement et dans la documentation>
 ---
 
 # Skill — <Titre>
