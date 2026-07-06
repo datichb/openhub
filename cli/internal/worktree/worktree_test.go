@@ -105,7 +105,7 @@ func TestIsMerged_Integration(t *testing.T) {
 	}
 
 	repoDir := t.TempDir()
-	runGit(t, repoDir, "init")
+	runGit(t, repoDir, "init", "-b", "main")
 	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
 
 	// Create a branch that is merged (no new commits)
