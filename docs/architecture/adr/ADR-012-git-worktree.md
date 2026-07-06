@@ -27,15 +27,15 @@ Le mode auto existant reste inchangé pour les projets où `worktree.enabled` es
 ### Axe 2 — Sessions parallèles libres (nouveau mode)
 
 Deux nouvelles commandes :
-- `oc start --worktree [BRANCH]` : session OpenCode isolée dans un nouveau worktree sur une branche donnée, sans lien Beads obligatoire. Permet de développer une feature en parallèle de la branche courante.
-- `oc start --parallel` : lance l'`orchestrator-dev` dans un worktree dédié avec un lot de tickets `ai-delegated`. Le workflow complet est préservé (implémentation → QA → review → CP-2).
+- `oh start --worktree [BRANCH]` : session OpenCode isolée dans un nouveau worktree sur une branche donnée, sans lien Beads obligatoire. Permet de développer une feature en parallèle de la branche courante.
+- `oh start --parallel` : lance l'`orchestrator-dev` dans un worktree dédié avec un lot de tickets `ai-delegated`. Le workflow complet est préservé (implémentation → QA → review → CP-2).
 
 ### Axe 3 — Gestion du cycle de vie
 
 - Les worktrees sont stockés dans `.worktrees/<slug>/` à la racine du projet
 - `.worktrees/` est automatiquement ajouté à `.git/info/exclude` (jamais à `.gitignore`)
 - Un auto-cleanup optionnel (`worktree.auto_cleanup = true`) supprime les worktrees dont la branche est mergée au démarrage de toute session
-- La commande `oc worktree` expose le cycle de vie complet (list, create, remove, cleanup, status)
+- La commande `oh worktree` expose le cycle de vie complet (list, create, remove, cleanup, status)
 
 ---
 
@@ -88,7 +88,7 @@ Le champ `worktree_path` est ajouté aux entrées `tickets[]` et `current_ticket
 | Fichier | Changement |
 |---------|-----------|
 | `scripts/lib/worktree.sh` | Nouvelle lib — toutes les opérations worktree |
-| `scripts/cmd-worktree.sh` | Nouvelle commande `oc worktree` |
+| `scripts/cmd-worktree.sh` | Nouvelle commande `oh worktree` |
 | `scripts/cmd-start.sh` | Flags `--parallel` et `--worktree` |
 | `scripts/cmd-init.sh` | Configuration interactive worktree à l'init |
 | `scripts/adapters/opencode.adapter.sh` | `.worktrees/` dans `.git/info/exclude` |

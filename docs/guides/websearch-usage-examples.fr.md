@@ -16,7 +16,7 @@ Ce guide présente 5 exemples concrets d'utilisation de WebSearch dans différen
 - Les tokens économisés vs. copier-coller manuel
 - Les bonnes pratiques et contre-exemples
 
-**Prérequis** : WebSearch activé au niveau hub ou projet (`./oc.sh config websearch enable`)
+**Prérequis** : WebSearch activé au niveau hub ou projet (`./oh config websearch enable`)
 
 ---
 
@@ -452,7 +452,7 @@ Les métriques WebSearch sont trackées automatiquement :
 
 ```bash
 # Voir métriques globales
-./oc.sh metrics
+./oh metrics
 
 # Output exemple :
 # 🔍 WebSearch Usage
@@ -475,7 +475,7 @@ Les métriques WebSearch sont trackées automatiquement :
 
 - **Guide intégration** : `docs/guides/websearch-integration.fr.md`
 - **Skill agents** : `skills/shared/websearch-usage.md`
-- **Configuration** : `./oc.sh config websearch --help`
+- **Configuration** : `./oh config websearch --help`
 - **RTK métriques** : `RTK.md` (section WebSearch & Token Optimization)
 
 ---

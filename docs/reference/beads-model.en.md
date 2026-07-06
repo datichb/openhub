@@ -118,7 +118,7 @@ bd update <ID> --remove-label <label>
 bd label list-all
 ```
 
-> **Automatic import at init** — when `oc beads init` is run and a tracker (GitLab or Jira) is already configured, labels from the remote tracker are automatically fetched and registered in Beads via `bd label create`. Labels defined in `projects.md` are always registered first; remote labels are merged on top (union). `projects.md` is never modified automatically.
+> **Automatic import at init** — when `oh beads init` is run and a tracker (GitLab or Jira) is already configured, labels from the remote tracker are automatically fetched and registered in Beads via `bd label create`. Labels defined in `projects.md` are always registered first; remote labels are merged on top (union). `projects.md` is never modified automatically.
 
 ---
 
@@ -256,20 +256,20 @@ The hub supports two trackers: **Jira** and **GitLab**.
 
 | Command | Description |
 |---------|-------------|
-| `oc beads tracker setup <PROJECT_ID>` | Interactive credential configuration |
-| `oc beads tracker set-sync-mode <PROJECT_ID> [mode]` | Set default sync direction (`bidirectional` \| `pull-only` \| `push-only`) |
-| `oc beads sync <PROJECT_ID>` | Synchronise using the configured `Sync mode` (default: bidirectional) |
-| `oc beads sync <PROJECT_ID> pull` | Import only from the tracker (overrides `Sync mode`) |
-| `oc beads sync <PROJECT_ID> push` | Export only to the tracker (overrides `Sync mode`) |
-| `oc beads sync <PROJECT_ID> --dry-run` | Simulation without writing |
-| `oc beads tracker status <PROJECT_ID>` | Tracker connection status |
+| `oh beads tracker setup <PROJECT_ID>` | Interactive credential configuration |
+| `oh beads tracker set-sync-mode <PROJECT_ID> [mode]` | Set default sync direction (`bidirectional` \| `pull-only` \| `push-only`) |
+| `oh beads sync <PROJECT_ID>` | Synchronise using the configured `Sync mode` (default: bidirectional) |
+| `oh beads sync <PROJECT_ID> pull` | Import only from the tracker (overrides `Sync mode`) |
+| `oh beads sync <PROJECT_ID> push` | Export only to the tracker (overrides `Sync mode`) |
+| `oh beads sync <PROJECT_ID> --dry-run` | Simulation without writing |
+| `oh beads tracker status <PROJECT_ID>` | Tracker connection status |
 
 #### Local exclusion of `.beads/`
 
-`oc beads init` automatically adds `.beads/` to the target project's `.git/info/exclude` file.
+`oh beads init` automatically adds `.beads/` to the target project's `.git/info/exclude` file.
 This file is local to the machine and never versioned — tracker credentials (GitLab token, Jira token) stored by `bd config set` are never exposed in the shared repository.
 
-> This behaviour mirrors the exclusion of `opencode.json` and `.opencode/` applied by `oc init` / `oc deploy`.
+> This behaviour mirrors the exclusion of `opencode.json` and `.opencode/` applied by `oh init` / `oh deploy`.
 
 #### GitLab configuration — `gitlab.project_id`
 

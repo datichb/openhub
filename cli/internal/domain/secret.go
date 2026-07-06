@@ -1,0 +1,16 @@
+package domain
+
+import "context"
+
+// SecretStore defines the contract for credential storage.
+// Implementations may use the OS keychain, an encrypted file, or an env-based provider.
+type SecretStore interface {
+	// Get retrieves a secret by key. Returns empty string if not found.
+	Get(ctx context.Context, key string) (string, error)
+	// Set stores a secret under the given key.
+	Set(ctx context.Context, key, value string) error
+	// Delete removes a secret by key. No-op if not found.
+	Delete(ctx context.Context, key string) error
+	// List returns all stored key names (not values).
+	List(ctx context.Context) ([]string, error)
+}

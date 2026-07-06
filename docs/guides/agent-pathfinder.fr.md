@@ -276,7 +276,7 @@ L'orchestrator choisit automatiquement entre Pathfinder et Planner selon des cri
 
 ## 🔧 Configuration
 
-Le pathfinder est configuré dans `config/hub.json` :
+Le pathfinder est configuré dans `~/.oh/hub.toml` :
 
 ```json
 {

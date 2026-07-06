@@ -1,0 +1,38 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - unused
+    - ineffassign
+    - gocritic
+    - misspell
+    - gofmt
+    - nilerr
+    - bodyclose
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (*text/tabwriter.Writer).Flush
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+    - path: cmd/
+      linters:
+        - errcheck
+      text: "fmt\\.Fprint"

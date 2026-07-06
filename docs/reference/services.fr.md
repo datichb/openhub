@@ -1,284 +1,156 @@
-# Référence CLI — commande `oc service`
+# Référence CLI — commandes `oh service` et `oh mcp`
 
 > [Read in English](services.en.md)
 
-Gestion des services et intégrations externes connectés via le protocole MCP (Model Context Protocol).
+Gestion des services externes et serveurs MCP (Model Context Protocol) intégrés au binaire `oh`.
 
 ---
 
-## Synopsis
+## Architecture
+
+Les serveurs MCP sont **intégrés au binaire Go** — il n'y a pas de répertoire `servers/` séparé ni d'étape de build Node.js. Chaque serveur est implémenté nativement dans `cli/internal/mcp/` et servi via stdio JSON-RPC.
+
+Serveurs disponibles :
+- **figma** — Intégration API Figma (fichiers, composants, signaux UI)
+- **gitlab** — Intégration API GitLab (issues, MRs, labels, milestones)
+- **gslides** — Intégration Google Slides
+
+---
+
+## `oh mcp` — Gestion des serveurs MCP
+
+### `oh mcp list [--json]`
+
+Liste tous les serveurs MCP disponibles et leur état.
 
 ```bash
-oc service <sous-commande> [service] [options]
+oh mcp list
+oh mcp list --json
 ```
 
-**Référence rapide** — aussi accessible via `oc help 8` ou `oc service --help` :
+### `oh mcp serve <name>`
+
+Démarre un serveur MCP via stdio JSON-RPC. C'est la commande injectée dans `opencode.json` lors du déploiement.
+
+```bash
+oh mcp serve figma
+oh mcp serve gitlab
+oh mcp serve gslides
+```
+
+---
+
+## `oh service` — Configuration des services
+
+### Synopsis
+
+```bash
+oh service <sous-commande> [service] [options]
+```
 
 | Sous-commande | Description |
 |---|---|
-| `setup [nom]` | Configure un service interactivement (Figma, GitLab…) |
-| `status [nom]` | Vérifie l'état d'un service (config, token, MCP) |
-| `list` | Liste les services disponibles et leur état |
+| `setup [nom]` | Configure un service interactivement (token, validation) |
 | `remove <nom>` | Supprime la configuration d'un service |
-| `deploy <nom> [--project ID]` | Déploie le serveur MCP dans un projet |
 
-**Aliases :** `oc figma` · `oc gitlab` · `oc gslides` → `oc service ... <nom>`
+**Aliases :** `oh figma setup` · `oh gitlab setup` · `oh gslides setup`
 
----
+### `oh service setup`
 
-## `oc service setup`
-
-Configure interactivement un service (credentials, validation, build MCP).
+Configure interactivement un service (credentials stockés dans le Keychain macOS).
 
 ```bash
-oc service setup [nom-du-service]
+oh service setup [nom-du-service]
 ```
 
 **Comportement :**
-- Si `nom-du-service` est omis, affiche un menu de sélection parmi les services disponibles.
-- Guide l'utilisateur étape par étape pour chaque credential requis par le service.
-- Affiche l'aide contextuelle pour chaque credential (comment l'obtenir).
-- Si une valeur existante est détectée, propose de la conserver.
-- Valide le format des tokens si un `validation_pattern` est défini dans le catalogue.
-- Effectue un appel API de validation (si un `validation.endpoint` est défini).
-- Valide l'accessibilité de la team/ressource (si un `team_validation.endpoint` est défini) — **bloquant** : le setup ne peut pas se terminer si le Team ID est invalide.
-- Sauvegarde les credentials dans `~/.config/opencode/config.json` (section `env`).
-- Lance automatiquement le build du serveur MCP si nécessaire.
-
-**Arguments :**
-
-| Argument | Description |
-|----------|-------------|
-| `nom-du-service` | Identifiant du service (`figma`, `gitlab`, etc.). Optionnel — menu interactif si omis. |
+- Si `nom-du-service` est omis, affiche un menu de sélection.
+- Guide l'utilisateur pour chaque credential requis.
+- Valide le format du token et la connectivité API.
+- Stocke les credentials de manière sécurisée dans le keychain système.
+- Active le service dans `hub.toml`.
 
 **Exemples :**
 
 ```bash
 # Mode interactif — menu de sélection
-oc service setup
+oh service setup
 
 # Configurer Figma directement
-oc service setup figma
+oh service setup figma
 
 # Configurer GitLab (alias)
-oc gitlab setup
+oh gitlab setup
+```
 
-# Mode non-interactif (CI/CD)
-FIGMA_PERSONAL_ACCESS_TOKEN=figd_xxx FIGMA_TEAM_ID=123456 \
-  OC_NON_INTERACTIVE=1 oc service setup figma
+### `oh service remove`
+
+Supprime la configuration d'un service (retire les credentials du keychain).
+
+```bash
+oh service remove <nom-du-service>
 ```
 
 ---
 
-## `oc service status`
+## Déploiement — `mcpServers` dans `opencode.json`
 
-Vérifie l'état d'un ou de tous les services (configuration, validité du token, build MCP).
-
-```bash
-oc service status [nom-du-service]
-```
-
-**Comportement :**
-- Si `nom-du-service` est omis, affiche l'état de tous les services du catalogue.
-- Pour chaque service, affiche :
-  - Chaque credential : présent (valeur masquée pour les secrets) ou manquant.
-  - Validation token : appel API rapide si un `validation.endpoint` est défini.
-  - Validation Team ID : vérification d'accessibilité si un `team_validation.endpoint` est défini (Figma uniquement).
-  - État du build MCP : présence de `dist/index.js`.
-
-**Arguments :**
-
-| Argument | Description |
-|----------|-------------|
-| `nom-du-service` | Identifiant du service. Optionnel — tous les services si omis. |
-
-**Exemples :**
-
-```bash
-# État de tous les services
-oc service status
-
-# État de Figma uniquement
-oc service status figma
-
-# Via alias
-oc figma status
-```
-
----
-
-## `oc service list`
-
-Liste tous les services disponibles dans le catalogue avec leur état de configuration.
-
-```bash
-oc service list
-```
-
-**Comportement :**
-- Affiche un tableau avec : nom du service, description, état (Configuré / Non configuré).
-- Équivalent à `oc service` sans argument.
-
-**Exemples :**
-
-```bash
-oc service list
-oc service
-```
-
----
-
-## `oc service remove`
-
-Supprime la configuration d'un service (retire les variables d'environnement de `~/.config/opencode/config.json`).
-
-```bash
-oc service remove <nom-du-service>
-```
-
-**Comportement :**
-- Demande confirmation avant suppression.
-- Supprime uniquement les clés appartenant au service (les autres services ne sont pas affectés).
-- Si le service n'est pas configuré, affiche un avertissement et ne fait rien.
-
-**Arguments :**
-
-| Argument | Description |
-|----------|-------------|
-| `nom-du-service` | Identifiant du service à supprimer. Obligatoire. |
-
-**Exemples :**
-
-```bash
-oc service remove figma
-oc service remove gitlab
-```
-
----
-
-## Aliases
-
-Les services courants disposent d'aliases pour raccourcir les commandes :
-
-| Alias | Équivalent |
-|-------|-----------|
-| `oc figma <cmd> [args]` | `oc service <cmd> [args] figma` |
-| `oc gitlab <cmd> [args]` | `oc service <cmd> [args] gitlab` |
-
-**Exemples avec aliases :**
-
-```bash
-oc figma setup          # = oc service setup figma
-oc figma status         # = oc service status figma
-oc gitlab setup         # = oc service setup gitlab
-oc gitlab status        # = oc service status gitlab
-```
-
----
-
-## Stockage de la configuration
-
-Les credentials sont stockés dans `~/.config/opencode/config.json`, section `env`. Ce fichier est lu automatiquement par opencode au démarrage et les variables sont injectées dans l'environnement des serveurs MCP.
-
-Structure du fichier :
+Lors de `oh deploy`, le CLI injecte un bloc `mcpServers` dans le `opencode.json` du projet pour chaque service activé :
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "env": {
-    "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
-    "FIGMA_TEAM_ID": "123456",
-    "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-xxx",
-    "GITLAB_BASE_URL": "https://gitlab.mycompany.com"
-  }
-}
-```
-
----
-
-## Catalogue des services (`config/services.json`)
-
-La commande est pilotée par le catalogue `config/services.json`. Chaque entrée définit :
-
-| Champ | Description |
-|-------|-------------|
-| `label` | Nom affiché |
-| `description_fr` / `description_en` | Description bilingue |
-| `mcp_server` | Nom du dossier sous `servers/` |
-| `docs_url` | URL de la documentation officielle |
-| `validation.endpoint` | URL pour valider le token (optionnel) |
-| `validation.header` | Nom du header HTTP pour le token |
-| `team_validation.endpoint` | URL pour valider l'accessibilité de la team/ressource (optionnel, template avec `{NOM_CHAMP}`) |
-| `team_validation.team_field` | Nom du credential contenant l'ID de la team/ressource |
-| `credentials[]` | Liste des credentials requis |
-
-**Ajouter un nouveau service :**
-
-Il suffit d'ajouter une entrée dans `config/services.json`. Aucune modification de code n'est nécessaire.
-
-```json
-{
-  "services": {
-    "mon-service": {
-      "label": "Mon Service",
-      "description_fr": "Description en français",
-      "description_en": "English description",
-      "mcp_server": "mon-service-mcp",
-      "credentials": [
-        {
-          "key": "MON_SERVICE_API_TOKEN",
-          "label_fr": "Token API",
-          "label_en": "API Token",
-          "secret": true,
-          "required": true,
-          "help_fr": "Comment obtenir ce token...",
-          "help_en": "How to get this token..."
-        }
-      ]
+  "mcpServers": {
+    "figma": {
+      "command": "oh",
+      "args": ["mcp", "serve", "figma"]
+    },
+    "gitlab": {
+      "command": "oh",
+      "args": ["mcp", "serve", "gitlab"]
     }
   }
 }
 ```
 
----
+### Sélection des MCP par projet
 
-## Sélection des MCP par projet
-
-Par défaut, **aucun serveur MCP n'est déployé** sur un projet (opt-in). La sélection est stockée dans le champ `- MCP :` de `projects/projects.md` et appliquée à chaque `oc deploy`.
-
-**Configuration lors de `oc init` :**
-
-L'étape 4 du wizard `oc init` propose :
-
-```
-◇  Étape 4/6 — Services MCP
-│
-│  Activer des intégrations MCP pour ce projet ? [y/N] :
-```
-
-Répondre `Y` ouvre un sélecteur multi-choix listant tous les services configurés. Le résultat est persisté immédiatement.
-
-**Configuration manuelle :**
-
-Éditer `projects/projects.md` directement puis relancer `oc deploy <PROJECT_ID>` :
-
-```markdown
-## MON-APP
-- MCP : figma-mcp,gitlab-mcp    # liste CSV des noms mcp_server
-# ou :
-- MCP : all                      # déploie tous les MCP disponibles
-# ou :
-- MCP : none                     # ne déploie aucun MCP (comportement par défaut si champ absent)
-```
-
-**Application d'un changement :**
+Les services sont sélectionnés par projet lors de `oh init` ou via `oh project configure` :
 
 ```bash
-# Après édition de projects.md :
-oc deploy MON-APP
+# Lors de l'initialisation du projet
+oh init
+# → Étape propose : "Activer des intégrations MCP pour ce projet ?"
+
+# Changer la sélection MCP pour un projet existant
+oh project configure --services figma,gitlab
 ```
 
-Le champ `- MCP :` est lu lors de la phase de déploiement et contrôle quels serveurs sont copiés dans `.opencode/servers/` et configurés dans `opencode.json`.
+---
+
+## Variables d'environnement au runtime
+
+Au runtime, les serveurs MCP lisent les credentials depuis l'environnement. Le binaire `oh` les injecte automatiquement depuis le keychain.
+
+| Service | Variables requises |
+|---------|-------------------|
+| figma | `FIGMA_TOKEN` |
+| gitlab | `GITLAB_TOKEN`, `GITLAB_URL` |
+| gslides | `GOOGLE_ACCESS_TOKEN` |
+
+---
+
+## Stockage de la configuration (`hub.toml`)
+
+L'activation des services est stockée dans `~/.oh/hub.toml` :
+
+```toml
+[services]
+figma = true
+gitlab = true
+gslides = false
+```
+
+Les credentials sont stockés dans le keychain système (macOS Keychain / Linux secret-service), pas en clair dans des fichiers.
 
 ---
 
@@ -287,4 +159,3 @@ Le champ `- MCP :` est lu lors de la phase de déploiement et contrôle quels se
 - [Guide d'intégration Figma](../guides/figma-integration.fr.md)
 - [Guide d'intégration GitLab](../guides/gitlab-integration.fr.md)
 - [Référence CLI complète](cli.fr.md)
-- [Architecture des serveurs MCP](../../servers/README.md)

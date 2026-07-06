@@ -38,3 +38,4 @@ plugins/*/node_modules/
 tests/tmp_*
 
 docs/presentations/
+dist/oh

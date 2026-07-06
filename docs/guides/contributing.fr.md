@@ -94,10 +94,9 @@ Si l'agent nécessite un protocole dédié, créer le skill correspondant
 ### 5. Déployer et tester
 
 ```bash
-oc deploy opencode
-# Vérifier que l'agent apparaît
-oc agent list
-oc agent info <id>
+oh deploy
+# Vérifier que l'agent apparaît dans le opencode.json du projet
+oh deploy --check
 ```
 
 ---
@@ -130,11 +129,11 @@ Pour un nouveau domaine, créer un nouveau sous-dossier.
 ```markdown
 ---
 name: <nom-du-skill>
-description: <Description courte — visible dans oc agent edit et oc skills list>
+description: <Description courte — visible dans la liste de skills de l'agent>
 ---
 ```
 
-> La clé `name` est documentaire. Les scripts lisent uniquement `description`.
+> La clé `name` est documentaire. Le déploiement lit uniquement `description`.
 > Le chemin du fichier est la référence utilisée dans le frontmatter des agents.
 
 ### 3. Contenu du skill
@@ -175,19 +174,17 @@ Ajouter également une ligne dans la section guide "## Skills disponibles" du co
 
 ---
 
-## Ajouter un adapter
+## Déploiement
 
-Un adapter traduit les agents du format hub vers le format d'un outil cible.
+Le déploiement traduit les agents du format hub vers le format opencode et génère le `opencode.json` du projet.
 
-Le contrat complet (8 fonctions obligatoires, paramètres, fonctions utilitaires
-disponibles et exemple minimal) est documenté dans
-[docs/architecture/adapters.fr.md](../architecture/adapters.fr.md).
+La logique de déploiement est implémentée en Go dans `cli/internal/deploy/`.
 
 ### Étapes rapides
 
-1. Créer `scripts/adapters/<cible>.adapter.sh` avec les 8 fonctions du contrat
-2. Ajouter la cible dans `config/hub.json`
-3. Tester avec `oc deploy <cible>` puis `oc agent list`
+1. Ajouter ou modifier les agents/skills dans les répertoires `agents/` et `skills/`
+2. Lancer `oh deploy` pour générer le `opencode.json` mis à jour
+3. Lancer `oh deploy --check` pour vérifier la cohérence
 
 ---
 
@@ -211,25 +208,6 @@ refactor: <restructuration>
 |------|-----------|---------|
 | Agent | `<domaine>[-<spécialité>].md` | `developer-frontend.md` |
 | Skill (dans un sous-dossier) | `<domaine>-<sujet>.md` | `audit-security.md` |
-| Script shell | `cmd-<commande>.sh` | `cmd-deploy.sh` |
-| Adapter | `<cible>.adapter.sh` | `opencode.adapter.sh` |
-
-### Scripts shell
-
-Règles obligatoires pour tous les scripts shell :
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# ✅ Les variables locales sont déclarées dans des fonctions
-my_function() {
-  local my_var="value"
-}
-
-# ❌ Jamais de 'local' hors d'une fonction — undefined behavior avec set -euo pipefail
-# ❌ Jamais de "$var" && commande — toujours if [ "$var" = "true" ]
-```
 
 ### Documentation interne
 
@@ -256,11 +234,11 @@ Avant de soumettre une PR :
 
 ```bash
 # Vérifier que les agents déploient correctement
-oc deploy opencode
-oc deploy --check opencode
+oh deploy
+oh deploy --check
 
-# Lister les agents pour vérifier la cohérence
-oc agent list
+# Vérifier le diff du opencode.json généré
+oh deploy --diff
 ```
 
 ---
@@ -278,8 +256,8 @@ oc agent list
 - [ ] Si le skill définit un format de retour structuré : injecté dans l'agent producteur ET l'agent consommateur (toujours Bucket A)
 - [ ] Si décision architecturale : un ADR est créé dans `docs/architecture/adr/`
 - [ ] Le commit respecte les Conventional Commits
-- [ ] `oc deploy opencode` et `oc deploy --check opencode` passent sans erreur
-- [ ] `oc deploy --diff opencode` ne montre aucune divergence inattendue
+- [ ] `oh deploy` et `oh deploy --check` passent sans erreur
+- [ ] `oh deploy --diff` ne montre aucune divergence inattendue
 
 ---
 
@@ -290,12 +268,12 @@ oc agent list
 ### Prérequis
 
 - Être sur la branche `main` avec un working tree propre
-- `jq` installé (`brew install jq` ou `apt install jq`)
+- [GoReleaser](https://goreleaser.com/) installé (`brew install goreleaser`)
 - Accès push au dépôt distant
 
 ### Préparation du CHANGELOG
 
-Avant de lancer le script, rédiger le contenu de la release sous `## [Unreleased]` dans `CHANGELOG.md` :
+Avant de lancer la release, rédiger le contenu sous `## [Unreleased]` dans `CHANGELOG.md` :
 
 ```markdown
 ## [Unreleased]
@@ -307,36 +285,24 @@ Avant de lancer le script, rédiger le contenu de la release sous `## [Unrelease
 - ...
 ```
 
-Le script insérera automatiquement l'en-tête `## [X.Y.Z] — YYYY-MM-DD` après `[Unreleased]`.
-
 ### Lancer la release
 
 ```bash
-# Prévisualiser sans rien modifier (dry-run)
-bash scripts/release.sh 1.2.0 --dry-run
+# Depuis le répertoire cli/
+cd cli
 
-# Créer la release
-bash scripts/release.sh 1.2.0
+# Prévisualiser sans publier (snapshot)
+goreleaser release --snapshot --clean
+
+# Créer la release (déclenchée par un push de tag)
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push && git push --tags
 ```
 
-Le script effectue dans l'ordre :
-1. Valide le format `X.Y.Z`
-2. Vérifie branche `main` + working tree propre + tag inexistant
-3. Met à jour `config/hub.json` (local, non tracké par git) → `.version`
-4. Met à jour `config/hub.json.example` (tracké) → `.version`
-5. Insère `## [X.Y.Z] — date` dans `CHANGELOG.md`
-6. Crée le commit `chore(release): vX.Y.Z`
-7. Crée le tag annoté `vX.Y.Z`
-8. Propose de pusher (`git push && git push --tags`)
-
-### Convention des fichiers de version
-
-| Fichier | Tracké git | Rôle |
-|---------|-----------|------|
-| `config/hub.json` | Non (local) | Config active de l'instance — jamais committé |
-| `config/hub.json.example` | Oui | Source de vérité de la version — committé à chaque release |
-
-Un nouvel utilisateur qui clone le dépôt exécute `install.sh` qui copie `hub.json.example` → `hub.json`.
+GoReleaser est configuré via `.goreleaser.yml` dans le répertoire `cli/` et gère :
+1. La cross-compilation du binaire `oh`
+2. La génération du changelog depuis les commits
+3. La création de la release GitHub avec les artefacts
 
 ### Convention des tags
 
@@ -344,12 +310,4 @@ Les tags suivent le format `vX.Y.Z` (annoté) :
 
 ```bash
 git tag -a v1.2.0 -m "Release v1.2.0"
-```
-
-### One-liner d'installation post-release
-
-Après le push, le one-liner pour installer cette version est :
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.2.0 bash
 ```

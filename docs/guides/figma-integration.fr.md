@@ -17,14 +17,14 @@ L'intégration Figma enrichit les workflows de planification (Pathfinder et Plan
 
 ## Configuration rapide
 
-### 1. Configurer via `oc service`
+### 1. Configurer via `oh service`
 
-La méthode recommandée est d'utiliser la commande `oc service setup` qui vous guide interactivement :
+La méthode recommandée est d'utiliser la commande `oh service setup` qui vous guide interactivement :
 
 ```bash
-oc service setup figma
+oh service setup figma
 # ou via l'alias :
-oc figma setup
+oh figma setup
 ```
 
 Cette commande va :
@@ -36,9 +36,9 @@ Cette commande va :
 
 Vérifier l'état à tout moment :
 ```bash
-oc service status figma
+oh service status figma
 # ou :
-oc figma status
+oh figma status
 ```
 
 La commande status affiche :
@@ -86,7 +86,7 @@ Suivre les conventions dans [`config/figma.conventions.md`](../../config/figma.c
 ### 4. Déployer
 
 ```bash
-oc deploy MY-PROJECT
+oh deploy MY-PROJECT
 ```
 
 Le MCP Server Figma sera déployé automatiquement avec les agents (Phase 4 du déploiement).
@@ -95,15 +95,15 @@ Si vous souhaitez déployer uniquement le serveur MCP dans un projet existant :
 
 ```bash
 # Déployer le MCP figma dans un projet spécifique
-oc service figma deploy --project MY-PROJECT
+oh service figma deploy --project MY-PROJECT
 # ou via l'alias :
-oc figma deploy --project MY-PROJECT
+oh figma deploy --project MY-PROJECT
 ```
 
 Pour rebuilder uniquement le serveur (sans déployer dans un projet) :
 
 ```bash
-oc figma deploy
+oh figma deploy
 ```
 
 ---
@@ -192,22 +192,33 @@ Output: {
 
 ## Architecture
 
+Le serveur MCP Figma est **intégré au binaire `oh`** — il n'y a pas de répertoire source séparé. L'implémentation se trouve dans `cli/internal/mcp/figma/`.
+
 ```
-openhub/
-├── servers/figma-mcp/        ← MCP Server TypeScript
-│   ├── src/
-│   │   ├── index.ts          ← Entry point
-│   │   ├── client.ts         ← Wrapper API Figma
-│   │   ├── config.ts         ← Configuration tokens
-│   │   └── tools/            ← 3 tools MCP
-│   └── dist/                 ← Compilé
-├── skills/adapters/
-│   ├── figma-pathfinder-protocol.md
-│   └── figma-planner-protocol.md
-└── scripts/
-    ├── build-mcp.sh          ← Build MCP
-    ├── check-mcp.sh          ← Vérifie build
-    └── lib/mcp-deploy.sh     ← Déploiement
+cli/internal/mcp/
+└── figma/              ← Implémentation Go du serveur MCP Figma
+    ├── server.go       ← Entrée MCP (stdio JSON-RPC)
+    ├── client.go       ← Wrapper API Figma
+    ├── tools.go        ← Enregistrement des 3 tools MCP
+    └── config.go       ← Configuration tokens
+
+skills/adapters/
+├── figma-pathfinder-protocol.md
+└── figma-planner-protocol.md
+```
+
+Au runtime, le serveur est démarré via :
+```bash
+oh mcp serve figma
+```
+
+Cette commande est injectée dans `opencode.json` lors de `oh deploy` :
+```json
+{
+  "mcpServers": {
+    "figma": {"command": "oh", "args": ["mcp", "serve", "figma"]}
+  }
+}
 ```
 
 ---
@@ -261,7 +272,7 @@ Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fic
 
 ### Team ID invalide ou inaccessible
 
-**Erreur :** `Team ID invalide ou inaccessible` lors de `oc figma setup` ou `oc figma status`
+**Erreur :** `Team ID invalide ou inaccessible` lors de `oh figma setup` ou `oh figma status`
 
 **Causes possibles :**
 1. Team ID copié depuis la mauvaise URL (projet vs team)
@@ -275,7 +286,7 @@ Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fic
 
 **Solution :**
 ```bash
-oc service setup figma
+oh service setup figma
 # Resaisir le FIGMA_TEAM_ID avec la valeur correcte
 ```
 
@@ -288,13 +299,15 @@ oc service setup figma
 - Vérifier syntaxe JSON (virgules, guillemets)
 - Redémarrer OpenCode après modification
 
-### Build MCP échoue
+### Problèmes serveur MCP
+
+Le serveur MCP Figma étant intégré au binaire `oh`, il n'y a pas d'étape de build séparée. Si le serveur ne démarre pas :
 
 ```bash
-cd servers/figma-mcp
-rm -rf node_modules package-lock.json
-npm install
-npm run build
+# Vérifier que le serveur fonctionne
+oh mcp serve figma
+# Vérifier la configuration du service
+oh service setup figma
 ```
 
 ### Timeout API Figma
@@ -308,8 +321,8 @@ Le client effectue automatiquement **2 retries** avec backoff (1s, puis 2s) avan
 Pour augmenter le timeout (défaut : 30s) :
 
 ```bash
-# Via oc service setup
-oc figma setup
+# Via oh service setup
+oh figma setup
 # → saisir une valeur pour "Timeout des requêtes (ms)", ex : 60000
 
 # Ou directement dans ~/.config/opencode/services-env.json
@@ -351,8 +364,8 @@ Ces fonctionnalités pourront être ajoutées en v2+ selon les besoins.
 
 - **API Figma** : https://www.figma.com/developers/api
 - **Conventions Figma** : [`config/figma.conventions.md`](../../config/figma.conventions.md)
-- **Infrastructure MCP** : [`servers/README.md`](../../servers/README.md)
 - **MCP Protocol** : https://modelcontextprotocol.io/
+- **Référence CLI service** : [`oh service`](../reference/services.fr.md)
 
 ---
 
@@ -361,7 +374,7 @@ Ces fonctionnalités pourront être ajoutées en v2+ selon les besoins.
 En cas de problème :
 1. Consulter ce guide de dépannage
 2. Vérifier les logs OpenCode
-3. Tester le MCP manuellement : `cd servers/figma-mcp && npm start`
-4. Vérifier configuration tokens Figma
+3. Tester le MCP manuellement : `oh mcp serve figma`
+4. Vérifier configuration tokens Figma : `oh service setup figma`
 
-**L'intégration Figma est prête à enrichir vos workflows de planification !** 🎨
+**L'intégration Figma est prête à enrichir vos workflows de planification !**

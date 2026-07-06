@@ -20,11 +20,11 @@ Les skills génériques (`dev-standards-universal`, `dev-standards-backend`, etc
 
 - Créer un dossier `skills/developer/stacks/` pour les skills atomiques spécifiques aux stacks (un fichier par stack, une responsabilité par fichier).
 - Déclarer le mapping entre les stacks détectées et les skills à injecter dans `config/stack-skills.json`. Chaque type d'agent a un scope défini (`_agent_scope`) qui limite les catégories de stack skills qu'il reçoit.
-- Détecter la stack du projet à chaque `oc deploy` via `detect_stack(project_path)` : lecture de `package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, `pom.xml`, `pubspec.yaml` et des fichiers d'infrastructure (`Dockerfile`, `.github/workflows/`, `*.tf`, `Chart.yaml`, manifests ArgoCD, etc.).
+- Détecter la stack du projet à chaque `oh deploy` via `detect_stack(project_path)` : lecture de `package.json`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `build.gradle`, `pom.xml`, `pubspec.yaml` et des fichiers d'infrastructure (`Dockerfile`, `.github/workflows/`, `*.tf`, `Chart.yaml`, manifests ArgoCD, etc.).
 - Injecter les skills correspondants dynamiquement via `resolve_stack_skills(agent_id, stacks, config)`, qui filtre par scope d'agent et déduplique les skills déjà déclarés dans le frontmatter.
 - Les stack skills sont **additifs** : ils s'ajoutent après les skills statiques déclarés dans le frontmatter de l'agent — jamais en remplacement.
 - Purger toutes les références framework-spécifiques des skills génériques (`dev-standards-universal`, `dev-standards-testing`, `dev-standards-api`, `dev-standards-security`, `dev-standards-devops`) pour qu'ils restent véritablement agnostiques des outils.
-- Étendre `oc deploy --check` pour re-détecter la stack et vérifier les mtimes des stack skills injectés dynamiquement, de sorte que les modifications de `skills/developer/stacks/*.md` déclenchent correctement une obsolescence pour les agents concernés.
+- Étendre `oh deploy --check` pour re-détecter la stack et vérifier les mtimes des stack skills injectés dynamiquement, de sorte que les modifications de `skills/developer/stacks/*.md` déclenchent correctement une obsolescence pour les agents concernés.
 
 ## Conséquences
 
@@ -34,7 +34,7 @@ Les skills génériques (`dev-standards-universal`, `dev-standards-backend`, etc
 - Ajouter une nouvelle stack nécessite uniquement un fichier skill + une entrée dans `config/stack-skills.json` — aucun changement de frontmatter d'agent requis.
 - Les standards sont au plus précis pour la stack réelle du projet.
 - Les skills génériques sont épurés et véritablement agnostiques : ils se concentrent sur les principes, pas les outils.
-- `oc deploy --check` détecte correctement l'obsolescence causée par des changements de stack skills.
+- `oh deploy --check` détecte correctement l'obsolescence causée par des changements de stack skills.
 
 ### Négatives / trade-offs
 

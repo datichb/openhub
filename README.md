@@ -1,244 +1,165 @@
-> 🇫🇷 [Lire en français](README.fr.md)
+> [Lire en francais](README.fr.md)
 
-# openhub
+# openhub (`oh`)
 
-Central hub for managing AI assistants across multiple projects,
-with shared agents, hybrid skills, and an integrated Beads workflow.
+Central hub for managing AI assistants across multiple projects.
+Shared agents, hybrid skills, integrated Beads workflow, and Go-native MCP servers.
 
-Supports **OpenCode**.
-
----
-
-## How it works
-
-openhub is built around three concepts: **agents**, **MCP servers**, and **deployment**.
-
-- **Agents** define AI roles (who does what, how, and in what order) with integrated protocols (code standards, checklists, report formats). Each agent has **Bucket A skills** (mandatory protocols, always inline) and **Bucket B skills** (domain context, loaded on-demand).
-- **MCP Servers** provide tool integrations (Figma, Linear, etc.) available to all agents.
-- **Deployment** assembles agents + MCP servers and copies them into your target projects.
-
-```
-openhub/          ← single source of truth (edit here, never in projects)
-├── agents/            ← AI role definitions with integrated protocols
-├── skills/            ← protocols: Bucket A (inline) + Bucket B (native, on-demand)
-├── servers/           ← MCP servers (Figma integration, etc.)
-└── scripts/           ← assembly and deployment
-
-         oc deploy opencode MY-APP
-openhub  ──────────────────────►  my-app/.opencode/agents/*.md       (Bucket A inline)
-                                   ├►  my-app/.opencode/skills/*/SKILL.md  (Bucket B native)
-                                   ├►  my-app/.opencode/servers/
-                                   └►  my-app/opencode.json
-
-```
-
-Result: 18 specialized agents + Figma integration, always up to date, available across all your projects
-from a single source of truth.
-
----
-
-## Requirements
-
-- **[OpenCode](https://opencode.ai)** — AI coding agent
-- **[jq](https://jqlang.github.io/jq/)** — required for `oc deploy` (generates `opencode.json`)
-- **[git](https://git-scm.com/)**, **[node](https://nodejs.org/)**, **[bun](https://bun.sh/)** — standard toolchain
-- **[sqlite3](https://sqlite.org/)** — required for `oc metrics` and `oc dashboard` (reads OpenCode session database). Native on macOS; on Linux: `sudo apt-get install sqlite3`
-- **[Beads](https://beads.sh/)** *(optional)* — task tracker integration for ticket views in metrics and dashboard
-
-The install script detects and installs missing dependencies automatically (Homebrew on macOS, apt-get on Linux).
+**Single binary, zero dependencies.**
 
 ---
 
 ## Installation
 
-### One-liner (recommended)
+### Homebrew (recommended)
+
+```bash
+brew install datichb/openhub/oh
+```
+
+### Curl script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
-The script automates everything: clones to `~/.openhub`, checks dependencies
-with confirmation prompts, creates the `oc` alias, and configures the LLM provider.
-
-After installation, reload your shell:
+### From source
 
 ```bash
-source ~/.zshrc   # or source ~/.bashrc
+cd cli && go install .
 ```
-
-### Manual installation
-
-```bash
-git clone https://github.com/datichb/openhub.git ~/.openhub
-echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
-oc install
-```
-
-### Install a specific version
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.0.0 bash
-```
-
----
-
-## Upgrading
-
-### Update hub sources
-
-```bash
-oc upgrade           # pull latest main
-oc upgrade v1.1.0    # switch to a specific release tag
-```
-
-### Update installed tools (opencode, Beads)
-
-```bash
-oc update
-```
-
----
-
-## Uninstallation
-
-```bash
-oc uninstall
-# or directly:
-bash ~/.openhub/uninstall.sh
-```
-
-Interactive 4-step guide — everything is optional and requires confirmation:
-
-| Step | Action | Default |
-|------|--------|---------|
-| 1 | Clean deployed agents from projects (`.opencode/agents/`, `opencode.json`) | `[y/N]` |
-| 2 | Remove the hub (`~/.openhub`) | `[y/N]` |
-| 3 | Remove the `oc` alias and bun exports from the rc file | `[Y/n]` |
-| 4 | Uninstall opencode, Beads, bun (separately) | `[y/N]` |
-
-> `jq` and `node` are never uninstalled. A `.bak` backup is created before any
-> modification to the rc file.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. Register a project
-oc init MY-APP ~/workspace/my-app
-
-# 2. Deploy agents into the project
-oc deploy opencode MY-APP
-
-# 3. Launch the tool in the project
-oc start MY-APP
+oh init                        # First-time setup: language, opencode, project, MCP
+oh start                       # Launch opencode (auto-detects project from cwd)
+oh start --dev                 # Dev mode: pick epics/tickets, orchestrator-dev
+oh start --onboard             # Create project wiki (docs/wiki/)
+oh deploy                      # Sync agents, skills, config, MCP to project
 ```
-
-> Full guide: [docs/guides/getting-started.en.md](docs/guides/getting-started.en.md)
 
 ---
 
-## Available agents
+## Commands
 
-18 agents in two modes:
+| Command | Description |
+|---------|-------------|
+| `oh init` | First-time setup wizard |
+| `oh start` | Launch an opencode session |
+| `oh start --dev` | Dev mode: ticket picker + orchestrator-dev |
+| `oh start --onboard` | Onboarding: create/refresh project wiki |
+| `oh quick` | Quick task with auto project detection |
+| `oh deploy` | Deploy agents, skills, config, MCP |
+| `oh sync` | Sync all registered projects |
+| `oh project list` | List registered projects |
+| `oh project add` | Register a new project |
+| `oh config` | Manage hub configuration |
+| `oh status` | Show hub and project status |
+| `oh doctor` | System health check |
+| `oh metrics` | Usage and cost metrics |
+| `oh dashboard` | Interactive TUI dashboard |
+| `oh board` | Kanban board (Beads tickets) |
+| `oh audit` | Code audit via AI agent |
+| `oh review` | Code review via AI agent |
+| `oh debug` | Debug session via AI agent |
+| `oh upgrade opencode` | Update the opencode binary |
+| `oh mcp serve` | Run a built-in MCP server |
+| `oh beads` | Proxy to bd (Beads CLI) |
 
-- **`primary`** — directly visible in the AI tool (OpenCode tab picker). Invocable by the user.
-- **`subagent`** — hidden from the picker. Only invocable by delegation from a coordinator agent.
+> Full reference: [docs/reference/cli.en.md](docs/reference/cli.en.md)
 
-### Primary agents (directly invocable)
+---
+
+## Architecture
+
+```
+openhub/
+├── agents/          <- AI role definitions (18 agents, 2 modes)
+├── skills/          <- Protocols: Bucket A (inline) + Bucket B (on-demand)
+├── cli/             <- Go CLI binary (oh)
+│   └── internal/
+│       ├── beads/       <- Beads ticket integration
+│       ├── deploy/      <- Transactional deployment engine
+│       ├── mcp/         <- Native MCP servers (figma, gitlab, gslides)
+│       ├── tui/         <- BubbleTea views (dashboard, board, picker)
+│       └── ...
+└── docs/            <- Documentation (bilingual fr/en)
+```
+
+**Deployment flow:**
+
+```
+oh deploy
+  -> .opencode/agents/*.md        (agent definitions)
+  -> .opencode/skills/*/SKILL.md  (protocols)
+  -> opencode.json                (provider, model, MCP, permissions)
+```
+
+---
+
+## Agents
+
+18 specialized agents in two modes:
+
+- **`primary`** -- directly invocable by the user in OpenCode
+- **`subagent`** -- delegated by coordinator agents
+
+### Primary agents
 
 | Agent | Family | Role |
 |-------|--------|------|
-| `orchestrator` | Coordinator | Feature end-to-end — delegates spec, audit, implementation |
-| `orchestrator-dev` | Coordinator | Ticket implementation — drives `developer` agent (domain passed at invocation) |
-| `auditor` | Coordinator | Multi-domain audit — delegates to 7 `auditor-*` agents |
-| `onboarder` | Coordinator | Discovery of existing projects — detects stack, business domain, Figma designs, test strategy, and produces context report |
-| `planner` | Planning | Breaks down a feature into Beads tickets |
-| `designer` | Design | Analyse Figma, UX flows and UI component specs — 4 modes: recon, ux, ui, ux+ui. Only agent with Figma MCP access. |
+| `orchestrator` | Coordinator | Feature end-to-end |
+| `orchestrator-dev` | Coordinator | Ticket implementation (drives developers) |
+| `auditor` | Coordinator | Multi-domain audit (7 domains) |
+| `onboarder` | Coordinator | Project discovery, wiki creation |
+| `planner` | Planning | Break down features into Beads tickets |
+| `designer` | Design | Figma analysis, UX/UI specs |
 | `reviewer` | Quality | PR/MR review by severity |
-| `qa-engineer` | Quality | Missing tests (unit / integration / E2E). **Automatically invoked for critical code** (API, services, >200 lines). Produces coverage report and review attention points. |
-| `debugger` | Quality | Bug diagnosis, root cause report |
+| `qa-engineer` | Quality | Test coverage analysis |
+| `debugger` | Quality | Bug diagnosis, root cause |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 
-### Subagents (delegated by coordinators)
+### Subagents
 
 | Agent | Delegated by | Domain |
 |-------|-------------|--------|
-| `developer` | `orchestrator-dev` | Implementation — domain passed at invocation: frontend, backend, fullstack, api, mobile, data, devops, platform, security |
-| `developer-refactor` | `orchestrator-dev` | Structural refactoring — never changes observable behavior |
-| `developer-migrator` | `orchestrator-dev` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
-| `auditor-subagent` | `auditor` | All audit domains: security (OWASP Top 10, CVE, RGS), performance (Core Web Vitals, N+1, cache), accessibility (WCAG 2.1 AA, RGAA 4.1), ecodesign (RGESN, GreenIT, Écoindex), architecture (SOLID, Clean Architecture), privacy (GDPR, EDPB, CNIL), observability (RED method, SLOs, OpenTelemetry) |
-
-> Full reference: [docs/architecture/agents.en.md](docs/architecture/agents.en.md)
+| `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
+| `developer-refactor` | `orchestrator-dev` | Structural refactoring |
+| `developer-migrator` | `orchestrator-dev` | Incremental migrations |
+| `auditor-subagent` | `auditor` | All audit domains (security, performance, accessibility, ecodesign, architecture, privacy, observability) |
 
 ---
 
-## Available workflows
+## Key workflows
 
-| Scenario | Entry point | Typical prompt |
-|----------|------------|----------------|
-| Feature end-to-end | `orchestrator` | `"Implement [feature]"` |
-| Ready-to-code tickets | `orchestrator-dev` | `"Implement tickets bd-X to bd-Y"` |
-| Pre-production audit | `auditor` | `"Audit the project"` |
-| Production bug | `debugger` | `"This bug: [stacktrace]"` |
-| Standalone UX/UI spec | `designer` | `"UX spec for [feature]"` (Mode: ux, ui, or ux+ui) |
-| Document a feature | `documentarian` | `"Document [topic]"` |
-| Discover an existing project | `onboarder` | `"Onboard yourself on this project"` |
-| Plan without implementing | `planner` | `"Break down [feature] into tickets"` |
-| Debug a bug | `debugger` | `"oc debug"` |
-| Run an audit | `auditor` | `"oc audit"` |
-| Check conventions | `reviewer` | `"oc conventions"` |
-| Review a branch | `reviewer` | `"oc review"` |
-
-> Detailed scenarios with diagrams and real prompts: [docs/guides/workflows.en.md](docs/guides/workflows.en.md)
+| Scenario | Command | Agent |
+|----------|---------|-------|
+| Feature end-to-end | `oh start -a orchestrator` | orchestrator |
+| Ready-to-code tickets | `oh start --dev` | orchestrator-dev |
+| Pre-production audit | `oh audit --type security` | auditor |
+| Production bug | `oh debug --issue "..."` | debugger |
+| UX/UI spec from Figma | `oh start -a designer` | designer |
+| Document a feature | `oh start -a documentarian` | documentarian |
+| Discover a project | `oh start --onboard` | onboarder |
+| Plan without implementing | `oh start -a planner` | planner |
+| Review a branch | `oh review` | reviewer |
 
 ---
 
-## Figma Integration
+## MCP Servers
 
-openhub integrates with Figma to enrich planning workflows with design context.
+Three built-in MCP servers, running natively in Go (stdio protocol):
 
-### Features
+| Server | Command | Purpose |
+|--------|---------|---------|
+| Figma | `oh mcp serve figma` | Design token extraction, component analysis |
+| GitLab | `oh mcp serve gitlab` | Issue/MR management, pipeline status |
+| Google Slides | `oh mcp serve gslides` | Presentation analysis |
 
-- **Automatic maquette detection**: Pathfinder, Planner, and Onboarder search Figma files by feature or project name
-- **UX/UI signal detection**: Automatic detection of multi-step flows and visual components
-- **Design tokens extraction**: Extract colors, typography, spacing, and effects from Figma Variables
-- **Design system detection**: Automatically identify DSFR, Material Design, or custom design systems
-- **Enriched estimation**: Adjust complexity based on detected components and states
-- **Design context pre-filling**: Auto-populate `--design` fields in tickets with Figma data
-
-### Setup
-
-1. **Get your Figma tokens** (Personal Access Token + Team ID)
-2. **Configure** `~/.config/opencode/config.json`:
-   ```json
-   {
-     "env": {
-       "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_xxx",
-       "FIGMA_TEAM_ID": "123456"
-     }
-   }
-   ```
-3. **Organize your Figma files** according to conventions (see `config/figma.conventions.md`)
-4. **Deploy** to your projects with `oc deploy opencode MY-APP`
-
-### Usage
-
-The Pathfinder, Planner, and Onboarder agents automatically query Figma when analyzing UI features or exploring projects:
-
-```bash
-# Pathfinder with Figma enrichment
-> Pathfinder cette feature: dashboard utilisateur
-
-# Planner with Figma context (Phase 1.3)
-> Planifie cette feature: processus inscription
-
-# Onboarder with Figma exploration (Phase 1.5)
-> Onboarde-toi sur ce projet
-# → Extracts design tokens, detects design system, lists components
-```
-
-📖 **Full documentation**: [Figma Integration Guide](docs/guides/figma-integration.en.md)
+Configure via `oh service setup` (stores tokens in OS keychain).
 
 ---
 
@@ -248,42 +169,48 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 
 | Document | Description |
 |----------|-------------|
-| [Getting started](docs/guides/getting-started.en.md) | Full installation, first deployment |
-| [Figma Integration](docs/guides/figma-integration.en.md) | Figma MCP setup, configuration, and testing |
-| [LLM Providers](docs/guides/providers.en.md) | Anthropic, MammouthAI, GitHub Models, Bedrock, Ollama |
-| [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug — illustrated scenarios |
-| [Contributing](docs/guides/contributing.en.md) | Adding an agent, an adapter |
-| [Onboarding](docs/guides/onboarding.en.md) | Onboarding agent guide (using the onboarder to discover a project) |
-| [Authoring](docs/guides/authoring.en.md) | Authoring guide (designing agents) |
+| [Getting started](docs/guides/getting-started.en.md) | Installation, first deployment |
+| [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug scenarios |
+| [Figma Integration](docs/guides/figma-integration.en.md) | MCP setup and usage |
+| [GitLab Integration](docs/guides/gitlab-integration.en.md) | GitLab MCP setup |
+| [LLM Providers](docs/guides/providers.en.md) | Anthropic, Bedrock, OpenRouter, Ollama |
+| [Onboarding](docs/guides/onboarding.en.md) | Using the onboarder agent |
 
 ### Architecture
 
 | Document | Description |
 |----------|-------------|
-| [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams, design principles |
-| [Agents](docs/architecture/agents.en.md) | Exhaustive reference for all 18 agents |
-| [MCP Servers](servers/README.md) | MCP servers architecture and development |
-| [ADR](docs/architecture/adr/) | Architectural decision records (9 ADRs) |
-| [Adapters](docs/architecture/adapters.en.md) | Adapters architecture |
+| [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams |
+| [Agents](docs/architecture/agents.en.md) | All 18 agents reference |
+| [Skills](docs/architecture/skills.en.md) | Hybrid skill system |
+| [ADRs](docs/architecture/adr/) | 21 architectural decision records |
 
 ### Reference
 
 | Document | Description |
 |----------|-------------|
-| [CLI](docs/reference/cli.en.md) | All `oc` commands with options and examples |
-| [Configuration](docs/reference/config.en.md) | hub.json, projects.md, paths.local.md |
-| [Figma Conventions](config/figma.conventions.md) | Figma file organization conventions |
-| [Beads data model](docs/reference/beads-model.en.md) | Beads data model reference |
-| [Audit tools](docs/reference/audit-tools.en.md) | Audit tools reference by domain |
-| [Model resolution](docs/reference/model-resolution.en.md) | Model resolution by agent |
+| [CLI Reference](docs/reference/cli.en.md) | All commands with options and examples |
+| [Configuration](docs/reference/config.en.md) | hub.toml, project settings |
+| [Beads Data Model](docs/reference/beads-model.en.md) | Ticket system reference |
 
-### Development
+---
 
-| Document | Description |
-|----------|-------------|
-| [Performance optimizations](docs/dev/performance-optimizations.md) | Performance improvements in `oc deploy` |
-| [Progress bar system](docs/dev/progress-bar.md) | Visual feedback system for long operations |
-| [Shell gotchas](docs/dev/shell-gotchas.md) | Common pitfalls in bash scripting |
+## Migration from `oc`
+
+If you were using the bash CLI (`oc`), see the [Migration Guide](MIGRATION.md) for:
+- Command equivalence table
+- Configuration migration (hub.json -> hub.toml)
+- Breaking changes
+
+---
+
+## Requirements
+
+- **[OpenCode](https://opencode.ai)** -- AI coding agent (auto-downloaded by `oh init`)
+- **[git](https://git-scm.com/)** -- version control
+- **[Beads](https://beads.sh/)** *(optional)* -- ticket tracker for `oh start --dev`, `oh board`
+
+No Node.js, jq, sqlite3, or bun required. The Go binary is self-contained.
 
 ---
 

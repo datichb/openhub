@@ -35,30 +35,32 @@ See [ADR-010](./adr/010-hybrid-skills-architecture.en.md) for the inline vs nati
 
 ### MCP Server
 
-An **MCP Server** (Model Context Protocol) is a TypeScript server that provides
-tool integrations to agents. MCP Servers are deployed with agents and expose
-tools via stdin/stdout protocol.
+An **MCP Server** (Model Context Protocol) is a **Go native** implementation in
+`cli/internal/mcp/` that provides tool integrations to agents. MCP Servers run
+via `oh mcp serve <name>` (stdio JSON-RPC protocol).
 
 Current MCP Servers:
-- **figma-mcp**: Figma API integration (search files, detect UI signals, get structure)
-- **gitlab-mcp**: GitLab API integration (issues, merge requests, labels, milestones)
+- **figma**: Figma API integration (search files, detect UI signals, get structure)
+- **gitlab**: GitLab API integration (issues, merge requests, labels, milestones)
+- **gslides**: Google Slides API integration
 
-MCP Servers are located in `servers/` and deployed to `.opencode/servers/` in target projects.
+MCP Servers are deployed into projects as `mcpServers` entries in `opencode.json`.
 
-See [servers/README.md](../../servers/README.md) for infrastructure documentation.
-See [Figma Integration Guide](../guides/figma-integration.en.md) for figma-mcp usage.
-See [GitLab Integration Guide](../guides/gitlab-integration.en.md) for gitlab-mcp usage.
+See [Figma Integration Guide](../guides/figma-integration.en.md) for figma usage.
+See [GitLab Integration Guide](../guides/gitlab-integration.en.md) for gitlab usage.
 
-### Adapter
+### Deployment
 
-An **adapter** is a shell script (`scripts/adapters/<target>.adapter.sh`) that
-translates agents + skills from the hub format to the format expected by a target tool.
-One adapter exists: `opencode`.
+Deployment is handled by the `cli/internal/deploy/` package (Go). It performs
+**transactional deployment**: agents, skills, config, and MCP servers are injected
+into the target project's `opencode.json`.
+
+Commands: `oh deploy`, `oh sync`.
 
 ### Target Project
 
 A **target project** is an application repository onto which agents are deployed
-via `oc deploy`. The hub knows projects via `projects/projects.md`.
+via `oh deploy`.
 
 ---
 
@@ -67,17 +69,15 @@ via `oc deploy`. The hub knows projects via `projects/projects.md`.
 ```mermaid
 flowchart LR
     subgraph HUB["openhub (source of truth)"]
-        A[agents/*.md] --> PB[prompt-builder.sh]
-        S[skills/**/*.md] --> PB
-        PB --> ADP
-        subgraph ADP["adapters/"]
-            OC[opencode.adapter.sh]
-        end
+        A[agents/*.md] --> DEP[cli/internal/deploy]
+        S[skills/**/*.md] --> DEP
+        MCP[cli/internal/mcp] --> DEP
     end
 
     subgraph PROJECTS["Target Projects"]
-        OC -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
-        OC -->|"Bucket B (native)"| P2[".opencode/skills/**/SKILL.md"]
+        DEP -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
+        DEP -->|"Bucket B (native)"| P2[".opencode/skills/**/SKILL.md"]
+        DEP -->|"mcpServers"| P3["opencode.json"]
     end
 ```
 
@@ -218,23 +218,23 @@ See [Living Documentation Wiki](./living-wiki.en.md) for the complete system arc
 
 ```
 openhub/
-├── agents/          ← Canonical agent sources (edit here)
-├── skills/          ← Injectable protocols and standards
-├── scripts/
-│   ├── adapters/    ← Translation hub → target tool format
-│   ├── lib/         ← Shared helpers (prompt-builder, adapter-manager)
-│   └── cmd-*.sh     ← Implementation of oc commands
-├── config/
-│   ├── hub.json             ← Global hub configuration
-│   ├── stack-skills.json    ← Stack → dynamically injected skills mapping
-│   └── providers/           ← LLM provider configuration
-├── projects/
-│   ├── projects.md       ← Project registry (local, git-ignored)
-│   └── projects.example.md ← Versioned template
-└── docs/            ← Documentation (this folder)
-    ├── architecture/
-    ├── guides/
-    ├── dev/         ← Bash gotchas and developer guides
-    ├── presentations/ ← Presentations and slides
-    └── reference/
+├── agents/              ← AI role definitions (18 agents)
+├── skills/              ← Protocols: Bucket A (inline) + Bucket B (on-demand)
+├── cli/                 ← Go CLI binary (oh)
+│   ├── cmd/             ← Cobra commands
+│   └── internal/
+│       ├── app/         ← Application context
+│       ├── beads/       ← Beads ticket integration
+│       ├── config/      ← hub.toml configuration
+│       ├── deploy/      ← Transactional deployment engine
+│       ├── domain/      ← Domain types (Project, Session, Secret)
+│       ├── i18n/        ← Internationalization (fr/en)
+│       ├── mcp/         ← Native MCP servers (figma, gitlab, gslides)
+│       ├── opencode/    ← Binary management, compatibility, project config
+│       ├── plugin/      ← Plugin system (RTK embedded)
+│       ├── prompt/      ← Stack detection, prompt builders
+│       ├── storage/     ← SQLite + keychain + filecrypt
+│       ├── tui/         ← BubbleTea views (dashboard, board, picker)
+│       └── worktree/    ← Git worktree management
+└── docs/                ← Documentation (bilingual fr/en)
 ```

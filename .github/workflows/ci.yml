@@ -1,162 +1,42 @@
-name: CI — Shell & Agents
+name: CI — Go CLI
 
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
-      - 'agents/auditor/**'
-      - 'agents/planning/**'
-      - 'agents/design/**'
-      - 'agents/documentation/**'
-      - 'skills/**/websearch-*.md'
-      - 'skills/shared/websearch-usage.md'
-      - 'scripts/cmd-config.sh'
-      - 'tests/test_*websearch*.bats'
-      - '.github/workflows/test-websearch.yml'
   pull_request:
     branches: [main, develop]
 
 jobs:
-  shellcheck:
-    name: ShellCheck
+  go-cli:
+    name: Go CLI (oh)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: cli/go.sum
 
-      - name: Run ShellCheck on all scripts
-        run: |
-          shellcheck --severity=warning --exclude=SC2034 \
-            oc.sh \
-            scripts/cmd-*.sh \
-            scripts/lib/*.sh \
-            scripts/adapters/*.sh
+      - name: Download dependencies
+        run: go mod download
 
-  validate-agents:
-    name: Validate agent frontmatter
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Vet
+        run: go vet ./...
 
-      - name: Check required frontmatter fields in agents/
-        run: |
-          errors=0
-          for agent_file in $(find agents/ -name "*.md" | sort); do
-            [ -f "$agent_file" ] || continue
-            name=$(basename "$agent_file")
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: cli
 
-            for field in id label description skills; do
-              if ! grep -q "^${field}:" "$agent_file"; then
-                echo "::error file=${agent_file}::Champ frontmatter manquant : '${field}' dans ${name}"
-                errors=$((errors + 1))
-              fi
-            done
-          done
+      - name: Test
+        run: go test ./... -v -race -count=1
 
-          if [ "$errors" -gt 0 ]; then
-            echo ""
-            echo "::error::$errors erreur(s) de frontmatter détectée(s) dans agents/"
-            exit 1
-          fi
-
-          echo "Tous les agents ont un frontmatter valide."
-
-  check-staleness:
-    name: Check deployed agents and skills are up to date
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Deploy agents and skills (generates .opencode/agents/ and .opencode/skills/ from sources)
-        run: |
-          # Les agents et skills sont gitignorés — il faut les générer avant de vérifier leur fraîcheur.
-          # On mock adapter_validate pour ne pas exiger qu'opencode soit installé en CI.
-          bash -c "
-            source scripts/common.sh
-            source scripts/lib/adapter-manager.sh
-            source scripts/lib/spinner.sh
-
-            adapter_validate() { return 0; }
-            _spinner_start()   { true; }
-            _spinner_stop()    { true; }
-
-            deploy_dir=\"\$HUB_DIR\"
-            load_adapter
-            adapter_deploy \"\$deploy_dir\" ''
-          "
-
-      - name: Check staleness (hub level)
-        run: |
-          bash scripts/cmd-deploy.sh --check || {
-            echo "::error::Des agents ou skills déployés sont obsolètes ou manquants après deploy — vérifier les sources agents/ et skills/"
-            exit 1
-          }
-
-  bats:
-    name: Bats unit tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install bats-core (official, latest stable)
-        run: |
-          git clone --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git /tmp/bats-core
-          sudo /tmp/bats-core/install.sh /usr/local
-          sudo apt-get install -y parallel jq
-          mkdir -p ~/.parallel && touch ~/.parallel/will-cite
-
-      - name: Run bats tests
-        env:
-          OC_NON_INTERACTIVE: "1"
-        run: |
-          # Collect all test files except websearch (they have their own workflow)
-          # Run via GNU parallel : --timeout 120 tue un fichier qui bloque > 2 min
-          # et identifie immédiatement quel fichier pose problème dans les logs.
-          find tests/ -name '*.bats' ! -name '*websearch*' -print0 \
-            | parallel --null --jobs 8 --timeout 120 --halt soon,fail=1 \
-                --tagstring '{/.}' \
-                'bats {}' \
-            || exit 1
-
-  version-consistency:
-    name: Check version consistency
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Verify hub.json.example version matches latest CHANGELOG entry
-        run: |
-          example_version=$(jq -r '.version' config/hub.json.example)
-
-          # Extraire la dernière version taguée depuis CHANGELOG.md (ex: ## [1.5.0] — 2026-01-01)
-          changelog_version=$(grep -oE '## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-
-          echo "Version dans hub.json.example : ${example_version}"
-          echo "Dernière version dans CHANGELOG : ${changelog_version}"
-
-          if [ -z "$changelog_version" ]; then
-            echo "::warning::Aucune version trouvée dans CHANGELOG.md — vérification ignorée"
-            exit 0
-          fi
-
-          if [ "$example_version" != "$changelog_version" ]; then
-            echo "::error::Dérive de version détectée : hub.json.example=${example_version} ≠ CHANGELOG=${changelog_version}"
-            echo "Lancez scripts/release.sh pour synchroniser les versions."
-            exit 1
-          fi
-
-          echo "Versions cohérentes : ${example_version}"
+      - name: Build
+        run: go build -o bin/oh .

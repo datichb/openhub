@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Le système de barre de progression fournit un **feedback visuel en temps réel** pour les opérations longues dans openhub, particulièrement pendant le workflow `oc deploy`. Il est composé de trois fonctions principales :
+Le système de barre de progression fournit un **feedback visuel en temps réel** pour les opérations longues dans openhub, particulièrement pendant le workflow `oh deploy`. Il est composé de trois fonctions principales :
 
 - **`_progress_bar()`** : Affichage de la progression en temps réel sur une ligne
 - **`_progress_done()`** : Finalisation de la barre de progression
@@ -464,14 +464,14 @@ fi
 **Test** :
 ```bash
 # TTY : barre affichée
-./oc.sh deploy
+./oh deploy
 
 # Non-TTY : barre masquée
-./oc.sh deploy | cat
-./oc.sh deploy > output.txt
+./oh deploy | cat
+./oh deploy > output.txt
 
 # Forcé : barre masquée
-./oc.sh deploy --no-progress
+./oh deploy --no-progress
 ```
 
 **Pourquoi l'auto-détection ?**
@@ -514,9 +514,9 @@ fi
 
 5. **Tester avec et sans TTY**
    ```bash
-   ./oc.sh deploy              # Avec barre
-   ./oc.sh deploy | cat        # Sans barre
-   ./oc.sh deploy --no-progress  # Sans barre (forcé)
+   ./oh deploy              # Avec barre
+   ./oh deploy | cat        # Sans barre
+   ./oh deploy --no-progress  # Sans barre (forcé)
    ```
 
 6. **Utiliser l'indexation 1-based pour `current`**
@@ -700,13 +700,13 @@ graph TB
 
 ```bash
 # Test 1 : TTY détecté (barre affichée)
-./oc.sh deploy PROJECT_ID
+./oh deploy PROJECT_ID
 
 # Test 2 : Non-TTY (barre masquée)
-./oc.sh deploy PROJECT_ID | cat
+./oh deploy PROJECT_ID | cat
 
 # Test 3 : Flag --no-progress (forcé)
-./oc.sh deploy PROJECT_ID --no-progress
+./oh deploy PROJECT_ID --no-progress
 
 # Test 4 : Simulation d'erreur
 # (Modifier temporairement un agent pour causer une erreur de build)
@@ -755,7 +755,7 @@ _progress_summary "Test terminé" "10 items traités" "  - 5 en mode test"
 **Vérifier les codes ANSI** :
 ```bash
 # Afficher la sortie brute
-./oc.sh deploy PROJECT_ID 2>&1 | od -c | grep -E '\\r|\\033'
+./oh deploy PROJECT_ID 2>&1 | od -c | grep -E '\\r|\\033'
 ```
 
 ---

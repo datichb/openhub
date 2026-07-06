@@ -28,7 +28,7 @@ native_skills: [path/to/skill, ...]   # Bucket B — deployed to .opencode/skill
 
 | Field | Role |
 |-------|------|
-| `id` | Unique identifier, used by adapters and `oc agent` |
+| `id` | Unique identifier, used by adapters and `oh agent` |
 | `label` | Name displayed in the tool |
 | `description` | Short phrase describing the role — appears in agent lists |
 | `mode` | `primary` (default) or `subagent` — controls visibility in OpenCode |
@@ -50,7 +50,7 @@ The `mode:` field controls how an agent is exposed in OpenCode:
 
 The effective mode follows a priority: **project override** (`- Modes:` in `projects.md`) > **agent frontmatter** > **`primary`** (default).
 
-To modify modes for a project without touching frontmatter: `oc agent mode <PROJECT_ID>`.
+To modify modes for a project without touching frontmatter: `oh agent mode <PROJECT_ID>`.
 
 ---
 
@@ -79,7 +79,7 @@ undocumented hybrid architecture. Produces a prioritized agent map in 3 levels
 Read-only — never modifies files (except the deliverables it produces).
 Never automatically triggers another agent — it suggests invocations, the user decides.
 
-Invocable directly, from `oc start` (suggestion displayed), or from the `orchestrator`
+Invocable directly, from `oh start` (suggestion displayed), or from the `orchestrator`
 (Mode C — pre-phase on unknown project).
 
 **Phase 5 — Incremental enrichment:** when `ONBOARDING.md` and `CONVENTIONS.md` already exist (enriched by other agents), proposes incremental enrichment rather than a full overwrite. Delegates incremental updates to the `documentarian` via `task` (skill `living-docs-enrichment`). Full overwrite remains available with an explicit warning about losing accumulated enrichments.
@@ -112,7 +112,7 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 
 **Context injection:** project context (stack, conventions) is automatically injected into the session via the `instructions` field of `opencode.json` (valid cache `.opencode/context.json` or `ONBOARDING.md`/`CONVENTIONS.md`). The orchestrator never reads files directly — if context is absent from the session, it proposes the `onboarder`.
 
-**Missing agent handling:** if a required agent is not deployed in the project, the orchestrator asks a structured question with options: deploy via `!oc deploy` without leaving OpenCode / use a substitute (substitution table by domain) / skip the ticket. Never silently falls back to another agent.
+**Missing agent handling:** if a required agent is not deployed in the project, the orchestrator asks a structured question with options: deploy via `!oh deploy` without leaving OpenCode / use a substitute (substitution table by domain) / skip the ticket. Never silently falls back to another agent.
 
 ---
 

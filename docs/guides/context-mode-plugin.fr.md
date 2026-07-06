@@ -22,7 +22,7 @@ Ce guide explique comment installer le plugin context-mode pour OpenCode depuis 
 ## Installation automatique (recommandé)
 
 ```bash
-oc plugin install context-mode
+oh plugin install context-mode
 ```
 
 Le script va :
@@ -137,8 +137,8 @@ Appel read/webfetch → context-mode intercepte → output indexé hors-contexte
 Les deux plugins peuvent cohabiter sans conflit. L'ordre d'installation n'a pas d'importance.
 
 **Stack complète recommandée :**
-1. `oc plugin install rtk` — bash outputs (-60-90%)
-2. `oc plugin install context-mode` — read/webfetch/MCP outputs (-80-98%) + session continuity
+1. `oh plugin install rtk` — bash outputs (-60-90%)
+2. `oh plugin install context-mode` — read/webfetch/MCP outputs (-80-98%) + session continuity
 
 ---
 
@@ -155,7 +155,7 @@ cat .opencode/opencode.json
 
 Si absent, relancer l'installation :
 ```bash
-oc plugin install context-mode
+oh plugin install context-mode
 ```
 
 ### Les hooks `experimental.*` ne sont pas actifs
@@ -196,7 +196,7 @@ cd ~/.openhub && git pull
 ## Désinstallation
 
 ```bash
-oc plugin remove context-mode
+oh plugin remove context-mode
 # Puis relancer OpenCode
 ```
 

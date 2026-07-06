@@ -54,7 +54,7 @@ Follow conventions in [`config/figma.conventions.md`](../../config/figma.convent
 ### 4. Deploy
 
 ```bash
-oc deploy opencode MY-PROJECT
+oh deploy opencode MY-PROJECT
 ```
 
 The Figma MCP Server will be deployed automatically with the agents.
@@ -145,22 +145,33 @@ Output: {
 
 ## Architecture
 
+The Figma MCP server is **built into the `oh` binary** — there is no separate source directory to navigate. The implementation lives in `cli/internal/mcp/figma/`.
+
 ```
-openhub/
-├── servers/figma-mcp/        ← TypeScript MCP Server
-│   ├── src/
-│   │   ├── index.ts          ← Entry point
-│   │   ├── client.ts         ← Figma API wrapper
-│   │   ├── config.ts         ← Token configuration
-│   │   └── tools/            ← 3 MCP tools
-│   └── dist/                 ← Compiled
-├── skills/adapters/
-│   ├── figma-scout-protocol.md
-│   └── figma-planner-protocol.md
-└── scripts/
-    ├── build-mcp.sh          ← Build MCP
-    ├── check-mcp.sh          ← Check build
-    └── lib/mcp-deploy.sh     ← Deployment
+cli/internal/mcp/
+└── figma/              ← Go implementation of the Figma MCP server
+    ├── server.go       ← MCP entry point (stdio JSON-RPC)
+    ├── client.go       ← Figma API wrapper
+    ├── tools.go        ← 3 MCP tools registration
+    └── config.go       ← Token configuration
+
+skills/adapters/
+├── figma-scout-protocol.md
+└── figma-planner-protocol.md
+```
+
+At runtime, the server is started via:
+```bash
+oh mcp serve figma
+```
+
+This command is injected into `opencode.json` during `oh deploy`:
+```json
+{
+  "mcpServers": {
+    "figma": {"command": "oh", "args": ["mcp", "serve", "figma"]}
+  }
+}
 ```
 
 ---
@@ -221,13 +232,15 @@ If all 3 attempts fail, the onboarder asks you to provide the exact Figma file n
 - Check JSON syntax (commas, quotes)
 - Restart OpenCode after modification
 
-### MCP build fails
+### MCP server issues
+
+Since the Figma MCP server is built into the `oh` binary, there is no separate build step. If the server fails to start:
 
 ```bash
-cd servers/figma-mcp
-rm -rf node_modules package-lock.json
-npm install
-npm run build
+# Check the server runs correctly
+oh mcp serve figma
+# Check service configuration
+oh service setup figma
 ```
 
 ---
@@ -264,8 +277,8 @@ These features can be added in v2+ based on needs.
 
 - **Figma API**: https://www.figma.com/developers/api
 - **Figma Conventions**: [`config/figma.conventions.md`](../../config/figma.conventions.md)
-- **MCP Infrastructure**: [`servers/README.md`](../../servers/README.md)
 - **MCP Protocol**: https://modelcontextprotocol.io/
+- **Service CLI Reference**: [`oh service`](../reference/services.en.md)
 
 ---
 
@@ -274,7 +287,7 @@ These features can be added in v2+ based on needs.
 If you encounter issues:
 1. Consult this troubleshooting guide
 2. Check OpenCode logs
-3. Test MCP manually: `cd servers/figma-mcp && npm start`
-4. Verify Figma token configuration
+3. Test MCP manually: `oh mcp serve figma`
+4. Verify Figma token configuration: `oh service setup figma`
 
-**The Figma integration is ready to enrich your planning workflows!** 🎨
+**The Figma integration is ready to enrich your planning workflows!**

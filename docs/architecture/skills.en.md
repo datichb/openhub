@@ -26,7 +26,7 @@ Coordinator/orchestrator agents that never need contextual skills have `permissi
 ```markdown
 ---
 name: <skill-name>
-description: <Short description — visible in oc agent edit and oc skills list>
+description: <Short description — used during deployment and in documentation>
 ---
 
 # Skill — <Title>

@@ -38,9 +38,9 @@ modifying OpenCode's own behavior:
 
 ### Layer 1 — Informative messages (`provider-warnings.sh`)
 
-New module `scripts/lib/provider-warnings.sh` displayed in the `oc start` context block.
+New module `scripts/lib/provider-warnings.sh` displayed in the `oh start` context block.
 Status is shown with ✅ (OK) or ⚠️ (problem) with an actionable hint toward `/connect`
-or `oc config set`.
+or `oh config set`.
 
 ### Layer 2 — Pre-flight check (Approach A)
 
@@ -56,7 +56,7 @@ Automatically skipped if `curl` is absent or if the command is run without a TTY
 
 After each write of `opencode.json`, verify that the prefix of the `model` field corresponds
 to an existing `provider` block in the generated file. If not (orphan model), store in
-`_DEPLOY_PROVIDER_WARNING` for display at the next `oc start`.
+`_DEPLOY_PROVIDER_WARNING` for display at the next `oh start`.
 
 ### Layer 4 — Structural fixes (Approach B)
 
@@ -96,11 +96,11 @@ Configure a fallback provider in `hub.json`. Rejected for this iteration because
 ### Positive
 
 - Users are **always informed** of their provider status before the problem appears in OpenCode.
-- The hints `→ Use /connect` and `→ oc config set` reduce time to resolution.
+- The hints `→ Use /connect` and `→ oh config set` reduce time to resolution.
 - Detection of the `/chat/completions` suffix prevents a recurring issue with MammouthAI.
 - litellm providers work correctly without `ProviderModelNotFoundError`.
 - Coverage of all entry paths (`adapter_start`) ensures the warning appears even from
-  `oc quick`, `oc review`, `oc audit`, etc.
+  `oh quick`, `oh review`, `oh audit`, etc.
 
 ### Negative / constraints
 

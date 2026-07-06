@@ -1,228 +1,180 @@
-# Démarrage rapide
+> [Read in English](getting-started.en.md)
 
-Ce guide vous permet d'installer le hub et de lancer votre premier agent en moins de 10 minutes.
+# Demarrage rapide
 
-## Prérequis
+Ce guide couvre l'installation, la configuration initiale et l'utilisation quotidienne du CLI `oh`.
 
-| Outil | Version minimale | Vérification |
-|-------|-----------------|--------------|
-| Git | 2.x | `git --version` |
-| curl | — | `curl --version` |
+## Prerequisites
 
-> Les autres dépendances (`jq`, `Node.js`, `opencode`, `bun`, `sqlite3`) sont proposées à l'installation — **chaque outil demande une confirmation explicite** avant d'être installé.
->
-> **`sqlite3`** est requis pour `oc metrics` et `oc dashboard` (lecture de la base de sessions OpenCode). Il est **natif sur macOS** (`/usr/bin/sqlite3`) ; sur Linux il sera proposé à l'installation via `apt-get`.
->
-> **Beads (`bd`)** est proposé à l'installation par `oc install` (via `brew install beads` ou curl).
-> Le board kanban terminal (`oc beads board`) est intégré — aucune installation supplémentaire requise.
+| Outil | Usage | Requis |
+|-------|-------|--------|
+| **git** | Controle de version | Oui |
+| **opencode** | Agent IA de code | Auto-telecharge par `oh init` / `oh start` |
+| **bd** | Gestionnaire de tickets Beads | Non (pour le mode `--dev` et `oh board`) |
 
----
+Aucun besoin de Node.js, jq, sqlite3, bun ou Python. Le binaire Go est autonome.
 
-## 1. Installer le hub
+## Installation
 
-### Option A — One-liner (recommandé)
+**Homebrew (recommande) :**
+
+```bash
+brew install datichb/openhub/oh
+```
+
+**Script curl :**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
 ```
 
-Le script automatise :
-- Clone du repo dans `~/.openhub`
-- Vérification des dépendances manquantes (`jq`, `Node.js`, `opencode`, `bun`) — **confirmation demandée avant chaque installation**
-- Création de l'alias `oc` dans `~/.zshrc` ou `~/.bashrc` (propose garder / remplacer / renommer si un alias `oc` existe déjà)
-- Initialisation des fichiers de config locaux
-- Configuration du fournisseur LLM
-
-Après l'installation, recharger le shell :
+**Depuis les sources :**
 
 ```bash
-source ~/.zshrc   # ou source ~/.bashrc
+cd cli && go install .
 ```
 
-> **Dossier d'installation personnalisé :** `OPENCODE_HUB_DIR=~/tools/oc bash install.sh`
-
----
-
-### Option B — Installation manuelle
+## Configuration initiale
 
 ```bash
-# 1. Cloner
-git clone https://github.com/datichb/openhub.git ~/.openhub
-
-# 2. Alias shell
-echo 'alias oc="~/.openhub/oc.sh"' >> ~/.zshrc && source ~/.zshrc
-
-# 3. Configurer
-oc install
+oh init
 ```
 
-> Si `config/hub.json` existe déjà, une confirmation est demandée avant d'écraser
-> la configuration. Répondez `N` pour conserver votre configuration existante.
+Cet assistant interactif va :
 
----
+1. Demander votre langue preferee (fr/en)
+2. Demander la version d'opencode a utiliser (par defaut : latest)
+3. Creer la configuration `~/.oh/hub.toml`
+4. S'assurer que le binaire opencode est installe (telecharge si absent)
+5. Lancer l'assistant d'enregistrement de projet :
+   - Nom du projet, chemin, langage, tracker
+   - Configuration du fournisseur et du modele
+   - Selection des agents (multi-selection parmi 18 agents)
+   - Configuration des services MCP (Figma, GitLab, Google Slides)
+   - Deploiement optionnel des agents/skills/config
 
-## 2. Enregistrer un projet
+## Enregistrer un projet
+
+Pour ajouter d'autres projets apres l'initialisation :
 
 ```bash
-oc init MON-APP ~/workspace/mon-app
+oh project add
 ```
 
-Cette commande :
-- Ajoute `MON-APP` dans `projects/projects.md`
-- Associe le chemin local `~/workspace/mon-app`
-- Propose de déployer les agents immédiatement
-
-> **Convention `PROJECT_ID`** : lettres, chiffres, `-` et `_` uniquement. Pas d'espaces.
-
----
-
-## 3. Déployer les agents
-
-Si vous n'avez pas déployé lors du `oc init` :
+Ou de maniere non-interactive :
 
 ```bash
-# Déployer dans un projet spécifique
-oc deploy MON-APP
+oh project add --name my-app --path ~/workspace/my-app --language typescript --tracker github
 ```
 
-Résultat attendu :
+## Deployer les agents et skills
 
-| Fichiers générés dans le projet |
-|---------------------------------|
-| `.opencode/agents/*.md` |
-
----
-
-## 4. Lancer l'outil
+Deployer les agents, skills et la configuration partagee dans un projet :
 
 ```bash
-oc start MON-APP
+oh deploy                    # detection automatique du projet depuis le repertoire courant
+oh deploy -j my-project      # projet explicite
+oh deploy --check            # verifier si le deploiement est necessaire (code retour 1 si obsolete)
+oh deploy --diff             # afficher les changements prevus
 ```
 
-Lance l'outil par défaut (défini dans `config/hub.json`) dans le répertoire du projet.
+Cela genere :
 
-Avec un prompt de démarrage :
+- `.opencode/agents/*.md` — definitions des agents
+- `.opencode/skills/*/SKILL.md` — protocoles de skills
+- `opencode.json` — fournisseur, modele, MCP, permissions
+
+## Lancer une session
 
 ```bash
-oc start MON-APP "explique l'architecture du projet"
+oh start                     # detection auto du projet, affiche le recap, confirme puis lance
+oh start -j my-project       # projet explicite
+oh start -a orchestrator     # utiliser un agent specifique
+oh start -p "explique..."    # avec un prompt initial
+oh start --dev               # mode dev : choisir epics/tickets
+oh start --onboard           # creer le wiki du projet
+oh start -y                  # passer la confirmation
+oh start -r <session-id>     # reprendre une session precedente
 ```
 
-En mode développement (charge les tickets `ai-delegated` ouverts) :
+Le flux de demarrage :
+
+1. Resout le projet (depuis le repertoire courant ou le flag `--project`)
+2. Resout le fournisseur et le token d'authentification
+3. Detecte la stack du projet (langage/framework)
+4. Affiche un recap de configuration detaille
+5. Attend la confirmation (Entree ou `--yes` pour passer)
+6. Lance opencode
+
+## Demarrage rapide (sans recap)
 
 ```bash
-oc start MON-APP --dev
+oh quick                     # detection auto du projet, lancement immediat
 ```
 
-Avec le board kanban terminal ouvert dans un second volet :
+## Commandes quotidiennes
 
 ```bash
-oc beads board MON-APP            # affiche le board une fois
-oc beads board MON-APP --watch    # rafraîchissement en direct toutes les 5s
+oh sync --all                # synchroniser agents/skills vers tous les projets
+oh status                    # afficher le statut du hub et du projet courant
+oh doctor                    # verification de sante du systeme
+oh metrics                   # metriques d'utilisation et couts
+oh dashboard                 # tableau de bord TUI interactif
+oh board                     # kanban (necessite bd)
 ```
 
----
-
-## 5. Vérifier le déploiement
+## Workflow de developpement
 
 ```bash
-oc deploy --check opencode MON-APP
+oh start --dev               # choisir epic/ticket, lance orchestrator-dev
+oh start --dev --label bug   # filtrer les tickets par label
+oh audit --type security     # audit de code
+oh review                    # revue de code
+oh debug --issue "crash on login"  # session de debogage
 ```
 
-Affiche pour chaque agent : `✓ À JOUR`, `⚠ OBSOLÈTE` ou `✗ MANQUANT`.
-
-Après un `git pull` sur le hub (ou `oc update`) :
+## Gestion des worktrees
 
 ```bash
-oc sync            # redéploie sur tous les projets
-oc sync --dry-run  # vérifie sans déployer
+oh start -w feature/login    # cree un worktree et lance dedans
+oh worktree list             # lister les worktrees actifs
+oh worktree cleanup          # supprimer les worktrees merges
 ```
 
----
-
-## Résultat attendu
-
-À l'issue de ces étapes, dans le répertoire de votre projet :
-
-```
-mon-app/
-└── .opencode/
-    └── agents/
-        ├── orchestrator.md
-        ├── planner.md
-        ├── reviewer.md
-        ├── qa-engineer.md
-        ├── debugger.md
-        ├── auditor.md
-        ├── developer-frontend.md
-        └── ...
-```
-
-Vous pouvez maintenant invoquer n'importe quel agent dans OpenCode :
-- `"Implémente la feature de connexion utilisateur"` → agent `orchestrator`
-- `"Audite la sécurité du projet"` → agent `auditor` (domaine security)
-- `"Planifie le module de paiement"` → agent `planner`
-
----
-
-## Mettre à jour le hub
-
-### Mettre à jour les outils installés
+## Configuration
 
 ```bash
-oc update
+oh config list               # afficher toute la configuration
+oh config set opencode.default_provider anthropic
+oh config language fr        # passer en francais
+oh config websearch enable   # activer la recherche web pour les agents
 ```
 
-Met à jour opencode, Beads, Beads UI, et les skills externes. Si des skills sont modifiés, propose de relancer `oc sync`.
-
-### Mettre à jour les sources du hub
+## Mise a jour
 
 ```bash
-oc upgrade
+brew upgrade oh              # mettre a jour oh lui-meme
+oh upgrade opencode          # mettre a jour le binaire opencode
+oh upgrade opencode 1.18.0   # fixer une version specifique
 ```
 
-Récupère les derniers scripts et agents du hub (`git pull`). Propose de relancer `oc sync` après une mise à jour réussie.
-
-Pour basculer sur une version spécifique :
+## Desinstallation
 
 ```bash
-oc upgrade v1.1.0
+brew uninstall oh
+rm -rf ~/.oh                 # supprimer la configuration et la base de donnees
 ```
 
-Équivalent au one-liner :
+## Depannage
+
+Lancer les diagnostics :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.1.0 bash
+oh doctor
 ```
 
----
+Problemes courants :
 
-## Dépannage
-
-| Symptôme | Solution |
-|----------|----------|
-| `oc: command not found` | Relancer `source ~/.zshrc` (ou `~/.bashrc`) après installation |
-| `curl: command not found` | Installer curl, puis relancer le one-liner |
-| `Node.js introuvable` | Relancer `oc install` — propose les installeurs disponibles |
-| Agent absent dans l'outil | Relancer `oc deploy MON-APP` |
-| Agent obsolète (`⚠ OBSOLÈTE`) | `oc deploy MON-APP` pour resynchroniser |
-| `bd: command not found` | Installer Beads : `brew install beads` |
-| Dossier d'install déjà existant | `OPENCODE_HUB_DIR=~/autre-chemin bash install.sh` |
-
----
-
-## Désinstaller le hub
-
-```bash
-oc uninstall
-# ou depuis n'importe où :
-bash ~/.openhub/uninstall.sh
-```
-
-Le script guide la désinstallation en 4 étapes optionnelles (toutes avec confirmation) :
-
-| Étape | Action | Défaut |
-|-------|--------|--------|
-| 1 | Nettoyer les agents déployés dans les projets | `[y/N]` |
-| 2 | Supprimer `~/.openhub` | `[y/N]` |
-| 3 | Retirer l'alias et les exports bun du fichier rc | `[Y/n]` |
-| 4 | Désinstaller opencode, Beads, bun (séparément) | `[y/N]` |
+- **opencode introuvable** — lancer `oh init` ou `oh upgrade opencode`
+- **Erreurs de serveur MCP** — verifier les tokens avec `oh service setup`
+- **Projet non detecte** — s'assurer d'etre dans un repertoire de projet enregistre (`oh project list`)

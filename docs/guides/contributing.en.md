@@ -96,10 +96,9 @@ If the agent requires a dedicated protocol, create the corresponding skill
 ### 5. Deploy and test
 
 ```bash
-oc deploy opencode
-# Verify the agent appears
-oc agent list
-oc agent info <id>
+oh deploy
+# Verify the agent appears in the project's opencode.json
+oh deploy --check
 ```
 
 ---
@@ -132,11 +131,11 @@ For a new domain, create a new sub-folder.
 ```markdown
 ---
 name: <skill-name>
-description: <Short description — visible in oc agent edit and oc skills list>
+description: <Short description — visible in the agent's skill list>
 ---
 ```
 
-> The `name` key is documentary. Scripts only read `description`.
+> The `name` key is documentary. The deployment reads `description`.
 > The file path is the reference used in agent frontmatter.
 
 ### 3. Skill content
@@ -177,19 +176,17 @@ Also add a row to the "## Available skills" guide section in the agent body with
 
 ---
 
-## Adding an adapter
+## Deployment
 
-An adapter translates agents from the hub format to the format of a target tool.
+Deployment translates agents from the hub format to the opencode format and writes the project's `opencode.json`.
 
-The full contract (8 mandatory functions, parameters, available utility functions
-and minimal example) is documented in
-[docs/architecture/adapters.en.md](../architecture/adapters.en.md).
+The deployment logic is implemented in Go in `cli/internal/deploy/`.
 
 ### Quick steps
 
-1. Create `scripts/adapters/<target>.adapter.sh` with the 8 contract functions
-2. Add the target to `config/hub.json`
-3. Test with `oc deploy <target>` then `oc agent list`
+1. Add or modify agents/skills in the `agents/` and `skills/` directories
+2. Run `oh deploy` to generate the updated `opencode.json`
+3. Run `oh deploy --check` to verify consistency
 
 ---
 
@@ -213,25 +210,6 @@ refactor: <restructuring>
 |------|-----------|---------|
 | Agent | `<domain>[-<speciality>].md` | `developer-frontend.md` |
 | Skill (in a sub-folder) | `<domain>-<topic>.md` | `audit-security.md` |
-| Shell script | `cmd-<command>.sh` | `cmd-deploy.sh` |
-| Adapter | `<target>.adapter.sh` | `opencode.adapter.sh` |
-
-### Shell scripts
-
-Mandatory rules for all shell scripts:
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# ✅ Local variables are declared inside functions
-my_function() {
-  local my_var="value"
-}
-
-# ❌ Never use 'local' outside a function — undefined behavior with set -euo pipefail
-# ❌ Never use "$var" && command — always use if [ "$var" = "true" ]
-```
 
 ### Internal documentation
 
@@ -258,11 +236,11 @@ Before submitting a PR:
 
 ```bash
 # Verify agents deploy correctly
-oc deploy opencode
-oc deploy --check opencode
+oh deploy
+oh deploy --check
 
-# List agents to verify consistency
-oc agent list
+# Review the generated opencode.json diff
+oh deploy --diff
 ```
 
 ---
@@ -280,8 +258,8 @@ oc agent list
 - [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent (always Bucket A)
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
-- [ ] `oc deploy opencode` and `oc deploy --check opencode` pass without errors
-- [ ] `oc deploy --diff opencode` shows no unexpected divergence
+- [ ] `oh deploy` and `oh deploy --check` pass without errors
+- [ ] `oh deploy --diff` shows no unexpected divergence
 
 ---
 
@@ -292,12 +270,12 @@ oc agent list
 ### Prerequisites
 
 - Be on the `main` branch with a clean working tree
-- `jq` installed (`brew install jq` or `apt install jq`)
+- [GoReleaser](https://goreleaser.com/) installed (`brew install goreleaser`)
 - Push access to the remote repository
 
 ### Preparing the CHANGELOG
 
-Before running the script, write the release content under `## [Unreleased]` in `CHANGELOG.md`:
+Before releasing, write the release content under `## [Unreleased]` in `CHANGELOG.md`:
 
 ```markdown
 ## [Unreleased]
@@ -309,36 +287,24 @@ Before running the script, write the release content under `## [Unreleased]` in 
 - ...
 ```
 
-The script will automatically insert the `## [X.Y.Z] — YYYY-MM-DD` header after `[Unreleased]`.
-
 ### Running the release
 
 ```bash
-# Preview without modifying anything (dry-run)
-bash scripts/release.sh 1.2.0 --dry-run
+# From the cli/ directory
+cd cli
 
-# Create the release
-bash scripts/release.sh 1.2.0
+# Preview without publishing (snapshot)
+goreleaser release --snapshot --clean
+
+# Create the release (triggered by a tag push)
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push && git push --tags
 ```
 
-The script performs in order:
-1. Validates the `X.Y.Z` format
-2. Checks `main` branch + clean working tree + non-existing tag
-3. Updates `config/hub.json` (local, not tracked by git) → `.version`
-4. Updates `config/hub.json.example` (tracked) → `.version`
-5. Inserts `## [X.Y.Z] — date` into `CHANGELOG.md`
-6. Creates commit `chore(release): vX.Y.Z`
-7. Creates annotated tag `vX.Y.Z`
-8. Offers to push (`git push && git push --tags`)
-
-### Version file conventions
-
-| File | Git tracked | Role |
-|------|------------|------|
-| `config/hub.json` | No (local) | Active instance config — never committed |
-| `config/hub.json.example` | Yes | Version source of truth — committed at each release |
-
-A new user who clones the repository runs `install.sh` which copies `hub.json.example` → `hub.json`.
+GoReleaser is configured via `.goreleaser.yml` in the `cli/` directory and handles:
+1. Cross-compilation of the `oh` binary
+2. Changelog generation from commits
+3. GitHub release creation with artifacts
 
 ### Tag convention
 
@@ -346,12 +312,4 @@ Tags follow the `vX.Y.Z` format (annotated):
 
 ```bash
 git tag -a v1.2.0 -m "Release v1.2.0"
-```
-
-### Post-release install one-liner
-
-After pushing, the one-liner to install this version is:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | VERSION=v1.2.0 bash
 ```

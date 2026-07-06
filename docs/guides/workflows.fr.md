@@ -30,7 +30,7 @@ Avant d'invoquer un agent, identifiez votre situation :
 
 ## Reprendre une session existante
 
-Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oc dashboard` et sert de point de repère pour retrouver le contexte d'une session.
+Chaque session opencode reçoit automatiquement un **titre généré** à partir des mots clés du prompt initial (stop-words FR+EN filtrés, références tickets détectées). Ce titre est visible dans `oh dashboard` et sert de point de repère pour retrouver le contexte d'une session.
 
 ### Nommage automatique
 
@@ -42,13 +42,21 @@ Le titre est construit selon la priorité suivante :
 | Prompt avec référence ticket | `CP-3 — fix crash login` |
 | Mode `--dev` | `dev: CP-3 — auth bug` |
 | Mode `--onboard` | `onboard: MON-APP` |
-| Mode `--parallel` | `parallel: feat/ma-branche` |
+| Mode `--dev` (branche ticket) | `dev: feat/ma-branche` |
 | Sans prompt | `MON-APP — 2026-06-30` |
 
 ### Reprendre avec `--resume`
 
 ```bash
-oc start --resume -p MON-APP
+oh start -r <session-id>
+```
+
+Reprend une session spécifique par son ID. Pour trouver un ID de session, utilisez `oh dashboard`.
+
+Pour lister les sessions récentes d'un projet :
+
+```bash
+oh dashboard -j MON-APP
 ```
 
 Affiche les 10 dernières sessions du projet (30 jours), avec titre, agent, coût et date :
@@ -63,15 +71,15 @@ Choisir une session à reprendre [MON-APP] :
 
 Saisir le numéro de la session à reprendre. opencode est relancé avec `-s <session_id>`, restaurant l'historique complet de la conversation.
 
-> **Note :** `--resume` requiert `-p PROJECT_ID` explicite. Il est incompatible avec `--dev`, `--onboard` et `--parallel`.
+> **Note :** `--resume` / `-r` requiert un ID de session en argument (ex. `oh start -r <session-id>`). Il est incompatible avec `--dev` et `--onboard`.
 
 ### Voir les sessions récentes
 
 ```bash
-oc dashboard
+oh dashboard
 ```
 
-Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oc start --resume` si besoin.
+Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), utilisable comme identifiant pour `oh start -r <session-id>` si besoin.
 
 ---
 
@@ -218,7 +226,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 > ex. `[Planner — Phase 0 | Feature : authentification JWT]`. Aucun besoin de naviguer dans la session enfant.
 
 > **Agent non déployé :** si un agent requis est absent du projet, l'agent orchestrator affiche une question
-> structurée : déployer via `!oc deploy opencode <PROJECT_ID>` directement dans OpenCode / utiliser un
+> structurée : déployer via `!oh deploy -j <PROJECT_ID>` directement dans OpenCode / utiliser un
 > substitut (table par domaine) / ignorer le ticket. Il ne bascule jamais silencieusement.
 
 #### 6. [CP-feature] Récap global

@@ -13,9 +13,9 @@ Les git worktrees permettent de travailler sur plusieurs branches simultanément
 
 ## Configuration
 
-### Activation via `oc init`
+### Activation via `oh init`
 
-Lors de l'initialisation d'un nouveau projet (`oc init`), une question interactive propose d'activer les worktrees :
+Lors de l'initialisation d'un nouveau projet (`oh init`), une question interactive propose d'activer les worktrees :
 
 ```
 Activer les git worktrees pour le travail en parallèle ? [y/N]
@@ -44,75 +44,75 @@ Ajouter les champs suivants dans le bloc du projet :
 
 ---
 
-## Commandes `oc worktree`
+## Commandes `oh worktree`
 
-### `oc worktree list [PROJECT_ID]`
+### `oh worktree list [PROJECT_ID]`
 
 Liste les worktrees actifs du projet avec leur branche et leur statut (mergé ou non).
 
 ```
-$ oc worktree list MON-APP
+$ oh worktree list MON-APP
 
   .worktrees/feat-bd-42    feat/bd-42
   .worktrees/fix-auth      fix/auth-null-check  [merged]
 ```
 
-### `oc worktree create BRANCH [PROJECT_ID]`
+### `oh worktree create BRANCH [PROJECT_ID]`
 
 Crée un worktree pour la branche donnée. Si la branche n'existe pas encore, elle est créée.
 
 ```
-$ oc worktree create feat/nouvelle-feature MON-APP
+$ oh worktree create feat/nouvelle-feature MON-APP
 ```
 
 Le worktree est créé dans `.worktrees/feat-nouvelle-feature/`.
 
-### `oc worktree remove BRANCH [PROJECT_ID]`
+### `oh worktree remove BRANCH [PROJECT_ID]`
 
 Supprime un worktree (avec confirmation interactive).
 
 ```
-$ oc worktree remove feat/bd-42 MON-APP
+$ oh worktree remove feat/bd-42 MON-APP
 Supprimer le worktree 'feat/bd-42' ? [Y/n]
 ```
 
-### `oc worktree cleanup [PROJECT_ID]`
+### `oh worktree cleanup [PROJECT_ID]`
 
 Supprime tous les worktrees dont la branche est mergée dans la branche de base.
 
 ```
-$ oc worktree cleanup MON-APP
+$ oh worktree cleanup MON-APP
 ◆  Suppression worktree mergé : fix/auth-null-check
 ◆  1 worktree(s) mergé(s) supprimé(s)
 ```
 
-### `oc worktree status [PROJECT_ID]`
+### `oh worktree status [PROJECT_ID]`
 
 Affiche un résumé : worktrees actifs, mergés, configuration du projet.
 
 ```
-$ oc worktree status MON-APP
+$ oh worktree status MON-APP
   Worktree activé    enabled
   Auto-cleanup       true
   Base branch        main
 
 Worktrees actifs : 2
 Worktrees mergés : 1
-→ Lancer 'oc worktree cleanup' pour supprimer les worktrees mergés
+→ Lancer 'oh worktree cleanup' pour supprimer les worktrees mergés
 ```
 
 ---
 
-## Mode `oc start --worktree`
+## Mode `oh start --worktree`
 
 Lance une session OpenCode isolée dans un nouveau worktree. Idéal pour travailler sur une nouvelle feature pendant que votre branche principale est en développement.
 
 ```bash
 # Branche spécifiée directement
-oc start --worktree feat/ma-feature MON-APP
+oh start --worktree feat/ma-feature MON-APP
 
 # Branche demandée interactivement
-oc start --worktree MON-APP
+oh start --worktree MON-APP
 ```
 
 **Comportement :**
@@ -128,19 +128,19 @@ oc start --worktree MON-APP
 git -C .worktrees/feat-ma-feature add . && git -C .worktrees/feat-ma-feature commit -m "feat: ..."
 
 # Une fois la PR mergée, nettoyer
-oc worktree remove feat/ma-feature MON-APP
+oh worktree remove feat/ma-feature MON-APP
 # ou
-oc worktree cleanup MON-APP
+oh worktree cleanup MON-APP
 ```
 
 ---
 
-## Mode `oc start --parallel`
+## Mode `oh start --parallel`
 
 Lance l'`orchestrator-dev` dans un worktree dédié avec un lot de tickets `ai-delegated`. Le workflow complet est préservé : implémentation → QA → review → CP-2.
 
 ```bash
-oc start --parallel MON-APP
+oh start --parallel MON-APP
 ```
 
 **Comportement :**
@@ -169,13 +169,13 @@ Quand `Worktree: enabled` est configuré pour le projet, l'`orchestrator-dev` ut
 ## Cycle de vie d'un worktree
 
 ```
-oc init / config         →  Worktree: enabled activé dans projects.md
+oh init / config         →  Worktree: enabled activé dans projects.md
                                      │
-oc deploy                →  .worktrees/ ajouté à .git/info/exclude
+oh deploy                →  .worktrees/ ajouté à .git/info/exclude
                                      │
          ┌───────────────────────────┴─────────────────────┐
          │                                                   │
-oc start --parallel              oc start --worktree BRANCH
+oh start --parallel              oh start --worktree BRANCH
 (orchestrator-dev isolé)         (session libre isolée)
          │                                                   │
    workflow complet                   développement libre
@@ -186,8 +186,8 @@ oc start --parallel              oc start --worktree BRANCH
       PR / merge                          │
          └──────────────────┬────────────┘
                             │
-               oc worktree cleanup
-               (ou auto au prochain oc start)
+               oh worktree cleanup
+               (ou auto au prochain oh start)
                → git worktree remove + prune
 ```
 
@@ -195,7 +195,7 @@ oc start --parallel              oc start --worktree BRANCH
 
 ## Auto-cleanup
 
-Quand `Worktree auto cleanup: true` est configuré, chaque `oc start` (quelle que soit sa variante) appelle `worktree_cleanup_merged` avant de lancer la session. Les worktrees dont la branche est mergée dans `Worktree base branch` sont automatiquement supprimés.
+Quand `Worktree auto cleanup: true` est configuré, chaque `oh start` (quelle que soit sa variante) appelle `worktree_cleanup_merged` avant de lancer la session. Les worktrees dont la branche est mergée dans `Worktree base branch` sont automatiquement supprimés.
 
 **Condition de suppression :** la branche doit être listée par `git branch --merged <base_branch>`.
 

@@ -38,9 +38,9 @@ modifier le comportement d'OpenCode lui-même :
 
 ### Couche 1 — Messages informatifs (`provider-warnings.sh`)
 
-Nouveau module `scripts/lib/provider-warnings.sh` affiché dans le bloc contextuel de `oc start`.
+Nouveau module `scripts/lib/provider-warnings.sh` affiché dans le bloc contextuel de `oh start`.
 Le statut s'affiche avec ✅ (OK) ou ⚠️ (problème) accompagné d'un hint actionnable vers
-`/connect` ou `oc config set`.
+`/connect` ou `oh config set`.
 
 ### Couche 2 — Pre-flight check (Approche A)
 
@@ -56,7 +56,7 @@ Skip automatique si `curl` est absent ou si la commande est exécutée hors TTY 
 
 Après chaque écriture d'`opencode.json`, vérification que le préfixe du champ `model`
 correspond à un bloc `provider` existant dans le fichier généré. Si non (modèle orphelin),
-stockage dans `_DEPLOY_PROVIDER_WARNING` pour affichage au prochain `oc start`.
+stockage dans `_DEPLOY_PROVIDER_WARNING` pour affichage au prochain `oh start`.
 
 ### Couche 4 — Correctifs structurels (Approche B)
 
@@ -98,11 +98,11 @@ Configurer un provider de secours dans `hub.json`. Rejeté pour cette itération
 
 - L'utilisateur est **toujours informé** du statut de son provider avant que le problème
   n'apparaisse dans OpenCode.
-- Les hints `→ Utilisez /connect` et `→ oc config set` réduisent le temps de résolution.
+- Les hints `→ Utilisez /connect` et `→ oh config set` réduisent le temps de résolution.
 - La détection du suffixe `/chat/completions` prévient un problème récurrent avec MammouthAI.
 - Les providers litellm fonctionnent correctement sans `ProviderModelNotFoundError`.
 - La couverture de tous les chemins d'entrée (`adapter_start`) garantit le warning même
-  depuis `oc quick`, `oc review`, `oc audit`, etc.
+  depuis `oh quick`, `oh review`, `oh audit`, etc.
 
 ### Négatives / contraintes
 

@@ -11,7 +11,7 @@ Avant d'installer le plugin, assurez-vous d'avoir :
    opencode --version
    ```
 
-2. **RTK** >= 0.42.0 — installé automatiquement par `oc plugin install rtk` si absent
+2. **RTK** >= 0.42.0 — installé automatiquement par `oh plugin install rtk` si absent
    ```bash
    # Vérifier si déjà installé
    rtk --version
@@ -31,7 +31,7 @@ Avant d'installer le plugin, assurez-vous d'avoir :
 
 ```bash
 # Depuis n'importe où
-oc plugin install rtk
+oh plugin install rtk
 ```
 
 Le script va :
@@ -280,7 +280,7 @@ Quand une nouvelle version du plugin est disponible dans openhub :
 ```bash
 cd ~/.openhub
 git pull
-oc plugin install rtk  # Réinstalle (avec backup automatique)
+oh plugin install rtk  # Réinstalle (avec backup automatique)
 ```
 
 ---
