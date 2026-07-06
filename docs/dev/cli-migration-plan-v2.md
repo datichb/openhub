@@ -342,7 +342,7 @@ type Plugin interface {
 ### GoReleaser
 
 - Targets : `darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64`
-- Homebrew tap : `datichb/homebrew-openhub`
+- Homebrew tap : `datichb/homebrew-tap`
 - Formula auto-générée par GoReleaser
 - Checksums SHA256 + signature
 
@@ -350,7 +350,7 @@ type Plugin interface {
 
 ```bash
 # Homebrew (recommandé)
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 
 # Binaire direct
 curl -sSfL https://github.com/datichb/openhub/releases/latest/download/oh_$(uname -s)_$(uname -m).tar.gz | tar xz

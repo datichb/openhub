@@ -19,7 +19,7 @@ No Node.js, jq, sqlite3, bun, or Python needed. The Go binary is self-contained.
 **Homebrew (recommended):**
 
 ```bash
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 ```
 
 **Curl script:**
@@ -153,7 +153,7 @@ oh config websearch enable   # enable web search for agents
 ## Upgrading
 
 ```bash
-brew upgrade oh              # upgrade oh itself
+brew upgrade openhub          # upgrade oh itself
 oh upgrade opencode          # upgrade the opencode binary
 oh upgrade opencode 1.18.0   # pin a specific version
 ```
@@ -161,7 +161,7 @@ oh upgrade opencode 1.18.0   # pin a specific version
 ## Uninstalling
 
 ```bash
-brew uninstall oh
+brew uninstall openhub
 rm -rf ~/.oh                 # remove configuration and database
 ```
 

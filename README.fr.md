@@ -14,7 +14,7 @@ Agents partages, skills hybrides, workflow Beads integre et serveurs MCP natifs 
 ### Homebrew (recommande)
 
 ```bash
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 ```
 
 ### Script curl

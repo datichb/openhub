@@ -28,7 +28,7 @@ Nous avons décidé de réécrire le CLI entièrement en Go, sous le nouveau nom
 
 - **Architecture** : monorepo — code Go dans `cli/` coexistant avec `agents/` et `skills/`
 - **Stack** : Go 1.26 + Cobra (commandes) + Viper (config) + BubbleTea (TUI) + huh (formulaires) + lipgloss (styling)
-- **Distribution** : binaire statique unique via GoReleaser + Homebrew tap (`datichb/openhub/oh`)
+- **Distribution** : binaire statique unique via GoReleaser + Homebrew tap (`datichb/tap/openhub`)
 - **Configuration** : TOML (`~/.oh/hub.toml`) remplaçant JSON (`config/hub.json`)
 - **Secrets** : keychain OS (go-keyring) avec fallback fichier chiffré AES-256-GCM
 - **Projets & Sessions** : base SQLite (remplaçant les fichiers markdown)
@@ -51,7 +51,7 @@ Documents de référence :
 - **Cross-platform** — darwin/amd64, darwin/arm64, linux/amd64, linux/arm64
 - **Suite de tests robuste** — 213 tests sur 24 packages, vérification race-condition
 - **Démarrage instantané** — pas de boot interpréteur, pas de résolution de modules
-- **Distribution Homebrew** — `brew install datichb/openhub/oh`
+- **Distribution Homebrew** — `brew install datichb/tap/openhub`
 - **TUI interactif** — dashboard, tableau kanban, picker, formulaires (BubbleTea)
 - **i18n complète** — 474 clés, bilingue (fr/en), test de parité imposé
 - **Secrets sécurisés** — keychain OS avec fallback chiffré (Argon2id + AES-256-GCM)

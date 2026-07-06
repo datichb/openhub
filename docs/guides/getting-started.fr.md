@@ -19,7 +19,7 @@ Aucun besoin de Node.js, jq, sqlite3, bun ou Python. Le binaire Go est autonome.
 **Homebrew (recommande) :**
 
 ```bash
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 ```
 
 **Script curl :**
@@ -153,7 +153,7 @@ oh config websearch enable   # activer la recherche web pour les agents
 ## Mise a jour
 
 ```bash
-brew upgrade oh              # mettre a jour oh lui-meme
+brew upgrade openhub          # mettre a jour oh lui-meme
 oh upgrade opencode          # mettre a jour le binaire opencode
 oh upgrade opencode 1.18.0   # fixer une version specifique
 ```
@@ -161,7 +161,7 @@ oh upgrade opencode 1.18.0   # fixer une version specifique
 ## Desinstallation
 
 ```bash
-brew uninstall oh
+brew uninstall openhub
 rm -rf ~/.oh                 # supprimer la configuration et la base de donnees
 ```
 

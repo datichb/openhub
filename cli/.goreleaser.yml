@@ -1,6 +1,6 @@
 version: 2
 
-project_name: oh
+project_name: openhub
 
 release:
   github:
@@ -45,9 +45,10 @@ changelog:
       - "^ci:"
 
 brews:
-  - repository:
+  - name: openhub
+    repository:
       owner: datichb
-      name: homebrew-openhub
+      name: homebrew-tap
     directory: Formula
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"

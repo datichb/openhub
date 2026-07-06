@@ -7,7 +7,7 @@ Process de release du binaire `oh` (OpenHub CLI).
 - Go 1.26+
 - [GoReleaser](https://goreleaser.com/) v2.10+
 - Un `GITHUB_TOKEN` avec les droits `repo` (pour push la formula Homebrew)
-- Le repo `datichb/homebrew-openhub` doit exister (public, avec un dossier `Formula/`)
+- Le repo `datichb/homebrew-tap` doit exister (public, avec un dossier `Formula/`)
 
 ## Process de release
 
@@ -48,7 +48,7 @@ GoReleaser va :
 1. Compiler 4 binaires (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64)
 2. Créer les archives `.tar.gz` + checksums
 3. Publier une release GitHub avec les assets
-4. Pusher la formula dans `datichb/homebrew-openhub/Formula/oh.rb`
+4. Pusher la formula dans `datichb/homebrew-tap/Formula/openhub.rb`
 
 ### 4. Vérifier
 
@@ -58,7 +58,7 @@ open https://github.com/datichb/openhub/releases/latest
 
 # Tester l'installation Homebrew
 brew update
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 oh version
 
 # Tester le script curl

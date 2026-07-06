@@ -196,9 +196,9 @@
 
 | Feature bash | Décision | Justification |
 |---|---|---|
-| `uninstall` | Supprimé | Géré par `brew uninstall oh` |
-| `upgrade` (hub self-update via git pull) | Supprimé | Géré par `brew upgrade oh` |
-| `update` (adapter + bd + skills) | Supprimé | `brew upgrade` pour oh, `oh upgrade opencode` pour opencode, `bd` se gère seul |
+| `uninstall` | Supprimé | Géré par `brew uninstall openhub` |
+| `upgrade` (hub self-update via git pull) | Supprimé | Géré par `brew upgrade openhub` |
+| `update` (adapter + bd + skills) | Supprimé | `brew upgrade` pour openhub, `oh upgrade opencode` pour opencode, `bd` se gère seul |
 | `agent create/edit/add-skill/remove-skill` | Supprimé | Gestion manuelle des fichiers .md, pas de valeur dans le CLI |
 | `skills install/remove/update` (ctx7) | Supprimé | Gestion manuelle des fichiers skill |
 | Session state machine | Supprimé | Opencode gère nativement les reprises de session |
@@ -242,9 +242,9 @@ Tout terminé — prêt pour release.
 ```
 
 Prochaines étapes release :
-- Créer le repo `datichb/homebrew-openhub` (public, vide avec Formula/)
+- Créer le repo `datichb/homebrew-tap` (public, vide avec Formula/)
 - Tag `v2.0.0` + `goreleaser release --clean`
-- Vérifier Homebrew : `brew install datichb/openhub/oh`
+- Vérifier Homebrew : `brew install datichb/tap/openhub`
 - Annoncer la migration
 
 ---

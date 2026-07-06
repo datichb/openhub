@@ -14,7 +14,7 @@ Shared agents, hybrid skills, integrated Beads workflow, and Go-native MCP serve
 ### Homebrew (recommended)
 
 ```bash
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 ```
 
 ### Curl script

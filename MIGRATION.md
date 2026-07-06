@@ -23,7 +23,7 @@ Guide de migration de la CLI bash (`oc`) vers la CLI Go (`oh`) v2.0.0.
 ## Installation de `oh`
 
 ```bash
-brew install datichb/openhub/oh
+brew install datichb/tap/openhub
 ```
 
 Verifier :
@@ -191,8 +191,8 @@ oh start --provider anthropic
 
 | Commande | Raison |
 |----------|--------|
-| `oc uninstall` | `brew uninstall oh` |
-| `oc upgrade` (hub via git pull) | `brew upgrade oh` |
+| `oc uninstall` | `brew uninstall openhub` |
+| `oc upgrade` (hub via git pull) | `brew upgrade openhub` |
 | `oc update` (adapter + bd + skills) | `oh upgrade opencode` pour opencode ; bd se gere seul |
 | `oc agent create/edit` | Gestion manuelle des fichiers .md |
 | `oc agent select/mode/validate/discover` | Report post-release |
