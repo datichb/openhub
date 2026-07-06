@@ -261,7 +261,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		).Run()
 		if err != nil || !confirm {
 			fmt.Fprintf(a.IO.Out, "%s %s\n", common.Subtitle.Render(common.IconArrow), i18n.T("cmd.start.cancelled"))
-			return nil
+			return err
 		}
 	}
 
@@ -560,7 +560,7 @@ func displayOrDefault(detected, fallback string) string {
 // 5. Resolve selected tickets
 // 6. Build prompt for orchestrator-dev
 // Returns the agent name and constructed prompt.
-func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (string, string, error) {
+func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (agentName, devPrompt string, err error) {
 	// 1. Verify bd is available
 	if err := beads.Available(); err != nil {
 		return "", "", fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
@@ -627,10 +627,10 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	// 5. Build picker options
 	type pickerItem struct {
-		label    string
-		isEpic   bool
-		epicID   string
-		ticket   beads.Ticket
+		label  string
+		isEpic bool
+		epicID string
+		ticket beads.Ticket
 	}
 
 	var items []pickerItem
@@ -706,6 +706,6 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_launching"))
 
-	devPrompt := prompt.BuildDevPrompt(tickets)
+	devPrompt = prompt.BuildDevPrompt(tickets)
 	return "orchestrator-dev", devPrompt, nil
 }

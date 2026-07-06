@@ -77,7 +77,7 @@ func (a *App) WithSecretStore(s domain.SecretStore) *App {
 }
 
 // WithIO overrides the IO streams (useful for testing).
-func (a *App) WithIO(io *IOStreams) *App {
-	a.IO = io
+func (a *App) WithIO(ioStreams *IOStreams) *App {
+	a.IO = ioStreams
 	return a
 }

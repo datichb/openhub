@@ -55,12 +55,12 @@ type SessionStat struct {
 
 // AggregateStats holds aggregate statistics across sessions.
 type AggregateStats struct {
-	TotalSessions  int
-	TotalTokensIn  int64
-	TotalTokensOut int64
-	TotalCost      float64
-	TodaySessions  int
-	ActiveProjects int
+	TotalSessions   int
+	TotalTokensIn   int64
+	TotalTokensOut  int64
+	TotalCost       float64
+	TodaySessions   int
+	ActiveProjects  int
 	CacheReadTokens int64
 	ReasoningTokens int64
 }

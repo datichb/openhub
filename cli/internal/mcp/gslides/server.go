@@ -96,7 +96,7 @@ func slidesAPI(path string) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Google Slides API request failed: %w", err)
+		return nil, fmt.Errorf("google Slides API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -105,7 +105,7 @@ func slidesAPI(path string) ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Google Slides API error %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("google Slides API error %d: %s", resp.StatusCode, string(body))
 	}
 	return body, nil
 }

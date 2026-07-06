@@ -189,7 +189,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	// ── Step 6: Deploy ──
 	var doDeploy bool
-	huh.NewConfirm().
+	_ = huh.NewConfirm().
 		Title(i18n.T("form.project.deploy_now")).
 		Value(&doDeploy).
 		Affirmative(i18n.T("form.yes")).
@@ -253,14 +253,14 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 // ── Wizard sub-steps ──
 
 // wizardProviderModel asks the user to configure a project-specific provider or use hub default.
-func wizardProviderModel(a *app.App) (string, string, error) {
+func wizardProviderModel(a *app.App) (prov, mod string, err error) {
 	hubProvider := a.Config.Opencode.DefaultProvider
 	if hubProvider == "" {
 		hubProvider = "bedrock"
 	}
 
 	var useCustom bool
-	huh.NewConfirm().
+	_ = huh.NewConfirm().
 		Title(i18n.Tf("form.project.provider_custom", hubProvider)).
 		Description(i18n.T("form.project.provider_custom_desc")).
 		Value(&useCustom).
@@ -339,9 +339,9 @@ func wizardAgents() ([]string, error) {
 
 	// Discover agents from .md files
 	var available []string
-	filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
-			return nil
+			return err
 		}
 		if filepath.Ext(path) == ".md" {
 			name := strings.TrimSuffix(d.Name(), ".md")
@@ -416,7 +416,7 @@ func initBeads(a *app.App, projectPath, projectID, tracker string) {
 	}
 
 	var doInit bool
-	huh.NewConfirm().
+	_ = huh.NewConfirm().
 		Title(i18n.T("form.project.beads_init")).
 		Value(&doInit).
 		Affirmative(i18n.T("form.yes")).
@@ -441,7 +441,7 @@ func initBeads(a *app.App, projectPath, projectID, tracker string) {
 
 	// Register default labels
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
-		exec.Command("bd", "-C", projectPath, "label", "create", label).Run()
+		_ = exec.Command("bd", "-C", projectPath, "label", "create", label).Run()
 	}
 }
 

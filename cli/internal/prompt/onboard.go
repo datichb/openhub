@@ -15,17 +15,17 @@ func BuildOnboardPrompt(project *domain.Project, hubDir string, refresh bool) st
 	sb.WriteString("Lance l'onboarding de ce projet.\n\n")
 
 	// Project identity
-	sb.WriteString(fmt.Sprintf("Projet : %s\n", project.ID))
-	sb.WriteString(fmt.Sprintf("Nom : %s\n", project.Name))
-	sb.WriteString(fmt.Sprintf("Chemin : %s\n", project.Path))
+	fmt.Fprintf(&sb, "Projet : %s\n", project.ID)
+	fmt.Fprintf(&sb, "Nom : %s\n", project.Name)
+	fmt.Fprintf(&sb, "Chemin : %s\n", project.Path)
 	if hubDir != "" {
-		sb.WriteString(fmt.Sprintf("Hub : %s\n", hubDir))
+		fmt.Fprintf(&sb, "Hub : %s\n", hubDir)
 	}
 	if project.Language != "" {
-		sb.WriteString(fmt.Sprintf("Langage : %s\n", project.Language))
+		fmt.Fprintf(&sb, "Langage : %s\n", project.Language)
 	}
 	if project.Tracker != "" && project.Tracker != "none" {
-		sb.WriteString(fmt.Sprintf("Tracker : %s\n", project.Tracker))
+		fmt.Fprintf(&sb, "Tracker : %s\n", project.Tracker)
 	}
 	sb.WriteString("\n")
 

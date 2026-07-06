@@ -124,7 +124,7 @@ func figmaAPI(path string) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Figma API request failed: %w", err)
+		return nil, fmt.Errorf("figma API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -134,7 +134,7 @@ func figmaAPI(path string) ([]byte, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Figma API error %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("figma API error %d: %s", resp.StatusCode, string(body))
 	}
 	return body, nil
 }

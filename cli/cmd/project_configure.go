@@ -307,7 +307,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 
 	// Agents modification
 	var modifyAgents bool
-	huh.NewConfirm().
+	_ = huh.NewConfirm().
 		Title(i18n.T("form.configure.modify_agents")).
 		Description(i18n.Tf("form.configure.agents_current", len(project.Agents))).
 		Value(&modifyAgents).

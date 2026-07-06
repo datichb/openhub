@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
+
 	"path/filepath"
 	"strings"
 
@@ -112,11 +112,11 @@ func buildInitConfig(language, opencodeVer string, mcpServices []string) string 
 
 [cli]
 `)
-	sb.WriteString(fmt.Sprintf("language = %q\n", language))
+	fmt.Fprintf(&sb, "language = %q\n", language)
 	sb.WriteString(`
 [opencode]
 `)
-	sb.WriteString(fmt.Sprintf("version = %q\n", opencodeVer))
+	fmt.Fprintf(&sb, "version = %q\n", opencodeVer)
 	sb.WriteString(`channel = "stable"
 auto_update = false
 install_dir = "~/.oh/bin"
@@ -134,61 +134,25 @@ base_branch = ""
 	sb.WriteString(`
 [mcp.figma]
 `)
-	sb.WriteString(fmt.Sprintf("enabled = %v\n", mcpSet["figma"]))
+	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["figma"])
 	sb.WriteString(`token_key = "figma-token"
 `)
 
 	sb.WriteString(`
 [mcp.gitlab]
 `)
-	sb.WriteString(fmt.Sprintf("enabled = %v\n", mcpSet["gitlab"]))
+	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["gitlab"])
 	sb.WriteString(`token_key = "gitlab-token"
 `)
 
 	sb.WriteString(`
 [mcp.gslides]
 `)
-	sb.WriteString(fmt.Sprintf("enabled = %v\n", mcpSet["gslides"]))
+	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["gslides"])
 	sb.WriteString(`token_key = "gslides-token"
 `)
 
 	return sb.String()
-}
-
-// initTracker attempts to initialize the bd ticket tracker.
-func initTracker(projectPath, tracker string) bool {
-	bdPath, err := exec.LookPath("bd")
-	if err != nil {
-		fmt.Fprintf(os.Stdout, "\n%s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.init.bd_not_found"))
-		fmt.Fprintf(os.Stdout, "  %s\n",
-			i18n.Tf("cmd.init.bd_install_hint", common.Bold.Render("brew install datichb/tap/bd")))
-		return false
-	}
-
-	beadsDir := filepath.Join(projectPath, ".beads")
-	if _, err := os.Stat(beadsDir); err == nil {
-		fmt.Fprintf(os.Stdout, "\n%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.init.bd_already_init"))
-		return true
-	}
-
-	fmt.Fprintf(os.Stdout, "\n%s %s\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.init.bd_init"))
-
-	cmd := exec.Command(bdPath, "init", "--prefix")
-	cmd.Dir = projectPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stdout, "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.init.bd_init_failed", err))
-		return false
-	}
-
-	fmt.Fprintf(os.Stdout, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.init.bd_init_done"))
-	return true
 }
 
 // addGitExcludes adds opencode and oh artifacts to .git/info/exclude.
@@ -224,10 +188,10 @@ func addGitExcludes(projectPath string) {
 	defer f.Close()
 
 	if len(existing) > 0 && !strings.HasSuffix(content, "\n") {
-		f.WriteString("\n")
+		_, _ = f.WriteString("\n")
 	}
-	f.WriteString("\n# oh — OpenHub CLI artifacts\n")
+	_, _ = f.WriteString("\n# oh — OpenHub CLI artifacts\n")
 	for _, p := range toAdd {
-		f.WriteString(p + "\n")
+		_, _ = f.WriteString(p + "\n")
 	}
 }

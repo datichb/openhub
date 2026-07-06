@@ -249,7 +249,7 @@ func configWebsearchCmd() *cobra.Command {
 		Long: `Active ou désactive les permissions websearch et webfetch pour les agents.
 Lorsqu'activé, les agents peuvent effectuer des recherches web via Exa AI.
 La permission est injectée globalement dans opencode.json au deploy.`,
-		Args:  cobra.ExactArgs(1),
+		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"enable", "disable", "status"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			action := args[0]

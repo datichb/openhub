@@ -257,7 +257,7 @@ pour la détection.`,
 						fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), branch)
 					}
 					var confirm bool
-					huh.NewConfirm().
+					_ = huh.NewConfirm().
 						Title(i18n.Tf("cmd.worktree.cleanup.confirm", len(mergedBranches))).
 						Value(&confirm).
 						Run()

@@ -10,12 +10,12 @@ import (
 
 // Ticket represents a bd ticket.
 type Ticket struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Type     string `json:"type"`
-	Parent   string `json:"parent,omitempty"`
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Status   string   `json:"status"`
+	Priority string   `json:"priority"`
+	Type     string   `json:"type"`
+	Parent   string   `json:"parent,omitempty"`
 	Labels   []string `json:"labels,omitempty"`
 }
 
@@ -109,8 +109,8 @@ func ReadyChildren(projectPath, epicID string) ([]Ticket, error) {
 
 // EpicWithCount represents an epic with its count of ready children.
 type EpicWithCount struct {
-	Ticket       Ticket
-	ReadyCount   int
+	Ticket     Ticket
+	ReadyCount int
 }
 
 // ListEpicsWithReadyChildren returns epics that have at least one ready child ticket.
@@ -138,7 +138,7 @@ func ListEpicsWithReadyChildren(projectPath string) ([]EpicWithCount, error) {
 
 // OrphanTickets returns ready tickets that have no parent epic.
 // If labelFilter is non-empty, only returns tickets matching that label.
-func OrphanTickets(projectPath string, labelFilter string) (withLabel, withoutLabel []Ticket, err error) {
+func OrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []Ticket, err error) {
 	all, err := ListAll(projectPath)
 	if err != nil {
 		return nil, nil, err

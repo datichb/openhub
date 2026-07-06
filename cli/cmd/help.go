@@ -74,7 +74,7 @@ func buildHelpContent() string {
 		for _, cmd := range section.Commands {
 			// Command line: "  start             Description"
 			cmdName := helpCmdStyle.Render(fmt.Sprintf("  %-18s", cmd.Name))
-			sb.WriteString(fmt.Sprintf("%s%s\n", cmdName, cmd.Desc))
+			fmt.Fprintf(&sb, "%s%s\n", cmdName, cmd.Desc)
 
 			// Flags
 			for _, f := range cmd.Flags {
@@ -85,7 +85,7 @@ func buildHelpContent() string {
 					flagStr = fmt.Sprintf("--%s", f.Long)
 				}
 				flagRendered := helpFlagStyle.Render(fmt.Sprintf("      %-16s", flagStr))
-				sb.WriteString(fmt.Sprintf("%s%s\n", flagRendered, f.Desc))
+				fmt.Fprintf(&sb, "%s%s\n", flagRendered, f.Desc)
 			}
 		}
 		sb.WriteString("\n")
@@ -94,8 +94,8 @@ func buildHelpContent() string {
 	// Global flags
 	sb.WriteString(helpSectionStyle.Render(i18n.T("help.global_flags")))
 	sb.WriteString("\n\n")
-	sb.WriteString(fmt.Sprintf("  %s  %s\n", helpFlagStyle.Render("-v, --verbose"), i18n.T("help.flag.verbose")))
-	sb.WriteString(fmt.Sprintf("  %s  %s\n", helpFlagStyle.Render("-h, --help   "), i18n.T("help.flag.help")))
+	fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render("-v, --verbose"), i18n.T("help.flag.verbose"))
+	fmt.Fprintf(&sb, "  %s  %s\n", helpFlagStyle.Render("-h, --help   "), i18n.T("help.flag.help"))
 	sb.WriteString("\n")
 
 	// Footer

@@ -280,7 +280,7 @@ func (m Model) renderColumn(tickets []Ticket, offset, width, maxRows int, color 
 		cards = append(cards, empty)
 	}
 
-	col := lipgloss.NewStyle().Width(width + 2).Padding(0, 1)
+	col := lipgloss.NewStyle().Width(width+2).Padding(0, 1)
 	return col.Render(strings.Join(cards, "\n"))
 }
 

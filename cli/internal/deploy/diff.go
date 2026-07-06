@@ -161,20 +161,21 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport) error {
 	for rel, srcHash := range srcFiles {
 		displayPath := filepath.Join(prefix, rel)
 		destHash, exists := destFiles[rel]
-		if !exists {
+		switch {
+		case !exists:
 			report.Files = append(report.Files, FileDiff{
 				RelPath:    displayPath,
 				Status:     FileAdded,
 				SourceHash: srcHash,
 			})
-		} else if srcHash != destHash {
+		case srcHash != destHash:
 			report.Files = append(report.Files, FileDiff{
 				RelPath:    displayPath,
 				Status:     FileModified,
 				SourceHash: srcHash,
 				DestHash:   destHash,
 			})
-		} else {
+		default:
 			report.Files = append(report.Files, FileDiff{
 				RelPath:    displayPath,
 				Status:     FileUnchanged,
@@ -225,20 +226,20 @@ func FormatDiffReport(report *DiffReport, verbose bool) string {
 	for _, f := range report.Files {
 		switch f.Status {
 		case FileAdded:
-			sb.WriteString(fmt.Sprintf("  + %s (nouveau)\n", f.RelPath))
+			fmt.Fprintf(&sb, "  + %s (nouveau)\n", f.RelPath)
 		case FileModified:
-			sb.WriteString(fmt.Sprintf("  ~ %s (modifié)\n", f.RelPath))
+			fmt.Fprintf(&sb, "  ~ %s (modifié)\n", f.RelPath)
 		case FileRemoved:
-			sb.WriteString(fmt.Sprintf("  - %s (supprimé du hub)\n", f.RelPath))
+			fmt.Fprintf(&sb, "  - %s (supprimé du hub)\n", f.RelPath)
 		case FileUnchanged:
 			if verbose {
-				sb.WriteString(fmt.Sprintf("  = %s\n", f.RelPath))
+				fmt.Fprintf(&sb, "  = %s\n", f.RelPath)
 			}
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  Résumé: %d ajouté(s), %d modifié(s), %d supprimé(s), %d inchangé(s)\n",
-		added, modified, removed, unchanged))
+	fmt.Fprintf(&sb, "\n  Résumé: %d ajouté(s), %d modifié(s), %d supprimé(s), %d inchangé(s)\n",
+		added, modified, removed, unchanged)
 
 	return sb.String()
 }

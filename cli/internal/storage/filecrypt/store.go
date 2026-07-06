@@ -255,7 +255,7 @@ func (s *Store) save() error {
 
 	// Atomic write: write to temp file then rename
 	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("filecrypt: creating directory: %w", err)
 	}
 
@@ -276,7 +276,7 @@ func (s *Store) save() error {
 	}
 
 	// Restrictive permissions before rename
-	if err := os.Chmod(tmpName, 0600); err != nil {
+	if err := os.Chmod(tmpName, 0o600); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("filecrypt: setting permissions: %w", err)
 	}

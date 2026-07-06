@@ -123,15 +123,15 @@ func TestComputeDiff_MixedScenario(t *testing.T) {
 	// Hub agents
 	agentsDir := filepath.Join(hubDir, "agents")
 	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte("# Dev v2"), 0o644))       // modified
-	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "new.md"), []byte("# New Agent"), 0o644))    // added
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte("# Dev v2"), 0o644))      // modified
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "new.md"), []byte("# New Agent"), 0o644))   // added
 	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "same.md"), []byte("# Same Agent"), 0o644)) // unchanged
 
 	// Project deployed agents
 	deployedDir := filepath.Join(projectDir, ".opencode", "agents")
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), []byte("# Dev v1"), 0o644))       // will be modified
-	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))    // will be "removed"
+	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), []byte("# Dev v1"), 0o644))      // will be modified
+	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))   // will be "removed"
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "same.md"), []byte("# Same Agent"), 0o644)) // unchanged
 
 	report, err := ComputeDiff(hubDir, projectDir)

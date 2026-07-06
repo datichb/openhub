@@ -1,38 +1,53 @@
-run:
-  timeout: 3m
-
+version: "2"
 linters:
   enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - gosimple
-    - unused
-    - ineffassign
+    - bodyclose
     - gocritic
     - misspell
-    - gofmt
     - nilerr
-    - bodyclose
-
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - fmt.Fprintf
-      - fmt.Fprintln
-      - (*text/tabwriter.Writer).Flush
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gocritic
-    - path: cmd/
-      linters:
-        - errcheck
-      text: "fmt\\.Fprint"
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*text/tabwriter.Writer).Flush
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+    misspell:
+      ignore-rules:
+        - commandes
+        - correspondants
+        - existant
+        - documentaire
+        - strat
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gocritic
+        path: _test\.go
+      - linters:
+          - errcheck
+        path: cmd/
+        text: fmt\.Fprint
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

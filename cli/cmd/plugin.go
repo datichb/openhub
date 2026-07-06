@@ -101,7 +101,7 @@ func pluginRemoveCmd() *cobra.Command {
 			force, _ := cmd.Flags().GetBool("force")
 			if !force {
 				var confirm bool
-				huh.NewConfirm().
+				_ = huh.NewConfirm().
 					Title(i18n.Tf("cmd.plugin.remove.confirm", name)).
 					Value(&confirm).
 					Run()

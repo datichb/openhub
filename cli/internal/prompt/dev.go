@@ -16,7 +16,7 @@ func BuildDevPrompt(tickets []beads.Ticket) string {
 	if len(tickets) == 1 {
 		sb.WriteString("Voici le ticket à implémenter :\n\n")
 	} else {
-		sb.WriteString(fmt.Sprintf("Voici les %d tickets à implémenter :\n\n", len(tickets)))
+		fmt.Fprintf(&sb, "Voici les %d tickets à implémenter :\n\n", len(tickets))
 	}
 
 	// JSON-encoded ticket list for structured parsing by the agent

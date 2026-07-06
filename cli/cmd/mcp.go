@@ -44,8 +44,8 @@ func mcpServeCmd() *cobra.Command {
 				return gitlab.Serve()
 			case "gslides":
 				return gslides.Serve()
-		default:
-			return fmt.Errorf("%s", i18n.Tf("cmd.mcp.serve.unknown", name))
+			default:
+				return fmt.Errorf("%s", i18n.Tf("cmd.mcp.serve.unknown", name))
 			}
 		},
 	}

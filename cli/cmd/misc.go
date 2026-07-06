@@ -233,7 +233,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
 		var confirm bool
-		huh.NewConfirm().
+		_ = huh.NewConfirm().
 			Title(i18n.Tf("cmd.service.remove.confirm", serviceName)).
 			Value(&confirm).
 			Run()

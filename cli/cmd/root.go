@@ -100,6 +100,7 @@ func TryApp() *app.App {
 }
 
 // GetApp returns the application instance. Returns nil before initialization.
+//
 // Deprecated: use MustApp() for commands that require an initialized app,
 // or TryApp() for commands that handle the nil case.
 func GetApp() *app.App {
