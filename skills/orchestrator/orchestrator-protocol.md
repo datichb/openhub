@@ -602,7 +602,7 @@ Afficher les tickets selon l'`### Ordre de traitement` défini par le planner.
 | 3 | bd-13 | Audit sécurité auth | P2 | auditor → orchestrator-dev | — |
 | 4 | bd-12 | Endpoint POST /users | P1 | orchestrator-dev | ✅ |
 
-X tickets identifiés — Y phases au total. Z en TDD (QA skippé, tests écrits avant implémentation).
+X tickets identifiés — Y phases au total. Z en TDD (tests écrits avant implémentation).
 
 > ℹ️ Ordre de traitement défini par le planner.
 > Dépendances identifiées par le planner : <reproduire les dépendances du retour planner>.
@@ -611,9 +611,9 @@ X tickets identifiés — Y phases au total. Z en TDD (QA skippé, tests écrits
 
 **Étape 2 — Demander le mode via l'outil `question`** — le champ `question` doit être court, sans répéter le tableau :
 
-⏸️ **Utiliser les blocs question définis dans le skill `orchestrator-workflow-modes`** (choix du mode, puis QA global si mode `auto`).
+⏸️ **Utiliser les blocs question définis dans le skill `orchestrator-workflow-modes`** (choix du mode).
 
-> Les descriptions exactes de chaque mode, les règles associées et le bloc question QA global sont la source de vérité du skill `orchestrator-workflow-modes` — ne pas les redéfinir ici.
+> Les descriptions exactes de chaque mode et les règles associées sont la source de vérité du skill `orchestrator-workflow-modes` — ne pas les redéfinir ici.
 
 Enregistrer le mode pour transmission à `orchestrator-dev`.
 
@@ -901,12 +901,12 @@ Le routing est entièrement délégué au planner. Catalogue agents et heuristiq
    - **Le skill de parcours (obligatoire) :**
      > `[SKILL:orchestrator/orchestrator-dev-subagent]`
 
-3. orchestrator-dev pilote l'implémentation complète (developer-* → QA → review).
+3. orchestrator-dev pilote l'implémentation complète (developer-* → review).
 
 4. À la réception du résultat de l'invocation, **détecter le type de retour** :
 
    **Cas A — retour normal** : le résultat contient `## Retour vers orchestrator` mais **pas** de bloc `## Question pour l'orchestrator` (signal que le récap est **final**)
-   → **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets traités avec agent, QA, cycles de review, critères couverts, statut + points d'attention agrégés) — ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
+   → **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets traités avec agent, cycles de review, critères couverts, statut + points d'attention agrégés) — ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
    → Si le récap global complet (texte précédant le bloc structuré) est absent, le demander explicitement à orchestrator-dev avant de continuer.
    → Lire ensuite le bloc structuré `## Retour vers orchestrator`. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
     > Si le bloc structuré ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
@@ -966,7 +966,7 @@ Lire le champ `### Phase` du bloc `## Question pour l'orchestrator` pour déterm
 | Phase dans le bloc | Action todowrite |
 |--------------------|-----------------|
 | `CP-1` (ticket sur le point de démarrer) | Ticket `#bd-XX` → `in_progress` |
-| `CP-QA`, `CP-2` (ticket déjà en cours) | Aucune mise à jour (ticket déjà `in_progress`) |
+| `CP-2` (ticket déjà en cours) | Aucune mise à jour (ticket déjà `in_progress`) |
 | `CP-3` avec option `passer` choisie | Ticket `#bd-XX` → `cancelled` |
 | Récap partiel après CP-2 commit validé | Ticket `#bd-XX` commité → `completed`, prochain ticket → `in_progress` |
 

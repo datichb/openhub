@@ -23,7 +23,7 @@ source-of-truth: true
 | `orchestrator-dev` | planning | primary | Implémentation de tickets Beads prêts (statut `ready`) | Récap implémentation par ticket — statut, fichiers clés, critères couverts, points d'attention |
 | `debugger` | quality | primary | Bug signalé avec artefacts (stacktrace, logs, description reproductible) | Rapport de diagnostic avec hypothèses graduées + ticket de correction Beads |
 
-> **Note :** `developer-*`, `reviewer`, `qa-engineer`, `documentarian` sont invoqués par `orchestrator-dev` lors de la phase d'implémentation — jamais directement par l'agent orchestrator feature.
+> **Note :** `developer-*`, `reviewer`, `documentarian` sont invoqués par `orchestrator-dev` lors de la phase d'implémentation — jamais directement par l'agent orchestrator feature.
 
 ---
 
@@ -109,7 +109,6 @@ Ces séquences sont des références — pas des contraintes rigides.
 | `orchestrator-dev` | `orchestrator/orchestrator-handoff-format` | `orchestrator` | A |
 | `developer-*` | `developer/developer-handoff-format` | `orchestrator-dev` | A |
 | `reviewer` | `reviewer/reviewer-handoff-format` | `orchestrator-dev` | A |
-| `qa-engineer` | `qa/qa-handoff-format` | `orchestrator-dev` | A |
 | `documentarian` | `documentarian/documentarian-handoff-format` | `orchestrator-dev` | A |
 
 > Les skills de format Bucket B doivent être chargés via l'outil `skill` **avant** d'invoquer l'agent correspondant — ils définissent le contrat de réception.

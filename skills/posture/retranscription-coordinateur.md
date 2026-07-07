@@ -11,7 +11,7 @@ Ce skill s'adresse aux **agents coordinateurs** (orchestrator, auditor, orchestr
 
 | Perspective | Agent concerné | Skill de référence | Responsabilité |
 |-------------|---------------|-------------------|----------------|
-| **Producteur** | planner, auditor-*, designer, developer-*, qa-engineer, reviewer, debugger, onboarder | `planner-workflow`, `auditor-workflow`, `designer-protocol`, `developer-handoff-format`, `qa-protocol`, `reviewer-protocol`, `debugger-workflow`, `onboarder-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |der-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |
+| **Producteur** | planner, auditor-*, designer, developer-*, reviewer, debugger, onboarder | `planner-workflow`, `auditor-workflow`, `designer-protocol`, `developer-handoff-format`, `reviewer-protocol`, `debugger-workflow`, `onboarder-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |
 | **Consommateur** | orchestrator, auditor (coordinateur), orchestrator-dev | **Ce skill** (`retranscription-coordinateur`) | **Retransmettre** le récap reçu d'un sous-agent avant d'appeler `question` |
 
 **Exemple de flux complet :**
@@ -154,7 +154,7 @@ Avant d'appeler `question`, vérifier :
 | **designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification, mode actif, `task_id` |
 | **orchestrator-dev** (final) | `## Retour vers orchestrator` | Récap global complet (tableau + comptes rendus + points d'attention) | `### Détail par ticket`, `### Points d'attention` |
 | **orchestrator-dev** (CP à enjeu fort : CP-2, blocage, ticket bloqué) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel + rapport review | `### Rapport de review complet`, `### État de la session`, `task_id` |
-| **orchestrator-dev** (CPs intermédiaires : CP-1, CP-QA, CP-3, branche) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel | Contexte du CP, état de la session, `task_id` |
+| **orchestrator-dev** (CPs intermédiaires : CP-1, CP-3, branche) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel | Contexte du CP, état de la session, `task_id` |
 | **reviewer** | `## Retour vers orchestrator-dev` | Rapport de review complet | `### Synthèse des problèmes`, `### Verdict` |
 
 ---

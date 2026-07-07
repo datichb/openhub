@@ -113,7 +113,7 @@ by the user is visible in the OpenCode interface.
 | `orchestrator-dev` | Invoked directly by the user | Main | ✅ Yes | Maintains the ticket list with phase labels |
 | `orchestrator-dev` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | May maintain an internal list (debugging) — not visible |
 | `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `designer` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | No todowrite list |
-| `developer-*`, `reviewer`, `qa-engineer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild) | ❌ No | No todowrite list |
+| `developer-*`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild) | ❌ No | No todowrite list |
 
 ---
 
@@ -144,7 +144,7 @@ its list **before displaying the report and before calling the `question` tool**
 | Block received | Phase in block | Todowrite action |
 |----------------|----------------|-----------------|
 | `## Question for orchestrator` | `CP-1` (ticket starting) | Ticket `#bd-XX` → `in_progress` |
-| `## Question for orchestrator` | `CP-QA`, `CP-2` | None (already `in_progress`) |
+| `## Question for orchestrator` | `CP-2` | None (already `in_progress`) |
 | `## Question for orchestrator` | `CP-3` if ticket skipped | Ticket `#bd-XX` → `cancelled` |
 | `## Return to orchestrator` (partial, after CP-2 commit) | — | Committed ticket → `completed`, next → `in_progress` if applicable |
 | `## Return to orchestrator` (final) | — | All remaining tickets → final status (`completed` / `cancelled`) |
@@ -172,7 +172,6 @@ so the user knows where the implementation stands:
 |------|-------|--------|
 | CP-0 (initialization) | `#bd-12 — <title>` | `pending` |
 | CP-1 start | `#bd-12 — <title> [dev]` | `in_progress` |
-| Step 3.3 QA activated | `#bd-12 — <title> [QA]` | `in_progress` |
 | Step 4 review launched | `#bd-12 — <title> [review]` | `in_progress` |
 | Step 5 CP-2 awaiting decision | `#bd-12 — <title> [CP-2]` | `in_progress` |
 | CP-2 commit validated | `#bd-12 — <title>` | `completed` |
@@ -184,7 +183,7 @@ so the user knows where the implementation stands:
 
 - The fundamental rules of `tool-todowrite.md` apply without exception: exactly
   1 task `in_progress` at a time, real-time updates, full list on every call.
-- Agents `developer-*`, `reviewer`, `qa-engineer`, `documentarian` do not use `todowrite` —
+- Agents `developer-*`, `reviewer`, `documentarian` do not use `todowrite` —
   they are always invoked as subagents and their sessions are invisible.
 - The inter-agent handoff mechanism (`## Return to <parent>`, `## Question for <parent>`)
   remains the only communication channel between isolated sessions.

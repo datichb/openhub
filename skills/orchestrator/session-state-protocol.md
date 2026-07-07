@@ -96,7 +96,6 @@ Un fichier absent ou vide signifie qu'aucune session n'est active.
 | Valeur | Description |
 |--------|-------------|
 | `implementing` | Implémentation en cours par le developer |
-| `testing` | Écriture des tests par le qa-engineer |
 | `reviewing` | Review en cours par le reviewer |
 | `waiting_cp2` | En attente de décision CP-2 (commit ou corriger) |
 | `idle` | Pas d'action en cours (entre deux tickets) |
@@ -123,7 +122,6 @@ Les fonctions de `scripts/lib/session-state.sh` sont appelées aux moments suiva
 | CP-0 — Après affichage tickets | `session_state_add_ticket` | Ajoute chaque ticket à la liste (si non fait dans init) |
 | CP-1 — Démarrage ticket | `session_state_update_ticket` | Passe le ticket en `in_progress` |
 | CP-1 — Démarrage ticket | `session_state_set_current` | Définit le ticket courant avec agent et action `implementing` |
-| Étape 3 — QA | `session_state_set_current` | Met à jour l'action en `testing` |
 | Étape 4 — Review | `session_state_set_current` | Met à jour l'action en `reviewing` |
 | Étape 5 — CP-2 | `session_state_set_current` | Met à jour l'action en `waiting_cp2` |
 | Étape 6 — Fin ticket | `session_state_update_ticket` | Passe le ticket en `completed` |

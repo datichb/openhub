@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-The hub's internal agents (orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer) produce verbose outputs that are not formal deliverables for the end user, but coordination exchanges. These outputs systematically contain:
+The hub's internal agents (orchestrator, orchestrator-dev, planner, pathfinder, developer, reviewer) produce verbose outputs that are not formal deliverables for the end user, but coordination exchanges. These outputs systematically contain:
 
 - **Valueless intro phrases**: "Sure!", "I'm going to now...", "Here's what I found:"
 - **Restatements of known context**: repetition of what the user just said or what is already established in the session
@@ -48,7 +48,7 @@ Create two skills:
 - Review reports, QA reports, diagnostic reports
 - Technical justifications, warnings, hypotheses
 
-**Agents in scope:** orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer
+**Agents in scope:** orchestrator, orchestrator-dev, planner, pathfinder, reviewer
 
 ---
 

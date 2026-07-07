@@ -47,7 +47,7 @@ native_skills: [chemin/vers/skill, ...]   # Bucket B — skills natives à la de
 |---|---|
 | Orchestrateurs (planning) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
 | Développeurs (developer, refactor, migrator) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index` |
-| Qualité (qa-engineer, debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
+| Qualité (debugger, reviewer) | `ctx_search`, `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute` |
 | Planning (planner, pathfinder, onboarder) | `ctx_search`, `ctx_stats`, `ctx_batch_execute` |
 | Design (designer) | `ctx_search`, `ctx_batch_execute` |
 | Documentation (documentarian) | `ctx_search`, `ctx_batch_execute`, `ctx_index` |
@@ -147,7 +147,7 @@ Un bon skill contient :
 - **Checklists** : les vérifications systématiques
 - **Ce que tu ne fais PAS** : les anti-patterns explicites
 
-Voir `skills/reviewer/review-protocol.md` ou `skills/qa/qa-protocol.md` comme exemples.
+Voir `skills/reviewer/review-protocol.md` comme exemple.
 Pour des skills natives Bucket B gérant la sélection de mode et l'orchestration parallèle, voir
 `skills/reviewer/reviewer-adversarial.md`, `skills/reviewer/reviewer-edge-case.md`, et
 `skills/reviewer/review-merge.md` (fusion de rapports issus de sessions parallèles).

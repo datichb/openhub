@@ -26,8 +26,8 @@ The feature `orchestrator` keeps always-manual checkpoints (CP-0, CP-spec, CP-au
 | Mode | Description |
 |------|-------------|
 | `manual` | Original ADR-003 behavior — all checkpoints are pauses |
-| `semi-auto` | CP-1 and CP-3 automatic, CP-0 / CP-QA / CP-2 remain manual |
-| `auto` | CP-0, CP-1, CP-3 automatic + CP-QA set at startup, CP-2 **always manual** |
+| `semi-auto` | CP-1 and CP-3 automatic, CP-0 / CP-2 remain manual |
+| `auto` | CP-0, CP-1, CP-3 automatic, CP-2 **always manual** |
 
 **The default mode is `manual`** — existing behavior is preserved without change for users who don't specify a mode.
 

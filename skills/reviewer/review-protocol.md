@@ -111,11 +111,17 @@ Pour chaque PR, passer en revue ces points dans l'ordre :
 - [ ] Pas de régression évidente sur les chemins existants
 - [ ] Les edge cases identifiables sont couverts
 
-### 2. Tests
+### 2. Tests et couverture
 - [ ] Les nouvelles fonctions / branches ont des tests unitaires
+- [ ] Les critères d'acceptance du ticket sont couverts par au moins un test chacun
+- [ ] Les cas d'erreur et edge cases critiques sont testés
 - [ ] Les mocks ne masquent pas la logique testée
 - [ ] Les noms de tests décrivent le comportement attendu (format AAA)
 - [ ] Aucun test existant supprimé sans raison documentée
+
+> **Si des critères d'acceptance ne sont pas couverts par des tests**, signaler en finding
+> 🟠 Majeur avec la liste des critères manquants. Le developer est responsable de compléter
+> la couverture au cycle de correction suivant.
 
 ### 3. Qualité du code
 - [ ] Pas de `any` TypeScript sur des interfaces publiques

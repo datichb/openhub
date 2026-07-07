@@ -128,9 +128,7 @@ sequenceDiagram
     O->>OD: Tickets dev bd-4, bd-5, bd-6, bd-7 (mode semi-auto transmis)
     loop Pour chaque ticket
         OD->>DEV: Délègue l'implémentation (auto en semi-auto)
-        DEV-->>OD: Implémentation terminée
-        OD->>QA: QA (si activé au CP-QA — ignoré si ticket label:tdd)
-        QA-->>OD: Tests écrits (tickets non-TDD uniquement)
+        DEV-->>OD: Implémentation terminée (tests inclus)
         OD->>R: Review automatique
         R-->>OD: Rapport de review
         OD->>U: [CP-2] Merger ou corriger ? ← TOUJOURS PAUSE
@@ -213,8 +211,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 1. Présente chaque ticket `[CP-1]` (automatique en semi-auto/auto)
 2. Identifie l'agent via la matrice de routing et délègue
 3. Le developer retourne un bloc structuré `## Retour vers orchestrator-dev` — fichiers modifiés, critères d'acceptance cochés, **points d'attention pour la review** (zones fragiles, compromis techniques)
-4. Détecte automatiquement le niveau de risque QA (🔴 élevé : API/services/code critique → QA obligatoire | 🟡 moyen : utils/logique métier → QA recommandé | ⚪ faible : UI/doc/config → QA optionnel) ; propose le QA `[CP-QA]` selon le risque et le mode (automatique en mode auto si activé au CP-0) ; pour les tickets `tdd`, effectue un audit rapide de couverture au lieu de skipper ; le qa-engineer retourne un bloc structuré avec les tests écrits, la couverture des critères d'acceptance et des **points d'attention pour la review** (zones non testables, edge cases, hypothèses)
-5. Lance la review automatiquement — en transmettant les points d'attention du developer ET du qa-engineer au reviewer
+4. Lance la review automatiquement — en transmettant les points d'attention du developer au reviewer
 6. Le reviewer retourne un bloc structuré avec un **verdict actionnable** (`commit` / `corriger` / `corriger-sécurité`), une synthèse des problèmes par sévérité et les corrections requises verbatim
 7. Présente le rapport de review `[CP-2]` — **toujours une pause**, sans exception
 8. Si "corriger" : les corrections sont copiées verbatim dans le commentaire Beads — sans résumé manuel ; routing vers `developer-security` si le verdict est `corriger-sécurité`

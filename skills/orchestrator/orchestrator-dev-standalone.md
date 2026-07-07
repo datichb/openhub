@@ -23,7 +23,6 @@ Afficher les tickets à traiter, demander le mode de workflow via les blocs ques
 |--------|---------------------|--------|
 | CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
 | CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
-| Étape 3.3 — QA activé | `#bd-12 — <titre> [QA]` | `in_progress` |
 | Étape 4 — review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
 | Étape 5 — CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
 | CP-2 commit validé | `#bd-12 — <titre>` | `completed` |
@@ -60,34 +59,6 @@ question({
     options: [
       { label: "Oui (Recommandé)", description: "Créer et basculer sur <type>/<ticket-id>-<description-courte> avant de démarrer" },
       { label: "Non", description: "Rester sur la branche courante" }
-    ]
-  }]
-})
-```
-
-### CP-QA — QA risque moyen
-```
-question({
-  questions: [{
-    header: "CP-QA — Ticket #<ID>",
-    question: "Passer par le QA avant la review ? (risque moyen détecté : logique métier/utils modifiés)",
-    options: [
-      { label: "Oui (Recommandé)", description: "Invoquer qa-engineer pour vérifier la couverture" },
-      { label: "Non", description: "Passer directement à la review" }
-    ]
-  }]
-})
-```
-
-### CP-QA — QA risque faible
-```
-question({
-  questions: [{
-    header: "CP-QA — Ticket #<ID>",
-    question: "Passer par le QA avant la review ? (risque faible détecté : UI/doc/config uniquement)",
-    options: [
-      { label: "Non (Recommandé)", description: "Passer directement à la review" },
-      { label: "Oui", description: "Invoquer qa-engineer avec le diff et l'ID du ticket" }
     ]
   }]
 })

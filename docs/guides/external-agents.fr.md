@@ -188,7 +188,6 @@ Le hub reconnaît automatiquement les noms courants grâce à `config/agent-alia
 | `orchestrator`, `coordinator`, `router` | `orchestrator` |
 | `frontend`, `front`, `ui-dev` | `developer-frontend` |
 | `backend`, `back`, `server` | `developer-backend` |
-| `qa`, `tester`, `test` | `qa-engineer` |
 | `reviewer`, `review`, `code-reviewer` | `reviewer` |
 | `docs`, `documentation`, `writer` | `documentarian` |
 | `devops`, `ops`, `ci-cd` | `developer-devops` |

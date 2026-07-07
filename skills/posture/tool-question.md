@@ -57,7 +57,7 @@ Utiliser l'outil `question` (et non une question en texte libre) dans ces situat
 - **Confirmation d'une action à risque** — ex. : suppression, remplacement, migration
 - **Collecte d'une préférence** — ex. : langue cible, niveau de détail, priorité
 - **Ambiguïté dans les instructions** — ex. : deux interprétations possibles d'une demande
-- **Décision qui bloque la suite** — ex. : CP-1, CP-2, CP-QA dans les workflows orchestrateur
+- **Décision qui bloque la suite** — ex. : CP-1, CP-2 dans les workflows orchestrateur
 - **Plusieurs décisions liées** — poser toutes les questions indépendantes en un seul appel
 
 ---

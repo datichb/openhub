@@ -1,6 +1,6 @@
 ---
 name: orchestrator-workflow-modes
-description: Source de vérité unique pour les trois modes de workflow (manuel/semi-auto/auto) — tableau des comportements par checkpoint, règles absolues, et blocs question canoniques pour le choix du mode et du QA global. Injecté dans orchestrator et orchestrator-dev pour garantir la cohérence des descriptions et éviter toute désynchro.
+description: Source de vérité unique pour les trois modes de workflow (manuel/semi-auto/auto) — tableau des comportements par checkpoint, règles absolues, et bloc question canonique pour le choix du mode. Injecté dans orchestrator et orchestrator-dev pour garantir la cohérence des descriptions et éviter toute désynchro.
 ---
 
 # Skill — Modes de workflow
@@ -12,11 +12,11 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 
 ## Les trois modes
 
-| Mode | CP-0 | CP-1 | CP-QA | CP-2 | CP-3 |
-|------|------|------|-------|------|------|
-| `manuel` _(défaut)_ | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause |
-| `semi-auto` | ⏸️ pause | ▶️ auto | ⏸️ pause | ⏸️ **pause** | ▶️ auto |
-| `auto` | ⏸️ pause (+ choix QA global) | ▶️ auto | ▶️ valeur fixée en CP-0 | ⏸️ **pause** | ▶️ auto |
+| Mode | CP-0 | CP-1 | CP-2 | CP-3 |
+|------|------|------|------|------|
+| `manuel` _(défaut)_ | ⏸️ pause | ⏸️ pause | ⏸️ pause | ⏸️ pause |
+| `semi-auto` | ⏸️ pause | ▶️ auto | ⏸️ **pause** | ▶️ auto |
+| `auto` | ⏸️ pause | ▶️ auto | ⏸️ **pause** | ▶️ auto |
 
 > Quand un CP est `▶️ auto`, l'agent orchestrator affiche quand même l'information mais enchaîne sans attendre de confirmation.
 
@@ -71,8 +71,7 @@ Le mode de workflow peut être pré-configuré dans `opencode.json` pour éviter
 ```json
 {
   "workflow": {
-    "defaultMode": "semi-auto",
-    "qaEnabled": false
+    "defaultMode": "semi-auto"
   }
 }
 ```
@@ -82,16 +81,11 @@ Le mode de workflow peut être pré-configuré dans `opencode.json` pour éviter
 | Propriété | Type | Valeurs valides | Description |
 |-----------|------|-----------------|-------------|
 | `defaultMode` | string | `"manuel"`, `"semi-auto"`, `"auto"` | Mode de workflow appliqué automatiquement au CP-0 |
-| `qaEnabled` | boolean | `true`, `false` | QA global activé/désactivé (utilisé uniquement si `defaultMode` = `"auto"`) |
 
 ### Comportement
 
 - **`defaultMode` présent et valide** → le mode est appliqué sans question, un message confirme : "Mode de workflow : `<mode>` (configuré dans opencode.json)"
 - **`defaultMode` absent ou invalide** → la question CP-0 est posée normalement (compatibilité ascendante)
-- **`qaEnabled` défini (en mode `auto`)** → le QA global est configuré sans question, un message confirme : "QA global : `<activé/désactivé>` (configuré dans opencode.json)"
-- **`qaEnabled` non défini (en mode `auto`)** → la question QA global est posée normalement
-
-> **Note :** La propriété `qaEnabled` n'est lue et appliquée que si le mode est `auto`. Elle est ignorée pour les modes `manuel` et `semi-auto`.
 
 ---
 
@@ -120,53 +114,15 @@ question({
     header: "Mode de workflow",
     question: "Quel mode de workflow pour les phases d'implémentation ?",
     options: [
-      { label: "Manuel (Recommandé)", description: "Chaque étape attend ta confirmation — CP-1, CP-QA, CP-2, CP-3 tous en pause" },
-      { label: "Semi-auto", description: "CP-1 et CP-3 automatiques, CP-QA et CP-2 (commit) restent manuels" },
-      { label: "Auto", description: "Workflow entièrement automatique sauf CP-2 (commit) — QA configurable au démarrage — parallélisme conditionnel disponible pour les tickets indépendants" }
+      { label: "Manuel (Recommandé)", description: "Chaque étape attend ta confirmation — CP-1, CP-2, CP-3 tous en pause" },
+      { label: "Semi-auto", description: "CP-1 et CP-3 automatiques, CP-2 (commit) reste manuel" },
+      { label: "Auto", description: "Workflow entièrement automatique sauf CP-2 (commit) — parallélisme conditionnel disponible pour les tickets indépendants" }
     ]
   }]
 })
 ```
 
 Enregistrer le mode pour toute la session.
-
----
-
-## Bloc question — QA global (mode `auto` uniquement)
-
-### Détection de la configuration projet
-
-La configuration QA est injectée automatiquement dans la session au démarrage.
-
-Si `workflow.qaEnabled` est disponible dans le contexte de session et est **strictement un booléen JSON** (`true` ou `false`) :
-- **Si défini** → appliquer la valeur sans poser la question, afficher :
-  > QA global : `<activé/désactivé>` (configuré dans opencode.json)
-- **Si absent ou non booléen** → poser la question normalement
-
-> **Type strict :** seuls les booléens JSON `true` et `false` sont acceptés. Toute autre valeur (string `"true"`, nombre `1` ou `0`, `null`, etc.) est ignorée et déclenche la question interactive.
->
-> ❌ Ne jamais utiliser l'outil `read` pour lire `opencode.json` — même restriction que pour `defaultMode`.
-
-### Question interactive (si non configuré)
-
-En mode `auto`, poser également via l'outil `question` :
-
-```
-question({
-  questions: [{
-    header: "QA global",
-    question: "QA activé pour tous les tickets d'implémentation à risque moyen/faible ?",
-    options: [
-      { label: "Oui (Recommandé)", description: "QA activé — qa-engineer invoqué pour vérifier la couverture (tickets à risque élevé : toujours activé)" },
-      { label: "Non", description: "QA skippé sauf risque élevé — review directe après implémentation" }
-    ]
-  }]
-})
-```
-
-**Note :** Le QA est **toujours activé automatiquement** pour les tickets à risque élevé (modification API, services, code critique), quelle que soit la réponse à cette question. Cette question ne concerne que les tickets à risque moyen et faible.
-
-La valeur choisie est fixée pour toute la session et appliquée automatiquement à chaque CP-QA selon le niveau de risque détecté.
 
 ---
 

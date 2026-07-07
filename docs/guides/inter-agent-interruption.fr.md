@@ -29,7 +29,7 @@ L'orchestrateur parent :
 
 | Agent | Granularité | Type d'interruption |
 |-------|-------------|---------------------|
-| **orchestrator-dev** | CPs à enjeu fort (CP-2, blocage, ticket bloqué) + CPs intermédiaires (CP-1, CP-QA, CP-3, branche) | Systématique et ad hoc |
+| **orchestrator-dev** | CPs à enjeu fort (CP-2, blocage, ticket bloqué) + CPs intermédiaires (CP-1, CP-3, branche) | Systématique et ad hoc |
 | **planner** | Fin de chaque phase (0 à 5) + pauses ad hoc | Systématique |
 | **pathfinder** | Clarification critique détectée | Ad hoc uniquement |
 | **onboarder** | Fin de chaque phase (0 à 4) + pauses ad hoc | Systématique |

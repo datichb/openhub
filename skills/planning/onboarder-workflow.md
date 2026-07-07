@@ -1144,8 +1144,8 @@ bd ready                  # Tickets prêts à travailler
 | Hashing faible ou absent (MD5, SHA1, plain text) | `auditor` (security) → `developer-security` |
 | CORS trop permissif (`*`) ou absent | `auditor` (security) → `developer-security` |
 | Données personnelles sans chiffrement ni contrôle d'accès | `auditor` (privacy) |
-| Pas de tests (dossier `tests/` vide ou absent) | `qa-engineer` |
-| Ratio fichiers source / fichiers test très déséquilibré | `qa-engineer` |
+| Pas de tests (dossier `tests/` vide ou absent) | `developer` (avec skill `dev-standards-testing`) |
+| Ratio fichiers source / fichiers test très déséquilibré | `developer` (avec skill `dev-standards-testing`) |
 | Requêtes N+1 visibles dans les relations ORM | `auditor` (performance) |
 | Bundle non optimisé (pas de lazy loading, assets non compressés) | `auditor` (performance) |
 | Pas de logs structurés / monitoring absent | `auditor` (observability) |

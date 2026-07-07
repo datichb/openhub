@@ -8,7 +8,7 @@ Accepté
 
 ## Contexte
 
-Les agents primaires invocables directement (`planner`, `pathfinder`, `onboarder`, `auditor`, `orchestrator-dev`, `reviewer`, `qa-engineer`) peuvent être invoqués de deux façons :
+Les agents primaires invocables directement (`planner`, `pathfinder`, `onboarder`, `auditor`, `orchestrator-dev`, `reviewer`) peuvent être invoqués de deux façons :
 
 1. **Standalone** — directement par l'utilisateur : communication via l'outil `question`, récaps texte visibles dans la discussion, pas de blocs handoff orchestrateur
 2. **Sous-agent** — via `task` depuis l'agent orchestrator : mécanisme d'interruption de session, blocs structurés `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator`, `task_id` obligatoire, outil `question` interdit
@@ -59,7 +59,6 @@ Pour chaque agent concerné, deux skills Bucket B sont créés :
 | `auditor` | `auditor/auditor-standalone` | `auditor/auditor-subagent` |
 | `orchestrator-dev` | `orchestrator/orchestrator-dev-standalone` | `orchestrator/orchestrator-dev-subagent` |
 | `reviewer` | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
-| `qa-engineer` | `qa/qa-standalone` | `qa/qa-subagent` |
 
 ### Ce que contient chaque skill
 

@@ -236,7 +236,7 @@ de labels, de titre ou de description pour déterminer l'agent.
 | CP-spec | Après spec UX ou UI, avant implémentation | ✅ oui |
 | CP-audit | Après rapport d'audit, avant corrections | ✅ oui |
 | CP-feature | Récap global en fin de feature | ✅ oui |
-| CP-1, CP-QA, CP-3 | Gérés par `orchestrator-dev` | Selon le mode choisi |
+| CP-1, CP-3 | Gérés par `orchestrator-dev` | Selon le mode choisi |
 | CP-2 | Commit ou corriger ? (géré par `orchestrator-dev`) | ✅ oui — pause absolue dans tous les modes |
 
 ## Exemples d'invocation

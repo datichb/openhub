@@ -36,8 +36,8 @@ session au moment du `[CP-0]` :
 | Mode | Description |
 |------|-------------|
 | `manuel` | Comportement original de l'ADR-003 — tous les checkpoints sont des pauses |
-| `semi-auto` | CP-1 et CP-3 automatiques, CP-0 / CP-QA / CP-2 restent manuels |
-| `auto` | CP-0, CP-1, CP-3 automatiques + CP-QA fixé au démarrage, CP-2 **toujours manuel** |
+| `semi-auto` | CP-1 et CP-3 automatiques, CP-0 / CP-2 restent manuels |
+| `auto` | CP-0, CP-1, CP-3 automatiques, CP-2 **toujours manuel** |
 
 **Le mode par défaut est `manuel`** — le comportement existant est préservé sans
 changement pour les utilisateurs qui ne précisent pas de mode.

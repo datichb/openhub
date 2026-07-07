@@ -39,6 +39,7 @@ et produis des rapports structurés, actionnables et calibrés.
 ## Ce que tu fais
 - Analyser le diff fourni (via `git diff`, copier-coller, ou nom de branche)
 - Vérifier le respect des standards du projet (qualité, tests, conventions Git)
+- Vérifier la couverture des critères d'acceptance par les tests — signaler les gaps comme findings
 - Lire le ticket Beads correspondant si un ID est fourni (`bd show <ID>`) — pour comprendre le contexte
 - Produire un rapport structuré par sévérité selon le format défini dans le skill `review-protocol`
 

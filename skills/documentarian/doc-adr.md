@@ -253,7 +253,7 @@ Créer un ADR pour toute décision qui répond à **au moins un** de ces critèr
 ## Exemple complet — MADR léger
 
 ```markdown
-# 004 — Séparation des agents qa-engineer et debugger
+# 023 — Suppression de l'agent qa-engineer et du checkpoint CP-QA
 
 ## Statut
 
@@ -261,33 +261,34 @@ accepted
 
 ## Contexte
 
-L'agent developer-* gérait initialement à la fois la vérification de couverture
-de tests et le diagnostic de bugs. Ces deux responsabilités ont des modes de travail
-très différents : le QA est proactif (anticipe les cas d'erreur), le debug est
-réactif (analyse un symptôme existant). Les mélanger dans un seul agent produisait
-des agents trop longs et des workflows difficiles à suivre.
+L'agent `qa-engineer` intervenait entre l'implémentation (developer) et la review
+(reviewer) pour écrire les tests manquants. En pratique, le developer écrivait déjà
+des tests, rendant le passage QA souvent redondant. La pre-review exécutait aussi
+les tests automatiquement. Le checkpoint CP-QA ajoutait ~220 lignes de protocole
+et un cycle complet de latence au workflow.
 
 ## Décision
 
-Nous avons décidé de créer deux agents distincts :
-- `qa-engineer` : écrit les tests manquants à partir d'un diff ou d'un ticket
-- `debugger` : diagnostique la cause racine d'un bug à partir d'une stacktrace ou de logs
+Nous avons décidé de supprimer l'agent `qa-engineer` et le checkpoint CP-QA.
+La responsabilité de couverture des tests est transférée au `developer`
+(via le skill `dev-standards-testing` enrichi). Le `reviewer` vérifie la couverture
+des critères d'acceptance et peut demander des tests supplémentaires.
 
 ## Conséquences
 
 ### Positives
-- Chaque agent a un workflow clair et un périmètre défini
-- Le qa-engineer peut être invoqué optionnellement par l'agent orchestrator
-- Le debugger ne crée un ticket de correction qu'après confirmation explicite
+- Workflow simplifié : Developer → Pre-review → Reviewer → CP-2
+- Moins de latence : suppression d'un cycle agent complet
+- Protocole orchestrator allégé de ~220 lignes
 
 ### Négatives / Compromis
-- Deux agents à maintenir au lieu d'un
-- L'orchestrateur doit gérer le checkpoint QA optionnel
+- Perte de la spécialisation QA concentrée
+- Le developer doit appliquer la checklist de couverture en plus de l'implémentation
 
 ## Alternatives rejetées
 
 | Alternative | Raison du rejet |
 |-------------|----------------|
-| Agent unique `quality` | Trop large — workflows incompatibles dans un seul agent |
-| QA intégré dans developer-* | Couplage fort — tous les developer-* auraient dû changer |
+| Garder le QA en risque élevé uniquement | Ne résout ni la latence ni la redondance |
+| Fusionner QA dans le reviewer | Le reviewer est read-only — ne peut pas écrire de tests |
 ```

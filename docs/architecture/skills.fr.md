@@ -186,28 +186,17 @@ Skills d'audit. Les skills marqués **(A)** sont Bucket A — inline. Les skills
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
 | `orchestrator/orchestrator-protocol.md` | orchestrator | Workflow feature complet, matrice de routing (3 familles : design, auditor, dev via orchestrator-dev), format des checkpoints ([CP-0], [CP-spec], [CP-audit], [CP-feature]), gestion des cas particuliers, validation des retours structurés pour chaque type de sous-agent |
-| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Workflow Beads ticket par ticket, matrice de routing developer-* (9 signaux → 9 agents), format des checkpoints ([CP-1] à [CP-3] + [CP-QA]), 3 modes (manuel/semi-auto/auto), détection du label `tdd`, exploitation des retours structurés. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
+| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Workflow Beads ticket par ticket, matrice de routing developer-* (9 signaux → 9 agents), format des checkpoints ([CP-1] à [CP-3]), 3 modes (manuel/semi-auto/auto), détection du label `tdd`, exploitation des retours structurés. La logique standalone/sous-agent est extraite dans les skills de parcours dédiés. |
 | `orchestrator/orchestrator-dev-standalone.md` | **B** | orchestrator-dev | **Parcours standalone** — CP-0 demande le mode, tous les CPs via outil `question`, todo list visible et mise à jour avec labels de phase |
 | `orchestrator/orchestrator-dev-subagent.md` | **B** | orchestrator-dev | **Parcours sous-agent** — CPs à enjeu fort produisent des blocs `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel), session terminée après chaque CP à enjeu fort |
-| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Contrat de handoff** — deux formats : `## Retour vers orchestrator` (fin de session : le producteur émet d'abord la synthèse condensée par ticket (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés), puis le bloc structuré avec tableau de détail par ticket — agent, QA, cycles de review, critères couverts, statut — plus points d'attention et statut global `succès`/`partiel`/`bloqué` ; le consommateur affiche cette synthèse dans son fil de discussion avant de construire le [CP-feature]) et `## Question pour l'orchestrator` (CPs à enjeu fort : CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué — contexte complet, question en attente, options, `task_id` pour reprise de session) |
+| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Contrat de handoff** — deux formats : `## Retour vers orchestrator` (fin de session : le producteur émet d'abord la synthèse condensée par ticket (statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés), puis le bloc structuré avec tableau de détail par ticket — agent, cycles de review, critères couverts, statut — plus points d'attention et statut global `succès`/`partiel`/`bloqué` ; le consommateur affiche cette synthèse dans son fil de discussion avant de construire le [CP-feature]) et `## Question pour l'orchestrator` (CPs à enjeu fort : CP-2, blocage 3 cycles, dépendance non résolue, ticket bloqué — contexte complet, question en attente, options, `task_id` pour reprise de session) |
 | `orchestrator/orchestrator-workflow-modes.md` | orchestrator, orchestrator-dev | Source de vérité unique pour les 3 modes de workflow (manuel/semi-auto/auto) — blocs question canoniques, règles absolues par mode |
-
----
-
-## Domaine — `qa/`
-
-| Fichier | Agents qui l'utilisent | Contenu |
-|---------|----------------------|---------|
-| `qa/qa-protocol.md` | qa-engineer | Protocole QA — typologie des tests (unit/integration/E2E/composants), outils par stack, checklist systématique, format du rapport. La logique standalone/sous-agent est dans les skills de parcours dédiés. |
-| `qa/qa-standalone.md` | **B** | qa-engineer | **Parcours standalone** — rapport QA sans bloc handoff |
-| `qa/qa-subagent.md` | **B** | qa-engineer | **Parcours sous-agent** — rapport QA + bloc `## Retour vers orchestrator-dev` obligatoire |
-| `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : tests écrits avec fichiers et cas couverts, critères d'acceptance cochés, zones non testables, statut (`couverture-complète` / `couverture-partielle` / `non-testable`) |
 
 ---
 
 ## Domaine — `quality/`
 
-Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
+Skills de qualité pour les agents qui ne sont pas reviewer.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
@@ -321,9 +310,9 @@ Skills de posture transverse. Injectables dans tout agent nécessitant une postu
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian, qa-engineer | Exploration systématique avant de répondre (annonce des artefacts consultés, identification des zones d'incertitude), recommandation contraire argumentée (format ⚠️ avec problème/alternative/pourquoi/trade-offs, formulation à la première personne), pause de confirmation avant toute action à risque élevé (format 🛑 avec question binaire explicite) |
-| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, designer | Utilisation de l'outil `question` d'OpenCode — syntaxe `question({ questions: [{...}] })`, support multi-questions en un seul appel, multi-sélection (`multiple: true`), option "Type your own answer" automatique (ne pas dupliquer), format des réponses (tableau de labels), structure obligatoire (`header` ≤ 30 chars, `question`, `options` avec `label` + `description`), option recommandée en premier avec `(Recommandé)`, bloc de contexte obligatoire en tant que sous-agent |
-| `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer | **(A)** — Posture de concision niveau `lite` : suppression des formules d'intro sans valeur ("Bien sûr !", "Je vais...", "Voici..."), reformulations du contexte déjà connu, transitions redondantes entre sections titrées, formules de clôture. Ne touche pas aux blocs handoff, récapitulatifs narratifs obligatoires, rapports formels ni au contenu technique. Calibré via `token_optimization.output_verbosity` dans `hub.json`. Voir [ADR-015](./adr/015-concision-posture.fr.md). |
+| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian | Exploration systématique avant de répondre (annonce des artefacts consultés, identification des zones d'incertitude), recommandation contraire argumentée (format ⚠️ avec problème/alternative/pourquoi/trade-offs, formulation à la première personne), pause de confirmation avant toute action à risque élevé (format 🛑 avec question binaire explicite) |
+| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, documentarian, designer | Utilisation de l'outil `question` d'OpenCode — syntaxe `question({ questions: [{...}] })`, support multi-questions en un seul appel, multi-sélection (`multiple: true`), option "Type your own answer" automatique (ne pas dupliquer), format des réponses (tableau de labels), structure obligatoire (`header` ≤ 30 chars, `question`, `options` avec `label` + `description`), option recommandée en premier avec `(Recommandé)`, bloc de contexte obligatoire en tant que sous-agent |
+| `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, reviewer | **(A)** — Posture de concision niveau `lite` : suppression des formules d'intro sans valeur ("Bien sûr !", "Je vais...", "Voici..."), reformulations du contexte déjà connu, transitions redondantes entre sections titrées, formules de clôture. Ne touche pas aux blocs handoff, récapitulatifs narratifs obligatoires, rapports formels ni au contenu technique. Calibré via `token_optimization.output_verbosity` dans `hub.json`. Voir [ADR-015](./adr/015-concision-posture.fr.md). |
 
 ---
 
@@ -336,7 +325,7 @@ Skills transverses partagés entre plusieurs familles d'agents. Les skills marqu
 | `shared/hub-workflow-reference.md` | **A** | orchestrator, planner | **Source de vérité canonique** — catalogue des agents (famille, mode, quand invoquer, output attendu), heuristique pathfinder vs planner (keywords, complexity scoring, règle de doute), séquences standard par type de feature (solo/UX/audit/complète), table des handoffs (émetteur → format skill → récepteur). Toute modification d'un agent doit inclure une mise à jour de ce skill. `source-of-truth: true` |
 | `shared/rtk-usage.md` | **B** | Tous les agents (16) | **Guide RTK** — commandes token-optimisées pour réduire la consommation contextuelle de 60–90%. Charger via `skill("shared/rtk-usage")` quand le contexte approche de la limite ou pour optimiser les lectures de fichiers. Déclaré dans `native_skills:` de tous les agents. |
 | `shared/skill-authoring-protocol.md` | **B** | documentarian | **Protocole d'authoring condensé** — TDD RED/GREEN/REFACTOR pour skills, SDO checklist (description discriminante, keyword coverage, token efficiency), 5 anti-patterns, rationalization table template, checklist de validation 12 points. Charger via `skill("shared/skill-authoring-protocol")` lors de la création ou amélioration d'un skill. |
-| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, qa-engineer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, QA, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
+| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, developer-* (tous les 11) | **Skill partagé** — enrichissement incrémental de ONBOARDING.md et CONVENTIONS.md depuis les travaux de tout agent (audit, planification, debug, implémentation, review, reconnaissance, re-onboarding) ; délègue l'écriture au documentarian après confirmation explicite de l'utilisateur |
 
 ---
 
@@ -374,7 +363,6 @@ orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              posture/tool-question, posture/tool-todowrite,
                              developer/developer-handoff-format †,
                              reviewer/reviewer-handoff-format †,
-                             qa/qa-handoff-format †,
                              documentarian/documentarian-handoff-format †
                         (B) developer/dev-drift-detection,
                              orchestrator/session-state-protocol,
@@ -423,13 +411,6 @@ reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                                dev-standards-frontend, dev-standards-frontend-data,
                                dev-standards-frontend-a11y,
                                dev-standards-testing, dev-standards-git,
-              shared/rtk-usage
-qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
-                             posture/concision-posture, posture/tool-question,
-                             qa/qa-protocol,
-                             shared/living-docs-enrichment, shared/wiki-navigation,
-                             qa/qa-handoff-format †
-                         (B) qa/qa-standalone, qa/qa-subagent, dev-standards-git,
               shared/rtk-usage
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,

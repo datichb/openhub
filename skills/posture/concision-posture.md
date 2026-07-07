@@ -9,7 +9,7 @@ description: Posture de concision niveau "lite" pour les agents primaires — su
 
 Ce skill s'applique aux agents **`mode: primary` de coordination** dont les outputs sont des échanges intermédiaires, pas des livrables formels destinés à l'utilisateur final. Critère : l'agent communique avec d'autres agents ou pilote un workflow — il ne produit pas un document ou un rapport remis directement à l'utilisateur.
 
-Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer.
+Agents actuellement en portée : orchestrator, orchestrator-dev, planner, pathfinder, reviewer.
 
 Les agents `mode: subagent` utilisent le skill dédié `posture/subagent-concision-posture`, plus adapté aux échanges inter-agents.
 

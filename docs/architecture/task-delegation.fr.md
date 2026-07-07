@@ -72,7 +72,6 @@ Chaque agent déclare quels sous-agents il peut invoquer :
           "*": "deny",
           "developer-*": "allow",
           "reviewer": "allow",
-          "qa-engineer": "allow",
           "documentarian": "allow"
         }
       }
@@ -104,7 +103,6 @@ flowchart TB
         DB[debugger]
         DS[designer<br/>4 modes: recon/ux/ui/ux+ui]
         DOC[documentarian]
-        QA[qa-engineer]
         R[reviewer]
     end
 
@@ -124,7 +122,6 @@ flowchart TB
     U --> DB
     U --> DS
     U --> DOC
-    U --> QA
     U --> R
 
     O -->|task| PL
@@ -138,7 +135,6 @@ flowchart TB
     A -->|task| DOC
 
     OD -->|task| DEV
-    OD -->|task| QA
     OD -->|task| R
     OD -->|task| DOC
 ```
@@ -148,7 +144,7 @@ flowchart TB
 | Agent appelant | Peut invoquer via `task` |
 |---------------|--------------------------|
 | `orchestrator` | `planner`, `onboarder`, `designer`, `auditor-subagent`, `orchestrator-dev`, `debugger` |
-| `orchestrator-dev` | `developer-*`, `reviewer`, `qa-engineer`, `documentarian` |
+| `orchestrator-dev` | `developer-*`, `reviewer`, `documentarian` |
 | `auditor` | `auditor-subagent`, `documentarian` |
 | `planner` | `documentarian` |
 | `debugger` | `documentarian` |
@@ -172,7 +168,7 @@ Cette règle est fondamentale : l'`orchestrator` délègue toujours à
 `orchestrator-dev`, qui lui-même route vers le bon `developer-*`.
 Cette indirection permet de :
 
-- Centraliser le workflow d'implémentation (QA, review, cycles de correction)
+- Centraliser le workflow d'implémentation (review, cycles de correction)
 - Maintenir des protocoles de handoff cohérents
 - Isoler les responsabilités (conception vs implémentation)
 
@@ -239,7 +235,6 @@ Le bloc `## Question pour l'orchestrator` contient :
 |-------|-----------|-------------|-------------|
 | `developer/developer-handoff-format` | `developer-*` | `orchestrator-dev` | Fichiers modifiés, critères cochés, points d'attention, statut |
 | `reviewer/reviewer-handoff-format` | `reviewer` | `orchestrator-dev` | Verdict, corrections verbatim, routing recommandé |
-| `qa/qa-handoff-format` | `qa-engineer` | `orchestrator-dev` | Tests écrits, couverture, zones non testables |
 | `documentarian/documentarian-handoff-format` | `documentarian` | `orchestrator-dev` | Type, fichiers modifiés, résumé |
 | `orchestrator/orchestrator-handoff-format` | `orchestrator-dev` | `orchestrator` | Tickets traités, détail par ticket, points d'attention, statut global |
 | `auditor/audit-handoff-format` | `auditor-*` | `orchestrator` | Vulnérabilités, recommandations, risque résiduel |
@@ -366,7 +361,6 @@ Ce mécanisme remplace la détection du marqueur `[CONTEXTE]` directement dans l
 > | auditor | `auditor/auditor-standalone` | `auditor/auditor-subagent` |
 > | orchestrator-dev | `orchestrator/orchestrator-dev-standalone` | `orchestrator/orchestrator-dev-subagent` |
 > | reviewer | `reviewer/reviewer-standalone` | `reviewer/reviewer-subagent` |
-> | qa-engineer | `qa/qa-standalone` | `qa/qa-subagent` |
 
 ### Comportement standalone vs depuis l'agent orchestrator
 
@@ -384,7 +378,7 @@ Les agents suivants implémentent le mécanisme d'interruption de session quand 
 
 | Agent | Granularité des interruptions | Type d'interruption |
 |-------|------------------------------|---------------------|
-| **orchestrator-dev** | CPs à enjeu fort (CP-2, blocage, ticket bloqué) + CPs intermédiaires (CP-1, CP-QA, CP-3, branche) en mode `manuel` | Systématique à chaque CP |
+| **orchestrator-dev** | CPs à enjeu fort (CP-2, blocage, ticket bloqué) + CPs intermédiaires (CP-1, CP-3, branche) en mode `manuel` | Systématique à chaque CP |
 | **planner** | Fin de chaque phase (0 à 5) + pauses ad hoc | Systématique |
 | **pathfinder** | Clarification critique détectée | Ad hoc uniquement |
 | **onboarder** | Fin de chaque phase (0 à 4) + pauses ad hoc | Systématique |
@@ -419,7 +413,6 @@ Sans ce marqueur, l'agent rechargé démarre en mode standalone — comportement
 | **CP-spec** | `orchestrator` | Après specs UX/UI, avant implémentation | Toujours manuel | Question montante du designer → task_id |
 | **CP-audit** | `orchestrator` | Après audit, avant implémentation | Toujours manuel | Question montante de l'auditor → task_id |
 | **CP-1** | `orchestrator-dev` | Avant chaque ticket | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
-| **CP-QA** | `orchestrator-dev` | Après implémentation, avant review | Manuel / fixé au CP-0 (auto) | Bloc `## Question pour l'orchestrator` → task_id (modes manuel/semi-auto) |
 | **CP-2** | `orchestrator-dev` | Après review — commit ou corriger ? | **Toujours manuel** | Bloc `## Question pour l'orchestrator` → task_id (inchangé, déjà implémenté) |
 | **CP-3** | `orchestrator-dev` | Après commit — ticket suivant ? | Manuel / auto (semi-auto, auto) | Bloc `## Question pour l'orchestrator` → task_id (mode manuel uniquement) |
 | **CP-feature** | `orchestrator` | Fin de feature | Toujours manuel | Retour final complet |
@@ -560,7 +553,7 @@ Trois contraintes rendent le parallélisme non pertinent ou risqué dans le cas 
 | Contrainte | Impact |
 |---|---|
 | **CP-2 pause absolue** | Même en parallèle, les CP-2 de N sessions sont traités en séquentiel (un rapport à la fois) — le gain en phase d'implémentation est "absorbé" par la review |
-| **Goulot humain** | En modes `manuel`/`semi-auto`, les pauses humaines (CP-1, CP-QA, CP-3) dominent le temps total — paralléliser l'implémentation n'accélère pas ces décisions |
+| **Goulot humain** | En modes `manuel`/`semi-auto`, les pauses humaines (CP-1, CP-3) dominent le temps total — paralléliser l'implémentation n'accélère pas ces décisions |
 | **Dépendances implicites non détectables** | Deux tickets sans relation `deps` formelle peuvent avoir des dépendances sémantiques invisibles à l'orchestrator |
 
 Le gain réel du parallélisme n'existe qu'en mode `auto`, et uniquement sur la phase d'implémentation.
@@ -602,7 +595,7 @@ Trois valeurs exactes sont acceptées (insensible à la casse) :
 | Valeur | Mode appliqué |
 |--------|---------------|
 | `manuel` | Toutes les pauses actives — mode par défaut |
-| `semi-auto` | CP-1 et CP-3 automatiques, CP-QA et CP-2 manuels |
+| `semi-auto` | CP-1 et CP-3 automatiques, CP-2 manuels |
 | `auto` | Tout automatique sauf CP-2 (pause absolue) |
 
 Ne jamais transmettre le label brut de l'option d'interface (`"Manuel (Recommandé)"`, `"Semi-auto"`) — normaliser en minuscule avant transmission.

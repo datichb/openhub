@@ -2,7 +2,9 @@
 
 ## Statut
 
-Accepté
+Supercédé partiellement (juillet 2026)
+
+> **Note :** L'agent `qa-engineer` a été supprimé (juillet 2026). Ses responsabilités (écriture des tests) sont transférées à l'agent `developer`. Le `reviewer` vérifie la couverture. L'agent `debugger` reste inchangé. Voir ADR-023.
 
 ## Contexte
 

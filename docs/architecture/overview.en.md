@@ -98,7 +98,6 @@ sequenceDiagram
     participant AU as auditor (coordinator)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
-    participant QA as QA Engineer
     participant R as Reviewer
 
     U->>O: "Implement [feature]"
@@ -121,12 +120,8 @@ sequenceDiagram
 
     O->>OD: Dev tickets (+ mode passed)
     loop For each dev ticket
-        OD->>DEV: Delegates implementation
-        DEV-->>OD: Implementation complete
-        opt QA enabled (ticket without tdd label)
-            OD->>QA: Delegates verification
-            QA-->>OD: Tests written + coverage report
-        end
+        OD->>DEV: Delegates implementation (tests included)
+        DEV-->>OD: Implementation + tests complete
         OD->>R: Automatic review
         R-->>OD: Review report
         OD->>U: [CP-2] Merge or fix? ← ALWAYS PAUSED
@@ -189,15 +184,15 @@ step requires explicit user confirmation.
 
 ### 4. Separation of Quality Responsibilities
 
-Implementing, testing, and diagnosing are three distinct responsibilities entrusted
-to three different agents (developer, qa-engineer, debugger).
+Implementing and diagnosing are two distinct responsibilities entrusted
+to different agents (developer, debugger). Tests are written by the developer and verified by the reviewer.
 
 → [ADR-004](./adr/004-qa-debugger-separation.en.md)
 
 ### 5. Read-only for non-developer agents
 
 Agents `auditor-*`, `reviewer`, and `designer` never write to the target project.
-Only `developer-*` and `qa-engineer` agents modify source code files.
+Only `developer-*` agents modify source code files.
 The `reviewer` supports multi-mode review (standard, adversarial, edge-case) with
 parallel independent sessions for combined modes — context isolation guarantees unbiased analysis.
 
@@ -209,7 +204,7 @@ They never write directly.
 
 This continuous enrichment loop covers all agents: `auditor` coordinator (Phase 4),
 `planner` (Phase 6), `debugger` (Phase 5), `developer-*` (after each ticket), `reviewer`
-(post-report), `qa-engineer` (post-report), `pathfinder` (post-report), and `onboarder`
+(post-report), `pathfinder` (post-report), and `onboarder`
 (incremental mode when `docs/wiki/index.md` already exists).
 
 See [Living Documentation Wiki](./living-wiki.en.md) for the complete system architecture.

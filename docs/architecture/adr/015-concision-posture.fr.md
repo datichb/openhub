@@ -8,7 +8,7 @@ Accepté
 
 ## Contexte
 
-Les agents internes du hub (orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer) produisent des outputs verbeux qui ne sont pas des livrables formels destinés à l'utilisateur final, mais des échanges de coordination. Ces outputs contiennent systématiquement :
+Les agents internes du hub (orchestrator, orchestrator-dev, planner, pathfinder, developer, reviewer) produisent des outputs verbeux qui ne sont pas des livrables formels destinés à l'utilisateur final, mais des échanges de coordination. Ces outputs contiennent systématiquement :
 
 - **Formules d'introduction sans valeur** : "Bien sûr !", "Je vais maintenant...", "Voici ce que j'ai trouvé :"
 - **Reformulations du contexte connu** : répétition de ce que l'utilisateur vient de dire ou de ce qui est déjà établi dans la session
@@ -48,7 +48,7 @@ Créer deux skills :
 - Les rapports de review, rapports QA, rapports de diagnostic
 - Les justifications techniques, avertissements, hypothèses
 
-**Agents concernés :** orchestrator, orchestrator-dev, planner, pathfinder, qa-engineer, reviewer
+**Agents concernés :** orchestrator, orchestrator-dev, planner, pathfinder, reviewer
 
 ---
 

@@ -118,7 +118,6 @@ oh deploy
 | `planner` | Planification | Decouper features en tickets Beads |
 | `designer` | Design | Analyse Figma, specs UX/UI |
 | `reviewer` | Qualite | Revue PR/MR par severite (multi-mode : standard, adversarial, edge-case) |
-| `qa-engineer` | Qualite | Analyse couverture de tests |
 | `debugger` | Qualite | Diagnostic bugs, root cause |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 

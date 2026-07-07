@@ -114,7 +114,7 @@ directement par l'utilisateur est visible dans l'interface OpenCode.
 | `orchestrator-dev` | Invoqué directement par l'utilisateur | Principale | ✅ Oui | Maintient la liste des tickets avec labels de phase |
 | `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
 | `planner`, `pathfinder`, `onboarder`, `auditor`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
-| `developer-*`, `reviewer`, `qa-engineer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant) | ❌ Non | Pas de liste todowrite |
+| `developer-*`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant) | ❌ Non | Pas de liste todowrite |
 
 ---
 
@@ -145,7 +145,7 @@ sa liste **avant d'afficher le rapport et avant d'appeler l'outil `question`** :
 | Bloc reçu | Phase dans le bloc | Action todowrite |
 |-----------|--------------------|-----------------|
 | `## Question pour l'orchestrator` | `CP-1` (ticket démarre) | Ticket `#bd-XX` → `in_progress` |
-| `## Question pour l'orchestrator` | `CP-QA`, `CP-2` | Aucune (déjà `in_progress`) |
+| `## Question pour l'orchestrator` | `CP-2` | Aucune (déjà `in_progress`) |
 | `## Question pour l'orchestrator` | `CP-3` si ticket sauté | Ticket `#bd-XX` → `cancelled` |
 | `## Retour vers orchestrator` (partiel, après CP-2 commit) | — | Ticket commité → `completed`, prochain → `in_progress` si applicable |
 | `## Retour vers orchestrator` (final) | — | Tous les tickets restants → statut final (`completed` / `cancelled`) |
@@ -173,7 +173,6 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 |-------|-------|--------|
 | CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
 | CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
-| Étape 3.3 QA activé | `#bd-12 — <titre> [QA]` | `in_progress` |
 | Étape 4 review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
 | Étape 5 CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
 | CP-2 commit validé | `#bd-12 — <titre>` | `completed` |
@@ -185,7 +184,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
 
 - Les règles fondamentales de `tool-todowrite.md` s'appliquent sans exception : exactement
   1 tâche `in_progress` à la fois, mise à jour en temps réel, liste complète à chaque appel.
-- Les agents `developer-*`, `reviewer`, `qa-engineer`, `documentarian` n'utilisent pas `todowrite` —
+- Les agents `developer-*`, `reviewer`, `documentarian` n'utilisent pas `todowrite` —
   ils sont toujours invoqués en tant que sous-agents et leurs sessions sont invisibles.
 - Le mécanisme de handoff inter-agents (`## Retour vers <parent>`, `## Question pour <parent>`)
   reste le seul canal de communication entre sessions isolées.

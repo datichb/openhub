@@ -33,7 +33,7 @@ L'agent qui applique ce skill ne fait que :
 **Chaîne de dépendances complète :**
 
 ```
-Agent (auditor, planner, debugger, developer-*, reviewer, qa-engineer…)
+Agent (auditor, planner, debugger, developer-*, reviewer…)
   │  applique ce skill après son rapport/livrable
   ↓
 living-docs-enrichment
@@ -118,13 +118,6 @@ Les découvertes émergent de la code review :
 convention de code observée dans le diff mais absente de `conventions.md`, pattern
 récurrent signalé dans le rapport de review, zone d'ombre du wiki levée par
 l'analyse du diff (ex : comportement inattendu d'un module, couplage non documenté).
-
-### Pour le qa-engineer
-
-Les découvertes émergent du cycle de test :
-convention de test adoptée (nommage, co-location, stratégie d'isolation) non documentée,
-edge case systématique révélé par les tests (pattern d'erreur à documenter dans `tests.md`),
-gap de testabilité lié à l'architecture.
 
 ### Pour le pathfinder
 

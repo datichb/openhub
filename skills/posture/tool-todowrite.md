@@ -317,7 +317,7 @@ Agent: "Le projet suit une architecture hexagonale avec les dossiers suivants...
 | `orchestrator` | Invoqué par l'utilisateur | ✅ Oui | Maintient la liste des phases + 1 tâche par ticket dev |
 | `orchestrator-dev` | Invoqué directement par l'utilisateur | ✅ Oui | Maintient la liste des tickets avec phase en suffixe |
 | `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | ❌ Non (session isolée) | Sa liste est interne — l'orchestrator gère la liste visible |
-| `developer-*`, `reviewer`, `qa-engineer`… | Invoqués via `task` | ❌ Non | Sous-agents — todowrite non utilisé |
+| `developer-*`, `reviewer`… | Invoqués via `task` | ❌ Non | Sous-agents — todowrite non utilisé |
 
 > **Référence architecture :** voir `docs/architecture/todowrite-session-isolation.fr.md`
 > pour l'analyse complète du comportement interne d'OpenCode et le schéma de visibilité.

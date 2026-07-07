@@ -141,19 +141,19 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 |--|--|
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format`, `documentarian/documentarian-handoff-format` — native : `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage` |
+| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` — native : `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage` |
 | **Invocation** | `"Implémente les tickets [IDs]"` / `"Workflow dev sur [feature]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
 liste de tickets Beads prêts à implémenter, route vers l'agent `developer` avec le domaine approprié précisé dans le prompt d'invocation,
-supervise le QA optionnel et la review. Trois modes : `manuel` (défaut), `semi-auto`,
+supervise la review. Trois modes : `manuel` (défaut), `semi-auto`,
 `auto`. Invocable standalone ou depuis l'`orchestrator`.
 
 CP-2 (commit ou corriger ?) est toujours manuel dans tous les modes.
 
 `bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
-En mode `orchestrator_feature` : tous les CPs (CP-1, CP-QA, CP-3, branche dédiée, CP-2, blocage, ticket bloqué) produisent un bloc `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel) et terminent la session pour que l'agent orchestrator relaie la question à l'utilisateur.
+En mode `orchestrator_feature` : tous les CPs (CP-1, CP-3, branche dédiée, CP-2, blocage, ticket bloqué) produisent un bloc `## Question pour l'orchestrator` + `## Retour vers orchestrator` (partiel) et terminent la session pour que l'agent orchestrator relaie la question à l'utilisateur.
 
 **Dérive architecturale (BLOCKED_ARCHITECTURE) :** quand un developer retourne ce statut, charge le skill `developer/dev-drift-detection` via l'outil `skill` et présente 3 options à l'utilisateur : réviser le scope du ticket Beads / revert + nouvelle approche / bifurquer vers un ticket de refactoring prérequis (mis en `blocked` jusqu'à résolution).
 
@@ -319,30 +319,6 @@ Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions paral
 
 ---
 
-### `qa-engineer`
-
-| | |
-|--|--|
-| **Label** | QAEngineer |
-| **Fichier** | `agents/quality/qa-engineer.md` |
-| **Skills** | `developer/dev-standards-universal`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment`, `shared/wiki-navigation` — native : `qa/qa-standalone`, `qa/qa-subagent`, `developer/dev-standards-git`, `shared/rtk-usage` |
-| **Invocation** | `"Écris les tests pour la branche [X]"` / `"QA sur le ticket [ID]"` |
-
-Écrit les tests manquants (unit / integration / E2E) à partir d'un diff ou d'un
-ticket Beads. Produit un rapport de couverture avant/après. Ne modifie jamais
-le code fonctionnel.
-
-**Non pertinent pour les tickets TDD** : quand un ticket porte le label `tdd`,
-les tests sont écrits par le developer lui-même avant l'implémentation (boucle
-red/green/refactor). L'`orchestrator-dev` saute automatiquement le CP-QA pour
-ces tickets — le `qa-engineer` n'est pas invoqué.
-
-**Post-rapport — Enrichissement des documents vivants :** après la production du rapport de couverture, identifie les conventions de test adoptées et les cas limites systématiques révélés par les tests qui sont absents de `CONVENTIONS.md`, et propose de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
-
-> Voir [ADR-004](./adr/004-qa-debugger-separation.fr.md).
-
----
-
 ### `debugger`
 
 | | |
@@ -467,11 +443,11 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 
 - **Agents en lecture seule** : auditor-subagent, reviewer, designer — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
-- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `qa-engineer` — modifient uniquement les fichiers de leur domaine
+- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
 - **Agents qui créent des tickets** : planner (tickets feature), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : tous peuvent faire `bd show <ID>` pour contextualiser leur travail
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — lecture seule, explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, qa-engineer, reviewer — visibles directement par l'utilisateur
+- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer — visibles directement par l'utilisateur
 - **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et `auditor-subagent` — invocables par des agents coordinateurs

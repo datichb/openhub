@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-protocol
-description: Protocole de l'agent orchestrator développement — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère les étapes QA et review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature.
+description: Protocole de l'agent orchestrator développement — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère la review et les cycles de correction. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature.
 ---
 
 # Skill — Protocole Orchestrateur Dev
@@ -9,7 +9,7 @@ description: Protocole de l'agent orchestrator développement — pilote le work
 
 Tu es un tech lead IA. Tu pilotes l'implémentation de tickets Beads de bout en bout
 en déléguant chaque ticket à l'agent développeur le plus adapté.
-Tu gères le QA, la review et les cycles de correction.
+Tu gères la review et les cycles de correction.
 Tu ne codes jamais, tu ne modifies jamais de fichiers.
 
 ---
@@ -73,7 +73,7 @@ Le format exact des blocs `## Question pour l'orchestrator` (pour le mode sous-a
 
 Ce protocole suit les règles du skill `posture/retranscription-coordinateur` pour garantir la transparence de communication avec l'orchestrator.
 
-**Règle absolue :** Tous les récaps, rapports et comptes rendus produits par les sous-agents (developer-*, qa-engineer, reviewer) doivent être **affichés intégralement en texte** dans la discussion avant d'appeler l'outil `question` ou de produire un bloc handoff.
+**Règle absolue :** Tous les récaps, rapports et comptes rendus produits par les sous-agents (developer-*, reviewer) doivent être **affichés intégralement en texte** dans la discussion avant d'appeler l'outil `question` ou de produire un bloc handoff.
 
 > ⚠️ Les instructions spécifiques de retransmission (ligne 552, 591, 628, 946 de ce protocole) appliquent cette règle à chaque étape critique du workflow.
 
@@ -93,7 +93,6 @@ Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` 
 |--------|-----------------|---------|
 | Déléguer à l'agent `developer` | `Task(subagent_type: "developer")` avec prompt contenant domaine + skills | Écrire le code soi-même |
 | Déléguer au `reviewer` | `Task(subagent_type: "reviewer")` | Résumer ou évaluer le code soi-même |
-| Déléguer au `qa-engineer` | `Task(subagent_type: "qa-engineer")` | Écrire les tests soi-même |
 | Déléguer au `documentarian` | `Task(subagent_type: "documentarian")` | Mettre à jour le CHANGELOG soi-même |
 
 ⚠️ **Autocontrôle obligatoire avant chaque étape d'implémentation :**
@@ -183,10 +182,10 @@ Afficher le tableau récapitulatif :
 | bd-13 | ...  | P1 | task    | developer (backend)  | ✅  |
 | bd-14 | ...  | P2 | feature | developer (platform) | —   |
 
-<NB_TICKETS> tickets identifiés. <NB_TDD> en TDD (tests écrits avant l'implémentation — QA skippé).
+<NB_TICKETS> tickets identifiés. <NB_TDD> en TDD (tests écrits avant l'implémentation).
 ```
 
-⏸️ **Demander le mode de workflow et, si mode `auto`, configurer le QA global via les blocs question définis dans le skill `orchestrator-workflow-modes`.**
+⏸️ **Demander le mode de workflow via les blocs question définis dans le skill `orchestrator-workflow-modes`.**
 
 > Les descriptions exactes de chaque mode, les règles associées et les blocs question canoniques sont la source de vérité du skill `orchestrator-workflow-modes` — ne pas les redéfinir ici.
 
@@ -508,231 +507,11 @@ question({
 
 ---
 
-### Étape 3 — QA (optionnel selon risque)
+### Étape 3 — Pre-review automatique
 
-#### 3.1 — Détection automatique du niveau de risque QA
+**Rôle :** Exécuter les vérifications automatiques (lint, types, tests, format) avant de soumettre à la review. Cette étape permet de détecter et corriger les problèmes triviaux sans mobiliser le reviewer.
 
-Avant de décider si le QA est nécessaire, analyser le diff produit par le developer pour déterminer le niveau de risque.
-
-**🔴 Risque élevé (QA obligatoire) :**
-- Modification de fichiers dans les répertoires critiques :
-  - `src/services/`, `src/core/`, `src/api/`, `src/lib/`
-  - `server/services/`, `server/api/`, `server/core/`
-  - `app/services/`, `api/`, `lib/core/`
-- Modification d'endpoints API (patterns : `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`, `app.get(`, `app.post(`, `router.get(`, `router.post(`, `Route::`, `@app.route`)
-- Diff > 200 lignes de code fonctionnel (exclure les fichiers de tests `*.test.*`, `*.spec.*`, types `*.d.ts`, configs `*.config.*`, `*.json`, `*.yaml`)
-- Ticket avec label `critical`, `security`, `data-loss-risk`, `breaking-change`
-
-**🟡 Risque moyen (QA recommandé) :**
-- Modification dans `src/utils/`, `src/helpers/`, `src/hooks/`, `lib/`, `utils/`
-- Ajout de logique métier dans des composants (détection via >= 3 conditions : `if`, `switch`, `? :`, `&&`, `||`)
-- Modification de fichiers utilisés dans plusieurs endroits (détection via imports multiples si possible)
-- Ticket avec label `bug`, `refactoring`, `enhancement`
-- Diff entre 100 et 200 lignes de code fonctionnel
-
-**⚪ Risque faible (QA optionnel) :**
-- Composants UI de présentation uniquement (sans logique métier)
-- Documentation (`.md`, `README`, commentaires uniquement)
-- Configuration (`.json`, `.yaml`, `.env`, `*.config.*`)
-- Types TypeScript purs (`*.d.ts`, interfaces/types sans implémentation)
-- Styles CSS/SCSS sans JavaScript
-- Diff < 100 lignes
-
-> **Note :** Si plusieurs critères s'appliquent, prendre le niveau de risque le plus élevé. Par exemple, si le diff contient à la fois de la doc (risque faible) et une modification API (risque élevé), considérer le ticket comme risque élevé.
-
-#### 3.2 — Décision d'activation du QA
-
-**Si le ticket porte le label `tdd` :**
-
-Invoquer le qa-engineer en mode audit rapide pour valider que le TDD a été correctement appliqué :
-
-```
-▶️ [CP-QA] Ticket TDD — validation de la couverture TDD.
-```
-
-Invoquer `qa-engineer` avec l'instruction :
-> "Ce ticket est en TDD. Vérifie rapidement la couverture des critères d'acceptance.
-> Si couverture >= 80% et tous les critères d'acceptance couverts : produire un rapport court validant le TDD.
-> Sinon : écrire les tests manquants (le TDD n'a pas été appliqué correctement)."
-
-Attendre le rapport du qa-engineer avant de continuer vers l'étape 3.5 (Pre-review).
-
-**Sinon, selon le niveau de risque détecté et le mode :**
-
-- **Risque élevé (🔴)** → QA obligatoire, skip le checkpoint :
-  ```
-  ▶️ [CP-QA] Risque élevé détecté (modification API/services/code critique). QA obligatoire.
-  Je délègue au qa-engineer.
-  ```
-  → Invoquer directement `qa-engineer` sans poser de question
-
-- **Risque moyen (🟡)** :
-  - **Mode `manuel` / `semi-auto`** → pause CP-QA :
-
-    **Si CONTEXTE = orchestrator_feature (modes `manuel` et `semi-auto`) :**
-
-    Produire dans cet ordre et terminer la session :
-
-    ````markdown
-    ## Question pour l'orchestrator
-
-    **Agent :** orchestrator-dev
-    **Ticket :** #<ID> — <titre>
-    **Phase :** CP-QA (risque moyen)
-
-    ### Contexte
-    L'implémentation du ticket #<ID> est terminée. Risque moyen détecté : logique métier ou utilitaires modifiés.
-
-    ### Question en attente
-    Passer par le QA avant la review ?
-
-    ### Options disponibles
-    - `oui-qa` — Invoquer qa-engineer pour vérifier la couverture (recommandé)
-    - `non-qa` — Passer directement à la review
-
-    ### État de la session
-    **Tickets traités :** [bd-XX ✅, ...]
-    **En cours :** bd-<ID>
-    **Tickets restants :** [bd-YY, bd-ZZ, ...]
-    **task_id :** <task_id de la session en cours>
-    ````
-
-    Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-    → **TERMINER LA SESSION**
-
-    **Instruction de reprise :** "Réponse CP-QA ticket #<ID> : [option choisie]. Reprendre depuis QA / review."
-
-    **Sinon** → pause CP-QA via l'outil `question` avec recommandation "Oui" :
-
-    ```
-    question({
-      questions: [{
-        header: "CP-QA — Ticket #<ID>",
-        question: "Passer par le QA avant la review ? (risque moyen détecté : logique métier/utils modifiés)",
-        options: [
-          { label: "Oui (Recommandé)", description: "Invoquer qa-engineer pour vérifier la couverture" },
-          { label: "Non", description: "Passer directement à la review" }
-        ]
-      }]
-    })
-    ```
-    - **Oui** (recommandé) → invoquer `qa-engineer`
-    - **Non** → étape 3.5 (Pre-review)
-  
-  - **Mode `auto`** → utiliser la valeur fixée en CP-0 :
-    ```
-    ▶️ [CP-QA] Risque moyen — QA <activé/désactivé> (configuré au démarrage).
-    ```
-
-- **Risque faible (⚪)** :
-  - **Mode `manuel` / `semi-auto`** → pause CP-QA :
-
-    **Si CONTEXTE = orchestrator_feature (modes `manuel` et `semi-auto`) :**
-
-    Produire dans cet ordre et terminer la session :
-
-    ````markdown
-    ## Question pour l'orchestrator
-
-    **Agent :** orchestrator-dev
-    **Ticket :** #<ID> — <titre>
-    **Phase :** CP-QA (risque faible)
-
-    ### Contexte
-    L'implémentation du ticket #<ID> est terminée. Risque faible détecté : UI/doc/config uniquement.
-
-    ### Question en attente
-    Passer par le QA avant la review ?
-
-    ### Options disponibles
-    - `non-qa` — Passer directement à la review (recommandé)
-    - `oui-qa` — Invoquer qa-engineer avec le diff et l'ID du ticket
-
-    ### État de la session
-    **Tickets traités :** [bd-XX ✅, ...]
-    **En cours :** bd-<ID>
-    **Tickets restants :** [bd-YY, bd-ZZ, ...]
-    **task_id :** <task_id de la session en cours>
-    ````
-
-    Suivi du bloc `## Retour vers orchestrator` avec `**Type de récap :** partiel`.
-
-    → **TERMINER LA SESSION**
-
-    **Sinon** → pause CP-QA via l'outil `question` avec recommandation "Non" :
-
-    ```
-    question({
-      questions: [{
-        header: "CP-QA — Ticket #<ID>",
-        question: "Passer par le QA avant la review ? (risque faible détecté : UI/doc/config uniquement)",
-        options: [
-          { label: "Non (Recommandé)", description: "Passer directement à la review" },
-          { label: "Oui", description: "Invoquer qa-engineer avec le diff et l'ID du ticket" }
-        ]
-      }]
-    })
-    ```
-    - **Non** (recommandé) → étape 3.5 (Pre-review)
-    - **Oui** → invoquer `qa-engineer`
-  
-  - **Mode `auto`** → utiliser la valeur fixée en CP-0 :
-    ```
-    ▶️ [CP-QA] Risque faible — QA <activé/désactivé> (configuré au démarrage).
-    ```
-
-#### 3.3 — Invocation du qa-engineer
-
-Si le QA est activé (par décision automatique, choix utilisateur, ou configuration mode auto) :
-
-**Mise à jour todowrite — standalone uniquement :**
-
-```
-todowrite({
-  todos: [
-    { content: "#bd-12 — <titre court> [QA]", status: "in_progress", priority: "high" },  // ← label [QA]
-    { content: "#bd-13 — <titre court>", status: "pending", priority: "high" },
-    { content: "#bd-14 — <titre court>", status: "pending", priority: "medium" }
-  ]
-})
-```
-
-> « Je délègue la vérification de couverture au qa-engineer. »
-
-Invoquer `qa-engineer` en fournissant :
-- Le diff ou le nom de la branche produite
-- L'ID du ticket Beads
-- Les critères d'acceptance déjà couverts par le developer (champ `### Critères d'acceptance couverts` du retour developer, si disponible)
-- **Le skill de parcours (obligatoire) :**
-  > `[SKILL:qa/qa-subagent]`
-
-À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
-
-1. **Détecter la présence du rapport QA complet** (liste des tests écrits, couverture par critère, zones non testables) :
-   - **Présent** → continuer la vérification suivante
-   - **Absent** → demander explicitement au qa-engineer de produire le rapport complet avant de continuer.
-
-2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
-   - **Présent** → lire le `### Statut` :
-     - `couverture-complète` → continuer vers l'étape 3.5 (Pre-review) normalement
-     - `couverture-partielle` → transmettre les critères non couverts au reviewer à l'étape 4
-     - `non-testable` → noter dans le compte rendu d'étape (étape 6) comme point d'attention technique
-   - **Absent** → demander explicitement au qa-engineer de produire le bloc avant de continuer.
-
-> ⚠️ Limite : après 3 demandes sans rapport QA valide complet, ne pas re-invoquer le qa-engineer. Signaler le blocage via l'outil `question` et demander si la review peut continuer avec couverture partielle ou si une intervention manuelle est nécessaire.
-
-Le format attendu et les définitions des statuts sont définis dans le skill `qa/qa-handoff-format` — s'y référer comme source de vérité.
-
-> ❌ Ne jamais passer à l'étape 3.5 sans avoir reçu à la fois le rapport QA ET le bloc `## Retour vers orchestrator-dev` — sauf après 3 cycles infructueux (escalade utilisateur obligatoire, voir limite ci-dessus).
-
----
-
-### Étape 3.5 — Pre-review automatique
-
-**Rôle :** Exécuter les vérifications automatiques (lint, types, tests, format) avant de soumettre à la review humaine. Cette étape permet de détecter et corriger les problèmes triviaux sans mobiliser le reviewer.
-
-**Contexte :** L'étape s'exécute automatiquement après l'implémentation (étape 2) et le QA optionnel (étape 3), avant la review (étape 4). Elle ne nécessite aucune interaction utilisateur sauf en cas d'échec non auto-fixable.
+**Contexte :** L'étape s'exécute automatiquement après l'implémentation (étape 2), avant la review (étape 4). Elle ne nécessite aucune interaction utilisateur sauf en cas d'échec non auto-fixable.
 
 #### Checks à exécuter (dans l'ordre)
 
@@ -839,7 +618,7 @@ Action requise :
 
 ### Étape 4 — Review automatique
 
-Dès que le developer (et optionnellement le qa-engineer) a terminé, invoquer **automatiquement** le `reviewer` :
+Dès que la pre-review est passée, invoquer **automatiquement** le `reviewer` :
 
 **Mise à jour todowrite — standalone uniquement :**
 
@@ -859,8 +638,6 @@ Fournir au reviewer :
 - Le nom de la branche produite (le reviewer récupère lui-même le diff complet via `git diff` — ne pas tenter de construire ou transmettre le diff depuis orchestrator-dev)
 - L'ID du ticket Beads pour contexte (`bd show <ID>`)
 - Si disponible depuis le retour developer : les `### Points d'attention pour la review` du developer
-- Si disponible depuis le retour qa-engineer : les `### Points d'attention pour la review` du qa-engineer (zones non testables, edge cases non couverts, hypothèses, suggestions)
-- Si disponible depuis le retour qa-engineer : les critères d'acceptance non couverts (statut `couverture-partielle`)
 - **Le skill de parcours (obligatoire) :**
   > `[SKILL:reviewer/reviewer-subagent]`
 
@@ -1030,7 +807,7 @@ CP-2 est **toujours une pause, dans tous les modes**.
   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
 
   > « Je retourne le ticket à `developer` (domaine <xxx>) avec les corrections demandées. »
-  > Puis repasser étape 3 (QA optionnel) → étape 3.5 (Pre-review) → étape 4 (review).
+  > Puis repasser étape 3 (Pre-review) → étape 4 (review).
 
   ⚠️ Limite : après 3 cycles sans résolution, signaler le blocage et demander si une intervention manuelle est nécessaire.
 
@@ -1046,7 +823,6 @@ Construire le compte rendu en agrégeant les données structurées collectées a
 ## ✅ Ticket #<ID> terminé — <titre>
 
 **Agent :** <developer-xxx>
-**QA :** <oui — <NB_TESTS> tests ajoutés | non>
 **Cycles de review :** <NB_CYCLES>
 **Corrections demandées :** <oui/non>
 **Statut Beads :** clos
@@ -1055,11 +831,10 @@ Construire le compte rendu en agrégeant les données structurées collectées a
 <bloc `**Changements par fichier :**` intégral issu du retour developer — si disponible>
 
 **Couverture des critères d'acceptance :** <tous couverts | partielle — <critères non couverts>>
-<issue du ### Critères d'acceptance couverts du retour developer ou qa-engineer>
+<issue du ### Critères d'acceptance couverts du retour developer>
 
 **Points d'attention techniques :**
 <issue du ### Points d'attention pour la review du retour developer — si renseigné>
-<issue du ### Zones non testables identifiées du retour qa-engineer — si renseigné>
 <"Aucun" si aucun point d'attention signalé>
 
 **Compte rendu d'implémentation complet :**
@@ -1212,11 +987,11 @@ Attendre les résultats de toutes les sessions. Pour chaque résultat reçu :
 
 1. Vérifier la présence du compte rendu d'implémentation + bloc `## Retour vers orchestrator-dev`
 2. Si `### Statut` = `bloqué` → traiter comme un "Ticket bloqué" (produire `## Question pour l'orchestrator` si invoqué depuis l'agent orchestrator)
-3. Détecter un éventuel conflit de fichiers : si un `developer-*` a modifié un fichier déjà modifié par une autre session parallèle, signaler et passer à l'étape QA+Review en priorité pour ce ticket avant les autres
+3. Détecter un éventuel conflit de fichiers : si un `developer-*` a modifié un fichier déjà modifié par une autre session parallèle, signaler et passer à l'étape Pre-review+Review en priorité pour ce ticket avant les autres
 
-### CP-QA et Review en parallèle
+### Pre-review et Review en parallèle
 
-Les phases QA et Review sont lancées pour chaque ticket dès que son implémentation est terminée — sans attendre les autres sessions. Les sessions QA et Review pour différents tickets peuvent donc se chevaucher.
+Les phases Pre-review et Review sont lancées pour chaque ticket dès que son implémentation est terminée — sans attendre les autres sessions. Les sessions Pre-review et Review pour différents tickets peuvent donc se chevaucher.
 
 ### CP-2 en batch conditionnel
 
@@ -1353,7 +1128,6 @@ Construire ce récap en agrégeant les données structurées collectées à chaq
 ### Points d'attention globaux
 <Agrégation des points d'attention techniques collectés à chaque étape 6 :
  - Points signalés par les developer-* (décisions techniques, compromis, dette)
- - Zones non testables signalées par le qa-engineer
  - Points récurrents signalés par le reviewer sur plusieurs tickets>
 <"Aucun point d'attention" si aucun point n'a été signalé en cours de session>
 ```
@@ -1378,11 +1152,11 @@ Ajouter immédiatement après le récap global le bloc `## Retour vers orchestra
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
 ### Détail par ticket
-| ID | Agent (domaine) | QA | Cycles review | Critères couverts | Statut |
-|----|----------------|----|---------------|-------------------|--------|
-| bd-XX | developer (frontend) | oui — <NB_TESTS> tests | 1 | tous | ✅ Terminé |
-| bd-YY | developer (backend)  | non | 2 | partielle | ✅ Terminé |
-| bd-ZZ | developer (api)      | non | — | — | ⏭️ Ignoré  |
+| ID | Agent (domaine) | Cycles review | Critères couverts | Statut |
+|----|----------------|---------------|-------------------|--------|
+| bd-XX | developer (frontend) | 1 | tous | ✅ Terminé |
+| bd-YY | developer (backend)  | 2 | partielle | ✅ Terminé |
+| bd-ZZ | developer (api)      | — | — | ⏭️ Ignoré  |
 
 **Points d'attention :**
 - <agrégation des points d'attention techniques collectés à chaque étape 6>
@@ -1729,7 +1503,6 @@ session_state_end
 | Action | Description |
 |--------|-------------|
 | `implementing` | Implémentation en cours par le developer |
-| `testing` | Écriture des tests par le qa-engineer |
 | `reviewing` | Review en cours par le reviewer |
 | `waiting_cp2` | En attente de décision CP-2 |
 | `idle` | Pas d'action en cours |
@@ -1758,5 +1531,5 @@ session_state_end
 - Omettre le champ `**Type de récap :**` dans le bloc `## Retour vers orchestrator` — ce champ est obligatoire et permet à l'orchestrator de distinguer récap partiel (émis avec une question montante) et récap final (émis seul en fin de session)
 - Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
 - Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte
-- Mettre à jour todowrite à chaque micro-étape (QA, review, pre-review) — uniquement aux transitions clés (CP-1 start, fin ticket) pour limiter l'overhead en mode auto
+- Mettre à jour todowrite à chaque micro-étape (review, pre-review) — uniquement aux transitions clés (CP-1 start, fin ticket) pour limiter l'overhead en mode auto
 - Avoir plusieurs tâches `in_progress` simultanément dans todowrite — exactement une à la fois (sauf workflow parallèle où chaque session gère son propre state)

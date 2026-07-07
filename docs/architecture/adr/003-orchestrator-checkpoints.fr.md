@@ -24,7 +24,7 @@ L'orchestrateur impose des **checkpoints explicites** (notés `[CP-X]`) à chaqu
 
 - `[CP-0]` — Avant de démarrer le workflow (validation des tickets planifiés)
 - `[CP-1]` — Avant chaque ticket (confirmation de démarrage)
-- `[CP-QA]` — Avant l'étape QA (activation conditionnelle selon le risque détecté)
+- ~~`[CP-QA]` — Avant l'étape QA (activation conditionnelle selon le risque détecté)~~ *(supprimé — juillet 2026, voir ADR-023)*
 - `[CP-2]` — Après la review (merge ou corrections ?)
 - `[CP-3]` — Après chaque ticket (ticket suivant ou stop ?)
 
@@ -34,19 +34,21 @@ L'orchestrateur ne passe jamais à l'étape suivante sans réponse explicite.
 
 ### Mai 2026 — Activation conditionnelle du CP-QA
 
-Le checkpoint `[CP-QA]` a été amélioré avec une **activation conditionnelle basée sur le niveau de risque** détecté automatiquement dans le diff :
+> **⚠️ SUPPRIMÉ (juillet 2026)** — Le checkpoint `[CP-QA]` et l'agent `qa-engineer` ont été supprimés. L'écriture des tests est désormais la responsabilité de l'agent `developer` (TDD ou post-implémentation). Le `reviewer` vérifie la couverture de tests. Le workflow pre-review exécute les tests automatiquement. Voir ADR-023.
 
-**Comportement selon le risque :**
+~~Le checkpoint `[CP-QA]` a été amélioré avec une **activation conditionnelle basée sur le niveau de risque** détecté automatiquement dans le diff :~~
 
-- **🔴 Risque élevé** (API, services, code critique, >200 lignes) → QA obligatoire, pas de checkpoint
-- **🟡 Risque moyen** (utils, logique métier dans composants) → QA recommandé par défaut
-- **⚪ Risque faible** (UI pure, doc, config) → QA optionnel
+~~**Comportement selon le risque :**~~
 
-**Tickets TDD :** Au lieu de skipper automatiquement le QA, un audit rapide de couverture est effectué pour valider que le TDD a été correctement appliqué (couverture >= 80%, tous critères couverts). Si le TDD est incomplet, le qa-engineer écrit les tests manquants.
+- ~~**🔴 Risque élevé** (API, services, code critique, >200 lignes) → QA obligatoire, pas de checkpoint~~
+- ~~**🟡 Risque moyen** (utils, logique métier dans composants) → QA recommandé par défaut~~
+- ~~**⚪ Risque faible** (UI pure, doc, config) → QA optionnel~~
 
-**Valeur ajoutée du qa-engineer :** Le qa-engineer produit désormais une section `### Points d'attention pour la review` dans son handoff, transmise au reviewer pour orienter sa review sur les zones critiques (code non testable, edge cases non couverts, hypothèses faites).
+~~**Tickets TDD :** Au lieu de skipper automatiquement le QA, un audit rapide de couverture est effectué pour valider que le TDD a été correctement appliqué (couverture >= 80%, tous critères couverts). Si le TDD est incomplet, le qa-engineer écrit les tests manquants.~~
 
-Cette approche maximise la qualité sur le code critique sans ralentir les tickets simples.
+~~**Valeur ajoutée du qa-engineer :** Le qa-engineer produit désormais une section `### Points d'attention pour la review` dans son handoff, transmise au reviewer pour orienter sa review sur les zones critiques (code non testable, edge cases non couverts, hypothèses faites).~~
+
+~~Cette approche maximise la qualité sur le code critique sans ralentir les tickets simples.~~
 
 ## Conséquences
 

@@ -99,7 +99,6 @@ sequenceDiagram
     participant AU as auditor (coordinateur)
     participant OD as OrchestratorDev
     participant DEV as Developer-*
-    participant QA as QA Engineer
     participant R as Reviewer
 
     U->>O: "Implémente [feature]"
@@ -122,12 +121,8 @@ sequenceDiagram
 
     O->>OD: Tickets dev (+ mode transmis)
     loop Pour chaque ticket dev
-        OD->>DEV: Délègue l'implémentation
-        DEV-->>OD: Implémentation terminée
-        opt QA activé (ticket sans label tdd)
-            OD->>QA: Délègue la vérification
-            QA-->>OD: Tests écrits + rapport couverture
-        end
+        OD->>DEV: Délègue l'implémentation (tests inclus)
+        DEV-->>OD: Implémentation + tests terminés
         OD->>R: Review automatique
         R-->>OD: Rapport de review
         OD->>U: [CP-2] Merger ou corriger ? ← TOUJOURS PAUSE
@@ -190,15 +185,15 @@ critique nécessite une confirmation explicite de l'utilisateur.
 
 ### 4. Séparation des responsabilités de qualité
 
-Implémenter, tester et diagnostiquer sont trois responsabilités distinctes confiées
-à trois agents différents (developer, qa-engineer, debugger).
+Implémenter et diagnostiquer sont deux responsabilités distinctes confiées
+à des agents différents (developer, debugger). Les tests sont écrits par le developer et vérifiés par le reviewer.
 
 → [ADR-004](./adr/004-qa-debugger-separation.fr.md)
 
 ### 5. Lecture seule pour les agents non-développeurs
 
 Les agents auditor-*, reviewer, designer n'écrivent jamais dans le projet cible.
-Seuls les agents developer et qa-engineer modifient des fichiers de code.
+Seuls les agents developer modifient des fichiers de code.
 Le `reviewer` supporte la review multi-mode (standard, adversarial, edge-case) avec
 des sessions parallèles indépendantes pour les modes combinés — l'isolation contextuelle garantit une analyse sans biais.
 
@@ -210,7 +205,7 @@ Ils ne font jamais d'écriture directe.
 
 Cette boucle d'enrichissement continu couvre tous les agents : `auditor` coordinateur (Phase 4),
 `planner` (Phase 6), `debugger` (Phase 5), `developer-*` (après chaque ticket), `reviewer`
-(post-rapport), `qa-engineer` (post-rapport), `pathfinder` (post-rapport), et `onboarder`
+(post-rapport), `pathfinder` (post-rapport), et `onboarder`
 (mode enrichissement incrémental lorsque `docs/wiki/index.md` existe déjà).
 
 Voir [Wiki Documentaire Vivant](./living-wiki.fr.md) pour l'architecture complète du système.

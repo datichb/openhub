@@ -19,7 +19,7 @@ The orchestrator enforces **explicit checkpoints** (noted `[CP-X]`) at each crit
 
 - `[CP-0]` — Before starting the workflow (validation of planned tickets)
 - `[CP-1]` — Before each ticket (confirmation to start)
-- `[CP-QA]` — Before the QA step (optional, user's choice)
+- `[CP-QA]` — ~~Before the QA step (optional, user's choice)~~ **REMOVED (July 2026)** — The CP-QA checkpoint and `qa-engineer` agent have been removed. The `developer` now owns test writing; the `reviewer` verifies coverage; pre-review runs tests automatically. See ADR-023.
 - `[CP-2]` — After review (merge or corrections?)
 - `[CP-3]` — After each ticket (next ticket or stop?)
 

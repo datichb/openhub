@@ -1,6 +1,6 @@
 ---
 name: dev-standards-testing
-description: Stratégie de tests — unitaires, intégration, E2E. Couverture obligatoire, TDD, mocking, et règles de non-régression.
+description: Stratégie de tests — unitaires, intégration, E2E. Couverture obligatoire des critères d'acceptance, TDD, mocking, checklist systématique, gate de complétion et règles de non-régression.
 ---
 
 # Skill — Standards de Tests
@@ -16,9 +16,12 @@ couverture minimale, organisation, nomenclature et règles de non-régression.
 ## 🔒 Règles absolues
 
 ❌ Tu ne livres JAMAIS une fonctionnalité sans tests unitaires sur la logique métier
+❌ Tu ne livres JAMAIS une implémentation sans couvrir les critères d'acceptance du ticket par au moins un test chacun
 ❌ Tu ne supprimes JAMAIS un test existant sans justification explicite de l'utilisateur
 ❌ Tu n'utilises JAMAIS le typage dynamique non contrôlé dans les types de test pour contourner des erreurs
+❌ Tu ne testes JAMAIS l'implémentation interne (détails d'implémentation, appels de méthodes privées) — teste le **comportement observable** : entrées → sorties, états, effets de bord publics
 ✅ Si une fonctionnalité n'est pas testable telle qu'elle est conçue, tu le signales avant d'implémenter
+✅ Chaque test doit échouer pour la bonne raison avant d'être vert (red → green vérifiable)
 
 ---
 
@@ -252,14 +255,12 @@ export function calculerRemise(montant: number): number {
 // Les tests passent toujours — rien n'a changé du point de vue du comportement
 ```
 
-### Impact sur le QA
+### Impact sur la review
 
-Quand le ticket est en TDD, le `qa-engineer` effectue un **audit rapide de couverture** au lieu de réécrire les tests :
-- Vérifie que la couverture >= 80% et que tous les critères d'acceptance sont couverts
-- Si le TDD a été correctement appliqué → valide et produit un rapport court
-- Si le TDD est incomplet ou mal appliqué → écrit les tests manquants
-
-Cela garantit la qualité sans pénaliser les tickets TDD bien faits.
+Quand le ticket est en TDD, le reviewer vérifie que le TDD a été correctement appliqué :
+- Couverture >= 80% et tous les critères d'acceptance couverts
+- Les tests ont été écrits avant l'implémentation (cohérence visible dans les commits)
+- Si le TDD est incomplet ou mal appliqué → finding de sévérité 🟠 Majeur demandant au developer de compléter les tests
 
 ---
 
@@ -358,3 +359,76 @@ Quand l'utilisateur demande un audit, une review ou utilise le mot-clé **"audit
 3. Signaler les mocks qui masquent du code jamais exécuté
 4. Vérifier la nomenclature et la structure AAA
 5. Proposer un plan de correction priorisé
+
+---
+
+## Checklist systématique de couverture
+
+Pour chaque unité de code implémentée ou modifiée, vérifier dans l'ordre :
+
+### 1. Cas nominal
+- [ ] Le chemin principal fonctionne avec des données valides
+- [ ] Les valeurs de retour sont correctes
+
+### 2. Cas d'erreur
+- [ ] Entrée invalide ou manquante → comportement attendu (exception, valeur par défaut, message d'erreur)
+- [ ] Dépendance externe en erreur → comportement dégradé géré
+
+### 3. Edge cases
+- [ ] Valeurs limites (0, null, undefined, chaîne vide, tableau vide)
+- [ ] Valeurs aux bornes des intervalles
+- [ ] Concurrence ou appels multiples si pertinent
+
+### 4. Couverture des critères d'acceptance
+- [ ] Chaque critère d'acceptance du ticket a au moins un test associé
+- [ ] Les critères négatifs ("ne doit pas faire X") sont couverts
+
+### 5. Qualité des tests
+- [ ] Nommage expressif : `doit <faire quoi> quand <contexte>`
+- [ ] Structure AAA respectée (Arrange / Act / Assert)
+- [ ] Pas d'assertion multiple non liée dans un même test
+- [ ] Pas de logique conditionnelle dans les tests
+
+---
+
+## Gate de complétion — Avant de déclarer l'implémentation terminée
+
+Avant de produire le compte rendu ou le bloc de handoff, passer les 3 checks suivants **dans l'ordre** :
+
+### Check 1 — Tests passent
+
+✅ Tous les tests écrits dans cette session passent (green)
+✅ Les tests existants du projet ne sont pas cassés (aucune régression introduite)
+❌ Si un test est rouge : corriger l'implémentation ou documenter pourquoi dans le compte rendu
+
+### Check 2 — Comportement observable conforme à la spec
+
+✅ Chaque critère d'acceptance du ticket a au moins un test associé (ou une justification documentée)
+✅ Les critères négatifs ("ne doit pas faire X") sont couverts
+❌ Critère non couvert → signaler dans le compte rendu comme point d'attention
+
+### Check 3 — Aucune régression connue non documentée
+
+✅ Aucun test existant n'a été supprimé ou contourné sans justification
+✅ Les tests écrits testent bien le comportement observable, pas les détails d'implémentation
+❌ Si une zone non testable est identifiée : signaler dans le compte rendu
+
+**Règle absolue :** les 3 checks doivent être passés ou leur impossibilité explicitement documentée dans le compte rendu.
+
+---
+
+## Outils par type de test
+
+| Type | Outils |
+|------|--------|
+| Unitaires (TS/JS) | Vitest (préféré), Jest |
+| Unitaires (Python) | pytest |
+| Unitaires (PHP) | PHPUnit |
+| Intégration API (Node.js) | Supertest |
+| Intégration API (Python) | pytest + httpx |
+| Intégration API (PHP) | Symfony BrowserKit |
+| Intégration DB | Base in-memory (SQLite, testcontainers) ou transactions rollbackées |
+| Composants Vue.js | Vitest + Vue Test Utils |
+| Composants React | Vitest + React Testing Library (ou Jest + RTL) |
+| E2E Web | Playwright (préféré), Cypress |
+| E2E Mobile | Detox (React Native), XCTest (iOS), Espresso (Android) |

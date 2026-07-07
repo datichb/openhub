@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Partially superseded (July 2026)
+
+> **Note:** The `qa-engineer` agent has been removed (July 2026). Its responsibilities (test writing) are transferred to the `developer` agent. The `reviewer` verifies coverage. The `debugger` agent remains unchanged. See ADR-023.
 
 ## Context
 

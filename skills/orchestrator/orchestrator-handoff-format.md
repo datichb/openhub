@@ -44,14 +44,14 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
 ### Détail par ticket
-| ID | Agent (domaine) | QA | Cycles review | Critères couverts | Statut |
-|----|----------------|----|---------------|-------------------|--------|
-| bd-XX | developer (frontend) | oui — 3 tests | 1 | tous | ✅ Terminé |
-| bd-YY | developer (backend)  | non | 2 | partielle | ✅ Terminé |
-| bd-ZZ | developer (api)      | non | — | — | ⏭️ Ignoré  |
+| ID | Agent (domaine) | Cycles review | Critères couverts | Statut |
+|----|----------------|---------------|-------------------|--------|
+| bd-XX | developer (frontend) | 1 | tous | ✅ Terminé |
+| bd-YY | developer (backend)  | 2 | partielle | ✅ Terminé |
+| bd-ZZ | developer (api)      | — | — | ⏭️ Ignoré  |
 
 **Points d'attention :**
-- <point 1 — agrégation des points signalés par developer, developer-refactor, developer-migrator, qa-engineer, reviewer>
+- <point 1 — agrégation des points signalés par developer, developer-refactor, developer-migrator, reviewer>
 - <point 2>
 **Statut global :** succès | partiel | bloqué
 ```

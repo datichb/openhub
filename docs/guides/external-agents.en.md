@@ -188,7 +188,6 @@ The hub automatically recognizes common names thanks to `config/agent-aliases.js
 | `orchestrator`, `coordinator`, `router` | `orchestrator` |
 | `frontend`, `front`, `ui-dev` | `developer-frontend` |
 | `backend`, `back`, `server` | `developer-backend` |
-| `qa`, `tester`, `test` | `qa-engineer` |
 | `reviewer`, `review`, `code-reviewer` | `reviewer` |
 | `docs`, `documentation`, `writer` | `documentarian` |
 | `devops`, `ops`, `ci-cd` | `developer-devops` |

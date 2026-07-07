@@ -205,16 +205,13 @@ Aucun blocage rencontré.
 
 3. **Transmettre le nom de la branche** au reviewer à l'étape 4 — le reviewer récupère lui-même le diff complet via ses propres outils (`git diff`). Les `**Changements par fichier**` sont conservés pour le compte rendu d'étape (étape 6) uniquement.
 
-4. **Transmettre les `### Critères d'acceptance couverts`** au qa-engineer si QA activé :
-   > Fournir au qa-engineer : diff + ticket ID + **"Critères déjà couverts : <liste des [x]> / Non couverts : <liste des [ ]>"**
+4. **Intégrer le `**Diff résumé**` et les `**Changements par fichier**`** dans le compte rendu d'étape (étape 6).
 
-5. **Intégrer le `**Diff résumé**` et les `**Changements par fichier**`** dans le compte rendu d'étape (étape 6).
+5. **Utiliser les données structurées du bloc handoff** (statut, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) pour alimenter le compte rendu d'étape (étape 6) et la synthèse du récap global (section "Récap global — Fin de session"). Le compte rendu narratif complet reste disponible dans la session developer et peut être consulté sur demande.
 
-6. **Utiliser les données structurées du bloc handoff** (statut, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) pour alimenter le compte rendu d'étape (étape 6) et la synthèse du récap global (section "Récap global — Fin de session"). Le compte rendu narratif complet reste disponible dans la session developer et peut être consulté sur demande.
+6. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 
-7. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
-
-8. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+7. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
 
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.

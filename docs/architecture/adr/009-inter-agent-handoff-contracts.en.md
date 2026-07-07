@@ -12,7 +12,7 @@ The hub's multi-agent architecture relies on an orchestration chain where agents
 
 **Level 1 — orchestrator-dev → orchestrator:** already formalized in v1.3.0 via `orchestrator/orchestrator-handoff-format`. This skill defined the `## Return to orchestrator` and `## Question for the orchestrator` blocks, shared between the producer and consumer.
 
-**Level 2 — all other sub-agents → their respective consumers:** not formalized. Sub-agents (developer-*, reviewer, qa-engineer, planner, onboarder, debugger, designer, auditor-*) returned free-form text results. The consuming agents (orchestrator-dev, orchestrator) had to manually extract information from this unstructured output, leading to:
+**Level 2 — all other sub-agents → their respective consumers:** not formalized. Sub-agents (developer-*, reviewer, planner, onboarder, debugger, designer, auditor-*) returned free-form text results. The consuming agents (orchestrator-dev, orchestrator) had to manually extract information from this unstructured output, leading to:
 
 - Incomplete summaries: the orchestrator-dev's global recap was poorly populated because it lacked structured data from its sub-agents
 - Inconsistent routing: the routing decision to `developer-security` after a security review required manual analysis of the report text, rather than reading a `### Recommended routing` field
@@ -38,7 +38,7 @@ Formalize **all** inter-agent communication contracts as dedicated skills, follo
 |-------|---------|---------|------------|
 | `developer/developer-handoff-format` | developer-* | orchestrator-dev | Files modified, acceptance criteria checked, **points of attention for the reviewer**, status |
 | `reviewer/reviewer-handoff-format` | reviewer | orchestrator-dev | **Actionable verdict** (commit/fix/fix-security), corrections verbatim, **recommended routing** |
-| `qa/qa-handoff-format` | qa-engineer | orchestrator-dev | Tests written, criteria checked, non-testable zones |
+| ~~`qa/qa-handoff-format`~~ | ~~qa-engineer~~ | ~~orchestrator-dev~~ | ~~Tests written, criteria checked, non-testable zones~~ *(removed — July 2026, see ADR-023)* |
 | `auditor/audit-handoff-format` | auditor-* | orchestrator | Vulnerability table, prioritized recommendations, residual risk |
 | `design/design-handoff-format` | designer | orchestrator | Complete spec, **implementation constraints**, open points |
 | `planning/planner-handoff-format` | planner | orchestrator | Complete tickets table with planned agents and dependencies |

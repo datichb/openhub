@@ -187,24 +187,15 @@ Audit skills. Skills marked **(A)** are Bucket A — inline. Skills marked **(B)
 | File | Agents using it | Content |
 |------|----------------|---------|
 | `orchestrator/orchestrator-protocol.md` | orchestrator | Full feature workflow, routing matrix (3 families: design, auditor, dev via orchestrator-dev), checkpoint format ([CP-0], [CP-spec], [CP-audit], [CP-feature]), edge case handling, structured return validation for each sub-agent type |
-| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Beads ticket-by-ticket workflow, developer-* routing matrix (9 signals → 9 agents), checkpoint format ([CP-1] to [CP-3] + [CP-QA]), 3 modes (manual/semi-auto/auto), `tdd` label detection (CP-QA automatically skipped — tests written by the developer in red/green/refactor), structured return exploitation (developer points-of-attention → reviewer, QA non-covered criteria → reviewer, reviewer corrections verbatim → Beads comment), **mandatory two-step global recap**: (1) full narrative recap (text + ticket table: agent, QA, review cycles, criteria covered, status) before the structured block, (2) `## Return to orchestrator` structured block — both required in this order |
-| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Handoff contract** — two formats: `## Return to orchestrator` (end of session: producer must emit condensed per-ticket summary first (status, key files, covered criteria, attention points + aggregated global attention points), then structured block with per-ticket detail table: agent, QA, review cycles, criteria covered, status — plus attention points and global status `success`/`partial`/`blocked`; consumer must display this summary in its discussion thread before building [CP-feature]) and `## Question for the orchestrator` (high-stakes CPs: CP-2, 3-cycle blockage, unresolved dependency, blocked ticket — full context, waiting question, options, `task_id` for session resumption) |
+| `orchestrator/orchestrator-dev-protocol.md` | orchestrator-dev | Beads ticket-by-ticket workflow, developer-* routing matrix (9 signals → 9 agents), checkpoint format ([CP-1] to [CP-3]), 3 modes (manual/semi-auto/auto), `tdd` label detection (tests written by the developer in red/green/refactor), structured return exploitation (developer points-of-attention → reviewer, reviewer corrections verbatim → Beads comment), **mandatory two-step global recap**: (1) full narrative recap (text + ticket table: agent, review cycles, criteria covered, status) before the structured block, (2) `## Return to orchestrator` structured block — both required in this order |
+| `orchestrator/orchestrator-handoff-format.md` | orchestrator-dev, orchestrator | **Handoff contract** — two formats: `## Return to orchestrator` (end of session: producer must emit condensed per-ticket summary first (status, key files, covered criteria, attention points + aggregated global attention points), then structured block with per-ticket detail table: agent, review cycles, criteria covered, status — plus attention points and global status `success`/`partial`/`blocked`; consumer must display this summary in its discussion thread before building [CP-feature]) and `## Question for the orchestrator` (high-stakes CPs: CP-2, 3-cycle blockage, unresolved dependency, blocked ticket — full context, waiting question, options, `task_id` for session resumption) |
 | `orchestrator/orchestrator-workflow-modes.md` | orchestrator, orchestrator-dev | Single source of truth for the 3 workflow modes (manual/semi-auto/auto) — canonical question blocks, absolute rules per mode |
-
----
-
-## Domain — `qa/`
-
-| File | Agents using it | Content |
-|------|----------------|---------|
-| `qa/qa-protocol.md` | qa-engineer | Test types (unit/integration/E2E/component), tools by stack, systematic checklist (nominal/error/edge cases/acceptance), coverage report format, AAA structure |
-| `qa/qa-handoff-format.md` | qa-engineer, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: tests written with files and covered cases, acceptance criteria checked, non-testable zones, status (`complete-coverage` / `partial-coverage` / `non-testable`) |
 
 ---
 
 ## Domain — `quality/`
 
-Quality skills for agents that are not qa-engineer or reviewer.
+Quality skills for agents that are not reviewer.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
@@ -290,9 +281,9 @@ Cross-cutting posture skills. Injectable into any agent requiring an expert post
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian, qa-engineer | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
-| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, qa-engineer, documentarian, designer | Usage of OpenCode's `question` tool — `question({ questions: [{...}] })` syntax, multi-questions support in a single call, multi-selection (`multiple: true`), automatic "Type your own answer" option (don't duplicate), response format (array of labels), mandatory structure (`header` ≤ 30 chars, `question`, `options` with `label` + `description`), recommended option first with `(Recommended)`, mandatory context block when invoked as sub-agent |
-| `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, qa-engineer, reviewer | **(A)** — Concision posture level `lite`: drops valueless intro phrases ("Sure!", "I'm going to...", "Here is..."), known-context restatements, redundant transitions between titled sections, closing formulas. Does not touch handoff blocks, mandatory narrative recaps, formal reports, or technical content. Tunable via `token_optimization.output_verbosity` in `hub.json`. See [ADR-015](./adr/015-concision-posture.en.md). |
+| `posture/expert-posture.md` | auditor-subagent, onboarder, designer, planner, documentarian | Systematic exploration before responding (announcing artefacts consulted, identifying uncertainty areas), argued counter-recommendation (⚠️ format with problem/alternative/why/trade-offs, first-person phrasing), confirmation pause before any high-risk action (🛑 format with explicit binary question) |
+| `posture/tool-question.md` | orchestrator, orchestrator-dev, planner, onboarder, auditor, debugger, reviewer, documentarian, designer | Usage of OpenCode's `question` tool — `question({ questions: [{...}] })` syntax, multi-questions support in a single call, multi-selection (`multiple: true`), automatic "Type your own answer" option (don't duplicate), response format (array of labels), mandatory structure (`header` ≤ 30 chars, `question`, `options` with `label` + `description`), recommended option first with `(Recommended)`, mandatory context block when invoked as sub-agent |
+| `posture/concision-posture.md` | orchestrator, orchestrator-dev, planner, pathfinder, developer, reviewer | **(A)** — Concision posture level `lite`: drops valueless intro phrases ("Sure!", "I'm going to...", "Here is..."), known-context restatements, redundant transitions between titled sections, closing formulas. Does not touch handoff blocks, mandatory narrative recaps, formal reports, or technical content. Tunable via `token_optimization.output_verbosity` in `hub.json`. See [ADR-015](./adr/015-concision-posture.en.md). |
 
 ---
 
@@ -302,7 +293,7 @@ Cross-cutting skills shared across multiple agent families. Skills marked **(A)*
 
 | File | Bucket | Agents using it | Content |
 |------|--------|----------------|---------|
-| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, qa-engineer, developer-* (all 11) | **Shared skill** — incremental enrichment of ONBOARDING.md and CONVENTIONS.md from any agent's work (audit, planning, debug, implementation, review, QA, reconnaissance, re-onboarding); delegates writing to documentarian after explicit user confirmation |
+| `shared/living-docs-enrichment.md` | **A** | auditor, planner, debugger, onboarder, pathfinder, reviewer, developer-* (all 11) | **Shared skill** — incremental enrichment of ONBOARDING.md and CONVENTIONS.md from any agent's work (audit, planning, debug, implementation, review, reconnaissance, re-onboarding); delegates writing to documentarian after explicit user confirmation |
 
 ---
 
@@ -332,7 +323,6 @@ orchestrator-dev      → (A) orchestrator/orchestrator-dev-protocol,
                              posture/tool-question,
                              developer/developer-handoff-format †,
                              reviewer/reviewer-handoff-format †,
-                             qa/qa-handoff-format †,
                              documentarian/documentarian-handoff-format †
                         skill: deny
 onboarder             → (A) planning/onboarder-workflow,
@@ -358,12 +348,7 @@ reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              reviewer/review-merge,
                              dev-standards-security, dev-standards-backend,
                              dev-standards-frontend, dev-standards-frontend-a11y,
-                             dev-standards-testing, dev-standards-git
-qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
-                             posture/tool-question, qa/qa-protocol,
-                             shared/living-docs-enrichment,
-                             qa/qa-handoff-format †
-                        (B) dev-standards-git
+                              dev-standards-testing, dev-standards-git
 debugger              → (A) quality/debugger-workflow, posture/tool-question,
                              posture/expert-posture,
                              shared/living-docs-enrichment,

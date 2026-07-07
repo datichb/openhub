@@ -131,7 +131,6 @@ client généré). Redis utilisé pour les sessions et le cache.
 |-------|----------|---------------------|
 | `auditor` (security) | Secret en dur dans `server/config/db.ts:12` | `"Audite la sécurité de ce projet"` |
 | `developer-security` | À invoquer après l'audit pour corriger les failles | `"Implémente le hardening suite à l'audit sécurité"` |
-| `qa-engineer` | Logique métier dans `server/services/` entièrement non testée | `"Écris les tests manquants sur les services backend"` |
 
 #### Recommandés — stack détectée
 

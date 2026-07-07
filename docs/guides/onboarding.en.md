@@ -133,7 +133,6 @@ generated client). Redis used for sessions and cache.
 |-------|-----|----------------------|
 | `auditor` (security) | Hard-coded secret in `server/config/db.ts:12` | `"Audit this project's security"` |
 | `developer-security` | To invoke after the audit to fix vulnerabilities | `"Implement hardening following the security audit"` |
-| `qa-engineer` | Business logic in `server/services/` entirely untested | `"Write missing tests for backend services"` |
 
 #### Recommended — detected stack
 

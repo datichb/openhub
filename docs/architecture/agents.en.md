@@ -122,12 +122,12 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 |--|--|
 | **Label** | OrchestratorDev |
 | **File** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-workflow-modes`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `qa/qa-handoff-format` |
+| **Skills** | `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-workflow-modes`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format` |
 | **Invocation** | `"Implement tickets [IDs]"` / `"Dev workflow for [feature]"` |
 
 AI tech lead specialized in driving implementation. Takes a list of ready-to-implement
 Beads tickets, routes to the `developer` agent with the appropriate domain specified in the
-invocation prompt, supervises optional QA and review.
+invocation prompt, supervises the review.
 Three modes: `manual` (default), `semi-auto`, `auto`. Invocable standalone or from the `orchestrator`.
 
 CP-2 (commit or fix?) is always manual in all modes.
@@ -284,28 +284,6 @@ Combined modes (`standard+adversarial`, `all`) launch **parallel independent ses
 
 ---
 
-### `qa-engineer`
-
-| | |
-|--|--|
-| **Label** | QAEngineer |
-| **File** | `agents/quality/qa-engineer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-git`, `posture/expert-posture`, `posture/tool-question`, `qa/qa-protocol`, `qa/qa-handoff-format`, `shared/living-docs-enrichment` |
-| **Invocation** | `"Write tests for branch [X]"` / `"QA on ticket [ID]"` |
-
-Writes missing tests (unit / integration / E2E) from a diff or a
-Beads ticket. Produces a before/after coverage report. Never modifies functional code.
-
-**Not relevant for TDD tickets**: when a ticket carries the `tdd` label,
-tests are written by the developer themselves before implementation (red/green/refactor loop).
-`orchestrator-dev` automatically skips CP-QA for these tickets — `qa-engineer` is not invoked.
-
-**Post-report — Living docs enrichment:** after producing the coverage report, identifies test conventions adopted and systematic edge cases revealed by the tests that are absent from `CONVENTIONS.md`, and proposes to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
-
-> See [ADR-004](./adr/004-qa-debugger-separation.en.md).
-
----
-
 ### `debugger`
 
 | | |
@@ -387,11 +365,11 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 ## Rules Common to All Agents
 
 - **Read-only agents**: auditor-subagent, reviewer, debugger, designer — never modify files
-- **Agents that write code**: developer-*, qa-engineer — only modify files in their domain
+- **Agents that write code**: developer-* — only modify files in their domain
 - **Agents that write documentation**: documentarian — only modifies documentation files (all other agents may propose enrichments to `ONBOARDING.md`/`CONVENTIONS.md` via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation)
 - **Agents that create tickets**: planner (feature tickets), debugger (bug tickets after confirmation)
 - **Agents that read tickets**: all can do `bd show <ID>` to contextualize their work
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — read-only, explores and reports, doesn't drive other agents
-- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, qa-engineer, reviewer — directly visible to the user
+- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer — directly visible to the user
 - **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and `auditor-subagent` — invocable by coordinator agents
