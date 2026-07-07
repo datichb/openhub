@@ -196,9 +196,8 @@ Ajouter les nouvelles lignes dans le tableau "Règles par type de retour".
    - Contient `## Retour vers orchestrator` sans question montante → retour final
 
 2. **Pour un retour final** :
-   - Afficher les `## Retour intermédiaire vers orchestrator` en texte, dans l'ordre
-   - Afficher le récap narratif complet (contexte, raisonnement, preuves — contenu unique non répété dans le bloc structuré)
-   - Afficher le bloc structuré `## Retour vers orchestrator` (tableau de synthèse, métadonnées de routing, statut)
+   - Afficher les `## Retour intermédiaire vers orchestrator` en texte, dans l'ordre (si présents)
+   - Retranscrire les champs du bloc structuré `## Retour vers orchestrator` de manière formatée (toutes les sections : rapport intégré, tableaux, statut — voir skill `retranscription-coordinateur`)
    - Puis seulement appeler `question` pour le checkpoint utilisateur
 
 3. **Pour une question montante** :

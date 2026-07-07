@@ -1688,25 +1688,25 @@ biome.json, docs/wiki/index.md
 
 ---
 
-### ⚠️ Autocontrôle visuel — AVANT de produire le bloc handoff
+### ⚠️ Autocontrôle visuel — AVANT de terminer la session
 
 **STOP — Question obligatoire à te poser MAINTENANT :**
 
-> « Ai-je affiché le rapport d'onboarding complet EN TEXTE dans la discussion ? »
-> → **NON** : STOP — produire et afficher le rapport MAINTENANT (voir Phase 3, rapport complet)
-> → **OUI** : vérifier que tous les éléments ci-dessous sont présents, puis continuer vers le bloc handoff
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? »
+> → **OUI** : STOP — supprimer le texte libre et vérifier que le rapport d'onboarding est DANS le bloc (section `### Rapport d'onboarding`)
+> → **NON** : vérifier que tous les éléments ci-dessous sont présents dans le bloc, puis terminer la session
 
-**Vérifications obligatoires avant bloc handoff :**
-- ✅ Stack technique identifiée et décrite
-- ✅ Points d'attention détaillés (🔴 critiques, 🟠 importants, 🟡 informatifs)
-- ✅ Dette technique détectée documentée
-- ✅ Zones d'incertitude signalées
+**Vérifications obligatoires dans le bloc :**
+- ✅ Section `### Rapport d'onboarding` présente (contexte de découverte, observations qualitatives)
+- ✅ Section `### Stack technique` renseignée
+- ✅ Section `### Dette technique détectée` documentée (🔴 critiques, 🟠 importants, 🟡 informatifs)
+- ✅ Section `### Zones d'incertitude` signalées
 
-> ❌ Ne JAMAIS produire le bloc `## Retour vers orchestrator` sans avoir d'abord affiché le rapport complet
-> ❌ Ne JAMAIS remplacer le rapport narratif par le bloc structuré — les deux sont obligatoires et complémentaires
-> ❌ Ne JAMAIS résumer le rapport — orchestrator doit pouvoir le retransmettre intégralement à l'utilisateur
+> ❌ Ne JAMAIS écrire de texte en dehors du bloc `## Retour vers orchestrator`
+> ❌ Ne JAMAIS produire le rapport d'onboarding en texte libre avant le bloc — il est DANS le bloc (section `### Rapport d'onboarding`)
+> ✅ Le bloc unique contient toutes les informations : rapport narratif + données structurées
 
-**Si le rapport n'a pas encore été affiché → retour immédiat à "Phase 3 — Analyse approfondie".**
+**Si une section est manquante dans le bloc → la compléter MAINTENANT avant de terminer.**
 
 ---
 

@@ -65,17 +65,17 @@ Formalize **all** inter-agent communication contracts as dedicated skills, follo
 
 ---
 
-## Amendment — Condensed implementation recap visible in the orchestrator thread
+## Amendment — Single-block return (supersedes two-step pattern)
 
-**Context:** after initial deployment, a gap was identified at the `orchestrator-dev` → `orchestrator` boundary: the structured `## Return to orchestrator` block contained only a minimal summary (handled tickets, attention points, global status). The orchestrator had no visibility into implementation details (files modified, review cycles, acceptance criteria coverage) before presenting the [CP-feature] to the user.
+**Context:** the original two-step pattern (narrative recap before structured block) caused agents to produce duplicate content in their discussion — increasing token cost and creating confusion for coordinators that had to parse both a free-text recap and a structured block. Analysis showed that the "context" conveyed by the narrative could be encoded within the structured block itself via dedicated sections (`### Context and decisions per ticket`, `### Complete report`, `### Full spec`, etc.).
 
-**Decision:** extend the `orchestrator/orchestrator-handoff-format` and `orchestrator-dev-protocol` skills to formalize a **mandatory two-step, complementary return**:
+**Decision:** replace the two-step pattern with a **single self-sufficient structured block**:
 
-1. `orchestrator-dev` must emit a **structured per-ticket summary** (status, key files, covered criteria, attention points + aggregated global attention points) **before** the structured `## Return to orchestrator` block. This summary brings **condensed context** that the structured block does not contain, without reproducing the verbatim developer-* narrative reports (too verbose for N tickets).
-2. The structured `## Return to orchestrator` block contains the per-ticket detail table and statistics — actionable data not present in the recap.
-3. The `orchestrator` consumer rule is updated: it must **display this recap in its discussion thread** before building [CP-feature] — symmetric with how the review report is displayed before [CP-2].
+1. `orchestrator-dev` produces **only** the `## Return to orchestrator` block — which now includes a `### Context and decisions per ticket` section capturing the "why" that was previously in the narrative recap, and `### Global attention points` aggregating the implementation observations.
+2. All sub-agents (developer, reviewer, debugger, planner, pathfinder, designer, onboarder, auditor) produce **only** their respective `## Return to <parent>` block — with the full report/spec/diagnosis integrated within a dedicated section of the block.
+3. The `orchestrator` consumer rule is updated: it **transcribes the block fields in formatted fashion** (mechanical display, no summarization) before building any checkpoint.
 
-**Impact:** the orchestrator's discussion thread shows a concise implementation summary before every [CP-feature], giving the user targeted visibility into what was done without flooding the thread with N full narrative reports.
+**Impact:** token cost reduced ~50-70% on inter-agent exchanges. No information loss — all content that was in the narrative is now in dedicated block sections. Coordinators receive a single parseable artifact instead of free text + structured block.
 
 ---
 

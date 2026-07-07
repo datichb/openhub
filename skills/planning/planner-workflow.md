@@ -1770,9 +1770,9 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 `planification-complète` | `planification-partielle` | `bloqué`
 ```
 
-> **Autocontrôle avant le bloc final :**
-> « Ai-je produit le récapitulatif narratif complet avant ce bloc ? Si non → le produire d'abord. »
-> « Ce récap contient-il la liste détaillée de TOUS les tickets (descriptions + acceptance + notes) ? Si non → le compléter. »
+> **Autocontrôle avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — le récapitulatif de planification est DANS le bloc (section `### Récapitulatif de planification`). »
+> « La section `### Tickets créés` contient-elle TOUS les tickets (descriptions + acceptance + notes) ? Si non → la compléter. »
 
 → **TERMINER LA SESSION** — l'agent orchestrator se charge du CP-0.
 

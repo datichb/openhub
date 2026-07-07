@@ -341,10 +341,10 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 Phase 4 est le **retour final**. Produire dans cet ordre :
 
 1. **La synthèse exécutive multi-domaines** (texte narratif)
-2. **Le bloc `## Retour vers orchestrator`** (résumé structuré actionnable) — voir skill `audit-handoff-format`
+2. **Le bloc `## Retour vers orchestrator`** (bloc unique autosuffisant — la synthèse est intégrée dans la section `### Rapport d'audit complet`) — voir skill `audit-handoff-format`
 
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit la synthèse exécutive complète avant ce bloc ? Si non, la produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — la synthèse est DANS le bloc. »
 
 → **TERMINER LA SESSION**
 

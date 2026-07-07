@@ -252,6 +252,6 @@ Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
 
 1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Résumé` et `### ✅ Points positifs`.
 
-2. **Conclure avec le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — ce bloc est obligatoire et vient toujours après le rapport.
+2. **Intégrer le rapport dans le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — le rapport complet est placé dans la section `### Rapport complet` du bloc. Le bloc est le seul output attendu.
 
-> Le rapport complet est la condition préalable au bloc handoff. Ne jamais produire le bloc handoff seul.
+> Le rapport complet est intégré DANS le bloc handoff (section `### Rapport complet`). Ne jamais produire le rapport en texte libre séparé.

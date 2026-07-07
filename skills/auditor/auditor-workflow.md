@@ -786,25 +786,25 @@ Les signaler dans la section "Recommandations stratégiques" si applicable.
 
 ---
 
-### ⚠️ Autocontrôle visuel — AVANT de produire le bloc handoff
+### ⚠️ Autocontrôle visuel — AVANT de terminer la session
 
 **STOP — Question obligatoire à te poser MAINTENANT :**
 
-> « Ai-je affiché la synthèse exécutive multi-domaines complète EN TEXTE dans la discussion ? »
-> → **NON** : STOP — produire et afficher la synthèse MAINTENANT (voir Phase 4, synthèse exécutive)
-> → **OUI** : vérifier que tous les éléments ci-dessous sont présents, puis continuer vers le bloc handoff
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? »
+> → **OUI** : STOP — supprimer le texte libre et vérifier que la synthèse est DANS le bloc (section `### Rapport d'audit complet`)
+> → **NON** : vérifier que tous les éléments ci-dessous sont présents dans le bloc, puis terminer la session
 
-**Vérifications obligatoires avant bloc handoff :**
-- ✅ Tableau récapitulatif multi-domaines (Score, Verdict, Problèmes par criticité)
-- ✅ Synthèse des problèmes identifiés (🔴 critiques, 🟠 majeurs, 🟡 mineurs)
-- ✅ Actions prioritaires recommandées
-- ✅ Risque résiduel si non corrigé documenté
+**Vérifications obligatoires dans le bloc :**
+- ✅ Section `### Rapport d'audit complet` présente (observations détaillées, preuves, chemins d'exploitation)
+- ✅ Section `### Synthèse des problèmes identifiés` renseignée (🔴 critiques, 🟠 majeurs, 🟡 mineurs)
+- ✅ Section `### Recommandations priorisées` présente
+- ✅ Section `### Risque résiduel si non corrigé` documentée
 
-> ❌ Ne JAMAIS produire le bloc `## Retour vers orchestrator` sans avoir d'abord affiché la synthèse complète
-> ❌ Ne JAMAIS remplacer la synthèse narrative par le bloc structuré — les deux sont obligatoires et complémentaires
-> ❌ Ne JAMAIS résumer la synthèse — orchestrator doit pouvoir la retransmettre intégralement à l'utilisateur
+> ❌ Ne JAMAIS écrire de texte en dehors du bloc `## Retour vers orchestrator`
+> ❌ Ne JAMAIS produire la synthèse en texte libre avant le bloc — elle est DANS le bloc (section `### Rapport d'audit complet`)
+> ✅ Le bloc unique contient toutes les informations : rapport détaillé + données structurées
 
-**Si la synthèse n'a pas encore été affichée → retour immédiat à "Récap de fin de Phase 4" ci-dessus.**
+**Si une section est manquante dans le bloc → la compléter MAINTENANT avant de terminer.**
 
 ---
 

@@ -125,10 +125,10 @@ Produire dans cet ordre :
 
 1. **Le rapport de diagnostic complet** (texte narratif) — voir skill `debugger-handoff-format`
 
-2. **Le bloc `## Retour vers orchestrator`** (résumé structuré actionnable) — voir skill `debugger-handoff-format`
+2. **Le bloc `## Retour vers orchestrator`** (bloc unique autosuffisant — le rapport de diagnostic est intégré dans la section `### Rapport de diagnostic complet`) — voir skill `debugger-handoff-format`
 
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit le rapport de diagnostic complet avant ce bloc ? Si non, le produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — le rapport est DANS le bloc. »
 
 **Si CONTEXTE = standalone :**
 

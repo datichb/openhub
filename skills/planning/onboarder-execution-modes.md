@@ -394,11 +394,10 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 Phase 5 est le **retour final**. Produire dans cet ordre :
 
-1. **Le rapport d'onboarding complet** (texte narratif) — voir skill `onboarder-handoff-format`
-2. **Le bloc `## Retour vers orchestrator`** (résumé structuré actionnable) — voir skill `onboarder-handoff-format`
+Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `onboarder-handoff-format`). Le rapport d'onboarding est intégré dans le bloc (section `### Rapport d'onboarding`), pas produit séparément.
 
-> **Autocontrôle obligatoire avant de produire le bloc structuré :**
-> « Ai-je produit le rapport d'onboarding complet avant ce bloc ? Si non, le produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — le rapport est DANS le bloc. »
 
 → **TERMINER LA SESSION**
 

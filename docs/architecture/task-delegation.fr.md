@@ -178,25 +178,25 @@ Cette indirection permet de :
 
 ### Le pattern général
 
-Chaque sous-agent, quand invoqué via `task`, produit **dans cet ordre** :
+Chaque sous-agent, quand invoqué via `task`, produit **uniquement** un bloc structuré
+`## Retour vers <parent>` qui est son **seul output** :
 
-1. **Contenu narratif complet** — le travail réalisé avec son contexte et son
-   raisonnement (rapport, compte rendu d'implémentation, diagnostic...).
-   Ce contenu apporte ce que le bloc structuré ne peut pas contenir : le
-   *pourquoi* des décisions, les preuves, le contexte de découverte.
-   **Il ne réencode pas les données déjà présentes dans le bloc structuré**
-   (listes de fichiers, tableaux, champs normalisés).
-2. **Bloc structuré `## Retour vers <parent>`** — résumé actionnable avec des
-   champs normalisés (statut, routing, verdict, tableaux de synthèse).
+1. **Bloc structuré unique `## Retour vers <parent>`** — contient toutes les informations
+   nécessaires au coordinateur : métadonnées actionnables (statut, routing, verdict,
+   tableaux de synthèse) ET le contenu détaillé intégré dans une section dédiée
+   (`### Rapport complet`, `### Spec complète`, `### Rapport pathfinder complet`, etc.).
+   Ce bloc est autosuffisant — le coordinateur peut retranscrire ses champs directement
+   à l'utilisateur sans perte d'information.
 
-Le bloc structuré **vient après** le contenu narratif — il le complète avec des
-données structurées actionnables. Les deux sont complémentaires et non
-redondants : le narratif apporte le contexte, le bloc structuré apporte
-les métadonnées de routing et de décision.
+Aucun texte libre (rapport narratif, introduction, résumé, conclusion) n'est produit
+avant ou après le bloc. Le bloc unique est la seule interface de communication entre
+l'agent enfant et son parent coordinateur.
 
 ```markdown
-## Contenu complet du travail réalisé
-[... rapport détaillé, code, analyse ...]
+## Retour vers orchestrator
+
+**Agent :** <nom>
+**Ticket :** #<ID> — <titre>
 
 ---
 
