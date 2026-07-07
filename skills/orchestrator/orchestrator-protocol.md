@@ -180,13 +180,10 @@ Invoquer le `debugger` en lui transmettant :
    - **Présents** → les afficher intégralement en texte dans la discussion, dans l'ordre, AVANT le reste
    - **Absents** → continuer directement
 
-2. **Détecter la présence du rapport de diagnostic complet** (cause racine, hypothèses explorées, impact) :
-   - **Présent** → continuer la vérification suivante
-   - **Absent** → demander explicitement au debugger de produire le rapport complet avant de continuer.
-
-3. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+2. **Détecter la présence du bloc `## Retour vers orchestrator`** avec sa section `### Rapport de diagnostic complet` :
    - **Présent** → continuer
-   - **Absent** → demander explicitement au debugger de produire le récapitulatif structuré avant de continuer.
+   - **Absent** → demander explicitement au debugger de produire le bloc complet avant de continuer.
+   - **`### Rapport de diagnostic complet` absent dans le bloc** → demander au debugger de compléter le bloc.
 
 **Cas B — question montante :** le résultat contient `## Question pour l'orchestrator`
 → Voir section "Réception d'une question montante depuis le debugger" ci-dessous.
@@ -243,7 +240,7 @@ Quand le debugger atteint un checkpoint (fin de phase, pause, confirmation d'act
 
 Le format attendu et les définitions des statuts du debugger sont définis dans le skill `quality/debugger-handoff-format` — s'y référer comme source de vérité.
 
-> ❌ Ne jamais accepter un bloc handoff sans rapport de diagnostic préalable — les deux sont obligatoires.
+> ❌ Ne jamais accepter un bloc handoff sans la section `### Rapport de diagnostic complet` — elle doit être intégrée dans le bloc.
 
 ⚠️ Ne jamais tenter de :
 - Lire les fichiers concernés pour comprendre le bug
@@ -301,13 +298,10 @@ question({
      - **Présents** → les afficher intégralement en texte dans l'ordre, AVANT le reste
      - **Absents** → continuer directement
 
-  2. **Détecter la présence du rapport d'onboarding complet** (stack, conventions, dette détectée, fichiers produits) :
-     - **Présent** → continuer la vérification suivante
-     - **Absent** → demander explicitement à l'onboarder de produire le rapport complet avant de continuer.
-
-  3. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+  2. **Détecter la présence du bloc `## Retour vers orchestrator`** avec sa section `### Rapport d'onboarding` :
      - **Présent** → continuer
-     - **Absent** → demander explicitement à l'onboarder de produire le récapitulatif structuré avant de continuer.
+     - **Absent** → demander explicitement à l'onboarder de produire le bloc complet avant de continuer.
+     - **`### Rapport d'onboarding` absent dans le bloc** → demander à l'onboarder de compléter le bloc.
 
   **Cas B — question montante :** contient `## Question pour l'orchestrator`
   → Voir section "Réception d'une question montante depuis l'onboarder" ci-dessous.
@@ -364,7 +358,7 @@ Quand l'onboarder atteint un checkpoint (fin de phase), il termine sa session av
 
   Le format attendu et les définitions des statuts de l'onboarder sont définis dans le skill `planning/onboarder-handoff-format` — s'y référer comme source de vérité.
 
-  > ❌ Ne jamais accepter un bloc handoff sans rapport d'onboarding préalable — les deux sont obligatoires.
+  > ❌ Ne jamais accepter un bloc handoff sans la section `### Rapport d'onboarding` — elle doit être intégrée dans le bloc.
 
   **[CP-onboard]** — Après avoir affiché le rapport et le bloc dans le texte de la discussion (ne pas inclure dans l'outil `question`), utiliser l'outil `question` :
 
@@ -413,13 +407,10 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
       - **Présents** → les afficher intégralement en texte dans la discussion, dans l'ordre, AVANT le reste
       - **Absents** → continuer directement avec le récapitulatif final
 
-   2. **Détecter la présence du récapitulatif de planification complet** (liste narrative des tickets créés, dépendances, risques) :
-      - **Présent** → continuer la vérification suivante
-      - **Absent** → demander explicitement au planner de produire le récapitulatif complet avant de continuer.
-
-   3. **Détecter la présence du bloc `## Retour vers orchestrator`** :
+   2. **Détecter la présence du bloc `## Retour vers orchestrator`** avec sa section `### Récapitulatif de planification` :
       - **Présent** → continuer
-      - **Absent** → demander explicitement au planner de produire le récapitulatif structuré avant de continuer.
+      - **Absent** → demander explicitement au planner de produire le bloc complet avant de continuer.
+      - **`### Récapitulatif de planification` absent dans le bloc** → demander au planner de compléter le bloc.
 
    **Cas B — question montante :** le résultat contient `## Question pour l'orchestrator`
    → Voir section "Réception d'une question montante depuis le planner" ci-dessous.
@@ -494,7 +485,7 @@ question({
 
    Le format attendu, les champs obligatoires et les définitions des statuts du planner sont définis dans le skill `planning/planner-handoff-format` — s'y référer comme source de vérité.
 
-   > ❌ Ne jamais accepter un bloc handoff final sans récapitulatif de planification préalable — les deux sont obligatoires.
+   > ❌ Ne jamais accepter un bloc handoff final sans la section `### Récapitulatif de planification` — elle doit être intégrée dans le bloc.
 
 3. **Récupérer les instructions de routing depuis le retour planner :**
    - Lire le champ `Agent prévu` dans le tableau `### Tickets créés` pour chaque ticket — c'est l'agent à utiliser
@@ -701,7 +692,7 @@ Le routing est entièrement délégué au planner. Catalogue agents et heuristiq
    Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `design/design-handoff-format` — s'y référer comme source de vérité.
 
    > ❌ Ne jamais résumer ni abréger la spec avant de la présenter à l'utilisateur au CP-spec.
-   > ❌ Ne jamais accepter un bloc handoff sans spec complète préalable — les deux sont obligatoires.
+   > ❌ Ne jamais accepter un bloc handoff sans la section `### Spec complète` — elle doit être intégrée dans le bloc.
 
 5. [CP-spec] Afficher la spec complète dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis utiliser l'outil `question` :
 
@@ -804,7 +795,7 @@ Le routing est entièrement délégué au planner. Catalogue agents et heuristiq
    Le format attendu, les champs obligatoires et les définitions des statuts sont définis dans le skill `auditor/audit-handoff-format` — s'y référer comme source de vérité.
 
    > ❌ Ne jamais résumer ni filtrer le rapport avant de le présenter à l'utilisateur au CP-audit.
-   > ❌ Ne jamais accepter un bloc handoff sans rapport d'audit préalable — les deux sont obligatoires.
+   > ❌ Ne jamais accepter un bloc handoff sans la section `### Rapport d'audit complet` — elle doit être intégrée dans le bloc.
 
 5. [CP-audit] Afficher le rapport d'audit complet dans le texte de la discussion (ne pas inclure dans l'outil `question`), puis utiliser l'outil `question` :
 
@@ -906,9 +897,8 @@ Le routing est entièrement délégué au planner. Catalogue agents et heuristiq
 4. À la réception du résultat de l'invocation, **détecter le type de retour** :
 
    **Cas A — retour normal** : le résultat contient `## Retour vers orchestrator` mais **pas** de bloc `## Question pour l'orchestrator` (signal que le récap est **final**)
-   → **Afficher intégralement dans le fil de discussion le récap global complet produit par orchestrator-dev** (texte libre + tableau des tickets traités avec agent, cycles de review, critères couverts, statut + points d'attention agrégés) — ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
-   → Si le récap global complet (texte précédant le bloc structuré) est absent, le demander explicitement à orchestrator-dev avant de continuer.
-   → Lire ensuite le bloc structuré `## Retour vers orchestrator`. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
+   → **Retranscrire les champs du bloc `## Retour vers orchestrator` de manière formatée** dans le fil de discussion (voir skill `retranscription-coordinateur`) — afficher `### Détail par ticket`, `### Contexte et décisions par ticket`, `### Points d'attention globaux`. Ne jamais résumer ni omettre. Ce contenu doit être visible avant le CP-feature.
+   → Lire le bloc structuré `## Retour vers orchestrator`. Le format attendu, les champs obligatoires et les définitions des statuts (`succès`, `partiel`, `bloqué`) sont définis dans le skill `orchestrator-handoff-format` — s'y référer pour le contrat exact.
     > Si le bloc structuré ne contient pas les champs requis, les demander explicitement à orchestrator-dev avant de continuer.
 
     → **Valider le gate de complétion** (voir section ci-dessous) avant de construire le CP-feature.

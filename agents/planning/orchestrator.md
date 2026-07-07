@@ -94,13 +94,11 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
    
    ⚠️ **PROTOCOLE DE RETRANSMISSION OBLIGATOIRE** (voir skill `posture/retranscription-coordinateur`) :
    
-   a. **VÉRIFIER** la présence du rapport de diagnostic complet
-   b. **VÉRIFIER** la présence du bloc `## Retour vers orchestrator`
-   c. **AFFICHER le rapport complet en texte** dans la discussion (copier-coller intégral, jamais résumer)
-   d. **AFFICHER le bloc structuré en texte** dans la discussion (tous les champs obligatoires)
-   e. **VÉRIFIER les sections critiques** : `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles`
-   f. **AUTOCONTRÔLE** : « Ai-je affiché le rapport ET le bloc AVANT d'appeler question ? »
-   g. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
+   a. **VÉRIFIER** la présence du bloc `## Retour vers orchestrator` avec ses sections intégrées (`### Rapport de diagnostic complet`, etc.)
+   b. **RETRANSCRIRE les champs du bloc de manière formatée** dans la discussion (afficher chaque section du bloc telle quelle)
+   c. **VÉRIFIER les sections critiques** : `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles`
+   d. **AUTOCONTRÔLE** : « Ai-je affiché les champs du bloc AVANT d'appeler question ? »
+   e. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
    
 4. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées
 5. Proposer d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable

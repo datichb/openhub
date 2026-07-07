@@ -1,6 +1,6 @@
 ---
 name: onboarder-handoff-format
-description: Source de vérité pour le format de retour de l'onboarder vers l'orchestrator. Définit le bloc structuré à produire quand l'onboarder termine son exploration et est invoqué depuis l'orchestrator (Mode C). Injecté dans l'onboarder et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour de l'onboarder vers l'orchestrator. Définit le bloc structuré unique à produire quand l'onboarder termine son exploration et est invoqué depuis l'orchestrator (Mode C). Le rapport d'onboarding est intégré dans le bloc. Injecté dans l'onboarder et dans l'orchestrator pour garantir que producteur et consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff onboarder → orchestrator
@@ -10,18 +10,15 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 
 ---
 
-## Quand produire ce bloc
+## Principe fondamental — bloc unique
 
 Quand tu es invoqué depuis l'`orchestrator` (Mode C — projet inconnu),
-tu **dois** produire dans cet ordre :
+ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-1. **Le rapport d'onboarding complet** — présentation narrative du contexte de découverte du projet : comment les éléments ont été trouvés, ce qui a été surprenant ou notable, zones d'incertitude avec leur contexte. **Ce rapport doit être produit même si le contexte est partiel ou bloqué.** Il n'a pas à reproduire les listes structurées (stack, conventions, dette) — celles-ci sont dans le bloc structuré qui suit.
-2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable.
+**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'onboarding (contexte de découverte, observations narratives) est **intégré dans le bloc** (section `### Rapport d'onboarding`), pas produit séparément en texte libre.
 
-En standalone (invocation directe), le rapport d'onboarding précède également ce bloc.
-
-> **Autocontrôle obligatoire avant de produire ce bloc :**
-> « Ai-je produit le rapport d'onboarding complet avant ce bloc ? Si non, le produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le rapport est bien dans la section `### Rapport d'onboarding` du bloc. »
 
 ---
 
@@ -34,6 +31,12 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 
 **Agent :** onboarder
 **Projet :** <nom du projet>
+
+### Rapport d'onboarding
+
+<Contexte de découverte narratif : comment les éléments ont été trouvés, ce qui a été surprenant ou notable, zones d'incertitude avec leur contexte. Ce texte apporte les observations qualitatives qui ne sont pas encodables dans les listes structurées ci-dessous. Minimum 3-5 phrases.>
+
+<Ex : "Le projet utilise une architecture CQRS non documentée mais détectable via la séparation commands/queries dans src/. La couverture de tests est à 73% mais concentrée sur les commandes — les queries sont presque non testées. Un design system DSFR est configuré mais semble partiellement abandonné (tokens obsolètes dans le fichier theme.ts).">
 
 ### Stack technique
 **Langages :** <liste>
@@ -101,25 +104,26 @@ En standalone (invocation directe), le rapport d'onboarding précède également
 
 ## Règles pour le producteur (onboarder)
 
-- **Toujours produire le rapport d'onboarding complet** avant ce bloc — même si le contexte est `bloqué` ou `partiel`. Le rapport est obligatoire dans tous les cas. Il apporte **le contexte de découverte et les observations narratives** — pas un ré-encodage des listes structurées (stack, conventions, dette) qui sont dans le bloc.
-- **Toujours produire ce bloc** à la suite du rapport, même si le statut est `bloqué`
+- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
+- **Le rapport d'onboarding est DANS le bloc** (section `### Rapport d'onboarding`) — ne pas le produire séparément en texte libre
+- **`### Rapport d'onboarding`** doit capturer les observations qualitatives — minimum 3-5 phrases
 - **Renseigner toutes les sections** — même si vides, utiliser la mention explicite correspondante
 - **Ne pas inventer** de conventions ou de stack — uniquement ce qui a été effectivement observé dans la codebase
 - **Signaler honnêtement les zones d'incertitude** — l'orchestrator en a besoin pour informer l'utilisateur avant de démarrer
 - Ce bloc est produit **après** l'écriture des fichiers (ou après refus explicite de les écrire)
 
-> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport d'onboarding complet.
-> ❌ Ne jamais résumer le rapport — le bloc est un résumé structuré, pas un substitut.
+> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
+> ❌ Ne jamais produire de rapport narratif séparé avant le bloc — il est DANS le bloc
+> ❌ Ne jamais omettre `### Rapport d'onboarding` — les listes structurées seules ne suffisent pas
 
 ---
 
 ## Règles pour le consommateur (orchestrator)
 
-> Protocole de retranscription complet (séquence obligatoire, templates, checklist, exemples) → skill `posture/retranscription-coordinateur`.
-
 **Spécificités onboarder à vérifier :**
 
-- **Champs obligatoires** : `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`. Le champ `Fichiers de contexte produits` doit mentionner ONBOARDING.md, CONVENTIONS.md, docs/context/technical.md et docs/context/business/. Si l'un est absent → demander à l'onboarder de compléter.
+- **Champs obligatoires** : `Rapport d'onboarding`, `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`. Si l'un est absent → demander à l'onboarder de compléter.
+- **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport d'onboarding` est affiché en premier.
 - **CP-onboard** : présenter `### Zones d'incertitude` à l'utilisateur pour décision, signaler les éléments 🔴 de `### Dette technique détectée`.
 - **Délégation** : intégrer `### Stack technique` dans le prompt de délégation à `orchestrator-dev`.
 - **Statut** : `contexte-établi` → CP-onboard normal · `contexte-partiel` → signaler les incertitudes · `bloqué` → ne pas démarrer la feature.

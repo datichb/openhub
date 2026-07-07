@@ -1,6 +1,6 @@
 ---
 name: design-handoff-format
-description: Source de vérité pour le format de retour de l'agent designer vers l'orchestrator. Définit le bloc structuré à produire quand le designer termine sa spec et est invoqué depuis l'orchestrator. Injecté dans designer et orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour de l'agent designer vers l'orchestrator. Définit le bloc structuré unique à produire quand le designer termine sa spec et est invoqué depuis l'orchestrator. La spec complète est intégrée dans le bloc. Injecté dans designer et orchestrator pour garantir que le producteur et le consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff design → orchestrator
@@ -10,7 +10,7 @@ Il est injecté dans `designer` et `orchestrator` — producteur et consommateur
 
 ---
 
-## Quand produire ce bloc
+## Principe fondamental — bloc unique
 
 ### Détection du contexte d'invocation
 
@@ -19,7 +19,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 - Si le prompt contient `[SKILL:designer/designer-subagent]` → charger le skill correspondant via l'outil `skill`
   - Mémoriser **CONTEXTE = orchestrator_feature** pour toute la session
   - Ne jamais utiliser l'outil `question` — toute interaction passe par les blocs structurés
-  - En fin de session : produire la spec complète + le bloc `## Retour vers orchestrator`
+  - En fin de session : produire **uniquement** le bloc `## Retour vers orchestrator`
   - En cas de clarification critique nécessaire en cours de session : produire `## Retour intermédiaire vers orchestrator` + `## Question pour l'orchestrator` et **terminer la session**
 - Sinon (standalone ou depuis `planner`) :
   - Utiliser l'outil `question` normalement
@@ -27,15 +27,12 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 ---
 
-Quand CONTEXTE = orchestrator_feature, produire dans cet ordre :
+Quand CONTEXTE = orchestrator_feature, ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-1. **La spec complète** — user flows intégraux avec tous les états, wireframes textuels, tokens, composants, critères d'acceptance UX/UI. **Cette spec doit être produite dans sa totalité, jamais résumée, même si elle est longue.** Elle est produite après la validation explicite de l'utilisateur.
-2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — synthèse structurée avec les métadonnées, contraintes et statut.
+**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. La spec complète (user flows, wireframes textuels, tokens, composants, critères UX/UI) est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
 
-En standalone ou quand invoqué depuis le `planner`, la spec est produite sans ce bloc.
-
-> **Autocontrôle obligatoire avant de produire ce bloc :**
-> « Ai-je produit la spec complète avant ce bloc ? Si non, la produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que la spec est bien dans la section `### Spec complète` du bloc. »
 
 ---
 
@@ -49,8 +46,11 @@ En standalone ou quand invoqué depuis le `planner`, la spec est produite sans c
 **Agent :** designer
 **Ticket :** #<ID> — <titre>
 
-### Spec produite
-Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
+### Spec complète
+
+<User flows intégraux avec tous les états, wireframes textuels, tokens, composants, critères d'acceptance UX/UI — JAMAIS résumée, même si longue.>
+
+<Le contenu exact dépend du mode (ux, ui, ux+ui, recon) — voir les skills designer-protocol et designer-subagent pour le détail de ce que chaque mode produit.>
 
 ### Contraintes d'implémentation
 - <contrainte 1 — ex : responsive mobile-first obligatoire, ratio de contraste WCAG AA minimum, etc.>
@@ -83,15 +83,16 @@ Voir spec complète ci-dessus — jamais résumée ni reproduite ici.
 
 ## Règles pour le producteur (designer)
 
-- **Toujours produire la spec complète** avant ce bloc — jamais résumée ni abrégée. La spec est obligatoire dans tous les cas.
-- **Toujours produire ce bloc** à la suite de la spec, même si le statut est `bloqué`
-- **Le champ `### Spec produite`** dans le bloc pointe vers la spec ci-dessus — ne pas la reproduire dans le bloc
+- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
+- **La spec complète est DANS le bloc** (section `### Spec complète`) — ne pas la produire séparément en texte libre
+- **`### Spec complète`** ne doit JAMAIS être résumée ou abrégée, même si longue — c'est le livrable principal
 - Le bloc est produit **après** la validation explicite de l'utilisateur, pas avant
 - Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place du `bd close` habituel
 - Le `task_id` n'est pas requis dans ce format (contrairement au format `orchestrator-dev`) — l'orchestrator reprend naturellement après réception
 
-> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit la spec complète.
-> ❌ Ne jamais résumer la spec — le bloc est une synthèse de métadonnées, pas un substitut à la spec.
+> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
+> ❌ Ne jamais produire la spec comme texte libre avant le bloc — elle est DANS le bloc
+> ❌ Ne jamais résumer la spec dans `### Spec complète` — elle doit être exhaustive et exploitable
 
 ---
 
@@ -150,11 +151,10 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 
 ## Règles pour le consommateur (orchestrator)
 
-> Protocole de retranscription complet (séquence obligatoire, templates, checklist, exemples) → skill `posture/retranscription-coordinateur`.
-
 **Spécificités design à vérifier :**
 
-- **Champs obligatoires** : `Contraintes d'implémentation`, `Points ouverts`, `Statut`. Si l'un est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander à l'agent design de compléter avant de continuer.
+- **Champs obligatoires** : `Spec complète`, `Contraintes d'implémentation`, `Points ouverts`, `Statut`. Si l'un est absent ou vide sans mention explicite (`"Aucun"` / `"Aucune"`) → demander à l'agent design de compléter avant de continuer.
+- **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
 - **CP-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation.
 - **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev`.

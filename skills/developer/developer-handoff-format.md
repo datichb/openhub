@@ -1,6 +1,6 @@
 ---
 name: developer-handoff-format
-description: Source de vérité pour le format de retour des agents developer-* vers orchestrator-dev. Définit le bloc structuré à produire en fin d'implémentation quand invoqué depuis orchestrator-dev. Injecté dans tous les developer-* et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour des agents developer-* vers orchestrator-dev. Définit le bloc structuré unique à produire en fin d'implémentation quand invoqué depuis orchestrator-dev. Injecté dans tous les developer-* et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff developer-* → orchestrator-dev
@@ -10,18 +10,14 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 
 ---
 
-## Quand produire ce bloc
+## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
-tu **dois** produire dans cet ordre :
+Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
 
-1. **Le compte rendu d'implémentation complet** — description narrative de ce qui a été fait, décisions prises et leur justification, contexte des blocages rencontrés. **Ce compte rendu doit être produit même si l'implémentation est partielle ou bloquée.** Il n'a pas à répéter les listes techniques (fichiers modifiés, tests, critères) — celles-ci sont dans le bloc structuré qui suit.
-2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé structuré actionnable.
+**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Pas de compte rendu narratif, pas d'introduction, pas de résumé, pas de conclusion. Le bloc est autosuffisant.
 
-Ce bloc vient **après** le compte rendu d'implémentation — il en est le résumé structuré. Il ne le remplace pas.
-
-> **Autocontrôle obligatoire avant de produire ce bloc :**
-> « Ai-je produit le compte rendu d'implémentation complet avant ce bloc ? Si non, le produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator-dev` ? Si oui, le supprimer et encoder l'information dans les champs du bloc. »
 
 ---
 
@@ -35,6 +31,14 @@ Ce bloc vient **après** le compte rendu d'implémentation — il en est le rés
 **Agent :** developer-<type>
 **Ticket :** #<ID> — <titre>
 **Branche :** <nom de la branche sur laquelle le travail a été effectué>
+
+### Contexte et décisions
+
+- <décision 1 — choix technique + raison concise (2-3 phrases max)>
+- <décision 2 — compromis fait + justification>
+- <décision 3 — alternative écartée et pourquoi>
+<Minimum 2 entrées. Chaque entrée doit capturer le "pourquoi" d'un choix significatif.>
+<"Aucune décision notable — implémentation standard suivant les patterns existants" si vraiment trivial>
 
 ### Implémentation
 
@@ -74,6 +78,10 @@ Ce bloc vient **après** le compte rendu d'implémentation — il en est le rés
 - <point 1 — décision technique notable, compromis, dette introduite volontairement>
 - <point 2 — zone fragile, dépendance externe, comportement edge-case à vérifier>
 <"Aucun point d'attention particulier" si l'implémentation est standard>
+
+### Données techniques brutes
+<Stacktraces, extraits de code significatifs, résultats de commandes constituant une preuve — uniquement si pertinent pour la review ou le diagnostic>
+<"Aucune" si non applicable>
 
 ### Migration destructive (si applicable)
 ```
@@ -131,6 +139,12 @@ Dry-run output : [résultat de la commande de preview]
 **Ticket :** #bd-42 — Fix missing null guard in UserService.findById
 **Branche :** fix/bd-42-null-guard-user-service
 
+### Contexte et décisions
+
+- Choix de créer une méthode `findById` dédiée plutôt que de patcher `findByEmail_legacy` — l'ancienne méthode n'avait pas de typage strict et propageait le null implicitement. Refactoring plus propre que patch.
+- Suppression de `findByEmail_legacy()` — grep confirme aucun autre appelant dans la codebase. La méthode était non typée et source du bug (retour implicitement nullable sans type).
+- Typage explicite `Promise<User | null>` sur `findByEmail` du repository — rend le contrat visible pour tout appelant futur.
+
 ### Implémentation
 
 **Diff résumé :** 3 fichiers modifiés, 85 insertions, 5 suppressions
@@ -166,6 +180,9 @@ Dry-run output : [résultat de la commande de preview]
 - `findByEmail_legacy()` supprimé — vérifier qu'aucun autre appel n'existait ailleurs dans la codebase (grep effectué, rien trouvé, mais à re-vérifier)
 - Le typage de retour `Promise<User | null>` introduit sur `findByEmail` peut affecter d'autres appelants si le null n'est pas géré côté appelant
 
+### Données techniques brutes
+Aucune
+
 ### Blocages rencontrés
 Aucun blocage rencontré.
 
@@ -177,17 +194,19 @@ Aucun blocage rencontré.
 
 ## Règles pour le producteur (developer-*)
 
-- **Toujours produire le compte rendu d'implémentation complet** avant ce bloc — même si l'implémentation est partielle ou bloquée. Le compte rendu est obligatoire dans tous les cas. Il apporte le **contexte et les décisions** (pourquoi ces choix techniques, quels compromis) — pas un ré-encodage des données techniques du bloc structuré.
-- **Toujours produire ce bloc** à la suite du compte rendu, quelle que soit la complexité de l'implémentation
+- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
+- **`### Contexte et décisions`** est le champ qui capture le "pourquoi" — minimum 2 entrées pour toute implémentation non triviale, chaque entrée = choix + raison
 - **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée
 - **`**Changements par fichier**`** : pour chaque fichier du diff, lister les symboles changés avec la notation `+/-/~` — ne pas inventer, ne pas résumer arbitrairement
 - **`### Critères d'acceptance couverts`** doit être basé sur `bd show <ID>` — cocher chaque critère explicitement
 - **`### Points d'attention pour la review`** est critique : c'est ce qui permet au reviewer de concentrer son attention sur les zones sensibles
+- **`### Données techniques brutes`** : stacktraces, diffs annotés, extraits de code — uniquement si nécessaire à la review ou au diagnostic. Sinon "Aucune"
 - **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc
 
-> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le compte rendu d'implémentation complet.
-> ❌ Ne jamais résumer le compte rendu — le bloc est un résumé structuré, pas un substitut.
+> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
+> ❌ Ne jamais produire de compte rendu narratif, résumé ou introduction avant le bloc
+> ❌ Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
 
 ---
 
@@ -205,15 +224,10 @@ Aucun blocage rencontré.
 
 3. **Transmettre le nom de la branche** au reviewer à l'étape 4 — le reviewer récupère lui-même le diff complet via ses propres outils (`git diff`). Les `**Changements par fichier**` sont conservés pour le compte rendu d'étape (étape 6) uniquement.
 
-4. **Intégrer le `**Diff résumé**` et les `**Changements par fichier**`** dans le compte rendu d'étape (étape 6).
+4. **Intégrer les données structurées du bloc** (`### Contexte et décisions`, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) dans le récap global structuré (section "Récap global — Fin de session").
 
-5. **Utiliser les données structurées du bloc handoff** (statut, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) pour alimenter le compte rendu d'étape (étape 6) et la synthèse du récap global (section "Récap global — Fin de session"). Le compte rendu narratif complet reste disponible dans la session developer et peut être consulté sur demande.
-
-6. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
-
-7. **Si le compte rendu d'implémentation est absent** (le bloc handoff est présent sans compte rendu préalable) → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+5. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 
 > ❌ Ne jamais passer à la review sans avoir reçu le `### Statut` — une implémentation `bloqué` ne doit pas être soumise au reviewer.
 > ❌ Ne jamais ignorer les `### Points d'attention` — les transmettre intégralement au reviewer.
 > ❌ Ne jamais transmettre les `**Changements par fichier**` au reviewer à la place d'un vrai diff — toujours passer le nom de branche pour que le reviewer récupère lui-même le diff complet.
-> ❌ Ne jamais accepter un bloc handoff sans compte rendu d'implémentation préalable — les deux sont obligatoires.

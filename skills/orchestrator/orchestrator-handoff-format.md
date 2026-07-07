@@ -10,6 +10,14 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — le producteur et l
 
 ---
 
+## Principe fondamental — bloc unique
+
+Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output** est le(s) bloc(s) structuré(s) défini(s) ci-dessous. Aucun texte libre avant, après ou en dehors des blocs.
+
+**Règle absolue :** pas de récap global en texte libre, pas d'introduction, pas de résumé narratif. Toutes les informations sont encodées dans les champs structurés du bloc `## Retour vers orchestrator`.
+
+---
+
 ## Trois formats selon la situation
 
 | Situation | Format à produire |
@@ -24,16 +32,6 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — le producteur et l
 
 ## Format du bloc `## Retour vers orchestrator`
 
-Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, il **doit** produire, dans cet ordre :
-
-1. **Le récap global** (texte libre) — synthèse structurée par ticket (statut, fichiers clés, critères couverts, points d'attention) et points d'attention globaux agrégés. Ce récap est le contenu que l'orchestrator affichera dans son fil de discussion. **Il ne peut pas être omis.** Le tableau de synthèse des tickets et les statistiques ne font **pas** partie de ce récap — ils sont dans le bloc structuré qui suit.
-2. **Le bloc `## Retour vers orchestrator`** défini ci-dessous — résumé structuré actionnable pour l'orchestrator, incluant le tableau de détail par ticket et les statistiques.
-
-> **Autocontrôle obligatoire avant de produire ce bloc :**
-> « Ai-je produit le récap global complet (texte + tableau) avant ce bloc ? Si non, le produire d'abord. »
-
-Le bloc vient **après** le récap global — il en est le résumé structuré. Il ne le remplace pas.
-
 ```
 ---
 
@@ -44,16 +42,37 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 **Tickets ignorés :** [bd-ZZ ⏭️, ...]
 
 ### Détail par ticket
+
 | ID | Agent (domaine) | Cycles review | Critères couverts | Statut |
 |----|----------------|---------------|-------------------|--------|
 | bd-XX | developer (frontend) | 1 | tous | ✅ Terminé |
 | bd-YY | developer (backend)  | 2 | partielle | ✅ Terminé |
 | bd-ZZ | developer (api)      | — | — | ⏭️ Ignoré  |
 
-**Points d'attention :**
+### Contexte et décisions par ticket
+
+**bd-XX — <titre>**
+- <décision technique notable + justification>
+- <compromis fait + raison>
+- Points d'attention : <signalés par developer ou reviewer>
+
+**bd-YY — <titre>**
+- <décision technique notable + justification>
+- Blocage rencontré : <description + résolution>
+- Points d'attention : <signalés par developer ou reviewer>
+
+<Répéter pour chaque ticket traité — minimum 1-2 lignes par ticket. Omettre pour les tickets ignorés.>
+
+### Points d'attention globaux
 - <point 1 — agrégation des points signalés par developer, developer-refactor, developer-migrator, reviewer>
 - <point 2>
-**Statut global :** succès | partiel | bloqué
+<"Aucun point d'attention global" si tous les tickets sont propres>
+
+### Données techniques brutes
+<Diffs significatifs, résultats de tests globaux, informations nécessaires à l'orchestrator pour construire le CP-feature — uniquement si pertinent>
+<"Aucune" si non applicable>
+
+**Statut global :** `succès` | `partiel` | `bloqué`
 ```
 
 **Règle de remplissage du champ `Type de récap` :**
@@ -62,8 +81,9 @@ Le bloc vient **après** le récap global — il en est le résumé structuré. 
 
 Ce bloc est **obligatoire** quand invoqué depuis l'agent orchestrator feature. Il n'est pas produit quand invoqué standalone.
 
-> ⚠️ Ce bloc doit être produit **même en cas de stop, de ticket bloqué ou de session partielle** — le récap global est incomplet sans lui.
-> Autocontrôle avant de clore la session : « Ai-je produit le récap global complet ET ce bloc ? Si non, les produire maintenant. »
+> ⚠️ Ce bloc doit être produit **même en cas de stop, de ticket bloqué ou de session partielle** — un récap `partiel` sans lui est invalide.
+> Autocontrôle avant de clore la session : « Ai-je produit ce bloc ? Si non, le produire maintenant. »
+> ❌ Ne jamais écrire de texte libre en dehors des blocs structurés.
 
 ---
 
@@ -87,7 +107,7 @@ il **ne pose pas la question lui-même** — il arrête sa session en produisant
 <Ne jamais résumer ni abréger — tout le contenu doit être présent>
 
 ### Rapport de review complet
-<Pour CP-2 uniquement : rapport de review intégral copié tel quel — toutes sections, aucune omission, aucune reformulation>
+<Pour CP-2 uniquement : rapport de review intégral copié tel quel depuis le champ ### Rapport complet du bloc reviewer — toutes sections, aucune omission, aucune reformulation>
 <Pour les autres CPs (Blocage 3 cycles) : rapports de review des cycles concernés, copiés intégralement>
 <Omettre cette section pour les CPs sans rapport de review (Dépendance non résolue, Ticket bloqué)>
 
@@ -112,7 +132,7 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 
 | CP | Déclencheur | `### Contexte complet` | `### Rapport de review complet` |
 |----|------------|------------------------|----------------------------------|
-| **CP-2** | Rapport de review reçu — commit ou corriger ? | Synthèse des problèmes + verdict + routing | Rapport de review intégral (toutes sections, copié tel quel) |
+| **CP-2** | Rapport de review reçu — commit ou corriger ? | Synthèse des problèmes + verdict + routing | Rapport de review intégral (toutes sections, copié tel quel depuis le champ `### Rapport complet` du bloc reviewer) |
 | **Blocage 3 cycles** | 3 cycles de review sans résolution | Synthèse des problèmes persistants + résumé 1 ligne par cycle | *(section omise — synthèse dans `### Contexte complet`)* |
 | **Dépendance non résolue** | Ticket dépend d'un ticket non terminé | ID du ticket bloquant, son statut, sa description | *(section omise)* |
 | **Ticket bloqué** | Developer signale un blocage en cours d'implémentation | Raison du blocage telle que signalée, état du ticket | *(section omise)* |
@@ -205,13 +225,12 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
 
 ## Règles pour l'orchestrator (consommateur)
 
-> ⚠️ Ce protocole est défini dans le skill `posture/retranscription-coordinateur` (injecté dans orchestrator) — s'y référer pour le template exact de retranscription et les règles complètes.
-
 ### À la réception d'un `## Retour vers orchestrator`
-- **Afficher dans le fil de discussion le récap global produit par orchestrator-dev** (synthèse par ticket : statut, fichiers clés, critères couverts, points d'attention + points d'attention globaux agrégés) — ne jamais omettre. L'utilisateur doit pouvoir suivre le détail de ce qui a été fait avant les questions. Le tableau de synthèse est dans le bloc structuré `## Retour vers orchestrator` qui accompagne ce récap.
+
+- **Retranscrire les champs du bloc de manière formatée** dans le fil de discussion — tous les champs sont affichés lisiblement à l'utilisateur (tableau `### Détail par ticket`, `### Contexte et décisions par ticket`, `### Points d'attention globaux`).
 - Ce format structuré est requis pour construire le CP-feature.
-- Si le récap global complet (texte + tableau) est absent ou si le bloc structuré ne contient pas les champs requis, les demander explicitement à `orchestrator-dev` avant de continuer.
-- Ne jamais construire le CP-feature à partir d'un récap incomplet ou ambigu.
+- Si le bloc ne contient pas les champs requis → les demander explicitement à `orchestrator-dev` avant de continuer.
+- Ne jamais construire le CP-feature à partir d'un bloc incomplet.
 
 ### À la réception d'un `## Question pour l'orchestrator` (unitaire)
 - Pour un CP-2 : afficher le `### Rapport de review complet` **dans le texte de la discussion (ne pas inclure dans l'outil `question`)** avant de poser la question — l'utilisateur doit voir le rapport avant de prendre sa décision.

@@ -173,9 +173,12 @@ Quand le prompt de reprise contient `"Réponse de l'utilisateur au CP <phase>"` 
 
 ## Récap global final
 
-En fin de session (tous les tickets traités ou arrêt demandé), produire le récap global ET le bloc `## Retour vers orchestrator` avec `**Type de récap :** final`.
+En fin de session (tous les tickets traités ou arrêt demandé), produire **uniquement** le bloc `## Retour vers orchestrator` avec `**Type de récap :** final`.
 
-> ⚠️ **Règle absolue :** produire **TOUJOURS** le bloc `## Retour vers orchestrator` à la fin du récap global — sans exception, même en cas de stop, de ticket bloqué ou de session incomplète.
+**Règle absolue :** aucun texte libre (récap narratif, introduction, résumé) avant ou après le bloc. Le bloc contient les sections `### Contexte et décisions par ticket` et `### Points d'attention globaux` qui encodent toutes les informations nécessaires.
+
+> ⚠️ Produire **TOUJOURS** le bloc `## Retour vers orchestrator` — sans exception, même en cas de stop, de ticket bloqué ou de session incomplète.
+> ❌ Ne jamais produire de récap global en texte libre — tout est dans le bloc structuré.
 
 ---
 

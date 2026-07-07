@@ -9,9 +9,9 @@ description: Parcours d'exécution du reviewer en mode sous-agent (invoqué via 
 
 ## Principe fondamental
 
-Quand le reviewer est invoqué via `task`, il doit toujours produire :
-1. **Le rapport de review complet** (jamais résumé, jamais omis)
-2. **Le bloc `## Retour vers orchestrator-dev`** (obligatoire, vient après le rapport)
+Quand le reviewer est invoqué via `task`, son **seul output** est le bloc `## Retour vers orchestrator-dev`.
+
+**Règle absolue :** aucun texte avant, après ou en dehors du bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
 
 ---
 
@@ -64,15 +64,35 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles :
 
 ## Règle absolue
 
-> ❌ Ne jamais produire le bloc handoff seul — le rapport complet est la condition préalable
-> ❌ Ne jamais résumer le rapport pour aller plus vite
-> ✅ Rapport complet PUIS bloc handoff, dans cet ordre
+> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
+> ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc (section `### Rapport complet`)
+> ✅ Bloc unique contenant le rapport complet intégré
 
 ---
 
 ## Format final (mode standard)
 
 ```markdown
+## Retour vers orchestrator-dev
+
+**Agent :** reviewer
+**Ticket :** #<ID> — <titre>
+**Branche :** <branche>
+
+### Verdict
+...
+
+### Synthèse des problèmes
+...
+
+### Corrections requises
+...
+
+### Routing recommandé
+...
+
+### Rapport complet
+
 ## Review — <nom de la branche ou titre de la PR>
 
 ### Résumé
@@ -96,26 +116,40 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles :
 ### 🔍 Hors scope
 <si applicable>
 
----
-
-## Retour vers orchestrator-dev
-
-<contenu défini dans le skill reviewer-handoff-format>
+### Statut
+...
 ```
 
 ## Format final (mode adversarial ou combiné)
 
 ```markdown
+## Retour vers orchestrator-dev
+
+**Agent :** reviewer
+**Ticket :** #<ID> — <titre>
+**Branche :** <feature-branch>
+
+### Verdict
+...
+
+### Synthèse des problèmes
+...
+
+### Corrections requises
+...
+
+### Routing recommandé
+...
+
+### Rapport complet
+
 ## Revue Adversariale — <feature-branch>
 <ou ## Review unifiée — <feature-branch> si mode combiné>
 
 <rapport selon le format du mode activé>
 
----
-
-## Retour vers orchestrator-dev
-
-<contenu défini dans le skill reviewer-handoff-format>
+### Statut
+...
 ```
 
-> Un rapport sans problèmes comporte au minimum `### Résumé` et `### ✅ Points positifs`.
+> Un rapport sans problèmes comporte au minimum `### Résumé` et `### ✅ Points positifs` dans la section `### Rapport complet` du bloc.

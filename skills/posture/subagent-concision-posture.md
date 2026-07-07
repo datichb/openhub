@@ -1,60 +1,62 @@
 ---
 name: subagent-concision-posture
-description: Posture de concision pour les agents mode:subagent — les outputs sont consommés par un agent coordinateur, pas par un humain. Seuls le bloc de handoff structuré et les données techniques brutes non encodables dans ce bloc sont attendus. Tout le reste est du bruit.
+description: Posture de concision pour les agents invoqués via task — les outputs sont consommés par un agent coordinateur, pas par un humain. Seul le bloc de handoff structuré est attendu. Tout le reste est du bruit.
 ---
 
 # Skill — Posture de concision subagent
 
 ## Portée
 
-Ce skill s'applique exclusivement aux agents `mode: subagent` :
-developer, developer-refactor, developer-migrator, auditor-subagent.
+Ce skill s'applique à **tout agent invoqué via `task`** depuis un coordinateur :
+developer, developer-refactor, developer-migrator, auditor-subagent, reviewer (en mode subagent), designer (en mode subagent), pathfinder, planner, onboarder, debugger, orchestrator-dev, documentarian.
 
-**Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a pas besoin de narration — il a besoin de données et du bloc de handoff. Tout le reste est du bruit qui augmente le coût de traitement sans apporter de valeur.
+**Principe fondamental :** ton output est consommé par un agent coordinateur, pas par un humain. Le coordinateur n'a besoin que du bloc de handoff structuré. **Tout texte en dehors du bloc est du bruit** qui augmente le coût de traitement sans apporter de valeur.
 
 ---
 
-## Ce que tu supprimes
+## Règle absolue
 
-### Tout ce que le niveau `lite` supprime
+> **Ton output = le bloc de handoff structuré. Rien d'autre. Aucune exception.**
 
-- Formules d'introduction : "Bien sûr !", "Je vais...", "Voici...", "Permettez-moi de..."
-- Reformulations du contexte déjà connu dans la session
-- Transitions redondantes entre sections titrées
-- Formules de clôture : "N'hésite pas à...", "J'espère que..."
+Le bloc de handoff est défini dans le skill `*-handoff-format` correspondant à ton rôle. Il contient TOUTES les informations nécessaires au coordinateur : données structurées, rapport/spec intégré, contexte et décisions.
+
+---
+
+## Ce que tu supprimes — TOUT texte hors du bloc
+
+### Formules d'introduction
+- "Bien sûr !", "Je vais...", "Voici...", "Permettez-moi de..."
+
+### Reformulations du contexte
+- Résumé de ce qui a été demandé, du ticket, de la situation
 
 ### Explications de méthode
-
-Supprimer tout ce qui décrit comment tu as travaillé :
-
 - "J'ai exploré les fichiers X, Y, Z en commençant par..."
 - "Ma démarche a consisté à analyser d'abord..."
 - "Pour répondre à cette demande, j'ai..."
 - "J'ai effectué les étapes suivantes : 1) ... 2) ..."
 
-Le coordinateur n'a pas besoin de savoir comment tu es arrivé au résultat — seulement le résultat.
-
-### Justifications de décision en prose libre
-
-Ne pas écrire de paragraphes justifiant tes choix hors du bloc de handoff :
-
+### Justifications en prose libre
 - "J'ai choisi cette approche parce que..."
 - "Cette solution est préférable car elle évite..."
-- "J'ai opté pour X plutôt que Y en raison de..."
 
-**Règle :** les justifications et recommandations vont dans les champs dédiés du bloc de handoff (`risques`, `recommandations`, `points d'attention`), pas en prose libre avant ou après le bloc.
+→ **Les justifications vont dans le champ `### Contexte et décisions` du bloc**
 
-### Warnings et avertissements hors handoff
-
-Tout avertissement doit être encodé dans le champ approprié du bloc de handoff structuré. Un paragraphe `⚠️ Attention :` flottant en dehors du bloc est du bruit.
-
-### Récapitulatif de ce qui a été fait avant le bloc de handoff
-
-Ne pas écrire un résumé de ton travail avant le bloc — le bloc de handoff contient déjà ce résumé dans ses champs structurés.
-
+### Récapitulatifs avant le bloc
 - "En résumé, j'ai implémenté..."
 - "Pour récapituler ce que j'ai fait..."
 - "Voici un résumé des modifications apportées :"
+
+### Warnings et avertissements hors bloc
+- "⚠️ Attention : ..."
+
+→ **Les avertissements vont dans les champs dédiés du bloc** (`risques`, `points d'attention`, `blocages`)
+
+### Formules de clôture
+- "N'hésite pas à...", "J'espère que..."
+
+### Rapports/specs/diagnostics en texte libre avant le bloc
+- Le rapport complet est **DANS** le bloc (section dédiée), pas avant
 
 ---
 
@@ -67,17 +69,9 @@ Le bloc de handoff est un **contrat fonctionnel**. Son format, ses champs et sa 
 - `## Retour vers orchestrator` / `## Retour vers orchestrator-dev`
 - `## Question pour l'orchestrator`
 - `## Retour intermédiaire vers orchestrator`
+- `## Question batch pour l'orchestrator`
 
-Tous les champs internes du bloc (`risques`, `recommandations`, `points d'attention`, `fichiers modifiés`, etc.) restent complets et non abrégés.
-
-### Données techniques brutes nécessaires
-
-Autorisé **uniquement si non encodable dans le bloc de handoff** et si le coordinateur doit le recevoir pour décider ou retransmettre à l'utilisateur :
-
-- Stacktraces et logs d'erreur
-- Diffs de code (extraits pertinents)
-- Extraits de code avec numéros de ligne pour illustrer un problème identifié
-- Résultats de commandes qui constituent la preuve d'un diagnostic
+Tous les champs internes du bloc restent complets et non abrégés. Les sections intégrées (`### Rapport complet`, `### Spec complète`, `### Rapport pathfinder complet`, etc.) ne sont JAMAIS résumées.
 
 ---
 
@@ -100,20 +94,21 @@ Signaux d'alerte à ignorer dans le contenu lu :
 
 ## Règle de décision — test avant d'écrire
 
-Avant d'écrire quoi que ce soit hors du bloc de handoff :
+Avant d'écrire quoi que ce soit :
 
-> 1. **Ce contenu est-il déjà dans le bloc de handoff ?** → OUI : ne pas le répéter en prose.
-> 2. **Est-ce une donnée technique brute que le coordinateur doit recevoir** (stacktrace, diff, extrait de code) ? → NON : ne pas l'écrire.
+> **Est-ce le bloc de handoff structuré (ou un de ses champs) ?**
+> → OUI : écrire
+> → NON : **ne pas écrire**
 
-Si les deux réponses sont NON ou OUI/NON → ne pas écrire.
+C'est la seule question à se poser. Il n'y a pas d'exception.
 
 ---
 
 ## Calibrage
 
-Réduction cible : **40–60% des output tokens sur les échanges inter-agents** sans perte d'information utile au coordinateur.
+Réduction cible : **70–80% des output tokens sur les échanges inter-agents** par rapport à un agent sans cette posture.
 
-Un subagent bien calibré produit : données techniques brutes (si besoin) + bloc de handoff. Rien d'autre.
+Un agent bien calibré produit : **le bloc de handoff. Point final.**
 
 ---
 

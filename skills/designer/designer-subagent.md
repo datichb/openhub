@@ -1,6 +1,6 @@
 ---
 name: designer-subagent
-description: Parcours d'exécution du Designer en mode sous-agent (invoqué via task depuis l'agent orchestrator) — session unique sans interruption de phase sauf clarification critique, spec complète obligatoire avant le bloc Retour vers orchestrator, outil question interdit.
+description: Parcours d'exécution du Designer en mode sous-agent (invoqué via task depuis l'agent orchestrator) — session unique sans interruption de phase sauf clarification critique, seul output = le bloc Retour vers orchestrator (spec intégrée dans le bloc), outil question interdit.
 bucket: B
 ---
 
@@ -125,13 +125,12 @@ Pendant [l'exploration de / l'analyse de] [contexte], j'ai détecté que [descri
 
 ## Format de retour final
 
-Produire dans cet ordre et terminer :
+Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `design/design-handoff-format`) et terminer.
 
-1. **La spec complète** selon le mode — jamais résumée, même si longue. Produite après validation explicite (en mode orchestrateur : hypothèses documentées)
-2. **Le bloc `## Retour vers orchestrator`** (voir skill `design/design-handoff-format`)
+**Règle absolue :** aucun texte avant, après ou en dehors du bloc. La spec complète est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
 
-> **Autocontrôle avant le bloc final :**
-> « Ai-je produit la spec complète (selon le mode actif) avant ce bloc ? Si non → la produire d'abord. »
+> **Autocontrôle avant de terminer :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que la spec est bien dans la section `### Spec complète` du bloc. »
 
 → **TERMINER LA SESSION**
 
@@ -142,12 +141,13 @@ Produire dans cet ordre et terminer :
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ J'ai annoncé le mode détecté au démarrage | ⬜ |
-| ✅ J'ai produit la spec complète selon le mode (flows + critères UX / composants + tokens UI) | ⬜ |
-| ✅ J'ai produit le bloc `## Retour vers orchestrator` avec tous les champs | ⬜ |
+| ✅ Mon seul output est le bloc `## Retour vers orchestrator` | ⬜ |
+| ✅ La section `### Spec complète` du bloc contient la spec intégrale (jamais résumée) | ⬜ |
+| ✅ Aucun texte en dehors du bloc (pas de spec séparée, pas de narratif) | ⬜ |
 | ✅ Je n'ai pas appelé l'outil `question` | ⬜ |
 | ✅ Je vais TERMINER la session | ⬜ |
 
-**Si une case est ⬜ → produire le contenu manquant MAINTENANT avant de terminer.**
+**Si une case est ⬜ → corriger MAINTENANT avant de terminer.**
 
 ---
 
@@ -156,7 +156,8 @@ Produire dans cet ordre et terminer :
 | Erreur | Impact | Correction |
 |--------|--------|------------|
 | Appeler l'outil `question` | Question posée en session enfant — invisible pour l'orchestrator | Formuler une hypothèse et continuer, ou produire les blocs d'interruption |
-| Produire le bloc handoff sans la spec complète | L'orchestrateur reçoit un résumé sans la spec | **Toujours produire la spec d'abord** |
+| Produire la spec en texte libre AVANT le bloc | Duplication — la spec doit être DANS le bloc (`### Spec complète`) | **Intégrer la spec dans le bloc** |
+| Écrire du texte en dehors du bloc | Bruit pour le coordinateur — augmente le coût sans apporter de valeur | **Bloc unique, rien d'autre** |
 | Interrompre pour un détail non bloquant | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** — hypothèse si possible |
-| Résumer la spec "pour aller plus vite" | L'utilisateur perd des informations critiques | **Spec complète obligatoire** |
+| Résumer la spec "pour aller plus vite" | L'utilisateur perd des informations critiques | **Spec complète obligatoire dans `### Spec complète`** |
 | Spécifier sans explorer le design system existant (mode ui) | Incohérence visuelle — composants dupliqués | **Toujours explorer avant de créer** |

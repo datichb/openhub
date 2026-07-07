@@ -1,6 +1,6 @@
 ---
 name: retranscription-coordinateur
-description: Protocole de retransmission des retours de sous-agents par les agents coordinateurs (orchestrator, auditor, orchestrator-dev). Complémentaire aux workflows agents (planner-workflow, auditor-workflow) qui définissent comment les agents produisent leurs récaps. Ce skill définit comment les coordinateurs retransmettent ces récaps à l'utilisateur.
+description: Protocole de retransmission des retours de sous-agents par les agents coordinateurs (orchestrator, auditor, orchestrator-dev). Les sous-agents produisent uniquement des blocs structurés. Ce skill définit comment les coordinateurs retranscrivent ces blocs de manière formatée à l'utilisateur.
 ---
 
 # Skill — Protocole de retransmission (Coordinateurs)
@@ -11,35 +11,29 @@ Ce skill s'adresse aux **agents coordinateurs** (orchestrator, auditor, orchestr
 
 | Perspective | Agent concerné | Skill de référence | Responsabilité |
 |-------------|---------------|-------------------|----------------|
-| **Producteur** | planner, auditor-*, designer, developer-*, reviewer, debugger, onboarder | `planner-workflow`, `auditor-workflow`, `designer-protocol`, `developer-handoff-format`, `reviewer-protocol`, `debugger-workflow`, `onboarder-workflow` | **Produire** le récap et l'afficher avant d'appeler `question` |
-| **Consommateur** | orchestrator, auditor (coordinateur), orchestrator-dev | **Ce skill** (`retranscription-coordinateur`) | **Retransmettre** le récap reçu d'un sous-agent avant d'appeler `question` |
+| **Producteur** | planner, auditor-*, designer, developer-*, reviewer, debugger, onboarder | `*-handoff-format` de chaque agent | **Produire** le bloc de handoff structuré (seul output) |
+| **Consommateur** | orchestrator, auditor (coordinateur), orchestrator-dev | **Ce skill** (`retranscription-coordinateur`) | **Retranscrire** les champs du bloc reçu de manière formatée avant d'appeler `question` |
 
-**Exemple de flux complet :**
+**Flux complet :**
 
 1. Orchestrator invoque planner via `task`
-2. **Planner (producteur)** : suit `planner-workflow` → produit son récap → affiche avant question → retourne à orchestrator
-3. **Orchestrator (consommateur)** : suit `retranscription-coordinateur` → reçoit le récap → **le retransmet à l'utilisateur** avant d'appeler question
-
-> ⚠️ Les deux perspectives appliquent la même règle ("afficher avant question"), mais à des moments différents du flux :
-> - Le **producteur** l'applique **quand il termine son travail** (interne à sa session)
-> - Le **consommateur** l'applique **quand il reçoit le retour** (dans sa propre session avec l'utilisateur)
+2. **Planner (producteur)** : suit `planner-handoff-format` → produit uniquement le bloc `## Retour vers orchestrator`
+3. **Orchestrator (consommateur)** : suit `retranscription-coordinateur` → reçoit le bloc → **retranscrit les champs de manière formatée** à l'utilisateur avant d'appeler `question`
 
 ---
 
 ## Règle fondamentale (perspective consommateur)
 
-Quand tu invoques un sous-agent via `task`, tu DOIS retranscrire son retour complet à l'utilisateur **AVANT** de poser toute question.
+Quand tu invoques un sous-agent via `task`, tu DOIS retranscrire les champs de son bloc de retour à l'utilisateur **AVANT** de poser toute question.
 
 **Séquence obligatoire — sans exception :**
 
-1. Recevoir le retour du sous-agent
-2. **Si le retour contient des blocs `## Retour intermédiaire vers orchestrator`** → les afficher en texte dans l'ordre, en premier
-3. **Afficher le récap final / rapport complet en texte** dans la discussion
-4. **Afficher le bloc structuré** (`## Retour vers orchestrator`) dans la discussion
-5. **Puis seulement** appeler l'outil `question`
+1. Recevoir le retour du sous-agent (= le bloc structuré)
+2. **Si le retour contient un `## Retour intermédiaire vers orchestrator`** → l'afficher en texte dans la discussion, en premier
+3. **Afficher les champs du bloc structuré de manière formatée** dans la discussion
+4. **Puis seulement** appeler l'outil `question`
 
 > ❌ Ne jamais appeler `question` comme première action après réception d'un retour
-> ❌ Ne jamais résumer le récap — le copier intégralement
 > ❌ Ne jamais omettre le bloc structuré
 > ❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
 
@@ -56,59 +50,96 @@ Utiliser ce template après chaque réception de retour final :
 
 ---
 
-### Blocs intermédiaires (si présents)
+### Statut : `<valeur du champ Statut du bloc>`
 
-<Copier-coller intégral de chaque ## Retour intermédiaire vers orchestrator, dans l'ordre — uniquement si présents>
+<Pour chaque section du bloc structuré, l'afficher dans l'ordre avec son titre et son contenu tel quel. Ne pas résumer, ne pas reformuler.>
 
----
+<Section 1 du bloc — copier le titre et le contenu>
 
-### <Titre du récap — ex: Récapitulatif de planification, Rapport d'audit, Spec UX>
+<Section 2 du bloc — copier le titre et le contenu>
 
-<Copier-coller intégral du récap narratif reçu>
-
----
-
-### Bloc structuré
-
-<Copier-coller intégral du bloc `## Retour vers orchestrator` reçu>
+<...>
 
 ---
 
 **[Fin de retranscription]**
 ```
 
-### Template pour une question montante (planner / pathfinder / onboarder / auditor / debugger / designers)
+**Règle de retranscription :** chaque section du bloc (identifiable par un `###` dans le bloc) est affichée telle quelle. Les tableaux, listes et champs structurés sont copiés sans modification.
 
-Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` (ou `## Question pour l'orchestrator` pour orchestrator-dev) :
+### Template pour une question montante (agents avec `## Question pour l'orchestrator`)
+
+Quand un sous-agent termine sa session avec `## Question pour l'orchestrator` :
 
 ```
 **[Retranscription — question montante <agent>]**
 
 ---
 
-### Récap intermédiaire
+### Bloc intermédiaire (si présent)
 
-<Copier-coller intégral du bloc ## Retour intermédiaire vers orchestrator (ou ## Retour vers orchestrator partiel pour orchestrator-dev)>
+<Copier intégralement le `## Retour intermédiaire vers orchestrator` s'il est présent>
+
+---
+
+### État de la session
+
+<Copier le champ `### État de la session` du bloc question>
 
 ---
 
 **[Fin de retranscription]**
 
 **Vérification :**
-- ✅ Récap intermédiaire complet affiché (aucun résumé, aucune omission)
+- ✅ Bloc intermédiaire affiché (si présent)
 - ✅ task_id noté pour la ré-invocation : <task_id>
 
 **Maintenant seulement,** utiliser l'outil `question` pour relayer la question à l'utilisateur.
 ```
 
-### Vérification obligatoire avant question
+### Cas spécial : CP-2 avec rapport de review
+
+Pour un CP-2, le bloc `## Question pour l'orchestrator` contient un `### Rapport de review complet`. Ce rapport DOIT être affiché dans la discussion AVANT de poser la question :
+
+```
+**[Retranscription — CP-2 Ticket #<ID>]**
+
+---
+
+### Contexte
+
+<Copier le `### Contexte complet` du bloc question>
+
+---
+
+### Rapport de review
+
+<Copier intégralement le `### Rapport de review complet` du bloc question — JAMAIS résumer>
+
+---
+
+### État de la session
+
+<Copier le `### État de la session`>
+
+---
+
+**[Fin de retranscription]**
+
+→ **Maintenant seulement**, appeler `question`.
+```
+
+---
+
+## Vérification obligatoire avant question
 
 Avant d'appeler `question`, vérifier :
 
 - ✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés (si présents)
-- ✅ Le récap complet est affiché en texte (aucune omission, aucun résumé)
-- ✅ Le bloc structuré est affiché en texte avec tous les champs obligatoires
-- ✅ Les sections critiques sont présentes (ex : `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Contraintes d'implémentation`, etc. selon l'agent)
+- ✅ Les champs du bloc structuré sont affichés dans la discussion (retranscription formatée)
+- ✅ Les sections critiques sont présentes (voir tableau ci-dessous)
+- ✅ Le contenu est affiché AVANT cet appel à `question`, PAS après
+- ✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil
 
 ### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
 
@@ -117,55 +148,37 @@ Avant d'appeler `question`, vérifier :
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ Les blocs `## Retour intermédiaire vers orchestrator` sont affichés en texte (si présents) | ⬜ |
-| ✅ J'ai affiché le récap narratif complet du sous-agent en texte (copier-coller intégral, non résumé) | ⬜ |
-| ✅ J'ai affiché le bloc structuré `## Retour vers orchestrator` en entier | ⬜ |
-| ✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Règles par type de retour") | ⬜ |
+| ✅ J'ai affiché les champs du bloc structuré de manière formatée (retranscription mécanique, non résumée) | ⬜ |
+| ✅ Les sections critiques de ce type de retour sont présentes (voir tableau "Sections critiques par agent") | ⬜ |
 | ✅ Le contenu est affiché AVANT cet appel à `question`, PAS après | ⬜ |
-| ✅ Le récap n'est PAS inclus dans le champ `question` de l'outil | ⬜ |
+| ✅ Le contenu n'est PAS inclus dans le champ `question` de l'outil | ⬜ |
 
 **Si une seule case est ⬜ (non cochée) → ARRÊTER et afficher le contenu manquant MAINTENANT.**
 
-**Une fois toutes les cases cochées ✅ → Continuer vers l'appel `question`.**
-
-**Autocontrôle visuel :**
-
-> « Ai-je affiché les blocs intermédiaires + le récap + le bloc structuré AVANT d'appeler question ? »
-> → NON : STOP — afficher MAINTENANT
-> → OUI : continuer
-
 ---
 
-## Règles par type de retour
+## Sections critiques par agent source
 
-| Agent source | Type de retour | Récap à retranscrire | Sections critiques à vérifier |
-|--------------|---------------|----------------------|-------------------------------|
-| **planner** (final) | `## Retour vers orchestrator` | Récapitulatif de planification + blocs intermédiaires si présents | `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement` |
-| **planner** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu de la phase, contexte de la question, `task_id` |
-| **pathfinder** (final) | `## Retour vers orchestrator` | Rapport pathfinder complet + blocs intermédiaires si présents | `## Recommandation`, `## Signaux détectés`, `## Handoff vers planner` si escalade |
-| **pathfinder** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Ce qui a été exploré, problème détecté, `task_id` |
-| **onboarder** (final) | `## Retour vers orchestrator` | Rapport d'onboarding complet + blocs intermédiaires si présents | `### Zones d'incertitude`, `### Dette technique détectée` |
-| **onboarder** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu de la phase explorée, `task_id` |
-| **auditor** coordinateur (final) | `## Retour vers orchestrator` | Synthèse exécutive multi-domaines + blocs intermédiaires si présents | `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
-| **auditor** coordinateur (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Domaines audités, état des sous-agents, `task_id` |
-| **auditor-*** sous-agents (final) | `## Retour vers orchestrator` | Rapport d'audit complet | `### Périmètre audité`, `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
-| **debugger** (final) | `## Retour vers orchestrator` | Rapport de diagnostic complet + blocs intermédiaires si présents | `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles` |
-| **debugger** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contenu du diagnostic en cours, `task_id` |
-| **designer** (final) | `## Retour vers orchestrator` | Spec complète (UX/UI selon mode) + blocs intermédiaires si présents | `### Contraintes d'implémentation`, `### Points ouverts` |
-| **designer** (question montante) | `## Question pour l'orchestrator` | `## Retour intermédiaire vers orchestrator` | Contexte clarification, mode actif, `task_id` |
-| **orchestrator-dev** (final) | `## Retour vers orchestrator` | Récap global complet (tableau + comptes rendus + points d'attention) | `### Détail par ticket`, `### Points d'attention` |
-| **orchestrator-dev** (CP à enjeu fort : CP-2, blocage, ticket bloqué) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel + rapport review | `### Rapport de review complet`, `### État de la session`, `task_id` |
-| **orchestrator-dev** (CPs intermédiaires : CP-1, CP-3, branche) | `## Question pour l'orchestrator` | `## Retour vers orchestrator` partiel | Contexte du CP, état de la session, `task_id` |
-| **reviewer** | `## Retour vers orchestrator-dev` | Rapport de review complet | `### Synthèse des problèmes`, `### Verdict` |
+| Agent source | Sections critiques à vérifier dans le bloc |
+|--------------|---------------------------------------------|
+| **planner** (final) | `### Récapitulatif de planification`, `### Tickets créés`, `### Hypothèses et ambiguïtés`, `### Risques identifiés`, `### Ordre de traitement` |
+| **pathfinder** (final) | `### Rapport pathfinder complet`, `### Recommandation` |
+| **onboarder** (final) | `### Rapport d'onboarding`, `### Zones d'incertitude`, `### Dette technique détectée` |
+| **auditor** (final) | `### Rapport d'audit complet`, `### Synthèse des problèmes identifiés`, `### Risque résiduel si non corrigé` |
+| **debugger** (final) | `### Rapport de diagnostic complet`, `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles` |
+| **designer** (final) | `### Spec complète`, `### Contraintes d'implémentation`, `### Points ouverts` |
+| **orchestrator-dev** (final) | `### Détail par ticket`, `### Contexte et décisions par ticket`, `### Points d'attention globaux` |
+| **reviewer** | `### Rapport complet`, `### Verdict`, `### Corrections requises` |
 
 ---
 
 ## Ce que tu NE fais JAMAIS
 
-❌ Résumer ou abréger le récap avant de l'afficher  
-❌ Poser la question avant d'avoir affiché le contenu  
-❌ Inclure le récap ou le bloc structuré dans le champ `question` de l'outil  
-❌ Omettre des sections du bloc structuré "parce qu'elles sont vides" (afficher la mention explicite si vide)  
-❌ Reformuler le contenu reçu — le copier tel quel  
+❌ Résumer ou abréger les champs du bloc avant de les afficher
+❌ Poser la question avant d'avoir affiché le contenu
+❌ Inclure les champs du bloc dans le champ `question` de l'outil
+❌ Omettre des sections du bloc "parce qu'elles sont vides" (afficher la mention explicite si vide)
+❌ Reformuler le contenu reçu — le copier tel quel
 
 ---
 
@@ -181,10 +194,10 @@ Avant d'appeler `question`, vérifier :
       question: "Le planner a créé 3 tickets. Quelle suite ?",
       options: [...]
     }]
-  }) sans afficher le récap
+  }) sans afficher les champs du bloc
 ```
 
-**Problème :** L'utilisateur ne voit pas le récap de planification avant de prendre sa décision au CP-0. Il ne connaît pas les tickets créés, les dépendances, les risques identifiés.
+**Problème :** L'utilisateur ne voit pas le contexte (tickets, dépendances, risques, hypothèses) avant de prendre sa décision.
 
 ---
 
@@ -197,46 +210,11 @@ Avant d'appeler `question`, vérifier :
 
 ---
 
+### Statut : `planification-complète`
+
 ### Récapitulatif de planification
 
-Le planner a créé 3 tickets pour la feature "Authentification JWT" :
-
-- **bd-42** : Créer l'endpoint POST /auth/login (P1, developer domaine backend)
-  - Critères d'acceptance : endpoint retourne un token JWT valide avec expiration 24h
-  - Dépendances : aucune — ticket fondation
-  
-- **bd-43** : Implémenter le middleware de vérification JWT (P1, developer domaine backend)
-  - Critères d'acceptance : middleware rejette les requêtes sans token ou avec token invalide/expiré
-  - Dépendances : bd-42 (consomme le service d'auth créé par bd-42)
-  
-- **bd-44** : Créer la page de login (P1, developer domaine frontend)
-  - Critères d'acceptance : formulaire login/password, appel API /auth/login, stockage token localStorage
-  - Dépendances : bd-42 (consomme l'endpoint créé par bd-42)
-
-**Dépendances identifiées :**
-- bd-43 dépend de bd-42 : le middleware consomme le service d'authentification
-- bd-44 dépend de bd-42 : la page login consomme l'endpoint d'authentification
-
-**Ordre de traitement recommandé :**
-1. bd-42 (ticket fondation, bloquant pour bd-43 et bd-44)
-2. bd-43, bd-44 (parallélisables après bd-42)
-
-**Risques identifiés :**
-- Aucune stratégie de rotation des tokens définie — risque de tokens compromis non révocables
-- Pas de rate limiting spécifié sur l'endpoint /auth/login — risque de brute force
-
-**Hypothèses faites :**
-- Hypothèse : la stratégie de refresh tokens sera implémentée ultérieurement
-- Hypothèse : le stockage en localStorage est acceptable (alternative : httpOnly cookies)
-
----
-
-### Bloc structuré
-
-## Retour vers orchestrator
-
-**Agent :** planner
-**Feature :** Authentification JWT
+La feature a été décomposée en 3 tickets séquentiels car le middleware JWT dépend du service d'authentification. L'endpoint login a été priorisé car bloquant pour bd-43 et bd-44. Stockage en localStorage choisi comme hypothèse par défaut.
 
 ### Tickets créés
 
@@ -249,8 +227,8 @@ Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 **Total :** 3 tickets créés (0 epics + 3 tickets fils)
 
 ### Dépendances
-- `bd-43` dépend de `bd-42` : le middleware consomme le service d'authentification créé par bd-42
-- `bd-44` dépend de `bd-42` : la page login consomme l'endpoint créé par bd-42
+- `bd-43` dépend de `bd-42` : le middleware consomme le service d'authentification
+- `bd-44` dépend de `bd-42` : la page login consomme l'endpoint
 
 ### Ordre de traitement
 1. bd-42 — ticket fondation, bloquant pour bd-43 et bd-44
@@ -267,9 +245,6 @@ Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 - Aucune stratégie de rotation des tokens définie — risque de tokens compromis non révocables
 - Pas de rate limiting spécifié sur l'endpoint /auth/login — risque de brute force
 
-### Statut
-`planification-complète`
-
 ---
 
 **[Fin de retranscription]**
@@ -277,192 +252,15 @@ Le planner a créé 3 tickets pour la feature "Authentification JWT" :
 → **Maintenant seulement**, appeler question({
     questions: [{
       header: "CP-0 — Authentification JWT",
-      question: "Planification complète : 3 tickets créés (bd-42, bd-43, bd-44). 2 risques identifiés (rotation tokens, rate limiting). Quelle suite ?",
+      question: "Planification complète : 3 tickets créés (bd-42, bd-43, bd-44). 2 risques identifiés. Quelle suite ?",
       options: [
-        { label: "Démarrer l'implémentation", description: "Router les tickets vers orchestrator-dev en mode manuel" },
+        { label: "Démarrer l'implémentation", description: "Router les tickets vers orchestrator-dev" },
         { label: "Réviser la planification", description: "Retourner au planner avec des ajustements" },
-        { label: "Ajouter des tickets", description: "Créer des tickets supplémentaires pour les risques identifiés" }
+        { label: "Ajouter des tickets", description: "Créer des tickets pour les risques identifiés" }
       ]
     }]
   })
 ```
-
-**Pourquoi c'est correct :**
-- ✅ L'utilisateur voit **tout le contexte** avant de décider (tickets, dépendances, risques, hypothèses)
-- ✅ Le récap narratif est complet (aucun résumé)
-- ✅ Le bloc structuré est affiché en entier (tous les champs obligatoires)
-- ✅ La question est posée **après** l'affichage du contenu
-
----
-
-### ✅ CORRECT — Exemple debugger (Mode D)
-
-```
-[Orchestrator reçoit retour du debugger]
-
-**[Retranscription du retour debugger]**
-
----
-
-### Rapport de diagnostic
-
-## [Phase 5] Diagnostic — TypeError sur l'endpoint POST /api/auth/login
-
-### Symptôme
-L'endpoint retourne une erreur 500 avec message "Cannot read property 'id' of undefined" quand l'utilisateur tente de se connecter avec des identifiants valides. Fréquence : systématique (100% des tentatives). Environnement : production.
-
-### Périmètre analysé
-Artefacts fournis : stacktrace complète (23 frames), logs applicatifs (fenêtre 5 min), description précise du comportement. Ticket Beads bd-156 consulté.
-
-### Localisation probable
-`src/services/auth.service.ts:47` — fonction `authenticateUser`
-
-### Cause racine
-
-#### Hypothèse principale — haute probabilité
-Le service d'authentification tente d'accéder à `user.id` alors que la requête BDD retourne `null` si l'utilisateur n'existe pas. Aucune vérification de nullité avant l'accès à la propriété.
-
-**Éléments qui l'étayent :**
-- Stacktrace : `TypeError: Cannot read property 'id' of undefined at authenticateUser (auth.service.ts:47)`
-- Log BDD : `SELECT * FROM users WHERE email = 'test@example.com' → 0 rows`
-- Code source ligne 47 : `const token = generateToken(user.id)` sans vérification préalable
-
-**Pour confirmer :**
-- Ajouter un breakpoint ligne 47 et vérifier la valeur de `user`
-- Tester avec un email inexistant pour reproduire
-
-#### Hypothèse secondaire — probabilité moyenne
-La requête BDD échoue silencieusement et retourne `undefined` au lieu de `null`, ce qui bypasse les vérifications de nullité existantes.
-
-**Éléments qui l'étayent :**
-- Pattern observé dans d'autres services utilisant le même ORM
-
-**Pour confirmer :**
-- Vérifier les logs ORM pour détecter des erreurs silencieuses
-
-### Fichiers impliqués
-| Fichier | Rôle dans le bug |
-|---------|-----------------|
-| `src/services/auth.service.ts:47` | Point d'origine — accès à `user.id` sans vérification |
-| `src/controllers/auth.controller.ts:23` | Point de propagation — retourne 500 au lieu de 401 |
-
-### ⚠️ Informations manquantes
-Aucune — tous les artefacts nécessaires étaient disponibles.
-
-### Ticket de correction suggéré
-**Titre :** Corriger le TypeError sur /api/auth/login avec identifiants invalides
-**Type :** bug
-**Priorité :** P0 (bug bloquant en production)
-**Description :** L'endpoint d'authentification plante avec une erreur 500 au lieu de retourner un 401 quand les identifiants sont invalides. Impact : tous les utilisateurs avec identifiants incorrects voient une erreur serveur au lieu d'un message d'erreur approprié.
-**Acceptance criteria :**
-- L'endpoint retourne 401 avec message "Invalid credentials" si l'utilisateur n'existe pas
-- L'endpoint retourne 401 avec message "Invalid credentials" si le mot de passe est incorrect
-- Aucune exception levée dans les logs applicatifs
-**Notes techniques :** Ajouter une vérification `if (!user)` ligne 46 avant d'accéder à `user.id`. Retourner une erreur 401 au controller au lieu de laisser l'exception se propager.
-
----
-
-### Bloc structuré
-
-## Retour vers orchestrator
-
-**Agent :** debugger
-**Problème :** TypeError "Cannot read property 'id' of undefined" sur l'endpoint POST /api/auth/login
-
-### Cause racine
-**Hypothèse retenue :** Le service d'authentification tente d'accéder à `user.id` alors que la requête BDD retourne `null` si l'utilisateur n'existe pas. Aucune vérification de nullité avant l'accès à la propriété.
-**Niveau de certitude :** confirmé
-**Chaîne causale :**
-1. L'utilisateur envoie une requête POST /api/auth/login avec un email inexistant
-2. La requête BDD `SELECT * FROM users WHERE email = '...'` retourne 0 rows (valeur `null`)
-3. Le code ligne 47 tente d'accéder à `user.id` sans vérifier que `user` n'est pas `null`
-4. Une exception TypeError est levée et propagée au controller
-5. Le controller retourne une erreur 500 au lieu d'un 401
-
-### Hypothèses explorées
-- `Accès à user.id sans vérification de nullité` : **confirmée** — stacktrace et code source confirment
-- `Requête BDD échoue silencieusement` : **insuffisamment documentée** — logs ORM incomplets, nécessiterait instrumentation supplémentaire
-- `Pattern répété dans d'autres services` : **insuffisamment documentée** — nécessiterait audit global du codebase
-
-### Impact et régressions potentielles
-- **Authentification compromise** : tous les utilisateurs avec identifiants incorrects voient une erreur 500 au lieu d'un message d'erreur approprié
-- **Exposition d'informations sensibles** : la stacktrace complète est retournée dans la réponse 500, exposant la structure interne de l'application
-- **Pattern répété** : le même bug pourrait exister dans d'autres endpoints utilisant le même pattern (à auditer)
-
-### Tickets de correction créés
-
-| ID | Titre | Priorité | Labels |
-|----|-------|----------|--------|
-| bd-157 | Corriger le TypeError sur /api/auth/login avec identifiants invalides | P0 | bug, backend, auth, security, from-diagnostic |
-
-### Actions d'urgence si bug en prod
-1. **Hotfix immédiat** : déployer une vérification `if (!user) return { error: 'Invalid credentials', status: 401 }` ligne 46 de `auth.service.ts`
-2. **Désactiver l'exposition de stacktraces** : configurer l'environnement de production pour ne pas retourner de stacktraces dans les réponses 500
-3. **Monitoring** : ajouter une alerte sur le nombre d'erreurs 500 sur l'endpoint /api/auth/login
-4. **Communication** : informer l'équipe support que les utilisateurs voient actuellement des erreurs 500 au lieu de messages d'erreur clairs
-
-### Statut
-`diagnostiqué`
-
----
-
-**[Fin de retranscription]**
-
-**Vérifications effectuées :**
-- ✅ Rapport de diagnostic complet copié tel quel (symptôme, cause racine, fichiers, ticket)
-- ✅ Bloc structuré avec tous les champs obligatoires présents
-- ✅ Sections critiques présentes : Actions d'urgence (4 steps), Impact et régressions (3 points)
-- ✅ Statut : `diagnostiqué` (ticket bd-157 créé avec priorité P0)
-
-**Actions d'urgence détectées :** ⚠️ Ce bug est en PRODUCTION avec impact sécurité — présenter les 4 actions d'urgence en PRIORITÉ.
-
-→ **Maintenant seulement**, appeler question({
-    questions: [{
-      header: "Bug critique en production",
-      question: "[Orchestrator — Mode D | Bug : TypeError /api/auth/login]\n\n⚠️ BUG CRITIQUE EN PRODUCTION détecté avec 4 actions d'urgence listées ci-dessus.\n\nTicket de correction bd-157 créé (P0). Comment souhaitez-vous procéder ?",
-      options: [
-        { label: "Implémenter le hotfix immédiatement", description: "Router bd-157 vers orchestrator-dev en mode manuel avec priorité maximale" },
-        { label: "Désactiver la feature en attendant", description: "Désactiver l'endpoint /api/auth/login temporairement" },
-        { label: "Voir les détails techniques", description: "Consulter le code source concerné avant de décider" }
-      ]
-    }]
-  })
-```
-
-**Pourquoi c'est correct :**
-- ✅ Le rapport complet (symptôme, cause, hypothèses, fichiers, ticket) est affiché AVANT la question
-- ✅ Le bloc structuré est affiché avec TOUS les champs obligatoires
-- ✅ Les actions d'urgence sont présentées en PRIORITÉ avec un avertissement visuel
-- ✅ Les vérifications sont listées explicitement pour validation visuelle
-- ✅ La question est posée APRÈS l'affichage complet du contexte
-- ✅ Les options proposées sont adaptées à la gravité (bug P0 en production)
-
----
-
-### ❌ INTERDIT — Exemple debugger (ce qui arrive actuellement)
-
-```
-[Orchestrator reçoit retour du debugger]
-
-→ Appelle directement question({
-    questions: [{
-      header: "Bug diagnostiqué",
-      question: "Le debugger a terminé le diagnostic. Quelle suite ?",
-      options: [
-        { label: "Implémenter la correction", description: "Router vers orchestrator-dev" },
-        { label: "Voir le rapport", description: "Afficher le rapport de diagnostic" }
-      ]
-    }]
-  }) sans afficher le rapport ni le bloc
-```
-
-**Problèmes :**
-- ❌ L'utilisateur ne voit PAS le rapport de diagnostic avant de décider
-- ❌ L'utilisateur ne connaît PAS la cause racine identifiée
-- ❌ L'utilisateur ne connaît PAS les actions d'urgence si le bug est en production
-- ❌ L'utilisateur ne connaît PAS le ticket créé ni sa priorité
-- ❌ L'utilisateur doit choisir "Voir le rapport" pour obtenir le contexte (ordre inversé)
-- ❌ Les sections critiques (impact, régressions, actions d'urgence) sont invisibles au moment de la décision
 
 ---
 
@@ -470,17 +268,11 @@ Aucune — tous les artefacts nécessaires étaient disponibles.
 
 Ce skill doit être injecté dans les 3 agents coordinateurs :
 
-| Agent | Fichier | Ligne `skills:` | Position recommandée |
-|-------|---------|-----------------|----------------------|
-| **orchestrator** | `agents/planning/orchestrator.md` | L40 | Après `posture/coordination-only` |
-| **orchestrator-dev** | `agents/planning/orchestrator-dev.md` | L49 | Après `posture/coordination-only` |
-| **auditor** | `agents/auditor/auditor.md` | L16 | Après `posture/coordination-only` |
-
-**Exemple d'injection (orchestrator.md ligne 40) :**
-
-```yaml
-skills: [posture/coordination-only, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, ...]
-```
+| Agent | Fichier | Position recommandée |
+|-------|---------|---------------------|
+| **orchestrator** | `agents/planning/orchestrator.md` | Après `posture/coordination-only` |
+| **orchestrator-dev** | `agents/planning/orchestrator-dev.md` | Après `posture/coordination-only` |
+| **auditor** | `agents/auditor/auditor.md` | Après `posture/coordination-only` |
 
 ---
 
@@ -488,17 +280,7 @@ skills: [posture/coordination-only, posture/retranscription-coordinateur, orches
 
 | Skill | Scope | Complémentarité |
 |-------|-------|-----------------|
-| **coordination-only** | Définit la posture "ne jamais faire le travail soi-même, toujours déléguer" | ✅ Complémentaire — retranscription-coordinateur définit **comment retransmettre** ce que les sous-agents ont produit |
-| **tool-question** | Définit **comment utiliser** l'outil `question` (format, multi-questions, etc.) | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question` |
-| **planner-workflow** | Définit comment le planner **produit** son récap avant d'appeler question | ✅ Complémentaire — retranscription-coordinateur définit comment l'orchestrator **retransmet** ce récap à l'utilisateur |
-
-> Ce skill ne duplique aucune règle existante — il couvre un aspect spécifique de la chaîne de communication (retransmission par les coordinateurs) qui n'était pas documenté ailleurs.
-
----
-
-## Référence
-
-**Source de vérité :** Ce skill est la référence unique pour les règles de retransmission des coordinateurs.
-
-**Date de création :** 28 mai 2026  
-**Contexte :** Correctif du problème de non-retransmission des récaps dans la chaîne orchestrator → sous-agents (planner, auditor, design, debugger, onboarder)
+| **coordination-only** | Définit la posture "ne jamais faire le travail soi-même" | ✅ Complémentaire — retranscription-coordinateur définit **comment afficher** ce que les sous-agents ont produit |
+| **tool-question** | Définit **comment utiliser** l'outil `question` | ✅ Complémentaire — retranscription-coordinateur définit **quoi afficher avant** d'utiliser `question` |
+| **subagent-concision-posture** | Définit ce que les sous-agents **ne produisent pas** (tout hors bloc) | ✅ Complémentaire — garantit que le retour reçu EST le bloc structuré |
+| **`*-handoff-format`** | Définit le format du bloc produit par chaque agent | ✅ Complémentaire — retranscription-coordinateur définit comment ce bloc est affiché à l'utilisateur |

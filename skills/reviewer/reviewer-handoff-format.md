@@ -1,6 +1,6 @@
 ---
 name: reviewer-handoff-format
-description: Source de vérité pour le format de retour du reviewer vers orchestrator-dev. Définit le bloc structuré à produire en fin de review quand invoqué depuis orchestrator-dev. Injecté dans reviewer et orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
+description: Source de vérité pour le format de retour du reviewer vers orchestrator-dev. Définit le bloc structuré unique à produire en fin de review quand invoqué depuis orchestrator-dev. Le rapport de review complet est intégré dans le bloc. Injecté dans le reviewer et dans orchestrator-dev pour garantir que producteur et consommateur partagent le même contrat.
 ---
 
 # Skill — Format de handoff reviewer → orchestrator-dev
@@ -10,18 +10,15 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 ---
 
-## Quand produire ce bloc
+## Principe fondamental — bloc unique
 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
-tu **dois** produire dans cet ordre :
+ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
 
-1. **Le rapport de review complet** au format défini dans le skill `review-protocol` — toutes les sections pertinentes, y compris `✅ Points positifs` si applicable. **Ce rapport doit être produit même si la review ne trouve aucun problème** (review propre).
-2. **Le bloc `## Retour vers orchestrator-dev`** défini ci-dessous — résumé actionnable structuré du rapport.
+**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
 
-Ce bloc vient **après** ton rapport de review — il en est le résumé actionnable structuré. Il ne le remplace pas.
-
-> **Autocontrôle obligatoire avant de produire ce bloc :**
-> « Ai-je produit le rapport de review complet (format `review-protocol`) avant ce bloc ? Si non, le produire d'abord. »
+> **Autocontrôle obligatoire avant de terminer la session :**
+> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator-dev` ? Si oui, le supprimer et vérifier que le rapport complet est bien dans la section `### Rapport complet` du bloc. »
 
 ---
 
@@ -43,19 +40,53 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
 
 | Sévérité | Nombre | Résumé |
 |----------|--------|--------|
-| 🔴 Critique | X | <description courte des critiques, séparées par `;` si plusieurs> |
-| 🟠 Majeur | X | <description courte des majeurs> |
-| 🟡 Mineur | X | <description courte> |
-| 💡 Suggestion | X | — |
+| 🔴 Critique | <N> | <résumé 1 ligne — ex : "Injection SQL sur endpoint /users"> |
+| 🟠 Majeur | <N> | <résumé> |
+| 🟡 Mineur | <N> | <résumé> |
+| 💡 Suggestion | <N> | <résumé> |
+
+<"Aucun problème identifié — review propre" si le verdict est `commit` sans réserves>
 
 ### Corrections requises
-<Liste des corrections à apporter — utilisée par orchestrator-dev pour remplir le commentaire Beads>
-<Chaque correction sur une ligne, format : "[SÉVÉRITÉ] <fichier:ligne> — <action concrète attendue>">
-<Vide si verdict = `commit`>
+<Pour chaque problème Critique ou Majeur — format actionnable pour le developer :>
+- `[🔴 CRITIQUE]` `<fichier:ligne>` — <action concrète à réaliser>
+- `[🟠 MAJEUR]` `<fichier:ligne>` — <action concrète>
+<"Aucune correction requise" si verdict = `commit`>
+<Ces corrections sont copiées VERBATIM dans les commentaires Beads du ticket>
 
 ### Routing recommandé
 `retour-initial` | `developer-security`
-<`developer-security` uniquement si au moins un 🔴 Critique de nature sécurité (OWASP, secret, injection, CORS, auth)>
+<`retour-initial` = ticket retourne au developer du même domaine pour correction>
+<`developer-security` = ticket nécessite un developer domaine security>
+
+### Rapport complet
+
+## Review — <nom de la branche ou titre de la PR>
+
+### Résumé
+<évaluation globale — verdict justifié, qualité d'ensemble, respect des conventions>
+
+### 🔴 Critique — bloquant
+<si applicable — chaque finding avec : localisation, description, impact, correction attendue>
+<"Aucun problème critique identifié" si non applicable>
+
+### 🟠 Majeur — à corriger
+<si applicable — même format que critique>
+<"Aucun problème majeur identifié" si non applicable>
+
+### 🟡 Mineur — amélioration recommandée
+<si applicable>
+<"Aucun problème mineur identifié" si non applicable>
+
+### 💡 Suggestion — optionnel
+<si applicable>
+
+### ✅ Points positifs
+<toujours inclure si pertinent — bonne pratique observée, code élégant, test bien couvert>
+
+### 🔍 Hors scope
+<observations pertinentes mais hors du périmètre de cette review — pour information uniquement>
+<"Rien à signaler hors scope" si non applicable>
 
 ### Statut
 `approuvé` | `corrections-requises` | `bloquant-sécurité`
@@ -65,30 +96,31 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
 
 | Verdict | Condition |
 |---------|-----------|
-| `commit` | Aucun Critique, aucun Majeur — le code peut être commité |
-| `corriger` | Au moins un Critique ou Majeur non lié à la sécurité |
-   - `corriger-sécurité` | Au moins un Critique de nature sécurité — routing vers `developer` (domaine security) recommandé
+| `commit` | Code prêt à être commité — aucun problème Critique ou Majeur |
+| `corriger` | Corrections nécessaires avant commit — au moins un problème Critique ou Majeur |
+| `corriger-sécurité` | Corrections de sécurité nécessaires — problème Critique de type sécurité |
 
 **Définitions du statut :**
 
 | Statut | Condition |
 |--------|-----------|
-| `approuvé` | Verdict `commit` — pas de problème bloquant |
-| `corrections-requises` | Verdict `corriger` — problèmes à résoudre avant commit |
-| `bloquant-sécurité` | Verdict `corriger-sécurité` — faille de sécurité critique détectée |
+| `approuvé` | Verdict = `commit` |
+| `corrections-requises` | Verdict = `corriger` |
+| `bloquant-sécurité` | Verdict = `corriger-sécurité` |
 
 ---
 
 ## Règles pour le producteur (reviewer)
 
-- **Toujours produire le rapport de review complet** (format `review-protocol`) avant ce bloc — même si la review est courte ou ne contient aucun problème. Le rapport est obligatoire dans tous les cas.
-- **Toujours produire ce bloc** à la suite du rapport, même si le rapport est minimal
-- **La section `### Corrections requises`** doit être suffisamment précise pour qu'`orchestrator-dev` puisse la coller directement dans un commentaire Beads sans reformulation
-- Si verdict = `commit` → `### Corrections requises` est vide ou contient "Aucune correction requise"
-   - **Le `### Routing recommandé`** est `developer-security` (token indiquant domaine security) si et seulement si au moins un 🔴 Critique est de nature sécurité — sinon `retour-initial`
+- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
+- **Le rapport complet est DANS le bloc** (section `### Rapport complet`) — ne pas le produire séparément en texte libre
+- **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Résumé` et `### ✅ Points positifs`
+- **`### Corrections requises`** est copié VERBATIM dans les commentaires Beads — chaque correction doit être précise et actionnable
+- **`### Routing recommandé`** détermine vers quel developer le ticket est renvoyé — `developer-security` uniquement pour les problèmes de sécurité nécessitant une expertise spécifique
 
-> ❌ Ne jamais produire le bloc handoff sans avoir d'abord produit le rapport de review complet.
-> ❌ Ne jamais résumer le rapport — le bloc handoff est un résumé structuré, pas un substitut.
+> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
+> ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc
+> ❌ Ne jamais résumer le rapport dans `### Rapport complet` — il doit être exhaustif
 
 ---
 
@@ -96,26 +128,17 @@ Ce bloc vient **après** ton rapport de review — il en est le résumé actionn
 
 ### À la réception du bloc `## Retour vers orchestrator-dev` du reviewer
 
-1. **Lire le `### Verdict`** pour décider de la suite — ne pas réinterpréter le rapport manuellement :
-   - `commit` → passer directement au CP-2 avec verdict "commit" recommandé
-   - `corriger` ou `corriger-sécurité` → passer au CP-2 avec verdict "corriger" + routing selon `### Routing recommandé`
+1. **Lire le `### Verdict`** pour décider de la suite :
+   - `commit` → continuer vers CP-2 (commit)
+   - `corriger` ou `corriger-sécurité` → cycle de correction
 
-2. **Utiliser la `### Synthèse des problèmes`** pour remplir le bloc `### Contexte complet` du `## Question pour l'orchestrator` (CP-2 en mode invoqué depuis orchestrator) — ne pas résumer manuellement le rapport.
+2. **Au CP-2** : copier intégralement la section `### Rapport complet` du bloc dans le `## Question pour l'orchestrator > ### Rapport de review complet` pour transmission à l'orchestrator (l'utilisateur doit voir le rapport avant de décider).
 
-3. **Utiliser la `### Corrections requises`** pour remplir le commentaire Beads lors d'une décision "corriger" :
-   ```bash
-   bd comments add <ID> "Retours reviewer : <contenu de ### Corrections requises>"
-   ```
-   Ne jamais reformuler ou résumer ces corrections — les coller telles quelles.
+3. **Transmettre les `### Corrections requises`** au developer via `bd comments add <ID>` si correction choisie.
 
-4. **Utiliser le `### Routing recommandé`** pour router la correction :
-   - `developer-security` → router vers l'agent `developer` avec domaine `security` pour la correction
-   - `retour-initial` → retourner à l'agent `developer` avec le même domaine initial
+4. **Utiliser le `### Routing recommandé`** pour déterminer quel agent developer ré-invoquer.
 
-5. **Si le bloc est absent** → demander explicitement au reviewer de le produire avant de continuer.
+5. **Si le bloc est absent ou si `### Rapport complet` est absent** → demander explicitement au reviewer de produire le bloc complet.
 
-6. **Si le rapport de review complet est absent** (le reviewer a produit le bloc handoff sans avoir produit le rapport) → demander explicitement au reviewer de produire le rapport complet avant de continuer.
-
-> ❌ Ne jamais interpréter le rapport de review sans ce bloc structuré — risque de mauvaise décision de routing.
-> ❌ Ne jamais résumer les corrections — les transmettre intégralement au commentaire Beads.
-> ❌ Ne jamais accepter un bloc handoff sans rapport de review complet — les deux sont obligatoires.
+> ❌ Ne jamais passer au CP-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur.
+> ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.

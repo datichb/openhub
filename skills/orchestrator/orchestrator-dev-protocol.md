@@ -643,15 +643,12 @@ Fournir au reviewer :
 
 À la réception du résultat, effectuer les vérifications suivantes dans l'ordre :
 
-1. **Détecter la présence du rapport de review complet** (format `review-protocol`) :
-   - **Présent** → continuer la vérification suivante
-   - **Absent** → demander explicitement au reviewer de produire le rapport complet avant de continuer. Le rapport doit précéder le bloc handoff.
-
-2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
+1. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** avec sa section `### Rapport complet` :
    - **Présent** → lire le `### Verdict` pour préparer le CP-2 :
      - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
      - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
    - **Absent** → demander explicitement au reviewer de produire le bloc avant de continuer.
+   - **`### Rapport complet` absent dans le bloc** → demander explicitement au reviewer de compléter le bloc avec le rapport intégral.
 
 Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
 
