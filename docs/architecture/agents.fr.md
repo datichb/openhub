@@ -301,12 +301,19 @@ Agents dédiés à la qualité du code, invocables standalone ou via l'agent orc
 |--|--|
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
-| **Skills** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native : `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `shared/rtk-usage` |
+| **Skills** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native : `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `shared/rtk-usage` |
 | **Invocation** | Nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
 Majeur / Mineur / Suggestion / Points positifs). Lecture seule — ne modifie jamais
 de fichiers.
+
+**Review multi-mode :** supporte trois modes de review combinables :
+- **Standard** — checklist 6 catégories, sévérité calibrée (défaut pour les reviews par ticket)
+- **Adversarial** — posture de scepticisme maximal, min. 10 findings, hypothèses dangereuses, challenges d'architecture, score de confiance (obligatoire au CP-feature, optionnel via `oh review`)
+- **Edge-case** — chasse exhaustive aux chemins d'exécution non gérés (disponible partout en option)
+
+Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions parallèles indépendantes** avec isolation contextuelle totale, puis fusionnent les résultats via le skill `review-merge` (déduplication, hiérarchie de sévérité, tag de provenance).
 
 **Post-rapport — Enrichissement des documents vivants :** après la production du rapport de review, identifie les conventions et patterns observés dans le diff qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose de les capitaliser. Si accepté, délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichment`).
 

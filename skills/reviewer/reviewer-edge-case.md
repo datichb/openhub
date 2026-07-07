@@ -1,6 +1,6 @@
 ---
 name: reviewer-edge-case
-description: "Utiliser quand une analyse exhaustive des chemins non gérés est demandée — chasse aux cas limites oubliés dans du code ou une spec. Parcourt tous les branchements conditionnels, frontières de domaine, et conditions aux limites pour identifier les chemins non couverts. Couvre : control flow (conditionnels, boucles, early returns, error handlers), frontières de valeurs (null, empty, overflow, underflow), race conditions, timeouts, coercions implicites. Ne rapporte que les chemins non gérés — ignore les gérés. Mots-clés : edge case, missing else, null handling, off-by-one, race condition, boundary condition, unhandled path."
+description: "Utiliser quand une analyse exhaustive des chemins non gérés est demandée — chasse aux cas limites oubliés dans du code ou une spec. Parcourt tous les branchements conditionnels, frontières de domaine, et conditions aux limites pour identifier les chemins non couverts. Disponible partout en option : via `oh review` (choix interactif), au CP-feature (prompt optionnel), ou combiné avec standard et/ou adversarial. Couvre : control flow (conditionnels, boucles, early returns, error handlers), frontières de valeurs (null, empty, overflow, underflow), race conditions, timeouts, coercions implicites. Ne rapporte que les chemins non gérés — ignore les gérés. Mots-clés : edge case, missing else, null handling, off-by-one, race condition, boundary condition, unhandled path."
 bucket: B
 ---
 
@@ -136,3 +136,15 @@ Rapporter **uniquement** les chemins non gérés.
 | Min 10 findings toutes catégories | Nombre de findings = nombre de chemins manquants |
 
 Les deux peuvent être combinés pour une review ultra-complète.
+
+---
+
+## Usage en mode multi-mode (sessions parallèles)
+
+Quand ce skill est activé dans le cadre d'une review multi-mode (parallèle avec standard et/ou adversarial) :
+
+1. **Indépendance totale** — cette session n'a pas connaissance des autres rapports. Ne pas anticiper ce qu'un autre mode trouverait.
+2. **Rapport auto-suffisant** — le rapport produit doit être compréhensible seul, sans référence à un rapport standard ou adversarial.
+3. **Pas de déduplication anticipée** — rapporter tous les chemins non gérés même si la review adversariale (catégorie "Robustesse & Cas limites") les trouverait aussi. La fusion est le rôle du skill `review-merge`.
+4. **Format strict** — respecter le format de rapport défini dans l'Étape 4 ci-dessus (header `## Analyse Edge Cases — <périmètre>`).
+5. **Findings taggeables** — pour faciliter la fusion, chaque chemin non géré doit inclure `fichier:ligne` au format standard `**[fichier:ligne]**` (déjà requis par le format existant).

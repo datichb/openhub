@@ -223,9 +223,12 @@ Skills de qualité pour les agents qui ne sont pas qa-engineer ni reviewer.
 
 | Fichier | Agents qui l'utilisent | Contenu |
 |---------|----------------------|---------|
-| `reviewer/review-protocol.md` | reviewer | Protocole de review — format du rapport, niveaux de sévérité, checklist, mode "audit complet". La logique standalone/sous-agent est dans les skills de parcours dédiés. |
-| `reviewer/reviewer-standalone.md` | **B** | reviewer | **Parcours standalone** — rapport de review sans bloc handoff |
-| `reviewer/reviewer-subagent.md` | **B** | reviewer | **Parcours sous-agent** — rapport de review + bloc `## Retour vers orchestrator-dev` obligatoire |
+| `reviewer/review-protocol.md` | reviewer | Protocole de review — format du rapport, niveaux de sévérité, checklist, mode "audit complet". Spécification du format de sortie brut pour la fusion multi-mode. La logique standalone/sous-agent est dans les skills de parcours dédiés. |
+| `reviewer/reviewer-standalone.md` | **B** | reviewer | **Parcours standalone** — prompt interactif de sélection de mode (standard / adversarial / edge-case / combinaisons), orchestration de sessions parallèles pour les modes combinés, fusion via `review-merge`, enrichissement living-docs, sans bloc handoff orchestrator |
+| `reviewer/reviewer-subagent.md` | **B** | reviewer | **Parcours sous-agent** — supporte le mode standard (par ticket depuis orchestrator-dev), le mode adversarial (CP-feature depuis orchestrator), et le mode combiné adversarial+edge-case. Produit toujours rapport complet + bloc `## Retour vers orchestrator-dev` obligatoire |
+| `reviewer/reviewer-adversarial.md` | **B** | reviewer | **Mode review adversariale** — posture de scepticisme maximal, min. 10 findings obligatoires, 7 catégories d'investigation (Architecture, Robustesse, Performance, Sécurité, Maintenabilité, Tests, Contrats), section "hypothèses dangereuses", score de confiance. Supporte le scope feature (`git diff main..feature-branch`) pour le CP-feature. Isolé contextuellement en multi-mode |
+| `reviewer/reviewer-edge-case.md` | **B** | reviewer | **Mode chasse aux cas limites** — analyse exhaustive des chemins d'exécution non gérés (control flow, frontières de valeurs, coercions implicites, concurrence/timing, dépendances externes, sécurité des entrées). Disponible partout en option. Isolé contextuellement en multi-mode |
+| `reviewer/review-merge.md` | **B** | reviewer | **Skill de fusion de rapports** — reçoit N rapports bruts issus de sessions parallèles, déduplique les findings (même fichier:ligne + même cause racine → conserver sévérité la plus haute), tague la provenance `[STD]`/`[ADV]`/`[EDGE]`, produit un rapport unifié avec annexes spécifiques par mode (hypothèses dangereuses, problèmes d'architecture, score de confiance, chemins manquants par classe) |
 | `reviewer/reviewer-handoff-format.md` | reviewer, orchestrator-dev | **Contrat de handoff** — bloc structuré `## Retour vers orchestrator-dev` : verdict actionnable (`commit` / `corriger` / `corriger-sécurité`), synthèse des problèmes par sévérité, corrections requises verbatim (collées directement dans le commentaire Beads), routing recommandé (`retour-initial` / `developer-security`), statut (`approuvé` / `corrections-requises` / `bloquant-sécurité`) |
 
 ---
@@ -413,12 +416,13 @@ reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              posture/concision-posture, posture/tool-question,
                              shared/living-docs-enrichment, shared/wiki-navigation,
                              reviewer/reviewer-handoff-format †
-                         (B) reviewer/reviewer-standalone, reviewer/reviewer-subagent,
-                              reviewer/reviewer-adversarial, reviewer/reviewer-edge-case,
-                              dev-standards-security, dev-standards-backend,
-                              dev-standards-frontend, dev-standards-frontend-data,
-                              dev-standards-frontend-a11y,
-                              dev-standards-testing, dev-standards-git,
+                          (B) reviewer/reviewer-standalone, reviewer/reviewer-subagent,
+                               reviewer/reviewer-adversarial, reviewer/reviewer-edge-case,
+                               reviewer/review-merge,
+                               dev-standards-security, dev-standards-backend,
+                               dev-standards-frontend, dev-standards-frontend-data,
+                               dev-standards-frontend-a11y,
+                               dev-standards-testing, dev-standards-git,
               shared/rtk-usage
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,
                              posture/concision-posture, posture/tool-question,

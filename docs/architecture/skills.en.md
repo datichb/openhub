@@ -218,7 +218,12 @@ Quality skills for agents that are not qa-engineer or reviewer.
 
 | File | Agents using it | Content |
 |------|----------------|---------|
-| `reviewer/review-protocol.md` | reviewer | Review report format (Critical/Major/Minor/Suggestion/Positive points/Out of scope), 4 severity levels, systematic 6-category checklist, individual comment format, "full audit" mode |
+| `reviewer/review-protocol.md` | reviewer | Review report format (Critical/Major/Minor/Suggestion/Positive points/Out of scope), 4 severity levels, systematic 6-category checklist, individual comment format, "full audit" mode, raw output format specification for multi-mode fusion |
+| `reviewer/reviewer-standalone.md` | **(B)** reviewer | **Standalone execution path** — interactive mode selection prompt (standard / adversarial / edge-case / combinations), parallel session orchestration for combined modes, result fusion via `review-merge`, living-docs enrichment, no orchestrator handoff block |
+| `reviewer/reviewer-subagent.md` | **(B)** reviewer | **Sub-agent execution path** — supports standard mode (per-ticket from orchestrator-dev), adversarial mode (CP-feature from orchestrator), and combined adversarial+edge-case mode. Always produces full report + mandatory `## Return to orchestrator-dev` handoff block |
+| `reviewer/reviewer-adversarial.md` | **(B)** reviewer | **Adversarial review mode** — maximum skepticism posture, min. 10 findings mandatory, 7 investigation categories (Architecture, Robustness, Performance, Security, Maintainability, Tests, Contracts), "dangerous assumptions" section, confidence score. Supports feature-scope (`git diff main..feature-branch`) for CP-feature. Context-isolated in multi-mode |
+| `reviewer/reviewer-edge-case.md` | **(B)** reviewer | **Edge-case hunting mode** — exhaustive unhandled execution path analysis (control flow, value boundaries, implicit coercions, concurrency/timing, external dependencies, input security). Available everywhere as option. Context-isolated in multi-mode |
+| `reviewer/review-merge.md` | **(B)** reviewer | **Report fusion skill** — receives N raw reports from parallel sessions, deduplicates findings (same file:line + same root cause → keep highest severity), tags provenance `[STD]`/`[ADV]`/`[EDGE]`, produces unified report with mode-specific annexes (dangerous assumptions, architecture issues, confidence score, missing paths by class) |
 | `reviewer/reviewer-handoff-format.md` | reviewer, orchestrator-dev | **Handoff contract** — structured `## Return to orchestrator-dev` block: actionable verdict (`commit` / `fix` / `fix-security`), problem summary by severity, required corrections verbatim (pasted directly into Beads comment), recommended routing (`return-initial` / `developer-security`), status (`approved` / `corrections-required` / `blocking-security`) |
 
 ---
@@ -348,7 +353,10 @@ reviewer              → (A) dev-standards-universal, reviewer/review-protocol,
                              posture/tool-question,
                              shared/living-docs-enrichment,
                              reviewer/reviewer-handoff-format †
-                        (B) dev-standards-security, dev-standards-backend,
+                        (B) reviewer/reviewer-standalone, reviewer/reviewer-subagent,
+                             reviewer/reviewer-adversarial, reviewer/reviewer-edge-case,
+                             reviewer/review-merge,
+                             dev-standards-security, dev-standards-backend,
                              dev-standards-frontend, dev-standards-frontend-a11y,
                              dev-standards-testing, dev-standards-git
 qa-engineer           → (A) dev-standards-universal, posture/expert-posture,

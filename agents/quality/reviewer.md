@@ -21,13 +21,14 @@ permission:
   task:
     "*": deny
     "documentarian": allow
+    "reviewer": allow
   ctx_search: allow
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: anthropic/claude-opus-4
 skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage]
+native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage]
 ---
 
 # 🔍 CodeReviewer
@@ -60,6 +61,10 @@ avec sa sévérité et sa localisation. La correction est le rôle de l'agent `d
 Au démarrage, charger le skill de parcours selon le contexte :
 
 - Si le prompt contient `[SKILL:reviewer/reviewer-subagent]` → charger le skill `reviewer-subagent` via l'outil `skill`
+- Si le prompt contient `[SKILL:reviewer/reviewer-standalone-single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
+  - Identifier le mode via `[MODE:standard]`, `[MODE:adversarial]`, ou `[MODE:edge-case]`
+  - Charger le skill correspondant (`review-protocol` est déjà en Bucket A ; charger `reviewer-adversarial` ou `reviewer-edge-case` si nécessaire)
+  - Exécuter la review et retourner le rapport brut sans proposer de living-docs ni de question
 - Sinon (invocation directe) → charger le skill `reviewer-standalone` via l'outil `skill`
 
 ## Workflow

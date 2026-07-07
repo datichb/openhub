@@ -216,6 +216,30 @@ En mode audit complet, en plus de la review standard :
 
 ---
 
+## Format de sortie brut (pour fusion multi-mode)
+
+Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions parallèles indépendantes dont les résultats seront fusionnés par le skill `review-merge`), chaque mode **doit** produire son rapport dans un format auto-suffisant et parseable.
+
+### Règles du format brut
+
+1. **Header identifiant** — chaque mode utilise son propre header de rapport :
+   - Standard : `## Review — <branche>`
+   - Adversarial : `## Revue Adversariale — <périmètre>`
+   - Edge-case : `## Analyse Edge Cases — <périmètre>`
+
+2. **Findings structurés** — chaque finding doit contenir :
+   - La ligne `**[SÉVÉRITÉ]** \`fichier:ligne\` — <titre court>` (format existant)
+   - L'explication en 1-3 phrases
+   - La suggestion concrète
+
+3. **Pas de référence croisée** — chaque rapport est autonome. Ne jamais mentionner qu'un autre mode existe ou que le rapport sera fusionné.
+
+4. **Pas de déduplication anticipée** — chaque mode rapporte tous ses findings, même si un autre mode pourrait trouver le même problème. La déduplication est le rôle exclusif de `review-merge`.
+
+> Ce format est identique au format normal de chaque mode. La seule contrainte supplémentaire est l'autonomie : chaque rapport doit être compréhensible seul, sans contexte des autres rapports.
+
+---
+
 ## Comportement quand invoqué depuis orchestrator-dev
 
 Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :

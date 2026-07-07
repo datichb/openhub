@@ -72,9 +72,41 @@ Types d'audit disponibles :
 var reviewCmd = &cobra.Command{
 	Use:   "review",
 	Short: "Lance une review de code via opencode",
-	Long:  "Lance une session opencode avec l'agent reviewer.",
+	Long: `Lance une session opencode avec l'agent reviewer.
+
+Modes de review disponibles :
+  standard                Review classique (checklist 6 catégories)
+  adversarial             Critique approfondie (scepticisme maximal, min. 10 findings)
+  edge-case               Chasse aux chemins d'exécution non gérés
+  standard+adversarial    Sessions parallèles + rapport unifié
+  all                     Standard + Adversarial + Edge-case (couverture maximale)
+
+Sans flag --mode, un menu interactif est affiché.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runAgentSession("reviewer", i18n.T("cmd.review.prompt"), "review", cmd)
+		mode, _ := cmd.Flags().GetString("mode")
+
+		// If no mode specified, the reviewer-standalone skill will handle the
+		// interactive prompt via the question tool inside the opencode session.
+		// If a mode IS specified, inject it as a tag in the prompt.
+		var prompt string
+		switch mode {
+		case "":
+			prompt = i18n.T("cmd.review.prompt")
+		case "standard":
+			prompt = "[MODE:standard] " + i18n.T("cmd.review.prompt")
+		case "adversarial":
+			prompt = "[MODE:adversarial] " + i18n.T("cmd.review.prompt")
+		case "edge-case":
+			prompt = "[MODE:edge-case] " + i18n.T("cmd.review.prompt")
+		case "standard+adversarial":
+			prompt = "[MODE:standard+adversarial] " + i18n.T("cmd.review.prompt")
+		case "all":
+			prompt = "[MODE:all] " + i18n.T("cmd.review.prompt")
+		default:
+			return fmt.Errorf("mode invalide %q — modes disponibles : standard, adversarial, edge-case, standard+adversarial, all", mode)
+		}
+
+		return runAgentSession("reviewer", prompt, "review", cmd)
 	},
 }
 
@@ -100,7 +132,11 @@ func init() {
 
 	rootCmd.AddCommand(reviewCmd)
 	reviewCmd.Flags().StringP("project", "j", "", "ID du projet")
+	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
+	_ = reviewCmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"standard", "adversarial", "edge-case", "standard+adversarial", "all"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	rootCmd.AddCommand(debugCmd)
 	debugCmd.Flags().StringP("project", "j", "", "ID du projet")

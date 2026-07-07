@@ -267,11 +267,18 @@ Agents dedicated to code quality, invocable standalone or via the orchestrator.
 |--|--|
 | **Label** | CodeReviewer |
 | **File** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `reviewer/review-protocol`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/living-docs-enrichment` |
+| **Skills** | `dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native: `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `shared/rtk-usage` |
 | **Invocation** | Branch name / PR URL + optionally `bd show <ID>` (the reviewer fetches the diff itself via `git diff`) |
 
 Analyzes PR/MR diffs. Produces a structured report by severity (Critical /
 Major / Minor / Suggestion / Positive points). Read-only — never modifies files.
+
+**Multi-mode review:** supports three review modes that can be combined:
+- **Standard** — 6-category checklist, calibrated severity (default for per-ticket reviews)
+- **Adversarial** — maximum skepticism posture, min. 10 findings, dangerous assumptions, architecture challenges, confidence score (mandatory at CP-feature, optional via `oh review`)
+- **Edge-case** — exhaustive unhandled execution path hunting (available everywhere as an option)
+
+Combined modes (`standard+adversarial`, `all`) launch **parallel independent sessions** with full context isolation, then merge results via the `review-merge` skill (deduplication, severity hierarchy, provenance tagging).
 
 **Post-report — Living docs enrichment:** after producing the review report, identifies conventions and patterns observed in the diff that are absent from `CONVENTIONS.md` or `ONBOARDING.md`, and proposes to capitalize them. If accepted, delegates writing to the `documentarian` via `task` (skill `living-docs-enrichment`).
 

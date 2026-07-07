@@ -9,6 +9,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-mode review system** — the reviewer agent now supports multiple review modes:
+  - `standard` — classical 6-category checklist review (unchanged, default for tickets)
+  - `adversarial` — maximum skepticism posture, min. 10 findings, dangerous assumptions analysis, confidence score
+  - `edge-case` — exhaustive unhandled execution path hunting, available everywhere as an option
+  - Combined modes (`standard+adversarial`, `all`) via **parallel independent sessions** with context isolation
+- **`review-merge` skill** — deduplicates and unifies reports from parallel review sessions (provenance tagging `[STD]`/`[ADV]`/`[EDGE]`, severity hierarchy preservation)
+- **CP-feature adversarial review** — mandatory adversarial review at feature checkpoint on the full `main..feature-branch` diff, with optional edge-case analysis (user prompt)
+- **`oh review --mode` flag** — CLI mode selection (`standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all`) with shell completion
+- **Interactive mode prompt** — when no `--mode` flag is provided, the reviewer proposes mode selection via the `question` tool at session start
+- **Reviewer self-delegation** — reviewer can now invoke parallel reviewer sessions (`task → reviewer: allow`) for context isolation in multi-mode
+
 ---
 
 ## [2.0.0] — 2026-07-01

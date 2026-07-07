@@ -76,15 +76,30 @@ oh audit --type accessibility
 
 ### oh review
 
-Launch an automated code review session.
+Launch an automated code review session with mode selection.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--project` | `-j` | string | Project ID |
+| `--mode` | `-m` | string | Review mode (see below) |
+
+**Available modes:**
+
+| Mode | Description |
+|------|-------------|
+| `standard` | Classical 6-category checklist review |
+| `adversarial` | Critical review — maximum skepticism, min. 10 findings, dangerous assumptions |
+| `edge-case` | Exhaustive unhandled execution path hunting |
+| `standard+adversarial` | Both modes in parallel (independent sessions) + unified report |
+| `all` | Standard + Adversarial + Edge-case — maximum coverage |
+
+Without `--mode`, an interactive prompt lets you choose the review mode at session start.
 
 ```bash
 oh review -j my-app
-oh review
+oh review -m adversarial
+oh review -m standard+adversarial -j backend
+oh review -m all
 ```
 
 ---

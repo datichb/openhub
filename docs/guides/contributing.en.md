@@ -150,6 +150,9 @@ A good skill contains:
 - **What you do NOT do**: explicit anti-patterns
 
 See `skills/reviewer/review-protocol.md` or `skills/qa/qa-protocol.md` as examples.
+For Bucket B native skills that handle mode selection and parallel orchestration, see
+`skills/reviewer/reviewer-adversarial.md`, `skills/reviewer/reviewer-edge-case.md`, and
+`skills/reviewer/review-merge.md` (report fusion from parallel sessions).
 
 ### 4. Reference the skill in an agent
 

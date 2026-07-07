@@ -1,6 +1,6 @@
 ---
 name: reviewer-adversarial
-description: "Utiliser quand une review critique approfondie est demandée — posture de scepticisme maximal pour détecter des problèmes que la review standard manque. Effectue une revue cynique avec minimum 10 findings obligatoires. HALT si zéro finding (re-analyser). Couvre : choix d'architecture, dette technique, cas limites non gérés, hypothèses implicites dangereuses, fragilité, couplage caché, surfaces d'attaque. Invocable par le reviewer en mode standalone ou par l'orchestrateur pour une review pré-merge critique. Mots-clés : adversarial review, critique, cynical review, devil's advocate, architecture issues, technical debt."
+description: "Utiliser quand une review critique approfondie est demandée — posture de scepticisme maximal pour détecter des problèmes que la review standard manque. Effectue une revue cynique avec minimum 10 findings obligatoires. HALT si zéro finding (re-analyser). Couvre : choix d'architecture, dette technique, cas limites non gérés, hypothèses implicites dangereuses, fragilité, couplage caché, surfaces d'attaque. Invocable par le reviewer en mode standalone, en parallèle avec la review standard (multi-mode), ou par l'orchestrateur feature au CP-feature pour une review pré-merge critique sur l'ensemble d'une feature. Mots-clés : adversarial review, critique, cynical review, devil's advocate, architecture issues, technical debt, CP-feature, feature review."
 bucket: B
 ---
 
@@ -30,12 +30,21 @@ Ce mode ne remplace pas la review standard — il la complète quand une analyse
 ### Étape 1 — Recevoir le périmètre
 
 Identifier ce qui est soumis à la revue adversariale :
-- Une PR/MR complète
+- Une PR/MR complète (scope : diff d'une branche ticket)
 - Un module ou fichier spécifique
 - Une décision d'architecture
 - Un plan ou une spec
+- **Une feature entière** (scope : diff `main..<feature-branch>` — typiquement au CP-feature)
 
 Si le périmètre est flou, demander avant de commencer.
+
+#### Scope "feature entière" (CP-feature)
+
+Quand invoqué au CP-feature par l'orchestrator feature :
+- Le diff couvre l'ensemble de la feature (`git diff main..<feature-branch>`)
+- L'analyse porte sur **les interactions entre les tickets** : cohérence des interfaces, contrats entre modules, patterns contradictoires
+- Les findings déjà couverts par les reviews standard individuelles restent pertinents — cette session est indépendante et doit les redécouvrir si ils existent encore
+- Porter une attention particulière à : la cohérence architecturale globale, les dépendances croisées entre composants ajoutés, les cas d'intégration non testés
 
 ### Étape 2 — Analyse adversariale
 
@@ -129,3 +138,14 @@ Format : [fichier:ligne] Description — Suggestion
 ## Note sur la calibration
 
 Une revue adversariale honnête n'est pas une revue où tout est 🔴. Si tous les findings sont mineurs, c'est acceptable — mais les trouver quand même. Le but est de chercher activement, pas de fabriquer des problèmes. La sévérité doit refléter la réalité.
+
+---
+
+## Usage en mode multi-mode (sessions parallèles)
+
+Quand ce skill est activé dans le cadre d'une review multi-mode (parallèle avec standard et/ou edge-case) :
+
+1. **Indépendance totale** — cette session n'a pas connaissance des autres rapports. Ne pas anticiper ce qu'un autre mode trouverait.
+2. **Rapport auto-suffisant** — le rapport produit doit être compréhensible seul, sans référence à un rapport standard.
+3. **Pas de déduplication anticipée** — rapporter tous les findings même si la review standard les trouverait aussi. La fusion est le rôle du skill `review-merge`.
+4. **Format strict** — respecter le format de rapport défini dans l'Étape 3 ci-dessus (header `## Revue Adversariale — <périmètre>`).

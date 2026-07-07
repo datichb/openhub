@@ -1097,6 +1097,44 @@ Avant de construire le récap feature, passer les 3 checks suivants :
 
 > Un check en échec ne bloque pas le récap — il est documenté dans `### Points d'attention`. Signaler silencieusement = interdit.
 
+### Review adversariale CP-feature (obligatoire)
+
+Après le gate de complétion et **avant** de construire le récap feature, **invoquer une review adversariale** sur l'ensemble de la feature :
+
+1. **Lancer la review adversariale** sur le diff total de la feature :
+   ```
+   task(subagent_type: "reviewer", prompt: "[SKILL:reviewer/reviewer-subagent] [MODE:adversarial] Review adversariale CP-feature.\nBranche feature : <feature-branch>\nDiff : git diff main..<feature-branch>\nFeature : <nom de la feature>\nTickets traités : <liste des IDs>")
+   ```
+
+2. **Proposer l'option edge-case** à l'utilisateur :
+   ```
+   question({
+     questions: [{
+       header: "Review edge-case",
+       question: "[Orchestrator — CP-feature | Feature : <nom>]\nLa review adversariale est lancée. Veux-tu aussi une analyse edge-case (chemins d'exécution non gérés) ?",
+       options: [
+         { label: "Non (Recommandé)", description: "Review adversariale seule — suffisante pour la plupart des features" },
+         { label: "Oui", description: "Ajoute une analyse edge-case en parallèle — recommandé pour les features critiques (auth, paiement, données sensibles)" }
+       ]
+     }]
+   })
+   ```
+
+3. **Si edge-case demandé** → invoquer le reviewer avec le mode combiné :
+   ```
+   task(subagent_type: "reviewer", prompt: "[SKILL:reviewer/reviewer-subagent] [MODE:adversarial+edge-case] Review adversariale + edge-case CP-feature.\nBranche feature : <feature-branch>\nDiff : git diff main..<feature-branch>\nFeature : <nom de la feature>")
+   ```
+   > Note : si la review adversariale seule a déjà été lancée (question posée après le lancement), utiliser le résultat de la review adversariale et lancer une session edge-case additionnelle, puis fusionner les deux résultats.
+
+4. **À la réception du rapport** :
+   - Afficher le rapport adversarial (ou unifié) intégralement dans la discussion
+   - Intégrer les findings adversariaux dans le `### Points d'attention` du récap feature
+   - Si le verdict est `corriger` ou `corriger-sécurité` → proposer un CP de correction avant de clore la feature
+
+> La review adversariale CP-feature est **indépendante** des reviews standard effectuées ticket par ticket. Elle analyse la cohérence globale, les interactions entre composants, et les problèmes émergents à l'échelle de la feature.
+
+---
+
 **Avant de construire ce récap**, vérifier que le récap global d'orchestrator-dev a bien été affiché lors de la réception du retour final (Cas A — il ne doit pas être reproduit ici une seconde fois). Puis produire le récap consolidé ci-dessous à partir du bloc structuré `## Retour vers orchestrator` :
 
 ```
@@ -1119,6 +1157,12 @@ Avant de construire le récap feature, passer les 3 checks suivants :
 
 ### Points d'attention
 <Points soulevés en audit ou review qui méritent un suivi>
+
+### Review adversariale CP-feature
+- **Score de confiance :** XX/10
+- **Findings critiques/majeurs :** <résumé des problèmes identifiés par la review adversariale>
+- **Hypothèses dangereuses :** <résumé si applicable>
+- **Edge-case (si activé) :** <résumé des chemins non gérés identifiés>
 
 ### Prochaines étapes suggérées
 <Ce qui reste si des tickets ont été ignorés ou des blocages signalés>

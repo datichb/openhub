@@ -69,6 +69,12 @@ For each affected agent, two Bucket B skills are created:
 - Format of validation questions via `question` tool (one per phase)
 - Final output format (no orchestrator handoff block)
 
+> **Note (reviewer):** The reviewer's standalone path additionally handles
+> **multi-mode orchestration** — interactive mode selection (standard / adversarial /
+> edge-case / combinations), parallel session launch for combined modes via self-delegation
+> (`task → reviewer`), and report fusion via the `review-merge` skill. This extends
+> the base pattern without breaking the standalone/subagent contract.
+
 **`-subagent` skill**:
 - Context confirmation at startup
 - Interruption mechanism: produce recap + structured blocks + terminate session

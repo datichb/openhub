@@ -98,7 +98,7 @@ oh audit -t ecodesign
 
 ### oh review
 
-Lance une review de code via opencode.
+Lance une review de code via opencode avec sélection du mode.
 
 ```
 oh review [options]
@@ -107,12 +107,27 @@ oh review [options]
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--project` | `-j` | ID du projet |
+| `--mode` | `-m` | Mode de review (voir ci-dessous) |
+
+**Modes disponibles :**
+
+| Mode | Description |
+|------|-------------|
+| `standard` | Review classique — checklist 6 catégories |
+| `adversarial` | Critique approfondie — scepticisme maximal, min. 10 findings, hypothèses dangereuses |
+| `edge-case` | Chasse aux chemins d'exécution non gérés |
+| `standard+adversarial` | Les deux en parallèle (sessions indépendantes) + rapport unifié |
+| `all` | Standard + Adversarial + Edge-case — couverture maximale |
+
+Sans `--mode`, un prompt interactif propose le choix du mode au démarrage de la session.
 
 **Exemple :**
 
 ```bash
 oh review -j frontend
-oh review
+oh review -m adversarial
+oh review -m standard+adversarial -j backend
+oh review -m all
 ```
 
 ---

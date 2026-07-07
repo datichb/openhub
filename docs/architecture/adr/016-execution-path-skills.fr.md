@@ -69,6 +69,12 @@ Pour chaque agent concerné, deux skills Bucket B sont créés :
 - Format des questions de validation via l'outil `question` (une par phase)
 - Format final (sans bloc handoff orchestrateur)
 
+> **Note (reviewer) :** Le parcours standalone du reviewer gère en plus
+> l'**orchestration multi-mode** — sélection interactive du mode (standard / adversarial /
+> edge-case / combinaisons), lancement de sessions parallèles pour les modes combinés via
+> auto-délégation (`task → reviewer`), et fusion des rapports via le skill `review-merge`.
+> Cela étend le pattern de base sans casser le contrat standalone/subagent.
+
 **Skill `-subagent`** :
 - Confirmation du contexte au démarrage
 - Mécanisme d'interruption : produire récap + blocs structurés + terminer session

@@ -148,6 +148,9 @@ Un bon skill contient :
 - **Ce que tu ne fais PAS** : les anti-patterns explicites
 
 Voir `skills/reviewer/review-protocol.md` ou `skills/qa/qa-protocol.md` comme exemples.
+Pour des skills natives Bucket B gérant la sélection de mode et l'orchestration parallèle, voir
+`skills/reviewer/reviewer-adversarial.md`, `skills/reviewer/reviewer-edge-case.md`, et
+`skills/reviewer/review-merge.md` (fusion de rapports issus de sessions parallèles).
 
 ### 4. Référencer le skill dans un agent
 

@@ -117,7 +117,7 @@ oh deploy
 | `onboarder` | Coordinator | Project discovery, wiki creation |
 | `planner` | Planning | Break down features into Beads tickets |
 | `designer` | Design | Figma analysis, UX/UI specs |
-| `reviewer` | Quality | PR/MR review by severity |
+| `reviewer` | Quality | PR/MR review by severity (multi-mode: standard, adversarial, edge-case) |
 | `qa-engineer` | Quality | Test coverage analysis |
 | `debugger` | Quality | Bug diagnosis, root cause |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |

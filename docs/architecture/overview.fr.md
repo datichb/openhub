@@ -199,6 +199,8 @@ Implémenter, tester et diagnostiquer sont trois responsabilités distinctes con
 
 Les agents auditor-*, reviewer, designer n'écrivent jamais dans le projet cible.
 Seuls les agents developer et qa-engineer modifient des fichiers de code.
+Le `reviewer` supporte la review multi-mode (standard, adversarial, edge-case) avec
+des sessions parallèles indépendantes pour les modes combinés — l'isolation contextuelle garantit une analyse sans biais.
 
 L'écriture documentaire (wiki `docs/wiki/` et `ONBOARDING.md` minimaliste) est réservée à
 l'`onboarder` (génération initiale) et au `documentarian` (enrichissements). Tous les agents

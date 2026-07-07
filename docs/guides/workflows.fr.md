@@ -506,6 +506,21 @@ Si l'utilisateur accepte, le developer invoque le `documentarian` via `task`
 
 **Contexte :** un reviewer analyse le diff de la branche `feat/bd-15-user-filters`.
 
+#### Sélection du mode (standalone)
+
+Quand invoqué directement (via `oh review` ou comme agent primaire), le reviewer propose le choix du mode :
+
+```
+? Mode de review :
+  ❯ Standard (checklist classique 6 catégories)
+    Adversarial (critique — scepticisme maximal, min. 10 findings)
+    Edge-case (chemins d'exécution non gérés)
+    Standard + Adversarial (sessions parallèles + rapport unifié)
+    Standard + Adversarial + Edge-case (couverture maximale)
+```
+
+Pour les modes combinés, le reviewer lance des **sessions parallèles indépendantes** (isolation contextuelle) et fusionne les résultats via le skill `review-merge`.
+
 #### Enrichissement du wiki documentaire (post-rapport)
 
 Après avoir produit le rapport de review, le reviewer identifie des conventions à capitaliser :
@@ -543,6 +558,14 @@ Prompt : "Review de la branche feat/user-profile — ticket bd-28"
 
 Le reviewer lit le ticket bd-28 pour contextualiser, applique sa checklist
 systématique, et produit un rapport structuré.
+
+**Raccourci CLI avec sélection de mode :**
+
+```bash
+oh review -m adversarial       # review adversariale directement
+oh review -m all               # les 3 modes en parallèle
+oh review                      # prompt interactif de choix de mode
+```
 
 ---
 

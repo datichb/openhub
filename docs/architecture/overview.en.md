@@ -198,6 +198,8 @@ to three different agents (developer, qa-engineer, debugger).
 
 Agents `auditor-*`, `reviewer`, and `designer` never write to the target project.
 Only `developer-*` and `qa-engineer` agents modify source code files.
+The `reviewer` supports multi-mode review (standard, adversarial, edge-case) with
+parallel independent sessions for combined modes — context isolation guarantees unbiased analysis.
 
 Documentary writing (wiki `docs/wiki/` and minimal `ONBOARDING.md`) is reserved for
 the `onboarder` (initial generation) and `documentarian` (enrichments). All agents that
