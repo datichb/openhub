@@ -7,6 +7,33 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.2.0] — 2026-07-08
+
+### Added
+
+- **Deploy : per-agent config** — configuration individuelle par agent avec model cascade et skill assembly
+- **Deploy : config-aware diff** (GAP-8/11) — comparaison filtrée par agents sélectionnés, détection de drift `opencode.json` via hash, persistance `.opencode/.deploy-state` après succès
+- **Deploy : stack skills detection** (GAP-12) — détection automatique du stack technique (TypeScript, Python, React, Vue, Next.js, Django, FastAPI, Docker, GitHub Actions, GitLab CI, Jest, Vitest, etc.) et injection des skills correspondants dans le déploiement natif (Bucket B)
+- Helpers exportés `prompt.HasGitHubActions()` et `prompt.HasGitLabCI()`
+
+### Changed
+
+- `oh config model show --json` produit uniquement du JSON structuré (plus de mélange human-readable + JSON)
+- `ComputeDiff` accepte les paramètres `selectedAgents` et `srcHashFn` pour un hash custom des sources
+- Dépendance `go-toml/v2` promue en dépendance directe
+
+### Removed
+
+- Mécanisme tracker (SyncPull, champ tracker, question wizard) supprimé des beads
+
+### Fixed
+
+- `ComputeDiff` hash désormais la sortie assemblée (skill inlining + strip hub fields) au lieu du fichier source brut — élimine les faux positifs de diff après un deploy frais
+- `stripHubFields` ne matche que les clés YAML top-level (évite les faux positifs sur sous-clés indentées comme `permission.skill`)
+- Guard défensif contre les agents avec `id` frontmatter vide dans `DeployAgentConfig`
+
+---
+
 ## [3.1.0] — 2026-07-08
 
 ### Added
