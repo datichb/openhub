@@ -60,12 +60,12 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// --- Check mode: just report freshness status ---
 	if checkMode {
-		return runDeployCheck(a, hubDir, project.Path, project.Name)
+		return runDeployCheck(a, hubDir, project.Path, project.Name, project.Agents)
 	}
 
 	// --- Diff mode: show changes without applying ---
 	if diffMode {
-		return runDeployDiff(a, hubDir, project.Path, project.Name)
+		return runDeployDiff(a, hubDir, project.Path, project.Name, project.Agents)
 	}
 
 	// --- Normal deploy ---
@@ -113,13 +113,13 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 // runDeployCheck verifies if agents/skills have changed since last deploy.
 // Returns an error (exit code 1) if changes are detected — useful for CI/scripts.
-func runDeployCheck(a *app.App, hubDir, projectPath, projectName string) error {
+func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selectedAgents []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.Title.Render("oh deploy --check"), i18n.Tf("cmd.deploy.check_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath)
+	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}
@@ -156,7 +156,7 @@ func runDeployCheck(a *app.App, hubDir, projectPath, projectName string) error {
 }
 
 // runDeployDiff shows a detailed preview of what would change, without applying.
-func runDeployDiff(a *app.App, hubDir, projectPath, projectName string) error {
+func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selectedAgents []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
@@ -164,7 +164,7 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string) error {
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.target", projectPath))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath)
+	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}

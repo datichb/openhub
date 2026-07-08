@@ -155,7 +155,7 @@ func syncProject(a *app.App, hubDir string, project *domain.Project) error {
 
 // syncDryRun shows what would change without applying.
 func syncDryRun(a *app.App, hubDir, projectPath string) error {
-	report, err := deploy.ComputeDiff(hubDir, projectPath)
+	report, err := deploy.ComputeDiff(hubDir, projectPath, nil)
 	if err != nil {
 		return fmt.Errorf("computing diff: %w", err)
 	}

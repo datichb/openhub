@@ -249,16 +249,16 @@ Prochaines étapes release :
 
 ---
 
-## Métriques actuelles (post Bloc 5)
+## Métriques actuelles (post Bloc 5 + Deploy Completeness)
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 213 |
-| Packages testés | 24 |
+| Tests | 369 |
+| Packages testés | 27 |
 | Linter / Vet | clean (0 issues) |
 | Binaire | ~5.5 MB (stripped, CGO_ENABLED=0) |
-| Commandes | 30 |
-| Sous-commandes | 19 |
+| Commandes | 30 + `oh config model` (5 sous-commandes) |
+| Sous-commandes | 24 |
 | Clés i18n | 474 (parité fr/en, format verb parity checked) |
 | Locales supportées | fr, en |
 | Plateformes | darwin/amd64, darwin/arm64, linux/amd64, linux/arm64 |
@@ -266,5 +266,43 @@ Prochaines étapes release :
 | Architecture | context.Context propagé, schema versioning, slog, semver partagé |
 
 ---
+
+## Bloc 6 — Deploy Completeness (ajouté post-release)
+
+Fonctionnalités ajoutées pour compléter la migration du deploy depuis le bash :
+
+### Implémenté
+
+| Feature | Description | Fichiers |
+|---------|-------------|----------|
+| **DeployAgentConfig** | Per-agent opencode.json blocks (mode, model, permission, description) | `deploy/agent_config.go` |
+| **Model cascade 7 niveaux** | project agent > project family > project global > hub agent > hub family > hub global > frontmatter | `deploy/model_resolve.go` |
+| **Provider normalization** | Conversion modèle vers format provider (bedrock, anthropic, github-copilot) | `deploy/model_resolve.go` |
+| **Frontmatter parser** | Parse YAML frontmatter des agents .md (permissions structurées, skills, mode) | `deploy/frontmatter.go` |
+| **Bucket A skill inlining** | Skills `skills: [...]` assemblés inline dans le body .md (prompt-builder equivalent) | `deploy/skill_assembly.go` |
+| **Bucket B native skills** | Deploy au format opencode `skills/<name>/SKILL.md` | `deploy/skill_assembly.go` |
+| **Stack skills detection** | Détection du stack projet (DetectStack) → déploiement des skills spécifiques | `deploy/stack_skills.go` |
+| **Agent filtering** | Seuls les agents sélectionnés sont copiés et configurés | `deploy/deploy.go` |
+| **Skills filtering** | Seuls les native_skills des agents sélectionnés + stack skills sont déployés | `deploy/deploy.go` |
+| **Pre-clean stale files** | Wipe .opencode/agents/ et skills/ avant deploy (supprime les fichiers orphelins) | `deploy/deploy.go` |
+| **Format opencode.json** | `model` string, `provider` named blocks, `mcp` (pas mcpServers), `$schema`, `enabled_providers` | `deploy/deploy.go` |
+| **Plugin + compaction** | `plugin: ["context-mode"]` et `compaction` toujours déployés | `deploy/deploy.go` |
+| **Instructions discovery** | Auto-détection de ONBOARDING.md / CONVENTIONS.md dans le projet | `deploy/deploy.go` |
+| **MCP validation** | Warning si agent déclare un mcpServer non activé | `deploy/agent_config.go` |
+| **Config model commands** | `oh config model [default\|family\|agent\|show\|unset]` (hub + project level) | `cmd/config_model.go` |
+| **Deploy state tracking** | `.opencode/.deploy-state` pour détecter le drift config au --check | `deploy/deploy.go` |
+| **Config-aware diff** | `oh deploy --check` détecte les modifications manuelles de opencode.json | `deploy/diff.go` |
+| **Agent-filtered diff** | Le diff ne compare que les agents sélectionnés pour le projet | `deploy/diff.go` |
+| **ProjectModelOverrides** | Stockage DB (migration v9) des overrides model per-agent/family par projet | `domain/project.go`, `sqlite/` |
+| **ModelsConfig hub.toml** | Section `[models]` dans hub.toml (default, families, agents) | `config/config.go` |
+
+### Tech debt restante (P4 — post-release)
+
+| Item | Description | Priorité |
+|------|-------------|----------|
+| `DisabledNativeAgents` hardcodé | Doit être mis à jour manuellement si opencode ajoute des built-in agents | Faible |
+| MCP env vars extensibles | L'injection d'env vars est hardcodée pour gitlab uniquement | Faible |
+| Context cache / freshness | SHA-256 freshness check pour `.opencode/context.json` (ADR originale) | Reporté |
+| Diff clé-par-clé opencode.json | Le drift est détecté par hash, pas par champ individuel | Nice-to-have |
 
 *Mis à jour le 6 juillet 2026 — Migration 100% terminée, prêt pour release v2.0.0*

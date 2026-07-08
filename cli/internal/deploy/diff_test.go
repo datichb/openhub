@@ -20,7 +20,7 @@ func TestComputeDiff_AllNew(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte("# Dev Agent"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "review.md"), []byte("# Review Agent"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -47,7 +47,7 @@ func TestComputeDiff_Unchanged(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), content, 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.False(t, report.HasChanges())
@@ -69,7 +69,7 @@ func TestComputeDiff_Modified(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), []byte("# Dev Agent v1"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -89,7 +89,7 @@ func TestComputeDiff_Removed(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -106,7 +106,7 @@ func TestComputeDiff_WithSkills(t *testing.T) {
 	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte("# Frontend Skill"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -134,7 +134,7 @@ func TestComputeDiff_MixedScenario(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))   // will be "removed"
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "same.md"), []byte("# Same Agent"), 0o644)) // unchanged
 
-	report, err := ComputeDiff(hubDir, projectDir)
+	report, err := ComputeDiff(hubDir, projectDir, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())

@@ -45,13 +45,18 @@ type FileDiff struct {
 
 // DiffReport holds the full comparison between hub source and deployed project.
 type DiffReport struct {
-	HubDir      string
-	ProjectPath string
-	Files       []FileDiff
+	HubDir       string
+	ProjectPath  string
+	Files        []FileDiff
+	ConfigDrift  bool   // true if opencode.json changed since last deploy
+	ConfigDetail string // human-readable detail about config drift
 }
 
 // HasChanges returns true if there are any modifications to apply.
 func (r *DiffReport) HasChanges() bool {
+	if r.ConfigDrift {
+		return true
+	}
 	for _, f := range r.Files {
 		if f.Status != FileUnchanged {
 			return true
@@ -79,37 +84,71 @@ func (r *DiffReport) Summary() (added, modified, removed, unchanged int) {
 
 // ComputeDiff compares source hub files (agents/, skills/) against deployed
 // files in the project directory. Returns a full report of differences.
-func ComputeDiff(hubDir, projectPath string) (*DiffReport, error) {
+// If selectedAgents is non-empty, only those agents are considered for comparison.
+func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffReport, error) {
 	report := &DiffReport{
 		HubDir:      hubDir,
 		ProjectPath: projectPath,
 	}
 
-	// Compare agents
+	// Build agent allow set
+	allowSet := make(map[string]bool, len(selectedAgents))
+	for _, a := range selectedAgents {
+		allowSet[a] = true
+	}
+
+	// Compare agents (filtered by selection)
 	if err := diffDirectory(
 		filepath.Join(hubDir, "agents"),
 		filepath.Join(projectPath, ".opencode", "agents"),
 		"agents",
 		report,
+		allowSet,
 	); err != nil {
 		return nil, fmt.Errorf("diff agents: %w", err)
 	}
 
-	// Compare skills
+	// Compare skills (all — native skills are filtered at deploy time)
 	if err := diffDirectory(
 		filepath.Join(hubDir, "skills"),
 		filepath.Join(projectPath, ".opencode", "skills"),
 		"skills",
 		report,
+		nil, // no filtering for skills
 	); err != nil {
 		return nil, fmt.Errorf("diff skills: %w", err)
 	}
 
+	// Check config drift (opencode.json changed since last deploy)
+	checkConfigDrift(projectPath, report)
+
 	return report, nil
 }
 
+// checkConfigDrift detects if opencode.json has been modified since the last deploy.
+func checkConfigDrift(projectPath string, report *DiffReport) {
+	state := ReadDeployState(projectPath)
+	if state == nil {
+		// No deploy state → can't compare (first deploy or state lost)
+		return
+	}
+
+	configPath := filepath.Join(projectPath, "opencode.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return
+	}
+
+	currentHash := hashBytes(data)
+	if currentHash != state.ConfigHash {
+		report.ConfigDrift = true
+		report.ConfigDetail = "opencode.json modifié depuis le dernier deploy (hash mismatch)"
+	}
+}
+
 // diffDirectory compares all files between source and destination directories.
-func diffDirectory(srcDir, destDir, prefix string, report *DiffReport) error {
+// If allowSet is non-empty, only source files whose base name (sans extension) is in the set are compared.
+func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet map[string]bool) error {
 	srcFiles := make(map[string]string) // relative path → sha256
 	destFiles := make(map[string]string)
 
@@ -121,6 +160,13 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport) error {
 			}
 			if d.IsDir() {
 				return nil
+			}
+			// Filter by allow set (match on filename without extension)
+			if len(allowSet) > 0 {
+				name := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
+				if !allowSet[name] {
+					return nil
+				}
 			}
 			rel, _ := filepath.Rel(srcDir, path)
 			hash, err := fileHash(path)
@@ -240,6 +286,10 @@ func FormatDiffReport(report *DiffReport, verbose bool) string {
 
 	fmt.Fprintf(&sb, "\n  Résumé: %d ajouté(s), %d modifié(s), %d supprimé(s), %d inchangé(s)\n",
 		added, modified, removed, unchanged)
+
+	if report.ConfigDrift {
+		fmt.Fprintf(&sb, "\n  ⚠ %s\n", report.ConfigDetail)
+	}
 
 	return sb.String()
 }

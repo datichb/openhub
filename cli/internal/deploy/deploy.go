@@ -3,6 +3,7 @@
 package deploy
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -92,6 +93,12 @@ func Execute(plan *Plan) ([]PhaseResult, error) {
 		}
 		result.Message = "OK"
 		ctx.Results = append(ctx.Results, result)
+	}
+
+	// Write deploy state for future --check comparisons
+	if err := writeDeployState(plan); err != nil {
+		// Non-fatal: deploy succeeded, state tracking is best-effort
+		_ = err
 	}
 
 	return ctx.Results, nil
@@ -264,6 +271,12 @@ func DeploySkills(hubDir string, selected []string) Phase {
 				}
 				return nil
 			})
+
+			// Add stack-detected skills (based on project tech stack)
+			stackSkills := ResolveStackSkills(ctx.Plan.ProjectPath)
+			for _, ref := range stackSkills {
+				nativeSkillRefs[ref] = true
+			}
 
 			// Deploy each referenced native skill in opencode format: <name>/SKILL.md
 			for ref := range nativeSkillRefs {
@@ -452,4 +465,75 @@ func copyDir(src, dst string) error {
 		}
 		return copyFile(path, destPath)
 	})
+}
+
+// --- Deploy state tracking ---
+
+// DeployState records metadata about the last successful deploy.
+// Stored in .opencode/.deploy-state as JSON.
+type DeployState struct {
+	DeployedAt     string   `json:"deployed_at"`
+	ConfigHash     string   `json:"config_hash"`      // SHA-256 of opencode.json at deploy time
+	HubDir         string   `json:"hub_dir"`           // hub source directory
+	Provider       string   `json:"provider"`
+	Model          string   `json:"model"`
+	SelectedAgents []string `json:"selected_agents"`
+}
+
+const deployStateFile = ".deploy-state"
+
+// writeDeployState writes a state file after a successful deploy.
+func writeDeployState(plan *Plan) error {
+	stateDir := filepath.Join(plan.ProjectPath, ".opencode")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return err
+	}
+
+	// Hash the deployed opencode.json
+	configPath := filepath.Join(plan.ProjectPath, "opencode.json")
+	configHash := ""
+	if data, err := os.ReadFile(configPath); err == nil {
+		configHash = hashBytes(data)
+	}
+
+	state := DeployState{
+		DeployedAt:     time.Now().Format(time.RFC3339),
+		ConfigHash:     configHash,
+		HubDir:         plan.HubDir,
+		Provider:       plan.Provider,
+		Model:          plan.Model,
+		SelectedAgents: plan.SelectedAgents,
+	}
+
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filepath.Join(stateDir, deployStateFile), data, 0o644)
+}
+
+// ReadDeployState reads the last deploy state from .opencode/.deploy-state.
+// Returns nil if the file doesn't exist (never deployed).
+func ReadDeployState(projectPath string) *DeployState {
+	path := filepath.Join(projectPath, ".opencode", deployStateFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var state DeployState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil
+	}
+	return &state
+}
+
+// hashBytes returns the SHA-256 hex digest of a byte slice.
+func hashBytes(data []byte) string {
+	h := fmt.Sprintf("%x", sha256Sum(data))
+	return h
+}
+
+func sha256Sum(data []byte) [32]byte {
+	return [32]byte(sha256.Sum256(data))
 }

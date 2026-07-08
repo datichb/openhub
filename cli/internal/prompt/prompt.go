@@ -166,3 +166,13 @@ func readFile(path string) string {
 	}
 	return string(data)
 }
+
+// HasGitHubActions returns true if the project has GitHub Actions workflows.
+func HasGitHubActions(projectPath string) bool {
+	return dirExists(projectPath, ".github/workflows")
+}
+
+// HasGitLabCI returns true if the project has a GitLab CI configuration.
+func HasGitLabCI(projectPath string) bool {
+	return fileExists(projectPath, ".gitlab-ci.yml")
+}
