@@ -217,3 +217,108 @@ func hasLabel(t Ticket, label string) bool {
 func HasLabelExported(t Ticket, label string) bool {
 	return hasLabel(t, label)
 }
+
+// CreateFromGitLab creates a bead ticket with a GitLab reference in the title.
+// Convention: title is prefixed with [GITLAB-REF] for correlation.
+// Runs: bd -C <path> create "[<ref>] <title>" -p <priority>
+func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (string, error) {
+	fullTitle := fmt.Sprintf("[%s] %s", gitlabRef, title)
+	args := []string{"-C", projectPath, "create", fullTitle, "-p", fmt.Sprintf("%d", priority), "--json"}
+
+	cmd := exec.Command("bd", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("bd create failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+
+	// Parse the created ticket ID from JSON output
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(output, &created); err != nil {
+		// Fallback: return raw output trimmed
+		return strings.TrimSpace(string(output)), nil
+	}
+	return created.ID, nil
+}
+
+// CreateSubtask creates a child bead linked to a parent.
+// Runs: bd -C <path> create "<title>" -p <priority> then bd -C <path> dep add <child> <parent>
+func CreateSubtask(projectPath, parentID, title string, priority int) (string, error) {
+	// Create the ticket
+	args := []string{"-C", projectPath, "create", title, "-p", fmt.Sprintf("%d", priority), "--json"}
+	cmd := exec.Command("bd", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("bd create subtask failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(output, &created); err != nil {
+		return "", fmt.Errorf("parsing created ticket: %w", err)
+	}
+
+	// Link as dependency
+	depArgs := []string{"-C", projectPath, "dep", "add", created.ID, parentID}
+	depCmd := exec.Command("bd", depArgs...)
+	if depOut, err := depCmd.CombinedOutput(); err != nil {
+		return created.ID, fmt.Errorf("bd dep add failed: %s: %w", strings.TrimSpace(string(depOut)), err)
+	}
+
+	return created.ID, nil
+}
+
+// RememberGitLabContext stores a persistent memory associating the session with a GitLab ticket.
+// Runs: bd -C <path> remember "<message>"
+func RememberGitLabContext(projectPath, gitlabRef, title, description string) error {
+	msg := fmt.Sprintf("Working on GitLab ticket %s: %s", gitlabRef, title)
+	if description != "" {
+		// Truncate description to keep it concise
+		if len(description) > 200 {
+			description = description[:200] + "..."
+		}
+		msg += "\nContext: " + description
+	}
+
+	cmd := exec.Command("bd", "-C", projectPath, "remember", msg)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd remember failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// AddNote adds a note to an existing bead ticket.
+// Runs: bd -C <path> update <ticketID> --note "<note>"
+func AddNote(projectPath, ticketID, note string) error {
+	cmd := exec.Command("bd", "-C", projectPath, "update", ticketID, "--note", note)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd update note failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// ClaimTicket atomically claims a bead ticket (sets assignee + in_progress).
+// Runs: bd -C <path> update <ticketID> --claim
+func ClaimTicket(projectPath, ticketID string) error {
+	cmd := exec.Command("bd", "-C", projectPath, "update", ticketID, "--claim")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd claim failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// CloseTicket closes a bead ticket with a message.
+// Runs: bd -C <path> close <ticketID> "<message>"
+func CloseTicket(projectPath, ticketID, message string) error {
+	cmd := exec.Command("bd", "-C", projectPath, "close", ticketID, message)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd close failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}

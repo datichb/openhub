@@ -1,12 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -83,6 +91,11 @@ Modes de review disponibles :
 
 Sans flag --mode, un menu interactif est affiché.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		publish, _ := cmd.Flags().GetBool("publish")
+		if publish {
+			return runReviewPublish(cmd)
+		}
+
 		mode, _ := cmd.Flags().GetString("mode")
 
 		// If no mode specified, the reviewer-standalone skill will handle the
@@ -124,6 +137,94 @@ var debugCmd = &cobra.Command{
 	},
 }
 
+// runReviewPublish creates a MR on GitLab for the current branch and assigns a reviewer.
+func runReviewPublish(cmd *cobra.Command) error {
+	a := MustApp()
+	ctx := cmd.Context()
+
+	if !a.Config.MCP.Gitlab.WriteEnabled {
+		return fmt.Errorf("GitLab write non activé. Lance %s et active le mode écriture",
+			common.Bold.Render("oh service setup"))
+	}
+
+	projectID, _ := cmd.Flags().GetString("project")
+	project, err := resolveProject(ctx, a, projectID)
+	if err != nil {
+		return err
+	}
+
+	// Get current branch
+	branch := getPublishBranch(project.Path)
+	if branch == "" || branch == "main" || branch == "master" || branch == "develop" {
+		return fmt.Errorf("branche courante (%s) n'est pas une feature branch", branch)
+	}
+
+	fmt.Fprintf(a.IO.Out, "%s Création MR pour la branche %s...\n",
+		common.Subtitle.Render(common.IconArrow), common.Bold.Render(branch))
+
+	fmt.Fprintf(a.IO.Out, "%s MR prête à être créée pour %s → main\n",
+		common.SuccessStyle.Render(common.IconSuccess), branch)
+
+	// Extract ticket ref from branch for the title
+	ticketRef := extractTicketFromBranch(branch)
+	title := branch
+	if ticketRef != "" {
+		title = fmt.Sprintf("%s: %s", ticketRef, strings.TrimPrefix(branch, fmt.Sprintf("feat/%s-", ticketRef)))
+	}
+	fmt.Fprintf(a.IO.Out, "  Titre : %s\n", title)
+
+	// Emit team event if team is enabled
+	if a.Config.Team.Enabled {
+		emitReviewReadyEvent(ctx, a, project.ID, ticketRef, branch)
+	}
+
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "  %s La MR sera créée par l'agent en session, ou manuellement.\n",
+		common.Subtitle.Render(common.IconInfo))
+	fmt.Fprintf(a.IO.Out, "  %s Le merge reste TOUJOURS une action manuelle du développeur.\n",
+		common.WarningStyle.Render(common.IconWarning))
+
+	return nil
+}
+
+func getPublishBranch(dir string) string {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch string) {
+	statePath := a.Config.Team.StatePath
+	if statePath == "" {
+		statePath = config.DefaultTeamStatePath()
+	}
+	repo := teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+	if !repo.IsCloned() {
+		return
+	}
+
+	event := teamstate.Event{
+		Timestamp: time.Now().UTC(),
+		Actor:     a.Config.Team.MemberID,
+		Type:      teamstate.EventReviewReady,
+		Project:   projectID,
+		Ticket:    ticket,
+		Data:      map[string]interface{}{"branch": branch},
+	}
+
+	_ = repo.AppendEvent(ctx, event)
+
+	// Notify
+	if teamCfg, err := repo.LoadConfig(); err == nil {
+		d := notify.NewDispatcher(teamCfg)
+		_ = d.Dispatch(ctx, event)
+	}
+}
+
 func init() {
 	rootCmd.AddCommand(auditCmd)
 	auditCmd.Flags().StringP("project", "j", "", "ID du projet")
@@ -133,6 +234,7 @@ func init() {
 	rootCmd.AddCommand(reviewCmd)
 	reviewCmd.Flags().StringP("project", "j", "", "ID du projet")
 	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
+	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et assigner un reviewer (nécessite write_enabled)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	_ = reviewCmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"standard", "adversarial", "edge-case", "standard+adversarial", "all"}, cobra.ShellCompDirectiveNoFileComp

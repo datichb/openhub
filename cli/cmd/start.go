@@ -16,11 +16,13 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -42,6 +44,7 @@ func init() {
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
 	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
 	startCmd.Flags().Bool("dev", false, "Mode développement (orchestrator-dev + tickets)")
+	startCmd.Flags().StringP("ticket", "t", "", "Ticket ID à travailler directement (skip le picker, requiert --dev)")
 	startCmd.Flags().StringP("label", "l", "", "Filtrer tickets par label (requiert --dev)")
 	startCmd.Flags().StringP("assignee", "A", "", "Filtrer tickets par assignee (requiert --dev)")
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
@@ -568,6 +571,49 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	labelFilter, _ := cmd.Flags().GetString("label")
 	assigneeFilter, _ := cmd.Flags().GetString("assignee")
+	ticketFlag, _ := cmd.Flags().GetString("ticket")
+
+	// Team: pull team-state for claim awareness
+	var teamRepo *teamstate.Repo
+	if a.Config.Team.Enabled {
+		statePath := a.Config.Team.StatePath
+		if statePath == "" {
+			statePath = config.DefaultTeamStatePath()
+		}
+		teamRepo = teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+		if teamRepo.IsCloned() {
+			_ = teamRepo.Pull(cmd.Context())
+		}
+	}
+
+	// If --ticket is specified, skip the picker and work on that ticket directly
+	if ticketFlag != "" {
+		// Auto-claim if team is enabled
+		if teamRepo != nil && teamRepo.IsCloned() {
+			existing, claimErr := teamRepo.CreateClaim(cmd.Context(), teamstate.Claim{
+				TicketID:  ticketFlag,
+				Project:   project.ID,
+				ClaimedBy: a.Config.Team.MemberID,
+				Status:    "in_progress",
+			})
+			if claimErr == teamstate.ErrClaimExists && existing != nil {
+				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
+					common.WarningStyle.Render(common.IconWarning), ticketFlag, existing.ClaimedBy)
+			} else if claimErr == nil {
+				fmt.Fprintf(a.IO.Out, "  %s Claim %s/%s\n",
+					common.SuccessStyle.Render(common.IconSuccess), project.ID, ticketFlag)
+			}
+		}
+
+		// Store GitLab context in beads memory
+		_ = beads.RememberGitLabContext(launchPath, ticketFlag, ticketFlag, "")
+
+		// Build prompt with the ticket reference
+		directPrompt := fmt.Sprintf("Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.", ticketFlag)
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_launching"))
+		return "orchestrator-dev", directPrompt, nil
+	}
 
 	// 2. Sync tracker
 	if project.Tracker != "" && project.Tracker != "none" {
@@ -700,6 +746,29 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			common.SuccessStyle.Render(common.IconSuccess),
 			i18n.Tf("cmd.start.dev_selected_ticket", selected.ticket.ID, selected.ticket.Title))
+	}
+
+	// 7b. Auto-claim the selected ticket in team-state
+	if teamRepo != nil && teamRepo.IsCloned() && a.Config.Team.MemberID != "" {
+		claimTicketID := selected.ticket.ID
+		if selected.isEpic {
+			claimTicketID = selected.epicID
+		}
+		existing, claimErr := teamRepo.CreateClaim(cmd.Context(), teamstate.Claim{
+			TicketID:  claimTicketID,
+			Project:   project.ID,
+			ClaimedBy: a.Config.Team.MemberID,
+			Status:    "in_progress",
+		})
+		if claimErr == teamstate.ErrClaimExists && existing != nil {
+			if existing.ClaimedBy != a.Config.Team.MemberID {
+				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
+					common.WarningStyle.Render(common.IconWarning), claimTicketID, existing.ClaimedBy)
+			}
+		} else if claimErr == nil {
+			fmt.Fprintf(a.IO.Out, "  %s Claim %s\n",
+				common.SuccessStyle.Render(common.IconSuccess), claimTicketID)
+		}
 	}
 
 	// 8. Build prompt
