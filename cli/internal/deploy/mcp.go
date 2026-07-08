@@ -9,10 +9,11 @@ import (
 
 // MCPServerDef describes an MCP server to potentially deploy.
 type MCPServerDef struct {
-	Name     string
-	Enabled  bool
-	TokenKey string // keychain key name
-	TokenEnv string // fallback environment variable name
+	Name         string
+	Enabled      bool
+	TokenKey     string // keychain key name
+	TokenEnv     string // fallback environment variable name
+	WriteEnabled bool   // for servers that support opt-in write mode
 }
 
 // DeployMCP creates a Phase that injects mcpServers into opencode.json.
@@ -61,12 +62,19 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 				mcpServers = make(map[string]interface{})
 			}
 
-			for _, s := range deployed {
-				mcpServers[s.Name] = map[string]interface{}{
-					"command": binaryName,
-					"args":    []string{"mcp", "serve", s.Name},
+		for _, s := range deployed {
+			entry := map[string]interface{}{
+				"command": binaryName,
+				"args":    []string{"mcp", "serve", s.Name},
+			}
+			// Inject env vars for servers that need them
+			if s.WriteEnabled {
+				entry["env"] = map[string]string{
+					"GITLAB_WRITE_ENABLED": "true",
 				}
 			}
+			mcpServers[s.Name] = entry
+		}
 			config["mcpServers"] = mcpServers
 
 			// Write atomically
@@ -87,7 +95,13 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 // checkMCPToken verifies that the token for an MCP server is accessible.
 // It checks the environment variable first, then falls back to checking
 // if the keychain key name is non-empty (actual keychain lookup happens at runtime).
+// Servers with neither TokenEnv nor TokenKey are considered "tokenless" (e.g., team)
+// and always pass the check.
 func checkMCPToken(s MCPServerDef) bool {
+	// Tokenless servers (e.g., team) are always OK when enabled
+	if s.TokenEnv == "" && s.TokenKey == "" {
+		return true
+	}
 	// Check environment variable
 	if s.TokenEnv != "" && os.Getenv(s.TokenEnv) != "" {
 		return true
@@ -100,25 +114,34 @@ func checkMCPToken(s MCPServerDef) bool {
 }
 
 // DefaultMCPServers returns the standard MCP server definitions used by oh.
-func DefaultMCPServers(enabled map[string]bool, tokenKeys map[string]string) []MCPServerDef {
+func DefaultMCPServers(enabled map[string]bool, tokenKeys map[string]string, writeEnabled map[string]bool) []MCPServerDef {
 	return []MCPServerDef{
 		{
-			Name:     "figma",
-			Enabled:  enabled["figma"],
-			TokenKey: tokenKeys["figma"],
-			TokenEnv: "FIGMA_TOKEN",
+			Name:         "figma",
+			Enabled:      enabled["figma"],
+			TokenKey:     tokenKeys["figma"],
+			TokenEnv:     "FIGMA_TOKEN",
+			WriteEnabled: false,
 		},
 		{
-			Name:     "gitlab",
-			Enabled:  enabled["gitlab"],
-			TokenKey: tokenKeys["gitlab"],
-			TokenEnv: "GITLAB_TOKEN",
+			Name:         "gitlab",
+			Enabled:      enabled["gitlab"],
+			TokenKey:     tokenKeys["gitlab"],
+			TokenEnv:     "GITLAB_TOKEN",
+			WriteEnabled: writeEnabled["gitlab"],
 		},
 		{
-			Name:     "gslides",
-			Enabled:  enabled["gslides"],
-			TokenKey: tokenKeys["gslides"],
-			TokenEnv: "GOOGLE_ACCESS_TOKEN",
+			Name:         "gslides",
+			Enabled:      enabled["gslides"],
+			TokenKey:     tokenKeys["gslides"],
+			TokenEnv:     "GOOGLE_ACCESS_TOKEN",
+			WriteEnabled: false,
+		},
+		{
+			Name:    "team",
+			Enabled: enabled["team"],
+			// No token needed — team MCP reads from ~/.oh/team-state/
+			// Activation is controlled by [team].enabled in hub.toml
 		},
 	}
 }

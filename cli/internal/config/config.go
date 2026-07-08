@@ -15,6 +15,15 @@ type Config struct {
 	Opencode OpencodeConfig `mapstructure:"opencode"`
 	MCP      MCPConfig      `mapstructure:"mcp"`
 	Worktree WorktreeConfig `mapstructure:"worktree"`
+	Team     TeamConfig     `mapstructure:"team"`
+}
+
+// TeamConfig holds team collaboration settings.
+type TeamConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	StateRepo string `mapstructure:"state_repo"` // Git remote URL for the team-state repo
+	StatePath string `mapstructure:"state_path"` // Local clone path (default: ~/.oh/team-state)
+	MemberID  string `mapstructure:"member_id"`  // Current user's member ID
 }
 
 // WorktreeConfig holds git worktree management settings.
@@ -46,8 +55,9 @@ type MCPConfig struct {
 
 // MCPServerConfig holds individual MCP server settings.
 type MCPServerConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Token   string `mapstructure:"token_key"` // keychain key name, not the secret itself
+	Enabled      bool   `mapstructure:"enabled"`
+	Token        string `mapstructure:"token_key"`     // keychain key name, not the secret itself
+	WriteEnabled bool   `mapstructure:"write_enabled"` // opt-in for write operations (e.g. GitLab MR creation)
 }
 
 var (
@@ -71,6 +81,11 @@ func ConfigPath() string {
 	return filepath.Join(HubDir(), "hub.toml")
 }
 
+// DefaultTeamStatePath returns the default local path for the team-state repo.
+func DefaultTeamStatePath() string {
+	return filepath.Join(HubDir(), "team-state")
+}
+
 // Load reads the hub.toml configuration. It is safe to call multiple times.
 func Load() (*Config, error) {
 	cfgOnce.Do(func() {
@@ -87,6 +102,8 @@ func Load() (*Config, error) {
 		v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
 		v.SetDefault("worktree.auto_cleanup", true)
 		v.SetDefault("worktree.base_branch", "")
+		v.SetDefault("team.enabled", false)
+		v.SetDefault("team.state_path", filepath.Join(HubDir(), "team-state"))
 
 		if err := v.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

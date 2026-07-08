@@ -207,13 +207,17 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 		"figma":   a.Config.MCP.Figma.Enabled,
 		"gitlab":  a.Config.MCP.Gitlab.Enabled,
 		"gslides": a.Config.MCP.Gslides.Enabled,
+		"team":    a.Config.Team.Enabled,
 	}
 	tokenKeys := map[string]string{
 		"figma":   a.Config.MCP.Figma.Token,
 		"gitlab":  a.Config.MCP.Gitlab.Token,
 		"gslides": a.Config.MCP.Gslides.Token,
 	}
-	return deploy.DefaultMCPServers(enabled, tokenKeys)
+	writeEnabled := map[string]bool{
+		"gitlab": a.Config.MCP.Gitlab.WriteEnabled,
+	}
+	return deploy.DefaultMCPServers(enabled, tokenKeys, writeEnabled)
 }
 
 // buildDeployPlan creates a standard deployment plan with all phases.
