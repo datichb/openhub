@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/figma"
 	"github.com/datichb/openhub/cli/internal/mcp/gitlab"
 	"github.com/datichb/openhub/cli/internal/mcp/gslides"
+	"github.com/datichb/openhub/cli/internal/mcp/team"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -33,7 +34,7 @@ func mcpServeCmd() *cobra.Command {
 		Long:  "Lance un serveur MCP intégré qui communique via stdin/stdout (JSON-RPC). Utilisé par opencode.",
 		Args:  cobra.ExactArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return []string{"figma", "gitlab", "gslides"}, cobra.ShellCompDirectiveNoFileComp
+			return []string{"figma", "gitlab", "gslides", "team"}, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
@@ -44,6 +45,8 @@ func mcpServeCmd() *cobra.Command {
 				return gitlab.Serve()
 			case "gslides":
 				return gslides.Serve()
+			case "team":
+				return team.Serve()
 			default:
 				return fmt.Errorf("%s", i18n.Tf("cmd.mcp.serve.unknown", name))
 			}

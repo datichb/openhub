@@ -18,6 +18,7 @@ import (
 func Serve() error {
 	server := protocol.NewServer("gitlab-mcp", "2.0.0")
 
+	// Read-only tools (always registered)
 	server.RegisterTool(protocol.Tool{
 		Name:        "gitlab_get_project",
 		Description: "Get a GitLab project by ID or path",
@@ -56,7 +57,17 @@ func Serve() error {
 		},
 	}, handleListMRs)
 
+	// Write tools (registered only if GITLAB_WRITE_ENABLED=true)
+	if isWriteEnabled() {
+		registerWriteTools(server)
+	}
+
 	return server.Serve()
+}
+
+// isWriteEnabled checks if write operations are enabled via environment variable.
+func isWriteEnabled() bool {
+	return os.Getenv("GITLAB_WRITE_ENABLED") == "true"
 }
 
 func handleGetProject(params json.RawMessage) (*protocol.ToolResult, error) {
@@ -123,7 +134,18 @@ var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 const maxResponseSize = 50 << 20 // 50 MB
 
+// gitlabAPI performs a GET request to the GitLab API.
 func gitlabAPI(path string) ([]byte, error) {
+	return gitlabRequest("GET", path, nil)
+}
+
+// gitlabAPIWrite performs a write request (POST/PUT/DELETE) to the GitLab API.
+func gitlabAPIWrite(method, path string, body io.Reader) ([]byte, error) {
+	return gitlabRequest(method, path, body)
+}
+
+// gitlabRequest performs an HTTP request to the GitLab API.
+func gitlabRequest(method, path string, body io.Reader) ([]byte, error) {
 	token := os.Getenv("GITLAB_TOKEN")
 	baseURL := os.Getenv("GITLAB_URL")
 	if baseURL == "" {
@@ -138,11 +160,18 @@ func gitlabAPI(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", baseURL+path, http.NoBody)
+	if body == nil {
+		body = http.NoBody
+	}
+
+	req, err := http.NewRequest(method, baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("PRIVATE-TOKEN", token)
+	if method == "POST" || method == "PUT" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -150,18 +179,22 @@ func gitlabAPI(path string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("GitLab API error %d: %s", resp.StatusCode, string(body))
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("GitLab API error %d: %s", resp.StatusCode, string(respBody))
 	}
-	return body, nil
+	return respBody, nil
 }
 
 // validateGitLabURL checks that the URL is safe to send credentials to.
+// Skipped when GITLAB_SKIP_URL_VALIDATION is set (for testing only).
 func validateGitLabURL(rawURL string) error {
+	if os.Getenv("GITLAB_SKIP_URL_VALIDATION") == "true" {
+		return nil
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("GITLAB_URL is not a valid URL: %w", err)

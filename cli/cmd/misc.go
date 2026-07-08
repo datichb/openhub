@@ -182,6 +182,33 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 	v.Set("mcp."+serviceName+".enabled", true)
 	v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
 
+	// GitLab: ask about write permissions
+	if serviceName == "gitlab" {
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintln(a.IO.Out, common.Bold.Render("  Droits requis pour le token GitLab :"))
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintln(a.IO.Out, "  Mode lecture seule (par défaut) :")
+		fmt.Fprintf(a.IO.Out, "    %s read_api\n", common.SuccessStyle.Render(common.IconSuccess))
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintln(a.IO.Out, "  Mode lecture + écriture :")
+		fmt.Fprintf(a.IO.Out, "    %s api (inclut read + write)\n", common.SuccessStyle.Render(common.IconSuccess))
+		fmt.Fprintln(a.IO.Out, "    Permet : créer MR, commenter, assigner, modifier labels/statuts")
+		fmt.Fprintln(a.IO.Out)
+
+		var writeEnabled bool
+		_ = huh.NewConfirm().
+			Title("Activer le mode écriture (créer MR, commenter, assigner) ?").
+			Description("Nécessite un token avec le scope 'api'").
+			Value(&writeEnabled).
+			Run()
+
+		v.Set("mcp.gitlab.write_enabled", writeEnabled)
+		if writeEnabled {
+			fmt.Fprintf(a.IO.Out, "%s Mode écriture activé\n",
+				common.SuccessStyle.Render(common.IconSuccess))
+		}
+	}
+
 	cfgPath := config.ConfigPath()
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
