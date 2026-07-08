@@ -7,20 +7,83 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
-## [Unreleased]
+## [3.1.0] — 2026-07-08
 
 ### Added
+
+- **Team collaboration system** — centralized team coordination via a dedicated `team-state` Git repo
+  - `oh team init` — interactive setup wizard (repo URL, member profile, Mattermost config)
+  - `oh team status` — who is working on what (tabular view)
+  - `oh team activity` — event feed (filtered by date, member, project)
+  - `oh claim <ticket>` / `oh release` / `oh claim transfer` — ticket reservation with conflict detection
+  - Team-state repo managed transparently in `~/.oh/team-state/`
+  - Monthly JSONL event journal with automatic rotation
+  - Cross-project wiki with proposal-based contributions (human review required)
+  - Mattermost notifications (session.complete, review.ready, claim events, wiki proposals)
+  
+- **MCP server `team`** — AI agents access team data via MCP protocol
+  - `team_members`, `team_claims`, `team_wiki_read`, `team_wiki_list`, `team_events` (read)
+  - `team_wiki_write` (documentarian only, creates pending proposals)
+  - `team_notify` (orchestrator-dev, reviewer, auditor)
+
+- **GitLab bidirectional** — opt-in write capabilities for the GitLab MCP server
+  - `gitlab_create_mr` — creates MR (detects existing by source_branch, no duplicates)
+  - `gitlab_add_mr_note` — adds comments to MRs
+  - `gitlab_update_issue` — updates state, labels, assignees
+  - `gitlab_assign_reviewer` — assigns reviewers to MRs
+  - `gitlab_add_label` — adds labels to issues
+  - `write_enabled` config flag — opt-in, with token scope guidance during setup
+  - Display required token permissions in `oh service setup` wizard
+
+- **`oh conventions check`** — verifies branch naming and commit format against project wiki conventions
+  - Reads patterns from `docs/wiki/technical/conventions.md`
+  - Supports Conventional Commits auto-detection
+  - Non-blocking warnings (medium enforcement)
+
+- **`oh review --publish`** — creates MR and emits team notification for review
+  - Detects current branch, extracts ticket reference
+  - Emits `review.ready` event + Mattermost notification
+  - Respects CP-2: merge is ALWAYS manual
+
+- **`oh start --dev --ticket <id>`** — skip picker, work on specific ticket directly
+  - Auto-claim in team-state on ticket selection
+  - Team-state pull for claim awareness in picker
+
+- **Beads enrichment helpers** — new functions for agent use
+  - `CreateFromGitLab` — creates bead with `[TICKET-REF]` title convention
+  - `CreateSubtask` — creates child bead with dependency link
+  - `RememberGitLabContext` — stores GitLab context in bd memory
+  - `AddNote` — agents add contextual notes during sessions
+  - `ClaimTicket` / `CloseTicket` — lifecycle management
+
+- **Team-aware skills**
+  - `skills/shared/team-awareness.md` — Bucket A, all agents (when team enabled)
+  - `skills/shared/team-wiki-protocol.md` — Bucket B, documentarian wiki contribution protocol
+  - `skills/orchestrator/team-coordination.md` — Bucket B, conventions verification + claim checks + MR proposal
 
 - **Multi-mode review system** — the reviewer agent now supports multiple review modes:
   - `standard` — classical 6-category checklist review (unchanged, default for tickets)
   - `adversarial` — maximum skepticism posture, min. 10 findings, dangerous assumptions analysis, confidence score
   - `edge-case` — exhaustive unhandled execution path hunting, available everywhere as an option
   - Combined modes (`standard+adversarial`, `all`) via **parallel independent sessions** with context isolation
-- **`review-merge` skill** — deduplicates and unifies reports from parallel review sessions (provenance tagging `[STD]`/`[ADV]`/`[EDGE]`, severity hierarchy preservation)
-- **CP-feature adversarial review** — mandatory adversarial review at feature checkpoint on the full `main..feature-branch` diff, with optional edge-case analysis (user prompt)
-- **`oh review --mode` flag** — CLI mode selection (`standard`, `adversarial`, `edge-case`, `standard+adversarial`, `all`) with shell completion
-- **Interactive mode prompt** — when no `--mode` flag is provided, the reviewer proposes mode selection via the `question` tool at session start
-- **Reviewer self-delegation** — reviewer can now invoke parallel reviewer sessions (`task → reviewer: allow`) for context isolation in multi-mode
+- **`review-merge` skill** — deduplicates and unifies reports from parallel review sessions
+- **`oh review --mode` flag** — CLI mode selection with shell completion
+- **Reviewer self-delegation** — reviewer can invoke parallel reviewer sessions for context isolation
+
+- **ADR-024** — Team State Repository architecture decision record (EN/FR)
+
+### Changed
+
+- `MCPServerConfig` extended with `WriteEnabled bool` field
+- `DefaultMCPServers()` signature extended with `writeEnabled` parameter
+- GitLab MCP `gitlabAPI` refactored to `gitlabRequest` supporting all HTTP methods (POST/PUT/DELETE)
+- `checkMCPToken` now passes tokenless servers (e.g., team MCP)
+- Deploy injects `GITLAB_WRITE_ENABLED` env var when write mode is active
+- `oh start --dev` now pulls team-state before showing picker (claim awareness)
+
+### Removed
+
+- QA Engineer agent (`agents/quality/qa-engineer.md`) — replaced by enhanced reviewer modes
 
 ---
 
