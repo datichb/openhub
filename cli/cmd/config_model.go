@@ -120,20 +120,50 @@ func configModelShowCmd() *cobra.Command {
 			v := configViper()
 			a := MustApp()
 
+			hubDefault := v.GetString("models.default")
+			hubFamilies := v.GetStringMapString("models.families")
+			hubAgents := v.GetStringMapString("models.agents")
+
+			// JSON mode: output structured data and exit early
+			if jsonOut {
+				output := map[string]interface{}{
+					"hub": map[string]interface{}{
+						"default":  hubDefault,
+						"families": hubFamilies,
+						"agents":   hubAgents,
+					},
+				}
+				if projectID != "" {
+					ctx := cmd.Context()
+					project, err := a.Projects.Get(ctx, projectID)
+					if err != nil {
+						return fmt.Errorf("project %s: %w", projectID, err)
+					}
+					projectOut := map[string]interface{}{
+						"default": project.Model,
+					}
+					if project.ModelOverrides != nil {
+						projectOut["families"] = project.ModelOverrides.Families
+						projectOut["agents"] = project.ModelOverrides.Agents
+					}
+					output["project"] = projectOut
+				}
+				return json.NewEncoder(a.IO.Out).Encode(output)
+			}
+
+			// Human-readable output
 			fmt.Fprintln(a.IO.Out)
 			fmt.Fprintf(a.IO.Out, "%s\n", common.Title.Render("  Model Configuration  "))
 			fmt.Fprintln(a.IO.Out)
 
 			// Hub-level
 			fmt.Fprintf(a.IO.Out, "%s\n", common.Bold.Render("Hub-level (hub.toml):"))
-			hubDefault := v.GetString("models.default")
 			if hubDefault != "" {
 				fmt.Fprintf(a.IO.Out, "  default: %s\n", hubDefault)
 			} else {
 				fmt.Fprintf(a.IO.Out, "  default: %s\n", common.Subtitle.Render("(not set)"))
 			}
 
-			hubFamilies := v.GetStringMapString("models.families")
 			if len(hubFamilies) > 0 {
 				fmt.Fprintf(a.IO.Out, "  families:\n")
 				for f, m := range hubFamilies {
@@ -141,7 +171,6 @@ func configModelShowCmd() *cobra.Command {
 				}
 			}
 
-			hubAgents := v.GetStringMapString("models.agents")
 			if len(hubAgents) > 0 {
 				fmt.Fprintf(a.IO.Out, "  agents:\n")
 				for id, m := range hubAgents {
@@ -179,17 +208,6 @@ func configModelShowCmd() *cobra.Command {
 						}
 					}
 				}
-			}
-
-			if jsonOut {
-				output := map[string]interface{}{
-					"hub": map[string]interface{}{
-						"default":  hubDefault,
-						"families": hubFamilies,
-						"agents":   hubAgents,
-					},
-				}
-				return json.NewEncoder(a.IO.Out).Encode(output)
 			}
 
 			fmt.Fprintln(a.IO.Out)

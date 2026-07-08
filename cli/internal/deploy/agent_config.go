@@ -84,6 +84,12 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 					return nil //nolint:nilerr // intentional: skip malformed agents
 				}
 
+				// Guard: agent must have an id
+				if fm.ID == "" {
+					slog.Warn("skipping agent with no id in frontmatter", "path", path)
+					return nil
+				}
+
 				// Validate MCP server requirements
 				if len(fm.MCPServers) > 0 && len(ctx.Plan.EnabledMCPServers) > 0 {
 					validateAgentMCPServers(fm.ID, fm.MCPServers, ctx.Plan.EnabledMCPServers)

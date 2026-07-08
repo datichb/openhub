@@ -117,6 +117,7 @@ func splitFrontmatterAndBody(data []byte) (frontmatter, body []byte) {
 
 // stripHubFields removes hub-internal frontmatter fields that opencode doesn't understand:
 // skills, native_skills, mcpServers. These are hub metadata consumed by the deploy process only.
+// Only matches top-level keys (not indented sub-keys).
 func stripHubFields(frontmatter []byte) []byte {
 	if len(frontmatter) == 0 {
 		return frontmatter
@@ -136,15 +137,20 @@ func stripHubFields(frontmatter []byte) []byte {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
-		// Check if this line starts a hub-internal field
+		// Only match top-level keys (zero indentation)
+		isTopLevel := len(line) > 0 && line[0] != ' ' && line[0] != '\t'
+
+		// Check if this line starts a hub-internal field at root level
 		isHubField := false
-		for field := range hubFields {
-			if strings.HasPrefix(trimmed, field) {
-				isHubField = true
-				// If it's an inline array (e.g., skills: [a, b, c]), skip just this line
-				// If it's a block sequence, need to skip continuation lines
-				skipping = !strings.Contains(trimmed, "[")
-				break
+		if isTopLevel {
+			for field := range hubFields {
+				if strings.HasPrefix(trimmed, field) {
+					isHubField = true
+					// If it's an inline array (e.g., skills: [a, b, c]), skip just this line
+					// If it's a block sequence, need to skip continuation lines
+					skipping = !strings.Contains(trimmed, "[")
+					break
+				}
 			}
 		}
 
@@ -154,7 +160,7 @@ func stripHubFields(frontmatter []byte) []byte {
 
 		// If we were skipping a multi-line block, check if this line is a continuation
 		if skipping {
-			// Continuation lines start with whitespace and "- "
+			// Continuation lines start with whitespace (indented under the parent key)
 			if strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t") {
 				continue
 			}

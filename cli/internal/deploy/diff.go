@@ -97,13 +97,25 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		allowSet[a] = true
 	}
 
-	// Compare agents (filtered by selection)
+	// Compare agents (filtered by selection, hashed after assembly)
+	skillsDir := filepath.Join(hubDir, "skills")
+	agentHashFn := func(path string) (string, error) {
+		// Hash the assembled output (skill inlining + hub field stripping)
+		// to match what actually gets deployed
+		assembled, err := assembleAgentWithSkills(path, skillsDir)
+		if err != nil {
+			return fileHash(path) // fallback to raw hash
+		}
+		return fmt.Sprintf("%x", sha256.Sum256(assembled)), nil
+	}
+
 	if err := diffDirectory(
 		filepath.Join(hubDir, "agents"),
 		filepath.Join(projectPath, ".opencode", "agents"),
 		"agents",
 		report,
 		allowSet,
+		agentHashFn,
 	); err != nil {
 		return nil, fmt.Errorf("diff agents: %w", err)
 	}
@@ -115,6 +127,7 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		"skills",
 		report,
 		nil, // no filtering for skills
+		nil, // default hash function (raw file hash)
 	); err != nil {
 		return nil, fmt.Errorf("diff skills: %w", err)
 	}
@@ -148,7 +161,9 @@ func checkConfigDrift(projectPath string, report *DiffReport) {
 
 // diffDirectory compares all files between source and destination directories.
 // If allowSet is non-empty, only source files whose base name (sans extension) is in the set are compared.
-func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet map[string]bool) error {
+// If srcHashFn is non-nil, it is used to hash source files instead of raw file hashing
+// (e.g., to hash the assembled output for agents).
+func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet map[string]bool, srcHashFn func(string) (string, error)) error {
 	srcFiles := make(map[string]string) // relative path → sha256
 	destFiles := make(map[string]string)
 
@@ -169,9 +184,15 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 				}
 			}
 			rel, _ := filepath.Rel(srcDir, path)
-			hash, err := fileHash(path)
-			if err != nil {
-				return err
+			var hash string
+			var hashErr error
+			if srcHashFn != nil {
+				hash, hashErr = srcHashFn(path)
+			} else {
+				hash, hashErr = fileHash(path)
+			}
+			if hashErr != nil {
+				return hashErr
 			}
 			srcFiles[rel] = hash
 			return nil
