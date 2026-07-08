@@ -75,14 +75,14 @@ func TestBuildDeployPlan(t *testing.T) {
 		IO:     app.DefaultIOStreams(),
 	}
 
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3")
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil)
 	require.NotNil(t, plan)
 	assert.Equal(t, "/tmp/project", plan.ProjectPath)
 	assert.Equal(t, "test-id", plan.ProjectID)
 	assert.Equal(t, "/tmp/hub", plan.HubDir)
 	assert.Equal(t, "anthropic", plan.Provider)
 	assert.Equal(t, "claude-3", plan.Model)
-	assert.Len(t, plan.Phases, 4, "deploy plan should have 4 phases")
+	assert.Len(t, plan.Phases, 5, "deploy plan should have 5 phases (agents, skills, config, agent-config, mcp)")
 }
 
 func TestCmdI18nKey(t *testing.T) {

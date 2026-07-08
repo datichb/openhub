@@ -56,8 +56,8 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 				config = make(map[string]interface{})
 			}
 
-			// Merge mcpServers section (preserve existing entries)
-			mcpServers, ok := config["mcpServers"].(map[string]interface{})
+			// Merge mcp section (preserve existing entries)
+			mcpServers, ok := config["mcp"].(map[string]interface{})
 			if !ok {
 				mcpServers = make(map[string]interface{})
 			}
@@ -75,7 +75,7 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 			}
 			mcpServers[s.Name] = entry
 		}
-			config["mcpServers"] = mcpServers
+			config["mcp"] = mcpServers
 
 			// Write atomically
 			data, err := json.MarshalIndent(config, "", "  ")

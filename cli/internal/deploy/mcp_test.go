@@ -41,7 +41,7 @@ func TestDeployMCPAllEnabled(t *testing.T) {
 	assert.Equal(t, "test", config["model"])
 
 	// MCP servers injected
-	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	mcpServers, ok := config["mcp"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Len(t, mcpServers, 2)
 
@@ -76,7 +76,7 @@ func TestDeployMCPDisabledSkipped(t *testing.T) {
 	var config map[string]interface{}
 	require.NoError(t, json.Unmarshal(data, &config))
 
-	mcpServers := config["mcpServers"].(map[string]interface{})
+	mcpServers := config["mcp"].(map[string]interface{})
 	assert.Len(t, mcpServers, 1)
 	assert.Contains(t, mcpServers, "figma")
 	assert.NotContains(t, mcpServers, "gitlab")
@@ -109,13 +109,13 @@ func TestDeployMCPTokenMissing(t *testing.T) {
 
 	var config map[string]interface{}
 	require.NoError(t, json.Unmarshal(data, &config))
-	assert.Nil(t, config["mcpServers"]) // not present since no MCP deployed
+	assert.Nil(t, config["mcp"]) // not present since no MCP deployed
 }
 
 func TestDeployMCPPreservesExisting(t *testing.T) {
 	projectDir := t.TempDir()
 	existing := `{
-  "mcpServers": {
+  "mcp": {
     "custom-server": {"command": "node", "args": ["custom.js"]}
   }
 }`
@@ -140,7 +140,7 @@ func TestDeployMCPPreservesExisting(t *testing.T) {
 	var config map[string]interface{}
 	require.NoError(t, json.Unmarshal(data, &config))
 
-	mcpServers := config["mcpServers"].(map[string]interface{})
+	mcpServers := config["mcp"].(map[string]interface{})
 	assert.Len(t, mcpServers, 2)
 	assert.Contains(t, mcpServers, "custom-server") // preserved
 	assert.Contains(t, mcpServers, "figma")         // added
@@ -168,7 +168,7 @@ func TestDeployMCPTokenKeychain(t *testing.T) {
 	var config map[string]interface{}
 	require.NoError(t, json.Unmarshal(data, &config))
 
-	mcpServers := config["mcpServers"].(map[string]interface{})
+	mcpServers := config["mcp"].(map[string]interface{})
 	assert.Contains(t, mcpServers, "gitlab") // keychain key is sufficient
 }
 
@@ -192,5 +192,5 @@ func TestDeployMCPNoServersEnabled(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(data), `"model": "test"`)
-	assert.NotContains(t, string(data), "mcpServers")
+	assert.NotContains(t, string(data), "mcp")
 }

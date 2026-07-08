@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,16 +16,62 @@ func setupTestHub(t *testing.T) (hubDir, projectDir string) {
 	hubDir = t.TempDir()
 	projectDir = t.TempDir()
 
-	// Create hub agents
-	agentsDir := filepath.Join(hubDir, "agents")
+	// Create hub agents with frontmatter
+	agentsDir := filepath.Join(hubDir, "agents", "dev")
 	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "coder.md"), []byte("# Coder Agent"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "reviewer.md"), []byte("# Reviewer Agent"), 0o644))
+
+	coderAgent := `---
+id: coder
+label: Coder
+description: A coding agent
+mode: primary
+permission:
+  read: allow
+skills: [shared/coding-inline]
+native_skills: [shared/coding]
+---
+
+# Coder Agent
+`
+	reviewerAgent := `---
+id: reviewer
+label: Reviewer
+description: A reviewing agent
+mode: primary
+permission:
+  read: allow
+native_skills: [shared/coding]
+---
+
+# Reviewer Agent
+`
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "coder.md"), []byte(coderAgent), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "reviewer.md"), []byte(reviewerAgent), 0o644))
 
 	// Create hub skills
 	skillsDir := filepath.Join(hubDir, "skills", "shared")
 	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "coding.md"), []byte("# Coding Skill"), 0o644))
+
+	codingSkill := `---
+name: coding
+description: Coding best practices
+---
+
+# Coding Skill
+
+Follow these coding practices.
+`
+	codingInlineSkill := `---
+name: coding-inline
+description: Inline coding skill
+---
+
+# Inline Coding Skill
+
+This should be inlined into the agent.
+`
+	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "coding.md"), []byte(codingSkill), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "coding-inline.md"), []byte(codingInlineSkill), 0o644))
 
 	return hubDir, projectDir
 }
@@ -39,8 +86,8 @@ func TestExecute_FullDeploy(t *testing.T) {
 		Provider:    "bedrock",
 		Model:       "claude-opus-4",
 		Phases: []Phase{
-			DeployAgents(hubDir),
-			DeploySkills(hubDir),
+			DeployAgents(hubDir, nil),
+			DeploySkills(hubDir, nil),
 			DeployConfig("bedrock", "claude-opus-4"),
 		},
 	}
@@ -52,17 +99,22 @@ func TestExecute_FullDeploy(t *testing.T) {
 		assert.True(t, r.Success, "phase %s failed: %s", r.Name, r.Message)
 	}
 
-	// Verify agents deployed
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "coder.md"))
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "reviewer.md"))
+	// Verify agents deployed (in subdirectory matching hub structure)
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "dev", "coder.md"))
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "dev", "reviewer.md"))
 
-	// Verify skills deployed
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "skills", "shared", "coding.md"))
+	// Verify Bucket A skill was inlined into the coder agent
+	coderData, _ := os.ReadFile(filepath.Join(projectDir, ".opencode", "agents", "dev", "coder.md"))
+	assert.Contains(t, string(coderData), "Inline Coding Skill") // inlined content
+	assert.NotContains(t, string(coderData), "skills:")          // hub field stripped
+
+	// Verify Bucket B skills deployed in opencode format: <name>/SKILL.md
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "skills", "coding", "SKILL.md"))
 
 	// Verify config
 	assert.FileExists(t, filepath.Join(projectDir, "opencode.json"))
 	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
-	assert.Contains(t, string(data), "bedrock")
+	assert.Contains(t, string(data), "amazon-bedrock")
 }
 
 func TestExecute_Rollback(t *testing.T) {
@@ -85,8 +137,8 @@ func TestExecute_Rollback(t *testing.T) {
 		ProjectID:   "test-project",
 		HubDir:      hubDir,
 		Phases: []Phase{
-			DeployAgents(hubDir), // This succeeds
-			failingPhase,         // This fails → rollback
+			DeployAgents(hubDir, nil), // This succeeds
+			failingPhase,              // This fails → rollback
 		},
 	}
 
@@ -111,8 +163,8 @@ func TestExecute_NoAgents(t *testing.T) {
 		ProjectPath: projectDir,
 		HubDir:      emptyHub,
 		Phases: []Phase{
-			DeployAgents(emptyHub),
-			DeploySkills(emptyHub),
+			DeployAgents(emptyHub, nil),
+			DeploySkills(emptyHub, nil),
 		},
 	}
 
@@ -141,7 +193,56 @@ func TestDeployConfig_MergesExisting(t *testing.T) {
 	assert.True(t, results[0].Success)
 
 	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
-	content := string(data)
-	assert.Contains(t, content, `"custom"`)  // preserved
-	assert.Contains(t, content, `"bedrock"`) // added
+	var config map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &config))
+
+	// Preserved existing entries
+	assert.Contains(t, config, "custom")
+
+	// Model is a string (not an object)
+	assert.Equal(t, "claude-opus-4", config["model"])
+
+	// Provider is a named block (amazon-bedrock for "bedrock")
+	providerCfg := config["provider"].(map[string]interface{})
+	assert.Contains(t, providerCfg, "amazon-bedrock")
+	assert.Contains(t, providerCfg, "other") // preserved from existing
+
+	// $schema present
+	assert.Equal(t, "https://opencode.ai/config.json", config["$schema"])
+
+	// enabled_providers set
+	enabledProviders := config["enabled_providers"].([]interface{})
+	assert.Contains(t, enabledProviders, "amazon-bedrock")
+}
+
+func TestDeployConfig_PluginAndCompaction(t *testing.T) {
+	projectDir := t.TempDir()
+
+	plan := &Plan{
+		ProjectPath: projectDir,
+		Phases: []Phase{
+			DeployConfig("anthropic", "claude-sonnet-4-5"),
+		},
+	}
+
+	results, err := Execute(plan)
+	require.NoError(t, err)
+	assert.True(t, results[0].Success)
+
+	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
+
+	var config map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &config))
+
+	// Plugin: context-mode always deployed
+	plugins, ok := config["plugin"].([]interface{})
+	require.True(t, ok, "plugin should be an array")
+	assert.Contains(t, plugins, "context-mode")
+
+	// Compaction: standard settings
+	compaction, ok := config["compaction"].(map[string]interface{})
+	require.True(t, ok, "compaction should be an object")
+	assert.Equal(t, true, compaction["auto"])
+	assert.Equal(t, true, compaction["prune"])
+	assert.Equal(t, float64(10000), compaction["reserved"]) // JSON numbers are float64
 }

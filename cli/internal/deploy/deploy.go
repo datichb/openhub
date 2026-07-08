@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -17,13 +18,15 @@ var DisabledNativeAgents = []string{"build", "plan", "general", "explore", "scou
 
 // Plan represents a deployment plan with all phases.
 type Plan struct {
-	ProjectPath      string
-	ProjectID        string
-	HubDir           string // source hub directory (agents/, skills/, etc.)
-	Provider         string
-	Model            string
-	WebsearchEnabled bool // inject permission.websearch/webfetch = "allow"
-	Phases           []Phase
+	ProjectPath       string
+	ProjectID         string
+	HubDir            string // source hub directory (agents/, skills/, etc.)
+	Provider          string
+	Model             string
+	WebsearchEnabled  bool     // inject permission.websearch/webfetch = "allow"
+	SelectedAgents    []string // agent names to deploy (empty = all)
+	EnabledMCPServers []string // MCP server names enabled in hub config (for validation warnings)
+	Phases            []Phase
 }
 
 // Phase represents a single deployment phase.
@@ -149,19 +152,33 @@ func rollback(projectPath string, snapshot *Snapshot) error {
 // --- Standard deployment phases ---
 
 // DeployAgents copies agent .md files to .opencode/agents/.
-func DeployAgents(hubDir string) Phase {
+// If selected is non-empty, only agents whose filename (sans .md) is in the list are copied.
+// The destination directory is wiped first to remove stale agents from previous deploys.
+// Bucket A skills are assembled inline into each agent's body.
+func DeployAgents(hubDir string, selected []string) Phase {
 	return Phase{
 		Name: "Agents",
 		Execute: func(ctx *Context) error {
 			srcDir := filepath.Join(hubDir, "agents")
 			destDir := filepath.Join(ctx.Plan.ProjectPath, ".opencode", "agents")
+			skillsDir := filepath.Join(hubDir, "skills")
 
 			if _, err := os.Stat(srcDir); os.IsNotExist(err) {
 				return nil // No agents to deploy
 			}
 
+			// Wipe existing agents directory to remove stale agents
+			if err := os.RemoveAll(destDir); err != nil {
+				return fmt.Errorf("cleaning agents directory: %w", err)
+			}
 			if err := os.MkdirAll(destDir, 0o755); err != nil {
 				return err
+			}
+
+			// Build allow set for filtering
+			allowSet := make(map[string]bool, len(selected))
+			for _, a := range selected {
+				allowSet[a] = true
 			}
 
 			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
@@ -175,49 +192,88 @@ func DeployAgents(hubDir string) Phase {
 					return nil
 				}
 
+				// Filter by selected agents (match on filename without .md extension)
+				name := strings.TrimSuffix(d.Name(), ".md")
+				if len(allowSet) > 0 && !allowSet[name] {
+					return nil // skip unselected agent
+				}
+
 				rel, _ := filepath.Rel(srcDir, path)
 				dest := filepath.Join(destDir, rel)
 				if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 					return err
 				}
-				return copyFile(path, dest)
+
+				// Assemble agent with Bucket A skills inlined
+				assembled, err := assembleAgentWithSkills(path, skillsDir)
+				if err != nil {
+					// Fall back to raw copy if assembly fails
+					return copyFile(path, dest)
+				}
+				return os.WriteFile(dest, assembled, 0o644)
 			})
 		},
 	}
 }
 
-// DeploySkills copies skill files to .opencode/skills/.
-func DeploySkills(hubDir string) Phase {
+// DeploySkills deploys native skills (Bucket B) to .opencode/skills/<name>/SKILL.md.
+// Only skills referenced by the selected agents' `native_skills` frontmatter are deployed.
+// The destination directory is wiped first to remove stale skills from previous deploys.
+func DeploySkills(hubDir string, selected []string) Phase {
 	return Phase{
 		Name: "Skills",
 		Execute: func(ctx *Context) error {
-			srcDir := filepath.Join(hubDir, "skills")
+			skillsDir := filepath.Join(hubDir, "skills")
+			agentsDir := filepath.Join(hubDir, "agents")
 			destDir := filepath.Join(ctx.Plan.ProjectPath, ".opencode", "skills")
 
-			if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+			if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
 				return nil
 			}
 
+			// Wipe existing skills directory to remove stale skills
+			if err := os.RemoveAll(destDir); err != nil {
+				return fmt.Errorf("cleaning skills directory: %w", err)
+			}
 			if err := os.MkdirAll(destDir, 0o755); err != nil {
 				return err
 			}
 
-			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
-				if err != nil {
+			// Build allow set for agent filtering
+			allowSet := make(map[string]bool, len(selected))
+			for _, a := range selected {
+				allowSet[a] = true
+			}
+
+			// Collect all native_skills from selected agents
+			nativeSkillRefs := make(map[string]bool)
+			_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
 					return err
 				}
-				if d.IsDir() {
-					relDir, _ := filepath.Rel(srcDir, path)
-					if relDir != "." {
-						return os.MkdirAll(filepath.Join(destDir, relDir), 0o755)
-					}
+				name := strings.TrimSuffix(d.Name(), ".md")
+				if len(allowSet) > 0 && !allowSet[name] {
 					return nil
 				}
-
-				rel, _ := filepath.Rel(srcDir, path)
-				dest := filepath.Join(destDir, rel)
-				return copyFile(path, dest)
+				fm, err := ParseAgentFrontmatter(path)
+				if err != nil {
+					return nil //nolint:nilerr // intentional: skip unparseable agents
+				}
+				for _, ref := range fm.NativeSkills {
+					nativeSkillRefs[ref] = true
+				}
+				return nil
 			})
+
+			// Deploy each referenced native skill in opencode format: <name>/SKILL.md
+			for ref := range nativeSkillRefs {
+				if err := deployNativeSkill(skillsDir, ref, destDir); err != nil {
+					// Non-fatal: skip missing skills
+					continue
+				}
+			}
+
+			return nil
 		},
 	}
 }
@@ -239,24 +295,43 @@ func DeployConfig(provider, model string) Phase {
 				config = make(map[string]interface{})
 			}
 
-			// Set provider if specified
+			// Always set $schema for IDE validation
+			config["$schema"] = "https://opencode.ai/config.json"
+
+			// Set model if specified (opencode expects a plain string, not an object)
+			if model != "" {
+				config["model"] = model
+			}
+
+			// Set provider configuration (opencode expects named provider blocks with options)
 			if provider != "" {
 				providerCfg, ok := config["provider"].(map[string]interface{})
 				if !ok {
 					providerCfg = make(map[string]interface{})
 				}
-				providerCfg["default"] = provider
-				config["provider"] = providerCfg
-			}
-
-			// Set model if specified
-			if model != "" {
-				modelCfg, ok := config["model"].(map[string]interface{})
-				if !ok {
-					modelCfg = make(map[string]interface{})
+				// Configure the active provider with options
+				switch provider {
+				case "anthropic":
+					if _, exists := providerCfg["anthropic"]; !exists {
+						providerCfg["anthropic"] = map[string]interface{}{
+							"options": map[string]interface{}{
+								"setCacheKey": true,
+							},
+						}
+					}
+				case "bedrock":
+					if _, exists := providerCfg["amazon-bedrock"]; !exists {
+						providerCfg["amazon-bedrock"] = map[string]interface{}{}
+					}
+				default:
+					if _, exists := providerCfg[provider]; !exists {
+						providerCfg[provider] = map[string]interface{}{}
+					}
 				}
-				modelCfg["default"] = model
-				config["model"] = modelCfg
+				config["provider"] = providerCfg
+
+				// Use enabled_providers to restrict to the selected provider
+				config["enabled_providers"] = []interface{}{providerOpencodeName(provider)}
 			}
 
 			// Inject websearch/webfetch permissions if enabled
@@ -289,6 +364,22 @@ func DeployConfig(provider, model string) Phase {
 			}
 			config["agent"] = agentCfg
 
+			// Inject plugin (always deploy context-mode)
+			config["plugin"] = []interface{}{"context-mode"}
+
+			// Inject compaction settings (standard for all projects)
+			config["compaction"] = map[string]interface{}{
+				"auto":     true,
+				"prune":    true,
+				"reserved": 10000,
+			}
+
+			// Inject instructions if documentation files exist in the project
+			instructions := discoverInstructionFiles(ctx.Plan.ProjectPath)
+			if len(instructions) > 0 {
+				config["instructions"] = instructions
+			}
+
 			// Write atomically (temp file + rename)
 			data, err := json.MarshalIndent(config, "", "  ")
 			if err != nil {
@@ -302,6 +393,35 @@ func DeployConfig(provider, model string) Phase {
 			return os.Rename(tmpFile, configPath)
 		},
 	}
+}
+
+// providerOpencodeName maps hub provider names to opencode provider identifiers.
+func providerOpencodeName(provider string) string {
+	switch provider {
+	case "bedrock":
+		return "amazon-bedrock"
+	default:
+		return provider
+	}
+}
+
+// discoverInstructionFiles checks for documentation files in the project that should
+// be included as instructions for opencode. Returns a slice of relative paths.
+func discoverInstructionFiles(projectPath string) []interface{} {
+	candidates := []string{
+		"ONBOARDING.md",
+		"CONVENTIONS.md",
+		".claude/CLAUDE.md",
+	}
+
+	var found []interface{}
+	for _, name := range candidates {
+		path := filepath.Join(projectPath, name)
+		if _, err := os.Stat(path); err == nil {
+			found = append(found, name)
+		}
+	}
+	return found
 }
 
 // --- File utilities ---

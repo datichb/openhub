@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -78,8 +79,8 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.target", project.Path))
 	fmt.Fprintln(a.IO.Out)
 
-	// Build deployment plan
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model)
+	// Build deployment plan (use project's selected agents from DB)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides)
 
 	// Execute
 	start := time.Now()
@@ -222,23 +223,67 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 
 // buildDeployPlan creates a standard deployment plan with all phases.
 // provider and model can be empty to inherit from project config.
-func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string) *deploy.Plan {
+// projectModelOvr can be nil if the project has no per-agent/family overrides.
+func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides) *deploy.Plan {
 	// Read websearch setting from hub config
 	v := configViper()
 	websearchEnabled := v.GetBool("websearch.enabled")
 
+	// Resolve provider for model normalization
+	resolvedProvider := provider
+	if resolvedProvider == "" {
+		resolvedProvider = a.Config.Opencode.DefaultProvider
+	}
+	if resolvedProvider == "" {
+		resolvedProvider = "bedrock" // ultimate fallback
+	}
+
+	// Build hub-level model overrides from hub.toml [models] section
+	var hubOverrides *deploy.ModelOverrides
+	if a.Config.Models.Default != "" || len(a.Config.Models.Families) > 0 || len(a.Config.Models.Agents) > 0 {
+		hubOverrides = &deploy.ModelOverrides{
+			Default:  a.Config.Models.Default,
+			Families: a.Config.Models.Families,
+			Agents:   a.Config.Models.Agents,
+		}
+	}
+
+	// Build project-level model overrides combining the global model + per-agent/family from DB
+	var projectOverrides *deploy.ModelOverrides
+	if model != "" || projectModelOvr != nil {
+		projectOverrides = &deploy.ModelOverrides{
+			Default: model, // project-level global model (level 3)
+		}
+		if projectModelOvr != nil {
+			projectOverrides.Families = projectModelOvr.Families // level 2
+			projectOverrides.Agents = projectModelOvr.Agents     // level 1
+		}
+	}
+
+	// Build list of enabled MCP servers for agent validation warnings
+	mcpServers := buildMCPServers(a)
+	var enabledMCPServers []string
+	for _, s := range mcpServers {
+		if s.Enabled {
+			enabledMCPServers = append(enabledMCPServers, s.Name)
+		}
+	}
+
 	return &deploy.Plan{
-		ProjectPath:      projectPath,
-		ProjectID:        projectID,
-		HubDir:           hubDir,
-		Provider:         provider,
-		Model:            model,
-		WebsearchEnabled: websearchEnabled,
+		ProjectPath:       projectPath,
+		ProjectID:         projectID,
+		HubDir:            hubDir,
+		Provider:          provider,
+		Model:             model,
+		WebsearchEnabled:  websearchEnabled,
+		SelectedAgents:    selectedAgents,
+		EnabledMCPServers: enabledMCPServers,
 		Phases: []deploy.Phase{
-			deploy.DeployAgents(hubDir),
-			deploy.DeploySkills(hubDir),
+			deploy.DeployAgents(hubDir, selectedAgents),
+			deploy.DeploySkills(hubDir, selectedAgents),
 			deploy.DeployConfig(provider, model),
-			deploy.DeployMCP(buildMCPServers(a), "oh"),
+			deploy.DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, resolvedProvider),
+			deploy.DeployMCP(mcpServers, "oh"),
 		},
 	}
 }

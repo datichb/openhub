@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ func NewProjectStore(s *Store) *ProjectStore {
 var _ domain.ProjectStore = (*ProjectStore)(nil)
 
 func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) ([]domain.Project, error) {
-	query := `SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects`
+	query := `SELECT id, name, path, language, tracker, provider, model, model_overrides, labels, agents, mcp, status, created_at, updated_at FROM projects`
 	var args []interface{}
 	if status != "" {
 		query += " WHERE status = ?"
@@ -51,7 +52,7 @@ func (ps *ProjectStore) List(ctx context.Context, status domain.ProjectStatus) (
 
 func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
-		`SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE id = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE id = ?`,
 		id,
 	)
 	p, err := scanProjectRow(row)
@@ -66,7 +67,7 @@ func (ps *ProjectStore) Get(ctx context.Context, id string) (*domain.Project, er
 
 func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Project, error) {
 	row := ps.db.QueryRow(
-		`SELECT id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE path = ?`,
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE path = ?`,
 		path,
 	)
 	p, err := scanProjectRow(row)
@@ -88,9 +89,9 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	}
 
 	_, err := ps.db.Exec(
-		`INSERT INTO projects (id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Path, p.Language, "", p.Provider, p.Model,
+		`INSERT INTO projects (id, name, path, language, tracker, provider, model, model_overrides, labels, agents, mcp, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.CreatedAt, p.UpdatedAt,
 	)
@@ -106,9 +107,9 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	p.UpdatedAt = time.Now()
 	result, err := ps.db.Exec(
-		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
+		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, model_overrides=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
 		 WHERE id=?`,
-		p.Name, p.Path, p.Language, "", p.Provider, p.Model,
+		p.Name, p.Path, p.Language, "", p.Provider, p.Model, marshalModelOverrides(p.ModelOverrides),
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.UpdatedAt, p.ID,
 	)
@@ -138,9 +139,9 @@ func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
 
 func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status, tracker string
+	var labels, agents, mcp, status, tracker, modelOverrides string
 	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
-		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
+		&modelOverrides, &labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scanning project: %w", err)
 	}
@@ -148,14 +149,15 @@ func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	p.Agents = splitStrings(agents)
 	p.MCP = splitStrings(mcp)
 	p.Status = domain.ProjectStatus(status)
+	p.ModelOverrides = unmarshalModelOverrides(modelOverrides)
 	return &p, nil
 }
 
 func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status, tracker string
+	var labels, agents, mcp, status, tracker, modelOverrides string
 	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
-		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
+		&modelOverrides, &labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +165,7 @@ func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	p.Agents = splitStrings(agents)
 	p.MCP = splitStrings(mcp)
 	p.Status = domain.ProjectStatus(status)
+	p.ModelOverrides = unmarshalModelOverrides(modelOverrides)
 	return &p, nil
 }
 
@@ -175,4 +178,38 @@ func splitStrings(s string) []string {
 		return nil
 	}
 	return strings.Split(s, ",")
+}
+
+// marshalModelOverrides serializes project model overrides to JSON for storage.
+// Returns "" for nil overrides (no overrides set).
+func marshalModelOverrides(mo *domain.ProjectModelOverrides) string {
+	if mo == nil {
+		return ""
+	}
+	// Skip serialization if both maps are empty
+	if len(mo.Families) == 0 && len(mo.Agents) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(mo)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+// unmarshalModelOverrides deserializes project model overrides from JSON storage.
+// Returns nil for empty strings (no overrides).
+func unmarshalModelOverrides(s string) *domain.ProjectModelOverrides {
+	if s == "" {
+		return nil
+	}
+	var mo domain.ProjectModelOverrides
+	if err := json.Unmarshal([]byte(s), &mo); err != nil {
+		return nil
+	}
+	// Return nil if both maps are empty after unmarshal
+	if len(mo.Families) == 0 && len(mo.Agents) == 0 {
+		return nil
+	}
+	return &mo
 }

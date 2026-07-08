@@ -16,6 +16,15 @@ type Config struct {
 	MCP      MCPConfig      `mapstructure:"mcp"`
 	Worktree WorktreeConfig `mapstructure:"worktree"`
 	Team     TeamConfig     `mapstructure:"team"`
+	Models   ModelsConfig   `mapstructure:"models"`
+}
+
+// ModelsConfig holds the model resolution cascade at the hub level.
+// Corresponds to [models], [models.families], [models.agents] in hub.toml.
+type ModelsConfig struct {
+	Default  string            `mapstructure:"default"`  // hub-level global default model
+	Families map[string]string `mapstructure:"families"` // family name → model (e.g., "quality" = "claude-opus-4")
+	Agents   map[string]string `mapstructure:"agents"`   // agent-id → model (e.g., "reviewer" = "claude-opus-4")
 }
 
 // TeamConfig holds team collaboration settings.

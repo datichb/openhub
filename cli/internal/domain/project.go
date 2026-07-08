@@ -10,18 +10,28 @@ import (
 
 // Project represents a registered project in the hub.
 type Project struct {
-	ID        string
-	Name      string
-	Path      string
-	Language  string
-	Provider  string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
-	Model     string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
-	Labels    []string
-	Agents    []string
-	MCP       []string
-	Status    ProjectStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID             string
+	Name           string
+	Path           string
+	Language       string
+	Provider       string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
+	Model          string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
+	Labels         []string
+	Agents         []string
+	MCP            []string
+	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
+	Status         ProjectStatus
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// ProjectModelOverrides holds per-agent and per-family model overrides at the project level.
+// These override hub-level settings (hub.toml [models]) but are overridden by the agent's
+// frontmatter is never overridden — the cascade is:
+// project.Agents > project.Families > project.Model > hub.Agents > hub.Families > hub.Default > frontmatter
+type ProjectModelOverrides struct {
+	Families map[string]string `json:"families,omitempty"` // family name → model
+	Agents   map[string]string `json:"agents,omitempty"`   // agent-id → model
 }
 
 // ProjectStatus represents the lifecycle state of a project.
