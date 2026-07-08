@@ -23,7 +23,7 @@ var initCmd = &cobra.Command{
 Le wizard configure :
   - La langue de l'interface
   - La vérification/installation d'opencode
-  - Le projet complet (nom, chemin, langage, tracker, provider, agents, MCP)
+  - Le projet complet (nom, chemin, langage, provider, agents, MCP)
   - Le déploiement automatique`,
 	RunE: runInit,
 }

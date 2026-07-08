@@ -615,18 +615,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		return "orchestrator-dev", directPrompt, nil
 	}
 
-	// 2. Sync tracker
-	if project.Tracker != "" && project.Tracker != "none" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_syncing"))
-		if err := beads.SyncPull(launchPath, project.Tracker); err != nil {
-			slog.Warn("beads sync failed", "error", err)
-			fmt.Fprintf(a.IO.Out, "  %s %s\n",
-				common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.dev_sync_warning"))
-		}
-	}
-
-	// 3. Query tickets
+	// 2. Query tickets
 	// Get epics with ready children
 	epics, err := beads.ListEpicsWithReadyChildren(launchPath)
 	if err != nil {

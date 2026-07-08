@@ -34,19 +34,6 @@ func Available() error {
 	return nil
 }
 
-// SyncPull runs: bd -C <path> <tracker> sync pull
-// Synchronizes tickets from the remote tracker.
-func SyncPull(projectPath, tracker string) error {
-	if tracker == "" || tracker == "none" {
-		return nil // no tracker configured, skip silently
-	}
-	cmd := exec.Command("bd", "-C", projectPath, tracker, "sync", "pull")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("bd sync pull failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
-}
 
 // ListReady returns tickets ready for implementation.
 // Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json

@@ -26,7 +26,6 @@ func projectAddCmd() *cobra.Command {
 		name     string
 		path     string
 		language string
-		tracker  string
 	)
 
 	cmd := &cobra.Command{
@@ -56,14 +55,13 @@ func projectAddCmd() *cobra.Command {
 				return fmt.Errorf("resolving path: %w", err)
 			}
 
-			return doCreateProjectMinimal(ctx, a, name, absPath, language, tracker)
+			return doCreateProjectMinimal(ctx, a, name, absPath, language)
 		},
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Nom du projet")
 	cmd.Flags().StringVarP(&path, "path", "p", "", "Chemin du projet (défaut: répertoire courant)")
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
-	cmd.Flags().StringVarP(&tracker, "tracker", "t", "", "Issue tracker (github, gitlab, jira, linear)")
 
 	return cmd
 }
@@ -74,7 +72,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		name     string
 		path     string
 		language string
-		tracker  string
 	)
 
 	cwd, _ := os.Getwd()
@@ -110,17 +107,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					huh.NewOption(i18n.T("form.option.other"), "other"),
 				).
 				Value(&language),
-
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.init.tracker")).
-				Options(
-					huh.NewOption(i18n.T("form.option.none"), ""),
-					huh.NewOption("GitHub Issues", "github"),
-					huh.NewOption("GitLab Issues", "gitlab"),
-					huh.NewOption("Jira", "jira"),
-					huh.NewOption("Linear", "linear"),
-				).
-				Value(&tracker),
 		),
 	)
 	if err := form1.Run(); err != nil {
@@ -138,10 +124,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
 	}
 
-	// ── Step 2: Tracker / Beads ──
-	if tracker != "" {
-		initBeads(a, absPath, generateProjectID(name), tracker)
-	}
+	// ── Step 2: Initialize Beads ──
+	initBeads(a, absPath, generateProjectID(name))
 
 	// ── Step 3: Provider & Model ──
 	provider, model, err := wizardProviderModel(a)
@@ -169,7 +153,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Name:      name,
 		Path:      absPath,
 		Language:  language,
-		Tracker:   tracker,
 		Provider:  provider,
 		Model:     model,
 		Agents:    agents,
@@ -407,7 +390,7 @@ func wizardMCP(a *app.App, ctx context.Context) ([]string, error) {
 }
 
 // initBeads initializes Beads in the project if bd is available.
-func initBeads(a *app.App, projectPath, projectID, tracker string) {
+func initBeads(a *app.App, projectPath, projectID string) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
 			common.Subtitle.Render(common.IconArrow),
@@ -448,7 +431,7 @@ func initBeads(a *app.App, projectPath, projectID, tracker string) {
 // ── Non-interactive (minimal) ──
 
 // doCreateProjectMinimal creates a project with only basic fields (CLI flags mode).
-func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, language, tracker string) error {
+func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, language string) error {
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
 	}
@@ -460,7 +443,6 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 		Name:      name,
 		Path:      absPath,
 		Language:  language,
-		Tracker:   tracker,
 		Status:    domain.ProjectStatusActive,
 		CreatedAt: now,
 		UpdatedAt: now,

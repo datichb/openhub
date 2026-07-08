@@ -14,7 +14,6 @@ type Project struct {
 	Name      string
 	Path      string
 	Language  string
-	Tracker   string
 	Provider  string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
 	Model     string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
 	Labels    []string

@@ -90,7 +90,7 @@ func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	_, err := ps.db.Exec(
 		`INSERT INTO projects (id, name, path, language, tracker, provider, model, labels, agents, mcp, status, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Path, p.Language, p.Tracker, p.Provider, p.Model,
+		p.ID, p.Name, p.Path, p.Language, "", p.Provider, p.Model,
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.CreatedAt, p.UpdatedAt,
 	)
@@ -108,7 +108,7 @@ func (ps *ProjectStore) Update(ctx context.Context, p *domain.Project) error {
 	result, err := ps.db.Exec(
 		`UPDATE projects SET name=?, path=?, language=?, tracker=?, provider=?, model=?, labels=?, agents=?, mcp=?, status=?, updated_at=?
 		 WHERE id=?`,
-		p.Name, p.Path, p.Language, p.Tracker, p.Provider, p.Model,
+		p.Name, p.Path, p.Language, "", p.Provider, p.Model,
 		joinStrings(p.Labels), joinStrings(p.Agents), joinStrings(p.MCP),
 		string(p.Status), p.UpdatedAt, p.ID,
 	)
@@ -138,8 +138,8 @@ func (ps *ProjectStore) Delete(ctx context.Context, id string) error {
 
 func scanProject(rows *sql.Rows) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status string
-	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker, &p.Provider, &p.Model,
+	var labels, agents, mcp, status, tracker string
+	err := rows.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
 		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scanning project: %w", err)
@@ -153,8 +153,8 @@ func scanProject(rows *sql.Rows) (*domain.Project, error) {
 
 func scanProjectRow(row *sql.Row) (*domain.Project, error) {
 	var p domain.Project
-	var labels, agents, mcp, status string
-	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &p.Tracker, &p.Provider, &p.Model,
+	var labels, agents, mcp, status, tracker string
+	err := row.Scan(&p.ID, &p.Name, &p.Path, &p.Language, &tracker, &p.Provider, &p.Model,
 		&labels, &agents, &mcp, &status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err

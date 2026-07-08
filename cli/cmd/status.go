@@ -102,9 +102,6 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			common.SuccessStyle.Render(common.IconSuccess),
 			currentProject.Name, currentProject.Language)
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.path", currentProject.Path))
-		if currentProject.Tracker != "" {
-			fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.tracker", currentProject.Tracker))
-		}
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
 			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.status.not_in_project", cwd))

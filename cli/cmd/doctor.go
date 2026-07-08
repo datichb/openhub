@@ -40,7 +40,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"Go runtime", checkGoRuntime},
 		{"git", checkBinary("git")},
 		{"opencode", checkBinary("opencode")},
-		{"bd (ticket tracker)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
+		{"bd (beads)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
 		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
 		{"Compatibilité oh ↔ opencode", checkCompatibility},
 		{"Configuration hub.toml", checkConfig},

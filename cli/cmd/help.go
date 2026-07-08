@@ -184,7 +184,7 @@ func buildHelpSections() []helpSection {
 						{"name", "n", i18n.T("help.flag.project.name")},
 						{"path", "p", i18n.T("help.flag.project.path")},
 						{"language", "l", i18n.T("help.flag.project.language")},
-						{"tracker", "t", i18n.T("help.flag.project.tracker")},
+	
 					},
 				},
 				{
@@ -203,7 +203,7 @@ func buildHelpSections() []helpSection {
 						{"provider", "P", i18n.T("help.flag.start.provider")},
 						{"model", "m", i18n.T("help.flag.deploy.model")},
 						{"language", "l", i18n.T("help.flag.project.language")},
-						{"tracker", "t", i18n.T("help.flag.project.tracker")},
+	
 					},
 				},
 			},

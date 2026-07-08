@@ -156,14 +156,13 @@ func projectConfigureCmd() *cobra.Command {
 		provider string
 		model    string
 		language string
-		tracker  string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "configure [project-id]",
 		Short: "Configure les paramètres d'un projet",
 		Long: `Configure les paramètres spécifiques d'un projet : provider LLM, modèle,
-langage, tracker. Ces paramètres sont persistés et utilisés par oh start.
+langage. Ces paramètres sont persistés et utilisés par oh start.
 
 En mode non-interactif, passez les flags correspondants.
 Sans flags, lance un wizard interactif.`,
@@ -184,7 +183,7 @@ Sans flags, lance un wizard interactif.`,
 
 			// If no flags, run interactive
 			hasFlags := cmd.Flags().Changed("provider") || cmd.Flags().Changed("model") ||
-				cmd.Flags().Changed("language") || cmd.Flags().Changed("tracker")
+				cmd.Flags().Changed("language")
 
 			if !hasFlags {
 				return runProjectConfigureInteractive(ctx, a, project)
@@ -204,10 +203,6 @@ Sans flags, lance un wizard interactif.`,
 				project.Language = language
 				changed = true
 			}
-			if cmd.Flags().Changed("tracker") {
-				project.Tracker = tracker
-				changed = true
-			}
 
 			if changed {
 				project.UpdatedAt = time.Now()
@@ -225,7 +220,6 @@ Sans flags, lance un wizard interactif.`,
 	cmd.Flags().StringVarP(&provider, "provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
 	cmd.Flags().StringVarP(&model, "model", "m", "", "Modèle LLM")
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
-	cmd.Flags().StringVarP(&tracker, "tracker", "t", "", "Issue tracker")
 
 	return cmd
 }
@@ -236,7 +230,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 		common.Bold.Render(project.Name))
 
 	language := project.Language
-	tracker := project.Tracker
 	provider := project.Provider
 	model := project.Model
 
@@ -255,19 +248,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 					huh.NewOption(i18n.T("form.option.no_change"), "_keep"),
 				).
 				Value(&language),
-
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.init.tracker")).
-				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Tracker, i18n.T("form.configure.none")))).
-				Options(
-					huh.NewOption(i18n.T("form.option.none"), ""),
-					huh.NewOption("GitHub Issues", "github"),
-					huh.NewOption("GitLab Issues", "gitlab"),
-					huh.NewOption("Jira", "jira"),
-					huh.NewOption("Linear", "linear"),
-					huh.NewOption(i18n.T("form.option.no_change"), "_keep"),
-				).
-				Value(&tracker),
 
 			huh.NewInput().
 				Title(i18n.T("form.project.provider_select")).
@@ -290,10 +270,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 	changed := false
 	if language != "_keep" && language != project.Language {
 		project.Language = language
-		changed = true
-	}
-	if tracker != "_keep" && tracker != project.Tracker {
-		project.Tracker = tracker
 		changed = true
 	}
 	if provider != project.Provider {

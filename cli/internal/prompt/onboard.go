@@ -24,9 +24,6 @@ func BuildOnboardPrompt(project *domain.Project, hubDir string, refresh bool) st
 	if project.Language != "" {
 		fmt.Fprintf(&sb, "Langage : %s\n", project.Language)
 	}
-	if project.Tracker != "" && project.Tracker != "none" {
-		fmt.Fprintf(&sb, "Tracker : %s\n", project.Tracker)
-	}
 	sb.WriteString("\n")
 
 	// Wiki instructions

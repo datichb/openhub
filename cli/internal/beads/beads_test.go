@@ -108,9 +108,3 @@ func TestAvailable(t *testing.T) {
 		assert.Contains(t, err.Error(), "brew install")
 	}
 }
-
-func TestSyncPullNoTracker(t *testing.T) {
-	// SyncPull with empty or "none" tracker should be a no-op
-	assert.NoError(t, SyncPull("/tmp/fake", ""))
-	assert.NoError(t, SyncPull("/tmp/fake", "none"))
-}

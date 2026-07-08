@@ -34,7 +34,6 @@ func TestProjectStore_CRUD(t *testing.T) {
 		Name:      "Test Project",
 		Path:      "/tmp/test-project",
 		Language:  "go",
-		Tracker:   "github",
 		Labels:    []string{"backend", "cli"},
 		Agents:    []string{"coder", "reviewer"},
 		MCP:       []string{"gitlab"},
