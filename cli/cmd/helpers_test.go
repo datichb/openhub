@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 func TestGenerateProjectID_Normal(t *testing.T) {
@@ -154,4 +155,66 @@ func TestGenerateProjectID_EmptyString(t *testing.T) {
 	id := generateProjectID("")
 	// Empty name → slug becomes empty → fallback to "project"
 	assert.True(t, strings.HasPrefix(id, "project-"), "got: %s", id)
+}
+
+func TestBuildMCPServersForProject_NilConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	a := &app.App{Config: cfg}
+
+	// nil MCPConfig → inherit hub defaults (all disabled since fresh config)
+	servers := buildMCPServersForProject(a, nil)
+	for _, s := range servers {
+		assert.False(t, s.Enabled, "server %s should be disabled with nil MCPConfig", s.Name)
+	}
+}
+
+func TestBuildMCPServersForProject_ProjectOverride(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	a := &app.App{Config: cfg}
+
+	// Project enables only figma and gitlab
+	mcpCfg := &domain.ProjectMCPConfig{
+		Services: []domain.ProjectMCPService{
+			{Name: "figma"},
+			{Name: "gitlab", TokenKey: "gitlab-token-myproject"},
+		},
+	}
+
+	servers := buildMCPServersForProject(a, mcpCfg)
+
+	enabledNames := map[string]bool{}
+	for _, s := range servers {
+		if s.Enabled {
+			enabledNames[s.Name] = true
+		}
+	}
+	assert.True(t, enabledNames["figma"], "figma should be enabled")
+	assert.True(t, enabledNames["gitlab"], "gitlab should be enabled")
+	assert.False(t, enabledNames["gslides"], "gslides should not be enabled")
+	assert.False(t, enabledNames["team"], "team should not be enabled")
+
+	// Check token key override for gitlab
+	for _, s := range servers {
+		if s.Name == "gitlab" {
+			assert.Equal(t, "gitlab-token-myproject", s.TokenKey)
+		}
+	}
+}
+
+func TestBuildProjectMCPConfig(t *testing.T) {
+	// Empty list returns nil
+	assert.Nil(t, buildProjectMCPConfig(nil))
+	assert.Nil(t, buildProjectMCPConfig([]string{}))
+
+	// Non-empty list builds config
+	cfg := buildProjectMCPConfig([]string{"figma", "gitlab"})
+	require.NotNil(t, cfg)
+	assert.Len(t, cfg.Services, 2)
+	assert.Equal(t, "figma", cfg.Services[0].Name)
+	assert.Equal(t, "gitlab", cfg.Services[1].Name)
+	assert.Empty(t, cfg.Services[0].TokenKey) // no override
 }

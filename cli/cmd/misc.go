@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -59,6 +60,7 @@ var serviceRemoveCmd = &cobra.Command{
 
 func init() {
 	serviceRemoveCmd.Flags().BoolP("force", "f", false, "Skip confirmation")
+	serviceSetupCmd.Flags().StringP("project", "p", "", "Configure MCP for a specific project (overrides hub-level)")
 }
 
 func runServiceStatus(cmd *cobra.Command, args []string) error {
@@ -116,8 +118,22 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	fmt.Fprintf(a.IO.Out, "%s Configuration MCP\n\n",
-		common.Title.Render("oh service setup"))
+	// Check if project-scoped
+	projectID, _ := cmd.Flags().GetString("project")
+	var project *domain.Project
+	if projectID != "" {
+		var err error
+		project, err = resolveProject(ctx, a, projectID)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(a.IO.Out, "%s %s (%s)\n\n",
+			common.Title.Render("oh service setup"),
+			i18n.T("cmd.service.project_scope"), project.Name)
+	} else {
+		fmt.Fprintf(a.IO.Out, "%s Configuration MCP\n\n",
+			common.Title.Render("oh service setup"))
+	}
 
 	// Service selection
 	var serviceName string
@@ -168,8 +184,11 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.service.token_empty_warning", envHint))
 	} else if a.Secrets != nil {
-		// Store token in keychain
+		// Store token in keychain (project-scoped key if --project)
 		keyName := serviceName + "-token"
+		if project != nil {
+			keyName = serviceName + "-token-" + project.ID
+		}
 		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
 			return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
 		}
@@ -177,12 +196,8 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.service.token_stored", keyName))
 	}
 
-	// Enable in config
-	v := configViper()
-	v.Set("mcp."+serviceName+".enabled", true)
-	v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
-
 	// GitLab: ask about write permissions
+	var writeEnabled bool
 	if serviceName == "gitlab" {
 		fmt.Fprintln(a.IO.Out)
 		fmt.Fprintln(a.IO.Out, common.Bold.Render("  Droits requis pour le token GitLab :"))
@@ -195,31 +210,74 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(a.IO.Out, "    Permet : créer MR, commenter, assigner, modifier labels/statuts")
 		fmt.Fprintln(a.IO.Out)
 
-		var writeEnabled bool
 		_ = huh.NewConfirm().
 			Title("Activer le mode écriture (créer MR, commenter, assigner) ?").
 			Description("Nécessite un token avec le scope 'api'").
 			Value(&writeEnabled).
 			Run()
 
-		v.Set("mcp.gitlab.write_enabled", writeEnabled)
 		if writeEnabled {
 			fmt.Fprintf(a.IO.Out, "%s Mode écriture activé\n",
 				common.SuccessStyle.Render(common.IconSuccess))
 		}
 	}
 
-	cfgPath := config.ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		return fmt.Errorf("creating config dir: %w", err)
-	}
-	if err := v.WriteConfigAs(cfgPath); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
+	// Persist configuration
+	if project != nil {
+		// Project-scoped: update project.MCPConfig in DB
+		tokenKey := serviceName + "-token-" + project.ID
+		svc := domain.ProjectMCPService{
+			Name:     serviceName,
+			TokenKey: tokenKey,
+		}
+		if serviceName == "gitlab" {
+			svc.WriteEnabled = &writeEnabled
+		}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.service.enabled", common.Bold.Render(serviceName)))
+		// Merge with existing MCPConfig
+		if project.MCPConfig == nil {
+			project.MCPConfig = &domain.ProjectMCPConfig{}
+		}
+		// Replace or add the service
+		found := false
+		for i, existing := range project.MCPConfig.Services {
+			if existing.Name == serviceName {
+				project.MCPConfig.Services[i] = svc
+				found = true
+				break
+			}
+		}
+		if !found {
+			project.MCPConfig.Services = append(project.MCPConfig.Services, svc)
+		}
+
+		if err := a.Projects.Update(ctx, project); err != nil {
+			return fmt.Errorf("updating project MCP config: %w", err)
+		}
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.service.project_configured", common.Bold.Render(serviceName), project.Name))
+	} else {
+		// Hub-scoped: write to hub.toml
+		v := configViper()
+		v.Set("mcp."+serviceName+".enabled", true)
+		v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
+		if serviceName == "gitlab" {
+			v.Set("mcp.gitlab.write_enabled", writeEnabled)
+		}
+
+		cfgPath := config.ConfigPath()
+		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+			return fmt.Errorf("creating config dir: %w", err)
+		}
+		if err := v.WriteConfigAs(cfgPath); err != nil {
+			return fmt.Errorf("writing config: %w", err)
+		}
+
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.service.enabled", common.Bold.Render(serviceName)))
+	}
 	return nil
 }
 

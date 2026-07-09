@@ -157,6 +157,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Model:     model,
 		Agents:    agents,
 		MCP:       mcpServices,
+		MCPConfig: buildProjectMCPConfig(mcpServices),
 		Status:    domain.ProjectStatusActive,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -495,4 +496,17 @@ func expandPath(path string) string {
 		}
 	}
 	return path
+}
+
+// buildProjectMCPConfig converts a list of MCP service names into a ProjectMCPConfig.
+// Services are listed without credential overrides (inherit from hub).
+func buildProjectMCPConfig(services []string) *domain.ProjectMCPConfig {
+	if len(services) == 0 {
+		return nil
+	}
+	cfg := &domain.ProjectMCPConfig{}
+	for _, name := range services {
+		cfg.Services = append(cfg.Services, domain.ProjectMCPService{Name: name})
+	}
+	return cfg
 }

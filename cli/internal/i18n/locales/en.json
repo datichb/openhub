@@ -263,6 +263,8 @@
   "cmd.service.disabled": "Service %s disabled.",
   "cmd.service.enabled": "Service %s enabled and configured.",
   "cmd.service.flags.project": "Project ID",
+  "cmd.service.project_scope": "Project configuration",
+  "cmd.service.project_configured": "Service %s configured for project %s.",
   "cmd.service.invalid": "unknown service %q — valid services: figma, gitlab, gslides",
   "cmd.service.keychain_error": "keychain error: %v",
   "cmd.service.long": "MCP server management (Figma, GitLab, Google Slides).\n\nWithout subcommand, shows the enriched status of all services.\nSubcommands: setup, status, remove.",

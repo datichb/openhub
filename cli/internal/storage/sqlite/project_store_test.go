@@ -132,3 +132,69 @@ func TestProjectStore_DeleteNotFound(t *testing.T) {
 	err := ps.Delete(ctx, "nonexistent")
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
+
+func TestProjectStore_MCPConfigRoundTrip(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now()
+	writeEnabled := true
+	p := &domain.Project{
+		ID:       "mcp-test",
+		Name:     "MCP Test",
+		Path:     "/mcp/test",
+		Status:   domain.ProjectStatusActive,
+		MCPConfig: &domain.ProjectMCPConfig{
+			Services: []domain.ProjectMCPService{
+				{Name: "figma"},
+				{Name: "gitlab", TokenKey: "gitlab-token-custom", WriteEnabled: &writeEnabled},
+			},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	require.NoError(t, ps.Create(ctx, p))
+
+	got, err := ps.Get(ctx, "mcp-test")
+	require.NoError(t, err)
+	require.NotNil(t, got.MCPConfig)
+	assert.Len(t, got.MCPConfig.Services, 2)
+	assert.Equal(t, "figma", got.MCPConfig.Services[0].Name)
+	assert.Empty(t, got.MCPConfig.Services[0].TokenKey)
+	assert.Equal(t, "gitlab", got.MCPConfig.Services[1].Name)
+	assert.Equal(t, "gitlab-token-custom", got.MCPConfig.Services[1].TokenKey)
+	require.NotNil(t, got.MCPConfig.Services[1].WriteEnabled)
+	assert.True(t, *got.MCPConfig.Services[1].WriteEnabled)
+}
+
+func TestProjectStore_MCPConfigBackwardCompat(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now()
+	// Create project with legacy MCP field only (no mcp_config)
+	p := &domain.Project{
+		ID:        "legacy-test",
+		Name:      "Legacy",
+		Path:      "/legacy",
+		MCP:       []string{"figma", "gslides"},
+		Status:    domain.ProjectStatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	require.NoError(t, ps.Create(ctx, p))
+
+	got, err := ps.Get(ctx, "legacy-test")
+	require.NoError(t, err)
+	// MCPConfig should be auto-populated from legacy MCP field
+	require.NotNil(t, got.MCPConfig)
+	assert.Len(t, got.MCPConfig.Services, 2)
+	assert.Equal(t, "figma", got.MCPConfig.Services[0].Name)
+	assert.Equal(t, "gslides", got.MCPConfig.Services[1].Name)
+	// No credential overrides in migrated config
+	assert.Empty(t, got.MCPConfig.Services[0].TokenKey)
+}
