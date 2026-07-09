@@ -18,7 +18,7 @@ This guide covers how OpenCode Hub resolves LLM providers, manages API tokens, a
 When `oh start` launches opencode, the provider is resolved in this order:
 
 1. `--provider` / `-P` flag on `oh start` (highest priority)
-2. Project-level override (`oh project configure --provider`)
+2. Project-level override (`project.Provider` in the database)
 3. `opencode.default_provider` in `~/.oh/hub.toml`
 4. `"bedrock"` (hardcoded fallback)
 
@@ -36,6 +36,17 @@ In `~/.oh/hub.toml`:
 [opencode]
 default_provider = "bedrock"
 ```
+
+## Detailed Provider Configuration (hub.toml)
+
+```toml
+[provider.bedrock]
+aws_profile = "default"           # AWS profile to use
+aws_region = "eu-west-1"          # Bedrock region
+auth_mode = "bearer"              # "bearer" | "profile"
+```
+
+This section is optional — if absent, `oh` uses environment credentials.
 
 ## Project-Level Override
 
@@ -58,6 +69,14 @@ oh service setup
 ```
 
 At launch, `oh start` retrieves the token from keychain and passes it as the `AWS_BEARER_TOKEN_BEDROCK` environment variable to opencode.
+
+Configure via the dedicated command:
+
+```bash
+oh provider setup              # interactive wizard (hub-level)
+oh provider setup --project X  # per-project override
+oh provider setup bedrock      # configure a specific provider
+```
 
 Resolution order for the bearer token:
 
@@ -82,6 +101,13 @@ MCP servers (Figma, GitLab, Google Slides) need their own tokens:
 oh service setup
 ```
 
+Per-project configuration (overrides hub):
+
+```bash
+oh service setup --project my-project
+```
+The token is stored in the keychain with a project-specific key.
+
 Interactive wizard that:
 
 1. Asks which service to configure (Figma, GitLab, Google Slides)
@@ -98,6 +124,20 @@ Tokens are read by MCP servers at runtime via environment variables:
 ## Secret Storage
 
 **Primary:** OS Keychain (macOS Keychain, Linux secret-service, Windows Credential Manager)
+
+**Known secret keys:**
+
+| Key | Purpose |
+|-----|---------|
+| `bedrock-token-default` | AWS Bearer token for Bedrock |
+| `bedrock-token-<project-id>` | Per-project Bedrock token |
+| `anthropic-api-key-default` | Anthropic API key |
+| `anthropic-api-key-<project-id>` | Per-project Anthropic API key |
+| `openrouter-api-key-default` | OpenRouter API key |
+| `openrouter-api-key-<project-id>` | Per-project OpenRouter API key |
+| `figma-token` | Figma API token |
+| `gitlab-token` | GitLab API token |
+| `gslides-token` | Google Slides OAuth token |
 
 **Fallback:** Encrypted file at `~/.oh/secrets.enc`
 

@@ -18,7 +18,7 @@ Ce guide couvre la resolution des fournisseurs LLM par OpenCode Hub, la gestion 
 Quand `oh start` lance opencode, le fournisseur est resolu dans cet ordre :
 
 1. Flag `--provider` / `-P` sur `oh start` (priorite la plus haute)
-2. Override au niveau projet (`oh project configure --provider`)
+2. Override au niveau projet (`project.Provider` dans la base de donnees)
 3. `opencode.default_provider` dans `~/.oh/hub.toml`
 4. `"bedrock"` (valeur par defaut en dur)
 
@@ -36,6 +36,17 @@ Dans `~/.oh/hub.toml` :
 [opencode]
 default_provider = "bedrock"
 ```
+
+## Configuration detaillee du provider (hub.toml)
+
+```toml
+[provider.bedrock]
+aws_profile = "default"           # profil AWS a utiliser
+aws_region = "eu-west-1"          # region Bedrock
+auth_mode = "bearer"              # "bearer" | "profile"
+```
+
+Cette section est facultative — si absente, `oh` utilise les credentials de l'environnement.
 
 ## Override au niveau projet
 
@@ -58,6 +69,14 @@ oh service setup
 ```
 
 Au lancement, `oh start` recupere le token depuis le keychain et le passe comme variable d'environnement `AWS_BEARER_TOKEN_BEDROCK` a opencode.
+
+Configuration via la commande dediee :
+
+```bash
+oh provider setup              # wizard interactif (hub-level)
+oh provider setup --project X  # override par projet
+oh provider setup bedrock      # configurer un provider specifique
+```
 
 Ordre de resolution du bearer token :
 
@@ -82,6 +101,13 @@ Les serveurs MCP (Figma, GitLab, Google Slides) necessitent leurs propres tokens
 oh service setup
 ```
 
+Configuration par projet (surcharge le hub) :
+
+```bash
+oh service setup --project my-project
+```
+Le token est stocke dans le keychain avec une cle specifique au projet.
+
 Assistant interactif qui :
 
 1. Demande quel service configurer (Figma, GitLab, Google Slides)
@@ -98,6 +124,20 @@ Les tokens sont lus par les serveurs MCP au runtime via des variables d'environn
 ## Stockage des secrets
 
 **Principal :** Keychain du systeme (macOS Keychain, Linux secret-service, Windows Credential Manager)
+
+**Cles de secrets connues :**
+
+| Cle | Usage |
+|-----|-------|
+| `bedrock-token-default` | Token Bearer AWS pour Bedrock |
+| `bedrock-token-<project-id>` | Token Bedrock par projet |
+| `anthropic-api-key-default` | Cle API Anthropic |
+| `anthropic-api-key-<project-id>` | Cle API Anthropic par projet |
+| `openrouter-api-key-default` | Cle API OpenRouter |
+| `openrouter-api-key-<project-id>` | Cle API OpenRouter par projet |
+| `figma-token` | Token API Figma |
+| `gitlab-token` | Token API GitLab |
+| `gslides-token` | Token OAuth Google Slides |
 
 **Fallback :** Fichier chiffre a `~/.oh/secrets.enc`
 

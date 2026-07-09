@@ -63,6 +63,11 @@ Interactively configure a service (credentials stored in macOS Keychain).
 oh service setup [service-name]
 ```
 
+**Options:**
+- `--project, -p <id>` — Configure the service for a specific project (overrides hub)
+
+In project mode, the token is stored with a project-specific key (`<service>-token-<project-id>`) and the project uses this token instead of the hub token.
+
 **Behavior:**
 - If `service-name` is omitted, displays a selection menu.
 - Guides you through each required credential.
@@ -125,6 +130,12 @@ oh init
 oh project configure --services figma,gitlab
 ```
 
+### Per-project MCP cascade
+
+When a project has a non-empty `MCPConfig`, it **replaces** the hub's MCP list for that project. Credentials (token_key) and options (write_enabled) can be overridden per service.
+
+If `MCPConfig` is empty → the project inherits from the hub.
+
 ---
 
 ## Runtime environment variables
@@ -144,10 +155,14 @@ At runtime, MCP servers read credentials from the environment. The `oh` binary i
 Service enablement is stored in `~/.oh/hub.toml`:
 
 ```toml
-[services]
-figma = true
-gitlab = true
-gslides = false
+[mcp.figma]
+enabled = true
+token_key = "figma-token"
+
+[mcp.gitlab]
+enabled = true
+token_key = "gitlab-token"
+write_enabled = true
 ```
 
 Credentials are stored in the system keychain (macOS Keychain / Linux secret-service), not in plaintext files.

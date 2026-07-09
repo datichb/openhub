@@ -23,6 +23,11 @@ auto_update = false                # mise a jour automatique du binaire opencode
 install_dir = "~/.oh/bin"          # repertoire d'installation d'opencode
 default_provider = "bedrock"       # bedrock | anthropic | openai | openrouter
 
+[provider.bedrock]
+aws_profile = "default"            # profil AWS (bedrock uniquement)
+aws_region = "eu-west-1"           # region AWS (bedrock uniquement)
+auth_mode = "bearer"               # "bearer" | "profile" (bedrock uniquement)
+
 [mcp.figma]
 enabled = true                     # activer le serveur MCP Figma
 token_key = "figma-token"          # nom de la cle dans le trousseau (PAS le token)
@@ -71,6 +76,8 @@ Les projets sont stockes dans une **base de donnees SQLite** : `~/.oh/oh.db`.
 | Tracker | github, gitlab, jira, linear, ou vide |
 | Provider | Surcharge au niveau projet, ou vide pour le defaut du hub |
 | Model | Surcharge au niveau projet, ou vide pour le defaut du hub |
+| MCPConfig | Configuration MCP par projet (JSON, surcharge le hub) |
+| ProviderConfig | Configuration provider par projet (JSON, surcharge le hub) |
 | Status | active, archived |
 | CreatedAt | Horodatage de creation |
 | UpdatedAt | Horodatage de derniere modification |
@@ -113,6 +120,10 @@ Si le trousseau n'est pas disponible, les secrets sont stockes dans `~/.oh/secre
 |-----|-------|
 | `bedrock-token-default` | Token Bearer AWS pour Bedrock |
 | `bedrock-token-<project-id>` | Token Bedrock par projet |
+| `anthropic-api-key-default` | Cle API Anthropic globale |
+| `anthropic-api-key-<project-id>` | Cle API Anthropic par projet |
+| `openrouter-api-key-default` | Cle API OpenRouter globale |
+| `openrouter-api-key-<project-id>` | Cle API OpenRouter par projet |
 | `figma-token` | Token API Figma |
 | `gitlab-token` | Token API GitLab |
 | `gslides-token` | Token OAuth Google Slides |
@@ -160,8 +171,9 @@ Chaque projet possede un `opencode.json` a sa racine, genere par `oh deploy`.
 Au demarrage d'une session, le provider LLM est resolu dans cet ordre :
 
 1. Flag `--provider` / `-P` (priorite la plus haute)
-2. `opencode.default_provider` dans `hub.toml`
-3. `"bedrock"` (fallback en dur)
+2. `project.Provider` dans la base de donnees
+3. `opencode.default_provider` dans `hub.toml`
+4. `"bedrock"` (fallback en dur)
 
 ---
 
@@ -171,6 +183,7 @@ Au demarrage d'une session, le provider LLM est resolu dans cet ordre :
 |--------|-------|
 | `~/.oh/` | Repertoire de configuration du hub |
 | `~/.oh/hub.toml` | Fichier de configuration du hub |
+| `~/.oh/hub/` | Hub content extrait (agents, skills) |
 | `~/.oh/oh.db` | Base de donnees SQLite (projets, sessions) |
 | `~/.oh/secrets.enc` | Fichier de secrets chiffre (fallback) |
 | `~/.oh/bin/` | Binaire opencode gere |

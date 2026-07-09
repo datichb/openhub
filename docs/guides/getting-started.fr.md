@@ -40,18 +40,26 @@ cd cli && go install .
 oh init
 ```
 
-Cet assistant interactif va :
+Cet assistant interactif en 3 etapes va :
 
-1. Demander votre langue preferee (fr/en)
-2. Demander la version d'opencode a utiliser (par defaut : latest)
-3. Creer la configuration `~/.oh/hub.toml`
-4. S'assurer que le binaire opencode est installe (telecharge si absent)
-5. Lancer l'assistant d'enregistrement de projet :
-   - Nom du projet, chemin, langage, tracker
-   - Configuration du fournisseur et du modele
-   - Selection des agents (multi-selection parmi 18 agents)
-   - Configuration des services MCP (Figma, GitLab, Google Slides)
-   - Deploiement optionnel des agents/skills/config
+**[1/3] Configuration du hub :**
+- Afficher un preambule avec les prerequis (provider, tokens MCP)
+- Demander votre langue preferee (fr/en)
+- Demander la version d'opencode (par defaut : latest)
+- Choisir le provider LLM par defaut (Bedrock, Anthropic, OpenRouter, GitHub Copilot)
+- Detecter automatiquement les credentials existantes et proposer de les utiliser ou d'en configurer de nouvelles
+
+**[2/3] Serveurs MCP (optionnel) :**
+- Proposer de configurer des services MCP (Figma, GitLab, Google Slides)
+- Pour chaque service selectionne : demander le token et le stocker dans le keychain
+- Les services sans token sont ignores (configurables plus tard via `oh mcp setup`)
+
+**[3/3] Premier projet (optionnel) :**
+- Proposer d'enregistrer un premier projet
+- Si oui : lance l'assistant de projet (nom, chemin, langage, agents, MCP)
+- Si non : l'initialisation est terminee (`oh project add` disponible plus tard)
+
+Le hub content (agents et skills) est extrait automatiquement dans `~/.oh/hub/` depuis le binaire.
 
 ## Enregistrer un projet
 
@@ -117,7 +125,8 @@ oh quick                     # detection auto du projet, lancement immediat
 ```bash
 oh sync --all                # synchroniser agents/skills vers tous les projets
 oh status                    # afficher le statut du hub et du projet courant
-oh doctor                    # verification de sante du systeme
+oh doctor                    # verification de sante du systeme (verifie aussi les credentials provider)
+oh provider setup            # configurer les credentials provider
 oh metrics                   # metriques d'utilisation et couts
 oh dashboard                 # tableau de bord TUI interactif
 oh board                     # kanban (necessite bd)
@@ -176,5 +185,6 @@ oh doctor
 Problemes courants :
 
 - **opencode introuvable** — lancer `oh init` ou `oh upgrade opencode`
-- **Erreurs de serveur MCP** — verifier les tokens avec `oh service setup`
+- **Credentials provider manquantes** — lancer `oh provider setup`
+- **Erreurs de serveur MCP** — verifier les tokens avec `oh service setup --project <id>`
 - **Projet non detecte** — s'assurer d'etre dans un repertoire de projet enregistre (`oh project list`)

@@ -40,18 +40,26 @@ cd cli && go install .
 oh init
 ```
 
-This interactive wizard will:
+This interactive wizard in 3 steps will:
 
-1. Ask your preferred language (fr/en)
-2. Ask opencode version to use (default: latest)
-3. Create `~/.oh/hub.toml` configuration
-4. Ensure opencode binary is installed (downloads if missing)
-5. Run the project registration wizard:
-   - Project name, path, language, tracker
-   - Provider & model configuration
-   - Agent selection (multi-select from 18 agents)
-   - MCP service setup (Figma, GitLab, Google Slides)
-   - Optional deployment of agents/skills/config
+**[1/3] Hub Configuration:**
+- Display a preamble with requirements (provider, MCP tokens)
+- Ask your preferred language (fr/en)
+- Ask opencode version to use (default: latest)
+- Choose default LLM provider (Bedrock, Anthropic, OpenRouter, GitHub Copilot)
+- Auto-detect existing credentials and offer to use them or configure new ones
+
+**[2/3] MCP Servers (optional):**
+- Offer to configure MCP services (Figma, GitLab, Google Slides)
+- For each selected service: prompt for token and store in keychain
+- Services without token are skipped (configurable later via `oh mcp setup`)
+
+**[3/3] First Project (optional):**
+- Offer to register a first project
+- If yes: launches the project wizard (name, path, language, agents, MCP)
+- If no: initialization complete (`oh project add` available later)
+
+Hub content (agents and skills) is automatically extracted to `~/.oh/hub/` from the binary.
 
 ## Register a Project
 
@@ -117,7 +125,8 @@ oh quick                     # auto-detect project, launch immediately
 ```bash
 oh sync --all                # sync agents/skills to all projects
 oh status                    # show hub and current project status
-oh doctor                    # system health check
+oh doctor                    # system health check (also verifies provider credentials)
+oh provider setup            # configure provider credentials
 oh metrics                   # usage and cost metrics
 oh dashboard                 # interactive TUI dashboard
 oh board                     # kanban board (requires bd)
@@ -176,5 +185,6 @@ oh doctor
 Common issues:
 
 - **opencode not found** — run `oh init` or `oh upgrade opencode`
-- **MCP server errors** — verify tokens with `oh service setup`
+- **Missing provider credentials** — run `oh provider setup`
+- **MCP server errors** — verify tokens with `oh service setup --project <id>`
 - **Project not detected** — ensure you're in a registered project directory (`oh project list`)
