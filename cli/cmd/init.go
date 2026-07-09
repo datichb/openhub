@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -118,6 +119,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if opencodeVer == "" {
 		opencodeVer = "latest"
 	}
+
+	// Provider credential check/setup (inline)
+	initProviderCredentials(providerPkg.Name(provider))
 
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 2 — MCP Servers (optional)
@@ -303,6 +307,41 @@ func mcpEnvHint(svc string) string {
 		return "GOOGLE_ACCESS_TOKEN"
 	default:
 		return ""
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider credential detection (inline in init)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// initProviderCredentials detects existing credentials for the selected provider
+// and informs the user. If credentials are found, confirms usage. If not, directs
+// to 'oh provider setup' for full configuration (Phase 2 wizard is available there).
+func initProviderCredentials(name providerPkg.Name) {
+	if name == providerPkg.GithubCopilot {
+		// Just check gh auth
+		det := providerPkg.Detect(name)
+		if det.Available {
+			fmt.Fprintf(os.Stdout, "  %s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess),
+				i18n.Tf("cmd.provider.detected", det.Source, det.Details))
+		} else {
+			fmt.Fprintf(os.Stdout, "  %s %s\n",
+				common.WarningStyle.Render(common.IconWarning),
+				i18n.T("cmd.provider.copilot_not_found"))
+		}
+		return
+	}
+
+	det := providerPkg.Detect(name)
+	if det.Available {
+		fmt.Fprintf(os.Stdout, "  %s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.provider.detected", det.Source, det.Details))
+	} else {
+		fmt.Fprintf(os.Stdout, "  %s %s\n",
+			common.WarningStyle.Render(common.IconWarning),
+			i18n.Tf("cmd.init.provider_not_detected", string(name)))
 	}
 }
 

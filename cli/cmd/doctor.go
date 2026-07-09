@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -45,6 +46,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
 		{"Compatibilité oh ↔ opencode", checkCompatibility},
 		{"Configuration hub.toml", checkConfig},
+		{"Provider credentials", checkProviderCredentials},
 		{"Base de données", checkDatabase},
 		{"Clés API (keychain)", checkAPIKeys},
 	}
@@ -217,4 +219,35 @@ func checkAPIKeys() (string, bool) {
 	}
 
 	return i18n.Tf("cmd.doctor.tokens_ok", found, configured), true
+}
+
+// checkProviderCredentials validates that the configured default provider has accessible credentials.
+func checkProviderCredentials() (string, bool) {
+	a := TryApp()
+	if a == nil {
+		return "app non disponible", false
+	}
+
+	providerName := a.Config.Opencode.DefaultProvider
+	if providerName == "" {
+		return i18n.T("cmd.doctor.no_provider"), false
+	}
+
+	det := provider.Detect(provider.Name(providerName))
+	if det.Available {
+		return fmt.Sprintf("%s — %s (%s)", providerName, det.Source, det.Details), true
+	}
+
+	// Check keychain as fallback
+	ctx := context.Background()
+	if a.Secrets != nil {
+		keyName := provider.KeychainKey(provider.Name(providerName), "")
+		if keyName != "" {
+			if val, _ := a.Secrets.Get(ctx, keyName); val != "" {
+				return fmt.Sprintf("%s — keychain (%s)", providerName, keyName), true
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s — credentials non trouvées (oh provider setup)", providerName), false
 }
