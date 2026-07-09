@@ -127,7 +127,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		launchPath = project.Path
 	}
 
-	// --- Resolve provider + bearer token ---
+	// --- Resolve provider + credentials ---
 	provider, _ := cmd.Flags().GetString("provider")
 	if provider == "" {
 		provider = project.Provider // project-level override
@@ -139,13 +139,37 @@ func runStart(cmd *cobra.Command, args []string) error {
 		provider = "bedrock" // ultimate fallback
 	}
 
-	var bearerToken string
-	if provider == "bedrock" && a.Secrets != nil {
-		token, _ := a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
-		if token == "" {
-			token, _ = a.Secrets.Get(ctx, "bedrock-token-default")
+	var bearerToken, apiKey, awsProfile, awsRegion string
+	if a.Secrets != nil {
+		switch provider {
+		case "bedrock":
+			// Resolve bearer token: project → hub
+			bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
+			if bearerToken == "" {
+				bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-default")
+			}
+			// Resolve AWS config: project → hub
+			if project.ProviderConfig != nil && project.ProviderConfig.AWSProfile != "" {
+				awsProfile = project.ProviderConfig.AWSProfile
+			} else if a.Config.Provider.Bedrock.AWSProfile != "" {
+				awsProfile = a.Config.Provider.Bedrock.AWSProfile
+			}
+			if project.ProviderConfig != nil && project.ProviderConfig.AWSRegion != "" {
+				awsRegion = project.ProviderConfig.AWSRegion
+			} else if a.Config.Provider.Bedrock.AWSRegion != "" {
+				awsRegion = a.Config.Provider.Bedrock.AWSRegion
+			}
+		case "anthropic":
+			apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-"+project.ID)
+			if apiKey == "" {
+				apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-default")
+			}
+		case "openrouter":
+			apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-"+project.ID)
+			if apiKey == "" {
+				apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-default")
+			}
 		}
-		bearerToken = token
 	}
 
 	// --- Detect stack and build context ---
@@ -298,6 +322,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 		Prompt:      userPrompt,
 		Provider:    provider,
 		BearerToken: bearerToken,
+		APIKey:      apiKey,
+		AWSProfile:  awsProfile,
+		AWSRegion:   awsRegion,
 	})
 
 	// Update session status after opencode exits

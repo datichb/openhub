@@ -22,7 +22,10 @@ type StartOpts struct {
 	Agent           string
 	Prompt          string
 	Provider        string
-	BearerToken     string
+	BearerToken     string // bedrock bearer token (legacy, still supported)
+	APIKey          string // provider API key (anthropic, openrouter)
+	AWSProfile      string // AWS profile override
+	AWSRegion       string // AWS region override
 	SessionTitle    string
 	ResumeSessionID string
 	ExtraArgs       []string
@@ -138,8 +141,26 @@ func buildArgs(opts StartOpts) []string {
 func buildEnv(opts StartOpts) []string {
 	env := os.Environ()
 
-	if opts.BearerToken != "" {
-		env = appendEnv(env, "AWS_BEARER_TOKEN_BEDROCK", opts.BearerToken)
+	switch opts.Provider {
+	case "bedrock":
+		if opts.BearerToken != "" {
+			env = appendEnv(env, "AWS_BEARER_TOKEN_BEDROCK", opts.BearerToken)
+		}
+		if opts.AWSProfile != "" {
+			env = appendEnv(env, "AWS_PROFILE", opts.AWSProfile)
+		}
+		if opts.AWSRegion != "" {
+			env = appendEnv(env, "AWS_REGION", opts.AWSRegion)
+		}
+	case "anthropic":
+		if opts.APIKey != "" {
+			env = appendEnv(env, "ANTHROPIC_API_KEY", opts.APIKey)
+		}
+	case "openrouter":
+		if opts.APIKey != "" {
+			env = appendEnv(env, "OPENROUTER_API_KEY", opts.APIKey)
+		}
+	// github-copilot: no env injection needed (relies on gh auth)
 	}
 
 	return env

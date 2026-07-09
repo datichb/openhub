@@ -121,6 +121,7 @@ func (s *Store) migrate() error {
 		{8, `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`},
 		{9, `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`},
 		{10, `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`},
+		{11, `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`},
 	}
 
 	// Apply only unapplied migrations

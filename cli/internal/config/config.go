@@ -11,12 +11,13 @@ import (
 
 // Config represents the hub configuration.
 type Config struct {
-	CLI      CLIConfig      `mapstructure:"cli"`
-	Opencode OpencodeConfig `mapstructure:"opencode"`
-	MCP      MCPConfig      `mapstructure:"mcp"`
-	Worktree WorktreeConfig `mapstructure:"worktree"`
-	Team     TeamConfig     `mapstructure:"team"`
-	Models   ModelsConfig   `mapstructure:"models"`
+	CLI      CLIConfig       `mapstructure:"cli"`
+	Opencode OpencodeConfig  `mapstructure:"opencode"`
+	Provider ProviderConfigs `mapstructure:"provider"`
+	MCP      MCPConfig       `mapstructure:"mcp"`
+	Worktree WorktreeConfig  `mapstructure:"worktree"`
+	Team     TeamConfig      `mapstructure:"team"`
+	Models   ModelsConfig    `mapstructure:"models"`
 }
 
 // ModelsConfig holds the model resolution cascade at the hub level.
@@ -53,6 +54,21 @@ type OpencodeConfig struct {
 	AutoUpdate      bool   `mapstructure:"auto_update"`
 	InstallDir      string `mapstructure:"install_dir"`
 	DefaultProvider string `mapstructure:"default_provider"`
+}
+
+// ProviderConfigs holds per-provider non-secret configuration.
+// Corresponds to [provider.bedrock], [provider.anthropic], etc. in hub.toml.
+type ProviderConfigs struct {
+	Bedrock   ProviderConfig `mapstructure:"bedrock"`
+	Anthropic ProviderConfig `mapstructure:"anthropic"`
+	OpenRouter ProviderConfig `mapstructure:"openrouter"`
+}
+
+// ProviderConfig holds non-secret configuration for a single provider.
+type ProviderConfig struct {
+	AWSProfile string `mapstructure:"aws_profile"` // AWS profile name (bedrock only)
+	AWSRegion  string `mapstructure:"aws_region"`  // AWS region (bedrock only)
+	AuthMode   string `mapstructure:"auth_mode"`   // "bearer" | "profile" | "env" (bedrock only)
 }
 
 // MCPConfig holds MCP server configuration.

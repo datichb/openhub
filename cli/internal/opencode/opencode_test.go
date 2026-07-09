@@ -40,7 +40,7 @@ func TestBuildArgs_Empty(t *testing.T) {
 }
 
 func TestBuildEnv_WithToken(t *testing.T) {
-	env := buildEnv(StartOpts{BearerToken: "my-secret-token"})
+	env := buildEnv(StartOpts{Provider: "bedrock", BearerToken: "my-secret-token"})
 	found := false
 	for _, e := range env {
 		if e == "AWS_BEARER_TOKEN_BEDROCK=my-secret-token" {
