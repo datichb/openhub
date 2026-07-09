@@ -120,9 +120,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 		opencodeVer = "latest"
 	}
 
-	// Provider credential check/setup (inline)
-	initProviderCredentials(providerPkg.Name(provider))
-
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 2 — MCP Servers (optional)
 	// ══════════════════════════════════════════════════════════════════════════
@@ -144,7 +141,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// Write hub.toml + Extract hub content
+	// Write hub.toml + Initialize app
 	// ══════════════════════════════════════════════════════════════════════════
 	cfgDir := config.HubDir()
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
@@ -170,6 +167,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if err := ensureOpencode(a); err != nil {
 		return err
 	}
+
+	// ── Provider credentials detection + setup ──
+	initProviderCredentials(providerPkg.Name(provider), a, ctx)
 
 	// Store MCP tokens in keychain (for services that were configured)
 	if configureMCP && a.Secrets != nil {
@@ -314,12 +314,14 @@ func mcpEnvHint(svc string) string {
 // Provider credential detection (inline in init)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// initProviderCredentials detects existing credentials for the selected provider
-// and informs the user. If credentials are found, confirms usage. If not, directs
-// to 'oh provider setup' for full configuration (Phase 2 wizard is available there).
-func initProviderCredentials(name providerPkg.Name) {
+// initProviderCredentials detects existing credentials and offers to use them or configure new ones.
+func initProviderCredentials(name providerPkg.Name, a *app.App, ctx context.Context) {
+	fmt.Fprintf(os.Stdout, "\n  %s %s\n",
+		common.Bold.Render(string(name)),
+		common.Subtitle.Render("— "+providerPkg.Description(name)))
+
+	// GitHub Copilot: just detect, no secret to store
 	if name == providerPkg.GithubCopilot {
-		// Just check gh auth
 		det := providerPkg.Detect(name)
 		if det.Available {
 			fmt.Fprintf(os.Stdout, "  %s %s\n",
@@ -338,10 +340,181 @@ func initProviderCredentials(name providerPkg.Name) {
 		fmt.Fprintf(os.Stdout, "  %s %s\n",
 			common.SuccessStyle.Render(common.IconSuccess),
 			i18n.Tf("cmd.provider.detected", det.Source, det.Details))
+
+		var useExisting bool
+		if err := huh.NewConfirm().
+			Title(i18n.T("cmd.provider.use_existing")).
+			Value(&useExisting).
+			Run(); err != nil {
+			return
+		}
+
+		if useExisting {
+			// For bedrock with aws-profile source: persist profile/region in hub.toml
+			if name == providerPkg.Bedrock && det.Source == "aws-profile" {
+				v := configViper()
+				// Extract profile and region from Details ("profile default, region eu-west-1")
+				v.Set("provider.bedrock.auth_mode", "profile")
+				if awsProfile := os.Getenv("AWS_PROFILE"); awsProfile != "" {
+					v.Set("provider.bedrock.aws_profile", awsProfile)
+				} else {
+					v.Set("provider.bedrock.aws_profile", "default")
+				}
+				if region := os.Getenv("AWS_REGION"); region != "" {
+					v.Set("provider.bedrock.aws_region", region)
+				} else if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
+					v.Set("provider.bedrock.aws_region", region)
+				}
+				cfgPath := config.ConfigPath()
+				_ = v.WriteConfigAs(cfgPath)
+			}
+			fmt.Fprintf(os.Stdout, "  %s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess),
+				i18n.T("cmd.init.provider_existing_used"))
+			return
+		}
 	} else {
 		fmt.Fprintf(os.Stdout, "  %s %s\n",
 			common.WarningStyle.Render(common.IconWarning),
 			i18n.Tf("cmd.init.provider_not_detected", string(name)))
+	}
+
+	// Offer inline wizard
+	var configureNow bool
+	if err := huh.NewConfirm().
+		Title(i18n.T("cmd.init.provider_configure_now")).
+		Value(&configureNow).
+		Run(); err != nil {
+		return
+	}
+
+	if !configureNow {
+		fmt.Fprintf(os.Stdout, "  %s %s\n",
+			common.Subtitle.Render(common.IconArrow),
+			i18n.T("cmd.init.provider_configure_later"))
+		return
+	}
+
+	// Inline wizard — simplified version based on provider type
+	switch name {
+	case providerPkg.Bedrock:
+		initBedrockWizard(a, ctx)
+	case providerPkg.Anthropic, providerPkg.OpenRouter:
+		initAPIKeyWizard(a, ctx, name)
+	}
+}
+
+func initBedrockWizard(a *app.App, ctx context.Context) {
+	var authMode string
+	if err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title(i18n.T("cmd.provider.bedrock.auth_mode")).
+				Options(
+					huh.NewOption("Bearer Token (SSO/STS)", "bearer"),
+					huh.NewOption("AWS Profile (~/.aws/credentials)", "profile"),
+				).
+				Value(&authMode),
+		),
+	).Run(); err != nil {
+		return
+	}
+
+	v := configViper()
+	v.Set("provider.bedrock.auth_mode", authMode)
+
+	if authMode == "bearer" {
+		var token, region string
+		if err := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.T("cmd.provider.bedrock.bearer_token")).
+					EchoMode(huh.EchoModePassword).
+					Value(&token),
+				huh.NewInput().
+					Title(i18n.T("cmd.provider.bedrock.region")).
+					Placeholder("us-east-1").
+					Value(&region),
+			),
+		).Run(); err != nil {
+			return
+		}
+		if region == "" {
+			region = "us-east-1"
+		}
+		v.Set("provider.bedrock.aws_region", region)
+
+		if token != "" && a.Secrets != nil {
+			keyName := providerPkg.KeychainKey(providerPkg.Bedrock, "")
+			if err := a.Secrets.Set(ctx, keyName, token); err == nil {
+				fmt.Fprintf(os.Stdout, "  %s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					i18n.Tf("cmd.provider.token_stored", keyName))
+			}
+		}
+	} else {
+		var profile, region string
+		if err := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.T("cmd.provider.bedrock.profile")).
+					Placeholder("default").
+					Value(&profile),
+				huh.NewInput().
+					Title(i18n.T("cmd.provider.bedrock.region")).
+					Placeholder("us-east-1").
+					Value(&region),
+			),
+		).Run(); err != nil {
+			return
+		}
+		if profile == "" {
+			profile = "default"
+		}
+		if region == "" {
+			region = "us-east-1"
+		}
+		v.Set("provider.bedrock.aws_profile", profile)
+		v.Set("provider.bedrock.aws_region", region)
+	}
+
+	cfgPath := config.ConfigPath()
+	_ = v.WriteConfigAs(cfgPath)
+	fmt.Fprintf(os.Stdout, "  %s %s\n",
+		common.SuccessStyle.Render(common.IconSuccess),
+		i18n.Tf("cmd.provider.hub_configured", "bedrock"))
+}
+
+func initAPIKeyWizard(a *app.App, ctx context.Context, name providerPkg.Name) {
+	var apiKey string
+	envVar := providerPkg.EnvVar(name)
+
+	if err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title(i18n.Tf("cmd.provider.api_key_prompt", string(name))).
+				Description(i18n.Tf("cmd.provider.api_key_hint", envVar)).
+				EchoMode(huh.EchoModePassword).
+				Value(&apiKey),
+		),
+	).Run(); err != nil {
+		return
+	}
+
+	if apiKey == "" {
+		fmt.Fprintf(os.Stdout, "  %s %s\n",
+			common.WarningStyle.Render(common.IconWarning),
+			i18n.T("cmd.provider.no_key"))
+		return
+	}
+
+	if a.Secrets != nil {
+		keyName := providerPkg.KeychainKey(name, "")
+		if err := a.Secrets.Set(ctx, keyName, apiKey); err == nil {
+			fmt.Fprintf(os.Stdout, "  %s %s\n",
+				common.SuccessStyle.Render(common.IconSuccess),
+				i18n.Tf("cmd.provider.token_stored", keyName))
+		}
 	}
 }
 
