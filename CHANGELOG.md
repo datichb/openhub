@@ -7,6 +7,24 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.4.1] — 2026-07-09
+
+### Changed
+
+- **init wizard** — réorganisation en 4 étapes thématiques :
+  [1/4] Configuration générale (langue, version),
+  [2/4] Provider (choix + credentials immédiatement),
+  [3/4] MCP (optionnel, sélection + tokens),
+  [4/4] Premier projet (optionnel)
+- MCP MultiSelect : description mise à jour avec hint "Espace pour sélectionner, Entrée pour valider"
+
+### Fixed
+
+- init : la configuration des credentials provider se fait désormais juste après le choix du provider (plus de décalage illogique)
+- init : le hub.toml est écrit incrémentalement (provider d'abord, MCP ensuite) pour un flow plus naturel
+
+---
+
 ## [3.2.0] — 2026-07-08
 
 ### Added
