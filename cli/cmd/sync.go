@@ -132,7 +132,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 // syncProject performs a full sync (agents + skills + config + MCP) on one project.
 func syncProject(a *app.App, hubDir string, project *domain.Project) error {
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig)
 
 	start := time.Now()
 	results, err := deploy.Execute(plan)

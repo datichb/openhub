@@ -75,7 +75,7 @@ func TestBuildDeployPlan(t *testing.T) {
 		IO:     app.DefaultIOStreams(),
 	}
 
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil)
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil, nil)
 	require.NotNil(t, plan)
 	assert.Equal(t, "/tmp/project", plan.ProjectPath)
 	assert.Equal(t, "test-id", plan.ProjectID)

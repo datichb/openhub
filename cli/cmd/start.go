@@ -385,7 +385,7 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.worktree_deploy"))
 
-	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides)
+	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig)
 
 	results, err := deploy.Execute(plan)
 	if err != nil {

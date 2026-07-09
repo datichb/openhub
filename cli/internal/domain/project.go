@@ -18,8 +18,9 @@ type Project struct {
 	Model          string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
 	Labels         []string
 	Agents         []string
-	MCP            []string
-	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
+	MCP            []string                // deprecated: use MCPConfig. Kept for backward compat migration.
+	MCPConfig      *ProjectMCPConfig       // per-project MCP overrides (nil = inherit hub defaults)
+	ModelOverrides *ProjectModelOverrides   // per-project model cascade overrides (nil = no overrides)
 	Status         ProjectStatus
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -32,6 +33,21 @@ type Project struct {
 type ProjectModelOverrides struct {
 	Families map[string]string `json:"families,omitempty"` // family name → model
 	Agents   map[string]string `json:"agents,omitempty"`   // agent-id → model
+}
+
+// ProjectMCPConfig holds per-project MCP server overrides.
+// When non-nil and Services is non-empty, it REPLACES the hub-level MCP list for this project.
+// Credentials (TokenKey) and options (WriteEnabled) can be overridden per service;
+// empty/nil values inherit from hub.toml.
+type ProjectMCPConfig struct {
+	Services []ProjectMCPService `json:"services,omitempty"`
+}
+
+// ProjectMCPService represents a single MCP service configuration at the project level.
+type ProjectMCPService struct {
+	Name         string `json:"name"`                    // "figma", "gitlab", "gslides"
+	TokenKey     string `json:"token_key,omitempty"`     // keychain key override (empty = inherit hub)
+	WriteEnabled *bool  `json:"write_enabled,omitempty"` // nil = inherit hub, true/false = override
 }
 
 // ProjectStatus represents the lifecycle state of a project.

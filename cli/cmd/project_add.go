@@ -188,7 +188,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				common.SuccessStyle.Render(common.IconArrow), i18n.T("form.project.deploying"))
 
-			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil)
+			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil, nil)
 			results, err := deploy.Execute(plan)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",

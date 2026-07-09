@@ -84,7 +84,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig)
 
 	// Execute
 	start := time.Now()
@@ -195,7 +195,7 @@ func findHubDir() string {
 	return ""
 }
 
-// buildMCPServers constructs MCP server definitions from the app config.
+// buildMCPServers constructs MCP server definitions from the hub config only.
 func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 	enabled := map[string]bool{
 		"figma":   a.Config.MCP.Figma.Enabled,
@@ -214,10 +214,40 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 	return deploy.DefaultMCPServers(enabled, tokenKeys, writeEnabled)
 }
 
+// buildMCPServersForProject constructs MCP server definitions with project-level overrides.
+// If the project has a non-empty MCPConfig, it REPLACES the hub-level enabled list.
+// Credentials and options can be overridden per-service; empty values inherit from hub.
+func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig) []deploy.MCPServerDef {
+	servers := buildMCPServers(a)
+
+	// If project has explicit MCP config, use it as override
+	if mcpConfig != nil && len(mcpConfig.Services) > 0 {
+		projectSet := make(map[string]*domain.ProjectMCPService)
+		for i := range mcpConfig.Services {
+			projectSet[mcpConfig.Services[i].Name] = &mcpConfig.Services[i]
+		}
+		for i := range servers {
+			ps, inProject := projectSet[servers[i].Name]
+			servers[i].Enabled = inProject
+			if inProject {
+				if ps.TokenKey != "" {
+					servers[i].TokenKey = ps.TokenKey
+				}
+				if ps.WriteEnabled != nil {
+					servers[i].WriteEnabled = *ps.WriteEnabled
+				}
+			}
+		}
+	}
+
+	return servers
+}
+
 // buildDeployPlan creates a standard deployment plan with all phases.
 // provider and model can be empty to inherit from project config.
 // projectModelOvr can be nil if the project has no per-agent/family overrides.
-func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides) *deploy.Plan {
+// projectMCPCfg can be nil to inherit hub-level MCP config.
+func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig) *deploy.Plan {
 	// Read websearch setting from hub config
 	v := configViper()
 	websearchEnabled := v.GetBool("websearch.enabled")
@@ -254,7 +284,7 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	}
 
 	// Build list of enabled MCP servers for agent validation warnings
-	mcpServers := buildMCPServers(a)
+	mcpServers := buildMCPServersForProject(a, projectMCPCfg)
 	var enabledMCPServers []string
 	for _, s := range mcpServers {
 		if s.Enabled {
