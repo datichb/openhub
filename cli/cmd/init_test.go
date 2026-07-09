@@ -54,3 +54,15 @@ func TestBuildInitConfig_NoMCP(t *testing.T) {
 	assert.Equal(t, 3, strings.Count(result, "enabled = false"))
 	assert.Equal(t, 0, strings.Count(result, "enabled = true"))
 }
+
+func TestBuildInitConfig_NilMCP(t *testing.T) {
+	// In the new flow, the initial config write passes nil for MCP services.
+	// All MCP sections should be present but disabled.
+	result := buildInitConfig("en", "latest", "bedrock", nil)
+	assert.Contains(t, result, `default_provider = "bedrock"`)
+	assert.Contains(t, result, "[mcp.figma]")
+	assert.Contains(t, result, "[mcp.gitlab]")
+	assert.Contains(t, result, "[mcp.gslides]")
+	assert.Equal(t, 3, strings.Count(result, "enabled = false"))
+	assert.Equal(t, 0, strings.Count(result, "enabled = true"))
+}

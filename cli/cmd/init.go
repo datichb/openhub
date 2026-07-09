@@ -72,19 +72,18 @@ func runInit(cmd *cobra.Command, args []string) error {
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// PART 1 — Hub Configuration
+	// PART 1 — General Configuration (language + opencode version)
 	// ══════════════════════════════════════════════════════════════════════════
 	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[1/3]"),
-		initSectionStyle.Render(i18n.T("cmd.init.section_hub")))
+		initStepIndicator.Render("[1/4]"),
+		initSectionStyle.Render(i18n.T("cmd.init.section_general")))
 
 	var (
 		language    string
 		opencodeVer string
-		provider    string
 	)
 
-	hubForm := huh.NewForm(
+	generalForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.init.language_select")).
@@ -99,7 +98,27 @@ func runInit(cmd *cobra.Command, args []string) error {
 				Description(i18n.T("cmd.init.opencode_version_desc")).
 				Placeholder("latest").
 				Value(&opencodeVer),
+		).Title(i18n.T("cmd.init.global_config")),
+	)
+	if err := generalForm.Run(); err != nil {
+		return err
+	}
 
+	if opencodeVer == "" {
+		opencodeVer = "latest"
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	// PART 2 — Provider (selection + credentials)
+	// ══════════════════════════════════════════════════════════════════════════
+	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
+		initStepIndicator.Render("[2/4]"),
+		initSectionStyle.Render(i18n.T("cmd.init.section_provider")))
+
+	var provider string
+
+	providerForm := huh.NewForm(
+		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.init.provider_select")).
 				Description(i18n.T("cmd.init.provider_select_desc")).
@@ -110,21 +129,46 @@ func runInit(cmd *cobra.Command, args []string) error {
 					huh.NewOption("GitHub Copilot", "github-copilot"),
 				).
 				Value(&provider),
-		).Title(i18n.T("cmd.init.global_config")),
+		),
 	)
-	if err := hubForm.Run(); err != nil {
+	if err := providerForm.Run(); err != nil {
 		return err
 	}
 
-	if opencodeVer == "" {
-		opencodeVer = "latest"
+	// Write initial hub.toml (provider set, MCP all disabled) to allow initApp
+	cfgDir := config.HubDir()
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
 	}
 
+	tomlContent := buildInitConfig(language, opencodeVer, provider, nil)
+	cfgPath := config.ConfigPath()
+	if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
+		return fmt.Errorf("writing config: %w", err)
+	}
+
+	fmt.Fprintf(os.Stdout, "\n%s %s\n",
+		common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.init.config_written", cfgPath))
+
+	// Initialize app so we can access secrets/keychain for provider credentials
+	config.Reset()
+	if err := initApp(); err != nil {
+		return err
+	}
+
+	a := MustApp()
+	if err := ensureOpencode(a); err != nil {
+		return err
+	}
+
+	// Provider credentials detection + setup (immediately after provider choice)
+	initProviderCredentials(providerPkg.Name(provider), a, ctx)
+
 	// ══════════════════════════════════════════════════════════════════════════
-	// PART 2 — MCP Servers (optional)
+	// PART 3 — MCP Servers (optional)
 	// ══════════════════════════════════════════════════════════════════════════
 	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[2/3]"),
+		initStepIndicator.Render("[3/4]"),
 		initSectionStyle.Render(i18n.T("cmd.init.section_mcp")))
 
 	var configureMCP bool
@@ -140,40 +184,17 @@ func runInit(cmd *cobra.Command, args []string) error {
 		mcpServices = runInitMCPWizard()
 	}
 
-	// ══════════════════════════════════════════════════════════════════════════
-	// Write hub.toml + Initialize app
-	// ══════════════════════════════════════════════════════════════════════════
-	cfgDir := config.HubDir()
-	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-
-	tomlContent := buildInitConfig(language, opencodeVer, provider, mcpServices)
-	cfgPath := config.ConfigPath()
-	if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
-
-	fmt.Fprintf(os.Stdout, "\n%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.init.config_written", cfgPath))
-
-	// Ensure opencode
-	config.Reset()
-	if err := initApp(); err != nil {
-		return err
-	}
-
-	a := MustApp()
-	if err := ensureOpencode(a); err != nil {
-		return err
-	}
-
-	// ── Provider credentials detection + setup ──
-	initProviderCredentials(providerPkg.Name(provider), a, ctx)
-
 	// Store MCP tokens in keychain (for services that were configured)
-	if configureMCP && a.Secrets != nil {
+	if configureMCP && a.Secrets != nil && len(mcpServices) > 0 {
 		storeMCPTokens(a, ctx, mcpServices)
+	}
+
+	// Update hub.toml with MCP enabled flags
+	if len(mcpServices) > 0 {
+		updateConfigMCP(mcpServices)
+		fmt.Fprintf(os.Stdout, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.T("cmd.init.mcp_config_updated"))
 	}
 
 	// Extract hub content
@@ -186,10 +207,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 		i18n.Tf("cmd.init.hub_extracted", hubContentDir))
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// PART 3 — First Project (optional)
+	// PART 4 — First Project (optional)
 	// ══════════════════════════════════════════════════════════════════════════
 	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[3/3]"),
+		initStepIndicator.Render("[4/4]"),
 		initSectionStyle.Render(i18n.T("cmd.init.section_project")))
 
 	var addProject bool
@@ -238,6 +259,16 @@ func runInitMCPWizard() []string {
 	}
 
 	return selected
+}
+
+// updateConfigMCP updates hub.toml to enable the selected MCP services.
+func updateConfigMCP(mcpServices []string) {
+	v := configViper()
+	for _, svc := range mcpServices {
+		v.Set("mcp."+svc+".enabled", true)
+	}
+	cfgPath := config.ConfigPath()
+	_ = v.WriteConfigAs(cfgPath)
 }
 
 // storeMCPTokens prompts for each selected MCP service token and stores in keychain.
