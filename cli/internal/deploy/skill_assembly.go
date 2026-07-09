@@ -116,7 +116,8 @@ func splitFrontmatterAndBody(data []byte) (frontmatter, body []byte) {
 }
 
 // stripHubFields removes hub-internal frontmatter fields that opencode doesn't understand:
-// skills, native_skills, mcpServers. These are hub metadata consumed by the deploy process only.
+// skills, native_skills, mcpServers, model. These are hub metadata consumed by the deploy
+// process only. The model is resolved and written to opencode.json by DeployAgentConfig.
 // Only matches top-level keys (not indented sub-keys).
 func stripHubFields(frontmatter []byte) []byte {
 	if len(frontmatter) == 0 {
@@ -130,6 +131,7 @@ func stripHubFields(frontmatter []byte) []byte {
 		"skills:":        true,
 		"native_skills:": true,
 		"mcpServers:":    true,
+		"model:":         true,
 	}
 
 	skipping := false
