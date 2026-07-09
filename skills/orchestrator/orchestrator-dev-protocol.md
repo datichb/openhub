@@ -1,6 +1,6 @@
 ---
 name: orchestrator-dev-protocol
-description: Protocole de l'agent orchestrator développement — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère la review et les cycles de correction. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature.
+description: "Protocole de l'agent orchestrator développement — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère la review et les cycles de correction. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature."
 ---
 
 # Skill — Protocole Orchestrateur Dev

@@ -1,7 +1,7 @@
 ---
 id: orchestrator-dev
 label: OrchestratorDev
-description: Orchestrateur d'implémentation — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère la review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature. Invoquer avec "implémente les tickets [IDs]" ou "workflow dev sur [feature]".
+description: "Orchestrateur d'implémentation — pilote le workflow Beads ticket par ticket, route vers l'agent developer générique (domaine précisé dans le prompt d'invocation), gère la review. Trois modes disponibles : manuel (défaut), semi-auto, auto. Invocable standalone ou depuis l'agent orchestrator feature. Invoquer avec \"implémente les tickets [IDs]\" ou \"workflow dev sur [feature]\"."
 mode: primary
 permission:
   question: allow
