@@ -113,6 +113,8 @@
   "cmd.init.opencode_dep_title": "Dépendance opencode",
   "cmd.init.opencode_version": "Version d'opencode à utiliser",
   "cmd.init.opencode_version_desc": "La version sera téléchargée automatiquement",
+  "cmd.init.provider_select": "Provider LLM par défaut",
+  "cmd.init.provider_select_desc": "Utilisé pour la résolution des modèles dans tous les projets",
   "cmd.init.project_name": "Nom du projet",
   "cmd.init.project_name_desc": "Le projet à enregistrer dans le hub",
   "cmd.init.project_name_required": "le nom est requis",

@@ -113,6 +113,8 @@
   "cmd.init.opencode_dep_title": "opencode dependency",
   "cmd.init.opencode_version": "opencode version to use",
   "cmd.init.opencode_version_desc": "The version will be downloaded automatically",
+  "cmd.init.provider_select": "Default LLM provider",
+  "cmd.init.provider_select_desc": "Used for model resolution across all projects",
   "cmd.init.project_name": "Project name",
   "cmd.init.project_name_desc": "The project to register in the hub",
   "cmd.init.project_name_required": "name is required",

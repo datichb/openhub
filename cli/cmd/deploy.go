@@ -71,6 +71,9 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// --- Normal deploy ---
 	provider, _ := cmd.Flags().GetString("provider")
+	if provider == "" {
+		provider = project.Provider // project-level override
+	}
 	model, _ := cmd.Flags().GetString("model")
 
 	fmt.Fprintln(a.IO.Out)

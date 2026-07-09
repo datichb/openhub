@@ -130,6 +130,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// --- Resolve provider + bearer token ---
 	provider, _ := cmd.Flags().GetString("provider")
 	if provider == "" {
+		provider = project.Provider // project-level override
+	}
+	if provider == "" {
 		provider = a.Config.Opencode.DefaultProvider
 	}
 	if provider == "" {
