@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"os"
-
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -22,10 +25,9 @@ var initCmd = &cobra.Command{
 	Long: `Lance un wizard de configuration pour initialiser le hub et enregistrer le premier projet.
 
 Le wizard configure :
-  - La langue de l'interface
-  - La vérification/installation d'opencode
-  - Le projet complet (nom, chemin, langage, provider, agents, MCP)
-  - Le déploiement automatique`,
+  - La langue de l'interface et le provider LLM
+  - Les serveurs MCP (Figma, GitLab, Google Slides)
+  - Le projet (optionnel)`,
 	RunE: runInit,
 }
 
@@ -33,21 +35,55 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles for init wizard
+// ─────────────────────────────────────────────────────────────────────────────
+
+var (
+	initSectionStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(common.Primary).
+				MarginTop(1).
+				MarginBottom(0)
+
+	initStepIndicator = lipgloss.NewStyle().
+				Foreground(common.Subtle).
+				Bold(true)
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main init flow
+// ─────────────────────────────────────────────────────────────────────────────
+
 func runInit(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	// ══════════════════════════════════════════════════════════════════════════
+	// PREAMBLE
+	// ══════════════════════════════════════════════════════════════════════════
+	preamble := i18n.T("cmd.init.preamble")
 	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, common.Title.Render(i18n.T("cmd.init.welcome")))
+	fmt.Fprintln(os.Stdout, common.Box.Render(preamble))
 	fmt.Fprintln(os.Stdout)
 
-	// ── Step 1: Language + Opencode version + Provider ──
+	// Wait for user to press Enter
+	fmt.Fprintf(os.Stdout, "  %s ", common.Subtitle.Render(i18n.T("cmd.init.press_enter")))
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+
+	// ══════════════════════════════════════════════════════════════════════════
+	// PART 1 — Hub Configuration
+	// ══════════════════════════════════════════════════════════════════════════
+	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
+		initStepIndicator.Render("[1/3]"),
+		initSectionStyle.Render(i18n.T("cmd.init.section_hub")))
+
 	var (
 		language    string
 		opencodeVer string
 		provider    string
 	)
 
-	form := huh.NewForm(
+	hubForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.init.language_select")).
@@ -75,7 +111,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				Value(&provider),
 		).Title(i18n.T("cmd.init.global_config")),
 	)
-	if err := form.Run(); err != nil {
+	if err := hubForm.Run(); err != nil {
 		return err
 	}
 
@@ -83,22 +119,44 @@ func runInit(cmd *cobra.Command, args []string) error {
 		opencodeVer = "latest"
 	}
 
-	// ── Write hub.toml ──
+	// ══════════════════════════════════════════════════════════════════════════
+	// PART 2 — MCP Servers (optional)
+	// ══════════════════════════════════════════════════════════════════════════
+	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
+		initStepIndicator.Render("[2/3]"),
+		initSectionStyle.Render(i18n.T("cmd.init.section_mcp")))
+
+	var configureMCP bool
+	if err := huh.NewConfirm().
+		Title(i18n.T("cmd.init.mcp_configure_prompt")).
+		Value(&configureMCP).
+		Run(); err != nil {
+		return err
+	}
+
+	var mcpServices []string
+	if configureMCP {
+		mcpServices = runInitMCPWizard()
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	// Write hub.toml + Extract hub content
+	// ══════════════════════════════════════════════════════════════════════════
 	cfgDir := config.HubDir()
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 
-	tomlContent := buildInitConfig(language, opencodeVer, provider, nil)
+	tomlContent := buildInitConfig(language, opencodeVer, provider, mcpServices)
 	cfgPath := config.ConfigPath()
 	if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
 
-	fmt.Fprintf(os.Stdout, "%s %s\n",
+	fmt.Fprintf(os.Stdout, "\n%s %s\n",
 		common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.init.config_written", cfgPath))
 
-	// ── Step 2: Ensure opencode ──
+	// Ensure opencode
 	config.Reset()
 	if err := initApp(); err != nil {
 		return err
@@ -109,7 +167,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// ── Step 3: Extract hub content ──
+	// Store MCP tokens in keychain (for services that were configured)
+	if configureMCP && a.Secrets != nil {
+		storeMCPTokens(a, ctx, mcpServices)
+	}
+
+	// Extract hub content
 	hubContentDir := hubcontent.HubContentDir()
 	if err := hubcontent.Extract(hubContentDir); err != nil {
 		return fmt.Errorf("extracting hub content: %w", err)
@@ -118,8 +181,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		common.SuccessStyle.Render(common.IconSuccess),
 		i18n.Tf("cmd.init.hub_extracted", hubContentDir))
 
-	// ── Step 4 (optional): Configure first project ──
-	fmt.Fprintln(os.Stdout)
+	// ══════════════════════════════════════════════════════════════════════════
+	// PART 3 — First Project (optional)
+	// ══════════════════════════════════════════════════════════════════════════
+	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
+		initStepIndicator.Render("[3/3]"),
+		initSectionStyle.Render(i18n.T("cmd.init.section_project")))
 
 	var addProject bool
 	if err := huh.NewConfirm().
@@ -140,6 +207,108 @@ func runInit(cmd *cobra.Command, args []string) error {
 		i18n.T("cmd.init.done_no_project"))
 	return nil
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCP Wizard (inline in init)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// runInitMCPWizard runs the MCP service selection and token configuration.
+// Returns the list of successfully configured services (with tokens stored).
+func runInitMCPWizard() []string {
+	var selected []string
+	mcpForm := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title(i18n.T("cmd.init.mcp_select")).
+				Description(i18n.T("cmd.init.mcp_select_desc")).
+				Options(
+					huh.NewOption("Figma (personal access token, scope file:read)", "figma"),
+					huh.NewOption("GitLab (personal access token, scope api)", "gitlab"),
+					huh.NewOption("Google Slides (OAuth access token)", "gslides"),
+				).
+				Value(&selected),
+		),
+	)
+	if err := mcpForm.Run(); err != nil || len(selected) == 0 {
+		return nil
+	}
+
+	return selected
+}
+
+// storeMCPTokens prompts for each selected MCP service token and stores in keychain.
+// Services where the user skips the token are removed from the configured list.
+func storeMCPTokens(a *app.App, ctx context.Context, services []string) {
+	for _, svc := range services {
+		var token string
+		envHint := mcpEnvHint(svc)
+
+		tokenForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.Tf("cmd.init.mcp_token_prompt", svc)).
+					Description(i18n.Tf("cmd.init.mcp_token_hint", envHint)).
+					EchoMode(huh.EchoModePassword).
+					Value(&token),
+			),
+		)
+		if err := tokenForm.Run(); err != nil {
+			continue
+		}
+
+		if token == "" {
+			fmt.Fprintf(os.Stdout, "%s %s\n",
+				common.WarningStyle.Render(common.IconWarning),
+				i18n.Tf("cmd.init.mcp_token_skipped", svc))
+			continue
+		}
+
+		keyName := svc + "-token"
+		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+			fmt.Fprintf(os.Stdout, "%s %s\n",
+				common.ErrorStyle.Render(common.IconError),
+				i18n.Tf("cmd.init.mcp_token_error", svc, err))
+			continue
+		}
+
+		fmt.Fprintf(os.Stdout, "%s %s\n",
+			common.SuccessStyle.Render(common.IconSuccess),
+			i18n.Tf("cmd.init.mcp_token_stored", svc, keyName))
+
+		// GitLab: ask about write permissions
+		if svc == "gitlab" {
+			var writeEnabled bool
+			_ = huh.NewConfirm().
+				Title(i18n.T("cmd.init.mcp_gitlab_write")).
+				Description(i18n.T("cmd.init.mcp_gitlab_write_desc")).
+				Value(&writeEnabled).
+				Run()
+
+			if writeEnabled {
+				fmt.Fprintf(os.Stdout, "%s %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					i18n.T("cmd.init.mcp_gitlab_write_enabled"))
+			}
+		}
+	}
+}
+
+func mcpEnvHint(svc string) string {
+	switch svc {
+	case "figma":
+		return "FIGMA_TOKEN"
+	case "gitlab":
+		return "GITLAB_TOKEN"
+	case "gslides":
+		return "GOOGLE_ACCESS_TOKEN"
+	default:
+		return ""
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config generation
+// ─────────────────────────────────────────────────────────────────────────────
 
 // buildInitConfig generates the hub.toml content.
 func buildInitConfig(language, opencodeVer, provider string, mcpServices []string) string {
@@ -192,6 +361,10 @@ base_branch = ""
 
 	return sb.String()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Git helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 // addGitExcludes adds opencode and oh artifacts to .git/info/exclude.
 func addGitExcludes(projectPath string) {
