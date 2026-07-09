@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -184,7 +185,7 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 
 // findHubDir locates the hub directory (~/.oh/hub/).
 func findHubDir() string {
-	hubDir := filepath.Join(os.Getenv("HOME"), ".oh", "hub")
+	hubDir := hubcontent.HubContentDir()
 	if _, err := os.Stat(filepath.Join(hubDir, "agents")); err == nil {
 		return hubDir
 	}

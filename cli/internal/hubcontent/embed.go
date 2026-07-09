@@ -63,11 +63,13 @@ func Extract(destDir string) error {
 			return err
 		}
 
-		// Strip "hub/" prefix to get relative path
-		relPath := path[len("hub/"):]
-		if relPath == "" {
+		// Skip the root "hub" directory itself
+		if path == "hub" {
 			return nil
 		}
+
+		// Strip "hub/" prefix to get relative path
+		relPath := path[len("hub/"):]
 
 		destPath := filepath.Join(destDir, relPath)
 
