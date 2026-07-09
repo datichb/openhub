@@ -99,6 +99,8 @@
   "cmd.init.done_tracker": "Tracker:  %s (bd initialized)",
   "cmd.init.done_tracker_only": "Tracker:  %s",
   "cmd.init.first_project": "First project",
+  "cmd.init.add_project_prompt": "Configure a first project now?",
+  "cmd.init.done_no_project": "Initialization complete. Use 'oh project add' to configure a project.",
   "cmd.init.global_config": "Global configuration",
   "cmd.init.hub_not_found": "hub directory not found",
   "cmd.init.hub_extracted": "Hub content installed to %s",

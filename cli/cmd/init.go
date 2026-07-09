@@ -106,12 +106,27 @@ func runInit(cmd *cobra.Command, args []string) error {
 		common.SuccessStyle.Render(common.IconSuccess),
 		i18n.Tf("cmd.init.hub_extracted", hubContentDir))
 
-	// ── Step 4: Delegate to project add wizard ──
+	// ── Step 4 (optional): Configure first project ──
 	fmt.Fprintln(os.Stdout)
-	fmt.Fprintf(os.Stdout, "%s %s\n\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.init.first_project"))
 
-	return runProjectAddInteractive(ctx, a)
+	var addProject bool
+	if err := huh.NewConfirm().
+		Title(i18n.T("cmd.init.add_project_prompt")).
+		Value(&addProject).
+		Run(); err != nil {
+		return err
+	}
+
+	if addProject {
+		fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
+			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.init.first_project"))
+		return runProjectAddInteractive(ctx, a)
+	}
+
+	fmt.Fprintf(os.Stdout, "\n%s %s\n",
+		common.SuccessStyle.Render(common.IconSuccess),
+		i18n.T("cmd.init.done_no_project"))
+	return nil
 }
 
 // buildInitConfig generates the hub.toml content.
