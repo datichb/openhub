@@ -37,6 +37,18 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(testHome)
 	os.Setenv("HOME", testHome)
 
+	// Create minimal hub content structure so the init gate passes
+	hubDir := filepath.Join(testHome, ".oh", "hub")
+	if err := os.MkdirAll(filepath.Join(hubDir, "agents"), 0o755); err != nil {
+		panic("failed to create hub agents dir: " + err.Error())
+	}
+	if err := os.MkdirAll(filepath.Join(hubDir, "skills"), 0o755); err != nil {
+		panic("failed to create hub skills dir: " + err.Error())
+	}
+	if err := os.WriteFile(filepath.Join(hubDir, ".version"), []byte("dev"), 0o644); err != nil {
+		panic("failed to write hub version: " + err.Error())
+	}
+
 	os.Exit(m.Run())
 }
 

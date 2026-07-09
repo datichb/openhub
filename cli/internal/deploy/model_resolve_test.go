@@ -122,13 +122,13 @@ func TestResolveAgentModel_BedrockProvider(t *testing.T) {
 	}
 
 	result := ResolveAgentModel("reviewer", "quality", nil, hubOverrides, "", "bedrock")
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", result)
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1", result)
 }
 
 func TestResolveAgentModel_BedrockProviderWithFrontmatter(t *testing.T) {
 	// Frontmatter declares "anthropic/claude-sonnet-4-6", project uses bedrock
 	result := ResolveAgentModel("orchestrator", "planning", nil, nil, "anthropic/claude-sonnet-4-6", "bedrock")
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0", result)
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6", result)
 }
 
 func TestResolveAgentModel_EmptyProvider(t *testing.T) {
@@ -147,19 +147,19 @@ func TestNormalizeModelForProvider(t *testing.T) {
 		// Anthropic provider
 		{"anthropic short name", "claude-opus-4", "anthropic", "anthropic/claude-opus-4"},
 		{"anthropic already prefixed", "anthropic/claude-opus-4", "anthropic", "anthropic/claude-opus-4"},
-		{"anthropic from bedrock format", "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", "anthropic", "anthropic/claude-opus-4"},
+		{"anthropic from bedrock format", "amazon-bedrock/anthropic.claude-opus-4-6-v1", "anthropic", "anthropic/claude-opus-4-6"},
 
 		// Bedrock provider
-		{"bedrock short name", "claude-opus-4", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0"},
-		{"bedrock from anthropic prefixed", "anthropic/claude-opus-4", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0"},
-		{"bedrock already bedrock format", "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0"},
+		{"bedrock short name", "claude-opus-4", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-6-v1"},
+		{"bedrock from anthropic prefixed", "anthropic/claude-opus-4", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-6-v1"},
+		{"bedrock already bedrock format", "amazon-bedrock/anthropic.claude-opus-4-6-v1", "bedrock", "amazon-bedrock/anthropic.claude-opus-4-6-v1"},
 		{"bedrock sonnet", "claude-sonnet-4-5", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0"},
-		{"bedrock sonnet 4-6", "claude-sonnet-4-6", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0"},
+		{"bedrock sonnet 4-6", "claude-sonnet-4-6", "bedrock", "amazon-bedrock/anthropic.claude-sonnet-4-6"},
 		{"bedrock unknown model fallback", "claude-future-5", "bedrock", "amazon-bedrock/anthropic.claude-future-5"},
 
 		// GitHub Copilot
 		{"github-copilot sonnet", "claude-sonnet-4-5", "github-copilot", "github-copilot/claude-sonnet-4.5"},
-		{"github-copilot opus", "claude-opus-4", "github-copilot", "github-copilot/claude-opus-4"},
+		{"github-copilot opus", "claude-opus-4-6", "github-copilot", "github-copilot/claude-opus-4.6"},
 
 		// OpenRouter
 		{"openrouter", "claude-opus-4", "openrouter", "anthropic/claude-opus-4"},
@@ -185,7 +185,10 @@ func TestExtractShortModelName(t *testing.T) {
 		{"claude-opus-4", "claude-opus-4"},
 		{"anthropic/claude-opus-4", "claude-opus-4"},
 		{"amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", "claude-opus-4"},
+		{"amazon-bedrock/anthropic.claude-opus-4-6-v1", "claude-opus-4-6"},
 		{"amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0", "claude-sonnet-4-5"},
+		{"amazon-bedrock/anthropic.claude-sonnet-4-6", "claude-sonnet-4-6"},
+		{"amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0", "claude-haiku-4-5"},
 		{"github-copilot/claude-sonnet-4.5", "claude-sonnet-4-5"},
 		{"openrouter/claude-opus-4", "claude-opus-4"},
 	}

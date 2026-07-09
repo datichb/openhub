@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -60,7 +61,7 @@ func buildHelpContent() string {
 	var sb strings.Builder
 
 	// Header
-	header := fmt.Sprintf("oh — OpenHub CLI %s", Version)
+	header := fmt.Sprintf("oh — OpenHub CLI %s", buildinfo.Version)
 	sb.WriteString(common.Bold.Render(header))
 	sb.WriteString("\n\n")
 

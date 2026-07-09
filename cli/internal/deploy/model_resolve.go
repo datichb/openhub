@@ -164,8 +164,9 @@ func extractShortModelName(model string) string {
 
 // stripBedrockVersionSuffix removes the date-version suffix from a bedrock model name.
 // "claude-sonnet-4-5-20250929-v1:0" → "claude-sonnet-4-5"
+// "claude-opus-4-6-v1" → "claude-opus-4-6"
 func stripBedrockVersionSuffix(name string) string {
-	// Pattern: model-YYYYMMDD-vN:M or model-YYYYMMDD-vN
+	// Pattern 1: model-YYYYMMDD-vN:M or model-YYYYMMDD-vN
 	// Strategy: find the first segment that looks like a date (8 digits)
 	parts := strings.Split(name, "-")
 	for i, part := range parts {
@@ -174,7 +175,18 @@ func stripBedrockVersionSuffix(name string) string {
 			return strings.Join(parts[:i], "-")
 		}
 	}
-	// No date suffix found — return as-is
+
+	// Pattern 2: model-vN or model-vN:M (no date, just version suffix)
+	// Find the last segment that starts with "v" followed by a digit
+	for i := len(parts) - 1; i > 0; i-- {
+		p := parts[i]
+		// Match "v1", "v1:0", "v2:0", etc.
+		if len(p) >= 2 && p[0] == 'v' && p[1] >= '0' && p[1] <= '9' {
+			return strings.Join(parts[:i], "-")
+		}
+	}
+
+	// No suffix found — return as-is
 	return name
 }
 
@@ -197,13 +209,18 @@ func isAllDigits(s string) bool {
 }
 
 // bedrockModelVersions maps short model names to their bedrock version identifiers.
+// Only models with irregular bedrock IDs (date suffixes, version suffixes) need explicit entries.
+// Models with clean naming (e.g., claude-opus-4-7, claude-sonnet-5) are handled by the
+// fallback in formatBedrockModel: "amazon-bedrock/anthropic.<shortname>".
 var bedrockModelVersions = map[string]string{
-	"claude-opus-4":        "anthropic.claude-opus-4-20250514-v1:0",
-	"claude-sonnet-4-5":    "anthropic.claude-sonnet-4-5-20250929-v1:0",
-	"claude-sonnet-4-6":    "anthropic.claude-sonnet-4-6-20250715-v1:0",
-	"claude-haiku-3-5":     "anthropic.claude-3-5-haiku-20241022-v1:0",
-	"claude-sonnet-3-5":    "anthropic.claude-3-5-sonnet-20241022-v2:0",
-	"claude-sonnet-3-5-v2": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+	// Current generation — irregular bedrock IDs requiring explicit mapping
+	"claude-opus-4-6":   "anthropic.claude-opus-4-6-v1",
+	"claude-sonnet-4-5": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+	"claude-haiku-4-5":  "anthropic.claude-haiku-4-5-20251001-v1:0",
+
+	// Legacy aliases (backward compat with existing hub.toml configs)
+	"claude-opus-4":   "anthropic.claude-opus-4-6-v1",
+	"claude-haiku-3-5": "anthropic.claude-haiku-4-5-20251001-v1:0",
 }
 
 // formatBedrockModel converts a short model name to the bedrock format.
@@ -218,7 +235,7 @@ func formatBedrockModel(shortName string) string {
 
 // githubCopilotModelNames maps short model names to github-copilot formatted names.
 var githubCopilotModelNames = map[string]string{
-	"claude-opus-4":     "claude-opus-4",
+	"claude-opus-4-6":   "claude-opus-4.6",
 	"claude-sonnet-4-5": "claude-sonnet-4.5",
 	"claude-sonnet-4-6": "claude-sonnet-4.6",
 }

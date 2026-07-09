@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
@@ -96,7 +97,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// ── Step 3: Delegate to project add wizard ──
+	// ── Step 3: Extract hub content ──
+	hubContentDir := hubcontent.HubContentDir()
+	if err := hubcontent.Extract(hubContentDir); err != nil {
+		return fmt.Errorf("extracting hub content: %w", err)
+	}
+	fmt.Fprintf(os.Stdout, "%s %s\n",
+		common.SuccessStyle.Render(common.IconSuccess),
+		i18n.Tf("cmd.init.hub_extracted", hubContentDir))
+
+	// ── Step 4: Delegate to project add wizard ──
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintf(os.Stdout, "%s %s\n\n",
 		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.init.first_project"))

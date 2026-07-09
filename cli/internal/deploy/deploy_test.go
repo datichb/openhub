@@ -99,12 +99,12 @@ func TestExecute_FullDeploy(t *testing.T) {
 		assert.True(t, r.Success, "phase %s failed: %s", r.Name, r.Message)
 	}
 
-	// Verify agents deployed (in subdirectory matching hub structure)
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "dev", "coder.md"))
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "dev", "reviewer.md"))
+	// Verify agents deployed (flat structure — no subdirectories)
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "coder.md"))
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "reviewer.md"))
 
 	// Verify Bucket A skill was inlined into the coder agent
-	coderData, _ := os.ReadFile(filepath.Join(projectDir, ".opencode", "agents", "dev", "coder.md"))
+	coderData, _ := os.ReadFile(filepath.Join(projectDir, ".opencode", "agents", "coder.md"))
 	assert.Contains(t, string(coderData), "Inline Coding Skill") // inlined content
 	assert.NotContains(t, string(coderData), "skills:")          // hub field stripped
 

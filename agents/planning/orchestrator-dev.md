@@ -44,7 +44,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: anthropic/claude-sonnet-4-6
+model: claude-sonnet-4-6
 skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-dev-protocol, orchestrator/orchestrator-handoff-format, posture/tool-question, posture/tool-todowrite, developer/developer-handoff-format, reviewer/reviewer-handoff-format, documentarian/documentarian-handoff-format]
 native_skills: [orchestrator/orchestrator-dev-standalone, orchestrator/orchestrator-dev-subagent, developer/dev-drift-detection, orchestrator/session-state-protocol, shared/rtk-usage]
 ---

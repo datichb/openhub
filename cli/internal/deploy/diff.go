@@ -116,6 +116,7 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		report,
 		allowSet,
 		agentHashFn,
+		true, // flatten: agents are deployed flat
 	); err != nil {
 		return nil, fmt.Errorf("diff agents: %w", err)
 	}
@@ -128,6 +129,7 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		report,
 		nil, // no filtering for skills
 		nil, // default hash function (raw file hash)
+		false, // skills preserve directory structure
 	); err != nil {
 		return nil, fmt.Errorf("diff skills: %w", err)
 	}
@@ -163,7 +165,9 @@ func checkConfigDrift(projectPath string, report *DiffReport) {
 // If allowSet is non-empty, only source files whose base name (sans extension) is in the set are compared.
 // If srcHashFn is non-nil, it is used to hash source files instead of raw file hashing
 // (e.g., to hash the assembled output for agents).
-func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet map[string]bool, srcHashFn func(string) (string, error)) error {
+// If flatten is true, source files are keyed by their base filename only (not their relative path),
+// matching the flat output structure used by DeployAgents.
+func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet map[string]bool, srcHashFn func(string) (string, error), flatten bool) error {
 	srcFiles := make(map[string]string) // relative path → sha256
 	destFiles := make(map[string]string)
 
@@ -184,6 +188,11 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 				}
 			}
 			rel, _ := filepath.Rel(srcDir, path)
+			// When flatten is true, use only the filename as key (matching flat deploy output)
+			key := rel
+			if flatten {
+				key = d.Name()
+			}
 			var hash string
 			var hashErr error
 			if srcHashFn != nil {
@@ -194,7 +203,7 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 			if hashErr != nil {
 				return hashErr
 			}
-			srcFiles[rel] = hash
+			srcFiles[key] = hash
 			return nil
 		})
 		if err != nil {

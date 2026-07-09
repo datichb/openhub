@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -50,6 +51,20 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" {
 			return nil
 		}
+
+		// Gate: require hub initialization (except for init itself)
+		if cmd.Name() != "init" {
+			if !hubcontent.IsInstalled() {
+				return fmt.Errorf("hub not initialized. Run 'oh init' first")
+			}
+			// Auto-upgrade hub content silently on version mismatch
+			if hubcontent.NeedsExtract() {
+				if err := hubcontent.Extract(hubcontent.HubContentDir()); err != nil {
+					slog.Warn("failed to auto-upgrade hub content", "error", err)
+				}
+			}
+		}
+
 		if err := initApp(); err != nil {
 			return err
 		}

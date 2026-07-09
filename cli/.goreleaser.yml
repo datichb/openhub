@@ -10,6 +10,7 @@ release:
 before:
   hooks:
     - go mod tidy
+    - sh -c "rm -rf internal/hubcontent/hub && mkdir -p internal/hubcontent/hub && cp -r ../agents internal/hubcontent/hub/agents && cp -r ../skills internal/hubcontent/hub/skills"
 
 builds:
   - main: .
@@ -24,9 +25,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/datichb/openhub/cli/cmd.Version={{.Version}}
-      - -X github.com/datichb/openhub/cli/cmd.Commit={{.ShortCommit}}
-      - -X github.com/datichb/openhub/cli/cmd.BuildDate={{.Date}}
+      - -X github.com/datichb/openhub/cli/internal/buildinfo.Version={{.Version}}
+      - -X github.com/datichb/openhub/cli/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/datichb/openhub/cli/internal/buildinfo.BuildDate={{.Date}}
 
 archives:
   - formats:

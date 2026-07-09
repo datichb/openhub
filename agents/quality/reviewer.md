@@ -26,7 +26,7 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-model: anthropic/claude-opus-4
+model: claude-opus-4-6
 skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage]
 ---

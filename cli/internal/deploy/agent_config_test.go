@@ -291,11 +291,11 @@ func TestDeployAgentConfig_BedrockNormalization(t *testing.T) {
 
 	// Orchestrator frontmatter: "anthropic/claude-sonnet-4-6" → bedrock format
 	orch := agentCfg["orchestrator"].(map[string]interface{})
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0", orch["model"])
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6", orch["model"])
 
-	// Reviewer frontmatter: "anthropic/claude-opus-4" → bedrock format
+	// Reviewer frontmatter: "anthropic/claude-opus-4" → bedrock format (legacy alias)
 	rev := agentCfg["reviewer"].(map[string]interface{})
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", rev["model"])
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1", rev["model"])
 }
 
 func TestDeployAgentConfig_NoAgentsDir(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -127,9 +128,9 @@ func checkCompatibility() (string, bool) {
 	if err != nil {
 		return i18n.T("cmd.doctor.opencode_unavailable"), false
 	}
-	result := opencode.CheckCompatibility(Version, ocVersion)
+	result := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
 	if result.Compatible {
-		return fmt.Sprintf("oh %s ↔ opencode %s — OK", Version, ocVersion), true
+		return fmt.Sprintf("oh %s ↔ opencode %s — OK", buildinfo.Version, ocVersion), true
 	}
 	return result.Warning, false
 }

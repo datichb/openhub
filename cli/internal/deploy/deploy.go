@@ -205,11 +205,10 @@ func DeployAgents(hubDir string, selected []string) Phase {
 					return nil // skip unselected agent
 				}
 
-				rel, _ := filepath.Rel(srcDir, path)
-				dest := filepath.Join(destDir, rel)
-				if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-					return err
-				}
+				// Flatten: write all agents directly to .opencode/agents/<name>.md
+				// The agent's frontmatter `id` matches the filename, ensuring opencode's
+				// file-based discovery aligns with the JSON config keys.
+				dest := filepath.Join(destDir, d.Name())
 
 				// Assemble agent with Bucket A skills inlined
 				assembled, err := assembleAgentWithSkills(path, skillsDir)

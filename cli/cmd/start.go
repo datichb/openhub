@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -65,7 +66,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	// --- Compatibility warning ---
 	if ocVersion, err := opencode.Version(); err == nil {
-		compat := opencode.CheckCompatibility(Version, ocVersion)
+		compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
 		if !compat.Compatible {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				common.WarningStyle.Render(common.IconWarning),
@@ -246,7 +247,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if agent != "" {
 		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
 	}
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, common.Subtitle.Render(i18n.Tf("cmd.start.summary_version", Version)))
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, common.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Confirmation ---

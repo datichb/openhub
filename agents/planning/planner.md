@@ -42,7 +42,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: anthropic/claude-sonnet-4-6
+model: claude-sonnet-4-6
 skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, planning/planner-design-templates, planning/planner-beads-templates, design/design-planner-format, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage, shared/hub-workflow-reference]
 native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
 mcpServers: [gitlab]

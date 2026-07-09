@@ -101,6 +101,7 @@
   "cmd.init.first_project": "Premier projet",
   "cmd.init.global_config": "Configuration globale",
   "cmd.init.hub_not_found": "répertoire hub non trouvé",
+  "cmd.init.hub_extracted": "Hub content installé dans %s",
   "cmd.init.language": "Langage principal",
   "cmd.init.language_select": "Langue de l'interface",
   "cmd.init.long": "Lance un wizard de configuration pour initialiser le hub et enregistrer le premier projet.\n\nLe wizard configure :\n  - La langue de l'interface et la version d'opencode\n  - Le projet (nom, chemin, langage, tracker)\n  - Les serveurs MCP à activer (Figma, GitLab, Google Slides)\n  - Le tracker de tickets (bd) si disponible\n  - Déploie automatiquement les agents et skills dans le projet",

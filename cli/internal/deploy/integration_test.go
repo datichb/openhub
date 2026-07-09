@@ -51,11 +51,11 @@ func TestIntegration_FullDeployPipeline(t *testing.T) {
 		assert.True(t, r.Success, "phase %s failed: %s", r.Name, r.Message)
 	}
 
-	// === Verify agent files: only selected agents deployed ===
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "planning", "orchestrator.md"))
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "developer", "developer.md"))
+	// === Verify agent files: only selected agents deployed (flat structure) ===
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "orchestrator.md"))
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "developer.md"))
 	// reviewer NOT deployed (not selected)
-	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "quality", "reviewer.md"))
+	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "reviewer.md"))
 
 	// === Verify opencode.json ===
 	data, err := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
@@ -136,10 +136,10 @@ func TestIntegration_DeployFilterOnly(t *testing.T) {
 	results, err := Execute(plan)
 	require.NoError(t, err)
 
-	// Verify only reviewer deployed
-	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "planning", "orchestrator.md"))
-	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "developer", "developer.md"))
-	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "quality", "reviewer.md"))
+	// Verify only reviewer deployed (flat structure)
+	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "orchestrator.md"))
+	assert.NoFileExists(t, filepath.Join(projectDir, ".opencode", "agents", "developer.md"))
+	assert.FileExists(t, filepath.Join(projectDir, ".opencode", "agents", "reviewer.md"))
 
 	// Verify only reviewer in opencode.json
 	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
@@ -190,11 +190,11 @@ func TestIntegration_BedrockProviderNormalization(t *testing.T) {
 
 	// Orchestrator: frontmatter "anthropic/claude-sonnet-4-6" → bedrock format
 	orch := agentCfg["orchestrator"].(map[string]interface{})
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0", orch["model"])
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6", orch["model"])
 
-	// Reviewer: frontmatter "anthropic/claude-opus-4" → bedrock format
+	// Reviewer: frontmatter "anthropic/claude-opus-4" → bedrock format (legacy alias)
 	rev := agentCfg["reviewer"].(map[string]interface{})
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-20250514-v1:0", rev["model"])
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1", rev["model"])
 }
 
 // --- Test helpers ---

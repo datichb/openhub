@@ -39,7 +39,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: anthropic/claude-sonnet-4-6
+model: claude-sonnet-4-6
 skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
 mcpServers: [gitlab]

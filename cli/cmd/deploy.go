@@ -55,7 +55,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	// Determine hub directory (where agents/ and skills/ live)
 	hubDir := findHubDir()
 	if hubDir == "" {
-		return fmt.Errorf("cannot find hub directory (agents/, skills/). Are you in the right directory? Run 'oh init' if needed")
+		return fmt.Errorf("hub content not found. Run 'oh init' to initialize")
 	}
 
 	// --- Check mode: just report freshness status ---
@@ -182,22 +182,11 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 	return nil
 }
 
-// findHubDir locates the hub directory by looking upward from cwd.
+// findHubDir locates the hub directory (~/.oh/hub/).
 func findHubDir() string {
-	// Check common locations
-	cwd, _ := os.Getwd()
-
-	// Look for agents/ directory as marker
-	candidates := []string{
-		cwd,
-		filepath.Dir(cwd),
-		filepath.Join(os.Getenv("HOME"), ".oh", "hub"),
-	}
-
-	for _, dir := range candidates {
-		if _, err := os.Stat(filepath.Join(dir, "agents")); err == nil {
-			return dir
-		}
+	hubDir := filepath.Join(os.Getenv("HOME"), ".oh", "hub")
+	if _, err := os.Stat(filepath.Join(hubDir, "agents")); err == nil {
+		return hubDir
 	}
 	return ""
 }

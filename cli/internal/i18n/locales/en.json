@@ -101,6 +101,7 @@
   "cmd.init.first_project": "First project",
   "cmd.init.global_config": "Global configuration",
   "cmd.init.hub_not_found": "hub directory not found",
+  "cmd.init.hub_extracted": "Hub content installed to %s",
   "cmd.init.language": "Primary language",
   "cmd.init.language_select": "Interface language",
   "cmd.init.long": "Launches a configuration wizard to initialize the hub and register the first project.\n\nThe wizard configures:\n  - Interface language and opencode version\n  - Project (name, path, language, tracker)\n  - MCP servers to enable (Figma, GitLab, Google Slides)\n  - Ticket tracker (bd) if available\n  - Automatically deploys agents and skills to the project",

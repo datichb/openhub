@@ -2,6 +2,10 @@
 bin/
 dist/
 
+# Embedded hub content (build artifact, populated by goreleaser/make)
+internal/hubcontent/hub/agents/
+internal/hubcontent/hub/skills/
+
 # Test coverage
 coverage.out
 coverage.html
