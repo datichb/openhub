@@ -26,6 +26,12 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Prepare embedded hub content
+        run: |
+          mkdir -p internal/hubcontent/hub
+          cp -r ../agents internal/hubcontent/hub/agents
+          cp -r ../skills internal/hubcontent/hub/skills
+
       - name: Vet
         run: go vet ./...
 
