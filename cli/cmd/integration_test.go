@@ -144,3 +144,49 @@ func TestVersionFlag(t *testing.T) {
 	// Should contain version string (dev when built without ldflags)
 	assert.Contains(t, stdout, "dev")
 }
+
+// --- MCP command integration tests ---
+
+func TestMCPStatusRuns(t *testing.T) {
+	stdout, _, exitCode := runOh(t, "mcp", "status")
+	assert.Equal(t, 0, exitCode)
+	// Should display service table with known services
+	assert.Contains(t, stdout, "Figma")
+	assert.Contains(t, stdout, "GitLab")
+}
+
+func TestMCPEnableHub(t *testing.T) {
+	_, _, exitCode := runOh(t, "mcp", "enable", "figma")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestMCPDisableHub(t *testing.T) {
+	_, _, exitCode := runOh(t, "mcp", "disable", "figma")
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestMCPResetRequiresProject(t *testing.T) {
+	_, stderr, exitCode := runOh(t, "mcp", "reset", "figma")
+	assert.NotEqual(t, 0, exitCode)
+	assert.Contains(t, stderr, "project")
+}
+
+func TestMCPInvalidService(t *testing.T) {
+	_, stderr, exitCode := runOh(t, "mcp", "enable", "invalid-service")
+	assert.NotEqual(t, 0, exitCode)
+	assert.Contains(t, stderr, "unknown service")
+}
+
+func TestMCPListRuns(t *testing.T) {
+	stdout, _, exitCode := runOh(t, "mcp", "list")
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, stdout, "figma")
+	assert.Contains(t, stdout, "gitlab")
+}
+
+func TestMCPListJSON(t *testing.T) {
+	stdout, _, exitCode := runOh(t, "mcp", "list", "--json")
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, stdout, `"name"`)
+	assert.Contains(t, stdout, `"figma"`)
+}

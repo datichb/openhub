@@ -567,6 +567,110 @@ oh upgrade opencode 0.3.1   # Version specifique
 
 ---
 
+### oh mcp enable
+
+Active un service MCP au niveau hub ou pour un projet.
+
+```
+oh mcp enable <service> [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Nom ou ID du projet |
+
+**Exemple :**
+
+```bash
+oh mcp enable figma
+oh mcp enable gitlab --project mon-projet
+```
+
+---
+
+### oh mcp disable
+
+Desactive un service MCP au niveau hub ou pour un projet.
+
+```
+oh mcp disable <service> [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Nom ou ID du projet |
+
+**Exemple :**
+
+```bash
+oh mcp disable figma
+oh mcp disable gitlab --project mon-projet
+```
+
+---
+
+### oh mcp reset
+
+Supprime l'override projet pour un service (retour a la config hub).
+
+```
+oh mcp reset <service> --project <name>
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-p` | **(requis)** Nom ou ID du projet |
+
+**Exemple :**
+
+```bash
+oh mcp reset figma --project mon-projet
+```
+
+---
+
+### oh mcp setup
+
+Configure un service MCP (wizard interactif : token, options).
+
+```
+oh mcp setup [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Nom ou ID du projet |
+
+**Exemple :**
+
+```bash
+oh mcp setup
+oh mcp setup --project mon-projet
+```
+
+---
+
+### oh mcp status
+
+Affiche le statut de tous les services MCP.
+
+```
+oh mcp status [options]
+```
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Nom ou ID du projet (affiche la config effective) |
+
+**Exemple :**
+
+```bash
+oh mcp status
+oh mcp status --project mon-projet
+```
+
+---
+
 ### oh mcp serve
 
 Lance un serveur MCP integre via stdio.
@@ -575,7 +679,7 @@ Lance un serveur MCP integre via stdio.
 oh mcp serve <name>
 ```
 
-Sert un serveur MCP natif (figma, gitlab, gslides).
+Sert un serveur MCP natif (figma, gitlab, gslides, team).
 
 **Exemple :**
 
@@ -610,7 +714,9 @@ oh mcp ls --json
 
 ---
 
-### oh service setup
+### oh service setup (deprecated)
+
+> **Deprecated :** Utilisez `oh mcp setup` a la place.
 
 Configure un service MCP. Wizard interactif. Stocke les tokens dans le keychain.
 
@@ -618,15 +724,11 @@ Configure un service MCP. Wizard interactif. Stocke les tokens dans le keychain.
 oh service setup
 ```
 
-**Exemple :**
-
-```bash
-oh service setup
-```
-
 ---
 
-### oh service remove
+### oh service remove (deprecated)
+
+> **Deprecated :** Utilisez `oh mcp disable` a la place.
 
 Supprime un service.
 
@@ -637,13 +739,6 @@ oh service remove [service-name]
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--force` | `-f` | Supprimer sans confirmation |
-
-**Exemple :**
-
-```bash
-oh service remove gitlab
-oh service remove -f figma
-```
 
 ---
 

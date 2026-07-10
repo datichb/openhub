@@ -211,28 +211,44 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 }
 
 // buildMCPServersForProject constructs MCP server definitions with project-level overrides.
-// If the project has a non-empty MCPConfig, it REPLACES the hub-level enabled list.
-// Credentials and options can be overridden per-service; empty values inherit from hub.
+// Each service in the project's MCPConfig can override the hub-level config:
+//   - Enabled == nil   → inherit hub-level enabled state (default)
+//   - Enabled == true  → force-enable regardless of hub config
+//   - Enabled == false → force-disable regardless of hub config
+//
+// Credentials (TokenKey) and options (WriteEnabled) are overridden per-service
+// when non-empty/non-nil; otherwise they inherit from hub.
 func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig) []deploy.MCPServerDef {
 	servers := buildMCPServers(a)
 
-	// If project has explicit MCP config, use it as override
-	if mcpConfig != nil && len(mcpConfig.Services) > 0 {
-		projectSet := make(map[string]*domain.ProjectMCPService)
-		for i := range mcpConfig.Services {
-			projectSet[mcpConfig.Services[i].Name] = &mcpConfig.Services[i]
+	if mcpConfig == nil || len(mcpConfig.Services) == 0 {
+		return servers
+	}
+
+	projectSet := make(map[string]*domain.ProjectMCPService)
+	for i := range mcpConfig.Services {
+		projectSet[mcpConfig.Services[i].Name] = &mcpConfig.Services[i]
+	}
+
+	for i := range servers {
+		ps, inProject := projectSet[servers[i].Name]
+		if !inProject {
+			continue // not overridden by project, keep hub value
 		}
-		for i := range servers {
-			ps, inProject := projectSet[servers[i].Name]
-			servers[i].Enabled = inProject
-			if inProject {
-				if ps.TokenKey != "" {
-					servers[i].TokenKey = ps.TokenKey
-				}
-				if ps.WriteEnabled != nil {
-					servers[i].WriteEnabled = *ps.WriteEnabled
-				}
-			}
+
+		// Enabled override: nil inherits hub, non-nil forces the value
+		if ps.Enabled != nil {
+			servers[i].Enabled = *ps.Enabled
+		}
+
+		// Credential override
+		if ps.TokenKey != "" {
+			servers[i].TokenKey = ps.TokenKey
+		}
+
+		// Write mode override
+		if ps.WriteEnabled != nil {
+			servers[i].WriteEnabled = *ps.WriteEnabled
 		}
 	}
 

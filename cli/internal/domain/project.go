@@ -37,16 +37,20 @@ type ProjectModelOverrides struct {
 }
 
 // ProjectMCPConfig holds per-project MCP server overrides.
-// When non-nil and Services is non-empty, it REPLACES the hub-level MCP list for this project.
-// Credentials (TokenKey) and options (WriteEnabled) can be overridden per service;
-// empty/nil values inherit from hub.toml.
+// When non-nil and Services is non-empty, each service entry specifies an explicit
+// override for that MCP server. Services not listed inherit from hub.toml.
+// The Enabled field controls activation:
+//   - nil   → inherit hub-level enabled state
+//   - true  → force-enable regardless of hub config
+//   - false → force-disable regardless of hub config
 type ProjectMCPConfig struct {
 	Services []ProjectMCPService `json:"services,omitempty"`
 }
 
 // ProjectMCPService represents a single MCP service configuration at the project level.
 type ProjectMCPService struct {
-	Name         string `json:"name"`                    // "figma", "gitlab", "gslides"
+	Name         string `json:"name"`                    // "figma", "gitlab", "gslides", "team"
+	Enabled      *bool  `json:"enabled,omitempty"`       // nil = inherit hub, true/false = override
 	TokenKey     string `json:"token_key,omitempty"`     // keychain key override (empty = inherit hub)
 	WriteEnabled *bool  `json:"write_enabled,omitempty"` // nil = inherit hub, true/false = override
 }

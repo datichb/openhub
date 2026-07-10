@@ -1,32 +1,116 @@
-# Référence CLI — commandes `oh service` et `oh mcp`
+# Référence CLI — Serveurs MCP (`oh mcp`)
 
 > [Read in English](services.en.md)
 
-Gestion des services externes et serveurs MCP (Model Context Protocol) intégrés au binaire `oh`.
+Gestion des services MCP (Model Context Protocol) intégrés au binaire `oh`.
 
 ---
 
 ## Architecture
 
-Les serveurs MCP sont **intégrés au binaire Go** — il n'y a pas de répertoire `servers/` séparé ni d'étape de build Node.js. Chaque serveur est implémenté nativement dans `cli/internal/mcp/` et servi via stdio JSON-RPC.
+Les serveurs MCP sont **intégrés au binaire Go** — pas de répertoire `servers/` séparé ni d'étape de build Node.js. Chaque serveur est implémenté nativement dans `cli/internal/mcp/` et servi via stdio JSON-RPC.
 
 Serveurs disponibles :
 - **figma** — Intégration API Figma (fichiers, composants, signaux UI)
 - **gitlab** — Intégration API GitLab (issues, MRs, labels, milestones)
 - **gslides** — Intégration Google Slides
+- **team** — Données équipe (membres, wiki, événements) — sans token
 
 ---
 
-## `oh mcp` — Gestion des serveurs MCP
+## Commandes
 
-### `oh mcp list [--json]`
+### `oh mcp enable <service> [--project <name>]`
 
-Liste tous les serveurs MCP disponibles et leur état.
+Active un service MCP au niveau hub ou pour un projet spécifique.
 
 ```bash
-oh mcp list
-oh mcp list --json
+# Activer au niveau hub
+oh mcp enable figma
+
+# Activer pour un projet spécifique
+oh mcp enable figma --project mon-projet
 ```
+
+**Comportement avec `--project` :**
+- Si aucun token n'est trouvé (ni projet, ni hub, ni env), un prompt propose :
+  - Hériter de la configuration du hub (utiliser le token hub existant)
+  - Configurer un token spécifique au projet
+
+---
+
+### `oh mcp disable <service> [--project <name>]`
+
+Désactive un service MCP.
+
+```bash
+# Désactiver au niveau hub
+oh mcp disable gitlab
+
+# Désactiver pour un projet (override : désactivé même si le hub l'active)
+oh mcp disable gitlab --project mon-projet
+```
+
+Avec `--project`, le service est **explicitement désactivé** pour ce projet, indépendamment de la configuration hub.
+
+---
+
+### `oh mcp reset <service> --project <name>`
+
+Supprime l'override projet pour un service MCP, revenant à la configuration hub.
+
+```bash
+oh mcp reset figma --project mon-projet
+```
+
+> **Note :** `--project` est obligatoire. Cette commande n'a pas de sens au niveau hub.
+
+Après un reset, le projet hérite à nouveau de l'état hub pour ce service (enabled/disabled, token, options).
+
+---
+
+### `oh mcp setup [--project <name>]`
+
+Lance un wizard interactif pour configurer un service MCP (token, options).
+
+```bash
+# Configuration hub
+oh mcp setup
+
+# Configuration pour un projet
+oh mcp setup --project mon-projet
+```
+
+**Le wizard :**
+1. Sélection du service (Figma, GitLab, Google Slides)
+2. Saisie du token (masquée)
+3. Pour GitLab : activation optionnelle du mode écriture
+4. Stockage sécurisé dans le keychain
+
+---
+
+### `oh mcp status [--project <name>]`
+
+Affiche le statut de tous les services MCP.
+
+```bash
+# Statut hub
+oh mcp status
+
+# Statut effectif pour un projet (inclut les overrides)
+oh mcp status --project mon-projet
+```
+
+**Colonnes affichées :**
+
+| Colonne | Description |
+|---------|-------------|
+| SERVICE | Nom du service (Figma, GitLab, etc.) |
+| STATUS  | enabled / disabled |
+| SOURCE  | hub / project (origine de la configuration effective) |
+| TOKEN   | env:VAR / keychain / missing / — |
+
+---
 
 ### `oh mcp serve <name>`
 
@@ -36,75 +120,83 @@ Démarre un serveur MCP via stdio JSON-RPC. C'est la commande injectée dans `op
 oh mcp serve figma
 oh mcp serve gitlab
 oh mcp serve gslides
+oh mcp serve team
 ```
 
 ---
 
-## `oh service` — Configuration des services
+### `oh mcp list [--json]`
 
-### Synopsis
-
-```bash
-oh service <sous-commande> [service] [options]
-```
-
-| Sous-commande | Description |
-|---|---|
-| `setup [nom]` | Configure un service interactivement (token, validation) |
-| `remove <nom>` | Supprime la configuration d'un service |
-
-**Aliases :** `oh figma setup` · `oh gitlab setup` · `oh gslides setup`
-
-### `oh service setup`
-
-Configure interactivement un service (credentials stockés dans le Keychain macOS).
+Liste tous les serveurs MCP disponibles.
 
 ```bash
-oh service setup [nom-du-service]
-```
-
-**Options :**
-- `--project, -p <id>` — Configure le service pour un projet specifique (surcharge le hub)
-
-En mode projet, le token est stocke avec une cle specifique (`<service>-token-<project-id>`) et le projet utilise ce token au lieu du token hub.
-
-**Comportement :**
-- Si `nom-du-service` est omis, affiche un menu de sélection.
-- Guide l'utilisateur pour chaque credential requis.
-- Valide le format du token et la connectivité API.
-- Stocke les credentials de manière sécurisée dans le keychain système.
-- Active le service dans `hub.toml`.
-
-**Exemples :**
-
-```bash
-# Mode interactif — menu de sélection
-oh service setup
-
-# Configurer Figma directement
-oh service setup figma
-
-# Configurer GitLab (alias)
-oh gitlab setup
-```
-
-### `oh service remove`
-
-Supprime la configuration d'un service (retire les credentials du keychain).
-
-```bash
-oh service remove <nom-du-service>
+oh mcp list
+oh mcp list --json
 ```
 
 ---
 
-## Déploiement — `mcpServers` dans `opencode.json`
+## Configuration
 
-Lors de `oh deploy`, le CLI injecte un bloc `mcpServers` dans le `opencode.json` du projet pour chaque service activé :
+### Hub-level (`~/.oh/hub.toml`)
+
+L'activation globale des services est stockée dans `hub.toml` :
+
+```toml
+[mcp.figma]
+enabled = true
+token_key = "figma-token"
+
+[mcp.gitlab]
+enabled = true
+token_key = "gitlab-token"
+write_enabled = true
+
+[mcp.gslides]
+enabled = false
+token_key = "gslides-token"
+```
+
+### Projet-level (`ProjectMCPConfig`)
+
+Chaque projet peut surcharger la configuration hub. La config projet est stockée en base de données via `oh mcp enable/disable/setup --project`.
+
+Champs par service :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `name` | string | Nom du service (figma, gitlab, gslides, team) |
+| `enabled` | *bool | `nil` = hériter du hub, `true` = forcer l'activation, `false` = forcer la désactivation |
+| `token_key` | string | Clé keychain override (vide = hériter du hub) |
+| `write_enabled` | *bool | Mode écriture GitLab (nil = hériter du hub) |
+
+### Cascade et héritage
+
+```
+Hub (hub.toml)
+  └── Projet (MCPConfig)
+        └── Environnement (variables env)
+```
+
+**Règles de résolution :**
+
+1. Si le projet n'a pas de `MCPConfig` → hérite intégralement du hub
+2. Si le projet a une entrée pour un service :
+   - `enabled = nil` → hérite de l'état hub
+   - `enabled = true/false` → override explicite
+   - `token_key` vide → hérite du token hub
+   - `token_key` non-vide → utilise le token projet
+3. Les variables d'environnement (`FIGMA_TOKEN`, etc.) ont toujours priorité sur le keychain
+
+---
+
+## Déploiement — `mcp` dans `opencode.json`
+
+Lors de `oh deploy`, le CLI injecte un bloc `mcp` dans le `opencode.json` du projet pour chaque service **effectivement activé** (après résolution de la cascade) :
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "figma": {
       "command": "oh",
       "args": ["mcp", "serve", "figma"]
@@ -117,55 +209,33 @@ Lors de `oh deploy`, le CLI injecte un bloc `mcpServers` dans le `opencode.json`
 }
 ```
 
-### Sélection des MCP par projet
-
-Les services sont sélectionnés par projet lors de `oh init` ou via `oh project configure` :
-
-```bash
-# Lors de l'initialisation du projet
-oh init
-# → Étape propose : "Activer des intégrations MCP pour ce projet ?"
-
-# Changer la sélection MCP pour un projet existant
-oh project configure --services figma,gitlab
-```
-
-### Cascade MCP par projet
-
-Quand un projet a une `MCPConfig` non-vide, elle **remplace** la liste MCP du hub pour ce projet. Les credentials (token_key) et options (write_enabled) peuvent etre surcharges par service.
-
-Si `MCPConfig` est vide → le projet herite du hub.
+Seuls les serveurs avec un token valide (env, keychain, ou sans token pour `team`) sont déployés.
 
 ---
 
 ## Variables d'environnement au runtime
 
-Au runtime, les serveurs MCP lisent les credentials depuis l'environnement. Le binaire `oh` les injecte automatiquement depuis le keychain.
-
-| Service | Variables requises |
-|---------|-------------------|
-| figma | `FIGMA_TOKEN` |
-| gitlab | `GITLAB_TOKEN`, `GITLAB_URL` |
-| gslides | `GOOGLE_ACCESS_TOKEN` |
+| Service | Variable | Description |
+|---------|----------|-------------|
+| figma | `FIGMA_TOKEN` | Token d'accès Figma |
+| gitlab | `GITLAB_TOKEN` | Token d'accès GitLab |
+| gitlab | `GITLAB_URL` | URL de l'instance GitLab |
+| gslides | `GOOGLE_ACCESS_TOKEN` | Token OAuth Google |
 
 ---
 
-## Stockage de la configuration (`hub.toml`)
+## Migration depuis `oh service`
 
-L'activation des services est stockée dans `~/.oh/hub.toml` :
+Les commandes `oh service` sont **dépréciées**. Utilisez les équivalents `oh mcp` :
 
-```toml
-[mcp.figma]
-enabled = true
-token_key = "figma-token"
+| Ancienne commande | Nouvelle commande |
+|---|---|
+| `oh service` | `oh mcp status` |
+| `oh service setup` | `oh mcp setup` |
+| `oh service setup -p <projet>` | `oh mcp setup --project <projet>` |
+| `oh service remove <service>` | `oh mcp disable <service>` |
 
-[mcp.gitlab]
-enabled = true
-token_key = "gitlab-token"
-write_enabled = true
-```
-
-Les credentials sont stockés dans le keychain système (macOS Keychain / Linux secret-service), pas en clair dans des fichiers.
+Les commandes `oh service` restent fonctionnelles mais affichent un message de dépréciation.
 
 ---
 

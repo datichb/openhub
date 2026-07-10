@@ -398,6 +398,80 @@ oh upgrade opencode 0.2.15
 
 ---
 
+### oh mcp enable
+
+Enable an MCP service at hub level or for a specific project.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Project name or ID |
+
+```bash
+oh mcp enable figma
+oh mcp enable gitlab --project my-project
+```
+
+---
+
+### oh mcp disable
+
+Disable an MCP service at hub level or for a specific project.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Project name or ID |
+
+```bash
+oh mcp disable figma
+oh mcp disable gitlab --project my-project
+```
+
+---
+
+### oh mcp reset
+
+Remove the project-level override for an MCP service (revert to hub config).
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--project` | `-p` | **(required)** Project name or ID |
+
+```bash
+oh mcp reset figma --project my-project
+```
+
+---
+
+### oh mcp setup
+
+Interactive wizard to configure an MCP service (token, options).
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Project name or ID |
+
+```bash
+oh mcp setup
+oh mcp setup --project my-project
+```
+
+---
+
+### oh mcp status
+
+Display the status of all MCP services.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--project` | `-p` | Project name or ID (shows effective config) |
+
+```bash
+oh mcp status
+oh mcp status --project my-project
+```
+
+---
+
 ### oh mcp serve
 
 Serve a built-in MCP server via stdio.
@@ -406,6 +480,7 @@ Serve a built-in MCP server via stdio.
 oh mcp serve figma
 oh mcp serve gitlab
 oh mcp serve gslides
+oh mcp serve team
 ```
 
 ---
@@ -425,7 +500,9 @@ oh mcp ls --json
 
 ---
 
-### oh service setup
+### oh service setup (deprecated)
+
+> **Deprecated:** Use `oh mcp setup` instead.
 
 Interactive wizard to configure MCP service tokens in keychain.
 
@@ -435,7 +512,9 @@ oh service setup
 
 ---
 
-### oh service remove
+### oh service remove (deprecated)
+
+> **Deprecated:** Use `oh mcp disable` instead.
 
 Remove a configured service.
 

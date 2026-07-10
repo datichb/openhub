@@ -194,3 +194,61 @@ func TestDeployMCPNoServersEnabled(t *testing.T) {
 	assert.Contains(t, string(data), `"model": "test"`)
 	assert.NotContains(t, string(data), "mcp")
 }
+
+func TestDeployMCPProjectEnabledOverride(t *testing.T) {
+	// Simulates a server that was disabled at hub level but force-enabled by project.
+	// The buildMCPServersForProject function resolves Enabled=true, so DeployMCP
+	// receives an Enabled=true server and should deploy it.
+	projectDir := t.TempDir()
+	os.WriteFile(filepath.Join(projectDir, "opencode.json"), []byte(`{}`), 0o644)
+
+	t.Setenv("FIGMA_TOKEN", "faketoken")
+
+	// Server is enabled (as resolved by buildMCPServersForProject with project override)
+	servers := []MCPServerDef{
+		{Name: "figma", Enabled: true, TokenEnv: "FIGMA_TOKEN"},
+	}
+
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	phase := DeployMCP(servers, "oh")
+
+	err := phase.Execute(ctx)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
+	require.NoError(t, err)
+
+	var config map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &config))
+
+	mcpServers := config["mcp"].(map[string]interface{})
+	assert.Contains(t, mcpServers, "figma")
+}
+
+func TestDeployMCPProjectDisabledOverride(t *testing.T) {
+	// Simulates a server that was enabled at hub level but force-disabled by project.
+	// The buildMCPServersForProject function resolves Enabled=false, so DeployMCP
+	// receives an Enabled=false server and should NOT deploy it.
+	projectDir := t.TempDir()
+	os.WriteFile(filepath.Join(projectDir, "opencode.json"), []byte(`{}`), 0o644)
+
+	t.Setenv("GITLAB_TOKEN", "faketoken")
+
+	// Server is disabled (as resolved by buildMCPServersForProject with project override)
+	servers := []MCPServerDef{
+		{Name: "gitlab", Enabled: false, TokenEnv: "GITLAB_TOKEN"},
+	}
+
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	phase := DeployMCP(servers, "oh")
+
+	err := phase.Execute(ctx)
+	require.NoError(t, err)
+
+	// Nothing deployed — file unchanged
+	data, err := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "mcp")
+}

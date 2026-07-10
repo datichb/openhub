@@ -176,11 +176,11 @@ func TestBuildMCPServersForProject_ProjectOverride(t *testing.T) {
 	cfg, _ := config.Load()
 	a := &app.App{Config: cfg}
 
-	// Project enables only figma and gitlab
+	// Project explicitly enables figma and gitlab (with token override)
 	mcpCfg := &domain.ProjectMCPConfig{
 		Services: []domain.ProjectMCPService{
-			{Name: "figma"},
-			{Name: "gitlab", TokenKey: "gitlab-token-myproject"},
+			{Name: "figma", Enabled: boolPtr(true)},
+			{Name: "gitlab", Enabled: boolPtr(true), TokenKey: "gitlab-token-myproject"},
 		},
 	}
 
@@ -201,6 +201,75 @@ func TestBuildMCPServersForProject_ProjectOverride(t *testing.T) {
 	for _, s := range servers {
 		if s.Name == "gitlab" {
 			assert.Equal(t, "gitlab-token-myproject", s.TokenKey)
+		}
+	}
+}
+
+func TestBuildMCPServersForProject_EnabledOverride(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	// Hub has figma disabled (default fresh config)
+	a := &app.App{Config: cfg}
+
+	// Project force-enables figma
+	mcpCfg := &domain.ProjectMCPConfig{
+		Services: []domain.ProjectMCPService{
+			{Name: "figma", Enabled: boolPtr(true)},
+		},
+	}
+
+	servers := buildMCPServersForProject(a, mcpCfg)
+	for _, s := range servers {
+		if s.Name == "figma" {
+			assert.True(t, s.Enabled, "figma should be force-enabled by project override")
+		}
+	}
+}
+
+func TestBuildMCPServersForProject_DisabledOverride(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	// Manually enable figma at hub level
+	cfg.MCP.Figma.Enabled = true
+	a := &app.App{Config: cfg}
+
+	// Project force-disables figma
+	mcpCfg := &domain.ProjectMCPConfig{
+		Services: []domain.ProjectMCPService{
+			{Name: "figma", Enabled: boolPtr(false)},
+		},
+	}
+
+	servers := buildMCPServersForProject(a, mcpCfg)
+	for _, s := range servers {
+		if s.Name == "figma" {
+			assert.False(t, s.Enabled, "figma should be force-disabled by project override")
+		}
+	}
+}
+
+func TestBuildMCPServersForProject_NilEnabledInheritsHub(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	// Hub has gitlab enabled
+	cfg.MCP.Gitlab.Enabled = true
+	a := &app.App{Config: cfg}
+
+	// Project lists gitlab with Enabled=nil (only overrides token key)
+	mcpCfg := &domain.ProjectMCPConfig{
+		Services: []domain.ProjectMCPService{
+			{Name: "gitlab", TokenKey: "gitlab-token-custom"},
+		},
+	}
+
+	servers := buildMCPServersForProject(a, mcpCfg)
+	for _, s := range servers {
+		if s.Name == "gitlab" {
+			assert.True(t, s.Enabled, "gitlab should inherit hub enabled=true when project Enabled is nil")
+			assert.Equal(t, "gitlab-token-custom", s.TokenKey)
 		}
 	}
 }

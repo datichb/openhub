@@ -7,6 +7,28 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.5.0] — 2026-07-10
+
+### Added
+
+- **`oh mcp enable <service> [--project]`** — active un service MCP au niveau hub ou pour un projet spécifique
+- **`oh mcp disable <service> [--project]`** — désactive un service MCP (override explicite par projet possible)
+- **`oh mcp reset <service> --project`** — supprime l'override projet, retour à la config hub
+- **`oh mcp setup [--project]`** — wizard interactif de configuration token + options (remplace `oh service setup`)
+- **`oh mcp status [--project]`** — tableau récapitulatif avec source effective (hub/project) et statut token
+- **Champ `Enabled *bool`** sur `ProjectMCPService` — permet 3 états : hériter du hub (`nil`), forcer l'activation (`true`), forcer la désactivation (`false`)
+
+### Changed
+
+- **Cascade MCP projet** — les services listés dans `ProjectMCPConfig` n'écrasent plus la liste hub ; chaque service peut individuellement hériter, forcer on, ou forcer off
+- Documentation de référence services (fr + en) réécrite pour les nouvelles commandes
+
+### Deprecated
+
+- **`oh service`** — toutes les sous-commandes (`setup`, `remove`, et status par défaut) affichent un message de dépréciation et renvoient vers les équivalents `oh mcp`
+
+---
+
 ## [3.4.2] — 2026-07-10
 
 ### Changed

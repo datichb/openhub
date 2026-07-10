@@ -34,8 +34,9 @@ var beadsCmd = &cobra.Command{
 }
 
 var serviceCmd = &cobra.Command{
-	Use:   "service",
-	Short: "Gestion des services MCP",
+	Use:        "service",
+	Short:      "Gestion des services MCP",
+	Deprecated: "Utilisez 'oh mcp status' à la place.",
 	Long: `Gestion des serveurs MCP (Figma, GitLab, Google Slides).
 
 Sans sous-commande, affiche le statut enrichi de tous les services.
@@ -44,18 +45,20 @@ Sous-commandes : setup, status, remove.`,
 }
 
 var serviceSetupCmd = &cobra.Command{
-	Use:   "setup",
-	Short: "Configure un service MCP (wizard interactif)",
-	Long:  "Lance un wizard pour configurer les tokens d'un service MCP dans le keychain.",
-	RunE:  runServiceSetup,
+	Use:        "setup",
+	Short:      "Configure un service MCP (wizard interactif)",
+	Deprecated: "Utilisez 'oh mcp setup' à la place.",
+	Long:       "Lance un wizard pour configurer les tokens d'un service MCP dans le keychain.",
+	RunE:       runServiceSetup,
 }
 
 var serviceRemoveCmd = &cobra.Command{
-	Use:   "remove [service-name]",
-	Short: "Désactive un service MCP",
-	Long:  "Supprime le token d'un service et le désactive dans la configuration.",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runServiceRemove,
+	Use:        "remove [service-name]",
+	Short:      "Désactive un service MCP",
+	Deprecated: "Utilisez 'oh mcp disable' à la place.",
+	Long:       "Supprime le token d'un service et le désactive dans la configuration.",
+	Args:       cobra.MaximumNArgs(1),
+	RunE:       runServiceRemove,
 }
 
 func init() {
