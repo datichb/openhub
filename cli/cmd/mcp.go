@@ -589,6 +589,16 @@ func mcpServeCmd() *cobra.Command {
 		ValidArgsFunction: completeMCPServices,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+
+			// Resolve token from keychain if --token-key is provided and env var not already set.
+			tokenKey, _ := cmd.Flags().GetString("token-key")
+			if tokenKey != "" {
+				if err := injectTokenFromKeychain(name, tokenKey); err != nil {
+					// Non-fatal: the server will report "token not set" if needed.
+					fmt.Fprintf(os.Stderr, "warning: could not resolve token from keychain: %v\n", err)
+				}
+			}
+
 			switch name {
 			case "figma":
 				return figma.Serve()
@@ -603,7 +613,44 @@ func mcpServeCmd() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().String("token-key", "", "keychain key name to resolve the service token")
 	return cmd
+}
+
+// mcpServiceEnvVar maps MCP service names to their expected token environment variable.
+var mcpServiceEnvVar = map[string]string{
+	"figma":   "FIGMA_TOKEN",
+	"gitlab":  "GITLAB_TOKEN",
+	"gslides": "GOOGLE_ACCESS_TOKEN",
+}
+
+// injectTokenFromKeychain reads a token from the keychain and sets the corresponding
+// environment variable for the MCP service, but only if the env var is not already set.
+func injectTokenFromKeychain(serviceName, tokenKey string) error {
+	envVar, ok := mcpServiceEnvVar[serviceName]
+	if !ok {
+		return nil // no env var mapping (e.g., team) — nothing to inject
+	}
+
+	// Don't override an explicitly set env var
+	if os.Getenv(envVar) != "" {
+		return nil
+	}
+
+	secrets := resolveSecretStore()
+	if secrets == nil {
+		return fmt.Errorf("no secret store available")
+	}
+
+	token, err := secrets.Get(context.Background(), tokenKey)
+	if err != nil {
+		return fmt.Errorf("reading key %q: %w", tokenKey, err)
+	}
+	if token == "" {
+		return fmt.Errorf("key %q not found in keychain", tokenKey)
+	}
+
+	return os.Setenv(envVar, token)
 }
 
 // --- oh mcp list ---

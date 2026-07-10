@@ -64,6 +64,10 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 
 			for _, s := range deployed {
 				command := []string{binaryName, "mcp", "serve", s.Name}
+				// Inject --token-key so the serve command can resolve the token from keychain
+				if s.TokenKey != "" {
+					command = append(command, "--token-key", s.TokenKey)
+				}
 				entry := map[string]interface{}{
 					"type":    "local",
 					"command": command,

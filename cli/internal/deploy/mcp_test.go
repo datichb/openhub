@@ -171,6 +171,11 @@ func TestDeployMCPTokenKeychain(t *testing.T) {
 
 	mcpServers := config["mcp"].(map[string]interface{})
 	assert.Contains(t, mcpServers, "gitlab") // keychain key is sufficient
+
+	// Verify --token-key is injected into command array
+	gitlabEntry := mcpServers["gitlab"].(map[string]interface{})
+	command := gitlabEntry["command"].([]interface{})
+	assert.Equal(t, []interface{}{"oh", "mcp", "serve", "gitlab", "--token-key", "gitlab-token-default"}, command)
 }
 
 func TestDeployMCPNoServersEnabled(t *testing.T) {
