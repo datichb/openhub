@@ -63,13 +63,15 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 			}
 
 			for _, s := range deployed {
+				command := []string{binaryName, "mcp", "serve", s.Name}
 				entry := map[string]interface{}{
-					"command": binaryName,
-					"args":    []string{"mcp", "serve", s.Name},
+					"type":    "local",
+					"command": command,
+					"enabled": true,
 				}
 				// Inject env vars for servers that need them
 				if s.WriteEnabled {
-					entry["env"] = map[string]string{
+					entry["environment"] = map[string]string{
 						"GITLAB_WRITE_ENABLED": "true",
 					}
 				}

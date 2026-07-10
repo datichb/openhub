@@ -47,9 +47,10 @@ func TestDeployMCPAllEnabled(t *testing.T) {
 
 	figma, ok := mcpServers["figma"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, "oh", figma["command"])
-	args := figma["args"].([]interface{})
-	assert.Equal(t, []interface{}{"mcp", "serve", "figma"}, args)
+	assert.Equal(t, "local", figma["type"])
+	assert.Equal(t, true, figma["enabled"])
+	command := figma["command"].([]interface{})
+	assert.Equal(t, []interface{}{"oh", "mcp", "serve", "figma"}, command)
 }
 
 func TestDeployMCPDisabledSkipped(t *testing.T) {
