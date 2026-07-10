@@ -7,6 +7,21 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.4.2] — 2026-07-10
+
+### Changed
+
+- **--project flag** — résolution par nom au lieu de l'ID généré ; l'ID reste accepté en fallback
+- **Nom de projet unique** — contrainte d'unicité ajoutée (migration SQLite v12)
+- **Autocomplétion shell** — propose les noms de projets au lieu des IDs
+- **deploy output** — suppression des lignes "Source:" et "Target:" (normal + diff)
+
+### Added
+
+- `ProjectStore.GetByName()` — lookup par nom dans l'interface domain et le store SQLite
+
+---
+
 ## [3.4.1] — 2026-07-09
 
 ### Changed
