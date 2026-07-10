@@ -63,7 +63,7 @@ func configModelDefaultCmd() *cobra.Command {
 			return setHubModelDefault(model)
 		},
 	}
-	cmd.Flags().StringP("project", "j", "", "ID du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "j", "", "Nom du projet (hub-level si absent)")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
@@ -84,7 +84,7 @@ func configModelFamilyCmd() *cobra.Command {
 			return setHubModelFamily(family, model)
 		},
 	}
-	cmd.Flags().StringP("project", "j", "", "ID du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "j", "", "Nom du projet (hub-level si absent)")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
@@ -104,7 +104,7 @@ func configModelAgentCmd() *cobra.Command {
 			return setHubModelAgent(agentID, model)
 		},
 	}
-	cmd.Flags().StringP("project", "j", "", "ID du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "j", "", "Nom du projet (hub-level si absent)")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
@@ -258,7 +258,7 @@ func configModelUnsetCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("project", "j", "", "ID du projet")
+	cmd.Flags().StringP("project", "j", "", "Nom du projet")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }

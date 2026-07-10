@@ -80,6 +80,21 @@ func (ps *ProjectStore) GetByPath(ctx context.Context, path string) (*domain.Pro
 	return p, nil
 }
 
+func (ps *ProjectStore) GetByName(ctx context.Context, name string) (*domain.Project, error) {
+	row := ps.db.QueryRow(
+		`SELECT id, name, path, language, tracker, provider, model, model_overrides, mcp_config, provider_config, labels, agents, mcp, status, created_at, updated_at FROM projects WHERE name = ?`,
+		name,
+	)
+	p, err := scanProjectRow(row)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting project by name %s: %w", name, err)
+	}
+	return p, nil
+}
+
 func (ps *ProjectStore) Create(ctx context.Context, p *domain.Project) error {
 	if p.CreatedAt.IsZero() {
 		p.CreatedAt = time.Now()

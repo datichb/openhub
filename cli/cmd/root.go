@@ -281,7 +281,7 @@ func completeProjectIDs(cmd *cobra.Command, args []string, toComplete string) ([
 	projects, _ := a.Projects.List(cmd.Context(), "")
 	var names []string
 	for _, p := range projects {
-		names = append(names, p.ID)
+		names = append(names, p.Name)
 	}
 	return names, cobra.ShellCompDirectiveNoFileComp
 }

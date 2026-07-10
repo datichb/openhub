@@ -122,6 +122,7 @@ func (s *Store) migrate() error {
 		{9, `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`},
 		{10, `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`},
 		{11, `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`},
+		{12, `DROP INDEX IF EXISTS idx_projects_name; CREATE UNIQUE INDEX idx_projects_name_unique ON projects(name)`},
 	}
 
 	// Apply only unapplied migrations

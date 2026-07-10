@@ -30,7 +30,7 @@ Flags spéciaux :
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-	deployCmd.Flags().StringP("project", "j", "", "ID du projet (auto-detect sinon)")
+	deployCmd.Flags().StringP("project", "j", "", "Nom du projet (auto-detect sinon)")
 	deployCmd.Flags().StringP("provider", "P", "", "Provider à configurer")
 	deployCmd.Flags().StringP("model", "m", "", "Modèle à configurer")
 	deployCmd.Flags().Bool("check", false, "Vérifie si les agents/skills ont changé depuis le dernier deploy")
@@ -79,8 +79,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.Title.Render("oh deploy"), i18n.Tf("cmd.deploy.deploying", project.Name))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.source", hubDir))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.target", project.Path))
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
@@ -164,8 +162,6 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		common.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.source", hubDir))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.target", projectPath))
 	fmt.Fprintln(a.IO.Out)
 
 	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)

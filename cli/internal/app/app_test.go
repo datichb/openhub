@@ -30,6 +30,14 @@ func (m *mockProjectStore) Get(_ context.Context, id string) (*domain.Project, e
 func (m *mockProjectStore) GetByPath(_ context.Context, _ string) (*domain.Project, error) {
 	return nil, domain.ErrNotFound
 }
+func (m *mockProjectStore) GetByName(_ context.Context, name string) (*domain.Project, error) {
+	for _, p := range m.projects {
+		if p.Name == name {
+			return &p, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
 func (m *mockProjectStore) Create(_ context.Context, p *domain.Project) error {
 	m.projects = append(m.projects, *p)
 	return nil

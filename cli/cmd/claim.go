@@ -44,13 +44,13 @@ func init() {
 	rootCmd.AddCommand(releaseCmd)
 	claimCmd.AddCommand(claimTransferCmd)
 
-	claimCmd.Flags().StringP("project", "p", "", "Project ID (auto-detected from cwd if omitted)")
+	claimCmd.Flags().StringP("project", "p", "", "Project name (auto-detected from cwd if omitted)")
 	claimCmd.Flags().String("worktree", "", "Associated branch/worktree name")
 
-	releaseCmd.Flags().StringP("project", "p", "", "Project ID")
+	releaseCmd.Flags().StringP("project", "p", "", "Project name")
 
 	claimTransferCmd.Flags().String("to", "", "Member ID to transfer to (required)")
-	claimTransferCmd.Flags().StringP("project", "p", "", "Project ID")
+	claimTransferCmd.Flags().StringP("project", "p", "", "Project name")
 	_ = claimTransferCmd.MarkFlagRequired("to")
 }
 

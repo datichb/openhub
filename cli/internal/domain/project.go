@@ -74,9 +74,11 @@ type ProjectStore interface {
 	List(ctx context.Context, status ProjectStatus) ([]Project, error)
 	// Get retrieves a project by ID. Returns ErrNotFound if absent.
 	Get(ctx context.Context, id string) (*Project, error)
+	// GetByName retrieves a project by its display name. Returns ErrNotFound if absent.
+	GetByName(ctx context.Context, name string) (*Project, error)
 	// GetByPath retrieves a project by its filesystem path.
 	GetByPath(ctx context.Context, path string) (*Project, error)
-	// Create inserts a new project.
+	// Create inserts a new project. Returns ErrAlreadyExists if the name is taken.
 	Create(ctx context.Context, p *Project) error
 	// Update modifies an existing project.
 	Update(ctx context.Context, p *Project) error

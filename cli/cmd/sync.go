@@ -26,7 +26,7 @@ Utilisez --dry-run pour prévisualiser les changements sans les appliquer.`,
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
-	syncCmd.Flags().StringP("project", "j", "", "ID du projet (auto-detect sinon)")
+	syncCmd.Flags().StringP("project", "j", "", "Nom du projet (auto-detect sinon)")
 	syncCmd.Flags().Bool("all", false, "Synchroniser tous les projets actifs")
 	syncCmd.Flags().Bool("dry-run", false, "Afficher les changements sans les appliquer")
 

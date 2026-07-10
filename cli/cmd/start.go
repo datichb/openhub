@@ -41,7 +41,7 @@ func init() {
 	startCmd.Flags().StringP("agent", "a", "", "Agent à utiliser")
 	startCmd.Flags().StringP("prompt", "p", "", "Prompt initial")
 	startCmd.Flags().StringP("provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
-	startCmd.Flags().StringP("project", "j", "", "ID du projet (détection auto sinon)")
+	startCmd.Flags().StringP("project", "j", "", "Nom du projet (détection auto sinon)")
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
 	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
 	startCmd.Flags().Bool("dev", false, "Mode développement (orchestrator-dev + tickets)")
@@ -512,9 +512,15 @@ func downloadOpencode(a *app.App) error {
 // 2. Current directory detection
 // 3. Interactive selection if multiple projects exist
 func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.Project, error) {
-	// Explicit ID
+	// Explicit name or ID
 	if projectID != "" {
-		p, err := a.Projects.Get(ctx, projectID)
+		// Try by name first (user-friendly)
+		p, err := a.Projects.GetByName(ctx, projectID)
+		if err == nil {
+			return p, nil
+		}
+		// Fallback: try by ID (backward compat)
+		p, err = a.Projects.Get(ctx, projectID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return nil, fmt.Errorf("projet %q introuvable", projectID)

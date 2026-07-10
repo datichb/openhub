@@ -198,3 +198,47 @@ func TestProjectStore_MCPConfigBackwardCompat(t *testing.T) {
 	// No credential overrides in migrated config
 	assert.Empty(t, got.MCPConfig.Services[0].TokenKey)
 }
+
+func TestProjectStore_GetByName(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now()
+	p := &domain.Project{
+		ID:        "proj-abc123",
+		Name:      "My Cool Project",
+		Path:      "/home/user/cool",
+		Language:  "typescript",
+		Status:    domain.ProjectStatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	require.NoError(t, ps.Create(ctx, p))
+
+	// Retrieve by name
+	got, err := ps.GetByName(ctx, "My Cool Project")
+	require.NoError(t, err)
+	assert.Equal(t, "proj-abc123", got.ID)
+	assert.Equal(t, "My Cool Project", got.Name)
+	assert.Equal(t, "typescript", got.Language)
+
+	// Not found by name
+	_, err = ps.GetByName(ctx, "Nonexistent Project")
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestProjectStore_CreateDuplicateName(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now()
+	p1 := &domain.Project{ID: "id-1", Name: "Same Name", Path: "/path/one", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
+	require.NoError(t, ps.Create(ctx, p1))
+
+	// Creating another project with the same name but different path/id should fail
+	p2 := &domain.Project{ID: "id-2", Name: "Same Name", Path: "/path/two", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
+	err := ps.Create(ctx, p2)
+	assert.ErrorIs(t, err, domain.ErrAlreadyExists)
+}

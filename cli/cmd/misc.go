@@ -352,7 +352,7 @@ func init() {
 	rootCmd.AddCommand(beadsCmd)
 
 	rootCmd.AddCommand(serviceCmd)
-	serviceCmd.Flags().StringP("project", "j", "", "ID du projet")
+	serviceCmd.Flags().StringP("project", "j", "", "Nom du projet")
 	_ = serviceCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	serviceCmd.AddCommand(serviceSetupCmd)
 	serviceCmd.AddCommand(serviceRemoveCmd)
