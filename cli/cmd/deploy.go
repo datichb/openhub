@@ -30,7 +30,7 @@ Flags spéciaux :
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-	deployCmd.Flags().StringP("project", "j", "", "Nom du projet (auto-detect sinon)")
+	deployCmd.Flags().StringP("project", "p", "", "Nom du projet (auto-detect sinon)")
 	deployCmd.Flags().StringP("provider", "P", "", "Provider à configurer")
 	deployCmd.Flags().StringP("model", "m", "", "Modèle à configurer")
 	deployCmd.Flags().Bool("check", false, "Vérifie si les agents/skills ont changé depuis le dernier deploy")

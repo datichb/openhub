@@ -54,7 +54,7 @@ Le wizard interactif remplace `oc install` + `oc init`. Il :
 
 ```bash
 oh project add --name mon-projet --path ~/workspace/mon-projet
-oh deploy -j mon-projet
+oh deploy -p mon-projet
 ```
 
 ---
@@ -64,15 +64,15 @@ oh deploy -j mon-projet
 | `oc` (bash) | `oh` (Go) | Notes |
 |---|---|---|
 | `oc install` | `oh init` | Wizard complet |
-| `oc init PROJECT PATH` | `oh project add -n PROJECT -p PATH` | |
-| `oc start PROJECT` | `oh start -j PROJECT` | Detection auto si dans le dossier |
+| `oc init PROJECT PATH` | `oh project add -n PROJECT -d PATH` | |
+| `oc start PROJECT` | `oh start -p PROJECT` | Detection auto si dans le dossier |
 | `oc start --dev` | `oh start --dev` | Picker interactif epics/tickets |
 | `oc start --onboard` | `oh start --onboard` | Cree le wiki docs/wiki/ |
 | `oc start --parallel` | `oh start --dev` (multi-tickets) | Orchestrator gere le parallele |
 | `oc start --resume` | `oh start --resume ID` | |
 | `oc start --worktree BRANCH` | `oh start --worktree BRANCH` | |
 | `oc quick PROJECT "prompt"` | `oh quick` | Selection interactive |
-| `oc deploy opencode PROJECT` | `oh deploy -j PROJECT` | |
+| `oc deploy opencode PROJECT` | `oh deploy -p PROJECT` | |
 | `oc deploy --check` | `oh deploy --check` | |
 | `oc deploy --diff` | `oh deploy --diff` | |
 | `oc sync` | `oh sync --all` | |
@@ -204,14 +204,14 @@ oh start --provider anthropic
 
 | Ancien | Nouveau | Commande |
 |--------|---------|----------|
-| `--project/-p PROJECT` | `--project/-j PROJECT` | `oh start`, `oh deploy`, etc. |
+| `--project/-p PROJECT` | `--project/-p PROJECT` | `oh start`, `oh deploy`, etc. |
 | `--dev --label` | `--dev --label` (meme) | `oh start` |
 | N/A (nouveau) | `--onboard` | `oh start` |
 | N/A (nouveau) | `--refresh` | `oh start` |
 | N/A (nouveau) | `--json` | 7 commandes list |
 
-> Note : `-p` est maintenant utilise pour `--prompt` dans `oh start`.
-> Le projet utilise `-j` (comme "job/projet").
+> Note : `-p` est uniformément réservé à `--project` sur toutes les commandes.
+> `--prompt` utilise `-m`, `--path` utilise `-d`.
 
 ---
 

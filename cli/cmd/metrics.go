@@ -26,7 +26,7 @@ Utilisez --period pour filtrer par période :
 
 func init() {
 	rootCmd.AddCommand(metricsCmd)
-	metricsCmd.Flags().StringP("period", "p", "all", "Période d'analyse (7d, 30d, all)")
+	metricsCmd.Flags().StringP("period", "d", "all", "Période d'analyse (7d, 30d, all)")
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {

@@ -56,7 +56,7 @@ Reprend une session spécifique par son ID. Pour trouver un ID de session, utili
 Pour lister les sessions récentes d'un projet :
 
 ```bash
-oh dashboard -j MON-APP
+oh dashboard -p MON-APP
 ```
 
 Affiche les 10 dernières sessions du projet (30 jours), avec titre, agent, coût et date :
@@ -223,7 +223,7 @@ L'orchestrateur transmet les tickets dev à `orchestrator-dev` avec le mode choi
 > ex. `[Planner — Phase 0 | Feature : authentification JWT]`. Aucun besoin de naviguer dans la session enfant.
 
 > **Agent non déployé :** si un agent requis est absent du projet, l'agent orchestrator affiche une question
-> structurée : déployer via `!oh deploy -j <PROJECT_ID>` directement dans OpenCode / utiliser un
+> structurée : déployer via `!oh deploy -p <PROJECT_ID>` directement dans OpenCode / utiliser un
 > substitut (table par domaine) / ignorer le ticket. Il ne bascule jamais silencieusement.
 
 #### 6. [CP-feature] Récap global

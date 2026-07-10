@@ -88,7 +88,7 @@ Ordre de resolution du bearer token :
 Definir votre cle API dans le bloc provider du `opencode.json` du projet (injecte par `oh deploy`) :
 
 ```bash
-oh deploy -j my-project --provider anthropic
+oh deploy -p my-project --provider anthropic
 ```
 
 Ou configurer via des variables d'environnement lues directement par opencode.
@@ -173,7 +173,7 @@ oh config set opencode.default_provider anthropic
 
 # Definitivement (un projet)
 oh project configure my-project --provider openai
-oh deploy -j my-project   # re-deployer pour appliquer
+oh deploy -p my-project   # re-deployer pour appliquer
 ```
 
 ## Verifier la configuration

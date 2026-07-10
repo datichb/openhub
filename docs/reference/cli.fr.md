@@ -29,9 +29,9 @@ oh start [options]
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--agent` | `-a` | Agent a utiliser |
-| `--prompt` | `-p` | Prompt initial |
+| `--prompt` | `-m` | Prompt initial |
 | `--provider` | `-P` | Provider LLM (bedrock, anthropic, openai) |
-| `--project` | `-j` | ID du projet (detection auto sinon) |
+| `--project` | `-p` | ID du projet (detection auto sinon) |
 | `--resume` | `-r` | Reprendre une session existante (ID de session) |
 | `--worktree` | `-w` | Branche pour lancer dans un git worktree |
 | `--dev` | | Mode dev : picker epics/tickets + orchestrator-dev |
@@ -44,7 +44,7 @@ oh start [options]
 **Exemple :**
 
 ```bash
-oh start -j mon-projet -a coder -p "Ajoute un endpoint /health"
+oh start -p mon-projet -a coder -m "Ajoute un endpoint /health"
 oh start --resume abc123-def456
 oh start --worktree feat/auth --dev -l "priority:high"
 oh start --onboard --refresh
@@ -81,7 +81,7 @@ oh audit [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | ID du projet |
+| `--project` | `-p` | ID du projet |
 | `--type` | `-t` | Type d'audit (defaut : security) |
 
 Types disponibles : `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`.
@@ -89,7 +89,7 @@ Types disponibles : `security`, `performance`, `architecture`, `accessibility`, 
 **Exemple :**
 
 ```bash
-oh audit -j api-gateway -t security
+oh audit -p api-gateway -t security
 oh audit --type performance
 oh audit -t ecodesign
 ```
@@ -106,7 +106,7 @@ oh review [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | ID du projet |
+| `--project` | `-p` | ID du projet |
 | `--mode` | `-m` | Mode de review (voir ci-dessous) |
 
 **Modes disponibles :**
@@ -124,9 +124,9 @@ Sans `--mode`, un prompt interactif propose le choix du mode au démarrage de la
 **Exemple :**
 
 ```bash
-oh review -j frontend
+oh review -p frontend
 oh review -m adversarial
-oh review -m standard+adversarial -j backend
+oh review -m standard+adversarial -p backend
 oh review -m all
 ```
 
@@ -142,13 +142,13 @@ oh debug [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | ID du projet |
+| `--project` | `-p` | ID du projet |
 | `--issue` | `-i` | Description du probleme |
 
 **Exemple :**
 
 ```bash
-oh debug -j backend -i "Timeout sur les requetes POST /api/users"
+oh debug -p backend -i "Timeout sur les requetes POST /api/users"
 oh debug --issue "Memory leak dans le worker pool"
 ```
 
@@ -214,14 +214,14 @@ oh project add [options]
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--name` | `-n` | Nom du projet |
-| `--path` | `-p` | Chemin du projet (defaut : repertoire courant) |
+| `--path` | `-d` | Chemin du projet (defaut : repertoire courant) |
 | `--language` | `-l` | Langage principal |
 | `--tracker` | `-t` | Issue tracker (github, gitlab, jira, linear) |
 
 **Exemple :**
 
 ```bash
-oh project add -n api -p ./services/api -l go -t github
+oh project add -n api -d ./services/api -l go -t github
 oh project register -n frontend --language typescript
 ```
 
@@ -322,7 +322,7 @@ oh deploy [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | ID du projet |
+| `--project` | `-p` | ID du projet |
 | `--provider` | `-P` | Provider a configurer |
 | `--model` | `-m` | Modele a configurer |
 | `--check` | | Verifie si les agents/skills ont change |
@@ -331,7 +331,7 @@ oh deploy [options]
 **Exemple :**
 
 ```bash
-oh deploy -j api
+oh deploy -p api
 oh deploy --check --diff
 oh deploy -P anthropic -m claude-sonnet-4-20250514
 ```
@@ -348,7 +348,7 @@ oh sync [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--project` | `-j` | ID du projet |
+| `--project` | `-p` | ID du projet |
 | `--all` | | Synchroniser tous les projets actifs |
 | `--dry-run` | | Afficher les changements sans les appliquer |
 
@@ -356,7 +356,7 @@ oh sync [options]
 
 ```bash
 oh sync --all
-oh sync -j frontend --dry-run
+oh sync -p frontend --dry-run
 ```
 
 ---
@@ -917,14 +917,14 @@ oh metrics [options]
 
 | Flag | Court | Description |
 |------|-------|-------------|
-| `--period` | `-p` | Periode d'analyse (7d, 30d, all). Defaut : all |
+| `--period` | `-d` | Periode d'analyse (7d, 30d, all). Defaut : all |
 
 **Exemple :**
 
 ```bash
 oh metrics
-oh metrics -p 30d
-oh metrics -p 7d
+oh metrics -d 30d
+oh metrics -d 7d
 ```
 
 ---

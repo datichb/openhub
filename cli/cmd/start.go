@@ -39,9 +39,9 @@ Détecte automatiquement le projet si vous êtes dans un répertoire enregistré
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.Flags().StringP("agent", "a", "", "Agent à utiliser")
-	startCmd.Flags().StringP("prompt", "p", "", "Prompt initial")
+	startCmd.Flags().StringP("prompt", "m", "", "Prompt initial")
 	startCmd.Flags().StringP("provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
-	startCmd.Flags().StringP("project", "j", "", "Nom du projet (détection auto sinon)")
+	startCmd.Flags().StringP("project", "p", "", "Nom du projet (détection auto sinon)")
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
 	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
 	startCmd.Flags().Bool("dev", false, "Mode développement (orchestrator-dev + tickets)")

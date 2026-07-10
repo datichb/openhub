@@ -23,9 +23,9 @@ Launch an opencode coding session.
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--agent` | `-a` | string | Agent to use |
-| `--prompt` | `-p` | string | Initial prompt |
+| `--prompt` | `-m` | string | Initial prompt |
 | `--provider` | `-P` | string | LLM provider (bedrock, anthropic, openai) |
-| `--project` | `-j` | string | Project ID (auto-detected otherwise) |
+| `--project` | `-p` | string | Project ID (auto-detected otherwise) |
 | `--resume` | `-r` | string | Resume an existing session (session ID) |
 | `--worktree` | `-w` | string | Branch to launch in a git worktree |
 | `--dev` | | bool | Dev mode: epic/ticket picker + orchestrator-dev |
@@ -36,12 +36,12 @@ Launch an opencode coding session.
 | `--yes` | `-y` | bool | Skip confirmation and launch immediately |
 
 ```bash
-oh start -j my-app -p "Fix the login bug"
+oh start -p my-app -m "Fix the login bug"
 oh start --resume abc123-session-id
 oh start -w feature/auth -a architect
 oh start --dev -l "priority:high" -A me
 oh start --onboard --refresh
-oh start -p "Refactor the auth module" -y
+oh start -m "Refactor the auth module" -y
 ```
 
 ---
@@ -63,12 +63,12 @@ Run an automated audit on a project.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project ID |
+| `--project` | `-p` | string | Project ID |
 | `--type` | `-t` | string | Audit type (security, performance, architecture, accessibility, ecodesign, observability, privacy). Default: security |
 
 ```bash
-oh audit -j my-app
-oh audit -j my-app -t performance
+oh audit -p my-app
+oh audit -p my-app -t performance
 oh audit --type accessibility
 ```
 
@@ -80,7 +80,7 @@ Launch an automated code review session with mode selection.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project ID |
+| `--project` | `-p` | string | Project ID |
 | `--mode` | `-m` | string | Review mode (see below) |
 
 **Available modes:**
@@ -96,9 +96,9 @@ Launch an automated code review session with mode selection.
 Without `--mode`, an interactive prompt lets you choose the review mode at session start.
 
 ```bash
-oh review -j my-app
+oh review -p my-app
 oh review -m adversarial
-oh review -m standard+adversarial -j backend
+oh review -m standard+adversarial -p backend
 oh review -m all
 ```
 
@@ -110,11 +110,11 @@ Start a debugging session with AI assistance.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project ID |
+| `--project` | `-p` | string | Project ID |
 | `--issue` | `-i` | string | Issue description |
 
 ```bash
-oh debug -j my-app -i "Users get 500 on /api/auth/callback"
+oh debug -p my-app -i "Users get 500 on /api/auth/callback"
 oh debug --issue "Memory leak in worker process"
 ```
 
@@ -158,7 +158,7 @@ Register a new project. Aliases: `register`
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--name` | `-n` | string | Project name |
-| `--path` | `-p` | string | Project path (default: cwd) |
+| `--path` | `-d` | string | Project path (default: cwd) |
 | `--language` | `-l` | string | Main language |
 | `--tracker` | `-t` | string | Issue tracker (github, gitlab, jira, linear) |
 
@@ -234,17 +234,17 @@ Deploy agents, skills, and configuration to a project.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project ID |
+| `--project` | `-p` | string | Project ID |
 | `--provider` | `-P` | string | Provider to configure |
 | `--model` | `-m` | string | Model to configure |
 | `--check` | | bool | Check if agents/skills changed since last deploy |
 | `--diff` | | bool | Show changes without applying |
 
 ```bash
-oh deploy -j my-app
+oh deploy -p my-app
 oh deploy --check
 oh deploy --diff
-oh deploy -j my-app -P anthropic -m claude-sonnet-4-20250514
+oh deploy -p my-app -P anthropic -m claude-sonnet-4-20250514
 ```
 
 ---
@@ -255,12 +255,12 @@ Synchronize project configuration with remote state.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-j` | string | Project ID |
+| `--project` | `-p` | string | Project ID |
 | `--all` | | bool | Sync all active projects |
 | `--dry-run` | | bool | Show changes without applying |
 
 ```bash
-oh sync -j my-app
+oh sync -p my-app
 oh sync --all
 oh sync --dry-run
 ```
@@ -642,11 +642,11 @@ Display project metrics and session statistics.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--period` | `-p` | string | Analysis period (7d, 30d, all). Default: all |
+| `--period` | `-d` | string | Analysis period (7d, 30d, all). Default: all |
 
 ```bash
 oh metrics
-oh metrics -p 7d
+oh metrics -d 7d
 oh metrics --period 30d
 ```
 

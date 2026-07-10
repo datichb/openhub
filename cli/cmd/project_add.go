@@ -60,7 +60,7 @@ func projectAddCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Nom du projet")
-	cmd.Flags().StringVarP(&path, "path", "p", "", "Chemin du projet (défaut: répertoire courant)")
+	cmd.Flags().StringVarP(&path, "path", "d", "", "Chemin du projet (défaut: répertoire courant)")
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
 
 	return cmd
@@ -229,7 +229,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		fmt.Fprintf(a.IO.Out, "  %-14s %s\n", "MCP:", strings.Join(mcpServices, ", "))
 	}
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("form.project.next_step", common.Bold.Render("oh start -j "+id)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("form.project.next_step", common.Bold.Render("oh start -p "+id)))
 
 	return nil
 }

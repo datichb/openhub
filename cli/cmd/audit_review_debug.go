@@ -227,12 +227,12 @@ func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, br
 
 func init() {
 	rootCmd.AddCommand(auditCmd)
-	auditCmd.Flags().StringP("project", "j", "", "Nom du projet")
+	auditCmd.Flags().StringP("project", "p", "", "Nom du projet")
 	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit (security, performance, architecture, accessibility, ecodesign, observability, privacy)")
 	_ = auditCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 
 	rootCmd.AddCommand(reviewCmd)
-	reviewCmd.Flags().StringP("project", "j", "", "Nom du projet")
+	reviewCmd.Flags().StringP("project", "p", "", "Nom du projet")
 	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
 	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et assigner un reviewer (nécessite write_enabled)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
@@ -241,7 +241,7 @@ func init() {
 	})
 
 	rootCmd.AddCommand(debugCmd)
-	debugCmd.Flags().StringP("project", "j", "", "Nom du projet")
+	debugCmd.Flags().StringP("project", "p", "", "Nom du projet")
 	debugCmd.Flags().StringP("issue", "i", "", "Description du problème")
 	_ = debugCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }

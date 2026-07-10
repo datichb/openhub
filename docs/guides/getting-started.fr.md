@@ -81,7 +81,7 @@ Deployer les agents, skills et la configuration partagee dans un projet :
 
 ```bash
 oh deploy                    # detection automatique du projet depuis le repertoire courant
-oh deploy -j my-project      # projet explicite
+oh deploy -p my-project      # projet explicite
 oh deploy --check            # verifier si le deploiement est necessaire (code retour 1 si obsolete)
 oh deploy --diff             # afficher les changements prevus
 ```
@@ -96,9 +96,9 @@ Cela genere :
 
 ```bash
 oh start                     # detection auto du projet, affiche le recap, confirme puis lance
-oh start -j my-project       # projet explicite
+oh start -p my-project       # projet explicite
 oh start -a orchestrator     # utiliser un agent specifique
-oh start -p "explique..."    # avec un prompt initial
+oh start -m "explique..."    # avec un prompt initial
 oh start --dev               # mode dev : choisir epics/tickets
 oh start --onboard           # creer le wiki du projet
 oh start -y                  # passer la confirmation

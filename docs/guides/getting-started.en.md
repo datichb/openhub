@@ -81,7 +81,7 @@ Deploy the shared agents, skills, and configuration into a project:
 
 ```bash
 oh deploy                    # auto-detect project from cwd
-oh deploy -j my-project      # explicit project
+oh deploy -p my-project      # explicit project
 oh deploy --check            # verify if deploy is needed (exit code 1 if stale)
 oh deploy --diff             # show what would change
 ```
@@ -96,9 +96,9 @@ This generates:
 
 ```bash
 oh start                     # auto-detect project, show recap, confirm then launch
-oh start -j my-project       # explicit project
+oh start -p my-project       # explicit project
 oh start -a orchestrator     # use specific agent
-oh start -p "explain..."     # with initial prompt
+oh start -m "explain..."     # with initial prompt
 oh start --dev               # dev mode: pick epics/tickets
 oh start --onboard           # create project wiki
 oh start -y                  # skip confirmation prompt

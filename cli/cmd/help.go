@@ -117,9 +117,9 @@ func buildHelpSections() []helpSection {
 					Desc: i18n.T("cmd.start.short"),
 					Flags: []helpFlag{
 						{"agent", "a", i18n.T("help.flag.start.agent")},
-						{"prompt", "p", i18n.T("help.flag.start.prompt")},
+						{"prompt", "m", i18n.T("help.flag.start.prompt")},
 						{"provider", "P", i18n.T("help.flag.start.provider")},
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 						{"resume", "r", i18n.T("help.flag.start.resume")},
 						{"worktree", "w", i18n.T("help.flag.start.worktree")},
 						{"dev", "", i18n.T("help.flag.start.dev")},
@@ -133,23 +133,20 @@ func buildHelpSections() []helpSection {
 				{
 					Name: "quick",
 					Desc: i18n.T("cmd.quick.short"),
-					Flags: []helpFlag{
-						{"project", "j", i18n.T("help.flag.start.project")},
-					},
 				},
 				{
 					Name: "audit",
 					Desc: i18n.T("cmd.audit.short"),
 					Flags: []helpFlag{
 						{"type", "t", i18n.T("help.flag.audit.type")},
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 					},
 				},
 				{
 					Name: "review",
 					Desc: i18n.T("cmd.review.short"),
 					Flags: []helpFlag{
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 					},
 				},
 				{
@@ -157,19 +154,14 @@ func buildHelpSections() []helpSection {
 					Desc: i18n.T("cmd.debug.short"),
 					Flags: []helpFlag{
 						{"issue", "i", i18n.T("help.flag.debug.issue")},
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 					},
-				},
-				{
-					Name: "beads",
-					Desc: i18n.T("cmd.beads.short"),
 				},
 			},
 		},
 		{
 			Title: i18n.T("help.section.project"),
 			Commands: []helpCommand{
-				{Name: "init", Desc: i18n.T("cmd.init.short")},
 				{
 					Name: "project list",
 					Desc: i18n.T("cmd.project.list.short"),
@@ -183,9 +175,8 @@ func buildHelpSections() []helpSection {
 					Desc: i18n.T("cmd.project.add.short"),
 					Flags: []helpFlag{
 						{"name", "n", i18n.T("help.flag.project.name")},
-						{"path", "p", i18n.T("help.flag.project.path")},
+						{"path", "d", i18n.T("help.flag.project.path")},
 						{"language", "l", i18n.T("help.flag.project.language")},
-	
 					},
 				},
 				{
@@ -204,7 +195,29 @@ func buildHelpSections() []helpSection {
 						{"provider", "P", i18n.T("help.flag.start.provider")},
 						{"model", "m", i18n.T("help.flag.deploy.model")},
 						{"language", "l", i18n.T("help.flag.project.language")},
-	
+					},
+				},
+				{
+					Name: "worktree list",
+					Desc: i18n.T("cmd.worktree.list.short"),
+					Flags: []helpFlag{
+						{"json", "", i18n.T("help.flag.json")},
+					},
+				},
+				{Name: "worktree add", Desc: i18n.T("cmd.worktree.add.short")},
+				{
+					Name: "worktree remove",
+					Desc: i18n.T("cmd.worktree.remove.short"),
+					Flags: []helpFlag{
+						{"force", "f", i18n.T("help.flag.force")},
+					},
+				},
+				{
+					Name: "worktree cleanup",
+					Desc: i18n.T("cmd.worktree.cleanup.short"),
+					Flags: []helpFlag{
+						{"base", "b", i18n.T("help.flag.worktree.base")},
+						{"force", "f", i18n.T("help.flag.force")},
 					},
 				},
 			},
@@ -216,7 +229,7 @@ func buildHelpSections() []helpSection {
 					Name: "deploy",
 					Desc: i18n.T("cmd.deploy.short"),
 					Flags: []helpFlag{
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 						{"provider", "P", i18n.T("help.flag.start.provider")},
 						{"model", "m", i18n.T("help.flag.deploy.model")},
 						{"check", "", i18n.T("help.flag.deploy.check")},
@@ -227,7 +240,7 @@ func buildHelpSections() []helpSection {
 					Name: "sync",
 					Desc: i18n.T("cmd.sync.short"),
 					Flags: []helpFlag{
-						{"project", "j", i18n.T("help.flag.start.project")},
+						{"project", "p", i18n.T("help.flag.start.project")},
 						{"all", "", i18n.T("help.flag.sync.all")},
 						{"dry-run", "", i18n.T("help.flag.sync.dryrun")},
 					},
@@ -235,11 +248,56 @@ func buildHelpSections() []helpSection {
 			},
 		},
 		{
+			Title: i18n.T("help.section.mcp"),
+			Commands: []helpCommand{
+				{
+					Name: "mcp status",
+					Desc: i18n.T("cmd.mcp.status.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "mcp enable",
+					Desc: i18n.T("cmd.mcp.enable.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "mcp disable",
+					Desc: i18n.T("cmd.mcp.disable.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "mcp setup",
+					Desc: i18n.T("cmd.mcp.setup.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "mcp reset",
+					Desc: i18n.T("cmd.mcp.reset.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{Name: "mcp serve", Desc: i18n.T("cmd.mcp.serve.short")},
+				{
+					Name: "mcp list",
+					Desc: i18n.T("cmd.mcp.list.short"),
+					Flags: []helpFlag{
+						{"json", "", i18n.T("help.flag.json")},
+					},
+				},
+			},
+		},
+		{
 			Title: i18n.T("help.section.config"),
 			Commands: []helpCommand{
-				{Name: "config get", Desc: i18n.T("cmd.config.get.short")},
-				{Name: "config set", Desc: i18n.T("cmd.config.set.short")},
-				{Name: "config unset", Desc: i18n.T("cmd.config.unset.short")},
 				{
 					Name: "config list",
 					Desc: i18n.T("cmd.config.list.short"),
@@ -247,16 +305,28 @@ func buildHelpSections() []helpSection {
 						{"json", "", i18n.T("help.flag.json")},
 					},
 				},
+				{Name: "config get", Desc: i18n.T("cmd.config.get.short")},
+				{Name: "config set", Desc: i18n.T("cmd.config.set.short")},
+				{Name: "config unset", Desc: i18n.T("cmd.config.unset.short")},
 				{Name: "config path", Desc: i18n.T("cmd.config.path.short")},
 				{Name: "config language", Desc: i18n.T("cmd.config.language.short")},
 				{Name: "config websearch", Desc: i18n.T("cmd.config.websearch.short")},
-				{Name: "service", Desc: i18n.T("cmd.service.short")},
-				{Name: "service setup", Desc: i18n.T("cmd.service.setup.short")},
+				{Name: "config model default", Desc: i18n.T("cmd.config.model.default.short")},
+				{Name: "config model family", Desc: i18n.T("cmd.config.model.family.short")},
+				{Name: "config model agent", Desc: i18n.T("cmd.config.model.agent.short")},
 				{
-					Name: "service remove",
-					Desc: i18n.T("cmd.service.remove.short"),
+					Name: "config model show",
+					Desc: i18n.T("cmd.config.model.show.short"),
 					Flags: []helpFlag{
-						{"force", "f", i18n.T("help.flag.force")},
+						{"json", "", i18n.T("help.flag.json")},
+					},
+				},
+				{Name: "config model unset", Desc: i18n.T("cmd.config.model.unset.short")},
+				{
+					Name: "provider setup",
+					Desc: i18n.T("cmd.provider.setup.short"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
 					},
 				},
 				{Name: "plugin list", Desc: i18n.T("cmd.plugin.list.short")},
@@ -285,7 +355,7 @@ func buildHelpSections() []helpSection {
 					Name: "metrics",
 					Desc: i18n.T("cmd.metrics.short"),
 					Flags: []helpFlag{
-						{"period", "p", i18n.T("help.flag.metrics.period")},
+						{"period", "d", i18n.T("help.flag.metrics.period")},
 					},
 				},
 				{Name: "dashboard", Desc: i18n.T("cmd.dashboard.short")},
@@ -296,45 +366,48 @@ func buildHelpSections() []helpSection {
 						{"watch", "", i18n.T("help.flag.board.watch")},
 					},
 				},
+				{Name: "optimize", Desc: i18n.T("cmd.optimize.short")},
+				{Name: "yield", Desc: i18n.T("cmd.yield.short")},
+			},
+		},
+		{
+			Title: i18n.T("help.section.team"),
+			Commands: []helpCommand{
+				{Name: "team status", Desc: i18n.T("help.cmd.team.status")},
+				{Name: "team activity", Desc: i18n.T("help.cmd.team.activity")},
+				{
+					Name: "claim",
+					Desc: i18n.T("help.cmd.claim"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "claim transfer",
+					Desc: i18n.T("help.cmd.claim.transfer"),
+					Flags: []helpFlag{
+						{"to", "", i18n.T("help.flag.claim.to")},
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{
+					Name: "release",
+					Desc: i18n.T("help.cmd.release"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{Name: "conventions check", Desc: i18n.T("cmd.conventions.short")},
+				{Name: "beads", Desc: i18n.T("cmd.beads.short")},
 			},
 		},
 		{
 			Title: i18n.T("help.section.infra"),
 			Commands: []helpCommand{
+				{Name: "init", Desc: i18n.T("cmd.init.short")},
 				{Name: "doctor", Desc: i18n.T("cmd.doctor.short")},
 				{Name: "upgrade opencode", Desc: i18n.T("cmd.upgrade.short")},
 				{Name: "version", Desc: i18n.T("cmd.version.short")},
-				{
-					Name: "worktree list",
-					Desc: i18n.T("cmd.worktree.list.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
-				{Name: "worktree add", Desc: i18n.T("cmd.worktree.add.short")},
-				{
-					Name: "worktree remove",
-					Desc: i18n.T("cmd.worktree.remove.short"),
-					Flags: []helpFlag{
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-				{
-					Name: "worktree cleanup",
-					Desc: i18n.T("cmd.worktree.cleanup.short"),
-					Flags: []helpFlag{
-						{"base", "b", i18n.T("help.flag.worktree.base")},
-						{"force", "f", i18n.T("help.flag.force")},
-					},
-				},
-				{Name: "mcp serve", Desc: i18n.T("cmd.mcp.serve.short")},
-				{
-					Name: "mcp list",
-					Desc: i18n.T("cmd.mcp.list.short"),
-					Flags: []helpFlag{
-						{"json", "", i18n.T("help.flag.json")},
-					},
-				},
 				{Name: "completion", Desc: i18n.T("cmd.completion.short")},
 			},
 		},

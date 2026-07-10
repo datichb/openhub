@@ -7,6 +7,31 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.6.0] — 2026-07-10
+
+### Changed
+
+- **`-p` = `--project` partout** — le short flag `-p` est désormais uniformément réservé à `--project` sur toutes les commandes :
+  - `start`, `audit`, `review`, `debug`, `deploy`, `sync` : `-j` → `-p` pour `--project`
+  - `start` : `--prompt` passe de `-p` à `-m`
+  - `metrics` : `--period` passe de `-p` à `-d`
+  - `project add` : `--path` passe de `-p` à `-d`
+- **Réorganisation du help (`oh --help`)** — 8 sections thématiques au lieu de 6 :
+  SESSION, PROJET, DÉPLOIEMENT, MCP, CONFIGURATION, ANALYTICS, ÉQUIPE, INFRASTRUCTURE
+- Toutes les commandes et flags sont désormais visibles dans le help global
+
+### Added
+
+- Sections **MCP**, **ÉQUIPE** et **ANALYTICS** complètes dans le help
+- Commandes `optimize`, `yield`, `team status/activity`, `claim`, `release`, `conventions check`, `config model *`, `provider setup` visibles dans le help
+- `worktree` déplacé dans la section PROJET (au lieu d'INFRASTRUCTURE)
+
+### Removed
+
+- Commandes `service`, `service setup`, `service remove` retirées du help (dépréciées en v3.5.0, remplacées par `oh mcp`)
+
+---
+
 ## [3.5.0] — 2026-07-10
 
 ### Added
