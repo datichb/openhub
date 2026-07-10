@@ -220,16 +220,13 @@ func runStart(cmd *cobra.Command, args []string) error {
 		compactionStatus = i18n.T("cmd.start.compaction_auto")
 	}
 
-	// MCP servers enabled
+	// MCP servers enabled (resolved with project-level overrides taking priority over hub)
+	effectiveServers := buildMCPServersForProject(a, project.MCPConfig)
 	var mcpNames []string
-	if a.Config.MCP.Figma.Enabled {
-		mcpNames = append(mcpNames, "figma")
-	}
-	if a.Config.MCP.Gitlab.Enabled {
-		mcpNames = append(mcpNames, "gitlab")
-	}
-	if a.Config.MCP.Gslides.Enabled {
-		mcpNames = append(mcpNames, "gslides")
+	for _, srv := range effectiveServers {
+		if srv.Enabled && srv.Name != "team" {
+			mcpNames = append(mcpNames, srv.Name)
+		}
 	}
 	mcpDisplay := i18n.T("cmd.start.mcp_none")
 	if len(mcpNames) > 0 {
