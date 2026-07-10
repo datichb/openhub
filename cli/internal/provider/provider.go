@@ -5,9 +5,9 @@ package provider
 type Name string
 
 const (
-	Bedrock      Name = "bedrock"
-	Anthropic    Name = "anthropic"
-	OpenRouter   Name = "openrouter"
+	Bedrock       Name = "bedrock"
+	Anthropic     Name = "anthropic"
+	OpenRouter    Name = "openrouter"
 	GithubCopilot Name = "github-copilot"
 )
 

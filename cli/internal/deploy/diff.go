@@ -127,8 +127,8 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		filepath.Join(projectPath, ".opencode", "skills"),
 		"skills",
 		report,
-		nil, // no filtering for skills
-		nil, // default hash function (raw file hash)
+		nil,   // no filtering for skills
+		nil,   // default hash function (raw file hash)
 		false, // skills preserve directory structure
 	); err != nil {
 		return nil, fmt.Errorf("diff skills: %w", err)

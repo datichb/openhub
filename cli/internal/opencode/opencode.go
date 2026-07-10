@@ -160,7 +160,7 @@ func buildEnv(opts StartOpts) []string {
 		if opts.APIKey != "" {
 			env = appendEnv(env, "OPENROUTER_API_KEY", opts.APIKey)
 		}
-	// github-copilot: no env injection needed (relies on gh auth)
+		// github-copilot: no env injection needed (relies on gh auth)
 	}
 
 	return env

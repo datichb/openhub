@@ -141,10 +141,10 @@ func TestProjectStore_MCPConfigRoundTrip(t *testing.T) {
 	now := time.Now()
 	writeEnabled := true
 	p := &domain.Project{
-		ID:       "mcp-test",
-		Name:     "MCP Test",
-		Path:     "/mcp/test",
-		Status:   domain.ProjectStatusActive,
+		ID:     "mcp-test",
+		Name:   "MCP Test",
+		Path:   "/mcp/test",
+		Status: domain.ProjectStatusActive,
 		MCPConfig: &domain.ProjectMCPConfig{
 			Services: []domain.ProjectMCPService{
 				{Name: "figma"},

@@ -69,7 +69,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Wait for user to press Enter
 	fmt.Fprintf(os.Stdout, "  %s ", common.Subtitle.Render(i18n.T("cmd.init.press_enter")))
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 1 — General Configuration (language + opencode version)

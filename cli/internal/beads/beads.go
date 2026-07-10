@@ -34,7 +34,6 @@ func Available() error {
 	return nil
 }
 
-
 // ListReady returns tickets ready for implementation.
 // Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json
 func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
@@ -222,9 +221,9 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 	var created struct {
 		ID string `json:"id"`
 	}
-	if err := json.Unmarshal(output, &created); err != nil {
-		// Fallback: return raw output trimmed
-		return strings.TrimSpace(string(output)), nil
+	if unmarshalErr := json.Unmarshal(output, &created); unmarshalErr != nil {
+		// Fallback: raw output is valid enough as an ID when JSON parsing fails.
+		return strings.TrimSpace(string(output)), nil //nolint:nilerr // intentional fallback
 	}
 	return created.ID, nil
 }

@@ -472,8 +472,8 @@ func copyDir(src, dst string) error {
 // Stored in .opencode/.deploy-state as JSON.
 type DeployState struct {
 	DeployedAt     string   `json:"deployed_at"`
-	ConfigHash     string   `json:"config_hash"`      // SHA-256 of opencode.json at deploy time
-	HubDir         string   `json:"hub_dir"`           // hub source directory
+	ConfigHash     string   `json:"config_hash"` // SHA-256 of opencode.json at deploy time
+	HubDir         string   `json:"hub_dir"`     // hub source directory
 	Provider       string   `json:"provider"`
 	Model          string   `json:"model"`
 	SelectedAgents []string `json:"selected_agents"`

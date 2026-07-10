@@ -10,21 +10,21 @@ import (
 
 // Project represents a registered project in the hub.
 type Project struct {
-	ID              string
-	Name            string
-	Path            string
-	Language        string
-	Provider        string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
-	Model           string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
-	Labels          []string
-	Agents          []string
-	MCP             []string                // deprecated: use MCPConfig. Kept for backward compat migration.
-	MCPConfig       *ProjectMCPConfig       // per-project MCP overrides (nil = inherit hub defaults)
-	ProviderConfig  *ProjectProviderConfig  // per-project provider config overrides (nil = inherit hub)
-	ModelOverrides  *ProjectModelOverrides  // per-project model cascade overrides (nil = no overrides)
-	Status          ProjectStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID             string
+	Name           string
+	Path           string
+	Language       string
+	Provider       string // LLM provider override (bedrock, anthropic, openai, openrouter); empty = use hub default
+	Model          string // LLM model override (claude-sonnet-4-5, etc.); empty = use hub default
+	Labels         []string
+	Agents         []string
+	MCP            []string               // deprecated: use MCPConfig. Kept for backward compat migration.
+	MCPConfig      *ProjectMCPConfig      // per-project MCP overrides (nil = inherit hub defaults)
+	ProviderConfig *ProjectProviderConfig // per-project provider config overrides (nil = inherit hub)
+	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
+	Status         ProjectStatus
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // ProjectModelOverrides holds per-agent and per-family model overrides at the project level.

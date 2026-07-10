@@ -267,12 +267,13 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	var since time.Time
 	today, _ := cmd.Flags().GetBool("today")
 	week, _ := cmd.Flags().GetBool("week")
-	if today {
+	switch {
+	case today:
 		now := time.Now()
 		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	} else if week {
+	case week:
 		since = time.Now().AddDate(0, 0, -7)
-	} else {
+	default:
 		since = time.Now().AddDate(0, 0, -1) // Default: last 24h
 	}
 

@@ -13,8 +13,8 @@ import (
 
 // Claim represents a ticket reservation by a team member.
 type Claim struct {
-	TicketID  string    `toml:"-"`          // derived from filename
-	Project   string    `toml:"-"`          // derived from directory
+	TicketID  string    `toml:"-"` // derived from filename
+	Project   string    `toml:"-"` // derived from directory
 	ClaimedBy string    `toml:"claimed_by"`
 	ClaimedAt time.Time `toml:"claimed_at"`
 	Worktree  string    `toml:"worktree,omitempty"` // associated branch

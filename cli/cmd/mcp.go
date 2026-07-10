@@ -90,12 +90,12 @@ func removeProjectMCPService(project *domain.Project, serviceName string) {
 
 func mcpEnableCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "enable <service>",
-		Short: i18n.T("cmd.mcp.enable.short"),
-		Long:  i18n.T("cmd.mcp.enable.long"),
-		Args:  cobra.ExactArgs(1),
+		Use:               "enable <service>",
+		Short:             i18n.T("cmd.mcp.enable.short"),
+		Long:              i18n.T("cmd.mcp.enable.long"),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeMCPServices,
-		RunE:  runMCPEnable,
+		RunE:              runMCPEnable,
 	}
 	cmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
@@ -185,12 +185,12 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 
 func mcpDisableCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "disable <service>",
-		Short: i18n.T("cmd.mcp.disable.short"),
-		Long:  i18n.T("cmd.mcp.disable.long"),
-		Args:  cobra.ExactArgs(1),
+		Use:               "disable <service>",
+		Short:             i18n.T("cmd.mcp.disable.short"),
+		Long:              i18n.T("cmd.mcp.disable.long"),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeMCPServices,
-		RunE:  runMCPDisable,
+		RunE:              runMCPDisable,
 	}
 	cmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
@@ -250,12 +250,12 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 
 func mcpResetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reset <service>",
-		Short: i18n.T("cmd.mcp.reset.short"),
-		Long:  i18n.T("cmd.mcp.reset.long"),
-		Args:  cobra.ExactArgs(1),
+		Use:               "reset <service>",
+		Short:             i18n.T("cmd.mcp.reset.short"),
+		Long:              i18n.T("cmd.mcp.reset.long"),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeMCPServices,
-		RunE:  runMCPReset,
+		RunE:              runMCPReset,
 	}
 	cmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project")+" (required)")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
@@ -551,9 +551,10 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 
 		// Token display
 		tokenStatus := "—"
-		if svc.envVar != "" && os.Getenv(svc.envVar) != "" {
+		switch {
+		case svc.envVar != "" && os.Getenv(svc.envVar) != "":
 			tokenStatus = fmt.Sprintf("env:%s", svc.envVar)
-		} else if svc.token != "" && a.Secrets != nil {
+		case svc.token != "" && a.Secrets != nil:
 			tokenKey := svc.token
 			if ps, ok := projectOverrides[svc.name]; ok && ps.TokenKey != "" {
 				tokenKey = ps.TokenKey
@@ -563,7 +564,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 			} else {
 				tokenStatus = common.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
 			}
-		} else if svc.name == "team" {
+		case svc.name == "team":
 			tokenStatus = "—"
 		}
 
@@ -581,10 +582,10 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 
 func mcpServeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "serve <name>",
-		Short: i18n.T("cmd.mcp.serve.short"),
-		Long:  i18n.T("cmd.mcp.serve.long"),
-		Args:  cobra.ExactArgs(1),
+		Use:               "serve <name>",
+		Short:             i18n.T("cmd.mcp.serve.short"),
+		Long:              i18n.T("cmd.mcp.serve.long"),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeMCPServices,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]

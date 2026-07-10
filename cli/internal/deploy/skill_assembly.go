@@ -140,7 +140,7 @@ func stripHubFields(frontmatter []byte) []byte {
 		trimmed := strings.TrimSpace(line)
 
 		// Only match top-level keys (zero indentation)
-		isTopLevel := len(line) > 0 && line[0] != ' ' && line[0] != '\t'
+		isTopLevel := line != "" && line[0] != ' ' && line[0] != '\t'
 
 		// Check if this line starts a hub-internal field at root level
 		isHubField := false

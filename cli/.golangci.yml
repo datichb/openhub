@@ -22,6 +22,11 @@ linters:
         - existant
         - documentaire
         - strat
+        - respecte
+        - statuts
+        - activit
+        - conflit
+        - normalis
   exclusions:
     generated: lax
     presets:

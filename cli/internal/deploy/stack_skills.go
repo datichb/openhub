@@ -16,13 +16,13 @@ var stackSkillMapping = map[string][]string{
 	"go":         {},                                        // no go-specific stack skill yet
 
 	// JS/TS Frameworks
-	"Next.js":    {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},
-	"Nuxt":       {"developer/stacks/dev-standards-nuxtjs", "developer/stacks/dev-standards-vuejs"},
-	"SvelteKit":  {},
-	"React":      {"developer/stacks/dev-standards-react"},
-	"Vue":        {"developer/stacks/dev-standards-vuejs"},
-	"Express":    {"developer/stacks/dev-standards-express"},
-	"Fastify":    {},
+	"Next.js":   {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},
+	"Nuxt":      {"developer/stacks/dev-standards-nuxtjs", "developer/stacks/dev-standards-vuejs"},
+	"SvelteKit": {},
+	"React":     {"developer/stacks/dev-standards-react"},
+	"Vue":       {"developer/stacks/dev-standards-vuejs"},
+	"Express":   {"developer/stacks/dev-standards-express"},
+	"Fastify":   {},
 
 	// Python frameworks (detected via pyproject.toml/requirements.txt content)
 	"django":  {"developer/stacks/dev-standards-django"},

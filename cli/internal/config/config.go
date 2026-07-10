@@ -59,8 +59,8 @@ type OpencodeConfig struct {
 // ProviderConfigs holds per-provider non-secret configuration.
 // Corresponds to [provider.bedrock], [provider.anthropic], etc. in hub.toml.
 type ProviderConfigs struct {
-	Bedrock   ProviderConfig `mapstructure:"bedrock"`
-	Anthropic ProviderConfig `mapstructure:"anthropic"`
+	Bedrock    ProviderConfig `mapstructure:"bedrock"`
+	Anthropic  ProviderConfig `mapstructure:"anthropic"`
 	OpenRouter ProviderConfig `mapstructure:"openrouter"`
 }
 
