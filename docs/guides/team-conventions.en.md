@@ -80,3 +80,137 @@ Enforcement level is **medium**:
 - Warnings in the terminal and in the agent session
 - No hard blocking (dev can ignore a warning)
 - No imposed pre-commit hook (optional)
+
+> **Note**: For configurable enforcement (blocking or warning per rule),
+> use **Team Policies** described below. Conventions remain the reference
+> documentation; policies are their automated enforcement.
+
+## Team Policies — Configurable Enforcement
+
+Team Policies extend conventions with a configurable enforcement mechanism:
+each rule can be a **warning** (informational) or **refuse** (blocking).
+They are stored in the team-state repo and apply to all members and projects.
+
+### `policies.toml` file
+
+Create this file at the root of the team-state repo:
+
+```toml
+# Structured rules — standard categories
+
+[policies.branch_naming]
+type = "regex"
+rule = "^(feat|fix|hotfix|chore|refactor)/[a-z0-9-]+"
+enforcement = "refuse"
+message = "Branch must follow pattern: feat/xxx, fix/xxx, etc."
+
+[policies.commit_format]
+type = "regex"
+rule = "^(feat|fix|docs|style|refactor|test|chore)(\\(.+\\))?: .+"
+enforcement = "refuse"
+message = "Commit must follow Conventional Commits"
+
+[policies.review_required]
+type = "boolean"
+enabled = true
+enforcement = "refuse"
+message = "Human review required before merge"
+
+[policies.tests_required]
+type = "boolean"
+enabled = true
+enforcement = "warn"
+message = "Tests should pass before review"
+
+[policies.max_ticket_wip]
+type = "limit"
+max = 2
+enforcement = "warn"
+message = "Limit WIP to 2 tickets per member"
+
+# Custom rules — add on demand
+
+[policies.custom_no_console_log]
+type = "forbidden_pattern"
+patterns = ["console.log", "console.warn"]
+scope = "diff_only"
+enforcement = "warn"
+message = "Remove console.log before commit"
+```
+
+### Rule types
+
+| Type | Usage | Parameters |
+|------|-------|-----------|
+| `regex` | Validates a value against a pattern | `rule` (regex) |
+| `boolean` | Enables/disables a check | `enabled` |
+| `limit` | Imposes a maximum value | `max`, `unit` (optional) |
+| `forbidden_pattern` | Forbids patterns in code | `patterns` (list), `scope` |
+
+### Scopes for `forbidden_pattern`
+
+| Scope | Description |
+|-------|-------------|
+| `diff_only` | Only added lines in the diff |
+| `modified_files` | Full content of modified files |
+| `all_files` | All project files |
+
+### Per-project overrides
+
+To make a policy stricter on a specific project, create
+`projects/<project>/policies-override.toml`:
+
+```toml
+# Only enforcement can be hardened (warn → refuse)
+[policies.tests_required]
+enforcement = "refuse"
+message = "Tests MUST pass on T-SRU"
+```
+
+> **Important**: overrides can only make stricter. A global `refuse` policy
+> cannot be softened to `warn` by an override.
+
+### CLI commands
+
+```bash
+# Show active policies (global + project overrides)
+oh policies list
+oh policies list --project T-SRU
+
+# Check policies against current state
+oh policies check --branch feat/my-feature --commit "feat: add login"
+
+# Add a custom policy (interactive)
+oh policies add
+```
+
+### Dual enforcement (CLI + Agents)
+
+Enforcement works at two levels:
+
+| Level | Who | When | Behavior |
+|-------|-----|------|----------|
+| **CLI (hard)** | The `oh` binary | `oh claim`, `oh start`, `oh release` | Blocks or warns per policy |
+| **Agent (soft)** | AI agents via skill | During session | Checks before each relevant action |
+
+#### Automatic CLI checks
+
+| Command | Policies checked |
+|---------|-----------------|
+| `oh claim <ticket>` | `max_ticket_wip` |
+| `oh start` (branch creation) | `branch_naming` |
+| `oh release <ticket>` | `review_required`, `tests_required` |
+
+#### Agent checks
+
+Each agent only checks policies relevant to its actions.
+See the `team-policies-enforcement` skill for the detailed matrix.
+
+### Relationship with conventions
+
+**Conventions** (`docs/wiki/technical/conventions.md` + wiki) remain the
+human-readable reference documentation. **Policies** are their machine-enforceable
+formalization.
+
+Recommendation: document your conventions normally, then formalize those that
+must be blocking in `policies.toml`.

@@ -81,6 +81,141 @@ Le niveau d'enforcement est **medium** :
 - Pas de blocage dur (le dev peut ignorer un warning)
 - Pas de hook pre-commit imposé (optionnel)
 
+> **Note** : Pour un enforcement configurable (bloquant ou warning par règle),
+> utilisez les **Team Policies** décrites ci-dessous. Les conventions restent
+> la documentation de référence ; les policies en sont l'enforcement automatisé.
+
+## Team Policies — Enforcement configurable
+
+Les Team Policies étendent les conventions avec un mécanisme d'enforcement
+configurable : chaque règle peut être un **warning** (informatif) ou un
+**refuse** (bloquant). Elles sont stockées dans le repo team-state et
+s'appliquent à tous les membres et à tous les projets.
+
+### Fichier `policies.toml`
+
+Créer ce fichier à la racine du repo team-state :
+
+```toml
+# Règles structurées — catégories standard
+
+[policies.branch_naming]
+type = "regex"
+rule = "^(feat|fix|hotfix|chore|refactor)/[a-z0-9-]+"
+enforcement = "refuse"
+message = "Branch must follow pattern: feat/xxx, fix/xxx, etc."
+
+[policies.commit_format]
+type = "regex"
+rule = "^(feat|fix|docs|style|refactor|test|chore)(\\(.+\\))?: .+"
+enforcement = "refuse"
+message = "Commit must follow Conventional Commits"
+
+[policies.review_required]
+type = "boolean"
+enabled = true
+enforcement = "refuse"
+message = "Human review required before merge"
+
+[policies.tests_required]
+type = "boolean"
+enabled = true
+enforcement = "warn"
+message = "Tests should pass before review"
+
+[policies.max_ticket_wip]
+type = "limit"
+max = 2
+enforcement = "warn"
+message = "Limit WIP to 2 tickets per member"
+
+# Règles custom — ajoutables à la demande
+
+[policies.custom_no_console_log]
+type = "forbidden_pattern"
+patterns = ["console.log", "console.warn"]
+scope = "diff_only"
+enforcement = "warn"
+message = "Remove console.log before commit"
+```
+
+### Types de règles
+
+| Type | Usage | Paramètres |
+|------|-------|-----------|
+| `regex` | Valide une valeur contre un pattern | `rule` (regex) |
+| `boolean` | Active/désactive une vérification | `enabled` |
+| `limit` | Impose une valeur maximale | `max`, `unit` (optionnel) |
+| `forbidden_pattern` | Interdit des motifs dans le code | `patterns` (liste), `scope` |
+
+### Scopes pour `forbidden_pattern`
+
+| Scope | Description |
+|-------|-------------|
+| `diff_only` | Uniquement les lignes ajoutées dans le diff |
+| `modified_files` | Tout le contenu des fichiers modifiés |
+| `all_files` | Tous les fichiers du projet |
+
+### Overrides par projet
+
+Pour rendre une policy plus stricte sur un projet spécifique, créer
+`projects/<project>/policies-override.toml` :
+
+```toml
+# Uniquement le champ enforcement peut être durci (warn → refuse)
+[policies.tests_required]
+enforcement = "refuse"
+message = "Tests MUST pass on T-SRU"
+```
+
+> **Important** : les overrides ne peuvent que rendre plus strict. Une policy
+> `refuse` au global ne peut pas être adoucie en `warn` par un override.
+
+### Commandes CLI
+
+```bash
+# Afficher les policies actives (globales + overrides du projet courant)
+oh policies list
+oh policies list --project T-SRU
+
+# Vérifier les policies contre l'état courant
+oh policies check --branch feat/my-feature --commit "feat: add login"
+
+# Ajouter une policy custom (interactif)
+oh policies add
+```
+
+### Double enforcement (CLI + Agents)
+
+L'enforcement fonctionne à deux niveaux :
+
+| Niveau | Qui | Quand | Comportement |
+|--------|-----|-------|--------------|
+| **CLI (hard)** | Le binaire `oh` | `oh claim`, `oh start`, `oh release` | Bloque ou warn selon la policy |
+| **Agent (soft)** | Les agents IA via le skill | Pendant la session | Vérifie avant chaque action pertinente |
+
+#### Checks CLI automatiques
+
+| Commande | Policies vérifiées |
+|----------|-------------------|
+| `oh claim <ticket>` | `max_ticket_wip` |
+| `oh start` (création branche) | `branch_naming` |
+| `oh release <ticket>` | `review_required`, `tests_required` |
+
+#### Checks agents
+
+Chaque agent vérifie uniquement les policies pertinentes à ses actions.
+Voir le skill `team-policies-enforcement` pour la matrice détaillée.
+
+### Relation avec les conventions
+
+Les **conventions** (`docs/wiki/technical/conventions.md` + wiki) restent la
+documentation de référence, lisible par les humains et les agents. Les
+**policies** en sont la formalisation machine-enforceable.
+
+Recommandation : documentez vos conventions normalement, puis formalisez celles
+qui doivent être bloquantes dans `policies.toml`.
+
 ## Exemples de fichier conventions
 
 ```markdown

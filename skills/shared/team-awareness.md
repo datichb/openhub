@@ -19,6 +19,7 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 | `team_wiki_list` | Pages disponibles dans le wiki partagé | read |
 | `team_wiki_read` | Lire une page du wiki partagé | read |
 | `team_events` | Événements récents de l'équipe | read |
+| `team_policies` | Règles d'équipe actives (conventions, limites, patterns interdits) | read |
 
 ## Avant de travailler sur un ticket
 
@@ -31,6 +32,8 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 - Avant toute décision architecturale significative, consulte `team_wiki_list` puis `team_wiki_read` pour les pages pertinentes
 - Utilise `team_events` pour comprendre l'activité récente sur le projet courant
 - Utilise `team_members` si tu as besoin de savoir qui contacter pour un sujet
+- Si un `team_takeover_brief` existe pour le ticket courant, le consulter pour charger le contexte du prédécesseur (voir skill `takeover-context-protocol`)
+- En mode parallèle, le skill `parallel-coordination` est injecté automatiquement avec les règles spécifiques
 
 ## Après le travail
 
@@ -43,3 +46,9 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 - Seul le `documentarian` a accès à `team_wiki_write`
 - Les données team sont en lecture seule pour tous les autres agents
 - Ne pas inclure de données sensibles dans les notifications
+
+## Team Policies
+
+Si l'équipe a configuré des policies (`team_policies`), consulter le skill
+`team-policies-enforcement` pour connaître les règles d'application par agent.
+En début de session, appeler `team_policies` pour charger les règles actives.
