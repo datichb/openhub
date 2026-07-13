@@ -127,6 +127,102 @@ func Serve() error {
 		},
 	}, handleTeamNotify)
 
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_policies",
+		Description: "Get active team policies (merged global + project overrides). Returns all rules the agent must respect.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project": map[string]interface{}{
+					"type":        "string",
+					"description": "Project name to get merged policies for (optional, empty = global only)",
+				},
+			},
+		},
+	}, handleTeamPolicies)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_takeover_brief",
+		Description: "Read the takeover brief for a ticket (context from previous owner). Returns enriched version if available, otherwise template.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project": map[string]interface{}{
+					"type":        "string",
+					"description": "Project name",
+				},
+				"ticket_id": map[string]interface{}{
+					"type":        "string",
+					"description": "Ticket ID to get brief for",
+				},
+			},
+			"required": []string{"project", "ticket_id"},
+		},
+	}, handleTeamTakeoverBrief)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_patterns_list",
+		Description: "List available decomposition patterns from the team patterns library. Use tags to filter relevant patterns.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"tags": map[string]interface{}{
+					"type":        "array",
+					"items":       map[string]interface{}{"type": "string"},
+					"description": "Tags to filter by (patterns matching >= 2 tags are returned)",
+				},
+			},
+		},
+	}, handleTeamPatternsList)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_patterns_read",
+		Description: "Read the full content of a decomposition pattern (Markdown with structure, dependencies, variants).",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Pattern name (without .md extension)",
+				},
+			},
+			"required": []string{"name"},
+		},
+	}, handleTeamPatternsRead)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_patterns_propose",
+		Description: "Propose a new pattern to the patterns library (created as validated=false, awaiting human validation).",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Pattern name (slug format, e.g. crud-api)",
+				},
+				"tags": map[string]interface{}{
+					"type":        "array",
+					"items":       map[string]interface{}{"type": "string"},
+					"description": "Tags for the pattern",
+				},
+				"complexity": map[string]interface{}{
+					"type":        "string",
+					"description": "Complexity level: low, medium, high",
+					"enum":        []string{"low", "medium", "high"},
+				},
+				"project": map[string]interface{}{
+					"type":        "string",
+					"description": "Originating project",
+				},
+				"content": map[string]interface{}{
+					"type":        "string",
+					"description": "Full Markdown content of the pattern",
+				},
+			},
+			"required": []string{"name", "tags", "complexity", "content"},
+		},
+	}, handleTeamPatternsPropose)
+
 	return server.Serve()
 }
 
@@ -378,5 +474,177 @@ func handleTeamNotify(params json.RawMessage) (*protocol.ToolResult, error) {
 
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: "Notification sent."}},
+	}, nil
+}
+
+func handleTeamPolicies(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Project string `json:"project"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	policies, err := repo.LoadPolicies(args.Project)
+	if err != nil {
+		return nil, fmt.Errorf("loading policies: %w", err)
+	}
+
+	if policies == nil {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: "No team policies configured. Create policies.toml in the team-state repo.",
+			}},
+		}, nil
+	}
+
+	data, err := json.MarshalIndent(policies, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+func handleTeamTakeoverBrief(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Project  string `json:"project"`
+		TicketID string `json:"ticket_id"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := repo.ReadBrief(args.Project, args.TicketID)
+	if err != nil {
+		if err == teamstate.ErrBriefNotFound {
+			return &protocol.ToolResult{
+				Content: []protocol.ContentBlock{{
+					Type: "text",
+					Text: fmt.Sprintf("No takeover brief found for %s/%s.", args.Project, args.TicketID),
+				}},
+			}, nil
+		}
+		return nil, fmt.Errorf("reading brief: %w", err)
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: content}},
+	}, nil
+}
+
+func handleTeamPatternsList(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	minTags := 2
+	if len(args.Tags) < 2 {
+		minTags = len(args.Tags)
+	}
+
+	patterns, err := repo.ListPatterns(args.Tags, minTags)
+	if err != nil {
+		return nil, fmt.Errorf("listing patterns: %w", err)
+	}
+
+	if len(patterns) == 0 {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: "No patterns found in the library. Use `oh patterns add` to create one.",
+			}},
+		}, nil
+	}
+
+	data, err := json.MarshalIndent(patterns, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+func handleTeamPatternsRead(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := repo.ReadPattern(args.Name)
+	if err != nil {
+		return nil, fmt.Errorf("reading pattern: %w", err)
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: content}},
+	}, nil
+}
+
+func handleTeamPatternsPropose(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Name       string   `json:"name"`
+		Tags       []string `json:"tags"`
+		Complexity string   `json:"complexity"`
+		Project    string   `json:"project"`
+		Content    string   `json:"content"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	p := teamstate.Pattern{
+		Name:       args.Name,
+		Tags:       args.Tags,
+		Complexity: args.Complexity,
+		Source:     "planner",
+		Project:    args.Project,
+		Validated:  false, // proposals always start unvalidated
+	}
+
+	if err := repo.CreatePattern(context.Background(), p, args.Content); err != nil {
+		return nil, fmt.Errorf("creating pattern: %w", err)
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{
+			Type: "text",
+			Text: fmt.Sprintf("Pattern %q proposed. Awaiting human validation via `oh patterns validate %s`.", args.Name, args.Name),
+		}},
 	}, nil
 }

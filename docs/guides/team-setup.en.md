@@ -102,6 +102,12 @@ oh claim transfer SRU-142 --to alice
 # Who is working on what
 oh team status
 
+# With sub-ticket details
+oh team status --detail
+
+# Interactive full-screen kanban board
+oh team board
+
 # Recent activity
 oh team activity          # last 24h
 oh team activity --today  # today only
@@ -129,13 +135,18 @@ After setup, the repository looks like:
 ```
 team-state/
 ├── members.toml          # Team registry
-├── config.toml           # Notification config
+├── config.toml           # Notification + takeover config
+├── policies.toml         # Team rules (configurable enforcement)
 ├── projects/
 │   └── T-SRU/
 │       ├── claims/
 │       │   └── SRU-142.toml
-│       └── events/
-│           └── 2026-07.jsonl
+│       ├── events/
+│       │   └── 2026-07.jsonl
+│       ├── takeover-briefs/      # Ticket handover briefs
+│       │   ├── bd-42_2026-07-13.toml
+│       │   └── bd-42_2026-07-13.md
+│       └── policies-override.toml  # Per-project overrides (optional)
 ├── wiki/
 │   ├── .pending/         # Proposals awaiting review
 │   ├── decisions.md      # Architectural decisions
@@ -153,8 +164,179 @@ When team features are enabled, all agents have access to read-only team tools:
 | `team_claims` | Who works on what |
 | `team_wiki_read` | Shared knowledge |
 | `team_events` | Recent activity |
+| `team_policies` | Team rules (enforceable conventions) |
+| `team_takeover_brief` | Takeover brief for a transferred ticket |
 
 The `documentarian` agent additionally has `team_wiki_write` to propose wiki entries (always pending human review).
+
+## 5. Configure Team Policies
+
+Policies allow automatic enforcement of conventions (blocking or warning).
+
+Create `policies.toml` in the team-state repo:
+
+```bash
+# Interactive — add a custom policy
+oh policies add
+
+# Or edit directly
+cd ~/.oh/team-state
+vim policies.toml
+git add policies.toml && git commit -m "policies: initial setup" && git push
+```
+
+See the [conventions guide](./team-conventions.en.md#team-policies--configurable-enforcement) for the full format and examples.
+
+```bash
+# Check policies
+oh policies list                  # Show active policies
+oh policies check                 # Check current state
+oh policies check --branch main   # Check a branch name
+```
+
+## 6. Takeover Briefs
+
+When a ticket is transferred from one member to another, a takeover brief is
+automatically generated. It contains the context needed to resume work without
+information loss.
+
+### Automatic generation
+
+```bash
+# Brief is generated automatically on transfer
+oh claim transfer SRU-142 --to alice
+# → Takeover brief generated. oh takeover-brief show SRU-142
+```
+
+If a ticket has been inactive for several days (configurable via `stale_days`
+in `config.toml`), the hub detects it as "stale" and proposes generating a
+brief when reclaiming:
+
+```bash
+oh claim SRU-142
+# → SRU-142 is assigned to benjamin for 5 days with no activity.
+# → Generate a takeover brief and transfer? [Y/n]
+```
+
+### View and enrich briefs
+
+```bash
+# Show a ticket's brief
+oh takeover-brief show SRU-142
+
+# List all briefs for the project
+oh takeover-brief list
+
+# Enrich a brief with AI code analysis
+oh takeover-brief enrich SRU-142
+```
+
+Enrichment uses an AI agent (`brief-enricher`) in headless mode to:
+- Read the files mentioned in the brief
+- Identify architectural decisions
+- Spot open questions (TODO, FIXME)
+- Suggest next steps
+
+### Stale configuration
+
+In `config.toml` of the team-state repo:
+
+```toml
+[takeover]
+stale_days = 3   # Days of inactivity before a ticket is considered stale
+```
+
+## 7. Patterns Library
+
+Patterns are reusable ticket decompositions. They accelerate planning by
+offering a proven base for recurring work types (CRUD, API integration,
+DB migration, etc.).
+
+### Managing patterns
+
+```bash
+# List available patterns
+oh patterns list
+oh patterns list --tags backend,api
+
+# View a pattern's content
+oh patterns show crud-api
+
+# Add a pattern manually
+oh patterns add                 # interactive
+oh patterns add my-pattern.md   # from a file
+
+# Validate a pattern proposed by an agent
+oh patterns validate crud-api
+
+# Remove a pattern
+oh patterns remove crud-api
+```
+
+### Automatic feeding
+
+The planner and pathfinder can propose patterns automatically:
+- After a successful planning (all tickets completed), the planner proposes the decomposition
+- Patterns proposed by agents are `validated=false` until human validation
+
+### Team-state structure
+
+```
+team-state/
+  patterns/
+    index.toml          # Pattern catalog (metadata)
+    crud-api.md         # Pattern content
+    migration-db.md
+    ...
+```
+
+## 8. Parallel Sessions
+
+Parallel mode allows launching multiple agents simultaneously on different
+tickets. Each agent works in an isolated Git worktree.
+
+### Launch
+
+```bash
+# Launch 3 tickets in parallel
+oh start --parallel --tickets bd-42,bd-43,bd-44
+
+# With a priority ticket (merged first)
+oh start --parallel --tickets bd-42,bd-43,bd-44 --priority bd-42
+
+# Limit session count
+oh start --parallel --tickets bd-42,bd-43,bd-44 --max-sessions 2
+```
+
+### Monitoring interface
+
+A full-screen TUI displays each session's state:
+- Real-time status (pending / running / completed / failed)
+- Files modified by each session
+- Detected potential conflicts
+
+Navigation:
+- `j/k`: navigate between sessions
+- `Enter`: attach to a session (full opencode TUI)
+- `r`: refresh
+- `q`: quit
+
+### Merge
+
+After sessions complete, the hub proposes a sequential merge:
+- **Beads tickets** (local, `bd-` prefix): merge proposed with human validation
+- **External tickets** (GitLab/Jira): no automatic merge, branches stay ready for MR/PR
+
+### Configuration
+
+In `config.toml` of the team-state repo:
+
+```toml
+[parallel]
+max_sessions = 3           # Max concurrent sessions
+port_range_start = 4100    # Starting port for opencode servers
+auto_merge_beads = true    # Propose merge for Beads tickets
+```
 
 ## Troubleshooting
 

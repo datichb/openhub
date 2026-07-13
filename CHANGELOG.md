@@ -7,6 +7,60 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.7.0] — 2026-07-13
+
+### Added
+
+- **Team Policies** (`oh policies list/check/add`) — règles d'équipe enforceables
+  (refuse/warn) avec types regex, boolean, limit, forbidden_pattern.
+  Overrides par projet. MCP tool `team_policies`. Double enforcement CLI + agents.
+
+- **Takeover Briefs** (`oh takeover-brief show/list/enrich`) — briefs de reprise
+  générés automatiquement lors des transferts de tickets. Détection stale
+  configurable. Enrichissement IA via `opencode run` (agent brief-enricher).
+  MCP tool `team_takeover_brief`.
+
+- **Team Board** (`oh team board`) — TUI Kanban interactif plein écran pour
+  visualiser l'équipe (colonnes IDLE/IN PROGRESS/REVIEW/BLOCKED). Navigation
+  clavier, mode détail avec sub-beads.
+
+- **`oh team status --detail`** — affiche les sous-tickets et la progression
+  sous chaque claim.
+
+- **Patterns Library** (`oh patterns list/show/add/validate/remove`) — bibliothèque
+  de décompositions réutilisables. Alimentée par le planner (auto), pathfinder
+  (auto), ou manuellement. MCP tools `team_patterns_list/read/propose`.
+
+- **Parallel Sessions** (`oh start --parallel --tickets bd-42,bd-43,bd-44`) —
+  exécution parallèle de N agents sur N tickets dans des worktrees isolés.
+  TUI de suivi temps réel, attach/detach vers les sessions individuelles,
+  détection de conflits, merge séquentiel avec validation humaine.
+  Flags: `--priority`, `--max-sessions`.
+
+- **`opencode.RunHeadless()`** — exécution non-interactive d'opencode pour les
+  tâches utilitaires (enrichissement briefs, futures automations).
+
+- **5 nouveaux MCP tools** : `team_policies`, `team_takeover_brief`,
+  `team_patterns_list`, `team_patterns_read`, `team_patterns_propose`
+
+- **4 nouveaux skills** : `team-policies-enforcement`, `takeover-context-protocol`,
+  `parallel-coordination`, `planner-patterns-protocol`
+
+- **1 nouvel agent** : `brief-enricher` (read-only, enrichissement de briefs)
+
+### Changed
+
+- `oh claim` vérifie désormais la policy `max_ticket_wip` avant de réserver
+- `oh claim transfer` génère automatiquement un takeover brief
+- `oh claim` détecte les tickets stale et propose la reprise avec brief
+- `team-awareness.md` enrichi avec les références policies, takeover, parallel
+- `team-coordination.md` enrichi avec le protocole takeover
+- Structure team-state étendue : `policies.toml`, `takeover-briefs/`, `patterns/`
+- `TeamConfig` étendu : sections `[takeover]` et `[parallel]`
+- `Claim` struct : nouveau champ `LastActivity`
+
+---
+
 ## [3.6.0] — 2026-07-10
 
 ### Changed

@@ -230,3 +230,154 @@ In `opencode.json`, permissions are set per-agent:
 | `wiki.proposal` | `team_wiki_write` | Yes (MCP) |
 | `wiki.accepted` | `oh team wiki review` | Yes (CLI) |
 | `wiki.rejected` | `oh team wiki review` | Yes (CLI) |
+
+---
+
+### `team_policies`
+
+Get active team policies (merged global + project overrides).
+
+**Input:**
+```json
+{
+  "project": "T-SRU"  // optional, empty = global policies only
+}
+```
+
+**Output:** JSON array of policies (merged with project overrides if specified)
+
+```json
+[
+  {
+    "Name": "branch_naming",
+    "Type": "regex",
+    "Rule": "^(feat|fix|hotfix|chore|refactor)/[a-z0-9-]+",
+    "Enforcement": "refuse",
+    "Message": "Branch must follow pattern: feat/xxx, fix/xxx, etc."
+  },
+  {
+    "Name": "custom_no_console_log",
+    "Type": "forbidden_pattern",
+    "Patterns": ["console.log", "console.warn"],
+    "Scope": "diff_only",
+    "Enforcement": "warn",
+    "Message": "Remove console.log before commit"
+  }
+]
+```
+
+**Access:** All agents
+
+**Behavior:**
+1. Reads `policies.toml` from team-state root
+2. If `project` is specified, merges with `projects/<project>/policies-override.toml`
+3. Overrides can only make enforcement stricter (warn → refuse), never more permissive
+4. Returns all active policies for the agent to enforce (see skill `team-policies-enforcement`)
+
+---
+
+### `team_takeover_brief`
+
+Read the takeover brief for a ticket (context from previous owner after a transfer).
+
+**Input:**
+```json
+{
+  "project": "T-SRU",    // required
+  "ticket_id": "bd-42"   // required
+}
+```
+
+**Output:** Markdown content of the brief (best available version)
+
+Priority order:
+1. `.enriched.md` (AI-enriched version) if available
+2. `.md` (template-generated summary) if available
+3. `.toml` (raw structured data) as fallback
+
+**Access:** All agents
+
+**Behavior:**
+1. Looks in `projects/<project>/takeover-briefs/` for files matching `<ticket_id>_*`
+2. Returns the most recent brief in the best available format
+3. Returns "No takeover brief found" if none exists
+
+---
+
+### `team_patterns_list`
+
+List available decomposition patterns from the team patterns library.
+
+**Input:**
+```json
+{
+  "tags": ["backend", "api"]  // optional, filters by tag matching
+}
+```
+
+**Output:** JSON array of pattern metadata
+
+```json
+[
+  {
+    "Name": "crud-api",
+    "Tags": ["backend", "api", "crud"],
+    "Complexity": "medium",
+    "Source": "manual",
+    "Project": "T-SRU",
+    "Validated": true,
+    "CreatedAt": "2026-07-10"
+  }
+]
+```
+
+**Access:** All agents
+
+**Behavior:**
+1. Reads `patterns/index.toml` from team-state
+2. If `tags` provided, returns patterns matching >= 2 tags
+3. Returns empty message if no patterns exist
+
+---
+
+### `team_patterns_read`
+
+Read the full content of a decomposition pattern.
+
+**Input:**
+```json
+{
+  "name": "crud-api"  // required, without .md extension
+}
+```
+
+**Output:** Full Markdown content of the pattern file
+
+**Access:** All agents
+
+---
+
+### `team_patterns_propose`
+
+Propose a new pattern to the library (from planner or pathfinder).
+
+**Input:**
+```json
+{
+  "name": "integration-externe",       // required
+  "tags": ["backend", "integration"],   // required
+  "complexity": "high",                 // required: low | medium | high
+  "project": "T-SRU",                  // optional
+  "content": "# Pattern content..."    // required: full Markdown
+}
+```
+
+**Output:** Confirmation message
+
+**Access:** `planner`, `pathfinder`
+
+**Behavior:**
+1. Creates the pattern with `validated = false`
+2. Adds to `patterns/index.toml`
+3. Creates `patterns/<name>.md`
+4. Awaits human validation via `oh patterns validate <name>`
