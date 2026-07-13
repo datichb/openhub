@@ -668,5 +668,24 @@
   "form.configure.modify_agents": "Modify deployed agents?",
   "form.configure.agents_current": "%d agents currently configured",
   "form.yes": "Yes",
-  "form.no": "No"
+  "form.no": "No",
+
+  "help.cmd.team.board": "Interactive team Kanban board",
+  "help.flag.team.detail": "Show sub-tickets and progress",
+  "help.cmd.policies.list": "Show active policies",
+  "help.cmd.policies.check": "Check policies against current state",
+  "help.cmd.policies.add": "Add a custom policy (interactive)",
+  "help.cmd.takeover.show": "Show takeover brief for a ticket",
+  "help.cmd.takeover.list": "List takeover briefs",
+  "help.cmd.takeover.enrich": "Enrich a brief with AI",
+  "help.cmd.patterns.list": "List available patterns",
+  "help.cmd.patterns.show": "Show pattern content",
+  "help.cmd.patterns.add": "Add a pattern",
+  "help.cmd.patterns.validate": "Validate a proposed pattern",
+  "help.cmd.patterns.remove": "Remove a pattern",
+  "help.flag.patterns.tags": "Filter by tags (comma-separated)",
+  "help.flag.start.parallel": "Launch N sessions in parallel",
+  "help.flag.start.tickets": "Tickets to work on in parallel",
+  "help.flag.start.max_sessions": "Max parallel sessions (default: 3)",
+  "help.flag.start.priority": "Priority ticket (merged first)"
 }

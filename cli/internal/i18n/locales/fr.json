@@ -668,5 +668,24 @@
   "form.configure.modify_agents": "Modifier les agents déployés ?",
   "form.configure.agents_current": "%d agents actuellement configurés",
   "form.yes": "Oui",
-  "form.no": "Non"
+  "form.no": "Non",
+
+  "help.cmd.team.board": "Board kanban interactif de l'équipe",
+  "help.flag.team.detail": "Affiche les sous-tickets et progression",
+  "help.cmd.policies.list": "Affiche les policies actives",
+  "help.cmd.policies.check": "Vérifie les policies contre l'état courant",
+  "help.cmd.policies.add": "Ajoute une policy custom (interactif)",
+  "help.cmd.takeover.show": "Affiche le brief de reprise d'un ticket",
+  "help.cmd.takeover.list": "Liste les briefs de reprise",
+  "help.cmd.takeover.enrich": "Enrichit un brief avec l'IA",
+  "help.cmd.patterns.list": "Liste les patterns disponibles",
+  "help.cmd.patterns.show": "Affiche le contenu d'un pattern",
+  "help.cmd.patterns.add": "Ajoute un pattern",
+  "help.cmd.patterns.validate": "Valide un pattern proposé",
+  "help.cmd.patterns.remove": "Supprime un pattern",
+  "help.flag.patterns.tags": "Filtrer par tags (séparés par des virgules)",
+  "help.flag.start.parallel": "Lance N sessions en parallèle",
+  "help.flag.start.tickets": "Tickets à traiter en parallèle",
+  "help.flag.start.max_sessions": "Max sessions parallèles (default: 3)",
+  "help.flag.start.priority": "Ticket prioritaire (merge en premier)"
 }

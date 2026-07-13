@@ -128,6 +128,10 @@ func buildHelpSections() []helpSection {
 						{"onboard", "", i18n.T("help.flag.start.onboard")},
 						{"refresh", "", i18n.T("help.flag.start.refresh")},
 						{"yes", "y", i18n.T("help.flag.start.yes")},
+						{"parallel", "", i18n.T("help.flag.start.parallel")},
+						{"tickets", "", i18n.T("help.flag.start.tickets")},
+						{"max-sessions", "", i18n.T("help.flag.start.max_sessions")},
+						{"priority", "", i18n.T("help.flag.start.priority")},
 					},
 				},
 				{
@@ -373,8 +377,15 @@ func buildHelpSections() []helpSection {
 		{
 			Title: i18n.T("help.section.team"),
 			Commands: []helpCommand{
-				{Name: "team status", Desc: i18n.T("help.cmd.team.status")},
+				{
+					Name: "team status",
+					Desc: i18n.T("help.cmd.team.status"),
+					Flags: []helpFlag{
+						{"detail", "", i18n.T("help.flag.team.detail")},
+					},
+				},
 				{Name: "team activity", Desc: i18n.T("help.cmd.team.activity")},
+				{Name: "team board", Desc: i18n.T("help.cmd.team.board")},
 				{
 					Name: "claim",
 					Desc: i18n.T("help.cmd.claim"),
@@ -399,6 +410,29 @@ func buildHelpSections() []helpSection {
 				},
 				{Name: "conventions check", Desc: i18n.T("cmd.conventions.short")},
 				{Name: "beads", Desc: i18n.T("cmd.beads.short")},
+				{
+					Name: "policies list",
+					Desc: i18n.T("help.cmd.policies.list"),
+					Flags: []helpFlag{
+						{"project", "p", i18n.T("help.flag.start.project")},
+					},
+				},
+				{Name: "policies check", Desc: i18n.T("help.cmd.policies.check")},
+				{Name: "policies add", Desc: i18n.T("help.cmd.policies.add")},
+				{Name: "takeover-brief show", Desc: i18n.T("help.cmd.takeover.show")},
+				{Name: "takeover-brief list", Desc: i18n.T("help.cmd.takeover.list")},
+				{Name: "takeover-brief enrich", Desc: i18n.T("help.cmd.takeover.enrich")},
+				{
+					Name: "patterns list",
+					Desc: i18n.T("help.cmd.patterns.list"),
+					Flags: []helpFlag{
+						{"tags", "", i18n.T("help.flag.patterns.tags")},
+					},
+				},
+				{Name: "patterns show", Desc: i18n.T("help.cmd.patterns.show")},
+				{Name: "patterns add", Desc: i18n.T("help.cmd.patterns.add")},
+				{Name: "patterns validate", Desc: i18n.T("help.cmd.patterns.validate")},
+				{Name: "patterns remove", Desc: i18n.T("help.cmd.patterns.remove")},
 			},
 		},
 		{
