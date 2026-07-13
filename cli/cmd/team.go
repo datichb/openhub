@@ -58,6 +58,8 @@ func init() {
 	teamActivityCmd.Flags().String("member", "", "Filter by member ID")
 	teamActivityCmd.Flags().String("project", "", "Filter by project")
 	teamActivityCmd.Flags().Int("limit", 20, "Maximum number of events to display")
+
+	teamStatusCmd.Flags().Bool("detail", false, "Affiche les sous-tickets et la progression")
 }
 
 func runTeamInit(cmd *cobra.Command, args []string) error {
@@ -202,6 +204,8 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 			common.WarningStyle.Render(common.IconWarning), err)
 	}
 
+	detail, _ := cmd.Flags().GetBool("detail")
+
 	// List members
 	members, err := repo.ListMembers()
 	if err != nil {
@@ -220,31 +224,96 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		claimsByMember[c.ClaimedBy] = append(claimsByMember[c.ClaimedBy], c)
 	}
 
+	// Counters
+	activeCount := 0
+	reviewCount := 0
+	blockedCount := 0
+	for _, c := range claims {
+		switch c.Status {
+		case "in_progress":
+			activeCount++
+		case "review":
+			reviewCount++
+		case "blocked":
+			blockedCount++
+		}
+	}
+
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintln(a.IO.Out, common.Title.Render(fmt.Sprintf("  Team: %d members  ", len(members))))
 	fmt.Fprintln(a.IO.Out)
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "  %s\t%s\t%s\n",
+	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
 		common.Bold.Render("Member"),
 		common.Bold.Render("Role"),
-		common.Bold.Render("Current Work"))
-	fmt.Fprintf(w, "  %s\t%s\t%s\n", "──────", "────", "────────────")
+		common.Bold.Render("Ticket"),
+		common.Bold.Render("Status"),
+		common.Bold.Render("Since"))
+	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", "──────", "────", "──────", "──────", "─────")
 
 	for _, m := range members {
-		work := common.Subtitle.Render("— (no active claim)")
-		if memberClaims, ok := claimsByMember[m.ID]; ok && len(memberClaims) > 0 {
-			c := memberClaims[0]
-			duration := time.Since(c.ClaimedAt).Truncate(time.Minute)
-			work = fmt.Sprintf("%s/%s (%s, %s)", c.Project, c.TicketID, c.Status, formatDuration(duration))
-			if len(memberClaims) > 1 {
-				work += fmt.Sprintf(" +%d", len(memberClaims)-1)
+		memberClaims := claimsByMember[m.ID]
+
+		if len(memberClaims) == 0 {
+			fmt.Fprintf(w, "  %s\t%s\t%s\t\t\n",
+				m.DisplayName, m.Role,
+				common.Subtitle.Render("— (idle)"))
+			continue
+		}
+
+		for i, c := range memberClaims {
+			since := c.ClaimedAt
+			if !c.LastActivity.IsZero() {
+				since = c.LastActivity
+			}
+			sinceStr := formatDuration(time.Since(since).Truncate(time.Minute))
+
+			memberCol := m.DisplayName
+			roleCol := m.Role
+			if i > 0 {
+				memberCol = ""
+				roleCol = ""
+			}
+
+			ticketStr := fmt.Sprintf("%s/%s", c.Project, c.TicketID)
+			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
+				memberCol, roleCol, ticketStr, c.Status, sinceStr)
+
+			// Detail mode: show sub-beads
+			if detail {
+				subBeads := fetchSubBeads(c.TicketID)
+				if len(subBeads) > 0 {
+					completed := 0
+					for j, sb := range subBeads {
+						icon := common.IconDot
+						switch sb.Status {
+						case "completed":
+							icon = common.IconSuccess
+							completed++
+						case "in_progress":
+							icon = common.IconInfo
+						}
+						prefix := "├"
+						if j == len(subBeads)-1 {
+							prefix = "└"
+						}
+						fmt.Fprintf(w, "  \t\t  %s %s %s\t%s\t\n",
+							prefix, icon, sb.ID, sb.Status)
+					}
+					fmt.Fprintf(w, "  \t\t  %s\t\t\n",
+						common.Subtitle.Render(fmt.Sprintf("Progress: %d/%d", completed, len(subBeads))))
+				}
 			}
 		}
-		fmt.Fprintf(w, "  %s\t%s\t%s\n", m.DisplayName, m.Role, work)
 	}
 	w.Flush()
-	fmt.Fprintln(a.IO.Out)
+
+	// Summary line
+	fmt.Fprintf(a.IO.Out, "\n  %d tickets actifs %s %d en review %s %d blocked\n\n",
+		activeCount, common.IconDot,
+		reviewCount, common.IconDot,
+		blockedCount)
 
 	return nil
 }
