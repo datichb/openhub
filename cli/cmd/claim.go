@@ -18,7 +18,10 @@ var claimCmd = &cobra.Command{
 	Short: "Réserve un ticket pour toi",
 	Long: `Réserve un ticket dans le team-state, signalant à l'équipe que tu
 travailles dessus. Si le ticket est déjà pris, un warning est affiché
-mais l'opération n'est pas bloquante.`,
+mais l'opération n'est pas bloquante.
+
+Si le ticket est stale (inactif depuis plusieurs jours), propose de
+générer un brief de reprise avant de le réclamer.`,
 	Args: cobra.ExactArgs(1),
 	RunE: runClaim,
 }
@@ -80,6 +83,35 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			common.Bold.Render("oh team init"))
 	}
 
+	// Check max_ticket_wip policy before claiming
+	activeClaims := 0
+	allClaims, _ := repo.ListClaims("")
+	for _, c := range allClaims {
+		if c.ClaimedBy == memberID {
+			activeClaims++
+		}
+	}
+
+	policyCtx := teamstate.PolicyContext{
+		MemberID:     memberID,
+		ActiveClaims: activeClaims,
+	}
+	violations, _ := repo.CheckAll(project, policyCtx)
+	for _, v := range violations {
+		if v.Name == "max_ticket_wip" && !v.Passed {
+			if v.Enforcement == teamstate.EnforcementRefuse {
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					common.ErrorStyle.Render(common.IconWarning), v.Message)
+				fmt.Fprintf(a.IO.Out, "  %s\n", common.Subtitle.Render(v.Details))
+				return fmt.Errorf("policy violation: %s", v.Name)
+			}
+			// Warn only
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				common.WarningStyle.Render(common.IconWarning), v.Message)
+			fmt.Fprintf(a.IO.Out, "  %s\n\n", common.Subtitle.Render(v.Details))
+		}
+	}
+
 	claim := teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project,
@@ -91,6 +123,53 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 	existing, err := repo.CreateClaim(ctx, claim)
 	if err == teamstate.ErrClaimExists {
+		// Check if stale
+		teamCfg, _ := repo.LoadConfig()
+		staleDays := 3
+		if teamCfg != nil && teamCfg.Takeover.StaleDays > 0 {
+			staleDays = teamCfg.Takeover.StaleDays
+		}
+
+		if existing != nil && repo.IsStale(existing, staleDays) {
+			daysSince := int(time.Since(existing.ClaimedAt).Hours() / 24)
+			if !existing.LastActivity.IsZero() {
+				daysSince = int(time.Since(existing.LastActivity).Hours() / 24)
+			}
+
+			fmt.Fprintf(a.IO.Out, "%s %s/%s est assigné à %s depuis %d jours sans activité.\n",
+				common.WarningStyle.Render(common.IconWarning),
+				project, ticketID,
+				common.Bold.Render(existing.ClaimedBy),
+				daysSince)
+
+			// Propose generating a takeover brief
+			fmt.Fprintf(a.IO.Out, "  Générer un brief de reprise et transférer ? [Y/n] ")
+			var response string
+			fmt.Scanln(&response)
+			if response == "" || response == "y" || response == "Y" {
+				previousOwner := existing.ClaimedBy
+				// Generate brief
+				brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, "stale")
+				if briefErr == nil {
+					_ = repo.SaveBrief(ctx, brief)
+					fmt.Fprintf(a.IO.Out, "%s Brief de reprise généré.\n",
+						common.SuccessStyle.Render(common.IconSuccess))
+				}
+				// Transfer the claim
+				_ = repo.TransferClaim(ctx, project, ticketID, memberID)
+				fmt.Fprintf(a.IO.Out, "%s %s/%s transféré de %s à %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					project, ticketID, previousOwner, memberID)
+				return nil
+			}
+			// User declined brief but still wants to claim — do transfer
+			_ = repo.TransferClaim(ctx, project, ticketID, memberID)
+			fmt.Fprintf(a.IO.Out, "%s %s/%s transféré (sans brief).\n",
+				common.SuccessStyle.Render(common.IconSuccess), project, ticketID)
+			return nil
+		}
+
+		// Not stale — standard warning
 		fmt.Fprintf(a.IO.Out, "%s %s/%s est déjà pris par %s (depuis %s)\n",
 			common.WarningStyle.Render(common.IconWarning),
 			project, ticketID,
@@ -162,6 +241,13 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Get existing claim info before transfer (for brief generation)
+	existingClaim, _ := repo.GetClaim(project, ticketID)
+	var previousOwner string
+	if existingClaim != nil {
+		previousOwner = existingClaim.ClaimedBy
+	}
+
 	if err := repo.TransferClaim(ctx, project, ticketID, to); err != nil {
 		if err == teamstate.ErrClaimNotFound {
 			fmt.Fprintf(a.IO.Out, "%s %s/%s n'est pas réservé\n",
@@ -174,6 +260,28 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "%s %s/%s transféré à %s\n",
 		common.SuccessStyle.Render(common.IconSuccess),
 		project, ticketID, common.Bold.Render(to))
+
+	// Generate takeover brief automatically
+	if previousOwner != "" {
+		fmt.Fprintf(a.IO.Out, "\n%s Génération du brief de reprise...\n",
+			common.Subtitle.Render(common.IconArrow))
+
+		brief, err := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, to, "transfer")
+		if err != nil {
+			fmt.Fprintf(a.IO.Out, "%s Impossible de générer le brief: %v\n",
+				common.WarningStyle.Render(common.IconWarning), err)
+		} else {
+			if err := repo.SaveBrief(ctx, brief); err != nil {
+				fmt.Fprintf(a.IO.Out, "%s Impossible de sauvegarder le brief: %v\n",
+					common.WarningStyle.Render(common.IconWarning), err)
+			} else {
+				fmt.Fprintf(a.IO.Out, "%s Brief de reprise généré. %s\n",
+					common.SuccessStyle.Render(common.IconSuccess),
+					common.Subtitle.Render("oh takeover-brief show "+ticketID))
+			}
+		}
+	}
+
 	return nil
 }
 

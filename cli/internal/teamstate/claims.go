@@ -13,12 +13,13 @@ import (
 
 // Claim represents a ticket reservation by a team member.
 type Claim struct {
-	TicketID  string    `toml:"-"` // derived from filename
-	Project   string    `toml:"-"` // derived from directory
-	ClaimedBy string    `toml:"claimed_by"`
-	ClaimedAt time.Time `toml:"claimed_at"`
-	Worktree  string    `toml:"worktree,omitempty"` // associated branch
-	Status    string    `toml:"status"`             // in_progress | review | blocked
+	TicketID     string    `toml:"-"` // derived from filename
+	Project      string    `toml:"-"` // derived from directory
+	ClaimedBy    string    `toml:"claimed_by"`
+	ClaimedAt    time.Time `toml:"claimed_at"`
+	Worktree     string    `toml:"worktree,omitempty"`      // associated branch
+	Status       string    `toml:"status"`                  // in_progress | review | blocked
+	LastActivity time.Time `toml:"last_activity,omitempty"` // last session/commit activity
 }
 
 // ListClaims returns all active claims for a project.

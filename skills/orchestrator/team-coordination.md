@@ -85,3 +85,13 @@ Avant de créer une branche ou un commit, lis les conventions du projet :
 - Respecter les décisions documentées dans le wiki d'équipe
 - Ne JAMAIS merger une MR automatiquement — le merge est toujours manuel
 - Ne JAMAIS fermer un ticket GitLab automatiquement
+
+## Brief de reprise (Takeover)
+
+Au démarrage d'un ticket, vérifier si un brief de reprise existe :
+
+1. Appelle `team_takeover_brief` avec le projet et ticket_id courants
+2. Si un brief est retourné : appliquer le protocole défini dans le skill `takeover-context-protocol`
+3. Si aucun brief : continuer normalement
+
+Cela concerne les tickets transférés d'un autre membre ou repris après inactivité.

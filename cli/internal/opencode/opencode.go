@@ -187,3 +187,52 @@ func expandHome(path string) string {
 	}
 	return path
 }
+
+// HeadlessOpts configures a non-interactive opencode run.
+type HeadlessOpts struct {
+	ProjectPath string   // Working directory
+	ProjectID   string   // Hub project ID (for env)
+	Agent       string   // Agent to use (e.g. "brief-enricher")
+	Prompt      string   // The prompt to send
+	Format      string   // Output format: "" (default) or "json"
+	Model       string   // Optional model override (provider/model)
+	Files       []string // Files to attach to the prompt
+}
+
+// RunHeadless executes opencode in non-interactive mode and captures output.
+// Uses `opencode run` under the hood — no TUI, no stdin required.
+func RunHeadless(opts HeadlessOpts) (string, error) {
+	bin, err := FindBinary()
+	if err != nil {
+		return "", fmt.Errorf("opencode binary not found: %w", err)
+	}
+
+	args := []string{"run"}
+	if opts.Agent != "" {
+		args = append(args, "--agent", opts.Agent)
+	}
+	if opts.Format != "" {
+		args = append(args, "--format", opts.Format)
+	}
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
+	}
+	for _, f := range opts.Files {
+		args = append(args, "--file", f)
+	}
+	args = append(args, "--auto")
+	args = append(args, opts.Prompt)
+
+	cmd := exec.Command(bin, args...)
+	if opts.ProjectPath != "" {
+		cmd.Dir = opts.ProjectPath
+	}
+	cmd.Env = os.Environ()
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("opencode run failed: %w\noutput: %s",
+			err, strings.TrimSpace(string(output)))
+	}
+	return string(output), nil
+}
