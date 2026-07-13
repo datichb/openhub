@@ -22,6 +22,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/parallel"
+	parallelTUI "github.com/datichb/openhub/cli/internal/tui/views/parallel"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -51,6 +53,12 @@ func init() {
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
 	startCmd.Flags().BoolP("yes", "y", false, "Skip confirmation and launch immediately")
+
+	// Parallel mode flags
+	startCmd.Flags().Bool("parallel", false, "Lance N sessions en parallèle sur des tickets différents")
+	startCmd.Flags().StringSlice("tickets", nil, "Liste des tickets à traiter en parallèle (séparés par des virgules)")
+	startCmd.Flags().Int("max-sessions", 0, "Nombre max de sessions parallèles (0 = valeur config, default: 3)")
+	startCmd.Flags().String("priority", "", "Ticket prioritaire (merge en premier)")
 
 	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
@@ -87,9 +95,15 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// --- Validate flag combinations ---
 	devMode, _ := cmd.Flags().GetBool("dev")
 	onboardMode, _ := cmd.Flags().GetBool("onboard")
+	parallelMode, _ := cmd.Flags().GetBool("parallel")
 	labelFlag, _ := cmd.Flags().GetString("label")
 	assigneeFlag, _ := cmd.Flags().GetString("assignee")
 	refreshFlag, _ := cmd.Flags().GetBool("refresh")
+
+	// --- Parallel mode ---
+	if parallelMode {
+		return runParallelMode(cmd, a, ctx)
+	}
 
 	if labelFlag != "" && !devMode {
 		return fmt.Errorf("%s", i18n.Tf("cmd.start.flag_requires_dev", "label"))
@@ -800,4 +814,198 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	devPrompt = prompt.BuildDevPrompt(tickets)
 	return "orchestrator-dev", devPrompt, nil
+}
+
+// runParallelMode handles the --parallel flag: launches N sessions concurrently.
+func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
+	tickets, _ := cmd.Flags().GetStringSlice("tickets")
+	maxSessions, _ := cmd.Flags().GetInt("max-sessions")
+	priority, _ := cmd.Flags().GetString("priority")
+	projectFlag, _ := cmd.Flags().GetString("project")
+
+	if len(tickets) == 0 {
+		return fmt.Errorf("--parallel nécessite --tickets (ex: --tickets bd-42,bd-43,bd-44)")
+	}
+
+	// Resolve project
+	project, err := resolveProject(ctx, a, projectFlag)
+	if err != nil {
+		return err
+	}
+
+	// Load parallel config from team-state (or defaults)
+	cfg := parallel.DefaultConfig()
+	if a.Config.Team.Enabled {
+		teamRepo, err := ensureTeamRepo(ctx, a)
+		if err == nil {
+			teamCfg, err := teamRepo.LoadConfig()
+			if err == nil {
+				if teamCfg.Parallel.MaxSessions > 0 {
+					cfg.MaxSessions = teamCfg.Parallel.MaxSessions
+				}
+				if teamCfg.Parallel.PortRangeStart > 0 {
+					cfg.PortRangeStart = teamCfg.Parallel.PortRangeStart
+				}
+				cfg.AutoMergeBeads = teamCfg.Parallel.AutoMergeBeads
+			}
+		}
+	}
+
+	// Override from flags
+	if maxSessions > 0 {
+		cfg.MaxSessions = maxSessions
+	}
+
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "%s Mode parallèle : %d tickets, max %d sessions\n",
+		common.Title.Render("  parallel  "),
+		len(tickets), cfg.MaxSessions)
+	fmt.Fprintln(a.IO.Out)
+
+	for _, t := range tickets {
+		icon := common.IconDot
+		if t == priority {
+			icon = common.IconSuccess
+		}
+		fmt.Fprintf(a.IO.Out, "  %s %s", icon, t)
+		if t == priority {
+			fmt.Fprintf(a.IO.Out, " (priority)")
+		}
+		fmt.Fprintln(a.IO.Out)
+	}
+	fmt.Fprintln(a.IO.Out)
+
+	// Build coordinator
+	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
+		ProjectPath: project.Path,
+		ProjectID:   project.ID,
+		Tickets:     tickets,
+		Priority:    priority,
+		Agent:       "orchestrator-dev",
+		Config:      cfg,
+		PromptFunc: func(ticketID string) string {
+			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("initialisation parallèle: %w", err)
+	}
+	defer coord.Cleanup()
+
+	// Run setup phases (worktrees + servers + sessions)
+	fmt.Fprintf(a.IO.Out, "%s Création des worktrees et lancement des sessions...\n",
+		common.Subtitle.Render(common.IconArrow))
+
+	// Phase 1-3: Setup (worktrees, servers, sessions)
+	if err := coord.Run(ctx); err != nil {
+		if errors.Is(err, context.Canceled) {
+			fmt.Fprintf(a.IO.Out, "\n%s Sessions annulées.\n",
+				common.WarningStyle.Render(common.IconWarning))
+			return nil
+		}
+		// If setup failed but some sessions might be running, try TUI anyway
+		// Otherwise report error
+		if coord.State().RunningCount() == 0 {
+			return fmt.Errorf("exécution parallèle: %w", err)
+		}
+	}
+
+	// Launch TUI monitor if sessions are running
+	if coord.State().RunningCount() > 0 || coord.State().AllCompleted() {
+		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur parallèle...\n\n",
+			common.Subtitle.Render(common.IconArrow))
+
+		tuiCfg := parallelTUI.Config{
+			Title:   "oh parallel",
+			State:   coord.State(),
+			Servers: coord.Servers(),
+			RefreshFunc: func() {
+				coord.RefreshState()
+			},
+			AttachFunc: func(port int) error {
+				return parallelTUI.AttachToServer(port)
+			},
+		}
+
+		if err := parallelTUI.Run(tuiCfg); err != nil {
+			// TUI error is non-fatal, continue to results
+			fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
+				common.WarningStyle.Render(common.IconWarning), err)
+		}
+	}
+
+	// Print results
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintln(a.IO.Out, common.Title.Render("  Résultats  "))
+	fmt.Fprintln(a.IO.Out)
+
+	snap := coord.State().Snapshot()
+	for _, sess := range snap.Sessions {
+		icon := common.SuccessStyle.Render(common.IconSuccess)
+		if sess.Status == parallel.StatusFailed {
+			icon = common.ErrorStyle.Render(common.IconError)
+		}
+		duration := ""
+		if !sess.StartedAt.IsZero() && !sess.CompletedAt.IsZero() {
+			duration = fmt.Sprintf(" (%s)", sess.CompletedAt.Sub(sess.StartedAt).Truncate(time.Second))
+		}
+		fmt.Fprintf(a.IO.Out, "  %s %s — %s%s\n", icon, sess.TicketID, sess.Status, duration)
+		if sess.Error != "" {
+			fmt.Fprintf(a.IO.Out, "    %s\n", common.ErrorStyle.Render(sess.Error))
+		}
+		if len(sess.FilesModified) > 0 {
+			fmt.Fprintf(a.IO.Out, "    fichiers: %d modifiés\n", len(sess.FilesModified))
+		}
+	}
+
+	if len(snap.Conflicts) > 0 {
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintf(a.IO.Out, "  %s %d conflit(s) potentiel(s) détecté(s):\n",
+			common.WarningStyle.Render(common.IconWarning), len(snap.Conflicts))
+		for _, c := range snap.Conflicts {
+			fmt.Fprintf(a.IO.Out, "    %s — %s [%s]\n", c.File, strings.Join(c.Sessions, " ↔ "), c.Severity)
+		}
+	}
+
+	// Phase merge (if any sessions completed)
+	completedCount := 0
+	for _, sess := range snap.Sessions {
+		if sess.Status == parallel.StatusCompleted {
+			completedCount++
+		}
+	}
+
+	if completedCount > 0 {
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintln(a.IO.Out, common.Title.Render("  Merge  "))
+
+		merger := parallel.NewMerger(coord.State(), project.Path, cfg)
+		merger.SetOutput(a.IO.Out)
+		// Determine which tickets are Beads (local) vs external
+		// For now: all tickets starting with "bd-" are Beads
+		isBeads := func(ticketID string) bool {
+			return strings.HasPrefix(ticketID, "bd-") || strings.HasPrefix(ticketID, "BD-")
+		}
+
+		results, err := merger.ProposeMerge(isBeads)
+		if err != nil {
+			fmt.Fprintf(a.IO.Out, "  %s Merge error: %v\n",
+				common.WarningStyle.Render(common.IconWarning), err)
+		}
+
+		fmt.Fprintln(a.IO.Out)
+		for _, r := range results {
+			icon := common.SuccessStyle.Render(common.IconSuccess)
+			if !r.Success {
+				icon = common.ErrorStyle.Render(common.IconError)
+			}
+			if r.Conflict {
+				icon = common.WarningStyle.Render(common.IconWarning)
+			}
+			fmt.Fprintf(a.IO.Out, "  %s %s: %s\n", icon, r.TicketID, r.Message)
+		}
+	}
+
+	fmt.Fprintln(a.IO.Out)
+	return nil
 }

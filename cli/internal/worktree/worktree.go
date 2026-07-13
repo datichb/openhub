@@ -294,3 +294,17 @@ func Remove(projectPath, wtPath string, force bool) error {
 	}
 	return nil
 }
+
+// BulkCreate creates multiple worktrees sequentially (to avoid .git/index.lock contention).
+// Returns a slice of worktree paths in the same order as the input branches.
+func BulkCreate(projectPath string, branches []string) ([]string, error) {
+	paths := make([]string, 0, len(branches))
+	for _, branch := range branches {
+		wtPath, err := ResolveOrCreate(projectPath, branch)
+		if err != nil {
+			return paths, fmt.Errorf("creating worktree for branch %q: %w", branch, err)
+		}
+		paths = append(paths, wtPath)
+	}
+	return paths, nil
+}
