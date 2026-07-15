@@ -119,6 +119,22 @@ Sans flag --mode, un menu interactif est affiché.`,
 			return fmt.Errorf("mode invalide %q — modes disponibles : standard, adversarial, edge-case, standard+adversarial, all", mode)
 		}
 
+		// Branch resolution: explicit flag > fallback to current feature branch
+		branch, _ := cmd.Flags().GetString("branch")
+		if branch == "" {
+			projectID, _ := cmd.Flags().GetString("project")
+			project, err := resolveProject(cmd.Context(), MustApp(), projectID)
+			if err == nil {
+				detected := getPublishBranch(project.Path)
+				if detected != "" && !isMainBranch(detected) {
+					branch = detected
+				}
+			}
+		}
+		if branch != "" {
+			prompt = fmt.Sprintf("[BRANCH:%s] %s", branch, prompt)
+		}
+
 		return runAgentSession("reviewer", prompt, "review", cmd)
 	},
 }
@@ -197,6 +213,15 @@ func getPublishBranch(dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// isMainBranch returns true if the branch is a trunk branch (not a feature branch).
+func isMainBranch(name string) bool {
+	switch name {
+	case "main", "master", "develop", "development", "staging", "HEAD":
+		return true
+	}
+	return false
+}
+
 func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch string) {
 	statePath := a.Config.Team.StatePath
 	if statePath == "" {
@@ -234,6 +259,7 @@ func init() {
 	rootCmd.AddCommand(reviewCmd)
 	reviewCmd.Flags().StringP("project", "p", "", "Nom du projet")
 	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
+	reviewCmd.Flags().StringP("branch", "b", "", "Branche à reviewer (diff vs main). Par défaut : branche courante si feature branch")
 	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et assigner un reviewer (nécessite write_enabled)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	_ = reviewCmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

@@ -12,6 +12,7 @@ permission:
     "git log*": allow
     "git show*": allow
     "git status": allow
+    "git fetch*": allow
     "bd show *": allow
   read: allow
   glob: allow
@@ -71,7 +72,11 @@ Au démarrage, charger le skill de parcours selon le contexte :
 ## Workflow
 0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` pour appliquer les conventions réelles du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité). Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
 1. Recevoir le diff ou le nom de branche :
-   - Si un nom de branche est fourni (cas nominal depuis orchestrator-dev) → exécuter `git diff main..<branche>` (ou `git diff HEAD~1` si branche courante) pour obtenir le diff complet avant d'analyser
+   - Si un tag `[BRANCH:<branche>]` est présent dans le prompt → utiliser cette branche
+   - Si un nom de branche est fourni autrement (cas nominal depuis orchestrator-dev) → l'utiliser
+   - Si la branche n'existe pas localement → `git fetch origin <branche>` puis utiliser `origin/<branche>`
+   - Exécuter `git diff main..origin/<branche>` (ou `git diff main..<branche>` si la branche est locale)
+   - Si aucune branche n'est identifiée → `git diff HEAD~1` sur la branche courante
    - Si un diff est collé directement → l'analyser tel quel
 2. (Optionnel) `bd show <ID>` si un ticket est mentionné — pour contextualiser
 3. Passer la checklist systématique du skill `review-protocol`

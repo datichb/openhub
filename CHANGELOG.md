@@ -7,6 +7,29 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.7.2] — 2026-07-15
+
+### Added
+
+- **`oh review --branch`** (`-b`) — spécifie la branche à reviewer (diff vs main).
+  Fallback automatique : si non spécifié et branche courante est une feature branch,
+  l'utilise comme cible. Fetch automatique si la branche n'existe pas localement.
+
+### Fixed
+
+- **`oh project add`** — `bd init` ne génère plus de fichiers d'instructions agent
+  (`AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.agents/`) dans le projet cible.
+  Ajout des flags `--skip-agents` et `--setup-exclude` pour que Beads utilise
+  `.git/info/exclude` au lieu de modifier `.gitignore`.
+
+### Changed
+
+- Agent **reviewer** : permission `git fetch*` ajoutée pour permettre le fetch de
+  branches distantes avant le diff. Workflow étape 1 mis à jour pour gérer le tag
+  `[BRANCH:X]` et le fallback fetch/local.
+
+---
+
 ## [3.7.0] — 2026-07-13
 
 ### Added

@@ -411,8 +411,10 @@ func initBeads(a *app.App, projectPath, projectID string) {
 		return
 	}
 
-	// bd init --prefix PROJECT_ID --skip-hooks
-	cmd := exec.Command("bd", "-C", projectPath, "init", "--prefix", projectID, "--skip-hooks")
+	// bd init --prefix PROJECT_ID --skip-hooks --skip-agents --setup-exclude
+	// --skip-agents: hub manages its own agent instructions (.opencode/agents/)
+	// --setup-exclude: use .git/info/exclude instead of modifying .gitignore
+	cmd := exec.Command("bd", "-C", projectPath, "init", "--prefix", projectID, "--skip-hooks", "--skip-agents", "--setup-exclude")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fmt.Fprintf(a.IO.Out, "  %s bd init: %s\n",
 			common.WarningStyle.Render(common.IconWarning),

@@ -146,13 +146,16 @@ func buildHelpSections() []helpSection {
 						{"project", "p", i18n.T("help.flag.start.project")},
 					},
 				},
-				{
-					Name: "review",
-					Desc: i18n.T("cmd.review.short"),
-					Flags: []helpFlag{
-						{"project", "p", i18n.T("help.flag.start.project")},
-					},
+			{
+				Name: "review",
+				Desc: i18n.T("cmd.review.short"),
+				Flags: []helpFlag{
+					{"mode", "m", i18n.T("help.flag.review.mode")},
+					{"branch", "b", i18n.T("help.flag.review.branch")},
+					{"publish", "", i18n.T("help.flag.review.publish")},
+					{"project", "p", i18n.T("help.flag.start.project")},
 				},
+			},
 				{
 					Name: "debug",
 					Desc: i18n.T("cmd.debug.short"),
