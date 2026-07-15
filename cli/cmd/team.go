@@ -161,7 +161,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	var (
 		// Config step
 		staleDaysStr string
-		configUpdate bool
 
 		// Identity step
 		memberID           string
@@ -169,48 +168,72 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		gitlabUsername     string
 		mattermostUsername string
 		role               string
-		identityUpdate     bool
 
 		// Notifications step
-		webhookURL    string
-		channel       string
-		botName       string
-		configureNotif bool
-		notifUpdate   bool
+		webhookURL string
+		channel    string
+		botName    string
 
 		// Policies step
-		configurePolicies bool
-		selectedPolicies  []string
-		policiesUpdate    bool
+		selectedPolicies []string
 	)
 
-	// Pre-fill defaults for config
-	staleDaysStr = "3"
+	// Pre-fill from existing state
+	existingCfg, _ := repo.LoadConfig()
+	if hasConfig && existingCfg != nil {
+		staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
+		webhookURL = existingCfg.Notification.MattermostWebhook
+		channel = existingCfg.Notification.Channel
+		botName = existingCfg.Notification.BotName
+	} else {
+		staleDaysStr = "3"
+		botName = "OpenHub"
+	}
 
 	// Pre-fill member ID from hub.toml if available
 	if a.Config.Team.MemberID != "" {
 		memberID = a.Config.Team.MemberID
 	}
 
+	// Pre-fill member profile if exists
+	hasMember := memberID != "" && repo.HasMember(memberID)
+	if hasMember {
+		existing, err := repo.GetMember(memberID)
+		if err == nil && existing != nil {
+			displayName = existing.DisplayName
+			gitlabUsername = existing.GitLabUsername
+			mattermostUsername = existing.MattermostUsername
+			role = existing.Role
+		}
+	}
+
 	// ── Step 1: Config globale ──
-	var configStep wizard.StepConfig
-	if !hasConfig {
-		configStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_config"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.config_stale_days")).
-						Description(i18n.T("cmd.team.init.config_stale_days_desc")).
-						Placeholder("3").
-						Value(&staleDaysStr),
-				).Title(i18n.T("cmd.team.init.config_create_title")),
-			),
-			OnDone: func() error {
-				days, err := strconv.Atoi(staleDaysStr)
-				if err != nil || days <= 0 {
-					days = 3
+	configStep := wizard.StepConfig{
+		Label: i18n.T("cmd.team.init.step_config"),
+		Form: huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.T("cmd.team.init.config_stale_days")).
+					Description(i18n.T("cmd.team.init.config_stale_days_desc")).
+					Placeholder("3").
+					Value(&staleDaysStr),
+			).Title(i18n.T("cmd.team.init.config_create_title")),
+		),
+		OnDone: func() error {
+			days, err := strconv.Atoi(staleDaysStr)
+			if err != nil || days <= 0 {
+				days = 3
+			}
+			if hasConfig && existingCfg != nil {
+				// Only save if changed
+				if days == existingCfg.Takeover.StaleDays {
+					return nil
 				}
+				existingCfg.Takeover.StaleDays = days
+				if err := repo.SaveConfig(existingCfg); err != nil {
+					return err
+				}
+			} else {
 				cfg := &teamstate.TeamConfig{
 					Notification: teamstate.NotificationConfig{
 						Enabled: false,
@@ -228,58 +251,13 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				if err := repo.SaveConfig(cfg); err != nil {
 					return err
 				}
-				return repo.CommitAndPush(ctx, "team: init config.toml", "config.toml")
-			},
-		}
-	} else {
-		// Config exists — offer review
-		configStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_config"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.config_review_prompt")).
-						Value(&configUpdate),
-				),
-			),
-			OnDone: func() error {
-				if !configUpdate {
-					return nil // skip
-				}
-				// Load current, let user modify stale_days
-				cfg, err := repo.LoadConfig()
-				if err != nil {
-					return err
-				}
-				staleDaysStr = strconv.Itoa(cfg.Takeover.StaleDays)
-
-				updateForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.config_stale_days")).
-							Value(&staleDaysStr),
-					),
-				)
-				if err := updateForm.Run(); err != nil {
-					return nil // cancelled
-				}
-				days, err := strconv.Atoi(staleDaysStr)
-				if err != nil || days <= 0 {
-					days = cfg.Takeover.StaleDays
-				}
-				cfg.Takeover.StaleDays = days
-				if err := repo.SaveConfig(cfg); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, "team: update config.toml", "config.toml")
-			},
-		}
+			}
+			return repo.CommitAndPush(ctx, "team: configure config.toml", "config.toml")
+		},
 	}
 
 	// ── Step 2: Identité ──
 	var identityStep wizard.StepConfig
-	hasMember := memberID != "" && repo.HasMember(memberID)
-
 	if !hasMember {
 		identityStep = wizard.StepConfig{
 			Label: i18n.T("cmd.team.init.step_identity"),
@@ -325,7 +303,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				}
 				if err := repo.AddMember(member); err != nil {
 					if err == teamstate.ErrMemberExists {
-						return nil // already exists, fine
+						return nil
 					}
 					return err
 				}
@@ -333,52 +311,31 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			},
 		}
 	} else {
-		// Member exists — offer update
+		// Member exists — show pre-filled form for update (Esc to skip)
 		identityStep = wizard.StepConfig{
 			Label: i18n.T("cmd.team.init.step_identity"),
 			Form: huh.NewForm(
 				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.identity_update_prompt")).
-						Value(&identityUpdate),
-				),
+					huh.NewInput().
+						Title(i18n.T("cmd.team.init.identity_display")).
+						Value(&displayName),
+					huh.NewInput().
+						Title(i18n.T("cmd.team.init.identity_gitlab")).
+						Value(&gitlabUsername),
+					huh.NewInput().
+						Title(i18n.T("cmd.team.init.identity_mattermost")).
+						Value(&mattermostUsername),
+					huh.NewSelect[string]().
+						Title(i18n.T("cmd.team.init.identity_role")).
+						Options(
+							huh.NewOption(i18n.T("cmd.team.init.identity_role_lead"), "lead"),
+							huh.NewOption(i18n.T("cmd.team.init.identity_role_dev"), "dev"),
+							huh.NewOption(i18n.T("cmd.team.init.identity_role_reviewer"), "reviewer"),
+						).
+						Value(&role),
+				).Title(i18n.T("cmd.team.init.identity_title")),
 			),
 			OnDone: func() error {
-				if !identityUpdate {
-					return nil
-				}
-				// Load current member to pre-fill
-				existing, err := repo.GetMember(memberID)
-				if err == nil && existing != nil {
-					displayName = existing.DisplayName
-					gitlabUsername = existing.GitLabUsername
-					mattermostUsername = existing.MattermostUsername
-					role = existing.Role
-				}
-				updateForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.identity_display")).
-							Value(&displayName),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.identity_gitlab")).
-							Value(&gitlabUsername),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.identity_mattermost")).
-							Value(&mattermostUsername),
-						huh.NewSelect[string]().
-							Title(i18n.T("cmd.team.init.identity_role")).
-							Options(
-								huh.NewOption(i18n.T("cmd.team.init.identity_role_lead"), "lead"),
-								huh.NewOption(i18n.T("cmd.team.init.identity_role_dev"), "dev"),
-								huh.NewOption(i18n.T("cmd.team.init.identity_role_reviewer"), "reviewer"),
-							).
-							Value(&role),
-					),
-				)
-				if err := updateForm.Run(); err != nil {
-					return nil
-				}
 				member := teamstate.Member{
 					ID:                 memberID,
 					DisplayName:        displayName,
@@ -396,224 +353,97 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 3: Notifications ──
-	var notifStep wizard.StepConfig
-	existingCfg, _ := repo.LoadConfig()
-	hasNotif := existingCfg != nil && existingCfg.Notification.MattermostWebhook != ""
-
-	if !hasNotif {
-		notifStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_notifications"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.notif_configure_prompt")).
-						Value(&configureNotif),
-				),
-			),
-			OnDone: func() error {
-				if !configureNotif {
-					return nil
-				}
-				// Default bot name
-				botName = "OpenHub"
-				notifForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_webhook")).
-							Description(i18n.T("cmd.team.init.notif_webhook_desc")).
-							Placeholder(i18n.T("cmd.team.init.notif_webhook_placeholder")).
-							Value(&webhookURL),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_channel")).
-							Placeholder(i18n.T("cmd.team.init.notif_channel_placeholder")).
-							Value(&channel),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_bot_name")).
-							Value(&botName),
-					).Title(i18n.T("cmd.team.init.notif_title")),
-				)
-				if err := notifForm.Run(); err != nil {
-					return nil
-				}
-				if webhookURL == "" {
-					return nil // user left blank, skip
-				}
-				cfg, err := repo.LoadConfig()
-				if err != nil {
-					return err
-				}
-				cfg.Notification.MattermostWebhook = webhookURL
-				cfg.Notification.Channel = channel
-				cfg.Notification.BotName = botName
-				cfg.Notification.Enabled = true
-				if err := repo.SaveConfig(cfg); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, "team: configure notifications", "config.toml")
-			},
-		}
-	} else {
-		// Notifications exist — offer review
-		notifStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_notifications"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.notif_review_prompt")).
-						Value(&notifUpdate),
-				),
-			),
-			OnDone: func() error {
-				if !notifUpdate {
-					return nil
-				}
-				cfg, err := repo.LoadConfig()
-				if err != nil {
-					return err
-				}
-				webhookURL = cfg.Notification.MattermostWebhook
-				channel = cfg.Notification.Channel
-				botName = cfg.Notification.BotName
-
-				updateForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_webhook")).
-							Value(&webhookURL),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_channel")).
-							Value(&channel),
-						huh.NewInput().
-							Title(i18n.T("cmd.team.init.notif_bot_name")).
-							Value(&botName),
-					),
-				)
-				if err := updateForm.Run(); err != nil {
-					return nil
-				}
-				cfg.Notification.MattermostWebhook = webhookURL
-				cfg.Notification.Channel = channel
-				cfg.Notification.BotName = botName
-				cfg.Notification.Enabled = webhookURL != ""
-				if err := repo.SaveConfig(cfg); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, "team: update notifications", "config.toml")
-			},
-		}
+	notifStep := wizard.StepConfig{
+		Label: i18n.T("cmd.team.init.step_notifications"),
+		Form: huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title(i18n.T("cmd.team.init.notif_webhook")).
+					Description(i18n.T("cmd.team.init.notif_webhook_desc")).
+					Placeholder(i18n.T("cmd.team.init.notif_webhook_placeholder")).
+					Value(&webhookURL),
+				huh.NewInput().
+					Title(i18n.T("cmd.team.init.notif_channel")).
+					Placeholder(i18n.T("cmd.team.init.notif_channel_placeholder")).
+					Value(&channel),
+				huh.NewInput().
+					Title(i18n.T("cmd.team.init.notif_bot_name")).
+					Value(&botName),
+			).Title(i18n.T("cmd.team.init.notif_title")),
+		),
+		OnDone: func() error {
+			if webhookURL == "" {
+				return nil // nothing to configure
+			}
+			cfg, err := repo.LoadConfig()
+			if err != nil {
+				return err
+			}
+			// Only save if something changed
+			if cfg.Notification.MattermostWebhook == webhookURL &&
+				cfg.Notification.Channel == channel &&
+				cfg.Notification.BotName == botName {
+				return nil
+			}
+			cfg.Notification.MattermostWebhook = webhookURL
+			cfg.Notification.Channel = channel
+			cfg.Notification.BotName = botName
+			cfg.Notification.Enabled = true
+			if err := repo.SaveConfig(cfg); err != nil {
+				return err
+			}
+			return repo.CommitAndPush(ctx, "team: configure notifications", "config.toml")
+		},
 	}
 
 	// ── Step 4: Policies ──
-	var policiesStep wizard.StepConfig
-
-	if !hasPolicies {
-		policiesStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_policies"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.policies_configure_prompt")).
-						Value(&configurePolicies),
-				),
-			),
-			OnDone: func() error {
-				if !configurePolicies {
-					return nil
-				}
-				// Offer multi-select of recommended policies
-				selectedPolicies = []string{}
-				policiesForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewMultiSelect[string]().
-							Title(i18n.T("cmd.team.init.policies_select")).
-							Description(i18n.T("cmd.team.init.policies_select_desc")).
-							Options(
-								huh.NewOption(i18n.T("cmd.team.init.policies_branch_naming"), "branch_naming"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_commit_format"), "commit_format"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_max_wip"), "max_ticket_wip"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_review_required"), "review_required"),
-							).
-							Value(&selectedPolicies),
-					).Title(i18n.T("cmd.team.init.policies_title")),
-				)
-				if err := policiesForm.Run(); err != nil {
-					return nil
-				}
-				if len(selectedPolicies) == 0 {
-					return nil
-				}
-				policies := buildRecommendedPolicies(selectedPolicies)
-				if err := repo.SavePolicies(policies); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, "team: init policies", "policies.toml")
-			},
-		}
-	} else {
-		// Policies exist — offer review
-		policiesStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_policies"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewConfirm().
-						Title(i18n.T("cmd.team.init.policies_review_prompt")).
-						Value(&policiesUpdate),
-				),
-			),
-			OnDone: func() error {
-				if !policiesUpdate {
-					return nil
-				}
-				// Load existing and allow adding more
-				selectedPolicies = []string{}
-				policiesForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewMultiSelect[string]().
-							Title(i18n.T("cmd.team.init.policies_select")).
-							Description(i18n.T("cmd.team.init.policies_select_desc")).
-							Options(
-								huh.NewOption(i18n.T("cmd.team.init.policies_branch_naming"), "branch_naming"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_commit_format"), "commit_format"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_max_wip"), "max_ticket_wip"),
-								huh.NewOption(i18n.T("cmd.team.init.policies_review_required"), "review_required"),
-							).
-							Value(&selectedPolicies),
-					),
-				)
-				if err := policiesForm.Run(); err != nil {
-					return nil
-				}
-				if len(selectedPolicies) == 0 {
-					return nil
-				}
+	policiesStep := wizard.StepConfig{
+		Label: i18n.T("cmd.team.init.step_policies"),
+		Form: huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title(i18n.T("cmd.team.init.policies_select")).
+					Description(i18n.T("cmd.team.init.policies_select_desc")).
+					Options(
+						huh.NewOption(i18n.T("cmd.team.init.policies_branch_naming"), "branch_naming"),
+						huh.NewOption(i18n.T("cmd.team.init.policies_commit_format"), "commit_format"),
+						huh.NewOption(i18n.T("cmd.team.init.policies_max_wip"), "max_ticket_wip"),
+						huh.NewOption(i18n.T("cmd.team.init.policies_review_required"), "review_required"),
+					).
+					Value(&selectedPolicies),
+			).Title(i18n.T("cmd.team.init.policies_title")),
+		),
+		OnDone: func() error {
+			if len(selectedPolicies) == 0 {
+				return nil
+			}
+			policies := buildRecommendedPolicies(selectedPolicies)
+			if hasPolicies {
 				// Merge with existing
 				existing, _ := repo.LoadPolicies("")
-				policies := buildRecommendedPolicies(selectedPolicies)
-				// Keep existing policies not in the recommended set
 				for _, ep := range existing {
 					if _, ok := policies[ep.Name]; !ok {
 						policies[ep.Name] = ep
 					}
 				}
-				if err := repo.SavePolicies(policies); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, "team: update policies", "policies.toml")
-			},
-		}
+			}
+			if err := repo.SavePolicies(policies); err != nil {
+				return err
+			}
+			commitMsg := "team: init policies"
+			if hasPolicies {
+				commitMsg = "team: update policies"
+			}
+			return repo.CommitAndPush(ctx, commitMsg, "policies.toml")
+		},
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// LAUNCH WIZARD (BubbleTea alt-screen, side-by-side)
+	// LAUNCH WIZARD (BubbleTea alt-screen, step bar + full width)
 	// ══════════════════════════════════════════════════════════════════════════
 	steps := []wizard.StepConfig{configStep, identityStep, notifStep, policiesStep}
-	prereqs := []string{
-		i18n.T("cmd.team.init.prereq_hub"),
-		i18n.T("cmd.team.init.prereq_repo"),
-		i18n.T("cmd.team.init.prereq_ssh"),
-	}
 
-	model := wizard.New("Team Setup", prereqs, steps)
+	model := wizard.New("Team Setup", nil, steps)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {

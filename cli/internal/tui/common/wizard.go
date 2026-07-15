@@ -1,4 +1,5 @@
 // Package common provides shared TUI styles and constants for the oh CLI.
+// Design System: Aurum — see docs/design/aurum.md
 package common
 
 import (
@@ -36,18 +37,17 @@ type SidebarConfig struct {
 	Width   int          // Available width for rendering
 }
 
-// Styles for the sidebar.
+// Styles for the sidebar (Aurum Design System).
 var (
 	sidebarTitle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(Primary).
-			MarginBottom(1)
+			Foreground(Primary)
 
 	sidebarPrereq = lipgloss.NewStyle().
 			Foreground(Success)
 
 	sidebarSeparator = lipgloss.NewStyle().
-				Foreground(Subtle)
+				Foreground(Border)
 
 	sidebarStepActive = lipgloss.NewStyle().
 				Bold(true).
@@ -62,6 +62,9 @@ var (
 	sidebarStepSkipped = lipgloss.NewStyle().
 				Foreground(Subtle).
 				Strikethrough(true)
+
+	sidebarHeader = lipgloss.NewStyle().
+			Foreground(Subtle)
 )
 
 // RenderSidebar returns a formatted sidebar string for use in wizard layouts.
@@ -72,13 +75,11 @@ func RenderSidebar(cfg SidebarConfig) string {
 	// Title
 	b.WriteString(sidebarTitle.Render(cfg.Title))
 	b.WriteByte('\n')
+	b.WriteByte('\n')
 
 	// Prerequisites section
 	if len(cfg.Prereqs) > 0 {
-		prereqHeader := lipgloss.NewStyle().
-			Foreground(Subtle).
-			Render("Prérequis")
-		b.WriteString(prereqHeader)
+		b.WriteString(sidebarHeader.Render("Prérequis"))
 		b.WriteByte('\n')
 
 		for _, p := range cfg.Prereqs {
@@ -93,33 +94,61 @@ func RenderSidebar(cfg SidebarConfig) string {
 		if sepWidth < 10 {
 			sepWidth = 10
 		}
-		b.WriteString(sidebarSeparator.Render(strings.Repeat("─", sepWidth)))
+		b.WriteString(sidebarSeparator.Render(strings.Repeat(IconSepNormal, sepWidth)))
 		b.WriteByte('\n')
 		b.WriteByte('\n')
 	}
 
 	// Steps section
-	stepsHeader := lipgloss.NewStyle().
-		Foreground(Subtle).
-		Render("Étapes")
-	b.WriteString(stepsHeader)
+	b.WriteString(sidebarHeader.Render("Étapes"))
 	b.WriteByte('\n')
 
 	for _, step := range cfg.Steps {
 		var line string
 		switch step.Status {
 		case StepActive:
-			line = sidebarStepActive.Render(fmt.Sprintf("%s %s", IconArrow, step.Label))
+			line = sidebarStepActive.Render(fmt.Sprintf("%s %s", IconStepActive, step.Label))
 		case StepDone:
-			line = sidebarStepDone.Render(fmt.Sprintf("%s %s", IconSuccess, step.Label))
+			line = sidebarStepDone.Render(fmt.Sprintf("%s %s", IconStepDone, step.Label))
 		case StepSkipped:
-			line = sidebarStepSkipped.Render(fmt.Sprintf("– %s", step.Label))
+			line = sidebarStepSkipped.Render(fmt.Sprintf("%s %s", IconStepPending, step.Label))
 		default: // StepPending
-			line = sidebarStepPending.Render(fmt.Sprintf("%s %s", IconDot, step.Label))
+			line = sidebarStepPending.Render(fmt.Sprintf("%s %s", IconStepPending, step.Label))
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
 
 	return b.String()
+}
+
+// RenderStepBar renders a horizontal step bar for full-width wizard layouts.
+// Example: ● Config ─── ◔ Identité ─── ○ Notifications ─── ○ Policies
+func RenderStepBar(steps []WizardStep) string {
+	var parts []string
+
+	for _, step := range steps {
+		var icon string
+		var style lipgloss.Style
+
+		switch step.Status {
+		case StepDone:
+			icon = IconStepDone
+			style = sidebarStepDone
+		case StepActive:
+			icon = IconStepActive
+			style = sidebarStepActive
+		case StepSkipped:
+			icon = IconStepPending
+			style = sidebarStepSkipped
+		default:
+			icon = IconStepPending
+			style = sidebarStepPending
+		}
+
+		parts = append(parts, style.Render(fmt.Sprintf("%s %s", icon, step.Label)))
+	}
+
+	connector := sidebarSeparator.Render(" ─── ")
+	return strings.Join(parts, connector)
 }

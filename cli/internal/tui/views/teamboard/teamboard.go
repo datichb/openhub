@@ -40,10 +40,10 @@ type Config struct {
 
 // Column definitions for team board.
 var teamColumns = []columnDef{
-	{name: "IDLE", status: "idle", color: lipgloss.Color("241")},
-	{name: "IN PROGRESS", status: "in_progress", color: lipgloss.Color("33")},
-	{name: "REVIEW", status: "review", color: lipgloss.Color("214")},
-	{name: "BLOCKED", status: "blocked", color: lipgloss.Color("196")},
+	{name: "IDLE", status: "idle", color: common.Subtle},
+	{name: "IN PROGRESS", status: "in_progress", color: common.Info},
+	{name: "REVIEW", status: "review", color: common.Warning},
+	{name: "BLOCKED", status: "blocked", color: common.Error},
 }
 
 type columnDef struct {
@@ -146,8 +146,8 @@ func (m Model) View() string {
 	// Title bar
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("99")).
+		Foreground(common.TextLight).
+		Background(common.Primary).
 		Padding(0, 1)
 	b.WriteString(titleStyle.Render(m.config.Title))
 	b.WriteString("\n\n")
@@ -177,7 +177,7 @@ func (m Model) View() string {
 	b.WriteString("\n")
 
 	// Separator
-	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(strings.Repeat("─", m.width-2))
+	sep := lipgloss.NewStyle().Foreground(common.Subtle).Render(strings.Repeat("─", m.width-2))
 	b.WriteString(sep)
 	b.WriteString("\n")
 
@@ -192,7 +192,7 @@ func (m Model) View() string {
 
 	// Footer
 	b.WriteString("\n")
-	footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	footerStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 	detailHint := "d:detail"
 	if m.detail {
 		detailHint = "d:simple"
@@ -219,7 +219,7 @@ func (m Model) renderColumn(colIdx, width, maxHeight int) string {
 
 	if len(tickets) == 0 {
 		emptyStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
+			Foreground(common.Subtle).
 			Italic(true).
 			Width(width).
 			Align(lipgloss.Center)
@@ -233,7 +233,7 @@ func (m Model) renderColumn(colIdx, width, maxHeight int) string {
 func (m Model) renderCard(t TeamTicket, colIdx, rowIdx, width int, color lipgloss.Color) string {
 	isActive := colIdx == m.cursor && rowIdx == m.row
 
-	borderColor := lipgloss.Color("241")
+	borderColor := common.Border
 	if isActive {
 		borderColor = color
 	}
@@ -253,7 +253,7 @@ func (m Model) renderCard(t TeamTicket, colIdx, rowIdx, width int, color lipglos
 
 	// Ticket info (or idle indicator)
 	if t.Status == "idle" {
-		idleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true)
+		idleStyle := lipgloss.NewStyle().Foreground(common.Subtle).Italic(true)
 		content.WriteString(idleStyle.Render("(no ticket)"))
 	} else {
 		ticketStr := fmt.Sprintf("%s/%s", t.Project, t.TicketID)
@@ -262,7 +262,7 @@ func (m Model) renderCard(t TeamTicket, colIdx, rowIdx, width int, color lipglos
 
 		// Duration since
 		since := formatDuration(time.Since(t.Since))
-		sinceStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		sinceStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 		content.WriteString(sinceStyle.Render(since))
 	}
 
@@ -290,7 +290,7 @@ func (m Model) renderCard(t TeamTicket, colIdx, rowIdx, width int, color lipglos
 			}
 		}
 		content.WriteString("\n")
-		progressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		progressStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 		content.WriteString(progressStyle.Render(fmt.Sprintf(" Progress: %d/%d", completed, len(t.SubBeads))))
 	}
 

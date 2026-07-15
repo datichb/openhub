@@ -7,6 +7,38 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.9.0] — 2026-07-15
+
+### Added
+
+- **Design System "Aurum"** — Direction artistique formalisée (`docs/design/aurum.md`).
+  Palette : Gold (primaire), Amethyst (accent), Jade (success), Amber (warning),
+  Ruby (error), Sapphire (info). Icônes : `● ◔ ○` pour les steps, `▸` pour les flèches,
+  `━` pour les séparateurs bold.
+
+- Nouvelles constantes de style : `Info`, `Accent`, `TextLight`, `Surface`, `Border`,
+  `BorderActive`, `InfoStyle`, `AccentStyle`, `BoxSubtle`.
+
+### Changed
+
+- **`oh team init`** — Redesign complet du wizard :
+  - Layout "step bar horizontal + full width" au lieu du côte-à-côte.
+  - Fix critique : les sous-formulaires dans les callbacks `OnDone` causaient un conflit
+    d'affichage avec l'alt-screen BubbleTea. Tous les forms sont maintenant inline dans
+    les steps (plus de `huh.Form.Run()` dans les callbacks).
+  - Les étapes en mode "existant" affichent directement le formulaire pré-rempli
+    au lieu d'un Confirm → sous-form.
+  - Esc skip une étape proprement.
+
+- **Palette globale** — Migration de Purple (99) vers Gold (178) comme couleur primaire.
+  Toutes les vues (dashboard, board, teamboard, parallel) migrent vers les constantes
+  partagées `common.*`. Zéro couleur hardcodée restante.
+
+- **Title bars** — Background Obsidian (235) + foreground Ivory (255) + accent Gold.
+  Remplace l'ancien "white on purple".
+
+- **Bordures actives** — Gold au lieu de Purple pour l'élément sélectionné/actif.
+
 ## [3.8.0] — 2026-07-15
 
 ### Changed

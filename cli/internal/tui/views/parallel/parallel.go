@@ -151,13 +151,13 @@ func (m Model) View() string {
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("99")).
+		Foreground(common.TextLight).
+		Background(common.Primary).
 		Padding(0, 1)
 	statusStr := fmt.Sprintf("%d running · %d done · %d failed", running, completed, failed)
 	b.WriteString(titleStyle.Render(m.config.Title))
 	b.WriteString("  ")
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(statusStr))
+	b.WriteString(lipgloss.NewStyle().Foreground(common.Subtle).Render(statusStr))
 	b.WriteString("\n\n")
 
 	// Session cards
@@ -176,7 +176,7 @@ func (m Model) View() string {
 	// Conflicts section
 	if len(snap.Conflicts) > 0 {
 		b.WriteString("\n")
-		conflictStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+		conflictStyle := lipgloss.NewStyle().Foreground(common.Warning).Bold(true)
 		b.WriteString(conflictStyle.Render(fmt.Sprintf("  %s %d potential conflict(s):", common.IconWarning, len(snap.Conflicts))))
 		b.WriteString("\n")
 		for _, c := range snap.Conflicts {
@@ -187,7 +187,7 @@ func (m Model) View() string {
 
 	// Footer
 	b.WriteString("\n")
-	footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	footerStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 	footer := " j/k:navigate · enter:attach · r:refresh · q:quit"
 	b.WriteString(footerStyle.Render(footer))
 
@@ -195,9 +195,9 @@ func (m Model) View() string {
 }
 
 func (m Model) renderSessionCard(sess parallel.SessionInfo, active bool, width int) string {
-	borderColor := lipgloss.Color("241")
+	borderColor := common.Border
 	if active {
-		borderColor = lipgloss.Color("99")
+		borderColor = common.BorderActive
 	}
 
 	cardStyle := lipgloss.NewStyle().
@@ -224,7 +224,7 @@ func (m Model) renderSessionCard(sess parallel.SessionInfo, active bool, width i
 
 	// Line 2: branch + duration
 	content.WriteString("\n")
-	branchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	branchStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 	content.WriteString(branchStyle.Render(sess.Branch))
 
 	if !sess.StartedAt.IsZero() {
@@ -238,7 +238,7 @@ func (m Model) renderSessionCard(sess parallel.SessionInfo, active bool, width i
 	// Line 3: files (if any)
 	if len(sess.FilesModified) > 0 || len(sess.FilesCreated) > 0 {
 		content.WriteString("\n")
-		fileStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		fileStyle := lipgloss.NewStyle().Foreground(common.Subtle)
 		totalFiles := len(sess.FilesModified) + len(sess.FilesCreated)
 		content.WriteString(fileStyle.Render(fmt.Sprintf("%d file(s) touched", totalFiles)))
 		// Show first 2 files
@@ -257,7 +257,7 @@ func (m Model) renderSessionCard(sess parallel.SessionInfo, active bool, width i
 	// Error line
 	if sess.Error != "" {
 		content.WriteString("\n")
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+		errStyle := lipgloss.NewStyle().Foreground(common.Error)
 		content.WriteString(errStyle.Render(sess.Error))
 	}
 
@@ -267,19 +267,19 @@ func (m Model) renderSessionCard(sess parallel.SessionInfo, active bool, width i
 func sessionStatusDisplay(status parallel.SessionStatus) (string, lipgloss.Color) {
 	switch status {
 	case parallel.StatusPending:
-		return "○", lipgloss.Color("241")
+		return "○", common.Subtle
 	case parallel.StatusStarting:
-		return "◐", lipgloss.Color("33")
+		return "◐", common.Info
 	case parallel.StatusRunning:
-		return "●", lipgloss.Color("33")
+		return "●", common.Info
 	case parallel.StatusCompleted:
-		return "✓", lipgloss.Color("82")
+		return "✓", common.Success
 	case parallel.StatusFailed:
-		return "✗", lipgloss.Color("196")
+		return "✗", common.Error
 	case parallel.StatusAborted:
-		return "⊘", lipgloss.Color("214")
+		return "⊘", common.Warning
 	default:
-		return "?", lipgloss.Color("241")
+		return "?", common.Subtle
 	}
 }
 

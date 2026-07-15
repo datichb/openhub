@@ -34,10 +34,10 @@ type Config struct {
 
 // Column definitions.
 var columns = []columnDef{
-	{name: "TODO", status: "todo", color: lipgloss.Color("214")},
-	{name: "IN PROGRESS", status: "in_progress", color: lipgloss.Color("33")},
-	{name: "DONE", status: "done", color: lipgloss.Color("82")},
-	{name: "BLOCKED", status: "blocked", color: lipgloss.Color("196")},
+	{name: "TODO", status: "todo", color: common.Warning},
+	{name: "IN PROGRESS", status: "in_progress", color: common.Info},
+	{name: "DONE", status: "done", color: common.Success},
+	{name: "BLOCKED", status: "blocked", color: common.Error},
 }
 
 type columnDef struct {
@@ -183,7 +183,7 @@ func (m Model) View() string {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(common.Primary).
-		Background(lipgloss.Color("235")).
+		Background(common.Surface).
 		Padding(0, 2).
 		Width(m.width)
 	b.WriteString(titleStyle.Render(m.config.Title))
@@ -289,9 +289,9 @@ func renderCard(t Ticket, width int, color lipgloss.Color) string {
 	priBadge := ""
 	switch t.Priority {
 	case "critical", "high":
-		priBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("●")
+		priBadge = lipgloss.NewStyle().Foreground(common.Error).Render("●")
 	case "medium":
-		priBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render("●")
+		priBadge = lipgloss.NewStyle().Foreground(common.Warning).Render("●")
 	case "low":
 		priBadge = lipgloss.NewStyle().Foreground(common.Subtle).Render("●")
 	}

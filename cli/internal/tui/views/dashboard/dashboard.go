@@ -104,7 +104,7 @@ func (m Model) View() string {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(common.Primary).
-		Background(lipgloss.Color("235")).
+		Background(common.Surface).
 		Padding(0, 2).
 		Width(m.width)
 	b.WriteString(titleStyle.Render(m.config.Title))
