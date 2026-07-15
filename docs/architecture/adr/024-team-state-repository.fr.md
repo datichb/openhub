@@ -70,6 +70,7 @@ Les agents IA accèdent aux données d'équipe via un **serveur MCP** (`team-mcp
 ### Neutres
 - Les membres doivent fournir l'URL du repo lors de `oh team init`
 - Le repo doit être pré-créé manuellement (documenté, setup unique)
+- `oh team init` crée automatiquement `config.toml` et `policies.toml` si absents (wizard adaptatif multi-étapes)
 
 ## Implémentation
 

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -40,17 +39,33 @@ func init() {
 // Styles for init wizard
 // ─────────────────────────────────────────────────────────────────────────────
 
-var (
-	initSectionStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(common.Primary).
-				MarginTop(1).
-				MarginBottom(0)
+// renderInitProgress prints the step sidebar above the current form.
+func renderInitProgress(current int) {
+	steps := []common.WizardStep{
+		{Label: i18n.T("cmd.init.section_general"), Status: initStepStatus(0, current)},
+		{Label: i18n.T("cmd.init.section_provider"), Status: initStepStatus(1, current)},
+		{Label: i18n.T("cmd.init.section_mcp"), Status: initStepStatus(2, current)},
+		{Label: i18n.T("cmd.init.section_project"), Status: initStepStatus(3, current)},
+	}
+	cfg := common.SidebarConfig{
+		Title: "oh — Hub Init",
+		Steps: steps,
+		Width: 30,
+	}
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, common.RenderSidebar(cfg))
+}
 
-	initStepIndicator = lipgloss.NewStyle().
-				Foreground(common.Subtle).
-				Bold(true)
-)
+// initStepStatus returns the status for a given step relative to the current one.
+func initStepStatus(step, current int) common.StepStatus {
+	if step < current {
+		return common.StepDone
+	}
+	if step == current {
+		return common.StepActive
+	}
+	return common.StepPending
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main init flow
@@ -74,9 +89,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 1 — General Configuration (language + opencode version)
 	// ══════════════════════════════════════════════════════════════════════════
-	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[1/4]"),
-		initSectionStyle.Render(i18n.T("cmd.init.section_general")))
+	renderInitProgress(0)
 
 	var (
 		language    string
@@ -111,9 +124,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 2 — Provider (selection + credentials)
 	// ══════════════════════════════════════════════════════════════════════════
-	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[2/4]"),
-		initSectionStyle.Render(i18n.T("cmd.init.section_provider")))
+	renderInitProgress(1)
 
 	var provider string
 
@@ -167,9 +178,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 3 — MCP Servers (optional)
 	// ══════════════════════════════════════════════════════════════════════════
-	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[3/4]"),
-		initSectionStyle.Render(i18n.T("cmd.init.section_mcp")))
+	renderInitProgress(2)
 
 	var configureMCP bool
 	if err := huh.NewConfirm().
@@ -209,9 +218,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 	// PART 4 — First Project (optional)
 	// ══════════════════════════════════════════════════════════════════════════
-	fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-		initStepIndicator.Render("[4/4]"),
-		initSectionStyle.Render(i18n.T("cmd.init.section_project")))
+	renderInitProgress(3)
 
 	var addProject bool
 	if err := huh.NewConfirm().

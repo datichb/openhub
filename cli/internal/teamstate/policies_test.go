@@ -356,3 +356,97 @@ message = "too many WIP"
 		t.Error("expected at least one refuse violation")
 	}
 }
+
+func TestSavePolicies(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	policies := map[string]Policy{
+		"branch_naming": {
+			Type:        PolicyTypeRegex,
+			Rule:        `^(feat|fix)/[a-z0-9-]+`,
+			Enforcement: EnforcementRefuse,
+			Message:     "Bad branch",
+		},
+		"max_wip": {
+			Type:        PolicyTypeLimit,
+			Max:         3,
+			Enforcement: EnforcementWarn,
+			Message:     "Too many tickets",
+		},
+	}
+
+	err := repo.SavePolicies(policies)
+	if err != nil {
+		t.Fatalf("SavePolicies failed: %v", err)
+	}
+
+	// Verify file exists
+	path := filepath.Join(dir, "policies.toml")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Fatal("policies.toml should exist after SavePolicies")
+	}
+
+	// Roundtrip: load them back
+	loaded, err := repo.LoadPolicies("")
+	if err != nil {
+		t.Fatalf("LoadPolicies after save failed: %v", err)
+	}
+	if len(loaded) != 2 {
+		t.Fatalf("expected 2 policies, got %d", len(loaded))
+	}
+
+	// Check names are restored
+	found := map[string]bool{}
+	for _, p := range loaded {
+		found[p.Name] = true
+		if p.Name == "branch_naming" {
+			if p.Type != PolicyTypeRegex {
+				t.Errorf("expected regex type, got %s", p.Type)
+			}
+			if p.Enforcement != EnforcementRefuse {
+				t.Errorf("expected refuse enforcement, got %s", p.Enforcement)
+			}
+		}
+		if p.Name == "max_wip" {
+			if p.Max != 3 {
+				t.Errorf("expected max=3, got %d", p.Max)
+			}
+		}
+	}
+	if !found["branch_naming"] || !found["max_wip"] {
+		t.Error("expected both policies to be loaded back")
+	}
+}
+
+func TestSavePoliciesOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	// First save
+	p1 := map[string]Policy{
+		"old_policy": {Type: PolicyTypeBoolean, Enabled: true, Enforcement: EnforcementWarn},
+	}
+	if err := repo.SavePolicies(p1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second save (should overwrite)
+	p2 := map[string]Policy{
+		"new_policy": {Type: PolicyTypeLimit, Max: 5, Enforcement: EnforcementRefuse},
+	}
+	if err := repo.SavePolicies(p2); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := repo.LoadPolicies("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded) != 1 {
+		t.Fatalf("expected 1 policy after overwrite, got %d", len(loaded))
+	}
+	if loaded[0].Name != "new_policy" {
+		t.Errorf("expected new_policy, got %s", loaded[0].Name)
+	}
+}

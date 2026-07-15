@@ -98,6 +98,24 @@ func (r *Repo) LoadPolicies(project string) ([]Policy, error) {
 	return policies, nil
 }
 
+// SavePolicies writes the given policies map to policies.toml in the team-state repo.
+// If the file already exists, it is overwritten.
+func (r *Repo) SavePolicies(policies map[string]Policy) error {
+	// Clear Name fields before marshaling (Name is derived from the TOML key)
+	clean := make(map[string]Policy, len(policies))
+	for k, p := range policies {
+		p.Name = ""
+		clean[k] = p
+	}
+	pf := policiesFile{Policies: clean}
+	data, err := toml.Marshal(pf)
+	if err != nil {
+		return fmt.Errorf("marshaling policies.toml: %w", err)
+	}
+	path := filepath.Join(r.path, "policies.toml")
+	return os.WriteFile(path, data, 0o644)
+}
+
 // CheckPolicy evaluates a single policy against the provided context.
 func CheckPolicy(p Policy, ctx PolicyContext) PolicyResult {
 	result := PolicyResult{

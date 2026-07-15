@@ -165,6 +165,32 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 	return nil
 }
 
+// HasConfig returns true if config.toml exists in the team-state repo.
+func (r *Repo) HasConfig() bool {
+	_, err := os.Stat(filepath.Join(r.path, "config.toml"))
+	return err == nil
+}
+
+// HasPolicies returns true if policies.toml exists in the team-state repo.
+func (r *Repo) HasPolicies() bool {
+	_, err := os.Stat(filepath.Join(r.path, "policies.toml"))
+	return err == nil
+}
+
+// HasMember returns true if the given member ID exists in members.toml.
+func (r *Repo) HasMember(id string) bool {
+	members, err := r.ListMembers()
+	if err != nil {
+		return false
+	}
+	for _, m := range members {
+		if m.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // git executes a git command and returns the combined output.
 func (r *Repo) git(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)

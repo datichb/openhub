@@ -7,6 +7,29 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.8.0] — 2026-07-15
+
+### Changed
+
+- **`oh team init`** — Wizard multi-étapes adaptatif avec sidebar côte-à-côte (BubbleTea).
+  Crée automatiquement `config.toml` et `policies.toml` si absents.
+  Détecte l'état du repo et propose uniquement les étapes pertinentes.
+  Propose un set de policies recommandées (branch naming, commit format, max WIP, review required).
+  Nouveau composant `wizard` réutilisable dans `tui/views/wizard/`.
+
+- **`oh init`** — Indicateur de progression par sidebar (liste d'étapes ✓/→/·)
+  au lieu des simples préfixes `[1/4]`. Utilise le composant `RenderSidebar` partagé.
+
+### Added
+
+- Composant `tui/common/wizard.go` — sidebar renderer réutilisable (statuts d'étapes avec icônes).
+- Composant `tui/views/wizard/wizard.go` — modèle BubbleTea générique pour wizard côte-à-côte.
+- `teamstate.Repo.HasConfig()`, `HasPolicies()`, `HasMember()` — détection d'état du repo.
+- `teamstate.Repo.SavePolicies()` — écriture de policies.toml.
+- `teamstate.Repo.UpdateMember()` — mise à jour d'un membre existant.
+- Clés i18n `cmd.team.init.*` (FR + EN) — support bilingue du wizard.
+- `team init` visible dans le help custom (`oh help`).
+
 ## [3.7.2] — 2026-07-15
 
 ### Added

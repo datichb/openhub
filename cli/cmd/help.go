@@ -380,6 +380,7 @@ func buildHelpSections() []helpSection {
 		{
 			Title: i18n.T("help.section.team"),
 			Commands: []helpCommand{
+				{Name: "team init", Desc: i18n.T("help.cmd.team.init")},
 				{
 					Name: "team status",
 					Desc: i18n.T("help.cmd.team.status"),

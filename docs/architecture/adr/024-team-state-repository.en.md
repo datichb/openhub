@@ -70,6 +70,7 @@ AI agents access team data via a **MCP server** (`team-mcp`) that reads from the
 ### Neutral
 - Members must provide repo URL during `oh team init`
 - Repo must be pre-created manually (documented, one-time setup)
+- `oh team init` automatically creates `config.toml` and `policies.toml` if absent (adaptive multi-step wizard)
 
 ## Implementation
 

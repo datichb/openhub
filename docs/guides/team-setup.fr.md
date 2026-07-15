@@ -26,25 +26,58 @@ Chaque membre exécute :
 oh team init
 ```
 
-Le wizard demande :
+Le wizard s'exécute en deux phases :
+
+### Phase 1 — Connexion au repo (séquentiel)
+
+Un formulaire demande l'URL du repo team-state puis :
+1. Clone le repo dans `~/.oh/team-state/` (ou pull si déjà cloné)
+2. Crée la structure de répertoires (si premier membre)
+
+### Phase 2 — Configuration (wizard interactif avec sidebar)
+
+Un wizard BubbleTea côte-à-côte s'affiche avec 4 étapes adaptatives.
+Le wizard détecte automatiquement l'état du repo et adapte le comportement :
+
+| Étape | Si repo vide (1er membre) | Si repo déjà configuré |
+|-------|---------------------------|------------------------|
+| **Config globale** | Création `config.toml` (stale_days, sessions) | "✓ Modifier ?" ou skip |
+| **Identité** | Enregistrement (ID, nom, rôle, usernames) | "✓ Mettre à jour ?" ou skip |
+| **Notifications** | Configuration webhook Mattermost | "✓ Modifier ?" ou skip |
+| **Policies** | Multi-select de policies recommandées | "✓ Modifier ?" ou skip |
+
+#### Champs du profil (étape Identité)
 
 | Champ | Description | Exemple |
 |-------|-------------|---------|
-| URL du repo | URL Git SSH/HTTPS du repo team-state | `git@gitlab.company.com:team/team-state.git` |
 | Identifiant | Clé unique dans members.toml | `benjamin` |
 | Nom d'affichage | Comment ton nom apparaît dans les notifications | `Benjamin` |
-| Username GitLab | Pour l'intégration GitLab future | `bdatiche` |
+| Username GitLab | Pour l'intégration GitLab | `bdatiche` |
 | Username Mattermost | Pour les mentions dans les notifications | `benjamin.datiche` |
 | Rôle | Ton rôle dans l'équipe | `lead`, `dev`, ou `reviewer` |
 
-Cette commande :
-1. Clone le repo dans `~/.oh/team-state/`
-2. Crée la structure de répertoires (si premier membre)
-3. T'ajoute dans `members.toml`
-4. Met à jour `hub.toml` avec la configuration `[team]`
-5. Push les changements
+#### Policies recommandées (étape Policies)
 
-## 3. Configurer les notifications (optionnel)
+Le wizard propose un set recommandé à multi-sélectionner :
+- **Branch naming** — `feat/fix/chore/.../[a-z0-9-]+` (enforcement: refuse)
+- **Commit format** — Conventional Commits (enforcement: warn)
+- **Max WIP** — 2 tickets par membre (enforcement: warn)
+- **Review required** — Review obligatoire avant merge (enforcement: refuse)
+
+### Résultat
+
+À la fin du wizard :
+1. `config.toml` est créé/mis à jour dans le repo team-state
+2. Le membre est enregistré dans `members.toml`
+3. Les notifications sont configurées (optionnel)
+4. Les policies sont créées dans `policies.toml` (optionnel)
+5. `hub.toml` est mis à jour avec la configuration `[team]`
+6. Tous les changements sont commités et pushés
+
+## 3. Configurer les notifications (référence)
+
+> **Note:** Les notifications sont proposées automatiquement lors de `oh team init`.
+> Cette section décrit comment les modifier manuellement après le setup initial.
 
 Édite `config.toml` dans le repo team-state :
 

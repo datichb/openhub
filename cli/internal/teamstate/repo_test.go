@@ -177,3 +177,51 @@ func gitExec(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v failed: %s", args, string(out))
 }
+
+func TestHasConfigFalse(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRepo("", dir)
+	assert.False(t, r.HasConfig())
+}
+
+func TestHasConfigTrue(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[notification]\nenabled = false\n"), 0o644))
+	r := NewRepo("", dir)
+	assert.True(t, r.HasConfig())
+}
+
+func TestHasPoliciesFalse(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRepo("", dir)
+	assert.False(t, r.HasPolicies())
+}
+
+func TestHasPoliciesTrue(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "policies.toml"), []byte("[policies]\n"), 0o644))
+	r := NewRepo("", dir)
+	assert.True(t, r.HasPolicies())
+}
+
+func TestHasMemberFalse(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "members.toml"), []byte("[members]\n"), 0o644))
+	r := NewRepo("", dir)
+	assert.False(t, r.HasMember("alice"))
+}
+
+func TestHasMemberTrue(t *testing.T) {
+	dir := t.TempDir()
+	content := "[members.alice]\ndisplay_name = \"Alice\"\nrole = \"dev\"\ndefault_mode = \"semi-auto\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "members.toml"), []byte(content), 0o644))
+	r := NewRepo("", dir)
+	assert.True(t, r.HasMember("alice"))
+	assert.False(t, r.HasMember("bob"))
+}
+
+func TestHasMemberNoFile(t *testing.T) {
+	dir := t.TempDir()
+	r := NewRepo("", dir)
+	assert.False(t, r.HasMember("anyone"))
+}

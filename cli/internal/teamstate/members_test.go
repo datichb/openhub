@@ -217,3 +217,45 @@ func TestMembersFilePath(t *testing.T) {
 	repo := NewRepo("", "/some/path")
 	assert.Equal(t, filepath.Join("/some/path", "members.toml"), repo.membersFilePath())
 }
+
+func TestUpdateMember(t *testing.T) {
+	repo := setupTestRepo(t)
+	writeMembersToml(t, repo, `
+[members.alice]
+display_name = "Alice"
+gitlab_username = "alice"
+mattermost_username = "alice.dev"
+role = "dev"
+default_mode = "semi-auto"
+`)
+
+	updated := Member{
+		ID:                 "alice",
+		DisplayName:        "Alice Updated",
+		GitLabUsername:     "alice-new",
+		MattermostUsername: "alice.new",
+		Role:               "lead",
+		DefaultMode:        "auto",
+	}
+	err := repo.UpdateMember(updated)
+	require.NoError(t, err)
+
+	// Verify
+	m, err := repo.GetMember("alice")
+	require.NoError(t, err)
+	assert.Equal(t, "Alice Updated", m.DisplayName)
+	assert.Equal(t, "alice-new", m.GitLabUsername)
+	assert.Equal(t, "lead", m.Role)
+}
+
+func TestUpdateMemberNotFound(t *testing.T) {
+	repo := setupTestRepo(t)
+	writeMembersToml(t, repo, `[members.alice]
+display_name = "Alice"
+role = "dev"
+default_mode = "semi-auto"
+`)
+
+	err := repo.UpdateMember(Member{ID: "bob", DisplayName: "Bob"})
+	assert.ErrorIs(t, err, ErrMemberNotFound)
+}

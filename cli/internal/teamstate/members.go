@@ -114,6 +114,20 @@ func (r *Repo) RemoveMember(id string) error {
 	return r.writeMembersFile(mf)
 }
 
+// UpdateMember updates an existing member in members.toml.
+// Returns ErrMemberNotFound if the ID does not exist.
+func (r *Repo) UpdateMember(m Member) error {
+	mf, err := r.readMembersFile()
+	if err != nil {
+		return err
+	}
+	if _, exists := mf.Members[m.ID]; !exists {
+		return ErrMemberNotFound
+	}
+	mf.Members[m.ID] = m
+	return r.writeMembersFile(mf)
+}
+
 // membersFilePath returns the absolute path to members.toml.
 func (r *Repo) membersFilePath() string {
 	return filepath.Join(r.path, "members.toml")
