@@ -1,5 +1,5 @@
 // Package common provides shared TUI styles and constants for the oh CLI.
-// Design System: Aurum — see docs/design/aurum.md for full reference.
+// Design System: Aurum v2 "Floating Panels" — see docs/design/aurum.md
 package common
 
 import (
@@ -7,41 +7,53 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Aurum Color Palette
+// Aurum v2 — Color Palette (True Color hex, lipgloss auto-fallback to 256/16)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Semantic colors.
 var (
-	Primary   = lipgloss.Color("178") // Gold — titles, active element, focus border
-	Accent    = lipgloss.Color("99")  // Amethyst — highlights, selection, cursor
-	Success   = lipgloss.Color("78")  // Jade — completed, confirmed
-	Warning   = lipgloss.Color("214") // Amber — warnings, medium priority
-	Error     = lipgloss.Color("196") // Ruby — errors, blocked, critical
-	Info      = lipgloss.Color("33")  // Sapphire — in progress, running
-	Subtle    = lipgloss.Color("244") // Slate — muted text, descriptions, footers
-	Highlight = lipgloss.Color("99")  // Amethyst (alias for Accent)
+	Primary   = lipgloss.Color("#e8a838") // Copper — active element, focus border, step label
+	Accent    = lipgloss.Color("#a78bfa") // Amethyst — highlights, selection, cursor
+	Success   = lipgloss.Color("#5fd787") // Jade — completed, confirmed
+	Warning   = lipgloss.Color("#ffaf5f") // Amber — warnings, medium priority
+	Error     = lipgloss.Color("#ff5f5f") // Ruby — errors, blocked, critical
+	Info      = lipgloss.Color("#5fafff") // Sapphire — in progress, running
+	Highlight = lipgloss.Color("#a78bfa") // Amethyst (alias for Accent)
 )
 
-// Structural colors.
+// Text colors.
 var (
-	TextLight    = lipgloss.Color("255") // Ivory — text on colored backgrounds
-	Surface      = lipgloss.Color("235") // Obsidian — title bar backgrounds, panels
-	Border       = lipgloss.Color("240") // Graphite — normal borders, separators
-	BorderActive = lipgloss.Color("178") // Gold — active/focused element border
+	TextLight = lipgloss.Color("#e8e8e8") // Ivory — titles, primary text, text on colored bg
+	Subtle    = lipgloss.Color("#8585a0") // Lavender — footer, help text, keybinds
+	Muted     = lipgloss.Color("#6e6e82") // Ash — descriptions, metadata, timestamps
+)
+
+// Depth colors (3 levels: terminal → panel → element).
+// Theme: Mocha (active). See docs/design/aurum.md for alternatives.
+var (
+	Surface     = lipgloss.Color("#1e1e2e") // Panel bg — floats above terminal
+	SurfaceElem = lipgloss.Color("#323248") // Element bg — raised zone (step bar, form, cards)
+)
+
+// Border colors (quasi-invisible — same color family as backgrounds).
+var (
+	Border       = lipgloss.Color("#262636") // Panel border (nearly invisible on Surface)
+	BorderElem   = lipgloss.Color("#3c3c52") // Element border (very subtle on Surface)
+	BorderActive = lipgloss.Color("#e8a838") // = Primary (focused element border)
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Aurum Styles
+// Aurum v2 — Styles
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Common styles.
 var (
-	// Title renders a bold Gold title.
+	// Title renders a bold Ivory title.
 	Title = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(Primary)
+		Foreground(TextLight)
 
-	// Subtitle renders a dimmed Slate subtitle.
+	// Subtitle renders a Lavender subtitle.
 	Subtitle = lipgloss.NewStyle().
 			Foreground(Subtle)
 
@@ -70,24 +82,30 @@ var (
 
 	// Gutter renders the left gutter (pipeline-style).
 	Gutter = lipgloss.NewStyle().
-		Foreground(Border).
+		Foreground(BorderElem).
 		SetString("│ ")
 
-	// Box renders a bordered box with Gold border.
+	// Box renders a bordered box with quasi-invisible border (floating panel).
 	Box = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(Primary).
+		BorderForeground(Border).
 		Padding(0, 1)
 
-	// BoxSubtle renders a bordered box with Graphite border.
-	BoxSubtle = lipgloss.NewStyle().
+	// BoxElem renders a bordered box for raised elements (inner panel).
+	BoxElem = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(BorderElem).
+		Padding(0, 1)
+
+	// BoxActive renders a bordered box with focus border (Copper).
+	BoxActive = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(Border).
+			BorderForeground(BorderActive).
 			Padding(0, 1)
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Aurum Icons
+// Aurum v2 — Icons
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Action and status icons.
@@ -109,9 +127,9 @@ const (
 	IconStepActiveFallback = "►"
 )
 
-// Separator characters.
+// Separator characters (used sparingly — prefer background changes).
 const (
 	IconSepBold   = "━" // Bold horizontal rule (U+2501)
 	IconSepNormal = "─" // Normal horizontal rule (U+2500)
-	IconSepConn   = "───" // Connector between steps
+	IconSepConn   = "───" // Connector between steps in step bar
 )

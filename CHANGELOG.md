@@ -7,6 +7,32 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [3.9.1] — 2026-07-16
+
+### Fixed
+
+- **`oh team init`** — Steps 3 (Notifications) and 4 (Policies) were not displayed
+  due to cascading form completion after step transitions. Added `justAdvanced` guard
+  to prevent residual messages from triggering immediate completion on the next form.
+
+### Changed
+
+- **Aurum v2 "Floating Panels"** — Visual redesign with 3 depth levels:
+  - Terminal bg → Panel (Surface `#1e1e2e`) → Element (SurfaceElem `#323248`)
+  - Wizard uses nested rounded panels (outer + inner) instead of separators `━━━`
+  - Bordures quasi-invisibles (même famille de couleur que les fonds)
+  - Step bar and form inside raised element panel
+  - Title in Ivory bold, footer in Lavender (`#8585a0`)
+
+- **Palette refinement** — True color hex values with auto-fallback:
+  - Primary: Copper chaud (`#e8a838`)
+  - Subtle → Lavender (`#8585a0`) for better contrast on dark backgrounds
+  - Muted → Ash (`#6e6e82`) for metadata
+  - Error → Ruby adouci (`#ff5f5f`) less aggressive than pure red
+
+- **Design doc** — Two theme variants documented (Mocha active, Bleu Nuit alternative).
+  Anti-patterns section added: no hardcoded colors, no separator lines.
+
 ## [3.9.0] — 2026-07-15
 
 ### Added

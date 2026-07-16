@@ -1,5 +1,5 @@
 // Package common provides shared TUI styles and constants for the oh CLI.
-// Design System: Aurum — see docs/design/aurum.md
+// Design System: Aurum v2 — see docs/design/aurum.md
 package common
 
 import (
@@ -37,7 +37,7 @@ type SidebarConfig struct {
 	Width   int          // Available width for rendering
 }
 
-// Styles for the sidebar (Aurum Design System).
+// Styles for the sidebar (Aurum v2).
 var (
 	sidebarTitle = lipgloss.NewStyle().
 			Bold(true).
@@ -47,7 +47,7 @@ var (
 			Foreground(Success)
 
 	sidebarSeparator = lipgloss.NewStyle().
-				Foreground(Border)
+				Foreground(Muted)
 
 	sidebarStepActive = lipgloss.NewStyle().
 				Bold(true).
@@ -57,17 +57,17 @@ var (
 			Foreground(Success)
 
 	sidebarStepPending = lipgloss.NewStyle().
-				Foreground(Subtle)
+				Foreground(Muted)
 
 	sidebarStepSkipped = lipgloss.NewStyle().
-				Foreground(Subtle).
+				Foreground(Muted).
 				Strikethrough(true)
 
 	sidebarHeader = lipgloss.NewStyle().
 			Foreground(Subtle)
 )
 
-// RenderSidebar returns a formatted sidebar string for use in wizard layouts.
+// RenderSidebar returns a formatted sidebar string for use in inline wizard layouts.
 // It displays prerequisites (always checked) followed by a separator and the step list.
 func RenderSidebar(cfg SidebarConfig) string {
 	var b strings.Builder
