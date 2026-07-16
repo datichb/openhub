@@ -1,6 +1,11 @@
 // Package wizard provides a reusable BubbleTea model for multi-step wizards
 // with a horizontal step bar and floating panel layout.
 // Design System: Aurum v2 "Floating Panels" — see docs/design/aurum.md
+//
+// Background rendering strategy (from charmbracelet/soft-serve pattern):
+// Width() + Height() on a style forces lipgloss to pad every line to the
+// specified width and add empty lines to reach the height. When combined
+// with Background(), this guarantees uniform background fill with no black bands.
 package wizard
 
 import (
@@ -201,23 +206,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the wizard with floating panel layout.
+// Uses the Width+Height pattern from charmbracelet/soft-serve:
+// setting both dimensions forces lipgloss to fill every cell,
+// ensuring Background() colors the entire rectangle uniformly.
 func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
 	}
 
 	// ── Dimensions ──
+	// Outer panel: fills the terminal minus a small margin
 	outerW := m.width - 2
-	innerW := outerW - 6 // outer border(2) + outer hpad(2) + gap(2)
-	innerH := m.height - 10 // outer border(2) + title area(3) + footer area(3) + inner border(2)
-	if innerH < 7 {
-		innerH = 7
+	outerH := m.height - 2
+
+	// Inner panel: inside the outer panel (accounting for border + padding)
+	// outer border=2, outer padding=2 (top+bottom via Padding(1,2) → 2 vertical, 4 horizontal)
+	innerW := outerW - 6       // -2 border -4 padding horizontal
+	innerH := outerH - 8       // -2 border -2 padding vertical -4 (title+footer+spacing)
+	if innerH < 8 {
+		innerH = 8
 	}
 
-	// ── Step bar ──
+	// ── Build step bar ──
 	stepBar := common.RenderStepBar(m.buildStepList())
 
-	// ── Step label ──
+	// ── Build step label ──
 	stepLabel := ""
 	if m.current < len(m.steps) {
 		stepLabel = lipgloss.NewStyle().
@@ -226,7 +239,7 @@ func (m Model) View() string {
 			Render(fmt.Sprintf("%d/%d · %s", m.current+1, len(m.steps), m.steps[m.current].Label))
 	}
 
-	// ── Form ──
+	// ── Build form view ──
 	formView := ""
 	if m.current < len(m.steps) && m.steps[m.current].Form != nil {
 		formView = m.steps[m.current].Form.View()
@@ -237,34 +250,21 @@ func (m Model) View() string {
 			Render(fmt.Sprintf("%s Configuration terminée !", common.IconSuccess))
 	}
 
-	// ── Inner panel content ──
-	// Use lipgloss.Place to fill the entire inner rectangle with SurfaceElem bg.
-	// This ensures no black bands — every cell gets the background color.
-	innerText := lipgloss.JoinVertical(lipgloss.Left,
-		stepBar,
-		"",
-		stepLabel,
-		"",
-		formView,
-	)
+	// ── Inner panel ──
+	// Compose content: step bar + label + form
+	innerContent := stepBar + "\n\n" + stepLabel + "\n\n" + formView
 
-	// Place the text content inside a fixed-size box filled with SurfaceElem
-	innerFilled := lipgloss.Place(
-		innerW-2, // width (minus border)
-		innerH-2, // height (minus border)
-		lipgloss.Left,
-		lipgloss.Top,
-		innerText,
-		lipgloss.WithWhitespaceBackground(common.SurfaceElem),
-	)
-
-	// Wrap with rounded border
+	// Render with Width + Height + Background → uniform fill guaranteed
 	innerBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(common.BorderElem).
 		BorderBackground(common.Surface).
-		Width(innerW - 2).
-		Render(innerFilled)
+		Background(common.SurfaceElem).
+		Foreground(common.TextLight).
+		Width(innerW).
+		Height(innerH).
+		Padding(1, 2).
+		Render(innerContent)
 
 	// ── Title ──
 	titleView := lipgloss.NewStyle().
@@ -277,38 +277,20 @@ func (m Model) View() string {
 		Foreground(common.Subtle).
 		Render("enter confirmer · esc passer · ctrl+c quitter")
 
-	// ── Outer panel content ──
-	// Compose: title + inner + footer, placed in a filled outer rectangle
-	outerText := lipgloss.JoinVertical(lipgloss.Left,
-		"",
-		"  "+titleView,
-		"",
-		"  "+innerBox,
-		"",
-		"  "+footerView,
-	)
+	// ── Outer panel ──
+	// Compose: title + inner + footer
+	outerContent := titleView + "\n\n" + innerBox + "\n\n" + footerView
 
-	// Calculate outer content height (fills remaining space)
-	outerH := m.height - 2 // minus outer border
-
-	// Place outer content in a filled box with Surface bg
-	outerFilled := lipgloss.Place(
-		outerW-2, // width (minus border)
-		outerH-2, // height (minus border + padding)
-		lipgloss.Left,
-		lipgloss.Top,
-		outerText,
-		lipgloss.WithWhitespaceBackground(common.Surface),
-	)
-
-	// Wrap with rounded border
-	outerFrame := lipgloss.NewStyle().
+	// Render with Width + Height + Background → uniform fill guaranteed
+	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(common.Border).
-		Width(outerW - 2).
-		Render(outerFilled)
-
-	return outerFrame
+		Background(common.Surface).
+		Foreground(common.TextLight).
+		Width(outerW).
+		Height(outerH).
+		Padding(1, 2).
+		Render(outerContent)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,11 +298,14 @@ func (m Model) View() string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (m Model) formWidth() int {
-	return m.width - 16
+	// outer border(2) + outer pad(4) + inner border(2) + inner pad(4) = 12
+	return m.width - 14
 }
 
 func (m Model) formHeight() int {
-	h := m.height - 20
+	// outer border(2) + outer pad(2) + outer spacing(4) +
+	// inner border(2) + inner pad(2) + step bar(1) + step label(1) + spacing(4)
+	h := m.height - 18
 	if h < 5 {
 		h = 5
 	}
