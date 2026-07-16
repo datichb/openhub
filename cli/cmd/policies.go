@@ -5,11 +5,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var policiesCmd = &cobra.Command{
@@ -205,10 +207,6 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Ajouter une policy custom  "))
-	fmt.Fprintln(a.IO.Out)
-
 	var (
 		name        string
 		policyType  string
@@ -220,91 +218,107 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		maxVal      int
 	)
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Nom de la policy").
-				Description("Préfixer par 'custom_' pour les règles personnalisées").
-				Placeholder("custom_no_debugger").
-				Value(&name).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("le nom est requis")
-					}
-					return nil
-				}),
-			huh.NewSelect[string]().
-				Title("Type de règle").
-				Options(
-					huh.NewOption("Regex (valide un pattern)", "regex"),
-					huh.NewOption("Forbidden Pattern (interdit des patterns dans le diff)", "forbidden_pattern"),
-					huh.NewOption("Limit (valeur maximale)", "limit"),
-					huh.NewOption("Boolean (activé/désactivé)", "boolean"),
-				).
-				Value(&policyType),
-			huh.NewSelect[string]().
-				Title("Enforcement").
-				Options(
-					huh.NewOption("Warn (avertissement)", "warn"),
-					huh.NewOption("Refuse (bloquant)", "refuse"),
-				).
-				Value(&enforcement),
-			huh.NewInput().
-				Title("Message (affiché en cas de violation)").
-				Value(&message),
-		),
-	)
+	policyTypes := []string{"regex", "forbidden_pattern", "limit", "boolean"}
+	enforcements := []string{"warn", "refuse"}
+	scopes := []string{"diff_only", "modified_files", "all_files"}
 
-	if err := form.Run(); err != nil {
-		return err
+	steps := []views.WizardStep{
+		{
+			Label: "Policy Info",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField("Nom de la policy", name, 0, nil,
+					func(text string) { name = text })
+				form.AddDropDown("Type de règle", policyTypes, 0,
+					func(_ string, idx int) { policyType = policyTypes[idx] })
+				form.AddDropDown("Enforcement", enforcements, 0,
+					func(_ string, idx int) { enforcement = enforcements[idx] })
+				form.AddInputField("Message (violation)", message, 0, nil,
+					func(text string) { message = text })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if name == "" {
+					return fmt.Errorf("le nom est requis")
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Name", Value: name},
+					{Label: "Type", Value: policyType},
+					{Label: "Enforcement", Value: enforcement},
+				}
+			},
+		},
+		{
+			Label:  "Regex Config",
+			SkipIf: func() bool { return policyType != "regex" },
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField("Pattern regex", rule, 0, nil,
+					func(text string) { rule = text })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Rule", Value: rule}}
+			},
+		},
+		{
+			Label:  "Forbidden Patterns",
+			SkipIf: func() bool { return policyType != "forbidden_pattern" },
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField("Patterns interdits (virgules)", patterns, 0, nil,
+					func(text string) { patterns = text })
+				form.AddDropDown("Scope", scopes, 0,
+					func(_ string, idx int) { scope = scopes[idx] })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Patterns", Value: patterns},
+					{Label: "Scope", Value: scope},
+				}
+			},
+		},
+		{
+			Label:  "Limit Config",
+			SkipIf: func() bool { return policyType != "limit" },
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField("Valeur maximale", "", 0, nil,
+					func(text string) { rule = text })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				fmt.Sscanf(rule, "%d", &maxVal)
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Max", Value: rule}}
+			},
+		},
 	}
 
-	// Type-specific form
-	switch policyType {
-	case "regex":
-		regexForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Pattern regex").
-					Placeholder(`^(feat|fix)/.+`).
-					Value(&rule),
-			),
-		)
-		if err := regexForm.Run(); err != nil {
-			return err
-		}
-	case "forbidden_pattern":
-		patternForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Patterns interdits (séparés par des virgules)").
-					Placeholder("console.log, debugger, binding.pry").
-					Value(&patterns),
-				huh.NewSelect[string]().
-					Title("Scope").
-					Options(
-						huh.NewOption("Diff seulement", "diff_only"),
-						huh.NewOption("Fichiers modifiés", "modified_files"),
-						huh.NewOption("Tous les fichiers", "all_files"),
-					).
-					Value(&scope),
-			),
-		)
-		if err := patternForm.Run(); err != nil {
-			return err
-		}
-	case "limit":
-		limitForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Valeur maximale").
-					Value(&rule), // reuse rule field temporarily
-			),
-		)
-		if err := limitForm.Run(); err != nil {
-			return err
-		}
-		fmt.Sscanf(rule, "%d", &maxVal)
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "policies add",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
 	// Build the TOML block to append

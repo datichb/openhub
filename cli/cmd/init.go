@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -17,6 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/components/summary"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var initCmd = &cobra.Command{
@@ -36,237 +37,679 @@ func init() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles for init wizard
-// ─────────────────────────────────────────────────────────────────────────────
-
-// renderInitProgress prints the step sidebar above the current form.
-func renderInitProgress(current int) {
-	steps := []common.WizardStep{
-		{Label: i18n.T("cmd.init.section_general"), Status: initStepStatus(0, current)},
-		{Label: i18n.T("cmd.init.section_provider"), Status: initStepStatus(1, current)},
-		{Label: i18n.T("cmd.init.section_mcp"), Status: initStepStatus(2, current)},
-		{Label: i18n.T("cmd.init.section_project"), Status: initStepStatus(3, current)},
-	}
-	cfg := common.SidebarConfig{
-		Title: "oh — Hub Init",
-		Steps: steps,
-		Width: 30,
-	}
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, common.RenderSidebar(cfg))
-}
-
-// initStepStatus returns the status for a given step relative to the current one.
-func initStepStatus(step, current int) common.StepStatus {
-	if step < current {
-		return common.StepDone
-	}
-	if step == current {
-		return common.StepActive
-	}
-	return common.StepPending
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main init flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 func runInit(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	// ══════════════════════════════════════════════════════════════════════════
-	// PREAMBLE
-	// ══════════════════════════════════════════════════════════════════════════
-	preamble := i18n.T("cmd.init.preamble")
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, common.Box.Render(preamble))
-	fmt.Fprintln(os.Stdout)
-
-	// Wait for user to press Enter
-	fmt.Fprintf(os.Stdout, "  %s ", common.Subtitle.Render(i18n.T("cmd.init.press_enter")))
-	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
-
-	// ══════════════════════════════════════════════════════════════════════════
-	// PART 1 — General Configuration (language + opencode version)
-	// ══════════════════════════════════════════════════════════════════════════
-	renderInitProgress(0)
-
+	// ── Shared state across wizard steps ──────────────────────────────────────
 	var (
 		language    string
 		opencodeVer string
+		provider    string
+
+		// Provider credential state
+		useExisting    bool
+		configureNow   bool
+		authMode       string
+		bedrockToken   string
+		bedrockRegion  string
+		bedrockProfile string
+		apiKey         string
+
+		// MCP state
+		configureMCP   bool
+		mcpFigma       bool
+		mcpGitlab      bool
+		mcpGslides     bool
+		mcpServices    []string
+		figmaToken     string
+		gitlabToken    string
+		gslidesToken   string
+		gitlabWrite    bool
+
+		// Project state
+		addProject bool
+
+		// App ref (set after config is written)
+		a *app.App
 	)
 
-	generalForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.init.language_select")).
-				Options(
-					huh.NewOption("Français", "fr"),
-					huh.NewOption("English", "en"),
-				).
-				Value(&language),
+	steps := []views.WizardStep{
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 1 — Language & OpenCode version
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: i18n.T("cmd.init.section_general"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				langOptions := []string{"Français", "English"}
+				form.AddDropDown(i18n.T("cmd.init.language_select"), langOptions, -1, func(_ string, index int) {
+					switch index {
+					case 0:
+						language = "fr"
+					case 1:
+						language = "en"
+					}
+				})
+				form.AddInputField(i18n.T("cmd.init.opencode_version"), "", 0, nil, func(text string) {
+					opencodeVer = text
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if opencodeVer == "" {
+					opencodeVer = "latest"
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Language", Value: language},
+					{Label: "OpenCode", Value: opencodeVer},
+				}
+			},
+		},
 
-			huh.NewInput().
-				Title(i18n.T("cmd.init.opencode_version")).
-				Description(i18n.T("cmd.init.opencode_version_desc")).
-				Placeholder("latest").
-				Value(&opencodeVer),
-		).Title(i18n.T("cmd.init.global_config")),
-	)
-	if err := generalForm.Run(); err != nil {
-		return err
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 2 — Provider selection
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: i18n.T("cmd.init.section_provider"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				providerOptions := []string{
+					"Amazon Bedrock",
+					"Anthropic (direct API)",
+					"OpenRouter",
+					"GitHub Copilot",
+				}
+				providerValues := []string{"bedrock", "anthropic", "openrouter", "github-copilot"}
+				form.AddDropDown(i18n.T("cmd.init.provider_select"), providerOptions, -1, func(_ string, index int) {
+					if index >= 0 && index < len(providerValues) {
+						provider = providerValues[index]
+					}
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				// Write initial hub.toml (provider set, MCP all disabled) to allow initApp
+				cfgDir := config.HubDir()
+				if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+					return fmt.Errorf("creating config directory: %w", err)
+				}
+
+				tomlContent := buildInitConfig(language, opencodeVer, provider, nil)
+				cfgPath := config.ConfigPath()
+				if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
+					return fmt.Errorf("writing config: %w", err)
+				}
+
+				// Initialize app so we can access secrets/keychain for provider credentials
+				config.Reset()
+				if err := initApp(); err != nil {
+					return err
+				}
+
+				a = MustApp()
+				if err := ensureOpencode(a); err != nil {
+					return err
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Provider", Value: provider},
+				}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 3 — Provider: detect existing credentials
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Detect credentials",
+			SkipIf: func() bool {
+				// GitHub Copilot just detects, no wizard needed
+				return provider == "github-copilot"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				name := providerPkg.Name(provider)
+				det := providerPkg.Detect(name)
+
+				form := tview.NewForm()
+				if det.Available {
+					form.AddCheckbox(
+						fmt.Sprintf("%s (%s: %s)", i18n.T("cmd.provider.use_existing"), det.Source, det.Details),
+						true,
+						func(checked bool) { useExisting = checked },
+					)
+				} else {
+					// No existing credentials — ask if user wants to configure now
+					useExisting = false
+					form.AddCheckbox(
+						i18n.T("cmd.init.provider_configure_now"),
+						true,
+						func(checked bool) { configureNow = checked },
+					)
+				}
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if useExisting {
+					name := providerPkg.Name(provider)
+					det := providerPkg.Detect(name)
+					// For bedrock with aws-profile source: persist profile/region in hub.toml
+					if name == providerPkg.Bedrock && det.Source == "aws-profile" {
+						v := configViper()
+						v.Set("provider.bedrock.auth_mode", "profile")
+						if awsProfile := os.Getenv("AWS_PROFILE"); awsProfile != "" {
+							v.Set("provider.bedrock.aws_profile", awsProfile)
+						} else {
+							v.Set("provider.bedrock.aws_profile", "default")
+						}
+						if region := os.Getenv("AWS_REGION"); region != "" {
+							v.Set("provider.bedrock.aws_region", region)
+						} else if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
+							v.Set("provider.bedrock.aws_region", region)
+						}
+						cfgPath := config.ConfigPath()
+						_ = v.WriteConfigAs(cfgPath)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if useExisting {
+					return []views.InfoField{{Label: "Credentials", Value: "existing (detected)"}}
+				}
+				if configureNow {
+					return []views.InfoField{{Label: "Credentials", Value: "configure now"}}
+				}
+				return []views.InfoField{{Label: "Credentials", Value: "skipped"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 4 — Bedrock: auth mode selection
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Bedrock auth mode",
+			SkipIf: func() bool {
+				return provider != "bedrock" || useExisting || !configureNow
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				authOptions := []string{
+					"Bearer Token (SSO/STS)",
+					"AWS Profile (~/.aws/credentials)",
+				}
+				form.AddDropDown(i18n.T("cmd.provider.bedrock.auth_mode"), authOptions, -1, func(_ string, index int) {
+					switch index {
+					case 0:
+						authMode = "bearer"
+					case 1:
+						authMode = "profile"
+					}
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				v := configViper()
+				v.Set("provider.bedrock.auth_mode", authMode)
+				cfgPath := config.ConfigPath()
+				_ = v.WriteConfigAs(cfgPath)
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Auth mode", Value: authMode}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 5 — Bedrock: bearer token + region
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Bedrock bearer token",
+			SkipIf: func() bool {
+				return provider != "bedrock" || useExisting || !configureNow || authMode != "bearer"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.T("cmd.provider.bedrock.bearer_token"),
+					"", 0, '*',
+					func(text string) { bedrockToken = text },
+				)
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+					bedrockRegion = text
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if bedrockRegion == "" {
+					bedrockRegion = "us-east-1"
+				}
+				v := configViper()
+				v.Set("provider.bedrock.aws_region", bedrockRegion)
+				cfgPath := config.ConfigPath()
+				_ = v.WriteConfigAs(cfgPath)
+
+				if bedrockToken != "" && a != nil && a.Secrets != nil {
+					keyName := providerPkg.KeychainKey(providerPkg.Bedrock, "")
+					if err := a.Secrets.Set(ctx, keyName, bedrockToken); err != nil {
+						return fmt.Errorf("storing bedrock token: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				stored := "stored"
+				if bedrockToken == "" {
+					stored = "skipped"
+				}
+				return []views.InfoField{
+					{Label: "Token", Value: stored},
+					{Label: "Region", Value: bedrockRegion},
+				}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 6 — Bedrock: profile + region
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Bedrock AWS profile",
+			SkipIf: func() bool {
+				return provider != "bedrock" || useExisting || !configureNow || authMode != "profile"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField(i18n.T("cmd.provider.bedrock.profile"), "", 0, nil, func(text string) {
+					bedrockProfile = text
+				})
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+					bedrockRegion = text
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if bedrockProfile == "" {
+					bedrockProfile = "default"
+				}
+				if bedrockRegion == "" {
+					bedrockRegion = "us-east-1"
+				}
+				v := configViper()
+				v.Set("provider.bedrock.aws_profile", bedrockProfile)
+				v.Set("provider.bedrock.aws_region", bedrockRegion)
+				cfgPath := config.ConfigPath()
+				_ = v.WriteConfigAs(cfgPath)
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Profile", Value: bedrockProfile},
+					{Label: "Region", Value: bedrockRegion},
+				}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 7 — Anthropic / OpenRouter: API key
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "API Key",
+			SkipIf: func() bool {
+				return (provider != "anthropic" && provider != "openrouter") || useExisting || !configureNow
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				name := providerPkg.Name(provider)
+				envVar := providerPkg.EnvVar(name)
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.provider.api_key_prompt", string(name)),
+					"", 0, '*',
+					func(text string) { apiKey = text },
+				)
+				form.AddInputField(
+					i18n.Tf("cmd.provider.api_key_hint", envVar),
+					"", 0, nil, nil,
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if apiKey == "" {
+					return nil
+				}
+				if a != nil && a.Secrets != nil {
+					name := providerPkg.Name(provider)
+					keyName := providerPkg.KeychainKey(name, "")
+					if err := a.Secrets.Set(ctx, keyName, apiKey); err != nil {
+						return fmt.Errorf("storing API key: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if apiKey == "" {
+					return []views.InfoField{{Label: "API Key", Value: "skipped"}}
+				}
+				masked := "***"
+				if len(apiKey) > 8 {
+					masked = apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
+				}
+				return []views.InfoField{{Label: "API Key", Value: masked}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 8 — MCP: configure?
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: i18n.T("cmd.init.section_mcp"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(i18n.T("cmd.init.mcp_configure_prompt"), true, func(checked bool) {
+					configureMCP = checked
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				if configureMCP {
+					return []views.InfoField{{Label: "MCP", Value: "configure"}}
+				}
+				return []views.InfoField{{Label: "MCP", Value: "skipped"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 9 — MCP: service selection (checkboxes)
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "MCP services",
+			SkipIf: func() bool {
+				return !configureMCP
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox("Figma (personal access token, scope file:read)", false, func(checked bool) {
+					mcpFigma = checked
+				})
+				form.AddCheckbox("GitLab (personal access token, scope api)", false, func(checked bool) {
+					mcpGitlab = checked
+				})
+				form.AddCheckbox("Google Slides (OAuth access token)", false, func(checked bool) {
+					mcpGslides = checked
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				mcpServices = nil
+				if mcpFigma {
+					mcpServices = append(mcpServices, "figma")
+				}
+				if mcpGitlab {
+					mcpServices = append(mcpServices, "gitlab")
+				}
+				if mcpGslides {
+					mcpServices = append(mcpServices, "gslides")
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if len(mcpServices) == 0 {
+					return []views.InfoField{{Label: "Services", Value: "none"}}
+				}
+				return []views.InfoField{{Label: "Services", Value: strings.Join(mcpServices, ", ")}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 10 — MCP: Figma token
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Figma token",
+			SkipIf: func() bool {
+				return !configureMCP || !mcpFigma
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.init.mcp_token_prompt", "figma"),
+					"", 0, '*',
+					func(text string) { figmaToken = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if figmaToken == "" {
+					return nil
+				}
+				if a != nil && a.Secrets != nil {
+					if err := a.Secrets.Set(ctx, "figma-token", figmaToken); err != nil {
+						return fmt.Errorf("storing figma token: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if figmaToken == "" {
+					return []views.InfoField{{Label: "Figma", Value: "use env FIGMA_TOKEN"}}
+				}
+				return []views.InfoField{{Label: "Figma", Value: "stored in keychain"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 11 — MCP: GitLab token
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "GitLab token",
+			SkipIf: func() bool {
+				return !configureMCP || !mcpGitlab
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.init.mcp_token_prompt", "gitlab"),
+					"", 0, '*',
+					func(text string) { gitlabToken = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if gitlabToken == "" {
+					return nil
+				}
+				if a != nil && a.Secrets != nil {
+					if err := a.Secrets.Set(ctx, "gitlab-token", gitlabToken); err != nil {
+						return fmt.Errorf("storing gitlab token: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if gitlabToken == "" {
+					return []views.InfoField{{Label: "GitLab", Value: "use env GITLAB_TOKEN"}}
+				}
+				return []views.InfoField{{Label: "GitLab", Value: "stored in keychain"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 12 — MCP: GitLab write permissions
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "GitLab write mode",
+			SkipIf: func() bool {
+				return !configureMCP || !mcpGitlab || gitlabToken == ""
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(i18n.T("cmd.init.mcp_gitlab_write"), false, func(checked bool) {
+					gitlabWrite = checked
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				if gitlabWrite {
+					return []views.InfoField{{Label: "GitLab write", Value: "enabled"}}
+				}
+				return []views.InfoField{{Label: "GitLab write", Value: "read-only"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 13 — MCP: Google Slides token
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Google Slides token",
+			SkipIf: func() bool {
+				return !configureMCP || !mcpGslides
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.init.mcp_token_prompt", "gslides"),
+					"", 0, '*',
+					func(text string) { gslidesToken = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if gslidesToken == "" {
+					return nil
+				}
+				if a != nil && a.Secrets != nil {
+					if err := a.Secrets.Set(ctx, "gslides-token", gslidesToken); err != nil {
+						return fmt.Errorf("storing gslides token: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if gslidesToken == "" {
+					return []views.InfoField{{Label: "Google Slides", Value: "use env GOOGLE_ACCESS_TOKEN"}}
+				}
+				return []views.InfoField{{Label: "Google Slides", Value: "stored in keychain"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 14 — Update config + extract hub content
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label:      "Finalize config",
+			Processing: "Writing configuration...",
+			OnDone: func() error {
+				// Update hub.toml with MCP enabled flags
+				if len(mcpServices) > 0 {
+					updateConfigMCP(mcpServices)
+				}
+
+				// Extract hub content
+				hubContentDir := hubcontent.HubContentDir()
+				if err := hubcontent.Extract(hubContentDir); err != nil {
+					return fmt.Errorf("extracting hub content: %w", err)
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Status", Value: "config saved"}}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 15 — Add first project?
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: i18n.T("cmd.init.section_project"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(i18n.T("cmd.init.add_project_prompt"), false, func(checked bool) {
+					addProject = checked
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				if addProject {
+					return []views.InfoField{{Label: "Project", Value: "will add"}}
+				}
+				return []views.InfoField{{Label: "Project", Value: "skip"}}
+			},
+		},
 	}
 
-	if opencodeVer == "" {
-		opencodeVer = "latest"
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: "oh",
+			Command:     "init",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
-	// ══════════════════════════════════════════════════════════════════════════
-	// PART 2 — Provider (selection + credentials)
-	// ══════════════════════════════════════════════════════════════════════════
-	renderInitProgress(1)
-
-	var provider string
-
-	providerForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.init.provider_select")).
-				Description(i18n.T("cmd.init.provider_select_desc")).
-				Options(
-					huh.NewOption("Amazon Bedrock", "bedrock"),
-					huh.NewOption("Anthropic (direct API)", "anthropic"),
-					huh.NewOption("OpenRouter", "openrouter"),
-					huh.NewOption("GitHub Copilot", "github-copilot"),
-				).
-				Value(&provider),
-		),
-	)
-	if err := providerForm.Run(); err != nil {
-		return err
-	}
-
-	// Write initial hub.toml (provider set, MCP all disabled) to allow initApp
-	cfgDir := config.HubDir()
-	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-
-	tomlContent := buildInitConfig(language, opencodeVer, provider, nil)
-	cfgPath := config.ConfigPath()
-	if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
-
-	fmt.Fprintf(os.Stdout, "\n%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.init.config_written", cfgPath))
-
-	// Initialize app so we can access secrets/keychain for provider credentials
-	config.Reset()
-	if err := initApp(); err != nil {
-		return err
-	}
-
-	a := MustApp()
-	if err := ensureOpencode(a); err != nil {
-		return err
-	}
-
-	// Provider credentials detection + setup (immediately after provider choice)
-	initProviderCredentials(providerPkg.Name(provider), a, ctx)
-
-	// ══════════════════════════════════════════════════════════════════════════
-	// PART 3 — MCP Servers (optional)
-	// ══════════════════════════════════════════════════════════════════════════
-	renderInitProgress(2)
-
-	var configureMCP bool
-	if err := huh.NewConfirm().
-		Title(i18n.T("cmd.init.mcp_configure_prompt")).
-		Value(&configureMCP).
-		Run(); err != nil {
-		return err
-	}
-
-	var mcpServices []string
-	if configureMCP {
-		mcpServices = runInitMCPWizard()
-	}
-
-	// Store MCP tokens in keychain (for services that were configured)
-	if configureMCP && a.Secrets != nil && len(mcpServices) > 0 {
-		storeMCPTokens(a, ctx, mcpServices)
-	}
-
-	// Update hub.toml with MCP enabled flags
-	if len(mcpServices) > 0 {
-		updateConfigMCP(mcpServices)
-		fmt.Fprintf(os.Stdout, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.T("cmd.init.mcp_config_updated"))
-	}
-
-	// Extract hub content
-	hubContentDir := hubcontent.HubContentDir()
-	if err := hubcontent.Extract(hubContentDir); err != nil {
-		return fmt.Errorf("extracting hub content: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.init.hub_extracted", hubContentDir))
-
-	// ══════════════════════════════════════════════════════════════════════════
-	// PART 4 — First Project (optional)
-	// ══════════════════════════════════════════════════════════════════════════
-	renderInitProgress(3)
-
-	var addProject bool
-	if err := huh.NewConfirm().
-		Title(i18n.T("cmd.init.add_project_prompt")).
-		Value(&addProject).
-		Run(); err != nil {
-		return err
-	}
-
+	// Post-wizard: add project if requested
 	if addProject {
-		fmt.Fprintf(os.Stdout, "\n%s %s\n\n",
-			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.init.first_project"))
+		if a == nil {
+			config.Reset()
+			if err := initApp(); err != nil {
+				return err
+			}
+			a = MustApp()
+		}
 		return runProjectAddInteractive(ctx, a)
 	}
 
-	fmt.Fprintf(os.Stdout, "\n%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.T("cmd.init.done_no_project"))
+	// Final summary card
+	fields := []summary.Field{
+		{Label: "Provider", Value: provider},
+	}
+	if language != "" {
+		fields = append(fields, summary.Field{Label: "Language", Value: language})
+	}
+	if len(mcpServices) > 0 {
+		fields = append(fields, summary.Field{Label: "MCP", Value: strings.Join(mcpServices, ", ")})
+	}
+	fmt.Fprint(os.Stdout, summary.Render(summary.Config{
+		Title:     i18n.T("cmd.init.done_no_project"),
+		Icon:      common.IconSuccess,
+		IconColor: common.Success,
+		Fields:    fields,
+		Footer:    i18n.Tf("cmd.init.done_hint", "oh project add"),
+	}))
 	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MCP Wizard (inline in init)
+// MCP helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// runInitMCPWizard runs the MCP service selection and token configuration.
-// Returns the list of successfully configured services (with tokens stored).
-func runInitMCPWizard() []string {
-	var selected []string
-	mcpForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title(i18n.T("cmd.init.mcp_select")).
-				Description(i18n.T("cmd.init.mcp_select_desc")).
-				Options(
-					huh.NewOption("Figma (personal access token, scope file:read)", "figma"),
-					huh.NewOption("GitLab (personal access token, scope api)", "gitlab"),
-					huh.NewOption("Google Slides (OAuth access token)", "gslides"),
-				).
-				Value(&selected),
-		),
-	)
-	if err := mcpForm.Run(); err != nil || len(selected) == 0 {
-		return nil
-	}
-
-	return selected
-}
 
 // updateConfigMCP updates hub.toml to enable the selected MCP services.
 func updateConfigMCP(mcpServices []string) {
@@ -276,284 +719,6 @@ func updateConfigMCP(mcpServices []string) {
 	}
 	cfgPath := config.ConfigPath()
 	_ = v.WriteConfigAs(cfgPath)
-}
-
-// storeMCPTokens prompts for each selected MCP service token and stores in keychain.
-// Services where the user skips the token are removed from the configured list.
-func storeMCPTokens(a *app.App, ctx context.Context, services []string) {
-	for _, svc := range services {
-		var token string
-		envHint := mcpEnvHint(svc)
-
-		tokenForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.Tf("cmd.init.mcp_token_prompt", svc)).
-					Description(i18n.Tf("cmd.init.mcp_token_hint", envHint)).
-					EchoMode(huh.EchoModePassword).
-					Value(&token),
-			),
-		)
-		if err := tokenForm.Run(); err != nil {
-			continue
-		}
-
-		if token == "" {
-			fmt.Fprintf(os.Stdout, "%s %s\n",
-				common.WarningStyle.Render(common.IconWarning),
-				i18n.Tf("cmd.init.mcp_token_skipped", svc))
-			continue
-		}
-
-		keyName := svc + "-token"
-		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
-			fmt.Fprintf(os.Stdout, "%s %s\n",
-				common.ErrorStyle.Render(common.IconError),
-				i18n.Tf("cmd.init.mcp_token_error", svc, err))
-			continue
-		}
-
-		fmt.Fprintf(os.Stdout, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.init.mcp_token_stored", svc, keyName))
-
-		// GitLab: ask about write permissions
-		if svc == "gitlab" {
-			var writeEnabled bool
-			_ = huh.NewConfirm().
-				Title(i18n.T("cmd.init.mcp_gitlab_write")).
-				Description(i18n.T("cmd.init.mcp_gitlab_write_desc")).
-				Value(&writeEnabled).
-				Run()
-
-			if writeEnabled {
-				fmt.Fprintf(os.Stdout, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					i18n.T("cmd.init.mcp_gitlab_write_enabled"))
-			}
-		}
-	}
-}
-
-func mcpEnvHint(svc string) string {
-	switch svc {
-	case "figma":
-		return "FIGMA_TOKEN"
-	case "gitlab":
-		return "GITLAB_TOKEN"
-	case "gslides":
-		return "GOOGLE_ACCESS_TOKEN"
-	default:
-		return ""
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Provider credential detection (inline in init)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// initProviderCredentials detects existing credentials and offers to use them or configure new ones.
-func initProviderCredentials(name providerPkg.Name, a *app.App, ctx context.Context) {
-	fmt.Fprintf(os.Stdout, "\n  %s %s\n",
-		common.Bold.Render(string(name)),
-		common.Subtitle.Render("— "+providerPkg.Description(name)))
-
-	// GitHub Copilot: just detect, no secret to store
-	if name == providerPkg.GithubCopilot {
-		det := providerPkg.Detect(name)
-		if det.Available {
-			fmt.Fprintf(os.Stdout, "  %s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.provider.detected", det.Source, det.Details))
-		} else {
-			fmt.Fprintf(os.Stdout, "  %s %s\n",
-				common.WarningStyle.Render(common.IconWarning),
-				i18n.T("cmd.provider.copilot_not_found"))
-		}
-		return
-	}
-
-	det := providerPkg.Detect(name)
-	if det.Available {
-		fmt.Fprintf(os.Stdout, "  %s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.provider.detected", det.Source, det.Details))
-
-		var useExisting bool
-		if err := huh.NewConfirm().
-			Title(i18n.T("cmd.provider.use_existing")).
-			Value(&useExisting).
-			Run(); err != nil {
-			return
-		}
-
-		if useExisting {
-			// For bedrock with aws-profile source: persist profile/region in hub.toml
-			if name == providerPkg.Bedrock && det.Source == "aws-profile" {
-				v := configViper()
-				// Extract profile and region from Details ("profile default, region eu-west-1")
-				v.Set("provider.bedrock.auth_mode", "profile")
-				if awsProfile := os.Getenv("AWS_PROFILE"); awsProfile != "" {
-					v.Set("provider.bedrock.aws_profile", awsProfile)
-				} else {
-					v.Set("provider.bedrock.aws_profile", "default")
-				}
-				if region := os.Getenv("AWS_REGION"); region != "" {
-					v.Set("provider.bedrock.aws_region", region)
-				} else if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
-					v.Set("provider.bedrock.aws_region", region)
-				}
-				cfgPath := config.ConfigPath()
-				_ = v.WriteConfigAs(cfgPath)
-			}
-			fmt.Fprintf(os.Stdout, "  %s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.T("cmd.init.provider_existing_used"))
-			return
-		}
-	} else {
-		fmt.Fprintf(os.Stdout, "  %s %s\n",
-			common.WarningStyle.Render(common.IconWarning),
-			i18n.Tf("cmd.init.provider_not_detected", string(name)))
-	}
-
-	// Offer inline wizard
-	var configureNow bool
-	if err := huh.NewConfirm().
-		Title(i18n.T("cmd.init.provider_configure_now")).
-		Value(&configureNow).
-		Run(); err != nil {
-		return
-	}
-
-	if !configureNow {
-		fmt.Fprintf(os.Stdout, "  %s %s\n",
-			common.Subtitle.Render(common.IconArrow),
-			i18n.T("cmd.init.provider_configure_later"))
-		return
-	}
-
-	// Inline wizard — simplified version based on provider type
-	switch name {
-	case providerPkg.Bedrock:
-		initBedrockWizard(a, ctx)
-	case providerPkg.Anthropic, providerPkg.OpenRouter:
-		initAPIKeyWizard(a, ctx, name)
-	}
-}
-
-func initBedrockWizard(a *app.App, ctx context.Context) {
-	var authMode string
-	if err := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.provider.bedrock.auth_mode")).
-				Options(
-					huh.NewOption("Bearer Token (SSO/STS)", "bearer"),
-					huh.NewOption("AWS Profile (~/.aws/credentials)", "profile"),
-				).
-				Value(&authMode),
-		),
-	).Run(); err != nil {
-		return
-	}
-
-	v := configViper()
-	v.Set("provider.bedrock.auth_mode", authMode)
-
-	if authMode == "bearer" {
-		var token, region string
-		if err := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.bearer_token")).
-					EchoMode(huh.EchoModePassword).
-					Value(&token),
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.region")).
-					Placeholder("us-east-1").
-					Value(&region),
-			),
-		).Run(); err != nil {
-			return
-		}
-		if region == "" {
-			region = "us-east-1"
-		}
-		v.Set("provider.bedrock.aws_region", region)
-
-		if token != "" && a.Secrets != nil {
-			keyName := providerPkg.KeychainKey(providerPkg.Bedrock, "")
-			if err := a.Secrets.Set(ctx, keyName, token); err == nil {
-				fmt.Fprintf(os.Stdout, "  %s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					i18n.Tf("cmd.provider.token_stored", keyName))
-			}
-		}
-	} else {
-		var profile, region string
-		if err := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.profile")).
-					Placeholder("default").
-					Value(&profile),
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.region")).
-					Placeholder("us-east-1").
-					Value(&region),
-			),
-		).Run(); err != nil {
-			return
-		}
-		if profile == "" {
-			profile = "default"
-		}
-		if region == "" {
-			region = "us-east-1"
-		}
-		v.Set("provider.bedrock.aws_profile", profile)
-		v.Set("provider.bedrock.aws_region", region)
-	}
-
-	cfgPath := config.ConfigPath()
-	_ = v.WriteConfigAs(cfgPath)
-	fmt.Fprintf(os.Stdout, "  %s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.provider.hub_configured", "bedrock"))
-}
-
-func initAPIKeyWizard(a *app.App, ctx context.Context, name providerPkg.Name) {
-	var apiKey string
-	envVar := providerPkg.EnvVar(name)
-
-	if err := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(i18n.Tf("cmd.provider.api_key_prompt", string(name))).
-				Description(i18n.Tf("cmd.provider.api_key_hint", envVar)).
-				EchoMode(huh.EchoModePassword).
-				Value(&apiKey),
-		),
-	).Run(); err != nil {
-		return
-	}
-
-	if apiKey == "" {
-		fmt.Fprintf(os.Stdout, "  %s %s\n",
-			common.WarningStyle.Render(common.IconWarning),
-			i18n.T("cmd.provider.no_key"))
-		return
-	}
-
-	if a.Secrets != nil {
-		keyName := providerPkg.KeychainKey(name, "")
-		if err := a.Secrets.Set(ctx, keyName, apiKey); err == nil {
-			fmt.Fprintf(os.Stdout, "  %s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.provider.token_stored", keyName))
-		}
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

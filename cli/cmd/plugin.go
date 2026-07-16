@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/plugin"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 )
 
 var pluginCmd = &cobra.Command{
@@ -101,10 +102,12 @@ func pluginRemoveCmd() *cobra.Command {
 			force, _ := cmd.Flags().GetBool("force")
 			if !force {
 				var confirm bool
-				_ = huh.NewConfirm().
-					Title(i18n.Tf("cmd.plugin.remove.confirm", name)).
-					Value(&confirm).
-					Run()
+				_ = floating.Run(floating.Config{
+					Title: i18n.T("cmd.plugin.remove.short"),
+					Form: common.NewForm(huh.NewGroup(huh.NewConfirm().
+						Title(i18n.Tf("cmd.plugin.remove.confirm", name)).
+						Value(&confirm))),
+				})
 				if !confirm {
 					return nil
 				}

@@ -8,8 +8,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -17,7 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
-	"github.com/datichb/openhub/cli/internal/tui/views/wizard"
+	"github.com/datichb/openhub/cli/internal/tui/components/summary"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var teamCmd = &cobra.Command{
@@ -96,7 +98,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	if a.Config.Team.StateRepo != "" {
 		stateRepo = a.Config.Team.StateRepo
 	} else {
-		repoForm := huh.NewForm(
+		repoForm := common.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title(i18n.T("cmd.team.init.repo_url_title")).
@@ -154,7 +156,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	hasPolicies := repo.HasPolicies()
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// BUILD WIZARD STEPS
+	// BUILD WIZARD STEPS (tview v2 — cell-buffer rendering)
 	// ══════════════════════════════════════════════════════════════════════════
 
 	// Variables shared across steps (captured by closures)
@@ -208,17 +210,18 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 1: Config globale ──
-	configStep := wizard.StepConfig{
-		Label: i18n.T("cmd.team.init.step_config"),
-		Form: huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.team.init.config_stale_days")).
-					Description(i18n.T("cmd.team.init.config_stale_days_desc")).
-					Placeholder("3").
-					Value(&staleDaysStr),
-			).Title(i18n.T("cmd.team.init.config_create_title")),
-		),
+	configStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_config"),
+		Processing: i18n.T("cmd.team.init.processing_config"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.config_stale_days"),
+				staleDaysStr, 0, nil,
+				func(text string) { staleDaysStr = text })
+			form.AddButton("Next", func() { onDone() })
+			return form
+		},
 		OnDone: func() error {
 			days, err := strconv.Atoi(staleDaysStr)
 			if err != nil || days <= 0 {
@@ -254,44 +257,52 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			}
 			return repo.CommitAndPush(ctx, "team: configure config.toml", "config.toml")
 		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{
+				{Label: "Stale days", Value: staleDaysStr},
+			}
+		},
 	}
 
 	// ── Step 2: Identité ──
-	var identityStep wizard.StepConfig
+	var identityStep views.WizardStep
 	if !hasMember {
-		identityStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_identity"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_id")).
-						Description(i18n.T("cmd.team.init.identity_id_desc")).
-						Value(&memberID).
-						Validate(func(s string) error {
-							if s == "" {
-								return fmt.Errorf("%s", i18n.T("cmd.team.init.identity_id_required"))
-							}
-							return nil
-						}),
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_display")).
-						Value(&displayName),
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_gitlab")).
-						Value(&gitlabUsername),
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_mattermost")).
-						Value(&mattermostUsername),
-					huh.NewSelect[string]().
-						Title(i18n.T("cmd.team.init.identity_role")).
-						Options(
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_lead"), "lead"),
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_dev"), "dev"),
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_reviewer"), "reviewer"),
-						).
-						Value(&role),
-				).Title(i18n.T("cmd.team.init.identity_title")),
-			),
+		identityStep = views.WizardStep{
+			Label:      i18n.T("cmd.team.init.step_identity"),
+			Processing: i18n.T("cmd.team.init.processing_identity"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_id"),
+					memberID, 0, nil,
+					func(text string) { memberID = text })
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_display"),
+					displayName, 0, nil,
+					func(text string) { displayName = text })
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_gitlab"),
+					gitlabUsername, 0, nil,
+					func(text string) { gitlabUsername = text })
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_mattermost"),
+					mattermostUsername, 0, nil,
+					func(text string) { mattermostUsername = text })
+				roles := []string{"lead", "dev", "reviewer"}
+				roleIdx := 0
+				for i, r := range roles {
+					if r == role {
+						roleIdx = i
+						break
+					}
+				}
+				form.AddDropDown(
+					i18n.T("cmd.team.init.identity_role"),
+					roles, roleIdx,
+					func(_ string, idx int) { role = roles[idx] })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
 			OnDone: func() error {
 				member := teamstate.Member{
 					ID:                 memberID,
@@ -309,32 +320,48 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				}
 				return repo.CommitAndPush(ctx, fmt.Sprintf("team: add member %s", memberID), "members.toml")
 			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Member", Value: memberID},
+					{Label: "Name", Value: displayName},
+					{Label: "Role", Value: role},
+				}
+			},
 		}
 	} else {
 		// Member exists — show pre-filled form for update (Esc to skip)
-		identityStep = wizard.StepConfig{
-			Label: i18n.T("cmd.team.init.step_identity"),
-			Form: huh.NewForm(
-				huh.NewGroup(
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_display")).
-						Value(&displayName),
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_gitlab")).
-						Value(&gitlabUsername),
-					huh.NewInput().
-						Title(i18n.T("cmd.team.init.identity_mattermost")).
-						Value(&mattermostUsername),
-					huh.NewSelect[string]().
-						Title(i18n.T("cmd.team.init.identity_role")).
-						Options(
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_lead"), "lead"),
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_dev"), "dev"),
-							huh.NewOption(i18n.T("cmd.team.init.identity_role_reviewer"), "reviewer"),
-						).
-						Value(&role),
-				).Title(i18n.T("cmd.team.init.identity_title")),
-			),
+		identityStep = views.WizardStep{
+			Label:      i18n.T("cmd.team.init.step_identity"),
+			Processing: i18n.T("cmd.team.init.processing_identity"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_display"),
+					displayName, 0, nil,
+					func(text string) { displayName = text })
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_gitlab"),
+					gitlabUsername, 0, nil,
+					func(text string) { gitlabUsername = text })
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_mattermost"),
+					mattermostUsername, 0, nil,
+					func(text string) { mattermostUsername = text })
+				roles := []string{"lead", "dev", "reviewer"}
+				roleIdx := 0
+				for i, r := range roles {
+					if r == role {
+						roleIdx = i
+						break
+					}
+				}
+				form.AddDropDown(
+					i18n.T("cmd.team.init.identity_role"),
+					roles, roleIdx,
+					func(_ string, idx int) { role = roles[idx] })
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
 			OnDone: func() error {
 				member := teamstate.Member{
 					ID:                 memberID,
@@ -349,28 +376,37 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				}
 				return repo.CommitAndPush(ctx, fmt.Sprintf("team: update member %s", memberID), "members.toml")
 			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Member", Value: memberID},
+					{Label: "Name", Value: displayName},
+					{Label: "Role", Value: role},
+				}
+			},
 		}
 	}
 
 	// ── Step 3: Notifications ──
-	notifStep := wizard.StepConfig{
-		Label: i18n.T("cmd.team.init.step_notifications"),
-		Form: huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.team.init.notif_webhook")).
-					Description(i18n.T("cmd.team.init.notif_webhook_desc")).
-					Placeholder(i18n.T("cmd.team.init.notif_webhook_placeholder")).
-					Value(&webhookURL),
-				huh.NewInput().
-					Title(i18n.T("cmd.team.init.notif_channel")).
-					Placeholder(i18n.T("cmd.team.init.notif_channel_placeholder")).
-					Value(&channel),
-				huh.NewInput().
-					Title(i18n.T("cmd.team.init.notif_bot_name")).
-					Value(&botName),
-			).Title(i18n.T("cmd.team.init.notif_title")),
-		),
+	notifStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_notifications"),
+		Processing: i18n.T("cmd.team.init.processing_notifications"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_webhook"),
+				webhookURL, 0, nil,
+				func(text string) { webhookURL = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_channel"),
+				channel, 0, nil,
+				func(text string) { channel = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_bot_name"),
+				botName, 0, nil,
+				func(text string) { botName = text })
+			form.AddButton("Next", func() { onDone() })
+			return form
+		},
 		OnDone: func() error {
 			if webhookURL == "" {
 				return nil // nothing to configure
@@ -394,25 +430,54 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			}
 			return repo.CommitAndPush(ctx, "team: configure notifications", "config.toml")
 		},
+		InfoFields: func() []views.InfoField {
+			if webhookURL == "" {
+				return []views.InfoField{{Label: "Notifications", Value: "skipped"}}
+			}
+			return []views.InfoField{
+				{Label: "Webhook", Value: webhookURL},
+				{Label: "Channel", Value: channel},
+				{Label: "Bot", Value: botName},
+			}
+		},
 	}
 
 	// ── Step 4: Policies ──
-	policiesStep := wizard.StepConfig{
-		Label: i18n.T("cmd.team.init.step_policies"),
-		Form: huh.NewForm(
-			huh.NewGroup(
-				huh.NewMultiSelect[string]().
-					Title(i18n.T("cmd.team.init.policies_select")).
-					Description(i18n.T("cmd.team.init.policies_select_desc")).
-					Options(
-						huh.NewOption(i18n.T("cmd.team.init.policies_branch_naming"), "branch_naming"),
-						huh.NewOption(i18n.T("cmd.team.init.policies_commit_format"), "commit_format"),
-						huh.NewOption(i18n.T("cmd.team.init.policies_max_wip"), "max_ticket_wip"),
-						huh.NewOption(i18n.T("cmd.team.init.policies_review_required"), "review_required"),
-					).
-					Value(&selectedPolicies),
-			).Title(i18n.T("cmd.team.init.policies_title")),
-		),
+	policiesStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_policies"),
+		Processing: i18n.T("cmd.team.init.processing_policies"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			branchNaming := false
+			commitFormat := false
+			maxWip := false
+			reviewRequired := false
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_branch_naming"), false,
+				func(checked bool) { branchNaming = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_commit_format"), false,
+				func(checked bool) { commitFormat = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_max_wip"), false,
+				func(checked bool) { maxWip = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_review_required"), false,
+				func(checked bool) { reviewRequired = checked })
+			form.AddButton("Confirm", func() {
+				selectedPolicies = nil
+				if branchNaming {
+					selectedPolicies = append(selectedPolicies, "branch_naming")
+				}
+				if commitFormat {
+					selectedPolicies = append(selectedPolicies, "commit_format")
+				}
+				if maxWip {
+					selectedPolicies = append(selectedPolicies, "max_ticket_wip")
+				}
+				if reviewRequired {
+					selectedPolicies = append(selectedPolicies, "review_required")
+				}
+				onDone()
+			})
+			return form
+		},
 		OnDone: func() error {
 			if len(selectedPolicies) == 0 {
 				return nil
@@ -436,26 +501,32 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			}
 			return repo.CommitAndPush(ctx, commitMsg, "policies.toml")
 		},
+		InfoFields: func() []views.InfoField {
+			if len(selectedPolicies) == 0 {
+				return []views.InfoField{{Label: "Policies", Value: "none"}}
+			}
+			return []views.InfoField{
+				{Label: "Policies", Value: fmt.Sprintf("%d active", len(selectedPolicies))},
+			}
+		},
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// LAUNCH WIZARD (BubbleTea alt-screen, step bar + full width)
+	// LAUNCH WIZARD (tview alt-screen, cell-buffer, no banding)
 	// ══════════════════════════════════════════════════════════════════════════
-	steps := []wizard.StepConfig{configStep, identityStep, notifStep, policiesStep}
-
-	model := wizard.New("Team Setup", nil, steps)
-	p := tea.NewProgram(model, tea.WithAltScreen())
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("wizard error: %w", err)
-	}
-
-	wiz := finalModel.(wizard.Model)
-	if wiz.Aborted() {
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "team init",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: []views.WizardStep{configStep, identityStep, notifStep, policiesStep},
+	})
+	if wizResult.Aborted {
 		return nil
 	}
-	if wiz.Err() != nil {
-		return wiz.Err()
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
@@ -479,21 +550,33 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Summary
-	fmt.Fprintln(a.IO.Out)
+	// Summary card
+	summaryTitle := i18n.T("cmd.team.init.done")
 	if hasConfig || hasPolicies {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.T("cmd.team.init.done_update"))
-	} else {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.T("cmd.team.init.done"))
+		summaryTitle = i18n.T("cmd.team.init.done_update")
 	}
-	fmt.Fprintf(a.IO.Out, "  %s\n",
-		i18n.Tf("cmd.team.init.done_hint_status", common.Bold.Render("oh team status")))
-	fmt.Fprintf(a.IO.Out, "  %s\n",
-		i18n.Tf("cmd.team.init.done_hint_deploy", common.Bold.Render("oh deploy")))
+
+	fields := []summary.Field{
+		{Label: "Repo", Value: stateRepo},
+	}
+	if memberID != "" {
+		memberDesc := memberID
+		if displayName != "" {
+			memberDesc = fmt.Sprintf("%s (%s)", displayName, role)
+		}
+		fields = append(fields, summary.Field{Label: "Member", Value: memberDesc})
+	}
+	if len(selectedPolicies) > 0 {
+		fields = append(fields, summary.Field{Label: "Policies", Value: fmt.Sprintf("%d active", len(selectedPolicies))})
+	}
+
+	fmt.Fprint(a.IO.Out, summary.Render(summary.Config{
+		Title:     summaryTitle,
+		Icon:      common.IconSuccess,
+		IconColor: common.Success,
+		Fields:    fields,
+		Footer:    i18n.Tf("cmd.team.init.done_hint_status", "oh team status"),
+	}))
 
 	return nil
 }
@@ -629,7 +712,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 
 			// Detail mode: show sub-beads
 			if detail {
-				subBeads := fetchSubBeads(c.TicketID)
+				subBeads := fetchSubBeadsJSON(c.TicketID)
 				if len(subBeads) > 0 {
 					completed := 0
 					for j, sb := range subBeads {

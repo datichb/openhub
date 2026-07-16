@@ -185,6 +185,90 @@ Pas de bordure (rendu inline dans le terminal). Pas de fond (pas de contrôle ba
 - Ne **jamais** coller un formulaire directement sous un titre sans espacement.
 - Les bordures sont des **murmures** : quasi-invisibles, même famille que le fond.
 
+## Composants avancés
+
+### Thème huh "Aurum" (`common/theme.go`)
+
+Tous les formulaires huh utilisent un thème personnalisé qui applique la palette Aurum :
+- Bordure active : Copper (`BorderActive`)
+- Titre : Copper bold
+- Sélecteur : Amethyst
+- Selected : Jade (`✓`)
+- Erreurs : Ruby
+- Curseur : Jade
+- Bouton focus : Copper bg + Surface fg
+- Bouton blur : SurfaceElem bg + Ivory fg
+
+Usage : `common.NewForm(groups...)` au lieu de `huh.NewForm(groups...)`.
+
+### Summary Card (`components/summary/`)
+
+Carte récapitulative affichée après un wizard alt-screen ou un flow multi-étapes :
+
+```
+╭──────────────────────────────────────────╮
+│  ✓ Team Setup Complete                   │
+│                                          │
+│  Repo      git@gitlab.com:team/state     │
+│  Member    benjamin (lead)               │
+│  Policies  3 active                      │
+│                                          │
+│  Run `oh team status` for details        │
+╰──────────────────────────────────────────╯
+```
+
+- Bordure : BorderElem
+- Icône : couleur sémantique (Success/Error/Warning)
+- Labels : Lavender
+- Valeurs : Ivory
+- Footer : Ash italic
+
+### Floating Prompt (`components/floating/`)
+
+Panel inline (pas alt-screen) pour les prompts simples — style "command palette" Raycast :
+
+```
+╭──────────────────────────────────╮
+│  ◔ Quick Launch                  │
+│                                  │
+│  ┃ Choose your project           │
+│  ┃ > my-api — /home/dev/my-api  │
+│  ┃   frontend — /home/dev/front │
+│                                  │
+│  enter · confirm  esc · cancel   │
+╰──────────────────────────────────╯
+```
+
+- Bordure : BorderElem
+- Titre : Copper bold
+- Contenu : formulaire huh avec thème Aurum
+- Footer : Ash
+
+Usage : `floating.Run(floating.Config{Title: "...", Form: form})`
+
+Fallback automatique vers `form.Run()` si `UseRichTUI()` retourne false.
+
+### Wizard Spinner
+
+Pendant l'exécution d'un `OnDone` dans le wizard, un spinner Dot animé (Copper) remplace la zone du formulaire :
+
+```
+  ⠋ Enregistrement du profil...
+```
+
+Le champ `StepConfig.Processing` définit le message affiché.
+
+## Détection terminal (`common/detect.go`)
+
+`UseRichTUI()` retourne false si :
+- `--no-tui` flag passé
+- `stdin` n'est pas un terminal (pipe)
+- `CI=true`
+- `TERM=dumb`
+- `OH_RICH_TUI=0`
+
+Les composants FloatingPrompt et le wizard utilisent cette détection pour fallback.
+
 ## Migration
 
 Pour ajouter une couleur ou un composant au design system :
@@ -192,3 +276,5 @@ Pour ajouter une couleur ou un composant au design system :
 2. Documenter dans ce fichier (`docs/design/aurum.md`)
 3. Ne jamais utiliser de `lipgloss.Color("...")` littéral dans les vues
 4. Utiliser true color hex (`#rrggbb`) — lipgloss gère le fallback automatiquement
+5. Pour les formulaires, toujours utiliser `common.NewForm()` (thème Aurum appliqué)
+6. Pour les prompts simples inline, préférer `floating.Run()` à `form.Run()`

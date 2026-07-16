@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
-	"github.com/datichb/openhub/cli/internal/tui/views/teamboard"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var teamBoardCmd = &cobra.Command{
@@ -36,7 +36,7 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	tickets := fetchTeamTickets(repo)
+	tickets := fetchTeamTicketsV2(repo)
 
 	if len(tickets) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun membre dans l'équipe. Lance %s\n",
@@ -45,24 +45,27 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg := teamboard.Config{
-		Title:   "oh team board — Équipe",
+	cfg := views.TeamBoardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "team board",
+			StatusHints: "←→ columns · ↑↓ scroll · r refresh · q quit",
+		},
 		Tickets: tickets,
-		RefreshFunc: func() []teamboard.TeamTicket {
-			// Pull latest and rebuild
+		RefreshFunc: func() []views.TeamTicket {
 			r, err := ensureTeamRepo(ctx, a)
 			if err != nil {
-				return tickets // return stale on error
+				return tickets
 			}
-			return fetchTeamTickets(r)
+			return fetchTeamTicketsV2(r)
 		},
 	}
 
-	return teamboard.Run(cfg)
+	return views.RunTeamBoard(cfg)
 }
 
-// fetchTeamTickets builds the list of team tickets from claims + members.
-func fetchTeamTickets(repo *teamstate.Repo) []teamboard.TeamTicket {
+// fetchTeamTicketsV2 builds the list of team tickets from claims + members.
+func fetchTeamTicketsV2(repo *teamstate.Repo) []views.TeamTicket {
 	members, err := repo.ListMembers()
 	if err != nil {
 		return nil
@@ -79,62 +82,55 @@ func fetchTeamTickets(repo *teamstate.Repo) []teamboard.TeamTicket {
 		claimsByMember[c.ClaimedBy] = append(claimsByMember[c.ClaimedBy], c)
 	}
 
-	var tickets []teamboard.TeamTicket
+	var tickets []views.TeamTicket
 
 	for _, m := range members {
 		memberClaims := claimsByMember[m.ID]
 
 		if len(memberClaims) == 0 {
-			// Idle member
-			tickets = append(tickets, teamboard.TeamTicket{
-				Member: m.DisplayName,
-				Status: "idle",
-				Since:  time.Now(),
+			tickets = append(tickets, views.TeamTicket{
+				ID:       m.ID,
+				Title:    m.DisplayName + " (idle)",
+				Status:   "todo",
+				Assignee: m.DisplayName,
 			})
 			continue
 		}
 
 		for _, c := range memberClaims {
-			since := c.ClaimedAt
-			if !c.LastActivity.IsZero() {
-				since = c.LastActivity
-			}
-
-			tt := teamboard.TeamTicket{
-				Member:   m.DisplayName,
-				TicketID: c.TicketID,
-				Project:  c.Project,
-				Status:   mapClaimStatus(c.Status),
-				Since:    since,
-			}
-
-			// Try to get sub-beads (optional, silent failure)
-			tt.SubBeads = fetchSubBeads(c.TicketID)
-
-			tickets = append(tickets, tt)
+			tickets = append(tickets, views.TeamTicket{
+				ID:       c.TicketID,
+				Title:    fmt.Sprintf("%s/%s", c.Project, c.TicketID),
+				Status:   mapClaimStatusV2(c.Status),
+				Assignee: m.DisplayName,
+			})
 		}
 	}
 
 	return tickets
 }
 
-// mapClaimStatus maps claim statuses to board column statuses.
-func mapClaimStatus(status string) string {
+// mapClaimStatusV2 maps claim statuses to board column statuses.
+func mapClaimStatusV2(status string) string {
 	switch status {
 	case "in_progress":
 		return "in_progress"
 	case "review":
-		return "review"
+		return "done" // map review → done column for now
 	case "blocked":
 		return "blocked"
 	default:
-		return "in_progress" // default unknown statuses to in_progress
+		return "in_progress"
 	}
 }
 
-// fetchSubBeads attempts to get sub-tickets from the beads system.
+// fetchSubBeadsJSON attempts to get sub-tickets from the beads system.
 // Returns nil silently if bd is not installed or fails.
-func fetchSubBeads(parentID string) []teamboard.SubBead {
+func fetchSubBeadsJSON(parentID string) []struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+} {
 	if _, err := exec.LookPath("bd"); err != nil {
 		return nil
 	}
@@ -152,14 +148,5 @@ func fetchSubBeads(parentID string) []teamboard.SubBead {
 	if err := json.Unmarshal(out, &raw); err != nil {
 		return nil
 	}
-
-	beads := make([]teamboard.SubBead, 0, len(raw))
-	for _, r := range raw {
-		beads = append(beads, teamboard.SubBead{
-			ID:     r.ID,
-			Title:  r.Title,
-			Status: r.Status,
-		})
-	}
-	return beads
+	return raw
 }

@@ -8,12 +8,15 @@ import (
 	"time"
 
 	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func init() {
@@ -47,7 +50,7 @@ func projectRenameCmd() *cobra.Command {
 			if len(args) > 1 {
 				newName = args[1]
 			} else {
-				form := huh.NewForm(
+				form := common.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("common.new_name")).
@@ -107,7 +110,7 @@ Ne déplace PAS physiquement le dossier.`,
 			if len(args) > 1 {
 				newPath = args[1]
 			} else {
-				form := huh.NewForm(
+				form := common.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("common.new_path")).
@@ -225,78 +228,146 @@ Sans flags, lance un wizard interactif.`,
 }
 
 func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *domain.Project) error {
-	fmt.Fprintf(a.IO.Out, "%s Configuration de %s\n\n",
-		common.Title.Render("oh project configure"),
-		common.Bold.Render(project.Name))
-
+	// Shared state across wizard steps
 	language := project.Language
 	provider := project.Provider
 	model := project.Model
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.init.language")).
-				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Language, i18n.T("form.configure.undefined")))).
-				Options(
-					huh.NewOption("Go", "go"),
-					huh.NewOption("TypeScript", "typescript"),
-					huh.NewOption("Python", "python"),
-					huh.NewOption("Rust", "rust"),
-					huh.NewOption("Java", "java"),
-					huh.NewOption(i18n.T("form.option.other"), "other"),
-					huh.NewOption(i18n.T("form.option.no_change"), "_keep"),
-				).
-				Value(&language),
-
-			huh.NewInput().
-				Title(i18n.T("form.project.provider_select")).
-				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Provider, i18n.T("form.configure.hub_default")))).
-				Placeholder(displayOrDefault(project.Provider, "")).
-				Value(&provider),
-
-			huh.NewInput().
-				Title(i18n.T("form.project.model_input")).
-				Description(i18n.Tf("form.configure.current", displayOrDefault(project.Model, i18n.T("form.configure.hub_default")))).
-				Placeholder(displayOrDefault(project.Model, "claude-sonnet-4-5")).
-				Value(&model),
-		),
-	)
-
-	if err := form.Run(); err != nil {
-		return err
-	}
-
-	changed := false
-	if language != "_keep" && language != project.Language {
-		project.Language = language
-		changed = true
-	}
-	if provider != project.Provider {
-		project.Provider = provider
-		changed = true
-	}
-	if model != project.Model {
-		project.Model = model
-		changed = true
-	}
-
-	// Agents modification
 	var modifyAgents bool
-	_ = huh.NewConfirm().
-		Title(i18n.T("form.configure.modify_agents")).
-		Description(i18n.Tf("form.configure.agents_current", len(project.Agents))).
-		Value(&modifyAgents).
-		Affirmative(i18n.T("form.yes")).
-		Negative(i18n.T("form.no")).
-		Run()
+	changed := false
 
-	if modifyAgents {
-		agents, err := wizardAgents()
-		if err == nil && agents != nil {
-			project.Agents = agents
-			changed = true
+	languageOptions := []string{"Go", "TypeScript", "Python", "Rust", "Java",
+		i18n.T("form.option.other"), i18n.T("form.option.no_change")}
+	languageValues := []string{"go", "typescript", "python", "rust", "java", "other", "_keep"}
+
+	// Find initial index for dropdown
+	initialLangIdx := len(languageValues) - 1 // default to "_keep"
+	for i, v := range languageValues {
+		if v == project.Language {
+			initialLangIdx = i
+			break
 		}
+	}
+
+	steps := []views.WizardStep{
+		// Step 1: Language / Provider / Model
+		{
+			Label: i18n.T("cmd.init.language") + " / Provider / Model",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddDropDown(
+					i18n.T("cmd.init.language"),
+					languageOptions, initialLangIdx,
+					func(_ string, idx int) {
+						if idx >= 0 && idx < len(languageValues) {
+							language = languageValues[idx]
+						}
+					},
+				)
+				form.AddInputField(
+					i18n.T("form.project.provider_select"),
+					displayOrDefault(project.Provider, ""), 0, nil,
+					func(text string) { provider = text },
+				)
+				form.AddInputField(
+					i18n.T("form.project.model_input"),
+					displayOrDefault(project.Model, ""), 0, nil,
+					func(text string) { model = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if language != "_keep" && language != project.Language {
+					project.Language = language
+					changed = true
+				}
+				if provider != project.Provider {
+					project.Provider = provider
+					changed = true
+				}
+				if model != project.Model {
+					project.Model = model
+					changed = true
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Language", Value: displayOrDefault(project.Language, "-")},
+					{Label: "Provider", Value: displayOrDefault(project.Provider, i18n.T("form.configure.hub_default"))},
+					{Label: "Model", Value: displayOrDefault(project.Model, i18n.T("form.configure.hub_default"))},
+				}
+			},
+			Processing: i18n.T("form.configure.applying"),
+		},
+		// Step 2: Agents modification
+		{
+			Label: i18n.T("form.configure.modify_agents"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				// Discover available agents
+				available := discoverAgents()
+				if len(available) == 0 {
+					form.AddCheckbox("No agents found — skip", true, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				}
+				// Add a checkbox per agent (default: current project agents selected)
+				agentSelected := make(map[string]bool)
+				for _, ag := range project.Agents {
+					agentSelected[ag] = true
+				}
+				for _, ag := range available {
+					agName := ag
+					form.AddCheckbox(agName, agentSelected[agName],
+						func(checked bool) { agentSelected[agName] = checked })
+				}
+				form.AddButton("Apply", func() {
+					// Build selected list
+					var selected []string
+					for _, ag := range available {
+						if agentSelected[ag] {
+							selected = append(selected, ag)
+						}
+					}
+					project.Agents = selected
+					changed = true
+					modifyAgents = true
+					onDone()
+				})
+				return form
+			},
+			OnDone: func() error {
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if modifyAgents {
+					return []views.InfoField{
+						{Label: "Agents", Value: fmt.Sprintf("%d configured", len(project.Agents))},
+					}
+				}
+				return []views.InfoField{
+					{Label: "Agents", Value: "unchanged"},
+				}
+			},
+			Processing: i18n.T("form.configure.applying"),
+		},
+	}
+
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "project configure",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
 	if !changed {

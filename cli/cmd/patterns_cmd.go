@@ -5,11 +5,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var patternsCmd = &cobra.Command{
@@ -184,38 +186,54 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, common.Title.Render("  Ajouter un pattern  "))
 	fmt.Fprintln(a.IO.Out)
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Nom du pattern (slug)").
-				Placeholder("crud-api").
-				Value(&name).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("le nom est requis")
-					}
-					if strings.Contains(s, " ") {
-						return fmt.Errorf("utilise des tirets, pas d'espaces")
-					}
-					return nil
-				}),
-			huh.NewInput().
-				Title("Tags (séparés par des virgules)").
-				Placeholder("backend, api, crud").
-				Value(&tagsStr),
-			huh.NewSelect[string]().
-				Title("Complexité").
-				Options(
-					huh.NewOption("Low", "low"),
-					huh.NewOption("Medium", "medium"),
-					huh.NewOption("High", "high"),
-				).
-				Value(&complexity),
-		),
-	)
+	steps := []views.WizardStep{
+		{
+			Label: "Pattern Info",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField("Nom du pattern (slug)", name, 0, nil,
+					func(text string) { name = text })
+				form.AddInputField("Tags (séparés par des virgules)", tagsStr, 0, nil,
+					func(text string) { tagsStr = text })
+				complexities := []string{"low", "medium", "high"}
+				form.AddDropDown("Complexité", complexities, 0,
+					func(_ string, idx int) { complexity = complexities[idx] })
+				form.AddButton("Create", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if name == "" {
+					return fmt.Errorf("le nom est requis")
+				}
+				if strings.Contains(name, " ") {
+					return fmt.Errorf("utilise des tirets, pas d'espaces")
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Name", Value: name},
+					{Label: "Tags", Value: tagsStr},
+					{Label: "Complexity", Value: complexity},
+				}
+			},
+		},
+	}
 
-	if err := form.Run(); err != nil {
-		return err
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "patterns add",
+			StatusHints: "enter confirm · esc cancel",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
 	// Parse tags

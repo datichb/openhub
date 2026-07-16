@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
@@ -46,6 +47,11 @@ et fournit un TUI interactif pour le suivi de développement.`,
 			logLevel = slog.LevelDebug
 		}
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
+		// Propagate --no-tui to the TUI detection layer
+		if noTUI, _ := cmd.Flags().GetBool("no-tui"); noTUI {
+			common.SetNoTUI(true)
+		}
 
 		// Skip heavy init for commands that don't need it
 		if cmd.Name() == "version" || cmd.Name() == "help" || cmd.Name() == "completion" {
@@ -183,7 +189,7 @@ func terminalPassphrasePrompt(creating bool) (string, error) {
 func promptCreatePassphrase() (string, error) {
 	var passphrase, confirm string
 
-	err := huh.NewForm(
+	err := common.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title(i18n.T("secrets.fallback.prompt_create")).
@@ -226,6 +232,7 @@ func promptUnlockPassphrase() (string, error) {
 func init() {
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
+	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
 	rootCmd.SetHelpFunc(customHelpFunc)
 }
 

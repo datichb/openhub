@@ -11,6 +11,7 @@ import (
 
 // Config represents the hub configuration.
 type Config struct {
+	Name     string          `mapstructure:"name"` // Project/hub display name (shown in TUI title)
 	CLI      CLIConfig       `mapstructure:"cli"`
 	Opencode OpencodeConfig  `mapstructure:"opencode"`
 	Provider ProviderConfigs `mapstructure:"provider"`
@@ -121,6 +122,7 @@ func Load() (*Config, error) {
 		v.AddConfigPath(".")
 
 		// Defaults
+		v.SetDefault("name", "OpenHub")
 		v.SetDefault("cli.language", "en")
 		v.SetDefault("opencode.channel", "stable")
 		v.SetDefault("opencode.auto_update", false)

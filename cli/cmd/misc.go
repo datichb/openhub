@@ -7,12 +7,15 @@ import (
 	"path/filepath"
 
 	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var beadsCmd = &cobra.Command{
@@ -130,99 +133,131 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(a.IO.Out, "%s %s (%s)\n\n",
-			common.Title.Render("oh service setup"),
-			i18n.T("cmd.service.project_scope"), project.Name)
-	} else {
-		fmt.Fprintf(a.IO.Out, "%s Configuration MCP\n\n",
-			common.Title.Render("oh service setup"))
 	}
 
-	// Service selection
+	// Shared state between wizard steps
 	var serviceName string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.service.select")).
-				Options(
-					huh.NewOption("Figma — design tokens & composants", "figma"),
-					huh.NewOption("GitLab — merge requests & pipelines", "gitlab"),
-					huh.NewOption("Google Slides — présentations", "gslides"),
-				).
-				Value(&serviceName),
-		),
-	)
-
-	if err := form.Run(); err != nil {
-		return err
-	}
-
-	// Token input
 	var token string
-	envHint := ""
-	switch serviceName {
-	case "figma":
-		envHint = "FIGMA_TOKEN"
-	case "gitlab":
-		envHint = "GITLAB_TOKEN"
-	case "gslides":
-		envHint = "GOOGLE_ACCESS_TOKEN"
-	}
-
-	tokenForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(i18n.Tf("cmd.service.token_prompt", serviceName)).
-				Description(i18n.Tf("cmd.service.token_env_hint", envHint)).
-				EchoMode(huh.EchoModePassword).
-				Value(&token),
-		),
-	)
-
-	if err := tokenForm.Run(); err != nil {
-		return err
-	}
-
-	if token == "" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.service.token_empty_warning", envHint))
-	} else if a.Secrets != nil {
-		// Store token in keychain (project-scoped key if --project)
-		keyName := serviceName + "-token"
-		if project != nil {
-			keyName = serviceName + "-token-" + project.ID
-		}
-		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
-			return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
-		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.service.token_stored", keyName))
-	}
-
-	// GitLab: ask about write permissions
+	var envHint string
 	var writeEnabled bool
-	if serviceName == "gitlab" {
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, common.Bold.Render("  Droits requis pour le token GitLab :"))
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, "  Mode lecture seule (par défaut) :")
-		fmt.Fprintf(a.IO.Out, "    %s read_api\n", common.SuccessStyle.Render(common.IconSuccess))
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, "  Mode lecture + écriture :")
-		fmt.Fprintf(a.IO.Out, "    %s api (inclut read + write)\n", common.SuccessStyle.Render(common.IconSuccess))
-		fmt.Fprintln(a.IO.Out, "    Permet : créer MR, commenter, assigner, modifier labels/statuts")
-		fmt.Fprintln(a.IO.Out)
 
-		_ = huh.NewConfirm().
-			Title("Activer le mode écriture (créer MR, commenter, assigner) ?").
-			Description("Nécessite un token avec le scope 'api'").
-			Value(&writeEnabled).
-			Run()
+	serviceOptions := []string{
+		"Figma — design tokens & composants",
+		"GitLab — merge requests & pipelines",
+		"Google Slides — présentations",
+	}
+	serviceValues := []string{"figma", "gitlab", "gslides"}
 
-		if writeEnabled {
-			fmt.Fprintf(a.IO.Out, "%s Mode écriture activé\n",
-				common.SuccessStyle.Render(common.IconSuccess))
-		}
+	steps := []views.WizardStep{
+		{
+			Label: "Service",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddDropDown(i18n.T("cmd.service.select"), serviceOptions, -1, func(option string, index int) {
+					if index >= 0 && index < len(serviceValues) {
+						serviceName = serviceValues[index]
+					}
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				switch serviceName {
+				case "figma":
+					envHint = "FIGMA_TOKEN"
+				case "gitlab":
+					envHint = "GITLAB_TOKEN"
+				case "gslides":
+					envHint = "GOOGLE_ACCESS_TOKEN"
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Service", Value: serviceName},
+				}
+			},
+		},
+		{
+			Label: "Token",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.service.token_prompt", serviceName),
+					"", 0, '*', func(text string) {
+						token = text
+					})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if token == "" {
+					// Empty token — skip storage, user will use env var
+					return nil
+				}
+				if a.Secrets != nil {
+					keyName := serviceName + "-token"
+					if project != nil {
+						keyName = serviceName + "-token-" + project.ID
+					}
+					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				status := "stored in keychain"
+				if token == "" {
+					status = fmt.Sprintf("use env %s", envHint)
+				}
+				return []views.InfoField{
+					{Label: "Token", Value: status},
+				}
+			},
+		},
+		{
+			Label: "Write permissions",
+			SkipIf: func() bool {
+				return serviceName != "gitlab"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox("Activer le mode écriture (créer MR, commenter, assigner) ?", false, func(checked bool) {
+					writeEnabled = checked
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				mode := "lecture seule"
+				if writeEnabled {
+					mode = "lecture + écriture"
+				}
+				return []views.InfoField{
+					{Label: "Mode", Value: mode},
+				}
+			},
+		},
+	}
+
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "service setup",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
 	// Persist configuration
@@ -292,7 +327,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		serviceName = args[0]
 	} else {
-		form := huh.NewForm(
+		form := common.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("cmd.service.select_remove")).
@@ -321,10 +356,9 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
 		var confirm bool
-		_ = huh.NewConfirm().
+		_ = common.NewForm(huh.NewGroup(huh.NewConfirm().
 			Title(i18n.Tf("cmd.service.remove.confirm", serviceName)).
-			Value(&confirm).
-			Run()
+			Value(&confirm))).Run()
 		if !confirm {
 			return nil
 		}

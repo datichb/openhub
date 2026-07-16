@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/tui/views/dashboard"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var dashboardCmd = &cobra.Command{
@@ -56,18 +58,33 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	cfg := dashboard.Config{
-		Title: "oh dashboard — Vue d'ensemble",
-		Stats: dashboard.Stats{
-			TotalProjects:  len(projects),
-			ActiveProjects: active,
-			TotalSessions:  totalSessions,
-			TodaySessions:  todaySessions,
-			TokensUsed:     tokensUsed,
-			TokensSaved:    0, // TODO: from RTK metrics
-			TopProject:     topProject,
+	cfg := views.DashboardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "dashboard",
+			StatusHints: "q quit",
 		},
+		Stats: []views.DashboardStat{
+			{Label: "Projects", Value: fmt.Sprintf("%d (%d active)", len(projects), active)},
+			{Label: "Top Project", Value: topProject},
+			{Label: "Sessions", Value: fmt.Sprintf("%d total / %d today", totalSessions, todaySessions)},
+			{Label: "Tokens Used", Value: formatTokens(tokensUsed)},
+		},
+		TokenUsage: []views.TokenBar{
+			{Label: "Today", Current: todaySessions, Max: 50},
+		},
+		RecentItems: []string{},
 	}
 
-	return dashboard.Run(cfg)
+	return views.RunDashboard(cfg)
+}
+
+func formatTokens(n int64) string {
+	if n >= 1_000_000 {
+		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+	}
+	if n >= 1_000 {
+		return fmt.Sprintf("%.1fK", float64(n)/1_000)
+	}
+	return strconv.FormatInt(n, 10)
 }

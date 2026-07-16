@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -20,6 +21,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/gslides"
 	"github.com/datichb/openhub/cli/internal/mcp/team"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // validMCPServices is the canonical list of supported MCP service names.
@@ -144,7 +147,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 			i18n.Tf("cmd.mcp.enable.no_token_prompt", serviceName))
 
 		var choice string
-		form := huh.NewForm(
+		form := common.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Options(
@@ -329,7 +332,7 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 
 	// Select service
 	var serviceName string
-	form := huh.NewForm(
+	form := common.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.service.select")).
@@ -354,8 +357,10 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	a := MustApp()
 	ctx := cmd.Context()
 
-	// Prompt for token
+	// Shared state between wizard steps
 	var token string
+	var writeEnabled bool
+
 	envHint := ""
 	switch serviceName {
 	case "figma":
@@ -366,102 +371,149 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 		envHint = "GOOGLE_ACCESS_TOKEN"
 	}
 
-	if envHint != "" {
-		tokenForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.Tf("cmd.service.token_prompt", serviceName)).
-					Description(i18n.Tf("cmd.service.token_env_hint", envHint)).
-					EchoMode(huh.EchoModePassword).
-					Value(&token),
-			),
-		)
-		if err := tokenForm.Run(); err != nil {
-			return err
-		}
+	steps := []views.WizardStep{
+		{
+			Label: i18n.Tf("cmd.service.token_prompt", serviceName),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.service.token_prompt", serviceName),
+					"", 0, '*',
+					func(text string) { token = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				// Store token
+				if token == "" && envHint != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
+						common.WarningStyle.Render(common.IconWarning),
+						i18n.Tf("cmd.service.token_empty_warning", envHint))
+				} else if token != "" && a.Secrets != nil {
+					keyName := serviceName + "-token"
+					if project != nil {
+						keyName = serviceName + "-token-" + project.ID
+					}
+					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				status := "stored"
+				if token == "" {
+					status = "skipped (env: " + envHint + ")"
+				}
+				return []views.InfoField{
+					{Label: "Token", Value: status},
+					{Label: "Env hint", Value: envHint},
+				}
+			},
+			SkipIf: func() bool { return envHint == "" },
+		},
+		{
+			Label: "GitLab write mode",
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(
+					"Activer le mode écriture (créer MR, commenter, assigner) ?",
+					false,
+					func(checked bool) { writeEnabled = checked },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				mode := "lecture seule"
+				if writeEnabled {
+					mode = "lecture + écriture"
+				}
+				return []views.InfoField{
+					{Label: "Mode", Value: mode},
+				}
+			},
+			SkipIf: func() bool { return serviceName != "gitlab" },
+		},
+		{
+			Label:      "Persist configuration",
+			Processing: "Saving configuration...",
+			OnDone: func() error {
+				if project != nil {
+					tokenKey := serviceName + "-token-" + project.ID
+					if token == "" {
+						tokenKey = "" // inherit hub token
+					}
+					svc := domain.ProjectMCPService{
+						Name:     serviceName,
+						Enabled:  boolPtr(true),
+						TokenKey: tokenKey,
+					}
+					if serviceName == "gitlab" {
+						svc.WriteEnabled = &writeEnabled
+					}
+					upsertProjectMCPService(project, svc)
+
+					if err := a.Projects.Update(ctx, project); err != nil {
+						return fmt.Errorf("updating project MCP config: %w", err)
+					}
+				} else {
+					v := configViper()
+					v.Set("mcp."+serviceName+".enabled", true)
+					v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
+					if serviceName == "gitlab" {
+						v.Set("mcp.gitlab.write_enabled", writeEnabled)
+					}
+
+					cfgPath := config.ConfigPath()
+					if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+						return fmt.Errorf("creating config dir: %w", err)
+					}
+					if err := v.WriteConfigAs(cfgPath); err != nil {
+						return fmt.Errorf("writing config: %w", err)
+					}
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				scope := "hub"
+				if project != nil {
+					scope = "project: " + project.Name
+				}
+				return []views.InfoField{
+					{Label: "Service", Value: serviceName},
+					{Label: "Scope", Value: scope},
+				}
+			},
+		},
 	}
 
-	// Store token
-	if token == "" && envHint != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning),
-			i18n.Tf("cmd.service.token_empty_warning", envHint))
-	} else if token != "" && a.Secrets != nil {
-		keyName := serviceName + "-token"
-		if project != nil {
-			keyName = serviceName + "-token-" + project.ID
-		}
-		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
-			return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.service.token_stored", keyName))
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "mcp setup",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
+	}
+	if wizResult.Err != nil {
+		return wizResult.Err
 	}
 
-	// GitLab write mode
-	var writeEnabled bool
-	if serviceName == "gitlab" {
-		fmt.Fprintln(cmd.OutOrStdout())
-		fmt.Fprintln(cmd.OutOrStdout(), common.Bold.Render("  Droits requis pour le token GitLab :"))
-		fmt.Fprintln(cmd.OutOrStdout())
-		fmt.Fprintln(cmd.OutOrStdout(), "  Mode lecture seule (par défaut) :")
-		fmt.Fprintf(cmd.OutOrStdout(), "    %s read_api\n", common.SuccessStyle.Render(common.IconSuccess))
-		fmt.Fprintln(cmd.OutOrStdout())
-		fmt.Fprintln(cmd.OutOrStdout(), "  Mode lecture + écriture :")
-		fmt.Fprintf(cmd.OutOrStdout(), "    %s api (inclut read + write)\n", common.SuccessStyle.Render(common.IconSuccess))
-		fmt.Fprintln(cmd.OutOrStdout(), "    Permet : créer MR, commenter, assigner, modifier labels/statuts")
-		fmt.Fprintln(cmd.OutOrStdout())
-
-		_ = huh.NewConfirm().
-			Title("Activer le mode écriture (créer MR, commenter, assigner) ?").
-			Description("Nécessite un token avec le scope 'api'").
-			Value(&writeEnabled).
-			Run()
-
-		if writeEnabled {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s Mode écriture activé\n",
-				common.SuccessStyle.Render(common.IconSuccess))
-		}
-	}
-
-	// Persist configuration
+	// Print success message
 	if project != nil {
-		tokenKey := serviceName + "-token-" + project.ID
-		if token == "" {
-			tokenKey = "" // inherit hub token
-		}
-		svc := domain.ProjectMCPService{
-			Name:     serviceName,
-			Enabled:  boolPtr(true),
-			TokenKey: tokenKey,
-		}
-		if serviceName == "gitlab" {
-			svc.WriteEnabled = &writeEnabled
-		}
-		upsertProjectMCPService(project, svc)
-
-		if err := a.Projects.Update(ctx, project); err != nil {
-			return fmt.Errorf("updating project MCP config: %w", err)
-		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 			common.SuccessStyle.Render(common.IconSuccess),
 			i18n.Tf("cmd.service.project_configured", common.Bold.Render(serviceName), project.Name))
 	} else {
-		v := configViper()
-		v.Set("mcp."+serviceName+".enabled", true)
-		v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
-		if serviceName == "gitlab" {
-			v.Set("mcp.gitlab.write_enabled", writeEnabled)
-		}
-
-		cfgPath := config.ConfigPath()
-		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-			return fmt.Errorf("creating config dir: %w", err)
-		}
-		if err := v.WriteConfigAs(cfgPath); err != nil {
-			return fmt.Errorf("writing config: %w", err)
-		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 			common.SuccessStyle.Render(common.IconSuccess),
 			i18n.Tf("cmd.service.enabled", common.Bold.Render(serviceName)))

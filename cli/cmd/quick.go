@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 )
 
 var quickCmd = &cobra.Command{
@@ -53,7 +54,7 @@ func runQuick(cmd *cobra.Command, args []string) error {
 				fmt.Sprintf("%s — %s", p.Name, p.Path), p.ID)
 		}
 
-		form := huh.NewForm(
+		form := common.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("form.project.choose")).
@@ -61,7 +62,10 @@ func runQuick(cmd *cobra.Command, args []string) error {
 					Value(&selectedID),
 			),
 		)
-		if err := form.Run(); err != nil {
+		if err := floating.Run(floating.Config{
+			Title: i18n.T("cmd.quick.short"),
+			Form:  form,
+		}); err != nil {
 			return err
 		}
 	}

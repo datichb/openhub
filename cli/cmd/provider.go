@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/charmbracelet/huh"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -15,6 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var providerCmd = &cobra.Command{
@@ -64,7 +67,7 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 	} else {
 		// Detect what's available and show indicators
 		options := buildProviderOptions()
-		form := huh.NewForm(
+		form := common.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("cmd.provider.select")).
@@ -122,154 +125,309 @@ func buildProviderOptions() []huh.Option[string] {
 func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) error {
 	// Detect existing config
 	detection := provider.Detect(provider.Bedrock)
-	if detection.Available {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.provider.detected", detection.Source, detection.Details))
 
-		var useExisting bool
-		if err := huh.NewConfirm().
-			Title(i18n.T("cmd.provider.use_existing")).
-			Value(&useExisting).
-			Run(); err != nil {
-			return err
-		}
+	// Shared state across wizard steps
+	var (
+		useExisting bool
+		authMode    string
+		token       string
+		awsProfile  string
+		awsRegion   string
+	)
 
-		if useExisting {
-			// Store the detected config
-			return persistProviderConfig(ctx, a, project, provider.Bedrock, "", detection)
-		}
+	steps := []views.WizardStep{
+		// Step 1: Use existing detected config?
+		{
+			Label: "Detect existing",
+			SkipIf: func() bool {
+				return !detection.Available
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(
+					fmt.Sprintf("%s (%s)", i18n.T("cmd.provider.use_existing"), detection.Details),
+					true,
+					func(checked bool) { useExisting = checked },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if useExisting {
+					return persistProviderConfig(ctx, a, project, provider.Bedrock, "", detection)
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if useExisting {
+					return []views.InfoField{
+						{Label: "Source", Value: detection.Source},
+						{Label: "Details", Value: detection.Details},
+					}
+				}
+				return nil
+			},
+		},
+		// Step 2: Auth mode selection
+		{
+			Label: "Auth mode",
+			SkipIf: func() bool {
+				return useExisting
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				options := []string{"Bearer Token (SSO/STS)", "AWS Profile (~/.aws/credentials)"}
+				form.AddDropDown(
+					i18n.T("cmd.provider.bedrock.auth_mode"),
+					options,
+					0,
+					func(option string, index int) {
+						if index == 0 {
+							authMode = "bearer"
+						} else {
+							authMode = "profile"
+						}
+					},
+				)
+				// Set default
+				authMode = "bearer"
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Auth", Value: authMode}}
+			},
+		},
+		// Step 3: Bearer token + region (conditional on authMode == "bearer")
+		{
+			Label: "Bearer credentials",
+			SkipIf: func() bool {
+				return useExisting || authMode != "bearer"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.T("cmd.provider.bedrock.bearer_token"),
+					"", 0, '*',
+					func(text string) { token = text },
+				)
+				form.AddInputField(
+					i18n.T("cmd.provider.bedrock.region"),
+					"us-east-1", 0, nil,
+					func(text string) { awsRegion = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				masked := "***"
+				if len(token) > 4 {
+					masked = token[:2] + "..." + token[len(token)-2:]
+				}
+				return []views.InfoField{
+					{Label: "Token", Value: masked},
+					{Label: "Region", Value: awsRegion},
+				}
+			},
+		},
+		// Step 4: AWS profile + region (conditional on authMode == "profile")
+		{
+			Label: "Profile credentials",
+			SkipIf: func() bool {
+				return useExisting || authMode != "profile"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField(
+					i18n.T("cmd.provider.bedrock.profile"),
+					"default", 0, nil,
+					func(text string) { awsProfile = text },
+				)
+				form.AddInputField(
+					i18n.T("cmd.provider.bedrock.region"),
+					"us-east-1", 0, nil,
+					func(text string) { awsRegion = text },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Profile", Value: awsProfile},
+					{Label: "Region", Value: awsRegion},
+				}
+			},
+		},
+		// Step 5: Persist configuration
+		{
+			Label:      "Save config",
+			Processing: "Saving credentials...",
+			SkipIf: func() bool {
+				return useExisting
+			},
+			OnDone: func() error {
+				if awsProfile == "" && authMode == "profile" {
+					awsProfile = "default"
+				}
+				if awsRegion == "" {
+					awsRegion = "us-east-1"
+				}
+
+				// Store token in keychain if provided
+				if token != "" && a.Secrets != nil {
+					keyName := provider.KeychainKey(provider.Bedrock, projectIDOrEmpty(project))
+					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+						return fmt.Errorf("storing bedrock token: %w", err)
+					}
+				}
+
+				det := provider.DetectionResult{
+					Source:  authMode,
+					Details: fmt.Sprintf("profile %s, region %s", awsProfile, awsRegion),
+				}
+				return persistProviderConfig(ctx, a, project, provider.Bedrock, awsProfile+"|"+awsRegion+"|"+authMode, det)
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Status", Value: "saved"}}
+			},
+		},
 	}
 
-	// Manual configuration
-	var authMode string
-	if err := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.provider.bedrock.auth_mode")).
-				Options(
-					huh.NewOption("Bearer Token (SSO/STS)", "bearer"),
-					huh.NewOption("AWS Profile (~/.aws/credentials)", "profile"),
-				).
-				Value(&authMode),
-		),
-	).Run(); err != nil {
-		return err
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "provider setup",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
+		return nil
 	}
-
-	var token, awsProfile, awsRegion string
-
-	if authMode == "bearer" {
-		tokenForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.bearer_token")).
-					EchoMode(huh.EchoModePassword).
-					Value(&token),
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.region")).
-					Placeholder("us-east-1").
-					Value(&awsRegion),
-			),
-		)
-		if err := tokenForm.Run(); err != nil {
-			return err
-		}
-	} else {
-		profileForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.profile")).
-					Placeholder("default").
-					Value(&awsProfile),
-				huh.NewInput().
-					Title(i18n.T("cmd.provider.bedrock.region")).
-					Placeholder("us-east-1").
-					Value(&awsRegion),
-			),
-		)
-		if err := profileForm.Run(); err != nil {
-			return err
-		}
-		if awsProfile == "" {
-			awsProfile = "default"
-		}
-	}
-
-	// Store token in keychain if provided
-	if token != "" && a.Secrets != nil {
-		keyName := provider.KeychainKey(provider.Bedrock, projectIDOrEmpty(project))
-		if err := a.Secrets.Set(ctx, keyName, token); err != nil {
-			return fmt.Errorf("storing bedrock token: %w", err)
-		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.provider.token_stored", keyName))
-	}
-
-	if awsRegion == "" {
-		awsRegion = "us-east-1"
-	}
-
-	// Persist config
-	det := provider.DetectionResult{Source: authMode, Details: fmt.Sprintf("profile %s, region %s", awsProfile, awsRegion)}
-	return persistProviderConfig(ctx, a, project, provider.Bedrock, awsProfile+"|"+awsRegion+"|"+authMode, det)
+	return wizResult.Err
 }
 
 func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name provider.Name) error {
 	detection := provider.Detect(name)
-	if detection.Available {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.provider.detected", detection.Source, detection.Details))
 
-		var useExisting bool
-		if err := huh.NewConfirm().
-			Title(i18n.T("cmd.provider.use_existing")).
-			Value(&useExisting).
-			Run(); err != nil {
-			return err
-		}
-
-		if useExisting {
-			return persistProviderConfig(ctx, a, project, name, "", detection)
-		}
-	}
-
-	var apiKey string
-	envVar := provider.EnvVar(name)
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(i18n.Tf("cmd.provider.api_key_prompt", string(name))).
-				Description(i18n.Tf("cmd.provider.api_key_hint", envVar)).
-				EchoMode(huh.EchoModePassword).
-				Value(&apiKey),
-		),
+	// Shared state across wizard steps
+	var (
+		useExisting bool
+		apiKey      string
 	)
-	if err := form.Run(); err != nil {
-		return err
+
+	envVar := provider.EnvVar(name)
+
+	steps := []views.WizardStep{
+		// Step 1: Use existing detected key?
+		{
+			Label: "Detect existing",
+			SkipIf: func() bool {
+				return !detection.Available
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(
+					fmt.Sprintf("%s (%s)", i18n.T("cmd.provider.use_existing"), detection.Details),
+					true,
+					func(checked bool) { useExisting = checked },
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if useExisting {
+					return persistProviderConfig(ctx, a, project, name, "", detection)
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if useExisting {
+					return []views.InfoField{
+						{Label: "Source", Value: detection.Source},
+						{Label: "Details", Value: detection.Details},
+					}
+				}
+				return nil
+			},
+		},
+		// Step 2: Enter API key
+		{
+			Label: "API Key",
+			SkipIf: func() bool {
+				return useExisting
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddPasswordField(
+					i18n.Tf("cmd.provider.api_key_prompt", string(name)),
+					"", 0, '*',
+					func(text string) { apiKey = text },
+				)
+				form.AddInputField(
+					i18n.Tf("cmd.provider.api_key_hint", envVar),
+					"", 0, nil, nil,
+				)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error { return nil },
+			InfoFields: func() []views.InfoField {
+				masked := "***"
+				if len(apiKey) > 8 {
+					masked = apiKey[:4] + "..." + apiKey[len(apiKey)-4:]
+				}
+				return []views.InfoField{{Label: "Key", Value: masked}}
+			},
+		},
+		// Step 3: Store key and persist
+		{
+			Label:      "Save config",
+			Processing: "Saving credentials...",
+			SkipIf: func() bool {
+				return useExisting
+			},
+			OnDone: func() error {
+				if apiKey == "" {
+					fmt.Fprintf(a.IO.Out, "%s %s\n",
+						common.WarningStyle.Render(common.IconWarning),
+						i18n.T("cmd.provider.no_key"))
+					return nil
+				}
+
+				// Store in keychain
+				if a.Secrets != nil {
+					keyName := provider.KeychainKey(name, projectIDOrEmpty(project))
+					if err := a.Secrets.Set(ctx, keyName, apiKey); err != nil {
+						return fmt.Errorf("storing API key: %w", err)
+					}
+				}
+
+				return persistProviderConfig(ctx, a, project, name, "", detection)
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{{Label: "Status", Value: "saved"}}
+			},
+		},
 	}
 
-	if apiKey == "" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning),
-			i18n.T("cmd.provider.no_key"))
+	wizResult := views.RunWizard(views.WizardConfig{
+		Layout: layout.Config{
+			ProjectName: a.Config.Name,
+			Command:     "provider setup",
+			StatusHints: "enter confirm · esc skip",
+		},
+		Steps: steps,
+	})
+
+	if wizResult.Aborted {
 		return nil
 	}
-
-	// Store in keychain
-	if a.Secrets != nil {
-		keyName := provider.KeychainKey(name, projectIDOrEmpty(project))
-		if err := a.Secrets.Set(ctx, keyName, apiKey); err != nil {
-			return fmt.Errorf("storing API key: %w", err)
-		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.provider.token_stored", keyName))
-	}
-
-	return persistProviderConfig(ctx, a, project, name, "", detection)
+	return wizResult.Err
 }
 
 func setupGithubCopilot(a *app.App) error {

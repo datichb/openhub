@@ -23,7 +23,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
-	parallelTUI "github.com/datichb/openhub/cli/internal/tui/views/parallel"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -292,7 +293,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	skipConfirm, _ := cmd.Flags().GetBool("yes")
 	if !skipConfirm {
 		var confirm bool
-		err := huh.NewForm(
+		err := common.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(i18n.T("cmd.start.confirm_launch")).
@@ -367,7 +368,7 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 
 	// Prompt for branch name if not provided
 	if branch == "" {
-		form := huh.NewForm(
+		form := common.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title(i18n.T("cmd.worktree.branch_name")).
@@ -457,7 +458,7 @@ func ensureOpencode(a *app.App) error {
 		common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.opencode_not_found"))
 
 	var choice string
-	form := huh.NewForm(
+	form := common.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.start.install_choice")).
@@ -573,7 +574,7 @@ func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.
 		options[i] = huh.NewOption(label, p.ID)
 	}
 
-	form := huh.NewForm(
+	form := common.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Choisir un projet").
@@ -753,7 +754,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	}
 
 	var selectedIdx int
-	form := huh.NewForm(
+	form := common.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[int]().
 				Title(i18n.T("cmd.start.dev_picker_title")).
@@ -915,19 +916,23 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur parallèle...\n\n",
 			common.Subtitle.Render(common.IconArrow))
 
-		tuiCfg := parallelTUI.Config{
-			Title:   "oh parallel",
-			State:   coord.State(),
-			Servers: coord.Servers(),
-			RefreshFunc: func() {
+		// TODO: v2 parallel view does not support attach functionality yet.
+		// The old parallelTUI.AttachToServer(port) call has been removed.
+		parallelCfg := views.ParallelConfig{
+			Layout: layout.Config{
+				ProjectName: a.Config.Name,
+				Command:     "parallel",
+				StatusHints: "↑↓ navigate · r refresh · q quit",
+			},
+			Sessions:    toParallelSessions(coord.State()),
+			RefreshFunc: func() []views.ParallelSession {
 				coord.RefreshState()
+				return toParallelSessions(coord.State())
 			},
-			AttachFunc: func(port int) error {
-				return parallelTUI.AttachToServer(port)
-			},
+			RefreshRate: 5 * time.Second,
 		}
 
-		if err := parallelTUI.Run(tuiCfg); err != nil {
+		if err := views.RunParallel(parallelCfg); err != nil {
 			// TUI error is non-fatal, continue to results
 			fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
 				common.WarningStyle.Render(common.IconWarning), err)
@@ -1008,4 +1013,29 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 
 	fmt.Fprintln(a.IO.Out)
 	return nil
+}
+
+// toParallelSessions converts the domain ParallelState sessions to the v2 views format.
+func toParallelSessions(state *parallel.ParallelState) []views.ParallelSession {
+	snap := state.Snapshot()
+	sessions := make([]views.ParallelSession, 0, len(snap.Sessions))
+	for _, s := range snap.Sessions {
+		var duration time.Duration
+		if !s.StartedAt.IsZero() {
+			if !s.CompletedAt.IsZero() {
+				duration = s.CompletedAt.Sub(s.StartedAt)
+			} else {
+				duration = time.Since(s.StartedAt)
+			}
+		}
+		sessions = append(sessions, views.ParallelSession{
+			ID:       s.SessionID,
+			Name:     s.TicketID,
+			Status:   string(s.Status),
+			Branch:   s.Branch,
+			Duration: duration,
+			Agent:    "orchestrator-dev",
+		})
+	}
+	return sessions
 }

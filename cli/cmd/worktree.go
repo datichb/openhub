@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -107,7 +108,7 @@ func worktreeAddCmd() *cobra.Command {
 			if len(args) > 0 {
 				branch = args[0]
 			} else {
-				form := huh.NewForm(
+				form := common.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("cmd.worktree.branch_name")).
@@ -115,7 +116,10 @@ func worktreeAddCmd() *cobra.Command {
 							Value(&branch),
 					),
 				)
-				if err := form.Run(); err != nil {
+				if err := floating.Run(floating.Config{
+					Title: i18n.T("cmd.worktree.add.short"),
+					Form:  form,
+				}); err != nil {
 					return err
 				}
 			}
@@ -177,7 +181,7 @@ func worktreeRemoveCmd() *cobra.Command {
 						fmt.Sprintf("%s (%s)", e.Branch, e.Path), e.Path)
 				}
 
-				form := huh.NewForm(
+				form := common.NewForm(
 					huh.NewGroup(
 						huh.NewSelect[string]().
 							Title(i18n.T("cmd.worktree.select_remove")).
@@ -257,10 +261,9 @@ pour la détection.`,
 						fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), branch)
 					}
 					var confirm bool
-					_ = huh.NewConfirm().
+					_ = common.NewForm(huh.NewGroup(huh.NewConfirm().
 						Title(i18n.Tf("cmd.worktree.cleanup.confirm", len(mergedBranches))).
-						Value(&confirm).
-						Run()
+						Value(&confirm))).Run()
 					if !confirm {
 						return nil
 					}
