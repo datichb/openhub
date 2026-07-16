@@ -5,7 +5,6 @@ package wizard
 
 import (
 	"fmt"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -62,12 +61,10 @@ type Model struct {
 	err          error
 	done         bool
 	aborted      bool
-	justAdvanced bool // prevents cascading completion after step transition
+	justAdvanced bool
 }
 
 // New creates a wizard model from the given configuration.
-// Steps marked with Skip=true will appear as StepDone in the step bar.
-// The prereqs parameter is kept for API compatibility but not rendered in the wizard.
 func New(title string, _ []string, steps []StepConfig) Model {
 	statuses := make([]common.StepStatus, len(steps))
 	firstActive := -1
@@ -86,7 +83,7 @@ func New(title string, _ []string, steps []StepConfig) Model {
 
 	current := firstActive
 	if current == -1 {
-		current = len(steps) // all skipped → done immediately
+		current = len(steps)
 	}
 
 	return Model{
@@ -97,26 +94,19 @@ func New(title string, _ []string, steps []StepConfig) Model {
 	}
 }
 
-// Done returns true when the wizard finished (all steps done/skipped).
-func (m Model) Done() bool {
-	return m.done
-}
+// Done returns true when the wizard finished.
+func (m Model) Done() bool { return m.done }
 
-// Aborted returns true if the user cancelled (ctrl+c).
-func (m Model) Aborted() bool {
-	return m.aborted
-}
+// Aborted returns true if the user cancelled.
+func (m Model) Aborted() bool { return m.aborted }
 
-// Err returns any error that occurred during step execution.
-func (m Model) Err() error {
-	return m.err
-}
+// Err returns any error that occurred.
+func (m Model) Err() error { return m.err }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BubbleTea interface
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Init initializes the wizard, starting the first active step's form.
 func (m Model) Init() tea.Cmd {
 	if m.current >= len(m.steps) {
 		m.done = true
@@ -129,24 +119,20 @@ func (m Model) Init() tea.Cmd {
 	return stepDoneCmd(m.steps[m.current].OnDone)
 }
 
-// Update handles messages for the wizard model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		if m.current < len(m.steps) && m.steps[m.current].Form != nil {
-			fw := m.formWidth()
-			fh := m.formHeight()
 			m.steps[m.current].Form = m.steps[m.current].Form.
-				WithWidth(fw).
-				WithHeight(fh)
+				WithWidth(m.formWidth()).
+				WithHeight(m.formHeight())
 		}
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		if msg.String() == "ctrl+c" {
 			m.aborted = true
 			return m, tea.Quit
 		}
@@ -167,17 +153,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.justAdvanced = true
 		form := m.steps[m.current].Form
 		if form != nil {
-			fw := m.formWidth()
-			fh := m.formHeight()
 			m.steps[m.current].Form = form.
-				WithWidth(fw).
-				WithHeight(fh)
+				WithWidth(m.formWidth()).
+				WithHeight(m.formHeight())
 			return m, form.Init()
 		}
 		return m, stepDoneCmd(m.steps[m.current].OnDone)
 	}
 
-	// Forward messages to the current form
+	// Forward to current form
 	if m.current < len(m.steps) && m.steps[m.current].Form != nil {
 		form := m.steps[m.current].Form
 		model, cmd := form.Update(msg)
@@ -202,11 +186,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status[m.current] = common.StepActive
 			m.justAdvanced = true
 			if m.steps[m.current].Form != nil {
-				fw := m.formWidth()
-				fh := m.formHeight()
 				m.steps[m.current].Form = m.steps[m.current].Form.
-					WithWidth(fw).
-					WithHeight(fh)
+					WithWidth(m.formWidth()).
+					WithHeight(m.formHeight())
 				return m, m.steps[m.current].Form.Init()
 			}
 			return m, stepDoneCmd(m.steps[m.current].OnDone)
@@ -224,21 +206,13 @@ func (m Model) View() string {
 		return ""
 	}
 
-	outerWidth := m.width - 2  // leave room for terminal edges
-	innerWidth := outerWidth - 6 // outer border(2) + outer padding(2) + inner border spacing
-
-	// Helper: create a blank line filled with spaces at a given width (carries background)
-	blankLine := func(w int) string {
-		return strings.Repeat(" ", w)
+	// ── Dimensions ──
+	outerW := m.width - 2
+	innerW := outerW - 6 // outer border(2) + outer hpad(2) + gap(2)
+	innerH := m.height - 10 // outer border(2) + title area(3) + footer area(3) + inner border(2)
+	if innerH < 7 {
+		innerH = 7
 	}
-
-	// ── Title line (on panel bg, filled to width) ──
-	titleText := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(common.TextLight).
-		Render(m.title)
-	// Pad title to full width so background fills
-	titleLine := titleText + strings.Repeat(" ", max(0, outerWidth-4-lipgloss.Width(titleText)))
 
 	// ── Step bar ──
 	stepBar := common.RenderStepBar(m.buildStepList())
@@ -246,14 +220,13 @@ func (m Model) View() string {
 	// ── Step label ──
 	stepLabel := ""
 	if m.current < len(m.steps) {
-		labelText := fmt.Sprintf("%d/%d · %s", m.current+1, len(m.steps), m.steps[m.current].Label)
 		stepLabel = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(common.Primary).
-			Render(labelText)
+			Render(fmt.Sprintf("%d/%d · %s", m.current+1, len(m.steps), m.steps[m.current].Label))
 	}
 
-	// ── Form content ──
+	// ── Form ──
 	formView := ""
 	if m.current < len(m.steps) && m.steps[m.current].Form != nil {
 		formView = m.steps[m.current].Form.View()
@@ -264,80 +237,96 @@ func (m Model) View() string {
 			Render(fmt.Sprintf("%s Configuration terminée !", common.IconSuccess))
 	}
 
-	// ── Inner panel (raised element) ──
-	// Build inner content with proper spacing, each line padded to innerWidth
-	innerLines := []string{
-		blankLine(innerWidth - 4),
-		"  " + stepBar,
-		blankLine(innerWidth - 4),
-		"  " + stepLabel,
-		blankLine(innerWidth - 4),
-		"  " + formView,
-		blankLine(innerWidth - 4),
-	}
-	innerContent := strings.Join(innerLines, "\n")
+	// ── Inner panel content ──
+	// Use lipgloss.Place to fill the entire inner rectangle with SurfaceElem bg.
+	// This ensures no black bands — every cell gets the background color.
+	innerText := lipgloss.JoinVertical(lipgloss.Left,
+		stepBar,
+		"",
+		stepLabel,
+		"",
+		formView,
+	)
 
+	// Place the text content inside a fixed-size box filled with SurfaceElem
+	innerFilled := lipgloss.Place(
+		innerW-2, // width (minus border)
+		innerH-2, // height (minus border)
+		lipgloss.Left,
+		lipgloss.Top,
+		innerText,
+		lipgloss.WithWhitespaceBackground(common.SurfaceElem),
+	)
+
+	// Wrap with rounded border
 	innerBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(common.BorderElem).
 		BorderBackground(common.Surface).
-		Background(common.SurfaceElem).
+		Width(innerW - 2).
+		Render(innerFilled)
+
+	// ── Title ──
+	titleView := lipgloss.NewStyle().
+		Bold(true).
 		Foreground(common.TextLight).
-		Width(innerWidth).
-		Padding(0, 1).
-		Render(innerContent)
+		Render(m.title)
 
 	// ── Footer ──
-	footerText := lipgloss.NewStyle().
+	footerView := lipgloss.NewStyle().
 		Foreground(common.Subtle).
 		Render("enter confirmer · esc passer · ctrl+c quitter")
-	footerLine := footerText + strings.Repeat(" ", max(0, outerWidth-4-lipgloss.Width(footerText)))
 
-	// ── Outer panel (floating on terminal) ──
-	// Build outer content: blank + title + blank + inner + blank + footer + blank
-	outerLines := []string{
-		blankLine(outerWidth - 4),
-		"  " + titleLine,
-		blankLine(outerWidth - 4),
-		innerBox,
-		blankLine(outerWidth - 4),
-		"  " + footerLine,
-		blankLine(outerWidth - 4),
-	}
-	outerContent := strings.Join(outerLines, "\n")
+	// ── Outer panel content ──
+	// Compose: title + inner + footer, placed in a filled outer rectangle
+	outerText := lipgloss.JoinVertical(lipgloss.Left,
+		"",
+		"  "+titleView,
+		"",
+		"  "+innerBox,
+		"",
+		"  "+footerView,
+	)
 
+	// Calculate outer content height (fills remaining space)
+	outerH := m.height - 2 // minus outer border
+
+	// Place outer content in a filled box with Surface bg
+	outerFilled := lipgloss.Place(
+		outerW-2, // width (minus border)
+		outerH-2, // height (minus border + padding)
+		lipgloss.Left,
+		lipgloss.Top,
+		outerText,
+		lipgloss.WithWhitespaceBackground(common.Surface),
+	)
+
+	// Wrap with rounded border
 	outerFrame := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(common.Border).
-		Background(common.Surface).
-		Foreground(common.TextLight).
-		Width(outerWidth).
-		Padding(0, 1)
+		Width(outerW - 2).
+		Render(outerFilled)
 
-	return outerFrame.Render(outerContent)
+	return outerFrame
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// formWidth returns the available width for form content inside the inner panel.
 func (m Model) formWidth() int {
-	return m.width - 14 // outer(2) + outerPad(2) + inner(2) + innerPad(2) + content indent(4) + margin(2)
+	return m.width - 16
 }
 
-// formHeight returns the available height for form content.
 func (m Model) formHeight() int {
-	// outer border(2) + outer spacing(4) + inner border(2) + inner spacing(6) +
-	// step bar(1) + step label(1) + footer(1)
-	h := m.height - 17
+	h := m.height - 20
 	if h < 5 {
 		h = 5
 	}
 	return h
 }
 
-// nextPendingStep returns the index of the next pending step, or -1 if none.
 func (m Model) nextPendingStep() int {
 	for i := m.current + 1; i < len(m.steps); i++ {
 		if m.status[i] == common.StepPending {
@@ -347,7 +336,6 @@ func (m Model) nextPendingStep() int {
 	return -1
 }
 
-// buildStepList converts internal state to WizardStep slice for step bar rendering.
 func (m Model) buildStepList() []common.WizardStep {
 	steps := make([]common.WizardStep, len(m.steps))
 	for i, s := range m.steps {
@@ -357,12 +345,4 @@ func (m Model) buildStepList() []common.WizardStep {
 		}
 	}
 	return steps
-}
-
-// max returns the larger of two ints.
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
