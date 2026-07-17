@@ -9,7 +9,7 @@
 //
 //	err := floating.Run(floating.Config{
 //	    Title: "Confirm action",
-//	    Form:  common.NewForm(huh.NewGroup(huh.NewConfirm().Title("Continue?").Value(&ok))),
+//	    Form:  theme.NewForm(huh.NewGroup(huh.NewConfirm().Title("Continue?").Value(&ok))),
 //	})
 package floating
 
@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // Config defines the appearance and content of a floating prompt.
@@ -78,7 +79,7 @@ func newModel(cfg Config) model {
 		w = 60
 	}
 	// Apply Aurum theme to the form
-	cfg.Form = cfg.Form.WithTheme(common.AurumTheme())
+	cfg.Form = cfg.Form.WithTheme(theme.AurumTheme())
 	cfg.Form = cfg.Form.WithWidth(w - 8) // account for panel border + padding
 
 	return model{
@@ -140,10 +141,10 @@ func (m model) View() string {
 	if m.cfg.Title != "" {
 		titleStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(common.TextLight)
+			Foreground(theme.TextLight)
 		header = titleStyle.Render(m.cfg.Title)
 		if m.cfg.Subtitle != "" {
-			subtitleStyle := lipgloss.NewStyle().Foreground(common.Subtle)
+			subtitleStyle := lipgloss.NewStyle().Foreground(theme.Subtle)
 			header += "\n" + subtitleStyle.Render(m.cfg.Subtitle)
 		}
 		header += "\n"
@@ -154,8 +155,8 @@ func (m model) View() string {
 
 	// ── Footer ──
 	footer := lipgloss.NewStyle().
-		Foreground(common.Subtle).
-		Render("enter " + common.IconDot + " confirm  esc " + common.IconDot + " cancel")
+		Foreground(theme.Subtle).
+		Render("enter " + theme.IconDot + " confirm  esc " + theme.IconDot + " cancel")
 
 	// ── Compose ──
 	content := header + formView + "\n\n" + footer
@@ -166,7 +167,7 @@ func (m model) View() string {
 	// decorative border that floats above the terminal background.
 	panel := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(common.BorderElem).
+		BorderForeground(theme.LipBorderElem).
 		Padding(1, 2).
 		Width(w)
 
@@ -181,7 +182,7 @@ func (m model) View() string {
 // Confirm runs a styled confirmation prompt with the given title.
 // Returns the boolean result via the value pointer.
 func Confirm(title string, value *bool) error {
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().Title(title).Value(value),
 		),
@@ -191,7 +192,7 @@ func Confirm(title string, value *bool) error {
 
 // Select runs a styled single-select prompt with title and options.
 func Select[T comparable](title string, options []huh.Option[T], value *T) error {
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[T]().Title(title).Options(options...).Value(value),
 		),
@@ -201,7 +202,7 @@ func Select[T comparable](title string, options []huh.Option[T], value *T) error
 
 // Input runs a styled text input prompt.
 func Input(title, placeholder string, value *string) error {
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title(title).Placeholder(placeholder).Value(value),
 		),
@@ -216,10 +217,10 @@ func Input(title, placeholder string, value *string) error {
 // RenderStepHeader prints a styled step header for inline multi-step flows.
 // Example: "◔ 2/4 · Provider Configuration"
 func RenderStepHeader(current, total int, label string) string {
-	icon := lipgloss.NewStyle().Foreground(common.Primary).Render(common.IconStepActive)
-	counter := lipgloss.NewStyle().Foreground(common.Muted).Render(fmt.Sprintf("%d/%d", current+1, total))
-	title := lipgloss.NewStyle().Bold(true).Foreground(common.Primary).Render(label)
-	sep := lipgloss.NewStyle().Foreground(common.Muted).Render(" · ")
+	icon := lipgloss.NewStyle().Foreground(theme.Primary).Render(theme.IconStepActive)
+	counter := lipgloss.NewStyle().Foreground(theme.Muted).Render(fmt.Sprintf("%d/%d", current+1, total))
+	title := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(label)
+	sep := lipgloss.NewStyle().Foreground(theme.Muted).Render(" · ")
 
 	return "\n" + strings.Join([]string{icon, counter, sep, title}, " ") + "\n"
 }

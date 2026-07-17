@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -92,13 +92,13 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if len(patterns) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun pattern dans la bibliothèque.\n",
-			common.Subtitle.Render(common.IconInfo))
+			theme.Subtitle.Render(theme.IconInfo))
 		fmt.Fprintf(a.IO.Out, "  Utilise %s pour en créer un.\n\n",
-			common.Bold.Render("oh patterns add"))
+			theme.Bold.Render("oh patterns add"))
 		return nil
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Patterns Library  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Patterns Library  "))
 	fmt.Fprintln(a.IO.Out)
 
 	for _, p := range patterns {
@@ -106,15 +106,15 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		icon := common.SuccessStyle.Render(common.IconSuccess)
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
 		if !p.Validated {
-			icon = common.WarningStyle.Render(common.IconWarning)
+			icon = theme.WarningStyle.Render(theme.IconWarning)
 		}
 
 		tagsStr := strings.Join(p.Tags, ", ")
 		fmt.Fprintf(a.IO.Out, "  %s %s  [%s] [%s]\n",
 			icon,
-			common.Bold.Render(p.Name),
+			theme.Bold.Render(p.Name),
 			p.Complexity,
 			tagsStr)
 
@@ -129,7 +129,7 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 			meta = append(meta, "awaiting validation")
 		}
 		if len(meta) > 0 {
-			fmt.Fprintf(a.IO.Out, "    %s\n", common.Subtitle.Render(strings.Join(meta, " · ")))
+			fmt.Fprintf(a.IO.Out, "    %s\n", theme.Subtitle.Render(strings.Join(meta, " · ")))
 		}
 		fmt.Fprintln(a.IO.Out)
 	}
@@ -183,7 +183,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Ajouter un pattern  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Ajouter un pattern  "))
 	fmt.Fprintln(a.IO.Out)
 
 	steps := []views.WizardStep{
@@ -248,7 +248,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	if content == "" {
 		content = fmt.Sprintf("# Pattern : %s\n\n## Contexte d'usage\n\n## Décomposition type\n\n## Dépendances typiques\n\n## Variantes connues\n", name)
 		fmt.Fprintf(a.IO.Out, "\n%s Contenu par défaut créé. Édite le fichier après création pour le compléter.\n",
-			common.Subtitle.Render(common.IconInfo))
+			theme.Subtitle.Render(theme.IconInfo))
 	}
 
 	project := detectCurrentProject(ctx, a)
@@ -274,9 +274,9 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "\n%s Pattern %q ajouté avec succès.\n",
-		common.SuccessStyle.Render(common.IconSuccess), name)
+		theme.SuccessStyle.Render(theme.IconSuccess), name)
 	fmt.Fprintf(a.IO.Out, "  %s pour voir le contenu.\n\n",
-		common.Bold.Render("oh patterns show "+name))
+		theme.Bold.Render("oh patterns show "+name))
 	return nil
 }
 
@@ -300,7 +300,7 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Pattern %q validé.\n",
-		common.SuccessStyle.Render(common.IconSuccess), name)
+		theme.SuccessStyle.Render(theme.IconSuccess), name)
 	return nil
 }
 
@@ -324,6 +324,6 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Pattern %q supprimé.\n",
-		common.SuccessStyle.Render(common.IconSuccess), name)
+		theme.SuccessStyle.Render(theme.IconSuccess), name)
 	return nil
 }

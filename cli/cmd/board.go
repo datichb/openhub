@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -33,9 +33,9 @@ func runBoard(cmd *cobra.Command, args []string) error {
 	if len(tickets) == 0 {
 		// Distinguish "bd not installed" from "0 tickets"
 		if _, err := exec.LookPath("bd"); err != nil {
-			fmt.Fprintln(a.IO.Out, common.WarningStyle.Render(common.IconWarning)+" "+i18n.T("tui.board.bd_not_installed"))
+			fmt.Fprintln(a.IO.Out, theme.WarningStyle.Render(theme.IconWarning)+" "+i18n.T("tui.board.bd_not_installed"))
 		} else {
-			fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("tui.board.no_tickets_hint")))
+			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("tui.board.no_tickets_hint")))
 		}
 		return nil
 	}

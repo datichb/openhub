@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/theme"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func TestColorTag_FormatsCorrectly(t *testing.T) {
@@ -19,8 +19,8 @@ func TestColorTag_FormatsCorrectly(t *testing.T) {
 
 func TestColorTag_ThemeColors(t *testing.T) {
 	tag := ColorTag(theme.Accent)
-	// Accent is #64a0ff = RGB(100, 160, 255)
-	assert.Equal(t, "[#64a0ff]", tag)
+	// Accent is #89b4fa = Catppuccin Blue
+	assert.Equal(t, "[#89b4fa]", tag)
 }
 
 func TestNewStepBar_CreatesWidget(t *testing.T) {

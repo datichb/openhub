@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func init() {
@@ -153,15 +153,15 @@ func configModelShowCmd() *cobra.Command {
 
 			// Human-readable output
 			fmt.Fprintln(a.IO.Out)
-			fmt.Fprintf(a.IO.Out, "%s\n", common.Title.Render("  Model Configuration  "))
+			fmt.Fprintf(a.IO.Out, "%s\n", theme.Title.Render("  Model Configuration  "))
 			fmt.Fprintln(a.IO.Out)
 
 			// Hub-level
-			fmt.Fprintf(a.IO.Out, "%s\n", common.Bold.Render("Hub-level (hub.toml):"))
+			fmt.Fprintf(a.IO.Out, "%s\n", theme.Bold.Render("Hub-level (hub.toml):"))
 			if hubDefault != "" {
 				fmt.Fprintf(a.IO.Out, "  default: %s\n", hubDefault)
 			} else {
-				fmt.Fprintf(a.IO.Out, "  default: %s\n", common.Subtitle.Render("(not set)"))
+				fmt.Fprintf(a.IO.Out, "  default: %s\n", theme.Subtitle.Render("(not set)"))
 			}
 
 			if len(hubFamilies) > 0 {
@@ -187,11 +187,11 @@ func configModelShowCmd() *cobra.Command {
 				}
 
 				fmt.Fprintln(a.IO.Out)
-				fmt.Fprintf(a.IO.Out, "%s\n", common.Bold.Render(fmt.Sprintf("Project-level (%s):", project.Name)))
+				fmt.Fprintf(a.IO.Out, "%s\n", theme.Bold.Render(fmt.Sprintf("Project-level (%s):", project.Name)))
 				if project.Model != "" {
 					fmt.Fprintf(a.IO.Out, "  default: %s\n", project.Model)
 				} else {
-					fmt.Fprintf(a.IO.Out, "  default: %s\n", common.Subtitle.Render("(not set)"))
+					fmt.Fprintf(a.IO.Out, "  default: %s\n", theme.Subtitle.Render("(not set)"))
 				}
 
 				if project.ModelOverrides != nil {
@@ -296,9 +296,9 @@ func unsetHubModel(key string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "%s %s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
+		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.T("cmd.config.unset_success"),
-		common.Bold.Render(key))
+		theme.Bold.Render(key))
 	return nil
 }
 
@@ -312,8 +312,8 @@ func writeHubConfig(v *viper.Viper, key, value string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(key), value)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(key), value)
 	return nil
 }
 
@@ -332,8 +332,8 @@ func setProjectModel(ctx context.Context, projectID, model string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.default = %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name), model)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name), model)
 	return nil
 }
 
@@ -357,8 +357,8 @@ func setProjectModelFamily(ctx context.Context, projectID, family, model string)
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.families.%s = %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name), family, model)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name), family, model)
 	return nil
 }
 
@@ -382,8 +382,8 @@ func setProjectModelAgent(ctx context.Context, projectID, agentID, model string)
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.agents.%s = %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name), agentID, model)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name), agentID, model)
 	return nil
 }
 
@@ -400,8 +400,8 @@ func unsetProjectModelDefault(ctx context.Context, projectID string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.default unset\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name))
 	return nil
 }
 
@@ -420,8 +420,8 @@ func unsetProjectModelFamily(ctx context.Context, projectID, family string) erro
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.families.%s unset\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name), family)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name), family)
 	return nil
 }
 
@@ -440,7 +440,7 @@ func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) erro
 	}
 
 	fmt.Fprintf(os.Stdout, "%s project %s model.agents.%s unset\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Bold.Render(project.Name), agentID)
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render(project.Name), agentID)
 	return nil
 }

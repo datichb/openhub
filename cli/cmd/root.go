@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
@@ -39,6 +40,12 @@ Il orchestre les sessions opencode, gère les projets, déploie les agents/skill
 et fournit un TUI interactif pour le suivi de développement.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if canLaunchTUI() {
+			return runTUI()
+		}
+		return cmd.Help()
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Configure structured logging
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -189,7 +196,7 @@ func terminalPassphrasePrompt(creating bool) (string, error) {
 func promptCreatePassphrase() (string, error) {
 	var passphrase, confirm string
 
-	err := common.NewForm(
+	err := theme.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title(i18n.T("secrets.fallback.prompt_create")).

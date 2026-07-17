@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -50,7 +50,7 @@ func projectRenameCmd() *cobra.Command {
 			if len(args) > 1 {
 				newName = args[1]
 			} else {
-				form := common.NewForm(
+				form := theme.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("common.new_name")).
@@ -76,8 +76,8 @@ func projectRenameCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.project.renamed", oldName, common.Bold.Render(newName)))
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.project.renamed", oldName, theme.Bold.Render(newName)))
 			return nil
 		},
 	}
@@ -110,7 +110,7 @@ Ne déplace PAS physiquement le dossier.`,
 			if len(args) > 1 {
 				newPath = args[1]
 			} else {
-				form := common.NewForm(
+				form := theme.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("common.new_path")).
@@ -146,8 +146,8 @@ Ne déplace PAS physiquement le dossier.`,
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n  %s → %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.project.moved", common.Bold.Render(project.Name)),
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.project.moved", theme.Bold.Render(project.Name)),
 				oldPath, absPath)
 			return nil
 		},
@@ -213,8 +213,8 @@ Sans flags, lance un wizard interactif.`,
 					return fmt.Errorf("updating project: %w", err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					i18n.Tf("cmd.project.configured", common.Bold.Render(project.Name)))
+					theme.SuccessStyle.Render(theme.IconSuccess),
+					i18n.Tf("cmd.project.configured", theme.Bold.Render(project.Name)))
 			}
 			return nil
 		},
@@ -381,7 +381,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
+		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.T("cmd.project.config_updated"))
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -46,8 +46,8 @@ func projectRemoveCmd() *cobra.Command {
 					return fmt.Errorf("deleting project: %w", err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					i18n.Tf("form.project.removed", common.Bold.Render(project.Name)))
+					theme.SuccessStyle.Render(theme.IconSuccess),
+					i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
 				return nil
 			}
 
@@ -63,7 +63,7 @@ func projectRemoveCmd() *cobra.Command {
 
 				// Simple inline confirm (single field — stays on huh)
 				var confirm bool
-				confirmForm := common.NewForm(
+				confirmForm := theme.NewForm(
 					huh.NewGroup(
 						huh.NewConfirm().
 							Title(i18n.Tf("form.project.confirm_delete", project.Name)).
@@ -75,7 +75,7 @@ func projectRemoveCmd() *cobra.Command {
 					return err
 				}
 				if !confirm {
-					fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("form.project.cancelled")))
+					fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("form.project.cancelled")))
 					return nil
 				}
 
@@ -83,8 +83,8 @@ func projectRemoveCmd() *cobra.Command {
 					return fmt.Errorf("deleting project: %w", err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					i18n.Tf("form.project.removed", common.Bold.Render(project.Name)))
+					theme.SuccessStyle.Render(theme.IconSuccess),
+					i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
 				return nil
 			}
 
@@ -94,7 +94,7 @@ func projectRemoveCmd() *cobra.Command {
 				return err
 			}
 			if len(projects) == 0 {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("form.project.none_to_remove")))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("form.project.none_to_remove")))
 				return nil
 			}
 
@@ -144,7 +144,7 @@ func projectRemoveCmd() *cobra.Command {
 					},
 					OnDone: func() error {
 						if !confirm {
-							fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("form.project.cancelled")))
+							fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("form.project.cancelled")))
 							return fmt.Errorf("cancelled")
 						}
 						if err := a.Projects.Delete(ctx, projectID); err != nil {
@@ -178,8 +178,8 @@ func projectRemoveCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("form.project.removed", common.Bold.Render(projectNames[selectedIdx])))
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("form.project.removed", theme.Bold.Render(projectNames[selectedIdx])))
 			return nil
 		},
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var doctorCmd = &cobra.Command{
@@ -34,7 +34,7 @@ type check struct {
 func runDoctor(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh doctor  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh doctor  "))
 	fmt.Fprintln(a.IO.Out)
 
 	checks := []check{
@@ -56,11 +56,11 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		detail, ok := c.test()
 		if ok {
 			fmt.Fprintf(a.IO.Out, "  %s %s — %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
+				theme.SuccessStyle.Render(theme.IconSuccess),
 				c.name, detail)
 		} else {
 			fmt.Fprintf(a.IO.Out, "  %s %s — %s\n",
-				common.ErrorStyle.Render(common.IconError),
+				theme.ErrorStyle.Render(theme.IconError),
 				c.name, detail)
 			allPassed = false
 		}
@@ -68,9 +68,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(a.IO.Out)
 	if allPassed {
-		fmt.Fprintln(a.IO.Out, common.SuccessStyle.Render(i18n.T("cmd.doctor.all_passed")))
+		fmt.Fprintln(a.IO.Out, theme.SuccessStyle.Render(i18n.T("cmd.doctor.all_passed")))
 	} else {
-		fmt.Fprintln(a.IO.Out, common.WarningStyle.Render(i18n.T("cmd.doctor.some_failed")))
+		fmt.Fprintln(a.IO.Out, theme.WarningStyle.Render(i18n.T("cmd.doctor.some_failed")))
 	}
 
 	return nil

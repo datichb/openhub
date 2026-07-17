@@ -8,7 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/theme"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ func NewStatusBar(hints string) *StatusBar {
 	tv := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	tv.SetBackgroundColor(theme.BgApp)
+	tv.SetBackgroundColor(theme.BgPanel)
 	tv.SetText(fmt.Sprintf("%s%s[-]", colorTag(theme.FgSecondary), hints))
 
 	return &StatusBar{TextView: tv}

@@ -708,6 +708,8 @@
   "cmd.team.init.cloned": "Repo cloné dans %s",
   "cmd.team.init.pulling": "Synchronisation du repo team-state...",
   "cmd.team.init.pulled": "Repo synchronisé",
+  "cmd.team.init.step_repo": "Dépôt",
+  "cmd.team.init.processing_repo": "Clonage du dépôt...",
   "cmd.team.init.step_config": "Config globale",
   "cmd.team.init.step_identity": "Identité",
   "cmd.team.init.step_notifications": "Notifications",

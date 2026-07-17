@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var conventionsCmd = &cobra.Command{
@@ -38,7 +38,7 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Conventions Check  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Conventions Check  "))
 	fmt.Fprintln(a.IO.Out)
 
 	cwd, _ := os.Getwd()
@@ -53,16 +53,16 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 			if err == nil {
 				if re.MatchString(branch) {
 					fmt.Fprintf(a.IO.Out, "  %s Branch : %s (conforme)\n",
-						common.SuccessStyle.Render(common.IconSuccess), branch)
+						theme.SuccessStyle.Render(theme.IconSuccess), branch)
 				} else {
 					fmt.Fprintf(a.IO.Out, "  %s Branch : %s ne suit pas le pattern %s\n",
-						common.WarningStyle.Render(common.IconWarning), branch, branchPattern)
+						theme.WarningStyle.Render(theme.IconWarning), branch, branchPattern)
 					issues++
 				}
 			}
 		} else {
 			fmt.Fprintf(a.IO.Out, "  %s Branch : %s (pas de pattern configuré)\n",
-				common.Subtitle.Render(common.IconDot), branch)
+				theme.Subtitle.Render(theme.IconDot), branch)
 		}
 	}
 
@@ -80,16 +80,16 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 			}
 			if nonConform == 0 {
 				fmt.Fprintf(a.IO.Out, "  %s Commits : %d derniers conformes au format\n",
-					common.SuccessStyle.Render(common.IconSuccess), len(commits))
+					theme.SuccessStyle.Render(theme.IconSuccess), len(commits))
 			} else {
 				fmt.Fprintf(a.IO.Out, "  %s Commits : %d/%d non conformes au pattern %s\n",
-					common.WarningStyle.Render(common.IconWarning), nonConform, len(commits), commitPattern)
+					theme.WarningStyle.Render(theme.IconWarning), nonConform, len(commits), commitPattern)
 				issues++
 			}
 		}
 	} else if len(commits) > 0 {
 		fmt.Fprintf(a.IO.Out, "  %s Commits : %d récents (pas de format configuré)\n",
-			common.Subtitle.Render(common.IconDot), len(commits))
+			theme.Subtitle.Render(theme.IconDot), len(commits))
 	}
 
 	// 3. Check if ticket is claimed (if team is enabled)
@@ -98,7 +98,7 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 		ticketRef := extractTicketFromBranch(branch)
 		if ticketRef != "" {
 			fmt.Fprintf(a.IO.Out, "  %s Ticket : %s détecté depuis la branche\n",
-				common.SuccessStyle.Render(common.IconSuccess), ticketRef)
+				theme.SuccessStyle.Render(theme.IconSuccess), ticketRef)
 		}
 	}
 
@@ -106,10 +106,10 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if issues == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s Tout est conforme\n",
-			common.SuccessStyle.Render(common.IconSuccess))
+			theme.SuccessStyle.Render(theme.IconSuccess))
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %d warning(s) détecté(s)\n",
-			common.WarningStyle.Render(common.IconWarning), issues)
+			theme.WarningStyle.Render(theme.IconWarning), issues)
 	}
 
 	return nil

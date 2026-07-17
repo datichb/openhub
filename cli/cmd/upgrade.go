@@ -8,7 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var upgradeCmd = &cobra.Command{
@@ -50,7 +50,7 @@ func upgradeOpencodeCmd() *cobra.Command {
 			// Resolve latest if needed
 			if targetVersion == "" {
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.upgrade.checking"))
+					theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.upgrade.checking"))
 
 				release, err := opencode.LatestRelease()
 				if err != nil {
@@ -60,13 +60,13 @@ func upgradeOpencodeCmd() *cobra.Command {
 
 				if currentVersion == targetVersion {
 					fmt.Fprintf(a.IO.Out, "%s %s\n",
-						common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.upgrade.already_uptodate", currentVersion))
+						theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.upgrade.already_uptodate", currentVersion))
 					return nil
 				}
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.upgrade.downloading", targetVersion))
+				theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.upgrade.downloading", targetVersion))
 
 			// Download with progress
 			var lastPercent int
@@ -86,7 +86,7 @@ func upgradeOpencodeCmd() *cobra.Command {
 
 			fmt.Fprintln(a.IO.Out) // newline after progress
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.upgrade.installed", targetVersion, binPath))
+				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.upgrade.installed", targetVersion, binPath))
 
 			return nil
 		},

@@ -1,4 +1,4 @@
-.PHONY: build run test lint clean install
+.PHONY: build run test test-tui test-unit lint clean install
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -23,6 +23,14 @@ run:
 # Run all tests
 test:
 	go test ./... -v -race
+
+# Run TUI tests only
+test-tui:
+	go test ./internal/tui/... -v -race
+
+# Run unit tests (skip integration/long-running)
+test-unit:
+	go test ./... -v -race -short
 
 # Run tests with coverage
 test-cover:

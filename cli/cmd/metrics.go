@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var metricsCmd = &cobra.Command{
@@ -42,7 +42,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s", i18n.Tf("cmd.metrics.period_invalid", period))
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh metrics  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh metrics  "))
 	fmt.Fprintln(a.IO.Out)
 
 	if period != "all" {
@@ -53,12 +53,12 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	db, err := opencode.OpenStatsDB()
 	if err != nil {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.metrics.no_db", err))
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
+			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.metrics.no_db", err))
+		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
 		return nil
 	}
 	if db == nil {
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
+		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
 		return nil
 	}
 	defer db.Close()
@@ -71,12 +71,12 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 
 	if stats.TotalSessions == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.metrics.no_data", period))
+			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.metrics.no_data", period))
 		return nil
 	}
 
 	// --- Usage summary ---
-	fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.usage")))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.usage")))
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.sessions", stats.TotalSessions))
 	if period == "all" {
@@ -87,7 +87,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Token breakdown ---
-	fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.tokens")))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.tokens")))
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_in", formatTokenCount(stats.TotalTokensIn)))
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_out", formatTokenCount(stats.TotalTokensOut)))
@@ -96,7 +96,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// --- AI Savings ---
-	fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.savings")))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.savings")))
 	fmt.Fprintln(a.IO.Out)
 	displayAISavings(a, stats)
 	fmt.Fprintln(a.IO.Out)
@@ -107,7 +107,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.metrics.per_project")))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.per_project")))
 	fmt.Fprintln(a.IO.Out)
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)

@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var deployCmd = &cobra.Command{
@@ -78,7 +78,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.Title.Render("oh deploy"), i18n.Tf("cmd.deploy.deploying", project.Name))
+		theme.Title.Render("oh deploy"), i18n.Tf("cmd.deploy.deploying", project.Name))
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
@@ -90,25 +90,25 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	for _, r := range results {
-		icon := common.SuccessStyle.Render(common.IconSuccess)
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
 		if !r.Success {
-			icon = common.ErrorStyle.Render(common.IconError)
+			icon = theme.ErrorStyle.Render(theme.IconError)
 		}
 		fmt.Fprintf(a.IO.Out, "  %s %s (%s)\n", icon, r.Name, r.Duration.Round(time.Millisecond))
 		if !r.Success {
-			fmt.Fprintf(a.IO.Out, "    %s\n", common.ErrorStyle.Render(r.Message))
+			fmt.Fprintf(a.IO.Out, "    %s\n", theme.ErrorStyle.Render(r.Message))
 		}
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	if err != nil {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.ErrorStyle.Render(common.IconError), i18n.T("cmd.deploy.failed"))
+			theme.ErrorStyle.Render(theme.IconError), i18n.T("cmd.deploy.failed"))
 		return err
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
+		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.deploy.done", time.Since(start).Round(time.Millisecond)))
 	return nil
 }
@@ -118,7 +118,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selectedAgents []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.Title.Render("oh deploy --check"), i18n.Tf("cmd.deploy.check_title", projectName))
+		theme.Title.Render("oh deploy --check"), i18n.Tf("cmd.deploy.check_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
 	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
@@ -128,30 +128,30 @@ func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selecte
 
 	if !report.HasChanges() {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.deploy.check_uptodate"))
+			theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.deploy.check_uptodate"))
 		return nil
 	}
 
 	added, modified, removed, _ := report.Summary()
 	fmt.Fprintf(a.IO.Out, "  %s %s\n",
-		common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.deploy.check_stale", added, modified, removed))
+		theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.deploy.check_stale", added, modified, removed))
 	fmt.Fprintln(a.IO.Out)
 
 	// Show changed files summary
 	for _, f := range report.Files {
 		switch f.Status {
 		case deploy.FileAdded:
-			fmt.Fprintf(a.IO.Out, "    %s %s\n", common.SuccessStyle.Render("+"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.SuccessStyle.Render("+"), f.RelPath)
 		case deploy.FileModified:
-			fmt.Fprintf(a.IO.Out, "    %s %s\n", common.WarningStyle.Render("~"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.WarningStyle.Render("~"), f.RelPath)
 		case deploy.FileRemoved:
-			fmt.Fprintf(a.IO.Out, "    %s %s\n", common.ErrorStyle.Render("-"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.ErrorStyle.Render("-"), f.RelPath)
 		}
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s\n",
-		i18n.Tf("cmd.deploy.check_run_deploy", common.Bold.Render("oh deploy")))
+		i18n.Tf("cmd.deploy.check_run_deploy", theme.Bold.Render("oh deploy")))
 
 	// Return error to signal "stale" state (exit code 1)
 	return fmt.Errorf("%s", i18n.Tf("cmd.deploy.check_stale_error", added+modified+removed))
@@ -161,7 +161,7 @@ func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selecte
 func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selectedAgents []string) error {
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
+		theme.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
 	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
@@ -171,14 +171,14 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 
 	if !report.HasChanges() {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.deploy.diff_no_changes"))
+			theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.deploy.diff_no_changes"))
 		return nil
 	}
 
 	// Display detailed diff report
 	fmt.Fprint(a.IO.Out, deploy.FormatDiffReport(report, false))
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.diff_apply", common.Bold.Render("oh deploy")))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.deploy.diff_apply", theme.Bold.Render("oh deploy")))
 	return nil
 }
 

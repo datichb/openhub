@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -81,7 +81,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 1 — Language & OpenCode version
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: i18n.T("cmd.init.section_general"),
+			Label:    i18n.T("cmd.init.section_general"),
+			Required: true,
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				langOptions := []string{"Français", "English"}
@@ -699,8 +700,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprint(os.Stdout, summary.Render(summary.Config{
 		Title:     i18n.T("cmd.init.done_no_project"),
-		Icon:      common.IconSuccess,
-		IconColor: common.Success,
+		Icon:      theme.IconSuccess,
+		IconColor: theme.LipSuccess,
 		Fields:    fields,
 		Footer:    i18n.Tf("cmd.init.done_hint", "oh project add"),
 	}))

@@ -5,14 +5,17 @@
 Le binaire `oh` est le point d'entree unique du hub opencode. Il orchestre les sessions IA, la gestion de projets, le deploiement de configuration et l'outillage developeur.
 
 ```
-oh [--verbose] <commande> [sous-commande] [options] [arguments]
+oh [--verbose] [--no-tui] <commande> [sous-commande] [options] [arguments]
 ```
+
+> **TUI interactif** : `oh` sans arguments dans un terminal interactif lance le shell TUI unifié avec menu navigable. Voir la [référence TUI](tui.fr.md) pour les raccourcis et fonctionnalités.
 
 ## Flags globaux
 
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--verbose` | `-v` | Active la sortie verbose |
+| `--no-tui` | | Force le mode CLI classique (désactive le TUI) |
 
 ---
 

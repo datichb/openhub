@@ -8,7 +8,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/charmbracelet/huh"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -71,89 +70,64 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// PRE-WIZARD: Prerequisite check
 	// ══════════════════════════════════════════════════════════════════════════
 	if _, err := os.Stat(config.ConfigPath()); os.IsNotExist(err) {
-		return fmt.Errorf("%s", i18n.Tf("cmd.team.init.hub_not_configured", common.Bold.Render("oh init")))
+		return fmt.Errorf("%s", i18n.Tf("cmd.team.init.hub_not_configured", theme.Bold.Render("oh init")))
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
 	// PRE-WIZARD: Preamble (visible, no pause)
 	// ══════════════════════════════════════════════════════════════════════════
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Team Setup  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Team Setup  "))
 	fmt.Fprintln(a.IO.Out)
 
 	preamble := fmt.Sprintf("  %s %s\n  %s %s\n  %s %s",
-		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.team.init.prereq_hub"),
-		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.team.init.prereq_repo"),
-		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.team.init.prereq_ssh"),
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.team.init.prereq_hub"),
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.team.init.prereq_repo"),
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.team.init.prereq_ssh"),
 	)
-	fmt.Fprintln(a.IO.Out, common.Box.Render(preamble))
+	fmt.Fprintln(a.IO.Out, theme.Box.Render(preamble))
 	fmt.Fprintln(a.IO.Out)
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// PRE-WIZARD: Repo URL + clone/pull
+	// PRE-WIZARD: Repo URL + clone/pull (only when already configured)
 	// ══════════════════════════════════════════════════════════════════════════
 	var stateRepo string
-
-	// If already configured in hub.toml, reuse
-	if a.Config.Team.StateRepo != "" {
-		stateRepo = a.Config.Team.StateRepo
-	} else {
-		repoForm := common.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title(i18n.T("cmd.team.init.repo_url_title")).
-					Description(i18n.T("cmd.team.init.repo_url_desc")).
-					Placeholder(i18n.T("cmd.team.init.repo_url_placeholder")).
-					Value(&stateRepo).
-					Validate(func(s string) error {
-						if s == "" {
-							return fmt.Errorf("%s", i18n.T("cmd.team.init.repo_url_required"))
-						}
-						return nil
-					}),
-			),
-		)
-		if err := repoForm.Run(); err != nil {
-			return err
-		}
-	}
+	var statePath string
+	var repo *teamstate.Repo
 
 	// Determine local path
-	statePath := a.Config.Team.StatePath
+	statePath = a.Config.Team.StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
 
-	// Clone or pull
-	repo := teamstate.NewRepo(stateRepo, statePath)
-	if repo.IsCloned() {
-		fmt.Fprintf(a.IO.Out, "%s %s\n", common.Subtitle.Render(common.IconArrow), i18n.T("cmd.team.init.pulling"))
-		if err := repo.Pull(ctx); err != nil {
-			// Non-fatal: continue with local state
-			fmt.Fprintf(a.IO.Out, "%s pull: %v\n", common.WarningStyle.Render(common.IconWarning), err)
+	// If already configured in hub.toml, clone/pull immediately (skip Step 0)
+	if a.Config.Team.StateRepo != "" {
+		stateRepo = a.Config.Team.StateRepo
+		repo = teamstate.NewRepo(stateRepo, statePath)
+		if repo.IsCloned() {
+			if err := repo.Pull(ctx); err != nil {
+				// Non-fatal: continue with local state
+				_ = err
+			}
 		} else {
-			fmt.Fprintf(a.IO.Out, "%s %s\n", common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.team.init.pulled"))
+			if err := repo.Clone(ctx); err != nil {
+				return fmt.Errorf("cloning team-state: %w", err)
+			}
 		}
-	} else {
-		fmt.Fprintf(a.IO.Out, "%s %s\n", common.Subtitle.Render(common.IconArrow), i18n.T("cmd.team.init.cloning"))
-		if err := repo.Clone(ctx); err != nil {
-			return fmt.Errorf("cloning team-state: %w", err)
+		if err := repo.InitStructure(ctx); err != nil {
+			return fmt.Errorf("initializing structure: %w", err)
 		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.team.init.cloned", statePath))
-	}
-
-	// Initialize directory structure
-	if err := repo.InitStructure(ctx); err != nil {
-		return fmt.Errorf("initializing structure: %w", err)
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// STATE DETECTION
+	// STATE DETECTION (deferred if repo not yet cloned)
 	// ══════════════════════════════════════════════════════════════════════════
-	hasConfig := repo.HasConfig()
-	hasPolicies := repo.HasPolicies()
+	var hasConfig, hasPolicies bool
+	if repo != nil {
+		hasConfig = repo.HasConfig()
+		hasPolicies = repo.HasPolicies()
+	}
 
 	// ══════════════════════════════════════════════════════════════════════════
 	// BUILD WIZARD STEPS (tview v2 — cell-buffer rendering)
@@ -180,33 +154,112 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		selectedPolicies []string
 	)
 
-	// Pre-fill from existing state
-	existingCfg, _ := repo.LoadConfig()
-	if hasConfig && existingCfg != nil {
-		staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
-		webhookURL = existingCfg.Notification.MattermostWebhook
-		channel = existingCfg.Notification.Channel
-		botName = existingCfg.Notification.BotName
+	// Pre-fill from existing state (only if repo already cloned)
+	var existingCfg *teamstate.TeamConfig
+	var hasMember bool
+	if repo != nil {
+		existingCfg, _ = repo.LoadConfig()
+		if hasConfig && existingCfg != nil {
+			staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
+			webhookURL = existingCfg.Notification.MattermostWebhook
+			channel = existingCfg.Notification.Channel
+			botName = existingCfg.Notification.BotName
+		} else {
+			staleDaysStr = "3"
+			botName = "OpenHub"
+		}
+
+		// Pre-fill member ID from hub.toml if available
+		if a.Config.Team.MemberID != "" {
+			memberID = a.Config.Team.MemberID
+		}
+
+		// Pre-fill member profile if exists
+		hasMember = memberID != "" && repo.HasMember(memberID)
+		if hasMember {
+			existing, err := repo.GetMember(memberID)
+			if err == nil && existing != nil {
+				displayName = existing.DisplayName
+				gitlabUsername = existing.GitLabUsername
+				mattermostUsername = existing.MattermostUsername
+				role = existing.Role
+			}
+		}
 	} else {
 		staleDaysStr = "3"
 		botName = "OpenHub"
-	}
-
-	// Pre-fill member ID from hub.toml if available
-	if a.Config.Team.MemberID != "" {
-		memberID = a.Config.Team.MemberID
-	}
-
-	// Pre-fill member profile if exists
-	hasMember := memberID != "" && repo.HasMember(memberID)
-	if hasMember {
-		existing, err := repo.GetMember(memberID)
-		if err == nil && existing != nil {
-			displayName = existing.DisplayName
-			gitlabUsername = existing.GitLabUsername
-			mattermostUsername = existing.MattermostUsername
-			role = existing.Role
+		if a.Config.Team.MemberID != "" {
+			memberID = a.Config.Team.MemberID
 		}
+	}
+
+	// ── Step 0: Repo team-state ──
+	repoStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_repo"),
+		Processing: i18n.T("cmd.team.init.processing_repo"),
+		Required:   true,
+		SkipIf: func() bool {
+			// Skip if repo URL already configured (clone/pull done above)
+			return a.Config.Team.StateRepo != ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.repo_url_title"),
+				stateRepo, 0, nil,
+				func(text string) { stateRepo = text })
+			form.AddButton("Next", func() {
+				if stateRepo == "" {
+					return // Do not proceed without a URL
+				}
+				onDone()
+			})
+			return form
+		},
+		OnDone: func() error {
+			// Clone or pull the repo
+			repo = teamstate.NewRepo(stateRepo, statePath)
+			if repo.IsCloned() {
+				if err := repo.Pull(ctx); err != nil {
+					// Non-fatal: continue with local state
+					_ = err
+				}
+			} else {
+				if err := repo.Clone(ctx); err != nil {
+					return fmt.Errorf("cloning team-state: %w", err)
+				}
+			}
+			if err := repo.InitStructure(ctx); err != nil {
+				return fmt.Errorf("initializing structure: %w", err)
+			}
+
+			// Now that repo is available, pre-fill state for subsequent steps
+			hasConfig = repo.HasConfig()
+			hasPolicies = repo.HasPolicies()
+			existingCfg, _ = repo.LoadConfig()
+			if hasConfig && existingCfg != nil {
+				staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
+				webhookURL = existingCfg.Notification.MattermostWebhook
+				channel = existingCfg.Notification.Channel
+				botName = existingCfg.Notification.BotName
+			}
+			hasMember = memberID != "" && repo.HasMember(memberID)
+			if hasMember {
+				existing, err := repo.GetMember(memberID)
+				if err == nil && existing != nil {
+					displayName = existing.DisplayName
+					gitlabUsername = existing.GitLabUsername
+					mattermostUsername = existing.MattermostUsername
+					role = existing.Role
+				}
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{
+				{Label: "Repo", Value: stateRepo},
+			}
+		},
 	}
 
 	// ── Step 1: Config globale ──
@@ -520,7 +573,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			Command:     "team init",
 			StatusHints: "enter confirm · esc skip",
 		},
-		Steps: []views.WizardStep{configStep, identityStep, notifStep, policiesStep},
+		Steps: []views.WizardStep{repoStep, configStep, identityStep, notifStep, policiesStep},
 	})
 	if wizResult.Aborted {
 		return nil
@@ -533,18 +586,20 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// POST-WIZARD: Update hub.toml + summary
 	// ══════════════════════════════════════════════════════════════════════════
 
+	// If nothing was configured (all steps skipped, no prior config), treat as abort
+	if stateRepo == "" && a.Config.Team.StateRepo == "" {
+		return nil
+	}
+
 	// Resolve memberID (may have been set in wizard)
 	if memberID == "" {
 		memberID = a.Config.Team.MemberID
 	}
 
-	// Write hub.toml team config if not already there
-	if a.Config.Team.StateRepo == "" {
-		if err := writeTeamConfig(stateRepo, statePath, memberID); err != nil {
-			return err
-		}
-	} else if a.Config.Team.MemberID != memberID && memberID != "" {
-		// Update member_id if changed
+	// Write hub.toml team config (upsert — safe to call multiple times)
+	needsWrite := a.Config.Team.StateRepo == "" ||
+		(a.Config.Team.MemberID != memberID && memberID != "")
+	if needsWrite {
 		if err := writeTeamConfig(stateRepo, statePath, memberID); err != nil {
 			return err
 		}
@@ -572,8 +627,8 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprint(a.IO.Out, summary.Render(summary.Config{
 		Title:     summaryTitle,
-		Icon:      common.IconSuccess,
-		IconColor: common.Success,
+		Icon:      theme.IconSuccess,
+		IconColor: theme.LipSuccess,
 		Fields:    fields,
 		Footer:    i18n.Tf("cmd.team.init.done_hint_status", "oh team status"),
 	}))
@@ -631,7 +686,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	// Pull latest
 	if err := repo.Pull(ctx); err != nil {
 		fmt.Fprintf(a.IO.ErrOut, "%s Impossible de synchroniser: %v\n",
-			common.WarningStyle.Render(common.IconWarning), err)
+			theme.WarningStyle.Render(theme.IconWarning), err)
 	}
 
 	detail, _ := cmd.Flags().GetBool("detail")
@@ -670,16 +725,16 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render(fmt.Sprintf("  Team: %d members  ", len(members))))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Team: %d members  ", len(members))))
 	fmt.Fprintln(a.IO.Out)
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
-		common.Bold.Render("Member"),
-		common.Bold.Render("Role"),
-		common.Bold.Render("Ticket"),
-		common.Bold.Render("Status"),
-		common.Bold.Render("Since"))
+		theme.Bold.Render("Member"),
+		theme.Bold.Render("Role"),
+		theme.Bold.Render("Ticket"),
+		theme.Bold.Render("Status"),
+		theme.Bold.Render("Since"))
 	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", "──────", "────", "──────", "──────", "─────")
 
 	for _, m := range members {
@@ -688,7 +743,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		if len(memberClaims) == 0 {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t\t\n",
 				m.DisplayName, m.Role,
-				common.Subtitle.Render("— (idle)"))
+				theme.Subtitle.Render("— (idle)"))
 			continue
 		}
 
@@ -716,13 +771,13 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 				if len(subBeads) > 0 {
 					completed := 0
 					for j, sb := range subBeads {
-						icon := common.IconDot
+						icon := theme.IconDot
 						switch sb.Status {
 						case "completed":
-							icon = common.IconSuccess
+							icon = theme.IconSuccess
 							completed++
 						case "in_progress":
-							icon = common.IconInfo
+							icon = theme.IconInfo
 						}
 						prefix := "├"
 						if j == len(subBeads)-1 {
@@ -732,7 +787,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 							prefix, icon, sb.ID, sb.Status)
 					}
 					fmt.Fprintf(w, "  \t\t  %s\t\t\n",
-						common.Subtitle.Render(fmt.Sprintf("Progress: %d/%d", completed, len(subBeads))))
+						theme.Subtitle.Render(fmt.Sprintf("Progress: %d/%d", completed, len(subBeads))))
 				}
 			}
 		}
@@ -741,8 +796,8 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 
 	// Summary line
 	fmt.Fprintf(a.IO.Out, "\n  %d tickets actifs %s %d en review %s %d blocked\n\n",
-		activeCount, common.IconDot,
-		reviewCount, common.IconDot,
+		activeCount, theme.IconDot,
+		reviewCount, theme.IconDot,
 		blockedCount)
 
 	return nil
@@ -759,7 +814,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 
 	if err := repo.Pull(ctx); err != nil {
 		fmt.Fprintf(a.IO.ErrOut, "%s Impossible de synchroniser: %v\n",
-			common.WarningStyle.Render(common.IconWarning), err)
+			theme.WarningStyle.Render(theme.IconWarning), err)
 	}
 
 	// Determine time filter
@@ -802,12 +857,12 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Team Activity  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Team Activity  "))
 	fmt.Fprintln(a.IO.Out)
 
 	if len(events) == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.Subtitle.Render(common.IconInfo), i18n.T("cmd.team.no_activity"))
+			theme.Subtitle.Render(theme.IconInfo), i18n.T("cmd.team.no_activity"))
 		return nil
 	}
 
@@ -816,7 +871,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 		icon := eventIcon(e.Type)
 		desc := formatEvent(e)
 		fmt.Fprintf(a.IO.Out, "  %s %s %s %s\n",
-			common.Subtitle.Render(ts), icon, common.Bold.Render(e.Actor), desc)
+			theme.Subtitle.Render(ts), icon, theme.Bold.Render(e.Actor), desc)
 	}
 	fmt.Fprintln(a.IO.Out)
 
@@ -827,7 +882,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 func ensureTeamRepo(ctx context.Context, a *app.App) (*teamstate.Repo, error) {
 	if !a.Config.Team.Enabled {
 		return nil, fmt.Errorf("fonctions d'équipe non activées. Lance %s d'abord",
-			common.Bold.Render("oh team init"))
+			theme.Bold.Render("oh team init"))
 	}
 	statePath := a.Config.Team.StatePath
 	if statePath == "" {
@@ -836,54 +891,46 @@ func ensureTeamRepo(ctx context.Context, a *app.App) (*teamstate.Repo, error) {
 	repo := teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, fmt.Errorf("repo team-state non trouvé dans %s. Lance %s",
-			statePath, common.Bold.Render("oh team init"))
+			statePath, theme.Bold.Render("oh team init"))
 	}
 	return repo, nil
 }
 
-// writeTeamConfig updates hub.toml with team settings.
+// writeTeamConfig updates hub.toml with team settings (upsert via Viper).
+// Safe to call multiple times — updates existing [team] section or creates it.
 func writeTeamConfig(stateRepo, statePath, memberID string) error {
-	cfgPath := config.ConfigPath()
-	content, err := os.ReadFile(cfgPath)
-	if err != nil {
-		return fmt.Errorf("reading hub.toml: %w", err)
+	v := configViper()
+	v.Set("team.enabled", true)
+	v.Set("team.state_repo", stateRepo)
+	v.Set("team.state_path", statePath)
+	if memberID != "" {
+		v.Set("team.member_id", memberID)
 	}
-
-	// Append team section
-	teamSection := fmt.Sprintf(`
-[team]
-enabled = true
-state_repo = %q
-state_path = %q
-member_id = %q
-`, stateRepo, statePath, memberID)
-
-	newContent := string(content) + teamSection
-	return os.WriteFile(cfgPath, []byte(newContent), 0o600)
+	return v.WriteConfigAs(config.ConfigPath())
 }
 
 func eventIcon(eventType string) string {
 	switch eventType {
 	case teamstate.EventSessionComplete:
-		return common.SuccessStyle.Render(common.IconSuccess)
+		return theme.SuccessStyle.Render(theme.IconSuccess)
 	case teamstate.EventReviewReady:
-		return common.SuccessStyle.Render(common.IconInfo)
+		return theme.SuccessStyle.Render(theme.IconInfo)
 	case teamstate.EventAuditFinding:
-		return common.WarningStyle.Render(common.IconWarning)
+		return theme.WarningStyle.Render(theme.IconWarning)
 	case teamstate.EventClaimTaken:
-		return common.Subtitle.Render(common.IconArrow)
+		return theme.Subtitle.Render(theme.IconArrow)
 	case teamstate.EventClaimConflict:
-		return common.ErrorStyle.Render(common.IconWarning)
+		return theme.ErrorStyle.Render(theme.IconWarning)
 	case teamstate.EventClaimTransferred:
-		return common.Subtitle.Render(common.IconArrow)
+		return theme.Subtitle.Render(theme.IconArrow)
 	case teamstate.EventClaimReleased:
-		return common.Subtitle.Render(common.IconDot)
+		return theme.Subtitle.Render(theme.IconDot)
 	case teamstate.EventWikiProposal:
-		return common.SuccessStyle.Render(common.IconInfo)
+		return theme.SuccessStyle.Render(theme.IconInfo)
 	case teamstate.EventWikiAccepted:
-		return common.SuccessStyle.Render(common.IconSuccess)
+		return theme.SuccessStyle.Render(theme.IconSuccess)
 	default:
-		return common.Subtitle.Render(common.IconDot)
+		return theme.Subtitle.Render(theme.IconDot)
 	}
 }
 

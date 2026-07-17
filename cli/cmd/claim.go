@@ -10,7 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var claimCmd = &cobra.Command{
@@ -80,7 +80,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	memberID := a.Config.Team.MemberID
 	if memberID == "" {
 		return fmt.Errorf("member_id non configuré dans hub.toml. Lance %s",
-			common.Bold.Render("oh team init"))
+			theme.Bold.Render("oh team init"))
 	}
 
 	// Check max_ticket_wip policy before claiming
@@ -101,14 +101,14 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		if v.Name == "max_ticket_wip" && !v.Passed {
 			if v.Enforcement == teamstate.EnforcementRefuse {
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.ErrorStyle.Render(common.IconWarning), v.Message)
-				fmt.Fprintf(a.IO.Out, "  %s\n", common.Subtitle.Render(v.Details))
+					theme.ErrorStyle.Render(theme.IconWarning), v.Message)
+				fmt.Fprintf(a.IO.Out, "  %s\n", theme.Subtitle.Render(v.Details))
 				return fmt.Errorf("policy violation: %s", v.Name)
 			}
 			// Warn only
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.WarningStyle.Render(common.IconWarning), v.Message)
-			fmt.Fprintf(a.IO.Out, "  %s\n\n", common.Subtitle.Render(v.Details))
+				theme.WarningStyle.Render(theme.IconWarning), v.Message)
+			fmt.Fprintf(a.IO.Out, "  %s\n\n", theme.Subtitle.Render(v.Details))
 		}
 	}
 
@@ -137,9 +137,9 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s/%s est assigné à %s depuis %d jours sans activité.\n",
-				common.WarningStyle.Render(common.IconWarning),
+				theme.WarningStyle.Render(theme.IconWarning),
 				project, ticketID,
-				common.Bold.Render(existing.ClaimedBy),
+				theme.Bold.Render(existing.ClaimedBy),
 				daysSince)
 
 			// Propose generating a takeover brief
@@ -153,30 +153,30 @@ func runClaim(cmd *cobra.Command, args []string) error {
 				if briefErr == nil {
 					_ = repo.SaveBrief(ctx, brief)
 					fmt.Fprintf(a.IO.Out, "%s Brief de reprise généré.\n",
-						common.SuccessStyle.Render(common.IconSuccess))
+						theme.SuccessStyle.Render(theme.IconSuccess))
 				}
 				// Transfer the claim
 				_ = repo.TransferClaim(ctx, project, ticketID, memberID)
 				fmt.Fprintf(a.IO.Out, "%s %s/%s transféré de %s à %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
+					theme.SuccessStyle.Render(theme.IconSuccess),
 					project, ticketID, previousOwner, memberID)
 				return nil
 			}
 			// User declined brief but still wants to claim — do transfer
 			_ = repo.TransferClaim(ctx, project, ticketID, memberID)
 			fmt.Fprintf(a.IO.Out, "%s %s/%s transféré (sans brief).\n",
-				common.SuccessStyle.Render(common.IconSuccess), project, ticketID)
+				theme.SuccessStyle.Render(theme.IconSuccess), project, ticketID)
 			return nil
 		}
 
 		// Not stale — standard warning
 		fmt.Fprintf(a.IO.Out, "%s %s/%s est déjà pris par %s (depuis %s)\n",
-			common.WarningStyle.Render(common.IconWarning),
+			theme.WarningStyle.Render(theme.IconWarning),
 			project, ticketID,
-			common.Bold.Render(existing.ClaimedBy),
+			theme.Bold.Render(existing.ClaimedBy),
 			existing.ClaimedAt.Local().Format("02/01 15:04"))
 		fmt.Fprintf(a.IO.Out, "  Utilise %s pour transférer si nécessaire.\n",
-			common.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID))
+			theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID))
 		return nil
 	}
 	if err != nil {
@@ -184,7 +184,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s/%s réservé pour %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
+		theme.SuccessStyle.Render(theme.IconSuccess),
 		project, ticketID, memberID)
 
 	return nil
@@ -211,14 +211,14 @@ func runRelease(cmd *cobra.Command, args []string) error {
 	if err := repo.ReleaseClaim(ctx, project, ticketID); err != nil {
 		if err == teamstate.ErrClaimNotFound {
 			fmt.Fprintf(a.IO.Out, "%s %s/%s n'est pas réservé\n",
-				common.WarningStyle.Render(common.IconWarning), project, ticketID)
+				theme.WarningStyle.Render(theme.IconWarning), project, ticketID)
 			return nil
 		}
 		return fmt.Errorf("releasing claim: %w", err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s/%s libéré\n",
-		common.SuccessStyle.Render(common.IconSuccess), project, ticketID)
+		theme.SuccessStyle.Render(theme.IconSuccess), project, ticketID)
 	return nil
 }
 
@@ -251,33 +251,33 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 	if err := repo.TransferClaim(ctx, project, ticketID, to); err != nil {
 		if err == teamstate.ErrClaimNotFound {
 			fmt.Fprintf(a.IO.Out, "%s %s/%s n'est pas réservé\n",
-				common.WarningStyle.Render(common.IconWarning), project, ticketID)
+				theme.WarningStyle.Render(theme.IconWarning), project, ticketID)
 			return nil
 		}
 		return fmt.Errorf("transferring claim: %w", err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s/%s transféré à %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		project, ticketID, common.Bold.Render(to))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		project, ticketID, theme.Bold.Render(to))
 
 	// Generate takeover brief automatically
 	if previousOwner != "" {
 		fmt.Fprintf(a.IO.Out, "\n%s Génération du brief de reprise...\n",
-			common.Subtitle.Render(common.IconArrow))
+			theme.Subtitle.Render(theme.IconArrow))
 
 		brief, err := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, to, "transfer")
 		if err != nil {
 			fmt.Fprintf(a.IO.Out, "%s Impossible de générer le brief: %v\n",
-				common.WarningStyle.Render(common.IconWarning), err)
+				theme.WarningStyle.Render(theme.IconWarning), err)
 		} else {
 			if err := repo.SaveBrief(ctx, brief); err != nil {
 				fmt.Fprintf(a.IO.Out, "%s Impossible de sauvegarder le brief: %v\n",
-					common.WarningStyle.Render(common.IconWarning), err)
+					theme.WarningStyle.Render(theme.IconWarning), err)
 			} else {
 				fmt.Fprintf(a.IO.Out, "%s Brief de reprise généré. %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
-					common.Subtitle.Render("oh takeover-brief show "+ticketID))
+					theme.SuccessStyle.Render(theme.IconSuccess),
+					theme.Subtitle.Render("oh takeover-brief show "+ticketID))
 			}
 		}
 	}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/plugin"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 )
 
@@ -35,11 +35,11 @@ func pluginListCmd() *cobra.Command {
 
 			status := plugin.RTKStatus()
 
-			fmt.Fprintln(a.IO.Out, common.Bold.Render(i18n.T("cmd.plugin.title_plugins")))
-			icon := common.ErrorStyle.Render(common.IconError)
+			fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.plugin.title_plugins")))
+			icon := theme.ErrorStyle.Render(theme.IconError)
 			state := i18n.T("cmd.plugin.state_not_installed")
 			if status.Installed {
-				icon = common.SuccessStyle.Render(common.IconSuccess)
+				icon = theme.SuccessStyle.Render(theme.IconSuccess)
 				state = i18n.T("cmd.plugin.state_installed")
 			}
 			fmt.Fprintf(a.IO.Out, "  %s %s\n", icon, i18n.Tf("cmd.plugin.rtk_label", state))
@@ -48,7 +48,7 @@ func pluginListCmd() *cobra.Command {
 				fmt.Fprintf(a.IO.Out, "    %s\n", i18n.Tf("cmd.plugin.rtk_binary_version", status.BinaryVer))
 			} else {
 				fmt.Fprintf(a.IO.Out, "    %s\n",
-					common.WarningStyle.Render(i18n.T("cmd.plugin.rtk_binary_not_found")))
+					theme.WarningStyle.Render(i18n.T("cmd.plugin.rtk_binary_not_found")))
 			}
 
 			return nil
@@ -71,15 +71,15 @@ func pluginInstallCmd() *cobra.Command {
 			switch name {
 			case "rtk":
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.plugin.installing"))
+					theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.plugin.installing"))
 
 				if err := plugin.RTKInstall(); err != nil {
 					return err
 				}
 
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.plugin.installed"))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.restart_hint")))
+					theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.plugin.installed"))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.plugin.restart_hint")))
 				return nil
 
 			default:
@@ -104,7 +104,7 @@ func pluginRemoveCmd() *cobra.Command {
 				var confirm bool
 				_ = floating.Run(floating.Config{
 					Title: i18n.T("cmd.plugin.remove.short"),
-					Form: common.NewForm(huh.NewGroup(huh.NewConfirm().
+					Form: theme.NewForm(huh.NewGroup(huh.NewConfirm().
 						Title(i18n.Tf("cmd.plugin.remove.confirm", name)).
 						Value(&confirm))),
 				})
@@ -119,7 +119,7 @@ func pluginRemoveCmd() *cobra.Command {
 					return err
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.plugin.removed"))
+					theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.plugin.removed"))
 				return nil
 
 			default:
@@ -141,29 +141,29 @@ func pluginStatusCmd() *cobra.Command {
 
 			status := plugin.RTKStatus()
 
-			fmt.Fprintln(a.IO.Out, common.Title.Render("  Plugin RTK  "))
+			fmt.Fprintln(a.IO.Out, theme.Title.Render("  Plugin RTK  "))
 			fmt.Fprintln(a.IO.Out)
 
 			if status.Installed {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.plugin.status_installed", status.Path))
+					theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.plugin.status_installed", status.Path))
 			} else {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					common.ErrorStyle.Render(common.IconError), i18n.T("cmd.plugin.status_not_installed"))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
+					theme.ErrorStyle.Render(theme.IconError), i18n.T("cmd.plugin.status_not_installed"))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
 			}
 
 			if status.BinaryFound {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.plugin.status_binary_version", status.BinaryVer))
+					theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.plugin.status_binary_version", status.BinaryVer))
 				if !isVersionAtLeast(status.BinaryVer, plugin.RTKMinVersion) {
 					fmt.Fprintf(a.IO.Out, "  %s %s\n",
-						common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.plugin.status_version_old", plugin.RTKMinVersion))
+						theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.plugin.status_version_old", plugin.RTKMinVersion))
 				}
 			} else {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					common.ErrorStyle.Render(common.IconError), i18n.T("cmd.plugin.status_binary_not_found"))
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
+					theme.ErrorStyle.Render(theme.IconError), i18n.T("cmd.plugin.status_binary_not_found"))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.plugin.status_install_hint")))
 			}
 
 			return nil

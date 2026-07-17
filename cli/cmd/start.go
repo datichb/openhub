@@ -27,7 +27,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -78,7 +78,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
 		if !compat.Compatible {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.WarningStyle.Render(common.IconWarning),
+				theme.WarningStyle.Render(theme.IconWarning),
 				compat.Warning)
 		}
 	}
@@ -87,7 +87,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
+			theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
 		return opencode.Exec(opencode.StartOpts{
 			ResumeSessionID: resumeID,
 		})
@@ -209,10 +209,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 		userPrompt = prompt.BuildOnboardPrompt(project, hubDir, refreshFlag || prompt.WikiExists(launchPath))
 		if refreshFlag {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.onboard_refresh"))
+				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.onboard_refresh"))
 		} else {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.onboard_launching"))
+				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.onboard_launching"))
 		}
 	}
 
@@ -257,16 +257,16 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// Provider status line
 	providerStatus := provider
 	if bearerToken != "" {
-		providerStatus = common.SuccessStyle.Render(common.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
+		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
 	}
 
 	// --- Block 1: Project ---
-	gutter := common.Subtitle.Render("│")
-	header := common.Title.Render("◆")
-	footer := common.Subtitle.Render("└")
+	gutter := theme.Subtitle.Render("│")
+	header := theme.Title.Render("◆")
+	footer := theme.Subtitle.Render("└")
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, common.Bold.Render(project.Name))
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(project.Name))
 	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_path"), launchPath)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_branch"), branch)
@@ -275,7 +275,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Block 2: Configuration ---
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, common.Bold.Render(i18n.T("cmd.start.section_config")))
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(i18n.T("cmd.start.section_config")))
 	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), provider)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
@@ -286,14 +286,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if agent != "" {
 		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
 	}
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, common.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, theme.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Confirmation ---
 	skipConfirm, _ := cmd.Flags().GetBool("yes")
 	if !skipConfirm {
 		var confirm bool
-		err := common.NewForm(
+		err := theme.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(i18n.T("cmd.start.confirm_launch")).
@@ -303,14 +303,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 			),
 		).Run()
 		if err != nil || !confirm {
-			fmt.Fprintf(a.IO.Out, "%s %s\n", common.Subtitle.Render(common.IconArrow), i18n.T("cmd.start.cancelled"))
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.Subtitle.Render(theme.IconArrow), i18n.T("cmd.start.cancelled"))
 			return err
 		}
 	}
 
 	// --- Launch ---
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.launching"))
+		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.launching"))
 
 	// Create session in oh DB
 	session := &domain.Session{
@@ -368,7 +368,7 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 
 	// Prompt for branch name if not provided
 	if branch == "" {
-		form := common.NewForm(
+		form := theme.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title(i18n.T("cmd.worktree.branch_name")).
@@ -394,16 +394,16 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 		removed, _ := worktree.CleanupMerged(project.Path, baseBranch)
 		if len(removed) > 0 {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.start.worktree_cleanup", len(removed)))
+				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.start.worktree_cleanup", len(removed)))
 			for _, b := range removed {
-				fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), b)
+				fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), b)
 			}
 		}
 	}
 
 	// Create or reuse worktree
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.Tf("cmd.start.worktree_prep", common.Bold.Render(branch)))
+		theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.worktree_prep", theme.Bold.Render(branch)))
 
 	wtPath, err := worktree.ResolveOrCreate(project.Path, branch)
 	if err != nil {
@@ -417,12 +417,12 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 	if hubDir == "" {
 		// Not a fatal error — worktree can work without hub deploy
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
+			theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
 		return wtPath, nil
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.worktree_deploy"))
+		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.worktree_deploy"))
 
 	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig)
 
@@ -435,10 +435,10 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 	for _, r := range results {
 		if r.Success {
 			fmt.Fprintf(a.IO.Out, "    %s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess), r.Name)
+				theme.SuccessStyle.Render(theme.IconSuccess), r.Name)
 		} else {
 			fmt.Fprintf(a.IO.Out, "    %s %s: %s\n",
-				common.ErrorStyle.Render(common.IconError), r.Name, r.Message)
+				theme.ErrorStyle.Render(theme.IconError), r.Name, r.Message)
 		}
 	}
 	fmt.Fprintln(a.IO.Out)
@@ -455,10 +455,10 @@ func ensureOpencode(a *app.App) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.opencode_not_found"))
+		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.opencode_not_found"))
 
 	var choice string
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.start.install_choice")).
@@ -477,7 +477,7 @@ func ensureOpencode(a *app.App) error {
 	switch choice {
 	case "brew":
 		fmt.Fprintf(a.IO.Out, "\n  %s\n\n",
-			i18n.Tf("cmd.start.install_run_brew", common.Bold.Render("brew install anomalyco/tap/opencode")))
+			i18n.Tf("cmd.start.install_run_brew", theme.Bold.Render("brew install anomalyco/tap/opencode")))
 		return fmt.Errorf("%s", i18n.T("cmd.start.install_required"))
 	case "download":
 		return downloadOpencode(a)
@@ -496,7 +496,7 @@ func downloadOpencode(a *app.App) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.downloading"))
+		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.downloading"))
 
 	var lastPercent int
 	_, err := opencode.Download(version, installDir, func(downloaded, total int64) {
@@ -515,7 +515,7 @@ func downloadOpencode(a *app.App) error {
 
 	fmt.Fprintln(a.IO.Out) // newline after progress
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.start.installed"))
+		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.start.installed"))
 	return nil
 }
 
@@ -574,7 +574,7 @@ func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.
 		options[i] = huh.NewOption(label, p.ID)
 	}
 
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Choisir un projet").
@@ -647,10 +647,10 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 			})
 			if claimErr == teamstate.ErrClaimExists && existing != nil {
 				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
-					common.WarningStyle.Render(common.IconWarning), ticketFlag, existing.ClaimedBy)
+					theme.WarningStyle.Render(theme.IconWarning), ticketFlag, existing.ClaimedBy)
 			} else if claimErr == nil {
 				fmt.Fprintf(a.IO.Out, "  %s Claim %s/%s\n",
-					common.SuccessStyle.Render(common.IconSuccess), project.ID, ticketFlag)
+					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketFlag)
 			}
 		}
 
@@ -660,7 +660,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		// Build prompt with the ticket reference
 		directPrompt := fmt.Sprintf("Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.", ticketFlag)
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_launching"))
+			theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
 		return "orchestrator-dev", directPrompt, nil
 	}
 
@@ -754,7 +754,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	}
 
 	var selectedIdx int
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[int]().
 				Title(i18n.T("cmd.start.dev_picker_title")).
@@ -777,12 +777,12 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		}
 		tickets = children
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.start.dev_selected_epic", selected.ticket.Title, len(tickets)))
 	} else {
 		tickets = []beads.Ticket{selected.ticket}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.start.dev_selected_ticket", selected.ticket.ID, selected.ticket.Title))
 	}
 
@@ -801,17 +801,17 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		if claimErr == teamstate.ErrClaimExists && existing != nil {
 			if existing.ClaimedBy != a.Config.Team.MemberID {
 				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
-					common.WarningStyle.Render(common.IconWarning), claimTicketID, existing.ClaimedBy)
+					theme.WarningStyle.Render(theme.IconWarning), claimTicketID, existing.ClaimedBy)
 			}
 		} else if claimErr == nil {
 			fmt.Fprintf(a.IO.Out, "  %s Claim %s\n",
-				common.SuccessStyle.Render(common.IconSuccess), claimTicketID)
+				theme.SuccessStyle.Render(theme.IconSuccess), claimTicketID)
 		}
 	}
 
 	// 8. Build prompt
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconArrow), i18n.T("cmd.start.dev_launching"))
+		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
 
 	devPrompt = prompt.BuildDevPrompt(tickets)
 	return "orchestrator-dev", devPrompt, nil
@@ -859,14 +859,14 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "%s Mode parallèle : %d tickets, max %d sessions\n",
-		common.Title.Render("  parallel  "),
+		theme.Title.Render("  parallel  "),
 		len(tickets), cfg.MaxSessions)
 	fmt.Fprintln(a.IO.Out)
 
 	for _, t := range tickets {
-		icon := common.IconDot
+		icon := theme.IconDot
 		if t == priority {
-			icon = common.IconSuccess
+			icon = theme.IconSuccess
 		}
 		fmt.Fprintf(a.IO.Out, "  %s %s", icon, t)
 		if t == priority {
@@ -895,13 +895,13 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 
 	// Run setup phases (worktrees + servers + sessions)
 	fmt.Fprintf(a.IO.Out, "%s Création des worktrees et lancement des sessions...\n",
-		common.Subtitle.Render(common.IconArrow))
+		theme.Subtitle.Render(theme.IconArrow))
 
 	// Phase 1-3: Setup (worktrees, servers, sessions)
 	if err := coord.Run(ctx); err != nil {
 		if errors.Is(err, context.Canceled) {
 			fmt.Fprintf(a.IO.Out, "\n%s Sessions annulées.\n",
-				common.WarningStyle.Render(common.IconWarning))
+				theme.WarningStyle.Render(theme.IconWarning))
 			return nil
 		}
 		// If setup failed but some sessions might be running, try TUI anyway
@@ -914,7 +914,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	// Launch TUI monitor if sessions are running
 	if coord.State().RunningCount() > 0 || coord.State().AllCompleted() {
 		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur parallèle...\n\n",
-			common.Subtitle.Render(common.IconArrow))
+			theme.Subtitle.Render(theme.IconArrow))
 
 		// TODO: v2 parallel view does not support attach functionality yet.
 		// The old parallelTUI.AttachToServer(port) call has been removed.
@@ -935,20 +935,20 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		if err := views.RunParallel(parallelCfg); err != nil {
 			// TUI error is non-fatal, continue to results
 			fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
-				common.WarningStyle.Render(common.IconWarning), err)
+				theme.WarningStyle.Render(theme.IconWarning), err)
 		}
 	}
 
 	// Print results
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Résultats  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Résultats  "))
 	fmt.Fprintln(a.IO.Out)
 
 	snap := coord.State().Snapshot()
 	for _, sess := range snap.Sessions {
-		icon := common.SuccessStyle.Render(common.IconSuccess)
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
 		if sess.Status == parallel.StatusFailed {
-			icon = common.ErrorStyle.Render(common.IconError)
+			icon = theme.ErrorStyle.Render(theme.IconError)
 		}
 		duration := ""
 		if !sess.StartedAt.IsZero() && !sess.CompletedAt.IsZero() {
@@ -956,7 +956,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		}
 		fmt.Fprintf(a.IO.Out, "  %s %s — %s%s\n", icon, sess.TicketID, sess.Status, duration)
 		if sess.Error != "" {
-			fmt.Fprintf(a.IO.Out, "    %s\n", common.ErrorStyle.Render(sess.Error))
+			fmt.Fprintf(a.IO.Out, "    %s\n", theme.ErrorStyle.Render(sess.Error))
 		}
 		if len(sess.FilesModified) > 0 {
 			fmt.Fprintf(a.IO.Out, "    fichiers: %d modifiés\n", len(sess.FilesModified))
@@ -966,7 +966,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	if len(snap.Conflicts) > 0 {
 		fmt.Fprintln(a.IO.Out)
 		fmt.Fprintf(a.IO.Out, "  %s %d conflit(s) potentiel(s) détecté(s):\n",
-			common.WarningStyle.Render(common.IconWarning), len(snap.Conflicts))
+			theme.WarningStyle.Render(theme.IconWarning), len(snap.Conflicts))
 		for _, c := range snap.Conflicts {
 			fmt.Fprintf(a.IO.Out, "    %s — %s [%s]\n", c.File, strings.Join(c.Sessions, " ↔ "), c.Severity)
 		}
@@ -982,7 +982,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 
 	if completedCount > 0 {
 		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, common.Title.Render("  Merge  "))
+		fmt.Fprintln(a.IO.Out, theme.Title.Render("  Merge  "))
 
 		merger := parallel.NewMerger(coord.State(), project.Path, cfg)
 		merger.SetOutput(a.IO.Out)
@@ -995,17 +995,17 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		results, err := merger.ProposeMerge(isBeads)
 		if err != nil {
 			fmt.Fprintf(a.IO.Out, "  %s Merge error: %v\n",
-				common.WarningStyle.Render(common.IconWarning), err)
+				theme.WarningStyle.Render(theme.IconWarning), err)
 		}
 
 		fmt.Fprintln(a.IO.Out)
 		for _, r := range results {
-			icon := common.SuccessStyle.Render(common.IconSuccess)
+			icon := theme.SuccessStyle.Render(theme.IconSuccess)
 			if !r.Success {
-				icon = common.ErrorStyle.Render(common.IconError)
+				icon = theme.ErrorStyle.Render(theme.IconError)
 			}
 			if r.Conflict {
-				icon = common.WarningStyle.Render(common.IconWarning)
+				icon = theme.WarningStyle.Render(theme.IconWarning)
 			}
 			fmt.Fprintf(a.IO.Out, "  %s %s: %s\n", icon, r.TicketID, r.Message)
 		}

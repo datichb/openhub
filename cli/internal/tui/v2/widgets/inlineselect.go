@@ -6,7 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/theme"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

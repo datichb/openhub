@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -70,9 +70,9 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 
 	if len(policies) == 0 {
 		fmt.Fprintf(a.IO.Out, "\n%s Aucune policy configurée.\n",
-			common.Subtitle.Render(common.IconInfo))
+			theme.Subtitle.Render(theme.IconInfo))
 		fmt.Fprintf(a.IO.Out, "  Crée %s dans le repo team-state.\n\n",
-			common.Bold.Render("policies.toml"))
+			theme.Bold.Render("policies.toml"))
 		return nil
 	}
 
@@ -81,20 +81,20 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 	if project != "" {
 		title = fmt.Sprintf("  Team Policies (%s)  ", project)
 	}
-	fmt.Fprintln(a.IO.Out, common.Title.Render(title))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(title))
 	fmt.Fprintln(a.IO.Out)
 
 	for _, p := range policies {
-		icon := common.SuccessStyle.Render(common.IconSuccess)
-		enfStr := common.Subtitle.Render("warn")
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		enfStr := theme.Subtitle.Render("warn")
 		if p.Enforcement == teamstate.EnforcementRefuse {
-			enfStr = common.ErrorStyle.Render("refuse")
+			enfStr = theme.ErrorStyle.Render("refuse")
 		}
 
 		typeStr := string(p.Type)
 		fmt.Fprintf(a.IO.Out, "  %s %s  [%s] [%s]\n",
 			icon,
-			common.Bold.Render(p.Name),
+			theme.Bold.Render(p.Name),
 			typeStr,
 			enfStr)
 
@@ -170,24 +170,24 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if len(violations) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Toutes les policies sont respectées.\n\n",
-			common.SuccessStyle.Render(common.IconSuccess))
+			theme.SuccessStyle.Render(theme.IconSuccess))
 		return nil
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  Policy Violations  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Policy Violations  "))
 	fmt.Fprintln(a.IO.Out)
 
 	for _, v := range violations {
-		icon := common.WarningStyle.Render(common.IconWarning)
+		icon := theme.WarningStyle.Render(theme.IconWarning)
 		if v.Enforcement == teamstate.EnforcementRefuse {
-			icon = common.ErrorStyle.Render(common.IconWarning)
+			icon = theme.ErrorStyle.Render(theme.IconWarning)
 		}
-		fmt.Fprintf(a.IO.Out, "  %s %s [%s]\n", icon, common.Bold.Render(v.Name), v.Enforcement)
+		fmt.Fprintf(a.IO.Out, "  %s %s [%s]\n", icon, theme.Bold.Render(v.Name), v.Enforcement)
 		if v.Message != "" {
 			fmt.Fprintf(a.IO.Out, "    %s\n", v.Message)
 		}
 		if v.Details != "" {
-			fmt.Fprintf(a.IO.Out, "    %s\n", common.Subtitle.Render(v.Details))
+			fmt.Fprintf(a.IO.Out, "    %s\n", theme.Subtitle.Render(v.Details))
 		}
 		fmt.Fprintln(a.IO.Out)
 	}
@@ -370,7 +370,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "\n%s Policy %q ajoutée avec succès.\n\n",
-		common.SuccessStyle.Render(common.IconSuccess),
+		theme.SuccessStyle.Render(theme.IconSuccess),
 		name)
 	return nil
 }

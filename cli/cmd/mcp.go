@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/gitlab"
 	"github.com/datichb/openhub/cli/internal/mcp/gslides"
 	"github.com/datichb/openhub/cli/internal/mcp/team"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -125,8 +125,8 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.mcp.enable.success", common.Bold.Render(serviceName)))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.mcp.enable.success", theme.Bold.Render(serviceName)))
 		return nil
 	}
 
@@ -143,11 +143,11 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 	if !hasToken && serviceName != "team" {
 		// Prompt user: inherit from hub or configure?
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n\n",
-			common.WarningStyle.Render(common.IconWarning),
+			theme.WarningStyle.Render(theme.IconWarning),
 			i18n.Tf("cmd.mcp.enable.no_token_prompt", serviceName))
 
 		var choice string
-		form := common.NewForm(
+		form := theme.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Options(
@@ -179,8 +179,8 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.mcp.enable.success_project", common.Bold.Render(serviceName), project.Name))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.mcp.enable.success_project", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -220,8 +220,8 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.mcp.disable.success", common.Bold.Render(serviceName)))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.mcp.disable.success", theme.Bold.Render(serviceName)))
 		return nil
 	}
 
@@ -244,8 +244,8 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.mcp.disable.success_project", common.Bold.Render(serviceName), project.Name))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.mcp.disable.success_project", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -290,8 +290,8 @@ func runMCPReset(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.mcp.reset.success", common.Bold.Render(serviceName), project.Name))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.mcp.reset.success", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -322,17 +322,17 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s (%s)\n\n",
-			common.Title.Render("oh mcp setup"),
+			theme.Title.Render("oh mcp setup"),
 			i18n.T("cmd.service.project_scope"), project.Name)
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n\n",
-			common.Title.Render("oh mcp setup"),
+			theme.Title.Render("oh mcp setup"),
 			i18n.T("cmd.mcp.setup.short"))
 	}
 
 	// Select service
 	var serviceName string
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.service.select")).
@@ -388,7 +388,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 				// Store token
 				if token == "" && envHint != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-						common.WarningStyle.Render(common.IconWarning),
+						theme.WarningStyle.Render(theme.IconWarning),
 						i18n.Tf("cmd.service.token_empty_warning", envHint))
 				} else if token != "" && a.Secrets != nil {
 					keyName := serviceName + "-token"
@@ -511,12 +511,12 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	// Print success message
 	if project != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.service.project_configured", common.Bold.Render(serviceName), project.Name))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.project_configured", theme.Bold.Render(serviceName), project.Name))
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.service.enabled", common.Bold.Render(serviceName)))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.enabled", theme.Bold.Render(serviceName)))
 	}
 	return nil
 }
@@ -550,7 +550,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s Services MCP",
-		common.Title.Render("oh mcp status"))
+		theme.Title.Render("oh mcp status"))
 	if project != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), " — %s", project.Name)
 	}
@@ -596,9 +596,9 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 		}
 
 		// Status display
-		status := common.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
+		status := theme.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
 		if effectiveEnabled {
-			status = common.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
+			status = theme.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
 		}
 
 		// Token display
@@ -614,7 +614,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 			if t, _ := a.Secrets.Get(ctx, tokenKey); t != "" {
 				tokenStatus = "keychain"
 			} else {
-				tokenStatus = common.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
+				tokenStatus = theme.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
 			}
 		case svc.name == "team":
 			tokenStatus = "—"
@@ -626,7 +626,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 	w.Flush()
 	fmt.Fprintln(cmd.OutOrStdout())
 	fmt.Fprintf(cmd.OutOrStdout(), "  %s\n",
-		i18n.Tf("cmd.service.setup_hint", common.Bold.Render("oh mcp setup")))
+		i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh mcp setup")))
 	return nil
 }
 
@@ -731,11 +731,11 @@ func mcpListCmd() *cobra.Command {
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, i18n.T("cmd.mcp.list.header"))
 			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"figma", i18n.T("cmd.mcp.list.figma_desc"), common.Subtitle.Render("oh mcp serve figma"))
+				"figma", i18n.T("cmd.mcp.list.figma_desc"), theme.Subtitle.Render("oh mcp serve figma"))
 			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"gitlab", i18n.T("cmd.mcp.list.gitlab_desc"), common.Subtitle.Render("oh mcp serve gitlab"))
+				"gitlab", i18n.T("cmd.mcp.list.gitlab_desc"), theme.Subtitle.Render("oh mcp serve gitlab"))
 			fmt.Fprintf(w, "%s\t%s\t%s\n",
-				"gslides", i18n.T("cmd.mcp.list.gslides_desc"), common.Subtitle.Render("oh mcp serve gslides"))
+				"gslides", i18n.T("cmd.mcp.list.gslides_desc"), theme.Subtitle.Render("oh mcp serve gslides"))
 			w.Flush()
 			return nil
 		},

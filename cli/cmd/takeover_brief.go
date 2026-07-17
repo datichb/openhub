@@ -8,7 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var takeoverBriefCmd = &cobra.Command{
@@ -75,7 +75,7 @@ func runTakeoverBriefShow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		if err == teamstate.ErrBriefNotFound {
 			fmt.Fprintf(a.IO.Out, "\n%s Aucun brief trouvé pour %s/%s\n\n",
-				common.Subtitle.Render(common.IconInfo), project, ticketID)
+				theme.Subtitle.Render(theme.IconInfo), project, ticketID)
 			return nil
 		}
 		return fmt.Errorf("reading brief: %w", err)
@@ -111,18 +111,18 @@ func runTakeoverBriefList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if len(metas) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun brief de reprise pour %s\n\n",
-			common.Subtitle.Render(common.IconInfo), project)
+			theme.Subtitle.Render(theme.IconInfo), project)
 		return nil
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render(fmt.Sprintf("  Takeover Briefs — %s  ", project)))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Takeover Briefs — %s  ", project)))
 	fmt.Fprintln(a.IO.Out)
 
 	for _, m := range metas {
-		icon := common.Subtitle.Render(common.IconArrow)
+		icon := theme.Subtitle.Render(theme.IconArrow)
 		fmt.Fprintf(a.IO.Out, "  %s %s  %s → %s  (%s, %s)\n",
 			icon,
-			common.Bold.Render(m.TicketID),
+			theme.Bold.Render(m.TicketID),
 			m.TransferredFrom,
 			m.TransferredTo,
 			m.Reason,
@@ -166,7 +166,7 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "\n%s Enrichissement du brief via IA...\n",
-		common.Subtitle.Render(common.IconArrow))
+		theme.Subtitle.Render(theme.IconArrow))
 
 	prompt := fmt.Sprintf(`Voici un brief de reprise de ticket. Enrichis-le en :
 1. Lisant les fichiers mentionnés pour comprendre l'état du code
@@ -192,7 +192,7 @@ Produis un Markdown structuré complet avec les sections :
 	})
 	if err != nil {
 		fmt.Fprintf(a.IO.Out, "%s L'enrichissement a échoué: %v\n",
-			common.WarningStyle.Render(common.IconWarning), err)
+			theme.WarningStyle.Render(theme.IconWarning), err)
 		return nil
 	}
 
@@ -224,8 +224,8 @@ Produis un Markdown structuré complet avec les sections :
 	_ = repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
 
 	fmt.Fprintf(a.IO.Out, "%s Brief enrichi sauvegardé. %s\n\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		common.Subtitle.Render("oh takeover-brief show "+ticketID))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Subtitle.Render("oh takeover-brief show "+ticketID))
 	return nil
 }
 

@@ -3,12 +3,13 @@ package views
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
-	"github.com/datichb/openhub/cli/internal/tui/v2/theme"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -30,7 +31,7 @@ type WizardStep struct {
 	// Form builds the tview form for this step.
 	// It receives the app and an onDone callback. The step MUST call onDone()
 	// when the user confirms (typically from a button callback).
-	// Esc triggers skip (handled by the wizard, not the step).
+	// Esc triggers skip (double-press required; blocked if Required is true).
 	// Return nil to skip the form (processing-only step).
 	// Mutually exclusive with CustomView.
 	Form func(app *tview.Application, onDone func()) *tview.Form
@@ -60,6 +61,10 @@ type WizardStep struct {
 	// SkipIf is evaluated dynamically just before rendering the step.
 	// If non-nil and returns true, the step is skipped automatically.
 	SkipIf func() bool
+
+	// Required prevents the user from skipping this step via Escape.
+	// The user must either complete the form or quit the wizard (Ctrl+C).
+	Required bool
 }
 
 // WizardConfig configures the wizard.
@@ -101,6 +106,16 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 	var currentStep int
 	var spinner *widgets.Spinner
+
+	// Double-Esc state: first Esc shows confirmation, second Esc confirms skip
+	var escPending bool
+	var escTimer *time.Timer
+	// Compute the full original hints string (same logic as layout.Build)
+	originalHints := cfg.Layout.StatusHints
+	if originalHints != "" {
+		originalHints += " · "
+	}
+	originalHints += "ctrl+n menu · ctrl+c quit"
 
 	// Accumulated info fields from completed steps
 	type stepInfoEntry struct {
@@ -166,7 +181,12 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 		// Current and remaining steps
 		for i := currentStep; i < len(cfg.Steps); i++ {
-			if cfg.Steps[i].Skip || steps[i].Status == widgets.StepDone || steps[i].Status == widgets.StepSkipped {
+			if cfg.Steps[i].Skip || steps[i].Status == widgets.StepDone {
+				continue
+			}
+			if steps[i].Status == widgets.StepSkipped {
+				b.WriteString(fmt.Sprintf("  %s%s %s (skipped)[-]\n",
+					widgets.ColorTag(theme.FgMuted), theme.IconSkipped, cfg.Steps[i].Label))
 				continue
 			}
 			icon := theme.IconPending
@@ -290,6 +310,14 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		// Clear form container
 		formContainer.Clear()
 
+		// Reset double-Esc state when switching steps
+		escPending = false
+		if escTimer != nil {
+			escTimer.Stop()
+			escTimer = nil
+		}
+		shell.StatusBar.SetHints(originalHints)
+
 		// ── CustomView path ──
 		if step.CustomView != nil {
 			onDone := func() {
@@ -323,16 +351,46 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetFieldTextColor(theme.FgPrimary)
 				form.SetLabelColor(theme.FgPrimary)
 				form.SetButtonBackgroundColor(theme.Accent)
-				form.SetButtonTextColor(theme.BgApp)
+				form.SetButtonTextColor(theme.BgPanel)
 				form.SetBorder(false)
 
-				// Esc = skip this step (no OnDone)
-				form.SetCancelFunc(func() {
-					skipCurrent()
-					if !result.Completed {
-						doRenderStep(currentStep)
-					}
-				})
+			// Esc handling: Required steps block skip; optional steps use double-Esc
+			form.SetCancelFunc(func() {
+				// Required steps cannot be skipped
+				if step.Required {
+					shell.StatusBar.SetHints("This step is required — press ctrl+c to quit")
+					time.AfterFunc(2*time.Second, func() {
+						shell.App.QueueUpdateDraw(func() {
+							shell.StatusBar.SetHints(originalHints)
+						})
+					})
+					return
+				}
+
+				if !escPending {
+					// First Esc: show confirmation hint
+					escPending = true
+					shell.StatusBar.SetHints("Press Esc again to skip this step")
+					escTimer = time.AfterFunc(2*time.Second, func() {
+						shell.App.QueueUpdateDraw(func() {
+							escPending = false
+							shell.StatusBar.SetHints(originalHints)
+						})
+					})
+					return
+				}
+
+				// Second Esc within 2s: confirm skip
+				escPending = false
+				if escTimer != nil {
+					escTimer.Stop()
+				}
+				shell.StatusBar.SetHints(originalHints)
+				skipCurrent()
+				if !result.Completed {
+					doRenderStep(currentStep)
+				}
+			})
 
 				// Ctrl+S = submit (same as pressing the button)
 				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

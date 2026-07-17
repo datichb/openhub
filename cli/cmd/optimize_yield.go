@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var optimizeCmd = &cobra.Command{
@@ -17,7 +17,7 @@ var optimizeCmd = &cobra.Command{
 		a := MustApp()
 		ctx := cmd.Context()
 
-		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh optimize  "))
+		fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh optimize  "))
 		fmt.Fprintln(a.IO.Out)
 
 		// Analyze sessions for optimization opportunities
@@ -27,7 +27,7 @@ var optimizeCmd = &cobra.Command{
 		}
 
 		if len(sessions) == 0 {
-			fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.optimize.no_data")))
+			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.optimize.no_data")))
 			return nil
 		}
 
@@ -37,23 +37,23 @@ var optimizeCmd = &cobra.Command{
 			totalOut += s.TokensOut
 		}
 
-		fmt.Fprintln(a.IO.Out, common.Bold.Render("  "+i18n.T("cmd.optimize.analysis_title")))
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", common.IconInfo, i18n.Tf("cmd.optimize.sessions_analyzed", len(sessions)))
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", common.IconInfo, i18n.Tf("cmd.optimize.tokens_consumed", formatTokenCount(totalIn+totalOut)))
+		fmt.Fprintln(a.IO.Out, theme.Bold.Render("  "+i18n.T("cmd.optimize.analysis_title")))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.IconInfo, i18n.Tf("cmd.optimize.sessions_analyzed", len(sessions)))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.IconInfo, i18n.Tf("cmd.optimize.tokens_consumed", formatTokenCount(totalIn+totalOut)))
 		fmt.Fprintln(a.IO.Out)
 
 		// Suggestions
-		fmt.Fprintln(a.IO.Out, common.Bold.Render("  "+i18n.T("cmd.optimize.suggestions_title")))
+		fmt.Fprintln(a.IO.Out, theme.Bold.Render("  "+i18n.T("cmd.optimize.suggestions_title")))
 		if totalIn > 100_000 {
 			fmt.Fprintf(a.IO.Out, "  %s %s\n",
-				common.WarningStyle.Render(common.IconArrow), i18n.T("cmd.optimize.suggest_rtk"))
+				theme.WarningStyle.Render(theme.IconArrow), i18n.T("cmd.optimize.suggest_rtk"))
 		}
 		if len(sessions) > 10 && totalOut/int64(len(sessions)) > 5000 {
 			fmt.Fprintf(a.IO.Out, "  %s %s\n",
-				common.WarningStyle.Render(common.IconArrow), i18n.T("cmd.optimize.suggest_concise"))
+				theme.WarningStyle.Render(theme.IconArrow), i18n.T("cmd.optimize.suggest_concise"))
 		}
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.Subtitle.Render(common.IconDot), i18n.T("cmd.optimize.suggest_compaction"))
+			theme.Subtitle.Render(theme.IconDot), i18n.T("cmd.optimize.suggest_compaction"))
 
 		return nil
 	},
@@ -67,7 +67,7 @@ var yieldCmd = &cobra.Command{
 		a := MustApp()
 		ctx := cmd.Context()
 
-		fmt.Fprintln(a.IO.Out, common.Title.Render("  oh yield — Sessions ↔ Commits  "))
+		fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh yield — Sessions ↔ Commits  "))
 		fmt.Fprintln(a.IO.Out)
 
 		sessions, err := a.Sessions.List(ctx, "")
@@ -76,7 +76,7 @@ var yieldCmd = &cobra.Command{
 		}
 
 		if len(sessions) == 0 {
-			fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.yield.no_sessions")))
+			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.yield.no_sessions")))
 			return nil
 		}
 
@@ -91,7 +91,7 @@ var yieldCmd = &cobra.Command{
 		fmt.Fprintf(a.IO.Out, "  %s\n",
 			i18n.Tf("cmd.yield.estimated", estimateYield(completed)))
 		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, common.Subtitle.Render("  "+i18n.T("cmd.yield.more_data")))
+		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.yield.more_data")))
 
 		return nil
 	},

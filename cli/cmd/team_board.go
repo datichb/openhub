@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -40,8 +40,8 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 
 	if len(tickets) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun membre dans l'équipe. Lance %s\n",
-			common.Subtitle.Render(common.IconInfo),
-			common.Bold.Render("oh team init"))
+			theme.Subtitle.Render(theme.IconInfo),
+			theme.Bold.Render("oh team init"))
 		return nil
 	}
 

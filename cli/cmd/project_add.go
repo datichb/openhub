@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -198,11 +198,11 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				cmd := exec.Command("bd", "-C", absPath, "init", "--prefix", id, "--skip-hooks", "--skip-agents", "--setup-exclude")
 				if output, err := cmd.CombinedOutput(); err != nil {
 					fmt.Fprintf(a.IO.Out, "  %s bd init: %s\n",
-						common.WarningStyle.Render(common.IconWarning),
+						theme.WarningStyle.Render(theme.IconWarning),
 						strings.TrimSpace(string(output)))
 				} else {
 					fmt.Fprintf(a.IO.Out, "  %s %s\n",
-						common.SuccessStyle.Render(common.IconSuccess),
+						theme.SuccessStyle.Render(theme.IconSuccess),
 						i18n.T("form.project.beads_initialized"))
 				}
 				// Register default labels
@@ -267,11 +267,11 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					keyName := provider + "-token-project"
 					if err := a.Secrets.Set(context.Background(), keyName, apiKey); err != nil {
 						fmt.Fprintf(a.IO.Out, "  %s %s\n",
-							common.WarningStyle.Render(common.IconWarning),
+							theme.WarningStyle.Render(theme.IconWarning),
 							i18n.Tf("form.project.api_key_warning", err))
 					} else {
 						fmt.Fprintf(a.IO.Out, "  %s %s\n",
-							common.SuccessStyle.Render(common.IconSuccess),
+							theme.SuccessStyle.Render(theme.IconSuccess),
 							i18n.T("form.project.api_key_stored"))
 					}
 				}
@@ -414,29 +414,29 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
 
 	// ── Execute deploy if requested ──
 	if doDeploy {
 		hubDir := findHubDir()
 		if hubDir == "" {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
+				theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
 		} else {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconArrow), i18n.T("form.project.deploying"))
+				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("form.project.deploying"))
 
 			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil, nil)
 			results, err := deploy.Execute(plan)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
-					common.ErrorStyle.Render(common.IconError), err.Error())
+					theme.ErrorStyle.Render(theme.IconError), err.Error())
 			} else {
 				for _, r := range results {
-					icon := common.SuccessStyle.Render(common.IconSuccess)
+					icon := theme.SuccessStyle.Render(theme.IconSuccess)
 					if !r.Success {
-						icon = common.ErrorStyle.Render(common.IconError)
+						icon = theme.ErrorStyle.Render(theme.IconError)
 					}
 					fmt.Fprintf(a.IO.Out, "  %s %s\n", icon, r.Name)
 				}
@@ -469,8 +469,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	fmt.Fprint(a.IO.Out, summary.Render(summary.Config{
 		Title:     i18n.T("form.project.summary"),
-		Icon:      common.IconSuccess,
-		IconColor: common.Success,
+		Icon:      theme.IconSuccess,
+		IconColor: theme.LipSuccess,
 		Fields:    fields,
 		Footer:    i18n.Tf("form.project.next_step", "oh start -p "+id),
 	}))
@@ -519,7 +519,7 @@ func wizardAgents() ([]string, error) {
 	// Default: all selected
 	selected = append(selected, available...)
 
-	form := common.NewForm(
+	form := theme.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title(i18n.T("form.project.agents_select")).
@@ -587,8 +587,8 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.project.registered", common.Bold.Render(name), absPath))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
 	return nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -74,7 +74,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	fmt.Fprintf(a.IO.Out, "%s Services MCP\n\n",
-		common.Title.Render("oh service"))
+		theme.Title.Render("oh service"))
 
 	services := []struct {
 		name    string
@@ -89,11 +89,11 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, svc := range services {
-		status := common.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
+		status := theme.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
 		tokenStatus := ""
 
 		if svc.enabled {
-			status = common.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
+			status = theme.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
 
 			// Check if token is available
 			hasToken := false
@@ -108,7 +108,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 			}
 
 			if !hasToken && svc.token != "" {
-				tokenStatus = fmt.Sprintf(" %s %s", common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.service.token_missing"))
+				tokenStatus = fmt.Sprintf(" %s %s", theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.service.token_missing"))
 			}
 		}
 
@@ -116,7 +116,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.service.setup_hint", common.Bold.Render("oh service setup")))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh service setup")))
 	return nil
 }
 
@@ -293,8 +293,8 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("updating project MCP config: %w", err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.service.project_configured", common.Bold.Render(serviceName), project.Name))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.project_configured", theme.Bold.Render(serviceName), project.Name))
 	} else {
 		// Hub-scoped: write to hub.toml
 		v := configViper()
@@ -313,8 +313,8 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
-			i18n.Tf("cmd.service.enabled", common.Bold.Render(serviceName)))
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.enabled", theme.Bold.Render(serviceName)))
 	}
 	return nil
 }
@@ -327,7 +327,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		serviceName = args[0]
 	} else {
-		form := common.NewForm(
+		form := theme.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("cmd.service.select_remove")).
@@ -356,7 +356,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
 		var confirm bool
-		_ = common.NewForm(huh.NewGroup(huh.NewConfirm().
+		_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
 			Title(i18n.Tf("cmd.service.remove.confirm", serviceName)).
 			Value(&confirm))).Run()
 		if !confirm {
@@ -380,8 +380,8 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.SuccessStyle.Render(common.IconSuccess),
-		i18n.Tf("cmd.service.disabled", common.Bold.Render(serviceName)))
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.service.disabled", theme.Bold.Render(serviceName)))
 	return nil
 }
 

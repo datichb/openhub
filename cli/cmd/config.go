@@ -13,7 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var configCmd = &cobra.Command{
@@ -81,8 +81,8 @@ func configSetCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(os.Stdout, "%s %s = %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				common.Bold.Render(key), value)
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				theme.Bold.Render(key), value)
 			return nil
 		},
 	}
@@ -108,7 +108,7 @@ func configListCmd() *cobra.Command {
 			}
 
 			if len(keys) == 0 {
-				fmt.Fprintln(os.Stdout, common.Subtitle.Render(i18n.T("cmd.config.no_config")))
+				fmt.Fprintln(os.Stdout, theme.Subtitle.Render(i18n.T("cmd.config.no_config")))
 				return nil
 			}
 
@@ -173,8 +173,8 @@ func configUnsetCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(os.Stdout, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.config.key_deleted", common.Bold.Render(key)))
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.config.key_deleted", theme.Bold.Render(key)))
 			return nil
 		},
 	}
@@ -192,7 +192,7 @@ func configLanguageCmd() *cobra.Command {
 
 			if len(args) == 0 {
 				lang := v.GetString("cli.language")
-				fmt.Fprintf(os.Stdout, "%s\n", i18n.Tf("cmd.config.lang_current", common.Bold.Render(lang)))
+				fmt.Fprintf(os.Stdout, "%s\n", i18n.Tf("cmd.config.lang_current", theme.Bold.Render(lang)))
 				return nil
 			}
 
@@ -216,8 +216,8 @@ func configLanguageCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(os.Stdout, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.config.lang_changed", common.Bold.Render(lang)))
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.config.lang_changed", theme.Bold.Render(lang)))
 			return nil
 		},
 	}
@@ -267,7 +267,7 @@ La permission est injectée globalement dans opencode.json au deploy.`,
 					return fmt.Errorf("writing config: %w", err)
 				}
 				fmt.Fprintf(os.Stdout, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
+					theme.SuccessStyle.Render(theme.IconSuccess),
 					i18n.T("cmd.config.websearch_enabled"))
 				fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
 
@@ -280,7 +280,7 @@ La permission est injectée globalement dans opencode.json au deploy.`,
 					return fmt.Errorf("writing config: %w", err)
 				}
 				fmt.Fprintf(os.Stdout, "%s %s\n",
-					common.SuccessStyle.Render(common.IconSuccess),
+					theme.SuccessStyle.Render(theme.IconSuccess),
 					i18n.T("cmd.config.websearch_disabled"))
 
 			case "status":

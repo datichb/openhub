@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -54,10 +54,10 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s (%s)\n\n",
-			common.Title.Render("oh provider setup"),
+			theme.Title.Render("oh provider setup"),
 			i18n.T("cmd.provider.project_scope"), project.Name)
 	} else {
-		fmt.Fprintf(a.IO.Out, "%s\n\n", common.Title.Render("oh provider setup"))
+		fmt.Fprintf(a.IO.Out, "%s\n\n", theme.Title.Render("oh provider setup"))
 	}
 
 	// Provider selection
@@ -67,7 +67,7 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 	} else {
 		// Detect what's available and show indicators
 		options := buildProviderOptions()
-		form := common.NewForm(
+		form := theme.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("cmd.provider.select")).
@@ -111,7 +111,7 @@ func buildProviderOptions() []huh.Option[string] {
 			label = "GitHub Copilot"
 		}
 		if r.Available {
-			label += fmt.Sprintf(" %s (%s)", common.SuccessStyle.Render(common.IconSuccess), r.Source)
+			label += fmt.Sprintf(" %s (%s)", theme.SuccessStyle.Render(theme.IconSuccess), r.Source)
 		}
 		options = append(options, huh.NewOption(label, string(r.Provider)))
 	}
@@ -394,7 +394,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 			OnDone: func() error {
 				if apiKey == "" {
 					fmt.Fprintf(a.IO.Out, "%s %s\n",
-						common.WarningStyle.Render(common.IconWarning),
+						theme.WarningStyle.Render(theme.IconWarning),
 						i18n.T("cmd.provider.no_key"))
 					return nil
 				}
@@ -434,16 +434,16 @@ func setupGithubCopilot(a *app.App) error {
 	detection := provider.Detect(provider.GithubCopilot)
 	if detection.Available {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.provider.detected", detection.Source, detection.Details))
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.T("cmd.provider.copilot_ready"))
 		return nil
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		common.WarningStyle.Render(common.IconWarning),
+		theme.WarningStyle.Render(theme.IconWarning),
 		i18n.T("cmd.provider.copilot_not_found"))
 	return nil
 }
@@ -471,7 +471,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 			return fmt.Errorf("updating project provider config: %w", err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.provider.project_configured", string(name), project.Name))
 	} else {
 		// Hub-scoped: write to hub.toml
@@ -492,7 +492,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			i18n.Tf("cmd.provider.hub_configured", string(name)))
 	}
 	return nil

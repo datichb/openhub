@@ -10,7 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func projectListCmd() *cobra.Command {
@@ -43,7 +43,7 @@ func projectListCmd() *cobra.Command {
 			}
 
 			if len(projects) == 0 {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.project.none")))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("cmd.project.none")))
 				return nil
 			}
 
@@ -55,7 +55,7 @@ func projectListCmd() *cobra.Command {
 			}
 			w.Flush()
 
-			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(i18n.Tf("cmd.project.list.count", len(projects))))
+			fmt.Fprintf(a.IO.Out, "\n%s\n", theme.Subtitle.Render(i18n.Tf("cmd.project.list.count", len(projects))))
 			return nil
 		},
 	}
@@ -68,9 +68,9 @@ func projectListCmd() *cobra.Command {
 func statusIcon(s domain.ProjectStatus) string {
 	switch s {
 	case domain.ProjectStatusActive:
-		return common.SuccessStyle.Render(common.IconSuccess + " active")
+		return theme.SuccessStyle.Render(theme.IconSuccess + " active")
 	case domain.ProjectStatusArchived:
-		return common.Subtitle.Render(common.IconDot + " archived")
+		return theme.Subtitle.Render(theme.IconDot + " archived")
 	default:
 		return string(s)
 	}

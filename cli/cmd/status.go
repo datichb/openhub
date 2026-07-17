@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var statusCmd = &cobra.Command{
@@ -80,11 +80,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 
-	fmt.Fprintln(a.IO.Out, common.Title.Render("  oh status  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh status  "))
 	fmt.Fprintln(a.IO.Out)
 
 	// Hub info
-	fmt.Fprintln(a.IO.Out, common.Bold.Render(i18n.T("cmd.status.title_hub")))
+	fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_hub")))
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.config"), config.ConfigPath())
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.language"), a.Config.CLI.Language)
@@ -92,19 +92,19 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	w.Flush()
 	fmt.Fprintln(a.IO.Out)
 
-	fmt.Fprintln(a.IO.Out, common.Bold.Render(i18n.T("cmd.status.title_projects")))
+	fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_projects")))
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.total_active", len(projects), active))
 	fmt.Fprintln(a.IO.Out)
 
 	if currentProject != nil {
-		fmt.Fprintln(a.IO.Out, common.Bold.Render(i18n.T("cmd.status.title_current")))
+		fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_current")))
 		fmt.Fprintf(a.IO.Out, "  %s %s (%s)\n",
-			common.SuccessStyle.Render(common.IconSuccess),
+			theme.SuccessStyle.Render(theme.IconSuccess),
 			currentProject.Name, currentProject.Language)
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.path", currentProject.Path))
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.status.not_in_project", cwd))
+			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.status.not_in_project", cwd))
 	}
 
 	return nil

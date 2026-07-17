@@ -17,7 +17,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/theme"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -78,7 +78,7 @@ func Build(cfg Config) *Result {
 
 	// ── Apply global theme (once for all views) ──
 	tview.Styles = tview.Theme{
-		PrimitiveBackgroundColor:    theme.BgApp,
+		PrimitiveBackgroundColor:    theme.BgPanel,
 		ContrastBackgroundColor:     theme.BgPanel,
 		MoreContrastBackgroundColor: theme.BgElement,
 		BorderColor:                 theme.BorderNormal,
@@ -87,7 +87,7 @@ func Build(cfg Config) *Result {
 		PrimaryTextColor:            theme.FgPrimary,
 		SecondaryTextColor:          theme.FgSecondary,
 		TertiaryTextColor:           theme.FgMuted,
-		InverseTextColor:            theme.BgApp,
+		InverseTextColor:            theme.BgPanel,
 		ContrastSecondaryTextColor:  theme.Accent,
 	}
 
@@ -162,14 +162,14 @@ func Build(cfg Config) *Result {
 	} else {
 		middle.AddItem(content, 0, 5, true)
 	}
-	middle.SetBackgroundColor(theme.BgApp)
+	middle.SetBackgroundColor(theme.BgPanel)
 
 	// root = header (2 rows) + middle (flexible) + status (1 row)
 	root := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(headerBar, 2, 0, false).
 		AddItem(middle, 0, 1, true).
 		AddItem(statusBar.TextView, 1, 0, false)
-	root.SetBackgroundColor(theme.BgApp)
+	root.SetBackgroundColor(theme.BgPanel)
 
 	// ── Global keybindings ──
 	sidebarFocused := false

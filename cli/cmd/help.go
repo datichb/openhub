@@ -11,14 +11,14 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // Help styles
 var (
-	helpSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(common.Primary)
-	helpCmdStyle     = lipgloss.NewStyle().Foreground(common.Success)
-	helpFlagStyle    = lipgloss.NewStyle().Foreground(common.Subtle)
+	helpSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(theme.Primary)
+	helpCmdStyle     = lipgloss.NewStyle().Foreground(theme.LipSuccess)
+	helpFlagStyle    = lipgloss.NewStyle().Foreground(theme.Subtle)
 	helpDescStyle    = lipgloss.NewStyle()
 )
 
@@ -62,7 +62,7 @@ func buildHelpContent() string {
 
 	// Header
 	header := fmt.Sprintf("oh — OpenHub CLI %s", buildinfo.Version)
-	sb.WriteString(common.Bold.Render(header))
+	sb.WriteString(theme.Bold.Render(header))
 	sb.WriteString("\n\n")
 
 	// Build sections

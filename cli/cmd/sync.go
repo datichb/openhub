@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var syncCmd = &cobra.Command{
@@ -56,7 +56,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		}
 		if len(list) == 0 {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.WarningStyle.Render(common.IconWarning), i18n.T("cmd.sync.no_projects"))
+				theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.sync.no_projects"))
 			return nil
 		}
 		projects = list
@@ -74,10 +74,10 @@ func runSync(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if dryRun {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.Title.Render("oh sync --dry-run"), i18n.Tf("cmd.sync.title_dryrun", len(projects)))
+			theme.Title.Render("oh sync --dry-run"), i18n.Tf("cmd.sync.title_dryrun", len(projects)))
 	} else {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.Title.Render("oh sync"), i18n.Tf("cmd.sync.title", len(projects)))
+			theme.Title.Render("oh sync"), i18n.Tf("cmd.sync.title", len(projects)))
 	}
 	fmt.Fprintf(a.IO.Out, "  %s\n\n", i18n.Tf("cmd.sync.source_label", hubDir))
 
@@ -87,17 +87,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 	for i, project := range projects {
 		if len(projects) > 1 {
 			fmt.Fprintf(a.IO.Out, "  [%d/%d] %s (%s)\n",
-				i+1, len(projects), common.Bold.Render(project.Name), project.Path)
+				i+1, len(projects), theme.Bold.Render(project.Name), project.Path)
 		} else {
 			fmt.Fprintf(a.IO.Out, "  %s\n",
-				i18n.Tf("cmd.sync.project_label", fmt.Sprintf("%s (%s)", common.Bold.Render(project.Name), project.Path)))
+				i18n.Tf("cmd.sync.project_label", fmt.Sprintf("%s (%s)", theme.Bold.Render(project.Name), project.Path)))
 		}
 
 		if dryRun {
 			err := syncDryRun(a, hubDir, project.Path)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "    %s %v\n",
-					common.ErrorStyle.Render(common.IconError), err)
+					theme.ErrorStyle.Render(theme.IconError), err)
 				totalFailed++
 			} else {
 				totalSuccess++
@@ -106,7 +106,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 			err := syncProject(a, hubDir, &project)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "    %s %v\n",
-					common.ErrorStyle.Render(common.IconError), err)
+					theme.ErrorStyle.Render(theme.IconError), err)
 				totalFailed++
 			} else {
 				totalSuccess++
@@ -122,10 +122,10 @@ func runSync(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 	if totalFailed > 0 {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.WarningStyle.Render(common.IconWarning), i18n.Tf("cmd.sync.done_partial", totalSuccess, totalFailed))
+			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.sync.done_partial", totalSuccess, totalFailed))
 	} else {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.Tf("cmd.sync.done", totalSuccess))
+			theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.sync.done", totalSuccess))
 	}
 	return nil
 }
@@ -138,9 +138,9 @@ func syncProject(a *app.App, hubDir string, project *domain.Project) error {
 	results, err := deploy.Execute(plan)
 
 	for _, r := range results {
-		icon := common.SuccessStyle.Render(common.IconSuccess)
+		icon := theme.SuccessStyle.Render(theme.IconSuccess)
 		if !r.Success {
-			icon = common.ErrorStyle.Render(common.IconError)
+			icon = theme.ErrorStyle.Render(theme.IconError)
 		}
 		fmt.Fprintf(a.IO.Out, "    %s %s\n", icon, r.Name)
 	}
@@ -162,7 +162,7 @@ func syncDryRun(a *app.App, hubDir, projectPath string) error {
 
 	if !report.HasChanges() {
 		fmt.Fprintf(a.IO.Out, "    %s %s\n",
-			common.SuccessStyle.Render(common.IconSuccess), i18n.T("cmd.sync.uptodate"))
+			theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.sync.uptodate"))
 		return nil
 	}
 
@@ -171,11 +171,11 @@ func syncDryRun(a *app.App, hubDir, projectPath string) error {
 	for _, f := range report.Files {
 		switch f.Status {
 		case deploy.FileAdded:
-			fmt.Fprintf(a.IO.Out, "      %s %s\n", common.SuccessStyle.Render("+"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "      %s %s\n", theme.SuccessStyle.Render("+"), f.RelPath)
 		case deploy.FileModified:
-			fmt.Fprintf(a.IO.Out, "      %s %s\n", common.WarningStyle.Render("~"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "      %s %s\n", theme.WarningStyle.Render("~"), f.RelPath)
 		case deploy.FileRemoved:
-			fmt.Fprintf(a.IO.Out, "      %s %s\n", common.ErrorStyle.Render("-"), f.RelPath)
+			fmt.Fprintf(a.IO.Out, "      %s %s\n", theme.ErrorStyle.Render("-"), f.RelPath)
 		}
 	}
 

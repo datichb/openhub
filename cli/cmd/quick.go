@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 )
 
@@ -54,7 +54,7 @@ func runQuick(cmd *cobra.Command, args []string) error {
 				fmt.Sprintf("%s — %s", p.Name, p.Path), p.ID)
 		}
 
-		form := common.NewForm(
+		form := theme.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(i18n.T("form.project.choose")).
@@ -86,7 +86,7 @@ func runQuick(cmd *cobra.Command, args []string) error {
 	stack := prompt.DetectStack(project.Path)
 
 	fmt.Fprintf(a.IO.Out, "%s %s",
-		common.SuccessStyle.Render(common.IconArrow),
+		theme.SuccessStyle.Render(theme.IconArrow),
 		project.Name)
 	if stack.Language != "" {
 		fmt.Fprintf(a.IO.Out, " (%s)", stack.Language)

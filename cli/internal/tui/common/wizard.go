@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // StepStatus represents the state of a wizard step.
@@ -41,30 +43,30 @@ type SidebarConfig struct {
 var (
 	sidebarTitle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(Primary)
+			Foreground(theme.Primary)
 
 	sidebarPrereq = lipgloss.NewStyle().
-			Foreground(Success)
+			Foreground(theme.LipSuccess)
 
 	sidebarSeparator = lipgloss.NewStyle().
-				Foreground(Muted)
+				Foreground(theme.Muted)
 
 	sidebarStepActive = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(Primary)
+				Foreground(theme.Primary)
 
 	sidebarStepDone = lipgloss.NewStyle().
-			Foreground(Success)
+			Foreground(theme.LipSuccess)
 
 	sidebarStepPending = lipgloss.NewStyle().
-				Foreground(Muted)
+				Foreground(theme.Muted)
 
 	sidebarStepSkipped = lipgloss.NewStyle().
-				Foreground(Muted).
+				Foreground(theme.Muted).
 				Strikethrough(true)
 
 	sidebarHeader = lipgloss.NewStyle().
-			Foreground(Subtle)
+			Foreground(theme.Subtle)
 )
 
 // RenderSidebar returns a formatted sidebar string for use in inline wizard layouts.
@@ -83,7 +85,7 @@ func RenderSidebar(cfg SidebarConfig) string {
 		b.WriteByte('\n')
 
 		for _, p := range cfg.Prereqs {
-			line := fmt.Sprintf("%s %s", sidebarPrereq.Render(IconSuccess), p)
+			line := fmt.Sprintf("%s %s", sidebarPrereq.Render(theme.IconSuccess), p)
 			b.WriteString(line)
 			b.WriteByte('\n')
 		}
@@ -94,7 +96,7 @@ func RenderSidebar(cfg SidebarConfig) string {
 		if sepWidth < 10 {
 			sepWidth = 10
 		}
-		b.WriteString(sidebarSeparator.Render(strings.Repeat(IconSepNormal, sepWidth)))
+		b.WriteString(sidebarSeparator.Render(strings.Repeat(theme.IconSepNormal, sepWidth)))
 		b.WriteByte('\n')
 		b.WriteByte('\n')
 	}
@@ -107,13 +109,13 @@ func RenderSidebar(cfg SidebarConfig) string {
 		var line string
 		switch step.Status {
 		case StepActive:
-			line = sidebarStepActive.Render(fmt.Sprintf("%s %s", IconStepActive, step.Label))
+			line = sidebarStepActive.Render(fmt.Sprintf("%s %s", theme.IconStepActive, step.Label))
 		case StepDone:
-			line = sidebarStepDone.Render(fmt.Sprintf("%s %s", IconStepDone, step.Label))
+			line = sidebarStepDone.Render(fmt.Sprintf("%s %s", theme.IconDone, step.Label))
 		case StepSkipped:
-			line = sidebarStepSkipped.Render(fmt.Sprintf("%s %s", IconStepPending, step.Label))
+			line = sidebarStepSkipped.Render(fmt.Sprintf("%s %s", theme.IconPending, step.Label))
 		default: // StepPending
-			line = sidebarStepPending.Render(fmt.Sprintf("%s %s", IconStepPending, step.Label))
+			line = sidebarStepPending.Render(fmt.Sprintf("%s %s", theme.IconPending, step.Label))
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')
@@ -133,16 +135,16 @@ func RenderStepBar(steps []WizardStep) string {
 
 		switch step.Status {
 		case StepDone:
-			icon = IconStepDone
+			icon = theme.IconDone
 			style = sidebarStepDone
 		case StepActive:
-			icon = IconStepActive
+			icon = theme.IconStepActive
 			style = sidebarStepActive
 		case StepSkipped:
-			icon = IconStepPending
+			icon = theme.IconPending
 			style = sidebarStepSkipped
 		default:
-			icon = IconStepPending
+			icon = theme.IconPending
 			style = sidebarStepPending
 		}
 

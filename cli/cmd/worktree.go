@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -59,7 +59,7 @@ func worktreeListCmd() *cobra.Command {
 			}
 
 			if len(entries) == 0 {
-				fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.worktree.none")))
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("cmd.worktree.none")))
 				return nil
 			}
 
@@ -85,7 +85,7 @@ func worktreeListCmd() *cobra.Command {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Branch, e.Path, head, status)
 			}
 			w.Flush()
-			fmt.Fprintf(a.IO.Out, "\n%s\n", common.Subtitle.Render(i18n.Tf("cmd.worktree.list.count", len(entries))))
+			fmt.Fprintf(a.IO.Out, "\n%s\n", theme.Subtitle.Render(i18n.Tf("cmd.worktree.list.count", len(entries))))
 			return nil
 		},
 	}
@@ -108,7 +108,7 @@ func worktreeAddCmd() *cobra.Command {
 			if len(args) > 0 {
 				branch = args[0]
 			} else {
-				form := common.NewForm(
+				form := theme.NewForm(
 					huh.NewGroup(
 						huh.NewInput().
 							Title(i18n.T("cmd.worktree.branch_name")).
@@ -134,8 +134,8 @@ func worktreeAddCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
-				i18n.Tf("cmd.worktree.created", common.Bold.Render(branch), wtPath))
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.worktree.created", theme.Bold.Render(branch), wtPath))
 			return nil
 		},
 	}
@@ -171,7 +171,7 @@ func worktreeRemoveCmd() *cobra.Command {
 				}
 
 				if len(selectable) == 0 {
-					fmt.Fprintln(a.IO.Out, common.Subtitle.Render(i18n.T("cmd.worktree.none_to_remove")))
+					fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("cmd.worktree.none_to_remove")))
 					return nil
 				}
 
@@ -181,7 +181,7 @@ func worktreeRemoveCmd() *cobra.Command {
 						fmt.Sprintf("%s (%s)", e.Branch, e.Path), e.Path)
 				}
 
-				form := common.NewForm(
+				form := theme.NewForm(
 					huh.NewGroup(
 						huh.NewSelect[string]().
 							Title(i18n.T("cmd.worktree.select_remove")).
@@ -199,7 +199,7 @@ func worktreeRemoveCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
+				theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.worktree.removed", wtPath))
 			return nil
 		},
@@ -237,8 +237,8 @@ pour la détection.`,
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconArrow),
-				i18n.Tf("cmd.worktree.cleanup_searching", common.Bold.Render(base)))
+				theme.SuccessStyle.Render(theme.IconArrow),
+				i18n.Tf("cmd.worktree.cleanup_searching", theme.Bold.Render(base)))
 
 			// Pre-check: list merged branches for confirmation
 			if !force {
@@ -258,10 +258,10 @@ pour la détection.`,
 						return nil
 					}
 					for _, branch := range mergedBranches {
-						fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), branch)
+						fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
 					}
 					var confirm bool
-					_ = common.NewForm(huh.NewGroup(huh.NewConfirm().
+					_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
 						Title(i18n.Tf("cmd.worktree.cleanup.confirm", len(mergedBranches))).
 						Value(&confirm))).Run()
 					if !confirm {
@@ -281,10 +281,10 @@ pour la détection.`,
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				common.SuccessStyle.Render(common.IconSuccess),
+				theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.worktree.cleanup_done", len(removed)))
 			for _, branch := range removed {
-				fmt.Fprintf(a.IO.Out, "    %s %s\n", common.Subtitle.Render("·"), branch)
+				fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
 			}
 			return nil
 		},

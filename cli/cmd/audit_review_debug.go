@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // runAgentSession is a shared helper for commands that resolve a project
@@ -30,7 +30,7 @@ func runAgentSession(agent, prompt, titleLabel string, cmd *cobra.Command) error
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s sur %s\n",
-		common.Title.Render("oh "+titleLabel), common.Bold.Render(agent), project.Name)
+		theme.Title.Render("oh "+titleLabel), theme.Bold.Render(agent), project.Name)
 
 	return opencode.Exec(opencode.StartOpts{
 		ProjectPath: project.Path,
@@ -160,7 +160,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 
 	if !a.Config.MCP.Gitlab.WriteEnabled {
 		return fmt.Errorf("GitLab write non activé. Lance %s et active le mode écriture",
-			common.Bold.Render("oh service setup"))
+			theme.Bold.Render("oh service setup"))
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
@@ -176,10 +176,10 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Création MR pour la branche %s...\n",
-		common.Subtitle.Render(common.IconArrow), common.Bold.Render(branch))
+		theme.Subtitle.Render(theme.IconArrow), theme.Bold.Render(branch))
 
 	fmt.Fprintf(a.IO.Out, "%s MR prête à être créée pour %s → main\n",
-		common.SuccessStyle.Render(common.IconSuccess), branch)
+		theme.SuccessStyle.Render(theme.IconSuccess), branch)
 
 	// Extract ticket ref from branch for the title
 	ticketRef := extractTicketFromBranch(branch)
@@ -196,9 +196,9 @@ func runReviewPublish(cmd *cobra.Command) error {
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s La MR sera créée par l'agent en session, ou manuellement.\n",
-		common.Subtitle.Render(common.IconInfo))
+		theme.Subtitle.Render(theme.IconInfo))
 	fmt.Fprintf(a.IO.Out, "  %s Le merge reste TOUJOURS une action manuelle du développeur.\n",
-		common.WarningStyle.Render(common.IconWarning))
+		theme.WarningStyle.Render(theme.IconWarning))
 
 	return nil
 }

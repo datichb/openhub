@@ -11,7 +11,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // Field represents a single key-value pair in the summary card.
@@ -24,9 +24,9 @@ type Field struct {
 type Config struct {
 	// Title is the main heading (e.g., "Team Setup Complete").
 	Title string
-	// Icon is the status icon displayed before the title (e.g., common.IconSuccess).
+	// Icon is the status icon displayed before the title (e.g., theme.IconSuccess).
 	Icon string
-	// IconColor is the lipgloss color for the icon (e.g., common.Success).
+	// IconColor is the lipgloss color for the icon (e.g., theme.LipSuccess).
 	IconColor lipgloss.TerminalColor
 	// Fields are the key-value pairs displayed in the card body.
 	Fields []Field
@@ -46,7 +46,7 @@ func Render(cfg Config) string {
 	icon := lipgloss.NewStyle().Foreground(cfg.IconColor).Render(cfg.Icon)
 	title := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(common.TextLight).
+		Foreground(theme.TextLight).
 		Render(cfg.Title)
 	header := fmt.Sprintf("%s %s", icon, title)
 
@@ -61,8 +61,8 @@ func Render(cfg Config) string {
 			}
 		}
 
-		labelStyle := lipgloss.NewStyle().Foreground(common.Subtle)
-		valueStyle := lipgloss.NewStyle().Foreground(common.TextLight)
+		labelStyle := lipgloss.NewStyle().Foreground(theme.Subtle)
+		valueStyle := lipgloss.NewStyle().Foreground(theme.TextLight)
 
 		for _, f := range cfg.Fields {
 			label := labelStyle.Render(fmt.Sprintf("%-*s", maxLabel, f.Label))
@@ -75,7 +75,7 @@ func Render(cfg Config) string {
 	footer := ""
 	if cfg.Footer != "" {
 		footer = lipgloss.NewStyle().
-			Foreground(common.Muted).
+			Foreground(theme.Muted).
 			Italic(true).
 			Render(cfg.Footer)
 	}
@@ -95,8 +95,8 @@ func Render(cfg Config) string {
 	// ── Card box ──
 	cardStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(common.BorderElem).
-		Foreground(common.TextLight).
+		BorderForeground(theme.LipBorderElem).
+		Foreground(theme.TextLight).
 		Padding(1, 2).
 		Width(cfg.Width)
 
