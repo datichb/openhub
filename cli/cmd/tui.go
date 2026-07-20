@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -93,15 +94,23 @@ func buildViews(a *app.App) []views.View {
 		projects, _ := a.Projects.List(context.Background(), "")
 		for _, p := range projects {
 			projectItems = append(projectItems, views.ProjectItem{
-				ID:   p.ID,
-				Name: p.Name,
-				Path: p.Path,
+				ID:       p.ID,
+				Name:     p.Name,
+				Path:     p.Path,
+				Language: p.Language,
+				Provider: p.Provider,
+				Model:    p.Model,
+				Agents:   p.Agents,
+				Status:   string(p.Status),
 			})
 		}
 	}
 
 	// Build ProjectsView with store callbacks
-	projectsView := views.NewProjectsView(views.ProjectsViewConfig{Projects: projectItems})
+	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
+		Projects:        projectItems,
+		AvailableAgents: discoverAgents(),
+	})
 	if a.Projects != nil {
 		projectsView.SetOnAdd(func(name, path string) {
 			p := &domain.Project{Name: name, Path: path}
@@ -112,6 +121,48 @@ func buildViews(a *app.App) []views.View {
 		projectsView.SetOnRemove(func(id string) {
 			if err := a.Projects.Delete(context.Background(), id); err != nil {
 				slog.Warn("failed to remove project", "error", err)
+			}
+		})
+		projectsView.SetOnConfigure(func(id string, cfg views.ProjectConfigUpdate) {
+			ctx := context.Background()
+			project, err := a.Projects.Get(ctx, id)
+			if err != nil {
+				slog.Warn("failed to get project for configure", "id", id, "error", err)
+				return
+			}
+			project.Language = cfg.Language
+			project.Provider = cfg.Provider
+			project.Model = cfg.Model
+			project.Agents = cfg.Agents
+			project.UpdatedAt = time.Now()
+			if err := a.Projects.Update(ctx, project); err != nil {
+				slog.Warn("failed to update project config", "id", id, "error", err)
+			}
+		})
+		projectsView.SetOnRename(func(id, newName string) {
+			ctx := context.Background()
+			project, err := a.Projects.Get(ctx, id)
+			if err != nil {
+				slog.Warn("failed to get project for rename", "id", id, "error", err)
+				return
+			}
+			project.Name = newName
+			project.UpdatedAt = time.Now()
+			if err := a.Projects.Update(ctx, project); err != nil {
+				slog.Warn("failed to rename project", "id", id, "error", err)
+			}
+		})
+		projectsView.SetOnMove(func(id, newPath string) {
+			ctx := context.Background()
+			project, err := a.Projects.Get(ctx, id)
+			if err != nil {
+				slog.Warn("failed to get project for move", "id", id, "error", err)
+				return
+			}
+			project.Path = newPath
+			project.UpdatedAt = time.Now()
+			if err := a.Projects.Update(ctx, project); err != nil {
+				slog.Warn("failed to move project", "id", id, "error", err)
 			}
 		})
 	}

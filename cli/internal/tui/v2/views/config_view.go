@@ -32,6 +32,7 @@ type SelectOption struct {
 type ShellAccess interface {
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
 	ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))
+	ShowMultiSelectModal(title string, options []SelectOption, selected []string, onConfirm func(selected []string))
 	ShowToastMsg(msg string, success bool)
 }
 

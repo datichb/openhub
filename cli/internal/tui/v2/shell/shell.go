@@ -284,6 +284,105 @@ func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, curr
 	s.app.SetFocus(dd)
 }
 
+// ShowMultiSelectModal displays a centered modal with a checkbox list for multi-selection.
+// Each option can be toggled with Space; Enter confirms, Esc cancels.
+func (s *Shell) ShowMultiSelectModal(title string, options []views.SelectOption, selected []string, onConfirm func(selected []string)) {
+	s.overlayActive = true
+	s.app.EnableMouse(false)
+
+	// Build selected set for quick lookup
+	selectedSet := make(map[string]bool, len(selected))
+	for _, v := range selected {
+		selectedSet[v] = true
+	}
+
+	// Track checked state per option
+	checked := make([]bool, len(options))
+	for i, opt := range options {
+		checked[i] = selectedSet[opt.Value]
+	}
+
+	// Build the list widget
+	list := tview.NewList().
+		ShowSecondaryText(false).
+		SetHighlightFullLine(true).
+		SetMainTextColor(theme.FgPrimary).
+		SetSelectedBackgroundColor(theme.BgElement).
+		SetSelectedTextColor(theme.FgPrimary)
+	list.SetBackgroundColor(theme.BgPanel)
+
+	// Render function to update labels with checkmarks
+	renderItems := func() {
+		list.Clear()
+		for i, opt := range options {
+			prefix := "[ ] "
+			if checked[i] {
+				prefix = "[x] "
+			}
+			list.AddItem(prefix+opt.Label, "", 0, nil)
+		}
+	}
+	renderItems()
+
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			s.pages.RemovePage("multiselect-modal")
+			s.overlayActive = false
+			s.app.EnableMouse(true)
+			s.app.SetFocus(s.content)
+			return nil
+		case tcell.KeyEnter:
+			// Confirm: collect selected values
+			var result []string
+			for i, opt := range options {
+				if checked[i] {
+					result = append(result, opt.Value)
+				}
+			}
+			s.pages.RemovePage("multiselect-modal")
+			s.overlayActive = false
+			s.app.EnableMouse(true)
+			s.app.SetFocus(s.content)
+			if onConfirm != nil {
+				onConfirm(result)
+			}
+			return nil
+		}
+
+		// Space or 'x' to toggle
+		if event.Rune() == ' ' || event.Rune() == 'x' {
+			idx := list.GetCurrentItem()
+			if idx >= 0 && idx < len(checked) {
+				checked[idx] = !checked[idx]
+				renderItems()
+				list.SetCurrentItem(idx)
+			}
+			return nil
+		}
+
+		return event
+	})
+
+	// Frame
+	frame := tview.NewFlex().SetDirection(tview.FlexRow)
+	frame.AddItem(list, 0, 1, true)
+	frame.SetBorder(true)
+	frame.SetBorderColor(theme.Accent)
+	frame.SetTitle(" " + title + " · Space toggle · Enter confirmer · Esc annuler ")
+	frame.SetTitleColor(theme.Accent)
+	frame.SetBackgroundColor(theme.BgPanel)
+
+	// Center (60% width, 60% height)
+	grid := tview.NewGrid().
+		SetColumns(0, -3, 0).
+		SetRows(2, -3, 2)
+	grid.AddItem(frame, 1, 1, 1, 1, 0, 0, true)
+
+	s.pages.AddPage("multiselect-modal", grid, true, true)
+	s.app.SetFocus(list)
+}
+
 // ShowModal displays a centered confirmation modal.
 func (s *Shell) ShowModal(title, message string, onConfirm func()) {
 	s.overlayActive = true
