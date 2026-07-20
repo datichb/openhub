@@ -25,7 +25,7 @@ func runTUI() error {
 
 	cfg := shell.Config{
 		ProjectName: a.Config.Name,
-		MenuItems:   buildMenuItems(),
+		MenuItems:   buildMenuItems(a),
 		Views:       buildViews(a),
 		HomeViewID:  "home",
 	}
@@ -36,7 +36,21 @@ func runTUI() error {
 }
 
 // buildMenuItems constructs the menu tree for the shell sidebar.
-func buildMenuItems() []*menu.MenuItem {
+func buildMenuItems(a *app.App) []*menu.MenuItem {
+	// Team children — patterns and policies only if team is enabled
+	teamChildren := []*menu.MenuItem{
+		{ID: "team.kanban", Label: "Kanban équipe", ViewID: "team.board"},
+		{ID: "team.status", Label: "Status", ViewID: "team.status"},
+		{ID: "team.activity", Label: "Activité", ViewID: "team.activity"},
+		{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
+	}
+	if a.Config.Team.Enabled {
+		teamChildren = append(teamChildren,
+			&menu.MenuItem{ID: "team.patterns", Label: "Patterns", ViewID: "patterns"},
+			&menu.MenuItem{ID: "team.policies", Label: "Policies", ViewID: "policies"},
+		)
+	}
+
 	return []*menu.MenuItem{
 		{ID: "home", Label: "Home", ViewID: "home"},
 		{
@@ -61,18 +75,14 @@ func buildMenuItems() []*menu.MenuItem {
 		},
 		{
 			ID: "team", Label: "Team", Expanded: false,
-			Children: []*menu.MenuItem{
-				{ID: "team.kanban", Label: "Kanban équipe", ViewID: "team.board"},
-				{ID: "team.status", Label: "Status", ViewID: "team.status"},
-				{ID: "team.activity", Label: "Activité", ViewID: "team.activity"},
-				{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
-			},
+			Children: teamChildren,
 		},
 		{
 			ID: "config", Label: "Configuration", Expanded: false,
 			Children: []*menu.MenuItem{
 				{ID: "config.hub", Label: "Hub", ViewID: "config"},
 				{ID: "config.models", Label: "Models", ViewID: "models"},
+				{ID: "config.provider", Label: "Provider", ViewID: "provider"},
 				{ID: "config.mcp", Label: "MCP", ViewID: "mcp"},
 			},
 		},
@@ -82,6 +92,7 @@ func buildMenuItems() []*menu.MenuItem {
 				{ID: "system.status", Label: "Status", ViewID: "status"},
 				{ID: "system.doctor", Label: "Doctor", ViewID: "doctor"},
 				{ID: "system.metrics", Label: "Métriques", ViewID: "metrics"},
+				{ID: "system.plugins", Label: "Plugins", ViewID: "plugins"},
 				{ID: "system.upgrade", Label: "Mise à jour", Action: actionUpgrade},
 				{ID: "system.help", Label: "Aide", ViewID: "help"},
 			},
@@ -170,7 +181,7 @@ func buildViews(a *app.App) []views.View {
 		})
 	}
 
-	return []views.View{
+	allViews := []views.View{
 		views.NewHomeView(),
 		views.NewBoardView(views.BoardViewConfig{}),
 		views.NewTeamBoardView(views.TeamBoardViewConfig{}),
@@ -184,9 +195,21 @@ func buildViews(a *app.App) []views.View {
 		views.NewDoctorView(a),
 		views.NewConfigView(),
 		views.NewModelsView(a),
+		views.NewProviderView(a),
 		views.NewMCPView(a),
+		views.NewPluginsView(),
 		views.NewHelpView(),
 	}
+
+	// Conditionally add team-dependent views
+	if a.Config.Team.Enabled {
+		allViews = append(allViews,
+			views.NewPatternsView(a),
+			views.NewPoliciesView(a),
+		)
+	}
+
+	return allViews
 }
 
 // actionOpencode returns a menu action callback that suspends the TUI and launches opencode.

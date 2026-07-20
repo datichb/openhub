@@ -202,6 +202,51 @@ func (s *Shell) ShowInputModal(title, currentValue string, onConfirm func(newVal
 	s.app.SetFocus(input)
 }
 
+// ShowPasswordModal displays a centered input modal with masked characters for secrets.
+func (s *Shell) ShowPasswordModal(title string, onConfirm func(value string)) {
+	s.overlayActive = true
+	s.app.EnableMouse(false)
+
+	input := tview.NewInputField().
+		SetLabel("  " + title + ": ").
+		SetLabelColor(theme.Accent).
+		SetFieldWidth(40).
+		SetFieldBackgroundColor(theme.BgElement).
+		SetFieldTextColor(theme.FgPrimary).
+		SetMaskCharacter('*')
+	input.SetBackgroundColor(theme.BgPanel)
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		s.pages.RemovePage("password-modal")
+		s.overlayActive = false
+		s.app.EnableMouse(true)
+		s.app.SetFocus(s.content)
+		if key == tcell.KeyEnter && onConfirm != nil {
+			onConfirm(input.GetText())
+		}
+	})
+
+	// Frame the input with border and title
+	frame := tview.NewFlex().SetDirection(tview.FlexRow)
+	frame.AddItem(tview.NewTextView().SetText(""), 1, 0, false)
+	frame.AddItem(input, 1, 0, true)
+	frame.AddItem(tview.NewTextView().SetText(""), 1, 0, false)
+	frame.SetBorder(true)
+	frame.SetBorderColor(theme.Accent)
+	frame.SetTitle(" " + title + " · Esc annuler ")
+	frame.SetTitleColor(theme.Accent)
+	frame.SetBackgroundColor(theme.BgPanel)
+
+	// Center it
+	grid := tview.NewGrid().
+		SetColumns(0, 60, 0).
+		SetRows(0, 5, 0)
+	grid.AddItem(frame, 1, 1, 1, 1, 0, 0, true)
+
+	s.pages.AddPage("password-modal", grid, true, true)
+	s.app.SetFocus(input)
+}
+
 // ShowSelectModal displays a centered dropdown modal for selecting a value from a list.
 func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string)) {
 	s.overlayActive = true

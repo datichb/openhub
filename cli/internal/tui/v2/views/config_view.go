@@ -37,6 +37,7 @@ type ModalAction struct {
 // ShellAccess provides access to shell overlay capabilities from views.
 type ShellAccess interface {
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+	ShowPasswordModal(title string, onConfirm func(value string))
 	ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))
 	ShowMultiSelectModal(title string, options []SelectOption, selected []string, onConfirm func(selected []string))
 	ShowScrollableModal(title, content string, actions []ModalAction)

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 )
 
 func TestCanLaunchTUI_NonInteractive(t *testing.T) {
@@ -16,7 +17,8 @@ func TestCanLaunchTUI_NonInteractive(t *testing.T) {
 }
 
 func TestBuildMenuItems(t *testing.T) {
-	items := buildMenuItems()
+	a := &app.App{Config: &config.Config{}}
+	items := buildMenuItems(a)
 	assert.Greater(t, len(items), 0, "menu items should not be empty")
 
 	// First item should be Home
@@ -32,7 +34,7 @@ func TestBuildMenuItems(t *testing.T) {
 
 func TestBuildViews(t *testing.T) {
 	// Create a minimal app for testing
-	a := &app.App{}
+	a := &app.App{Config: &config.Config{}}
 	allViews := buildViews(a)
 	assert.Greater(t, len(allViews), 0, "views should not be empty")
 

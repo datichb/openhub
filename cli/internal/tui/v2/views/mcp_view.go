@@ -48,7 +48,7 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · e enable · d disable · t token · w écriture · R reset · Esc retour"
+	return "j/k nav · e enable · d disable · t token · w écriture · S setup · R reset"
 }
 
 // Mount builds the MCP management interface.
@@ -99,6 +99,9 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'R':
 		v.resetService(idx)
+		return nil
+	case 'S':
+		v.setupWizard()
 		return nil
 	}
 	return event
@@ -273,6 +276,58 @@ func (v *MCPView) resetService(idx int) {
 	if v.shell != nil {
 		v.shell.ShowToastMsg("Service réinitialisé: "+svc.Name, true)
 	}
+}
+
+var mcpSetupServiceOptions = []SelectOption{
+	{Label: "Figma", Value: "figma"},
+	{Label: "GitLab", Value: "gitlab"},
+	{Label: "Google Slides", Value: "gslides"},
+}
+
+func (v *MCPView) setupWizard() {
+	if v.shell == nil {
+		return
+	}
+
+	// Step 1: Service selection
+	v.shell.ShowSelectModal("Service à configurer", mcpSetupServiceOptions, "", func(service string) {
+		// Step 2: Token
+		v.shell.ShowPasswordModal("Token "+service, func(token string) {
+			if token == "" {
+				return
+			}
+
+			// Store token
+			if v.appCtx != nil && v.appCtx.Secrets != nil {
+				key := fmt.Sprintf("%s-token", service)
+				_ = v.appCtx.Secrets.Set(nil, key, token)
+			}
+
+			// Enable service
+			vip := mcpConfigViper()
+			vip.Set(fmt.Sprintf("mcp.%s.enabled", service), true)
+
+			// Step 3 (conditional): write mode for gitlab
+			if service == "gitlab" {
+				writeOptions := []SelectOption{
+					{Label: "Activé (créer MR, commenter)", Value: "true"},
+					{Label: "Désactivé (lecture seule)", Value: "false"},
+				}
+				v.shell.ShowSelectModal("Mode écriture GitLab", writeOptions, "false", func(writeVal string) {
+					vip.Set("mcp.gitlab.write_enabled", writeVal == "true")
+					_ = vip.WriteConfigAs(config.ConfigPath())
+					v.loadServices()
+					v.populateTable()
+					v.shell.ShowToastMsg("GitLab configuré et activé", true)
+				})
+			} else {
+				_ = vip.WriteConfigAs(config.ConfigPath())
+				v.loadServices()
+				v.populateTable()
+				v.shell.ShowToastMsg(service+" configuré et activé", true)
+			}
+		})
+	})
 }
 
 func (v *MCPView) checkToken(serviceName string) bool {
