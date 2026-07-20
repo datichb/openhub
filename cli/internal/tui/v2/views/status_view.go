@@ -3,6 +3,8 @@ package views
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -19,6 +21,7 @@ type StatusView struct {
 	app    *tview.Application
 	appCtx *app.App
 	tv     *tview.TextView
+	shell  ShellAccess
 }
 
 var _ View = (*StatusView)(nil)
@@ -28,6 +31,9 @@ func NewStatusView(a *app.App) *StatusView {
 	return &StatusView{appCtx: a}
 }
 
+// SetShell provides the shell reference for modal interactions.
+func (v *StatusView) SetShell(s ShellAccess) { v.shell = s }
+
 // ID returns the view identifier.
 func (v *StatusView) ID() string { return "status" }
 
@@ -35,7 +41,7 @@ func (v *StatusView) ID() string { return "status" }
 func (v *StatusView) Title() string { return "Status" }
 
 // StatusHints returns keybinding hints.
-func (v *StatusView) StatusHints() string { return "r refresh · Esc retour" }
+func (v *StatusView) StatusHints() string { return "r refresh · c conventions check · Esc retour" }
 
 // Mount builds the status display with real data.
 func (v *StatusView) Mount(content *tview.Flex, app *tview.Application) {
@@ -59,8 +65,12 @@ func (v *StatusView) Unmount() {
 
 // HandleKey processes status view key events.
 func (v *StatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == 'r' {
+	switch event.Rune() {
+	case 'r':
 		v.render()
+		return nil
+	case 'c':
+		v.checkConventions()
 		return nil
 	}
 	return event
@@ -128,4 +138,149 @@ func (v *StatusView) render() {
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, projectCount))
 
 	v.tv.SetText(sb.String())
+}
+
+func (v *StatusView) checkConventions() {
+	if v.shell == nil {
+		return
+	}
+
+	// Determine project path
+	projectPath := "."
+	if v.appCtx != nil && v.appCtx.Projects != nil {
+		p, err := resolveFirstProject(v.appCtx)
+		if err == nil {
+			projectPath = p.Path
+		}
+	}
+
+	var text string
+	issues := 0
+
+	// 1. Branch naming
+	branch := gitCurrentBranch(projectPath)
+	if branch != "" {
+		branchPattern := conventionBranchPattern(projectPath)
+		if branchPattern != "" {
+			re, err := regexp.Compile(branchPattern)
+			if err == nil {
+				if re.MatchString(branch) {
+					text += "  [green]✓[-] Branch : " + branch + " (conforme)\n"
+				} else {
+					text += "  [yellow]⚠[-] Branch : " + branch + " ne suit pas " + branchPattern + "\n"
+					issues++
+				}
+			}
+		} else {
+			text += "  · Branch : " + branch + " (pas de pattern configuré)\n"
+		}
+	} else {
+		text += "  · Branch : non détectée (pas un repo git ?)\n"
+	}
+
+	// 2. Commit format
+	commits := gitLastCommits(projectPath, 5)
+	commitPattern := conventionCommitPattern(projectPath)
+	if commitPattern != "" && len(commits) > 0 {
+		re, err := regexp.Compile(commitPattern)
+		if err == nil {
+			nonConform := 0
+			for _, c := range commits {
+				if !re.MatchString(c) {
+					nonConform++
+				}
+			}
+			if nonConform == 0 {
+				text += fmt.Sprintf("  [green]✓[-] Commits : %d derniers conformes\n", len(commits))
+			} else {
+				text += fmt.Sprintf("  [yellow]⚠[-] Commits : %d/%d non conformes\n", nonConform, len(commits))
+				issues++
+			}
+		}
+	} else if len(commits) > 0 {
+		text += fmt.Sprintf("  · Commits : %d récents (pas de format configuré)\n", len(commits))
+	}
+
+	// 3. Summary
+	text += "\n"
+	if issues == 0 {
+		text += "  [green]✓[-] Tout est conforme"
+	} else {
+		text += fmt.Sprintf("  [yellow]⚠[-] %d warning(s)", issues)
+	}
+
+	v.shell.ShowScrollableModal("Conventions Check", text, []ModalAction{
+		{Label: "Fermer", Callback: func() {}},
+	})
+}
+
+// Git helpers for conventions check.
+func gitCurrentBranch(dir string) string {
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func gitLastCommits(dir string, n int) []string {
+	cmd := exec.Command("git", "-C", dir, "log", fmt.Sprintf("-%d", n), "--pretty=format:%s")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return nil
+	}
+	return lines
+}
+
+// conventionBranchPattern looks for a branch naming pattern in conventions docs.
+func conventionBranchPattern(dir string) string {
+	content := readConventionsFile(dir)
+	if content == "" {
+		return ""
+	}
+	// Look for: branch.*pattern.*[=:].*`pattern` or "pattern"
+	re := regexp.MustCompile(`(?i)branch.*pattern.*[=:]\s*` + "`" + `([^` + "`" + `]+)` + "`")
+	if m := re.FindStringSubmatch(content); len(m) > 1 {
+		return m[1]
+	}
+	return ""
+}
+
+// conventionCommitPattern looks for a commit format pattern in conventions docs.
+func conventionCommitPattern(dir string) string {
+	content := readConventionsFile(dir)
+	if content == "" {
+		return ""
+	}
+	// If "conventional commits" is mentioned, use the standard regex
+	if strings.Contains(strings.ToLower(content), "conventional commit") {
+		return `^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:\s.+`
+	}
+	// Look for explicit commit pattern
+	re := regexp.MustCompile(`(?i)commit.*pattern.*[=:]\s*` + "`" + `([^` + "`" + `]+)` + "`")
+	if m := re.FindStringSubmatch(content); len(m) > 1 {
+		return m[1]
+	}
+	return ""
+}
+
+func readConventionsFile(dir string) string {
+	paths := []string{
+		"docs/wiki/technical/conventions.md",
+		"docs/wiki/conventions.md",
+		"CONVENTIONS.md",
+	}
+	for _, p := range paths {
+		full := dir + "/" + p
+		data, err := exec.Command("cat", full).Output()
+		if err == nil && len(data) > 0 {
+			return string(data)
+		}
+	}
+	return ""
 }

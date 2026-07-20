@@ -139,6 +139,36 @@ func (v *MetricsView) render() {
 	sb.WriteString(fmt.Sprintf("\n  %s─── Période: [7] semaine · [3] mois · [a] tout ───%s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
 
+	// Optimization suggestions
+	sb.WriteString(fmt.Sprintf("\n  [::b]Suggestions%s\n\n", theme.TagReset))
+
+	hasSuggestions := false
+	if stats.TotalTokensIn > 100_000 {
+		sb.WriteString(fmt.Sprintf("  %s•%s Tokens in élevés (%s) — pensez au pattern RTK pour réduire le contexte\n",
+			theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(stats.TotalTokensIn)))
+		hasSuggestions = true
+	}
+	if stats.TotalSessions > 10 && stats.TotalTokensOut > 0 {
+		avgOut := stats.TotalTokensOut / int64(stats.TotalSessions)
+		if avgOut > 5000 {
+			sb.WriteString(fmt.Sprintf("  %s•%s Output moyen élevé (%s/session) — des réponses plus concises réduisent les coûts\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(avgOut)))
+			hasSuggestions = true
+		}
+	}
+	if stats.TotalTokensIn > 0 {
+		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
+		if cacheRatio < 30 {
+			sb.WriteString(fmt.Sprintf("  %s•%s Cache ratio faible (%.0f%%) — activez la compaction pour améliorer le cache\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, cacheRatio))
+			hasSuggestions = true
+		}
+	}
+	if !hasSuggestions {
+		sb.WriteString(fmt.Sprintf("  %s✓ Aucune suggestion — utilisation optimale%s\n",
+			"[green]", "[-]"))
+	}
+
 	v.tv.SetText(sb.String())
 }
 

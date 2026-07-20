@@ -3,6 +3,9 @@ package views
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -39,7 +42,7 @@ func (v *PoliciesView) Title() string { return "Policies" }
 
 // StatusHints returns keybinding hints.
 func (v *PoliciesView) StatusHints() string {
-	return "j/k nav · Enter détail · c check · r refresh · Esc retour"
+	return "j/k nav · Enter détail · a ajouter · c check · r refresh"
 }
 
 // Mount builds the policies list.
@@ -72,6 +75,9 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'c':
 		v.checkPolicies()
+		return nil
+	case 'a':
+		v.addPolicy()
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -216,4 +222,139 @@ func (v *PoliciesView) checkPolicies() {
 	v.shell.ShowScrollableModal("Check Policies", text, []ModalAction{
 		{Label: "Fermer", Callback: func() {}},
 	})
+}
+
+// Policy type options for the add wizard.
+var policyTypeOptions = []SelectOption{
+	{Label: "Regex (branch/commit)", Value: "regex"},
+	{Label: "Forbidden pattern (code)", Value: "forbidden_pattern"},
+	{Label: "Limit (max WIP, etc.)", Value: "limit"},
+	{Label: "Boolean (toggle)", Value: "boolean"},
+}
+
+var policyEnforcementOptions = []SelectOption{
+	{Label: "Warn (avertissement)", Value: "warn"},
+	{Label: "Refuse (bloquant)", Value: "refuse"},
+}
+
+var policyScopeOptions = []SelectOption{
+	{Label: "Diff uniquement", Value: "diff_only"},
+	{Label: "Fichiers modifiés", Value: "modified_files"},
+	{Label: "Tous les fichiers", Value: "all_files"},
+}
+
+func (v *PoliciesView) addPolicy() {
+	if v.shell == nil {
+		return
+	}
+	repo := v.getRepo()
+	if repo == nil {
+		v.shell.ShowToastMsg("Team non configurée", false)
+		return
+	}
+
+	// Step 1: Name
+	v.shell.ShowInputModal("Nom de la policy", "", func(name string) {
+		if name == "" {
+			return
+		}
+		// Step 2: Type
+		v.shell.ShowSelectModal("Type", policyTypeOptions, "regex", func(pType string) {
+			// Step 3: Enforcement
+			v.shell.ShowSelectModal("Enforcement", policyEnforcementOptions, "warn", func(enforcement string) {
+				// Step 4: Message
+				v.shell.ShowInputModal("Message de violation", "", func(message string) {
+					// Step 5: Type-specific config
+					switch pType {
+					case "regex":
+						v.shell.ShowInputModal("Pattern regex", "", func(rule string) {
+							v.writePolicyToml(repo, name, pType, enforcement, message, rule, nil, "", 0)
+						})
+					case "forbidden_pattern":
+						v.shell.ShowInputModal("Patterns interdits (virgule)", "", func(patternsStr string) {
+							patterns := splitTags(patternsStr) // reuse splitTags
+							v.shell.ShowSelectModal("Scope", policyScopeOptions, "diff_only", func(scope string) {
+								v.writePolicyToml(repo, name, pType, enforcement, message, "", patterns, scope, 0)
+							})
+						})
+					case "limit":
+						v.shell.ShowInputModal("Maximum (nombre)", "3", func(maxStr string) {
+							maxVal := 3
+							if _, err := fmt.Sscanf(maxStr, "%d", &maxVal); err != nil {
+								maxVal = 3
+							}
+							v.writePolicyToml(repo, name, pType, enforcement, message, "", nil, "", maxVal)
+						})
+					case "boolean":
+						v.writePolicyToml(repo, name, pType, enforcement, message, "", nil, "", 0)
+					}
+				})
+			})
+		})
+	})
+}
+
+func (v *PoliciesView) writePolicyToml(repo interface{ Path() string; CommitAndPush(ctx context.Context, msg string, files ...string) error }, name, pType, enforcement, message, rule string, patterns []string, scope string, max int) {
+	// Build TOML block
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\n[policies.%s]\n", name))
+	sb.WriteString(fmt.Sprintf("type = %q\n", pType))
+	if rule != "" {
+		sb.WriteString(fmt.Sprintf("rule = %q\n", rule))
+	}
+	if len(patterns) > 0 {
+		sb.WriteString(fmt.Sprintf("patterns = [%s]\n", quoteSlice(patterns)))
+	}
+	if scope != "" {
+		sb.WriteString(fmt.Sprintf("scope = %q\n", scope))
+	}
+	if max > 0 {
+		sb.WriteString(fmt.Sprintf("max = %d\n", max))
+	}
+	if pType == "boolean" {
+		sb.WriteString("enabled = true\n")
+	}
+	sb.WriteString(fmt.Sprintf("enforcement = %q\n", enforcement))
+	if message != "" {
+		sb.WriteString(fmt.Sprintf("message = %q\n", message))
+	}
+
+	// Append to policies.toml
+	policiesPath := filepath.Join(repo.Path(), "policies.toml")
+	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+		}
+		return
+	}
+	_, err = f.WriteString(sb.String())
+	f.Close()
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Erreur écriture: "+err.Error(), false)
+		}
+		return
+	}
+
+	// Commit and push
+	if err := repo.CommitAndPush(context.Background(), fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Commit échoué: "+err.Error(), false)
+		}
+		return
+	}
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Policy ajoutée: "+name, true)
+	}
+	v.refresh()
+}
+
+func quoteSlice(items []string) string {
+	quoted := make([]string, len(items))
+	for i, item := range items {
+		quoted[i] = fmt.Sprintf("%q", item)
+	}
+	return strings.Join(quoted, ", ")
 }

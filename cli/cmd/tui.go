@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/menu"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -37,18 +41,23 @@ func runTUI() error {
 
 // buildMenuItems constructs the menu tree for the shell sidebar.
 func buildMenuItems(a *app.App) []*menu.MenuItem {
-	// Team children — patterns and policies only if team is enabled
-	teamChildren := []*menu.MenuItem{
-		{ID: "team.kanban", Label: "Kanban équipe", ViewID: "team.board"},
-		{ID: "team.status", Label: "Status", ViewID: "team.status"},
-		{ID: "team.activity", Label: "Activité", ViewID: "team.activity"},
-		{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
-	}
+	// Team children — conditional based on team enabled state
+	var teamChildren []*menu.MenuItem
 	if a.Config.Team.Enabled {
-		teamChildren = append(teamChildren,
-			&menu.MenuItem{ID: "team.patterns", Label: "Patterns", ViewID: "patterns"},
-			&menu.MenuItem{ID: "team.policies", Label: "Policies", ViewID: "policies"},
-		)
+		teamChildren = []*menu.MenuItem{
+			{ID: "team.kanban", Label: "Kanban équipe", ViewID: "team.board"},
+			{ID: "team.status", Label: "Status", ViewID: "team.status"},
+			{ID: "team.activity", Label: "Activité", ViewID: "team.activity"},
+			{ID: "team.briefs", Label: "Takeover Briefs", ViewID: "takeover-briefs"},
+			{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
+			{ID: "team.patterns", Label: "Patterns", ViewID: "patterns"},
+			{ID: "team.policies", Label: "Policies", ViewID: "policies"},
+		}
+	} else {
+		teamChildren = []*menu.MenuItem{
+			{ID: "team.init", Label: "Initialiser", Action: actionTeamInit},
+			{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
+		}
 	}
 
 	return []*menu.MenuItem{
@@ -203,9 +212,14 @@ func buildViews(a *app.App) []views.View {
 
 	// Conditionally add team-dependent views
 	if a.Config.Team.Enabled {
+		takeoverView := views.NewTakeoverView(a)
+		takeoverView.SetOnEnrich(func(project, ticketID string) error {
+			return runTakeoverEnrich(a, project, ticketID)
+		})
 		allViews = append(allViews,
 			views.NewPatternsView(a),
 			views.NewPoliciesView(a),
+			takeoverView,
 		)
 	}
 
@@ -542,4 +556,174 @@ func truncateErr(err error) string {
 // canLaunchTUI returns true if the environment supports launching the TUI shell.
 func canLaunchTUI() bool {
 	return common.UseRichTUI()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Team Init action
+// ─────────────────────────────────────────────────────────────────────────────
+
+func actionTeamInit() {
+	if tuiShell == nil {
+		return
+	}
+
+	a := MustApp()
+
+	// Step 1: Git remote URL
+	tuiShell.ShowInputModal("Git remote URL du team-state", "", func(remote string) {
+		if remote == "" {
+			return
+		}
+		// Step 2: Member ID
+		tuiShell.ShowInputModal("Votre member ID", "", func(memberID string) {
+			if memberID == "" {
+				return
+			}
+			// Step 3: Display name
+			tuiShell.ShowInputModal("Nom d'affichage", "", func(displayName string) {
+				if displayName == "" {
+					return
+				}
+				// Step 4: Role
+				roleOpts := []shell.SessionOption{
+					{Label: "Lead", Description: "Tech lead"},
+					{Label: "Dev", Description: "Développeur"},
+					{Label: "Reviewer", Description: "Revieweur"},
+				}
+				_ = roleOpts // use ShowSelectModal instead
+
+				roleOptions := []views.SelectOption{
+					{Label: "Lead", Value: "lead"},
+					{Label: "Développeur", Value: "dev"},
+					{Label: "Reviewer", Value: "reviewer"},
+				}
+				tuiShell.ShowSelectModal("Rôle", roleOptions, "dev", func(role string) {
+					// Execute team init async
+					tuiShell.ShowToast("Initialisation team...", shell.ToastInfo)
+
+					go func() {
+						err := runTeamInitFromTUI(a, remote, memberID, displayName, role)
+						tuiShell.App().QueueUpdateDraw(func() {
+							if err != nil {
+								tuiShell.ShowToast("Team init échoué: "+truncateErr(err), shell.ToastError)
+							} else {
+								tuiShell.ShowToast("Team initialisé ! Redémarrez le TUI pour les nouvelles options.", shell.ToastSuccess)
+							}
+						})
+					}()
+				})
+			})
+		})
+	})
+}
+
+func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) error {
+	statePath := a.Config.Team.StatePath
+	if statePath == "" {
+		statePath = config.DefaultTeamStatePath()
+	}
+
+	repo := teamstate.NewRepo(remote, statePath)
+
+	// Clone or pull
+	ctx := context.Background()
+	if err := repo.EnsureReady(ctx); err != nil {
+		return fmt.Errorf("cloning team-state: %w", err)
+	}
+
+	// Init structure if needed
+	if err := repo.InitStructure(ctx); err != nil {
+		return fmt.Errorf("init structure: %w", err)
+	}
+
+	// Register member
+	member := teamstate.Member{
+		ID:          memberID,
+		DisplayName: displayName,
+		Role:        role,
+		DefaultMode: "semi-auto",
+	}
+	if repo.HasMember(memberID) {
+		if err := repo.UpdateMember(member); err != nil {
+			return fmt.Errorf("update member: %w", err)
+		}
+	} else {
+		if err := repo.AddMember(member); err != nil {
+			return fmt.Errorf("add member: %w", err)
+		}
+	}
+
+	// Commit and push
+	if err := repo.CommitAndPush(ctx, "team: init "+memberID, "members.toml"); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	// Write team section to hub.toml
+	vip := configViper()
+	vip.Set("team.enabled", true)
+	vip.Set("team.state_repo", remote)
+	vip.Set("team.state_path", statePath)
+	vip.Set("team.member_id", memberID)
+	if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+		return fmt.Errorf("writing hub.toml: %w", err)
+	}
+
+	// Update in-memory config
+	a.Config.Team.Enabled = true
+	a.Config.Team.StateRepo = remote
+	a.Config.Team.StatePath = statePath
+	a.Config.Team.MemberID = memberID
+
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Takeover brief enrichment
+// ─────────────────────────────────────────────────────────────────────────────
+
+func runTakeoverEnrich(a *app.App, project, ticketID string) error {
+	repo := teamstate.NewRepo(a.Config.Team.StateRepo, a.Config.Team.StatePath)
+
+	// Read existing brief content
+	content, err := repo.ReadBrief(project, ticketID)
+	if err != nil {
+		return fmt.Errorf("reading brief: %w", err)
+	}
+
+	// Run headless enrichment via opencode
+	enriched, err := opencode.RunHeadless(opencode.HeadlessOpts{
+		Agent:  "brief-enricher",
+		Prompt: content,
+	})
+	if err != nil {
+		return fmt.Errorf("enrichment: %w", err)
+	}
+
+	// Find latest brief to derive enriched filename
+	briefsDir := repo.Path() + "/projects/" + project + "/takeover-briefs/"
+	entries, _ := os.ReadDir(briefsDir)
+	var latestBase string
+	for _, e := range entries {
+		name := e.Name()
+		if len(name) > len(ticketID)+1 && name[:len(ticketID)] == ticketID &&
+			strings.HasSuffix(name, ".md") && !strings.HasSuffix(name, ".enriched.md") {
+			latestBase = strings.TrimSuffix(name, ".md")
+		}
+	}
+	if latestBase == "" {
+		latestBase = ticketID
+	}
+
+	// Write enriched file
+	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, enriched)
+	enrichedFile := briefsDir + latestBase + ".enriched.md"
+	if err := os.WriteFile(enrichedFile, []byte(enrichedContent), 0o644); err != nil {
+		return fmt.Errorf("writing enriched brief: %w", err)
+	}
+
+	// Commit and push
+	relPath := "projects/" + project + "/takeover-briefs/" + latestBase + ".enriched.md"
+	_ = repo.CommitAndPush(context.Background(), fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
+
+	return nil
 }
