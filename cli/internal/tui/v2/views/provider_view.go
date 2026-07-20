@@ -1,8 +1,8 @@
 package views
 
 import (
+	"context"
 	"fmt"
-	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -116,7 +116,7 @@ func (v *ProviderView) refresh() {
 		if v.appCtx.Secrets != nil {
 			key := provider.KeychainKey(name, "")
 			if key != "" {
-				val, err := v.appCtx.Secrets.Get(nil, key)
+				val, err := v.appCtx.Secrets.Get(context.Background(), key)
 				if err == nil && val != "" {
 					keychainOk = true
 				}
@@ -187,7 +187,7 @@ func (v *ProviderView) setupBedrock() {
 				}
 				// Store in keychain
 				if v.appCtx.Secrets != nil {
-					_ = v.appCtx.Secrets.Set(nil, "bedrock-token-default", token)
+					_ = v.appCtx.Secrets.Set(context.Background(), "bedrock-token-default", token)
 				}
 				// Step 4: Region
 				v.shell.ShowInputModal("AWS Region", "us-east-1", func(region string) {
@@ -234,7 +234,7 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 		// Store in keychain
 		keychainKey := provider.KeychainKey(name, "")
 		if v.appCtx.Secrets != nil && keychainKey != "" {
-			_ = v.appCtx.Secrets.Set(nil, keychainKey, key)
+			_ = v.appCtx.Secrets.Set(context.Background(), keychainKey, key)
 		}
 		// Set as default provider
 		vip := providerConfigViper()
@@ -246,12 +246,5 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 }
 
 func providerConfigViper() *viper.Viper {
-	v := viper.New()
-	v.SetConfigName("hub")
-	v.SetConfigType("toml")
-	v.AddConfigPath(config.HubDir())
-	v.AddConfigPath(".")
-	v.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-	_ = v.ReadInConfig()
-	return v
+	return hubViper()
 }

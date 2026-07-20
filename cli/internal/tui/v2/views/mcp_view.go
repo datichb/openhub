@@ -1,8 +1,8 @@
 package views
 
 import (
+	"context"
 	"fmt"
-	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -217,7 +217,7 @@ func (v *MCPView) promptToken(idx int) {
 		v.shell.ShowInputModal("Token "+svc.Name, "", func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", svc.Name)
-				_ = v.appCtx.Secrets.Set(nil, key, token)
+				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
 				v.services[idx].HasToken = true
 				v.populateTable()
 				v.shell.ShowToastMsg("Token enregistré", true)
@@ -265,7 +265,7 @@ func (v *MCPView) resetService(idx int) {
 	// Clear token from keychain
 	if svc.Name != "team" && v.appCtx != nil && v.appCtx.Secrets != nil {
 		key := fmt.Sprintf("%s-token", svc.Name)
-		_ = v.appCtx.Secrets.Delete(nil, key)
+		_ = v.appCtx.Secrets.Delete(context.Background(), key)
 	}
 
 	v.services[idx].Enabled = false
@@ -300,7 +300,7 @@ func (v *MCPView) setupWizard() {
 			// Store token
 			if v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", service)
-				_ = v.appCtx.Secrets.Set(nil, key, token)
+				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
 			}
 
 			// Enable service
@@ -338,17 +338,10 @@ func (v *MCPView) checkToken(serviceName string) bool {
 		return true // team doesn't need a token
 	}
 	key := fmt.Sprintf("%s-token", serviceName)
-	val, err := v.appCtx.Secrets.Get(nil, key)
+	val, err := v.appCtx.Secrets.Get(context.Background(), key)
 	return err == nil && val != ""
 }
 
 func mcpConfigViper() *viper.Viper {
-	v := viper.New()
-	v.SetConfigName("hub")
-	v.SetConfigType("toml")
-	v.AddConfigPath(config.HubDir())
-	v.AddConfigPath(".")
-	v.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-	_ = v.ReadInConfig()
-	return v
+	return hubViper()
 }

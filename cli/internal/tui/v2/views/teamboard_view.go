@@ -253,6 +253,9 @@ func (v *TeamBoardView) claimTicket() {
 	}
 	go func() {
 		err := v.actions.OnClaim(ticketID)
+		if v.app == nil {
+			return
+		}
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
 				v.shell.ShowToastMsg("Claim échoué: "+err.Error(), false)
@@ -276,6 +279,9 @@ func (v *TeamBoardView) releaseTicket() {
 	}
 	go func() {
 		err := v.actions.OnRelease(ticketID)
+		if v.app == nil {
+			return
+		}
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
 				v.shell.ShowToastMsg("Release échoué: "+err.Error(), false)
@@ -305,6 +311,9 @@ func (v *TeamBoardView) transferTicket() {
 	v.shell.ShowSelectModal("Transférer "+ticketID+" à", members, "", func(toMember string) {
 		go func() {
 			err := v.actions.OnTransfer(ticketID, toMember)
+			if v.app == nil {
+				return
+			}
 			v.app.QueueUpdateDraw(func() {
 				if err != nil {
 					v.shell.ShowToastMsg("Transfert échoué: "+err.Error(), false)
@@ -338,6 +347,9 @@ func (v *TeamBoardView) changeStatus() {
 	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
 		go func() {
 			err := v.actions.OnStatus(ticketID, newStatus)
+			if v.app == nil {
+				return
+			}
 			v.app.QueueUpdateDraw(func() {
 				if err != nil {
 					v.shell.ShowToastMsg("Changement échoué: "+err.Error(), false)

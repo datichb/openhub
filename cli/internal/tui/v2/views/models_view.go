@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"path/filepath"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
@@ -373,12 +372,5 @@ func (v *ModelsView) deleteProjectModel(projectName, scope string) {
 }
 
 func modelsConfigViper() *viper.Viper {
-	v := viper.New()
-	v.SetConfigName("hub")
-	v.SetConfigType("toml")
-	v.AddConfigPath(config.HubDir())
-	v.AddConfigPath(".")
-	v.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-	_ = v.ReadInConfig()
-	return v
+	return hubViper()
 }

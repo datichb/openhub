@@ -55,6 +55,7 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
     G            Dernier item
 
   %sGlobal%s
+    Ctrl+P       Palette de commandes (recherche rapide)
     Ctrl+Q       Quitter le TUI
 
   %sSessions%s

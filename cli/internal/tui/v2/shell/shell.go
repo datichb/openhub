@@ -5,7 +5,6 @@ package shell
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -47,7 +46,6 @@ type Shell struct {
 	statusBar     *StatusBar
 	router        *router.Router
 	overlayActive bool
-	mu            sync.Mutex
 }
 
 // New creates a configured Shell ready to run.
@@ -277,6 +275,9 @@ func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, curr
 	confirmed := false
 	dd.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
+			if confirmed {
+				return
+			}
 			confirmed = true
 			idx, _ := dd.GetCurrentOption()
 			s.pages.RemovePage("select-modal")
@@ -539,6 +540,8 @@ func (s *Shell) ShowModal(title, message string, onConfirm func()) {
 // DismissModal removes a named overlay page.
 func (s *Shell) DismissModal(name string) {
 	s.pages.RemovePage(name)
+	s.overlayActive = false
+	s.app.EnableMouse(true)
 	s.app.SetFocus(s.content)
 }
 

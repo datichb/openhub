@@ -73,10 +73,9 @@ func (v *ParallelView) Mount(content *tview.Flex, app *tview.Application) {
 	v.detailView.SetBorderPadding(0, 0, 2, 2)
 
 	// Wire list selection to detail update
-	sessions := v.cfg.Sessions
 	v.sessionList.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
-		if index >= 0 && index < len(sessions) {
-			v.updateDetail(sessions[index])
+		if index >= 0 && index < len(v.cfg.Sessions) {
+			v.updateDetail(v.cfg.Sessions[index])
 		}
 	})
 
@@ -85,7 +84,7 @@ func (v *ParallelView) Mount(content *tview.Flex, app *tview.Application) {
 	v.contentFlex.AddItem(v.sessionList, 0, 3, true)
 	v.contentFlex.AddItem(v.detailView, 5, 0, false)
 
-	v.populateSessions(sessions)
+	v.populateSessions(v.cfg.Sessions)
 	content.AddItem(v.contentFlex, 0, 1, true)
 
 	// Start refresh goroutine
@@ -176,7 +175,7 @@ func (v *ParallelView) refresh() {
 	sessions := v.cfg.RefreshFunc()
 	v.cfg.Sessions = sessions
 	v.app.QueueUpdateDraw(func() {
-		v.populateSessions(sessions)
+	v.populateSessions(v.cfg.Sessions)
 	})
 }
 

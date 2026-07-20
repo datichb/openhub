@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -280,7 +281,7 @@ func (v *WorktreeView) getProjectPath() string {
 
 // resolveFirstProject returns the first available project (helper for views).
 func resolveFirstProject(a *app.App) (*domain.Project, error) {
-	projects, err := a.Projects.List(nil, "")
+	projects, err := a.Projects.List(context.Background(), "")
 	if err != nil || len(projects) == 0 {
 		return nil, fmt.Errorf("no projects")
 	}
