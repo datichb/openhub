@@ -45,7 +45,7 @@ func (v *WorktreeView) Title() string { return "Worktrees" }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return "j/k nav · a ajouter · d supprimer · r refresh · Esc retour"
+	return "j/k nav · a ajouter · d supprimer · p prune · C cleanup · r refresh · Esc retour"
 }
 
 // Mount builds the worktree list.
@@ -85,6 +85,12 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'd':
 		v.removeWorktree()
+		return nil
+	case 'p':
+		v.pruneWorktrees()
+		return nil
+	case 'C':
+		v.cleanupWorktrees()
 		return nil
 	}
 	return event
@@ -189,6 +195,76 @@ func (v *WorktreeView) removeWorktree() {
 		}
 		v.refresh()
 	}
+}
+
+func (v *WorktreeView) pruneWorktrees() {
+	projectPath := v.getProjectPath()
+	if projectPath == "" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Aucun projet actif", false)
+		}
+		return
+	}
+
+	cmd := exec.Command("git", "-C", projectPath, "worktree", "prune")
+	if err := cmd.Run(); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Prune échoué: "+err.Error(), false)
+		}
+	} else {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Worktrees prunés", true)
+		}
+		v.refresh()
+	}
+}
+
+func (v *WorktreeView) cleanupWorktrees() {
+	projectPath := v.getProjectPath()
+	if projectPath == "" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Aucun projet actif", false)
+		}
+		return
+	}
+
+	// Get merged branches
+	out, err := exec.Command("git", "-C", projectPath, "branch", "--merged", "HEAD").Output()
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+		}
+		return
+	}
+
+	merged := make(map[string]bool)
+	for _, line := range strings.Split(string(out), "\n") {
+		branch := strings.TrimSpace(line)
+		branch = strings.TrimPrefix(branch, "* ")
+		if branch != "" && branch != "main" && branch != "master" && branch != "develop" {
+			merged[branch] = true
+		}
+	}
+
+	// Remove worktrees whose branch is merged
+	removed := 0
+	for _, wt := range v.items {
+		if merged[wt.Branch] {
+			cmd := exec.Command("git", "-C", projectPath, "worktree", "remove", wt.Path)
+			if cmd.Run() == nil {
+				removed++
+			}
+		}
+	}
+
+	if v.shell != nil {
+		if removed == 0 {
+			v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
+		} else {
+			v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", removed), true)
+		}
+	}
+	v.refresh()
 }
 
 func (v *WorktreeView) getProjectPath() string {

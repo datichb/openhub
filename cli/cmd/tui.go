@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
@@ -63,6 +64,7 @@ func buildMenuItems() []*menu.MenuItem {
 			Children: []*menu.MenuItem{
 				{ID: "team.kanban", Label: "Kanban équipe", ViewID: "team.board"},
 				{ID: "team.status", Label: "Status", ViewID: "team.status"},
+				{ID: "team.activity", Label: "Activité", ViewID: "team.activity"},
 				{ID: "team.worktrees", Label: "Worktrees", ViewID: "worktrees"},
 			},
 		},
@@ -70,6 +72,7 @@ func buildMenuItems() []*menu.MenuItem {
 			ID: "config", Label: "Configuration", Expanded: false,
 			Children: []*menu.MenuItem{
 				{ID: "config.hub", Label: "Hub", ViewID: "config"},
+				{ID: "config.models", Label: "Models", ViewID: "models"},
 				{ID: "config.mcp", Label: "MCP", ViewID: "mcp"},
 			},
 		},
@@ -174,11 +177,13 @@ func buildViews(a *app.App) []views.View {
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
 		views.NewTeamStatusView(a),
+		views.NewActivityView(a),
 		views.NewWorktreeView(a),
 		views.NewStatusView(a),
 		views.NewMetricsView(),
 		views.NewDoctorView(a),
 		views.NewConfigView(),
+		views.NewModelsView(a),
 		views.NewMCPView(a),
 		views.NewHelpView(),
 	}
@@ -317,14 +322,25 @@ func actionReviewLauncher() {
 	if tuiShell == nil {
 		return
 	}
+
+	options := []shell.SessionOption{
+		{Label: "Standard", Description: "Code review classique", Agent: "reviewer"},
+		{Label: "Adversarial", Description: "Review adversariale (trouver les failles)", Agent: "reviewer", ExtraArgs: []string{"--mode", "adversarial"}},
+		{Label: "Edge cases", Description: "Review orientée cas limites", Agent: "reviewer", ExtraArgs: []string{"--mode", "edge-case"}},
+		{Label: "Complète", Description: "Review complète (tous les modes)", Agent: "reviewer", ExtraArgs: []string{"--mode", "all"}},
+	}
+
+	// Add publish option if GitLab write is enabled
+	a := MustApp()
+	if a.Config.MCP.Gitlab.WriteEnabled {
+		options = append(options, shell.SessionOption{
+			Label: "Publish", Description: "Publier pour review (crée MR + notifie l'équipe)", Agent: "reviewer", ExtraArgs: []string{"--publish"},
+		})
+	}
+
 	tuiShell.ShowSessionLauncher(shell.SessionLaunchConfig{
-		Title: "Lancer une review",
-		Options: []shell.SessionOption{
-			{Label: "Standard", Description: "Code review classique", Agent: "reviewer"},
-			{Label: "Adversarial", Description: "Review adversariale (trouver les failles)", Agent: "reviewer", ExtraArgs: []string{"--mode", "adversarial"}},
-			{Label: "Edge cases", Description: "Review orientée cas limites", Agent: "reviewer", ExtraArgs: []string{"--mode", "edge-case"}},
-			{Label: "Complète", Description: "Review complète (tous les modes)", Agent: "reviewer", ExtraArgs: []string{"--mode", "all"}},
-		},
+		Title:   "Lancer une review",
+		Options: options,
 		OnLaunch: func(opt shell.SessionOption) {
 			launchOpencode(opt.Agent, opt.ExtraArgs...)
 		},
@@ -399,17 +415,50 @@ func actionDeploy() {
 		return
 	}
 
-	tuiShell.ShowToast("Deploy: "+project.Name+"...", shell.ToastInfo)
+	hubDir := findHubDir()
+	if hubDir == "" {
+		tuiShell.ShowToast("Hub content non trouvé", shell.ToastError)
+		return
+	}
 
-	// Run deploy in background then show result
+	// Compute diff to show preview before deploying
+	tuiShell.ShowToast("Analyse des changements...", shell.ToastInfo)
+
 	go func() {
-		err := runDeployForProject(a, project)
+		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Deploy échoué: "+truncateErr(err), shell.ToastError)
-			} else {
-				tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
+				tuiShell.ShowToast("Erreur diff: "+truncateErr(err), shell.ToastError)
+				return
 			}
+
+			if !report.HasChanges() {
+				tuiShell.ShowToast("Déjà à jour — rien à déployer", shell.ToastSuccess)
+				return
+			}
+
+			// Show diff preview with apply/cancel actions
+			diffContent := deploy.FormatDiffReport(report, false)
+			tuiShell.ShowScrollableModal(
+				"Deploy Preview: "+project.Name,
+				diffContent,
+				[]views.ModalAction{
+					{Label: "Appliquer", Callback: func() {
+						tuiShell.ShowToast("Deploy en cours...", shell.ToastInfo)
+						go func() {
+							err := runDeployForProject(a, project)
+							tuiShell.App().QueueUpdateDraw(func() {
+								if err != nil {
+									tuiShell.ShowToast("Deploy échoué: "+truncateErr(err), shell.ToastError)
+								} else {
+									tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
+								}
+							})
+						}()
+					}},
+					{Label: "Annuler", Callback: func() {}},
+				},
+			)
 		})
 	}()
 }

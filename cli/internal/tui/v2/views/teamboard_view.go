@@ -23,6 +23,15 @@ type TeamBoardViewConfig struct {
 	RefreshRate time.Duration
 }
 
+// BoardActions provides callbacks for ticket actions on the board.
+type BoardActions struct {
+	OnClaim    func(ticketID string) error
+	OnRelease  func(ticketID string) error
+	OnTransfer func(ticketID, toMember string) error
+	OnStatus   func(ticketID, newStatus string) error
+	Members    func() []SelectOption // returns team members for transfer
+}
+
 // TeamBoardView implements View for the team kanban board.
 type TeamBoardView struct {
 	cfg         TeamBoardViewConfig
@@ -32,6 +41,8 @@ type TeamBoardView struct {
 	app         *tview.Application
 	done        chan struct{}
 	once        sync.Once
+	shell       ShellAccess
+	actions     *BoardActions
 }
 
 var _ View = (*TeamBoardView)(nil)
@@ -41,6 +52,12 @@ func NewTeamBoardView(cfg TeamBoardViewConfig) *TeamBoardView {
 	return &TeamBoardView{cfg: cfg}
 }
 
+// SetShell provides the shell reference for modal interactions.
+func (v *TeamBoardView) SetShell(s ShellAccess) { v.shell = s }
+
+// SetActions configures the callbacks for ticket actions.
+func (v *TeamBoardView) SetActions(a *BoardActions) { v.actions = a }
+
 // ID returns the view identifier.
 func (v *TeamBoardView) ID() string { return "team.board" }
 
@@ -49,7 +66,7 @@ func (v *TeamBoardView) Title() string { return "Team Board" }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	return "h/l colonnes · j/k items · r refresh · Esc retour"
+	return "h/l colonnes · j/k items · c claim · x release · t transfer · s status · r refresh"
 }
 
 // Mount builds the team board and inserts it into the content panel.
@@ -116,6 +133,18 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if v.cfg.RefreshFunc != nil {
 			v.refresh(DefaultColumns())
 		}
+		return nil
+	case 'c':
+		v.claimTicket()
+		return nil
+	case 'x':
+		v.releaseTicket()
+		return nil
+	case 't':
+		v.transferTicket()
+		return nil
+	case 's':
+		v.changeStatus()
 		return nil
 	}
 
@@ -196,5 +225,129 @@ func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
 	tickets := v.cfg.RefreshFunc()
 	v.app.QueueUpdateDraw(func() {
 		v.populateColumns(tickets, columns)
+	})
+}
+
+// ─── Ticket Actions ──────────────────────────────────────────────────────────
+
+func (v *TeamBoardView) selectedTicketID() string {
+	if v.focusCol < 0 || v.focusCol >= len(v.columnLists) {
+		return ""
+	}
+	list := v.columnLists[v.focusCol]
+	idx := list.GetCurrentItem()
+	if idx < 0 {
+		return ""
+	}
+	_, secondary := list.GetItemText(idx)
+	return secondary
+}
+
+func (v *TeamBoardView) claimTicket() {
+	if v.actions == nil || v.actions.OnClaim == nil || v.shell == nil {
+		return
+	}
+	ticketID := v.selectedTicketID()
+	if ticketID == "" {
+		return
+	}
+	go func() {
+		err := v.actions.OnClaim(ticketID)
+		v.app.QueueUpdateDraw(func() {
+			if err != nil {
+				v.shell.ShowToastMsg("Claim échoué: "+err.Error(), false)
+			} else {
+				v.shell.ShowToastMsg("Ticket claim: "+ticketID, true)
+				if v.cfg.RefreshFunc != nil {
+					v.refresh(DefaultColumns())
+				}
+			}
+		})
+	}()
+}
+
+func (v *TeamBoardView) releaseTicket() {
+	if v.actions == nil || v.actions.OnRelease == nil || v.shell == nil {
+		return
+	}
+	ticketID := v.selectedTicketID()
+	if ticketID == "" {
+		return
+	}
+	go func() {
+		err := v.actions.OnRelease(ticketID)
+		v.app.QueueUpdateDraw(func() {
+			if err != nil {
+				v.shell.ShowToastMsg("Release échoué: "+err.Error(), false)
+			} else {
+				v.shell.ShowToastMsg("Ticket libéré: "+ticketID, true)
+				if v.cfg.RefreshFunc != nil {
+					v.refresh(DefaultColumns())
+				}
+			}
+		})
+	}()
+}
+
+func (v *TeamBoardView) transferTicket() {
+	if v.actions == nil || v.actions.OnTransfer == nil || v.actions.Members == nil || v.shell == nil {
+		return
+	}
+	ticketID := v.selectedTicketID()
+	if ticketID == "" {
+		return
+	}
+	members := v.actions.Members()
+	if len(members) == 0 {
+		v.shell.ShowToastMsg("Aucun membre dans l'équipe", false)
+		return
+	}
+	v.shell.ShowSelectModal("Transférer "+ticketID+" à", members, "", func(toMember string) {
+		go func() {
+			err := v.actions.OnTransfer(ticketID, toMember)
+			v.app.QueueUpdateDraw(func() {
+				if err != nil {
+					v.shell.ShowToastMsg("Transfert échoué: "+err.Error(), false)
+				} else {
+					v.shell.ShowToastMsg("Transféré à "+toMember, true)
+					if v.cfg.RefreshFunc != nil {
+						v.refresh(DefaultColumns())
+					}
+				}
+			})
+		}()
+	})
+}
+
+func (v *TeamBoardView) changeStatus() {
+	if v.actions == nil || v.actions.OnStatus == nil || v.shell == nil {
+		return
+	}
+	ticketID := v.selectedTicketID()
+	if ticketID == "" {
+		return
+	}
+
+	statusOptions := []SelectOption{
+		{Label: "TODO", Value: "todo"},
+		{Label: "In Progress", Value: "in_progress"},
+		{Label: "Done", Value: "done"},
+		{Label: "Blocked", Value: "blocked"},
+	}
+
+	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
+		go func() {
+			err := v.actions.OnStatus(ticketID, newStatus)
+			v.app.QueueUpdateDraw(func() {
+				if err != nil {
+					v.shell.ShowToastMsg("Changement échoué: "+err.Error(), false)
+				} else {
+					v.shell.ShowToastMsg("Status mis à jour", true)
+					if v.cfg.RefreshFunc != nil {
+						v.refresh(DefaultColumns())
+					}
+				}
+			})
+		}()
 	})
 }

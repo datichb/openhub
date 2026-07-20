@@ -28,11 +28,18 @@ type SelectOption struct {
 	Value string // Stored value (e.g. "fr")
 }
 
+// ModalAction represents a button action in a scrollable modal.
+type ModalAction struct {
+	Label    string
+	Callback func()
+}
+
 // ShellAccess provides access to shell overlay capabilities from views.
 type ShellAccess interface {
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
 	ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))
 	ShowMultiSelectModal(title string, options []SelectOption, selected []string, onConfirm func(selected []string))
+	ShowScrollableModal(title, content string, actions []ModalAction)
 	ShowToastMsg(msg string, success bool)
 }
 

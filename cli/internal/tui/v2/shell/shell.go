@@ -383,6 +383,90 @@ func (s *Shell) ShowMultiSelectModal(title string, options []views.SelectOption,
 	s.app.SetFocus(list)
 }
 
+// ShowScrollableModal displays a centered modal with scrollable text content and action buttons.
+func (s *Shell) ShowScrollableModal(title, content string, actions []views.ModalAction) {
+	s.overlayActive = true
+	s.app.EnableMouse(false)
+
+	// Scrollable text content
+	textView := tview.NewTextView().
+		SetText(content).
+		SetDynamicColors(true).
+		SetScrollable(true).
+		SetWrap(true)
+	textView.SetBackgroundColor(theme.BgPanel)
+	textView.SetTextColor(theme.FgPrimary)
+	textView.SetBorderPadding(0, 0, 1, 1)
+
+	// Button bar at the bottom
+	buttons := tview.NewFlex()
+	buttons.SetBackgroundColor(theme.BgPanel)
+
+	focusables := []tview.Primitive{textView}
+
+	for _, act := range actions {
+		a := act // capture
+		btn := tview.NewButton(a.Label).
+			SetSelectedFunc(func() {
+				s.pages.RemovePage("scrollable-modal")
+				s.overlayActive = false
+				s.app.EnableMouse(true)
+				s.app.SetFocus(s.content)
+				if a.Callback != nil {
+					a.Callback()
+				}
+			})
+		btn.SetBackgroundColor(theme.BgElement)
+		btn.SetLabelColor(theme.FgPrimary)
+		btn.SetBackgroundColorActivated(theme.Accent)
+		btn.SetLabelColorActivated(theme.BgPanel)
+		buttons.AddItem(btn, len(a.Label)+4, 0, false)
+		buttons.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 1, 0, false)
+		focusables = append(focusables, btn)
+	}
+
+	// Layout: text area + button bar
+	frame := tview.NewFlex().SetDirection(tview.FlexRow)
+	frame.AddItem(textView, 0, 1, true)
+	frame.AddItem(buttons, 1, 0, false)
+	frame.SetBorder(true)
+	frame.SetBorderColor(theme.Accent)
+	frame.SetTitle(" " + title + " · Tab switch · Esc annuler ")
+	frame.SetTitleColor(theme.Accent)
+	frame.SetBackgroundColor(theme.BgPanel)
+
+	// Focus cycling with Tab
+	currentFocus := 0
+	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			s.pages.RemovePage("scrollable-modal")
+			s.overlayActive = false
+			s.app.EnableMouse(true)
+			s.app.SetFocus(s.content)
+			return nil
+		case tcell.KeyTab, tcell.KeyBacktab:
+			if event.Key() == tcell.KeyTab {
+				currentFocus = (currentFocus + 1) % len(focusables)
+			} else {
+				currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)
+			}
+			s.app.SetFocus(focusables[currentFocus])
+			return nil
+		}
+		return event
+	})
+
+	// Center (70% width, 70% height)
+	grid := tview.NewGrid().
+		SetColumns(0, -4, 0).
+		SetRows(1, -4, 1)
+	grid.AddItem(frame, 1, 1, 1, 1, 0, 0, true)
+
+	s.pages.AddPage("scrollable-modal", grid, true, true)
+	s.app.SetFocus(textView)
+}
+
 // ShowModal displays a centered confirmation modal.
 func (s *Shell) ShowModal(title, message string, onConfirm func()) {
 	s.overlayActive = true

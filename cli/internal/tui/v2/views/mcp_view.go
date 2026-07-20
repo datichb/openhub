@@ -15,9 +15,10 @@ import (
 
 // MCPService represents the state of an MCP service.
 type MCPService struct {
-	Name     string
-	Enabled  bool
-	HasToken bool
+	Name         string
+	Enabled      bool
+	HasToken     bool
+	WriteEnabled bool
 }
 
 // MCPView displays MCP server management with toggle actions.
@@ -47,7 +48,7 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · e enable · d disable · t set token · Esc retour"
+	return "j/k nav · e enable · d disable · t token · w écriture · R reset · Esc retour"
 }
 
 // Mount builds the MCP management interface.
@@ -93,6 +94,12 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 't':
 		v.promptToken(idx)
 		return nil
+	case 'w':
+		v.toggleWriteEnabled(idx)
+		return nil
+	case 'R':
+		v.resetService(idx)
+		return nil
 	}
 	return event
 }
@@ -105,11 +112,13 @@ func (v *MCPView) loadServices() {
 
 	for _, name := range serviceNames {
 		enabled := vip.GetBool(fmt.Sprintf("mcp.%s.enabled", name))
+		writeEnabled := vip.GetBool(fmt.Sprintf("mcp.%s.write_enabled", name))
 		hasToken := v.checkToken(name)
 		v.services = append(v.services, MCPService{
-			Name:     name,
-			Enabled:  enabled,
-			HasToken: hasToken,
+			Name:         name,
+			Enabled:      enabled,
+			HasToken:     hasToken,
+			WriteEnabled: writeEnabled,
 		})
 	}
 }
@@ -121,7 +130,8 @@ func (v *MCPView) populateTable() {
 	headerStyle := tcell.StyleDefault.Foreground(theme.Accent).Bold(true)
 	v.table.SetCell(0, 0, tview.NewTableCell("  Service").SetStyle(headerStyle).SetSelectable(false))
 	v.table.SetCell(0, 1, tview.NewTableCell("État").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 2, tview.NewTableCell("Token").SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 2, tview.NewTableCell("Écriture").SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 3, tview.NewTableCell("Token").SetStyle(headerStyle).SetSelectable(false))
 
 	for i, svc := range v.services {
 		// Service name
@@ -143,6 +153,23 @@ func (v *MCPView) populateTable() {
 			SetTextColor(stateColor).
 			SetExpansion(1)
 
+		// Write enabled state
+		var writeText string
+		var writeColor tcell.Color
+		if svc.Name == "team" || svc.Name == "figma" || svc.Name == "gslides" {
+			writeText = "—"
+			writeColor = theme.FgMuted
+		} else if svc.WriteEnabled {
+			writeText = "activé"
+			writeColor = theme.Success
+		} else {
+			writeText = "désactivé"
+			writeColor = theme.FgMuted
+		}
+		writeCell := tview.NewTableCell(writeText).
+			SetTextColor(writeColor).
+			SetExpansion(1)
+
 		// Token state
 		var tokenText string
 		var tokenColor tcell.Color
@@ -162,7 +189,8 @@ func (v *MCPView) populateTable() {
 
 		v.table.SetCell(i+1, 0, nameCell)
 		v.table.SetCell(i+1, 1, stateCell)
-		v.table.SetCell(i+1, 2, tokenCell)
+		v.table.SetCell(i+1, 2, writeCell)
+		v.table.SetCell(i+1, 3, tokenCell)
 	}
 }
 
@@ -192,6 +220,58 @@ func (v *MCPView) promptToken(idx int) {
 				v.shell.ShowToastMsg("Token enregistré", true)
 			}
 		})
+	}
+}
+
+func (v *MCPView) toggleWriteEnabled(idx int) {
+	svc := v.services[idx]
+	// Only gitlab supports write mode
+	if svc.Name != "gitlab" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Écriture non applicable pour "+svc.Name, false)
+		}
+		return
+	}
+
+	newVal := !svc.WriteEnabled
+	vip := mcpConfigViper()
+	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), newVal)
+	_ = vip.WriteConfigAs(config.ConfigPath())
+
+	v.services[idx].WriteEnabled = newVal
+	v.populateTable()
+
+	if v.shell != nil {
+		if newVal {
+			v.shell.ShowToastMsg("Écriture activée pour "+svc.Name, true)
+		} else {
+			v.shell.ShowToastMsg("Écriture désactivée pour "+svc.Name, true)
+		}
+	}
+}
+
+func (v *MCPView) resetService(idx int) {
+	svc := v.services[idx]
+	vip := mcpConfigViper()
+
+	// Disable service
+	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), false)
+	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), false)
+	_ = vip.WriteConfigAs(config.ConfigPath())
+
+	// Clear token from keychain
+	if svc.Name != "team" && v.appCtx != nil && v.appCtx.Secrets != nil {
+		key := fmt.Sprintf("%s-token", svc.Name)
+		_ = v.appCtx.Secrets.Delete(nil, key)
+	}
+
+	v.services[idx].Enabled = false
+	v.services[idx].WriteEnabled = false
+	v.services[idx].HasToken = false
+	v.populateTable()
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Service réinitialisé: "+svc.Name, true)
 	}
 }
 
