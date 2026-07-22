@@ -3,6 +3,7 @@ package teamstate
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,11 +50,17 @@ func (r *Repo) WikiListPages() ([]string, error) {
 // WikiReadPage returns the content of a wiki page.
 func (r *Repo) WikiReadPage(name string) (string, error) {
 	path := filepath.Join(r.path, "wiki", name+".md")
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", ErrWikiPageNotFound
 		}
+		return "", fmt.Errorf("reading wiki page %s: %w", name, err)
+	}
+	defer f.Close()
+	const maxWikiPageSize = 1 * 1024 * 1024 // 1 MB
+	data, err := io.ReadAll(io.LimitReader(f, maxWikiPageSize))
+	if err != nil {
 		return "", fmt.Errorf("reading wiki page %s: %w", name, err)
 	}
 	return string(data), nil
@@ -114,8 +121,14 @@ func (r *Repo) WikiListPending() ([]WikiProposal, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
+		const maxProposalFileSize = 512 * 1024 // 512 KB
+		f, ferr := os.Open(filepath.Join(dir, e.Name()))
+		if ferr != nil {
+			continue
+		}
+		data, ferr := io.ReadAll(io.LimitReader(f, maxProposalFileSize))
+		f.Close()
+		if ferr != nil {
 			continue
 		}
 		var p WikiProposal

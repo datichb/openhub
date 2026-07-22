@@ -2,12 +2,13 @@
 package opencode
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/datichb/openhub/cli/internal/config"
 )
@@ -91,8 +92,8 @@ func Exec(opts StartOpts) error {
 		}
 	}
 
-	// exec replaces the current process
-	return syscall.Exec(bin, append([]string{BinaryName}, args...), env)
+	// exec replaces the current process (platform-specific implementation)
+	return execReplace(bin, append([]string{BinaryName}, args...), env)
 }
 
 // Run starts opencode as a subprocess (useful for testing or when we need to wait).
@@ -229,10 +230,30 @@ func RunHeadless(opts HeadlessOpts) (string, error) {
 	}
 	cmd.Env = os.Environ()
 
-	output, err := cmd.CombinedOutput()
+	// Capture output with a size limit to prevent OOM on large headless runs.
+	const maxHeadlessOutput = 50 * 1024 * 1024 // 50 MB
+	var buf bytes.Buffer
+
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return string(output), fmt.Errorf("opencode run failed: %w\noutput: %s",
-			err, strings.TrimSpace(string(output)))
+		return "", fmt.Errorf("creating stdout pipe: %w", err)
 	}
-	return string(output), nil
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("starting opencode: %w", err)
+	}
+	if _, err := io.Copy(&buf, io.LimitReader(stdout, maxHeadlessOutput)); err != nil {
+		return "", fmt.Errorf("reading opencode output: %w", err)
+	}
+	if err := cmd.Wait(); err != nil {
+		combined := buf.String()
+		if s := stderr.String(); s != "" {
+			combined += "\n" + s
+		}
+		return combined, fmt.Errorf("opencode run failed: %w\noutput: %s",
+			err, strings.TrimSpace(combined))
+	}
+	return buf.String(), nil
 }

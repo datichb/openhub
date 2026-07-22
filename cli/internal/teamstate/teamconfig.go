@@ -17,10 +17,29 @@ type TeamConfig struct {
 
 // NotificationConfig holds notification dispatcher settings.
 type NotificationConfig struct {
+	// Legacy Mattermost (backward compatible)
 	MattermostWebhook string `toml:"mattermost_webhook"` // Incoming webhook URL
-	Channel           string `toml:"channel"`            // Channel name (single channel for all)
+	Channel           string `toml:"channel"`            // Channel name
 	Enabled           bool   `toml:"enabled"`
 	BotName           string `toml:"bot_name"` // Display name for the bot
+
+	// Multi-channel support
+	// Type selects the notifier: "mattermost" (default), "slack", "discord", "teams"
+	Type string `toml:"type"` // "mattermost" | "slack" | "discord" | "teams"
+
+	// Generic webhook URL — used by slack, discord, teams
+	WebhookURL string `toml:"webhook_url"`
+
+	// Optional: multiple destinations
+	Destinations []NotificationDestination `toml:"destinations"`
+}
+
+// NotificationDestination represents a single notification target.
+type NotificationDestination struct {
+	Type       string `toml:"type"`        // "mattermost" | "slack" | "discord" | "teams"
+	WebhookURL string `toml:"webhook_url"` // Webhook URL
+	Channel    string `toml:"channel"`     // Channel (Mattermost only)
+	BotName    string `toml:"bot_name"`    // Bot display name
 }
 
 // TakeoverConfig holds settings for the takeover brief system.

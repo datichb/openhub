@@ -7,7 +7,6 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/menu"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -25,8 +24,8 @@ func (v *testView) Mount(content *tview.Flex, _ *tview.Application) {
 	v.mounted = true
 	content.AddItem(tview.NewBox(), 0, 1, false)
 }
-func (v *testView) Unmount()                                        { v.mounted = false }
-func (v *testView) StatusHints() string                             { return v.id + " hints" }
+func (v *testView) Unmount()                                    { v.mounted = false }
+func (v *testView) StatusHints() string                         { return v.id + " hints" }
 func (v *testView) HandleKey(_ *tcell.EventKey) *tcell.EventKey { return nil }
 
 func TestNew(t *testing.T) {
@@ -35,7 +34,7 @@ func TestNew(t *testing.T) {
 
 	cfg := Config{
 		ProjectName: "test-project",
-		MenuItems: []*menu.MenuItem{
+		Commands: []Command{
 			{ID: "home", Label: "Home", ViewID: "home"},
 			{ID: "board", Label: "Board", ViewID: "board"},
 		},
@@ -47,11 +46,10 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, s)
 	assert.NotNil(t, s.app)
 	assert.NotNil(t, s.pages)
-	assert.NotNil(t, s.header)
-	assert.NotNil(t, s.menu)
 	assert.NotNil(t, s.content)
-	assert.NotNil(t, s.statusBar)
+	assert.NotNil(t, s.omnibar)
 	assert.NotNil(t, s.router)
+	assert.NotNil(t, s.registry)
 }
 
 func TestShell_NavigateHome(t *testing.T) {
@@ -59,7 +57,7 @@ func TestShell_NavigateHome(t *testing.T) {
 
 	cfg := Config{
 		ProjectName: "test",
-		MenuItems:   []*menu.MenuItem{{ID: "home", Label: "Home", ViewID: "home"}},
+		Commands:    []Command{{ID: "home", Label: "Home", ViewID: "home"}},
 		Views:       []views.View{homeView},
 		HomeViewID:  "home",
 	}
@@ -71,24 +69,41 @@ func TestShell_NavigateHome(t *testing.T) {
 	assert.Equal(t, "home", s.router.Current().ID())
 }
 
-func TestHeader_SetBreadcrumb(t *testing.T) {
-	h := NewHeader("MyProject")
-	assert.NotNil(t, h.Primitive())
+func TestOmnibar_SetHints(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
 
-	h.SetBreadcrumb("Sessions > Start")
-	// Verify text was set (we can't easily read tview text without Draw)
-	assert.NotNil(t, h.center)
+	cfg := Config{
+		ProjectName: "test",
+		Commands:    []Command{{ID: "home", Label: "Home", ViewID: "home"}},
+		Views:       []views.View{homeView},
+		HomeViewID:  "home",
+	}
+
+	s := New(cfg)
+	// Should not panic
+	s.omnibar.SetHints("j/k nav · Enter select")
+	assert.NotNil(t, s.omnibar.hints)
 }
 
-func TestStatusBar_SetHints(t *testing.T) {
-	sb := NewStatusBar()
-	assert.NotNil(t, sb.Primitive())
+func TestOmnibar_ActivateDeactivate(t *testing.T) {
+	homeView := &testView{id: "home", title: "Home"}
 
-	sb.SetHints("j/k nav · Enter select")
-	sb.SetView("board")
-	sb.SetInfo("3 projets")
-	// Verify no panic and primitives exist
-	assert.NotNil(t, sb.left)
-	assert.NotNil(t, sb.center)
-	assert.NotNil(t, sb.right)
+	cfg := Config{
+		ProjectName: "test",
+		Commands: []Command{
+			{ID: "home", Label: "Home", ViewID: "home"},
+			{ID: "board", Label: "Board", ViewID: "board"},
+		},
+		Views:      []views.View{homeView},
+		HomeViewID: "home",
+	}
+
+	s := New(cfg)
+	s.NavigateHome("home")
+
+	assert.False(t, s.omnibar.IsActive())
+	s.omnibar.Activate()
+	assert.True(t, s.omnibar.IsActive())
+	s.omnibar.Deactivate()
+	assert.False(t, s.omnibar.IsActive())
 }

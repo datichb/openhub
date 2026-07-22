@@ -24,14 +24,16 @@ type modelEntry struct {
 
 // ModelsView displays and allows editing of the model configuration cascade.
 type ModelsView struct {
-	app     *tview.Application
-	appCtx  *app.App
-	table   *tview.Table
-	entries []modelEntry
-	shell   ShellAccess
+	app      *tview.Application
+	appCtx   *app.App
+	table    *tview.Table
+	entries  []modelEntry
+	shell    ShellAccess
+	commands []ContextCommand
 }
 
 var _ View = (*ModelsView)(nil)
+var _ CommandProvider = (*ModelsView)(nil)
 
 // NewModelsView creates a new model configuration view.
 func NewModelsView(a *app.App) *ModelsView {
@@ -49,7 +51,7 @@ func (v *ModelsView) Title() string { return "Models" }
 
 // StatusHints returns keybinding hints.
 func (v *ModelsView) StatusHints() string {
-	return "j/k nav · Enter modifier · a ajouter override · d supprimer · Esc retour"
+	return "j/k nav · Enter modifier · a ajouter · d supprimer · Ctrl+P commande"
 }
 
 // Mount builds the models cascade table.
@@ -75,6 +77,7 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.loadEntries()
 	v.populateTable()
+	v.buildCommands()
 
 	content.AddItem(v.table, 0, 1, true)
 }
@@ -225,46 +228,48 @@ func (v *ModelsView) addOverride() {
 		return
 	}
 
-	// Step 1: Choose scope type
 	scopeOptions := []SelectOption{
-		{Label: "Hub — famille", Value: "hub-family"},
-		{Label: "Hub — agent", Value: "hub-agent"},
+		{Label: "Famille", Value: "family"},
+		{Label: "Agent", Value: "agent"},
 	}
 
-	v.shell.ShowSelectModal("Type d'override", scopeOptions, "", func(scopeType string) {
-		switch scopeType {
-		case "hub-family":
-			familyOpts := make([]SelectOption, len(modelFamilies))
-			for i, f := range modelFamilies {
-				familyOpts[i] = SelectOption{Label: f, Value: f}
+	familyOptions := make([]SelectOption, len(modelFamilies))
+	for i, f := range modelFamilies {
+		familyOptions[i] = SelectOption{Label: f, Value: f}
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Ajouter un override de modèle",
+		Fields: []FormField{
+			{Key: "scope", Label: "Type", Type: FieldSelect, Options: scopeOptions, Default: "family", Required: true},
+			{Key: "family", Label: "Famille", Type: FieldSelect, Options: familyOptions, Default: modelFamilies[0],
+				Conditional: func(vals map[string]string) bool { return vals["scope"] == "family" }},
+			{Key: "agent_id", Label: "Agent ID", Type: FieldText,
+				Conditional: func(vals map[string]string) bool { return vals["scope"] == "agent" }},
+			{Key: "model", Label: "Modèle", Type: FieldText, Required: true},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			scope := values["scope"]
+			model := values["model"]
+			if model == "" {
+				return
 			}
-			v.shell.ShowSelectModal("Famille", familyOpts, "", func(family string) {
-				v.shell.ShowInputModal("Modèle pour "+family, "", func(model string) {
-					if model == "" {
-						return
-					}
+			switch scope {
+			case "family":
+				if family := values["family"]; family != "" {
 					v.setHubModel("family:"+family, model)
-					v.loadEntries()
-					v.populateTable()
-					v.shell.ShowToastMsg("Override ajouté", true)
-				})
-			})
-		case "hub-agent":
-			v.shell.ShowInputModal("ID de l'agent", "", func(agentID string) {
-				if agentID == "" {
-					return
 				}
-				v.shell.ShowInputModal("Modèle pour "+agentID, "", func(model string) {
-					if model == "" {
-						return
-					}
+			case "agent":
+				if agentID := values["agent_id"]; agentID != "" {
 					v.setHubModel("agent:"+agentID, model)
-					v.loadEntries()
-					v.populateTable()
-					v.shell.ShowToastMsg("Override ajouté", true)
-				})
-			})
-		}
+				}
+			}
+			v.loadEntries()
+			v.buildCommands()
+			v.populateTable()
+			v.shell.ShowToastMsg("Override ajouté", true)
+		},
+		OnCancel: nil,
 	})
 }
 
@@ -373,4 +378,50 @@ func (v *ModelsView) deleteProjectModel(projectName, scope string) {
 
 func modelsConfigViper() *viper.Viper {
 	return hubViper()
+}
+
+// ContextCommands returns contextual commands for the omnibar.
+func (v *ModelsView) ContextCommands() []ContextCommand {
+	return v.commands
+}
+
+func (v *ModelsView) buildCommands() {
+	v.commands = []ContextCommand{
+		{
+			ID:          "models.add.family",
+			Label:       "add family",
+			Aliases:     []string{"ajouter famille", "override family"},
+			Description: "Ajouter un override de famille",
+			Category:    "Models",
+			Action:      v.addOverride,
+		},
+		{
+			ID:          "models.delete",
+			Label:       "delete",
+			Aliases:     []string{"supprimer", "remove"},
+			Description: "Supprimer l'override sélectionné",
+			Category:    "Models",
+			Action:      v.deleteEntry,
+		},
+	}
+
+	// Add edit commands for existing entries
+	for _, e := range v.entries {
+		e := e
+		v.commands = append(v.commands, ContextCommand{
+			ID:          "models.edit." + e.Key,
+			Label:       e.Key,
+			Aliases:     []string{e.Value, e.Scope},
+			Description: e.Level + " → " + e.Value,
+			Category:    "Models",
+			Action: func() {
+				for i, entry := range v.entries {
+					if entry.Key == e.Key && entry.Level == e.Level && entry.Scope == e.Scope {
+						v.editEntry(i)
+						return
+					}
+				}
+			},
+		})
+	}
 }

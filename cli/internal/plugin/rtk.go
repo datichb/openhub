@@ -2,6 +2,7 @@
 package plugin
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -45,11 +46,33 @@ func opencodePluginsDir() string {
 	return filepath.Join(home, ".config", "opencode", pluginsDir)
 }
 
+// RTKPlugin implements the Plugin interface for the RTK (context-mode) plugin.
+type RTKPlugin struct{}
+
+func (r *RTKPlugin) Name() string        { return "rtk" }
+func (r *RTKPlugin) Description() string { return "RTK (context-mode) — mémoire de session pour opencode" }
+
+func (r *RTKPlugin) Install(_ context.Context, projectPath string) error {
+	return RTKInstall()
+}
+
+func (r *RTKPlugin) Uninstall(_ context.Context, projectPath string) error {
+	return RTKRemove()
+}
+
+func (r *RTKPlugin) IsInstalled(projectPath string) (bool, error) {
+	status := RTKStatus()
+	return status.Installed, nil
+}
+
+func (r *RTKPlugin) Status() PluginStatus {
+	return RTKStatus()
+}
+
 // RTKStatus checks the current state of the RTK plugin.
 func RTKStatus() PluginStatus {
 	status := PluginStatus{}
 
-	// Check if plugin file is installed
 	dir := opencodePluginsDir()
 	if dir != "" {
 		pluginPath := filepath.Join(dir, rtkFileName)
@@ -59,7 +82,6 @@ func RTKStatus() PluginStatus {
 		}
 	}
 
-	// Check RTK binary
 	ver, err := CheckRTKBinary()
 	if err == nil {
 		status.BinaryFound = true
@@ -70,20 +92,16 @@ func RTKStatus() PluginStatus {
 }
 
 // RTKInstall deploys the RTK plugin to ~/.config/opencode/plugins/rtk.ts.
-// It verifies that the rtk binary is available and compatible first.
 func RTKInstall() error {
-	// Verify RTK binary
 	ver, err := CheckRTKBinary()
 	if err != nil {
 		return fmt.Errorf("rtk CLI non trouvé dans PATH. Installez-le avec:\n  brew install rtk\n  ou: cargo install rtk")
 	}
 
-	// Check version
 	if !IsVersionAtLeast(ver, RTKMinVersion) {
 		return fmt.Errorf("rtk %s est trop ancien (minimum requis: %s). Mettez à jour avec:\n  brew upgrade rtk\n  ou: cargo install rtk --force", ver, RTKMinVersion)
 	}
 
-	// Create plugins directory
 	dir := opencodePluginsDir()
 	if dir == "" {
 		return fmt.Errorf("impossible de déterminer le répertoire plugins opencode")
@@ -92,7 +110,6 @@ func RTKInstall() error {
 		return fmt.Errorf("création du répertoire plugins: %w", err)
 	}
 
-	// Backup existing plugin
 	pluginPath := filepath.Join(dir, rtkFileName)
 	if _, err := os.Stat(pluginPath); err == nil {
 		backupDir := filepath.Join(dir, ".backup")
@@ -102,7 +119,6 @@ func RTKInstall() error {
 		}
 	}
 
-	// Write the embedded plugin
 	if err := os.WriteFile(pluginPath, rtkPluginSource, 0o644); err != nil {
 		return fmt.Errorf("écriture du plugin: %w", err)
 	}
@@ -141,7 +157,6 @@ func CheckRTKBinary() (string, error) {
 	}
 
 	version := strings.TrimSpace(string(out))
-	// Output might be "rtk 0.45.0" or just "0.45.0"
 	version = strings.TrimPrefix(version, "rtk ")
 	version = strings.TrimPrefix(version, "v")
 	return version, nil
@@ -159,3 +174,4 @@ func copyPluginFile(src, dst string) error {
 	}
 	return os.WriteFile(dst, data, 0o644)
 }
+

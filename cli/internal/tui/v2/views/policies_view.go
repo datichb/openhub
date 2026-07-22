@@ -253,44 +253,50 @@ func (v *PoliciesView) addPolicy() {
 		return
 	}
 
-	// Step 1: Name
-	v.shell.ShowInputModal("Nom de la policy", "", func(name string) {
-		if name == "" {
-			return
-		}
-		// Step 2: Type
-		v.shell.ShowSelectModal("Type", policyTypeOptions, "regex", func(pType string) {
-			// Step 3: Enforcement
-			v.shell.ShowSelectModal("Enforcement", policyEnforcementOptions, "warn", func(enforcement string) {
-				// Step 4: Message
-				v.shell.ShowInputModal("Message de violation", "", func(message string) {
-					// Step 5: Type-specific config
-					switch pType {
-					case "regex":
-						v.shell.ShowInputModal("Pattern regex", "", func(rule string) {
-							v.writePolicyToml(repo, name, pType, enforcement, message, rule, nil, "", 0)
-						})
-					case "forbidden_pattern":
-						v.shell.ShowInputModal("Patterns interdits (virgule)", "", func(patternsStr string) {
-							patterns := splitTags(patternsStr) // reuse splitTags
-							v.shell.ShowSelectModal("Scope", policyScopeOptions, "diff_only", func(scope string) {
-								v.writePolicyToml(repo, name, pType, enforcement, message, "", patterns, scope, 0)
-							})
-						})
-					case "limit":
-						v.shell.ShowInputModal("Maximum (nombre)", "3", func(maxStr string) {
-							maxVal := 3
-							if _, err := fmt.Sscanf(maxStr, "%d", &maxVal); err != nil {
-								maxVal = 3
-							}
-							v.writePolicyToml(repo, name, pType, enforcement, message, "", nil, "", maxVal)
-						})
-					case "boolean":
-						v.writePolicyToml(repo, name, pType, enforcement, message, "", nil, "", 0)
-					}
-				})
-			})
-		})
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Créer une policy",
+		Fields: []FormField{
+			{Key: "name", Label: "Nom (slug)", Type: FieldText, Required: true},
+			{Key: "type", Label: "Type", Type: FieldSelect, Options: policyTypeOptions, Default: "regex", Required: true},
+			{Key: "enforcement", Label: "Enforcement", Type: FieldSelect, Options: policyEnforcementOptions, Default: "warn"},
+			{Key: "message", Label: "Message violation", Type: FieldText},
+			// regex fields
+			{Key: "rule", Label: "Regex pattern", Type: FieldText,
+				Conditional: func(v map[string]string) bool { return v["type"] == "regex" }},
+			// forbidden_pattern fields
+			{Key: "patterns", Label: "Patterns (virgule)", Type: FieldText,
+				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
+			{Key: "scope", Label: "Scope", Type: FieldSelect, Options: policyScopeOptions, Default: "diff_only",
+				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
+			// limit field
+			{Key: "max", Label: "Maximum", Type: FieldText, Default: "3",
+				Conditional: func(v map[string]string) bool { return v["type"] == "limit" }},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			name := values["name"]
+			if name == "" {
+				return
+			}
+			pType := values["type"]
+			enforcement := values["enforcement"]
+			message := values["message"]
+
+			var patterns []string
+			maxVal := 0
+
+			switch pType {
+			case "forbidden_pattern":
+				patterns = splitTags(values["patterns"])
+			case "limit":
+				if _, err := fmt.Sscanf(values["max"], "%d", &maxVal); err != nil {
+					maxVal = 3
+				}
+			}
+
+			v.writePolicyToml(repo, name, pType, enforcement, message,
+				values["rule"], patterns, values["scope"], maxVal)
+		},
+		OnCancel: nil,
 	})
 }
 

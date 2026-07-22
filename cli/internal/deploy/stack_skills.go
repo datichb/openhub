@@ -12,8 +12,8 @@ var stackSkillMapping = map[string][]string{
 	"typescript": {"developer/stacks/dev-standards-typescript"},
 	"python":     {"developer/stacks/dev-standards-python"},
 	"java":       {"developer/stacks/dev-standards-kotlin"}, // Kotlin standards apply to JVM
-	"rust":       {},                                        // no rust-specific stack skill yet
-	"go":         {},                                        // no go-specific stack skill yet
+	"rust":       {"developer/stacks/dev-standards-rust"},
+	"go":         {"developer/stacks/dev-standards-golang"},
 
 	// JS/TS Frameworks
 	"Next.js":   {"developer/stacks/dev-standards-nextjs", "developer/stacks/dev-standards-react"},

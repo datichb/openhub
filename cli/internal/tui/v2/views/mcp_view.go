@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -21,23 +22,26 @@ type MCPService struct {
 	WriteEnabled bool
 }
 
-// MCPView displays MCP server management with toggle actions.
+// MCPView displays MCP server management with contextual omnibar commands.
 type MCPView struct {
 	app      *tview.Application
 	appCtx   *app.App
-	table    *tview.Table
+	display  *tview.TextView
 	services []MCPService
 	shell    ShellAccess
+	cursor   int
+	commands []ContextCommand
 }
 
 var _ View = (*MCPView)(nil)
+var _ CommandProvider = (*MCPView)(nil)
 
 // NewMCPView creates a new MCP view.
 func NewMCPView(a *app.App) *MCPView {
 	return &MCPView{appCtx: a}
 }
 
-// SetShell provides the shell reference for modal interactions.
+// SetShell provides the shell reference for interactions.
 func (v *MCPView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
@@ -48,63 +52,220 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · e enable · d disable · t token · w écriture · S setup · R reset"
+	return "j/k naviguer · Space toggle · t token · Ctrl+P commande"
 }
 
 // Mount builds the MCP management interface.
 func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.cursor = 0
 
-	v.table = tview.NewTable().
-		SetSelectable(true, false).
-		SetFixed(1, 0)
-	v.table.SetBackgroundColor(theme.BgPanel)
-	v.table.SetBorderPadding(1, 0, 2, 2)
-	v.table.SetSelectedStyle(tcell.StyleDefault.
-		Background(theme.BgElement).
-		Foreground(theme.FgPrimary))
+	v.display = tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(true)
+	v.display.SetBackgroundColor(theme.BgPanel)
+	v.display.SetBorderPadding(1, 1, 2, 2)
 
 	v.loadServices()
-	v.populateTable()
+	v.render()
+	v.buildCommands()
 
-	content.AddItem(v.table, 0, 1, true)
+	content.AddItem(v.display, 0, 1, true)
 }
 
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
 	v.app = nil
-	v.table = nil
+	v.display = nil
+	v.commands = nil
 }
 
 // HandleKey processes MCP view key events.
 func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	row, _ := v.table.GetSelection()
-	idx := row - 1 // account for header
-	if idx < 0 || idx >= len(v.services) {
-		return event
-	}
-
 	switch event.Rune() {
-	case 'e':
-		v.toggleService(idx, true)
+	case 'j':
+		if v.cursor < len(v.services)-1 {
+			v.cursor++
+			v.render()
+		}
 		return nil
-	case 'd':
-		v.toggleService(idx, false)
+	case 'k':
+		if v.cursor > 0 {
+			v.cursor--
+			v.render()
+		}
+		return nil
+	case ' ':
+		v.toggleCurrent()
 		return nil
 	case 't':
-		v.promptToken(idx)
+		v.promptTokenCurrent()
 		return nil
 	case 'w':
-		v.toggleWriteEnabled(idx)
-		return nil
-	case 'R':
-		v.resetService(idx)
-		return nil
-	case 'S':
-		v.setupWizard()
+		v.toggleWriteCurrent()
 		return nil
 	}
 	return event
+}
+
+// ContextCommands returns contextual commands for the omnibar.
+func (v *MCPView) ContextCommands() []ContextCommand {
+	return v.commands
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *MCPView) render() {
+	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("  %sServeurs MCP%s\n\n",
+		theme.ColorTag(theme.AccentHex), theme.TagColor))
+
+	for i, svc := range v.services {
+		// Status indicator
+		var statusIcon, statusColor string
+		if svc.Enabled {
+			statusIcon = "✓"
+			statusColor = theme.SuccessHex
+		} else {
+			statusIcon = "✗"
+			statusColor = theme.TextMutedHex
+		}
+
+		// Token indicator
+		var tokenIcon, tokenColor string
+		if svc.Name == "team" {
+			tokenIcon = "—"
+			tokenColor = theme.TextMutedHex
+		} else if svc.HasToken {
+			tokenIcon = "✓"
+			tokenColor = theme.SuccessHex
+		} else {
+			tokenIcon = "!"
+			tokenColor = theme.ErrorHex
+		}
+
+		// Write indicator
+		var writeInfo string
+		if svc.Name == "gitlab" {
+			if svc.WriteEnabled {
+				writeInfo = fmt.Sprintf("  %sécriture ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+			} else {
+				writeInfo = fmt.Sprintf("  %sécriture ✗%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+			}
+		}
+
+		// Cursor
+		if i == v.cursor {
+			b.WriteString(fmt.Sprintf("  %s▸%s  %s%-12s%s  %s%s%s  token %s%s%s%s\n",
+				theme.ColorTag(theme.ActionHex), theme.TagColor,
+				theme.ColorTag(theme.TextPrimaryHex), svc.Name, theme.TagColor,
+				theme.ColorTag(statusColor), statusIcon, theme.TagColor,
+				theme.ColorTag(tokenColor), tokenIcon, theme.TagColor,
+				writeInfo))
+		} else {
+			b.WriteString(fmt.Sprintf("     %s%-12s%s  %s%s%s  token %s%s%s%s\n",
+				theme.ColorTag(theme.TextSecondaryHex), svc.Name, theme.TagColor,
+				theme.ColorTag(statusColor), statusIcon, theme.TagColor,
+				theme.ColorTag(tokenColor), tokenIcon, theme.TagColor,
+				writeInfo))
+		}
+	}
+
+	b.WriteString(fmt.Sprintf("\n\n  %sSpace toggle · t token · w écriture (gitlab)%s",
+		theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+
+	v.display.SetText(b.String())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Actions
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *MCPView) toggleCurrent() {
+	if v.cursor < 0 || v.cursor >= len(v.services) {
+		return
+	}
+	svc := &v.services[v.cursor]
+	svc.Enabled = !svc.Enabled
+
+	vip := mcpConfigViper()
+	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), svc.Enabled)
+	_ = vip.WriteConfigAs(config.ConfigPath())
+
+	v.render()
+	v.buildCommands()
+}
+
+func (v *MCPView) promptTokenCurrent() {
+	if v.cursor < 0 || v.cursor >= len(v.services) {
+		return
+	}
+	svc := v.services[v.cursor]
+	if svc.Name == "team" {
+		return
+	}
+	v.promptToken(v.cursor)
+}
+
+func (v *MCPView) toggleWriteCurrent() {
+	if v.cursor < 0 || v.cursor >= len(v.services) {
+		return
+	}
+	svc := &v.services[v.cursor]
+	if svc.Name != "gitlab" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Écriture non applicable pour "+svc.Name, false)
+		}
+		return
+	}
+
+	svc.WriteEnabled = !svc.WriteEnabled
+	vip := mcpConfigViper()
+	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), svc.WriteEnabled)
+	_ = vip.WriteConfigAs(config.ConfigPath())
+
+	v.render()
+	v.buildCommands()
+	if v.shell != nil {
+		if svc.WriteEnabled {
+			v.shell.ShowToastMsg("Écriture activée pour "+svc.Name, true)
+		} else {
+			v.shell.ShowToastMsg("Écriture désactivée pour "+svc.Name, true)
+		}
+	}
+}
+
+func (v *MCPView) promptToken(idx int) {
+	svc := v.services[idx]
+	if v.shell != nil {
+		v.shell.ShowInputModal("Token "+svc.Name, "", func(token string) {
+			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
+				key := fmt.Sprintf("%s-token", svc.Name)
+				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
+				v.services[idx].HasToken = true
+				v.render()
+				v.buildCommands()
+				v.shell.ShowToastMsg("Token enregistré", true)
+			}
+		})
+	}
+}
+
+func (v *MCPView) toggleService(name string, enable bool) {
+	for i := range v.services {
+		if v.services[i].Name == name {
+			v.services[i].Enabled = enable
+			vip := mcpConfigViper()
+			vip.Set(fmt.Sprintf("mcp.%s.enabled", name), enable)
+			_ = vip.WriteConfigAs(config.ConfigPath())
+			v.render()
+			v.buildCommands()
+			return
+		}
+	}
 }
 
 func (v *MCPView) loadServices() {
@@ -126,220 +287,95 @@ func (v *MCPView) loadServices() {
 	}
 }
 
-func (v *MCPView) populateTable() {
-	v.table.Clear()
-
-	// Header
-	headerStyle := tcell.StyleDefault.Foreground(theme.Accent).Bold(true)
-	v.table.SetCell(0, 0, tview.NewTableCell("  Service").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 1, tview.NewTableCell("État").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 2, tview.NewTableCell("Écriture").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 3, tview.NewTableCell("Token").SetStyle(headerStyle).SetSelectable(false))
-
-	for i, svc := range v.services {
-		// Service name
-		nameCell := tview.NewTableCell("  " + svc.Name).
-			SetTextColor(theme.FgPrimary).
-			SetExpansion(1)
-
-		// Enabled state
-		var stateText string
-		var stateColor tcell.Color
-		if svc.Enabled {
-			stateText = "activé"
-			stateColor = theme.Success
-		} else {
-			stateText = "désactivé"
-			stateColor = theme.FgMuted
-		}
-		stateCell := tview.NewTableCell(stateText).
-			SetTextColor(stateColor).
-			SetExpansion(1)
-
-		// Write enabled state
-		var writeText string
-		var writeColor tcell.Color
-		if svc.Name == "team" || svc.Name == "figma" || svc.Name == "gslides" {
-			writeText = "—"
-			writeColor = theme.FgMuted
-		} else if svc.WriteEnabled {
-			writeText = "activé"
-			writeColor = theme.Success
-		} else {
-			writeText = "désactivé"
-			writeColor = theme.FgMuted
-		}
-		writeCell := tview.NewTableCell(writeText).
-			SetTextColor(writeColor).
-			SetExpansion(1)
-
-		// Token state
-		var tokenText string
-		var tokenColor tcell.Color
-		if svc.Name == "team" {
-			tokenText = "—"
-			tokenColor = theme.FgMuted
-		} else if svc.HasToken {
-			tokenText = theme.IconSuccess + " configuré"
-			tokenColor = theme.Success
-		} else {
-			tokenText = theme.IconError + " manquant"
-			tokenColor = theme.Error
-		}
-		tokenCell := tview.NewTableCell(tokenText).
-			SetTextColor(tokenColor).
-			SetExpansion(1)
-
-		v.table.SetCell(i+1, 0, nameCell)
-		v.table.SetCell(i+1, 1, stateCell)
-		v.table.SetCell(i+1, 2, writeCell)
-		v.table.SetCell(i+1, 3, tokenCell)
-	}
-}
-
-func (v *MCPView) toggleService(idx int, enable bool) {
-	svc := v.services[idx]
-	vip := mcpConfigViper()
-	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), enable)
-	_ = vip.WriteConfigAs(config.ConfigPath())
-
-	v.services[idx].Enabled = enable
-	v.populateTable()
-}
-
-func (v *MCPView) promptToken(idx int) {
-	svc := v.services[idx]
-	if svc.Name == "team" {
-		return // team doesn't need a token
-	}
-
-	if v.shell != nil {
-		v.shell.ShowInputModal("Token "+svc.Name, "", func(token string) {
-			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
-				key := fmt.Sprintf("%s-token", svc.Name)
-				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
-				v.services[idx].HasToken = true
-				v.populateTable()
-				v.shell.ShowToastMsg("Token enregistré", true)
-			}
-		})
-	}
-}
-
-func (v *MCPView) toggleWriteEnabled(idx int) {
-	svc := v.services[idx]
-	// Only gitlab supports write mode
-	if svc.Name != "gitlab" {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Écriture non applicable pour "+svc.Name, false)
-		}
-		return
-	}
-
-	newVal := !svc.WriteEnabled
-	vip := mcpConfigViper()
-	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), newVal)
-	_ = vip.WriteConfigAs(config.ConfigPath())
-
-	v.services[idx].WriteEnabled = newVal
-	v.populateTable()
-
-	if v.shell != nil {
-		if newVal {
-			v.shell.ShowToastMsg("Écriture activée pour "+svc.Name, true)
-		} else {
-			v.shell.ShowToastMsg("Écriture désactivée pour "+svc.Name, true)
-		}
-	}
-}
-
-func (v *MCPView) resetService(idx int) {
-	svc := v.services[idx]
-	vip := mcpConfigViper()
-
-	// Disable service
-	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), false)
-	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), false)
-	_ = vip.WriteConfigAs(config.ConfigPath())
-
-	// Clear token from keychain
-	if svc.Name != "team" && v.appCtx != nil && v.appCtx.Secrets != nil {
-		key := fmt.Sprintf("%s-token", svc.Name)
-		_ = v.appCtx.Secrets.Delete(context.Background(), key)
-	}
-
-	v.services[idx].Enabled = false
-	v.services[idx].WriteEnabled = false
-	v.services[idx].HasToken = false
-	v.populateTable()
-
-	if v.shell != nil {
-		v.shell.ShowToastMsg("Service réinitialisé: "+svc.Name, true)
-	}
-}
-
-var mcpSetupServiceOptions = []SelectOption{
-	{Label: "Figma", Value: "figma"},
-	{Label: "GitLab", Value: "gitlab"},
-	{Label: "Google Slides", Value: "gslides"},
-}
-
-func (v *MCPView) setupWizard() {
-	if v.shell == nil {
-		return
-	}
-
-	// Step 1: Service selection
-	v.shell.ShowSelectModal("Service à configurer", mcpSetupServiceOptions, "", func(service string) {
-		// Step 2: Token
-		v.shell.ShowPasswordModal("Token "+service, func(token string) {
-			if token == "" {
-				return
-			}
-
-			// Store token
-			if v.appCtx != nil && v.appCtx.Secrets != nil {
-				key := fmt.Sprintf("%s-token", service)
-				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
-			}
-
-			// Enable service
-			vip := mcpConfigViper()
-			vip.Set(fmt.Sprintf("mcp.%s.enabled", service), true)
-
-			// Step 3 (conditional): write mode for gitlab
-			if service == "gitlab" {
-				writeOptions := []SelectOption{
-					{Label: "Activé (créer MR, commenter)", Value: "true"},
-					{Label: "Désactivé (lecture seule)", Value: "false"},
-				}
-				v.shell.ShowSelectModal("Mode écriture GitLab", writeOptions, "false", func(writeVal string) {
-					vip.Set("mcp.gitlab.write_enabled", writeVal == "true")
-					_ = vip.WriteConfigAs(config.ConfigPath())
-					v.loadServices()
-					v.populateTable()
-					v.shell.ShowToastMsg("GitLab configuré et activé", true)
-				})
-			} else {
-				_ = vip.WriteConfigAs(config.ConfigPath())
-				v.loadServices()
-				v.populateTable()
-				v.shell.ShowToastMsg(service+" configuré et activé", true)
-			}
-		})
-	})
-}
-
 func (v *MCPView) checkToken(serviceName string) bool {
 	if v.appCtx == nil || v.appCtx.Secrets == nil {
 		return false
 	}
 	if serviceName == "team" {
-		return true // team doesn't need a token
+		return true
 	}
 	key := fmt.Sprintf("%s-token", serviceName)
 	val, err := v.appCtx.Secrets.Get(context.Background(), key)
 	return err == nil && val != ""
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contextual commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *MCPView) buildCommands() {
+	var cmds []ContextCommand
+
+	for _, svc := range v.services {
+		svc := svc
+
+		// Toggle command
+		var desc string
+		if svc.Enabled {
+			desc = "✓ → désactiver"
+		} else {
+			desc = "✗ → activer"
+		}
+		cmds = append(cmds, ContextCommand{
+			ID:          "toggle." + svc.Name,
+			Label:       svc.Name,
+			Aliases:     []string{"toggle " + svc.Name},
+			Description: desc,
+			Category:    "MCP",
+			Action: func() {
+				v.toggleService(svc.Name, !svc.Enabled)
+			},
+		})
+
+		// Token command (except team)
+		if svc.Name != "team" {
+			cmds = append(cmds, ContextCommand{
+				ID:          "token." + svc.Name,
+				Label:       "token " + svc.Name,
+				Aliases:     []string{svc.Name + " token"},
+				Description: "Configurer le token",
+				Category:    "MCP",
+				Action: func() {
+					for i, s := range v.services {
+						if s.Name == svc.Name {
+							v.promptToken(i)
+							return
+						}
+					}
+				},
+			})
+		}
+	}
+
+	// Write toggle for gitlab
+	cmds = append(cmds, ContextCommand{
+		ID:          "write.gitlab",
+		Label:       "gitlab écriture",
+		Aliases:     []string{"write gitlab", "gitlab write"},
+		Description: "Toggle mode écriture GitLab",
+		Category:    "MCP",
+		Action: func() {
+			for i, s := range v.services {
+				if s.Name == "gitlab" {
+					v.cursor = i
+					v.toggleWriteCurrent()
+					return
+				}
+			}
+		},
+	})
+
+	v.commands = cmds
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config helper (kept for compatibility)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var mcpSetupServiceOptions = []SelectOption{
+	{Label: "Figma", Value: "figma"},
+	{Label: "GitLab", Value: "gitlab"},
+	{Label: "Google Slides", Value: "gslides"},
 }
 
 func mcpConfigViper() *viper.Viper {

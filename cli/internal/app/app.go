@@ -15,11 +15,12 @@ import (
 // App is the central dependency container injected into all commands.
 // Commands depend on App (and its interfaces), never on concrete implementations.
 type App struct {
-	Config   *config.Config
-	Projects domain.ProjectStore
-	Sessions domain.SessionStore
-	Secrets  domain.SecretStore
-	IO       *IOStreams
+	Config       *config.Config
+	Projects     domain.ProjectStore
+	Sessions     domain.SessionStore
+	AgentEvents  domain.AgentEventStore
+	Secrets      domain.SecretStore
+	IO           *IOStreams
 }
 
 // IOStreams abstracts standard I/O for testability.
@@ -67,6 +68,12 @@ func (a *App) WithProjectStore(s domain.ProjectStore) *App {
 // WithSessionStore sets the session store.
 func (a *App) WithSessionStore(s domain.SessionStore) *App {
 	a.Sessions = s
+	return a
+}
+
+// WithAgentEventStore sets the agent event store.
+func (a *App) WithAgentEventStore(s domain.AgentEventStore) *App {
+	a.AgentEvents = s
 	return a
 }
 

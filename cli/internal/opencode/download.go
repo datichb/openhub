@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +29,9 @@ const (
 
 	// apiTimeout is the maximum time allowed for API calls.
 	apiTimeout = 15 * time.Second
+
+	// apiMaxRetries is the number of retry attempts for GitHub API calls.
+	apiMaxRetries = 3
 )
 
 // Release holds metadata from a GitHub release.
@@ -80,27 +84,52 @@ func fetchRelease(url string) (*Release, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "oh-cli")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetching release: %w", err)
-	}
-	defer resp.Body.Close()
+	var lastErr error
+	for attempt := 1; attempt <= apiMaxRetries; attempt++ {
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, apiMaxRetries, err)
+			time.Sleep(time.Duration(attempt) * time.Second)
+			continue
+		}
 
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("GitHub API rate limit exceeded — réessayez dans quelques minutes")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("release not found")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
-	}
+		// Respect Retry-After for rate limiting
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
+			resp.Body.Close()
+			retryAfter := resp.Header.Get("Retry-After")
+			wait := time.Duration(attempt) * time.Second
+			if secs, err := strconv.Atoi(retryAfter); err == nil && secs > 0 {
+				wait = time.Duration(secs) * time.Second
+			}
+			lastErr = fmt.Errorf("GitHub API rate limit exceeded (attempt %d/%d) — retry dans %v", attempt, apiMaxRetries, wait)
+			time.Sleep(wait)
+			continue
+		}
 
-	var release Release
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return nil, fmt.Errorf("decoding release: %w", err)
+		// Retry on server errors
+		if resp.StatusCode >= 500 {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("GitHub API returned status %d (attempt %d/%d)", resp.StatusCode, attempt, apiMaxRetries)
+			time.Sleep(time.Duration(attempt) * time.Second)
+			continue
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("release not found")
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+		}
+
+		var release Release
+		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+			return nil, fmt.Errorf("decoding release: %w", err)
+		}
+		return &release, nil
 	}
-	return &release, nil
+	return nil, lastErr
 }
 
 // Download downloads and installs a specific version of opencode.
@@ -188,10 +217,10 @@ func Download(version, installDir string, progress ProgressFunc) (string, error)
 		return "", fmt.Errorf("setting permissions: %w", err)
 	}
 
-	// Create/update symlink
+	// Create/update symlink (or copy on Windows)
 	symlinkPath := filepath.Join(installDir, BinaryName)
-	_ = os.Remove(symlinkPath) // remove old symlink if exists
-	if err := os.Symlink(binaryPath, symlinkPath); err != nil {
+	_ = os.Remove(symlinkPath)
+	if err := symlinkOrCopy(binaryPath, symlinkPath); err != nil {
 		return "", fmt.Errorf("creating symlink: %w", err)
 	}
 
@@ -203,7 +232,7 @@ func InstalledVersion(installDir string) string {
 	installDir = expandHome(installDir)
 	symlinkPath := filepath.Join(installDir, BinaryName)
 
-	target, err := os.Readlink(symlinkPath)
+	target, err := readSymlink(symlinkPath)
 	if err != nil {
 		return ""
 	}

@@ -132,6 +132,29 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	}
 	w.Flush()
 
+	// --- Agent telemetry ---
+	if a.AgentEvents != nil {
+		agentMetrics, err := a.AgentEvents.Metrics(ctx, "")
+		if err == nil && len(agentMetrics) > 0 {
+			fmt.Fprintln(a.IO.Out)
+			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Télémétrie agents"))
+			fmt.Fprintln(a.IO.Out)
+			wa := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(wa, "  Agent\tRuns\tSuccès\tDurée moy.\tTokens\tCoût")
+			for _, m := range agentMetrics {
+				dur := "—"
+				if m.AvgDurationSec > 0 {
+					dur = fmt.Sprintf("%.0fs", m.AvgDurationSec)
+				}
+				fmt.Fprintf(wa, "  %s\t%d\t%.0f%%\t%s\t%s\t$%.2f\n",
+					m.AgentName, m.TotalRuns, m.SuccessRate, dur,
+					formatTokenCount(m.TotalTokensIn+m.TotalTokensOut),
+					m.TotalCostUSD)
+			}
+			wa.Flush()
+		}
+	}
+
 	return nil
 }
 

@@ -2,11 +2,8 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,18 +12,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/parallel"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/prompt"
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -54,8 +45,6 @@ func init() {
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
 	startCmd.Flags().BoolP("yes", "y", false, "Skip confirmation and launch immediately")
-
-	// Parallel mode flags
 	startCmd.Flags().Bool("parallel", false, "Lance N sessions en parallèle sur des tickets différents")
 	startCmd.Flags().StringSlice("tickets", nil, "Liste des tickets à traiter en parallèle (séparés par des virgules)")
 	startCmd.Flags().Int("max-sessions", 0, "Nombre max de sessions parallèles (0 = valeur config, default: 3)")
@@ -145,49 +134,21 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// --- Resolve provider + credentials ---
 	provider, _ := cmd.Flags().GetString("provider")
 	if provider == "" {
-		provider = project.Provider // project-level override
+		provider = project.Provider
 	}
 	if provider == "" {
 		provider = a.Config.Opencode.DefaultProvider
 	}
 	if provider == "" {
-		provider = "bedrock" // ultimate fallback
+		provider = "bedrock"
 	}
 
 	var bearerToken, apiKey, awsProfile, awsRegion string
 	if a.Secrets != nil {
-		switch provider {
-		case "bedrock":
-			// Resolve bearer token: project → hub
-			bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
-			if bearerToken == "" {
-				bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-default")
-			}
-			// Resolve AWS config: project → hub
-			if project.ProviderConfig != nil && project.ProviderConfig.AWSProfile != "" {
-				awsProfile = project.ProviderConfig.AWSProfile
-			} else if a.Config.Provider.Bedrock.AWSProfile != "" {
-				awsProfile = a.Config.Provider.Bedrock.AWSProfile
-			}
-			if project.ProviderConfig != nil && project.ProviderConfig.AWSRegion != "" {
-				awsRegion = project.ProviderConfig.AWSRegion
-			} else if a.Config.Provider.Bedrock.AWSRegion != "" {
-				awsRegion = a.Config.Provider.Bedrock.AWSRegion
-			}
-		case "anthropic":
-			apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-"+project.ID)
-			if apiKey == "" {
-				apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-default")
-			}
-		case "openrouter":
-			apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-"+project.ID)
-			if apiKey == "" {
-				apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-default")
-			}
-		}
+		bearerToken, apiKey, awsProfile, awsRegion = resolveCredentials(ctx, a, project, provider)
 	}
 
-	// --- Detect stack and build context ---
+	// --- Detect stack ---
 	stack := prompt.DetectStack(launchPath)
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
@@ -217,77 +178,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// --- Display summary ---
-	projCfg := opencode.ReadProjectConfig(launchPath)
-
-	// Resolve display values
-	branch := "—"
-	if b, err := worktree.CurrentBranch(launchPath); err == nil {
-		branch = b
-	}
-
-	model := projCfg.Model
-	if model == "" {
-		model = "—"
-	}
-
-	compactionStatus := i18n.T("cmd.start.compaction_disabled")
-	if projCfg.Compaction != nil && projCfg.Compaction.Auto {
-		compactionStatus = i18n.T("cmd.start.compaction_auto")
-	}
-
-	// MCP servers enabled (resolved with project-level overrides taking priority over hub)
-	effectiveServers := buildMCPServersForProject(a, project.MCPConfig)
-	var mcpNames []string
-	for _, srv := range effectiveServers {
-		if srv.Enabled && srv.Name != "team" {
-			mcpNames = append(mcpNames, srv.Name)
-		}
-	}
-	mcpDisplay := i18n.T("cmd.start.mcp_none")
-	if len(mcpNames) > 0 {
-		mcpDisplay = strings.Join(mcpNames, ", ")
-	}
-
-	// Plugins
-	pluginsDisplay := i18n.T("cmd.start.mcp_none")
-	if len(projCfg.Plugins) > 0 {
-		pluginsDisplay = strings.Join(projCfg.Plugins, ", ")
-	}
-
-	// Provider status line
-	providerStatus := provider
-	if bearerToken != "" {
-		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
-	}
-
-	// --- Block 1: Project ---
-	gutter := theme.Subtitle.Render("│")
-	header := theme.Title.Render("◆")
-	footer := theme.Subtitle.Render("└")
-
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(project.Name))
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_path"), launchPath)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_branch"), branch)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider"), providerStatus)
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintln(a.IO.Out)
-
-	// --- Block 2: Configuration ---
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(i18n.T("cmd.start.section_config")))
-	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), provider)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_language"), displayOrDefault(stack.Language, project.Language))
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_compaction"), compactionStatus)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_mcp"), mcpDisplay)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_plugins"), pluginsDisplay)
-	if agent != "" {
-		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
-	}
-	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, theme.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
-	fmt.Fprintln(a.IO.Out)
+	printStartSummary(a, project, launchPath, provider, stack, agent, bearerToken)
 
 	// --- Confirmation ---
 	skipConfirm, _ := cmd.Flags().GetBool("yes")
@@ -312,7 +203,6 @@ func runStart(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.launching"))
 
-	// Create session in oh DB
 	session := &domain.Session{
 		ID:        uuid.New().String(),
 		ProjectID: project.ID,
@@ -321,12 +211,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 	if a.Sessions != nil {
 		if err := a.Sessions.Create(ctx, session); err != nil {
-			// Non-fatal — don't block the launch
 			slog.Warn("session tracking failed", "error", err)
 		}
 	}
 
-	// Run opencode as subprocess (not exec) to retain control for post-session updates
 	runErr := opencode.Run(opencode.StartOpts{
 		ProjectPath: launchPath,
 		ProjectID:   project.ID,
@@ -339,7 +227,6 @@ func runStart(cmd *cobra.Command, args []string) error {
 		AWSRegion:   awsRegion,
 	})
 
-	// Update session status after opencode exits
 	if a.Sessions != nil && session.ID != "" {
 		if runErr != nil {
 			session.Status = domain.SessionStatusFailed
@@ -354,19 +241,111 @@ func runStart(cmd *cobra.Command, args []string) error {
 	return runErr
 }
 
-// handleWorktreeMode manages the worktree workflow:
-// 1. Prompt for branch if empty
-// 2. Auto-cleanup merged worktrees (if configured)
-// 3. Create or reuse worktree
-// 4. Deploy hub config into worktree
-// Returns the launch path (worktree directory).
+// resolveCredentials extracts provider-specific credentials from secrets.
+func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, provider string) (bearerToken, apiKey, awsProfile, awsRegion string) {
+	switch provider {
+	case "bedrock":
+		bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
+		if bearerToken == "" {
+			bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-default")
+		}
+		if project.ProviderConfig != nil && project.ProviderConfig.AWSProfile != "" {
+			awsProfile = project.ProviderConfig.AWSProfile
+		} else {
+			awsProfile = a.Config.Provider.Bedrock.AWSProfile
+		}
+		if project.ProviderConfig != nil && project.ProviderConfig.AWSRegion != "" {
+			awsRegion = project.ProviderConfig.AWSRegion
+		} else {
+			awsRegion = a.Config.Provider.Bedrock.AWSRegion
+		}
+	case "anthropic":
+		apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-"+project.ID)
+		if apiKey == "" {
+			apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-default")
+		}
+	case "openrouter":
+		apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-"+project.ID)
+		if apiKey == "" {
+			apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-default")
+		}
+	}
+	return
+}
+
+// printStartSummary prints the pre-launch info blocks to stdout.
+func printStartSummary(a *app.App, project *domain.Project, launchPath, provider string, stack prompt.StackInfo, agent, bearerToken string) {
+	projCfg := opencode.ReadProjectConfig(launchPath)
+
+	branch := "—"
+	if b, err := worktree.CurrentBranch(launchPath); err == nil {
+		branch = b
+	}
+	model := projCfg.Model
+	if model == "" {
+		model = "—"
+	}
+	compactionStatus := i18n.T("cmd.start.compaction_disabled")
+	if projCfg.Compaction != nil && projCfg.Compaction.Auto {
+		compactionStatus = i18n.T("cmd.start.compaction_auto")
+	}
+
+	effectiveServers := buildMCPServersForProject(a, project.MCPConfig)
+	var mcpNames []string
+	for _, srv := range effectiveServers {
+		if srv.Enabled && srv.Name != "team" {
+			mcpNames = append(mcpNames, srv.Name)
+		}
+	}
+	mcpDisplay := i18n.T("cmd.start.mcp_none")
+	if len(mcpNames) > 0 {
+		mcpDisplay = strings.Join(mcpNames, ", ")
+	}
+
+	pluginsDisplay := i18n.T("cmd.start.mcp_none")
+	if len(projCfg.Plugins) > 0 {
+		pluginsDisplay = strings.Join(projCfg.Plugins, ", ")
+	}
+
+	providerStatus := provider
+	if bearerToken != "" {
+		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
+	}
+
+	gutter := theme.Subtitle.Render("│")
+	header := theme.Title.Render("◆")
+	footer := theme.Subtitle.Render("└")
+
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(project.Name))
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_path"), launchPath)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_branch"), branch)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider"), providerStatus)
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintln(a.IO.Out)
+
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(i18n.T("cmd.start.section_config")))
+	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), provider)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_language"), displayOrDefault(stack.Language, project.Language))
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_compaction"), compactionStatus)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_mcp"), mcpDisplay)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_plugins"), pluginsDisplay)
+	if agent != "" {
+		fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_agent"), agent)
+	}
+	fmt.Fprintf(a.IO.Out, "%s  %s\n", footer, theme.Subtitle.Render(i18n.Tf("cmd.start.summary_version", buildinfo.Version)))
+	fmt.Fprintln(a.IO.Out)
+}
+
+// handleWorktreeMode manages the worktree workflow.
 func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (string, error) {
-	// Verify git repo
 	if !worktree.IsGitRepo(project.Path) {
 		return "", fmt.Errorf("%s", i18n.Tf("cmd.start.worktree_not_git", project.Name))
 	}
 
-	// Prompt for branch name if not provided
 	if branch == "" {
 		form := theme.NewForm(
 			huh.NewGroup(
@@ -384,13 +363,11 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 		}
 	}
 
-	// Auto-cleanup merged worktrees if configured
 	if a.Config.Worktree.AutoCleanup {
 		baseBranch := a.Config.Worktree.BaseBranch
 		if baseBranch == "" {
 			baseBranch = worktree.DetectBaseBranch(project.Path)
 		}
-
 		removed, _ := worktree.CleanupMerged(project.Path, baseBranch)
 		if len(removed) > 0 {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -401,7 +378,6 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 		}
 	}
 
-	// Create or reuse worktree
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.worktree_prep", theme.Bold.Render(branch)))
 
@@ -412,10 +388,8 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.worktree_path", wtPath))
 
-	// Deploy hub config into worktree
 	hubDir := findHubDir()
 	if hubDir == "" {
-		// Not a fatal error — worktree can work without hub deploy
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
 		return wtPath, nil
@@ -425,13 +399,11 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.worktree_deploy"))
 
 	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig)
-
 	results, err := deploy.Execute(plan)
 	if err != nil {
 		return "", fmt.Errorf("%s", i18n.Tf("cmd.start.worktree_deploy_failed", err))
 	}
 
-	// Show deployment results (compact)
 	for _, r := range results {
 		if r.Success {
 			fmt.Fprintf(a.IO.Out, "    %s %s\n",
@@ -444,598 +416,4 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 	fmt.Fprintln(a.IO.Out)
 
 	return wtPath, nil
-}
-
-// ensureOpencode checks that the opencode binary is available.
-// If not found, prompts the user to install it via Homebrew or auto-download.
-func ensureOpencode(a *app.App) error {
-	_, err := opencode.FindBinary()
-	if err == nil {
-		return nil // already installed
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.opencode_not_found"))
-
-	var choice string
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(i18n.T("cmd.start.install_choice")).
-				Options(
-					huh.NewOption(i18n.T("cmd.start.install_brew"), "brew"),
-					huh.NewOption(i18n.T("cmd.start.install_download"), "download"),
-					huh.NewOption(i18n.T("cmd.start.install_cancel"), "cancel"),
-				).
-				Value(&choice),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return fmt.Errorf("selection cancelled")
-	}
-
-	switch choice {
-	case "brew":
-		fmt.Fprintf(a.IO.Out, "\n  %s\n\n",
-			i18n.Tf("cmd.start.install_run_brew", theme.Bold.Render("brew install anomalyco/tap/opencode")))
-		return fmt.Errorf("%s", i18n.T("cmd.start.install_required"))
-	case "download":
-		return downloadOpencode(a)
-	default:
-		return fmt.Errorf("%s", i18n.T("cmd.start.install_required_generic"))
-	}
-}
-
-// downloadOpencode downloads and installs the opencode binary.
-func downloadOpencode(a *app.App) error {
-	installDir := a.Config.Opencode.InstallDir
-	version := a.Config.Opencode.Version
-
-	if version == "" {
-		version = "latest"
-	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.downloading"))
-
-	var lastPercent int
-	_, err := opencode.Download(version, installDir, func(downloaded, total int64) {
-		if total > 0 {
-			percent := int(downloaded * 100 / total)
-			if percent != lastPercent && percent%5 == 0 {
-				lastPercent = percent
-				fmt.Fprintf(a.IO.Out, "\r  %s",
-					i18n.Tf("cmd.start.download_progress", percent, downloaded/1024/1024, total/1024/1024))
-			}
-		}
-	})
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-
-	fmt.Fprintln(a.IO.Out) // newline after progress
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.start.installed"))
-	return nil
-}
-
-// resolveProject finds the project to use. Priority:
-// 1. --project flag (explicit ID)
-// 2. Current directory detection
-// 3. Interactive selection if multiple projects exist
-func resolveProject(ctx context.Context, a *app.App, projectID string) (*domain.Project, error) {
-	// Explicit name or ID
-	if projectID != "" {
-		// Try by name first (user-friendly)
-		p, err := a.Projects.GetByName(ctx, projectID)
-		if err == nil {
-			return p, nil
-		}
-		// Fallback: try by ID (backward compat)
-		p, err = a.Projects.Get(ctx, projectID)
-		if err != nil {
-			if errors.Is(err, domain.ErrNotFound) {
-				return nil, fmt.Errorf("projet %q introuvable", projectID)
-			}
-			return nil, err
-		}
-		return p, nil
-	}
-
-	// Auto-detect from cwd
-	cwd, _ := os.Getwd()
-	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(projects) == 0 {
-		return nil, fmt.Errorf("%s", i18n.T("cmd.project.no_projects"))
-	}
-
-	// Check if cwd matches a project
-	for i, p := range projects {
-		absPath, _ := filepath.Abs(p.Path)
-		if absPath == cwd || isSubPath(cwd, absPath) {
-			return &projects[i], nil
-		}
-	}
-
-	// If only one project, use it
-	if len(projects) == 1 {
-		return &projects[0], nil
-	}
-
-	// Interactive selection
-	var selectedID string
-	options := make([]huh.Option[string], len(projects))
-	for i, p := range projects {
-		label := fmt.Sprintf("%s (%s)", p.Name, p.Language)
-		options[i] = huh.NewOption(label, p.ID)
-	}
-
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Choisir un projet").
-				Options(options...).
-				Value(&selectedID),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return nil, err
-	}
-
-	for i, p := range projects {
-		if p.ID == selectedID {
-			return &projects[i], nil
-		}
-	}
-	return nil, fmt.Errorf("%s", i18n.T("cmd.quick.not_found"))
-}
-
-func displayOrDefault(detected, fallback string) string {
-	if detected != "" {
-		return detected
-	}
-	if fallback != "" {
-		return fallback
-	}
-	return "—"
-}
-
-// handleDevMode orchestrates the --dev workflow:
-// 1. Verify bd is available
-// 2. Sync tracker
-// 3. Query epics and orphan tickets
-// 4. Present picker (3 sections: epics, labeled tickets, other tickets)
-// 5. Resolve selected tickets
-// 6. Build prompt for orchestrator-dev
-// Returns the agent name and constructed prompt.
-func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, launchPath string) (agentName, devPrompt string, err error) {
-	// 1. Verify bd is available
-	if err := beads.Available(); err != nil {
-		return "", "", fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
-	}
-
-	labelFilter, _ := cmd.Flags().GetString("label")
-	assigneeFilter, _ := cmd.Flags().GetString("assignee")
-	ticketFlag, _ := cmd.Flags().GetString("ticket")
-
-	// Team: pull team-state for claim awareness
-	var teamRepo *teamstate.Repo
-	if a.Config.Team.Enabled {
-		statePath := a.Config.Team.StatePath
-		if statePath == "" {
-			statePath = config.DefaultTeamStatePath()
-		}
-		teamRepo = teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
-		if teamRepo.IsCloned() {
-			_ = teamRepo.Pull(cmd.Context())
-		}
-	}
-
-	// If --ticket is specified, skip the picker and work on that ticket directly
-	if ticketFlag != "" {
-		// Auto-claim if team is enabled
-		if teamRepo != nil && teamRepo.IsCloned() {
-			existing, claimErr := teamRepo.CreateClaim(cmd.Context(), teamstate.Claim{
-				TicketID:  ticketFlag,
-				Project:   project.ID,
-				ClaimedBy: a.Config.Team.MemberID,
-				Status:    "in_progress",
-			})
-			if claimErr == teamstate.ErrClaimExists && existing != nil {
-				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
-					theme.WarningStyle.Render(theme.IconWarning), ticketFlag, existing.ClaimedBy)
-			} else if claimErr == nil {
-				fmt.Fprintf(a.IO.Out, "  %s Claim %s/%s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketFlag)
-			}
-		}
-
-		// Store GitLab context in beads memory
-		_ = beads.RememberGitLabContext(launchPath, ticketFlag, ticketFlag, "")
-
-		// Build prompt with the ticket reference
-		directPrompt := fmt.Sprintf("Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.", ticketFlag)
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
-		return "orchestrator-dev", directPrompt, nil
-	}
-
-	// 2. Query tickets
-	// Get epics with ready children
-	epics, err := beads.ListEpicsWithReadyChildren(launchPath)
-	if err != nil {
-		slog.Warn("failed to list epics", "error", err)
-	}
-
-	// Get orphan tickets (no parent)
-	withLabel, withoutLabel, err := beads.OrphanTickets(launchPath, labelFilter)
-	if err != nil {
-		return "", "", fmt.Errorf("querying tickets: %w", err)
-	}
-
-	// Apply assignee filter if set (re-query with assignee)
-	if assigneeFilter != "" {
-		readyOpts := beads.ReadyOpts{Assignee: assigneeFilter}
-		filtered, err := beads.ListReady(launchPath, readyOpts)
-		if err != nil {
-			return "", "", fmt.Errorf("querying tickets by assignee: %w", err)
-		}
-		// Partition filtered tickets into labeled/unlabeled orphans
-		withLabel = nil
-		withoutLabel = nil
-		for _, t := range filtered {
-			if t.Parent != "" || t.Type == "epic" {
-				continue
-			}
-			if beads.HasLabelExported(t, "ai-delegated") {
-				withLabel = append(withLabel, t)
-			} else {
-				withoutLabel = append(withoutLabel, t)
-			}
-		}
-	}
-
-	// 4. Check we have something to show
-	totalOptions := len(epics) + len(withLabel) + len(withoutLabel)
-	if totalOptions == 0 {
-		label := "ai-delegated"
-		if labelFilter != "" {
-			label = labelFilter
-		}
-		return "", "", fmt.Errorf("%s", i18n.Tf("cmd.start.dev_no_tickets", label))
-	}
-
-	// 5. Build picker options
-	type pickerItem struct {
-		label  string
-		isEpic bool
-		epicID string
-		ticket beads.Ticket
-	}
-
-	var items []pickerItem
-
-	// Section: Epics
-	for _, e := range epics {
-		items = append(items, pickerItem{
-			label:  fmt.Sprintf("[Epic] %s (%d tickets)", e.Ticket.Title, e.ReadyCount),
-			isEpic: true,
-			epicID: e.Ticket.ID,
-			ticket: e.Ticket,
-		})
-	}
-
-	// Section: Tickets with ai-delegated label
-	for _, t := range withLabel {
-		items = append(items, pickerItem{
-			label:  fmt.Sprintf("[ai-delegated] %s — %s", t.ID, t.Title),
-			isEpic: false,
-			ticket: t,
-		})
-	}
-
-	// Section: Other ready tickets
-	for _, t := range withoutLabel {
-		items = append(items, pickerItem{
-			label:  fmt.Sprintf("%s — %s", t.ID, t.Title),
-			isEpic: false,
-			ticket: t,
-		})
-	}
-
-	// 6. Present picker
-	options := make([]huh.Option[int], len(items))
-	for i, item := range items {
-		options[i] = huh.NewOption(item.label, i)
-	}
-
-	var selectedIdx int
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[int]().
-				Title(i18n.T("cmd.start.dev_picker_title")).
-				Options(options...).
-				Value(&selectedIdx),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return "", "", err
-	}
-
-	selected := items[selectedIdx]
-
-	// 7. Resolve tickets for the selected item
-	var tickets []beads.Ticket
-	if selected.isEpic {
-		children, err := beads.ReadyChildren(launchPath, selected.epicID)
-		if err != nil {
-			return "", "", fmt.Errorf("querying epic children: %w", err)
-		}
-		tickets = children
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.start.dev_selected_epic", selected.ticket.Title, len(tickets)))
-	} else {
-		tickets = []beads.Ticket{selected.ticket}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.start.dev_selected_ticket", selected.ticket.ID, selected.ticket.Title))
-	}
-
-	// 7b. Auto-claim the selected ticket in team-state
-	if teamRepo != nil && teamRepo.IsCloned() && a.Config.Team.MemberID != "" {
-		claimTicketID := selected.ticket.ID
-		if selected.isEpic {
-			claimTicketID = selected.epicID
-		}
-		existing, claimErr := teamRepo.CreateClaim(cmd.Context(), teamstate.Claim{
-			TicketID:  claimTicketID,
-			Project:   project.ID,
-			ClaimedBy: a.Config.Team.MemberID,
-			Status:    "in_progress",
-		})
-		if claimErr == teamstate.ErrClaimExists && existing != nil {
-			if existing.ClaimedBy != a.Config.Team.MemberID {
-				fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
-					theme.WarningStyle.Render(theme.IconWarning), claimTicketID, existing.ClaimedBy)
-			}
-		} else if claimErr == nil {
-			fmt.Fprintf(a.IO.Out, "  %s Claim %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), claimTicketID)
-		}
-	}
-
-	// 8. Build prompt
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.dev_launching"))
-
-	devPrompt = prompt.BuildDevPrompt(tickets)
-	return "orchestrator-dev", devPrompt, nil
-}
-
-// runParallelMode handles the --parallel flag: launches N sessions concurrently.
-func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
-	tickets, _ := cmd.Flags().GetStringSlice("tickets")
-	maxSessions, _ := cmd.Flags().GetInt("max-sessions")
-	priority, _ := cmd.Flags().GetString("priority")
-	projectFlag, _ := cmd.Flags().GetString("project")
-
-	if len(tickets) == 0 {
-		return fmt.Errorf("--parallel nécessite --tickets (ex: --tickets bd-42,bd-43,bd-44)")
-	}
-
-	// Resolve project
-	project, err := resolveProject(ctx, a, projectFlag)
-	if err != nil {
-		return err
-	}
-
-	// Load parallel config from team-state (or defaults)
-	cfg := parallel.DefaultConfig()
-	if a.Config.Team.Enabled {
-		teamRepo, err := ensureTeamRepo(ctx, a)
-		if err == nil {
-			teamCfg, err := teamRepo.LoadConfig()
-			if err == nil {
-				if teamCfg.Parallel.MaxSessions > 0 {
-					cfg.MaxSessions = teamCfg.Parallel.MaxSessions
-				}
-				if teamCfg.Parallel.PortRangeStart > 0 {
-					cfg.PortRangeStart = teamCfg.Parallel.PortRangeStart
-				}
-				cfg.AutoMergeBeads = teamCfg.Parallel.AutoMergeBeads
-			}
-		}
-	}
-
-	// Override from flags
-	if maxSessions > 0 {
-		cfg.MaxSessions = maxSessions
-	}
-
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s Mode parallèle : %d tickets, max %d sessions\n",
-		theme.Title.Render("  parallel  "),
-		len(tickets), cfg.MaxSessions)
-	fmt.Fprintln(a.IO.Out)
-
-	for _, t := range tickets {
-		icon := theme.IconDot
-		if t == priority {
-			icon = theme.IconSuccess
-		}
-		fmt.Fprintf(a.IO.Out, "  %s %s", icon, t)
-		if t == priority {
-			fmt.Fprintf(a.IO.Out, " (priority)")
-		}
-		fmt.Fprintln(a.IO.Out)
-	}
-	fmt.Fprintln(a.IO.Out)
-
-	// Build coordinator
-	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
-		ProjectPath: project.Path,
-		ProjectID:   project.ID,
-		Tickets:     tickets,
-		Priority:    priority,
-		Agent:       "orchestrator-dev",
-		Config:      cfg,
-		PromptFunc: func(ticketID string) string {
-			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("initialisation parallèle: %w", err)
-	}
-	defer coord.Cleanup()
-
-	// Run setup phases (worktrees + servers + sessions)
-	fmt.Fprintf(a.IO.Out, "%s Création des worktrees et lancement des sessions...\n",
-		theme.Subtitle.Render(theme.IconArrow))
-
-	// Phase 1-3: Setup (worktrees, servers, sessions)
-	if err := coord.Run(ctx); err != nil {
-		if errors.Is(err, context.Canceled) {
-			fmt.Fprintf(a.IO.Out, "\n%s Sessions annulées.\n",
-				theme.WarningStyle.Render(theme.IconWarning))
-			return nil
-		}
-		// If setup failed but some sessions might be running, try TUI anyway
-		// Otherwise report error
-		if coord.State().RunningCount() == 0 {
-			return fmt.Errorf("exécution parallèle: %w", err)
-		}
-	}
-
-	// Launch TUI monitor if sessions are running
-	if coord.State().RunningCount() > 0 || coord.State().AllCompleted() {
-		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur parallèle...\n\n",
-			theme.Subtitle.Render(theme.IconArrow))
-
-		// TODO: v2 parallel view does not support attach functionality yet.
-		// The old parallelTUI.AttachToServer(port) call has been removed.
-		parallelCfg := views.ParallelConfig{
-			Layout: layout.Config{
-				ProjectName: a.Config.Name,
-				Command:     "parallel",
-				StatusHints: "↑↓ navigate · r refresh · q quit",
-			},
-			Sessions:    toParallelSessions(coord.State()),
-			RefreshFunc: func() []views.ParallelSession {
-				coord.RefreshState()
-				return toParallelSessions(coord.State())
-			},
-			RefreshRate: 5 * time.Second,
-		}
-
-		if err := views.RunParallel(parallelCfg); err != nil {
-			// TUI error is non-fatal, continue to results
-			fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
-		}
-	}
-
-	// Print results
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Résultats  "))
-	fmt.Fprintln(a.IO.Out)
-
-	snap := coord.State().Snapshot()
-	for _, sess := range snap.Sessions {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
-		if sess.Status == parallel.StatusFailed {
-			icon = theme.ErrorStyle.Render(theme.IconError)
-		}
-		duration := ""
-		if !sess.StartedAt.IsZero() && !sess.CompletedAt.IsZero() {
-			duration = fmt.Sprintf(" (%s)", sess.CompletedAt.Sub(sess.StartedAt).Truncate(time.Second))
-		}
-		fmt.Fprintf(a.IO.Out, "  %s %s — %s%s\n", icon, sess.TicketID, sess.Status, duration)
-		if sess.Error != "" {
-			fmt.Fprintf(a.IO.Out, "    %s\n", theme.ErrorStyle.Render(sess.Error))
-		}
-		if len(sess.FilesModified) > 0 {
-			fmt.Fprintf(a.IO.Out, "    fichiers: %d modifiés\n", len(sess.FilesModified))
-		}
-	}
-
-	if len(snap.Conflicts) > 0 {
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  %s %d conflit(s) potentiel(s) détecté(s):\n",
-			theme.WarningStyle.Render(theme.IconWarning), len(snap.Conflicts))
-		for _, c := range snap.Conflicts {
-			fmt.Fprintf(a.IO.Out, "    %s — %s [%s]\n", c.File, strings.Join(c.Sessions, " ↔ "), c.Severity)
-		}
-	}
-
-	// Phase merge (if any sessions completed)
-	completedCount := 0
-	for _, sess := range snap.Sessions {
-		if sess.Status == parallel.StatusCompleted {
-			completedCount++
-		}
-	}
-
-	if completedCount > 0 {
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintln(a.IO.Out, theme.Title.Render("  Merge  "))
-
-		merger := parallel.NewMerger(coord.State(), project.Path, cfg)
-		merger.SetOutput(a.IO.Out)
-		// Determine which tickets are Beads (local) vs external
-		// For now: all tickets starting with "bd-" are Beads
-		isBeads := func(ticketID string) bool {
-			return strings.HasPrefix(ticketID, "bd-") || strings.HasPrefix(ticketID, "BD-")
-		}
-
-		results, err := merger.ProposeMerge(isBeads)
-		if err != nil {
-			fmt.Fprintf(a.IO.Out, "  %s Merge error: %v\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
-		}
-
-		fmt.Fprintln(a.IO.Out)
-		for _, r := range results {
-			icon := theme.SuccessStyle.Render(theme.IconSuccess)
-			if !r.Success {
-				icon = theme.ErrorStyle.Render(theme.IconError)
-			}
-			if r.Conflict {
-				icon = theme.WarningStyle.Render(theme.IconWarning)
-			}
-			fmt.Fprintf(a.IO.Out, "  %s %s: %s\n", icon, r.TicketID, r.Message)
-		}
-	}
-
-	fmt.Fprintln(a.IO.Out)
-	return nil
-}
-
-// toParallelSessions converts the domain ParallelState sessions to the v2 views format.
-func toParallelSessions(state *parallel.ParallelState) []views.ParallelSession {
-	snap := state.Snapshot()
-	sessions := make([]views.ParallelSession, 0, len(snap.Sessions))
-	for _, s := range snap.Sessions {
-		var duration time.Duration
-		if !s.StartedAt.IsZero() {
-			if !s.CompletedAt.IsZero() {
-				duration = s.CompletedAt.Sub(s.StartedAt)
-			} else {
-				duration = time.Since(s.StartedAt)
-			}
-		}
-		sessions = append(sessions, views.ParallelSession{
-			ID:       s.SessionID,
-			Name:     s.TicketID,
-			Status:   string(s.Status),
-			Branch:   s.Branch,
-			Duration: duration,
-			Agent:    "orchestrator-dev",
-		})
-	}
-	return sessions
 }

@@ -39,6 +39,7 @@ type ProjectsViewConfig struct {
 // ProjectsView displays the list of registered projects with full CRUD.
 type ProjectsView struct {
 	cfg         ProjectsViewConfig
+	content     *tview.Flex
 	list        *tview.List
 	detail      *tview.TextView
 	app         *tview.Application
@@ -96,6 +97,7 @@ func (v *ProjectsView) StatusHints() string {
 // Mount builds the projects list with footer detail.
 func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 
 	v.list = tview.NewList().
 		ShowSecondaryText(true).
@@ -171,22 +173,27 @@ func (v *ProjectsView) addProject() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal("Nom du projet", "", func(name string) {
-		if name == "" {
-			return
-		}
-		v.shell.ShowInputModal("Chemin du projet", "", func(path string) {
-			if path == "" {
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Ajouter un projet",
+		Fields: []FormField{
+			{Key: "name", Label: "Nom", Type: FieldText, Required: true},
+			{Key: "path", Label: "Chemin", Type: FieldText, Required: true},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			name := values["name"]
+			path := values["path"]
+			if name == "" || path == "" {
 				return
 			}
 			if v.onAdd != nil {
 				v.onAdd(name, path)
 			}
-			// Add to local list for immediate feedback
 			v.cfg.Projects = append(v.cfg.Projects, ProjectItem{Name: name, Path: path})
 			v.list.AddItem(name, "    "+path, 0, nil)
 			v.shell.ShowToastMsg("Projet ajouté: "+name, true)
-		})
+		},
+		OnCancel: nil,
 	})
 }
 
@@ -240,42 +247,37 @@ func (v *ProjectsView) configureProject() {
 	}
 	project := v.cfg.Projects[idx]
 
-	// Accumulate changes across the modal chain
-	update := ProjectConfigUpdate{
-		Language: project.Language,
-		Provider: project.Provider,
-		Model:    project.Model,
-		Agents:   project.Agents,
+	// Build agent options
+	agentOptions := make([]SelectOption, len(v.cfg.AvailableAgents))
+	for i, ag := range v.cfg.AvailableAgents {
+		agentOptions[i] = SelectOption{Label: ag, Value: ag}
 	}
 
-	// Step 1: Language
-	v.shell.ShowSelectModal("Langage · "+project.Name, projectLanguageOptions, project.Language, func(lang string) {
-		update.Language = lang
-
-		// Step 2: Provider
-		v.shell.ShowSelectModal("Provider · "+project.Name, projectProviderOptions, project.Provider, func(prov string) {
-			update.Provider = prov
-
-			// Step 3: Model (free text)
-			v.shell.ShowInputModal("Modèle · "+project.Name, project.Model, func(model string) {
-				update.Model = model
-
-				// Step 4: Agents (multi-select)
-				if len(v.cfg.AvailableAgents) > 0 {
-					agentOptions := make([]SelectOption, len(v.cfg.AvailableAgents))
-					for i, ag := range v.cfg.AvailableAgents {
-						agentOptions[i] = SelectOption{Label: ag, Value: ag}
-					}
-					v.shell.ShowMultiSelectModal("Agents · "+project.Name, agentOptions, project.Agents, func(agents []string) {
-						update.Agents = agents
-						v.applyConfiguration(idx, update)
-					})
-				} else {
-					// No agents available, skip step 4
-					v.applyConfiguration(idx, update)
-				}
-			})
+	fields := []FormField{
+		{Key: "language", Label: "Langage", Type: FieldSelect, Options: projectLanguageOptions, Default: project.Language},
+		{Key: "provider", Label: "Provider", Type: FieldSelect, Options: projectProviderOptions, Default: project.Provider},
+		{Key: "model", Label: "Modèle", Type: FieldText, Default: project.Model},
+	}
+	if len(agentOptions) > 0 {
+		fields = append(fields, FormField{
+			Key: "agents", Label: "Agents", Type: FieldMultiSelect,
+			Options: agentOptions, DefaultMulti: project.Agents,
 		})
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title:  "Configurer: " + project.Name,
+		Fields: fields,
+		OnSubmit: func(values map[string]string, multi map[string][]string) {
+			update := ProjectConfigUpdate{
+				Language: values["language"],
+				Provider: values["provider"],
+				Model:    values["model"],
+				Agents:   multi["agents"],
+			}
+			v.applyConfiguration(idx, update)
+		},
+		OnCancel: nil,
 	})
 }
 

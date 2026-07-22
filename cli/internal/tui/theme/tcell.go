@@ -19,6 +19,15 @@ var (
 	BgElement = tcell.GetColor(BgElementHex)
 )
 
+// Overlay backdrops — near-black to signal that background content is inert.
+var (
+	// BgDimOverlay is the backdrop for inline-overlays (modals, selects, inputs).
+	BgDimOverlay = tcell.NewRGBColor(8, 8, 16)
+	// BgDimSubOverlay is the backdrop for sub-overlays layered on top of a form.
+	// Slightly darker to reinforce the extra depth level.
+	BgDimSubOverlay = tcell.NewRGBColor(4, 4, 12)
+)
+
 // Text
 var (
 	// FgPrimary is for titles and primary content.

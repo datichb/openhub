@@ -3,7 +3,9 @@ package views
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -276,8 +278,8 @@ func readConventionsFile(dir string) string {
 		"CONVENTIONS.md",
 	}
 	for _, p := range paths {
-		full := dir + "/" + p
-		data, err := exec.Command("cat", full).Output()
+		full := filepath.Join(dir, p)
+		data, err := os.ReadFile(full)
 		if err == nil && len(data) > 0 {
 			return string(data)
 		}

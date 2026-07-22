@@ -189,10 +189,13 @@ func gitlabRequest(method, path string, body io.Reader) ([]byte, error) {
 	return respBody, nil
 }
 
+// skipURLValidation is a package-level hook for tests only.
+// Set via SetSkipURLValidationForTest in validate_test_helper_test.go (test build only).
+var skipURLValidation bool
+
 // validateGitLabURL checks that the URL is safe to send credentials to.
-// Skipped when GITLAB_SKIP_URL_VALIDATION is set (for testing only).
 func validateGitLabURL(rawURL string) error {
-	if os.Getenv("GITLAB_SKIP_URL_VALIDATION") == "true" {
+	if skipURLValidation {
 		return nil
 	}
 	parsed, err := url.Parse(rawURL)

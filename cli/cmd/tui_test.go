@@ -16,20 +16,40 @@ func TestCanLaunchTUI_NonInteractive(t *testing.T) {
 	assert.False(t, result, "canLaunchTUI should return false in CI environment")
 }
 
-func TestBuildMenuItems(t *testing.T) {
+func TestBuildCommands(t *testing.T) {
 	a := &app.App{Config: &config.Config{}}
-	items := buildMenuItems(a)
-	assert.Greater(t, len(items), 0, "menu items should not be empty")
+	commands := buildCommands(a)
+	assert.Greater(t, len(commands), 0, "commands should not be empty")
 
-	// First item should be Home
-	assert.Equal(t, "home", items[0].ID)
-	assert.Equal(t, "home", items[0].ViewID)
+	// Should contain core commands
+	ids := make(map[string]bool)
+	for _, cmd := range commands {
+		ids[cmd.ID] = true
+	}
 
-	// Sessions should have children
-	sessions := items[1]
-	assert.Equal(t, "sessions", sessions.ID)
-	assert.True(t, sessions.IsCategory())
-	assert.Greater(t, len(sessions.Children), 0)
+	assert.True(t, ids["start"], "should have start command")
+	assert.True(t, ids["board"], "should have board command")
+	assert.True(t, ids["config"], "should have config command")
+	assert.True(t, ids["doctor"], "should have doctor command")
+	assert.True(t, ids["quit"], "should have quit command")
+	assert.True(t, ids["home"], "should have home command")
+}
+
+func TestBuildCommands_HasCategories(t *testing.T) {
+	a := &app.App{Config: &config.Config{}}
+	commands := buildCommands(a)
+
+	categories := make(map[string]bool)
+	for _, cmd := range commands {
+		if cmd.Category != "" {
+			categories[cmd.Category] = true
+		}
+	}
+
+	assert.True(t, categories["Sessions"], "should have Sessions category")
+	assert.True(t, categories["Projets"], "should have Projets category")
+	assert.True(t, categories["Configuration"], "should have Configuration category")
+	assert.True(t, categories["Système"], "should have Système category")
 }
 
 func TestBuildViews(t *testing.T) {

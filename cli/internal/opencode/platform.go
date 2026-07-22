@@ -19,10 +19,12 @@ type platformAsset struct {
 }
 
 var platformMap = map[string]platformAsset{
-	"darwin/arm64": {Name: "opencode-darwin-arm64.zip", Format: archiveFormatZip},
-	"darwin/amd64": {Name: "opencode-darwin-x64.zip", Format: archiveFormatZip},
-	"linux/arm64":  {Name: "opencode-linux-arm64.tar.gz", Format: archiveFormatTarGz},
-	"linux/amd64":  {Name: "opencode-linux-x64.tar.gz", Format: archiveFormatTarGz},
+	"darwin/arm64":  {Name: "opencode-darwin-arm64.zip", Format: archiveFormatZip},
+	"darwin/amd64":  {Name: "opencode-darwin-x64.zip", Format: archiveFormatZip},
+	"linux/arm64":   {Name: "opencode-linux-arm64.tar.gz", Format: archiveFormatTarGz},
+	"linux/amd64":   {Name: "opencode-linux-x64.tar.gz", Format: archiveFormatTarGz},
+	"windows/arm64": {Name: "opencode-windows-arm64.zip", Format: archiveFormatZip},
+	"windows/amd64": {Name: "opencode-windows-x64.zip", Format: archiveFormatZip},
 }
 
 // AssetName returns the GitHub release asset filename and archive format

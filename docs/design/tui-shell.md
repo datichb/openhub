@@ -1,242 +1,208 @@
 # TUI Shell — Design Specification
 
-> Référence design pour le shell TUI unifié d'OpenHub.
-> Palette, dimensions, états visuels, composants.
+> Design reference for the omnibar-first TUI shell of OpenHub.
+> Palette, dimensions, visual states, components.
 
-## Palette unifiée (Catppuccin Mocha)
+## Design Philosophy
 
-> Palette basée sur [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) — éprouvée sur le fond `#1e1e2e`, teinte bleu-lavande pour une lisibilité optimale sur fond sombre.
+1. **Content-first** — Maximum screen real estate for the active view
+2. **Single interaction point** — The omnibar handles all command discovery and execution
+3. **Minimal chrome** — No permanent header, sidebar, or status bar
+4. **Contextual hints** — The omnibar displays relevant shortcuts for the active view
+5. **Predictable** — Esc=back, Enter=action, Ctrl+Q=quit, any letter=command
+6. **Immediate feedback** — Every action produces a toast notification
 
-### Backgrounds (3 niveaux de profondeur)
+## Unified Palette (Catppuccin Mocha)
 
-| Rôle | Hex | Catppuccin | Usage |
+### Backgrounds (3 depth levels)
+
+| Role | Hex | Catppuccin | Usage |
 |------|-----|-----------|-------|
-| App | `#181825` | Mantle | Fond terminal, status bar |
-| Panel | `#1e1e2e` | Base | Sidebar, cards, content panels |
-| Element | `#313244` | Surface0 | Items hover, sélection, header |
+| App | `#181825` | Mantle | Terminal background |
+| Panel | `#1e1e2e` | Base | Content panels |
+| Element | `#313244` | Surface0 | Omnibar, selection, hover |
 
-### Texte (3 niveaux de contraste)
+### Text (3 contrast levels)
 
-| Rôle | Hex | Catppuccin | Usage |
+| Role | Hex | Catppuccin | Usage |
 |------|-----|-----------|-------|
-| Primary | `#cdd6f4` | Text | Titres, **items de menu**, contenu principal |
-| Secondary | `#a6adc8` | Subtext0 | Catégories de menu, descriptions, labels secondaires |
-| Muted | `#7f849c` | Overlay1 | Placeholders, disabled, timestamps |
+| Primary | `#cdd6f4` | Text | Titles, content, active items |
+| Secondary | `#a6adc8` | Subtext0 | Descriptions, categories |
+| Muted | `#7f849c` | Overlay1 | Placeholders, disabled, hints |
 
-### Couleurs sémantiques
+### Semantic Colors
 
-| Rôle | Hex | Catppuccin | Usage |
+| Role | Hex | Catppuccin | Usage |
 |------|-----|-----------|-------|
-| Accent | `#89b4fa` | Blue | Bordures focus, navigation, headers |
-| Action | `#fab387` | Peach | CTA, menu actif, spinner, boutons |
+| Accent | `#89b4fa` | Blue | Omnibar borders, navigation |
+| Action | `#fab387` | Peach | Active item, spinner |
 | Success | `#a6e3a1` | Green | Confirmations, done |
-| Warning | `#f9e2af` | Yellow | Alertes non-bloquantes |
-| Error | `#f38ba8` | Red | Erreurs, blocked, critical |
-| Info | `#b4befe` | Lavender | In progress, running |
+| Warning | `#f9e2af` | Yellow | Non-blocking alerts |
+| Error | `#f38ba8` | Red | Errors, failures |
+| Info | `#b4befe` | Lavender | Running, in-progress |
 
-### Bordures
-
-| Rôle | Hex | Usage |
-|------|-----|-------|
-| Normal | `#313244` | Délimiteurs de panels (= Surface0) |
-| Focus | `#89b4fa` | Panel en focus (= Blue) |
-| Active | `#fab387` | Item de menu actif (= Peach) |
-
-## Layout principal
+## Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ [Left: logo]        [Center: breadcrumb]       [Right: meta]    │ ← Header (2 rows, bg: Elevated)
-├──────────────┬──────────────────────────────────────────────────┤
-│              │                                                   │
-│    MENU      │              CONTENT PANEL                        │ ← Middle (flex, bg: Surface)
-│   (1 part)   │               (5 parts)                          │
-│              │                                                   │
-├──────────────┴──────────────────────────────────────────────────┤
-│ [Left: vue]       [Center: hints]                [Right: info]  │ ← StatusBar (1 row, bg: Abyss)
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                   │
+│                                                                   │
+│                    CONTENT AREA                                    │
+│             (fills entire terminal minus 1 row)                   │
+│                                                                   │
+│            Padding: top=1, left=2, right=2                        │
+│                                                                   │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│  ◆ > _  hints · hints · hints                          Ctrl+P    │ Omnibar (1 row, bg: Element)
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Dimensions
 
-| Composant | Taille | Type |
-|-----------|--------|------|
-| Header | 2 rows | Fixe |
-| Status bar | 1 row | Fixe |
-| Sidebar (menu) | proportion 1 | Flex |
-| Content | proportion 5 | Flex |
-| Sidebar min width | 20 chars | — |
+| Component | Size | Type |
+|-----------|------|------|
+| Content | terminal height - 1 | Flex (proportion 1) |
+| Omnibar | 1 row | Fixed |
 | Content padding | top=1, left=2, right=2 | — |
 
-### Responsive breakpoints
+## Omnibar
 
-| Terminal width | Comportement |
-|---------------|--------------|
-| >= 120 cols | Layout complet |
-| 100-119 cols | Labels menu tronqués (15 chars max) |
-| 80-99 cols | Menu masqué par défaut, Ctrl+N overlay |
-| < 80 cols | Menu caché, breadcrumb caché, hints minimales |
-
-## Menu (sidebar)
-
-### Rendu
+### Passive Mode (hints)
 
 ```
-│                        │
-│  ◆ Home                │  ← Vue active : texte Gold, bold
-│                        │
-│  Sessions              │  ← Catégorie expanded : Snow, bold
-│    · Start             │  ← Item : Lavender, indent 4
-│    · Quick             │
-│    · Audit             │
-│                        │  ← Ligne vide entre catégories
-│  Projets               │
-│  ▸ Liste               │  ← Item sous le curseur : bg Elevated, texte Snow
-│    Config              │
-│                        │
-│  ▾ Team                │  ← Catégorie collapsed : Lavender
-│  ▾ MCP                 │
-│  ▾ Configuration       │
-│  ▾ Système             │
-│                        │
+│  Ctrl+P commande · j/k nav · Enter ouvrir · Esc retour           │
 ```
 
-### États visuels
+- Background: Element (`#313244`)
+- Text: Secondary (`#a6adc8`)
+- Accent keys: Blue (`#89b4fa`)
 
-| État | Rendu | Couleur |
-|------|-------|---------|
-| Catégorie expanded | `Sessions` | Snow, bold |
-| Catégorie collapsed | `▾ Team` | Lavender |
-| Item normal | `  · Start` | Lavender |
-| Item curseur (sélectionné) | `  · Start` bg Elevated | Snow, bg Elevated |
-| Item = vue active | `◆ Home` | Gold, bold |
-| Item disabled | `  · Deploy` | Ash |
+### Active Mode (input)
 
-### Interactions
+```
+│  ◆ > start_                                                       │
+```
 
-| Touche | Action |
-|--------|--------|
-| `j` / `↓` | Item suivant |
-| `k` / `↑` | Item précédent |
-| `Enter` | Ouvrir vue / exécuter action |
-| `l` / `→` | Expand catégorie |
-| `h` / `←` | Collapse / remonter au parent |
-| `Space` | Toggle expand/collapse |
-| `Ctrl+N` | Toggle focus sidebar ↔ content |
-| `Esc` | Retour focus content |
-| `g` | Premier item |
-| `G` | Dernier item |
+- Background: Element (`#313244`)
+- Label: Action color (`#fab387`) — `◆ >`
+- Input text: Primary (`#cdd6f4`)
+- Placeholder: Muted (`#7f849c`)
 
-## Header
+### Suggestions Overlay
 
-### 3 sections (Flex horizontal)
+```
+│  ● Start Standard       Session interactive classique            │
+│  ○ Start Dev            Session orientée développement           │
+│  ○ Start Onboard        Session d'onboarding projet              │
+├──────────────────────────────────────────────────────────────────┤
+│  ◆ > start_                                                      │
+```
 
-| Section | Proportion | Alignement | Contenu |
-|---------|-----------|------------|---------|
-| Left | 1 | Gauche | `◆ OpenHub` (Gold diamond + Snow bold text) |
-| Center | 2 | Centre | Breadcrumb : `[Ash]Sessions[-] [Ash]▸[-] [Azure]Start[-]` |
-| Right | 1 | Droite | Méta-info : `[Ash]3 projets[-]` |
+- Positioned just above omnibar via Pages overlay
+- Border: Normal (`#313244`)
+- Selected item: bg Element, text Primary
+- Non-selected: text Primary, description Muted
+- Max 10 items visible
 
-### Breadcrumb format
+## Splash Screen (Home View)
 
-- Segments ancêtres : couleur Ash
-- Séparateur : `▸` couleur Ash
-- Segment actif (dernier) : couleur Azure, bold
-- Exemple : `Projets ▸ my-app ▸ Configure`
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                   │
+│                                                                   │
+│              ___                   _   _       _                  │
+│             / _ \ _ __   ___ _ __ | | | |_   _| |__              │
+│            | | | | '_ \ / _ \ '_ \| |_| | | | | '_ \            │
+│            | |_| | |_) |  __/ | | |  _  | |_| | |_) |           │
+│             \___/| .__/ \___|_| |_|_| |_|\__,_|_.__/            │
+│                  |_|                                              │
+│                                                                   │
+│          ─────────────────────────────────────────                │
+│                                                                   │
+│            Ctrl+P  ouvrir l'omnibar       Esc  retour            │
+│            start   lancer une session     quit quitter           │
+│            board   kanban projet          help raccourcis         │
+│                                                                   │
+│          ─────────────────────────────────────────                │
+│                                                                   │
+│        Tapez n'importe quelle lettre pour chercher une commande  │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│  ◆ > _  Ctrl+P commande · Ctrl+Q quitter                         │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-## Status bar
+- Logo: Action color (`#fab387`)
+- Hints keys: Accent (`#89b4fa`)
+- Hints commands: Secondary (`#a6adc8`)
+- Separators: Muted (`#7f849c`)
+- Bottom message: Muted
 
-### 3 sections (Flex horizontal)
+## Toast Notifications
 
-| Section | Proportion | Alignement | Contenu |
-|---------|-----------|------------|---------|
-| Left | 1 | Gauche | `[Azure]◆[-] [Lavender]board[-]` (vue courante) |
-| Center | 3 | Centre | `[Lavender]j/k nav  Enter ouvrir  Esc retour[-]` |
-| Right | 1 | Droite | `[Ash]14:32[-]` ou info contextuelle |
+### Position
 
-### Feedback flash
-
-Après une action réussie, la section Left passe temporairement en Jade (1.5s) :
-`[Jade]✓ Déployé[-]` puis revient à l'état normal.
-
-## Toast notifications
-
-### Position et dimensions
-
-- Position : haut-droite du content panel (via Grid overlay dans Pages)
-- Largeur : auto (message + 4 padding)
-- Hauteur : 3 rows (border + text + border)
-- Durée : 2.5 secondes
+- Top-right of content area (via Grid overlay in Pages)
+- Width: auto (message + 8 padding)
+- Height: 3 rows
+- Duration: 2.5s (success/info), 3.5s (error)
 
 ### Types
 
-| Type | Border color | Icône | Exemple |
-|------|-------------|-------|---------|
-| success | Jade | ✓ | `✓ Projet ajouté` |
-| error | Ruby | ✗ | `✗ Échec du deploy` |
-| warning | Amber | ! | `! Opencode non trouvé` |
-| info | Azure | ▸ | `▸ Sync en cours...` |
+| Type | Border | Icon | Example |
+|------|--------|------|---------|
+| Success | Green | ✓ | `✓ Projet ajouté` |
+| Error | Red | ✗ | `✗ Échec du deploy` |
+| Warning | Yellow | ! | `! opencode non trouvé` |
+| Info | Blue | ▸ | `▸ Sync en cours...` |
 
-### Comportement
+### Behavior
 
-- N'intercepte pas le focus (les inputs vont au content)
-- Disparaît après timeout via `time.AfterFunc` + `RemovePage`
-- Si plusieurs toasts : empiler verticalement (max 3)
+- Does not capture focus (inputs go to content/omnibar)
+- Auto-dismiss after timeout
+- Max 3 stacked
 
-## Modal de confirmation
+## Inline Prompts
 
-### Layout
+When a command needs user input, the content zone shows an inline form:
+
+### Input Prompt
 
 ```
-Pages overlay (resize=true, centered via Grid 3x3) :
-┌───────────────────────────────────────────────────┐
-│                                                    │
-│       ┌─── Titre ────────────────────────┐        │
-│       │                                   │        │
-│       │  Message explicatif.              │        │
-│       │  Détails supplémentaires.         │        │
-│       │                                   │        │
-│       │   [Annuler]       [Confirmer]     │        │
-│       └───────────────────────────────────┘        │
-│                                                    │
-└───────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                   │
+│                                                                   │
+│           Description du problème: [                        ]     │
+│           Enter confirmer  Esc annuler                            │
+│                                                                   │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│  ◆ > _                                                            │
 ```
 
-### Styles
+### Select Prompt (fzf-style)
 
-- Bordure modal : Azure (ou Ruby si action destructrice)
-- Bouton "Annuler" : bg Elevated, texte Lavender
-- Bouton "Confirmer" : bg Azure (ou Ruby si destructeur), texte Snow
-- Fond derrière : le content normal reste visible
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                   │
+│        ┌─ Lancer une session · Enter sélectionner · Esc ─┐       │
+│        │  Standard                                        │       │
+│        │  Dev (ticket)                                    │       │
+│        │  Onboard                                         │       │
+│        └──────────────────────────────────────────────────┘       │
+│                                                                   │
+├───────────────────────────────────────────────────────────────────┤
+│  ◆ > _                                                            │
+```
 
-### Interactions
+## Icons (canonical)
 
-- `Tab` : bascule entre boutons
-- `Enter` : valide le bouton sélectionné
-- `Esc` : annule (= bouton Annuler)
-
-## Icônes (canoniques, dedupliqués)
-
-| Constante | Caractère | Usage |
-|-----------|-----------|-------|
-| `IconActive` | `◆` | Vue active dans le menu, spinner |
-| `IconDone` | `●` | Étape complétée |
-| `IconPending` | `○` | Étape future |
-| `IconSuccess` | `✓` | Succès, sélection |
-| `IconError` | `✗` | Erreur |
-| `IconWarning` | `!` | Warning |
-| `IconArrow` | `▸` | Pointeur, catégorie expanded |
-| `IconCollapsed` | `▾` | Catégorie collapsed |
-| `IconDot` | `·` | Bullet item de menu |
-| `IconConnector` | `───` | Séparateur step bar |
-| `IconGutter` | `▎` | Gutter active item (Gold) |
-
-## Principes de design
-
-1. **Profondeur par background** — 3 niveaux créent la hiérarchie sans séparateurs explicites
-2. **Espacement** — 1 ligne vide entre sections, padding 2 sur les côtés
-3. **Focus unique** — Un seul élément actif à la fois, visuellement évident
-4. **Sobriété** — Max 3 couleurs sémantiques par zone visuelle
-5. **Feedback immédiat** — Chaque action produit un retour visuel (toast, flash, état)
-6. **Navigation prédictible** — Esc=retour, Enter=action, q=quitter
-7. **Accessible sans documentation** — Raccourcis visibles dans la status bar
+| Constant | Char | Usage |
+|----------|------|-------|
+| `IconActive` | `◆` | Logo, omnibar label |
+| `IconSuccess` | `✓` | Toast success |
+| `IconError` | `✗` | Toast error |
+| `IconWarning` | `!` | Toast warning |
+| `IconArrow` | `▸` | Toast info |
+| `IconDot` | `·` | Separator in hints |

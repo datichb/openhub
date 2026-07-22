@@ -16,13 +16,15 @@ import (
 
 // ProviderView displays provider configuration and allows credential setup.
 type ProviderView struct {
-	app    *tview.Application
-	appCtx *app.App
-	text   *tview.TextView
-	shell  ShellAccess
+	app      *tview.Application
+	appCtx   *app.App
+	text     *tview.TextView
+	shell    ShellAccess
+	commands []ContextCommand
 }
 
 var _ View = (*ProviderView)(nil)
+var _ CommandProvider = (*ProviderView)(nil)
 
 // NewProviderView creates a new provider configuration view.
 func NewProviderView(a *app.App) *ProviderView {
@@ -40,7 +42,7 @@ func (v *ProviderView) Title() string { return "Provider" }
 
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
-	return "s setup provider · r refresh · Esc retour"
+	return "s setup · r refresh · Ctrl+P commande"
 }
 
 // Mount builds the provider status display.
@@ -54,6 +56,7 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 	v.text.SetBorderPadding(1, 0, 2, 2)
 
 	v.refresh()
+	v.buildCommands()
 	content.AddItem(v.text, 0, 1, true)
 }
 
@@ -247,4 +250,84 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 
 func providerConfigViper() *viper.Viper {
 	return hubViper()
+}
+
+// ContextCommands returns contextual commands for the omnibar.
+func (v *ProviderView) ContextCommands() []ContextCommand {
+	return v.commands
+}
+
+func (v *ProviderView) buildCommands() {
+	v.commands = []ContextCommand{
+		{
+			ID:          "provider.setup",
+			Label:       "setup",
+			Aliases:     []string{"configurer", "configure"},
+			Description: "Configurer un provider",
+			Category:    "Provider",
+			Action:      v.setupProvider,
+		},
+		{
+			ID:          "provider.refresh",
+			Label:       "refresh",
+			Aliases:     []string{"rafraîchir", "reload"},
+			Description: "Rafraîchir la détection",
+			Category:    "Provider",
+			Action:      v.refresh,
+		},
+		{
+			ID:          "provider.setup.bedrock",
+			Label:       "setup bedrock",
+			Aliases:     []string{"bedrock", "aws"},
+			Description: "Configurer Amazon Bedrock",
+			Category:    "Provider",
+			Action: func() {
+				v.setupSpecificProvider("bedrock")
+			},
+		},
+		{
+			ID:          "provider.setup.anthropic",
+			Label:       "setup anthropic",
+			Aliases:     []string{"anthropic", "claude"},
+			Description: "Configurer Anthropic",
+			Category:    "Provider",
+			Action: func() {
+				v.setupSpecificProvider("anthropic")
+			},
+		},
+		{
+			ID:          "provider.setup.openrouter",
+			Label:       "setup openrouter",
+			Aliases:     []string{"openrouter", "or"},
+			Description: "Configurer OpenRouter",
+			Category:    "Provider",
+			Action: func() {
+				v.setupSpecificProvider("openrouter")
+			},
+		},
+	}
+}
+
+func (v *ProviderView) setupSpecificProvider(name string) {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowInputModal("API Key "+name, "", func(key string) {
+		if key == "" {
+			return
+		}
+		// Store in keychain
+		if v.appCtx.Secrets != nil {
+			keychainKey := provider.KeychainKey(provider.Name(name), "")
+			if keychainKey != "" {
+				_ = v.appCtx.Secrets.Set(context.Background(), keychainKey, key)
+			}
+		}
+		// Set as default
+		vip := providerConfigViper()
+		vip.Set("opencode.default_provider", name)
+		_ = vip.WriteConfigAs(config.ConfigPath())
+		v.refresh()
+		v.shell.ShowToastMsg(name+" configuré", true)
+	})
 }

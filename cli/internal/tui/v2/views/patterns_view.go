@@ -175,39 +175,41 @@ func (v *PatternsView) addPattern() {
 		return
 	}
 
-	// Step 1: Name
-	v.shell.ShowInputModal("Nom du pattern (slug)", "", func(name string) {
-		if name == "" {
-			return
-		}
-		// Step 2: Tags
-		v.shell.ShowInputModal("Tags (séparés par virgule)", "", func(tagsStr string) {
-			tags := splitTags(tagsStr)
-			// Step 3: Complexity
-			complexityOpts := []SelectOption{
-				{Label: "Basse", Value: "low"},
-				{Label: "Moyenne", Value: "medium"},
-				{Label: "Haute", Value: "high"},
-			}
-			v.shell.ShowSelectModal("Complexité", complexityOpts, "medium", func(complexity string) {
-				p := teamstate.Pattern{
-					Name:       name,
-					Tags:       tags,
-					Complexity: complexity,
-					Source:     "manual",
-					Validated:  false,
-					CreatedAt:  time.Now().Format("2006-01-02"),
-				}
-				content := fmt.Sprintf("# %s\n\n## Description\n\nTODO\n\n## Étapes\n\n1. ...\n", name)
+	complexityOpts := []SelectOption{
+		{Label: "Basse", Value: "low"},
+		{Label: "Moyenne", Value: "medium"},
+		{Label: "Haute", Value: "high"},
+	}
 
-				if err := repo.CreatePattern(context.Background(), p, content); err != nil {
-					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-				} else {
-					v.shell.ShowToastMsg("Pattern créé: "+name, true)
-					v.refresh()
-				}
-			})
-		})
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Créer un pattern",
+		Fields: []FormField{
+			{Key: "name", Label: "Nom (slug)", Type: FieldText, Required: true},
+			{Key: "tags", Label: "Tags (virgule)", Type: FieldText},
+			{Key: "complexity", Label: "Complexité", Type: FieldSelect, Options: complexityOpts, Default: "medium"},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			name := values["name"]
+			if name == "" {
+				return
+			}
+			p := teamstate.Pattern{
+				Name:       name,
+				Tags:       splitTags(values["tags"]),
+				Complexity: values["complexity"],
+				Source:     "manual",
+				Validated:  false,
+				CreatedAt:  time.Now().Format("2006-01-02"),
+			}
+			content := fmt.Sprintf("# %s\n\n## Description\n\nTODO\n\n## Étapes\n\n1. ...\n", name)
+			if err := repo.CreatePattern(context.Background(), p, content); err != nil {
+				v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			} else {
+				v.shell.ShowToastMsg("Pattern créé: "+name, true)
+				v.refresh()
+			}
+		},
+		OnCancel: nil,
 	})
 }
 

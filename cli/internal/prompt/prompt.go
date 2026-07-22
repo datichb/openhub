@@ -3,6 +3,7 @@
 package prompt
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -160,7 +161,13 @@ func dirExists(base, name string) bool {
 }
 
 func readFile(path string) string {
-	data, err := os.ReadFile(path)
+	const maxFileSize = 512 * 1024 // 512 KB
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, maxFileSize))
 	if err != nil {
 		return ""
 	}

@@ -16,17 +16,16 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/mcp/figma"
-	"github.com/datichb/openhub/cli/internal/mcp/gitlab"
-	"github.com/datichb/openhub/cli/internal/mcp/gslides"
-	"github.com/datichb/openhub/cli/internal/mcp/team"
+	"github.com/datichb/openhub/cli/internal/mcp/mcpregistry"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// validMCPServices is the canonical list of supported MCP service names.
-var validMCPServices = []string{"figma", "gitlab", "gslides", "team"}
+// validMCPServices returns all registered MCP service names (built-in + custom).
+func validMCPServiceNames() []string {
+	return mcpregistry.NewDefaultRegistry().Names()
+}
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
@@ -47,16 +46,11 @@ func init() {
 // --- Helpers ---
 
 func isValidMCPService(name string) bool {
-	for _, s := range validMCPServices {
-		if s == name {
-			return true
-		}
-	}
-	return false
+	return mcpregistry.NewDefaultRegistry().Get(name) != nil
 }
 
 func completeMCPServices(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return validMCPServices, cobra.ShellCompDirectiveNoFileComp
+	return validMCPServiceNames(), cobra.ShellCompDirectiveNoFileComp
 }
 
 func boolPtr(v bool) *bool { return &v }
@@ -642,27 +636,19 @@ func mcpServeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 
-			// Resolve token from keychain if --token-key is provided and env var not already set.
 			tokenKey, _ := cmd.Flags().GetString("token-key")
 			if tokenKey != "" {
 				if err := injectTokenFromKeychain(name, tokenKey); err != nil {
-					// Non-fatal: the server will report "token not set" if needed.
 					fmt.Fprintf(os.Stderr, "warning: could not resolve token from keychain: %v\n", err)
 				}
 			}
 
-			switch name {
-			case "figma":
-				return figma.Serve()
-			case "gitlab":
-				return gitlab.Serve()
-			case "gslides":
-				return gslides.Serve()
-			case "team":
-				return team.Serve()
-			default:
+			registry := mcpregistry.NewDefaultRegistry()
+			server := registry.Get(name)
+			if server == nil {
 				return fmt.Errorf("%s", i18n.Tf("cmd.mcp.serve.unknown", name))
 			}
+			return server.Serve()
 		},
 	}
 	cmd.Flags().String("token-key", "", "keychain key name to resolve the service token")

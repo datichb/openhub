@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/selfupdate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -45,6 +46,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"bd (beads)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
 		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
 		{"Compatibilité oh ↔ opencode", checkCompatibility},
+		{"Version oh", checkOhUpdate},
 		{"Configuration hub.toml", checkConfig},
 		{"Provider credentials", checkProviderCredentials},
 		{"Base de données", checkDatabase},
@@ -250,4 +252,27 @@ func checkProviderCredentials() (string, bool) {
 	}
 
 	return fmt.Sprintf("%s — credentials non trouvées (oh provider setup)", providerName), false
+}
+
+func checkOhUpdate() (string, bool) {
+	current := buildinfo.Version
+	if current == "dev" {
+		return "dev build — vérification ignorée", true
+	}
+
+	release, err := selfupdate.LatestRelease()
+	if err != nil {
+		// Network failure is non-fatal — don't block doctor
+		return fmt.Sprintf("%s (impossible de vérifier: %v)", current, err), true
+	}
+
+	latest := release.Version()
+	if current == latest {
+		return fmt.Sprintf("%s — à jour", current), true
+	}
+
+	return fmt.Sprintf(
+		"%s → %s disponible (oh upgrade oh)",
+		current, latest,
+	), false
 }

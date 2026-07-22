@@ -16,10 +16,11 @@ func setupWriteTestServer(t *testing.T, handler http.HandlerFunc) {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
+	t.Cleanup(func() { SetSkipURLValidationForTest(false) })
+	SetSkipURLValidationForTest(true)
 	httpClient = srv.Client()
 	t.Setenv("GITLAB_TOKEN", "test-token")
 	t.Setenv("GITLAB_URL", srv.URL)
-	t.Setenv("GITLAB_SKIP_URL_VALIDATION", "true")
 }
 
 func TestHandleCreateMR(t *testing.T) {

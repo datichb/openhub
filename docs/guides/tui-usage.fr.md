@@ -8,57 +8,79 @@
 oh
 ```
 
-Le TUI s'affiche avec le menu à gauche et la vue Home au centre.
+Le TUI affiche un écran d'accueil avec des hints de démarrage rapide et l'omnibar en bas.
 
-## Workflow type
+## Workflow principal
 
-### 1. Naviguer
+### 1. Lancer une commande
 
-- Utilisez `Ctrl+N` pour placer le focus sur le menu
-- Naviguez avec `j`/`k` (ou flèches)
-- Dépliez une catégorie avec `l` ou `Space`
-- Sélectionnez avec `Enter`
+À tout moment, appuyez sur `Ctrl+P` ou commencez à taper :
+- L'omnibar s'active
+- Tapez un nom de commande (recherche fuzzy)
+- `Enter` pour exécuter
 
 ### 2. Lancer une session de code
 
-1. Menu → Sessions → Start
-2. Choisissez le mode : Standard, Dev, ou Onboard
-3. Le TUI se suspend, opencode démarre
-4. Travaillez dans opencode normalement
-5. Quittez opencode → le TUI reprend
+```
+> start
+```
 
-### 3. Gérer vos projets
+Sélectionnez le mode (Standard, Dev, Onboard). Le TUI se suspend, opencode démarre. Quand vous quittez opencode, le TUI reprend.
 
-1. Menu → Projets → Liste
-2. `a` pour ajouter un nouveau projet (nom + chemin)
-3. `d` pour supprimer un projet
-4. Menu → Projets → Deploy pour déployer les agents sur le projet actif
-5. Menu → Projets → Sync pour synchroniser tous les projets
+### 3. Accès rapide aux actions spécifiques
 
-### 4. Modifier la configuration
+Tapez la commande directement — le fuzzy matching la trouve vite :
+```
+> secu        → lance un audit sécurité
+> dep         → déploie sur le projet actif
+> doc         → ouvre le diagnostic doctor
+```
 
-1. Menu → Configuration → Hub
-2. Naviguez avec `j`/`k` dans la table des clés
-3. `Enter` sur une clé → saisissez la nouvelle valeur
-4. La modification est sauvegardée immédiatement dans `~/.oh/hub.toml`
+### 4. Gérer les projets
 
-### 5. Vérifier la santé du système
+```
+> projects
+```
 
-1. Menu → Système → Doctor
-2. Les checks s'exécutent automatiquement
-3. `r` pour relancer les vérifications
+Dans la vue projets :
+- `a` pour ajouter un nouveau projet
+- `d` pour supprimer
+- `Enter` pour configurer
+- `r` pour renommer
 
-### 6. Recherche rapide (Command Palette)
+### 5. Modifier la configuration
 
-À tout moment, appuyez sur `Ctrl+P` :
-- Tapez le nom d'une commande ("start", "doctor", "mcp"...)
-- La liste se filtre en temps réel (fuzzy search)
-- `Enter` pour exécuter, `Esc` pour fermer
+```
+> config
+```
+
+Naviguez avec `j`/`k`, appuyez sur `Enter` pour modifier une valeur.
+
+### 6. Vérifier la santé du système
+
+```
+> doctor
+```
+
+Les checks s'exécutent automatiquement. `r` pour relancer.
 
 ## Astuces
 
-- `Esc` vous ramène toujours en arrière (vue précédente)
-- `?` ouvre l'aide à tout moment
-- `Ctrl+Q` quitte proprement le TUI
-- Les toasts en haut à droite confirment les actions (succès/erreur)
-- Le breadcrumb dans le header indique toujours votre position
+- **Toute lettre active l'omnibar** — pas besoin de `Ctrl+P` si la vue n'utilise pas cette touche
+- `Esc` ramène toujours en arrière (vue précédente, ou ferme l'omnibar)
+- `Ctrl+Q` quitte à tout moment
+- Les toasts (en haut à droite) confirment les résultats d'actions
+- Toutes les commandes supportent le fuzzy matching — tapez des mots partiels, abréviations ou alias
+- Les vues ont des raccourcis contextuels affichés dans le texte passif de l'omnibar
+
+## Types de sessions
+
+| Type | Description |
+|------|-------------|
+| Start Standard | Session interactive opencode |
+| Start Dev | Session orientée développement (workflow ticket) |
+| Start Onboard | Session d'onboarding projet |
+| Audit (6 types) | Audit de code spécialisé avec prompts dédiés |
+| Review (4 modes) | Code review avec profondeur et focus variés |
+| Debug | Session debug avec description du problème |
+| Quick | Lancement direct d'opencode (sans sélection) |

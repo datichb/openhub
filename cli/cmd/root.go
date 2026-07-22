@@ -157,6 +157,7 @@ func initApp() error {
 	// Wire stores
 	a.WithProjectStore(sqlite.NewProjectStore(s))
 	a.WithSessionStore(sqlite.NewSessionStore(s))
+	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
 	a.WithSecretStore(resolveSecretStore())
 
 	application = a

@@ -102,7 +102,9 @@ main() {
     fi
 
     ARCHIVE_NAME="${BINARY_NAME}_${PLATFORM}.tar.gz"
+    CHECKSUMS_NAME="checksums.txt"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ARCHIVE_NAME}"
+    CHECKSUMS_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${CHECKSUMS_NAME}"
 
     echo "Installing oh v${VERSION} (${PLATFORM})..."
     echo "  From: ${DOWNLOAD_URL}"
@@ -113,7 +115,7 @@ main() {
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
 
-    # Download
+    # Download archive
     echo "Downloading..."
     download "$DOWNLOAD_URL" "$TMP_DIR/$ARCHIVE_NAME"
 
@@ -125,6 +127,38 @@ main() {
         echo "  - Version v${VERSION} exists: https://github.com/${REPO}/releases"
         echo "  - Your internet connection"
         exit 1
+    fi
+
+    # Download and verify checksum
+    echo "Verifying checksum..."
+    download "$CHECKSUMS_URL" "$TMP_DIR/$CHECKSUMS_NAME"
+    if [ ! -f "$TMP_DIR/$CHECKSUMS_NAME" ]; then
+        echo "Error: Could not download checksums file — refusing to install unverified binary."
+        exit 1
+    fi
+
+    # Verify checksum (sha256sum on Linux, shasum on macOS)
+    if command -v sha256sum > /dev/null 2>&1; then
+        EXPECTED=$(grep " ${ARCHIVE_NAME}$" "$TMP_DIR/$CHECKSUMS_NAME" | awk '{print $1}')
+        ACTUAL=$(sha256sum "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
+    elif command -v shasum > /dev/null 2>&1; then
+        EXPECTED=$(grep " ${ARCHIVE_NAME}$" "$TMP_DIR/$CHECKSUMS_NAME" | awk '{print $1}')
+        ACTUAL=$(shasum -a 256 "$TMP_DIR/$ARCHIVE_NAME" | awk '{print $1}')
+    else
+        echo "Warning: Neither sha256sum nor shasum found — skipping checksum verification."
+        EXPECTED=""
+        ACTUAL=""
+    fi
+
+    if [ -n "$EXPECTED" ] && [ -n "$ACTUAL" ]; then
+        if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Error: Checksum mismatch!"
+            echo "  Expected: $EXPECTED"
+            echo "  Actual:   $ACTUAL"
+            echo "The downloaded file may be corrupted or tampered with."
+            exit 1
+        fi
+        echo "  Checksum OK"
     fi
 
     # Extract

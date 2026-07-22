@@ -1,296 +1,239 @@
-# TUI Architecture — Guide développeur
+# TUI Architecture — Developer Guide
 
-> Architecture interne du shell TUI unifié, interfaces, et guide pour ajouter une nouvelle vue.
+> Internal architecture of the omnibar-first TUI shell, interfaces, and guide for adding new commands/views.
 
-## Vue d'ensemble
+## Overview
 
 ```
-cmd/root.go
-  └─ oh (sans args) → shell.New(cfg).Run()
+cmd/tui.go
+  └─ oh (no args) → shell.New(cfg).Run()
 
 cli/internal/tui/
-├── theme/              ← Source unique des couleurs et styles
-│   ├── colors.go      ← Hex constants
+├── theme/              ← Single source of truth for colors and styles
+│   ├── colors.go      ← Hex constants (Catppuccin Mocha)
 │   ├── tcell.go       ← tcell.Color vars
 │   ├── lipgloss.go    ← lipgloss.Color + Style vars
-│   ├── huh.go         ← AurumTheme() pour charmbracelet/huh
-│   └── icons.go       ← Constantes d'icônes
+│   ├── huh.go         ← AurumTheme() for charmbracelet/huh
+│   └── icons.go       ← Icon constants
 ├── v2/
-│   ├── shell/         ← Application principale
-│   │   ├── shell.go   ← Shell struct (Pages + Header + Menu + Content + StatusBar)
-│   │   ├── header.go  ← Header 3-sections avec breadcrumb
-│   │   ├── statusbar.go ← StatusBar 3-sections
-│   │   ├── toast.go   ← Notifications temporaires
-│   │   └── modal.go   ← Modals de confirmation
+│   ├── shell/         ← Main application container
+│   │   ├── shell.go   ← Shell struct (Pages + Content + Omnibar)
+│   │   ├── command.go ← Command struct + CommandRegistry + fuzzy search
+│   │   ├── omnibar.go ← Persistent omnibar widget
+│   │   └── toast.go   ← Temporary notifications
 │   ├── router/        ← Navigation
 │   │   └── router.go  ← Stack push/pop/replace
-│   ├── menu/          ← Menu sidebar
-│   │   ├── menu.go    ← TreeView wrapper
-│   │   └── items.go   ← Arbre de menu
-│   ├── views/         ← Toutes les vues
-│   │   ├── view.go    ← Interface View
-│   │   ├── home.go    ← Dashboard/Home
+│   ├── views/         ← All navigable views
+│   │   ├── view.go    ← View interface
+│   │   ├── home.go    ← Splash screen
 │   │   ├── board.go   ← Kanban
 │   │   └── ...
-│   └── widgets/       ← Primitives réutilisables
+│   └── widgets/       ← Reusable tview primitives
 └── components/        ← BubbleTea inline (floating, summary)
 ```
 
-## Interface View
-
-```go
-// Package views defines the View interface contract.
-package views
-
-import (
-    "github.com/gdamore/tcell/v2"
-    "github.com/rivo/tview"
-)
-
-// View defines the contract for a navigable view in the TUI shell.
-type View interface {
-    // ID returns the unique identifier (e.g., "home", "board", "projects.list").
-    ID() string
-
-    // Title returns the localized display title for breadcrumb and menu.
-    Title() string
-
-    // Mount populates the content panel with this view's widgets.
-    // Called when the view becomes active via the router.
-    Mount(content *tview.Flex, app *tview.Application)
-
-    // Unmount cleans up resources (stop timers, close channels).
-    // Called when navigating away from this view.
-    Unmount()
-
-    // StatusHints returns contextual keybinding hints for the status bar center.
-    StatusHints() string
-
-    // HandleKey processes view-specific key events.
-    // Return nil to consume the event, or return it to propagate to the shell.
-    HandleKey(event *tcell.EventKey) *tcell.EventKey
-}
-```
-
-### Compile-time check
-
-Chaque vue implémentant l'interface doit inclure :
-
-```go
-var _ views.View = (*HomeView)(nil)
-```
-
-## Router — Cycle de vie
-
-```
-Push(viewB):
-  1. router.stack = append(stack, viewB)
-  2. viewA.Unmount()          ← nettoyage de l'ancienne vue
-  3. shell.content.Clear()    ← vide le panel
-  4. viewB.Mount(content, app) ← peuple le nouveau contenu
-  5. shell.header.SetBreadcrumb(viewB.Title())
-  6. shell.statusBar.SetHints(viewB.StatusHints())
-  7. shell.menu.SetActive(viewB.ID())
-
-Pop():
-  1. viewB.Unmount()
-  2. router.stack = stack[:len-1]
-  3. viewA = stack[last]
-  4. shell.content.Clear()
-  5. viewA.Mount(content, app)
-  6. Update header/status/menu
-```
-
-## Shell — Structure interne
+## Shell Architecture
 
 ```go
 type Shell struct {
     app       *tview.Application
-    pages     *tview.Pages       // "main" page + overlay pages
-    header    *Header
-    menu      *menu.Menu
-    content   *tview.Flex        // zone swappable par le router
-    statusBar *StatusBar
-    router    *Router
+    pages     *tview.Pages       // "main" page + overlay pages (toasts, suggestions)
+    content   *tview.Flex        // swappable content zone (managed by router)
+    omnibar   *Omnibar           // persistent input at bottom
+    router    *router.Router     // view navigation stack
+    registry  *CommandRegistry   // flat command list for omnibar
 }
 ```
 
-Le root de l'application est `pages` :
-- Page "main" (resize=true, visible=true) : layout Flex (header + middle + statusbar)
-- Pages overlay ajoutées dynamiquement pour toasts et modals
+Layout:
+```
+Pages
+└── "main" page
+    └── Flex (column)
+        ├── content (proportion 1) ← full screen
+        └── omnibar (fixed 1 row)  ← always visible
+```
 
-## Menu — Arbre hiérarchique
+## Command Registry
 
-Structure de données :
+All user-triggerable actions are `Command` structs in a flat registry:
 
 ```go
-type MenuItem struct {
-    ID       string         // "sessions.start"
-    Label    string         // Localisé via i18n
-    ViewID   string         // Vue à ouvrir (ou "")
-    Action   func()         // Callback pour actions non-vue
-    Children []*MenuItem    // nil = feuille
-    Expanded bool
-    Enabled  func() bool    // Condition d'activation dynamique
+type Command struct {
+    ID          string         // "start", "audit.security"
+    Label       string         // Display text in suggestions
+    Aliases     []string       // Additional fuzzy match terms
+    Description string         // One-line help text
+    Category    string         // Visual grouping in suggestions
+    ViewID      string         // Navigate to view (or "")
+    Action      func()         // Direct action callback (or nil)
+    Enabled     func() bool    // Dynamic availability
 }
 ```
 
-Le menu utilise `tview.TreeView` avec :
-- `SetGraphics(false)` — pas de lignes d'arbre
-- `SetTopLevel(1)` — masque le noeud root
-- Prefixes manuels via node text formatting
+Commands are defined in `cmd/tui.go:buildCommands()`. Adding a new command requires only appending to this list.
 
-## Overlays (Toast + Modal)
+## View Interface
 
-### Architecture Pages
+```go
+type View interface {
+    ID() string
+    Title() string
+    Mount(content *tview.Flex, app *tview.Application)
+    Unmount()
+    StatusHints() string
+    HandleKey(event *tcell.EventKey) *tcell.EventKey
+}
+```
+
+Key lifecycle:
+- `Mount()`: called when navigating TO this view. Build widgets, add to content Flex.
+- `Unmount()`: called when navigating AWAY. Cleanup timers, channels.
+- `HandleKey()`: return `nil` to consume the event, return `event` to let it propagate to the shell (which then activates the omnibar for unhandled runes).
+- `StatusHints()`: text displayed in omnibar passive mode.
+
+## Key Event Flow
 
 ```
-pages.AddPage("main", mainLayout, true, true)     ← fond
-pages.AddPage("toast-1", toastGrid, true, true)   ← overlay temporaire
-pages.AddPage("modal-confirm", modalGrid, true, true) ← modal
+tview.Application.InputCapture (globalKeyHandler)
+    │
+    ├── Ctrl+Q → app.Stop()
+    ├── Ctrl+P → omnibar.Activate()
+    ├── Esc    → router.Pop() or noop
+    │
+    ├── [omnibar active?] → omnibar handles all input
+    ├── [inline overlay?] → overlay handles input
+    │
+    ├── view.HandleKey(event)
+    │   ├── returns nil → consumed, done
+    │   └── returns event → continues below
+    │
+    └── [rune?] → omnibar.ActivateWithRune(r)
 ```
 
-### Toast : non-focus
+## Omnibar
 
-Le toast est ajouté sans `SetFocus` → les inputs continuent vers "main".
+The omnibar (`shell/omnibar.go`) is a persistent widget with two modes:
 
-### Modal : capture focus
+1. **Passive**: `tview.TextView` showing contextual hints from `view.StatusHints()`
+2. **Active**: `tview.InputField` with fuzzy-search suggestions in a `Pages` overlay
 
-Le modal capture le focus via `app.SetFocus(modal)`. Esc/Enter dismiss le modal et restaure le focus sur le content.
+Activation: `Ctrl+P`, or any unhandled rune from `globalKeyHandler`.
 
-## Comment ajouter une nouvelle vue
+## Inline Prompts (replacing modals)
 
-### 1. Créer le fichier
+Views that need user input call `ShellAccess` methods:
+
+```go
+type ShellAccess interface {
+    ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+    ShowPasswordModal(title string, onConfirm func(value string))
+    ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))
+    ShowMultiSelectModal(title string, options []SelectOption, selected []string, onConfirm func(selected []string))
+    ShowScrollableModal(title, content string, actions []ModalAction)
+    ShowToastMsg(msg string, success bool)
+}
+```
+
+These now render as **inline overlays** in the `Pages` system rather than traditional popup modals.
+
+## How to Add a New Command
+
+### 1. Add to `cmd/tui.go:buildCommands()`
+
+```go
+{
+    ID:          "my.command",
+    Label:       "My Command",
+    Aliases:     []string{"mc", "myalias"},
+    Description: "Does something useful",
+    Category:    "Projets",
+    Action:      myActionFunc,  // OR ViewID: "my-view"
+},
+```
+
+### 2. If it navigates to a view, create the view
+
+Same as before — implement the `View` interface and register in `buildViews()`.
+
+### 3. Done
+
+No menu restructuring needed. The command appears in the omnibar immediately.
+
+## How to Add a New View
+
+### 1. Create the file
 
 ```
 cli/internal/tui/v2/views/myview.go
 ```
 
-### 2. Implémenter l'interface
+### 2. Implement the interface
 
 ```go
-package views
-
-import (
-    "github.com/gdamore/tcell/v2"
-    "github.com/rivo/tview"
-
-    "github.com/datichb/openhub/cli/internal/tui/theme"
-)
-
-// MyView displays the ... .
-type MyView struct {
-    app     *tview.Application
-    // widgets internes
-}
+type MyView struct { ... }
 
 var _ View = (*MyView)(nil)
 
-func NewMyView() *MyView { return &MyView{} }
-
-func (v *MyView) ID() string    { return "myview" }
-func (v *MyView) Title() string { return i18n.T("tui.myview.title") }
-
-func (v *MyView) Mount(content *tview.Flex, app *tview.Application) {
-    v.app = app
-    // Construire widgets, les ajouter au content
-    content.AddItem(myWidget, 0, 1, true)
-}
-
-func (v *MyView) Unmount() {
-    // Arrêter les timers, fermer les channels
-}
-
-func (v *MyView) StatusHints() string {
-    return "enter select · esc back"
-}
-
-func (v *MyView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-    // Gérer les touches spécifiques à cette vue
-    return event // propager si non consommé
-}
+func (v *MyView) ID() string          { return "my-view" }
+func (v *MyView) Title() string       { return "My View" }
+func (v *MyView) StatusHints() string  { return "j/k nav · Enter action" }
+func (v *MyView) Mount(content *tview.Flex, app *tview.Application) { ... }
+func (v *MyView) Unmount() { ... }
+func (v *MyView) HandleKey(event *tcell.EventKey) *tcell.EventKey { ... }
 ```
 
-### 3. Enregistrer dans le menu
-
-Dans `menu/items.go`, ajouter un `MenuItem` :
+### 3. Register in `cmd/tui.go:buildViews()`
 
 ```go
-{ID: "myview", Label: i18n.T("menu.myview"), ViewID: "myview"},
+allViews = append(allViews, views.NewMyView())
 ```
 
-### 4. Enregistrer dans le registry
-
-Dans `shell.go` ou un fichier de registre :
+### 4. Add a command to reach it
 
 ```go
-shell.RegisterView(views.NewMyView())
+{ID: "myview", Label: "My View", ViewID: "my-view", Category: "..."},
 ```
 
-### 5. Ajouter un test
+### 5. Add a test
 
 ```go
-// views/myview_test.go
 func TestMyView_ImplementsView(t *testing.T) {
-    var _ views.View = (*MyView)(nil) // compile-time
+    var _ views.View = (*MyView)(nil)
 }
+```
 
+## Testing Patterns
+
+### Command registry (pure logic)
+
+```go
+func TestCommandRegistry_Search(t *testing.T) {
+    r := NewCommandRegistry(commands)
+    results := r.Search("audit")
+    assert.Greater(t, len(results), 0)
+}
+```
+
+### Shell lifecycle
+
+```go
+func TestShell_NavigateHome(t *testing.T) {
+    s := New(cfg)
+    s.NavigateHome("home")
+    assert.Equal(t, "home", s.router.Current().ID())
+}
+```
+
+### View Mount/Unmount
+
+```go
 func TestMyView_MountUnmount(t *testing.T) {
     v := NewMyView()
     content := tview.NewFlex()
     app := tview.NewApplication()
-    
     v.Mount(content, app)
     assert.Greater(t, content.GetItemCount(), 0)
-    
     v.Unmount()
-    // Vérifier cleanup (pas de goroutine leak, etc.)
 }
 ```
-
-## Tests TUI — Patterns
-
-### Logique pure (sans écran)
-
-```go
-func TestRouter_PushPop(t *testing.T) {
-    r := router.New(mockShell)
-    r.Push(mockViewA)
-    r.Push(mockViewB)
-    assert.Equal(t, "b", r.Current().ID())
-    r.Pop()
-    assert.Equal(t, "a", r.Current().ID())
-}
-```
-
-### Avec SimulationScreen (widgets)
-
-```go
-func TestMenu_Navigate(t *testing.T) {
-    screen := tcell.NewSimulationScreen("")
-    screen.Init()
-    screen.SetSize(80, 24)
-    
-    app := tview.NewApplication().SetScreen(screen)
-    m := menu.New(testItems(), onSelect)
-    app.SetRoot(m.Primitive(), true)
-    
-    go app.Run()
-    defer app.Stop()
-    
-    screen.InjectKey(tcell.KeyRune, 'j', 0)
-    time.Sleep(50 * time.Millisecond)
-    
-    assert.Equal(t, "sessions", m.SelectedID())
-}
-```
-
-## Conventions de nommage
-
-| Élément | Convention | Exemple |
-|---------|-----------|---------|
-| View struct | `*View` suffix | `HomeView`, `BoardView` |
-| View ID | dot-separated, lowercase | `"projects.list"` |
-| Menu item ID | dot-separated | `"sessions.start"` |
-| Package | single word, lowercase | `shell`, `router`, `menu` |
-| Test helper | `setup*` / `mock*` prefix | `setupTestShell(t)` |

@@ -1,18 +1,19 @@
-# Testing TUI — Guide développeur
+# Testing TUI — Developer Guide
 
-> Patterns et conventions pour tester les composants TUI.
+> Patterns and conventions for testing TUI components.
 
-## Niveaux de test
+## Test Levels
 
-| Niveau | Quoi | Comment | Fichier |
-|--------|------|---------|---------|
-| Interface check | Vue implémente View | `var _ View = (*MyView)(nil)` | `views_test.go` |
-| Mount/Unmount | Lifecycle complet | Créer content + app, appeler Mount, vérifier items | `views_test.go` |
-| Logique pure | Router, menu model | Assertions sur state sans écran | `router_test.go`, `menu_test.go` |
-| Widget | Navigation, filtrage | `tcell.SimulationScreen` | `filterlist_test.go` |
-| Actions | Callbacks ne paniquent pas | Appel avec nil dependencies | `tui_test.go` |
+| Level | What | How | File |
+|-------|------|-----|------|
+| Interface check | View implements View | `var _ View = (*MyView)(nil)` | `views_test.go` |
+| Mount/Unmount | Full lifecycle | Create content + app, call Mount, verify items | `views_test.go` |
+| Pure logic | Router, command registry | Assertions on state without screen | `router_test.go`, `command_test.go` |
+| Widget | Filtering, selection | `tcell.SimulationScreen` | `filterlist_test.go` |
+| Shell | New, NavigateHome, omnibar | Full shell instantiation | `shell_test.go` |
+| Actions | Callbacks don't panic | Call with nil dependencies | `tui_test.go` |
 
-## Pattern standard — Test d'une vue
+## Pattern — View Test
 
 ```go
 func TestMyView_ImplementsView(t *testing.T) {
@@ -20,7 +21,7 @@ func TestMyView_ImplementsView(t *testing.T) {
 }
 
 func TestMyView_MountUnmount(t *testing.T) {
-    v := NewMyView(nil) // nil app si pas de deps requises
+    v := NewMyView(nil) // nil app if no deps required
     content := tview.NewFlex().SetDirection(tview.FlexRow)
     app := tview.NewApplication()
 
@@ -31,11 +32,10 @@ func TestMyView_MountUnmount(t *testing.T) {
     assert.NotEmpty(t, v.StatusHints())
 
     v.Unmount()
-    assert.Nil(t, v.app)
 }
 ```
 
-## Pattern — Test du Router (logique pure)
+## Pattern — Router Test (pure logic)
 
 ```go
 func TestRouter_PushPop(t *testing.T) {
@@ -55,30 +55,57 @@ func TestRouter_PushPop(t *testing.T) {
 }
 ```
 
-## Pattern — Test avec SimulationScreen (widgets)
+## Pattern — Command Registry Test (pure logic)
 
 ```go
-func TestMenu_NavigateDown(t *testing.T) {
-    screen := tcell.NewSimulationScreen("")
-    screen.Init()
-    screen.SetSize(80, 24)
+func TestCommandRegistry_Search(t *testing.T) {
+    r := NewCommandRegistry([]Command{
+        {ID: "start", Label: "Start", Aliases: []string{"session"}},
+        {ID: "board", Label: "Board", Aliases: []string{"kanban"}},
+    })
 
-    app := tview.NewApplication().SetScreen(screen)
-    m := menu.New(testItems(), func(item *menu.MenuItem) {})
-    app.SetRoot(m.Primitive(), true)
-
-    go app.Run()
-    defer app.Stop()
-
-    // Simulate key press
-    screen.InjectKey(tcell.KeyRune, 'j', 0)
-    time.Sleep(50 * time.Millisecond)
-
-    assert.Equal(t, "sessions", m.SelectedID())
+    results := r.Search("kan")
+    assert.Greater(t, len(results), 0)
+    assert.Equal(t, "board", results[0].ID)
 }
 ```
 
-## Pattern — Test fuzzy match (logique pure)
+## Pattern — Shell Lifecycle Test
+
+```go
+func TestShell_NavigateHome(t *testing.T) {
+    homeView := &testView{id: "home", title: "Home"}
+
+    cfg := Config{
+        ProjectName: "test",
+        Commands:    []Command{{ID: "home", Label: "Home", ViewID: "home"}},
+        Views:       []views.View{homeView},
+        HomeViewID:  "home",
+    }
+
+    s := New(cfg)
+    s.NavigateHome("home")
+    assert.True(t, homeView.mounted)
+    assert.Equal(t, "home", s.router.Current().ID())
+}
+```
+
+## Pattern — Omnibar Activation Test
+
+```go
+func TestOmnibar_ActivateDeactivate(t *testing.T) {
+    s := New(cfg) // with some commands and views
+    s.NavigateHome("home")
+
+    assert.False(t, s.omnibar.IsActive())
+    s.omnibar.Activate()
+    assert.True(t, s.omnibar.IsActive())
+    s.omnibar.Deactivate()
+    assert.False(t, s.omnibar.IsActive())
+}
+```
+
+## Pattern — Fuzzy Match (pure logic)
 
 ```go
 func TestFuzzyMatch(t *testing.T) {
@@ -88,6 +115,7 @@ func TestFuzzyMatch(t *testing.T) {
     }{
         {"st", "start", true},
         {"xyz", "start", false},
+        {"brd", "board", true},
     }
     for _, tt := range tests {
         assert.Equal(t, tt.expected, fuzzyMatch(tt.pattern, tt.str))
@@ -95,18 +123,19 @@ func TestFuzzyMatch(t *testing.T) {
 }
 ```
 
-## Lancer les tests
+## Running Tests
 
 ```bash
-make test-tui   # Tests TUI uniquement
-make test-unit  # Tous les tests (mode -short)
-make test       # Tous les tests complets
+make test-tui   # TUI tests only
+make test-unit  # All tests (short mode)
+make test       # All tests complete
 ```
 
 ## Conventions
 
-- Chaque vue a au minimum un test `ImplementsView` + `MountUnmount`
-- Les vues avec `*app.App` dependency reçoivent `nil` dans les tests (nil-safe)
-- Les mocks de View utilisent `mockView` struct (défini dans `router_test.go`)
-- `t.Helper()` pour tous les setup helpers
-- `testify/assert` pour les assertions, `testify/require` pour les fatales
+- Every view has at minimum `ImplementsView` + `MountUnmount` tests
+- Views with `*app.App` dependency receive `nil` in tests (nil-safe)
+- View mocks use `testView` struct (defined in `shell_test.go`)
+- `t.Helper()` for all setup helpers
+- `testify/assert` for assertions, `testify/require` for fatals
+- Command tests verify fuzzy search ranking and `Enabled` filtering

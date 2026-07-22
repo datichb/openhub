@@ -35,15 +35,17 @@ func TestAssetNameForLinuxAmd64(t *testing.T) {
 	assert.Equal(t, "tar.gz", format)
 }
 
-func TestAssetNameForUnsupported(t *testing.T) {
-	_, _, err := AssetNameFor("windows", "amd64")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported platform")
+func TestAssetNameForWindowsAmd64(t *testing.T) {
+	name, format, err := AssetNameFor("windows", "amd64")
+	require.NoError(t, err)
+	assert.Equal(t, "opencode-windows-x64.zip", name)
+	assert.Equal(t, "zip", format)
 }
 
-func TestAssetNameForFreebsd(t *testing.T) {
-	_, _, err := AssetNameFor("freebsd", "arm64")
+func TestAssetNameForUnsupported(t *testing.T) {
+	_, _, err := AssetNameFor("freebsd", "amd64")
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported platform")
 }
 
 func TestAssetNameCurrentPlatform(t *testing.T) {
