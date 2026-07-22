@@ -77,6 +77,8 @@ The mapping between detected stacks and skills is declared in `config/stack-skil
 |------|---------------|---------|
 | `developer/stacks/dev-standards-typescript.md` | `typescript` in dependencies | Strict config, interfaces vs types, enums, shared types, typed errors, type guards, generics |
 | `developer/stacks/dev-standards-python.md` | `pyproject.toml` / `requirements.txt` present | Version, ruff, mypy/pyright, naming, custom exceptions, logging, pytest |
+| `developer/stacks/dev-standards-golang.md` | `go.mod` present | Go module conventions, error handling, interfaces, goroutines/channels, testing (testify), linting (golangci-lint) |
+| `developer/stacks/dev-standards-rust.md` | `Cargo.toml` present | Ownership/borrowing, error handling (thiserror/anyhow), traits, async (tokio), testing, clippy |
 
 #### Frontend frameworks
 
@@ -158,6 +160,47 @@ The mapping between detected stacks and skills is declared in `config/stack-skil
 | `developer/stacks/dev-standards-kubernetes.md` | K8s manifests present | Deployment, RBAC, NetworkPolicy, ResourceQuota, PDB, Kustomize |
 | `developer/stacks/dev-standards-helm.md` | `Chart.yaml` present | Chart structure, values without secrets, ExternalSecret in templates, helm diff + --atomic |
 | `developer/stacks/dev-standards-argocd.md` | ArgoCD manifests present | GitOps principles, sync policies by env (auto staging / manual prod), ESO, Vault |
+
+---
+
+## Stack Skills — Go & Rust
+
+Two new stack skills extend language coverage for Go and Rust projects:
+
+| File | Auto-load trigger | Content |
+|------|------------------|---------|
+| `developer/stacks/dev-standards-golang.md` | `go.mod` detected in project root | Go module conventions, idiomatic error handling, interfaces, goroutines/channels, testing with testify, linting with golangci-lint |
+| `developer/stacks/dev-standards-rust.md` | `Cargo.toml` detected in project root | Ownership/borrowing rules, error handling (thiserror/anyhow), traits and generics, async with tokio, testing patterns, clippy lints |
+
+Both are **Bucket B — native**. They are automatically deployed to `.opencode/skills/` when the corresponding file is detected by `detect_stack()` during `oh deploy`. The LLM loads them on-demand when working on Go or Rust code.
+
+---
+
+## Community Skills Marketplace
+
+Community skills extend the hub with third-party protocols contributed by the community. They are published to the [oh-skills-index](https://github.com/datichb/oh-skills-index) or distributed via Git URL.
+
+### Installing community skills
+
+```bash
+oh skill add <index-name>            # install by index name
+oh skill add https://github.com/...  # install from Git URL
+oh skill list                        # list installed community skills
+oh skill remove <name>               # remove a community skill
+oh skill search <query>              # search the community index
+```
+
+### Storage
+
+Community skills are stored in `~/.oh/skills/<name>/` with the following structure:
+
+```
+~/.oh/skills/<name>/
+├── manifest.json     ← name, description, author, version, bucket (A|B), agents[]
+└── SKILL.md          ← skill content
+```
+
+The `manifest.json` declares which agents the skill targets and whether it is Bucket A or Bucket B. Community skills are available for deployment alongside hub-native skills via `oh deploy`.
 
 ---
 

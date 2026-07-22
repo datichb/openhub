@@ -79,24 +79,74 @@ Le wizard propose un set recommandé à multi-sélectionner :
 > **Note:** Les notifications sont proposées automatiquement lors de `oh team init`.
 > Cette section décrit comment les modifier manuellement après le setup initial.
 
-Édite `config.toml` dans le repo team-state :
+Édite `config.toml` dans le repo team-state (ou `hub.toml` pour la config hub) :
+
+### Mattermost
 
 ```toml
-[notification]
-mattermost_webhook = "https://mattermost.company.com/hooks/votre-webhook-id"
-channel = "dev-ai-sessions"
+[notify]
 enabled = true
+type = "mattermost"
+mattermost_webhook = "https://mattermost.example.com/hooks/..."
+channel = "#dev-ai"
 bot_name = "OpenHub"
 ```
 
 Pour obtenir l'URL du webhook : Mattermost > Intégrations > Webhooks entrants > Ajouter.
+
+### Slack
+
+```toml
+[notify]
+enabled = true
+type = "slack"
+webhook_url = "https://hooks.slack.com/services/T.../B.../..."
+bot_name = "OpenHub"
+```
+
+Pour obtenir l'URL du webhook : Slack > Ton app > Incoming Webhooks > Add New Webhook to Workspace.
+
+### Discord
+
+```toml
+[notify]
+enabled = true
+type = "discord"
+webhook_url = "https://discord.com/api/webhooks/.../..."
+bot_name = "OpenHub"
+```
+
+Pour obtenir l'URL du webhook : Paramètres du salon Discord > Intégrations > Webhooks > Nouveau webhook.
+
+### Microsoft Teams
+
+```toml
+[notify]
+enabled = true
+type = "teams"
+webhook_url = "https://outlook.office.com/webhook/..."
+```
+
+Pour obtenir l'URL du webhook : Canal Teams > Connecteurs > Incoming Webhook > Configurer.
+
+### Multi-destination (notifier plusieurs plateformes simultanément)
+
+```toml
+[[notify.destinations]]
+type = "slack"
+webhook_url = "https://hooks.slack.com/services/T.../B.../..."
+
+[[notify.destinations]]
+type = "discord"
+webhook_url = "https://discord.com/api/webhooks/.../..."
+```
 
 Commite et push :
 
 ```bash
 cd ~/.oh/team-state
 git add config.toml
-git commit -m "config: activation notifications Mattermost"
+git commit -m "config: activation des notifications"
 git push
 ```
 
@@ -392,5 +442,6 @@ git push
 
 1. Vérifie que `config.toml` a `enabled = true`
 2. Vérifie l'URL du webhook
-3. Vérifie que le channel Mattermost existe
-4. Vérifie que `oh team status` fonctionne (confirme l'accès au repo)
+3. Pour Mattermost : vérifie que le channel existe
+4. Pour Slack/Discord/Teams : teste le webhook avec `curl -X POST -d '{"text":"test"}' <webhook_url>`
+5. Vérifie que `oh team status` fonctionne (confirme l'accès au repo)

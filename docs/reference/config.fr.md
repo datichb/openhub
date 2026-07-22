@@ -40,6 +40,23 @@ token_key = "gitlab-token"
 enabled = false
 token_key = "gslides-token"
 
+[notify]
+enabled = false
+type = "slack"                     # mattermost | slack | discord | teams
+webhook_url = "https://hooks.slack.com/services/..."
+channel = "#dev-ai"                # Mattermost uniquement
+bot_name = "OpenHub"
+
+# Multi-destination (optionnel) : notifier plusieurs canaux simultanement
+# [[notify.destinations]]
+# type = "slack"
+# webhook_url = "https://hooks.slack.com/..."
+# bot_name = "OpenHub"
+
+# [[notify.destinations]]
+# type = "discord"
+# webhook_url = "https://discord.com/api/webhooks/..."
+
 [worktree]
 auto_cleanup = true                # supprimer les worktrees mergees au demarrage
 base_branch = ""                   # vide = detection auto (main/master)
@@ -92,6 +109,42 @@ Les projets sont stockes dans une **base de donnees SQLite** : `~/.oh/oh.db`.
 | `oh project rename` | Renommer un projet |
 | `oh project move` | Mettre a jour le chemin d'un projet |
 | `oh project configure` | Modifier les parametres d'un projet (provider, model, tracker) |
+
+---
+
+## Configuration des notifications
+
+Configurez des webhooks pour envoyer des notifications sur les evenements de session (completion, erreurs, resultats d'audit).
+
+```toml
+[notify]
+enabled = true
+type = "slack"           # mattermost | slack | discord | teams
+webhook_url = "https://hooks.slack.com/services/..."
+channel = "#dev-ai"      # Mattermost uniquement
+bot_name = "OpenHub"
+
+# Multi-destination (optionnel) : notifier plusieurs canaux simultanement
+[[notify.destinations]]
+type = "slack"
+webhook_url = "https://hooks.slack.com/..."
+bot_name = "OpenHub"
+
+[[notify.destinations]]
+type = "discord"
+webhook_url = "https://discord.com/api/webhooks/..."
+```
+
+| Champ | Type | Defaut | Description |
+|-------|------|--------|-------------|
+| `enabled` | bool | false | Activer les notifications |
+| `type` | string | "mattermost" | Backend : mattermost, slack, discord, teams |
+| `webhook_url` | string | — | URL du webhook entrant |
+| `channel` | string | — | Nom du canal (Mattermost uniquement) |
+| `bot_name` | string | "OpenHub" | Nom d'affichage du bot |
+| `destinations` | array | — | Plusieurs destinations (remplace `type`/`webhook_url`) |
+
+> **Note :** Quand `destinations` est defini, les champs `type`/`webhook_url` de premier niveau sont ignores.
 
 ---
 
@@ -162,6 +215,13 @@ Chaque projet possede un `opencode.json` a sa racine, genere par `oh deploy`.
 | `GITLAB_TOKEN` | Token API GitLab (lu par le serveur MCP au runtime) |
 | `GITLAB_URL` | URL de l'instance GitLab (defaut : `https://gitlab.com`) |
 | `GOOGLE_ACCESS_TOKEN` | Token OAuth Google (lu par le serveur MCP au runtime) |
+| `GITHUB_TOKEN` | Token API GitHub (lu par le serveur MCP au runtime) ; alias : `GH_TOKEN` |
+| `GITHUB_WRITE_ENABLED` | Mettre a `true` pour activer l'outil `github_create_issue` |
+| `JIRA_URL` | URL de l'instance Jira (ex. `https://masociete.atlassian.net`) |
+| `JIRA_TOKEN` | Token API Jira ; ou utiliser `JIRA_USER` + `JIRA_API_TOKEN` |
+| `JIRA_WRITE_ENABLED` | Mettre a `true` pour activer l'outil `jira_transition_issue` |
+| `LINEAR_API_KEY` | Cle API Linear (lue par le serveur MCP au runtime) |
+| `LINEAR_WRITE_ENABLED` | Mettre a `true` pour activer `linear_create_issue` / `linear_update_issue` |
 | `PAGER` | Pager personnalise pour l'aide (defaut : `less`) |
 
 ---
@@ -187,6 +247,11 @@ Au demarrage d'une session, le provider LLM est resolu dans cet ordre :
 | `~/.oh/oh.db` | Base de donnees SQLite (projets, sessions) |
 | `~/.oh/secrets.enc` | Fichier de secrets chiffre (fallback) |
 | `~/.oh/bin/` | Binaire opencode gere |
+| `~/.oh/mcp/<name>/manifest.json` | Manifeste de serveur MCP personnalise (registre dynamique) |
 | `<projet>/opencode.json` | Config opencode du projet (generee par deploy) |
 | `<projet>/.opencode/agents/` | Definitions d'agents deployees |
 | `<projet>/.opencode/skills/` | Protocoles de skills deployes |
+
+> **Integrite de la base de donnees :** Executez `oh repair --check-only` pour verifier la base SQLite. La version courante du schema est affichee par `oh repair`.
+>
+> **Tableau de bord web :** `oh serve` est lie a `127.0.0.1` uniquement et n'est jamais accessible depuis le reseau.

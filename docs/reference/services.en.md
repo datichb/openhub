@@ -15,6 +15,11 @@ Available servers:
 - **gitlab** — GitLab API integration (issues, MRs, labels, milestones)
 - **gslides** — Google Slides integration
 - **team** — Team data (members, wiki, events) — no token required
+- **github** — GitHub API integration (repos, issues, PRs, workflows)
+- **jira** — Jira integration (Cloud and Server/Data Center)
+- **linear** — Linear integration (issues, projects)
+
+> **Dynamic registry:** Custom servers can be loaded from `~/.oh/mcp/<name>/manifest.json`. Required manifest fields: `name`, `description`, `binary`, `required_tokens`.
 
 ---
 
@@ -121,6 +126,9 @@ oh mcp serve figma
 oh mcp serve gitlab
 oh mcp serve gslides
 oh mcp serve team
+oh mcp serve github
+oh mcp serve jira
+oh mcp serve linear
 ```
 
 ---
@@ -221,6 +229,73 @@ Only servers with a valid token (env, keychain, or tokenless for `team`) are dep
 | gitlab | `GITLAB_TOKEN` | GitLab access token |
 | gitlab | `GITLAB_URL` | GitLab instance URL |
 | gslides | `GOOGLE_ACCESS_TOKEN` | Google OAuth token |
+| github | `GITHUB_TOKEN` | GitHub access token (alias: `GH_TOKEN`) |
+| github | `GITHUB_WRITE_ENABLED` | Set `true` to enable write tools |
+| jira | `JIRA_URL` | Jira instance URL (e.g. `https://mycompany.atlassian.net`) |
+| jira | `JIRA_TOKEN` | Jira API token (or `JIRA_USER` + `JIRA_API_TOKEN`) |
+| jira | `JIRA_WRITE_ENABLED` | Set `true` to enable write tools |
+| linear | `LINEAR_API_KEY` | Linear API key |
+| linear | `LINEAR_WRITE_ENABLED` | Set `true` to enable write tools |
+
+---
+
+## GitHub server
+
+**Required:** `GITHUB_TOKEN` or `GH_TOKEN`
+
+**Rate limits:** 60 req/h unauthenticated, 5,000 req/h authenticated.
+
+**Write mode:** Set `GITHUB_WRITE_ENABLED=true` to enable `github_create_issue`.
+
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `github_get_repo` | Get repository metadata |
+| `github_list_issues` | List issues with filters |
+| `github_get_issue` | Get a specific issue |
+| `github_list_prs` | List pull requests |
+| `github_get_pr` | Get a specific pull request |
+| `github_list_workflows` | List GitHub Actions workflows |
+| `github_get_workflow_run` | Get a specific workflow run |
+
+---
+
+## Jira server
+
+**Required:** `JIRA_URL` (e.g. `https://mycompany.atlassian.net`) and `JIRA_TOKEN` (or `JIRA_USER` + `JIRA_API_TOKEN`)
+
+**Supports:** Jira Cloud (API v3) and Jira Server/Data Center.
+
+**Write mode:** Set `JIRA_WRITE_ENABLED=true` to enable `jira_transition_issue`.
+
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `jira_list_issues` | List issues with JQL filter |
+| `jira_get_issue` | Get a specific issue |
+| `jira_get_project` | Get project metadata |
+| `jira_transition_issue` | Transition issue status *(write mode only)* |
+
+---
+
+## Linear server
+
+**Required:** `LINEAR_API_KEY`
+
+**API:** GraphQL.
+
+**Write mode:** Set `LINEAR_WRITE_ENABLED=true` to enable create/update tools.
+
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `linear_list_issues` | List issues with filters |
+| `linear_get_issue` | Get a specific issue |
+| `linear_create_issue` | Create an issue *(write mode only)* |
+| `linear_update_issue` | Update an issue *(write mode only)* |
 
 ---
 

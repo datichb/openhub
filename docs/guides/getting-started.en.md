@@ -16,16 +16,24 @@ No Node.js, jq, sqlite3, bun, or Python needed. The Go binary is self-contained.
 
 ## Installation
 
-**Homebrew (recommended):**
+**Supported platforms:** macOS (darwin), Linux, and Windows — amd64 and arm64.
+
+**Homebrew (recommended — macOS/Linux):**
 
 ```bash
 brew install datichb/tap/openhub
 ```
 
-**Curl script:**
+**Curl script (macOS/Linux):**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/datichb/openhub/main/install.ps1 | iex
 ```
 
 **From source:**
@@ -125,11 +133,14 @@ oh quick                     # auto-detect project, launch immediately
 ```bash
 oh sync --all                # sync agents/skills to all projects
 oh status                    # show hub and current project status
-oh doctor                    # system health check (also verifies provider credentials)
+oh doctor                    # system health check (also verifies provider credentials and oh version)
 oh provider setup            # configure provider credentials
-oh metrics                   # usage and cost metrics
+oh metrics                   # per-agent usage and cost stats (sessions, tokens, avg duration)
+oh serve                     # start local dashboard API + SPA on localhost
 oh dashboard                 # interactive TUI dashboard
 oh board                     # kanban board (requires bd)
+oh export                    # export all hub data (projects, sessions, secrets) to a backup file
+oh repair                    # repair corrupted database or config state
 ```
 
 ## Development Workflow
@@ -159,10 +170,24 @@ oh config language fr        # switch to French
 oh config websearch enable   # enable web search for agents
 ```
 
+## Community Skills
+
+Install community skills from the index or a Git URL:
+
+```bash
+oh skill add <index-name>            # install from community index
+oh skill add https://github.com/...  # install from Git URL
+oh skill list                        # list installed community skills
+oh skill search <query>              # search the community index
+```
+
+See [skills.en.md](../architecture/skills.en.md#community-skills-marketplace) for details.
+
 ## Upgrading
 
 ```bash
-brew upgrade openhub          # upgrade oh itself
+brew upgrade openhub          # upgrade oh itself (Homebrew)
+oh upgrade oh                 # upgrade oh itself (non-Homebrew)
 oh upgrade opencode          # upgrade the opencode binary
 oh upgrade opencode 1.18.0   # pin a specific version
 ```
@@ -182,9 +207,17 @@ Run diagnostics:
 oh doctor
 ```
 
+`oh doctor` checks:
+- `oh` version (latest available vs installed)
+- `opencode` binary presence and version
+- Provider credentials
+- MCP server connectivity
+- Project registry integrity
+
 Common issues:
 
 - **opencode not found** — run `oh init` or `oh upgrade opencode`
 - **Missing provider credentials** — run `oh provider setup`
 - **MCP server errors** — verify tokens with `oh service setup --project <id>`
 - **Project not detected** — ensure you're in a registered project directory (`oh project list`)
+- **Corrupted state** — run `oh repair` to attempt automatic recovery

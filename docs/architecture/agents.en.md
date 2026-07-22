@@ -1,6 +1,6 @@
 # Agent Reference
 
-18 agents in total, organized into 6 families.
+22 agents in total, organized into 6 families.
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 skills, and mode.
 
@@ -197,6 +197,8 @@ Common skills for all domains: `dev-standards-universal`, `dev-standards-simplic
 |-------|------|--------|
 | `developer-refactor` | `agents/developer/developer-refactor.md` | Structural refactoring only — never changes observable behavior |
 | `developer-migrator` | `agents/developer/developer-migrator.md` | Incremental migrations — framework upgrades, major versions, EOL dependencies |
+| `database` | `agents/developer/database.md` | DB specialist: schema design, migration planning, query optimization, DB security audit |
+| `infra` | `agents/developer/infra.md` | IaC specialist: Terraform/K8s/Helm review, cloud cost estimation, IaC security (tfsec, checkov) |
 
 > See [ADR-013](./adr/013-developer-agent-consolidation.en.md) for the consolidation decision.
 > See [ADR-002](./adr/002-developer-segmentation.en.md) (superseded) for the previous segmentation rationale.
@@ -214,6 +216,26 @@ Common skills for all domains: `dev-standards-universal`, `dev-standards-simplic
 | `devops` | `dev-standards-devops` + detected infra stacks |
 | `platform` | `dev-standards-devops` + detected platform stacks |
 | `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+| `go` | `dev-standards-golang` + detected stacks |
+| `rust` | `dev-standards-rust` + detected stacks |
+
+**`database` agent — modes:**
+
+| Mode | Trigger | Output |
+|------|---------|--------|
+| `schema` | Schema design requested | ERD, table definitions, constraints, indexes |
+| `migration` | Migration planning requested | Ordered migration plan, rollback strategy |
+| `query` | Query optimization requested | Explain plan analysis, index recommendations |
+| `audit` | DB security audit requested | Security findings, privilege review, encryption audit |
+
+**`infra` agent — modes:**
+
+| Mode | Trigger | Output |
+|------|---------|--------|
+| `review` | IaC review requested (Terraform/K8s/Helm) | Structured review by severity |
+| `cost` | Cloud cost estimation requested | Resource cost breakdown, optimization recommendations |
+| `security` | IaC security scan requested | tfsec/checkov findings, remediation |
+| `drift` | Drift detection requested | Delta between declared state and actual state |
 
 **Post-ticket — Living docs enrichment:** after each `bd close`, identifies patterns, conventions, or technical constraints discovered during implementation that are absent from `CONVENTIONS.md` or `ONBOARDING.md`, and proposes to the user to capitalize them (skill `living-docs-enrichment`).
 
@@ -307,6 +329,48 @@ Never fixes the bug.
 
 ---
 
+### `benchmarker`
+
+| | |
+|--|--|
+| **Label** | Benchmarker |
+| **File** | `agents/quality/benchmarker.md` |
+| **Invocation** | `"Benchmark [target]"` / `"Lighthouse audit [url]"` / `"Load test [endpoint]"` |
+
+Performance benchmarking specialist. Operates in four modes:
+
+| Mode | Tools | Output |
+|------|-------|--------|
+| `frontend` | Lighthouse, WebPageTest | Core Web Vitals report, LCP/CLS/FID analysis, optimization recommendations |
+| `api` | k6, autocannon, wrk | Throughput/latency/error-rate report, percentile breakdown, bottleneck identification |
+| `go` | pprof, benchstat | CPU/memory profile, flame graph analysis, benchmark comparison |
+| `python` | py-spy, memory-profiler | Sampling profile, hot functions, memory leak detection |
+
+Read-only — never modifies files. Produces structured benchmark reports with baseline comparisons and actionable recommendations.
+
+---
+
+### `test-generator`
+
+| | |
+|--|--|
+| **Label** | TestGenerator |
+| **File** | `agents/quality/test-generator.md` |
+| **Invocation** | `"Generate tests for [target]"` / `"Coverage gap analysis for [module]"` / `"Property tests for [function]"` |
+
+Test generation specialist. Operates in four modes:
+
+| Mode | Output |
+|------|--------|
+| `gap-analysis` | Coverage gap report: uncovered lines, branches, edge cases — prioritized by risk |
+| `unit` | Unit tests targeting uncovered functions/methods — follows existing test conventions |
+| `integration` | Integration tests covering component boundaries and external dependencies |
+| `property` | Property-based tests (hypothesis/fast-check/QuickCheck) for invariant verification |
+
+Writes tests directly. Follows the project's existing testing conventions and stack (detected from `dev-standards-testing` and stack skills). Never modifies production code.
+
+---
+
 ## Family — Planning Agents
 
 ### `planner`
@@ -364,12 +428,12 @@ Guiding principle: **explore → adapt or propose → wait if needed → write**
 
 ## Rules Common to All Agents
 
-- **Read-only agents**: auditor-subagent, reviewer, debugger, designer — never modify files
-- **Agents that write code**: developer-* — only modify files in their domain
+- **Read-only agents**: auditor-subagent, reviewer, debugger, designer, benchmarker — never modify files
+- **Agents that write code**: developer-*, test-generator — only modify files in their domain
 - **Agents that write documentation**: documentarian — only modifies documentation files (all other agents may propose enrichments to `ONBOARDING.md`/`CONVENTIONS.md` via the `living-docs-enrichment` skill, always delegated to `documentarian` after explicit user confirmation)
 - **Agents that create tickets**: planner (feature tickets), debugger (bug tickets after confirmation)
 - **Agents that read tickets**: all can do `bd show <ID>` to contextualize their work
 - **Coordinator agents**: orchestrator, orchestrator-dev, auditor — never code, drive other agents
 - **Discovery agents**: onboarder — read-only, explores and reports, doesn't drive other agents
-- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer — directly visible to the user
+- **`primary` agents**: orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer, benchmarker, test-generator, database, infra — directly visible to the user
 - **`subagent` agents**: `developer`, `developer-refactor`, `developer-migrator` and `auditor-subagent` — invocable by coordinator agents

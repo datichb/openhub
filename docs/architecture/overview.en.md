@@ -43,11 +43,54 @@ Current MCP Servers:
 - **figma**: Figma API integration (search files, detect UI signals, get structure)
 - **gitlab**: GitLab API integration (issues, merge requests, labels, milestones)
 - **gslides**: Google Slides API integration
+- **github**: GitHub API integration (issues, pull requests, labels, milestones)
+- **jira**: Jira API integration (issues, sprints, projects)
+- **linear**: Linear API integration (issues, cycles, teams)
 
 MCP Servers are deployed into projects as `mcpServers` entries in `opencode.json`.
 
 See [Figma Integration Guide](../guides/figma-integration.en.md) for figma usage.
 See [GitLab Integration Guide](../guides/gitlab-integration.en.md) for gitlab usage.
+
+### Plugin & MCP Registry
+
+The hub supports a **dynamic registry** for community-contributed plugins and MCP servers:
+
+- **Plugins**: installed to `~/.oh/plugins/<name>/` with a `manifest.json` describing the plugin's commands and hooks. Discovered and loaded automatically at startup.
+- **MCP servers**: installed to `~/.oh/mcp/<name>/` with a `manifest.json` and a binary. Registered automatically as available `mcpServers` in project configs.
+
+This enables third-party extensions without modifying the hub itself.
+
+### Skill Marketplace
+
+Community skills can be installed from the [oh-skills-index](https://github.com/datichb/oh-skills-index) or from any Git URL:
+
+```bash
+oh skill add <index-name>          # install from community index
+oh skill add https://github.com/...  # install from Git URL
+oh skill list                      # list installed community skills
+oh skill remove <name>             # remove a community skill
+oh skill search <query>            # search the community index
+```
+
+Community skills are stored in `~/.oh/skills/<name>/` with a `manifest.json` describing their metadata. They are available for deployment into any project alongside hub-native skills.
+
+### Observability & Telemetry
+
+Every agent session is recorded in the `agent_events` SQLite table:
+
+| Column | Content |
+|--------|---------|
+| `agent` | Agent name |
+| `skills_loaded` | Skills loaded during the session |
+| `duration_s` | Session duration in seconds |
+| `tokens` | Total tokens consumed |
+| `cost_usd` | Estimated cost |
+
+```bash
+oh metrics             # per-agent stats (sessions, tokens, cost, avg duration)
+oh serve               # expose API + SPA dashboard on localhost
+```
 
 ### Deployment
 
@@ -72,12 +115,20 @@ flowchart LR
         A[agents/*.md] --> DEP[cli/internal/deploy]
         S[skills/**/*.md] --> DEP
         MCP[cli/internal/mcp] --> DEP
+        PLG[~/.oh/plugins/] --> DEP
+        MCPREG[~/.oh/mcp/] --> DEP
+        SKM[~/.oh/skills/] --> DEP
     end
 
     subgraph PROJECTS["Target Projects"]
         DEP -->|"Bucket A (inline)"| P1[".opencode/agents/*.md"]
         DEP -->|"Bucket B (native)"| P2[".opencode/skills/**/SKILL.md"]
         DEP -->|"mcpServers"| P3["opencode.json"]
+    end
+
+    subgraph TELEMETRY["Telemetry"]
+        DEP --> EVT[agent_events table]
+        EVT --> DASH[oh serve dashboard]
     end
 ```
 
@@ -215,7 +266,7 @@ See [Living Documentation Wiki](./living-wiki.en.md) for the complete system arc
 
 ```
 openhub/
-├── agents/              ← AI role definitions (18 agents)
+├── agents/              ← AI role definitions (22 agents)
 ├── skills/              ← Protocols: Bucket A (inline) + Bucket B (on-demand)
 ├── cli/                 ← Go CLI binary (oh)
 │   ├── cmd/             ← Cobra commands
@@ -226,12 +277,19 @@ openhub/
 │       ├── deploy/      ← Transactional deployment engine
 │       ├── domain/      ← Domain types (Project, Session, Secret)
 │       ├── i18n/        ← Internationalization (fr/en)
-│       ├── mcp/         ← Native MCP servers (figma, gitlab, gslides)
+│       ├── mcp/         ← Native MCP servers (figma, gitlab, gslides, github, jira, linear)
 │       ├── opencode/    ← Binary management, compatibility, project config
-│       ├── plugin/      ← Plugin system (RTK embedded)
+│       ├── plugin/      ← Plugin system (RTK embedded + dynamic registry)
 │       ├── prompt/      ← Stack detection, prompt builders
-│       ├── storage/     ← SQLite + keychain + filecrypt
+│       ├── storage/     ← SQLite + keychain + filecrypt + agent_events telemetry
 │       ├── tui/         ← BubbleTea views (dashboard, board, picker)
 │       └── worktree/    ← Git worktree management
-└── docs/                ← Documentation (bilingual fr/en)
+├── docs/                ← Documentation (bilingual fr/en)
+└── ~/.oh/               ← User data (runtime, not in repo)
+    ├── hub/             ← Extracted hub content
+    ├── plugins/         ← Community plugins (<name>/manifest.json)
+    ├── mcp/             ← Community MCP servers (<name>/manifest.json + binary)
+    └── skills/          ← Community skills (<name>/manifest.json + SKILL.md)
 ```
+
+**Supported platforms:** macOS (darwin), Linux, Windows — amd64 and arm64.

@@ -364,7 +364,7 @@ oh init
 
 ### oh doctor
 
-Run diagnostic checks on the environment. Checks: OS, git, opencode, bd, fzf, compatibility, config, database, API keys.
+Run diagnostic checks on the environment. Checks: OS, git, opencode, bd, fzf, compatibility, config, database, API keys. Also checks for available `oh` binary updates.
 
 ```bash
 oh doctor
@@ -395,6 +395,31 @@ Upgrade opencode to the latest (or specified) version.
 oh upgrade opencode
 oh upgrade opencode 0.2.15
 ```
+
+> See also: `oh upgrade oh` to update the `oh` binary itself.
+
+---
+
+### oh upgrade oh
+
+Update the `oh` binary in-place (atomic replacement). For non-Homebrew installs only.
+
+```
+oh upgrade oh [version] [--check]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--check` | bool | Verify available version without downloading |
+| `version` | string | Target version (default: latest) |
+
+```bash
+oh upgrade oh
+oh upgrade oh 1.3.0
+oh upgrade oh --check
+```
+
+> **Homebrew users:** use `brew upgrade openhub` instead.
 
 ---
 
@@ -481,6 +506,9 @@ oh mcp serve figma
 oh mcp serve gitlab
 oh mcp serve gslides
 oh mcp serve team
+oh mcp serve github
+oh mcp serve jira
+oh mcp serve linear
 ```
 
 ---
@@ -575,6 +603,161 @@ oh plugin status
 
 ---
 
+### oh export
+
+Create a backup archive of the hub data.
+
+```
+oh export [--output <path>]
+```
+
+Creates a `.tar.gz` archive containing: `oh.db`, `hub.toml`, `secrets.enc` (encrypted). Includes a SHA-256 checksum file.
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--output` | `-o` | string | Output path (default: `./oh-backup-YYYY-MM-DD.tar.gz`) |
+
+```bash
+oh export
+oh export --output ~/backups/oh-backup.tar.gz
+```
+
+---
+
+### oh import
+
+Restore from a backup archive.
+
+```
+oh import <file> [--overwrite] [--merge]
+```
+
+Verifies SHA-256 checksum before writing any data.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--overwrite` | bool | Overwrite existing data |
+| `--merge` | bool | Merge projects only (non-destructive) |
+
+```bash
+oh import oh-backup-2025-07-22.tar.gz
+oh import ~/backups/oh-backup.tar.gz --overwrite
+oh import ~/backups/oh-backup.tar.gz --merge
+```
+
+---
+
+### oh repair
+
+Diagnose and repair the SQLite database.
+
+```
+oh repair [--check-only] [--auto]
+```
+
+Runs `PRAGMA integrity_check` on `~/.oh/oh.db`. If corruption is detected, presents recovery options: restore from backup, reinitialize database, or manually re-register projects. Also displays the current schema version.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--check-only` | bool | Diagnose without making changes |
+| `--auto` | bool | Non-interactive mode |
+
+```bash
+oh repair
+oh repair --check-only
+oh repair --auto
+```
+
+---
+
+### oh serve
+
+Start a local web dashboard.
+
+```
+oh serve [--port 8080] [--readonly]
+```
+
+Starts an HTTP server bound to `127.0.0.1` only (never exposed to the network). Dashboard shows projects, sessions, and agent telemetry.
+
+**API endpoints:**
+- `GET /api/v1/projects`
+- `GET /api/v1/sessions`
+- `GET /api/v1/metrics/agents`
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--port` | `-p` | int | Port (default: 8080) |
+| `--readonly` | | bool | Disable write endpoints (default: true) |
+
+```bash
+oh serve
+oh serve --port 9090
+oh serve --readonly=false
+```
+
+> **Security:** The server binds to `127.0.0.1` only and is never accessible from the network.
+
+---
+
+---
+
+## Skills Marketplace
+
+### oh skill add
+
+Install a skill from a source (local path, git URL, or registry name).
+
+```
+oh skill add <source>
+```
+
+```bash
+oh skill add rtk
+oh skill add https://github.com/org/my-skill
+oh skill add ./local-skill-dir
+```
+
+---
+
+### oh skill list
+
+List installed skills. Aliases: `ls`
+
+```
+oh skill list
+oh skill ls
+```
+
+---
+
+### oh skill remove
+
+Remove an installed skill. Aliases: `rm`
+
+```
+oh skill remove <name>
+oh skill rm <name>
+```
+
+---
+
+### oh skill search
+
+Search the skills registry.
+
+```
+oh skill search [query]
+```
+
+```bash
+oh skill search
+oh skill search react
+oh skill search "code review"
+```
+
+---
+
 ## Git Worktree
 
 ### oh worktree list
@@ -638,7 +821,7 @@ oh worktree cleanup -b main -f
 
 ### oh metrics
 
-Display project metrics and session statistics.
+Display project metrics, session statistics, and agent telemetry.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|

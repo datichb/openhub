@@ -1,3 +1,5 @@
+> [Read in English](task-delegation.en.md)
+
 # Délégation inter-agents — L'outil `task`
 
 Ce document détaille le mécanisme de délégation entre agents dans OpenCode,

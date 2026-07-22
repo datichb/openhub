@@ -1,3 +1,5 @@
+> [Read in English](agent-pathfinder.en.md)
+
 # Agent Pathfinder — Guide utilisateur
 
 ## 🎯 Qu'est-ce que l'agent Pathfinder ?

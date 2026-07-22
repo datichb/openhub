@@ -1,3 +1,5 @@
+> [Read in English](019-agent-security-model.en.md)
+
 # ADR-019 — Modèle de sécurité des agents
 
 ## Statut

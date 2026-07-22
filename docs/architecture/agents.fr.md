@@ -1,6 +1,6 @@
 # Référence des agents
 
-18 agents au total, organisés en 6 familles.
+22 agents au total, organisés en 6 familles.
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 
@@ -227,6 +227,8 @@ Skills communs à tous les domaines : `dev-standards-universal`, `dev-standards-
 |-------|---------|---------|
 | `developer-refactor` | `agents/developer/developer-refactor.md` | Refactoring structurel uniquement — ne modifie jamais le comportement observable |
 | `developer-migrator` | `agents/developer/developer-migrator.md` | Migrations incrémentales — upgrades de framework, versions majeures, dépendances EOL |
+| `database` | `agents/developer/database.md` | Spécialiste BDD : conception de schéma, planification de migration, optimisation de requêtes, audit sécurité BDD |
+| `infra` | `agents/developer/infra.md` | Spécialiste IaC : revue Terraform/K8s/Helm, estimation coût cloud, sécurité IaC (tfsec, checkov) |
 
 > Voir [ADR-013](./adr/013-developer-agent-consolidation.fr.md) pour la décision de consolidation.
 > Voir [ADR-002](./adr/002-developer-segmentation.fr.md) (remplacé) pour la justification de la segmentation précédente.
@@ -244,6 +246,26 @@ Skills communs à tous les domaines : `dev-standards-universal`, `dev-standards-
 | `devops` | `dev-standards-devops` + stacks infra détectées |
 | `platform` | `dev-standards-devops` + stacks platform détectées |
 | `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
+| `go` | `dev-standards-golang` + stacks détectées |
+| `rust` | `dev-standards-rust` + stacks détectées |
+
+**Agent `database` — modes :**
+
+| Mode | Déclencheur | Sortie |
+|------|-------------|--------|
+| `schema` | Conception de schéma demandée | ERD, définitions de tables, contraintes, index |
+| `migration` | Planification de migration demandée | Plan de migration ordonné, stratégie de rollback |
+| `query` | Optimisation de requêtes demandée | Analyse du plan d'exécution, recommandations d'index |
+| `audit` | Audit sécurité BDD demandé | Findings de sécurité, revue des privilèges, audit chiffrement |
+
+**Agent `infra` — modes :**
+
+| Mode | Déclencheur | Sortie |
+|------|-------------|--------|
+| `review` | Revue IaC demandée (Terraform/K8s/Helm) | Revue structurée par sévérité |
+| `cost` | Estimation de coût cloud demandée | Décomposition des coûts par ressource, recommandations d'optimisation |
+| `security` | Scan sécurité IaC demandé | Findings tfsec/checkov, remédiation |
+| `drift` | Détection de dérive demandée | Delta entre état déclaré et état réel |
 
 **Post-ticket — Enrichissement des documents vivants :** après chaque `bd close`, identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose à l'utilisateur de les capitaliser (skill `living-docs-enrichment`).
 
@@ -353,6 +375,48 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 
 ---
 
+### `benchmarker`
+
+| | |
+|--|--|
+| **Label** | Benchmarker |
+| **Fichier** | `agents/quality/benchmarker.md` |
+| **Invocation** | `"Benchmark [cible]"` / `"Audit Lighthouse [url]"` / `"Load test [endpoint]"` |
+
+Spécialiste en benchmarking de performance. Opère en quatre modes :
+
+| Mode | Outils | Sortie |
+|------|--------|--------|
+| `frontend` | Lighthouse, WebPageTest | Rapport Core Web Vitals, analyse LCP/CLS/FID, recommandations d'optimisation |
+| `api` | k6, autocannon, wrk | Rapport débit/latence/taux d'erreur, décomposition par percentile, identification des goulots |
+| `go` | pprof, benchstat | Profil CPU/mémoire, analyse flame graph, comparaison de benchmarks |
+| `python` | py-spy, memory-profiler | Profil par échantillonnage, fonctions chaudes, détection de fuites mémoire |
+
+Lecture seule — ne modifie jamais de fichiers. Produit des rapports de benchmark structurés avec comparaisons de baseline et recommandations actionnables.
+
+---
+
+### `test-generator`
+
+| | |
+|--|--|
+| **Label** | TestGenerator |
+| **Fichier** | `agents/quality/test-generator.md` |
+| **Invocation** | `"Génère des tests pour [cible]"` / `"Analyse des gaps de couverture pour [module]"` / `"Tests de propriété pour [fonction]"` |
+
+Spécialiste en génération de tests. Opère en quatre modes :
+
+| Mode | Sortie |
+|------|--------|
+| `gap-analysis` | Rapport de gaps de couverture : lignes, branches, cas limites non couverts — priorisés par risque |
+| `unit` | Tests unitaires ciblant les fonctions/méthodes non couvertes — respecte les conventions de test existantes |
+| `integration` | Tests d'intégration couvrant les frontières de composants et les dépendances externes |
+| `property` | Tests basés sur les propriétés (hypothesis/fast-check/QuickCheck) pour la vérification d'invariants |
+
+Écrit des tests directement. Respecte les conventions de test existantes et la stack du projet (détectée depuis `dev-standards-testing` et les stack skills). Ne modifie jamais le code de production.
+
+---
+
 ## Famille — Agents de planification
 
 ### `planner`
@@ -441,13 +505,13 @@ Principe directeur : **explorer → adapter ou proposer → attendre si nécessa
 
 ## Règles communes à tous les agents
 
-- **Agents en lecture seule** : auditor-subagent, reviewer, designer — ne modifient jamais de fichiers directement
+- **Agents en lecture seule** : auditor-subagent, reviewer, designer, benchmarker — ne modifient jamais de fichiers directement
 - **Agents qui délèguent l'écriture documentaire** : auditor (coordinateur), planner, debugger — peuvent invoquer le `documentarian` via `task` pour enrichir `ONBOARDING.md` / `CONVENTIONS.md`, uniquement après confirmation explicite de l'utilisateur (skill `living-docs-enrichment`)
-- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator` — modifient uniquement les fichiers de leur domaine
+- **Agents qui écrivent du code** : `developer`, `developer-refactor`, `developer-migrator`, `test-generator` — modifient uniquement les fichiers de leur domaine
 - **Agents qui écrivent de la documentation** : documentarian — modifie uniquement les fichiers de documentation ; seul agent autorisé à écrire dans `ONBOARDING.md` et `CONVENTIONS.md` (tous les autres agents peuvent proposer des enrichissements à `ONBOARDING.md`/`CONVENTIONS.md` via la skill `living-docs-enrichment`, toujours délégués au `documentarian` après confirmation explicite de l'utilisateur)
 - **Agents qui créent des tickets** : planner (tickets feature), debugger (tickets bug après confirmation)
 - **Agents qui lisent les tickets** : tous peuvent faire `bd show <ID>` pour contextualiser leur travail
 - **Agents coordinateurs** : orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — lecture seule, explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer — visibles directement par l'utilisateur
+- **Agents `primary`** : orchestrator, orchestrator-dev, planner, auditor, designer, documentarian, onboarder, debugger, reviewer, benchmarker, test-generator, database, infra — visibles directement par l'utilisateur
 - **Agents `subagent`** : `developer`, `developer-refactor`, `developer-migrator` et `auditor-subagent` — invocables par des agents coordinateurs

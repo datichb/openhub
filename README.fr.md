@@ -39,6 +39,7 @@ oh start                       # Lance opencode (detection auto du projet)
 oh start --dev                 # Mode dev : choix epics/tickets, orchestrator-dev
 oh start --onboard             # Cree le wiki projet (docs/wiki/)
 oh deploy                      # Synchronise agents, skills, config, MCP
+oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 ```
 
 ---
@@ -59,14 +60,23 @@ oh deploy                      # Synchronise agents, skills, config, MCP
 | `oh config` | Gerer la configuration du hub |
 | `oh status` | Afficher l'etat du hub et du projet |
 | `oh doctor` | Diagnostic systeme |
-| `oh metrics` | Metriques d'utilisation et cout |
+| `oh metrics` | Metriques d'utilisation et cout (incl. telemetrie agents) |
 | `oh dashboard` | Tableau de bord interactif (TUI) |
 | `oh board` | Kanban des tickets (Beads) |
+| `oh serve [--port 8080] [--readonly]` | Dashboard web local (API + SPA, 127.0.0.1 uniquement) |
 | `oh audit` | Audit de code via agent IA |
 | `oh review` | Revue de code via agent IA |
 | `oh debug` | Session de debug via agent IA |
+| `oh export [--output path]` | Sauvegarde DB + config + secrets en .tar.gz avec checksum SHA-256 |
+| `oh import <file> [--overwrite] [--merge]` | Restauration depuis une archive de sauvegarde |
+| `oh repair [--check-only] [--auto]` | Diagnostic et reparation de la base SQLite corrompue |
 | `oh upgrade opencode` | Mettre a jour le binaire opencode |
+| `oh upgrade oh [--check] [version]` | Auto-mise a jour du binaire oh (hors Homebrew) |
 | `oh mcp serve` | Lancer un serveur MCP integre |
+| `oh skill add <source>` | Installer un skill communautaire (nom ou URL Git) |
+| `oh skill list` | Lister les skills communautaires installes |
+| `oh skill remove <name>` | Desinstaller un skill communautaire |
+| `oh skill search [query]` | Rechercher dans l'index communautaire |
 | `oh beads` | Proxy vers bd (CLI Beads) |
 
 > Reference complete : [docs/reference/cli.fr.md](docs/reference/cli.fr.md)
@@ -77,13 +87,15 @@ oh deploy                      # Synchronise agents, skills, config, MCP
 
 ```
 openhub/
-├── agents/          <- Definitions des roles IA (18 agents, 2 modes)
+├── agents/          <- Definitions des roles IA (22 agents, 2 modes)
 ├── skills/          <- Protocoles : Bucket A (inline) + Bucket B (on-demand)
 ├── cli/             <- Binaire Go (oh)
 │   └── internal/
 │       ├── beads/       <- Integration tickets Beads
 │       ├── deploy/      <- Moteur de deploiement transactionnel
-│       ├── mcp/         <- Serveurs MCP natifs (figma, gitlab, gslides)
+│       ├── mcp/         <- Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear, team)
+│       ├── skillregistry/ <- Decouverte et installation de skills communautaires
+│       ├── selfupdate/  <- Auto-mise a jour du binaire oh
 │       ├── tui/         <- Vues BubbleTea (dashboard, board, picker)
 │       └── ...
 └── docs/            <- Documentation (bilingue fr/en)
@@ -102,7 +114,7 @@ oh deploy
 
 ## Agents
 
-18 agents specialises en deux modes :
+22 agents specialises en deux modes :
 
 - **`primary`** -- invocable directement par l'utilisateur dans OpenCode
 - **`subagent`** -- delegue par les agents coordinateurs
@@ -119,6 +131,8 @@ oh deploy
 | `designer` | Design | Analyse Figma, specs UX/UI |
 | `reviewer` | Qualite | Revue PR/MR par severite (multi-mode : standard, adversarial, edge-case) |
 | `debugger` | Qualite | Diagnostic bugs, root cause |
+| `benchmarker` | Qualite | Benchmarks Lighthouse, k6, pprof, py-spy |
+| `test-generator` | Qualite | Analyse des lacunes, generation tests unitaires/integration/property-based |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 
 ### Sous-agents
@@ -128,6 +142,8 @@ oh deploy
 | `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
 | `developer-refactor` | `orchestrator-dev` | Refactoring structurel |
 | `developer-migrator` | `orchestrator-dev` | Migrations incrementales |
+| `database` | `orchestrator-dev` | Schema, migration, optimisation requetes, audit securite DB |
+| `infra` | `orchestrator-dev` | Revue Terraform/K8s, estimation couts, securite IaC |
 | `auditor-subagent` | `auditor` | Tous domaines d'audit (securite, performance, accessibilite, ecoconception, architecture, vie privee, observabilite) |
 
 ---
@@ -150,15 +166,19 @@ oh deploy
 
 ## Serveurs MCP
 
-Trois serveurs MCP integres, natifs en Go (protocole stdio) :
+Sept serveurs MCP integres, natifs en Go (protocole stdio) :
 
-| Serveur | Commande | Fonction |
-|---------|----------|----------|
-| Figma | `oh mcp serve figma` | Extraction design tokens, analyse composants |
-| GitLab | `oh mcp serve gitlab` | Gestion issues/MR, statut pipelines |
-| Google Slides | `oh mcp serve gslides` | Analyse de presentations |
+| Serveur | Commande | Fonction | Requis |
+|---------|----------|----------|--------|
+| Figma | `oh mcp serve figma` | Extraction design tokens, analyse composants | `FIGMA_TOKEN` |
+| GitLab | `oh mcp serve gitlab` | Gestion issues/MR, statut pipelines | `GITLAB_TOKEN` |
+| Google Slides | `oh mcp serve gslides` | Analyse de presentations | Credentials Google |
+| GitHub | `oh mcp serve github` | Issues, PRs, Actions | `GITHUB_TOKEN` |
+| Jira | `oh mcp serve jira` | Gestion issues, transitions | `JIRA_URL` + `JIRA_TOKEN` |
+| Linear | `oh mcp serve linear` | Issues/mutations via GraphQL | `LINEAR_API_KEY` |
+| Team | `oh mcp serve team` | Coordination equipe, claims, wiki | Repo team-state |
 
-Configuration via `oh service setup` (stockage tokens dans le keychain OS).
+Configuration via `oh mcp setup` (stockage tokens dans le keychain OS).
 
 ---
 
@@ -172,6 +192,12 @@ Configuration via `oh service setup` (stockage tokens dans le keychain OS).
 | [Workflows](docs/guides/workflows.fr.md) | Scenarios feature, audit, debug |
 | [Integration Figma](docs/guides/figma-integration.fr.md) | Configuration MCP Figma |
 | [Integration GitLab](docs/guides/gitlab-integration.fr.md) | Configuration MCP GitLab |
+| [Integration GitHub](docs/guides/github-integration.fr.md) | Configuration MCP GitHub |
+| [Integration Jira](docs/guides/jira-integration.fr.md) | Configuration MCP Jira |
+| [Integration Linear](docs/guides/linear-integration.fr.md) | Configuration MCP Linear |
+| [Marketplace de skills](docs/guides/skill-marketplace.fr.md) | Installer des skills communautaires |
+| [Dashboard](docs/guides/dashboard.fr.md) | Configuration et utilisation du dashboard web |
+| [Sauvegarde & Restauration](docs/guides/backup-restore.fr.md) | Export/import, reparation |
 | [Providers LLM](docs/guides/providers.fr.md) | Anthropic, Bedrock, OpenRouter, Ollama |
 | [Onboarding](docs/guides/onboarding.fr.md) | Utiliser l'agent onboarder |
 
@@ -180,7 +206,7 @@ Configuration via `oh service setup` (stockage tokens dans le keychain OS).
 | Document | Description |
 |----------|-------------|
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes |
-| [Agents](docs/architecture/agents.fr.md) | Reference des 18 agents |
+| [Agents](docs/architecture/agents.fr.md) | Reference des 22 agents |
 | [Skills](docs/architecture/skills.fr.md) | Systeme de skills hybrides |
 | [ADR](docs/architecture/adr/) | 21 decisions architecturales |
 
@@ -210,6 +236,8 @@ Si vous utilisiez la CLI bash (`oc`), consultez le [Guide de migration](MIGRATIO
 - **[Beads](https://beads.sh/)** *(optionnel)* -- tracker de tickets pour `oh start --dev`, `oh board`
 
 Aucun Node.js, jq, sqlite3 ou bun requis. Le binaire Go est autonome.
+
+**Plateformes supportees :** macOS (amd64/arm64), Linux (amd64/arm64), Windows (amd64/arm64).
 
 ---
 

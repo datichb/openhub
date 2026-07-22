@@ -520,7 +520,7 @@ Verifie l'etat du systeme.
 oh doctor
 ```
 
-Pas de flags. Checks : OS, git, opencode, bd, fzf, compatibilite, config, BDD, cles API.
+Pas de flags. Checks : OS, git, opencode, bd, fzf, compatibilite, config, BDD, cles API. Verifie egalement la disponibilite de mises a jour pour le binaire `oh`.
 
 **Exemple :**
 
@@ -567,6 +567,33 @@ Pas de flags. Argument version optionnel (derniere version si omis).
 oh upgrade opencode          # Derniere version
 oh upgrade opencode 0.3.1   # Version specifique
 ```
+
+> Voir aussi : `oh upgrade oh` pour mettre a jour le binaire `oh` lui-meme.
+
+---
+
+### oh upgrade oh
+
+Met a jour le binaire `oh` en place (remplacement atomique). Uniquement pour les installations hors Homebrew.
+
+```
+oh upgrade oh [version] [--check]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--check` | Verifie la version disponible sans telecharger |
+| `version` | Version cible (defaut : derniere) |
+
+**Exemple :**
+
+```bash
+oh upgrade oh
+oh upgrade oh 1.3.0
+oh upgrade oh --check
+```
+
+> **Utilisateurs Homebrew :** utilisez `brew upgrade openhub` a la place.
 
 ---
 
@@ -682,7 +709,7 @@ Lance un serveur MCP integre via stdio.
 oh mcp serve <name>
 ```
 
-Sert un serveur MCP natif (figma, gitlab, gslides, team).
+Sert un serveur MCP natif (figma, gitlab, gslides, team, github, jira, linear).
 
 **Exemple :**
 
@@ -690,6 +717,9 @@ Sert un serveur MCP natif (figma, gitlab, gslides, team).
 oh mcp serve gitlab
 oh mcp serve figma
 oh mcp serve gslides
+oh mcp serve github
+oh mcp serve jira
+oh mcp serve linear
 ```
 
 ---
@@ -819,6 +849,176 @@ oh plugin status
 
 ---
 
+### oh export
+
+Cree une archive de sauvegarde des donnees du hub.
+
+```
+oh export [--output <chemin>]
+```
+
+Cree une archive `.tar.gz` contenant : `oh.db`, `hub.toml`, `secrets.enc` (chiffre). Inclut un fichier de checksum SHA-256.
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--output` | `-o` | Chemin de sortie (defaut : `./oh-backup-YYYY-MM-DD.tar.gz`) |
+
+**Exemple :**
+
+```bash
+oh export
+oh export --output ~/sauvegardes/oh-backup.tar.gz
+```
+
+---
+
+### oh import
+
+Restaure depuis une archive de sauvegarde.
+
+```
+oh import <fichier> [--overwrite] [--merge]
+```
+
+Verifie le checksum SHA-256 avant d'ecrire les donnees.
+
+| Flag | Description |
+|------|-------------|
+| `--overwrite` | Ecraser les donnees existantes |
+| `--merge` | Fusionner les projets uniquement (non-destructif) |
+
+**Exemple :**
+
+```bash
+oh import oh-backup-2025-07-22.tar.gz
+oh import ~/sauvegardes/oh-backup.tar.gz --overwrite
+oh import ~/sauvegardes/oh-backup.tar.gz --merge
+```
+
+---
+
+### oh repair
+
+Diagnostique et repare la base de donnees SQLite.
+
+```
+oh repair [--check-only] [--auto]
+```
+
+Execute `PRAGMA integrity_check` sur `~/.oh/oh.db`. En cas de corruption, propose des options de recuperation : restaurer depuis une sauvegarde, reinitialiser la base de donnees, ou re-enregistrer les projets manuellement. Affiche egalement la version courante du schema.
+
+| Flag | Description |
+|------|-------------|
+| `--check-only` | Diagnostiquer sans effectuer de modifications |
+| `--auto` | Mode non-interactif |
+
+**Exemple :**
+
+```bash
+oh repair
+oh repair --check-only
+oh repair --auto
+```
+
+---
+
+### oh serve
+
+Lance un tableau de bord web local.
+
+```
+oh serve [--port 8080] [--readonly]
+```
+
+Demarre un serveur HTTP lie a `127.0.0.1` uniquement (jamais expose sur le reseau). Le tableau de bord affiche les projets, sessions et la telemetrie des agents.
+
+**Endpoints API :**
+- `GET /api/v1/projects`
+- `GET /api/v1/sessions`
+- `GET /api/v1/metrics/agents`
+
+| Flag | Court | Description |
+|------|-------|-------------|
+| `--port` | `-p` | Port (defaut : 8080) |
+| `--readonly` | | Desactiver les endpoints d'ecriture (defaut : true) |
+
+**Exemple :**
+
+```bash
+oh serve
+oh serve --port 9090
+oh serve --readonly=false
+```
+
+> **Securite :** Le serveur est lie a `127.0.0.1` uniquement et n'est jamais accessible depuis le reseau.
+
+---
+
+---
+
+## Marketplace de Skills
+
+### oh skill add
+
+Installe un skill depuis une source (chemin local, URL git ou nom dans le registre).
+
+```
+oh skill add <source>
+```
+
+**Exemple :**
+
+```bash
+oh skill add rtk
+oh skill add https://github.com/org/mon-skill
+oh skill add ./skill-local
+```
+
+---
+
+### oh skill list
+
+Liste les skills installes.
+
+**Alias :** `oh skill ls`
+
+```
+oh skill list
+```
+
+---
+
+### oh skill remove
+
+Supprime un skill installe.
+
+**Alias :** `oh skill rm`
+
+```
+oh skill remove <nom>
+oh skill rm <nom>
+```
+
+---
+
+### oh skill search
+
+Recherche dans le registre de skills.
+
+```
+oh skill search [requete]
+```
+
+**Exemple :**
+
+```bash
+oh skill search
+oh skill search react
+oh skill search "code review"
+```
+
+---
+
 ## Git Worktree
 
 ### oh worktree list
@@ -912,7 +1112,7 @@ oh worktree cleanup -b develop --force
 
 ### oh metrics
 
-Affiche les metriques d'utilisation.
+Affiche les metriques d'utilisation, les statistiques de sessions et la telemetrie des agents.
 
 ```
 oh metrics [options]

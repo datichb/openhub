@@ -7,6 +7,70 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Audit complet P1-P5** — 31 tâches couvrant sécurité, CI/CD, robustesse, extensibilité et croissance marché
+
+#### Sécurité & CI/CD
+
+- **T01 — `govulncheck` en CI** — analyse des dépendances Go pour vulnérabilités connues, bloquant sur CVSS ≥ 7
+- **T02 — Workflow de release automatisé** — `release.yml` : build multi-plateforme, packaging, publication GitHub Releases sur tag push `vX.Y.Z`
+- **T03 — Matrice CI macOS + Windows** — `ci.yml` étendu avec `macos-latest` et `windows-latest` (amd64) en plus de `ubuntu-latest`
+- **T04 — Seuil de couverture 60%** — gate de couverture dans CI via `go test -cover` ; le build échoue sous 60%
+- **T05 — Support Windows amd64/arm64** — `GOOS=windows go build` fonctionnel ; chemins `%APPDATA%` et `%LOCALAPPDATA%` gérés dans `cli/internal/config/`
+- **T06 — Secrets chiffrés dans les archives** — `oh export` chiffre les secrets avec AES-256-GCM avant inclusion dans le `.tar.gz`
+- **T07 — Checksum SHA-256 sur les archives** — `oh export` génère un fichier `.sha256` adjacent à chaque archive
+- **T08 — `oh doctor` affiche la mise à jour disponible** — intégration avec `oh upgrade oh --check` pour signaler une nouvelle version dans le rapport de santé
+
+#### Robustesse & Architecture
+
+- **T09 — `oh export [--output path]`** — sauvegarde transactionnelle de la DB SQLite, `hub.toml`, et secrets vers une archive `.tar.gz` horodatée
+- **T10 — `oh import <file> [--overwrite] [--merge]`** — restauration depuis une archive ; `--overwrite` écrase, `--merge` fusionne les projets sans supprimer l'existant
+- **T11 — `oh repair [--check-only] [--auto]`** — détection de corruption SQLite via `PRAGMA integrity_check` ; `--auto` tente `VACUUM` et reconstruction depuis la dernière sauvegarde
+- **T12 — `oh upgrade oh [--check] [version]`** — auto-mise à jour du binaire `oh` pour les installations hors Homebrew ; `--check` affiche la version disponible sans modifier
+- **T13 — Registre MCP dynamique** — découverte des serveurs MCP depuis `~/.oh/mcp/` en plus des 7 serveurs intégrés ; pas de recompilation requise
+- **T14 — Registre de plugins dynamique** — découverte des plugins depuis `~/.oh/plugins/` avec interface `Plugin` (Name, Run) ; chargement au démarrage
+- **T15 — `cli/internal/selfupdate/`** — package dédié à l'auto-mise à jour : téléchargement binaire signé, vérification checksum, remplacement atomique
+- **T16 — `cli/internal/skillregistry/`** — package dédié à la gestion des skills communautaires : index distant, résolution de conflits de versions, désinstallation propre
+
+#### Extensibilité & DX
+
+- **T17 — `oh serve [--port 8080] [--readonly]`** — dashboard web local sur `127.0.0.1` uniquement ; API JSON + SPA embarquée ; `--readonly` désactive les mutations
+- **T18 — `oh skill add <source>`** — installation d'un skill depuis l'index communautaire (nom court) ou une URL Git ; déploiement automatique dans `.opencode/skills/`
+- **T19 — `oh skill list`** — liste les skills communautaires installés avec version, source et date d'installation
+- **T20 — `oh skill remove <name>`** — désinstallation propre d'un skill communautaire et nettoyage du déploiement
+- **T21 — `oh skill search [query]`** — recherche dans l'index communautaire distant ; affiche nom, description, auteur, étoiles
+
+#### Croissance & Marché
+
+- **T22 — Serveur MCP `github`** — 8 outils MCP : `github_list_issues`, `github_get_issue`, `github_create_issue`, `github_list_prs`, `github_get_pr`, `github_merge_pr`, `github_list_workflows`, `github_trigger_workflow` ; requiert `GITHUB_TOKEN`
+- **T23 — Serveur MCP `jira`** — 6 outils MCP : `jira_list_issues`, `jira_get_issue`, `jira_create_issue`, `jira_transition_issue`, `jira_add_comment`, `jira_list_projects` ; requiert `JIRA_URL` + `JIRA_TOKEN`
+- **T24 — Serveur MCP `linear`** — 7 outils MCP via GraphQL : `linear_list_issues`, `linear_get_issue`, `linear_create_issue`, `linear_update_issue`, `linear_list_teams`, `linear_list_projects`, `linear_add_comment` ; requiert `LINEAR_API_KEY`
+- **T25 — Agent `benchmarker`** (qualite) — benchmarks de performance via Lighthouse (web vitals), k6 (charge), pprof (Go), py-spy (Python) ; rapport structuré avec seuils configurables
+- **T26 — Agent `database`** (developer) — gestion de schémas, migrations Flyway/golang-migrate, optimisation de requêtes, audit sécurité base de données
+- **T27 — Agent `infra`** (developer) — revue Terraform/Pulumi/K8s, estimation de coûts cloud, détection de mauvaises pratiques IaC, audit sécurité infrastructure
+- **T28 — Agent `test-generator`** (qualite) — analyse des lacunes de couverture, génération de tests unitaires, d'intégration et property-based (QuickCheck/Hypothesis/fast-check)
+- **T29 — Skills stack Go et Rust** — `dev-standards-golang` (auto-détecté via `go.mod`) et `dev-standards-rust` (auto-détecté via `Cargo.toml`) injectés automatiquement au déploiement
+- **T30 — Notifications multi-canaux** — section `[notify]` dans `hub.toml` : Slack, Discord, Teams en plus de Mattermost ; format de webhook unifié
+- **T31 — `oh metrics` — tableau télémétrie agents** — nouvelle section dans `oh metrics` : nom de l'agent, nombre de runs, taux de succès, durée moyenne, tokens consommés, coût estimé
+
+### Changed
+
+- **Architecture agents** — passage de 18 à 22 agents ; `benchmarker` et `test-generator` ajoutés aux agents primaires (qualite) ; `database` et `infra` ajoutés aux sous-agents (developer)
+- **`oh metrics`** — section télémétrie agents ajoutée ; données lues depuis `opencode.db` (table `part`)
+- **`oh doctor`** — intègre la vérification de mise à jour `oh` disponible via `selfupdate`
+- **Déploiement stack skills** — détection étendue à `go.mod` (Go) et `Cargo.toml` (Rust) en plus des stacks existants
+
+### Security
+
+- **Archives `oh export` chiffrées** — les secrets (tokens MCP, clés API) sont chiffrés AES-256-GCM dans l'archive ; la clé de déchiffrement est demandée à l'import
+- **`oh serve` restreint à 127.0.0.1** — le dashboard web n'écoute jamais sur les interfaces réseau externes ; pas de flag `--host` disponible
+- **`govulncheck` en CI** — toute dépendance Go avec CVE ≥ 7.0 bloque le pipeline de release
+
+---
+
 ## [3.9.1] — 2026-07-16
 
 ### Fixed
