@@ -431,13 +431,30 @@ func buildViews(a *app.App) []views.View {
 				Model:    p.Model,
 				Agents:   p.Agents,
 				Status:   string(p.Status),
+				MCPOverrides: func() map[string]string {
+					if p.MCPConfig == nil || len(p.MCPConfig.Services) == 0 {
+						return nil
+					}
+					m := make(map[string]string, len(p.MCPConfig.Services))
+					for _, svc := range p.MCPConfig.Services {
+						if svc.Enabled == nil {
+							m[svc.Name] = "inherit"
+						} else if *svc.Enabled {
+							m[svc.Name] = "enabled"
+						} else {
+							m[svc.Name] = "disabled"
+						}
+					}
+					return m
+				}(),
 			})
 		}
 	}
 
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
-		Projects:        projectItems,
-		AvailableAgents: discoverAgents(),
+		Projects:         projectItems,
+		AvailableAgents:  discoverAgents(),
+		KnownMCPServices: []string{"figma", "gitlab", "gslides"},
 	})
 	if a.Projects != nil {
 		projectsView.SetOnAdd(func(name, path string) {
@@ -463,6 +480,28 @@ func buildViews(a *app.App) []views.View {
 			project.Model = cfg.Model
 			project.Agents = cfg.Agents
 			project.UpdatedAt = time.Now()
+
+			// Persist per-project MCP overrides
+			if len(cfg.MCPOverrides) > 0 {
+				services := make([]domain.ProjectMCPService, 0, len(cfg.MCPOverrides))
+				for svcName, state := range cfg.MCPOverrides {
+					svc := domain.ProjectMCPService{Name: svcName}
+					switch state {
+					case "enabled":
+						t := true
+						svc.Enabled = &t
+					case "disabled":
+						f := false
+						svc.Enabled = &f
+					// "inherit" → nil (omit, let hub config win)
+					}
+					services = append(services, svc)
+				}
+				project.MCPConfig = &domain.ProjectMCPConfig{Services: services}
+			} else {
+				project.MCPConfig = nil
+			}
+
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to update project config", "id", id, "error", err)
 			}
@@ -514,7 +553,45 @@ func buildViews(a *app.App) []views.View {
 		views.NewConfigView(),
 		views.NewModelsView(a),
 		views.NewProviderView(a),
-		views.NewMCPView(a),
+		views.NewMCPView(a, views.MCPViewConfig{
+			OnUpdateProjectMCP: func(projectID, service, state string) {
+				ctx := context.Background()
+				project, err := a.Projects.Get(ctx, projectID)
+				if err != nil {
+					slog.Warn("failed to get project for MCP override", "id", projectID, "error", err)
+					return
+				}
+				if project.MCPConfig == nil {
+					project.MCPConfig = &domain.ProjectMCPConfig{}
+				}
+				// Update or insert the service override
+				found := false
+				for i, svc := range project.MCPConfig.Services {
+					if svc.Name == service {
+						if state == "inherit" {
+							project.MCPConfig.Services[i].Enabled = nil
+						} else {
+							t := state == "enabled"
+							project.MCPConfig.Services[i].Enabled = &t
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					svc := domain.ProjectMCPService{Name: service}
+					if state != "inherit" {
+						t := state == "enabled"
+						svc.Enabled = &t
+					}
+					project.MCPConfig.Services = append(project.MCPConfig.Services, svc)
+				}
+				project.UpdatedAt = time.Now()
+				if err := a.Projects.Update(ctx, project); err != nil {
+					slog.Warn("failed to update project MCP override", "id", projectID, "error", err)
+				}
+			},
+		}),
 		views.NewPluginsView(),
 		views.NewHelpView(),
 	}

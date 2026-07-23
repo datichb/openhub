@@ -676,12 +676,31 @@ func (s *Shell) ShowSessionLauncher(cfg SessionLaunchConfig) {
 }
 
 // SuspendAndExec suspends the TUI, runs a function, then resumes.
+// After resume it forces a full terminal re-sync (Sync) and restores focus to
+// the main content area to avoid a permanent freeze caused by tcell's
+// screen.Resume() silently failing on macOS after a subprocess (e.g., opencode)
+// that manipulates the tty.
 func (s *Shell) SuspendAndExec(fn func() error) error {
 	var execErr error
-	s.app.Suspend(func() {
+	ok := s.app.Suspend(func() {
 		execErr = fn()
 	})
+	if !ok {
+		return fmt.Errorf("TUI suspend failed — session not launched")
+	}
+	// Force full redraw from scratch. Marks all cells dirty and flushes them
+	// to the terminal. Handles the case where Resume() silently failed.
+	s.app.Sync()
+	// Restore focus so subsequent key events reach the active view.
+	// Without this the focus may sit on an orphaned widget (pre-suspend view)
+	// or get stolen by the next ShowToast call.
+	s.app.SetFocus(s.content)
 	return execErr
+}
+
+// RestoreFocus explicitly restores keyboard focus to the main content area.
+func (s *Shell) RestoreFocus() {
+	s.app.SetFocus(s.content)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

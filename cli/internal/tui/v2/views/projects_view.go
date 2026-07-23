@@ -12,28 +12,31 @@ import (
 
 // ProjectItem represents a project entry in the list.
 type ProjectItem struct {
-	ID       string
-	Name     string
-	Path     string
-	Language string
-	Provider string
-	Model    string
-	Agents   []string
-	Status   string
+	ID           string
+	Name         string
+	Path         string
+	Language     string
+	Provider     string
+	Model        string
+	Agents       []string
+	Status       string
+	MCPOverrides map[string]string // service → "inherit"|"enabled"|"disabled"
 }
 
 // ProjectConfigUpdate holds updated configuration values from the TUI configure flow.
 type ProjectConfigUpdate struct {
-	Language string
-	Provider string
-	Model    string
-	Agents   []string
+	Language     string
+	Provider     string
+	Model        string
+	Agents       []string
+	MCPOverrides map[string]string // service → "inherit"|"enabled"|"disabled"
 }
 
 // ProjectsViewConfig configures the projects list view.
 type ProjectsViewConfig struct {
-	Projects        []ProjectItem
-	AvailableAgents []string // agents discovered from hub/agents/*.md
+	Projects         []ProjectItem
+	AvailableAgents  []string // agents discovered from hub/agents/*.md
+	KnownMCPServices []string // MCP service names known by hub (e.g. figma, gitlab, gslides)
 }
 
 // ProjectsView displays the list of registered projects with full CRUD.
@@ -265,15 +268,44 @@ func (v *ProjectsView) configureProject() {
 		})
 	}
 
+	// MCP per-project overrides (tri-state: inherit / enabled / disabled)
+	mcpStateOptions := []SelectOption{
+		{Label: "Hérite hub", Value: "inherit"},
+		{Label: "Activer", Value: "enabled"},
+		{Label: "Désactiver", Value: "disabled"},
+	}
+	for _, svc := range v.cfg.KnownMCPServices {
+		current := "inherit"
+		if project.MCPOverrides != nil {
+			if val, ok := project.MCPOverrides[svc]; ok {
+				current = val
+			}
+		}
+		fields = append(fields, FormField{
+			Key:     "mcp." + svc,
+			Label:   "MCP " + svc,
+			Type:    FieldSelect,
+			Options: mcpStateOptions,
+			Default: current,
+		})
+	}
+
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title:  "Configurer: " + project.Name,
 		Fields: fields,
 		OnSubmit: func(values map[string]string, multi map[string][]string) {
+			mcpOverrides := make(map[string]string)
+			for _, svc := range v.cfg.KnownMCPServices {
+				if val, ok := values["mcp."+svc]; ok {
+					mcpOverrides[svc] = val
+				}
+			}
 			update := ProjectConfigUpdate{
-				Language: values["language"],
-				Provider: values["provider"],
-				Model:    values["model"],
-				Agents:   multi["agents"],
+				Language:     values["language"],
+				Provider:     values["provider"],
+				Model:        values["model"],
+				Agents:       multi["agents"],
+				MCPOverrides: mcpOverrides,
 			}
 			v.applyConfiguration(idx, update)
 		},
@@ -292,6 +324,7 @@ func (v *ProjectsView) applyConfiguration(idx int, update ProjectConfigUpdate) {
 	project.Provider = update.Provider
 	project.Model = update.Model
 	project.Agents = update.Agents
+	project.MCPOverrides = update.MCPOverrides
 
 	// Persist via callback
 	if v.onConfigure != nil {

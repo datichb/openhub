@@ -173,7 +173,7 @@ func TestConfigView_ImplementsView(t *testing.T) {
 func TestMCPView_ImplementsView(t *testing.T) {
 	var _ View = (*MCPView)(nil)
 
-	v := NewMCPView(nil)
+	v := NewMCPView(nil, MCPViewConfig{})
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	app := tview.NewApplication()
 
@@ -213,7 +213,7 @@ func TestTeamStatusView_ImplementsView(t *testing.T) {
 func TestWorktreeView_ImplementsView(t *testing.T) {
 	var _ View = (*WorktreeView)(nil)
 
-	v := NewWorktreeView(nil)
+	v := NewWorktreeView(nil, WorktreeViewConfig{})
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	app := tview.NewApplication()
 
