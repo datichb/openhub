@@ -37,29 +37,31 @@ type MCPViewConfig struct {
 	OnUpdateProjectMCP func(projectID, service, state string)
 }
 
-// MCPView displays MCP server management with contextual omnibar commands.
-// It shows hub-level config and, when a project is selected, per-project overrides.
+// MCPView displays MCP server management with two tview.List panels:
+//   - Hub panel (global config: enable/disable, token, write)
+//   - Project panel (per-project overrides: inherit/enabled/disabled)
+//
+// Tab switches focus between the two panels.
 type MCPView struct {
-	app      *tview.Application
-	appCtx   *app.App
-	cfg      MCPViewConfig
-	display  *tview.TextView
-	services []MCPService
-	shell    ShellAccess
-	commands []ContextCommand
+	app    *tview.Application
+	appCtx *app.App
+	cfg    MCPViewConfig
+	shell  ShellAccess
 
-	// Hub section cursor (0 … len(services)-1)
-	cursor int
+	// Layout
+	content     *tview.Flex
+	hubList     *tview.List
+	projectList *tview.List
+	projectLabel *tview.TextView
 
-	// Project section
-	projects          []domain.Project
+	// Data
+	services         []MCPService
+	projectOverrides []ProjectMCPOverride
+	projects         []domain.Project
 	selectedProjectID string
-	selectedProject   string // display name
-	projectOverrides  []ProjectMCPOverride
-	// inProjectSection: true when cursor is in the project overrides section
-	inProjectSection bool
-	// projectCursor: index within projectOverrides
-	projectCursor int
+	selectedProject   string
+
+	commands []ContextCommand
 }
 
 var _ View = (*MCPView)(nil)
@@ -81,76 +83,136 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · Space toggle · t token · Tab section · P projet · Enter toggle override"
+	return "j/k nav · Space toggle · t token · w écriture · Tab panel · p projet · Enter override"
 }
 
 // Mount builds the MCP management interface.
 func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.cursor = 0
-	v.inProjectSection = false
-	v.projectCursor = 0
 
-	v.display = tview.NewTextView().
-		SetDynamicColors(true).
-		SetScrollable(true)
-	v.display.SetBackgroundColor(theme.BgPanel)
-	v.display.SetBorderPadding(1, 1, 2, 2)
-
+	// ── Load data ──────────────────────────────────────────────────────
 	v.loadServices()
 	v.loadProjects()
-	v.render()
-	v.buildCommands()
 
-	content.AddItem(v.display, 0, 1, true)
+	// ── Hub label ──────────────────────────────────────────────────────
+	hubLabel := tview.NewTextView().
+		SetDynamicColors(true).
+		SetText(fmt.Sprintf("  %s─── Hub (global) ──────────────────────────────────────%s",
+			theme.ColorTag(theme.AccentHex), theme.TagColor))
+	hubLabel.SetBackgroundColor(theme.BgPanel)
+
+	// ── Hub list ───────────────────────────────────────────────────────
+	v.hubList = tview.NewList().
+		ShowSecondaryText(true).
+		SetHighlightFullLine(true).
+		SetMainTextColor(theme.FgPrimary).
+		SetSecondaryTextColor(theme.FgSecondary).
+		SetSelectedTextColor(theme.FgPrimary).
+		SetSelectedBackgroundColor(theme.Accent)
+	v.hubList.SetBackgroundColor(theme.BgPanel)
+	v.hubList.SetBorderPadding(0, 0, 2, 2)
+	v.populateHubList()
+
+	// ── Project label ─────────────────────────────────────────────────
+	v.projectLabel = tview.NewTextView().
+		SetDynamicColors(true)
+	v.projectLabel.SetBackgroundColor(theme.BgPanel)
+	v.updateProjectLabel()
+
+	// ── Project list ──────────────────────────────────────────────────
+	v.projectList = tview.NewList().
+		ShowSecondaryText(false).
+		SetHighlightFullLine(true).
+		SetMainTextColor(theme.FgPrimary).
+		SetSelectedTextColor(theme.FgPrimary).
+		SetSelectedBackgroundColor(theme.Accent)
+	v.projectList.SetBackgroundColor(theme.BgPanel)
+	v.projectList.SetBorderPadding(0, 0, 2, 2)
+	v.populateProjectList()
+
+	// ── Hints ─────────────────────────────────────────────────────────
+	hints := tview.NewTextView().
+		SetDynamicColors(true).
+		SetText(fmt.Sprintf("  %sHub: Space toggle · t token · w écriture   Projet: Enter override · p choisir   Tab: changer panel%s",
+			theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+	hints.SetBackgroundColor(theme.BgPanel)
+
+	// ── Layout ────────────────────────────────────────────────────────
+	v.content = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(hubLabel, 1, 0, false).
+		AddItem(v.hubList, len(v.services)+1, 0, true).
+		AddItem(v.projectLabel, 1, 0, false).
+		AddItem(v.projectList, v.projectListHeight(), 0, false).
+		AddItem(hints, 2, 0, false)
+	v.content.SetBackgroundColor(theme.BgPanel)
+
+	// ── Key handlers on lists ─────────────────────────────────────────
+	// Hub list: Space, t, w actions
+	v.hubList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyTab:
+			if len(v.projectOverrides) > 0 {
+				v.app.SetFocus(v.projectList)
+			}
+			return nil
+		}
+		switch event.Rune() {
+		case ' ':
+			v.toggleHubCurrent()
+			return nil
+		case 't':
+			v.promptTokenCurrent()
+			return nil
+		case 'w':
+			v.toggleWriteCurrent()
+			return nil
+		case 'p':
+			v.selectProject()
+			return nil
+		}
+		return event
+	})
+
+	// Project list: Enter cycle, p select, Tab back to hub
+	v.projectList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			v.cycleProjectOverride()
+			return nil
+		case tcell.KeyTab:
+			v.app.SetFocus(v.hubList)
+			return nil
+		}
+		switch event.Rune() {
+		case 'p':
+			v.selectProject()
+			return nil
+		}
+		return event
+	})
+
+	v.buildCommands()
+	content.AddItem(v.content, 0, 1, true)
 }
 
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
 	v.app = nil
-	v.display = nil
+	v.content = nil
+	v.hubList = nil
+	v.projectList = nil
+	v.projectLabel = nil
 	v.commands = nil
 }
 
-// HandleKey processes MCP view key events.
+// HandleKey delegates to the focused list; Tab is handled by the lists themselves.
 func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyTab:
-		v.toggleSection()
-		return nil
-	case tcell.KeyEnter:
-		if v.inProjectSection {
-			v.cycleProjectOverride()
-			return nil
-		}
-	}
-
-	switch event.Rune() {
-	case 'j':
-		v.moveCursorDown()
-		return nil
-	case 'k':
-		v.moveCursorUp()
-		return nil
-	case ' ':
-		if !v.inProjectSection {
-			v.toggleCurrent()
-		}
-		return nil
-	case 't':
-		if !v.inProjectSection {
-			v.promptTokenCurrent()
-		}
-		return nil
-	case 'w':
-		if !v.inProjectSection {
-			v.toggleWriteCurrent()
-		}
-		return nil
-	case 'P':
+	// p is handled by list InputCapture; ensure it doesn't fall through to omnibar.
+	if event.Rune() == 'p' {
 		v.selectProject()
 		return nil
 	}
+	// All other navigation is handled natively by the focused tview.List.
 	return event
 }
 
@@ -160,233 +222,216 @@ func (v *MCPView) ContextCommands() []ContextCommand {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Navigation
+// Hub list management
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPView) toggleSection() {
+func (v *MCPView) populateHubList() {
+	v.hubList.Clear()
+	for _, svc := range v.services {
+		main := v.hubItemText(svc)
+		secondary := v.hubItemSubtext(svc)
+		v.hubList.AddItem(main, secondary, 0, nil)
+	}
+}
+
+func (v *MCPView) hubItemText(svc MCPService) string {
+	var statusIcon, statusColor string
+	if svc.Enabled {
+		statusIcon = "✓"
+		statusColor = theme.SuccessHex
+	} else {
+		statusIcon = "✗"
+		statusColor = theme.TextMutedHex
+	}
+	return fmt.Sprintf("  %s%s%s  %s%-12s%s",
+		theme.ColorTag(statusColor), statusIcon, theme.TagColor,
+		theme.ColorTag(theme.TextPrimaryHex), svc.Name, theme.TagColor)
+}
+
+func (v *MCPView) hubItemSubtext(svc MCPService) string {
+	var parts []string
+
+	// Token indicator
+	if svc.Name == "team" {
+		parts = append(parts, fmt.Sprintf("     %s(sans token)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+	} else if svc.HasToken {
+		parts = append(parts, fmt.Sprintf("     %stoken ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor))
+	} else {
+		parts = append(parts, fmt.Sprintf("     %stoken manquant !%s", theme.ColorTag(theme.ErrorHex), theme.TagColor))
+	}
+
+	// Write mode (gitlab only)
+	if svc.Name == "gitlab" {
+		if svc.WriteEnabled {
+			parts = append(parts, fmt.Sprintf("%sécriture ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor))
+		} else {
+			parts = append(parts, fmt.Sprintf("%sécriture ✗%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+		}
+	}
+
+	return strings.Join(parts, "  ")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project list management
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *MCPView) populateProjectList() {
+	v.projectList.Clear()
 	if len(v.projectOverrides) == 0 {
-		return // no project selected, no project section
+		v.projectList.AddItem(
+			fmt.Sprintf("  %sAucun projet sélectionné — appuyez p pour choisir%s",
+				theme.ColorTag(theme.TextMutedHex), theme.TagColor),
+			"", 0, nil)
+		return
 	}
-	v.inProjectSection = !v.inProjectSection
-	v.render()
+	for _, ov := range v.projectOverrides {
+		v.projectList.AddItem(v.projectItemText(ov), "", 0, nil)
+	}
 }
 
-func (v *MCPView) moveCursorDown() {
-	if v.inProjectSection {
-		if v.projectCursor < len(v.projectOverrides)-1 {
-			v.projectCursor++
-			v.render()
-		}
+func (v *MCPView) projectItemText(ov ProjectMCPOverride) string {
+	var stateLabel, stateColor string
+	switch ov.Override {
+	case "enabled":
+		stateLabel = "activer   "
+		stateColor = theme.SuccessHex
+	case "disabled":
+		stateLabel = "désactiver"
+		stateColor = theme.ErrorHex
+	default:
+		stateLabel = "hérite hub"
+		stateColor = theme.TextMutedHex
+	}
+
+	var effLabel, effColor string
+	if ov.Effective {
+		effLabel = "actif"
+		effColor = theme.SuccessHex
 	} else {
-		if v.cursor < len(v.services)-1 {
-			v.cursor++
-			v.render()
-		}
+		effLabel = "inactif"
+		effColor = theme.TextMutedHex
 	}
+
+	return fmt.Sprintf("  %s%-12s%s  [%s%s%s]  → %s%s%s",
+		theme.ColorTag(theme.TextPrimaryHex), ov.Name, theme.TagColor,
+		theme.ColorTag(stateColor), stateLabel, theme.TagColor,
+		theme.ColorTag(effColor), effLabel, theme.TagColor)
 }
 
-func (v *MCPView) moveCursorUp() {
-	if v.inProjectSection {
-		if v.projectCursor > 0 {
-			v.projectCursor--
-			v.render()
-		}
-	} else {
-		if v.cursor > 0 {
-			v.cursor--
-			v.render()
-		}
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Rendering
-// ─────────────────────────────────────────────────────────────────────────────
-
-func (v *MCPView) render() {
-	var b strings.Builder
-
-	// ── Hub section ──
-	b.WriteString(fmt.Sprintf("  %s─── Hub (global) ───%s\n\n",
-		theme.ColorTag(theme.AccentHex), theme.TagColor))
-
-	for i, svc := range v.services {
-		var statusIcon, statusColor string
-		if svc.Enabled {
-			statusIcon = "✓"
-			statusColor = theme.SuccessHex
-		} else {
-			statusIcon = "✗"
-			statusColor = theme.TextMutedHex
-		}
-
-		var tokenIcon, tokenColor string
-		if svc.Name == "team" {
-			tokenIcon = "—"
-			tokenColor = theme.TextMutedHex
-		} else if svc.HasToken {
-			tokenIcon = "✓"
-			tokenColor = theme.SuccessHex
-		} else {
-			tokenIcon = "!"
-			tokenColor = theme.ErrorHex
-		}
-
-		var writeInfo string
-		if svc.Name == "gitlab" {
-			if svc.WriteEnabled {
-				writeInfo = fmt.Sprintf("  %sécriture ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
-			} else {
-				writeInfo = fmt.Sprintf("  %sécriture ✗%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-			}
-		}
-
-		if !v.inProjectSection && i == v.cursor {
-			b.WriteString(fmt.Sprintf("  %s▸%s  %s%-12s%s  %s%s%s  token %s%s%s%s\n",
-				theme.ColorTag(theme.ActionHex), theme.TagColor,
-				theme.ColorTag(theme.TextPrimaryHex), svc.Name, theme.TagColor,
-				theme.ColorTag(statusColor), statusIcon, theme.TagColor,
-				theme.ColorTag(tokenColor), tokenIcon, theme.TagColor,
-				writeInfo))
-		} else {
-			b.WriteString(fmt.Sprintf("     %s%-12s%s  %s%s%s  token %s%s%s%s\n",
-				theme.ColorTag(theme.TextSecondaryHex), svc.Name, theme.TagColor,
-				theme.ColorTag(statusColor), statusIcon, theme.TagColor,
-				theme.ColorTag(tokenColor), tokenIcon, theme.TagColor,
-				writeInfo))
-		}
-	}
-
-	b.WriteString(fmt.Sprintf("\n  %sSpace toggle · t token · w écriture · Tab section projet%s\n",
-		theme.ColorTag(theme.TextMutedHex), theme.TagColor))
-
-	// ── Project section ──
-	b.WriteString("\n")
-
+func (v *MCPView) updateProjectLabel() {
 	if v.selectedProjectID == "" {
-		b.WriteString(fmt.Sprintf("  %s─── Projet ───%s\n", theme.ColorTag(theme.AccentHex), theme.TagColor))
-		b.WriteString(fmt.Sprintf("  %sAucun projet sélectionné — appuyez P pour choisir%s\n",
-			theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+		v.projectLabel.SetText(fmt.Sprintf("  %s─── Projet (aucun sélectionné) ──────────────────────%s",
+			theme.ColorTag(theme.AccentHex), theme.TagColor))
 	} else {
-		b.WriteString(fmt.Sprintf("  %s─── Projet : %s ───%s\n\n",
+		v.projectLabel.SetText(fmt.Sprintf("  %s─── Projet : %s ──────────────────────────────────────%s",
 			theme.ColorTag(theme.AccentHex), v.selectedProject, theme.TagColor))
-
-		for i, ov := range v.projectOverrides {
-			// State label
-			var stateLabel, stateColor string
-			switch ov.Override {
-			case "enabled":
-				stateLabel = "activer       "
-				stateColor = theme.SuccessHex
-			case "disabled":
-				stateLabel = "désactiver    "
-				stateColor = theme.ErrorHex
-			default:
-				stateLabel = "hérite hub    "
-				stateColor = theme.TextMutedHex
-			}
-
-			// Effective indicator
-			var effLabel, effColor string
-			if ov.Effective {
-				effLabel = "actif"
-				effColor = theme.SuccessHex
-			} else {
-				effLabel = "inactif"
-				effColor = theme.TextMutedHex
-			}
-
-			if v.inProjectSection && i == v.projectCursor {
-				b.WriteString(fmt.Sprintf("  %s▸%s  %s%-12s%s  [%s%s%s]  → %s%s%s\n",
-					theme.ColorTag(theme.ActionHex), theme.TagColor,
-					theme.ColorTag(theme.TextPrimaryHex), ov.Name, theme.TagColor,
-					theme.ColorTag(stateColor), stateLabel, theme.TagColor,
-					theme.ColorTag(effColor), effLabel, theme.TagColor))
-			} else {
-				b.WriteString(fmt.Sprintf("     %s%-12s%s  [%s%s%s]  → %s%s%s\n",
-					theme.ColorTag(theme.TextSecondaryHex), ov.Name, theme.TagColor,
-					theme.ColorTag(stateColor), stateLabel, theme.TagColor,
-					theme.ColorTag(effColor), effLabel, theme.TagColor))
-			}
-		}
-		b.WriteString(fmt.Sprintf("\n  %sEnter toggle · P changer projet · Tab section hub%s\n",
-			theme.ColorTag(theme.TextMutedHex), theme.TagColor))
 	}
+}
 
-	v.display.SetText(b.String())
+func (v *MCPView) projectListHeight() int {
+	if len(v.projectOverrides) == 0 {
+		return 2
+	}
+	return len(v.projectOverrides) + 1
+}
+
+// resizeProjectList updates the project list height in the layout after data change.
+func (v *MCPView) resizeProjectList() {
+	if v.content == nil {
+		return
+	}
+	// Rebuild layout to update heights (tview.Flex doesn't support dynamic resize directly)
+	// Simpler: just update the item fixed size via ResizeItem
+	v.content.ResizeItem(v.projectList, v.projectListHeight(), 0)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hub-level actions
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPView) toggleCurrent() {
-	if v.cursor < 0 || v.cursor >= len(v.services) {
+func (v *MCPView) toggleHubCurrent() {
+	idx := v.hubList.GetCurrentItem()
+	if idx < 0 || idx >= len(v.services) {
 		return
 	}
-	svc := &v.services[v.cursor]
+	svc := &v.services[idx]
 	svc.Enabled = !svc.Enabled
 
 	vip := mcpConfigViper()
 	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), svc.Enabled)
 	_ = vip.WriteConfigAs(config.ConfigPath())
 
-	v.render()
+	// Update list item in place
+	v.hubList.SetItemText(idx, v.hubItemText(*svc), v.hubItemSubtext(*svc))
+
+	// Recompute effective states in project overrides
+	v.recomputeEffective()
+	v.populateProjectList()
+
 	v.buildCommands()
+
+	if v.shell != nil {
+		if svc.Enabled {
+			v.shell.ShowToastMsg(svc.Name+" activé", true)
+		} else {
+			v.shell.ShowToastMsg(svc.Name+" désactivé", true)
+		}
+	}
 }
 
 func (v *MCPView) promptTokenCurrent() {
-	if v.cursor < 0 || v.cursor >= len(v.services) {
+	idx := v.hubList.GetCurrentItem()
+	if idx < 0 || idx >= len(v.services) {
 		return
 	}
-	svc := v.services[v.cursor]
-	if svc.Name == "team" {
-		return
-	}
-	v.promptToken(v.cursor)
-}
-
-func (v *MCPView) toggleWriteCurrent() {
-	if v.cursor < 0 || v.cursor >= len(v.services) {
-		return
-	}
-	svc := &v.services[v.cursor]
-	if svc.Name != "gitlab" {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Écriture non applicable pour "+svc.Name, false)
-		}
-		return
-	}
-
-	svc.WriteEnabled = !svc.WriteEnabled
-	vip := mcpConfigViper()
-	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), svc.WriteEnabled)
-	_ = vip.WriteConfigAs(config.ConfigPath())
-
-	v.render()
-	v.buildCommands()
-	if v.shell != nil {
-		if svc.WriteEnabled {
-			v.shell.ShowToastMsg("Écriture activée pour "+svc.Name, true)
-		} else {
-			v.shell.ShowToastMsg("Écriture désactivée pour "+svc.Name, true)
-		}
-	}
-}
-
-func (v *MCPView) promptToken(idx int) {
 	svc := v.services[idx]
+	if svc.Name == "team" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("team n'utilise pas de token", false)
+		}
+		return
+	}
 	if v.shell != nil {
 		v.shell.ShowInputModal("Token "+svc.Name, "", func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", svc.Name)
 				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
 				v.services[idx].HasToken = true
-				v.render()
+				v.hubList.SetItemText(idx, v.hubItemText(v.services[idx]), v.hubItemSubtext(v.services[idx]))
 				v.buildCommands()
-				v.shell.ShowToastMsg("Token enregistré", true)
+				v.shell.ShowToastMsg("Token enregistré pour "+svc.Name, true)
 			}
 		})
+	}
+}
+
+func (v *MCPView) toggleWriteCurrent() {
+	idx := v.hubList.GetCurrentItem()
+	if idx < 0 || idx >= len(v.services) {
+		return
+	}
+	svc := &v.services[idx]
+	if svc.Name != "gitlab" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Écriture applicable uniquement à gitlab", false)
+		}
+		return
+	}
+	svc.WriteEnabled = !svc.WriteEnabled
+	vip := mcpConfigViper()
+	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), svc.WriteEnabled)
+	_ = vip.WriteConfigAs(config.ConfigPath())
+
+	v.hubList.SetItemText(idx, v.hubItemText(*svc), v.hubItemSubtext(*svc))
+	v.buildCommands()
+
+	if v.shell != nil {
+		if svc.WriteEnabled {
+			v.shell.ShowToastMsg("Écriture gitlab activée", true)
+		} else {
+			v.shell.ShowToastMsg("Écriture gitlab désactivée", true)
+		}
 	}
 }
 
@@ -397,7 +442,9 @@ func (v *MCPView) toggleService(name string, enable bool) {
 			vip := mcpConfigViper()
 			vip.Set(fmt.Sprintf("mcp.%s.enabled", name), enable)
 			_ = vip.WriteConfigAs(config.ConfigPath())
-			v.render()
+			v.hubList.SetItemText(i, v.hubItemText(v.services[i]), v.hubItemSubtext(v.services[i]))
+			v.recomputeEffective()
+			v.populateProjectList()
 			v.buildCommands()
 			return
 		}
@@ -408,29 +455,31 @@ func (v *MCPView) toggleService(name string, enable bool) {
 // Project-level actions
 // ─────────────────────────────────────────────────────────────────────────────
 
-// selectProject opens a modal to choose the active project for override display.
 func (v *MCPView) selectProject() {
-	if v.shell == nil || len(v.projects) == 0 {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Aucun projet enregistré", false)
-		}
+	if v.shell == nil {
 		return
 	}
-
+	if len(v.projects) == 0 {
+		v.shell.ShowToastMsg("Aucun projet enregistré", false)
+		return
+	}
 	options := make([]SelectOption, len(v.projects))
 	for i, p := range v.projects {
 		options[i] = SelectOption{Label: p.Name, Value: p.ID}
 	}
-
 	v.shell.ShowSelectModal("Choisir un projet", options, v.selectedProjectID, func(projectID string) {
 		for _, p := range v.projects {
 			if p.ID == projectID {
 				v.selectedProjectID = p.ID
 				v.selectedProject = p.Name
 				v.rebuildProjectOverrides(p)
-				v.inProjectSection = true
-				v.projectCursor = 0
-				v.render()
+				v.updateProjectLabel()
+				v.populateProjectList()
+				v.resizeProjectList()
+				// Switch focus to project list
+				if v.app != nil {
+					v.app.SetFocus(v.projectList)
+				}
 				v.buildCommands()
 				return
 			}
@@ -438,12 +487,12 @@ func (v *MCPView) selectProject() {
 	})
 }
 
-// cycleProjectOverride cycles the selected service through inherit → enabled → disabled → inherit.
 func (v *MCPView) cycleProjectOverride() {
-	if v.projectCursor < 0 || v.projectCursor >= len(v.projectOverrides) {
+	idx := v.projectList.GetCurrentItem()
+	if idx < 0 || idx >= len(v.projectOverrides) {
 		return
 	}
-	ov := &v.projectOverrides[v.projectCursor]
+	ov := &v.projectOverrides[idx]
 
 	next := map[string]string{
 		"inherit":  "enabled",
@@ -451,17 +500,15 @@ func (v *MCPView) cycleProjectOverride() {
 		"disabled": "inherit",
 	}
 	ov.Override = next[ov.Override]
-
-	// Recompute effective state
 	ov.Effective = v.resolveEffective(ov.Name, ov.Override)
 
-	// Persist via callback
+	// Persist
 	if v.cfg.OnUpdateProjectMCP != nil {
 		v.cfg.OnUpdateProjectMCP(v.selectedProjectID, ov.Name, ov.Override)
 	}
 
-	v.render()
-	v.buildCommands()
+	// Update list item in place
+	v.projectList.SetItemText(idx, v.projectItemText(*ov), "")
 
 	if v.shell != nil {
 		labels := map[string]string{
@@ -471,11 +518,11 @@ func (v *MCPView) cycleProjectOverride() {
 		}
 		v.shell.ShowToastMsg(fmt.Sprintf("%s : %s", ov.Name, labels[ov.Override]), true)
 	}
+
+	v.buildCommands()
 }
 
-// rebuildProjectOverrides rebuilds the projectOverrides slice from project MCPConfig.
 func (v *MCPView) rebuildProjectOverrides(p domain.Project) {
-	// Collect per-project overrides
 	overrideMap := make(map[string]string)
 	if p.MCPConfig != nil {
 		for _, svc := range p.MCPConfig.Services {
@@ -488,9 +535,7 @@ func (v *MCPView) rebuildProjectOverrides(p domain.Project) {
 			}
 		}
 	}
-
-	// One row per hub service (excluding "team" which has no project override)
-	v.projectOverrides = make([]ProjectMCPOverride, 0, len(v.services))
+	v.projectOverrides = v.projectOverrides[:0]
 	for _, svc := range v.services {
 		if svc.Name == "team" {
 			continue
@@ -507,9 +552,16 @@ func (v *MCPView) rebuildProjectOverrides(p domain.Project) {
 	}
 }
 
-// resolveEffective computes the effective MCP state (hub enabled + override).
+func (v *MCPView) recomputeEffective() {
+	for i := range v.projectOverrides {
+		v.projectOverrides[i].Effective = v.resolveEffective(
+			v.projectOverrides[i].Name,
+			v.projectOverrides[i].Override,
+		)
+	}
+}
+
 func (v *MCPView) resolveEffective(serviceName, override string) bool {
-	// Find hub-level enabled state
 	hubEnabled := false
 	for _, svc := range v.services {
 		if svc.Name == serviceName {
@@ -522,7 +574,7 @@ func (v *MCPView) resolveEffective(serviceName, override string) bool {
 		return true
 	case "disabled":
 		return false
-	default: // "inherit"
+	default:
 		return hubEnabled
 	}
 }
@@ -534,18 +586,13 @@ func (v *MCPView) resolveEffective(serviceName, override string) bool {
 func (v *MCPView) loadServices() {
 	serviceNames := []string{"figma", "gitlab", "gslides", "team"}
 	v.services = make([]MCPService, 0, len(serviceNames))
-
 	vip := mcpConfigViper()
-
 	for _, name := range serviceNames {
-		enabled := vip.GetBool(fmt.Sprintf("mcp.%s.enabled", name))
-		writeEnabled := vip.GetBool(fmt.Sprintf("mcp.%s.write_enabled", name))
-		hasToken := v.checkToken(name)
 		v.services = append(v.services, MCPService{
 			Name:         name,
-			Enabled:      enabled,
-			HasToken:     hasToken,
-			WriteEnabled: writeEnabled,
+			Enabled:      vip.GetBool(fmt.Sprintf("mcp.%s.enabled", name)),
+			HasToken:     v.checkToken(name),
+			WriteEnabled: vip.GetBool(fmt.Sprintf("mcp.%s.write_enabled", name)),
 		})
 	}
 }
@@ -562,11 +609,11 @@ func (v *MCPView) loadProjects() {
 }
 
 func (v *MCPView) checkToken(serviceName string) bool {
-	if v.appCtx == nil || v.appCtx.Secrets == nil {
-		return false
-	}
 	if serviceName == "team" {
 		return true
+	}
+	if v.appCtx == nil || v.appCtx.Secrets == nil {
+		return false
 	}
 	key := fmt.Sprintf("%s-token", serviceName)
 	val, err := v.appCtx.Secrets.Get(context.Background(), key)
@@ -580,10 +627,8 @@ func (v *MCPView) checkToken(serviceName string) bool {
 func (v *MCPView) buildCommands() {
 	var cmds []ContextCommand
 
-	// Hub-level commands
 	for _, svc := range v.services {
 		svc := svc
-
 		var desc string
 		if svc.Enabled {
 			desc = "✓ → désactiver"
@@ -596,11 +641,8 @@ func (v *MCPView) buildCommands() {
 			Aliases:     []string{"toggle " + svc.Name},
 			Description: desc,
 			Category:    "MCP",
-			Action: func() {
-				v.toggleService(svc.Name, !svc.Enabled)
-			},
+			Action:      func() { v.toggleService(svc.Name, !svc.Enabled) },
 		})
-
 		if svc.Name != "team" {
 			cmds = append(cmds, ContextCommand{
 				ID:          "token." + svc.Name,
@@ -611,7 +653,8 @@ func (v *MCPView) buildCommands() {
 				Action: func() {
 					for i, s := range v.services {
 						if s.Name == svc.Name {
-							v.promptToken(i)
+							v.hubList.SetCurrentItem(i)
+							v.promptTokenCurrent()
 							return
 						}
 					}
@@ -620,17 +663,16 @@ func (v *MCPView) buildCommands() {
 		}
 	}
 
-	// Write toggle for gitlab
 	cmds = append(cmds, ContextCommand{
 		ID:          "write.gitlab",
 		Label:       "gitlab écriture",
-		Aliases:     []string{"write gitlab", "gitlab write"},
+		Aliases:     []string{"write gitlab"},
 		Description: "Toggle mode écriture GitLab",
 		Category:    "MCP",
 		Action: func() {
 			for i, s := range v.services {
 				if s.Name == "gitlab" {
-					v.cursor = i
+					v.hubList.SetCurrentItem(i)
 					v.toggleWriteCurrent()
 					return
 				}
@@ -638,21 +680,22 @@ func (v *MCPView) buildCommands() {
 		},
 	})
 
-	// Project-level commands (if a project is selected)
 	if v.selectedProjectID != "" {
 		for _, ov := range v.projectOverrides {
 			ov := ov
 			cmds = append(cmds, ContextCommand{
 				ID:          "proj.mcp." + ov.Name,
 				Label:       "projet " + ov.Name,
-				Aliases:     []string{ov.Name + " projet", "mcp " + ov.Name + " projet"},
-				Description: fmt.Sprintf("Override %s: %s → cycle", ov.Name, ov.Override),
+				Aliases:     []string{ov.Name + " projet"},
+				Description: fmt.Sprintf("Override %s : %s → cycle", ov.Name, ov.Override),
 				Category:    "MCP Projet",
 				Action: func() {
 					for i, o := range v.projectOverrides {
 						if o.Name == ov.Name {
-							v.inProjectSection = true
-							v.projectCursor = i
+							v.projectList.SetCurrentItem(i)
+							if v.app != nil {
+								v.app.SetFocus(v.projectList)
+							}
 							v.cycleProjectOverride()
 							return
 						}
@@ -660,7 +703,6 @@ func (v *MCPView) buildCommands() {
 				},
 			})
 		}
-
 		cmds = append(cmds, ContextCommand{
 			ID:          "proj.select",
 			Label:       "changer projet MCP",

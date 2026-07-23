@@ -739,12 +739,11 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 
-	// Tab: reserved for future multi-panel cycling
-	if event.Key() == tcell.KeyTab {
-		return event
-	}
-
-	// Delegate to current view's key handler
+	// Delegate to current view's key handler.
+	// Note: Tab is intentionally NOT intercepted here — views that want to
+	// use Tab for panel switching (e.g. MCPView) capture it in HandleKey.
+	// Views that don't handle Tab return the event, and tview's native focus
+	// cycling takes over (Phase 2).
 	if cur := s.router.Current(); cur != nil {
 		result := cur.HandleKey(event)
 		if result == nil {
