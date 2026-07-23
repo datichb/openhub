@@ -132,6 +132,13 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 			return fmt.Errorf("creating worktree for %s: %w", ticket, err)
 		}
 
+		// Link the worktree to the main project's deployed config via relative
+		// symlinks. The main project must be deployed before coord.Run() is called
+		// (autoDeployIfNeeded in start_parallel_mode.go ensures this).
+		if err := worktree.EnsureWorktreeConfig(wtPath, c.opts.ProjectPath); err != nil {
+			return fmt.Errorf("linking config for worktree %s: %w", ticket, err)
+		}
+
 		port := c.opts.Config.PortRangeStart + i
 		isPriority := c.opts.Priority != "" && c.opts.Priority == ticket
 

@@ -72,6 +72,11 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	}
 	fmt.Fprintln(a.IO.Out)
 
+	// Auto-deploy the main project before creating worktrees.
+	// Each worktree will symlink to this deployed config instead of deploying independently.
+	skipYes, _ := cmd.Flags().GetBool("yes")
+	autoDeployIfNeeded(a, project, findHubDir(), "", "", skipYes)
+
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
 		ProjectPath: project.Path,
 		ProjectID:   project.ID,

@@ -154,6 +154,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
 
+	// --- Auto-deploy if needed ---
+	// Ensures the project's deployed config (.opencode/, opencode.json) is up
+	// to date before launching. Non-blocking on success; warns and pauses on error.
+	if !onboardMode {
+		skipConfirmEarly, _ := cmd.Flags().GetBool("yes")
+		autoDeployIfNeeded(a, project, findHubDir(), provider, "", skipConfirmEarly)
+	}
+
 	// --- Dev mode ---
 	if devMode {
 		devAgent, devPrompt, err := handleDevMode(cmd, a, project, launchPath)
@@ -404,32 +412,123 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.start.worktree_path", wtPath))
 
-	hubDir := findHubDir()
-	if hubDir == "" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.start.hub_not_found_warning"))
-		return wtPath, nil
+	// Link worktree to the main project's deployed config via relative symlinks.
+	// The main project is guaranteed to be deployed by autoDeployIfNeeded()
+	// which runs before handleWorktreeMode in the start flow.
+	if err := worktree.EnsureWorktreeConfig(wtPath, project.Path); err != nil {
+		return "", fmt.Errorf("worktree config: %w", err)
 	}
-
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.worktree_deploy"))
-
-	plan := buildDeployPlan(a, wtPath, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig)
-	results, err := deploy.Execute(plan)
-	if err != nil {
-		return "", fmt.Errorf("%s", i18n.Tf("cmd.start.worktree_deploy_failed", err))
-	}
-
-	for _, r := range results {
-		if r.Success {
-			fmt.Fprintf(a.IO.Out, "    %s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), r.Name)
-		} else {
-			fmt.Fprintf(a.IO.Out, "    %s %s: %s\n",
-				theme.ErrorStyle.Render(theme.IconError), r.Name, r.Message)
-		}
-	}
-	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.T("cmd.start.worktree_linked"))
 
 	return wtPath, nil
+}
+
+// autoDeployIfNeeded checks whether the project's deployed configuration is
+// absent or stale, and auto-deploys if necessary. It always prints a status
+// line so the user knows what happened. On error it prints a warning and waits
+// for the user to press Enter (unless skipPrompt is true).
+func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, model string, skipPrompt bool) {
+	if hubDir == "" {
+		return // hub content not available — nothing to deploy
+	}
+
+	out := a.IO.Out
+
+	// CASE 1: Never deployed (no .deploy-state)
+	if deploy.ReadDeployState(project.Path) == nil {
+		var results []deploy.PhaseResult
+		err := progress.Run(
+			i18n.T("cmd.start.autodeploy_first"),
+			func() error {
+				plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
+					project.Agents, project.ModelOverrides, project.MCPConfig)
+				var e error
+				results, e = deploy.Execute(plan)
+				return e
+			},
+		)
+		if err != nil {
+			fmt.Fprintf(out, "  %s %s\n",
+				theme.WarningStyle.Render(theme.IconWarning),
+				i18n.Tf("cmd.start.autodeploy_failed", err))
+			if !skipPrompt {
+				fmt.Fprintf(out, "  %s", i18n.T("cmd.start.autodeploy_continue"))
+				fmt.Scanln()
+			}
+			return
+		}
+		agentCount, skillCount, mcpCount := countDeployResults(results)
+		fmt.Fprintf(out, "  %s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.start.autodeploy_done_first", agentCount, skillCount, mcpCount))
+		return
+	}
+
+	// CASE 2: Already deployed — check staleness
+	report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents)
+	if err != nil || !report.HasChanges() {
+		// CASE 3: Up to date (or diff error — conservative, no redeploy)
+		fmt.Fprintf(out, "  %s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.T("cmd.start.autodeploy_uptodate"))
+		return
+	}
+
+	// CASE 4: Stale — incremental deploy
+	added, modified, removed, _ := report.Summary()
+	err = progress.Run(
+		i18n.Tf("cmd.start.autodeploy_updating", added, modified, removed),
+		func() error {
+			plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
+				project.Agents, project.ModelOverrides, project.MCPConfig)
+			_, e := deploy.Execute(plan)
+			return e
+		},
+	)
+	if err != nil {
+		fmt.Fprintf(out, "  %s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.start.autodeploy_failed", err))
+		if !skipPrompt {
+			fmt.Fprintf(out, "  %s", i18n.T("cmd.start.autodeploy_continue"))
+			fmt.Scanln()
+		}
+		return
+	}
+	fmt.Fprintf(out, "  %s %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.T("cmd.start.autodeploy_done_update"))
+}
+
+// countDeployResults extracts agent, skill and MCP counts from phase results.
+func countDeployResults(results []deploy.PhaseResult) (agents, skills, mcp int) {
+	for _, r := range results {
+		if !r.Success {
+			continue
+		}
+		switch r.Name {
+		case "agents":
+			agents = parseCount(r.Message)
+		case "skills":
+			skills = parseCount(r.Message)
+		case "mcp":
+			mcp = parseCount(r.Message)
+		}
+	}
+	return
+}
+
+// parseCount extracts the first integer from a string like "3 deployed".
+func parseCount(s string) int {
+	n := 0
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			n = n*10 + int(c-'0')
+		} else if n > 0 {
+			break
+		}
+	}
+	return n
 }
