@@ -10,14 +10,26 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
+
+// WorktreeViewConfig holds the optional callbacks for the worktree view.
+type WorktreeViewConfig struct {
+	// DeployProject triggers a full hub deploy into projectPath.
+	// Called automatically when EnsureWorktreeConfig detects the project has
+	// not been deployed yet. If nil, auto-deploy is skipped and the user sees
+	// an error toast instead.
+	DeployProject func(projectPath string) error
+}
 
 // WorktreeView displays and manages git worktrees for the active project.
 type WorktreeView struct {
 	app    *tview.Application
 	appCtx *app.App
+	cfg    WorktreeViewConfig
 	list   *tview.List
 	shell  ShellAccess
 	items  []worktree.Entry
@@ -26,8 +38,8 @@ type WorktreeView struct {
 var _ View = (*WorktreeView)(nil)
 
 // NewWorktreeView creates a new worktree view.
-func NewWorktreeView(a *app.App) *WorktreeView {
-	return &WorktreeView{appCtx: a}
+func NewWorktreeView(a *app.App, cfg WorktreeViewConfig) *WorktreeView {
+	return &WorktreeView{appCtx: a, cfg: cfg}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -41,7 +53,7 @@ func (v *WorktreeView) Title() string { return "Worktrees" }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return "j/k nav · a ajouter · d supprimer · p prune · C cleanup · r refresh · Esc retour"
+	return "j/k nav · a ajouter · d supprimer · o ouvrir · p prune · C cleanup · r refresh · Esc retour"
 }
 
 // Mount builds the worktree list.
@@ -81,6 +93,9 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'd':
 		v.removeWorktree()
+		return nil
+	case 'o':
+		v.openInTerminal()
 		return nil
 	case 'p':
 		v.pruneWorktrees()
@@ -279,6 +294,94 @@ func (v *WorktreeView) getProjectPath() string {
 	return project.Path
 }
 
+// openInTerminal opens the selected worktree in a new terminal window running opencode.
+// It ensures hub config symlinks exist in the worktree first, triggering an
+// automatic deploy into the main project if needed.
+func (v *WorktreeView) openInTerminal() {
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= len(v.items) {
+		return
+	}
+	wt := v.items[idx]
+
+	projectPath := v.getProjectPath()
+	if projectPath == "" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Aucun projet actif", false)
+		}
+		return
+	}
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Préparation du worktree...", true)
+	}
+
+	go func() {
+		// Step 1: ensure worktree has config symlinks.
+		err := worktree.EnsureWorktreeConfig(wt.Path, projectPath)
+
+		if err == worktree.ErrProjectNotDeployed {
+			// Main project not deployed yet — trigger auto-deploy.
+			if v.cfg.DeployProject == nil {
+				v.app.QueueUpdateDraw(func() {
+					if v.shell != nil {
+						v.shell.ShowToastMsg("Projet non déployé — lancez 'oh deploy' d'abord", false)
+					}
+				})
+				return
+			}
+			// Deploy into the main project, then retry.
+			if deployErr := v.cfg.DeployProject(projectPath); deployErr != nil {
+				v.app.QueueUpdateDraw(func() {
+					if v.shell != nil {
+						v.shell.ShowToastMsg("Déploiement échoué: "+deployErr.Error(), false)
+					}
+				})
+				return
+			}
+			// Retry symlinks now that deploy is done.
+			err = worktree.EnsureWorktreeConfig(wt.Path, projectPath)
+		}
+
+		if err != nil {
+			v.app.QueueUpdateDraw(func() {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Erreur config worktree: "+err.Error(), false)
+				}
+			})
+			return
+		}
+
+		// Step 2: resolve opencode binary path.
+		ocBin, binErr := resolveOpencodeBinary()
+		if binErr != nil {
+			v.app.QueueUpdateDraw(func() {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("opencode introuvable: "+binErr.Error(), false)
+				}
+			})
+			return
+		}
+
+		// Step 3: open new terminal.
+		termErr := termlaunch.OpenInNewTerminal(wt.Path, ocBin)
+		v.app.QueueUpdateDraw(func() {
+			if termErr != nil {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Impossible d'ouvrir le terminal: "+termErr.Error(), false)
+				}
+				return
+			}
+			if v.shell != nil {
+				v.shell.ShowToastMsg(
+					fmt.Sprintf("opencode ouvert dans %s — %s", termlaunch.Detect(), wt.Branch),
+					true,
+				)
+			}
+		})
+	}()
+}
+
 // resolveFirstProject returns the first available project (helper for views).
 func resolveFirstProject(a *app.App) (*domain.Project, error) {
 	projects, err := a.Projects.List(context.Background(), "")
@@ -286,4 +389,9 @@ func resolveFirstProject(a *app.App) (*domain.Project, error) {
 		return nil, fmt.Errorf("no projects")
 	}
 	return &projects[0], nil
+}
+
+// resolveOpencodeBinary returns the absolute path to the opencode binary.
+func resolveOpencodeBinary() (string, error) {
+	return opencode.FindBinary()
 }

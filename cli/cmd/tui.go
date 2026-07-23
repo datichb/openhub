@@ -503,7 +503,11 @@ func buildViews(a *app.App) []views.View {
 		projectsView,
 		views.NewTeamStatusView(a),
 		views.NewActivityView(a),
-		views.NewWorktreeView(a),
+		views.NewWorktreeView(a, views.WorktreeViewConfig{
+			DeployProject: func(projectPath string) error {
+				return runDeployForProject(a, &domain.Project{Path: projectPath})
+			},
+		}),
 		views.NewStatusView(a),
 		views.NewMetricsView(),
 		views.NewDoctorView(a),

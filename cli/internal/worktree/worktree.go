@@ -345,6 +345,75 @@ func BranchName(pattern, ticketID string) string {
 	return fmt.Sprintf(pattern, ticketID)
 }
 
+// EnsureWorktreeConfig creates symlinks inside wtPath so that it shares the
+// hub configuration of the main project at projectPath. This mirrors the
+// git worktree pattern: rather than copying or deploying separately, the
+// worktree points back to the parent's deployed config.
+//
+// Symlinks created (all relative):
+//
+//	<wtPath>/.opencode    → ../<repo>/.opencode
+//	<wtPath>/opencode.json → ../<repo>/opencode.json
+//
+// If the main project has not been deployed yet (.opencode/ does not exist),
+// EnsureWorktreeConfig returns ErrProjectNotDeployed so the caller can trigger
+// a deploy first.
+//
+// Existing symlinks or directories are left untouched (idempotent).
+var ErrProjectNotDeployed = fmt.Errorf("project has not been deployed yet (.opencode/ missing in main project)")
+
+func EnsureWorktreeConfig(wtPath, projectPath string) error {
+	// Compute the relative path from wtPath to projectPath.
+	// Worktrees are always siblings: ../reponame relative to wtPath.
+	relProject, err := filepath.Rel(wtPath, projectPath)
+	if err != nil {
+		return fmt.Errorf("computing relative path: %w", err)
+	}
+
+	// Check the main project has been deployed.
+	mainOpencode := filepath.Join(projectPath, ".opencode")
+	mainConfig := filepath.Join(projectPath, "opencode.json")
+
+	if _, err := os.Stat(mainOpencode); os.IsNotExist(err) {
+		return ErrProjectNotDeployed
+	}
+
+	// Ensure wtPath exists.
+	if err := os.MkdirAll(wtPath, 0o755); err != nil {
+		return fmt.Errorf("ensuring worktree directory: %w", err)
+	}
+
+	// Symlink .opencode/
+	if err := ensureSymlink(
+		filepath.Join(wtPath, ".opencode"),
+		filepath.Join(relProject, ".opencode"),
+	); err != nil {
+		return fmt.Errorf("symlinking .opencode: %w", err)
+	}
+
+	// Symlink opencode.json (only if it exists in the main project)
+	if _, err := os.Stat(mainConfig); err == nil {
+		if err := ensureSymlink(
+			filepath.Join(wtPath, "opencode.json"),
+			filepath.Join(relProject, "opencode.json"),
+		); err != nil {
+			return fmt.Errorf("symlinking opencode.json: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ensureSymlink creates a symlink at linkPath pointing to target if it does
+// not already exist. Existing symlinks (even with different targets) are left
+// untouched to avoid disrupting intentional overrides.
+func ensureSymlink(linkPath, target string) error {
+	if _, err := os.Lstat(linkPath); err == nil {
+		return nil // already exists (file, dir, or symlink) — leave it
+	}
+	return os.Symlink(target, linkPath)
+}
+
 // BulkCreate creates multiple worktrees sequentially (to avoid .git/index.lock contention).
 // Returns a slice of worktree paths in the same order as the input branches.
 func BulkCreate(projectPath string, branches []string) ([]string, error) {
