@@ -3,8 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"strings"
+	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -12,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // WorktreeView displays and manages git worktrees for the active project.
@@ -20,12 +20,7 @@ type WorktreeView struct {
 	appCtx *app.App
 	list   *tview.List
 	shell  ShellAccess
-	items  []worktreeItem
-}
-
-type worktreeItem struct {
-	Path   string
-	Branch string
+	items  []worktree.Entry
 }
 
 var _ View = (*WorktreeView)(nil)
@@ -98,55 +93,56 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *WorktreeView) refresh() {
-	v.items = v.listWorktrees()
-	v.list.Clear()
+	projectPath := v.getProjectPath()
+	if projectPath == "" {
+		v.items = nil
+		v.list.Clear()
+		v.list.AddItem("  Aucun projet actif", "  Sélectionnez un projet", 0, nil)
+		return
+	}
 
-	if len(v.items) == 0 {
+	entries, err := worktree.List(projectPath)
+	if err != nil {
+		v.items = nil
+		v.list.Clear()
 		v.list.AddItem("  Aucun worktree détecté", "  Vérifiez que le projet actif est un repo git", 0, nil)
 		return
 	}
 
-	for _, wt := range v.items {
-		icon := theme.IconDot
-		if strings.Contains(wt.Branch, "main") || strings.Contains(wt.Branch, "master") {
-			icon = theme.IconActive
+	v.list.Clear()
+
+	// Separate main worktree from secondary ones.
+	// The main worktree (path == projectPath) is displayed as a read-only header;
+	// only secondary worktrees are stored in v.items and are actionable.
+	var secondary []worktree.Entry
+	for _, e := range entries {
+		if filepath.Clean(e.Path) == filepath.Clean(projectPath) {
+			// Display as a non-actionable informational header.
+			label := e.Branch
+			if label == "" {
+				label = "(detached)"
+			}
+			v.list.AddItem(
+				fmt.Sprintf("  %s %s  [principal]", theme.IconActive, label),
+				"    "+e.Path,
+				0, nil)
+		} else {
+			secondary = append(secondary, e)
 		}
+	}
+
+	v.items = secondary
+	if len(secondary) == 0 {
+		v.list.AddItem("  Aucun worktree secondaire", "  Utilisez 'a' pour en créer un", 0, nil)
+		return
+	}
+
+	for _, wt := range secondary {
 		v.list.AddItem(
-			fmt.Sprintf("  %s %s", icon, wt.Branch),
+			fmt.Sprintf("  %s %s", theme.IconDot, wt.Branch),
 			"    "+wt.Path,
 			0, nil)
 	}
-}
-
-func (v *WorktreeView) listWorktrees() []worktreeItem {
-	// Try to get project path
-	projectPath := v.getProjectPath()
-	if projectPath == "" {
-		return nil
-	}
-
-	out, err := exec.Command("git", "-C", projectPath, "worktree", "list", "--porcelain").Output()
-	if err != nil {
-		return nil
-	}
-
-	var items []worktreeItem
-	var current worktreeItem
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(line, "worktree ") {
-			if current.Path != "" {
-				items = append(items, current)
-			}
-			current = worktreeItem{Path: strings.TrimPrefix(line, "worktree ")}
-		} else if strings.HasPrefix(line, "branch ") {
-			branch := strings.TrimPrefix(line, "branch refs/heads/")
-			current.Branch = branch
-		}
-	}
-	if current.Path != "" {
-		items = append(items, current)
-	}
-	return items
 }
 
 func (v *WorktreeView) addWorktree() {
@@ -162,14 +158,19 @@ func (v *WorktreeView) addWorktree() {
 			v.shell.ShowToastMsg("Aucun projet actif", false)
 			return
 		}
-		wtPath := projectPath + "-" + branch
-		cmd := exec.Command("git", "-C", projectPath, "worktree", "add", wtPath, "-b", branch)
-		if err := cmd.Run(); err != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-		} else {
-			v.shell.ShowToastMsg("Worktree créé: "+branch, true)
-			v.refresh()
-		}
+
+		v.shell.ShowToastMsg("Création du worktree en cours...", true)
+		go func() {
+			_, err := worktree.ResolveOrCreate(projectPath, branch)
+			v.app.QueueUpdateDraw(func() {
+				if err != nil {
+					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+				} else {
+					v.shell.ShowToastMsg("Worktree créé: "+branch, true)
+					v.refresh()
+				}
+			})
+		}()
 	})
 }
 
@@ -185,8 +186,15 @@ func (v *WorktreeView) removeWorktree() {
 		return
 	}
 
-	cmd := exec.Command("git", "-C", projectPath, "worktree", "remove", wt.Path)
-	if err := cmd.Run(); err != nil {
+	// Safety guard: never allow removing the main worktree.
+	if filepath.Clean(wt.Path) == filepath.Clean(projectPath) {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Impossible de supprimer le worktree principal", false)
+		}
+		return
+	}
+
+	if err := worktree.Remove(projectPath, wt.Path, false); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
 		}
@@ -207,8 +215,7 @@ func (v *WorktreeView) pruneWorktrees() {
 		return
 	}
 
-	cmd := exec.Command("git", "-C", projectPath, "worktree", "prune")
-	if err := cmd.Run(); err != nil {
+	if err := worktree.Prune(projectPath); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("Prune échoué: "+err.Error(), false)
 		}
@@ -229,43 +236,36 @@ func (v *WorktreeView) cleanupWorktrees() {
 		return
 	}
 
-	// Get merged branches
-	out, err := exec.Command("git", "-C", projectPath, "branch", "--merged", "HEAD").Output()
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-		}
-		return
-	}
-
-	merged := make(map[string]bool)
-	for _, line := range strings.Split(string(out), "\n") {
-		branch := strings.TrimSpace(line)
-		branch = strings.TrimPrefix(branch, "* ")
-		if branch != "" && branch != "main" && branch != "master" && branch != "develop" {
-			merged[branch] = true
-		}
-	}
-
-	// Remove worktrees whose branch is merged
-	removed := 0
-	for _, wt := range v.items {
-		if merged[wt.Branch] {
-			cmd := exec.Command("git", "-C", projectPath, "worktree", "remove", wt.Path)
-			if cmd.Run() == nil {
-				removed++
-			}
-		}
-	}
-
 	if v.shell != nil {
-		if removed == 0 {
-			v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
-		} else {
-			v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", removed), true)
-		}
+		v.shell.ShowToastMsg("Nettoyage des worktrees mergés...", true)
 	}
-	v.refresh()
+
+	baseBranch := worktree.DetectBaseBranch(projectPath)
+	go func() {
+		result, err := worktree.CleanupMerged(projectPath, baseBranch, false)
+		v.app.QueueUpdateDraw(func() {
+			if err != nil {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+				}
+				return
+			}
+			if v.shell != nil {
+				switch {
+				case len(result.Removed) == 0 && len(result.Skipped) == 0:
+					v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
+				case len(result.Skipped) > 0:
+					v.shell.ShowToastMsg(
+						fmt.Sprintf("%d nettoyé(s), %d ignoré(s) (modifications non commitées)", len(result.Removed), len(result.Skipped)),
+						len(result.Removed) > 0,
+					)
+				default:
+					v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", len(result.Removed)), true)
+				}
+			}
+			v.refresh()
+		})
+	}()
 }
 
 func (v *WorktreeView) getProjectPath() string {

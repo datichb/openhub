@@ -20,6 +20,12 @@ type Entry struct {
 	IsBare bool
 }
 
+// CleanupResult holds the outcome of a CleanupMerged operation.
+type CleanupResult struct {
+	Removed []string // branches whose worktrees were successfully removed
+	Skipped []string // branches that are merged but have uncommitted changes (only when force=false)
+}
+
 // Slug converts a branch name to a filesystem-safe string.
 // Example: "feat/bd-42" → "feat-bd-42"
 func Slug(branch string) string {
@@ -74,10 +80,27 @@ func DetectBaseBranch(projectPath string) string {
 	return "main" // default
 }
 
+// ExistsOnRemote checks whether a branch exists on the remote (origin).
+// Returns true if git ls-remote reports the branch ref.
+func ExistsOnRemote(projectPath, branch string) bool {
+	cmd := exec.Command("git", "ls-remote", "--heads", "origin", branch)
+	cmd.Dir = projectPath
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
+}
+
 // ResolveOrCreate returns the absolute path of a worktree for the given branch.
-// If the worktree already exists, it returns the existing path.
+// If the worktree already exists (locally registered), it returns the existing path.
 // Otherwise, it creates it as a sibling directory.
-// It tries creating a new branch (-b) first, then falls back to using an existing branch.
+//
+// Branch resolution order:
+//  1. Worktree already registered locally → reuse
+//  2. Branch exists on remote (origin) → fetch + checkout
+//  3. Branch exists locally → create worktree on it
+//  4. Neither → create new local branch
 func ResolveOrCreate(projectPath, branch string) (string, error) {
 	// Validate branch name to prevent git flag injection or path traversal
 	if strings.HasPrefix(branch, "-") {
@@ -111,6 +134,22 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 		}
 	}
 
+	// Check if the branch exists on remote — if so, fetch it first so the
+	// local worktree tracks the remote work instead of creating a diverging branch.
+	if ExistsOnRemote(projectPath, branch) {
+		fetchCmd := exec.Command("git", "fetch", "origin", branch+":"+branch)
+		fetchCmd.Dir = projectPath
+		_ = fetchCmd.Run() // best-effort; if fetch fails we fall through to local creation
+
+		cmd := exec.Command("git", "worktree", "add", wtPath, branch)
+		cmd.Dir = projectPath
+		if out, err := cmd.CombinedOutput(); err == nil {
+			return wtPath, nil
+		} else {
+			return "", fmt.Errorf("git worktree add (remote branch): %s", strings.TrimSpace(string(out)))
+		}
+	}
+
 	// Create worktree — try new branch first
 	cmd := exec.Command("git", "worktree", "add", "-b", branch, wtPath)
 	cmd.Dir = projectPath
@@ -118,7 +157,7 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 		return wtPath, nil
 	}
 
-	// Fallback: branch already exists, just create worktree for it
+	// Fallback: branch already exists locally, just create worktree for it
 	cmd = exec.Command("git", "worktree", "add", wtPath, branch)
 	cmd.Dir = projectPath
 	out, err := cmd.CombinedOutput()
@@ -127,18 +166,6 @@ func ResolveOrCreate(projectPath, branch string) (string, error) {
 	}
 
 	return wtPath, nil
-}
-
-// EnsureExclude ensures that sibling worktree directories don't pollute
-// the main repo's git status. Since we use sibling dirs, this is a no-op
-// in practice (siblings are outside the project tree). Kept for API
-// completeness and future use.
-func EnsureExclude(projectPath string) error {
-	// Sibling directories are outside the project tree, so they don't
-	// appear in `git status`. No .git/info/exclude manipulation needed.
-	// This function exists for semantic clarity and future extensibility.
-	_ = projectPath
-	return nil
 }
 
 // IsMerged checks whether a branch is fully merged into baseBranch.
@@ -165,17 +192,23 @@ func IsMerged(projectPath, branch, baseBranch string) (bool, error) {
 }
 
 // CleanupMerged removes all worktrees whose branches are merged into baseBranch.
-// Returns the list of removed branch names.
-func CleanupMerged(projectPath, baseBranch string) ([]string, error) {
+//
+// When force is false (safe default), worktrees with uncommitted changes are
+// skipped and reported in CleanupResult.Skipped. When force is true, removal
+// is forced regardless of dirty state (--force flag on git worktree remove).
+//
+// Returns a CleanupResult with removed and skipped branch names.
+func CleanupMerged(projectPath, baseBranch string, force bool) (CleanupResult, error) {
+	var result CleanupResult
+
 	entries, err := List(projectPath)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
 	// Get the main worktree path to skip it
 	mainPath, _ := filepath.Abs(projectPath)
 
-	var removed []string
 	for _, e := range entries {
 		// Skip the main worktree and bare entries
 		if e.IsBare || e.Branch == "" {
@@ -198,21 +231,29 @@ func CleanupMerged(projectPath, baseBranch string) ([]string, error) {
 			continue
 		}
 
-		// Remove the worktree
-		cmd := exec.Command("git", "worktree", "remove", "--force", e.Path)
-		cmd.Dir = projectPath
-		if err := cmd.Run(); err != nil {
-			continue // skip failed removals
+		if err := Remove(projectPath, e.Path, force); err != nil {
+			// Without --force, a dirty worktree will fail here — report as skipped.
+			result.Skipped = append(result.Skipped, e.Branch)
+			continue
 		}
-		removed = append(removed, e.Branch)
+		result.Removed = append(result.Removed, e.Branch)
 	}
 
 	// Prune stale worktree metadata
+	_ = Prune(projectPath)
+
+	return result, nil
+}
+
+// Prune removes stale worktree administrative metadata (git worktree prune).
+func Prune(projectPath string) error {
 	cmd := exec.Command("git", "worktree", "prune")
 	cmd.Dir = projectPath
-	_ = cmd.Run()
-
-	return removed, nil
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git worktree prune: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // List returns all worktrees for the given project.
@@ -293,6 +334,15 @@ func Remove(projectPath, wtPath string, force bool) error {
 		return fmt.Errorf("git worktree remove: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// BranchName formats a ticket ID using the given pattern (e.g. "feat/%s" → "feat/BD-42").
+// If pattern is empty or does not contain "%s", falls back to "feat/<ticketID>".
+func BranchName(pattern, ticketID string) string {
+	if pattern == "" || !strings.Contains(pattern, "%s") {
+		return "feat/" + ticketID
+	}
+	return fmt.Sprintf(pattern, ticketID)
 }
 
 // BulkCreate creates multiple worktrees sequentially (to avoid .git/index.lock contention).

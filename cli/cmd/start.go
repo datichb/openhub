@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
+	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -368,21 +369,36 @@ func handleWorktreeMode(a *app.App, project *domain.Project, branch string) (str
 		if baseBranch == "" {
 			baseBranch = worktree.DetectBaseBranch(project.Path)
 		}
-		removed, _ := worktree.CleanupMerged(project.Path, baseBranch)
-		if len(removed) > 0 {
+		var cleanupResult worktree.CleanupResult
+		_ = progress.Run(
+			i18n.T("cmd.start.worktree_autocleanup"),
+			func() error {
+				cleanupResult, _ = worktree.CleanupMerged(project.Path, baseBranch, false)
+				return nil
+			},
+		)
+		if len(cleanupResult.Removed) > 0 {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.start.worktree_cleanup", len(removed)))
-			for _, b := range removed {
+				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.start.worktree_cleanup", len(cleanupResult.Removed)))
+			for _, b := range cleanupResult.Removed {
 				fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), b)
 			}
 		}
+		if len(cleanupResult.Skipped) > 0 {
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				theme.Subtitle.Render(theme.IconWarning), i18n.Tf("cmd.start.worktree_cleanup_skipped", len(cleanupResult.Skipped)))
+		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.worktree_prep", theme.Bold.Render(branch)))
-
-	wtPath, err := worktree.ResolveOrCreate(project.Path, branch)
-	if err != nil {
+	var wtPath string
+	if err := progress.Run(
+		i18n.Tf("cmd.start.worktree_prep", theme.Bold.Render(branch)),
+		func() error {
+			var e error
+			wtPath, e = worktree.ResolveOrCreate(project.Path, branch)
+			return e
+		},
+	); err != nil {
 		return "", fmt.Errorf("worktree: %w", err)
 	}
 

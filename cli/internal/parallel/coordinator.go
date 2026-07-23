@@ -12,13 +12,14 @@ import (
 
 // CoordinatorOpts holds options for launching a parallel run.
 type CoordinatorOpts struct {
-	ProjectPath string
-	ProjectID   string
-	Tickets     []string
-	Priority    string   // priority ticket ID (empty = no priority)
-	Agent       string   // agent to use (default: orchestrator-dev)
-	Config      Config
-	PromptFunc  func(ticketID string) string // generates the prompt for each ticket
+	ProjectPath   string
+	ProjectID     string
+	Tickets       []string
+	Priority      string // priority ticket ID (empty = no priority)
+	Agent         string // agent to use (default: orchestrator-dev)
+	BranchPattern string // e.g. "feat/%s"; empty = use worktree.BranchName default
+	Config        Config
+	PromptFunc    func(ticketID string) string // generates the prompt for each ticket
 }
 
 // Coordinator orchestrates multiple parallel opencode sessions.
@@ -125,7 +126,7 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 		default:
 		}
 
-		branch := fmt.Sprintf("feat/%s", ticket)
+		branch := worktree.BranchName(c.opts.BranchPattern, ticket)
 		wtPath, err := worktree.ResolveOrCreate(c.opts.ProjectPath, branch)
 		if err != nil {
 			return fmt.Errorf("creating worktree for %s: %w", ticket, err)
@@ -301,5 +302,19 @@ func (c *Coordinator) cleanup() {
 	for _, srv := range c.servers {
 		_ = srv.Dispose()
 		srv.Kill()
+	}
+
+	if !c.opts.Config.CleanupCompletedWorktrees {
+		return
+	}
+
+	// Remove worktrees of successfully completed sessions only.
+	// Failed sessions are intentionally preserved for post-mortem inspection.
+	snap := c.state.Snapshot()
+	for _, sess := range snap.Sessions {
+		if sess.Status != StatusCompleted || sess.WorktreePath == "" {
+			continue
+		}
+		_ = worktree.Remove(c.opts.ProjectPath, sess.WorktreePath, false)
 	}
 }

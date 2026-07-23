@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
+	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -55,7 +56,11 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	allPassed := true
 	for _, c := range checks {
+		s := progress.NewSpinner(c.name)
+		s.Start()
 		detail, ok := c.test()
+		s.Stop()
+
 		if ok {
 			fmt.Fprintf(a.IO.Out, "  %s %s — %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),

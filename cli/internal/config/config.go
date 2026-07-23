@@ -39,8 +39,9 @@ type TeamConfig struct {
 
 // WorktreeConfig holds git worktree management settings.
 type WorktreeConfig struct {
-	AutoCleanup bool   `mapstructure:"auto_cleanup"`
-	BaseBranch  string `mapstructure:"base_branch"` // empty = auto-detect (main/master)
+	AutoCleanup   bool   `mapstructure:"auto_cleanup"`
+	BaseBranch    string `mapstructure:"base_branch"`    // empty = auto-detect (main/master)
+	BranchPattern string `mapstructure:"branch_pattern"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
 }
 
 // CLIConfig holds CLI-specific settings.

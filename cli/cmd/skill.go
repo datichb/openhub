@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/skillregistry"
+	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -77,10 +78,15 @@ func skillAddCmd() *cobra.Command {
 			source := args[0]
 			reg := skillregistry.NewRegistry()
 
-			fmt.Fprintf(a.IO.Out, "%s Installation de %q...\n",
-				theme.SuccessStyle.Render(theme.IconArrow), source)
-
-			skill, err := reg.Install(source)
+			var skill *skillregistry.InstalledSkill
+			err := progress.Run(
+				fmt.Sprintf("Installation de %q...", source),
+				func() error {
+					var e error
+					skill, e = reg.Install(source)
+					return e
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("installation échouée: %w", err)
 			}
@@ -124,10 +130,15 @@ func skillSearchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 
-			fmt.Fprintf(a.IO.Out, "%s Récupération de l'index communautaire...\n",
-				theme.SuccessStyle.Render(theme.IconArrow))
-
-			entries, err := skillregistry.FetchIndex()
+			var entries []skillregistry.IndexEntry
+			err := progress.Run(
+				"Récupération de l'index communautaire...",
+				func() error {
+					var e error
+					entries, e = skillregistry.FetchIndex()
+					return e
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("impossible de récupérer l'index: %w", err)
 			}

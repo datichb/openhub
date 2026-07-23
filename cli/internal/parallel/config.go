@@ -2,19 +2,21 @@ package parallel
 
 // Config holds the parallel execution configuration.
 type Config struct {
-	MaxSessions    int    `toml:"max_sessions"`      // Max concurrent sessions (default: 3)
-	PortRangeStart int    `toml:"port_range_start"`  // Starting port for opencode serve (default: 4100)
-	AutoMergeBeads bool   `toml:"auto_merge_beads"`  // Propose auto merge for Beads tickets
-	AutoMergeExt   bool   `toml:"auto_merge_external"` // Never for external tickets (always false)
+	MaxSessions             int    `toml:"max_sessions"`        // Max concurrent sessions (default: 3)
+	PortRangeStart          int    `toml:"port_range_start"`    // Starting port for opencode serve (default: 4100)
+	AutoMergeBeads          bool   `toml:"auto_merge_beads"`    // Propose auto merge for Beads tickets
+	AutoMergeExt            bool   `toml:"auto_merge_external"` // Never for external tickets (always false)
+	CleanupCompletedWorktrees bool  `toml:"cleanup_completed_worktrees"` // Remove worktrees of completed sessions on shutdown (default: false)
 }
 
 // DefaultConfig returns the default parallel configuration.
 func DefaultConfig() Config {
 	return Config{
-		MaxSessions:    3,
-		PortRangeStart: 4100,
-		AutoMergeBeads: true,
-		AutoMergeExt:   false,
+		MaxSessions:               3,
+		PortRangeStart:            4100,
+		AutoMergeBeads:            true,
+		AutoMergeExt:              false,
+		CleanupCompletedWorktrees: false,
 	}
 }
 

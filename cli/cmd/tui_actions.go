@@ -45,8 +45,9 @@ func runSyncAll(a *app.App) error {
 }
 
 // runUpgradeOpencode updates the opencode binary to the latest version.
-func runUpgradeOpencode() error {
+// An optional progressFn is called with (downloaded, total) bytes during the download.
+func runUpgradeOpencode(progressFn opencode.ProgressFunc) error {
 	installDir := config.HubDir() + "/bin"
-	_, err := opencode.Download("latest", installDir, nil)
+	_, err := opencode.Download("latest", installDir, progressFn)
 	return err
 }

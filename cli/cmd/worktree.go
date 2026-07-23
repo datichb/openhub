@@ -10,8 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
+	"github.com/datichb/openhub/cli/internal/tui/progress"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -128,7 +129,15 @@ func worktreeAddCmd() *cobra.Command {
 				return fmt.Errorf("%s", i18n.T("cmd.worktree.branch_required"))
 			}
 
-			wtPath, err := worktree.ResolveOrCreate(cwd, branch)
+			var wtPath string
+			err := progress.Run(
+				i18n.Tf("cmd.worktree.add_progress", branch),
+				func() error {
+					var e error
+					wtPath, e = worktree.ResolveOrCreate(cwd, branch)
+					return e
+				},
+			)
 			if err != nil {
 				return err
 			}
@@ -270,21 +279,41 @@ pour la détection.`,
 				}
 			}
 
-			removed, err := worktree.CleanupMerged(cwd, base)
+			var cleanupResult worktree.CleanupResult
+			err := progress.Run(
+				i18n.Tf("cmd.worktree.cleanup_progress", base),
+				func() error {
+					var e error
+					cleanupResult, e = worktree.CleanupMerged(cwd, base, force)
+					return e
+				},
+			)
 			if err != nil {
 				return err
 			}
 
-			if len(removed) == 0 {
+			if len(cleanupResult.Removed) == 0 && len(cleanupResult.Skipped) == 0 {
 				fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.worktree.cleanup_none"))
 				return nil
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.worktree.cleanup_done", len(removed)))
-			for _, branch := range removed {
-				fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
+			if len(cleanupResult.Removed) > 0 {
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					theme.SuccessStyle.Render(theme.IconSuccess),
+					i18n.Tf("cmd.worktree.cleanup_done", len(cleanupResult.Removed)))
+				for _, branch := range cleanupResult.Removed {
+					fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
+				}
+			}
+			if len(cleanupResult.Skipped) > 0 {
+				fmt.Fprintf(a.IO.Out, "  %s %s\n",
+					theme.Subtitle.Render(theme.IconWarning),
+					i18n.Tf("cmd.worktree.cleanup_skipped", len(cleanupResult.Skipped)))
+				for _, branch := range cleanupResult.Skipped {
+					fmt.Fprintf(a.IO.Out, "    %s %s %s\n",
+						theme.Subtitle.Render("·"), branch,
+						theme.Subtitle.Render(i18n.T("cmd.worktree.cleanup_skipped_hint")))
+				}
 			}
 			return nil
 		},

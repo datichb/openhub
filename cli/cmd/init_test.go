@@ -8,7 +8,7 @@ import (
 )
 
 func TestBuildInitConfig_WithProvider(t *testing.T) {
-	result := buildInitConfig("fr", "latest", "bedrock", nil)
+	result := buildInitConfig("fr", "latest", "bedrock", nil, "")
 	assert.Contains(t, result, `language = "fr"`)
 	assert.Contains(t, result, `version = "latest"`)
 	assert.Contains(t, result, `default_provider = "bedrock"`)
@@ -16,7 +16,7 @@ func TestBuildInitConfig_WithProvider(t *testing.T) {
 }
 
 func TestBuildInitConfig_WithMCP(t *testing.T) {
-	result := buildInitConfig("en", "1.17.15", "anthropic", []string{"figma", "gitlab"})
+	result := buildInitConfig("en", "1.17.15", "anthropic", []string{"figma", "gitlab"}, "")
 	assert.Contains(t, result, `language = "en"`)
 	assert.Contains(t, result, `version = "1.17.15"`)
 	assert.Contains(t, result, `default_provider = "anthropic"`)
@@ -48,7 +48,7 @@ func TestBuildInitConfig_WithMCP(t *testing.T) {
 }
 
 func TestBuildInitConfig_NoMCP(t *testing.T) {
-	result := buildInitConfig("fr", "latest", "openrouter", []string{})
+	result := buildInitConfig("fr", "latest", "openrouter", []string{}, "")
 	assert.Contains(t, result, `default_provider = "openrouter"`)
 	// All MCP should be disabled
 	assert.Equal(t, 3, strings.Count(result, "enabled = false"))
@@ -58,7 +58,7 @@ func TestBuildInitConfig_NoMCP(t *testing.T) {
 func TestBuildInitConfig_NilMCP(t *testing.T) {
 	// In the new flow, the initial config write passes nil for MCP services.
 	// All MCP sections should be present but disabled.
-	result := buildInitConfig("en", "latest", "bedrock", nil)
+	result := buildInitConfig("en", "latest", "bedrock", nil, "")
 	assert.Contains(t, result, `default_provider = "bedrock"`)
 	assert.Contains(t, result, "[mcp.figma]")
 	assert.Contains(t, result, "[mcp.gitlab]")

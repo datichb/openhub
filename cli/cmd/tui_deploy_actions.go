@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -129,7 +132,19 @@ func actionUpgrade() {
 			return
 		default:
 		}
-		err := runUpgradeOpencode()
+
+		// Progress callback: updates the toast with download percentage.
+		progressFn := opencode.ProgressFunc(func(downloaded, total int64) {
+			if total <= 0 {
+				return
+			}
+			pct := int(float64(downloaded) / float64(total) * 100)
+			tuiShell.App().QueueUpdateDraw(func() {
+				tuiShell.ShowToast(fmt.Sprintf("Téléchargement opencode... %d%%", pct), shell.ToastInfo)
+			})
+		})
+
+		err := runUpgradeOpencode(progressFn)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast("Mise à jour échouée: "+truncateErr(err), shell.ToastError)
