@@ -27,12 +27,13 @@ type WorktreeViewConfig struct {
 
 // WorktreeView displays and manages git worktrees for the active project.
 type WorktreeView struct {
-	app    *tview.Application
-	appCtx *app.App
-	cfg    WorktreeViewConfig
-	list   *tview.List
-	shell  ShellAccess
-	items  []worktree.Entry
+	app         *tview.Application
+	appCtx      *app.App
+	cfg         WorktreeViewConfig
+	list        *tview.List
+	shell       ShellAccess
+	items       []worktree.Entry
+	headerCount int // number of non-actionable items prepended to v.list before v.items
 }
 
 var _ View = (*WorktreeView)(nil)
@@ -125,6 +126,7 @@ func (v *WorktreeView) refresh() {
 	}
 
 	v.list.Clear()
+	v.headerCount = 0
 
 	// Separate main worktree from secondary ones.
 	// The main worktree (path == projectPath) is displayed as a read-only header;
@@ -141,6 +143,7 @@ func (v *WorktreeView) refresh() {
 				fmt.Sprintf("  %s %s  [principal]", theme.IconActive, label),
 				"    "+e.Path,
 				0, nil)
+			v.headerCount++
 		} else {
 			secondary = append(secondary, e)
 		}
@@ -189,12 +192,27 @@ func (v *WorktreeView) addWorktree() {
 	})
 }
 
+// selectedItem returns the worktree.Entry currently highlighted in the list,
+// accounting for the non-actionable header items prepended before v.items.
+// Returns (entry, true) on success, or (zero, false) if the selection is on a
+// header row or out of range.
+func (v *WorktreeView) selectedItem() (worktree.Entry, bool) {
+	listIdx := v.list.GetCurrentItem()
+	dataIdx := listIdx - v.headerCount
+	if dataIdx < 0 || dataIdx >= len(v.items) {
+		return worktree.Entry{}, false
+	}
+	return v.items[dataIdx], true
+}
+
 func (v *WorktreeView) removeWorktree() {
-	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.items) {
+	wt, ok := v.selectedItem()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+		}
 		return
 	}
-	wt := v.items[idx]
 
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
@@ -298,11 +316,13 @@ func (v *WorktreeView) getProjectPath() string {
 // It ensures hub config symlinks exist in the worktree first, triggering an
 // automatic deploy into the main project if needed.
 func (v *WorktreeView) openInTerminal() {
-	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.items) {
+	wt, ok := v.selectedItem()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+		}
 		return
 	}
-	wt := v.items[idx]
 
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
