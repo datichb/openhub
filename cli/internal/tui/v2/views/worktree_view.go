@@ -315,6 +315,7 @@ func (v *WorktreeView) openInTerminal() {
 	if v.shell != nil {
 		v.shell.ShowToastMsg("Préparation du worktree...", true)
 	}
+	v.app.Draw()
 
 	go func() {
 		// Step 1: ensure worktree has config symlinks.

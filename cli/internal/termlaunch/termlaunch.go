@@ -59,9 +59,12 @@ func Detect() string {
 }
 
 func runOsascript(script string) error {
-	out, err := exec.Command("osascript", "-e", script).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("osascript: %w: %s", err, string(out))
+	cmd := exec.Command("osascript", "-e", script)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("osascript: %w", err)
 	}
+	// Detach: we don't wait for the script to complete.
+	// Terminal.app / iTerm2 will handle the rest asynchronously.
+	go func() { _ = cmd.Wait() }()
 	return nil
 }
