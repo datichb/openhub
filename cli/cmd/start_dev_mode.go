@@ -37,12 +37,13 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	// Pull team-state for claim awareness
 	var teamRepo *teamstate.Repo
-	if a.Config.Team.Enabled {
-		statePath := a.Config.Team.StatePath
+	if teamEnabledForProject(a, project) {
+		tc := resolvedTeamConfig(a, project)
+		statePath := tc.StatePath
 		if statePath == "" {
 			statePath = defaultTeamStatePath(a)
 		}
-		teamRepo = teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+		teamRepo = teamstate.NewRepo(tc.StateRepo, statePath)
 		if teamRepo.IsCloned() {
 			_ = teamRepo.Pull(cmd.Context())
 		}

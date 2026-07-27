@@ -189,8 +189,8 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 	fmt.Fprintf(a.IO.Out, "  Titre : %s\n", title)
 
-	// Emit team event if team is enabled
-	if a.Config.Team.Enabled {
+	// Emit team event if team is enabled for this project
+	if teamEnabledForProject(a, project) {
 		emitReviewReadyEvent(ctx, a, project.ID, ticketRef, branch)
 	}
 

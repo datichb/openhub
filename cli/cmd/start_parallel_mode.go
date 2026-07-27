@@ -33,8 +33,8 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	}
 
 	cfg := parallel.DefaultConfig()
-	if a.Config.Team.Enabled {
-		teamRepo, err := ensureTeamRepo(ctx, a)
+	if teamEnabledForProject(a, project) {
+		teamRepo, err := ensureTeamRepoForProject(ctx, a, project)
 		if err == nil {
 			teamCfg, err := teamRepo.LoadConfig()
 			if err == nil {

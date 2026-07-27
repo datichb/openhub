@@ -93,7 +93,7 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. Check if ticket is claimed (if team is enabled)
-	if a.Config.Team.Enabled {
+	if teamEnabledForProject(a, nil) {
 		// Try to detect ticket from branch name
 		ticketRef := extractTicketFromBranch(branch)
 		if ticketRef != "" {
