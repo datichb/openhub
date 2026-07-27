@@ -41,17 +41,19 @@ type ProjectsViewConfig struct {
 
 // ProjectsView displays the list of registered projects with full CRUD.
 type ProjectsView struct {
-	cfg         ProjectsViewConfig
-	content     *tview.Flex
-	list        *tview.List
-	detail      *tview.TextView
-	app         *tview.Application
-	shell       ShellAccess
-	onAdd       func(name, path string)
-	onRemove    func(id string)
-	onConfigure func(id string, cfg ProjectConfigUpdate)
-	onRename    func(id, newName string)
-	onMove      func(id, newPath string)
+	cfg              ProjectsViewConfig
+	content          *tview.Flex
+	list             *tview.List
+	detail           *tview.TextView
+	app              *tview.Application
+	shell            ShellAccess
+	onAdd            func(name, path string)
+	onRemove         func(id string)
+	onConfigure      func(id string, cfg ProjectConfigUpdate)
+	onRename         func(id, newName string)
+	onMove           func(id, newPath string)
+	onEnterProject   func(project *ActiveProject)
+	onInitBeads      func(id, name, path string)
 }
 
 var _ View = (*ProjectsView)(nil)
@@ -81,6 +83,16 @@ func (v *ProjectsView) SetOnRename(fn func(id, newName string)) { v.onRename = f
 // SetOnMove sets the callback for moving a project path.
 func (v *ProjectsView) SetOnMove(fn func(id, newPath string)) { v.onMove = fn }
 
+// SetOnEnterProject sets the callback triggered when the user enters project mode.
+func (v *ProjectsView) SetOnEnterProject(fn func(project *ActiveProject)) {
+	v.onEnterProject = fn
+}
+
+// SetOnInitBeads sets the callback triggered when the user requests beads init for a project.
+func (v *ProjectsView) SetOnInitBeads(fn func(id, name, path string)) {
+	v.onInitBeads = fn
+}
+
 // SetAvailableAgents sets the list of discovered agents for configuration.
 func (v *ProjectsView) SetAvailableAgents(agents []string) {
 	v.cfg.AvailableAgents = agents
@@ -94,7 +106,7 @@ func (v *ProjectsView) Title() string { return "Projets" }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
-	return "j/k naviguer · c configurer · r renommer · m déplacer · a ajouter · d supprimer"
+	return "j/k naviguer · p mode projet · b init board · c configurer · r renommer · m déplacer · a ajouter · d supprimer"
 }
 
 // Mount builds the projects list with footer detail.
@@ -159,6 +171,12 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'm':
 		v.moveProject()
+		return nil
+	case 'p':
+		v.enterProjectMode()
+		return nil
+	case 'b':
+		v.initBeads()
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -457,4 +475,38 @@ func displayOrPlaceholder(val, placeholder string) string {
 		return placeholder
 	}
 	return val
+}
+
+// enterProjectMode activates project mode for the currently selected project.
+func (v *ProjectsView) enterProjectMode() {
+	if v.list == nil {
+		return
+	}
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= len(v.cfg.Projects) {
+		return
+	}
+	p := v.cfg.Projects[idx]
+	if v.onEnterProject != nil {
+		v.onEnterProject(&ActiveProject{
+			ID:   p.ID,
+			Name: p.Name,
+			Path: p.Path,
+		})
+	}
+}
+
+// initBeads triggers beads initialization for the currently selected project.
+func (v *ProjectsView) initBeads() {
+	if v.list == nil || v.shell == nil {
+		return
+	}
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= len(v.cfg.Projects) {
+		return
+	}
+	p := v.cfg.Projects[idx]
+	if v.onInitBeads != nil {
+		v.onInitBeads(p.ID, p.Name, p.Path)
+	}
 }

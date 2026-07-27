@@ -45,6 +45,7 @@ func DefaultColumns() []BoardColumnDef {
 	return []BoardColumnDef{
 		{Name: "TODO", Status: "todo", Color: theme.Warning},
 		{Name: "IN PROGRESS", Status: "in_progress", Color: theme.Accent},
+		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary},
 		{Name: "DONE", Status: "done", Color: theme.Success},
 		{Name: "BLOCKED", Status: "blocked", Color: theme.Error},
 	}
@@ -178,13 +179,36 @@ func RunBoard(cfg BoardConfig) error {
 
 func priorityColor(priority string) tcell.Color {
 	switch priority {
-	case "critical", "high":
+	case "P0", "critical":
 		return theme.Error
-	case "medium":
+	case "P1", "high":
 		return theme.Warning
-	case "low":
+	case "P2", "medium":
+		return theme.Accent
+	case "P3", "low":
 		return theme.FgSecondary
 	default:
 		return theme.FgMuted
 	}
+}
+
+// truncateTitle shortens title to maxLen runes, appending "…" if truncated.
+func truncateTitle(title string, maxLen int) string {
+	runes := []rune(title)
+	if len(runes) <= maxLen {
+		return title
+	}
+	if maxLen <= 1 {
+		return "…"
+	}
+	return string(runes[:maxLen-1]) + "…"
+}
+
+// priorityPrefix returns a short coloured prefix for the ticket priority,
+// e.g. "[P0] " in red, "[P1] " in yellow, etc.
+func priorityPrefix(priority string) string {
+	if priority == "" {
+		return ""
+	}
+	return priority + " · "
 }

@@ -54,7 +54,7 @@ func (v *WorktreeView) Title() string { return "Worktrees" }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return "j/k nav · a ajouter · d supprimer · o ouvrir · p prune · C cleanup · r refresh · Esc retour"
+	return "j/k nav · a ajouter · d supprimer · o ouvrir · s sync · p prune · C cleanup · r refresh · Esc retour"
 }
 
 // Mount builds the worktree list.
@@ -103,6 +103,9 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'C':
 		v.cleanupWorktrees()
+		return nil
+	case 's':
+		v.syncWorktree()
 		return nil
 	}
 	return event
@@ -239,6 +242,39 @@ func (v *WorktreeView) removeWorktree() {
 	}
 }
 
+// syncWorktree forces a resync of the .opencode/ configuration for the
+// selected worktree. It migrates legacy full-directory symlinks to the current
+// layout (real .opencode/ dir + internal symlinks) and refreshes copied files
+// from the main project.
+func (v *WorktreeView) syncWorktree() {
+	wt, ok := v.selectedItem()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+		}
+		return
+	}
+
+	projectPath := v.getProjectPath()
+	if projectPath == "" {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Aucun projet actif", false)
+		}
+		return
+	}
+
+	if err := worktree.ResyncConfig(wt.Path, projectPath); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Erreur sync: "+err.Error(), false)
+		}
+		return
+	}
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Worktree synchronisé", true)
+	}
+}
+
 func (v *WorktreeView) pruneWorktrees() {
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
@@ -302,6 +338,13 @@ func (v *WorktreeView) cleanupWorktrees() {
 }
 
 func (v *WorktreeView) getProjectPath() string {
+	// Prefer the shell's active project (set when entering project mode)
+	if v.shell != nil {
+		if ap := v.shell.ActiveProject(); ap != nil {
+			return ap.Path
+		}
+	}
+	// Fallback: first available project
 	if v.appCtx == nil || v.appCtx.Projects == nil {
 		return ""
 	}

@@ -58,6 +58,20 @@ type ShellAccess interface {
 	ShowScrollableModal(title, content string, actions []ModalAction)
 	ShowToastMsg(msg string, success bool)
 	ShowInlineForm(cfg InlineFormConfig)
+	// NavigateTo navigates to a registered view by ID.
+	NavigateTo(viewID string)
+	// SetProjectMode activates or deactivates project mode with the given project.
+	// Passing nil deactivates project mode (returns to hub mode).
+	SetProjectMode(project *ActiveProject)
+	// ActiveProject returns the currently active project, or nil in hub mode.
+	ActiveProject() *ActiveProject
+}
+
+// ActiveProject holds the minimal project context for the TUI project mode.
+type ActiveProject struct {
+	ID   string
+	Name string
+	Path string
 }
 
 var _ View = (*ConfigView)(nil)

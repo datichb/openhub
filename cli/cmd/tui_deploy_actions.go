@@ -48,7 +48,7 @@ func actionDeploy() {
 		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Erreur diff: "+truncateErr(err), shell.ToastError)
+				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)
 				return
 			}
 
@@ -73,7 +73,7 @@ func actionDeploy() {
 							err := runDeployForProject(a, project)
 							tuiShell.App().QueueUpdateDraw(func() {
 								if err != nil {
-									tuiShell.ShowToast("Deploy échoué: "+truncateErr(err), shell.ToastError)
+									tuiShell.ShowToast("Deploy échoué: "+err.Error(), shell.ToastError)
 								} else {
 									tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
 								}
@@ -110,7 +110,7 @@ func actionSync() {
 		err := runSyncAll(a)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Sync échoué: "+truncateErr(err), shell.ToastError)
+				tuiShell.ShowToast("Sync échoué: "+err.Error(), shell.ToastError)
 			} else {
 				tuiShell.ShowToast("Sync réussi", shell.ToastSuccess)
 			}
@@ -147,21 +147,12 @@ func actionUpgrade() {
 		err := runUpgradeOpencode(progressFn)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Mise à jour échouée: "+truncateErr(err), shell.ToastError)
+				tuiShell.ShowToast("Mise à jour échouée: "+err.Error(), shell.ToastError)
 			} else {
 				tuiShell.ShowToast("opencode mis à jour", shell.ToastSuccess)
 			}
 		})
 	}()
-}
-
-// truncateErr returns a short error message suitable for a toast.
-func truncateErr(err error) string {
-	msg := err.Error()
-	if len(msg) > 40 {
-		return msg[:37] + "..."
-	}
-	return msg
 }
 
 // canLaunchTUI returns true if the environment supports launching the TUI shell.

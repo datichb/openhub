@@ -345,21 +345,36 @@ func BranchName(pattern, ticketID string) string {
 	return fmt.Sprintf(pattern, ticketID)
 }
 
-// EnsureWorktreeConfig creates symlinks inside wtPath so that it shares the
-// hub configuration of the main project at projectPath. This mirrors the
-// git worktree pattern: rather than copying or deploying separately, the
-// worktree points back to the parent's deployed config.
+// EnsureWorktreeConfig sets up the opencode configuration inside a worktree so
+// it shares the deployed agents, skills and MCP servers from the main project,
+// while keeping its own session state and plan files.
 //
-// Symlinks created (all relative):
+// Layout created in wtPath:
 //
-//	<wtPath>/.opencode    → ../<repo>/.opencode
-//	<wtPath>/opencode.json → ../<repo>/opencode.json
+//	.opencode/                   ← real directory (not a symlink)
+//	  agents  → relProject/.opencode/agents     (symlink)
+//	  skills  → relProject/.opencode/skills     (symlink)
+//	  servers → relProject/.opencode/servers    (symlink)
+//	  node_modules → relProject/.opencode/node_modules (symlink, if present)
+//	  dependency-graph.json → relProject/.opencode/dependency-graph.json (symlink, if present)
+//	  opencode.json    (copy of main project's .opencode/opencode.json, if present)
+//	  package.json     (copy of main project's .opencode/package.json, if present)
+//	  bun.lock         (copy of main project's .opencode/bun.lock, if present)
+//	  package-lock.json (copy of main project's .opencode/package-lock.json, if present)
+//	opencode.json → relProject/opencode.json    (root-level symlink, if present)
+//	.beads    → relProject/.beads               (symlink, if .beads/ exists)
+//
+// Using a real .opencode/ directory (instead of a full directory symlink) prevents
+// OpenCode from resolving it to the same physical path as the main project, which
+// would cause the runtime to apply subagent_depth constraints as if the worktree
+// session were nested inside the parent project's session.
 //
 // If the main project has not been deployed yet (.opencode/ does not exist),
 // EnsureWorktreeConfig returns ErrProjectNotDeployed so the caller can trigger
 // a deploy first.
 //
-// Existing symlinks or directories are left untouched (idempotent).
+// The function is idempotent: existing entries (symlinks, files, or directories)
+// are left untouched.
 var ErrProjectNotDeployed = fmt.Errorf("project has not been deployed yet (.opencode/ missing in main project)")
 
 func EnsureWorktreeConfig(wtPath, projectPath string) error {
@@ -372,8 +387,6 @@ func EnsureWorktreeConfig(wtPath, projectPath string) error {
 
 	// Check the main project has been deployed.
 	mainOpencode := filepath.Join(projectPath, ".opencode")
-	mainConfig := filepath.Join(projectPath, "opencode.json")
-
 	if _, err := os.Stat(mainOpencode); os.IsNotExist(err) {
 		return ErrProjectNotDeployed
 	}
@@ -383,16 +396,79 @@ func EnsureWorktreeConfig(wtPath, projectPath string) error {
 		return fmt.Errorf("ensuring worktree directory: %w", err)
 	}
 
-	// Symlink .opencode/
-	if err := ensureSymlink(
-		filepath.Join(wtPath, ".opencode"),
-		filepath.Join(relProject, ".opencode"),
-	); err != nil {
-		return fmt.Errorf("symlinking .opencode: %w", err)
+	// ── .opencode/ ──────────────────────────────────────────────────────────
+	//
+	// Migrate: if .opencode is an existing symlink (old pattern), remove it so
+	// we can replace it with a real directory.
+	wtOpencode := filepath.Join(wtPath, ".opencode")
+	if isSymlink(wtOpencode) {
+		if err := os.Remove(wtOpencode); err != nil {
+			return fmt.Errorf("removing legacy .opencode symlink: %w", err)
+		}
 	}
 
-	// Symlink opencode.json (only if it exists in the main project)
-	if _, err := os.Stat(mainConfig); err == nil {
+	// Create a real .opencode/ directory in the worktree.
+	if err := os.MkdirAll(wtOpencode, 0o755); err != nil {
+		return fmt.Errorf("creating .opencode directory in worktree: %w", err)
+	}
+
+	// Compute the relative path from wtOpencode to mainOpencode.
+	// Symlinks placed inside wtOpencode must use this base — they are one
+	// directory deeper than wtPath, so relProject cannot be reused here.
+	relOpencode, err := filepath.Rel(wtOpencode, mainOpencode)
+	if err != nil {
+		return fmt.Errorf("computing relative path for .opencode internals: %w", err)
+	}
+
+	// Symlink sub-directories that are shared and read-only from the worktree's perspective.
+	for _, subdir := range []string{"agents", "skills", "servers"} {
+		src := filepath.Join(mainOpencode, subdir)
+		if _, err := os.Stat(src); err != nil {
+			continue // not present in main project — skip
+		}
+		if err := ensureSymlink(
+			filepath.Join(wtOpencode, subdir),
+			filepath.Join(relOpencode, subdir),
+		); err != nil {
+			return fmt.Errorf("symlinking .opencode/%s: %w", subdir, err)
+		}
+	}
+
+	// Symlink node_modules (heavy — always shared).
+	nodeModules := filepath.Join(mainOpencode, "node_modules")
+	if _, err := os.Stat(nodeModules); err == nil {
+		if err := ensureSymlink(
+			filepath.Join(wtOpencode, "node_modules"),
+			filepath.Join(relOpencode, "node_modules"),
+		); err != nil {
+			return fmt.Errorf("symlinking .opencode/node_modules: %w", err)
+		}
+	}
+
+	// Symlink dependency-graph.json (project-level, read-only from worktree).
+	depGraph := filepath.Join(mainOpencode, "dependency-graph.json")
+	if _, err := os.Stat(depGraph); err == nil {
+		if err := ensureSymlink(
+			filepath.Join(wtOpencode, "dependency-graph.json"),
+			filepath.Join(relOpencode, "dependency-graph.json"),
+		); err != nil {
+			return fmt.Errorf("symlinking .opencode/dependency-graph.json: %w", err)
+		}
+	}
+
+	// Copy files that the worktree needs locally (opencode needs to read them
+	// from the working directory, not via realpath resolution).
+	for _, fname := range []string{"opencode.json", "package.json", "bun.lock", "package-lock.json"} {
+		src := filepath.Join(mainOpencode, fname)
+		dst := filepath.Join(wtOpencode, fname)
+		if err := copyFileIfAbsent(src, dst); err != nil {
+			return fmt.Errorf("copying .opencode/%s: %w", fname, err)
+		}
+	}
+
+	// ── Root-level opencode.json ─────────────────────────────────────────────
+	mainRootConfig := filepath.Join(projectPath, "opencode.json")
+	if _, err := os.Stat(mainRootConfig); err == nil {
 		if err := ensureSymlink(
 			filepath.Join(wtPath, "opencode.json"),
 			filepath.Join(relProject, "opencode.json"),
@@ -401,7 +477,44 @@ func EnsureWorktreeConfig(wtPath, projectPath string) error {
 		}
 	}
 
+	// ── .beads/ ─────────────────────────────────────────────────────────────
+	// Shared ticket database — symlink so both the main project and all worktrees
+	// see the same tickets.
+	mainBeads := filepath.Join(projectPath, ".beads")
+	if _, err := os.Stat(mainBeads); err == nil {
+		if err := ensureSymlink(
+			filepath.Join(wtPath, ".beads"),
+			filepath.Join(relProject, ".beads"),
+		); err != nil {
+			return fmt.Errorf("symlinking .beads: %w", err)
+		}
+	}
+
 	return nil
+}
+
+// isSymlink reports whether path is a symbolic link (does not follow the link).
+func isSymlink(path string) bool {
+	fi, err := os.Lstat(path)
+	return err == nil && fi.Mode()&os.ModeSymlink != 0
+}
+
+// copyFileIfAbsent copies src to dst only if dst does not already exist.
+// It is a no-op when src does not exist or dst is already present.
+func copyFileIfAbsent(src, dst string) error {
+	// Skip if destination already exists (idempotent).
+	if _, err := os.Lstat(dst); err == nil {
+		return nil
+	}
+	// Skip if source does not exist.
+	srcData, err := os.ReadFile(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return os.WriteFile(dst, srcData, 0o644)
 }
 
 // ensureSymlink creates a symlink at linkPath pointing to target if it does
@@ -412,6 +525,21 @@ func ensureSymlink(linkPath, target string) error {
 		return nil // already exists (file, dir, or symlink) — leave it
 	}
 	return os.Symlink(target, linkPath)
+}
+
+// ResyncConfig forces a full refresh of the .opencode/ layout in an existing
+// worktree. It removes any current .opencode/ entry (symlink or real directory)
+// and re-creates the layout from scratch via EnsureWorktreeConfig.
+//
+// Use this after redeploying the main project to propagate updated
+// opencode.json / package.json copies into the worktree, or to migrate
+// a worktree from the legacy (full-symlink) layout to the current one.
+func ResyncConfig(wtPath, projectPath string) error {
+	wtOpencode := filepath.Join(wtPath, ".opencode")
+	if err := os.RemoveAll(wtOpencode); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing existing .opencode: %w", err)
+	}
+	return EnsureWorktreeConfig(wtPath, projectPath)
 }
 
 // BulkCreate creates multiple worktrees sequentially (to avoid .git/index.lock contention).

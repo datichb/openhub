@@ -164,6 +164,177 @@ func TestList_Integration(t *testing.T) {
 	assert.Len(t, entries, 2)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EnsureWorktreeConfig tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+// setupMainProject creates a temporary project directory with a minimal
+// .opencode/ layout, an opencode.json root config, and optionally .beads/.
+func setupMainProject(t *testing.T, withBeads bool) string {
+	t.Helper()
+	projectPath := t.TempDir()
+
+	// Create .opencode/ with the standard sub-directories and files
+	opencodePath := filepath.Join(projectPath, ".opencode")
+	for _, sub := range []string{"agents", "skills", "servers"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(opencodePath, sub), 0o755))
+		// Put a sentinel file so we can verify it's reachable via symlink
+		require.NoError(t, os.WriteFile(
+			filepath.Join(opencodePath, sub, "sentinel.txt"),
+			[]byte(sub), 0o644))
+	}
+	require.NoError(t, os.WriteFile(
+		filepath.Join(opencodePath, "opencode.json"), []byte(`{}`), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(opencodePath, "package.json"), []byte(`{}`), 0o644))
+
+	// Root-level opencode.json
+	require.NoError(t, os.WriteFile(
+		filepath.Join(projectPath, "opencode.json"), []byte(`{}`), 0o644))
+
+	if withBeads {
+		require.NoError(t, os.MkdirAll(filepath.Join(projectPath, ".beads"), 0o755))
+	}
+
+	return projectPath
+}
+
+func TestEnsureWorktreeConfig_NotDeployed(t *testing.T) {
+	projectPath := t.TempDir() // no .opencode/ — not deployed
+	wtPath := t.TempDir()
+
+	err := EnsureWorktreeConfig(wtPath, projectPath)
+	assert.ErrorIs(t, err, ErrProjectNotDeployed)
+}
+
+func TestEnsureWorktreeConfig_CreatesRealDirectory(t *testing.T) {
+	projectPath := setupMainProject(t, false)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	wtOpencode := filepath.Join(wtPath, ".opencode")
+
+	// .opencode must be a real directory, NOT a symlink
+	fi, err := os.Lstat(wtOpencode)
+	require.NoError(t, err)
+	assert.False(t, fi.Mode()&os.ModeSymlink != 0,
+		".opencode/ must be a real directory, not a symlink")
+	assert.True(t, fi.IsDir())
+}
+
+func TestEnsureWorktreeConfig_SubdirSymlinks(t *testing.T) {
+	projectPath := setupMainProject(t, false)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	wtOpencode := filepath.Join(wtPath, ".opencode")
+
+	// agents/, skills/, servers/ must be symlinks pointing into the main project
+	for _, sub := range []string{"agents", "skills", "servers"} {
+		linkPath := filepath.Join(wtOpencode, sub)
+
+		fi, err := os.Lstat(linkPath)
+		require.NoError(t, err, "expected %s to exist", linkPath)
+		assert.True(t, fi.Mode()&os.ModeSymlink != 0,
+			".opencode/%s must be a symlink", sub)
+
+		// The sentinel file must be reachable through the symlink
+		sentinel := filepath.Join(linkPath, "sentinel.txt")
+		data, err := os.ReadFile(sentinel)
+		require.NoError(t, err, "sentinel file must be reachable via symlink for %s", sub)
+		assert.Equal(t, sub, string(data))
+	}
+}
+
+func TestEnsureWorktreeConfig_ConfigFilesCopied(t *testing.T) {
+	projectPath := setupMainProject(t, false)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	wtOpencode := filepath.Join(wtPath, ".opencode")
+
+	// opencode.json and package.json must be regular files (copies), not symlinks
+	for _, fname := range []string{"opencode.json", "package.json"} {
+		dst := filepath.Join(wtOpencode, fname)
+		fi, err := os.Lstat(dst)
+		require.NoError(t, err, "expected %s to exist", dst)
+		assert.False(t, fi.Mode()&os.ModeSymlink != 0,
+			".opencode/%s must be a copied file, not a symlink", fname)
+	}
+}
+
+func TestEnsureWorktreeConfig_RootOpencodeJsonSymlinked(t *testing.T) {
+	projectPath := setupMainProject(t, false)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	link := filepath.Join(wtPath, "opencode.json")
+	fi, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.True(t, fi.Mode()&os.ModeSymlink != 0,
+		"root opencode.json must be a symlink")
+}
+
+func TestEnsureWorktreeConfig_BeadsSymlinkedWhenPresent(t *testing.T) {
+	projectPath := setupMainProject(t, true /* withBeads */)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	link := filepath.Join(wtPath, ".beads")
+	fi, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.True(t, fi.Mode()&os.ModeSymlink != 0, ".beads must be a symlink")
+}
+
+func TestEnsureWorktreeConfig_BeadsSkippedWhenAbsent(t *testing.T) {
+	projectPath := setupMainProject(t, false /* no .beads */)
+	wtPath := t.TempDir()
+
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	link := filepath.Join(wtPath, ".beads")
+	_, err := os.Lstat(link)
+	assert.True(t, os.IsNotExist(err), ".beads must not be created when absent in main project")
+}
+
+func TestEnsureWorktreeConfig_Idempotent(t *testing.T) {
+	projectPath := setupMainProject(t, true)
+	wtPath := t.TempDir()
+
+	// Calling twice must not return an error
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+}
+
+func TestEnsureWorktreeConfig_MigratesLegacySymlink(t *testing.T) {
+	projectPath := setupMainProject(t, false)
+	wtPath := t.TempDir()
+
+	// Simulate legacy layout: .opencode is a symlink to the whole directory
+	legacyLink := filepath.Join(wtPath, ".opencode")
+	relProject, _ := filepath.Rel(wtPath, projectPath)
+	require.NoError(t, os.Symlink(
+		filepath.Join(relProject, ".opencode"), legacyLink))
+
+	// Verify it's currently a symlink
+	fi, _ := os.Lstat(legacyLink)
+	require.True(t, fi.Mode()&os.ModeSymlink != 0, "precondition: must start as symlink")
+
+	// EnsureWorktreeConfig must migrate it to a real directory
+	require.NoError(t, EnsureWorktreeConfig(wtPath, projectPath))
+
+	fi, err := os.Lstat(legacyLink)
+	require.NoError(t, err)
+	assert.False(t, fi.Mode()&os.ModeSymlink != 0,
+		"after migration .opencode must be a real directory, not a symlink")
+	assert.True(t, fi.IsDir())
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -177,3 +348,4 @@ func runGit(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v: %s", args, string(out))
 }
+

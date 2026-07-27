@@ -16,6 +16,7 @@ type MetricsView struct {
 	app    *tview.Application
 	tv     *tview.TextView
 	period string // "7d", "30d", "all"
+	shell  ShellAccess
 }
 
 var _ View = (*MetricsView)(nil)
@@ -24,6 +25,9 @@ var _ View = (*MetricsView)(nil)
 func NewMetricsView() *MetricsView {
 	return &MetricsView{period: "all"}
 }
+
+// SetShell provides the shell reference (used to read the active project).
+func (v *MetricsView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
 func (v *MetricsView) ID() string { return "metrics" }
@@ -99,7 +103,18 @@ func (v *MetricsView) render() {
 	}
 	defer db.Close()
 
-	stats, err := opencode.PeriodStats(db, v.period)
+	// Determine scope: project-scoped or global
+	var stats *opencode.AggregateStats
+	var scopeLabel string
+	if v.shell != nil {
+		if ap := v.shell.ActiveProject(); ap != nil {
+			stats, err = opencode.ProjectPeriodStats(db, ap.Path, v.period)
+			scopeLabel = ap.Name
+		}
+	}
+	if stats == nil {
+		stats, err = opencode.PeriodStats(db, v.period)
+	}
 	if err != nil {
 		v.tv.SetText(fmt.Sprintf("  Erreur: %s", err.Error()))
 		return
@@ -115,7 +130,11 @@ func (v *MetricsView) render() {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n  [::b]Métriques — %s%s\n\n", periodLabel, theme.TagReset))
+	title := fmt.Sprintf("Métriques — %s", periodLabel)
+	if scopeLabel != "" {
+		title = fmt.Sprintf("Métriques · %s — %s", scopeLabel, periodLabel)
+	}
+	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", title, theme.TagReset))
 
 	// Main stats
 	sb.WriteString(fmt.Sprintf("  %sSessions :%s          %d\n",

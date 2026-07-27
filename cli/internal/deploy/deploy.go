@@ -386,6 +386,17 @@ func DeployConfig(provider, model string) Phase {
 				"reserved": 10000,
 			}
 
+			// Inject subagent_depth to support the full delegation chain:
+			// orchestrator → orchestrator-dev → developer.
+			// The hub TUI adds an extra parent session level when launching
+			// sessions from worktrees, so depth 3 is required:
+			//   hub(0) → orchestrator(1) → orchestrator-dev(2) → developer(3)
+			// We only set it if it is not already explicitly configured,
+			// so users can override upward if they have deeper chains.
+			if _, exists := config["subagent_depth"]; !exists {
+				config["subagent_depth"] = 3
+			}
+
 			// Inject instructions if documentation files exist in the project
 			instructions := discoverInstructionFiles(ctx.Plan.ProjectPath)
 			if len(instructions) > 0 {

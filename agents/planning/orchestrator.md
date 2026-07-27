@@ -21,6 +21,7 @@ permission:
     "designer": allow
     "orchestrator-dev": allow
     "debugger": allow
+    "documentarian": allow
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow

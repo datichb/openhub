@@ -42,7 +42,8 @@ et fournit un TUI interactif pour le suivi de développement.`,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if canLaunchTUI() {
-			return runTUI()
+			projectName, _ := cmd.Flags().GetString("project")
+			return runTUIWithProject(projectName)
 		}
 		return cmd.Help()
 	},
@@ -241,6 +242,8 @@ func init() {
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
 	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
+	rootCmd.Flags().StringP("project", "p", "", "Démarrer directement en mode projet pour ce projet")
+	_ = rootCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	rootCmd.SetHelpFunc(customHelpFunc)
 }
 

@@ -4,7 +4,9 @@ package beads
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -48,10 +50,36 @@ func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
 }
 
 // ListAll returns all tickets (flat, no tree nesting).
-// Runs: bd -C <path> list --json --no-tree
+// Runs: bd -C <path> list --json --flat
 func ListAll(projectPath string) ([]Ticket, error) {
-	args := []string{"-C", projectPath, "list", "--json", "--no-tree"}
+	args := []string{"-C", projectPath, "list", "--json", "--flat"}
 	return runBdJSON(args)
+}
+
+// IsInitialized reports whether the project at projectPath has a .beads/ directory.
+func IsInitialized(projectPath string) bool {
+	_, err := os.Stat(filepath.Join(projectPath, ".beads"))
+	return err == nil
+}
+
+// Init initializes beads in the given project directory.
+// prefix is used for ticket ID prefixes (e.g. project ID or short name).
+// It also registers the default labels used by opencode agents.
+func Init(projectPath, prefix string) error {
+	if err := Available(); err != nil {
+		return err
+	}
+	cmd := exec.Command("bd", "-C", projectPath, "init",
+		"--prefix", prefix,
+		"--skip-hooks", "--skip-agents", "--setup-exclude")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("bd init: %s", strings.TrimSpace(string(out)))
+	}
+	// Register default labels used by opencode agents
+	for _, label := range []string{"ai-delegated", "feature", "fix"} {
+		exec.Command("bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck
+	}
+	return nil
 }
 
 // ListEpics returns tickets of type "epic" from the full ticket list.
@@ -154,6 +182,62 @@ func OrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []T
 	return withLabel, withoutLabel, nil
 }
 
+// TicketDetail holds the full content of a bd ticket as returned by bd show --json.
+// Fields are optional — they are empty when not set on the ticket.
+// Field names match the exact JSON keys returned by bd (snake_case).
+type TicketDetail struct {
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Status      string          `json:"status"`
+	Priority    json.RawMessage `json:"priority"`
+	Type        string          `json:"issue_type"`
+	Parent      string          `json:"parent,omitempty"`
+	Labels      []string        `json:"labels,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Acceptance  string          `json:"acceptance_criteria,omitempty"`
+	Notes       string          `json:"notes,omitempty"`
+	Design      string          `json:"design,omitempty"`
+	Estimate    int             `json:"estimated_minutes,omitempty"`
+	Assignee    string          `json:"owner,omitempty"`
+	ExternalRef string          `json:"external_ref,omitempty"`
+	CloseReason string          `json:"close_reason,omitempty"`
+}
+
+// PriorityString returns the priority as a human-readable string (e.g. "P0").
+func (d *TicketDetail) PriorityString() string {
+	return normalizePriority(d.Priority)
+}
+
+// Show returns the full detail of a ticket by ID.
+// Runs: bd -C <path> show <id> --json
+// Note: bd show returns a JSON array containing a single ticket object.
+func Show(projectPath, ticketID string) (*TicketDetail, error) {
+	if err := Available(); err != nil {
+		return nil, err
+	}
+	cmd := exec.Command("bd", "-C", projectPath, "show", ticketID, "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("bd show: %s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("bd show: %w", err)
+	}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, fmt.Errorf("bd show: empty response for ticket %s", ticketID)
+	}
+	// bd show returns a JSON array with a single element — not a bare object.
+	var results []TicketDetail
+	if err := json.Unmarshal([]byte(trimmed), &results); err != nil {
+		return nil, fmt.Errorf("bd show: parsing response: %w", err)
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("bd show: no result for ticket %s", ticketID)
+	}
+	return &results[0], nil
+}
+
 // runBdJSON executes a bd command and parses the JSON output.
 func runBdJSON(args []string) ([]Ticket, error) {
 	cmd := exec.Command("bd", args...)
@@ -171,11 +255,57 @@ func runBdJSON(args []string) ([]Ticket, error) {
 		return nil, nil
 	}
 
-	var tickets []Ticket
-	if err := json.Unmarshal([]byte(trimmed), &tickets); err != nil {
+	// Use an intermediate struct because bd may return priority as a JSON number
+	// (0-3) rather than a string ("P0"-"P3").
+	// Field names match the exact JSON keys returned by bd (snake_case).
+	var raw []struct {
+		ID       string          `json:"id"`
+		Title    string          `json:"title"`
+		Status   string          `json:"status"`
+		Priority json.RawMessage `json:"priority"`
+		Type     string          `json:"issue_type"`
+		Parent   string          `json:"parent,omitempty"`
+		Labels   []string        `json:"labels,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(trimmed), &raw); err != nil {
 		return nil, fmt.Errorf("parsing bd output: %w", err)
 	}
+
+	tickets := make([]Ticket, len(raw))
+	for i, r := range raw {
+		tickets[i] = Ticket{
+			ID:       r.ID,
+			Title:    r.Title,
+			Status:   r.Status,
+			Priority: normalizePriority(r.Priority),
+			Type:     r.Type,
+			Parent:   r.Parent,
+			Labels:   r.Labels,
+		}
+	}
 	return tickets, nil
+}
+
+// normalizePriority converts a bd priority value (number or string) to a
+// canonical string form. bd may return either a numeric value (0, 1, 2, 3)
+// or a string ("P0", "critical", etc.).
+func normalizePriority(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	s := strings.Trim(string(raw), `"`)
+	switch s {
+	case "0":
+		return "P0"
+	case "1":
+		return "P1"
+	case "2":
+		return "P2"
+	case "3":
+		return "P3"
+	default:
+		return s // already a string ("P0", "critical", "high", …)
+	}
 }
 
 // isReadyStatus returns true if the status indicates a ticket is ready to work on.
