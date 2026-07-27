@@ -1,10 +1,10 @@
-# Specification Technique — Team Features Phase 1 & 2
+# Specification Technique — Team Features Phase 1, 2 & 3
 
 > Spec technique pour les fonctionnalites d'amelioration du travail en equipe
 > sur les projets cibles via le hub.
 >
-> Statut : **IMPLEMENTE** (features 1-5, Phase 1 + Phase 2)
-> Date : 13 juillet 2026
+> Statut : **IMPLEMENTE** (features 1-5, Phase 1 + Phase 2 + Phase 3)
+> Date : 13 juillet 2026 · Mis à jour : 24 juillet 2026
 
 ---
 
@@ -30,6 +30,9 @@ Phase 1 (dans l'ordre) :
 
 Phase 2 :
   5. Parallelisme coordonne (max 3 sessions, parametrable)
+
+Phase 3 :
+  6. Configuration team par projet (inherit / custom / disabled)
 ```
 
 ### Architecture d'integration
@@ -801,6 +804,112 @@ Pour eviter N cold boots MCP :
 
 ---
 
+## 6. Configuration Team par Projet [PHASE 3 — IMPLEMENTE]
+
+### 6.1 Motivation
+
+La configuration team initiale (`[team]` dans `hub.toml`) est globale au hub. Pour les
+developpeurs travaillant sur plusieurs projets avec des equipes differentes, ou qui veulent
+desactiver la team sur un projet specifique, cette architecture etait insuffisante.
+
+### 6.2 Concept
+
+Chaque projet peut choisir un **mode team** independant :
+
+| Mode | Comportement |
+|------|-------------|
+| `inherit` | Utilise le team-state repo et le member_id du hub (defaut, nil = inherit) |
+| `custom` | Repo team-state different ; member_id fall back sur le hub si vide |
+| `disabled` | Team desactivee — pas de `.opencode/team.json`, MCP team non injecte |
+
+### 6.3 Decisions de design
+
+1. **Stockage en SQLite** — colonne `team_config TEXT` (JSON) dans la table `projects`,
+   migration v17. Cohérent avec `mcp_config` et `provider_config`.
+
+2. **Fichier deployé, pas d'env vars** — le deploy ecrit `.opencode/team.json` avec la
+   config resolue. Le serveur MCP lit ce fichier. Alternative (env vars) rejetee : trop
+   fragile, facilement ecrasee par l'environnement shell.
+
+3. **Fallback hub.toml** — le serveur MCP conserve un fallback sur `hub.toml` pour la
+   compatibilite ascendante avec les projets deployes avant Phase 3.
+
+4. **member_id partage** — en mode `custom`, `member_id` vide = heritage du hub. Permet
+   a un developpeur de participer a plusieurs teams avec la meme identite.
+
+5. **state_path auto-derive** — `~/.oh/team-states/<nom-du-repo>` derive de l'URL remote.
+   Chaque remote distinct obtient son propre clone local.
+
+### 6.4 Structure du `ProjectTeamConfig`
+
+```go
+type ProjectTeamConfig struct {
+    Mode      string `json:"mode"`                // "inherit" | "custom" | "disabled"
+    StateRepo string `json:"state_repo,omitempty"`
+    StatePath string `json:"state_path,omitempty"`
+    MemberID  string `json:"member_id,omitempty"`
+}
+```
+
+### 6.5 Flux de resolution au deploy
+
+```
+buildDeployPlan(a, ..., projectTeamCfg)
+  └── config.ResolveTeamConfig(hub.Team, projectTeamCfg)
+        ├── nil / "inherit"  → hub config tel quel
+        ├── "custom"         → champs projet + fallback member_id hub
+        └── "disabled"       → Enabled=false
+  └── deploy.DeployTeamConfig(resolvedTeam)
+        ├── Enabled=true  → ecrire .opencode/team.json
+        └── Enabled=false → supprimer .opencode/team.json (si existe)
+  └── buildMCPServersForProject(a, mcpCfg, resolvedTeam)
+        └── "team" server Enabled = resolvedTeam.Enabled
+```
+
+### 6.6 Flux de lecture au runtime (MCP server)
+
+```
+loadEffectiveTeamConfig()
+  ├── .opencode/team.json present → lire (config deja resolue au deploy)
+  └── absent → fallback hub.toml (compat ascendante)
+```
+
+### 6.7 Fichiers crees
+
+| Fichier | Description |
+|---------|-------------|
+| `cli/internal/config/team_resolve.go` | `ResolveTeamConfig`, `TeamStatePath`, `repoNameFromRemote` |
+| `cli/internal/config/team_resolve_test.go` | 12 tests unitaires de resolution |
+| `cli/cmd/team_helpers.go` | `teamEnabledForProject`, `resolvedTeamConfig`, `buildProjectTeamStep` |
+| `cli/internal/mcp/team/server_test.go` | Tests `loadEffectiveTeamConfig` |
+
+### 6.8 Fichiers modifies
+
+| Fichier | Changement |
+|---------|-----------|
+| `cli/internal/domain/project.go` | +`ProjectTeamConfig` struct + constantes + champ `Project.TeamConfig` |
+| `cli/internal/storage/sqlite/store.go` | Migration v17 : `team_config TEXT` |
+| `cli/internal/storage/sqlite/project_store.go` | Marshal/unmarshal + queries SQL mises a jour |
+| `cli/internal/deploy/mcp.go` | +`DeployedTeamConfig`, `DeployTeamConfig` phase, `TeamConfigFile` |
+| `cli/cmd/deploy.go` | `ResolveTeamConfig` dans `buildDeployPlan`, 6e phase team |
+| `cli/internal/mcp/team/server.go` | `loadEffectiveTeamConfig` lit `.opencode/team.json` en priorite |
+| `cli/cmd/project_add.go` | +etape wizard Team (inherit/custom/disabled) |
+| `cli/cmd/tui_team_actions.go` | +`actionTeamConfigure`, `applyProjectTeamConfig` |
+| `cli/cmd/tui.go` | +commande `team.configure` dans l'omnibar |
+| 6 autres fichiers cmd | Remplacement `a.Config.Team.Enabled` → `teamEnabledForProject` |
+
+### 6.9 Criteres de done
+
+- [x] `ProjectTeamConfig` persiste en base et round-tripe sans perte
+- [x] `ResolveTeamConfig` couvre les 3 modes + fallback member_id + state_path auto-derive
+- [x] `oh deploy` ecrit/supprime `.opencode/team.json` selon le mode
+- [x] MCP team server lit `.opencode/team.json` avec fallback hub.toml
+- [x] Wizard `oh project add` propose le choix team
+- [x] `team configure` disponible dans l'omnibar TUI
+- [x] Build passe, 100 tests passent
+
+---
+
 ## Annexe A : RunHeadless (extension opencode.go)
 
 Nouvelle fonction dans `cli/internal/opencode/opencode.go` :
@@ -870,6 +979,260 @@ Total apres implementation : 7 existants + 5 nouveaux = **12 MCP tools team**
 
 ---
 
+## 6.10 Fix TUI Deadlock & Systeme de Notifications [PHASE 3 — IMPLEMENTE]
+
+### 6.10.1 Contexte : le deadlock `QueueUpdateDraw`
+
+Lors de l'implementation du mode custom pour `team configure`, un freeze hard du TUI
+a ete observe systematiquement. L'investigation a revele un bug fondamental dans la
+maniere dont les actions de l'omnibar etaient invoquees.
+
+**Mecanique du deadlock :**
+
+`tview.QueueUpdateDraw` (et `QueueUpdate`) est **synchrone** — il bloque le thread
+appelant via un channel non-bufferise :
+
+```go
+// Source : github.com/rivo/tview@v0.42.0/application.go
+func (a *Application) QueueUpdate(f func()) *Application {
+    ch := make(chan struct{})           // unbuffered done-channel
+    a.updates <- queuedUpdate{f: f, done: ch}
+    <-ch                               // BLOQUE jusqu'a ce que l'event loop traite f()
+    return a
+}
+```
+
+L'event loop tview est single-threaded. Quand il traite un evenement clavier
+(`InputCapture`), il execute le handler synchronement. Si ce handler appelle
+`QueueUpdateDraw`, la sequence est :
+
+```
+event loop → InputCapture handler → QueueUpdateDraw → <-ch (BLOQUE)
+  ↑                                                          |
+  └──── ne peut pas drainer la queue car bloque dans handler ┘
+                         DEADLOCK
+```
+
+Ce deadlock se manifestait dans tous les contextes ou l'action de l'omnibar
+affichait un modal ou un toast :
+- `team configure` → `ShowSelectModal` → freeze immediat
+- `team init` → `ShowInputModal` → freeze apres le premier Enter
+- Transitions modal→modal dans les callbacks
+
+### 6.10.2 Problematique duale : `RunsDirect` et `SuspendAndExec`
+
+Un second deadlock existe en sens inverse : `app.Suspend()` (utilise par
+`SuspendAndExec` pour lancer une session opencode) attend que l'event loop soit
+idle. Si on appelle `SuspendAndExec` depuis l'interieur d'un `QueueUpdateDraw`,
+on a le meme type de deadlock :
+
+```
+QueueUpdateDraw(func() { SuspendAndExec(...) })
+  → app.Suspend() attend que la queue soit vide
+    → mais on est dans un QueueUpdateDraw, donc la queue n'est jamais vide
+      DEADLOCK
+```
+
+Ces deux deadlocks s'opposent : les actions qui ouvrent des modals **doivent** etre
+deferees (via goroutine), mais les actions qui font `SuspendAndExec` **ne doivent
+pas** etre deferees.
+
+### 6.10.3 Solution : pattern goroutine + `RunsDirect`
+
+**Pattern canonique tview pour appeler `QueueUpdateDraw` depuis un handler :**
+
+```go
+// MAUVAIS — deadlock garanti depuis un InputCapture handler
+app.QueueUpdateDraw(func() { showModal() })
+
+// BON — la goroutine bloque sur <-ch HORS de l'event loop
+go func() {
+    app.QueueUpdateDraw(func() { showModal() })
+}()
+// Mecanisme :
+// 1. La goroutine envoie la tache a la queue (canal buffere, non bloquant)
+// 2. La goroutine bloque sur <-ch (hors event loop)
+// 3. Le handler InputCapture return normalement
+// 4. L'event loop boucle, draine la queue, execute showModal()
+// 5. Signale done → goroutine se debloque et exit proprement
+```
+
+**Flag `RunsDirect bool` sur `Command` et `ContextCommand` :**
+
+```go
+// shell/command.go
+type Command struct {
+    // ...
+    // RunsDirect=true : action appelle SuspendAndExec, doit tourner
+    // directement sur l'event loop (jamais dans un QueueUpdateDraw).
+    // RunsDirect=false (defaut) : action ouvre des modals/toasts,
+    // doit etre deferee via go func() { QueueUpdateDraw(...) }().
+    RunsDirect bool
+}
+```
+
+Le dispatcheur `executeCurrent()` dans l'omnibar utilise ce flag :
+
+```go
+func (o *Omnibar) executeCurrent() {
+    // ...
+    if cmd.RunsDirect {
+        cmd.Action()  // SuspendAndExec : synchrone, direct
+    } else {
+        go func() {
+            o.shell.app.QueueUpdateDraw(func() {
+                cmd.Action()  // ShowModal/ShowToast : deferred via goroutine
+            })
+        }()
+    }
+}
+```
+
+**Transitions modal→modal** dans les callbacks elles-memes utilisent le meme pattern :
+
+```go
+tuiShell.ShowInputModal("Step A", "", func(valueA string) {
+    // Ce callback s'execute dans un InputCapture handler — meme regle :
+    go func() {
+        tuiShell.App().QueueUpdateDraw(func() {
+            tuiShell.ShowInputModal("Step B", "", func(valueB string) {
+                // ...
+            })
+        })
+    }()
+})
+```
+
+### 6.10.4 Fichiers impactes
+
+| Fichier | Changement |
+|---------|-----------|
+| `cli/internal/tui/v2/shell/command.go` | +`RunsDirect bool` avec documentation complete |
+| `cli/internal/tui/v2/views/view.go` | +`RunsDirect bool` sur `ContextCommand` |
+| `cli/internal/tui/v2/shell/omnibar.go` | `executeCurrent()` : dispatch conditionnel goroutine vs direct |
+| `cli/internal/tui/v2/views/project_mode_view.go` | Nouveau helper `launchCmd()` avec `RunsDirect: true` |
+| `cli/cmd/tui.go` | 14 commandes `launchOpencode(...)` marquees `RunsDirect: true` |
+| `cli/cmd/tui_team_actions.go` | Toutes les transitions modal→modal via `go func() { QueueUpdateDraw(...) }()` |
+
+### 6.10.5 Systeme de notifications
+
+En parallele du fix deadlock, un systeme de notifications a ete introduit pour
+palier a deux limitations des toasts : troncature des messages et duree d'affichage
+limitee. La fonctionnalite a ensuite ete enrichie avec la **persistance cross-session**.
+
+**Architecture complete :**
+
+```
+showToast(msg, level)
+  ├── notifications.Add(level, msg)        ← FIFO ring buffer in-memory (50 entrees)
+  ├── AppendToFile(notifPath, level, msg)  ← persistence JSONL en background (goroutine)
+  ├── if level == ToastError: log.Printf("[ERROR] %s", msg)
+  └── tronque et affiche le toast (80 chars pour Error/Warning, 50 pour les autres)
+
+~/.oh/notifications.jsonl (JSONL, format compact)
+  {"t":"2026-07-24T14:32:05Z","l":1,"m":"message complet jamais tronque"}
+  max 500 lignes, entrees > 7 jours supprimees a chaque demarrage du TUI
+
+NotificationStore (in-memory, session courante)
+  ├── ring buffer thread-safe, 50 entrees max (FIFO)
+  ├── All() → most-recent-first
+  └── Entries() → []views.NotificationEntry
+
+AppendToFile / ReadLastN / RotateFile (persistance cross-session)
+  ├── AppendToFile : O_APPEND, cree le fichier et le dossier si absent
+  ├── ReadLastN(path, 50) : lit les 50 dernieres lignes, most-recent-first
+  └── RotateFile(path, 500, 7j) : tronque atomiquement au demarrage (tmp + rename)
+```
+
+**Vue Notifications (`notifications_view.go`) :**
+
+```
+oh → omnibar → "notifications"   (aliases : notif, logs, messages, toasts, erreurs)
+
+24/07 14:32:05  ✗  Erreur setup team : git clone https://gitlab.com/...: fatal: ...
+24/07 14:31:58  ✓  Team configurée : custom — redéployez pour appliquer
+24/07 14:31:52  →  Initialisation team pour ce projet...
+```
+
+- Messages complets, jamais tronques
+- Historique **cross-session** (lit `~/.oh/notifications.jsonl`)
+- Chargement asynchrone au Mount (goroutine + QueueUpdateDraw)
+- Date + heure (`DD/MM HH:MM:SS`) pour distinguer les sessions
+- Scrollable (`j`/`k`), `SetWrap(true)` + `SetWordWrap(true)` : zero troncature
+
+**Fix git HTTP :**
+
+```go
+// cli/internal/teamstate/repo.go
+cmd.Env = append(os.Environ(),
+    "GIT_TERMINAL_PROMPT=0",  // echoue si credentials manquants (pas de blocage)
+    "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+)
+// + context.WithTimeout(30s) sur EnsureReady dans runTeamCustomSetup
+```
+
+### 6.10.6 Selection de texte et clipboard
+
+Le TUI supporte la selection de texte a la souris sur **n'importe quelle zone
+non-interactive**. Implementation screen-level (pas per-widget) via `SetAfterDrawFunc`.
+
+**Composants :**
+
+| Fichier | Role |
+|---------|------|
+| `cli/internal/tui/v2/shell/selection.go` | `SelectionManager` : state, mouse, multi-click, highlight, extract |
+| `cli/internal/tui/v2/shell/clipboard.go` | `CopyToClipboard` : OSC52 + fallback natif |
+
+**Fonctionnement :**
+
+```
+[Mouse Down] hors zone interactive
+  → HandleMouseDown(x, y, screen) → ancre, mode char/word/line selon click count
+
+[Mouse Drag]
+  → HandleMouseDrag(x, y) + ForceDraw
+  → SetAfterDrawFunc → ApplyHighlight : screen.SetContent(style.Reverse(true))
+
+[Mouse Up]
+  → ExtractText : screen.GetContent sur les cellules selectionnees
+  → CopyToClipboard : OSC52 (/dev/tty) puis pbcopy/xclip/wl-copy
+  → Toast "Copie dans le presse-papiers"
+
+[Esc] → Clear + ForceDraw
+```
+
+**Multi-click :**
+
+| Clicks | Mode | Expansion |
+|--------|------|-----------|
+| 1 | `char` | Drag libre |
+| 2 (< 400ms, ±2 cells) | `word` | Limites unicode (IsSpace + IsPunct) |
+| 3 (< 400ms) | `line` | Col 0 → dernier char non-espace |
+
+**Clipboard (sans lib externe) :**
+
+| Strategie | Plateforme |
+|-----------|-----------|
+| OSC52 via `/dev/tty` | Universel (SSH, tmux) |
+| `pbcopy` | macOS |
+| `wl-copy` | Linux/Wayland |
+| `xclip`/`xsel` | Linux/X11 |
+| `clip` | Windows |
+
+### 6.10.7 Criteres de done
+
+- [x] Build passe (0 erreurs)
+- [x] 589 tests passent (37 nouveaux : notifications, repo, selection, clipboard)
+- [x] Plus de freeze TUI lors de `team configure` / `team init`
+- [x] Les erreurs git completes sont visibles dans la vue `notifications`
+- [x] Historique des notifications persistant entre les sessions (`~/.oh/notifications.jsonl`)
+- [x] Selection de texte a la souris dans tout le TUI + copie clipboard (OSC52 + natif)
+- [x] Multi-click (double = mot, triple = ligne)
+- [x] Le clone HTTP echoue proprement (sans bloquer) si credentials absents
+- [x] Le clone timeout apres 30s si le remote est injoignable
+
+---
+
 ## Annexe C : Estimation effort
 
 | # | Feature | Fichiers nouveaux | Fichiers modifies | Effort |
@@ -881,4 +1244,5 @@ Total apres implementation : 7 existants + 5 nouveaux = **12 MCP tools team**
 | 5 | Parallelisme | 6 | 4 | 5-7 jours |
 | | **Total Phase 1** | **16** | **17** | **~8-11 jours** |
 | | **Total Phase 2** | **+6** | **+4** | **+5-7 jours** |
+| | **Total Phase 3** | **+10** | **+18** | **+8-10 jours** |
 | | **Total global** | **22** | **21** | **~13-18 jours** |

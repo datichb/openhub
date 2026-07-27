@@ -148,6 +148,144 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 ---
 
+## Configuration Team par Projet
+
+Chaque projet peut surcharger indépendamment la configuration `[team]` du hub. La surcharge
+est stockée dans la colonne JSON `team_config` de la table `projects` (SQLite).
+
+### Champs de `ProjectTeamConfig`
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `mode` | string | `"inherit"` (défaut) · `"custom"` · `"disabled"` |
+| `state_repo` | string | URL Git remote du repo team-state _(custom uniquement)_ |
+| `state_path` | string | Chemin de clone local — auto-déduit de `state_repo` si vide _(custom uniquement)_ |
+| `member_id` | string | Override d'identité — fall back sur `member_id` du hub si vide _(custom uniquement)_ |
+
+### Cascade de résolution
+
+```
+project.TeamConfig.Mode == "inherit" (ou nil)  →  config [team] du hub utilisée telle quelle
+project.TeamConfig.Mode == "custom"            →  champs du projet ; member_id fall back sur le hub
+project.TeamConfig.Mode == "disabled"          →  team désactivée pour ce projet
+```
+
+### Artefact deployé : `.opencode/team.json`
+
+`oh deploy` résout la config effective et écrit `.opencode/team.json` à la racine du projet :
+
+```json
+{
+  "enabled": true,
+  "state_repo": "git@gitlab.com:acme/team-state.git",
+  "state_path": "/Users/alice/.oh/team-states/team-state",
+  "member_id": "alice"
+}
+```
+
+Quand le mode est `disabled`, le fichier est supprimé (ou jamais créé) et le serveur MCP
+`team` n'est pas injecté dans `opencode.json`.
+
+### Déduction automatique du state path
+
+Quand `state_path` est vide dans une config custom, il est déduit de `state_repo` :
+
+```
+git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/other-team
+https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
+```
+
+### Définir le mode
+
+- **À la création du projet :** le wizard `oh project add` inclut une étape Team.
+- **Après création :** utiliser `team configure` dans l'omnibar TUI, puis redéployer.
+
+---
+
+## Vue Notifications
+
+Le TUI capture chaque toast dans un store en mémoire et rend l'historique complet
+accessible via une vue dédiée.
+
+### Accéder à la vue
+
+Taper l'un des termes suivants dans l'omnibar :
+
+| Commande | Description |
+|----------|-------------|
+| `notifications` | Ouvrir l'historique des notifications |
+| `notif` / `logs` / `messages` / `toasts` / `erreurs` | Alias |
+
+### Ce qu'elle affiche
+
+```
+14:32:05  ✗  Erreur setup team : git clone https://gitlab.com/...: fatal: repository not found
+14:31:58  ✓  Team configurée : custom — redéployez pour appliquer
+14:31:52  →  Initialisation team pour ce projet...
+```
+
+Chaque entrée contient :
+- **Horodatage** (`HH:MM:SS`)
+- **Icône de niveau** — `✓` succès · `✗` erreur · `!` avertissement · `→` info
+- **Message complet non tronqué** — les toasts à l'écran sont tronqués (80 chars pour
+  les erreurs/warnings, 50 pour les autres) ; le store conserve toujours le texte complet
+
+La vue est **scrollable** (`j` / `k` pour naviguer).
+
+### Comportement du store
+
+- **Capacité :** 50 entrées en mémoire par session (FIFO — la plus ancienne est evincée quand plein)
+- **Persistance :** les notifications sont appendées dans `~/.oh/notifications.jsonl` après
+  chaque toast. Le fichier est roté au démarrage du TUI (max 500 lignes, entrées > 7 jours
+  supprimées). La vue Notifications charge les 50 dernières entrées depuis ce fichier à chaque
+  Mount — l'historique est disponible entre les sessions.
+- **Log stderr :** les notifications de niveau erreur sont aussi ecrites sur stderr sous la
+  forme `[ERROR] <message>`, utile pour la redirection de logs en CI
+
+---
+
+## Sélection de Texte
+
+Le TUI supporte la sélection de texte native à la souris partout en dehors des widgets
+interactifs (omnibar, modals). Aucune dépendance externe n'est requise.
+
+### Comment l'utiliser
+
+1. **Clic et glisser** pour sélectionner — les cellules sélectionnées sont en reverse video
+2. **Relâcher** — le texte est automatiquement copié dans le presse-papiers
+3. **Double-clic** — sélectionne le mot sous le curseur
+4. **Triple-clic** — sélectionne la ligne entière
+5. **Esc** — efface la sélection
+
+### Clipboard
+
+L'écriture clipboard utilise un pipeline à deux stratégies (sans dépendance Go externe) :
+
+| Stratégie | Plateformes |
+|-----------|------------|
+| Séquence OSC 52 via `/dev/tty` | Tous les terminaux modernes (iTerm2, WezTerm, Alacritty, kitty, tmux avec `set-clipboard on`), fonctionne en SSH |
+| `pbcopy` | macOS fallback |
+| `wl-copy` | Linux/Wayland fallback |
+| `xclip` / `xsel` | Linux/X11 fallback |
+| `clip.exe` | Windows fallback |
+
+Les deux stratégies sont tentées ; l'opération réussit si au moins une fonctionne.
+
+### Zones interactives (pass-through)
+
+Les événements souris dans les zones suivantes sont passés à tview sans déclencher
+la sélection :
+
+- Container de l'omnibar, champ de saisie, liste de suggestions
+- Toute overlay modale (prompts, listes de sélection)
+
+### Overlays de toast
+
+Les toasts sont **sélectionnables** — cliquer sur un toast démarre une sélection
+plutôt qu'une interaction avec le widget.
+
+---
+
 ## Secrets / Cles API
 
 Les secrets sont stockes dans le **trousseau du systeme** (macOS Keychain, Linux secret-service, Windows Credential Manager).

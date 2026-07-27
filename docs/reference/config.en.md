@@ -149,6 +149,144 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 ---
 
+## Per-project Team Configuration
+
+Each project can independently override the hub-level `[team]` configuration. The override
+is stored in the `team_config` JSON column of the `projects` table (SQLite).
+
+### `ProjectTeamConfig` fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mode` | string | `"inherit"` (default) · `"custom"` · `"disabled"` |
+| `state_repo` | string | Git remote URL of the team-state repo _(custom only)_ |
+| `state_path` | string | Local clone path — auto-derived from `state_repo` if empty _(custom only)_ |
+| `member_id` | string | Member identity override — falls back to hub `member_id` if empty _(custom only)_ |
+
+### Resolution cascade
+
+```
+project.TeamConfig.Mode == "inherit" (or nil)  →  hub [team] config used as-is
+project.TeamConfig.Mode == "custom"             →  project fields; member_id falls back to hub
+project.TeamConfig.Mode == "disabled"           →  team disabled for this project
+```
+
+### Deployed artifact: `.opencode/team.json`
+
+`oh deploy` resolves the effective config and writes `.opencode/team.json` in the project root:
+
+```json
+{
+  "enabled": true,
+  "state_repo": "git@gitlab.com:acme/team-state.git",
+  "state_path": "/Users/alice/.oh/team-states/team-state",
+  "member_id": "alice"
+}
+```
+
+When mode is `disabled`, the file is removed (or never created) and the `team` MCP server
+is not injected into `opencode.json`.
+
+### State path auto-derivation
+
+When `state_path` is empty in a custom config, it is derived from `state_repo`:
+
+```
+git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/other-team
+https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
+```
+
+### Setting the mode
+
+- **At project creation:** the `oh project add` wizard includes a Team step.
+- **Post-creation:** use `team configure` in the TUI omnibar, then redeploy.
+
+---
+
+## Notifications View
+
+The TUI captures every toast notification in an in-memory store and makes the full
+history available via a dedicated view.
+
+### Accessing the view
+
+Type any of the following in the omnibar:
+
+| Command | Description |
+|---------|-------------|
+| `notifications` | Open the notification history |
+| `notif` / `logs` / `messages` / `toasts` / `erreurs` | Aliases |
+
+### What it shows
+
+```
+14:32:05  ✗  Erreur setup team : git clone https://gitlab.com/...: fatal: repository not found
+14:31:58  ✓  Team configurée : custom — redéployez pour appliquer
+14:31:52  →  Initialisation team pour ce projet...
+```
+
+Each entry has:
+- **Timestamp** (`HH:MM:SS`)
+- **Level icon** — `✓` success · `✗` error · `!` warning · `→` info
+- **Full untruncated message** — toasts on-screen are truncated (80 chars for
+  errors/warnings, 50 for others); the store always retains the complete text
+
+The view is **scrollable** (`j` / `k` to navigate).
+
+### Store behaviour
+
+- **Capacity:** 50 entries in-memory per session (FIFO — oldest evicted when full)
+- **Persistence:** notifications are appended to `~/.oh/notifications.jsonl` after
+  every toast. The file is rotated at TUI startup (max 500 lines, entries older than
+  7 days removed). The Notifications view loads the last 50 entries from this file
+  on every Mount — history is available across sessions.
+- **Stderr log:** error-level notifications are also written to stderr as
+  `[ERROR] <message>`, useful for log redirection in CI or remote sessions
+
+---
+
+## Text Selection
+
+The TUI supports native-style text selection anywhere outside interactive widgets
+(omnibar, modals). No external dependency is required.
+
+### How to use
+
+1. **Click and drag** to select text — selected cells are highlighted with reverse video
+2. **Release** — text is automatically copied to the clipboard
+3. **Double-click** — selects the word under the cursor
+4. **Triple-click** — selects the entire line
+5. **Esc** — clears the selection
+
+### Clipboard
+
+The clipboard write uses a two-strategy pipeline (no external Go dependency):
+
+| Strategy | Platforms |
+|----------|-----------|
+| OSC 52 escape sequence via `/dev/tty` | All modern terminals (iTerm2, WezTerm, Alacritty, kitty, tmux with `set-clipboard on`), works over SSH |
+| `pbcopy` | macOS fallback |
+| `wl-copy` | Linux/Wayland fallback |
+| `xclip` / `xsel` | Linux/X11 fallback |
+| `clip.exe` | Windows fallback |
+
+Both strategies are attempted; the operation succeeds if at least one works.
+
+### Interactive zones (pass-through)
+
+Mouse events in the following areas are passed through to tview unchanged (selection
+does not activate in these zones):
+
+- Omnibar container, input field, and suggestions list
+- Any inline modal or sub-overlay (prompts, select lists)
+
+### Toast overlays
+
+Toast notifications are **selectable** — clicking on a toast area starts a selection
+rather than interacting with the toast.
+
+---
+
 ## Secrets / API Keys
 
 Secrets are stored in the **OS keychain** (macOS Keychain, Linux secret-service, Windows Credential Manager).

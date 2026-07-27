@@ -79,3 +79,31 @@ AI agents access team data via a **MCP server** (`team-mcp`) that reads from the
 - Notifications: `cli/internal/notify/`
 - CLI commands: `oh team init|status|activity`, `oh claim|release`
 - Skills: `skills/shared/team-awareness.md`, `skills/orchestrator/team-coordination.md`
+
+## Amendments
+
+### 2026-07-24 — Per-project team configuration (Phase 3)
+
+The original decision assumed a single team-state repo per hub (one global `[team]` section
+in `hub.toml`). This was extended to support per-project overrides while preserving full
+backward compatibility.
+
+**Change summary:**
+
+- `ProjectTeamConfig` struct added to `domain.Project` with three modes:
+  `inherit` (default), `custom` (separate team-state repo), `disabled` (no team for this project).
+- Stored as JSON in a new `team_config` column (SQLite migration v17).
+- `config.ResolveTeamConfig(hub, project)` implements the cascade: project override → hub fallback.
+- `oh deploy` writes `.opencode/team.json` with the resolved config (or removes it when disabled).
+- The team MCP server reads `.opencode/team.json` first; falls back to `hub.toml` when absent.
+- `oh project add` wizard includes an explicit Team step to choose the mode.
+- `team configure` TUI omnibar action allows post-creation mode changes.
+
+**Consequence updates:**
+
+- ~~"Multi-project: one repo serves all projects"~~ → Now: each project can point to a different
+  team-state repo in `custom` mode. One hub can coordinate multiple independent teams.
+- The `state_path` is auto-derived per remote URL (`~/.oh/team-states/<repo-name>`) to prevent
+  clone collisions between projects using different team-state repos.
+
+**Related:** `cli/internal/config/team_resolve.go`, `docs/dev/team-features-spec.md §6`

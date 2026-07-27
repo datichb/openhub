@@ -161,6 +161,137 @@ oh sync --all    # tous les projets
 
 Cela ajoute le serveur MCP `team` dans `opencode.json`, rendant les outils d'équipe accessibles aux agents IA.
 
+## 4b. Configuration de la team par projet
+
+Par défaut, chaque projet **hérite** de la configuration team du hub (le bloc `[team]` dans
+`hub.toml`). Depuis `oh deploy` v3 (config team par projet), chaque projet peut
+choisir son mode team indépendamment.
+
+### Les trois modes
+
+| Mode | Description |
+|------|-------------|
+| `inherit` | Utilise le team-state repo et le member ID du hub _(défaut)_ |
+| `custom` | Utilise un repo team-state différent — member ID fall back sur le hub si non défini |
+| `disabled` | Désactive explicitement la team — pas de `.opencode/team.json`, MCP team non injecté |
+
+### Comment le mode est appliqué
+
+Au moment du deploy, `oh deploy` résout la config team effective
+(override projet → fallback hub) et écrit `.opencode/team.json` dans le projet :
+
+```json
+// .opencode/team.json — généré par oh deploy, ne pas éditer manuellement
+{
+  "enabled": true,
+  "state_repo": "git@gitlab.com:acme/team-state.git",
+  "state_path": "/Users/alice/.oh/team-states/team-state",
+  "member_id": "alice"
+}
+```
+
+Quand le mode est `disabled`, ce fichier est **supprimé** (ou jamais créé) et le serveur
+MCP `team` n'est pas injecté dans `opencode.json`.
+
+Le serveur MCP team lit `.opencode/team.json` en priorité ; si absent, il fall back sur
+`hub.toml` pour la compatibilité ascendante avec les projets non encore redéployés.
+
+### Choisir le mode à la création du projet
+
+`oh project add` (ou le wizard `oh init` pour le premier projet) inclut une étape
+**Team** qui présente le choix explicitement :
+
+```
+Team hub : git@gitlab.com:acme/team-state.git (member : alice)
+
+Mode team :
+  ▶ Utiliser la team du hub (alice)   ← défaut si le hub a une team
+    Configuration spécifique
+    Pas de team pour ce projet
+```
+
+Si le hub n'a **pas de team configurée**, l'étape propose par défaut *"Pas de team pour
+ce projet"* et offre un opt-in vers une configuration custom.
+
+### Changer le mode après la création
+
+**Depuis l'omnibar TUI** (disponible à tout moment, quel que soit l'état team du hub) :
+
+```
+team configure
+```
+
+Cela ouvre un modal avec les trois choix. Après confirmation, redéploie le projet
+pour appliquer le changement :
+
+```bash
+oh deploy          # un seul projet
+oh sync --all      # tous les projets
+```
+
+### Team custom : résolution du state path
+
+Pour le mode `custom`, le `StatePath` est déduit automatiquement de l'URL du remote
+si non défini explicitement :
+
+```
+git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/other-team
+https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
+```
+
+Chaque remote team-state distinct obtient son propre répertoire de clone local sous
+`~/.oh/team-states/` pour éviter les collisions.
+
+### Résolution du Member ID
+
+Pour le mode `custom`, si `MemberID` est laissé vide, il fall back sur le `member_id`
+du hub. C'est l'approche recommandée quand un développeur participe à plusieurs équipes
+avec la même identité.
+
+```toml
+# hub.toml — identité globale
+[team]
+enabled    = true
+state_repo = "git@gitlab.com:acme/main-team.git"
+member_id  = "alice"           # ← utilisé comme fallback pour tous les projets custom
+
+# override par projet stocké en SQLite (colonne team_config) :
+# { "mode": "custom", "state_repo": "git@github.com:beta/other.git" }
+# member_id vide → résolu en "alice" depuis le hub au runtime
+```
+
+### Troubleshooting
+
+**Le clone échoue avec "terminal prompts disabled" :**
+
+Le remote requiert une authentification (HTTP basic ou token) et aucun credential
+n'est configuré. `oh` positionne `GIT_TERMINAL_PROMPT=0` pour ne pas bloquer sur
+un prompt — l'erreur est intentionnelle.
+
+Solutions :
+- **HTTPS + credential helper :** `git config --global credential.helper osxkeychain`
+  (macOS) ou `git config --global credential.helper store`
+- **SSH plutôt que HTTPS :** utiliser `git@gitlab.com:org/team-state.git`
+- **Clé SSH non chargée :** `ssh-add ~/.ssh/id_ed25519` ou `eval "$(ssh-agent)"`
+
+**Le clone timeout après 30 secondes :**
+
+Le remote est injoignable (réseau, pare-feu, ou URL incorrecte). Le setup affichera
+un toast d'erreur après expiration du délai.
+
+**Le toast d'erreur est tronqué :**
+
+Ouvrir le message complet via l'omnibar : taper `notifications` (ou `notif`, `logs`).
+La vue Notifications charge les 50 dernières entrées depuis `~/.oh/notifications.jsonl`
+(persistant entre les sessions) — le message complet est toujours disponible.
+
+**Le TUI semble gelé pendant le setup :**
+
+Cela ne devrait plus se produire depuis le fix deadlock Phase 3. Si c'est le cas,
+appuyer sur `Ctrl+C` pour quitter et vérifier `~/.oh/team-states/` pour voir si le
+clone a été tenté. L'erreur apparaîtra dans la vue Notifications au prochain démarrage
+(`notifications` dans l'omnibar).
+
 ## Usage Quotidien
 
 ### Claims — Réservation de tickets

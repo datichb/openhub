@@ -6,10 +6,30 @@ The `team` MCP server exposes team collaboration data to AI agents via the MCP p
 
 ## Activation
 
-The team MCP server is deployed automatically when `[team].enabled = true` in `hub.toml`. No token is required.
+The team MCP server is deployed automatically when team features are **enabled for the
+project** being deployed. Activation is resolved in two layers:
+
+1. **`.opencode/team.json`** (primary) — written by `oh deploy` with the fully-resolved
+   config for this project. Present when team is enabled; absent when disabled.
+2. **`hub.toml` `[team]` section** (fallback) — used for backward compatibility on
+   projects not yet redeployed after the per-project team config feature was introduced.
+
+No token is required — the server reads from the local team-state clone.
+
+### Resolution cascade
+
+```
+Project mode (stored in SQLite)
+  ├── "inherit"  → use hub.toml [team] config as-is
+  ├── "custom"   → use project-specific state_repo / member_id
+  └── "disabled" → team.json not written, MCP server not injected
+```
+
+See [Team Setup Guide — Per-project configuration](../guides/team-setup.en.md#4b-per-project-team-configuration)
+for how to configure the mode per project.
 
 ```json
-// Injected into opencode.json by oh deploy
+// Injected into opencode.json by oh deploy (when team is enabled for the project)
 {
   "mcpServers": {
     "team": {
@@ -19,6 +39,10 @@ The team MCP server is deployed automatically when `[team].enabled = true` in `h
   }
 }
 ```
+
+At runtime the MCP server process reads `.opencode/team.json` from the **current working
+directory** (the project root). If that file is absent, it falls back to reading
+`hub.toml` directly.
 
 ## Tools
 
