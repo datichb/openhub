@@ -7,9 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -226,22 +229,29 @@ func Serve() error {
 	return server.Serve()
 }
 
-// getRepo returns an initialized team-state repo from the hub config.
+// getRepo returns an initialized team-state repo using the effective team config.
+//
+// Resolution order:
+//  1. .opencode/team.json in the current working directory (written by "oh deploy")
+//  2. hub.toml [team] section (legacy / fallback for projects not yet redeployed)
+//
+// If neither source enables team features, an error is returned so callers can
+// surface a clear message to the agent.
 func getRepo() (*teamstate.Repo, error) {
-	cfg, err := config.Load()
+	teamCfg, err := loadEffectiveTeamConfig()
 	if err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
+		return nil, fmt.Errorf("loading team config: %w", err)
 	}
-	if !cfg.Team.Enabled {
-		return nil, fmt.Errorf("team features not enabled in hub.toml")
+	if !teamCfg.Enabled {
+		return nil, fmt.Errorf("team features not enabled for this project")
 	}
 
-	statePath := cfg.Team.StatePath
+	statePath := teamCfg.StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
 
-	repo := teamstate.NewRepo(cfg.Team.StateRepo, statePath)
+	repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, fmt.Errorf("team-state repo not cloned at %s", statePath)
 	}
@@ -250,6 +260,39 @@ func getRepo() (*teamstate.Repo, error) {
 	_ = repo.Pull(context.Background())
 
 	return repo, nil
+}
+
+// loadEffectiveTeamConfig reads the resolved team configuration for the running project.
+//
+// It first looks for .opencode/team.json (written by "oh deploy") in the current
+// working directory. If found and valid it is used as-is — it already contains the
+// fully-resolved config (project override → hub fallback) baked in at deploy time.
+//
+// If .opencode/team.json is absent (project not yet redeployed after upgrade, or
+// deployed without a team config), we fall back to hub.toml for backward compatibility.
+func loadEffectiveTeamConfig() (deploy.DeployedTeamConfig, error) {
+	cwd, err := os.Getwd()
+	if err == nil {
+		teamJSONPath := filepath.Join(cwd, ".opencode", deploy.TeamConfigFile)
+		if data, err := os.ReadFile(teamJSONPath); err == nil {
+			var tc deploy.DeployedTeamConfig
+			if err := json.Unmarshal(data, &tc); err == nil {
+				return tc, nil
+			}
+		}
+	}
+
+	// Fallback: hub.toml (backward compat — projects not yet redeployed)
+	cfg, err := config.Load()
+	if err != nil {
+		return deploy.DeployedTeamConfig{}, fmt.Errorf("loading hub config: %w", err)
+	}
+	return deploy.DeployedTeamConfig{
+		Enabled:   cfg.Team.Enabled,
+		StateRepo: cfg.Team.StateRepo,
+		StatePath: cfg.Team.StatePath,
+		MemberID:  cfg.Team.MemberID,
+	}, nil
 }
 
 func handleTeamMembers(params json.RawMessage) (*protocol.ToolResult, error) {

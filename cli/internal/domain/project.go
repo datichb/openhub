@@ -22,6 +22,7 @@ type Project struct {
 	MCPConfig      *ProjectMCPConfig      // per-project MCP overrides (nil = inherit hub defaults)
 	ProviderConfig *ProjectProviderConfig // per-project provider config overrides (nil = inherit hub)
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
+	TeamConfig     *ProjectTeamConfig     // per-project team config (nil = inherit hub team config)
 	Status         ProjectStatus
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -63,6 +64,32 @@ type ProjectProviderConfig struct {
 	AuthMode   string `json:"auth_mode,omitempty"`   // override auth mode for this project
 	TokenKey   string `json:"token_key,omitempty"`   // project-specific keychain key for credentials
 }
+
+// ProjectTeamConfig holds per-project team configuration.
+// Mode controls resolution:
+//   - "" or "inherit" → use hub-level [team] config as-is (nil pointer also means inherit)
+//   - "custom"        → use the fields below; MemberID falls back to hub MemberID if empty
+//   - "disabled"      → team features explicitly off for this project (even if hub team is active)
+type ProjectTeamConfig struct {
+	// Mode is the resolution strategy: "inherit" | "custom" | "disabled".
+	Mode string `json:"mode"`
+	// StateRepo is the Git remote URL of the team-state repository.
+	// Only used when Mode == "custom".
+	StateRepo string `json:"state_repo,omitempty"`
+	// StatePath is the local clone path for the team-state repo.
+	// Only used when Mode == "custom". Auto-derived from StateRepo if empty.
+	StatePath string `json:"state_path,omitempty"`
+	// MemberID overrides the hub-level member_id for this project.
+	// Only used when Mode == "custom". Falls back to hub MemberID when empty.
+	MemberID string `json:"member_id,omitempty"`
+}
+
+// ProjectTeamMode constants for ProjectTeamConfig.Mode.
+const (
+	ProjectTeamModeInherit  = "inherit"
+	ProjectTeamModeCustom   = "custom"
+	ProjectTeamModeDisabled = "disabled"
+)
 
 // ProjectStatus represents the lifecycle state of a project.
 type ProjectStatus string

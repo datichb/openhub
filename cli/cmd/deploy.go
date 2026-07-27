@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
@@ -82,7 +83,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
 
 	// Execute
 	start := time.Now()
@@ -192,12 +193,13 @@ func findHubDir() string {
 }
 
 // buildMCPServers constructs MCP server definitions from the hub config only.
-func buildMCPServers(a *app.App) []deploy.MCPServerDef {
+// The "team" entry uses the resolved team config rather than the raw hub flag.
+func buildMCPServers(a *app.App, resolvedTeam config.ResolvedTeamConfig) []deploy.MCPServerDef {
 	enabled := map[string]bool{
 		"figma":   a.Config.MCP.Figma.Enabled,
 		"gitlab":  a.Config.MCP.Gitlab.Enabled,
 		"gslides": a.Config.MCP.Gslides.Enabled,
-		"team":    a.Config.Team.Enabled,
+		"team":    resolvedTeam.Enabled,
 	}
 	tokenKeys := map[string]string{
 		"figma":   a.Config.MCP.Figma.Token,
@@ -218,8 +220,8 @@ func buildMCPServers(a *app.App) []deploy.MCPServerDef {
 //
 // Credentials (TokenKey) and options (WriteEnabled) are overridden per-service
 // when non-empty/non-nil; otherwise they inherit from hub.
-func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig) []deploy.MCPServerDef {
-	servers := buildMCPServers(a)
+func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, resolvedTeam config.ResolvedTeamConfig) []deploy.MCPServerDef {
+	servers := buildMCPServers(a, resolvedTeam)
 
 	if mcpConfig == nil || len(mcpConfig.Services) == 0 {
 		return servers
@@ -259,7 +261,8 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig) [
 // provider and model can be empty to inherit from project config.
 // projectModelOvr can be nil if the project has no per-agent/family overrides.
 // projectMCPCfg can be nil to inherit hub-level MCP config.
-func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig) *deploy.Plan {
+// projectTeamCfg can be nil to inherit hub-level team config.
+func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig, projectTeamCfg *domain.ProjectTeamConfig) *deploy.Plan {
 	// Read websearch setting from hub config
 	v := configViper()
 	websearchEnabled := v.GetBool("websearch.enabled")
@@ -295,13 +298,24 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 		}
 	}
 
+	// Resolve effective team config (project override → hub fallback)
+	resolvedTeam := config.ResolveTeamConfig(a.Config.Team, projectTeamCfg)
+
 	// Build list of enabled MCP servers for agent validation warnings
-	mcpServers := buildMCPServersForProject(a, projectMCPCfg)
+	mcpServers := buildMCPServersForProject(a, projectMCPCfg, resolvedTeam)
 	var enabledMCPServers []string
 	for _, s := range mcpServers {
 		if s.Enabled {
 			enabledMCPServers = append(enabledMCPServers, s.Name)
 		}
+	}
+
+	// Build the deployed team config for .opencode/team.json
+	deployedTeam := deploy.DeployedTeamConfig{
+		Enabled:   resolvedTeam.Enabled,
+		StateRepo: resolvedTeam.StateRepo,
+		StatePath: resolvedTeam.StatePath,
+		MemberID:  resolvedTeam.MemberID,
 	}
 
 	return &deploy.Plan{
@@ -319,6 +333,7 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 			deploy.DeployConfig(provider, model),
 			deploy.DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, resolvedProvider),
 			deploy.DeployMCP(mcpServers, "oh"),
+			deploy.DeployTeamConfig(deployedTeam),
 		},
 	}
 }

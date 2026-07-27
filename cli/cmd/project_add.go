@@ -76,17 +76,18 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	// ── Shared state across wizard steps ──
 	var (
-		name        string
-		path        string
-		language    string
-		absPath     string
-		useCustom   bool
-		provider    string
-		model       string
-		apiKey      string
-		agents      []string
-		mcpServices []string
-		doDeploy    bool
+		name           string
+		path           string
+		language       string
+		absPath        string
+		useCustom      bool
+		provider       string
+		model          string
+		apiKey         string
+		agents         []string
+		mcpServices    []string
+		projectTeamCfg *domain.ProjectTeamConfig
+		doDeploy       bool
 	)
 
 	hubProvider := a.Config.Opencode.DefaultProvider
@@ -355,7 +356,9 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				return []views.InfoField{{Label: "MCP", Value: strings.Join(mcpServices, ", ")}}
 			},
 		},
-		// ── Step 7: Deploy ──
+		// ── Step 7: Team ──
+		buildProjectTeamStep(a, &projectTeamCfg),
+		// ── Step 8: Deploy ──
 		{
 			Label: "Deploy",
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
@@ -395,18 +398,19 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	id := generateProjectID(name)
 	now := time.Now()
 	p := &domain.Project{
-		ID:        id,
-		Name:      name,
-		Path:      absPath,
-		Language:  language,
-		Provider:  provider,
-		Model:     model,
-		Agents:    agents,
-		MCP:       mcpServices,
-		MCPConfig: buildProjectMCPConfig(mcpServices),
-		Status:    domain.ProjectStatusActive,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:         id,
+		Name:       name,
+		Path:       absPath,
+		Language:   language,
+		Provider:   provider,
+		Model:      model,
+		Agents:     agents,
+		MCP:        mcpServices,
+		MCPConfig:  buildProjectMCPConfig(mcpServices),
+		TeamConfig: projectTeamCfg,
+		Status:     domain.ProjectStatusActive,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	if err := a.Projects.Create(ctx, p); err != nil {
@@ -427,7 +431,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("form.project.deploying"))
 
-			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil, nil)
+			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil, nil, nil)
 			results, err := deploy.Execute(plan)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",

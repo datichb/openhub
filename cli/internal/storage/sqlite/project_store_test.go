@@ -242,3 +242,103 @@ func TestProjectStore_CreateDuplicateName(t *testing.T) {
 	err := ps.Create(ctx, p2)
 	assert.ErrorIs(t, err, domain.ErrAlreadyExists)
 }
+
+func TestProjectStore_TeamConfigRoundTrip(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now().Truncate(time.Second)
+
+	tc := &domain.ProjectTeamConfig{
+		Mode:      domain.ProjectTeamModeCustom,
+		StateRepo: "git@gitlab.com:acme/other-team.git",
+		StatePath: "/home/alice/.oh/team-states/other-team",
+		MemberID:  "bob",
+	}
+
+	p := &domain.Project{
+		ID:         "team-cfg-1",
+		Name:       "Team Config Project",
+		Path:       "/tmp/team-cfg",
+		Language:   "go",
+		Status:     domain.ProjectStatusActive,
+		TeamConfig: tc,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	require.NoError(t, ps.Create(ctx, p))
+
+	got, err := ps.Get(ctx, "team-cfg-1")
+	require.NoError(t, err)
+	require.NotNil(t, got.TeamConfig)
+	assert.Equal(t, domain.ProjectTeamModeCustom, got.TeamConfig.Mode)
+	assert.Equal(t, "git@gitlab.com:acme/other-team.git", got.TeamConfig.StateRepo)
+	assert.Equal(t, "/home/alice/.oh/team-states/other-team", got.TeamConfig.StatePath)
+	assert.Equal(t, "bob", got.TeamConfig.MemberID)
+}
+
+func TestProjectStore_TeamConfigNilRoundTrip(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now().Truncate(time.Second)
+	p := &domain.Project{
+		ID:         "team-cfg-nil",
+		Name:       "No Team Project",
+		Path:       "/tmp/no-team",
+		Language:   "typescript",
+		Status:     domain.ProjectStatusActive,
+		TeamConfig: nil, // explicit nil — inherit from hub
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	require.NoError(t, ps.Create(ctx, p))
+
+	got, err := ps.Get(ctx, "team-cfg-nil")
+	require.NoError(t, err)
+	assert.Nil(t, got.TeamConfig, "nil TeamConfig should round-trip as nil (inherit mode)")
+}
+
+func TestProjectStore_TeamConfigUpdateCycle(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ctx := context.Background()
+
+	now := time.Now().Truncate(time.Second)
+
+	// Step 1: create without TeamConfig
+	p := &domain.Project{
+		ID:        "team-cfg-update",
+		Name:      "Update Team Project",
+		Path:      "/tmp/update-team",
+		Language:  "python",
+		Status:    domain.ProjectStatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	require.NoError(t, ps.Create(ctx, p))
+
+	got, err := ps.Get(ctx, "team-cfg-update")
+	require.NoError(t, err)
+	assert.Nil(t, got.TeamConfig)
+
+	// Step 2: update to disabled mode
+	got.TeamConfig = &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
+	require.NoError(t, ps.Update(ctx, got))
+
+	got2, err := ps.Get(ctx, "team-cfg-update")
+	require.NoError(t, err)
+	require.NotNil(t, got2.TeamConfig)
+	assert.Equal(t, domain.ProjectTeamModeDisabled, got2.TeamConfig.Mode)
+	assert.Empty(t, got2.TeamConfig.StateRepo)
+
+	// Step 3: update back to nil (inherit)
+	got2.TeamConfig = nil
+	require.NoError(t, ps.Update(ctx, got2))
+
+	got3, err := ps.Get(ctx, "team-cfg-update")
+	require.NoError(t, err)
+	assert.Nil(t, got3.TeamConfig, "clearing TeamConfig to nil should persist as nil")
+}

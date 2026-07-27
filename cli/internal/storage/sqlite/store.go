@@ -293,5 +293,11 @@ var schemaMigrations = []migration{
 		up:      `CREATE INDEX IF NOT EXISTS idx_agent_events_project ON agent_events(project_id)`,
 		down:    `DROP INDEX IF EXISTS idx_agent_events_project`,
 	},
+	{
+		version:      17,
+		up:           `ALTER TABLE projects ADD COLUMN team_config TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN team_config`,
+		irreversible: false,
+	},
 }
 

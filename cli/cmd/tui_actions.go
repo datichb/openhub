@@ -18,7 +18,7 @@ func runDeployForProject(a *app.App, project *domain.Project) error {
 		return fmt.Errorf("hub content not found")
 	}
 
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, project.Provider, "", project.Agents, project.ModelOverrides, project.MCPConfig)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, project.Provider, "", project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
 
 	_, err := deploy.Execute(plan)
 	if err != nil {

@@ -258,3 +258,83 @@ func TestDeployMCPProjectDisabledOverride(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "mcp")
 }
+
+// ── DeployTeamConfig tests ────────────────────────────────────────────────────
+
+func TestDeployTeamConfig_Enabled(t *testing.T) {
+	projectDir := t.TempDir()
+	opencodeDir := filepath.Join(projectDir, ".opencode")
+
+	tc := DeployedTeamConfig{
+		Enabled:   true,
+		StateRepo: "git@gitlab.com:acme/team-state.git",
+		StatePath: "/home/alice/.oh/team-states/team-state",
+		MemberID:  "alice",
+	}
+
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	phase := DeployTeamConfig(tc)
+
+	require.NoError(t, phase.Execute(ctx))
+
+	teamJSONPath := filepath.Join(opencodeDir, TeamConfigFile)
+	data, err := os.ReadFile(teamJSONPath)
+	require.NoError(t, err, ".opencode/team.json should be written")
+
+	var got DeployedTeamConfig
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.True(t, got.Enabled)
+	assert.Equal(t, "git@gitlab.com:acme/team-state.git", got.StateRepo)
+	assert.Equal(t, "/home/alice/.oh/team-states/team-state", got.StatePath)
+	assert.Equal(t, "alice", got.MemberID)
+}
+
+func TestDeployTeamConfig_EnabledCreatesOpenCodeDir(t *testing.T) {
+	projectDir := t.TempDir()
+	// .opencode/ does NOT exist yet
+
+	tc := DeployedTeamConfig{
+		Enabled:   true,
+		StateRepo: "git@github.com:acme/team.git",
+		StatePath: "/tmp/team",
+		MemberID:  "bob",
+	}
+
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	require.NoError(t, DeployTeamConfig(tc).Execute(ctx))
+
+	teamJSONPath := filepath.Join(projectDir, ".opencode", TeamConfigFile)
+	_, err := os.Stat(teamJSONPath)
+	assert.NoError(t, err, ".opencode/team.json should be created even if .opencode/ did not exist")
+}
+
+func TestDeployTeamConfig_DisabledRemovesExistingFile(t *testing.T) {
+	projectDir := t.TempDir()
+	opencodeDir := filepath.Join(projectDir, ".opencode")
+	require.NoError(t, os.MkdirAll(opencodeDir, 0o755))
+
+	// Pre-create a team.json from a previous deploy
+	existingPath := filepath.Join(opencodeDir, TeamConfigFile)
+	require.NoError(t, os.WriteFile(existingPath, []byte(`{"enabled":true}`), 0o600))
+
+	tc := DeployedTeamConfig{Enabled: false}
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	require.NoError(t, DeployTeamConfig(tc).Execute(ctx))
+
+	_, err := os.Stat(existingPath)
+	assert.True(t, os.IsNotExist(err), ".opencode/team.json should be removed when disabled")
+}
+
+func TestDeployTeamConfig_DisabledNoFileIsNoop(t *testing.T) {
+	projectDir := t.TempDir()
+	// .opencode/team.json does not exist — disabled should not error
+
+	tc := DeployedTeamConfig{Enabled: false}
+	plan := &Plan{ProjectPath: projectDir}
+	ctx := &Context{Plan: plan}
+	err := DeployTeamConfig(tc).Execute(ctx)
+	assert.NoError(t, err, "disabled with no existing file should not error")
+}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -879,16 +880,24 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 }
 
 // ensureTeamRepo returns a ready Repo or an error if team is not configured.
+// It uses the hub-level team config. For project-aware resolution, use ensureTeamRepoForProject.
 func ensureTeamRepo(ctx context.Context, a *app.App) (*teamstate.Repo, error) {
-	if !a.Config.Team.Enabled {
+	return ensureTeamRepoForProject(ctx, a, nil)
+}
+
+// ensureTeamRepoForProject returns a ready Repo using the effective team config
+// for the given project (nil = hub-level only).
+func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.Project) (*teamstate.Repo, error) {
+	tc := resolvedTeamConfig(a, project)
+	if !tc.Enabled {
 		return nil, fmt.Errorf("fonctions d'équipe non activées. Lance %s d'abord",
 			theme.Bold.Render("oh team init"))
 	}
-	statePath := a.Config.Team.StatePath
+	statePath := tc.StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
-	repo := teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, fmt.Errorf("repo team-state non trouvé dans %s. Lance %s",
 			statePath, theme.Bold.Render("oh team init"))

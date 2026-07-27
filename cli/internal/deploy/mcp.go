@@ -7,6 +7,20 @@ import (
 	"path/filepath"
 )
 
+// TeamConfigFile is the filename written into .opencode/ for team config.
+// The team MCP server reads this file instead of hub.toml so that per-project
+// team settings are honoured without relying on environment variables.
+const TeamConfigFile = "team.json"
+
+// DeployedTeamConfig is the structure written to .opencode/team.json.
+// It carries the fully-resolved (effective) team configuration for this project.
+type DeployedTeamConfig struct {
+	Enabled   bool   `json:"enabled"`
+	StateRepo string `json:"state_repo"`
+	StatePath string `json:"state_path"`
+	MemberID  string `json:"member_id"`
+}
+
 // MCPServerDef describes an MCP server to potentially deploy.
 type MCPServerDef struct {
 	Name         string
@@ -146,8 +160,45 @@ func DefaultMCPServers(enabled map[string]bool, tokenKeys map[string]string, wri
 		{
 			Name:    "team",
 			Enabled: enabled["team"],
-			// No token needed — team MCP reads from ~/.oh/team-state/
-			// Activation is controlled by [team].enabled in hub.toml
+			// No token needed — reads .opencode/team.json written by DeployTeamConfig
+		},
+	}
+}
+
+// DeployTeamConfig creates a Phase that writes (or removes) .opencode/team.json.
+//
+// When teamCfg.Enabled is true the file is written with the resolved config.
+// When teamCfg.Enabled is false the file is removed if it exists, ensuring that
+// a project with Mode=="disabled" never has a stale team.json from a previous deploy.
+func DeployTeamConfig(teamCfg DeployedTeamConfig) Phase {
+	return Phase{
+		Name: "Team Config",
+		Execute: func(ctx *Context) error {
+			teamConfigPath := filepath.Join(ctx.Plan.ProjectPath, ".opencode", TeamConfigFile)
+
+			if !teamCfg.Enabled {
+				// Remove any existing file so the MCP server cannot be accidentally activated
+				if err := os.Remove(teamConfigPath); err != nil && !os.IsNotExist(err) {
+					return fmt.Errorf("removing team config: %w", err)
+				}
+				return nil
+			}
+
+			// Ensure .opencode/ exists
+			if err := os.MkdirAll(filepath.Dir(teamConfigPath), 0o755); err != nil {
+				return fmt.Errorf("creating .opencode dir: %w", err)
+			}
+
+			data, err := json.MarshalIndent(teamCfg, "", "  ")
+			if err != nil {
+				return fmt.Errorf("marshaling team config: %w", err)
+			}
+
+			tmpFile := teamConfigPath + ".tmp"
+			if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
+				return fmt.Errorf("writing team config: %w", err)
+			}
+			return os.Rename(tmpFile, teamConfigPath)
 		},
 	}
 }

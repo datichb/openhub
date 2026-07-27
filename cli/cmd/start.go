@@ -299,7 +299,7 @@ func printStartSummary(a *app.App, project *domain.Project, launchPath, provider
 		compactionStatus = i18n.T("cmd.start.compaction_auto")
 	}
 
-	effectiveServers := buildMCPServersForProject(a, project.MCPConfig)
+	effectiveServers := buildMCPServersForProject(a, project.MCPConfig, resolvedTeamConfig(a, project))
 	var mcpNames []string
 	for _, srv := range effectiveServers {
 		if srv.Enabled && srv.Name != "team" {
@@ -443,7 +443,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 			i18n.T("cmd.start.autodeploy_first"),
 			func() error {
 				plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-					project.Agents, project.ModelOverrides, project.MCPConfig)
+					project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
 				var e error
 				results, e = deploy.Execute(plan)
 				return e
@@ -482,7 +482,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 		i18n.Tf("cmd.start.autodeploy_updating", added, modified, removed),
 		func() error {
 			plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-				project.Agents, project.ModelOverrides, project.MCPConfig)
+				project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
 			_, e := deploy.Execute(plan)
 			return e
 		},
