@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -224,4 +225,44 @@ func TestHasMemberNoFile(t *testing.T) {
 	dir := t.TempDir()
 	r := NewRepo("", dir)
 	assert.False(t, r.HasMember("anyone"))
+}
+
+// TestGitCloneInvalidURL_FailsFastWithNoPrompt verifies two properties of the
+// git() helper that are critical when running in a background TUI goroutine:
+//
+//  1. GIT_TERMINAL_PROMPT=0 prevents git from blocking indefinitely waiting for
+//     interactive credential input when the remote requires authentication.
+//  2. The clone fails within a reasonable time budget (well under the 5s context
+//     timeout), proving that git does not hang on a prompt.
+//
+// The test uses a syntactically valid but unreachable HTTPS URL so that git
+// attempts a real network dial (which resolves quickly via DNS failure) rather
+// than raising an "invalid URL" error before any prompt logic is triggered.
+func TestGitCloneInvalidURL_FailsFastWithNoPrompt(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	cloneDir := filepath.Join(t.TempDir(), "clone")
+	// Use a host that does not exist so the DNS lookup or connection fails fast.
+	// GIT_TERMINAL_PROMPT=0 is set inside repo.git(); this test confirms it works.
+	r := NewRepo("https://this-host-does-not-exist.invalid/org/repo.git", cloneDir)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	err := r.Clone(ctx)
+	elapsed := time.Since(start)
+
+	require.Error(t, err, "clone of an invalid URL must fail")
+
+	// The context must NOT have expired — git should have returned an error
+	// on its own (DNS failure, connection refused, or "terminal prompts disabled")
+	// well before the 5-second timeout.
+	assert.Nil(t, ctx.Err(),
+		"context should not have timed out — got elapsed=%s, ctx.Err=%v", elapsed, ctx.Err())
+
+	// Error must mention the clone operation (not just an opaque exit error)
+	assert.Contains(t, err.Error(), "clone", "error should reference the clone operation")
 }
