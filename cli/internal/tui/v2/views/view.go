@@ -7,6 +7,30 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TeamResolution holds the effective team configuration for the currently active
+// project, already resolved (project override → hub fallback). Views use this
+// to get per-project team data without depending on the config or cmd packages.
+//
+// This mirrors config.ResolvedTeamConfig but lives in the views package to avoid
+// import cycles (views ← cmd ← config; views must not import config or cmd).
+type TeamResolution struct {
+	// Enabled reports whether team features are active for this project.
+	Enabled bool
+	// StateRepo is the Git remote URL of the team-state repository.
+	StateRepo string
+	// StatePath is the local filesystem path of the team-state clone.
+	StatePath string
+	// MemberID is the current user's member identifier in the team-state.
+	MemberID string
+}
+
+// ResolveTeamFunc is a callback that views call to obtain the effective team
+// configuration for the currently active project. The implementation lives in
+// cmd/tui.go where both app.App and the active project are available.
+//
+// The function must be cheap to call (cached in the wiring layer if necessary).
+type ResolveTeamFunc func() TeamResolution
+
 // View defines the contract for a navigable view in the TUI shell.
 // All views must be safe to Mount/Unmount multiple times throughout
 // the shell lifecycle.
@@ -49,6 +73,11 @@ type ContextCommand struct {
 	Category string
 	// Action is called when the command is executed.
 	Action func()
+	// RunsDirect marks actions that MUST execute synchronously on the tview event
+	// loop and MUST NOT be deferred via QueueUpdateDraw. Set to true when the
+	// action calls SuspendAndExec — see shell.Command.RunsDirect for the full
+	// explanation of why this is necessary.
+	RunsDirect bool
 }
 
 // CommandProvider is an optional interface that views can implement to supply

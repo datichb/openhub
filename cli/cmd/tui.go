@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -17,17 +19,54 @@ import (
 var tuiShell *shell.Shell
 
 // runTUI launches the unified TUI shell.
+// If projectName is non-empty, the TUI starts directly in project mode.
 func runTUI() error {
+	return runTUIWithProject("")
+}
+
+// runTUIWithProject launches the TUI, optionally activating project mode
+// immediately for the given project name.
+func runTUIWithProject(projectName string) error {
 	a := MustApp()
 
+	homeViewID := "home"
+
+	// Resolve initial project if requested
+	var initialProject *views.ActiveProject
+	if projectName != "" && a.Projects != nil {
+		p, err := a.Projects.GetByName(context.Background(), projectName)
+		if err != nil || p == nil {
+			return fmt.Errorf("projet introuvable: %q", projectName)
+		}
+		initialProject = &views.ActiveProject{
+			ID:   p.ID,
+			Name: p.Name,
+			Path: p.Path,
+		}
+		homeViewID = "project.mode"
+	}
+
+	// Create the notification store upfront so it can be shared between the
+	// shell (which populates it via showToast) and the NotificationsView.
+	notifStore := shell.NewNotificationStore(50)
+
+	builtViews := buildViews(a, notifStore)
+
 	cfg := shell.Config{
-		ProjectName: a.Config.Name,
-		Commands:    buildCommands(a),
-		Views:       buildViews(a),
-		HomeViewID:  "home",
+		ProjectName:   a.Config.Name,
+		Commands:      buildCommands(a),
+		Views:         builtViews,
+		HomeViewID:    homeViewID,
+		Notifications: notifStore,
 	}
 
 	tuiShell = shell.New(cfg)
+
+	// Pre-set the active project before navigating home so project.mode renders it
+	if initialProject != nil {
+		tuiShell.SetActiveProject(initialProject)
+	}
+
 	tuiShell.NavigateHome(cfg.HomeViewID)
 	return tuiShell.Run()
 }
@@ -42,6 +81,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"session", "code", "launch"},
 			Description: "Lancer une session opencode",
 			Category:    "Sessions",
+			Priority:    80,
 			Action:      actionStartLauncher,
 		},
 		{
@@ -50,7 +90,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"dev", "ticket"},
 			Description: "Session orientée développement",
 			Category:    "Sessions",
+			Priority:    80,
 			Action:      func() { launchOpencode("", "--dev") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "start.onboard",
@@ -58,7 +100,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"onboard", "onboarding"},
 			Description: "Session d'onboarding projet",
 			Category:    "Sessions",
+			Priority:    60,
 			Action:      func() { launchOpencode("", "--onboard") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit",
@@ -66,6 +110,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"audit"},
 			Description: "Lancer un audit (sécurité, perf, archi...)",
 			Category:    "Sessions",
+			Priority:    60,
 			Action:      actionAuditLauncher,
 		},
 		{
@@ -74,7 +119,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"secu", "security", "owasp"},
 			Description: "Audit de sécurité (OWASP, injections, auth)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "security") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit.performance",
@@ -82,7 +129,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"perf", "performance"},
 			Description: "Audit performance (N+1, mémoire, CPU)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "performance") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit.architecture",
@@ -90,7 +139,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"archi", "architecture"},
 			Description: "Audit d'architecture (couplage, patterns)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "architecture") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit.accessibility",
@@ -98,7 +149,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"a11y", "accessibility", "wcag"},
 			Description: "Audit a11y (WCAG, ARIA, contraste)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "accessibility") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit.ecodesign",
@@ -106,7 +159,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"eco", "ecodesign", "green"},
 			Description: "Audit impact environnemental",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "ecodesign") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "audit.observability",
@@ -114,7 +169,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"obs", "observability", "logs"},
 			Description: "Audit logs, traces, métriques",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "observability") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "review",
@@ -122,6 +179,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"rev", "cr"},
 			Description: "Lancer une code review",
 			Category:    "Sessions",
+			Priority:    60,
 			Action:      actionReviewLauncher,
 		},
 		{
@@ -130,7 +188,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{},
 			Description: "Code review classique",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("reviewer") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "review.adversarial",
@@ -138,7 +198,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"adversarial"},
 			Description: "Review adversariale (trouver les failles)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "adversarial") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "review.edge",
@@ -146,7 +208,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"edge"},
 			Description: "Review orientée cas limites",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "edge-case") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "review.complete",
@@ -154,7 +218,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"complete", "all"},
 			Description: "Review complète (tous les modes)",
 			Category:    "Sessions",
+			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "all") },
+			RunsDirect:  true,
 		},
 		{
 			ID:          "debug",
@@ -162,6 +228,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"dbg", "debugger"},
 			Description: "Session de debug (décrivez le problème)",
 			Category:    "Sessions",
+			Priority:    80,
 			Action:      actionDebugLauncher,
 		},
 		{
@@ -170,7 +237,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"q", "fast"},
 			Description: "Lancer opencode directement",
 			Category:    "Sessions",
+			Priority:    60,
 			Action:      actionOpencode("", ""),
+			RunsDirect:  true,
 		},
 		{
 			ID:          "parallel",
@@ -178,6 +247,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"par", "multi"},
 			Description: "Sessions parallèles",
 			Category:    "Sessions",
+			Priority:    60,
 			ViewID:      "parallel",
 		},
 
@@ -188,7 +258,19 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"kanban", "tasks"},
 			Description: "Kanban du projet actif",
 			Category:    "Projets",
+			Priority:    100,
 			ViewID:      "board",
+		},
+		{
+			ID:          "board.init",
+			Label:       "Init Board",
+			Aliases:     []string{"beads init", "init board", "init tickets"},
+			Description: "Initialiser le suivi des tickets (beads) pour le projet actif",
+			Category:    "Projets",
+			Priority:    30,
+			Action: func() {
+				initBeadsForActiveProject(a)
+			},
 		},
 		{
 			ID:          "projects",
@@ -196,6 +278,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"proj", "list"},
 			Description: "Liste des projets",
 			Category:    "Projets",
+			Priority:    100,
 			ViewID:      "projects.list",
 		},
 		{
@@ -204,6 +287,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"dep", "push"},
 			Description: "Déployer agents/skills sur le projet actif",
 			Category:    "Projets",
+			Priority:    30,
 			Action:      actionDeploy,
 		},
 		{
@@ -212,6 +296,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"synchronize"},
 			Description: "Synchroniser tous les projets",
 			Category:    "Projets",
+			Priority:    30,
 			Action:      actionSync,
 		},
 
@@ -222,6 +307,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"cfg", "settings", "hub"},
 			Description: "Configuration du hub",
 			Category:    "Configuration",
+			Priority:    90,
 			ViewID:      "config",
 		},
 		{
@@ -230,6 +316,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"mod", "model", "llm"},
 			Description: "Configuration des modèles",
 			Category:    "Configuration",
+			Priority:    50,
 			ViewID:      "models",
 		},
 		{
@@ -238,6 +325,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"prov", "api"},
 			Description: "Configuration du provider LLM",
 			Category:    "Configuration",
+			Priority:    50,
 			ViewID:      "provider",
 		},
 		{
@@ -246,6 +334,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"servers"},
 			Description: "Serveurs MCP",
 			Category:    "Configuration",
+			Priority:    50,
 			ViewID:      "mcp",
 		},
 
@@ -256,6 +345,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"stat", "info"},
 			Description: "État du système",
 			Category:    "Système",
+			Priority:    90,
 			ViewID:      "status",
 		},
 		{
@@ -264,6 +354,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"doc", "health", "check"},
 			Description: "Diagnostic de santé",
 			Category:    "Système",
+			Priority:    40,
 			ViewID:      "doctor",
 		},
 		{
@@ -272,6 +363,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"met", "stats", "tokens"},
 			Description: "Statistiques d'usage",
 			Category:    "Système",
+			Priority:    90,
 			ViewID:      "metrics",
 		},
 		{
@@ -280,6 +372,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"plug", "extensions"},
 			Description: "Gestion des plugins",
 			Category:    "Système",
+			Priority:    40,
 			ViewID:      "plugins",
 		},
 		{
@@ -288,7 +381,17 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"up", "update"},
 			Description: "Mettre à jour opencode",
 			Category:    "Système",
+			Priority:    40,
 			Action:      actionUpgrade,
+		},
+		{
+			ID:          "notifications",
+			Label:       "Notifications",
+			Aliases:     []string{"notif", "logs", "messages", "toasts", "erreurs"},
+			Description: "Historique des notifications de cette session",
+			Category:    "Système",
+			Priority:    30,
+			ViewID:      "notifications",
 		},
 		{
 			ID:          "help",
@@ -296,6 +399,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"?", "aide", "shortcuts"},
 			Description: "Raccourcis et aide",
 			Category:    "Système",
+			Priority:    90,
 			ViewID:      "help",
 		},
 
@@ -306,7 +410,39 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"accueil", "welcome"},
 			Description: "Retour à l'accueil",
 			Category:    "Navigation",
+			Priority:    100,
 			ViewID:      "home",
+		},
+		{
+			ID:          "project.mode",
+			Label:       "Mode Projet",
+			Aliases:     []string{"projet", "project", "focus"},
+			Description: "Basculer vers le mode projet (Ctrl+T)",
+			Category:    "Navigation",
+			Priority:    100,
+			Action: func() {
+				if tuiShell == nil {
+					return
+				}
+				if tuiShell.ActiveProject() != nil {
+					tuiShell.NavigateTo("project.mode")
+				} else {
+					tuiShell.NavigateTo("projects.list")
+				}
+			},
+		},
+		{
+			ID:          "hub.mode",
+			Label:       "Mode Hub",
+			Aliases:     []string{"hub", "complet", "retour"},
+			Description: "Revenir au TUI complet (mode hub)",
+			Category:    "Navigation",
+			Priority:    95,
+			Action: func() {
+				if tuiShell != nil {
+					tuiShell.SetProjectMode(nil)
+				}
+			},
 		},
 		{
 			ID:          "quit",
@@ -314,6 +450,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Aliases:     []string{"exit", "q"},
 			Description: "Quitter le TUI",
 			Category:    "Navigation",
+			Priority:    10,
 			Action: func() {
 				if tuiShell != nil {
 					tuiShell.App().Stop()
@@ -322,85 +459,83 @@ func buildCommands(a *app.App) []shell.Command {
 		},
 	}
 
-	// ── Team commands (conditional) ──────────────────────────────────────
-	if a.Config.Team.Enabled {
-		teamCommands := []shell.Command{
-			{
-				ID:          "team.board",
-				Label:       "Team Board",
-				Aliases:     []string{"team kanban", "equipe"},
-				Description: "Kanban d'équipe",
-				Category:    "Team",
-				ViewID:      "team.board",
-			},
-			{
-				ID:          "team.status",
-				Label:       "Team Status",
-				Aliases:     []string{"team stat"},
-				Description: "Statut de l'équipe",
-				Category:    "Team",
-				ViewID:      "team.status",
-			},
-			{
-				ID:          "team.activity",
-				Label:       "Team Activity",
-				Aliases:     []string{"activite", "feed"},
-				Description: "Activité récente de l'équipe",
-				Category:    "Team",
-				ViewID:      "team.activity",
-			},
-			{
-				ID:          "team.briefs",
-				Label:       "Takeover Briefs",
-				Aliases:     []string{"takeover", "briefs"},
-				Description: "Briefs de reprise de contexte",
-				Category:    "Team",
-				ViewID:      "takeover-briefs",
-			},
-			{
-				ID:          "worktrees",
-				Label:       "Worktrees",
-				Aliases:     []string{"wt", "git worktree"},
-				Description: "Gestion des git worktrees",
-				Category:    "Team",
-				ViewID:      "worktrees",
-			},
-			{
-				ID:          "patterns",
-				Label:       "Patterns",
-				Aliases:     []string{"pat"},
-				Description: "Patterns d'équipe",
-				Category:    "Team",
-				ViewID:      "patterns",
-			},
-			{
-				ID:          "policies",
-				Label:       "Policies",
-				Aliases:     []string{"pol", "rules"},
-				Description: "Politiques d'équipe",
-				Category:    "Team",
-				ViewID:      "policies",
-			},
-		}
-		commands = append(commands, teamCommands...)
-	} else {
-		commands = append(commands, shell.Command{
-			ID:          "team.init",
-			Label:       "Team Init",
-			Aliases:     []string{"team init", "initialiser"},
-			Description: "Initialiser le mode équipe",
+	// ── Team commands — always registered ────────────────────────────────
+	// Views handle the "team not configured" case gracefully at render time.
+	// Worktrees is a git feature, not team-specific — always visible.
+	commands = append(commands,
+		shell.Command{
+			ID:          "team.board",
+			Label:       "Team Board",
+			Aliases:     []string{"team kanban", "equipe"},
+			Description: "Kanban d'équipe",
 			Category:    "Team",
-			Action:      actionTeamInit,
-		})
-		commands = append(commands, shell.Command{
+			Priority:    70,
+			ViewID:      "team.board",
+		},
+		shell.Command{
+			ID:          "team.status",
+			Label:       "Team Status",
+			Aliases:     []string{"team stat"},
+			Description: "Statut de l'équipe",
+			Category:    "Team",
+			Priority:    70,
+			ViewID:      "team.status",
+		},
+		shell.Command{
+			ID:          "team.activity",
+			Label:       "Team Activity",
+			Aliases:     []string{"activite", "feed"},
+			Description: "Activité récente de l'équipe",
+			Category:    "Team",
+			Priority:    65,
+			ViewID:      "team.activity",
+		},
+		shell.Command{
+			ID:          "team.briefs",
+			Label:       "Takeover Briefs",
+			Aliases:     []string{"takeover", "briefs"},
+			Description: "Briefs de reprise de contexte",
+			Category:    "Team",
+			Priority:    60,
+			ViewID:      "takeover-briefs",
+		},
+		shell.Command{
 			ID:          "worktrees",
 			Label:       "Worktrees",
 			Aliases:     []string{"wt", "git worktree"},
 			Description: "Gestion des git worktrees",
-			Category:    "Team",
+			Category:    "Git",
+			Priority:    100,
 			ViewID:      "worktrees",
-		})
-	}
+		},
+		shell.Command{
+			ID:          "patterns",
+			Label:       "Patterns",
+			Aliases:     []string{"pat"},
+			Description: "Patterns d'équipe",
+			Category:    "Team",
+			Priority:    50,
+			ViewID:      "patterns",
+		},
+		shell.Command{
+			ID:          "policies",
+			Label:       "Policies",
+			Aliases:     []string{"pol", "rules"},
+			Description: "Politiques d'équipe",
+			Category:    "Team",
+			Priority:    50,
+			ViewID:      "policies",
+		},
+		shell.Command{
+			ID:          "team.init",
+			Label:       "Team Init",
+			Aliases:     []string{"team init", "initialiser"},
+			Description: "Initialiser le mode équipe (hub)",
+			Category:    "Team",
+			Priority:    40,
+			Action:      actionTeamInit,
+		},
+	)
 
 	if a.Config.MCP.Gitlab.WriteEnabled {
 		commands = append(commands, shell.Command{
@@ -410,14 +545,26 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: "Publier pour review (MR + notification)",
 			Category:    "Sessions",
 			Action:      func() { launchOpencode("reviewer", "--publish") },
+			RunsDirect:  true,
 		})
 	}
+
+	// ── Team Configure (toujours disponible si un projet est actif) ──────
+	commands = append(commands, shell.Command{
+		ID:          "team.configure",
+		Label:       "Team Configure",
+		Aliases:     []string{"team config", "team projet", "configurer team"},
+		Description: "Configurer la team pour le projet actif (hériter du hub / custom / désactivé)",
+		Category:    "Team",
+		Priority:    50,
+		Action:      actionTeamConfigure,
+	})
 
 	return commands
 }
 
 // buildViews constructs all registered views for the shell.
-func buildViews(a *app.App) []views.View {
+func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	var projectItems []views.ProjectItem
 	if a.Projects != nil {
 		projects, _ := a.Projects.List(context.Background(), "")
@@ -532,16 +679,85 @@ func buildViews(a *app.App) []views.View {
 				slog.Warn("failed to move project", "id", id, "error", err)
 			}
 		})
+		// Enter project mode from the projects list view
+		projectsView.SetOnEnterProject(func(p *views.ActiveProject) {
+			if tuiShell != nil {
+				tuiShell.SetProjectMode(p)
+			}
+		})
+		projectsView.SetOnInitBeads(func(id, name, path string) {
+			initBeadsForProject(a, id, name, path)
+		})
 	}
+
+	// ── Project mode view ────────────────────────────────────────────────────
+	projectModeView := views.NewProjectModeView(views.ProjectModeConfig{
+		OnLaunchSession: func(p *views.ActiveProject, agent string, extraArgs ...string) {
+			if tuiShell == nil {
+				return
+			}
+			if _, err := findOpencodeOrToast(); err != nil {
+				return
+			}
+			proj := &domain.Project{ID: p.ID, Path: p.Path}
+			opts := opencode.StartOpts{
+				ProjectPath: p.Path,
+				ProjectID:   p.ID,
+				Agent:       agent,
+				ExtraArgs:   extraArgs,
+			}
+			resolveProviderCreds(a, proj, &opts)
+			err := tuiShell.SuspendAndExec(func() error {
+				return opencode.Run(opts)
+			})
+			if err != nil {
+				slog.Warn("opencode session ended with error", "error", err)
+				tuiShell.ShowToast(fmt.Sprintf("Session: %s", err), shell.ToastWarning)
+			} else {
+				tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
+			}
+		},
+		OnNavigate: func(viewID string) {
+			if tuiShell != nil {
+				tuiShell.NavigateTo(viewID)
+			}
+		},
+		OnExitProjectMode: func() {
+			if tuiShell != nil {
+				tuiShell.SetProjectMode(nil)
+			}
+		},
+	})
 
 	allViews := []views.View{
 		views.NewHomeView(),
-		views.NewBoardView(views.BoardViewConfig{}),
+		views.NewBoardView(views.BoardViewConfig{
+			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
+			RefreshFunc: func() []views.BoardTicket {
+				return fetchBoardTicketsForPath(resolveActiveProjectPath(a))
+			},
+			RefreshRate: 5 * time.Second,
+			ProjectPath: func() string {
+				return resolveActiveProjectPath(a)
+			},
+			CheckInitialized: func() bool {
+				path := resolveActiveProjectPath(a)
+				if path == "" {
+					return true
+				}
+				if err := beads.Available(); err != nil {
+					return true
+				}
+				return beads.IsInitialized(path)
+			},
+			OnInitBeads: func() { initBeadsForActiveProject(a) },
+		}),
 		views.NewTeamBoardView(views.TeamBoardViewConfig{}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
-		views.NewTeamStatusView(a),
-		views.NewActivityView(a),
+		projectModeView,
+		views.NewTeamStatusView(makeResolveTeamFunc(a)),
+		views.NewActivityView(makeResolveTeamFunc(a)),
 		views.NewWorktreeView(a, views.WorktreeViewConfig{
 			DeployProject: func(projectPath string) error {
 				return runDeployForProject(a, &domain.Project{Path: projectPath})
@@ -594,19 +810,25 @@ func buildViews(a *app.App) []views.View {
 		}),
 		views.NewPluginsView(),
 		views.NewHelpView(),
+		views.NewNotificationsView(views.NotificationsViewConfig{
+			FilePath:  shell.NotificationsFilePath(),
+			ReadLastN: shell.ReadLastN,
+		}),
 	}
 
-	if a.Config.Team.Enabled {
-		takeoverView := views.NewTakeoverView(a)
-		takeoverView.SetOnEnrich(func(project, ticketID string) error {
-			return runTakeoverEnrich(a, project, ticketID)
-		})
-		allViews = append(allViews,
-			views.NewPatternsView(a),
-			views.NewPoliciesView(a),
-			takeoverView,
-		)
-	}
+	// Inject team resolution into project mode view (must be after projectModeView is created).
+	projectModeView.SetResolveTeam(makeResolveTeamFunc(a))
+
+	// Team views — always registered; views handle "not configured" gracefully.
+	takeoverView := views.NewTakeoverView(makeResolveTeamFunc(a))
+	takeoverView.SetOnEnrich(func(project, ticketID string) error {
+		return runTakeoverEnrich(a, project, ticketID)
+	})
+	allViews = append(allViews,
+		views.NewPatternsView(makeResolveTeamFunc(a)),
+		views.NewPoliciesView(makeResolveTeamFunc(a)),
+		takeoverView,
+	)
 
 	return allViews
 }
@@ -615,6 +837,168 @@ func buildViews(a *app.App) []views.View {
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
 	return resolveProject(ctx, a, "")
+}
+
+// makeResolveTeamFunc returns a ResolveTeamFunc for use in team views.
+// It resolves the effective team config for the currently active project
+// (project-level override → hub fallback) each time it is called.
+func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
+	return func() views.TeamResolution {
+		project, _ := resolveActiveProject(a)
+		tc := resolvedTeamConfig(a, project)
+		return views.TeamResolution{
+			Enabled:   tc.Enabled,
+			StateRepo: tc.StateRepo,
+			StatePath: tc.StatePath,
+			MemberID:  tc.MemberID,
+		}
+	}
+}
+
+// findOpencodeOrToast checks that the opencode binary exists, shows a toast if not.
+// Returns an error if the binary is not found.
+func findOpencodeOrToast() (string, error) {
+	bin, err := opencode.FindBinary()
+	if err != nil && tuiShell != nil {
+		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
+	}
+	return bin, err
+}
+
+// initBeadsForActiveProject initialises beads for the currently active project.
+// Shows a confirmation modal before proceeding.
+func initBeadsForActiveProject(a *app.App) {
+	if tuiShell == nil {
+		return
+	}
+	path := resolveActiveProjectPath(a)
+	if path == "" {
+		tuiShell.ShowToastMsg("Aucun projet actif", false)
+		return
+	}
+	// Resolve project ID for the prefix
+	var id, name string
+	if ap := tuiShell.ActiveProject(); ap != nil {
+		id = ap.ID
+		name = ap.Name
+	} else if p, err := resolveActiveProject(a); err == nil && p != nil {
+		id = p.ID
+		name = p.Name
+	}
+	initBeadsForProject(a, id, name, path)
+}
+
+// initBeadsForProject shows a confirmation modal then initialises beads for the
+// given project (path, id/name as prefix).
+func initBeadsForProject(_ *app.App, id, name, path string) {
+	if tuiShell == nil {
+		return
+	}
+	if beads.IsInitialized(path) {
+		tuiShell.ShowToastMsg("Board déjà initialisé pour "+name, true)
+		tuiShell.NavigateTo("board")
+		return
+	}
+
+	label := name
+	if label == "" {
+		label = path
+	}
+
+	tuiShell.ShowSelectModal(
+		"Initialiser le board pour "+label+" ?",
+		[]views.SelectOption{
+			{Label: "Oui, initialiser beads", Value: "yes"},
+			{Label: "Annuler", Value: "no"},
+		}, "",
+		func(value string) {
+			if value != "yes" {
+				return
+			}
+			prefix := id
+			if prefix == "" {
+				prefix = strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+			}
+			if err := beads.Init(path, prefix); err != nil {
+				tuiShell.ShowToastMsg("Erreur init beads: "+err.Error(), false)
+				return
+			}
+			tuiShell.ShowToastMsg("Board initialisé pour "+label, true)
+			tuiShell.NavigateTo("board")
+		},
+	)
+}
+
+// fetchBoardTicketsForPath loads and normalises tickets from the beads system
+// for the given project path. Returns nil (and no error) when bd is not installed,
+// when the project has no tickets yet, or when beads is not initialized.
+func fetchBoardTicketsForPath(projectPath string) []views.BoardTicket {
+	if projectPath == "" {
+		return nil
+	}
+	if err := beads.Available(); err != nil {
+		return nil // bd not installed — board shows empty, no crash
+	}
+	if !beads.IsInitialized(projectPath) {
+		return nil // no .beads/ — board will show the init invite screen
+	}
+	raw, err := beads.ListAll(projectPath)
+	if err != nil {
+		slog.Warn("board: failed to list beads tickets", "path", projectPath, "error", err)
+		return nil
+	}
+	out := make([]views.BoardTicket, 0, len(raw))
+	for _, t := range raw {
+		// Epics are containers, not actionable items — exclude from the board.
+		if strings.EqualFold(t.Type, "epic") {
+			continue
+		}
+		out = append(out, views.BoardTicket{
+			ID:       t.ID,
+			Title:    t.Title,
+			Status:   boardNormalizeStatus(t.Status),
+			Priority: t.Priority,
+			Type:     t.Type,
+		})
+	}
+	return out
+}
+
+// boardNormalizeStatus maps beads status values to the board column statuses.
+func boardNormalizeStatus(s string) string {
+	switch strings.ToLower(s) {
+	case "todo", "to_do", "backlog", "open":
+		return "todo"
+	case "in_progress", "in-progress", "doing", "wip":
+		return "in_progress"
+	case "review", "in_review", "in-review":
+		return "review"
+	case "done", "completed", "closed", "cancelled":
+		return "done"
+	case "blocked", "stuck":
+		return "blocked"
+	default:
+		return "todo"
+	}
+}
+
+// resolveActiveProjectPath returns the path of the active project.
+// Prefers the shell's active project; falls back to the first registered project.
+// Returns "" if no project is available (safe to call with a minimal App in tests).
+func resolveActiveProjectPath(a *app.App) string {
+	if tuiShell != nil {
+		if ap := tuiShell.ActiveProject(); ap != nil {
+			return ap.Path
+		}
+	}
+	if a == nil || a.Projects == nil {
+		return ""
+	}
+	p, err := resolveActiveProject(a)
+	if err != nil || p == nil {
+		return ""
+	}
+	return p.Path
 }
 
 // resolveProviderCreds populates provider credentials into opts.

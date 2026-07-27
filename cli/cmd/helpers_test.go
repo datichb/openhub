@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -76,14 +77,67 @@ func TestBuildDeployPlan(t *testing.T) {
 		IO:     app.DefaultIOStreams(),
 	}
 
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil, nil)
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil, nil, nil)
 	require.NotNil(t, plan)
 	assert.Equal(t, "/tmp/project", plan.ProjectPath)
 	assert.Equal(t, "test-id", plan.ProjectID)
 	assert.Equal(t, "/tmp/hub", plan.HubDir)
 	assert.Equal(t, "anthropic", plan.Provider)
 	assert.Equal(t, "claude-3", plan.Model)
-	assert.Len(t, plan.Phases, 5, "deploy plan should have 5 phases (agents, skills, config, agent-config, mcp)")
+	assert.Len(t, plan.Phases, 6, "deploy plan should have 6 phases (agents, skills, config, agent-config, mcp, team)")
+}
+
+func TestBuildDeployPlan_TeamDisabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+
+	// Hub has team enabled
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	cfg.Team.Enabled = true
+	cfg.Team.StateRepo = "git@gitlab.com:acme/team.git"
+	cfg.Team.MemberID = "alice"
+
+	a := &app.App{Config: cfg, IO: app.DefaultIOStreams()}
+
+	// Project explicitly opts out
+	projectTeamCfg := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, projectTeamCfg)
+	require.NotNil(t, plan)
+
+	// Team MCP server should NOT appear in EnabledMCPServers
+	for _, name := range plan.EnabledMCPServers {
+		assert.NotEqual(t, "team", name, "team MCP must not be enabled for a disabled project")
+	}
+}
+
+func TestBuildDeployPlan_TeamCustom(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+
+	// Hub has no team — but project has custom config
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	cfg.Team.Enabled = false
+
+	a := &app.App{Config: cfg, IO: app.DefaultIOStreams()}
+
+	projectTeamCfg := &domain.ProjectTeamConfig{
+		Mode:      domain.ProjectTeamModeCustom,
+		StateRepo: "git@github.com:beta/other-team.git",
+		MemberID:  "bob",
+	}
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, projectTeamCfg)
+	require.NotNil(t, plan)
+
+	// Team MCP server SHOULD appear in EnabledMCPServers
+	found := false
+	for _, name := range plan.EnabledMCPServers {
+		if name == "team" {
+			found = true
+		}
+	}
+	assert.True(t, found, "team MCP must be enabled for a custom-mode project")
 }
 
 func TestCmdI18nKey(t *testing.T) {
@@ -164,7 +218,7 @@ func TestBuildMCPServersForProject_NilConfig(t *testing.T) {
 	a := &app.App{Config: cfg}
 
 	// nil MCPConfig → inherit hub defaults (all disabled since fresh config)
-	servers := buildMCPServersForProject(a, nil)
+	servers := buildMCPServersForProject(a, nil, config.ResolvedTeamConfig{})
 	for _, s := range servers {
 		assert.False(t, s.Enabled, "server %s should be disabled with nil MCPConfig", s.Name)
 	}
@@ -184,7 +238,7 @@ func TestBuildMCPServersForProject_ProjectOverride(t *testing.T) {
 		},
 	}
 
-	servers := buildMCPServersForProject(a, mcpCfg)
+	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
 
 	enabledNames := map[string]bool{}
 	for _, s := range servers {
@@ -219,7 +273,7 @@ func TestBuildMCPServersForProject_EnabledOverride(t *testing.T) {
 		},
 	}
 
-	servers := buildMCPServersForProject(a, mcpCfg)
+	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
 	for _, s := range servers {
 		if s.Name == "figma" {
 			assert.True(t, s.Enabled, "figma should be force-enabled by project override")
@@ -242,7 +296,7 @@ func TestBuildMCPServersForProject_DisabledOverride(t *testing.T) {
 		},
 	}
 
-	servers := buildMCPServersForProject(a, mcpCfg)
+	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
 	for _, s := range servers {
 		if s.Name == "figma" {
 			assert.False(t, s.Enabled, "figma should be force-disabled by project override")
@@ -265,7 +319,7 @@ func TestBuildMCPServersForProject_NilEnabledInheritsHub(t *testing.T) {
 		},
 	}
 
-	servers := buildMCPServersForProject(a, mcpCfg)
+	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
 	for _, s := range servers {
 		if s.Name == "gitlab" {
 			assert.True(t, s.Enabled, "gitlab should inherit hub enabled=true when project Enabled is nil")
@@ -286,4 +340,51 @@ func TestBuildProjectMCPConfig(t *testing.T) {
 	assert.Equal(t, "figma", cfg.Services[0].Name)
 	assert.Equal(t, "gitlab", cfg.Services[1].Name)
 	assert.Empty(t, cfg.Services[0].TokenKey) // no override
+}
+
+func TestBuildMCPServersForProject_TeamEnabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	// Hub has team disabled
+	cfg.Team.Enabled = false
+	a := &app.App{Config: cfg}
+
+	// Resolved team is enabled (e.g. project has custom mode)
+	resolvedTeam := config.ResolvedTeamConfig{
+		Enabled:   true,
+		StateRepo: "git@github.com:acme/team.git",
+		StatePath: "/tmp/team",
+		MemberID:  "alice",
+	}
+
+	servers := buildMCPServersForProject(a, nil, resolvedTeam)
+	var teamServer *deploy.MCPServerDef
+	for i := range servers {
+		if servers[i].Name == "team" {
+			teamServer = &servers[i]
+		}
+	}
+	require.NotNil(t, teamServer, "team server must appear in the list")
+	assert.True(t, teamServer.Enabled, "team server must be enabled when resolvedTeam.Enabled=true")
+}
+
+func TestBuildMCPServersForProject_TeamDisabledViaResolvedConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	// Hub has team enabled
+	cfg.Team.Enabled = true
+	cfg.Team.StateRepo = "git@gitlab.com:acme/team.git"
+	a := &app.App{Config: cfg}
+
+	// Resolved team is disabled (project used disabled mode)
+	resolvedTeam := config.ResolvedTeamConfig{Enabled: false}
+
+	servers := buildMCPServersForProject(a, nil, resolvedTeam)
+	for _, s := range servers {
+		if s.Name == "team" {
+			assert.False(t, s.Enabled, "team server must be disabled when resolvedTeam.Enabled=false")
+		}
+	}
 }

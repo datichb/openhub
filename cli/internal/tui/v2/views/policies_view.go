@@ -10,25 +10,25 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // PoliciesView displays and manages team policies.
 type PoliciesView struct {
-	app      *tview.Application
-	appCtx   *app.App
-	list     *tview.List
-	shell    ShellAccess
-	policies []teamstate.Policy
+	app         *tview.Application
+	resolveTeam ResolveTeamFunc
+	list        *tview.List
+	shell       ShellAccess
+	policies    []teamstate.Policy
 }
 
 var _ View = (*PoliciesView)(nil)
 
 // NewPoliciesView creates a new policies view.
-func NewPoliciesView(a *app.App) *PoliciesView {
-	return &PoliciesView{appCtx: a}
+// resolveTeam is called on every refresh to obtain the effective team config.
+func NewPoliciesView(resolveTeam ResolveTeamFunc) *PoliciesView {
+	return &PoliciesView{resolveTeam: resolveTeam}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -88,10 +88,11 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *PoliciesView) getRepo() *teamstate.Repo {
-	if v.appCtx == nil || !v.appCtx.Config.Team.Enabled {
+	tc := v.resolveTeam()
+	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(v.appCtx.Config.Team.StateRepo, v.appCtx.Config.Team.StatePath)
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
 		return nil
 	}
@@ -180,7 +181,7 @@ func (v *PoliciesView) checkPolicies() {
 
 	// Build minimal context (no git diff in TUI — just branch name check)
 	ctx := teamstate.PolicyContext{
-		MemberID: v.appCtx.Config.Team.MemberID,
+		MemberID: v.resolveTeam().MemberID,
 	}
 
 	results, err := repo.CheckAll("", ctx)

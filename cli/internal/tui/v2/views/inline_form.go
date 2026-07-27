@@ -32,6 +32,10 @@ type FormField struct {
 	DefaultMulti []string
 	// Required means the form won't submit if this field is empty.
 	Required bool
+	// Hint is an optional help text shown below the field in a muted colour.
+	// It is non-interactive (skipped by Tab cycling) and never included in
+	// the submitted values map.
+	Hint string
 	// Conditional, if set, determines whether this field is shown.
 	// It receives the current string values of all fields.
 	// NOTE: Conditionals are currently not evaluated in the modal form —

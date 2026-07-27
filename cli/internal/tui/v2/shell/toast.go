@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -24,12 +25,43 @@ const (
 	ToastInfo
 )
 
+// toastMaxLen returns the maximum display length for a toast message based on
+// its severity level. Errors and warnings get more characters so diagnostics
+// are legible without opening the Notifications view.
+func toastMaxLen(level ToastLevel) int {
+	switch level {
+	case ToastError, ToastWarning:
+		return 80
+	default:
+		return 50
+	}
+}
+
 func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) {
 	icon, borderColor := toastStyle(level)
 
-	// Truncate long messages
-	if len(msg) > 50 {
-		msg = msg[:47] + "..."
+	// Persist the FULL message before any truncation:
+	// 1. In-memory store (current session, 50 entries max) — synchronous, safe.
+	s.notifications.Add(level, msg)
+	// 2. Persistent JSONL file — asynchronous.
+	//    Pass msg as an explicit goroutine argument to capture its current VALUE,
+	//    not the closure variable. Without this, the goroutine may read msg after
+	//    it has been reassigned below to the display-truncated version.
+	go func(fullMsg string) {
+		_ = AppendToFile(NotificationsFilePath(), level, fullMsg)
+	}(msg)
+
+	// Log errors to stderr so they survive TUI sessions and can be redirected.
+	if level == ToastError {
+		log.Printf("[ERROR] %s", msg)
+	}
+
+	// Truncate for display only — errors/warnings get more room.
+	// NOTE: this modifies the local variable msg but does NOT affect the
+	// already-persisted full message above.
+	maxLen := toastMaxLen(level)
+	if len(msg) > maxLen {
+		msg = msg[:maxLen-3] + "..."
 	}
 
 	toast := tview.NewTextView().
@@ -44,8 +76,8 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	if toastWidth < 20 {
 		toastWidth = 20
 	}
-	if toastWidth > 60 {
-		toastWidth = 60
+	if toastWidth > 90 {
+		toastWidth = 90
 	}
 	toastHeight := 3
 

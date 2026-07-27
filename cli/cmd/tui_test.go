@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
 
 func TestCanLaunchTUI_NonInteractive(t *testing.T) {
@@ -55,7 +56,7 @@ func TestBuildCommands_HasCategories(t *testing.T) {
 func TestBuildViews(t *testing.T) {
 	// Create a minimal app for testing
 	a := &app.App{Config: &config.Config{}}
-	allViews := buildViews(a)
+	allViews := buildViews(a, shell.NewNotificationStore(50))
 	assert.Greater(t, len(allViews), 0, "views should not be empty")
 
 	// First view should be home
@@ -63,4 +64,19 @@ func TestBuildViews(t *testing.T) {
 
 	// Should have multiple views registered
 	assert.GreaterOrEqual(t, len(allViews), 7, "should have at least 7 views")
+}
+
+func TestBuildViews_IncludesNotifications(t *testing.T) {
+	a := &app.App{Config: &config.Config{}}
+	notifStore := shell.NewNotificationStore(50)
+	allViews := buildViews(a, notifStore)
+
+	var found bool
+	for _, v := range allViews {
+		if v.ID() == "notifications" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "notifications view must be registered in buildViews")
 }

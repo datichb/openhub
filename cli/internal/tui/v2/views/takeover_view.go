@@ -7,26 +7,26 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // TakeoverView displays and manages takeover briefs.
 type TakeoverView struct {
-	app       *tview.Application
-	appCtx    *app.App
-	list      *tview.List
-	shell     ShellAccess
-	briefs    []teamstate.TakeoverMeta
-	onEnrich  func(project, ticketID string) error
+	app         *tview.Application
+	resolveTeam ResolveTeamFunc
+	list        *tview.List
+	shell       ShellAccess
+	briefs      []teamstate.TakeoverMeta
+	onEnrich    func(project, ticketID string) error
 }
 
 var _ View = (*TakeoverView)(nil)
 
 // NewTakeoverView creates a new takeover briefs view.
-func NewTakeoverView(a *app.App) *TakeoverView {
-	return &TakeoverView{appCtx: a}
+// resolveTeam is called on every refresh to obtain the effective team config.
+func NewTakeoverView(resolveTeam ResolveTeamFunc) *TakeoverView {
+	return &TakeoverView{resolveTeam: resolveTeam}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -86,10 +86,11 @@ func (v *TakeoverView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *TakeoverView) getRepo() *teamstate.Repo {
-	if v.appCtx == nil || !v.appCtx.Config.Team.Enabled {
+	tc := v.resolveTeam()
+	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(v.appCtx.Config.Team.StateRepo, v.appCtx.Config.Team.StatePath)
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
 		return nil
 	}

@@ -9,25 +9,25 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // PatternsView displays and manages team decomposition patterns.
 type PatternsView struct {
-	app      *tview.Application
-	appCtx   *app.App
-	list     *tview.List
-	shell    ShellAccess
-	patterns []teamstate.Pattern
+	app         *tview.Application
+	resolveTeam ResolveTeamFunc
+	list        *tview.List
+	shell       ShellAccess
+	patterns    []teamstate.Pattern
 }
 
 var _ View = (*PatternsView)(nil)
 
 // NewPatternsView creates a new patterns view.
-func NewPatternsView(a *app.App) *PatternsView {
-	return &PatternsView{appCtx: a}
+// resolveTeam is called on every refresh to obtain the effective team config.
+func NewPatternsView(resolveTeam ResolveTeamFunc) *PatternsView {
+	return &PatternsView{resolveTeam: resolveTeam}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -90,10 +90,11 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *PatternsView) getRepo() *teamstate.Repo {
-	if v.appCtx == nil || !v.appCtx.Config.Team.Enabled {
+	tc := v.resolveTeam()
+	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(v.appCtx.Config.Team.StateRepo, v.appCtx.Config.Team.StatePath)
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
 		return nil
 	}

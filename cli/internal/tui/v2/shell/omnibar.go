@@ -60,12 +60,11 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// Wire input key handling
 	o.input.SetInputCapture(o.handleInputKey)
 
-	// Suggestions list (inserted dynamically into the root layout)
+	// Suggestions list (displayed as floating overlay when omnibar is active)
 	o.suggestions = tview.NewList().
-		ShowSecondaryText(true).
+		ShowSecondaryText(false).
 		SetHighlightFullLine(true).
 		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgMuted).
 		SetSelectedBackgroundColor(theme.BgElement).
 		SetSelectedTextColor(theme.FgPrimary)
 	o.suggestions.SetBackgroundColor(theme.BgPanel)
@@ -74,13 +73,25 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.suggestions.SetBorderPadding(0, 0, 1, 1)
 
 	// Click on a suggestion = execute it immediately (standard list UX).
+	//
+	// IMPORTANT: do NOT use QueueUpdateDraw here — this handler runs on the
+	// tview event loop. QueueUpdateDraw blocks waiting for the event loop to
+	// drain its update queue, which it never will because we're currently
+	// inside it → deadlock. Call executeCurrent() directly instead.
+	// Also guard with InRect: the suggestions-overlay page receives ALL mouse
+	// clicks when visible (Pages dispatches back-to-front without coord check),
+	// so we must ignore clicks outside our bounds.
 	o.suggestions.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		if action == tview.MouseLeftClick {
-			// Let tview update the highlighted item, then execute on next draw.
-			o.shell.app.QueueUpdateDraw(func() {
-				o.executeCurrent()
-			})
-			return action, event
+			x, y := event.Position()
+			sx, sy, sw, sh := o.suggestions.GetRect()
+			if x < sx || x >= sx+sw || y < sy || y >= sy+sh {
+				// Click is outside the suggestions list — do not intercept.
+				return action, event
+			}
+			// Execute directly on the event loop (no QueueUpdateDraw).
+			o.executeCurrent()
+			return tview.MouseConsumed, nil
 		}
 		return action, event
 	})
@@ -94,11 +105,14 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.container.AddPage("hints", o.hints, true, true)
 	o.container.AddPage("input", o.input, true, false)
 
-	// Click-to-activate: un clic gauche sur la barre passive active l'omnibar.
+	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
+	// Return MouseConsumed so tview marks the event as consumed and triggers a
+	// redraw — without this the omnibar switches internally but the screen is
+	// not refreshed, leaving the user with no visual feedback.
 	o.hints.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		if action == tview.MouseLeftClick && !o.active {
 			o.Activate()
-			return action, nil
+			return tview.MouseConsumed, nil
 		}
 		return action, event
 	})
@@ -116,16 +130,22 @@ func (o *Omnibar) SuggestionsPrimitive() tview.Primitive {
 	return o.suggestions
 }
 
+// SuggestionsList returns the suggestions list as a typed *tview.List
+// so callers can call SetRect for manual positioning.
+func (o *Omnibar) SuggestionsList() *tview.List {
+	return o.suggestions
+}
+
 // SuggestionsHeight returns the current desired height of the suggestions list.
 func (o *Omnibar) SuggestionsHeight() int {
 	count := o.suggestions.GetItemCount()
-	// Each item = 2 rows (main + secondary text), plus 2 for border
-	height := count*2 + 2
-	if height < 4 {
-		height = 4
+	// Each item = 1 row (no secondary text), plus 2 for border
+	height := count + 2
+	if height < 3 {
+		height = 3
 	}
-	if height > 22 {
-		height = 22
+	if height > 11 {
+		height = 11
 	}
 	return height
 }
@@ -220,14 +240,15 @@ func (o *Omnibar) updateSuggestions(query string) {
 		if cp, ok := cur.(views.CommandProvider); ok {
 			for _, cc := range cp.ContextCommands() {
 				if MatchesQuery(query, cc.ID, cc.Label, cc.Aliases, cc.Category) {
-					contextual = append(contextual, Command{
-						ID:          cc.ID,
-						Label:       cc.Label,
-						Aliases:     cc.Aliases,
-						Description: cc.Description,
-						Category:    cc.Category,
-						Action:      cc.Action,
-					})
+				contextual = append(contextual, Command{
+					ID:          cc.ID,
+					Label:       cc.Label,
+					Aliases:     cc.Aliases,
+					Description: cc.Description,
+					Category:    cc.Category,
+					Action:      cc.Action,
+					RunsDirect:  cc.RunsDirect,
+				})
 				}
 			}
 		}
@@ -244,21 +265,25 @@ func (o *Omnibar) updateSuggestions(query string) {
 	o.visible = merged
 	o.suggestions.Clear()
 
-	// Limit displayed results
-	max := 10
+	// Limit displayed results — keep it small to avoid covering too much content
+	max := 7
 	if len(merged) < max {
 		max = len(merged)
 	}
 
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
 	for i := 0; i < max; i++ {
 		cmd := merged[i]
-		desc := ""
-		if cmd.Description != "" {
-			desc = "  " + cmd.Description
-		} else if cmd.Category != "" {
-			desc = "  " + cmd.Category
+		// Single-line format: label padded to 18 chars + dimmed description
+		// This gives clean column alignment regardless of label length.
+		desc := cmd.Description
+		if desc == "" {
+			desc = cmd.Category
 		}
-		o.suggestions.AddItem(cmd.Label, desc, 0, nil)
+		text := fmt.Sprintf("%-18s  %s%s%s", cmd.Label, muted, desc, reset)
+		o.suggestions.AddItem(text, "", 0, nil)
 	}
 
 	// Update the layout height if suggestions are visible
@@ -278,8 +303,35 @@ func (o *Omnibar) executeCurrent() {
 	o.Deactivate()
 
 	if cmd.Action != nil {
-		cmd.Action()
+		if cmd.RunsDirect {
+			// RunsDirect=true: action calls SuspendAndExec which must run directly
+			// on the event loop — it cannot be deferred via QueueUpdateDraw because
+			// app.Suspend() would deadlock waiting for the event loop to be idle.
+			cmd.Action()
+		} else {
+			// Spawn a goroutine that calls QueueUpdateDraw — the canonical tview
+			// pattern for scheduling UI work from inside an event-loop handler.
+			//
+			// WHY NOT call QueueUpdateDraw directly:
+			//   QueueUpdateDraw / QueueUpdate BLOCK the caller via an unbuffered
+			//   done-channel. Calling it from inside a handler deadlocks: the event
+			//   loop can't drain updates while it's still executing the current
+			//   handler, so the <-ch wait never resolves.
+			//
+			// WHY the goroutine works:
+			//   The goroutine blocks on <-ch outside the event loop. The current
+			//   handler returns immediately → the event loop finishes the draw cycle
+			//   → drains updates → executes cmd.Action() → signals done → goroutine
+			//   exits. No leak, no race.
+			go func() {
+				o.shell.app.QueueUpdateDraw(func() {
+					cmd.Action()
+				})
+			}()
+		}
 	} else if cmd.ViewID != "" {
+		// NavigateTo only manipulates the widget tree (no pages.AddPage) — safe to
+		// call synchronously from within the event loop.
 		o.shell.router.NavigateTo(cmd.ViewID)
 	}
 }

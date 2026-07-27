@@ -199,7 +199,8 @@ func TestHelpView_ImplementsView(t *testing.T) {
 func TestTeamStatusView_ImplementsView(t *testing.T) {
 	var _ View = (*TeamStatusView)(nil)
 
-	v := NewTeamStatusView(nil)
+	// Provide a no-op resolve func — team disabled
+	v := NewTeamStatusView(func() TeamResolution { return TeamResolution{} })
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	app := tview.NewApplication()
 

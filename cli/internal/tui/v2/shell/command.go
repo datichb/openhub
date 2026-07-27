@@ -43,6 +43,19 @@ type Command struct {
 	Action func()
 	// Enabled returns whether this command is currently available. Nil means always enabled.
 	Enabled func() bool
+	// Priority controls ordering when the omnibar query is empty.
+	// Higher values appear first. Default (0) puts the command at the end.
+	Priority int
+	// RunsDirect marks actions that MUST execute synchronously on the tview event loop
+	// and MUST NOT be deferred via QueueUpdateDraw. Set this to true for any action
+	// that calls SuspendAndExec — app.Suspend() deadlocks when invoked from inside a
+	// QueueUpdateDraw callback because it waits for the event loop to be idle, but the
+	// loop is blocked waiting for the callback to return.
+	//
+	// All other actions (ShowModal, ShowToast, NavigateTo, App.Stop) should leave this
+	// false so the omnibar defers them to the next draw cycle, avoiding the separate
+	// deadlock caused by calling pages.AddPage inside an InputCapture handler.
+	RunsDirect bool
 }
 
 // IsEnabled returns whether this command is currently available.
@@ -72,13 +85,17 @@ func (r *CommandRegistry) All() []Command {
 // Matches against ID, Label, Aliases, and Category using fuzzy matching.
 func (r *CommandRegistry) Search(query string) []Command {
 	if query == "" {
-		// Return all enabled commands
+		// Return all enabled commands sorted by Priority descending.
+		// Higher priority = shown first when omnibar is empty.
 		var result []Command
 		for _, c := range r.commands {
 			if c.IsEnabled() {
 				result = append(result, c)
 			}
 		}
+		sort.SliceStable(result, func(i, j int) bool {
+			return result[i].Priority > result[j].Priority
+		})
 		return result
 	}
 

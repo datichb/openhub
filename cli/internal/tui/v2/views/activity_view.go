@@ -8,24 +8,24 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // ActivityView displays the team activity stream.
 type ActivityView struct {
-	app    *tview.Application
-	appCtx *app.App
-	list   *tview.TextView
-	filter string // "today", "week", "all"
+	app         *tview.Application
+	resolveTeam ResolveTeamFunc
+	list        *tview.TextView
+	filter      string // "today", "week", "all"
 }
 
 var _ View = (*ActivityView)(nil)
 
 // NewActivityView creates a new team activity view.
-func NewActivityView(a *app.App) *ActivityView {
-	return &ActivityView{appCtx: a, filter: "week"}
+// resolveTeam is called on every refresh to obtain the effective team config.
+func NewActivityView(resolveTeam ResolveTeamFunc) *ActivityView {
+	return &ActivityView{resolveTeam: resolveTeam, filter: "week"}
 }
 
 // ID returns the view identifier.
@@ -87,13 +87,13 @@ func (v *ActivityView) refresh() {
 		return
 	}
 
-	if v.appCtx == nil || !v.appCtx.Config.Team.Enabled {
-		v.list.SetText("  Team non activée. Lancez 'oh team init' pour configurer.")
+	tc := v.resolveTeam()
+	if !tc.Enabled {
+		v.list.SetText("  Équipe non configurée pour ce projet. Utilisez 'team configure' dans l'omnibar.")
 		return
 	}
 
-	statePath := v.appCtx.Config.Team.StatePath
-	repo := teamstate.NewRepo(v.appCtx.Config.Team.StateRepo, statePath)
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 
 	if !repo.IsCloned() {
 		v.list.SetText("  Team state non cloné. Lancez 'oh team init'.")

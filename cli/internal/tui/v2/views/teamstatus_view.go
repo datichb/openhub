@@ -7,22 +7,23 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // TeamStatusView displays team status (who works on what) and activity.
 type TeamStatusView struct {
-	app    *tview.Application
-	appCtx *app.App
-	tv     *tview.TextView
+	app         *tview.Application
+	resolveTeam ResolveTeamFunc
+	tv          *tview.TextView
 }
 
 var _ View = (*TeamStatusView)(nil)
 
 // NewTeamStatusView creates a new team status view.
-func NewTeamStatusView(a *app.App) *TeamStatusView {
-	return &TeamStatusView{appCtx: a}
+// resolveTeam is called on every render to obtain the effective team config
+// for the currently active project (per-project override → hub fallback).
+func NewTeamStatusView(resolveTeam ResolveTeamFunc) *TeamStatusView {
+	return &TeamStatusView{resolveTeam: resolveTeam}
 }
 
 // ID returns the view identifier.
@@ -71,20 +72,20 @@ func (v *TeamStatusView) render() {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n  [::b]Statut de l'équipe%s\n\n", theme.TagReset))
 
-	// Check if team is configured
-	if v.appCtx == nil || v.appCtx.Config == nil || !v.appCtx.Config.Team.Enabled {
-		sb.WriteString(fmt.Sprintf("  %sÉquipe non configurée.%s\n\n",
+	tc := v.resolveTeam()
+	if !tc.Enabled {
+		sb.WriteString(fmt.Sprintf("  %sÉquipe non configurée pour ce projet.%s\n\n",
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
-		sb.WriteString(fmt.Sprintf("  %sUtilisez 'oh team init' pour configurer l'équipe.%s\n",
+		sb.WriteString(fmt.Sprintf("  %sUtilisez 'team configure' dans l'omnibar pour configurer.%s\n",
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
 		v.tv.SetText(sb.String())
 		return
 	}
 
 	sb.WriteString(fmt.Sprintf("  %sRepo :%s    %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, v.appCtx.Config.Team.StateRepo))
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.StateRepo))
 	sb.WriteString(fmt.Sprintf("  %sMembre :%s  %s\n\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, v.appCtx.Config.Team.MemberID))
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.MemberID))
 
 	sb.WriteString(fmt.Sprintf("  %s─── Activité récente ───%s\n\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))

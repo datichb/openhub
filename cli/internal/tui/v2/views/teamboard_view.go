@@ -131,7 +131,7 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		if v.cfg.RefreshFunc != nil {
-			v.refresh(DefaultColumns())
+			v.refreshOnEventLoop(DefaultColumns())
 		}
 		return nil
 	case 'c':
@@ -218,6 +218,9 @@ func (v *TeamBoardView) refreshLoop(rate time.Duration, columns []BoardColumnDef
 	}
 }
 
+// refresh fetches tickets from the remote and schedules a board repopulation via
+// QueueUpdateDraw. Safe to call from ANY goroutine (ticker, background workers).
+// Do NOT call from inside a QueueUpdateDraw callback — use refreshOnEventLoop instead.
 func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
 	if v.cfg.RefreshFunc == nil || v.app == nil {
 		return
@@ -226,6 +229,19 @@ func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
 	v.app.QueueUpdateDraw(func() {
 		v.populateColumns(tickets, columns)
 	})
+}
+
+// refreshOnEventLoop fetches tickets and repopulates the board immediately.
+// MUST be called from inside the tview event loop (QueueUpdateDraw callback or
+// tview handler). Does NOT call QueueUpdateDraw — avoids the nested deadlock that
+// would occur if QueueUpdateDraw were called from inside a running QueueUpdateDraw
+// callback (the unbuffered done-channel would block forever).
+func (v *TeamBoardView) refreshOnEventLoop(columns []BoardColumnDef) {
+	if v.cfg.RefreshFunc == nil {
+		return
+	}
+	tickets := v.cfg.RefreshFunc()
+	v.populateColumns(tickets, columns)
 }
 
 // ─── Ticket Actions ──────────────────────────────────────────────────────────
@@ -262,7 +278,7 @@ func (v *TeamBoardView) claimTicket() {
 			} else {
 				v.shell.ShowToastMsg("Ticket claim: "+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refresh(DefaultColumns())
+					v.refreshOnEventLoop(DefaultColumns())
 				}
 			}
 		})
@@ -288,7 +304,7 @@ func (v *TeamBoardView) releaseTicket() {
 			} else {
 				v.shell.ShowToastMsg("Ticket libéré: "+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refresh(DefaultColumns())
+					v.refreshOnEventLoop(DefaultColumns())
 				}
 			}
 		})
@@ -320,7 +336,7 @@ func (v *TeamBoardView) transferTicket() {
 				} else {
 					v.shell.ShowToastMsg("Transféré à "+toMember, true)
 					if v.cfg.RefreshFunc != nil {
-						v.refresh(DefaultColumns())
+						v.refreshOnEventLoop(DefaultColumns())
 					}
 				}
 			})
@@ -356,7 +372,7 @@ func (v *TeamBoardView) changeStatus() {
 				} else {
 					v.shell.ShowToastMsg("Status mis à jour", true)
 					if v.cfg.RefreshFunc != nil {
-						v.refresh(DefaultColumns())
+						v.refreshOnEventLoop(DefaultColumns())
 					}
 				}
 			})

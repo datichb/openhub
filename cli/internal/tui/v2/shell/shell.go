@@ -1,6 +1,47 @@
 // Package shell provides the unified TUI application shell with an
 // omnibar-first design. The shell is composed of a full-screen content
 // area and a persistent omnibar at the bottom for command input.
+//
+// # QueueUpdateDraw convention
+//
+// tview.Application.QueueUpdateDraw (and QueueUpdate) are SYNCHRONOUS — they
+// block the calling goroutine via an unbuffered done-channel until the event
+// loop picks up the callback, executes it, and signals completion. This has
+// two critical consequences:
+//
+//  1. NEVER call QueueUpdateDraw from inside a running QueueUpdateDraw callback.
+//     The event loop cannot drain the queue while executing the current callback,
+//     so the inner QueueUpdateDraw blocks forever → hard TUI freeze.
+//
+//     ❌ DEADLOCK:
+//       app.QueueUpdateDraw(func() {
+//           app.QueueUpdateDraw(func() { ... })  // blocks forever
+//       })
+//
+//     ✅ CORRECT (if you must show a toast from inside a callback):
+//       app.QueueUpdateDraw(func() {
+//           shell.ShowToast(...)  // direct call — ShowToast does pages.AddPage, no QueueUpdateDraw
+//       })
+//
+//  2. NEVER call QueueUpdateDraw from inside a tview InputCapture / SetSelectedFunc
+//     handler. These handlers run on the event loop — same deadlock as above.
+//
+//     ✅ CORRECT pattern for "show something after a handler":
+//       go func() {
+//           app.QueueUpdateDraw(func() { ... })  // goroutine blocks OUTSIDE the event loop
+//       }()
+//
+//  3. When multiple sequential UI operations are needed after a handler, use a
+//     single goroutine with time.Sleep(50ms) + sequential QueueUpdateDraw calls.
+//     Launching parallel goroutines that both call QueueUpdateDraw can race and
+//     cause two page mutations in the same draw cycle → hard freeze.
+//
+//     ✅ CORRECT sequential pattern:
+//       go func() {
+//           time.Sleep(50 * time.Millisecond) // let event loop finish the handler cycle
+//           app.QueueUpdateDraw(func() { ShowToast("step 1") }) // blocks until drawn
+//           app.QueueUpdateDraw(func() { ShowNextModal() })     // blocks until drawn
+//       }()
 package shell
 
 import (
@@ -27,6 +68,9 @@ type Config struct {
 	Views []views.View
 	// HomeViewID is the ID of the initial view to display.
 	HomeViewID string
+	// Notifications is an optional pre-created notification store. When nil,
+	// a default store with capacity 50 is created automatically.
+	Notifications *NotificationStore
 }
 
 // shellAware is an optional interface that views can implement to receive
@@ -47,6 +91,19 @@ type Shell struct {
 	registry         *CommandRegistry
 	suggestionsShown bool
 
+	// activeProject is non-nil when project mode is active.
+	activeProject *views.ActiveProject
+
+	// notifications holds the last N toast messages for the Notifications view.
+	notifications *NotificationStore
+
+	// selection manages screen-level text selection (mouse drag → clipboard copy).
+	selection *SelectionManager
+
+	// screen is set on every draw cycle via SetAfterDrawFunc and used by the
+	// mouse handler for text extraction. Guarded by the tview draw lock.
+	screen tcell.Screen
+
 	// ctx is cancelled when the shell exits (SIGINT, q, or tview Stop).
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -59,11 +116,26 @@ func New(cfg Config) *Shell {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	s := &Shell{
-		app:    app,
-		ctx:    ctx,
-		cancel: cancel,
+	ns := cfg.Notifications
+	if ns == nil {
+		ns = NewNotificationStore(50)
 	}
+
+	s := &Shell{
+		app:           app,
+		ctx:           ctx,
+		cancel:        cancel,
+		notifications: ns,
+	}
+
+	// Wire text-selection manager — calls back into the shell for the toast.
+	s.selection = NewSelectionManager(func(text string) {
+		go func() {
+			s.app.QueueUpdateDraw(func() {
+				s.ShowToast("Copié dans le presse-papiers", ToastSuccess)
+			})
+		}()
+	})
 
 	// Build content panel — full screen, clean
 	s.content = tview.NewFlex().SetDirection(tview.FlexRow)
@@ -105,42 +177,113 @@ func New(cfg Config) *Shell {
 	return s
 }
 
-// showSuggestionsInLayout inserts the suggestions list into the root Flex
-// between content and omnibar.
+// showSuggestionsInLayout adds the suggestions list as a partial overlay
+// (resize=false) so it floats just above the omnibar without pushing the content.
 func (s *Shell) showSuggestionsInLayout() {
 	if s.suggestionsShown {
 		return
 	}
 	s.suggestionsShown = true
-	// Remove omnibar, add suggestions, re-add omnibar
-	s.root.RemoveItem(s.omnibar.Primitive())
-	s.root.AddItem(s.omnibar.SuggestionsPrimitive(), s.omnibar.SuggestionsHeight(), 0, false)
-	s.root.AddItem(s.omnibar.Primitive(), 5, 0, false)
+	// resize=false: tview will not auto-resize this page — we control placement via SetRect.
+	s.pages.AddPage("suggestions-overlay", s.omnibar.SuggestionsPrimitive(), false, true)
+	s.repositionSuggestions()
 }
 
-// hideSuggestionsFromLayout removes the suggestions list from the root Flex.
+// hideSuggestionsFromLayout removes the suggestions overlay.
 func (s *Shell) hideSuggestionsFromLayout() {
 	if !s.suggestionsShown {
 		return
 	}
 	s.suggestionsShown = false
-	s.root.RemoveItem(s.omnibar.SuggestionsPrimitive())
+	s.pages.RemovePage("suggestions-overlay")
 }
 
-// updateSuggestionsHeight recalculates the suggestions height in the layout.
+// updateSuggestionsHeight recalculates and repositions the suggestions overlay.
 func (s *Shell) updateSuggestionsHeight() {
 	if !s.suggestionsShown {
 		return
 	}
-	// Rebuild: remove suggestions + omnibar, re-add with new height
-	s.root.RemoveItem(s.omnibar.SuggestionsPrimitive())
-	s.root.RemoveItem(s.omnibar.Primitive())
-	s.root.AddItem(s.omnibar.SuggestionsPrimitive(), s.omnibar.SuggestionsHeight(), 0, false)
-	s.root.AddItem(s.omnibar.Primitive(), 5, 0, false)
+	s.repositionSuggestions()
+}
+
+// repositionSuggestions calculates and applies the exact screen position of
+// the suggestions widget. It spans the full width, sits just above the omnibar,
+// and never covers more than (screenH - omnibarHeight) rows.
+func (s *Shell) repositionSuggestions() {
+	// GetInnerRect returns (x, y, width, height) of the pages container.
+	_, _, w, screenH := s.pages.GetInnerRect()
+	if w == 0 || screenH == 0 {
+		// Layout not yet computed (first draw) — let tview call us again.
+		return
+	}
+
+	height := s.omnibar.SuggestionsHeight()
+	const omnibarHeight = 5
+
+	y := screenH - omnibarHeight - height
+	if y < 0 {
+		y = 0
+		height = screenH - omnibarHeight
+	}
+	if height < 1 {
+		return
+	}
+
+	s.omnibar.SuggestionsList().SetRect(0, y, w, height)
 }
 
 // Run starts the tview event loop. Blocks until quit.
 func (s *Shell) Run() error {
+	// Rotate the persistent notifications file at startup (best-effort, background).
+	// Keeps at most 500 entries and removes entries older than 7 days.
+	go func() {
+		_ = RotateFile(NotificationsFilePath(), 500, 7*24*time.Hour)
+	}()
+	// Apply selection highlight after every draw cycle, before screen.Show().
+	// Also cache the screen reference so mouse handlers can read cell content.
+	s.app.SetAfterDrawFunc(func(screen tcell.Screen) {
+		s.screen = screen
+		s.selection.ApplyHighlight(screen)
+	})
+
+	// Global mouse capture for text selection.
+	// Events in interactive zones (omnibar, modals) are passed through unchanged.
+	s.app.SetMouseCapture(func(event *tcell.EventMouse, action tview.MouseAction) (*tcell.EventMouse, tview.MouseAction) {
+		x, y := event.Position()
+
+		switch action {
+		case tview.MouseLeftDown:
+			if s.isInteractiveZone(x, y) {
+				s.selection.Clear()
+				return event, action // pass through to tview widgets
+			}
+			if screen := s.screen; screen != nil {
+				s.selection.HandleMouseDown(x, y, screen)
+			}
+			return nil, tview.MouseConsumed
+
+		case tview.MouseMove:
+			// Only intercept drag (left button held) outside interactive zones
+			if event.Buttons()&tcell.Button1 != 0 {
+				if s.selection.IsActive() {
+					s.selection.HandleMouseDrag(x, y)
+					s.app.ForceDraw()
+					return nil, tview.MouseConsumed
+				}
+			}
+
+		case tview.MouseLeftUp:
+			if s.selection.IsActive() {
+				if screen := s.screen; screen != nil {
+					s.selection.HandleMouseUp(x, y, screen)
+				}
+				return nil, tview.MouseConsumed
+			}
+		}
+
+		return event, action
+	})
+
 	s.app.SetRoot(s.pages, true).EnableMouse(true)
 	err := s.app.Run()
 	s.cancel() // signal all goroutines to stop
@@ -156,6 +299,12 @@ func (s *Shell) Context() context.Context {
 // App returns the underlying tview.Application for external QueueUpdateDraw calls.
 func (s *Shell) App() *tview.Application {
 	return s.app
+}
+
+// Notifications returns the notification store for this session.
+// Used by the NotificationsView to display the history of toasts.
+func (s *Shell) Notifications() *NotificationStore {
+	return s.notifications
 }
 
 // NavigateHome navigates to the registered home view by ID.
@@ -247,9 +396,23 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	}
 	var metas []fieldMeta
 
+	// itemToMeta maps a form item index → metas slice index.
+	// This is necessary because AddTextView (hints) inserts non-interactive items
+	// into the form, shifting the item indices so that metas[itemIdx] would be wrong.
+	// We populate this map after each interactive field is added so hints are excluded.
+	itemToMeta := make(map[int]int)
+
 	// ── Build form items ──────────────────────────────────────────────────────
 	for i := range cfg.Fields {
 		field := &cfg.Fields[i]
+
+		// hintLines computes the hint height: 2 lines if >50 chars, else 1.
+		hintLines := func(hint string) int {
+			if len("  "+hint) > 50 {
+				return 2
+			}
+			return 1
+		}
 
 		switch field.Type {
 
@@ -274,7 +437,11 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 			inp.SetFieldTextColor(theme.FgPrimary)
 			inp.SetLabelColor(theme.FgPrimary)
 			form.AddFormItem(inp)
+			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field, inputField: inp, selectIdx: idx})
+			if field.Hint != "" {
+				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
+			}
 
 		case views.FieldMultiSelect:
 			if field.DefaultMulti != nil {
@@ -290,19 +457,31 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 			inp.SetFieldTextColor(theme.FgPrimary)
 			inp.SetLabelColor(theme.FgPrimary)
 			form.AddFormItem(inp)
+			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field, inputField: inp})
+			if field.Hint != "" {
+				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
+			}
 
 		case views.FieldText:
 			values[field.Key] = field.Default
 			form.AddInputField(field.Label, field.Default, 40, nil,
 				func(text string) { values[field.Key] = text })
+			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field})
+			if field.Hint != "" {
+				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
+			}
 
 		case views.FieldPassword:
 			values[field.Key] = field.Default
 			form.AddPasswordField(field.Label, field.Default, 40, '*',
 				func(text string) { values[field.Key] = text })
+			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field})
+			if field.Hint != "" {
+				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
+			}
 
 		case views.FieldBool:
 			checked := field.Default == "true"
@@ -314,7 +493,11 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 					values[field.Key] = "false"
 				}
 			})
+			itemToMeta[form.GetFormItemCount()-1] = len(metas)
 			metas = append(metas, fieldMeta{field: field})
+			if field.Hint != "" {
+				form.AddTextView("", "  "+field.Hint, 0, hintLines(field.Hint), true, false)
+			}
 		}
 	}
 
@@ -356,10 +539,12 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 			return event
 		}
 
-		if itemIdx < 0 || itemIdx >= len(metas) {
-			return event
+		// Look up the meta for the focused item, skipping hint TextViews.
+		metaIdx, ok := itemToMeta[itemIdx]
+		if !ok {
+			return event // focus is on a hint TextView — pass through
 		}
-		meta := &metas[itemIdx]
+		meta := &metas[metaIdx]
 
 		switch meta.field.Type {
 
@@ -381,6 +566,14 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				meta.inputField.SetText(selectLabel(meta.field, meta.selectIdx))
 				return nil
 			case tcell.KeyEnter:
+				if n <= 5 {
+					// Few options: cycle to next (no sub-modal, more fluent)
+					meta.selectIdx = (meta.selectIdx + 1) % n
+					values[meta.field.Key] = opts[meta.selectIdx].Value
+					meta.inputField.SetText(selectLabel(meta.field, meta.selectIdx))
+					return nil
+				}
+				// Many options: open sub-select modal
 				s.showSubSelect(
 					meta.field.Label,
 					meta.field.Options,
@@ -703,6 +896,72 @@ func (s *Shell) RestoreFocus() {
 	s.app.SetFocus(s.content)
 }
 
+// NavigateTo navigates to a registered view by ID.
+func (s *Shell) NavigateTo(viewID string) {
+	s.router.NavigateTo(viewID)
+}
+
+// SetProjectMode activates or deactivates project mode.
+// Passing nil deactivates project mode (hub mode).
+func (s *Shell) SetProjectMode(project *views.ActiveProject) {
+	s.activeProject = project
+	if project != nil {
+		s.router.NavigateTo("project.mode")
+	} else {
+		s.router.NavigateTo("home")
+	}
+}
+
+// SetActiveProject sets the active project without triggering navigation.
+// Use this to pre-set the project before NavigateHome is called.
+func (s *Shell) SetActiveProject(project *views.ActiveProject) {
+	s.activeProject = project
+}
+
+// ActiveProject returns the currently active project, or nil if in hub mode.
+func (s *Shell) ActiveProject() *views.ActiveProject {
+	return s.activeProject
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Selection helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// isInteractiveZone reports whether the cell at (x, y) belongs to a widget
+// that handles its own mouse events. Mouse events in interactive zones are
+// passed through to tview unmodified; events outside are routed to the
+// SelectionManager for text selection.
+//
+// Interactive zones:
+//   - Omnibar container (always, whether active or not)
+//   - Suggestions overlay (when visible)
+//   - Any inline-overlay page (modals, prompts) — the entire screen is treated
+//     as interactive when a modal is open so that the user cannot accidentally
+//     start a selection while interacting with the modal.
+func (s *Shell) isInteractiveZone(x, y int) bool {
+	// If any overlay modal is active, the whole screen is "interactive" —
+	// pass all events to tview so the modal works normally.
+	if s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay") {
+		return true
+	}
+
+	// Omnibar container
+	ox, oy, ow, oh := s.omnibar.container.GetRect()
+	if x >= ox && x < ox+ow && y >= oy && y < oy+oh {
+		return true
+	}
+
+	// Suggestions list (when visible)
+	if s.suggestionsShown {
+		sx, sy, sw, sh := s.omnibar.SuggestionsList().GetRect()
+		if x >= sx && x < sx+sw && y >= sy && y < sy+sh {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Global key handler — minimal and predictable
 // ─────────────────────────────────────────────────────────────────────────────
@@ -712,6 +971,15 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	if event.Key() == tcell.KeyCtrlQ || event.Key() == tcell.KeyCtrlC {
 		s.app.Stop()
 		return nil
+	}
+
+	// Esc: if a text selection is active, clear it first.
+	// This avoids accidentally triggering navigation or modal-close while
+	// the user is dismissing a selection.
+	if event.Key() == tcell.KeyEscape && s.selection.IsActive() {
+		s.selection.Clear()
+		s.app.ForceDraw()
+		return nil // consume the Esc — do not propagate
 	}
 
 	// If omnibar is active, let it handle keys
@@ -727,6 +995,16 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// Ctrl+P or /: activate omnibar
 	if event.Key() == tcell.KeyCtrlP {
 		s.omnibar.Activate()
+		return nil
+	}
+
+	// Ctrl+T: toggle between project mode and hub mode
+	if event.Key() == tcell.KeyCtrlT {
+		if s.activeProject != nil {
+			s.SetProjectMode(nil)
+		} else {
+			s.router.NavigateTo("projects.list")
+		}
 		return nil
 	}
 
@@ -900,10 +1178,9 @@ func (s *Shell) listMouseToggle(list *tview.List, toggle func(idx int)) {
 
 func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {
 	input := tview.NewInputField().
-		SetLabel(fmt.Sprintf("  %s: ", title)).
 		SetLabelColor(theme.Accent).
 		SetText(currentValue).
-		SetFieldWidth(50).
+		SetFieldWidth(52).
 		SetFieldBackgroundColor(theme.BgElement).
 		SetFieldTextColor(theme.FgPrimary)
 	input.SetBackgroundColor(theme.BgPanel)
@@ -912,7 +1189,7 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		input.SetMaskCharacter('*')
 	}
 
-	// Hints below input
+	// Hint bar at the bottom of the frame
 	hint := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -921,9 +1198,13 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor))
 
-	// Layout: centered vertically
+	// Frame with border + title — same design as showInlineSelect and ShowInlineForm.
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
 	frame.SetBackgroundColor(theme.BgPanel)
+	frame.SetBorder(true)
+	frame.SetBorderColor(theme.Accent)
+	frame.SetTitle(fmt.Sprintf("  %s  ", title))
+	frame.SetTitleColor(theme.Accent)
 	frame.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // top spacer
 	frame.AddItem(input, 1, 0, true)
 	frame.AddItem(hint, 1, 0, false)
@@ -937,8 +1218,9 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		}
 	})
 
-	// No light-dismiss on input — accidental backdrop click would lose in-progress text.
-	grid := s.overlayGrid(frame, []int{0, 60, 0}, []int{0, 4, 0}, theme.BgDimOverlay, "", nil)
+	// Width 64 matches ShowInlineForm for visual consistency across a flow.
+	// No light-dismiss — accidental backdrop click would lose in-progress text.
+	grid := s.overlayGrid(frame, []int{0, 64, 0}, []int{0, 7, 0}, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(input)
@@ -1123,7 +1405,7 @@ func (s *Shell) showInlineScrollable(title, content string, actions []views.Moda
 
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
 	frame.AddItem(textView, 0, 1, true)
-	frame.AddItem(buttons, 1, 0, false)
+	frame.AddItem(buttons, 3, 0, false)
 	frame.SetBorder(true)
 	frame.SetBorderColor(theme.Accent)
 	frame.SetTitle(fmt.Sprintf(" %s · Tab switch · Esc fermer ", title))
