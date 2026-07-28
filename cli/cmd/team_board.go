@@ -64,7 +64,8 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 	return views.RunTeamBoard(cfg)
 }
 
-// fetchTeamTicketsV2 builds the list of team tickets from claims + members.
+// fetchTeamTicketsV2 builds the list of team tickets from claims.
+// Members with no active claims are omitted — the board shows tickets, not people.
 func fetchTeamTicketsV2(repo *teamstate.Repo) []views.TeamTicket {
 	members, err := repo.ListMembers()
 	if err != nil {
@@ -76,49 +77,44 @@ func fetchTeamTicketsV2(repo *teamstate.Repo) []views.TeamTicket {
 		return nil
 	}
 
-	// Index claims by member
-	claimsByMember := make(map[string][]teamstate.Claim)
-	for _, c := range claims {
-		claimsByMember[c.ClaimedBy] = append(claimsByMember[c.ClaimedBy], c)
+	// Build a display-name lookup keyed by member ID.
+	displayName := make(map[string]string, len(members))
+	for _, m := range members {
+		displayName[m.ID] = m.DisplayName
 	}
 
 	var tickets []views.TeamTicket
-
-	for _, m := range members {
-		memberClaims := claimsByMember[m.ID]
-
-		if len(memberClaims) == 0 {
-			tickets = append(tickets, views.TeamTicket{
-				ID:       m.ID,
-				Title:    m.DisplayName + " (idle)",
-				Status:   "todo",
-				Assignee: m.DisplayName,
-			})
-			continue
+	for _, c := range claims {
+		name := displayName[c.ClaimedBy]
+		if name == "" {
+			name = c.ClaimedBy // fallback to ID if member no longer in registry
 		}
-
-		for _, c := range memberClaims {
-			tickets = append(tickets, views.TeamTicket{
-				ID:       c.TicketID,
-				Title:    fmt.Sprintf("%s/%s", c.Project, c.TicketID),
-				Status:   mapClaimStatusV2(c.Status),
-				Assignee: m.DisplayName,
-			})
-		}
+		tickets = append(tickets, views.TeamTicket{
+			ID:       c.TicketID,
+			Title:    fmt.Sprintf("%s/%s", c.Project, c.TicketID),
+			Status:   mapClaimStatus(c.Status),
+			Assignee: name,
+			Labels:   c.Labels,
+		})
 	}
 
 	return tickets
 }
 
-// mapClaimStatusV2 maps claim statuses to board column statuses.
-func mapClaimStatusV2(status string) string {
+// mapClaimStatus maps a claim status string to the board column key.
+// The mapping is 1-to-1 with the column definitions in views.DefaultColumns().
+func mapClaimStatus(status string) string {
 	switch status {
-	case "in_progress":
+	case teamstate.ClaimStatusPlanned:
+		return "todo"
+	case teamstate.ClaimStatusInProgress:
 		return "in_progress"
-	case "review":
-		return "done" // map review → done column for now
-	case "blocked":
+	case teamstate.ClaimStatusReview:
+		return "review"
+	case teamstate.ClaimStatusBlocked:
 		return "blocked"
+	case teamstate.ClaimStatusDone:
+		return "done"
 	default:
 		return "in_progress"
 	}

@@ -243,6 +243,11 @@ func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, br
 
 	_ = repo.AppendEvent(ctx, event)
 
+	// Add "agent-reviewed" label to the claim (best-effort — do not block).
+	if ticket != "" && projectID != "" {
+		_ = repo.AddClaimLabel(ctx, projectID, ticket, teamstate.LabelAgentReviewed)
+	}
+
 	// Notify
 	if teamCfg, err := repo.LoadConfig(); err == nil {
 		d := notify.NewDispatcher(teamCfg)

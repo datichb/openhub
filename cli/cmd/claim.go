@@ -49,6 +49,7 @@ func init() {
 
 	claimCmd.Flags().StringP("project", "p", "", "Project name (auto-detected from cwd if omitted)")
 	claimCmd.Flags().String("worktree", "", "Associated branch/worktree name")
+	claimCmd.Flags().Bool("planned", false, "Create the claim in 'planned' status (TODO column) instead of starting immediately")
 
 	releaseCmd.Flags().StringP("project", "p", "", "Project name")
 
@@ -69,6 +70,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	ticketID := args[0]
 	project, _ := cmd.Flags().GetString("project")
 	worktree, _ := cmd.Flags().GetString("worktree")
+	planned, _ := cmd.Flags().GetBool("planned")
 
 	if project == "" {
 		project = detectCurrentProject(ctx, a)
@@ -112,13 +114,18 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	initialStatus := teamstate.ClaimStatusInProgress
+	if planned {
+		initialStatus = teamstate.ClaimStatusPlanned
+	}
+
 	claim := teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project,
 		ClaimedBy: memberID,
 		ClaimedAt: time.Now().UTC(),
 		Worktree:  worktree,
-		Status:    "in_progress",
+		Status:    initialStatus,
 	}
 
 	existing, err := repo.CreateClaim(ctx, claim)
@@ -187,6 +194,14 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		project, ticketID, memberID)
 
+	// Emit team event (best-effort, do not block on error).
+	_ = repo.AppendEvent(ctx, teamstate.Event{
+		Actor:   memberID,
+		Type:    teamstate.EventClaimTaken,
+		Project: project,
+		Ticket:  ticketID,
+	})
+
 	return nil
 }
 
@@ -219,6 +234,14 @@ func runRelease(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(a.IO.Out, "%s %s/%s libéré\n",
 		theme.SuccessStyle.Render(theme.IconSuccess), project, ticketID)
+
+	_ = repo.AppendEvent(ctx, teamstate.Event{
+		Actor:   a.Config.Team.MemberID,
+		Type:    teamstate.EventClaimReleased,
+		Project: project,
+		Ticket:  ticketID,
+	})
+
 	return nil
 }
 
@@ -281,6 +304,14 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
+
+	_ = repo.AppendEvent(ctx, teamstate.Event{
+		Actor:   previousOwner,
+		Type:    teamstate.EventClaimTransferred,
+		Project: project,
+		Ticket:  ticketID,
+		Data:    map[string]interface{}{"to": to},
+	})
 
 	return nil
 }

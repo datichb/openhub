@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -218,6 +219,25 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			return form
 		},
 		OnDone: func() error {
+			// ── Duplicate clone check ─────────────────────────────────────────
+			// Before cloning, verify that no other clone of this remote already
+			// exists locally. Two clones of the same team-state repo will diverge
+			// and cause inconsistent state. We block and offer to reuse instead.
+			if existing, found := findExistingCloneForRemote(ctx, a, stateRepo); found {
+				// Propose reusing the existing clone.
+				// The WizardStep OnDone runs on the tview event loop so we cannot
+				// use fmt.Scanln. Return a structured error that the wizard renders.
+				return fmt.Errorf(
+					"un clone de ce repo team-state existe déjà\n"+
+						"  Path: %s\n"+
+						"  Référencé par: %s\n\n"+
+						"Pour réutiliser ce clone, configurez state_path = %q\n"+
+						"dans la config projet (oh deploy) plutôt que d'en créer un nouveau.\n"+
+						"Si ce clone est obsolète, supprimez-le d'abord: rm -rf %s",
+					existing.Path, existing.Source, existing.Path, existing.Path,
+				)
+			}
+
 			// Clone or pull the repo
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
@@ -982,4 +1002,97 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dh", h)
 	}
 	return fmt.Sprintf("%dh%dm", h, m)
+}
+
+// ── Duplicate clone detection ─────────────────────────────────────────────────
+
+// existingClone holds information about an existing clone of a team-state repo.
+type existingClone struct {
+	// Path is the local filesystem path of the existing clone.
+	Path string
+	// Source describes where this clone is referenced ("hub" or the project name).
+	Source string
+}
+
+// findExistingCloneForRemote scans all known team-state configurations (hub.toml
+// and every registered project) to detect whether a clone of remoteURL already
+// exists locally. This is used by oh team init to prevent creating duplicate
+// clones of the same remote — a situation that leads to diverged local state.
+//
+// Returns the first matching clone found, or (existingClone{}, false) if none.
+func findExistingCloneForRemote(ctx context.Context, a *app.App, remoteURL string) (existingClone, bool) {
+	// Normalize for comparison (strip trailing slashes, .git suffix)
+	norm := normalizeRemoteURL(remoteURL)
+
+	// 1. Check hub-level team config
+	if a.Config.Team.StateRepo != "" &&
+		normalizeRemoteURL(a.Config.Team.StateRepo) == norm &&
+		a.Config.Team.StatePath != "" {
+		repo := teamstate.NewRepo(a.Config.Team.StateRepo, a.Config.Team.StatePath)
+		if repo.IsCloned() {
+			return existingClone{
+				Path:   a.Config.Team.StatePath,
+				Source: "configuration hub",
+			}, true
+		}
+	}
+
+	// 2. Check all registered projects
+	projects, err := a.Projects.List(ctx, "")
+	if err != nil {
+		return existingClone{}, false
+	}
+	for _, p := range projects {
+		if p.TeamConfig == nil {
+			continue
+		}
+		if p.TeamConfig.StateRepo == "" ||
+			normalizeRemoteURL(p.TeamConfig.StateRepo) != norm {
+			continue
+		}
+		statePath := p.TeamConfig.StatePath
+		if statePath == "" {
+			continue
+		}
+		repo := teamstate.NewRepo(p.TeamConfig.StateRepo, statePath)
+		if repo.IsCloned() {
+			return existingClone{
+				Path:   statePath,
+				Source: fmt.Sprintf("projet %s", p.Name),
+			}, true
+		}
+	}
+
+	return existingClone{}, false
+}
+
+// normalizeRemoteURL strips trailing slashes and the .git suffix for comparison.
+func normalizeRemoteURL(u string) string {
+	u = strings.TrimRight(u, "/")
+	u = strings.TrimSuffix(u, ".git")
+	return u
+}
+
+// collectUsedMemberIDs returns a set of member IDs that are actively referenced
+// by at least one team configuration (hub-level or project-level).
+// Used to detect orphan entries in members.toml.
+func collectUsedMemberIDs(ctx context.Context, a *app.App) map[string]bool {
+	used := make(map[string]bool)
+
+	// Hub-level member_id
+	if a.Config.Team.MemberID != "" {
+		used[a.Config.Team.MemberID] = true
+	}
+
+	// Per-project member IDs
+	projects, err := a.Projects.List(ctx, "")
+	if err != nil {
+		return used
+	}
+	for _, p := range projects {
+		if p.TeamConfig != nil && p.TeamConfig.MemberID != "" {
+			used[p.TeamConfig.MemberID] = true
+		}
+	}
+	return used
 }

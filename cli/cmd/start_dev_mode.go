@@ -189,17 +189,27 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 }
 
 // autoClaimTicket attempts to claim a ticket in team-state, printing status.
+// If the ticket is already claimed by this member in "planned" status, it
+// automatically transitions it to "in_progress" (the session is starting).
 func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, ticketID string) {
 	existing, claimErr := repo.CreateClaim(ctx, teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project.ID,
 		ClaimedBy: a.Config.Team.MemberID,
-		Status:    "in_progress",
+		Status:    teamstate.ClaimStatusInProgress,
 	})
 	if claimErr == teamstate.ErrClaimExists && existing != nil {
 		if existing.ClaimedBy != a.Config.Team.MemberID {
 			fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
 				theme.WarningStyle.Render(theme.IconWarning), ticketID, existing.ClaimedBy)
+			return
+		}
+		// The ticket belongs to this member. If it was planned, start it now.
+		if existing.Status == teamstate.ClaimStatusPlanned {
+			if err := repo.UpdateClaimStatus(ctx, project.ID, ticketID, teamstate.ClaimStatusInProgress); err == nil {
+				fmt.Fprintf(a.IO.Out, "  %s %s/%s: planned → in_progress\n",
+					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketID)
+			}
 		}
 	} else if claimErr == nil {
 		fmt.Fprintf(a.IO.Out, "  %s Claim %s/%s\n",
