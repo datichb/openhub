@@ -478,6 +478,9 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 
 **Contexte :** un développeur vient de clore le ticket bd-15 (implémentation filtrage utilisateurs).
 
+> **`oh start --dev`** sélectionne un epic/ticket et fait passer automatiquement le statut du claim de `planned` → `in_progress`.
+> Après configuration de l'équipe, lancez `oh team sync-tracker` pour renvoyer les liens `ExternalIID` des claims vers le tracker externe (Jira, Linear, GitLab Issues).
+
 #### Enrichissement des documents vivants (post-ticket)
 
 Après `bd close bd-15`, le developer identifie des découvertes à capitaliser :

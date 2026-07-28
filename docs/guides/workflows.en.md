@@ -480,6 +480,9 @@ implements the targeted fix, and the reviewer checks the PR.
 
 **Context:** a developer completes ticket bd-15 (implement user filtering feature).
 
+> **`oh start --dev`** picks an epic/ticket and auto-transitions its claim status from `planned` → `in_progress`.
+> After team setup, run `oh team sync-tracker` to push claim `ExternalIID` links back to the external tracker (Jira, Linear, GitLab Issues).
+
 #### Living wiki enrichment (post-ticket)
 
 After `bd close bd-15`, the developer identifies discoveries worth capitalizing:

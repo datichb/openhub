@@ -28,7 +28,7 @@ Launch an opencode coding session.
 | `--project` | `-p` | string | Project ID (auto-detected otherwise) |
 | `--resume` | `-r` | string | Resume an existing session (session ID) |
 | `--worktree` | `-w` | string | Branch to launch in a git worktree |
-| `--dev` | | bool | Dev mode: epic/ticket picker + orchestrator-dev |
+| `--dev` | | bool | Dev mode: epic/ticket picker + orchestrator-dev. If the selected ticket is already claimed as `planned`, it automatically transitions to `in_progress` at session start. |
 | `--label` | `-l` | string | Filter tickets by label (requires --dev) |
 | `--assignee` | `-A` | string | Filter tickets by assignee (requires --dev) |
 | `--onboard` | | bool | Onboarding mode: creates/enriches project wiki |
@@ -814,6 +814,78 @@ Remove worktrees for merged branches.
 oh worktree cleanup
 oh worktree cleanup -b main -f
 ```
+
+---
+
+## Analytics
+
+### oh claim
+
+Claim a ticket and create a claim entry in the team database.
+
+```
+oh claim <ticket-id> [options]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--planned` | bool | Create the claim in `planned` status (TODO column) instead of starting immediately in `in_progress` |
+
+Without `--planned`, the claim is created directly in `in_progress` status.
+
+```bash
+oh claim TICKET-123
+oh claim TICKET-123 --planned
+```
+
+---
+
+### oh team status
+
+Display team state: active claims, members, in-progress tickets.
+
+```bash
+oh team status
+```
+
+---
+
+### oh team activity
+
+Display team activity history.
+
+```bash
+oh team activity
+```
+
+---
+
+### oh team board
+
+Display the team kanban board (claims by status).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--watch` | bool | Auto-refresh every 5s |
+
+```bash
+oh team board
+oh team board --watch
+```
+
+---
+
+### oh team sync-tracker
+
+Synchronize claims with the external tracker (GitLab/Jira).
+
+```bash
+oh team sync-tracker
+```
+
+Pulls issue states from the tracker, updates claim statuses, mirrors labels, and auto-creates planned claims for assigned issues not yet claimed. Uses configuration from `team-state/config.toml` and hub MCP config.
+
+No flags. Configuration is read from `team-state/config.toml` and the hub MCP config.
 
 ---
 

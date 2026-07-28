@@ -65,7 +65,7 @@ oh conventions check
 Displays:
 - Current branch status vs the pattern
 - Recent commits status vs the format
-- Claim status (if team enabled)
+- Claim status (if team enabled) — 5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`
 
 ### Agent verification
 
@@ -200,6 +200,8 @@ Enforcement works at two levels:
 | `oh claim <ticket>` | `max_ticket_wip` |
 | `oh start` (branch creation) | `branch_naming` |
 | `oh release <ticket>` | `review_required`, `tests_required` |
+
+> **`agent-reviewed` label:** automatically applied to a claim when the agent emits `review.ready`; visible on the team board as `[AI]`.
 
 #### Agent checks
 

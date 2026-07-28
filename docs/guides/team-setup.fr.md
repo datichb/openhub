@@ -296,9 +296,27 @@ clone a été tenté. L'erreur apparaîtra dans la vue Notifications au prochain
 
 ### Claims — Réservation de tickets
 
+Les claims suivent un cycle de vie en 5 statuts :
+
+```
+oh claim --planned → planned → (oh start --dev) → in_progress → review → done
+                                                              ↘ blocked
+```
+
+| Statut | Colonne | Description |
+|--------|---------|-------------|
+| `planned` | TODO | Réservé mais pas encore commencé |
+| `in_progress` | IN PROGRESS | En cours de traitement (défaut au claim) |
+| `review` | REVIEW | En attente de review |
+| `blocked` | BLOCKED | Bloqué |
+| `done` | DONE | Terminé (conservé jusqu'à expiration de la rétention) |
+
 ```bash
-# Réserver un ticket avant de commencer
+# Réserver un ticket et démarrer immédiatement (statut : in_progress)
 oh claim SRU-142
+
+# Réserver pour plus tard sans démarrer (statut : planned, colonne TODO)
+oh claim SRU-142 --planned
 
 # Avec branche associée
 oh claim SRU-142 --worktree feat/SRU-142-user-auth
@@ -309,6 +327,8 @@ oh release SRU-142
 # Transférer à un autre membre
 oh claim transfer SRU-142 --to alice
 ```
+
+> **Note :** Démarrer une session sur un ticket déjà claimé en `planned` (`oh start --dev`) le fait passer automatiquement en `in_progress`.
 
 ### Statut d'équipe
 
@@ -328,6 +348,32 @@ oh team activity --today  # aujourd'hui seulement
 oh team activity --week   # 7 derniers jours
 oh team activity --member alice  # filtrer par membre
 ```
+
+Le board affiche 5 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **BLOCKED** · **DONE**.
+
+Raccourcis clavier dans le board (et les autres vues d'équipe) :
+
+| Touche | Action |
+|--------|--------|
+| `c` | Créer un claim |
+| `x` | Libérer le claim sélectionné |
+| `t` | Transférer le claim sélectionné |
+| `s` | Sync tracker |
+| `r` | Rafraîchir |
+
+> **Pull automatique :** toutes les vues d'équipe (board, status, activity, etc.) effectuent un `git pull` automatique à l'ouverture et sur la touche `r`. Un toast n'est affiché que si l'opération prend plus d'une seconde.
+
+### Synchronisation avec le tracker externe
+
+```bash
+oh team sync-tracker   # sync les claims avec le tracker externe (GitLab/Jira)
+```
+
+La commande tire les états des issues depuis le tracker et met à jour les statuts des claims :
+- Issue fermée → claim passé en `done`
+- Issue réouverte → claim repassé en `in_progress`
+- Les labels sont mirrorés
+- Avec `auto_plan_assigned = true`, des claims `planned` sont créés automatiquement pour les issues assignées
 
 ### Gestion du wiki
 
@@ -550,7 +596,25 @@ Dans `config.toml` du repo team-state :
 max_sessions = 3           # Max sessions simultanées
 port_range_start = 4100    # Port de départ pour les serveurs opencode
 auto_merge_beads = true    # Proposer le merge pour les tickets Beads
+
+[claim]
+done_retention_days = 7    # Jours avant que les claims done soient nettoyés
+
+[tracker]
+enabled = true
+type = "gitlab"             # "gitlab" ou "jira"
+auto_sync = true            # sync à l'ouverture des vues d'équipe
+sync_interval_minutes = 5
+auto_plan_assigned = true   # crée des claims planned pour les issues assignées
+max_auto_plan_per_member = 5
+push_labels = true          # repousse les labels hub vers le tracker (requiert write_enabled)
+ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
+
+[tracker.projects]
+"T-SRU" = "42"              # ID projet hub → ID/path projet GitLab
 ```
+
+> **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication.
 
 ## Dépannage
 

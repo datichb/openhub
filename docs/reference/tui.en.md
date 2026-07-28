@@ -155,14 +155,35 @@ Accepts text input with fuzzy suggestions displayed above:
 
 When a view is active, it may have additional shortcuts that work without activating the omnibar. These are displayed in the omnibar's passive hint text.
 
-### Board View
+### Board View (project)
 
 | Key | Action |
 |-----|--------|
-| `h` / `l` | Move between columns |
-| `j` / `k` | Navigate items |
+| `h` / `←` | Previous column |
+| `l` / `→` | Next column |
+| `j` / `↑` | Previous item |
+| `k` / `↓` | Next item |
 | `r` | Refresh |
 | `Enter` | Open item detail |
+
+### Team Board View
+
+The team board displays **5 columns**: TODO (`planned`), IN PROGRESS (`in_progress`), REVIEW (`review`), BLOCKED (`blocked`), DONE (`done`). Only active tickets appear — members with no current claims are not listed.
+
+Tickets display compact label tags: `[AI]` (green) for `agent-reviewed`, `[!]` (yellow) for `needs-human-review`.
+
+| Key | Action |
+|-----|--------|
+| `h` / `←` | Previous column |
+| `l` / `→` | Next column |
+| `j` / `↑` | Previous item |
+| `k` / `↓` | Next item |
+| `c` | Claim the selected ticket (assign to yourself) |
+| `x` | Release the selected ticket |
+| `t` | Transfer the selected ticket to another team member |
+| `s` | Change the status of the selected ticket |
+| `r` | Refresh (pulls latest from git + tracker if configured) |
+| `q` / `Esc` | Back to hub |
 
 ### Projects View
 
@@ -187,3 +208,10 @@ When a session is launched (Start, Audit, Review, Debug, Quick):
 2. opencode takes full terminal control
 3. When opencode exits, the TUI resumes exactly where it was
 4. A toast confirms the session outcome
+
+## Team View Synchronisation
+
+All team views (board, status, activity, takeover, patterns, policies) automatically pull the latest team-state git data when opened. Pressing `r` also triggers a pull before refreshing.
+
+- A "Synchronising..." toast appears only if the pull takes more than 1 second
+- On network error: a warning toast is shown and local data is used (no blocking)

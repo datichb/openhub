@@ -203,6 +203,45 @@ func TestMyView_ImplementsView(t *testing.T) {
 }
 ```
 
+## Async Pull Pattern (Team Views)
+
+All 6 team views use a shared async pull pattern defined in `cli/internal/tui/v2/views/sync.go`.
+
+### Helpers
+
+```go
+// syncAsync pulls git in background via a *teamstate.Repo.
+// Shows a "Synchronisation..." toast if the pull takes > 1s.
+// Calls onDone on the tview event loop after completion.
+// On error, onDone is called with local (cached) data instead of failing.
+func syncAsync(app *tview.Application, repo *teamstate.Repo, shell ShellAccess, onDone func())
+
+// syncFuncAsync is identical but accepts a bare func() error instead of a *teamstate.Repo.
+// Used by TeamBoardView, which receives its pull function via SyncFunc in its config struct.
+func syncFuncAsync(app *tview.Application, pullFn func() error, shell ShellAccess, onDone func())
+```
+
+### Usage contract
+
+- Called on `Mount()` to eagerly refresh data when the view is entered.
+- Bound to the `r` key in each view's `HandleKey()` for manual refresh.
+- The toast ("Synchronisation...") is displayed only when the pull exceeds 1 second, avoiding flicker on fast pulls.
+- `onDone` is always invoked via `app.QueueUpdateDraw()` to guarantee execution on the tview event loop.
+- On pull error, `onDone` runs with locally cached data so the view remains usable offline.
+
+### Views using this pattern
+
+| View | Pull source |
+|------|------------|
+| TeamStatusView | `*teamstate.Repo` via `syncAsync` |
+| TeamMembersView | `*teamstate.Repo` via `syncAsync` |
+| TeamClaimsView | `*teamstate.Repo` via `syncAsync` |
+| TeamWikiView | `*teamstate.Repo` via `syncAsync` |
+| TeamEventsView | `*teamstate.Repo` via `syncAsync` |
+| TeamBoardView | `SyncFunc func() error` via `syncFuncAsync` |
+
+---
+
 ## Testing Patterns
 
 ### Command registry (pure logic)

@@ -278,12 +278,23 @@ oh deploy --diff
 
 ### Preparing the CHANGELOG
 
-Before releasing, write the release content under `## [Unreleased]` in `CHANGELOG.md`:
+Before releasing, write the release content under `## [Unreleased]` in `CHANGELOG.md`.
+
+Items ready for the next release include:
+- Team kanban board (5 columns, wired c/x/t/s actions, visual labels `[AI]`)
+- Claim lifecycle (5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`)
+- `oh claim --planned` and automatic `planned → in_progress` transition via `oh start --dev`
+- External tracker sync (`oh team sync-tracker`, `cli/internal/tracker/` package, GitLab + Jira)
+- `agent-reviewed` label auto-applied on `review.ready`
+- Async pull on all team views
 
 ```markdown
 ## [Unreleased]
 
 ### Added
+- ...
+
+### Changed
 - ...
 
 ### Fixed

@@ -11,6 +11,52 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
+#### Fonctionnalités team — Board & Claim lifecycle
+
+- **Board kanban team — 5 colonnes fonctionnelles** — TODO (`planned`), IN PROGRESS (`in_progress`), REVIEW (`review`), BLOCKED (`blocked`), DONE (`done`) avec mapping 1-to-1 des statuses
+- **`oh claim --planned`** — réserve un ticket en status `planned` (colonne TODO) sans démarrer immédiatement le travail
+- **Transition automatique `planned → in_progress`** — `oh start --dev` détecte un claim `planned` existant et le passe automatiquement en `in_progress` au lancement de la session
+- **Labels sur les claims** — champ `Labels []string` dans la struct `Claim` ; labels well-known : `agent-reviewed`, `needs-human-review`, `hub:done`
+- **Label `agent-reviewed` automatique** — appliqué sur le claim quand l'événement `review.ready` est émis (fin de session avec review)
+- **Actions board TUI wirées** — touches `c` (claim), `x` (release), `t` (transfer), `s` (status) entièrement fonctionnelles dans le shell TUI
+- **Labels visuels sur le board** — `[AI]` (vert) pour `agent-reviewed`, `[!]` (jaune) pour `needs-human-review`, tags compacts pour les autres labels
+- **Membres idle retirés du board** — le board n'affiche que des vrais tickets ; les membres sans claim n'apparaissent plus
+- **Nettoyage automatique des claims `done`** — `CleanupDoneClaims` retire les claims en status `done` après `done_retention_days` jours (configurable, défaut : 7)
+- **Événements claim émis** — `claim.taken`, `claim.released`, `claim.transferred` sont désormais émis dans le flux d'activité team lors des opérations correspondantes
+
+#### Fonctionnalités team — Sync tracker externe
+
+- **Package `cli/internal/tracker/`** — abstraction interface `Tracker` avec implémentations GitLab et Jira
+- **`oh team sync-tracker`** — synchronise les claims avec le tracker externe (pull + push opt-in) avec affichage détaillé par projet
+- **Sync GitLab** — ticket fermé → claim `done` ; ticket réouvert → claim `in_progress` ; labels tracker mirrorés sur le claim
+- **Sync Jira** — basé sur `statusCategory.key` (`"done"` = closed, indépendant du workflow custom)
+- **Auto-plan depuis le tracker** — issues assignées à un membre sans claim → claim `planned` créé automatiquement (configurable, limite par membre)
+- **Push labels opt-in** — labels `agent-reviewed` et `hub:done` pushés sur GitLab/Jira si `push_labels = true` et `write_enabled` sur le MCP
+- **Réutilisation config MCP** — le sync tracker utilise le même token que `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` (aucune duplication de secret)
+- **`last_sync_at` local** — timestamp de dernier sync par projet dans `~/.oh/sync-state.json` ; passé à l'API comme `updated_after` pour les fetches incrémentaux
+- **Gestion des erreurs réseau** — rate limiting (429 avec `Retry-After`), token invalide (401/403), timeout 10s ; les erreurs partielles n'avortent pas le sync des autres projets
+
+#### Fonctionnalités team — Fiabilité infra
+
+- **Async pull sur toutes les vues team** — pull git en background à l'ouverture de chaque vue et sur `r` ; toast "Synchronisation..." uniquement si > 1 seconde
+- **Fallback données locales** — erreur réseau sur pull → warning toast + affichage des données locales (pas de blocage UI)
+- **`RWMutex` sur `teamstate.Repo`** — sérialise les opérations git (write lock) contre les lectures concurrentes de fichiers (read lock) ; élimine les races conditions entre le board timer et CommitAndPush
+- **Pull best-effort post-CommitAndPush** — après chaque push réussi, un pull immédiat récupère les commits poussés en parallèle par les coéquipiers
+
+### Changed
+
+- **Board team** — la colonne REVIEW est désormais accessible (status `review`) ; les claims en status `review` n'étaient auparavant jamais affichés dans REVIEW
+- **`oh claim`** — le status initial est `in_progress` par défaut (inchangé) ou `planned` avec `--planned`
+- **`mapClaimStatus`** — renommée, mapping direct 1-to-1 sans exceptions ; suppression du mapping temporaire `review → done`
+
+### Fixed
+
+- **Actions board TUI non wirées** — `c/x/t/s` ne faisaient rien dans le shell TUI (le board était instancié avec une config vide `TeamBoardViewConfig{}`)
+- **Colonne REVIEW inaccessible** — aucun status de claim ne mappait vers la colonne REVIEW
+- **Pull synchrone bloquant dans les vues team** — `activity_view`, `takeover_view`, `patterns_view`, `policies_view` bloquaient le thread UI pendant le pull git
+
+---
+
 - **Audit complet P1-P5** — 31 tâches couvrant sécurité, CI/CD, robustesse, extensibilité et croissance marché
 
 #### Sécurité & CI/CD

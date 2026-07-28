@@ -14,7 +14,7 @@ Available servers:
 - **figma** — Figma API integration (files, components, UI signals)
 - **gitlab** — GitLab API integration (issues, MRs, labels, milestones)
 - **gslides** — Google Slides integration
-- **team** — Team data (members, wiki, events) — no token required
+- **team** — Team data (members, wiki, events, claims) — no token required; exposes claim lifecycle (5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`), claim labels (`agent-reviewed`, `needs-human-review`), `ExternalIID` for tracker linkage, and events emitted on claim/release/transfer operations
 - **github** — GitHub API integration (repos, issues, PRs, workflows)
 - **jira** — Jira integration (Cloud and Server/Data Center)
 - **linear** — Linear integration (issues, projects)

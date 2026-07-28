@@ -276,12 +276,23 @@ oh deploy --diff
 
 ### Préparation du CHANGELOG
 
-Avant de lancer la release, rédiger le contenu sous `## [Unreleased]` dans `CHANGELOG.md` :
+Avant de lancer la release, rédiger le contenu sous `## [Unreleased]` dans `CHANGELOG.md`.
+
+Les entrées à inclure pour la prochaine release couvrent notamment :
+- Board team kanban (5 colonnes, actions c/x/t/s wirées, labels visuels `[AI]`)
+- Cycle de vie des claims (5 statuses : `planned`, `in_progress`, `review`, `blocked`, `done`)
+- `oh claim --planned` et transition automatique `planned → in_progress` via `oh start --dev`
+- Sync tracker externe (`oh team sync-tracker`, package `cli/internal/tracker/`, GitLab + Jira)
+- Label `agent-reviewed` auto-appliqué sur `review.ready`
+- Pull async sur toutes les vues team
 
 ```markdown
 ## [Unreleased]
 
 ### Ajouté
+- ...
+
+### Modifié
 - ...
 
 ### Corrigé

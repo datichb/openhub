@@ -14,7 +14,7 @@ Serveurs disponibles :
 - **figma** — Intégration API Figma (fichiers, composants, signaux UI)
 - **gitlab** — Intégration API GitLab (issues, MRs, labels, milestones)
 - **gslides** — Intégration Google Slides
-- **team** — Données équipe (membres, wiki, événements) — sans token
+- **team** — Données équipe (membres, wiki, événements, claims) — sans token ; expose le cycle de vie des claims (5 statuts : `planned`, `in_progress`, `review`, `blocked`, `done`), les labels de claim (`agent-reviewed`, `needs-human-review`), le champ `ExternalIID` pour le lien avec les trackers externes, et les événements émis lors des opérations claim/release/transfer
 - **github** — Intégration API GitHub (dépôts, issues, PRs, workflows)
 - **jira** — Intégration Jira (Cloud et Server/Data Center)
 - **linear** — Intégration Linear (issues, projets)

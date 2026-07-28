@@ -21,6 +21,28 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 | `team_events` | Événements récents de l'équipe | read |
 | `team_policies` | Règles d'équipe actives (conventions, limites, patterns interdits) | read |
 
+## Statuts des claims
+
+Quand tu consultes `team_claims`, chaque réservation a un statut :
+
+- `planned` — ticket réservé, pas encore démarré. Si l'utilisateur courant est propriétaire de ce ticket, `oh start --dev` le transitionnera automatiquement en `in_progress`.
+- `in_progress` — travail en cours actif
+- `review` — travail terminé, en attente de review humaine
+- `blocked` — bloqué sur une dépendance externe
+- `done` — terminé, sera nettoyé automatiquement
+
+## Labels connus
+
+Certains labels sur les claims ont une signification particulière :
+
+- `agent-reviewed` — un agent IA a déjà effectué une passe de review sur ce ticket. Si ce label est visible, **informe l'utilisateur avant de démarrer une nouvelle review** pour éviter le travail en doublon.
+- `needs-human-review` — l'agent a signalé un besoin d'attention humaine
+- D'autres labels peuvent être synchronisés depuis GitLab/Jira (informatifs uniquement)
+
+## Sync automatique depuis le tracker
+
+Certains claims peuvent avoir été créés automatiquement en statut `planned` par la synchronisation tracker (quand un ticket GitLab/Jira a été assigné à un membre de l'équipe). Ces claims sont légitimes — les traiter exactement comme un claim `planned` créé manuellement.
+
 ## Avant de travailler sur un ticket
 
 1. Appelle `team_claims` pour vérifier si le ticket est déjà réservé par quelqu'un

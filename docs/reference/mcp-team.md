@@ -92,10 +92,24 @@ List active ticket claims.
     "ClaimedBy": "benjamin",
     "ClaimedAt": "2026-07-07T14:30:00Z",
     "Worktree": "feat/SRU-142-user-auth",
-    "Status": "in_progress"
+    "Status": "in_progress",
+    "LastActivity": "2026-07-10T09:15:00Z",
+    "Labels": ["agent-reviewed"],
+    "ExternalIID": 142
   }
 ]
 ```
+
+**Field notes:**
+
+- `Status` — one of five values:
+  - `planned` — reserved but not yet started (TODO column)
+  - `in_progress` — actively being worked on (default at claim creation)
+  - `review` — work done, awaiting human review
+  - `blocked` — stalled on external dependency
+  - `done` — accepted and complete (kept until `done_retention_days` expires)
+- `Labels` — list of tags; well-known values: `agent-reviewed`, `needs-human-review`, `hub:done`
+- `ExternalIID` — issue number on external tracker (set by tracker sync; omitted when no sync is configured)
 
 **Access:** All agents
 
@@ -242,18 +256,18 @@ In `opencode.json`, permissions are set per-agent:
 
 ## Event Types
 
-| Type | Trigger | Auto-emitted |
-|------|---------|-------------|
-| `session.complete` | Session ends | Yes (CLI) |
-| `review.ready` | Reviewer finishes | Yes (CLI) |
-| `audit.finding` | Auditor finds issues | Yes (CLI) |
-| `claim.taken` | `oh claim` | Yes (CLI) |
-| `claim.conflict` | Claim on taken ticket | Yes (CLI) |
-| `claim.transferred` | `oh claim transfer` | Yes (CLI) |
-| `claim.released` | `oh release` | Yes (CLI) |
-| `wiki.proposal` | `team_wiki_write` | Yes (MCP) |
-| `wiki.accepted` | `oh team wiki review` | Yes (CLI) |
-| `wiki.rejected` | `oh team wiki review` | Yes (CLI) |
+| Type | Trigger | Auto-emitted | Notes |
+|------|---------|-------------|-------|
+| `session.complete` | Session ends | Yes (CLI) | |
+| `review.ready` | Reviewer finishes | Yes (CLI) | `agent-reviewed` label is automatically applied to the claim |
+| `audit.finding` | Auditor finds issues | Yes (CLI) | |
+| `claim.taken` | `oh claim` | Yes (CLI) | Emitted when a ticket is claimed; `data.ticket` holds the ticket ID |
+| `claim.conflict` | Claim on taken ticket | Yes (CLI) | |
+| `claim.transferred` | `oh claim transfer` | Yes (CLI) | Emitted when a claim is transferred to another member; `data.to` holds the new owner ID |
+| `claim.released` | `oh release` | Yes (CLI) | Emitted when a claim is released |
+| `wiki.proposal` | `team_wiki_write` | Yes (MCP) | |
+| `wiki.accepted` | `oh team wiki review` | Yes (CLI) | |
+| `wiki.rejected` | `oh team wiki review` | Yes (CLI) | |
 
 ---
 
@@ -405,3 +419,9 @@ Propose a new pattern to the library (from planner or pathfinder).
 2. Adds to `patterns/index.toml`
 3. Creates `patterns/<name>.md`
 4. Awaits human validation via `oh patterns validate <name>`
+
+---
+
+## Tracker Sync Integration
+
+When tracker sync is configured (GitLab or Jira), the `team_claims` output may include additional labels mirrored from the external tracker. For example, a GitLab label `hub:done` or a Jira status transition can be reflected in the `Labels` array of the corresponding claim. The `ExternalIID` field is populated automatically by the sync process and can be used to correlate claims with issues on the external tracker.

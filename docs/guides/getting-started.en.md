@@ -139,6 +139,7 @@ oh metrics                   # per-agent usage and cost stats (sessions, tokens,
 oh serve                     # start local dashboard API + SPA on localhost
 oh dashboard                 # interactive TUI dashboard
 oh board                     # kanban board (requires bd)
+oh team sync-tracker         # sync claim ExternalIID links back to the external tracker (Jira, Linear, GitLab Issues)
 oh export                    # export all hub data (projects, sessions, secrets) to a backup file
 oh repair                    # repair corrupted database or config state
 ```

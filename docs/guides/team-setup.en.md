@@ -304,9 +304,27 @@ the omnibar).
 
 ### Claims — Ticket reservation
 
+Claims follow a 5-status lifecycle:
+
+```
+oh claim --planned → planned → (oh start --dev) → in_progress → review → done
+                                                              ↘ blocked
+```
+
+| Status | Column | Description |
+|--------|--------|-------------|
+| `planned` | TODO | Reserved but not yet started |
+| `in_progress` | IN PROGRESS | Actively being worked on (default when claiming) |
+| `review` | REVIEW | Awaiting review |
+| `blocked` | BLOCKED | Blocked |
+| `done` | DONE | Completed (kept until retention period expires) |
+
 ```bash
-# Reserve a ticket before starting work
+# Reserve a ticket and start immediately (status: in_progress)
 oh claim SRU-142
+
+# Reserve for later without starting (status: planned, shows in TODO column)
+oh claim SRU-142 --planned
 
 # With associated branch
 oh claim SRU-142 --worktree feat/SRU-142-user-auth
@@ -317,6 +335,8 @@ oh release SRU-142
 # Transfer to another member
 oh claim transfer SRU-142 --to alice
 ```
+
+> **Note:** Starting a session on a ticket already claimed as `planned` (`oh start --dev`) automatically transitions it to `in_progress`.
 
 ### Team status
 
@@ -336,6 +356,32 @@ oh team activity --today  # today only
 oh team activity --week   # last 7 days
 oh team activity --member alice  # filter by member
 ```
+
+The board displays 5 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **BLOCKED** · **DONE**.
+
+Keyboard shortcuts in the board (and other team views):
+
+| Key | Action |
+|-----|--------|
+| `c` | Create a claim |
+| `x` | Release the selected claim |
+| `t` | Transfer the selected claim |
+| `s` | Sync tracker |
+| `r` | Refresh |
+
+> **Async pull:** all team views (board, status, activity, etc.) automatically pull git on open and on `r`. A toast is only shown if it takes more than 1 second.
+
+### External tracker sync
+
+```bash
+oh team sync-tracker   # sync claims with external tracker (GitLab/Jira)
+```
+
+Pulls issue states from the tracker and updates claim statuses:
+- Closed issue → claim transitioned to `done`
+- Reopened issue → claim transitioned back to `in_progress`
+- Labels are mirrored
+- With `auto_plan_assigned = true`, `planned` claims are auto-created for assigned issues
 
 ### Wiki management
 
@@ -558,7 +604,25 @@ In `config.toml` of the team-state repo:
 max_sessions = 3           # Max concurrent sessions
 port_range_start = 4100    # Starting port for opencode servers
 auto_merge_beads = true    # Propose merge for Beads tickets
+
+[claim]
+done_retention_days = 7    # Days before done claims are cleaned up
+
+[tracker]
+enabled = true
+type = "gitlab"             # "gitlab" or "jira"
+auto_sync = true            # sync when opening team views
+sync_interval_minutes = 5
+auto_plan_assigned = true   # auto-create planned claims for assigned issues
+max_auto_plan_per_member = 5
+push_labels = true          # push hub labels back to tracker (requires write_enabled)
+ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
+
+[tracker.projects]
+"T-SRU" = "42"              # hub project ID → GitLab project ID/path
 ```
+
+> **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication.
 
 ## Troubleshooting
 

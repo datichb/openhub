@@ -202,6 +202,71 @@ https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
 
 ---
 
+## Configuration du Team-State (`config.toml`)
+
+**Emplacement :** `~/.oh/team-state/config.toml`  
+**Objet :** comportement à l'exécution du serveur MCP team-state (claims, intégration tracker).  
+Ce fichier réside dans le dépôt git team-state — **pas** dans `hub.toml`.
+
+> **Les credentials ne sont pas stockés ici.** Les tokens et URLs de connexion sont réutilisés
+> depuis le bloc `[mcp.gitlab]` ou `[mcp.jira]` de `hub.toml` — pas de duplication de secrets.
+
+### Section `[claim]`
+
+Contrôle la durée de rétention des claims terminés avant nettoyage automatique.
+
+```toml
+[claim]
+done_retention_days = 7
+```
+
+| Champ | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `done_retention_days` | int | `7` | Nombre de jours qu'un claim reste en statut `done` avant d'être purgé automatiquement par `CleanupDoneClaims`. Mettre à `0` pour désactiver le nettoyage automatique. |
+
+### Section `[tracker]`
+
+Intègre le team-state avec un tracker d'issues externe (GitLab ou Jira).
+
+```toml
+[tracker]
+enabled = true
+type = "gitlab"              # "gitlab" ou "jira"
+auto_sync = true             # synchroniser automatiquement à l'ouverture des vues team
+sync_interval_minutes = 5    # intervalle de polling quand le board est ouvert (0 = désactivé)
+auto_plan_assigned = true    # créer des claims "planned" pour les issues assignées dans le tracker
+max_auto_plan_per_member = 5 # max de claims auto-planifiés par membre (évite de saturer le TODO)
+push_labels = false          # synchroniser les labels hub vers le tracker (nécessite write_enabled sur le MCP)
+
+# Mapping ID de ticket hub → IID externe via groupe de capture regex
+ticket_patterns = { "T-SRU" = "SRU-(\\d+)", "T-FRONT" = "FRONT-(\\d+)" }
+
+[tracker.projects]
+"T-SRU" = "42"               # ID projet hub → ID ou chemin projet GitLab
+"T-FRONT" = "group/frontend"
+```
+
+| Champ | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `enabled` | bool | `false` | Activer l'intégration tracker |
+| `type` | string | — | Backend tracker : `"gitlab"` ou `"jira"` |
+| `auto_sync` | bool | `false` | Synchroniser automatiquement à l'ouverture des vues team |
+| `sync_interval_minutes` | int | `0` | Intervalle de polling en minutes quand le board est ouvert. `0` désactive le polling. |
+| `auto_plan_assigned` | bool | `false` | Créer automatiquement des claims `"planned"` pour les issues assignées à chaque membre dans le tracker |
+| `max_auto_plan_per_member` | int | `5` | Plafond de claims auto-planifiés par membre et par sync (évite de saturer la liste TODO) |
+| `push_labels` | bool | `false` | Synchroniser les labels hub vers le tracker. Nécessite `write_enabled = true` sur le serveur MCP correspondant. |
+| `ticket_patterns` | map | `{}` | Map ID projet hub → regex avec **exactement un groupe de capture** extrayant l'IID numérique (ex. `"SRU-(\\d+)"`) |
+| `[tracker.projects]` | map | `{}` | Map ID projet hub → ID / chemin projet GitLab ou clé projet Jira |
+
+**Notes :**
+
+- **GitLab** (`type = "gitlab"`) : les credentials et l'URL de base proviennent de `[mcp.gitlab]` dans `hub.toml`.
+- **Jira** (`type = "jira"`) : les credentials et l'URL de base proviennent de `[mcp.jira]` dans `hub.toml`. Les issues fermées sont détectées via `statusCategory.key == "done"` — les noms de workflow personnalisés sont ignorés.
+- `push_labels` nécessite `write_enabled = true` sur le serveur MCP correspondant dans `hub.toml`.
+- Chaque regex `ticket_patterns` doit contenir **exactement un groupe de capture** extrayant l'IID numérique.
+
+---
+
 ## Vue Notifications
 
 Le TUI capture chaque toast dans un store en mémoire et rend l'historique complet

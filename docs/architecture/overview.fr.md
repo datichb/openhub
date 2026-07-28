@@ -47,6 +47,7 @@ Serveurs MCP actuels :
 - **github** : Intégration API GitHub (issues, pull requests, labels, milestones)
 - **jira** : Intégration API Jira (issues, sprints, projets)
 - **linear** : Intégration API Linear (issues, cycles, équipes)
+- **team** : Serveur MCP état équipe (claims, wiki, events, synchronisation board)
 
 Les serveurs MCP sont déployés dans les projets en tant qu'entrées `mcpServers` dans `opencode.json`.
 
@@ -278,11 +279,12 @@ openhub/
 │       ├── deploy/      ← Moteur de déploiement transactionnel
 │       ├── domain/      ← Types domaine (Project, Session, Secret)
 │       ├── i18n/        ← Internationalisation (fr/en)
-│       ├── mcp/         ← Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear)
+│       ├── mcp/         ← Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear, team)
 │       ├── opencode/    ← Gestion binaire, compatibilité, config projet
 │       ├── plugin/      ← Système de plugins (RTK embarqué + registre dynamique)
 │       ├── prompt/      ← Détection stack, prompt builders
 │       ├── storage/     ← SQLite + keychain + filecrypt + télémétrie agent_events
+│       ├── tracker/     ← Moteur de sync tracker ; interface Tracker avec implémentations GitLab et Jira ; sync bidirectionnelle (voir ADR-028)
 │       ├── tui/         ← Vues BubbleTea (dashboard, board, picker)
 │       └── worktree/    ← Gestion worktree Git
 ├── docs/                ← Documentation (bilingue fr/en)

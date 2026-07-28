@@ -1008,7 +1008,7 @@ L'écosystème d'agents est optimisé pour GitLab (issues, MRs, CI). Les équipe
 
 ---
 
-### T23 — Adapter Jira / Linear
+### T23 — ~~Adapter Jira / Linear~~ [IMPLEMENTED] Tracker sync engine (GitLab + Jira)
 
 | Champ | Valeur |
 |-------|--------|
@@ -1017,35 +1017,29 @@ L'écosystème d'agents est optimisé pour GitLab (issues, MRs, CI). Les équipe
 | **Effort** | L |
 | **Dépendances** | T18 (idéal, mais non bloquant) |
 | **Agent recommandé** | `developer` (domain: backend) |
+| **Statut** | ✅ Implémenté — `cli/internal/tracker/` — voir ADR-028 |
 
 #### Problème
 
-Les équipes enterprise utilisent majoritairement Jira pour le ticketing. Les startups adoptent Linear. Ces deux outils ne sont pas supportés, empêchant les workflows `oh start --dev` (ticket-based development) pour ces équipes.
+Les équipes enterprise utilisent majoritairement Jira pour le ticketing. Les équipes GitLab utilisent les issues natives. Ces outils ne sont pas supportés, empêchant les workflows `oh start --dev` (ticket-based development) pour ces équipes.
 
-#### Solution
+#### Solution implémentée
 
-1. Créer `cli/internal/mcp/jira/` avec les outils :
-   - `jira_list_issues`, `jira_get_issue`, `jira_create_issue`, `jira_transition_issue`
-   - Support Jira Cloud (API v3) et Jira Server/Data Center
-   - Auth : Basic (API token) ou OAuth 2.0
-2. Créer `cli/internal/mcp/linear/` avec les outils :
-   - `linear_list_issues`, `linear_get_issue`, `linear_create_issue`, `linear_update_issue`
-   - Auth : Personal API key ou OAuth
-3. Skills adapters dans `skills/adapters/jira/` et `skills/adapters/linear/`
-4. Abstraire le concept de "ticket" dans le domain pour unifier GitLab/GitHub/Jira/Linear
+`cli/internal/tracker/` fournit un moteur de synchronisation bidirectionnelle avec une interface `Tracker` commune :
+- Implémentation **GitLab** : issues, labels, milestones, transitions d'état
+- Implémentation **Jira** : issues, sprints, projets, Jira Cloud (API v3) et Jira Server/Data Center
 
-#### Fichiers concernés
+La sync bidirectionnelle permet de lire et d'écrire dans les deux sens entre l'état local Beads et le tracker externe.
 
-- `cli/internal/mcp/jira/` (nouveau)
-- `cli/internal/mcp/linear/` (nouveau)
-- `skills/adapters/jira/` (nouveau)
-- `skills/adapters/linear/` (nouveau)
+Voir [ADR-028](./adr/028-tracker-sync-engine.md) pour les décisions d'architecture.
 
 #### Acceptance Criteria
 
-- [ ] `oh mcp start jira` et `oh mcp start linear` démarrent sans erreur
-- [ ] Le planner agent peut lire et créer des tickets Jira et Linear
-- [ ] `oh start --dev` fonctionne avec un ticket Jira ou Linear comme source
+- [x] `oh mcp start jira` démarre sans erreur
+- [x] Le planner agent peut lire et créer des tickets Jira et GitLab via le tracker
+- [x] `oh start --dev` fonctionne avec un ticket Jira ou GitLab comme source
+- [x] La sync bidirectionnelle est fonctionnelle (local → tracker et tracker → local)
+- [ ] Support Linear — non encore implémenté (futur)
 - [ ] La documentation guide la configuration dans `hub.toml`
 
 ---
@@ -1417,5 +1411,5 @@ Le plan est considéré accompli lorsque les indicateurs suivants sont tous vert
 | Backup/restore fonctionnel | `oh export && oh import` round-trip sans perte | T12 |
 | Extensibilité plugins | 1 plugin communautaire déployable sans recompilation | T17, T18 |
 | Multi-plateforme | Build + tests verts sur ubuntu + macos + windows | T16, T30 |
-| Couverture ticketing | Support GitLab + GitHub + Jira/Linear | T22, T23 |
+| Couverture ticketing | Support GitLab + GitHub + Jira/Linear | T22, T23 ✅ (GitLab + Jira via `cli/internal/tracker/`, voir ADR-028) |
 | Observabilité | Métriques par agent disponibles dans `oh metrics` | T29 |

@@ -37,7 +37,7 @@ oh start [options]
 | `--project` | `-p` | ID du projet (detection auto sinon) |
 | `--resume` | `-r` | Reprendre une session existante (ID de session) |
 | `--worktree` | `-w` | Branche pour lancer dans un git worktree |
-| `--dev` | | Mode dev : picker epics/tickets + orchestrator-dev |
+| `--dev` | | Mode dev : picker epics/tickets + orchestrator-dev. Si le ticket selectionne est deja claim en statut `planned`, il passe automatiquement en `in_progress` au demarrage de la session. |
 | `--label` | `-l` | Filtrer tickets par label (requiert --dev) |
 | `--assignee` | `-A` | Filtrer tickets par assignee (requiert --dev) |
 | `--onboard` | | Mode onboarding : cree/enrichit le wiki projet |
@@ -1104,6 +1104,104 @@ oh worktree cleanup [options]
 ```bash
 oh worktree cleanup
 oh worktree cleanup -b develop --force
+```
+
+---
+
+## Analytique
+
+### oh claim
+
+Reclame un ticket et cree un claim dans la base de donnees equipe.
+
+```
+oh claim <ticket-id> [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--planned` | Cree le claim en statut `planned` (colonne TODO) au lieu de demarrer immediatement en `in_progress` |
+
+Sans `--planned`, le claim est cree directement en statut `in_progress`.
+
+**Exemple :**
+
+```bash
+oh claim TICKET-123
+oh claim TICKET-123 --planned
+```
+
+---
+
+### oh team status
+
+Affiche l'etat de l'equipe : claims actifs, membres, tickets en cours.
+
+```
+oh team status [options]
+```
+
+**Exemple :**
+
+```bash
+oh team status
+```
+
+---
+
+### oh team activity
+
+Affiche l'historique d'activite de l'equipe.
+
+```
+oh team activity [options]
+```
+
+**Exemple :**
+
+```bash
+oh team activity
+```
+
+---
+
+### oh team board
+
+Affiche le tableau kanban de l'equipe (claims par statut).
+
+```
+oh team board [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--watch` | Rafraichissement auto toutes les 5s |
+
+**Exemple :**
+
+```bash
+oh team board
+oh team board --watch
+```
+
+---
+
+### oh team sync-tracker
+
+Synchronise les claims avec le tracker externe (GitLab/Jira).
+
+```
+oh team sync-tracker
+```
+
+Tire les etats des issues depuis le tracker, met a jour les statuts des claims, miroire les labels, et cree automatiquement des claims en statut `planned` pour les issues assignees non encore reclames. Utilise la configuration du `config.toml` team-state et la config hub MCP.
+
+Pas de flags. La configuration est lue depuis `team-state/config.toml` et la config MCP du hub.
+
+**Exemple :**
+
+```bash
+oh team sync-tracker
 ```
 
 ---

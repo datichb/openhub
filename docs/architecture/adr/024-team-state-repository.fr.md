@@ -107,3 +107,13 @@ la compatibilité ascendante complète.
   les collisions de clone entre projets utilisant des repos team-state différents.
 
 **Références :** `cli/internal/config/team_resolve.go`, `docs/dev/team-features-spec.md §6`
+
+## Amendement — 2026-07-28
+
+Les améliorations suivantes ont été ajoutées à la conception initiale (voir ADR-028 pour la décision de synchronisation tracker) :
+
+- **Cycle de vie des claims étendu** : 5 statuts (`planned`, `in_progress`, `review`, `blocked`, `done`), labels de claim, et champ `ExternalIID` pour le lien avec les trackers externes
+- **`RWMutex` sur `Repo`** : verrou en écriture sur toutes les opérations git (Pull, Push, CommitAndPush, Clone) ; verrou en lecture sur toutes les lectures filesystem (ListClaims, ListMembers, etc.) pour prévenir les races entre le timer du board et les opérations git concurrentes
+- **Pull après CommitAndPush** : pull best-effort immédiatement après chaque push réussi pour récupérer les commits concurrents des coéquipiers
+- **Pull asynchrone sur les vues team** : toutes les vues TUI d'équipe (board, status, activity, takeover, patterns, policies) effectuent un pull git au montage et à la touche `r` ; toast affiché uniquement si > 1 seconde
+- **Événements émis** : les événements `claim.taken`, `claim.released`, `claim.transferred` sont désormais émis lors de chaque opération correspondante

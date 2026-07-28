@@ -155,14 +155,35 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 
 Quand une vue est active, des raccourcis additionnels fonctionnent directement sans activer l'omnibar. Ils sont affichés dans le texte passif de l'omnibar.
 
-### Vue Board
+### Vue Board (projet)
 
 | Touche | Action |
 |--------|--------|
-| `h` / `l` | Changer de colonne |
-| `j` / `k` | Naviguer les items |
+| `h` / `←` | Colonne précédente |
+| `l` / `→` | Colonne suivante |
+| `j` / `↑` | Item précédent |
+| `k` / `↓` | Item suivant |
 | `r` | Rafraîchir |
 | `Enter` | Ouvrir le détail |
+
+### Vue Team Board
+
+Le tableau d'équipe affiche **5 colonnes** : TODO (`planned`), IN PROGRESS (`in_progress`), REVIEW (`review`), BLOCKED (`blocked`), DONE (`done`). Seuls les tickets actifs apparaissent — les membres sans ticket en cours ne sont pas listés.
+
+Les tickets affichent des étiquettes compactes : `[AI]` (vert) pour `agent-reviewed`, `[!]` (jaune) pour `needs-human-review`.
+
+| Touche | Action |
+|--------|--------|
+| `h` / `←` | Colonne précédente |
+| `l` / `→` | Colonne suivante |
+| `j` / `↑` | Item précédent |
+| `k` / `↓` | Item suivant |
+| `c` | Prendre le ticket sélectionné (s'assigner) |
+| `x` | Libérer le ticket sélectionné |
+| `t` | Transférer le ticket à un autre membre |
+| `s` | Changer le statut du ticket sélectionné |
+| `r` | Rafraîchir (tire les dernières données git + tracker si configuré) |
+| `q` / `Esc` | Retour au hub |
 
 ### Vue Projets
 
@@ -187,3 +208,10 @@ Quand une session est lancée (Start, Audit, Review, Debug, Quick) :
 2. opencode prend le contrôle du terminal
 3. À la fermeture d'opencode, le TUI reprend exactement où il en était
 4. Un toast confirme le résultat de la session
+
+## Synchronisation des vues d'équipe
+
+Toutes les vues d'équipe (board, status, activity, takeover, patterns, policies) tirent automatiquement les dernières données git d'équipe à l'ouverture. Appuyer sur `r` déclenche également un pull avant le rafraîchissement.
+
+- Un toast "Synchronisation..." s'affiche uniquement si le pull dépasse 1 seconde
+- En cas d'erreur réseau : un toast d'avertissement est affiché et les données locales sont utilisées (aucun blocage)

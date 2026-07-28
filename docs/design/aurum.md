@@ -172,7 +172,7 @@ Pas de bordure (rendu inline dans le terminal). Pas de fond (pas de contrôle ba
 
 - Fond : SurfaceElem
 - Bordure : BorderElem (inactif) → BorderActive (sélectionné)
-- Header de colonne : couleur sémantique (Amber=TODO, Sapphire=In Progress, Jade=Done, Ruby=Blocked)
+- Header de colonne : couleur sémantique (Amber=TODO, Sapphire=In Progress, Amethyst=Review, Jade=Done, Ruby=Blocked)
 - Contenu : Ivory
 - Metadata : Ash
 
