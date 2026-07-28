@@ -21,6 +21,13 @@ type TeamBoardViewConfig struct {
 	Members     []string
 	RefreshFunc func() []TeamTicket
 	RefreshRate time.Duration
+	// SyncFunc performs a git pull on the team-state repo and returns any error.
+	// Called asynchronously on Mount and on 'r' keypress before RefreshFunc.
+	// If nil, no pull is attempted by the board (behaviour unchanged from before).
+	SyncFunc func() error
+	// Actions wires the ticket action callbacks (claim, release, transfer, status).
+	// If nil, action keys (c/x/t/s) are no-ops.
+	Actions *BoardActions
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -48,8 +55,13 @@ type TeamBoardView struct {
 var _ View = (*TeamBoardView)(nil)
 
 // NewTeamBoardView creates a new team board view.
+// If cfg.Actions is non-nil, it is used as the initial board action set.
 func NewTeamBoardView(cfg TeamBoardViewConfig) *TeamBoardView {
-	return &TeamBoardView{cfg: cfg}
+	v := &TeamBoardView{cfg: cfg}
+	if cfg.Actions != nil {
+		v.actions = cfg.Actions
+	}
+	return v
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -103,6 +115,10 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		if rate == 0 {
 			rate = 5 * time.Second
 		}
+		// Async pull on entry so the board starts with fresh data.
+		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
+			v.refreshOnEventLoop(columns)
+		})
 		go v.refreshLoop(rate, columns)
 	}
 }
@@ -131,7 +147,10 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		if v.cfg.RefreshFunc != nil {
-			v.refreshOnEventLoop(DefaultColumns())
+			// Async pull first, then refresh on completion.
+			syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
+				v.refreshOnEventLoop(DefaultColumns())
+			})
 		}
 		return nil
 	case 'c':
@@ -171,11 +190,32 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 				if t.Assignee != "" {
 					assignee = " " + widgets.ColorTag(theme.Accent) + "@" + t.Assignee + "[-]"
 				}
-				v.columnLists[i].AddItem(t.Title+assignee, t.ID, 0, nil)
+				labelStr := formatTicketLabels(t.Labels)
+				v.columnLists[i].AddItem(t.Title+assignee+labelStr, t.ID, 0, nil)
 				break
 			}
 		}
 	}
+}
+
+// formatTicketLabels renders a compact label string for board display.
+// Well-known labels get special icons; others are displayed as-is.
+func formatTicketLabels(labels []string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	result := " "
+	for _, l := range labels {
+		switch l {
+		case "agent-reviewed":
+			result += "[green][AI][-]"
+		case "needs-human-review":
+			result += "[yellow][!][-]"
+		default:
+			result += "[gray][" + l + "][-]"
+		}
+	}
+	return result
 }
 
 func (v *TeamBoardView) moveFocus(delta int) {
@@ -251,6 +291,9 @@ func (v *TeamBoardView) selectedTicketID() string {
 		return ""
 	}
 	list := v.columnLists[v.focusCol]
+	if list.GetItemCount() == 0 {
+		return ""
+	}
 	idx := list.GetCurrentItem()
 	if idx < 0 {
 		return ""
@@ -354,10 +397,11 @@ func (v *TeamBoardView) changeStatus() {
 	}
 
 	statusOptions := []SelectOption{
-		{Label: "TODO", Value: "todo"},
+		{Label: "Planned (TODO)", Value: "planned"},
 		{Label: "In Progress", Value: "in_progress"},
-		{Label: "Done", Value: "done"},
+		{Label: "Review", Value: "review"},
 		{Label: "Blocked", Value: "blocked"},
+		{Label: "Done", Value: "done"},
 	}
 
 	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {

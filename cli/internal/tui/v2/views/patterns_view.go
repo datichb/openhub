@@ -111,7 +111,17 @@ func (v *PatternsView) refresh() {
 		return
 	}
 
-	_ = repo.Pull(context.Background())
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.renderPatterns(repo)
+	})
+}
+
+func (v *PatternsView) renderPatterns(repo *teamstate.Repo) {
+	if v.list == nil {
+		return
+	}
+	v.list.Clear()
+	v.patterns = nil
 
 	patterns, err := repo.ListPatterns(nil, 0)
 	if err != nil {

@@ -16,13 +16,15 @@ import (
 // TeamBoard — team kanban with member assignment
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TeamTicket extends BoardTicket with team assignment info.
+// TeamTicket extends BoardTicket with team assignment and label info.
 type TeamTicket struct {
 	ID       string
 	Title    string
 	Status   string
 	Priority string
 	Assignee string
+	// Labels are displayed as compact tags on the board item.
+	Labels []string
 }
 
 // TeamBoardConfig configures the team board.

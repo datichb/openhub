@@ -26,6 +26,8 @@ type membersFile struct {
 
 // ListMembers returns all members from members.toml.
 func (r *Repo) ListMembers() ([]Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return nil, err
@@ -40,6 +42,8 @@ func (r *Repo) ListMembers() ([]Member, error) {
 
 // GetMember retrieves a member by ID.
 func (r *Repo) GetMember(id string) (*Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return nil, err
@@ -54,6 +58,8 @@ func (r *Repo) GetMember(id string) (*Member, error) {
 
 // FindMemberByGitLab looks up a member by GitLab username.
 func (r *Repo) FindMemberByGitLab(username string) (*Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return nil, err
@@ -69,6 +75,8 @@ func (r *Repo) FindMemberByGitLab(username string) (*Member, error) {
 
 // FindMemberByMattermost looks up a member by Mattermost username.
 func (r *Repo) FindMemberByMattermost(username string) (*Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return nil, err
@@ -85,6 +93,8 @@ func (r *Repo) FindMemberByMattermost(username string) (*Member, error) {
 // AddMember adds a new member to members.toml.
 // Returns ErrMemberExists if the ID is already taken.
 func (r *Repo) AddMember(m Member) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		// If file doesn't exist, start fresh
@@ -103,6 +113,8 @@ func (r *Repo) AddMember(m Member) error {
 
 // RemoveMember removes a member by ID from members.toml.
 func (r *Repo) RemoveMember(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return err
@@ -117,6 +129,8 @@ func (r *Repo) RemoveMember(id string) error {
 // UpdateMember updates an existing member in members.toml.
 // Returns ErrMemberNotFound if the ID does not exist.
 func (r *Repo) UpdateMember(m Member) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	mf, err := r.readMembersFile()
 	if err != nil {
 		return err

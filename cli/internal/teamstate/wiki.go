@@ -28,6 +28,8 @@ type WikiProposal struct {
 
 // WikiListPages returns the names of all wiki pages (without .md extension).
 func (r *Repo) WikiListPages() ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	dir := filepath.Join(r.path, "wiki")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -49,6 +51,8 @@ func (r *Repo) WikiListPages() ([]string, error) {
 
 // WikiReadPage returns the content of a wiki page.
 func (r *Repo) WikiReadPage(name string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	path := filepath.Join(r.path, "wiki", name+".md")
 	f, err := os.Open(path)
 	if err != nil {
@@ -107,6 +111,13 @@ func (r *Repo) WikiCreateProposal(ctx context.Context, p WikiProposal) error {
 
 // WikiListPending returns all pending proposals.
 func (r *Repo) WikiListPending() ([]WikiProposal, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.wikiListPending()
+}
+
+// wikiListPending is the internal (unlocked) implementation of WikiListPending.
+func (r *Repo) wikiListPending() ([]WikiProposal, error) {
 	dir := filepath.Join(r.path, "wiki", ".pending")
 	entries, err := os.ReadDir(dir)
 	if err != nil {

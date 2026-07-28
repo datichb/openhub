@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
@@ -107,7 +106,17 @@ func (v *TakeoverView) refresh() {
 		return
 	}
 
-	_ = repo.Pull(context.Background())
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.renderBriefs(repo)
+	})
+}
+
+func (v *TakeoverView) renderBriefs(repo *teamstate.Repo) {
+	if v.list == nil {
+		return
+	}
+	v.list.Clear()
+	v.briefs = nil
 
 	briefs, err := repo.ListBriefs("")
 	if err != nil {

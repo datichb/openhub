@@ -80,6 +80,28 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 // ListEvents returns events for a project since the given time, sorted newest first.
 // If project is empty, returns events across all projects.
 func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.listEventsInternal(project, since)
+}
+
+// ListEventsLimited returns at most limit events, newest first.
+func (r *Repo) ListEventsLimited(project string, limit int) ([]Event, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	events, err := r.listEventsInternal(project, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	if len(events) > limit {
+		events = events[:limit]
+	}
+	return events, nil
+}
+
+// listEventsInternal is the unlocked implementation shared by ListEvents and
+// ListEventsLimited. Callers must hold at least a read lock.
+func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, error) {
 	if project != "" {
 		return r.listEventsForProject(project, since)
 	}
@@ -109,19 +131,6 @@ func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
 		return all[i].Timestamp.After(all[j].Timestamp)
 	})
 	return all, nil
-}
-
-// ListEventsLimited returns at most limit events, newest first.
-func (r *Repo) ListEventsLimited(project string, limit int) ([]Event, error) {
-	// Use a zero time to get all events, then cap
-	events, err := r.ListEvents(project, time.Time{})
-	if err != nil {
-		return nil, err
-	}
-	if len(events) > limit {
-		events = events[:limit]
-	}
-	return events, nil
 }
 
 func (r *Repo) listEventsForProject(project string, since time.Time) ([]Event, error) {

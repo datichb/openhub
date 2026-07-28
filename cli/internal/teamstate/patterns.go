@@ -29,6 +29,8 @@ type patternsIndex struct {
 // ListPatterns returns all patterns from the index.
 // If tags is non-empty, filters by matching at least minMatchTags tags.
 func (r *Repo) ListPatterns(tags []string, minMatchTags int) ([]Pattern, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	index, err := r.loadPatternsIndex()
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -54,6 +56,8 @@ func (r *Repo) ListPatterns(tags []string, minMatchTags int) ([]Pattern, error) 
 
 // ReadPattern reads the full content of a pattern file.
 func (r *Repo) ReadPattern(name string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	patternPath := filepath.Join(r.path, "patterns", name+".md")
 	data, err := os.ReadFile(patternPath)
 	if err != nil {

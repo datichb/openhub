@@ -38,4 +38,6 @@ var (
 	ErrPolicyFileInvalid = errors.New("policies file is invalid")
 	// ErrBriefNotFound is returned when a takeover brief does not exist for a ticket.
 	ErrBriefNotFound = errors.New("takeover brief not found")
+	// ErrInvalidStatus is returned when an unknown claim status is provided.
+	ErrInvalidStatus = errors.New("invalid claim status")
 )

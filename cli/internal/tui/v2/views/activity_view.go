@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 type ActivityView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
+	shell       ShellAccess
 	list        *tview.TextView
 	filter      string // "today", "week", "all"
 }
@@ -27,6 +27,9 @@ var _ View = (*ActivityView)(nil)
 func NewActivityView(resolveTeam ResolveTeamFunc) *ActivityView {
 	return &ActivityView{resolveTeam: resolveTeam, filter: "week"}
 }
+
+// SetShell provides the shell reference for toast notifications.
+func (v *ActivityView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
 func (v *ActivityView) ID() string { return "team.activity" }
@@ -100,8 +103,16 @@ func (v *ActivityView) refresh() {
 		return
 	}
 
-	// Pull latest (best effort)
-	_ = repo.Pull(context.Background())
+	// Async pull — updates the view on completion (or after > 1s toast).
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.renderEvents(repo)
+	})
+}
+
+func (v *ActivityView) renderEvents(repo *teamstate.Repo) {
+	if v.list == nil {
+		return
+	}
 
 	// Determine time filter
 	var since time.Time

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,7 +18,15 @@ const (
 )
 
 // Repo manages the local clone of the team-state Git repository.
+//
+// mu is a read-write mutex that serialises all git operations (Clone, Pull,
+// Push, CommitAndPush) against concurrent filesystem reads (ListClaims,
+// ListMembers, …).  Git operations acquire the write lock; read methods
+// acquire the read lock so that multiple reads can proceed in parallel but
+// never overlap with a rebase/checkout that could leave files in a
+// transitional state.
 type Repo struct {
+	mu     sync.RWMutex
 	path   string // local clone path (e.g. ~/.oh/team-state/)
 	remote string // Git remote URL
 }
@@ -85,7 +94,15 @@ func IsPullWarning(err error) bool {
 }
 
 // Clone performs the initial clone of the remote repository.
+// Acquires the write lock for the duration of the git operation.
 func (r *Repo) Clone(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.clone(ctx)
+}
+
+// clone is the internal (unlocked) clone implementation.
+func (r *Repo) clone(ctx context.Context) error {
 	if r.IsCloned() {
 		return nil
 	}
@@ -101,7 +118,17 @@ func (r *Repo) Clone(ctx context.Context) error {
 }
 
 // Pull fetches and rebases on the remote branch.
+// Acquires the write lock so that in-flight file reads are not interrupted
+// by a rebase that rewrites working-tree files.
 func (r *Repo) Pull(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.pull(ctx)
+}
+
+// pull is the internal (unlocked) pull implementation, intended to be called
+// from within methods that already hold the write lock (e.g. CommitAndPush).
+func (r *Repo) pull(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
@@ -113,7 +140,15 @@ func (r *Repo) Pull(ctx context.Context) error {
 }
 
 // Push pushes local commits to the remote.
+// Acquires the write lock.
 func (r *Repo) Push(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.push(ctx)
+}
+
+// push is the internal (unlocked) push implementation.
+func (r *Repo) push(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
@@ -126,9 +161,20 @@ func (r *Repo) Push(ctx context.Context) error {
 
 // CommitAndPush stages the given files, commits with the message, and pushes.
 // If push fails due to conflict, it retries with pull --rebase up to maxPushRetries.
+// After a successful push it performs a best-effort pull to pick up any commits
+// pushed concurrently by teammates.
 //
 // Pass "." as a file to stage all changes (new files, modifications, deletions).
+//
+// Acquires the write lock for the entire operation.
 func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.commitAndPush(ctx, msg, files...)
+}
+
+// commitAndPush is the internal (unlocked) implementation of CommitAndPush.
+func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
@@ -157,8 +203,12 @@ func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) e
 
 	// Push with retry on conflict
 	for attempt := range maxPushRetries {
-		pushErr := r.Push(ctx)
+		pushErr := r.push(ctx)
 		if pushErr == nil {
+			// Best-effort pull to pick up concurrent commits from teammates.
+			// Errors are intentionally ignored: the local state is already consistent
+			// after our successful push, and a failed pull is non-critical here.
+			_ = r.pull(ctx)
 			return nil
 		}
 
@@ -173,7 +223,7 @@ func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) e
 		}
 
 		// Non-fast-forward conflict — pull --rebase and retry.
-		if pullErr := r.Pull(ctx); pullErr != nil {
+		if pullErr := r.pull(ctx); pullErr != nil {
 			if isAuthError(pullErr) {
 				return fmt.Errorf("pull échoué — %s", authErrorMessage(r.remote))
 			}
@@ -213,18 +263,23 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 
 // HasConfig returns true if config.toml exists in the team-state repo.
 func (r *Repo) HasConfig() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	_, err := os.Stat(filepath.Join(r.path, "config.toml"))
 	return err == nil
 }
 
 // HasPolicies returns true if policies.toml exists in the team-state repo.
 func (r *Repo) HasPolicies() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	_, err := os.Stat(filepath.Join(r.path, "policies.toml"))
 	return err == nil
 }
 
 // HasMember returns true if the given member ID exists in members.toml.
 func (r *Repo) HasMember(id string) bool {
+	// ListMembers acquires the read lock itself.
 	members, err := r.ListMembers()
 	if err != nil {
 		return false

@@ -109,7 +109,17 @@ func (v *PoliciesView) refresh() {
 		return
 	}
 
-	_ = repo.Pull(context.Background())
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.renderPolicies(repo)
+	})
+}
+
+func (v *PoliciesView) renderPolicies(repo *teamstate.Repo) {
+	if v.list == nil {
+		return
+	}
+	v.list.Clear()
+	v.policies = nil
 
 	policies, err := repo.LoadPolicies("")
 	if err != nil {

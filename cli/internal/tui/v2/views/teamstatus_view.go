@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -14,6 +15,7 @@ import (
 type TeamStatusView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
+	shell       ShellAccess
 	tv          *tview.TextView
 }
 
@@ -25,6 +27,9 @@ var _ View = (*TeamStatusView)(nil)
 func NewTeamStatusView(resolveTeam ResolveTeamFunc) *TeamStatusView {
 	return &TeamStatusView{resolveTeam: resolveTeam}
 }
+
+// SetShell provides the shell reference for toast notifications.
+func (v *TeamStatusView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
 func (v *TeamStatusView) ID() string { return "team.status" }
@@ -45,7 +50,7 @@ func (v *TeamStatusView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetBackgroundColor(theme.BgPanel)
 	v.tv.SetBorderPadding(1, 0, 2, 2)
 
-	v.render()
+	v.syncAndRender()
 	content.AddItem(v.tv, 0, 1, true)
 }
 
@@ -58,13 +63,30 @@ func (v *TeamStatusView) Unmount() {
 // HandleKey processes key events.
 func (v *TeamStatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if event.Rune() == 'r' {
-		v.render()
+		v.syncAndRender()
 		return nil
 	}
 	return event
 }
 
-func (v *TeamStatusView) render() {
+// syncAndRender performs an async pull then re-renders the status view.
+func (v *TeamStatusView) syncAndRender() {
+	tc := v.resolveTeam()
+	if !tc.Enabled {
+		v.render(tc, nil)
+		return
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		v.render(tc, nil)
+		return
+	}
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.render(tc, repo)
+	})
+}
+
+func (v *TeamStatusView) render(tc TeamResolution, _ *teamstate.Repo) {
 	if v.tv == nil {
 		return
 	}
@@ -72,7 +94,6 @@ func (v *TeamStatusView) render() {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n  [::b]Statut de l'équipe%s\n\n", theme.TagReset))
 
-	tc := v.resolveTeam()
 	if !tc.Enabled {
 		sb.WriteString(fmt.Sprintf("  %sÉquipe non configurée pour ce projet.%s\n\n",
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
