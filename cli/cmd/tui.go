@@ -9,8 +9,12 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/storage/keychain"
+	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -337,8 +341,44 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "mcp",
 		},
+		{
+			ID:          "tracker-config",
+			Label:       "Tracker Sync",
+			Aliases:     []string{"tracker", "sync", "sync-tracker"},
+			Description: "Configuration tracker sync (équipe + local, test connexion)",
+			Category:    "Configuration",
+			Priority:    48,
+			ViewID:      "mcp.config",
+		},
 
 		// ── Système ──────────────────────────────────────────────────────
+		{
+			ID:          "hub-config",
+			Label:       "Config Hub",
+			Aliases:     []string{"config hub", "config", "hub config"},
+			Description: "Configuration hub.toml éditable ligne par ligne",
+			Category:    "Configuration",
+			Priority:    47,
+			ViewID:      "hub.config",
+		},
+		{
+			ID:          "project-config",
+			Label:       "Config Projet",
+			Aliases:     []string{"config projet", "project config", "projet config"},
+			Description: "Configuration du projet actif éditable ligne par ligne",
+			Category:    "Configuration",
+			Priority:    46,
+			ViewID:      "project.config",
+		},
+		{
+			ID:          "secrets",
+			Label:       "Secrets & Tokens",
+			Aliases:     []string{"tokens", "credentials", "keychain"},
+			Description: "Gérer les secrets (tokens API) — global et par projet",
+			Category:    "Configuration",
+			Priority:    45,
+			ViewID:      "secrets",
+		},
 		{
 			ID:          "status",
 			Label:       "Status",
@@ -752,7 +792,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			OnInitBeads: func() { initBeadsForActiveProject(a) },
 		}),
-		views.NewTeamBoardView(views.TeamBoardViewConfig{}),
+		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
 		projectModeView,
@@ -828,6 +868,152 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewPatternsView(makeResolveTeamFunc(a)),
 		views.NewPoliciesView(makeResolveTeamFunc(a)),
 		takeoverView,
+		views.NewMCPConfigView(views.MCPConfigViewConfig{
+			GetMCPConfig: func() config.MCPConfig {
+				return a.Config.MCP
+			},
+			GetTrackerLocalConfig: func() config.TrackerLocalConfig {
+				return a.Config.Tracker
+			},
+			ResolveTeam: makeResolveTeamFunc(a),
+			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+				if !tc.Enabled {
+					return fmt.Errorf("team non configurée")
+				}
+				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+				if err := repo.SaveConfig(cfg); err != nil {
+					return err
+				}
+				return repo.CommitAndPush(ctx, "config: update team MCP config", "config.toml")
+			},
+			SaveLocalMCP:     func(key, value string) error { return nil }, // delegate to CLI wizard
+			SaveLocalTracker: func(key, value string) error { return nil }, // delegate to CLI wizard
+			GetSecrets: func() tracker.SecretGetter {
+				return a.Secrets
+			},
+		}),
+		// Hub config view
+		views.NewHubConfigView(views.HubConfigViewConfig{
+			GetConfig: func() *config.Config {
+				c := *a.Config // shallow copy so edits don't mutate the live app config
+				return &c
+			},
+			SaveConfig: func(c *config.Config) error {
+				if err := config.Save(c); err != nil {
+					return err
+				}
+				// Reload the app config from the freshly written file.
+				newCfg, err := config.Load()
+				if err == nil && newCfg != nil {
+					*a.Config = *newCfg
+				}
+				return nil
+			},
+			CheckSecret: func(ctx context.Context, key string) (bool, string) {
+				if a.Secrets == nil {
+					return false, ""
+				}
+				val, err := a.Secrets.Get(ctx, key)
+				if err != nil || val == "" {
+					return false, ""
+				}
+				masked := "****"
+				if len(val) > 4 {
+					masked = "****" + val[len(val)-4:]
+				}
+				return true, masked
+			},
+			SetSecret: func(ctx context.Context, key, value string) error {
+				if a.Secrets == nil {
+					return fmt.Errorf("secret store non disponible")
+				}
+				return a.Secrets.Set(ctx, key, value)
+			},
+		}),
+		// Project config view
+		views.NewProjectConfigView(views.ProjectConfigViewConfig{
+			GetProject: func() *domain.Project {
+				p, _ := resolveActiveProject(a)
+				if p == nil {
+					return nil
+				}
+				cp := *p // copy
+				return &cp
+			},
+			SaveProject: func(ctx context.Context, p *domain.Project) error {
+				return a.Projects.Update(ctx, p)
+			},
+			Deploy: func(ctx context.Context, p *domain.Project) error {
+				return runDeployForProject(a, p)
+			},
+			AllAgents: func() []string {
+				return []string{
+					"auditor", "auditor-subagent", "debugger", "designer",
+					"developer", "developer-migrator", "developer-refactor",
+					"documentarian", "onboarder", "orchestrator", "orchestrator-dev",
+					"pathfinder", "planner", "reviewer",
+				}
+			},
+		}),
+		// Secrets view
+		views.NewSecretsView(views.SecretsViewConfig{
+			GetStore: func() *keychain.Store {
+				if a.Secrets == nil {
+					return nil
+				}
+				if ks, ok := a.Secrets.(*keychain.Store); ok {
+					return ks
+				}
+				return nil
+			},
+			GetExpectedKeys: func() []views.ExpectedSecret {
+				var expected []views.ExpectedSecret
+				// Global keys from hub.toml MCP config.
+				if a.Config.MCP.Gitlab.Token != "" {
+					expected = append(expected, views.ExpectedSecret{
+						Key: a.Config.MCP.Gitlab.Token, Source: "mcp.gitlab", Scope: "global"})
+				}
+				if a.Config.MCP.Jira.Token != "" {
+					expected = append(expected, views.ExpectedSecret{
+						Key: a.Config.MCP.Jira.Token, Source: "mcp.jira", Scope: "global"})
+				}
+				if a.Config.MCP.Figma.Token != "" {
+					expected = append(expected, views.ExpectedSecret{
+						Key: a.Config.MCP.Figma.Token, Source: "mcp.figma", Scope: "global"})
+				}
+				if a.Config.MCP.Gslides.Token != "" {
+					expected = append(expected, views.ExpectedSecret{
+						Key: a.Config.MCP.Gslides.Token, Source: "mcp.gslides", Scope: "global"})
+				}
+				// Project-level keys.
+				if p, _ := resolveActiveProject(a); p != nil && p.MCPConfig != nil {
+					for _, svc := range p.MCPConfig.Services {
+						if svc.TokenKey != "" {
+							expected = append(expected, views.ExpectedSecret{
+								Key:    svc.TokenKey,
+								Source: fmt.Sprintf("projet %s → mcp.%s", p.Name, svc.Name),
+								Scope:  p.ID,
+							})
+						}
+					}
+				}
+				return expected
+			},
+			GetActiveProjectID: func() string {
+				if p, _ := resolveActiveProject(a); p != nil {
+					return p.ID
+				}
+				return ""
+			},
+			GetActiveProjectName: func() string {
+				if p, _ := resolveActiveProject(a); p != nil {
+					return p.Name
+				}
+				return ""
+			},
+		}),
 	)
 
 	return allViews
@@ -863,6 +1049,232 @@ func findOpencodeOrToast() (string, error) {
 		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
 	}
 	return bin, err
+}
+
+// buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
+// wiring the refresh, sync and action callbacks to the live team-state repo.
+func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
+	ctx := context.Background()
+
+	// resolveRepo is a helper that returns the active team repo (or nil).
+	resolveRepo := func() *teamstate.Repo {
+		project, _ := resolveActiveProject(a)
+		tc := resolvedTeamConfig(a, project)
+		if !tc.Enabled {
+			return nil
+		}
+		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+		if !repo.IsCloned() {
+			return nil
+		}
+		return repo
+	}
+
+	return views.TeamBoardViewConfig{
+		RefreshRate: 5 * time.Second,
+		RefreshFunc: func() []views.TeamTicket {
+			repo := resolveRepo()
+			if repo == nil {
+				return nil
+			}
+			return fetchTeamTicketsV2(repo)
+		},
+		SyncFunc: func() error {
+			repo := resolveRepo()
+			if repo == nil {
+				return nil
+			}
+			if err := repo.Pull(ctx); err != nil {
+				return err
+			}
+			// Tracker sync is best-effort — don't block on errors.
+			if engine := resolveTrackerEngine(ctx, a); engine != nil && engine.ShouldAutoSync() {
+				_, _ = engine.Run(ctx)
+			}
+			return nil
+		},
+		Actions: &views.BoardActions{
+			Members: func() []views.SelectOption {
+				repo := resolveRepo()
+				if repo == nil {
+					return nil
+				}
+				members, err := repo.ListMembers()
+				if err != nil {
+					return nil
+				}
+				opts := make([]views.SelectOption, 0, len(members))
+				for _, m := range members {
+					opts = append(opts, views.SelectOption{
+						Label: m.DisplayName,
+						Value: m.ID,
+					})
+				}
+				return opts
+			},
+			OnClaim: func(ticketID string) error {
+				repo := resolveRepo()
+				if repo == nil {
+					return fmt.Errorf("team non configurée")
+				}
+				project, _ := resolveActiveProject(a)
+				projectID := ""
+				if project != nil {
+					projectID = project.ID
+				}
+				memberID := a.Config.Team.MemberID
+				_, err := repo.CreateClaim(ctx, teamstate.Claim{
+					TicketID:  ticketID,
+					Project:   projectID,
+					ClaimedBy: memberID,
+					Status:    teamstate.ClaimStatusInProgress,
+				})
+				if err == teamstate.ErrClaimExists {
+					return nil // idempotent
+				}
+				return err
+			},
+			OnRelease: func(ticketID string) error {
+				repo := resolveRepo()
+				if repo == nil {
+					return fmt.Errorf("team non configurée")
+				}
+				project, _ := resolveActiveProject(a)
+				projectID := ""
+				if project != nil {
+					projectID = project.ID
+				}
+				return repo.ReleaseClaim(ctx, projectID, ticketID)
+			},
+			OnTransfer: func(ticketID, toMember string) error {
+				repo := resolveRepo()
+				if repo == nil {
+					return fmt.Errorf("team non configurée")
+				}
+				project, _ := resolveActiveProject(a)
+				projectID := ""
+				if project != nil {
+					projectID = project.ID
+				}
+				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
+			},
+			OnStatus: func(ticketID, newStatus string) error {
+				repo := resolveRepo()
+				if repo == nil {
+					return fmt.Errorf("team non configurée")
+				}
+				project, _ := resolveActiveProject(a)
+				projectID := ""
+				if project != nil {
+					projectID = project.ID
+				}
+				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
+			},
+		},
+	}
+}
+
+// resolveTrackerEngine builds a tracker Engine for the active team repo, if the
+// tracker is configured and enabled in the team-state config.toml.
+// Returns nil (no error) when tracker is not configured — callers should treat
+// nil as "skip tracker sync".
+func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
+	project, _ := resolveActiveProject(a)
+	tc := resolvedTeamConfig(a, project)
+	if !tc.Enabled {
+		return nil
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		return nil
+	}
+
+	teamCfg, err := repo.LoadConfig()
+	if err != nil || teamCfg.Tracker.Type == "" {
+		return nil
+	}
+
+	// Merge shared team-state config with local hub.toml overrides.
+	effTracker := tracker.ResolveTrackerConfig(
+		&teamCfg.Tracker,
+		a.Config.Tracker,
+		resolveWriteEnabledForTracker(a, teamCfg),
+	)
+	if !effTracker.Enabled {
+		return nil
+	}
+
+	credSrc := buildCredentialSource(a, teamCfg.MCP)
+	cfg, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(effTracker.Type))
+	if err != nil {
+		return nil
+	}
+
+	t, err := tracker.New(cfg)
+	if err != nil {
+		return nil
+	}
+
+	// Build a teamstate.TrackerConfig from the effective config for the engine.
+	engineCfg := teamstate.TrackerConfig{
+		Type:                 effTracker.Type,
+		Enabled:              effTracker.Enabled,
+		AutoSync:             effTracker.AutoSync,
+		SyncIntervalMinutes:  effTracker.SyncIntervalMinutes,
+		AutoPlanAssigned:     effTracker.AutoPlanAssigned,
+		MaxAutoPlanPerMember: effTracker.MaxAutoPlanPerMember,
+		PushLabels:           effTracker.PushLabels,
+		TicketPatterns:       effTracker.TicketPatterns,
+		Projects:             effTracker.Projects,
+	}
+
+	return tracker.NewEngine(t, repo, engineCfg, config.HubDir())
+}
+
+// resolveWriteEnabledForTracker returns whether write ops are enabled for the
+// tracker type specified in the team config.
+func resolveWriteEnabledForTracker(a *app.App, teamCfg *teamstate.TeamConfig) bool {
+	switch tracker.Type(teamCfg.Tracker.Type) {
+	case tracker.TypeGitLab:
+		return a.Config.MCP.Gitlab.WriteEnabled
+	case tracker.TypeJira:
+		return a.Config.MCP.Jira.WriteEnabled
+	}
+	return false
+}
+
+// buildCredentialSource constructs a tracker.CredentialSource from the app's
+// MCP config, secret store, and (optionally) the team-state shared MCP config.
+// This is the single place where hub.toml MCP settings and team-state shared
+// settings are merged into the tracker package's credential abstraction.
+//
+// sharedMCP may be nil when no team-state config is available — the source
+// degrades gracefully to hub.toml-only mode.
+func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPConfig) tracker.CredentialSource {
+	// Resolve effective MCP configs (local hub.toml merged with team-state recs).
+	var sharedGitLab, sharedJira *teamstate.SharedMCPConfig
+	if sharedMCP != nil {
+		if g, ok := sharedMCP["gitlab"]; ok {
+			sharedGitLab = &g
+		}
+		if j, ok := sharedMCP["jira"]; ok {
+			sharedJira = &j
+		}
+	}
+	effGitLab := tracker.ResolveMCPConfig(sharedGitLab, a.Config.MCP.Gitlab)
+	effJira := tracker.ResolveMCPConfig(sharedJira, a.Config.MCP.Jira)
+
+	return tracker.CredentialSource{
+		GitLabEnabled:      effGitLab.Enabled,
+		GitLabTokenKey:     effGitLab.TokenKey,
+		GitLabWriteEnabled: effGitLab.WriteEnabled,
+		GitLabURL:          effGitLab.URL,
+		JiraEnabled:        effJira.Enabled,
+		JiraTokenKey:       effJira.TokenKey,
+		JiraWriteEnabled:   effJira.WriteEnabled,
+		JiraURL:            effJira.URL,
+		Secrets:            a.Secrets,
+	}
 }
 
 // initBeadsForActiveProject initialises beads for the currently active project.

@@ -2,10 +2,12 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 )
 
@@ -19,6 +21,9 @@ type Config struct {
 	Worktree WorktreeConfig  `mapstructure:"worktree"`
 	Team     TeamConfig      `mapstructure:"team"`
 	Models   ModelsConfig    `mapstructure:"models"`
+	// Tracker holds the member's local overrides for the tracker sync feature.
+	// Any field left at its zero value means "inherit from the team-state config".
+	Tracker TrackerLocalConfig `mapstructure:"tracker"`
 }
 
 // ModelsConfig holds the model resolution cascade at the hub level.
@@ -77,6 +82,7 @@ type ProviderConfig struct {
 type MCPConfig struct {
 	Figma   MCPServerConfig `mapstructure:"figma"`
 	Gitlab  MCPServerConfig `mapstructure:"gitlab"`
+	Jira    MCPServerConfig `mapstructure:"jira"`
 	Gslides MCPServerConfig `mapstructure:"gslides"`
 }
 
@@ -85,6 +91,31 @@ type MCPServerConfig struct {
 	Enabled      bool   `mapstructure:"enabled"`
 	Token        string `mapstructure:"token_key"`     // keychain key name, not the secret itself
 	WriteEnabled bool   `mapstructure:"write_enabled"` // opt-in for write operations (e.g. GitLab MR creation)
+	// URL is an optional per-member override for the service base URL.
+	// Useful when the member needs to point to a different instance than
+	// the team recommendation stored in team-state config.toml.
+	// When empty, the team-state shared URL (if any) or the built-in default is used.
+	URL string `mapstructure:"url,omitempty"`
+}
+
+// TrackerLocalConfig holds the member's personal overrides for tracker sync settings.
+// All pointer fields use nil-means-inherit semantics: a nil value means the member
+// has no preference and the corresponding setting from team-state config.toml is used.
+// Non-nil values override the team recommendation for this member only.
+type TrackerLocalConfig struct {
+	// Enabled overrides whether tracker sync is active for this member.
+	// nil = inherit team-state. false = disable sync locally (e.g. no network access).
+	Enabled *bool `mapstructure:"enabled"`
+	// AutoSync overrides whether sync runs automatically on team view open.
+	AutoSync *bool `mapstructure:"auto_sync"`
+	// PushLabels overrides whether hub labels are pushed back to the tracker.
+	// nil = inherit team recommendation. The effective value is also gated by
+	// [mcp.<type>].write_enabled — push never happens without write permission.
+	PushLabels *bool `mapstructure:"push_labels"`
+	// AutoPlanAssigned overrides the auto-plan-from-tracker-assignee behaviour.
+	AutoPlanAssigned *bool `mapstructure:"auto_plan_assigned"`
+	// MaxAutoPlanPerMember overrides the per-member auto-plan limit.
+	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member"`
 }
 
 var (
@@ -155,4 +186,28 @@ func Reset() {
 	cfgOnce = sync.Once{}
 	cfg = nil
 	cfgErr = nil
+}
+
+// Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
+// After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
+func Save(c *Config) error {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+
+	data, err := toml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshaling hub.toml: %w", err)
+	}
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("creating config dir: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("writing hub.toml: %w", err)
+	}
+	// Invalidate the cache so the next Load() reflects the new state.
+	cfgOnce = sync.Once{}
+	cfg = nil
+	cfgErr = nil
+	return nil
 }

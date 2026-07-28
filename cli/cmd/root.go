@@ -172,7 +172,7 @@ func initApp() error {
 func resolveSecretStore() domain.SecretStore {
 	// Try OS keychain first
 	if err := keychain.Probe(); err == nil {
-		return keychain.New()
+		return keychain.New(config.HubDir())
 	}
 
 	// Keychain unavailable — check if filecrypt fallback is viable
@@ -245,6 +245,7 @@ func init() {
 	rootCmd.Flags().StringP("project", "p", "", "Démarrer directement en mode projet pour ce projet")
 	_ = rootCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	rootCmd.SetHelpFunc(customHelpFunc)
+	rootCmd.AddCommand(secretsCmd)
 }
 
 // localizeCommands recursively traverses the command tree and replaces
