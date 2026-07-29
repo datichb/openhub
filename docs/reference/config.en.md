@@ -28,7 +28,22 @@ aws_profile = "default"            # AWS profile (bedrock only)
 aws_region = "eu-west-1"           # AWS region (bedrock only)
 auth_mode = "bearer"               # "bearer" | "profile" (bedrock only)
 
-```toml
+[models]
+default = "claude-sonnet-4-20250514"  # hub-level default model
+
+[models.families]
+anthropic = "claude-sonnet-4-20250514"
+
+[models.agents]
+reviewer = "claude-opus-4-20250514"   # per-agent override
+
+[[teams]]
+id = "acme"                        # local short identifier
+name = "Equipe ACME"               # display name
+enabled = true
+state_repo = "git@gitlab.com:acme/team-state.git"
+member_id = "alice"
+
 [mcp.figma]
 enabled = true                     # enable Figma MCP server
 token_key = "figma-token"          # keychain key name (NOT the token itself)
@@ -36,31 +51,26 @@ token_key = "figma-token"          # keychain key name (NOT the token itself)
 [mcp.gitlab]
 enabled = true
 token_key = "gitlab-token"
+write_enabled = true
+url = ""                           # empty = use team-state URL or built-in default
+
+[mcp.jira]
+enabled = false
 
 [mcp.gslides]
 enabled = false
 token_key = "gslides-token"
 
-[notify]
-enabled = false
-type = "slack"                     # mattermost | slack | discord | teams
-webhook_url = "https://hooks.slack.com/services/..."
-channel = "#dev-ai"                # Mattermost only
-bot_name = "OpenHub"
-
-# Multi-destination (optional): notify multiple channels simultaneously
-# [[notify.destinations]]
-# type = "slack"
-# webhook_url = "https://hooks.slack.com/..."
-# bot_name = "OpenHub"
-
-# [[notify.destinations]]
-# type = "discord"
-# webhook_url = "https://discord.com/api/webhooks/..."
-
 [worktree]
 auto_cleanup = true                # auto-remove merged worktrees on start
 base_branch = ""                   # empty = auto-detect (main/master)
+
+[tracker]                          # local overrides for team tracker sync
+# enabled = false                  # uncomment to disable sync locally
+# push_labels = false              # uncomment to disable label push
+
+[websearch]
+enabled = true
 ```
 
 ---
@@ -149,27 +159,121 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 ---
 
-## Per-project Team Configuration
+## Multi-Team Configuration (ADR-029)
 
-Each project can independently override the hub-level `[team]` configuration. The override
-is stored in the `team_config` JSON column of the `projects` table (SQLite).
+A user can belong to **multiple teams**. Each team is a separate entry in the `[[teams]]` array.
+Projects reference a team by its `id` field.
 
-### `ProjectTeamConfig` fields
+### Hub-level: `[[teams]]`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `mode` | string | `"inherit"` (default) · `"custom"` · `"disabled"` |
-| `state_repo` | string | Git remote URL of the team-state repo _(custom only)_ |
-| `state_path` | string | Local clone path — auto-derived from `state_repo` if empty _(custom only)_ |
-| `member_id` | string | Member identity override — falls back to hub `member_id` if empty _(custom only)_ |
+```toml
+[[teams]]
+id = "acme"                              # local short identifier
+name = "Equipe ACME"                     # display name (optional, falls back to id)
+enabled = true                           # enable team features for this team
+state_repo = "git@gitlab.com:acme/team-state.git"
+state_path = "~/.oh/team-states/acme"    # auto-derived from state_repo if empty
+member_id = "alice"                      # your identity in this team
+
+[[teams]]
+id = "beta"
+name = "Equipe Beta"
+state_repo = "git@github.com:beta/oh-team.git"
+member_id = "alice.dupont"
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Short local identifier, used by projects |
+| `name` | string | No | Display name (falls back to `id`) |
+| `enabled` | bool | No | Enable/disable this team (default: true) |
+| `state_repo` | string | Yes | Git remote URL of the team-state repo |
+| `state_path` | string | No | Local clone path (auto-derived from `state_repo`) |
+| `member_id` | string | Yes | Your identity in this team's `members.toml` |
+
+### Project-level: `team_id`
+
+Each project declares its team affiliation via `TeamID`:
+
+| Value | Meaning |
+|-------|---------|
+| `nil` (not set) | Solo project — no team affiliation |
+| `"acme"` | Project belongs to team "acme" |
 
 ### Resolution cascade
 
 ```
-project.TeamConfig.Mode == "inherit" (or nil)  →  hub [team] config used as-is
-project.TeamConfig.Mode == "custom"             →  project fields; member_id falls back to hub
-project.TeamConfig.Mode == "disabled"           →  team disabled for this project
+project.TeamID == nil (or "")  →  solo project, team disabled
+project.TeamID == "acme"       →  lookup teams[] by id, use that team's config
+project.TeamID == unknown      →  graceful degradation (team disabled)
 ```
+
+### Migration from `[team]` (legacy)
+
+The legacy single `[team]` section is auto-migrated to `[[teams]]` on first load:
+- ID is derived from the `state_repo` URL (last path segment, minus `.git`)
+- A backup of `hub.toml` is created before writing
+- Projects with `Mode: "inherit"` → `TeamID = <derived-id>`
+- Projects with `Mode: "disabled"` → `TeamID = nil`
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `oh teams list` | List configured teams |
+| `oh teams add --repo <url> --member-id <id>` | Add a new team |
+| `oh teams remove <team-id>` | Remove a team (projects become solo) |
+
+---
+
+## Enforced vs Recommended Configuration (ADR-030)
+
+Team-state settings can be either **recommended** (overridable) or **enforced** (locked).
+
+### Resolution cascade for each setting
+
+```
+1. Team ENFORCED?  → YES: use team value (locked, no override possible)
+                   → NO: continue
+2. Project has explicit override?  → YES: use project value
+                                   → NO: continue
+3. Hub has a value?  → YES: use hub value
+                     → NO: continue
+4. Team RECOMMENDED?  → YES: use team recommendation as fallback
+                      → NO: use system default
+```
+
+### TOML schema in team-state `config.toml`
+
+```toml
+[mcp.gitlab]
+enabled = true
+enabled_enforced = true    # members MUST have GitLab enabled
+url = "https://gitlab.company.com"
+url_enforced = true        # URL cannot be overridden locally
+
+[mcp.jira]
+enabled = true             # recommended (no _enforced = overridable)
+
+[models]
+default = "claude-sonnet-4-20250514"  # recommended, overridable
+
+[models.agents]
+architect = "claude-opus-4-20250514"  # recommended per-agent model
+```
+
+### TUI display
+
+- 🔒 **Enforced**: lock icon, field non-editable, toast on edit attempt
+- `[team: recommended]`: source annotation when inherited from team
+- `[hub]`, `[project]`: source annotation for local values
+
+---
+
+## Per-project Team Configuration (Legacy)
+
+> **Deprecated:** The `ProjectTeamConfig` with `mode` field is superseded by `project.TeamID`.
+> Existing projects using the old format are still supported via backward-compat resolution.
 
 ### Deployed artifact: `.opencode/team.json`
 

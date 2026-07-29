@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Go CLI (`oh`) resolves the AI model for each agent via a 7-level cascade. Opencode does not manage this logic — the CLI resolves at deploy time and writes the final model into `opencode.json` under `agent.<id>.model`.
+The Go CLI (`oh`) resolves the AI model for each agent via a **10-level cascade** (ADR-030). Opencode does not manage this logic — the CLI resolves at deploy time and writes the final model into `opencode.json` under `agent.<id>.model`.
 
 The provider is resolved separately and used to normalize the model name format (provider prefixing).
 
@@ -34,7 +34,13 @@ Resolution is performed for each deployed agent. First match wins (decreasing pr
 | 4 | Hub agent | Model override for a specific agent at hub level | `oh config model agent <id> <model>` |
 | 5 | Hub family | Model override for an agent family at hub level | `oh config model family <name> <model>` |
 | 6 | Hub global | Global hub model | `oh config model default <model>` |
-| 7 | Frontmatter floor | `model:` field in the agent's `.md` file | Direct file edit |
+| 7 | **Team agent** | Model recommendation for a specific agent from team-state | Team `config.toml` `[models.agents]` |
+| 8 | **Team family** | Model recommendation for a family from team-state | Team `config.toml` `[models.families]` |
+| 9 | **Team global** | Global model recommendation from team | Team `config.toml` `[models] default` |
+| 10 | Frontmatter floor | `model:` field in the agent's `.md` file | Direct file edit |
+
+> **Team-level models (7-9) are always recommendations** — hub and project overrides take priority.
+> There is no enforcement mechanism for models (unlike MCP services).
 
 ### Families
 
