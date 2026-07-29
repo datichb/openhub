@@ -65,6 +65,7 @@ type SecretsView struct {
 }
 
 var _ View = (*SecretsView)(nil)
+var _ CommandProvider = (*SecretsView)(nil)
 
 func NewSecretsView(cfg SecretsViewConfig) *SecretsView {
 	return &SecretsView{cfg: cfg}
@@ -494,4 +495,12 @@ func scopeLabel(scope string) string {
 		return "global"
 	}
 	return "projet"
+}
+
+// ContextCommands implements CommandProvider.
+func (v *SecretsView) ContextCommands() []ContextCommand {
+	return []ContextCommand{
+		{ID: "secrets.add", Label: "Ajouter un secret", Aliases: []string{"add", "new"}, Description: "Ajouter un nouveau secret au keychain", Category: "Secrets", Action: func() { v.addSecret() }},
+		{ID: "secrets.refresh", Label: "Rafraîchir", Aliases: []string{"refresh", "reload"}, Description: "Recharger les secrets", Category: "Secrets", Action: func() { v.refresh() }},
+	}
 }

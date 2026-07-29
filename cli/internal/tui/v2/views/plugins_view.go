@@ -19,6 +19,7 @@ type PluginsView struct {
 }
 
 var _ View = (*PluginsView)(nil)
+var _ CommandProvider = (*PluginsView)(nil)
 
 // NewPluginsView creates a new plugins view.
 func NewPluginsView() *PluginsView {
@@ -146,4 +147,12 @@ func (v *PluginsView) removePlugin() {
 		v.shell.ShowToastMsg("Plugin RTK supprimé", true)
 	}
 	v.refresh()
+}
+
+// ContextCommands implements CommandProvider.
+func (v *PluginsView) ContextCommands() []ContextCommand {
+	return []ContextCommand{
+		{ID: "plugins.install", Label: "Installer", Aliases: []string{"install"}, Description: "Installer le plugin", Category: "Plugins", Action: func() {}},
+		{ID: "plugins.refresh", Label: "Rafraîchir", Aliases: []string{"refresh", "reload"}, Description: "Rafraîchir le statut", Category: "Plugins", Action: func() {}},
+	}
 }

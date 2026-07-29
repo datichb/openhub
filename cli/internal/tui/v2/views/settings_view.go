@@ -52,6 +52,7 @@ type SettingsView struct {
 }
 
 var _ View = (*SettingsView)(nil)
+var _ CommandProvider = (*SettingsView)(nil)
 
 // NewSettingsView creates the hub config view.
 func NewSettingsView(cfg SettingsViewConfig) *SettingsView {
@@ -64,7 +65,7 @@ func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SettingsView) ID() string      { return "settings" }
 func (v *SettingsView) Title() string   { return "Settings" }
 func (v *SettingsView) StatusHints() string {
-	return "j/k nav · Space toggle · e éditer · w sauvegarder · Esc retour"
+	return "j/k nav · Space toggle · Enter éditer · w sauvegarder · u annuler · r rafraîchir"
 }
 
 // Mount builds and displays the view.
@@ -112,8 +113,52 @@ func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'w':
 		v.save()
 		return nil
+	case 'u':
+		// Undo: reload from disk
+		v.live = v.cfg.GetConfig()
+		v.dirty = false
+		v.renderLines()
+		if v.shell != nil {
+			v.shell.ShowToastMsg("↩ Annulé (rechargé depuis disque)", true)
+		}
+		return nil
+	case 'r':
+		// Refresh from disk
+		v.live = v.cfg.GetConfig()
+		v.dirty = false
+		v.renderLines()
+		if v.shell != nil {
+			v.shell.ShowToastMsg("↻ Rafraîchi", true)
+		}
+		return nil
 	}
 	return event
+}
+
+// ContextCommands implements CommandProvider for omnibar integration.
+func (v *SettingsView) ContextCommands() []ContextCommand {
+	return []ContextCommand{
+		{
+			ID:          "settings.save",
+			Label:       "Sauvegarder",
+			Aliases:     []string{"save", "write"},
+			Description: "Sauvegarder la configuration",
+			Category:    "Settings",
+			Action:      v.save,
+		},
+		{
+			ID:          "settings.refresh",
+			Label:       "Rafraîchir",
+			Aliases:     []string{"refresh", "reload"},
+			Description: "Recharger depuis le disque",
+			Category:    "Settings",
+			Action: func() {
+				v.live = v.cfg.GetConfig()
+				v.dirty = false
+				v.renderLines()
+			},
+		},
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

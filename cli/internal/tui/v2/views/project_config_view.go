@@ -48,6 +48,7 @@ type ProjectConfigView struct {
 }
 
 var _ View = (*ProjectConfigView)(nil)
+var _ CommandProvider = (*ProjectConfigView)(nil)
 
 // NewProjectConfigView creates the project config view.
 func NewProjectConfigView(cfg ProjectConfigViewConfig) *ProjectConfigView {
@@ -570,5 +571,12 @@ func (v *ProjectConfigView) save() {
 				}
 				v.mcpChanged = false
 			})
+	}
+}
+
+// ContextCommands implements CommandProvider.
+func (v *ProjectConfigView) ContextCommands() []ContextCommand {
+	return []ContextCommand{
+		{ID: "project.save", Label: "Sauvegarder", Aliases: []string{"save", "write"}, Description: "Sauvegarder les modifications projet", Category: "Projet", Action: func() { v.save() }},
 	}
 }

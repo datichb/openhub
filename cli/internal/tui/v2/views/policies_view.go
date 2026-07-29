@@ -24,6 +24,7 @@ type PoliciesView struct {
 }
 
 var _ View = (*PoliciesView)(nil)
+var _ CommandProvider = (*PoliciesView)(nil)
 
 // NewPoliciesView creates a new policies view.
 // resolveTeam is called on every refresh to obtain the effective team config.
@@ -374,4 +375,12 @@ func quoteSlice(items []string) string {
 		quoted[i] = fmt.Sprintf("%q", item)
 	}
 	return strings.Join(quoted, ", ")
+}
+
+// ContextCommands implements CommandProvider.
+func (v *PoliciesView) ContextCommands() []ContextCommand {
+	return []ContextCommand{
+		{ID: "policies.add", Label: "Ajouter une policy", Aliases: []string{"add", "new"}, Description: "Créer une nouvelle policy", Category: "Policies", Action: func() { v.addPolicy() }},
+		{ID: "policies.check", Label: "Vérifier", Aliases: []string{"check", "verify"}, Description: "Vérifier la conformité", Category: "Policies", Action: func() { v.checkPolicies() }},
+	}
 }
