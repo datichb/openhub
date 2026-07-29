@@ -256,3 +256,63 @@ Les tokens seront stockes dans le keychain OS de maniere securisee.
 
 `oh doctor` verifie la compatibilite. En cas d'incompatibilite, un warning est
 affiche au `oh start` avec la commande de mise a jour.
+
+---
+
+## Migration single-team → multi-team
+
+A partir de la version qui introduit le multi-team (ADR-029), le format de
+configuration equipe dans `hub.toml` evolue :
+
+### Avant (single-team)
+
+```toml
+[team]
+enabled = true
+state_repo = "git@gitlab.com:acme/team-state.git"
+state_path = "~/.oh/team-state"
+member_id = "alice"
+```
+
+### Apres (multi-team)
+
+```toml
+[[teams]]
+id = "team-state"
+enabled = true
+state_repo = "git@gitlab.com:acme/team-state.git"
+state_path = "~/.oh/team-states/team-state"
+member_id = "alice"
+```
+
+### Migration automatique
+
+La migration est **automatique** au premier lancement :
+
+1. `oh` detecte la section `[team]` legacy
+2. Cree un backup `hub.toml.<timestamp>.bak`
+3. Convertit en entree `[[teams]]` avec un ID derive du repo URL
+4. Met a jour les projets : `Mode: "inherit"` → `TeamID = "<id-derive>"`
+5. Supprime la section `[team]` legacy
+
+### Aucune action requise
+
+- Les utilisateurs mono-equipe ne voient aucune difference
+- Les projets continuent de fonctionner normalement
+- Le backup permet de revenir en arriere si necessaire
+
+### Nouvelles commandes
+
+```bash
+oh teams list           # voir les equipes configurees
+oh teams add --repo <url> --member-id <id>   # ajouter une equipe
+oh teams remove <id>    # retirer une equipe
+```
+
+### Projets et equipes
+
+Les projets declarent leur equipe via `TeamID` (au lieu de `ProjectTeamConfig.Mode`) :
+
+```bash
+oh project configure    # inclut maintenant le choix d'equipe
+```
