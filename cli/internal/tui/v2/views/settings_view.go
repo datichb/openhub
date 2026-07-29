@@ -14,8 +14,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// HubConfigViewConfig holds external dependencies for the hub config view.
-type HubConfigViewConfig struct {
+// SettingsViewConfig holds external dependencies for the hub config view.
+type SettingsViewConfig struct {
 	// GetConfig returns a fresh copy of the hub config.
 	GetConfig func() *config.Config
 	// SaveConfig persists the modified config to hub.toml.
@@ -37,12 +37,12 @@ type configLine struct {
 	set func(c *config.Config, v string)
 }
 
-// HubConfigView displays and edits hub.toml line by line.
-type HubConfigView struct {
+// SettingsView displays and edits hub.toml line by line.
+type SettingsView struct {
 	app    *tview.Application
 	list   *tview.List
 	shell  ShellAccess
-	cfg    HubConfigViewConfig
+	cfg    SettingsViewConfig
 
 	// live config being edited (copy from disk, modified in memory until saved)
 	live  *config.Config
@@ -51,24 +51,24 @@ type HubConfigView struct {
 	lines []configLine
 }
 
-var _ View = (*HubConfigView)(nil)
+var _ View = (*SettingsView)(nil)
 
-// NewHubConfigView creates the hub config view.
-func NewHubConfigView(cfg HubConfigViewConfig) *HubConfigView {
-	return &HubConfigView{cfg: cfg}
+// NewSettingsView creates the hub config view.
+func NewSettingsView(cfg SettingsViewConfig) *SettingsView {
+	return &SettingsView{cfg: cfg}
 }
 
 // SetShell provides shell access for modals/toasts.
-func (v *HubConfigView) SetShell(s ShellAccess) { v.shell = s }
+func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 
-func (v *HubConfigView) ID() string      { return "hub.config" }
-func (v *HubConfigView) Title() string   { return "Config Hub" }
-func (v *HubConfigView) StatusHints() string {
+func (v *SettingsView) ID() string      { return "settings" }
+func (v *SettingsView) Title() string   { return "Settings" }
+func (v *SettingsView) StatusHints() string {
 	return "j/k nav · Space toggle · e éditer · w sauvegarder · Esc retour"
 }
 
 // Mount builds and displays the view.
-func (v *HubConfigView) Mount(content *tview.Flex, app *tview.Application) {
+func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.live = v.cfg.GetConfig()
 	v.dirty = false
@@ -88,7 +88,7 @@ func (v *HubConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	app.SetFocus(v.list)
 }
 
-func (v *HubConfigView) Unmount() {
+func (v *SettingsView) Unmount() {
 	if v.dirty && v.shell != nil {
 		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — w pour sauvegarder", false)
 	}
@@ -96,7 +96,7 @@ func (v *HubConfigView) Unmount() {
 	v.list = nil
 }
 
-func (v *HubConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
 	case tcell.KeyEnter:
 		v.editSelected()
@@ -120,7 +120,7 @@ func (v *HubConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // Line definitions — maps every hub.toml field to a configLine
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *HubConfigView) buildLines() {
+func (v *SettingsView) buildLines() {
 	v.lines = []configLine{
 		{kind: "section-header", section: "CLI"},
 		{section: "CLI", key: "language", kind: "string",
@@ -241,7 +241,7 @@ func (v *HubConfigView) buildLines() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *HubConfigView) renderLines() {
+func (v *SettingsView) renderLines() {
 	if v.list == nil || v.live == nil {
 		return
 	}
@@ -319,7 +319,7 @@ func formatConfigValue(val, kind string) string {
 // Editing
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *HubConfigView) selectedLine() (configLine, bool) {
+func (v *SettingsView) selectedLine() (configLine, bool) {
 	if v.list == nil || v.list.GetItemCount() == 0 {
 		return configLine{}, false
 	}
@@ -334,7 +334,7 @@ func (v *HubConfigView) selectedLine() (configLine, bool) {
 	return line, true
 }
 
-func (v *HubConfigView) toggleSelected() {
+func (v *SettingsView) toggleSelected() {
 	line, ok := v.selectedLine()
 	if !ok || line.kind != "bool" {
 		return
@@ -351,7 +351,7 @@ func (v *HubConfigView) toggleSelected() {
 	v.renderLines()
 }
 
-func (v *HubConfigView) editSelected() {
+func (v *SettingsView) editSelected() {
 	line, ok := v.selectedLine()
 	if !ok {
 		return
@@ -439,7 +439,7 @@ func (v *HubConfigView) editSelected() {
 // Save
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *HubConfigView) save() {
+func (v *SettingsView) save() {
 	if v.live == nil || v.shell == nil {
 		return
 	}

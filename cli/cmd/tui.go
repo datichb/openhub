@@ -306,13 +306,13 @@ func buildCommands(a *app.App) []shell.Command {
 
 		// ── Configuration ────────────────────────────────────────────────
 		{
-			ID:          "config",
-			Label:       "Config",
-			Aliases:     []string{"cfg", "settings", "hub"},
-			Description: "Configuration du hub",
+			ID:          "teams",
+			Label:       "Équipes",
+			Aliases:     []string{"team", "equipe", "equipes"},
+			Description: "Gestion des équipes",
 			Category:    "Configuration",
-			Priority:    90,
-			ViewID:      "config",
+			Priority:    85,
+			ViewID:      "teams",
 		},
 		{
 			ID:          "models",
@@ -342,24 +342,24 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "mcp",
 		},
 		{
-			ID:          "tracker-config",
-			Label:       "Tracker Sync",
-			Aliases:     []string{"tracker", "sync", "sync-tracker"},
-			Description: "Configuration tracker sync (équipe + local, test connexion)",
+			ID:          "team-detail",
+			Label:       "Équipe Détail",
+			Aliases:     []string{"tracker", "sync", "team config", "team detail"},
+			Description: "Configuration d'équipe (services, tracker, résolution)",
 			Category:    "Configuration",
 			Priority:    48,
-			ViewID:      "mcp.config",
+			ViewID:      "team.detail",
 		},
 
 		// ── Système ──────────────────────────────────────────────────────
 		{
-			ID:          "hub-config",
-			Label:       "Config Hub",
-			Aliases:     []string{"config hub", "config", "hub config"},
-			Description: "Configuration hub.toml éditable ligne par ligne",
+			ID:          "settings",
+			Label:       "Settings",
+			Aliases:     []string{"config", "cfg", "settings", "hub", "hub config"},
+			Description: "Configuration personnelle du hub",
 			Category:    "Configuration",
-			Priority:    47,
-			ViewID:      "hub.config",
+			Priority:    90,
+			ViewID:      "settings",
 		},
 		{
 			ID:          "project-config",
@@ -806,7 +806,15 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewStatusView(a),
 		views.NewMetricsView(),
 		views.NewDoctorView(a),
-		views.NewConfigView(),
+		views.NewTeamsView(views.TeamsViewDeps{
+			Config: a.Config,
+			OnSync: func(teamID string) {
+				// TODO: trigger team-state git pull for the specified team
+			},
+			OnSave: func(cfg *config.Config) {
+				_ = config.Save(cfg)
+			},
+		}),
 		views.NewModelsView(a),
 		views.NewProviderView(a),
 		views.NewMCPView(a, views.MCPViewConfig{
@@ -868,7 +876,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewPatternsView(makeResolveTeamFunc(a)),
 		views.NewPoliciesView(makeResolveTeamFunc(a)),
 		takeoverView,
-		views.NewMCPConfigView(views.MCPConfigViewConfig{
+		views.NewTeamDetailView(views.TeamDetailViewConfig{
 			GetMCPConfig: func() config.MCPConfig {
 				return a.Config.MCP
 			},
@@ -895,7 +903,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 		}),
 		// Hub config view
-		views.NewHubConfigView(views.HubConfigViewConfig{
+		views.NewSettingsView(views.SettingsViewConfig{
 			GetConfig: func() *config.Config {
 				c := *a.Config // shallow copy so edits don't mutate the live app config
 				return &c

@@ -14,8 +14,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// MCPConfigViewConfig holds the external dependencies for MCPConfigView.
-type MCPConfigViewConfig struct {
+// TeamDetailViewConfig holds the external dependencies for TeamDetailView.
+type TeamDetailViewConfig struct {
 	// GetMCPConfig returns the local MCP config from hub.toml.
 	GetMCPConfig func() config.MCPConfig
 	// GetTrackerLocalConfig returns the local tracker override from hub.toml.
@@ -33,15 +33,15 @@ type MCPConfigViewConfig struct {
 	GetSecrets func() tracker.SecretGetter
 }
 
-// MCPConfigView displays and edits MCP + tracker configuration
+// TeamDetailView displays and edits MCP + tracker configuration
 // with two display modes:
 //   - Simple: only the effective (resolved) values
 //   - Detailed: three columns — equipe | local | effectif
-type MCPConfigView struct {
+type TeamDetailView struct {
 	app    *tview.Application
 	tv     *tview.TextView
 	shell  ShellAccess
-	cfg    MCPConfigViewConfig
+	cfg    TeamDetailViewConfig
 
 	// detailedMode toggles between simple (false) and detailed (true) display.
 	detailedMode bool
@@ -54,24 +54,24 @@ type MCPConfigView struct {
 	localTrk config.TrackerLocalConfig
 }
 
-var _ View = (*MCPConfigView)(nil)
+var _ View = (*TeamDetailView)(nil)
 
-// NewMCPConfigView creates the MCP & tracker config view.
-func NewMCPConfigView(cfg MCPConfigViewConfig) *MCPConfigView {
-	return &MCPConfigView{cfg: cfg}
+// NewTeamDetailView creates the MCP & tracker config view.
+func NewTeamDetailView(cfg TeamDetailViewConfig) *TeamDetailView {
+	return &TeamDetailView{cfg: cfg}
 }
 
 // SetShell provides the shell reference for toast/modal interactions.
-func (v *MCPConfigView) SetShell(s ShellAccess) { v.shell = s }
+func (v *TeamDetailView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier used by the omnibar router.
-func (v *MCPConfigView) ID() string { return "mcp.config" }
+func (v *TeamDetailView) ID() string { return "team.detail" }
 
 // Title returns the display title.
-func (v *MCPConfigView) Title() string { return "Services & Tracker" }
+func (v *TeamDetailView) Title() string { return "Équipe - Détail" }
 
 // StatusHints returns keybinding hints shown in the status bar.
-func (v *MCPConfigView) StatusHints() string {
+func (v *TeamDetailView) StatusHints() string {
 	if v.detailedMode {
 		return "v simple · g config équipe · l config locale · t tester · w sauvegarder · r refresh · Esc retour"
 	}
@@ -79,7 +79,7 @@ func (v *MCPConfigView) StatusHints() string {
 }
 
 // Mount builds and displays the view content.
-func (v *MCPConfigView) Mount(content *tview.Flex, app *tview.Application) {
+func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
 	v.tv = tview.NewTextView().
@@ -104,7 +104,7 @@ func (v *MCPConfigView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 // Unmount cleans up resources.
-func (v *MCPConfigView) Unmount() {
+func (v *TeamDetailView) Unmount() {
 	if v.dirty && v.shell != nil {
 		// Inform user of unsaved changes — they navigate away
 		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — utilisez 'w' pour sauvegarder", false)
@@ -114,7 +114,7 @@ func (v *MCPConfigView) Unmount() {
 }
 
 // HandleKey processes view key events.
-func (v *MCPConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case 'v':
 		v.detailedMode = !v.detailedMode
@@ -151,7 +151,7 @@ func (v *MCPConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPConfigView) loadAndRender() {
+func (v *TeamDetailView) loadAndRender() {
 	v.localMCP = v.cfg.GetMCPConfig()
 	v.localTrk = v.cfg.GetTrackerLocalConfig()
 
@@ -170,7 +170,7 @@ func (v *MCPConfigView) loadAndRender() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPConfigView) render() {
+func (v *TeamDetailView) render() {
 	if v.tv == nil {
 		return
 	}
@@ -230,7 +230,7 @@ func (v *MCPConfigView) render() {
 	v.tv.SetText(sb.String())
 }
 
-func (v *MCPConfigView) renderMCPSection(sb *strings.Builder, name string, shared *teamstate.SharedMCPConfig, local config.MCPServerConfig, eff tracker.EffectiveMCPConfig) {
+func (v *TeamDetailView) renderMCPSection(sb *strings.Builder, name string, shared *teamstate.SharedMCPConfig, local config.MCPServerConfig, eff tracker.EffectiveMCPConfig) {
 	displayName := strings.ToUpper(name[:1]) + name[1:]
 	sb.WriteString(fmt.Sprintf("  %s%s%s\n", theme.ColorTag(theme.AccentHex), "─── "+displayName+" ───", theme.TagColor))
 
@@ -293,7 +293,7 @@ func (v *MCPConfigView) renderMCPSection(sb *strings.Builder, name string, share
 	}
 }
 
-func (v *MCPConfigView) renderTrackerSection(sb *strings.Builder, eff tracker.EffectiveTrackerConfig) {
+func (v *TeamDetailView) renderTrackerSection(sb *strings.Builder, eff tracker.EffectiveTrackerConfig) {
 	if v.detailedMode {
 		shared := &v.teamCfg.Tracker
 		local := v.localTrk
@@ -346,21 +346,21 @@ func (v *MCPConfigView) renderTrackerSection(sb *strings.Builder, eff tracker.Ef
 // Actions
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPConfigView) editTeamConfig() {
+func (v *TeamDetailView) editTeamConfig() {
 	if v.shell == nil {
 		return
 	}
 	v.shell.ShowToastMsg("Utilisez 'oh team config' en CLI pour éditer la config d'équipe", true)
 }
 
-func (v *MCPConfigView) editLocalConfig() {
+func (v *TeamDetailView) editLocalConfig() {
 	if v.shell == nil {
 		return
 	}
 	v.shell.ShowToastMsg("Utilisez 'oh team config' en CLI pour éditer la config locale", true)
 }
 
-func (v *MCPConfigView) testConnection() {
+func (v *TeamDetailView) testConnection() {
 	if v.shell == nil || v.app == nil {
 		return
 	}
@@ -431,7 +431,7 @@ func (v *MCPConfigView) testConnection() {
 	}()
 }
 
-func (v *MCPConfigView) save() {
+func (v *TeamDetailView) save() {
 	if v.shell == nil {
 		return
 	}
@@ -445,7 +445,7 @@ func (v *MCPConfigView) save() {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPConfigView) resolveWriteEnabled() bool {
+func (v *TeamDetailView) resolveWriteEnabled() bool {
 	if v.teamCfg == nil {
 		return false
 	}

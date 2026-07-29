@@ -88,3 +88,40 @@ type CommandProvider interface {
 	// Called on each omnibar keystroke — implementations should cache results.
 	ContextCommands() []ContextCommand
 }
+
+// SelectOption represents a selectable option with a friendly label and a stored value.
+type SelectOption struct {
+	Label string // Friendly display (e.g. "Français")
+	Value string // Stored value (e.g. "fr")
+}
+
+// ModalAction represents a button action in a scrollable modal.
+type ModalAction struct {
+	Label    string
+	Callback func()
+}
+
+// ShellAccess provides access to shell overlay capabilities from views.
+type ShellAccess interface {
+	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+	ShowPasswordModal(title string, onConfirm func(value string))
+	ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))
+	ShowMultiSelectModal(title string, options []SelectOption, selected []string, onConfirm func(selected []string))
+	ShowScrollableModal(title, content string, actions []ModalAction)
+	ShowToastMsg(msg string, success bool)
+	ShowInlineForm(cfg InlineFormConfig)
+	// NavigateTo navigates to a registered view by ID.
+	NavigateTo(viewID string)
+	// SetProjectMode activates or deactivates project mode with the given project.
+	// Passing nil deactivates project mode (returns to hub mode).
+	SetProjectMode(project *ActiveProject)
+	// ActiveProject returns the currently active project, or nil in hub mode.
+	ActiveProject() *ActiveProject
+}
+
+// ActiveProject holds the minimal project context for the TUI project mode.
+type ActiveProject struct {
+	ID   string
+	Name string
+	Path string
+}

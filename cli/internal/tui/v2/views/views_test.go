@@ -157,19 +157,6 @@ func TestDoctorView_ImplementsView(t *testing.T) {
 	v.Unmount()
 }
 
-func TestConfigView_ImplementsView(t *testing.T) {
-	var _ View = (*ConfigView)(nil)
-
-	v := NewConfigView()
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "config", v.ID())
-	v.Unmount()
-}
-
 func TestMCPView_ImplementsView(t *testing.T) {
 	var _ View = (*MCPView)(nil)
 

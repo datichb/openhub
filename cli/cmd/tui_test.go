@@ -30,7 +30,7 @@ func TestBuildCommands(t *testing.T) {
 
 	assert.True(t, ids["start"], "should have start command")
 	assert.True(t, ids["board"], "should have board command")
-	assert.True(t, ids["config"], "should have config command")
+	assert.True(t, ids["settings"], "should have settings command")
 	assert.True(t, ids["doctor"], "should have doctor command")
 	assert.True(t, ids["quit"], "should have quit command")
 	assert.True(t, ids["home"], "should have home command")
