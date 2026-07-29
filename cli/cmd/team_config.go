@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -21,21 +22,14 @@ import (
 
 var teamConfigCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Configure les services MCP et le tracker (équipe et/ou local)",
-	Long: `Wizard interactif pour configurer les services MCP et le tracker sync.
-
-Vous pouvez configurer :
-  - La configuration d'équipe (partagée via team-state git)
-  - Votre configuration locale (hub.toml, uniquement pour vous)
-  - Les deux
-
-Les credentials (tokens) ne sont jamais partagés — ils restent toujours locaux.`,
-	RunE: runTeamConfigWizard,
+	Short: i18n.T("cmd.team.config.short"),
+	Long:  i18n.T("cmd.team.config.long"),
+	RunE:  runTeamConfigWizard,
 }
 
 var teamConfigStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Affiche la configuration MCP et tracker (équipe vs locale vs effective)",
+	Short: i18n.T("cmd.team.config.status.short"),
 	RunE:  runTeamConfigStatus,
 }
 
@@ -54,7 +48,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 
 	// Step 0 — Vérification du team-state
 	if !a.Config.ActiveTeam().Enabled {
-		fmt.Fprintf(a.IO.Out, "%s Team non configurée. Lance d'abord %s\n",
+		fmt.Fprintf(a.IO.Out, "%s Équipe non configurée. Lance d'abord %s\n",
 			theme.WarningStyle.Render(theme.IconWarning),
 			theme.Bold.Render("oh team init"))
 		return nil

@@ -28,19 +28,19 @@ func actionTeamInit() {
 
 	a := MustApp()
 
-	// Step 1 — Git remote URL (ShowInputModal, now has border+title like all modals)
-	tuiShell.ShowInputModal("Step 1 — Git remote URL du team-state", "", func(remote string) {
+	// Étape 1 — Git remote URL (ShowInputModal, now has border+title like all modals)
+	tuiShell.ShowInputModal("Étape 1 — Git remote URL du team-state", "", func(remote string) {
 		if remote == "" {
 			return
 		}
 
-		// showIdentityForm shows Step 2 (or 3 if HTTPS) — identity form.
+		// showIdentityForm shows Étape 2 (or 3 if HTTPS) — identity form.
 		showIdentityForm := func() {
 			go func() {
 				tuiShell.App().QueueUpdateDraw(func() {
-					stepLabel := "Step 2 — Identité"
+					stepLabel := "Étape 2 — Identité"
 					if teamstate.IsHTTPS(remote) {
-						stepLabel = "Step 3 — Identité"
+						stepLabel = "Étape 3 — Identité"
 					}
 					tuiShell.ShowInlineForm(views.InlineFormConfig{
 						Title: stepLabel,
@@ -83,7 +83,7 @@ func actionTeamInit() {
 							}
 							go func() {
 								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Initialisation team...", shell.ToastInfo)
+									tuiShell.ShowToast("Initialisation de l'équipe...", shell.ToastInfo)
 								})
 							}()
 							ctx := tuiShell.Context()
@@ -96,9 +96,9 @@ func actionTeamInit() {
 								err := runTeamInitFromTUI(a, remote, memberID, values["display_name"], values["role"])
 								tuiShell.App().QueueUpdateDraw(func() {
 									if err != nil {
-										tuiShell.ShowToast("Team init échoué: "+err.Error(), shell.ToastError)
+										tuiShell.ShowToast("Initialisation échouée: "+err.Error(), shell.ToastError)
 									} else {
-										tuiShell.ShowToast("Team initialisé ! Redémarrez le TUI pour les nouvelles options.", shell.ToastSuccess)
+										tuiShell.ShowToast("Équipe initialisée ! Redémarrez le TUI pour les nouvelles options.", shell.ToastSuccess)
 									}
 								})
 							}()
@@ -115,7 +115,7 @@ func actionTeamInit() {
 			}()
 		}
 
-		// Step 2 (HTTPS only) — credentials, then identity
+		// Étape 2 (HTTPS only) — credentials, then identity
 		if teamstate.IsHTTPS(remote) {
 			go func() {
 				tuiShell.App().QueueUpdateDraw(func() {
@@ -128,7 +128,7 @@ func actionTeamInit() {
 	})
 }
 
-// collectCredentialsForInit shows the "Step 2 — Authentification" select + credentials
+// collectCredentialsForInit shows the "Étape 2 — Authentification" select + credentials
 // form for hub-level team init (same flow as team configure, reused here).
 func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func()) {
 	authOptions := []views.SelectOption{
@@ -136,12 +136,12 @@ func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func(
 		{Label: "Déjà configuré (skip)", Value: "skip"},
 		{Label: "Non, accès public", Value: "public"},
 	}
-	tuiShell.ShowSelectModal("Step 2 — Authentification", authOptions, "provide", func(authChoice string) {
+	tuiShell.ShowSelectModal("Étape 2 — Authentification", authOptions, "provide", func(authChoice string) {
 		if authChoice == "provide" {
 			go func() {
 				tuiShell.App().QueueUpdateDraw(func() {
 					tuiShell.ShowInlineForm(views.InlineFormConfig{
-						Title: "Step 2 — Credentials",
+						Title: "Étape 2 — Credentials",
 						Fields: []views.FormField{
 							{
 								Key:     "username",
@@ -301,15 +301,15 @@ func actionTeamConfigure() {
 	hubTeam := a.Config.ActiveTeam()
 	hubMember := getHubMemberInfo(a)
 
-	// ── Step 1 : choose mode ─────────────────────────────────────────────
+	// ── Étape 1 : choose mode ─────────────────────────────────────────────
 	var modeOptions []views.SelectOption
 	if hubTeam.Enabled {
 		modeOptions = []views.SelectOption{
 			{
-				Label: fmt.Sprintf("Hériter du hub (%s, member : %s)", hubTeam.StateRepo, hubTeam.MemberID),
+				Label: fmt.Sprintf("Hériter du hub (%s, membre : %s)", hubTeam.StateRepo, hubTeam.MemberID),
 				Value: domain.ProjectTeamModeInherit,
 			},
-			{Label: "Configuration custom pour ce projet", Value: domain.ProjectTeamModeCustom},
+			{Label: "Configuration personnalisée pour ce projet", Value: domain.ProjectTeamModeCustom},
 			{Label: "Pas de team pour ce projet", Value: domain.ProjectTeamModeDisabled},
 		}
 	} else {
@@ -378,12 +378,12 @@ func collectCredentialsThenMember(a *app.App, projectID, customRepo string, hubM
 		{Label: "Déjà configuré (skip)", Value: "skip"},
 		{Label: "Non, accès public", Value: "public"},
 	}
-	tuiShell.ShowSelectModal("Step 1 — Authentification", authOptions, "provide", func(authChoice string) {
+	tuiShell.ShowSelectModal("Étape 1 — Authentification", authOptions, "provide", func(authChoice string) {
 		if authChoice == "provide" {
 			go func() {
 				tuiShell.App().QueueUpdateDraw(func() {
 					tuiShell.ShowInlineForm(views.InlineFormConfig{
-						Title: "Step 2 — Credentials",
+						Title: "Étape 2 — Credentials",
 						Fields: []views.FormField{
 							{
 								Key:     "username",
@@ -483,7 +483,7 @@ func continueCustomFlowWithMember(a *app.App, projectID, customRepo string, hubM
 // and calls runCustomSetupAndApply once submitted.
 func collectNewMemberAndApply(a *app.App, projectID, customRepo string) {
 	tuiShell.ShowInlineForm(views.InlineFormConfig{
-		Title: "Step 3 — Identité",
+		Title: "Étape 3 — Identité",
 		Fields: []views.FormField{
 			{
 				Key:      "member_id",
@@ -558,7 +558,7 @@ func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, display
 		// Show the "in progress" toast — QueueUpdateDraw blocks this goroutine
 		// until the toast is rendered, guaranteeing ordering.
 		tuiShell.App().QueueUpdateDraw(func() {
-			tuiShell.ShowToast("Initialisation team pour ce projet...", shell.ToastInfo)
+			tuiShell.ShowToast("Initialisation de l'équipe pour ce projet...", shell.ToastInfo)
 		})
 
 		// Run the actual setup (git clone/init/member/push) — blocking, network I/O.
@@ -567,7 +567,7 @@ func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, display
 		// Show the result toast.
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Erreur setup team : "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast("Erreur d'initialisation de l'équipe : "+err.Error(), shell.ToastError)
 				return
 			}
 
@@ -624,7 +624,7 @@ func applyProjectTeamConfig(a *app.App, projectID string, tc *domain.ProjectTeam
 		modeLabel = tc.Mode
 	}
 	tuiShell.ShowToast(
-		fmt.Sprintf("Team configurée : %s — redéployez pour appliquer", modeLabel),
+		fmt.Sprintf("Équipe configurée : %s — redéployez pour appliquer", modeLabel),
 		shell.ToastSuccess,
 	)
 }

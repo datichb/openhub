@@ -268,7 +268,7 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 					Aliases:     []string{"takeover", "briefs"},
 					Description: "Briefs de reprise de contexte",
 					Category:    "Team",
-					Action:      navigate("takeover-briefs"),
+					Action:      navigate("team.briefs"),
 				},
 				ContextCommand{
 					ID:          "project.patterns",
@@ -276,7 +276,7 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 					Aliases:     []string{"pat"},
 					Description: "Patterns d'équipe",
 					Category:    "Team",
-					Action:      navigate("patterns"),
+					Action:      navigate("team.patterns"),
 				},
 				ContextCommand{
 					ID:          "project.policies",
@@ -284,7 +284,7 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 					Aliases:     []string{"pol", "rules"},
 					Description: "Politiques d'équipe",
 					Category:    "Team",
-					Action:      navigate("policies"),
+					Action:      navigate("team.policies"),
 				},
 			)
 		}

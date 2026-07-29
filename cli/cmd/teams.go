@@ -8,35 +8,33 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var teamsCmd = &cobra.Command{
 	Use:   "teams",
-	Short: "Gestion des équipes configurées",
-	Long: `Commandes pour gérer les équipes auxquelles vous appartenez.
-Un utilisateur peut appartenir à plusieurs équipes. Chaque projet
-est rattaché à 0 ou 1 équipe.`,
+	Short: i18n.T("cmd.teams.short"),
+	Long:  i18n.T("cmd.teams.long"),
 }
 
 var teamsListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Liste les équipes configurées",
+	Short: i18n.T("cmd.teams.list.short"),
 	RunE:  runTeamsList,
 }
 
 var teamsAddCmd = &cobra.Command{
 	Use:   "add",
-	Short: "Ajouter une équipe",
-	Long: `Ajoute une nouvelle équipe au hub. Vous devez fournir l'URL du repo
-team-state et votre member_id dans cette équipe.`,
-	RunE: runTeamsAdd,
+	Short: i18n.T("cmd.teams.add.short"),
+	Long:  i18n.T("cmd.teams.add.long"),
+	RunE:  runTeamsAdd,
 }
 
 var teamsRemoveCmd = &cobra.Command{
 	Use:   "remove [team-id]",
-	Short: "Retirer une équipe",
-	Long:  `Retire une équipe du hub. Les projets rattachés deviennent des projets solo.`,
+	Short: i18n.T("cmd.teams.remove.short"),
+	Long:  i18n.T("cmd.teams.remove.long"),
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTeamsRemove,
 }

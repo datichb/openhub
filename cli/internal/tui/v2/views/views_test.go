@@ -194,7 +194,7 @@ func TestTeamStatusView_ImplementsView(t *testing.T) {
 	v.Mount(content, app)
 	assert.Greater(t, content.GetItemCount(), 0)
 	assert.Equal(t, "team.status", v.ID())
-	assert.Equal(t, "Team Status", v.Title())
+	assert.NotEmpty(t, v.Title()) // i18n-dependent, don't assert exact string
 	v.Unmount()
 }
 

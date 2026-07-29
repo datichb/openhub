@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -15,11 +16,9 @@ import (
 
 var teamBoardCmd = &cobra.Command{
 	Use:   "board",
-	Short: "Kanban board interactif de l'équipe",
-	Long: `Lance un tableau kanban plein écran montrant qui travaille sur quoi.
-Colonnes par status (IDLE / IN PROGRESS / REVIEW / BLOCKED).
-Navigation: h/l colonnes, j/k items, d detail, r refresh, q quit.`,
-	RunE: runTeamBoard,
+	Short: i18n.T("cmd.team.board.short"),
+	Long:  i18n.T("cmd.team.board.long"),
+	RunE:  runTeamBoard,
 }
 
 func init() {

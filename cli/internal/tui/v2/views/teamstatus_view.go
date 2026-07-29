@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -35,7 +36,7 @@ func (v *TeamStatusView) SetShell(s ShellAccess) { v.shell = s }
 func (v *TeamStatusView) ID() string { return "team.status" }
 
 // Title returns the display title.
-func (v *TeamStatusView) Title() string { return "Team Status" }
+func (v *TeamStatusView) Title() string { return i18n.T("tui.team.status") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamStatusView) StatusHints() string { return "r refresh · Esc retour" }

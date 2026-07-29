@@ -25,9 +25,8 @@ import (
 
 var teamCmd = &cobra.Command{
 	Use:   "team",
-	Short: "Gestion de l'équipe et de la collaboration",
-	Long: `Commandes pour le travail en équipe : initialisation, statut,
-activité, et gestion du wiki partagé.`,
+	Short: i18n.T("cmd.team.short"),
+	Long:  i18n.T("cmd.team.long"),
 }
 
 var teamInitCmd = &cobra.Command{
@@ -39,13 +38,13 @@ var teamInitCmd = &cobra.Command{
 
 var teamStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Affiche qui travaille sur quoi",
+	Short: i18n.T("cmd.team.status.short"),
 	RunE:  runTeamStatus,
 }
 
 var teamActivityCmd = &cobra.Command{
 	Use:   "activity",
-	Short: "Journal d'activité de l'équipe",
+	Short: i18n.T("cmd.team.activity.short"),
 	RunE:  runTeamActivity,
 }
 

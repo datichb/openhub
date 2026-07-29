@@ -7,6 +7,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -44,7 +45,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 }
 
 func (v *TeamsView) ID() string    { return "teams" }
-func (v *TeamsView) Title() string { return "Équipes" }
+func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
 	return "Enter:détail  a:ajouter  d:retirer  s:sync  r:refresh  u:undo"

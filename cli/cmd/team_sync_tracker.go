@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -13,22 +14,10 @@ import (
 
 var teamSyncTrackerCmd = &cobra.Command{
 	Use:   "sync-tracker",
-	Short: "Synchronise les claims avec le tracker externe (GitLab/Jira)",
-	Long: `Réconcilie les claims du team-state avec l'état des tickets sur le tracker.
-
-Pull direction (tracker → claims) :
-  - Ticket fermé sur GitLab/Jira → claim passé en "done"
-  - Ticket réouvert → claim repassé en "in_progress"
-  - Labels du tracker → synchronisés sur le claim
-
-Push direction (claims → tracker, nécessite write_enabled) :
-  - Label "agent-reviewed" sur le claim → ajouté sur l'issue GitLab/Jira
-  - Label "hub:done" si push_labels = true dans config.toml
-
-Auto-plan (si auto_plan_assigned = true) :
-  - Issues assignées à un membre sans claim → claim "planned" créé`,
-	RunE: runSyncTracker,
+	Short: i18n.T("cmd.team.sync_tracker.short"),
+	RunE:  runSyncTracker,
 }
+
 
 func init() {
 	teamCmd.AddCommand(teamSyncTrackerCmd)

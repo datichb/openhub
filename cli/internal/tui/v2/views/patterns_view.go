@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -34,10 +35,10 @@ func NewPatternsView(resolveTeam ResolveTeamFunc) *PatternsView {
 func (v *PatternsView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
-func (v *PatternsView) ID() string { return "patterns" }
+func (v *PatternsView) ID() string { return "team.patterns" }
 
 // Title returns the display title.
-func (v *PatternsView) Title() string { return "Patterns" }
+func (v *PatternsView) Title() string { return i18n.T("tui.team.patterns") }
 
 // StatusHints returns keybinding hints.
 func (v *PatternsView) StatusHints() string {

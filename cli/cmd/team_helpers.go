@@ -198,33 +198,33 @@ func buildProjectTeamStep(a *app.App, out **domain.ProjectTeamConfig) views.Wiza
 
 			if hubTeam.Enabled {
 				hubSummary := fmt.Sprintf("hub : %s (member : %s)", hubTeam.StateRepo, hubTeam.MemberID)
-				form.AddTextView("Team hub", hubSummary, 0, 1, false, false)
+				form.AddTextView("Équipe hub", hubSummary, 0, 1, false, false)
 				modeOptions := []string{
-					fmt.Sprintf("Utiliser la team du hub (%s)", hubTeam.MemberID),
+					fmt.Sprintf("Utiliser l'équipe du hub (%s)", hubTeam.MemberID),
 					"Configuration spécifique à ce projet",
-					"Pas de team pour ce projet",
+					"Pas d'équipe pour ce projet",
 				}
 				modeValues := []string{
 					domain.ProjectTeamModeInherit,
 					domain.ProjectTeamModeCustom,
 					domain.ProjectTeamModeDisabled,
 				}
-				form.AddDropDown("Mode team", modeOptions, 0, func(_ string, idx int) {
+				form.AddDropDown("Mode équipe", modeOptions, 0, func(_ string, idx int) {
 					if idx >= 0 && idx < len(modeValues) {
 						teamMode = modeValues[idx]
 					}
 				})
 			} else {
-				form.AddTextView("Team hub", "Aucune team configurée au niveau du hub.", 0, 1, false, false)
+				form.AddTextView("Équipe hub", "Aucune équipe configurée au niveau du hub.", 0, 1, false, false)
 				modeOptions := []string{
-					"Pas de team pour ce projet",
-					"Configurer une team spécifique à ce projet",
+					"Pas d'équipe pour ce projet",
+					"Configurer une équipe spécifique à ce projet",
 				}
 				modeValues := []string{
 					domain.ProjectTeamModeDisabled,
 					domain.ProjectTeamModeCustom,
 				}
-				form.AddDropDown("Mode team", modeOptions, 0, func(_ string, idx int) {
+				form.AddDropDown("Mode équipe", modeOptions, 0, func(_ string, idx int) {
 					if idx >= 0 && idx < len(modeValues) {
 						teamMode = modeValues[idx]
 					}
@@ -242,7 +242,7 @@ func buildProjectTeamStep(a *app.App, out **domain.ProjectTeamConfig) views.Wiza
 			form.AddTextView("", "  Identifiant unique dans l'équipe (ex: benjamin, alice)", 0, 1, false, false)
 			form.AddInputField("Nom d'affichage", displayName, 0, nil,
 				func(text string) { displayName = text })
-			form.AddTextView("", "  Votre nom tel qu'il apparaîtra dans les events team", 0, 1, false, false)
+			form.AddTextView("", "  Votre nom tel qu'il apparaîtra dans les événements d'équipe", 0, 1, false, false)
 			form.AddDropDown("Rôle", roleOptions, defaultRoleIdx, func(_ string, idx int) {
 				if idx >= 0 && idx < len(roleValues) {
 					role = roleValues[idx]

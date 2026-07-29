@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -74,7 +75,7 @@ func (v *TeamBoardView) SetActions(a *BoardActions) { v.actions = a }
 func (v *TeamBoardView) ID() string { return "team.board" }
 
 // Title returns the display title.
-func (v *TeamBoardView) Title() string { return "Team Board" }
+func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {

@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -35,7 +36,7 @@ func (v *ActivityView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ActivityView) ID() string { return "team.activity" }
 
 // Title returns the display title.
-func (v *ActivityView) Title() string { return "Activité" }
+func (v *ActivityView) Title() string { return i18n.T("tui.team.activity") }
 
 // StatusHints returns keybinding hints.
 func (v *ActivityView) StatusHints() string {

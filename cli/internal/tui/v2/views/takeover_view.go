@@ -7,6 +7,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -35,10 +36,10 @@ func (v *TakeoverView) SetShell(s ShellAccess) { v.shell = s }
 func (v *TakeoverView) SetOnEnrich(fn func(project, ticketID string) error) { v.onEnrich = fn }
 
 // ID returns the view identifier.
-func (v *TakeoverView) ID() string { return "takeover-briefs" }
+func (v *TakeoverView) ID() string { return "team.briefs" }
 
 // Title returns the display title.
-func (v *TakeoverView) Title() string { return "Takeover Briefs" }
+func (v *TakeoverView) Title() string { return i18n.T("tui.team.briefs") }
 
 // StatusHints returns keybinding hints.
 func (v *TakeoverView) StatusHints() string {
@@ -102,7 +103,7 @@ func (v *TakeoverView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		v.list.AddItem("  Team non configurée", "", 0, nil)
+		v.list.AddItem("  Équipe non configurée", "", 0, nil)
 		return
 	}
 

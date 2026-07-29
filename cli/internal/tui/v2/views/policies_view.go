@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -36,10 +37,10 @@ func NewPoliciesView(resolveTeam ResolveTeamFunc) *PoliciesView {
 func (v *PoliciesView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
-func (v *PoliciesView) ID() string { return "policies" }
+func (v *PoliciesView) ID() string { return "team.policies" }
 
 // Title returns the display title.
-func (v *PoliciesView) Title() string { return "Policies" }
+func (v *PoliciesView) Title() string { return i18n.T("tui.team.policies") }
 
 // StatusHints returns keybinding hints.
 func (v *PoliciesView) StatusHints() string {
