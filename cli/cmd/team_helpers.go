@@ -31,7 +31,7 @@ func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeam
 	if project != nil {
 		projectTeamCfg = project.TeamConfig
 	}
-	return config.ResolveTeamConfig(a.Config.Team, projectTeamCfg)
+	return config.ResolveTeamConfig(a.Config.ActiveTeam(), projectTeamCfg)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ func runTeamCustomSetup(a *app.App, remote, memberID, displayName, role string) 
 // The custom team setup is optional: if the git remote URL is left empty the
 // mode is treated as disabled instead of returning an error.
 func buildProjectTeamStep(a *app.App, out **domain.ProjectTeamConfig) views.WizardStep {
-	hubTeam := a.Config.Team
+	hubTeam := a.Config.ActiveTeam()
 	hubMember := getHubMemberInfo(a)
 
 	// Local state for the step

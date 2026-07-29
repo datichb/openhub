@@ -23,7 +23,7 @@ type Config struct {
 	// of hub.toml files that still use the [team] section. On Load, if Team is
 	// populated and Teams is empty, it is auto-migrated into Teams[0].
 	// New code should use Teams exclusively.
-	Team TeamConfig `mapstructure:"team"`
+	Team TeamConfig `mapstructure:"team" toml:"team,omitempty"`
 	// Teams holds the list of teams the user belongs to (ADR-029).
 	// Each project references a team by its ID (Project.TeamID).
 	Teams   []TeamConfig       `mapstructure:"teams"`

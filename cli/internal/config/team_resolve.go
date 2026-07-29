@@ -51,7 +51,7 @@ func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamCon
 
 	// Legacy compat: if project still uses old TeamConfig, fall through to old logic
 	if project.TeamConfig != nil {
-		return ResolveTeamConfig(cfg.Team, project.TeamConfig)
+		return ResolveTeamConfig(cfg.ActiveTeam(), project.TeamConfig)
 	}
 
 	// No team affiliation

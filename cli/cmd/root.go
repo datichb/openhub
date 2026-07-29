@@ -148,6 +148,14 @@ func initApp() error {
 		return err
 	}
 
+	// Auto-migrate legacy [team] → [[teams]] (ADR-029).
+	// Creates a backup of hub.toml before writing if migration occurs.
+	if migrated, backup, mErr := config.RunMigrationIfNeeded(a.Config); mErr != nil {
+		slog.Warn("team config migration failed", "error", mErr)
+	} else if migrated {
+		slog.Info("migrated [team] to [[teams]]", "backup", backup)
+	}
+
 	// Open SQLite store
 	s, err := sqlite.OpenDefault()
 	if err != nil {

@@ -925,17 +925,36 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 	return repo, nil
 }
 
-// writeTeamConfig updates hub.toml with team settings (upsert via Viper).
-// Safe to call multiple times — updates existing [team] section or creates it.
+// writeTeamConfig updates hub.toml with team settings using the new [[teams]] format.
+// It updates the in-memory Config.Teams and persists via config.Save().
 func writeTeamConfig(stateRepo, statePath, memberID string) error {
-	v := configViper()
-	v.Set("team.enabled", true)
-	v.Set("team.state_repo", stateRepo)
-	v.Set("team.state_path", statePath)
-	if memberID != "" {
-		v.Set("team.member_id", memberID)
+	a := MustApp()
+	id := config.RepoNameFromRemote(stateRepo)
+
+	newTeam := config.TeamConfig{
+		ID:        id,
+		Enabled:   true,
+		StateRepo: stateRepo,
+		StatePath: statePath,
+		MemberID:  memberID,
 	}
-	return v.WriteConfigAs(config.ConfigPath())
+
+	// Update or append
+	found := false
+	for i := range a.Config.Teams {
+		if a.Config.Teams[i].ID == id || a.Config.Teams[i].StateRepo == stateRepo {
+			a.Config.Teams[i] = newTeam
+			found = true
+			break
+		}
+	}
+	if !found {
+		a.Config.Teams = append(a.Config.Teams, newTeam)
+	}
+	// Clear legacy field
+	a.Config.Team = config.TeamConfig{}
+
+	return config.Save(a.Config)
 }
 
 func eventIcon(eventType string) string {

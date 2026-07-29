@@ -250,15 +250,6 @@ func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) 
 		return fmt.Errorf("commit: %w", err)
 	}
 
-	vip := configViper()
-	vip.Set("team.enabled", true)
-	vip.Set("team.state_repo", remote)
-	vip.Set("team.state_path", statePath)
-	vip.Set("team.member_id", memberID)
-	if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
-		return fmt.Errorf("writing hub.toml: %w", err)
-	}
-
 	// Update in-memory config to reflect the newly configured team.
 	// If Teams already has entries, update the first enabled one;
 	// otherwise, append a new entry (fresh setup).
@@ -273,6 +264,13 @@ func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) 
 		a.Config.Teams[0] = newTeam
 	} else {
 		a.Config.Teams = append(a.Config.Teams, newTeam)
+	}
+	// Clear legacy field to avoid stale data
+	a.Config.Team = config.TeamConfig{}
+
+	// Persist via config.Save (produces [[teams]] format, not legacy [team])
+	if err := config.Save(a.Config); err != nil {
+		return fmt.Errorf("writing hub.toml: %w", err)
 	}
 
 	return nil
