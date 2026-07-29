@@ -299,7 +299,7 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	}
 
 	// Resolve effective team config (project override → hub fallback)
-	resolvedTeam := config.ResolveTeamConfig(a.Config.Team, projectTeamCfg)
+	resolvedTeam := config.ResolveTeamConfig(a.Config.ActiveTeam(), projectTeamCfg)
 
 	// Build list of enabled MCP servers for agent validation warnings
 	mcpServers := buildMCPServersForProject(a, projectMCPCfg, resolvedTeam)
@@ -331,7 +331,7 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 			deploy.DeployAgents(hubDir, selectedAgents),
 			deploy.DeploySkills(hubDir, selectedAgents),
 			deploy.DeployConfig(provider, model),
-			deploy.DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, resolvedProvider),
+			deploy.DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, nil, resolvedProvider),
 			deploy.DeployMCP(mcpServers, "oh"),
 			deploy.DeployTeamConfig(deployedTeam),
 		},

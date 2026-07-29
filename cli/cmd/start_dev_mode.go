@@ -173,7 +173,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	}
 
 	// Auto-claim selected ticket
-	if teamRepo != nil && teamRepo.IsCloned() && a.Config.Team.MemberID != "" {
+	if teamRepo != nil && teamRepo.IsCloned() && a.Config.ActiveTeam().MemberID != "" {
 		claimID := selected.ticket.ID
 		if selected.isEpic {
 			claimID = selected.epicID
@@ -195,11 +195,11 @@ func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, proj
 	existing, claimErr := repo.CreateClaim(ctx, teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project.ID,
-		ClaimedBy: a.Config.Team.MemberID,
+		ClaimedBy: a.Config.ActiveTeam().MemberID,
 		Status:    teamstate.ClaimStatusInProgress,
 	})
 	if claimErr == teamstate.ErrClaimExists && existing != nil {
-		if existing.ClaimedBy != a.Config.Team.MemberID {
+		if existing.ClaimedBy != a.Config.ActiveTeam().MemberID {
 			fmt.Fprintf(a.IO.Out, "  %s %s déjà pris par %s\n",
 				theme.WarningStyle.Render(theme.IconWarning), ticketID, existing.ClaimedBy)
 			return
@@ -219,8 +219,8 @@ func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, proj
 
 // defaultTeamStatePath returns the team state path from config or default.
 func defaultTeamStatePath(a *app.App) string {
-	if a.Config.Team.StatePath != "" {
-		return a.Config.Team.StatePath
+	if a.Config.ActiveTeam().StatePath != "" {
+		return a.Config.ActiveTeam().StatePath
 	}
 	return config.DefaultTeamStatePath()
 }

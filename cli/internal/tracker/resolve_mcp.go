@@ -9,13 +9,17 @@ import (
 // merging team-state recommendations with local hub.toml overrides.
 //
 // Token and WriteEnabled are always local (never shared) — only Enabled and URL
-// can come from team-state recommendations.
+// can come from team-state recommendations or enforcements.
 type EffectiveMCPConfig struct {
 	// Enabled is the resolved "is this service active?" flag.
 	Enabled bool
+	// EnabledEnforced is true when Enabled is imposed by the team (cannot be overridden).
+	EnabledEnforced bool
 	// URL is the resolved base URL for the service.
-	// Precedence: local MCPServerConfig.URL → shared SharedMCPConfig.URL → built-in default.
+	// Precedence: team enforced → local → team recommended → built-in default.
 	URL string
+	// URLEnforced is true when URL is imposed by the team.
+	URLEnforced bool
 	// TokenKey is the keychain key name. Always from the local config (never shared).
 	TokenKey string
 	// WriteEnabled is the local write permission. Always from the local config.
@@ -31,10 +35,14 @@ type EffectiveMCPConfig struct {
 // ResolveMCPConfig merges a team-state MCP recommendation with a local hub.toml
 // MCP server config for a single service (e.g. "gitlab", "figma").
 //
+// Resolution cascade (ADR-030):
+//  1. Team ENFORCED → imposed value, cannot be overridden
+//  2. Local hub.toml → member's personal choice
+//  3. Team RECOMMENDED → fallback when no local preference
+//
 // Merge rules:
-//   - Enabled:          local.Enabled (if the service is referenced in hub.toml)
-//                       OR shared.Enabled (if not locally set)
-//   - URL:              local.URL → shared.URL → ""  (caller provides the built-in default)
+//   - Enabled:          enforced → local (if explicit) → shared recommended
+//   - URL:              enforced → local.URL → shared.URL → ""
 //   - TokenKey:         always from local (secrets are never shared)
 //   - WriteEnabled:     always from local (permissions are personal)
 //   - WriteRecommended: always from shared (informational)
@@ -47,31 +55,45 @@ func ResolveMCPConfig(shared *teamstate.SharedMCPConfig, local config.MCPServerC
 		WriteEnabled: local.WriteEnabled,
 	}
 
-	// URL: local override → shared recommendation → empty (caller uses built-in default)
-	switch {
-	case local.URL != "":
-		eff.URL = local.URL
-	case shared != nil && shared.URL != "":
-		eff.URL = shared.URL
-	}
-
 	// WriteRecommended: from shared only (informational)
 	if shared != nil {
 		eff.WriteRecommended = shared.WriteRecommended
 	}
 
-	// Enabled: local takes priority; fall back to shared recommendation.
-	// A local MCPServerConfig.Enabled = true|false is always an explicit local choice
-	// (the field is a plain bool — false means "not enabled locally").
-	// We treat the local config as "explicit" when the token_key is set or when
-	// the local Enabled flag is true, because having a token key means the member
-	// intentionally configured this service.
-	localExplicit := local.Enabled || local.Token != ""
-	if localExplicit {
-		eff.Enabled = local.Enabled
-		eff.LocalOverridesEnabled = true
-	} else if shared != nil && shared.Enabled != nil {
+	// --- URL resolution ---
+	// Step 1: Team enforced URL?
+	if shared != nil && shared.IsURLEnforced() && shared.URL != "" {
+		eff.URL = shared.URL
+		eff.URLEnforced = true
+	} else {
+		// Step 2: Local URL override → Step 3: Team recommended URL
+		switch {
+		case local.URL != "":
+			eff.URL = local.URL
+		case shared != nil && shared.URL != "":
+			eff.URL = shared.URL
+		}
+	}
+
+	// --- Enabled resolution ---
+	// Step 1: Team enforced Enabled?
+	if shared != nil && shared.IsEnabledEnforced() && shared.Enabled != nil {
 		eff.Enabled = *shared.Enabled
+		eff.EnabledEnforced = true
+	} else {
+		// Step 2: Local explicit setting
+		// A local MCPServerConfig.Enabled = true|false is always an explicit local choice.
+		// We treat the local config as "explicit" when the token_key is set or when
+		// the local Enabled flag is true, because having a token key means the member
+		// intentionally configured this service.
+		localExplicit := local.Enabled || local.Token != ""
+		if localExplicit {
+			eff.Enabled = local.Enabled
+			eff.LocalOverridesEnabled = true
+		} else if shared != nil && shared.Enabled != nil {
+			// Step 3: Team recommended
+			eff.Enabled = *shared.Enabled
+		}
 	}
 
 	return eff

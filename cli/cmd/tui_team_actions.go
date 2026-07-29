@@ -214,7 +214,7 @@ func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func(
 }
 
 func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) error {
-	statePath := a.Config.Team.StatePath
+	statePath := a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
@@ -259,10 +259,21 @@ func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) 
 		return fmt.Errorf("writing hub.toml: %w", err)
 	}
 
-	a.Config.Team.Enabled = true
-	a.Config.Team.StateRepo = remote
-	a.Config.Team.StatePath = statePath
-	a.Config.Team.MemberID = memberID
+	// Update in-memory config to reflect the newly configured team.
+	// If Teams already has entries, update the first enabled one;
+	// otherwise, append a new entry (fresh setup).
+	newTeam := config.TeamConfig{
+		ID:        config.RepoNameFromRemote(remote),
+		Enabled:   true,
+		StateRepo: remote,
+		StatePath: statePath,
+		MemberID:  memberID,
+	}
+	if len(a.Config.Teams) > 0 {
+		a.Config.Teams[0] = newTeam
+	} else {
+		a.Config.Teams = append(a.Config.Teams, newTeam)
+	}
 
 	return nil
 }
@@ -289,7 +300,7 @@ func actionTeamConfigure() {
 		return
 	}
 
-	hubTeam := a.Config.Team
+	hubTeam := a.Config.ActiveTeam()
 	hubMember := getHubMemberInfo(a)
 
 	// ── Step 1 : choose mode ─────────────────────────────────────────────
@@ -564,7 +575,7 @@ func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, display
 
 			effectiveMemberID := memberID
 			if effectiveMemberID == "" {
-				effectiveMemberID = a.Config.Team.MemberID
+				effectiveMemberID = a.Config.ActiveTeam().MemberID
 			}
 
 			tc := &domain.ProjectTeamConfig{
@@ -625,7 +636,7 @@ func applyProjectTeamConfig(a *app.App, projectID string, tc *domain.ProjectTeam
 // ─────────────────────────────────────────────────────────────────────────────
 
 func runTakeoverEnrich(a *app.App, project, ticketID string) error {
-	repo := teamstate.NewRepo(a.Config.Team.StateRepo, a.Config.Team.StatePath)
+	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
 
 	content, err := repo.ReadBrief(project, ticketID)
 	if err != nil {

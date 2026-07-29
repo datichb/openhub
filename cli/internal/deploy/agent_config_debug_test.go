@@ -16,7 +16,7 @@ func TestDeployAgentConfigOrchestrator(t *testing.T) {
 		t.Fatal(err)
 	}
 	
-	block := buildAgentBlock(fm, "planning", nil, nil, "bedrock")
+	block := buildAgentBlock(fm, "planning", nil, nil, nil, "bedrock")
 	b, _ := json.MarshalIndent(block, "", "  ")
 	fmt.Println("Built block for orchestrator:")
 	fmt.Println(string(b))

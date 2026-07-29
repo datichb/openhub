@@ -21,8 +21,9 @@ import (
 //   - selected: agent names to configure (empty = all found agents)
 //   - projectOverrides: model overrides from the project DB (nil = no project overrides)
 //   - hubOverrides: model overrides from hub.toml (nil = no hub overrides)
+//   - teamOverrides: model overrides from team-state config (nil = no team recommendations)
 //   - provider: resolved provider for this project (for model normalization)
-func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOverrides *ModelOverrides, provider string) Phase {
+func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) Phase {
 	return Phase{
 		Name: "Agent Configuration",
 		Execute: func(ctx *Context) error {
@@ -100,7 +101,7 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 				family := AgentFamily(rel)
 
 				// Build agent config block
-				agentBlock := buildAgentBlock(fm, family, projectOverrides, hubOverrides, provider)
+				agentBlock := buildAgentBlock(fm, family, projectOverrides, hubOverrides, teamOverrides, provider)
 				if agentBlock != nil {
 					// DEBUG TEMP: log task permissions for orchestrator
 					if fm.ID == "orchestrator" {
@@ -138,7 +139,7 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 
 // buildAgentBlock constructs the per-agent configuration block for opencode.json.
 // Returns nil if there's nothing meaningful to write (no mode, no permissions, no model).
-func buildAgentBlock(fm *AgentFrontmatter, family string, projectOverrides, hubOverrides *ModelOverrides, provider string) map[string]interface{} {
+func buildAgentBlock(fm *AgentFrontmatter, family string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) map[string]interface{} {
 	block := make(map[string]interface{})
 
 	// Description: required by opencode for agent display and delegation
@@ -152,7 +153,7 @@ func buildAgentBlock(fm *AgentFrontmatter, family string, projectOverrides, hubO
 	}
 
 	// Model: resolve via cascade
-	model := ResolveAgentModel(fm.ID, family, projectOverrides, hubOverrides, fm.Model, provider)
+	model := ResolveAgentModel(fm.ID, family, projectOverrides, hubOverrides, teamOverrides, fm.Model, provider)
 	if model != "" {
 		block["model"] = model
 	}

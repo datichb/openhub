@@ -98,14 +98,14 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	var repo *teamstate.Repo
 
 	// Determine local path
-	statePath = a.Config.Team.StatePath
+	statePath = a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
 
 	// If already configured in hub.toml, clone/pull immediately (skip Step 0)
-	if a.Config.Team.StateRepo != "" {
-		stateRepo = a.Config.Team.StateRepo
+	if a.Config.ActiveTeam().StateRepo != "" {
+		stateRepo = a.Config.ActiveTeam().StateRepo
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			if err := repo.Pull(ctx); err != nil {
@@ -172,8 +172,8 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		}
 
 		// Pre-fill member ID from hub.toml if available
-		if a.Config.Team.MemberID != "" {
-			memberID = a.Config.Team.MemberID
+		if a.Config.ActiveTeam().MemberID != "" {
+			memberID = a.Config.ActiveTeam().MemberID
 		}
 
 		// Pre-fill member profile if exists
@@ -190,8 +190,8 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	} else {
 		staleDaysStr = "3"
 		botName = "OpenHub"
-		if a.Config.Team.MemberID != "" {
-			memberID = a.Config.Team.MemberID
+		if a.Config.ActiveTeam().MemberID != "" {
+			memberID = a.Config.ActiveTeam().MemberID
 		}
 	}
 
@@ -202,7 +202,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		Required:   true,
 		SkipIf: func() bool {
 			// Skip if repo URL already configured (clone/pull done above)
-			return a.Config.Team.StateRepo != ""
+			return a.Config.ActiveTeam().StateRepo != ""
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
@@ -608,18 +608,18 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 
 	// If nothing was configured (all steps skipped, no prior config), treat as abort
-	if stateRepo == "" && a.Config.Team.StateRepo == "" {
+	if stateRepo == "" && a.Config.ActiveTeam().StateRepo == "" {
 		return nil
 	}
 
 	// Resolve memberID (may have been set in wizard)
 	if memberID == "" {
-		memberID = a.Config.Team.MemberID
+		memberID = a.Config.ActiveTeam().MemberID
 	}
 
 	// Write hub.toml team config (upsert — safe to call multiple times)
-	needsWrite := a.Config.Team.StateRepo == "" ||
-		(a.Config.Team.MemberID != memberID && memberID != "")
+	needsWrite := a.Config.ActiveTeam().StateRepo == "" ||
+		(a.Config.ActiveTeam().MemberID != memberID && memberID != "")
 	if needsWrite {
 		if err := writeTeamConfig(stateRepo, statePath, memberID); err != nil {
 			return err
@@ -1025,13 +1025,13 @@ func findExistingCloneForRemote(ctx context.Context, a *app.App, remoteURL strin
 	norm := normalizeRemoteURL(remoteURL)
 
 	// 1. Check hub-level team config
-	if a.Config.Team.StateRepo != "" &&
-		normalizeRemoteURL(a.Config.Team.StateRepo) == norm &&
-		a.Config.Team.StatePath != "" {
-		repo := teamstate.NewRepo(a.Config.Team.StateRepo, a.Config.Team.StatePath)
+	if a.Config.ActiveTeam().StateRepo != "" &&
+		normalizeRemoteURL(a.Config.ActiveTeam().StateRepo) == norm &&
+		a.Config.ActiveTeam().StatePath != "" {
+		repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
 		if repo.IsCloned() {
 			return existingClone{
-				Path:   a.Config.Team.StatePath,
+				Path:   a.Config.ActiveTeam().StatePath,
 				Source: "configuration hub",
 			}, true
 		}
@@ -1080,8 +1080,8 @@ func collectUsedMemberIDs(ctx context.Context, a *app.App) map[string]bool {
 	used := make(map[string]bool)
 
 	// Hub-level member_id
-	if a.Config.Team.MemberID != "" {
-		used[a.Config.Team.MemberID] = true
+	if a.Config.ActiveTeam().MemberID != "" {
+		used[a.Config.ActiveTeam().MemberID] = true
 	}
 
 	// Per-project member IDs

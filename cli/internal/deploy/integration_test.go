@@ -40,7 +40,7 @@ func TestIntegration_FullDeployPipeline(t *testing.T) {
 			DeployAgents(hubDir, selectedAgents),
 			DeploySkills(hubDir, selectedAgents),
 			DeployConfig("anthropic", "claude-opus-4"),
-			DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, "anthropic"),
+			DeployAgentConfig(hubDir, selectedAgents, projectOverrides, hubOverrides, nil, "anthropic"),
 		},
 	}
 
@@ -129,7 +129,7 @@ func TestIntegration_DeployFilterOnly(t *testing.T) {
 		Phases: []Phase{
 			DeployAgents(hubDir, selectedAgents),
 			DeployConfig("", ""),
-			DeployAgentConfig(hubDir, selectedAgents, nil, nil, "anthropic"),
+			DeployAgentConfig(hubDir, selectedAgents, nil, nil, nil, "anthropic"),
 		},
 	}
 
@@ -172,7 +172,7 @@ func TestIntegration_BedrockProviderNormalization(t *testing.T) {
 		Phases: []Phase{
 			DeployAgents(hubDir, selectedAgents),
 			DeployConfig("bedrock", ""),
-			DeployAgentConfig(hubDir, selectedAgents, nil, nil, "bedrock"),
+			DeployAgentConfig(hubDir, selectedAgents, nil, nil, nil, "bedrock"),
 		},
 	}
 

@@ -51,7 +51,7 @@ func TestResolveAgentModel_FullCascade(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveAgentModel(tt.agentID, tt.family, projectOverrides, hubOverrides, tt.frontmatterModel, tt.provider)
+			result := ResolveAgentModel(tt.agentID, tt.family, projectOverrides, hubOverrides, nil, tt.frontmatterModel, tt.provider)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -98,7 +98,7 @@ func TestResolveAgentModel_HubLevels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveAgentModel(tt.agentID, tt.family, nil, hubOverrides, tt.frontmatterModel, tt.provider)
+			result := ResolveAgentModel(tt.agentID, tt.family, nil, hubOverrides, nil, tt.frontmatterModel, tt.provider)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -106,13 +106,13 @@ func TestResolveAgentModel_HubLevels(t *testing.T) {
 
 func TestResolveAgentModel_FrontmatterFloor(t *testing.T) {
 	// No overrides at all — falls through to frontmatter
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, "anthropic/claude-sonnet-4-6", "anthropic")
+	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "anthropic")
 	assert.Equal(t, "anthropic/claude-sonnet-4-6", result)
 }
 
 func TestResolveAgentModel_NoModelAnywhere(t *testing.T) {
 	// No model at any level
-	result := ResolveAgentModel("designer", "design", nil, nil, "", "anthropic")
+	result := ResolveAgentModel("designer", "design", nil, nil, nil, "", "anthropic")
 	assert.Equal(t, "", result)
 }
 
@@ -121,19 +121,19 @@ func TestResolveAgentModel_BedrockProvider(t *testing.T) {
 		Agents: map[string]string{"reviewer": "claude-opus-4"},
 	}
 
-	result := ResolveAgentModel("reviewer", "quality", nil, hubOverrides, "", "bedrock")
+	result := ResolveAgentModel("reviewer", "quality", nil, hubOverrides, nil, "", "bedrock")
 	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1", result)
 }
 
 func TestResolveAgentModel_BedrockProviderWithFrontmatter(t *testing.T) {
 	// Frontmatter declares "anthropic/claude-sonnet-4-6", project uses bedrock
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, "anthropic/claude-sonnet-4-6", "bedrock")
+	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "bedrock")
 	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6", result)
 }
 
 func TestResolveAgentModel_EmptyProvider(t *testing.T) {
 	// If provider is empty, return model as-is without normalization
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, "anthropic/claude-sonnet-4-6", "")
+	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "")
 	assert.Equal(t, "anthropic/claude-sonnet-4-6", result)
 }
 
@@ -210,7 +210,7 @@ func TestResolveAgentModel_ProjectOverrideBeatsHub(t *testing.T) {
 		Agents: map[string]string{"reviewer": "claude-opus-4"},
 	}
 
-	result := ResolveAgentModel("reviewer", "quality", projectOverrides, hubOverrides, "anthropic/claude-opus-4", "anthropic")
+	result := ResolveAgentModel("reviewer", "quality", projectOverrides, hubOverrides, nil, "anthropic/claude-opus-4", "anthropic")
 	assert.Equal(t, "anthropic/claude-sonnet-4-5", result)
 }
 
@@ -221,7 +221,7 @@ func TestResolveAgentModel_FamilyOverrideBeatsGlobal(t *testing.T) {
 		Families: map[string]string{"quality": "claude-opus-4"},
 	}
 
-	result := ResolveAgentModel("reviewer", "quality", projectOverrides, nil, "", "anthropic")
+	result := ResolveAgentModel("reviewer", "quality", projectOverrides, nil, nil, "", "anthropic")
 	assert.Equal(t, "anthropic/claude-opus-4", result)
 }
 
@@ -232,7 +232,7 @@ func TestResolveAgentModel_NoFamilySkipsLevel(t *testing.T) {
 		Families: map[string]string{"planning": "claude-opus-4"},
 	}
 
-	result := ResolveAgentModel("standalone", "", projectOverrides, nil, "", "anthropic")
+	result := ResolveAgentModel("standalone", "", projectOverrides, nil, nil, "", "anthropic")
 	// Falls to level 3 (project global) because no family match
 	assert.Equal(t, "anthropic/claude-sonnet-4-5", result)
 }

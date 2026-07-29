@@ -19,11 +19,51 @@ type Config struct {
 	Provider ProviderConfigs `mapstructure:"provider"`
 	MCP      MCPConfig       `mapstructure:"mcp"`
 	Worktree WorktreeConfig  `mapstructure:"worktree"`
-	Team     TeamConfig      `mapstructure:"team"`
-	Models   ModelsConfig    `mapstructure:"models"`
+	// Team is the legacy single-team field. Retained for backward-compat reading
+	// of hub.toml files that still use the [team] section. On Load, if Team is
+	// populated and Teams is empty, it is auto-migrated into Teams[0].
+	// New code should use Teams exclusively.
+	Team TeamConfig `mapstructure:"team"`
+	// Teams holds the list of teams the user belongs to (ADR-029).
+	// Each project references a team by its ID (Project.TeamID).
+	Teams   []TeamConfig       `mapstructure:"teams"`
+	Models  ModelsConfig       `mapstructure:"models"`
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
 	Tracker TrackerLocalConfig `mapstructure:"tracker"`
+}
+
+// FindTeam looks up a team by ID. Returns nil if not found.
+func (c *Config) FindTeam(id string) *TeamConfig {
+	for i := range c.Teams {
+		if c.Teams[i].ID == id {
+			return &c.Teams[i]
+		}
+	}
+	return nil
+}
+
+// FindTeamByRepo looks up a team by its StateRepo URL. Returns nil if not found.
+func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
+	for i := range c.Teams {
+		if c.Teams[i].StateRepo == repo {
+			return &c.Teams[i]
+		}
+	}
+	return nil
+}
+
+// DefaultTeam returns the first enabled team, or nil if no teams are configured.
+func (c *Config) DefaultTeam() *TeamConfig {
+	for i := range c.Teams {
+		if c.Teams[i].Enabled {
+			return &c.Teams[i]
+		}
+	}
+	if len(c.Teams) > 0 {
+		return &c.Teams[0]
+	}
+	return nil
 }
 
 // ModelsConfig holds the model resolution cascade at the hub level.
@@ -35,11 +75,30 @@ type ModelsConfig struct {
 }
 
 // TeamConfig holds team collaboration settings.
+// Each entry represents a team the user belongs to; the hub may reference
+// multiple teams via the [[teams]] TOML array (or the legacy [team] section
+// for backward-compat single-team setups).
 type TeamConfig struct {
+	// ID is a short local identifier for referencing this team (e.g. "acme").
+	// Used by projects to declare their team affiliation (Project.TeamID).
+	// When migrating from the legacy [team] section, ID is auto-derived from
+	// the StateRepo URL (last path segment, stripped of ".git").
+	ID string `mapstructure:"id"`
+	// Name is a human-readable display name (e.g. "Equipe ACME").
+	// Optional — if empty, ID is used for display.
+	Name      string `mapstructure:"name"`
 	Enabled   bool   `mapstructure:"enabled"`
 	StateRepo string `mapstructure:"state_repo"` // Git remote URL for the team-state repo
 	StatePath string `mapstructure:"state_path"` // Local clone path (default: ~/.oh/team-state)
 	MemberID  string `mapstructure:"member_id"`  // Current user's member ID
+}
+
+// DisplayName returns Name if set, otherwise falls back to ID.
+func (t TeamConfig) DisplayName() string {
+	if t.Name != "" {
+		return t.Name
+	}
+	return t.ID
 }
 
 // WorktreeConfig holds git worktree management settings.
@@ -142,6 +201,30 @@ func ConfigPath() string {
 // DefaultTeamStatePath returns the default local path for the team-state repo.
 func DefaultTeamStatePath() string {
 	return filepath.Join(HubDir(), "team-state")
+}
+
+// ActiveTeam returns the effective "current team" for backward-compat with code
+// that accessed cfg.Team directly. Resolution:
+//  1. If Teams has entries → return the first enabled team (or first team if none enabled)
+//  2. If Teams is empty but legacy Team has a StateRepo → return legacy Team
+//  3. Otherwise → return a zero TeamConfig (disabled)
+//
+// This method bridges the transition from single-team to multi-team. New code
+// should use FindTeam(id) with a project's TeamID instead.
+func (c *Config) ActiveTeam() TeamConfig {
+	if len(c.Teams) > 0 {
+		for _, t := range c.Teams {
+			if t.Enabled {
+				return t
+			}
+		}
+		return c.Teams[0]
+	}
+	// Legacy fallback
+	if c.Team.StateRepo != "" {
+		return c.Team
+	}
+	return TeamConfig{}
 }
 
 // Load reads the hub.toml configuration. It is safe to call multiple times.

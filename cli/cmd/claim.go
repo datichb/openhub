@@ -79,7 +79,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	memberID := a.Config.Team.MemberID
+	memberID := a.Config.ActiveTeam().MemberID
 	if memberID == "" {
 		return fmt.Errorf("member_id non configuré dans hub.toml. Lance %s",
 			theme.Bold.Render("oh team init"))
@@ -236,7 +236,7 @@ func runRelease(cmd *cobra.Command, args []string) error {
 		theme.SuccessStyle.Render(theme.IconSuccess), project, ticketID)
 
 	_ = repo.AppendEvent(ctx, teamstate.Event{
-		Actor:   a.Config.Team.MemberID,
+		Actor:   a.Config.ActiveTeam().MemberID,
 		Type:    teamstate.EventClaimReleased,
 		Project: project,
 		Ticket:  ticketID,

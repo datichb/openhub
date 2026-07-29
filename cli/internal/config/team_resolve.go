@@ -15,6 +15,8 @@ import (
 type ResolvedTeamConfig struct {
 	// Enabled reports whether team features are active for this project.
 	Enabled bool
+	// TeamID is the resolved team identifier (from Config.Teams[].ID).
+	TeamID string
 	// StateRepo is the Git remote URL of the team-state repository.
 	StateRepo string
 	// StatePath is the local filesystem path to the team-state clone.
@@ -23,7 +25,42 @@ type ResolvedTeamConfig struct {
 	MemberID string
 }
 
+// ResolveTeamForProject resolves the effective team configuration for a project
+// using the new TeamID-based model (ADR-029).
+//
+// Resolution rules:
+//   - project.TeamID == nil → solo project, team features disabled
+//   - project.TeamID points to a valid teams[].id → use that team config
+//   - project.TeamID points to unknown ID → team features disabled (graceful)
+func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamConfig {
+	// New model: TeamID-based lookup
+	if project.TeamID != nil && *project.TeamID != "" {
+		team := cfg.FindTeam(*project.TeamID)
+		if team == nil {
+			// Unknown team ID — graceful degradation
+			return ResolvedTeamConfig{Enabled: false}
+		}
+		return ResolvedTeamConfig{
+			Enabled:   team.Enabled,
+			TeamID:    team.ID,
+			StateRepo: team.StateRepo,
+			StatePath: team.StatePath,
+			MemberID:  team.MemberID,
+		}
+	}
+
+	// Legacy compat: if project still uses old TeamConfig, fall through to old logic
+	if project.TeamConfig != nil {
+		return ResolveTeamConfig(cfg.Team, project.TeamConfig)
+	}
+
+	// No team affiliation
+	return ResolvedTeamConfig{Enabled: false}
+}
+
 // ResolveTeamConfig merges a project-level override with the hub-level TeamConfig.
+// This is the legacy resolution function kept for backward-compat with projects
+// that still have a ProjectTeamConfig (not yet migrated to TeamID).
 //
 // Resolution rules:
 //   - nil or Mode == "inherit" → returns the hub config as-is
@@ -34,6 +71,7 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 	if project == nil || project.Mode == "" || project.Mode == domain.ProjectTeamModeInherit {
 		return ResolvedTeamConfig{
 			Enabled:   hub.Enabled,
+			TeamID:    hub.ID,
 			StateRepo: hub.StateRepo,
 			StatePath: hub.StatePath,
 			MemberID:  hub.MemberID,
@@ -78,6 +116,13 @@ func TeamStatePath(remoteURL string) string {
 		home = "."
 	}
 	return filepath.Join(home, ".oh", "team-states", name)
+}
+
+// RepoNameFromRemote is the exported version of repoNameFromRemote.
+// It extracts the repository base name from a remote URL, useful for
+// deriving team IDs from Git remote URLs.
+func RepoNameFromRemote(remote string) string {
+	return repoNameFromRemote(remote)
 }
 
 // repoNameFromRemote extracts the repository base name from a remote URL.

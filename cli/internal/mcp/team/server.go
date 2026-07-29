@@ -287,11 +287,12 @@ func loadEffectiveTeamConfig() (deploy.DeployedTeamConfig, error) {
 	if err != nil {
 		return deploy.DeployedTeamConfig{}, fmt.Errorf("loading hub config: %w", err)
 	}
+	activeTeam := cfg.ActiveTeam()
 	return deploy.DeployedTeamConfig{
-		Enabled:   cfg.Team.Enabled,
-		StateRepo: cfg.Team.StateRepo,
-		StatePath: cfg.Team.StatePath,
-		MemberID:  cfg.Team.MemberID,
+		Enabled:   activeTeam.Enabled,
+		StateRepo: activeTeam.StateRepo,
+		StatePath: activeTeam.StatePath,
+		MemberID:  activeTeam.MemberID,
 	}, nil
 }
 

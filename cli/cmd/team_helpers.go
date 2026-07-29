@@ -50,20 +50,20 @@ type hubMemberInfo struct {
 // hub's team-state repo (members.toml). Returns zero-value struct when the
 // hub has no team, the repo is not cloned, or the member is not found.
 func getHubMemberInfo(a *app.App) hubMemberInfo {
-	if !a.Config.Team.Enabled || a.Config.Team.MemberID == "" {
+	if !a.Config.ActiveTeam().Enabled || a.Config.ActiveTeam().MemberID == "" {
 		return hubMemberInfo{}
 	}
-	statePath := a.Config.Team.StatePath
+	statePath := a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
-	repo := teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, statePath)
 	if !repo.IsCloned() {
-		return hubMemberInfo{MemberID: a.Config.Team.MemberID}
+		return hubMemberInfo{MemberID: a.Config.ActiveTeam().MemberID}
 	}
-	member, err := repo.GetMember(a.Config.Team.MemberID)
+	member, err := repo.GetMember(a.Config.ActiveTeam().MemberID)
 	if err != nil {
-		return hubMemberInfo{MemberID: a.Config.Team.MemberID}
+		return hubMemberInfo{MemberID: a.Config.ActiveTeam().MemberID}
 	}
 	return hubMemberInfo{
 		MemberID:    member.ID,
@@ -94,7 +94,7 @@ func runTeamCustomSetup(a *app.App, remote, memberID, displayName, role string) 
 	// Resolve member ID
 	effectiveMemberID := memberID
 	if effectiveMemberID == "" {
-		effectiveMemberID = a.Config.Team.MemberID
+		effectiveMemberID = a.Config.ActiveTeam().MemberID
 	}
 	if effectiveMemberID == "" {
 		return runTeamCustomSetupResult{}, fmt.Errorf("member ID requis (ni fourni, ni disponible dans le hub)")
@@ -276,7 +276,7 @@ func buildProjectTeamStep(a *app.App, out **domain.ProjectTeamConfig) views.Wiza
 
 				effectiveMemberID := customMember
 				if effectiveMemberID == "" {
-					effectiveMemberID = a.Config.Team.MemberID
+					effectiveMemberID = a.Config.ActiveTeam().MemberID
 				}
 
 				*out = &domain.ProjectTeamConfig{

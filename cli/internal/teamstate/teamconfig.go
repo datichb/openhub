@@ -15,28 +15,59 @@ type TeamConfig struct {
 	Parallel     ParallelConfig            `toml:"parallel"`
 	Claim        ClaimConfig               `toml:"claim"`
 	Tracker      TrackerConfig             `toml:"tracker"`
-	// MCP holds team-level recommendations for MCP services.
+	// MCP holds team-level recommendations/enforcements for MCP services.
 	// Each key is a service name ("gitlab", "jira", "figma", "gslides").
-	// These are optional defaults — individual hub.toml settings always override.
 	MCP map[string]SharedMCPConfig `toml:"mcp"`
+	// Models holds team-level model recommendations (ADR-030).
+	// These are always recommendations (overridable) — never enforced.
+	// Resolution: Project > Hub > Team(recommended) > Agent Frontmatter.
+	Models TeamModelsConfig `toml:"models"`
+}
+
+// TeamModelsConfig holds team-level model recommendations.
+// All fields are recommendations that hub and project can override.
+type TeamModelsConfig struct {
+	// Default is the team-recommended default model for all agents.
+	Default string `toml:"default,omitempty"`
+	// Families maps family names to recommended models.
+	Families map[string]string `toml:"families,omitempty"`
+	// Agents maps agent IDs to recommended models.
+	Agents map[string]string `toml:"agents,omitempty"`
 }
 
 // SharedMCPConfig holds team-level recommendations for a single MCP service.
 // These are NOT credentials — they express what the team uses collectively.
-// Individual members can override any field in their own hub.toml.
+//
+// Each field can optionally be enforced via a companion *Enforced bool:
+//   - Enforced = nil or false → the field is a recommendation (hub/project can override)
+//   - Enforced = true → the field is imposed, hub/project cannot override
 type SharedMCPConfig struct {
 	// Enabled is the team recommendation: does the team use this service?
 	// nil = no recommendation (each member decides independently).
 	Enabled *bool `toml:"enabled,omitempty"`
+	// EnabledEnforced marks Enabled as a team enforcement (cannot be overridden).
+	EnabledEnforced *bool `toml:"enabled_enforced,omitempty"`
 	// URL is the service base URL when the team uses a self-hosted instance.
 	// Example: "https://gitlab.example.com" or a self-hosted Jira URL.
 	// Empty = use the per-member default (public SaaS instance).
 	URL string `toml:"url,omitempty"`
+	// URLEnforced marks URL as a team enforcement (cannot be overridden).
+	URLEnforced *bool `toml:"url_enforced,omitempty"`
 	// WriteRecommended signals that the team recommends enabling write operations
 	// for this service (e.g. MR creation on GitLab, label push).
 	// The actual write permission is always controlled by the member's
 	// hub.toml [mcp.<service>].write_enabled — this is informational only.
 	WriteRecommended bool `toml:"write_recommended,omitempty"`
+}
+
+// IsEnabledEnforced reports whether the Enabled field is enforced by the team.
+func (s SharedMCPConfig) IsEnabledEnforced() bool {
+	return s.EnabledEnforced != nil && *s.EnabledEnforced
+}
+
+// IsURLEnforced reports whether the URL field is enforced by the team.
+func (s SharedMCPConfig) IsURLEnforced() bool {
+	return s.URLEnforced != nil && *s.URLEnforced
 }
 
 // NotificationConfig holds notification dispatcher settings.
@@ -95,6 +126,8 @@ type TrackerConfig struct {
 	Enabled bool `toml:"enabled"`
 	// Type selects the tracker backend: "gitlab" or "jira".
 	Type string `toml:"type"`
+	// TypeEnforced marks Type as factual/enforced (cannot be overridden locally).
+	TypeEnforced *bool `toml:"type_enforced,omitempty"`
 	// AutoSync triggers a sync automatically when team views are opened.
 	AutoSync bool `toml:"auto_sync"`
 	// SyncIntervalMinutes is the polling interval when the board is open.
@@ -109,6 +142,8 @@ type TrackerConfig struct {
 	// PushLabels enables syncing claim labels back to the tracker (requires
 	// write_enabled on the MCP gitlab/jira server).
 	PushLabels bool `toml:"push_labels"`
+	// PushLabelsEnforced marks PushLabels as enforced by the team.
+	PushLabelsEnforced *bool `toml:"push_labels_enforced,omitempty"`
 	// TicketPatterns maps hub project IDs to a regex with one capture group
 	// that extracts the external tracker IID from a ticket ID string.
 	// Example: {"T-SRU": "SRU-(\\d+)", "T-FRONT": "FRONT-(\\d+)"}

@@ -1122,7 +1122,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
-				memberID := a.Config.Team.MemberID
+				memberID := a.Config.ActiveTeam().MemberID
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,

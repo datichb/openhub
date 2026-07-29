@@ -22,8 +22,12 @@ type Project struct {
 	MCPConfig      *ProjectMCPConfig      // per-project MCP overrides (nil = inherit hub defaults)
 	ProviderConfig *ProjectProviderConfig // per-project provider config overrides (nil = inherit hub)
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
-	TeamConfig     *ProjectTeamConfig     // per-project team config (nil = inherit hub team config)
-	Status         ProjectStatus
+	TeamConfig     *ProjectTeamConfig     // deprecated: use TeamID. Kept for backward compat migration.
+	// TeamID links this project to a team by its ID (matching a teams[].id entry
+	// in hub.toml). nil = solo project (no team affiliation). When set, the project
+	// inherits team-level configuration (MCP, tracker, models, policies).
+	TeamID *string
+	Status ProjectStatus
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

@@ -53,13 +53,13 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
 	// Step 0 — Vérification du team-state
-	if !a.Config.Team.Enabled {
+	if !a.Config.ActiveTeam().Enabled {
 		fmt.Fprintf(a.IO.Out, "%s Team non configurée. Lance d'abord %s\n",
 			theme.WarningStyle.Render(theme.IconWarning),
 			theme.Bold.Render("oh team init"))
 		return nil
 	}
-	repo := teamstate.NewRepo(a.Config.Team.StateRepo, a.Config.Team.StatePath)
+	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
 	if !repo.IsCloned() {
 		fmt.Fprintf(a.IO.Out, "%s Team-state non cloné. Lance d'abord %s\n",
 			theme.WarningStyle.Render(theme.IconWarning),

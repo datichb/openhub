@@ -132,3 +132,116 @@ func TestTeamStatePath_IsInsideTeamStatesDir(t *testing.T) {
 		t.Errorf("path should be inside team-states dir, got %s", got)
 	}
 }
+
+// --- Tests for ResolveTeamForProject (new multi-team model) ---
+
+func TestResolveTeamForProject_NilTeamID(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	project := &domain.Project{ID: "proj1", TeamID: nil}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if got.Enabled {
+		t.Fatal("nil TeamID should mean solo project → disabled")
+	}
+}
+
+func TestResolveTeamForProject_ValidTeamID(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/path/acme", MemberID: "alice"},
+			{ID: "beta", Enabled: true, StateRepo: "git@github.com:beta/ts.git", StatePath: "/path/beta", MemberID: "bob"},
+		},
+	}
+	teamID := "beta"
+	project := &domain.Project{ID: "proj1", TeamID: &teamID}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if !got.Enabled {
+		t.Fatal("expected enabled")
+	}
+	if got.TeamID != "beta" {
+		t.Errorf("expected TeamID 'beta', got %q", got.TeamID)
+	}
+	if got.MemberID != "bob" {
+		t.Errorf("expected MemberID 'bob', got %q", got.MemberID)
+	}
+	if got.StatePath != "/path/beta" {
+		t.Errorf("expected StatePath /path/beta, got %q", got.StatePath)
+	}
+}
+
+func TestResolveTeamForProject_UnknownTeamID(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	teamID := "nonexistent"
+	project := &domain.Project{ID: "proj1", TeamID: &teamID}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if got.Enabled {
+		t.Fatal("unknown TeamID should gracefully disable")
+	}
+}
+
+func TestResolveTeamForProject_DisabledTeam(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: false, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	teamID := "acme"
+	project := &domain.Project{ID: "proj1", TeamID: &teamID}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if got.Enabled {
+		t.Fatal("disabled team should propagate Enabled=false")
+	}
+	if got.TeamID != "acme" {
+		t.Errorf("TeamID should still be set even if disabled, got %q", got.TeamID)
+	}
+}
+
+func TestResolveTeamForProject_LegacyFallback(t *testing.T) {
+	cfg := &config.Config{
+		Team: config.TeamConfig{
+			ID: "legacy", Enabled: true, StateRepo: "git@gitlab.com:old/ts.git",
+			StatePath: "/old/path", MemberID: "charlie",
+		},
+	}
+	project := &domain.Project{
+		ID:     "proj1",
+		TeamID: nil,
+		TeamConfig: &domain.ProjectTeamConfig{
+			Mode: domain.ProjectTeamModeInherit,
+		},
+	}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if !got.Enabled {
+		t.Fatal("legacy inherit mode should resolve to hub team")
+	}
+	if got.MemberID != "charlie" {
+		t.Errorf("expected MemberID 'charlie' from legacy hub, got %q", got.MemberID)
+	}
+}
+
+func TestResolveTeamForProject_EmptyTeamID(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	emptyID := ""
+	project := &domain.Project{ID: "proj1", TeamID: &emptyID}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if got.Enabled {
+		t.Fatal("empty string TeamID should be treated as no team")
+	}
+}

@@ -563,7 +563,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 		{"figma", "Figma", a.Config.MCP.Figma.Enabled, a.Config.MCP.Figma.Token, "FIGMA_TOKEN"},
 		{"gitlab", "GitLab", a.Config.MCP.Gitlab.Enabled, a.Config.MCP.Gitlab.Token, "GITLAB_TOKEN"},
 		{"gslides", "Google Slides", a.Config.MCP.Gslides.Enabled, a.Config.MCP.Gslides.Token, "GOOGLE_ACCESS_TOKEN"},
-		{"team", "Team", a.Config.Team.Enabled, "", ""},
+		{"team", "Team", a.Config.ActiveTeam().Enabled, "", ""},
 	}
 
 	// Build project override lookup

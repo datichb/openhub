@@ -39,7 +39,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
 	// Resolve team config.
-	tc := a.Config.Team
+	tc := a.Config.ActiveTeam()
 	if !tc.Enabled {
 		return fmt.Errorf("team non configurée. Lance %s", theme.Bold.Render("oh team init"))
 	}

@@ -113,7 +113,7 @@ func TestDeployAgentConfig_AllAgents(t *testing.T) {
 		HubDir:      hubDir,
 	}
 
-	phase := DeployAgentConfig(hubDir, nil, nil, nil, "anthropic")
+	phase := DeployAgentConfig(hubDir, nil, nil, nil, nil, "anthropic")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err)
@@ -172,7 +172,7 @@ func TestDeployAgentConfig_FilteredAgents(t *testing.T) {
 	}
 
 	// Only deploy orchestrator
-	phase := DeployAgentConfig(hubDir, []string{"orchestrator"}, nil, nil, "anthropic")
+	phase := DeployAgentConfig(hubDir, []string{"orchestrator"}, nil, nil, nil, "anthropic")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestDeployAgentConfig_ModelCascade(t *testing.T) {
 		Agents:   map[string]string{"reviewer": "claude-opus-4"},
 	}
 
-	phase := DeployAgentConfig(hubDir, nil, nil, hubOverrides, "anthropic")
+	phase := DeployAgentConfig(hubDir, nil, nil, hubOverrides, nil, "anthropic")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err)
@@ -250,7 +250,7 @@ func TestDeployAgentConfig_ProjectOverrideBeatsHub(t *testing.T) {
 		Agents: map[string]string{"reviewer": "claude-opus-4"},
 	}
 
-	phase := DeployAgentConfig(hubDir, []string{"reviewer"}, projectOverrides, hubOverrides, "anthropic")
+	phase := DeployAgentConfig(hubDir, []string{"reviewer"}, projectOverrides, hubOverrides, nil, "anthropic")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ func TestDeployAgentConfig_BedrockNormalization(t *testing.T) {
 	}
 
 	// Deploy with bedrock provider — models should be normalized
-	phase := DeployAgentConfig(hubDir, []string{"orchestrator", "reviewer"}, nil, nil, "bedrock")
+	phase := DeployAgentConfig(hubDir, []string{"orchestrator", "reviewer"}, nil, nil, nil, "bedrock")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err)
@@ -310,7 +310,7 @@ func TestDeployAgentConfig_NoAgentsDir(t *testing.T) {
 		HubDir:      emptyHub,
 	}
 
-	phase := DeployAgentConfig(emptyHub, nil, nil, nil, "anthropic")
+	phase := DeployAgentConfig(emptyHub, nil, nil, nil, nil, "anthropic")
 	ctx := &Context{Plan: plan}
 	err := phase.Execute(ctx)
 	require.NoError(t, err) // Should not error on missing agents dir

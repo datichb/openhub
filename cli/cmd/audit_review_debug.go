@@ -223,18 +223,18 @@ func isMainBranch(name string) bool {
 }
 
 func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch string) {
-	statePath := a.Config.Team.StatePath
+	statePath := a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
 	}
-	repo := teamstate.NewRepo(a.Config.Team.StateRepo, statePath)
+	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, statePath)
 	if !repo.IsCloned() {
 		return
 	}
 
 	event := teamstate.Event{
 		Timestamp: time.Now().UTC(),
-		Actor:     a.Config.Team.MemberID,
+		Actor:     a.Config.ActiveTeam().MemberID,
 		Type:      teamstate.EventReviewReady,
 		Project:   projectID,
 		Ticket:    ticket,

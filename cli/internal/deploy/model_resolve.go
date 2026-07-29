@@ -5,14 +5,14 @@ import (
 )
 
 // ModelOverrides holds per-agent and per-family model overrides at a single cascade level.
-// Used both for hub-level (from hub.toml) and project-level (from DB) overrides.
+// Used for hub-level (from hub.toml), project-level (from DB), and team-level (from team-state) overrides.
 type ModelOverrides struct {
 	Default  string            // global model at this level
 	Families map[string]string // family name → model
 	Agents   map[string]string // agent-id → model
 }
 
-// ResolveAgentModel resolves the effective model for a given agent using the 7-level cascade.
+// ResolveAgentModel resolves the effective model for a given agent using the 10-level cascade.
 //
 // Cascade priority (first match wins):
 //  1. Project-level agent override
@@ -21,18 +21,22 @@ type ModelOverrides struct {
 //  4. Hub-level agent override
 //  5. Hub-level family override
 //  6. Hub-level global model
-//  7. Agent frontmatter floor
+//  7. Team-level agent recommendation
+//  8. Team-level family recommendation
+//  9. Team-level global model recommendation
+//  10. Agent frontmatter floor
 //
 // Arguments:
 //   - agentID: the agent identifier (e.g., "reviewer")
 //   - family: the agent's family derived from directory (e.g., "quality")
 //   - projectOverrides: model overrides at the project level (nil if none)
 //   - hubOverrides: model overrides at the hub level (nil if none)
+//   - teamOverrides: model overrides at the team level (nil if none) — always recommendations
 //   - frontmatterModel: the model declared in the agent's frontmatter (may be empty)
 //   - provider: the resolved provider for this project (e.g., "bedrock", "anthropic")
 //
 // Returns the normalized model string for opencode.json, or "" if no model is defined at any level.
-func ResolveAgentModel(agentID, family string, projectOverrides, hubOverrides *ModelOverrides, frontmatterModel, provider string) string {
+func ResolveAgentModel(agentID, family string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, frontmatterModel, provider string) string {
 	// Walk the cascade: first non-empty match wins
 	resolved := ""
 
@@ -80,7 +84,29 @@ func ResolveAgentModel(agentID, family string, projectOverrides, hubOverrides *M
 		goto normalize
 	}
 
-	// Level 7: Agent frontmatter floor
+	// Level 7: Team-level agent recommendation (ADR-030)
+	if teamOverrides != nil && teamOverrides.Agents != nil {
+		if m, ok := teamOverrides.Agents[agentID]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 8: Team-level family recommendation
+	if teamOverrides != nil && teamOverrides.Families != nil && family != "" {
+		if m, ok := teamOverrides.Families[family]; ok && m != "" {
+			resolved = m
+			goto normalize
+		}
+	}
+
+	// Level 9: Team-level global model recommendation
+	if teamOverrides != nil && teamOverrides.Default != "" {
+		resolved = teamOverrides.Default
+		goto normalize
+	}
+
+	// Level 10: Agent frontmatter floor
 	if frontmatterModel != "" {
 		resolved = frontmatterModel
 		goto normalize
