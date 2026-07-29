@@ -11,7 +11,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -23,25 +22,14 @@ type MCPService struct {
 	WriteEnabled bool
 }
 
-// ProjectMCPOverride holds the per-project state for a single MCP service.
-type ProjectMCPOverride struct {
-	Name      string // service name
-	Override  string // "inherit" | "enabled" | "disabled"
-	Effective bool   // resolved effective state (hub + override)
-}
+// MCPViewConfig holds configuration for the MCP view.
+type MCPViewConfig struct{}
 
-// MCPViewConfig holds callbacks for project-level MCP persistence.
-type MCPViewConfig struct {
-	// OnUpdateProjectMCP is called when the user changes a per-project MCP
-	// override. state is "inherit", "enabled", or "disabled".
-	OnUpdateProjectMCP func(projectID, service, state string)
-}
-
-// MCPView displays MCP server management with two tview.List panels:
-//   - Hub panel (global config: enable/disable, token, write)
-//   - Project panel (per-project overrides: inherit/enabled/disabled)
+// MCPView displays MCP server management with a single tview.List panel
+// for hub-level configuration (enable/disable, token, write).
 //
-// Tab switches focus between the two panels.
+// Per-project MCP overrides are managed exclusively in ProjectConfigView
+// (single mutation path — ADR-031).
 type MCPView struct {
 	app    *tview.Application
 	appCtx *app.App
@@ -49,17 +37,11 @@ type MCPView struct {
 	shell  ShellAccess
 
 	// Layout
-	content     *tview.Flex
-	hubList     *tview.List
-	projectList *tview.List
-	projectLabel *tview.TextView
+	content *tview.Flex
+	hubList *tview.List
 
 	// Data
-	services         []MCPService
-	projectOverrides []ProjectMCPOverride
-	projects         []domain.Project
-	selectedProjectID string
-	selectedProject   string
+	services []MCPService
 
 	commands []ContextCommand
 }
@@ -83,7 +65,7 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · Space toggle · t token · w écriture · Tab panel · p projet · Enter override"
+	return "j/k nav · Space toggle · t token · w écriture · r refresh"
 }
 
 // Mount builds the MCP management interface.
@@ -92,7 +74,6 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// ── Load data ──────────────────────────────────────────────────────
 	v.loadServices()
-	v.loadProjects()
 
 	// ── Hub label ──────────────────────────────────────────────────────
 	hubLabel := tview.NewTextView().
@@ -113,27 +94,10 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.hubList.SetBorderPadding(0, 0, 2, 2)
 	v.populateHubList()
 
-	// ── Project label ─────────────────────────────────────────────────
-	v.projectLabel = tview.NewTextView().
-		SetDynamicColors(true)
-	v.projectLabel.SetBackgroundColor(theme.BgPanel)
-	v.updateProjectLabel()
-
-	// ── Project list ──────────────────────────────────────────────────
-	v.projectList = tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSelectedTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.Accent)
-	v.projectList.SetBackgroundColor(theme.BgPanel)
-	v.projectList.SetBorderPadding(0, 0, 2, 2)
-	v.populateProjectList()
-
 	// ── Hints ─────────────────────────────────────────────────────────
 	hints := tview.NewTextView().
 		SetDynamicColors(true).
-		SetText(fmt.Sprintf("  %sHub: Space toggle · t token · w écriture   Projet: Enter override · p choisir   Tab: changer panel%s",
+		SetText(fmt.Sprintf("  %sSpace toggle · t token · w écriture · r refresh%s",
 			theme.ColorTag(theme.TextMutedHex), theme.TagColor))
 	hints.SetBackgroundColor(theme.BgPanel)
 
@@ -141,21 +105,11 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.content = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(hubLabel, 1, 0, false).
 		AddItem(v.hubList, len(v.services)+1, 0, true).
-		AddItem(v.projectLabel, 1, 0, false).
-		AddItem(v.projectList, v.projectListHeight(), 0, false).
 		AddItem(hints, 2, 0, false)
 	v.content.SetBackgroundColor(theme.BgPanel)
 
-	// ── Key handlers on lists ─────────────────────────────────────────
-	// Hub list: Space, t, w actions
+	// ── Key handlers on hub list ─────────────────────────────────────
 	v.hubList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyTab:
-			if len(v.projectOverrides) > 0 {
-				v.app.SetFocus(v.projectList)
-			}
-			return nil
-		}
 		switch event.Rune() {
 		case ' ':
 			v.toggleHubCurrent()
@@ -166,26 +120,9 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 		case 'w':
 			v.toggleWriteCurrent()
 			return nil
-		case 'p':
-			v.selectProject()
-			return nil
-		}
-		return event
-	})
-
-	// Project list: Enter cycle, p select, Tab back to hub
-	v.projectList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEnter:
-			v.cycleProjectOverride()
-			return nil
-		case tcell.KeyTab:
-			v.app.SetFocus(v.hubList)
-			return nil
-		}
-		switch event.Rune() {
-		case 'p':
-			v.selectProject()
+		case 'r':
+			v.loadServices()
+			v.populateHubList()
 			return nil
 		}
 		return event
@@ -200,18 +137,11 @@ func (v *MCPView) Unmount() {
 	v.app = nil
 	v.content = nil
 	v.hubList = nil
-	v.projectList = nil
-	v.projectLabel = nil
 	v.commands = nil
 }
 
 // HandleKey delegates to the focused list; Tab is handled by the lists themselves.
 func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	// p is handled by list InputCapture; ensure it doesn't fall through to omnibar.
-	if event.Rune() == 'p' {
-		v.selectProject()
-		return nil
-	}
 	// All other navigation is handled natively by the focused tview.List.
 	return event
 }
@@ -273,78 +203,6 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Project list management
-// ─────────────────────────────────────────────────────────────────────────────
-
-func (v *MCPView) populateProjectList() {
-	v.projectList.Clear()
-	if len(v.projectOverrides) == 0 {
-		v.projectList.AddItem(
-			fmt.Sprintf("  %sAucun projet sélectionné — appuyez p pour choisir%s",
-				theme.ColorTag(theme.TextMutedHex), theme.TagColor),
-			"", 0, nil)
-		return
-	}
-	for _, ov := range v.projectOverrides {
-		v.projectList.AddItem(v.projectItemText(ov), "", 0, nil)
-	}
-}
-
-func (v *MCPView) projectItemText(ov ProjectMCPOverride) string {
-	var stateLabel, stateColor string
-	switch ov.Override {
-	case "enabled":
-		stateLabel = "activer   "
-		stateColor = theme.SuccessHex
-	case "disabled":
-		stateLabel = "désactiver"
-		stateColor = theme.ErrorHex
-	default:
-		stateLabel = "hérite hub"
-		stateColor = theme.TextMutedHex
-	}
-
-	var effLabel, effColor string
-	if ov.Effective {
-		effLabel = "actif"
-		effColor = theme.SuccessHex
-	} else {
-		effLabel = "inactif"
-		effColor = theme.TextMutedHex
-	}
-
-	return fmt.Sprintf("  %s%-12s%s  [%s%s%s]  → %s%s%s",
-		theme.ColorTag(theme.TextPrimaryHex), ov.Name, theme.TagColor,
-		theme.ColorTag(stateColor), stateLabel, theme.TagColor,
-		theme.ColorTag(effColor), effLabel, theme.TagColor)
-}
-
-func (v *MCPView) updateProjectLabel() {
-	if v.selectedProjectID == "" {
-		v.projectLabel.SetText(fmt.Sprintf("  %s─── Projet (aucun sélectionné) ──────────────────────%s",
-			theme.ColorTag(theme.AccentHex), theme.TagColor))
-	} else {
-		v.projectLabel.SetText(fmt.Sprintf("  %s─── Projet : %s ──────────────────────────────────────%s",
-			theme.ColorTag(theme.AccentHex), v.selectedProject, theme.TagColor))
-	}
-}
-
-func (v *MCPView) projectListHeight() int {
-	if len(v.projectOverrides) == 0 {
-		return 2
-	}
-	return len(v.projectOverrides) + 1
-}
-
-// resizeProjectList updates the project list height in the layout after data change.
-func (v *MCPView) resizeProjectList() {
-	if v.content == nil {
-		return
-	}
-	// Rebuild layout to update heights (tview.Flex doesn't support dynamic resize directly)
-	// Simpler: just update the item fixed size via ResizeItem
-	v.content.ResizeItem(v.projectList, v.projectListHeight(), 0)
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hub-level actions
@@ -366,8 +224,6 @@ func (v *MCPView) toggleHubCurrent() {
 	v.hubList.SetItemText(idx, v.hubItemText(*svc), v.hubItemSubtext(*svc))
 
 	// Recompute effective states in project overrides
-	v.recomputeEffective()
-	v.populateProjectList()
 
 	v.buildCommands()
 
@@ -443,8 +299,6 @@ func (v *MCPView) toggleService(name string, enable bool) {
 			vip.Set(fmt.Sprintf("mcp.%s.enabled", name), enable)
 			_ = vip.WriteConfigAs(config.ConfigPath())
 			v.hubList.SetItemText(i, v.hubItemText(v.services[i]), v.hubItemSubtext(v.services[i]))
-			v.recomputeEffective()
-			v.populateProjectList()
 			v.buildCommands()
 			return
 		}
@@ -455,129 +309,7 @@ func (v *MCPView) toggleService(name string, enable bool) {
 // Project-level actions
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPView) selectProject() {
-	if v.shell == nil {
-		return
-	}
-	if len(v.projects) == 0 {
-		v.shell.ShowToastMsg("Aucun projet enregistré", false)
-		return
-	}
-	options := make([]SelectOption, len(v.projects))
-	for i, p := range v.projects {
-		options[i] = SelectOption{Label: p.Name, Value: p.ID}
-	}
-	v.shell.ShowSelectModal("Choisir un projet", options, v.selectedProjectID, func(projectID string) {
-		for _, p := range v.projects {
-			if p.ID == projectID {
-				v.selectedProjectID = p.ID
-				v.selectedProject = p.Name
-				v.rebuildProjectOverrides(p)
-				v.updateProjectLabel()
-				v.populateProjectList()
-				v.resizeProjectList()
-				// Switch focus to project list
-				if v.app != nil {
-					v.app.SetFocus(v.projectList)
-				}
-				v.buildCommands()
-				return
-			}
-		}
-	})
-}
 
-func (v *MCPView) cycleProjectOverride() {
-	idx := v.projectList.GetCurrentItem()
-	if idx < 0 || idx >= len(v.projectOverrides) {
-		return
-	}
-	ov := &v.projectOverrides[idx]
-
-	next := map[string]string{
-		"inherit":  "enabled",
-		"enabled":  "disabled",
-		"disabled": "inherit",
-	}
-	ov.Override = next[ov.Override]
-	ov.Effective = v.resolveEffective(ov.Name, ov.Override)
-
-	// Persist
-	if v.cfg.OnUpdateProjectMCP != nil {
-		v.cfg.OnUpdateProjectMCP(v.selectedProjectID, ov.Name, ov.Override)
-	}
-
-	// Update list item in place
-	v.projectList.SetItemText(idx, v.projectItemText(*ov), "")
-
-	if v.shell != nil {
-		labels := map[string]string{
-			"inherit":  "hérite hub",
-			"enabled":  "activé",
-			"disabled": "désactivé",
-		}
-		v.shell.ShowToastMsg(fmt.Sprintf("%s : %s", ov.Name, labels[ov.Override]), true)
-	}
-
-	v.buildCommands()
-}
-
-func (v *MCPView) rebuildProjectOverrides(p domain.Project) {
-	overrideMap := make(map[string]string)
-	if p.MCPConfig != nil {
-		for _, svc := range p.MCPConfig.Services {
-			if svc.Enabled == nil {
-				overrideMap[svc.Name] = "inherit"
-			} else if *svc.Enabled {
-				overrideMap[svc.Name] = "enabled"
-			} else {
-				overrideMap[svc.Name] = "disabled"
-			}
-		}
-	}
-	v.projectOverrides = v.projectOverrides[:0]
-	for _, svc := range v.services {
-		if svc.Name == "team" {
-			continue
-		}
-		override := "inherit"
-		if val, ok := overrideMap[svc.Name]; ok {
-			override = val
-		}
-		v.projectOverrides = append(v.projectOverrides, ProjectMCPOverride{
-			Name:      svc.Name,
-			Override:  override,
-			Effective: v.resolveEffective(svc.Name, override),
-		})
-	}
-}
-
-func (v *MCPView) recomputeEffective() {
-	for i := range v.projectOverrides {
-		v.projectOverrides[i].Effective = v.resolveEffective(
-			v.projectOverrides[i].Name,
-			v.projectOverrides[i].Override,
-		)
-	}
-}
-
-func (v *MCPView) resolveEffective(serviceName, override string) bool {
-	hubEnabled := false
-	for _, svc := range v.services {
-		if svc.Name == serviceName {
-			hubEnabled = svc.Enabled
-			break
-		}
-	}
-	switch override {
-	case "enabled":
-		return true
-	case "disabled":
-		return false
-	default:
-		return hubEnabled
-	}
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data loading
@@ -597,16 +329,6 @@ func (v *MCPView) loadServices() {
 	}
 }
 
-func (v *MCPView) loadProjects() {
-	if v.appCtx == nil || v.appCtx.Projects == nil {
-		return
-	}
-	projects, err := v.appCtx.Projects.List(context.Background(), "")
-	if err != nil {
-		return
-	}
-	v.projects = projects
-}
 
 func (v *MCPView) checkToken(serviceName string) bool {
 	if serviceName == "team" {
@@ -679,39 +401,6 @@ func (v *MCPView) buildCommands() {
 			}
 		},
 	})
-
-	if v.selectedProjectID != "" {
-		for _, ov := range v.projectOverrides {
-			ov := ov
-			cmds = append(cmds, ContextCommand{
-				ID:          "proj.mcp." + ov.Name,
-				Label:       "projet " + ov.Name,
-				Aliases:     []string{ov.Name + " projet"},
-				Description: fmt.Sprintf("Override %s : %s → cycle", ov.Name, ov.Override),
-				Category:    "MCP Projet",
-				Action: func() {
-					for i, o := range v.projectOverrides {
-						if o.Name == ov.Name {
-							v.projectList.SetCurrentItem(i)
-							if v.app != nil {
-								v.app.SetFocus(v.projectList)
-							}
-							v.cycleProjectOverride()
-							return
-						}
-					}
-				},
-			})
-		}
-		cmds = append(cmds, ContextCommand{
-			ID:          "proj.select",
-			Label:       "changer projet MCP",
-			Aliases:     []string{"select project mcp"},
-			Description: "Choisir un autre projet",
-			Category:    "MCP Projet",
-			Action:      v.selectProject,
-		})
-	}
 
 	v.commands = cmds
 }

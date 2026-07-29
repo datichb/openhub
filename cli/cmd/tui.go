@@ -817,45 +817,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		}),
 		views.NewModelsView(a),
 		views.NewProviderView(a),
-		views.NewMCPView(a, views.MCPViewConfig{
-			OnUpdateProjectMCP: func(projectID, service, state string) {
-				ctx := context.Background()
-				project, err := a.Projects.Get(ctx, projectID)
-				if err != nil {
-					slog.Warn("failed to get project for MCP override", "id", projectID, "error", err)
-					return
-				}
-				if project.MCPConfig == nil {
-					project.MCPConfig = &domain.ProjectMCPConfig{}
-				}
-				// Update or insert the service override
-				found := false
-				for i, svc := range project.MCPConfig.Services {
-					if svc.Name == service {
-						if state == "inherit" {
-							project.MCPConfig.Services[i].Enabled = nil
-						} else {
-							t := state == "enabled"
-							project.MCPConfig.Services[i].Enabled = &t
-						}
-						found = true
-						break
-					}
-				}
-				if !found {
-					svc := domain.ProjectMCPService{Name: service}
-					if state != "inherit" {
-						t := state == "enabled"
-						svc.Enabled = &t
-					}
-					project.MCPConfig.Services = append(project.MCPConfig.Services, svc)
-				}
-				project.UpdatedAt = time.Now()
-				if err := a.Projects.Update(ctx, project); err != nil {
-					slog.Warn("failed to update project MCP override", "id", projectID, "error", err)
-				}
-			},
-		}),
+		views.NewMCPView(a, views.MCPViewConfig{}),
 		views.NewPluginsView(),
 		views.NewHelpView(),
 		views.NewNotificationsView(views.NotificationsViewConfig{
