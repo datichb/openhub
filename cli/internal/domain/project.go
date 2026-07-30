@@ -58,6 +58,7 @@ type ProjectMCPService struct {
 	Enabled      *bool  `json:"enabled,omitempty"`       // nil = inherit hub, true/false = override
 	TokenKey     string `json:"token_key,omitempty"`     // keychain key override (empty = inherit hub)
 	WriteEnabled *bool  `json:"write_enabled,omitempty"` // nil = inherit hub, true/false = override
+	URL          string `json:"url,omitempty"`           // per-project URL override (empty = inherit hub/team)
 }
 
 // ProjectProviderConfig holds per-project provider configuration overrides.

@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -93,6 +94,87 @@ func ResolveMCPConfig(shared *teamstate.SharedMCPConfig, local config.MCPServerC
 		} else if shared != nil && shared.Enabled != nil {
 			// Step 3: Team recommended
 			eff.Enabled = *shared.Enabled
+		}
+	}
+
+	return eff
+}
+
+// ResolveFullMCPConfig resolves MCP configuration across all 3 levels:
+// team-state (enforced/recommended) → hub (personal preference) → project (override).
+//
+// Resolution per field:
+//   - Enabled:      team_enforced → project (if non-nil) → hub_explicit → team_recommended → false
+//   - URL:          team_enforced → project.URL → hub.URL → team_recommended.URL → ""
+//   - TokenKey:     project.TokenKey → hub.Token (always personal, never team)
+//   - WriteEnabled: project.WriteEnabled → hub.WriteEnabled (always personal, never team)
+//
+// The teamID parameter is used for source annotations only.
+func ResolveFullMCPConfig(
+	shared *teamstate.SharedMCPConfig,
+	hub config.MCPServerConfig,
+	project *domain.ProjectMCPService,
+	teamID string,
+) EffectiveMCPConfig {
+	eff := EffectiveMCPConfig{}
+
+	// ─── TOKEN (always personal: project > hub, never team) ──────────
+	if project != nil && project.TokenKey != "" {
+		eff.TokenKey = project.TokenKey
+	} else {
+		eff.TokenKey = hub.Token
+	}
+
+	// ─── WRITE ENABLED (always personal: project > hub, never team) ──
+	if project != nil && project.WriteEnabled != nil {
+		eff.WriteEnabled = *project.WriteEnabled
+	} else {
+		eff.WriteEnabled = hub.WriteEnabled
+	}
+	if shared != nil {
+		eff.WriteRecommended = shared.WriteRecommended
+	}
+
+	// ─── URL (5-step cascade) ────────────────────────────────────────
+	// 1. Team enforced
+	if shared != nil && shared.IsURLEnforced() && shared.URL != "" {
+		eff.URL = shared.URL
+		eff.URLEnforced = true
+	} else {
+		// 2. Project override
+		if project != nil && project.URL != "" {
+			eff.URL = project.URL
+		} else if hub.URL != "" {
+			// 3. Hub value
+			eff.URL = hub.URL
+		} else if shared != nil && shared.URL != "" {
+			// 4. Team recommended
+			eff.URL = shared.URL
+		}
+		// 5. Empty = built-in default (caller handles)
+	}
+
+	// ─── ENABLED (5-step cascade) ────────────────────────────────────
+	// 1. Team enforced
+	if shared != nil && shared.IsEnabledEnforced() && shared.Enabled != nil {
+		eff.Enabled = *shared.Enabled
+		eff.EnabledEnforced = true
+	} else {
+		// 2. Project override
+		if project != nil && project.Enabled != nil {
+			eff.Enabled = *project.Enabled
+			eff.LocalOverridesEnabled = true
+		} else {
+			// 3. Hub explicit (token presence = explicit)
+			hubExplicit := hub.Enabled || hub.Token != ""
+			if hubExplicit {
+				eff.Enabled = hub.Enabled
+				eff.LocalOverridesEnabled = true
+			} else if shared != nil && shared.Enabled != nil {
+				// 4. Team recommended
+				eff.Enabled = *shared.Enabled
+			}
+			// 5. Default = false (zero value)
 		}
 	}
 

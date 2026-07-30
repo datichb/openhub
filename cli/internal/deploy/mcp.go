@@ -28,6 +28,7 @@ type MCPServerDef struct {
 	TokenKey     string // keychain key name
 	TokenEnv     string // fallback environment variable name
 	WriteEnabled bool   // for servers that support opt-in write mode
+	URL          string // resolved base URL (empty = use built-in default)
 }
 
 // DeployMCP creates a Phase that injects mcpServers into opencode.json.
