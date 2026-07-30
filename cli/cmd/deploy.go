@@ -14,6 +14,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -212,47 +214,78 @@ func buildMCPServers(a *app.App, resolvedTeam config.ResolvedTeamConfig) []deplo
 	return deploy.DefaultMCPServers(enabled, tokenKeys, writeEnabled)
 }
 
-// buildMCPServersForProject constructs MCP server definitions with project-level overrides.
-// Each service in the project's MCPConfig can override the hub-level config:
-//   - Enabled == nil   → inherit hub-level enabled state (default)
-//   - Enabled == true  → force-enable regardless of hub config
-//   - Enabled == false → force-disable regardless of hub config
-//
-// Credentials (TokenKey) and options (WriteEnabled) are overridden per-service
-// when non-empty/non-nil; otherwise they inherit from hub.
+// buildMCPServersForProject constructs MCP server definitions using the full
+// 3-level cascade: team-state (enforced/recommended) → hub → project.
+// Each service is resolved independently via tracker.ResolveFullMCPConfig.
 func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, resolvedTeam config.ResolvedTeamConfig) []deploy.MCPServerDef {
-	servers := buildMCPServers(a, resolvedTeam)
-
-	if mcpConfig == nil || len(mcpConfig.Services) == 0 {
-		return servers
+	// Load team-state shared MCP config (if team is enabled and cloned)
+	var sharedMCP map[string]teamstate.SharedMCPConfig
+	if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
+		repo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
+		if repo.IsCloned() {
+			if teamCfg, err := repo.LoadConfig(); err == nil {
+				sharedMCP = teamCfg.MCP
+			}
+		}
 	}
 
+	// Build project-level override index
 	projectSet := make(map[string]*domain.ProjectMCPService)
-	for i := range mcpConfig.Services {
-		projectSet[mcpConfig.Services[i].Name] = &mcpConfig.Services[i]
-	}
-
-	for i := range servers {
-		ps, inProject := projectSet[servers[i].Name]
-		if !inProject {
-			continue // not overridden by project, keep hub value
-		}
-
-		// Enabled override: nil inherits hub, non-nil forces the value
-		if ps.Enabled != nil {
-			servers[i].Enabled = *ps.Enabled
-		}
-
-		// Credential override
-		if ps.TokenKey != "" {
-			servers[i].TokenKey = ps.TokenKey
-		}
-
-		// Write mode override
-		if ps.WriteEnabled != nil {
-			servers[i].WriteEnabled = *ps.WriteEnabled
+	if mcpConfig != nil {
+		for i := range mcpConfig.Services {
+			projectSet[mcpConfig.Services[i].Name] = &mcpConfig.Services[i]
 		}
 	}
+
+	// Hub-level MCP configs indexed by service name
+	hubServices := map[string]config.MCPServerConfig{
+		"figma":   a.Config.MCP.Figma,
+		"gitlab":  a.Config.MCP.Gitlab,
+		"jira":    a.Config.MCP.Jira,
+		"gslides": a.Config.MCP.Gslides,
+	}
+
+	// Token environment variable fallbacks
+	tokenEnvs := map[string]string{
+		"figma":   "FIGMA_TOKEN",
+		"gitlab":  "GITLAB_TOKEN",
+		"gslides": "GOOGLE_ACCESS_TOKEN",
+	}
+
+	teamID := ""
+	if resolvedTeam.Enabled {
+		teamID = resolvedTeam.TeamID
+	}
+
+	// Resolve each service using the full 3-level cascade
+	var servers []deploy.MCPServerDef
+	for _, name := range []string{"figma", "gitlab", "gslides"} {
+		hub := hubServices[name]
+		var shared *teamstate.SharedMCPConfig
+		if sharedMCP != nil {
+			if s, ok := sharedMCP[name]; ok {
+				shared = &s
+			}
+		}
+		project := projectSet[name]
+
+		eff := tracker.ResolveFullMCPConfig(shared, hub, project, teamID)
+
+		servers = append(servers, deploy.MCPServerDef{
+			Name:         name,
+			Enabled:      eff.Enabled,
+			TokenKey:     eff.TokenKey,
+			TokenEnv:     tokenEnvs[name],
+			WriteEnabled: eff.WriteEnabled,
+			URL:          eff.URL,
+		})
+	}
+
+	// Team MCP server (special — always derived from team config, no project override)
+	servers = append(servers, deploy.MCPServerDef{
+		Name:    "team",
+		Enabled: resolvedTeam.Enabled,
+	})
 
 	return servers
 }
