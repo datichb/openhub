@@ -507,7 +507,7 @@ func buildCommands(a *app.App) []shell.Command {
 		shell.Command{
 			ID:          "team.board",
 			Label:       i18n.T("tui.team.board"),
-			Aliases:     []string{"team kanban", "board", "kanban"},
+			Aliases:     []string{"team board", "team kanban", "equipe board"},
 			Description: i18n.T("tui.team.board.desc"),
 			Category:    i18n.T("tui.category.team"),
 			Priority:    70,
@@ -814,6 +814,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			OnSave: func(cfg *config.Config) {
 				_ = config.Save(cfg)
+			},
+			OnNavigate: func(viewID string) {
+				if tuiShell != nil {
+					tuiShell.NavigateTo(viewID)
+				}
 			},
 		}),
 		views.NewModelsView(a),

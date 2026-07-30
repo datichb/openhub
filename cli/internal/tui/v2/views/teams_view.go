@@ -16,29 +16,32 @@ import (
 // It shows all configured teams with their sync status and allows
 // add/remove/sync operations.
 type TeamsView struct {
-	list      *widgets.SectionedList
-	app       *tview.Application
-	cfg       *config.Config
-	onSync    func(teamID string)
-	onSave    func(cfg *config.Config)
-	undoStack *widgets.UndoStack[[]config.TeamConfig]
+	list       *widgets.SectionedList
+	app        *tview.Application
+	cfg        *config.Config
+	onSync     func(teamID string)
+	onSave     func(cfg *config.Config)
+	onNavigate func(viewID string)
+	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 }
 
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
 type TeamsViewDeps struct {
-	Config *config.Config
-	OnSync func(teamID string) // Called when user requests team-state sync
-	OnSave func(cfg *config.Config) // Called to persist config changes
+	Config     *config.Config
+	OnSync     func(teamID string)       // Called when user requests team-state sync
+	OnSave     func(cfg *config.Config)   // Called to persist config changes
+	OnNavigate func(viewID string)        // Called to navigate to another view
 }
 
 // NewTeamsView creates a new TeamsView.
 func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 	v := &TeamsView{
-		list:      widgets.NewSectionedList(),
-		cfg:       deps.Config,
-		onSync:    deps.OnSync,
-		onSave:    deps.OnSave,
-		undoStack: widgets.NewUndoStack[[]config.TeamConfig](10),
+		list:       widgets.NewSectionedList(),
+		cfg:        deps.Config,
+		onSync:     deps.OnSync,
+		onSave:     deps.OnSave,
+		onNavigate: deps.OnNavigate,
+		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 	}
 	v.list.SetItemSelectedFunc(v.handleSelect)
 	return v
@@ -109,6 +112,36 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 			Category:    "Équipes",
 			Action:      v.rebuild,
 		},
+	}
+
+	// Navigation commands — contextual to team view
+	if v.onNavigate != nil {
+		commands = append(commands,
+			ContextCommand{
+				ID:          "teams.board",
+				Label:       i18n.T("tui.team.board"),
+				Aliases:     []string{"board", "kanban"},
+				Description: i18n.T("tui.team.board.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Action:      func() { v.onNavigate("team.board") },
+			},
+			ContextCommand{
+				ID:          "teams.status",
+				Label:       i18n.T("tui.team.status"),
+				Aliases:     []string{"status", "statut"},
+				Description: i18n.T("tui.team.status.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Action:      func() { v.onNavigate("team.status") },
+			},
+			ContextCommand{
+				ID:          "teams.activity",
+				Label:       i18n.T("tui.team.activity"),
+				Aliases:     []string{"activity", "activite"},
+				Description: i18n.T("tui.team.activity.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Action:      func() { v.onNavigate("team.activity") },
+			},
+		)
 	}
 
 	// Add per-team sync commands
