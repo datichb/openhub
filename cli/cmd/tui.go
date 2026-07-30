@@ -578,6 +578,17 @@ func buildCommands(a *app.App) []shell.Command {
 		},
 	)
 
+	// ── Sync tracker (global action) ────────────────────────────────────
+	commands = append(commands, shell.Command{
+		ID:          "team.sync",
+		Label:       "Sync Tracker",
+		Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
+		Description: "Synchroniser les claims avec le tracker externe",
+		Category:    i18n.T("tui.category.team"),
+		Priority:    60,
+		Action:      actionSyncTracker,
+	})
+
 	if a.Config.MCP.Gitlab.WriteEnabled {
 		commands = append(commands, shell.Command{
 			ID:          "review.publish",
@@ -856,18 +867,35 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)
 				if !tc.Enabled {
-					return fmt.Errorf("team non configurée")
+					return fmt.Errorf("équipe non configurée")
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				if err := repo.SaveConfig(cfg); err != nil {
 					return err
 				}
-				return repo.CommitAndPush(ctx, "config: update team MCP config", "config.toml")
+				return repo.CommitAndPush(ctx, "config: update tracker", "config.toml")
 			},
-			SaveLocalMCP:     func(key, value string) error { return nil }, // delegate to CLI wizard
-			SaveLocalTracker: func(key, value string) error { return nil }, // delegate to CLI wizard
+			SaveLocalMCP:     func(key, value string) error { return nil },
+			SaveLocalTracker: func(key, value string) error { return nil },
 			GetSecrets: func() tracker.SecretGetter {
 				return a.Secrets
+			},
+			GetHubConfig: func() *config.Config {
+				return a.Config
+			},
+			ListProjects: func(ctx context.Context) []views.ProjectInfo {
+				projects, err := a.Projects.List(ctx, "")
+				if err != nil {
+					return nil
+				}
+				result := make([]views.ProjectInfo, len(projects))
+				for i, p := range projects {
+					result[i] = views.ProjectInfo{ID: p.ID, Name: p.Name}
+				}
+				return result
+			},
+			SyncTracker: func(ctx context.Context) (*views.SyncTrackerResult, error) {
+				return runSyncTrackerForTUI(a, ctx)
 			},
 		}),
 		// Hub config view

@@ -31,6 +31,28 @@ type TeamDetailViewConfig struct {
 	SaveLocalTracker func(key, value string) error
 	// GetSecrets returns the secret store for connection tests.
 	GetSecrets func() tracker.SecretGetter
+	// GetHubConfig returns the full hub config (for local tracker overrides save).
+	GetHubConfig func() *config.Config
+	// ListProjects returns all registered hub projects (for tracker mapping UI).
+	ListProjects func(ctx context.Context) []ProjectInfo
+	// SyncTracker runs the tracker sync and returns a formatted result.
+	SyncTracker func(ctx context.Context) (*SyncTrackerResult, error)
+}
+
+// ProjectInfo is a minimal project representation for the tracker mapping UI.
+type ProjectInfo struct {
+	ID   string
+	Name string
+}
+
+// SyncTrackerResult holds the outcome of a tracker sync for display in a modal.
+type SyncTrackerResult struct {
+	ClaimsCreated int
+	ClaimsUpdated int
+	LabelsPushed  int
+	Projects      []string // per-project summary lines
+	Warnings      []string
+	Errors        []string
 }
 
 // TeamDetailView displays and edits MCP + tracker configuration
@@ -73,9 +95,9 @@ func (v *TeamDetailView) Title() string { return "Équipe - Détail" }
 // StatusHints returns keybinding hints shown in the status bar.
 func (v *TeamDetailView) StatusHints() string {
 	if v.detailedMode {
-		return "v simple · g config équipe · l config locale · t tester · w sauvegarder · r refresh · Esc retour"
+		return "v simple · g config équipe · l config locale · s sync · t tester · r refresh"
 	}
-	return "v détaillé · g config équipe · l config locale · t tester · w sauvegarder · r refresh · Esc retour"
+	return "v détaillé · g config équipe · l config locale · s sync · t tester · r refresh"
 }
 
 // Mount builds and displays the view content.
@@ -128,6 +150,9 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 't':
 		v.testConnection()
+		return nil
+	case 's':
+		v.syncTracker()
 		return nil
 	case 'w':
 		v.save()
@@ -350,14 +375,258 @@ func (v *TeamDetailView) editTeamConfig() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowToastMsg("Utilisez 'oh team config' en CLI pour éditer la config d'équipe", true)
+	if v.teamCfg == nil {
+		v.shell.ShowToastMsg("Config équipe non disponible (team-state non cloné ?)", false)
+		return
+	}
+
+	// Step 1: Edit tracker type + flags
+	trkType := v.teamCfg.Tracker.Type
+	if trkType == "" {
+		trkType = "gitlab"
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Configuration tracker (équipe)",
+		Fields: []FormField{
+			{Key: "type", Label: "Type", Type: FieldSelect,
+				Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
+				Default: trkType},
+			{Key: "enabled", Label: "Activé", Type: FieldBool,
+				Default: boolToStr(v.teamCfg.Tracker.Enabled)},
+			{Key: "auto_sync", Label: "Auto-sync", Type: FieldBool,
+				Default: boolToStr(v.teamCfg.Tracker.AutoSync)},
+			{Key: "push_labels", Label: "Push labels", Type: FieldBool,
+				Default: boolToStr(v.teamCfg.Tracker.PushLabels)},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			v.teamCfg.Tracker.Type = values["type"]
+			v.teamCfg.Tracker.Enabled = values["enabled"] == "true"
+			v.teamCfg.Tracker.AutoSync = values["auto_sync"] == "true"
+			v.teamCfg.Tracker.PushLabels = values["push_labels"] == "true"
+
+			// Step 2: Edit project mappings
+			v.editProjectMappings()
+		},
+	})
+}
+
+func (v *TeamDetailView) editProjectMappings() {
+	if v.shell == nil || v.cfg.ListProjects == nil {
+		// No project listing available — save directly
+		v.saveTeamConfigAndRender()
+		return
+	}
+
+	ctx := context.Background()
+	projects := v.cfg.ListProjects(ctx)
+
+	if len(projects) == 0 {
+		// No projects registered — save directly
+		v.saveTeamConfigAndRender()
+		return
+	}
+
+	// Build form fields: one text field per hub project
+	fields := make([]FormField, len(projects))
+	for i, p := range projects {
+		currentVal := ""
+		if v.teamCfg.Tracker.Projects != nil {
+			currentVal = v.teamCfg.Tracker.Projects[p.ID]
+		}
+		fields[i] = FormField{
+			Key:     p.ID,
+			Label:   fmt.Sprintf("%s → ID tracker", p.Name),
+			Type:    FieldText,
+			Default: currentVal,
+			Hint:    "Numéro du projet ou path (vide = pas de mapping)",
+		}
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title:  "Mappings projets → tracker",
+		Fields: fields,
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			if v.teamCfg.Tracker.Projects == nil {
+				v.teamCfg.Tracker.Projects = make(map[string]string)
+			}
+			for _, p := range projects {
+				if val := values[p.ID]; val != "" {
+					v.teamCfg.Tracker.Projects[p.ID] = val
+				} else {
+					delete(v.teamCfg.Tracker.Projects, p.ID)
+				}
+			}
+			v.saveTeamConfigAndRender()
+		},
+		OnCancel: func() {
+			// Still save the tracker type/flags from step 1
+			v.saveTeamConfigAndRender()
+		},
+	})
+}
+
+func (v *TeamDetailView) saveTeamConfigAndRender() {
+	if v.cfg.SaveTeamConfig == nil || v.teamCfg == nil {
+		return
+	}
+	ctx := context.Background()
+	if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Erreur sauvegarde: "+err.Error(), false)
+		}
+		return
+	}
+	if v.shell != nil {
+		v.shell.ShowToastMsg("✓ Config tracker sauvegardée et poussée", true)
+	}
+	v.loadAndRender()
 }
 
 func (v *TeamDetailView) editLocalConfig() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowToastMsg("Utilisez 'oh team config' en CLI pour éditer la config locale", true)
+
+	triOptions := []SelectOption{
+		{Label: "(hériter de l'équipe)", Value: "inherit"},
+		{Label: "Oui", Value: "true"},
+		{Label: "Non", Value: "false"},
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Overrides tracker (local)",
+		Fields: []FormField{
+			{Key: "enabled", Label: "Activé", Type: FieldSelect,
+				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.Enabled)},
+			{Key: "auto_sync", Label: "Auto-sync", Type: FieldSelect,
+				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.AutoSync)},
+			{Key: "push_labels", Label: "Push labels", Type: FieldSelect,
+				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.PushLabels)},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			hubCfg := v.cfg.GetHubConfig()
+			if hubCfg == nil {
+				return
+			}
+			hubCfg.Tracker.Enabled = triStateToPtrBool(values["enabled"])
+			hubCfg.Tracker.AutoSync = triStateToPtrBool(values["auto_sync"])
+			hubCfg.Tracker.PushLabels = triStateToPtrBool(values["push_labels"])
+
+			if err := config.Save(hubCfg); err != nil {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Erreur sauvegarde: "+err.Error(), false)
+				}
+				return
+			}
+			v.localTrk = hubCfg.Tracker
+			if v.shell != nil {
+				v.shell.ShowToastMsg("✓ Overrides locaux sauvegardés", true)
+			}
+			v.render()
+		},
+	})
+}
+
+func (v *TeamDetailView) syncTracker() {
+	if v.shell == nil || v.app == nil {
+		return
+	}
+	if v.cfg.SyncTracker == nil {
+		v.shell.ShowToastMsg("Sync tracker non disponible", false)
+		return
+	}
+
+	v.shell.ShowToastMsg("Synchronisation en cours...", true)
+
+	go func() {
+		ctx := context.Background()
+		result, err := v.cfg.SyncTracker(ctx)
+
+		v.app.QueueUpdateDraw(func() {
+			if err != nil {
+				v.shell.ShowToastMsg("✗ Sync échouée: "+err.Error(), false)
+				return
+			}
+			// Show result modal
+			content := formatSyncTrackerResult(result)
+			v.shell.ShowScrollableModal("Résultat sync tracker", content, []ModalAction{
+				{Label: "OK", Callback: func() {
+					v.loadAndRender()
+				}},
+			})
+		})
+	}()
+}
+
+func (v *TeamDetailView) save() {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowToastMsg("✓ Modifications sauvegardées via les modaux g/l", true)
+	v.dirty = false
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+func boolToStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func ptrBoolToTriState(p *bool) string {
+	if p == nil {
+		return "inherit"
+	}
+	if *p {
+		return "true"
+	}
+	return "false"
+}
+
+func triStateToPtrBool(val string) *bool {
+	switch val {
+	case "true":
+		b := true
+		return &b
+	case "false":
+		b := false
+		return &b
+	default:
+		return nil
+	}
+}
+
+func formatSyncTrackerResult(r *SyncTrackerResult) string {
+	if r == nil {
+		return "Aucun résultat"
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
+	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
+	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
+
+	if len(r.Projects) > 0 {
+		sb.WriteString("\nProjets:\n")
+		for _, p := range r.Projects {
+			sb.WriteString(fmt.Sprintf("  %s\n", p))
+		}
+	}
+	if len(r.Warnings) > 0 {
+		sb.WriteString("\nWarnings:\n")
+		for _, w := range r.Warnings {
+			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
+		}
+	}
+	if len(r.Errors) > 0 {
+		sb.WriteString("\nErreurs:\n")
+		for _, e := range r.Errors {
+			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
+		}
+	}
+	return sb.String()
 }
 
 func (v *TeamDetailView) testConnection() {
@@ -429,16 +698,6 @@ func (v *TeamDetailView) testConnection() {
 			}
 		})
 	}()
-}
-
-func (v *TeamDetailView) save() {
-	if v.shell == nil {
-		return
-	}
-	// For now, direct hub.toml edits are delegated to the CLI wizard.
-	// The view displays current state; edits happen via 'oh team config'.
-	v.shell.ShowToastMsg("Utilisez 'oh team config' pour sauvegarder les modifications", true)
-	v.dirty = false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -673,4 +674,129 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 	_ = repo.CommitAndPush(context.Background(), fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
 
 	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sync Tracker action (omnibar + view touche 's')
+// ─────────────────────────────────────────────────────────────────────────────
+
+// actionSyncTracker is the omnibar action for "sync tracker".
+func actionSyncTracker() {
+	if tuiShell == nil {
+		return
+	}
+	a := MustApp()
+	ctx := context.Background()
+
+	tuiShell.ShowToast("Synchronisation en cours...", shell.ToastInfo)
+
+	go func() {
+		result, err := runSyncTrackerForTUI(a, ctx)
+		tuiShell.App().QueueUpdateDraw(func() {
+			if err != nil {
+				tuiShell.ShowToast("✗ Sync: "+err.Error(), shell.ToastError)
+				return
+			}
+			content := formatSyncResultModal(result)
+			tuiShell.ShowScrollableModal("Résultat sync tracker", content, []views.ModalAction{
+				{Label: "OK", Callback: func() {}},
+			})
+		})
+	}()
+}
+
+// runSyncTrackerForTUI executes the tracker sync and returns a result for display.
+func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerResult, error) {
+	// Resolve team config
+	tc := resolvedTeamConfig(a, nil)
+	if !tc.Enabled {
+		return nil, fmt.Errorf("équipe non configurée")
+	}
+
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		return nil, fmt.Errorf("team-state non cloné — lancez 'team init'")
+	}
+
+	// Load team config
+	teamCfg, err := repo.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("chargement config: %w", err)
+	}
+	if teamCfg.Tracker.Type == "" {
+		return nil, fmt.Errorf("tracker non configuré — utilisez 'g' dans la vue Config équipe")
+	}
+
+	// Build credential source
+	credSrc := buildCredentialSource(a, teamCfg.MCP)
+	trackerType := tracker.Type(teamCfg.Tracker.Type)
+
+	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
+	if err != nil {
+		return nil, fmt.Errorf("credentials manquants — activez %s dans Settings: %w", teamCfg.Tracker.Type, err)
+	}
+
+	t, err := tracker.New(creds)
+	if err != nil {
+		return nil, fmt.Errorf("initialisation tracker: %w", err)
+	}
+
+	engine := tracker.NewEngine(t, repo, teamCfg.Tracker, config.HubDir())
+
+	// Pull before sync
+	_ = repo.Pull(ctx)
+
+	// Run sync
+	syncResult, err := engine.Run(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("sync: %w", err)
+	}
+
+	// Convert to view-friendly result
+	result := &views.SyncTrackerResult{
+		ClaimsCreated: syncResult.ClaimsCreated,
+		ClaimsUpdated: syncResult.ClaimsUpdated,
+		LabelsPushed:  syncResult.LabelsPushed,
+	}
+	for _, p := range syncResult.Projects {
+		result.Projects = append(result.Projects, fmt.Sprintf("%s: %d fetched, %d created, %d updated", p.ProjectID, p.IssuesFetched, p.ClaimsCreated, p.ClaimsUpdated))
+	}
+	for _, w := range syncResult.Warnings {
+		result.Warnings = append(result.Warnings, w.Message)
+	}
+	for _, e := range syncResult.Errors {
+		result.Errors = append(result.Errors, e.Error())
+	}
+
+	return result, nil
+}
+
+func formatSyncResultModal(r *views.SyncTrackerResult) string {
+	if r == nil {
+		return "Aucun résultat"
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
+	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
+	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
+
+	if len(r.Projects) > 0 {
+		sb.WriteString("\nProjets:\n")
+		for _, p := range r.Projects {
+			sb.WriteString(fmt.Sprintf("  %s\n", p))
+		}
+	}
+	if len(r.Warnings) > 0 {
+		sb.WriteString("\nWarnings:\n")
+		for _, w := range r.Warnings {
+			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
+		}
+	}
+	if len(r.Errors) > 0 {
+		sb.WriteString("\nErreurs:\n")
+		for _, e := range r.Errors {
+			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
+		}
+	}
+	return sb.String()
 }
