@@ -244,8 +244,6 @@ func Load() (*Config, error) {
 		v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
 		v.SetDefault("worktree.auto_cleanup", true)
 		v.SetDefault("worktree.base_branch", "")
-		v.SetDefault("team.enabled", false)
-		v.SetDefault("team.state_path", filepath.Join(HubDir(), "team-state"))
 
 		if err := v.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -257,6 +255,13 @@ func Load() (*Config, error) {
 
 		cfg = &Config{}
 		cfgErr = v.Unmarshal(cfg)
+		// Post-load cleanup: if Teams is populated (either from [[teams]] in file
+		// or from RunMigrationIfNeeded), clear the legacy Team field to ensure
+		// omitempty suppresses it on next Save. Viper may have populated Team
+		// from a residual [team] section in the file.
+		if cfgErr == nil && len(cfg.Teams) > 0 {
+			cfg.Team = TeamConfig{}
+		}
 	})
 	return cfg, cfgErr
 }
