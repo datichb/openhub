@@ -380,14 +380,99 @@ func (v *TeamDetailView) editTeamConfig() {
 		return
 	}
 
-	// Step 1: Edit tracker type + flags
+	// Step 1: MCP Services (enabled/enforced/url per service)
+	v.editTeamMCPServices()
+}
+
+// editTeamMCPServices is Step 1 of the team config wizard: MCP service settings.
+func (v *TeamDetailView) editTeamMCPServices() {
+	// Build fields for each known MCP service
+	services := []string{"gitlab", "jira", "figma", "gslides"}
+	var fields []FormField
+
+	for _, svc := range services {
+		shared := v.getSharedMCP(svc)
+
+		// Enabled
+		enabledDefault := "false"
+		if shared.Enabled != nil && *shared.Enabled {
+			enabledDefault = "true"
+		}
+		fields = append(fields, FormField{
+			Key: svc + ".enabled", Label: svc + " — activé", Type: FieldBool,
+			Default: enabledDefault,
+		})
+
+		// Enabled enforced
+		enforcedDefault := "false"
+		if shared.EnabledEnforced != nil && *shared.EnabledEnforced {
+			enforcedDefault = "true"
+		}
+		fields = append(fields, FormField{
+			Key: svc + ".enabled_enforced", Label: svc + " — enforced", Type: FieldBool,
+			Default: enforcedDefault, Hint: "Imposer cette valeur (non-overridable par hub/projet)",
+		})
+
+		// URL
+		fields = append(fields, FormField{
+			Key: svc + ".url", Label: svc + " — URL", Type: FieldText,
+			Default: shared.URL, Hint: "URL de l'instance (vide = défaut SaaS)",
+		})
+
+		// URL enforced
+		urlEnfDefault := "false"
+		if shared.URLEnforced != nil && *shared.URLEnforced {
+			urlEnfDefault = "true"
+		}
+		fields = append(fields, FormField{
+			Key: svc + ".url_enforced", Label: svc + " — URL enforced", Type: FieldBool,
+			Default: urlEnfDefault,
+		})
+	}
+
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title:  "Configuration MCP (équipe) — Étape 1/3",
+		Fields: fields,
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			// Apply MCP values to teamCfg
+			if v.teamCfg.MCP == nil {
+				v.teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
+			}
+			for _, svc := range services {
+				shared := v.teamCfg.MCP[svc]
+
+				enabled := values[svc+".enabled"] == "true"
+				shared.Enabled = &enabled
+
+				enforced := values[svc+".enabled_enforced"] == "true"
+				shared.EnabledEnforced = &enforced
+
+				shared.URL = values[svc+".url"]
+
+				urlEnf := values[svc+".url_enforced"] == "true"
+				shared.URLEnforced = &urlEnf
+
+				v.teamCfg.MCP[svc] = shared
+			}
+
+			// Continue to Step 2: Tracker
+			v.editTeamTrackerFlags()
+		},
+		OnCancel: func() {
+			v.shell.ShowToastMsg("Annulé", false)
+		},
+	})
+}
+
+// editTeamTrackerFlags is Step 2: Tracker type + flags.
+func (v *TeamDetailView) editTeamTrackerFlags() {
 	trkType := v.teamCfg.Tracker.Type
 	if trkType == "" {
 		trkType = "gitlab"
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Configuration tracker (équipe)",
+		Title: "Configuration Tracker (équipe) — Étape 2/3",
 		Fields: []FormField{
 			{Key: "type", Label: "Type", Type: FieldSelect,
 				Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
@@ -405,10 +490,22 @@ func (v *TeamDetailView) editTeamConfig() {
 			v.teamCfg.Tracker.AutoSync = values["auto_sync"] == "true"
 			v.teamCfg.Tracker.PushLabels = values["push_labels"] == "true"
 
-			// Step 2: Edit project mappings
+			// Continue to Step 3: Project mappings
 			v.editProjectMappings()
 		},
+		OnCancel: func() {
+			// Save what we have from Step 1 (MCP) even if tracker is cancelled
+			v.saveTeamConfigAndRender()
+		},
 	})
+}
+
+// getSharedMCP returns the SharedMCPConfig for a service (or empty if not set).
+func (v *TeamDetailView) getSharedMCP(service string) teamstate.SharedMCPConfig {
+	if v.teamCfg == nil || v.teamCfg.MCP == nil {
+		return teamstate.SharedMCPConfig{}
+	}
+	return v.teamCfg.MCP[service]
 }
 
 func (v *TeamDetailView) editProjectMappings() {
@@ -545,7 +642,22 @@ func (v *TeamDetailView) syncTracker() {
 
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
-				v.shell.ShowToastMsg("✗ Sync échouée: "+err.Error(), false)
+				errMsg := err.Error()
+				// Detect missing credentials and offer to configure token inline
+				if strings.Contains(errMsg, "credentials manquants") || strings.Contains(errMsg, "token") {
+					v.shell.ShowScrollableModal("Token manquant", 
+						"Le token n'est pas configuré pour ce service.\n\n"+
+						"Voulez-vous le saisir maintenant ?\n\n"+
+						"Le token sera stocké dans le keychain système (sécurisé).",
+						[]ModalAction{
+							{Label: "Configurer le token", Callback: func() {
+								v.promptTokenSetup()
+							}},
+							{Label: "Plus tard", Callback: func() {}},
+						})
+				} else {
+					v.shell.ShowToastMsg("✗ Sync échouée: "+errMsg, false)
+				}
 				return
 			}
 			// Show result modal
@@ -557,6 +669,66 @@ func (v *TeamDetailView) syncTracker() {
 			})
 		})
 	}()
+}
+
+// promptTokenSetup guides the user to configure the MCP token for the tracker service.
+func (v *TeamDetailView) promptTokenSetup() {
+	if v.shell == nil || v.teamCfg == nil {
+		return
+	}
+	trackerType := v.teamCfg.Tracker.Type
+	if trackerType == "" {
+		trackerType = "gitlab"
+	}
+
+	// Determine the expected token key name
+	tokenKey := trackerType + "-token"
+	hubCfg := v.cfg.GetHubConfig()
+	if hubCfg != nil {
+		switch trackerType {
+		case "gitlab":
+			if hubCfg.MCP.Gitlab.Token != "" {
+				tokenKey = hubCfg.MCP.Gitlab.Token
+			}
+		case "jira":
+			if hubCfg.MCP.Jira.Token != "" {
+				tokenKey = hubCfg.MCP.Jira.Token
+			}
+		}
+	}
+
+	v.shell.ShowPasswordModal("Token "+trackerType+" (sera stocké sous la clé: "+tokenKey+")", func(value string) {
+		if value == "" {
+			return
+		}
+		// Enable the MCP service and set token key in hub config
+		if hubCfg != nil {
+			switch trackerType {
+			case "gitlab":
+				hubCfg.MCP.Gitlab.Enabled = true
+				if hubCfg.MCP.Gitlab.Token == "" {
+					hubCfg.MCP.Gitlab.Token = tokenKey
+				}
+			case "jira":
+				hubCfg.MCP.Jira.Enabled = true
+				if hubCfg.MCP.Jira.Token == "" {
+					hubCfg.MCP.Jira.Token = tokenKey
+				}
+			}
+			_ = config.Save(hubCfg)
+		}
+
+		// Store the secret in keychain via the GetSecrets interface
+		if secrets := v.cfg.GetSecrets(); secrets != nil {
+			ctx := context.Background()
+			if setter, ok := secrets.(interface{ Set(ctx context.Context, key, value string) error }); ok {
+				_ = setter.Set(ctx, tokenKey, value)
+			}
+		}
+
+		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
+		v.loadAndRender()
+	})
 }
 
 func (v *TeamDetailView) save() {

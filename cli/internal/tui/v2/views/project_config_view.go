@@ -23,6 +23,10 @@ type ProjectConfigViewConfig struct {
 	Deploy func(ctx context.Context, p *domain.Project) error
 	// AllAgents returns the list of all available agent IDs.
 	AllAgents func() []string
+	// ResolveMCPSource returns the resolution source for an MCP field.
+	// Returns (effectiveValue, sourceAnnotation, isLocked).
+	// If nil, no resolution annotations are shown.
+	ResolveMCPSource func(service, field string) (effective string, source string, locked bool)
 }
 
 // projectConfigLine is a single editable row in the project config view.
@@ -32,6 +36,11 @@ type projectConfigLine struct {
 	kind    string // "string", "bool", "agents", "section-header", "readonly"
 	get     func(p *domain.Project) string
 	set     func(p *domain.Project, v string)
+	// source returns the resolution source annotation (e.g., "[hub]", "[equipe: enforced]").
+	// nil means no source annotation is displayed.
+	source func(p *domain.Project) string
+	// locked indicates this field is enforced by the team and cannot be edited.
+	locked func(p *domain.Project) bool
 }
 
 // ProjectConfigView displays and edits the active project's configuration.
@@ -205,25 +214,51 @@ func (v *ProjectConfigView) buildLines() {
 			}},
 
 		// ── MCP Overrides ────────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP Overrides"},
-		{section: "MCP", key: "gitlab (enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceEnabled(p, "gitlab") },
-			set:  v.mcpSetEnabled("gitlab")},
-		{section: "MCP", key: "gitlab (write_enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceWriteEnabled(p, "gitlab") },
-			set:  v.mcpSetWriteEnabled("gitlab")},
-		{section: "MCP", key: "jira (enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceEnabled(p, "jira") },
-			set:  v.mcpSetEnabled("jira")},
-		{section: "MCP", key: "figma (enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceEnabled(p, "figma") },
-			set:  v.mcpSetEnabled("figma")},
-		{section: "MCP", key: "gslides (enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceEnabled(p, "gslides") },
-			set:  v.mcpSetEnabled("gslides")},
-		{section: "MCP", key: "team (enabled)", kind: "bool",
-			get:  func(p *domain.Project) string { return mcpServiceEnabled(p, "team") },
-			set:  v.mcpSetEnabled("team")},
+		{kind: "section-header", section: "MCP Services"},
+		// GitLab
+		{section: "MCP", key: "gitlab enabled", kind: "bool",
+			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gitlab") },
+			set:    v.mcpSetEnabled("gitlab"),
+			source: v.mcpSource("gitlab", "enabled"),
+			locked: v.mcpLocked("gitlab", "enabled")},
+		{section: "MCP", key: "gitlab url", kind: "string",
+			get:    func(p *domain.Project) string { return mcpServiceURL(p, "gitlab") },
+			set:    v.mcpSetURL("gitlab"),
+			source: v.mcpSource("gitlab", "url"),
+			locked: v.mcpLocked("gitlab", "url")},
+		{section: "MCP", key: "gitlab token", kind: "string",
+			get: func(p *domain.Project) string { return mcpServiceToken(p, "gitlab") },
+			set: v.mcpSetToken("gitlab")},
+		{section: "MCP", key: "gitlab write", kind: "bool",
+			get: func(p *domain.Project) string { return mcpServiceWriteEnabled(p, "gitlab") },
+			set: v.mcpSetWriteEnabled("gitlab")},
+		// Jira
+		{section: "MCP", key: "jira enabled", kind: "bool",
+			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "jira") },
+			set:    v.mcpSetEnabled("jira"),
+			source: v.mcpSource("jira", "enabled"),
+			locked: v.mcpLocked("jira", "enabled")},
+		{section: "MCP", key: "jira url", kind: "string",
+			get:    func(p *domain.Project) string { return mcpServiceURL(p, "jira") },
+			set:    v.mcpSetURL("jira"),
+			source: v.mcpSource("jira", "url"),
+			locked: v.mcpLocked("jira", "url")},
+		// Figma
+		{section: "MCP", key: "figma enabled", kind: "bool",
+			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "figma") },
+			set:    v.mcpSetEnabled("figma"),
+			source: v.mcpSource("figma", "enabled"),
+			locked: v.mcpLocked("figma", "enabled")},
+		// GSlides
+		{section: "MCP", key: "gslides enabled", kind: "bool",
+			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gslides") },
+			set:    v.mcpSetEnabled("gslides"),
+			source: v.mcpSource("gslides", "enabled"),
+			locked: v.mcpLocked("gslides", "enabled")},
+		// Team MCP server
+		{section: "MCP", key: "team enabled", kind: "bool",
+			get: func(p *domain.Project) string { return mcpServiceEnabled(p, "team") },
+			set: v.mcpSetEnabled("team")},
 
 		// ── Agents ───────────────────────────────────────────────────────────
 		{kind: "section-header", section: "Agents"},
@@ -332,6 +367,106 @@ func (v *ProjectConfigView) mcpSetWriteEnabled(name string) func(p *domain.Proje
 	}
 }
 
+func mcpServiceURL(p *domain.Project, name string) string {
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
+	for _, svc := range p.MCPConfig.Services {
+		if svc.Name == name && svc.URL != "" {
+			return svc.URL
+		}
+	}
+	return "(inherit)"
+}
+
+func mcpServiceToken(p *domain.Project, name string) string {
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
+	for _, svc := range p.MCPConfig.Services {
+		if svc.Name == name && svc.TokenKey != "" {
+			return svc.TokenKey
+		}
+	}
+	return "(inherit)"
+}
+
+func (v *ProjectConfigView) mcpSetURL(name string) func(p *domain.Project, val string) {
+	return func(p *domain.Project, val string) {
+		if p.MCPConfig == nil {
+			p.MCPConfig = &domain.ProjectMCPConfig{}
+		}
+		for i, svc := range p.MCPConfig.Services {
+			if svc.Name == name {
+				if val == "(inherit)" || val == "" {
+					p.MCPConfig.Services[i].URL = ""
+				} else {
+					p.MCPConfig.Services[i].URL = val
+				}
+				v.mcpChanged = true
+				return
+			}
+		}
+		if val == "(inherit)" || val == "" {
+			return
+		}
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
+			Name: name,
+			URL:  val,
+		})
+		v.mcpChanged = true
+	}
+}
+
+func (v *ProjectConfigView) mcpSetToken(name string) func(p *domain.Project, val string) {
+	return func(p *domain.Project, val string) {
+		if p.MCPConfig == nil {
+			p.MCPConfig = &domain.ProjectMCPConfig{}
+		}
+		for i, svc := range p.MCPConfig.Services {
+			if svc.Name == name {
+				if val == "(inherit)" || val == "" {
+					p.MCPConfig.Services[i].TokenKey = ""
+				} else {
+					p.MCPConfig.Services[i].TokenKey = val
+				}
+				v.mcpChanged = true
+				return
+			}
+		}
+		if val == "(inherit)" || val == "" {
+			return
+		}
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
+			Name:     name,
+			TokenKey: val,
+		})
+		v.mcpChanged = true
+	}
+}
+
+// mcpSource returns a function that provides the resolution source annotation for an MCP field.
+func (v *ProjectConfigView) mcpSource(service, field string) func(p *domain.Project) string {
+	return func(_ *domain.Project) string {
+		if v.cfg.ResolveMCPSource == nil {
+			return ""
+		}
+		_, source, _ := v.cfg.ResolveMCPSource(service, field)
+		return source
+	}
+}
+
+// mcpLocked returns a function that reports if an MCP field is enforced (locked).
+func (v *ProjectConfigView) mcpLocked(service, field string) func(p *domain.Project) bool {
+	return func(_ *domain.Project) bool {
+		if v.cfg.ResolveMCPSource == nil {
+			return false
+		}
+		_, _, locked := v.cfg.ResolveMCPSource(service, field)
+		return locked
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
@@ -368,8 +503,22 @@ func (v *ProjectConfigView) renderLines() {
 			readonlyMarker = fmt.Sprintf("  %s(lecture seule)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
 		}
 
+		// Source annotation (resolution info)
+		sourceAnnotation := ""
+		if line.source != nil {
+			if src := line.source(v.live); src != "" {
+				sourceAnnotation = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), src, theme.TagColor)
+			}
+		}
+
+		// Lock indicator (enforced by team)
+		lockPrefix := "  "
+		if line.locked != nil && line.locked(v.live) {
+			lockPrefix = fmt.Sprintf("  %s🔒%s ", theme.ColorTag(theme.WarningHex), theme.TagColor)
+		}
+
 		valDisplay := formatProjectValue(val, line.kind)
-		main := fmt.Sprintf("  %-28s %s%s", line.key+":", valDisplay, readonlyMarker)
+		main := fmt.Sprintf("%s%-28s %s%s%s", lockPrefix, line.key+":", valDisplay, sourceAnnotation, readonlyMarker)
 		v.list.AddItem(main, "", 0, nil)
 	}
 	if savedIdx >= 0 && savedIdx < v.list.GetItemCount() {
@@ -429,6 +578,13 @@ func (v *ProjectConfigView) toggleSelected() {
 	if !ok || line.kind != "bool" {
 		return
 	}
+	// Check lock (enforced by team)
+	if line.locked != nil && line.locked(v.live) {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("🔒 Imposé par l'équipe (non-modifiable)", false)
+		}
+		return
+	}
 	cur := line.get(v.live)
 	var newVal string
 	switch cur {
@@ -447,6 +603,11 @@ func (v *ProjectConfigView) toggleSelected() {
 func (v *ProjectConfigView) editSelected() {
 	line, ok := v.selectedLine()
 	if !ok || v.shell == nil {
+		return
+	}
+	// Check lock (enforced by team)
+	if line.locked != nil && line.locked(v.live) {
+		v.shell.ShowToastMsg("🔒 Imposé par l'équipe (non-modifiable)", false)
 		return
 	}
 
