@@ -901,14 +901,26 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{
 			GetConfig: func() *config.Config {
-				c := *a.Config // shallow copy so edits don't mutate the live app config
-				return &c
+				// Return the live config directly — no copy.
+				// The SettingsView uses undo (reload from disk) instead of
+				// working on a detached copy that could go stale.
+				return a.Config
+			},
+			ReloadConfig: func() *config.Config {
+				// Reload from disk (for undo/refresh operations).
+				config.Reset()
+				newCfg, err := config.Load()
+				if err == nil && newCfg != nil {
+					*a.Config = *newCfg
+				}
+				return a.Config
 			},
 			SaveConfig: func(c *config.Config) error {
 				if err := config.Save(c); err != nil {
 					return err
 				}
-				// Reload the app config from the freshly written file.
+				// Reload to pick up any side-effects of TOML serialization
+				config.Reset()
 				newCfg, err := config.Load()
 				if err == nil && newCfg != nil {
 					*a.Config = *newCfg

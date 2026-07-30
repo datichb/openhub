@@ -16,8 +16,11 @@ import (
 
 // SettingsViewConfig holds external dependencies for the hub config view.
 type SettingsViewConfig struct {
-	// GetConfig returns a fresh copy of the hub config.
+	// GetConfig returns the live hub config (not a copy).
 	GetConfig func() *config.Config
+	// ReloadConfig reloads the config from disk (for undo/refresh).
+	// Returns the refreshed live config pointer.
+	ReloadConfig func() *config.Config
 	// SaveConfig persists the modified config to hub.toml.
 	SaveConfig func(c *config.Config) error
 	// CheckSecret tests whether a keychain key has a value stored.
@@ -114,8 +117,10 @@ func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.save()
 		return nil
 	case 'u':
-		// Undo: reload from disk
-		v.live = v.cfg.GetConfig()
+		// Undo: reload from disk (discards in-memory mutations)
+		if v.cfg.ReloadConfig != nil {
+			v.live = v.cfg.ReloadConfig()
+		}
 		v.dirty = false
 		v.renderLines()
 		if v.shell != nil {
@@ -124,7 +129,9 @@ func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		// Refresh from disk
-		v.live = v.cfg.GetConfig()
+		if v.cfg.ReloadConfig != nil {
+			v.live = v.cfg.ReloadConfig()
+		}
 		v.dirty = false
 		v.renderLines()
 		if v.shell != nil {
@@ -153,7 +160,9 @@ func (v *SettingsView) ContextCommands() []ContextCommand {
 			Description: "Recharger depuis le disque",
 			Category:    "Settings",
 			Action: func() {
-				v.live = v.cfg.GetConfig()
+				if v.cfg.ReloadConfig != nil {
+					v.live = v.cfg.ReloadConfig()
+				}
 				v.dirty = false
 				v.renderLines()
 			},
