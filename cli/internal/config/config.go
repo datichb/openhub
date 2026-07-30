@@ -13,12 +13,12 @@ import (
 
 // Config represents the hub configuration.
 type Config struct {
-	Name     string          `mapstructure:"name"` // Project/hub display name (shown in TUI title)
-	CLI      CLIConfig       `mapstructure:"cli"`
-	Opencode OpencodeConfig  `mapstructure:"opencode"`
-	Provider ProviderConfigs `mapstructure:"provider"`
-	MCP      MCPConfig       `mapstructure:"mcp"`
-	Worktree WorktreeConfig  `mapstructure:"worktree"`
+	Name     string          `mapstructure:"name" toml:"name,omitempty"` // Project/hub display name (shown in TUI title)
+	CLI      CLIConfig       `mapstructure:"cli" toml:"cli"`
+	Opencode OpencodeConfig  `mapstructure:"opencode" toml:"opencode"`
+	Provider ProviderConfigs `mapstructure:"provider" toml:"provider"`
+	MCP      MCPConfig       `mapstructure:"mcp" toml:"mcp"`
+	Worktree WorktreeConfig  `mapstructure:"worktree" toml:"worktree"`
 	// Team is the legacy single-team field. Retained for backward-compat reading
 	// of hub.toml files that still use the [team] section. On Load, if Team is
 	// populated and Teams is empty, it is auto-migrated into Teams[0].
@@ -26,11 +26,11 @@ type Config struct {
 	Team TeamConfig `mapstructure:"team" toml:"team,omitempty"`
 	// Teams holds the list of teams the user belongs to (ADR-029).
 	// Each project references a team by its ID (Project.TeamID).
-	Teams   []TeamConfig       `mapstructure:"teams"`
-	Models  ModelsConfig       `mapstructure:"models"`
+	Teams   []TeamConfig       `mapstructure:"teams" toml:"teams,omitempty"`
+	Models  ModelsConfig       `mapstructure:"models" toml:"models"`
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
-	Tracker TrackerLocalConfig `mapstructure:"tracker"`
+	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
 }
 
 // FindTeam looks up a team by ID. Returns nil if not found.
@@ -69,9 +69,9 @@ func (c *Config) DefaultTeam() *TeamConfig {
 // ModelsConfig holds the model resolution cascade at the hub level.
 // Corresponds to [models], [models.families], [models.agents] in hub.toml.
 type ModelsConfig struct {
-	Default  string            `mapstructure:"default"`  // hub-level global default model
-	Families map[string]string `mapstructure:"families"` // family name → model (e.g., "quality" = "claude-opus-4")
-	Agents   map[string]string `mapstructure:"agents"`   // agent-id → model (e.g., "reviewer" = "claude-opus-4")
+	Default  string            `mapstructure:"default" toml:"default,omitempty"`   // hub-level global default model
+	Families map[string]string `mapstructure:"families" toml:"families,omitempty"` // family name → model (e.g., "quality" = "claude-opus-4")
+	Agents   map[string]string `mapstructure:"agents" toml:"agents,omitempty"`     // agent-id → model (e.g., "reviewer" = "claude-opus-4")
 }
 
 // TeamConfig holds team collaboration settings.
@@ -83,14 +83,14 @@ type TeamConfig struct {
 	// Used by projects to declare their team affiliation (Project.TeamID).
 	// When migrating from the legacy [team] section, ID is auto-derived from
 	// the StateRepo URL (last path segment, stripped of ".git").
-	ID string `mapstructure:"id"`
+	ID string `mapstructure:"id" toml:"id"`
 	// Name is a human-readable display name (e.g. "Equipe ACME").
 	// Optional — if empty, ID is used for display.
-	Name      string `mapstructure:"name"`
-	Enabled   bool   `mapstructure:"enabled"`
-	StateRepo string `mapstructure:"state_repo"` // Git remote URL for the team-state repo
-	StatePath string `mapstructure:"state_path"` // Local clone path (default: ~/.oh/team-state)
-	MemberID  string `mapstructure:"member_id"`  // Current user's member ID
+	Name      string `mapstructure:"name" toml:"name,omitempty"`
+	Enabled   bool   `mapstructure:"enabled" toml:"enabled"`
+	StateRepo string `mapstructure:"state_repo" toml:"state_repo"` // Git remote URL for the team-state repo
+	StatePath string `mapstructure:"state_path" toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
+	MemberID  string `mapstructure:"member_id" toml:"member_id"`  // Current user's member ID
 }
 
 // DisplayName returns Name if set, otherwise falls back to ID.
@@ -103,58 +103,58 @@ func (t TeamConfig) DisplayName() string {
 
 // WorktreeConfig holds git worktree management settings.
 type WorktreeConfig struct {
-	AutoCleanup   bool   `mapstructure:"auto_cleanup"`
-	BaseBranch    string `mapstructure:"base_branch"`    // empty = auto-detect (main/master)
-	BranchPattern string `mapstructure:"branch_pattern"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
+	AutoCleanup   bool   `mapstructure:"auto_cleanup" toml:"auto_cleanup"`
+	BaseBranch    string `mapstructure:"base_branch" toml:"base_branch,omitempty"`    // empty = auto-detect (main/master)
+	BranchPattern string `mapstructure:"branch_pattern" toml:"branch_pattern,omitempty"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
 }
 
 // CLIConfig holds CLI-specific settings.
 type CLIConfig struct {
-	Language string `mapstructure:"language"`
+	Language string `mapstructure:"language" toml:"language"`
 }
 
 // OpencodeConfig holds opencode dependency settings.
 type OpencodeConfig struct {
-	Version         string `mapstructure:"version"`
-	Channel         string `mapstructure:"channel"`
-	AutoUpdate      bool   `mapstructure:"auto_update"`
-	InstallDir      string `mapstructure:"install_dir"`
-	DefaultProvider string `mapstructure:"default_provider"`
+	Version         string `mapstructure:"version" toml:"version"`
+	Channel         string `mapstructure:"channel" toml:"channel"`
+	AutoUpdate      bool   `mapstructure:"auto_update" toml:"auto_update"`
+	InstallDir      string `mapstructure:"install_dir" toml:"install_dir,omitempty"`
+	DefaultProvider string `mapstructure:"default_provider" toml:"default_provider,omitempty"`
 }
 
 // ProviderConfigs holds per-provider non-secret configuration.
 // Corresponds to [provider.bedrock], [provider.anthropic], etc. in hub.toml.
 type ProviderConfigs struct {
-	Bedrock    ProviderConfig `mapstructure:"bedrock"`
-	Anthropic  ProviderConfig `mapstructure:"anthropic"`
-	OpenRouter ProviderConfig `mapstructure:"openrouter"`
+	Bedrock    ProviderConfig `mapstructure:"bedrock" toml:"bedrock"`
+	Anthropic  ProviderConfig `mapstructure:"anthropic" toml:"anthropic"`
+	OpenRouter ProviderConfig `mapstructure:"openrouter" toml:"openrouter"`
 }
 
 // ProviderConfig holds non-secret configuration for a single provider.
 type ProviderConfig struct {
-	AWSProfile string `mapstructure:"aws_profile"` // AWS profile name (bedrock only)
-	AWSRegion  string `mapstructure:"aws_region"`  // AWS region (bedrock only)
-	AuthMode   string `mapstructure:"auth_mode"`   // "bearer" | "profile" | "env" (bedrock only)
+	AWSProfile string `mapstructure:"aws_profile" toml:"aws_profile,omitempty"` // AWS profile name (bedrock only)
+	AWSRegion  string `mapstructure:"aws_region" toml:"aws_region,omitempty"`   // AWS region (bedrock only)
+	AuthMode   string `mapstructure:"auth_mode" toml:"auth_mode,omitempty"`     // "bearer" | "profile" | "env" (bedrock only)
 }
 
 // MCPConfig holds MCP server configuration.
 type MCPConfig struct {
-	Figma   MCPServerConfig `mapstructure:"figma"`
-	Gitlab  MCPServerConfig `mapstructure:"gitlab"`
-	Jira    MCPServerConfig `mapstructure:"jira"`
-	Gslides MCPServerConfig `mapstructure:"gslides"`
+	Figma   MCPServerConfig `mapstructure:"figma" toml:"figma"`
+	Gitlab  MCPServerConfig `mapstructure:"gitlab" toml:"gitlab"`
+	Jira    MCPServerConfig `mapstructure:"jira" toml:"jira"`
+	Gslides MCPServerConfig `mapstructure:"gslides" toml:"gslides"`
 }
 
 // MCPServerConfig holds individual MCP server settings.
 type MCPServerConfig struct {
-	Enabled      bool   `mapstructure:"enabled"`
-	Token        string `mapstructure:"token_key"`     // keychain key name, not the secret itself
-	WriteEnabled bool   `mapstructure:"write_enabled"` // opt-in for write operations (e.g. GitLab MR creation)
+	Enabled      bool   `mapstructure:"enabled" toml:"enabled"`
+	Token        string `mapstructure:"token_key" toml:"token_key,omitempty"`     // keychain key name, not the secret itself
+	WriteEnabled bool   `mapstructure:"write_enabled" toml:"write_enabled"` // opt-in for write operations (e.g. GitLab MR creation)
 	// URL is an optional per-member override for the service base URL.
 	// Useful when the member needs to point to a different instance than
 	// the team recommendation stored in team-state config.toml.
 	// When empty, the team-state shared URL (if any) or the built-in default is used.
-	URL string `mapstructure:"url,omitempty"`
+	URL string `mapstructure:"url,omitempty" toml:"url,omitempty"`
 }
 
 // TrackerLocalConfig holds the member's personal overrides for tracker sync settings.
@@ -164,17 +164,17 @@ type MCPServerConfig struct {
 type TrackerLocalConfig struct {
 	// Enabled overrides whether tracker sync is active for this member.
 	// nil = inherit team-state. false = disable sync locally (e.g. no network access).
-	Enabled *bool `mapstructure:"enabled"`
+	Enabled *bool `mapstructure:"enabled" toml:"enabled,omitempty"`
 	// AutoSync overrides whether sync runs automatically on team view open.
-	AutoSync *bool `mapstructure:"auto_sync"`
+	AutoSync *bool `mapstructure:"auto_sync" toml:"auto_sync,omitempty"`
 	// PushLabels overrides whether hub labels are pushed back to the tracker.
 	// nil = inherit team recommendation. The effective value is also gated by
 	// [mcp.<type>].write_enabled — push never happens without write permission.
-	PushLabels *bool `mapstructure:"push_labels"`
+	PushLabels *bool `mapstructure:"push_labels" toml:"push_labels,omitempty"`
 	// AutoPlanAssigned overrides the auto-plan-from-tracker-assignee behaviour.
-	AutoPlanAssigned *bool `mapstructure:"auto_plan_assigned"`
+	AutoPlanAssigned *bool `mapstructure:"auto_plan_assigned" toml:"auto_plan_assigned,omitempty"`
 	// MaxAutoPlanPerMember overrides the per-member auto-plan limit.
-	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member"`
+	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member" toml:"max_auto_plan_per_member,omitempty"`
 }
 
 var (
