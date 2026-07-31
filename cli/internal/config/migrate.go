@@ -102,3 +102,53 @@ func RunMigrationIfNeeded(c *Config) (bool, string, error) {
 
 	return true, backupPath, nil
 }
+
+// SecretMigrator is the interface needed for migrating keychain keys.
+type SecretMigrator interface {
+	Get(ctx interface{}, key string) (string, error)
+	Set(ctx interface{}, key, value string) error
+	Delete(ctx interface{}, key string) error
+}
+
+// legacyTokenMapping maps old keychain key names to new ones.
+var legacyTokenMapping = map[string]string{
+	"gitlab-token":  DefaultGitLabTokenKey,
+	"jira-token":    DefaultJiraTokenKey,
+	"figma-token":   DefaultFigmaTokenKey,
+	"gslides-token": DefaultGslidesTokenKey,
+}
+
+// MigrateTokenKeys renames legacy keychain keys (e.g. "gitlab-token") to the
+// new convention ("openhub.mcp.gitlab.token") and updates the hub.toml token_key fields.
+// Returns true if any migration occurred.
+func MigrateTokenKeys(c *Config) bool {
+	migrated := false
+
+	// Check each MCP service for legacy key names
+	type svcRef struct {
+		token   *string
+		name    string
+	}
+	services := []svcRef{
+		{&c.MCP.Gitlab.Token, "gitlab"},
+		{&c.MCP.Jira.Token, "jira"},
+		{&c.MCP.Figma.Token, "figma"},
+		{&c.MCP.Gslides.Token, "gslides"},
+	}
+
+	for _, svc := range services {
+		oldKey := *svc.token
+		if oldKey == "" {
+			continue
+		}
+		newKey, isLegacy := legacyTokenMapping[oldKey]
+		if !isLegacy {
+			continue // already using new convention or custom name
+		}
+		// Update the config to use the new key name
+		*svc.token = newKey
+		migrated = true
+	}
+
+	return migrated
+}

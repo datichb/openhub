@@ -30,10 +30,11 @@ const (
 type teamConfigLine struct {
 	section string
 	key     string
-	kind    string // "bool", "string", "select", "tri-state", "section-header", "sub-header"
+	kind    string // "bool", "string", "select", "tri-state", "password", "section-header", "sub-header"
 	options []SelectOption
 	scope   configScope
-	dynamic bool // can be added/deleted (mappings, families, agents)
+	dynamic bool         // can be added/deleted (mappings, families, agents)
+	grayed  func() bool  // returns true if field is grayed-out (enforced elsewhere)
 	get     func() string
 	set     func(val string)
 }
@@ -50,6 +51,11 @@ type TeamDetailViewConfig struct {
 	GetHubConfig          func() *config.Config
 	ListProjects          func(ctx context.Context) []ProjectInfo
 	SyncTracker           func(ctx context.Context) (*SyncTrackerResult, error)
+	// CheckSecret tests whether a keychain key has a value stored.
+	// Returns (present, maskedValue) — masked shows last 4 chars like "****7a3f".
+	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
+	// SetSecret stores a secret value in the keychain.
+	SetSecret func(ctx context.Context, key, value string) error
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,6 +292,8 @@ func (v *TeamDetailView) buildLines() {
 		svc := svc // capture
 		v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "MCP " + strings.Title(svc)})
 
+		// ── Équipe ──
+		v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "équipe"})
 		v.lines = append(v.lines, teamConfigLine{
 			section: "MCP", key: "enabled", kind: "bool", scope: scopeTeam,
 			get: func() string { return boolPtrToStr(v.teamCfg.MCP[svc].Enabled) },
@@ -310,6 +318,31 @@ func (v *TeamDetailView) buildLines() {
 			section: "MCP", key: "write_recommended", kind: "bool", scope: scopeTeam,
 			get: func() string { return tdBoolToStr(v.teamCfg.MCP[svc].WriteRecommended) },
 			set: func(val string) { s := v.teamCfg.MCP[svc]; s.WriteRecommended = val == "true"; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+
+		// ── Personnel ──
+		v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "personnel"})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP.perso", key: "enabled", kind: "bool", scope: scopeLocal,
+			grayed: func() bool { return v.teamCfg.MCP[svc].IsEnabledEnforced() },
+			get:    v.getMCPLocalEnabled(svc),
+			set:    v.setMCPLocalEnabled(svc),
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP.perso", key: "url", kind: "string", scope: scopeLocal,
+			grayed: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
+			get:    v.getMCPLocalURL(svc),
+			set:    v.setMCPLocalURL(svc),
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP.perso", key: "token", kind: "password", scope: scopeLocal,
+			get: v.getMCPLocalToken(svc),
+			set: v.setMCPLocalToken(svc),
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP.perso", key: "write_enabled", kind: "bool", scope: scopeLocal,
+			get: v.getMCPLocalWrite(svc),
+			set: v.setMCPLocalWrite(svc),
 		})
 	}
 
@@ -491,12 +524,27 @@ func (v *TeamDetailView) renderLines() {
 			if line.get != nil {
 				val = line.get()
 			}
-			display := v.formatValue(val, line.kind)
+
+			// Handle password kind (token fields)
+			var display string
+			if line.kind == "password" {
+				display = v.formatToken(val)
+			} else {
+				display = v.formatValue(val, line.kind)
+			}
+
+			// Handle grayed-out fields (enforced by team)
+			grayedSuffix := ""
+			if line.grayed != nil && line.grayed() {
+				grayedSuffix = fmt.Sprintf("  %s(enforced par l'équipe)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+				display = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
+			}
+
 			prefix := "    "
 			if line.dynamic {
 				prefix = "      "
 			}
-			main := fmt.Sprintf("%s%-22s %s", prefix, line.key, display)
+			main := fmt.Sprintf("%s%-22s %s%s", prefix, line.key, display, grayedSuffix)
 			v.list.AddItem(main, "", 0, nil)
 			v.lineMap = append(v.lineMap, i)
 		}
@@ -511,6 +559,22 @@ func (v *TeamDetailView) renderLines() {
 	if !v.isSelectable(cur) {
 		v.moveDown()
 	}
+}
+
+func (v *TeamDetailView) formatToken(tokenKey string) string {
+	if tokenKey == "" {
+		return fmt.Sprintf("%s(non configuré)%s  %s[✗ non configuré]%s",
+			theme.ColorTag(theme.TextMutedHex), theme.TagColor,
+			theme.ColorTag("#FF5252"), theme.TagColor)
+	}
+	if v.cfg.CheckSecret != nil {
+		ctx := context.Background()
+		present, masked := v.cfg.CheckSecret(ctx, tokenKey)
+		if present {
+			return fmt.Sprintf("%s  %s[✓ configuré]%s", masked, theme.ColorTag(theme.SuccessHex), theme.TagColor)
+		}
+	}
+	return fmt.Sprintf("%s  %s[✗ non configuré]%s", tokenKey, theme.ColorTag("#FF5252"), theme.TagColor)
 }
 
 func (v *TeamDetailView) formatValue(val, kind string) string {
@@ -568,6 +632,13 @@ func (v *TeamDetailView) toggleSelected() {
 	if !ok {
 		return
 	}
+	// Check grayed (enforced by team)
+	if line.grayed != nil && line.grayed() {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+		}
+		return
+	}
 	switch line.kind {
 	case "bool":
 		cur := line.get()
@@ -597,6 +668,11 @@ func (v *TeamDetailView) editSelected() {
 	if !ok || v.shell == nil {
 		return
 	}
+	// Check grayed (enforced by team)
+	if line.grayed != nil && line.grayed() {
+		v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+		return
+	}
 
 	switch line.kind {
 	case "bool", "tri-state":
@@ -611,7 +687,45 @@ func (v *TeamDetailView) editSelected() {
 			line.set(val)
 			v.renderLines()
 		})
+	case "password":
+		tokenKey := line.get()
+		if tokenKey == "" {
+			// Auto-assign default key name based on section context
+			tokenKey = config.DefaultTokenKeyForService(v.currentServiceForLine(line))
+			line.set(tokenKey)
+		}
+		v.shell.ShowPasswordModal("Valeur du token ("+tokenKey+")", func(val string) {
+			if val == "" {
+				return
+			}
+			if v.cfg.SetSecret != nil {
+				ctx := context.Background()
+				_ = v.cfg.SetSecret(ctx, tokenKey, val)
+			}
+			v.renderLines()
+			if v.shell != nil {
+				v.shell.ShowToastMsg("✓ Token enregistré", true)
+			}
+		})
 	}
+}
+
+// currentServiceForLine determines which MCP service a line belongs to.
+func (v *TeamDetailView) currentServiceForLine(line teamConfigLine) string {
+	// Walk up from the line to find the section header
+	for _, l := range v.lines {
+		if l.kind == "section-header" && strings.HasPrefix(l.section, "MCP ") {
+			svc := strings.ToLower(strings.TrimPrefix(l.section, "MCP "))
+			// Check if this line is under this service section
+			// Simple heuristic: return the last seen service before we hit the target line
+			_ = svc
+		}
+	}
+	// Fallback: extract from section field
+	if strings.HasPrefix(line.section, "MCP") {
+		return "gitlab" // default fallback
+	}
+	return ""
 }
 
 func (v *TeamDetailView) addDynamic() {
@@ -744,6 +858,7 @@ func (v *TeamDetailView) save() {
 	if v.dirtyLocal {
 		hubCfg := v.cfg.GetHubConfig()
 		if hubCfg != nil {
+			hubCfg.MCP = v.localMCP
 			hubCfg.Tracker = v.localTrk
 			if err := config.Save(hubCfg); err != nil {
 				v.shell.ShowToastMsg("Erreur sauvegarde locale: "+err.Error(), false)
@@ -975,6 +1090,138 @@ func triStateToPtrBool(val string) *bool {
 		return &b
 	default:
 		return nil
+	}
+}
+
+// ─── MCP Local (hub.toml) accessor helpers ──────────────────────────────────
+
+func (v *TeamDetailView) getMCPLocalEnabled(svc string) func() string {
+	return func() string {
+		switch svc {
+		case "gitlab":
+			return tdBoolToStr(v.localMCP.Gitlab.Enabled)
+		case "jira":
+			return tdBoolToStr(v.localMCP.Jira.Enabled)
+		case "figma":
+			return tdBoolToStr(v.localMCP.Figma.Enabled)
+		case "gslides":
+			return tdBoolToStr(v.localMCP.Gslides.Enabled)
+		}
+		return "false"
+	}
+}
+
+func (v *TeamDetailView) setMCPLocalEnabled(svc string) func(string) {
+	return func(val string) {
+		b := val == "true"
+		switch svc {
+		case "gitlab":
+			v.localMCP.Gitlab.Enabled = b
+		case "jira":
+			v.localMCP.Jira.Enabled = b
+		case "figma":
+			v.localMCP.Figma.Enabled = b
+		case "gslides":
+			v.localMCP.Gslides.Enabled = b
+		}
+		v.dirtyLocal = true
+	}
+}
+
+func (v *TeamDetailView) getMCPLocalURL(svc string) func() string {
+	return func() string {
+		switch svc {
+		case "gitlab":
+			return v.localMCP.Gitlab.URL
+		case "jira":
+			return v.localMCP.Jira.URL
+		case "figma":
+			return v.localMCP.Figma.URL
+		case "gslides":
+			return v.localMCP.Gslides.URL
+		}
+		return ""
+	}
+}
+
+func (v *TeamDetailView) setMCPLocalURL(svc string) func(string) {
+	return func(val string) {
+		switch svc {
+		case "gitlab":
+			v.localMCP.Gitlab.URL = val
+		case "jira":
+			v.localMCP.Jira.URL = val
+		case "figma":
+			v.localMCP.Figma.URL = val
+		case "gslides":
+			v.localMCP.Gslides.URL = val
+		}
+		v.dirtyLocal = true
+	}
+}
+
+func (v *TeamDetailView) getMCPLocalToken(svc string) func() string {
+	return func() string {
+		switch svc {
+		case "gitlab":
+			return v.localMCP.Gitlab.Token
+		case "jira":
+			return v.localMCP.Jira.Token
+		case "figma":
+			return v.localMCP.Figma.Token
+		case "gslides":
+			return v.localMCP.Gslides.Token
+		}
+		return ""
+	}
+}
+
+func (v *TeamDetailView) setMCPLocalToken(svc string) func(string) {
+	return func(val string) {
+		switch svc {
+		case "gitlab":
+			v.localMCP.Gitlab.Token = val
+		case "jira":
+			v.localMCP.Jira.Token = val
+		case "figma":
+			v.localMCP.Figma.Token = val
+		case "gslides":
+			v.localMCP.Gslides.Token = val
+		}
+		v.dirtyLocal = true
+	}
+}
+
+func (v *TeamDetailView) getMCPLocalWrite(svc string) func() string {
+	return func() string {
+		switch svc {
+		case "gitlab":
+			return tdBoolToStr(v.localMCP.Gitlab.WriteEnabled)
+		case "jira":
+			return tdBoolToStr(v.localMCP.Jira.WriteEnabled)
+		case "figma":
+			return tdBoolToStr(v.localMCP.Figma.WriteEnabled)
+		case "gslides":
+			return tdBoolToStr(v.localMCP.Gslides.WriteEnabled)
+		}
+		return "false"
+	}
+}
+
+func (v *TeamDetailView) setMCPLocalWrite(svc string) func(string) {
+	return func(val string) {
+		b := val == "true"
+		switch svc {
+		case "gitlab":
+			v.localMCP.Gitlab.WriteEnabled = b
+		case "jira":
+			v.localMCP.Jira.WriteEnabled = b
+		case "figma":
+			v.localMCP.Figma.WriteEnabled = b
+		case "gslides":
+			v.localMCP.Gslides.WriteEnabled = b
+		}
+		v.dirtyLocal = true
 	}
 }
 

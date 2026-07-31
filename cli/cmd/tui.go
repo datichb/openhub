@@ -897,6 +897,26 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			SyncTracker: func(ctx context.Context) (*views.SyncTrackerResult, error) {
 				return runSyncTrackerForTUI(a, ctx)
 			},
+			CheckSecret: func(ctx context.Context, key string) (bool, string) {
+				if a.Secrets == nil {
+					return false, ""
+				}
+				val, err := a.Secrets.Get(ctx, key)
+				if err != nil || val == "" {
+					return false, ""
+				}
+				masked := "****"
+				if len(val) > 4 {
+					masked = "****" + val[len(val)-4:]
+				}
+				return true, masked
+			},
+			SetSecret: func(ctx context.Context, key, value string) error {
+				if a.Secrets == nil {
+					return fmt.Errorf("keychain non disponible")
+				}
+				return a.Secrets.Set(ctx, key, value)
+			},
 		}),
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{

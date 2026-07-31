@@ -156,6 +156,15 @@ func initApp() error {
 		slog.Info("migrated [team] to [[teams]]", "backup", backup)
 	}
 
+	// Auto-migrate legacy token key names (gitlab-token → openhub.mcp.gitlab.token).
+	if config.MigrateTokenKeys(a.Config) {
+		if err := config.Save(a.Config); err != nil {
+			slog.Warn("token key migration save failed", "error", err)
+		} else {
+			slog.Info("migrated token keys to openhub.mcp.* convention")
+		}
+	}
+
 	// Open SQLite store
 	s, err := sqlite.OpenDefault()
 	if err != nil {

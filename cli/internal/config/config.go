@@ -184,6 +184,32 @@ var (
 	cfgMu   sync.Mutex
 )
 
+// Default keychain key names for MCP service tokens (ADR-030 convention).
+// Pattern: openhub.mcp.<service>.token
+// Per-project override pattern: openhub.mcp.<service>.token.<projectID>
+const (
+	DefaultGitLabTokenKey  = "openhub.mcp.gitlab.token"
+	DefaultJiraTokenKey    = "openhub.mcp.jira.token"
+	DefaultFigmaTokenKey   = "openhub.mcp.figma.token"
+	DefaultGslidesTokenKey = "openhub.mcp.gslides.token"
+)
+
+// DefaultTokenKeyForService returns the conventional keychain key name for a service.
+func DefaultTokenKeyForService(service string) string {
+	switch service {
+	case "gitlab":
+		return DefaultGitLabTokenKey
+	case "jira":
+		return DefaultJiraTokenKey
+	case "figma":
+		return DefaultFigmaTokenKey
+	case "gslides":
+		return DefaultGslidesTokenKey
+	default:
+		return "openhub.mcp." + service + ".token"
+	}
+}
+
 // HubDir returns the path to the .oh configuration directory.
 func HubDir() string {
 	home, err := os.UserHomeDir()
