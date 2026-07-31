@@ -3,169 +3,181 @@ package views
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+type configScope string
+
+const (
+	scopeTeam  configScope = "team"
+	scopeLocal configScope = "local"
+)
+
+type teamConfigLine struct {
+	section string
+	key     string
+	kind    string // "bool", "string", "select", "tri-state", "section-header", "sub-header"
+	options []SelectOption
+	scope   configScope
+	dynamic bool // can be added/deleted (mappings, families, agents)
+	get     func() string
+	set     func(val string)
+}
+
 // TeamDetailViewConfig holds the external dependencies for TeamDetailView.
 type TeamDetailViewConfig struct {
-	// GetMCPConfig returns the local MCP config from hub.toml.
-	GetMCPConfig func() config.MCPConfig
-	// GetTrackerLocalConfig returns the local tracker override from hub.toml.
+	GetMCPConfig          func() config.MCPConfig
 	GetTrackerLocalConfig func() config.TrackerLocalConfig
-	// ResolveTeam returns the effective team config for the active project.
-	ResolveTeam ResolveTeamFunc
-	// SaveTeamConfig persists changes to team-state config.toml and pushes.
-	SaveTeamConfig func(ctx context.Context, cfg *teamstate.TeamConfig) error
-	// SaveLocalMCP persists a local MCP setting to hub.toml.
-	// key is a TOML key path (e.g. "mcp.gitlab.write_enabled"), value is the new value.
-	SaveLocalMCP func(key, value string) error
-	// SaveLocalTracker persists a local tracker override to hub.toml.
-	SaveLocalTracker func(key, value string) error
-	// GetSecrets returns the secret store for connection tests.
-	GetSecrets func() tracker.SecretGetter
-	// GetHubConfig returns the full hub config (for local tracker overrides save).
-	GetHubConfig func() *config.Config
-	// ListProjects returns all registered hub projects (for tracker mapping UI).
-	ListProjects func(ctx context.Context) []ProjectInfo
-	// SyncTracker runs the tracker sync and returns a formatted result.
-	SyncTracker func(ctx context.Context) (*SyncTrackerResult, error)
+	ResolveTeam           ResolveTeamFunc
+	SaveTeamConfig        func(ctx context.Context, cfg *teamstate.TeamConfig) error
+	SaveLocalMCP          func(key, value string) error
+	SaveLocalTracker      func(key, value string) error
+	GetSecrets            func() tracker.SecretGetter
+	GetHubConfig          func() *config.Config
+	ListProjects          func(ctx context.Context) []ProjectInfo
+	SyncTracker           func(ctx context.Context) (*SyncTrackerResult, error)
 }
 
-// ProjectInfo is a minimal project representation for the tracker mapping UI.
-type ProjectInfo struct {
-	ID   string
-	Name string
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// View
+// ─────────────────────────────────────────────────────────────────────────────
 
-// SyncTrackerResult holds the outcome of a tracker sync for display in a modal.
-type SyncTrackerResult struct {
-	ClaimsCreated int
-	ClaimsUpdated int
-	LabelsPushed  int
-	Projects      []string // per-project summary lines
-	Warnings      []string
-	Errors        []string
-}
-
-// TeamDetailView displays and edits MCP + tracker configuration
-// with two display modes:
-//   - Simple: only the effective (resolved) values
-//   - Detailed: three columns — equipe | local | effectif
+// TeamDetailView provides an interactive list for editing team-state config
+// (MCP, tracker, notifications, collaboration, models) and local overrides.
 type TeamDetailView struct {
-	app    *tview.Application
-	tv     *tview.TextView
-	shell  ShellAccess
-	cfg    TeamDetailViewConfig
+	app   *tview.Application
+	list  *tview.List
+	shell ShellAccess
+	cfg   TeamDetailViewConfig
 
-	// detailedMode toggles between simple (false) and detailed (true) display.
-	detailedMode bool
-	// dirty tracks whether there are unsaved local changes.
-	dirty bool
-
-	// cached data loaded on Mount/refresh
-	teamCfg  *teamstate.TeamConfig
-	localMCP config.MCPConfig
-	localTrk config.TrackerLocalConfig
+	teamCfg    *teamstate.TeamConfig
+	localMCP   config.MCPConfig
+	localTrk   config.TrackerLocalConfig
+	lines      []teamConfigLine
+	dirtyTeam  bool
+	dirtyLocal bool
 }
 
 var _ View = (*TeamDetailView)(nil)
 
-// NewTeamDetailView creates the MCP & tracker config view.
 func NewTeamDetailView(cfg TeamDetailViewConfig) *TeamDetailView {
 	return &TeamDetailView{cfg: cfg}
 }
 
-// SetShell provides the shell reference for toast/modal interactions.
 func (v *TeamDetailView) SetShell(s ShellAccess) { v.shell = s }
+func (v *TeamDetailView) ID() string             { return "team.detail" }
+func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
-// ID returns the view identifier used by the omnibar router.
-func (v *TeamDetailView) ID() string { return "team.detail" }
-
-// Title returns the display title.
-func (v *TeamDetailView) Title() string { return "Équipe - Détail" }
-
-// StatusHints returns keybinding hints shown in the status bar.
 func (v *TeamDetailView) StatusHints() string {
-	if v.detailedMode {
-		return "v simple · g config équipe · l config locale · s sync · t tester · r refresh"
-	}
-	return "v détaillé · g config équipe · l config locale · s sync · t tester · r refresh"
+	return "j/k nav · Space toggle · Enter edit · w save · s sync · t test · a add · d del · r refresh"
 }
 
-// Mount builds and displays the view content.
+// ─────────────────────────────────────────────────────────────────────────────
+// Lifecycle
+// ─────────────────────────────────────────────────────────────────────────────
+
 func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	v.tv = tview.NewTextView().
-		SetDynamicColors(true).
-		SetScrollable(true).
-		SetWrap(false)
-	v.tv.SetBackgroundColor(theme.BgPanel)
-	v.tv.SetBorderPadding(1, 0, 2, 2)
+	v.list = tview.NewList().
+		ShowSecondaryText(false).
+		SetHighlightFullLine(true).
+		SetMainTextColor(theme.FgPrimary).
+		SetSelectedTextColor(theme.FgPrimary).
+		SetSelectedBackgroundColor(theme.BgElement)
+	v.list.SetBackgroundColor(theme.BgPanel)
+	v.list.SetBorderPadding(1, 0, 2, 2)
 
-	// Async pull then render
+	// Async pull team-state then load
 	tc := v.cfg.ResolveTeam()
 	if tc.Enabled {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		syncAsync(v.app, repo, v.shell, func(_ error) {
-			v.loadAndRender()
+			v.loadData()
+			v.buildLines()
+			v.renderLines()
 		})
 	} else {
-		v.loadAndRender()
+		v.loadData()
+		v.buildLines()
+		v.renderLines()
 	}
 
-	content.AddItem(v.tv, 0, 1, true)
+	content.AddItem(v.list, 0, 1, true)
 }
 
-// Unmount cleans up resources.
 func (v *TeamDetailView) Unmount() {
-	if v.dirty && v.shell != nil {
-		// Inform user of unsaved changes — they navigate away
-		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — utilisez 'w' pour sauvegarder", false)
+	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
+		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — 'w' pour sauvegarder", false)
 	}
 	v.app = nil
-	v.tv = nil
+	v.list = nil
 }
 
-// HandleKey processes view key events.
+// ─────────────────────────────────────────────────────────────────────────────
+// Key handling
+// ─────────────────────────────────────────────────────────────────────────────
+
 func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	switch event.Key() {
+	case tcell.KeyEnter:
+		v.editSelected()
+		return nil
+	}
 	switch event.Rune() {
-	case 'v':
-		v.detailedMode = !v.detailedMode
-		v.render()
+	case ' ':
+		v.toggleSelected()
 		return nil
-	case 'g':
-		v.editTeamConfig()
-		return nil
-	case 'l':
-		v.editLocalConfig()
-		return nil
-	case 't':
-		v.testConnection()
+	case 'w':
+		v.save()
 		return nil
 	case 's':
 		v.syncTracker()
 		return nil
-	case 'w':
-		v.save()
+	case 't':
+		v.testConnection()
+		return nil
+	case 'a':
+		v.addDynamic()
+		return nil
+	case 'd':
+		v.deleteDynamic()
+		return nil
+	case 'u':
+		v.loadData()
+		v.buildLines()
+		v.renderLines()
+		v.dirtyTeam = false
+		v.dirtyLocal = false
+		if v.shell != nil {
+			v.shell.ShowToastMsg("↩ Rechargé", true)
+		}
 		return nil
 	case 'r':
 		tc := v.cfg.ResolveTeam()
 		if tc.Enabled {
 			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 			syncAsync(v.app, repo, v.shell, func(_ error) {
-				v.loadAndRender()
+				v.loadData()
+				v.buildLines()
+				v.renderLines()
+				v.dirtyTeam = false
+				v.dirtyLocal = false
 			})
-		} else {
-			v.loadAndRender()
 		}
 		return nil
 	}
@@ -176,7 +188,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) loadAndRender() {
+func (v *TeamDetailView) loadData() {
 	v.localMCP = v.cfg.GetMCPConfig()
 	v.localTrk = v.cfg.GetTrackerLocalConfig()
 
@@ -184,446 +196,495 @@ func (v *TeamDetailView) loadAndRender() {
 	if tc.Enabled {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
-			v.teamCfg, _ = repo.LoadConfig()
+			teamCfg, err := repo.LoadConfig()
+			if err == nil {
+				v.teamCfg = teamCfg
+			}
 		}
 	}
+	// Ensure non-nil teamCfg for editing
+	if v.teamCfg == nil {
+		v.teamCfg = &teamstate.TeamConfig{}
+	}
+	if v.teamCfg.MCP == nil {
+		v.teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
+	}
+	if v.teamCfg.Tracker.Projects == nil {
+		v.teamCfg.Tracker.Projects = make(map[string]string)
+	}
+	if v.teamCfg.Models.Families == nil {
+		v.teamCfg.Models.Families = make(map[string]string)
+	}
+	if v.teamCfg.Models.Agents == nil {
+		v.teamCfg.Models.Agents = make(map[string]string)
+	}
+}
 
-	v.render()
+// ─────────────────────────────────────────────────────────────────────────────
+// Build config lines
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *TeamDetailView) buildLines() {
+	v.lines = nil
+
+	// ── MCP Services ──
+	for _, svc := range []string{"gitlab", "jira", "figma", "gslides"} {
+		svc := svc // capture
+		v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "MCP " + strings.Title(svc)})
+
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP", key: "enabled", kind: "bool", scope: scopeTeam,
+			get: func() string { return boolPtrToStr(v.teamCfg.MCP[svc].Enabled) },
+			set: func(val string) { s := v.teamCfg.MCP[svc]; b := val == "true"; s.Enabled = &b; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP", key: "enabled_enforced", kind: "bool", scope: scopeTeam,
+			get: func() string { return boolPtrToStr(v.teamCfg.MCP[svc].EnabledEnforced) },
+			set: func(val string) { s := v.teamCfg.MCP[svc]; b := val == "true"; s.EnabledEnforced = &b; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP", key: "url", kind: "string", scope: scopeTeam,
+			get: func() string { return v.teamCfg.MCP[svc].URL },
+			set: func(val string) { s := v.teamCfg.MCP[svc]; s.URL = val; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP", key: "url_enforced", kind: "bool", scope: scopeTeam,
+			get: func() string { return boolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
+			set: func(val string) { s := v.teamCfg.MCP[svc]; b := val == "true"; s.URLEnforced = &b; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+		v.lines = append(v.lines, teamConfigLine{
+			section: "MCP", key: "write_recommended", kind: "bool", scope: scopeTeam,
+			get: func() string { return tdBoolToStr(v.teamCfg.MCP[svc].WriteRecommended) },
+			set: func(val string) { s := v.teamCfg.MCP[svc]; s.WriteRecommended = val == "true"; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+		})
+	}
+
+	// ── Tracker ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Tracker"})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "type", kind: "select", scope: scopeTeam,
+		options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
+		get:     func() string { return v.teamCfg.Tracker.Type },
+		set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "enabled", kind: "bool", scope: scopeTeam,
+		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
+		set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "auto_sync", kind: "bool", scope: scopeTeam,
+		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoSync) },
+		set: func(val string) { v.teamCfg.Tracker.AutoSync = val == "true"; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "push_labels", kind: "bool", scope: scopeTeam,
+		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
+		set: func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "auto_plan_assigned", kind: "bool", scope: scopeTeam,
+		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoPlanAssigned) },
+		set: func(val string) { v.teamCfg.Tracker.AutoPlanAssigned = val == "true"; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "max_auto_plan", kind: "string", scope: scopeTeam,
+		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.MaxAutoPlanPerMember) },
+		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Tracker.MaxAutoPlanPerMember = n; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "sync_interval_min", kind: "string", scope: scopeTeam,
+		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
+		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Tracker.SyncIntervalMinutes = n; v.dirtyTeam = true },
+	})
+
+	// ── Mappings (dynamic) ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Mappings projets"})
+	for k := range v.teamCfg.Tracker.Projects {
+		k := k
+		v.lines = append(v.lines, teamConfigLine{
+			section: "Mappings", key: k, kind: "string", scope: scopeTeam, dynamic: true,
+			get: func() string { return v.teamCfg.Tracker.Projects[k] },
+			set: func(val string) { v.teamCfg.Tracker.Projects[k] = val; v.dirtyTeam = true },
+		})
+	}
+
+	// ── Notifications ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Notifications"})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Notifications", key: "type", kind: "select", scope: scopeTeam,
+		options: []SelectOption{
+			{Label: "Mattermost", Value: "mattermost"},
+			{Label: "Slack", Value: "slack"},
+			{Label: "Discord", Value: "discord"},
+			{Label: "Teams", Value: "teams"},
+		},
+		get: func() string { return v.teamCfg.Notification.Type },
+		set: func(val string) { v.teamCfg.Notification.Type = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Notifications", key: "webhook_url", kind: "string", scope: scopeTeam,
+		get: func() string { return v.teamCfg.Notification.WebhookURL },
+		set: func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Notifications", key: "channel", kind: "string", scope: scopeTeam,
+		get: func() string { return v.teamCfg.Notification.Channel },
+		set: func(val string) { v.teamCfg.Notification.Channel = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Notifications", key: "bot_name", kind: "string", scope: scopeTeam,
+		get: func() string { return v.teamCfg.Notification.BotName },
+		set: func(val string) { v.teamCfg.Notification.BotName = val; v.dirtyTeam = true },
+	})
+
+	// ── Collaboration ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Collaboration"})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Collaboration", key: "max_sessions", kind: "string", scope: scopeTeam,
+		get: func() string { return strconv.Itoa(v.teamCfg.Parallel.MaxSessions) },
+		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Parallel.MaxSessions = n; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Collaboration", key: "stale_days", kind: "string", scope: scopeTeam,
+		get: func() string { return strconv.Itoa(v.teamCfg.Takeover.StaleDays) },
+		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Takeover.StaleDays = n; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Collaboration", key: "done_retention_days", kind: "string", scope: scopeTeam,
+		get: func() string { return strconv.Itoa(v.teamCfg.Claim.DoneRetentionDays) },
+		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Claim.DoneRetentionDays = n; v.dirtyTeam = true },
+	})
+
+	// ── Models (recommandations) ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Models (recommandations)"})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Models", key: "default", kind: "string", scope: scopeTeam,
+		get: func() string { return v.teamCfg.Models.Default },
+		set: func(val string) { v.teamCfg.Models.Default = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "families"})
+	for k := range v.teamCfg.Models.Families {
+		k := k
+		v.lines = append(v.lines, teamConfigLine{
+			section: "Models.families", key: k, kind: "string", scope: scopeTeam, dynamic: true,
+			get: func() string { return v.teamCfg.Models.Families[k] },
+			set: func(val string) { v.teamCfg.Models.Families[k] = val; v.dirtyTeam = true },
+		})
+	}
+	v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "agents"})
+	for k := range v.teamCfg.Models.Agents {
+		k := k
+		v.lines = append(v.lines, teamConfigLine{
+			section: "Models.agents", key: k, kind: "string", scope: scopeTeam, dynamic: true,
+			get: func() string { return v.teamCfg.Models.Agents[k] },
+			set: func(val string) { v.teamCfg.Models.Agents[k] = val; v.dirtyTeam = true },
+		})
+	}
+
+	// ── Overrides locaux ──
+	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Overrides locaux"})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Local", key: "tracker enabled", kind: "tri-state", scope: scopeLocal,
+		get: func() string { return ptrBoolToTriState(v.localTrk.Enabled) },
+		set: func(val string) { v.localTrk.Enabled = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Local", key: "auto_sync", kind: "tri-state", scope: scopeLocal,
+		get: func() string { return ptrBoolToTriState(v.localTrk.AutoSync) },
+		set: func(val string) { v.localTrk.AutoSync = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Local", key: "push_labels", kind: "tri-state", scope: scopeLocal,
+		get: func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
+		set: func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) render() {
-	if v.tv == nil {
+func (v *TeamDetailView) renderLines() {
+	if v.list == nil {
+		return
+	}
+	saved := v.list.GetCurrentItem()
+	v.list.Clear()
+
+	for _, line := range v.lines {
+		switch line.kind {
+		case "section-header":
+			v.list.AddItem(
+				fmt.Sprintf("  %s─── %s ──────────────────%s", theme.ColorTag(theme.AccentHex), line.section, theme.TagColor),
+				"", 0, nil)
+		case "sub-header":
+			v.list.AddItem(
+				fmt.Sprintf("    %s── %s ──%s", theme.ColorTag(theme.TextMutedHex), line.section, theme.TagColor),
+				"", 0, nil)
+		default:
+			val := ""
+			if line.get != nil {
+				val = line.get()
+			}
+			display := v.formatValue(val, line.kind)
+			prefix := "  "
+			if line.dynamic {
+				prefix = "    "
+			}
+			main := fmt.Sprintf("%s%-22s %s", prefix, line.key+":", display)
+			v.list.AddItem(main, "", 0, nil)
+		}
+	}
+
+	if saved >= 0 && saved < v.list.GetItemCount() {
+		v.list.SetCurrentItem(saved)
+	}
+}
+
+func (v *TeamDetailView) formatValue(val, kind string) string {
+	switch kind {
+	case "bool":
+		if val == "true" {
+			return fmt.Sprintf("%s✓ true%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+		}
+		return fmt.Sprintf("%s✗ false%s", theme.ColorTag("#FF5252"), theme.TagColor)
+	case "tri-state":
+		switch val {
+		case "true":
+			return fmt.Sprintf("%s✓ oui%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+		case "false":
+			return fmt.Sprintf("%s✗ non%s", theme.ColorTag("#FF5252"), theme.TagColor)
+		default:
+			return fmt.Sprintf("%s(hériter)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+		}
+	default:
+		if val == "" {
+			return fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+		}
+		return val
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Editing
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *TeamDetailView) selectedLine() (teamConfigLine, int, bool) {
+	if v.list == nil || v.list.GetItemCount() == 0 {
+		return teamConfigLine{}, -1, false
+	}
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= len(v.lines) {
+		return teamConfigLine{}, -1, false
+	}
+	line := v.lines[idx]
+	if line.kind == "section-header" || line.kind == "sub-header" || line.get == nil {
+		return teamConfigLine{}, -1, false
+	}
+	return line, idx, true
+}
+
+func (v *TeamDetailView) toggleSelected() {
+	line, _, ok := v.selectedLine()
+	if !ok {
+		return
+	}
+	switch line.kind {
+	case "bool":
+		cur := line.get()
+		if cur == "true" {
+			line.set("false")
+		} else {
+			line.set("true")
+		}
+	case "tri-state":
+		cur := line.get()
+		switch cur {
+		case "inherit":
+			line.set("true")
+		case "true":
+			line.set("false")
+		case "false":
+			line.set("inherit")
+		}
+	default:
+		return
+	}
+	v.renderLines()
+}
+
+func (v *TeamDetailView) editSelected() {
+	line, _, ok := v.selectedLine()
+	if !ok || v.shell == nil {
 		return
 	}
 
-	var sb strings.Builder
-
-	title := "Services & Tracker"
-	if v.detailedMode {
-		title += "  " + theme.ColorTag(theme.TextMutedHex) + "[vue détaillée — 'v' pour vue simple]" + theme.TagColor
-	} else {
-		title += "  " + theme.ColorTag(theme.TextMutedHex) + "['v' pour vue détaillée équipe|local|effectif]" + theme.TagColor
-	}
-	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", title, theme.TagReset))
-
-	// ── MCP Services ──────────────────────────────────────────────────────────
-	var sharedMCP map[string]teamstate.SharedMCPConfig
-	if v.teamCfg != nil {
-		sharedMCP = v.teamCfg.MCP
-	}
-
-	services := []struct {
-		name  string
-		local config.MCPServerConfig
-	}{
-		{"gitlab", v.localMCP.Gitlab},
-		{"jira", v.localMCP.Jira},
-		{"figma", v.localMCP.Figma},
-		{"gslides", v.localMCP.Gslides},
-	}
-
-	for _, svc := range services {
-		var shared *teamstate.SharedMCPConfig
-		if sharedMCP != nil {
-			if s, ok := sharedMCP[svc.name]; ok {
-				shared = &s
-			}
-		}
-		eff := tracker.ResolveMCPConfig(shared, svc.local)
-		v.renderMCPSection(&sb, svc.name, shared, svc.local, eff)
-	}
-
-	// ── Tracker Sync ──────────────────────────────────────────────────────────
-	sb.WriteString(fmt.Sprintf("\n  %s%s%s\n", theme.ColorTag(theme.AccentHex), "─── Tracker Sync ───", theme.TagColor))
-
-	if v.teamCfg == nil || v.teamCfg.Tracker.Type == "" {
-		sb.WriteString(fmt.Sprintf("  %sNon configuré — lance %s\n",
-			theme.ColorTag(theme.TextSecondaryHex),
-			theme.TagColor))
-		sb.WriteString(fmt.Sprintf("  %soh team config%s  pour configurer\n",
-			theme.ColorTag(theme.AccentHex), theme.TagColor))
-	} else {
-		writeEnabled := v.resolveWriteEnabled()
-		eff := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.localTrk, writeEnabled)
-		v.renderTrackerSection(&sb, eff)
-	}
-
-	v.tv.SetText(sb.String())
-}
-
-func (v *TeamDetailView) renderMCPSection(sb *strings.Builder, name string, shared *teamstate.SharedMCPConfig, local config.MCPServerConfig, eff tracker.EffectiveMCPConfig) {
-	displayName := strings.ToUpper(name[:1]) + name[1:]
-	sb.WriteString(fmt.Sprintf("  %s%s%s\n", theme.ColorTag(theme.AccentHex), "─── "+displayName+" ───", theme.TagColor))
-
-	if v.detailedMode {
-		// Header
-		sb.WriteString(fmt.Sprintf("  %-20s %-20s %-20s\n",
-			theme.ColorTag(theme.TextMutedHex)+"équipe"+theme.TagColor,
-			theme.ColorTag(theme.TextMutedHex)+"local"+theme.TagColor,
-			theme.ColorTag(theme.TextMutedHex)+"effectif"+theme.TagColor))
-
-		// Enabled
-		teamEnabledStr := "—"
-		if shared != nil && shared.Enabled != nil {
-			teamEnabledStr = fmtBoolColor(*shared.Enabled)
-		}
-		localEnabledStr := fmtBoolColor(local.Enabled)
-		sb.WriteString(fmt.Sprintf("  enabled:     %-20s %-20s %s\n",
-			teamEnabledStr, localEnabledStr, fmtBoolColor(eff.Enabled)))
-
-		// URL
-		teamURL := "—"
-		if shared != nil && shared.URL != "" {
-			teamURL = shared.URL
-		}
-		localURL := "—"
-		if local.URL != "" {
-			localURL = local.URL
-		}
-		effURL := eff.URL
-		if effURL == "" {
-			effURL = "(défaut)"
-		}
-		sb.WriteString(fmt.Sprintf("  url:         %-20s %-20s %s\n",
-			truncate(teamURL, 18), truncate(localURL, 18), truncate(effURL, 18)))
-
-		// WriteEnabled
-		teamWriteStr := "—"
-		if shared != nil {
-			teamWriteStr = fmt.Sprintf("rec:%v", shared.WriteRecommended)
-		}
-		sb.WriteString(fmt.Sprintf("  write:       %-20s %-20s %s\n",
-			teamWriteStr, fmtBoolColor(local.WriteEnabled), fmtBoolColor(eff.WriteEnabled)))
-	} else {
-		// Simple view — effective only
-		sb.WriteString(fmt.Sprintf("  enabled: %s", fmtBoolColor(eff.Enabled)))
-		if eff.URL != "" {
-			sb.WriteString(fmt.Sprintf("  url: %s", truncate(eff.URL, 30)))
-		}
-		sb.WriteString(fmt.Sprintf("  write: %s", fmtBoolColor(eff.WriteEnabled)))
-		if eff.WriteRecommended && !eff.WriteEnabled {
-			sb.WriteString(fmt.Sprintf("  %s(équipe recommande: true)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor))
-		}
-		sb.WriteString("\n")
-		// Token
-		tokenStr := theme.ColorTag(theme.TextSecondaryHex) + "(non configuré)" + theme.TagColor
-		if eff.TokenKey != "" {
-			tokenStr = theme.ColorTag(theme.TextMutedHex) + "****" + last4TUI(eff.TokenKey) + theme.TagColor
-		}
-		sb.WriteString(fmt.Sprintf("  token: %s\n", tokenStr))
+	switch line.kind {
+	case "bool", "tri-state":
+		v.toggleSelected()
+	case "select":
+		v.shell.ShowSelectModal(line.key, line.options, line.get(), func(val string) {
+			line.set(val)
+			v.renderLines()
+		})
+	case "string":
+		v.shell.ShowInputModal(line.key, line.get(), func(val string) {
+			line.set(val)
+			v.renderLines()
+		})
 	}
 }
 
-func (v *TeamDetailView) renderTrackerSection(sb *strings.Builder, eff tracker.EffectiveTrackerConfig) {
-	if v.detailedMode {
-		shared := &v.teamCfg.Tracker
-		local := v.localTrk
-
-		sb.WriteString(fmt.Sprintf("  %-20s %-20s %-20s\n",
-			theme.ColorTag(theme.TextMutedHex)+"équipe"+theme.TagColor,
-			theme.ColorTag(theme.TextMutedHex)+"local"+theme.TagColor,
-			theme.ColorTag(theme.TextMutedHex)+"effectif"+theme.TagColor))
-
-		fields := []struct {
-			label    string
-			team     string
-			localStr string
-			eff      string
-			insight  string
-		}{
-			{"type", shared.Type, "—", eff.Type, ""},
-			{"enabled", fmtBoolColor(shared.Enabled), fmtBoolPtrColor(local.Enabled), fmtBoolColor(eff.Enabled), ""},
-			{"auto_sync", fmtBoolColor(shared.AutoSync), fmtBoolPtrColor(local.AutoSync), fmtBoolColor(eff.AutoSync), ""},
-			{"push_labels", fmtBoolColor(shared.PushLabels), fmtBoolPtrColor(local.PushLabels), fmtBoolColor(eff.PushLabels),
-				insightPushLabels(eff)},
-			{"auto_plan", fmtBoolColor(shared.AutoPlanAssigned), fmtBoolPtrColor(local.AutoPlanAssigned), fmtBoolColor(eff.AutoPlanAssigned), ""},
-		}
-		for _, f := range fields {
-			insight := ""
-			if f.insight != "" {
-				insight = "  " + theme.ColorTag(theme.TextMutedHex) + "ℹ " + f.insight + theme.TagColor
-			}
-			sb.WriteString(fmt.Sprintf("  %-14s %-20s %-20s %s%s\n",
-				f.label+":", f.team, f.localStr, f.eff, insight))
-		}
-	} else {
-		sb.WriteString(fmt.Sprintf("  type: %s  enabled: %s  auto_sync: %s  push_labels: %s\n",
-			eff.Type, fmtBoolColor(eff.Enabled), fmtBoolColor(eff.AutoSync), fmtBoolColor(eff.PushLabels)))
-		if eff.LocalOverrides.PushLabels {
-			sb.WriteString(fmt.Sprintf("  %sℹ push_labels surchargé localement (équipe recommande: %v)%s\n",
-				theme.ColorTag(theme.TextMutedHex), eff.SharedPushLabels, theme.TagColor))
-		}
-		if len(v.teamCfg.Tracker.Projects) > 0 {
-			sb.WriteString("  mappings:")
-			for hubID, trackerID := range v.teamCfg.Tracker.Projects {
-				sb.WriteString(fmt.Sprintf("  %s→%s", hubID, trackerID))
-			}
-			sb.WriteString("\n")
-		}
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Actions
-// ─────────────────────────────────────────────────────────────────────────────
-
-func (v *TeamDetailView) editTeamConfig() {
+func (v *TeamDetailView) addDynamic() {
 	if v.shell == nil {
 		return
 	}
-	if v.teamCfg == nil {
-		v.shell.ShowToastMsg("Config équipe non disponible (team-state non cloné ?)", false)
-		return
+	line, _, ok := v.selectedLine()
+	if !ok {
+		// Check if we're on a section header for a dynamic section
+		idx := v.list.GetCurrentItem()
+		if idx >= 0 && idx < len(v.lines) {
+			line = v.lines[idx]
+		}
 	}
 
-	// Step 1: MCP Services (enabled/enforced/url per service)
-	v.editTeamMCPServices()
-}
-
-// editTeamMCPServices is Step 1 of the team config wizard: MCP service settings.
-func (v *TeamDetailView) editTeamMCPServices() {
-	// Build fields for each known MCP service
-	services := []string{"gitlab", "jira", "figma", "gslides"}
-	var fields []FormField
-
-	for _, svc := range services {
-		shared := v.getSharedMCP(svc)
-
-		// Enabled
-		enabledDefault := "false"
-		if shared.Enabled != nil && *shared.Enabled {
-			enabledDefault = "true"
-		}
-		fields = append(fields, FormField{
-			Key: svc + ".enabled", Label: svc + " — activé", Type: FieldBool,
-			Default: enabledDefault,
-		})
-
-		// Enabled enforced
-		enforcedDefault := "false"
-		if shared.EnabledEnforced != nil && *shared.EnabledEnforced {
-			enforcedDefault = "true"
-		}
-		fields = append(fields, FormField{
-			Key: svc + ".enabled_enforced", Label: svc + " — enforced", Type: FieldBool,
-			Default: enforcedDefault, Hint: "Imposer cette valeur (non-overridable par hub/projet)",
-		})
-
-		// URL
-		fields = append(fields, FormField{
-			Key: svc + ".url", Label: svc + " — URL", Type: FieldText,
-			Default: shared.URL, Hint: "URL de l'instance (vide = défaut SaaS)",
-		})
-
-		// URL enforced
-		urlEnfDefault := "false"
-		if shared.URLEnforced != nil && *shared.URLEnforced {
-			urlEnfDefault = "true"
-		}
-		fields = append(fields, FormField{
-			Key: svc + ".url_enforced", Label: svc + " — URL enforced", Type: FieldBool,
-			Default: urlEnfDefault,
-		})
-	}
-
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title:  "Configuration MCP (équipe) — Étape 1/3",
-		Fields: fields,
-		OnSubmit: func(values map[string]string, _ map[string][]string) {
-			// Apply MCP values to teamCfg
-			if v.teamCfg.MCP == nil {
-				v.teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
+	// Determine which dynamic section we're in
+	section := line.section
+	if section == "" {
+		// Walk up to find the nearest section
+		idx := v.list.GetCurrentItem()
+		for i := idx; i >= 0; i-- {
+			if v.lines[i].kind == "section-header" || v.lines[i].kind == "sub-header" {
+				section = v.lines[i].section
+				break
 			}
-			for _, svc := range services {
-				shared := v.teamCfg.MCP[svc]
-
-				enabled := values[svc+".enabled"] == "true"
-				shared.Enabled = &enabled
-
-				enforced := values[svc+".enabled_enforced"] == "true"
-				shared.EnabledEnforced = &enforced
-
-				shared.URL = values[svc+".url"]
-
-				urlEnf := values[svc+".url_enforced"] == "true"
-				shared.URLEnforced = &urlEnf
-
-				v.teamCfg.MCP[svc] = shared
-			}
-
-			// Continue to Step 2: Tracker
-			v.editTeamTrackerFlags()
-		},
-		OnCancel: func() {
-			v.shell.ShowToastMsg("Annulé", false)
-		},
-	})
-}
-
-// editTeamTrackerFlags is Step 2: Tracker type + flags.
-func (v *TeamDetailView) editTeamTrackerFlags() {
-	trkType := v.teamCfg.Tracker.Type
-	if trkType == "" {
-		trkType = "gitlab"
-	}
-
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Configuration Tracker (équipe) — Étape 2/3",
-		Fields: []FormField{
-			{Key: "type", Label: "Type", Type: FieldSelect,
-				Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
-				Default: trkType},
-			{Key: "enabled", Label: "Activé", Type: FieldBool,
-				Default: boolToStr(v.teamCfg.Tracker.Enabled)},
-			{Key: "auto_sync", Label: "Auto-sync", Type: FieldBool,
-				Default: boolToStr(v.teamCfg.Tracker.AutoSync)},
-			{Key: "push_labels", Label: "Push labels", Type: FieldBool,
-				Default: boolToStr(v.teamCfg.Tracker.PushLabels)},
-		},
-		OnSubmit: func(values map[string]string, _ map[string][]string) {
-			v.teamCfg.Tracker.Type = values["type"]
-			v.teamCfg.Tracker.Enabled = values["enabled"] == "true"
-			v.teamCfg.Tracker.AutoSync = values["auto_sync"] == "true"
-			v.teamCfg.Tracker.PushLabels = values["push_labels"] == "true"
-
-			// Continue to Step 3: Project mappings
-			v.editProjectMappings()
-		},
-		OnCancel: func() {
-			// Save what we have from Step 1 (MCP) even if tracker is cancelled
-			v.saveTeamConfigAndRender()
-		},
-	})
-}
-
-// getSharedMCP returns the SharedMCPConfig for a service (or empty if not set).
-func (v *TeamDetailView) getSharedMCP(service string) teamstate.SharedMCPConfig {
-	if v.teamCfg == nil || v.teamCfg.MCP == nil {
-		return teamstate.SharedMCPConfig{}
-	}
-	return v.teamCfg.MCP[service]
-}
-
-func (v *TeamDetailView) editProjectMappings() {
-	if v.shell == nil || v.cfg.ListProjects == nil {
-		// No project listing available — save directly
-		v.saveTeamConfigAndRender()
-		return
-	}
-
-	ctx := context.Background()
-	projects := v.cfg.ListProjects(ctx)
-
-	if len(projects) == 0 {
-		// No projects registered — save directly
-		v.saveTeamConfigAndRender()
-		return
-	}
-
-	// Build form fields: one text field per hub project
-	fields := make([]FormField, len(projects))
-	for i, p := range projects {
-		currentVal := ""
-		if v.teamCfg.Tracker.Projects != nil {
-			currentVal = v.teamCfg.Tracker.Projects[p.ID]
-		}
-		fields[i] = FormField{
-			Key:     p.ID,
-			Label:   fmt.Sprintf("%s → ID tracker", p.Name),
-			Type:    FieldText,
-			Default: currentVal,
-			Hint:    "Numéro du projet ou path (vide = pas de mapping)",
 		}
 	}
 
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title:  "Mappings projets → tracker",
-		Fields: fields,
-		OnSubmit: func(values map[string]string, _ map[string][]string) {
-			if v.teamCfg.Tracker.Projects == nil {
-				v.teamCfg.Tracker.Projects = make(map[string]string)
+	switch {
+	case section == "Mappings" || section == "Mappings projets":
+		v.shell.ShowInputModal("Hub project ID", "", func(key string) {
+			if key == "" {
+				return
 			}
-			for _, p := range projects {
-				if val := values[p.ID]; val != "" {
-					v.teamCfg.Tracker.Projects[p.ID] = val
-				} else {
-					delete(v.teamCfg.Tracker.Projects, p.ID)
+			v.shell.ShowInputModal("Tracker project ID/path", "", func(val string) {
+				if val == "" {
+					return
 				}
+				v.teamCfg.Tracker.Projects[key] = val
+				v.dirtyTeam = true
+				v.buildLines()
+				v.renderLines()
+			})
+		})
+	case section == "families":
+		v.shell.ShowInputModal("Nom de la famille", "", func(key string) {
+			if key == "" {
+				return
 			}
-			v.saveTeamConfigAndRender()
-		},
-		OnCancel: func() {
-			// Still save the tracker type/flags from step 1
-			v.saveTeamConfigAndRender()
-		},
-	})
+			v.shell.ShowInputModal("Model recommandé", "", func(val string) {
+				if val == "" {
+					return
+				}
+				v.teamCfg.Models.Families[key] = val
+				v.dirtyTeam = true
+				v.buildLines()
+				v.renderLines()
+			})
+		})
+	case section == "agents":
+		v.shell.ShowInputModal("Nom de l'agent", "", func(key string) {
+			if key == "" {
+				return
+			}
+			v.shell.ShowInputModal("Model recommandé", "", func(val string) {
+				if val == "" {
+					return
+				}
+				v.teamCfg.Models.Agents[key] = val
+				v.dirtyTeam = true
+				v.buildLines()
+				v.renderLines()
+			})
+		})
+	default:
+		v.shell.ShowToastMsg("'a' disponible dans: Mappings, families, agents", false)
+	}
 }
 
-func (v *TeamDetailView) saveTeamConfigAndRender() {
-	if v.cfg.SaveTeamConfig == nil || v.teamCfg == nil {
-		return
-	}
-	ctx := context.Background()
-	if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
+func (v *TeamDetailView) deleteDynamic() {
+	line, _, ok := v.selectedLine()
+	if !ok || !line.dynamic || v.shell == nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur sauvegarde: "+err.Error(), false)
+			v.shell.ShowToastMsg("'d' disponible uniquement sur les entrées dynamiques", false)
 		}
 		return
 	}
-	if v.shell != nil {
-		v.shell.ShowToastMsg("✓ Config tracker sauvegardée et poussée", true)
-	}
-	v.loadAndRender()
-}
 
-func (v *TeamDetailView) editLocalConfig() {
-	if v.shell == nil {
+	key := line.key
+	switch {
+	case line.section == "Mappings":
+		delete(v.teamCfg.Tracker.Projects, key)
+	case line.section == "Models.families":
+		delete(v.teamCfg.Models.Families, key)
+	case line.section == "Models.agents":
+		delete(v.teamCfg.Models.Agents, key)
+	default:
 		return
 	}
 
-	triOptions := []SelectOption{
-		{Label: "(hériter de l'équipe)", Value: "inherit"},
-		{Label: "Oui", Value: "true"},
-		{Label: "Non", Value: "false"},
+	v.dirtyTeam = true
+	v.buildLines()
+	v.renderLines()
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Supprimé: "+key, true)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Persistence
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *TeamDetailView) save() {
+	if v.shell == nil {
+		return
+	}
+	ctx := context.Background()
+	var saved []string
+
+	if v.dirtyTeam && v.cfg.SaveTeamConfig != nil {
+		if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
+			v.shell.ShowToastMsg("Erreur sauvegarde équipe: "+err.Error(), false)
+			return
+		}
+		saved = append(saved, "équipe")
+		v.dirtyTeam = false
 	}
 
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Overrides tracker (local)",
-		Fields: []FormField{
-			{Key: "enabled", Label: "Activé", Type: FieldSelect,
-				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.Enabled)},
-			{Key: "auto_sync", Label: "Auto-sync", Type: FieldSelect,
-				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.AutoSync)},
-			{Key: "push_labels", Label: "Push labels", Type: FieldSelect,
-				Options: triOptions, Default: ptrBoolToTriState(v.localTrk.PushLabels)},
-		},
-		OnSubmit: func(values map[string]string, _ map[string][]string) {
-			hubCfg := v.cfg.GetHubConfig()
-			if hubCfg == nil {
-				return
-			}
-			hubCfg.Tracker.Enabled = triStateToPtrBool(values["enabled"])
-			hubCfg.Tracker.AutoSync = triStateToPtrBool(values["auto_sync"])
-			hubCfg.Tracker.PushLabels = triStateToPtrBool(values["push_labels"])
-
+	if v.dirtyLocal {
+		hubCfg := v.cfg.GetHubConfig()
+		if hubCfg != nil {
+			hubCfg.Tracker = v.localTrk
 			if err := config.Save(hubCfg); err != nil {
-				if v.shell != nil {
-					v.shell.ShowToastMsg("Erreur sauvegarde: "+err.Error(), false)
-				}
+				v.shell.ShowToastMsg("Erreur sauvegarde locale: "+err.Error(), false)
 				return
 			}
-			v.localTrk = hubCfg.Tracker
-			if v.shell != nil {
-				v.shell.ShowToastMsg("✓ Overrides locaux sauvegardés", true)
-			}
-			v.render()
-		},
-	})
+		}
+		saved = append(saved, "local")
+		v.dirtyLocal = false
+	}
+
+	if len(saved) == 0 {
+		v.shell.ShowToastMsg("Rien à sauvegarder", false)
+	} else {
+		v.shell.ShowToastMsg("✓ Sauvegardé ("+strings.Join(saved, " + ")+")", true)
+	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Actions (sync + test + token setup)
+// ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamDetailView) syncTracker() {
 	if v.shell == nil || v.app == nil {
@@ -643,12 +704,11 @@ func (v *TeamDetailView) syncTracker() {
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
 				errMsg := err.Error()
-				// Detect missing credentials and offer to configure token inline
 				if strings.Contains(errMsg, "credentials manquants") || strings.Contains(errMsg, "token") {
-					v.shell.ShowScrollableModal("Token manquant", 
+					v.shell.ShowScrollableModal("Token manquant",
 						"Le token n'est pas configuré pour ce service.\n\n"+
-						"Voulez-vous le saisir maintenant ?\n\n"+
-						"Le token sera stocké dans le keychain système (sécurisé).",
+							"Voulez-vous le saisir maintenant ?\n\n"+
+							"Le token sera stocké dans le keychain système (sécurisé).",
 						[]ModalAction{
 							{Label: "Configurer le token", Callback: func() {
 								v.promptTokenSetup()
@@ -660,18 +720,18 @@ func (v *TeamDetailView) syncTracker() {
 				}
 				return
 			}
-			// Show result modal
-			content := formatSyncTrackerResult(result)
+			content := formatSyncTrackerResultView(result)
 			v.shell.ShowScrollableModal("Résultat sync tracker", content, []ModalAction{
 				{Label: "OK", Callback: func() {
-					v.loadAndRender()
+					v.loadData()
+					v.buildLines()
+					v.renderLines()
 				}},
 			})
 		})
 	}()
 }
 
-// promptTokenSetup guides the user to configure the MCP token for the tracker service.
 func (v *TeamDetailView) promptTokenSetup() {
 	if v.shell == nil || v.teamCfg == nil {
 		return
@@ -681,7 +741,6 @@ func (v *TeamDetailView) promptTokenSetup() {
 		trackerType = "gitlab"
 	}
 
-	// Determine the expected token key name
 	tokenKey := trackerType + "-token"
 	hubCfg := v.cfg.GetHubConfig()
 	if hubCfg != nil {
@@ -697,11 +756,10 @@ func (v *TeamDetailView) promptTokenSetup() {
 		}
 	}
 
-	v.shell.ShowPasswordModal("Token "+trackerType+" (sera stocké sous la clé: "+tokenKey+")", func(value string) {
+	v.shell.ShowPasswordModal("Token "+trackerType+" (clé: "+tokenKey+")", func(value string) {
 		if value == "" {
 			return
 		}
-		// Enable the MCP service and set token key in hub config
 		if hubCfg != nil {
 			switch trackerType {
 			case "gitlab":
@@ -718,7 +776,6 @@ func (v *TeamDetailView) promptTokenSetup() {
 			_ = config.Save(hubCfg)
 		}
 
-		// Store the secret in keychain via the GetSecrets interface
 		if secrets := v.cfg.GetSecrets(); secrets != nil {
 			ctx := context.Background()
 			if setter, ok := secrets.(interface{ Set(ctx context.Context, key, value string) error }); ok {
@@ -727,78 +784,10 @@ func (v *TeamDetailView) promptTokenSetup() {
 		}
 
 		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
-		v.loadAndRender()
+		v.loadData()
+		v.buildLines()
+		v.renderLines()
 	})
-}
-
-func (v *TeamDetailView) save() {
-	if v.shell == nil {
-		return
-	}
-	v.shell.ShowToastMsg("✓ Modifications sauvegardées via les modaux g/l", true)
-	v.dirty = false
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-func boolToStr(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
-func ptrBoolToTriState(p *bool) string {
-	if p == nil {
-		return "inherit"
-	}
-	if *p {
-		return "true"
-	}
-	return "false"
-}
-
-func triStateToPtrBool(val string) *bool {
-	switch val {
-	case "true":
-		b := true
-		return &b
-	case "false":
-		b := false
-		return &b
-	default:
-		return nil
-	}
-}
-
-func formatSyncTrackerResult(r *SyncTrackerResult) string {
-	if r == nil {
-		return "Aucun résultat"
-	}
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
-	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
-	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
-
-	if len(r.Projects) > 0 {
-		sb.WriteString("\nProjets:\n")
-		for _, p := range r.Projects {
-			sb.WriteString(fmt.Sprintf("  %s\n", p))
-		}
-	}
-	if len(r.Warnings) > 0 {
-		sb.WriteString("\nWarnings:\n")
-		for _, w := range r.Warnings {
-			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
-		}
-	}
-	if len(r.Errors) > 0 {
-		sb.WriteString("\nErreurs:\n")
-		for _, e := range r.Errors {
-			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
-		}
-	}
-	return sb.String()
 }
 
 func (v *TeamDetailView) testConnection() {
@@ -806,7 +795,7 @@ func (v *TeamDetailView) testConnection() {
 		return
 	}
 	if v.teamCfg == nil || v.teamCfg.Tracker.Type == "" {
-		v.shell.ShowToastMsg("Tracker non configuré", false)
+		v.shell.ShowToastMsg("Tracker non configuré (configurez le type d'abord)", false)
 		return
 	}
 
@@ -814,19 +803,13 @@ func (v *TeamDetailView) testConnection() {
 
 	go func() {
 		ctx := context.Background()
-		var sharedMCP map[string]teamstate.SharedMCPConfig
-		if v.teamCfg != nil {
-			sharedMCP = v.teamCfg.MCP
-		}
-
-		// Build credential source from current config
 		mcp := v.cfg.GetMCPConfig()
 		var sharedGitLab, sharedJira *teamstate.SharedMCPConfig
-		if sharedMCP != nil {
-			if g, ok := sharedMCP["gitlab"]; ok {
+		if v.teamCfg.MCP != nil {
+			if g, ok := v.teamCfg.MCP["gitlab"]; ok {
 				sharedGitLab = &g
 			}
-			if j, ok := sharedMCP["jira"]; ok {
+			if j, ok := v.teamCfg.MCP["jira"]; ok {
 				sharedJira = &j
 			}
 		}
@@ -876,50 +859,71 @@ func (v *TeamDetailView) testConnection() {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) resolveWriteEnabled() bool {
-	if v.teamCfg == nil {
-		return false
-	}
-	switch tracker.Type(v.teamCfg.Tracker.Type) {
-	case tracker.TypeGitLab:
-		return v.localMCP.Gitlab.WriteEnabled
-	case tracker.TypeJira:
-		return v.localMCP.Jira.WriteEnabled
-	}
-	return false
-}
-
-func fmtBoolColor(b bool) string {
-	if b {
-		return "[green]✓[-]"
-	}
-	return "[gray]✗[-]"
-}
-
-func fmtBoolPtrColor(b *bool) string {
+func boolPtrToStr(b *bool) string {
 	if b == nil {
-		return "[gray]—[-]"
+		return "false"
 	}
-	return fmtBoolColor(*b)
+	if *b {
+		return "true"
+	}
+	return "false"
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
+func tdBoolToStr(b bool) string {
+	if b {
+		return "true"
 	}
-	return s[:max-1] + "…"
+	return "false"
 }
 
-func last4TUI(s string) string {
-	if len(s) <= 4 {
-		return s
+func ptrBoolToTriState(p *bool) string {
+	if p == nil {
+		return "inherit"
 	}
-	return s[len(s)-4:]
+	if *p {
+		return "true"
+	}
+	return "false"
 }
 
-func insightPushLabels(eff tracker.EffectiveTrackerConfig) string {
-	if eff.LocalOverrides.PushLabels {
-		return fmt.Sprintf("équipe recommande: %v", eff.SharedPushLabels)
+func triStateToPtrBool(val string) *bool {
+	switch val {
+	case "true":
+		b := true
+		return &b
+	case "false":
+		b := false
+		return &b
+	default:
+		return nil
 	}
-	return ""
+}
+
+func formatSyncTrackerResultView(r *SyncTrackerResult) string {
+	if r == nil {
+		return "Aucun résultat"
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
+	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
+	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
+	if len(r.Projects) > 0 {
+		sb.WriteString("\nProjets:\n")
+		for _, p := range r.Projects {
+			sb.WriteString(fmt.Sprintf("  %s\n", p))
+		}
+	}
+	if len(r.Warnings) > 0 {
+		sb.WriteString("\nWarnings:\n")
+		for _, w := range r.Warnings {
+			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
+		}
+	}
+	if len(r.Errors) > 0 {
+		sb.WriteString("\nErreurs:\n")
+		for _, e := range r.Errors {
+			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
+		}
+	}
+	return sb.String()
 }

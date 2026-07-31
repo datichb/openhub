@@ -125,3 +125,19 @@ type ActiveProject struct {
 	Name string
 	Path string
 }
+
+// ProjectInfo is a minimal project representation for the tracker mapping UI.
+type ProjectInfo struct {
+	ID   string
+	Name string
+}
+
+// SyncTrackerResult holds the outcome of a tracker sync for display in a modal.
+type SyncTrackerResult struct {
+	ClaimsCreated int
+	ClaimsUpdated int
+	LabelsPushed  int
+	Projects      []string // per-project summary lines
+	Warnings      []string
+	Errors        []string
+}
