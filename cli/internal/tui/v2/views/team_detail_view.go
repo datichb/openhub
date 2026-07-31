@@ -68,6 +68,7 @@ type TeamDetailView struct {
 	localMCP   config.MCPConfig
 	localTrk   config.TrackerLocalConfig
 	lines      []teamConfigLine
+	lineMap    []int // lineMap[listIdx] = index in v.lines (-1 for spacer)
 	dirtyTeam  bool
 	dirtyLocal bool
 }
@@ -137,8 +138,20 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyEnter:
 		v.editSelected()
 		return nil
+	case tcell.KeyDown:
+		v.moveDown()
+		return nil
+	case tcell.KeyUp:
+		v.moveUp()
+		return nil
 	}
 	switch event.Rune() {
+	case 'j':
+		v.moveDown()
+		return nil
+	case 'k':
+		v.moveUp()
+		return nil
 	case ' ':
 		v.toggleSelected()
 		return nil
@@ -182,6 +195,47 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	return event
+}
+
+// moveDown moves cursor to the next selectable (non-header, non-spacer) item.
+func (v *TeamDetailView) moveDown() {
+	if v.list == nil {
+		return
+	}
+	cur := v.list.GetCurrentItem()
+	for i := cur + 1; i < v.list.GetItemCount(); i++ {
+		if v.isSelectable(i) {
+			v.list.SetCurrentItem(i)
+			return
+		}
+	}
+}
+
+// moveUp moves cursor to the previous selectable item.
+func (v *TeamDetailView) moveUp() {
+	if v.list == nil {
+		return
+	}
+	cur := v.list.GetCurrentItem()
+	for i := cur - 1; i >= 0; i-- {
+		if v.isSelectable(i) {
+			v.list.SetCurrentItem(i)
+			return
+		}
+	}
+}
+
+// isSelectable returns true if the list item at idx is an editable field (not a header/spacer).
+func (v *TeamDetailView) isSelectable(idx int) bool {
+	if idx < 0 || idx >= len(v.lineMap) {
+		return false
+	}
+	lineIdx := v.lineMap[idx]
+	if lineIdx < 0 {
+		return false // spacer
+	}
+	line := v.lines[lineIdx]
+	return line.kind != "section-header" && line.kind != "sub-header" && line.get != nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -411,34 +465,51 @@ func (v *TeamDetailView) renderLines() {
 	}
 	saved := v.list.GetCurrentItem()
 	v.list.Clear()
+	v.lineMap = nil
 
-	for _, line := range v.lines {
+	for i, line := range v.lines {
 		switch line.kind {
 		case "section-header":
+			// Spacer before section (except first)
+			if i > 0 {
+				v.list.AddItem("", "", 0, nil)
+				v.lineMap = append(v.lineMap, -1) // spacer
+			}
 			v.list.AddItem(
 				fmt.Sprintf("  %s─── %s ──────────────────%s", theme.ColorTag(theme.AccentHex), line.section, theme.TagColor),
 				"", 0, nil)
+			v.lineMap = append(v.lineMap, i)
+
 		case "sub-header":
 			v.list.AddItem(
-				fmt.Sprintf("    %s── %s ──%s", theme.ColorTag(theme.TextMutedHex), line.section, theme.TagColor),
+				fmt.Sprintf("      %s── %s ──%s", theme.ColorTag(theme.TextMutedHex), line.section, theme.TagColor),
 				"", 0, nil)
+			v.lineMap = append(v.lineMap, i)
+
 		default:
 			val := ""
 			if line.get != nil {
 				val = line.get()
 			}
 			display := v.formatValue(val, line.kind)
-			prefix := "  "
+			prefix := "    "
 			if line.dynamic {
-				prefix = "    "
+				prefix = "      "
 			}
-			main := fmt.Sprintf("%s%-22s %s", prefix, line.key+":", display)
+			main := fmt.Sprintf("%s%-22s %s", prefix, line.key, display)
 			v.list.AddItem(main, "", 0, nil)
+			v.lineMap = append(v.lineMap, i)
 		}
 	}
 
+	// Restore cursor position, ensuring it's on a selectable item
 	if saved >= 0 && saved < v.list.GetItemCount() {
 		v.list.SetCurrentItem(saved)
+	}
+	// If current item is not selectable, move to first selectable
+	cur := v.list.GetCurrentItem()
+	if !v.isSelectable(cur) {
+		v.moveDown()
 	}
 }
 
@@ -474,15 +545,22 @@ func (v *TeamDetailView) selectedLine() (teamConfigLine, int, bool) {
 	if v.list == nil || v.list.GetItemCount() == 0 {
 		return teamConfigLine{}, -1, false
 	}
-	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.lines) {
+	listIdx := v.list.GetCurrentItem()
+	if listIdx < 0 || listIdx >= len(v.lineMap) {
 		return teamConfigLine{}, -1, false
 	}
-	line := v.lines[idx]
+	lineIdx := v.lineMap[listIdx]
+	if lineIdx < 0 {
+		return teamConfigLine{}, -1, false // spacer
+	}
+	if lineIdx >= len(v.lines) {
+		return teamConfigLine{}, -1, false
+	}
+	line := v.lines[lineIdx]
 	if line.kind == "section-header" || line.kind == "sub-header" || line.get == nil {
 		return teamConfigLine{}, -1, false
 	}
-	return line, idx, true
+	return line, lineIdx, true
 }
 
 func (v *TeamDetailView) toggleSelected() {
@@ -540,25 +618,26 @@ func (v *TeamDetailView) addDynamic() {
 	if v.shell == nil {
 		return
 	}
-	line, _, ok := v.selectedLine()
-	if !ok {
-		// Check if we're on a section header for a dynamic section
-		idx := v.list.GetCurrentItem()
-		if idx >= 0 && idx < len(v.lines) {
-			line = v.lines[idx]
-		}
-	}
 
-	// Determine which dynamic section we're in
-	section := line.section
-	if section == "" {
-		// Walk up to find the nearest section
-		idx := v.list.GetCurrentItem()
-		for i := idx; i >= 0; i-- {
-			if v.lines[i].kind == "section-header" || v.lines[i].kind == "sub-header" {
-				section = v.lines[i].section
-				break
-			}
+	// Determine which dynamic section we're in by walking up the lineMap
+	listIdx := v.list.GetCurrentItem()
+	section := ""
+	for i := listIdx; i >= 0; i-- {
+		if i >= len(v.lineMap) {
+			continue
+		}
+		lineIdx := v.lineMap[i]
+		if lineIdx < 0 {
+			continue
+		}
+		l := v.lines[lineIdx]
+		if l.kind == "section-header" || l.kind == "sub-header" {
+			section = l.section
+			break
+		}
+		if l.section != "" {
+			section = l.section
+			break
 		}
 	}
 
