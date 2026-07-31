@@ -35,6 +35,7 @@ type teamConfigLine struct {
 	scope   configScope
 	dynamic bool         // can be added/deleted (mappings, families, agents)
 	grayed  func() bool  // returns true if field is grayed-out (enforced elsewhere)
+	hint    string       // help text shown when value is empty
 	get     func() string
 	set     func(val string)
 }
@@ -287,6 +288,26 @@ func (v *TeamDetailView) loadData() {
 func (v *TeamDetailView) buildLines() {
 	v.lines = nil
 
+	// URL label and hints per service
+	urlLabels := map[string]string{
+		"gitlab":  "url (issues/MRs)",
+		"jira":    "url (issues)",
+		"figma":   "url (API)",
+		"gslides": "url (API)",
+	}
+	urlHintsTeam := map[string]string{
+		"gitlab":  "URL instance GitLab pour les issues et MRs",
+		"jira":    "URL instance Jira (ex: https://jira.company.com)",
+		"figma":   "URL API Figma (vide = SaaS public)",
+		"gslides": "URL API Google (vide = SaaS public)",
+	}
+	urlHintsPerso := map[string]string{
+		"gitlab":  "Override perso (vide = utilise celle de l'équipe)",
+		"jira":    "Override perso (vide = utilise celle de l'équipe)",
+		"figma":   "Override perso (vide = SaaS public)",
+		"gslides": "Override perso (vide = SaaS public)",
+	}
+
 	// ── MCP Services ──
 	for _, svc := range []string{"gitlab", "jira", "figma", "gslides"} {
 		svc := svc // capture
@@ -305,9 +326,10 @@ func (v *TeamDetailView) buildLines() {
 			set: func(val string) { s := v.teamCfg.MCP[svc]; b := val == "true"; s.EnabledEnforced = &b; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
 		})
 		v.lines = append(v.lines, teamConfigLine{
-			section: "MCP", key: "url", kind: "string", scope: scopeTeam,
-			get: func() string { return v.teamCfg.MCP[svc].URL },
-			set: func(val string) { s := v.teamCfg.MCP[svc]; s.URL = val; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
+			section: "MCP", key: urlLabels[svc], kind: "string", scope: scopeTeam,
+			hint: urlHintsTeam[svc],
+			get:  func() string { return v.teamCfg.MCP[svc].URL },
+			set:  func(val string) { s := v.teamCfg.MCP[svc]; s.URL = val; v.teamCfg.MCP[svc] = s; v.dirtyTeam = true },
 		})
 		v.lines = append(v.lines, teamConfigLine{
 			section: "MCP", key: "url_enforced", kind: "bool", scope: scopeTeam,
@@ -329,7 +351,8 @@ func (v *TeamDetailView) buildLines() {
 			set:    v.setMCPLocalEnabled(svc),
 		})
 		v.lines = append(v.lines, teamConfigLine{
-			section: "MCP.perso", key: "url", kind: "string", scope: scopeLocal,
+			section: "MCP.perso", key: urlLabels[svc], kind: "string", scope: scopeLocal,
+			hint:   urlHintsPerso[svc],
 			grayed: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
 			get:    v.getMCPLocalURL(svc),
 			set:    v.setMCPLocalURL(svc),
@@ -350,6 +373,7 @@ func (v *TeamDetailView) buildLines() {
 	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Tracker"})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "type", kind: "select", scope: scopeTeam,
+		hint:    "Type de tracker externe pour la sync issues",
 		options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
 		get:     func() string { return v.teamCfg.Tracker.Type },
 		set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
@@ -411,8 +435,9 @@ func (v *TeamDetailView) buildLines() {
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Notifications", key: "webhook_url", kind: "string", scope: scopeTeam,
-		get: func() string { return v.teamCfg.Notification.WebhookURL },
-		set: func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
+		hint: "URL du webhook (Intégrations > Webhooks entrants)",
+		get:  func() string { return v.teamCfg.Notification.WebhookURL },
+		set:  func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Notifications", key: "channel", kind: "string", scope: scopeTeam,
@@ -530,14 +555,19 @@ func (v *TeamDetailView) renderLines() {
 			if line.kind == "password" {
 				display = v.formatToken(val)
 			} else {
-				display = v.formatValue(val, line.kind)
+				display = v.formatValueWithHint(val, line.kind, line.hint)
 			}
 
 			// Handle grayed-out fields (enforced by team)
 			grayedSuffix := ""
 			if line.grayed != nil && line.grayed() {
 				grayedSuffix = fmt.Sprintf("  %s(enforced par l'équipe)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-				display = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
+				// Show value in muted color but still readable
+				rawVal := val
+				if rawVal == "" {
+					rawVal = "(vide)"
+				}
+				display = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), rawVal, theme.TagColor)
 			}
 
 			prefix := "    "
@@ -599,6 +629,14 @@ func (v *TeamDetailView) formatValue(val, kind string) string {
 		}
 		return val
 	}
+}
+
+// formatValueWithHint adds a hint annotation when the value is empty.
+func (v *TeamDetailView) formatValueWithHint(val, kind, hint string) string {
+	if val == "" && hint != "" {
+		return fmt.Sprintf("%s(vide) ← %s%s", theme.ColorTag(theme.TextMutedHex), hint, theme.TagColor)
+	}
+	return v.formatValue(val, kind)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
