@@ -102,20 +102,59 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 }
 
 // TeamStatePath derives a local clone path from a Git remote URL.
-// The result is always inside ~/.oh/team-states/<repo-name> so that projects
-// using different team-state repos each get their own isolated clone.
+// The result is inside ~/.oh/team-states/<host>/<repo-name> so that repos with
+// identical names but on different hosts each get their own isolated clone.
+//
+// For backward compatibility, if a legacy path (~/.oh/team-states/<repo-name>)
+// exists and the new path does not, the legacy path is returned.
 //
 // Examples:
 //
-//	"git@gitlab.com:acme/team-state.git" → "~/.oh/team-states/team-state"
-//	"https://github.com/acme/my-team.git" → "~/.oh/team-states/my-team"
+//	"git@gitlab.com:acme/team-state.git" → "~/.oh/team-states/gitlab.com/team-state"
+//	"https://github.com/acme/my-team.git" → "~/.oh/team-states/github.com/my-team"
 func TeamStatePath(remoteURL string) string {
 	name := repoNameFromRemote(remoteURL)
+	host := hostFromRemote(remoteURL)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".oh", "team-states", name)
+
+	newPath := filepath.Join(home, ".oh", "team-states", host, name)
+
+	// Backward compat: if the old (no-host) path exists and the new one doesn't,
+	// use the old path. This prevents breaking existing installations.
+	legacyPath := filepath.Join(home, ".oh", "team-states", name)
+	if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
+		if _, newErr := os.Stat(newPath); os.IsNotExist(newErr) {
+			return legacyPath
+		}
+	}
+
+	return newPath
+}
+
+// HostFromRemote is the exported version of hostFromRemote.
+// It extracts the hostname from a Git remote URL.
+func HostFromRemote(remote string) string {
+	return hostFromRemote(remote)
+}
+
+// hostFromRemote extracts the hostname from a Git remote URL.
+// Supports SCP-style (git@host:path) and standard URLs (https://host/path).
+func hostFromRemote(remote string) string {
+	// SCP-style: git@gitlab.com:org/repo.git → gitlab.com
+	if idx := strings.Index(remote, "@"); idx != -1 {
+		rest := remote[idx+1:]
+		if colonIdx := strings.Index(rest, ":"); colonIdx != -1 {
+			return rest[:colonIdx]
+		}
+	}
+	// HTTP(S) or SSH URL
+	if u, err := url.Parse(remote); err == nil && u.Host != "" {
+		return u.Hostname()
+	}
+	return "local"
 }
 
 // RepoNameFromRemote is the exported version of repoNameFromRemote.

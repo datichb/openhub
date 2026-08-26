@@ -104,17 +104,21 @@ func TestResolveTeamConfig_CustomExplicitStatePath(t *testing.T) {
 
 func TestTeamStatePath_SCPStyle(t *testing.T) {
 	cases := []struct {
-		remote string
-		want   string
+		remote   string
+		wantHost string
+		wantName string
 	}{
-		{"git@github.com:acme/team-state.git", "team-state"},
-		{"git@gitlab.com:org/sub/my-team.git", "my-team"},
-		{"git@host:repo.git", "repo"},
+		{"git@github.com:acme/team-state.git", "github.com", "team-state"},
+		{"git@gitlab.com:org/sub/my-team.git", "gitlab.com", "my-team"},
+		{"git@host:repo.git", "host", "repo"},
 	}
 	for _, c := range cases {
 		got := config.TeamStatePath(c.remote)
-		if !strings.HasSuffix(got, c.want) {
-			t.Errorf("TeamStatePath(%q): want suffix %q, got %q", c.remote, c.want, got)
+		if !strings.Contains(got, c.wantHost) {
+			t.Errorf("TeamStatePath(%q): want host %q in path, got %q", c.remote, c.wantHost, got)
+		}
+		if !strings.HasSuffix(got, c.wantName) {
+			t.Errorf("TeamStatePath(%q): want suffix %q, got %q", c.remote, c.wantName, got)
 		}
 	}
 }
@@ -124,12 +128,43 @@ func TestTeamStatePath_HTTPS(t *testing.T) {
 	if !strings.HasSuffix(got, "my-team") {
 		t.Errorf("expected suffix 'my-team', got %s", got)
 	}
+	if !strings.Contains(got, "github.com") {
+		t.Errorf("expected host 'github.com' in path, got %s", got)
+	}
 }
 
 func TestTeamStatePath_IsInsideTeamStatesDir(t *testing.T) {
 	got := config.TeamStatePath("git@github.com:acme/team-state.git")
 	if !strings.Contains(got, "team-states") {
 		t.Errorf("path should be inside team-states dir, got %s", got)
+	}
+}
+
+func TestTeamStatePath_DifferentHostsNeverCollide(t *testing.T) {
+	path1 := config.TeamStatePath("git@gitlab.com:acme/state.git")
+	path2 := config.TeamStatePath("git@github.com:other/state.git")
+	if path1 == path2 {
+		t.Errorf("paths should differ for different hosts: both resolved to %s", path1)
+	}
+}
+
+func TestHostFromRemote(t *testing.T) {
+	cases := []struct {
+		remote string
+		want   string
+	}{
+		{"git@gitlab.com:acme/repo.git", "gitlab.com"},
+		{"git@github.com:org/state.git", "github.com"},
+		{"https://github.com/acme/repo.git", "github.com"},
+		{"https://gitlab.company.io/team/state.git", "gitlab.company.io"},
+		{"ssh://git@bitbucket.org/acme/repo.git", "bitbucket.org"},
+		{"invalid", "local"},
+	}
+	for _, c := range cases {
+		got := config.HostFromRemote(c.remote)
+		if got != c.want {
+			t.Errorf("HostFromRemote(%q): want %q, got %q", c.remote, c.want, got)
+		}
 	}
 }
 
