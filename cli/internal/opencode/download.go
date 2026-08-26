@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,9 +13,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/retry"
 )
 
 const (
@@ -32,6 +34,12 @@ const (
 
 	// apiMaxRetries is the number of retry attempts for GitHub API calls.
 	apiMaxRetries = 3
+
+	// maxBinarySize is the upper bound for an extracted binary (200 MB).
+	maxBinarySize = 200 * 1024 * 1024
+
+	// maxDownloadSize is the upper bound for a downloaded archive (500 MB).
+	maxDownloadSize = 500 * 1024 * 1024
 )
 
 // Release holds metadata from a GitHub release.
@@ -84,52 +92,51 @@ func fetchRelease(url string) (*Release, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "oh-cli")
 
-	var lastErr error
-	for attempt := 1; attempt <= apiMaxRetries; attempt++ {
+	var release *Release
+	retryErr := retry.Do(context.Background(), retry.Config{
+		MaxAttempts: apiMaxRetries,
+		BaseDelay:   time.Second,
+		MaxDelay:    30 * time.Second,
+		Jitter:      0.2,
+	}, func(attempt int) (bool, error) {
 		resp, err := client.Do(req)
 		if err != nil {
-			lastErr = fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, apiMaxRetries, err)
-			time.Sleep(time.Duration(attempt) * time.Second)
-			continue
+			return true, fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, apiMaxRetries, err)
 		}
 
-		// Respect Retry-After for rate limiting
+		// Rate limiting — respect Retry-After
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
 			resp.Body.Close()
-			retryAfter := resp.Header.Get("Retry-After")
-			wait := time.Duration(attempt) * time.Second
-			if secs, err := strconv.Atoi(retryAfter); err == nil && secs > 0 {
-				wait = time.Duration(secs) * time.Second
-			}
-			lastErr = fmt.Errorf("GitHub API rate limit exceeded (attempt %d/%d) — retry dans %v", attempt, apiMaxRetries, wait)
-			time.Sleep(wait)
-			continue
+			return true, fmt.Errorf("GitHub API rate limited (attempt %d/%d)", attempt, apiMaxRetries)
 		}
 
-		// Retry on server errors
-		if resp.StatusCode >= 500 {
+		// Transient server errors
+		if retry.IsTransientHTTP(resp.StatusCode) {
 			resp.Body.Close()
-			lastErr = fmt.Errorf("GitHub API returned status %d (attempt %d/%d)", resp.StatusCode, attempt, apiMaxRetries)
-			time.Sleep(time.Duration(attempt) * time.Second)
-			continue
+			return true, fmt.Errorf("GitHub API returned %d (attempt %d/%d)", resp.StatusCode, attempt, apiMaxRetries)
 		}
 
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("release not found")
+			return false, fmt.Errorf("release not found")
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+			return false, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 		}
 
-		var release Release
-		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-			return nil, fmt.Errorf("decoding release: %w", err)
+		var r Release
+		if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+			return false, fmt.Errorf("decoding release: %w", err)
 		}
-		return &release, nil
+		release = &r
+		return false, nil
+	})
+
+	if retryErr != nil {
+		return nil, retryErr
 	}
-	return nil, lastErr
+	return release, nil
 }
 
 // Download downloads and installs a specific version of opencode.
@@ -246,30 +253,55 @@ func InstalledVersion(installDir string) string {
 }
 
 func downloadAsset(asset *ReleaseAsset, dest *os.File, progress ProgressFunc) error {
-	client := &http.Client{Timeout: downloadTimeout}
-	resp, err := client.Get(asset.BrowserDownloadURL)
-	if err != nil {
-		return fmt.Errorf("downloading %s: %w", asset.Name, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+	if asset.Size > maxDownloadSize {
+		return fmt.Errorf("asset too large: %d bytes (max %d)", asset.Size, maxDownloadSize)
 	}
 
-	var reader io.Reader = resp.Body
-	if progress != nil {
-		reader = &progressReader{
-			reader:   resp.Body,
-			total:    asset.Size,
-			progress: progress,
+	return retry.Do(context.Background(), retry.Config{
+		MaxAttempts: apiMaxRetries,
+		BaseDelay:   2 * time.Second,
+		MaxDelay:    30 * time.Second,
+		Jitter:      0.2,
+	}, func(attempt int) (bool, error) {
+		// Reset file for retry
+		if attempt > 1 {
+			if _, err := dest.Seek(0, io.SeekStart); err != nil {
+				return false, fmt.Errorf("resetting download file: %w", err)
+			}
+			if err := dest.Truncate(0); err != nil {
+				return false, fmt.Errorf("truncating download file: %w", err)
+			}
 		}
-	}
 
-	if _, err := io.Copy(dest, reader); err != nil {
-		return fmt.Errorf("writing download: %w", err)
-	}
-	return nil
+		client := &http.Client{Timeout: downloadTimeout}
+		resp, err := client.Get(asset.BrowserDownloadURL)
+		if err != nil {
+			return true, fmt.Errorf("downloading %s (attempt %d): %w", asset.Name, attempt, err)
+		}
+		defer resp.Body.Close()
+
+		if retry.IsTransientHTTP(resp.StatusCode) {
+			return true, fmt.Errorf("download %s: HTTP %d (attempt %d)", asset.Name, resp.StatusCode, attempt)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return false, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+		}
+
+		var reader io.Reader = io.LimitReader(resp.Body, maxDownloadSize)
+		if progress != nil {
+			reader = &progressReader{
+				reader:   reader,
+				total:    asset.Size,
+				progress: progress,
+			}
+		}
+
+		if _, err := io.Copy(dest, reader); err != nil {
+			// Network errors during copy are transient
+			return true, fmt.Errorf("writing download (attempt %d): %w", attempt, err)
+		}
+		return false, nil
+	})
 }
 
 func verifyChecksum(filePath, expectedSHA256 string) error {
@@ -312,6 +344,10 @@ func extractFromZip(archivePath, destPath string) error {
 }
 
 func extractZipEntry(f *zip.File, destPath string) error {
+	if f.UncompressedSize64 > maxBinarySize {
+		return fmt.Errorf("zip entry too large: %d bytes (max %d)", f.UncompressedSize64, maxBinarySize)
+	}
+
 	src, err := f.Open()
 	if err != nil {
 		return fmt.Errorf("opening zip entry: %w", err)
@@ -324,7 +360,7 @@ func extractZipEntry(f *zip.File, destPath string) error {
 	}
 	defer dst.Close()
 
-	if _, err := io.Copy(dst, src); err != nil {
+	if _, err := io.Copy(dst, io.LimitReader(src, maxBinarySize)); err != nil {
 		return fmt.Errorf("extracting: %w", err)
 	}
 	return nil
@@ -373,7 +409,7 @@ func extractTarEntry(tr *tar.Reader, destPath string) error {
 	}
 	defer dst.Close()
 
-	if _, err := io.Copy(dst, tr); err != nil {
+	if _, err := io.Copy(dst, io.LimitReader(tr, maxBinarySize)); err != nil {
 		return fmt.Errorf("extracting: %w", err)
 	}
 	return nil

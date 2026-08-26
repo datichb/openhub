@@ -284,3 +284,53 @@ func scanSessions(rows *sql.Rows) ([]SessionStat, error) {
 func startOfDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
+
+// DayCost represents aggregated cost for a single calendar day.
+type DayCost struct {
+	Day  string  // "2026-08-20" (local time)
+	Cost float64
+}
+
+// DailyCosts returns per-day cost aggregates for a period.
+// period: "7d", "30d", "all". Anything else defaults to "all".
+func DailyCosts(db *sql.DB, period string) ([]DayCost, error) {
+	if db == nil {
+		return nil, nil
+	}
+
+	var query string
+	var args []interface{}
+
+	baseQuery := `SELECT date(time_created/1000, 'unixepoch', 'localtime') AS day,
+	       COALESCE(SUM(cost), 0) AS daily_cost
+	FROM session`
+
+	switch period {
+	case "7d":
+		since := time.Now().AddDate(0, 0, -7).UnixMilli()
+		query = baseQuery + " WHERE time_created >= ? GROUP BY day ORDER BY day"
+		args = append(args, since)
+	case "30d":
+		since := time.Now().AddDate(0, 0, -30).UnixMilli()
+		query = baseQuery + " WHERE time_created >= ? GROUP BY day ORDER BY day"
+		args = append(args, since)
+	default: // "all"
+		query = baseQuery + " GROUP BY day ORDER BY day"
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying daily costs: %w", err)
+	}
+	defer rows.Close()
+
+	var costs []DayCost
+	for rows.Next() {
+		var dc DayCost
+		if err := rows.Scan(&dc.Day, &dc.Cost); err != nil {
+			return nil, fmt.Errorf("scanning daily cost: %w", err)
+		}
+		costs = append(costs, dc)
+	}
+	return costs, rows.Err()
+}

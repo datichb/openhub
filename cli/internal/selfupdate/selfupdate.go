@@ -2,6 +2,7 @@
 package selfupdate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/retry"
 )
 
 const (
@@ -58,34 +61,39 @@ func fetchRelease(url string) (*Release, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "oh-cli-selfupdate")
 
-	var lastErr error
-	for attempt := 1; attempt <= ohMaxRetries; attempt++ {
+	var release *Release
+	retryErr := retry.Do(context.Background(), retry.Config{
+		MaxAttempts: ohMaxRetries,
+		BaseDelay:   time.Second,
+		MaxDelay:    30 * time.Second,
+		Jitter:      0.2,
+	}, func(attempt int) (bool, error) {
 		resp, err := client.Do(req)
 		if err != nil {
-			lastErr = fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, ohMaxRetries, err)
-			time.Sleep(time.Duration(attempt) * time.Second)
-			continue
+			return true, fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, ohMaxRetries, err)
 		}
-		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+		if retry.IsTransientHTTP(resp.StatusCode) || resp.StatusCode == http.StatusTooManyRequests {
 			resp.Body.Close()
-			lastErr = fmt.Errorf("GitHub API returned %d (attempt %d/%d)", resp.StatusCode, attempt, ohMaxRetries)
-			time.Sleep(time.Duration(attempt) * time.Second)
-			continue
+			return true, fmt.Errorf("GitHub API returned %d (attempt %d/%d)", resp.StatusCode, attempt, ohMaxRetries)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("release not found")
+			return false, fmt.Errorf("release not found")
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+			return false, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 		}
 		var r Release
 		if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-			return nil, fmt.Errorf("decoding release: %w", err)
+			return false, fmt.Errorf("decoding release: %w", err)
 		}
-		return &r, nil
+		release = &r
+		return false, nil
+	})
+	if retryErr != nil {
+		return nil, retryErr
 	}
-	return nil, lastErr
+	return release, nil
 }
 
 // AssetName returns the expected archive name for the current platform.
@@ -198,30 +206,50 @@ func Update(version string, progress ProgressFunc) (string, error) {
 }
 
 func downloadAsset(asset *Asset, dest *os.File, progress ProgressFunc) error {
-	client := &http.Client{Timeout: ohDownloadTimeout}
-	resp, err := client.Get(asset.BrowserDownloadURL)
-	if err != nil {
-		return fmt.Errorf("downloading %s: %w", asset.Name, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
-	}
-
-	var reader io.Reader = resp.Body
-	if progress != nil {
-		reader = &progressReader{
-			reader:   resp.Body,
-			total:    asset.Size,
-			progress: progress,
+	return retry.Do(context.Background(), retry.Config{
+		MaxAttempts: ohMaxRetries,
+		BaseDelay:   2 * time.Second,
+		MaxDelay:    30 * time.Second,
+		Jitter:      0.2,
+	}, func(attempt int) (bool, error) {
+		// Reset file for retry
+		if attempt > 1 {
+			if _, err := dest.Seek(0, io.SeekStart); err != nil {
+				return false, fmt.Errorf("resetting download file: %w", err)
+			}
+			if err := dest.Truncate(0); err != nil {
+				return false, fmt.Errorf("truncating download file: %w", err)
+			}
 		}
-	}
 
-	if _, err := io.Copy(dest, reader); err != nil {
-		return fmt.Errorf("writing download: %w", err)
-	}
-	return nil
+		client := &http.Client{Timeout: ohDownloadTimeout}
+		resp, err := client.Get(asset.BrowserDownloadURL)
+		if err != nil {
+			return true, fmt.Errorf("downloading %s (attempt %d): %w", asset.Name, attempt, err)
+		}
+		defer resp.Body.Close()
+
+		if retry.IsTransientHTTP(resp.StatusCode) {
+			return true, fmt.Errorf("download %s: HTTP %d (attempt %d)", asset.Name, resp.StatusCode, attempt)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return false, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+		}
+
+		var reader io.Reader = resp.Body
+		if progress != nil {
+			reader = &progressReader{
+				reader:   resp.Body,
+				total:    asset.Size,
+				progress: progress,
+			}
+		}
+
+		if _, err := io.Copy(dest, reader); err != nil {
+			return true, fmt.Errorf("writing download (attempt %d): %w", attempt, err)
+		}
+		return false, nil
+	})
 }
 
 type progressReader struct {

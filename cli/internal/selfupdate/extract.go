@@ -11,6 +11,9 @@ import (
 
 const ohBinaryName = "oh"
 
+// maxBinarySize is the upper bound for an extracted binary (200 MB).
+const maxBinarySize = 200 * 1024 * 1024
+
 func extractFromTarGz(archivePath, destPath string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -39,12 +42,15 @@ func extractFromTarGz(archivePath, destPath string) error {
 		if filepath.Base(header.Name) != ohBinaryName {
 			continue
 		}
+		if header.Size > maxBinarySize {
+			return fmt.Errorf("tar entry too large: %d bytes (max %d)", header.Size, maxBinarySize)
+		}
 		dst, err := os.Create(destPath)
 		if err != nil {
 			return fmt.Errorf("creating output file: %w", err)
 		}
 		defer dst.Close()
-		if _, err := io.Copy(dst, tr); err != nil {
+		if _, err := io.Copy(dst, io.LimitReader(tr, maxBinarySize)); err != nil {
 			return fmt.Errorf("extracting binary: %w", err)
 		}
 		return nil
