@@ -290,7 +290,7 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	name := args[0]
-	if err := repo.ValidatePattern(name); err != nil {
+	if err := repo.ValidatePattern(ctx, name); err != nil {
 		return fmt.Errorf("validating pattern: %w", err)
 	}
 
@@ -314,7 +314,7 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	name := args[0]
-	if err := repo.RemovePattern(name); err != nil {
+	if err := repo.RemovePattern(ctx, name); err != nil {
 		return fmt.Errorf("removing pattern: %w", err)
 	}
 

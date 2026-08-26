@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -56,6 +57,9 @@ func (r *Repo) ListPatterns(tags []string, minMatchTags int) ([]Pattern, error) 
 
 // ReadPattern reads the full content of a pattern file.
 func (r *Repo) ReadPattern(name string) (string, error) {
+	if _, err := SafeName(name); err != nil {
+		return "", fmt.Errorf("invalid pattern name: %w", err)
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	patternPath := filepath.Join(r.path, "patterns", name+".md")
@@ -70,10 +74,10 @@ func (r *Repo) ReadPattern(name string) (string, error) {
 }
 
 // CreatePattern adds a new pattern to the index and creates the .md file.
-func (r *Repo) CreatePattern(ctx interface{}, p Pattern, content string) error {
-	dir := filepath.Join(r.path, "patterns")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating patterns dir: %w", err)
+// The change is committed and pushed to the team-state remote.
+func (r *Repo) CreatePattern(ctx context.Context, p Pattern, content string) error {
+	if _, err := SafeName(p.Name); err != nil {
+		return fmt.Errorf("invalid pattern name: %w", err)
 	}
 
 	// Set creation date if not set
@@ -81,90 +85,119 @@ func (r *Repo) CreatePattern(ctx interface{}, p Pattern, content string) error {
 		p.CreatedAt = time.Now().UTC().Format("2006-01-02")
 	}
 
-	// Add to index
-	index, err := r.loadPatternsIndex()
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("loading patterns index: %w", err)
-	}
-	if index == nil {
-		index = &patternsIndex{}
-	}
-
-	// Check for duplicate
-	for _, existing := range index.Patterns {
-		if existing.Name == p.Name {
-			return fmt.Errorf("pattern %q already exists", p.Name)
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		dir := filepath.Join(r.path, "patterns")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating patterns dir: %w", err)
 		}
-	}
 
-	index.Patterns = append(index.Patterns, p)
+		// Add to index
+		index, err := r.loadPatternsIndex()
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("loading patterns index: %w", err)
+		}
+		if index == nil {
+			index = &patternsIndex{}
+		}
 
-	// Write index
-	if err := r.savePatternsIndex(index); err != nil {
-		return err
-	}
+		// Check for duplicate
+		for _, existing := range index.Patterns {
+			if existing.Name == p.Name {
+				return fmt.Errorf("pattern %q already exists", p.Name)
+			}
+		}
 
-	// Write pattern content file
-	mdPath := filepath.Join(dir, p.Name+".md")
-	if err := os.WriteFile(mdPath, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("writing pattern file: %w", err)
-	}
+		index.Patterns = append(index.Patterns, p)
 
-	return nil
+		// Write index
+		if err := r.savePatternsIndex(index); err != nil {
+			return err
+		}
+
+		// Write pattern content file
+		mdPath := filepath.Join(dir, p.Name+".md")
+		if err := os.WriteFile(mdPath, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("writing pattern file: %w", err)
+		}
+
+		// Commit and push
+		msg := fmt.Sprintf("pattern: create %s", p.Name)
+		return r.commitAndPush(ctx, msg, filepath.Join("patterns", "index.toml"), filepath.Join("patterns", p.Name+".md"))
+	})
 }
 
 // ValidatePattern marks a pattern as validated.
-func (r *Repo) ValidatePattern(name string) error {
-	index, err := r.loadPatternsIndex()
-	if err != nil {
-		return err
+// The change is committed and pushed to the team-state remote.
+func (r *Repo) ValidatePattern(ctx context.Context, name string) error {
+	if _, err := SafeName(name); err != nil {
+		return fmt.Errorf("invalid pattern name: %w", err)
 	}
 
-	found := false
-	for i := range index.Patterns {
-		if index.Patterns[i].Name == name {
-			index.Patterns[i].Validated = true
-			found = true
-			break
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		index, err := r.loadPatternsIndex()
+		if err != nil {
+			return err
 		}
-	}
-	if !found {
-		return fmt.Errorf("pattern %q not found", name)
-	}
 
-	return r.savePatternsIndex(index)
+		found := false
+		for i := range index.Patterns {
+			if index.Patterns[i].Name == name {
+				index.Patterns[i].Validated = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("pattern %q not found", name)
+		}
+
+		if err := r.savePatternsIndex(index); err != nil {
+			return err
+		}
+
+		msg := fmt.Sprintf("pattern: validate %s", name)
+		return r.commitAndPush(ctx, msg, filepath.Join("patterns", "index.toml"))
+	})
 }
 
 // RemovePattern removes a pattern from the index and deletes its file.
-func (r *Repo) RemovePattern(name string) error {
-	index, err := r.loadPatternsIndex()
-	if err != nil {
-		return err
+// The change is committed and pushed to the team-state remote.
+func (r *Repo) RemovePattern(ctx context.Context, name string) error {
+	if _, err := SafeName(name); err != nil {
+		return fmt.Errorf("invalid pattern name: %w", err)
 	}
 
-	found := false
-	filtered := make([]Pattern, 0, len(index.Patterns))
-	for _, p := range index.Patterns {
-		if p.Name == name {
-			found = true
-			continue
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		index, err := r.loadPatternsIndex()
+		if err != nil {
+			return err
 		}
-		filtered = append(filtered, p)
-	}
-	if !found {
-		return fmt.Errorf("pattern %q not found", name)
-	}
 
-	index.Patterns = filtered
-	if err := r.savePatternsIndex(index); err != nil {
-		return err
-	}
+		found := false
+		filtered := make([]Pattern, 0, len(index.Patterns))
+		for _, p := range index.Patterns {
+			if p.Name == name {
+				found = true
+				continue
+			}
+			filtered = append(filtered, p)
+		}
+		if !found {
+			return fmt.Errorf("pattern %q not found", name)
+		}
 
-	// Remove .md file (best-effort)
-	mdPath := filepath.Join(r.path, "patterns", name+".md")
-	_ = os.Remove(mdPath)
+		index.Patterns = filtered
+		if err := r.savePatternsIndex(index); err != nil {
+			return err
+		}
 
-	return nil
+		// Remove .md file (best-effort)
+		mdPath := filepath.Join(r.path, "patterns", name+".md")
+		_ = os.Remove(mdPath)
+
+		msg := fmt.Sprintf("pattern: remove %s", name)
+		return r.commitAndPush(ctx, msg, ".")
+	})
 }
 
 // --- internal helpers ---

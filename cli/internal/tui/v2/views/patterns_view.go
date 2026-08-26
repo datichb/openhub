@@ -237,7 +237,7 @@ func (v *PatternsView) validatePattern() {
 		return
 	}
 
-	if err := repo.ValidatePattern(p.Name); err != nil {
+	if err := repo.ValidatePattern(context.Background(), p.Name); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
 		}
@@ -261,7 +261,7 @@ func (v *PatternsView) removePattern() {
 		return
 	}
 
-	if err := repo.RemovePattern(p.Name); err != nil {
+	if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
 		}

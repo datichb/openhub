@@ -1,14 +1,15 @@
 package teamstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestCreateAndListPatterns(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	p := Pattern{
 		Name:       "crud-api",
@@ -20,7 +21,7 @@ func TestCreateAndListPatterns(t *testing.T) {
 	}
 	content := "# CRUD API Pattern\n\nDecomposition type..."
 
-	if err := repo.CreatePattern(nil, p, content); err != nil {
+	if err := repo.CreatePattern(ctx, p, content); err != nil {
 		t.Fatalf("CreatePattern failed: %v", err)
 	}
 
@@ -40,15 +41,15 @@ func TestCreateAndListPatterns(t *testing.T) {
 	}
 
 	// Check file exists
-	mdPath := filepath.Join(dir, "patterns", "crud-api.md")
+	mdPath := filepath.Join(repo.path, "patterns", "crud-api.md")
 	if _, err := os.Stat(mdPath); os.IsNotExist(err) {
 		t.Error("pattern .md file not created")
 	}
 }
 
 func TestListPatterns_FilterByTags(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	patterns := []struct {
 		p       Pattern
@@ -60,7 +61,7 @@ func TestListPatterns_FilterByTags(t *testing.T) {
 	}
 
 	for _, pp := range patterns {
-		if err := repo.CreatePattern(nil, pp.p, pp.content); err != nil {
+		if err := repo.CreatePattern(ctx, pp.p, pp.content); err != nil {
 			t.Fatalf("CreatePattern %s failed: %v", pp.p.Name, err)
 		}
 	}
@@ -88,12 +89,12 @@ func TestListPatterns_FilterByTags(t *testing.T) {
 }
 
 func TestReadPattern(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	p := Pattern{Name: "test-pattern", Tags: []string{"test"}, Source: "manual", Validated: true}
 	expectedContent := "# Test Pattern\n\nThis is the content."
-	if err := repo.CreatePattern(nil, p, expectedContent); err != nil {
+	if err := repo.CreatePattern(ctx, p, expectedContent); err != nil {
 		t.Fatal(err)
 	}
 
@@ -107,8 +108,7 @@ func TestReadPattern(t *testing.T) {
 }
 
 func TestReadPattern_NotFound(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo := setupTestRepo(t)
 
 	_, err := repo.ReadPattern("nonexistent")
 	if err == nil {
@@ -117,11 +117,11 @@ func TestReadPattern_NotFound(t *testing.T) {
 }
 
 func TestValidatePattern(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	p := Pattern{Name: "proposed", Tags: []string{"test"}, Source: "planner", Validated: false}
-	if err := repo.CreatePattern(nil, p, "# Proposed"); err != nil {
+	if err := repo.CreatePattern(ctx, p, "# Proposed"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -132,7 +132,7 @@ func TestValidatePattern(t *testing.T) {
 	}
 
 	// Validate
-	if err := repo.ValidatePattern("proposed"); err != nil {
+	if err := repo.ValidatePattern(ctx, "proposed"); err != nil {
 		t.Fatalf("ValidatePattern failed: %v", err)
 	}
 
@@ -144,15 +144,15 @@ func TestValidatePattern(t *testing.T) {
 }
 
 func TestRemovePattern(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	p := Pattern{Name: "to-remove", Tags: []string{"test"}, Source: "manual", Validated: true}
-	if err := repo.CreatePattern(nil, p, "# Remove me"); err != nil {
+	if err := repo.CreatePattern(ctx, p, "# Remove me"); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := repo.RemovePattern("to-remove"); err != nil {
+	if err := repo.RemovePattern(ctx, "to-remove"); err != nil {
 		t.Fatalf("RemovePattern failed: %v", err)
 	}
 
@@ -162,22 +162,22 @@ func TestRemovePattern(t *testing.T) {
 	}
 
 	// File should be removed
-	mdPath := filepath.Join(dir, "patterns", "to-remove.md")
+	mdPath := filepath.Join(repo.path, "patterns", "to-remove.md")
 	if _, err := os.Stat(mdPath); !os.IsNotExist(err) {
 		t.Error("pattern .md file should have been removed")
 	}
 }
 
 func TestCreatePattern_Duplicate(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
 
 	p := Pattern{Name: "dup", Tags: []string{"test"}, Source: "manual", Validated: true}
-	if err := repo.CreatePattern(nil, p, "# First"); err != nil {
+	if err := repo.CreatePattern(ctx, p, "# First"); err != nil {
 		t.Fatal(err)
 	}
 
-	err := repo.CreatePattern(nil, p, "# Second")
+	err := repo.CreatePattern(ctx, p, "# Second")
 	if err == nil {
 		t.Error("expected error for duplicate pattern")
 	}
