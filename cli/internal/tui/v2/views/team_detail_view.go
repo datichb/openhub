@@ -401,12 +401,12 @@ func (v *TeamDetailView) buildLines() {
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "max_auto_plan", kind: "string", scope: scopeTeam,
 		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.MaxAutoPlanPerMember) },
-		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Tracker.MaxAutoPlanPerMember = n; v.dirtyTeam = true },
+		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Tracker.MaxAutoPlanPerMember = n; v.dirtyTeam = true },
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "sync_interval_min", kind: "string", scope: scopeTeam,
 		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
-		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Tracker.SyncIntervalMinutes = n; v.dirtyTeam = true },
+		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Tracker.SyncIntervalMinutes = n; v.dirtyTeam = true },
 	})
 
 	// ── Mappings (dynamic) ──
@@ -455,17 +455,17 @@ func (v *TeamDetailView) buildLines() {
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Collaboration", key: "max_sessions", kind: "string", scope: scopeTeam,
 		get: func() string { return strconv.Itoa(v.teamCfg.Parallel.MaxSessions) },
-		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Parallel.MaxSessions = n; v.dirtyTeam = true },
+		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Parallel.MaxSessions = n; v.dirtyTeam = true },
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Collaboration", key: "stale_days", kind: "string", scope: scopeTeam,
 		get: func() string { return strconv.Itoa(v.teamCfg.Takeover.StaleDays) },
-		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Takeover.StaleDays = n; v.dirtyTeam = true },
+		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Takeover.StaleDays = n; v.dirtyTeam = true },
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Collaboration", key: "done_retention_days", kind: "string", scope: scopeTeam,
 		get: func() string { return strconv.Itoa(v.teamCfg.Claim.DoneRetentionDays) },
-		set: func(val string) { n, _ := strconv.Atoi(val); v.teamCfg.Claim.DoneRetentionDays = n; v.dirtyTeam = true },
+		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Claim.DoneRetentionDays = n; v.dirtyTeam = true },
 	})
 
 	// ── Models (recommandations) ──
@@ -738,7 +738,12 @@ func (v *TeamDetailView) editSelected() {
 			}
 			if v.cfg.SetSecret != nil {
 				ctx := context.Background()
-				_ = v.cfg.SetSecret(ctx, tokenKey, val)
+				if err := v.cfg.SetSecret(ctx, tokenKey, val); err != nil {
+					if v.shell != nil {
+						v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
+					}
+					return
+				}
 			}
 			v.renderLines()
 			if v.shell != nil {
@@ -748,20 +753,29 @@ func (v *TeamDetailView) editSelected() {
 	}
 }
 
-// currentServiceForLine determines which MCP service a line belongs to.
+// currentServiceForLine determines which MCP service a line belongs to
+// by finding the last "MCP ..." section header before the target line.
 func (v *TeamDetailView) currentServiceForLine(line teamConfigLine) string {
-	// Walk up from the line to find the section header
+	lastService := ""
 	for _, l := range v.lines {
 		if l.kind == "section-header" && strings.HasPrefix(l.section, "MCP ") {
-			svc := strings.ToLower(strings.TrimPrefix(l.section, "MCP "))
-			// Check if this line is under this service section
-			// Simple heuristic: return the last seen service before we hit the target line
-			_ = svc
+			lastService = strings.ToLower(strings.TrimPrefix(l.section, "MCP "))
+		}
+		// Found our target line — return the last service seen before it.
+		if l.key == line.key && l.section == line.section && l.kind == line.kind {
+			if lastService != "" {
+				return lastService
+			}
+			break
 		}
 	}
 	// Fallback: extract from section field
 	if strings.HasPrefix(line.section, "MCP") {
-		return "gitlab" // default fallback
+		parts := strings.Fields(line.section)
+		if len(parts) >= 2 {
+			return strings.ToLower(parts[1])
+		}
+		return "gitlab"
 	}
 	return ""
 }
@@ -929,11 +943,25 @@ func (v *TeamDetailView) syncTracker() {
 
 	v.shell.ShowToastMsg("Synchronisation en cours...", true)
 
+	app := v.app // capture stable reference before goroutine
 	go func() {
-		ctx := context.Background()
+		ctx := v.shell.Context()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		result, err := v.cfg.SyncTracker(ctx)
 
-		v.app.QueueUpdateDraw(func() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		app.QueueUpdateDraw(func() {
+			if v.shell == nil {
+				return
+			}
 			if err != nil {
 				errMsg := err.Error()
 				if strings.Contains(errMsg, "credentials manquants") || strings.Contains(errMsg, "token") {
@@ -1005,17 +1033,22 @@ func (v *TeamDetailView) promptTokenSetup() {
 					hubCfg.MCP.Jira.Token = tokenKey
 				}
 			}
-			_ = config.Save(hubCfg)
-		}
+		_ = config.Save(hubCfg)
+	}
 
-		if secrets := v.cfg.GetSecrets(); secrets != nil {
-			ctx := context.Background()
-			if setter, ok := secrets.(interface{ Set(ctx context.Context, key, value string) error }); ok {
-				_ = setter.Set(ctx, tokenKey, value)
+	if secrets := v.cfg.GetSecrets(); secrets != nil {
+		ctx := context.Background()
+		if setter, ok := secrets.(interface{ Set(ctx context.Context, key, value string) error }); ok {
+			if err := setter.Set(ctx, tokenKey, value); err != nil {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
+				}
+				return
 			}
 		}
+	}
 
-		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
+	v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
 		v.loadData()
 		v.buildLines()
 		v.renderLines()
@@ -1033,8 +1066,14 @@ func (v *TeamDetailView) testConnection() {
 
 	v.shell.ShowToastMsg("Test de connexion...", true)
 
+	app := v.app // capture stable reference before goroutine
 	go func() {
-		ctx := context.Background()
+		ctx := v.shell.Context()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		mcp := v.cfg.GetMCPConfig()
 		var sharedGitLab, sharedJira *teamstate.SharedMCPConfig
 		if v.teamCfg.MCP != nil {
@@ -1062,7 +1101,10 @@ func (v *TeamDetailView) testConnection() {
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)
 		cfg, err := tracker.ResolveCredentials(ctx, src, trackerType)
 		if err != nil {
-			v.app.QueueUpdateDraw(func() {
+			app.QueueUpdateDraw(func() {
+				if v.shell == nil {
+					return
+				}
 				v.shell.ShowToastMsg("✗ Credentials non disponibles: "+err.Error(), false)
 			})
 			return
@@ -1070,14 +1112,25 @@ func (v *TeamDetailView) testConnection() {
 
 		t, err := tracker.New(cfg)
 		if err != nil {
-			v.app.QueueUpdateDraw(func() {
+			app.QueueUpdateDraw(func() {
+				if v.shell == nil {
+					return
+				}
 				v.shell.ShowToastMsg("✗ Initialisation échouée: "+err.Error(), false)
 			})
 			return
 		}
 
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		username, err := t.TestConnection(ctx)
-		v.app.QueueUpdateDraw(func() {
+		app.QueueUpdateDraw(func() {
+			if v.shell == nil {
+				return
+			}
 			if err != nil {
 				v.shell.ShowToastMsg("✗ Connexion échouée: "+err.Error(), false)
 			} else {
