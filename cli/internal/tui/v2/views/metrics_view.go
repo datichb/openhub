@@ -1,29 +1,38 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
+
+// MetricsViewConfig holds dependencies for the metrics view.
+type MetricsViewConfig struct {
+	AgentEvents domain.AgentEventStore // optional — if nil, agent table is hidden
+}
 
 // MetricsView displays real usage metrics from opencode's database.
 type MetricsView struct {
 	app    *tview.Application
 	tv     *tview.TextView
 	period string // "7d", "30d", "all"
+	mode   string // "usage" or "agents"
 	shell  ShellAccess
+	cfg    MetricsViewConfig
 }
 
 var _ View = (*MetricsView)(nil)
 
 // NewMetricsView creates a new metrics view.
-func NewMetricsView() *MetricsView {
-	return &MetricsView{period: "all"}
+func NewMetricsView(cfg MetricsViewConfig) *MetricsView {
+	return &MetricsView{period: "all", mode: "usage", cfg: cfg}
 }
 
 // SetShell provides the shell reference (used to read the active project).
@@ -37,7 +46,7 @@ func (v *MetricsView) Title() string { return "Métriques" }
 
 // StatusHints returns keybinding hints.
 func (v *MetricsView) StatusHints() string {
-	return "7 semaine · 3 mois · a tout · Esc retour"
+	return "7 semaine · 3 mois · a tout · Tab usage/agents · Esc retour"
 }
 
 // Mount builds the metrics display with real data.
@@ -62,16 +71,24 @@ func (v *MetricsView) Unmount() {
 
 // HandleKey processes metrics view key events (period switching).
 func (v *MetricsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case '7':
+	switch {
+	case event.Key() == tcell.KeyTab:
+		if v.mode == "usage" {
+			v.mode = "agents"
+		} else {
+			v.mode = "usage"
+		}
+		v.render()
+		return nil
+	case event.Rune() == '7':
 		v.period = "7d"
 		v.render()
 		return nil
-	case '3':
+	case event.Rune() == '3':
 		v.period = "30d"
 		v.render()
 		return nil
-	case 'a':
+	case event.Rune() == 'a':
 		v.period = "all"
 		v.render()
 		return nil
@@ -80,6 +97,85 @@ func (v *MetricsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *MetricsView) render() {
+	if v.tv == nil {
+		return
+	}
+
+	if v.mode == "agents" {
+		v.renderAgents()
+		return
+	}
+	v.renderUsage()
+}
+
+func (v *MetricsView) renderAgents() {
+	if v.cfg.AgentEvents == nil {
+		v.tv.SetText("\n  [::b]Télémétrie agents" + theme.TagReset + "\n\n  " +
+			theme.ColorTag(theme.TextSecondaryHex) + "Agent event store non disponible." + theme.TagColor +
+			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + "Appuyez sur Tab pour revenir aux métriques d'usage." + theme.TagColor)
+		return
+	}
+
+	projectID := ""
+	scopeLabel := ""
+	if v.shell != nil {
+		if ap := v.shell.ActiveProject(); ap != nil {
+			projectID = ap.ID
+			scopeLabel = ap.Name
+		}
+	}
+
+	metrics, err := v.cfg.AgentEvents.Metrics(context.Background(), projectID)
+	if err != nil {
+		v.tv.SetText(fmt.Sprintf("  Erreur: %s", err.Error()))
+		return
+	}
+
+	var sb strings.Builder
+	title := "Télémétrie agents"
+	if scopeLabel != "" {
+		title = fmt.Sprintf("Télémétrie agents · %s", scopeLabel)
+	}
+	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", title, theme.TagReset))
+
+	if len(metrics) == 0 {
+		sb.WriteString(fmt.Sprintf("  %sAucune donnée d'agent disponible.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+	} else {
+		// Table header
+		sb.WriteString(fmt.Sprintf("  %s%-18s %6s %6s %8s %10s %10s %8s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex),
+			"Agent", "Runs", "Succ%", "Durée", "Tokens In", "Tokens Out", "Coût",
+			theme.TagColor))
+		sb.WriteString(fmt.Sprintf("  %s%s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex),
+			strings.Repeat("─", 76),
+			theme.TagColor))
+
+		for _, m := range metrics {
+			name := m.AgentName
+			if len(name) > 18 {
+				name = name[:15] + "..."
+			}
+			sb.WriteString(fmt.Sprintf("  %-18s %6d %5.0f%% %6.1fs %10s %10s   $%.2f\n",
+				name,
+				m.TotalRuns,
+				m.SuccessRate,
+				m.AvgDurationSec,
+				formatTokens(m.TotalTokensIn),
+				formatTokens(m.TotalTokensOut),
+				m.TotalCostUSD,
+			))
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [a] tout ───%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+
+	v.tv.SetText(sb.String())
+}
+
+func (v *MetricsView) renderUsage() {
 	if v.tv == nil {
 		return
 	}

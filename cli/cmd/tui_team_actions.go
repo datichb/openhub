@@ -670,8 +670,9 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		return fmt.Errorf("writing enriched brief: %w", err)
 	}
 
-	relPath := "projects/" + project + "/takeover-briefs/" + latestBase + ".enriched.md"
-	_ = repo.CommitAndPush(context.Background(), fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
+	relPath := filepath.Join("projects", project, "takeover-briefs", latestBase+".enriched.md")
+	ctx := tuiShell.Context()
+	_ = repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
 
 	return nil
 }
@@ -686,12 +687,22 @@ func actionSyncTracker() {
 		return
 	}
 	a := MustApp()
-	ctx := context.Background()
+	ctx := tuiShell.Context()
 
 	tuiShell.ShowToast("Synchronisation en cours...", shell.ToastInfo)
 
 	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		result, err := runSyncTrackerForTUI(a, ctx)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast("✗ Sync: "+err.Error(), shell.ToastError)

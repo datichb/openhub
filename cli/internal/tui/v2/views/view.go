@@ -3,6 +3,8 @@
 package views
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -103,6 +105,9 @@ type ModalAction struct {
 
 // ShellAccess provides access to shell overlay capabilities from views.
 type ShellAccess interface {
+	// Context returns the shell lifecycle context, cancelled on app exit.
+	// Use this in goroutines to enable cancellation on quit/SIGINT.
+	Context() context.Context
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
 	ShowPasswordModal(title string, onConfirm func(value string))
 	ShowSelectModal(title string, options []SelectOption, currentValue string, onConfirm func(value string))

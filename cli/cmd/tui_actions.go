@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -47,7 +48,7 @@ func runSyncAll(a *app.App) error {
 // runUpgradeOpencode updates the opencode binary to the latest version.
 // An optional progressFn is called with (downloaded, total) bytes during the download.
 func runUpgradeOpencode(progressFn opencode.ProgressFunc) error {
-	installDir := config.HubDir() + "/bin"
+	installDir := filepath.Join(config.HubDir(), "bin")
 	_, err := opencode.Download("latest", installDir, progressFn)
 	return err
 }

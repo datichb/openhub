@@ -23,13 +23,20 @@ const pullSlowThreshold = time.Second
 //     so the user knows data may be stale, then still calls onDone so the view
 //     can render with whatever local data is available.
 //   - If app is nil or repo is nil, onDone is invoked synchronously with nil.
+//   - The shell's lifecycle context is used to cancel the pull on app exit.
 func syncAsync(
 	app *tview.Application,
 	repo *teamstate.Repo,
 	shell ShellAccess,
 	onDone func(pullErr error),
 ) {
-	pullFn := func() error { return repo.Pull(context.Background()) }
+	var ctx context.Context
+	if shell != nil {
+		ctx = shell.Context()
+	} else {
+		ctx = context.Background()
+	}
+	pullFn := func() error { return repo.Pull(ctx) }
 	syncFuncAsync(app, pullFn, shell, onDone)
 }
 
@@ -61,9 +68,30 @@ func syncFuncAsync(
 		})
 	})
 
+	// Determine lifecycle context for early-out on app exit.
+	var ctx context.Context
+	if shell != nil {
+		ctx = shell.Context()
+	} else {
+		ctx = context.Background()
+	}
+
 	go func() {
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		default:
+		}
+
 		err := pullFn()
 		timer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 
 		app.QueueUpdateDraw(func() {
 			if err != nil && !teamstate.IsPullWarning(err) {

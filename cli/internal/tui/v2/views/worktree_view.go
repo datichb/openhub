@@ -181,9 +181,16 @@ func (v *WorktreeView) addWorktree() {
 		}
 
 		v.shell.ShowToastMsg("Création du worktree en cours...", true)
+		app := v.app // capture stable reference before goroutine
 		go func() {
 			_, err := worktree.ResolveOrCreate(projectPath, branch)
-			v.app.QueueUpdateDraw(func() {
+			if app == nil {
+				return
+			}
+			app.QueueUpdateDraw(func() {
+				if v.shell == nil {
+					return
+				}
 				if err != nil {
 					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
 				} else {
@@ -310,27 +317,30 @@ func (v *WorktreeView) cleanupWorktrees() {
 	}
 
 	baseBranch := worktree.DetectBaseBranch(projectPath)
+	app := v.app // capture stable reference before goroutine
 	go func() {
 		result, err := worktree.CleanupMerged(projectPath, baseBranch, false)
-		v.app.QueueUpdateDraw(func() {
-			if err != nil {
-				if v.shell != nil {
-					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-				}
+		if app == nil {
+			return
+		}
+		app.QueueUpdateDraw(func() {
+			if v.shell == nil {
 				return
 			}
-			if v.shell != nil {
-				switch {
-				case len(result.Removed) == 0 && len(result.Skipped) == 0:
-					v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
-				case len(result.Skipped) > 0:
-					v.shell.ShowToastMsg(
-						fmt.Sprintf("%d nettoyé(s), %d ignoré(s) (modifications non commitées)", len(result.Removed), len(result.Skipped)),
-						len(result.Removed) > 0,
-					)
-				default:
-					v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", len(result.Removed)), true)
-				}
+			if err != nil {
+				v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+				return
+			}
+			switch {
+			case len(result.Removed) == 0 && len(result.Skipped) == 0:
+				v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
+			case len(result.Skipped) > 0:
+				v.shell.ShowToastMsg(
+					fmt.Sprintf("%d nettoyé(s), %d ignoré(s) (modifications non commitées)", len(result.Removed), len(result.Skipped)),
+					len(result.Removed) > 0,
+				)
+			default:
+				v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", len(result.Removed)), true)
 			}
 			v.refresh()
 		})
