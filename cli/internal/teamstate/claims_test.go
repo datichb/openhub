@@ -253,3 +253,91 @@ func gitCmd(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v failed: %s", args, string(out))
 }
+
+func TestIsValidTransition_Allowed(t *testing.T) {
+	allowed := []struct {
+		from string
+		to   string
+	}{
+		{ClaimStatusPlanned, ClaimStatusInProgress},
+		{ClaimStatusInProgress, ClaimStatusReview},
+		{ClaimStatusInProgress, ClaimStatusBlocked},
+		{ClaimStatusReview, ClaimStatusDone},
+		{ClaimStatusReview, ClaimStatusInProgress},
+		{ClaimStatusBlocked, ClaimStatusInProgress},
+		{ClaimStatusDone, ClaimStatusInProgress}, // reopen
+	}
+	for _, tt := range allowed {
+		assert.True(t, IsValidTransition(tt.from, tt.to),
+			"transition %s → %s should be allowed", tt.from, tt.to)
+	}
+}
+
+func TestIsValidTransition_Rejected(t *testing.T) {
+	rejected := []struct {
+		from string
+		to   string
+	}{
+		{ClaimStatusPlanned, ClaimStatusReview},
+		{ClaimStatusPlanned, ClaimStatusDone},
+		{ClaimStatusPlanned, ClaimStatusBlocked},
+		{ClaimStatusInProgress, ClaimStatusPlanned},
+		{ClaimStatusInProgress, ClaimStatusDone},
+		{ClaimStatusReview, ClaimStatusBlocked},
+		{ClaimStatusReview, ClaimStatusPlanned},
+		{ClaimStatusBlocked, ClaimStatusDone},
+		{ClaimStatusBlocked, ClaimStatusReview},
+		{ClaimStatusDone, ClaimStatusPlanned},
+		{ClaimStatusDone, ClaimStatusReview},
+		{ClaimStatusDone, ClaimStatusBlocked},
+	}
+	for _, tt := range rejected {
+		assert.False(t, IsValidTransition(tt.from, tt.to),
+			"transition %s → %s should be rejected", tt.from, tt.to)
+	}
+}
+
+func TestUpdateClaimStatus_InvalidTransition(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	// Create a claim in "planned" status
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-200",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusPlanned,
+	})
+	require.NoError(t, err)
+
+	// Try an invalid transition: planned → done
+	err = repo.UpdateClaimStatus(ctx, "T-SRU", "SRU-200", ClaimStatusDone)
+	assert.ErrorIs(t, err, ErrInvalidTransition)
+
+	// Verify status unchanged
+	got, err := repo.GetClaim("T-SRU", "SRU-200")
+	require.NoError(t, err)
+	assert.Equal(t, ClaimStatusPlanned, got.Status)
+}
+
+func TestUpdateClaimStatus_ValidTransition(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	// Create a claim in "planned" status
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-201",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusPlanned,
+	})
+	require.NoError(t, err)
+
+	// Valid transition: planned → in_progress
+	err = repo.UpdateClaimStatus(ctx, "T-SRU", "SRU-201", ClaimStatusInProgress)
+	require.NoError(t, err)
+
+	got, err := repo.GetClaim("T-SRU", "SRU-201")
+	require.NoError(t, err)
+	assert.Equal(t, ClaimStatusInProgress, got.Status)
+}

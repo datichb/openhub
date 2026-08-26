@@ -40,4 +40,6 @@ var (
 	ErrBriefNotFound = errors.New("takeover brief not found")
 	// ErrInvalidStatus is returned when an unknown claim status is provided.
 	ErrInvalidStatus = errors.New("invalid claim status")
+	// ErrInvalidTransition is returned when a claim status transition is not allowed.
+	ErrInvalidTransition = errors.New("invalid status transition")
 )
