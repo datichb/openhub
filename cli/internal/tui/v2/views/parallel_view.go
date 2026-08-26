@@ -20,6 +20,7 @@ type ParallelViewConfig struct {
 	Sessions    []ParallelSession
 	RefreshFunc func() []ParallelSession
 	RefreshRate time.Duration
+	AttachFunc  func(sessionID string) error // called to attach to a running session interactively
 }
 
 // ParallelView implements View for monitoring parallel sessions.
@@ -48,7 +49,7 @@ func (v *ParallelView) Title() string { return "Parallel" }
 
 // StatusHints returns keybinding hints.
 func (v *ParallelView) StatusHints() string {
-	return "j/k sessions · r refresh · Esc retour"
+	return "j/k sessions · Enter attach · r refresh · Esc retour"
 }
 
 // Mount builds the parallel monitor and inserts it into the content panel.
@@ -113,8 +114,22 @@ func (v *ParallelView) Unmount() {
 
 // HandleKey processes parallel view key events.
 func (v *ParallelView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'r':
+	switch {
+	case event.Key() == tcell.KeyEnter:
+		if v.cfg.AttachFunc != nil && v.app != nil && v.sessionList != nil {
+			idx := v.sessionList.GetCurrentItem()
+			if idx >= 0 && idx < len(v.cfg.Sessions) {
+				sess := v.cfg.Sessions[idx]
+				if sess.Status == "running" && sess.SessionID != "" {
+					v.app.Suspend(func() {
+						_ = v.cfg.AttachFunc(sess.SessionID)
+					})
+					v.app.Sync()
+				}
+			}
+		}
+		return nil
+	case event.Rune() == 'r':
 		if v.cfg.RefreshFunc != nil {
 			v.refresh()
 		}

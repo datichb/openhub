@@ -18,12 +18,14 @@ import (
 
 // ParallelSession represents a running coding session.
 type ParallelSession struct {
-	ID       string
-	Name     string
-	Status   string // "running", "idle", "conflict", "done"
-	Branch   string
-	Duration time.Duration
-	Agent    string
+	ID           string
+	Name         string
+	Status       string // "running", "idle", "conflict", "done"
+	Branch       string
+	Duration     time.Duration
+	Agent        string
+	SessionID    string // opencode session ID (for attach/resume)
+	WorktreePath string // working directory for the session
 }
 
 // ParallelConfig configures the parallel monitor.
@@ -32,6 +34,7 @@ type ParallelConfig struct {
 	Sessions    []ParallelSession
 	RefreshFunc func() []ParallelSession
 	RefreshRate time.Duration
+	AttachFunc  func(sessionID string) error // called to attach to a running session interactively
 }
 
 // RunParallel launches the full-screen parallel session monitor.
@@ -135,6 +138,20 @@ func RunParallel(cfg ParallelConfig) error {
 		case event.Key() == tcell.KeyEscape || event.Rune() == 'q':
 			close(done)
 			shell.App.Stop()
+			return nil
+		case event.Key() == tcell.KeyEnter:
+			if cfg.AttachFunc != nil {
+				idx := sessionList.GetCurrentItem()
+				if idx >= 0 && idx < len(cfg.Sessions) {
+					sess := cfg.Sessions[idx]
+					if sess.Status == "running" && sess.SessionID != "" {
+						shell.App.Suspend(func() {
+							_ = cfg.AttachFunc(sess.SessionID)
+						})
+						shell.App.Sync()
+					}
+				}
+			}
 			return nil
 		case event.Rune() == 'r':
 			if cfg.RefreshFunc != nil {

@@ -76,7 +76,7 @@ func (m *Merger) ProposeMerge(isBeads func(ticketID string) bool) ([]MergeResult
 	if m.config.AutoMergeBeads && len(beadsSessions) > 0 {
 		fmt.Fprintf(m.out, "\n  Merge des tickets Beads (%d branches) :\n\n", len(beadsSessions))
 
-		baseBranch, err := detectBaseBranch(m.projectPath)
+		baseBranch, err := DetectBaseBranch(m.projectPath)
 		if err != nil {
 			baseBranch = "main"
 		}
@@ -203,8 +203,8 @@ func sortByPriority(sessions []SessionInfo) {
 	}
 }
 
-// detectBaseBranch detects the default branch.
-func detectBaseBranch(projectPath string) (string, error) {
+// DetectBaseBranch detects the default branch.
+func DetectBaseBranch(projectPath string) (string, error) {
 	// Try git symbolic-ref
 	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = projectPath

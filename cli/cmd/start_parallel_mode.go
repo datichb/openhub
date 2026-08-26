@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -111,12 +116,11 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur parallèle...\n\n",
 			theme.Subtitle.Render(theme.IconArrow))
 
-		// TODO: v2 parallel view does not support attach functionality yet.
 		parallelCfg := views.ParallelConfig{
 			Layout: layout.Config{
 				ProjectName: a.Config.Name,
 				Command:     "parallel",
-				StatusHints: "↑↓ navigate · r refresh · q quit",
+				StatusHints: "↑↓ navigate · Enter attach · r refresh · q quit",
 			},
 			Sessions:    toParallelSessions(coord.State()),
 			RefreshFunc: func() []views.ParallelSession {
@@ -124,6 +128,17 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 				return toParallelSessions(coord.State())
 			},
 			RefreshRate: 5 * time.Second,
+			AttachFunc: func(sessionID string) error {
+				for _, s := range coord.State().Snapshot().Sessions {
+					if s.SessionID == sessionID {
+						return opencode.Run(opencode.StartOpts{
+							ResumeSessionID: sessionID,
+							ProjectPath:     s.WorktreePath,
+						})
+					}
+				}
+				return fmt.Errorf("session %s introuvable", sessionID)
+			},
 		}
 
 		if err := views.RunParallel(parallelCfg); err != nil {
@@ -177,28 +192,56 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		fmt.Fprintln(a.IO.Out)
 		fmt.Fprintln(a.IO.Out, theme.Title.Render("  Merge  "))
 
-		merger := parallel.NewMerger(coord.State(), project.Path, cfg)
-		merger.SetOutput(a.IO.Out)
 		isBeads := func(ticketID string) bool {
 			return strings.HasPrefix(ticketID, "bd-") || strings.HasPrefix(ticketID, "BD-")
 		}
 
-		results, err := merger.ProposeMerge(isBeads)
-		if err != nil {
-			fmt.Fprintf(a.IO.Out, "  %s Merge error: %v\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
-		}
+		// Build branches list for TUI merge view
+		branches := toMergeBranches(coord.State(), project.Path, isBeads)
 
-		fmt.Fprintln(a.IO.Out)
-		for _, r := range results {
-			icon := theme.SuccessStyle.Render(theme.IconSuccess)
-			if !r.Success {
-				icon = theme.ErrorStyle.Render(theme.IconError)
+		if len(branches) > 0 {
+			mergeCfg := views.MergeViewConfig{
+				Branches: branches,
+				MergeFunc: func(branch views.MergeBranch) error {
+					return runGitMerge(project.Path, branch.Branch, branch.TicketID)
+				},
 			}
-			if r.Conflict {
-				icon = theme.WarningStyle.Render(theme.IconWarning)
+
+			mergeView := views.NewMergeView(mergeCfg)
+			shell := layout.Build(layout.Config{
+				ProjectName: a.Config.Name,
+				Command:     "merge",
+				StatusHints: mergeView.StatusHints(),
+			})
+
+			content := tview.NewFlex().SetDirection(tview.FlexRow)
+			mergeView.Mount(content, shell.App)
+			shell.Content.AddItem(content, 0, 1, true)
+
+			shell.Content.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyEscape || event.Rune() == 'q' {
+					shell.App.Stop()
+					return nil
+				}
+				return mergeView.HandleKey(event)
+			})
+
+			_ = shell.App.SetRoot(shell.Root, true).EnableMouse(true).Run()
+
+			// Print merge summary
+			fmt.Fprintln(a.IO.Out)
+			for _, b := range mergeCfg.Branches {
+				icon := theme.SuccessStyle.Render(theme.IconSuccess)
+				switch b.Status {
+				case "skipped":
+					icon = theme.Subtitle.Render("→")
+				case "conflict":
+					icon = theme.WarningStyle.Render(theme.IconWarning)
+				case "pending":
+					icon = theme.Subtitle.Render("·")
+				}
+				fmt.Fprintf(a.IO.Out, "  %s %s: %s (%s)\n", icon, b.TicketID, b.Branch, b.Status)
 			}
-			fmt.Fprintf(a.IO.Out, "  %s %s: %s\n", icon, r.TicketID, r.Message)
 		}
 	}
 
@@ -220,13 +263,96 @@ func toParallelSessions(state *parallel.ParallelState) []views.ParallelSession {
 			}
 		}
 		sessions = append(sessions, views.ParallelSession{
-			ID:       s.SessionID,
-			Name:     s.TicketID,
-			Status:   string(s.Status),
-			Branch:   s.Branch,
-			Duration: duration,
-			Agent:    "orchestrator-dev",
+			ID:           s.SessionID,
+			Name:         s.TicketID,
+			Status:       string(s.Status),
+			Branch:       s.Branch,
+			Duration:     duration,
+			Agent:        "orchestrator-dev",
+			SessionID:    s.SessionID,
+			WorktreePath: s.WorktreePath,
 		})
 	}
 	return sessions
+}
+
+// toMergeBranches builds a MergeBranch list from completed sessions.
+func toMergeBranches(state *parallel.ParallelState, projectPath string, isBeads func(string) bool) []views.MergeBranch {
+	snap := state.Snapshot()
+	var branches []views.MergeBranch
+
+	baseBranch, _ := parallel.DetectBaseBranch(projectPath)
+	if baseBranch == "" {
+		baseBranch = "main"
+	}
+
+	for _, sess := range snap.Sessions {
+		if sess.Status != parallel.StatusCompleted {
+			continue
+		}
+		var duration time.Duration
+		if !sess.StartedAt.IsZero() && !sess.CompletedAt.IsZero() {
+			duration = sess.CompletedAt.Sub(sess.StartedAt)
+		}
+
+		// Get commit count and diff stat
+		commitCount := gitCommitCount(projectPath, baseBranch, sess.Branch)
+		diffStat := gitDiffStat(projectPath, baseBranch, sess.Branch)
+
+		branches = append(branches, views.MergeBranch{
+			TicketID:    sess.TicketID,
+			Branch:      sess.Branch,
+			IsBeads:     isBeads(sess.TicketID),
+			DiffStat:    diffStat,
+			CommitCount: commitCount,
+			Duration:    duration,
+			Status:      "pending",
+		})
+	}
+	return branches
+}
+
+// runGitMerge executes a git merge --no-ff in the terminal (runs inside app.Suspend).
+func runGitMerge(projectPath, branch, ticketID string) error {
+	cmd := exec.Command("git", "merge", "--no-ff", branch, "-m",
+		fmt.Sprintf("merge: parallel session %s", ticketID))
+	cmd.Dir = projectPath
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	fmt.Printf("\n  → git merge --no-ff %s\n\n", branch)
+	if err := cmd.Run(); err != nil {
+		// Abort on conflict
+		abortCmd := exec.Command("git", "merge", "--abort")
+		abortCmd.Dir = projectPath
+		_ = abortCmd.Run()
+		return err
+	}
+	fmt.Printf("\n  ✓ Merge réussi\n")
+	fmt.Printf("  Appuyez sur Entrée pour continuer...")
+	fmt.Scanln()
+	return nil
+}
+
+func gitCommitCount(projectPath, base, branch string) int {
+	cmd := exec.Command("git", "rev-list", "--count", fmt.Sprintf("%s..%s", base, branch))
+	cmd.Dir = projectPath
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	n := 0
+	fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &n)
+	return n
+}
+
+func gitDiffStat(projectPath, base, branch string) string {
+	cmd := exec.Command("git", "diff", "--stat", fmt.Sprintf("%s...%s", base, branch))
+	cmd.Dir = projectPath
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
