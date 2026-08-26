@@ -18,6 +18,7 @@ import (
 type TeamsView struct {
 	list       *widgets.SectionedList
 	app        *tview.Application
+	shell      ShellAccess
 	cfg        *config.Config
 	onSync     func(teamID string)
 	onSave     func(cfg *config.Config)
@@ -46,6 +47,9 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 	v.list.SetItemSelectedFunc(v.handleSelect)
 	return v
 }
+
+// SetShell provides the shell reference for modal interactions.
+func (v *TeamsView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *TeamsView) ID() string    { return "teams" }
 func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
@@ -86,7 +90,7 @@ func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.handleUndo()
 			return nil
 		case '?':
-			// TODO: show help modal
+			v.showHelp()
 			return nil
 		}
 	}
@@ -192,14 +196,58 @@ func (v *TeamsView) rebuild() {
 }
 
 func (v *TeamsView) handleSelect(index int, item widgets.SectionItem) {
-	// TODO: navigate to TeamDetailView for the selected team
-	_ = item.Reference
+	teamID, ok := item.Reference.(string)
+	if !ok || teamID == "" {
+		return
+	}
+	// Navigate to team detail view
+	if v.onNavigate != nil {
+		v.onNavigate("team.detail")
+	}
 }
 
 func (v *TeamsView) handleAdd() {
-	// TODO: open modal chain to add a new team (repo → member-id → id → name)
-	// For now this is a placeholder; the full modal flow will be implemented
-	// when the modal infrastructure is wired up in Phase 4.
+	if v.shell == nil {
+		return
+	}
+	// Step 1: Repo URL
+	v.shell.ShowInputModal("URL du repo team-state", "", func(repo string) {
+		if repo == "" {
+			return
+		}
+		// Step 2: Member ID
+		v.shell.ShowInputModal("Votre member-id", "", func(memberID string) {
+			if memberID == "" {
+				return
+			}
+			// Step 3: Team ID (short identifier)
+			v.shell.ShowInputModal("ID court de l'équipe", "", func(teamID string) {
+				if teamID == "" {
+					return
+				}
+				// Step 4: Display name (optional)
+				v.shell.ShowInputModal("Nom d'affichage (optionnel)", "", func(name string) {
+					// Push undo state before mutation
+					v.undoStack.Push(copyTeams(v.cfg.Teams))
+
+					newTeam := config.TeamConfig{
+						ID:        teamID,
+						Name:      name,
+						Enabled:   true,
+						StateRepo: repo,
+						MemberID:  memberID,
+					}
+					v.cfg.Teams = append(v.cfg.Teams, newTeam)
+
+					if v.onSave != nil {
+						v.onSave(v.cfg)
+					}
+					v.rebuild()
+					v.shell.ShowToastMsg("Équipe ajoutée: "+newTeam.DisplayName(), true)
+				})
+			})
+		})
+	})
 }
 
 func (v *TeamsView) handleDelete() {
@@ -213,24 +261,38 @@ func (v *TeamsView) handleDelete() {
 		return
 	}
 
-	// Push undo state before mutation
-	v.undoStack.Push(copyTeams(v.cfg.Teams))
+	if v.shell == nil {
+		return
+	}
 
-	// Remove from config
-	newTeams := make([]config.TeamConfig, 0, len(v.cfg.Teams)-1)
-	for _, t := range v.cfg.Teams {
-		if t.ID != teamID {
-			newTeams = append(newTeams, t)
+	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer l'équipe %q ?", teamID), []SelectOption{
+		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: "Annuler", Value: ""},
+	}, "", func(choice string) {
+		if choice != "yes" {
+			return
 		}
-	}
-	v.cfg.Teams = newTeams
 
-	// Auto-save
-	if v.onSave != nil {
-		v.onSave(v.cfg)
-	}
+		// Push undo state before mutation
+		v.undoStack.Push(copyTeams(v.cfg.Teams))
 
-	v.rebuild()
+		// Remove from config
+		newTeams := make([]config.TeamConfig, 0, len(v.cfg.Teams)-1)
+		for _, t := range v.cfg.Teams {
+			if t.ID != teamID {
+				newTeams = append(newTeams, t)
+			}
+		}
+		v.cfg.Teams = newTeams
+
+		// Auto-save
+		if v.onSave != nil {
+			v.onSave(v.cfg)
+		}
+
+		v.rebuild()
+		v.shell.ShowToastMsg("Équipe "+teamID+" supprimée (u pour annuler)", true)
+	})
 }
 
 func (v *TeamsView) handleSync() {
@@ -261,6 +323,24 @@ func (v *TeamsView) handleUndo() {
 		v.onSave(v.cfg)
 	}
 	v.rebuild()
+}
+
+func (v *TeamsView) showHelp() {
+	if v.shell == nil {
+		return
+	}
+	helpText := "Raccourcis clavier :\n\n" +
+		"  Enter   Ouvrir le détail de l'équipe\n" +
+		"  a       Ajouter une équipe\n" +
+		"  d       Retirer l'équipe sélectionnée\n" +
+		"  s       Synchroniser le team-state\n" +
+		"  r       Rafraîchir la liste\n" +
+		"  u       Annuler la dernière action\n" +
+		"  ?       Afficher cette aide\n" +
+		"  :       Ouvrir l'omnibar"
+	v.shell.ShowScrollableModal("Aide — Équipes", helpText, []ModalAction{
+		{Label: "OK", Callback: func() {}},
+	})
 }
 
 // copyTeams creates a shallow copy of a TeamConfig slice (for undo snapshots).
