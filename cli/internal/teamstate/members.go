@@ -57,6 +57,7 @@ func (r *Repo) GetMember(id string) (*Member, error) {
 }
 
 // FindMemberByGitLab looks up a member by GitLab username.
+// Used by the tracker sync engine to map GitLab assignees to team member IDs.
 func (r *Repo) FindMemberByGitLab(username string) (*Member, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -74,6 +75,7 @@ func (r *Repo) FindMemberByGitLab(username string) (*Member, error) {
 }
 
 // FindMemberByMattermost looks up a member by Mattermost username.
+// Used by the notification system to resolve @mentions to member IDs.
 func (r *Repo) FindMemberByMattermost(username string) (*Member, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -59,6 +59,10 @@ type PolicyContext struct {
 	ModifiedFiles []string // file paths modified
 	MemberID      string   // who is performing the action
 	ActiveClaims  int      // number of active claims for this member
+	// Boolean policy context fields — callers set these based on the current state.
+	HasReview   bool // true if at least one review/approval exists
+	HasTests    bool // true if test files are present or modified
+	HasCoverage bool // true if coverage threshold is met
 }
 
 // policiesFile is the TOML structure of policies.toml.
@@ -265,12 +269,28 @@ func checkRegex(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 }
 
 func checkBoolean(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
-	// Boolean policies are checked contextually — the CLI layer handles
-	// the actual verification (e.g. review_required checks if a review exists).
-	// Here we just confirm the policy is enabled.
 	if !p.Enabled {
-		// Policy disabled — always passes
-		result.Passed = true
+		// Policy disabled — always passes.
+		return result
+	}
+
+	// Match the policy name to a boolean context field.
+	var value bool
+	switch {
+	case strings.Contains(p.Name, "review"):
+		value = ctx.HasReview
+	case strings.Contains(p.Name, "test"):
+		value = ctx.HasTests
+	case strings.Contains(p.Name, "coverage"):
+		value = ctx.HasCoverage
+	default:
+		// Unknown boolean policy — passes by default (backward compat).
+		return result
+	}
+
+	if !value {
+		result.Passed = false
+		result.Details = fmt.Sprintf("boolean check failed: %s is not satisfied", p.Name)
 	}
 	return result
 }
