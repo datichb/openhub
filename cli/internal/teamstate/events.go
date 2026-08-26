@@ -42,39 +42,41 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 		e.Timestamp = time.Now().UTC()
 	}
 
-	// Determine file path: projects/<project>/events/YYYY-MM.jsonl
-	month := e.Timestamp.Format("2006-01")
-	dir := filepath.Join(r.path, "projects", e.Project, "events")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating events dir: %w", err)
-	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		// Determine file path: projects/<project>/events/YYYY-MM.jsonl
+		month := e.Timestamp.Format("2006-01")
+		dir := filepath.Join(r.path, "projects", e.Project, "events")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating events dir: %w", err)
+		}
 
-	filename := month + ".jsonl"
-	path := filepath.Join(dir, filename)
+		filename := month + ".jsonl"
+		path := filepath.Join(dir, filename)
 
-	// Marshal event to JSON
-	line, err := json.Marshal(e)
-	if err != nil {
-		return fmt.Errorf("marshaling event: %w", err)
-	}
+		// Marshal event to JSON
+		line, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("marshaling event: %w", err)
+		}
 
-	// Append to file
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening events file: %w", err)
-	}
-	if _, err := f.Write(append(line, '\n')); err != nil {
-		f.Close()
-		return fmt.Errorf("writing event: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("closing events file: %w", err)
-	}
+		// Append to file
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return fmt.Errorf("opening events file: %w", err)
+		}
+		if _, err := f.Write(append(line, '\n')); err != nil {
+			f.Close()
+			return fmt.Errorf("writing event: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("closing events file: %w", err)
+		}
 
-	// Commit and push
-	relPath := filepath.Join("projects", e.Project, "events", filename)
-	msg := fmt.Sprintf("event: %s by %s on %s", e.Type, e.Actor, e.Project)
-	return r.CommitAndPush(ctx, msg, relPath)
+		// Commit and push
+		relPath := filepath.Join("projects", e.Project, "events", filename)
+		msg := fmt.Sprintf("event: %s by %s on %s", e.Type, e.Actor, e.Project)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
 }
 
 // ListEvents returns events for a project since the given time, sorted newest first.
@@ -86,24 +88,17 @@ func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
 }
 
 // ListEventsLimited returns at most limit events, newest first.
+// Optimized to read monthly files in reverse chronological order and stop early
+// once enough events are collected — avoids loading all history for small limits.
 func (r *Repo) ListEventsLimited(project string, limit int) ([]Event, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	events, err := r.listEventsInternal(project, time.Time{})
-	if err != nil {
-		return nil, err
-	}
-	if len(events) > limit {
-		events = events[:limit]
-	}
-	return events, nil
+	return r.listEventsLimited(project, limit)
 }
 
-// listEventsInternal is the unlocked implementation shared by ListEvents and
-// ListEventsLimited. Callers must hold at least a read lock.
-func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, error) {
+func (r *Repo) listEventsLimited(project string, limit int) ([]Event, error) {
 	if project != "" {
-		return r.listEventsForProject(project, since)
+		return r.listEventsForProject(project, time.Time{}, limit)
 	}
 
 	projectsDir := filepath.Join(r.path, "projects")
@@ -120,7 +115,44 @@ func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, err
 		if !e.IsDir() {
 			continue
 		}
-		events, err := r.listEventsForProject(e.Name(), since)
+		events, err := r.listEventsForProject(e.Name(), time.Time{}, limit)
+		if err != nil {
+			continue
+		}
+		all = append(all, events...)
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Timestamp.After(all[j].Timestamp)
+	})
+	if limit > 0 && len(all) > limit {
+		all = all[:limit]
+	}
+	return all, nil
+}
+
+// listEventsInternal is the unlocked implementation shared by ListEvents.
+// Callers must hold at least a read lock.
+func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, error) {
+	if project != "" {
+		return r.listEventsForProject(project, since, 0)
+	}
+
+	projectsDir := filepath.Join(r.path, "projects")
+	entries, err := os.ReadDir(projectsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var all []Event
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		events, err := r.listEventsForProject(e.Name(), since, 0)
 		if err != nil {
 			continue // skip broken projects
 		}
@@ -133,7 +165,7 @@ func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, err
 	return all, nil
 }
 
-func (r *Repo) listEventsForProject(project string, since time.Time) ([]Event, error) {
+func (r *Repo) listEventsForProject(project string, since time.Time, limit int) ([]Event, error) {
 	dir := filepath.Join(r.path, "projects", project, "events")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -143,11 +175,33 @@ func (r *Repo) listEventsForProject(project string, since time.Time) ([]Event, e
 		return nil, err
 	}
 
+	// Sort files in reverse chronological order (newest month first).
+	// Filenames follow the pattern YYYY-MM.jsonl, so reverse string sort works.
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() > entries[j].Name()
+	})
+
+	// If filtering by time, derive the minimum month string to skip old files entirely.
+	var sinceMonth string
+	if !since.IsZero() {
+		sinceMonth = since.Format("2006-01")
+	}
+
 	var events []Event
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
 			continue
 		}
+
+		// Skip files whose month is earlier than the since filter.
+		// Filename format: "YYYY-MM.jsonl" → extract "YYYY-MM".
+		if sinceMonth != "" {
+			fileMonth := strings.TrimSuffix(entry.Name(), ".jsonl")
+			if fileMonth < sinceMonth {
+				break // files are sorted newest-first; all remaining are older
+			}
+		}
+
 		fileEvents, err := r.readEventsFile(filepath.Join(dir, entry.Name()), since)
 		if err != nil {
 			continue // skip malformed files
@@ -156,11 +210,19 @@ func (r *Repo) listEventsForProject(project string, since time.Time) ([]Event, e
 			fileEvents[i].Project = project
 		}
 		events = append(events, fileEvents...)
+
+		// Early exit when we have enough events for a limited query.
+		if limit > 0 && len(events) >= limit {
+			break
+		}
 	}
 
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].Timestamp.After(events[j].Timestamp)
 	})
+	if limit > 0 && len(events) > limit {
+		events = events[:limit]
+	}
 	return events, nil
 }
 

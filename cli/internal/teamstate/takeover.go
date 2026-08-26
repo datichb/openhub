@@ -119,43 +119,51 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 
 // SaveBrief writes a takeover brief to the team-state repo.
 func (r *Repo) SaveBrief(ctx context.Context, brief *TakeoverBrief) error {
-	dir := filepath.Join(r.path, "projects", brief.Meta.Project, "takeover-briefs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating takeover-briefs dir: %w", err)
-	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		dir := filepath.Join(r.path, "projects", brief.Meta.Project, "takeover-briefs")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating takeover-briefs dir: %w", err)
+		}
 
-	// Write raw TOML
-	date := brief.Meta.TransferDate.Format("2006-01-02")
-	baseName := fmt.Sprintf("%s_%s", brief.Meta.TicketID, date)
-	tomlPath := filepath.Join(dir, baseName+".toml")
+		// Write raw TOML
+		date := brief.Meta.TransferDate.Format("2006-01-02")
+		baseName := fmt.Sprintf("%s_%s", brief.Meta.TicketID, date)
+		tomlPath := filepath.Join(dir, baseName+".toml")
 
-	data, err := toml.Marshal(brief)
-	if err != nil {
-		return fmt.Errorf("marshaling brief: %w", err)
-	}
-	if err := os.WriteFile(tomlPath, data, 0o644); err != nil {
-		return fmt.Errorf("writing brief .toml: %w", err)
-	}
+		data, err := toml.Marshal(brief)
+		if err != nil {
+			return fmt.Errorf("marshaling brief: %w", err)
+		}
+		if err := os.WriteFile(tomlPath, data, 0o644); err != nil {
+			return fmt.Errorf("writing brief .toml: %w", err)
+		}
 
-	// Write template markdown
-	mdContent := RenderTemplateBrief(brief)
-	mdPath := filepath.Join(dir, baseName+".md")
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		return fmt.Errorf("writing brief .md: %w", err)
-	}
+		// Write template markdown
+		mdContent := RenderTemplateBrief(brief)
+		mdPath := filepath.Join(dir, baseName+".md")
+		if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
+			return fmt.Errorf("writing brief .md: %w", err)
+		}
 
-	// Commit and push
-	relToml := filepath.Join("projects", brief.Meta.Project, "takeover-briefs", baseName+".toml")
-	relMd := filepath.Join("projects", brief.Meta.Project, "takeover-briefs", baseName+".md")
-	msg := fmt.Sprintf("takeover: brief for %s/%s (%s → %s)",
-		brief.Meta.Project, brief.Meta.TicketID,
-		brief.Meta.TransferredFrom, brief.Meta.TransferredTo)
-	return r.CommitAndPush(ctx, msg, relToml, relMd)
+		// Commit and push
+		relToml := filepath.Join("projects", brief.Meta.Project, "takeover-briefs", baseName+".toml")
+		relMd := filepath.Join("projects", brief.Meta.Project, "takeover-briefs", baseName+".md")
+		msg := fmt.Sprintf("takeover: brief for %s/%s (%s → %s)",
+			brief.Meta.Project, brief.Meta.TicketID,
+			brief.Meta.TransferredFrom, brief.Meta.TransferredTo)
+		return r.commitAndPush(ctx, msg, relToml, relMd)
+	})
 }
 
 // ReadBrief reads the best available brief for a ticket.
 // Priority: .enriched.md > .md > .toml
 func (r *Repo) ReadBrief(project, ticketID string) (string, error) {
+	if _, err := SafeName(project); err != nil {
+		return "", fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return "", fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	dir := filepath.Join(r.path, "projects", project, "takeover-briefs")
 
 	entries, err := os.ReadDir(dir)

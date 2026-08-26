@@ -51,6 +51,9 @@ func (r *Repo) WikiListPages() ([]string, error) {
 
 // WikiReadPage returns the content of a wiki page.
 func (r *Repo) WikiReadPage(name string) (string, error) {
+	if _, err := SafeName(name); err != nil {
+		return "", fmt.Errorf("invalid wiki page name: %w", err)
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	path := filepath.Join(r.path, "wiki", name+".md")
@@ -85,28 +88,30 @@ func (r *Repo) WikiCreateProposal(ctx context.Context, p WikiProposal) error {
 		p.CreatedAt = time.Now().UTC()
 	}
 
-	// Ensure pending directory
-	dir := filepath.Join(r.path, "wiki", ".pending")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating pending dir: %w", err)
-	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		// Ensure pending directory
+		dir := filepath.Join(r.path, "wiki", ".pending")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating pending dir: %w", err)
+		}
 
-	// Write proposal file
-	data, err := toml.Marshal(&p)
-	if err != nil {
-		return fmt.Errorf("marshaling proposal: %w", err)
-	}
+		// Write proposal file
+		data, err := toml.Marshal(&p)
+		if err != nil {
+			return fmt.Errorf("marshaling proposal: %w", err)
+		}
 
-	filename := fmt.Sprintf("%s-%s.toml", p.CreatedAt.Format("2006-01-02T15h04"), p.Page)
-	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("writing proposal: %w", err)
-	}
+		filename := fmt.Sprintf("%s-%s.toml", p.CreatedAt.Format("2006-01-02T15h04"), p.Page)
+		path := filepath.Join(dir, filename)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return fmt.Errorf("writing proposal: %w", err)
+		}
 
-	// Commit and push
-	relPath := filepath.Join("wiki", ".pending", filename)
-	msg := fmt.Sprintf("wiki: proposal for %s by %s (from %s)", p.Page, p.Author, p.Project)
-	return r.CommitAndPush(ctx, msg, relPath)
+		// Commit and push
+		relPath := filepath.Join("wiki", ".pending", filename)
+		msg := fmt.Sprintf("wiki: proposal for %s by %s (from %s)", p.Page, p.Author, p.Project)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
 }
 
 // WikiListPending returns all pending proposals.
@@ -153,52 +158,56 @@ func (r *Repo) wikiListPending() ([]WikiProposal, error) {
 
 // WikiAcceptProposal merges a proposal into the target page and removes it from pending.
 func (r *Repo) WikiAcceptProposal(ctx context.Context, id string) error {
-	proposal, filename, err := r.findPendingByID(id)
-	if err != nil {
-		return err
-	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		proposal, filename, err := r.findPendingByID(id)
+		if err != nil {
+			return err
+		}
 
-	// Append to target page (create if doesn't exist)
-	pagePath := filepath.Join(r.path, "wiki", proposal.Page+".md")
-	f, err := os.OpenFile(pagePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening wiki page: %w", err)
-	}
-	content := "\n\n" + strings.TrimSpace(proposal.Content) + "\n"
-	if _, err := f.WriteString(content); err != nil {
+		// Append to target page (create if doesn't exist)
+		pagePath := filepath.Join(r.path, "wiki", proposal.Page+".md")
+		f, err := os.OpenFile(pagePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return fmt.Errorf("opening wiki page: %w", err)
+		}
+		content := "\n\n" + strings.TrimSpace(proposal.Content) + "\n"
+		if _, err := f.WriteString(content); err != nil {
+			f.Close()
+			return fmt.Errorf("writing to wiki page: %w", err)
+		}
 		f.Close()
-		return fmt.Errorf("writing to wiki page: %w", err)
-	}
-	f.Close()
 
-	// Remove pending file
-	pendingPath := filepath.Join(r.path, "wiki", ".pending", filename)
-	if err := os.Remove(pendingPath); err != nil {
-		return fmt.Errorf("removing pending file: %w", err)
-	}
+		// Remove pending file
+		pendingPath := filepath.Join(r.path, "wiki", ".pending", filename)
+		if err := os.Remove(pendingPath); err != nil {
+			return fmt.Errorf("removing pending file: %w", err)
+		}
 
-	// Commit and push
-	pageRelPath := filepath.Join("wiki", proposal.Page+".md")
-	pendingRelPath := filepath.Join("wiki", ".pending", filename)
-	msg := fmt.Sprintf("wiki: accepted proposal %s for %s", id, proposal.Page)
-	return r.CommitAndPush(ctx, msg, pageRelPath, pendingRelPath)
+		// Commit and push
+		pageRelPath := filepath.Join("wiki", proposal.Page+".md")
+		pendingRelPath := filepath.Join("wiki", ".pending", filename)
+		msg := fmt.Sprintf("wiki: accepted proposal %s for %s", id, proposal.Page)
+		return r.commitAndPush(ctx, msg, pageRelPath, pendingRelPath)
+	})
 }
 
 // WikiRejectProposal removes a pending proposal without merging.
 func (r *Repo) WikiRejectProposal(ctx context.Context, id string) error {
-	_, filename, err := r.findPendingByID(id)
-	if err != nil {
-		return err
-	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		_, filename, err := r.findPendingByID(id)
+		if err != nil {
+			return err
+		}
 
-	pendingPath := filepath.Join(r.path, "wiki", ".pending", filename)
-	if err := os.Remove(pendingPath); err != nil {
-		return fmt.Errorf("removing pending file: %w", err)
-	}
+		pendingPath := filepath.Join(r.path, "wiki", ".pending", filename)
+		if err := os.Remove(pendingPath); err != nil {
+			return fmt.Errorf("removing pending file: %w", err)
+		}
 
-	relPath := filepath.Join("wiki", ".pending", filename)
-	msg := fmt.Sprintf("wiki: rejected proposal %s", id)
-	return r.CommitAndPush(ctx, msg, relPath)
+		relPath := filepath.Join("wiki", ".pending", filename)
+		msg := fmt.Sprintf("wiki: rejected proposal %s", id)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
 }
 
 func (r *Repo) findPendingByID(id string) (*WikiProposal, string, error) {
