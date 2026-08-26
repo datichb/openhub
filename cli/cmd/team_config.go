@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -803,22 +804,58 @@ func writeLocal(configPath, keyPath, value string) {
 	// Read current content
 	data, err := os.ReadFile(configPath)
 	if err != nil && !os.IsNotExist(err) {
+		fmt.Printf("  Erreur lecture %s: %v\n", configPath, err)
 		return
 	}
-	content := string(data)
 
-	// Build the TOML key line
+	// Parse existing TOML into a nested map
+	var tree map[string]interface{}
+	if len(data) > 0 {
+		if err := toml.Unmarshal(data, &tree); err != nil {
+			fmt.Printf("  Erreur parsing %s: %v\n", configPath, err)
+			return
+		}
+	}
+	if tree == nil {
+		tree = make(map[string]interface{})
+	}
+
+	// Navigate the key path and set the value
 	parts := strings.Split(keyPath, ".")
-	// For now, simple: append a [section] and key if not found
-	// A full TOML merge is complex — we use a lightweight find/replace
-	_ = parts
-	_ = content
-	// TODO: implement proper TOML key-path write using viper/pelletier
-	// For the initial implementation, we print a guidance message.
-	fmt.Printf("  Pour appliquer manuellement: ajoutez dans hub.toml:\n  [%s]\n  %s = %s\n",
-		strings.Join(parts[:len(parts)-1], "."),
-		parts[len(parts)-1],
-		value)
+	current := tree
+	for i := 0; i < len(parts)-1; i++ {
+		child, ok := current[parts[i]]
+		if !ok {
+			// Create intermediate table
+			newTable := make(map[string]interface{})
+			current[parts[i]] = newTable
+			current = newTable
+		} else if childMap, ok := child.(map[string]interface{}); ok {
+			current = childMap
+		} else {
+			fmt.Printf("  Erreur: %q n'est pas une table TOML\n", strings.Join(parts[:i+1], "."))
+			return
+		}
+	}
+	current[parts[len(parts)-1]] = value
+
+	// Marshal and write atomically
+	out, err := toml.Marshal(tree)
+	if err != nil {
+		fmt.Printf("  Erreur sérialisation: %v\n", err)
+		return
+	}
+	tmpFile := configPath + ".tmp"
+	if err := os.WriteFile(tmpFile, out, 0o600); err != nil {
+		fmt.Printf("  Erreur écriture: %v\n", err)
+		return
+	}
+	if err := os.Rename(tmpFile, configPath); err != nil {
+		fmt.Printf("  Erreur rename: %v\n", err)
+		os.Remove(tmpFile)
+		return
+	}
+	fmt.Printf("  %s mis à jour: %s = %s\n", configPath, keyPath, value)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

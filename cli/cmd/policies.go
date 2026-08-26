@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rivo/tview"
@@ -353,7 +354,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Append to policies.toml
-	policiesPath := repo.Path() + "/policies.toml"
+	policiesPath := filepath.Join(repo.Path(), "policies.toml")
 	f, err := openOrCreatePoliciesFile(policiesPath)
 	if err != nil {
 		return fmt.Errorf("opening policies.toml: %w", err)

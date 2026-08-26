@@ -502,7 +502,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				if a != nil && a.Secrets != nil {
-					if err := a.Secrets.Set(ctx, "figma-token", figmaToken); err != nil {
+					if err := a.Secrets.Set(ctx, config.DefaultFigmaTokenKey, figmaToken); err != nil {
 						return fmt.Errorf("storing figma token: %w", err)
 					}
 				}
@@ -539,7 +539,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				if a != nil && a.Secrets != nil {
-					if err := a.Secrets.Set(ctx, "gitlab-token", gitlabToken); err != nil {
+					if err := a.Secrets.Set(ctx, config.DefaultGitLabTokenKey, gitlabToken); err != nil {
 						return fmt.Errorf("storing gitlab token: %w", err)
 					}
 				}
@@ -601,7 +601,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				if a != nil && a.Secrets != nil {
-					if err := a.Secrets.Set(ctx, "gslides-token", gslidesToken); err != nil {
+					if err := a.Secrets.Set(ctx, config.DefaultGslidesTokenKey, gslidesToken); err != nil {
 						return fmt.Errorf("storing gslides token: %w", err)
 					}
 				}

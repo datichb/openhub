@@ -685,7 +685,7 @@ func injectTokenFromKeychain(serviceName, tokenKey string) error {
 		return fmt.Errorf("reading key %q: %w", tokenKey, err)
 	}
 	if token == "" {
-		return fmt.Errorf("key %q not found in keychain", tokenKey)
+		return fmt.Errorf("token %q non trouvé dans le keychain. Configurez-le : oh secrets set %s <token>", tokenKey, tokenKey)
 	}
 
 	return os.Setenv(envVar, token)

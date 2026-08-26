@@ -178,6 +178,11 @@ func initApp() error {
 	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
 	a.WithSecretStore(resolveSecretStore())
 
+	// Auto-migrate legacy keychain entries (gitlab-token → openhub.mcp.gitlab.token, etc.)
+	if n := config.MigrateKeychainKeys(a.Secrets); n > 0 {
+		slog.Info("migrated keychain keys to unified convention", "count", n)
+	}
+
 	application = a
 	return nil
 }

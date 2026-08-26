@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -198,7 +199,7 @@ Produis un Markdown structuré complet avec les sections :
 
 	// Save the enriched version
 	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, output)
-	enrichedPath := repo.Path() + "/projects/" + project + "/takeover-briefs/"
+	enrichedPath := filepath.Join(repo.Path(), "projects", project, "takeover-briefs")
 
 	// Find the latest brief file to derive the enriched filename
 	entries, _ := readDirSafe(enrichedPath)
@@ -214,13 +215,13 @@ Produis un Markdown structuré complet avec les sections :
 		return fmt.Errorf("impossible de trouver le fichier brief de base")
 	}
 
-	enrichedFile := enrichedPath + latestBase + ".enriched.md"
+	enrichedFile := filepath.Join(enrichedPath, latestBase+".enriched.md")
 	if err := writeFile(enrichedFile, []byte(enrichedContent)); err != nil {
 		return fmt.Errorf("écriture du brief enrichi: %w", err)
 	}
 
 	// Commit and push
-	relPath := "projects/" + project + "/takeover-briefs/" + latestBase + ".enriched.md"
+	relPath := filepath.Join("projects", project, "takeover-briefs", latestBase+".enriched.md")
 	_ = repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
 
 	fmt.Fprintf(a.IO.Out, "%s Brief enrichi sauvegardé. %s\n\n",
