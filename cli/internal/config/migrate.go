@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -105,17 +107,24 @@ func RunMigrationIfNeeded(c *Config) (bool, string, error) {
 
 // SecretMigrator is the interface needed for migrating keychain keys.
 type SecretMigrator interface {
-	Get(ctx interface{}, key string) (string, error)
-	Set(ctx interface{}, key, value string) error
-	Delete(ctx interface{}, key string) error
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string) error
+	Delete(ctx context.Context, key string) error
 }
 
-// legacyTokenMapping maps old keychain key names to new ones.
+// legacyTokenMapping maps old keychain key names to new ones (MCP services).
 var legacyTokenMapping = map[string]string{
 	"gitlab-token":  DefaultGitLabTokenKey,
 	"jira-token":    DefaultJiraTokenKey,
 	"figma-token":   DefaultFigmaTokenKey,
 	"gslides-token": DefaultGslidesTokenKey,
+}
+
+// legacyProviderMapping maps old provider keychain key names to new convention.
+var legacyProviderMapping = map[string]string{
+	"bedrock-token-default":      "openhub.provider.bedrock.token",
+	"anthropic-api-key-default":  "openhub.provider.anthropic.token",
+	"openrouter-api-key-default": "openhub.provider.openrouter.token",
 }
 
 // MigrateTokenKeys renames legacy keychain keys (e.g. "gitlab-token") to the
@@ -151,4 +160,57 @@ func MigrateTokenKeys(c *Config) bool {
 	}
 
 	return migrated
+}
+
+// MigrateKeychainKeys renames legacy keychain entries to the new naming convention.
+// For each legacy key that has a stored value and whose new-name counterpart is empty,
+// it copies the value to the new key and deletes the old one.
+// This completes the migration started by MigrateTokenKeys (which only updates config references).
+// Returns the number of keys migrated.
+func MigrateKeychainKeys(store SecretMigrator) int {
+	if store == nil {
+		return 0
+	}
+	ctx := context.Background()
+	count := 0
+
+	// Merge both mappings (MCP services + providers)
+	allMappings := make(map[string]string, len(legacyTokenMapping)+len(legacyProviderMapping))
+	for old, new := range legacyTokenMapping {
+		allMappings[old] = new
+	}
+	for old, new := range legacyProviderMapping {
+		allMappings[old] = new
+	}
+
+	for oldKey, newKey := range allMappings {
+		// Check if old key has a value
+		oldVal, err := store.Get(ctx, oldKey)
+		if err != nil || oldVal == "" {
+			continue // nothing stored under old name
+		}
+
+		// Check if new key already has a value (don't overwrite)
+		newVal, _ := store.Get(ctx, newKey)
+		if newVal != "" {
+			// New key already populated — just clean up old one
+			_ = store.Delete(ctx, oldKey)
+			count++
+			slog.Debug("keychain migration: deleted legacy key (new key already set)", "old", oldKey, "new", newKey)
+			continue
+		}
+
+		// Migrate: copy to new key, delete old key
+		if err := store.Set(ctx, newKey, oldVal); err != nil {
+			slog.Warn("keychain migration: failed to set new key", "key", newKey, "error", err)
+			continue
+		}
+		if err := store.Delete(ctx, oldKey); err != nil {
+			slog.Warn("keychain migration: failed to delete old key", "key", oldKey, "error", err)
+		}
+		count++
+		slog.Debug("keychain migration: renamed", "old", oldKey, "new", newKey)
+	}
+
+	return count
 }

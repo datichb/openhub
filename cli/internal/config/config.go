@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Name     string          `mapstructure:"name" toml:"name,omitempty"` // Project/hub display name (shown in TUI title)
 	CLI      CLIConfig       `mapstructure:"cli" toml:"cli"`
+	Deploy   DeployConfig    `mapstructure:"deploy" toml:"deploy,omitempty"`
 	Opencode OpencodeConfig  `mapstructure:"opencode" toml:"opencode"`
 	Provider ProviderConfigs `mapstructure:"provider" toml:"provider"`
 	MCP      MCPConfig       `mapstructure:"mcp" toml:"mcp"`
@@ -111,6 +112,14 @@ type WorktreeConfig struct {
 // CLIConfig holds CLI-specific settings.
 type CLIConfig struct {
 	Language string `mapstructure:"language" toml:"language"`
+}
+
+// DeployConfig holds deployment behavior overrides.
+type DeployConfig struct {
+	// DisableNativeAgents overrides the default list of opencode native agents to disable.
+	// If empty/nil, the built-in default list is used (build, plan, general, explore, scout).
+	// Set to an explicit list to control which native agents are disabled on deploy.
+	DisableNativeAgents []string `mapstructure:"disable_native_agents" toml:"disable_native_agents,omitempty"`
 }
 
 // OpencodeConfig holds opencode dependency settings.
