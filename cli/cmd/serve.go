@@ -16,37 +16,38 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Lance le dashboard web oh",
 	Long: `Lance un serveur HTTP local exposant le dashboard oh.
-Le dashboard affiche projets, sessions, métriques et télémétrie agent.
+Le dashboard affiche projets, sessions, métriques, télémétrie agent,
+team board (kanban), timeline et membres.
 
 Par défaut le serveur écoute uniquement sur 127.0.0.1 (localhost).
 Accédez au dashboard sur http://localhost:8080
 
 Exemples:
   oh serve                   Lance sur le port par défaut (8080)
-  oh serve --port 9090       Lance sur un port personnalisé
-  oh serve --readonly=false  Active les opérations d'écriture via l'API`,
+  oh serve --port 9090       Lance sur un port personnalisé`,
 	RunE: runServe,
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().IntP("port", "p", 8080, "Port d'écoute")
-	serveCmd.Flags().Bool("readonly", true, "Mode lecture seule (désactive les endpoints d'écriture)")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	port, _ := cmd.Flags().GetInt("port")
-	readonly, _ := cmd.Flags().GetBool("readonly")
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
+
+	// SSE hub for real-time push
+	hub := newSSEHub()
 
 	mux := http.NewServeMux()
 
-	// ── API REST ──────────────────────────────────────────────────────────────
+	// ── Existing API endpoints ───────────────────────────────────────────────
 
 	// GET /api/v1/health
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, map[string]string{"status": "ok", "version": "1.0"})
+		writeJSON(w, map[string]string{"status": "ok", "version": "2.0"})
 	})
 
 	// GET /api/v1/projects
@@ -93,7 +94,33 @@ func runServe(cmd *cobra.Command, args []string) error {
 		writeJSON(w, metrics)
 	})
 
-	// ── Dashboard SPA ─────────────────────────────────────────────────────────
+	// ── New API endpoints ────────────────────────────────────────────────────
+
+	// GET /api/v1/opencode/stats?period=7d|30d|all
+	mux.HandleFunc("/api/v1/opencode/stats", handleOpenCodeStats(a))
+
+	// GET /api/v1/opencode/sessions?limit=20
+	mux.HandleFunc("/api/v1/opencode/sessions", handleOpenCodeSessions(a))
+
+	// GET /api/v1/team/board?project=X
+	mux.HandleFunc("/api/v1/team/board", handleTeamBoard(a))
+
+	// GET /api/v1/team/events?limit=50&project=X
+	mux.HandleFunc("/api/v1/team/events", handleTeamEvents(a))
+
+	// GET /api/v1/team/members
+	mux.HandleFunc("/api/v1/team/members", handleTeamMembers(a))
+
+	// GET /api/v1/chart/costs?period=30d — SVG sparkline
+	mux.HandleFunc("/api/v1/chart/costs", handleCostChart(a))
+
+	// ── SSE endpoint ─────────────────────────────────────────────────────────
+
+	// GET /sse — Server-Sent Events stream
+	mux.HandleFunc("/sse", hub.serveSSE)
+
+	// ── Dashboard SPA ────────────────────────────────────────────────────────
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -103,25 +130,30 @@ func runServe(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(w, dashboardHTML(addr))
 	})
 
+	// ── Server ───────────────────────────────────────────────────────────────
+
 	server := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		Addr:        addr,
+		Handler:     mux,
+		ReadTimeout: 15 * time.Second,
+		// WriteTimeout intentionally omitted (0 = no timeout).
+		// Required for SSE long-lived connections. Safe because this server
+		// binds exclusively to 127.0.0.1 (no external exposure).
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Dashboard oh disponible sur http://%s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess), addr)
-	if readonly {
-		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Mode lecture seule actif (--readonly=false pour activer l'écriture)"))
-	}
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  6 panels: Projets, Sessions+Coûts, Agents, Team Board, Timeline, Members"))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  SSE temps réel activé (push toutes les 5s)"))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Ctrl+C pour arrêter"))
 	fmt.Fprintln(a.IO.Out)
 
-	// Handle graceful shutdown
+	// Start SSE broadcaster
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
+	go hub.startBroadcaster(ctx, a)
 
+	// Handle graceful shutdown
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -135,9 +167,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// ── JSON helpers ─────────────────────────────────────────────────────────────
+
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:*")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	_ = json.NewEncoder(w).Encode(v)
 }
 
@@ -145,130 +179,4 @@ func writeError(w http.ResponseWriter, err error, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-}
-
-// dashboardHTML returns the minimal dashboard SPA (inline, no external deps).
-func dashboardHTML(addr string) string {
-	return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>oh — Dashboard</title>
-<style>
-  :root { --bg:#0f0f0f; --panel:#1a1a1a; --border:#2a2a2a; --text:#e0e0e0; --muted:#888; --accent:#7c3aed; --green:#22c55e; --yellow:#eab308; --red:#ef4444; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:monospace; font-size:14px; }
-  header { background:var(--panel); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; gap:12px; }
-  header h1 { font-size:16px; color:var(--accent); }
-  header .status { font-size:12px; color:var(--muted); margin-left:auto; }
-  main { padding:24px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .card { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:16px; }
-  .card h2 { font-size:13px; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; color:var(--muted); font-weight:normal; padding:4px 8px; border-bottom:1px solid var(--border); }
-  td { padding:6px 8px; border-bottom:1px solid var(--border); }
-  tr:last-child td { border-bottom:none; }
-  .badge { display:inline-block; padding:2px 6px; border-radius:3px; font-size:11px; }
-  .badge.success { background:#14532d; color:var(--green); }
-  .badge.failed  { background:#450a0a; color:var(--red); }
-  .badge.running { background:#422006; color:var(--yellow); }
-  .empty { color:var(--muted); font-size:13px; padding:8px; }
-  @media(max-width:768px) { main { grid-template-columns:1fr; } }
-</style>
-</head>
-<body>
-<header>
-  <h1>◆ oh dashboard</h1>
-  <span class="status" id="status">Chargement...</span>
-</header>
-<main>
-  <div class="card" id="projects-card">
-    <h2>Projets</h2>
-    <div id="projects-content"><div class="empty">Chargement...</div></div>
-  </div>
-  <div class="card" id="sessions-card">
-    <h2>Sessions récentes</h2>
-    <div id="sessions-content"><div class="empty">Chargement...</div></div>
-  </div>
-  <div class="card" style="grid-column:1/-1" id="agents-card">
-    <h2>Télémétrie agents</h2>
-    <div id="agents-content"><div class="empty">Chargement...</div></div>
-  </div>
-</main>
-<script>
-const API = 'http://` + addr + `/api/v1';
-
-async function fetchJSON(path) {
-  const r = await fetch(API + path);
-  if (!r.ok) throw new Error(r.statusText);
-  return r.json();
-}
-
-function badge(status) {
-  return '<span class="badge ' + status + '">' + status + '</span>';
-}
-
-async function loadProjects() {
-  try {
-    const data = await fetchJSON('/projects');
-    if (!data || data.length === 0) {
-      document.getElementById('projects-content').innerHTML = '<div class="empty">Aucun projet enregistré</div>';
-      return;
-    }
-    let html = '<table><tr><th>Nom</th><th>Langage</th><th>Provider</th><th>Statut</th></tr>';
-    for (const p of data) {
-      html += '<tr><td>' + p.Name + '</td><td>' + (p.Language||'—') + '</td><td>' + (p.Provider||'—') + '</td><td>' + badge(p.Status||'active') + '</td></tr>';
-    }
-    html += '</table>';
-    document.getElementById('projects-content').innerHTML = html;
-  } catch(e) { document.getElementById('projects-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>'; }
-}
-
-async function loadSessions() {
-  try {
-    const data = await fetchJSON('/sessions');
-    if (!data || data.length === 0) {
-      document.getElementById('sessions-content').innerHTML = '<div class="empty">Aucune session enregistrée</div>';
-      return;
-    }
-    const recent = data.slice(0, 10);
-    let html = '<table><tr><th>ID</th><th>Provider</th><th>Modèle</th><th>Statut</th></tr>';
-    for (const s of recent) {
-      html += '<tr><td>' + s.ID.substring(0,8) + '…</td><td>' + (s.Provider||'—') + '</td><td>' + (s.Model||'—') + '</td><td>' + badge(s.Status) + '</td></tr>';
-    }
-    html += '</table>';
-    document.getElementById('sessions-content').innerHTML = html;
-  } catch(e) { document.getElementById('sessions-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>'; }
-}
-
-async function loadAgents() {
-  try {
-    const data = await fetchJSON('/metrics/agents');
-    if (!data || data.length === 0) {
-      document.getElementById('agents-content').innerHTML = '<div class="empty">Aucune donnée de télémétrie agent disponible</div>';
-      return;
-    }
-    let html = '<table><tr><th>Agent</th><th>Runs</th><th>Succès</th><th>Durée moy.</th><th>Tokens</th><th>Coût</th></tr>';
-    for (const m of data) {
-      const dur = m.AvgDurationSec > 0 ? Math.round(m.AvgDurationSec) + 's' : '—';
-      const tokens = m.TotalTokensIn + m.TotalTokensOut;
-      const tok = tokens >= 1e6 ? (tokens/1e6).toFixed(1)+'M' : tokens >= 1000 ? (tokens/1000).toFixed(1)+'K' : tokens;
-      html += '<tr><td>' + m.AgentName + '</td><td>' + m.TotalRuns + '</td><td>' + m.SuccessRate.toFixed(0) + '%</td><td>' + dur + '</td><td>' + tok + '</td><td>$' + m.TotalCostUSD.toFixed(2) + '</td></tr>';
-    }
-    html += '</table>';
-    document.getElementById('agents-content').innerHTML = html;
-  } catch(e) { document.getElementById('agents-content').innerHTML = '<div class="empty">Télémétrie non disponible (requiert T29)</div>'; }
-}
-
-async function refresh() {
-  document.getElementById('status').textContent = new Date().toLocaleTimeString();
-  await Promise.all([loadProjects(), loadSessions(), loadAgents()]);
-}
-
-refresh();
-setInterval(refresh, 30000);
-</script>
-</body>
-</html>`
 }

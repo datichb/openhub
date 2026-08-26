@@ -73,6 +73,23 @@ func Serve() error {
 				"required": []string{"issue_key", "transition_id"},
 			},
 		}, handleTransitionIssue)
+
+		server.RegisterTool(protocol.Tool{
+			Name:        "jira_create_issue",
+			Description: "Create a new Jira issue",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"project_key": map[string]interface{}{"type": "string", "description": "Project key (e.g. MYPROJ)"},
+					"summary":     map[string]interface{}{"type": "string", "description": "Issue title/summary"},
+					"description": map[string]interface{}{"type": "string", "description": "Issue description (optional)"},
+					"issue_type":  map[string]interface{}{"type": "string", "description": "Issue type (Task, Bug, Story). Default: Task"},
+					"labels":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Labels to apply (optional)"},
+					"assignee":    map[string]interface{}{"type": "string", "description": "Username to assign (optional)"},
+				},
+				"required": []string{"project_key", "summary"},
+			},
+		}, handleCreateIssue)
 	}
 
 	return server.Serve()
@@ -219,4 +236,55 @@ func textResult(data []byte) *protocol.ToolResult {
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}
+}
+
+func handleCreateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		ProjectKey  string   `json:"project_key"`
+		Summary     string   `json:"summary"`
+		Description string   `json:"description"`
+		IssueType   string   `json:"issue_type"`
+		Labels      []string `json:"labels"`
+		Assignee    string   `json:"assignee"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+	if args.IssueType == "" {
+		args.IssueType = "Task"
+	}
+
+	fields := map[string]interface{}{
+		"project":   map[string]string{"key": args.ProjectKey},
+		"summary":   args.Summary,
+		"issuetype": map[string]string{"name": args.IssueType},
+	}
+	if args.Description != "" {
+		fields["description"] = args.Description
+	}
+	if len(args.Labels) > 0 {
+		fields["labels"] = args.Labels
+	}
+	if args.Assignee != "" {
+		fields["assignee"] = map[string]string{"name": args.Assignee}
+	}
+
+	payload := map[string]interface{}{"fields": fields}
+	respBody, err := jiraAPIPost("/rest/api/2/issue", payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Key  string `json:"key"`
+		Self string `json:"self"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+
+	base := jiraBaseURL()
+	webURL := base + "/browse/" + result.Key
+	output := fmt.Sprintf("Created issue %s: %s", result.Key, webURL)
+	return textResult([]byte(output)), nil
 }
