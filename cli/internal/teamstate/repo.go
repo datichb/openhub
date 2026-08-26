@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,10 +133,13 @@ func (r *Repo) pull(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
+	start := time.Now()
 	_, err := r.git(ctx, r.path, "pull", "--rebase", "--autostash")
 	if err != nil {
+		slog.Warn("teamstate.pull.failed", "path", r.path, "duration", time.Since(start), "error", err)
 		return fmt.Errorf("pulling team-state: %w", err)
 	}
+	slog.Debug("teamstate.pull", "path", r.path, "duration", time.Since(start))
 	return nil
 }
 
@@ -152,10 +156,13 @@ func (r *Repo) push(ctx context.Context) error {
 	if !r.IsCloned() {
 		return ErrNotCloned
 	}
+	start := time.Now()
 	_, err := r.git(ctx, r.path, "push")
 	if err != nil {
+		slog.Debug("teamstate.push.failed", "path", r.path, "duration", time.Since(start), "error", err)
 		return fmt.Errorf("pushing team-state: %w", err)
 	}
+	slog.Debug("teamstate.push", "path", r.path, "duration", time.Since(start))
 	return nil
 }
 
@@ -171,6 +178,28 @@ func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.commitAndPush(ctx, msg, files...)
+}
+
+// withWriteLock executes fn while holding the write lock for the entire
+// pull → mutate → commitAndPush cycle. This eliminates the race window that
+// exists when Pull() and CommitAndPush() are called as separate locked operations.
+//
+// fn receives the context and may call internal unlocked helpers:
+// r.getClaim, r.commitAndPush, r.pull, etc. It MUST NOT call the public
+// locked methods (Pull, CommitAndPush) as that would deadlock.
+//
+// A best-effort pull is performed before fn to ensure the working tree is fresh.
+// ErrNotCloned from pull is silently ignored (repo may be used locally without remote).
+func (r *Repo) withWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Best-effort pull to ensure fresh working tree.
+	if err := r.pull(ctx); err != nil && err != ErrNotCloned {
+		return err
+	}
+
+	return fn(ctx)
 }
 
 // commitAndPush is the internal (unlocked) implementation of CommitAndPush.
@@ -209,6 +238,7 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 			// Errors are intentionally ignored: the local state is already consistent
 			// after our successful push, and a failed pull is non-critical here.
 			_ = r.pull(ctx)
+			slog.Debug("teamstate.commitAndPush", "msg", msg, "path", r.path)
 			return nil
 		}
 
@@ -219,8 +249,11 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 
 		// Last attempt — return the real push error, not a generic message.
 		if attempt == maxPushRetries-1 {
+			slog.Warn("teamstate.push.exhausted", "attempts", maxPushRetries, "path", r.path, "error", pushErr)
 			return fmt.Errorf("push échoué après %d tentatives : %w", maxPushRetries, pushErr)
 		}
+
+		slog.Warn("teamstate.push.retry", "attempt", attempt+1, "path", r.path, "error", pushErr)
 
 		// Non-fast-forward conflict — pull --rebase and retry.
 		if pullErr := r.pull(ctx); pullErr != nil {
@@ -233,7 +266,7 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 		time.Sleep(retryDelay)
 	}
 
-	return fmt.Errorf("push échoué après %d tentatives (conflit persistant)", maxPushRetries)
+	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries)
 }
 
 // InitStructure creates the base directory structure in the repo if missing.
