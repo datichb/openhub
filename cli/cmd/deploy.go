@@ -352,14 +352,15 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	}
 
 	return &deploy.Plan{
-		ProjectPath:       projectPath,
-		ProjectID:         projectID,
-		HubDir:            hubDir,
-		Provider:          provider,
-		Model:             model,
-		WebsearchEnabled:  websearchEnabled,
-		SelectedAgents:    selectedAgents,
-		EnabledMCPServers: enabledMCPServers,
+		ProjectPath:         projectPath,
+		ProjectID:           projectID,
+		HubDir:              hubDir,
+		Provider:            provider,
+		Model:               model,
+		WebsearchEnabled:    websearchEnabled,
+		SelectedAgents:      selectedAgents,
+		EnabledMCPServers:   enabledMCPServers,
+		DisableNativeAgents: a.Config.Deploy.DisableNativeAgents,
 		Phases: []deploy.Phase{
 			deploy.DeployAgents(hubDir, selectedAgents),
 			deploy.DeploySkills(hubDir, selectedAgents),

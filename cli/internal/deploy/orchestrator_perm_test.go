@@ -2,11 +2,12 @@ package deploy
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 )
 
 func TestOrchestratorDocumentarianPerm(t *testing.T) {
-	fm, err := ParseAgentFrontmatter("/Users/benjamin.datiche/workspace/opencode-hub/agents/planning/orchestrator.md")
+	fm, err := ParseAgentFrontmatter(filepath.Join("testdata", "orchestrator.md"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,10 +25,11 @@ type DeployedTeamConfig struct {
 type MCPServerDef struct {
 	Name         string
 	Enabled      bool
-	TokenKey     string // keychain key name
-	TokenEnv     string // fallback environment variable name
-	WriteEnabled bool   // for servers that support opt-in write mode
-	URL          string // resolved base URL (empty = use built-in default)
+	TokenKey     string            // keychain key name
+	TokenEnv     string            // fallback environment variable name
+	WriteEnabled bool              // for servers that support opt-in write mode
+	URL          string            // resolved base URL (empty = use built-in default)
+	Environment  map[string]string // additional environment variables to inject
 }
 
 // DeployMCP creates a Phase that injects mcpServers into opencode.json.
@@ -88,12 +89,17 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 					"command": command,
 					"enabled": true,
 				}
-				// Inject env vars for servers that need them
-				if s.WriteEnabled {
-					entry["environment"] = map[string]string{
-						"GITLAB_WRITE_ENABLED": "true",
-					}
-				}
+			// Inject environment variables
+			env := make(map[string]string)
+			if s.WriteEnabled {
+				env["GITLAB_WRITE_ENABLED"] = "true"
+			}
+			for k, v := range s.Environment {
+				env[k] = v
+			}
+			if len(env) > 0 {
+				entry["environment"] = env
+			}
 				mcpServers[s.Name] = entry
 			}
 			config["mcp"] = mcpServers

@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -141,6 +142,7 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 }
 
 // checkConfigDrift detects if opencode.json has been modified since the last deploy.
+// When a snapshot is available, provides key-by-key detail of what changed.
 func checkConfigDrift(projectPath string, report *DiffReport) {
 	state := ReadDeployState(projectPath)
 	if state == nil {
@@ -155,10 +157,103 @@ func checkConfigDrift(projectPath string, report *DiffReport) {
 	}
 
 	currentHash := hashBytes(data)
-	if currentHash != state.ConfigHash {
-		report.ConfigDrift = true
-		report.ConfigDetail = "opencode.json modifié depuis le dernier deploy (hash mismatch)"
+	if currentHash == state.ConfigHash {
+		return // no change
 	}
+
+	report.ConfigDrift = true
+
+	// If we have a snapshot, do key-by-key diff
+	if state.ConfigSnapshot != nil {
+		var current map[string]interface{}
+		if err := json.Unmarshal(data, &current); err == nil {
+			changes := deepDiffMaps("", state.ConfigSnapshot, current)
+			if len(changes) > 0 {
+				report.ConfigDetail = fmt.Sprintf("opencode.json: %d clé(s) modifiée(s):\n%s",
+					len(changes), formatConfigChanges(changes))
+				return
+			}
+		}
+	}
+
+	// Fallback to hash-only message
+	report.ConfigDetail = "opencode.json modifié depuis le dernier deploy (hash mismatch)"
+}
+
+// configChange represents a single key-path change.
+type configChange struct {
+	Path   string
+	Action string // "added", "removed", "modified"
+	Old    string // for modified/removed
+	New    string // for modified/added
+}
+
+// deepDiffMaps recursively diffs two maps and returns a flat list of changes.
+func deepDiffMaps(prefix string, old, new map[string]interface{}) []configChange {
+	var changes []configChange
+
+	for k, oldVal := range old {
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+		newVal, exists := new[k]
+		if !exists {
+			changes = append(changes, configChange{Path: path, Action: "removed", Old: formatVal(oldVal)})
+			continue
+		}
+		// Both exist — compare
+		oldMap, oldIsMap := oldVal.(map[string]interface{})
+		newMap, newIsMap := newVal.(map[string]interface{})
+		if oldIsMap && newIsMap {
+			changes = append(changes, deepDiffMaps(path, oldMap, newMap)...)
+		} else if fmt.Sprintf("%v", oldVal) != fmt.Sprintf("%v", newVal) {
+			changes = append(changes, configChange{Path: path, Action: "modified", Old: formatVal(oldVal), New: formatVal(newVal)})
+		}
+	}
+
+	for k, newVal := range new {
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+		if _, exists := old[k]; !exists {
+			changes = append(changes, configChange{Path: path, Action: "added", New: formatVal(newVal)})
+		}
+	}
+
+	return changes
+}
+
+func formatVal(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case map[string]interface{}, []interface{}:
+		b, _ := json.Marshal(val)
+		s := string(b)
+		if len(s) > 60 {
+			return s[:57] + "..."
+		}
+		return s
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func formatConfigChanges(changes []configChange) string {
+	var sb strings.Builder
+	for _, c := range changes {
+		switch c.Action {
+		case "added":
+			sb.WriteString(fmt.Sprintf("  + %s = %s\n", c.Path, c.New))
+		case "removed":
+			sb.WriteString(fmt.Sprintf("  - %s (was: %s)\n", c.Path, c.Old))
+		case "modified":
+			sb.WriteString(fmt.Sprintf("  ~ %s: %s → %s\n", c.Path, c.Old, c.New))
+		}
+	}
+	return sb.String()
 }
 
 // diffDirectory compares all files between source and destination directories.

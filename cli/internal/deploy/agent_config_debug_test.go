@@ -3,24 +3,24 @@ package deploy
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"testing"
 )
 
 func TestDeployAgentConfigOrchestrator(t *testing.T) {
-	hubDir := "/Users/benjamin.datiche/workspace/opencode-hub"
-	srcDir := hubDir + "/agents"
-	
+	srcFile := filepath.Join("testdata", "orchestrator.md")
+
 	// Simulate what DeployAgentConfig does
-	fm, err := ParseAgentFrontmatter(srcDir + "/planning/orchestrator.md")
+	fm, err := ParseAgentFrontmatter(srcFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	block := buildAgentBlock(fm, "planning", nil, nil, nil, "bedrock")
 	b, _ := json.MarshalIndent(block, "", "  ")
 	fmt.Println("Built block for orchestrator:")
 	fmt.Println(string(b))
-	
+
 	// Check task permissions specifically
 	perm, ok := block["permission"].(map[string]interface{})
 	if !ok {

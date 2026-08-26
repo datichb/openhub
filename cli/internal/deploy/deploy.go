@@ -13,21 +13,23 @@ import (
 	"time"
 )
 
-// DisabledNativeAgents is the list of opencode built-in agents that are disabled
+// DisabledNativeAgents is the default list of opencode built-in agents that are disabled
 // when hub agents are deployed. Our agents replace their functionality.
+// This can be overridden per-deploy via Plan.DisabledNativeAgents.
 var DisabledNativeAgents = []string{"build", "plan", "general", "explore", "scout"}
 
 // Plan represents a deployment plan with all phases.
 type Plan struct {
-	ProjectPath       string
-	ProjectID         string
-	HubDir            string // source hub directory (agents/, skills/, etc.)
-	Provider          string
-	Model             string
-	WebsearchEnabled  bool     // inject permission.websearch/webfetch = "allow"
-	SelectedAgents    []string // agent names to deploy (empty = all)
-	EnabledMCPServers []string // MCP server names enabled in hub config (for validation warnings)
-	Phases            []Phase
+	ProjectPath          string
+	ProjectID            string
+	HubDir               string   // source hub directory (agents/, skills/, etc.)
+	Provider             string
+	Model                string
+	WebsearchEnabled     bool     // inject permission.websearch/webfetch = "allow"
+	SelectedAgents       []string // agent names to deploy (empty = all)
+	EnabledMCPServers    []string // MCP server names enabled in hub config (for validation warnings)
+	DisableNativeAgents  []string // override the default DisabledNativeAgents list (nil = use default)
+	Phases               []Phase
 }
 
 // Phase represents a single deployment phase.
@@ -99,6 +101,11 @@ func Execute(plan *Plan) ([]PhaseResult, error) {
 	if err := writeDeployState(plan); err != nil {
 		// Non-fatal: deploy succeeded, state tracking is best-effort
 		_ = err
+	}
+
+	// Write context manifest for freshness checking
+	if plan.HubDir != "" {
+		_ = WriteContextManifest(plan.HubDir, plan.ProjectPath) // best-effort
 	}
 
 	return ctx.Results, nil
@@ -362,7 +369,11 @@ func DeployConfig(provider, model string) Phase {
 			if !ok {
 				agentCfg = make(map[string]interface{})
 			}
-			for _, native := range DisabledNativeAgents {
+			disableList := ctx.Plan.DisableNativeAgents
+			if disableList == nil {
+				disableList = DisabledNativeAgents
+			}
+			for _, native := range disableList {
 				if _, exists := agentCfg[native]; !exists {
 					agentCfg[native] = map[string]interface{}{"disable": true}
 				} else {
@@ -482,12 +493,13 @@ func copyDir(src, dst string) error {
 // DeployState records metadata about the last successful deploy.
 // Stored in .opencode/.deploy-state as JSON.
 type DeployState struct {
-	DeployedAt     string   `json:"deployed_at"`
-	ConfigHash     string   `json:"config_hash"` // SHA-256 of opencode.json at deploy time
-	HubDir         string   `json:"hub_dir"`     // hub source directory
-	Provider       string   `json:"provider"`
-	Model          string   `json:"model"`
-	SelectedAgents []string `json:"selected_agents"`
+	DeployedAt     string                 `json:"deployed_at"`
+	ConfigHash     string                 `json:"config_hash"`     // SHA-256 of opencode.json at deploy time
+	ConfigSnapshot map[string]interface{} `json:"config_snapshot"` // parsed JSON of opencode.json at deploy time (for key-by-key diff)
+	HubDir         string                 `json:"hub_dir"`         // hub source directory
+	Provider       string                 `json:"provider"`
+	Model          string                 `json:"model"`
+	SelectedAgents []string               `json:"selected_agents"`
 }
 
 const deployStateFile = ".deploy-state"
@@ -499,16 +511,19 @@ func writeDeployState(plan *Plan) error {
 		return err
 	}
 
-	// Hash the deployed opencode.json
+	// Hash the deployed opencode.json and capture a snapshot for key-by-key diff
 	configPath := filepath.Join(plan.ProjectPath, "opencode.json")
 	configHash := ""
+	var configSnapshot map[string]interface{}
 	if data, err := os.ReadFile(configPath); err == nil {
 		configHash = hashBytes(data)
+		_ = json.Unmarshal(data, &configSnapshot) // best-effort; nil on parse failure
 	}
 
 	state := DeployState{
 		DeployedAt:     time.Now().Format(time.RFC3339),
 		ConfigHash:     configHash,
+		ConfigSnapshot: configSnapshot,
 		HubDir:         plan.HubDir,
 		Provider:       plan.Provider,
 		Model:          plan.Model,
