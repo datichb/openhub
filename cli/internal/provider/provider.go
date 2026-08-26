@@ -45,11 +45,11 @@ func KeychainKey(name Name, projectID string) string {
 	base := ""
 	switch name {
 	case Bedrock:
-		base = "bedrock-token"
+		base = "openhub.provider.bedrock.token"
 	case Anthropic:
-		base = "anthropic-api-key"
+		base = "openhub.provider.anthropic.token"
 	case OpenRouter:
-		base = "openrouter-api-key"
+		base = "openhub.provider.openrouter.token"
 	case GithubCopilot:
 		return "" // no secret needed
 	default:
@@ -57,9 +57,9 @@ func KeychainKey(name Name, projectID string) string {
 	}
 
 	if projectID != "" {
-		return base + "-" + projectID
+		return base + "." + projectID
 	}
-	return base + "-default"
+	return base
 }
 
 // Description returns a human-readable description of what credentials are needed.

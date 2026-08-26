@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -61,5 +62,5 @@ func WikiExists(projectPath string) bool {
 
 // WikiPath returns the path to the wiki directory.
 func WikiPath(projectPath string) string {
-	return strings.TrimRight(projectPath, "/") + "/docs/wiki"
+	return filepath.Join(projectPath, "docs", "wiki")
 }
