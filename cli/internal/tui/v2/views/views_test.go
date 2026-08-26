@@ -14,7 +14,7 @@ func TestBoardView_ImplementsView(t *testing.T) {
 func TestBoardView_MountUnmount(t *testing.T) {
 	v := NewBoardView(BoardViewConfig{
 		Tickets: []BoardTicket{
-			{ID: "1", Title: "Fix bug", Status: "todo", Priority: "high"},
+			{ID: "1", Title: "Fix bug", Status: "planned", Priority: "high"},
 			{ID: "2", Title: "Add feature", Status: "in_progress", Priority: "medium"},
 			{ID: "3", Title: "Release", Status: "done", Priority: "low"},
 		},
@@ -134,7 +134,7 @@ func TestStatusView_ImplementsView(t *testing.T) {
 func TestMetricsView_ImplementsView(t *testing.T) {
 	var _ View = (*MetricsView)(nil)
 
-	v := NewMetricsView()
+	v := NewMetricsView(MetricsViewConfig{})
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	app := tview.NewApplication()
 
