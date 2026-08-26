@@ -162,6 +162,52 @@ func (c *gitLabClient) RemoveLabels(ctx context.Context, projectID string, iid i
 	return err
 }
 
+func (c *gitLabClient) CreateIssue(ctx context.Context, opts CreateIssueOpts) (*CreatedIssue, error) {
+	if !c.cfg.WriteEnabled {
+		return nil, ErrWriteDisabled
+	}
+	if opts.ProjectID == "" || opts.Title == "" {
+		return nil, fmt.Errorf("gitlab: project and title are required")
+	}
+
+	payload := map[string]interface{}{
+		"title": opts.Title,
+	}
+	if opts.Description != "" {
+		payload["description"] = opts.Description
+	}
+	if len(opts.Labels) > 0 {
+		payload["labels"] = strings.Join(opts.Labels, ",")
+	}
+	if opts.AssignTo != "" {
+		payload["assignee_username"] = opts.AssignTo
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("gitlab: marshaling create issue: %w", err)
+	}
+
+	apiPath := fmt.Sprintf("/api/v4/projects/%s/issues", url.PathEscape(opts.ProjectID))
+	respBody, err := c.do(ctx, http.MethodPost, apiPath, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return nil, fmt.Errorf("gitlab: creating issue: %w", err)
+	}
+
+	var result struct {
+		IID    int    `json:"iid"`
+		WebURL string `json:"web_url"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("gitlab: parsing create response: %w", err)
+	}
+
+	return &CreatedIssue{
+		ID:  result.IID,
+		URL: result.WebURL,
+	}, nil
+}
+
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
 func (c *gitLabClient) do(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
@@ -195,7 +241,9 @@ func (c *gitLabClient) do(ctx context.Context, method, path string, body io.Read
 		return nil, fmt.Errorf("gitlab: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
-	return io.ReadAll(resp.Body)
+	// Cap response size to prevent OOM on abnormally large payloads.
+	const maxResponseSize = 2 * 1024 * 1024 // 2 MB
+	return io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 }
 
 // parseRetryAfter parses the Retry-After header value (seconds as integer).

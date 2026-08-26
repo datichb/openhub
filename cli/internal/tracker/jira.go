@@ -230,6 +230,69 @@ func (c *jiraClient) RemoveLabels(ctx context.Context, projectID string, iid int
 	return err
 }
 
+func (c *jiraClient) CreateIssue(ctx context.Context, opts CreateIssueOpts) (*CreatedIssue, error) {
+	if !c.cfg.WriteEnabled {
+		return nil, ErrWriteDisabled
+	}
+	if opts.ProjectID == "" || opts.Title == "" {
+		return nil, fmt.Errorf("jira: project and title are required")
+	}
+
+	issueType := opts.IssueType
+	if issueType == "" {
+		issueType = "Task"
+	}
+
+	fields := map[string]interface{}{
+		"project":   map[string]string{"key": strings.ToUpper(opts.ProjectID)},
+		"summary":   opts.Title,
+		"issuetype": map[string]string{"name": issueType},
+	}
+	if opts.Description != "" {
+		fields["description"] = opts.Description
+	}
+	if len(opts.Labels) > 0 {
+		fields["labels"] = opts.Labels
+	}
+	if opts.AssignTo != "" {
+		fields["assignee"] = map[string]string{"name": opts.AssignTo}
+	}
+
+	payload := map[string]interface{}{"fields": fields}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("jira: marshaling create issue: %w", err)
+	}
+
+	respBody, err := c.do(ctx, http.MethodPost, "/rest/api/2/issue", strings.NewReader(string(body)))
+	if err != nil {
+		return nil, fmt.Errorf("jira: creating issue: %w", err)
+	}
+
+	var result struct {
+		ID   string `json:"id"`
+		Key  string `json:"key"`
+		Self string `json:"self"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("jira: parsing create response: %w", err)
+	}
+
+	// Build web URL from key
+	webURL := strings.TrimRight(c.cfg.BaseURL, "/") + "/browse/" + result.Key
+
+	// Parse IID from key (e.g., "PROJ-42" → 42)
+	iid := 0
+	if parts := strings.Split(result.Key, "-"); len(parts) == 2 {
+		fmt.Sscanf(parts[1], "%d", &iid)
+	}
+
+	return &CreatedIssue{
+		ID:  iid,
+		URL: webURL,
+	}, nil
+}
+
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
 func (c *jiraClient) do(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
@@ -265,5 +328,7 @@ func (c *jiraClient) do(ctx context.Context, method, path string, body io.Reader
 		return nil, fmt.Errorf("jira: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
-	return io.ReadAll(resp.Body)
+	// Cap response size to prevent OOM on abnormally large payloads.
+	const maxResponseSize = 2 * 1024 * 1024 // 2 MB
+	return io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 }

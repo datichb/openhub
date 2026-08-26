@@ -74,6 +74,9 @@ type Tracker interface {
 	// RemoveLabels removes labels from an issue. Requires write_enabled.
 	RemoveLabels(ctx context.Context, projectID string, iid int, labels []string) error
 
+	// CreateIssue creates a new issue on the tracker. Requires write_enabled.
+	CreateIssue(ctx context.Context, opts CreateIssueOpts) (*CreatedIssue, error)
+
 	// TestConnection verifies that the configured token is valid and returns the
 	// authenticated username on the tracker. Used by the setup wizard and the
 	// TUI config view to surface connectivity issues early.
@@ -83,6 +86,22 @@ type Tracker interface {
 	// token. Returns the project name/path for display, or an error if not found
 	// or not accessible (404, 403).
 	TestProject(ctx context.Context, projectID string) (projectName string, err error)
+}
+
+// CreateIssueOpts holds the parameters for creating a new issue.
+type CreateIssueOpts struct {
+	ProjectID   string // project identifier (e.g., "namespace/project" for GitLab, "KEY" for Jira)
+	Title       string // issue summary/title
+	Description string // body/description (optional)
+	IssueType   string // e.g., "Task", "Bug", "Story" (Jira); ignored for GitLab
+	Labels      []string // labels to apply (optional)
+	AssignTo    string // username to assign (optional)
+}
+
+// CreatedIssue holds the result of a successful issue creation.
+type CreatedIssue struct {
+	ID  int    // issue IID/number
+	URL string // web URL to the created issue
 }
 
 // Config holds the connection parameters for a Tracker implementation.
@@ -120,7 +139,7 @@ func IsRateLimited(err error) bool {
 }
 
 // ErrTokenInvalid is returned on HTTP 401 / 403 from the tracker.
-var ErrTokenInvalid = errors.New("tracker authentication failed — check your token")
+var ErrTokenInvalid = errors.New("tracker authentication failed — token invalide ou expiré. Reconfigurer : oh secrets set <token_key> <new-token>")
 
 // New returns a Tracker implementation for the given config.
 func New(cfg Config) (Tracker, error) {
