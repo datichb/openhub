@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -87,7 +88,7 @@ func (v *TeamStatusView) syncAndRender() {
 	})
 }
 
-func (v *TeamStatusView) render(tc TeamResolution, _ *teamstate.Repo) {
+func (v *TeamStatusView) render(tc TeamResolution, repo *teamstate.Repo) {
 	if v.tv == nil {
 		return
 	}
@@ -109,10 +110,151 @@ func (v *TeamStatusView) render(tc TeamResolution, _ *teamstate.Repo) {
 	sb.WriteString(fmt.Sprintf("  %sMembre :%s  %s\n\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.MemberID))
 
-	sb.WriteString(fmt.Sprintf("  %s─── Activité récente ───%s\n\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
-	sb.WriteString(fmt.Sprintf("  %sAucune activité récente disponible.%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+	if repo == nil {
+		sb.WriteString(fmt.Sprintf("  %sRepo non cloné. Exécutez 'oh team init'.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		v.tv.SetText(sb.String())
+		return
+	}
+
+	// --- Members with assignments ---
+	members, membersErr := repo.ListMembers()
+	claims, claimsErr := repo.ListClaims("")
+
+	if membersErr != nil || claimsErr != nil {
+		if v.shell != nil {
+			errMsg := ""
+			if membersErr != nil {
+				errMsg = membersErr.Error()
+			} else {
+				errMsg = claimsErr.Error()
+			}
+			v.shell.ShowToastMsg("Erreur chargement: "+errMsg, false)
+		}
+	}
+
+	// Build member → claims map
+	memberClaims := make(map[string][]teamstate.Claim)
+	for _, c := range claims {
+		memberClaims[c.ClaimedBy] = append(memberClaims[c.ClaimedBy], c)
+	}
+
+	if len(members) > 0 {
+		sb.WriteString(fmt.Sprintf("  [::b]─── Membres (%d) ───%s\n\n", len(members), theme.TagReset))
+		for _, m := range members {
+			myClaims := memberClaims[m.ID]
+			countStr := fmt.Sprintf("[%d ticket", len(myClaims))
+			if len(myClaims) != 1 {
+				countStr += "s"
+			}
+			countStr += "]"
+
+			// Highlight current user
+			nameColor := theme.ColorTag(theme.TextSecondaryHex)
+			if m.ID == tc.MemberID {
+				nameColor = theme.ColorTag(theme.AccentHex)
+			}
+
+			sb.WriteString(fmt.Sprintf("  %s@%-12s%s %s%-14s%s",
+				nameColor, m.ID, theme.TagColor,
+				theme.ColorTag(theme.TextSecondaryHex), countStr, theme.TagColor))
+
+			if len(myClaims) > 0 {
+				var parts []string
+				for _, c := range myClaims {
+					parts = append(parts, fmt.Sprintf("%s (%s)", c.TicketID, c.Status))
+				}
+				sb.WriteString(" " + strings.Join(parts, ", "))
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	// --- Status summary ---
+	statusCounts := make(map[string]int)
+	for _, c := range claims {
+		statusCounts[c.Status]++
+	}
+	if len(claims) > 0 {
+		sb.WriteString(fmt.Sprintf("  [::b]─── Résumé ───%s\n\n  ", theme.TagReset))
+		statuses := []struct {
+			key   string
+			label string
+		}{
+			{teamstate.ClaimStatusPlanned, "planned"},
+			{teamstate.ClaimStatusInProgress, "in progress"},
+			{teamstate.ClaimStatusReview, "review"},
+			{teamstate.ClaimStatusBlocked, "blocked"},
+			{teamstate.ClaimStatusDone, "done"},
+		}
+		var parts []string
+		for _, s := range statuses {
+			count := statusCounts[s.key]
+			parts = append(parts, fmt.Sprintf("● %d %s", count, s.label))
+		}
+		sb.WriteString(strings.Join(parts, "  "))
+		sb.WriteString("\n\n")
+	}
+
+	// --- Recent activity ---
+	events, eventsErr := repo.ListEventsLimited("", 5)
+	if eventsErr != nil && v.shell != nil {
+		v.shell.ShowToastMsg("Erreur événements: "+eventsErr.Error(), false)
+	}
+	sb.WriteString(fmt.Sprintf("  [::b]─── Activité récente ───%s\n\n", theme.TagReset))
+	if len(events) == 0 {
+		sb.WriteString(fmt.Sprintf("  %sAucune activité récente.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+	} else {
+		for _, e := range events {
+			ago := formatTimeAgo(e.Timestamp)
+			sb.WriteString(fmt.Sprintf("  %s%-12s%s %s %s %s\n",
+				theme.ColorTag(theme.TextSecondaryHex), ago, theme.TagColor,
+				e.Actor, formatEventType(e.Type), e.Ticket))
+		}
+	}
 
 	v.tv.SetText(sb.String())
+}
+
+// formatTimeAgo returns a human-readable relative time string.
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "à l'instant"
+	case d < time.Hour:
+		return fmt.Sprintf("il y a %dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("il y a %dh", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		days := int(d.Hours() / 24)
+		if days == 1 {
+			return "hier"
+		}
+		return fmt.Sprintf("il y a %dj", days)
+	default:
+		return t.Format("02 Jan")
+	}
+}
+
+// formatEventType returns a verb for the event type.
+func formatEventType(eventType string) string {
+	switch eventType {
+	case teamstate.EventClaimTaken:
+		return "a pris"
+	case teamstate.EventClaimReleased:
+		return "a libéré"
+	case teamstate.EventClaimTransferred:
+		return "a transféré"
+	case teamstate.EventSessionComplete:
+		return "a terminé"
+	case teamstate.EventReviewReady:
+		return "review prête"
+	case teamstate.EventAuditFinding:
+		return "audit sur"
+	default:
+		return eventType
+	}
 }
