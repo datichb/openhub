@@ -1,6 +1,7 @@
 package views
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -51,6 +52,15 @@ type TeamBoardView struct {
 	once        sync.Once
 	shell       ShellAccess
 	actions     *BoardActions
+
+	// Filtering state
+	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
+	filterText     string       // text search filter (matches ID, title, assignee)
+	filterAssignee string       // filter by specific assignee
+	filterLabel    string       // filter by specific label
+
+	// Debouncing: prevents double-press on non-modal actions (claim, release, refresh).
+	actionInProgress bool
 }
 
 var _ View = (*TeamBoardView)(nil)
@@ -79,7 +89,11 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	return "h/l colonnes · j/k items · c claim · x release · t transfer · s status · r refresh"
+	hints := "h/l colonnes · j/k items · / search · f filter · c claim · x release · t transfer · s status · r refresh"
+	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
+		hints += " · [yellow]FILTRÉ[-]"
+	}
+	return hints
 }
 
 // Mount builds the team board and inserts it into the content panel.
@@ -147,12 +161,20 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.moveFocus(-1)
 		return nil
 	case 'r':
-		if v.cfg.RefreshFunc != nil {
+		if v.cfg.RefreshFunc != nil && !v.actionInProgress {
+			v.actionInProgress = true
 			// Async pull first, then refresh on completion.
 			syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
 				v.refreshOnEventLoop(DefaultColumns())
+				v.actionInProgress = false
 			})
 		}
+		return nil
+	case '/':
+		v.showSearchFilter()
+		return nil
+	case 'f':
+		v.showFilterMenu()
 		return nil
 	case 'c':
 		v.claimTicket()
@@ -175,16 +197,24 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyLeft:
 		v.moveFocus(-1)
 		return nil
+	case tcell.KeyEscape:
+		// Clear filters on Escape if any are active
+		if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
+			v.clearFilters()
+			return nil
+		}
 	}
 
 	return event
 }
 
 func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardColumnDef) {
+	v.allTickets = tickets
+	filtered := v.applyFilters(tickets)
 	for _, list := range v.columnLists {
 		list.Clear()
 	}
-	for _, t := range tickets {
+	for _, t := range filtered {
 		for i, col := range columns {
 			if t.Status == col.Status {
 				assignee := ""
@@ -197,6 +227,47 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 			}
 		}
 	}
+}
+
+// applyFilters returns the subset of tickets matching all active filters.
+func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
+	if v.filterText == "" && v.filterAssignee == "" && v.filterLabel == "" {
+		return tickets
+	}
+
+	var result []TeamTicket
+	textLower := strings.ToLower(v.filterText)
+
+	for _, t := range tickets {
+		// Assignee filter
+		if v.filterAssignee != "" && t.Assignee != v.filterAssignee {
+			continue
+		}
+		// Label filter
+		if v.filterLabel != "" {
+			hasLabel := false
+			for _, l := range t.Labels {
+				if l == v.filterLabel {
+					hasLabel = true
+					break
+				}
+			}
+			if !hasLabel {
+				continue
+			}
+		}
+		// Text search filter (matches ID, title, or assignee)
+		if textLower != "" {
+			match := strings.Contains(strings.ToLower(t.ID), textLower) ||
+				strings.Contains(strings.ToLower(t.Title), textLower) ||
+				strings.Contains(strings.ToLower(t.Assignee), textLower)
+			if !match {
+				continue
+			}
+		}
+		result = append(result, t)
+	}
+	return result
 }
 
 // formatTicketLabels renders a compact label string for board display.
@@ -262,8 +333,9 @@ func (v *TeamBoardView) refreshLoop(rate time.Duration, columns []BoardColumnDef
 // refresh fetches tickets from the remote and schedules a board repopulation via
 // QueueUpdateDraw. Safe to call from ANY goroutine (ticker, background workers).
 // Do NOT call from inside a QueueUpdateDraw callback — use refreshOnEventLoop instead.
+// Skips the refresh if an action is in progress to avoid overwriting fresh post-action data.
 func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
-	if v.cfg.RefreshFunc == nil || v.app == nil {
+	if v.cfg.RefreshFunc == nil || v.app == nil || v.actionInProgress {
 		return
 	}
 	tickets := v.cfg.RefreshFunc()
@@ -307,16 +379,21 @@ func (v *TeamBoardView) claimTicket() {
 	if v.actions == nil || v.actions.OnClaim == nil || v.shell == nil {
 		return
 	}
+	if v.actionInProgress {
+		return
+	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
+	v.actionInProgress = true
 	go func() {
 		err := v.actions.OnClaim(ticketID)
 		if v.app == nil {
 			return
 		}
 		v.app.QueueUpdateDraw(func() {
+			v.actionInProgress = false
 			if err != nil {
 				v.shell.ShowToastMsg("Claim échoué: "+err.Error(), false)
 			} else {
@@ -333,16 +410,21 @@ func (v *TeamBoardView) releaseTicket() {
 	if v.actions == nil || v.actions.OnRelease == nil || v.shell == nil {
 		return
 	}
+	if v.actionInProgress {
+		return
+	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
+	v.actionInProgress = true
 	go func() {
 		err := v.actions.OnRelease(ticketID)
 		if v.app == nil {
 			return
 		}
 		v.app.QueueUpdateDraw(func() {
+			v.actionInProgress = false
 			if err != nil {
 				v.shell.ShowToastMsg("Release échoué: "+err.Error(), false)
 			} else {
@@ -398,11 +480,11 @@ func (v *TeamBoardView) changeStatus() {
 	}
 
 	statusOptions := []SelectOption{
-		{Label: "Planned (TODO)", Value: "planned"},
-		{Label: "In Progress", Value: "in_progress"},
-		{Label: "Review", Value: "review"},
-		{Label: "Blocked", Value: "blocked"},
-		{Label: "Done", Value: "done"},
+		{Label: "Planifié (TODO)", Value: "planned"},
+		{Label: "En cours", Value: "in_progress"},
+		{Label: "Revue", Value: "review"},
+		{Label: "Bloqué", Value: "blocked"},
+		{Label: "Terminé", Value: "done"},
 	}
 
 	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
@@ -423,4 +505,132 @@ func (v *TeamBoardView) changeStatus() {
 			})
 		}()
 	})
+}
+
+// ─── Filtering ───────────────────────────────────────────────────────────────
+
+// showSearchFilter opens a text input for live searching tickets.
+func (v *TeamBoardView) showSearchFilter() {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowInputModal("Rechercher (titre/ID/assignee)", v.filterText, func(text string) {
+		v.filterText = text
+		v.repopulateWithFilters()
+		if text != "" {
+			v.shell.ShowToastMsg("Filtre: \""+text+"\" (Esc pour effacer)", true)
+		}
+	})
+}
+
+// showFilterMenu opens a predefined filter selection modal.
+func (v *TeamBoardView) showFilterMenu() {
+	if v.shell == nil {
+		return
+	}
+
+	options := []SelectOption{
+		{Label: "Mes tickets", Value: "_mine"},
+		{Label: "Par assignee...", Value: "_assignee"},
+		{Label: "Par label...", Value: "_label"},
+		{Label: "Effacer les filtres", Value: "_clear"},
+	}
+
+	v.shell.ShowSelectModal("Filtrer le board", options, "", func(choice string) {
+		switch choice {
+		case "_mine":
+			// Use the MemberID from the config if available via Members
+			if len(v.cfg.Members) > 0 {
+				v.filterAssignee = v.cfg.Members[0] // first member is self by convention
+			}
+			v.repopulateWithFilters()
+			v.shell.ShowToastMsg("Filtre: mes tickets", true)
+		case "_assignee":
+			v.showAssigneeFilter()
+		case "_label":
+			v.showLabelFilter()
+		case "_clear":
+			v.clearFilters()
+		}
+	})
+}
+
+// showAssigneeFilter shows a modal to pick an assignee to filter by.
+func (v *TeamBoardView) showAssigneeFilter() {
+	if v.shell == nil {
+		return
+	}
+
+	// Collect unique assignees from all tickets
+	assigneeSet := make(map[string]bool)
+	for _, t := range v.allTickets {
+		if t.Assignee != "" {
+			assigneeSet[t.Assignee] = true
+		}
+	}
+
+	var options []SelectOption
+	for a := range assigneeSet {
+		options = append(options, SelectOption{Label: "@" + a, Value: a})
+	}
+	if len(options) == 0 {
+		v.shell.ShowToastMsg("Aucun assignee trouvé", false)
+		return
+	}
+
+	v.shell.ShowSelectModal("Filtrer par assignee", options, "", func(assignee string) {
+		v.filterAssignee = assignee
+		v.repopulateWithFilters()
+		v.shell.ShowToastMsg("Filtre: @"+assignee, true)
+	})
+}
+
+// showLabelFilter shows an input modal to type a label to filter by.
+func (v *TeamBoardView) showLabelFilter() {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowInputModal("Filtrer par label", v.filterLabel, func(label string) {
+		v.filterLabel = label
+		v.repopulateWithFilters()
+		if label != "" {
+			v.shell.ShowToastMsg("Filtre: label="+label, true)
+		}
+	})
+}
+
+// clearFilters removes all active filters and repopulates the board.
+func (v *TeamBoardView) clearFilters() {
+	v.filterText = ""
+	v.filterAssignee = ""
+	v.filterLabel = ""
+	v.repopulateWithFilters()
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Filtres effacés", true)
+	}
+}
+
+// repopulateWithFilters re-renders the board with current filters applied.
+func (v *TeamBoardView) repopulateWithFilters() {
+	if len(v.allTickets) == 0 {
+		return
+	}
+	columns := DefaultColumns()
+	filtered := v.applyFilters(v.allTickets)
+	for _, list := range v.columnLists {
+		list.Clear()
+	}
+	for _, t := range filtered {
+		for i, col := range columns {
+			if t.Status == col.Status {
+				assignee := ""
+				if t.Assignee != "" {
+					assignee = " " + widgets.ColorTag(theme.Accent) + "@" + t.Assignee + "[-]"
+				}
+				labelStr := formatTicketLabels(t.Labels)
+				v.columnLists[i].AddItem(t.Title+assignee+labelStr, t.ID, 0, nil)
+				break
+			}
+		}
+	}
 }
