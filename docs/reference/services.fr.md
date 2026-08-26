@@ -153,16 +153,16 @@ L'activation globale des services est stockée dans `hub.toml` :
 ```toml
 [mcp.figma]
 enabled = true
-token_key = "figma-token"
+token_key = "openhub.mcp.figma.token"
 
 [mcp.gitlab]
 enabled = true
-token_key = "gitlab-token"
+token_key = "openhub.mcp.gitlab.token"
 write_enabled = true
 
 [mcp.gslides]
 enabled = false
-token_key = "gslides-token"
+token_key = "openhub.mcp.gslides.token"
 ```
 
 ### Projet-level (`ProjectMCPConfig`)

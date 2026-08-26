@@ -30,15 +30,15 @@ auth_mode = "bearer"               # "bearer" | "profile" (bedrock uniquement)
 
 [mcp.figma]
 enabled = true                     # activer le serveur MCP Figma
-token_key = "figma-token"          # nom de la cle dans le trousseau (PAS le token)
+token_key = "openhub.mcp.figma.token"          # nom de la cle dans le trousseau (PAS le token)
 
 [mcp.gitlab]
 enabled = true
-token_key = "gitlab-token"
+token_key = "openhub.mcp.gitlab.token"
 
 [mcp.gslides]
 enabled = false
-token_key = "gslides-token"
+token_key = "openhub.mcp.gslides.token"
 
 [notify]
 enabled = false

@@ -46,11 +46,11 @@ member_id = "alice"
 
 [mcp.figma]
 enabled = true                     # enable Figma MCP server
-token_key = "figma-token"          # keychain key name (NOT the token itself)
+token_key = "openhub.mcp.figma.token"          # keychain key name (NOT the token itself)
 
 [mcp.gitlab]
 enabled = true
-token_key = "gitlab-token"
+token_key = "openhub.mcp.gitlab.token"
 write_enabled = true
 url = ""                           # empty = use team-state URL or built-in default
 
@@ -59,7 +59,7 @@ enabled = false
 
 [mcp.gslides]
 enabled = false
-token_key = "gslides-token"
+token_key = "openhub.mcp.gslides.token"
 
 [worktree]
 auto_cleanup = true                # auto-remove merged worktrees on start

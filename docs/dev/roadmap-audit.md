@@ -145,7 +145,7 @@ Clé API `sk-dcOsFI...` (provider mammouth) stockée en clair dans `opencode.jso
 
 ---
 
-### T02 — Supprimer GITLAB_SKIP_URL_VALIDATION bypass
+### T02 — Supprimer GITLAB_SKIP_URL_VALIDATION bypass ✅ DONE
 
 | Champ | Valeur |
 |-------|--------|
@@ -154,29 +154,28 @@ Clé API `sk-dcOsFI...` (provider mammouth) stockée en clair dans `opencode.jso
 | **Effort** | XS |
 | **Dépendances** | Aucune |
 | **Agent recommandé** | `developer` (domain: security) |
+| **Statut** | **DONE** — Remédié. Le bypass env-var a été supprimé du code de production. |
 
-#### Problème
+#### Problème (résolu)
 
-`cli/internal/mcp/gitlab/server.go:195` expose un bypass SSRF via la variable d'environnement `GITLAB_SKIP_URL_VALIDATION=true`. Si un attaquant contrôle l'environnement d'exécution, il peut rediriger les appels GitLab (incluant les headers d'authentification) vers des endpoints arbitraires.
+`cli/internal/mcp/gitlab/server.go:195` exposait un bypass SSRF via la variable d'environnement `GITLAB_SKIP_URL_VALIDATION=true`. Remédié en remplaçant par une variable package-level `bool` non-settable en production, avec un setter test-only dans un fichier `_test.go`.
 
-#### Solution
+#### État actuel
 
-1. Remplacer le bypass runtime par un build tag de compilation Go (`//go:build integration`)
-2. Créer un fichier `server_test_helpers.go` avec le build tag `integration` qui expose une fonction `SetSkipURLValidation(bool)` pour les tests uniquement
-3. Supprimer la lecture de `GITLAB_SKIP_URL_VALIDATION` du code de production
-4. Mettre à jour les tests d'intégration pour utiliser le build tag
+- `os.Getenv("GITLAB_SKIP_URL_VALIDATION")` → **supprimé**
+- `skipURLValidation` = `false` par défaut, setter uniquement dans `validate_test_helper_test.go` (exclu des binaires prod)
+- Validation SSRF active en permanence (HTTPS + pas d'IP privée)
 
-#### Fichiers concernés
+#### Limitation connue
 
-- `cli/internal/mcp/gitlab/server.go:195`
-- `cli/internal/mcp/gitlab/server_test.go` (adaptation)
+Les instances GitLab self-hosted sur adresses IP privées (RFC1918: `10.x.x.x`, `172.16.x.x`, `192.168.x.x`, loopback `127.0.0.1`) ne sont **pas supportées** par le serveur MCP GitLab. C'est un choix de sécurité intentionnel (anti-SSRF). Les utilisateurs concernés doivent exposer leur GitLab via un FQDN public avec HTTPS.
 
 #### Acceptance Criteria
 
-- [ ] `rg "GITLAB_SKIP_URL_VALIDATION" cli/` retourne 0 résultat dans les fichiers non-test
-- [ ] Les tests d'intégration GitLab passent toujours avec le build tag `integration`
-- [ ] La validation SSRF est active sans exception en production
-- [ ] `make lint` et `make test` passent sans erreur
+- [x] `rg "GITLAB_SKIP_URL_VALIDATION" cli/` retourne 0 résultat dans les fichiers non-test
+- [x] Les tests d'intégration GitLab passent avec le helper test-only
+- [x] La validation SSRF est active sans exception en production
+- [x] `make lint` et `make test` passent sans erreur
 
 ---
 
