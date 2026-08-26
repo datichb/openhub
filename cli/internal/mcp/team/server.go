@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -427,7 +428,9 @@ func handleTeamWikiWrite(params json.RawMessage) (*protocol.ToolResult, error) {
 		Project:   args.Project,
 		Data:      map[string]interface{}{"page": args.Page},
 	}
-	_ = repo.AppendEvent(ctx, event)
+	if err := repo.AppendEvent(ctx, event); err != nil {
+		slog.Warn("teamstate.event.lost", "type", event.Type, "project", event.Project, "error", err)
+	}
 
 	// Best-effort notification
 	if teamCfg, err := repo.LoadConfig(); err == nil {
@@ -502,18 +505,6 @@ func handleTeamNotify(params json.RawMessage) (*protocol.ToolResult, error) {
 		Data:    map[string]interface{}{"message": args.Message},
 	}); err != nil {
 		return nil, fmt.Errorf("sending notification: %w", err)
-	}
-
-	// For custom notifications, we send directly
-	if teamCfg.Notification.Enabled {
-		mm := notify.NewMattermost(
-			teamCfg.Notification.MattermostWebhook,
-			teamCfg.Notification.Channel,
-			teamCfg.Notification.BotName,
-		)
-		if err := mm.Send(ctx, args.Message); err != nil {
-			return nil, fmt.Errorf("sending mattermost notification: %w", err)
-		}
 	}
 
 	return &protocol.ToolResult{

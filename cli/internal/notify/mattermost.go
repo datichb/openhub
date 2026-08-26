@@ -130,6 +130,11 @@ func FormatEvent(e teamstate.Event) string {
 			page = fmt.Sprintf(" %s", p)
 		}
 		return fmt.Sprintf("[Équipe] Wiki%s mis à jour par %s", page, e.Actor)
+	case "custom.notification":
+		if msg, ok := e.Data["message"]; ok {
+			return fmt.Sprintf("%v", msg)
+		}
+		return ""
 	default:
 		return ""
 	}
