@@ -3,415 +3,113 @@ name: websearch-performance-research
 description: Protocole de recherche web pour les audits de performance — Core Web Vitals, benchmarks, patterns d'optimisation.
 ---
 
-# WebSearch Performance Research — Performance Auditor Protocol
+# Recherche Performance via websearch
 
-**Version**: 1.0.0  
-**Target**: Performance auditors (performance-auditor)  
-**Extends**: `skills/shared/websearch-usage.md`
+## Quand chercher
 
-## Purpose
+Utiliser websearch pour la performance quand :
 
-This skill provides a specialized protocol for using WebSearch to discover **performance optimization techniques**, **benchmarks**, and **best practices** during performance audits. It complements profiling data with industry research and current trends.
+1. **Bottleneck identifié** — le profiling local montre un chemin lent mais la solution optimale n'est pas évidente
+2. **Optimisation framework/lib** — besoin des best practices spécifiques au stack (React, Next.js, Node.js, etc.)
+3. **Comparaison de benchmarks** — valider si les métriques observées sont acceptables vs l'industrie
+4. **Alternatives** — trouver des bibliothèques ou patterns plus performants
+5. **Techniques émergentes** — stratégies d'optimisation récentes (2024-2026)
 
-## When to Use Performance Research
+**Pré-requis** : toujours profiler localement AVANT de chercher (baseline obligatoire).
 
-### Trigger Conditions
-Use WebSearch for performance research when:
-1. **Performance Bottleneck Identified**: After profiling shows slow code path
-2. **Framework/Library Optimization**: Seeking best practices for specific tech stack
-3. **Benchmark Comparison**: Validating if observed metrics are acceptable
-4. **Alternative Solutions**: Finding faster libraries or patterns
-5. **Emerging Techniques**: Discovering new optimization strategies (2025-2026)
+## Sources de référence
 
-### Priority Targets
-Focus performance research on:
-- **Frontend frameworks**: React, Vue, Angular, Svelte (rendering, hydration)
-- **Backend frameworks**: Express, Fastify, Hapi, NestJS (request handling)
-- **Databases**: Query optimization, indexing strategies, connection pooling
-- **Build tools**: Webpack, Vite, esbuild, Turbopack (bundle size, build time)
-- **Runtime**: Node.js, Deno, Bun performance characteristics
+| Domaine | Sources fiables |
+|---------|----------------|
+| Web Vitals / Frontend | web.dev, MDN, Chrome DevTools docs |
+| React / Next.js | react.dev, nextjs.org/docs |
+| Node.js | nodejs.org/docs, clinic.js docs |
+| Bases de données | Documentation officielle (PG, Mongo, Redis) |
+| Bundles | Vite/Webpack docs, bundlephobia.com |
+| Benchmarks | GitHub repos avec méthodologie reproductible |
 
-## Performance Search Query Patterns
+**Priorité** : documentation officielle > articles techniques récents > blog posts.
+**Fraîcheur** : privilégier 2024-2026 pour les frameworks à évolution rapide.
 
-### Pattern 1: Framework-Specific Optimization
-```
-✅ "React 18 performance optimization large lists"
-✅ "Next.js 14 bundle size reduction techniques"
-✅ "Vue 3 reactivity performance best practices"
-✅ "Svelte compiler optimization 2026"
-```
+## Stratégie de recherche
 
-### Pattern 2: Library Benchmarks
-```
-✅ "axios vs fetch vs got performance benchmark 2026"
-✅ "Express vs Fastify vs Hapi benchmark Node.js 20"
-✅ "date-fns vs dayjs vs Luxon bundle size comparison"
-✅ "Lodash vs Ramda performance 2026"
-```
+### Principes
 
-### Pattern 3: Technique-Specific
-```
-✅ "React virtual scrolling performance"
-✅ "Node.js streams memory efficiency"
-✅ "Postgres JSONB indexing performance"
-✅ "Redis caching strategy best practices"
-```
+- **Spécifique** — inclure framework + version + problème précis + année
+- **Groupée** — combiner termes connexes en une requête plutôt que plusieurs recherches atomiques
+- **Orientée solution** — chercher technique + benchmark + trade-offs ensemble
+- **Webfetch ciblé** — pour les sources connues (docs officielles), aller directement à l'URL
 
-### Pattern 4: Problem-Solution
-```
-✅ "slow API response Node.js troubleshooting"
-✅ "React rendering performance fix"
-✅ "database query optimization N+1 problem"
-✅ "Webpack bundle size too large solution"
-```
+### Domaines de recherche par priorité
 
-## Performance Metrics & Benchmarks
+| Priorité | Cible | Exemples |
+|----------|-------|----------|
+| HIGH | Chemin critique (>1000 appels/s), render-blocking, bundles >50KB, queries >200ms | Virtualisation, code splitting, indexation |
+| MEDIUM | Fréquence modérée (100-1000/s), contenu hors viewport, bundles 10-50KB | Lazy loading, memoization |
+| LOW | Opérations rares (<100/s), tâches background, utilitaires <10KB | Micro-optimisations |
 
-### Key Metrics to Research
-When searching for benchmarks, focus on:
+## Format de synthèse attendu
 
-#### Frontend Metrics
-- **FCP (First Contentful Paint)**: Target <1.8s (good), <3s (acceptable)
-- **LCP (Largest Contentful Paint)**: Target <2.5s (good), <4s (acceptable)
-- **TTI (Time to Interactive)**: Target <3.8s (good), <7.3s (acceptable)
-- **CLS (Cumulative Layout Shift)**: Target <0.1 (good), <0.25 (acceptable)
-- **Bundle Size**: <100KB initial JS (gzipped), <500KB total
-- **Lighthouse Score**: >90 (good), >50 (acceptable)
+Chaque finding de recherche doit contenir :
 
-#### Backend Metrics
-- **Request Latency**: P50 <100ms, P95 <500ms, P99 <1s
-- **Throughput**: Requests per second (RPS) for given hardware
-- **Database Query Time**: <50ms (simple), <200ms (complex)
-- **Memory Usage**: <512MB (small app), <2GB (medium), <8GB (large)
-- **CPU Usage**: <50% average, <80% peak
-
-### Search Query Examples
-```
-✅ "acceptable API response time 2026"
-✅ "web vitals thresholds Google 2026"
-✅ "Node.js Express throughput benchmark"
-✅ "React component render time acceptable range"
-```
-
-## Workflow Integration
-
-### Step 1: Profiling (Pre-Search)
-Gather performance data locally:
-```bash
-# Frontend profiling
-- Chrome DevTools Performance tab
-- Lighthouse CI
-- Web Vitals extension
-- Bundle analyzer (webpack-bundle-analyzer)
-
-# Backend profiling
-- Node.js --inspect + Chrome DevTools
-- clinic.js (flame graphs, bubbleprof)
-- 0x (flame graphs)
-- autocannon (load testing)
-
-# Database profiling
-- PostgreSQL EXPLAIN ANALYZE
-- MySQL EXPLAIN
-- MongoDB .explain("executionStats")
-```
-
-### Step 2: Identify Optimization Targets
-Prioritize by impact:
-```
-HIGH IMPACT (search first):
-- Code paths in hot loop (>1000 calls/sec)
-- Render-blocking operations (FCP/LCP)
-- Large bundle contributors (>50KB)
-- Slow database queries (>200ms)
-
-MEDIUM IMPACT:
-- Moderate frequency operations (100-1000 calls/sec)
-- Non-critical renders (below-fold content)
-- Medium bundles (10-50KB)
-
-LOW IMPACT:
-- Rare operations (<100 calls/sec)
-- Background tasks
-- Small utilities (<10KB)
-```
-
-### Step 3: Execute Performance Research
-For each HIGH impact target:
-```
-1. Search for best practices:
-   "React useCallback useMemo performance best practices 2026"
-
-2. Search for benchmarks:
-   "React re-render optimization benchmark"
-
-3. Search for alternatives:
-   "React virtualization library comparison 2026"
-   (react-window vs react-virtuoso vs @tanstack/virtual)
-```
-
-### Step 4: Validate Findings
-For each optimization technique found:
-```
-EXTRACT:
-- Technique name (e.g., "React.memo for expensive components")
-- Performance improvement (e.g., "40% render time reduction")
-- Implementation complexity (Low/Medium/High)
-- Trade-offs (e.g., "increased memory usage")
-- Compatibility (React version, browser support)
-
-VALIDATE:
-- Is the benchmark from a reputable source? (web.dev, official docs, research papers)
-- Is the data recent? (2024-2026 preferred)
-- Is the scenario comparable to ours? (similar scale, stack, constraints)
-
-FETCH DETAILS:
-- Use webfetch on detailed guides or official documentation
-- Look for code examples and implementation guides
-```
-
-### Step 5: Implement & Measure
-After research, implement and verify:
-```
-1. Baseline measurement (before optimization)
-2. Implement optimization based on research
-3. Post-optimization measurement
-4. Compare: Did we achieve expected improvement?
-5. If yes → Report success + source research
-   If no → Document why (different context, outdated info)
-```
-
-## Common Performance Patterns to Research
-
-### React Performance
-```
-Search Topics:
-- "React.memo vs useMemo vs useCallback when to use"
-- "React lazy loading components code splitting"
-- "React Context performance optimization"
-- "React key prop performance impact"
-- "React useTransition useDeferredValue 2026"
-```
-
-### Next.js Performance
-```
-Search Topics:
-- "Next.js Image optimization best practices"
-- "Next.js dynamic imports performance"
-- "Next.js ISR vs SSR vs SSG performance comparison"
-- "Next.js bundle size optimization 2026"
-- "Next.js Server Components performance"
-```
-
-### Node.js Performance
-```
-Search Topics:
-- "Node.js event loop blocking detection"
-- "Node.js worker threads when to use"
-- "Node.js cluster mode performance"
-- "Node.js async/await vs Promises performance"
-- "Node.js 20 performance improvements"
-```
-
-### Database Performance
-```
-Search Topics:
-- "PostgreSQL index optimization strategies"
-- "MongoDB aggregation pipeline performance"
-- "N+1 query problem solution Prisma"
-- "database connection pooling best practices"
-- "SQL query optimization common mistakes"
-```
-
-### Bundle Optimization
-```
-Search Topics:
-- "Webpack tree shaking configuration 2026"
-- "Vite code splitting strategies"
-- "import cost analysis tools"
-- "moment.js alternatives smaller bundle"
-- "dynamic imports best practices"
-```
-
-## Reporting Performance Research
-
-### Research Finding Template
 ```markdown
-## Performance Optimization: [Component/Feature]
+### [Composant/Feature] — Optimisation Performance
 
-### Issue Identified
-**Location**: src/components/DataTable.tsx  
-**Metric**: LCP 4.2s (slow), render time 850ms  
-**Impact**: User-facing, blocking interaction  
-**Priority**: HIGH
+**Problème** : [métrique actuelle + seuil dépassé]
+**Localisation** : [fichier:ligne]
+**Impact** : HIGH | MEDIUM | LOW
 
-### Research Conducted
-**Query**: "React large table virtualization performance 2026"  
-**Sources**:
-- web.dev React performance guide (authoritative, 2026)
-- TanStack Virtual documentation (official, v3.0.0)
-- React virtualization benchmark (GitHub, 2025)
+**Recherche** :
+- Sources consultées : [liste avec dates]
+- Technique recommandée : [nom + description courte]
+- Amélioration attendue : [% ou valeur absolue, citée depuis source]
+- Complexité : Low | Medium | High
+- Trade-offs : [mémoire, maintenance, compatibilité]
 
-### Key Findings
-1. **Virtualization Recommended**: Render only visible rows
-   - Expected improvement: 70-90% render time reduction
-   - Libraries: @tanstack/virtual, react-window, react-virtuoso
-
-2. **Benchmark Data** (source: github.com/user/benchmark):
-   - 10,000 rows without virtualization: 1200ms render
-   - 10,000 rows with @tanstack/virtual: 150ms render
-   - 88% improvement confirmed
-
-3. **Implementation Complexity**: Medium
-   - Estimated effort: 4-6 hours
-   - Breaking changes: None
-   - Dependencies: Add @tanstack/virtual (15KB gzipped)
-
-### Recommendation
-Implement @tanstack/virtual for DataTable component.
-Expected outcome: LCP <2.5s (good), render time <200ms
-
-### Implementation Notes
-- Use `useVirtualizer` hook with row height 48px
-- Maintain accessibility (keyboard navigation, screen readers)
-- Test with 10K+ rows dataset
-- Measure before/after with Lighthouse
-
-### References
-- https://tanstack.com/virtual/latest/docs/framework/react/react-virtual
-- https://web.dev/virtualize-long-lists-react-window/
+**Validation** :
+- Baseline mesurée : [valeur avant]
+- Post-optimisation : [valeur après]
+- Résultat vs attendu : [confirmation ou écart + explication]
 ```
 
-## Rate Limit Strategy
+### En cas de résultats contradictoires
 
-Performance research can require extensive searches. Optimize:
+Quand les sources divergent : vérifier dates, autorité (docs officielles > blogs), contexte (scale comparable), et recommander une approche guidée par le profiling local.
 
-### Bundle Searches by Category
-Instead of:
-```
-❌ Search 1: "React performance"
-❌ Search 2: "React memo"
-❌ Search 3: "React useMemo"
-```
+## Seuils de référence
 
-Use:
-```
-✅ Search 1: "React optimization techniques memo useMemo useCallback 2026"
-   → Comprehensive overview
-✅ Search 2: "React performance benchmarks 2026"
-   → Metrics and comparisons
-```
+### Frontend — Core Web Vitals
 
-### Use WebFetch for Known Resources
-If you know authoritative sources:
-```
-✅ webfetch("https://web.dev/fast/")
-✅ webfetch("https://react.dev/learn/render-and-commit")
-✅ webfetch("https://nodejs.org/en/docs/guides/dont-block-the-event-loop")
-```
+| Métrique | Bon | Acceptable | Mauvais |
+|----------|-----|------------|---------|
+| FCP (First Contentful Paint) | <1.8s | <3.0s | ≥3.0s |
+| LCP (Largest Contentful Paint) | <2.5s | <4.0s | ≥4.0s |
+| TTI (Time to Interactive) | <3.8s | <7.3s | ≥7.3s |
+| CLS (Cumulative Layout Shift) | <0.1 | <0.25 | ≥0.25 |
+| INP (Interaction to Next Paint) | <200ms | <500ms | ≥500ms |
+| Bundle JS initial (gzip) | <100KB | <250KB | ≥250KB |
+| Lighthouse Score | >90 | >50 | ≤50 |
 
-### Prioritize Official Documentation
-Search format:
-```
-✅ "React official performance guide"
-   → Often better than searching generic terms
-✅ "Next.js documentation Image optimization"
-   → Targeted, authoritative
-```
+### Backend — Latence & Ressources
 
-## Error Handling
+| Métrique | Bon | Acceptable | Mauvais |
+|----------|-----|------------|---------|
+| Latence P50 | <100ms | <300ms | ≥300ms |
+| Latence P95 | <500ms | <1s | ≥1s |
+| Latence P99 | <1s | <3s | ≥3s |
+| Query DB simple | <50ms | <200ms | ≥200ms |
+| Query DB complexe | <200ms | <500ms | ≥500ms |
+| Mémoire (small app) | <512MB | <1GB | ≥1GB |
+| CPU moyen | <50% | <70% | ≥70% |
 
-### Scenario 1: Conflicting Advice
-```
-Source A: "Always use React.memo"
-Source B: "React.memo is overused, avoid premature optimization"
+## Checklist avant recommandation
 
-Action:
-1. Check publication dates (newer = better for evolving frameworks)
-2. Check authority (official docs > blog posts)
-3. Check context (large apps vs small apps)
-4. Report: "Conflicting guidance found, recommend profiling-driven approach"
-```
+- [ ] Baseline locale mesurée (profiling avant optimisation)
+- [ ] Recherche effectuée sur sources fiables et récentes
+- [ ] Amélioration quantifiée avec source citée
+- [ ] Complexité d'implémentation évaluée (effort vs gain)
+- [ ] Trade-offs documentés (mémoire, maintenance, compatibilité)
+- [ ] Validation locale planifiée (mesurer avant/après)
+- [ ] Impact utilisateur clair (métrique user-facing identifiée)
 
-### Scenario 2: Outdated Benchmarks
-```
-Search: "React performance 2020"
-Problem: React 18 introduced significant changes (Concurrent Mode, Automatic Batching)
-
-Action:
-1. Add year filter: "React 18 performance 2024-2026"
-2. Verify React version compatibility
-3. Note: "Benchmark may not apply to React 18+ Concurrent features"
-```
-
-### Scenario 3: Non-Reproducible Results
-```
-Benchmark claims: "90% improvement"
-Our implementation: "10% improvement"
-
-Action:
-1. Check benchmark conditions (hardware, dataset size, browser)
-2. Verify our implementation matches benchmark setup
-3. Report: "Expected 90%, achieved 10% — likely due to [difference in context]"
-4. Still valuable if 10% is meaningful
-```
-
-## Integration with Local Profiling
-
-### Hybrid Approach
-Combine WebSearch with local tools:
-
-```
-1. LOCAL PROFILING: Identify slow operations
-   → Chrome DevTools: Component renders 500ms (slow)
-
-2. WEBSEARCH: Research solutions
-   → "React rendering performance optimization 2026"
-   → Find: Use React.memo, useCallback, code splitting
-
-3. LOCAL TESTING: Validate techniques
-   → Implement React.memo
-   → Measure: Now renders 150ms (70% faster)
-
-4. REPORT: Cite research + local measurements
-   → "Applied React.memo based on research from web.dev"
-   → "Confirmed 70% render time reduction (500ms → 150ms)"
-```
-
-## Best Practices Summary
-
-**DO**:
-- ✅ Always profile locally BEFORE searching (understand the problem)
-- ✅ Search for recent techniques (2024-2026)
-- ✅ Validate findings with local measurements
-- ✅ Cite sources and benchmark data
-- ✅ Consider trade-offs (complexity vs performance gain)
-- ✅ Focus on user-facing metrics (LCP, TTI, perceived performance)
-- ✅ Report expected vs actual improvements
-
-**DON'T**:
-- ❌ Implement optimizations without measuring baseline
-- ❌ Trust outdated benchmarks (>2 years old for fast-moving frameworks)
-- ❌ Optimize for vanity metrics (micro-benchmarks without real impact)
-- ❌ Apply every optimization found (risk over-engineering)
-- ❌ Ignore complexity costs (harder maintenance vs marginal gains)
-- ❌ Skip validation (measure before/after)
-
-**Remember**: Performance optimization is **data-driven**. WebSearch provides techniques and benchmarks, but local profiling and measurement are critical for validating real-world impact.
-
----
-
-## Performance Research Checklist
-
-Before recommending an optimization:
-- [ ] Local profiling data captured (baseline metrics)
-- [ ] WebSearch conducted for best practices
-- [ ] Benchmark data from reputable source (official docs, research papers)
-- [ ] Publication date recent (2024-2026 preferred)
-- [ ] Implementation complexity assessed (effort vs gain)
-- [ ] Trade-offs documented (memory, complexity, compatibility)
-- [ ] Expected improvement quantified (e.g., "30-50% reduction")
-- [ ] Local validation planned (test, measure, compare)
-- [ ] User impact clear (affects LCP, TTI, or other user-facing metric)
-
-If all checkboxes pass → Recommend optimization with confidence.
+**Règle d'or** : l'optimisation est data-driven — websearch fournit techniques et benchmarks, le profiling local valide l'impact réel.

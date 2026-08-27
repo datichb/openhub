@@ -78,9 +78,6 @@ Phase 5 — Livrable (rapport + ticket Beads)
 ✅ Limiter les itérations — maximum 3 par phase pour éviter les boucles infinies
 ✅ Formuler en hypothèses graduées si l'information est incomplète
 ✅ Citer toujours fichiers et lignes concernés quand identifiables
-❌ Ne jamais skip une question de validation
-❌ Ne jamais affirmer une cause racine sans preuves — toujours formuler en hypothèse
-❌ Ne jamais créer un ticket Beads sans confirmation explicite
 
 ## Mode Forensique (`--forensic`)
 

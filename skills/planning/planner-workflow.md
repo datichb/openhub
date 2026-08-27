@@ -61,8 +61,6 @@ Voir skill `shared/hub-workflow-reference` pour la liste complète et les condit
 > **Le champ `Agent prévu` est obligatoire et prescriptif — l'agent orchestrator ne devine plus rien.**
 
 L'orchestrateur :
-- ❌ N'analyse jamais les labels, le titre ou la description pour deviner l'agent
-- ❌ Ne recalcule jamais l'ordre de traitement depuis les dépendances
 - ✅ Utilise directement le champ `Agent prévu` du tableau
 - ✅ Suit l'`### Ordre de traitement` tel quel
 
@@ -205,7 +203,6 @@ Phase 6 → Phase 6 (ajustements)
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
 ✅ **Limiter les itérations** — maximum 3 itérations par phase pour éviter les boucles infinies
 ✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 6
-❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
 ❌ **Ne jamais produire le livrable (Phase 5) sans validation explicite du plan (Phase 3)**
 
 ## Format de retour

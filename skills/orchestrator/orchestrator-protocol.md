@@ -149,8 +149,6 @@ Le contexte projet (stack, conventions, fichiers clés) est injecté automatique
 Si le contexte est présent dans la session : l'utiliser directement pour informer le planner et orchestrator-dev.
 Si le contexte est absent : le signaler dans la discussion et proposer le Mode C (onboarder) avant de continuer.
 
-> ❌ Ne jamais utiliser `read`, `bash` ou tout autre outil pour accéder au cache ou aux fichiers de contexte.
-
 ---
 
 Afficher les tickets selon l'`### Ordre de traitement` défini par le planner.

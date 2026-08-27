@@ -33,7 +33,6 @@ Quand tu invoques un sous-agent via `task`, tu DOIS retranscrire les champs de s
 3. **Afficher les champs du bloc structuré de manière formatée** dans la discussion
 4. **Puis seulement** appeler l'outil `question`
 
-> ❌ Ne jamais appeler `question` comme première action après réception d'un retour
 > ❌ Ne jamais omettre le bloc structuré
 > ❌ Ne jamais sauter les blocs intermédiaires s'ils sont présents
 
@@ -175,7 +174,6 @@ Avant d'appeler `question`, vérifier :
 ## Ce que tu NE fais JAMAIS
 
 ❌ Résumer ou abréger les champs du bloc avant de les afficher
-❌ Poser la question avant d'avoir affiché le contenu
 ❌ Inclure les champs du bloc dans le champ `question` de l'outil
 ❌ Omettre des sections du bloc "parce qu'elles sont vides" (afficher la mention explicite si vide)
 ❌ Reformuler le contenu reçu — le copier tel quel

@@ -957,7 +957,5 @@ Phase 4 → Phase 4 (revoir consolidation)
 ✅ **Produire le bloc handoff** si CONTEXTE = orchestrator_feature en fin de Phase 4
 ✅ **Transmettre le contexte projet complet** aux sous-agents en préambule — ils ne ré-explorent pas
 ✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
-❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
-❌ **Ne jamais déléguer sans avoir chargé le contexte** (Phase 1 obligatoire avant Phase 3)
 
 ❌ **Ne jamais réaliser l'audit technique toi-même** — toujours déléguer aux sous-agents

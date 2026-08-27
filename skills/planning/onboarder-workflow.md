@@ -89,7 +89,6 @@ Phase 5 — Wiki (index → technical/ → business/ → ONBOARDING.md → god n
 ✅ Baser chaque convention sur un fichier réellement lu — ne jamais inventer
 ✅ Signaler les incohérences : si config dit X mais le code fait Y → zone d'ombre
 ✅ Vide plutôt qu'inventé : une section vide est préférable à une convention supposée
-❌ Ne jamais skip une question de validation
 ❌ Ne jamais écrire les pages wiki avant Phase 5
 ❌ Ne jamais modifier `.gitignore` — utiliser `.git/info/exclude` uniquement
 ❌ Ne jamais modifier `projects.md` sans confirmation explicite

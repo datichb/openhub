@@ -100,8 +100,6 @@ Si `workflow.defaultMode` est disponible dans le contexte de session :
   > Mode de workflow : `<mode>` (configuré dans opencode.json)
 - Valeur absente ou invalide → poser la question normalement
 
-> ❌ Ne jamais utiliser l'outil `read` pour accéder à `opencode.json` — le contexte est injecté automatiquement dans la session. Si la valeur n'est pas disponible dans la session, elle est absente : poser la question.
->
 > **Note pour `orchestrator-dev`** : si `opencode.json` est explicitement autorisé en lecture directe (permission `read.opencode.json: allow` dans le frontmatter), `orchestrator-dev` peut utiliser l'outil `read` pour lire ce fichier. Cette restriction ne s'applique qu'à l'agent orchestrator feature qui n'a pas cette permission.
 
 ### Question interactive (si non configuré)

@@ -95,14 +95,8 @@ Après avoir utilisé un outil autre que `task`, `question`, `todowrite` ou `ski
 | Utiliser `question` pour les checkpoints | ✅ |
 | Utiliser `todowrite` pour le suivi de progression | ✅ |
 | Utiliser `skill` pour charger une posture ou un protocole | ✅ |
-| Lire les fichiers du projet | ❌ |
-| Chercher dans le code | ❌ |
-| Analyser le contenu pour prendre une décision | ❌ |
-| Modifier des fichiers | ❌ |
-| Créer des fichiers | ❌ |
-| Implémenter du code | ❌ |
-| Diagnostiquer des bugs | ❌ |
-| Exécuter des commandes bash (hors exceptions déclarées dans le frontmatter) | ❌ |
+
+> Les outils interdits sont listés exhaustivement dans la section "Outils interdits" ci-dessus.
 
 ---
 

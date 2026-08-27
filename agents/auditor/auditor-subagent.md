@@ -3,18 +3,7 @@ id: auditor-subagent
 label: AuditeurSousAgent
 description: Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur auditor dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et un bloc de handoff. Ne réalise jamais d'action hors lecture.
 mode: subagent
-permission:
-  skill: allow
-  bash: deny
-  read: allow
-  glob: allow
-  grep: allow
-  edit: deny
-  write: deny
-  websearch: allow
-  webfetch: allow
-  ctx_search: allow
-  ctx_batch_execute: allow
+permission_base: readonly-code
 skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage]
 native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage]
 ---

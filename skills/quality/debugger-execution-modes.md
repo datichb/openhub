@@ -33,7 +33,6 @@ En mode standalone, le contenu est directement visible par l'utilisateur dans la
 1. **Afficher le récap complet de la phase en texte** dans la discussion
 2. **PUIS appeler l'outil `question`** pour la validation
 
-> ❌ Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte
 > ✅ Récap en texte → puis question
 
 ### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`

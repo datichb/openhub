@@ -133,8 +133,6 @@ Le contexte projet est injecté automatiquement dans la session via le champ `in
 - **Présent** (cache `.opencode/context.json` valide, ou `ONBOARDING.md`/`CONVENTIONS.md` détectés au démarrage) → le contexte est disponible dans la session. Passer directement en Mode A ou Mode B.
 - **Absent** (aucun fichier injecté) → évaluer les conditions ci-dessous.
 
-> ❌ Ne jamais utiliser `read`, `bash` ou tout autre outil pour vérifier l'existence des fichiers de contexte. Si le contexte n'est pas dans la session, c'est qu'il est absent du projet.
-
 **Condition de déclenchement — proposer le Mode C si ET SEULEMENT SI :**
 - Aucun contexte projet n'est disponible dans la session
 - ET l'utilisateur ne donne aucun contexte projet dans son message (feature brute sans contexte)
