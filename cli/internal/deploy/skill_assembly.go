@@ -128,10 +128,11 @@ func stripHubFields(frontmatter []byte) []byte {
 	var result bytes.Buffer
 
 	hubFields := map[string]bool{
-		"skills:":        true,
-		"native_skills:": true,
-		"mcpServers:":    true,
-		"model:":         true,
+		"skills:":          true,
+		"native_skills:":   true,
+		"mcpServers:":      true,
+		"model:":           true,
+		"permission_base:": true,
 	}
 
 	skipping := false

@@ -1,0 +1,13 @@
+# Permission base: coordinator
+# Coordination-only — no direct file modification, no bash execution.
+# Delegates all work via task tool. Used by: orchestrator, auditor
+question: allow
+skill: allow
+bash: deny
+read: allow
+glob: allow
+grep: allow
+edit: deny
+write: deny
+ctx_search: allow
+ctx_batch_execute: allow

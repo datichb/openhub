@@ -12,15 +12,16 @@ import (
 
 // AgentFrontmatter represents the parsed YAML frontmatter of an agent .md file.
 type AgentFrontmatter struct {
-	ID           string                 `yaml:"id"`
-	Label        string                 `yaml:"label"`
-	Description  string                 `yaml:"description"`
-	Mode         string                 `yaml:"mode"`          // "primary" (default) | "subagent"
-	Model        string                 `yaml:"model"`         // floor model (optional, e.g. "anthropic/claude-sonnet-4-6")
-	Permission   map[string]interface{} `yaml:"permission"`    // structured permissions (nested maps for bash/task)
-	Skills       []string               `yaml:"skills"`        // Bucket A — inline skills
-	NativeSkills []string               `yaml:"native_skills"` // Bucket B — on-demand skills
-	MCPServers   []string               `yaml:"mcpServers"`    // required MCP servers
+	ID             string                 `yaml:"id"`
+	Label          string                 `yaml:"label"`
+	Description    string                 `yaml:"description"`
+	Mode           string                 `yaml:"mode"`            // "primary" (default) | "subagent"
+	Model          string                 `yaml:"model"`           // floor model (optional, e.g. "anthropic/claude-sonnet-4-6")
+	PermissionBase string                 `yaml:"permission_base"` // base permission file (resolved from permissions/<name>.yaml)
+	Permission     map[string]interface{} `yaml:"permission"`      // structured permissions (nested maps for bash/task)
+	Skills         []string               `yaml:"skills"`          // Bucket A — inline skills
+	NativeSkills   []string               `yaml:"native_skills"`   // Bucket B — on-demand skills
+	MCPServers     []string               `yaml:"mcpServers"`      // required MCP servers
 }
 
 // ParseAgentFrontmatter reads an agent .md file and extracts its YAML frontmatter.

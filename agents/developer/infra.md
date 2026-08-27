@@ -3,92 +3,22 @@ id: infra
 label: Agent Infra/DevOps
 description: Review Terraform/K8s/Helm, estimation coûts cloud, audit IaC sécurité, détection de drift. Intervient sur la plateforme sans jamais appliquer de changements en production.
 mode: primary
+permission_base: developer-rw
 permission:
   question: allow
-  skill: allow
   bash:
-    "*": deny
-    # Lecture système
-    "ls*": allow
-    "find*": allow
-    "cat *": allow
-    "wc *": allow
-    "tree*": allow
-    # Terraform — lecture seule (pas d'apply, pas de destroy)
-    "terraform init*": allow
-    "terraform validate*": allow
-    "terraform plan*": allow
-    "terraform fmt*": allow
-    "terraform show*": allow
-    "terraform state list*": allow
-    "terraform state show*": allow
-    "terraform graph*": allow
-    "tofu validate*": allow
-    "tofu plan*": allow
-    "tofu fmt*": allow
-    # Kubernetes — lecture
-    "kubectl get*": allow
-    "kubectl describe*": allow
-    "kubectl diff*": allow
-    "kubectl dry-run*": allow
-    "kubectl explain*": allow
-    "kubectl logs*": allow
-    "kubectl top*": allow
-    # Helm — lecture
-    "helm lint*": allow
-    "helm template*": allow
-    "helm diff*": allow
-    "helm list*": allow
-    "helm show*": allow
-    "helm get*": allow
-    "helm status*": allow
-    # ArgoCD — lecture
-    "argocd app list*": allow
-    "argocd app get*": allow
-    "argocd app diff*": allow
-    "argocd app history*": allow
-    # Outils d'analyse IaC
-    "tfsec*": allow
-    "checkov*": allow
-    "terrascan*": allow
-    "trivy config*": allow
-    "kube-score*": allow
-    "kube-linter*": allow
-    "kubesec*": allow
-    "polaris*": allow
-    "infracost*": allow
-    # Cloud CLIs — lecture seule
-    "aws sts get-caller-identity*": allow
-    "aws ec2 describe*": allow
-    "aws s3 ls*": allow
-    "gcloud info*": allow
-    "gcloud compute instances list*": allow
-    "az account show*": allow
-    # Git — lecture
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "git status*": allow
-    "git fetch*": allow
-    # Réseau
-    "curl*": allow
-    # Divers
-    "echo *": allow
-    "which *": allow
-    "env *": allow
-    "printenv*": allow
-  read: allow
-  glob: allow
-  grep: allow
-  edit: deny
-  write: allow
-  task:
-    "*": deny
-    "documentarian": allow
-  ctx_search: allow
-  ctx_execute: allow
-  ctx_execute_file: allow
-  ctx_batch_execute: allow
+    # Infrastructure tools (additions sur la base developer-rw)
+    "terraform*": allow
+    "tf *": allow
+    "ansible*": allow
+    "helm*": allow
+    "kubectl*": allow
+    "k9s*": allow
+    "aws *": allow
+    "gcloud *": allow
+    "az *": allow
+    "pulumi*": allow
+    "vault *": allow
 model: claude-opus-4-6
 skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security]

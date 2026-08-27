@@ -1,0 +1,14 @@
+# Permission base: readonly-code
+# Read-only access to code — no bash, no edit, no write.
+# Used by: auditor-subagent, brief-enricher
+skill: allow
+bash: deny
+read: allow
+glob: allow
+grep: allow
+edit: deny
+write: deny
+websearch: allow
+webfetch: allow
+ctx_search: allow
+ctx_batch_execute: allow

@@ -3,66 +3,13 @@ id: test-generator
 label: Agent Test Generator
 description: Analyse les gaps de couverture et génère des tests ciblés (unit, integration, property-based). Produit des tests actionnables couvrant les cas nominaux, limites et d'erreur.
 mode: primary
+permission_base: developer-rw
 permission:
   question: allow
-  skill: allow
-  bash:
-    "*": deny
-    # Lecture système
-    "ls*": allow
-    "find*": allow
-    "cat *": allow
-    "wc *": allow
-    "tree*": allow
-    # Coverage — lecture des rapports existants
-    "npx jest --coverage --coverageReporters=json*": allow
-    "npx vitest run --coverage*": allow
-    "python -m pytest --cov*": allow
-    "go test -cover*": allow
-    "go test -coverprofile*": allow
-    "go tool cover*": allow
-    "cargo tarpaulin*": allow
-    "bundle exec rspec --format json*": allow
-    # Runners de tests (exécution de validation uniquement)
-    "npx jest*": allow
-    "npx vitest*": allow
-    "pytest*": allow
-    "python -m pytest*": allow
-    "go test*": allow
-    "cargo test*": allow
-    "rspec*": allow
-    "bundle exec rspec*": allow
-    "dotnet test*": allow
-    # Package managers (install uniquement)
-    "npm install*": allow
-    "npm ci*": allow
-    "pip install*": allow
-    "pip3 install*": allow
-    "go get*": allow
-    "cargo add*": allow
-    # Git — lecture
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "git status*": allow
-    # Divers
-    "echo *": allow
-    "which *": allow
-    "env *": allow
-    "printenv*": allow
-  read: allow
-  glob: allow
-  grep: allow
-  edit: allow
-  write: allow
   task:
     "*": deny
     "documentarian": allow
     "reviewer": allow
-  ctx_search: allow
-  ctx_execute: allow
-  ctx_execute_file: allow
-  ctx_batch_execute: allow
 model: claude-opus-4-6
 skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: []

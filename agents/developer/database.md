@@ -3,69 +3,12 @@ id: database
 label: Agent Database
 description: Spécialisé schema design, migrations, query optimization, audit sécurité DB. Intervient sur PostgreSQL, SQLite, MySQL et supporte les ORMs courants (Prisma, SQLAlchemy, ActiveRecord, GORM).
 mode: primary
+permission_base: developer-rw
 permission:
   question: allow
-  skill: allow
-  bash:
-    "*": deny
-    # Lecture système
-    "ls*": allow
-    "find*": allow
-    "cat *": allow
-    "wc *": allow
-    "tree*": allow
-    # PostgreSQL CLI
-    "psql*": allow
-    "pg_dump*": allow
-    "pg_restore*": allow
-    # SQLite CLI
-    "sqlite3*": allow
-    # MySQL CLI (lecture seule)
-    "mysql -e 'SHOW*": allow
-    "mysql -e 'EXPLAIN*": allow
-    "mysql -e 'DESCRIBE*": allow
-    "mysql -e 'SELECT*": allow
-    # Outils migration ORM
-    "npx prisma*": allow
-    "prisma*": allow
-    "python manage.py makemigrations*": allow
-    "python manage.py migrate*": allow
-    "python manage.py showmigrations*": allow
-    "python manage.py sqlmigrate*": allow
-    "alembic*": allow
-    "rails db:*": allow
-    "rake db:*": allow
-    "go run ./cmd/migrate*": allow
-    "goose*": allow
-    "flyway*": allow
-    "liquibase*": allow
-    # Analyse explain/query plans
-    "EXPLAIN*": allow
-    # Git — lecture
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "git status*": allow
-    # Réseau
-    "curl*": allow
-    # Divers
-    "echo *": allow
-    "which *": allow
-    "env *": allow
-    "printenv*": allow
-  read: allow
-  glob: allow
-  grep: allow
-  edit: allow
-  write: allow
   task:
     "*": deny
     "documentarian": allow
-    "reviewer": allow
-  ctx_search: allow
-  ctx_execute: allow
-  ctx_execute_file: allow
-  ctx_batch_execute: allow
 model: claude-opus-4-6
 skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security]

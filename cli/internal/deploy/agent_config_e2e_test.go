@@ -26,7 +26,7 @@ func TestDeployAgentConfigE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block := buildAgentBlock(fm, "planning", nil, nil, nil, "amazon-bedrock")
+	block := buildAgentBlock(fm, "planning", "", nil, nil, nil, "amazon-bedrock")
 	agentCfg["orchestrator"] = block
 	config["agent"] = agentCfg
 

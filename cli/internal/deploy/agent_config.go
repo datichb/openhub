@@ -101,7 +101,7 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 				family := AgentFamily(rel)
 
 				// Build agent config block
-				agentBlock := buildAgentBlock(fm, family, projectOverrides, hubOverrides, teamOverrides, provider)
+				agentBlock := buildAgentBlock(fm, family, hubDir, projectOverrides, hubOverrides, teamOverrides, provider)
 				if agentBlock != nil {
 					// DEBUG TEMP: log task permissions for orchestrator
 					if fm.ID == "orchestrator" {
@@ -139,7 +139,7 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 
 // buildAgentBlock constructs the per-agent configuration block for opencode.json.
 // Returns nil if there's nothing meaningful to write (no mode, no permissions, no model).
-func buildAgentBlock(fm *AgentFrontmatter, family string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) map[string]interface{} {
+func buildAgentBlock(fm *AgentFrontmatter, family string, hubDir string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) map[string]interface{} {
 	block := make(map[string]interface{})
 
 	// Description: required by opencode for agent display and delegation
@@ -158,9 +158,15 @@ func buildAgentBlock(fm *AgentFrontmatter, family string, projectOverrides, hubO
 		block["model"] = model
 	}
 
-	// Permission: serialize the structured permission map
-	if len(fm.Permission) > 0 {
-		block["permission"] = convertPermissionForJSON(fm.Permission)
+	// Permission: resolve base + overrides, then serialize
+	perms, err := ResolvePermissions(hubDir, fm)
+	if err != nil {
+		slog.Warn("permission resolution failed, using inline only",
+			"agent", fm.ID, "error", err)
+		perms = fm.Permission
+	}
+	if len(perms) > 0 {
+		block["permission"] = convertPermissionForJSON(perms)
 	}
 
 	// Only return block if it has content
