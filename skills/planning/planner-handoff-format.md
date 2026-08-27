@@ -14,12 +14,9 @@ Il est injecté dans le `planner` et dans l'`orchestrator` — producteur et con
 
 Quand tu es invoqué depuis l'`orchestrator`, ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le récapitulatif de planification (contexte, raisonnement, justification des choix) est **intégré dans le bloc** (section `### Récapitulatif de planification`), pas produit séparément en texte libre.
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le récapitulatif de planification (contexte, raisonnement, justification des choix) est **intégré dans le bloc** (section `### Récapitulatif de planification`), pas produit séparément en texte libre.
 
 En standalone, le bloc est également le seul output après la Phase 4 (vérification + validation finale).
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le récapitulatif est bien dans la section `### Récapitulatif de planification` du bloc. »
 
 ---
 

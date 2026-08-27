@@ -15,10 +15,7 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 Quand tu es invoqué depuis l'`orchestrator` (et non en standalone),
 ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'audit complet (preuves, contexte, chemins d'exploitation) est **intégré dans le bloc** (section `### Rapport d'audit complet`), pas produit séparément en texte libre.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le rapport d'audit est bien dans la section `### Rapport d'audit complet` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'audit complet (preuves, contexte, chemins d'exploitation) est **intégré dans le bloc** (section `### Rapport d'audit complet`), pas produit séparément en texte libre.
 
 ---
 

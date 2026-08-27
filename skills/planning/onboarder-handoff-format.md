@@ -15,10 +15,7 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 Quand tu es invoqué depuis l'`orchestrator` (Mode C — projet inconnu),
 ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'onboarding (contexte de découverte, observations narratives) est **intégré dans le bloc** (section `### Rapport d'onboarding`), pas produit séparément en texte libre.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le rapport est bien dans la section `### Rapport d'onboarding` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'onboarding (contexte de découverte, observations narratives) est **intégré dans le bloc** (section `### Rapport d'onboarding`), pas produit séparément en texte libre.
 
 ---
 

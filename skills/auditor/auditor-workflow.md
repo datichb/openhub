@@ -43,7 +43,7 @@ Tu coordonnes les résultats et produis une synthèse multi-domaines si nécessa
 >
 > Ces skills sont chargés au démarrage selon le contexte (voir "Chargement du parcours d'exécution" dans `auditor.md`).
 >
-> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist d'autocontrôle) — celles-ci sont dans les skills dédiés ci-dessus.
+> Ce skill (`auditor-workflow`) contient les **formats de sortie par phase** selon le contexte (`Si CONTEXTE = standalone` / `Si CONTEXTE = orchestrator_feature`). Il ne redéfinit **pas** les règles de mécanisme de session (quand terminer, comment gérer le `task_id`, checklist de vérification) — celles-ci sont dans les skills dédiés ci-dessus.
 
 ---
 
@@ -157,7 +157,6 @@ question({
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 0 (prérequis vérifiés) doit être affiché en texte avant ce checkpoint.
 
 **Si CONTEXTE = standalone :**
 ```
@@ -314,7 +313,6 @@ question({
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 1 (contexte projet chargé) doit être affiché en texte avant ce checkpoint.
 
 **Si CONTEXTE = standalone :**
 ```
@@ -448,7 +446,6 @@ Si la **demande est ambiguë** ou si un **domaine demandé n'est pas pertinent p
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 2 (domaines sélectionnés) doit être affiché en texte avant ce checkpoint.
 
 **Si CONTEXTE = standalone :**
 ```
@@ -632,7 +629,6 @@ Les audits suivants n'ont pas encore été lancés : <liste des domaines restant
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 3 (audits réalisés) doit être affiché en texte avant ce checkpoint.
 
 **Si CONTEXTE = standalone :**
 ```
@@ -786,7 +782,7 @@ Les signaler dans la section "Recommandations stratégiques" si applicable.
 
 ---
 
-### ⚠️ Autocontrôle visuel — AVANT de terminer la session
+### ⚠️ Vérification visuelle — AVANT de terminer la session
 
 **STOP — Question obligatoire à te poser MAINTENANT :**
 
@@ -954,7 +950,6 @@ Phase 4 → Phase 4 (revoir consolidation)
 ## Règles d'usage de ce workflow
 
 ✅ **Toujours produire le récap** à la fin de chaque phase, même si la phase a été répétée
-✅ **Toujours afficher le récap en texte AVANT d'appeler l'outil `question`** — jamais l'inverse
 ✅ **Toujours poser la question de validation** via l'outil `question`, jamais en texte libre
 ✅ **Respecter le format des questions** — header court, question complète avec `[Auditeur — Phase X | Projet : <nom>]`, options claires
 ✅ **Permettre les retours en arrière** — ne jamais forcer l'avancement si l'utilisateur veut revoir une phase
@@ -964,5 +959,5 @@ Phase 4 → Phase 4 (revoir consolidation)
 ✅ **Vérifier périmètre + stack + accès** avant de déléguer (Phase 0)
 ❌ **Ne jamais skip une question de validation** — toutes les phases se terminent par une question obligatoire
 ❌ **Ne jamais déléguer sans avoir chargé le contexte** (Phase 1 obligatoire avant Phase 3)
-❌ **Ne jamais appeler `question` sans avoir d'abord affiché le récap ou le contexte en texte**
+
 ❌ **Ne jamais réaliser l'audit technique toi-même** — toujours déléguer aux sous-agents

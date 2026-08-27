@@ -26,8 +26,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
-native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, shared/rtk-usage]
+skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
+native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, shared/rtk-usage, orchestrator/orchestrator-modes, orchestrator/orchestrator-ticket-routing, orchestrator/orchestrator-recap-edge]
 ---
 
 # Orchestrator
@@ -98,8 +98,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
    a. **VÉRIFIER** la présence du bloc `## Retour vers orchestrator` avec ses sections intégrées (`### Rapport de diagnostic complet`, etc.)
    b. **RETRANSCRIRE les champs du bloc de manière formatée** dans la discussion (afficher chaque section du bloc telle quelle)
    c. **VÉRIFIER les sections critiques** : `### Actions d'urgence si bug en prod`, `### Impact et régressions potentielles`
-   d. **AUTOCONTRÔLE** : « Ai-je affiché les champs du bloc AVANT d'appeler question ? »
-   e. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
+   d. **PUIS SEULEMENT** appeler l'outil `question` pour demander la suite
    
 4. Présenter en priorité les `### Actions d'urgence si bug en prod` si renseignées
 5. Proposer d'intégrer les tickets créés dans le workflow (Mode A ou B) si applicable
@@ -134,7 +133,6 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 **Maintenant seulement,** utiliser l'outil `question` pour la décision.
 ```
 
-> ❌ Ne jamais appeler `question` sans avoir d'abord affiché le rapport et le bloc
 > ❌ Ne jamais résumer le rapport — le copier intégralement
 > ❌ Ne jamais omettre le bloc structuré
 > ❌ Ne jamais inclure le rapport dans le champ `question` de l'outil

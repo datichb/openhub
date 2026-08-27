@@ -40,7 +40,7 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [shared/universal-guardrails, developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
 mcpServers: [gitlab]
 ---
@@ -135,20 +135,9 @@ Le rapport doit être :
 
 L'utilisateur décide en dernier ressort.
 
-## Contexte d'invocation
+## Parcours d'exécution
 
-Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrage par le chargement du skill approprié (voir section "Chargement du parcours d'exécution" ci-dessus).
-
----
-
-## Chargement du parcours d'exécution
-
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:planning/pathfinder-subagent]` → charger le skill `pathfinder-subagent` via l'outil `skill`
-- Sinon (invocation directe) → charger le skill `pathfinder-standalone` via l'outil `skill`
-
-Le skill chargé définit le format de retour et les règles de communication pour toute la session.
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
 ---
 

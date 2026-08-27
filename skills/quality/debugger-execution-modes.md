@@ -76,14 +76,6 @@ Produire uniquement :
 
 ---
 
-## Autocontrôle avant chaque `question`
-
-> « Ai-je produit le récap (ou le contexte de pause) en texte clair dans la discussion avant cet appel ? »
-> - **Non** → produire le récap maintenant, puis appeler `question`
-> - **Oui** → appeler `question`
-
----
-
 ## Mode subagent
 
 > Ce skill est chargé quand le debugger est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:quality/debugger-subagent]` dans le prompt.
@@ -97,7 +89,7 @@ Quand le debugger est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Mécanisme d'interruption — RÈGLE ABSOLUE
+## Mécanisme d'interruption
 
 **À CHAQUE fin de phase ET à chaque pause ad hoc :**
 
@@ -111,14 +103,6 @@ L'orchestrateur :
 - Lit la `## Question pour l'orchestrator`
 - Pose la question à l'utilisateur via l'outil `question`
 - Re-invoque le debugger avec `task_id` + la réponse → le debugger recharge l'historique et continue
-
----
-
-## Autocontrôle avant chaque fin de session
-
-> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
-> - **Non** → produire les blocs manquants MAINTENANT
-> - **Oui** → terminer la session
 
 ---
 
@@ -620,9 +604,6 @@ Phase 5 est le **retour final** — pas de question intermédiaire après la cr�
 ### Statut
 `diagnostiqué` | `partiellement-diagnostiqué` | `non-reproductible`
 ```
-
-> **Autocontrôle avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — le rapport de diagnostic est DANS le bloc (section `### Rapport de diagnostic complet`). »
 
 → **TERMINER LA SESSION**
 

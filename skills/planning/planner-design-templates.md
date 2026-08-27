@@ -198,8 +198,6 @@ Appliquer la stratégie de traçabilité en Phase 5 : pour chaque ticket concern
 
 ### Question de validation obligatoire
 
-⚠️ **AUTOCONTRÔLE** : Le récap Phase 1.5 (ci-dessus — specs UX/UI reçues ou skippées, intégration dans la planification) **doit être affiché en texte** avant ce checkpoint. Si ce n'est pas fait → produire le récap MAINTENANT.
-
 **Si CONTEXTE = standalone :**
 ```
 question({

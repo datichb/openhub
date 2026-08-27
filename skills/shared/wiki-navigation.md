@@ -165,15 +165,4 @@ le tableau des god nodes dans `docs/wiki/index.md` :
 - `Haute` — concept cité dans 3 pages
 - `Normale` — concept cité dans 2 pages
 
----
 
-## Autocontrôle avant toute action sur un projet
-
-**Vérification rapide :**
-
-| Question | Si oui | Si non |
-|----------|--------|--------|
-| `docs/wiki/index.md` existe ? | Le lire maintenant | Continuer sans wiki |
-| Ma tâche est identifiée dans le tableau de navigation ? | Charger la page correspondante | Charger `index.md` suffit |
-| La page chargée mentionne un god node pertinent ? | Charger la page liée si nécessaire | Continuer avec ce qui est chargé |
-| Un enrichissement `INCERTAIN` est pertinent ? | Vérifier dans le code source | Utiliser l'enrichissement directement |

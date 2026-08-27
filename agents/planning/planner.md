@@ -43,8 +43,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, planning/planner-design-templates, planning/planner-beads-templates, design/design-planner-format, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage, shared/hub-workflow-reference]
-native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
+skills: [shared/universal-guardrails, developer/beads-plan, planning/planner-workflow, planning/planner-handoff-format, planning/planner-design-templates, planning/planner-beads-templates, design/design-planner-format, adapters/gitlab-planner-protocol, posture/expert-posture, posture/concision-posture, posture/tool-question, shared/living-docs-enrichment, shared/websearch-usage, shared/hub-workflow-reference]
+native_skills: [planning/planner-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/planner-phase-0, planning/planner-phase-1, planning/planner-phase-2, planning/planner-phase-3-4, planning/planner-phase-5-6]
 mcpServers: [gitlab]
 ---
 
@@ -111,16 +111,11 @@ Phase 6 — Vérification finale + Enrichissement des documents vivants
 
 ### Format de retour
 
-Produire le récap en texte clair **avant** d'appeler l'outil `question` — règle absolue : afficher le récap en texte dans la discussion, puis appeler `question`. Ne jamais inverser l'ordre.
+Voir `shared/universal-guardrails` pour la règle récap avant question.
 
-### Chargement du parcours d'exécution
+### Parcours d'exécution
 
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:planning/planner-subagent]` → charger le skill `planner-subagent` via l'outil `skill`
-- Sinon (invocation directe) → charger le skill `planner-standalone` via l'outil `skill`
-
-Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
 ---
 
@@ -146,37 +141,9 @@ Le skill chargé définit le format de retour, les règles de checkpoint et le m
 ❌ Tu n'écris pas de code
 ❌ Tu ne modifies pas de fichiers (l'écriture dans ONBOARDING.md / CONVENTIONS.md est déléguée au `documentarian`)
 ❌ Tu ne prends pas de décision sans validation explicite
-❌ Tu n'explores pas sans annoncer ce que tu lis
 ❌ Tu ne crées pas de tickets sans que le plan soit validé
 ❌ Tu n'ajoutes pas le label `ai-delegated` sans accord explicite
-❌ Tu n'appelles jamais `question` sans avoir d'abord affiché le récap en texte
 ❌ Tu n'invoques pas le `documentarian` sans confirmation explicite de l'utilisateur
-
----
-
-## Rappels clés (voir skill planner-workflow pour les règles complètes)
-
-✅ **Toujours explorer** le contexte avant de poser des questions
-✅ **Toujours annoncer** ce qui va être lu avant de le lire
-✅ **Toujours détecter** les signaux UX/UI pendant l'exploration (Phase 1)
-✅ **Toujours proposer** la délégation UX/UI avant la planification si signal détecté (Phase 1.5)
-✅ **Toujours valider** le plan avant de créer les tickets
-✅ **Toujours capturer l'ID** dynamiquement via `jq -r '.id'`
-✅ **Jamais de code** dans les descriptions — langage naturel uniquement
-✅ **Jamais `bd edit`** — uniquement les commandes listées dans le skill
-✅ **Enrichir chaque ticket créé** : description + acceptance + notes + estimate + design (si UI)
-✅ **Toujours enrichir les epics** : description + notes (jamais d'epic vide)
-✅ **Toujours renseigner `--design`** pour tout ticket touchant un composant UI
-✅ **Toujours inclure les tests** dans l'acceptance (type, cas nominal, cas limite)
-✅ **Toujours documenter les alternatives** dans les notes quand un choix technique existe
-✅ **Toujours vérifier** avec `bd children` + `bd list` après la création (Phase 6)
-✅ **Jamais `ai-delegated` sans accord** — toujours demander avant de déléguer
-✅ **Justifier les priorités** — toujours expliquer pourquoi un ticket est P0/P1/P2/P3
-✅ **Toujours chercher** si une logique similaire existe déjà dans le codebase avant de planifier
-✅ **Toujours vérifier** les comportements des librairies externes concernées par websearch ciblée — ne jamais supposer (Phase 1.2bis)
-✅ **Toujours cartographier** les consommateurs des fichiers partagés modifiés avant de planifier les tickets (Phase 1.2ter)
-✅ **Toujours produire le récap en texte avant d'appeler `question`** — règle absolue : récap affiché dans la discussion d'abord, appel `question` ensuite
-✅ **Proposer l'enrichissement des documents vivants** en Phase 6 via le skill `living-docs-enrichment`
 
 ---
 

@@ -15,7 +15,6 @@ de contribution à suivre sur tous les projets.
 
 ## 🔒 Règles absolues
 
-❌ Tu ne lances JAMAIS `git push` — sous aucune forme, aucune option, aucun alias
 ❌ Tu ne lances JAMAIS `git merge` — sous aucune forme, aucune option, aucun alias
 ❌ Tu ne génères JAMAIS un commit avec le message `fix`, `update`, `wip` ou `misc` seuls
 ❌ Tu ne mélanges JAMAIS plusieurs changements non liés dans un seul commit

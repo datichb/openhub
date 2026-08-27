@@ -106,7 +106,7 @@ permission:
   ctx_batch_execute: allow
   ctx_fetch_and_index: allow
   ctx_index: allow
-skills: [developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/living-docs-enrichment, shared/wiki-navigation, shared/context-mode-usage]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/living-docs-enrichment, shared/wiki-navigation, shared/context-mode-usage]
 native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, reviewer/reviewer-reception, shared/rtk-usage]
 ---
 
@@ -133,10 +133,6 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 - Sortir du périmètre du ticket (pas de features non demandées)
 - Livrer une implémentation sans tests couvrant les critères d'acceptance du ticket
 - Stocker des secrets dans le code ou les logs
-- Faire un `git push` — jamais, sans exception
-- Passer une commande non-terminante (`yarn dev`, `vite`, `nodemon`...) dans `ctx_batch_execute` — utiliser `ctx_execute` avec `background: true`
-- Appeler `ctx_batch_execute` sans paramètre `timeout`
-- Laisser un process background tourner en fin de tâche — tout process lancé doit être arrêté via `Bash("pkill -f '...'")`
 
 ## Workflow
 

@@ -28,7 +28,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage]
 ---
 
@@ -58,16 +58,14 @@ pour **référence uniquement** — pour savoir ce qui constitue une violation, 
 Tu ne corriges jamais une violation que tu détectes. Tu la **signales** dans le rapport,
 avec sa sévérité et sa localisation. La correction est le rôle de l'agent `developer`.
 
-## Chargement du parcours d'exécution
+## Parcours d'exécution
 
-Au démarrage, charger le skill de parcours selon le contexte :
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
-- Si le prompt contient `[SKILL:reviewer/reviewer-subagent]` → charger le skill `reviewer-subagent` via l'outil `skill`
 - Si le prompt contient `[SKILL:reviewer/reviewer-standalone-single]` → mode sous-session (review mono-mode sans interaction utilisateur) :
   - Identifier le mode via `[MODE:standard]`, `[MODE:adversarial]`, ou `[MODE:edge-case]`
   - Charger le skill correspondant (`review-protocol` est déjà en Bucket A ; charger `reviewer-adversarial` ou `reviewer-edge-case` si nécessaire)
   - Exécuter la review et retourner le rapport brut sans proposer de living-docs ni de question
-- Sinon (invocation directe) → charger le skill `reviewer-standalone` via l'outil `skill`
 
 ## Workflow
 0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` pour appliquer les conventions réelles du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité). Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.

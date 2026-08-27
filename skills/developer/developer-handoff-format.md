@@ -14,10 +14,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Pas de compte rendu narratif, pas d'introduction, pas de résumé, pas de conclusion. Le bloc est autosuffisant.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator-dev` ? Si oui, le supprimer et encoder l'information dans les champs du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Pas de compte rendu narratif, pas d'introduction, pas de résumé, pas de conclusion. Le bloc est autosuffisant.
 
 ---
 

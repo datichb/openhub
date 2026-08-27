@@ -25,7 +25,7 @@ En mode standalone, le texte de chaque phase est **directement visible** par l'u
 
 ---
 
-## Règle absolue — récap avant question
+## Ordering : récap → question
 
 **À CHAQUE fin de phase :**
 
@@ -52,16 +52,7 @@ question({
 })
 ```
 
-> ❌ **JAMAIS** : appeler `question` sans avoir d'abord affiché le récap
 > ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
-
----
-
-## Autocontrôle avant chaque appel `question`
-
-> « Ai-je produit le récap en texte clair dans la discussion avant cet appel ? »
-> - **Non** → produire le récap maintenant, puis appeler `question`
-> - **Oui** → appeler `question`
 
 ---
 
@@ -171,7 +162,7 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 
 ---
 
-## Mécanisme d'interruption — RÈGLE ABSOLUE
+## Mécanisme d'interruption
 
 **À CHAQUE fin de phase :**
 
@@ -179,14 +170,6 @@ Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est *
 2. Produire le bloc `## Retour intermédiaire vers orchestrator`
 3. Produire le bloc `## Question pour l'orchestrator`
 4. **TERMINER LA SESSION**
-
----
-
-## Autocontrôle avant chaque fin de session
-
-> « Ai-je produit (1) le récap de la phase, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
-> - **Non** → produire les blocs manquants MAINTENANT
-> - **Oui** → terminer la session
 
 ---
 
@@ -396,7 +379,6 @@ Phase 5 est le **retour final**. Produire dans cet ordre :
 
 Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `onboarder-handoff-format`). Le rapport d'onboarding est intégré dans le bloc (section `### Rapport d'onboarding`), pas produit séparément.
 
-> **Autocontrôle obligatoire avant de terminer la session :**
 > « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — le rapport est DANS le bloc. »
 
 → **TERMINER LA SESSION**

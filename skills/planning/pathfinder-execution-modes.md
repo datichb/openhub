@@ -25,14 +25,13 @@ En mode standalone, le texte est **directement visible** par l'utilisateur. La c
 
 ---
 
-## Règle absolue — récap avant question
+## Ordering : récap → question
 
 **Avant tout appel à l'outil `question` :**
 
 1. **TOUJOURS afficher le contexte en texte clair** dans la discussion avant d'appeler `question`
 2. **PUIS** appeler l'outil `question`
 
-> ❌ **JAMAIS** : appeler `question` sans avoir d'abord affiché le contexte
 > ✅ **TOUJOURS** : afficher le contexte → puis appeler `question`
 
 ### Format standard pour une pause avec question
@@ -167,7 +166,7 @@ Ce qui a été exploré jusqu'ici : <résumé rapide des observations>
 
 ---
 
-## Autocontrôle final
+## Vérification finale
 
 - [ ] Ai-je produit le rapport pathfinder complet ?
 - [ ] Ai-je produit le bloc `## Retour vers orchestrator` ?

@@ -11,7 +11,7 @@ description: Parcours d'exécution du reviewer en mode sous-agent (invoqué via 
 
 Quand le reviewer est invoqué via `task`, son **seul output** est le bloc `## Retour vers orchestrator-dev`.
 
-**Règle absolue :** aucun texte avant, après ou en dehors du bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
+**Format de sortie :** aucun texte avant, après ou en dehors du bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
 
 ---
 
@@ -62,7 +62,7 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles :
 
 ---
 
-## Règle absolue
+## Format obligatoire
 
 > ❌ Ne jamais écrire de texte en dehors du bloc de handoff
 > ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc (section `### Rapport complet`)

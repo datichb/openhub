@@ -296,16 +296,4 @@ Ce skill peut être invoqué par l'orchestrateur dans le cadre d'un feature work
 **contexte :** <pourquoi cette information est nécessaire>
 **impact :** <ce que la réponse change dans l'analyse>
 
----
-
-## Autocontrôle
-
-- [ ] Durée d'exploration < 5 min ?
-- [ ] Complexité estimée et justifiée (XS/S/M/L/XL) ?
-- [ ] Signaux détectés et documentés ?
-- [ ] Recommandation argumentée (direct/escalade) ?
-- [ ] Rapport structuré et exploitable ?
-- [ ] Handoff complet si escalade suggérée ?
-- [ ] Confirmation demandée avant toute création de ticket ?
-
 > Le parcours de retour (standalone vs sous-agent) est défini dans les skills `pathfinder-standalone` et `pathfinder-subagent` — s'y référer pour les règles de communication et le format final.

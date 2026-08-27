@@ -20,7 +20,7 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
 mcpServers: [figma]
-skills: [designer/designer-protocol, developer/beads-plan, design/design-planner-format, design/design-handoff-format, posture/expert-posture, posture/tool-question, shared/websearch-usage]
+skills: [shared/universal-guardrails, designer/designer-protocol, developer/beads-plan, design/design-planner-format, design/design-handoff-format, posture/expert-posture, posture/tool-question, shared/websearch-usage]
 native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage]
 ---
 
@@ -59,13 +59,9 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 | `ux+ui` | Charger `designer/ux-protocol` + `designer/ui-protocol` + `designer/figma-deep-protocol` |
 | *(absent)* | Mode `ux` par défaut si signal UX, mode `ui` si signal UI visuel uniquement |
 
-## Chargement du parcours d'exécution
+## Parcours d'exécution
 
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:designer/designer-subagent]` → charger le skill `designer-subagent` via l'outil `skill`
-- Sinon (invocation directe) → utiliser l'outil `question` normalement
-- En mode orchestrateur : Ne jamais utiliser l'outil `question` — passer par bloc intermédiaire ou déléguer via sous-agent
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut (utiliser l'outil `question` normalement). En mode orchestrateur : ne jamais utiliser l'outil `question` — passer par bloc intermédiaire ou déléguer via sous-agent.
 
 ---
 

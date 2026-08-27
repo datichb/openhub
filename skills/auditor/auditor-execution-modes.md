@@ -25,7 +25,7 @@ En mode standalone, le texte de chaque phase est **directement visible** par l'u
 
 ---
 
-## Règle absolue — récap avant question
+## Ordering : récap → question
 
 **À CHAQUE fin de phase :**
 
@@ -48,7 +48,6 @@ question({
 })
 ```
 
-> ❌ **JAMAIS** : appeler `question` sans avoir d'abord affiché le récap
 > ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
 
 ---
@@ -151,7 +150,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Mécanisme d'interruption — RÈGLE ABSOLUE
+## Mécanisme d'interruption
 
 **À CHAQUE fin de phase (0 à 3) :**
 
@@ -162,7 +161,7 @@ Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **P
 
 ---
 
-## Autocontrôle avant chaque fin de session
+## Vérification avant chaque fin de session
 
 > « Ai-je produit (1) le récap, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
 > - **Non** → produire les blocs manquants MAINTENANT
@@ -343,7 +342,6 @@ Phase 4 est le **retour final**. Produire dans cet ordre :
 1. **La synthèse exécutive multi-domaines** (texte narratif)
 2. **Le bloc `## Retour vers orchestrator`** (bloc unique autosuffisant — la synthèse est intégrée dans la section `### Rapport d'audit complet`) — voir skill `audit-handoff-format`
 
-> **Autocontrôle obligatoire avant de terminer la session :**
 > « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer — la synthèse est DANS le bloc. »
 
 → **TERMINER LA SESSION**

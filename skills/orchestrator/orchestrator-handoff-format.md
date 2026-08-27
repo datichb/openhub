@@ -14,7 +14,7 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — le producteur et l
 
 Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output** est le(s) bloc(s) structuré(s) défini(s) ci-dessous. Aucun texte libre avant, après ou en dehors des blocs.
 
-**Règle absolue :** pas de récap global en texte libre, pas d'introduction, pas de résumé narratif. Toutes les informations sont encodées dans les champs structurés du bloc `## Retour vers orchestrator`.
+**Format de sortie :** pas de récap global en texte libre, pas d'introduction, pas de résumé narratif. Toutes les informations sont encodées dans les champs structurés du bloc `## Retour vers orchestrator`.
 
 ---
 
@@ -82,7 +82,6 @@ Quand `orchestrator-dev` est invoqué depuis l'`orchestrator`, son **seul output
 Ce bloc est **obligatoire** quand invoqué depuis l'agent orchestrator feature. Il n'est pas produit quand invoqué standalone.
 
 > ⚠️ Ce bloc doit être produit **même en cas de stop, de ticket bloqué ou de session partielle** — un récap `partiel` sans lui est invalide.
-> Autocontrôle avant de clore la session : « Ai-je produit ce bloc ? Si non, le produire maintenant. »
 > ❌ Ne jamais écrire de texte libre en dehors des blocs structurés.
 
 ---
@@ -241,7 +240,7 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
   > `"Réponse de l'utilisateur au CP <phase> pour le ticket #<ID> : <réponse>. Reprendre depuis l'étape correspondante."`
 - Ne jamais construire une réponse à la place de l'utilisateur.
 - Ne jamais ignorer le bloc — toute question montante doit être traitée avant de continuer.
-- **Autocontrôle pour distinguer récap partiel et final :**
+- **Distinguer récap partiel et final :**
   > Un `## Retour vers orchestrator` avec `**Type de récap :** partiel` est émis dans la même réponse qu'un `## Question pour l'orchestrator`. Un `## Retour vers orchestrator` avec `**Type de récap :** final` est émis seul.
   > ❌ Ne jamais construire le CP-feature à partir d'un récap `partiel`.
 - Si le résultat contient aussi `## Retour vers orchestrator` (présent après `## Question pour l'orchestrator`) : **afficher le `### État de la session` dans le texte de la discussion** (pour que l'utilisateur voie la progression), mais ne pas construire le CP-feature à partir de lui — ce récap est partiel. Attendre le récap final après que l'utilisateur ait répondu et que la session ait terminé normalement.

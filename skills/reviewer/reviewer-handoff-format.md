@@ -15,10 +15,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
 ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator-dev` ? Si oui, le supprimer et vérifier que le rapport complet est bien dans la section `### Rapport complet` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
 
 ---
 

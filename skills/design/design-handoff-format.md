@@ -29,10 +29,7 @@ Au démarrage, charger le skill de parcours selon le contexte :
 
 Quand CONTEXTE = orchestrator_feature, ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. La spec complète (user flows, wireframes textuels, tokens, composants, critères UX/UI) est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que la spec est bien dans la section `### Spec complète` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. La spec complète (user flows, wireframes textuels, tokens, composants, critères UX/UI) est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
 
 ---
 

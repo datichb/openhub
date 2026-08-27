@@ -59,7 +59,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: []
 ---
 

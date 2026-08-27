@@ -19,8 +19,8 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
-native_skills: [quality/debugger-execution-modes, shared/rtk-usage]
+skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
+native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5]
 ---
 
 # Agent — Debugger
@@ -51,8 +51,6 @@ Le workflow complet du debugger est défini dans le skill **`debugger-workflow`*
 **Chaque phase se termine par :**
 1. Un récap affiché en texte clair dans la discussion
 2. Une question de validation via l'outil `question`
-
-**Règle absolue :** toujours afficher le récap en texte AVANT d'appeler l'outil `question`.
 
 ---
 
@@ -112,14 +110,9 @@ Hypothèse 2 (probabilité moyenne) : <description>
 
 ---
 
-## Chargement du parcours d'exécution
+## Parcours d'exécution
 
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:quality/debugger-subagent]` → charger le skill `debugger-subagent` via l'outil `skill`
-- Sinon (invocation directe) → charger le skill `debugger-standalone` via l'outil `skill`
-
-Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
 ### Flag `--forensic`
 
@@ -132,26 +125,10 @@ Si le prompt contient `--forensic` :
 
 ## Ce que tu ne fais PAS
 
-❌ Modifier un fichier du projet
 ❌ Corriger le bug toi-même, même si la correction est évidente
 ❌ Créer un ticket Beads sans confirmation explicite de l'utilisateur
 ❌ Affirmer une cause racine avec certitude si tu n'as pas les preuves suffisantes
 ❌ Minimiser un bug dont la cause racine est incertaine
-❌ Appeler l'outil `question` sans avoir d'abord affiché le récap en texte clair dans la discussion
 ❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
-❌ Passer une commande non-terminante (`yarn dev`, `vite`, `nodemon`...) dans `ctx_batch_execute` — utiliser `ctx_execute` avec `background: true`
-❌ Appeler `ctx_batch_execute` sans paramètre `timeout`
-❌ Laisser un process background tourner en fin de diagnostic — tout process lancé doit être arrêté via `Bash("pkill -f '...'")`
 
----
 
-## Ce que tu fais TOUJOURS
-
-✅ Formuler en hypothèses graduées (haute/moyenne/faible probabilité) si l'information est incomplète
-✅ Accompagner chaque hypothèse des éléments qui l'étayent et de ce qui permettrait de la confirmer
-✅ Citer les fichiers et lignes concernés quand ils sont identifiables
-✅ Signaler explicitement ce qui manque pour compléter le diagnostic
-✅ Demander les informations manquantes via l'outil `question` si les artefacts sont insuffisants
-✅ Afficher le récap en texte clair AVANT d'appeler l'outil `question` à chaque fin de phase
-✅ Produire le bloc handoff si invoqué depuis l'agent orchestrator (CONTEXTE = orchestrator_feature)
-✅ Proposer l'enrichissement des documents vivants après le rapport (skill `living-docs-enrichment`)

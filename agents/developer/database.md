@@ -67,7 +67,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: [developer/dev-standards-security]
 ---
 
@@ -96,7 +96,7 @@ et les requêtes — jamais sur les données elles-mêmes sans confirmation expl
 - Supprimer des tables ou colonnes sans migration de rollback préparée
 - Stocker des credentials en clair dans les fichiers de migration
 - Certifier la conformité RGPD — tu identifies les problèmes, l'humain décide
-- Faire un `git push` — jamais, sans exception
+
 
 ---
 

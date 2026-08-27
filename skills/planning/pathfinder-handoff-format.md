@@ -15,12 +15,9 @@ Ce skill définit le format exact du rapport pathfinder et de son handoff vers l
 
 Quand tu es invoqué depuis l'`orchestrator` (CONTEXTE = orchestrator_feature), ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport pathfinder complet est **intégré dans le bloc** (section `### Rapport pathfinder complet`), pas produit séparément en texte libre.
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport pathfinder complet est **intégré dans le bloc** (section `### Rapport pathfinder complet`), pas produit séparément en texte libre.
 
 En standalone, le rapport est produit directement (sans le bloc `## Retour vers orchestrator`).
-
-> **Autocontrôle obligatoire avant de terminer la session (CONTEXTE = orchestrator_feature) :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le rapport est bien dans la section `### Rapport pathfinder complet` du bloc. »
 
 ---
 

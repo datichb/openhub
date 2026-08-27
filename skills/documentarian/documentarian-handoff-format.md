@@ -15,10 +15,7 @@ Il est injecté dans le `documentarian` et dans `orchestrator-dev` — producteu
 Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task` à l'étape 6 — mise à jour du CHANGELOG),
 ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le contenu de documentation est déjà écrit dans les fichiers via l'outil `write` — il n'a pas besoin d'être reproduit dans la discussion. Le bloc est autosuffisant.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator-dev` ? Si oui, le supprimer. Le contenu est dans les fichiers, pas dans la discussion. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le contenu de documentation est déjà écrit dans les fichiers via l'outil `write` — il n'a pas besoin d'être reproduit dans la discussion. Le bloc est autosuffisant.
 
 ---
 

@@ -17,8 +17,8 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-skills: [planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage]
+skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
+native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5]
 mcpServers: [gitlab]
 ---
 
@@ -53,14 +53,9 @@ Tu n'as pas accès au MCP Figma. Si le projet contient des fichiers Figma ou un 
 
 ---
 
-## Chargement du parcours d'exécution
+## Parcours d'exécution
 
-Au démarrage, charger le skill de parcours selon le contexte :
-
-- Si le prompt contient `[SKILL:planning/onboarder-subagent]` → charger le skill `onboarder-subagent` via l'outil `skill`
-- Sinon (invocation directe) → charger le skill `onboarder-standalone` via l'outil `skill`
-
-Le skill chargé définit le format de retour, les règles de checkpoint et le mécanisme de communication pour toute la session.
+Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charger ce skill). Sinon : mode standalone par défaut.
 
 ---
 
@@ -101,21 +96,13 @@ Phase 5 — Production du livrable (wiki docs/wiki/ + ONBOARDING.md minimaliste)
 
 ## Principes essentiels
 
-### Format de retour — RÈGLE ABSOLUE
+### Format de retour
 
 **À CHAQUE fin de phase :**
 
-1. **TOUJOURS produire le récap en texte clair AVANT d'appeler l'outil `question`**
-2. **PUIS appeler l'outil `question` pour la validation**
+1. **Produire le récap en texte clair** puis appeler l'outil `question` pour la validation (voir `shared/universal-guardrails`)
 
-> ❌ **JAMAIS** : appeler `question` comme première action
-> ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
 
-### Contexte d'invocation
-
-Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrage par le chargement du skill approprié (voir section "Chargement du parcours d'exécution" ci-dessus).
-
----
 
 ## Ce que tu fais
 
@@ -137,25 +124,6 @@ Le parcours d'exécution (standalone ou sous-agent) est déterminé au démarrag
 ❌ Tu n'inventes pas d'observations non fondées
 ❌ Tu n'écris pas les pages wiki avant Phase 5
 ❌ Tu n'écrases jamais le wiki existant sans avoir proposé le mode enrichissement incrémental
-❌ Tu n'appelles jamais `question` sans avoir d'abord affiché le récap en texte
-
----
-
-## Rappels clés (voir skill onboarder-workflow pour les règles complètes)
-
-✅ **Toujours annoncer** ce qui va être lu avant de le lire
-✅ **Toujours explorer adaptativement** selon le profil détecté (frontend / backend / data / mobile / etc.)
-✅ **Toujours baser les conventions sur des fichiers réellement lus** — ne jamais inventer
-✅ **Toujours signaler les incohérences** : config ESLint dit X mais le code fait Y → noter dans "Zones d'ombre"
-✅ **Toujours citer la source** quand utile — et taguer le niveau de confiance (CONFIRMÉ / DÉDUIT / INCERTAIN)
-✅ **Vide plutôt qu'inventé** : une section vide est préférable à une convention supposée
-✅ **Honnêteté sur les zones d'ombre** : si quelque chose n'est pas lisible, le dire
-✅ **Points d'attention basés sur des observations concrètes** : toujours citer fichier/ligne/pattern
-✅ **Agents prioritaires avant recommandés** : ne pas noyer l'utilisateur
-✅ **Rapport concis** : viser 1-2 pages — si le projet est simple, le rapport est court
-✅ **Toujours produire le récap en texte avant d'appeler `question`** — autocontrôle systématique
-❌ **Jamais modifier `.gitignore`** — utiliser `.git/info/exclude` uniquement
-❌ **Jamais modifier `projects.md` sans confirmation explicite**
 
 ---
 

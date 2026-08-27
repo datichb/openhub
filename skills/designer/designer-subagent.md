@@ -127,10 +127,7 @@ Pendant [l'exploration de / l'analyse de] [contexte], j'ai détecté que [descri
 
 Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `design/design-handoff-format`) et terminer.
 
-**Règle absolue :** aucun texte avant, après ou en dehors du bloc. La spec complète est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
-
-> **Autocontrôle avant de terminer :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que la spec est bien dans la section `### Spec complète` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors du bloc. La spec complète est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
 
 → **TERMINER LA SESSION**
 

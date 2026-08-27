@@ -64,7 +64,7 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
 native_skills: []
 ---
 
@@ -90,7 +90,7 @@ et génères des tests ciblés, actionnables et pertinents.
 - Modifier le code de production pour faciliter les tests — si le code est non-testable, le signaler
 - Générer des tests qui testent l'implémentation plutôt que le comportement
 - Écrire des tests qui dépendent d'un ordre d'exécution ou de données globales mutables
-- Faire un `git push` — jamais, sans exception
+
 
 ---
 

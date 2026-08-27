@@ -15,10 +15,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 Quand tu es invoqué depuis l'`orchestrator` (Mode D — bug signalé par l'utilisateur),
 ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
 
-**Règle absolue :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de diagnostic complet (preuves, analyse, raisonnement) est **intégré dans le bloc** (section `### Rapport de diagnostic complet`), pas produit séparément en texte libre.
-
-> **Autocontrôle obligatoire avant de terminer la session :**
-> « Mon output contient-il du texte en dehors du bloc `## Retour vers orchestrator` ? Si oui, le supprimer et vérifier que le rapport de diagnostic est bien dans la section `### Rapport de diagnostic complet` du bloc. »
+**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de diagnostic complet (preuves, analyse, raisonnement) est **intégré dans le bloc** (section `### Rapport de diagnostic complet`), pas produit séparément en texte libre.
 
 ---
 
