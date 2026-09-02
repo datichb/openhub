@@ -2,10 +2,12 @@ package teamstate
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -340,4 +342,241 @@ func TestUpdateClaimStatus_ValidTransition(t *testing.T) {
 	got, err := repo.GetClaim("T-SRU", "SRU-201")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusInProgress, got.Status)
+}
+
+// --- Path traversal security tests ---
+
+func TestGetClaim_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	tests := []struct {
+		name    string
+		project string
+		ticket  string
+	}{
+		{"traversal project", "../../../etc", "passwd"},
+		{"traversal ticket", "T-SRU", "../../../etc/passwd"},
+		{"slash in project", "foo/bar", "ticket"},
+		{"slash in ticket", "T-SRU", "foo/bar"},
+		{"backslash project", "foo\\bar", "ticket"},
+		{"null byte project", "foo\x00bar", "ticket"},
+		{"null byte ticket", "T-SRU", "foo\x00bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := repo.GetClaim(tt.project, tt.ticket)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrUnsafeName)
+		})
+	}
+}
+
+func TestCreateClaim_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		project string
+		ticket  string
+	}{
+		{"traversal project", "../../../tmp", "ticket"},
+		{"traversal ticket", "T-SRU", "../../../tmp/evil"},
+		{"slash in project", "foo/bar", "ticket"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := repo.CreateClaim(ctx, Claim{
+				Project:   tt.project,
+				TicketID:  tt.ticket,
+				ClaimedBy: "attacker",
+			})
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrUnsafeName)
+		})
+	}
+}
+
+func TestReleaseClaim_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.ReleaseClaim(ctx, "../../../tmp", "evil")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+
+	err = repo.ReleaseClaim(ctx, "T-SRU", "../../../tmp/evil")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+func TestTransferClaim_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.TransferClaim(ctx, "../../../tmp", "evil", "alice")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+
+	err = repo.TransferClaim(ctx, "T-SRU", "../../../tmp/evil", "alice")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+func TestUpdateClaimStatus_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.UpdateClaimStatus(ctx, "../../../tmp", "evil", ClaimStatusDone)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+
+	err = repo.UpdateClaimStatus(ctx, "T-SRU", "../../../tmp/evil", ClaimStatusDone)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+func TestAddClaimLabel_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.AddClaimLabel(ctx, "../../../tmp", "evil", "label")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+func TestRemoveClaimLabel_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.RemoveClaimLabel(ctx, "../../../tmp", "evil", "label")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+func TestSetClaimExternalIID_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	err := repo.SetClaimExternalIID(ctx, "../../../tmp", "evil", 42)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnsafeName)
+}
+
+// ─── CleanupDoneClaims tests ────────────────────────────────────────────────
+
+func writeClaimFile(t *testing.T, repo *Repo, project, ticketID string, c Claim) {
+	t.Helper()
+	dir := filepath.Join(repo.path, "projects", project, "claims")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	data := fmt.Sprintf("claimed_by = %q\nclaimed_at = %s\nstatus = %q\n",
+		c.ClaimedBy, c.ClaimedAt.Format(time.RFC3339), c.Status)
+	if !c.LastActivity.IsZero() {
+		data += fmt.Sprintf("last_activity = %s\n", c.LastActivity.Format(time.RFC3339))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ticketID+".toml"), []byte(data), 0o644))
+}
+
+func TestCleanupDoneClaims_RemovesOld(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	// Old done claim (10 days ago)
+	writeClaimFile(t, repo, "proj", "OLD-1", Claim{
+		ClaimedBy: "alice", ClaimedAt: time.Now().Add(-10 * 24 * time.Hour),
+		Status: ClaimStatusDone,
+	})
+	// Recent done claim (1 day ago)
+	writeClaimFile(t, repo, "proj", "NEW-1", Claim{
+		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-1 * 24 * time.Hour),
+		Status: ClaimStatusDone,
+	})
+	gitCmd(t, repo.path, "add", ".")
+	gitCmd(t, repo.path, "commit", "-m", "add claims")
+	gitCmd(t, repo.path, "push")
+
+	released, err := repo.CleanupDoneClaims(ctx, 3)
+	require.NoError(t, err)
+	assert.Len(t, released, 1)
+	assert.Equal(t, "OLD-1", released[0].TicketID)
+
+	// Verify OLD-1 file is gone
+	_, err = os.Stat(filepath.Join(repo.path, "projects", "proj", "claims", "OLD-1.toml"))
+	assert.True(t, os.IsNotExist(err))
+
+	// Verify NEW-1 file still exists
+	_, err = os.Stat(filepath.Join(repo.path, "projects", "proj", "claims", "NEW-1.toml"))
+	assert.NoError(t, err)
+}
+
+func TestCleanupDoneClaims_KeepsActive(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	// Old active claim (should NOT be cleaned)
+	writeClaimFile(t, repo, "proj", "ACTIVE-1", Claim{
+		ClaimedBy: "alice", ClaimedAt: time.Now().Add(-30 * 24 * time.Hour),
+		Status: ClaimStatusInProgress,
+	})
+	// Old done claim (should be cleaned)
+	writeClaimFile(t, repo, "proj", "DONE-OLD", Claim{
+		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-10 * 24 * time.Hour),
+		Status: ClaimStatusDone,
+	})
+	gitCmd(t, repo.path, "add", ".")
+	gitCmd(t, repo.path, "commit", "-m", "add claims")
+	gitCmd(t, repo.path, "push")
+
+	released, err := repo.CleanupDoneClaims(ctx, 3)
+	require.NoError(t, err)
+	assert.Len(t, released, 1)
+	assert.Equal(t, "DONE-OLD", released[0].TicketID)
+
+	// Active claim file still exists
+	_, err = os.Stat(filepath.Join(repo.path, "projects", "proj", "claims", "ACTIVE-1.toml"))
+	assert.NoError(t, err)
+}
+
+func TestCleanupDoneClaims_Empty(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	released, err := repo.CleanupDoneClaims(ctx, 3)
+	require.NoError(t, err)
+	assert.Empty(t, released)
+}
+
+func TestCleanupDoneClaims_AllRecent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	writeClaimFile(t, repo, "proj", "DONE-1", Claim{
+		ClaimedBy: "alice", ClaimedAt: time.Now().Add(-1 * 24 * time.Hour),
+		Status: ClaimStatusDone,
+	})
+	writeClaimFile(t, repo, "proj", "DONE-2", Claim{
+		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-2 * 24 * time.Hour),
+		Status: ClaimStatusDone,
+	})
+	gitCmd(t, repo.path, "add", ".")
+	gitCmd(t, repo.path, "commit", "-m", "add claims")
+	gitCmd(t, repo.path, "push")
+
+	released, err := repo.CleanupDoneClaims(ctx, 3)
+	require.NoError(t, err)
+	assert.Empty(t, released, "all claims are recent, none should be cleaned")
 }

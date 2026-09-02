@@ -7,10 +7,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	toml "github.com/pelletier/go-toml/v2"
+	"golang.org/x/sync/errgroup"
 )
 
 // Claim status constants — the full lifecycle of a ticket on the team board.
@@ -108,6 +111,11 @@ func IsValidStatus(s string) bool {
 // ListClaims returns all active claims for a project.
 // If project is empty, returns claims across all projects.
 func (r *Repo) ListClaims(project string) ([]Claim, error) {
+	if project != "" {
+		if _, err := SafeName(project); err != nil {
+			return nil, fmt.Errorf("invalid project name: %w", err)
+		}
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if project != "" {
@@ -138,6 +146,12 @@ func (r *Repo) ListClaims(project string) ([]Claim, error) {
 
 // GetClaim retrieves a specific claim by project and ticket ID.
 func (r *Repo) GetClaim(project, ticketID string) (*Claim, error) {
+	if _, err := SafeName(project); err != nil {
+		return nil, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return nil, fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.getClaim(project, ticketID)
@@ -165,6 +179,12 @@ func (r *Repo) getClaim(project, ticketID string) (*Claim, error) {
 // CreateClaim reserves a ticket for a member.
 // Returns ErrClaimExists if already claimed (warning — not blocking).
 func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
+	if _, err := SafeName(c.Project); err != nil {
+		return nil, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(c.TicketID); err != nil {
+		return nil, fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	var existing *Claim
 	err := r.withWriteLock(ctx, func(ctx context.Context) error {
 		// Check if already claimed
@@ -215,6 +235,12 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 
 // ReleaseClaim removes a claim (ticket is done or abandoned).
 func (r *Repo) ReleaseClaim(ctx context.Context, project, ticketID string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		path := r.claimFilePath(project, ticketID)
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -234,6 +260,12 @@ func (r *Repo) ReleaseClaim(ctx context.Context, project, ticketID string) error
 
 // TransferClaim changes the owner of an existing claim.
 func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		c, err := r.getClaim(project, ticketID)
 		if err != nil {
@@ -264,6 +296,12 @@ func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner st
 // Returns ErrInvalidStatus if newStatus is not a known value.
 // Returns ErrClaimNotFound if the claim does not exist.
 func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStatus string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	if !IsValidStatus(newStatus) {
 		return fmt.Errorf("%w: %q", ErrInvalidStatus, newStatus)
 	}
@@ -301,6 +339,12 @@ func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStat
 // AddClaimLabel adds a label to an existing claim if not already present.
 // Returns ErrClaimNotFound if the claim does not exist.
 func (r *Repo) AddClaimLabel(ctx context.Context, project, ticketID, label string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		c, err := r.getClaim(project, ticketID)
 		if err != nil {
@@ -336,6 +380,12 @@ func (r *Repo) AddClaimLabel(ctx context.Context, project, ticketID, label strin
 // RemoveClaimLabel removes a label from an existing claim.
 // No-op if the label is not present. Returns ErrClaimNotFound if the claim does not exist.
 func (r *Repo) RemoveClaimLabel(ctx context.Context, project, ticketID, label string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		c, err := r.getClaim(project, ticketID)
 		if err != nil {
@@ -377,6 +427,12 @@ func (r *Repo) RemoveClaimLabel(ctx context.Context, project, ticketID, label st
 // SetClaimExternalIID stores the external tracker issue number on a claim.
 // Used by the tracker sync engine to avoid re-parsing the ticket ID pattern on every cycle.
 func (r *Repo) SetClaimExternalIID(ctx context.Context, project, ticketID string, iid int) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		c, err := r.getClaim(project, ticketID)
 		if err != nil {
@@ -451,7 +507,7 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int) ([]Clai
 }
 
 // listAllClaims is the internal (unlocked) implementation that lists claims
-// across all projects. Must be called while holding the write lock.
+// across all projects in parallel. Must be called while holding the write lock.
 func (r *Repo) listAllClaims() ([]Claim, error) {
 	projectsDir := filepath.Join(r.path, "projects")
 	entries, err := os.ReadDir(projectsDir)
@@ -461,31 +517,44 @@ func (r *Repo) listAllClaims() ([]Claim, error) {
 		}
 		return nil, fmt.Errorf("reading projects dir: %w", err)
 	}
+
+	g, _ := errgroup.WithContext(context.Background())
+	g.SetLimit(runtime.NumCPU())
+
+	var mu sync.Mutex
 	var all []Claim
+
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		claims, err := r.listClaimsForProject(e.Name())
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, claims...)
+		project := e.Name()
+		g.Go(func() error {
+			claims, err := r.listClaimsForProject(project)
+			if err != nil {
+				return nil // skip broken projects
+			}
+			mu.Lock()
+			all = append(all, claims...)
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 	return all, nil
-}
-
-// claimFilePath returns the absolute path to a claim TOML file.
-func (r *Repo) claimFilePath(project, ticketID string) string {
-	// Sanitize ticketID for filesystem safety
-	safe := strings.ReplaceAll(ticketID, "/", "_")
-	return filepath.Join(r.path, "projects", project, "claims", safe+".toml")
 }
 
 // claimRelPath returns the repo-relative path to a claim file.
 func (r *Repo) claimRelPath(project, ticketID string) string {
 	safe := strings.ReplaceAll(ticketID, "/", "_")
 	return filepath.Join("projects", project, "claims", safe+".toml")
+}
+
+// claimFilePath returns the absolute path to a claim TOML file.
+func (r *Repo) claimFilePath(project, ticketID string) string {
+	return filepath.Join(r.path, r.claimRelPath(project, ticketID))
 }
 
 func (r *Repo) listClaimsForProject(project string) ([]Claim, error) {
