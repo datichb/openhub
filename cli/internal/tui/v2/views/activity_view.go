@@ -110,7 +110,7 @@ func (v *ActivityView) refresh() {
 	})
 }
 
-func (v *ActivityView) renderEvents(repo *teamstate.Repo) {
+func (v *ActivityView) renderEvents(repo teamstate.TeamStateWriter) {
 	if v.list == nil {
 		return
 	}

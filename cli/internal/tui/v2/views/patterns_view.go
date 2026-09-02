@@ -90,7 +90,7 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (v *PatternsView) getRepo() *teamstate.Repo {
+func (v *PatternsView) getRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
@@ -117,7 +117,7 @@ func (v *PatternsView) refresh() {
 	})
 }
 
-func (v *PatternsView) renderPatterns(repo *teamstate.Repo) {
+func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	if v.list == nil {
 		return
 	}

@@ -26,7 +26,7 @@ const pullSlowThreshold = time.Second
 //   - The shell's lifecycle context is used to cancel the pull on app exit.
 func syncAsync(
 	app *tview.Application,
-	repo *teamstate.Repo,
+	repo teamstate.TeamStateWriter,
 	shell ShellAccess,
 	onDone func(pullErr error),
 ) {
@@ -41,7 +41,7 @@ func syncAsync(
 }
 
 // syncFuncAsync is the low-level variant used when a bare sync function
-// (not a *teamstate.Repo) is available — e.g. in TeamBoardView where the
+// (not a teamstate.TeamStateReader) is available — e.g. in TeamBoardView where the
 // repo reference is owned by the caller.
 //
 // pullFn is called in a background goroutine. If pullFn is nil, onDone is

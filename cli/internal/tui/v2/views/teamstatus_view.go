@@ -88,7 +88,7 @@ func (v *TeamStatusView) syncAndRender() {
 	})
 }
 
-func (v *TeamStatusView) render(tc TeamResolution, repo *teamstate.Repo) {
+func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWriter) {
 	if v.tv == nil {
 		return
 	}

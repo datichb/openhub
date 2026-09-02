@@ -89,7 +89,7 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (v *PoliciesView) getRepo() *teamstate.Repo {
+func (v *PoliciesView) getRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
@@ -116,7 +116,7 @@ func (v *PoliciesView) refresh() {
 	})
 }
 
-func (v *PoliciesView) renderPolicies(repo *teamstate.Repo) {
+func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	if v.list == nil {
 		return
 	}
@@ -313,7 +313,7 @@ func (v *PoliciesView) addPolicy() {
 	})
 }
 
-func (v *PoliciesView) writePolicyToml(repo interface{ Path() string; CommitAndPush(ctx context.Context, msg string, files ...string) error }, name, pType, enforcement, message, rule string, patterns []string, scope string, max int) {
+func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, enforcement, message, rule string, patterns []string, scope string, max int) {
 	// Build TOML block
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n[policies.%s]\n", name))

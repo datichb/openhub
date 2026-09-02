@@ -85,7 +85,7 @@ func (v *TakeoverView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (v *TakeoverView) getRepo() *teamstate.Repo {
+func (v *TakeoverView) getRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
@@ -112,7 +112,7 @@ func (v *TakeoverView) refresh() {
 	})
 }
 
-func (v *TakeoverView) renderBriefs(repo *teamstate.Repo) {
+func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 	if v.list == nil {
 		return
 	}
