@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,24 +33,25 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	// Resolve team config.
 	tc := a.Config.ActiveTeam()
 	if !tc.Enabled {
-		return fmt.Errorf("team non configurée. Lance %s", theme.Bold.Render("oh team init"))
+		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_configured", theme.Bold.Render("oh team init")))
 	}
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
-		return fmt.Errorf("team-state repo non cloné. Lance %s", theme.Bold.Render("oh team init"))
+		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_cloned", theme.Bold.Render("oh team init")))
 	}
 
 	teamCfg, err := repo.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("lecture de la config équipe: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.config_read_error"), err)
 	}
 
 	if teamCfg.Tracker.Type == "" {
-		fmt.Fprintf(a.IO.Out, "%s Tracker sync non configuré. Ajoute %s dans config.toml du team-state ou lance %s.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.WarningStyle.Render(theme.IconWarning),
-			theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
-			theme.Bold.Render("oh team config"))
+			i18n.Tf("cmd.team.sync_tracker.tracker_not_configured",
+				theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
+				theme.Bold.Render("oh team config")))
 		return nil
 	}
 
@@ -59,22 +63,23 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	)
 
 	if !effTracker.Enabled {
-		fmt.Fprintf(a.IO.Out, "%s Tracker sync désactivé localement. Retire la ligne %s de hub.toml pour réactiver.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.WarningStyle.Render(theme.IconWarning),
-			theme.Bold.Render("[tracker]\nenabled = false"))
+			i18n.Tf("cmd.team.sync_tracker.disabled_locally",
+				theme.Bold.Render("[tracker]\nenabled = false")))
 		return nil
 	}
 
 	trackerType := tracker.Type(effTracker.Type)
 	trackerCfg, err := tracker.ResolveCredentials(ctx, buildCredentialSource(a, teamCfg.MCP), trackerType)
 	if err != nil {
-		return fmt.Errorf("%w\n  Conseil: exporte %s ou configure [mcp.%s] dans hub.toml",
-			err, envVarForTracker(trackerType), effTracker.Type)
+		return fmt.Errorf("%w\n  %s",
+			err, i18n.Tf("cmd.team.sync_tracker.credential_hint", envVarForTracker(trackerType), effTracker.Type))
 	}
 
 	t, err := tracker.New(trackerCfg)
 	if err != nil {
-		return fmt.Errorf("initialisation du tracker: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), err)
 	}
 
 	engineCfg := teamstate.TrackerConfig{
@@ -90,20 +95,36 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	}
 	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
 
-	fmt.Fprintf(a.IO.Out, "%s Sync tracker en cours (%s)...\n",
-		theme.Subtitle.Render(theme.IconArrow), teamCfg.Tracker.Type)
+	// Spinner feedback during sync
+	spinDone := make(chan struct{})
+	go func() {
+		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		msg := i18n.Tf("cmd.team.sync_tracker.running", teamCfg.Tracker.Type)
+		for i := 0; ; i++ {
+			select {
+			case <-spinDone:
+				fmt.Fprintf(a.IO.ErrOut, "\r%s\r", strings.Repeat(" ", len(msg)+4))
+				return
+			default:
+				fmt.Fprintf(a.IO.ErrOut, "\r%s %s", frames[i%len(frames)], msg)
+				time.Sleep(80 * time.Millisecond)
+			}
+		}
+	}()
 
 	result, err := engine.Run(ctx)
+	close(spinDone)
 	if err != nil {
-		return fmt.Errorf("sync échoué: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.failed"), err)
 	}
 
 	// ── Display results ───────────────────────────────────────────────────────
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s Résultats du sync (%s)\n\n",
-		theme.Title.Render("Tracker Sync"),
-		result.SyncedAt.Local().Format("15:04:05"))
+	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
+		theme.Title.Render(i18n.T("cmd.team.sync_tracker.title")),
+		i18n.Tf("cmd.team.sync_tracker.results_title",
+			result.SyncedAt.Local().Format("15:04:05")))
 
 	for _, pr := range result.Projects {
 		fmt.Fprintf(a.IO.Out, "  %s %s → %s (%s)\n",
@@ -111,13 +132,15 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 			theme.Bold.Render(pr.ProjectID),
 			pr.TrackerProject,
 			pr.Duration.Round(1*1e6))
-		fmt.Fprintf(a.IO.Out, "    Issues récupérées: %d  |  Claims créés: %d  |  Mis à jour: %d  |  Labels pushés: %d\n",
-			pr.IssuesFetched, pr.ClaimsCreated, pr.ClaimsUpdated, pr.LabelsPushed)
+		fmt.Fprintf(a.IO.Out, "%s\n",
+			i18n.Tf("cmd.team.sync_tracker.project_stats",
+				pr.IssuesFetched, pr.ClaimsCreated, pr.ClaimsUpdated, pr.LabelsPushed))
 	}
 
 	if len(result.Warnings) > 0 {
 		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  %s Warnings:\n", theme.WarningStyle.Render(theme.IconWarning))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+			i18n.T("cmd.team.sync_tracker.warnings"))
 		for _, w := range result.Warnings {
 			fmt.Fprintf(a.IO.Out, "    %s/%s: %s\n", w.ProjectID, w.TicketID, w.Message)
 		}
@@ -125,16 +148,18 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 
 	if len(result.Errors) > 0 {
 		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  %s Erreurs:\n", theme.ErrorStyle.Render("✗"))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.ErrorStyle.Render("✗"),
+			i18n.T("cmd.team.sync_tracker.errors"))
 		for _, e := range result.Errors {
 			fmt.Fprintf(a.IO.Out, "    %s\n", e.Error())
 		}
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s Total: %d créés, %d mis à jour, %d labels pushés\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed)
+		i18n.Tf("cmd.team.sync_tracker.total",
+			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed))
 
 	return nil
 }

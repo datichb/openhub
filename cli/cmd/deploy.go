@@ -85,7 +85,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
+	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig, project)
 
 	// Execute
 	start := time.Now()
@@ -294,8 +294,8 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 // provider and model can be empty to inherit from project config.
 // projectModelOvr can be nil if the project has no per-agent/family overrides.
 // projectMCPCfg can be nil to inherit hub-level MCP config.
-// projectTeamCfg can be nil to inherit hub-level team config.
-func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig, projectTeamCfg *domain.ProjectTeamConfig) *deploy.Plan {
+// project can be nil (pre-persist deployments); in that case hub-level team config is used.
+func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig, project *domain.Project) *deploy.Plan {
 	// Read websearch setting from hub config
 	v := configViper()
 	websearchEnabled := v.GetBool("websearch.enabled")
@@ -332,7 +332,18 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	}
 
 	// Resolve effective team config (project override → hub fallback)
-	resolvedTeam := config.ResolveTeamConfig(a.Config.ActiveTeam(), projectTeamCfg)
+	var resolvedTeam config.ResolvedTeamConfig
+	if project != nil {
+		resolvedTeam = config.ResolveTeamForProject(a.Config, project)
+	} else {
+		resolvedTeam = config.ResolvedTeamConfig{
+			Enabled:   a.Config.ActiveTeam().Enabled,
+			TeamID:    a.Config.ActiveTeam().ID,
+			StateRepo: a.Config.ActiveTeam().StateRepo,
+			StatePath: a.Config.ActiveTeam().StatePath,
+			MemberID:  a.Config.ActiveTeam().MemberID,
+		}
+	}
 
 	// Build list of enabled MCP servers for agent validation warnings
 	mcpServers := buildMCPServersForProject(a, projectMCPCfg, resolvedTeam)

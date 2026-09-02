@@ -144,16 +144,11 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 
 		teamCfg.MCP["gitlab"] = shared
 
-		if err := repo.SaveConfig(teamCfg); err != nil {
+		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config équipe: %w", err)
 		}
-		if err := repo.CommitAndPush(ctx, "config: update shared [mcp.gitlab]", "config.toml"); err != nil {
-			fmt.Fprintf(out, "%s Impossible de pusher la config d'équipe: %v\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
-		} else {
-			fmt.Fprintf(out, "%s Config d'équipe GitLab sauvegardée\n",
-				theme.SuccessStyle.Render(theme.IconSuccess))
-		}
+		fmt.Fprintf(out, "%s Config d'équipe GitLab sauvegardée\n",
+			theme.SuccessStyle.Render(theme.IconSuccess))
 	}
 
 	// ── Config locale ──────────────────────────────────────────────────────────
@@ -204,14 +199,10 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 		teamCfg.MCP["jira"] = shared
 
-		if err := repo.SaveConfig(teamCfg); err != nil {
+		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config équipe: %w", err)
 		}
-		if err := repo.CommitAndPush(ctx, "config: update shared [mcp.jira]", "config.toml"); err != nil {
-			fmt.Fprintf(out, "%s Impossible de pusher: %v\n", theme.WarningStyle.Render(theme.IconWarning), err)
-		} else {
-			fmt.Fprintf(out, "%s Config d'équipe Jira sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
-		}
+		fmt.Fprintf(out, "%s Config d'équipe Jira sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 	}
 
 	if configLocal {
@@ -233,7 +224,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 	return nil
 }
 
-func configureFigma(_ context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprintf(out, "\n%s Configuration Figma\n\n", theme.Title.Render("●"))
@@ -251,14 +242,10 @@ func configureFigma(_ context.Context, a *app.App, repo *teamstate.Repo, teamCfg
 		shared.URL = url
 		teamCfg.MCP["figma"] = shared
 
-		if err := repo.SaveConfig(teamCfg); err != nil {
+		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config équipe: %w", err)
 		}
-		if err := repo.CommitAndPush(context.Background(), "config: update shared [mcp.figma]", "config.toml"); err != nil {
-			fmt.Fprintf(out, "%s Impossible de pusher: %v\n", theme.WarningStyle.Render(theme.IconWarning), err)
-		} else {
-			fmt.Fprintf(out, "%s Config d'équipe Figma sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
-		}
+		fmt.Fprintf(out, "%s Config d'équipe Figma sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 	}
 
 	if configLocal {
@@ -316,14 +303,10 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		fmt.Fprintf(out, "\n%s Mappings projets\n", theme.Bold.Render("→"))
 		configureTrackerProjects(ctx, a, out, teamCfg, trackerType)
 
-		if err := repo.SaveConfig(teamCfg); err != nil {
+		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config tracker: %w", err)
 		}
-		if err := repo.CommitAndPush(ctx, "config: update tracker sync", "config.toml"); err != nil {
-			fmt.Fprintf(out, "%s Impossible de pusher: %v\n", theme.WarningStyle.Render(theme.IconWarning), err)
-		} else {
-			fmt.Fprintf(out, "%s Config tracker d'équipe sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
-		}
+		fmt.Fprintf(out, "%s Config tracker d'équipe sauvegardée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 	}
 
 	if configLocal {
@@ -690,15 +673,11 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 
 		switch choice {
 		case 0: // Supprimer
-			if err := repo.RemoveMember(orphan.ID); err != nil {
+			if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
 				fmt.Fprintf(out, "  %s Erreur: %v\n", theme.ErrorStyle.Render("✗"), err)
 				continue
 			}
-			if err := repo.CommitAndPush(ctx, fmt.Sprintf("members: remove orphan %s", orphan.ID), "members.toml"); err != nil {
-				fmt.Fprintf(out, "  %s Push échoué: %v\n", theme.WarningStyle.Render(theme.IconWarning), err)
-			} else {
-				fmt.Fprintf(out, "  %s Membre %q supprimé\n", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID)
-			}
+			fmt.Fprintf(out, "  %s Membre %q supprimé\n", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID)
 
 		case 1: // Fusionner
 			if err := mergeOrphanMember(ctx, out, repo, orphan, members); err != nil {
@@ -755,17 +734,14 @@ func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, e
 	}
 
 	// Apply: update target member, remove orphan
-	if err := repo.UpdateMember(merged); err != nil {
+	if err := repo.UpdateMember(ctx, merged); err != nil {
 		return fmt.Errorf("mise à jour du membre: %w", err)
 	}
-	if err := repo.RemoveMember(orphan.ID); err != nil {
+	if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
 		return fmt.Errorf("suppression de l'orphelin: %w", err)
 	}
 
-	msg := fmt.Sprintf("members: merge %s into %s", orphan.ID, target.ID)
-	if err := repo.CommitAndPush(ctx, msg, "members.toml"); err != nil {
-		return fmt.Errorf("push: %w", err)
-	}
+	fmt.Fprintf(out, "%s Fusion effectuée\n", theme.SuccessStyle.Render(theme.IconSuccess))
 
 	fmt.Fprintf(out, "  %s Membres fusionnés avec succès\n", theme.SuccessStyle.Render(theme.IconSuccess))
 	return nil

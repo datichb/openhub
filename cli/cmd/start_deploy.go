@@ -29,7 +29,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 			i18n.T("cmd.start.autodeploy_first"),
 			func() error {
 				plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-					project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
+					project.Agents, project.ModelOverrides, project.MCPConfig, project)
 				var e error
 				results, e = deploy.Execute(plan)
 				return e
@@ -77,7 +77,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 		i18n.Tf("cmd.start.autodeploy_updating", added, modified, removed),
 		func() error {
 			plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-				project.Agents, project.ModelOverrides, project.MCPConfig, project.TeamConfig)
+				project.Agents, project.ModelOverrides, project.MCPConfig, project)
 			_, e := deploy.Execute(plan)
 			return e
 		},

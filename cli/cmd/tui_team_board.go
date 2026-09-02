@@ -36,7 +36,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			if repo == nil {
 				return nil
 			}
-			return fetchTeamTicketsV2(repo)
+			return views.FetchTeamTickets(repo)
 		},
 		SyncFunc: func() error {
 			repo := resolveRepo()

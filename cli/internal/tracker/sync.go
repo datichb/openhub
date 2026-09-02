@@ -67,7 +67,7 @@ func (e SyncError) Error() string {
 // Engine reconciles team-state claims with an external tracker.
 type Engine struct {
 	tracker  Tracker
-	repo     *teamstate.Repo
+	repo     teamstate.TeamStateWriter
 	cfg      teamstate.TrackerConfig
 	state    *SyncState
 	stateDir string
@@ -77,7 +77,7 @@ type Engine struct {
 
 // NewEngine creates a sync engine.
 // stateDir is the local directory for sync-state.json (~/.oh/).
-func NewEngine(t Tracker, repo *teamstate.Repo, cfg teamstate.TrackerConfig, stateDir string) *Engine {
+func NewEngine(t Tracker, repo teamstate.TeamStateWriter, cfg teamstate.TrackerConfig, stateDir string) *Engine {
 	return &Engine{
 		tracker:  t,
 		repo:     repo,

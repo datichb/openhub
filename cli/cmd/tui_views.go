@@ -299,10 +299,10 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					return fmt.Errorf("équipe non configurée")
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-				if err := repo.SaveConfig(cfg); err != nil {
+				if err := repo.SaveConfig(ctx, cfg); err != nil {
 					return err
 				}
-				return repo.CommitAndPush(ctx, "config: update tracker", "config.toml")
+				return nil
 			},
 			SaveLocalMCP:     func(key, value string) error { return nil },
 			SaveLocalTracker: func(key, value string) error { return nil },

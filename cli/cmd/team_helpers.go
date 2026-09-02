@@ -27,11 +27,18 @@ func teamEnabledForProject(a *app.App, project *domain.Project) bool {
 // resolvedTeamConfig returns the effective TeamConfig for a project.
 // Pass nil as project to get hub-level only.
 func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeamConfig {
-	var projectTeamCfg *domain.ProjectTeamConfig
 	if project != nil {
-		projectTeamCfg = project.TeamConfig
+		return config.ResolveTeamForProject(a.Config, project)
 	}
-	return config.ResolveTeamConfig(a.Config.ActiveTeam(), projectTeamCfg)
+	// Hub-level only: use ActiveTeam() directly
+	hub := a.Config.ActiveTeam()
+	return config.ResolvedTeamConfig{
+		Enabled:   hub.Enabled,
+		TeamID:    hub.ID,
+		StateRepo: hub.StateRepo,
+		StatePath: hub.StatePath,
+		MemberID:  hub.MemberID,
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,44 +108,28 @@ func runTeamCustomSetup(a *app.App, remote, memberID, displayName, role string) 
 	}
 
 	statePath := config.TeamStatePath(remote)
-	repo := teamstate.NewRepo(remote, statePath)
 
 	// Use a timeout context so the clone/pull never hangs the TUI indefinitely.
 	// GIT_TERMINAL_PROMPT=0 (set in repo.git) prevents blocking on credential prompts.
 	cloneCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	var pullWarning string
-	if err := repo.EnsureReady(cloneCtx); err != nil {
-		if teamstate.IsPullWarning(err) {
-			pullWarning = "Synchronisation impossible (credentials manquants) — " +
-				"contenu local utilisé. Configurez un credential helper git pour les pulls automatiques."
-		} else {
-			return runTeamCustomSetupResult{}, fmt.Errorf("initialisation du repo team-state (timeout 30s) : %w", err)
-		}
-	}
-	if err := repo.InitStructure(cloneCtx); err != nil {
-		return runTeamCustomSetupResult{}, fmt.Errorf("init structure : %w", err)
-	}
-
-	member := teamstate.Member{
-		ID:          effectiveMemberID,
+	err := teamInitCore(cloneCtx, a, teamInitParams{
+		StateRepo:   remote,
+		StatePath:   statePath,
+		MemberID:    effectiveMemberID,
 		DisplayName: displayName,
 		Role:        role,
-		DefaultMode: "semi-auto",
-	}
-	if repo.HasMember(effectiveMemberID) {
-		if err := repo.UpdateMember(member); err != nil {
-			return runTeamCustomSetupResult{}, fmt.Errorf("mise à jour du membre : %w", err)
-		}
-	} else {
-		if err := repo.AddMember(member); err != nil {
-			return runTeamCustomSetupResult{}, fmt.Errorf("ajout du membre : %w", err)
-		}
-	}
+	})
 
-	if err := repo.CommitAndPush(context.Background(), "team: init "+effectiveMemberID, "."); err != nil {
-		return runTeamCustomSetupResult{}, fmt.Errorf("commit/push : %w", err)
+	var pullWarning string
+	if err != nil && teamstate.IsPullWarning(err) {
+		pullWarning = "Synchronisation impossible (credentials manquants) — " +
+			"contenu local utilisé. Configurez un credential helper git pour les pulls automatiques."
+		err = nil
+	}
+	if err != nil {
+		return runTeamCustomSetupResult{}, err
 	}
 
 	return runTeamCustomSetupResult{StatePath: statePath, PullWarning: pullWarning}, nil

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -35,7 +34,7 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	tickets := fetchTeamTicketsV2(repo)
+	tickets := views.FetchTeamTickets(repo)
 
 	if len(tickets) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun membre dans l'équipe. Lance %s\n",
@@ -56,67 +55,11 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return tickets
 			}
-			return fetchTeamTicketsV2(r)
+			return views.FetchTeamTickets(r)
 		},
 	}
 
 	return views.RunTeamBoard(cfg)
-}
-
-// fetchTeamTicketsV2 builds the list of team tickets from claims.
-// Members with no active claims are omitted — the board shows tickets, not people.
-func fetchTeamTicketsV2(repo *teamstate.Repo) []views.TeamTicket {
-	members, err := repo.ListMembers()
-	if err != nil {
-		return nil
-	}
-
-	claims, err := repo.ListClaims("")
-	if err != nil {
-		return nil
-	}
-
-	// Build a display-name lookup keyed by member ID.
-	displayName := make(map[string]string, len(members))
-	for _, m := range members {
-		displayName[m.ID] = m.DisplayName
-	}
-
-	var tickets []views.TeamTicket
-	for _, c := range claims {
-		name := displayName[c.ClaimedBy]
-		if name == "" {
-			name = c.ClaimedBy // fallback to ID if member no longer in registry
-		}
-		tickets = append(tickets, views.TeamTicket{
-			ID:       c.TicketID,
-			Title:    fmt.Sprintf("%s/%s", c.Project, c.TicketID),
-			Status:   mapClaimStatus(c.Status),
-			Assignee: name,
-			Labels:   c.Labels,
-		})
-	}
-
-	return tickets
-}
-
-// mapClaimStatus maps a claim status string to the board column key.
-// The mapping is 1-to-1 with the column definitions in views.DefaultColumns().
-func mapClaimStatus(status string) string {
-	switch status {
-	case teamstate.ClaimStatusPlanned:
-		return "todo"
-	case teamstate.ClaimStatusInProgress:
-		return "in_progress"
-	case teamstate.ClaimStatusReview:
-		return "review"
-	case teamstate.ClaimStatusBlocked:
-		return "blocked"
-	case teamstate.ClaimStatusDone:
-		return "done"
-	default:
-		return "in_progress"
-	}
 }
 
 // fetchSubBeadsJSON attempts to get sub-tickets from the beads system.

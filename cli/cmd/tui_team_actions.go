@@ -215,66 +215,12 @@ func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func(
 }
 
 func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) error {
-	statePath := a.Config.ActiveTeam().StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
-
-	repo := teamstate.NewRepo(remote, statePath)
-
-	ctx := context.Background()
-	if err := repo.EnsureReady(ctx); err != nil {
-		return fmt.Errorf("cloning team-state: %w", err)
-	}
-
-	if err := repo.InitStructure(ctx); err != nil {
-		return fmt.Errorf("init structure: %w", err)
-	}
-
-	member := teamstate.Member{
-		ID:          memberID,
+	return teamInitCore(context.Background(), a, teamInitParams{
+		StateRepo:   remote,
+		MemberID:    memberID,
 		DisplayName: displayName,
 		Role:        role,
-		DefaultMode: "semi-auto",
-	}
-	if repo.HasMember(memberID) {
-		if err := repo.UpdateMember(member); err != nil {
-			return fmt.Errorf("update member: %w", err)
-		}
-	} else {
-		if err := repo.AddMember(member); err != nil {
-			return fmt.Errorf("add member: %w", err)
-		}
-	}
-
-	if err := repo.CommitAndPush(ctx, "team: init "+memberID, "members.toml"); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-
-	// Update in-memory config to reflect the newly configured team.
-	// If Teams already has entries, update the first enabled one;
-	// otherwise, append a new entry (fresh setup).
-	newTeam := config.TeamConfig{
-		ID:        config.RepoNameFromRemote(remote),
-		Enabled:   true,
-		StateRepo: remote,
-		StatePath: statePath,
-		MemberID:  memberID,
-	}
-	if len(a.Config.Teams) > 0 {
-		a.Config.Teams[0] = newTeam
-	} else {
-		a.Config.Teams = append(a.Config.Teams, newTeam)
-	}
-	// Clear legacy field to avoid stale data
-	a.Config.Team = config.TeamConfig{}
-
-	// Persist via config.Save (produces [[teams]] format, not legacy [team])
-	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("writing hub.toml: %w", err)
-	}
-
-	return nil
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
