@@ -280,3 +280,80 @@ func TestResolveTeamForProject_EmptyTeamID(t *testing.T) {
 		t.Fatal("empty string TeamID should be treated as no team")
 	}
 }
+
+// ─── Legacy TeamConfig migration tests ─────────────────────────────────────
+
+func TestResolveTeamForProject_LegacyInherit(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/tmp/ts", MemberID: "alice"},
+		},
+	}
+	// TeamID is nil, but legacy TeamConfig exists with inherit mode
+	project := &domain.Project{
+		ID:     "proj-legacy",
+		TeamID: nil,
+		TeamConfig: &domain.ProjectTeamConfig{
+			Mode: "inherit",
+		},
+	}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if !got.Enabled {
+		t.Fatal("legacy inherit should resolve to the active team")
+	}
+	if got.MemberID != "alice" {
+		t.Fatalf("expected MemberID=alice, got %s", got.MemberID)
+	}
+	if got.StateRepo != "git@gitlab.com:acme/ts.git" {
+		t.Fatalf("expected inherited StateRepo, got %s", got.StateRepo)
+	}
+}
+
+func TestResolveTeamForProject_LegacyDisabled(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	project := &domain.Project{
+		ID:     "proj-solo",
+		TeamID: nil,
+		TeamConfig: &domain.ProjectTeamConfig{
+			Mode: "disabled",
+		},
+	}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if got.Enabled {
+		t.Fatal("legacy disabled mode should resolve to disabled")
+	}
+}
+
+func TestResolveTeamForProject_LegacyCustom(t *testing.T) {
+	cfg := &config.Config{
+		Teams: []config.TeamConfig{
+			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
+		},
+	}
+	project := &domain.Project{
+		ID:     "proj-custom",
+		TeamID: nil,
+		TeamConfig: &domain.ProjectTeamConfig{
+			Mode:      "custom",
+			StateRepo: "git@gitlab.com:other/custom-ts.git",
+			MemberID:  "bob",
+		},
+	}
+
+	got := config.ResolveTeamForProject(cfg, project)
+	if !got.Enabled {
+		t.Fatal("legacy custom should be enabled")
+	}
+	if got.MemberID != "bob" {
+		t.Fatalf("expected custom MemberID=bob, got %s", got.MemberID)
+	}
+	if got.StateRepo != "git@gitlab.com:other/custom-ts.git" {
+		t.Fatalf("expected custom StateRepo, got %s", got.StateRepo)
+	}
+}

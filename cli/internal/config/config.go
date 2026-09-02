@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -100,6 +102,47 @@ func (t TeamConfig) DisplayName() string {
 		return t.Name
 	}
 	return t.ID
+}
+
+// validTeamID matches a slug-safe identifier: lowercase letters, digits, hyphens.
+var validTeamID = regexp.MustCompile(`^[a-z0-9][a-z0-9\-]*$`)
+
+// Validate checks that a TeamConfig is semantically valid.
+// Returns an error describing the first invalid field found.
+func (t TeamConfig) Validate() error {
+	if t.ID == "" {
+		return fmt.Errorf("team ID is required")
+	}
+	if !validTeamID.MatchString(t.ID) {
+		return fmt.Errorf("team ID %q must be a lowercase slug (letters, digits, hyphens)", t.ID)
+	}
+	if t.Enabled {
+		if t.StateRepo == "" {
+			return fmt.Errorf("team %q: state_repo is required when enabled", t.ID)
+		}
+		if t.MemberID == "" {
+			return fmt.Errorf("team %q: member_id is required when enabled", t.ID)
+		}
+		if strings.ContainsAny(t.MemberID, " \t\n/\\") {
+			return fmt.Errorf("team %q: member_id %q contains invalid characters", t.ID, t.MemberID)
+		}
+	}
+	return nil
+}
+
+// ValidateTeams checks a slice of TeamConfigs for individual validity and uniqueness.
+func ValidateTeams(teams []TeamConfig) error {
+	seen := make(map[string]bool, len(teams))
+	for _, t := range teams {
+		if err := t.Validate(); err != nil {
+			return err
+		}
+		if seen[t.ID] {
+			return fmt.Errorf("duplicate team ID %q", t.ID)
+		}
+		seen[t.ID] = true
+	}
+	return nil
 }
 
 // WorktreeConfig holds git worktree management settings.
@@ -314,6 +357,13 @@ func Reset() {
 // Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
 // After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
 func Save(c *Config) error {
+	// Validate teams before persisting
+	if len(c.Teams) > 0 {
+		if err := ValidateTeams(c.Teams); err != nil {
+			return fmt.Errorf("invalid team config: %w", err)
+		}
+	}
+
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
 

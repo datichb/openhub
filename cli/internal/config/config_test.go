@@ -189,3 +189,97 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 	assert.Equal(t, "claude-opus-4-20250514", loaded.Models.Families["quality"])
 	assert.Equal(t, "claude-opus-4-20250514", loaded.Models.Agents["reviewer"])
 }
+
+// ─── TeamConfig.Validate + ValidateTeams tests ───────────────────────────────
+
+func TestTeamConfig_Validate_Valid(t *testing.T) {
+	tc := TeamConfig{
+		ID:        "my-team",
+		Enabled:   true,
+		StateRepo: "git@gitlab.com:team/ts.git",
+		MemberID:  "alice",
+	}
+	assert.NoError(t, tc.Validate())
+}
+
+func TestTeamConfig_Validate_DisabledNoRepo(t *testing.T) {
+	tc := TeamConfig{
+		ID:      "my-team",
+		Enabled: false, // disabled — repo and memberID not required
+	}
+	assert.NoError(t, tc.Validate())
+}
+
+func TestTeamConfig_Validate_EmptyID(t *testing.T) {
+	tc := TeamConfig{ID: ""}
+	err := tc.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "required")
+}
+
+func TestTeamConfig_Validate_InvalidSlug(t *testing.T) {
+	cases := []string{"My Team!", "UPPER", "has space", "slash/bad", "under_score"}
+	for _, id := range cases {
+		tc := TeamConfig{ID: id}
+		err := tc.Validate()
+		assert.Error(t, err, "ID=%q should fail validation", id)
+		assert.Contains(t, err.Error(), "slug")
+	}
+}
+
+func TestTeamConfig_Validate_MissingRepo(t *testing.T) {
+	tc := TeamConfig{
+		ID:        "my-team",
+		Enabled:   true,
+		StateRepo: "",
+		MemberID:  "alice",
+	}
+	err := tc.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "state_repo")
+}
+
+func TestTeamConfig_Validate_MissingMemberID(t *testing.T) {
+	tc := TeamConfig{
+		ID:        "my-team",
+		Enabled:   true,
+		StateRepo: "git@gitlab.com:team/ts.git",
+		MemberID:  "",
+	}
+	err := tc.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "member_id")
+}
+
+func TestTeamConfig_Validate_InvalidMemberID(t *testing.T) {
+	cases := []string{"foo/bar", "has space", "tab\there", "new\nline", "back\\slash"}
+	for _, mid := range cases {
+		tc := TeamConfig{
+			ID:        "my-team",
+			Enabled:   true,
+			StateRepo: "git@gitlab.com:team/ts.git",
+			MemberID:  mid,
+		}
+		err := tc.Validate()
+		assert.Error(t, err, "memberID=%q should fail", mid)
+		assert.Contains(t, err.Error(), "invalid characters")
+	}
+}
+
+func TestValidateTeams_Unique(t *testing.T) {
+	teams := []TeamConfig{
+		{ID: "alpha", Enabled: false},
+		{ID: "beta", Enabled: false},
+	}
+	assert.NoError(t, ValidateTeams(teams))
+}
+
+func TestValidateTeams_Duplicates(t *testing.T) {
+	teams := []TeamConfig{
+		{ID: "alpha", Enabled: false},
+		{ID: "alpha", Enabled: false},
+	}
+	err := ValidateTeams(teams)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
+}
