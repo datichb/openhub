@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -64,7 +65,10 @@ func (v *NotificationsView) Title() string { return "Notifications" }
 
 // StatusHints returns keybinding hints.
 func (v *NotificationsView) StatusHints() string {
-	return "j/k scroll · Ctrl+P commandes"
+	return fmt.Sprintf("j/k %s · Ctrl+P %s",
+		i18n.T("tui.hints.scroll"),
+		i18n.T("tui.hints.commands"),
+	)
 }
 
 // Mount builds and populates the notifications display.

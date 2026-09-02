@@ -55,7 +55,14 @@ func (v *TeamsView) ID() string    { return "teams" }
 func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
-	return "Enter:détail  a:ajouter  d:retirer  s:sync  r:refresh  u:undo"
+	return fmt.Sprintf("Enter:%s  a:%s  d:%s  s:%s  r:%s  u:%s",
+		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.add"),
+		i18n.T("tui.hints.delete"),
+		i18n.T("tui.hints.sync"),
+		i18n.T("tui.hints.refresh"),
+		i18n.T("tui.hints.undo"),
+	)
 }
 
 func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {

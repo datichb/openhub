@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -106,7 +107,16 @@ func (v *ProjectsView) Title() string { return "Projets" }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
-	return "j/k naviguer · p mode projet · b init board · c configurer · r renommer · m déplacer · a ajouter · d supprimer"
+	return fmt.Sprintf("j/k %s · p %s · b %s · c %s · r %s · m %s · a %s · d %s",
+		i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.project_mode"),
+		i18n.T("tui.hints.init_board"),
+		i18n.T("tui.hints.configure"),
+		i18n.T("tui.hints.rename"),
+		i18n.T("tui.hints.move"),
+		i18n.T("tui.hints.add"),
+		i18n.T("tui.hints.delete"),
+	)
 }
 
 // Mount builds the projects list with footer detail.
@@ -114,42 +124,64 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
 
-	v.list = tview.NewList().
-		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
-
-	v.detail = tview.NewTextView().
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	v.detail.SetBackgroundColor(theme.BgPanel)
-	v.detail.SetBorderPadding(0, 0, 2, 2)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement des projets...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	for _, p := range v.cfg.Projects {
-		v.list.AddItem(p.Name, "    "+p.Path, 0, nil)
-	}
+	// Build list asynchronously
+	go func() {
+		// Capture data needed (cfg.Projects is a slice — safe to read)
+		projects := v.cfg.Projects
 
-	if len(v.cfg.Projects) == 0 {
-		muted := theme.ColorTag(theme.TextMutedHex)
-		v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
-	}
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
 
-	v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
-		if index >= 0 && index < len(v.cfg.Projects) {
-			v.showDetail(v.cfg.Projects[index])
-		}
-	})
+			v.list = tview.NewList().
+				ShowSecondaryText(true).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary).
+				SetSecondaryTextColor(theme.FgSecondary)
+			v.list.SetBackgroundColor(theme.BgPanel)
+			v.list.SetBorderPadding(1, 0, 2, 2)
 
-	if len(v.cfg.Projects) > 0 {
-		v.showDetail(v.cfg.Projects[0])
-	}
+			v.detail = tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignLeft)
+			v.detail.SetBackgroundColor(theme.BgPanel)
+			v.detail.SetBorderPadding(0, 0, 2, 2)
 
-	// Vertical layout: list on top, footer detail at bottom
-	content.AddItem(v.list, 0, 3, true)
-	content.AddItem(v.detail, 6, 0, false)
+			for _, p := range projects {
+				v.list.AddItem(p.Name, "    "+p.Path, 0, nil)
+			}
+
+			if len(projects) == 0 {
+				muted := theme.ColorTag(theme.TextMutedHex)
+				v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
+			}
+
+			v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
+				if index >= 0 && index < len(v.cfg.Projects) {
+					v.showDetail(v.cfg.Projects[index])
+				}
+			})
+
+			if len(projects) > 0 {
+				v.showDetail(projects[0])
+			}
+
+			// Replace loading with real layout
+			content.RemoveItem(loading)
+			content.AddItem(v.list, 0, 3, true)
+			content.AddItem(v.detail, 6, 0, false)
+		})
+	}()
 }
 
 // Unmount cleans up resources.

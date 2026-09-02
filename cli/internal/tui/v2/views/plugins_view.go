@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/plugin"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -37,7 +38,7 @@ func (v *PluginsView) Title() string { return "Plugins" }
 
 // StatusHints returns keybinding hints.
 func (v *PluginsView) StatusHints() string {
-	return "i installer · d désinstaller · r refresh · Esc retour"
+	return fmt.Sprintf("i %s · d %s · r %s · Esc %s", i18n.T("tui.hints.install"), i18n.T("tui.hints.uninstall"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the plugin status display.

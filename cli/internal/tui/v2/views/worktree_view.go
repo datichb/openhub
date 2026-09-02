@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -54,7 +55,7 @@ func (v *WorktreeView) Title() string { return "Worktrees" }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return "j/k nav · a ajouter · d supprimer · o ouvrir · s sync · p prune · C cleanup · r refresh · Esc retour"
+	return fmt.Sprintf("j/k %s · a %s · d %s · o %s · s %s · p %s · C %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the worktree list.

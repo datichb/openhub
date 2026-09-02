@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -26,7 +27,9 @@ func (v *HelpView) ID() string { return "help" }
 func (v *HelpView) Title() string { return "À propos" }
 
 // StatusHints returns keybinding hints.
-func (v *HelpView) StatusHints() string { return "Esc retour" }
+func (v *HelpView) StatusHints() string {
+	return fmt.Sprintf("Esc %s", i18n.T("tui.hints.back"))
+}
 
 // Mount builds the help display.
 func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {

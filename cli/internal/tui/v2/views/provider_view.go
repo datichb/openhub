@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -42,7 +43,11 @@ func (v *ProviderView) Title() string { return "Provider" }
 
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
-	return "s setup · r refresh · Ctrl+P commande"
+	return fmt.Sprintf("s %s · r %s · Ctrl+P %s",
+		i18n.T("tui.hints.setup"),
+		i18n.T("tui.hints.refresh"),
+		i18n.T("tui.hints.commands"),
+	)
 }
 
 // Mount builds the provider status display.

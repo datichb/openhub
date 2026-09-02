@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -72,11 +73,15 @@ func (v *ProjectModeView) Title() string {
 // StatusHints returns keybinding hints for the omnibar (passive mode).
 func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
-		return "Aucun projet actif · Ctrl+T retour au hub"
+		return fmt.Sprintf("Aucun projet actif · Ctrl+T %s", i18n.T("tui.hints.hub_mode"))
 	}
 	return fmt.Sprintf(
-		"%s · j/k naviguer · Enter ouvrir · Ctrl+P commandes · Ctrl+T mode hub",
+		"%s · j/k %s · Enter %s · Ctrl+P %s · Ctrl+T %s",
 		v.project.Name,
+		i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.open"),
+		i18n.T("tui.hints.commands"),
+		i18n.T("tui.hints.hub_mode"),
 	)
 }
 

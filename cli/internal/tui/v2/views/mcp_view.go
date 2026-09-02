@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -65,71 +66,93 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return "j/k nav · Space toggle · t token · w écriture · r refresh"
+	return fmt.Sprintf("j/k nav · Space %s · t %s · w %s · r %s",
+		i18n.T("tui.hints.toggle"),
+		i18n.T("tui.hints.token"),
+		i18n.T("tui.hints.write"),
+		i18n.T("tui.hints.refresh"),
+	)
 }
 
 // Mount builds the MCP management interface.
 func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	// ── Load data ──────────────────────────────────────────────────────
-	v.loadServices()
-
-	// ── Hub label ──────────────────────────────────────────────────────
-	hubLabel := tview.NewTextView().
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
 		SetDynamicColors(true).
-		SetText(fmt.Sprintf("  %s─── Hub (global) ──────────────────────────────────────%s",
-			theme.ColorTag(theme.AccentHex), theme.TagColor))
-	hubLabel.SetBackgroundColor(theme.BgPanel)
+		SetTextAlign(tview.AlignLeft)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement des services MCP...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	// ── Hub list ───────────────────────────────────────────────────────
-	v.hubList = tview.NewList().
-		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary).
-		SetSelectedTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.Accent)
-	v.hubList.SetBackgroundColor(theme.BgPanel)
-	v.hubList.SetBorderPadding(0, 0, 2, 2)
-	v.populateHubList()
+	// Load data and build UI asynchronously
+	go func() {
+		v.loadServices()
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
 
-	// ── Hints ─────────────────────────────────────────────────────────
-	hints := tview.NewTextView().
-		SetDynamicColors(true).
-		SetText(fmt.Sprintf("  %sSpace toggle · t token · w écriture · r refresh%s",
-			theme.ColorTag(theme.TextMutedHex), theme.TagColor))
-	hints.SetBackgroundColor(theme.BgPanel)
+			// ── Hub label ──────────────────────────────────────────────────────
+			hubLabel := tview.NewTextView().
+				SetDynamicColors(true).
+				SetText(fmt.Sprintf("  %s─── Hub (global) ──────────────────────────────────────%s",
+					theme.ColorTag(theme.AccentHex), theme.TagColor))
+			hubLabel.SetBackgroundColor(theme.BgPanel)
 
-	// ── Layout ────────────────────────────────────────────────────────
-	v.content = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(hubLabel, 1, 0, false).
-		AddItem(v.hubList, len(v.services)+1, 0, true).
-		AddItem(hints, 2, 0, false)
-	v.content.SetBackgroundColor(theme.BgPanel)
-
-	// ── Key handlers on hub list ─────────────────────────────────────
-	v.hubList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Rune() {
-		case ' ':
-			v.toggleHubCurrent()
-			return nil
-		case 't':
-			v.promptTokenCurrent()
-			return nil
-		case 'w':
-			v.toggleWriteCurrent()
-			return nil
-		case 'r':
-			v.loadServices()
+			// ── Hub list ───────────────────────────────────────────────────────
+			v.hubList = tview.NewList().
+				ShowSecondaryText(true).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary).
+				SetSecondaryTextColor(theme.FgSecondary).
+				SetSelectedTextColor(theme.FgPrimary).
+				SetSelectedBackgroundColor(theme.Accent)
+			v.hubList.SetBackgroundColor(theme.BgPanel)
+			v.hubList.SetBorderPadding(0, 0, 2, 2)
 			v.populateHubList()
-			return nil
-		}
-		return event
-	})
 
-	v.buildCommands()
-	content.AddItem(v.content, 0, 1, true)
+			// ── Hints ─────────────────────────────────────────────────────────
+			hints := tview.NewTextView().
+				SetDynamicColors(true).
+				SetText(fmt.Sprintf("  %sSpace toggle · t token · w écriture · r refresh%s",
+					theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+			hints.SetBackgroundColor(theme.BgPanel)
+
+			// ── Layout ────────────────────────────────────────────────────────
+			v.content = tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(hubLabel, 1, 0, false).
+				AddItem(v.hubList, len(v.services)+1, 0, true).
+				AddItem(hints, 2, 0, false)
+			v.content.SetBackgroundColor(theme.BgPanel)
+
+			// ── Key handlers on hub list ─────────────────────────────────────
+			v.hubList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				switch event.Rune() {
+				case ' ':
+					v.toggleHubCurrent()
+					return nil
+				case 't':
+					v.promptTokenCurrent()
+					return nil
+				case 'w':
+					v.toggleWriteCurrent()
+					return nil
+				case 'r':
+					v.loadServices()
+					v.populateHubList()
+					return nil
+				}
+				return event
+			})
+
+			v.buildCommands()
+			content.RemoveItem(loading)
+			content.AddItem(v.content, 0, 1, true)
+		})
+	}()
 }
 
 // Unmount cleans up resources.

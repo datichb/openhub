@@ -42,7 +42,7 @@ func (v *PatternsView) Title() string { return i18n.T("tui.team.patterns") }
 
 // StatusHints returns keybinding hints.
 func (v *PatternsView) StatusHints() string {
-	return "j/k nav · Enter voir · a ajouter · v valider · d supprimer · r refresh"
+	return fmt.Sprintf("j/k %s · Enter %s · a %s · v %s · d %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.see"), i18n.T("tui.hints.add"), i18n.T("tui.hints.validate"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"))
 }
 
 // Mount builds the patterns list.

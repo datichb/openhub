@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -69,33 +70,59 @@ func (v *ProjectConfigView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectConfigView) ID() string    { return "project.config" }
 func (v *ProjectConfigView) Title() string { return "Config Projet" }
 func (v *ProjectConfigView) StatusHints() string {
-	return "j/k nav · Space toggle · e éditer · w sauvegarder · Esc retour"
+	return fmt.Sprintf("j/k nav · Space %s · e %s · w %s · Esc %s",
+		i18n.T("tui.hints.toggle"),
+		i18n.T("tui.hints.edit"),
+		i18n.T("tui.hints.save"),
+		i18n.T("tui.hints.back"),
+	)
 }
 
 func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.live = v.cfg.GetProject()
 	v.dirty = false
 	v.mcpChanged = false
 
-	v.list = tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement de la configuration projet...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	if v.live == nil {
-		v.list.AddItem("  Aucun projet actif — sélectionnez un projet via l'omnibar", "", 0, nil)
-		content.AddItem(v.list, 0, 1, true)
-		app.SetFocus(v.list)
-		return
-	}
+	// Load project config asynchronously
+	go func() {
+		live := v.cfg.GetProject()
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
+			v.live = live
 
-	v.buildLines()
-	v.renderLines()
-	content.AddItem(v.list, 0, 1, true)
-	app.SetFocus(v.list)
+			v.list = tview.NewList().
+				ShowSecondaryText(false).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary)
+			v.list.SetBackgroundColor(theme.BgPanel)
+			v.list.SetBorderPadding(1, 0, 2, 2)
+
+			if v.live == nil {
+				v.list.AddItem("  Aucun projet actif — sélectionnez un projet via l'omnibar", "", 0, nil)
+				content.RemoveItem(loading)
+				content.AddItem(v.list, 0, 1, true)
+				app.SetFocus(v.list)
+				return
+			}
+
+			v.buildLines()
+			v.renderLines()
+			content.RemoveItem(loading)
+			content.AddItem(v.list, 0, 1, true)
+			app.SetFocus(v.list)
+		})
+	}()
 }
 
 func (v *ProjectConfigView) Unmount() {

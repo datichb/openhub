@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -52,35 +53,59 @@ func (v *ModelsView) Title() string { return "Models" }
 
 // StatusHints returns keybinding hints.
 func (v *ModelsView) StatusHints() string {
-	return "j/k nav · Enter modifier · a ajouter · d supprimer · Ctrl+P commande"
+	return fmt.Sprintf("j/k nav · Enter %s · a %s · d %s · Ctrl+P %s",
+		i18n.T("tui.hints.edit"),
+		i18n.T("tui.hints.add"),
+		i18n.T("tui.hints.delete"),
+		i18n.T("tui.hints.commands"),
+	)
 }
 
 // Mount builds the models cascade table.
 func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	v.table = tview.NewTable().
-		SetSelectable(true, false).
-		SetFixed(1, 0)
-	v.table.SetBackgroundColor(theme.BgPanel)
-	v.table.SetBorderPadding(1, 0, 2, 2)
-	v.table.SetSelectedStyle(tcell.StyleDefault.
-		Background(theme.BgElement).
-		Foreground(theme.FgPrimary))
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement des modèles...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	// Handle Enter to edit
-	v.table.SetSelectedFunc(func(row, col int) {
-		if row == 0 || row-1 >= len(v.entries) {
-			return
-		}
-		v.editEntry(row - 1)
-	})
+	// Load entries and populate table asynchronously
+	go func() {
+		v.loadEntries()
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
 
-	v.loadEntries()
-	v.populateTable()
-	v.buildCommands()
+			v.table = tview.NewTable().
+				SetSelectable(true, false).
+				SetFixed(1, 0)
+			v.table.SetBackgroundColor(theme.BgPanel)
+			v.table.SetBorderPadding(1, 0, 2, 2)
+			v.table.SetSelectedStyle(tcell.StyleDefault.
+				Background(theme.BgElement).
+				Foreground(theme.FgPrimary))
 
-	content.AddItem(v.table, 0, 1, true)
+			// Handle Enter to edit
+			v.table.SetSelectedFunc(func(row, col int) {
+				if row == 0 || row-1 >= len(v.entries) {
+					return
+				}
+				v.editEntry(row - 1)
+			})
+
+			v.populateTable()
+			v.buildCommands()
+
+			content.RemoveItem(loading)
+			content.AddItem(v.table, 0, 1, true)
+		})
+	}()
 }
 
 // Unmount cleans up resources.

@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -48,7 +49,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetLabel(fmt.Sprintf(" %s%s%s ", theme.ColorTag(theme.ActionHex), theme.IconActive, theme.TagColor)).
 		SetFieldBackgroundColor(theme.BgElement).
 		SetFieldTextColor(theme.FgPrimary).
-		SetPlaceholder("commande...").
+		SetPlaceholder(i18n.T("tui.omnibar.placeholder")).
 		SetPlaceholderTextColor(theme.FgMuted)
 	o.input.SetBackgroundColor(theme.BgElement)
 	o.input.SetBorderPadding(1, 1, 2, 2)

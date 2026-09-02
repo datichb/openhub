@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -46,7 +47,7 @@ func (v *MetricsView) Title() string { return "Métriques" }
 
 // StatusHints returns keybinding hints.
 func (v *MetricsView) StatusHints() string {
-	return "7 semaine · 3 mois · a tout · Tab usage/agents · Esc retour"
+	return fmt.Sprintf("7 %s · 3 %s · a %s · Tab %s · Esc %s", i18n.T("tui.hints.week"), i18n.T("tui.hints.month"), i18n.T("tui.hints.all"), i18n.T("tui.hints.usage_agents"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the metrics display with real data.

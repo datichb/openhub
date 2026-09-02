@@ -43,7 +43,7 @@ func (v *TakeoverView) Title() string { return i18n.T("tui.team.briefs") }
 
 // StatusHints returns keybinding hints.
 func (v *TakeoverView) StatusHints() string {
-	return "j/k nav · Enter voir · e enrichir (AI) · r refresh"
+	return fmt.Sprintf("j/k %s · Enter %s · e %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.see"), i18n.T("tui.hints.enrich_ai"), i18n.T("tui.hints.refresh"))
 }
 
 // Mount builds the takeover briefs list.

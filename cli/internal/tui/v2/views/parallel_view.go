@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -49,7 +50,12 @@ func (v *ParallelView) Title() string { return "Parallel" }
 
 // StatusHints returns keybinding hints.
 func (v *ParallelView) StatusHints() string {
-	return "j/k sessions · Enter attach · r refresh · Esc retour"
+	return fmt.Sprintf("j/k %s · Enter %s · r %s · Esc %s",
+		i18n.T("tui.hints.sessions"),
+		i18n.T("tui.hints.attach"),
+		i18n.T("tui.hints.refresh"),
+		i18n.T("tui.hints.back"),
+	)
 }
 
 // Mount builds the parallel monitor and inserts it into the content panel.

@@ -94,7 +94,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 	if cfg.Layout.StatusHints != "" {
 		cfg.Layout.StatusHints += " · "
 	}
-	cfg.Layout.StatusHints += "ctrl+s submit"
+	cfg.Layout.StatusHints += "ctrl+s submit · ctrl+b back"
 
 	// Wire OnQuit to set Aborted
 	cfg.Layout.OnQuit = func() {
@@ -221,6 +221,16 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		return -1
 	}
 
+	// ── Helper: find previous completed/active step ──
+	findPrev := func(from int) int {
+		for i := from - 1; i >= 0; i-- {
+			if !shouldSkip(i) && (steps[i].Status == widgets.StepDone || steps[i].Status == widgets.StepActive) {
+				return i
+			}
+		}
+		return -1
+	}
+
 	// ── Helper: skip current step (Esc) ──
 	skipCurrent := func() {
 		steps[currentStep] = widgets.Step{Label: steps[currentStep].Label, Status: widgets.StepSkipped}
@@ -233,6 +243,28 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		currentStep = next
 		steps[next] = widgets.Step{Label: steps[next].Label, Status: widgets.StepActive}
 		renderInfoPanel()
+	}
+
+	// ── Step rendering (forward declaration for goBack) ──
+	var doRenderStep func(int)
+
+	// ── Helper: go back to previous step (Ctrl+B) ──
+	goBack := func() {
+		prev := findPrev(currentStep)
+		if prev == -1 {
+			return // can't go further back
+		}
+		// Reset current step to pending
+		steps[currentStep] = widgets.Step{Label: steps[currentStep].Label, Status: widgets.StepPending}
+		// Reset previous step to active
+		steps[prev] = widgets.Step{Label: steps[prev].Label, Status: widgets.StepActive}
+		// Remove info entry for the previous step (it was completed, now we're re-doing it)
+		if len(infoAccumulator) > 0 {
+			infoAccumulator = infoAccumulator[:len(infoAccumulator)-1]
+		}
+		currentStep = prev
+		renderInfoPanel()
+		doRenderStep(currentStep)
 	}
 
 	// ── Helper: advance after OnDone ──
@@ -286,8 +318,6 @@ func RunWizard(cfg WizardConfig) WizardResult {
 	}
 
 	// ── Step rendering ──
-	var doRenderStep func(int)
-
 	renderStep := func(idx int) {
 		step := cfg.Steps[idx]
 
@@ -309,6 +339,13 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 		// Clear form container
 		formContainer.Clear()
+		formContainer.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyCtrlB {
+				goBack()
+				return nil
+			}
+			return event
+		})
 
 		// Reset double-Esc state when switching steps
 		escPending = false
@@ -396,6 +433,10 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 					if event.Key() == tcell.KeyCtrlS {
 						onDone()
+						return nil
+					}
+					if event.Key() == tcell.KeyCtrlB {
+						goBack()
 						return nil
 					}
 					return event

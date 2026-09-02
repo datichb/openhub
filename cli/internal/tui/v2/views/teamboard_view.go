@@ -90,9 +90,19 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := "h/l colonnes · j/k items · / search · f filter · c claim · x release · t transfer · s status · r refresh"
+	hints := fmt.Sprintf("h/l %s · j/k %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
+		i18n.T("tui.hints.columns"),
+		i18n.T("tui.hints.items"),
+		i18n.T("tui.hints.search"),
+		i18n.T("tui.hints.filter"),
+		i18n.T("tui.hints.claim"),
+		i18n.T("tui.hints.release"),
+		i18n.T("tui.hints.transfer"),
+		i18n.T("tui.hints.status"),
+		i18n.T("tui.hints.refresh"),
+	)
 	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
-		hints += " · [yellow]FILTRÉ[-]"
+		hints += " · [yellow]" + i18n.T("tui.hints.filtered") + "[-]"
 	}
 	return hints
 }

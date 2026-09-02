@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -65,28 +66,54 @@ func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SettingsView) ID() string      { return "settings" }
 func (v *SettingsView) Title() string   { return "Settings" }
 func (v *SettingsView) StatusHints() string {
-	return "j/k nav · Space toggle · Enter éditer · w sauvegarder · u annuler · r rafraîchir"
+	return fmt.Sprintf("j/k nav · Space %s · Enter %s · w %s · u %s · r %s",
+		i18n.T("tui.hints.toggle"),
+		i18n.T("tui.hints.edit"),
+		i18n.T("tui.hints.save"),
+		i18n.T("tui.hints.undo"),
+		i18n.T("tui.hints.refresh"),
+	)
 }
 
 // Mount builds and displays the view.
 func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.live = v.cfg.GetConfig()
 	v.dirty = false
 
-	v.list = tview.NewList().
-		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement de la configuration...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	v.buildLines()
-	v.renderLines()
+	// Load config and build list asynchronously
+	go func() {
+		live := v.cfg.GetConfig()
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
+			v.live = live
 
-	content.AddItem(v.list, 0, 1, true)
-	app.SetFocus(v.list)
+			v.list = tview.NewList().
+				ShowSecondaryText(true).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary).
+				SetSecondaryTextColor(theme.FgSecondary)
+			v.list.SetBackgroundColor(theme.BgPanel)
+			v.list.SetBorderPadding(1, 0, 2, 2)
+
+			v.buildLines()
+			v.renderLines()
+
+			content.RemoveItem(loading)
+			content.AddItem(v.list, 0, 1, true)
+			app.SetFocus(v.list)
+		})
+	}()
 }
 
 func (v *SettingsView) Unmount() {

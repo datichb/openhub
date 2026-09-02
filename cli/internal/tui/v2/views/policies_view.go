@@ -44,7 +44,7 @@ func (v *PoliciesView) Title() string { return i18n.T("tui.team.policies") }
 
 // StatusHints returns keybinding hints.
 func (v *PoliciesView) StatusHints() string {
-	return "j/k nav · Enter détail · a ajouter · c check · r refresh"
+	return fmt.Sprintf("j/k %s · Enter %s · a %s · c %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.detail"), i18n.T("tui.hints.add"), i18n.T("tui.hints.check"), i18n.T("tui.hints.refresh"))
 }
 
 // Mount builds the policies list.

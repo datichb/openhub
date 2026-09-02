@@ -40,7 +40,9 @@ func (v *TeamStatusView) ID() string { return "team.status" }
 func (v *TeamStatusView) Title() string { return i18n.T("tui.team.status") }
 
 // StatusHints returns keybinding hints.
-func (v *TeamStatusView) StatusHints() string { return "r refresh · Esc retour" }
+func (v *TeamStatusView) StatusHints() string {
+	return fmt.Sprintf("r %s · Esc %s", i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+}
 
 // Mount builds the team status display.
 func (v *TeamStatusView) Mount(content *tview.Flex, app *tview.Application) {

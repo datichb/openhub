@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -70,9 +71,19 @@ func (v *BoardView) Title() string { return "Board" }
 // StatusHints returns keybinding hints.
 func (v *BoardView) StatusHints() string {
 	if !v.initialized {
-		return "i initialiser beads · Ctrl+P commandes · Esc retour"
+		return fmt.Sprintf("i %s · Ctrl+P %s · Esc %s",
+			i18n.T("tui.hints.init_beads"),
+			i18n.T("tui.hints.commands"),
+			i18n.T("tui.hints.back"),
+		)
 	}
-	return "h/l colonnes · j/k items · Enter détail · r refresh · Esc retour"
+	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · r %s · Esc %s",
+		i18n.T("tui.hints.columns"),
+		i18n.T("tui.hints.items"),
+		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.refresh"),
+		i18n.T("tui.hints.back"),
+	)
 }
 
 // Mount builds the kanban board and inserts it into the content panel.

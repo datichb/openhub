@@ -8,6 +8,7 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -120,7 +121,13 @@ func (v *HomeView) Unmount() {
 }
 
 func (v *HomeView) StatusHints() string {
-	return "j/k naviguer · Enter ouvrir · Ctrl+P commandes · ? aide · Ctrl+Q quitter"
+	return fmt.Sprintf("j/k %s · Enter %s · Ctrl+P %s · ? %s · Ctrl+Q %s",
+		i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.open"),
+		i18n.T("tui.hints.commands"),
+		i18n.T("tui.hints.help"),
+		i18n.T("tui.hints.quit"),
+	)
 }
 
 func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {

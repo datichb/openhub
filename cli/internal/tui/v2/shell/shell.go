@@ -53,6 +53,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/router"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -136,7 +137,7 @@ func New(cfg Config) *Shell {
 	s.selection = NewSelectionManager(func(text string) {
 		go func() {
 			s.app.QueueUpdateDraw(func() {
-				s.ShowToast("Copié dans le presse-papiers", ToastSuccess)
+				s.ShowToast(i18n.T("tui.shell.copied_clipboard"), ToastSuccess)
 			})
 		}()
 	})
@@ -669,7 +670,7 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		SetTextAlign(tview.AlignCenter)
 	hints.SetBackgroundColor(theme.BgDimOverlay)
 	hints.SetText(fmt.Sprintf(
-		"%s↑↓%s naviguer  %s←→%s cycler · boutons  %sEnter%s ouvrir  %sEsc%s annuler",
+		i18n.T("tui.shell.form_hints"),
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
@@ -700,7 +701,7 @@ func selectLabel(field *views.FormField, idx int) string {
 // Shows up to 2 labels then "+N more", with a ⏎ hint to open the selector.
 func multiSummary(selected []string, options []views.SelectOption) string {
 	if len(selected) == 0 {
-		return "— (Enter sélectionner)"
+		return i18n.T("tui.shell.enter_select")
 	}
 	labelOf := make(map[string]string, len(options))
 	for _, opt := range options {
@@ -734,7 +735,7 @@ func (s *Shell) showSubSelect(title string, options []views.SelectOption, curren
 	list.SetBackgroundColor(theme.BgPanel)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf("  %s · Enter choisir · Esc retour  ", title))
+	list.SetTitle(fmt.Sprintf("  %s · %s  ", title, i18n.T("tui.shell.select_hints")))
 	list.SetTitleColor(theme.Accent)
 
 	currentIdx := 0
@@ -805,7 +806,7 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
 	list.SetBorderPadding(0, 0, 1, 1)
-	list.SetTitle(fmt.Sprintf("  %s · Space/x cocher · Enter confirmer · Esc retour  ", title))
+	list.SetTitle(fmt.Sprintf("  %s · %s  ", title, i18n.T("tui.shell.multiselect_hints")))
 	list.SetTitleColor(theme.Accent)
 
 	renderItems := func() {
@@ -1222,7 +1223,7 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	hint.SetBackgroundColor(theme.BgPanel)
-	hint.SetText(fmt.Sprintf("  %sEnter%s confirmer  %sEsc%s annuler",
+	hint.SetText(fmt.Sprintf("  "+i18n.T("tui.shell.input_hints"),
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor))
 
@@ -1264,7 +1265,7 @@ func (s *Shell) showInlineSelect(title string, options []views.SelectOption, cur
 	list.SetBackgroundColor(theme.BgPanel)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf(" %s · Enter sélectionner · Esc annuler ", title))
+	list.SetTitle(fmt.Sprintf(" %s · %s ", title, i18n.T("tui.shell.select_modal_hints")))
 	list.SetTitleColor(theme.Accent)
 
 	currentIdx := 0
@@ -1331,7 +1332,7 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	list.SetBackgroundColor(theme.BgPanel)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf(" %s · Space/x toggle · Enter confirmer · Esc annuler ", title))
+	list.SetTitle(fmt.Sprintf(" %s · %s ", title, i18n.T("tui.shell.multiselect_modal_hints")))
 	list.SetTitleColor(theme.Accent)
 
 	renderItems := func() {

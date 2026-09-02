@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -76,7 +77,7 @@ func (v *SecretsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SecretsView) ID() string             { return "secrets" }
 func (v *SecretsView) Title() string          { return "Secrets & Tokens" }
 func (v *SecretsView) StatusHints() string {
-	return "j/k nav · e modifier · a ajouter · d supprimer · r refresh · Esc retour"
+	return fmt.Sprintf("j/k %s · e %s · a %s · d %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.edit"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {

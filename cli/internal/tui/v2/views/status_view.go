@@ -13,6 +13,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -43,7 +44,9 @@ func (v *StatusView) ID() string { return "status" }
 func (v *StatusView) Title() string { return "Status" }
 
 // StatusHints returns keybinding hints.
-func (v *StatusView) StatusHints() string { return "r refresh · c conventions check · Esc retour" }
+func (v *StatusView) StatusHints() string {
+	return fmt.Sprintf("r %s · c %s · Esc %s", i18n.T("tui.hints.refresh"), i18n.T("tui.hints.conventions_check"), i18n.T("tui.hints.back"))
+}
 
 // Mount builds the status display with real data.
 func (v *StatusView) Mount(content *tview.Flex, app *tview.Application) {

@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -60,43 +61,67 @@ func (v *MergeView) Title() string { return "Merge" }
 
 // StatusHints returns keybinding hints.
 func (v *MergeView) StatusHints() string {
-	return "j/k branches · m merge · s skip · Esc retour"
+	return fmt.Sprintf("j/k %s · m %s · s %s · Esc %s",
+		i18n.T("tui.hints.branches"),
+		i18n.T("tui.hints.merge"),
+		i18n.T("tui.hints.skip"),
+		i18n.T("tui.hints.back"),
+	)
 }
 
 // Mount builds the merge view.
 func (v *MergeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	// Branch list
-	v.list = tview.NewList().
-		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
-
-	// Detail panel (diff stats)
-	v.detailView = tview.NewTextView().
+	// Show loading placeholder immediately
+	loading := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	v.detailView.SetBackgroundColor(theme.BgPanel)
-	v.detailView.SetBorderPadding(1, 0, 2, 2)
+	loading.SetBackgroundColor(theme.BgPanel)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loading.SetText(fmt.Sprintf("\n  %sChargement des branches...%s", muted, theme.TagColor))
+	content.AddItem(loading, 0, 1, true)
 
-	// Wire selection to detail
-	v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
-		if index >= 0 && index < len(v.cfg.Branches) {
-			v.updateDetail(v.cfg.Branches[index])
-		}
-	})
+	// Build UI and populate list asynchronously
+	go func() {
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // view was unmounted before the goroutine finished
+			}
 
-	// Vertical layout: list (3/5) + detail (2/5)
-	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow)
-	v.contentFlex.AddItem(v.list, 0, 3, true)
-	v.contentFlex.AddItem(v.detailView, 0, 2, false)
+			// Branch list
+			v.list = tview.NewList().
+				ShowSecondaryText(true).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary).
+				SetSecondaryTextColor(theme.FgSecondary)
+			v.list.SetBackgroundColor(theme.BgPanel)
+			v.list.SetBorderPadding(1, 0, 2, 2)
 
-	v.populateList()
-	content.AddItem(v.contentFlex, 0, 1, true)
+			// Detail panel (diff stats)
+			v.detailView = tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignLeft)
+			v.detailView.SetBackgroundColor(theme.BgPanel)
+			v.detailView.SetBorderPadding(1, 0, 2, 2)
+
+			// Wire selection to detail
+			v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
+				if index >= 0 && index < len(v.cfg.Branches) {
+					v.updateDetail(v.cfg.Branches[index])
+				}
+			})
+
+			// Vertical layout: list (3/5) + detail (2/5)
+			v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow)
+			v.contentFlex.AddItem(v.list, 0, 3, true)
+			v.contentFlex.AddItem(v.detailView, 0, 2, false)
+
+			v.populateList()
+			content.RemoveItem(loading)
+			content.AddItem(v.contentFlex, 0, 1, true)
+		})
+	}()
 }
 
 // Unmount cleans up.

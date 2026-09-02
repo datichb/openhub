@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -44,7 +45,9 @@ func (v *DoctorView) ID() string { return "doctor" }
 func (v *DoctorView) Title() string { return "Doctor" }
 
 // StatusHints returns keybinding hints.
-func (v *DoctorView) StatusHints() string { return "r re-check · Esc retour" }
+func (v *DoctorView) StatusHints() string {
+	return fmt.Sprintf("r %s · Esc %s", i18n.T("tui.hints.recheck"), i18n.T("tui.hints.back"))
+}
 
 // Mount builds the doctor checks display and runs all checks.
 func (v *DoctorView) Mount(content *tview.Flex, app *tview.Application) {
