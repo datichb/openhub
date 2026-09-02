@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -118,7 +119,7 @@ func Serve() error {
 
 	server.RegisterTool(protocol.Tool{
 		Name:        "team_notify",
-		Description: "Send a notification to the team Mattermost channel",
+		Description: "Send a notification to the team channel (supports Mattermost, Slack, Discord, Teams)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -235,10 +236,35 @@ func Serve() error {
 // Resolution order:
 //  1. .opencode/team.json in the current working directory (written by "oh deploy")
 //  2. hub.toml [team] section (legacy / fallback for projects not yet redeployed)
+// Repo cache: avoids re-creating the Repo + pulling on every handler call.
+// The TTL ensures freshness while preventing redundant network I/O during
+// bursts of tool calls within an agent session.
+var (
+	cachedRepo     *teamstate.Repo
+	cachedRepoMu   sync.Mutex
+	cachedRepoTime time.Time
+	repoTTL        = 30 * time.Second
+)
+
+// resetRepoCache invalidates the cached repo. Used by tests that change cwd.
+func resetRepoCache() {
+	cachedRepoMu.Lock()
+	cachedRepo = nil
+	cachedRepoTime = time.Time{}
+	cachedRepoMu.Unlock()
+}
+
 //
 // If neither source enables team features, an error is returned so callers can
 // surface a clear message to the agent.
 func getRepo() (*teamstate.Repo, error) {
+	cachedRepoMu.Lock()
+	defer cachedRepoMu.Unlock()
+
+	if cachedRepo != nil && time.Since(cachedRepoTime) < repoTTL {
+		return cachedRepo, nil
+	}
+
 	teamCfg, err := loadEffectiveTeamConfig()
 	if err != nil {
 		return nil, fmt.Errorf("loading team config: %w", err)
@@ -257,9 +283,13 @@ func getRepo() (*teamstate.Repo, error) {
 		return nil, fmt.Errorf("team-state repo not cloned at %s", statePath)
 	}
 
-	// Pull latest (best-effort)
-	_ = repo.Pull(context.Background())
+	// Pull latest (best-effort — warn if stale)
+	if err := repo.Pull(context.Background()); err != nil {
+		slog.Warn("mcp.team.pull_failed", "error", err, "path", statePath)
+	}
 
+	cachedRepo = repo
+	cachedRepoTime = time.Now()
 	return repo, nil
 }
 
@@ -297,7 +327,7 @@ func loadEffectiveTeamConfig() (deploy.DeployedTeamConfig, error) {
 	}, nil
 }
 
-func handleTeamMembers(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamMembers(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	repo, err := getRepo()
 	if err != nil {
 		return nil, err
@@ -318,7 +348,7 @@ func handleTeamMembers(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamClaims(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamClaims(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project string `json:"project"`
 	}
@@ -346,7 +376,7 @@ func handleTeamClaims(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamWikiList(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamWikiList(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	repo, err := getRepo()
 	if err != nil {
 		return nil, err
@@ -367,7 +397,7 @@ func handleTeamWikiList(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamWikiRead(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamWikiRead(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Page string `json:"page"`
 	}
@@ -390,7 +420,7 @@ func handleTeamWikiRead(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamWikiWrite(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Page       string `json:"page"`
 		Content    string `json:"content"`
@@ -415,7 +445,6 @@ func handleTeamWikiWrite(params json.RawMessage) (*protocol.ToolResult, error) {
 		CreatedAt:  time.Now().UTC(),
 	}
 
-	ctx := context.Background()
 	if err := repo.WikiCreateProposal(ctx, proposal); err != nil {
 		return nil, fmt.Errorf("creating proposal: %w", err)
 	}
@@ -446,7 +475,7 @@ func handleTeamWikiWrite(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamEvents(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamEvents(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project string `json:"project"`
 		Limit   int    `json:"limit"`
@@ -457,6 +486,10 @@ func handleTeamEvents(params json.RawMessage) (*protocol.ToolResult, error) {
 
 	if args.Limit <= 0 {
 		args.Limit = 20
+	}
+	const maxEventsLimit = 200
+	if args.Limit > maxEventsLimit {
+		args.Limit = maxEventsLimit
 	}
 
 	repo, err := getRepo()
@@ -479,7 +512,7 @@ func handleTeamEvents(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamNotify(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamNotify(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Message string `json:"message"`
 	}
@@ -498,7 +531,6 @@ func handleTeamNotify(params json.RawMessage) (*protocol.ToolResult, error) {
 	}
 
 	d := notify.NewDispatcher(teamCfg)
-	ctx := context.Background()
 	if err := d.Dispatch(ctx, teamstate.Event{
 		Type:    "custom.notification",
 		Project: "team",
@@ -512,7 +544,7 @@ func handleTeamNotify(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamPolicies(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamPolicies(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project string `json:"project"`
 	}
@@ -549,7 +581,7 @@ func handleTeamPolicies(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleTeamTakeoverBrief(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project  string `json:"project"`
 		TicketID string `json:"ticket_id"`
@@ -581,7 +613,7 @@ func handleTeamTakeoverBrief(params json.RawMessage) (*protocol.ToolResult, erro
 	}, nil
 }
 
-func handleTeamPatternsList(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamPatternsList(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Tags []string `json:"tags"`
 	}
@@ -623,7 +655,7 @@ func handleTeamPatternsList(params json.RawMessage) (*protocol.ToolResult, error
 	}, nil
 }
 
-func handleTeamPatternsRead(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamPatternsRead(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Name string `json:"name"`
 	}
@@ -646,7 +678,7 @@ func handleTeamPatternsRead(params json.RawMessage) (*protocol.ToolResult, error
 	}, nil
 }
 
-func handleTeamPatternsPropose(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTeamPatternsPropose(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Name       string   `json:"name"`
 		Tags       []string `json:"tags"`
@@ -672,7 +704,7 @@ func handleTeamPatternsPropose(params json.RawMessage) (*protocol.ToolResult, er
 		Validated:  false, // proposals always start unvalidated
 	}
 
-	if err := repo.CreatePattern(context.Background(), p, args.Content); err != nil {
+	if err := repo.CreatePattern(ctx, p, args.Content); err != nil {
 		return nil, fmt.Errorf("creating pattern: %w", err)
 	}
 
