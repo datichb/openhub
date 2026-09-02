@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -95,7 +96,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleAddLabel)
 }
 
-func handleCreateMR(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateMR(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID    string `json:"project_id"`
 		SourceBranch string `json:"source_branch"`
@@ -154,7 +155,7 @@ func handleCreateMR(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleAddMRNote(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleAddMRNote(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID string `json:"project_id"`
 		MrIID     int    `json:"mr_iid"`
@@ -178,7 +179,7 @@ func handleAddMRNote(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleUpdateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID   string `json:"project_id"`
 		IssueIID    int    `json:"issue_iid"`
@@ -215,7 +216,7 @@ func handleUpdateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleAssignReviewer(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleAssignReviewer(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID   string `json:"project_id"`
 		MrIID       int    `json:"mr_iid"`
@@ -239,7 +240,7 @@ func handleAssignReviewer(params json.RawMessage) (*protocol.ToolResult, error) 
 	}, nil
 }
 
-func handleAddLabel(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleAddLabel(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID string `json:"project_id"`
 		IssueIID  int    `json:"issue_iid"`

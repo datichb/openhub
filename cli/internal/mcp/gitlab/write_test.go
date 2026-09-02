@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -50,7 +51,7 @@ func TestHandleCreateMR(t *testing.T) {
 		"description":   "Implements SRU-142",
 	})
 
-	result, err := handleCreateMR(params)
+	result, err := handleCreateMR(context.Background(), params)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Contains(t, result.Content[0].Text, "234")
@@ -76,7 +77,7 @@ func TestHandleCreateMRAlreadyExists(t *testing.T) {
 		"title":         "should not create",
 	})
 
-	result, err := handleCreateMR(params)
+	result, err := handleCreateMR(context.Background(), params)
 	require.NoError(t, err)
 	assert.Contains(t, result.Content[0].Text, "already exists")
 	assert.Contains(t, result.Content[0].Text, "feat/existing")
@@ -99,7 +100,7 @@ func TestHandleAddMRNote(t *testing.T) {
 		"body":       "Review complete: LGTM",
 	})
 
-	result, err := handleAddMRNote(params)
+	result, err := handleAddMRNote(context.Background(), params)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Contains(t, string(receivedBody), "Review complete: LGTM")
@@ -123,7 +124,7 @@ func TestHandleUpdateIssue(t *testing.T) {
 		"add_labels":  "ai-reviewed,done",
 	})
 
-	result, err := handleUpdateIssue(params)
+	result, err := handleUpdateIssue(context.Background(), params)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "close", receivedBody["state_event"])
@@ -147,7 +148,7 @@ func TestHandleAssignReviewer(t *testing.T) {
 		"reviewer_ids": []int{42, 43},
 	})
 
-	result, err := handleAssignReviewer(params)
+	result, err := handleAssignReviewer(context.Background(), params)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	ids := receivedBody["reviewer_ids"].([]interface{})
@@ -170,7 +171,7 @@ func TestHandleAddLabel(t *testing.T) {
 		"labels":     "ai-reviewed,security",
 	})
 
-	result, err := handleAddLabel(params)
+	result, err := handleAddLabel(context.Background(), params)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "ai-reviewed,security", receivedBody["add_labels"])

@@ -2,6 +2,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -70,7 +71,7 @@ func isWriteEnabled() bool {
 	return os.Getenv("GITLAB_WRITE_ENABLED") == "true"
 }
 
-func handleGetProject(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetProject(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID string `json:"project_id"`
 	}
@@ -86,7 +87,7 @@ func handleGetProject(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID string `json:"project_id"`
 		State     string `json:"state"`
@@ -108,7 +109,7 @@ func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleListMRs(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListMRs(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID string `json:"project_id"`
 		State     string `json:"state"`

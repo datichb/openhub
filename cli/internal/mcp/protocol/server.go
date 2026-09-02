@@ -55,7 +55,7 @@ type ContentBlock struct {
 }
 
 // Handler is a function that handles a tool call.
-type Handler func(params json.RawMessage) (*ToolResult, error)
+type Handler func(ctx context.Context, params json.RawMessage) (*ToolResult, error)
 
 // Server is an MCP server that communicates over stdio.
 type Server struct {
@@ -121,13 +121,13 @@ func (s *Server) Serve() error {
 				continue
 			}
 
-			resp := s.handleRequest(&req)
+			resp := s.handleRequest(ctx, &req)
 			s.writeResponse(writer, resp)
 		}
 	}
 }
 
-func (s *Server) handleRequest(req *Request) *Response {
+func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
 	switch req.Method {
 	case "initialize":
 		return &Response{
@@ -172,7 +172,7 @@ func (s *Server) handleRequest(req *Request) *Response {
 			return s.errorResponse(req.ID, -32601, fmt.Sprintf("Tool not found: %s", params.Name))
 		}
 
-		result, err := handler(params.Arguments)
+		result, err := handler(ctx, params.Arguments)
 		if err != nil {
 			return &Response{
 				JSONRPC: "2.0",

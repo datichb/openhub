@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -14,7 +15,7 @@ func TestHandleValidRequest(t *testing.T) {
 		Name:        "echo",
 		Description: "Echoes back the input",
 		InputSchema: map[string]interface{}{"type": "object"},
-	}, func(params json.RawMessage) (*ToolResult, error) {
+	}, func(_ context.Context, params json.RawMessage) (*ToolResult, error) {
 		return &ToolResult{
 			Content: []ContentBlock{{Type: "text", Text: "hello"}},
 		}, nil
@@ -27,7 +28,7 @@ func TestHandleValidRequest(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"echo","arguments":{}}`),
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	assert.Equal(t, "2.0", resp.JSONRPC)
 	assert.Equal(t, float64(1), resp.ID)
@@ -50,7 +51,7 @@ func TestHandleUnknownMethod(t *testing.T) {
 		Method:  "unknown/method",
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	assert.Equal(t, "2.0", resp.JSONRPC)
 	assert.Equal(t, float64(2), resp.ID)
@@ -73,7 +74,7 @@ func TestHandleInvalidJSON(t *testing.T) {
 		Params:  json.RawMessage(`not valid json`),
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Error)
 	assert.Equal(t, -32602, resp.Error.Code)
@@ -90,7 +91,7 @@ func TestHandleMissingParams(t *testing.T) {
 			"properties": map[string]interface{}{"name": map[string]interface{}{"type": "string"}},
 			"required":   []string{"name"},
 		},
-	}, func(params json.RawMessage) (*ToolResult, error) {
+	}, func(_ context.Context, params json.RawMessage) (*ToolResult, error) {
 		return &ToolResult{
 			Content: []ContentBlock{{Type: "text", Text: "ok"}},
 		}, nil
@@ -104,7 +105,7 @@ func TestHandleMissingParams(t *testing.T) {
 		Params:  nil,
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Error)
 	assert.Equal(t, -32602, resp.Error.Code)
@@ -117,7 +118,7 @@ func TestToolRegistration(t *testing.T) {
 		Name:        "my_tool",
 		Description: "A test tool",
 		InputSchema: map[string]interface{}{"type": "object"},
-	}, func(params json.RawMessage) (*ToolResult, error) {
+	}, func(_ context.Context, params json.RawMessage) (*ToolResult, error) {
 		return nil, nil
 	})
 
@@ -127,7 +128,7 @@ func TestToolRegistration(t *testing.T) {
 		Method:  "tools/list",
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	assert.Nil(t, resp.Error)
 
@@ -150,7 +151,7 @@ func TestInitializeHandshake(t *testing.T) {
 		Method:  "initialize",
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	assert.Equal(t, "2.0", resp.JSONRPC)
 	assert.Equal(t, float64(6), resp.ID)
@@ -179,7 +180,7 @@ func TestNotificationInitializedReturnsNil(t *testing.T) {
 		Method:  "notifications/initialized",
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	assert.Nil(t, resp, "notifications should not produce a response")
 }
 
@@ -189,7 +190,7 @@ func TestToolCallHandlerError(t *testing.T) {
 		Name:        "failing",
 		Description: "Always fails",
 		InputSchema: map[string]interface{}{"type": "object"},
-	}, func(params json.RawMessage) (*ToolResult, error) {
+	}, func(_ context.Context, params json.RawMessage) (*ToolResult, error) {
 		return nil, assert.AnError
 	})
 
@@ -200,7 +201,7 @@ func TestToolCallHandlerError(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"failing","arguments":{}}`),
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	assert.Nil(t, resp.Error, "handler errors are returned as ToolResult with IsError=true")
 
@@ -220,7 +221,7 @@ func TestToolCallToolNotFound(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"nonexistent","arguments":{}}`),
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(context.Background(), req)
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Error)
 	assert.Equal(t, -32601, resp.Error.Code)

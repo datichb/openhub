@@ -3,6 +3,7 @@
 package linear
 
 import (
+	"context"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -86,7 +87,7 @@ func Serve() error {
 	return server.Serve()
 }
 
-func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		TeamKey  string `json:"team_key"`
 		State    string `json:"state"`
@@ -122,7 +123,7 @@ func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueID string `json:"issue_id"`
 	}
@@ -145,7 +146,7 @@ func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleCreateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		TeamID      string `json:"team_id"`
 		Title       string `json:"title"`
@@ -174,7 +175,7 @@ func handleCreateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleUpdateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueID    string `json:"issue_id"`
 		StateID    string `json:"state_id"`

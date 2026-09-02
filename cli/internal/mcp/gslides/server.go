@@ -2,6 +2,7 @@
 package gslides
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -45,7 +46,7 @@ func Serve() error {
 	return server.Serve()
 }
 
-func handleGetPresentation(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetPresentation(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		PresentationID string `json:"presentation_id"`
 	}
@@ -61,7 +62,7 @@ func handleGetPresentation(params json.RawMessage) (*protocol.ToolResult, error)
 	}, nil
 }
 
-func handleGetSlide(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetSlide(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		PresentationID string `json:"presentation_id"`
 		SlideID        string `json:"slide_id"`

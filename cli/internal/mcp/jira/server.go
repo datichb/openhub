@@ -3,6 +3,7 @@
 package jira
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -95,7 +96,7 @@ func Serve() error {
 	return server.Serve()
 }
 
-func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		JQL        string `json:"jql"`
 		MaxResults int    `json:"max_results"`
@@ -117,7 +118,7 @@ func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueKey string `json:"issue_key"`
 	}
@@ -131,7 +132,7 @@ func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetProject(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetProject(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectKey string `json:"project_key"`
 	}
@@ -145,7 +146,7 @@ func handleGetProject(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleTransitionIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleTransitionIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueKey     string `json:"issue_key"`
 		TransitionID string `json:"transition_id"`
@@ -238,7 +239,7 @@ func textResult(data []byte) *protocol.ToolResult {
 	}
 }
 
-func handleCreateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectKey  string   `json:"project_key"`
 		Summary     string   `json:"summary"`

@@ -3,6 +3,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -141,7 +142,7 @@ func Serve() error {
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
-func handleGetRepo(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetRepo(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo string `json:"repo"`
 	}
@@ -155,7 +156,7 @@ func handleGetRepo(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo     string `json:"repo"`
 		State    string `json:"state"`
@@ -185,7 +186,7 @@ func handleListIssues(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo        string `json:"repo"`
 		IssueNumber int    `json:"issue_number"`
@@ -200,7 +201,7 @@ func handleGetIssue(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleListPRs(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListPRs(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo  string `json:"repo"`
 		State string `json:"state"`
@@ -226,7 +227,7 @@ func handleListPRs(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetPR(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetPR(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo     string `json:"repo"`
 		PRNumber int    `json:"pr_number"`
@@ -250,7 +251,7 @@ func handleGetPR(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult([]byte(combined)), nil
 }
 
-func handleListWorkflows(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListWorkflows(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo string `json:"repo"`
 	}
@@ -264,7 +265,7 @@ func handleListWorkflows(params json.RawMessage) (*protocol.ToolResult, error) {
 	return textResult(data), nil
 }
 
-func handleGetWorkflowRun(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetWorkflowRun(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo       string `json:"repo"`
 		WorkflowID string `json:"workflow_id"`
@@ -280,7 +281,7 @@ func handleGetWorkflowRun(params json.RawMessage) (*protocol.ToolResult, error) 
 	return textResult(data), nil
 }
 
-func handleCreateIssue(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Repo   string   `json:"repo"`
 		Title  string   `json:"title"`

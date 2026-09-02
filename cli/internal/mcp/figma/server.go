@@ -2,6 +2,7 @@
 package figma
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -57,7 +58,7 @@ func Serve() error {
 	return server.Serve()
 }
 
-func handleGetFile(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetFile(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		FileKey string `json:"file_key"`
 	}
@@ -73,7 +74,7 @@ func handleGetFile(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleGetNode(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetNode(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		FileKey string `json:"file_key"`
 		NodeID  string `json:"node_id"`
@@ -90,7 +91,7 @@ func handleGetNode(params json.RawMessage) (*protocol.ToolResult, error) {
 	}, nil
 }
 
-func handleGetStyles(params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetStyles(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		FileKey string `json:"file_key"`
 	}
