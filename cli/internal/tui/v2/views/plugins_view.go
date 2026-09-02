@@ -50,8 +50,22 @@ func (v *PluginsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.text.SetBackgroundColor(theme.BgPanel)
 	v.text.SetBorderPadding(1, 0, 2, 2)
 
-	v.refresh()
+	// Show loading placeholder immediately
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.text.SetText(fmt.Sprintf("\n  %sVérification des plugins...%s", muted, theme.TagColor))
 	content.AddItem(v.text, 0, 1, true)
+
+	// Load plugin status asynchronously
+	go func() {
+		status := plugin.RTKStatus()
+		app.QueueUpdateDraw(func() {
+			if v.text == nil {
+				return
+			}
+			v.status = status
+			v.render()
+		})
+	}()
 }
 
 // Unmount cleans up resources.

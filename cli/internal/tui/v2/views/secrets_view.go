@@ -55,10 +55,11 @@ type secretEntry struct {
 // SecretsView displays and manages secrets (tokens, API keys) with global and
 // project scopes. Accessed via omnibar "secrets" / "tokens" / "credentials".
 type SecretsView struct {
-	app   *tview.Application
-	list  *tview.List
-	shell ShellAccess
-	cfg   SecretsViewConfig
+	app     *tview.Application
+	content *tview.Flex
+	list    *tview.List
+	shell   ShellAccess
+	cfg     SecretsViewConfig
 
 	entries      []secretEntry
 	listToEntry  []int // maps list item index → entries index (-1 for headers)
@@ -80,6 +81,7 @@ func (v *SecretsView) StatusHints() string {
 
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 
 	v.list = tview.NewList().
 		ShowSecondaryText(true).
@@ -89,13 +91,34 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list.SetBackgroundColor(theme.BgPanel)
 	v.list.SetBorderPadding(1, 0, 2, 2)
 
-	v.refresh()
-	content.AddItem(v.list, 0, 1, true)
-	app.SetFocus(v.list)
+	// Show loading placeholder immediately
+	loadingTV := tview.NewTextView().
+		SetDynamicColors(true)
+	loadingTV.SetBackgroundColor(theme.BgPanel)
+	loadingTV.SetBorderPadding(1, 0, 2, 2)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	loadingTV.SetText(fmt.Sprintf("\n  %sChargement des secrets...%s", muted, theme.TagColor))
+	content.AddItem(loadingTV, 0, 1, true)
+
+	// Load secrets asynchronously (keychain access)
+	go func() {
+		entries := v.buildEntries()
+		app.QueueUpdateDraw(func() {
+			if v.list == nil {
+				return
+			}
+			v.entries = entries
+			v.renderList()
+			content.RemoveItem(loadingTV)
+			content.AddItem(v.list, 0, 1, true)
+			app.SetFocus(v.list)
+		})
+	}()
 }
 
 func (v *SecretsView) Unmount() {
 	v.app = nil
+	v.content = nil
 	v.list = nil
 }
 

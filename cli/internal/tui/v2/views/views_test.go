@@ -82,7 +82,7 @@ func TestHomeView_ImplementsView(t *testing.T) {
 }
 
 func TestHomeView_MountUnmount(t *testing.T) {
-	v := NewHomeView()
+	v := NewHomeView(HomeViewConfig{})
 
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	app := tview.NewApplication()

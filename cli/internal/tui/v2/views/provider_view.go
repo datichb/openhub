@@ -55,9 +55,22 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 	v.text.SetBackgroundColor(theme.BgPanel)
 	v.text.SetBorderPadding(1, 0, 2, 2)
 
-	v.refresh()
+	// Show loading placeholder immediately
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.text.SetText(fmt.Sprintf("\n  %sDétection des providers...%s", muted, theme.TagColor))
 	v.buildCommands()
 	content.AddItem(v.text, 0, 1, true)
+
+	// Load provider data asynchronously
+	go func() {
+		text := v.buildRefreshText()
+		app.QueueUpdateDraw(func() {
+			if v.text == nil {
+				return
+			}
+			v.text.SetText(text)
+		})
+	}()
 }
 
 // Unmount cleans up resources.
@@ -83,7 +96,12 @@ func (v *ProviderView) refresh() {
 	if v.text == nil {
 		return
 	}
+	v.text.SetText(v.buildRefreshText())
+}
 
+// buildRefreshText builds the provider status text. Safe to call from any goroutine
+// because it only reads config and calls stateless provider detection functions.
+func (v *ProviderView) buildRefreshText() string {
 	var text string
 	text += fmt.Sprintf("  %s%s%s\n\n",
 		theme.ColorTag(theme.AccentHex), "Configuration Provider", theme.TagColor)
@@ -136,7 +154,7 @@ func (v *ProviderView) refresh() {
 	text += fmt.Sprintf("\n  %sAppuyez 's' pour configurer un provider%s\n",
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor)
 
-	v.text.SetText(text)
+	return text
 }
 
 // Provider options for setup
@@ -176,49 +194,58 @@ func (v *ProviderView) setupProvider() {
 }
 
 func (v *ProviderView) setupBedrock() {
-	// Step 2: Auth mode
+	// Step 1: Auth mode selection (kept as a select modal — it determines which fields to show)
 	v.shell.ShowSelectModal("Mode d'authentification Bedrock", bedrockAuthModeOptions, "", func(authMode string) {
 		vip := providerConfigViper()
 		vip.Set("provider.bedrock.auth_mode", authMode)
 
 		switch authMode {
 		case "bearer":
-			// Step 3: Token
-			v.shell.ShowPasswordModal("Bearer token Bedrock", func(token string) {
-				if token == "" {
-					return
-				}
-				// Store in keychain
-				if v.appCtx.Secrets != nil {
-					_ = v.appCtx.Secrets.Set(context.Background(), "bedrock-token-default", token)
-				}
-				// Step 4: Region
-				v.shell.ShowInputModal("AWS Region", "us-east-1", func(region string) {
-					if region != "" {
+			// Step 2: Inline form with token + region
+			v.shell.ShowInlineForm(InlineFormConfig{
+				Title: "Configuration Bedrock (Bearer)",
+				Fields: []FormField{
+					{Label: "Bearer token", Key: "token", Type: FieldPassword, Required: true},
+					{Label: "AWS Region", Key: "region", Type: FieldText, Default: "us-east-1"},
+				},
+				OnSubmit: func(values map[string]string, _ map[string][]string) {
+					token := values["token"]
+					if token == "" {
+						return
+					}
+					// Store in keychain
+					if v.appCtx.Secrets != nil {
+						_ = v.appCtx.Secrets.Set(context.Background(), "bedrock-token-default", token)
+					}
+					if region := values["region"]; region != "" {
 						vip.Set("provider.bedrock.aws_region", region)
 					}
 					vip.Set("opencode.default_provider", "bedrock")
 					_ = vip.WriteConfigAs(config.ConfigPath())
 					v.refresh()
 					v.shell.ShowToastMsg("Bedrock configuré (bearer)", true)
-				})
+				},
 			})
 		case "profile":
-			// Step 3: Profile name
-			v.shell.ShowInputModal("AWS Profile", "default", func(profile string) {
-				if profile != "" {
-					vip.Set("provider.bedrock.aws_profile", profile)
-				}
-				// Step 4: Region
-				v.shell.ShowInputModal("AWS Region", "us-east-1", func(region string) {
-					if region != "" {
+			// Step 2: Inline form with profile + region
+			v.shell.ShowInlineForm(InlineFormConfig{
+				Title: "Configuration Bedrock (Profile)",
+				Fields: []FormField{
+					{Label: "AWS Profile", Key: "profile", Type: FieldText, Default: "default"},
+					{Label: "AWS Region", Key: "region", Type: FieldText, Default: "us-east-1"},
+				},
+				OnSubmit: func(values map[string]string, _ map[string][]string) {
+					if profile := values["profile"]; profile != "" {
+						vip.Set("provider.bedrock.aws_profile", profile)
+					}
+					if region := values["region"]; region != "" {
 						vip.Set("provider.bedrock.aws_region", region)
 					}
 					vip.Set("opencode.default_provider", "bedrock")
 					_ = vip.WriteConfigAs(config.ConfigPath())
 					v.refresh()
 					v.shell.ShowToastMsg("Bedrock configuré (profile)", true)
-				})
+				},
 			})
 		case "env":
 			vip.Set("opencode.default_provider", "bedrock")
@@ -312,7 +339,7 @@ func (v *ProviderView) setupSpecificProvider(name string) {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal("API Key "+name, "", func(key string) {
+	v.shell.ShowPasswordModal("API Key "+name, func(key string) {
 		if key == "" {
 			return
 		}

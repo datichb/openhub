@@ -59,8 +59,21 @@ func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetBackgroundColor(theme.BgPanel)
 	v.tv.SetBorderPadding(1, 0, 2, 2)
 
-	v.render()
+	// Show loading placeholder immediately
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.tv.SetText(fmt.Sprintf("\n  %sChargement des métriques...%s", muted, theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
+
+	// Load metrics data asynchronously (opens database)
+	go func() {
+		text := v.buildRenderText()
+		app.QueueUpdateDraw(func() {
+			if v.tv == nil {
+				return
+			}
+			v.tv.SetText(text)
+		})
+	}()
 }
 
 // Unmount cleans up resources.
@@ -100,20 +113,22 @@ func (v *MetricsView) render() {
 	if v.tv == nil {
 		return
 	}
-
-	if v.mode == "agents" {
-		v.renderAgents()
-		return
-	}
-	v.renderUsage()
+	v.tv.SetText(v.buildRenderText())
 }
 
-func (v *MetricsView) renderAgents() {
+// buildRenderText builds the metrics display text. Safe to call from any goroutine.
+func (v *MetricsView) buildRenderText() string {
+	if v.mode == "agents" {
+		return v.buildAgentsText()
+	}
+	return v.buildUsageText()
+}
+
+func (v *MetricsView) buildAgentsText() string {
 	if v.cfg.AgentEvents == nil {
-		v.tv.SetText("\n  [::b]Télémétrie agents" + theme.TagReset + "\n\n  " +
+		return "\n  [::b]Télémétrie agents" + theme.TagReset + "\n\n  " +
 			theme.ColorTag(theme.TextSecondaryHex) + "Agent event store non disponible." + theme.TagColor +
-			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + "Appuyez sur Tab pour revenir aux métriques d'usage." + theme.TagColor)
-		return
+			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + "Appuyez sur Tab pour revenir aux métriques d'usage." + theme.TagColor
 	}
 
 	projectID := ""
@@ -127,8 +142,7 @@ func (v *MetricsView) renderAgents() {
 
 	metrics, err := v.cfg.AgentEvents.Metrics(context.Background(), projectID)
 	if err != nil {
-		v.tv.SetText(fmt.Sprintf("  Erreur: %s", err.Error()))
-		return
+		return fmt.Sprintf("  Erreur: %s", err.Error())
 	}
 
 	var sb strings.Builder
@@ -172,17 +186,13 @@ func (v *MetricsView) renderAgents() {
 	sb.WriteString(fmt.Sprintf("\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [a] tout ───%s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
 
-	v.tv.SetText(sb.String())
+	return sb.String()
 }
 
-func (v *MetricsView) renderUsage() {
-	if v.tv == nil {
-		return
-	}
-
+func (v *MetricsView) buildUsageText() string {
 	db, err := opencode.OpenStatsDB()
 	if err != nil {
-		v.tv.SetText(fmt.Sprintf(`
+		return fmt.Sprintf(`
   [::b]Métriques%s
 
   %sBase de données opencode non accessible :%s
@@ -194,8 +204,7 @@ func (v *MetricsView) renderUsage() {
 			theme.ColorTag(theme.ErrorHex), theme.TagColor,
 			theme.ColorTag(theme.TextSecondaryHex), err.Error(), theme.TagColor,
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
-		))
-		return
+		)
 	}
 	defer db.Close()
 
@@ -212,8 +221,7 @@ func (v *MetricsView) renderUsage() {
 		stats, err = opencode.PeriodStats(db, v.period)
 	}
 	if err != nil {
-		v.tv.SetText(fmt.Sprintf("  Erreur: %s", err.Error()))
-		return
+		return fmt.Sprintf("  Erreur: %s", err.Error())
 	}
 
 	// Period label
@@ -284,7 +292,7 @@ func (v *MetricsView) renderUsage() {
 			"[green]", "[-]"))
 	}
 
-	v.tv.SetText(sb.String())
+	return sb.String()
 }
 
 func formatTokens(n int64) string {

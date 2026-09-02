@@ -210,43 +210,38 @@ func (v *TeamsView) handleAdd() {
 	if v.shell == nil {
 		return
 	}
-	// Step 1: Repo URL
-	v.shell.ShowInputModal("URL du repo team-state", "", func(repo string) {
-		if repo == "" {
-			return
-		}
-		// Step 2: Member ID
-		v.shell.ShowInputModal("Votre member-id", "", func(memberID string) {
-			if memberID == "" {
+	v.shell.ShowInlineForm(InlineFormConfig{
+		Title: "Ajouter une équipe",
+		Fields: []FormField{
+			{Label: "URL du repo team-state", Key: "repo", Type: FieldText, Required: true},
+			{Label: "Votre member-id", Key: "member_id", Type: FieldText, Required: true},
+			{Label: "ID court de l'équipe", Key: "team_id", Type: FieldText, Required: true},
+			{Label: "Nom d'affichage (optionnel)", Key: "name", Type: FieldText},
+		},
+		OnSubmit: func(values map[string]string, _ map[string][]string) {
+			repo := values["repo"]
+			memberID := values["member_id"]
+			teamID := values["team_id"]
+			name := values["name"]
+			if repo == "" || memberID == "" || teamID == "" {
+				v.shell.ShowToastMsg("Les champs URL, member-id et ID sont requis", false)
 				return
 			}
-			// Step 3: Team ID (short identifier)
-			v.shell.ShowInputModal("ID court de l'équipe", "", func(teamID string) {
-				if teamID == "" {
-					return
-				}
-				// Step 4: Display name (optional)
-				v.shell.ShowInputModal("Nom d'affichage (optionnel)", "", func(name string) {
-					// Push undo state before mutation
-					v.undoStack.Push(copyTeams(v.cfg.Teams))
-
-					newTeam := config.TeamConfig{
-						ID:        teamID,
-						Name:      name,
-						Enabled:   true,
-						StateRepo: repo,
-						MemberID:  memberID,
-					}
-					v.cfg.Teams = append(v.cfg.Teams, newTeam)
-
-					if v.onSave != nil {
-						v.onSave(v.cfg)
-					}
-					v.rebuild()
-					v.shell.ShowToastMsg("Équipe ajoutée: "+newTeam.DisplayName(), true)
-				})
-			})
-		})
+			v.undoStack.Push(copyTeams(v.cfg.Teams))
+			newTeam := config.TeamConfig{
+				ID:        teamID,
+				Name:      name,
+				Enabled:   true,
+				StateRepo: repo,
+				MemberID:  memberID,
+			}
+			v.cfg.Teams = append(v.cfg.Teams, newTeam)
+			if v.onSave != nil {
+				v.onSave(v.cfg)
+			}
+			v.rebuild()
+			v.shell.ShowToastMsg("Équipe ajoutée: "+newTeam.DisplayName(), true)
+		},
 	})
 }
 

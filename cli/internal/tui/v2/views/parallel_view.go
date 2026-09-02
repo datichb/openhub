@@ -140,6 +140,13 @@ func (v *ParallelView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 func (v *ParallelView) populateSessions(sessions []ParallelSession) {
 	v.sessionList.Clear()
+
+	if len(sessions) == 0 {
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.sessionList.AddItem(fmt.Sprintf("%sAucune session parallèle en cours.%s", muted, theme.TagColor), "", 0, nil)
+		return
+	}
+
 	for _, s := range sessions {
 		icon := parallelStatusIcon(s.Status)
 		mainText := fmt.Sprintf("%s %s", icon, s.Name)

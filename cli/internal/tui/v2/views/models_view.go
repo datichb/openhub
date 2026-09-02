@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
@@ -281,30 +282,40 @@ func (v *ModelsView) deleteEntry() {
 	}
 	entry := v.entries[idx]
 
-	if entry.Level == "hub" {
-		vip := modelsConfigViper()
-		switch {
-		case entry.Scope == "default":
-			vip.Set("models.default", "")
-		case len(entry.Scope) > 7 && entry.Scope[:7] == "family:":
-			families := vip.GetStringMapString("models.families")
-			delete(families, entry.Scope[7:])
-			vip.Set("models.families", families)
-		case len(entry.Scope) > 6 && entry.Scope[:6] == "agent:":
-			agents := vip.GetStringMapString("models.agents")
-			delete(agents, entry.Scope[6:])
-			vip.Set("models.agents", agents)
+	if v.shell == nil {
+		return
+	}
+	label := fmt.Sprintf("Supprimer l'override %s (%s) ?", entry.Scope, entry.Level)
+	v.shell.ShowSelectModal(label, []SelectOption{
+		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: "Annuler", Value: ""},
+	}, "", func(choice string) {
+		if choice != "yes" {
+			return
 		}
-		_ = vip.WriteConfigAs(config.ConfigPath())
-	} else {
-		v.deleteProjectModel(entry.Level, entry.Scope)
-	}
+		if entry.Level == "hub" {
+			vip := modelsConfigViper()
+			switch {
+			case entry.Scope == "default":
+				vip.Set("models.default", "")
+			case len(entry.Scope) > 7 && entry.Scope[:7] == "family:":
+				families := vip.GetStringMapString("models.families")
+				delete(families, entry.Scope[7:])
+				vip.Set("models.families", families)
+			case len(entry.Scope) > 6 && entry.Scope[:6] == "agent:":
+				agents := vip.GetStringMapString("models.agents")
+				delete(agents, entry.Scope[6:])
+				vip.Set("models.agents", agents)
+			}
+			_ = vip.WriteConfigAs(config.ConfigPath())
+		} else {
+			v.deleteProjectModel(entry.Level, entry.Scope)
+		}
 
-	v.loadEntries()
-	v.populateTable()
-	if v.shell != nil {
+		v.loadEntries()
+		v.populateTable()
 		v.shell.ShowToastMsg("Override supprimé", true)
-	}
+	})
 }
 
 func (v *ModelsView) setHubModel(scope, model string) {

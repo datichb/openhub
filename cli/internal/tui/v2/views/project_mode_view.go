@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -22,6 +21,14 @@ type ProjectModeConfig struct {
 	OnExitProjectMode func()
 }
 
+// projectModeItem represents a navigable item in the project mode view.
+type projectModeItem struct {
+	Icon   string
+	Label  string
+	Desc   string
+	Action func()
+}
+
 // ProjectModeView is the simplified project-scoped TUI view.
 // It occupies the full content area and shows the active project's context.
 // All actions are accessible via the omnibar (filtered to project scope).
@@ -30,9 +37,10 @@ type ProjectModeView struct {
 	project     *ActiveProject
 	shell       ShellAccess
 	app         *tview.Application
-	tv          *tview.TextView
+	list        *tview.List
 	commands    []ContextCommand // cached contextual commands
-	resolveTeam ResolveTeamFunc  // resolves effective team config for the active project
+	items       []projectModeItem
+	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 }
 
 var _ View = (*ProjectModeView)(nil)
@@ -67,7 +75,7 @@ func (v *ProjectModeView) StatusHints() string {
 		return "Aucun projet actif · Ctrl+T retour au hub"
 	}
 	return fmt.Sprintf(
-		"%s  · Ctrl+P commandes · Ctrl+T mode hub",
+		"%s · j/k naviguer · Enter ouvrir · Ctrl+P commandes · Ctrl+T mode hub",
 		v.project.Name,
 	)
 }
@@ -82,26 +90,165 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 	v.commands = nil // invalidate cache
 
-	v.tv = tview.NewTextView().
+	if v.project == nil {
+		// No project active — show empty state
+		tv := tview.NewTextView().
+			SetDynamicColors(true).
+			SetScrollable(false)
+		tv.SetBackgroundColor(theme.BgPanel)
+		tv.SetBorderPadding(1, 0, 2, 2)
+		tv.SetText(fmt.Sprintf(
+			"\n  [red]Aucun projet actif[-]\n\n  Utilisez %sCtrl+T%s pour revenir au mode hub.",
+			theme.ColorTag(theme.AccentHex), theme.TagColor,
+		))
+		content.AddItem(tv, 0, 1, true)
+		return
+	}
+
+	v.items = v.buildItems()
+
+	// ── Header ──────────────────────────────────────────────────────────
+	header := tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(false)
-	v.tv.SetBackgroundColor(theme.BgPanel)
-	v.tv.SetBorderPadding(1, 0, 2, 2)
+	header.SetBackgroundColor(theme.BgPanel)
+	accent := theme.ColorTag(theme.AccentHex)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+	header.SetText(fmt.Sprintf("\n  %s◆ Mode Projet%s\n\n  %s%-12s%s %s\n  %s%-12s%s %s",
+		accent, reset,
+		accent, "Projet", reset, v.project.Name,
+		muted, "Chemin", reset, v.project.Path,
+	))
 
-	v.render()
-	content.AddItem(v.tv, 0, 1, true)
+	// ── Interactive list ─────────────────────────────────────────────────
+	v.list = tview.NewList()
+	v.list.SetBackgroundColor(theme.BgPanel)
+	v.list.SetMainTextColor(theme.FgPrimary)
+	v.list.SetSecondaryTextColor(theme.FgSecondary)
+	v.list.SetSelectedBackgroundColor(theme.BgElement)
+	v.list.SetSelectedTextColor(theme.Action)
+	v.list.SetHighlightFullLine(true)
+	v.list.SetWrapAround(true)
+	v.list.ShowSecondaryText(true)
+	v.list.SetBorderPadding(1, 0, 2, 2)
+
+	for _, it := range v.items {
+		v.list.AddItem(
+			fmt.Sprintf("%s  %s", it.Icon, it.Label),
+			fmt.Sprintf("     %s", it.Desc),
+			0, nil,
+		)
+	}
+
+	v.list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
+		v.executeItem(idx)
+	})
+
+	// ── Footer ──────────────────────────────────────────────────────────
+	footer := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetScrollable(false)
+	footer.SetBackgroundColor(theme.BgPanel)
+	footer.SetText(fmt.Sprintf("\n%s%sCtrl+T%s mode hub  %sCtrl+P%s commandes  %s?%s aide",
+		muted, accent, reset, accent, reset, accent, reset,
+	))
+
+	// ── Layout ──────────────────────────────────────────────────────────
+	content.AddItem(header, 6, 0, false)
+	content.AddItem(v.list, 0, 1, true)
+	content.AddItem(footer, 3, 0, false)
 }
 
 // Unmount cleans up resources.
 func (v *ProjectModeView) Unmount() {
 	v.app = nil
-	v.tv = nil
+	v.list = nil
 	v.commands = nil
 }
 
 // HandleKey processes view-specific key events.
 func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list == nil {
+		return event
+	}
+
+	switch event.Key() {
+	case tcell.KeyEnter:
+		idx := v.list.GetCurrentItem()
+		v.executeItem(idx)
+		return nil
+	}
+
 	return event
+}
+
+func (v *ProjectModeView) executeItem(idx int) {
+	if idx < 0 || idx >= len(v.items) {
+		return
+	}
+	item := v.items[idx]
+	if item.Action != nil {
+		item.Action()
+	}
+}
+
+func (v *ProjectModeView) buildItems() []projectModeItem {
+	if v.project == nil {
+		return nil
+	}
+
+	p := v.project
+	navigate := func(viewID string) func() {
+		return func() {
+			if v.cfg.OnNavigate != nil {
+				v.cfg.OnNavigate(viewID)
+			}
+		}
+	}
+	launch := func(agent string, args ...string) func() {
+		return func() {
+			if v.cfg.OnLaunchSession != nil {
+				v.cfg.OnLaunchSession(p, agent, args...)
+			}
+		}
+	}
+
+	items := []projectModeItem{
+		{Icon: "▶", Label: "Start Dev", Desc: "Lancer une session de développement", Action: launch("", "--dev")},
+		{Icon: "◉", Label: "Audit", Desc: "Analyser le code (sécurité, perf, archi)", Action: launch("auditor")},
+		{Icon: "◎", Label: "Review", Desc: "Code review du projet", Action: launch("reviewer")},
+		{Icon: "◈", Label: "Debug", Desc: "Session de debug", Action: launch("")},
+		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet", Action: navigate("board")},
+		{Icon: "⊟", Label: "Métriques", Desc: "Statistiques d'utilisation", Action: navigate("metrics")},
+		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("projects.list")},
+		{Icon: "⊜", Label: "Worktrees", Desc: "Gérer les git worktrees", Action: navigate("worktrees")},
+		{Icon: "⊝", Label: "Statut", Desc: "Santé et informations du projet", Action: navigate("status")},
+	}
+
+	// ── Team items (conditional) ────────────────────────────────────────
+	if v.resolveTeam != nil {
+		if tc := v.resolveTeam(); tc.Enabled {
+			items = append(items,
+				projectModeItem{Icon: "◫", Label: "Team Status", Desc: "Statut de l'équipe", Action: navigate("team.status")},
+				projectModeItem{Icon: "◫", Label: "Team Board", Desc: "Kanban d'équipe", Action: navigate("team.board")},
+				projectModeItem{Icon: "◫", Label: "Team Activity", Desc: "Activité récente", Action: navigate("team.activity")},
+			)
+		}
+	}
+
+	// ── Mode hub ────────────────────────────────────────────────────────
+	items = append(items, projectModeItem{
+		Icon: "↩", Label: "Mode Hub", Desc: "Revenir au TUI complet",
+		Action: func() {
+			if v.cfg.OnExitProjectMode != nil {
+				v.cfg.OnExitProjectMode()
+			}
+		},
+	})
+
+	return items
 }
 
 // ContextCommands returns contextual commands for the omnibar.
@@ -129,9 +276,6 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 			}
 		}
 	}
-	// launchCmd builds a ContextCommand for session launches.
-	// RunsDirect=true because OnLaunchSession calls SuspendAndExec, which
-	// deadlocks when invoked from inside QueueUpdateDraw.
 	launchCmd := func(id, label string, aliases []string, description, agent string, args ...string) ContextCommand {
 		return ContextCommand{
 			ID:          id,
@@ -145,7 +289,6 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 	}
 
 	v.commands = []ContextCommand{
-		// ── Sessions ────────────────────────────────────────────────────
 		launchCmd("project.start", "Start Dev",
 			[]string{"dev", "session", "code"},
 			fmt.Sprintf("Session dev sur %s", p.Name),
@@ -170,180 +313,44 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 			[]string{"dbg"},
 			"Session de debug",
 			""),
-		// ── Vues du projet ──────────────────────────────────────────────
-		{
-			ID:          "project.board",
-			Label:       "Board",
-			Aliases:     []string{"kanban", "tasks", "tickets"},
-			Description: fmt.Sprintf("Kanban de %s", p.Name),
-			Category:    "Projet",
-			Action:      navigate("board"),
-		},
-		{
-			ID:          "project.metrics",
-			Label:       "Métriques",
-			Aliases:     []string{"stats", "tokens", "usage"},
-			Description: fmt.Sprintf("Métriques de %s", p.Name),
-			Category:    "Projet",
-			Action:      navigate("metrics"),
-		},
-		{
-			ID:          "project.config",
-			Label:       "Config Projet",
-			Aliases:     []string{"cfg", "settings", "config"},
-			Description: fmt.Sprintf("Configuration de %s", p.Name),
-			Category:    "Projet",
-			Action:      navigate("projects.list"),
-		},
-		{
-			ID:          "project.worktrees",
-			Label:       "Worktrees",
-			Aliases:     []string{"wt", "git worktree"},
-			Description: fmt.Sprintf("Worktrees de %s", p.Name),
-			Category:    "Projet",
-			Action:      navigate("worktrees"),
-		},
-		{
-			ID:          "project.status",
-			Label:       "Statut",
-			Aliases:     []string{"stat", "info", "health"},
-			Description: fmt.Sprintf("Statut de %s", p.Name),
-			Category:    "Projet",
-			Action:      navigate("status"),
-		},
-		// ── Navigation ──────────────────────────────────────────────────
-		{
-			ID:          "project.hub",
-			Label:       "Mode Hub",
-			Aliases:     []string{"hub", "retour", "complet"},
-			Description: "Revenir au TUI complet (mode hub)",
-			Category:    "Navigation",
+		{ID: "project.board", Label: "Board", Aliases: []string{"kanban", "tasks", "tickets"},
+			Description: fmt.Sprintf("Kanban de %s", p.Name), Category: "Projet", Action: navigate("board")},
+		{ID: "project.metrics", Label: "Métriques", Aliases: []string{"stats", "tokens", "usage"},
+			Description: fmt.Sprintf("Métriques de %s", p.Name), Category: "Projet", Action: navigate("metrics")},
+		{ID: "project.config", Label: "Config Projet", Aliases: []string{"cfg", "settings", "config"},
+			Description: fmt.Sprintf("Configuration de %s", p.Name), Category: "Projet", Action: navigate("projects.list")},
+		{ID: "project.worktrees", Label: "Worktrees", Aliases: []string{"wt", "git worktree"},
+			Description: fmt.Sprintf("Worktrees de %s", p.Name), Category: "Projet", Action: navigate("worktrees")},
+		{ID: "project.status", Label: "Statut", Aliases: []string{"stat", "info", "health"},
+			Description: fmt.Sprintf("Statut de %s", p.Name), Category: "Projet", Action: navigate("status")},
+		{ID: "project.hub", Label: "Mode Hub", Aliases: []string{"hub", "retour", "complet"},
+			Description: "Revenir au TUI complet (mode hub)", Category: "Navigation",
 			Action: func() {
 				if v.cfg.OnExitProjectMode != nil {
 					v.cfg.OnExitProjectMode()
 				}
-			},
-		},
+			}},
 	}
 
 	// ── Team commands (conditional) ──────────────────────────────────────
-	// Shown only when the active project has team features enabled.
 	if v.resolveTeam != nil {
 		if tc := v.resolveTeam(); tc.Enabled {
-			navigate := func(viewID string) func() {
-				return func() {
-					if v.cfg.OnNavigate != nil {
-						v.cfg.OnNavigate(viewID)
-					}
-				}
-			}
 			v.commands = append(v.commands,
-				ContextCommand{
-					ID:          "project.team.status",
-					Label:       "Team Status",
-					Aliases:     []string{"team stat", "equipe"},
-					Description: "Statut de l'équipe pour ce projet",
-					Category:    "Team",
-					Action:      navigate("team.status"),
-				},
-				ContextCommand{
-					ID:          "project.team.board",
-					Label:       "Team Board",
-					Aliases:     []string{"board", "kanban"},
-					Description: "Kanban d'équipe",
-					Category:    "Team",
-					Action:      navigate("team.board"),
-				},
-				ContextCommand{
-					ID:          "project.team.activity",
-					Label:       "Team Activity",
-					Aliases:     []string{"activite", "feed"},
-					Description: "Activité récente de l'équipe",
-					Category:    "Team",
-					Action:      navigate("team.activity"),
-				},
-				ContextCommand{
-					ID:          "project.team.briefs",
-					Label:       "Takeover Briefs",
-					Aliases:     []string{"takeover", "briefs"},
-					Description: "Briefs de reprise de contexte",
-					Category:    "Team",
-					Action:      navigate("team.briefs"),
-				},
-				ContextCommand{
-					ID:          "project.patterns",
-					Label:       "Patterns",
-					Aliases:     []string{"pat"},
-					Description: "Patterns d'équipe",
-					Category:    "Team",
-					Action:      navigate("team.patterns"),
-				},
-				ContextCommand{
-					ID:          "project.policies",
-					Label:       "Policies",
-					Aliases:     []string{"pol", "rules"},
-					Description: "Politiques d'équipe",
-					Category:    "Team",
-					Action:      navigate("team.policies"),
-				},
+				ContextCommand{ID: "project.team.status", Label: "Team Status", Aliases: []string{"team stat", "equipe"},
+					Description: "Statut de l'équipe pour ce projet", Category: "Team", Action: navigate("team.status")},
+				ContextCommand{ID: "project.team.board", Label: "Team Board", Aliases: []string{"board", "kanban"},
+					Description: "Kanban d'équipe", Category: "Team", Action: navigate("team.board")},
+				ContextCommand{ID: "project.team.activity", Label: "Team Activity", Aliases: []string{"activite", "feed"},
+					Description: "Activité récente de l'équipe", Category: "Team", Action: navigate("team.activity")},
+				ContextCommand{ID: "project.team.briefs", Label: "Takeover Briefs", Aliases: []string{"takeover", "briefs"},
+					Description: "Briefs de reprise de contexte", Category: "Team", Action: navigate("team.briefs")},
+				ContextCommand{ID: "project.patterns", Label: "Patterns", Aliases: []string{"pat"},
+					Description: "Patterns d'équipe", Category: "Team", Action: navigate("team.patterns")},
+				ContextCommand{ID: "project.policies", Label: "Policies", Aliases: []string{"pol", "rules"},
+					Description: "Politiques d'équipe", Category: "Team", Action: navigate("team.policies")},
 			)
 		}
 	}
 
 	return v.commands
-}
-
-// render draws the project mode screen content.
-func (v *ProjectModeView) render() {
-	if v.tv == nil {
-		return
-	}
-
-	if v.project == nil {
-		v.tv.SetText(fmt.Sprintf(
-			"\n  [red]Aucun projet actif[-]\n\n  Utilisez %sCtrl+T%s pour revenir au mode hub.",
-			theme.ColorTag(theme.AccentHex), theme.TagColor,
-		))
-		return
-	}
-
-	p := v.project
-	accent := theme.ColorTag(theme.AccentHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-
-	var b strings.Builder
-
-	// ── Header ──────────────────────────────────────────────────────────
-	fmt.Fprintf(&b, "\n  %s◆ Mode Projet%s\n\n", accent, reset)
-	fmt.Fprintf(&b, "  %s%-12s%s %s\n", accent, "Projet", reset, p.Name)
-	fmt.Fprintf(&b, "  %s%-12s%s %s\n\n", muted, "Chemin", reset, p.Path)
-
-	// ── Actions disponibles ─────────────────────────────────────────────
-	fmt.Fprintf(&b, "  %sActions disponibles%s  (Ctrl+P pour rechercher)\n\n", accent, reset)
-
-	type entry struct{ icon, label, desc string }
-	entries := []entry{
-		{"▶", "Start Dev", "Lancer une session de développement"},
-		{"◉", "Audit", "Analyser le code (sécurité, perf, archi)"},
-		{"◎", "Review", "Code review du projet"},
-		{"◈", "Debug", "Session de debug"},
-		{"⊞", "Board", "Kanban du projet"},
-		{"⊟", "Métriques", "Statistiques d'utilisation"},
-		{"⊛", "Config Projet", "Modifier la configuration du projet"},
-		{"⊜", "Worktrees", "Gérer les git worktrees"},
-		{"⊝", "Statut", "Santé et informations du projet"},
-	}
-	for _, e := range entries {
-		fmt.Fprintf(&b, "  %s%s%s %-20s %s%s%s\n",
-			accent, e.icon, reset,
-			e.label,
-			muted, e.desc, reset,
-		)
-	}
-
-	fmt.Fprintf(&b, "\n  %sCtrl+T%s  basculer vers le mode hub  ·  %sCtrl+P%s  commandes\n",
-		accent, reset, accent, reset)
-
-	v.tv.SetText(b.String())
 }

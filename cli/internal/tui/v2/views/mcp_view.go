@@ -249,7 +249,7 @@ func (v *MCPView) promptTokenCurrent() {
 		return
 	}
 	if v.shell != nil {
-		v.shell.ShowInputModal("Token "+svc.Name, "", func(token string) {
+		v.shell.ShowPasswordModal("Token "+svc.Name, func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", svc.Name)
 				_ = v.appCtx.Secrets.Set(context.Background(), key, token)

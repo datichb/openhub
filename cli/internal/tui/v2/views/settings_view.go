@@ -3,12 +3,9 @@ package views
 import (
 	"context"
 	"fmt"
-	"strings"
-	"syscall"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -438,41 +435,25 @@ func (v *SettingsView) editSelected() {
 							v.renderLines()
 						}
 					})
-				case "secret":
-					// Read masked password from terminal in a goroutine
-					go func() {
-						fmt.Print("\nNouvelle valeur pour le secret (masqué): ")
-						valueBytes, err := term.ReadPassword(syscall.Stdin)
-						fmt.Println()
-						if err != nil || len(valueBytes) == 0 {
-							return
-						}
-						value := strings.TrimSpace(string(valueBytes))
-						if value == "" {
-							return
-						}
-						keyName := line.get(v.live)
-						if keyName == "" {
-							return
-						}
-						ctx := context.Background()
-						if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
-							if v.app != nil {
-								v.app.QueueUpdateDraw(func() {
-									v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-								})
-							}
-							return
-						}
-						if v.app != nil {
-							v.app.QueueUpdateDraw(func() {
-								v.shell.ShowToastMsg("Secret mis à jour", true)
-								v.renderLines()
-							})
-						}
-					}()
+			case "secret":
+				keyName := line.get(v.live)
+				if keyName == "" {
+					return
 				}
-			})
+				v.shell.ShowPasswordModal("Nouvelle valeur pour le secret", func(value string) {
+					if value == "" {
+						return
+					}
+					ctx := context.Background()
+					if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
+						v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+						return
+					}
+					v.shell.ShowToastMsg("Secret mis à jour", true)
+					v.renderLines()
+				})
+			}
+		})
 
 	default: // string
 		cur := ""

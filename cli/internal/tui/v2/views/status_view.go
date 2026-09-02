@@ -55,8 +55,21 @@ func (v *StatusView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetBackgroundColor(theme.BgPanel)
 	v.tv.SetBorderPadding(1, 0, 2, 2)
 
-	v.render()
+	// Show loading placeholder immediately
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.tv.SetText(fmt.Sprintf("\n  %sChargement du statut...%s", muted, theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
+
+	// Load status data asynchronously (subprocess + DB calls)
+	go func() {
+		text := v.buildStatusText()
+		app.QueueUpdateDraw(func() {
+			if v.tv == nil {
+				return
+			}
+			v.tv.SetText(text)
+		})
+	}()
 }
 
 // Unmount cleans up resources.
@@ -82,7 +95,11 @@ func (v *StatusView) render() {
 	if v.tv == nil {
 		return
 	}
+	v.tv.SetText(v.buildStatusText())
+}
 
+// buildStatusText builds the status display text. Safe to call from any goroutine.
+func (v *StatusView) buildStatusText() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n  [::b]Status du Hub%s\n\n", theme.TagReset))
 
@@ -139,7 +156,7 @@ func (v *StatusView) render() {
 	sb.WriteString(fmt.Sprintf("  %sProjets :%s          %d enregistrés\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, projectCount))
 
-	v.tv.SetText(sb.String())
+	return sb.String()
 }
 
 func (v *StatusView) checkConventions() {

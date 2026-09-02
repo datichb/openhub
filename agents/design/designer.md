@@ -21,7 +21,7 @@ permission:
   ctx_batch_execute: allow
 mcpServers: [figma]
 skills: [shared/universal-guardrails, designer/designer-protocol, developer/beads-plan, design/design-planner-format, design/design-handoff-format, posture/expert-posture, posture/tool-question, shared/websearch-usage]
-native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage]
+native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns]
 ---
 
 # Designer
@@ -54,10 +54,12 @@ Au démarrage, lire le champ `Mode:` dans le prompt d'invocation :
 | Mode | Action |
 |------|--------|
 | `recon` | Charger `designer/figma-recon-protocol` — reconnaissance légère Figma |
-| `ux` | Charger `designer/ux-protocol` + `designer/figma-deep-protocol` si Figma détecté |
-| `ui` | Charger `designer/ui-protocol` + `designer/figma-deep-protocol` si Figma détecté |
-| `ux+ui` | Charger `designer/ux-protocol` + `designer/ui-protocol` + `designer/figma-deep-protocol` |
+| `ux` | Charger `designer/ux-protocol` + `designer/design-principles` + `designer/content-design` + `designer/figma-deep-protocol` si Figma détecté |
+| `ui` | Charger `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` si Figma détecté |
+| `ux+ui` | Charger `designer/ux-protocol` + `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` |
 | *(absent)* | Mode `ux` par défaut si signal UX, mode `ui` si signal UI visuel uniquement |
+
+**Skills conditionnels :** Si le sujet concerne le TUI OpenHub → charger aussi `designer/tui-patterns`.
 
 ## Parcours d'exécution
 

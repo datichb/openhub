@@ -22,6 +22,16 @@ func runTUI() error {
 func runTUIWithProject(projectName string) error {
 	a := MustApp()
 
+	// ── First-run detection: launch setup wizard if no provider configured ──
+	if needsFirstRunWizard(a) && projectName == "" {
+		completed := runFirstRunWizard(a)
+		if !completed {
+			return nil // user aborted wizard
+		}
+		// Reload config after wizard changes
+		a = MustApp()
+	}
+
 	homeViewID := "home"
 
 	// Resolve initial project if requested

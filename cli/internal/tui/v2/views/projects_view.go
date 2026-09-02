@@ -132,6 +132,11 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 		v.list.AddItem(p.Name, "    "+p.Path, 0, nil)
 	}
 
+	if len(v.cfg.Projects) == 0 {
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
+	}
+
 	v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
 		if index >= 0 && index < len(v.cfg.Projects) {
 			v.showDetail(v.cfg.Projects[index])
@@ -224,15 +229,24 @@ func (v *ProjectsView) removeProject() {
 		return
 	}
 	project := v.cfg.Projects[idx]
-	if v.onRemove != nil {
-		v.onRemove(project.ID)
+	if v.shell == nil {
+		return
 	}
-	// Remove from local list
-	v.cfg.Projects = append(v.cfg.Projects[:idx], v.cfg.Projects[idx+1:]...)
-	v.list.RemoveItem(idx)
-	if v.shell != nil {
+	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer le projet %q ?", project.Name), []SelectOption{
+		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: "Annuler", Value: ""},
+	}, "", func(choice string) {
+		if choice != "yes" {
+			return
+		}
+		if v.onRemove != nil {
+			v.onRemove(project.ID)
+		}
+		// Remove from local list
+		v.cfg.Projects = append(v.cfg.Projects[:idx], v.cfg.Projects[idx+1:]...)
+		v.list.RemoveItem(idx)
 		v.shell.ShowToastMsg("Projet supprimé: "+project.Name, true)
-	}
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

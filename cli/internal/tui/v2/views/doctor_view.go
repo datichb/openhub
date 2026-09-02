@@ -56,10 +56,22 @@ func (v *DoctorView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetBackgroundColor(theme.BgPanel)
 	v.tv.SetBorderPadding(1, 0, 2, 2)
 
-	v.runChecks()
-	v.render()
-
+	// Show loading placeholder immediately
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.tv.SetText(fmt.Sprintf("\n  %sVérification du système...%s", muted, theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
+
+	// Run checks asynchronously (they invoke subprocesses)
+	go func() {
+		checks := v.collectChecks()
+		app.QueueUpdateDraw(func() {
+			if v.tv == nil {
+				return
+			}
+			v.checks = checks
+			v.render()
+		})
+	}()
 }
 
 // Unmount cleans up resources.
@@ -79,7 +91,13 @@ func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *DoctorView) runChecks() {
-	v.checks = []DoctorCheck{
+	v.checks = v.collectChecks()
+}
+
+// collectChecks runs all health checks and returns the results.
+// Safe to call from any goroutine.
+func (v *DoctorView) collectChecks() []DoctorCheck {
+	return []DoctorCheck{
 		v.checkOS(),
 		v.checkBinary("git"),
 		v.checkOpencode(),

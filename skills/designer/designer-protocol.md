@@ -34,9 +34,17 @@ L'agent Designer est l'agent design unifié du hub. Il couvre quatre modes d'inv
 | Mode | Skills à charger via `skill` |
 |------|------------------------------|
 | `recon` | `designer/figma-recon-protocol` |
-| `ux` | `designer/ux-protocol` + `designer/figma-deep-protocol` si Figma disponible |
-| `ui` | `designer/ui-protocol` + `designer/figma-deep-protocol` si Figma disponible |
-| `ux+ui` | `designer/ux-protocol` + `designer/ui-protocol` + `designer/figma-deep-protocol` |
+| `ux` | `designer/ux-protocol` + `designer/design-principles` + `designer/content-design` + `designer/figma-deep-protocol` si Figma disponible |
+| `ui` | `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` si Figma disponible |
+| `ux+ui` | `designer/ux-protocol` + `designer/ui-protocol` + `designer/design-principles` + `designer/ui-patterns-reference` + `designer/content-design` + `designer/figma-deep-protocol` |
+
+**Skills de référence conditionnels (charger à la demande) :**
+
+| Condition | Skill |
+|-----------|-------|
+| Le sujet concerne le TUI OpenHub (omnibar, shell, widgets, vues) | `designer/tui-patterns` |
+| Besoin de patterns UI pour un type de composant spécifique | `designer/ui-patterns-reference` |
+| Besoin de wording (messages, labels, copy) | `designer/content-design` |
 
 **Figma disponible** = au moins une des conditions suivantes :
 - Lien Figma fourni dans le prompt

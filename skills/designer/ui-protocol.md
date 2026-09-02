@@ -130,6 +130,22 @@ Neutre      → 9 niveaux — textes, fonds, bordures
 Sémantique  → success / warning / error / info — états système
 ```
 
+### Règle 60-30-10
+
+- **60%** : couleur dominante (neutre — fonds, surfaces). C'est le calme visuel.
+- **30%** : couleur secondaire (primaire — navigation, headers, cards actives). Structure l'interface.
+- **10%** : couleur d'accent (action — CTA, éléments critiques). Attire l'attention.
+
+Ne jamais donner 30% à la couleur d'accent — l'interface devient agressive.
+
+### Dark UI Design
+
+Pour les interfaces sombres (TUI, dashboards, outils dev) :
+- Utiliser des niveaux de gris proches pour la profondeur (pas de contraste brutal fond/surface)
+- Texte primaire légèrement désaturé (pas du blanc pur #FFFFFF — préférer #CDD6F4)
+- Couleurs sémantiques légèrement désaturées par rapport à leur version light
+- Les surfaces élevées sont plus claires que le fond (inversion de la convention light UI)
+
 ### Ratios de contraste WCAG AA (minimum)
 
 | Usage | Ratio minimum |
@@ -149,6 +165,53 @@ Sémantique  → success / warning / error / info — états système
 
 Ne jamais utiliser uniquement la couleur pour transmettre une information (accessibilité).
 Toujours doubler avec une icône ou un texte.
+
+---
+
+## Patterns de référence
+
+Pour les patterns UI détaillés par type de composant (navigation, dashboard, empty states,
+error states, loading, forms, modals, menus) → charger `designer/ui-patterns-reference`.
+
+Pour les patterns spécifiques au TUI OpenHub (omnibar, overlays, widgets Aurum, tokens) →
+charger `designer/tui-patterns`.
+
+Pour le wording des composants (messages d'erreur, labels, copy) → charger `designer/content-design`.
+
+---
+
+## Structure de composition (Atomic Design simplifié)
+
+Les composants s'organisent en niveaux de composition :
+
+| Niveau | Exemples | Compose | État propre | Fetch data |
+|--------|----------|---------|-------------|------------|
+| **Atome** | Bouton, Input, Label, Icône | Rien | Non | Non |
+| **Molécule** | SearchBar, FormField, KPICard | 2-5 atomes | Optionnel | Non |
+| **Organisme** | Header, Sidebar, FormSection, Card | Molécules + atomes | Oui | Oui |
+| **Template** | PageLayout, DashboardLayout | Organismes | Non (slot-based) | Non |
+| **Page** | HomePage, SettingsPage | Templates | Non | Oui (données réelles) |
+
+**Règles :**
+- Un atome ne compose jamais d'autres atomes
+- Une molécule ne fetch jamais de données
+- Un template utilise du contenu placeholder (structure sans données)
+- Une page gère **tous les états de données** : loading, empty, error, populated
+
+---
+
+## Checklist de complétude UI
+
+Avant de valider une spec de composant, vérifier :
+
+- [ ] Tous les états visuels définis (default, hover, active, focus, disabled, loading, error)
+- [ ] Tokens sémantiques utilisés (pas de valeurs en dur #hex ou px)
+- [ ] Contraste WCAG AA vérifié (texte 4.5:1, composants 3:1)
+- [ ] Navigation clavier spécifiée (Tab, Enter, Escape, flèches si applicable)
+- [ ] Labels et wording spécifiés (pas de placeholders comme labels)
+- [ ] Responsive / adaptatif défini (ou déclaré hors périmètre)
+- [ ] Le composant supporte +40% d'expansion texte (i18n)
+- [ ] Information transmise autrement que par la couleur seule (icône, texte, pattern)
 
 ---
 

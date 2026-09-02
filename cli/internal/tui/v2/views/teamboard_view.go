@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -120,7 +121,18 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	v.populateColumns(v.cfg.Tickets, columns)
-	content.AddItem(v.columnFlex, 0, 1, true)
+
+	if len(v.cfg.Tickets) == 0 {
+		muted := theme.ColorTag(theme.TextMutedHex)
+		emptyTV := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		emptyTV.SetBackgroundColor(theme.BgPanel)
+		emptyTV.SetText(fmt.Sprintf("\n\n  %sAucun ticket dans l'équipe. Les tickets apparaîtront après un sync (r).%s", muted, theme.TagColor))
+		content.AddItem(emptyTV, 0, 1, true)
+	} else {
+		content.AddItem(v.columnFlex, 0, 1, true)
+	}
 
 	v.focusCol = 0
 	v.updateColumnFocus()

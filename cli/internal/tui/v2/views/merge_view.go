@@ -39,6 +39,7 @@ type MergeView struct {
 	detailView  *tview.TextView
 	contentFlex *tview.Flex
 	app         *tview.Application
+	shell       ShellAccess
 }
 
 var _ View = (*MergeView)(nil)
@@ -47,6 +48,9 @@ var _ View = (*MergeView)(nil)
 func NewMergeView(cfg MergeViewConfig) *MergeView {
 	return &MergeView{cfg: cfg}
 }
+
+// SetShell injects the shell for modal dialogs and toasts.
+func (v *MergeView) SetShell(s ShellAccess) { v.shell = s }
 
 // ID returns the view identifier.
 func (v *MergeView) ID() string { return "merge" }
@@ -132,21 +136,33 @@ func (v *MergeView) handleMerge() {
 		return // external branches can't be auto-merged
 	}
 
-	// Suspend TUI and run merge in terminal
-	v.app.Suspend(func() {
-		err := v.cfg.MergeFunc(*branch)
-		if err != nil {
-			if strings.Contains(err.Error(), "CONFLICT") {
+	doMerge := func() {
+		// Suspend TUI and run merge in terminal
+		v.app.Suspend(func() {
+			err := v.cfg.MergeFunc(*branch)
+			if err != nil {
 				branch.Status = "conflict"
 			} else {
-				branch.Status = "conflict" // any error = treat as conflict
+				branch.Status = "merged"
 			}
-		} else {
-			branch.Status = "merged"
-		}
-	})
-	v.app.Sync()
-	v.populateList()
+		})
+		v.app.Sync()
+		v.populateList()
+	}
+
+	if v.shell != nil {
+		v.shell.ShowSelectModal(fmt.Sprintf("Merger la branche %s ?", branch.Branch), []SelectOption{
+			{Label: "Confirmer le merge", Value: "yes"},
+			{Label: "Annuler", Value: ""},
+		}, "", func(choice string) {
+			if choice == "yes" {
+				doMerge()
+			}
+		})
+	} else {
+		// Fallback without shell: merge directly (legacy behavior)
+		doMerge()
+	}
 }
 
 func (v *MergeView) handleSkip() {
@@ -170,6 +186,13 @@ func (v *MergeView) populateList() {
 		return
 	}
 	v.list.Clear()
+
+	if len(v.cfg.Branches) == 0 {
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.list.AddItem(fmt.Sprintf("%sAucune branche à merger.%s", muted, theme.TagColor), "", 0, nil)
+		return
+	}
+
 	for _, b := range v.cfg.Branches {
 		icon := mergeStatusIcon(b.Status, b.IsBeads)
 		typeLabel := "beads"

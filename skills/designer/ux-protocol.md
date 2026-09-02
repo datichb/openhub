@@ -49,8 +49,31 @@ Toute spécification UX commence par une compréhension du contexte :
 **Affordances** : un élément doit communiquer son usage par sa forme.
 → Les boutons ressemblent à des boutons. Les liens sont distinguables du texte.
 
-**Charge cognitive** : limiter le nombre d'éléments à retenir en mémoire simultanément.
-→ Grouper les informations liées. Rappeler le contexte à chaque étape d'un flow multi-étapes.
+**Charge cognitive (Loi de Miller)** : la mémoire de travail retient 7 ± 2 éléments.
+→ Grouper les informations liées. Limiter les groupes visibles. Rappeler le contexte à chaque étape.
+
+**Peak-End Rule** : l'expérience est jugée sur son pic et sa fin, pas sur la moyenne.
+→ Soigner le premier écran et l'écran de confirmation/succès.
+
+**Loi de Jakob** : les utilisateurs préfèrent que votre produit fonctionne comme ce qu'ils connaissent.
+→ Suivre les conventions de la plateforme pour les patterns de base (navigation, formulaires, modals).
+
+**Goal-Gradient Effect** : la motivation augmente quand on approche du but.
+→ Afficher la progression (barre, étapes restantes, "Plus que 2 étapes").
+
+**Doherty Threshold** : la productivité explose quand le système répond en < 400ms.
+→ Feedback immédiat (< 100ms interaction directe, < 400ms résultats). Skeleton screens, optimistic UI.
+
+Pour la référence complète (10 heuristiques Nielsen détaillées, 6 principes Gestalt,
+12 Laws of UX, grille Tenets & Traps) → charger `designer/design-principles`.
+
+### Journey-first design
+
+**Règle fondamentale :** ne jamais designer un écran en dehors d'un journey.
+Chaque écran existe parce qu'un état d'un parcours utilisateur le nécessite.
+Définir le journey d'abord, les écrans ensuite.
+
+Un écran sans journey est un écran sans raison d'être.
 
 ---
 
@@ -142,10 +165,32 @@ Action proposée : <comment l'utilisateur s'en sort>
 - <friction potentielle identifiée et recommandation>
 - <heuristique Nielsen violée et correction suggérée>
 
+### Contrat d'états par écran
+
+Pour chaque écran du flow, déclarer les états couverts :
+
+| Écran | Nominal | Vide | Chargement | Erreur | Exemption |
+|-------|---------|------|------------|--------|-----------|
+| <nom> | ✅ | ✅ / ❌ + justification | ✅ / ❌ + justification | ✅ / ❌ + justification | <raison si un état ne s'applique pas> |
+
+Si un état ne s'applique pas, documenter pourquoi (exemption justifiée).
+Un contrat faible qui passe la validation est pire qu'un contrat fort qui échoue.
+
 ### Critères d'acceptance UX
 
 - [ ] <critère mesurable>
 - [ ] <critère mesurable>
+
+### Métriques de succès
+
+Cadre HEART (Google) pour définir les métriques quand applicable :
+- **Happiness** : satisfaction subjective (NPS, rating)
+- **Engagement** : fréquence et profondeur d'usage
+- **Adoption** : % d'utilisateurs qui utilisent la feature
+- **Retention** : % d'utilisateurs qui reviennent
+- **Task success** : taux de complétion, temps, taux d'erreur
+
+Ne pas forcer les 5 dimensions — choisir 1-2 métriques pertinentes pour la feature.
 
 ### Ce qui est hors périmètre
 
@@ -185,6 +230,27 @@ Pour évaluer un écran ou un parcours existant en 5 questions :
 1. <action la plus impactante>
 2. ...
 ```
+
+## Checklist de complétude UX
+
+Avant de présenter une spec, vérifier systématiquement :
+
+- [ ] Tous les états couverts par écran (nominal, vide, chargement, erreur) — ou exemption justifiée
+- [ ] User flow retour arrière défini (l'utilisateur peut revenir à chaque étape)
+- [ ] Pas de dead-end (chaque écran a une action suivante)
+- [ ] Pas d'état orphelin (chaque écran est atteignable depuis un autre)
+- [ ] Feedback utilisateur < 400ms pour chaque interaction (Doherty Threshold)
+- [ ] Accessibilité clavier (tous les éléments interactifs atteignables via Tab)
+- [ ] Wording des messages d'erreur : structure quoi / pourquoi / comment (→ `designer/content-design`)
+
+## Review bornée
+
+La review d'une spec est bornée à **3 rounds maximum** :
+1. **Round 1** : critique contre les heuristiques et la checklist ci-dessus
+2. **Round 2** : correction des findings critiques
+3. **Round 3** : vérification finale — si des findings persistent, les documenter comme dette UX
+
+Le critère de sortie est : **zéro erreurs critiques**. Les findings ne sont pas des suggestions.
 
 ---
 

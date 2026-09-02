@@ -260,17 +260,24 @@ func (v *PatternsView) removePattern() {
 	if repo == nil {
 		return
 	}
-
-	if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-		}
-	} else {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("Pattern supprimé: "+p.Name, true)
-		}
-		v.refresh()
+	if v.shell == nil {
+		return
 	}
+
+	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer le pattern %q ?", p.Name), []SelectOption{
+		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: "Annuler", Value: ""},
+	}, "", func(choice string) {
+		if choice != "yes" {
+			return
+		}
+		if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
+			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+		} else {
+			v.shell.ShowToastMsg("Pattern supprimé: "+p.Name, true)
+			v.refresh()
+		}
+	})
 }
 
 func splitTags(s string) []string {
