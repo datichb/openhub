@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -202,13 +203,16 @@ func (r *Repo) LoadConfig() (*TeamConfig, error) {
 }
 
 // SaveConfig writes config.toml to the team-state repo.
-func (r *Repo) SaveConfig(cfg *TeamConfig) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	data, err := toml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshaling config.toml: %w", err)
-	}
-	path := filepath.Join(r.path, "config.toml")
-	return os.WriteFile(path, data, 0o644)
+func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		data, err := toml.Marshal(cfg)
+		if err != nil {
+			return fmt.Errorf("marshaling config.toml: %w", err)
+		}
+		path := filepath.Join(r.path, "config.toml")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return err
+		}
+		return r.commitAndPush(ctx, "config: update team config", "config.toml")
+	})
 }

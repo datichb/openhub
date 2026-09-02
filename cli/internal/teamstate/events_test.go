@@ -2,6 +2,7 @@ package teamstate
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -173,4 +174,24 @@ this is not json
 	require.NoError(t, err)
 	// Malformed line is skipped
 	assert.Len(t, result, 2)
+}
+
+func TestListEventsLimited_LimitZero(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	// Create 5 events
+	dir := filepath.Join(repo.path, "projects", "T-SRU", "events")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+
+	var lines string
+	for i := 0; i < 5; i++ {
+		ts := time.Date(2026, 7, 10, 10+i, 0, 0, 0, time.UTC)
+		lines += fmt.Sprintf(`{"ts":"%s","actor":"alice","event":"claim.taken","project":"T-SRU","ticket":"T-%d"}`, ts.Format(time.RFC3339), i) + "\n"
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07.jsonl"), []byte(lines), 0o644))
+
+	// limit=0 means "no limit" — should return all 5 events
+	result, err := repo.ListEventsLimited("T-SRU", 0)
+	require.NoError(t, err)
+	assert.Len(t, result, 5, "limit=0 should return all events")
 }

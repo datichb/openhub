@@ -169,3 +169,52 @@ func TestWikiListPendingEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, pending)
 }
+
+// --- Path traversal security tests ---
+
+func TestWikiReadPage_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	tests := []struct {
+		name     string
+		pageName string
+	}{
+		{"dot-dot traversal", "../../../etc/passwd"},
+		{"slash", "foo/bar"},
+		{"backslash", "foo\\bar"},
+		{"null byte", "foo\x00bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := repo.WikiReadPage(tt.pageName)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrUnsafeName)
+		})
+	}
+}
+
+func TestValidateProposal_PathTraversal(t *testing.T) {
+	tests := []struct {
+		name     string
+		pageName string
+	}{
+		{"dot-dot traversal", "../../../etc/passwd"},
+		{"slash", "foo/bar"},
+		{"backslash", "foo\\bar"},
+		{"null byte", "foo\x00bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := WikiProposal{
+				Page:       tt.pageName,
+				Content:    "Some content",
+				Confidence: "CONFIRMED",
+				Author:     "documentarian",
+			}
+			err := validateProposal(p)
+			assert.ErrorIs(t, err, ErrProposalInvalid)
+		})
+	}
+}

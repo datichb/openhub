@@ -215,6 +215,9 @@ func (r *Repo) ReadBrief(project, ticketID string) (string, error) {
 
 // ListBriefs returns all briefs for a project.
 func (r *Repo) ListBriefs(project string) ([]TakeoverMeta, error) {
+	if _, err := SafeName(project); err != nil {
+		return nil, fmt.Errorf("invalid project name: %w", err)
+	}
 	dir := filepath.Join(r.path, "projects", project, "takeover-briefs")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -250,6 +253,12 @@ func (r *Repo) ListBriefs(project string) ([]TakeoverMeta, error) {
 
 // BriefExists returns true if any brief exists for the given ticket.
 func (r *Repo) BriefExists(project, ticketID string) bool {
+	if _, err := SafeName(project); err != nil {
+		return false
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return false
+	}
 	dir := filepath.Join(r.path, "projects", project, "takeover-briefs")
 	entries, err := os.ReadDir(dir)
 	if err != nil {

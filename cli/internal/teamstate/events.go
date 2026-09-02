@@ -84,7 +84,7 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.listEventsInternal(project, since)
+	return r.listEventsQuery(project, since, 0)
 }
 
 // ListEventsLimited returns at most limit events, newest first.
@@ -93,12 +93,15 @@ func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
 func (r *Repo) ListEventsLimited(project string, limit int) ([]Event, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.listEventsLimited(project, limit)
+	return r.listEventsQuery(project, time.Time{}, limit)
 }
 
-func (r *Repo) listEventsLimited(project string, limit int) ([]Event, error) {
+// listEventsQuery is the unified unlocked implementation.
+// Callers must hold at least a read lock.
+// Filters by since (zero = no filter) and limits results (0 = no limit).
+func (r *Repo) listEventsQuery(project string, since time.Time, limit int) ([]Event, error) {
 	if project != "" {
-		return r.listEventsForProject(project, time.Time{}, limit)
+		return r.listEventsForProject(project, since, limit)
 	}
 
 	projectsDir := filepath.Join(r.path, "projects")
@@ -115,9 +118,9 @@ func (r *Repo) listEventsLimited(project string, limit int) ([]Event, error) {
 		if !e.IsDir() {
 			continue
 		}
-		events, err := r.listEventsForProject(e.Name(), time.Time{}, limit)
+		events, err := r.listEventsForProject(e.Name(), since, limit)
 		if err != nil {
-			continue
+			continue // skip broken projects
 		}
 		all = append(all, events...)
 	}
@@ -128,40 +131,6 @@ func (r *Repo) listEventsLimited(project string, limit int) ([]Event, error) {
 	if limit > 0 && len(all) > limit {
 		all = all[:limit]
 	}
-	return all, nil
-}
-
-// listEventsInternal is the unlocked implementation shared by ListEvents.
-// Callers must hold at least a read lock.
-func (r *Repo) listEventsInternal(project string, since time.Time) ([]Event, error) {
-	if project != "" {
-		return r.listEventsForProject(project, since, 0)
-	}
-
-	projectsDir := filepath.Join(r.path, "projects")
-	entries, err := os.ReadDir(projectsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	var all []Event
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		events, err := r.listEventsForProject(e.Name(), since, 0)
-		if err != nil {
-			continue // skip broken projects
-		}
-		all = append(all, events...)
-	}
-
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Timestamp.After(all[j].Timestamp)
-	})
 	return all, nil
 }
 

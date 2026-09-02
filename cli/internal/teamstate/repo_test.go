@@ -266,3 +266,22 @@ func TestGitCloneInvalidURL_FailsFastWithNoPrompt(t *testing.T) {
 	// Error must mention the clone operation (not just an opaque exit error)
 	assert.Contains(t, err.Error(), "clone", "error should reference the clone operation")
 }
+
+func TestWithWriteLock_ContextCancelled(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	repo, _ := setupGitTestRepo(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately — context is already done
+
+	called := false
+	err := repo.withWriteLock(ctx, func(_ context.Context) error {
+		called = true
+		return nil
+	})
+
+	// pull(ctx) should fail due to cancelled context (git killed by OS signal)
+	assert.Error(t, err, "withWriteLock should fail with a cancelled context")
+	assert.False(t, called, "fn should not be called when pull fails due to cancelled context")
+}

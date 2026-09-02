@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -130,9 +131,9 @@ default_mode = "auto"
 }
 
 func TestAddMember(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	// No members.toml yet — should create one
-	err := repo.AddMember(Member{
+	err := repo.AddMember(context.Background(), Member{
 		ID:                 "charlie",
 		DisplayName:        "Charlie",
 		GitLabUsername:     "charlie",
@@ -149,13 +150,13 @@ func TestAddMember(t *testing.T) {
 }
 
 func TestAddMemberDuplicate(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	writeMembersToml(t, repo, `
 [members.benjamin]
 display_name = "Benjamin"
 `)
 
-	err := repo.AddMember(Member{
+	err := repo.AddMember(context.Background(), Member{
 		ID:          "benjamin",
 		DisplayName: "Benjamin Duplicate",
 	})
@@ -163,7 +164,7 @@ display_name = "Benjamin"
 }
 
 func TestRemoveMember(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	writeMembersToml(t, repo, `
 [members.benjamin]
 display_name = "Benjamin"
@@ -174,7 +175,7 @@ display_name = "Alice"
 gitlab_username = "alice"
 `)
 
-	err := repo.RemoveMember("benjamin")
+	err := repo.RemoveMember(context.Background(), "benjamin")
 	require.NoError(t, err)
 
 	_, err = repo.GetMember("benjamin")
@@ -187,13 +188,13 @@ gitlab_username = "alice"
 }
 
 func TestRemoveMemberNotFound(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	writeMembersToml(t, repo, `
 [members.benjamin]
 display_name = "Benjamin"
 `)
 
-	err := repo.RemoveMember("unknown")
+	err := repo.RemoveMember(context.Background(), "unknown")
 	assert.ErrorIs(t, err, ErrMemberNotFound)
 }
 
@@ -219,7 +220,7 @@ func TestMembersFilePath(t *testing.T) {
 }
 
 func TestUpdateMember(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	writeMembersToml(t, repo, `
 [members.alice]
 display_name = "Alice"
@@ -237,7 +238,7 @@ default_mode = "semi-auto"
 		Role:               "lead",
 		DefaultMode:        "auto",
 	}
-	err := repo.UpdateMember(updated)
+	err := repo.UpdateMember(context.Background(), updated)
 	require.NoError(t, err)
 
 	// Verify
@@ -249,13 +250,13 @@ default_mode = "semi-auto"
 }
 
 func TestUpdateMemberNotFound(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 	writeMembersToml(t, repo, `[members.alice]
 display_name = "Alice"
 role = "dev"
 default_mode = "semi-auto"
 `)
 
-	err := repo.UpdateMember(Member{ID: "bob", DisplayName: "Bob"})
+	err := repo.UpdateMember(context.Background(), Member{ID: "bob", DisplayName: "Bob"})
 	assert.ErrorIs(t, err, ErrMemberNotFound)
 }

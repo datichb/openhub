@@ -8,6 +8,7 @@ import (
 	"time"
 
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSaveAndReadBrief(t *testing.T) {
@@ -260,4 +261,37 @@ func containsSubstr(s, sub string) bool {
 
 func tomlMarshal(v interface{}) ([]byte, error) {
 	return toml.Marshal(v)
+}
+
+// --- Path traversal security tests ---
+
+func TestListBriefs_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	tests := []struct {
+		name    string
+		project string
+	}{
+		{"dot-dot traversal", "../../../etc"},
+		{"slash", "foo/bar"},
+		{"backslash", "foo\\bar"},
+		{"null byte", "foo\x00bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := repo.ListBriefs(tt.project)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrUnsafeName)
+		})
+	}
+}
+
+func TestBriefExists_PathTraversal(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	// Path traversal should be blocked — returns false, not panic
+	assert.False(t, repo.BriefExists("../../../etc", "passwd"))
+	assert.False(t, repo.BriefExists("T-SRU", "../../../etc/passwd"))
+	assert.False(t, repo.BriefExists("foo/bar", "ticket"))
 }

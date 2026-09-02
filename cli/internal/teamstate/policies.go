@@ -1,14 +1,32 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	toml "github.com/pelletier/go-toml/v2"
 )
+
+// regexCache stores compiled regex patterns to avoid recompilation on each CheckAll call.
+var regexCache sync.Map // pattern string → *regexp.Regexp
+
+// getCompiledRegex returns a cached compiled regex, compiling it on first use.
+func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
+	if cached, ok := regexCache.Load(pattern); ok {
+		return cached.(*regexp.Regexp), nil
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	regexCache.Store(pattern, re)
+	return re, nil
+}
 
 // PolicyType represents the type of a policy rule.
 type PolicyType string
@@ -104,20 +122,25 @@ func (r *Repo) LoadPolicies(project string) ([]Policy, error) {
 
 // SavePolicies writes the given policies map to policies.toml in the team-state repo.
 // If the file already exists, it is overwritten.
-func (r *Repo) SavePolicies(policies map[string]Policy) error {
-	// Clear Name fields before marshaling (Name is derived from the TOML key)
-	clean := make(map[string]Policy, len(policies))
-	for k, p := range policies {
-		p.Name = ""
-		clean[k] = p
-	}
-	pf := policiesFile{Policies: clean}
-	data, err := toml.Marshal(pf)
-	if err != nil {
-		return fmt.Errorf("marshaling policies.toml: %w", err)
-	}
-	path := filepath.Join(r.path, "policies.toml")
-	return os.WriteFile(path, data, 0o644)
+func (r *Repo) SavePolicies(ctx context.Context, policies map[string]Policy) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		// Clear Name fields before marshaling (Name is derived from the TOML key)
+		clean := make(map[string]Policy, len(policies))
+		for k, p := range policies {
+			p.Name = ""
+			clean[k] = p
+		}
+		pf := policiesFile{Policies: clean}
+		data, err := toml.Marshal(pf)
+		if err != nil {
+			return fmt.Errorf("marshaling policies.toml: %w", err)
+		}
+		path := filepath.Join(r.path, "policies.toml")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return err
+		}
+		return r.commitAndPush(ctx, "policies: update", "policies.toml")
+	})
 }
 
 // CheckPolicy evaluates a single policy against the provided context.
@@ -221,7 +244,7 @@ func checkRegex(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 		return result
 	}
 
-	re, err := regexp.Compile(p.Rule)
+	re, err := getCompiledRegex(p.Rule)
 	if err != nil {
 		result.Passed = false
 		result.Details = fmt.Sprintf("invalid regex: %s", err)

@@ -83,7 +83,7 @@ type PullWarning struct {
 }
 
 func (w *PullWarning) Error() string {
-	return fmt.Sprintf("impossible de synchroniser avec le remote (le contenu local est utilisé) : %v", w.Cause)
+	return fmt.Sprintf("unable to sync with remote (using local content): %v", w.Cause)
 }
 
 func (w *PullWarning) Unwrap() error { return w.Cause }
@@ -113,6 +113,9 @@ func (r *Repo) clone(ctx context.Context) error {
 	}
 	_, err := r.git(ctx, parent, "clone", r.remote, r.path)
 	if err != nil {
+		if isAuthError(err) {
+			return fmt.Errorf("clone failed — %s", authErrorMessage(r.remote))
+		}
 		return fmt.Errorf("cloning team-state repo: %w", err)
 	}
 	return nil
@@ -195,7 +198,7 @@ func (r *Repo) withWriteLock(ctx context.Context, fn func(ctx context.Context) e
 	defer r.mu.Unlock()
 
 	// Best-effort pull to ensure fresh working tree.
-	if err := r.pull(ctx); err != nil && err != ErrNotCloned {
+	if err := r.pull(ctx); err != nil && !errors.Is(err, ErrNotCloned) {
 		return err
 	}
 
@@ -263,7 +266,7 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 			return fmt.Errorf("rebasing before retry: %w", pullErr)
 		}
 
-		time.Sleep(retryDelay)
+		time.Sleep(retryDelay * time.Duration(1<<uint(attempt)))
 	}
 
 	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries)

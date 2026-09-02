@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -358,8 +359,7 @@ message = "too many WIP"
 }
 
 func TestSavePolicies(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
 
 	policies := map[string]Policy{
 		"branch_naming": {
@@ -376,13 +376,13 @@ func TestSavePolicies(t *testing.T) {
 		},
 	}
 
-	err := repo.SavePolicies(policies)
+	err := repo.SavePolicies(context.Background(), policies)
 	if err != nil {
 		t.Fatalf("SavePolicies failed: %v", err)
 	}
 
 	// Verify file exists
-	path := filepath.Join(dir, "policies.toml")
+	path := filepath.Join(repo.path, "policies.toml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Fatal("policies.toml should exist after SavePolicies")
 	}
@@ -420,14 +420,13 @@ func TestSavePolicies(t *testing.T) {
 }
 
 func TestSavePoliciesOverwrite(t *testing.T) {
-	dir := t.TempDir()
-	repo := &Repo{path: dir}
+	repo, _ := setupGitTestRepo(t)
 
 	// First save
 	p1 := map[string]Policy{
 		"old_policy": {Type: PolicyTypeBoolean, Enabled: true, Enforcement: EnforcementWarn},
 	}
-	if err := repo.SavePolicies(p1); err != nil {
+	if err := repo.SavePolicies(context.Background(), p1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -435,7 +434,7 @@ func TestSavePoliciesOverwrite(t *testing.T) {
 	p2 := map[string]Policy{
 		"new_policy": {Type: PolicyTypeLimit, Max: 5, Enforcement: EnforcementRefuse},
 	}
-	if err := repo.SavePolicies(p2); err != nil {
+	if err := repo.SavePolicies(context.Background(), p2); err != nil {
 		t.Fatal(err)
 	}
 

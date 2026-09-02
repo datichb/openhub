@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,7 +68,7 @@ func TestLoadConfigInvalid(t *testing.T) {
 }
 
 func TestSaveConfig(t *testing.T) {
-	repo := setupTestRepo(t)
+	repo, _ := setupGitTestRepo(t)
 
 	cfg := &TeamConfig{
 		Notification: NotificationConfig{
@@ -78,7 +79,7 @@ func TestSaveConfig(t *testing.T) {
 		},
 	}
 
-	err := repo.SaveConfig(cfg)
+	err := repo.SaveConfig(context.Background(), cfg)
 	require.NoError(t, err)
 
 	// Read back

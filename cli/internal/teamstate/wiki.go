@@ -240,6 +240,9 @@ func validateProposal(p WikiProposal) error {
 	if p.Page == "" {
 		return fmt.Errorf("%w: page is required", ErrProposalInvalid)
 	}
+	if _, err := SafeName(p.Page); err != nil {
+		return fmt.Errorf("%w: invalid page name: %v", ErrProposalInvalid, err)
+	}
 	if p.Content == "" {
 		return fmt.Errorf("%w: content is required", ErrProposalInvalid)
 	}

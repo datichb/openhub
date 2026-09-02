@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,54 +95,66 @@ func (r *Repo) FindMemberByMattermost(username string) (*Member, error) {
 
 // AddMember adds a new member to members.toml.
 // Returns ErrMemberExists if the ID is already taken.
-func (r *Repo) AddMember(m Member) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	mf, err := r.readMembersFile()
-	if err != nil {
-		// If file doesn't exist, start fresh
-		if os.IsNotExist(err) {
-			mf = &membersFile{Members: make(map[string]Member)}
-		} else {
+func (r *Repo) AddMember(ctx context.Context, m Member) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		mf, err := r.readMembersFile()
+		if err != nil {
+			// If file doesn't exist, start fresh
+			if os.IsNotExist(err) {
+				mf = &membersFile{Members: make(map[string]Member)}
+			} else {
+				return err
+			}
+		}
+		if _, exists := mf.Members[m.ID]; exists {
+			return ErrMemberExists
+		}
+		mf.Members[m.ID] = m
+		if err := r.writeMembersFile(mf); err != nil {
 			return err
 		}
-	}
-	if _, exists := mf.Members[m.ID]; exists {
-		return ErrMemberExists
-	}
-	mf.Members[m.ID] = m
-	return r.writeMembersFile(mf)
+		msg := fmt.Sprintf("members: add %s", m.ID)
+		return r.commitAndPush(ctx, msg, "members.toml")
+	})
 }
 
 // RemoveMember removes a member by ID from members.toml.
-func (r *Repo) RemoveMember(id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	mf, err := r.readMembersFile()
-	if err != nil {
-		return err
-	}
-	if _, exists := mf.Members[id]; !exists {
-		return ErrMemberNotFound
-	}
-	delete(mf.Members, id)
-	return r.writeMembersFile(mf)
+func (r *Repo) RemoveMember(ctx context.Context, id string) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		mf, err := r.readMembersFile()
+		if err != nil {
+			return err
+		}
+		if _, exists := mf.Members[id]; !exists {
+			return ErrMemberNotFound
+		}
+		delete(mf.Members, id)
+		if err := r.writeMembersFile(mf); err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("members: remove %s", id)
+		return r.commitAndPush(ctx, msg, "members.toml")
+	})
 }
 
 // UpdateMember updates an existing member in members.toml.
 // Returns ErrMemberNotFound if the ID does not exist.
-func (r *Repo) UpdateMember(m Member) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	mf, err := r.readMembersFile()
-	if err != nil {
-		return err
-	}
-	if _, exists := mf.Members[m.ID]; !exists {
-		return ErrMemberNotFound
-	}
-	mf.Members[m.ID] = m
-	return r.writeMembersFile(mf)
+func (r *Repo) UpdateMember(ctx context.Context, m Member) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		mf, err := r.readMembersFile()
+		if err != nil {
+			return err
+		}
+		if _, exists := mf.Members[m.ID]; !exists {
+			return ErrMemberNotFound
+		}
+		mf.Members[m.ID] = m
+		if err := r.writeMembersFile(mf); err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("members: update %s", m.ID)
+		return r.commitAndPush(ctx, msg, "members.toml")
+	})
 }
 
 // membersFilePath returns the absolute path to members.toml.
