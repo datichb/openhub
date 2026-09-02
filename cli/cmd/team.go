@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -27,6 +28,29 @@ var teamCmd = &cobra.Command{
 	Use:   "team",
 	Short: i18n.T("cmd.team.short"),
 	Long:  i18n.T("cmd.team.long"),
+	PersistentPreRunE: teamPreRunE,
+}
+
+// teamRepo is the shared team-state repository instance, resolved once by
+// teamPreRunE and reused by all team subcommands. Commands that need to work
+// before the repo exists (e.g. `team init`) override PersistentPreRunE to nil.
+var teamRepo *teamstate.Repo
+
+// teamPreRunE resolves the team-state repo for all team subcommands.
+// It skips resolution if the command is `team init` (repo doesn't exist yet).
+func teamPreRunE(cmd *cobra.Command, _ []string) error {
+	// Skip for commands that don't need an existing repo
+	if cmd.Name() == "init" {
+		return nil
+	}
+	a := MustApp()
+	ctx := cmd.Context()
+	repo, err := ensureTeamRepo(ctx, a)
+	if err != nil {
+		return err
+	}
+	teamRepo = repo
+	return nil
 }
 
 var teamInitCmd = &cobra.Command{
@@ -60,7 +84,7 @@ func init() {
 	teamActivityCmd.Flags().String("project", "", "Filter by project")
 	teamActivityCmd.Flags().Int("limit", 20, "Maximum number of events to display")
 
-	teamStatusCmd.Flags().Bool("detail", false, "Affiche les sous-tickets et la progression")
+	teamStatusCmd.Flags().Bool("detail", false, i18n.T("cmd.team.status.flags.detail"))
 }
 
 func runTeamInit(cmd *cobra.Command, args []string) error {
@@ -108,8 +132,10 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			if err := repo.Pull(ctx); err != nil {
-				// Non-fatal: continue with local state
-				_ = err
+				// Non-fatal: continue with local state but warn the user
+				slog.Warn("team.init.pull_failed", "error", err)
+				fmt.Fprintf(a.IO.ErrOut, "%s synchronisation échouée, contenu local utilisé\n",
+					theme.WarningStyle.Render(theme.IconWarning))
 			}
 		} else {
 			if err := repo.Clone(ctx); err != nil {
@@ -306,7 +332,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				existingCfg.Takeover.StaleDays = days
-				if err := repo.SaveConfig(existingCfg); err != nil {
+				if err := repo.SaveConfig(ctx, existingCfg); err != nil {
 					return err
 				}
 			} else {
@@ -324,11 +350,11 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 						AutoMergeBeads: true,
 					},
 				}
-				if err := repo.SaveConfig(cfg); err != nil {
+				if err := repo.SaveConfig(ctx, cfg); err != nil {
 					return err
 				}
 			}
-			return repo.CommitAndPush(ctx, "team: configure config.toml", "config.toml")
+			return nil
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{
@@ -385,7 +411,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					Role:               role,
 					DefaultMode:        "semi-auto",
 				}
-				if err := repo.AddMember(member); err != nil {
+				if err := repo.AddMember(ctx, member); err != nil {
 					if err == teamstate.ErrMemberExists {
 						return nil
 					}
@@ -444,7 +470,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					Role:               role,
 					DefaultMode:        "semi-auto",
 				}
-				if err := repo.UpdateMember(member); err != nil {
+				if err := repo.UpdateMember(ctx, member); err != nil {
 					return err
 				}
 				return repo.CommitAndPush(ctx, fmt.Sprintf("team: update member %s", memberID), "members.toml")
@@ -498,10 +524,10 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			cfg.Notification.Channel = channel
 			cfg.Notification.BotName = botName
 			cfg.Notification.Enabled = true
-			if err := repo.SaveConfig(cfg); err != nil {
+			if err := repo.SaveConfig(ctx, cfg); err != nil {
 				return err
 			}
-			return repo.CommitAndPush(ctx, "team: configure notifications", "config.toml")
+			return nil
 		},
 		InfoFields: func() []views.InfoField {
 			if webhookURL == "" {
@@ -565,7 +591,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
-			if err := repo.SavePolicies(policies); err != nil {
+			if err := repo.SavePolicies(ctx, policies); err != nil {
 				return err
 			}
 			commitMsg := "team: init policies"
@@ -663,25 +689,25 @@ func buildRecommendedPolicies(selected []string) map[string]teamstate.Policy {
 			Type:        teamstate.PolicyTypeRegex,
 			Rule:        `^(feat|fix|chore|refactor|docs|test|ci)/[a-z0-9-]+`,
 			Enforcement: teamstate.EnforcementRefuse,
-			Message:     "Le nom de branche doit suivre le format type/description-kebab-case",
+			Message:     i18n.T("cmd.team.init.policy_msg.branch_naming"),
 		},
 		"commit_format": {
 			Type:        teamstate.PolicyTypeRegex,
 			Rule:        `^(feat|fix|chore|refactor|docs|test|ci)(\(.+\))?: .+`,
 			Enforcement: teamstate.EnforcementWarn,
-			Message:     "Le commit devrait suivre Conventional Commits",
+			Message:     i18n.T("cmd.team.init.policy_msg.commit_format"),
 		},
 		"max_ticket_wip": {
 			Type:        teamstate.PolicyTypeLimit,
 			Max:         2,
 			Enforcement: teamstate.EnforcementWarn,
-			Message:     "Maximum 2 tickets en parallèle par membre",
+			Message:     i18n.T("cmd.team.init.policy_msg.max_wip"),
 		},
 		"review_required": {
 			Type:        teamstate.PolicyTypeBoolean,
 			Enabled:     true,
 			Enforcement: teamstate.EnforcementRefuse,
-			Message:     "Une review est requise avant merge",
+			Message:     i18n.T("cmd.team.init.policy_msg.review_required"),
 		},
 	}
 
@@ -698,15 +724,13 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	repo, err := ensureTeamRepo(ctx, a)
-	if err != nil {
-		return err
-	}
+	repo := teamRepo
 
 	// Pull latest
 	if err := repo.Pull(ctx); err != nil {
-		fmt.Fprintf(a.IO.ErrOut, "%s Impossible de synchroniser: %v\n",
-			theme.WarningStyle.Render(theme.IconWarning), err)
+		fmt.Fprintf(a.IO.ErrOut, "%s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.team.status.sync_error", err))
 	}
 
 	detail, _ := cmd.Flags().GetBool("detail")
@@ -715,6 +739,13 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	members, err := repo.ListMembers()
 	if err != nil {
 		return fmt.Errorf("listing members: %w", err)
+	}
+
+	if len(members) == 0 {
+		fmt.Fprintf(a.IO.Out, "\n%s %s\n\n",
+			theme.Subtitle.Render(theme.IconInfo),
+			i18n.Tf("cmd.team.status.empty", theme.Bold.Render("oh team init")))
+		return nil
 	}
 
 	// List all claims
@@ -745,16 +776,16 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Team: %d members  ", len(members))))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.Tf("cmd.team.status.title", len(members))))
 	fmt.Fprintln(a.IO.Out)
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
-		theme.Bold.Render("Member"),
-		theme.Bold.Render("Role"),
-		theme.Bold.Render("Ticket"),
-		theme.Bold.Render("Status"),
-		theme.Bold.Render("Since"))
+		theme.Bold.Render(i18n.T("cmd.team.status.header_member")),
+		theme.Bold.Render(i18n.T("cmd.team.status.header_role")),
+		theme.Bold.Render(i18n.T("cmd.team.status.header_ticket")),
+		theme.Bold.Render(i18n.T("cmd.team.status.header_status")),
+		theme.Bold.Render(i18n.T("cmd.team.status.header_since")))
 	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", "──────", "────", "──────", "──────", "─────")
 
 	for _, m := range members {
@@ -763,7 +794,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		if len(memberClaims) == 0 {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t\t\n",
 				m.DisplayName, m.Role,
-				theme.Subtitle.Render("— (idle)"))
+				theme.Subtitle.Render(i18n.T("cmd.team.status.idle")))
 			continue
 		}
 
@@ -807,7 +838,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 							prefix, icon, sb.ID, sb.Status)
 					}
 					fmt.Fprintf(w, "  \t\t  %s\t\t\n",
-						theme.Subtitle.Render(fmt.Sprintf("Progress: %d/%d", completed, len(subBeads))))
+						theme.Subtitle.Render(i18n.Tf("cmd.team.status.progress", completed, len(subBeads))))
 				}
 			}
 		}
@@ -815,10 +846,11 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	w.Flush()
 
 	// Summary line
-	fmt.Fprintf(a.IO.Out, "\n  %d tickets actifs %s %d en review %s %d blocked\n\n",
-		activeCount, theme.IconDot,
-		reviewCount, theme.IconDot,
-		blockedCount)
+	fmt.Fprintf(a.IO.Out, "\n  %s\n\n",
+		i18n.Tf("cmd.team.status.summary",
+			activeCount, theme.IconDot,
+			reviewCount, theme.IconDot,
+			blockedCount))
 
 	return nil
 }
@@ -827,10 +859,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	repo, err := ensureTeamRepo(ctx, a)
-	if err != nil {
-		return err
-	}
+	repo := teamRepo
 
 	if err := repo.Pull(ctx); err != nil {
 		fmt.Fprintf(a.IO.ErrOut, "%s Impossible de synchroniser: %v\n",
@@ -872,6 +901,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	}
 
 	// Apply limit
+	totalCount := len(events)
 	if len(events) > limit {
 		events = events[:limit]
 	}
@@ -892,6 +922,12 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 		desc := formatEvent(e)
 		fmt.Fprintf(a.IO.Out, "  %s %s %s %s\n",
 			theme.Subtitle.Render(ts), icon, theme.Bold.Render(e.Actor), desc)
+	}
+
+	if totalCount > limit {
+		fmt.Fprintf(a.IO.Out, "\n  %s %s\n",
+			theme.Subtitle.Render(theme.IconInfo),
+			i18n.Tf("cmd.team.activity.truncated", limit, totalCount))
 	}
 	fmt.Fprintln(a.IO.Out)
 

@@ -261,6 +261,11 @@ func promptUnlockPassphrase() (string, error) {
 }
 
 func init() {
+	// Enable hook traversal so that child PersistentPreRunE (e.g. teamCmd)
+	// no longer shadow the root's — Cobra walks up the tree and executes
+	// each ancestor's hook in order. Available since Cobra v1.6.0.
+	cobra.EnableTraverseRunHooks = true
+
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
 	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")

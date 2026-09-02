@@ -102,7 +102,8 @@ func TestBuildDeployPlan_TeamDisabled(t *testing.T) {
 
 	// Project explicitly opts out
 	projectTeamCfg := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, projectTeamCfg)
+	project := &domain.Project{TeamConfig: projectTeamCfg}
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, project)
 	require.NotNil(t, plan)
 
 	// Team MCP server should NOT appear in EnabledMCPServers
@@ -127,7 +128,8 @@ func TestBuildDeployPlan_TeamCustom(t *testing.T) {
 		StateRepo: "git@github.com:beta/other-team.git",
 		MemberID:  "bob",
 	}
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, projectTeamCfg)
+	project := &domain.Project{TeamConfig: projectTeamCfg}
+	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, project)
 	require.NotNil(t, plan)
 
 	// Team MCP server SHOULD appear in EnabledMCPServers

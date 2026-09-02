@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"text/tabwriter"
 
@@ -43,24 +44,24 @@ var teamsRemoveCmd = &cobra.Command{
 
 var teamsDetachCmd = &cobra.Command{
 	Use:   "detach [project-name]",
-	Short: "Détacher un projet de son équipe",
-	Long:  "Détache un projet de son équipe actuelle sans supprimer la team. Le projet devient solo.",
+	Short: i18n.T("cmd.teams.detach.short"),
+	Long:  i18n.T("cmd.teams.detach.long"),
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTeamsDetach,
 }
 
 var teamsArchiveCmd = &cobra.Command{
 	Use:   "archive [team-id]",
-	Short: "Archiver une équipe (désactiver sans supprimer)",
-	Long:  "Désactive une équipe en préservant sa configuration. Le team-state local reste intact.\nUtilisez 'oh teams restore' pour réactiver.",
+	Short: i18n.T("cmd.teams.archive.short"),
+	Long:  i18n.T("cmd.teams.archive.long"),
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTeamsArchive,
 }
 
 var teamsRestoreCmd = &cobra.Command{
 	Use:   "restore [team-id]",
-	Short: "Restaurer une équipe archivée",
-	Long:  "Réactive une équipe précédemment archivée et synchronise son team-state.",
+	Short: i18n.T("cmd.teams.restore.short"),
+	Long:  i18n.T("cmd.teams.restore.long"),
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTeamsRestore,
 }
@@ -74,12 +75,12 @@ func init() {
 	teamsCmd.AddCommand(teamsArchiveCmd)
 	teamsCmd.AddCommand(teamsRestoreCmd)
 
-	teamsAddCmd.Flags().String("repo", "", "URL du repo team-state (git@... ou https://...)")
-	teamsAddCmd.Flags().String("member-id", "", "Votre identifiant dans cette équipe")
-	teamsAddCmd.Flags().String("id", "", "Identifiant local pour cette équipe (auto-dérivé du repo si omis)")
-	teamsAddCmd.Flags().String("name", "", "Nom d'affichage de l'équipe (optionnel)")
+	teamsAddCmd.Flags().String("repo", "", i18n.T("cmd.teams.add.flags.repo"))
+	teamsAddCmd.Flags().String("member-id", "", i18n.T("cmd.teams.add.flags.member_id"))
+	teamsAddCmd.Flags().String("id", "", i18n.T("cmd.teams.add.flags.id"))
+	teamsAddCmd.Flags().String("name", "", i18n.T("cmd.teams.add.flags.name"))
 
-	teamsRemoveCmd.Flags().BoolP("force", "f", false, "Supprimer sans demander de confirmation")
+	teamsRemoveCmd.Flags().BoolP("force", "f", false, i18n.T("cmd.teams.remove.flags.force"))
 }
 
 func runTeamsList(cmd *cobra.Command, _ []string) error {
@@ -89,24 +90,25 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 	teams := a.Config.Teams
 
 	if len(teams) == 0 {
-		fmt.Fprintf(a.IO.Out, "%s Aucune équipe configurée. Utilisez %s pour en ajouter une.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.Subtitle.Render(theme.IconInfo),
-			theme.Bold.Render("oh teams add --repo <url> --member-id <id>"))
+			i18n.Tf("cmd.teams.list.empty",
+				theme.Bold.Render("oh teams add --repo <url> --member-id <id>")))
 		return nil
 	}
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 4, 2, ' ', 0)
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-		theme.Bold.Render("ID"),
-		theme.Bold.Render("NOM"),
-		theme.Bold.Render("MEMBRE"),
-		theme.Bold.Render("REPO"),
-		theme.Bold.Render("STATUT"))
+		theme.Bold.Render(i18n.T("cmd.teams.list.header_id")),
+		theme.Bold.Render(i18n.T("cmd.teams.list.header_name")),
+		theme.Bold.Render(i18n.T("cmd.teams.list.header_member")),
+		theme.Bold.Render(i18n.T("cmd.teams.list.header_repo")),
+		theme.Bold.Render(i18n.T("cmd.teams.list.header_status")))
 
 	for _, t := range teams {
-		status := theme.SuccessStyle.Render("actif")
+		status := theme.SuccessStyle.Render(i18n.T("cmd.teams.list.status_active"))
 		if !t.Enabled {
-			status = theme.Subtitle.Render("inactif")
+			status = theme.Subtitle.Render(i18n.T("cmd.teams.list.status_inactive"))
 		}
 		name := t.DisplayName()
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
@@ -130,12 +132,14 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 		for _, t := range teams {
 			count := teamProjects[t.ID]
 			if count > 0 {
-				fmt.Fprintf(a.IO.Out, "  %s: %d projet(s)\n", t.DisplayName(), count)
+				fmt.Fprintf(a.IO.Out, "  %s\n",
+					i18n.Tf("cmd.teams.list.project_count", t.DisplayName(), count))
 			}
 		}
 		if soloCount > 0 {
-			fmt.Fprintf(a.IO.Out, "  %s: %d projet(s)\n",
-				theme.Subtitle.Render("solo (pas d'équipe)"), soloCount)
+			fmt.Fprintf(a.IO.Out, "  %s\n",
+				i18n.Tf("cmd.teams.list.project_count",
+					theme.Subtitle.Render(i18n.T("cmd.teams.list.solo")), soloCount))
 		}
 	}
 
@@ -151,10 +155,10 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 	name, _ := cmd.Flags().GetString("name")
 
 	if repo == "" {
-		return fmt.Errorf("le flag --repo est requis (URL du repo team-state)")
+		return errors.New(i18n.T("cmd.teams.add.repo_required"))
 	}
 	if memberID == "" {
-		return fmt.Errorf("le flag --member-id est requis (votre identifiant dans cette équipe)")
+		return errors.New(i18n.T("cmd.teams.add.member_id_required"))
 	}
 
 	// Auto-derive ID from repo if not provided
@@ -164,10 +168,10 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 
 	// Check for duplicates
 	if existing := a.Config.FindTeam(id); existing != nil {
-		return fmt.Errorf("une équipe avec l'ID %q existe déjà (repo: %s)", id, existing.StateRepo)
+		return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", id, existing.StateRepo))
 	}
 	if existing := a.Config.FindTeamByRepo(repo); existing != nil {
-		return fmt.Errorf("ce repo est déjà configuré sous l'ID %q", existing.ID)
+		return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
 	}
 
 	// Build the new team entry
@@ -183,17 +187,17 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 	a.Config.Teams = append(a.Config.Teams, newTeam)
 
 	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("sauvegarde config: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Équipe %s ajoutée avec succès.\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(newTeam.DisplayName()))
-	fmt.Fprintf(a.IO.Out, "  ID:       %s\n", id)
-	fmt.Fprintf(a.IO.Out, "  Repo:     %s\n", repo)
-	fmt.Fprintf(a.IO.Out, "  Membre:   %s\n", memberID)
-	fmt.Fprintf(a.IO.Out, "\n  Utilisez %s pour synchroniser le team-state.\n",
-		theme.Bold.Render("oh team init"))
+		i18n.Tf("cmd.teams.add.success", theme.Bold.Render(newTeam.DisplayName())))
+	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_id", id))
+	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_repo", repo))
+	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_member", memberID))
+	fmt.Fprintf(a.IO.Out, "\n%s\n",
+		i18n.Tf("cmd.teams.add.sync_hint", theme.Bold.Render("oh team init")))
 
 	return nil
 }
@@ -205,8 +209,8 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 	// Find the team
 	team := a.Config.FindTeam(teamID)
 	if team == nil {
-		return fmt.Errorf("équipe %q non trouvée. Utilisez %s pour voir les équipes configurées.",
-			teamID, theme.Bold.Render("oh teams list"))
+		return errors.New(i18n.Tf("cmd.teams.not_found",
+			teamID, theme.Bold.Render("oh teams list")))
 	}
 
 	// Check for projects still attached
@@ -219,12 +223,13 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if len(attached) > 0 {
-			fmt.Fprintf(a.IO.Out, "%s %d projet(s) sont rattachés à cette équipe:\n",
-				theme.WarningStyle.Render(theme.IconWarning), len(attached))
+			fmt.Fprintf(a.IO.Out, "%s %s\n",
+				theme.WarningStyle.Render(theme.IconWarning),
+				i18n.Tf("cmd.teams.remove.attached_projects", len(attached)))
 			for _, name := range attached {
 				fmt.Fprintf(a.IO.Out, "  - %s\n", name)
 			}
-			fmt.Fprintf(a.IO.Out, "  Ces projets deviendront des projets solo.\n\n")
+			fmt.Fprintf(a.IO.Out, "%s\n\n", i18n.T("cmd.teams.remove.will_become_solo"))
 		}
 	}
 
@@ -235,7 +240,7 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		_ = floating.Run(floating.Config{
 			Title: i18n.T("cmd.teams.remove.short"),
 			Form: theme.NewForm(huh.NewGroup(huh.NewConfirm().
-				Title(fmt.Sprintf("Supprimer l'équipe %q ?", teamID)).
+				Title(i18n.Tf("cmd.teams.remove.confirm", teamID)).
 				Value(&confirm))),
 		})
 		if !confirm {
@@ -253,7 +258,7 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 	a.Config.Teams = newTeams
 
 	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("sauvegarde config: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
 	// Detach projects from the removed team
@@ -267,9 +272,9 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Équipe %s retirée.\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(teamID))
+		i18n.Tf("cmd.teams.remove.success", theme.Bold.Render(teamID)))
 
 	return nil
 }
@@ -290,26 +295,27 @@ func runTeamsDetach(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
 	project, err := a.Projects.GetByName(ctx, projectName)
 	if err != nil {
-		return fmt.Errorf("projet %q non trouvé: %w", projectName, err)
+		return fmt.Errorf("%s: %w", i18n.Tf("cmd.teams.detach.project_not_found", projectName), err)
 	}
 
 	if project.TeamID == nil {
-		fmt.Fprintf(a.IO.Out, "%s Le projet %s n'est rattaché à aucune équipe.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.Subtitle.Render(theme.IconWarning),
-			theme.Bold.Render(projectName))
+			i18n.Tf("cmd.teams.detach.not_attached", theme.Bold.Render(projectName)))
 		return nil
 	}
 
 	teamID := *project.TeamID
 	project.TeamID = nil
 	if err := a.Projects.Update(ctx, project); err != nil {
-		return fmt.Errorf("détachement du projet: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.detach.error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Projet %s détaché de l'équipe %s.\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(projectName),
-		theme.Bold.Render(teamID))
+		i18n.Tf("cmd.teams.detach.success",
+			theme.Bold.Render(projectName),
+			theme.Bold.Render(teamID)))
 	return nil
 }
 
@@ -320,14 +326,14 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 
 	team := a.Config.FindTeam(teamID)
 	if team == nil {
-		return fmt.Errorf("équipe %q non trouvée. Utilisez %s pour voir les équipes configurées.",
-			teamID, theme.Bold.Render("oh teams list"))
+		return errors.New(i18n.Tf("cmd.teams.not_found",
+			teamID, theme.Bold.Render("oh teams list")))
 	}
 
 	if !team.Enabled {
-		fmt.Fprintf(a.IO.Out, "%s L'équipe %s est déjà archivée.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.Subtitle.Render(theme.IconWarning),
-			theme.Bold.Render(teamID))
+			i18n.Tf("cmd.teams.archive.already_archived", theme.Bold.Render(teamID)))
 		return nil
 	}
 
@@ -340,13 +346,14 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 	}
 
 	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("sauvegarde config: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Équipe %s archivée. Utilisez %s pour la réactiver.\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(teamID),
-		theme.Bold.Render("oh teams restore "+teamID))
+		i18n.Tf("cmd.teams.archive.success",
+			theme.Bold.Render(teamID),
+			theme.Bold.Render("oh teams restore "+teamID)))
 	return nil
 }
 
@@ -357,14 +364,14 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 
 	team := a.Config.FindTeam(teamID)
 	if team == nil {
-		return fmt.Errorf("équipe %q non trouvée. Utilisez %s pour voir les équipes configurées.",
-			teamID, theme.Bold.Render("oh teams list"))
+		return errors.New(i18n.Tf("cmd.teams.not_found",
+			teamID, theme.Bold.Render("oh teams list")))
 	}
 
 	if team.Enabled {
-		fmt.Fprintf(a.IO.Out, "%s L'équipe %s est déjà active.\n",
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.Subtitle.Render(theme.IconWarning),
-			theme.Bold.Render(teamID))
+			i18n.Tf("cmd.teams.restore.already_active", theme.Bold.Render(teamID)))
 		return nil
 	}
 
@@ -377,11 +384,11 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 	}
 
 	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("sauvegarde config: %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Équipe %s restaurée et active.\n",
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(teamID))
+		i18n.Tf("cmd.teams.restore.success", theme.Bold.Render(teamID)))
 	return nil
 }
