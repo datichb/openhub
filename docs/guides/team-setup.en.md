@@ -84,7 +84,7 @@ Edit `config.toml` in the team-state repo (or `hub.toml` for hub-level config).
 ### Mattermost
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "mattermost"
 mattermost_webhook = "https://mattermost.example.com/hooks/..."
@@ -97,7 +97,7 @@ To get the webhook URL: Mattermost > Integrations > Incoming Webhooks > Add.
 ### Slack
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "slack"
 webhook_url = "https://hooks.slack.com/services/T.../B.../..."
@@ -109,7 +109,7 @@ To get the webhook URL: Slack > Your App > Incoming Webhooks > Add New Webhook t
 ### Discord
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
@@ -121,7 +121,7 @@ To get the webhook URL: Discord channel settings > Integrations > Webhooks > New
 ### Microsoft Teams
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "teams"
 webhook_url = "https://outlook.office.com/webhook/..."
@@ -132,11 +132,11 @@ To get the webhook URL: Teams channel > Connectors > Incoming Webhook > Configur
 ### Multi-destination (notify multiple platforms simultaneously)
 
 ```toml
-[[notify.destinations]]
+[[notification.destinations]]
 type = "slack"
 webhook_url = "https://hooks.slack.com/services/T.../B.../..."
 
-[[notify.destinations]]
+[[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
 ```
@@ -623,6 +623,47 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 ```
 
 > **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication.
+
+## 9. Team Lifecycle Management
+
+### Multi-team management
+
+List all configured teams:
+
+```bash
+oh teams list
+```
+
+Add a new team:
+
+```bash
+oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
+```
+
+Remove a team (detaches all associated projects):
+
+```bash
+oh teams remove <team-id>
+```
+
+### Detach a project from its team
+
+Remove the team affiliation from a project without deleting the team itself:
+
+```bash
+oh teams detach <team-id> --project <project-id>
+```
+
+### Archive / Restore a team
+
+Temporarily disable a team without removing it. Archived teams are ignored by all commands and agents:
+
+```bash
+oh teams archive <team-id>
+oh teams restore <team-id>
+```
+
+Archiving sets `enabled = false` in hub.toml. Restoring re-enables it.
 
 ## Troubleshooting
 

@@ -154,6 +154,7 @@ message = "Remove console.log before commit"
 | `diff_only` | Only added lines in the diff |
 | `modified_files` | Full content of modified files |
 | `all_files` | All project files |
+| `per_feature_branch` | Applies to commits on the feature branch only |
 
 ### Per-project overrides
 
@@ -216,3 +217,35 @@ formalization.
 
 Recommendation: document your conventions normally, then formalize those that
 must be blocking in `policies.toml`.
+
+## Conventions file examples
+
+```markdown
+# Project T-SRU Conventions
+
+## Branches
+
+branch_pattern = `^(feat|fix|chore|hotfix)/SRU-\d+-.+`
+
+- Feature branches: `feat/SRU-<id>-<slug>`
+- Fix branches: `fix/SRU-<id>-<slug>`
+- Hotfix (production): `hotfix/SRU-<id>-<slug>`
+
+## Commits
+
+Conventional Commits required.
+The scope must match the module (api, ui, auth, db).
+Ticket reference is recommended in the body.
+
+## Review
+
+- Minimum 1 reviewer
+- Author cannot approve their own MR
+- Critical findings must be fixed before merge
+
+## Tests
+
+- Minimum coverage: 80%
+- E2E tests required for UI features
+- Unit tests required for business logic
+```

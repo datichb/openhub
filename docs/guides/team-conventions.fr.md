@@ -155,6 +155,7 @@ message = "Remove console.log before commit"
 | `diff_only` | Uniquement les lignes ajoutées dans le diff |
 | `modified_files` | Tout le contenu des fichiers modifiés |
 | `all_files` | Tous les fichiers du projet |
+| `per_feature_branch` | S'applique aux commits de la branche feature uniquement |
 
 ### Overrides par projet
 

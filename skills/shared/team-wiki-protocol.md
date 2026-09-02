@@ -4,6 +4,8 @@ bucket: B
 agent: documentarian
 ---
 
+> **Condition préalable :** Si les outils `team_*` ne sont pas disponibles dans la session courante, ce protocole ne s'applique pas — continuer sans.
+
 # Team Wiki Protocol
 
 Ce skill définit les règles d'utilisation de `team_wiki_write` par le documentarian.

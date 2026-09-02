@@ -208,7 +208,7 @@ List recent team activity events.
 
 ### `team_notify`
 
-Send a custom notification to the team Mattermost channel.
+Send a custom notification to the team channel (supports Mattermost, Slack, Discord, Teams).
 
 **Input:**
 ```json

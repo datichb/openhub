@@ -31,6 +31,10 @@ Chaque agent ne verifie que les policies pertinentes a ses actions :
 | `documentarian` | Aucune policy code applicable |
 | `pathfinder` | Aucune (read-only) |
 | `onboarder` | Aucune (read-only) |
+| `auditor` | `branch_naming` (dans le rapport d'audit), `commit_format` (dans le rapport d'audit) |
+| `debugger` | Aucune policy applicable |
+| `planner` | Aucune (read-only) |
+| `brief-enricher` | Aucune policy applicable |
 
 ## Comportement selon l'enforcement
 

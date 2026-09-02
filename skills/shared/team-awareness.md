@@ -20,6 +20,14 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 | `team_wiki_read` | Lire une page du wiki partagé | read |
 | `team_events` | Événements récents de l'équipe | read |
 | `team_policies` | Règles d'équipe actives (conventions, limites, patterns interdits) | read |
+| `team_takeover_brief` | Brief de reprise d'un ticket transféré (contexte du prédécesseur) | read |
+| `team_patterns_list` | Liste des patterns de décomposition documentés par l'équipe | read |
+| `team_patterns_read` | Lire le contenu complet d'un pattern (structure, dépendances, variantes) | read |
+| `team_patterns_propose` | Proposer un nouveau pattern à la bibliothèque (documentarian uniquement) | write |
+| `team_wiki_write` | Proposer une entrée au wiki partagé (documentarian uniquement) | write |
+
+> **Note :** Les outils en mode `write` ne sont disponibles que pour le `documentarian`.
+> Les autres agents n'y ont pas accès et ne doivent pas tenter de les appeler.
 
 ## Statuts des claims
 
@@ -68,6 +76,16 @@ Certains claims peuvent avoir été créés automatiquement en statut `planned` 
 - Seul le `documentarian` a accès à `team_wiki_write`
 - Les données team sont en lecture seule pour tous les autres agents
 - Ne pas inclure de données sensibles dans les notifications
+
+## En cas d'indisponibilité des outils team
+
+Si les outils `team_*` ne sont pas disponibles dans la session courante
+(MCP server non connecté, team non configurée, erreur de connexion) :
+
+1. **Informer l'utilisateur** : "Les données d'équipe ne sont pas disponibles dans cette session."
+2. **Continuer normalement** sans les données d'équipe — ne pas bloquer le workflow
+3. Ne pas inventer de données team (claims, membres, policies) en l'absence de réponse des outils
+4. Si l'utilisateur demande explicitement une action team : recommander `oh team status` pour diagnostiquer
 
 ## Team Policies
 

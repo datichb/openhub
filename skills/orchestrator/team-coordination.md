@@ -4,6 +4,8 @@ bucket: B
 agent: orchestrator-dev
 ---
 
+> **Condition préalable :** Si les outils `team_*` ne sont pas disponibles dans la session courante, ce protocole ne s'applique pas — continuer sans.
+
 # Team Coordination Protocol
 
 Ce skill fournit les règles de coordination d'équipe pour l'orchestrator-dev.
@@ -79,7 +81,7 @@ Avant de créer une branche ou un commit, lis les conventions du projet :
 ### Warnings
 - Si une branche existante ne suit pas le pattern : **warning** à l'utilisateur, proposer de renommer
 - Si un commit ne suit pas le format : **warning** et proposer une reformulation
-- Ne JAMAIS bloquer le travail — les conventions sont advisory (enforcement medium)
+- Ne JAMAIS bloquer le travail — les conventions sont advisory (enforcement `warn` — voir skill `team-policies-enforcement`)
 
 ## Contraintes
 

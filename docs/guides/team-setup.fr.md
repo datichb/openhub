@@ -84,7 +84,7 @@ Le wizard propose un set recommandé à multi-sélectionner :
 ### Mattermost
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "mattermost"
 mattermost_webhook = "https://mattermost.example.com/hooks/..."
@@ -97,7 +97,7 @@ Pour obtenir l'URL du webhook : Mattermost > Intégrations > Webhooks entrants >
 ### Slack
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "slack"
 webhook_url = "https://hooks.slack.com/services/T.../B.../..."
@@ -109,7 +109,7 @@ Pour obtenir l'URL du webhook : Slack > Ton app > Incoming Webhooks > Add New We
 ### Discord
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
@@ -121,7 +121,7 @@ Pour obtenir l'URL du webhook : Paramètres du salon Discord > Intégrations > W
 ### Microsoft Teams
 
 ```toml
-[notify]
+[notification]
 enabled = true
 type = "teams"
 webhook_url = "https://outlook.office.com/webhook/..."
@@ -132,11 +132,11 @@ Pour obtenir l'URL du webhook : Canal Teams > Connecteurs > Incoming Webhook > C
 ### Multi-destination (notifier plusieurs plateformes simultanément)
 
 ```toml
-[[notify.destinations]]
+[[notification.destinations]]
 type = "slack"
 webhook_url = "https://hooks.slack.com/services/T.../B.../..."
 
-[[notify.destinations]]
+[[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
 ```
@@ -615,6 +615,47 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 ```
 
 > **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication.
+
+## 9. Gestion du cycle de vie des équipes
+
+### Gestion multi-équipe
+
+Lister toutes les équipes configurées :
+
+```bash
+oh teams list
+```
+
+Ajouter une nouvelle équipe :
+
+```bash
+oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
+```
+
+Supprimer une équipe (détache tous les projets associés) :
+
+```bash
+oh teams remove <team-id>
+```
+
+### Détacher un projet de son équipe
+
+Retirer l'affiliation d'un projet sans supprimer l'équipe :
+
+```bash
+oh teams detach <team-id> --project <project-id>
+```
+
+### Archiver / Restaurer une équipe
+
+Désactiver temporairement une équipe sans la supprimer. Les équipes archivées sont ignorées par toutes les commandes et agents :
+
+```bash
+oh teams archive <team-id>
+oh teams restore <team-id>
+```
+
+L'archivage met `enabled = false` dans hub.toml. La restauration réactive l'équipe.
 
 ## Dépannage
 
