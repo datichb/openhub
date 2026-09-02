@@ -82,6 +82,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.dirty = false
 	v.mcpChanged = false
+	v.live = v.cfg.GetProject() // synchronous: always available for save()
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -92,14 +93,12 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %sChargement de la configuration projet...%s", muted, theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Load project config asynchronously
+	// Build UI asynchronously
 	go func() {
-		live := v.cfg.GetProject()
 		app.QueueUpdateDraw(func() {
 			if v.app == nil {
 				return // view was unmounted before the goroutine finished
 			}
-			v.live = live
 
 			v.list = tview.NewList().
 				ShowSecondaryText(false).
@@ -717,7 +716,11 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectConfigView) save() {
-	if v.live == nil || v.shell == nil {
+	if v.shell == nil {
+		return
+	}
+	if v.live == nil {
+		v.shell.ShowToastMsg("Chargement en cours, veuillez patienter...", false)
 		return
 	}
 	ctx := context.Background()

@@ -79,6 +79,7 @@ func (v *SettingsView) StatusHints() string {
 func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.dirty = false
+	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -89,14 +90,12 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %sChargement de la configuration...%s", muted, theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Load config and build list asynchronously
+	// Build list asynchronously
 	go func() {
-		live := v.cfg.GetConfig()
 		app.QueueUpdateDraw(func() {
 			if v.app == nil {
 				return // view was unmounted before the goroutine finished
 			}
-			v.live = live
 
 			v.list = tview.NewList().
 				ShowSecondaryText(true).
@@ -502,7 +501,11 @@ func (v *SettingsView) editSelected() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *SettingsView) save() {
-	if v.live == nil || v.shell == nil {
+	if v.shell == nil {
+		return
+	}
+	if v.live == nil {
+		v.shell.ShowToastMsg("Chargement en cours, veuillez patienter...", false)
 		return
 	}
 	if err := v.cfg.SaveConfig(v.live); err != nil {
