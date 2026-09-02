@@ -557,6 +557,7 @@
   "tui.help.esc": "Go back / Close",
   "tui.help.arrows": "Navigate lists",
   "tui.help.quit": "Quit",
+  "tui.help.rune_search": "Search commands (type to filter)",
   "cmd.start.dev_syncing": "Syncing tickets...",
   "cmd.start.dev_sync_warning": "Sync failed — using local tickets",
   "cmd.start.dev_no_bd": "bd is not installed. Install it: brew install datichb/tap/bd",

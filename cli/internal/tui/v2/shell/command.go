@@ -5,6 +5,7 @@ package shell
 import (
 	"sort"
 	"strings"
+	"sync"
 )
 
 // SessionLaunchConfig holds the options for a session launch dialog.
@@ -68,7 +69,9 @@ func (c *Command) IsEnabled() bool {
 
 // CommandRegistry holds a flat list of commands with fuzzy-search capability.
 type CommandRegistry struct {
+	mu       sync.Mutex
 	commands []Command
+	recent   []string // last N command IDs used, most recent first
 }
 
 // NewCommandRegistry creates a registry from a list of commands.
@@ -81,9 +84,47 @@ func (r *CommandRegistry) All() []Command {
 	return r.commands
 }
 
+// RecordUsage records a command ID as recently used.
+func (r *CommandRegistry) RecordUsage(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Remove if already present
+	for i, rid := range r.recent {
+		if rid == id {
+			r.recent = append(r.recent[:i], r.recent[i+1:]...)
+			break
+		}
+	}
+	// Prepend
+	r.recent = append([]string{id}, r.recent...)
+	// Cap at 20
+	if len(r.recent) > 20 {
+		r.recent = r.recent[:20]
+	}
+}
+
+// recentBonus returns a score boost for recently used commands.
+// The most recent command gets +20, decreasing by 1 per position down to +1.
+func (r *CommandRegistry) recentBonus(id string) int {
+	for i, rid := range r.recent {
+		if rid == id {
+			bonus := 20 - i
+			if bonus < 1 {
+				bonus = 1
+			}
+			return bonus
+		}
+	}
+	return 0
+}
+
 // Search returns commands matching the query, sorted by relevance.
 // Matches against ID, Label, Aliases, and Category using fuzzy matching.
 func (r *CommandRegistry) Search(query string) []Command {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if query == "" {
 		// Return all enabled commands sorted by Priority descending.
 		// Higher priority = shown first when omnibar is empty.
@@ -94,7 +135,9 @@ func (r *CommandRegistry) Search(query string) []Command {
 			}
 		}
 		sort.SliceStable(result, func(i, j int) bool {
-			return result[i].Priority > result[j].Priority
+			pi := result[i].Priority + r.recentBonus(result[i].ID)
+			pj := result[j].Priority + r.recentBonus(result[j].ID)
+			return pi > pj
 		})
 		return result
 	}
@@ -113,6 +156,7 @@ func (r *CommandRegistry) Search(query string) []Command {
 
 		score := matchScore(query, c)
 		if score > 0 {
+			score += r.recentBonus(c.ID)
 			results = append(results, scored{cmd: c, score: score})
 		}
 	}
@@ -197,15 +241,17 @@ func matchScore(query string, c Command) int {
 	return 0
 }
 
-// fuzzyMatch checks if all chars in pattern appear in str in order.
+// fuzzyMatch checks if all runes in pattern appear in str in order.
 func fuzzyMatch(pattern, str string) bool {
+	pRunes := []rune(pattern)
+	sRunes := []rune(str)
 	pi := 0
-	for si := 0; si < len(str) && pi < len(pattern); si++ {
-		if str[si] == pattern[pi] {
+	for si := 0; si < len(sRunes) && pi < len(pRunes); si++ {
+		if sRunes[si] == pRunes[pi] {
 			pi++
 		}
 	}
-	return pi == len(pattern)
+	return pi == len(pRunes)
 }
 
 // MatchesQuery returns true if a command matches the given query string.

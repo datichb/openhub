@@ -14,9 +14,6 @@
 package floating
 
 import (
-	"fmt"
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -173,54 +170,4 @@ func (m model) View() string {
 
 	// Add vertical margin above for "floating" feel
 	return "\n" + panel.Render(content) + "\n"
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Convenience helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Confirm runs a styled confirmation prompt with the given title.
-// Returns the boolean result via the value pointer.
-func Confirm(title string, value *bool) error {
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().Title(title).Value(value),
-		),
-	)
-	return Run(Config{Title: "", Form: form})
-}
-
-// Select runs a styled single-select prompt with title and options.
-func Select[T comparable](title string, options []huh.Option[T], value *T) error {
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[T]().Title(title).Options(options...).Value(value),
-		),
-	)
-	return Run(Config{Title: "", Form: form})
-}
-
-// Input runs a styled text input prompt.
-func Input(title, placeholder string, value *string) error {
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title(title).Placeholder(placeholder).Value(value),
-		),
-	)
-	return Run(Config{Title: "", Form: form})
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Step header (for multi-step inline flows)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// RenderStepHeader prints a styled step header for inline multi-step flows.
-// Example: "◔ 2/4 · Provider Configuration"
-func RenderStepHeader(current, total int, label string) string {
-	icon := lipgloss.NewStyle().Foreground(theme.Primary).Render(theme.IconStepActive)
-	counter := lipgloss.NewStyle().Foreground(theme.Muted).Render(fmt.Sprintf("%d/%d", current+1, total))
-	title := lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render(label)
-	sep := lipgloss.NewStyle().Foreground(theme.Muted).Render(" · ")
-
-	return "\n" + strings.Join([]string{icon, counter, sep, title}, " ") + "\n"
 }

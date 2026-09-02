@@ -97,6 +97,10 @@ type Shell struct {
 	// notifications holds the last N toast messages for the Notifications view.
 	notifications *NotificationStore
 
+	// activeToasts tracks the number of currently visible toast notifications.
+	// Used to offset each new toast vertically so they stack instead of overlapping.
+	activeToasts int
+
 	// selection manages screen-level text selection (mouse drag → clipboard copy).
 	selection *SelectionManager
 
@@ -326,7 +330,7 @@ func (s *Shell) ShowToastMsg(msg string, success bool) {
 	if success {
 		s.showToast(msg, ToastSuccess, 2500*time.Millisecond)
 	} else {
-		s.showToast(msg, ToastError, 3500*time.Millisecond)
+		s.showToast(msg, ToastError, 6*time.Second)
 	}
 }
 
@@ -405,6 +409,10 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// ── Build form items ──────────────────────────────────────────────────────
 	for i := range cfg.Fields {
 		field := &cfg.Fields[i]
+		// Skip fields whose condition is not met
+		if field.Conditional != nil && !field.Conditional(values) {
+			continue
+		}
 
 		// hintLines computes the hint height: 2 lines if >50 chars, else 1.
 		hintLines := func(hint string) int {
@@ -614,6 +622,22 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 	// ── Buttons ───────────────────────────────────────────────────────────────
 	form.AddButton("Confirmer", func() {
+		// Validate required fields
+		for _, f := range cfg.Fields {
+			if f.Required {
+				if f.Type == views.FieldMultiSelect {
+					if len(multi[f.Key]) == 0 {
+						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
+						return
+					}
+				} else {
+					if values[f.Key] == "" {
+						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
+						return
+					}
+				}
+			}
+		}
 		s.pages.RemovePage("inline-overlay")
 		s.app.SetFocus(s.content)
 		if cfg.OnSubmit != nil {
@@ -1039,6 +1063,10 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 		case 'k':
 			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+		case 'g':
+			return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
+		case 'G':
+			return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
 		case '?':
 			s.showHelpOverlay()
 			return nil

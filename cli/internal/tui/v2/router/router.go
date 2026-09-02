@@ -48,6 +48,10 @@ func (r *Router) Push(v views.View) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if cur := r.currentLocked(); cur != nil && cur.ID() == v.ID() {
+		return // already on this view — no-op
+	}
+
 	if cur := r.currentLocked(); cur != nil {
 		cur.Unmount()
 	}
@@ -88,16 +92,34 @@ func (r *Router) Replace(v views.View) {
 	r.mountLocked(v)
 }
 
-// NavigateTo looks up a view by ID in the registry and pushes it.
+// NavigateTo looks up a view by ID in the registry and navigates to it.
+// If the view is already in the stack, pops to it instead of pushing a duplicate.
 // Returns false if the view ID is not registered.
 func (r *Router) NavigateTo(viewID string) bool {
 	r.mu.Lock()
 	v, ok := r.registry[viewID]
-	r.mu.Unlock()
-
 	if !ok {
+		r.mu.Unlock()
 		return false
 	}
+
+	// Check if this view is already in the stack — pop to it instead of pushing a duplicate
+	for i := len(r.stack) - 1; i >= 0; i-- {
+		if r.stack[i].ID() == viewID {
+			// Unmount everything above it
+			if cur := r.currentLocked(); cur != nil && cur.ID() != viewID {
+				cur.Unmount()
+			}
+			// Truncate stack to this point + remount
+			r.stack = r.stack[:i+1]
+			r.mountLocked(r.stack[i])
+			r.mu.Unlock()
+			return true
+		}
+	}
+	r.mu.Unlock()
+
+	// Not in stack — push normally
 	r.Push(v)
 	return true
 }

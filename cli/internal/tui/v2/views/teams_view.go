@@ -89,9 +89,6 @@ func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		case 'u':
 			v.handleUndo()
 			return nil
-		case '?':
-			v.showHelp()
-			return nil
 		}
 	}
 	return event
@@ -318,24 +315,6 @@ func (v *TeamsView) handleUndo() {
 		v.onSave(v.cfg)
 	}
 	v.rebuild()
-}
-
-func (v *TeamsView) showHelp() {
-	if v.shell == nil {
-		return
-	}
-	helpText := "Raccourcis clavier :\n\n" +
-		"  Enter   Ouvrir le détail de l'équipe\n" +
-		"  a       Ajouter une équipe\n" +
-		"  d       Retirer l'équipe sélectionnée\n" +
-		"  s       Synchroniser le team-state\n" +
-		"  r       Rafraîchir la liste\n" +
-		"  u       Annuler la dernière action\n" +
-		"  ?       Afficher cette aide\n" +
-		"  :       Ouvrir l'omnibar"
-	v.shell.ShowScrollableModal("Aide — Équipes", helpText, []ModalAction{
-		{Label: "OK", Callback: func() {}},
-	})
 }
 
 // copyTeams creates a shallow copy of a TeamConfig slice (for undo snapshots).

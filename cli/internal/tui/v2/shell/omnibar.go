@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -265,14 +266,22 @@ func (o *Omnibar) updateSuggestions(query string) {
 	o.visible = merged
 	o.suggestions.Clear()
 
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
+	if len(merged) == 0 && query != "" {
+		o.suggestions.AddItem(fmt.Sprintf("  %sAucun résultat%s", muted, reset), "", 0, nil)
+		if o.active {
+			o.shell.updateSuggestionsHeight()
+		}
+		return
+	}
+
 	// Limit displayed results — keep it small to avoid covering too much content
 	max := 7
 	if len(merged) < max {
 		max = len(merged)
 	}
-
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
 
 	for i := 0; i < max; i++ {
 		cmd := merged[i]
@@ -282,8 +291,20 @@ func (o *Omnibar) updateSuggestions(query string) {
 		if desc == "" {
 			desc = cmd.Category
 		}
-		text := fmt.Sprintf("%-18s  %s%s%s", cmd.Label, muted, desc, reset)
+		aliasHint := ""
+		if len(cmd.Aliases) > 0 {
+			n := len(cmd.Aliases)
+			if n > 2 {
+				n = 2
+			}
+			aliasHint = fmt.Sprintf(" %s(%s)%s", muted, strings.Join(cmd.Aliases[:n], ", "), reset)
+		}
+		text := fmt.Sprintf("%-18s%s  %s%s%s", cmd.Label, aliasHint, muted, desc, reset)
 		o.suggestions.AddItem(text, "", 0, nil)
+	}
+
+	if len(merged) > 7 {
+		o.suggestions.AddItem(fmt.Sprintf("  %s...et %d autres%s", muted, len(merged)-7, reset), "", 0, nil)
 	}
 
 	// Update the layout height if suggestions are visible
@@ -300,6 +321,7 @@ func (o *Omnibar) executeCurrent() {
 	}
 
 	cmd := o.visible[idx]
+	o.registry.RecordUsage(cmd.ID)
 	o.Deactivate()
 
 	if cmd.Action != nil {

@@ -37,8 +37,9 @@ func (s *Shell) showHelpOverlay() {
 		{"?  / F1", i18n.T("tui.help.help")},
 		{"Enter", i18n.T("tui.help.enter")},
 		{"Esc", i18n.T("tui.help.esc")},
-		{"↑ / ↓", i18n.T("tui.help.arrows")},
+		{"j/k / ↑↓", i18n.T("tui.help.arrows")},
 		{"Ctrl+Q", i18n.T("tui.help.quit")},
+		{"[lettre]", i18n.T("tui.help.rune_search")},
 	}
 	for _, r := range rows {
 		b.WriteString(fmt.Sprintf("  %s%-14s%s  %s\n", accent, r.key, reset, r.desc))

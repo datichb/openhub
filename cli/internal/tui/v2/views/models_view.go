@@ -331,6 +331,9 @@ func (v *ModelsView) setHubModel(scope, model string) {
 		vip.Set(key, model)
 	}
 	_ = vip.WriteConfigAs(config.ConfigPath())
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Override sauvegardé", true)
+	}
 }
 
 func (v *ModelsView) setProjectModel(projectName, scope, model string) {

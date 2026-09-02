@@ -60,8 +60,9 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	// NOTE: this modifies the local variable msg but does NOT affect the
 	// already-persisted full message above.
 	maxLen := toastMaxLen(level)
-	if len(msg) > maxLen {
-		msg = msg[:maxLen-3] + "..."
+	runes := []rune(msg)
+	if len(runes) > maxLen {
+		msg = string(runes[:maxLen-3]) + "..."
 	}
 
 	toast := tview.NewTextView().
@@ -72,7 +73,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	toast.SetBorder(true)
 	toast.SetBorderColor(borderColor)
 
-	toastWidth := len(msg) + 8
+	toastWidth := len([]rune(msg)) + 8
 	if toastWidth < 20 {
 		toastWidth = 20
 	}
@@ -81,19 +82,23 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	}
 	toastHeight := 3
 
-	// Position at top-right using a Grid
+	// Position at top-right using a Grid, offset vertically by the number
+	// of currently active toasts so they stack instead of overlapping.
+	topRow := 1 + (s.activeToasts * (toastHeight + 1))
 	grid := tview.NewGrid().
 		SetColumns(0, toastWidth, 2).
-		SetRows(1, toastHeight, 0)
+		SetRows(topRow, toastHeight, 0)
 	grid.AddItem(toast, 1, 1, 1, 1, 0, 0, false)
 
 	pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
+	s.activeToasts++
 	s.pages.AddPage(pageName, grid, true, true)
 
 	// Auto-dismiss after duration
 	time.AfterFunc(duration, func() {
 		s.app.QueueUpdateDraw(func() {
 			s.pages.RemovePage(pageName)
+			s.activeToasts--
 		})
 	})
 }
