@@ -29,7 +29,11 @@ func runTUIWithProject(projectName string) error {
 			return nil // user aborted wizard
 		}
 		// Reload config after wizard changes
-		a = MustApp()
+		var err error
+		a, err = ReloadApp()
+		if err != nil {
+			return fmt.Errorf("reload config after wizard: %w", err)
+		}
 	}
 
 	homeViewID := "home"

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"github.com/spf13/viper"
 
@@ -230,7 +231,12 @@ func runFirstRunWizard(a *app.App) bool {
 					}
 					// Save project
 					if a.Projects != nil {
-						p := &domain.Project{Name: projectName, Path: projectPath}
+						p := &domain.Project{
+							ID:     uuid.New().String()[:8],
+							Name:   projectName,
+							Path:   projectPath,
+							Status: domain.ProjectStatusActive,
+						}
 						_ = a.Projects.Create(context.Background(), p)
 					}
 					onDone()

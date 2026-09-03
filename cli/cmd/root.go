@@ -122,6 +122,15 @@ func MustApp() *app.App {
 	return application
 }
 
+// ReloadApp re-initializes the application from disk configuration.
+// Call this after the init wizard writes config to disk to pick up changes.
+func ReloadApp() (*app.App, error) {
+	if err := initApp(); err != nil {
+		return nil, err
+	}
+	return application, nil
+}
+
 // TryApp returns the application instance or nil if initialization failed.
 // Use only in commands that explicitly handle the nil case (e.g., doctor checks).
 func TryApp() *app.App {
