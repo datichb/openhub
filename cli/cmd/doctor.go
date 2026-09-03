@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -52,6 +54,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"Provider credentials", checkProviderCredentials},
 		{"Base de données", checkDatabase},
 		{"Clés API (keychain)", checkAPIKeys},
+		{"Beads zero-impact (hooks & gitignore)", checkBeadsSanity},
 	}
 
 	allPassed := true
@@ -280,4 +283,60 @@ func checkOhUpdate() (string, bool) {
 		"%s → %s disponible (oh upgrade oh)",
 		current, latest,
 	), false
+}
+
+// checkBeadsSanity verifies that beads-initialized projects have no side effects
+// (hooks, .gitignore entries, agent files) that should have been prevented.
+// Projects without .beads/ are silently skipped (pass).
+func checkBeadsSanity() (string, bool) {
+	a := TryApp()
+	if a == nil || a.Projects == nil {
+		return "aucun projet à vérifier", true
+	}
+
+	ctx := context.Background()
+	projects, err := a.Projects.List(ctx, "")
+	if err != nil {
+		return "impossible de lister les projets", true
+	}
+
+	var totalIssues int
+	var details []string
+
+	for _, p := range projects {
+		if p.Path == "" {
+			continue
+		}
+		if !beads.IsInitialized(p.Path) {
+			continue
+		}
+		issues := beads.DiagnoseBeadsImpact(p.Path)
+		if len(issues) > 0 {
+			totalIssues += len(issues)
+			for _, issue := range issues {
+				details = append(details, fmt.Sprintf("[%s] %s: %s", p.Name, issue.Kind, issue.Detail))
+			}
+		}
+	}
+
+	if totalIssues == 0 {
+		checkedCount := 0
+		for _, p := range projects {
+			if p.Path != "" && beads.IsInitialized(p.Path) {
+				checkedCount++
+			}
+		}
+		if checkedCount == 0 {
+			return "aucun projet avec beads initialisé", true
+		}
+		return fmt.Sprintf("%d projet(s) vérifié(s) — aucun effet de bord", checkedCount), true
+	}
+
+	summary := fmt.Sprintf("%d problème(s) détecté(s)", totalIssues)
+	if len(details) <= 3 {
+		summary += ": " + strings.Join(details, "; ")
+	} else {
+		summary += ": " + strings.Join(details[:3], "; ") + fmt.Sprintf(" (+%d autres)", len(details)-3)
+	}
+	return summary, false
 }

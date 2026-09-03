@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -26,6 +27,12 @@ var beadsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if _, err := exec.LookPath("bd"); err != nil {
 			return fmt.Errorf("%s", i18n.T("cmd.beads.bd_not_installed"))
+		}
+		// Intercept "init" subcommand to enforce zero-impact flags.
+		// This prevents bd from installing hooks, generating agent files,
+		// or modifying .gitignore even when called via the proxy.
+		if len(args) > 0 && args[0] == "init" {
+			args = beads.EnsureInitFlags(args)
 		}
 		// Delegate to bd command — all args/flags are passed through
 		bdCmd := exec.Command("bd", args...)
