@@ -108,7 +108,7 @@ func (v *PatternsView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		v.list.AddItem("  Team non configurée", "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.patterns.team_not_configured"), "", 0, nil)
 		return
 	}
 
@@ -126,13 +126,13 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 
 	patterns, err := repo.ListPatterns(nil, 0)
 	if err != nil {
-		v.list.AddItem("  Erreur: "+err.Error(), "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.settings.error")+": "+err.Error(), "", 0, nil)
 		return
 	}
 	v.patterns = patterns
 
 	if len(patterns) == 0 {
-		v.list.AddItem("  Aucun pattern", "  Appuyez 'a' pour en créer un", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.patterns.empty"), "  "+i18n.T("tui.patterns.empty_hint"), 0, nil)
 		return
 	}
 
@@ -165,14 +165,14 @@ func (v *PatternsView) showPattern() {
 	content, err := repo.ReadPattern(p.Name)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur lecture: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.patterns.read_error")+": "+err.Error(), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
 		v.shell.ShowScrollableModal("Pattern: "+p.Name, content, []ModalAction{
-			{Label: "Fermer", Callback: func() {}},
+			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
 		})
 	}
 }
@@ -183,22 +183,22 @@ func (v *PatternsView) addPattern() {
 	}
 	repo := v.getRepo()
 	if repo == nil {
-		v.shell.ShowToastMsg("Team non configurée", false)
+		v.shell.ShowToastMsg(i18n.T("tui.patterns.team_not_configured"), false)
 		return
 	}
 
 	complexityOpts := []SelectOption{
-		{Label: "Basse", Value: "low"},
-		{Label: "Moyenne", Value: "medium"},
-		{Label: "Haute", Value: "high"},
+		{Label: i18n.T("tui.patterns.complexity_low"), Value: "low"},
+		{Label: i18n.T("tui.patterns.complexity_medium"), Value: "medium"},
+		{Label: i18n.T("tui.patterns.complexity_high"), Value: "high"},
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Créer un pattern",
+		Title: i18n.T("tui.patterns.create_title"),
 		Fields: []FormField{
-			{Key: "name", Label: "Nom (slug)", Type: FieldText, Required: true},
-			{Key: "tags", Label: "Tags (virgule)", Type: FieldText},
-			{Key: "complexity", Label: "Complexité", Type: FieldSelect, Options: complexityOpts, Default: "medium"},
+			{Key: "name", Label: i18n.T("tui.patterns.field_name"), Type: FieldText, Required: true},
+			{Key: "tags", Label: i18n.T("tui.patterns.field_tags"), Type: FieldText},
+			{Key: "complexity", Label: i18n.T("tui.patterns.field_complexity"), Type: FieldSelect, Options: complexityOpts, Default: "medium"},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			name := values["name"]
@@ -215,9 +215,9 @@ func (v *PatternsView) addPattern() {
 			}
 			content := fmt.Sprintf("# %s\n\n## Description\n\nTODO\n\n## Étapes\n\n1. ...\n", name)
 			if err := repo.CreatePattern(context.Background(), p, content); err != nil {
-				v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 			} else {
-				v.shell.ShowToastMsg("Pattern créé: "+name, true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.patterns.created", name), true)
 				v.refresh()
 			}
 		},
@@ -239,11 +239,11 @@ func (v *PatternsView) validatePattern() {
 
 	if err := repo.ValidatePattern(context.Background(), p.Name); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 		}
 	} else {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Pattern validé: "+p.Name, true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.patterns.validated", p.Name), true)
 		}
 		v.refresh()
 	}
@@ -264,17 +264,17 @@ func (v *PatternsView) removePattern() {
 		return
 	}
 
-	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer le pattern %q ?", p.Name), []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+	v.shell.ShowSelectModal(i18n.Tf("tui.patterns.confirm_delete", p.Name), []SelectOption{
+		{Label: i18n.T("tui.settings.cancel"), Value: ""},
+		{Label: i18n.T("tui.patterns.yes_delete"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
 		}
 		if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 		} else {
-			v.shell.ShowToastMsg("Pattern supprimé: "+p.Name, true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.patterns.deleted", p.Name), true)
 			v.refresh()
 		}
 	})

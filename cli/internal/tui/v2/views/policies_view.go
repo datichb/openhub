@@ -107,7 +107,7 @@ func (v *PoliciesView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		v.list.AddItem("  Team non configurée", "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.policies.team_not_configured"), "", 0, nil)
 		return
 	}
 
@@ -125,13 +125,13 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 
 	policies, err := repo.LoadPolicies("")
 	if err != nil {
-		v.list.AddItem("  Erreur: "+err.Error(), "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.settings.error")+": "+err.Error(), "", 0, nil)
 		return
 	}
 	v.policies = policies
 
 	if len(policies) == 0 {
-		v.list.AddItem("  Aucune policy définie", "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.policies.empty"), "", 0, nil)
 		return
 	}
 
@@ -156,12 +156,12 @@ func (v *PoliciesView) showDetail() {
 	p := v.policies[idx]
 
 	var detail string
-	detail += fmt.Sprintf("Nom:          %s\n", p.Name)
-	detail += fmt.Sprintf("Type:         %s\n", p.Type)
-	detail += fmt.Sprintf("Enforcement:  %s\n", p.Enforcement)
-	detail += fmt.Sprintf("Message:      %s\n", p.Message)
+	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_name")+":", p.Name)
+	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_type")+":", p.Type)
+	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_enforcement")+":", p.Enforcement)
+	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_message")+":", p.Message)
 	if p.Rule != "" {
-		detail += fmt.Sprintf("Règle:        %s\n", p.Rule)
+		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_rule")+":", p.Rule)
 	}
 	if p.Max > 0 {
 		detail += fmt.Sprintf("Max:          %d %s\n", p.Max, p.Unit)
@@ -175,7 +175,7 @@ func (v *PoliciesView) showDetail() {
 
 	if v.shell != nil {
 		v.shell.ShowScrollableModal("Policy: "+p.Name, detail, []ModalAction{
-			{Label: "Fermer", Callback: func() {}},
+			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
 		})
 	}
 }
@@ -187,7 +187,7 @@ func (v *PoliciesView) checkPolicies() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		v.shell.ShowToastMsg("Team non configurée", false)
+		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return
 	}
 
@@ -198,12 +198,12 @@ func (v *PoliciesView) checkPolicies() {
 
 	results, err := repo.CheckAll("", ctx)
 	if err != nil {
-		v.shell.ShowToastMsg("Erreur check: "+err.Error(), false)
+		v.shell.ShowToastMsg(i18n.T("tui.policies.check_error")+": "+err.Error(), false)
 		return
 	}
 
 	if len(results) == 0 {
-		v.shell.ShowToastMsg("Aucune policy à vérifier", true)
+		v.shell.ShowToastMsg(i18n.T("tui.policies.nothing_to_check"), true)
 		return
 	}
 
@@ -230,10 +230,10 @@ func (v *PoliciesView) checkPolicies() {
 		text += "\n"
 	}
 
-	text += fmt.Sprintf("\n  Résultat: %d/%d passé(s)", passed, len(results))
+	text += fmt.Sprintf("\n  %s: %d/%d", i18n.T("tui.policies.result"), passed, len(results))
 
-	v.shell.ShowScrollableModal("Check Policies", text, []ModalAction{
-		{Label: "Fermer", Callback: func() {}},
+	v.shell.ShowScrollableModal(i18n.T("tui.policies.check_title"), text, []ModalAction{
+		{Label: i18n.T("tui.policies.close"), Callback: func() {}},
 	})
 }
 
@@ -246,14 +246,14 @@ var policyTypeOptions = []SelectOption{
 }
 
 var policyEnforcementOptions = []SelectOption{
-	{Label: "Warn (avertissement)", Value: "warn"},
-	{Label: "Refuse (bloquant)", Value: "refuse"},
+	{Label: "Warn", Value: "warn"},
+	{Label: "Refuse", Value: "refuse"},
 }
 
 var policyScopeOptions = []SelectOption{
-	{Label: "Diff uniquement", Value: "diff_only"},
-	{Label: "Fichiers modifiés", Value: "modified_files"},
-	{Label: "Tous les fichiers", Value: "all_files"},
+	{Label: "diff_only", Value: "diff_only"},
+	{Label: "modified_files", Value: "modified_files"},
+	{Label: "all_files", Value: "all_files"},
 }
 
 func (v *PoliciesView) addPolicy() {
@@ -262,27 +262,24 @@ func (v *PoliciesView) addPolicy() {
 	}
 	repo := v.getRepo()
 	if repo == nil {
-		v.shell.ShowToastMsg("Team non configurée", false)
+		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Créer une policy",
+		Title: i18n.T("tui.policies.create_title"),
 		Fields: []FormField{
-			{Key: "name", Label: "Nom (slug)", Type: FieldText, Required: true},
-			{Key: "type", Label: "Type", Type: FieldSelect, Options: policyTypeOptions, Default: "regex", Required: true},
-			{Key: "enforcement", Label: "Enforcement", Type: FieldSelect, Options: policyEnforcementOptions, Default: "warn"},
-			{Key: "message", Label: "Message violation", Type: FieldText},
-			// regex fields
-			{Key: "rule", Label: "Regex pattern", Type: FieldText,
+			{Key: "name", Label: i18n.T("tui.policies.field_name_slug"), Type: FieldText, Required: true},
+			{Key: "type", Label: i18n.T("tui.policies.field_type"), Type: FieldSelect, Options: policyTypeOptions, Default: "regex", Required: true},
+			{Key: "enforcement", Label: i18n.T("tui.policies.field_enforcement"), Type: FieldSelect, Options: policyEnforcementOptions, Default: "warn"},
+			{Key: "message", Label: i18n.T("tui.policies.field_message"), Type: FieldText},
+			{Key: "rule", Label: i18n.T("tui.policies.field_rule"), Type: FieldText,
 				Conditional: func(v map[string]string) bool { return v["type"] == "regex" }},
-			// forbidden_pattern fields
-			{Key: "patterns", Label: "Patterns (virgule)", Type: FieldText,
+			{Key: "patterns", Label: i18n.T("tui.policies.field_patterns"), Type: FieldText,
 				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
-			{Key: "scope", Label: "Scope", Type: FieldSelect, Options: policyScopeOptions, Default: "diff_only",
+			{Key: "scope", Label: i18n.T("tui.policies.field_scope"), Type: FieldSelect, Options: policyScopeOptions, Default: "diff_only",
 				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
-			// limit field
-			{Key: "max", Label: "Maximum", Type: FieldText, Default: "3",
+			{Key: "max", Label: i18n.T("tui.policies.field_max"), Type: FieldText, Default: "3",
 				Conditional: func(v map[string]string) bool { return v["type"] == "limit" }},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
@@ -343,7 +340,7 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 		}
 		return
 	}
@@ -351,7 +348,7 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 	f.Close()
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur écriture: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.policies.write_error")+": "+err.Error(), false)
 		}
 		return
 	}
@@ -359,13 +356,13 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 	// Commit and push
 	if err := repo.CommitAndPush(context.Background(), fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Commit échoué: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.policies.commit_error")+": "+err.Error(), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Policy ajoutée: "+name, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.policies.added", name), true)
 	}
 	v.refresh()
 }
@@ -381,7 +378,7 @@ func quoteSlice(items []string) string {
 // ContextCommands implements CommandProvider.
 func (v *PoliciesView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "policies.add", Label: "Ajouter une policy", Aliases: []string{"add", "new"}, Description: "Créer une nouvelle policy", Category: "Policies", Action: func() { v.addPolicy() }},
-		{ID: "policies.check", Label: "Vérifier", Aliases: []string{"check", "verify"}, Description: "Vérifier la conformité", Category: "Policies", Action: func() { v.checkPolicies() }},
+		{ID: "policies.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "new", "ajouter"}, Description: i18n.T("tui.policies.cmd_add"), Category: "Policies", Action: func() { v.addPolicy() }},
+		{ID: "policies.check", Label: i18n.T("tui.hints.check"), Aliases: []string{"check", "verify", "vérifier"}, Description: i18n.T("tui.policies.cmd_check"), Category: "Policies", Action: func() { v.checkPolicies() }},
 	}
 }
