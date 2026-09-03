@@ -7,12 +7,12 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spf13/viper"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // MCPService represents the hub-level state of an MCP service.
@@ -24,9 +24,14 @@ type MCPService struct {
 }
 
 // MCPViewConfig holds configuration for the MCP view.
-type MCPViewConfig struct{}
+type MCPViewConfig struct {
+	// GetConfig returns the live hub config pointer.
+	GetConfig func() *config.Config
+	// SaveConfig persists the modified config to hub.toml (unified mutation path).
+	SaveConfig func(c *config.Config) error
+}
 
-// MCPView displays MCP server management with a single tview.List panel
+// MCPView displays MCP server management with a SectionedList panel
 // for hub-level configuration (enable/disable, token, write).
 //
 // Per-project MCP overrides are managed exclusively in ProjectConfigView
@@ -38,8 +43,7 @@ type MCPView struct {
 	shell  ShellAccess
 
 	// Layout
-	content *tview.Flex
-	hubList *tview.List
+	list *widgets.SectionedList
 
 	// Data
 	services []MCPService
@@ -67,7 +71,9 @@ func (v *MCPView) Title() string { return "MCP" }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return fmt.Sprintf("j/k nav · Space %s · t %s · w %s · r %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · t %s · w %s · r %s",
+		i18n.T("tui.hints.nav"),
+		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
 		i18n.T("tui.hints.token"),
 		i18n.T("tui.hints.write"),
@@ -87,74 +93,27 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des services MCP...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.mcp.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Load data and build UI asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
-				return // view was unmounted or re-mounted before the goroutine finished
+				return
 			}
 			v.loadServices()
 
-			// ── Hub label ──────────────────────────────────────────────────────
-			hubLabel := tview.NewTextView().
-				SetDynamicColors(true).
-				SetText(fmt.Sprintf("  %s─── Hub (global) ──────────────────────────────────────%s",
-					theme.ColorTag(theme.AccentHex), theme.TagColor))
-			hubLabel.SetBackgroundColor(theme.BgPanel)
+			v.list = widgets.NewSectionedList()
+			v.list.SetApp(app)
+			v.list.SetBorderPadding(1, 0, 2, 2)
 
-			// ── Hub list ───────────────────────────────────────────────────────
-			v.hubList = tview.NewList().
-				ShowSecondaryText(true).
-				SetHighlightFullLine(true).
-				SetMainTextColor(theme.FgPrimary).
-				SetSecondaryTextColor(theme.FgSecondary).
-				SetSelectedTextColor(theme.FgPrimary).
-				SetSelectedBackgroundColor(theme.Accent)
-			v.hubList.SetBackgroundColor(theme.BgPanel)
-			v.hubList.SetBorderPadding(0, 0, 2, 2)
-			v.populateHubList()
-
-			// ── Hints ─────────────────────────────────────────────────────────
-			hints := tview.NewTextView().
-				SetDynamicColors(true).
-				SetText(fmt.Sprintf("  %sSpace toggle · t token · w écriture · r refresh%s",
-					theme.ColorTag(theme.TextMutedHex), theme.TagColor))
-			hints.SetBackgroundColor(theme.BgPanel)
-
-			// ── Layout ────────────────────────────────────────────────────────
-			v.content = tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(hubLabel, 1, 0, false).
-				AddItem(v.hubList, len(v.services)+1, 0, true).
-				AddItem(hints, 2, 0, false)
-			v.content.SetBackgroundColor(theme.BgPanel)
-
-			// ── Key handlers on hub list ─────────────────────────────────────
-			v.hubList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				switch event.Rune() {
-				case ' ':
-					v.toggleHubCurrent()
-					return nil
-				case 't':
-					v.promptTokenCurrent()
-					return nil
-				case 'w':
-					v.toggleWriteCurrent()
-					return nil
-				case 'r':
-					v.loadServices()
-					v.populateHubList()
-					return nil
-				}
-				return event
-			})
-
+			v.populateList()
 			v.buildCommands()
+
 			content.RemoveItem(loading)
-			content.AddItem(v.content, 0, 1, true)
-			app.SetFocus(v.hubList)
+			content.AddItem(v.list, 0, 1, true)
+			app.SetFocus(v.list)
 		})
 	}()
 }
@@ -162,14 +121,30 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
 	v.app = nil
-	v.content = nil
-	v.hubList = nil
+	v.list = nil
 	v.commands = nil
 }
 
-// HandleKey delegates to the focused list; Tab is handled by the lists themselves.
+// HandleKey processes key events.
 func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	// All other navigation is handled natively by the focused tview.List.
+	switch event.Rune() {
+	case ' ':
+		v.toggleHubCurrent()
+		return nil
+	case 't':
+		v.promptTokenCurrent()
+		return nil
+	case 'w':
+		v.toggleWriteCurrent()
+		return nil
+	case 'r':
+		v.loadServices()
+		v.populateList()
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
+		}
+		return nil
+	}
 	return event
 }
 
@@ -179,16 +154,29 @@ func (v *MCPView) ContextCommands() []ContextCommand {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hub list management
+// List management
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPView) populateHubList() {
-	v.hubList.Clear()
-	for _, svc := range v.services {
-		main := v.hubItemText(svc)
-		secondary := v.hubItemSubtext(svc)
-		v.hubList.AddItem(main, secondary, 0, nil)
+func (v *MCPView) populateList() {
+	if v.list == nil {
+		return
 	}
+
+	items := make([]widgets.SectionItem, 0, len(v.services)+2)
+	items = append(items, widgets.SectionItem{
+		IsHeader: true,
+		MainText: i18n.T("tui.mcp.section_hub"),
+	})
+
+	for i, svc := range v.services {
+		items = append(items, widgets.SectionItem{
+			MainText:      v.hubItemText(svc),
+			SecondaryText: v.hubItemSubtext(svc),
+			Reference:     i,
+		})
+	}
+
+	v.list.SetItems(items)
 }
 
 func (v *MCPView) hubItemText(svc MCPService) string {
@@ -200,7 +188,7 @@ func (v *MCPView) hubItemText(svc MCPService) string {
 		statusIcon = "✗"
 		statusColor = theme.TextMutedHex
 	}
-	return fmt.Sprintf("  %s%s%s  %s%-12s%s",
+	return fmt.Sprintf("%s%s%s  %s%-12s%s",
 		theme.ColorTag(statusColor), statusIcon, theme.TagColor,
 		theme.ColorTag(theme.TextPrimaryHex), svc.Name, theme.TagColor)
 }
@@ -210,19 +198,19 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 
 	// Token indicator
 	if svc.Name == "team" {
-		parts = append(parts, fmt.Sprintf("     %s(sans token)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+		parts = append(parts, fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.mcp.no_token"), theme.TagColor))
 	} else if svc.HasToken {
-		parts = append(parts, fmt.Sprintf("     %stoken ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor))
+		parts = append(parts, fmt.Sprintf("%s%s ✓%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.token"), theme.TagColor))
 	} else {
-		parts = append(parts, fmt.Sprintf("     %stoken manquant !%s", theme.ColorTag(theme.ErrorHex), theme.TagColor))
+		parts = append(parts, fmt.Sprintf("%s%s !%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.mcp.token_missing"), theme.TagColor))
 	}
 
 	// Write mode (gitlab only)
 	if svc.Name == "gitlab" {
 		if svc.WriteEnabled {
-			parts = append(parts, fmt.Sprintf("%sécriture ✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor))
+			parts = append(parts, fmt.Sprintf("%s%s ✓%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.write"), theme.TagColor))
 		} else {
-			parts = append(parts, fmt.Sprintf("%sécriture ✗%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor))
+			parts = append(parts, fmt.Sprintf("%s%s ✗%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.hints.write"), theme.TagColor))
 		}
 	}
 
@@ -230,48 +218,63 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Hub-level actions — unified mutation via config.Save()
+// ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hub-level actions
-// ─────────────────────────────────────────────────────────────────────────────
+func (v *MCPView) currentServiceIndex() int {
+	if v.list == nil {
+		return -1
+	}
+	_, item, ok := v.list.CurrentItem()
+	if !ok {
+		return -1
+	}
+	idx, ok := item.Reference.(int)
+	if !ok || idx < 0 || idx >= len(v.services) {
+		return -1
+	}
+	return idx
+}
 
 func (v *MCPView) toggleHubCurrent() {
-	idx := v.hubList.GetCurrentItem()
-	if idx < 0 || idx >= len(v.services) {
+	idx := v.currentServiceIndex()
+	if idx < 0 {
 		return
 	}
 	svc := &v.services[idx]
 	svc.Enabled = !svc.Enabled
 
-	vip := mcpConfigViper()
-	vip.Set(fmt.Sprintf("mcp.%s.enabled", svc.Name), svc.Enabled)
-	_ = vip.WriteConfigAs(config.ConfigPath())
+	// Mutate live config and save
+	cfg := v.cfg.GetConfig()
+	v.setMCPEnabled(cfg, svc.Name, svc.Enabled)
+	if err := v.cfg.SaveConfig(cfg); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
+		}
+		return
+	}
 
-	// Update list item in place
-	v.hubList.SetItemText(idx, v.hubItemText(*svc), v.hubItemSubtext(*svc))
-
-	// Recompute effective states in project overrides
-
+	v.populateList()
 	v.buildCommands()
 
 	if v.shell != nil {
 		if svc.Enabled {
-			v.shell.ShowToastMsg(svc.Name+" activé", true)
+			v.shell.ShowToastMsg(svc.Name+" "+i18n.T("tui.mcp.enabled"), true)
 		} else {
-			v.shell.ShowToastMsg(svc.Name+" désactivé", true)
+			v.shell.ShowToastMsg(svc.Name+" "+i18n.T("tui.mcp.disabled"), true)
 		}
 	}
 }
 
 func (v *MCPView) promptTokenCurrent() {
-	idx := v.hubList.GetCurrentItem()
-	if idx < 0 || idx >= len(v.services) {
+	idx := v.currentServiceIndex()
+	if idx < 0 {
 		return
 	}
 	svc := v.services[idx]
 	if svc.Name == "team" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("team n'utilise pas de token", false)
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.team_no_token"), false)
 		}
 		return
 	}
@@ -281,39 +284,45 @@ func (v *MCPView) promptTokenCurrent() {
 				key := fmt.Sprintf("%s-token", svc.Name)
 				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
 				v.services[idx].HasToken = true
-				v.hubList.SetItemText(idx, v.hubItemText(v.services[idx]), v.hubItemSubtext(v.services[idx]))
+				v.populateList()
 				v.buildCommands()
-				v.shell.ShowToastMsg("Token enregistré pour "+svc.Name, true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.mcp.token_saved", svc.Name), true)
 			}
 		})
 	}
 }
 
 func (v *MCPView) toggleWriteCurrent() {
-	idx := v.hubList.GetCurrentItem()
-	if idx < 0 || idx >= len(v.services) {
+	idx := v.currentServiceIndex()
+	if idx < 0 {
 		return
 	}
 	svc := &v.services[idx]
 	if svc.Name != "gitlab" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Écriture applicable uniquement à gitlab", false)
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.write_gitlab_only"), false)
 		}
 		return
 	}
 	svc.WriteEnabled = !svc.WriteEnabled
-	vip := mcpConfigViper()
-	vip.Set(fmt.Sprintf("mcp.%s.write_enabled", svc.Name), svc.WriteEnabled)
-	_ = vip.WriteConfigAs(config.ConfigPath())
 
-	v.hubList.SetItemText(idx, v.hubItemText(*svc), v.hubItemSubtext(*svc))
+	cfg := v.cfg.GetConfig()
+	cfg.MCP.Gitlab.WriteEnabled = svc.WriteEnabled
+	if err := v.cfg.SaveConfig(cfg); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
+		}
+		return
+	}
+
+	v.populateList()
 	v.buildCommands()
 
 	if v.shell != nil {
 		if svc.WriteEnabled {
-			v.shell.ShowToastMsg("Écriture gitlab activée", true)
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.write_enabled"), true)
 		} else {
-			v.shell.ShowToastMsg("Écriture gitlab désactivée", true)
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.write_disabled"), true)
 		}
 	}
 }
@@ -322,40 +331,44 @@ func (v *MCPView) toggleService(name string, enable bool) {
 	for i := range v.services {
 		if v.services[i].Name == name {
 			v.services[i].Enabled = enable
-			vip := mcpConfigViper()
-			vip.Set(fmt.Sprintf("mcp.%s.enabled", name), enable)
-			_ = vip.WriteConfigAs(config.ConfigPath())
-			v.hubList.SetItemText(i, v.hubItemText(v.services[i]), v.hubItemSubtext(v.services[i]))
+			cfg := v.cfg.GetConfig()
+			v.setMCPEnabled(cfg, name, enable)
+			_ = v.cfg.SaveConfig(cfg)
+			v.populateList()
 			v.buildCommands()
 			return
 		}
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Project-level actions
-// ─────────────────────────────────────────────────────────────────────────────
-
-
+// setMCPEnabled sets the enabled field on the corresponding MCPServerConfig.
+func (v *MCPView) setMCPEnabled(cfg *config.Config, name string, enabled bool) {
+	switch name {
+	case "figma":
+		cfg.MCP.Figma.Enabled = enabled
+	case "gitlab":
+		cfg.MCP.Gitlab.Enabled = enabled
+	case "jira":
+		cfg.MCP.Jira.Enabled = enabled
+	case "gslides":
+		cfg.MCP.Gslides.Enabled = enabled
+	}
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *MCPView) loadServices() {
-	serviceNames := []string{"figma", "gitlab", "gslides", "team"}
-	v.services = make([]MCPService, 0, len(serviceNames))
-	vip := mcpConfigViper()
-	for _, name := range serviceNames {
-		v.services = append(v.services, MCPService{
-			Name:         name,
-			Enabled:      vip.GetBool(fmt.Sprintf("mcp.%s.enabled", name)),
-			HasToken:     v.checkToken(name),
-			WriteEnabled: vip.GetBool(fmt.Sprintf("mcp.%s.write_enabled", name)),
-		})
+	cfg := v.cfg.GetConfig()
+	v.services = []MCPService{
+		{Name: "figma", Enabled: cfg.MCP.Figma.Enabled, HasToken: v.checkToken("figma"), WriteEnabled: false},
+		{Name: "gitlab", Enabled: cfg.MCP.Gitlab.Enabled, HasToken: v.checkToken("gitlab"), WriteEnabled: cfg.MCP.Gitlab.WriteEnabled},
+		{Name: "gslides", Enabled: cfg.MCP.Gslides.Enabled, HasToken: v.checkToken("gslides"), WriteEnabled: false},
+		{Name: "jira", Enabled: cfg.MCP.Jira.Enabled, HasToken: v.checkToken("jira"), WriteEnabled: false},
+		{Name: "team", Enabled: true, HasToken: true, WriteEnabled: false},
 	}
 }
-
 
 func (v *MCPView) checkToken(serviceName string) bool {
 	if serviceName == "team" {
@@ -380,9 +393,9 @@ func (v *MCPView) buildCommands() {
 		svc := svc
 		var desc string
 		if svc.Enabled {
-			desc = "✓ → désactiver"
+			desc = "✓ → " + i18n.T("tui.mcp.cmd_disable")
 		} else {
-			desc = "✗ → activer"
+			desc = "✗ → " + i18n.T("tui.mcp.cmd_enable")
 		}
 		cmds = append(cmds, ContextCommand{
 			ID:          "toggle." + svc.Name,
@@ -397,12 +410,12 @@ func (v *MCPView) buildCommands() {
 				ID:          "token." + svc.Name,
 				Label:       "token " + svc.Name,
 				Aliases:     []string{svc.Name + " token"},
-				Description: "Configurer le token",
+				Description: i18n.T("tui.mcp.cmd_token"),
 				Category:    "MCP",
 				Action: func() {
 					for i, s := range v.services {
 						if s.Name == svc.Name {
-							v.hubList.SetCurrentItem(i)
+							v.list.SelectIndex(i + 1) // +1 for header
 							v.promptTokenCurrent()
 							return
 						}
@@ -414,14 +427,14 @@ func (v *MCPView) buildCommands() {
 
 	cmds = append(cmds, ContextCommand{
 		ID:          "write.gitlab",
-		Label:       "gitlab écriture",
+		Label:       "gitlab " + i18n.T("tui.hints.write"),
 		Aliases:     []string{"write gitlab"},
-		Description: "Toggle mode écriture GitLab",
+		Description: i18n.T("tui.mcp.cmd_write_toggle"),
 		Category:    "MCP",
 		Action: func() {
 			for i, s := range v.services {
 				if s.Name == "gitlab" {
-					v.hubList.SetCurrentItem(i)
+					v.list.SelectIndex(i + 1) // +1 for header
 					v.toggleWriteCurrent()
 					return
 				}
@@ -433,15 +446,11 @@ func (v *MCPView) buildCommands() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Config helper
+// Config helper — mcpSetupServiceOptions preserved for omnibar
 // ─────────────────────────────────────────────────────────────────────────────
 
 var mcpSetupServiceOptions = []SelectOption{
 	{Label: "Figma", Value: "figma"},
 	{Label: "GitLab", Value: "gitlab"},
 	{Label: "Google Slides", Value: "gslides"},
-}
-
-func mcpConfigViper() *viper.Viper {
-	return hubViper()
 }

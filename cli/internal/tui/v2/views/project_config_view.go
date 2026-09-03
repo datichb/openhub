@@ -11,7 +11,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ProjectConfigViewConfig holds external dependencies for the project config view.
@@ -34,11 +36,16 @@ type ProjectConfigViewConfig struct {
 type projectConfigLine struct {
 	section string
 	key     string
-	kind    string // "string", "bool", "agents", "section-header", "readonly"
-	get     func(p *domain.Project) string
-	set     func(p *domain.Project, v string)
+	kind    string // "string", "bool", "agents", "section-header", "readonly", "select", "tri-bool"
+	// options holds allowed values for "select" kind fields.
+	options []SelectOption
+	// optionsFunc returns dynamic allowed values.
+	optionsFunc func() []SelectOption
+	// validator holds optional validation rules.
+	validator *FieldValidator
+	get       func(p *domain.Project) string
+	set       func(p *domain.Project, v string)
 	// source returns the resolution source annotation (e.g., "[hub]", "[equipe: enforced]").
-	// nil means no source annotation is displayed.
 	source func(p *domain.Project) string
 	// locked indicates this field is enforced by the team and cannot be edited.
 	locked func(p *domain.Project) bool
@@ -47,7 +54,7 @@ type projectConfigLine struct {
 // ProjectConfigView displays and edits the active project's configuration.
 type ProjectConfigView struct {
 	app      *tview.Application
-	list     *tview.List
+	list     *widgets.SectionedList
 	shell    ShellAccess
 	cfg      ProjectConfigViewConfig
 	mountGen uint64
@@ -56,6 +63,7 @@ type ProjectConfigView struct {
 	dirty      bool
 	mcpChanged bool // track if MCP fields changed (triggers redeploy prompt)
 	lines      []projectConfigLine
+	undoStack  *widgets.UndoStack[domain.Project]
 }
 
 var _ View = (*ProjectConfigView)(nil)
@@ -63,18 +71,24 @@ var _ CommandProvider = (*ProjectConfigView)(nil)
 
 // NewProjectConfigView creates the project config view.
 func NewProjectConfigView(cfg ProjectConfigViewConfig) *ProjectConfigView {
-	return &ProjectConfigView{cfg: cfg}
+	return &ProjectConfigView{
+		cfg:       cfg,
+		undoStack: widgets.NewUndoStack[domain.Project](10),
+	}
 }
 
 func (v *ProjectConfigView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *ProjectConfigView) ID() string    { return "project.config" }
-func (v *ProjectConfigView) Title() string { return "Config Projet" }
+func (v *ProjectConfigView) Title() string { return i18n.T("tui.project.title") }
 func (v *ProjectConfigView) StatusHints() string {
-	return fmt.Sprintf("j/k nav · Space %s · e %s · w %s · Esc %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · e %s · w %s · u %s · Esc %s",
+		i18n.T("tui.hints.nav"),
+		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.save"),
+		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.back"),
 	)
 }
@@ -85,6 +99,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	gen := v.mountGen
 	v.dirty = false
 	v.mcpChanged = false
+	v.undoStack.Clear()
 	v.live = v.cfg.GetProject() // synchronous: always available for save()
 
 	// Show loading placeholder immediately
@@ -93,30 +108,34 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement de la configuration projet...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Build UI asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
-				return // view was unmounted or re-mounted before the goroutine finished
+				return
 			}
 
-			v.list = tview.NewList().
-				ShowSecondaryText(false).
-				SetHighlightFullLine(true).
-				SetMainTextColor(theme.FgPrimary)
-			v.list.SetBackgroundColor(theme.BgPanel)
+			v.list = widgets.NewSectionedList()
+			v.list.SetApp(app)
 			v.list.SetBorderPadding(1, 0, 2, 2)
 
 			if v.live == nil {
-				v.list.AddItem("  Aucun projet actif — sélectionnez un projet via l'omnibar", "", 0, nil)
+				items := []widgets.SectionItem{{
+					MainText: i18n.T("tui.project.no_active"),
+				}}
+				v.list.SetItems(items)
 				content.RemoveItem(loading)
 				content.AddItem(v.list, 0, 1, true)
 				app.SetFocus(v.list)
 				return
 			}
+
+			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+				v.editByIndex(index, item)
+			})
 
 			v.buildLines()
 			v.renderLines()
@@ -129,8 +148,9 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 
 func (v *ProjectConfigView) Unmount() {
 	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — w pour sauvegarder", false)
+		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
 	}
+	v.undoStack.Clear()
 	v.app = nil
 	v.list = nil
 }
@@ -141,12 +161,16 @@ func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	}
 	switch event.Key() {
 	case tcell.KeyEnter:
-		v.editSelected()
+		if idx, item, ok := v.list.CurrentItem(); ok {
+			v.editByIndex(idx, item)
+		}
 		return nil
 	}
 	switch event.Rune() {
 	case 'e':
-		v.editSelected()
+		if idx, item, ok := v.list.CurrentItem(); ok {
+			v.editByIndex(idx, item)
+		}
 		return nil
 	case ' ':
 		v.toggleSelected()
@@ -154,8 +178,27 @@ func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'w':
 		v.save()
 		return nil
+	case 'u':
+		v.undo()
+		return nil
 	}
 	return event
+}
+
+func (v *ProjectConfigView) undo() {
+	prev, ok := v.undoStack.Pop()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+		}
+		return
+	}
+	*v.live = prev
+	v.dirty = v.undoStack.Len() > 0
+	v.renderLines()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,89 +206,104 @@ func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectConfigView) buildLines() {
+	languageOptions := []SelectOption{
+		{Label: "Français", Value: "fr"},
+		{Label: "English", Value: "en"},
+		{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: ""},
+	}
+	providerOptionsFunc := func() []SelectOption {
+		opts := []SelectOption{{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: ""}}
+		for _, p := range provider.AllProviders() {
+			opts = append(opts, SelectOption{Label: string(p), Value: string(p)})
+		}
+		return opts
+	}
+	statusOptions := []SelectOption{
+		{Label: "active", Value: "active"},
+		{Label: "archived", Value: "archived"},
+	}
+	teamModeOptions := []SelectOption{
+		{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: domain.ProjectTeamModeInherit},
+		{Label: "custom", Value: domain.ProjectTeamModeCustom},
+		{Label: "disabled", Value: domain.ProjectTeamModeDisabled},
+	}
+	triBoolOptions := []SelectOption{
+		{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
+		{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
+		{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
+	}
+
 	v.lines = []projectConfigLine{
 		// ── Général ──────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Général"},
-		{section: "Général", key: "id", kind: "readonly",
+		{kind: "section-header", section: i18n.T("tui.settings.section_general")},
+		{section: i18n.T("tui.settings.section_general"), key: "id", kind: "readonly",
 			get: func(p *domain.Project) string { return p.ID }},
-		{section: "Général", key: "name", kind: "string",
+		{section: i18n.T("tui.settings.section_general"), key: "name", kind: "string",
 			get: func(p *domain.Project) string { return p.Name },
 			set: func(p *domain.Project, v string) { p.Name = v }},
-		{section: "Général", key: "path", kind: "string",
+		{section: i18n.T("tui.settings.section_general"), key: "path", kind: "string",
 			get: func(p *domain.Project) string { return p.Path },
 			set: func(p *domain.Project, v string) { p.Path = v }},
-		{section: "Général", key: "language", kind: "string",
-			get: func(p *domain.Project) string { return p.Language },
-			set: func(p *domain.Project, v string) { p.Language = v }},
-		{section: "Général", key: "provider", kind: "string",
-			get: func(p *domain.Project) string { return p.Provider },
-			set: func(p *domain.Project, v string) { p.Provider = v }},
-		{section: "Général", key: "model", kind: "string",
+		{section: i18n.T("tui.settings.section_general"), key: "language", kind: "select",
+			options: languageOptions,
+			get:     func(p *domain.Project) string { return p.Language },
+			set:     func(p *domain.Project, v string) { p.Language = v }},
+		{section: i18n.T("tui.settings.section_general"), key: "provider", kind: "select",
+			optionsFunc: providerOptionsFunc,
+			get:         func(p *domain.Project) string { return p.Provider },
+			set:         func(p *domain.Project, v string) { p.Provider = v }},
+		{section: i18n.T("tui.settings.section_general"), key: "model", kind: "string",
 			get: func(p *domain.Project) string { return p.Model },
 			set: func(p *domain.Project, v string) { p.Model = v }},
-		{section: "Général", key: "status", kind: "string",
-			get: func(p *domain.Project) string { return string(p.Status) },
-			set: func(p *domain.Project, v string) { p.Status = domain.ProjectStatus(v) }},
+		{section: i18n.T("tui.settings.section_general"), key: "status", kind: "select",
+			options: statusOptions,
+			get:     func(p *domain.Project) string { return string(p.Status) },
+			set:     func(p *domain.Project, v string) { p.Status = domain.ProjectStatus(v) }},
 
 		// ── Team ─────────────────────────────────────────────────────────────
 		{kind: "section-header", section: "Team"},
-		{section: "Team", key: "mode", kind: "string",
+		{section: "Team", key: "mode", kind: "select",
+			options: teamModeOptions,
 			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil {
-					return "(inherit)"
-				}
+				if p.TeamConfig == nil { return domain.ProjectTeamModeInherit }
 				return p.TeamConfig.Mode
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil {
-					p.TeamConfig = &domain.ProjectTeamConfig{}
-				}
+				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
 				p.TeamConfig.Mode = val
 			}},
 		{section: "Team", key: "member_id", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil {
-					return ""
-				}
+				if p.TeamConfig == nil { return "" }
 				return p.TeamConfig.MemberID
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil {
-					p.TeamConfig = &domain.ProjectTeamConfig{}
-				}
+				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
 				p.TeamConfig.MemberID = val
 			}},
 		{section: "Team", key: "state_repo", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil {
-					return ""
-				}
+				if p.TeamConfig == nil { return "" }
 				return p.TeamConfig.StateRepo
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil {
-					p.TeamConfig = &domain.ProjectTeamConfig{}
-				}
+				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
 				p.TeamConfig.StateRepo = val
 			}},
 		{section: "Team", key: "state_path", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil {
-					return ""
-				}
+				if p.TeamConfig == nil { return "" }
 				return p.TeamConfig.StatePath
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil {
-					p.TeamConfig = &domain.ProjectTeamConfig{}
-				}
+				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
 				p.TeamConfig.StatePath = val
 			}},
 
 		// ── MCP Overrides ────────────────────────────────────────────────────
 		{kind: "section-header", section: "MCP Services"},
 		// GitLab
-		{section: "MCP", key: "gitlab enabled", kind: "bool",
+		{section: "MCP", key: "gitlab enabled", kind: "tri-bool", options: triBoolOptions,
 			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gitlab") },
 			set:    v.mcpSetEnabled("gitlab"),
 			source: v.mcpSource("gitlab", "enabled"),
@@ -258,11 +316,11 @@ func (v *ProjectConfigView) buildLines() {
 		{section: "MCP", key: "gitlab token", kind: "string",
 			get: func(p *domain.Project) string { return mcpServiceToken(p, "gitlab") },
 			set: v.mcpSetToken("gitlab")},
-		{section: "MCP", key: "gitlab write", kind: "bool",
+		{section: "MCP", key: "gitlab write", kind: "tri-bool", options: triBoolOptions,
 			get: func(p *domain.Project) string { return mcpServiceWriteEnabled(p, "gitlab") },
 			set: v.mcpSetWriteEnabled("gitlab")},
 		// Jira
-		{section: "MCP", key: "jira enabled", kind: "bool",
+		{section: "MCP", key: "jira enabled", kind: "tri-bool", options: triBoolOptions,
 			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "jira") },
 			set:    v.mcpSetEnabled("jira"),
 			source: v.mcpSource("jira", "enabled"),
@@ -273,19 +331,19 @@ func (v *ProjectConfigView) buildLines() {
 			source: v.mcpSource("jira", "url"),
 			locked: v.mcpLocked("jira", "url")},
 		// Figma
-		{section: "MCP", key: "figma enabled", kind: "bool",
+		{section: "MCP", key: "figma enabled", kind: "tri-bool", options: triBoolOptions,
 			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "figma") },
 			set:    v.mcpSetEnabled("figma"),
 			source: v.mcpSource("figma", "enabled"),
 			locked: v.mcpLocked("figma", "enabled")},
 		// GSlides
-		{section: "MCP", key: "gslides enabled", kind: "bool",
+		{section: "MCP", key: "gslides enabled", kind: "tri-bool", options: triBoolOptions,
 			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gslides") },
 			set:    v.mcpSetEnabled("gslides"),
 			source: v.mcpSource("gslides", "enabled"),
 			locked: v.mcpLocked("gslides", "enabled")},
 		// Team MCP server
-		{section: "MCP", key: "team enabled", kind: "bool",
+		{section: "MCP", key: "team enabled", kind: "tri-bool", options: triBoolOptions,
 			get: func(p *domain.Project) string { return mcpServiceEnabled(p, "team") },
 			set: v.mcpSetEnabled("team")},
 
@@ -294,16 +352,11 @@ func (v *ProjectConfigView) buildLines() {
 		{section: "Agents", key: "agents", kind: "agents",
 			get: func(p *domain.Project) string { return strings.Join(p.Agents, ", ") },
 			set: func(p *domain.Project, val string) {
-				if val == "" {
-					p.Agents = nil
-					return
-				}
+				if val == "" { p.Agents = nil; return }
 				parts := strings.Split(val, ",")
 				p.Agents = p.Agents[:0]
 				for _, a := range parts {
-					if s := strings.TrimSpace(a); s != "" {
-						p.Agents = append(p.Agents, s)
-					}
+					if s := strings.TrimSpace(a); s != "" { p.Agents = append(p.Agents, s) }
 				}
 			}},
 	}
@@ -314,183 +367,110 @@ func (v *ProjectConfigView) buildLines() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func mcpServiceEnabled(p *domain.Project, name string) string {
-	if p.MCPConfig == nil {
-		return "(inherit)"
-	}
+	if p.MCPConfig == nil { return "(inherit)" }
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.Enabled != nil {
-			return boolStr(*svc.Enabled)
-		}
+		if svc.Name == name && svc.Enabled != nil { return boolStr(*svc.Enabled) }
 	}
 	return "(inherit)"
 }
 
 func mcpServiceWriteEnabled(p *domain.Project, name string) string {
-	if p.MCPConfig == nil {
-		return "(inherit)"
-	}
+	if p.MCPConfig == nil { return "(inherit)" }
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.WriteEnabled != nil {
-			return boolStr(*svc.WriteEnabled)
-		}
+		if svc.Name == name && svc.WriteEnabled != nil { return boolStr(*svc.WriteEnabled) }
 	}
 	return "(inherit)"
 }
 
 func (v *ProjectConfigView) mcpSetEnabled(name string) func(p *domain.Project, val string) {
 	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil {
-			p.MCPConfig = &domain.ProjectMCPConfig{}
-		}
+		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
 		for i, svc := range p.MCPConfig.Services {
 			if svc.Name == name {
-				if val == "(inherit)" || val == "" {
-					p.MCPConfig.Services[i].Enabled = nil
-				} else {
-					b := val == "true"
-					p.MCPConfig.Services[i].Enabled = &b
-				}
-				v.mcpChanged = true
-				return
+				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].Enabled = nil } else { b := val == "true"; p.MCPConfig.Services[i].Enabled = &b }
+				v.mcpChanged = true; return
 			}
 		}
-		// Service not in list yet — add it
-		if val == "(inherit)" || val == "" {
-			return
-		}
+		if val == "(inherit)" || val == "" { return }
 		b := val == "true"
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
-			Name:    name,
-			Enabled: &b,
-		})
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, Enabled: &b})
 		v.mcpChanged = true
 	}
 }
 
 func (v *ProjectConfigView) mcpSetWriteEnabled(name string) func(p *domain.Project, val string) {
 	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil {
-			p.MCPConfig = &domain.ProjectMCPConfig{}
-		}
+		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
 		for i, svc := range p.MCPConfig.Services {
 			if svc.Name == name {
-				if val == "(inherit)" || val == "" {
-					p.MCPConfig.Services[i].WriteEnabled = nil
-				} else {
-					b := val == "true"
-					p.MCPConfig.Services[i].WriteEnabled = &b
-				}
-				v.mcpChanged = true
-				return
+				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].WriteEnabled = nil } else { b := val == "true"; p.MCPConfig.Services[i].WriteEnabled = &b }
+				v.mcpChanged = true; return
 			}
 		}
-		if val == "(inherit)" || val == "" {
-			return
-		}
+		if val == "(inherit)" || val == "" { return }
 		b := val == "true"
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
-			Name:         name,
-			WriteEnabled: &b,
-		})
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, WriteEnabled: &b})
 		v.mcpChanged = true
 	}
 }
 
 func mcpServiceURL(p *domain.Project, name string) string {
-	if p.MCPConfig == nil {
-		return "(inherit)"
-	}
+	if p.MCPConfig == nil { return "(inherit)" }
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.URL != "" {
-			return svc.URL
-		}
+		if svc.Name == name && svc.URL != "" { return svc.URL }
 	}
 	return "(inherit)"
 }
 
 func mcpServiceToken(p *domain.Project, name string) string {
-	if p.MCPConfig == nil {
-		return "(inherit)"
-	}
+	if p.MCPConfig == nil { return "(inherit)" }
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.TokenKey != "" {
-			return svc.TokenKey
-		}
+		if svc.Name == name && svc.TokenKey != "" { return svc.TokenKey }
 	}
 	return "(inherit)"
 }
 
 func (v *ProjectConfigView) mcpSetURL(name string) func(p *domain.Project, val string) {
 	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil {
-			p.MCPConfig = &domain.ProjectMCPConfig{}
-		}
+		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
 		for i, svc := range p.MCPConfig.Services {
 			if svc.Name == name {
-				if val == "(inherit)" || val == "" {
-					p.MCPConfig.Services[i].URL = ""
-				} else {
-					p.MCPConfig.Services[i].URL = val
-				}
-				v.mcpChanged = true
-				return
+				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].URL = "" } else { p.MCPConfig.Services[i].URL = val }
+				v.mcpChanged = true; return
 			}
 		}
-		if val == "(inherit)" || val == "" {
-			return
-		}
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
-			Name: name,
-			URL:  val,
-		})
+		if val == "(inherit)" || val == "" { return }
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, URL: val})
 		v.mcpChanged = true
 	}
 }
 
 func (v *ProjectConfigView) mcpSetToken(name string) func(p *domain.Project, val string) {
 	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil {
-			p.MCPConfig = &domain.ProjectMCPConfig{}
-		}
+		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
 		for i, svc := range p.MCPConfig.Services {
 			if svc.Name == name {
-				if val == "(inherit)" || val == "" {
-					p.MCPConfig.Services[i].TokenKey = ""
-				} else {
-					p.MCPConfig.Services[i].TokenKey = val
-				}
-				v.mcpChanged = true
-				return
+				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].TokenKey = "" } else { p.MCPConfig.Services[i].TokenKey = val }
+				v.mcpChanged = true; return
 			}
 		}
-		if val == "(inherit)" || val == "" {
-			return
-		}
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{
-			Name:     name,
-			TokenKey: val,
-		})
+		if val == "(inherit)" || val == "" { return }
+		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, TokenKey: val})
 		v.mcpChanged = true
 	}
 }
 
-// mcpSource returns a function that provides the resolution source annotation for an MCP field.
 func (v *ProjectConfigView) mcpSource(service, field string) func(p *domain.Project) string {
 	return func(_ *domain.Project) string {
-		if v.cfg.ResolveMCPSource == nil {
-			return ""
-		}
+		if v.cfg.ResolveMCPSource == nil { return "" }
 		_, source, _ := v.cfg.ResolveMCPSource(service, field)
 		return source
 	}
 }
 
-// mcpLocked returns a function that reports if an MCP field is enforced (locked).
 func (v *ProjectConfigView) mcpLocked(service, field string) func(p *domain.Project) bool {
 	return func(_ *domain.Project) bool {
-		if v.cfg.ResolveMCPSource == nil {
-			return false
-		}
+		if v.cfg.ResolveMCPSource == nil { return false }
 		_, _, locked := v.cfg.ResolveMCPSource(service, field)
 		return locked
 	}
@@ -505,20 +485,25 @@ func (v *ProjectConfigView) renderLines() {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
-	v.list.Clear()
+
+	items := make([]widgets.SectionItem, 0, len(v.lines)+1)
+
+	// Title item (as header)
 	title := v.live.Name
 	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● modifié" + theme.TagColor
+		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
 	}
-	v.list.AddItem(
-		fmt.Sprintf("  [::b]Projet: %s%s", title, theme.TagReset),
-		"", 0, nil)
+	items = append(items, widgets.SectionItem{
+		IsHeader: true,
+		MainText: fmt.Sprintf("Projet: %s", title),
+	})
 
-	for _, line := range v.lines {
+	for i, line := range v.lines {
 		if line.kind == "section-header" {
-			v.list.AddItem(
-				fmt.Sprintf("  %s─── %s ──────────────────%s", theme.ColorTag(theme.AccentHex), line.section, theme.TagColor),
-				"", 0, nil)
+			items = append(items, widgets.SectionItem{
+				IsHeader: true,
+				MainText: line.section,
+			})
 			continue
 		}
 
@@ -527,12 +512,10 @@ func (v *ProjectConfigView) renderLines() {
 			val = line.get(v.live)
 		}
 
-		readonlyMarker := ""
-		if line.kind == "readonly" {
-			readonlyMarker = fmt.Sprintf("  %s(lecture seule)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-		}
+		isLocked := line.locked != nil && line.locked(v.live)
+		valDisplay := formatProjectValue(val, line.kind)
 
-		// Source annotation (resolution info)
+		// Source annotation
 		sourceAnnotation := ""
 		if line.source != nil {
 			if src := line.source(v.live); src != "" {
@@ -540,18 +523,23 @@ func (v *ProjectConfigView) renderLines() {
 			}
 		}
 
-		// Lock indicator (enforced by team)
-		lockPrefix := "  "
-		if line.locked != nil && line.locked(v.live) {
-			lockPrefix = fmt.Sprintf("  %s🔒%s ", theme.ColorTag(theme.WarningHex), theme.TagColor)
+		readonlyMarker := ""
+		if line.kind == "readonly" {
+			readonlyMarker = fmt.Sprintf("  %s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.readonly"), theme.TagColor)
 		}
 
-		valDisplay := formatProjectValue(val, line.kind)
-		main := fmt.Sprintf("%s%-28s %s%s%s", lockPrefix, line.key+":", valDisplay, sourceAnnotation, readonlyMarker)
-		v.list.AddItem(main, "", 0, nil)
+		mainText := fmt.Sprintf("%-28s %s%s%s", line.key+":", valDisplay, sourceAnnotation, readonlyMarker)
+
+		items = append(items, widgets.SectionItem{
+			MainText:  mainText,
+			Locked:    isLocked,
+			Reference: i,
+		})
 	}
-	if savedIdx >= 0 && savedIdx < v.list.GetItemCount() {
-		v.list.SetCurrentItem(savedIdx)
+
+	v.list.SetItems(items)
+	if savedIdx >= 0 {
+		v.list.SelectIndex(savedIdx)
 	}
 }
 
@@ -560,19 +548,32 @@ func formatProjectValue(val, kind string) string {
 	case "bool":
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ true%s", theme.ColorTag("#4CAF50"), theme.TagColor)
+			return fmt.Sprintf("%s✓ true%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
 		case "false":
-			return fmt.Sprintf("%s✗ false%s", theme.ColorTag("#FF5252"), theme.TagColor)
-		default: // "(inherit)"
+			return fmt.Sprintf("%s✗ false%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
+		default:
 			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
+		}
+	case "tri-bool":
+		switch val {
+		case "true":
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.yes"), theme.TagColor)
+		case "false":
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.no"), theme.TagColor)
+		default:
+			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
 		}
 	case "agents":
 		if val == "" {
-			return fmt.Sprintf("%s(aucun)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.project.no_agents"), theme.TagColor)
 		}
-		// Show count instead of full list
 		agents := strings.Split(val, ",")
 		return fmt.Sprintf("%d agents", len(agents))
+	case "select":
+		if val == "" {
+			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
+		}
+		return val
 	default:
 		if val == "" || val == "(inherit)" {
 			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
@@ -585,64 +586,59 @@ func formatProjectValue(val, kind string) string {
 // Editing
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectConfigView) selectedLine() (projectConfigLine, bool) {
-	if v.list == nil || v.live == nil || v.list.GetItemCount() == 0 {
-		return projectConfigLine{}, false
-	}
-	// The list has an extra title item at index 0 that is not in v.lines.
-	rawIdx := v.list.GetCurrentItem()
-	idx := rawIdx - 1 // offset for the title item
-	if idx < 0 || idx >= len(v.lines) {
-		return projectConfigLine{}, false
-	}
-	line := v.lines[idx]
-	if line.kind == "section-header" || line.kind == "readonly" || line.get == nil {
-		return projectConfigLine{}, false
-	}
-	return line, true
-}
-
-func (v *ProjectConfigView) toggleSelected() {
-	line, ok := v.selectedLine()
-	if !ok || line.kind != "bool" {
+func (v *ProjectConfigView) editByIndex(_ int, item widgets.SectionItem) {
+	ref, ok := item.Reference.(int)
+	if !ok || ref < 0 || ref >= len(v.lines) {
 		return
 	}
+	line := v.lines[ref]
+	if v.shell == nil || line.kind == "section-header" || line.kind == "readonly" || line.get == nil {
+		return
+	}
+
 	// Check lock (enforced by team)
 	if line.locked != nil && line.locked(v.live) {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("🔒 Imposé par l'équipe (non-modifiable)", false)
-		}
-		return
-	}
-	cur := line.get(v.live)
-	var newVal string
-	switch cur {
-	case "true":
-		newVal = "false"
-	case "false":
-		newVal = "(inherit)"
-	default: // "(inherit)"
-		newVal = "true"
-	}
-	line.set(v.live, newVal)
-	v.dirty = true
-	v.renderLines()
-}
-
-func (v *ProjectConfigView) editSelected() {
-	line, ok := v.selectedLine()
-	if !ok || v.shell == nil {
-		return
-	}
-	// Check lock (enforced by team)
-	if line.locked != nil && line.locked(v.live) {
-		v.shell.ShowToastMsg("🔒 Imposé par l'équipe (non-modifiable)", false)
+		v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
 		return
 	}
 
 	switch line.kind {
 	case "bool":
-		v.toggleSelected()
+		v.toggleByRef(ref)
+
+	case "tri-bool":
+		opts := line.options
+		if len(opts) == 0 {
+			opts = []SelectOption{
+				{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
+				{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
+				{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
+			}
+		}
+		cur := line.get(v.live)
+		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
+			if line.set != nil {
+				v.pushUndo()
+				line.set(v.live, newVal)
+				v.dirty = true
+				v.renderLines()
+			}
+		})
+
+	case "select":
+		opts := line.options
+		if line.optionsFunc != nil {
+			opts = line.optionsFunc()
+		}
+		cur := line.get(v.live)
+		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
+			if line.set != nil {
+				v.pushUndo()
+				line.set(v.live, newVal)
+				v.dirty = true
+				v.renderLines()
+			}
+		})
 
 	case "agents":
 		v.editAgents(line)
@@ -651,6 +647,13 @@ func (v *ProjectConfigView) editSelected() {
 		cur := line.get(v.live)
 		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
 			if line.set != nil {
+				if line.validator != nil {
+					if err := line.validator.Validate(newVal); err != nil {
+						v.shell.ShowToastMsg("⚠ "+err.Error(), false)
+						return
+					}
+				}
+				v.pushUndo()
 				line.set(v.live, newVal)
 				v.dirty = true
 				v.renderLines()
@@ -659,19 +662,69 @@ func (v *ProjectConfigView) editSelected() {
 	}
 }
 
+func (v *ProjectConfigView) toggleSelected() {
+	if v.list == nil {
+		return
+	}
+	_, item, ok := v.list.CurrentItem()
+	if !ok {
+		return
+	}
+	ref, ok := item.Reference.(int)
+	if !ok || ref < 0 || ref >= len(v.lines) {
+		return
+	}
+	line := v.lines[ref]
+	if line.locked != nil && line.locked(v.live) {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
+		}
+		return
+	}
+	v.toggleByRef(ref)
+}
+
+func (v *ProjectConfigView) toggleByRef(ref int) {
+	line := v.lines[ref]
+	if line.set == nil {
+		return
+	}
+	cur := line.get(v.live)
+
+	switch line.kind {
+	case "bool":
+		newVal := "true"
+		if cur == "true" { newVal = "false" }
+		v.pushUndo()
+		line.set(v.live, newVal)
+		v.dirty = true
+		v.renderLines()
+
+	case "tri-bool":
+		var newVal string
+		switch cur {
+		case "true": newVal = "false"
+		case "false": newVal = "(inherit)"
+		default: newVal = "true"
+		}
+		v.pushUndo()
+		line.set(v.live, newVal)
+		v.dirty = true
+		v.renderLines()
+	}
+}
+
 func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 	if v.shell == nil {
 		return
 	}
-
 	allAgents := v.cfg.AllAgents()
 	if len(allAgents) == 0 {
-		v.shell.ShowToastMsg("Aucun agent disponible", false)
+		v.shell.ShowToastMsg(i18n.T("tui.project.no_agents_available"), false)
 		return
 	}
 	sort.Strings(allAgents)
 
-	// Build multi-select options with current selection
 	currentSet := make(map[string]bool)
 	for _, a := range v.live.Agents {
 		currentSet[a] = true
@@ -688,30 +741,30 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 		opts[i] = SelectOption{Label: label, Value: a}
 	}
 
-	v.shell.ShowSelectModal("Agents actifs (sélectionner pour toggle)", opts, "", func(chosen string) {
+	v.shell.ShowSelectModal(i18n.T("tui.project.agents_select"), opts, "", func(chosen string) {
 		if chosen == "" {
 			return
 		}
-		// Toggle the chosen agent
+		v.pushUndo()
 		if currentSet[chosen] {
-			// Remove
 			newAgents := make([]string, 0, len(v.live.Agents))
 			for _, a := range v.live.Agents {
-				if a != chosen {
-					newAgents = append(newAgents, a)
-				}
+				if a != chosen { newAgents = append(newAgents, a) }
 			}
 			v.live.Agents = newAgents
 		} else {
-			// Add
 			v.live.Agents = append(v.live.Agents, chosen)
 			sort.Strings(v.live.Agents)
 		}
 		v.dirty = true
 		v.renderLines()
-		// Re-open the modal to allow toggling multiple agents
-		v.editAgents(line)
+		v.editAgents(line) // Re-open for multi-toggle
 	})
+}
+
+func (v *ProjectConfigView) pushUndo() {
+	snapshot := deepCopyProject(v.live)
+	v.undoStack.Push(snapshot)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -719,28 +772,25 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectConfigView) save() {
-	if v.shell == nil {
-		return
-	}
-	if v.live == nil {
-		v.shell.ShowToastMsg("Chargement en cours, veuillez patienter...", false)
+	if v.shell == nil || v.live == nil {
 		return
 	}
 	ctx := context.Background()
 	if err := v.cfg.SaveProject(ctx, v.live); err != nil {
-		v.shell.ShowToastMsg("Erreur de sauvegarde: "+err.Error(), false)
+		v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
 		return
 	}
 	v.dirty = false
-	v.shell.ShowToastMsg("Projet sauvegardé", true)
+	v.undoStack.Clear()
+	v.shell.ShowToastMsg(i18n.T("tui.project.saved"), true)
 
 	// Propose redeploy if MCP changed
 	if v.mcpChanged && v.cfg.Deploy != nil {
 		v.shell.ShowSelectModal(
-			"Configuration MCP modifiée",
+			i18n.T("tui.project.mcp_changed"),
 			[]SelectOption{
-				{Label: "Redéployer maintenant (oh deploy)", Value: "deploy"},
-				{Label: "Plus tard", Value: "later"},
+				{Label: i18n.T("tui.project.redeploy_now"), Value: "deploy"},
+				{Label: i18n.T("tui.project.redeploy_later"), Value: "later"},
 			},
 			"",
 			func(choice string) {
@@ -749,19 +799,19 @@ func (v *ProjectConfigView) save() {
 						if err := v.cfg.Deploy(ctx, v.live); err != nil {
 							if v.app != nil {
 								v.app.QueueUpdateDraw(func() {
-									v.shell.ShowToastMsg("Deploy échoué: "+err.Error(), false)
+									v.shell.ShowToastMsg(i18n.T("tui.project.deploy_error")+": "+err.Error(), false)
 								})
 							}
 							return
 						}
 						if v.app != nil {
 							v.app.QueueUpdateDraw(func() {
-								v.shell.ShowToastMsg("Projet redéployé", true)
+								v.shell.ShowToastMsg(i18n.T("tui.project.redeployed"), true)
 							})
 						}
 					}()
 				} else {
-					v.shell.ShowToastMsg("Pensez à 'oh deploy' pour appliquer les changements MCP", true)
+					v.shell.ShowToastMsg(i18n.T("tui.project.deploy_reminder"), true)
 				}
 				v.mcpChanged = false
 			})
@@ -771,6 +821,7 @@ func (v *ProjectConfigView) save() {
 // ContextCommands implements CommandProvider.
 func (v *ProjectConfigView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.save", Label: "Sauvegarder", Aliases: []string{"save", "write"}, Description: "Sauvegarder les modifications projet", Category: "Projet", Action: func() { v.save() }},
+		{ID: "project.save", Label: i18n.T("tui.hints.save"), Aliases: []string{"save", "write", "sauvegarder"}, Description: i18n.T("tui.project.cmd_save"), Category: "Projet", Action: func() { v.save() }},
+		{ID: "project.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Projet", Action: func() { v.undo() }},
 	}
 }
