@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,13 +59,12 @@ type secretEntry struct {
 type SecretsView struct {
 	app      *tview.Application
 	content  *tview.Flex
-	list     *tview.List
+	list     *widgets.SectionedList
 	shell    ShellAccess
 	cfg      SecretsViewConfig
 	mountGen uint64
 
-	entries      []secretEntry
-	listToEntry  []int // maps list item index → entries index (-1 for headers)
+	entries []secretEntry
 }
 
 var _ View = (*SecretsView)(nil)
@@ -78,7 +78,11 @@ func (v *SecretsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SecretsView) ID() string             { return "secrets" }
 func (v *SecretsView) Title() string          { return "Secrets & Tokens" }
 func (v *SecretsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · e %s · a %s · d %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.edit"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("j/k %s · {/} %s · e %s · a %s · d %s · r %s · Esc %s",
+		i18n.T("tui.hints.nav"), i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.edit"), i18n.T("tui.hints.add"),
+		i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"),
+		i18n.T("tui.hints.back"))
 }
 
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -87,30 +91,31 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.mountGen++
 	gen := v.mountGen
 
-	v.list = tview.NewList().
-		ShowSecondaryText(true).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(1, 0, 2, 2)
-
 	// Show loading placeholder immediately
 	loadingTV := tview.NewTextView().
 		SetDynamicColors(true)
 	loadingTV.SetBackgroundColor(theme.BgPanel)
 	loadingTV.SetBorderPadding(1, 0, 2, 2)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loadingTV.SetText(fmt.Sprintf("\n  %sChargement des secrets...%s", muted, theme.TagColor))
+	loadingTV.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.secrets.loading"), theme.TagColor))
 	content.AddItem(loadingTV, 0, 1, true)
 
 	// Load secrets asynchronously (keychain access)
 	go func() {
 		entries := v.buildEntries()
 		app.QueueUpdateDraw(func() {
-			if v.list == nil || v.mountGen != gen {
+			if v.app == nil || v.mountGen != gen {
 				return
 			}
+
+			v.list = widgets.NewSectionedList()
+			v.list.SetApp(app)
+			v.list.SetBorderPadding(1, 0, 2, 2)
+
+			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+				v.editByItem(item)
+			})
+
 			v.entries = entries
 			v.renderList()
 			content.RemoveItem(loadingTV)
@@ -129,20 +134,20 @@ func (v *SecretsView) Unmount() {
 func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case 'e':
-		v.editSelected()
+		v.editCurrent()
 		return nil
 	case 'a':
 		v.addSecret()
 		return nil
 	case 'd':
-		v.deleteSelected()
+		v.deleteCurrent()
 		return nil
 	case 'r':
 		v.refresh()
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
-		v.editSelected()
+		v.editCurrent()
 		return nil
 	}
 	return event
@@ -153,14 +158,21 @@ func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *SecretsView) refresh() {
+	gen := v.mountGen
 	go func() {
 		entries := v.buildEntries()
+		if v.app == nil {
+			return
+		}
 		v.app.QueueUpdateDraw(func() {
-			if v.list == nil || v.app == nil {
+			if v.list == nil || v.app == nil || v.mountGen != gen {
 				return
 			}
 			v.entries = entries
 			v.renderList()
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.secrets.refreshed"), true)
+			}
 		})
 	}()
 }
@@ -169,26 +181,20 @@ func (v *SecretsView) buildEntries() []secretEntry {
 	store := v.cfg.GetStore()
 	ctx := context.Background()
 
-	// Gather entries from the keychain index.
 	var indexEntries []keychain.SecretEntry
 	if store != nil {
 		indexEntries, _ = store.ListAll(ctx)
 	}
-
-	// Gather expected keys from config.
 	expected := v.cfg.GetExpectedKeys()
 
-	// Build a lookup of existing secrets: scope/key → SecretEntry
 	existing := make(map[string]keychain.SecretEntry)
 	for _, e := range indexEntries {
 		existing[e.Scope+"/"+e.Key] = e
 	}
 
-	// Merge expected + existing into the display list.
 	seen := make(map[string]bool)
 	var result []secretEntry
 
-	// Add existing entries first.
 	for _, e := range indexEntries {
 		entry := secretEntry{
 			Key:     e.Key,
@@ -196,20 +202,17 @@ func (v *SecretsView) buildEntries() []secretEntry {
 			Present: e.Present,
 			Masked:  maskedValue(store, ctx, e.Key, e.Scope),
 		}
-		// Find source from expected list.
 		for _, exp := range expected {
 			if exp.Key == e.Key && exp.Scope == e.Scope {
 				entry.Source = exp.Source
 				break
 			}
 		}
-		// Compute fallback/shadow indicators.
 		entry.Fallback = v.computeFallback(e.Key, e.Scope, e.Present, existing)
 		result = append(result, entry)
 		seen[e.Scope+"/"+e.Key] = true
 	}
 
-	// Add expected keys not yet in the index (absent secrets).
 	for _, exp := range expected {
 		lookupKey := exp.Scope + "/" + exp.Key
 		if seen[lookupKey] {
@@ -231,25 +234,21 @@ func (v *SecretsView) buildEntries() []secretEntry {
 
 func (v *SecretsView) computeFallback(key, scope string, present bool, existing map[string]keychain.SecretEntry) string {
 	if scope == "global" || scope == "" {
-		// Check if a project-scoped version shadows this global.
 		projectID := v.cfg.GetActiveProjectID()
 		if projectID != "" {
 			if pe, ok := existing[projectID+"/"+key]; ok && pe.Present {
-				return "(masqué par le projet)"
+				return i18n.T("tui.secrets.shadowed_by_project")
 			}
 		}
 		return ""
 	}
-
-	// Project scope: check if global fallback is used.
 	if !present {
 		if ge, ok := existing["global/"+key]; ok && ge.Present {
-			return "(fallback: global ✓)"
+			return i18n.T("tui.secrets.fallback_global")
 		}
 	} else {
-		// Project has its own value — it shadows the global.
 		if _, ok := existing["global/"+key]; ok {
-			return "(masque le global)"
+			return i18n.T("tui.secrets.shadows_global")
 		}
 	}
 	return ""
@@ -270,7 +269,7 @@ func maskedValue(store *keychain.Store, ctx context.Context, key, scope string) 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rendering
+// Rendering (SectionedList)
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *SecretsView) renderList() {
@@ -278,17 +277,18 @@ func (v *SecretsView) renderList() {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
-	v.list.Clear()
-	v.listToEntry = nil
 
 	if len(v.entries) == 0 {
-		v.list.AddItem("  Aucun secret enregistré", "  Appuyez 'a' pour en ajouter", 0, nil)
-		v.listToEntry = append(v.listToEntry, -1)
+		items := []widgets.SectionItem{{
+			MainText:      i18n.T("tui.secrets.empty"),
+			SecondaryText: i18n.T("tui.secrets.empty_hint"),
+		}}
+		v.list.SetItems(items)
 		return
 	}
 
-	// Group by scope for display.
-	var globals, projects []int // indices into v.entries
+	// Group by scope
+	var globals, projects []int
 	for i, e := range v.entries {
 		if e.Scope == "global" || e.Scope == "" {
 			globals = append(globals, i)
@@ -297,15 +297,15 @@ func (v *SecretsView) renderList() {
 		}
 	}
 
+	items := make([]widgets.SectionItem, 0, len(v.entries)+4)
+
 	if len(globals) > 0 {
-		v.list.AddItem(
-			fmt.Sprintf("  %s─── Global ──────────────────────────────%s",
-				theme.ColorTag(theme.AccentHex), theme.TagColor),
-			"", 0, nil)
-		v.listToEntry = append(v.listToEntry, -1) // header
+		items = append(items, widgets.SectionItem{
+			IsHeader: true,
+			MainText: "Global",
+		})
 		for _, i := range globals {
-			v.addEntryItem(v.entries[i])
-			v.listToEntry = append(v.listToEntry, i)
+			items = append(items, v.entryToItem(v.entries[i], i))
 		}
 	}
 
@@ -314,26 +314,26 @@ func (v *SecretsView) renderList() {
 		if projectName == "" {
 			projectName = v.cfg.GetActiveProjectID()
 		}
-		v.list.AddItem(
-			fmt.Sprintf("  %s─── Projet: %s ─────────────────────────%s",
-				theme.ColorTag(theme.AccentHex), projectName, theme.TagColor),
-			"", 0, nil)
-		v.listToEntry = append(v.listToEntry, -1) // header
+		items = append(items, widgets.SectionItem{
+			IsHeader: true,
+			MainText: fmt.Sprintf("%s: %s", i18n.T("tui.secrets.section_project"), projectName),
+		})
 		for _, i := range projects {
-			v.addEntryItem(v.entries[i])
-			v.listToEntry = append(v.listToEntry, i)
+			items = append(items, v.entryToItem(v.entries[i], i))
 		}
 	}
-	if savedIdx >= 0 && savedIdx < v.list.GetItemCount() {
-		v.list.SetCurrentItem(savedIdx)
+
+	v.list.SetItems(items)
+	if savedIdx >= 0 {
+		v.list.SelectIndex(savedIdx)
 	}
 }
 
-func (v *SecretsView) addEntryItem(e secretEntry) {
-	// Main line: key + status
-	status := fmt.Sprintf("%s✗ absent%s", theme.ColorTag("#FF5252"), theme.TagColor)
+func (v *SecretsView) entryToItem(e secretEntry, entryIdx int) widgets.SectionItem {
+	// Status
+	status := fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.secrets.absent"), theme.TagColor)
 	if e.Present {
-		status = fmt.Sprintf("%s✓%s %s", theme.ColorTag("#4CAF50"), theme.TagColor, e.Masked)
+		status = fmt.Sprintf("%s✓%s %s", theme.ColorTag(theme.SuccessHex), theme.TagColor, e.Masked)
 	}
 
 	fallback := ""
@@ -341,69 +341,84 @@ func (v *SecretsView) addEntryItem(e secretEntry) {
 		fallback = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), e.Fallback, theme.TagColor)
 	}
 
-	main := fmt.Sprintf("  %-24s %s%s", e.Key, status, fallback)
+	mainText := fmt.Sprintf("%-24s %s%s", e.Key, status, fallback)
 
-	// Secondary line: source
+	// Secondary: source (dependency indicator)
 	secondary := ""
 	if e.Source != "" {
-		secondary = fmt.Sprintf("    référencé par: %s", e.Source)
+		secondary = fmt.Sprintf("%s %s%s", i18n.T("tui.secrets.referenced_by"), e.Source, "")
 	}
 
-	v.list.AddItem(main, secondary, 0, nil)
+	return widgets.SectionItem{
+		MainText:      mainText,
+		SecondaryText: secondary,
+		Reference:     entryIdx,
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Actions
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *SecretsView) selectedEntry() (secretEntry, bool) {
-	if v.list == nil || v.list.GetItemCount() == 0 {
-		return secretEntry{}, false
+func (v *SecretsView) currentEntry() (secretEntry, int, bool) {
+	if v.list == nil {
+		return secretEntry{}, -1, false
 	}
-	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.listToEntry) {
-		return secretEntry{}, false
+	_, item, ok := v.list.CurrentItem()
+	if !ok {
+		return secretEntry{}, -1, false
 	}
-	entryIdx := v.listToEntry[idx]
-	if entryIdx < 0 || entryIdx >= len(v.entries) {
-		return secretEntry{}, false // section header or out of bounds
+	entryIdx, ok := item.Reference.(int)
+	if !ok || entryIdx < 0 || entryIdx >= len(v.entries) {
+		return secretEntry{}, -1, false
 	}
-	return v.entries[entryIdx], true
+	return v.entries[entryIdx], entryIdx, true
 }
 
-func (v *SecretsView) editSelected() {
-	entry, ok := v.selectedEntry()
+func (v *SecretsView) editCurrent() {
+	entry, _, ok := v.currentEntry()
 	if !ok || v.shell == nil {
 		return
 	}
+	v.editEntry(entry)
+}
 
+func (v *SecretsView) editByItem(item widgets.SectionItem) {
+	entryIdx, ok := item.Reference.(int)
+	if !ok || entryIdx < 0 || entryIdx >= len(v.entries) || v.shell == nil {
+		return
+	}
+	v.editEntry(v.entries[entryIdx])
+}
+
+func (v *SecretsView) editEntry(entry secretEntry) {
 	store := v.cfg.GetStore()
 	if store == nil {
-		v.shell.ShowToastMsg("Secret store non disponible", false)
+		v.shell.ShowToastMsg(i18n.T("tui.secrets.store_unavailable"), false)
 		return
 	}
 
-	// Context menu
-	v.shell.ShowSelectModal("Modifier "+entry.Key+" ("+scopeLabel(entry.Scope)+")", []SelectOption{
-		{Label: "Modifier la valeur (masqué)", Value: "value"},
-		{Label: "Changer de portée (global ↔ projet)", Value: "move"},
-		{Label: "Annuler", Value: ""},
-	}, "", func(choice string) {
-		switch choice {
-		case "value":
-			v.promptSecretValue(entry.Key, entry.Scope)
-		case "move":
-			v.moveSecret(entry)
-		}
-	})
+	v.shell.ShowSelectModal(
+		fmt.Sprintf("%s %s (%s)", i18n.T("tui.hints.edit"), entry.Key, scopeLabel(entry.Scope)),
+		[]SelectOption{
+			{Label: i18n.T("tui.secrets.edit_value"), Value: "value"},
+			{Label: i18n.T("tui.secrets.move_scope"), Value: "move"},
+			{Label: i18n.T("tui.settings.cancel"), Value: ""},
+		}, "", func(choice string) {
+			switch choice {
+			case "value":
+				v.promptSecretValue(entry.Key, entry.Scope)
+			case "move":
+				v.moveSecret(entry)
+			}
+		})
 }
 
 func (v *SecretsView) promptSecretValue(key, scope string) {
 	if v.shell == nil {
 		return
 	}
-	// Use a masked input field (ShowPasswordModal uses InputField with mask char).
-	v.shell.ShowPasswordModal("Valeur pour "+key, func(value string) {
+	v.shell.ShowPasswordModal(i18n.Tf("tui.secrets.value_for", key), func(value string) {
 		if value == "" {
 			return
 		}
@@ -413,10 +428,10 @@ func (v *SecretsView) promptSecretValue(key, scope string) {
 		}
 		ctx := context.Background()
 		if err := store.SetScoped(ctx, key, value, scope); err != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 			return
 		}
-		v.shell.ShowToastMsg("Secret mis à jour", true)
+		v.shell.ShowToastMsg(i18n.T("tui.secrets.updated"), true)
 		v.refresh()
 	})
 }
@@ -428,32 +443,30 @@ func (v *SecretsView) moveSecret(entry secretEntry) {
 	}
 
 	ctx := context.Background()
-	// Determine the target scope.
 	newScope := "global"
 	newLabel := "global"
 	if entry.Scope == "global" || entry.Scope == "" {
 		projectID := v.cfg.GetActiveProjectID()
 		if projectID == "" {
-			v.shell.ShowToastMsg("Aucun projet actif pour déplacer le secret", false)
+			v.shell.ShowToastMsg(i18n.T("tui.secrets.no_project_for_move"), false)
 			return
 		}
 		newScope = projectID
-		newLabel = "projet " + v.cfg.GetActiveProjectName()
+		newLabel = i18n.T("tui.secrets.section_project") + " " + v.cfg.GetActiveProjectName()
 	}
 
-	// Get current value, move to new scope.
 	val, err := store.GetScoped(ctx, entry.Key, entry.Scope)
 	if err != nil || val == "" {
-		v.shell.ShowToastMsg("Secret introuvable à la portée actuelle", false)
+		v.shell.ShowToastMsg(i18n.T("tui.secrets.not_found"), false)
 		return
 	}
 	if err := store.SetScoped(ctx, entry.Key, val, newScope); err != nil {
-		v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+		v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 		return
 	}
 	_ = store.DeleteScoped(ctx, entry.Key, entry.Scope)
 
-	v.shell.ShowToastMsg(fmt.Sprintf("Déplacé vers %s", newLabel), true)
+	v.shell.ShowToastMsg(i18n.Tf("tui.secrets.moved_to", newLabel), true)
 	v.refresh()
 }
 
@@ -462,39 +475,36 @@ func (v *SecretsView) addSecret() {
 		return
 	}
 
-	// Step 1: key name
-	v.shell.ShowInputModal("Nom de la clé", "", func(key string) {
+	v.shell.ShowInputModal(i18n.T("tui.secrets.key_name"), "", func(key string) {
 		if key == "" {
 			return
 		}
 		key = strings.TrimSpace(key)
 
-		// Step 2: scope
 		projectID := v.cfg.GetActiveProjectID()
 		projectName := v.cfg.GetActiveProjectName()
 
 		opts := []SelectOption{{Label: "Global", Value: "global"}}
 		if projectID != "" {
-			opts = append(opts, SelectOption{Label: "Projet: " + projectName, Value: projectID})
+			opts = append(opts, SelectOption{Label: i18n.T("tui.secrets.section_project") + ": " + projectName, Value: projectID})
 		}
 
-		v.shell.ShowSelectModal("Portée", opts, "", func(scope string) {
+		v.shell.ShowSelectModal(i18n.T("tui.secrets.scope"), opts, "", func(scope string) {
 			if scope == "" {
 				return
 			}
-			// Step 3: value (masked)
 			v.promptSecretValue(key, scope)
 		})
 	})
 }
 
-func (v *SecretsView) deleteSelected() {
-	entry, ok := v.selectedEntry()
+func (v *SecretsView) deleteCurrent() {
+	entry, _, ok := v.currentEntry()
 	if !ok || v.shell == nil {
 		return
 	}
 	if !entry.Present {
-		v.shell.ShowToastMsg("Ce secret n'a pas de valeur à supprimer", false)
+		v.shell.ShowToastMsg(i18n.T("tui.secrets.nothing_to_delete"), false)
 		return
 	}
 
@@ -504,21 +514,23 @@ func (v *SecretsView) deleteSelected() {
 	}
 
 	label := fmt.Sprintf("%s (%s)", entry.Key, scopeLabel(entry.Scope))
-	v.shell.ShowSelectModal("Supprimer "+label+" ?", []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
-		ctx := context.Background()
-		if err := store.DeleteScoped(ctx, entry.Key, entry.Scope); err != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
-			return
-		}
-		v.shell.ShowToastMsg("Secret supprimé", true)
-		v.refresh()
-	})
+	v.shell.ShowSelectModal(
+		i18n.Tf("tui.secrets.confirm_delete", label),
+		[]SelectOption{
+			{Label: i18n.T("tui.settings.cancel"), Value: ""},
+			{Label: i18n.T("tui.secrets.yes_delete"), Value: "yes"},
+		}, "", func(choice string) {
+			if choice != "yes" {
+				return
+			}
+			ctx := context.Background()
+			if err := store.DeleteScoped(ctx, entry.Key, entry.Scope); err != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+				return
+			}
+			v.shell.ShowToastMsg(i18n.T("tui.secrets.deleted"), true)
+			v.refresh()
+		})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -529,13 +541,13 @@ func scopeLabel(scope string) string {
 	if scope == "global" || scope == "" {
 		return "global"
 	}
-	return "projet"
+	return i18n.T("tui.secrets.section_project")
 }
 
 // ContextCommands implements CommandProvider.
 func (v *SecretsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "secrets.add", Label: "Ajouter un secret", Aliases: []string{"add", "new"}, Description: "Ajouter un nouveau secret au keychain", Category: "Secrets", Action: func() { v.addSecret() }},
-		{ID: "secrets.refresh", Label: "Rafraîchir", Aliases: []string{"refresh", "reload"}, Description: "Recharger les secrets", Category: "Secrets", Action: func() { v.refresh() }},
+		{ID: "secrets.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "new", "ajouter"}, Description: i18n.T("tui.secrets.cmd_add"), Category: "Secrets", Action: func() { v.addSecret() }},
+		{ID: "secrets.refresh", Label: i18n.T("tui.hints.refresh"), Aliases: []string{"refresh", "reload", "rafraîchir"}, Description: i18n.T("tui.secrets.cmd_refresh"), Category: "Secrets", Action: func() { v.refresh() }},
 	}
 }

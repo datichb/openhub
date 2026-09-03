@@ -53,7 +53,7 @@ func (v *PluginsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Show loading placeholder immediately
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.text.SetText(fmt.Sprintf("\n  %sVérification des plugins...%s", muted, theme.TagColor))
+	v.text.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.plugins.loading"), theme.TagColor))
 	content.AddItem(v.text, 0, 1, true)
 
 	// Load plugin status asynchronously
@@ -88,9 +88,9 @@ func (v *PluginsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				}
 				if v.shell != nil {
 					if err != nil {
-						v.shell.ShowToastMsg("Install échoué: "+err.Error(), false)
+						v.shell.ShowToastMsg(i18n.T("tui.plugins.install_error")+": "+err.Error(), false)
 					} else {
-						v.shell.ShowToastMsg("Plugin RTK installé", true)
+						v.shell.ShowToastMsg(i18n.T("tui.plugins.installed"), true)
 					}
 				}
 				v.status = status
@@ -103,27 +103,38 @@ func (v *PluginsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			return nil
 		}
 		if !v.status.Installed {
-			v.shell.ShowToastMsg("Plugin non installé", false)
+			v.shell.ShowToastMsg(i18n.T("tui.plugins.not_installed"), false)
 			return nil
 		}
-		go func() {
-			err := plugin.RTKRemove()
-			status := plugin.RTKStatus()
-			v.app.QueueUpdateDraw(func() {
-				if v.text == nil || v.app == nil {
+		// Confirmation before uninstall
+		v.shell.ShowSelectModal(
+			i18n.T("tui.plugins.confirm_uninstall"),
+			[]SelectOption{
+				{Label: i18n.T("tui.settings.cancel"), Value: ""},
+				{Label: i18n.T("tui.plugins.yes_uninstall"), Value: "yes"},
+			}, "", func(choice string) {
+				if choice != "yes" {
 					return
 				}
-				if v.shell != nil {
-					if err != nil {
-						v.shell.ShowToastMsg("Suppression échouée: "+err.Error(), false)
-					} else {
-						v.shell.ShowToastMsg("Plugin RTK supprimé", true)
-					}
-				}
-				v.status = status
-				v.render()
+				go func() {
+					err := plugin.RTKRemove()
+					status := plugin.RTKStatus()
+					v.app.QueueUpdateDraw(func() {
+						if v.text == nil || v.app == nil {
+							return
+						}
+						if v.shell != nil {
+							if err != nil {
+								v.shell.ShowToastMsg(i18n.T("tui.plugins.uninstall_error")+": "+err.Error(), false)
+							} else {
+								v.shell.ShowToastMsg(i18n.T("tui.plugins.uninstalled"), true)
+							}
+						}
+						v.status = status
+						v.render()
+					})
+				}()
 			})
-		}()
 		return nil
 	case 'r':
 		go func() {
@@ -154,26 +165,26 @@ func (v *PluginsView) render() {
 
 	// Installed status
 	if s.Installed {
-		text += fmt.Sprintf("  %sÉtat:%s      [green]✓ installé[-]\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		text += fmt.Sprintf("  %s%s:%s      [green]✓ %s[-]\n", theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.plugins.status"), theme.TagColor, i18n.T("tui.plugins.state_installed"))
 		text += fmt.Sprintf("  %sPath:%s      %s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, s.Path)
 	} else {
-		text += fmt.Sprintf("  %sÉtat:%s      [red]✗ non installé[-]\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		text += fmt.Sprintf("  %s%s:%s      [red]✗ %s[-]\n", theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.plugins.status"), theme.TagColor, i18n.T("tui.plugins.state_not_installed"))
 	}
 
 	// Binary status
 	if s.BinaryFound {
 		text += fmt.Sprintf("  %sBinary:%s    [green]✓[-] rtk %s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, s.BinaryVer)
 	} else {
-		text += fmt.Sprintf("  %sBinary:%s    [red]✗ non trouvé[-] (rtk non installé dans PATH)\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		text += fmt.Sprintf("  %sBinary:%s    [red]✗[-] %s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.plugins.binary_not_found"))
 	}
 
 	text += "\n"
 
 	// Actions hint
 	if !s.Installed {
-		text += fmt.Sprintf("  %sAppuyez 'i' pour installer le plugin RTK%s\n", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+		text += fmt.Sprintf("  %s%s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.plugins.hint_install"), theme.TagColor)
 	} else {
-		text += fmt.Sprintf("  %sAppuyez 'd' pour désinstaller%s\n", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+		text += fmt.Sprintf("  %s%s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.plugins.hint_uninstall"), theme.TagColor)
 	}
 
 	v.text.SetText(text)
@@ -182,7 +193,7 @@ func (v *PluginsView) render() {
 // ContextCommands implements CommandProvider.
 func (v *PluginsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "plugins.install", Label: "Installer", Aliases: []string{"install"}, Description: "Installer le plugin", Category: "Plugins", Action: func() {}},
-		{ID: "plugins.refresh", Label: "Rafraîchir", Aliases: []string{"refresh", "reload"}, Description: "Rafraîchir le statut", Category: "Plugins", Action: func() {}},
+		{ID: "plugins.install", Label: i18n.T("tui.hints.install"), Aliases: []string{"install", "installer"}, Description: i18n.T("tui.plugins.cmd_install"), Category: "Plugins", Action: func() {}},
+		{ID: "plugins.refresh", Label: i18n.T("tui.hints.refresh"), Aliases: []string{"refresh", "reload", "rafraîchir"}, Description: i18n.T("tui.plugins.cmd_refresh"), Category: "Plugins", Action: func() {}},
 	}
 }
