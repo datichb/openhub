@@ -626,12 +626,15 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		// Validate required fields
 		for _, f := range cfg.Fields {
 			if f.Required {
-				if f.Type == views.FieldMultiSelect {
+				switch f.Type {
+				case views.FieldBool:
+					// A bool is always set (true/false) — skip validation
+				case views.FieldMultiSelect:
 					if len(multi[f.Key]) == 0 {
 						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
 						return
 					}
-				} else {
+				default:
 					if values[f.Key] == "" {
 						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
 						return

@@ -37,9 +37,9 @@ type FormField struct {
 	// the submitted values map.
 	Hint string
 	// Conditional, if set, determines whether this field is shown.
-	// It receives the current string values of all fields.
-	// NOTE: Conditionals are currently not evaluated in the modal form —
-	// all fields are always displayed. Reserved for future use.
+	// It receives the current default values of preceding fields (evaluated
+	// once at form construction time, in field order). Fields whose
+	// Conditional returns false are skipped entirely.
 	Conditional func(values map[string]string) bool
 }
 

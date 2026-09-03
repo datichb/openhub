@@ -84,6 +84,10 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 
 	// Position at top-right using a Grid, offset vertically by the number
 	// of currently active toasts so they stack instead of overlapping.
+	// Cap at 5 visible toasts to avoid overflowing off-screen on small terminals.
+	if s.activeToasts >= 5 {
+		return // silently drop — the message is already persisted to notifications
+	}
 	topRow := 1 + (s.activeToasts * (toastHeight + 1))
 	grid := tview.NewGrid().
 		SetColumns(0, toastWidth, 2).
@@ -98,7 +102,9 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	time.AfterFunc(duration, func() {
 		s.app.QueueUpdateDraw(func() {
 			s.pages.RemovePage(pageName)
-			s.activeToasts--
+			if s.activeToasts > 0 {
+				s.activeToasts--
+			}
 		})
 	})
 }

@@ -81,7 +81,11 @@ func NewCommandRegistry(commands []Command) *CommandRegistry {
 
 // All returns all registered commands.
 func (r *CommandRegistry) All() []Command {
-	return r.commands
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make([]Command, len(r.commands))
+	copy(result, r.commands)
+	return result
 }
 
 // RecordUsage records a command ID as recently used.
