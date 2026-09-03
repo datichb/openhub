@@ -300,6 +300,9 @@ func (v *ModelsView) addOverride() {
 }
 
 func (v *ModelsView) deleteEntry() {
+	if v.table == nil {
+		return
+	}
 	row, _ := v.table.GetSelection()
 	idx := row - 1
 	if idx < 0 || idx >= len(v.entries) {

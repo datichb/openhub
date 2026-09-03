@@ -256,6 +256,9 @@ func (v *ProjectsView) addProject() {
 }
 
 func (v *ProjectsView) removeProject() {
+	if v.list == nil {
+		return
+	}
 	idx := v.list.GetCurrentItem()
 	if idx < 0 || idx >= len(v.cfg.Projects) {
 		return
@@ -305,7 +308,7 @@ var projectProviderOptions = []SelectOption{
 }
 
 func (v *ProjectsView) configureProject() {
-	if v.shell == nil {
+	if v.shell == nil || v.list == nil {
 		return
 	}
 	idx := v.list.GetCurrentItem()
@@ -407,7 +410,7 @@ func (v *ProjectsView) applyConfiguration(idx int, update ProjectConfigUpdate) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectsView) renameProject() {
-	if v.shell == nil {
+	if v.shell == nil || v.list == nil {
 		return
 	}
 	idx := v.list.GetCurrentItem()
@@ -441,7 +444,7 @@ func (v *ProjectsView) renameProject() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectsView) moveProject() {
-	if v.shell == nil {
+	if v.shell == nil || v.list == nil {
 		return
 	}
 	idx := v.list.GetCurrentItem()
