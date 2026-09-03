@@ -46,10 +46,11 @@ type projectConfigLine struct {
 
 // ProjectConfigView displays and edits the active project's configuration.
 type ProjectConfigView struct {
-	app   *tview.Application
-	list  *tview.List
-	shell ShellAccess
-	cfg   ProjectConfigViewConfig
+	app      *tview.Application
+	list     *tview.List
+	shell    ShellAccess
+	cfg      ProjectConfigViewConfig
+	mountGen uint64
 
 	live       *domain.Project
 	dirty      bool
@@ -80,6 +81,8 @@ func (v *ProjectConfigView) StatusHints() string {
 
 func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.mountGen++
+	gen := v.mountGen
 	v.dirty = false
 	v.mcpChanged = false
 	v.live = v.cfg.GetProject() // synchronous: always available for save()
@@ -96,8 +99,8 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	// Build UI asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return // view was unmounted before the goroutine finished
+			if v.app == nil || v.mountGen != gen {
+				return // view was unmounted or re-mounted before the goroutine finished
 			}
 
 			v.list = tview.NewList().

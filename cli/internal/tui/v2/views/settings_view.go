@@ -40,10 +40,11 @@ type configLine struct {
 
 // SettingsView displays and edits hub.toml line by line.
 type SettingsView struct {
-	app    *tview.Application
-	list   *tview.List
-	shell  ShellAccess
-	cfg    SettingsViewConfig
+	app      *tview.Application
+	list     *tview.List
+	shell    ShellAccess
+	cfg      SettingsViewConfig
+	mountGen uint64
 
 	// live config being edited (copy from disk, modified in memory until saved)
 	live  *config.Config
@@ -78,6 +79,8 @@ func (v *SettingsView) StatusHints() string {
 // Mount builds and displays the view.
 func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.mountGen++
+	gen := v.mountGen
 	v.dirty = false
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
@@ -93,8 +96,8 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	// Build list asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return // view was unmounted before the goroutine finished
+			if v.app == nil || v.mountGen != gen {
+				return // view was unmounted or re-mounted before the goroutine finished
 			}
 
 			v.list = tview.NewList().

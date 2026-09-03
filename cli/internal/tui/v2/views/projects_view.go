@@ -48,6 +48,7 @@ type ProjectsView struct {
 	detail           *tview.TextView
 	app              *tview.Application
 	shell            ShellAccess
+	mountGen         uint64
 	onAdd            func(name, path string)
 	onRemove         func(id string)
 	onConfigure      func(id string, cfg ProjectConfigUpdate)
@@ -123,6 +124,8 @@ func (v *ProjectsView) StatusHints() string {
 func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
+	v.mountGen++
+	gen := v.mountGen
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -139,8 +142,8 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 		projects := v.cfg.Projects
 
 		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return // view was unmounted before the goroutine finished
+			if v.app == nil || v.mountGen != gen {
+				return // view was unmounted or re-mounted before the goroutine finished
 			}
 
 			v.list = tview.NewList().

@@ -32,6 +32,7 @@ type ModelsView struct {
 	entries  []modelEntry
 	shell    ShellAccess
 	commands []ContextCommand
+	mountGen uint64
 }
 
 var _ View = (*ModelsView)(nil)
@@ -64,6 +65,8 @@ func (v *ModelsView) StatusHints() string {
 // Mount builds the models cascade table.
 func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.mountGen++
+	gen := v.mountGen
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -77,8 +80,8 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	// Load entries and populate table asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return // view was unmounted before the goroutine finished
+			if v.app == nil || v.mountGen != gen {
+				return // view was unmounted or re-mounted before the goroutine finished
 			}
 			v.loadEntries()
 

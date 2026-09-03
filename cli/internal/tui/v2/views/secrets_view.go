@@ -56,11 +56,12 @@ type secretEntry struct {
 // SecretsView displays and manages secrets (tokens, API keys) with global and
 // project scopes. Accessed via omnibar "secrets" / "tokens" / "credentials".
 type SecretsView struct {
-	app     *tview.Application
-	content *tview.Flex
-	list    *tview.List
-	shell   ShellAccess
-	cfg     SecretsViewConfig
+	app      *tview.Application
+	content  *tview.Flex
+	list     *tview.List
+	shell    ShellAccess
+	cfg      SecretsViewConfig
+	mountGen uint64
 
 	entries      []secretEntry
 	listToEntry  []int // maps list item index → entries index (-1 for headers)
@@ -83,6 +84,8 @@ func (v *SecretsView) StatusHints() string {
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
+	v.mountGen++
+	gen := v.mountGen
 
 	v.list = tview.NewList().
 		ShowSecondaryText(true).
@@ -105,7 +108,7 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	go func() {
 		entries := v.buildEntries()
 		app.QueueUpdateDraw(func() {
-			if v.list == nil {
+			if v.list == nil || v.mountGen != gen {
 				return
 			}
 			v.entries = entries
