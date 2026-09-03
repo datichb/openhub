@@ -89,11 +89,11 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Load data and build UI asynchronously
 	go func() {
-		v.loadServices()
 		app.QueueUpdateDraw(func() {
 			if v.app == nil {
 				return // view was unmounted before the goroutine finished
 			}
+			v.loadServices()
 
 			// ── Hub label ──────────────────────────────────────────────────────
 			hubLabel := tview.NewTextView().

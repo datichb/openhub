@@ -76,11 +76,11 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Load entries and populate table asynchronously
 	go func() {
-		v.loadEntries()
 		app.QueueUpdateDraw(func() {
 			if v.app == nil {
 				return // view was unmounted before the goroutine finished
 			}
+			v.loadEntries()
 
 			v.table = tview.NewTable().
 				SetSelectable(true, false).
