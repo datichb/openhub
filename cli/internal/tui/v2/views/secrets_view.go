@@ -153,8 +153,16 @@ func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *SecretsView) refresh() {
-	v.entries = v.buildEntries()
-	v.renderList()
+	go func() {
+		entries := v.buildEntries()
+		v.app.QueueUpdateDraw(func() {
+			if v.list == nil || v.app == nil {
+				return
+			}
+			v.entries = entries
+			v.renderList()
+		})
+	}()
 }
 
 func (v *SecretsView) buildEntries() []secretEntry {

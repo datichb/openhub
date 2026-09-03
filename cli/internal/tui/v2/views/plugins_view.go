@@ -79,21 +79,66 @@ func (v *PluginsView) Unmount() {
 func (v *PluginsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case 'i':
-		v.installPlugin()
+		go func() {
+			err := plugin.RTKInstall()
+			status := plugin.RTKStatus()
+			v.app.QueueUpdateDraw(func() {
+				if v.text == nil || v.app == nil {
+					return
+				}
+				if v.shell != nil {
+					if err != nil {
+						v.shell.ShowToastMsg("Install échoué: "+err.Error(), false)
+					} else {
+						v.shell.ShowToastMsg("Plugin RTK installé", true)
+					}
+				}
+				v.status = status
+				v.render()
+			})
+		}()
 		return nil
 	case 'd':
-		v.removePlugin()
+		if v.shell == nil {
+			return nil
+		}
+		if !v.status.Installed {
+			v.shell.ShowToastMsg("Plugin non installé", false)
+			return nil
+		}
+		go func() {
+			err := plugin.RTKRemove()
+			status := plugin.RTKStatus()
+			v.app.QueueUpdateDraw(func() {
+				if v.text == nil || v.app == nil {
+					return
+				}
+				if v.shell != nil {
+					if err != nil {
+						v.shell.ShowToastMsg("Suppression échouée: "+err.Error(), false)
+					} else {
+						v.shell.ShowToastMsg("Plugin RTK supprimé", true)
+					}
+				}
+				v.status = status
+				v.render()
+			})
+		}()
 		return nil
 	case 'r':
-		v.refresh()
+		go func() {
+			status := plugin.RTKStatus()
+			v.app.QueueUpdateDraw(func() {
+				if v.text == nil || v.app == nil {
+					return
+				}
+				v.status = status
+				v.render()
+			})
+		}()
 		return nil
 	}
 	return event
-}
-
-func (v *PluginsView) refresh() {
-	v.status = plugin.RTKStatus()
-	v.render()
 }
 
 func (v *PluginsView) render() {
@@ -132,36 +177,6 @@ func (v *PluginsView) render() {
 	}
 
 	v.text.SetText(text)
-}
-
-func (v *PluginsView) installPlugin() {
-	if v.shell == nil {
-		return
-	}
-	err := plugin.RTKInstall()
-	if err != nil {
-		v.shell.ShowToastMsg("Install échoué: "+err.Error(), false)
-	} else {
-		v.shell.ShowToastMsg("Plugin RTK installé", true)
-	}
-	v.refresh()
-}
-
-func (v *PluginsView) removePlugin() {
-	if v.shell == nil {
-		return
-	}
-	if !v.status.Installed {
-		v.shell.ShowToastMsg("Plugin non installé", false)
-		return
-	}
-	err := plugin.RTKRemove()
-	if err != nil {
-		v.shell.ShowToastMsg("Suppression échouée: "+err.Error(), false)
-	} else {
-		v.shell.ShowToastMsg("Plugin RTK supprimé", true)
-	}
-	v.refresh()
 }
 
 // ContextCommands implements CommandProvider.

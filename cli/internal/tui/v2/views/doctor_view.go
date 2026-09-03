@@ -86,15 +86,21 @@ func (v *DoctorView) Unmount() {
 // HandleKey processes view-specific key events.
 func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if event.Rune() == 'r' {
-		v.runChecks()
-		v.render()
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.tv.SetText(fmt.Sprintf("\n  %sVérification...%s", muted, theme.TagColor))
+		go func() {
+			checks := v.collectChecks()
+			v.app.QueueUpdateDraw(func() {
+				if v.tv == nil || v.app == nil {
+					return
+				}
+				v.checks = checks
+				v.render()
+			})
+		}()
 		return nil
 	}
 	return event
-}
-
-func (v *DoctorView) runChecks() {
-	v.checks = v.collectChecks()
 }
 
 // collectChecks runs all health checks and returns the results.

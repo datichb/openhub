@@ -92,29 +92,39 @@ func (v *MetricsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		} else {
 			v.mode = "usage"
 		}
-		v.render()
+		v.asyncRender()
 		return nil
 	case event.Rune() == '7':
 		v.period = "7d"
-		v.render()
+		v.asyncRender()
 		return nil
 	case event.Rune() == '3':
 		v.period = "30d"
-		v.render()
+		v.asyncRender()
 		return nil
 	case event.Rune() == 'a':
 		v.period = "all"
-		v.render()
+		v.asyncRender()
 		return nil
 	}
 	return event
 }
 
-func (v *MetricsView) render() {
+func (v *MetricsView) asyncRender() {
 	if v.tv == nil {
 		return
 	}
-	v.tv.SetText(v.buildRenderText())
+	muted := theme.ColorTag(theme.TextMutedHex)
+	v.tv.SetText(fmt.Sprintf("\n  %sChargement...%s", muted, theme.TagColor))
+	go func() {
+		text := v.buildRenderText()
+		v.app.QueueUpdateDraw(func() {
+			if v.tv == nil || v.app == nil {
+				return
+			}
+			v.tv.SetText(text)
+		})
+	}()
 }
 
 // buildRenderText builds the metrics display text. Safe to call from any goroutine.

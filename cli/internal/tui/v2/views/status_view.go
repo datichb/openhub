@@ -85,20 +85,23 @@ func (v *StatusView) Unmount() {
 func (v *StatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case 'r':
-		v.render()
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.tv.SetText(fmt.Sprintf("\n  %sChargement...%s", muted, theme.TagColor))
+		go func() {
+			text := v.buildStatusText()
+			v.app.QueueUpdateDraw(func() {
+				if v.tv == nil || v.app == nil {
+					return
+				}
+				v.tv.SetText(text)
+			})
+		}()
 		return nil
 	case 'c':
 		v.checkConventions()
 		return nil
 	}
 	return event
-}
-
-func (v *StatusView) render() {
-	if v.tv == nil {
-		return
-	}
-	v.tv.SetText(v.buildStatusText())
 }
 
 // buildStatusText builds the status display text. Safe to call from any goroutine.
