@@ -315,8 +315,8 @@ func (v *ModelsView) deleteEntry() {
 	}
 	label := fmt.Sprintf("Supprimer l'override %s (%s) ?", entry.Scope, entry.Level)
 	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: "Confirmer la suppression", Value: "yes"},
 		{Label: "Annuler", Value: ""},
+		{Label: "Confirmer la suppression", Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return

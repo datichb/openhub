@@ -284,6 +284,10 @@ func (o *Omnibar) updateSuggestions(query string) {
 		max = len(merged)
 	}
 
+	// Truncate visible to match displayed items — prevents executeCurrent()
+	// from accidentally executing a hidden command via the overflow item.
+	o.visible = merged[:max]
+
 	for i := 0; i < max; i++ {
 		cmd := merged[i]
 		// Single-line format: label padded to 18 chars + dimmed description

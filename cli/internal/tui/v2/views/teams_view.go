@@ -265,8 +265,8 @@ func (v *TeamsView) handleDelete() {
 	}
 
 	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer l'équipe %q ?", teamID), []SelectOption{
-		{Label: "Confirmer la suppression", Value: "yes"},
 		{Label: "Annuler", Value: ""},
+		{Label: "Confirmer la suppression", Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return

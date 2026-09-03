@@ -494,8 +494,8 @@ func (v *SecretsView) deleteSelected() {
 
 	label := fmt.Sprintf("%s (%s)", entry.Key, scopeLabel(entry.Scope))
 	v.shell.ShowSelectModal("Supprimer "+label+" ?", []SelectOption{
-		{Label: "Confirmer la suppression", Value: "yes"},
 		{Label: "Annuler", Value: ""},
+		{Label: "Confirmer la suppression", Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return

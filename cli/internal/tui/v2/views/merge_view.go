@@ -177,8 +177,8 @@ func (v *MergeView) handleMerge() {
 
 	if v.shell != nil {
 		v.shell.ShowSelectModal(fmt.Sprintf("Merger la branche %s ?", branch.Branch), []SelectOption{
-			{Label: "Confirmer le merge", Value: "yes"},
 			{Label: "Annuler", Value: ""},
+			{Label: "Confirmer le merge", Value: "yes"},
 		}, "", func(choice string) {
 			if choice == "yes" {
 				doMerge()

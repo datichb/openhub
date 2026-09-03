@@ -265,8 +265,8 @@ func (v *PatternsView) removePattern() {
 	}
 
 	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer le pattern %q ?", p.Name), []SelectOption{
-		{Label: "Confirmer la suppression", Value: "yes"},
 		{Label: "Annuler", Value: ""},
+		{Label: "Confirmer la suppression", Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
