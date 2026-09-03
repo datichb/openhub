@@ -151,6 +151,7 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 			v.buildCommands()
 			content.RemoveItem(loading)
 			content.AddItem(v.content, 0, 1, true)
+			app.SetFocus(v.hubList)
 		})
 	}()
 }

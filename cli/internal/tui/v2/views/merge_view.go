@@ -120,6 +120,7 @@ func (v *MergeView) Mount(content *tview.Flex, app *tview.Application) {
 			v.populateList()
 			content.RemoveItem(loading)
 			content.AddItem(v.contentFlex, 0, 1, true)
+			app.SetFocus(v.list)
 		})
 	}()
 }

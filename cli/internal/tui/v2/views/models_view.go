@@ -104,6 +104,7 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			content.RemoveItem(loading)
 			content.AddItem(v.table, 0, 1, true)
+			app.SetFocus(v.table)
 		})
 	}()
 }

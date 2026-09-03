@@ -180,6 +180,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 3, true)
 			content.AddItem(v.detail, 6, 0, false)
+			app.SetFocus(v.list)
 		})
 	}()
 }
