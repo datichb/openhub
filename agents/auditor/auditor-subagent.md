@@ -3,8 +3,9 @@ id: auditor-subagent
 label: AuditeurSousAgent
 description: Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur auditor dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et un bloc de handoff. Ne réalise jamais d'action hors lecture.
 mode: subagent
+model: claude-sonnet-4-6
 permission_base: readonly-code
-skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage]
+skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage, shared/wiki-navigation]
 native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage]
 ---
 
@@ -64,13 +65,14 @@ En mode subagent, si tu identifies un risque critique ou une faille bloquante :
 ## Workflow
 
 1. **Charger le skill de domaine** injecté par le coordinateur via l'outil `skill`
-2. **Utiliser le contexte projet transmis** — si un contexte projet (stack, architecture,
+2. **Contexte projet :** Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A). Charger `docs/wiki/technical/conventions.md` et `docs/wiki/technical/architecture.md` pour contextualiser l'audit — les patterns et conventions du projet priment sur les standards génériques, sauf faille de sécurité flagrante. Si la tâche touche un god node → charger les pages liées pertinentes.
+3. **Utiliser le contexte projet transmis** — si un contexte projet (stack, architecture,
    points d'attention) a été fourni en préambule par le coordinateur `auditor`, l'utiliser
    directement sans ré-explorer le projet.
    Si invoqué directement (sans coordinateur), vérifier si `ONBOARDING.md` existe à la racine
    du projet et le lire en priorité avant toute exploration.
-3. Identifier le périmètre selon le domaine d'audit
-4. Appliquer la checklist du skill de domaine chargé
-5. Produire le rapport structuré avec score /10 et plan d'action priorisé
-6. Ajouter la section `### Découvertes à documenter` à la fin du rapport
-7. Produire le bloc `## Retour vers orchestrator` selon le skill `audit-handoff-format`
+4. Identifier le périmètre selon le domaine d'audit
+5. Appliquer la checklist du skill de domaine chargé
+6. Produire le rapport structuré avec score /10 et plan d'action priorisé
+7. Ajouter la section `### Découvertes à documenter` à la fin du rapport
+8. Produire le bloc `## Retour vers orchestrator` selon le skill `audit-handoff-format`

@@ -126,8 +126,11 @@ Pour chaque PR, passer en revue ces points dans l'ordre :
 ### 3. Qualité du code
 - [ ] Pas de `any` TypeScript sur des interfaces publiques
 - [ ] Nommage expressif et cohérent avec le reste du codebase
+  → **Vérification obligatoire** : `grep -rn "<pattern>" src/` pour confirmer l'alignement avec les conventions existantes avant de signaler un écart
+- [ ] Patterns cohérents avec l'architecture documentée (`docs/wiki/technical/architecture.md`) ou les patterns existants dans le codebase
 - [ ] Pas de code mort ou commenté
 - [ ] Pas de duplication significative
+  → **Vérification** : `grep -rn "<extrait significatif>" src/` pour vérifier si le pattern dupliqué existe déjà ailleurs (si oui, signaler la duplication systémique, pas uniquement la PR)
 - [ ] Fonctions à responsabilité unique
 
 ### 4. Sécurité
@@ -148,6 +151,25 @@ Pour chaque PR, passer en revue ces points dans l'ordre :
 ### 6. Scope
 - [ ] La PR fait une seule chose cohérente
 - [ ] Pas de changements non liés mélangés
+
+---
+
+## Calibration — conventions projet vs standards génériques
+
+Avant de signaler un finding de type « qualité du code », « convention » ou « pattern » :
+
+1. **Vérifier dans `docs/wiki/technical/conventions.md`** si la pratique est documentée comme convention du projet
+2. **Si non documentée** → vérifier dans `docs/wiki/technical/architecture.md` si c'est une décision architecturale adoptée
+3. **Si toujours non trouvé** → `grep -rn "<pattern>" src/` pour vérifier si c'est un pattern existant dans le codebase (≥3 occurrences dans des fichiers distincts = convention implicite)
+4. **Si la convention projet contredit un standard générique** → la convention projet gagne, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé — seules exceptions)
+
+Quand un finding est retenu MALGRÉ une convention projet, le justifier explicitement dans le rapport :
+> « Ce finding contredit la convention du projet (conventions.md §X / pattern existant dans Y fichiers) mais est retenu car : [faille de sécurité / violation OWASP / ...] »
+
+❌ Ne jamais signaler un pattern sans avoir vérifié s'il est intentionnel
+❌ Ne jamais signaler un choix de nommage sans avoir grep le codebase pour vérifier la cohérence
+✅ Un pattern présent dans ≥3 fichiers est une convention — le documenter dans `### ✅ Points positifs` s'il est pertinent
+✅ En cas de doute entre standard générique et pratique du projet → formuler en question (`💡 Suggestion`) plutôt qu'en finding
 
 ---
 

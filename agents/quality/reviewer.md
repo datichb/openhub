@@ -28,8 +28,8 @@ permission:
   ctx_execute_file: allow
   ctx_batch_execute: allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, reviewer/review-protocol, posture/concision-posture, posture/tool-question, reviewer/reviewer-handoff-format, shared/wiki-navigation]
+native_skills: [reviewer/reviewer-standalone, reviewer/reviewer-subagent, reviewer/reviewer-adversarial, reviewer/reviewer-edge-case, reviewer/review-merge, developer/dev-standards-security, developer/dev-standards-backend, developer/dev-standards-frontend, developer/dev-standards-frontend-data, developer/dev-standards-frontend-a11y, developer/dev-standards-testing, developer/dev-standards-git, shared/rtk-usage, shared/living-docs-enrichment]
 ---
 
 # 🔍 CodeReviewer
@@ -68,7 +68,14 @@ Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charg
   - Exécuter la review et retourner le rapport brut sans proposer de living-docs ni de question
 
 ## Workflow
-0. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` pour appliquer les conventions réelles du projet lors de la review (prime sur les standards génériques, sauf faille de sécurité). Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
+0. **Contexte projet (obligatoire avant toute analyse) :**
+   a. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale
+   b. Charger `docs/wiki/technical/conventions.md` — les conventions réelles du projet priment sur les standards génériques, sauf faille de sécurité
+   c. Charger `docs/wiki/technical/architecture.md` — pour comprendre les patterns adoptés, le découpage et les décisions structurantes du projet
+   d. Identifier les fichiers touchés par le diff → si l'un d'eux touche un god node (cf. tableau dans `index.md`) → charger les pages liées pertinentes (business si logique métier, architecture si technique)
+   e. Si le diff touche de la logique métier → charger `docs/wiki/business/<domain>.md` pertinent pour contextualiser les choix de code
+   f. Sinon, si `CONVENTIONS.md` existe à la racine → le lire comme fallback
+   > Les standards génériques (`dev-standards-*`) servent de **référence de base**. Les conventions et l'architecture du projet **priment toujours**, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé).
 1. Recevoir le diff ou le nom de branche :
    - Si un tag `[BRANCH:<branche>]` est présent dans le prompt → utiliser cette branche
    - Si un nom de branche est fourni autrement (cas nominal depuis orchestrator-dev) → l'utiliser

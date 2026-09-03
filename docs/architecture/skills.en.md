@@ -176,6 +176,42 @@ Both are **Bucket B — native**. They are automatically deployed to `.opencode/
 
 ---
 
+## Dynamic Skill Injection — Skills Not Referenced by Any Agent
+
+Approximately 60 skill files in `skills/` are not directly referenced in any agent's `skills:` or `native_skills:` frontmatter arrays. These are **not orphans** — they are injected dynamically through two mechanisms:
+
+### 1. Stack-based injection at deploy time (`ResolveStackSkills`)
+
+The Go CLI function `ResolveStackSkills()` in `cli/internal/deploy/stack_skills.go` detects the project's tech stack (by scanning for `package.json`, `go.mod`, `Cargo.toml`, `requirements.txt`, etc.) and automatically injects the corresponding stack skills into the Bucket B deployment.
+
+These are all files under `skills/developer/stacks/`:
+
+| Trigger file | Stack skill deployed |
+|-------------|---------------------|
+| `package.json` + React | `dev-standards-react` |
+| `package.json` + Vue | `dev-standards-vue` |
+| `package.json` + Next.js | `dev-standards-nextjs` |
+| `package.json` + Cypress | `dev-standards-cypress` |
+| `go.mod` | `dev-standards-golang` |
+| `Cargo.toml` | `dev-standards-rust` |
+| `requirements.txt` / `pyproject.toml` | `dev-standards-django`, `dev-standards-pandas`, etc. |
+| `Gemfile` | `dev-standards-rails` |
+| `dbt_project.yml` | `dev-standards-dbt` |
+| `.gitlab-ci.yml` | `dev-standards-gitlab-ci` |
+
+### 2. Domain-based injection at invocation time (orchestrator-dev)
+
+The `orchestrator-dev` protocol (`skills/orchestrator/orchestrator-dev-protocol.md`) includes a **domain → native_skills mapping** that specifies which skills to inject into the developer agent's prompt at invocation time. These include adapter skills (`skills/adapters/*`) and domain-specific standards.
+
+### Traceability
+
+Because these injections happen at deploy time or invocation time (not in frontmatter), static analysis of the agent files alone cannot determine whether a skill is in use. To verify:
+
+- **Stack skills**: Run `oh deploy --check` against a target project — the deploy engine reports which stack skills were detected and deployed.
+- **Adapter skills**: Check the domain → skills mapping in `skills/orchestrator/orchestrator-dev-protocol.md`.
+
+---
+
 ## Community Skills Marketplace
 
 Community skills extend the hub with third-party protocols contributed by the community. They are published to the [oh-skills-index](https://github.com/datichb/oh-skills-index) or distributed via Git URL.

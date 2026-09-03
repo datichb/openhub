@@ -27,7 +27,7 @@ permission:
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
-native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, shared/rtk-usage, orchestrator/orchestrator-modes, orchestrator/orchestrator-ticket-routing, orchestrator/orchestrator-recap-edge]
+native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, documentarian/documentarian-handoff-format, shared/rtk-usage, orchestrator/orchestrator-modes, orchestrator/orchestrator-ticket-routing, orchestrator/orchestrator-recap-edge]
 ---
 
 # Orchestrator
@@ -51,6 +51,7 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 | `auditor` | `audit-handoff-format` |
 | `onboarder` | `onboarder-handoff-format` |
 | `debugger` | `debugger-handoff-format` |
+| `documentarian` | `documentarian-handoff-format` |
 
 > Ces skills définissent le contrat de réception : sans eux, la retranscription du retour agent est impossible.
 

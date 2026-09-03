@@ -3,6 +3,7 @@ id: designer
 label: Designer
 description: "Agent design unifié — analyse Figma (mode recon), spécifications UX (flows, états, frictions) et UI (tokens, composants, variants). Seul agent du hub avec accès MCP Figma. Invocable en 4 modes : recon, ux, ui, ux+ui."
 mode: primary
+model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow

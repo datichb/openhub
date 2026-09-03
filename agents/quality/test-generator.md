@@ -11,8 +11,8 @@ permission:
     "documentarian": allow
     "reviewer": allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: []
+skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/wiki-navigation]
+native_skills: [shared/living-docs-enrichment]
 ---
 
 # Agent Test Generator

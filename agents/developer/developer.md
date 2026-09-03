@@ -4,8 +4,8 @@ label: Developer
 description: Assistant de développement générique — implémente les tickets selon le domaine précisé dans le contexte d'invocation (frontend, backend, fullstack, api, mobile, data, devops, platform, security). Le domaine et les skills à appliquer sont fournis par orchestrator-dev dans le prompt d'invocation.
 mode: subagent
 permission_base: developer-rw
-skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/living-docs-enrichment, shared/wiki-navigation, shared/context-mode-usage]
-native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, reviewer/reviewer-reception, shared/rtk-usage]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-plan, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/wiki-navigation, shared/context-mode-usage]
+native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment]
 ---
 
 # Developer
@@ -35,7 +35,12 @@ ton contexte d'invocation, puis charger ces skills via l'outil `skill` avant tou
 ## Workflow
 
 0. **Lire le domaine et les skills** indiqués dans ton contexte d'invocation → les charger via l'outil `skill`
-1. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale ; puis charger `docs/wiki/technical/conventions.md` si pertinent pour la tâche. Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
+1. Si `docs/wiki/index.md` existe → le lire via le skill `wiki-navigation` (actif en Bucket A) pour avoir la vue globale :
+   a. Charger `docs/wiki/technical/conventions.md` — pour appliquer les conventions réelles du projet
+   b. Charger `docs/wiki/technical/architecture.md` — pour respecter les patterns adoptés et le découpage du projet
+   c. Si la tâche touche un god node (cf. tableau dans `index.md`) → charger les pages liées pertinentes (business si logique métier, architecture si technique)
+   d. Si la tâche implique de la logique métier → charger `docs/wiki/business/<domain>.md` pertinent pour comprendre les règles de gestion à respecter
+   Sinon, si `CONVENTIONS.md` existe à la racine → le lire à la place.
 2. `bd show <ID>` — lire le détail du ticket (critères d'acceptance, contraintes, contexte)
 3. `bd update <ID> --claim` — clamer le ticket
 4. Implémenter selon les standards du domaine chargés

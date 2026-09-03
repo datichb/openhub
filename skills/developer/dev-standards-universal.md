@@ -104,7 +104,14 @@ passer les 3 checks suivants **dans l'ordre** :
 ✅ Vérifier via `git diff` que les modifications sont dans le périmètre attendu
 ❌ Toute régression détectée → corriger ou documenter explicitement (jamais ignorer silencieusement)
 
-**Règle absolue :** les 3 checks doivent être passés ou leur impossibilité explicitement documentée.
+### Check 4 — Conventions du projet respectées
+
+✅ Si `docs/wiki/technical/conventions.md` existe : vérifier que le code produit respecte les conventions documentées (nommage, patterns, structure de fichiers)
+✅ Si `CONVENTIONS.md` existe (fallback) : appliquer les mêmes vérifications
+✅ Si aucun fichier de conventions n'existe → Check OK par défaut
+❌ Si une déviation aux conventions est nécessaire → la documenter explicitement : `bd comments add <ID> "Déviation convention : <raison>"`
+
+**Règle absolue :** les 4 checks doivent être passés ou leur impossibilité explicitement documentée.
 Un `DONE` sans gate = handoff invalide.
 
 ---

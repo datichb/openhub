@@ -1,20 +1,23 @@
 ---
-name: brief-enricher
+id: brief-enricher
+label: Brief Enricher
 description: Agent utilitaire read-only pour enrichir les takeover briefs avec une analyse du code source.
 model: anthropic/claude-sonnet-4-5
 mode: subagent
-permissions:
-  allow:
-    - read
-    - glob
-    - grep
-  deny:
-    - edit
-    - write
-    - bash
-    - task
-    - webfetch
-    - todowrite
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  skill: allow
+  edit: deny
+  write: deny
+  bash: deny
+  task:
+    "*": deny
+  webfetch: deny
+  todowrite: deny
+skills: []
+native_skills: []
 ---
 
 # Brief Enricher

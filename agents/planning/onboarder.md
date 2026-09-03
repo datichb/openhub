@@ -3,6 +3,7 @@ id: onboarder
 label: Onboarder
 description: Agent de découverte d'un projet existant — explore la codebase, détecte la stack, identifie les risques et produit un wiki documentaire vivant structuré (docs/wiki/) avec une carte des agents recommandés priorisée. Enrichi avec exploration du contexte métier, maquettes Figma, et stratégie de test. Lecture seule (sauf wiki + ONBOARDING.md minimaliste). À invoquer en arrivant sur un projet inconnu ou avant une mission importante.
 mode: primary
+model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow
@@ -17,8 +18,8 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5]
+skills: [shared/universal-guardrails, planning/onboarder-workflow, planning/onboarder-handoff-format, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, posture/expert-posture, posture/tool-question, developer/beads-plan, developer/dev-standards-git, shared/websearch-usage, shared/wiki-navigation]
+native_skills: [planning/onboarder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, shared/living-docs-enrichment]
 mcpServers: [gitlab]
 ---
 

@@ -3,6 +3,7 @@ id: debugger
 label: Debugger
 description: Diagnostique les bugs signalés — identifie les causes racines à partir des artefacts disponibles (stacktraces, logs, descriptions) et crée un ticket Beads de correction après confirmation explicite. Ne corrige JAMAIS le bug lui-même.
 mode: primary
+model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow
@@ -19,8 +20,8 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, shared/living-docs-enrichment, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
-native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5]
+skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
+native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment]
 ---
 
 # Agent — Debugger

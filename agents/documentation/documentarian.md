@@ -3,6 +3,7 @@ id: documentarian
 label: Documentarian
 description: Rédige et met à jour la documentation technique, fonctionnelle, architecturale, API et les changelogs. Crée et maintient le wiki documentaire vivant (docs/wiki/) pour les projets onboardés — enrichissement incrémental avec tags de confiance, mise à jour des god nodes. S'adapte à la structure de documentation existante du projet. Invocation — "Documente [sujet]", "Crée un ADR pour [décision]", "Mets à jour le CHANGELOG", "Enrichis le wiki".
 mode: primary
+model: claude-sonnet-4-6
 permission:
   question: allow
   skill: allow

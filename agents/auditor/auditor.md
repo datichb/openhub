@@ -3,14 +3,15 @@ id: auditor
 label: Auditeur
 description: Agent coordinateur d'audit multi-domaine — analyse la demande et délègue aux sous-agents spécialisés (sécurité, performance, accessibilité, éco-conception, architecture, privacy, observabilité). Invoquer avec "audite [projet/périmètre]" ou "audit [domaine]".
 mode: primary
+model: claude-sonnet-4-6
 permission_base: coordinator
 permission:
   task:
     "*": deny
     "auditor-subagent": allow
     "documentarian": allow
-skills: [shared/universal-guardrails, posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, shared/living-docs-enrichment, posture/tool-question]
-native_skills: [auditor/auditor-execution-modes, shared/rtk-usage]
+skills: [shared/universal-guardrails, posture/coordination-only, posture/retranscription-coordinateur, auditor/auditor-workflow, auditor/audit-protocol-light, auditor/audit-handoff-format, posture/tool-question]
+native_skills: [auditor/auditor-execution-modes, shared/rtk-usage, shared/living-docs-enrichment]
 ---
 
 # Auditeur

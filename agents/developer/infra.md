@@ -20,8 +20,8 @@ permission:
     "pulumi*": allow
     "vault *": allow
 model: claude-opus-4-6
-skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/living-docs-enrichment, shared/wiki-navigation]
-native_skills: [developer/dev-standards-security]
+skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/wiki-navigation]
+native_skills: [developer/dev-standards-security, shared/living-docs-enrichment]
 ---
 
 # Agent Infra/DevOps
