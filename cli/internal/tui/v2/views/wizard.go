@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -65,6 +66,12 @@ type WizardStep struct {
 	// Required prevents the user from skipping this step via Escape.
 	// The user must either complete the form or quit the wizard (Ctrl+C).
 	Required bool
+
+	// Validate is called before OnDone when the user submits the form.
+	// If it returns a non-empty string, the submission is blocked and
+	// the error message is displayed in the StatusBar for 3 seconds.
+	// If nil, no validation is performed (always passes).
+	Validate func() string
 }
 
 // WizardConfig configures the wizard.
@@ -109,7 +116,6 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 	// Double-Esc state: first Esc shows confirmation, second Esc confirms skip
 	var escPending bool
-	var escTimer *time.Timer
 	// Compute the full original hints string (same logic as layout.Build)
 	originalHints := cfg.Layout.StatusHints
 	if originalHints != "" {
@@ -211,6 +217,30 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		return s.Skip
 	}
 
+	// ── Helper: count visible steps and position of current step ──
+	countVisibleSteps := func(idx int) (total int, position int) {
+		pos := 0
+		for i := range cfg.Steps {
+			if cfg.Steps[i].Skip {
+				continue
+			}
+			if cfg.Steps[i].SkipIf != nil && cfg.Steps[i].SkipIf() {
+				continue
+			}
+			total++
+			if i < idx {
+				pos++
+			} else if i == idx {
+				pos++
+				position = pos
+			}
+		}
+		if position == 0 {
+			position = total
+		}
+		return total, position
+	}
+
 	// ── Helper: find next pending step ──
 	findNext := func(from int) int {
 		for i := from + 1; i < len(cfg.Steps); i++ {
@@ -291,7 +321,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 	// ── Helper: run OnDone with spinner ──
 	runWithSpinner := func(step WizardStep, afterDone func()) {
-		msg := "Processing..."
+		msg := i18n.T("wizard.processing")
 		if step.Processing != "" {
 			msg = step.Processing
 		}
@@ -339,6 +369,15 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 		// Clear form container
 		formContainer.Clear()
+
+		// Step counter header (e.g. "◆ 2/5 — Identité")
+		totalSteps, stepPos := countVisibleSteps(idx)
+		stepHeader := tview.NewTextView().SetDynamicColors(true)
+		stepHeader.SetBackgroundColor(theme.BgPanel)
+		stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
+			widgets.ColorTag(theme.Accent), theme.IconActive, stepPos, totalSteps, step.Label))
+		formContainer.AddItem(stepHeader, 2, 0, false)
+
 		formContainer.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Key() == tcell.KeyCtrlB {
 				goBack()
@@ -349,10 +388,6 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 		// Reset double-Esc state when switching steps
 		escPending = false
-		if escTimer != nil {
-			escTimer.Stop()
-			escTimer = nil
-		}
 		shell.StatusBar.SetHints(originalHints)
 
 		// ── CustomView path ──
@@ -372,6 +407,18 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		// ── Form path ──
 		if step.Form != nil {
 			onDone := func() {
+				// Run validation if defined
+				if step.Validate != nil {
+					if errMsg := step.Validate(); errMsg != "" {
+						shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
+						time.AfterFunc(3*time.Second, func() {
+							shell.App.QueueUpdateDraw(func() {
+								shell.StatusBar.SetHints(originalHints)
+							})
+						})
+						return
+					}
+				}
 				runWithSpinner(step, func() {
 					advanceAfterDone(step)
 					if !result.Completed {
@@ -395,7 +442,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 			form.SetCancelFunc(func() {
 				// Required steps cannot be skipped
 				if step.Required {
-					shell.StatusBar.SetHints("This step is required — press ctrl+c to quit")
+					shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
 					time.AfterFunc(2*time.Second, func() {
 						shell.App.QueueUpdateDraw(func() {
 							shell.StatusBar.SetHints(originalHints)
@@ -405,23 +452,14 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				}
 
 				if !escPending {
-					// First Esc: show confirmation hint
+					// First Esc: show persistent confirmation hint
 					escPending = true
-					shell.StatusBar.SetHints("Press Esc again to skip this step")
-					escTimer = time.AfterFunc(2*time.Second, func() {
-						shell.App.QueueUpdateDraw(func() {
-							escPending = false
-							shell.StatusBar.SetHints(originalHints)
-						})
-					})
+					shell.StatusBar.SetHints(i18n.T("wizard.esc_to_skip"))
 					return
 				}
 
-				// Second Esc within 2s: confirm skip
+				// Second Esc: confirm skip
 				escPending = false
-				if escTimer != nil {
-					escTimer.Stop()
-				}
 				shell.StatusBar.SetHints(originalHints)
 				skipCurrent()
 				if !result.Completed {
@@ -431,6 +469,11 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 				// Ctrl+S = submit (same as pressing the button)
 				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					// Any non-Esc key resets the double-Esc pending state
+					if escPending && event.Key() != tcell.KeyEscape {
+						escPending = false
+						shell.StatusBar.SetHints(originalHints)
+					}
 					if event.Key() == tcell.KeyCtrlS {
 						onDone()
 						return nil

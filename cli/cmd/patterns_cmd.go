@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -224,7 +225,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "patterns add",
-			StatusHints: "enter confirm · esc cancel",
+			StatusHints: i18n.T("wizard.hints.cancel"),
 		},
 		Steps: steps,
 	})

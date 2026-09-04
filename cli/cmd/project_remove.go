@@ -162,7 +162,7 @@ func projectRemoveCmd() *cobra.Command {
 				Layout: layout.Config{
 					ProjectName: a.Config.Name,
 					Command:     "project remove",
-					StatusHints: "enter confirm · esc skip",
+					StatusHints: i18n.T("wizard.hints.default"),
 				},
 				Steps: steps,
 			})

@@ -490,7 +490,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "mcp setup",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

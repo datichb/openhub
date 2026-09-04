@@ -358,7 +358,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "project configure",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

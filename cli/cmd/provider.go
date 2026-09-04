@@ -300,7 +300,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "provider setup",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})
@@ -419,7 +419,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "provider setup",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

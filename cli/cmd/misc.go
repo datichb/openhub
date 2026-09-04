@@ -255,7 +255,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "service setup",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

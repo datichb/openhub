@@ -1166,5 +1166,20 @@
   "tui.patterns.validated": "Pattern validé : %s",
   "tui.patterns.confirm_delete": "Supprimer le pattern %q ?",
   "tui.patterns.yes_delete": "Confirmer la suppression",
-  "tui.patterns.deleted": "Pattern supprimé : %s"
+  "tui.patterns.deleted": "Pattern supprimé : %s",
+
+  "wizard.hints.default": "enter confirmer · esc passer",
+  "wizard.hints.cancel": "enter confirmer · esc annuler",
+  "wizard.step_required": "Cette étape est requise — ctrl+c pour quitter",
+  "wizard.esc_to_skip": "Esc à nouveau pour passer cette étape",
+  "wizard.processing": "Traitement...",
+
+  "cmd.team.init.recap.member": "Membre",
+  "cmd.team.init.recap.stale_days": "Stale days",
+  "cmd.team.init.recap.notifs": "Notifs",
+  "cmd.team.init.recap.notifs_none": "non configuré",
+  "cmd.team.init.recap.policies": "Policies",
+  "cmd.team.init.validate.repo_required": "L'URL du repo est requise",
+  "cmd.team.init.validate.member_id_required": "L'identifiant membre est requis",
+  "cmd.team.init.validate.display_name_required": "Le nom d'affichage est requis"
 }

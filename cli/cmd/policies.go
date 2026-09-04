@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -310,7 +311,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "policies add",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

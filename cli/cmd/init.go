@@ -666,7 +666,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: "oh",
 			Command:     "init",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

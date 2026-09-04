@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -254,7 +255,7 @@ func runFirstRunWizard(a *app.App) bool {
 		Layout: layout.Config{
 			ProjectName: "OpenHub",
 			Command:     "Configuration initiale",
-			StatusHints: "Tab champs · Enter confirmer · Esc passer",
+			StatusHints: i18n.T("wizard.hints.default"),
 			InfoPanel:   true,
 		},
 		Steps: steps,

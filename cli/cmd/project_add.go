@@ -382,7 +382,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "project add",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: steps,
 	})

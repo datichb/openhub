@@ -1166,5 +1166,20 @@
   "tui.patterns.validated": "Pattern validated: %s",
   "tui.patterns.confirm_delete": "Delete pattern %q?",
   "tui.patterns.yes_delete": "Confirm deletion",
-  "tui.patterns.deleted": "Pattern deleted: %s"
+  "tui.patterns.deleted": "Pattern deleted: %s",
+
+  "wizard.hints.default": "enter confirm · esc skip",
+  "wizard.hints.cancel": "enter confirm · esc cancel",
+  "wizard.step_required": "This step is required — press ctrl+c to quit",
+  "wizard.esc_to_skip": "Press Esc again to skip this step",
+  "wizard.processing": "Processing...",
+
+  "cmd.team.init.recap.member": "Member",
+  "cmd.team.init.recap.stale_days": "Stale days",
+  "cmd.team.init.recap.notifs": "Notifs",
+  "cmd.team.init.recap.notifs_none": "not configured",
+  "cmd.team.init.recap.policies": "Policies",
+  "cmd.team.init.validate.repo_required": "Repository URL is required",
+  "cmd.team.init.validate.member_id_required": "Member ID is required",
+  "cmd.team.init.validate.display_name_required": "Display name is required"
 }

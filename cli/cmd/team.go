@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -229,6 +230,12 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			// Skip if repo URL already configured (clone/pull done above)
 			return a.Config.ActiveTeam().StateRepo != ""
 		},
+		Validate: func() string {
+			if strings.TrimSpace(stateRepo) == "" {
+				return i18n.T("cmd.team.init.validate.repo_required")
+			}
+			return ""
+		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			form.AddInputField(
@@ -236,9 +243,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				stateRepo, 0, nil,
 				func(text string) { stateRepo = text })
 			form.AddButton("Next", func() {
-				if stateRepo == "" {
-					return // Do not proceed without a URL
-				}
 				onDone()
 			})
 			return form
@@ -369,6 +373,12 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		identityStep = views.WizardStep{
 			Label:      i18n.T("cmd.team.init.step_identity"),
 			Processing: i18n.T("cmd.team.init.processing_identity"),
+			Validate: func() string {
+				if strings.TrimSpace(memberID) == "" {
+					return i18n.T("cmd.team.init.validate.member_id_required")
+				}
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(
@@ -432,6 +442,12 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		identityStep = views.WizardStep{
 			Label:      i18n.T("cmd.team.init.step_identity"),
 			Processing: i18n.T("cmd.team.init.processing_identity"),
+			Validate: func() string {
+				if strings.TrimSpace(displayName) == "" {
+					return i18n.T("cmd.team.init.validate.display_name_required")
+				}
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(
@@ -617,7 +633,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "team init",
-			StatusHints: "enter confirm · esc skip",
+			StatusHints: i18n.T("wizard.hints.default"),
 		},
 		Steps: []views.WizardStep{repoStep, configStep, identityStep, notifStep, policiesStep},
 	})
@@ -658,17 +674,32 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	}
 
 	fields := []summary.Field{
-		{Label: "Repo", Value: stateRepo},
+		{Label: "Repo", Value: maskRepoURL(stateRepo)},
+		{Label: "Clone", Value: shortenPath(statePath)},
 	}
 	if memberID != "" {
 		memberDesc := memberID
 		if displayName != "" {
 			memberDesc = fmt.Sprintf("%s (%s)", displayName, role)
 		}
-		fields = append(fields, summary.Field{Label: "Member", Value: memberDesc})
+		fields = append(fields, summary.Field{Label: i18n.T("cmd.team.init.recap.member"), Value: memberDesc})
+	}
+	if staleDaysStr != "" {
+		fields = append(fields, summary.Field{Label: i18n.T("cmd.team.init.recap.stale_days"), Value: staleDaysStr})
+	}
+	if webhookURL != "" {
+		fields = append(fields, summary.Field{
+			Label: i18n.T("cmd.team.init.recap.notifs"),
+			Value: fmt.Sprintf("mattermost · %s", maskSecret(webhookURL)),
+		})
+	} else {
+		fields = append(fields, summary.Field{Label: i18n.T("cmd.team.init.recap.notifs"), Value: i18n.T("cmd.team.init.recap.notifs_none")})
 	}
 	if len(selectedPolicies) > 0 {
-		fields = append(fields, summary.Field{Label: "Policies", Value: fmt.Sprintf("%d active", len(selectedPolicies))})
+		fields = append(fields, summary.Field{
+			Label: i18n.T("cmd.team.init.recap.policies"),
+			Value: fmt.Sprintf("%s (%d)", strings.Join(selectedPolicies, ", "), len(selectedPolicies)),
+		})
 	}
 
 	fmt.Fprint(a.IO.Out, summary.Render(summary.Config{
@@ -1149,4 +1180,27 @@ func collectUsedMemberIDs(ctx context.Context, a *app.App) map[string]bool {
 		}
 	}
 	return used
+}
+
+// maskRepoURL strips credentials and scheme from a repo URL for safe display.
+// e.g. "https://oauth2:token@gitlab.com/group/repo.git" → "gitlab.com/group/repo.git"
+func maskRepoURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	u.User = nil
+	return u.Host + u.Path
+}
+
+// shortenPath replaces the user's home directory with "~" for display.
+func shortenPath(p string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return p
+	}
+	if strings.HasPrefix(p, home) {
+		return "~" + p[len(home):]
+	}
+	return p
 }
