@@ -495,7 +495,73 @@ Pendant l'exploration de [fichier/module/contexte], j'ai détecté que [descript
 ```
 → **TERMINER LA SESSION**
 
-### Phase 2 — Questions complémentaires traitées
+### Phase 2 — Questions complémentaires (questions à poser)
+
+> ⚠️ **Cas spécial — questions batch** : contrairement aux autres phases qui produisent une seule question de validation, la Phase 2 remonte **plusieurs questions de clarification** à poser à l'utilisateur. Utiliser le bloc `## Question batch pour l'orchestrator` (et non `## Question pour l'orchestrator`).
+
+```markdown
+## [Phase 2] Questions complémentaires
+
+Quelques questions issues de l'exploration pour affiner la planification :
+
+<Lister ici toutes les questions regroupées par catégorie (métier, technique, design) avec leur contexte — même contenu qu'en mode standalone>
+
+---
+
+## Retour intermédiaire vers orchestrator
+
+**Agent :** planner
+**Phase :** 2 — Questions complémentaires (en attente de réponses)
+**task_id :** <sessionID courant>
+
+**Résumé :** Exploration Phase 1 terminée. <N> questions de clarification identifiées — en attente de réponses avant de continuer.
+**Points clés :** <observations principales de Phase 1 — architecture, zones d'ombre, signaux détectés>
+
+---
+
+## Question batch pour l'orchestrator
+
+**Phase :** 2 — Questions complémentaires
+**task_id :** <sessionID courant>
+**Nombre de questions :** <N>
+
+**Contexte global :** <condensé des observations Phase 1 — architecture détectée, zones d'ombre identifiées, signaux — ce contexte aide l'utilisateur à répondre aux questions>
+
+### Questions
+
+#### Q1 — <header : ex "Objectif métier">
+**Question :** <texte exact de la question>
+**Options :**
+- `<label-a>` — <description>
+- `<label-b>` — <description>
+- `<label-c>` — <description si applicable>
+
+#### Q2 — <header : ex "Hors périmètre">
+**Question :** <texte exact de la question>
+**Options :**
+- `<label-a>` — <description>
+- `<label-b>` — <description>
+
+<Répéter pour chaque question de clarification identifiée — métier, technique, design>
+
+#### QN — Skip questions
+**Question :** Si vous préférez ne pas répondre aux questions ci-dessus, vous pouvez passer cette étape.
+**Options :**
+- `j-ai-repondu` — Continuer avec mes réponses
+- `skip-toutes` — Passer les clarifications — l'analyse restera partielle
+
+**Instruction de reprise :** "Réponses Phase 2 : [Q1: <option/texte>, Q2: <option/texte>, ...]. Reprendre depuis le traitement des réponses Phase 2."
+```
+→ **TERMINER LA SESSION**
+
+> **Règles de production du batch :**
+> - Inclure **toutes** les questions identifiées (métier + technique contextualisé + design si applicable + skip)
+> - Le `### Contexte global` doit contenir un condensé des observations Phase 1 (architecture, zones d'ombre, signaux) — c'est la seule info visible côté orchestrator
+> - Chaque question a son propre header `#### QN — <header>` avec question + options
+> - La dernière question est toujours le skip global
+> - Ne jamais appeler l'outil `question` — le batch structuré remplace l'outil en mode subagent
+
+### Phase 2 — Questions complémentaires (réponses traitées)
 
 ```markdown
 ## Retour intermédiaire vers orchestrator
@@ -673,3 +739,4 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 | Omettre le `task_id` dans les blocs | L'orchestrateur ne peut pas re-invoquer pour reprendre | **Toujours inclure** le sessionID |
 | Résumer le récap dans le bloc intermédiaire | L'utilisateur perd des informations critiques | **Ne jamais résumer** — copier intégralement |
 | Pause ad hoc pour des détails mineurs | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** |
+| Utiliser `## Question pour l'orchestrator` en Phase 2 | Les N questions sont comprimées en 1 — l'utilisateur ne voit pas les vraies questions | **Utiliser `## Question batch pour l'orchestrator`** avec toutes les questions individuelles |

@@ -295,11 +295,20 @@ L'utilisateur décrit une feature, un besoin ou un chantier.
 
 ### Réception d'une question montante depuis le planner
 
-Quand le planner atteint un checkpoint (fin de phase ou clarification critique), il termine sa session avec un bloc `## Question pour l'orchestrator`.
+Quand le planner atteint un checkpoint (fin de phase ou clarification critique), il termine sa session avec un bloc question. **Détecter le type de bloc** pour appliquer le bon traitement :
+
+| Bloc reçu | Type | Traitement |
+|-----------|------|------------|
+| `## Question pour l'orchestrator` | Question unitaire (fin de phase) | → **Cas B** ci-dessous |
+| `## Question batch pour l'orchestrator` | Questions multiples (Phase 2) | → **Cas C** ci-dessous |
 
 > ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS afficher le contenu du bloc `## Retour intermédiaire vers orchestrator` AVANT d'appeler l'outil `question`. Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte.
 
-**Comportement obligatoire :**
+---
+
+**Cas B — Question unitaire (fin de phase) :**
+
+Le résultat contient `## Question pour l'orchestrator` (mais PAS `## Question batch`).
 
 1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — ne jamais résumer ni abréger.
 
@@ -334,9 +343,75 @@ Quand le planner atteint un checkpoint (fin de phase ou clarification critique),
    > `[CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif.`
    > `[SKILL:planning/planner-subagent]`
 
-5. **Attendre le nouveau résultat** et recommencer la détection (Cas A ou Cas B).
+5. **Attendre le nouveau résultat** et recommencer la détection (Cas A, B ou C).
 
-**Cas C — session introuvable :** si la ré-invocation avec `task_id` ne produit pas de résultat :
+---
+
+**Cas C — Question batch montante (Phase 2 — questions de clarification) :**
+
+Le résultat contient `## Question batch pour l'orchestrator`. Ce bloc est produit par le planner en Phase 2 et contient **plusieurs questions de clarification** à poser à l'utilisateur en un seul appel.
+
+> ⚠️ Ce cas est **spécifique à la Phase 2** du planner. C'est le seul moment où un batch de questions remonte.
+
+**Comportement obligatoire :**
+
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — y compris le contexte global (observations Phase 1).
+
+2. **Lire le bloc `## Question batch pour l'orchestrator`** — récupérer : le contexte global, chaque question (header, question, options), `task_id`, instruction de reprise.
+
+3. **Afficher le contexte global** du batch dans la discussion (résumé de l'exploration Phase 1) — ne pas inclure dans l'outil `question`.
+
+4. **Poser TOUTES les questions à l'utilisateur** via un **seul appel `question`** avec une entrée par question du batch :
+
+   ```
+   question({
+     questions: [
+       {
+         header: "<header Q1 — ex: Objectif métier>",
+         question: "[Planner — Phase 2 | Feature : <nom>]\n<question exacte de Q1>",
+         options: [
+           { label: "<label-a>", description: "<description>" },
+           { label: "<label-b>", description: "<description>" }
+         ]
+       },
+       {
+         header: "<header Q2 — ex: Hors périmètre>",
+         question: "[Planner — Phase 2 | Feature : <nom>]\n<question exacte de Q2>",
+         options: [
+           { label: "<label-a>", description: "<description>" },
+           { label: "<label-b>", description: "<description>" }
+         ]
+       },
+       // ... une entrée par question du batch
+       {
+         header: "Skip questions",
+         question: "[Planner — Phase 2 | Feature : <nom>]\nSi vous préférez ne pas répondre, vous pouvez passer cette étape.",
+         options: [
+           { label: "J'ai répondu", description: "Continuer avec mes réponses" },
+           { label: "Skip toutes", description: "Passer les clarifications" }
+         ]
+       }
+     ]
+   })
+   ```
+
+   > **Règle critique :** reproduire **chaque question** du batch dans l'appel `question` — ne jamais les résumer en une seule question "Voulez-vous répondre aux questions ?", et ne jamais demander "ignorer ou répondre".
+
+5. **Ré-invoquer le planner avec `task_id`** en transmettant **toutes les réponses** :
+
+   ```
+   task(
+     subagent_type: "planner",
+     task_id: "<task_id du bloc>",
+     prompt: "<Instruction de reprise du bloc>. Réponses Phase 2 : [Q1 (<header>): <réponse>, Q2 (<header>): <réponse>, ...]. [CONTEXTE] Invoqué depuis l'orchestrateur feature. Mécanisme d'interruption actif. [SKILL:planning/planner-subagent]"
+   )
+   ```
+
+6. **Attendre le nouveau résultat** et recommencer la détection (Cas A, B ou C).
+
+---
+
+**Cas D — session introuvable :** si la ré-invocation avec `task_id` ne produit pas de résultat :
 
 ```
 question({

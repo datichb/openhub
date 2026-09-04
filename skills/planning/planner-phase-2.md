@@ -80,7 +80,9 @@ Quelques questions issues de l'exploration pour affiner la planification :
 
 Puis appeler l'outil `question` avec **une question par clarification** :
 
-> **Si CONTEXTE = orchestrator_feature** : enrichir le champ `question` de la **première question** avec un condensé des observations Phase 1 (architecture, zones d'ombre, signaux détectés) — c'est la seule information visible dans la session parent.
+> ⚠️ **Si CONTEXTE = orchestrator_feature** : **NE PAS appeler l'outil `question`**. Utiliser le format `## Question batch pour l'orchestrator` défini dans `planner-execution-modes` (section "Phase 2 — Questions complémentaires (questions à poser)"). Les questions ci-dessous servent de **modèle de contenu** — le format de sortie change selon le contexte d'invocation.
+
+**Si CONTEXTE = standalone :**
 
 ```
 question({
@@ -240,6 +242,12 @@ question({
   }]
 })
 ```
+
+**Si CONTEXTE = orchestrator_feature :**
+
+La question de validation est incluse dans le bloc `## Question pour l'orchestrator` standard (Phase 2 — réponses traitées) défini dans `planner-execution-modes`. Ce bloc est produit **après** la ré-invocation avec les réponses de l'utilisateur — voir le format "Phase 2 — Questions complémentaires (réponses traitées)" dans `planner-execution-modes`.
+
+> ❌ Ne jamais appeler l'outil `question` en mode subagent — toujours terminer la session avec les blocs structurés.
 
 **Selon la réponse (dans tous les contextes) :**
 - **Passer à Phase 3** → Phase 3

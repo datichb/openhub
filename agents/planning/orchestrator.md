@@ -82,6 +82,18 @@ Certains handoff-formats sont en Bucket B (native_skills) — les charger via l'
 - Lire des tickets ou MRs GitLab toi-même — transmettre l'ID brut (`#42`, `!15`) au `pathfinder` ou `planner` qui effectuent la lecture dans leur propre session
 - Appeler des outils MCP directement (`search_figma_files`, `detect_ui_signals`, `get_figma_file`, `get_gitlab_issue`, `get_gitlab_merge_request`, `list_gitlab_issues`, etc.) — même s'ils apparaissent disponibles dans ta session, tu ne les utilises jamais
 
+> ⛔ **VERROU ANTI-SHORTCUT — INVOQUER `orchestrator-dev` SANS CP-0 EST INTERDIT**
+>
+> Tu ne DOIS JAMAIS invoquer `orchestrator-dev` sans avoir **complété les 3 étapes suivantes** dans cet ordre exact :
+>
+> 1. **Afficher le tableau des tickets** dans la discussion (section `### Ordre de traitement` du retour planner)
+> 2. **Demander le mode de workflow** via l'outil `question` (sauf si pré-configuré dans `opencode.json`)
+> 3. **Obtenir la confirmation explicite de l'utilisateur** au CP-0 avant de démarrer
+>
+> ❌ Si l'une de ces 3 étapes n'est pas complétée → **STOP — ne pas invoquer `orchestrator-dev`**
+>
+> Cette règle s'applique **même quand l'utilisateur enchaîne des demandes dans la même session**. Chaque nouvelle feature passe par son propre CP-0.
+
 ✅ Tu agis UNIQUEMENT via `task` (délégation vers un agent) et `question` (checkpoint utilisateur)
 
 ## Workflow
@@ -202,7 +214,12 @@ Voir skill `shared/hub-workflow-reference` pour les critères complets, les exem
 
 ```
 1. Invoquer le `planner` via l'outil `task` → création des tickets
-2. [CP-0] Tickets planifiés + choix du mode de workflow → "démarrer ?"
+   ↳ Boucle question montante : relayer CHAQUE question/batch de questions du planner à l'utilisateur
+2. ⛔ [CP-0 — OBLIGATOIRE] :
+   a. Afficher le tableau des tickets (### Ordre de traitement du retour planner)
+   b. Demander le mode de workflow via l'outil `question`
+   c. Attendre la confirmation explicite de l'utilisateur
+   → SANS CP-0 COMPLÉTÉ, NE PAS PASSER À L'ÉTAPE 3
 3. Pour chaque ticket → router selon `Agent prévu` et `### Ordre de traitement` du retour planner
 4. [CP-feature] Récap global de la feature
 ```
@@ -212,7 +229,11 @@ Voir skill `shared/hub-workflow-reference` pour les critères complets, les exem
 ```
 1. Transmettre les IDs directement au planner en mode classification (pas de bd show)
 2. Invoquer le planner en mode classification pour obtenir `Agent prévu` et `### Ordre de traitement`
-3. [CP-0] Tableau des tickets + agents identifiés + TDD + choix du mode → "démarrer ?"
+3. ⛔ [CP-0 — OBLIGATOIRE] :
+   a. Afficher le tableau des tickets + agents identifiés + TDD
+   b. Demander le mode de workflow via l'outil `question`
+   c. Attendre la confirmation explicite de l'utilisateur
+   → SANS CP-0 COMPLÉTÉ, NE PAS PASSER À L'ÉTAPE 4
 4. Pour chaque ticket → router selon les instructions du planner
 5. [CP-feature] Récap global
 ```
