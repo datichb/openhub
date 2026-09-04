@@ -82,10 +82,11 @@ func (v *ProjectConfigView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectConfigView) ID() string    { return "project.config" }
 func (v *ProjectConfigView) Title() string { return i18n.T("tui.project.title") }
 func (v *ProjectConfigView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · e %s · w %s · u %s · Esc %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · w %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
+		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),

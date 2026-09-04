@@ -40,7 +40,7 @@ func (v *ActivityView) Title() string { return i18n.T("tui.team.activity") }
 
 // StatusHints returns keybinding hints.
 func (v *ActivityView) StatusHints() string {
-	return fmt.Sprintf("t %s · w %s · a %s · r %s · Esc %s", i18n.T("tui.hints.today"), i18n.T("tui.hints.week"), i18n.T("tui.hints.all"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("t %s · w %s · 0 %s · r %s · Esc %s", i18n.T("tui.hints.today"), i18n.T("tui.hints.week"), i18n.T("tui.hints.all"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the activity stream.
@@ -75,7 +75,7 @@ func (v *ActivityView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.filter = "week"
 		v.refresh()
 		return nil
-	case 'a':
+	case '0':
 		v.filter = "all"
 		v.refresh()
 		return nil

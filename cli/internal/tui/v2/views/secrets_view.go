@@ -78,8 +78,9 @@ func (v *SecretsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SecretsView) ID() string             { return "secrets" }
 func (v *SecretsView) Title() string          { return "Secrets & Tokens" }
 func (v *SecretsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · e %s · a %s · d %s · r %s · Esc %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · e %s · a %s · d %s · r %s · Esc %s",
 		i18n.T("tui.hints.nav"), i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.edit"), i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"),
 		i18n.T("tui.hints.back"))

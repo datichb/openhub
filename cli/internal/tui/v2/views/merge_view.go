@@ -62,8 +62,9 @@ func (v *MergeView) Title() string { return "Merge" }
 
 // StatusHints returns keybinding hints.
 func (v *MergeView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · m %s · s %s · Esc %s",
+	return fmt.Sprintf("j/k %s · Enter %s · m %s · s %s · Esc %s",
 		i18n.T("tui.hints.branches"),
+		i18n.T("tui.hints.merge"),
 		i18n.T("tui.hints.merge"),
 		i18n.T("tui.hints.skip"),
 		i18n.T("tui.hints.back"),
@@ -138,6 +139,10 @@ func (v *MergeView) Unmount() {
 
 // HandleKey processes merge view key events.
 func (v *MergeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if event.Key() == tcell.KeyEnter {
+		v.handleMerge()
+		return nil
+	}
 	switch event.Rune() {
 	case 'm':
 		v.handleMerge()

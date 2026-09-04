@@ -75,10 +75,11 @@ func (v *ProviderView) Title() string { return "Provider" }
 
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · s %s · w %s · r %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · s %s · d reset · w %s · r %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
+		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.setup"),
 		i18n.T("tui.hints.save"),

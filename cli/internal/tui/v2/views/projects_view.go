@@ -38,6 +38,7 @@ type ProjectsViewConfig struct {
 	Projects         []ProjectItem
 	AvailableAgents  []string // agents discovered from hub/agents/*.md
 	KnownMCPServices []string // MCP service names known by hub (e.g. figma, gitlab, gslides)
+	RefreshFunc      func() []ProjectItem // optional — if set, called on 'r' to reload project list
 }
 
 // ProjectsView displays the list of registered projects with full CRUD.
@@ -108,8 +109,9 @@ func (v *ProjectsView) Title() string { return "Projets" }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · p %s · b %s · c %s · r %s · m %s · a %s · d %s",
+	return fmt.Sprintf("j/k %s · Enter %s · p %s · b %s · c %s · n %s · m %s · a %s · d %s · r %s",
 		i18n.T("tui.hints.navigate"),
+		i18n.T("tui.hints.configure"),
 		i18n.T("tui.hints.project_mode"),
 		i18n.T("tui.hints.init_board"),
 		i18n.T("tui.hints.configure"),
@@ -117,6 +119,7 @@ func (v *ProjectsView) StatusHints() string {
 		i18n.T("tui.hints.move"),
 		i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.delete"),
+		i18n.T("tui.hints.refresh"),
 	)
 }
 
@@ -207,7 +210,7 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'c':
 		v.configureProject()
 		return nil
-	case 'r':
+	case 'n':
 		v.renameProject()
 		return nil
 	case 'm':
@@ -218,6 +221,9 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'b':
 		v.initBeads()
+		return nil
+	case 'r':
+		v.refreshProjects()
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -561,5 +567,29 @@ func (v *ProjectsView) initBeads() {
 	p := v.cfg.Projects[idx]
 	if v.onInitBeads != nil {
 		v.onInitBeads(p.ID, p.Name, p.Path)
+	}
+}
+
+// refreshProjects reloads the project list from the store via RefreshFunc.
+func (v *ProjectsView) refreshProjects() {
+	if v.cfg.RefreshFunc == nil {
+		return
+	}
+	v.cfg.Projects = v.cfg.RefreshFunc()
+	if v.list == nil {
+		return
+	}
+	v.list.Clear()
+	for _, p := range v.cfg.Projects {
+		v.list.AddItem(p.Name, "    "+p.Path, 0, nil)
+	}
+	if len(v.cfg.Projects) == 0 {
+		muted := theme.ColorTag(theme.TextMutedHex)
+		v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
+	} else {
+		v.showDetail(v.cfg.Projects[0])
+	}
+	if v.shell != nil {
+		v.shell.ShowToastMsg("Liste des projets rafraîchie", true)
 	}
 }

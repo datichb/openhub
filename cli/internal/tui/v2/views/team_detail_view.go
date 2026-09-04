@@ -91,7 +91,7 @@ func (v *TeamDetailView) ID() string             { return "team.detail" }
 func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
 func (v *TeamDetailView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"), i18n.T("tui.hints.del"), i18n.T("tui.hints.refresh"))
+	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"), i18n.T("tui.hints.del"), i18n.T("tui.hints.undo"), i18n.T("tui.hints.refresh"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

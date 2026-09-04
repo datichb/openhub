@@ -47,7 +47,7 @@ func (v *MetricsView) Title() string { return "Métriques" }
 
 // StatusHints returns keybinding hints.
 func (v *MetricsView) StatusHints() string {
-	return fmt.Sprintf("7 %s · 3 %s · a %s · Tab %s · Esc %s", i18n.T("tui.hints.week"), i18n.T("tui.hints.month"), i18n.T("tui.hints.all"), i18n.T("tui.hints.usage_agents"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("7 %s · 3 %s · 0 %s · Tab %s · Esc %s", i18n.T("tui.hints.week"), i18n.T("tui.hints.month"), i18n.T("tui.hints.all"), i18n.T("tui.hints.usage_agents"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the metrics display with real data.
@@ -102,7 +102,7 @@ func (v *MetricsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.period = "30d"
 		v.asyncRender()
 		return nil
-	case event.Rune() == 'a':
+	case event.Rune() == '0':
 		v.period = "all"
 		v.asyncRender()
 		return nil
@@ -194,7 +194,7 @@ func (v *MetricsView) buildAgentsText() string {
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [a] tout ───%s\n",
+	sb.WriteString(fmt.Sprintf("\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [0] tout ───%s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
 
 	return sb.String()
@@ -270,7 +270,7 @@ func (v *MetricsView) buildUsageText() string {
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalCost))
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  %s─── Période: [7] semaine · [3] mois · [a] tout ───%s\n",
+	sb.WriteString(fmt.Sprintf("\n  %s─── Période: [7] semaine · [3] mois · [0] tout ───%s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
 
 	// Optimization suggestions

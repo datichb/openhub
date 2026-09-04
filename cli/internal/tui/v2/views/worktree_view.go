@@ -55,7 +55,7 @@ func (v *WorktreeView) Title() string { return "Worktrees" }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · a %s · d %s · o %s · s %s · p %s · C %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · o %s · s %s · p %s · x %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.open"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.sync"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
 }
 
 // Mount builds the worktree list.
@@ -86,6 +86,10 @@ func (v *WorktreeView) Unmount() {
 
 // HandleKey processes worktree view key events.
 func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if event.Key() == tcell.KeyEnter {
+		v.openInTerminal()
+		return nil
+	}
 	switch event.Rune() {
 	case 'r':
 		v.refresh()
@@ -102,7 +106,7 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'p':
 		v.pruneWorktrees()
 		return nil
-	case 'C':
+	case 'x':
 		v.cleanupWorktrees()
 		return nil
 	case 's':

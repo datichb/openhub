@@ -90,9 +90,10 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := fmt.Sprintf("h/l %s · j/k %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
+	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
 		i18n.T("tui.hints.columns"),
 		i18n.T("tui.hints.items"),
+		i18n.T("tui.hints.detail"),
 		i18n.T("tui.hints.search"),
 		i18n.T("tui.hints.filter"),
 		i18n.T("tui.hints.claim"),
@@ -175,6 +176,18 @@ func (v *TeamBoardView) Unmount() {
 
 // HandleKey processes team board key events.
 func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	switch event.Key() {
+	case tcell.KeyEnter:
+		v.showTicketDetail()
+		return nil
+	case tcell.KeyRight:
+		v.moveFocus(1)
+		return nil
+	case tcell.KeyLeft:
+		v.moveFocus(-1)
+		return nil
+	}
+
 	switch event.Rune() {
 	case 'l':
 		v.moveFocus(1)
@@ -210,21 +223,6 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 's':
 		v.changeStatus()
 		return nil
-	}
-
-	switch event.Key() {
-	case tcell.KeyRight:
-		v.moveFocus(1)
-		return nil
-	case tcell.KeyLeft:
-		v.moveFocus(-1)
-		return nil
-	case tcell.KeyEscape:
-		// Clear filters on Escape if any are active
-		if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
-			v.clearFilters()
-			return nil
-		}
 	}
 
 	return event
@@ -377,6 +375,58 @@ func (v *TeamBoardView) refreshOnEventLoop(columns []BoardColumnDef) {
 	}
 	tickets := v.cfg.RefreshFunc()
 	v.populateColumns(tickets, columns)
+}
+
+// ─── Ticket Detail ───────────────────────────────────────────────────────────
+
+// showTicketDetail displays a scrollable modal with the selected ticket's info.
+func (v *TeamBoardView) showTicketDetail() {
+	if v.shell == nil {
+		return
+	}
+	ticketID := v.selectedTicketID()
+	if ticketID == "" {
+		return
+	}
+
+	// Find the full ticket data
+	var ticket *TeamTicket
+	for i := range v.allTickets {
+		if v.allTickets[i].ID == ticketID {
+			ticket = &v.allTickets[i]
+			break
+		}
+	}
+	if ticket == nil {
+		return
+	}
+
+	// Build detail content
+	var detail strings.Builder
+	detail.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset))
+	detail.WriteString(fmt.Sprintf("  %sID:%s         %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID))
+	detail.WriteString(fmt.Sprintf("  %sStatut:%s     %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Status))
+
+	assignee := "-"
+	if ticket.Assignee != "" {
+		assignee = "@" + ticket.Assignee
+	}
+	detail.WriteString(fmt.Sprintf("  %sAssignee:%s   %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, assignee))
+
+	if ticket.Priority != "" {
+		detail.WriteString(fmt.Sprintf("  %sPriorité:%s   %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Priority))
+	}
+
+	if len(ticket.Labels) > 0 {
+		detail.WriteString(fmt.Sprintf("  %sLabels:%s     %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", ")))
+	}
+
+	v.shell.ShowScrollableModal("Ticket: "+ticket.ID, detail.String(), []ModalAction{{Label: "Fermer", Callback: nil}})
 }
 
 // ─── Ticket Actions ──────────────────────────────────────────────────────────
@@ -538,9 +588,12 @@ func (v *TeamBoardView) showSearchFilter() {
 	}
 	v.shell.ShowInputModal("Rechercher (titre/ID/assignee)", v.filterText, func(text string) {
 		v.filterText = text
-		v.repopulateWithFilters()
-		if text != "" {
-			v.shell.ShowToastMsg("Filtre: \""+text+"\" (Esc pour effacer)", true)
+		if text == "" {
+			// Empty search clears all filters (replaces Esc clear-filter behavior)
+			v.clearFilters()
+		} else {
+			v.repopulateWithFilters()
+			v.shell.ShowToastMsg("Filtre: \""+text+"\" (/ vide pour effacer)", true)
 		}
 	})
 }

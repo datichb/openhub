@@ -79,6 +79,11 @@ func (v *TeamsView) Unmount() {}
 
 func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
+	case tcell.KeyEnter:
+		if _, item, ok := v.list.CurrentItem(); ok {
+			v.handleSelect(0, item)
+		}
+		return nil
 	case tcell.KeyRune:
 		switch event.Rune() {
 		case 'a':
