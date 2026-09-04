@@ -391,6 +391,13 @@ func buildHelpSections() []helpSection {
 				{Name: "team activity", Desc: i18n.T("help.cmd.team.activity")},
 				{Name: "team board", Desc: i18n.T("help.cmd.team.board")},
 				{
+					Name: "team notify test",
+					Desc: "Envoie une notification de test",
+					Flags: []helpFlag{
+						{"message", "m", "Message personnalisé"},
+					},
+				},
+				{
 					Name: "claim",
 					Desc: i18n.T("help.cmd.claim"),
 					Flags: []helpFlag{
