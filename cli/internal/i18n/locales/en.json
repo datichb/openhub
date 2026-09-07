@@ -830,7 +830,7 @@
   "cmd.teams.remove.long": "Remove a team from the hub. Attached projects become solo projects.",
   "tui.teams": "Teams",
   "tui.team.detail": "Team Config",
-  "tui.team.board": "Board",
+  "tui.team.board": "Team Board",
   "tui.team.status": "Status",
   "tui.team.activity": "Activity",
   "tui.team.briefs": "Takeover Briefs",

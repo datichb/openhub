@@ -830,7 +830,7 @@
   "cmd.teams.remove.long": "Retire une équipe du hub. Les projets rattachés deviennent des projets solo.",
   "tui.teams": "Équipes",
   "tui.team.detail": "Config équipe",
-  "tui.team.board": "Board",
+  "tui.team.board": "Board Équipe",
   "tui.team.status": "Statut",
   "tui.team.activity": "Activité",
   "tui.team.briefs": "Reprises",
