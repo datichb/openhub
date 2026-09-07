@@ -161,7 +161,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 				pr.IssuesFetched, pr.ClaimsCreated, pr.ClaimsUpdated, pr.LabelsPushed))
 	}
 
-	if totalIssues == 0 {
+	if totalIssues == 0 && result.ClaimsCreated == 0 {
 		fmt.Fprintf(out, "\n  %s Aucune issue trouvée. Vérifiez:\n", theme.WarningStyle.Render("ℹ"))
 		fmt.Fprintf(out, "  · Le tracker_project correspond au projet GitLab (ID ou path)\n")
 		fmt.Fprintf(out, "  · Le token a accès au projet (scope read_api)\n")

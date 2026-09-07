@@ -63,6 +63,10 @@ type TeamStateWriter interface {
 
 	// Claims
 	CreateClaim(ctx context.Context, c Claim) (*Claim, error)
+	// CreateClaimLocal writes a claim file without committing or pushing.
+	// Returns the repo-relative path for use in a batch CommitAndPush.
+	// The caller MUST hold the write lock (via WithWriteLock).
+	CreateClaimLocal(c Claim) (relPath string, err error)
 	ReleaseClaim(ctx context.Context, project, ticketID string) error
 	TransferClaim(ctx context.Context, project, ticketID, newOwner string) error
 	UpdateClaimStatus(ctx context.Context, project, ticketID, newStatus string) error

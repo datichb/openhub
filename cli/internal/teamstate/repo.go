@@ -189,16 +189,21 @@ func (r *Repo) CommitAndPush(ctx context.Context, msg string, files ...string) e
 	return r.commitAndPush(ctx, msg, files...)
 }
 
-// withWriteLock executes fn while holding the write lock for the entire
+// WithWriteLock executes fn while holding the write lock for the entire
 // pull → mutate → commitAndPush cycle. This eliminates the race window that
 // exists when Pull() and CommitAndPush() are called as separate locked operations.
 //
-// fn receives the context and may call internal unlocked helpers:
-// r.getClaim, r.commitAndPush, r.pull, etc. It MUST NOT call the public
-// locked methods (Pull, CommitAndPush) as that would deadlock.
+// fn receives the context and may call internal unlocked helpers such as
+// CreateClaimLocal and commitAndPush. It MUST NOT call the public
+// locked methods (Pull, CommitAndPush, CreateClaim) as that would deadlock.
 //
 // A best-effort pull is performed before fn to ensure the working tree is fresh.
 // ErrNotCloned from pull is silently ignored (repo may be used locally without remote).
+func (r *Repo) WithWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
+	return r.withWriteLock(ctx, fn)
+}
+
+// withWriteLock is the internal implementation.
 func (r *Repo) withWriteLock(ctx context.Context, fn func(ctx context.Context) error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

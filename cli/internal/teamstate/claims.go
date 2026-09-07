@@ -233,6 +233,56 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 	return nil, nil
 }
 
+// CreateClaimLocal writes a claim file to disk without committing or pushing.
+// The caller is responsible for calling CommitAndPush after creating all claims.
+// Returns the repo-relative file path for use in the commit, or ErrClaimExists
+// if the ticket is already claimed.
+//
+// This is designed for batch operations (e.g. autoplan) where multiple claims
+// should be committed in a single git operation for performance.
+//
+// The caller MUST hold the repo write lock (via withWriteLock or mu.Lock).
+func (r *Repo) CreateClaimLocal(c Claim) (relPath string, err error) {
+	if _, err := SafeName(c.Project); err != nil {
+		return "", fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(c.TicketID); err != nil {
+		return "", fmt.Errorf("invalid ticket ID: %w", err)
+	}
+
+	// Check if already claimed
+	if _, err := r.getClaim(c.Project, c.TicketID); err == nil {
+		return "", ErrClaimExists
+	}
+
+	// Ensure project claims directory
+	dir := filepath.Join(r.path, "projects", c.Project, "claims")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating claims dir: %w", err)
+	}
+
+	// Write claim file
+	if c.ClaimedAt.IsZero() {
+		c.ClaimedAt = time.Now().UTC()
+	}
+	if c.Status == "" {
+		c.Status = "in_progress"
+	}
+
+	data, err := toml.Marshal(&c)
+	if err != nil {
+		return "", fmt.Errorf("marshaling claim: %w", err)
+	}
+
+	absPath := r.claimFilePath(c.Project, c.TicketID)
+	if err := os.WriteFile(absPath, data, 0o644); err != nil {
+		return "", fmt.Errorf("writing claim: %w", err)
+	}
+
+	slog.Info("teamstate.claim.create_local", "project", c.Project, "ticket", c.TicketID, "member", c.ClaimedBy)
+	return r.claimRelPath(c.Project, c.TicketID), nil
+}
+
 // ReleaseClaim removes a claim (ticket is done or abandoned).
 func (r *Repo) ReleaseClaim(ctx context.Context, project, ticketID string) error {
 	if _, err := SafeName(project); err != nil {

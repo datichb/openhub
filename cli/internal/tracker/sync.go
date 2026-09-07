@@ -309,6 +309,7 @@ func (e *Engine) reconcileProject(
 
 // autoplan creates "planned" claims for tracker issues assigned to team members
 // but not yet claimed. Respects MaxAutoPlanPerMember.
+// Claims are created locally in batch and committed in a single git operation.
 func (e *Engine) autoplan(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -324,6 +325,13 @@ func (e *Engine) autoplan(
 	}
 	// firstSync: lastSync is zero → no updated_after filter → fetch all open issues
 	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
+
+	// Collect all claims to create, then batch commit.
+	type pendingClaim struct {
+		claim   teamstate.Claim
+		relPath string
+	}
+	var pending []pendingClaim
 
 	plannedByMember := make(map[string]int)
 	for username, member := range memberByGitLab {
@@ -351,23 +359,51 @@ func (e *Engine) autoplan(
 				continue
 			}
 
-			_, claimErr := e.repo.CreateClaim(ctx, teamstate.Claim{
-				TicketID:    ticketID,
-				Project:     hubProjectID,
-				ClaimedBy:   member.ID,
-				Status:      teamstate.ClaimStatusPlanned,
-				ExternalIID: issue.IID,
+			pending = append(pending, pendingClaim{
+				claim: teamstate.Claim{
+					TicketID:    ticketID,
+					Project:     hubProjectID,
+					ClaimedBy:   member.ID,
+					Status:      teamstate.ClaimStatusPlanned,
+					ExternalIID: issue.IID,
+				},
 			})
-			if claimErr != nil && claimErr != teamstate.ErrClaimExists {
-				continue
-			}
-			slog.Debug("tracker.autoplan.created", "ticket", ticketID, "member", member.ID)
 			claimedTickets[ticketID] = true
 			plannedByMember[member.ID]++
-			pr.ClaimsCreated++
 		}
 	}
-	return nil
+
+	if len(pending) == 0 {
+		return nil
+	}
+
+	// Batch create: single pull → create all files → single commit+push
+	if err := e.repo.Pull(ctx); err != nil {
+		slog.Warn("tracker.autoplan.pull_failed", "error", err)
+		// Continue anyway — local creates may still succeed
+	}
+
+	var relPaths []string
+	for i := range pending {
+		relPath, err := e.repo.CreateClaimLocal(pending[i].claim)
+		if err != nil {
+			if err == teamstate.ErrClaimExists {
+				continue
+			}
+			slog.Warn("tracker.autoplan.create_failed", "ticket", pending[i].claim.TicketID, "error", err)
+			continue
+		}
+		relPaths = append(relPaths, relPath)
+		slog.Debug("tracker.autoplan.created", "ticket", pending[i].claim.TicketID, "member", pending[i].claim.ClaimedBy)
+		pr.ClaimsCreated++
+	}
+
+	if len(relPaths) == 0 {
+		return nil
+	}
+
+	msg := fmt.Sprintf("autoplan: %d tickets for %s", len(relPaths), hubProjectID)
+	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
