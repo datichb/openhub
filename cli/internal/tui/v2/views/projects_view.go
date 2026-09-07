@@ -109,12 +109,11 @@ func (v *ProjectsView) Title() string { return "Projets" }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · p %s · b %s · c %s · n %s · m %s · a %s · d %s · r %s",
+	return fmt.Sprintf("j/k %s · Enter %s · p %s · b %s · n %s · m %s · a %s · d %s · r %s",
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.configure"),
 		i18n.T("tui.hints.project_mode"),
 		i18n.T("tui.hints.init_board"),
-		i18n.T("tui.hints.configure"),
 		i18n.T("tui.hints.rename"),
 		i18n.T("tui.hints.move"),
 		i18n.T("tui.hints.add"),
@@ -207,9 +206,6 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'd':
 		v.removeProject()
 		return nil
-	case 'c':
-		v.configureProject()
-		return nil
 	case 'n':
 		v.renameProject()
 		return nil
@@ -227,7 +223,7 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
-		v.configureProject()
+		v.openProjectConfig()
 		return nil
 	}
 	return event
@@ -297,123 +293,6 @@ func (v *ProjectsView) removeProject() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Configure (language → provider → model → agents)
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Language options for project configuration.
-var projectLanguageOptions = []SelectOption{
-	{Label: "Go", Value: "go"},
-	{Label: "TypeScript", Value: "typescript"},
-	{Label: "Python", Value: "python"},
-	{Label: "Rust", Value: "rust"},
-	{Label: "Java", Value: "java"},
-	{Label: "Autre", Value: "other"},
-}
-
-// Provider options for project configuration.
-var projectProviderOptions = []SelectOption{
-	{Label: "Amazon Bedrock", Value: "bedrock"},
-	{Label: "Anthropic", Value: "anthropic"},
-	{Label: "OpenRouter", Value: "openrouter"},
-	{Label: "GitHub Copilot", Value: "github-copilot"},
-	{Label: "Hub (défaut)", Value: ""},
-}
-
-func (v *ProjectsView) configureProject() {
-	if v.shell == nil || v.list == nil {
-		return
-	}
-	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.cfg.Projects) {
-		return
-	}
-	project := v.cfg.Projects[idx]
-
-	// Build agent options
-	agentOptions := make([]SelectOption, len(v.cfg.AvailableAgents))
-	for i, ag := range v.cfg.AvailableAgents {
-		agentOptions[i] = SelectOption{Label: ag, Value: ag}
-	}
-
-	fields := []FormField{
-		{Key: "language", Label: "Langage", Type: FieldSelect, Options: projectLanguageOptions, Default: project.Language},
-		{Key: "provider", Label: "Provider", Type: FieldSelect, Options: projectProviderOptions, Default: project.Provider},
-		{Key: "model", Label: "Modèle", Type: FieldText, Default: project.Model},
-	}
-	if len(agentOptions) > 0 {
-		fields = append(fields, FormField{
-			Key: "agents", Label: "Agents", Type: FieldMultiSelect,
-			Options: agentOptions, DefaultMulti: project.Agents,
-		})
-	}
-
-	// MCP per-project overrides (tri-state: inherit / enabled / disabled)
-	mcpStateOptions := []SelectOption{
-		{Label: "Hérite hub", Value: "inherit"},
-		{Label: "Activer", Value: "enabled"},
-		{Label: "Désactiver", Value: "disabled"},
-	}
-	for _, svc := range v.cfg.KnownMCPServices {
-		current := "inherit"
-		if project.MCPOverrides != nil {
-			if val, ok := project.MCPOverrides[svc]; ok {
-				current = val
-			}
-		}
-		fields = append(fields, FormField{
-			Key:     "mcp." + svc,
-			Label:   "MCP " + svc,
-			Type:    FieldSelect,
-			Options: mcpStateOptions,
-			Default: current,
-		})
-	}
-
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title:  "Configurer: " + project.Name,
-		Fields: fields,
-		OnSubmit: func(values map[string]string, multi map[string][]string) {
-			mcpOverrides := make(map[string]string)
-			for _, svc := range v.cfg.KnownMCPServices {
-				if val, ok := values["mcp."+svc]; ok {
-					mcpOverrides[svc] = val
-				}
-			}
-			update := ProjectConfigUpdate{
-				Language:     values["language"],
-				Provider:     values["provider"],
-				Model:        values["model"],
-				Agents:       multi["agents"],
-				MCPOverrides: mcpOverrides,
-			}
-			v.applyConfiguration(idx, update)
-		},
-		OnCancel: nil,
-	})
-}
-
-func (v *ProjectsView) applyConfiguration(idx int, update ProjectConfigUpdate) {
-	if idx < 0 || idx >= len(v.cfg.Projects) {
-		return
-	}
-	project := &v.cfg.Projects[idx]
-
-	// Update local state
-	project.Language = update.Language
-	project.Provider = update.Provider
-	project.Model = update.Model
-	project.Agents = update.Agents
-	project.MCPOverrides = update.MCPOverrides
-
-	// Persist via callback
-	if v.onConfigure != nil {
-		v.onConfigure(project.ID, update)
-	}
-
-	// Refresh display
-	v.showDetail(*project)
-	if v.shell != nil {
-		v.shell.ShowToastMsg("Configuration mise à jour: "+project.Name, true)
-	}
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rename
@@ -553,6 +432,24 @@ func (v *ProjectsView) enterProjectMode() {
 			Path: p.Path,
 		})
 	}
+}
+
+// openProjectConfig activates the selected project and navigates to the full config view.
+func (v *ProjectsView) openProjectConfig() {
+	if v.shell == nil || v.list == nil {
+		return
+	}
+	idx := v.list.GetCurrentItem()
+	if idx < 0 || idx >= len(v.cfg.Projects) {
+		return
+	}
+	p := v.cfg.Projects[idx]
+	v.shell.SetActiveProject(&ActiveProject{
+		ID:   p.ID,
+		Name: p.Name,
+		Path: p.Path,
+	})
+	v.shell.NavigateTo("project.config")
 }
 
 // initBeads triggers beads initialization for the currently selected project.

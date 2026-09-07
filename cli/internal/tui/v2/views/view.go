@@ -120,6 +120,8 @@ type ShellAccess interface {
 	// SetProjectMode activates or deactivates project mode with the given project.
 	// Passing nil deactivates project mode (returns to hub mode).
 	SetProjectMode(project *ActiveProject)
+	// SetActiveProject sets the active project without triggering navigation.
+	SetActiveProject(project *ActiveProject)
 	// ActiveProject returns the currently active project, or nil in hub mode.
 	ActiveProject() *ActiveProject
 }

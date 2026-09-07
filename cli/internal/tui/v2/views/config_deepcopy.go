@@ -79,6 +79,12 @@ func deepCopyProject(p *domain.Project) domain.Project {
 		cp.TeamConfig = &tc
 	}
 
+	// Clone TrackerConfig
+	if p.TrackerConfig != nil {
+		tc := *p.TrackerConfig
+		cp.TrackerConfig = &tc
+	}
+
 	// Clone MCPConfig + Services slice
 	if p.MCPConfig != nil {
 		mc := *p.MCPConfig

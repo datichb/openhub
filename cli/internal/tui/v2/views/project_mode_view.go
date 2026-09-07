@@ -227,7 +227,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "◈", Label: "Debug", Desc: "Session de debug", Action: launch("")},
 		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet", Action: navigate("board")},
 		{Icon: "⊟", Label: "Métriques", Desc: "Statistiques d'utilisation", Action: navigate("metrics")},
-		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("projects.list")},
+		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("project.config")},
 		{Icon: "⊜", Label: "Worktrees", Desc: "Gérer les git worktrees", Action: navigate("worktrees")},
 		{Icon: "⊝", Label: "Statut", Desc: "Santé et informations du projet", Action: navigate("status")},
 	}
@@ -323,7 +323,7 @@ func (v *ProjectModeView) ContextCommands() []ContextCommand {
 		{ID: "project.metrics", Label: "Métriques", Aliases: []string{"stats", "tokens", "usage"},
 			Description: fmt.Sprintf("Métriques de %s", p.Name), Category: "Projet", Action: navigate("metrics")},
 		{ID: "project.config", Label: "Config Projet", Aliases: []string{"cfg", "settings", "config"},
-			Description: fmt.Sprintf("Configuration de %s", p.Name), Category: "Projet", Action: navigate("projects.list")},
+			Description: fmt.Sprintf("Configuration de %s", p.Name), Category: "Projet", Action: navigate("project.config")},
 		{ID: "project.worktrees", Label: "Worktrees", Aliases: []string{"wt", "git worktree"},
 			Description: fmt.Sprintf("Worktrees de %s", p.Name), Category: "Projet", Action: navigate("worktrees")},
 		{ID: "project.status", Label: "Statut", Aliases: []string{"stat", "info", "health"},
