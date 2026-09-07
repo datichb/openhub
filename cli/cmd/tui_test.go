@@ -29,11 +29,20 @@ func TestBuildCommands(t *testing.T) {
 	}
 
 	assert.True(t, ids["start"], "should have start command")
-	assert.True(t, ids["board"], "should have board command")
 	assert.True(t, ids["settings"], "should have settings command")
 	assert.True(t, ids["doctor"], "should have doctor command")
 	assert.True(t, ids["quit"], "should have quit command")
 	assert.True(t, ids["home"], "should have home command")
+
+	// Project-scoped commands (board, deploy, sync, project-config) are conditional
+	// on having at least one active project (ADR-032). With nil Projects store,
+	// they should NOT be registered.
+	assert.False(t, ids["board"], "board should not be registered without projects")
+	assert.False(t, ids["deploy"], "deploy should not be registered without projects")
+
+	// Team commands should not be registered without a team configured.
+	assert.False(t, ids["team.board"], "team.board should not be registered without team")
+	assert.False(t, ids["team-detail"], "team-detail should not be registered without team")
 }
 
 func TestBuildCommands_HasCategories(t *testing.T) {

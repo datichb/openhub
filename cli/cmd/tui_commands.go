@@ -381,8 +381,11 @@ func buildCommands(a *app.App) []shell.Command {
 	}
 
 	// ── Project commands — only registered when at least one project exists (ADR-032) ──
-	projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-	hasProject := len(projects) > 0
+	hasProject := false
+	if a.Projects != nil {
+		projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+		hasProject = len(projects) > 0
+	}
 	if hasProject {
 		commands = append(commands,
 			shell.Command{
