@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -109,22 +110,25 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	}
 	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
 
-	// Spinner feedback during sync
+	// Spinner feedback during sync (disabled in verbose mode to avoid log interference)
 	spinDone := make(chan struct{})
-	go func() {
-		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-		msg := i18n.Tf("cmd.team.sync_tracker.running", teamCfg.Tracker.Type)
-		for i := 0; ; i++ {
-			select {
-			case <-spinDone:
-				fmt.Fprintf(a.IO.ErrOut, "\r%s\r", strings.Repeat(" ", len(msg)+4))
-				return
-			default:
-				fmt.Fprintf(a.IO.ErrOut, "\r%s %s", frames[i%len(frames)], msg)
-				time.Sleep(80 * time.Millisecond)
+	showSpinner := !slog.Default().Enabled(context.Background(), slog.LevelDebug)
+	if showSpinner {
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			msg := i18n.Tf("cmd.team.sync_tracker.running", teamCfg.Tracker.Type)
+			for i := 0; ; i++ {
+				select {
+				case <-spinDone:
+					fmt.Fprintf(a.IO.ErrOut, "\r%s\r", strings.Repeat(" ", len(msg)+4))
+					return
+				default:
+					fmt.Fprintf(a.IO.ErrOut, "\r%s %s", frames[i%len(frames)], msg)
+					time.Sleep(80 * time.Millisecond)
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	result, err := engine.Run(ctx)
 	close(spinDone)

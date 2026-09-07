@@ -170,6 +170,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		memberID           string
 		displayName        string
 		gitlabUsername     string
+		trackerUsername    string
 		mattermostUsername string
 		role               string
 
@@ -209,6 +210,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			if err == nil && existing != nil {
 				displayName = existing.DisplayName
 				gitlabUsername = existing.GitLabUsername
+				trackerUsername = existing.TrackerUsername
 				mattermostUsername = existing.MattermostUsername
 				role = existing.Role
 			}
@@ -299,6 +301,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				if err == nil && existing != nil {
 					displayName = existing.DisplayName
 					gitlabUsername = existing.GitLabUsername
+					trackerUsername = existing.TrackerUsername
 					mattermostUsername = existing.MattermostUsername
 					role = existing.Role
 				}
@@ -397,6 +400,10 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					i18n.T("cmd.team.init.identity_mattermost"),
 					mattermostUsername, 0, nil,
 					func(text string) { mattermostUsername = text })
+				form.AddInputField(
+					"Username tracker (optionnel)",
+					trackerUsername, 0, nil,
+					func(text string) { trackerUsername = text })
 				roles := []string{"lead", "dev", "reviewer"}
 				roleIdx := 0
 				for i, r := range roles {
@@ -417,6 +424,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					ID:                 memberID,
 					DisplayName:        displayName,
 					GitLabUsername:     gitlabUsername,
+					TrackerUsername:    trackerUsername,
 					MattermostUsername: mattermostUsername,
 					Role:               role,
 					DefaultMode:        "semi-auto",
@@ -462,6 +470,10 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					i18n.T("cmd.team.init.identity_mattermost"),
 					mattermostUsername, 0, nil,
 					func(text string) { mattermostUsername = text })
+				form.AddInputField(
+					"Username tracker (optionnel)",
+					trackerUsername, 0, nil,
+					func(text string) { trackerUsername = text })
 				roles := []string{"lead", "dev", "reviewer"}
 				roleIdx := 0
 				for i, r := range roles {
@@ -482,6 +494,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					ID:                 memberID,
 					DisplayName:        displayName,
 					GitLabUsername:     gitlabUsername,
+					TrackerUsername:    trackerUsername,
 					MattermostUsername: mattermostUsername,
 					Role:               role,
 					DefaultMode:        "semi-auto",

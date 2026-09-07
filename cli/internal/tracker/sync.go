@@ -127,8 +127,15 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	}
 	memberByGitLab := make(map[string]teamstate.Member, len(members))
 	for _, m := range members {
-		if m.GitLabUsername != "" {
-			memberByGitLab[strings.ToLower(m.GitLabUsername)] = m
+		// TrackerUsername takes priority over GitLabUsername for tracker sync.
+		// This allows teams to use a different GitLab/Jira instance for the tracker
+		// than the one used for the team-state repo.
+		username := m.TrackerUsername
+		if username == "" {
+			username = m.GitLabUsername
+		}
+		if username != "" {
+			memberByGitLab[strings.ToLower(username)] = m
 		}
 	}
 	slog.Debug("tracker.sync.members", "count", len(members))
@@ -290,7 +297,8 @@ func (e *Engine) reconcileProject(
 
 	// ── Auto-plan: assigned issues without a claim ────────────────────────────
 	if e.cfg.AutoPlanAssigned {
-		if err := e.autoplan(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab, claimedTickets, &pr); err != nil {
+		firstSync := len(claims) == 0
+		if err := e.autoplan(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab, claimedTickets, firstSync, &pr); err != nil {
 			// Non-fatal — log but continue.
 			slog.Warn("tracker.autoplan.failed", "project", hubProjectID, "error", err)
 		}
@@ -307,10 +315,15 @@ func (e *Engine) autoplan(
 	trackerType Type,
 	memberByGitLab map[string]teamstate.Member,
 	claimedTickets map[string]bool,
+	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
-	lastSync := e.state.LastSync(trackerType, trackerProjectID)
-	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab))
+	var lastSync time.Time
+	if !firstSync {
+		lastSync = e.state.LastSync(trackerType, trackerProjectID)
+	}
+	// firstSync: lastSync is zero → no updated_after filter → fetch all open issues
+	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
 
 	plannedByMember := make(map[string]int)
 	for username, member := range memberByGitLab {
