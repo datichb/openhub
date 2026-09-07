@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,6 +14,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
+
+// BeadsSummary holds the task completion count for a tracker ticket's linked beads.
+type BeadsSummary struct {
+	Done  int
+	Total int
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TeamBoardView — View interface adapter for the team kanban board
@@ -34,6 +41,10 @@ type TeamBoardViewConfig struct {
 	// IsConfigured returns whether the team-state repo is resolved and cloned.
 	// Used to display an appropriate empty-state message (ADR-032).
 	IsConfigured func() bool
+	// BeadsSummaryFunc returns bead task counts keyed by external ref (e.g. "gitlab-693").
+	// Called on a separate goroutine with a longer interval (ADR-032).
+	// If nil, no badge is displayed.
+	BeadsSummaryFunc func() map[string]BeadsSummary
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -75,6 +86,10 @@ type TeamBoardView struct {
 
 	// Debouncing: prevents double-press on non-modal actions (claim, release, refresh).
 	actionInProgress bool
+
+	// Beads summary cache — populated by a background goroutine (ADR-032).
+	// Stores a map[string]BeadsSummary keyed by external ref (e.g. "gitlab-693").
+	beadsSummary atomic.Value // holds map[string]BeadsSummary
 }
 
 var _ View = (*TeamBoardView)(nil)
@@ -197,6 +212,21 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		})
 		go v.refreshLoop(rate, columns)
 	}
+
+	// Start beads summary goroutine — separate, slower interval (ADR-032).
+	if v.cfg.BeadsSummaryFunc != nil {
+		// Initial fetch
+		go func() {
+			summary := v.cfg.BeadsSummaryFunc()
+			if summary != nil {
+				v.beadsSummary.Store(summary)
+				// Trigger a repaint with the badges
+				v.refresh(columns)
+			}
+		}()
+		// Periodic refresh (30s)
+		go v.beadsSummaryLoop(30*time.Second, columns)
+	}
 }
 
 // Unmount stops the refresh goroutine.
@@ -300,7 +330,21 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 						theme.AccentHex, tview.Escape(t.Project))
 				}
 				labelStr := formatTicketLabels(t.Labels)
-				v.columnLists[i].AddItem(projectTag+t.Title+assignee+labelStr, t.ID, 0, nil)
+				// Beads badge: [done/total] when linked beads exist (ADR-032)
+				badgeStr := ""
+				if summary := v.getBeadsSummary(); summary != nil {
+					// Construct the external ref key from the tracker ticket ID.
+					// The BeadsSummaryFunc returns keys in external_ref format (e.g. "gitlab-693").
+					// TeamTicket.ID is the bare tracker ticket ID (e.g. "693").
+					if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
+						color := theme.TextMutedHex
+						if bs.Done == bs.Total {
+							color = theme.SuccessHex
+						}
+						badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
+					}
+				}
+				v.columnLists[i].AddItem(projectTag+t.Title+badgeStr+assignee+labelStr, t.ID, 0, nil)
 				break
 			}
 		}
@@ -520,6 +564,39 @@ func (v *TeamBoardView) refreshOnEventLoop(columns []BoardColumnDef) {
 	}
 	tickets := v.cfg.RefreshFunc()
 	v.populateColumns(tickets, columns)
+}
+
+// beadsSummaryLoop periodically refreshes the beads summary cache (ADR-032).
+// Uses a separate, slower interval than the main refresh loop to avoid
+// spawning too many bd subprocess invocations.
+func (v *TeamBoardView) beadsSummaryLoop(rate time.Duration, columns []BoardColumnDef) {
+	ticker := time.NewTicker(rate)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-v.done:
+			return
+		case <-ticker.C:
+			if v.cfg.BeadsSummaryFunc == nil {
+				return
+			}
+			summary := v.cfg.BeadsSummaryFunc()
+			if summary != nil {
+				v.beadsSummary.Store(summary)
+				// Trigger repaint to show updated badges
+				v.refresh(columns)
+			}
+		}
+	}
+}
+
+// getBeadsSummary returns the cached beads summary map, or nil if not loaded yet.
+func (v *TeamBoardView) getBeadsSummary() map[string]BeadsSummary {
+	val := v.beadsSummary.Load()
+	if val == nil {
+		return nil
+	}
+	return val.(map[string]BeadsSummary)
 }
 
 // ─── Ticket Detail ───────────────────────────────────────────────────────────

@@ -3,9 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -45,6 +48,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
 		},
+		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
 			repo := resolveRepo()
 			if repo == nil {
@@ -159,5 +163,49 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},
+	}
+}
+
+// buildBeadsSummaryFunc returns a function that aggregates bead task counts
+// across all active projects, keyed by bare tracker ticket ID (e.g. "693").
+// This enables the [N/M] badge on the team board (ADR-032).
+func buildBeadsSummaryFunc(a *app.App) func() map[string]views.BeadsSummary {
+	return func() map[string]views.BeadsSummary {
+		projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+		if err != nil {
+			slog.Warn("beads-summary: failed to list projects", "error", err)
+			return nil
+		}
+
+		result := make(map[string]views.BeadsSummary)
+		for _, p := range projects {
+			if p.Path == "" || !beads.IsInitialized(p.Path) {
+				continue
+			}
+			tickets, err := beads.ListAll(p.Path)
+			if err != nil {
+				slog.Debug("beads-summary: failed to list beads", "project", p.ID, "error", err)
+				continue
+			}
+			for _, t := range tickets {
+				ref := beads.ExternalRefForTicket(t)
+				if ref == "" {
+					continue
+				}
+				// Extract the bare tracker ID from the external ref.
+				// e.g. "gitlab-693" → "693", "jira-MYAPP-42" → "MYAPP-42"
+				_, ticketID := beads.ParseExternalRef(ref)
+				if ticketID == "" {
+					continue
+				}
+				bs := result[ticketID]
+				bs.Total++
+				if t.Status == "done" || t.Status == "closed" {
+					bs.Done++
+				}
+				result[ticketID] = bs
+			}
+		}
+		return result
 	}
 }
