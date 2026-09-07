@@ -173,6 +173,13 @@ type TrackerConfig struct {
 	// Deprecated: use TrackerProject (simple field) or per-project
 	// ProjectTrackerConfig overrides. Kept for backward compat.
 	Projects map[string]string `toml:"projects,omitempty"`
+	// StatusMapping maps tracker status names (case-insensitive keys) to claim
+	// statuses (planned, in_progress, review, blocked, done).
+	// Example: {"In Progress" = "in_progress", "Code Review" = "review", "In QA" = "review"}
+	// When a tracker issue status matches a key, the claim is placed in the
+	// corresponding board column. Unmatched statuses fall back to the category-
+	// based mapping (Jira statusCategory / GitLab state).
+	StatusMapping map[string]string `toml:"status_mapping,omitempty"`
 }
 
 // LoadConfig reads config.toml from the team-state repo.

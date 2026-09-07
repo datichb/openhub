@@ -83,7 +83,7 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 			switch {
 			case status == "IN_PROGRESS" || status == "IN PROGRESS" || status == "PROGRESS":
 				status = "IN_PROGRESS"
-			case status == "TODO" || status == "":
+			case status == "TODO" || status == "PLANNED" || status == "":
 				status = "TODO"
 			case status == "REVIEW" || status == "IN_REVIEW":
 				status = "REVIEW"

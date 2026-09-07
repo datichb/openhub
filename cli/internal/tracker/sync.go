@@ -188,6 +188,43 @@ func (e *Engine) ShouldAutoSync() bool {
 	return e.consecutiveTokenErrors < 3
 }
 
+// FetchTicketDetail fetches the full title and description of a ticket from the
+// external tracker. Used for on-demand display in the TUI detail view.
+// Returns the title and the full (non-truncated) description.
+func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID string) (title, description string, err error) {
+	trackerProjectID, ok := e.cfg.Projects[hubProjectID]
+	if !ok {
+		// Try single-project config fallback
+		if len(e.cfg.Projects) == 1 {
+			for _, v := range e.cfg.Projects {
+				trackerProjectID = v
+			}
+		} else {
+			return "", "", fmt.Errorf("no tracker project configured for %q", hubProjectID)
+		}
+	}
+
+	pattern := e.cfg.TicketPatterns[hubProjectID]
+
+	// Try to get the claim to read the stored ExternalIID.
+	var storedIID int
+	if c, err := e.repo.GetClaim(hubProjectID, ticketID); err == nil {
+		storedIID = c.ExternalIID
+	}
+
+	iid, ok := resolveIID(ticketID, storedIID, pattern)
+	if !ok {
+		return "", "", fmt.Errorf("cannot resolve tracker IID for %q", ticketID)
+	}
+
+	issue, err := e.tracker.FetchIssue(ctx, trackerProjectID, iid)
+	if err != nil {
+		return "", "", err
+	}
+
+	return issue.Title, issue.Description, nil
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-project reconciliation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,16 +281,20 @@ func (e *Engine) reconcileProject(
 			_ = e.repo.SetClaimExternalIID(ctx, hubProjectID, c.TicketID, iid)
 		}
 
-		// State transitions.
-		if issue.IsClosed() && c.Status != teamstate.ClaimStatusDone {
-			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", teamstate.ClaimStatusDone)
-			if err := e.repo.UpdateClaimStatus(ctx, hubProjectID, c.TicketID, teamstate.ClaimStatusDone); err == nil {
+		// Metadata sync: title, description, tracker status.
+		truncDesc := TruncateDescription(issue.Description)
+		if err := e.repo.UpdateClaimMetadata(ctx, hubProjectID, c.TicketID, issue.Title, truncDesc, issue.StatusName); err != nil {
+			slog.Warn("tracker.reconcile.metadata_failed", "ticket", c.TicketID, "error", err)
+		}
+
+		// Status sync: use configurable mapping.
+		mappedStatus := MapTrackerStatus(issue, e.cfg.StatusMapping)
+		if mappedStatus != c.Status {
+			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", mappedStatus, "tracker_status", issue.StatusName)
+			if err := e.repo.UpdateClaimStatusFromTracker(ctx, hubProjectID, c.TicketID, mappedStatus); err == nil {
 				pr.ClaimsUpdated++
-			}
-		} else if !issue.IsClosed() && c.Status == teamstate.ClaimStatusDone {
-			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", teamstate.ClaimStatusInProgress)
-			if err := e.repo.UpdateClaimStatus(ctx, hubProjectID, c.TicketID, teamstate.ClaimStatusInProgress); err == nil {
-				pr.ClaimsUpdated++
+			} else {
+				slog.Warn("tracker.reconcile.status_failed", "ticket", c.TicketID, "error", err)
 			}
 		}
 
@@ -359,13 +400,20 @@ func (e *Engine) autoplan(
 				continue
 			}
 
+			// Use the configurable status mapping instead of always "planned".
+			initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping)
+			truncDesc := TruncateDescription(issue.Description)
+
 			pending = append(pending, pendingClaim{
 				claim: teamstate.Claim{
-					TicketID:    ticketID,
-					Project:     hubProjectID,
-					ClaimedBy:   member.ID,
-					Status:      teamstate.ClaimStatusPlanned,
-					ExternalIID: issue.IID,
+					TicketID:      ticketID,
+					Project:       hubProjectID,
+					ClaimedBy:     member.ID,
+					Status:        initialStatus,
+					Title:         issue.Title,
+					Description:   truncDesc,
+					TrackerStatus: issue.StatusName,
+					ExternalIID:   issue.IID,
 				},
 			})
 			claimedTickets[ticketID] = true
@@ -409,6 +457,40 @@ func (e *Engine) autoplan(
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// MapTrackerStatus maps a tracker issue's status to a claim status using the
+// configured StatusMapping. Falls back to category-based mapping when no
+// explicit mapping is found.
+//
+// Resolution order:
+//  1. StatusMapping[issue.StatusName] (case-insensitive)
+//  2. Category fallback: Jira statusCategory / GitLab state
+//     - "done" / "closed" → ClaimStatusDone
+//     - "new" → ClaimStatusPlanned
+//     - "indeterminate" / "opened" → ClaimStatusInProgress
+func MapTrackerStatus(issue *IssueState, statusMapping map[string]string) string {
+	// 1. Try explicit mapping (case-insensitive).
+	if len(statusMapping) > 0 && issue.StatusName != "" {
+		nameLower := strings.ToLower(issue.StatusName)
+		for k, v := range statusMapping {
+			if strings.ToLower(k) == nameLower {
+				if teamstate.IsValidStatus(v) {
+					return v
+				}
+			}
+		}
+	}
+
+	// 2. Category fallback.
+	switch strings.ToLower(issue.StatusCategory) {
+	case "done", "closed":
+		return teamstate.ClaimStatusDone
+	case "new":
+		return teamstate.ClaimStatusPlanned
+	default: // "indeterminate", "opened", or unknown
+		return teamstate.ClaimStatusInProgress
+	}
+}
 
 // resolveIID returns the external IID for a ticket.
 // Priority: stored ExternalIID > pattern extraction from TicketID.

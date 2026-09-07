@@ -42,6 +42,9 @@ type EffectiveTrackerConfig struct {
 	// TrackerProject and TicketPattern.
 	Projects       map[string]string
 	TicketPatterns map[string]string
+	// StatusMapping maps tracker status names to claim statuses.
+	// Passed through from the team-state TrackerConfig.
+	StatusMapping map[string]string
 
 	// ── Behavioural (shared → local → default) ──────────────────────────────
 
@@ -116,6 +119,7 @@ func ResolveFullTrackerConfig(
 		eff.TrackerTokenKey = shared.TrackerTokenKey
 		eff.TicketPattern = shared.TicketPattern
 		eff.SyncIntervalMinutes = shared.SyncIntervalMinutes
+		eff.StatusMapping = shared.StatusMapping
 		// Backward compat: keep old maps
 		eff.Projects = shared.Projects
 		eff.TicketPatterns = shared.TicketPatterns

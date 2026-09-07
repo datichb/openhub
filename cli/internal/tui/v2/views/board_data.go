@@ -29,13 +29,19 @@ func FetchTeamTickets(repo teamstate.TeamStateReader) []TeamTicket {
 		if name == "" {
 			name = c.ClaimedBy // fallback to ID if member no longer in registry
 		}
+		// Use the real title from the tracker if available, fall back to ticket ID.
+		title := c.Title
+		if title == "" {
+			title = c.TicketID
+		}
 		tickets = append(tickets, TeamTicket{
-			ID:       c.TicketID,
-			Title:    c.TicketID,
-			Project:  c.Project,
-			Status:   MapClaimStatus(c.Status),
-			Assignee: name,
-			Labels:   c.Labels,
+			ID:          c.TicketID,
+			Title:       title,
+			Project:     c.Project,
+			Status:      MapClaimStatus(c.Status),
+			Assignee:    name,
+			Labels:      c.Labels,
+			Description: c.Description,
 		})
 	}
 

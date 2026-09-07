@@ -151,8 +151,10 @@ func TestJira_FetchIssue_Open(t *testing.T) {
 			"id":  "10042",
 			"key": "SRU-42",
 			"fields": map[string]interface{}{
-				"summary": "Implement login",
+				"summary":     "Implement login",
+				"description": "As a user, I want to login with my email and password.",
 				"status": map[string]interface{}{
+					"name":           "In Progress",
 					"statusCategory": map[string]interface{}{"key": "indeterminate"},
 				},
 				"labels":   []string{"backend"},
@@ -173,6 +175,18 @@ func TestJira_FetchIssue_Open(t *testing.T) {
 	}
 	if issue.Key != "SRU-42" {
 		t.Errorf("key: got %q, want %q", issue.Key, "SRU-42")
+	}
+	if issue.StatusName != "In Progress" {
+		t.Errorf("statusName: got %q, want %q", issue.StatusName, "In Progress")
+	}
+	if issue.StatusCategory != "indeterminate" {
+		t.Errorf("statusCategory: got %q, want %q", issue.StatusCategory, "indeterminate")
+	}
+	if issue.Description != "As a user, I want to login with my email and password." {
+		t.Errorf("description: got %q", issue.Description)
+	}
+	if issue.Title != "Implement login" {
+		t.Errorf("title: got %q, want %q", issue.Title, "Implement login")
 	}
 }
 
@@ -249,4 +263,180 @@ func gitlabServer(t *testing.T, method, path string, body interface{}) *httptest
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(body)
 	}))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MapTrackerStatus tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestMapTrackerStatus_ExplicitMapping(t *testing.T) {
+	mapping := map[string]string{
+		"In Progress": "in_progress",
+		"Code Review": "review",
+		"In QA":       "review",
+		"Blocked":     "blocked",
+		"Done":        "done",
+		"To Do":       "planned",
+	}
+
+	tests := []struct {
+		statusName     string
+		statusCategory string
+		expected       string
+	}{
+		{"In Progress", "indeterminate", "in_progress"},
+		{"Code Review", "indeterminate", "review"},
+		{"In QA", "indeterminate", "review"},
+		{"Blocked", "indeterminate", "blocked"},
+		{"Done", "done", "done"},
+		{"To Do", "new", "planned"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.statusName, func(t *testing.T) {
+			issue := &tracker.IssueState{
+				StatusName:     tt.statusName,
+				StatusCategory: tt.statusCategory,
+			}
+			got := tracker.MapTrackerStatus(issue, mapping)
+			if got != tt.expected {
+				t.Errorf("MapTrackerStatus(%q): got %q, want %q", tt.statusName, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMapTrackerStatus_CaseInsensitive(t *testing.T) {
+	mapping := map[string]string{
+		"code review": "review",
+	}
+	issue := &tracker.IssueState{
+		StatusName:     "Code Review",
+		StatusCategory: "indeterminate",
+	}
+	got := tracker.MapTrackerStatus(issue, mapping)
+	if got != "review" {
+		t.Errorf("case insensitive mapping failed: got %q, want %q", got, "review")
+	}
+}
+
+func TestMapTrackerStatus_CategoryFallback(t *testing.T) {
+	tests := []struct {
+		name           string
+		statusName     string
+		statusCategory string
+		expected       string
+	}{
+		{"jira done", "Terminé", "done", "done"},
+		{"jira new", "À faire", "new", "planned"},
+		{"jira indeterminate", "En développement", "indeterminate", "in_progress"},
+		{"gitlab closed", "closed", "closed", "done"},
+		{"gitlab opened", "opened", "opened", "in_progress"},
+		{"unknown category", "Custom", "custom", "in_progress"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issue := &tracker.IssueState{
+				StatusName:     tt.statusName,
+				StatusCategory: tt.statusCategory,
+			}
+			// Empty mapping → always uses category fallback
+			got := tracker.MapTrackerStatus(issue, nil)
+			if got != tt.expected {
+				t.Errorf("MapTrackerStatus(%q/%q): got %q, want %q",
+					tt.statusName, tt.statusCategory, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMapTrackerStatus_InvalidMappingValue(t *testing.T) {
+	// If the mapping value is not a valid claim status, fall through to category.
+	mapping := map[string]string{
+		"In Progress": "invalid_status",
+	}
+	issue := &tracker.IssueState{
+		StatusName:     "In Progress",
+		StatusCategory: "indeterminate",
+	}
+	got := tracker.MapTrackerStatus(issue, mapping)
+	// Should fall back to category-based mapping since "invalid_status" is not valid.
+	if got != "in_progress" {
+		t.Errorf("invalid mapping value: got %q, want %q", got, "in_progress")
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TruncateDescription tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestTruncateDescription_Short(t *testing.T) {
+	desc := "Short description"
+	got := tracker.TruncateDescription(desc)
+	if got != desc {
+		t.Errorf("short description should not be truncated: got %q", got)
+	}
+}
+
+func TestTruncateDescription_ExactLimit(t *testing.T) {
+	desc := make([]byte, tracker.MaxDescriptionLen)
+	for i := range desc {
+		desc[i] = 'a'
+	}
+	got := tracker.TruncateDescription(string(desc))
+	if got != string(desc) {
+		t.Errorf("exact-limit description should not be truncated")
+	}
+}
+
+func TestTruncateDescription_Long(t *testing.T) {
+	desc := make([]byte, tracker.MaxDescriptionLen+100)
+	for i := range desc {
+		desc[i] = 'b'
+	}
+	got := tracker.TruncateDescription(string(desc))
+	if len(got) != tracker.MaxDescriptionLen+3 { // +3 for "..."
+		t.Errorf("truncated length: got %d, want %d", len(got), tracker.MaxDescriptionLen+3)
+	}
+	if got[len(got)-3:] != "..." {
+		t.Errorf("truncated description should end with '...'")
+	}
+}
+
+func TestTruncateDescription_Empty(t *testing.T) {
+	got := tracker.TruncateDescription("")
+	if got != "" {
+		t.Errorf("empty description should stay empty: got %q", got)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GitLab description + status parsing tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestGitLab_FetchIssue_WithDescription(t *testing.T) {
+	srv := gitlabServer(t, http.MethodGet, "/api/v4/projects/42/issues/10", map[string]interface{}{
+		"iid":         10,
+		"state":       "opened",
+		"title":       "Add OAuth support",
+		"description": "## Context\n\nWe need OAuth 2.0 for third-party auth.",
+		"labels":      []string{"feature"},
+		"updated_at":  "2026-07-01T10:00:00Z",
+		"assignees":   []map[string]interface{}{{"username": "bob"}},
+	})
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
+	issue, err := gl.FetchIssue(context.Background(), "42", 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if issue.Description != "## Context\n\nWe need OAuth 2.0 for third-party auth." {
+		t.Errorf("description: got %q", issue.Description)
+	}
+	if issue.StatusName != "opened" {
+		t.Errorf("statusName: got %q, want %q", issue.StatusName, "opened")
+	}
+	if issue.StatusCategory != "opened" {
+		t.Errorf("statusCategory: got %q, want %q", issue.StatusCategory, "opened")
+	}
 }

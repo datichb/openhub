@@ -81,6 +81,15 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				return opts
 			},
+			FetchDetail: func(project, ticketID string) (string, string, error) {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				engine := resolveTrackerEngine(ctx, a)
+				if engine == nil {
+					return "", "", fmt.Errorf("tracker non configuré")
+				}
+				return engine.FetchTicketDetail(ctx, project, ticketID)
+			},
 			OnClaim: func(ticketID string) error {
 				repo := resolveRepo()
 				if repo == nil {

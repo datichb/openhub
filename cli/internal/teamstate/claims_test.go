@@ -120,6 +120,140 @@ func TestClaimFilePath(t *testing.T) {
 	}
 }
 
+func TestClaimWithMetadata(t *testing.T) {
+	repo := setupTestRepo(t)
+
+	dir := filepath.Join(repo.path, "projects", "T-SRU", "claims")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+
+	claim := `claimed_by = "benjamin"
+claimed_at = 2026-07-07T14:30:00Z
+status = "in_progress"
+title = "Implement user authentication"
+description = "As a user, I want to login with my email and password so that I can access my account."
+tracker_status = "In Progress"
+`
+	path := repo.claimFilePath("T-SRU", "SRU-142")
+	require.NoError(t, os.WriteFile(path, []byte(claim), 0o644))
+
+	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	require.NoError(t, err)
+	assert.Equal(t, "benjamin", got.ClaimedBy)
+	assert.Equal(t, "in_progress", got.Status)
+	assert.Equal(t, "Implement user authentication", got.Title)
+	assert.Equal(t, "As a user, I want to login with my email and password so that I can access my account.", got.Description)
+	assert.Equal(t, "In Progress", got.TrackerStatus)
+}
+
+func TestClaimWithMetadata_BackwardCompat(t *testing.T) {
+	// Old TOML format without title/description/tracker_status should still work.
+	repo := setupTestRepo(t)
+
+	dir := filepath.Join(repo.path, "projects", "T-SRU", "claims")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+
+	claim := `claimed_by = "alice"
+claimed_at = 2026-07-07T15:00:00Z
+status = "review"
+`
+	path := repo.claimFilePath("T-SRU", "SRU-155")
+	require.NoError(t, os.WriteFile(path, []byte(claim), 0o644))
+
+	got, err := repo.GetClaim("T-SRU", "SRU-155")
+	require.NoError(t, err)
+	assert.Equal(t, "alice", got.ClaimedBy)
+	assert.Equal(t, "review", got.Status)
+	assert.Equal(t, "", got.Title)
+	assert.Equal(t, "", got.Description)
+	assert.Equal(t, "", got.TrackerStatus)
+}
+
+func TestUpdateClaimStatusFromTracker_SkipsTransitionValidation(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	// Create a claim in "planned" status
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-300",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusPlanned,
+	})
+	require.NoError(t, err)
+
+	// planned → review would be rejected by UpdateClaimStatus (invalid transition)
+	err = repo.UpdateClaimStatus(ctx, "T-SRU", "SRU-300", ClaimStatusReview)
+	assert.ErrorIs(t, err, ErrInvalidTransition, "normal UpdateClaimStatus should reject planned → review")
+
+	// But UpdateClaimStatusFromTracker should allow it
+	err = repo.UpdateClaimStatusFromTracker(ctx, "T-SRU", "SRU-300", ClaimStatusReview)
+	require.NoError(t, err, "UpdateClaimStatusFromTracker should allow planned → review")
+
+	got, err := repo.GetClaim("T-SRU", "SRU-300")
+	require.NoError(t, err)
+	assert.Equal(t, ClaimStatusReview, got.Status)
+}
+
+func TestUpdateClaimStatusFromTracker_Noop(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-301",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusInProgress,
+	})
+	require.NoError(t, err)
+
+	// Same status → no-op
+	err = repo.UpdateClaimStatusFromTracker(ctx, "T-SRU", "SRU-301", ClaimStatusInProgress)
+	require.NoError(t, err)
+}
+
+func TestUpdateClaimMetadata(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-310",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusInProgress,
+	})
+	require.NoError(t, err)
+
+	// Update metadata
+	err = repo.UpdateClaimMetadata(ctx, "T-SRU", "SRU-310", "New Title", "A description", "Code Review")
+	require.NoError(t, err)
+
+	got, err := repo.GetClaim("T-SRU", "SRU-310")
+	require.NoError(t, err)
+	assert.Equal(t, "New Title", got.Title)
+	assert.Equal(t, "A description", got.Description)
+	assert.Equal(t, "Code Review", got.TrackerStatus)
+	// Status should NOT have changed
+	assert.Equal(t, ClaimStatusInProgress, got.Status)
+}
+
+func TestUpdateClaimMetadata_Noop(t *testing.T) {
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.CreateClaim(ctx, Claim{
+		TicketID:  "SRU-311",
+		Project:   "T-SRU",
+		ClaimedBy: "benjamin",
+		Status:    ClaimStatusInProgress,
+		Title:     "Existing Title",
+	})
+	require.NoError(t, err)
+
+	// Same values → no-op (no error, no unnecessary commit)
+	err = repo.UpdateClaimMetadata(ctx, "T-SRU", "SRU-311", "Existing Title", "", "")
+	require.NoError(t, err)
+}
+
 // Integration tests — require git
 
 func setupGitTestRepo(t *testing.T) (*Repo, string) {

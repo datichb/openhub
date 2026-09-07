@@ -38,8 +38,10 @@ type jiraIssue struct {
 	ID     string `json:"id"`
 	Key    string `json:"key"` // e.g. "SRU-42"
 	Fields struct {
-		Summary string `json:"summary"`
-		Status  struct {
+		Summary     string `json:"summary"`
+		Description string `json:"description"`
+		Status      struct {
+			Name           string `json:"name"` // e.g. "In Progress", "Code Review"
 			StatusCategory struct {
 				Key string `json:"key"` // "new" | "indeterminate" | "done"
 			} `json:"statusCategory"`
@@ -81,13 +83,16 @@ func (j jiraIssue) toIssueState() IssueState {
 	}
 
 	return IssueState{
-		IID:       iid,
-		Key:       j.Key,
-		State:     state,
-		Labels:    j.Fields.Labels,
-		Assignees: assignees,
-		Title:     j.Fields.Summary,
-		UpdatedAt: updatedAt,
+		IID:            iid,
+		Key:            j.Key,
+		State:          state,
+		StatusName:     j.Fields.Status.Name,
+		StatusCategory: j.Fields.Status.StatusCategory.Key,
+		Labels:         j.Fields.Labels,
+		Assignees:      assignees,
+		Title:          j.Fields.Summary,
+		Description:    j.Fields.Description,
+		UpdatedAt:      updatedAt,
 	}
 }
 
@@ -122,7 +127,7 @@ func (c *jiraClient) ListAssignedIssues(ctx context.Context, projectID string, o
 		maxResults = opts.MaxResults
 	}
 
-	body := fmt.Sprintf(`{"jql":%q,"maxResults":%d,"fields":["summary","status","labels","updated","assignee"]}`,
+	body := fmt.Sprintf(`{"jql":%q,"maxResults":%d,"fields":["summary","description","status","labels","updated","assignee"]}`,
 		jql, maxResults)
 
 	data, err := c.do(ctx, http.MethodPost, "/rest/api/2/search", strings.NewReader(body))

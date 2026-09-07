@@ -36,15 +36,31 @@ type IssueState struct {
 	Key string
 	// State is "open" or "closed" (normalised from tracker-specific values).
 	State string
+	// StatusName is the exact status name on the tracker (e.g. "In Progress",
+	// "Code Review", "In QA" for Jira; "opened"/"closed" for GitLab).
+	// Used by the configurable status mapping to place tickets in the right
+	// board column.
+	StatusName string
+	// StatusCategory is the normalised status category from the tracker
+	// (Jira: "new", "indeterminate", "done"; GitLab: "opened", "closed").
+	// Used as fallback when StatusName has no explicit mapping configured.
+	StatusCategory string
 	// Labels is the list of labels currently applied on the tracker.
 	Labels []string
 	// Assignees is the list of tracker usernames assigned to this issue.
 	Assignees []string
 	// Title is the issue title (for display / logging only).
 	Title string
+	// Description is the issue body/description. May be long (markdown).
+	// Truncated to MaxDescriptionLen when persisted in claim TOML files.
+	Description string
 	// UpdatedAt is when the issue was last modified on the tracker.
 	UpdatedAt time.Time
 }
+
+// MaxDescriptionLen is the maximum number of characters stored in a claim TOML
+// file. Longer descriptions are truncated with an ellipsis marker.
+const MaxDescriptionLen = 500
 
 // IsClosed reports whether the issue is in a terminal/closed state.
 func (s IssueState) IsClosed() bool { return s.State == "closed" }
@@ -151,4 +167,13 @@ func New(cfg Config) (Tracker, error) {
 	default:
 		return nil, fmt.Errorf("unknown tracker type %q (supported: gitlab, jira)", cfg.Type)
 	}
+}
+
+// TruncateDescription returns desc truncated to MaxDescriptionLen characters.
+// If truncated, an ellipsis marker is appended.
+func TruncateDescription(desc string) string {
+	if len(desc) <= MaxDescriptionLen {
+		return desc
+	}
+	return desc[:MaxDescriptionLen] + "..."
 }

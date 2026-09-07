@@ -30,12 +30,13 @@ func newGitLab(cfg Config) *gitLabClient {
 // ── GitLab API response types ─────────────────────────────────────────────────
 
 type glIssue struct {
-	IID       int       `json:"iid"`
-	State     string    `json:"state"` // "opened" | "closed"
-	Title     string    `json:"title"`
-	Labels    []string  `json:"labels"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Assignees []struct {
+	IID         int       `json:"iid"`
+	State       string    `json:"state"` // "opened" | "closed"
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Labels      []string  `json:"labels"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Assignees   []struct {
 		Username string `json:"username"`
 	} `json:"assignees"`
 }
@@ -50,12 +51,15 @@ func (g glIssue) toIssueState() IssueState {
 		state = "closed"
 	}
 	return IssueState{
-		IID:       g.IID,
-		State:     state,
-		Labels:    g.Labels,
-		Assignees: assignees,
-		Title:     g.Title,
-		UpdatedAt: g.UpdatedAt,
+		IID:            g.IID,
+		State:          state,
+		StatusName:     g.State,
+		StatusCategory: g.State,
+		Labels:         g.Labels,
+		Assignees:      assignees,
+		Title:          g.Title,
+		Description:    g.Description,
+		UpdatedAt:      g.UpdatedAt,
 	}
 }
 

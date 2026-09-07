@@ -40,6 +40,10 @@ type BoardActions struct {
 	OnTransfer func(ticketID, toMember string) error
 	OnStatus   func(ticketID, newStatus string) error
 	Members    func() []SelectOption // returns team members for transfer
+	// FetchDetail fetches the full ticket detail from the external tracker.
+	// Returns title and full description (not truncated). If nil, the detail
+	// modal only shows the cached data from the team-state TOML.
+	FetchDetail func(project, ticketID string) (title, description string, err error)
 }
 
 // TeamBoardView implements View for the team kanban board.
@@ -519,6 +523,46 @@ func (v *TeamBoardView) showTicketDetail() {
 	}
 
 	// Build detail content
+	detail := v.formatTicketDetail(ticket)
+
+	// Build actions: always "Fermer"; add "Actualiser" if FetchDetail is available.
+	actions := []ModalAction{{Label: "Fermer", Callback: nil}}
+	if v.actions != nil && v.actions.FetchDetail != nil {
+		actions = []ModalAction{
+			{Label: "Description complète", Callback: func() {
+				// Fetch full description on-demand from tracker.
+				go func() {
+					title, desc, err := v.actions.FetchDetail(ticket.Project, ticket.ID)
+					if v.app == nil {
+						return
+					}
+					v.app.QueueUpdateDraw(func() {
+						if err != nil {
+							v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+							return
+						}
+						// Update cached ticket data with fresh info.
+						if title != "" {
+							ticket.Title = title
+						}
+						if desc != "" {
+							ticket.Description = desc
+						}
+						// Re-display with full description.
+						fullDetail := v.formatTicketDetail(ticket)
+						v.shell.ShowScrollableModal("Ticket: "+ticket.ID, fullDetail, []ModalAction{{Label: "Fermer", Callback: nil}})
+					})
+				}()
+			}},
+			{Label: "Fermer", Callback: nil},
+		}
+	}
+
+	v.shell.ShowScrollableModal("Ticket: "+ticket.ID, detail, actions)
+}
+
+// formatTicketDetail builds the detail content string for a ticket.
+func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	var detail strings.Builder
 	detail.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset))
 	detail.WriteString(fmt.Sprintf("  %sID:%s         %s\n",
@@ -547,7 +591,12 @@ func (v *TeamBoardView) showTicketDetail() {
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", ")))
 	}
 
-	v.shell.ShowScrollableModal("Ticket: "+ticket.ID, detail.String(), []ModalAction{{Label: "Fermer", Callback: nil}})
+	if ticket.Description != "" {
+		detail.WriteString(fmt.Sprintf("\n  %sDescription:%s\n  %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tview.Escape(ticket.Description)))
+	}
+
+	return detail.String()
 }
 
 // ─── Ticket Actions ──────────────────────────────────────────────────────────

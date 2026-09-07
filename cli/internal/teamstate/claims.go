@@ -88,6 +88,17 @@ type Claim struct {
 	Worktree    string    `toml:"worktree,omitempty"`      // associated branch
 	Status      string    `toml:"status"`                  // see ClaimStatus* constants
 	LastActivity time.Time `toml:"last_activity,omitempty"` // last session/commit activity
+	// Title is the issue title from the external tracker.
+	// Populated and updated by the tracker sync engine.
+	Title string `toml:"title,omitempty"`
+	// Description is a truncated extract of the issue description from the
+	// external tracker (max ~500 chars). Populated by the tracker sync engine.
+	// The full description can be fetched on-demand from the tracker API.
+	Description string `toml:"description,omitempty"`
+	// TrackerStatus is the raw status name from the external tracker
+	// (e.g. "In Progress", "Code Review"). Stored for auditability and
+	// to detect status changes on the tracker side.
+	TrackerStatus string `toml:"tracker_status,omitempty"`
 	// Labels is an open-ended list of tags applied to the ticket.
 	// Well-known values: see Label* constants above.
 	// The tracker sync also mirrors GitLab/Jira labels here.
@@ -470,6 +481,108 @@ func (r *Repo) RemoveClaimLabel(ctx context.Context, project, ticketID, label st
 
 		relPath := r.claimRelPath(project, ticketID)
 		msg := fmt.Sprintf("label: %s/%s -%s", project, ticketID, label)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
+}
+
+// UpdateClaimStatusFromTracker changes the status of an existing claim without
+// enforcing the normal ValidTransitions rules. This is used by the tracker sync
+// engine which may need to jump between arbitrary statuses (e.g. planned → review)
+// based on the external tracker state.
+// Returns ErrInvalidStatus if newStatus is not a known value.
+// Returns ErrClaimNotFound if the claim does not exist.
+// No-op if the claim already has the requested status.
+func (r *Repo) UpdateClaimStatusFromTracker(ctx context.Context, project, ticketID, newStatus string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	if !IsValidStatus(newStatus) {
+		return fmt.Errorf("%w: %q", ErrInvalidStatus, newStatus)
+	}
+
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		c, err := r.getClaim(project, ticketID)
+		if err != nil {
+			return err
+		}
+
+		if c.Status == newStatus {
+			return nil // no-op
+		}
+
+		c.Status = newStatus
+		c.LastActivity = time.Now().UTC()
+
+		data, err := toml.Marshal(c)
+		if err != nil {
+			return fmt.Errorf("marshaling claim: %w", err)
+		}
+
+		path := r.claimFilePath(project, ticketID)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return fmt.Errorf("writing claim: %w", err)
+		}
+
+		relPath := r.claimRelPath(project, ticketID)
+		msg := fmt.Sprintf("tracker-sync: %s/%s → %s", project, ticketID, newStatus)
+		slog.Info("teamstate.claim.status_from_tracker", "project", project, "ticket", ticketID, "status", newStatus)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
+}
+
+// UpdateClaimMetadata updates the title, description, and tracker status of an
+// existing claim without changing the claim status. Used by the tracker sync
+// engine to keep display data in sync with the external tracker.
+// Returns ErrClaimNotFound if the claim does not exist.
+// No-op if no fields have changed.
+func (r *Repo) UpdateClaimMetadata(ctx context.Context, project, ticketID, title, description, trackerStatus string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
+
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		c, err := r.getClaim(project, ticketID)
+		if err != nil {
+			return err
+		}
+
+		changed := false
+		if title != "" && c.Title != title {
+			c.Title = title
+			changed = true
+		}
+		if description != "" && c.Description != description {
+			c.Description = description
+			changed = true
+		}
+		if trackerStatus != "" && c.TrackerStatus != trackerStatus {
+			c.TrackerStatus = trackerStatus
+			changed = true
+		}
+
+		if !changed {
+			return nil
+		}
+
+		data, err := toml.Marshal(c)
+		if err != nil {
+			return fmt.Errorf("marshaling claim: %w", err)
+		}
+
+		path := r.claimFilePath(project, ticketID)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return fmt.Errorf("writing claim: %w", err)
+		}
+
+		relPath := r.claimRelPath(project, ticketID)
+		msg := fmt.Sprintf("metadata: %s/%s", project, ticketID)
+		slog.Info("teamstate.claim.metadata", "project", project, "ticket", ticketID)
 		return r.commitAndPush(ctx, msg, relPath)
 	})
 }

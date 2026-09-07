@@ -70,6 +70,12 @@ type TeamStateWriter interface {
 	ReleaseClaim(ctx context.Context, project, ticketID string) error
 	TransferClaim(ctx context.Context, project, ticketID, newOwner string) error
 	UpdateClaimStatus(ctx context.Context, project, ticketID, newStatus string) error
+	// UpdateClaimStatusFromTracker changes status without enforcing ValidTransitions.
+	// Used by the tracker sync engine for arbitrary status jumps.
+	UpdateClaimStatusFromTracker(ctx context.Context, project, ticketID, newStatus string) error
+	// UpdateClaimMetadata updates title, description, and tracker_status without
+	// changing the claim status. Used by the tracker sync engine.
+	UpdateClaimMetadata(ctx context.Context, project, ticketID, title, description, trackerStatus string) error
 	AddClaimLabel(ctx context.Context, project, ticketID, label string) error
 	RemoveClaimLabel(ctx context.Context, project, ticketID, label string) error
 	SetClaimExternalIID(ctx context.Context, project, ticketID string, iid int) error
