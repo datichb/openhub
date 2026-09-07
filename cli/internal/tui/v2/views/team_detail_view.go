@@ -434,6 +434,13 @@ func (v *TeamDetailView) buildLines() {
 			set: func(val string) { v.teamCfg.Tracker.Projects[k] = val; v.dirtyTeam = true },
 		})
 	}
+	if len(v.teamCfg.Tracker.Projects) == 0 {
+		v.lines = append(v.lines, teamConfigLine{
+			section: "Mappings", key: "(vide)", kind: "placeholder",
+			hint: "a pour ajouter un mapping",
+			get:  func() string { return "" },
+		})
+	}
 
 	// ── Notifications ──
 	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Notifications"})
@@ -499,6 +506,13 @@ func (v *TeamDetailView) buildLines() {
 			set: func(val string) { v.teamCfg.Models.Families[k] = val; v.dirtyTeam = true },
 		})
 	}
+	if len(v.teamCfg.Models.Families) == 0 {
+		v.lines = append(v.lines, teamConfigLine{
+			section: "families", key: "(vide)", kind: "placeholder",
+			hint: "a pour ajouter une famille",
+			get:  func() string { return "" },
+		})
+	}
 	v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "agents"})
 	for k := range v.teamCfg.Models.Agents {
 		k := k
@@ -506,6 +520,13 @@ func (v *TeamDetailView) buildLines() {
 			section: "Models.agents", key: k, kind: "string", scope: scopeTeam, dynamic: true,
 			get: func() string { return v.teamCfg.Models.Agents[k] },
 			set: func(val string) { v.teamCfg.Models.Agents[k] = val; v.dirtyTeam = true },
+		})
+	}
+	if len(v.teamCfg.Models.Agents) == 0 {
+		v.lines = append(v.lines, teamConfigLine{
+			section: "agents", key: "(vide)", kind: "placeholder",
+			hint: "a pour ajouter un agent",
+			get:  func() string { return "" },
 		})
 	}
 
@@ -740,6 +761,8 @@ func (v *TeamDetailView) editSelected() {
 			line.set(val)
 			v.renderLines()
 		})
+	case "placeholder":
+		v.addDynamic()
 	case "password":
 		tokenKey := line.get()
 		if tokenKey == "" {
@@ -832,6 +855,9 @@ func (v *TeamDetailView) addDynamic() {
 				if val == "" {
 					return
 				}
+				if v.teamCfg.Tracker.Projects == nil {
+					v.teamCfg.Tracker.Projects = make(map[string]string)
+				}
 				v.teamCfg.Tracker.Projects[key] = val
 				v.dirtyTeam = true
 				v.buildLines()
@@ -847,6 +873,9 @@ func (v *TeamDetailView) addDynamic() {
 				if val == "" {
 					return
 				}
+				if v.teamCfg.Models.Families == nil {
+					v.teamCfg.Models.Families = make(map[string]string)
+				}
 				v.teamCfg.Models.Families[key] = val
 				v.dirtyTeam = true
 				v.buildLines()
@@ -861,6 +890,9 @@ func (v *TeamDetailView) addDynamic() {
 			v.shell.ShowInputModal("Model recommandé", "", func(val string) {
 				if val == "" {
 					return
+				}
+				if v.teamCfg.Models.Agents == nil {
+					v.teamCfg.Models.Agents = make(map[string]string)
 				}
 				v.teamCfg.Models.Agents[key] = val
 				v.dirtyTeam = true
