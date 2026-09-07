@@ -851,6 +851,9 @@
   "tui.team.init.desc": "Initialiser le mode équipe (hub)",
   "tui.team.configure.desc": "Configurer l'équipe pour le projet actif",
   "tui.teams.desc": "Gestion des équipes",
+  "tui.no_team_configured": "Aucune équipe configurée",
+  "tui.select_team": "Choisir une équipe",
+  "tui.confirm_exit_mode": "Quitter le mode",
 
   "tui.hints.nav": "nav",
   "tui.hints.see": "voir",

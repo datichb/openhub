@@ -72,6 +72,10 @@ type Config struct {
 	// Notifications is an optional pre-created notification store. When nil,
 	// a default store with capacity 50 is created automatically.
 	Notifications *NotificationStore
+	// TeamsProvider returns the list of configured teams as selectable options.
+	// Used by Ctrl+T to switch to team mode (ADR-032 Phase 3).
+	// If nil, Ctrl+T falls back to navigating to the teams list view.
+	TeamsProvider func() []views.SelectOption
 }
 
 // shellAware is an optional interface that views can implement to receive
@@ -91,6 +95,7 @@ type Shell struct {
 	router           *router.Router
 	registry         *CommandRegistry
 	suggestionsShown bool
+	cfg              Config // original config for runtime callbacks (ADR-032)
 
 	// activeProject is non-nil when project mode is active.
 	activeProject *views.ActiveProject
@@ -136,6 +141,7 @@ func New(cfg Config) *Shell {
 		cancel:        cancel,
 		notifications: ns,
 		activeMode:    views.ModeHub, // default mode (ADR-032 Phase 3)
+		cfg:           cfg,
 	}
 
 	// Wire text-selection manager — calls back into the shell for the toast.
@@ -1082,20 +1088,63 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 
-	// Ctrl+T: toggle between project mode and hub mode
+	// Ctrl+T: toggle team mode (ADR-032 Phase 3)
+	// From team mode → return to hub. From hub/project → enter team mode.
+	// If multiple teams, show a selector.
 	if event.Key() == tcell.KeyCtrlT {
-		if s.activeProject != nil {
-			s.SetProjectMode(nil)
-		} else {
-			s.router.NavigateTo("projects.list")
+		switch s.activeMode {
+		case views.ModeTeam:
+			// Already in team mode → go back to hub
+			s.SetMode(views.ModeHub)
+		default:
+			// Enter team mode — use TeamsProvider if configured
+			if s.cfg.TeamsProvider != nil {
+				teams := s.cfg.TeamsProvider()
+				switch len(teams) {
+				case 0:
+					s.ShowToast(i18n.T("tui.no_team_configured"), ToastWarning)
+				case 1:
+					s.activeTeam = &views.ActiveTeam{ID: teams[0].Value, Name: teams[0].Label}
+					s.SetMode(views.ModeTeam)
+				default:
+					s.ShowSelectModal(i18n.T("tui.select_team"), teams, "", func(selected string) {
+						for _, t := range teams {
+							if t.Value == selected {
+								s.activeTeam = &views.ActiveTeam{ID: t.Value, Name: t.Label}
+								s.SetMode(views.ModeTeam)
+								return
+							}
+						}
+					})
+				}
+			} else {
+				// No TeamsProvider — fallback to previous behavior
+				s.router.NavigateTo("teams")
+			}
 		}
 		return nil
 	}
 
-	// Esc: pop view (go back) or do nothing
+	// Esc: pop view (go back), or confirm mode exit at root (ADR-032 Phase 3)
 	if event.Key() == tcell.KeyEsc {
 		if s.router.StackDepth() > 1 {
 			s.router.Pop()
+			return nil
+		}
+		// At root of a non-hub mode → show confirmation modal
+		if s.activeMode != views.ModeHub {
+			modeName := "Équipe"
+			if s.activeMode == views.ModeProject {
+				modeName = "Projet"
+			}
+			s.ShowScrollableModal(
+				i18n.T("tui.confirm_exit_mode"),
+				fmt.Sprintf("Quitter le mode %s et revenir au Hub ?", modeName),
+				[]views.ModalAction{
+					{Label: "Oui", Callback: func() { s.SetMode(views.ModeHub) }},
+					{Label: "Annuler", Callback: nil},
+				},
+			)
 			return nil
 		}
 		return nil
