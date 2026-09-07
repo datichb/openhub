@@ -14,23 +14,26 @@ import (
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// resolveRepo is a helper that returns the active team repo (or nil).
-	// Falls back to hub-level ActiveTeam() when the project has no TeamID set.
+	// Resolution order (ADR-032):
+	//   1. Project-level team config (TeamID or legacy TeamConfig)
+	//   2. Hub-level ActiveTeam() — matches CLI sync-tracker behavior
+	// This ensures tickets synced by the CLI are visible in the TUI.
 	resolveRepo := func() *teamstate.Repo {
+		// Try project-level first
 		project, _ := resolveActiveProject(a)
 		tc := resolvedTeamConfig(a, project)
-		if !tc.Enabled {
-			// Fallback: use hub-level team config (matches CLI sync-tracker behavior)
-			hubTC := a.Config.ActiveTeam()
-			if hubTC.StateRepo == "" {
-				return nil
+		if tc.Enabled && tc.StateRepo != "" {
+			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+			if repo.IsCloned() {
+				return repo
 			}
-			repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
-			if !repo.IsCloned() {
-				return nil
-			}
-			return repo
 		}
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+		// Fallback: hub-level ActiveTeam() — same path as CLI sync-tracker
+		hubTC := a.Config.ActiveTeam()
+		if !hubTC.Enabled || hubTC.StateRepo == "" {
+			return nil
+		}
+		repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
 		if !repo.IsCloned() {
 			return nil
 		}
