@@ -43,7 +43,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		return repo
 	}
 
+	// Load tickets from the local clone immediately — no network call.
+	// The async SyncFunc will refresh after pulling remote changes.
+	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
+	var initialTickets []views.TeamTicket
+	func() {
+		defer func() { recover() }()
+		if repo := resolveRepo(); repo != nil {
+			initialTickets = views.FetchTeamTickets(repo)
+		}
+	}()
+
 	return views.TeamBoardViewConfig{
+		Tickets:     initialTickets,
 		RefreshRate: 5 * time.Second,
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
