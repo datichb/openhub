@@ -1174,6 +1174,9 @@
   "wizard.esc_to_skip": "Esc à nouveau pour passer cette étape",
   "wizard.processing": "Traitement...",
 
+  "tui.board.tab_all": "Tous",
+  "tui.hints.projects": "projets",
+
   "cmd.team.init.recap.member": "Membre",
   "cmd.team.init.recap.stale_days": "Stale days",
   "cmd.team.init.recap.notifs": "Notifs",

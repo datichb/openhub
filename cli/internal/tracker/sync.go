@@ -98,6 +98,10 @@ func NewEngine(t Tracker, repo teamstate.TeamStateWriter, cfg teamstate.TrackerC
 // window for conflicts — if two members sync simultaneously, at most one of them
 // will encounter a non-fast-forward push and retry with rebase.
 func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
+	// Global timeout to bound the total sync wall time.
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
 	// Load (or initialise) the local sync state.
 	state, err := LoadSyncState(e.stateDir)
 	if err != nil {

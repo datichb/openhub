@@ -13,8 +13,6 @@ import (
 // buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
-	ctx := context.Background()
-
 	// resolveRepo is a helper that returns the active team repo (or nil).
 	resolveRepo := func() *teamstate.Repo {
 		project, _ := resolveActiveProject(a)
@@ -39,6 +37,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			return views.FetchTeamTickets(repo)
 		},
 		SyncFunc: func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			repo := resolveRepo()
 			if repo == nil {
 				return nil
@@ -82,6 +82,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 					projectID = project.ID
 				}
 				memberID := a.Config.ActiveTeam().MemberID
+				ctx := context.Background()
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,
@@ -103,6 +104,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
+				ctx := context.Background()
 				return repo.ReleaseClaim(ctx, projectID, ticketID)
 			},
 			OnTransfer: func(ticketID, toMember string) error {
@@ -115,6 +117,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
+				ctx := context.Background()
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
 			OnStatus: func(ticketID, newStatus string) error {
@@ -127,6 +130,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
+				ctx := context.Background()
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},

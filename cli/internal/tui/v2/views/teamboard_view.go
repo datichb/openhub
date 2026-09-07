@@ -60,6 +60,12 @@ type TeamBoardView struct {
 	filterAssignee string       // filter by specific assignee
 	filterLabel    string       // filter by specific label
 
+	// Project tabs
+	projectTabs  []string // ["", "proj-a", "proj-b"] — "" = all
+	activeTabIdx int
+	tabBar       *tview.TextView
+	boardLayout  *tview.Flex // vertical flex: tabBar + columnFlex
+
 	// Debouncing: prevents double-press on non-modal actions (claim, release, refresh).
 	actionInProgress bool
 }
@@ -90,10 +96,11 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
+	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · [[] /] %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
 		i18n.T("tui.hints.columns"),
 		i18n.T("tui.hints.items"),
 		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.projects"),
 		i18n.T("tui.hints.search"),
 		i18n.T("tui.hints.filter"),
 		i18n.T("tui.hints.claim"),
@@ -131,6 +138,17 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		v.columnFlex.AddItem(list, 0, 1, i == 0)
 	}
 
+	// Tab bar for project filtering
+	v.tabBar = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignLeft)
+	v.tabBar.SetBackgroundColor(theme.BgPanel)
+	v.buildProjectTabs(v.cfg.Tickets)
+	v.renderTabBar()
+
+	// Board layout: tabBar (1 line) + columns
+	v.boardLayout = tview.NewFlex().SetDirection(tview.FlexRow)
+	v.boardLayout.AddItem(v.tabBar, 1, 0, false)
+	v.boardLayout.AddItem(v.columnFlex, 0, 1, true)
+
 	v.populateColumns(v.cfg.Tickets, columns)
 
 	if len(v.cfg.Tickets) == 0 {
@@ -142,7 +160,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		emptyTV.SetText(fmt.Sprintf("\n\n  %sAucun ticket dans l'équipe. Les tickets apparaîtront après un sync (r).%s", muted, theme.TagColor))
 		content.AddItem(emptyTV, 0, 1, true)
 	} else {
-		content.AddItem(v.columnFlex, 0, 1, true)
+		content.AddItem(v.boardLayout, 0, 1, true)
 	}
 
 	v.focusCol = 0
@@ -195,6 +213,12 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'h':
 		v.moveFocus(-1)
 		return nil
+	case '[':
+		v.prevProjectTab()
+		return nil
+	case ']':
+		v.nextProjectTab()
+		return nil
 	case 'r':
 		if v.cfg.RefreshFunc != nil && !v.actionInProgress {
 			v.actionInProgress = true
@@ -230,7 +254,15 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardColumnDef) {
 	v.allTickets = tickets
-	filtered := v.applyFilters(tickets)
+
+	// Rebuild project tabs from latest ticket data
+	v.buildProjectTabs(tickets)
+	v.renderTabBar()
+
+	// Apply project tab filter, then other filters
+	filtered := v.applyProjectFilter(tickets)
+	filtered = v.applyFilters(filtered)
+
 	for _, list := range v.columnLists {
 		list.Clear()
 	}
@@ -241,8 +273,14 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 				if t.Assignee != "" {
 					assignee = " " + widgets.ColorTag(theme.Accent) + "@" + t.Assignee + "[-]"
 				}
+				// Project badge with background color
+				projectTag := ""
+				if t.Project != "" {
+					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+						theme.AccentHex, tview.Escape(t.Project))
+				}
 				labelStr := formatTicketLabels(t.Labels)
-				v.columnLists[i].AddItem(t.Title+assignee+labelStr, t.ID, 0, nil)
+				v.columnLists[i].AddItem(projectTag+t.Title+assignee+labelStr, t.ID, 0, nil)
 				break
 			}
 		}
@@ -308,6 +346,93 @@ func formatTicketLabels(labels []string) string {
 		}
 	}
 	return result
+}
+
+// ─── Project Tabs ────────────────────────────────────────────────────────────
+
+// buildProjectTabs extracts unique project names from tickets and builds tab list.
+func (v *TeamBoardView) buildProjectTabs(tickets []TeamTicket) {
+	seen := make(map[string]bool)
+	var projects []string
+	for _, t := range tickets {
+		if t.Project != "" && !seen[t.Project] {
+			seen[t.Project] = true
+			projects = append(projects, t.Project)
+		}
+	}
+	// Only show tabs if there are 2+ projects (or 1+ for the all tab to be useful)
+	v.projectTabs = append([]string{""}, projects...) // "" = all
+	if v.activeTabIdx >= len(v.projectTabs) {
+		v.activeTabIdx = 0
+	}
+}
+
+// renderTabBar renders the project tabs in the tab bar widget.
+func (v *TeamBoardView) renderTabBar() {
+	if v.tabBar == nil || len(v.projectTabs) <= 2 {
+		// Hide tab bar when only 1 project (or none) — no need to filter
+		if v.tabBar != nil {
+			v.tabBar.SetText("")
+		}
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString(" ")
+	for i, tab := range v.projectTabs {
+		label := tab
+		if label == "" {
+			label = i18n.T("tui.board.tab_all")
+		}
+		if i == v.activeTabIdx {
+			// Active tab: accent background
+			sb.WriteString(fmt.Sprintf("[black:%s] %s [-:-]", theme.AccentHex, tview.Escape(label)))
+		} else {
+			// Inactive tab: muted
+			sb.WriteString(fmt.Sprintf("[%s] %s [-]", theme.TextMutedHex, tview.Escape(label)))
+		}
+		sb.WriteString("  ")
+	}
+	v.tabBar.SetText(sb.String())
+}
+
+// applyProjectFilter filters tickets by the active project tab.
+func (v *TeamBoardView) applyProjectFilter(tickets []TeamTicket) []TeamTicket {
+	if v.activeTabIdx == 0 || v.activeTabIdx >= len(v.projectTabs) {
+		return tickets // "All" tab — no filter
+	}
+	project := v.projectTabs[v.activeTabIdx]
+	var result []TeamTicket
+	for _, t := range tickets {
+		if t.Project == project {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// prevProjectTab switches to the previous project tab.
+func (v *TeamBoardView) prevProjectTab() {
+	if len(v.projectTabs) <= 2 {
+		return
+	}
+	v.activeTabIdx--
+	if v.activeTabIdx < 0 {
+		v.activeTabIdx = len(v.projectTabs) - 1
+	}
+	v.repopulateWithFilters()
+}
+
+// nextProjectTab switches to the next project tab.
+func (v *TeamBoardView) nextProjectTab() {
+	if len(v.projectTabs) <= 2 {
+		return
+	}
+	v.activeTabIdx++
+	if v.activeTabIdx >= len(v.projectTabs) {
+		v.activeTabIdx = 0
+	}
+	v.repopulateWithFilters()
 }
 
 func (v *TeamBoardView) moveFocus(delta int) {
@@ -406,6 +531,10 @@ func (v *TeamBoardView) showTicketDetail() {
 	detail.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset))
 	detail.WriteString(fmt.Sprintf("  %sID:%s         %s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID))
+	if ticket.Project != "" {
+		detail.WriteString(fmt.Sprintf("  %sProjet:%s     %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Project))
+	}
 	detail.WriteString(fmt.Sprintf("  %sStatut:%s     %s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Status))
 

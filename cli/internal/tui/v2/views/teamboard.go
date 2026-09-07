@@ -23,6 +23,7 @@ type TeamTicket struct {
 	Status   string
 	Priority string
 	Assignee string
+	Project  string
 	// Labels are displayed as compact tags on the board item.
 	Labels []string
 }

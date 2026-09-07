@@ -1174,6 +1174,9 @@
   "wizard.esc_to_skip": "Press Esc again to skip this step",
   "wizard.processing": "Processing...",
 
+  "tui.board.tab_all": "All",
+  "tui.hints.projects": "projects",
+
   "cmd.team.init.recap.member": "Member",
   "cmd.team.init.recap.stale_days": "Stale days",
   "cmd.team.init.recap.notifs": "Notifs",

@@ -82,28 +82,8 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), err)
 	}
 
-	// Build the Projects map for the engine.
-	// New approach: use TrackerProject (simple field) as default.
-	// Backward compat: if the old Projects map exists, merge it.
-	projects := effTracker.Projects
-	if projects == nil {
-		projects = make(map[string]string)
-	}
-	if effTracker.TrackerProject != "" && len(projects) == 0 {
-		// Use a wildcard key "_default" for the single-project case
-		projects["_default"] = effTracker.TrackerProject
-	}
-	ticketPatterns := effTracker.TicketPatterns
-	if ticketPatterns == nil {
-		ticketPatterns = make(map[string]string)
-	}
-	if effTracker.TicketPattern != "" {
-		for k := range projects {
-			if ticketPatterns[k] == "" {
-				ticketPatterns[k] = effTracker.TicketPattern
-			}
-		}
-	}
+	// Build the Projects map for the engine from hub projects.
+	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
 
 	engineCfg := teamstate.TrackerConfig{
 		Type:                 effTracker.Type,

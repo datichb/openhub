@@ -5,6 +5,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
@@ -51,25 +52,8 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 	}
 
 	// Build a teamstate.TrackerConfig from the effective config for the engine.
-	// Build the Projects map from the new TrackerProject field (backward compat).
-	projects := effTracker.Projects
-	if projects == nil {
-		projects = make(map[string]string)
-	}
-	if effTracker.TrackerProject != "" && len(projects) == 0 {
-		projects["_default"] = effTracker.TrackerProject
-	}
-	ticketPatterns := effTracker.TicketPatterns
-	if ticketPatterns == nil {
-		ticketPatterns = make(map[string]string)
-	}
-	if effTracker.TicketPattern != "" {
-		for k := range projects {
-			if ticketPatterns[k] == "" {
-				ticketPatterns[k] = effTracker.TicketPattern
-			}
-		}
-	}
+	// Resolve the Projects map from hub projects associated with the team.
+	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
 
 	engineCfg := teamstate.TrackerConfig{
 		Type:                 effTracker.Type,
@@ -148,4 +132,63 @@ func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPC
 	}
 
 	return src
+}
+
+// resolveTrackerProjects builds the Projects and TicketPatterns maps for the
+// tracker sync engine by iterating over all hub projects.
+//
+// For each active project, it resolves the TrackerProject and TicketPattern
+// using the 3-level cascade: project override → team default → old maps.
+// Returns the final maps ready for the engine config.
+func resolveTrackerProjects(ctx context.Context, a *app.App, eff tracker.EffectiveTrackerConfig) (map[string]string, map[string]string) {
+	// Start with old maps for backward compat
+	projects := eff.Projects
+	if projects == nil {
+		projects = make(map[string]string)
+	}
+	ticketPatterns := eff.TicketPatterns
+	if ticketPatterns == nil {
+		ticketPatterns = make(map[string]string)
+	}
+
+	// If old maps already have entries, use them as-is (backward compat)
+	if len(projects) > 0 {
+		// Apply default ticket pattern to projects missing one
+		if eff.TicketPattern != "" {
+			for k := range projects {
+				if ticketPatterns[k] == "" {
+					ticketPatterns[k] = eff.TicketPattern
+				}
+			}
+		}
+		return projects, ticketPatterns
+	}
+
+	// New approach: resolve from hub projects
+	if eff.TrackerProject == "" {
+		return projects, ticketPatterns
+	}
+
+	allProjects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
+	if err != nil || len(allProjects) == 0 {
+		return projects, ticketPatterns
+	}
+
+	for _, p := range allProjects {
+		trackerProject := eff.TrackerProject // team default
+		if p.TrackerConfig != nil && p.TrackerConfig.TrackerProject != "" {
+			trackerProject = p.TrackerConfig.TrackerProject // per-project override
+		}
+		projects[p.ID] = trackerProject
+
+		pattern := eff.TicketPattern
+		if p.TrackerConfig != nil && p.TrackerConfig.TicketPattern != "" {
+			pattern = p.TrackerConfig.TicketPattern
+		}
+		if pattern != "" {
+			ticketPatterns[p.ID] = pattern
+		}
+	}
+
+	return projects, ticketPatterns
 }

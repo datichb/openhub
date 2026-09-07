@@ -1,8 +1,6 @@
 package views
 
 import (
-	"fmt"
-
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -33,7 +31,8 @@ func FetchTeamTickets(repo teamstate.TeamStateReader) []TeamTicket {
 		}
 		tickets = append(tickets, TeamTicket{
 			ID:       c.TicketID,
-			Title:    fmt.Sprintf("%s/%s", c.Project, c.TicketID),
+			Title:    c.TicketID,
+			Project:  c.Project,
 			Status:   MapClaimStatus(c.Status),
 			Assignee: name,
 			Labels:   c.Labels,
