@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func TestCommandRegistry_SearchEmpty(t *testing.T) {
@@ -14,7 +16,7 @@ func TestCommandRegistry_SearchEmpty(t *testing.T) {
 	})
 
 	// Empty query returns all
-	results := r.Search("")
+	results := r.Search("", views.ModeHub)
 	assert.Equal(t, 3, len(results))
 }
 
@@ -24,7 +26,7 @@ func TestCommandRegistry_SearchExactID(t *testing.T) {
 		{ID: "board", Label: "Board", Category: "Projets"},
 	})
 
-	results := r.Search("start")
+	results := r.Search("start", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	assert.Equal(t, "start", results[0].ID)
 }
@@ -35,11 +37,11 @@ func TestCommandRegistry_SearchByAlias(t *testing.T) {
 		{ID: "board", Label: "Board", Aliases: []string{"kanban"}, Category: "Projets"},
 	})
 
-	results := r.Search("kanban")
+	results := r.Search("kanban", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	assert.Equal(t, "board", results[0].ID)
 
-	results = r.Search("session")
+	results = r.Search("session", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	assert.Equal(t, "start", results[0].ID)
 }
@@ -50,7 +52,7 @@ func TestCommandRegistry_SearchFuzzy(t *testing.T) {
 		{ID: "audit.performance", Label: "Audit Performance", Category: "Sessions"},
 	})
 
-	results := r.Search("secu")
+	results := r.Search("secu", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	assert.Equal(t, "audit.security", results[0].ID)
 }
@@ -62,7 +64,7 @@ func TestCommandRegistry_SearchRespectsEnabled(t *testing.T) {
 		{ID: "hidden", Label: "Hidden", Category: "System", Enabled: disabled},
 	})
 
-	results := r.Search("")
+	results := r.Search("", views.ModeHub)
 	assert.Equal(t, 1, len(results))
 	assert.Equal(t, "start", results[0].ID)
 }
@@ -74,7 +76,7 @@ func TestCommandRegistry_SearchPrefix(t *testing.T) {
 		{ID: "status", Label: "Status", Category: "Système"},
 	})
 
-	results := r.Search("sta")
+	results := r.Search("sta", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	// "start" should rank higher than "status" (exact prefix on ID)
 	assert.Equal(t, "start", results[0].ID)
@@ -86,7 +88,7 @@ func TestCommandRegistry_SearchCategory(t *testing.T) {
 		{ID: "status", Label: "Status", Category: "Système"},
 	})
 
-	results := r.Search("projet")
+	results := r.Search("projet", views.ModeHub)
 	assert.Greater(t, len(results), 0)
 	assert.Equal(t, "deploy", results[0].ID)
 }
@@ -111,4 +113,45 @@ func TestCommand_IsEnabled(t *testing.T) {
 	// Explicit true
 	cmd.Enabled = func() bool { return true }
 	assert.True(t, cmd.IsEnabled())
+}
+
+func TestCommand_IsVisibleInMode(t *testing.T) {
+	// nil Modes = global, visible everywhere
+	cmd := Command{ID: "global"}
+	assert.True(t, cmd.IsVisibleInMode(views.ModeHub))
+	assert.True(t, cmd.IsVisibleInMode(views.ModeTeam))
+	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
+
+	// Specific modes
+	cmd = Command{ID: "project-only", Modes: []views.Mode{views.ModeProject}}
+	assert.False(t, cmd.IsVisibleInMode(views.ModeHub))
+	assert.False(t, cmd.IsVisibleInMode(views.ModeTeam))
+	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
+
+	// Multi-mode
+	cmd = Command{ID: "session", Modes: []views.Mode{views.ModeProject, views.ModeTeam}}
+	assert.False(t, cmd.IsVisibleInMode(views.ModeHub))
+	assert.True(t, cmd.IsVisibleInMode(views.ModeTeam))
+	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
+}
+
+func TestCommandRegistry_SearchRespectsMode(t *testing.T) {
+	r := NewCommandRegistry([]Command{
+		{ID: "global", Label: "Global"},
+		{ID: "team-only", Label: "Team Only", Modes: []views.Mode{views.ModeTeam}},
+		{ID: "project-only", Label: "Project Only", Modes: []views.Mode{views.ModeProject}},
+	})
+
+	// Hub mode: only global
+	results := r.Search("", views.ModeHub)
+	assert.Equal(t, 1, len(results))
+	assert.Equal(t, "global", results[0].ID)
+
+	// Team mode: global + team-only
+	results = r.Search("", views.ModeTeam)
+	assert.Equal(t, 2, len(results))
+
+	// Project mode: global + project-only
+	results = r.Search("", views.ModeProject)
+	assert.Equal(t, 2, len(results))
 }

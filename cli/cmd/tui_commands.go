@@ -7,11 +7,18 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 
 // buildCommands constructs the flat command registry for the omnibar.
 func buildCommands(a *app.App) []shell.Command {
+	// Mode shortcuts for readability (ADR-032 Phase 3)
+	modeSession := []views.Mode{views.ModeProject, views.ModeTeam} // sessions need a project, available from team via selection
+	modeProject := []views.Mode{views.ModeProject}                 // project-scoped only
+	modeTeam    := []views.Mode{views.ModeTeam}                    // team-scoped only
+	// nil = global (visible in all modes)
+
 	commands := []shell.Command{
 		// ── Sessions ─────────────────────────────────────────────────────
 		{
@@ -22,6 +29,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    80,
 			Action:      actionStartLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "start.dev",
@@ -32,6 +40,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    80,
 			Action:      func() { launchOpencode("", "--dev") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "start.onboard",
@@ -42,6 +51,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    60,
 			Action:      func() { launchOpencode("", "--onboard") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit",
@@ -51,6 +61,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			Action:      actionAuditLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.security",
@@ -61,6 +72,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "security") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.performance",
@@ -71,6 +83,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "performance") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.architecture",
@@ -81,6 +94,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "architecture") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.accessibility",
@@ -91,6 +105,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "accessibility") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.ecodesign",
@@ -101,6 +116,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "ecodesign") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.observability",
@@ -111,6 +127,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "observability") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review",
@@ -120,6 +137,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			Action:      actionReviewLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.standard",
@@ -130,6 +148,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.adversarial",
@@ -140,6 +159,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "adversarial") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.edge",
@@ -150,6 +170,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "edge-case") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.complete",
@@ -160,6 +181,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "all") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "debug",
@@ -169,6 +191,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    80,
 			Action:      actionDebugLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "quick",
@@ -179,6 +202,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    60,
 			Action:      actionOpencode("", ""),
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "parallel",
@@ -188,6 +212,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			ViewID:      "parallel",
+			Modes:       modeProject,
 		},
 
 		// ── Projets ──────────────────────────────────────────────────────
@@ -341,6 +366,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: "Basculer vers le mode projet (Ctrl+T)",
 			Category:    "Navigation",
 			Priority:    100,
+			Modes:       []views.Mode{views.ModeHub, views.ModeTeam},
 			Action: func() {
 				if tuiShell == nil {
 					return
@@ -359,9 +385,10 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: "Revenir au TUI complet (mode hub)",
 			Category:    "Navigation",
 			Priority:    95,
+			Modes:       []views.Mode{views.ModeTeam, views.ModeProject},
 			Action: func() {
 				if tuiShell != nil {
-					tuiShell.SetProjectMode(nil)
+					tuiShell.SetMode(views.ModeHub)
 				}
 			},
 		},
@@ -396,6 +423,7 @@ func buildCommands(a *app.App) []shell.Command {
 				Category:    "Projets",
 				Priority:    100,
 				ViewID:      "board",
+				Modes:       modeProject,
 			},
 			shell.Command{
 				ID:          "board.init",
@@ -407,6 +435,7 @@ func buildCommands(a *app.App) []shell.Command {
 				Action: func() {
 					initBeadsForActiveProject(a)
 				},
+				Modes: modeProject,
 			},
 			shell.Command{
 				ID:          "deploy",
@@ -416,6 +445,7 @@ func buildCommands(a *app.App) []shell.Command {
 				Category:    "Projets",
 				Priority:    30,
 				Action:      actionDeploy,
+				Modes:       modeProject,
 			},
 			shell.Command{
 				ID:          "sync",
@@ -425,6 +455,7 @@ func buildCommands(a *app.App) []shell.Command {
 				Category:    "Projets",
 				Priority:    30,
 				Action:      actionSync,
+				Modes:       modeProject,
 			},
 			shell.Command{
 				ID:          "project-config",
@@ -434,6 +465,7 @@ func buildCommands(a *app.App) []shell.Command {
 				Category:    "Configuration",
 				Priority:    46,
 				ViewID:      "project.config",
+				Modes:       modeProject,
 			},
 		)
 	}
@@ -450,6 +482,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.configuration"),
 			Priority:    48,
 			ViewID:      "team.detail",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.board",
@@ -459,6 +492,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    70,
 			ViewID:      "team.board",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.status",
@@ -468,6 +502,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    70,
 			ViewID:      "team.status",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.activity",
@@ -477,6 +512,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    65,
 			ViewID:      "team.activity",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.briefs",
@@ -486,6 +522,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    60,
 			ViewID:      "team.briefs",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.patterns",
@@ -495,6 +532,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    50,
 			ViewID:      "team.patterns",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.policies",
@@ -504,6 +542,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    50,
 			ViewID:      "team.policies",
+			Modes:       modeTeam,
 		},
 	)
 
@@ -516,6 +555,7 @@ func buildCommands(a *app.App) []shell.Command {
 		Category:    i18n.T("tui.category.team"),
 		Priority:    60,
 		Action:      actionSyncTracker,
+		Modes:       modeTeam,
 	})
 
 	// team.configure — only useful with a team configured (ADR-032)
@@ -527,6 +567,7 @@ func buildCommands(a *app.App) []shell.Command {
 		Category:    i18n.T("tui.category.team"),
 		Priority:    50,
 		Action:      actionTeamConfigure,
+		Modes:       modeTeam,
 	})
 	} // end hasTeam
 
@@ -561,6 +602,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Action:      func() { launchOpencode("reviewer", "--publish") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		})
 	}
 
