@@ -221,6 +221,44 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 		}),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
+		views.NewTeamModeView(views.TeamModeConfig{
+			OnNavigate: func(viewID string) {
+				if tuiShell != nil {
+					tuiShell.NavigateTo(viewID)
+				}
+			},
+			OnLaunchSession: func(agent string, extraArgs ...string) {
+				launchOpencode(agent, extraArgs...)
+			},
+			OnExitTeamMode: func() {
+				if tuiShell != nil {
+					tuiShell.SetMode(views.ModeHub)
+				}
+			},
+			TeamStats: func() views.TeamModeStats {
+				resolveTeam := makeResolveTeamFunc(a)
+				tr := resolveTeam()
+				if !tr.Enabled {
+					return views.TeamModeStats{}
+				}
+				repo := teamstate.NewRepo(tr.StateRepo, tr.StatePath)
+				if !repo.IsCloned() {
+					return views.TeamModeStats{}
+				}
+				members, _ := repo.ListMembers()
+				tickets := views.FetchTeamTickets(repo)
+				active := 0
+				for _, t := range tickets {
+					if t.Status == "in_progress" || t.Status == "review" {
+						active++
+					}
+				}
+				return views.TeamModeStats{
+					MemberCount: len(members),
+					ActiveCount: active,
+				}
+			},
+		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
 		projectModeView,
