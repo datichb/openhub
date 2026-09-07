@@ -175,11 +175,13 @@ func resolveActiveProjectPath(a *app.App) string {
 	if a == nil || a.Projects == nil {
 		return ""
 	}
-	p, err := resolveActiveProject(a)
-	if err != nil || p == nil {
+	// Non-interactive fallback: pick the first active project without prompting.
+	ctx := context.Background()
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
+	if err != nil || len(projects) == 0 {
 		return ""
 	}
-	return p.Path
+	return projects[0].Path
 }
 
 // resolveProviderCreds populates provider credentials into opts.

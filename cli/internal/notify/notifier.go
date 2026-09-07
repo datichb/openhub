@@ -4,6 +4,8 @@ package notify
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -139,8 +141,15 @@ func (d *Dispatcher) Dispatch(ctx context.Context, e teamstate.Event) error {
 
 	var lastErr error
 	for _, n := range d.notifiers {
+		slog.Debug("notify.dispatch.start", "type", n.Name(), "event", e.Type)
+		start := time.Now()
 		if err := n.Send(ctx, text); err != nil {
+			elapsed := time.Since(start)
+			slog.Warn("notify.dispatch.failed", "type", n.Name(), "error", err, "duration", elapsed)
 			lastErr = err
+		} else {
+			elapsed := time.Since(start)
+			slog.Debug("notify.dispatch.done", "type", n.Name(), "duration", elapsed)
 		}
 	}
 	return lastErr

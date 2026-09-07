@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/retry"
 )
 
@@ -53,7 +54,7 @@ func ReleaseByVersion(version string) (*Release, error) {
 }
 
 func fetchRelease(url string) (*Release, error) {
-	client := &http.Client{Timeout: ohAPITimeout}
+	client := httplog.Wrap(&http.Client{Timeout: ohAPITimeout}, "selfupdate")
 	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -222,7 +223,7 @@ func downloadAsset(asset *Asset, dest *os.File, progress ProgressFunc) error {
 			}
 		}
 
-		client := &http.Client{Timeout: ohDownloadTimeout}
+		client := httplog.Wrap(&http.Client{Timeout: ohDownloadTimeout}, "selfupdate")
 		resp, err := client.Get(asset.BrowserDownloadURL)
 		if err != nil {
 			return true, fmt.Errorf("downloading %s (attempt %d): %w", asset.Name, attempt, err)

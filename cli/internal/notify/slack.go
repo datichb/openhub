@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/httplog"
 )
 
 // SlackClient sends messages via a Slack Incoming Webhook.
@@ -21,7 +23,7 @@ func NewSlack(webhookURL, botName string) *SlackClient {
 	return &SlackClient{
 		webhookURL: webhookURL,
 		botName:    botName,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "notify.slack", httplog.WithMaskURL()),
 	}
 }
 

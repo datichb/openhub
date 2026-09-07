@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
@@ -21,7 +22,7 @@ const (
 	maxResponseSize  = 2 * 1024 * 1024 // 2 MB
 )
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.github")
 
 // Serve starts the GitHub MCP server.
 func Serve() error {

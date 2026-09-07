@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
@@ -79,7 +80,7 @@ func handleGetSlide(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	}, nil
 }
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.gslides")
 
 const maxResponseSize = 50 << 20 // 50 MB
 

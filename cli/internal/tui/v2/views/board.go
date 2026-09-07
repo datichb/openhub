@@ -43,7 +43,7 @@ type BoardColumnDef struct {
 // DefaultColumns returns the standard kanban columns.
 func DefaultColumns() []BoardColumnDef {
 	return []BoardColumnDef{
-		{Name: "TODO", Status: "planned", Color: theme.Warning},
+		{Name: "TODO", Status: "todo", Color: theme.Warning},
 		{Name: "IN PROGRESS", Status: "in_progress", Color: theme.Accent},
 		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary},
 		{Name: "DONE", Status: "done", Color: theme.Success},

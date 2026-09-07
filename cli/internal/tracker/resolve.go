@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 )
 
@@ -81,13 +82,18 @@ func ResolveCredentials(ctx context.Context, src CredentialSource, t Type) (Conf
 func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
 	// Base URL priority: TrackerURL override → MCP URL → env var → default
 	baseURL := "https://gitlab.com"
+	source := "default"
 	if src.TrackerURL != "" {
 		baseURL = src.TrackerURL
+		source = "tracker_url"
 	} else if src.GitLabURL != "" {
 		baseURL = src.GitLabURL
+		source = "mcp"
 	} else if u := os.Getenv("GITLAB_URL"); u != "" {
 		baseURL = u
+		source = "env"
 	}
+	slog.Debug("tracker.resolve.url", "type", "gitlab", "url", baseURL, "source", source)
 
 	// Token priority: env var → tracker-specific keychain key → MCP keychain key → error
 	token, err := resolveTokenWithFallback(ctx,
@@ -112,18 +118,23 @@ func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
 func resolveJira(ctx context.Context, src CredentialSource) (Config, error) {
 	// Base URL priority: TrackerURL override → MCP URL → env var → error
 	baseURL := ""
+	source := ""
 	if src.TrackerURL != "" {
 		baseURL = src.TrackerURL
+		source = "tracker_url"
 	} else if src.JiraURL != "" {
 		baseURL = src.JiraURL
+		source = "mcp"
 	} else {
 		baseURL = os.Getenv("JIRA_URL")
+		source = "env"
 	}
 	if baseURL == "" {
 		return Config{}, fmt.Errorf(
 			"tracker: Jira non configuré — ajoutez tracker_url dans la config équipe, [mcp.jira] dans hub.toml ou exportez JIRA_URL + JIRA_TOKEN",
 		)
 	}
+	slog.Debug("tracker.resolve.url", "type", "jira", "url", baseURL, "source", source)
 
 	// Token priority: env var → tracker-specific keychain key → MCP keychain key → error
 	token, err := resolveTokenWithFallback(ctx,
@@ -154,6 +165,7 @@ func resolveJira(ctx context.Context, src CredentialSource) (Config, error) {
 func resolveTokenWithFallback(ctx context.Context, envVar, trackerTokenKey, mcpTokenKey string, secrets SecretGetter, displayName string) (string, error) {
 	// 1. Env var — always takes priority (CI, shell export, tests)
 	if tok := os.Getenv(envVar); tok != "" {
+		slog.Debug("tracker.resolve.token", "type", displayName, "source", "env")
 		return tok, nil
 	}
 
@@ -161,7 +173,11 @@ func resolveTokenWithFallback(ctx context.Context, envVar, trackerTokenKey, mcpT
 	if trackerTokenKey != "" && secrets != nil {
 		tok, err := secrets.Get(ctx, trackerTokenKey)
 		if err == nil && tok != "" {
+			slog.Debug("tracker.resolve.token", "type", displayName, "source", "tracker_key", "key", trackerTokenKey)
 			return tok, nil
+		}
+		if err != nil {
+			slog.Debug("tracker.resolve.token.miss", "type", displayName, "key", trackerTokenKey, "error", err)
 		}
 	}
 
@@ -169,7 +185,11 @@ func resolveTokenWithFallback(ctx context.Context, envVar, trackerTokenKey, mcpT
 	if mcpTokenKey != "" && mcpTokenKey != trackerTokenKey && secrets != nil {
 		tok, err := secrets.Get(ctx, mcpTokenKey)
 		if err == nil && tok != "" {
+			slog.Debug("tracker.resolve.token", "type", displayName, "source", "mcp_key", "key", mcpTokenKey)
 			return tok, nil
+		}
+		if err != nil {
+			slog.Debug("tracker.resolve.token.miss", "type", displayName, "key", mcpTokenKey, "error", err)
 		}
 	}
 

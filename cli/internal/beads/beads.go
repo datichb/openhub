@@ -2,6 +2,7 @@
 package beads
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Ticket represents a bd ticket.
@@ -105,7 +107,9 @@ func Init(projectPath, prefix string) error {
 	if err := Available(); err != nil {
 		return err
 	}
-	cmd := exec.Command("bd", "-C", projectPath, "init",
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "init",
 		"--prefix", prefix,
 		"--skip-hooks", "--skip-agents", "--setup-exclude")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -117,7 +121,9 @@ func Init(projectPath, prefix string) error {
 
 	// Register default labels used by opencode agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
-		exec.Command("bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck
+		lctx, lcancel := context.WithTimeout(context.Background(), 10*time.Second)
+		exec.CommandContext(lctx, "bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck
+		lcancel()
 	}
 	return nil
 }
@@ -255,7 +261,9 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 	if err := Available(); err != nil {
 		return nil, err
 	}
-	cmd := exec.Command("bd", "-C", projectPath, "show", ticketID, "--json")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "show", ticketID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -280,7 +288,9 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 
 // runBdJSON executes a bd command and parses the JSON output.
 func runBdJSON(args []string) ([]Ticket, error) {
-	cmd := exec.Command("bd", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -381,7 +391,9 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 	fullTitle := fmt.Sprintf("[%s] %s", gitlabRef, title)
 	args := []string{"-C", projectPath, "create", fullTitle, "-p", fmt.Sprintf("%d", priority), "--json"}
 
-	cmd := exec.Command("bd", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bd create failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -403,7 +415,9 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 func CreateSubtask(projectPath, parentID, title string, priority int) (string, error) {
 	// Create the ticket
 	args := []string{"-C", projectPath, "create", title, "-p", fmt.Sprintf("%d", priority), "--json"}
-	cmd := exec.Command("bd", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bd create subtask failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -418,7 +432,9 @@ func CreateSubtask(projectPath, parentID, title string, priority int) (string, e
 
 	// Link as dependency
 	depArgs := []string{"-C", projectPath, "dep", "add", created.ID, parentID}
-	depCmd := exec.Command("bd", depArgs...)
+	depCtx, depCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer depCancel()
+	depCmd := exec.CommandContext(depCtx, "bd", depArgs...)
 	if depOut, err := depCmd.CombinedOutput(); err != nil {
 		return created.ID, fmt.Errorf("bd dep add failed: %s: %w", strings.TrimSpace(string(depOut)), err)
 	}
@@ -438,7 +454,9 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 		msg += "\nContext: " + description
 	}
 
-	cmd := exec.Command("bd", "-C", projectPath, "remember", msg)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "remember", msg)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd remember failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -449,7 +467,9 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 // AddNote adds a note to an existing bead ticket.
 // Runs: bd -C <path> update <ticketID> --note "<note>"
 func AddNote(projectPath, ticketID, note string) error {
-	cmd := exec.Command("bd", "-C", projectPath, "update", ticketID, "--note", note)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--note", note)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd update note failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -460,7 +480,9 @@ func AddNote(projectPath, ticketID, note string) error {
 // ClaimTicket atomically claims a bead ticket (sets assignee + in_progress).
 // Runs: bd -C <path> update <ticketID> --claim
 func ClaimTicket(projectPath, ticketID string) error {
-	cmd := exec.Command("bd", "-C", projectPath, "update", ticketID, "--claim")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--claim")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd claim failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -471,7 +493,9 @@ func ClaimTicket(projectPath, ticketID string) error {
 // CloseTicket closes a bead ticket with a message.
 // Runs: bd -C <path> close <ticketID> "<message>"
 func CloseTicket(projectPath, ticketID, message string) error {
-	cmd := exec.Command("bd", "-C", projectPath, "close", ticketID, message)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "close", ticketID, message)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd close failed: %s: %w", strings.TrimSpace(string(output)), err)

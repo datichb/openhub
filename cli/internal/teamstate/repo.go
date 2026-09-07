@@ -111,13 +111,19 @@ func (r *Repo) clone(ctx context.Context) error {
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return fmt.Errorf("creating parent directory: %w", err)
 	}
+	slog.Debug("teamstate.clone.start", "url", r.remote, "path", r.path)
+	start := time.Now()
 	_, err := r.git(ctx, parent, "clone", r.remote, r.path)
 	if err != nil {
+		elapsed := time.Since(start)
+		slog.Warn("teamstate.clone.failed", "url", r.remote, "path", r.path, "error", err, "duration", elapsed)
 		if isAuthError(err) {
 			return fmt.Errorf("clone failed — %s", authErrorMessage(r.remote))
 		}
 		return fmt.Errorf("cloning team-state repo: %w", err)
 	}
+	elapsed := time.Since(start)
+	slog.Debug("teamstate.clone.done", "path", r.path, "duration", elapsed)
 	return nil
 }
 

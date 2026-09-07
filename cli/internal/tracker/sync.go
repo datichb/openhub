@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -98,6 +99,9 @@ func NewEngine(t Tracker, repo teamstate.TeamStateWriter, cfg teamstate.TrackerC
 // window for conflicts — if two members sync simultaneously, at most one of them
 // will encounter a non-fast-forward push and retry with rebase.
 func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
+	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned)
+	start := time.Now()
+
 	// Global timeout to bound the total sync wall time.
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
@@ -127,10 +131,12 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 			memberByGitLab[strings.ToLower(m.GitLabUsername)] = m
 		}
 	}
+	slog.Debug("tracker.sync.members", "count", len(members))
 
 	trackerType := Type(e.cfg.Type)
 
 	for hubProjectID, trackerProjectID := range e.cfg.Projects {
+		slog.Debug("tracker.sync.project", "hub_project", hubProjectID, "tracker_project", trackerProjectID)
 		start := time.Now()
 		pr, projectErr := e.reconcileProject(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab)
 		pr.Duration = time.Since(start)
@@ -160,7 +166,11 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	e.consecutiveTokenErrors = 0
 
 	// Persist the updated sync timestamps.
-	_ = e.state.Save(e.stateDir)
+	if err := e.state.Save(e.stateDir); err != nil {
+		slog.Warn("tracker.sync.state_save_failed", "error", err)
+	}
+
+	slog.Debug("tracker.sync.complete", "duration", time.Since(start), "created", result.ClaimsCreated, "updated", result.ClaimsUpdated)
 
 	return result, nil
 }
@@ -194,6 +204,7 @@ func (e *Engine) reconcileProject(
 	if err != nil {
 		return pr, fmt.Errorf("listing claims: %w", err)
 	}
+	slog.Debug("tracker.reconcile.start", "project", hubProjectID, "claims", len(claims))
 
 	// Build a set of already-claimed ticket IDs for idempotence.
 	claimedTickets := make(map[string]bool, len(claims))
@@ -207,12 +218,14 @@ func (e *Engine) reconcileProject(
 		c := &claims[i]
 		iid, ok := resolveIID(c.TicketID, c.ExternalIID, pattern)
 		if !ok {
+			slog.Debug("tracker.reconcile.skip_no_iid", "ticket", c.TicketID)
 			continue // no tracker link for this ticket
 		}
 
 		issue, err := e.tracker.FetchIssue(ctx, trackerProjectID, iid)
 		if err != nil {
 			if errors.Is(err, ErrIssueNotFound) {
+				slog.Debug("tracker.reconcile.issue_gone", "ticket", c.TicketID, "iid", iid)
 				continue // ticket deleted on tracker — ignore
 			}
 			return pr, err // propagate fatal errors
@@ -226,10 +239,12 @@ func (e *Engine) reconcileProject(
 
 		// State transitions.
 		if issue.IsClosed() && c.Status != teamstate.ClaimStatusDone {
+			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", teamstate.ClaimStatusDone)
 			if err := e.repo.UpdateClaimStatus(ctx, hubProjectID, c.TicketID, teamstate.ClaimStatusDone); err == nil {
 				pr.ClaimsUpdated++
 			}
 		} else if !issue.IsClosed() && c.Status == teamstate.ClaimStatusDone {
+			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", teamstate.ClaimStatusInProgress)
 			if err := e.repo.UpdateClaimStatus(ctx, hubProjectID, c.TicketID, teamstate.ClaimStatusInProgress); err == nil {
 				pr.ClaimsUpdated++
 			}
@@ -239,14 +254,18 @@ func (e *Engine) reconcileProject(
 		trackerLabelSet := labelSet(issue.Labels)
 		for _, l := range issue.Labels {
 			if !hasLabel(c.Labels, l) {
-				_ = e.repo.AddClaimLabel(ctx, hubProjectID, c.TicketID, l)
+				if err := e.repo.AddClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
+					slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+				}
 			}
 		}
 		for _, l := range c.Labels {
 			// Remove claim labels that were deleted on the tracker side
 			// (only those that originated from the tracker, not hub-specific ones).
 			if isTrackerMirroredLabel(l) && !trackerLabelSet[l] {
-				_ = e.repo.RemoveClaimLabel(ctx, hubProjectID, c.TicketID, l)
+				if err := e.repo.RemoveClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
+					slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+				}
 			}
 		}
 
@@ -273,7 +292,7 @@ func (e *Engine) reconcileProject(
 	if e.cfg.AutoPlanAssigned {
 		if err := e.autoplan(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab, claimedTickets, &pr); err != nil {
 			// Non-fatal — log but continue.
-			_ = err
+			slog.Warn("tracker.autoplan.failed", "project", hubProjectID, "error", err)
 		}
 	}
 
@@ -291,6 +310,7 @@ func (e *Engine) autoplan(
 	pr *ProjectSyncResult,
 ) error {
 	lastSync := e.state.LastSync(trackerType, trackerProjectID)
+	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab))
 
 	plannedByMember := make(map[string]int)
 	for username, member := range memberByGitLab {
@@ -303,8 +323,10 @@ func (e *Engine) autoplan(
 			if errors.Is(err, ErrTokenInvalid) {
 				return err
 			}
+			slog.Warn("tracker.autoplan.member_error", "username", username, "error", err)
 			continue // skip this member on transient errors
 		}
+		slog.Debug("tracker.autoplan.member", "username", username, "issues", len(issues))
 
 		for _, issue := range issues {
 			if plannedByMember[member.ID] >= e.cfg.MaxAutoPlanPerMember {
@@ -326,6 +348,7 @@ func (e *Engine) autoplan(
 			if claimErr != nil && claimErr != teamstate.ErrClaimExists {
 				continue
 			}
+			slog.Debug("tracker.autoplan.created", "ticket", ticketID, "member", member.ID)
 			claimedTickets[ticketID] = true
 			plannedByMember[member.ID]++
 			pr.ClaimsCreated++

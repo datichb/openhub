@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/httplog"
 )
 
 // jiraClient implements Tracker for Jira Cloud / Server.
@@ -26,7 +28,7 @@ type jiraClient struct {
 func newJira(cfg Config) *jiraClient {
 	return &jiraClient{
 		cfg:    cfg,
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "tracker.jira"),
 	}
 }
 

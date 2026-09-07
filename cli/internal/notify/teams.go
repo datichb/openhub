@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/httplog"
 )
 
 // TeamsClient sends messages via a Microsoft Teams Incoming Webhook.
@@ -19,7 +21,7 @@ type TeamsClient struct {
 func NewTeams(webhookURL string) *TeamsClient {
 	return &TeamsClient{
 		webhookURL: webhookURL,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "notify.teams", httplog.WithMaskURL()),
 	}
 }
 

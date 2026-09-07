@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -33,7 +34,7 @@ func NewMattermost(webhookURL, channel, botName string) *MattermostClient {
 		webhookURL: webhookURL,
 		channel:    channel,
 		botName:    botName,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "notify.mattermost", httplog.WithMaskURL()),
 	}
 }
 

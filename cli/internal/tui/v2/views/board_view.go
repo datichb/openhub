@@ -220,7 +220,16 @@ func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		if v.cfg.RefreshFunc != nil {
-			v.refresh(DefaultColumns())
+			go func() {
+				tickets := v.cfg.RefreshFunc()
+				if v.app != nil {
+					v.app.QueueUpdateDraw(func() {
+						if v.columnLists != nil {
+							v.populateColumns(tickets, DefaultColumns())
+						}
+					})
+				}
+			}()
 		}
 		return nil
 	}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/httplog"
 )
 
 // DiscordClient sends messages via a Discord webhook.
@@ -21,7 +23,7 @@ func NewDiscord(webhookURL, botName string) *DiscordClient {
 	return &DiscordClient{
 		webhookURL: webhookURL,
 		botName:    botName,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "notify.discord", httplog.WithMaskURL()),
 	}
 }
 

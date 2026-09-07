@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -85,6 +86,16 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	// Build the Projects map for the engine from hub projects.
 	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
 
+	if len(projects) == 0 {
+		fmt.Fprintf(a.IO.ErrOut, "\n  %s Aucun projet configuré pour le tracker sync.\n", theme.WarningStyle.Render(theme.IconWarning))
+		fmt.Fprintf(a.IO.ErrOut, "  Vérifiez:\n")
+		fmt.Fprintf(a.IO.ErrOut, "  · tracker_project est défini dans la config team (Team Detail > Tracker)\n")
+		fmt.Fprintf(a.IO.ErrOut, "  · Ou un projet hub a un override tracker_project (Project Config > Tracker)\n\n")
+		return nil
+	}
+
+	slog.Debug("tracker.sync_cmd.config", "type", effTracker.Type, "projects", len(projects), "autoplan", effTracker.AutoPlanAssigned, "push_labels", effTracker.PushLabels)
+
 	engineCfg := teamstate.TrackerConfig{
 		Type:                 effTracker.Type,
 		Enabled:              effTracker.Enabled,
@@ -121,45 +132,60 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.failed"), err)
 	}
 
-	// ── Display results ───────────────────────────────────────────────────────
+	out := a.IO.Out
 
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
+	// Check if any issues were fetched across all projects
+	totalIssues := 0
+	for _, pr := range result.Projects {
+		totalIssues += pr.IssuesFetched
+	}
+
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s %s\n\n",
 		theme.Title.Render(i18n.T("cmd.team.sync_tracker.title")),
 		i18n.Tf("cmd.team.sync_tracker.results_title",
 			result.SyncedAt.Local().Format("15:04:05")))
 
 	for _, pr := range result.Projects {
-		fmt.Fprintf(a.IO.Out, "  %s %s → %s (%s)\n",
+		fmt.Fprintf(out, "  %s %s → %s (%s)\n",
 			theme.Bold.Render("•"),
 			theme.Bold.Render(pr.ProjectID),
 			pr.TrackerProject,
 			pr.Duration.Round(1*1e6))
-		fmt.Fprintf(a.IO.Out, "%s\n",
+		fmt.Fprintf(out, "%s\n",
 			i18n.Tf("cmd.team.sync_tracker.project_stats",
 				pr.IssuesFetched, pr.ClaimsCreated, pr.ClaimsUpdated, pr.LabelsPushed))
 	}
 
+	if totalIssues == 0 {
+		fmt.Fprintf(out, "\n  %s Aucune issue trouvée. Vérifiez:\n", theme.WarningStyle.Render("ℹ"))
+		fmt.Fprintf(out, "  · Le tracker_project correspond au projet GitLab (ID ou path)\n")
+		fmt.Fprintf(out, "  · Le token a accès au projet (scope read_api)\n")
+		fmt.Fprintf(out, "  · Des issues sont assignées aux membres (gitlab_username)\n")
+		fmt.Fprintf(out, "  · auto_plan_assigned est activé\n")
+		fmt.Fprintf(out, "  Astuce: relancez avec --verbose pour voir les appels API\n\n")
+	}
+
 	if len(result.Warnings) > 0 {
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+		fmt.Fprintln(out)
+		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
 			i18n.T("cmd.team.sync_tracker.warnings"))
 		for _, w := range result.Warnings {
-			fmt.Fprintf(a.IO.Out, "    %s/%s: %s\n", w.ProjectID, w.TicketID, w.Message)
+			fmt.Fprintf(out, "    %s/%s: %s\n", w.ProjectID, w.TicketID, w.Message)
 		}
 	}
 
 	if len(result.Errors) > 0 {
-		fmt.Fprintln(a.IO.Out)
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.ErrorStyle.Render("✗"),
+		fmt.Fprintln(out)
+		fmt.Fprintf(out, "  %s %s\n", theme.ErrorStyle.Render("✗"),
 			i18n.T("cmd.team.sync_tracker.errors"))
 		for _, e := range result.Errors {
-			fmt.Fprintf(a.IO.Out, "    %s\n", e.Error())
+			fmt.Fprintf(out, "    %s\n", e.Error())
 		}
 	}
 
-	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.team.sync_tracker.total",
 			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed))

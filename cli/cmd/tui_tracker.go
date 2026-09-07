@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -18,15 +19,18 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 	project, _ := resolveActiveProject(a)
 	tc := resolvedTeamConfig(a, project)
 	if !tc.Enabled {
+		slog.Debug("tracker.resolve_engine.skip", "reason", "team not enabled")
 		return nil
 	}
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
+		slog.Debug("tracker.resolve_engine.skip", "reason", "repo not cloned")
 		return nil
 	}
 
 	teamCfg, err := repo.LoadConfig()
 	if err != nil || teamCfg.Tracker.Type == "" {
+		slog.Debug("tracker.resolve_engine.skip", "reason", "no tracker type configured")
 		return nil
 	}
 
@@ -37,23 +41,27 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 		resolveWriteEnabledForTracker(a, teamCfg),
 	)
 	if !effTracker.Enabled {
+		slog.Debug("tracker.resolve_engine.skip", "reason", "tracker disabled locally")
 		return nil
 	}
 
 	credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 	cfg, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(effTracker.Type))
 	if err != nil {
+		slog.Warn("tracker.resolve_engine.credentials_failed", "error", err)
 		return nil
 	}
 
 	t, err := tracker.New(cfg)
 	if err != nil {
+		slog.Warn("tracker.resolve_engine.init_failed", "error", err)
 		return nil
 	}
 
 	// Build a teamstate.TrackerConfig from the effective config for the engine.
 	// Resolve the Projects map from hub projects associated with the team.
 	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
+	slog.Debug("tracker.resolve_engine.ready", "type", effTracker.Type, "projects", len(projects))
 
 	engineCfg := teamstate.TrackerConfig{
 		Type:                 effTracker.Type,
@@ -190,5 +198,6 @@ func resolveTrackerProjects(ctx context.Context, a *app.App, eff tracker.Effecti
 		}
 	}
 
+	slog.Debug("tracker.resolve_projects", "count", len(projects), "projects", projects)
 	return projects, ticketPatterns
 }

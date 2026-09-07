@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
 
@@ -131,7 +132,7 @@ func handleListMRs(_ context.Context, params json.RawMessage) (*protocol.ToolRes
 	}, nil
 }
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.gitlab")
 
 const maxResponseSize = 50 << 20 // 50 MB
 

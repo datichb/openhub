@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/httplog"
 )
 
 // gitLabClient implements Tracker for GitLab.
@@ -21,7 +23,7 @@ type gitLabClient struct {
 func newGitLab(cfg Config) *gitLabClient {
 	return &gitLabClient{
 		cfg:    cfg,
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: httplog.Wrap(&http.Client{Timeout: 10 * time.Second}, "tracker.gitlab"),
 	}
 }
 
