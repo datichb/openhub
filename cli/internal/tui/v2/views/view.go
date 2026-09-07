@@ -119,11 +119,22 @@ type ShellAccess interface {
 	NavigateTo(viewID string)
 	// SetProjectMode activates or deactivates project mode with the given project.
 	// Passing nil deactivates project mode (returns to hub mode).
+	// Deprecated: use SetMode(ModeProject) + SetActiveProject instead.
 	SetProjectMode(project *ActiveProject)
 	// SetActiveProject sets the active project without triggering navigation.
 	SetActiveProject(project *ActiveProject)
 	// ActiveProject returns the currently active project, or nil in hub mode.
 	ActiveProject() *ActiveProject
+
+	// ── Mode navigation (ADR-032 Phase 3) ───────────────────────────────
+	// SetMode switches the shell to the given mode and navigates to its landing view.
+	SetMode(mode Mode)
+	// Mode returns the current navigation mode.
+	Mode() Mode
+	// SetActiveTeam sets the active team context for team mode.
+	SetActiveTeam(team *ActiveTeam)
+	// ActiveTeam returns the currently active team, or nil outside team mode.
+	ActiveTeam() *ActiveTeam
 }
 
 // ActiveProject holds the minimal project context for the TUI project mode.
@@ -131,6 +142,36 @@ type ActiveProject struct {
 	ID   string
 	Name string
 	Path string
+}
+
+// ActiveTeam holds the minimal team context for the TUI team mode (ADR-032 Phase 3).
+type ActiveTeam struct {
+	ID   string
+	Name string
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation modes (ADR-032 Phase 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Mode represents the navigation context of the TUI shell.
+// Each mode filters the omnibar commands and determines the landing view.
+type Mode string
+
+const (
+	// ModeHub is the default multi-scope mode — shows teams, projects, and global commands.
+	ModeHub Mode = "hub"
+	// ModeTeam focuses the TUI on a single team — shows team board, status, activity.
+	ModeTeam Mode = "team"
+	// ModeProject focuses the TUI on a single project — shows board, sessions, config.
+	ModeProject Mode = "project"
+)
+
+// ModeAware is an optional interface that views can implement to declare
+// in which modes they are relevant. Views that do not implement ModeAware
+// are considered global (visible in all modes).
+type ModeAware interface {
+	SupportedModes() []Mode
 }
 
 // ProjectInfo is a minimal project representation for the tracker mapping UI.

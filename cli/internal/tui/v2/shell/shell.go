@@ -94,6 +94,10 @@ type Shell struct {
 
 	// activeProject is non-nil when project mode is active.
 	activeProject *views.ActiveProject
+	// activeTeam is non-nil when team mode is active (ADR-032 Phase 3).
+	activeTeam *views.ActiveTeam
+	// activeMode is the current navigation mode (ADR-032 Phase 3).
+	activeMode views.Mode
 
 	// notifications holds the last N toast messages for the Notifications view.
 	notifications *NotificationStore
@@ -131,6 +135,7 @@ func New(cfg Config) *Shell {
 		ctx:           ctx,
 		cancel:        cancel,
 		notifications: ns,
+		activeMode:    views.ModeHub, // default mode (ADR-032 Phase 3)
 	}
 
 	// Wire text-selection manager — calls back into the shell for the toast.
@@ -934,9 +939,10 @@ func (s *Shell) NavigateTo(viewID string) {
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {
 	s.activeProject = project
 	if project != nil {
+		s.activeMode = views.ModeProject
 		s.router.NavigateTo("project.mode")
 	} else {
-		s.router.NavigateTo("home")
+		s.SetMode(views.ModeHub)
 	}
 }
 
@@ -949,6 +955,56 @@ func (s *Shell) SetActiveProject(project *views.ActiveProject) {
 // ActiveProject returns the currently active project, or nil if in hub mode.
 func (s *Shell) ActiveProject() *views.ActiveProject {
 	return s.activeProject
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode navigation (ADR-032 Phase 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SetMode switches the shell to the given navigation mode and navigates to its landing view.
+func (s *Shell) SetMode(mode views.Mode) {
+	s.activeMode = mode
+	switch mode {
+	case views.ModeHub:
+		s.activeProject = nil
+		s.activeTeam = nil
+		s.router.NavigateTo("home")
+	case views.ModeTeam:
+		s.router.NavigateTo("team.mode")
+	case views.ModeProject:
+		if s.activeProject != nil {
+			s.router.NavigateTo("project.mode")
+		} else {
+			s.router.NavigateTo("projects.list")
+		}
+	}
+}
+
+// Mode returns the current navigation mode.
+func (s *Shell) Mode() views.Mode {
+	return s.activeMode
+}
+
+// SetActiveTeam sets the active team context without triggering navigation.
+func (s *Shell) SetActiveTeam(team *views.ActiveTeam) {
+	s.activeTeam = team
+}
+
+// ActiveTeam returns the currently active team, or nil outside team mode.
+func (s *Shell) ActiveTeam() *views.ActiveTeam {
+	return s.activeTeam
+}
+
+// AutoDetectMode determines the initial mode based on configured teams and projects.
+// Rules (ADR-032): 1 team without solo projects → Team; no team + 1 project → Project; else → Hub.
+func AutoDetectMode(numTeams, numProjects int) views.Mode {
+	if numTeams == 1 && numProjects <= 1 {
+		return views.ModeTeam
+	}
+	if numTeams == 0 && numProjects == 1 {
+		return views.ModeProject
+	}
+	return views.ModeHub
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

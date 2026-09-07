@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // SessionLaunchConfig holds the options for a session launch dialog.
@@ -57,6 +59,11 @@ type Command struct {
 	// false so the omnibar defers them to the next draw cycle, avoiding the separate
 	// deadlock caused by calling pages.AddPage inside an InputCapture handler.
 	RunsDirect bool
+
+	// Modes declares in which navigation modes this command is visible (ADR-032 Phase 3).
+	// nil or empty = global (visible in all modes).
+	// Example: []views.Mode{views.ModeProject, views.ModeTeam}
+	Modes []views.Mode
 }
 
 // IsEnabled returns whether this command is currently available.
@@ -65,6 +72,20 @@ func (c *Command) IsEnabled() bool {
 		return true
 	}
 	return c.Enabled()
+}
+
+// IsVisibleInMode returns true if the command should appear in the given mode.
+// Commands with nil/empty Modes are global and visible everywhere.
+func (c *Command) IsVisibleInMode(mode views.Mode) bool {
+	if len(c.Modes) == 0 {
+		return true
+	}
+	for _, m := range c.Modes {
+		if m == mode {
+			return true
+		}
+	}
+	return false
 }
 
 // CommandRegistry holds a flat list of commands with fuzzy-search capability.
@@ -125,7 +146,8 @@ func (r *CommandRegistry) recentBonus(id string) int {
 
 // Search returns commands matching the query, sorted by relevance.
 // Matches against ID, Label, Aliases, and Category using fuzzy matching.
-func (r *CommandRegistry) Search(query string) []Command {
+// Commands are filtered by the active mode (ADR-032 Phase 3).
+func (r *CommandRegistry) Search(query string, mode views.Mode) []Command {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -134,7 +156,7 @@ func (r *CommandRegistry) Search(query string) []Command {
 		// Higher priority = shown first when omnibar is empty.
 		var result []Command
 		for _, c := range r.commands {
-			if c.IsEnabled() {
+			if c.IsEnabled() && c.IsVisibleInMode(mode) {
 				result = append(result, c)
 			}
 		}
@@ -154,7 +176,7 @@ func (r *CommandRegistry) Search(query string) []Command {
 
 	var results []scored
 	for _, c := range r.commands {
-		if !c.IsEnabled() {
+		if !c.IsEnabled() || !c.IsVisibleInMode(mode) {
 			continue
 		}
 

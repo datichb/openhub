@@ -256,8 +256,8 @@ func (o *Omnibar) updateSuggestions(query string) {
 		}
 	}
 
-	// 2. Get global commands
-	global := o.registry.Search(query)
+	// 2. Get global commands (filtered by active mode — ADR-032 Phase 3)
+	global := o.registry.Search(query, o.shell.activeMode)
 
 	// 3. Merge: contextual first, then global — deduplicate by ViewID (ADR-032)
 	merged := make([]Command, 0, len(contextual)+len(global))
