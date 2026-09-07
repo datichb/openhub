@@ -35,6 +35,10 @@ type BoardViewConfig struct {
 	// OnInitBeads is called when the user requests to initialize beads.
 	// If nil, the [i] key and the init action are disabled.
 	OnInitBeads func()
+	// OnLinkTracker is called when the user presses 'L' to link a ticket to a
+	// tracker reference. Receives ticketID and externalRef (ADR-032).
+	// If nil, the link action is disabled.
+	OnLinkTracker func(ticketID, externalRef string) error
 }
 
 // BoardView implements View for the kanban board.
@@ -77,10 +81,11 @@ func (v *BoardView) StatusHints() string {
 			i18n.T("tui.hints.back"),
 		)
 	}
-	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · r %s · Esc %s",
+	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · L %s · r %s · Esc %s",
 		i18n.T("tui.hints.columns"),
 		i18n.T("tui.hints.items"),
 		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.link"),
 		i18n.T("tui.hints.refresh"),
 		i18n.T("tui.hints.back"),
 	)
@@ -232,6 +237,9 @@ func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			}()
 		}
 		return nil
+	case 'L':
+		v.linkTicketToTracker()
+		return nil
 	}
 
 	return event
@@ -302,6 +310,65 @@ func (v *BoardView) showTicketDetail() {
 		formatBoardTicket(ticket),
 		[]ModalAction{{Label: "Fermer", Callback: nil}},
 	)
+}
+
+// linkTicketToTracker prompts for an external ref and links the selected ticket (ADR-032).
+func (v *BoardView) linkTicketToTracker() {
+	if v.shell == nil || v.cfg.OnLinkTracker == nil || len(v.columnLists) == 0 {
+		return
+	}
+
+	list := v.columnLists[v.focusCol]
+	if list == nil || list.GetItemCount() == 0 {
+		return
+	}
+
+	idx := list.GetCurrentItem()
+	if idx < 0 || idx >= list.GetItemCount() {
+		return
+	}
+
+	_, secondary := list.GetItemText(idx)
+	secondary = strings.TrimSpace(secondary)
+	ticketID := secondary
+	if sep := strings.Index(secondary, " · "); sep >= 0 {
+		ticketID = secondary[:sep]
+	}
+	ticketID = strings.TrimSpace(ticketID)
+	if ticketID == "" {
+		return
+	}
+
+	// Pre-fill with existing external ref if available.
+	current := ""
+	if t, ok := v.ticketsByID[ticketID]; ok {
+		current = t.ExternalRef
+	}
+
+	v.shell.ShowInputModal("Réf. tracker (ex: gitlab-693)", current, func(ref string) {
+		ref = strings.TrimSpace(ref)
+		if ref == "" {
+			return
+		}
+		if err := v.cfg.OnLinkTracker(ticketID, ref); err != nil {
+			v.shell.ShowToastMsg("Liaison échouée: "+err.Error(), false)
+			return
+		}
+		v.shell.ShowToastMsg("Ticket "+ticketID+" lié à "+ref, true)
+		// Refresh to show the updated label
+		if v.cfg.RefreshFunc != nil {
+			go func() {
+				tickets := v.cfg.RefreshFunc()
+				if v.app != nil {
+					v.app.QueueUpdateDraw(func() {
+						if v.columnLists != nil {
+							v.populateColumns(tickets, DefaultColumns())
+						}
+					})
+				}
+			}()
+		}
+	})
 }
 
 // formatTicketDetail formats a TicketDetail for the scrollable modal.

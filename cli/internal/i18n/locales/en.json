@@ -571,6 +571,7 @@
   "tui.hints.edit": "edit",
   "tui.hints.toggle": "toggle",
   "tui.hints.detail": "detail",
+  "tui.hints.link": "link tracker",
   "tui.hints.search": "search",
   "tui.hints.filter": "filter",
   "tui.hints.columns": "columns",

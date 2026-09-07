@@ -571,6 +571,7 @@
   "tui.hints.edit": "éditer",
   "tui.hints.toggle": "basculer",
   "tui.hints.detail": "détail",
+  "tui.hints.link": "lier tracker",
   "tui.hints.search": "rechercher",
   "tui.hints.filter": "filtrer",
   "tui.hints.columns": "colonnes",

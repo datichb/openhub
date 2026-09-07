@@ -212,6 +212,13 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return beads.IsInitialized(path)
 			},
 			OnInitBeads: func() { initBeadsForActiveProject(a) },
+			OnLinkTracker: func(ticketID, externalRef string) error {
+				path := resolveActiveProjectPath(a)
+				if path == "" {
+					return fmt.Errorf("aucun projet actif")
+				}
+				return beads.LinkToTracker(path, ticketID, externalRef)
+			},
 		}),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
 		views.NewParallelView(views.ParallelViewConfig{}),

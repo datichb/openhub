@@ -512,6 +512,20 @@ func CloseTicket(projectPath, ticketID, message string) error {
 	return nil
 }
 
+// LinkToTracker sets the external_ref on a bead ticket to link it to an
+// external tracker ticket (ADR-032).
+// Runs: bd -C <path> update <ticketID> --external-ref <ref>
+func LinkToTracker(projectPath, ticketID, externalRef string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--external-ref", externalRef)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd link failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Zero-impact sanitization
 // ---------------------------------------------------------------------------
