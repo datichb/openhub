@@ -416,7 +416,11 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 					"[-]",
 				)
 				// Secondary text: "  ID · type" dimmed — ID is first token for lookup
+				// If the ticket has an external ref, append it (ADR-032)
 				secondary := fmt.Sprintf("  %s · %s", t.ID, t.Type)
+				if t.ExternalRef != "" {
+					secondary += fmt.Sprintf(" · ← %s", t.ExternalRef)
+				}
 				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
 				break
 			}

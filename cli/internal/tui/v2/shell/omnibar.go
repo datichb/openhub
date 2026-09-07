@@ -259,10 +259,24 @@ func (o *Omnibar) updateSuggestions(query string) {
 	// 2. Get global commands
 	global := o.registry.Search(query)
 
-	// 3. Merge: contextual first, then global
+	// 3. Merge: contextual first, then global — deduplicate by ViewID (ADR-032)
 	merged := make([]Command, 0, len(contextual)+len(global))
 	merged = append(merged, contextual...)
-	merged = append(merged, global...)
+
+	// Build a set of ViewIDs already covered by contextual commands to avoid
+	// showing duplicate entries for the same destination.
+	seen := make(map[string]bool, len(contextual))
+	for _, c := range contextual {
+		if c.ViewID != "" {
+			seen[c.ViewID] = true
+		}
+	}
+	for _, g := range global {
+		if g.ViewID != "" && seen[g.ViewID] {
+			continue // skip global duplicate — contextual version takes priority
+		}
+		merged = append(merged, g)
+	}
 
 	o.visible = merged
 	o.suggestions.Clear()

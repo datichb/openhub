@@ -42,6 +42,9 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	return views.TeamBoardViewConfig{
 		RefreshRate: 5 * time.Second,
+		IsConfigured: func() bool {
+			return resolveRepo() != nil
+		},
 		RefreshFunc: func() []views.TeamTicket {
 			repo := resolveRepo()
 			if repo == nil {

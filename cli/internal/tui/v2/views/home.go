@@ -24,6 +24,9 @@ type homeItem struct {
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
 	OnLaunchSession func(agent string, args ...string)
+	// HasProject returns true when at least one active project exists.
+	// Used to conditionally show project-specific items (ADR-032).
+	HasProject func() bool
 }
 
 // HomeView is the splash/landing view for the TUI shell.
@@ -158,14 +161,19 @@ func (v *HomeView) executeItem(idx int) {
 }
 
 func (v *HomeView) buildItems() []homeItem {
-	items := []homeItem{
-		// ── Navigation ──
-		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet actif", ViewID: "board"},
-		{Icon: "◈", Label: "Projets", Desc: "Gérer les projets", ViewID: "projects.list"},
-		{Icon: "⊛", Label: "Worktrees", Desc: "Git worktrees", ViewID: "worktrees"},
-		{Icon: "◎", Label: "Métriques", Desc: "Statistiques d'usage", ViewID: "metrics"},
-		{Icon: "⊟", Label: "Config", Desc: "Configuration du hub", ViewID: "settings"},
+	hasProject := v.cfg.HasProject == nil || v.cfg.HasProject()
+
+	var items []homeItem
+	// ── Navigation ──
+	if hasProject {
+		items = append(items, homeItem{Icon: "⊞", Label: "Board", Desc: "Kanban du projet actif", ViewID: "board"})
 	}
+	items = append(items,
+		homeItem{Icon: "◈", Label: "Projets", Desc: "Gérer les projets", ViewID: "projects.list"},
+		homeItem{Icon: "⊛", Label: "Worktrees", Desc: "Git worktrees", ViewID: "worktrees"},
+		homeItem{Icon: "◎", Label: "Métriques", Desc: "Statistiques d'usage", ViewID: "metrics"},
+		homeItem{Icon: "⊟", Label: "Config", Desc: "Configuration du hub", ViewID: "settings"},
+	)
 
 	// ── Actions rapides ──
 	if v.cfg.OnLaunchSession != nil {

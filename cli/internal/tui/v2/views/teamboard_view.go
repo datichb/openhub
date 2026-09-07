@@ -31,6 +31,9 @@ type TeamBoardViewConfig struct {
 	// Actions wires the ticket action callbacks (claim, release, transfer, status).
 	// If nil, action keys (c/x/t/s) are no-ops.
 	Actions *BoardActions
+	// IsConfigured returns whether the team-state repo is resolved and cloned.
+	// Used to display an appropriate empty-state message (ADR-032).
+	IsConfigured func() bool
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -155,9 +158,30 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.populateColumns(v.cfg.Tickets, columns)
 
+	// Empty-state: show a helpful message when no tickets are available (ADR-032)
+	hasTickets := len(v.cfg.Tickets) > 0
+	isConfigured := v.cfg.IsConfigured == nil || v.cfg.IsConfigured()
+
+	if !hasTickets && !isConfigured {
+		emptyTV := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		emptyTV.SetBackgroundColor(theme.BgPanel)
+		emptyTV.SetText("\n\n[yellow]Aucune équipe configurée.[-]\n\nUtilisez [white]Team Init[-] pour commencer.")
+		content.AddItem(emptyTV, 0, 1, true)
+	} else if !hasTickets {
+		emptyTV := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		emptyTV.SetBackgroundColor(theme.BgPanel)
+		emptyTV.SetText("\n\n[yellow]Aucun ticket.[-]\n\nLancez [white]Sync Tracker[-] ([::b]r[::-]) pour synchroniser.")
+		content.AddItem(emptyTV, 0, 1, true)
+	} else {
+		content.AddItem(v.boardLayout, 0, 1, true)
+	}
+
 	// Always add boardLayout — async sync will populate it with tickets.
 	// Empty columns are visually clear enough without a special empty-state message.
-	content.AddItem(v.boardLayout, 0, 1, true)
 
 	v.focusCol = 0
 	v.updateColumnFocus()

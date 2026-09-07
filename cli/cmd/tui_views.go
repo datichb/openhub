@@ -186,7 +186,12 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	})
 
 	allViews := []views.View{
-		views.NewHomeView(views.HomeViewConfig{}),
+		views.NewHomeView(views.HomeViewConfig{
+			HasProject: func() bool {
+				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+				return len(projects) > 0
+			},
+		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
 			RefreshFunc: func() []views.BoardTicket {

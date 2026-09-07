@@ -18,11 +18,12 @@ import (
 
 // BoardTicket represents a kanban ticket.
 type BoardTicket struct {
-	ID       string
-	Title    string
-	Status   string // "planned", "in_progress", "review", "done", "blocked"
-	Priority string
-	Type     string
+	ID          string
+	Title       string
+	Status      string // "planned", "in_progress", "review", "done", "blocked"
+	Priority    string
+	Type        string
+	ExternalRef string // external tracker reference (e.g. "gitlab-693") — ADR-032
 }
 
 // BoardConfig configures the board view.
