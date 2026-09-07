@@ -154,15 +154,25 @@ type TrackerConfig struct {
 	PushLabels bool `toml:"push_labels"`
 	// PushLabelsEnforced marks PushLabels as enforced by the team.
 	PushLabelsEnforced *bool `toml:"push_labels_enforced,omitempty"`
+	// TrackerProject is the default external tracker project identifier for the team.
+	// For GitLab this is the numeric project ID or URL-encoded path (e.g. "group/project").
+	// For Jira this is the project key (e.g. "SRU").
+	// Individual hub projects can override this via their ProjectTrackerConfig.
+	TrackerProject string `toml:"tracker_project,omitempty"`
+	// TicketPattern is the default regex with one capture group for extracting
+	// the external tracker IID from a ticket ID string.
+	// Individual hub projects can override this via their ProjectTrackerConfig.
+	// Empty means the ticket ID is used as-is (numeric IID).
+	TicketPattern string `toml:"ticket_pattern,omitempty"`
 	// TicketPatterns maps hub project IDs to a regex with one capture group
 	// that extracts the external tracker IID from a ticket ID string.
-	// Example: {"T-SRU": "SRU-(\\d+)", "T-FRONT": "FRONT-(\\d+)"}
-	TicketPatterns map[string]string `toml:"ticket_patterns"`
+	// Deprecated: use TrackerProject + TicketPattern (simple fields) or
+	// per-project ProjectTrackerConfig overrides. Kept for backward compat.
+	TicketPatterns map[string]string `toml:"ticket_patterns,omitempty"`
 	// Projects maps hub project IDs to external tracker project identifiers.
-	// For GitLab this is the numeric project ID or URL-encoded path.
-	// For Jira this is the project key (e.g. "SRU").
-	// Example: {"T-SRU": "42", "T-FRONT": "my-group/frontend"}
-	Projects map[string]string `toml:"projects"`
+	// Deprecated: use TrackerProject (simple field) or per-project
+	// ProjectTrackerConfig overrides. Kept for backward compat.
+	Projects map[string]string `toml:"projects,omitempty"`
 }
 
 // LoadConfig reads config.toml from the team-state repo.

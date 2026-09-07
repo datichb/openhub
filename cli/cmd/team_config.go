@@ -335,9 +335,10 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		// Auto-sync
 		teamCfg.Tracker.AutoSync = askYN(out, "Activer la synchronisation automatique à l'ouverture des vues ?", teamCfg.Tracker.AutoSync)
 
-		// Mappings projets
-		fmt.Fprintf(out, "\n%s Mappings projets\n", theme.Bold.Render("→"))
-		configureTrackerProjects(ctx, a, out, teamCfg, trackerType)
+		// Projet tracker par défaut
+		fmt.Fprintf(out, "\n%s Projet tracker par défaut\n", theme.Bold.Render("→"))
+		trackerProject := askInput(out, "ID ou path du projet sur le tracker (ex: group/project)", teamCfg.Tracker.TrackerProject)
+		teamCfg.Tracker.TrackerProject = trackerProject
 
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config tracker: %w", err)

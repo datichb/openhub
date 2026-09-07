@@ -299,5 +299,11 @@ var schemaMigrations = []migration{
 		down:         `ALTER TABLE projects DROP COLUMN team_config`,
 		irreversible: false,
 	},
+	{
+		version:      18,
+		up:           `ALTER TABLE projects ADD COLUMN tracker_config TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN tracker_config`,
+		irreversible: false,
+	},
 }
 

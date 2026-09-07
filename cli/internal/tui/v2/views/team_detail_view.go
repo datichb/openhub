@@ -394,6 +394,12 @@ func (v *TeamDetailView) buildLines() {
 		},
 	})
 	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "tracker_project", kind: "string", scope: scopeTeam,
+		hint: "ID ou path du projet sur le tracker (ex: group/project ou 42)",
+		get:  func() string { return v.teamCfg.Tracker.TrackerProject },
+		set:  func(val string) { v.teamCfg.Tracker.TrackerProject = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "enabled", kind: "bool", scope: scopeTeam,
 		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
 		set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
@@ -423,24 +429,6 @@ func (v *TeamDetailView) buildLines() {
 		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
 		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Tracker.SyncIntervalMinutes = n; v.dirtyTeam = true },
 	})
-
-	// ── Mappings (dynamic) ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Mappings projets"})
-	for k := range v.teamCfg.Tracker.Projects {
-		k := k
-		v.lines = append(v.lines, teamConfigLine{
-			section: "Mappings", key: k, kind: "string", scope: scopeTeam, dynamic: true,
-			get: func() string { return v.teamCfg.Tracker.Projects[k] },
-			set: func(val string) { v.teamCfg.Tracker.Projects[k] = val; v.dirtyTeam = true },
-		})
-	}
-	if len(v.teamCfg.Tracker.Projects) == 0 {
-		v.lines = append(v.lines, teamConfigLine{
-			section: "Mappings", key: "(vide)", kind: "placeholder",
-			hint: "a pour ajouter un mapping",
-			get:  func() string { return "" },
-		})
-	}
 
 	// ── Notifications ──
 	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Notifications"})

@@ -51,6 +51,26 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 	}
 
 	// Build a teamstate.TrackerConfig from the effective config for the engine.
+	// Build the Projects map from the new TrackerProject field (backward compat).
+	projects := effTracker.Projects
+	if projects == nil {
+		projects = make(map[string]string)
+	}
+	if effTracker.TrackerProject != "" && len(projects) == 0 {
+		projects["_default"] = effTracker.TrackerProject
+	}
+	ticketPatterns := effTracker.TicketPatterns
+	if ticketPatterns == nil {
+		ticketPatterns = make(map[string]string)
+	}
+	if effTracker.TicketPattern != "" {
+		for k := range projects {
+			if ticketPatterns[k] == "" {
+				ticketPatterns[k] = effTracker.TicketPattern
+			}
+		}
+	}
+
 	engineCfg := teamstate.TrackerConfig{
 		Type:                 effTracker.Type,
 		Enabled:              effTracker.Enabled,
@@ -59,8 +79,8 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 		AutoPlanAssigned:     effTracker.AutoPlanAssigned,
 		MaxAutoPlanPerMember: effTracker.MaxAutoPlanPerMember,
 		PushLabels:           effTracker.PushLabels,
-		TicketPatterns:       effTracker.TicketPatterns,
-		Projects:             effTracker.Projects,
+		TicketPatterns:       ticketPatterns,
+		Projects:             projects,
 	}
 
 	return tracker.NewEngine(t, repo, engineCfg, config.HubDir())

@@ -301,6 +301,36 @@ func (v *ProjectConfigView) buildLines() {
 				p.TeamConfig.StatePath = val
 			}},
 
+		// ── Tracker Overrides ───────────────────────────────────────────────
+		{kind: "section-header", section: "Tracker"},
+		{section: "Tracker", key: "tracker_project", kind: "string",
+			get: func(p *domain.Project) string {
+				if p.TrackerConfig == nil { return "" }
+				return p.TrackerConfig.TrackerProject
+			},
+			set: func(p *domain.Project, val string) {
+				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				p.TrackerConfig.TrackerProject = val
+			}},
+		{section: "Tracker", key: "tracker_url", kind: "string",
+			get: func(p *domain.Project) string {
+				if p.TrackerConfig == nil { return "" }
+				return p.TrackerConfig.TrackerURL
+			},
+			set: func(p *domain.Project, val string) {
+				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				p.TrackerConfig.TrackerURL = val
+			}},
+		{section: "Tracker", key: "ticket_pattern", kind: "string",
+			get: func(p *domain.Project) string {
+				if p.TrackerConfig == nil { return "" }
+				return p.TrackerConfig.TicketPattern
+			},
+			set: func(p *domain.Project, val string) {
+				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				p.TrackerConfig.TicketPattern = val
+			}},
+
 		// ── MCP Overrides ────────────────────────────────────────────────────
 		{kind: "section-header", section: "MCP Services"},
 		// GitLab

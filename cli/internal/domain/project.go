@@ -23,6 +23,7 @@ type Project struct {
 	ProviderConfig *ProjectProviderConfig // per-project provider config overrides (nil = inherit hub)
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
 	TeamConfig     *ProjectTeamConfig     // deprecated: use TeamID. Kept for backward compat migration.
+	TrackerConfig  *ProjectTrackerConfig  // per-project tracker overrides (nil = inherit team defaults)
 	// TeamID links this project to a team by its ID (matching a teams[].id entry
 	// in hub.toml). nil = solo project (no team affiliation). When set, the project
 	// inherits team-level configuration (MCP, tracker, models, policies).
@@ -68,6 +69,22 @@ type ProjectProviderConfig struct {
 	AWSRegion  string `json:"aws_region,omitempty"`  // override AWS region for this project
 	AuthMode   string `json:"auth_mode,omitempty"`   // override auth mode for this project
 	TokenKey   string `json:"token_key,omitempty"`   // project-specific keychain key for credentials
+}
+
+// ProjectTrackerConfig holds per-project tracker overrides.
+// Empty fields inherit from the team-state TrackerConfig defaults.
+// Resolution cascade: project → team → MCP → env → built-in default.
+type ProjectTrackerConfig struct {
+	// TrackerProject overrides the team-state TrackerProject for this project.
+	// For GitLab: numeric project ID or URL-encoded path (e.g. "group/project").
+	// For Jira: project key (e.g. "SRU").
+	TrackerProject string `json:"tracker_project,omitempty"`
+	// TrackerURL overrides the team-state TrackerURL for this project.
+	TrackerURL string `json:"tracker_url,omitempty"`
+	// TrackerTokenKey overrides the tracker token keychain key for this project.
+	TrackerTokenKey string `json:"tracker_token_key,omitempty"`
+	// TicketPattern overrides the team-state TicketPattern regex for this project.
+	TicketPattern string `json:"ticket_pattern,omitempty"`
 }
 
 // ProjectTeamConfig holds per-project team configuration.
