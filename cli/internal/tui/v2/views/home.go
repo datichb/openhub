@@ -37,7 +37,6 @@ type HomeView struct {
 }
 
 var _ View = (*HomeView)(nil)
-var _ CommandProvider = (*HomeView)(nil)
 
 func NewHomeView(cfg HomeViewConfig) *HomeView {
 	return &HomeView{cfg: cfg}
@@ -144,33 +143,6 @@ func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 	// Let tview.List handle j/k/arrows natively
 	return event
-}
-
-// ContextCommands exposes home items to the omnibar.
-func (v *HomeView) ContextCommands() []ContextCommand {
-	var cmds []ContextCommand
-	for _, it := range v.items {
-		cmd := ContextCommand{
-			ID:          "home." + strings.ToLower(strings.ReplaceAll(it.Label, " ", "-")),
-			Label:       it.Label,
-			Description: it.Desc,
-			Category:    "Navigation",
-		}
-		if it.ViewID != "" {
-			viewID := it.ViewID
-			cmd.Action = func() {
-				if v.shell != nil {
-					v.shell.NavigateTo(viewID)
-				}
-			}
-		} else if it.Action != nil {
-			action := it.Action
-			cmd.Action = action
-			cmd.RunsDirect = true
-		}
-		cmds = append(cmds, cmd)
-	}
-	return cmds
 }
 
 func (v *HomeView) executeItem(idx int) {

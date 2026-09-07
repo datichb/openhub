@@ -190,8 +190,8 @@ func buildCommands(a *app.App) []shell.Command {
 		// ── Projets ──────────────────────────────────────────────────────
 		{
 			ID:          "board",
-			Label:       "Board",
-			Aliases:     []string{"kanban", "tasks"},
+			Label:       i18n.T("tui.cmd.project_board"),
+			Aliases:     []string{"kanban", "tasks", "project board"},
 			Description: "Kanban du projet actif",
 			Category:    "Projets",
 			Priority:    100,
@@ -431,9 +431,9 @@ func buildCommands(a *app.App) []shell.Command {
 		},
 	}
 
-	// ── Team commands — always registered ────────────────────────────────
-	// Views handle the "team not configured" case gracefully at render time.
-	// Worktrees is a git feature, not team-specific — always visible.
+	// ── Team commands — only registered when a team is configured ───────
+	hasTeam := a.Config.ActiveTeam().StateRepo != ""
+	if hasTeam {
 	commands = append(commands,
 		shell.Command{
 			ID:          "team.board",
@@ -472,15 +472,6 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "team.briefs",
 		},
 		shell.Command{
-			ID:          "worktrees",
-			Label:       "Worktrees",
-			Aliases:     []string{"wt", "git worktree"},
-			Description: "Gestion des git worktrees",
-			Category:    "Git",
-			Priority:    100,
-			ViewID:      "worktrees",
-		},
-		shell.Command{
 			ID:          "team.patterns",
 			Label:       i18n.T("tui.team.patterns"),
 			Aliases:     []string{"pat", "patterns"},
@@ -498,18 +489,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "team.policies",
 		},
-		shell.Command{
-			ID:          "team.init",
-			Label:       i18n.T("tui.team.init"),
-			Aliases:     []string{"team init", "initialiser"},
-			Description: i18n.T("tui.team.init.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    40,
-			Action:      actionTeamInit,
-		},
 	)
 
-	// ── Sync tracker (global action) ────────────────────────────────────
+	// Sync tracker (team-only action)
 	commands = append(commands, shell.Command{
 		ID:          "team.sync",
 		Label:       "Sync Tracker",
@@ -518,6 +500,29 @@ func buildCommands(a *app.App) []shell.Command {
 		Category:    i18n.T("tui.category.team"),
 		Priority:    60,
 		Action:      actionSyncTracker,
+	})
+	} // end hasTeam
+
+	// ── Team init — always visible (needed to create a team) ─────────
+	commands = append(commands, shell.Command{
+		ID:          "team.init",
+		Label:       i18n.T("tui.team.init"),
+		Aliases:     []string{"team init", "initialiser"},
+		Description: i18n.T("tui.team.init.desc"),
+		Category:    i18n.T("tui.category.team"),
+		Priority:    40,
+		Action:      actionTeamInit,
+	})
+
+	// ── Worktrees — always visible (git feature, not team-specific) ──
+	commands = append(commands, shell.Command{
+		ID:          "worktrees",
+		Label:       "Worktrees",
+		Aliases:     []string{"wt", "git worktree"},
+		Description: "Gestion des git worktrees",
+		Category:    "Git",
+		Priority:    100,
+		ViewID:      "worktrees",
 	})
 
 	if a.Config.MCP.Gitlab.WriteEnabled {

@@ -1175,6 +1175,7 @@
   "wizard.processing": "Traitement...",
 
   "tui.board.tab_all": "Tous",
+  "tui.cmd.project_board": "Board Projet",
   "tui.hints.projects": "projets",
 
   "cmd.team.init.recap.member": "Membre",

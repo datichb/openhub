@@ -19,8 +19,15 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 	project, _ := resolveActiveProject(a)
 	tc := resolvedTeamConfig(a, project)
 	if !tc.Enabled {
-		slog.Debug("tracker.resolve_engine.skip", "reason", "team not enabled")
-		return nil
+		// Fallback: use hub-level team config (matches CLI sync-tracker behavior)
+		hubTC := a.Config.ActiveTeam()
+		if hubTC.StateRepo == "" {
+			slog.Debug("tracker.resolve_engine.skip", "reason", "team not enabled")
+			return nil
+		}
+		tc.Enabled = true
+		tc.StateRepo = hubTC.StateRepo
+		tc.StatePath = hubTC.StatePath
 	}
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {

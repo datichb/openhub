@@ -1175,6 +1175,7 @@
   "wizard.processing": "Processing...",
 
   "tui.board.tab_all": "All",
+  "tui.cmd.project_board": "Project Board",
   "tui.hints.projects": "projects",
 
   "cmd.team.init.recap.member": "Member",

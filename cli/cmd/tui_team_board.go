@@ -14,11 +14,21 @@ import (
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// resolveRepo is a helper that returns the active team repo (or nil).
+	// Falls back to hub-level ActiveTeam() when the project has no TeamID set.
 	resolveRepo := func() *teamstate.Repo {
 		project, _ := resolveActiveProject(a)
 		tc := resolvedTeamConfig(a, project)
 		if !tc.Enabled {
-			return nil
+			// Fallback: use hub-level team config (matches CLI sync-tracker behavior)
+			hubTC := a.Config.ActiveTeam()
+			if hubTC.StateRepo == "" {
+				return nil
+			}
+			repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
+			if !repo.IsCloned() {
+				return nil
+			}
+			return repo
 		}
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if !repo.IsCloned() {
