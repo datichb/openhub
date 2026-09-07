@@ -379,6 +379,21 @@ func (v *TeamDetailView) buildLines() {
 		set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
 	})
 	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "tracker_url", kind: "string", scope: scopeTeam,
+		hint: "URL de l'instance GitLab/Jira (ex: https://gitlab.example.com)",
+		get:  func() string { return v.teamCfg.Tracker.TrackerURL },
+		set:  func(val string) { v.teamCfg.Tracker.TrackerURL = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "tracker_token", kind: "password", scope: scopeLocal,
+		hint: "Token d'accès pour le tracker (stocké dans le keychain)",
+		get:  func() string { return v.resolveTrackerTokenKey() },
+		set: func(val string) {
+			v.teamCfg.Tracker.TrackerTokenKey = val
+			v.dirtyTeam = true
+		},
+	})
+	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "enabled", kind: "bool", scope: scopeTeam,
 		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
 		set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
@@ -1055,6 +1070,21 @@ func (v *TeamDetailView) promptTokenSetup() {
 	})
 }
 
+// resolveTrackerTokenKey returns the keychain key for the tracker token.
+// Uses TrackerTokenKey if set, otherwise derives from "openhub.tracker.<type>.token".
+func (v *TeamDetailView) resolveTrackerTokenKey() string {
+	if v.teamCfg == nil {
+		return ""
+	}
+	if v.teamCfg.Tracker.TrackerTokenKey != "" {
+		return v.teamCfg.Tracker.TrackerTokenKey
+	}
+	if v.teamCfg.Tracker.Type != "" {
+		return "openhub.tracker." + v.teamCfg.Tracker.Type + ".token"
+	}
+	return ""
+}
+
 func (v *TeamDetailView) testConnection() {
 	if v.shell == nil || v.app == nil {
 		return
@@ -1096,6 +1126,17 @@ func (v *TeamDetailView) testConnection() {
 			JiraWriteEnabled:   effJira.WriteEnabled,
 			JiraURL:            effJira.URL,
 			Secrets:            v.cfg.GetSecrets(),
+		}
+		// Apply tracker-specific overrides
+		if v.teamCfg.Tracker.TrackerURL != "" {
+			src.TrackerURL = v.teamCfg.Tracker.TrackerURL
+		}
+		tokenKey := v.teamCfg.Tracker.TrackerTokenKey
+		if tokenKey == "" && v.teamCfg.Tracker.TrackerURL != "" && v.teamCfg.Tracker.Type != "" {
+			tokenKey = "openhub.tracker." + v.teamCfg.Tracker.Type + ".token"
+		}
+		if tokenKey != "" {
+			src.TrackerTokenKey = tokenKey
 		}
 
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)

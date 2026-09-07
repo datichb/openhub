@@ -685,7 +685,7 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 	}
 
 	// Build credential source
-	credSrc := buildCredentialSource(a, teamCfg.MCP)
+	credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
 
 	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)

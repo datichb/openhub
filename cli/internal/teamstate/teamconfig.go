@@ -119,9 +119,10 @@ type ClaimConfig struct {
 }
 
 // TrackerConfig holds settings for the external tracker sync (GitLab / Jira).
-// The connection credentials (token, base URL) are NOT stored here — they are
-// reused from the hub's MCP configuration ([mcp.gitlab] / [mcp.jira] in hub.toml)
-// so there is no duplication of secrets.
+// Connection credentials (token) are personal and never stored here — they are
+// resolved at runtime from the keychain or environment variables.
+// The tracker_url allows the team to point to a specific GitLab/Jira instance
+// independently of the MCP service configuration.
 type TrackerConfig struct {
 	// Enabled turns the tracker sync on or off globally.
 	Enabled bool `toml:"enabled"`
@@ -129,6 +130,14 @@ type TrackerConfig struct {
 	Type string `toml:"type"`
 	// TypeEnforced marks Type as factual/enforced (cannot be overridden locally).
 	TypeEnforced *bool `toml:"type_enforced,omitempty"`
+	// TrackerURL is the base URL of the tracker instance (e.g. "https://gitlab.example.com").
+	// When set, it overrides the MCP service URL for tracker operations.
+	// This allows the tracker to point to a different instance than the MCP GitLab/Jira.
+	TrackerURL string `toml:"tracker_url,omitempty"`
+	// TrackerTokenKey is the keychain key used to store the tracker-specific token.
+	// When empty, defaults to "openhub.tracker.<type>.token".
+	// Falls back to the MCP service token if the tracker-specific token is not found.
+	TrackerTokenKey string `toml:"tracker_token_key,omitempty"`
 	// AutoSync triggers a sync automatically when team views are opened.
 	AutoSync bool `toml:"auto_sync"`
 	// SyncIntervalMinutes is the polling interval when the board is open.

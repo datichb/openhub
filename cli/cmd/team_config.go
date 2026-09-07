@@ -156,7 +156,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		fmt.Fprintf(out, "\n%s Configuration locale\n", theme.Bold.Render("→"))
 
 		// Test de connexion avec les credentials actuels
-		src := buildCredentialSource(a, teamCfg.MCP)
+		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
 			// Proposer de configurer un nouveau token
 			if askYN(out, "Configurer un nouveau token GitLab ?", true) {
@@ -207,7 +207,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 	if configLocal {
 		fmt.Fprintf(out, "\n%s Configuration locale\n", theme.Bold.Render("→"))
-		src := buildCredentialSource(a, teamCfg.MCP)
+		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
 			if askYN(out, "Configurer un nouveau token Jira ?", true) {
 				tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: jira-token)", a.Config.MCP.Jira.Token)
@@ -275,11 +275,47 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		trackerTypes := []string{"gitlab", "jira"}
 		teamCfg.Tracker.Type = trackerTypes[typeIdx]
 
-		// Test de connexion
-		src := buildCredentialSource(a, teamCfg.MCP)
+		// Tracker URL
+		defaultURL := teamCfg.Tracker.TrackerURL
+		if defaultURL == "" {
+			// Suggest MCP URL as default if available
+			if teamCfg.Tracker.Type == "gitlab" && a.Config.MCP.Gitlab.URL != "" {
+				defaultURL = a.Config.MCP.Gitlab.URL
+			} else if teamCfg.Tracker.Type == "jira" && a.Config.MCP.Jira.URL != "" {
+				defaultURL = a.Config.MCP.Jira.URL
+			}
+		}
+		trackerURL := askInput(out, "URL de l'instance (ex: https://gitlab.example.com)", defaultURL)
+		teamCfg.Tracker.TrackerURL = trackerURL
+
+		// Tracker token — determine the keychain key
+		trackerTokenKey := teamCfg.Tracker.TrackerTokenKey
+		if trackerTokenKey == "" {
+			trackerTokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
+		}
+		teamCfg.Tracker.TrackerTokenKey = trackerTokenKey
+
+		// Check if token exists, prompt if not
+		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprintf(out, "\n  Test de connexion...\n")
-		_ = testAndDisplayConnection(ctx, out, src, trackerType)
+		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
+			if askYN(out, "Configurer un token pour ce tracker ?", true) {
+				token := askInput(out, "Token d'accès "+teamCfg.Tracker.Type, "")
+				if token != "" {
+					if err := a.Secrets.Set(ctx, trackerTokenKey, token); err != nil {
+						fmt.Fprintf(out, "  %s Erreur stockage token: %s\n", theme.WarningStyle.Render(theme.IconWarning), err)
+					} else {
+						fmt.Fprintf(out, "  %s Token stocké dans le keychain (%s)\n",
+							theme.SuccessStyle.Render(theme.IconSuccess), trackerTokenKey)
+						// Re-test connection
+						src = buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+						fmt.Fprintf(out, "\n  Re-test de connexion...\n")
+						_ = testAndDisplayConnection(ctx, out, src, trackerType)
+					}
+				}
+			}
+		}
 
 		// Enabled
 		teamCfg.Tracker.Enabled = askYN(out, "Activer le tracker sync pour l'équipe ?", teamCfg.Tracker.Enabled)
@@ -482,7 +518,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
-	src := buildCredentialSource(a, sharedMCP)
+	src := buildCredentialSource(a, sharedMCP, &teamCfg.Tracker)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
 	_ = testAndDisplayConnection(ctx, out, src, trackerType)
 

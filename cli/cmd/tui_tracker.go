@@ -39,7 +39,7 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 		return nil
 	}
 
-	credSrc := buildCredentialSource(a, teamCfg.MCP)
+	credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 	cfg, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(effTracker.Type))
 	if err != nil {
 		return nil
@@ -85,7 +85,8 @@ func resolveWriteEnabledForTracker(a *app.App, teamCfg *teamstate.TeamConfig) bo
 //
 // sharedMCP may be nil when no team-state config is available — the source
 // degrades gracefully to hub.toml-only mode.
-func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPConfig) tracker.CredentialSource {
+// trackerCfg may be nil — no tracker URL/token override is applied.
+func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPConfig, trackerCfg *teamstate.TrackerConfig) tracker.CredentialSource {
 	// Resolve effective MCP configs (local hub.toml merged with team-state recs).
 	var sharedGitLab, sharedJira *teamstate.SharedMCPConfig
 	if sharedMCP != nil {
@@ -99,7 +100,7 @@ func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPC
 	effGitLab := tracker.ResolveMCPConfig(sharedGitLab, a.Config.MCP.Gitlab)
 	effJira := tracker.ResolveMCPConfig(sharedJira, a.Config.MCP.Jira)
 
-	return tracker.CredentialSource{
+	src := tracker.CredentialSource{
 		GitLabEnabled:      effGitLab.Enabled,
 		GitLabTokenKey:     effGitLab.TokenKey,
 		GitLabWriteEnabled: effGitLab.WriteEnabled,
@@ -110,4 +111,21 @@ func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPC
 		JiraURL:            effJira.URL,
 		Secrets:            a.Secrets,
 	}
+
+	// Apply tracker-specific overrides from team-state config
+	if trackerCfg != nil {
+		if trackerCfg.TrackerURL != "" {
+			src.TrackerURL = trackerCfg.TrackerURL
+		}
+		tokenKey := trackerCfg.TrackerTokenKey
+		if tokenKey == "" && trackerCfg.TrackerURL != "" && trackerCfg.Type != "" {
+			// Default tracker token key when a dedicated URL is set
+			tokenKey = "openhub.tracker." + trackerCfg.Type + ".token"
+		}
+		if tokenKey != "" {
+			src.TrackerTokenKey = tokenKey
+		}
+	}
+
+	return src
 }
