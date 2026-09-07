@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/prettylog"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -54,7 +55,7 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		if verbose {
 			logLevel = slog.LevelDebug
 		}
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+		slog.SetDefault(slog.New(prettylog.NewPrettyHandler(os.Stderr, &prettylog.Options{Level: logLevel})))
 
 		// Propagate --no-tui to the TUI detection layer
 		if noTUI, _ := cmd.Flags().GetBool("no-tui"); noTUI {
