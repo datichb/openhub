@@ -72,6 +72,10 @@ type Config struct {
 	// Notifications is an optional pre-created notification store. When nil,
 	// a default store with capacity 50 is created automatically.
 	Notifications *NotificationStore
+	// TeamsProvider returns the list of configured teams as selectable options.
+	// Used by Ctrl+T to switch to team mode (ADR-032 Phase 3).
+	// If nil, Ctrl+T falls back to navigating to the teams list view.
+	TeamsProvider func() []views.SelectOption
 }
 
 // shellAware is an optional interface that views can implement to receive
@@ -91,9 +95,14 @@ type Shell struct {
 	router           *router.Router
 	registry         *CommandRegistry
 	suggestionsShown bool
+	cfg              Config // original config for runtime callbacks (ADR-032)
 
 	// activeProject is non-nil when project mode is active.
 	activeProject *views.ActiveProject
+	// activeTeam is non-nil when team mode is active (ADR-032 Phase 3).
+	activeTeam *views.ActiveTeam
+	// activeMode is the current navigation mode (ADR-032 Phase 3).
+	activeMode views.Mode
 
 	// notifications holds the last N toast messages for the Notifications view.
 	notifications *NotificationStore
@@ -131,6 +140,8 @@ func New(cfg Config) *Shell {
 		ctx:           ctx,
 		cancel:        cancel,
 		notifications: ns,
+		activeMode:    views.ModeHub, // default mode (ADR-032 Phase 3)
+		cfg:           cfg,
 	}
 
 	// Wire text-selection manager — calls back into the shell for the toast.
@@ -934,9 +945,10 @@ func (s *Shell) NavigateTo(viewID string) {
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {
 	s.activeProject = project
 	if project != nil {
+		s.activeMode = views.ModeProject
 		s.router.NavigateTo("project.mode")
 	} else {
-		s.router.NavigateTo("home")
+		s.SetMode(views.ModeHub)
 	}
 }
 
@@ -949,6 +961,56 @@ func (s *Shell) SetActiveProject(project *views.ActiveProject) {
 // ActiveProject returns the currently active project, or nil if in hub mode.
 func (s *Shell) ActiveProject() *views.ActiveProject {
 	return s.activeProject
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode navigation (ADR-032 Phase 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SetMode switches the shell to the given navigation mode and navigates to its landing view.
+func (s *Shell) SetMode(mode views.Mode) {
+	s.activeMode = mode
+	switch mode {
+	case views.ModeHub:
+		s.activeProject = nil
+		s.activeTeam = nil
+		s.router.NavigateTo("home")
+	case views.ModeTeam:
+		s.router.NavigateTo("team.mode")
+	case views.ModeProject:
+		if s.activeProject != nil {
+			s.router.NavigateTo("project.mode")
+		} else {
+			s.router.NavigateTo("projects.list")
+		}
+	}
+}
+
+// Mode returns the current navigation mode.
+func (s *Shell) Mode() views.Mode {
+	return s.activeMode
+}
+
+// SetActiveTeam sets the active team context without triggering navigation.
+func (s *Shell) SetActiveTeam(team *views.ActiveTeam) {
+	s.activeTeam = team
+}
+
+// ActiveTeam returns the currently active team, or nil outside team mode.
+func (s *Shell) ActiveTeam() *views.ActiveTeam {
+	return s.activeTeam
+}
+
+// AutoDetectMode determines the initial mode based on configured teams and projects.
+// Rules (ADR-032): 1 team without solo projects → Team; no team + 1 project → Project; else → Hub.
+func AutoDetectMode(numTeams, numProjects int) views.Mode {
+	if numTeams == 1 && numProjects <= 1 {
+		return views.ModeTeam
+	}
+	if numTeams == 0 && numProjects == 1 {
+		return views.ModeProject
+	}
+	return views.ModeHub
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1026,20 +1088,63 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 
-	// Ctrl+T: toggle between project mode and hub mode
+	// Ctrl+T: toggle team mode (ADR-032 Phase 3)
+	// From team mode → return to hub. From hub/project → enter team mode.
+	// If multiple teams, show a selector.
 	if event.Key() == tcell.KeyCtrlT {
-		if s.activeProject != nil {
-			s.SetProjectMode(nil)
-		} else {
-			s.router.NavigateTo("projects.list")
+		switch s.activeMode {
+		case views.ModeTeam:
+			// Already in team mode → go back to hub
+			s.SetMode(views.ModeHub)
+		default:
+			// Enter team mode — use TeamsProvider if configured
+			if s.cfg.TeamsProvider != nil {
+				teams := s.cfg.TeamsProvider()
+				switch len(teams) {
+				case 0:
+					s.ShowToast(i18n.T("tui.no_team_configured"), ToastWarning)
+				case 1:
+					s.activeTeam = &views.ActiveTeam{ID: teams[0].Value, Name: teams[0].Label}
+					s.SetMode(views.ModeTeam)
+				default:
+					s.ShowSelectModal(i18n.T("tui.select_team"), teams, "", func(selected string) {
+						for _, t := range teams {
+							if t.Value == selected {
+								s.activeTeam = &views.ActiveTeam{ID: t.Value, Name: t.Label}
+								s.SetMode(views.ModeTeam)
+								return
+							}
+						}
+					})
+				}
+			} else {
+				// No TeamsProvider — fallback to previous behavior
+				s.router.NavigateTo("teams")
+			}
 		}
 		return nil
 	}
 
-	// Esc: pop view (go back) or do nothing
+	// Esc: pop view (go back), or confirm mode exit at root (ADR-032 Phase 3)
 	if event.Key() == tcell.KeyEsc {
 		if s.router.StackDepth() > 1 {
 			s.router.Pop()
+			return nil
+		}
+		// At root of a non-hub mode → show confirmation modal
+		if s.activeMode != views.ModeHub {
+			modeName := "Équipe"
+			if s.activeMode == views.ModeProject {
+				modeName = "Projet"
+			}
+			s.ShowScrollableModal(
+				i18n.T("tui.confirm_exit_mode"),
+				fmt.Sprintf("Quitter le mode %s et revenir au Hub ?", modeName),
+				[]views.ModalAction{
+					{Label: "Oui", Callback: func() { s.SetMode(views.ModeHub) }},
+					{Label: "Annuler", Callback: nil},
+				},
+			)
 			return nil
 		}
 		return nil

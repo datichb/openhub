@@ -39,7 +39,6 @@ type ProjectModeView struct {
 	shell       ShellAccess
 	app         *tview.Application
 	list        *tview.List
-	commands    []ContextCommand // cached contextual commands
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 }
@@ -93,7 +92,6 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	if v.shell != nil {
 		v.project = v.shell.ActiveProject()
 	}
-	v.commands = nil // invalidate cache
 
 	if v.project == nil {
 		// No project active — show empty state
@@ -170,7 +168,6 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 func (v *ProjectModeView) Unmount() {
 	v.app = nil
 	v.list = nil
-	v.commands = nil
 }
 
 // HandleKey processes view-specific key events.
@@ -257,105 +254,9 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 }
 
 // ContextCommands returns contextual commands for the omnibar.
-// These replace the global command registry when project mode is active.
+// Since ADR-032 Phase 3, commands are filtered by mode at the registry level.
+// The global command registry with Modes annotations replaces the need for
+// per-view contextual command duplication.
 func (v *ProjectModeView) ContextCommands() []ContextCommand {
-	if v.commands != nil {
-		return v.commands
-	}
-	if v.project == nil {
-		return nil
-	}
-
-	p := v.project
-	navigate := func(id string) func() {
-		return func() {
-			if v.cfg.OnNavigate != nil {
-				v.cfg.OnNavigate(id)
-			}
-		}
-	}
-	launch := func(agent string, args ...string) func() {
-		return func() {
-			if v.cfg.OnLaunchSession != nil {
-				v.cfg.OnLaunchSession(p, agent, args...)
-			}
-		}
-	}
-	launchCmd := func(id, label string, aliases []string, description, agent string, args ...string) ContextCommand {
-		return ContextCommand{
-			ID:          id,
-			Label:       label,
-			Aliases:     aliases,
-			Description: description,
-			Category:    "Sessions",
-			Action:      launch(agent, args...),
-			RunsDirect:  true,
-		}
-	}
-
-	v.commands = []ContextCommand{
-		launchCmd("project.start", "Start Dev",
-			[]string{"dev", "session", "code"},
-			fmt.Sprintf("Session dev sur %s", p.Name),
-			"", "--dev"),
-		launchCmd("project.audit", "Audit",
-			[]string{"audit", "secu", "perf"},
-			fmt.Sprintf("Audit sur %s", p.Name),
-			"auditor"),
-		launchCmd("project.audit.security", "Audit Sécurité",
-			[]string{"secu", "owasp"},
-			"Audit sécurité (OWASP)",
-			"auditor", "--type", "security"),
-		launchCmd("project.audit.performance", "Audit Performance",
-			[]string{"perf"},
-			"Audit performance",
-			"auditor", "--type", "performance"),
-		launchCmd("project.review", "Review",
-			[]string{"rev", "cr"},
-			fmt.Sprintf("Code review sur %s", p.Name),
-			"reviewer"),
-		launchCmd("project.debug", "Debug",
-			[]string{"dbg"},
-			"Session de debug",
-			""),
-		{ID: "project.board", Label: "Board", Aliases: []string{"kanban", "tasks", "tickets"},
-			Description: fmt.Sprintf("Kanban de %s", p.Name), Category: "Projet", Action: navigate("board")},
-		{ID: "project.metrics", Label: "Métriques", Aliases: []string{"stats", "tokens", "usage"},
-			Description: fmt.Sprintf("Métriques de %s", p.Name), Category: "Projet", Action: navigate("metrics")},
-		{ID: "project.config", Label: "Config Projet", Aliases: []string{"cfg", "settings", "config"},
-			Description: fmt.Sprintf("Configuration de %s", p.Name), Category: "Projet", Action: navigate("project.config")},
-		{ID: "project.worktrees", Label: "Worktrees", Aliases: []string{"wt", "git worktree"},
-			Description: fmt.Sprintf("Worktrees de %s", p.Name), Category: "Projet", Action: navigate("worktrees")},
-		{ID: "project.status", Label: "Statut", Aliases: []string{"stat", "info", "health"},
-			Description: fmt.Sprintf("Statut de %s", p.Name), Category: "Projet", Action: navigate("status")},
-		{ID: "project.hub", Label: "Mode Hub", Aliases: []string{"hub", "retour", "complet"},
-			Description: "Revenir au TUI complet (mode hub)", Category: "Navigation",
-			Action: func() {
-				if v.cfg.OnExitProjectMode != nil {
-					v.cfg.OnExitProjectMode()
-				}
-			}},
-	}
-
-	// ── Team commands (conditional) ──────────────────────────────────────
-	if v.resolveTeam != nil {
-		if tc := v.resolveTeam(); tc.Enabled {
-			v.commands = append(v.commands,
-				ContextCommand{ID: "project.team.status", Label: "Team Status", Aliases: []string{"team stat", "equipe"},
-					Description: "Statut de l'équipe pour ce projet", Category: "Team", Action: navigate("team.status")},
-				ContextCommand{ID: "project.team.board", Label: "Team Board", Aliases: []string{"board", "kanban"},
-					Description: "Kanban d'équipe", Category: "Team", Action: navigate("team.board")},
-				ContextCommand{ID: "project.team.activity", Label: "Team Activity", Aliases: []string{"activite", "feed"},
-					Description: "Activité récente de l'équipe", Category: "Team", Action: navigate("team.activity")},
-				ContextCommand{ID: "project.team.briefs", Label: "Takeover Briefs", Aliases: []string{"takeover", "briefs"},
-					Description: "Briefs de reprise de contexte", Category: "Team", Action: navigate("team.briefs")},
-				ContextCommand{ID: "project.patterns", Label: "Patterns", Aliases: []string{"pat"},
-					Description: "Patterns d'équipe", Category: "Team", Action: navigate("team.patterns")},
-				ContextCommand{ID: "project.policies", Label: "Policies", Aliases: []string{"pol", "rules"},
-					Description: "Politiques d'équipe", Category: "Team", Action: navigate("team.policies")},
-			)
-		}
-	}
-
-	return v.commands
+	return nil
 }

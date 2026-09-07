@@ -24,6 +24,34 @@ type homeItem struct {
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
 	OnLaunchSession func(agent string, args ...string)
+	// HasProject returns true when at least one active project exists.
+	// Used to conditionally show project-specific items (ADR-032).
+	HasProject func() bool
+	// ListTeams returns configured teams with positive stats for the hub dashboard (ADR-032 Phase 3).
+	ListTeams func() []TeamEntry
+	// ListProjects returns active projects with context info (ADR-032 Phase 3).
+	ListProjects func() []ProjectEntry
+	// OnSelectTeam is called when the user selects a team — enters team mode.
+	OnSelectTeam func(teamID, teamName string)
+	// OnSelectProject is called when the user selects a project — enters project mode.
+	OnSelectProject func(projectID, projectName, projectPath string)
+}
+
+// TeamEntry represents a team with positive stats for the hub home.
+type TeamEntry struct {
+	ID          string
+	Name        string
+	MemberCount int
+	ActiveCount int // in_progress + review
+}
+
+// ProjectEntry represents a project with context info for the hub home.
+type ProjectEntry struct {
+	ID           string
+	Name         string
+	Path         string
+	ActiveCount  int    // tasks in progress
+	ActiveBranch string // current git branch
 }
 
 // HomeView is the splash/landing view for the TUI shell.
@@ -75,11 +103,21 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list.SetBorderPadding(0, 0, 4, 4)
 
 	for _, item := range v.items {
-		v.list.AddItem(
-			fmt.Sprintf("%s  %s", item.Icon, item.Label),
-			fmt.Sprintf("     %s", item.Desc),
-			0, nil,
-		)
+		if item.Icon == "─" {
+			// Section separator — render as a muted header
+			muted := theme.ColorTag(theme.TextMutedHex)
+			reset := theme.TagColor
+			v.list.AddItem(
+				fmt.Sprintf("%s── %s ──%s", muted, item.Label, reset),
+				"", 0, nil,
+			)
+		} else {
+			v.list.AddItem(
+				fmt.Sprintf("%s  %s", item.Icon, item.Label),
+				fmt.Sprintf("     %s", item.Desc),
+				0, nil,
+			)
+		}
 	}
 
 	v.list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
@@ -158,25 +196,65 @@ func (v *HomeView) executeItem(idx int) {
 }
 
 func (v *HomeView) buildItems() []homeItem {
-	items := []homeItem{
-		// ── Navigation ──
-		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet actif", ViewID: "board"},
-		{Icon: "◈", Label: "Projets", Desc: "Gérer les projets", ViewID: "projects.list"},
-		{Icon: "⊛", Label: "Worktrees", Desc: "Git worktrees", ViewID: "worktrees"},
-		{Icon: "◎", Label: "Métriques", Desc: "Statistiques d'usage", ViewID: "metrics"},
-		{Icon: "⊟", Label: "Config", Desc: "Configuration du hub", ViewID: "settings"},
+	var items []homeItem
+
+	// ── Teams section (ADR-032 Phase 3) ──
+	if v.cfg.ListTeams != nil {
+		teams := v.cfg.ListTeams()
+		if len(teams) > 0 {
+			items = append(items, homeItem{Icon: "─", Label: "Équipes", Desc: ""})
+			for _, t := range teams {
+				team := t // capture
+				desc := fmt.Sprintf("%d membres · %d en cours", team.MemberCount, team.ActiveCount)
+				items = append(items, homeItem{
+					Icon:  "◫",
+					Label: team.Name,
+					Desc:  desc,
+					Action: func() {
+						if v.cfg.OnSelectTeam != nil {
+							v.cfg.OnSelectTeam(team.ID, team.Name)
+						}
+					},
+				})
+			}
+		}
 	}
 
-	// ── Actions rapides ──
-	if v.cfg.OnLaunchSession != nil {
-		launch := v.cfg.OnLaunchSession
-		items = append(items,
-			homeItem{Icon: "▶", Label: "Start", Desc: "Lancer une session", Action: func() { launch("developer") }},
-			homeItem{Icon: "◉", Label: "Audit", Desc: "Audit multi-domaine", Action: func() { launch("auditor") }},
-			homeItem{Icon: "◈", Label: "Review", Desc: "Code review", Action: func() { launch("reviewer") }},
-			homeItem{Icon: "◆", Label: "Debug", Desc: "Session de debug", Action: func() { launch("developer", "--debug") }},
-		)
+	// ── Projects section (ADR-032 Phase 3) ──
+	if v.cfg.ListProjects != nil {
+		projects := v.cfg.ListProjects()
+		if len(projects) > 0 {
+			items = append(items, homeItem{Icon: "─", Label: "Projets", Desc: ""})
+			for _, p := range projects {
+				proj := p // capture
+				desc := proj.Path
+				if proj.ActiveCount > 0 {
+					desc = fmt.Sprintf("%d en cours · %s", proj.ActiveCount, proj.Path)
+				}
+				if proj.ActiveBranch != "" {
+					desc += fmt.Sprintf(" · %s", proj.ActiveBranch)
+				}
+				items = append(items, homeItem{
+					Icon:  "◈",
+					Label: proj.Name,
+					Desc:  desc,
+					Action: func() {
+						if v.cfg.OnSelectProject != nil {
+							v.cfg.OnSelectProject(proj.ID, proj.Name, proj.Path)
+						}
+					},
+				})
+			}
+		}
 	}
+
+	// ── System / navigation ──
+	items = append(items, homeItem{Icon: "─", Label: "Système", Desc: ""})
+	items = append(items,
+		homeItem{Icon: "⊟", Label: "Settings", Desc: "Configuration du hub", ViewID: "settings"},
+		homeItem{Icon: "◎", Label: "Métriques", Desc: "Statistiques d'usage", ViewID: "metrics"},
+		homeItem{Icon: "⊛", Label: "Worktrees", Desc: "Git worktrees", ViewID: "worktrees"},
+	)
 
 	return items
 }
@@ -223,7 +301,7 @@ func buildShortcutsFooter() string {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	return fmt.Sprintf("\n%s%sCtrl+P%s commandes  %s?%s aide  %sCtrl+T%s mode projet  %sCtrl+Q%s quitter",
+	return fmt.Sprintf("\n%s%sCtrl+P%s commandes  %s?%s aide  %sCtrl+T%s mode équipe  %sCtrl+Q%s quitter",
 		muted,
 		accent, reset,
 		accent, reset,

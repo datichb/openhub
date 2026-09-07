@@ -3,9 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -14,23 +17,26 @@ import (
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// resolveRepo is a helper that returns the active team repo (or nil).
-	// Falls back to hub-level ActiveTeam() when the project has no TeamID set.
+	// Resolution order (ADR-032):
+	//   1. Project-level team config (TeamID or legacy TeamConfig)
+	//   2. Hub-level ActiveTeam() — matches CLI sync-tracker behavior
+	// This ensures tickets synced by the CLI are visible in the TUI.
 	resolveRepo := func() *teamstate.Repo {
+		// Try project-level first
 		project, _ := resolveActiveProject(a)
 		tc := resolvedTeamConfig(a, project)
-		if !tc.Enabled {
-			// Fallback: use hub-level team config (matches CLI sync-tracker behavior)
-			hubTC := a.Config.ActiveTeam()
-			if hubTC.StateRepo == "" {
-				return nil
+		if tc.Enabled && tc.StateRepo != "" {
+			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+			if repo.IsCloned() {
+				return repo
 			}
-			repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
-			if !repo.IsCloned() {
-				return nil
-			}
-			return repo
 		}
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+		// Fallback: hub-level ActiveTeam() — same path as CLI sync-tracker
+		hubTC := a.Config.ActiveTeam()
+		if !hubTC.Enabled || hubTC.StateRepo == "" {
+			return nil
+		}
+		repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
 		if !repo.IsCloned() {
 			return nil
 		}
@@ -39,6 +45,10 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	return views.TeamBoardViewConfig{
 		RefreshRate: 5 * time.Second,
+		IsConfigured: func() bool {
+			return resolveRepo() != nil
+		},
+		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
 			repo := resolveRepo()
 			if repo == nil {
@@ -153,5 +163,49 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},
+	}
+}
+
+// buildBeadsSummaryFunc returns a function that aggregates bead task counts
+// across all active projects, keyed by bare tracker ticket ID (e.g. "693").
+// This enables the [N/M] badge on the team board (ADR-032).
+func buildBeadsSummaryFunc(a *app.App) func() map[string]views.BeadsSummary {
+	return func() map[string]views.BeadsSummary {
+		projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+		if err != nil {
+			slog.Warn("beads-summary: failed to list projects", "error", err)
+			return nil
+		}
+
+		result := make(map[string]views.BeadsSummary)
+		for _, p := range projects {
+			if p.Path == "" || !beads.IsInitialized(p.Path) {
+				continue
+			}
+			tickets, err := beads.ListAll(p.Path)
+			if err != nil {
+				slog.Debug("beads-summary: failed to list beads", "project", p.ID, "error", err)
+				continue
+			}
+			for _, t := range tickets {
+				ref := beads.ExternalRefForTicket(t)
+				if ref == "" {
+					continue
+				}
+				// Extract the bare tracker ID from the external ref.
+				// e.g. "gitlab-693" → "693", "jira-MYAPP-42" → "MYAPP-42"
+				_, ticketID := beads.ParseExternalRef(ref)
+				if ticketID == "" {
+					continue
+				}
+				bs := result[ticketID]
+				bs.Total++
+				if t.Status == "done" || t.Status == "closed" {
+					bs.Done++
+				}
+				result[ticketID] = bs
+			}
+		}
+		return result
 	}
 }

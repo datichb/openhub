@@ -186,7 +186,56 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	})
 
 	allViews := []views.View{
-		views.NewHomeView(views.HomeViewConfig{}),
+		views.NewHomeView(views.HomeViewConfig{
+			HasProject: func() bool {
+				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+				return len(projects) > 0
+			},
+			ListTeams: func() []views.TeamEntry {
+				teams := a.Config.Teams
+				entries := make([]views.TeamEntry, 0, len(teams))
+				for _, t := range teams {
+					if !t.Enabled || t.StateRepo == "" {
+						continue
+					}
+					entry := views.TeamEntry{ID: t.ID, Name: t.DisplayName()}
+					repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
+					if repo.IsCloned() {
+						members, _ := repo.ListMembers()
+						entry.MemberCount = len(members)
+						tickets := views.FetchTeamTickets(repo)
+						for _, tk := range tickets {
+							if tk.Status == "in_progress" || tk.Status == "review" {
+								entry.ActiveCount++
+							}
+						}
+					}
+					entries = append(entries, entry)
+				}
+				return entries
+			},
+			ListProjects: func() []views.ProjectEntry {
+				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+				entries := make([]views.ProjectEntry, 0, len(projects))
+				for _, p := range projects {
+					entry := views.ProjectEntry{ID: p.ID, Name: p.Name, Path: p.Path}
+					entries = append(entries, entry)
+				}
+				return entries
+			},
+			OnSelectTeam: func(teamID, teamName string) {
+				if tuiShell != nil {
+					tuiShell.SetActiveTeam(&views.ActiveTeam{ID: teamID, Name: teamName})
+					tuiShell.SetMode(views.ModeTeam)
+				}
+			},
+			OnSelectProject: func(projectID, projectName, projectPath string) {
+				if tuiShell != nil {
+					tuiShell.SetActiveProject(&views.ActiveProject{ID: projectID, Name: projectName, Path: projectPath})
+					tuiShell.SetMode(views.ModeProject)
+				}
+			},
+		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
 			RefreshFunc: func() []views.BoardTicket {
@@ -207,8 +256,53 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return beads.IsInitialized(path)
 			},
 			OnInitBeads: func() { initBeadsForActiveProject(a) },
+			OnLinkTracker: func(ticketID, externalRef string) error {
+				path := resolveActiveProjectPath(a)
+				if path == "" {
+					return fmt.Errorf("aucun projet actif")
+				}
+				return beads.LinkToTracker(path, ticketID, externalRef)
+			},
 		}),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
+		views.NewTeamModeView(views.TeamModeConfig{
+			OnNavigate: func(viewID string) {
+				if tuiShell != nil {
+					tuiShell.NavigateTo(viewID)
+				}
+			},
+			OnLaunchSession: func(agent string, extraArgs ...string) {
+				launchOpencode(agent, extraArgs...)
+			},
+			OnExitTeamMode: func() {
+				if tuiShell != nil {
+					tuiShell.SetMode(views.ModeHub)
+				}
+			},
+			TeamStats: func() views.TeamModeStats {
+				resolveTeam := makeResolveTeamFunc(a)
+				tr := resolveTeam()
+				if !tr.Enabled {
+					return views.TeamModeStats{}
+				}
+				repo := teamstate.NewRepo(tr.StateRepo, tr.StatePath)
+				if !repo.IsCloned() {
+					return views.TeamModeStats{}
+				}
+				members, _ := repo.ListMembers()
+				tickets := views.FetchTeamTickets(repo)
+				active := 0
+				for _, t := range tickets {
+					if t.Status == "in_progress" || t.Status == "review" {
+						active++
+					}
+				}
+				return views.TeamModeStats{
+					MemberCount: len(members),
+					ActiveCount: active,
+				}
+			},
+		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
 		projectModeView,

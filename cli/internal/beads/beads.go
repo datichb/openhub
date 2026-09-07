@@ -15,13 +15,14 @@ import (
 
 // Ticket represents a bd ticket.
 type Ticket struct {
-	ID       string   `json:"id"`
-	Title    string   `json:"title"`
-	Status   string   `json:"status"`
-	Priority string   `json:"priority"`
-	Type     string   `json:"type"`
-	Parent   string   `json:"parent,omitempty"`
-	Labels   []string `json:"labels,omitempty"`
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Status      string   `json:"status"`
+	Priority    string   `json:"priority"`
+	Type        string   `json:"type"`
+	Parent      string   `json:"parent,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+	ExternalRef string   `json:"external_ref,omitempty"`
 }
 
 // ReadyOpts configures the ListReady query.
@@ -309,13 +310,14 @@ func runBdJSON(args []string) ([]Ticket, error) {
 	// (0-3) rather than a string ("P0"-"P3").
 	// Field names match the exact JSON keys returned by bd (snake_case).
 	var raw []struct {
-		ID       string          `json:"id"`
-		Title    string          `json:"title"`
-		Status   string          `json:"status"`
-		Priority json.RawMessage `json:"priority"`
-		Type     string          `json:"issue_type"`
-		Parent   string          `json:"parent,omitempty"`
-		Labels   []string        `json:"labels,omitempty"`
+		ID          string          `json:"id"`
+		Title       string          `json:"title"`
+		Status      string          `json:"status"`
+		Priority    json.RawMessage `json:"priority"`
+		Type        string          `json:"issue_type"`
+		Parent      string          `json:"parent,omitempty"`
+		Labels      []string        `json:"labels,omitempty"`
+		ExternalRef string          `json:"external_ref,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(trimmed), &raw); err != nil {
 		return nil, fmt.Errorf("parsing bd output: %w", err)
@@ -324,13 +326,14 @@ func runBdJSON(args []string) ([]Ticket, error) {
 	tickets := make([]Ticket, len(raw))
 	for i, r := range raw {
 		tickets[i] = Ticket{
-			ID:       r.ID,
-			Title:    r.Title,
-			Status:   r.Status,
-			Priority: normalizePriority(r.Priority),
-			Type:     r.Type,
-			Parent:   r.Parent,
-			Labels:   r.Labels,
+			ID:          r.ID,
+			Title:       r.Title,
+			Status:      r.Status,
+			Priority:    normalizePriority(r.Priority),
+			Type:        r.Type,
+			Parent:      r.Parent,
+			Labels:      r.Labels,
+			ExternalRef: r.ExternalRef,
 		}
 	}
 	return tickets, nil
@@ -384,12 +387,18 @@ func HasLabelExported(t Ticket, label string) bool {
 	return hasLabel(t, label)
 }
 
-// CreateFromGitLab creates a bead ticket with a GitLab reference in the title.
+// CreateFromGitLab creates a bead ticket with a GitLab reference in the title
+// and stores the structured external_ref for cross-board linking (ADR-032).
 // Convention: title is prefixed with [GITLAB-REF] for correlation.
-// Runs: bd -C <path> create "[<ref>] <title>" -p <priority>
+// Runs: bd -C <path> create "[<ref>] <title>" -p <priority> --external-ref gitlab-<ref>
 func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (string, error) {
 	fullTitle := fmt.Sprintf("[%s] %s", gitlabRef, title)
-	args := []string{"-C", projectPath, "create", fullTitle, "-p", fmt.Sprintf("%d", priority), "--json"}
+	extRef := BuildExternalRef(ProviderGitLab, gitlabRef)
+	args := []string{"-C", projectPath, "create", fullTitle, "-p", fmt.Sprintf("%d", priority)}
+	if extRef != "" {
+		args = append(args, "--external-ref", extRef)
+	}
+	args = append(args, "--json")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -499,6 +508,20 @@ func CloseTicket(projectPath, ticketID, message string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd close failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// LinkToTracker sets the external_ref on a bead ticket to link it to an
+// external tracker ticket (ADR-032).
+// Runs: bd -C <path> update <ticketID> --external-ref <ref>
+func LinkToTracker(projectPath, ticketID, externalRef string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--external-ref", externalRef)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bd link failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil
 }

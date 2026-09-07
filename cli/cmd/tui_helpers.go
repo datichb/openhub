@@ -135,11 +135,12 @@ func fetchBoardTicketsForPath(projectPath string) []views.BoardTicket {
 			continue
 		}
 		out = append(out, views.BoardTicket{
-			ID:       t.ID,
-			Title:    t.Title,
-			Status:   boardNormalizeStatus(t.Status),
-			Priority: t.Priority,
-			Type:     t.Type,
+			ID:          t.ID,
+			Title:       t.Title,
+			Status:      boardNormalizeStatus(t.Status),
+			Priority:    t.Priority,
+			Type:        t.Type,
+			ExternalRef: beads.ExternalRefForTicket(t),
 		})
 	}
 	return out

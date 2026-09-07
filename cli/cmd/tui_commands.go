@@ -1,14 +1,24 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 
 // buildCommands constructs the flat command registry for the omnibar.
 func buildCommands(a *app.App) []shell.Command {
+	// Mode shortcuts for readability (ADR-032 Phase 3)
+	modeSession := []views.Mode{views.ModeProject, views.ModeTeam} // sessions need a project, available from team via selection
+	modeProject := []views.Mode{views.ModeProject}                 // project-scoped only
+	modeTeam    := []views.Mode{views.ModeTeam}                    // team-scoped only
+	// nil = global (visible in all modes)
+
 	commands := []shell.Command{
 		// ── Sessions ─────────────────────────────────────────────────────
 		{
@@ -19,6 +29,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    80,
 			Action:      actionStartLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "start.dev",
@@ -29,6 +40,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    80,
 			Action:      func() { launchOpencode("", "--dev") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "start.onboard",
@@ -39,6 +51,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    60,
 			Action:      func() { launchOpencode("", "--onboard") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit",
@@ -48,6 +61,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			Action:      actionAuditLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.security",
@@ -58,6 +72,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "security") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.performance",
@@ -68,6 +83,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "performance") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.architecture",
@@ -78,6 +94,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "architecture") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.accessibility",
@@ -88,6 +105,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "accessibility") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.ecodesign",
@@ -98,6 +116,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "ecodesign") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "audit.observability",
@@ -108,6 +127,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("auditor", "--type", "observability") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review",
@@ -117,6 +137,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			Action:      actionReviewLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.standard",
@@ -127,6 +148,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.adversarial",
@@ -137,6 +159,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "adversarial") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.edge",
@@ -147,6 +170,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "edge-case") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "review.complete",
@@ -157,6 +181,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			Action:      func() { launchOpencode("reviewer", "--mode", "all") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "debug",
@@ -166,6 +191,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    80,
 			Action:      actionDebugLauncher,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "quick",
@@ -176,6 +202,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    60,
 			Action:      actionOpencode("", ""),
 			RunsDirect:  true,
+			Modes:       modeSession,
 		},
 		{
 			ID:          "parallel",
@@ -185,29 +212,10 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Priority:    60,
 			ViewID:      "parallel",
+			Modes:       modeProject,
 		},
 
 		// ── Projets ──────────────────────────────────────────────────────
-		{
-			ID:          "board",
-			Label:       i18n.T("tui.cmd.project_board"),
-			Aliases:     []string{"kanban", "tasks", "project board"},
-			Description: "Kanban du projet actif",
-			Category:    "Projets",
-			Priority:    100,
-			ViewID:      "board",
-		},
-		{
-			ID:          "board.init",
-			Label:       "Init Board",
-			Aliases:     []string{"beads init", "init board", "init tickets"},
-			Description: "Initialiser le suivi des tickets (beads) pour le projet actif",
-			Category:    "Projets",
-			Priority:    30,
-			Action: func() {
-				initBeadsForActiveProject(a)
-			},
-		},
 		{
 			ID:          "projects",
 			Label:       "Projets",
@@ -216,24 +224,6 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Projets",
 			Priority:    100,
 			ViewID:      "projects.list",
-		},
-		{
-			ID:          "deploy",
-			Label:       "Deploy",
-			Aliases:     []string{"dep", "push"},
-			Description: "Déployer agents/skills sur le projet actif",
-			Category:    "Projets",
-			Priority:    30,
-			Action:      actionDeploy,
-		},
-		{
-			ID:          "sync",
-			Label:       "Sync",
-			Aliases:     []string{"synchronize"},
-			Description: "Synchroniser tous les projets",
-			Category:    "Projets",
-			Priority:    30,
-			Action:      actionSync,
 		},
 
 		// ── Configuration ────────────────────────────────────────────────
@@ -273,15 +263,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "mcp",
 		},
-		{
-			ID:          "team-detail",
-			Label:       i18n.T("tui.team.detail"),
-			Aliases:     []string{"tracker", "sync", "team config", "team detail"},
-			Description: i18n.T("tui.team.detail.desc"),
-			Category:    i18n.T("tui.category.configuration"),
-			Priority:    48,
-			ViewID:      "team.detail",
-		},
+		// team-detail moved into hasTeam block (ADR-032)
 
 		// ── Système ──────────────────────────────────────────────────────
 		{
@@ -293,15 +275,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    90,
 			ViewID:      "settings",
 		},
-		{
-			ID:          "project-config",
-			Label:       "Config Projet",
-			Aliases:     []string{"config projet", "project config", "projet config"},
-			Description: "Configuration du projet actif éditable ligne par ligne",
-			Category:    "Configuration",
-			Priority:    46,
-			ViewID:      "project.config",
-		},
+		// project-config moved into hasProject block (ADR-032)
 		{
 			ID:          "secrets",
 			Label:       "Secrets & Tokens",
@@ -392,6 +366,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: "Basculer vers le mode projet (Ctrl+T)",
 			Category:    "Navigation",
 			Priority:    100,
+			Modes:       []views.Mode{views.ModeHub, views.ModeTeam},
 			Action: func() {
 				if tuiShell == nil {
 					return
@@ -410,9 +385,10 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: "Revenir au TUI complet (mode hub)",
 			Category:    "Navigation",
 			Priority:    95,
+			Modes:       []views.Mode{views.ModeTeam, views.ModeProject},
 			Action: func() {
 				if tuiShell != nil {
-					tuiShell.SetProjectMode(nil)
+					tuiShell.SetMode(views.ModeHub)
 				}
 			},
 		},
@@ -431,10 +407,83 @@ func buildCommands(a *app.App) []shell.Command {
 		},
 	}
 
-	// ── Team commands — only registered when a team is configured ───────
+	// ── Project commands — only registered when at least one project exists (ADR-032) ──
+	hasProject := false
+	if a.Projects != nil {
+		projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+		hasProject = len(projects) > 0
+	}
+	if hasProject {
+		commands = append(commands,
+			shell.Command{
+				ID:          "board",
+				Label:       i18n.T("tui.cmd.project_board"),
+				Aliases:     []string{"kanban", "tasks", "project board"},
+				Description: "Kanban du projet actif",
+				Category:    "Projets",
+				Priority:    100,
+				ViewID:      "board",
+				Modes:       modeProject,
+			},
+			shell.Command{
+				ID:          "board.init",
+				Label:       "Init Board",
+				Aliases:     []string{"beads init", "init board", "init tickets"},
+				Description: "Initialiser le suivi des tickets (beads) pour le projet actif",
+				Category:    "Projets",
+				Priority:    30,
+				Action: func() {
+					initBeadsForActiveProject(a)
+				},
+				Modes: modeProject,
+			},
+			shell.Command{
+				ID:          "deploy",
+				Label:       "Deploy",
+				Aliases:     []string{"dep", "push"},
+				Description: "Déployer agents/skills sur le projet actif",
+				Category:    "Projets",
+				Priority:    30,
+				Action:      actionDeploy,
+				Modes:       modeProject,
+			},
+			shell.Command{
+				ID:          "sync",
+				Label:       "Sync",
+				Aliases:     []string{"synchronize"},
+				Description: "Synchroniser tous les projets",
+				Category:    "Projets",
+				Priority:    30,
+				Action:      actionSync,
+				Modes:       modeProject,
+			},
+			shell.Command{
+				ID:          "project-config",
+				Label:       "Config Projet",
+				Aliases:     []string{"config projet", "project config", "projet config"},
+				Description: "Configuration du projet actif éditable ligne par ligne",
+				Category:    "Configuration",
+				Priority:    46,
+				ViewID:      "project.config",
+				Modes:       modeProject,
+			},
+		)
+	}
+
+	// ── Team commands — only registered when a team is configured (ADR-032) ──
 	hasTeam := a.Config.ActiveTeam().StateRepo != ""
 	if hasTeam {
 	commands = append(commands,
+		shell.Command{
+			ID:          "team-detail",
+			Label:       i18n.T("tui.team.detail"),
+			Aliases:     []string{"tracker", "sync", "team config", "team detail"},
+			Description: i18n.T("tui.team.detail.desc"),
+			Category:    i18n.T("tui.category.configuration"),
+			Priority:    48,
+			ViewID:      "team.detail",
+			Modes:       modeTeam,
+		},
 		shell.Command{
 			ID:          "team.board",
 			Label:       i18n.T("tui.team.board"),
@@ -443,6 +492,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    70,
 			ViewID:      "team.board",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.status",
@@ -452,6 +502,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    70,
 			ViewID:      "team.status",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.activity",
@@ -461,6 +512,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    65,
 			ViewID:      "team.activity",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.briefs",
@@ -470,6 +522,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    60,
 			ViewID:      "team.briefs",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.patterns",
@@ -479,6 +532,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    50,
 			ViewID:      "team.patterns",
+			Modes:       modeTeam,
 		},
 		shell.Command{
 			ID:          "team.policies",
@@ -488,6 +542,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    i18n.T("tui.category.team"),
 			Priority:    50,
 			ViewID:      "team.policies",
+			Modes:       modeTeam,
 		},
 	)
 
@@ -500,6 +555,19 @@ func buildCommands(a *app.App) []shell.Command {
 		Category:    i18n.T("tui.category.team"),
 		Priority:    60,
 		Action:      actionSyncTracker,
+		Modes:       modeTeam,
+	})
+
+	// team.configure — only useful with a team configured (ADR-032)
+	commands = append(commands, shell.Command{
+		ID:          "team.configure",
+		Label:       i18n.T("tui.team.configure"),
+		Aliases:     []string{"team config", "team projet", "configurer equipe"},
+		Description: i18n.T("tui.team.configure.desc"),
+		Category:    i18n.T("tui.category.team"),
+		Priority:    50,
+		Action:      actionTeamConfigure,
+		Modes:       modeTeam,
 	})
 	} // end hasTeam
 
@@ -534,19 +602,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Category:    "Sessions",
 			Action:      func() { launchOpencode("reviewer", "--publish") },
 			RunsDirect:  true,
+			Modes:       modeSession,
 		})
 	}
-
-	// ── Team Configure (toujours disponible si un projet est actif) ──────
-	commands = append(commands, shell.Command{
-		ID:          "team.configure",
-		Label:       i18n.T("tui.team.configure"),
-		Aliases:     []string{"team config", "team projet", "configurer equipe"},
-		Description: i18n.T("tui.team.configure.desc"),
-		Category:    i18n.T("tui.category.team"),
-		Priority:    50,
-		Action:      actionTeamConfigure,
-	})
 
 	return commands
 }

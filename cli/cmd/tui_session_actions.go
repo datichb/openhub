@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,12 +149,42 @@ func launchOpencode(agent string, extraArgs ...string) {
 	}
 
 	a := MustApp()
+
+	// If no active project, try to resolve one — or prompt the user to choose.
 	project, err := resolveActiveProject(a)
 	if err != nil {
-		tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
-		return
+		// No project could be resolved — check if there are multiple projects
+		// and offer a selector (ADR-032 Phase 3: dynamic project selection in team mode).
+		projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+		if len(projects) == 0 {
+			tuiShell.ShowToast("Aucun projet configuré", shell.ToastWarning)
+			return
+		}
+		if len(projects) == 1 {
+			project = &projects[0]
+		} else {
+			// Multiple projects — show selector, then launch
+			opts := make([]views.SelectOption, len(projects))
+			for i, p := range projects {
+				opts[i] = views.SelectOption{Label: p.Name, Value: p.ID}
+			}
+			tuiShell.ShowSelectModal("Choisir un projet", opts, "", func(selected string) {
+				for i := range projects {
+					if projects[i].ID == selected {
+						launchOpcodeForProject(a, &projects[i], agent, extraArgs...)
+						return
+					}
+				}
+			})
+			return
+		}
 	}
 
+	launchOpcodeForProject(a, project, agent, extraArgs...)
+}
+
+// launchOpcodeForProject launches an opencode session on the given project.
+func launchOpcodeForProject(a *app.App, project *domain.Project, agent string, extraArgs ...string) {
 	opts := opencode.StartOpts{
 		ProjectPath: project.Path,
 		ProjectID:   project.ID,
@@ -159,7 +193,7 @@ func launchOpencode(agent string, extraArgs ...string) {
 	}
 	resolveProviderCreds(a, project, &opts)
 
-	err = tuiShell.SuspendAndExec(func() error {
+	err := tuiShell.SuspendAndExec(func() error {
 		return opencode.Run(opts)
 	})
 	if err != nil {
