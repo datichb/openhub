@@ -51,7 +51,9 @@ func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// Visual toast only for Warn and above — must go through QueueUpdateDraw
 	// because Handle() can be called from any goroutine.
-	if r.Level >= slog.LevelWarn && h.shell != nil && h.shell.App() != nil {
+	// Guard: only call QueueUpdateDraw when the tview event loop is running,
+	// otherwise the synchronous channel send deadlocks (no consumer).
+	if r.Level >= slog.LevelWarn && h.shell != nil && h.shell.IsRunning() {
 		toastMsg := msg
 		h.shell.App().QueueUpdateDraw(func() {
 			h.shell.ShowToast(toastMsg, level)

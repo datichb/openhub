@@ -48,6 +48,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -112,6 +113,10 @@ type Shell struct {
 	activeToasts int
 	// activeToastIDs tracks the page names of visible toasts for manual dismiss.
 	activeToastIDs []string
+
+	// running is true while app.Run() is executing (event loop active).
+	// Used by TUILogHandler to avoid QueueUpdateDraw deadlock before app starts.
+	running atomic.Bool
 
 	// selection manages screen-level text selection (mouse drag → clipboard copy).
 	selection *SelectionManager
@@ -303,9 +308,17 @@ func (s *Shell) Run() error {
 	})
 
 	s.app.SetRoot(s.pages, true).EnableMouse(true)
+	s.running.Store(true)
 	err := s.app.Run()
+	s.running.Store(false)
 	s.cancel() // signal all goroutines to stop
 	return err
+}
+
+// IsRunning returns true while the tview event loop is active.
+// Used by TUILogHandler to avoid QueueUpdateDraw deadlock before app.Run() starts.
+func (s *Shell) IsRunning() bool {
+	return s.running.Load()
 }
 
 // Context returns the shell's lifecycle context.
