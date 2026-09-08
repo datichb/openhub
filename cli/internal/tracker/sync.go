@@ -288,7 +288,7 @@ func (e *Engine) reconcileProject(
 		}
 
 		// Status sync: use configurable mapping.
-		mappedStatus := MapTrackerStatus(issue, e.cfg.StatusMapping)
+		mappedStatus := MapTrackerStatus(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
 		if mappedStatus != c.Status {
 			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", mappedStatus, "tracker_status", issue.StatusName)
 			if err := e.repo.UpdateClaimStatusFromTracker(ctx, hubProjectID, c.TicketID, mappedStatus); err == nil {
@@ -401,7 +401,7 @@ func (e *Engine) autoplan(
 			}
 
 			// Use the configurable status mapping instead of always "planned".
-			initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping)
+			initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
 			truncDesc := TruncateDescription(issue.Description)
 
 			pending = append(pending, pendingClaim{
@@ -459,17 +459,37 @@ func (e *Engine) autoplan(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // MapTrackerStatus maps a tracker issue's status to a claim status using the
-// configured StatusMapping. Falls back to category-based mapping when no
-// explicit mapping is found.
+// configured mappings. Falls back to category-based mapping when no match.
 //
 // Resolution order:
-//  1. StatusMapping[issue.StatusName] (case-insensitive)
-//  2. Category fallback: Jira statusCategory / GitLab state
+//  1. LabelStatusMapping[label] — first matching label wins (order matters)
+//  2. StatusMapping[issue.StatusName] (case-insensitive)
+//  3. Category fallback: Jira statusCategory / GitLab state
 //     - "done" / "closed" → ClaimStatusDone
 //     - "new" → ClaimStatusPlanned
 //     - "indeterminate" / "opened" → ClaimStatusInProgress
-func MapTrackerStatus(issue *IssueState, statusMapping map[string]string) string {
-	// 1. Try explicit mapping (case-insensitive).
+func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[string]string) string {
+	// 1. Try label-based mapping first (most relevant for GitLab label workflows).
+	// Order is determined by the config file order — the FIRST matching label wins.
+	if len(labelStatusMapping) > 0 && len(issue.Labels) > 0 {
+		for _, label := range issue.Labels {
+			labelLower := strings.ToLower(label)
+			for k, v := range labelStatusMapping {
+				if strings.ToLower(k) == labelLower {
+					if teamstate.IsValidStatus(v) {
+						slog.Debug("tracker.sync.label_mapped",
+							"ticket", issue.IID,
+							"label", label,
+							"status", v,
+						)
+						return v
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Try explicit status name mapping (case-insensitive).
 	if len(statusMapping) > 0 && issue.StatusName != "" {
 		nameLower := strings.ToLower(issue.StatusName)
 		for k, v := range statusMapping {
@@ -481,7 +501,7 @@ func MapTrackerStatus(issue *IssueState, statusMapping map[string]string) string
 		}
 	}
 
-	// 2. Category fallback.
+	// 3. Category fallback.
 	switch strings.ToLower(issue.StatusCategory) {
 	case "done", "closed":
 		return teamstate.ClaimStatusDone

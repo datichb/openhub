@@ -58,6 +58,8 @@ func MapClaimStatus(status string) string {
 		return "in_progress"
 	case teamstate.ClaimStatusReview:
 		return "review"
+	case teamstate.ClaimStatusValidation:
+		return "validation"
 	case teamstate.ClaimStatusBlocked:
 		return "blocked"
 	case teamstate.ClaimStatusDone:

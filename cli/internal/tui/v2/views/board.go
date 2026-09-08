@@ -47,6 +47,7 @@ func DefaultColumns() []BoardColumnDef {
 		{Name: "TODO", Status: "todo", Color: theme.Warning},
 		{Name: "IN PROGRESS", Status: "in_progress", Color: theme.Accent},
 		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary},
+		{Name: "VALIDATION", Status: "validation", Color: theme.Info},
 		{Name: "DONE", Status: "done", Color: theme.Success},
 		{Name: "BLOCKED", Status: "blocked", Color: theme.Error},
 	}

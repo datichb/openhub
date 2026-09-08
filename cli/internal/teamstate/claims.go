@@ -27,6 +27,9 @@ const (
 	// ClaimStatusReview means the work is done and waiting for human review.
 	// Appears in the REVIEW column.
 	ClaimStatusReview = "review"
+	// ClaimStatusValidation means the work passed review and is being validated
+	// (testing, QA, staging, pre-release). Appears in the VALIDATION column.
+	ClaimStatusValidation = "validation"
 	// ClaimStatusBlocked means the ticket is stalled on an external dependency.
 	// Appears in the BLOCKED column.
 	ClaimStatusBlocked = "blocked"
@@ -40,6 +43,7 @@ var AllClaimStatuses = []string{
 	ClaimStatusPlanned,
 	ClaimStatusInProgress,
 	ClaimStatusReview,
+	ClaimStatusValidation,
 	ClaimStatusBlocked,
 	ClaimStatusDone,
 }
@@ -49,7 +53,8 @@ var AllClaimStatuses = []string{
 var ValidTransitions = map[string][]string{
 	ClaimStatusPlanned:    {ClaimStatusInProgress},
 	ClaimStatusInProgress: {ClaimStatusReview, ClaimStatusBlocked},
-	ClaimStatusReview:     {ClaimStatusDone, ClaimStatusInProgress},
+	ClaimStatusReview:     {ClaimStatusValidation, ClaimStatusDone, ClaimStatusInProgress},
+	ClaimStatusValidation: {ClaimStatusDone, ClaimStatusReview, ClaimStatusInProgress},
 	ClaimStatusBlocked:    {ClaimStatusInProgress},
 	ClaimStatusDone:       {ClaimStatusInProgress}, // reopen
 }

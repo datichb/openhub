@@ -297,7 +297,7 @@ func TestMapTrackerStatus_ExplicitMapping(t *testing.T) {
 				StatusName:     tt.statusName,
 				StatusCategory: tt.statusCategory,
 			}
-			got := tracker.MapTrackerStatus(issue, mapping)
+			got := tracker.MapTrackerStatus(issue, mapping, nil)
 			if got != tt.expected {
 				t.Errorf("MapTrackerStatus(%q): got %q, want %q", tt.statusName, got, tt.expected)
 			}
@@ -313,7 +313,7 @@ func TestMapTrackerStatus_CaseInsensitive(t *testing.T) {
 		StatusName:     "Code Review",
 		StatusCategory: "indeterminate",
 	}
-	got := tracker.MapTrackerStatus(issue, mapping)
+	got := tracker.MapTrackerStatus(issue, mapping, nil)
 	if got != "review" {
 		t.Errorf("case insensitive mapping failed: got %q, want %q", got, "review")
 	}
@@ -340,7 +340,7 @@ func TestMapTrackerStatus_CategoryFallback(t *testing.T) {
 				StatusCategory: tt.statusCategory,
 			}
 			// Empty mapping → always uses category fallback
-			got := tracker.MapTrackerStatus(issue, nil)
+			got := tracker.MapTrackerStatus(issue, nil, nil)
 			if got != tt.expected {
 				t.Errorf("MapTrackerStatus(%q/%q): got %q, want %q",
 					tt.statusName, tt.statusCategory, got, tt.expected)
@@ -358,7 +358,7 @@ func TestMapTrackerStatus_InvalidMappingValue(t *testing.T) {
 		StatusName:     "In Progress",
 		StatusCategory: "indeterminate",
 	}
-	got := tracker.MapTrackerStatus(issue, mapping)
+	got := tracker.MapTrackerStatus(issue, mapping, nil)
 	// Should fall back to category-based mapping since "invalid_status" is not valid.
 	if got != "in_progress" {
 		t.Errorf("invalid mapping value: got %q, want %q", got, "in_progress")

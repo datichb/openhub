@@ -174,12 +174,19 @@ type TrackerConfig struct {
 	// ProjectTrackerConfig overrides. Kept for backward compat.
 	Projects map[string]string `toml:"projects,omitempty"`
 	// StatusMapping maps tracker status names (case-insensitive keys) to claim
-	// statuses (planned, in_progress, review, blocked, done).
-	// Example: {"In Progress" = "in_progress", "Code Review" = "review", "In QA" = "review"}
+	// statuses (planned, in_progress, review, validation, blocked, done).
+	// Example: {"In Progress" = "in_progress", "Code Review" = "review", "In QA" = "validation"}
 	// When a tracker issue status matches a key, the claim is placed in the
 	// corresponding board column. Unmatched statuses fall back to the category-
 	// based mapping (Jira statusCategory / GitLab state).
 	StatusMapping map[string]string `toml:"status_mapping,omitempty"`
+	// LabelStatusMapping maps tracker labels (case-insensitive keys) to claim
+	// statuses. This is especially useful for GitLab which only has "opened"/"closed"
+	// states — the real workflow status is carried by labels.
+	// Order matters: the FIRST matching label wins (priority by config order).
+	// Valid statuses: planned, in_progress, review, validation, blocked, done
+	// Example: {"Bloqué" = "blocked", "DEV DOING" = "in_progress", "TO REVIEW" = "review"}
+	LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
 }
 
 // LoadConfig reads config.toml from the team-state repo.
