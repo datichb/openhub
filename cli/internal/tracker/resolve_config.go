@@ -63,6 +63,13 @@ type EffectiveTrackerConfig struct {
 	AutoPlanAssigned bool
 	// MaxAutoPlanPerMember limits the number of auto-planned claims per member.
 	MaxAutoPlanPerMember int
+	// AutoPlanUnassigned controls whether unassigned tracker issues are fetched
+	// and shown as claimable pool tickets on the team board.
+	AutoPlanUnassigned bool
+	// UnassignedLabels restricts which unassigned issues are fetched (AND filter).
+	UnassignedLabels []string
+	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
+	MaxUnassignedIssues int
 	// SyncIntervalMinutes is the board polling interval (0 = disabled).
 	SyncIntervalMinutes int
 
@@ -182,6 +189,13 @@ func ResolveFullTrackerConfig(
 		sharedAutoPlan = shared.AutoPlanAssigned
 		sharedMaxAutoPlanVal = shared.MaxAutoPlanPerMember
 		sharedPushLabels = shared.PushLabels
+		// Pool (unassigned) settings — no local override, always from shared.
+		eff.AutoPlanUnassigned = shared.AutoPlanUnassigned
+		eff.UnassignedLabels = shared.UnassignedLabels
+		eff.MaxUnassignedIssues = shared.MaxUnassignedIssues
+		if eff.MaxUnassignedIssues <= 0 {
+			eff.MaxUnassignedIssues = 20
+		}
 	}
 
 	eff.Enabled, eff.LocalOverrides.Enabled = boolResolve(local.Enabled, sharedEnabled, true)

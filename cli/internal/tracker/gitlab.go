@@ -108,6 +108,64 @@ func (c *gitLabClient) ListAssignedIssues(ctx context.Context, projectID string,
 	return issues, nil
 }
 
+func (c *gitLabClient) ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error) {
+	q := url.Values{}
+	q.Set("state", "opened")
+	q.Set("assignee_id", "0") // GitLab: 0 = no assignee
+	if len(opts.Labels) > 0 {
+		q.Set("labels", strings.Join(opts.Labels, ","))
+	}
+	if !opts.UpdatedAfter.IsZero() {
+		q.Set("updated_after", opts.UpdatedAfter.UTC().Format(time.RFC3339))
+	}
+	perPage := 20
+	if opts.MaxResults > 0 && opts.MaxResults < perPage {
+		perPage = opts.MaxResults
+	}
+	q.Set("per_page", strconv.Itoa(perPage))
+
+	path := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var raw []glIssue
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("gitlab: parsing unassigned issues list: %w", err)
+	}
+	issues := make([]IssueState, 0, len(raw))
+	for _, g := range raw {
+		issues = append(issues, g.toIssueState())
+	}
+	return issues, nil
+}
+
+func (c *gitLabClient) AssignIssue(ctx context.Context, projectID string, iid int, username string) error {
+	if !c.cfg.WriteEnabled {
+		return ErrWriteDisabled
+	}
+	// Resolve username → user ID via GitLab users API.
+	userPath := fmt.Sprintf("/api/v4/users?username=%s", url.QueryEscape(username))
+	data, err := c.do(ctx, http.MethodGet, userPath, nil)
+	if err != nil {
+		return fmt.Errorf("gitlab: resolving user %q: %w", username, err)
+	}
+	var users []struct {
+		ID int `json:"id"`
+	}
+	if err := json.Unmarshal(data, &users); err != nil {
+		return fmt.Errorf("gitlab: parsing user lookup: %w", err)
+	}
+	if len(users) == 0 {
+		return fmt.Errorf("gitlab: user %q not found", username)
+	}
+
+	body := fmt.Sprintf(`{"assignee_ids":[%d]}`, users[0].ID)
+	issuePath := fmt.Sprintf("/api/v4/projects/%s/issues/%d", url.PathEscape(projectID), iid)
+	_, err = c.do(ctx, http.MethodPut, issuePath, strings.NewReader(body))
+	return err
+}
+
 func (c *gitLabClient) TestConnection(ctx context.Context) (string, error) {
 	data, err := c.do(ctx, http.MethodGet, "/api/v4/user", nil)
 	if err != nil {

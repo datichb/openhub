@@ -386,6 +386,8 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 				var parts []string
 				if t.Assignee != "" {
 					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+				} else {
+					parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
 				}
 				// Filter out workflow labels (already reflected by column)
 				for _, l := range t.Labels {

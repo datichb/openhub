@@ -235,6 +235,45 @@ func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID s
 	return issue.Title, issue.Description, nil
 }
 
+// AssignIssueToMember assigns a tracker issue to a team member.
+// Resolves the member's tracker username from the team-state member registry.
+// Only operates when PushLabels is enabled (same gate as label push).
+// This is a best-effort operation — errors are logged but not fatal.
+func (e *Engine) AssignIssueToMember(ctx context.Context, hubProjectID string, externalIID int, memberID string) error {
+	if !e.cfg.PushLabels {
+		return nil // push disabled
+	}
+	if externalIID == 0 {
+		return fmt.Errorf("no external IID for member assignment")
+	}
+
+	trackerProjectID, ok := e.cfg.Projects[hubProjectID]
+	if !ok {
+		if len(e.cfg.Projects) == 1 {
+			for _, v := range e.cfg.Projects {
+				trackerProjectID = v
+			}
+		} else {
+			return fmt.Errorf("no tracker project configured for %q", hubProjectID)
+		}
+	}
+
+	// Resolve member → tracker username (TrackerUsername overrides GitLabUsername)
+	member, err := e.repo.GetMember(memberID)
+	if err != nil {
+		return fmt.Errorf("resolving member %q: %w", memberID, err)
+	}
+	trackerUsername := member.TrackerUsername
+	if trackerUsername == "" {
+		trackerUsername = member.GitLabUsername
+	}
+	if trackerUsername == "" {
+		return fmt.Errorf("member %q has no tracker username configured", memberID)
+	}
+
+	return e.tracker.AssignIssue(ctx, trackerProjectID, externalIID, trackerUsername)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-project reconciliation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -352,6 +391,15 @@ func (e *Engine) reconcileProject(
 		if err := e.autoplan(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab, claimedTickets, firstSync, &pr); err != nil {
 			// Non-fatal — log but continue.
 			slog.Warn("tracker.autoplan.failed", "project", hubProjectID, "error", err)
+		}
+	}
+
+	// ── Pool: unassigned tracker issues as claimable tickets ─────────────────
+	if e.cfg.AutoPlanUnassigned {
+		firstSync := len(claims) == 0
+		if err := e.autopoolUnassigned(ctx, hubProjectID, trackerProjectID, trackerType, claimedTickets, firstSync, &pr); err != nil {
+			// Non-fatal — log but continue.
+			slog.Warn("tracker.autopool.failed", "project", hubProjectID, "error", err)
 		}
 	}
 
@@ -561,6 +609,106 @@ func (e *Engine) autoplan(
 	}
 
 	msg := fmt.Sprintf("autoplan: %d tickets for %s", len(relPaths), hubProjectID)
+	return e.repo.CommitAndPush(ctx, msg, relPaths...)
+}
+
+// autopoolUnassigned creates "pool" claims (ClaimedBy="") for unassigned tracker
+// issues so they appear on the team board as claimable tickets.
+// Respects MaxUnassignedIssues and the optional UnassignedLabels filter.
+// Claims are created locally in batch and committed in a single git operation.
+func (e *Engine) autopoolUnassigned(
+	ctx context.Context,
+	hubProjectID, trackerProjectID string,
+	trackerType Type,
+	claimedTickets map[string]bool,
+	firstSync bool,
+	pr *ProjectSyncResult,
+) error {
+	var lastSync time.Time
+	if !firstSync {
+		lastSync = e.state.LastSync(trackerType, trackerProjectID)
+	}
+	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync)
+
+	issues, err := e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
+		Labels:       e.cfg.UnassignedLabels,
+		UpdatedAfter: lastSync,
+		MaxResults:   e.cfg.MaxUnassignedIssues,
+	})
+	if err != nil {
+		if errors.Is(err, ErrTokenInvalid) {
+			return err
+		}
+		slog.Warn("tracker.autopool.fetch_error", "error", err)
+		return nil // skip on transient errors
+	}
+	slog.Debug("tracker.autopool.fetched", "count", len(issues))
+
+	// Collect claims to create, then batch commit.
+	type pendingClaim struct {
+		claim   teamstate.Claim
+		relPath string
+	}
+	var pending []pendingClaim
+
+	for _, issue := range issues {
+		ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID])
+		if claimedTickets[ticketID] {
+			continue
+		}
+
+		initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+		truncDesc := TruncateDescription(issue.Description)
+
+		pending = append(pending, pendingClaim{
+			claim: teamstate.Claim{
+				TicketID:      ticketID,
+				Project:       hubProjectID,
+				ClaimedBy:     "", // pool claim — no owner yet
+				Status:        initialStatus,
+				Title:         issue.Title,
+				Description:   truncDesc,
+				TrackerStatus: issue.StatusName,
+				ExternalIID:   issue.IID,
+				Labels:        issue.Labels,
+			},
+		})
+		claimedTickets[ticketID] = true
+
+		if len(pending) >= e.cfg.MaxUnassignedIssues {
+			break
+		}
+	}
+
+	if len(pending) == 0 {
+		return nil
+	}
+
+	// Batch create: single pull → create all files → single commit+push
+	if err := e.repo.Pull(ctx); err != nil {
+		slog.Warn("tracker.autopool.pull_failed", "error", err)
+	}
+
+	var relPaths []string
+	for i := range pending {
+		relPath, err := e.repo.CreateClaimLocal(pending[i].claim)
+		if err != nil {
+			if err == teamstate.ErrClaimExists {
+				continue
+			}
+			slog.Warn("tracker.autopool.create_failed", "ticket", pending[i].claim.TicketID, "error", err)
+			continue
+		}
+		relPaths = append(relPaths, relPath)
+		slog.Debug("tracker.autopool.created", "ticket", pending[i].claim.TicketID)
+		pr.ClaimsCreated++
+	}
+
+	if len(relPaths) == 0 {
+		return nil
+	}
+
+	msg := fmt.Sprintf("autopool: %d unassigned tickets for %s", len(relPaths), hubProjectID)
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 

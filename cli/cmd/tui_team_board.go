@@ -136,16 +136,48 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				memberID := a.Config.ActiveTeam().MemberID
 				ctx := context.Background()
+
+				// Try creating a new claim first.
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,
 					ClaimedBy: memberID,
 					Status:    teamstate.ClaimStatusInProgress,
 				})
-				if err == teamstate.ErrClaimExists {
-					return nil // idempotent
+				if err == nil {
+					return nil // new claim created
 				}
-				return err
+				if err != teamstate.ErrClaimExists {
+					return err // unexpected error
+				}
+
+				// Claim already exists — check if it's a pool ticket (unowned).
+				existing, getErr := repo.GetClaim(projectID, ticketID)
+				if getErr != nil {
+					return nil // can't read claim, treat as idempotent
+				}
+				if existing.ClaimedBy != "" {
+					return nil // already owned, idempotent
+				}
+
+				// Pool ticket: claim it for ourselves.
+				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID); poolErr != nil {
+					return poolErr
+				}
+
+				// Push assignee to tracker if push_labels is enabled.
+				go func() {
+					pushCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					engine := resolveTrackerEngine(pushCtx, a)
+					if engine == nil || existing.ExternalIID == 0 {
+						return
+					}
+					if err := engine.AssignIssueToMember(pushCtx, projectID, existing.ExternalIID, memberID); err != nil {
+						slog.Warn("pool-claim.push_assignee_failed", "ticket", ticketID, "error", err)
+					}
+				}()
+				return nil
 			},
 			OnRelease: func(ticketID string) error {
 				repo := resolveRepo()

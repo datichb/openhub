@@ -358,6 +358,48 @@ func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner st
 	})
 }
 
+// ClaimPoolTicket assigns an unowned pool ticket (ClaimedBy="") to a member.
+// Returns ErrClaimNotFound if no claim exists, ErrClaimAlreadyOwned if the
+// claim already has an owner. The status is set to in_progress and ClaimedAt
+// is updated to now.
+func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		c, err := r.getClaim(project, ticketID)
+		if err != nil {
+			return err
+		}
+		if c.ClaimedBy != "" {
+			return ErrClaimAlreadyOwned
+		}
+
+		c.ClaimedBy = memberID
+		c.ClaimedAt = time.Now().UTC()
+		c.Status = ClaimStatusInProgress
+		c.LastActivity = time.Now().UTC()
+
+		data, marshalErr := toml.Marshal(c)
+		if marshalErr != nil {
+			return fmt.Errorf("marshaling claim: %w", marshalErr)
+		}
+
+		path := r.claimFilePath(project, ticketID)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			return fmt.Errorf("writing claim: %w", err)
+		}
+
+		relPath := r.claimRelPath(project, ticketID)
+		msg := fmt.Sprintf("pool-claim: %s claims %s/%s", memberID, project, ticketID)
+		slog.Info("teamstate.claim.pool_claim", "project", project, "ticket", ticketID, "member", memberID)
+		return r.commitAndPush(ctx, msg, relPath)
+	})
+}
+
 // UpdateClaimStatus changes the status of an existing claim and bumps LastActivity.
 // Returns ErrInvalidStatus if newStatus is not a known value.
 // Returns ErrClaimNotFound if the claim does not exist.

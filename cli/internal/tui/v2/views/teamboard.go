@@ -64,15 +64,18 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 		for _, cc := range columnCards {
 			cc.Clear()
 		}
-		for _, ticket := range tickets {
-			for i, col := range columns {
-				if ticket.Status == col.Status {
-					// Line 1: title + assignee
-					assignee := ""
-					if ticket.Assignee != "" {
-						assignee = fmt.Sprintf(" %s@%s[-]",
-							widgets.ColorTag(theme.Accent), ticket.Assignee)
-					}
+	for _, ticket := range tickets {
+		for i, col := range columns {
+			if ticket.Status == col.Status {
+				// Line 1: title + assignee
+				assignee := ""
+				if ticket.Assignee != "" {
+					assignee = fmt.Sprintf(" %s@%s[-]",
+						widgets.ColorTag(theme.Accent), ticket.Assignee)
+				} else {
+					assignee = fmt.Sprintf(" %s[claimable][-]",
+						widgets.ColorTag(theme.Warning))
+				}
 					mainText := ticket.Title + assignee
 					// Line 2: ID
 					secondary := ticket.ID

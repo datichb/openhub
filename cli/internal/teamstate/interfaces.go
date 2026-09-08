@@ -69,6 +69,10 @@ type TeamStateWriter interface {
 	CreateClaimLocal(c Claim) (relPath string, err error)
 	ReleaseClaim(ctx context.Context, project, ticketID string) error
 	TransferClaim(ctx context.Context, project, ticketID, newOwner string) error
+	// ClaimPoolTicket assigns an unowned pool ticket (ClaimedBy="") to a member.
+	// Returns ErrClaimNotFound if no claim exists, ErrClaimAlreadyOwned if the
+	// claim already has an owner.
+	ClaimPoolTicket(ctx context.Context, project, ticketID, memberID string) error
 	UpdateClaimStatus(ctx context.Context, project, ticketID, newStatus string) error
 	// UpdateClaimStatusFromTracker changes status without enforcing ValidTransitions.
 	// Used by the tracker sync engine for arbitrary status jumps.

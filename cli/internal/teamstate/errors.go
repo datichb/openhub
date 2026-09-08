@@ -42,4 +42,7 @@ var (
 	ErrInvalidStatus = errors.New("invalid claim status")
 	// ErrInvalidTransition is returned when a claim status transition is not allowed.
 	ErrInvalidTransition = errors.New("invalid status transition")
+	// ErrClaimAlreadyOwned is returned when attempting to claim a pool ticket
+	// that already has an owner (ClaimedBy is not empty).
+	ErrClaimAlreadyOwned = errors.New("ticket already claimed by another member")
 )

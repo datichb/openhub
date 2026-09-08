@@ -149,6 +149,59 @@ func (c *jiraClient) ListAssignedIssues(ctx context.Context, projectID string, o
 	return issues, nil
 }
 
+func (c *jiraClient) ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error) {
+	// Build JQL query for unassigned issues.
+	jql := fmt.Sprintf(`project = "%s" AND assignee is EMPTY AND statusCategory != Done`, projectID)
+	if len(opts.Labels) > 0 {
+		// JQL label filter: labels in ("label1", "label2")
+		quoted := make([]string, 0, len(opts.Labels))
+		for _, l := range opts.Labels {
+			quoted = append(quoted, fmt.Sprintf("%q", l))
+		}
+		jql += fmt.Sprintf(` AND labels in (%s)`, strings.Join(quoted, ","))
+	}
+	if !opts.UpdatedAfter.IsZero() {
+		jql += fmt.Sprintf(` AND updated >= "%s"`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
+	}
+
+	maxResults := 20
+	if opts.MaxResults > 0 {
+		maxResults = opts.MaxResults
+	}
+
+	body := fmt.Sprintf(`{"jql":%q,"maxResults":%d,"fields":["summary","description","status","labels","updated","assignee"]}`,
+		jql, maxResults)
+
+	data, err := c.do(ctx, http.MethodPost, "/rest/api/2/search", strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Issues []jiraIssue `json:"issues"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("jira: parsing unassigned search response: %w", err)
+	}
+
+	issues := make([]IssueState, 0, len(resp.Issues))
+	for _, j := range resp.Issues {
+		issues = append(issues, j.toIssueState())
+	}
+	return issues, nil
+}
+
+func (c *jiraClient) AssignIssue(ctx context.Context, projectID string, iid int, username string) error {
+	if !c.cfg.WriteEnabled {
+		return ErrWriteDisabled
+	}
+	issueKey := fmt.Sprintf("%s-%d", strings.ToUpper(projectID), iid)
+	body := fmt.Sprintf(`{"name":%q}`, username)
+	path := "/rest/api/2/issue/" + url.PathEscape(issueKey) + "/assignee"
+	_, err := c.do(ctx, http.MethodPut, path, strings.NewReader(body))
+	return err
+}
+
 func (c *jiraClient) TestConnection(ctx context.Context) (string, error) {
 	data, err := c.do(ctx, http.MethodGet, "/rest/api/2/myself", nil)
 	if err != nil {

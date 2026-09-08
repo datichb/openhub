@@ -1190,5 +1190,9 @@
   "cmd.team.init.recap.policies": "Policies",
   "cmd.team.init.validate.repo_required": "Repository URL is required",
   "cmd.team.init.validate.member_id_required": "Member ID is required",
-  "cmd.team.init.validate.display_name_required": "Display name is required"
+  "cmd.team.init.validate.display_name_required": "Display name is required",
+
+  "board.claimable": "[claimable]",
+  "board.pool_claimed": "Ticket claimed: %s",
+  "board.pool_claim_failed": "Claim failed: %s"
 }

@@ -149,8 +149,20 @@ type TrackerConfig struct {
 	// MaxAutoPlanPerMember limits the number of auto-planned claims per member
 	// to avoid flooding the TODO column. Default: 5.
 	MaxAutoPlanPerMember int `toml:"max_auto_plan_per_member"`
+	// AutoPlanUnassigned fetches unassigned open issues from the tracker and
+	// creates "pool" claims (ClaimedBy="") so they appear on the team board
+	// as claimable tickets. Members can claim them with the 'c' key.
+	AutoPlanUnassigned bool `toml:"auto_plan_unassigned"`
+	// UnassignedLabels restricts which unassigned issues are fetched.
+	// Only issues matching ALL of these labels are imported.
+	// Empty = all unassigned open issues (no label filter).
+	UnassignedLabels []string `toml:"unassigned_labels,omitempty"`
+	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
+	// Default: 20.
+	MaxUnassignedIssues int `toml:"max_unassigned_issues"`
 	// PushLabels enables syncing claim labels back to the tracker (requires
 	// write_enabled on the MCP gitlab/jira server).
+	// When enabled, claiming a pool ticket also assigns it on the tracker.
 	PushLabels bool `toml:"push_labels"`
 	// PushLabelsEnforced marks PushLabels as enforced by the team.
 	PushLabelsEnforced *bool `toml:"push_labels_enforced,omitempty"`
@@ -228,6 +240,9 @@ func (r *Repo) LoadConfig() (*TeamConfig, error) {
 	}
 	if cfg.Tracker.MaxAutoPlanPerMember <= 0 {
 		cfg.Tracker.MaxAutoPlanPerMember = 5
+	}
+	if cfg.Tracker.MaxUnassignedIssues <= 0 {
+		cfg.Tracker.MaxUnassignedIssues = 20
 	}
 	if cfg.Tracker.SyncIntervalMinutes <= 0 && cfg.Tracker.AutoSync {
 		cfg.Tracker.SyncIntervalMinutes = 5
