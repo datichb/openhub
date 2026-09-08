@@ -430,6 +430,27 @@ func (v *TeamDetailView) buildLines() {
 		set: func(val string) { n, err := strconv.Atoi(val); if err != nil { return }; v.teamCfg.Tracker.SyncIntervalMinutes = n; v.dirtyTeam = true },
 	})
 
+	// ── Label → Status Mapping (ADR-032) ──
+	v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "label_status_mapping",
+		hint: "Mappe les labels du tracker vers les colonnes du board. Premier label qui matche gagne."})
+	for k := range v.teamCfg.Tracker.LabelStatusMapping {
+		k := k
+		v.lines = append(v.lines, teamConfigLine{
+			section: "label_status_mapping", key: k, kind: "select", scope: scopeTeam, dynamic: true,
+			hint:    "Statut du board pour le label '" + k + "'",
+			options: labelStatusOptions(),
+			get:     func() string { return v.teamCfg.Tracker.LabelStatusMapping[k] },
+			set:     func(val string) { v.teamCfg.Tracker.LabelStatusMapping[k] = val; v.dirtyTeam = true },
+		})
+	}
+	if len(v.teamCfg.Tracker.LabelStatusMapping) == 0 {
+		v.lines = append(v.lines, teamConfigLine{
+			section: "label_status_mapping", key: "(vide)", kind: "placeholder",
+			hint: "a pour ajouter un mapping label → statut",
+			get:  func() string { return "" },
+		})
+	}
+
 	// ── Notifications ──
 	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Notifications"})
 	v.lines = append(v.lines, teamConfigLine{
@@ -888,8 +909,26 @@ func (v *TeamDetailView) addDynamic() {
 				v.renderLines()
 			})
 		})
+	case section == "label_status_mapping":
+		v.shell.ShowInputModal("Label du tracker (ex: Bloqué, TO REVIEW...)", "", func(key string) {
+			if key == "" {
+				return
+			}
+			v.shell.ShowSelectModal("Statut du board", labelStatusOptions(), "", func(val string) {
+				if val == "" {
+					return
+				}
+				if v.teamCfg.Tracker.LabelStatusMapping == nil {
+					v.teamCfg.Tracker.LabelStatusMapping = make(map[string]string)
+				}
+				v.teamCfg.Tracker.LabelStatusMapping[key] = val
+				v.dirtyTeam = true
+				v.buildLines()
+				v.renderLines()
+			})
+		})
 	default:
-		v.shell.ShowToastMsg("'a' disponible dans: Mappings, families, agents", false)
+		v.shell.ShowToastMsg("'a' disponible dans: Mappings, families, agents, label_status_mapping", false)
 	}
 }
 
@@ -910,6 +949,8 @@ func (v *TeamDetailView) deleteDynamic() {
 		delete(v.teamCfg.Models.Families, key)
 	case line.section == "Models.agents":
 		delete(v.teamCfg.Models.Agents, key)
+	case line.section == "label_status_mapping":
+		delete(v.teamCfg.Tracker.LabelStatusMapping, key)
 	default:
 		return
 	}
@@ -1213,6 +1254,18 @@ func boolPtrToStr(b *bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// labelStatusOptions returns the valid board statuses for the label_status_mapping select.
+func labelStatusOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "planned (TODO)", Value: "planned"},
+		{Label: "in_progress (IN PROGRESS)", Value: "in_progress"},
+		{Label: "review (REVIEW)", Value: "review"},
+		{Label: "validation (VALIDATION)", Value: "validation"},
+		{Label: "blocked (BLOCKED)", Value: "blocked"},
+		{Label: "done (DONE)", Value: "done"},
+	}
 }
 
 func tdBoolToStr(b bool) string {
