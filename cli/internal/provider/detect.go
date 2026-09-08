@@ -1,10 +1,12 @@
 package provider
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // DetectionResult holds the result of detecting provider credentials on the system.
@@ -128,8 +130,14 @@ func detectOpenRouter() DetectionResult {
 func detectGithubCopilot() DetectionResult {
 	r := DetectionResult{Provider: GithubCopilot}
 
-	// Check if gh CLI is authenticated
-	cmd := exec.Command("gh", "auth", "status")
+	// Check if gh CLI is authenticated.
+	// Use a 3-second timeout to avoid blocking the caller indefinitely when
+	// gh is slow (network issues, expired OAuth token refresh, credential
+	// helper prompt). This is especially important when called from the TUI
+	// event loop where any blocking call freezes the entire interface.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "gh", "auth", "status")
 	output, err := cmd.CombinedOutput()
 	if err == nil {
 		r.Available = true

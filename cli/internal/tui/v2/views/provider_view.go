@@ -54,6 +54,19 @@ type ProviderView struct {
 	lines            []providerConfigLine
 	selectedProvider string // currently selected provider for detail section
 	dirty            bool
+	rendering        bool // true while renderList is executing — suppresses handleChanged cascades
+
+	// Caches populated off the event loop (goroutine) then consumed on the
+	// event loop (QueueUpdateDraw). This avoids blocking exec.Command, keychain
+	// I/O, etc. from freezing the TUI.
+	detectionCache map[string]provider.DetectionResult
+	secretCache    map[string]secretCacheEntry
+}
+
+// secretCacheEntry holds a pre-fetched keychain lookup result.
+type secretCacheEntry struct {
+	present bool
+	masked  string
 }
 
 var _ View = (*ProviderView)(nil)
@@ -103,12 +116,22 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.provider.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build asynchronously (keychain checks may do I/O)
+	// Build asynchronously — all I/O (exec.Command for gh auth, keychain
+	// lookups) runs in the goroutine BEFORE QueueUpdateDraw. Only pure UI
+	// work runs on the tview event loop inside the callback.
 	go func() {
+		// Phase 1: I/O off the event loop
+		detections := v.prefetchDetections()
+		secrets := v.prefetchSecrets()
+
+		// Phase 2: UI work on the event loop
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return
 			}
+
+			v.detectionCache = detections
+			v.secretCache = secrets
 
 			v.list = widgets.NewSectionedList()
 			v.list.SetApp(app)
@@ -230,12 +253,7 @@ func (v *ProviderView) buildLines() {
 				return v.selectedProvider == "bedrock" && cfg.Provider.Bedrock.AuthMode == "bearer"
 			},
 			get: func(_ *config.Config) string {
-				ctx := context.Background()
-				present, masked := v.vcfg.CheckSecret(ctx, "bedrock-token-default")
-				if present {
-					return "✓ " + masked
-				}
-				return "✗ " + i18n.T("tui.provider.not_configured")
+				return v.cachedSecretDisplay("bedrock-token-default")
 			},
 		},
 	)
@@ -246,13 +264,8 @@ func (v *ProviderView) buildLines() {
 			provider: "anthropic", key: "token", kind: "password",
 			visible: func() bool { return v.selectedProvider == "anthropic" },
 			get: func(_ *config.Config) string {
-				ctx := context.Background()
 				key := provider.KeychainKey(provider.Anthropic, "")
-				present, masked := v.vcfg.CheckSecret(ctx, key)
-				if present {
-					return "✓ " + masked
-				}
-				return "✗ " + i18n.T("tui.provider.not_configured")
+				return v.cachedSecretDisplay(key)
 			},
 		},
 	)
@@ -263,13 +276,8 @@ func (v *ProviderView) buildLines() {
 			provider: "openrouter", key: "token", kind: "password",
 			visible: func() bool { return v.selectedProvider == "openrouter" },
 			get: func(_ *config.Config) string {
-				ctx := context.Background()
 				key := provider.KeychainKey(provider.OpenRouter, "")
-				present, masked := v.vcfg.CheckSecret(ctx, key)
-				if present {
-					return "✓ " + masked
-				}
-				return "✗ " + i18n.T("tui.provider.not_configured")
+				return v.cachedSecretDisplay(key)
 			},
 		},
 	)
@@ -306,6 +314,72 @@ func (v *ProviderView) buildLines() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// I/O prefetch helpers — run OFF the tview event loop (in a goroutine)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// prefetchDetections runs provider.DetectAll() off the event loop and returns
+// the results as a map keyed by provider name. This avoids blocking
+// exec.Command("gh", "auth", "status") and similar calls on the UI thread.
+func (v *ProviderView) prefetchDetections() map[string]provider.DetectionResult {
+	results := provider.DetectAll()
+	m := make(map[string]provider.DetectionResult, len(results))
+	for _, r := range results {
+		m[string(r.Provider)] = r
+	}
+	return m
+}
+
+// prefetchSecrets reads all provider keychain secrets off the event loop.
+// Returns a map keyed by secret name.
+func (v *ProviderView) prefetchSecrets() map[string]secretCacheEntry {
+	ctx := context.Background()
+	keys := []string{
+		"bedrock-token-default",
+		provider.KeychainKey(provider.Anthropic, ""),
+		provider.KeychainKey(provider.OpenRouter, ""),
+	}
+	m := make(map[string]secretCacheEntry, len(keys))
+	for _, k := range keys {
+		present, masked := v.vcfg.CheckSecret(ctx, k)
+		m[k] = secretCacheEntry{present: present, masked: masked}
+	}
+	return m
+}
+
+// cachedDetection returns the detection result from the cache, falling back
+// to a live (potentially blocking) call if the cache is empty. The fallback
+// should only happen in edge cases (e.g. handleChanged triggers a rebuild
+// before the cache is populated).
+func (v *ProviderView) cachedDetection(name string) provider.DetectionResult {
+	if v.detectionCache != nil {
+		if r, ok := v.detectionCache[name]; ok {
+			return r
+		}
+	}
+	return provider.Detect(provider.Name(name))
+}
+
+// cachedSecretDisplay returns a formatted display string for a keychain secret,
+// using the cache when available.
+func (v *ProviderView) cachedSecretDisplay(key string) string {
+	if v.secretCache != nil {
+		if entry, ok := v.secretCache[key]; ok {
+			if entry.present {
+				return "✓ " + entry.masked
+			}
+			return "✗ " + i18n.T("tui.provider.not_configured")
+		}
+	}
+	// Fallback: live keychain check (may block on macOS keychain dialog)
+	ctx := context.Background()
+	present, masked := v.vcfg.CheckSecret(ctx, key)
+	if present {
+		return "✓ " + masked
+	}
+	return "✗ " + i18n.T("tui.provider.not_configured")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -313,6 +387,9 @@ func (v *ProviderView) renderList() {
 	if v.list == nil {
 		return
 	}
+	v.rendering = true
+	defer func() { v.rendering = false }()
+
 	cfg := v.vcfg.GetConfig()
 	defaultProv := cfg.Opencode.DefaultProvider
 
@@ -334,7 +411,7 @@ func (v *ProviderView) renderList() {
 
 		case "provider-item":
 			name := line.provider
-			result := provider.Detect(provider.Name(name))
+			result := v.cachedDetection(name)
 			var statusStr string
 			if result.Available {
 				statusStr = fmt.Sprintf("%s✓%s %s", theme.ColorTag(theme.SuccessHex), theme.TagColor, result.Source)
@@ -411,6 +488,14 @@ func (v *ProviderView) renderList() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProviderView) handleChanged(index int, item widgets.SectionItem) {
+	// Suppress cascading rebuilds: renderList sets v.rendering=true while it
+	// executes. During that window, SetItems → rebuild → SetCurrentItem can
+	// trigger ChangedFunc, which calls us again. Without this guard each
+	// rebuild triggers another buildLines+renderList cycle (and more Detect
+	// calls), potentially freezing the UI.
+	if v.rendering {
+		return
+	}
 	ref, ok := item.Reference.(int)
 	if !ok || ref < 0 || ref >= len(v.lines) {
 		return
@@ -598,11 +683,24 @@ func (v *ProviderView) save() {
 }
 
 func (v *ProviderView) refresh() {
-	v.buildLines()
-	v.renderList()
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.provider.refreshed"), true)
+	if v.app == nil {
+		return
 	}
+	// Run I/O off the event loop, same pattern as Mount.
+	go func() {
+		detections := v.prefetchDetections()
+		secrets := v.prefetchSecrets()
+
+		v.app.QueueUpdateDraw(func() {
+			v.detectionCache = detections
+			v.secretCache = secrets
+			v.buildLines()
+			v.renderList()
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.provider.refreshed"), true)
+			}
+		})
+	}()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
