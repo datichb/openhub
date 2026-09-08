@@ -59,46 +59,44 @@ func RunBoard(cfg BoardConfig) error {
 
 	shell := layout.Build(cfg.Layout)
 
-	// ── Column lists ──
-	columnLists := make([]*tview.List, len(columns))
+	// ── Card columns ──
+	columnCards := make([]*widgets.CardColumn, len(columns))
 	columnFlex := tview.NewFlex()
 	columnFlex.SetBackgroundColor(theme.BgPanel)
 
 	for i, col := range columns {
-		list := tview.NewList().
-			ShowSecondaryText(true).
-			SetHighlightFullLine(true).
-			SetSelectedBackgroundColor(theme.BgElement).
-			SetSelectedTextColor(theme.FgPrimary).
-			SetSecondaryTextColor(theme.FgSecondary)
-		list.SetBackgroundColor(theme.BgPanel).
-			SetBorder(true).
-			SetBorderColor(theme.BorderNormal).
-			SetTitle(fmt.Sprintf(" %s ", col.Name)).
-			SetTitleColor(col.Color)
-
-		columnLists[i] = list
-		columnFlex.AddItem(list, 0, 1, i == 0)
+		cc := widgets.NewCardColumn(col.Name, col.Color)
+		columnCards[i] = cc
+		columnFlex.AddItem(cc, 0, 1, i == 0)
 	}
 
 	// ── Populate columns ──
 	populateColumns := func(tickets []BoardTicket) {
-		for _, list := range columnLists {
-			list.Clear()
+		for _, cc := range columnCards {
+			cc.Clear()
 		}
 		for _, ticket := range tickets {
 			for i, col := range columns {
 				if ticket.Status == col.Status {
+					// Line 1: priority + title
 					priority := ""
 					if ticket.Priority != "" {
 						priority = fmt.Sprintf("%s%s[-] ",
 							widgets.ColorTag(priorityColor(ticket.Priority)), ticket.Priority)
 					}
-					columnLists[i].AddItem(
-						priority+ticket.Title,
-						"  "+ticket.ID,
-						0, nil,
-					)
+					mainText := priority + ticket.Title
+					// Line 2: ID
+					secondary := ticket.ID
+					// Line 3: external ref (if any)
+					meta := ""
+					if ticket.ExternalRef != "" {
+						meta = fmt.Sprintf("← %s", ticket.ExternalRef)
+					}
+					columnCards[i].AddCard(widgets.Card{
+						MainText:      mainText,
+						SecondaryText: secondary,
+						MetaText:      meta,
+					})
 					break
 				}
 			}
@@ -112,12 +110,12 @@ func RunBoard(cfg BoardConfig) error {
 	// ── Focus management ──
 	focusCol := 0
 	updateFocus := func() {
-		for i, list := range columnLists {
+		for i, cc := range columnCards {
 			if i == focusCol {
-				list.SetBorderColor(theme.BorderFocus)
-				shell.App.SetFocus(list)
+				cc.SetFocused(true)
+				shell.App.SetFocus(cc)
 			} else {
-				list.SetBorderColor(theme.BorderNormal)
+				cc.SetFocused(false)
 			}
 		}
 	}

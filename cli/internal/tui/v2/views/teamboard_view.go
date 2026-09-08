@@ -68,7 +68,7 @@ type BoardActions struct {
 type TeamBoardView struct {
 	cfg         TeamBoardViewConfig
 	columnFlex  *tview.Flex
-	columnLists []*tview.List
+	columnCards []*widgets.CardColumn
 	focusCol    int
 	app         *tview.Application
 	done        chan struct{}
@@ -77,7 +77,7 @@ type TeamBoardView struct {
 	actions     *BoardActions
 
 	// Windowed column scroll — only a subset of columns is visible at a time.
-	colViewStart int // index of the first visible column in columnLists
+	colViewStart int // index of the first visible column in columnCards
 	visibleCols  int // number of columns visible (auto-detected from terminal width)
 	allColumns   []BoardColumnDef // all column definitions for reference
 
@@ -157,21 +157,12 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 
 	columns := DefaultColumns()
 	v.allColumns = columns
-	v.columnLists = make([]*tview.List, len(columns))
+	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
 
 	for i, col := range columns {
-		list := tview.NewList().
-			ShowSecondaryText(true).
-			SetHighlightFullLine(true).
-			SetMainTextColor(theme.FgPrimary)
-		list.SetBackgroundColor(theme.BgPanel)
-		list.SetSecondaryTextColor(theme.FgMuted)
-		list.SetBorder(true)
-		list.SetBorderColor(theme.BorderNormal)
-		list.SetTitle(" " + col.Name + " ")
-		list.SetTitleColor(col.Color)
-		v.columnLists[i] = list
+		cc := widgets.NewCardColumn(col.Name, col.Color)
+		v.columnCards[i] = cc
 	}
 
 	// Auto-detect visible column count (min 25 chars per column).
@@ -261,7 +252,7 @@ func (v *TeamBoardView) Unmount() {
 	})
 	v.app = nil
 	v.columnFlex = nil
-	v.columnLists = nil
+	v.columnCards = nil
 	v.once = sync.Once{}
 }
 
@@ -337,13 +328,13 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	filtered = v.applyFilters(filtered)
 
 	// Reset ticket ID lookup
-	v.ticketIDLookup = make([][]string, len(v.columnLists))
+	v.ticketIDLookup = make([][]string, len(v.columnCards))
 	for i := range v.ticketIDLookup {
 		v.ticketIDLookup[i] = nil
 	}
 
-	for _, list := range v.columnLists {
-		list.Clear()
+	for _, cc := range v.columnCards {
+		cc.Clear()
 	}
 	for _, t := range filtered {
 		for i, col := range columns {
@@ -377,7 +368,13 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 				}
 				mainText := projectTag + title + badgeStr
 
-				// ── Line 2: @assignee · label1 · label2 (filtered) ──
+				// ── Line 2: ID · priority ──
+				secondary := t.ID
+				if t.Priority != "" {
+					secondary += " · " + t.Priority
+				}
+
+				// ── Line 3: @assignee · label1 · label2 (filtered) ──
 				var parts []string
 				if t.Assignee != "" {
 					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
@@ -391,9 +388,16 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 					}
 					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
 				}
-				secondary := "  " + strings.Join(parts, " · ")
+				meta := ""
+				if len(parts) > 0 {
+					meta = strings.Join(parts, " · ")
+				}
 
-				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
+				v.columnCards[i].AddCard(widgets.Card{
+					MainText:      mainText,
+					SecondaryText: secondary,
+					MetaText:      meta,
+				})
 				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 				break
 			}
@@ -550,15 +554,15 @@ func (v *TeamBoardView) nextProjectTab() {
 }
 
 func (v *TeamBoardView) moveFocus(delta int) {
-	if len(v.columnLists) == 0 {
+	if len(v.columnCards) == 0 {
 		return
 	}
 	v.focusCol += delta
 	if v.focusCol < 0 {
 		v.focusCol = 0
 	}
-	if v.focusCol >= len(v.columnLists) {
-		v.focusCol = len(v.columnLists) - 1
+	if v.focusCol >= len(v.columnCards) {
+		v.focusCol = len(v.columnCards) - 1
 	}
 	// Scroll the column window if focus moves outside visible range
 	if v.focusCol < v.colViewStart {
@@ -575,8 +579,8 @@ func (v *TeamBoardView) moveFocus(delta int) {
 func (v *TeamBoardView) rebuildColumnFlex() {
 	v.columnFlex.Clear()
 	end := v.colViewStart + v.visibleCols
-	if end > len(v.columnLists) {
-		end = len(v.columnLists)
+	if end > len(v.columnCards) {
+		end = len(v.columnCards)
 	}
 	// Left scroll indicator
 	if v.colViewStart > 0 {
@@ -588,10 +592,10 @@ func (v *TeamBoardView) rebuildColumnFlex() {
 		v.columnFlex.AddItem(indicator, 2, 0, false)
 	}
 	for i := v.colViewStart; i < end; i++ {
-		v.columnFlex.AddItem(v.columnLists[i], 0, 1, i == v.focusCol)
+		v.columnFlex.AddItem(v.columnCards[i], 0, 1, i == v.focusCol)
 	}
 	// Right scroll indicator
-	if end < len(v.columnLists) {
+	if end < len(v.columnCards) {
 		indicator := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
@@ -602,14 +606,14 @@ func (v *TeamBoardView) rebuildColumnFlex() {
 }
 
 func (v *TeamBoardView) updateColumnFocus() {
-	for i, list := range v.columnLists {
+	for i, cc := range v.columnCards {
 		if i == v.focusCol {
-			list.SetBorderColor(theme.BorderFocus)
+			cc.SetFocused(true)
 			if v.app != nil {
-				v.app.SetFocus(list)
+				v.app.SetFocus(cc)
 			}
 		} else {
-			list.SetBorderColor(theme.BorderNormal)
+			cc.SetFocused(false)
 		}
 	}
 }
@@ -791,14 +795,14 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 // ─── Ticket Actions ──────────────────────────────────────────────────────────
 
 func (v *TeamBoardView) selectedTicketID() string {
-	if v.focusCol < 0 || v.focusCol >= len(v.columnLists) {
+	if v.focusCol < 0 || v.focusCol >= len(v.columnCards) {
 		return ""
 	}
-	list := v.columnLists[v.focusCol]
-	if list.GetItemCount() == 0 {
+	cc := v.columnCards[v.focusCol]
+	if cc.GetItemCount() == 0 {
 		return ""
 	}
-	idx := list.GetCurrentItem()
+	idx := cc.GetCurrentItem()
 	if idx < 0 {
 		return ""
 	}
@@ -1056,13 +1060,13 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	filtered := v.applyFilters(v.allTickets)
 
 	// Reset ticket ID lookup
-	v.ticketIDLookup = make([][]string, len(v.columnLists))
+	v.ticketIDLookup = make([][]string, len(v.columnCards))
 	for i := range v.ticketIDLookup {
 		v.ticketIDLookup[i] = nil
 	}
 
-	for _, list := range v.columnLists {
-		list.Clear()
+	for _, cc := range v.columnCards {
+		cc.Clear()
 	}
 	for _, t := range filtered {
 		for i, col := range columns {
@@ -1084,7 +1088,13 @@ func (v *TeamBoardView) repopulateWithFilters() {
 				}
 				mainText := projectTag + title
 
-				// ── Line 2: @assignee · labels (filtered) ──
+				// ── Line 2: ID · priority ──
+				secondary := t.ID
+				if t.Priority != "" {
+					secondary += " · " + t.Priority
+				}
+
+				// ── Line 3: @assignee · labels (filtered) ──
 				var parts []string
 				if t.Assignee != "" {
 					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
@@ -1097,9 +1107,16 @@ func (v *TeamBoardView) repopulateWithFilters() {
 					}
 					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
 				}
-				secondary := "  " + strings.Join(parts, " · ")
+				meta := ""
+				if len(parts) > 0 {
+					meta = strings.Join(parts, " · ")
+				}
 
-				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
+				v.columnCards[i].AddCard(widgets.Card{
+					MainText:      mainText,
+					SecondaryText: secondary,
+					MetaText:      meta,
+				})
 				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 				break
 			}

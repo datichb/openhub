@@ -45,46 +45,44 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 
 	shell := layout.Build(cfg.Layout)
 
-	// ── Column lists ──
-	columnLists := make([]*tview.List, len(columns))
+	// ── Card columns ──
+	columnCards := make([]*widgets.CardColumn, len(columns))
 	columnFlex := tview.NewFlex()
 	columnFlex.SetBackgroundColor(theme.BgPanel)
 
 	for i, col := range columns {
-		list := tview.NewList().
-			ShowSecondaryText(true).
-			SetHighlightFullLine(true).
-			SetSelectedBackgroundColor(theme.BgElement).
-			SetSelectedTextColor(theme.FgPrimary).
-			SetSecondaryTextColor(theme.FgSecondary)
-		list.SetBackgroundColor(theme.BgPanel).
-			SetBorder(true).
-			SetBorderColor(theme.BorderNormal).
-			SetTitle(fmt.Sprintf(" %s ", col.Name)).
-			SetTitleColor(col.Color)
-
-		columnLists[i] = list
-		columnFlex.AddItem(list, 0, 1, i == 0)
+		cc := widgets.NewCardColumn(col.Name, col.Color)
+		columnCards[i] = cc
+		columnFlex.AddItem(cc, 0, 1, i == 0)
 	}
 
 	// ── Populate ──
 	populateColumns := func(tickets []TeamTicket) {
-		for _, list := range columnLists {
-			list.Clear()
+		for _, cc := range columnCards {
+			cc.Clear()
 		}
 		for _, ticket := range tickets {
 			for i, col := range columns {
 				if ticket.Status == col.Status {
+					// Line 1: title + assignee
 					assignee := ""
 					if ticket.Assignee != "" {
 						assignee = fmt.Sprintf(" %s@%s[-]",
 							widgets.ColorTag(theme.Accent), ticket.Assignee)
 					}
-					columnLists[i].AddItem(
-						ticket.Title+assignee,
-						fmt.Sprintf("  %s", ticket.ID),
-						0, nil,
-					)
+					mainText := ticket.Title + assignee
+					// Line 2: ID
+					secondary := ticket.ID
+					// Line 3: labels
+					meta := ""
+					if len(ticket.Labels) > 0 {
+						meta = formatTicketLabels(ticket.Labels)
+					}
+					columnCards[i].AddCard(widgets.Card{
+						MainText:      mainText,
+						SecondaryText: secondary,
+						MetaText:      meta,
+					})
 					break
 				}
 			}
@@ -98,12 +96,12 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 	// ── Focus management ──
 	focusCol := 0
 	updateFocus := func() {
-		for i, list := range columnLists {
+		for i, cc := range columnCards {
 			if i == focusCol {
-				list.SetBorderColor(theme.BorderFocus)
-				shell.App.SetFocus(list)
+				cc.SetFocused(true)
+				shell.App.SetFocus(cc)
 			} else {
-				list.SetBorderColor(theme.BorderNormal)
+				cc.SetFocused(false)
 			}
 		}
 	}

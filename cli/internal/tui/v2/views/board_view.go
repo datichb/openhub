@@ -43,17 +43,19 @@ type BoardViewConfig struct {
 
 // BoardView implements View for the kanban board.
 type BoardView struct {
-	cfg          BoardViewConfig
-	columnFlex   *tview.Flex
-	columnLists  []*tview.List
+	cfg         BoardViewConfig
+	columnFlex  *tview.Flex
+	columnCards []*widgets.CardColumn
 	// ticketsByID maps ticket ID → BoardTicket for O(1) lookup on Enter.
-	ticketsByID  map[string]BoardTicket
-	focusCol     int
-	app          *tview.Application
-	done         chan struct{}
-	once         sync.Once
-	initialized  bool
-	shell        ShellAccess
+	ticketsByID map[string]BoardTicket
+	// ticketIDLookup maps [colIndex][itemIndex] → ticket ID for selected-item resolution.
+	ticketIDLookup [][]string
+	focusCol       int
+	app            *tview.Application
+	done           chan struct{}
+	once           sync.Once
+	initialized    bool
+	shell          ShellAccess
 }
 
 var _ View = (*BoardView)(nil)
@@ -108,23 +110,13 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	columns := DefaultColumns()
-	v.columnLists = make([]*tview.List, len(columns))
+	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
 
 	for i, col := range columns {
-		list := tview.NewList().
-			ShowSecondaryText(true).
-			SetHighlightFullLine(true).
-			SetMainTextColor(theme.FgPrimary).
-			SetSecondaryTextColor(theme.FgMuted)
-		list.SetBackgroundColor(theme.BgPanel)
-		list.SetBorder(true)
-		list.SetBorderColor(theme.BorderNormal)
-		list.SetTitle(" " + col.Name + " ")
-		list.SetTitleColor(col.Color)
-		list.SetBorderPadding(0, 0, 1, 1)
-		v.columnLists[i] = list
-		v.columnFlex.AddItem(list, 0, 1, i == 0)
+		cc := widgets.NewCardColumn(col.Name, col.Color)
+		v.columnCards[i] = cc
+		v.columnFlex.AddItem(cc, 0, 1, i == 0)
 	}
 
 	v.populateColumns(v.cfg.Tickets, columns)
@@ -189,8 +181,9 @@ func (v *BoardView) Unmount() {
 	})
 	v.app = nil
 	v.columnFlex = nil
-	v.columnLists = nil
+	v.columnCards = nil
 	v.ticketsByID = nil
+	v.ticketIDLookup = nil
 	v.once = sync.Once{}
 }
 
@@ -229,7 +222,7 @@ func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				tickets := v.cfg.RefreshFunc()
 				if v.app != nil {
 					v.app.QueueUpdateDraw(func() {
-						if v.columnLists != nil {
+						if v.columnCards != nil {
 							v.populateColumns(tickets, DefaultColumns())
 						}
 					})
@@ -247,34 +240,11 @@ func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 // showTicketDetail fetches and displays the full detail of the selected ticket.
 func (v *BoardView) showTicketDetail() {
-	if v.shell == nil || len(v.columnLists) == 0 {
+	if v.shell == nil || len(v.columnCards) == 0 {
 		return
 	}
 
-	list := v.columnLists[v.focusCol]
-	if list == nil {
-		return
-	}
-
-	// Guard against empty columns — tview returns 0 (not -1) for empty lists.
-	if list.GetItemCount() == 0 {
-		return
-	}
-
-	idx := list.GetCurrentItem()
-	if idx < 0 || idx >= list.GetItemCount() {
-		return
-	}
-
-	// The secondary text format is "  <ID> · <type>".
-	// Extract the ID as the first token before " · ".
-	_, secondary := list.GetItemText(idx)
-	secondary = strings.TrimSpace(secondary)
-	ticketID := secondary
-	if sep := strings.Index(secondary, " · "); sep >= 0 {
-		ticketID = secondary[:sep]
-	}
-	ticketID = strings.TrimSpace(ticketID)
+	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
@@ -312,29 +282,32 @@ func (v *BoardView) showTicketDetail() {
 	)
 }
 
+// selectedTicketID returns the ticket ID of the currently selected card.
+func (v *BoardView) selectedTicketID() string {
+	if v.focusCol < 0 || v.focusCol >= len(v.columnCards) {
+		return ""
+	}
+	cc := v.columnCards[v.focusCol]
+	if cc.GetItemCount() == 0 {
+		return ""
+	}
+	idx := cc.GetCurrentItem()
+	if idx < 0 {
+		return ""
+	}
+	if v.focusCol < len(v.ticketIDLookup) && idx < len(v.ticketIDLookup[v.focusCol]) {
+		return v.ticketIDLookup[v.focusCol][idx]
+	}
+	return ""
+}
+
 // linkTicketToTracker prompts for an external ref and links the selected ticket (ADR-032).
 func (v *BoardView) linkTicketToTracker() {
-	if v.shell == nil || v.cfg.OnLinkTracker == nil || len(v.columnLists) == 0 {
+	if v.shell == nil || v.cfg.OnLinkTracker == nil || len(v.columnCards) == 0 {
 		return
 	}
 
-	list := v.columnLists[v.focusCol]
-	if list == nil || list.GetItemCount() == 0 {
-		return
-	}
-
-	idx := list.GetCurrentItem()
-	if idx < 0 || idx >= list.GetItemCount() {
-		return
-	}
-
-	_, secondary := list.GetItemText(idx)
-	secondary = strings.TrimSpace(secondary)
-	ticketID := secondary
-	if sep := strings.Index(secondary, " · "); sep >= 0 {
-		ticketID = secondary[:sep]
-	}
-	ticketID = strings.TrimSpace(ticketID)
+	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
@@ -361,7 +334,7 @@ func (v *BoardView) linkTicketToTracker() {
 				tickets := v.cfg.RefreshFunc()
 				if v.app != nil {
 					v.app.QueueUpdateDraw(func() {
-						if v.columnLists != nil {
+						if v.columnCards != nil {
 							v.populateColumns(tickets, DefaultColumns())
 						}
 					})
@@ -459,14 +432,21 @@ func formatBoardTicket(t BoardTicket) string {
 }
 
 func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumnDef) {
-	// Guard against concurrent Unmount — columnLists may be nil if the view was
+	// Guard against concurrent Unmount — columnCards may be nil if the view was
 	// navigated away from between the refresh goroutine scheduling and execution.
-	if v.columnLists == nil {
+	if v.columnCards == nil {
 		return
 	}
-	for _, list := range v.columnLists {
-		list.Clear()
+	for _, cc := range v.columnCards {
+		cc.Clear()
 	}
+
+	// Reset ticket ID lookup.
+	v.ticketIDLookup = make([][]string, len(v.columnCards))
+	for i := range v.ticketIDLookup {
+		v.ticketIDLookup[i] = nil
+	}
+
 	// Rebuild lookup map.
 	newMap := make(map[string]BoardTicket, len(tickets))
 	for _, t := range tickets {
@@ -475,20 +455,26 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 			if t.Status == col.Status {
 				color := priorityColor(t.Priority)
 				prefix := priorityPrefix(t.Priority)
-				// Main text: "P1 · titre tronqué…" coloured by priority
+				// Line 1 (main): "P1 · title" coloured by priority
 				mainText := fmt.Sprintf("%s%s%s%s",
 					widgets.ColorTag(color),
 					prefix,
-					truncateTitle(t.Title, 28),
+					truncateTitle(t.Title, 36),
 					"[-]",
 				)
-				// Secondary text: "  ID · type" dimmed — ID is first token for lookup
-				// If the ticket has an external ref, append it (ADR-032)
-				secondary := fmt.Sprintf("  %s · %s", t.ID, t.Type)
+				// Line 2 (secondary): "ID · type"
+				secondary := fmt.Sprintf("%s · %s", t.ID, t.Type)
+				// Line 3 (meta): external ref if present
+				meta := ""
 				if t.ExternalRef != "" {
-					secondary += fmt.Sprintf(" · ← %s", t.ExternalRef)
+					meta = fmt.Sprintf("← %s", t.ExternalRef)
 				}
-				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
+				v.columnCards[i].AddCard(widgets.Card{
+					MainText:      mainText,
+					SecondaryText: secondary,
+					MetaText:      meta,
+				})
+				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 				break
 			}
 		}
@@ -497,31 +483,31 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 }
 
 func (v *BoardView) moveFocus(delta int) {
-	if len(v.columnLists) == 0 {
+	if len(v.columnCards) == 0 {
 		return
 	}
 	v.focusCol += delta
 	if v.focusCol < 0 {
 		v.focusCol = 0
 	}
-	if v.focusCol >= len(v.columnLists) {
-		v.focusCol = len(v.columnLists) - 1
+	if v.focusCol >= len(v.columnCards) {
+		v.focusCol = len(v.columnCards) - 1
 	}
 	v.updateColumnFocus()
 }
 
 func (v *BoardView) updateColumnFocus() {
-	if v.columnLists == nil {
+	if v.columnCards == nil {
 		return
 	}
-	for i, list := range v.columnLists {
+	for i, cc := range v.columnCards {
 		if i == v.focusCol {
-			list.SetBorderColor(theme.BorderFocus)
+			cc.SetFocused(true)
 			if v.app != nil {
-				v.app.SetFocus(list)
+				v.app.SetFocus(cc)
 			}
 		} else {
-			list.SetBorderColor(theme.BorderNormal)
+			cc.SetFocused(false)
 		}
 	}
 }
@@ -545,14 +531,14 @@ func (v *BoardView) refresh(columns []BoardColumnDef) {
 	// an external process call that can take hundreds of milliseconds).
 	// Using a local copy guarantees we never call nil.QueueUpdateDraw.
 	app := v.app
-	if v.cfg.RefreshFunc == nil || app == nil || v.columnLists == nil {
+	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil {
 		return
 	}
 	tickets := v.cfg.RefreshFunc()
 	app.QueueUpdateDraw(func() {
 		// Re-check inside the queued func — Unmount may have run between
 		// RefreshFunc() completing and the draw cycle executing this closure.
-		if v.columnLists == nil {
+		if v.columnCards == nil {
 			return
 		}
 		v.populateColumns(tickets, columns)

@@ -54,6 +54,14 @@ var (
 	Info = tcell.GetColor(InfoHex)
 )
 
+// Cards
+var (
+	// BgCard is the card background (= BgElement / Surface0).
+	BgCard = tcell.GetColor(BgCardHex)
+	// BorderCard is the subtle card border (Aurum BorderElem).
+	BorderCard = tcell.GetColor(BorderCardHex)
+)
+
 // Borders
 var (
 	// BorderNormal is for discreet panel delimiters.

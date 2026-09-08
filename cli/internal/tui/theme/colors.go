@@ -53,6 +53,19 @@ const (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Cards — elevated elements (kanban tickets, dashboard cards)
+// Aurum spec: SurfaceElem bg + BorderElem border
+// ─────────────────────────────────────────────────────────────────────────────
+
+const (
+	// BgCardHex is the card background — same as BgElement (Surface0).
+	BgCardHex = "#313244"
+	// BorderCardHex is the subtle card border — Aurum "BorderElem".
+	// Slightly brighter than BorderNormal to be visible against BgCard.
+	BorderCardHex = "#45475a"
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Borders
 // ─────────────────────────────────────────────────────────────────────────────
 
