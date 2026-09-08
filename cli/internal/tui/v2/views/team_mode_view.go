@@ -123,7 +123,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	bannerName := strings.ToUpper(v.team.ID)
+	bannerName := strings.ToUpper(v.team.Name)
 	banner := renderBanner(bannerName, 100)
 	headerHeight := bannerHeight(bannerName, 100) + 5
 
