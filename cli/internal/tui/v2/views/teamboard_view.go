@@ -81,6 +81,10 @@ type TeamBoardView struct {
 	visibleCols  int // number of columns visible (auto-detected from terminal width)
 	allColumns   []BoardColumnDef // all column definitions for reference
 
+	// ticketIDLookup maps [colIndex][itemIndex] → ticket ID for selected-item resolution.
+	// Rebuilt every time populateColumns or repopulateWithFilters is called.
+	ticketIDLookup [][]string
+
 	// Filtering state
 	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
 	filterText     string       // text search filter (matches ID, title, assignee)
@@ -332,6 +336,12 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	filtered := v.applyProjectFilter(tickets)
 	filtered = v.applyFilters(filtered)
 
+	// Reset ticket ID lookup
+	v.ticketIDLookup = make([][]string, len(v.columnLists))
+	for i := range v.ticketIDLookup {
+		v.ticketIDLookup[i] = nil
+	}
+
 	for _, list := range v.columnLists {
 		list.Clear()
 	}
@@ -384,6 +394,7 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 				secondary := "  " + strings.Join(parts, " · ")
 
 				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
+				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 				break
 			}
 		}
@@ -791,8 +802,11 @@ func (v *TeamBoardView) selectedTicketID() string {
 	if idx < 0 {
 		return ""
 	}
-	_, secondary := list.GetItemText(idx)
-	return secondary
+	// Use the ticketIDLookup instead of secondary text (which now holds display info)
+	if v.focusCol < len(v.ticketIDLookup) && idx < len(v.ticketIDLookup[v.focusCol]) {
+		return v.ticketIDLookup[v.focusCol][idx]
+	}
+	return ""
 }
 
 func (v *TeamBoardView) claimTicket() {
@@ -1040,18 +1054,53 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	}
 	columns := DefaultColumns()
 	filtered := v.applyFilters(v.allTickets)
+
+	// Reset ticket ID lookup
+	v.ticketIDLookup = make([][]string, len(v.columnLists))
+	for i := range v.ticketIDLookup {
+		v.ticketIDLookup[i] = nil
+	}
+
 	for _, list := range v.columnLists {
 		list.Clear()
 	}
 	for _, t := range filtered {
 		for i, col := range columns {
 			if t.Status == col.Status {
-				assignee := ""
-				if t.Assignee != "" {
-					assignee = " " + widgets.ColorTag(theme.Accent) + "@" + t.Assignee + "[-]"
+				// ── Line 1: [Project] Title... ──
+				projectTag := ""
+				projectDisplay := t.ProjectName
+				if projectDisplay == "" {
+					projectDisplay = t.Project
 				}
-				labelStr := formatTicketLabels(t.Labels)
-				v.columnLists[i].AddItem(t.Title+assignee+labelStr, t.ID, 0, nil)
+				if projectDisplay != "" {
+					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+						theme.AccentHex, tview.Escape(projectDisplay))
+				}
+				title := t.Title
+				titleRunes := []rune(title)
+				if len(titleRunes) > 40 {
+					title = string(titleRunes[:37]) + "..."
+				}
+				mainText := projectTag + title
+
+				// ── Line 2: @assignee · labels (filtered) ──
+				var parts []string
+				if t.Assignee != "" {
+					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+				}
+				for _, l := range t.Labels {
+					if v.cfg.LabelStatusMapping != nil {
+						if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
+							continue
+						}
+					}
+					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+				}
+				secondary := "  " + strings.Join(parts, " · ")
+
+				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
+				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 				break
 			}
 		}

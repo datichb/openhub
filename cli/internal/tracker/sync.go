@@ -177,6 +177,16 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		slog.Warn("tracker.sync.state_save_failed", "error", err)
 	}
 
+	// Commit and push all claim updates (status, metadata, labels) from the reconciliation loop.
+	// Without this, local TOML changes would be discarded on the next Pull.
+	if result.ClaimsCreated+result.ClaimsUpdated+result.LabelsPushed > 0 {
+		commitMsg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed",
+			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed)
+		if err := e.repo.CommitAndPush(ctx, commitMsg, "."); err != nil {
+			slog.Warn("tracker.sync.push_failed", "error", err)
+		}
+	}
+
 	slog.Debug("tracker.sync.complete", "duration", time.Since(start), "created", result.ClaimsCreated, "updated", result.ClaimsUpdated)
 
 	return result, nil
@@ -470,20 +480,22 @@ func (e *Engine) autoplan(
 //     - "indeterminate" / "opened" → ClaimStatusInProgress
 func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[string]string) string {
 	// 1. Try label-based mapping first (most relevant for GitLab label workflows).
-	// Order is determined by the config file order — the FIRST matching label wins.
+	// Iterate over issue.Labels in tracker order — the FIRST matching label wins.
+	// Pre-build a lowercase lookup map for O(1) matching.
 	if len(labelStatusMapping) > 0 && len(issue.Labels) > 0 {
+		lowerMap := make(map[string]string, len(labelStatusMapping))
+		for k, v := range labelStatusMapping {
+			lowerMap[strings.ToLower(k)] = v
+		}
 		for _, label := range issue.Labels {
-			labelLower := strings.ToLower(label)
-			for k, v := range labelStatusMapping {
-				if strings.ToLower(k) == labelLower {
-					if teamstate.IsValidStatus(v) {
-						slog.Debug("tracker.sync.label_mapped",
-							"ticket", issue.IID,
-							"label", label,
-							"status", v,
-						)
-						return v
-					}
+			if v, ok := lowerMap[strings.ToLower(label)]; ok {
+				if teamstate.IsValidStatus(v) {
+					slog.Debug("tracker.sync.label_mapped",
+						"ticket", issue.IID,
+						"label", label,
+						"status", v,
+					)
+					return v
 				}
 			}
 		}
