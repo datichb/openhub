@@ -69,20 +69,17 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			return views.FetchTeamTickets(repo)
 		},
 		SyncFunc: func() error {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			// Git pull only — fetches colleagues' changes from the shared state repo.
+			// Tracker sync (GitLab/Jira API) is intentionally NOT triggered here to
+			// avoid slow API calls and timeout cascades on every board entry.
+			// Use the "Sync Tracker" omnibar command for a full tracker reconciliation.
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			repo := resolveRepo()
 			if repo == nil {
 				return nil
 			}
-			if err := repo.Pull(ctx); err != nil {
-				return err
-			}
-			// Tracker sync is best-effort — don't block on errors.
-			if engine := resolveTrackerEngine(ctx, a); engine != nil && engine.ShouldAutoSync() {
-				_, _ = engine.Run(ctx)
-			}
-			return nil
+			return repo.Pull(ctx)
 		},
 		Actions: &views.BoardActions{
 			Members: func() []views.SelectOption {
