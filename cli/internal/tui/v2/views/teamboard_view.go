@@ -45,6 +45,10 @@ type TeamBoardViewConfig struct {
 	// Called on a separate goroutine with a longer interval (ADR-032).
 	// If nil, no badge is displayed.
 	BeadsSummaryFunc func() map[string]BeadsSummary
+	// LabelStatusMapping holds the label → status mapping from team config.
+	// Used to filter workflow labels from the board display (line 2) since
+	// they are already reflected by the column position.
+	LabelStatusMapping map[string]string
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -71,6 +75,11 @@ type TeamBoardView struct {
 	once        sync.Once
 	shell       ShellAccess
 	actions     *BoardActions
+
+	// Windowed column scroll — only a subset of columns is visible at a time.
+	colViewStart int // index of the first visible column in columnLists
+	visibleCols  int // number of columns visible (auto-detected from terminal width)
+	allColumns   []BoardColumnDef // all column definitions for reference
 
 	// Filtering state
 	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
@@ -143,22 +152,32 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.done = make(chan struct{})
 
 	columns := DefaultColumns()
+	v.allColumns = columns
 	v.columnLists = make([]*tview.List, len(columns))
 	v.columnFlex = tview.NewFlex()
 
 	for i, col := range columns {
 		list := tview.NewList().
-			ShowSecondaryText(false).
+			ShowSecondaryText(true).
 			SetHighlightFullLine(true).
 			SetMainTextColor(theme.FgPrimary)
 		list.SetBackgroundColor(theme.BgPanel)
+		list.SetSecondaryTextColor(theme.FgMuted)
 		list.SetBorder(true)
 		list.SetBorderColor(theme.BorderNormal)
 		list.SetTitle(" " + col.Name + " ")
 		list.SetTitleColor(col.Color)
 		v.columnLists[i] = list
-		v.columnFlex.AddItem(list, 0, 1, i == 0)
 	}
+
+	// Auto-detect visible column count (min 25 chars per column).
+	// Default to 4 visible columns; will be adjusted on first draw.
+	v.visibleCols = 4
+	if len(columns) < v.visibleCols {
+		v.visibleCols = len(columns)
+	}
+	v.colViewStart = 0
+	v.rebuildColumnFlex()
 
 	// Tab bar for project filtering
 	v.tabBar = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignLeft)
@@ -319,23 +338,25 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	for _, t := range filtered {
 		for i, col := range columns {
 			if t.Status == col.Status {
-				assignee := ""
-				if t.Assignee != "" {
-					assignee = " " + widgets.ColorTag(theme.Accent) + "@" + t.Assignee + "[-]"
-				}
-				// Project badge with background color
+				// ── Line 1: [Project] Title... [N/M] ──
 				projectTag := ""
-				if t.Project != "" {
-					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-						theme.AccentHex, tview.Escape(t.Project))
+				projectDisplay := t.ProjectName
+				if projectDisplay == "" {
+					projectDisplay = t.Project
 				}
-				labelStr := formatTicketLabels(t.Labels)
+				if projectDisplay != "" {
+					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+						theme.AccentHex, tview.Escape(projectDisplay))
+				}
+				// Truncate title to keep line 1 readable
+				title := t.Title
+				titleRunes := []rune(title)
+				if len(titleRunes) > 40 {
+					title = string(titleRunes[:37]) + "..."
+				}
 				// Beads badge: [done/total] when linked beads exist (ADR-032)
 				badgeStr := ""
 				if summary := v.getBeadsSummary(); summary != nil {
-					// Construct the external ref key from the tracker ticket ID.
-					// The BeadsSummaryFunc returns keys in external_ref format (e.g. "gitlab-693").
-					// TeamTicket.ID is the bare tracker ticket ID (e.g. "693").
 					if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
 						color := theme.TextMutedHex
 						if bs.Done == bs.Total {
@@ -344,7 +365,25 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 						badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
 					}
 				}
-				v.columnLists[i].AddItem(projectTag+t.Title+badgeStr+assignee+labelStr, t.ID, 0, nil)
+				mainText := projectTag + title + badgeStr
+
+				// ── Line 2: @assignee · label1 · label2 (filtered) ──
+				var parts []string
+				if t.Assignee != "" {
+					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+				}
+				// Filter out workflow labels (already reflected by column)
+				for _, l := range t.Labels {
+					if v.cfg.LabelStatusMapping != nil {
+						if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
+							continue
+						}
+					}
+					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+				}
+				secondary := "  " + strings.Join(parts, " · ")
+
+				v.columnLists[i].AddItem(mainText, secondary, 0, nil)
 				break
 			}
 		}
@@ -510,7 +549,45 @@ func (v *TeamBoardView) moveFocus(delta int) {
 	if v.focusCol >= len(v.columnLists) {
 		v.focusCol = len(v.columnLists) - 1
 	}
+	// Scroll the column window if focus moves outside visible range
+	if v.focusCol < v.colViewStart {
+		v.colViewStart = v.focusCol
+		v.rebuildColumnFlex()
+	} else if v.focusCol >= v.colViewStart+v.visibleCols {
+		v.colViewStart = v.focusCol - v.visibleCols + 1
+		v.rebuildColumnFlex()
+	}
 	v.updateColumnFocus()
+}
+
+// rebuildColumnFlex replaces the Flex contents with the current visible column window.
+func (v *TeamBoardView) rebuildColumnFlex() {
+	v.columnFlex.Clear()
+	end := v.colViewStart + v.visibleCols
+	if end > len(v.columnLists) {
+		end = len(v.columnLists)
+	}
+	// Left scroll indicator
+	if v.colViewStart > 0 {
+		indicator := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		indicator.SetBackgroundColor(theme.BgPanel)
+		indicator.SetText(fmt.Sprintf("[%s]◄[-]", theme.TextMutedHex))
+		v.columnFlex.AddItem(indicator, 2, 0, false)
+	}
+	for i := v.colViewStart; i < end; i++ {
+		v.columnFlex.AddItem(v.columnLists[i], 0, 1, i == v.focusCol)
+	}
+	// Right scroll indicator
+	if end < len(v.columnLists) {
+		indicator := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		indicator.SetBackgroundColor(theme.BgPanel)
+		indicator.SetText(fmt.Sprintf("[%s]►[-]", theme.TextMutedHex))
+		v.columnFlex.AddItem(indicator, 2, 0, false)
+	}
 }
 
 func (v *TeamBoardView) updateColumnFocus() {

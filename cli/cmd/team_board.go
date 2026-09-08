@@ -34,7 +34,7 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	tickets := views.FetchTeamTickets(repo)
+	tickets := views.FetchTeamTickets(repo, nil)
 
 	if len(tickets) == 0 {
 		fmt.Fprintf(a.IO.Out, "%s Aucun membre dans l'équipe. Lance %s\n",
@@ -55,7 +55,7 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return tickets
 			}
-			return views.FetchTeamTickets(r)
+			return views.FetchTeamTickets(r, nil)
 		},
 	}
 

@@ -4,9 +4,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
+// ProjectNameResolver maps a project directory ID to a human-friendly display name.
+// Returns the input as-is if no mapping is found.
+type ProjectNameResolver func(projectDirID string) string
+
 // FetchTeamTickets builds the ticket list from team-state claims for the board views.
 // Members with no active claims are omitted — the board shows tickets, not people.
-func FetchTeamTickets(repo teamstate.TeamStateReader) []TeamTicket {
+// resolver is optional — if nil, project directory names are used as-is.
+func FetchTeamTickets(repo teamstate.TeamStateReader, resolver ProjectNameResolver) []TeamTicket {
 	members, err := repo.ListMembers()
 	if err != nil {
 		return nil
@@ -34,10 +39,16 @@ func FetchTeamTickets(repo teamstate.TeamStateReader) []TeamTicket {
 		if title == "" {
 			title = c.TicketID
 		}
+		// Resolve project display name
+		projName := c.Project
+		if resolver != nil {
+			projName = resolver(c.Project)
+		}
 		tickets = append(tickets, TeamTicket{
 			ID:          c.TicketID,
 			Title:       title,
 			Project:     c.Project,
+			ProjectName: projName,
 			Status:      MapClaimStatus(c.Status),
 			Assignee:    name,
 			Labels:      c.Labels,

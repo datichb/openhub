@@ -43,6 +43,9 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		return repo
 	}
 
+	// Build a project name resolver: maps directory IDs to human-friendly names.
+	projectNameResolver := buildProjectNameResolver(a)
+
 	// Load tickets from the local clone immediately — no network call.
 	// The async SyncFunc will refresh after pulling remote changes.
 	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
@@ -50,13 +53,25 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	func() {
 		defer func() { recover() }()
 		if repo := resolveRepo(); repo != nil {
-			initialTickets = views.FetchTeamTickets(repo)
+			initialTickets = views.FetchTeamTickets(repo, projectNameResolver)
+		}
+	}()
+
+	// Load label_status_mapping from team config for label filtering in the board view.
+	var labelStatusMapping map[string]string
+	func() {
+		defer func() { recover() }()
+		if repo := resolveRepo(); repo != nil {
+			if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+				labelStatusMapping = cfg.Tracker.LabelStatusMapping
+			}
 		}
 	}()
 
 	return views.TeamBoardViewConfig{
-		Tickets:     initialTickets,
-		RefreshRate: 5 * time.Second,
+		Tickets:            initialTickets,
+		RefreshRate:        5 * time.Second,
+		LabelStatusMapping: labelStatusMapping,
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
 		},
@@ -66,7 +81,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			if repo == nil {
 				return nil
 			}
-			return views.FetchTeamTickets(repo)
+			return views.FetchTeamTickets(repo, projectNameResolver)
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
@@ -216,5 +231,25 @@ func buildBeadsSummaryFunc(a *app.App) func() map[string]views.BeadsSummary {
 			}
 		}
 		return result
+	}
+}
+
+// buildProjectNameResolver creates a resolver that maps team-state project directory
+// IDs to human-friendly project names from the hub's project registry.
+func buildProjectNameResolver(a *app.App) views.ProjectNameResolver {
+	if a.Projects == nil {
+		return nil
+	}
+	// Pre-load the mapping once — project names don't change during a TUI session.
+	projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+	nameByID := make(map[string]string, len(projects))
+	for _, p := range projects {
+		nameByID[p.ID] = p.Name
+	}
+	return func(dirID string) string {
+		if name, ok := nameByID[dirID]; ok {
+			return name
+		}
+		return dirID // fallback to directory name
 	}
 }

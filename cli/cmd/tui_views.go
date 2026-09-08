@@ -203,7 +203,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					if repo.IsCloned() {
 						members, _ := repo.ListMembers()
 						entry.MemberCount = len(members)
-						tickets := views.FetchTeamTickets(repo)
+						tickets := views.FetchTeamTickets(repo, nil)
 						for _, tk := range tickets {
 							if tk.Status == "in_progress" || tk.Status == "review" {
 								entry.ActiveCount++
@@ -290,7 +290,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					return views.TeamModeStats{}
 				}
 				members, _ := repo.ListMembers()
-				tickets := views.FetchTeamTickets(repo)
+				tickets := views.FetchTeamTickets(repo, nil)
 				active := 0
 				for _, t := range tickets {
 					if t.Status == "in_progress" || t.Status == "review" {

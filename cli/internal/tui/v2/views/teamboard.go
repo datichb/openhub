@@ -23,7 +23,8 @@ type TeamTicket struct {
 	Status      string
 	Priority    string
 	Assignee    string
-	Project     string
+	Project     string // directory-based ID (used for filtering)
+	ProjectName string // human-friendly display name (ADR-032)
 	Description string
 	// Labels are displayed as compact tags on the board item.
 	Labels []string
