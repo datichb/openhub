@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ProjectModeConfig holds the callbacks used by the project mode view.
@@ -38,7 +39,7 @@ type ProjectModeView struct {
 	project     *ActiveProject
 	shell       ShellAccess
 	app         *tview.Application
-	list        *tview.List
+	list        *widgets.SectionedList
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 }
@@ -124,28 +125,33 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		muted, "Chemin", reset, v.project.Path,
 	))
 
-	// ── Interactive list ─────────────────────────────────────────────────
-	v.list = tview.NewList()
+	// ── Interactive list — SectionedList with auto-skip headers ──────────
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetMainTextColor(theme.FgPrimary)
-	v.list.SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetSelectedBackgroundColor(theme.BgElement)
-	v.list.SetSelectedTextColor(theme.Action)
-	v.list.SetHighlightFullLine(true)
-	v.list.SetWrapAround(true)
-	v.list.ShowSecondaryText(true)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	v.list.SetBorderPadding(0, 0, 3, 3)
 
-	for _, it := range v.items {
-		v.list.AddItem(
-			fmt.Sprintf("%s  %s", it.Icon, it.Label),
-			fmt.Sprintf("     %s", it.Desc),
-			0, nil,
-		)
+	var sectionItems []widgets.SectionItem
+	for idx, it := range v.items {
+		if it.Icon == "─" {
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText: it.Label,
+				IsHeader: true,
+			})
+		} else {
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+				SecondaryText: it.Desc,
+				Reference:     idx,
+			})
+		}
 	}
+	v.list.SetItems(sectionItems)
 
-	v.list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
-		v.executeItem(idx)
+	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+		if idx, ok := item.Reference.(int); ok {
+			v.executeItem(idx)
+		}
 	})
 
 	// ── Footer ──────────────────────────────────────────────────────────
@@ -158,10 +164,24 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		muted, accent, reset, accent, reset, accent, reset,
 	))
 
-	// ── Layout ──────────────────────────────────────────────────────────
-	content.AddItem(header, 6, 0, false)
-	content.AddItem(v.list, 0, 1, true)
-	content.AddItem(footer, 3, 0, false)
+	// ── Layout: centered column ─────────────────────────────────────────
+	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	innerFlex.SetBackgroundColor(theme.BgPanel)
+	innerFlex.AddItem(header, 6, 0, false)
+	innerFlex.AddItem(v.list, 0, 1, true)
+	innerFlex.AddItem(footer, 3, 0, false)
+
+	// Horizontal centering
+	hCenter := tview.NewFlex()
+	hCenter.SetBackgroundColor(theme.BgPanel)
+	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	hCenter.AddItem(innerFlex, 72, 0, true)
+	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+
+	// Vertical centering: equal top/bottom spacers
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	content.AddItem(hCenter, 0, 3, true)
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
 }
 
 // Unmount cleans up resources.
@@ -178,8 +198,11 @@ func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 	switch event.Key() {
 	case tcell.KeyEnter:
-		idx := v.list.GetCurrentItem()
-		v.executeItem(idx)
+		if _, item, ok := v.list.CurrentItem(); ok {
+			if idx, refOk := item.Reference.(int); refOk {
+				v.executeItem(idx)
+			}
+		}
 		return nil
 	}
 
@@ -218,10 +241,14 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	}
 
 	items := []projectModeItem{
+		// ── Sessions section ──
+		{Icon: "─", Label: "Sessions"},
 		{Icon: "▶", Label: "Start Dev", Desc: "Lancer une session de développement", Action: launch("", "--dev")},
 		{Icon: "◉", Label: "Audit", Desc: "Analyser le code (sécurité, perf, archi)", Action: launch("auditor")},
 		{Icon: "◎", Label: "Review", Desc: "Code review du projet", Action: launch("reviewer")},
 		{Icon: "◈", Label: "Debug", Desc: "Session de debug", Action: launch("")},
+		// ── Projet section ──
+		{Icon: "─", Label: "Projet"},
 		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet", Action: navigate("board")},
 		{Icon: "⊟", Label: "Métriques", Desc: "Statistiques d'utilisation", Action: navigate("metrics")},
 		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("project.config")},
@@ -233,6 +260,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	if v.resolveTeam != nil {
 		if tc := v.resolveTeam(); tc.Enabled {
 			items = append(items,
+				projectModeItem{Icon: "─", Label: "Équipe"},
 				projectModeItem{Icon: "◫", Label: "Team Status", Desc: "Statut de l'équipe", Action: navigate("team.status")},
 				projectModeItem{Icon: "◫", Label: "Team Board", Desc: "Kanban d'équipe", Action: navigate("team.board")},
 				projectModeItem{Icon: "◫", Label: "Team Activity", Desc: "Activité récente", Action: navigate("team.activity")},
@@ -240,7 +268,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		}
 	}
 
-	// ── Mode hub ────────────────────────────────────────────────────────
+	// ── Mode hub (standalone — no section) ──────────────────────────────
 	items = append(items, projectModeItem{
 		Icon: "↩", Label: "Mode Hub", Desc: "Revenir au TUI complet",
 		Action: func() {

@@ -51,7 +51,7 @@ func NewSectionedList() *SectionedList {
 		SetMainTextColor(theme.FgPrimary).
 		SetSecondaryTextColor(theme.FgSecondary).
 		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.FgPrimary)
+		SetSelectedTextColor(theme.Action)
 	sl.List.SetBackgroundColor(theme.BgPanel)
 
 	sl.List.SetInputCapture(sl.handleInput)
@@ -153,8 +153,8 @@ func (sl *SectionedList) rebuild() {
 // formatItem returns the styled main and secondary text for a list item.
 func (sl *SectionedList) formatItem(item SectionItem) (string, string) {
 	if item.IsHeader {
-		return fmt.Sprintf("  %s─── %s ──────────────────%s",
-			theme.ColorTag(theme.AccentHex), item.MainText, theme.TagColor), ""
+		return fmt.Sprintf("  %s── %s ──%s",
+			theme.ColorTag(theme.TextSecondaryHex), item.MainText, theme.TagColor), ""
 	}
 	prefix := "  "
 	if item.Locked {

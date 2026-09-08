@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // homeItem represents a navigable item on the home screen.
@@ -58,7 +58,7 @@ type ProjectEntry struct {
 type HomeView struct {
 	app     *tview.Application
 	content *tview.Flex
-	list    *tview.List
+	list    *widgets.SectionedList
 	shell   ShellAccess
 	cfg     HomeViewConfig
 	items   []homeItem
@@ -90,38 +90,33 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	logo.SetBackgroundColor(theme.BgPanel)
 	logo.SetText(buildLogo())
 
-	// ── Interactive list (middle) ────────────────────────────────────────
-	v.list = tview.NewList()
+	// ── Interactive list (middle) — SectionedList with auto-skip headers ─
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetMainTextColor(theme.FgPrimary)
-	v.list.SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetSelectedBackgroundColor(theme.BgElement)
-	v.list.SetSelectedTextColor(theme.Action)
-	v.list.SetHighlightFullLine(true)
-	v.list.SetWrapAround(true)
-	v.list.ShowSecondaryText(true)
-	v.list.SetBorderPadding(0, 0, 4, 4)
+	v.list.SetBorderPadding(0, 0, 3, 3)
 
-	for _, item := range v.items {
+	var sectionItems []widgets.SectionItem
+	for idx, item := range v.items {
 		if item.Icon == "─" {
-			// Section separator — render as a muted header
-			muted := theme.ColorTag(theme.TextMutedHex)
-			reset := theme.TagColor
-			v.list.AddItem(
-				fmt.Sprintf("%s── %s ──%s", muted, item.Label, reset),
-				"", 0, nil,
-			)
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText: item.Label,
+				IsHeader: true,
+			})
 		} else {
-			v.list.AddItem(
-				fmt.Sprintf("%s  %s", item.Icon, item.Label),
-				fmt.Sprintf("     %s", item.Desc),
-				0, nil,
-			)
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText:      fmt.Sprintf("%s  %s", item.Icon, item.Label),
+				SecondaryText: item.Desc,
+				Reference:     idx,
+			})
 		}
 	}
+	v.list.SetItems(sectionItems)
 
-	v.list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
-		v.executeItem(idx)
+	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+		if idx, ok := item.Reference.(int); ok {
+			v.executeItem(idx)
+		}
 	})
 
 	// ── Shortcuts footer (bottom) ───────────────────────────────────────
@@ -137,18 +132,19 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	innerFlex.SetBackgroundColor(theme.BgPanel)
 	innerFlex.AddItem(logo, 9, 0, false)
 	innerFlex.AddItem(v.list, 0, 1, true)
-	innerFlex.AddItem(footer, 4, 0, false)
+	innerFlex.AddItem(footer, 3, 0, false)
 
 	// Horizontal centering
 	hCenter := tview.NewFlex()
 	hCenter.SetBackgroundColor(theme.BgPanel)
 	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	hCenter.AddItem(innerFlex, 68, 0, true)
+	hCenter.AddItem(innerFlex, 72, 0, true)
 	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
 
-	// Vertical centering: small top spacer + content + small bottom spacer
-	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 1, 0, false)
-	content.AddItem(hCenter, 0, 1, true)
+	// Vertical centering: equal top/bottom spacers
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	content.AddItem(hCenter, 0, 3, true)
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
 }
 
 func (v *HomeView) Unmount() {
@@ -174,12 +170,15 @@ func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 	switch event.Key() {
 	case tcell.KeyEnter:
-		idx := v.list.GetCurrentItem()
-		v.executeItem(idx)
+		if idx, item, ok := v.list.CurrentItem(); ok && idx >= 0 {
+			if ref, refOk := item.Reference.(int); refOk {
+				v.executeItem(ref)
+			}
+		}
 		return nil
 	}
 
-	// Let tview.List handle j/k/arrows natively
+	// Let SectionedList handle j/k/arrows via its InputCapture
 	return event
 }
 
@@ -262,24 +261,6 @@ func (v *HomeView) buildItems() []homeItem {
 // ─────────────────────────────────────────────────────────────────────────────
 // Static rendering helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// visibleWidth returns the terminal display width of s (in cells), ignoring
-// tview colour tags of the form [#xxxxxx], [-], [::b], etc.
-func visibleWidth(s string) int {
-	inTag := false
-	width := 0
-	for _, r := range s {
-		switch {
-		case r == '[' && !inTag:
-			inTag = true
-		case r == ']' && inTag:
-			inTag = false
-		case !inTag:
-			width += runewidth.RuneWidth(r)
-		}
-	}
-	return width
-}
 
 func buildLogo() string {
 	action := theme.ColorTag(theme.ActionHex)

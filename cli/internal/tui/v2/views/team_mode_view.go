@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // TeamModeConfig holds the callbacks used by the team mode view.
@@ -45,7 +46,7 @@ type TeamModeView struct {
 	team   *ActiveTeam
 	shell  ShellAccess
 	app    *tview.Application
-	list   *tview.List
+	list   *widgets.SectionedList
 	header *tview.TextView // header with team name + stats (updated async)
 	items  []teamModeItem
 }
@@ -145,28 +146,33 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		}()
 	}
 
-	// ── Interactive list ─────────────────────────────────────────────────
-	v.list = tview.NewList()
+	// ── Interactive list — SectionedList with auto-skip headers ──────────
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetMainTextColor(theme.FgPrimary)
-	v.list.SetSecondaryTextColor(theme.FgSecondary)
-	v.list.SetSelectedBackgroundColor(theme.BgElement)
-	v.list.SetSelectedTextColor(theme.Action)
-	v.list.SetHighlightFullLine(true)
-	v.list.SetWrapAround(true)
-	v.list.ShowSecondaryText(true)
-	v.list.SetBorderPadding(1, 0, 2, 2)
+	v.list.SetBorderPadding(0, 0, 3, 3)
 
-	for _, it := range v.items {
-		v.list.AddItem(
-			fmt.Sprintf("%s  %s", it.Icon, it.Label),
-			fmt.Sprintf("     %s", it.Desc),
-			0, nil,
-		)
+	var sectionItems []widgets.SectionItem
+	for idx, it := range v.items {
+		if it.Icon == "─" {
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText: it.Label,
+				IsHeader: true,
+			})
+		} else {
+			sectionItems = append(sectionItems, widgets.SectionItem{
+				MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+				SecondaryText: it.Desc,
+				Reference:     idx,
+			})
+		}
 	}
+	v.list.SetItems(sectionItems)
 
-	v.list.SetSelectedFunc(func(idx int, _, _ string, _ rune) {
-		v.executeItem(idx)
+	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+		if idx, ok := item.Reference.(int); ok {
+			v.executeItem(idx)
+		}
 	})
 
 	// ── Footer ──────────────────────────────────────────────────────────
@@ -179,10 +185,24 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		muted, accent, reset, accent, reset, accent, reset,
 	))
 
-	// ── Layout ──────────────────────────────────────────────────────────
-	content.AddItem(v.header, 6, 0, false)
-	content.AddItem(v.list, 0, 1, true)
-	content.AddItem(footer, 3, 0, false)
+	// ── Layout: centered column ─────────────────────────────────────────
+	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	innerFlex.SetBackgroundColor(theme.BgPanel)
+	innerFlex.AddItem(v.header, 6, 0, false)
+	innerFlex.AddItem(v.list, 0, 1, true)
+	innerFlex.AddItem(footer, 3, 0, false)
+
+	// Horizontal centering
+	hCenter := tview.NewFlex()
+	hCenter.SetBackgroundColor(theme.BgPanel)
+	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	hCenter.AddItem(innerFlex, 72, 0, true)
+	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+
+	// Vertical centering: equal top/bottom spacers
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	content.AddItem(hCenter, 0, 3, true)
+	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
 }
 
 // Unmount cleans up resources.
@@ -200,8 +220,11 @@ func (v *TeamModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 	switch event.Key() {
 	case tcell.KeyEnter:
-		idx := v.list.GetCurrentItem()
-		v.executeItem(idx)
+		if _, item, ok := v.list.CurrentItem(); ok {
+			if idx, refOk := item.Reference.(int); refOk {
+				v.executeItem(idx)
+			}
+		}
 		return nil
 	}
 
@@ -232,7 +255,8 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	}
 
 	items := []teamModeItem{
-		// ── Team navigation ──
+		// ── Équipe section ──
+		{Icon: "─", Label: "Équipe"},
 		{Icon: "◫", Label: "Team Board", Desc: "Kanban d'équipe", Action: navigate("team.board")},
 		{Icon: "◫", Label: "Team Status", Desc: "Dashboard membres", Action: navigate("team.status")},
 		{Icon: "◫", Label: "Activité", Desc: "Flux d'activité récent", Action: navigate("team.activity")},
@@ -245,18 +269,17 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	if v.cfg.OnLaunchSession != nil {
 		launch := v.cfg.OnLaunchSession
 		items = append(items,
+			teamModeItem{Icon: "─", Label: "Sessions"},
 			teamModeItem{Icon: "▶", Label: "Start Dev", Desc: "Lancer une session de développement", Action: func() { launch("", "--dev") }},
 			teamModeItem{Icon: "◉", Label: "Audit", Desc: "Lancer un audit", Action: func() { launch("auditor") }},
 			teamModeItem{Icon: "◈", Label: "Review", Desc: "Code review", Action: func() { launch("reviewer") }},
 		)
 	}
 
-	// ── General navigation ──
+	// ── General navigation + exit (standalone — no section) ──
 	items = append(items,
 		teamModeItem{Icon: "◈", Label: "Projets", Desc: "Voir les projets", Action: navigate("projects.list")},
 	)
-
-	// ── Exit ──
 	items = append(items,
 		teamModeItem{Icon: "↩", Label: "Mode Hub", Desc: "Revenir au hub", Action: func() {
 			if v.cfg.OnExitTeamMode != nil {
