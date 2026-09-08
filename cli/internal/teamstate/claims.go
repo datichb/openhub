@@ -746,6 +746,7 @@ func (r *Repo) listClaimsForProject(project string) ([]Claim, error) {
 		ticketID := strings.TrimSuffix(e.Name(), ".toml")
 	c, err := r.getClaim(project, ticketID)
 		if err != nil {
+			slog.Warn("teamstate.claim.parse_failed", "project", project, "ticket", ticketID, "error", err)
 			continue // skip malformed
 		}
 		claims = append(claims, *c)

@@ -171,9 +171,11 @@ func New(cfg Config) (Tracker, error) {
 
 // TruncateDescription returns desc truncated to MaxDescriptionLen characters.
 // If truncated, an ellipsis marker is appended.
+// Uses rune-level slicing to avoid breaking multi-byte UTF-8 characters.
 func TruncateDescription(desc string) string {
-	if len(desc) <= MaxDescriptionLen {
+	runes := []rune(desc)
+	if len(runes) <= MaxDescriptionLen {
 		return desc
 	}
-	return desc[:MaxDescriptionLen] + "..."
+	return string(runes[:MaxDescriptionLen]) + "..."
 }
