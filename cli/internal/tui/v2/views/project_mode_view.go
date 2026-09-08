@@ -120,13 +120,13 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner := renderBanner(v.project.Name, 68)
+	banner := renderBanner(v.project.Name, 100)
 	header.SetText(fmt.Sprintf("\n  %s◆ Mode Projet%s\n\n%s\n  %s%s%s",
 		secondary, reset,
 		banner,
 		muted, v.project.Path, reset,
 	))
-	headerHeight := bannerHeight(v.project.Name, 68) + 5 // banner + subtitle(1) + spacing(2) + metadata(1) + padding(1)
+	headerHeight := bannerHeight(v.project.Name, 100) + 5 // banner + subtitle(1) + spacing(2) + metadata(1) + padding(1)
 
 	// ── Interactive list — SectionedList with auto-skip headers ──────────
 	v.list = widgets.NewSectionedList()

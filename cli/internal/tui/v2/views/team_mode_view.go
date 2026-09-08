@@ -123,8 +123,9 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner := renderBanner(strings.ToUpper(v.team.ID), 68)
-	headerHeight := bannerHeight(strings.ToUpper(v.team.ID), 68) + 5
+	bannerName := strings.ToUpper(v.team.ID)
+	banner := renderBanner(bannerName, 100)
+	headerHeight := bannerHeight(bannerName, 100) + 5
 
 	// Show header immediately with a "loading" placeholder for stats
 	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %schargement...%s",
