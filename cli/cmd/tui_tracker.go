@@ -81,6 +81,7 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 		TicketPatterns:       ticketPatterns,
 		Projects:             projects,
 		StatusMapping:        effTracker.StatusMapping,
+		LabelStatusMapping:   effTracker.LabelStatusMapping,
 	}
 
 	return tracker.NewEngine(t, repo, engineCfg, config.HubDir())

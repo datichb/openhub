@@ -107,6 +107,8 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 		PushLabels:           effTracker.PushLabels,
 		TicketPatterns:       ticketPatterns,
 		Projects:             projects,
+		StatusMapping:        effTracker.StatusMapping,
+		LabelStatusMapping:   effTracker.LabelStatusMapping,
 	}
 	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
 

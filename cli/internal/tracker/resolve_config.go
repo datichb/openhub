@@ -45,6 +45,9 @@ type EffectiveTrackerConfig struct {
 	// StatusMapping maps tracker status names to claim statuses.
 	// Passed through from the team-state TrackerConfig.
 	StatusMapping map[string]string
+	// LabelStatusMapping maps tracker labels to claim statuses (ADR-032).
+	// Passed through from the team-state TrackerConfig.
+	LabelStatusMapping map[string]string
 
 	// ── Behavioural (shared → local → default) ──────────────────────────────
 
@@ -120,6 +123,7 @@ func ResolveFullTrackerConfig(
 		eff.TicketPattern = shared.TicketPattern
 		eff.SyncIntervalMinutes = shared.SyncIntervalMinutes
 		eff.StatusMapping = shared.StatusMapping
+		eff.LabelStatusMapping = shared.LabelStatusMapping
 		// Backward compat: keep old maps
 		eff.Projects = shared.Projects
 		eff.TicketPatterns = shared.TicketPatterns

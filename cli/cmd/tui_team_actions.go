@@ -684,9 +684,16 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 		return nil, fmt.Errorf("tracker non configuré — utilisez 'g' dans la vue Config équipe")
 	}
 
+	// Merge shared team-state config with local hub.toml overrides.
+	effTracker := tracker.ResolveTrackerConfig(
+		&teamCfg.Tracker,
+		a.Config.Tracker,
+		resolveWriteEnabledForTracker(a, teamCfg),
+	)
+
 	// Build credential source
 	credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
-	trackerType := tracker.Type(teamCfg.Tracker.Type)
+	trackerType := tracker.Type(effTracker.Type)
 
 	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
 	if err != nil {
@@ -698,7 +705,26 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 		return nil, fmt.Errorf("initialisation tracker: %w", err)
 	}
 
-	engine := tracker.NewEngine(t, repo, teamCfg.Tracker, config.HubDir())
+	// Build the Projects map from hub projects (same as CLI sync-tracker and resolveTrackerEngine).
+	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
+	if len(projects) == 0 {
+		return nil, fmt.Errorf("aucun projet configuré pour le tracker sync — vérifiez tracker_project dans la config team")
+	}
+
+	engineCfg := teamstate.TrackerConfig{
+		Type:                 effTracker.Type,
+		Enabled:              effTracker.Enabled,
+		AutoSync:             effTracker.AutoSync,
+		SyncIntervalMinutes:  effTracker.SyncIntervalMinutes,
+		AutoPlanAssigned:     effTracker.AutoPlanAssigned,
+		MaxAutoPlanPerMember: effTracker.MaxAutoPlanPerMember,
+		PushLabels:           effTracker.PushLabels,
+		TicketPatterns:       ticketPatterns,
+		Projects:             projects,
+		StatusMapping:        effTracker.StatusMapping,
+		LabelStatusMapping:   effTracker.LabelStatusMapping,
+	}
+	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
 
 	// Pull before sync
 	_ = repo.Pull(ctx)
