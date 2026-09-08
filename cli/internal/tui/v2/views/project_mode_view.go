@@ -121,9 +121,9 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	reset := theme.TagColor
 
 	banner := renderBanner(v.project.Name, 100)
-	header.SetText(fmt.Sprintf("\n  %s◆ Mode Projet%s\n\n%s\n  %s%s%s",
-		secondary, reset,
+	header.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Projet%s\n  %s%s%s",
 		banner,
+		secondary, reset,
 		muted, v.project.Path, reset,
 	))
 	headerHeight := bannerHeight(v.project.Name, 100) + 5 // banner + subtitle(1) + spacing(2) + metadata(1) + padding(1)

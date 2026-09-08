@@ -128,9 +128,9 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	headerHeight := bannerHeight(bannerName, 100) + 5
 
 	// Show header immediately with a "loading" placeholder for stats
-	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %schargement...%s",
-		secondary, reset,
+	v.header.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Équipe%s\n  %schargement...%s",
 		banner,
+		secondary, reset,
 		muted, reset,
 	))
 
@@ -140,9 +140,9 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			stats := v.cfg.TeamStats()
 			if v.app != nil {
 				v.app.QueueUpdateDraw(func() {
-					v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %s%d membres · %d tickets actifs%s",
-						secondary, reset,
+					v.header.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Équipe%s\n  %s%d membres · %d tickets actifs%s",
 						banner,
+						secondary, reset,
 						muted, stats.MemberCount, stats.ActiveCount, reset,
 					))
 				})
