@@ -2,7 +2,6 @@ package shell
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -25,15 +24,37 @@ const (
 	ToastInfo
 )
 
+// Toast duration constants — how long each level stays visible.
+const (
+	ToastDurationSuccess = 4 * time.Second  // was 2.5s
+	ToastDurationInfo    = 4 * time.Second  // was 2.5s
+	ToastDurationWarning = 8 * time.Second  // new
+	ToastDurationError   = 10 * time.Second // was 6s
+)
+
+// ToastDurationForLevel returns the auto-dismiss duration for a given toast level.
+func ToastDurationForLevel(level ToastLevel) time.Duration {
+	switch level {
+	case ToastError:
+		return ToastDurationError
+	case ToastWarning:
+		return ToastDurationWarning
+	case ToastSuccess:
+		return ToastDurationSuccess
+	default:
+		return ToastDurationInfo
+	}
+}
+
 // toastMaxLen returns the maximum display length for a toast message based on
 // its severity level. Errors and warnings get more characters so diagnostics
 // are legible without opening the Notifications view.
 func toastMaxLen(level ToastLevel) int {
 	switch level {
 	case ToastError, ToastWarning:
-		return 80
+		return 120 // was 80
 	default:
-		return 50
+		return 80 // was 50
 	}
 }
 
@@ -50,11 +71,6 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	go func(fullMsg string) {
 		_ = AppendToFile(NotificationsFilePath(), level, fullMsg)
 	}(msg)
-
-	// Log errors to stderr so they survive TUI sessions and can be redirected.
-	if level == ToastError {
-		log.Printf("[ERROR] %s", msg)
-	}
 
 	// Truncate for display only — errors/warnings get more room.
 	// NOTE: this modifies the local variable msg but does NOT affect the
@@ -77,8 +93,8 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	if toastWidth < 20 {
 		toastWidth = 20
 	}
-	if toastWidth > 90 {
-		toastWidth = 90
+	if toastWidth > 120 {
+		toastWidth = 120
 	}
 	toastHeight := 3
 
@@ -96,17 +112,43 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 
 	pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
 	s.activeToasts++
+	s.activeToastIDs = append(s.activeToastIDs, pageName)
 	s.pages.AddPage(pageName, grid, true, true)
 
 	// Auto-dismiss after duration
 	time.AfterFunc(duration, func() {
 		s.app.QueueUpdateDraw(func() {
-			s.pages.RemovePage(pageName)
-			if s.activeToasts > 0 {
-				s.activeToasts--
-			}
+			s.dismissToast(pageName)
 		})
 	})
+}
+
+// dismissToast removes a toast by page name and updates tracking state.
+// Must be called on the tview event loop (inside QueueUpdateDraw or a handler).
+func (s *Shell) dismissToast(pageName string) {
+	s.pages.RemovePage(pageName)
+	if s.activeToasts > 0 {
+		s.activeToasts--
+	}
+	// Remove from tracked IDs
+	for i, id := range s.activeToastIDs {
+		if id == pageName {
+			s.activeToastIDs = append(s.activeToastIDs[:i], s.activeToastIDs[i+1:]...)
+			break
+		}
+	}
+}
+
+// DismissOldestToast removes the oldest visible toast (manual dismiss via 'd' key).
+// Returns true if a toast was dismissed, false if no toasts are visible.
+// Must be called on the tview event loop.
+func (s *Shell) DismissOldestToast() bool {
+	if len(s.activeToastIDs) == 0 {
+		return false
+	}
+	oldest := s.activeToastIDs[0]
+	s.dismissToast(oldest)
+	return true
 }
 
 func toastStyle(level ToastLevel) (string, tcell.Color) {

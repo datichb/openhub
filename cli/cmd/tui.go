@@ -3,6 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"log/slog"
+	"os"
 
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -55,7 +59,7 @@ func runTUIWithProject(projectName string) error {
 
 	// Create the notification store upfront so it can be shared between the
 	// shell (which populates it via showToast) and the NotificationsView.
-	notifStore := shell.NewNotificationStore(50)
+	notifStore := shell.NewNotificationStore(200)
 
 	builtViews := buildViews(a, notifStore)
 
@@ -69,11 +73,30 @@ func runTUIWithProject(projectName string) error {
 
 	tuiShell = shell.New(cfg)
 
+	// ── Install TUI-aware slog handler ──────────────────────────────────
+	// Redirect slog output to the TUI toast/notification system instead of
+	// writing to stderr (which corrupts the tview terminal).
+	originalSlogHandler := slog.Default().Handler()
+	originalLogOutput := log.Writer()
+	tuiHandler := shell.NewTUILogHandler(tuiShell, notifStore, slog.LevelWarn)
+	slog.SetDefault(slog.New(tuiHandler))
+	log.SetOutput(io.Discard) // suppress stdlib log writes (e.g. toast.go legacy)
+
 	// Pre-set the active project before navigating home so project.mode renders it
 	if initialProject != nil {
 		tuiShell.SetActiveProject(initialProject)
 	}
 
 	tuiShell.NavigateHome(cfg.HomeViewID)
-	return tuiShell.Run()
+	err := tuiShell.Run()
+
+	// ── Restore original logging ────────────────────────────────────────
+	slog.SetDefault(slog.New(originalSlogHandler))
+	if w, ok := originalLogOutput.(io.Writer); ok {
+		log.SetOutput(w)
+	} else {
+		log.SetOutput(os.Stderr)
+	}
+
+	return err
 }

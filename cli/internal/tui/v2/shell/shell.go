@@ -110,6 +110,8 @@ type Shell struct {
 	// activeToasts tracks the number of currently visible toast notifications.
 	// Used to offset each new toast vertically so they stack instead of overlapping.
 	activeToasts int
+	// activeToastIDs tracks the page names of visible toasts for manual dismiss.
+	activeToastIDs []string
 
 	// selection manages screen-level text selection (mouse drag → clipboard copy).
 	selection *SelectionManager
@@ -332,17 +334,17 @@ func (s *Shell) NavigateHome(homeID string) {
 // ShellAccess implementation (views.ShellAccess)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ShowToast displays a temporary notification message.
+// ShowToast displays a temporary notification message with level-appropriate duration.
 func (s *Shell) ShowToast(msg string, level ToastLevel) {
-	s.showToast(msg, level, 2500*time.Millisecond)
+	s.showToast(msg, level, ToastDurationForLevel(level))
 }
 
 // ShowToastMsg displays a toast with auto-level (success=true → green, false → red).
 func (s *Shell) ShowToastMsg(msg string, success bool) {
 	if success {
-		s.showToast(msg, ToastSuccess, 2500*time.Millisecond)
+		s.showToast(msg, ToastSuccess, ToastDurationForLevel(ToastSuccess))
 	} else {
-		s.showToast(msg, ToastError, 6*time.Second)
+		s.showToast(msg, ToastError, ToastDurationForLevel(ToastError))
 	}
 }
 
@@ -1179,6 +1181,12 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		case '?':
 			s.showHelpOverlay()
 			return nil
+		case 'd':
+			// Dismiss the oldest visible toast (if any)
+			if s.DismissOldestToast() {
+				return nil
+			}
+			// No toast to dismiss — fall through to omnibar activation
 		}
 		s.omnibar.ActivateWithRune(event.Rune())
 		return nil
