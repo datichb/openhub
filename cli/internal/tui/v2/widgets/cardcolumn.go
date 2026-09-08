@@ -53,12 +53,14 @@ func (c *Card) contentLines() int {
 //	╰──────────────────────╯
 type CardColumn struct {
 	*tview.Box
-	title      string
-	titleColor tcell.Color
-	cards      []Card
-	selected   int
-	offset     int  // scroll offset (index of first visible card)
-	focused    bool // whether this column currently has visual focus
+	title          string
+	titleColor     tcell.Color
+	cards          []Card
+	selected       int
+	offset         int  // scroll offset (index of first visible card)
+	focused        bool // whether this column currently has visual focus
+	showLeftArrow  bool // show ◄ in header (columns to the left)
+	showRightArrow bool // show ► in header (columns to the right)
 }
 
 // NewCardColumn creates a new kanban column with the given title and color.
@@ -133,6 +135,15 @@ func (c *CardColumn) SetFocused(f bool) *CardColumn {
 	return c
 }
 
+// SetNavArrows controls the ◄/► directional arrows in the column header.
+// Arrows are only rendered when the column has focus — they indicate that
+// the user can navigate to adjacent columns with h/l keys.
+func (c *CardColumn) SetNavArrows(left, right bool) *CardColumn {
+	c.showLeftArrow = left
+	c.showRightArrow = right
+	return c
+}
+
 // MoveSelection moves the selection by delta (+1 = down, -1 = up).
 func (c *CardColumn) MoveSelection(delta int) {
 	if len(c.cards) == 0 {
@@ -160,13 +171,39 @@ func (c *CardColumn) Draw(screen tcell.Screen) {
 
 	bgPanel := theme.BgPanel
 
-	// ── Header: "  TITLE (N)" ──
+	// ── Header: " ◄ TITLE (N) ►" (arrows only when focused) ──
 	headerStyle := tcell.StyleDefault.Background(bgPanel).Foreground(c.titleColor).Bold(true)
-	headerText := fmt.Sprintf(" %s", c.title)
+	arrowStyle := tcell.StyleDefault.Background(bgPanel).Foreground(theme.FgSecondary)
+
+	// Build header text
+	headerText := " "
+	if c.focused && c.showLeftArrow {
+		headerText += "◄ "
+	}
+	headerText += c.title
 	if len(c.cards) > 0 {
 		headerText += fmt.Sprintf(" (%d)", len(c.cards))
 	}
+	// Draw the base header text
 	c.drawText(screen, x, y, width, headerText, headerStyle)
+
+	// Overlay arrows in a different style (secondary color, not bold)
+	if c.focused {
+		runes := []rune(headerText)
+		for di, r := range runes {
+			if di < width && (r == '◄' || r == '►') {
+				screen.SetContent(x+di, y, r, nil, arrowStyle)
+			}
+		}
+		// Draw right arrow at the end of the line
+		if c.showRightArrow {
+			// Place ► after the header text with a space, or at rightmost position
+			pos := len(runes) + 1
+			if pos < width-1 {
+				screen.SetContent(x+pos, y, '►', nil, arrowStyle)
+			}
+		}
+	}
 	y++
 	height--
 

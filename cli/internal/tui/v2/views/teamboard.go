@@ -51,6 +51,9 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 	columnFlex.SetBackgroundColor(theme.BgPanel)
 
 	for i, col := range columns {
+		if i > 0 {
+			columnFlex.AddItem(newColumnSeparator(), 1, 0, false)
+		}
 		cc := widgets.NewCardColumn(col.Name, col.Color)
 		columnCards[i] = cc
 		columnFlex.AddItem(cc, 0, 1, i == 0)
@@ -98,10 +101,10 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 	updateFocus := func() {
 		for i, cc := range columnCards {
 			if i == focusCol {
-				cc.SetFocused(true)
+				cc.SetFocused(true).SetNavArrows(i > 0, i < len(columnCards)-1)
 				shell.App.SetFocus(cc)
 			} else {
-				cc.SetFocused(false)
+				cc.SetFocused(false).SetNavArrows(false, false)
 			}
 		}
 	}

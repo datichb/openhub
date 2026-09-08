@@ -53,6 +53,22 @@ func DefaultColumns() []BoardColumnDef {
 	}
 }
 
+// newColumnSeparator returns a 1-char-wide vertical line drawn between kanban
+// columns. The line uses BorderCard (#45475a) — subtle enough to delimit
+// columns without competing with card borders.
+func newColumnSeparator() *tview.Box {
+	sep := tview.NewBox()
+	sep.SetBackgroundColor(theme.BgPanel)
+	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		style := tcell.StyleDefault.Background(theme.BgPanel).Foreground(theme.BorderCard)
+		for dy := 0; dy < height; dy++ {
+			screen.SetContent(x, y+dy, '│', nil, style)
+		}
+		return x, y, width, height
+	})
+	return sep
+}
+
 // RunBoard launches the full-screen kanban board.
 func RunBoard(cfg BoardConfig) error {
 	columns := DefaultColumns()
@@ -65,6 +81,9 @@ func RunBoard(cfg BoardConfig) error {
 	columnFlex.SetBackgroundColor(theme.BgPanel)
 
 	for i, col := range columns {
+		if i > 0 {
+			columnFlex.AddItem(newColumnSeparator(), 1, 0, false)
+		}
 		cc := widgets.NewCardColumn(col.Name, col.Color)
 		columnCards[i] = cc
 		columnFlex.AddItem(cc, 0, 1, i == 0)
@@ -112,10 +131,10 @@ func RunBoard(cfg BoardConfig) error {
 	updateFocus := func() {
 		for i, cc := range columnCards {
 			if i == focusCol {
-				cc.SetFocused(true)
+				cc.SetFocused(true).SetNavArrows(i > 0, i < len(columnCards)-1)
 				shell.App.SetFocus(cc)
 			} else {
-				cc.SetFocused(false)
+				cc.SetFocused(false).SetNavArrows(false, false)
 			}
 		}
 	}

@@ -576,44 +576,31 @@ func (v *TeamBoardView) moveFocus(delta int) {
 }
 
 // rebuildColumnFlex replaces the Flex contents with the current visible column window.
+// Columns are separated by subtle vertical lines. Navigation arrows in the
+// focused column header replace the former ◄/► scroll indicators.
 func (v *TeamBoardView) rebuildColumnFlex() {
 	v.columnFlex.Clear()
 	end := v.colViewStart + v.visibleCols
 	if end > len(v.columnCards) {
 		end = len(v.columnCards)
 	}
-	// Left scroll indicator
-	if v.colViewStart > 0 {
-		indicator := tview.NewTextView().
-			SetDynamicColors(true).
-			SetTextAlign(tview.AlignCenter)
-		indicator.SetBackgroundColor(theme.BgPanel)
-		indicator.SetText(fmt.Sprintf("[%s]◄[-]", theme.TextMutedHex))
-		v.columnFlex.AddItem(indicator, 2, 0, false)
-	}
 	for i := v.colViewStart; i < end; i++ {
+		if i > v.colViewStart {
+			v.columnFlex.AddItem(newColumnSeparator(), 1, 0, false)
+		}
 		v.columnFlex.AddItem(v.columnCards[i], 0, 1, i == v.focusCol)
-	}
-	// Right scroll indicator
-	if end < len(v.columnCards) {
-		indicator := tview.NewTextView().
-			SetDynamicColors(true).
-			SetTextAlign(tview.AlignCenter)
-		indicator.SetBackgroundColor(theme.BgPanel)
-		indicator.SetText(fmt.Sprintf("[%s]►[-]", theme.TextMutedHex))
-		v.columnFlex.AddItem(indicator, 2, 0, false)
 	}
 }
 
 func (v *TeamBoardView) updateColumnFocus() {
 	for i, cc := range v.columnCards {
 		if i == v.focusCol {
-			cc.SetFocused(true)
+			cc.SetFocused(true).SetNavArrows(i > 0, i < len(v.columnCards)-1)
 			if v.app != nil {
 				v.app.SetFocus(cc)
 			}
 		} else {
-			cc.SetFocused(false)
+			cc.SetFocused(false).SetNavArrows(false, false)
 		}
 	}
 }

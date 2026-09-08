@@ -114,6 +114,9 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.columnFlex = tview.NewFlex()
 
 	for i, col := range columns {
+		if i > 0 {
+			v.columnFlex.AddItem(newColumnSeparator(), 1, 0, false)
+		}
 		cc := widgets.NewCardColumn(col.Name, col.Color)
 		v.columnCards[i] = cc
 		v.columnFlex.AddItem(cc, 0, 1, i == 0)
@@ -502,12 +505,12 @@ func (v *BoardView) updateColumnFocus() {
 	}
 	for i, cc := range v.columnCards {
 		if i == v.focusCol {
-			cc.SetFocused(true)
+			cc.SetFocused(true).SetNavArrows(i > 0, i < len(v.columnCards)-1)
 			if v.app != nil {
 				v.app.SetFocus(cc)
 			}
 		} else {
-			cc.SetFocused(false)
+			cc.SetFocused(false).SetNavArrows(false, false)
 		}
 	}
 }
