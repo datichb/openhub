@@ -3,6 +3,7 @@ package views
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -122,8 +123,8 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner := renderBanner(v.team.Name, 68)
-	headerHeight := bannerHeight(v.team.Name, 68) + 5
+	banner := renderBanner(strings.ToUpper(v.team.ID), 68)
+	headerHeight := bannerHeight(strings.ToUpper(v.team.ID), 68) + 5
 
 	// Show header immediately with a "loading" placeholder for stats
 	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %schargement...%s",
