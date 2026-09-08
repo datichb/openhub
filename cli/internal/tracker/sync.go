@@ -355,7 +355,107 @@ func (e *Engine) reconcileProject(
 		}
 	}
 
+	// ── Orphan recovery: detect and restore deleted/corrupted claims ─────────
+	if err := e.recoverOrphans(ctx, hubProjectID, trackerProjectID, claimedTickets, &pr); err != nil {
+		slog.Warn("tracker.orphan.recovery_failed", "project", hubProjectID, "error", err)
+	}
+
+	// ── Snapshot known tickets for future orphan detection ───────────────────
+	updatedClaims, _ := e.repo.ListClaims(hubProjectID)
+	known := make([]KnownTicket, 0, len(updatedClaims))
+	for _, c := range updatedClaims {
+		if c.ExternalIID > 0 {
+			known = append(known, KnownTicket{
+				TicketID:    c.TicketID,
+				ExternalIID: c.ExternalIID,
+				ClaimedBy:   c.ClaimedBy,
+			})
+		}
+	}
+	e.state.SetKnownTickets(hubProjectID, known)
+
 	return pr, nil
+}
+
+// recoverOrphans detects claims that existed in a previous sync but are now
+// missing locally (deleted, corrupted, or lost to git conflicts). For each
+// orphan, it fetches the issue from the tracker and recreates the claim.
+// Only open issues are recovered — closed issues are considered intentionally gone.
+func (e *Engine) recoverOrphans(
+	ctx context.Context,
+	hubProjectID, trackerProjectID string,
+	claimedTickets map[string]bool,
+	pr *ProjectSyncResult,
+) error {
+	known := e.state.GetKnownTickets(hubProjectID)
+	if len(known) == 0 {
+		return nil // first sync or no known tickets yet — nothing to compare
+	}
+
+	// Find orphans: tickets in KnownTickets but absent from current claims
+	var orphans []KnownTicket
+	for _, kt := range known {
+		if !claimedTickets[kt.TicketID] {
+			orphans = append(orphans, kt)
+		}
+	}
+	if len(orphans) == 0 {
+		return nil
+	}
+
+	slog.Warn("tracker.orphan.detected", "project", hubProjectID, "count", len(orphans))
+
+	// Fetch each orphan individually and recreate the claim
+	var relPaths []string
+	for _, orphan := range orphans {
+		issue, err := e.tracker.FetchIssue(ctx, trackerProjectID, orphan.ExternalIID)
+		if err != nil {
+			if errors.Is(err, ErrIssueNotFound) {
+				slog.Debug("tracker.orphan.gone", "ticket", orphan.TicketID, "iid", orphan.ExternalIID)
+				continue // issue deleted on tracker — not a real orphan
+			}
+			slog.Warn("tracker.orphan.fetch_failed", "ticket", orphan.TicketID, "error", err)
+			continue
+		}
+		if issue.IsClosed() {
+			slog.Debug("tracker.orphan.closed", "ticket", orphan.TicketID)
+			continue // closed on tracker — no need to restore
+		}
+
+		// Recreate the claim with current tracker data
+		initialStatus := MapTrackerStatus(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+		truncDesc := TruncateDescription(issue.Description)
+		claim := teamstate.Claim{
+			TicketID:      orphan.TicketID,
+			Project:       hubProjectID,
+			ClaimedBy:     orphan.ClaimedBy,
+			Status:        initialStatus,
+			Title:         issue.Title,
+			Description:   truncDesc,
+			TrackerStatus: issue.StatusName,
+			Labels:        issue.Labels,
+			ExternalIID:   orphan.ExternalIID,
+		}
+		relPath, err := e.repo.CreateClaimLocal(claim)
+		if err != nil {
+			if err == teamstate.ErrClaimExists {
+				continue // race: claim was recreated between ListClaims and now
+			}
+			slog.Warn("tracker.orphan.create_failed", "ticket", orphan.TicketID, "error", err)
+			continue
+		}
+		relPaths = append(relPaths, relPath)
+		claimedTickets[orphan.TicketID] = true
+		pr.ClaimsCreated++
+		slog.Info("tracker.orphan.recovered", "ticket", orphan.TicketID, "status", initialStatus)
+	}
+
+	if len(relPaths) == 0 {
+		return nil
+	}
+
+	msg := fmt.Sprintf("orphan-recovery: %d tickets for %s", len(relPaths), hubProjectID)
+	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
 // autoplan creates "planned" claims for tracker issues assigned to team members

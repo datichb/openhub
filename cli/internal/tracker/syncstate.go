@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// SyncState persists the last-sync timestamp locally so that the next sync
-// can pass updated_after to the tracker API and fetch only changed issues.
+// SyncState persists the last-sync timestamp and known ticket IDs locally so that
+// the next sync can pass updated_after to the tracker API and detect orphaned claims.
 //
 // Stored in ~/.oh/sync-state.json (never committed to the team-state git repo —
 // each member has their own sync cadence).
@@ -17,6 +17,18 @@ type SyncState struct {
 	// LastSyncAt maps "trackerType/projectID" to the timestamp of the last
 	// successful sync for that project.
 	LastSyncAt map[string]time.Time `json:"last_sync_at"`
+	// KnownTickets maps hubProjectID to the list of tickets that had a local claim
+	// after the last successful sync. Used for orphan detection (ADR-032):
+	// if a ticket is in KnownTickets but absent from ListClaims, it was
+	// accidentally deleted or corrupted and needs recovery.
+	KnownTickets map[string][]KnownTicket `json:"known_tickets,omitempty"`
+}
+
+// KnownTicket records the essential identifiers of a claimed ticket for orphan detection.
+type KnownTicket struct {
+	TicketID    string `json:"ticket_id"`
+	ExternalIID int    `json:"external_iid"`
+	ClaimedBy   string `json:"claimed_by"`
 }
 
 // syncStateKey returns the map key for a (type, projectID) pair.
@@ -42,6 +54,9 @@ func LoadSyncState(stateDir string) (*SyncState, error) {
 	}
 	if s.LastSyncAt == nil {
 		s.LastSyncAt = make(map[string]time.Time)
+	}
+	if s.KnownTickets == nil {
+		s.KnownTickets = make(map[string][]KnownTicket)
 	}
 	return &s, nil
 }
@@ -72,4 +87,19 @@ func (s *SyncState) LastSync(t Type, projectID string) time.Time {
 // SetLastSync records the sync time for (type, projectID).
 func (s *SyncState) SetLastSync(t Type, projectID string, at time.Time) {
 	s.LastSyncAt[syncStateKey(t, projectID)] = at
+}
+
+// GetKnownTickets returns the list of known tickets for a hub project.
+// Returns nil if no tickets are known (first sync or old state file).
+func (s *SyncState) GetKnownTickets(hubProjectID string) []KnownTicket {
+	return s.KnownTickets[hubProjectID]
+}
+
+// SetKnownTickets saves the current list of claimed tickets for a hub project.
+// Called at the end of each reconcileProject to snapshot the post-sync state.
+func (s *SyncState) SetKnownTickets(hubProjectID string, tickets []KnownTicket) {
+	if s.KnownTickets == nil {
+		s.KnownTickets = make(map[string][]KnownTicket)
+	}
+	s.KnownTickets[hubProjectID] = tickets
 }
