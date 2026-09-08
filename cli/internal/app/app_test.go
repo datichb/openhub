@@ -56,6 +56,9 @@ func (m *mockSessionStore) Get(_ context.Context, _ string) (*domain.Session, er
 }
 func (m *mockSessionStore) Create(_ context.Context, _ *domain.Session) error { return nil }
 func (m *mockSessionStore) Update(_ context.Context, _ *domain.Session) error { return nil }
+func (m *mockSessionStore) ListRunning(_ context.Context, _ string) ([]domain.Session, error) {
+	return nil, nil
+}
 
 // mockSecretStore implements domain.SecretStore for testing.
 type mockSecretStore struct {

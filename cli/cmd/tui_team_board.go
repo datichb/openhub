@@ -187,6 +187,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},
+		QuickActions: buildBoardQuickActions(a),
 	}
 }
 

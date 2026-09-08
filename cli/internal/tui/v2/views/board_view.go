@@ -39,6 +39,9 @@ type BoardViewConfig struct {
 	// tracker reference. Receives ticketID and externalRef (ADR-032).
 	// If nil, the link action is disabled.
 	OnLinkTracker func(ticketID, externalRef string) error
+	// QuickActions provides callbacks for launching agent sessions from the board.
+	// If nil, the 'a' key quick-action feature is disabled.
+	QuickActions *BoardQuickActions
 }
 
 // BoardView implements View for the kanban board.
@@ -59,6 +62,7 @@ type BoardView struct {
 }
 
 var _ View = (*BoardView)(nil)
+var _ CommandProvider = (*BoardView)(nil)
 
 // NewBoardView creates a new board view with the given config.
 func NewBoardView(cfg BoardViewConfig) *BoardView {
@@ -83,10 +87,11 @@ func (v *BoardView) StatusHints() string {
 			i18n.T("tui.hints.back"),
 		)
 	}
-	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · L %s · r %s · Esc %s",
+	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · a %s · L %s · r %s · Esc %s",
 		i18n.T("tui.hints.columns"),
 		i18n.T("tui.hints.items"),
 		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.actions"),
 		i18n.T("tui.hints.link"),
 		i18n.T("tui.hints.refresh"),
 		i18n.T("tui.hints.back"),
@@ -236,6 +241,9 @@ func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'L':
 		v.linkTicketToTracker()
 		return nil
+	case 'a':
+		v.showBoardQuickActions()
+		return nil
 	}
 
 	return event
@@ -302,6 +310,74 @@ func (v *BoardView) selectedTicketID() string {
 		return v.ticketIDLookup[v.focusCol][idx]
 	}
 	return ""
+}
+
+// selectedTicket returns the full BoardTicket of the currently selected card.
+func (v *BoardView) selectedTicket() (BoardTicket, bool) {
+	id := v.selectedTicketID()
+	if id == "" {
+		return BoardTicket{}, false
+	}
+	t, ok := v.ticketsByID[id]
+	return t, ok
+}
+
+// showBoardQuickActions opens the quick action modal for the selected ticket.
+func (v *BoardView) showBoardQuickActions() {
+	if v.shell == nil || v.cfg.QuickActions == nil || len(v.columnCards) == 0 {
+		return
+	}
+
+	ticket, ok := v.selectedTicket()
+	if !ok {
+		return
+	}
+
+	tc := TicketContext{
+		ID:    ticket.ID,
+		Title: ticket.Title,
+	}
+
+	// Best-effort: enrich description via FetchDescription callback.
+	if v.cfg.QuickActions.FetchDescription != nil && v.cfg.ProjectPath != nil {
+		if desc := v.cfg.QuickActions.FetchDescription(v.cfg.ProjectPath(), ticket.ID); desc != "" {
+			tc.Description = desc
+		}
+	}
+
+	showQuickActionModal(v.shell, tc, v.cfg.QuickActions)
+}
+
+// ContextCommands implements CommandProvider — injects ticket-specific commands
+// into the omnibar when the board view is active and a ticket is selected.
+func (v *BoardView) ContextCommands() []ContextCommand {
+	if v.cfg.QuickActions == nil || !v.initialized {
+		return nil
+	}
+
+	ticket, ok := v.selectedTicket()
+	if !ok {
+		return nil
+	}
+
+	makeAction := func(action QuickActionType) func() {
+		return func() {
+			tc := TicketContext{ID: ticket.ID, Title: ticket.Title}
+			if action == QuickActionAudit {
+				showAuditSubMenu(v.shell, tc, v.cfg.QuickActions)
+			} else {
+				showLaunchEnvModal(v.shell, action, "", tc, v.cfg.QuickActions)
+			}
+		}
+	}
+
+	id := ticket.ID
+	return []ContextCommand{
+		{ID: "board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: "Code review du ticket", Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
+		{ID: "board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: "Session dev sur le ticket", Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
+		{ID: "board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: "Audit du ticket", Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
+		{ID: "board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: "Debug du ticket", Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
+	}
 }
 
 // linkTicketToTracker prompts for an external ref and links the selected ticket (ADR-032).

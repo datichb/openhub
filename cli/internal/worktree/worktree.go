@@ -345,6 +345,63 @@ func BranchName(pattern, ticketID string) string {
 	return fmt.Sprintf(pattern, ticketID)
 }
 
+// IsDirty reports whether the working tree at the given path has uncommitted changes
+// (staged or unstaged). Returns false for clean trees and on errors (fail-open).
+func IsDirty(path string) bool {
+	cmd := exec.Command("git", "-C", path, "status", "--porcelain")
+	out, err := cmd.Output()
+	if err != nil {
+		return false // fail-open: assume clean if git fails
+	}
+	return len(strings.TrimSpace(string(out))) > 0
+}
+
+// Checkout switches the working tree at the given path to the specified branch.
+// If the branch does not exist locally but exists on origin, it is created as a
+// tracking branch. Returns an error if the checkout fails (e.g. dirty state,
+// branch not found locally or remotely).
+func Checkout(path, branch string) error {
+	// Try a simple checkout first (branch exists locally).
+	cmd := exec.Command("git", "-C", path, "checkout", branch)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	// Branch may exist on remote only — try creating a tracking branch.
+	if ExistsOnRemote(path, branch) {
+		cmd = exec.Command("git", "-C", path, "checkout", "-b", branch, "origin/"+branch)
+		out, err = cmd.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("git checkout %s: %s", branch, strings.TrimSpace(string(out)))
+}
+
+// StashAndCheckout stashes uncommitted changes with a tagged message, then
+// switches to the specified branch. The stash is NOT popped automatically —
+// the user must recover it manually with `git stash pop`.
+// Returns an error if either the stash or the checkout fails.
+func StashAndCheckout(path, branch string) error {
+	msg := fmt.Sprintf("oh: auto-stash before checkout %s", branch)
+	stashCmd := exec.Command("git", "-C", path, "stash", "push", "-m", msg)
+	stashOut, err := stashCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git stash: %s", strings.TrimSpace(string(stashOut)))
+	}
+
+	if err := Checkout(path, branch); err != nil {
+		// Checkout failed after stash — pop the stash to restore state.
+		popCmd := exec.Command("git", "-C", path, "stash", "pop")
+		_ = popCmd.Run() // best-effort restore
+		return err
+	}
+
+	return nil
+}
+
 // EnsureWorktreeConfig sets up the opencode configuration inside a worktree so
 // it shares the deployed agents, skills and MCP servers from the main project,
 // while keeping its own session state and plan files.

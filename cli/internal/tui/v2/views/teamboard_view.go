@@ -49,6 +49,9 @@ type TeamBoardViewConfig struct {
 	// Used to filter workflow labels from the board display (line 2) since
 	// they are already reflected by the column position.
 	LabelStatusMapping map[string]string
+	// QuickActions provides callbacks for launching agent sessions from the board.
+	// If nil, the 'a' key quick-action feature is disabled.
+	QuickActions *BoardQuickActions
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -106,6 +109,7 @@ type TeamBoardView struct {
 }
 
 var _ View = (*TeamBoardView)(nil)
+var _ CommandProvider = (*TeamBoardView)(nil)
 
 // NewTeamBoardView creates a new team board view.
 // If cfg.Actions is non-nil, it is used as the initial board action set.
@@ -131,10 +135,11 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · [[] /] %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
+	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · a %s · [[] /] %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
 		i18n.T("tui.hints.columns"),
 		i18n.T("tui.hints.items"),
 		i18n.T("tui.hints.detail"),
+		i18n.T("tui.hints.actions"),
 		i18n.T("tui.hints.projects"),
 		i18n.T("tui.hints.search"),
 		i18n.T("tui.hints.filter"),
@@ -310,6 +315,9 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 's':
 		v.changeStatus()
+		return nil
+	case 'a':
+		v.showTeamBoardQuickActions()
 		return nil
 	}
 
@@ -798,6 +806,92 @@ func (v *TeamBoardView) selectedTicketID() string {
 		return v.ticketIDLookup[v.focusCol][idx]
 	}
 	return ""
+}
+
+// selectedTeamTicket returns the full TeamTicket of the currently selected card.
+func (v *TeamBoardView) selectedTeamTicket() (*TeamTicket, bool) {
+	id := v.selectedTicketID()
+	if id == "" {
+		return nil, false
+	}
+	for i := range v.allTickets {
+		if v.allTickets[i].ID == id {
+			return &v.allTickets[i], true
+		}
+	}
+	return nil, false
+}
+
+// showTeamBoardQuickActions opens the quick action modal for the selected ticket.
+func (v *TeamBoardView) showTeamBoardQuickActions() {
+	if v.shell == nil || v.cfg.QuickActions == nil || len(v.columnCards) == 0 {
+		return
+	}
+
+	ticket, ok := v.selectedTeamTicket()
+	if !ok {
+		return
+	}
+
+	tc := TicketContext{
+		ID:          ticket.ID,
+		Title:       ticket.Title,
+		Description: ticket.Description,
+		Project:     ticket.Project,
+	}
+
+	// Resolve the project path from the ticket's team-state project directory ID.
+	if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
+		if projectID, projectPath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
+			tc.ProjectPath = projectPath
+			tc.ProjectID = projectID
+		}
+	}
+
+	showQuickActionModal(v.shell, tc, v.cfg.QuickActions)
+}
+
+// ContextCommands implements CommandProvider — injects ticket-specific commands
+// into the omnibar when the team board view is active and a ticket is selected.
+func (v *TeamBoardView) ContextCommands() []ContextCommand {
+	if v.cfg.QuickActions == nil {
+		return nil
+	}
+
+	ticket, ok := v.selectedTeamTicket()
+	if !ok {
+		return nil
+	}
+
+	makeAction := func(action QuickActionType) func() {
+		return func() {
+			tc := TicketContext{
+				ID:          ticket.ID,
+				Title:       ticket.Title,
+				Description: ticket.Description,
+				Project:     ticket.Project,
+			}
+			if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
+				if pid, ppath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
+					tc.ProjectPath = ppath
+					tc.ProjectID = pid
+				}
+			}
+			if action == QuickActionAudit {
+				showAuditSubMenu(v.shell, tc, v.cfg.QuickActions)
+			} else {
+				showLaunchEnvModal(v.shell, action, "", tc, v.cfg.QuickActions)
+			}
+		}
+	}
+
+	id := ticket.ID
+	return []ContextCommand{
+		{ID: "team.board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: "Code review du ticket", Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
+		{ID: "team.board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: "Session dev sur le ticket", Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
+		{ID: "team.board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: "Audit du ticket", Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
+		{ID: "team.board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: "Debug du ticket", Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
+	}
 }
 
 func (v *TeamBoardView) claimTicket() {

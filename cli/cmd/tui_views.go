@@ -263,6 +263,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				return beads.LinkToTracker(path, ticketID, externalRef)
 			},
+			QuickActions: buildBoardQuickActions(a),
 		}),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
 		views.NewTeamModeView(views.TeamModeConfig{

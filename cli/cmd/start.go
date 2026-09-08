@@ -211,10 +211,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.launching"))
 
 	session := &domain.Session{
-		ID:        uuid.New().String(),
-		ProjectID: project.ID,
-		Status:    domain.SessionStatusRunning,
-		Provider:  provider,
+		ID:         uuid.New().String(),
+		ProjectID:  project.ID,
+		Status:     domain.SessionStatusRunning,
+		Provider:   provider,
+		LaunchPath: launchPath,
 	}
 	if a.Sessions != nil {
 		if err := a.Sessions.Create(ctx, session); err != nil {

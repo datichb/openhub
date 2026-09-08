@@ -202,3 +202,44 @@ func launchOpcodeForProject(a *app.App, project *domain.Project, agent string, e
 		tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
 	}
 }
+
+// launchOpcodeAtPath launches an opencode session at an arbitrary filesystem path.
+// Used by board quick actions where the path may be a worktree, not the project base.
+// The projectID is used for credential resolution — the project itself is unchanged.
+func launchOpcodeAtPath(launchPath, projectID, agent string, extraArgs ...string) {
+	if tuiShell == nil {
+		return
+	}
+
+	if _, err := opencode.FindBinary(); err != nil {
+		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
+		return
+	}
+
+	a := MustApp()
+
+	// Resolve the project from its ID for credential lookup.
+	project, err := a.Projects.Get(context.Background(), projectID)
+	if err != nil {
+		tuiShell.ShowToast("Projet introuvable", shell.ToastWarning)
+		return
+	}
+
+	opts := opencode.StartOpts{
+		ProjectPath: launchPath, // worktree or base — NOT necessarily project.Path
+		ProjectID:   project.ID,
+		Agent:       agent,
+		ExtraArgs:   extraArgs,
+	}
+	resolveProviderCreds(a, project, &opts)
+
+	err = tuiShell.SuspendAndExec(func() error {
+		return opencode.Run(opts)
+	})
+	if err != nil {
+		slog.Warn("quick-action session ended with error", "error", err, "path", launchPath)
+		tuiShell.ShowToast("Session terminée avec erreur", shell.ToastWarning)
+	} else {
+		tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
+	}
+}

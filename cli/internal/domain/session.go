@@ -7,15 +7,16 @@ import (
 
 // Session represents an opencode session launched via oh.
 type Session struct {
-	ID        string
-	ProjectID string
-	StartedAt time.Time
-	EndedAt   *time.Time
-	Status    SessionStatus
-	Provider  string
-	Model     string
-	TokensIn  int64
-	TokensOut int64
+	ID         string
+	ProjectID  string
+	StartedAt  time.Time
+	EndedAt    *time.Time
+	Status     SessionStatus
+	Provider   string
+	Model      string
+	TokensIn   int64
+	TokensOut  int64
+	LaunchPath string // filesystem path where the session was launched (base or worktree)
 }
 
 // SessionStatus represents the state of a session.
@@ -37,4 +38,6 @@ type SessionStore interface {
 	Create(ctx context.Context, s *Session) error
 	// Update modifies an existing session.
 	Update(ctx context.Context, s *Session) error
+	// ListRunning returns sessions with status "running" for a project.
+	ListRunning(ctx context.Context, projectID string) ([]Session, error)
 }

@@ -305,5 +305,11 @@ var schemaMigrations = []migration{
 		down:         `ALTER TABLE projects DROP COLUMN tracker_config`,
 		irreversible: false,
 	},
+	{
+		version:      19,
+		up:           `ALTER TABLE sessions ADD COLUMN launch_path TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE sessions DROP COLUMN launch_path`,
+		irreversible: false,
+	},
 }
 

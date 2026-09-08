@@ -612,6 +612,7 @@
   "tui.hints.usage_agents": "usage/agents",
   "tui.hints.init_beads": "initialiser beads",
   "tui.hints.filtered": "FILTRÉ",
+  "tui.hints.actions": "actions",
   "cmd.start.dev_syncing": "Synchronisation des tickets...",
   "cmd.start.dev_sync_warning": "Synchronisation échouée — utilisation des tickets locaux",
   "cmd.start.dev_no_bd": "bd n'est pas installé. Installez-le : brew install datichb/tap/bd",
