@@ -117,14 +117,16 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	header.SetBackgroundColor(theme.BgPanel)
 	secondary := theme.ColorTag(theme.TextSecondaryHex)
-	action := theme.ColorTag(theme.ActionHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
-	header.SetText(fmt.Sprintf("\n  %s◆ PROJET%s\n\n  %s[::b]%s[::-]%s\n  %s%s%s",
+
+	banner := renderBanner(v.project.Name, 68)
+	header.SetText(fmt.Sprintf("\n  %s◆ Mode Projet%s\n\n%s\n  %s%s%s",
 		secondary, reset,
-		action, v.project.Name, reset,
+		banner,
 		muted, v.project.Path, reset,
 	))
+	headerHeight := bannerHeight(v.project.Name, 68) + 5 // banner + subtitle(1) + spacing(2) + metadata(1) + padding(1)
 
 	// ── Interactive list — SectionedList with auto-skip headers ──────────
 	v.list = widgets.NewSectionedList()
@@ -169,7 +171,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	// ── Layout: centered column ─────────────────────────────────────────
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 	innerFlex.SetBackgroundColor(theme.BgPanel)
-	innerFlex.AddItem(header, 6, 0, false)
+	innerFlex.AddItem(header, headerHeight, 0, false)
 	innerFlex.AddItem(v.list, 0, 1, true)
 	innerFlex.AddItem(footer, 4, 0, false)
 

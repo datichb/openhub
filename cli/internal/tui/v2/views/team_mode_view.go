@@ -119,14 +119,16 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.header.SetBackgroundColor(theme.BgPanel)
 
 	secondary := theme.ColorTag(theme.TextSecondaryHex)
-	action := theme.ColorTag(theme.ActionHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
+	banner := renderBanner(v.team.Name, 68)
+	headerHeight := bannerHeight(v.team.Name, 68) + 5
+
 	// Show header immediately with a "loading" placeholder for stats
-	v.header.SetText(fmt.Sprintf("\n  %s◆ ÉQUIPE%s\n\n  %s[::b]%s[::-]%s\n  %schargement...%s",
+	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %schargement...%s",
 		secondary, reset,
-		action, v.team.Name, reset,
+		banner,
 		muted, reset,
 	))
 
@@ -136,9 +138,9 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			stats := v.cfg.TeamStats()
 			if v.app != nil {
 				v.app.QueueUpdateDraw(func() {
-					v.header.SetText(fmt.Sprintf("\n  %s◆ ÉQUIPE%s\n\n  %s[::b]%s[::-]%s\n  %s%d membres · %d tickets actifs%s",
+					v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n\n%s\n  %s%d membres · %d tickets actifs%s",
 						secondary, reset,
-						action, v.team.Name, reset,
+						banner,
 						muted, stats.MemberCount, stats.ActiveCount, reset,
 					))
 				})
@@ -189,7 +191,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	// ── Layout: centered column ─────────────────────────────────────────
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 	innerFlex.SetBackgroundColor(theme.BgPanel)
-	innerFlex.AddItem(v.header, 6, 0, false)
+	innerFlex.AddItem(v.header, headerHeight, 0, false)
 	innerFlex.AddItem(v.list, 0, 1, true)
 	innerFlex.AddItem(footer, 4, 0, false)
 
