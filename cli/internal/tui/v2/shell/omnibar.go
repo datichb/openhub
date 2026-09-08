@@ -74,6 +74,39 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.suggestions.SetBorderColor(theme.BorderNormal)
 	o.suggestions.SetBorderPadding(0, 0, 1, 1)
 
+	// Defense-in-depth: if the suggestions list accidentally receives focus
+	// (e.g. after a toast AddPage/RemovePage steals focus from the input
+	// field), ensure Enter/Escape/arrow keys still behave correctly instead
+	// of being silently swallowed by tview's default List handler.
+	o.suggestions.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			o.executeCurrent()
+			return nil
+		case tcell.KeyEscape:
+			o.Deactivate()
+			return nil
+		case tcell.KeyDown, tcell.KeyTab:
+			current := o.suggestions.GetCurrentItem()
+			if current < len(o.visible)-1 {
+				o.suggestions.SetCurrentItem(current + 1)
+			}
+			return nil
+		case tcell.KeyUp, tcell.KeyBacktab:
+			current := o.suggestions.GetCurrentItem()
+			if current > 0 {
+				o.suggestions.SetCurrentItem(current - 1)
+			}
+			return nil
+		case tcell.KeyRune:
+			// Forward printable runes back to the input field so the user
+			// can keep typing even if focus drifted to the suggestions list.
+			o.shell.app.SetFocus(o.input)
+			return event
+		}
+		return event
+	})
+
 	// Click on a suggestion = execute it immediately (standard list UX).
 	//
 	// IMPORTANT: do NOT use QueueUpdateDraw here — this handler runs on the
@@ -174,7 +207,13 @@ func (o *Omnibar) Activate() {
 		return
 	}
 	o.active = true
+	// Suppress ChangedFunc during SetText to avoid a redundant
+	// updateSuggestions call — we call it explicitly right after.
+	o.input.SetChangedFunc(nil)
 	o.input.SetText("")
+	o.input.SetChangedFunc(func(text string) {
+		o.updateSuggestions(text)
+	})
 	o.container.SwitchToPage("input")
 	o.updateSuggestions("")
 	o.shell.showSuggestionsInLayout()
@@ -187,11 +226,27 @@ func (o *Omnibar) ActivateWithRune(r rune) {
 		return
 	}
 	o.active = true
+	// Suppress ChangedFunc during SetText to avoid a redundant
+	// updateSuggestions call — we call it explicitly right after.
+	o.input.SetChangedFunc(nil)
 	o.input.SetText(string(r))
+	o.input.SetChangedFunc(func(text string) {
+		o.updateSuggestions(text)
+	})
 	o.container.SwitchToPage("input")
 	o.updateSuggestions(string(r))
 	o.shell.showSuggestionsInLayout()
 	o.shell.app.SetFocus(o.input)
+}
+
+// RestoreFocus re-focuses the omnibar input field if the omnibar is active.
+// This must be called after any operation that may steal focus (e.g. Pages
+// AddPage/RemovePage in toast lifecycle) to ensure keyboard events still
+// reach the omnibar's input capture handler.
+func (o *Omnibar) RestoreFocus() {
+	if o.active {
+		o.shell.app.SetFocus(o.input)
+	}
 }
 
 // Deactivate switches back to passive mode.
@@ -200,7 +255,14 @@ func (o *Omnibar) Deactivate() {
 		return
 	}
 	o.active = false
+	// Suppress the ChangedFunc callback while clearing the text — otherwise
+	// SetText("") triggers updateSuggestions("") re-entrantly, rebuilding
+	// the full suggestion list right before we hide the overlay.
+	o.input.SetChangedFunc(nil)
 	o.input.SetText("")
+	o.input.SetChangedFunc(func(text string) {
+		o.updateSuggestions(text)
+	})
 	o.container.SwitchToPage("hints")
 	o.shell.hideSuggestionsFromLayout()
 	o.shell.app.SetFocus(o.shell.content)
@@ -221,7 +283,9 @@ func (o *Omnibar) handleInputKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case tcell.KeyDown, tcell.KeyTab:
 		current := o.suggestions.GetCurrentItem()
-		if current < o.suggestions.GetItemCount()-1 {
+		// Bound navigation to executable commands only — skip the overflow
+		// indicator row ("...et N autres") which has no backing command.
+		if current < len(o.visible)-1 {
 			o.suggestions.SetCurrentItem(current + 1)
 		}
 		return nil

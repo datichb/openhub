@@ -114,6 +114,9 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	s.activeToasts++
 	s.activeToastIDs = append(s.activeToastIDs, pageName)
 	s.pages.AddPage(pageName, grid, true, true)
+	// Pages.AddPage re-delegates focus to the last visible page (the toast),
+	// stealing it from the omnibar input. Restore it immediately.
+	s.omnibar.RestoreFocus()
 
 	// Auto-dismiss after duration
 	time.AfterFunc(duration, func() {
@@ -127,6 +130,9 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 // Must be called on the tview event loop (inside QueueUpdateDraw or a handler).
 func (s *Shell) dismissToast(pageName string) {
 	s.pages.RemovePage(pageName)
+	// Pages.RemovePage re-delegates focus to the last visible page (possibly
+	// the suggestions overlay), stealing it from the omnibar input. Restore.
+	s.omnibar.RestoreFocus()
 	if s.activeToasts > 0 {
 		s.activeToasts--
 	}
