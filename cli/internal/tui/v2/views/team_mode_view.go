@@ -118,14 +118,15 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	v.header.SetBackgroundColor(theme.BgPanel)
 
-	accent := theme.ColorTag(theme.AccentHex)
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	action := theme.ColorTag(theme.ActionHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
 	// Show header immediately with a "loading" placeholder for stats
-	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n  %s%s%s\n  %schargement...%s",
-		accent, reset,
-		accent, v.team.Name, reset,
+	v.header.SetText(fmt.Sprintf("\n  %s◆ ÉQUIPE%s\n\n  %s[::b]%s[::-]%s\n  %schargement...%s",
+		secondary, reset,
+		action, v.team.Name, reset,
 		muted, reset,
 	))
 
@@ -135,11 +136,10 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			stats := v.cfg.TeamStats()
 			if v.app != nil {
 				v.app.QueueUpdateDraw(func() {
-					v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n  %s%s%s\n  %s%d membres%s · %s%d tickets actifs%s",
-						accent, reset,
-						accent, v.team.Name, reset,
-						muted, stats.MemberCount, reset,
-						muted, stats.ActiveCount, reset,
+					v.header.SetText(fmt.Sprintf("\n  %s◆ ÉQUIPE%s\n\n  %s[::b]%s[::-]%s\n  %s%d membres · %d tickets actifs%s",
+						secondary, reset,
+						action, v.team.Name, reset,
+						muted, stats.MemberCount, stats.ActiveCount, reset,
 					))
 				})
 			}
@@ -176,6 +176,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	})
 
 	// ── Footer ──────────────────────────────────────────────────────────
+	accent := theme.ColorTag(theme.AccentHex)
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).

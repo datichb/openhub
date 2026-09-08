@@ -116,13 +116,14 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetDynamicColors(true).
 		SetScrollable(false)
 	header.SetBackgroundColor(theme.BgPanel)
-	accent := theme.ColorTag(theme.AccentHex)
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	action := theme.ColorTag(theme.ActionHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
-	header.SetText(fmt.Sprintf("\n  %s◆ Mode Projet%s\n\n  %s%-12s%s %s\n  %s%-12s%s %s",
-		accent, reset,
-		accent, "Projet", reset, v.project.Name,
-		muted, "Chemin", reset, v.project.Path,
+	header.SetText(fmt.Sprintf("\n  %s◆ PROJET%s\n\n  %s[::b]%s[::-]%s\n  %s%s%s",
+		secondary, reset,
+		action, v.project.Name, reset,
+		muted, v.project.Path, reset,
 	))
 
 	// ── Interactive list — SectionedList with auto-skip headers ──────────
@@ -155,6 +156,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	})
 
 	// ── Footer ──────────────────────────────────────────────────────────
+	accent := theme.ColorTag(theme.AccentHex)
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
