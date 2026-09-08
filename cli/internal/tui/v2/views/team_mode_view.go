@@ -41,12 +41,13 @@ type teamModeItem struct {
 // TeamModeView is the team-scoped landing view — a mini dashboard with
 // quick actions for team navigation and optional session launching.
 type TeamModeView struct {
-	cfg   TeamModeConfig
-	team  *ActiveTeam
-	shell ShellAccess
-	app   *tview.Application
-	list  *tview.List
-	items []teamModeItem
+	cfg    TeamModeConfig
+	team   *ActiveTeam
+	shell  ShellAccess
+	app    *tview.Application
+	list   *tview.List
+	header *tview.TextView // header with team name + stats (updated async)
+	items  []teamModeItem
 }
 
 var _ View = (*TeamModeView)(nil)
@@ -110,30 +111,39 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.items = v.buildItems()
 
-	// ── Header with live stats ──────────────────────────────────────────
-	header := tview.NewTextView().
+	// ── Header with team name (stats loaded async) ──────────────────────
+	v.header = tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(false)
-	header.SetBackgroundColor(theme.BgPanel)
+	v.header.SetBackgroundColor(theme.BgPanel)
 
 	accent := theme.ColorTag(theme.AccentHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	statsLine := ""
-	if v.cfg.TeamStats != nil {
-		stats := v.cfg.TeamStats()
-		statsLine = fmt.Sprintf("  %s%d membres%s · %s%d tickets actifs%s",
-			muted, stats.MemberCount, reset,
-			muted, stats.ActiveCount, reset,
-		)
-	}
-
-	header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n  %s%s%s\n%s",
+	// Show header immediately with a "loading" placeholder for stats
+	v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n  %s%s%s\n  %schargement...%s",
 		accent, reset,
 		accent, v.team.Name, reset,
-		statsLine,
+		muted, reset,
 	))
+
+	// Load stats asynchronously to avoid blocking the event loop
+	if v.cfg.TeamStats != nil {
+		go func() {
+			stats := v.cfg.TeamStats()
+			if v.app != nil {
+				v.app.QueueUpdateDraw(func() {
+					v.header.SetText(fmt.Sprintf("\n  %s◆ Mode Équipe%s\n  %s%s%s\n  %s%d membres%s · %s%d tickets actifs%s",
+						accent, reset,
+						accent, v.team.Name, reset,
+						muted, stats.MemberCount, reset,
+						muted, stats.ActiveCount, reset,
+					))
+				})
+			}
+		}()
+	}
 
 	// ── Interactive list ─────────────────────────────────────────────────
 	v.list = tview.NewList()
@@ -170,7 +180,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	))
 
 	// ── Layout ──────────────────────────────────────────────────────────
-	content.AddItem(header, 6, 0, false)
+	content.AddItem(v.header, 6, 0, false)
 	content.AddItem(v.list, 0, 1, true)
 	content.AddItem(footer, 3, 0, false)
 }
@@ -179,6 +189,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 func (v *TeamModeView) Unmount() {
 	v.app = nil
 	v.list = nil
+	v.header = nil
 }
 
 // HandleKey processes view-specific key events.
