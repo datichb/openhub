@@ -132,7 +132,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	innerFlex.SetBackgroundColor(theme.BgPanel)
 	innerFlex.AddItem(logo, 9, 0, false)
 	innerFlex.AddItem(v.list, 0, 1, true)
-	innerFlex.AddItem(footer, 3, 0, false)
+	innerFlex.AddItem(footer, 4, 0, false)
 
 	// Horizontal centering
 	hCenter := tview.NewFlex()

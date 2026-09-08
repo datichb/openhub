@@ -169,7 +169,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	innerFlex.SetBackgroundColor(theme.BgPanel)
 	innerFlex.AddItem(header, 6, 0, false)
 	innerFlex.AddItem(v.list, 0, 1, true)
-	innerFlex.AddItem(footer, 3, 0, false)
+	innerFlex.AddItem(footer, 4, 0, false)
 
 	// Horizontal centering
 	hCenter := tview.NewFlex()
