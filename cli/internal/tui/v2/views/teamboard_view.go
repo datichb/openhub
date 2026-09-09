@@ -179,6 +179,12 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.colViewStart = 0
 	v.rebuildColumnFlex()
 
+	// When focus returns to the columnFlex (e.g. after closing a modal),
+	// redirect it to the currently tracked column.
+	v.columnFlex.SetFocusFunc(func() {
+		v.updateColumnFocus()
+	})
+
 	// Tab bar for project filtering
 	v.tabBar = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignLeft)
 	v.tabBar.SetBackgroundColor(theme.BgPanel)
@@ -567,12 +573,24 @@ func (v *TeamBoardView) moveFocus(delta int) {
 	if len(v.columnCards) == 0 {
 		return
 	}
+	// Preserve vertical selection when moving horizontally.
+	prevSelected := 0
+	if v.focusCol >= 0 && v.focusCol < len(v.columnCards) {
+		prevSelected = v.columnCards[v.focusCol].GetCurrentItem()
+		if prevSelected < 0 {
+			prevSelected = 0
+		}
+	}
 	v.focusCol += delta
 	if v.focusCol < 0 {
 		v.focusCol = 0
 	}
 	if v.focusCol >= len(v.columnCards) {
 		v.focusCol = len(v.columnCards) - 1
+	}
+	// Apply the same vertical position (clamped) to the target column.
+	if cc := v.columnCards[v.focusCol]; cc.GetItemCount() > 0 {
+		cc.SetCurrentItem(prevSelected)
 	}
 	// Scroll the column window if focus moves outside visible range
 	if v.focusCol < v.colViewStart {
@@ -598,7 +616,7 @@ func (v *TeamBoardView) rebuildColumnFlex() {
 		if i > v.colViewStart {
 			v.columnFlex.AddItem(newColumnSeparator(), 1, 0, false)
 		}
-		v.columnFlex.AddItem(v.columnCards[i], 0, 1, i == v.focusCol)
+		v.columnFlex.AddItem(v.columnCards[i], 0, 1, false)
 	}
 }
 

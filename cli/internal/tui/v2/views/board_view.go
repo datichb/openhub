@@ -124,8 +124,14 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 		cc := widgets.NewCardColumn(col.Name, col.Color)
 		v.columnCards[i] = cc
-		v.columnFlex.AddItem(cc, 0, 1, i == 0)
+		// All columns added with Focus=false; focus is managed by updateColumnFocus.
+		v.columnFlex.AddItem(cc, 0, 1, false)
 	}
+	// When focus returns to the columnFlex (e.g. after closing a modal),
+	// redirect it to the currently tracked column.
+	v.columnFlex.SetFocusFunc(func() {
+		v.updateColumnFocus()
+	})
 
 	v.populateColumns(v.cfg.Tickets, columns)
 
@@ -565,12 +571,24 @@ func (v *BoardView) moveFocus(delta int) {
 	if len(v.columnCards) == 0 {
 		return
 	}
+	// Preserve vertical selection when moving horizontally.
+	prevSelected := 0
+	if v.focusCol >= 0 && v.focusCol < len(v.columnCards) {
+		prevSelected = v.columnCards[v.focusCol].GetCurrentItem()
+		if prevSelected < 0 {
+			prevSelected = 0
+		}
+	}
 	v.focusCol += delta
 	if v.focusCol < 0 {
 		v.focusCol = 0
 	}
 	if v.focusCol >= len(v.columnCards) {
 		v.focusCol = len(v.columnCards) - 1
+	}
+	// Apply the same vertical position (clamped) to the target column.
+	if cc := v.columnCards[v.focusCol]; cc.GetItemCount() > 0 {
+		cc.SetCurrentItem(prevSelected)
 	}
 	v.updateColumnFocus()
 }

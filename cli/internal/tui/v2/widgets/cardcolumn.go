@@ -100,6 +100,22 @@ func (c *CardColumn) Clear() *CardColumn {
 	return c
 }
 
+// SetCurrentItem sets the selected card index, clamping to valid bounds.
+func (c *CardColumn) SetCurrentItem(idx int) *CardColumn {
+	if len(c.cards) == 0 {
+		c.selected = 0
+		return c
+	}
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(c.cards) {
+		idx = len(c.cards) - 1
+	}
+	c.selected = idx
+	return c
+}
+
 // GetCurrentItem returns the index of the selected card (-1 if empty).
 func (c *CardColumn) GetCurrentItem() int {
 	if len(c.cards) == 0 {
