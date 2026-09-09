@@ -413,7 +413,8 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		tcell.StyleDefault.Background(theme.Accent).Foreground(theme.BgPanel))
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Accent)
-	form.SetTitle(fmt.Sprintf("  %s  ", cfg.Title))
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	form.SetTitle(fmt.Sprintf("%s%s%s", pad, cfg.Title, pad))
 	form.SetTitleColor(theme.Accent)
 
 	values := make(map[string]string)
@@ -712,7 +713,9 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	container.AddItem(form, 0, 1, true)
 	container.AddItem(hints, 1, 0, false)
 
-	grid := s.overlayGrid(container, []int{0, 64, 0}, []int{0, 0, 0}, theme.BgDimOverlay, "", nil)
+	// Content-aware sizing — estimate height from field count instead of stretching to fill.
+	size := s.computeModalSize(modalSizeHint{FieldCount: len(cfg.Fields), FixedWidth: theme.ModalMaxWidth})
+	grid := s.overlayGrid(container, size.cols, size.rows, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(form)
@@ -755,16 +758,13 @@ func multiSummary(selected []string, options []views.SelectOption) string {
 // showSubSelect opens a list sub-modal on top of an existing overlay (the form).
 // On confirmation or cancellation the focus returns to the form.
 func (s *Shell) showSubSelect(title string, options []views.SelectOption, currentValue string, returnTo tview.Primitive, onConfirm func(string)) {
-	list := tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.FgPrimary)
-	list.SetBackgroundColor(theme.BgPanel)
+	list := tview.NewList()
+	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf("  %s · %s  ", title, i18n.T("tui.shell.select_hints")))
+
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
 	list.SetTitleColor(theme.Accent)
 
 	currentIdx := 0
@@ -801,14 +801,10 @@ func (s *Shell) showSubSelect(title string, options []views.SelectOption, curren
 		return event
 	})
 
-	// Click on item = immediate selection.
 	s.listMouseSelect(list, "sub-overlay", returnTo, confirm)
 
-	height := len(options) + 2
-	if height > 16 {
-		height = 16
-	}
-	grid := s.overlayGrid(list, []int{0, -3, 0}, []int{0, height, 0}, theme.BgDimSubOverlay, "sub-overlay", returnTo)
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimSubOverlay, "sub-overlay", returnTo)
 
 	s.pages.AddPage("sub-overlay", grid, true, true)
 	s.app.SetFocus(list)
@@ -825,17 +821,14 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 		checked[i] = selectedSet[opt.Value]
 	}
 
-	list := tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.FgPrimary)
-	list.SetBackgroundColor(theme.BgPanel)
+	list := tview.NewList()
+	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
 	list.SetBorderPadding(0, 0, 1, 1)
-	list.SetTitle(fmt.Sprintf("  %s · %s  ", title, i18n.T("tui.shell.multiselect_hints")))
+
+	padStr := strings.Repeat(" ", theme.ModalTitlePad)
+	list.SetTitle(fmt.Sprintf("%s%s%s", padStr, title, padStr))
 	list.SetTitleColor(theme.Accent)
 
 	renderItems := func() {
@@ -888,14 +881,10 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 		return event
 	})
 
-	// Click on item = toggle its checked state.
 	s.listMouseToggle(list, toggleItem)
 
-	height := len(options) + 2
-	if height > 16 {
-		height = 16
-	}
-	grid := s.overlayGrid(list, []int{0, -3, 0}, []int{0, height, 0}, theme.BgDimSubOverlay, "sub-overlay", returnTo)
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimSubOverlay, "sub-overlay", returnTo)
 
 	s.pages.AddPage("sub-overlay", grid, true, true)
 	s.app.SetFocus(list)
@@ -1335,38 +1324,12 @@ func (s *Shell) listMouseToggle(list *tview.List, toggle func(idx int)) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {
-	input := tview.NewInputField().
-		SetLabelColor(theme.Accent).
-		SetText(currentValue).
-		SetFieldWidth(52).
-		SetFieldBackgroundColor(theme.BgElement).
-		SetFieldTextColor(theme.FgPrimary)
-	input.SetBackgroundColor(theme.BgPanel)
+	input := tview.NewInputField().SetText(currentValue).SetFieldWidth(52)
+	styleInputField(input)
 
 	if masked {
 		input.SetMaskCharacter('*')
 	}
-
-	// Hint bar at the bottom of the frame
-	hint := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	hint.SetBackgroundColor(theme.BgPanel)
-	hint.SetText(fmt.Sprintf("  "+i18n.T("tui.shell.input_hints"),
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.TextMutedHex), theme.TagColor))
-
-	// Frame with border + title — same design as showInlineSelect and ShowInlineForm.
-	frame := tview.NewFlex().SetDirection(tview.FlexRow)
-	frame.SetBackgroundColor(theme.BgPanel)
-	frame.SetBorder(true)
-	frame.SetBorderColor(theme.Accent)
-	frame.SetTitle(fmt.Sprintf("  %s  ", title))
-	frame.SetTitleColor(theme.Accent)
-	frame.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // top spacer
-	frame.AddItem(input, 1, 0, true)
-	frame.AddItem(hint, 1, 0, false)
-	frame.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // bottom spacer
 
 	input.SetDoneFunc(func(key tcell.Key) {
 		s.pages.RemovePage("inline-overlay")
@@ -1376,25 +1339,49 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		}
 	})
 
-	// Width 64 matches ShowInlineForm for visual consistency across a flow.
-	// No light-dismiss — accidental backdrop click would lose in-progress text.
-	grid := s.overlayGrid(frame, []int{0, 64, 0}, []int{0, 7, 0}, theme.BgDimOverlay, "", nil)
+	// Wrap input in a simple container with vertical centering
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	container.SetBackgroundColor(theme.BgPanel)
+	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // top spacer
+	container.AddItem(input, 1, 0, true)
+	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // bottom spacer
+
+	// Use the builder for frame + sizing + title + hints
+	frame := tview.NewFlex().SetDirection(tview.FlexRow)
+	frame.SetBackgroundColor(theme.BgPanel)
+	frame.SetBorder(true)
+	frame.SetBorderColor(theme.Accent)
+
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
+	frame.SetTitleColor(theme.Accent)
+
+	// Hints line
+	hints := tview.NewTextView().
+		SetText("  " + i18n.T("tui.modal.hints.input")).
+		SetTextColor(theme.FgMuted).
+		SetDynamicColors(false)
+	hints.SetBackgroundColor(theme.BgPanel)
+	frame.AddItem(hints, 1, 0, false)
+	frame.AddItem(container, 0, 1, true)
+
+	// Content-aware sizing
+	size := s.computeModalSize(modalSizeHint{FixedWidth: theme.ModalMaxWidth, FixedHeight: 7})
+	grid := s.overlayGrid(frame, size.cols, size.rows, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(input)
 }
 
 func (s *Shell) showInlineSelect(title string, options []views.SelectOption, currentValue string, onConfirm func(string)) {
-	list := tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.FgPrimary)
-	list.SetBackgroundColor(theme.BgPanel)
+	list := tview.NewList()
+	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf(" %s · %s ", title, i18n.T("tui.shell.select_modal_hints")))
+
+	// Uniform title: padded, no inline hints (hints are separate in the status bar).
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
 	list.SetTitleColor(theme.Accent)
 
 	currentIdx := 0
@@ -1431,11 +1418,9 @@ func (s *Shell) showInlineSelect(title string, options []views.SelectOption, cur
 	// Click on item = immediate selection (macOS Finder / lazygit convention).
 	s.listMouseSelect(list, "inline-overlay", s.content, confirm)
 
-	height := len(options) + 2
-	if height > 15 {
-		height = 15
-	}
-	grid := s.overlayGrid(list, []int{0, -3, 0}, []int{0, height, 0}, theme.BgDimOverlay, "inline-overlay", s.content)
+	// Content-aware sizing
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimOverlay, "inline-overlay", s.content)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(list)
@@ -1452,16 +1437,13 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 		checked[i] = selectedSet[opt.Value]
 	}
 
-	list := tview.NewList().
-		ShowSecondaryText(false).
-		SetHighlightFullLine(true).
-		SetMainTextColor(theme.FgPrimary).
-		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.FgPrimary)
-	list.SetBackgroundColor(theme.BgPanel)
+	list := tview.NewList()
+	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetTitle(fmt.Sprintf(" %s · %s ", title, i18n.T("tui.shell.multiselect_modal_hints")))
+
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
 	list.SetTitleColor(theme.Accent)
 
 	renderItems := func() {
@@ -1516,83 +1498,27 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	// Click on item = toggle its checked state (standard checkbox UX).
 	s.listMouseToggle(list, toggleItem)
 
-	height := len(options) + 2
-	if height > 15 {
-		height = 15
-	}
-	grid := s.overlayGrid(list, []int{0, -3, 0}, []int{0, height, 0}, theme.BgDimOverlay, "inline-overlay", s.content)
+	// Content-aware sizing
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimOverlay, "inline-overlay", s.content)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(list)
 }
 
 func (s *Shell) showInlineScrollable(title, content string, actions []views.ModalAction) {
-	textView := tview.NewTextView().
-		SetText(content).
-		SetDynamicColors(true).
-		SetScrollable(true).
-		SetWrap(true)
-	textView.SetBackgroundColor(theme.BgPanel)
-	textView.SetTextColor(theme.FgPrimary)
-	textView.SetBorderPadding(0, 0, 1, 1)
+	textView := tview.NewTextView().SetText(content)
+	styleScrollableText(textView)
 
-	// Button bar
-	buttons := tview.NewFlex()
-	buttons.SetBackgroundColor(theme.BgPanel)
-
-	focusables := []tview.Primitive{textView}
-
-	for _, act := range actions {
-		a := act
-		btn := tview.NewButton(a.Label).
-			SetSelectedFunc(func() {
-				s.pages.RemovePage("inline-overlay")
-				s.app.SetFocus(s.content)
-				if a.Callback != nil {
-					a.Callback()
-				}
-			})
-		btn.SetBackgroundColor(theme.BgElement)
-		btn.SetLabelColor(theme.FgPrimary)
-		btn.SetBackgroundColorActivated(theme.Accent)
-		btn.SetLabelColorActivated(theme.BgPanel)
-		buttons.AddItem(btn, len(a.Label)+4, 0, false)
-		buttons.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 1, 0, false)
-		focusables = append(focusables, btn)
-	}
-
-	frame := tview.NewFlex().SetDirection(tview.FlexRow)
-	frame.AddItem(textView, 0, 1, true)
-	frame.AddItem(buttons, 3, 0, false)
-	frame.SetBorder(true)
-	frame.SetBorderColor(theme.Accent)
-	frame.SetTitle(fmt.Sprintf(" %s · Tab switch · Esc fermer ", title))
-	frame.SetTitleColor(theme.Accent)
-	frame.SetBackgroundColor(theme.BgPanel)
-
-	// Focus cycling
-	currentFocus := 0
-	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			s.pages.RemovePage("inline-overlay")
-			s.app.SetFocus(s.content)
-			return nil
-		case tcell.KeyTab, tcell.KeyBacktab:
-			if event.Key() == tcell.KeyTab {
-				currentFocus = (currentFocus + 1) % len(focusables)
-			} else {
-				currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)
-			}
-			s.app.SetFocus(focusables[currentFocus])
-			return nil
-		}
-		return event
+	s.showModal(modalConfig{
+		Title:        title,
+		Content:      textView,
+		Actions:      actions,
+		Size:         modalSizeHint{ContentLines: countLines(content), HasButtons: len(actions) > 0, ButtonCount: len(actions), ProportionalWidth: -4},
+		Hints:        i18n.T("tui.modal.hints.scrollable"),
+		LightDismiss: true,
+		PageName:     "inline-overlay",
+		FocusReturn:  s.content,
+		FocusTarget:  textView,
 	})
-
-	// Light dismiss: click outside the frame closes the modal.
-	grid := s.overlayGrid(frame, []int{0, -4, 0}, []int{1, -4, 1}, theme.BgDimOverlay, "inline-overlay", s.content)
-
-	s.pages.AddPage("inline-overlay", grid, true, true)
-	s.app.SetFocus(textView)
 }
