@@ -5,9 +5,9 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS  = -s -w \
-           -X github.com/datichb/openhub/cli/cmd.Version=$(VERSION) \
-           -X github.com/datichb/openhub/cli/cmd.Commit=$(COMMIT) \
-           -X github.com/datichb/openhub/cli/cmd.BuildDate=$(DATE)
+           -X github.com/datichb/openhub/cli/internal/buildinfo.Version=$(VERSION) \
+           -X github.com/datichb/openhub/cli/internal/buildinfo.Commit=$(COMMIT) \
+           -X github.com/datichb/openhub/cli/internal/buildinfo.BuildDate=$(DATE)
 
 # Default target
 all: build

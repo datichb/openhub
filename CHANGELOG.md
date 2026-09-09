@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+---
+
+## [4.0.0] — 2026-09-09
+
 ### Added
 
 #### Fonctionnalités team — Board & Claim lifecycle
