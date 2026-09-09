@@ -86,7 +86,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		apiKey         string
 		agents         []string
 		mcpServices    []string
-		projectTeamCfg *domain.ProjectTeamConfig
+		projectTeamID  *string
 		doDeploy       bool
 	)
 
@@ -357,7 +357,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			},
 		},
 		// ── Step 7: Team ──
-		buildProjectTeamStep(a, &projectTeamCfg),
+		buildProjectTeamStep(a, &projectTeamID),
 		// ── Step 8: Deploy ──
 		{
 			Label: "Deploy",
@@ -407,7 +407,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		Agents:     agents,
 		MCP:        mcpServices,
 		MCPConfig:  buildProjectMCPConfig(mcpServices),
-		TeamConfig: projectTeamCfg,
+		TeamID:     projectTeamID,
 		Status:     domain.ProjectStatusActive,
 		CreatedAt:  now,
 		UpdatedAt:  now,

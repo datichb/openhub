@@ -1141,18 +1141,18 @@ func findExistingCloneForRemote(ctx context.Context, a *app.App, remoteURL strin
 		return existingClone{}, false
 	}
 	for _, p := range projects {
-		if p.TeamConfig == nil {
+		resolved := config.ResolveTeamForProject(a.Config, &p)
+		if !resolved.Enabled || resolved.StateRepo == "" {
 			continue
 		}
-		if p.TeamConfig.StateRepo == "" ||
-			normalizeRemoteURL(p.TeamConfig.StateRepo) != norm {
+		if normalizeRemoteURL(resolved.StateRepo) != norm {
 			continue
 		}
-		statePath := p.TeamConfig.StatePath
+		statePath := resolved.StatePath
 		if statePath == "" {
 			continue
 		}
-		repo := teamstate.NewRepo(p.TeamConfig.StateRepo, statePath)
+		repo := teamstate.NewRepo(resolved.StateRepo, statePath)
 		if repo.IsCloned() {
 			return existingClone{
 				Path:   statePath,
@@ -1188,8 +1188,9 @@ func collectUsedMemberIDs(ctx context.Context, a *app.App) map[string]bool {
 		return used
 	}
 	for _, p := range projects {
-		if p.TeamConfig != nil && p.TeamConfig.MemberID != "" {
-			used[p.TeamConfig.MemberID] = true
+		resolved := config.ResolveTeamForProject(a.Config, &p)
+		if resolved.Enabled && resolved.MemberID != "" {
+			used[resolved.MemberID] = true
 		}
 	}
 	return used

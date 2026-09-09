@@ -2,12 +2,16 @@ package config
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 // MigrateTeamToTeams performs the automatic migration from the legacy [team]
@@ -213,4 +217,67 @@ func MigrateKeychainKeys(store SecretMigrator) int {
 	}
 
 	return count
+}
+
+// MigrateProjectTeamToTeamID migrates projects from the legacy ProjectTeamConfig
+// (team_config JSON column) to the new TeamID column. For each project that has
+// a team_config but no team_id, it parses the JSON and sets team_id based on the mode:
+//   - "" or "inherit" → team_id = activeTeamID
+//   - "disabled"      → team_id stays NULL
+//   - "custom"        → team_id = activeTeamID (simplified — single-team setup)
+//
+// Returns the number of projects migrated.
+func MigrateProjectTeamToTeamID(db *sql.DB, activeTeamID string) (int, error) {
+	if activeTeamID == "" {
+		return 0, nil // no team configured at hub level — nothing to migrate
+	}
+
+	rows, err := db.Query(`SELECT id, team_config FROM projects WHERE team_id IS NULL AND team_config != ''`)
+	if err != nil {
+		return 0, fmt.Errorf("querying projects for team migration: %w", err)
+	}
+	defer rows.Close()
+
+	type candidate struct {
+		id         string
+		teamConfig string
+	}
+	var candidates []candidate
+	for rows.Next() {
+		var c candidate
+		if err := rows.Scan(&c.id, &c.teamConfig); err != nil {
+			return 0, fmt.Errorf("scanning project for team migration: %w", err)
+		}
+		candidates = append(candidates, c)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, c := range candidates {
+		var tc domain.ProjectTeamConfig
+		if err := json.Unmarshal([]byte(c.teamConfig), &tc); err != nil {
+			slog.Warn("team migration: invalid team_config JSON, skipping", "project", c.id, "error", err)
+			continue
+		}
+
+		switch tc.Mode {
+		case domain.ProjectTeamModeDisabled:
+			// disabled → team_id stays NULL, nothing to do
+			continue
+		case "", domain.ProjectTeamModeInherit, domain.ProjectTeamModeCustom:
+			// inherit or custom → attach to the active team
+			_, err := db.Exec(`UPDATE projects SET team_id = ? WHERE id = ?`, activeTeamID, c.id)
+			if err != nil {
+				return count, fmt.Errorf("migrating project %s team_id: %w", c.id, err)
+			}
+			count++
+			slog.Info("team migration: set team_id", "project", c.id, "team_id", activeTeamID, "old_mode", tc.Mode)
+		default:
+			slog.Warn("team migration: unknown mode, skipping", "project", c.id, "mode", tc.Mode)
+		}
+	}
+
+	return count, nil
 }

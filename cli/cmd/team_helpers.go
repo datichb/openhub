@@ -142,156 +142,56 @@ func runTeamCustomSetup(a *app.App, remote, memberID, displayName, role string) 
 // buildProjectTeamStep returns a WizardStep that collects team configuration
 // for a project during project creation or reconfiguration.
 //
-// Modes:
-//   - "inherit"  → use hub team as-is (default when hub has a team)
-//   - "custom"   → configure a project-specific team-state repo; full setup
-//     (clone, init structure, add/update member) is run in OnDone
-//   - "disabled" → explicitly opt out of team for this project
-//
-// The custom team setup is optional: if the git remote URL is left empty the
-// mode is treated as disabled instead of returning an error.
-func buildProjectTeamStep(a *app.App, out **domain.ProjectTeamConfig) views.WizardStep {
+// The step sets out to:
+//   - &activeTeamID → attach the project to the hub's active team
+//   - nil           → no team for this project
+func buildProjectTeamStep(a *app.App, out **string) views.WizardStep {
 	hubTeam := a.Config.ActiveTeam()
-	hubMember := getHubMemberInfo(a)
 
 	// Local state for the step
-	var (
-		teamMode    = domain.ProjectTeamModeInherit
-		customRepo  string
-		customMember = hubMember.MemberID
-		displayName  = hubMember.DisplayName
-		role         = hubMember.Role
-	)
-	if role == "" {
-		role = "dev"
-	}
+	var attachToTeam bool
 
-	// If hub has no team, default to disabled (user must explicitly opt in)
-	if !hubTeam.Enabled {
-		teamMode = domain.ProjectTeamModeDisabled
-	}
-
-	roleOptions := []string{"Lead", "Développeur", "Reviewer"}
-	roleValues := []string{"lead", "dev", "reviewer"}
-	defaultRoleIdx := 1 // Développeur
-	for i, v := range roleValues {
-		if v == role {
-			defaultRoleIdx = i
-			break
-		}
+	// If hub has a team, default to attaching
+	if hubTeam.Enabled && hubTeam.ID != "" {
+		attachToTeam = true
 	}
 
 	return views.WizardStep{
-		Label:      "Team",
-		Processing: "Initialisation du repo team-state...",
+		Label: "Team",
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
-			if hubTeam.Enabled {
+			if hubTeam.Enabled && hubTeam.ID != "" {
 				hubSummary := fmt.Sprintf("hub : %s (member : %s)", hubTeam.StateRepo, hubTeam.MemberID)
 				form.AddTextView("Équipe hub", hubSummary, 0, 1, false, false)
 				modeOptions := []string{
 					fmt.Sprintf("Utiliser l'équipe du hub (%s)", hubTeam.MemberID),
-					"Configuration spécifique à ce projet",
 					"Pas d'équipe pour ce projet",
 				}
-				modeValues := []string{
-					domain.ProjectTeamModeInherit,
-					domain.ProjectTeamModeCustom,
-					domain.ProjectTeamModeDisabled,
-				}
-				form.AddDropDown("Mode équipe", modeOptions, 0, func(_ string, idx int) {
-					if idx >= 0 && idx < len(modeValues) {
-						teamMode = modeValues[idx]
-					}
+				form.AddDropDown("Équipe", modeOptions, 0, func(_ string, idx int) {
+					attachToTeam = idx == 0
 				})
 			} else {
 				form.AddTextView("Équipe hub", "Aucune équipe configurée au niveau du hub.", 0, 1, false, false)
-				modeOptions := []string{
-					"Pas d'équipe pour ce projet",
-					"Configurer une équipe spécifique à ce projet",
-				}
-				modeValues := []string{
-					domain.ProjectTeamModeDisabled,
-					domain.ProjectTeamModeCustom,
-				}
-				form.AddDropDown("Mode équipe", modeOptions, 0, func(_ string, idx int) {
-					if idx >= 0 && idx < len(modeValues) {
-						teamMode = modeValues[idx]
-					}
-				})
 			}
-
-			// ── Custom fields ────────────────────────────────────────────────
-			form.AddInputField("Git remote URL (vide = pas de custom)", "", 0, nil,
-				func(text string) { customRepo = text })
-			form.AddTextView("", "  Laisser vide pour désactiver la team", 0, 1, false, false)
-
-			// ── Identity fields (regroupés) ──────────────────────────────────
-			form.AddInputField("Member ID", customMember, 0, nil,
-				func(text string) { customMember = text })
-			form.AddTextView("", "  Identifiant unique dans l'équipe (ex: benjamin, alice)", 0, 1, false, false)
-			form.AddInputField("Nom d'affichage", displayName, 0, nil,
-				func(text string) { displayName = text })
-			form.AddTextView("", "  Votre nom tel qu'il apparaîtra dans les événements d'équipe", 0, 1, false, false)
-			form.AddDropDown("Rôle", roleOptions, defaultRoleIdx, func(_ string, idx int) {
-				if idx >= 0 && idx < len(roleValues) {
-					role = roleValues[idx]
-				}
-			})
 
 			form.AddButton("Next", func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			switch teamMode {
-			case domain.ProjectTeamModeDisabled:
-				*out = &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-				return nil
-
-			case domain.ProjectTeamModeInherit:
+			if attachToTeam && hubTeam.ID != "" {
+				id := hubTeam.ID
+				*out = &id
+			} else {
 				*out = nil
-				return nil
-
-			case domain.ProjectTeamModeCustom:
-				// Remote vide → traité comme disabled (optionnel)
-				if customRepo == "" {
-					*out = &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-					return nil
-				}
-
-				result, err := runTeamCustomSetup(a, customRepo, customMember, displayName, role)
-				if err != nil {
-					return err
-				}
-
-				effectiveMemberID := customMember
-				if effectiveMemberID == "" {
-					effectiveMemberID = a.Config.ActiveTeam().MemberID
-				}
-
-				*out = &domain.ProjectTeamConfig{
-					Mode:      domain.ProjectTeamModeCustom,
-					StateRepo: customRepo,
-					StatePath: result.StatePath,
-					MemberID:  effectiveMemberID,
-				}
-				return nil
 			}
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			switch teamMode {
-			case domain.ProjectTeamModeDisabled:
-				return []views.InfoField{{Label: "Team", Value: "disabled"}}
-			case domain.ProjectTeamModeCustom:
-				if customRepo != "" {
-					return []views.InfoField{{Label: "Team", Value: "custom : " + customRepo}}
-				}
-				return []views.InfoField{{Label: "Team", Value: "disabled (URL vide)"}}
-			default:
-				return []views.InfoField{{Label: "Team", Value: "inherit (hub)"}}
+			if attachToTeam && hubTeam.ID != "" {
+				return []views.InfoField{{Label: "Team", Value: hubTeam.ID}}
 			}
+			return []views.InfoField{{Label: "Team", Value: "aucune"}}
 		},
 	}
 }

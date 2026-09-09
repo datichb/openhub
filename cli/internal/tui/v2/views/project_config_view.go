@@ -223,11 +223,6 @@ func (v *ProjectConfigView) buildLines() {
 		{Label: "active", Value: "active"},
 		{Label: "archived", Value: "archived"},
 	}
-	teamModeOptions := []SelectOption{
-		{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: domain.ProjectTeamModeInherit},
-		{Label: "custom", Value: domain.ProjectTeamModeCustom},
-		{Label: "disabled", Value: domain.ProjectTeamModeDisabled},
-	}
 	triBoolOptions := []SelectOption{
 		{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
 		{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
@@ -263,42 +258,13 @@ func (v *ProjectConfigView) buildLines() {
 
 		// ── Team ─────────────────────────────────────────────────────────────
 		{kind: "section-header", section: "Team"},
-		{section: "Team", key: "mode", kind: "select",
-			options: teamModeOptions,
+		{section: "Team", key: "team_id", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil { return domain.ProjectTeamModeInherit }
-				return p.TeamConfig.Mode
+				if p.TeamID == nil { return "" }
+				return *p.TeamID
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
-				p.TeamConfig.Mode = val
-			}},
-		{section: "Team", key: "member_id", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil { return "" }
-				return p.TeamConfig.MemberID
-			},
-			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
-				p.TeamConfig.MemberID = val
-			}},
-		{section: "Team", key: "state_repo", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil { return "" }
-				return p.TeamConfig.StateRepo
-			},
-			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
-				p.TeamConfig.StateRepo = val
-			}},
-		{section: "Team", key: "state_path", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TeamConfig == nil { return "" }
-				return p.TeamConfig.StatePath
-			},
-			set: func(p *domain.Project, val string) {
-				if p.TeamConfig == nil { p.TeamConfig = &domain.ProjectTeamConfig{} }
-				p.TeamConfig.StatePath = val
+				if val == "" { p.TeamID = nil } else { p.TeamID = &val }
 			}},
 
 		// ── Tracker Overrides ───────────────────────────────────────────────

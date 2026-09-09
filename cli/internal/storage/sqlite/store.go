@@ -311,5 +311,11 @@ var schemaMigrations = []migration{
 		down:         `ALTER TABLE sessions DROP COLUMN launch_path`,
 		irreversible: false,
 	},
+	{
+		version:      20,
+		up:           `ALTER TABLE projects ADD COLUMN team_id TEXT DEFAULT NULL`,
+		down:         `ALTER TABLE projects DROP COLUMN team_id`,
+		irreversible: false,
+	},
 }
 

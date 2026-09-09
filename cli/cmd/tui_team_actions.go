@@ -10,7 +10,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -246,74 +245,34 @@ func actionTeamConfigure() {
 	}
 
 	hubTeam := a.Config.ActiveTeam()
-	hubMember := getHubMemberInfo(a)
 
-	// ── Étape 1 : choose mode ─────────────────────────────────────────────
+	// ── Choose: attach to team or detach ─────────────────────────────────
 	var modeOptions []views.SelectOption
-	if hubTeam.Enabled {
+	if hubTeam.Enabled && hubTeam.ID != "" {
 		modeOptions = []views.SelectOption{
 			{
-				Label: fmt.Sprintf("Hériter du hub (%s, membre : %s)", hubTeam.StateRepo, hubTeam.MemberID),
-				Value: domain.ProjectTeamModeInherit,
+				Label: fmt.Sprintf("Attacher à l'équipe %s (%s)", hubTeam.ID, hubTeam.MemberID),
+				Value: hubTeam.ID,
 			},
-			{Label: "Configuration personnalisée pour ce projet", Value: domain.ProjectTeamModeCustom},
-			{Label: "Pas de team pour ce projet", Value: domain.ProjectTeamModeDisabled},
+			{Label: "Pas de team pour ce projet", Value: ""},
 		}
 	} else {
 		modeOptions = []views.SelectOption{
-			{Label: "Pas de team pour ce projet", Value: domain.ProjectTeamModeDisabled},
-			{Label: "Configurer une team custom pour ce projet", Value: domain.ProjectTeamModeCustom},
+			{Label: "Pas de team pour ce projet", Value: ""},
 		}
 	}
 
-	tuiShell.ShowSelectModal("Team pour ce projet", modeOptions, domain.ProjectTeamModeInherit, func(mode string) {
-		switch mode {
-		case domain.ProjectTeamModeDisabled:
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					applyProjectTeamConfig(a, project.ID, &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled})
-				})
-			}()
+	defaultVal := ""
+	if hubTeam.Enabled && hubTeam.ID != "" {
+		defaultVal = hubTeam.ID
+	}
 
-		case domain.ProjectTeamModeInherit:
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					applyProjectTeamConfig(a, project.ID, nil)
-				})
-			}()
-
-		case domain.ProjectTeamModeCustom:
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowInputModal("Git remote URL du team-state", "", func(customRepo string) {
-						if customRepo == "" {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("URL annulée", shell.ToastInfo)
-								})
-							}()
-							return
-						}
-
-						// ── Credentials (HTTPS only) ─────────────────────────────
-						if teamstate.IsHTTPS(customRepo) {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									collectCredentialsThenMember(a, project.ID, customRepo, hubMember)
-								})
-							}()
-						} else {
-							// SSH — no credentials needed
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									continueCustomFlowWithMember(a, project.ID, customRepo, hubMember)
-								})
-							}()
-						}
-					})
-				})
-			}()
-		}
+	tuiShell.ShowSelectModal("Team pour ce projet", modeOptions, defaultVal, func(teamID string) {
+		go func() {
+			tuiShell.App().QueueUpdateDraw(func() {
+				applyProjectTeamID(a, project.ID, teamID)
+			})
+		}()
 	})
 }
 
@@ -518,22 +477,13 @@ func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, display
 				return
 			}
 
-			effectiveMemberID := memberID
-			if effectiveMemberID == "" {
-				effectiveMemberID = a.Config.ActiveTeam().MemberID
-			}
-
-			tc := &domain.ProjectTeamConfig{
-				Mode:      domain.ProjectTeamModeCustom,
-				StateRepo: customRepo,
-				StatePath: result.StatePath,
-				MemberID:  effectiveMemberID,
-			}
-			applyProjectTeamConfig(a, projectID, tc)
+			// Custom flow attaches the project to the hub's active team.
+			activeTeamID := a.Config.ActiveTeam().ID
+			applyProjectTeamID(a, projectID, activeTeamID)
 		})
 
 		// Surface pull warning as a separate toast (must not share the same
-		// QueueUpdateDraw as applyProjectTeamConfig to avoid double page mutation).
+		// QueueUpdateDraw as applyProjectTeamID to avoid double page mutation).
 		if result.PullWarning != "" {
 			time.Sleep(50 * time.Millisecond)
 			tuiShell.App().QueueUpdateDraw(func() {
@@ -543,35 +493,38 @@ func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, display
 	}()
 }
 
-// applyProjectTeamConfig persists the team config override for a project in the DB.
+// applyProjectTeamID persists the team ID for a project in the DB.
 //
 // IMPORTANT: This function MUST be called from within the tview event loop
 // (e.g. from a QueueUpdateDraw callback or a tview handler). It calls ShowToast
 // directly — never via QueueUpdateDraw — to avoid a nested-QueueUpdateDraw deadlock.
-// (QueueUpdateDraw blocks on an unbuffered done-channel; calling it from inside a
-// running QueueUpdateDraw callback deadlocks because the event loop cannot drain the
-// queue while executing the current callback.)
-func applyProjectTeamConfig(a *app.App, projectID string, tc *domain.ProjectTeamConfig) {
+func applyProjectTeamID(a *app.App, projectID string, teamID string) {
 	ctx := context.Background()
 	p, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		// Direct call — we're already on the event loop.
 		tuiShell.ShowToast("Erreur : projet introuvable", shell.ToastError)
 		return
 	}
 
-	p.TeamConfig = tc
+	if teamID == "" {
+		p.TeamID = nil
+	} else {
+		p.TeamID = &teamID
+	}
+	// Clear legacy TeamConfig to avoid confusion
+	p.TeamConfig = nil
+
 	if err := a.Projects.Update(ctx, p); err != nil {
 		tuiShell.ShowToast("Erreur : "+err.Error(), shell.ToastError)
 		return
 	}
 
-	modeLabel := "hérité du hub"
-	if tc != nil {
-		modeLabel = tc.Mode
+	label := "aucune"
+	if teamID != "" {
+		label = teamID
 	}
 	tuiShell.ShowToast(
-		fmt.Sprintf("Équipe configurée : %s — redéployez pour appliquer", modeLabel),
+		fmt.Sprintf("Équipe configurée : %s — redéployez pour appliquer", label),
 		shell.ToastSuccess,
 	)
 }
