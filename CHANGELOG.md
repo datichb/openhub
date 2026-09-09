@@ -11,6 +11,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [4.0.1] — 2026-09-09
+
+### Fixed
+
+- **Navigation dual-column sur la home** — `Tab`/`Shift+Tab`/`h`/`l` permettent désormais de naviguer entre les colonnes gauche et droite en mode écran large (≥ 140 cols)
+- **Logo non centré en mode 2 colonnes** — le logo ASCII art OPENHUB est maintenant centré horizontalement dans le layout dual-column
+- **Pointeurs stale après resize** — `v.dual` et `v.list` dans `HomeView` n'étaient pas re-assignés après un rebuild adaptatif (passage single ↔ dual), causant des comportements erratiques du clavier
+- **`h`/`l` activaient l'omnibar** — en mode dual, presser `h` à gauche ou `l` à droite ouvrait l'omnibar au lieu de rester dans la colonne courante
+
+---
+
 ## [4.0.0] — 2026-09-09
 
 ### Added
