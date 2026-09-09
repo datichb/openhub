@@ -101,13 +101,13 @@ func (d *homeDualLayout) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'l':
 		if d.activeCol == 0 {
 			d.focusRight()
-			return nil
 		}
+		return nil // always consume in dual mode to prevent omnibar activation
 	case 'h':
 		if d.activeCol == 1 {
 			d.focusLeft()
-			return nil
 		}
+		return nil // always consume in dual mode to prevent omnibar activation
 	}
 	return event
 }
@@ -210,6 +210,7 @@ func buildDualColumn(cfg homeFlexConfig) *homeDualLayout {
 	left.SetBorderPadding(0, 0, 3, 1)
 	left.SetItems(cfg.LeftItems)
 	left.SetItemSelectedFunc(cfg.OnSelect)
+	left.SetTabCaptureDisabled(true) // Tab switches columns, not sections
 
 	right := widgets.NewSectionedList()
 	right.SetApp(cfg.App)
@@ -217,6 +218,7 @@ func buildDualColumn(cfg homeFlexConfig) *homeDualLayout {
 	right.SetBorderPadding(0, 0, 1, 3)
 	right.SetItems(cfg.RightItems)
 	right.SetItemSelectedFunc(cfg.OnSelect)
+	right.SetTabCaptureDisabled(true) // Tab switches columns, not sections
 
 	// Right column starts muted (left has focus by default)
 	right.SetSelectedBackgroundColor(theme.BgPanel)

@@ -37,12 +37,13 @@ type SectionItem struct {
 //   - Locked items show a lock indicator
 type SectionedList struct {
 	*tview.List
-	items      []SectionItem
-	listToItem []int // tview.List index → items index (-1 for spacers)
-	itemToList []int // items index → tview.List index
-	app        *tview.Application
-	onSelect   func(index int, item SectionItem)
-	onChange   func(index int, item SectionItem)
+	items              []SectionItem
+	listToItem         []int // tview.List index → items index (-1 for spacers)
+	itemToList         []int // items index → tview.List index
+	app                *tview.Application
+	onSelect           func(index int, item SectionItem)
+	onChange           func(index int, item SectionItem)
+	tabCaptureDisabled bool // when true, Tab/BackTab are not captured (for dual-column navigation)
 }
 
 // NewSectionedList creates a SectionedList with standard styling.
@@ -67,6 +68,13 @@ func NewSectionedList() *SectionedList {
 // SetApp sets the tview.Application for draw updates.
 func (sl *SectionedList) SetApp(app *tview.Application) *SectionedList {
 	sl.app = app
+	return sl
+}
+
+// SetTabCaptureDisabled disables Tab/BackTab capture in the list's input handler.
+// Use this when the list is embedded in a dual-column layout where Tab switches columns.
+func (sl *SectionedList) SetTabCaptureDisabled(disabled bool) *SectionedList {
+	sl.tabCaptureDisabled = disabled
 	return sl
 }
 
@@ -249,9 +257,15 @@ func (sl *SectionedList) handleInput(event *tcell.EventKey) *tcell.EventKey {
 		sl.moveUp()
 		return nil
 	case tcell.KeyTab:
+		if sl.tabCaptureDisabled {
+			return event // let parent handle column switch
+		}
 		sl.jumpNextSection()
 		return nil
 	case tcell.KeyBacktab:
+		if sl.tabCaptureDisabled {
+			return event // let parent handle column switch
+		}
 		sl.jumpPrevSection()
 		return nil
 	}

@@ -86,7 +86,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	// ── Logo (top) ──────────────────────────────────────────────────────
 	logo := tview.NewTextView().
 		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft).
+		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
 	logo.SetText(buildLogo())
@@ -109,7 +109,6 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	// ── Adaptive layout with resize ─────────────────────────────────────
-	var currentResult *homeFlexResult
 	buildFn := func(width int) homeFlexResult {
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
@@ -121,20 +120,18 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 			RightItems:   rightItems,
 			OnSelect:     onSelect,
 		})
-		currentResult = &r
+		// Keep HomeView pointers in sync after every rebuild (including resize).
+		if r.Dual != nil {
+			v.dual = r.Dual
+			v.list = r.Dual.left
+		} else {
+			v.dual = nil
+			v.list = r.SingleList
+		}
 		return r
 	}
 
-	initial := adaptiveHomeMount(app, content, buildFn)
-	_ = currentResult // keep in scope for HandleKey closure
-
-	if initial.Dual != nil {
-		v.dual = initial.Dual
-		v.list = initial.Dual.left
-	} else {
-		v.dual = nil
-		v.list = initial.SingleList
-	}
+	adaptiveHomeMount(app, content, buildFn)
 }
 
 func (v *HomeView) Unmount() {
