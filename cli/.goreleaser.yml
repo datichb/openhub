@@ -51,6 +51,7 @@ brews:
     repository:
       owner: datichb
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"
