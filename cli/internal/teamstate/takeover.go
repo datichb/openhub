@@ -214,10 +214,39 @@ func (r *Repo) ReadBrief(project, ticketID string) (string, error) {
 }
 
 // ListBriefs returns all briefs for a project.
+// If project is empty, returns briefs across all projects.
 func (r *Repo) ListBriefs(project string) ([]TakeoverMeta, error) {
-	if _, err := SafeName(project); err != nil {
-		return nil, fmt.Errorf("invalid project name: %w", err)
+	if project != "" {
+		if _, err := SafeName(project); err != nil {
+			return nil, fmt.Errorf("invalid project name: %w", err)
+		}
+		return r.listBriefsForProject(project)
 	}
+	// List all projects
+	projectsDir := filepath.Join(r.path, "projects")
+	entries, err := os.ReadDir(projectsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading projects dir: %w", err)
+	}
+	var all []TakeoverMeta
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		metas, err := r.listBriefsForProject(e.Name())
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, metas...)
+	}
+	return all, nil
+}
+
+// listBriefsForProject returns briefs for a single project directory.
+func (r *Repo) listBriefsForProject(project string) ([]TakeoverMeta, error) {
 	dir := filepath.Join(r.path, "projects", project, "takeover-briefs")
 	entries, err := os.ReadDir(dir)
 	if err != nil {

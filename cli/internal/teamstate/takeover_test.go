@@ -219,6 +219,59 @@ func TestListBriefs(t *testing.T) {
 	}
 }
 
+func TestListBriefs_AllProjects(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	// Create briefs in two different projects
+	for _, project := range []string{"project-alpha", "project-beta"} {
+		projectDir := filepath.Join(dir, "projects", project, "takeover-briefs")
+		os.MkdirAll(projectDir, 0o755)
+
+		brief := &TakeoverBrief{
+			Meta: TakeoverMeta{
+				TicketID:        "tk-" + project,
+				Project:         project,
+				TransferredFrom: "alice",
+				TransferredTo:   "bob",
+				TransferDate:    time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+				Reason:          "transfer",
+			},
+		}
+		data, _ := tomlMarshal(brief)
+		os.WriteFile(filepath.Join(projectDir, "tk-"+project+"_2026-08-01.toml"), data, 0o644)
+	}
+
+	// ListBriefs("") should return briefs from all projects
+	metas, err := repo.ListBriefs("")
+	assert.NoError(t, err)
+	assert.Len(t, metas, 2, "expected briefs from both projects")
+
+	// Verify both projects are represented
+	projects := map[string]bool{}
+	for _, m := range metas {
+		projects[m.Project] = true
+	}
+	assert.True(t, projects["project-alpha"], "should include project-alpha")
+	assert.True(t, projects["project-beta"], "should include project-beta")
+
+	// ListBriefs("project-alpha") should return only that project's briefs
+	metas, err = repo.ListBriefs("project-alpha")
+	assert.NoError(t, err)
+	assert.Len(t, metas, 1)
+	assert.Equal(t, "project-alpha", metas[0].Project)
+}
+
+func TestListBriefs_EmptyRepo(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	// No projects dir at all — should return nil, no error
+	metas, err := repo.ListBriefs("")
+	assert.NoError(t, err)
+	assert.Nil(t, metas)
+}
+
 func TestGenerateRawBrief(t *testing.T) {
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
