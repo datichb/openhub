@@ -36,15 +36,17 @@ type ProjectConfigViewConfig struct {
 type projectConfigLine struct {
 	section string
 	key     string
-	kind    string // "string", "bool", "agents", "section-header", "readonly", "select", "tri-bool"
+	kind    string // "string", "bool", "agents", "section-header", "readonly", "select", "tri-bool", "link"
 	// options holds allowed values for "select" kind fields.
 	options []SelectOption
 	// optionsFunc returns dynamic allowed values.
 	optionsFunc func() []SelectOption
 	// validator holds optional validation rules.
 	validator *FieldValidator
-	get       func(p *domain.Project) string
-	set       func(p *domain.Project, v string)
+	// linkTarget is the view ID to navigate to when kind is "link".
+	linkTarget string
+	get        func(p *domain.Project) string
+	set        func(p *domain.Project, v string)
 	// source returns the resolution source annotation (e.g., "[hub]", "[equipe: enforced]").
 	source func(p *domain.Project) string
 	// locked indicates this field is enforced by the team and cannot be edited.
@@ -223,11 +225,6 @@ func (v *ProjectConfigView) buildLines() {
 		{Label: "active", Value: "active"},
 		{Label: "archived", Value: "archived"},
 	}
-	triBoolOptions := []SelectOption{
-		{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
-		{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
-		{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
-	}
 
 	v.lines = []projectConfigLine{
 		// ── Général ──────────────────────────────────────────────────────────
@@ -297,65 +294,17 @@ func (v *ProjectConfigView) buildLines() {
 				p.TrackerConfig.TicketPattern = val
 			}},
 
-		// ── MCP Overrides ────────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP Services"},
-		// GitLab
-		{section: "MCP", key: "gitlab enabled", kind: "tri-bool", options: triBoolOptions,
-			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gitlab") },
-			set:    v.mcpSetEnabled("gitlab"),
-			source: v.mcpSource("gitlab", "enabled"),
-			locked: v.mcpLocked("gitlab", "enabled")},
-		{section: "MCP", key: "gitlab url", kind: "string",
-			get:    func(p *domain.Project) string { return mcpServiceURL(p, "gitlab") },
-			set:    v.mcpSetURL("gitlab"),
-			source: v.mcpSource("gitlab", "url"),
-			locked: v.mcpLocked("gitlab", "url")},
-		{section: "MCP", key: "gitlab token", kind: "string",
-			get: func(p *domain.Project) string { return mcpServiceToken(p, "gitlab") },
-			set: v.mcpSetToken("gitlab")},
-		{section: "MCP", key: "gitlab write", kind: "tri-bool", options: triBoolOptions,
-			get: func(p *domain.Project) string { return mcpServiceWriteEnabled(p, "gitlab") },
-			set: v.mcpSetWriteEnabled("gitlab")},
-		// Jira
-		{section: "MCP", key: "jira enabled", kind: "tri-bool", options: triBoolOptions,
-			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "jira") },
-			set:    v.mcpSetEnabled("jira"),
-			source: v.mcpSource("jira", "enabled"),
-			locked: v.mcpLocked("jira", "enabled")},
-		{section: "MCP", key: "jira url", kind: "string",
-			get:    func(p *domain.Project) string { return mcpServiceURL(p, "jira") },
-			set:    v.mcpSetURL("jira"),
-			source: v.mcpSource("jira", "url"),
-			locked: v.mcpLocked("jira", "url")},
-		// Figma
-		{section: "MCP", key: "figma enabled", kind: "tri-bool", options: triBoolOptions,
-			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "figma") },
-			set:    v.mcpSetEnabled("figma"),
-			source: v.mcpSource("figma", "enabled"),
-			locked: v.mcpLocked("figma", "enabled")},
-		// GSlides
-		{section: "MCP", key: "gslides enabled", kind: "tri-bool", options: triBoolOptions,
-			get:    func(p *domain.Project) string { return mcpServiceEnabled(p, "gslides") },
-			set:    v.mcpSetEnabled("gslides"),
-			source: v.mcpSource("gslides", "enabled"),
-			locked: v.mcpLocked("gslides", "enabled")},
-		// Team MCP server
-		{section: "MCP", key: "team enabled", kind: "tri-bool", options: triBoolOptions,
-			get: func(p *domain.Project) string { return mcpServiceEnabled(p, "team") },
-			set: v.mcpSetEnabled("team")},
-
-		// ── Agents ───────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Agents"},
-		{section: "Agents", key: "agents", kind: "agents",
-			get: func(p *domain.Project) string { return strings.Join(p.Agents, ", ") },
-			set: func(p *domain.Project, val string) {
-				if val == "" { p.Agents = nil; return }
-				parts := strings.Split(val, ",")
-				p.Agents = p.Agents[:0]
-				for _, a := range parts {
-					if s := strings.TrimSpace(a); s != "" { p.Agents = append(p.Agents, s) }
-				}
-			}},
+		// ── Raccourcis ──────────────────────────────────────────────────────
+		{kind: "section-header", section: i18n.T("tui.settings.section_shortcuts")},
+		{section: i18n.T("tui.settings.section_shortcuts"), key: "mcp_services", kind: "link",
+			linkTarget: "project.mcp",
+			get:        func(_ *domain.Project) string { return "MCP Services..." }},
+		{section: i18n.T("tui.settings.section_shortcuts"), key: "agents", kind: "link",
+			linkTarget: "project.agents",
+			get:        func(_ *domain.Project) string { return "Agents..." }},
+		{section: i18n.T("tui.settings.section_shortcuts"), key: "models", kind: "link",
+			linkTarget: "project.models",
+			get:        func(_ *domain.Project) string { return "Modèles..." }},
 	}
 }
 
@@ -545,18 +494,18 @@ func formatProjectValue(val, kind string) string {
 	case "bool":
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ true%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
 		case "false":
-			return fmt.Sprintf("%s✗ false%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
 		default:
 			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
 		}
 	case "tri-bool":
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.yes"), theme.TagColor)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.no"), theme.TagColor)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
 		default:
 			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
 		}
@@ -571,6 +520,8 @@ func formatProjectValue(val, kind string) string {
 			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
 		}
 		return val
+	case "link":
+		return fmt.Sprintf("%s→ %s%s", theme.ColorTag(theme.AccentHex), val, theme.TagColor)
 	default:
 		if val == "" || val == "(inherit)" {
 			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
@@ -600,6 +551,11 @@ func (v *ProjectConfigView) editByIndex(_ int, item widgets.SectionItem) {
 	}
 
 	switch line.kind {
+	case "link":
+		if line.linkTarget != "" {
+			v.shell.NavigateTo(line.linkTarget)
+		}
+
 	case "bool":
 		v.toggleByRef(ref)
 
@@ -608,8 +564,8 @@ func (v *ProjectConfigView) editByIndex(_ int, item widgets.SectionItem) {
 		if len(opts) == 0 {
 			opts = []SelectOption{
 				{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
-				{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
-				{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
+				{Label: "✓ " + i18n.T("tui.settings.enabled"), Value: "true"},
+				{Label: "✗ " + i18n.T("tui.settings.disabled"), Value: "false"},
 			}
 		}
 		cur := line.get(v.live)

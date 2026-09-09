@@ -59,6 +59,7 @@ type HomeView struct {
 	app     *tview.Application
 	content *tview.Flex
 	list    *widgets.SectionedList
+	dual    *homeDualLayout
 	shell   ShellAccess
 	cfg     HomeViewConfig
 	items   []homeItem
@@ -90,36 +91,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	logo.SetBackgroundColor(theme.BgPanel)
 	logo.SetText(buildLogo())
 
-	// ── Interactive list (middle) — SectionedList with auto-skip headers ─
-	v.list = widgets.NewSectionedList()
-	v.list.SetApp(app)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(0, 0, 3, 3)
-
-	var sectionItems []widgets.SectionItem
-	for idx, item := range v.items {
-		if item.Icon == "─" {
-			sectionItems = append(sectionItems, widgets.SectionItem{
-				MainText: item.Label,
-				IsHeader: true,
-			})
-		} else {
-			sectionItems = append(sectionItems, widgets.SectionItem{
-				MainText:      fmt.Sprintf("%s  %s", item.Icon, item.Label),
-				SecondaryText: item.Desc,
-				Reference:     idx,
-			})
-		}
-	}
-	v.list.SetItems(sectionItems)
-
-	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-		if idx, ok := item.Reference.(int); ok {
-			v.executeItem(idx)
-		}
-	})
-
-	// ── Shortcuts footer (bottom) ───────────────────────────────────────
+	// ── Footer ──────────────────────────────────────────────────────────
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
@@ -127,30 +99,49 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	footer.SetBackgroundColor(theme.BgPanel)
 	footer.SetText(buildShortcutsFooter())
 
-	// ── Layout: centered column ─────────────────────────────────────────
-	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	innerFlex.SetBackgroundColor(theme.BgPanel)
-	innerFlex.AddItem(logo, 9, 0, false)
-	innerFlex.AddItem(v.list, 0, 1, true)
-	innerFlex.AddItem(footer, 4, 0, false)
+	// ── Split items for dual-column: left = Teams+System, right = Projects ──
+	leftItems, rightItems := v.splitItems()
 
-	// Horizontal centering
-	hCenter := tview.NewFlex()
-	hCenter.SetBackgroundColor(theme.BgPanel)
-	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	hCenter.AddItem(innerFlex, 72, 0, true)
-	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	onSelect := func(_ int, item widgets.SectionItem) {
+		if ref, ok := item.Reference.(int); ok {
+			v.executeItem(ref)
+		}
+	}
 
-	// Vertical centering: equal top/bottom spacers
-	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	content.AddItem(hCenter, 0, 3, true)
-	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	// ── Adaptive layout with resize ─────────────────────────────────────
+	var currentResult *homeFlexResult
+	buildFn := func(width int) homeFlexResult {
+		r := buildHomeLayout(width, homeFlexConfig{
+			App:          app,
+			Header:       logo,
+			HeaderHeight: 9,
+			Footer:       footer,
+			FooterHeight: 4,
+			LeftItems:    leftItems,
+			RightItems:   rightItems,
+			OnSelect:     onSelect,
+		})
+		currentResult = &r
+		return r
+	}
+
+	initial := adaptiveHomeMount(app, content, buildFn)
+	_ = currentResult // keep in scope for HandleKey closure
+
+	if initial.Dual != nil {
+		v.dual = initial.Dual
+		v.list = initial.Dual.left
+	} else {
+		v.dual = nil
+		v.list = initial.SingleList
+	}
 }
 
 func (v *HomeView) Unmount() {
 	v.app = nil
 	v.content = nil
 	v.list = nil
+	v.dual = nil
 }
 
 func (v *HomeView) StatusHints() string {
@@ -168,9 +159,20 @@ func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
+	// Dual-column navigation (h/l/Tab)
+	if v.dual != nil {
+		if consumed := v.dual.HandleKey(event); consumed == nil {
+			return nil
+		}
+	}
+
 	switch event.Key() {
 	case tcell.KeyEnter:
-		if idx, item, ok := v.list.CurrentItem(); ok && idx >= 0 {
+		active := v.list
+		if v.dual != nil {
+			active = v.dual.activeList()
+		}
+		if _, item, ok := active.CurrentItem(); ok {
 			if ref, refOk := item.Reference.(int); refOk {
 				v.executeItem(ref)
 			}
@@ -256,6 +258,48 @@ func (v *HomeView) buildItems() []homeItem {
 	)
 
 	return items
+}
+
+// splitItems distributes home items into left/right columns for dual mode.
+// Left: Équipes + Système. Right: Projets.
+func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
+	// Find the "Projets" section boundary
+	projIdx := -1
+	sysIdx := -1
+	for i, it := range v.items {
+		if it.Icon == "─" && it.Label == "Projets" {
+			projIdx = i
+		}
+		if it.Icon == "─" && it.Label == "Système" {
+			sysIdx = i
+		}
+	}
+
+	// Left: everything except Projets section
+	// Right: Projets section
+	for i, it := range v.items {
+		si := homeItemToSectionItem(it, i)
+		if projIdx >= 0 && i >= projIdx && (sysIdx < 0 || i < sysIdx) {
+			right = append(right, si)
+		} else {
+			left = append(left, si)
+		}
+	}
+	return
+}
+
+func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
+	if it.Icon == "─" {
+		return widgets.SectionItem{
+			MainText: it.Label,
+			IsHeader: true,
+		}
+	}
+	return widgets.SectionItem{
+		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+		SecondaryText: it.Desc,
+		Reference:     idx,
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

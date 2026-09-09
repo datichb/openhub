@@ -40,6 +40,7 @@ type ProjectModeView struct {
 	shell       ShellAccess
 	app         *tview.Application
 	list        *widgets.SectionedList
+	dual        *homeDualLayout
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 }
@@ -126,36 +127,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		secondary, reset,
 		muted, v.project.Path, reset,
 	))
-	headerHeight := bannerHeight(v.project.Name, 100) + 5 // banner + subtitle(1) + spacing(2) + metadata(1) + padding(1)
-
-	// ── Interactive list — SectionedList with auto-skip headers ──────────
-	v.list = widgets.NewSectionedList()
-	v.list.SetApp(app)
-	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorderPadding(0, 0, 3, 3)
-
-	var sectionItems []widgets.SectionItem
-	for idx, it := range v.items {
-		if it.Icon == "─" {
-			sectionItems = append(sectionItems, widgets.SectionItem{
-				MainText: it.Label,
-				IsHeader: true,
-			})
-		} else {
-			sectionItems = append(sectionItems, widgets.SectionItem{
-				MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
-				SecondaryText: it.Desc,
-				Reference:     idx,
-			})
-		}
-	}
-	v.list.SetItems(sectionItems)
-
-	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-		if idx, ok := item.Reference.(int); ok {
-			v.executeItem(idx)
-		}
-	})
+	headerHeight := bannerHeight(v.project.Name, 100) + 5
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	accent := theme.ColorTag(theme.AccentHex)
@@ -168,30 +140,45 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		muted, accent, reset, accent, reset, accent, reset,
 	))
 
-	// ── Layout: centered column ─────────────────────────────────────────
-	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	innerFlex.SetBackgroundColor(theme.BgPanel)
-	innerFlex.AddItem(header, headerHeight, 0, false)
-	innerFlex.AddItem(v.list, 0, 1, true)
-	innerFlex.AddItem(footer, 4, 0, false)
+	// ── Split items for dual-column: left = Sessions+Board, right = Config+Team+Hub ──
+	leftItems, rightItems := v.splitItems()
 
-	// Horizontal centering
-	hCenter := tview.NewFlex()
-	hCenter.SetBackgroundColor(theme.BgPanel)
-	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	hCenter.AddItem(innerFlex, 72, 0, true)
-	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	onSelect := func(_ int, item widgets.SectionItem) {
+		if idx, ok := item.Reference.(int); ok {
+			v.executeItem(idx)
+		}
+	}
 
-	// Vertical centering: equal top/bottom spacers
-	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	content.AddItem(hCenter, 0, 3, true)
-	content.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	// ── Adaptive layout with resize ─────────────────────────────────────
+	buildFn := func(width int) homeFlexResult {
+		return buildHomeLayout(width, homeFlexConfig{
+			App:          app,
+			Header:       header,
+			HeaderHeight: headerHeight,
+			Footer:       footer,
+			FooterHeight: 4,
+			LeftItems:    leftItems,
+			RightItems:   rightItems,
+			OnSelect:     onSelect,
+		})
+	}
+
+	initial := adaptiveHomeMount(app, content, buildFn)
+
+	if initial.Dual != nil {
+		v.dual = initial.Dual
+		v.list = initial.Dual.left
+	} else {
+		v.dual = nil
+		v.list = initial.SingleList
+	}
 }
 
 // Unmount cleans up resources.
 func (v *ProjectModeView) Unmount() {
 	v.app = nil
 	v.list = nil
+	v.dual = nil
 }
 
 // HandleKey processes view-specific key events.
@@ -200,9 +187,20 @@ func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
+	// Dual-column navigation (h/l/Tab)
+	if v.dual != nil {
+		if consumed := v.dual.HandleKey(event); consumed == nil {
+			return nil
+		}
+	}
+
 	switch event.Key() {
 	case tcell.KeyEnter:
-		if _, item, ok := v.list.CurrentItem(); ok {
+		active := v.list
+		if v.dual != nil {
+			active = v.dual.activeList()
+		}
+		if _, item, ok := active.CurrentItem(); ok {
 			if idx, refOk := item.Reference.(int); refOk {
 				v.executeItem(idx)
 			}
@@ -251,13 +249,15 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "◉", Label: "Audit", Desc: "Analyser le code (sécurité, perf, archi)", Action: launch("auditor")},
 		{Icon: "◎", Label: "Review", Desc: "Code review du projet", Action: launch("reviewer")},
 		{Icon: "◈", Label: "Debug", Desc: "Session de debug", Action: launch("")},
-		// ── Projet section ──
-		{Icon: "─", Label: "Projet"},
+		// ── Board section ──
+		{Icon: "─", Label: "Board"},
 		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet", Action: navigate("board")},
 		{Icon: "⊟", Label: "Métriques", Desc: "Statistiques d'utilisation", Action: navigate("metrics")},
+		{Icon: "⊝", Label: "Statut", Desc: "Santé et informations du projet", Action: navigate("status")},
+		// ── Configuration section ──
+		{Icon: "─", Label: "Configuration"},
 		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("project.config")},
 		{Icon: "⊜", Label: "Worktrees", Desc: "Gérer les git worktrees", Action: navigate("worktrees")},
-		{Icon: "⊝", Label: "Statut", Desc: "Santé et informations du projet", Action: navigate("status")},
 	}
 
 	// ── Team items (conditional) ────────────────────────────────────────
@@ -283,6 +283,43 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	})
 
 	return items
+}
+
+// splitItems distributes project mode items into left/right columns for dual mode.
+// Left: Sessions + Board. Right: Configuration + Équipe + Mode Hub.
+func (v *ProjectModeView) splitItems() (left, right []widgets.SectionItem) {
+	// Find the "Configuration" section boundary
+	configIdx := -1
+	for i, it := range v.items {
+		if it.Icon == "─" && it.Label == "Configuration" {
+			configIdx = i
+			break
+		}
+	}
+
+	for i, it := range v.items {
+		si := projectItemToSectionItem(it, i)
+		if configIdx >= 0 && i >= configIdx {
+			right = append(right, si)
+		} else {
+			left = append(left, si)
+		}
+	}
+	return
+}
+
+func projectItemToSectionItem(it projectModeItem, idx int) widgets.SectionItem {
+	if it.Icon == "─" {
+		return widgets.SectionItem{
+			MainText: it.Label,
+			IsHeader: true,
+		}
+	}
+	return widgets.SectionItem{
+		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+		SecondaryText: it.Desc,
+		Reference:     idx,
+	}
 }
 
 // ContextCommands returns contextual commands for the omnibar.

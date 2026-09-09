@@ -494,6 +494,53 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return a.Secrets.Set(ctx, key, value)
 			},
 		}),
+		// Team sub-pages
+		views.NewTeamMCPView(views.TeamMCPViewConfig{
+			ResolveTeam:  makeResolveTeamFunc(a),
+			GetMCPConfig: func() config.MCPConfig { return a.Config.MCP },
+			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+				if !tc.Enabled {
+					return fmt.Errorf("équipe non configurée")
+				}
+				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+				return repo.SaveConfig(ctx, cfg)
+			},
+			GetHubConfig: func() *config.Config { return a.Config },
+			CheckSecret: func(ctx context.Context, key string) (bool, string) {
+				if a.Secrets == nil {
+					return false, ""
+				}
+				val, err := a.Secrets.Get(ctx, key)
+				if err != nil || val == "" {
+					return false, ""
+				}
+				masked := "****"
+				if len(val) > 4 {
+					masked = "****" + val[len(val)-4:]
+				}
+				return true, masked
+			},
+			SetSecret: func(ctx context.Context, key, value string) error {
+				if a.Secrets == nil {
+					return fmt.Errorf("keychain non disponible")
+				}
+				return a.Secrets.Set(ctx, key, value)
+			},
+		}),
+		views.NewTeamModelsView(views.TeamModelsViewConfig{
+			ResolveTeam: makeResolveTeamFunc(a),
+			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+				if !tc.Enabled {
+					return fmt.Errorf("équipe non configurée")
+				}
+				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+				return repo.SaveConfig(ctx, cfg)
+			},
+		}),
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{
 			GetConfig: func() *config.Config {
@@ -567,6 +614,54 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					"documentarian", "onboarder", "orchestrator", "orchestrator-dev",
 					"pathfinder", "planner", "reviewer",
 				}
+			},
+		}),
+		// Project sub-pages
+		views.NewProjectMCPView(views.ProjectMCPViewConfig{
+			GetProject: func() *domain.Project {
+				p, _ := resolveActiveProject(a)
+				if p == nil {
+					return nil
+				}
+				cp := *p
+				return &cp
+			},
+			SaveProject: func(ctx context.Context, p *domain.Project) error {
+				return a.Projects.Update(ctx, p)
+			},
+		}),
+		views.NewProjectAgentsView(views.ProjectAgentsViewConfig{
+			GetProject: func() *domain.Project {
+				p, _ := resolveActiveProject(a)
+				if p == nil {
+					return nil
+				}
+				cp := *p
+				return &cp
+			},
+			SaveProject: func(ctx context.Context, p *domain.Project) error {
+				return a.Projects.Update(ctx, p)
+			},
+			AllAgents: func() []string {
+				return []string{
+					"auditor", "auditor-subagent", "debugger", "designer",
+					"developer", "developer-migrator", "developer-refactor",
+					"documentarian", "onboarder", "orchestrator", "orchestrator-dev",
+					"pathfinder", "planner", "reviewer",
+				}
+			},
+		}),
+		views.NewProjectModelsView(views.ProjectModelsViewConfig{
+			GetProject: func() *domain.Project {
+				p, _ := resolveActiveProject(a)
+				if p == nil {
+					return nil
+				}
+				cp := *p
+				return &cp
+			},
+			SaveProject: func(ctx context.Context, p *domain.Project) error {
+				return a.Projects.Update(ctx, p)
 			},
 		}),
 		// Secrets view

@@ -254,8 +254,8 @@ func (v *SettingsView) buildLines() {
 	}
 	triBoolOptions := []SelectOption{
 		{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(hérité)"},
-		{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
-		{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
+		{Label: "✓ " + i18n.T("tui.settings.enabled"), Value: "true"},
+		{Label: "✗ " + i18n.T("tui.settings.disabled"), Value: "false"},
 	}
 
 	v.lines = []configLine{
@@ -483,9 +483,9 @@ func (v *SettingsView) formatValue(val string, line configLine, ctx context.Cont
 	case "bool":
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ true%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
 		case "false":
-			return fmt.Sprintf("%s✗ false%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
 		default:
 			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
 		}
@@ -493,9 +493,9 @@ func (v *SettingsView) formatValue(val string, line configLine, ctx context.Cont
 	case "tri-bool":
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.yes"), theme.TagColor)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.no"), theme.TagColor)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
 		default:
 			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
 		}

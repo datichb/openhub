@@ -996,6 +996,8 @@
   "tui.settings.inherited": "inherited",
   "tui.settings.yes": "yes",
   "tui.settings.no": "no",
+  "tui.settings.enabled": "enabled",
+  "tui.settings.disabled": "disabled",
   "tui.settings.empty": "empty",
   "tui.settings.not_configured": "not configured",
   "tui.settings.absent": "absent",
