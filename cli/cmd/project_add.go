@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/huh"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
@@ -19,8 +18,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -76,18 +75,18 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	// ── Shared state across wizard steps ──
 	var (
-		name           string
-		path           string
-		language       string
-		absPath        string
-		useCustom      bool
-		provider       string
-		model          string
-		apiKey         string
-		agents         []string
-		mcpServices    []string
-		projectTeamID  *string
-		doDeploy       bool
+		name          string
+		path          string
+		language      string
+		absPath       string
+		useCustom     bool
+		provider      string
+		model         string
+		apiKey        string
+		agents        []string
+		mcpServices   []string
+		projectTeamID *string
+		doDeploy      bool
 	)
 
 	hubProvider := a.Config.Opencode.DefaultProvider
@@ -398,19 +397,19 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	id := generateProjectID(name)
 	now := time.Now()
 	p := &domain.Project{
-		ID:         id,
-		Name:       name,
-		Path:       absPath,
-		Language:   language,
-		Provider:   provider,
-		Model:      model,
-		Agents:     agents,
-		MCP:        mcpServices,
-		MCPConfig:  buildProjectMCPConfig(mcpServices),
-		TeamID:     projectTeamID,
-		Status:     domain.ProjectStatusActive,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:        id,
+		Name:      name,
+		Path:      absPath,
+		Language:  language,
+		Provider:  provider,
+		Model:     model,
+		Agents:    agents,
+		MCP:       mcpServices,
+		MCPConfig: buildProjectMCPConfig(mcpServices),
+		TeamID:    projectTeamID,
+		Status:    domain.ProjectStatusActive,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := a.Projects.Create(ctx, p); err != nil {
@@ -480,63 +479,6 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 	}))
 
 	return nil
-}
-
-// ── Wizard sub-steps (kept for reuse by project_configure.go) ──
-
-// wizardAgents dynamically lists available agents from the hub agents/ dir and lets the user pick.
-func wizardAgents() ([]string, error) {
-	hubDir := findHubDir()
-	if hubDir == "" {
-		return nil, nil // no hub → skip agent selection
-	}
-
-	agentsDir := filepath.Join(hubDir, "agents")
-	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
-		return nil, nil
-	}
-
-	// Discover agents from .md files
-	var available []string
-	_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		if filepath.Ext(path) == ".md" {
-			name := strings.TrimSuffix(d.Name(), ".md")
-			available = append(available, name)
-		}
-		return nil
-	})
-
-	if len(available) == 0 {
-		return nil, nil
-	}
-
-	// Build multi-select options (all selected by default)
-	options := make([]huh.Option[string], len(available))
-	for i, name := range available {
-		options[i] = huh.NewOption(name, name)
-	}
-
-	var selected []string
-	// Default: all selected
-	selected = append(selected, available...)
-
-	form := theme.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title(i18n.T("form.project.agents_select")).
-				Description(i18n.Tf("form.project.agents_select_desc", len(available))).
-				Options(options...).
-				Value(&selected),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return nil, err
-	}
-
-	return selected, nil
 }
 
 // discoverAgents returns the list of available agent names from the hub agents/ directory.

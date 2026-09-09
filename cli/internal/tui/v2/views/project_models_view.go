@@ -140,8 +140,7 @@ func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil {
 		return event
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if _, item, ok := v.list.CurrentItem(); ok {
 			v.editByItem(item)
 		}

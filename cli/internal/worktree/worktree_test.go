@@ -348,4 +348,3 @@ func runGit(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v: %s", args, string(out))
 }
-

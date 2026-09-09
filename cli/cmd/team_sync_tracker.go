@@ -23,7 +23,6 @@ var teamSyncTrackerCmd = &cobra.Command{
 	RunE:  runSyncTracker,
 }
 
-
 func init() {
 	teamCmd.AddCommand(teamSyncTrackerCmd)
 }

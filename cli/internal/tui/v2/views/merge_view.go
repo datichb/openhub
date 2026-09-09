@@ -18,13 +18,13 @@ import (
 
 // MergeBranch represents a completed branch ready for merge consideration.
 type MergeBranch struct {
-	TicketID     string
-	Branch       string
-	IsBeads      bool   // true = auto-mergeable; false = external (report only)
-	DiffStat     string // git diff --stat summary (pre-computed)
-	CommitCount  int    // number of commits ahead of base
-	Duration     time.Duration
-	Status       string // "pending", "merged", "skipped", "conflict"
+	TicketID    string
+	Branch      string
+	IsBeads     bool   // true = auto-mergeable; false = external (report only)
+	DiffStat    string // git diff --stat summary (pre-computed)
+	CommitCount int    // number of commits ahead of base
+	Duration    time.Duration
+	Status      string // "pending", "merged", "skipped", "conflict"
 }
 
 // MergeViewConfig configures the merge view.
@@ -247,7 +247,7 @@ func (v *MergeView) updateDetail(b MergeBranch) {
 		return
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s — %s\n\n", b.TicketID, theme.TagReset, b.Branch))
+	fmt.Fprintf(&sb, "\n  [::b]%s%s — %s\n\n", b.TicketID, theme.TagReset, b.Branch)
 
 	statusColor := theme.TextSecondaryHex
 	switch b.Status {
@@ -258,25 +258,25 @@ func (v *MergeView) updateDetail(b MergeBranch) {
 	case "skipped":
 		statusColor = theme.TextMutedHex
 	}
-	sb.WriteString(fmt.Sprintf("  %sStatut:%s    %s%s%s\n",
+	fmt.Fprintf(&sb, "  %sStatut:%s    %s%s%s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
-		theme.ColorTag(statusColor), b.Status, theme.TagColor))
+		theme.ColorTag(statusColor), b.Status, theme.TagColor)
 
 	if b.IsBeads {
-		sb.WriteString(fmt.Sprintf("  %sType:%s      beads (auto-mergeable)\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sType:%s      beads (auto-mergeable)\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 	} else {
-		sb.WriteString(fmt.Sprintf("  %sType:%s      external (merge manuel via MR/PR)\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sType:%s      external (merge manuel via MR/PR)\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 	}
 
-	sb.WriteString(fmt.Sprintf("  %sCommits:%s   %d\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, b.CommitCount))
+	fmt.Fprintf(&sb, "  %sCommits:%s   %d\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, b.CommitCount)
 
 	if b.DiffStat != "" {
-		sb.WriteString(fmt.Sprintf("\n  %sDiff:%s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "\n  %sDiff:%s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 		for _, line := range strings.Split(b.DiffStat, "\n") {
-			sb.WriteString(fmt.Sprintf("    %s\n", line))
+			fmt.Fprintf(&sb, "    %s\n", line)
 		}
 	}
 

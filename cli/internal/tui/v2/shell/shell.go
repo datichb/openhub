@@ -14,22 +14,22 @@
 //     so the inner QueueUpdateDraw blocks forever → hard TUI freeze.
 //
 //     ❌ DEADLOCK:
-//       app.QueueUpdateDraw(func() {
-//           app.QueueUpdateDraw(func() { ... })  // blocks forever
-//       })
+//     app.QueueUpdateDraw(func() {
+//     app.QueueUpdateDraw(func() { ... })  // blocks forever
+//     })
 //
 //     ✅ CORRECT (if you must show a toast from inside a callback):
-//       app.QueueUpdateDraw(func() {
-//           shell.ShowToast(...)  // direct call — ShowToast does pages.AddPage, no QueueUpdateDraw
-//       })
+//     app.QueueUpdateDraw(func() {
+//     shell.ShowToast(...)  // direct call — ShowToast does pages.AddPage, no QueueUpdateDraw
+//     })
 //
 //  2. NEVER call QueueUpdateDraw from inside a tview InputCapture / SetSelectedFunc
 //     handler. These handlers run on the event loop — same deadlock as above.
 //
 //     ✅ CORRECT pattern for "show something after a handler":
-//       go func() {
-//           app.QueueUpdateDraw(func() { ... })  // goroutine blocks OUTSIDE the event loop
-//       }()
+//     go func() {
+//     app.QueueUpdateDraw(func() { ... })  // goroutine blocks OUTSIDE the event loop
+//     }()
 //
 //  3. When multiple sequential UI operations are needed after a handler, use a
 //     single goroutine with time.Sleep(50ms) + sequential QueueUpdateDraw calls.
@@ -37,11 +37,11 @@
 //     cause two page mutations in the same draw cycle → hard freeze.
 //
 //     ✅ CORRECT sequential pattern:
-//       go func() {
-//           time.Sleep(50 * time.Millisecond) // let event loop finish the handler cycle
-//           app.QueueUpdateDraw(func() { ShowToast("step 1") }) // blocks until drawn
-//           app.QueueUpdateDraw(func() { ShowNextModal() })     // blocks until drawn
-//       }()
+//     go func() {
+//     time.Sleep(50 * time.Millisecond) // let event loop finish the handler cycle
+//     app.QueueUpdateDraw(func() { ShowToast("step 1") }) // blocks until drawn
+//     app.QueueUpdateDraw(func() { ShowNextModal() })     // blocks until drawn
+//     }()
 package shell
 
 import (
@@ -745,12 +745,12 @@ func multiSummary(selected []string, options []views.SelectOption) string {
 			labels = append(labels, l)
 		}
 	}
-	const max = 2
+	const maxDisplay = 2
 	var summary string
-	if len(labels) <= max {
+	if len(labels) <= maxDisplay {
 		summary = strings.Join(labels, ", ")
 	} else {
-		summary = strings.Join(labels[:max], ", ") + fmt.Sprintf(", +%d", len(labels)-max)
+		summary = strings.Join(labels[:maxDisplay], ", ") + fmt.Sprintf(", +%d", len(labels)-maxDisplay)
 	}
 	return summary + " ⏎"
 }

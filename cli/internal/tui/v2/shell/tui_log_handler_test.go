@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 
@@ -10,10 +11,10 @@ import (
 func TestTUILogHandler_Enabled(t *testing.T) {
 	h := NewTUILogHandler(nil, nil, slog.LevelWarn)
 
-	assert.False(t, h.Enabled(nil, slog.LevelDebug))
-	assert.False(t, h.Enabled(nil, slog.LevelInfo))
-	assert.True(t, h.Enabled(nil, slog.LevelWarn))
-	assert.True(t, h.Enabled(nil, slog.LevelError))
+	assert.False(t, h.Enabled(context.TODO(), slog.LevelDebug))
+	assert.False(t, h.Enabled(context.TODO(), slog.LevelInfo))
+	assert.True(t, h.Enabled(context.TODO(), slog.LevelWarn))
+	assert.True(t, h.Enabled(context.TODO(), slog.LevelError))
 }
 
 func TestTUILogHandler_Handle_PersistsToStore(t *testing.T) {

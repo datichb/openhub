@@ -6,8 +6,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -127,7 +127,7 @@ func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 	v.briefs = briefs
 
 	if len(briefs) == 0 {
-		v.list.AddItem("  Aucun takeover brief", "  Les briefs sont créés lors des transferts de tickets", 0, nil)
+		v.list.AddItem("  Aucun takeover brief", i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
 		return
 	}
 

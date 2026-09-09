@@ -161,28 +161,28 @@ func (v *MetricsView) buildAgentsText() string {
 	if scopeLabel != "" {
 		title = fmt.Sprintf("Télémétrie agents · %s", scopeLabel)
 	}
-	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", title, theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	if len(metrics) == 0 {
-		sb.WriteString(fmt.Sprintf("  %sAucune donnée d'agent disponible.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sAucune donnée d'agent disponible.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 	} else {
 		// Table header
-		sb.WriteString(fmt.Sprintf("  %s%-18s %6s %6s %8s %10s %10s %8s%s\n",
+		fmt.Fprintf(&sb, "  %s%-18s %6s %6s %8s %10s %10s %8s%s\n",
 			theme.ColorTag(theme.TextSecondaryHex),
 			"Agent", "Runs", "Succ%", "Durée", "Tokens In", "Tokens Out", "Coût",
-			theme.TagColor))
-		sb.WriteString(fmt.Sprintf("  %s%s%s\n",
+			theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n",
 			theme.ColorTag(theme.TextSecondaryHex),
 			strings.Repeat("─", 76),
-			theme.TagColor))
+			theme.TagColor)
 
 		for _, m := range metrics {
 			name := m.AgentName
 			if len(name) > 18 {
 				name = name[:15] + "..."
 			}
-			sb.WriteString(fmt.Sprintf("  %-18s %6d %5.0f%% %6.1fs %10s %10s   $%.2f\n",
+			fmt.Fprintf(&sb, "  %-18s %6d %5.0f%% %6.1fs %10s %10s   $%.2f\n",
 				name,
 				m.TotalRuns,
 				m.SuccessRate,
@@ -190,12 +190,12 @@ func (v *MetricsView) buildAgentsText() string {
 				formatTokens(m.TotalTokensIn),
 				formatTokens(m.TotalTokensOut),
 				m.TotalCostUSD,
-			))
+			)
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [0] tout ───%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+	fmt.Fprintf(&sb, "\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [0] tout ───%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 
 	return sb.String()
 }
@@ -249,58 +249,58 @@ func (v *MetricsView) buildUsageText() string {
 	if scopeLabel != "" {
 		title = fmt.Sprintf("Métriques · %s — %s", scopeLabel, periodLabel)
 	}
-	sb.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", title, theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	// Main stats
-	sb.WriteString(fmt.Sprintf("  %sSessions :%s          %d\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalSessions))
-	sb.WriteString(fmt.Sprintf("  %sTokens in :%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensIn)))
-	sb.WriteString(fmt.Sprintf("  %sTokens out :%s        %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensOut)))
+	fmt.Fprintf(&sb, "  %sSessions :%s          %d\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalSessions)
+	fmt.Fprintf(&sb, "  %sTokens in :%s         %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensIn))
+	fmt.Fprintf(&sb, "  %sTokens out :%s        %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensOut))
 
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
-		sb.WriteString(fmt.Sprintf("  %sCache ratio :%s       %.0f%%\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, cacheRatio))
+		fmt.Fprintf(&sb, "  %sCache ratio :%s       %.0f%%\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, cacheRatio)
 	}
 
 	if stats.TotalCost > 0 {
-		sb.WriteString(fmt.Sprintf("  %sCoût estimé :%s      $%.2f\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalCost))
+		fmt.Fprintf(&sb, "  %sCoût estimé :%s      $%.2f\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalCost)
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  %s─── Période: [7] semaine · [3] mois · [0] tout ───%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+	fmt.Fprintf(&sb, "\n  %s─── Période: [7] semaine · [3] mois · [0] tout ───%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 
 	// Optimization suggestions
-	sb.WriteString(fmt.Sprintf("\n  [::b]Suggestions%s\n\n", theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]Suggestions%s\n\n", theme.TagReset)
 
 	hasSuggestions := false
 	if stats.TotalTokensIn > 100_000 {
-		sb.WriteString(fmt.Sprintf("  %s•%s Tokens in élevés (%s) — pensez au pattern RTK pour réduire le contexte\n",
-			theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(stats.TotalTokensIn)))
+		fmt.Fprintf(&sb, "  %s•%s Tokens in élevés (%s) — pensez au pattern RTK pour réduire le contexte\n",
+			theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(stats.TotalTokensIn))
 		hasSuggestions = true
 	}
 	if stats.TotalSessions > 10 && stats.TotalTokensOut > 0 {
 		avgOut := stats.TotalTokensOut / int64(stats.TotalSessions)
 		if avgOut > 5000 {
-			sb.WriteString(fmt.Sprintf("  %s•%s Output moyen élevé (%s/session) — des réponses plus concises réduisent les coûts\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(avgOut)))
+			fmt.Fprintf(&sb, "  %s•%s Output moyen élevé (%s/session) — des réponses plus concises réduisent les coûts\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(avgOut))
 			hasSuggestions = true
 		}
 	}
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
 		if cacheRatio < 30 {
-			sb.WriteString(fmt.Sprintf("  %s•%s Cache ratio faible (%.0f%%) — activez la compaction pour améliorer le cache\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, cacheRatio))
+			fmt.Fprintf(&sb, "  %s•%s Cache ratio faible (%.0f%%) — activez la compaction pour améliorer le cache\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, cacheRatio)
 			hasSuggestions = true
 		}
 	}
 	if !hasSuggestions {
-		sb.WriteString(fmt.Sprintf("  %s✓ Aucune suggestion — utilisation optimale%s\n",
-			"[green]", "[-]"))
+		fmt.Fprintf(&sb, "  %s✓ Aucune suggestion — utilisation optimale%s\n",
+			"[green]", "[-]")
 	}
 
 	return sb.String()

@@ -127,16 +127,12 @@ func (s *InlineSelect) HasFocus() bool {
 
 // Draw renders the inline select.
 func (s *InlineSelect) Draw(screen tcell.Screen) {
-	s.Box.DrawForSubclass(screen, s)
+	s.DrawForSubclass(screen, s)
 	x, y, width, _ := s.GetInnerRect()
 
 	// Draw label on the first line
 	if s.label != "" {
 		labelStyle := tcell.StyleDefault.Background(s.bgColor).Foreground(s.labelColor)
-		lw := s.labelWidth
-		if lw == 0 {
-			lw = len(s.label) + 1
-		}
 		for i, ch := range s.label {
 			if i >= width {
 				break

@@ -10,13 +10,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-
 // buildCommands constructs the flat command registry for the omnibar.
 func buildCommands(a *app.App) []shell.Command {
 	// Mode shortcuts for readability (ADR-032 Phase 3)
 	modeSession := []views.Mode{views.ModeProject, views.ModeTeam} // sessions need a project, available from team via selection
 	modeProject := []views.Mode{views.ModeProject}                 // project-scoped only
-	modeTeam    := []views.Mode{views.ModeTeam}                    // team-scoped only
+	modeTeam := []views.Mode{views.ModeTeam}                       // team-scoped only
 	// nil = global (visible in all modes)
 
 	commands := []shell.Command{
@@ -473,102 +472,102 @@ func buildCommands(a *app.App) []shell.Command {
 	// ── Team commands — only registered when a team is configured (ADR-032) ──
 	hasTeam := a.Config.ActiveTeam().StateRepo != ""
 	if hasTeam {
-	commands = append(commands,
-		shell.Command{
-			ID:          "team-detail",
-			Label:       i18n.T("tui.team.detail"),
-			Aliases:     []string{"tracker", "sync", "team config", "team detail"},
-			Description: i18n.T("tui.team.detail.desc"),
-			Category:    i18n.T("tui.category.configuration"),
-			Priority:    48,
-			ViewID:      "team.detail",
-			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.board",
-			Label:       i18n.T("tui.team.board"),
-			Aliases:     []string{"team board", "team kanban", "equipe board"},
-			Description: i18n.T("tui.team.board.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    70,
-			ViewID:      "team.board",
-			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.status",
-			Label:       i18n.T("tui.team.status"),
-			Aliases:     []string{"team stat", "status team"},
-			Description: i18n.T("tui.team.status.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    70,
-			ViewID:      "team.status",
-			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.activity",
-			Label:       i18n.T("tui.team.activity"),
-			Aliases:     []string{"activite", "feed", "activity"},
-			Description: i18n.T("tui.team.activity.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    65,
-			ViewID:      "team.activity",
-			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.briefs",
-			Label:       i18n.T("tui.team.briefs"),
-			Aliases:     []string{"takeover", "briefs", "reprises"},
-			Description: i18n.T("tui.team.briefs.desc"),
+		commands = append(commands,
+			shell.Command{
+				ID:          "team-detail",
+				Label:       i18n.T("tui.team.detail"),
+				Aliases:     []string{"tracker", "sync", "team config", "team detail"},
+				Description: i18n.T("tui.team.detail.desc"),
+				Category:    i18n.T("tui.category.configuration"),
+				Priority:    48,
+				ViewID:      "team.detail",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.board",
+				Label:       i18n.T("tui.team.board"),
+				Aliases:     []string{"team board", "team kanban", "equipe board"},
+				Description: i18n.T("tui.team.board.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    70,
+				ViewID:      "team.board",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.status",
+				Label:       i18n.T("tui.team.status"),
+				Aliases:     []string{"team stat", "status team"},
+				Description: i18n.T("tui.team.status.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    70,
+				ViewID:      "team.status",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.activity",
+				Label:       i18n.T("tui.team.activity"),
+				Aliases:     []string{"activite", "feed", "activity"}, //nolint:misspell // French search alias
+				Description: i18n.T("tui.team.activity.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    65,
+				ViewID:      "team.activity",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.briefs",
+				Label:       i18n.T("tui.team.briefs"),
+				Aliases:     []string{"takeover", "briefs", "reprises"},
+				Description: i18n.T("tui.team.briefs.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    60,
+				ViewID:      "team.briefs",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.patterns",
+				Label:       i18n.T("tui.team.patterns"),
+				Aliases:     []string{"pat", "patterns"},
+				Description: i18n.T("tui.team.patterns.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    50,
+				ViewID:      "team.patterns",
+				Modes:       modeTeam,
+			},
+			shell.Command{
+				ID:          "team.policies",
+				Label:       i18n.T("tui.team.policies"),
+				Aliases:     []string{"pol", "rules", "policies"},
+				Description: i18n.T("tui.team.policies.desc"),
+				Category:    i18n.T("tui.category.team"),
+				Priority:    50,
+				ViewID:      "team.policies",
+				Modes:       modeTeam,
+			},
+		)
+
+		// Sync tracker (team-only action)
+		commands = append(commands, shell.Command{
+			ID:          "team.sync",
+			Label:       "Sync Tracker",
+			Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
+			Description: "Synchroniser les claims avec le tracker externe",
 			Category:    i18n.T("tui.category.team"),
 			Priority:    60,
-			ViewID:      "team.briefs",
+			Action:      actionSyncTracker,
 			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.patterns",
-			Label:       i18n.T("tui.team.patterns"),
-			Aliases:     []string{"pat", "patterns"},
-			Description: i18n.T("tui.team.patterns.desc"),
+		})
+
+		// team.configure — only useful with a team configured (ADR-032)
+		commands = append(commands, shell.Command{
+			ID:          "team.configure",
+			Label:       i18n.T("tui.team.configure"),
+			Aliases:     []string{"team config", "team projet", "configurer equipe"},
+			Description: i18n.T("tui.team.configure.desc"),
 			Category:    i18n.T("tui.category.team"),
 			Priority:    50,
-			ViewID:      "team.patterns",
+			Action:      actionTeamConfigure,
 			Modes:       modeTeam,
-		},
-		shell.Command{
-			ID:          "team.policies",
-			Label:       i18n.T("tui.team.policies"),
-			Aliases:     []string{"pol", "rules", "policies"},
-			Description: i18n.T("tui.team.policies.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    50,
-			ViewID:      "team.policies",
-			Modes:       modeTeam,
-		},
-	)
-
-	// Sync tracker (team-only action)
-	commands = append(commands, shell.Command{
-		ID:          "team.sync",
-		Label:       "Sync Tracker",
-		Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
-		Description: "Synchroniser les claims avec le tracker externe",
-		Category:    i18n.T("tui.category.team"),
-		Priority:    60,
-		Action:      actionSyncTracker,
-		Modes:       modeTeam,
-	})
-
-	// team.configure — only useful with a team configured (ADR-032)
-	commands = append(commands, shell.Command{
-		ID:          "team.configure",
-		Label:       i18n.T("tui.team.configure"),
-		Aliases:     []string{"team config", "team projet", "configurer equipe"},
-		Description: i18n.T("tui.team.configure.desc"),
-		Category:    i18n.T("tui.category.team"),
-		Priority:    50,
-		Action:      actionTeamConfigure,
-		Modes:       modeTeam,
-	})
+		})
 	} // end hasTeam
 
 	// ── Team init — always visible (needed to create a team) ─────────

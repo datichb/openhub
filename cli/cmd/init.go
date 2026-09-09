@@ -16,8 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -61,15 +61,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 		apiKey         string
 
 		// MCP state
-		configureMCP   bool
-		mcpFigma       bool
-		mcpGitlab      bool
-		mcpGslides     bool
-		mcpServices    []string
-		figmaToken     string
-		gitlabToken    string
-		gslidesToken   string
-		gitlabWrite    bool
+		configureMCP bool
+		mcpFigma     bool
+		mcpGitlab    bool
+		mcpGslides   bool
+		mcpServices  []string
+		figmaToken   string
+		gitlabToken  string
+		gslidesToken string
+		gitlabWrite  bool
 
 		// Project state
 		addProject bool

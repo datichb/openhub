@@ -140,11 +140,11 @@ func TestSaveAndLoad(t *testing.T) {
 	dir := t.TempDir()
 	s := NewState("/tmp/project", 3)
 	s.AddSession(SessionInfo{
-		TicketID: "bd-42",
-		Project:  "T-SRU",
-		Branch:   "feat/bd-42",
-		Port:     4100,
-		Status:   StatusRunning,
+		TicketID:  "bd-42",
+		Project:   "T-SRU",
+		Branch:    "feat/bd-42",
+		Port:      4100,
+		Status:    StatusRunning,
 		StartedAt: time.Date(2026, 7, 13, 10, 0, 0, 0, time.UTC),
 	})
 	s.SetPhase("running")

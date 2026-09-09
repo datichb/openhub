@@ -8,8 +8,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -96,25 +96,25 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n  [::b]Statut de l'équipe%s\n\n", theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]Statut de l'équipe%s\n\n", theme.TagReset)
 
 	if !tc.Enabled {
-		sb.WriteString(fmt.Sprintf("  %sÉquipe non configurée pour ce projet.%s\n\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
-		sb.WriteString(fmt.Sprintf("  %sUtilisez 'team configure' dans l'omnibar pour configurer.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sÉquipe non configurée pour ce projet.%s\n\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %sUtilisez 'team configure' dans l'omnibar pour configurer.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 		v.tv.SetText(sb.String())
 		return
 	}
 
-	sb.WriteString(fmt.Sprintf("  %sRepo :%s    %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.StateRepo))
-	sb.WriteString(fmt.Sprintf("  %sMembre :%s  %s\n\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.MemberID))
+	fmt.Fprintf(&sb, "  %sRepo :%s    %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.StateRepo)
+	fmt.Fprintf(&sb, "  %sMembre :%s  %s\n\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.MemberID)
 
 	if repo == nil {
-		sb.WriteString(fmt.Sprintf("  %sRepo non cloné. Exécutez 'oh team init'.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sRepo non cloné. Exécutez 'oh team init'.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 		v.tv.SetText(sb.String())
 		return
 	}
@@ -142,7 +142,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	}
 
 	if len(members) > 0 {
-		sb.WriteString(fmt.Sprintf("  [::b]─── Membres (%d) ───%s\n\n", len(members), theme.TagReset))
+		fmt.Fprintf(&sb, "  [::b]─── Membres (%d) ───%s\n\n", len(members), theme.TagReset)
 		for _, m := range members {
 			myClaims := memberClaims[m.ID]
 			countStr := fmt.Sprintf("[%d ticket", len(myClaims))
@@ -157,9 +157,9 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 				nameColor = theme.ColorTag(theme.AccentHex)
 			}
 
-			sb.WriteString(fmt.Sprintf("  %s@%-12s%s %s%-14s%s",
+			fmt.Fprintf(&sb, "  %s@%-12s%s %s%-14s%s",
 				nameColor, m.ID, theme.TagColor,
-				theme.ColorTag(theme.TextSecondaryHex), countStr, theme.TagColor))
+				theme.ColorTag(theme.TextSecondaryHex), countStr, theme.TagColor)
 
 			if len(myClaims) > 0 {
 				var parts []string
@@ -179,7 +179,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 		statusCounts[c.Status]++
 	}
 	if len(claims) > 0 {
-		sb.WriteString(fmt.Sprintf("  [::b]─── Résumé ───%s\n\n  ", theme.TagReset))
+		fmt.Fprintf(&sb, "  [::b]─── Résumé ───%s\n\n  ", theme.TagReset)
 		statuses := []struct {
 			key   string
 			label string
@@ -204,16 +204,16 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	if eventsErr != nil && v.shell != nil {
 		v.shell.ShowToastMsg("Erreur événements: "+eventsErr.Error(), false)
 	}
-	sb.WriteString(fmt.Sprintf("  [::b]─── Activité récente ───%s\n\n", theme.TagReset))
+	fmt.Fprintf(&sb, "  [::b]─── Activité récente ───%s\n\n", theme.TagReset)
 	if len(events) == 0 {
-		sb.WriteString(fmt.Sprintf("  %sAucune activité récente.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor))
+		fmt.Fprintf(&sb, "  %sAucune activité récente.%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
 	} else {
 		for _, e := range events {
 			ago := formatTimeAgo(e.Timestamp)
-			sb.WriteString(fmt.Sprintf("  %s%-12s%s %s %s %s\n",
+			fmt.Fprintf(&sb, "  %s%-12s%s %s %s %s\n",
 				theme.ColorTag(theme.TextSecondaryHex), ago, theme.TagColor,
-				e.Actor, formatEventType(e.Type), e.Ticket))
+				e.Actor, formatEventType(e.Type), e.Ticket)
 		}
 	}
 

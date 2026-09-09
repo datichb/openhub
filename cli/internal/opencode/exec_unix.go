@@ -8,7 +8,7 @@ import (
 )
 
 // execReplace replaces the current process with the given binary (Unix).
-func execReplace(binary string, args []string, env []string) error {
+func execReplace(binary string, args, env []string) error {
 	return syscall.Exec(binary, args, env)
 }
 

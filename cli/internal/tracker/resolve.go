@@ -119,13 +119,14 @@ func resolveJira(ctx context.Context, src CredentialSource) (Config, error) {
 	// Base URL priority: TrackerURL override → MCP URL → env var → error
 	baseURL := ""
 	source := ""
-	if src.TrackerURL != "" {
+	switch {
+	case src.TrackerURL != "":
 		baseURL = src.TrackerURL
 		source = "tracker_url"
-	} else if src.JiraURL != "" {
+	case src.JiraURL != "":
 		baseURL = src.JiraURL
 		source = "mcp"
-	} else {
+	default:
 		baseURL = os.Getenv("JIRA_URL")
 		source = "env"
 	}
@@ -203,32 +204,6 @@ func resolveTokenWithFallback(ctx context.Context, envVar, trackerTokenKey, mcpT
 	if key != "" {
 		hint = fmt.Sprintf("exportez %s ou stockez le token via: oh secrets set %s",
 			envVar, key)
-	}
-	return "", fmt.Errorf("tracker: token %s non disponible — %s", displayName, hint)
-}
-
-// resolveToken resolves a token from an env var, then from the secret store.
-// displayName is used in error messages ("GitLab", "Jira").
-func resolveToken(ctx context.Context, envVar, tokenKey string, secrets SecretGetter, displayName string) (string, error) {
-	// 1. Env var — always takes priority (CI, shell export, tests)
-	if tok := os.Getenv(envVar); tok != "" {
-		return tok, nil
-	}
-
-	// 2. Keychain via token_key from MCP config
-	if tokenKey != "" && secrets != nil {
-		tok, err := secrets.Get(ctx, tokenKey)
-		if err == nil && tok != "" {
-			return tok, nil
-		}
-	}
-
-	// 3. Nothing found — actionable error message
-	hint := fmt.Sprintf("exportez %s ou configurez [mcp.%s] token_key dans hub.toml",
-		envVar, displayName)
-	if tokenKey != "" {
-		hint = fmt.Sprintf("exportez %s ou vérifiez la clé %q dans le keychain (oh secrets set %s)",
-			envVar, tokenKey, tokenKey)
 	}
 	return "", fmt.Errorf("tracker: token %s non disponible — %s", displayName, hint)
 }

@@ -14,12 +14,12 @@ import (
 type SessionStatus string
 
 const (
-	StatusPending    SessionStatus = "pending"
-	StatusStarting   SessionStatus = "starting"
-	StatusRunning    SessionStatus = "running"
-	StatusCompleted  SessionStatus = "completed"
-	StatusFailed     SessionStatus = "failed"
-	StatusAborted    SessionStatus = "aborted"
+	StatusPending   SessionStatus = "pending"
+	StatusStarting  SessionStatus = "starting"
+	StatusRunning   SessionStatus = "running"
+	StatusCompleted SessionStatus = "completed"
+	StatusFailed    SessionStatus = "failed"
+	StatusAborted   SessionStatus = "aborted"
 )
 
 // SessionInfo holds state for a single parallel session.
@@ -29,9 +29,9 @@ type SessionInfo struct {
 	Branch        string        `json:"branch"`
 	WorktreePath  string        `json:"worktree_path"`
 	Port          int           `json:"port"`
-	SessionID     string        `json:"session_id"`     // opencode session ID
+	SessionID     string        `json:"session_id"` // opencode session ID
 	Status        SessionStatus `json:"status"`
-	Priority      bool          `json:"priority"`       // is this the priority ticket
+	Priority      bool          `json:"priority"` // is this the priority ticket
 	StartedAt     time.Time     `json:"started_at,omitempty"`
 	CompletedAt   time.Time     `json:"completed_at,omitempty"`
 	Error         string        `json:"error,omitempty"`

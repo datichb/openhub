@@ -29,9 +29,9 @@ type TeamsView struct {
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
 type TeamsViewDeps struct {
 	Config     *config.Config
-	OnSync     func(teamID string)       // Called when user requests team-state sync
-	OnSave     func(cfg *config.Config)   // Called to persist config changes
-	OnNavigate func(viewID string)        // Called to navigate to another view
+	OnSync     func(teamID string)      // Called when user requests team-state sync
+	OnSave     func(cfg *config.Config) // Called to persist config changes
+	OnNavigate func(viewID string)      // Called to navigate to another view
 }
 
 // NewTeamsView creates a new TeamsView.
@@ -149,7 +149,7 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 			ContextCommand{
 				ID:          "teams.activity",
 				Label:       i18n.T("tui.team.activity"),
-				Aliases:     []string{"activity", "activite"},
+				Aliases:     []string{"activity", "activite"}, //nolint:misspell // French search alias
 				Description: i18n.T("tui.team.activity.desc"),
 				Category:    i18n.T("tui.category.team"),
 				Action:      func() { v.onNavigate("team.activity") },
@@ -337,9 +337,9 @@ func copyTeams(teams []config.TeamConfig) []config.TeamConfig {
 }
 
 // truncateString truncates a string for display.
-func truncateString(s string, max int) string {
-	if len(s) <= max {
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max-3] + "..."
+	return s[:maxLen-3] + "..."
 }

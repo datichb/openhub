@@ -34,10 +34,10 @@ type teamConfigLine struct {
 	kind       string // "bool", "string", "select", "tri-state", "password", "section-header", "sub-header", "link", "placeholder"
 	options    []SelectOption
 	scope      configScope
-	dynamic    bool         // can be added/deleted (mappings)
-	grayed     func() bool  // returns true if field is grayed-out (enforced elsewhere)
-	hint       string       // help text shown when value is empty
-	linkTarget string       // view ID to navigate to for "link" kind
+	dynamic    bool        // can be added/deleted (mappings)
+	grayed     func() bool // returns true if field is grayed-out (enforced elsewhere)
+	hint       string      // help text shown when value is empty
+	linkTarget string      // view ID to navigate to for "link" kind
 	get        func() string
 	set        func(val string)
 }
@@ -146,8 +146,7 @@ func (v *TeamDetailView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		v.editSelected()
 		return nil
 	}
@@ -222,8 +221,8 @@ func (v *TeamDetailView) loadData() {
 	if v.teamCfg.MCP == nil {
 		v.teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 	}
-	if v.teamCfg.Tracker.Projects == nil {
-		v.teamCfg.Tracker.Projects = make(map[string]string)
+	if v.teamCfg.Tracker.Projects == nil { //nolint:staticcheck // backward compat: deprecated field
+		v.teamCfg.Tracker.Projects = make(map[string]string) //nolint:staticcheck // backward compat: deprecated field
 	}
 	if v.teamCfg.Models.Families == nil {
 		v.teamCfg.Models.Families = make(map[string]string)
@@ -690,8 +689,8 @@ func (v *TeamDetailView) addDynamic() {
 		}
 	}
 
-	switch {
-	case section == "Mappings" || section == "Mappings projets":
+	switch section {
+	case "Mappings", "Mappings projets":
 		v.shell.ShowInputModal("Hub project ID", "", func(key string) {
 			if key == "" {
 				return
@@ -700,16 +699,16 @@ func (v *TeamDetailView) addDynamic() {
 				if val == "" {
 					return
 				}
-				if v.teamCfg.Tracker.Projects == nil {
+				if v.teamCfg.Tracker.Projects == nil { //nolint:staticcheck // backward compat: deprecated field
 					v.teamCfg.Tracker.Projects = make(map[string]string)
 				}
-				v.teamCfg.Tracker.Projects[key] = val
+				v.teamCfg.Tracker.Projects[key] = val //nolint:staticcheck // backward compat: deprecated field
 				v.dirtyTeam = true
 				v.buildLines()
 				v.renderLines()
 			})
 		})
-	case section == "label_status_mapping":
+	case "label_status_mapping":
 		v.shell.ShowInputModal("Label du tracker (ex: Bloqué, TO REVIEW...)", "", func(key string) {
 			if key == "" {
 				return
@@ -742,10 +741,10 @@ func (v *TeamDetailView) deleteDynamic() {
 	}
 
 	key := line.key
-	switch {
-	case line.section == "Mappings":
-		delete(v.teamCfg.Tracker.Projects, key)
-	case line.section == "label_status_mapping":
+	switch line.section {
+	case "Mappings":
+		delete(v.teamCfg.Tracker.Projects, key) //nolint:staticcheck // backward compat: deprecated field
+	case "label_status_mapping":
 		delete(v.teamCfg.Tracker.LabelStatusMapping, key)
 	default:
 		return
@@ -905,22 +904,24 @@ func (v *TeamDetailView) promptTokenSetup() {
 					hubCfg.MCP.Jira.Token = tokenKey
 				}
 			}
-		_ = config.Save(hubCfg)
-	}
+			_ = config.Save(hubCfg)
+		}
 
-	if secrets := v.cfg.GetSecrets(); secrets != nil {
-		ctx := context.Background()
-		if setter, ok := secrets.(interface{ Set(ctx context.Context, key, value string) error }); ok {
-			if err := setter.Set(ctx, tokenKey, value); err != nil {
-				if v.shell != nil {
-					v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
+		if secrets := v.cfg.GetSecrets(); secrets != nil {
+			ctx := context.Background()
+			if setter, ok := secrets.(interface {
+				Set(ctx context.Context, key, value string) error
+			}); ok {
+				if err := setter.Set(ctx, tokenKey, value); err != nil {
+					if v.shell != nil {
+						v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
 
-	v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
+		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
 		v.loadData()
 		v.buildLines()
 		v.renderLines()
@@ -1042,16 +1043,6 @@ func (v *TeamDetailView) testConnection() {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func boolPtrToStr(b *bool) string {
-	if b == nil {
-		return "false"
-	}
-	if *b {
-		return "true"
-	}
-	return "false"
-}
-
 // labelStatusOptions returns the valid board statuses for the label_status_mapping select.
 func labelStatusOptions() []SelectOption {
 	return []SelectOption{
@@ -1099,25 +1090,25 @@ func formatSyncTrackerResultView(r *SyncTrackerResult) string {
 		return "Aucun résultat"
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
-	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
-	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
+	fmt.Fprintf(&sb, "Claims créés:      %d\n", r.ClaimsCreated)
+	fmt.Fprintf(&sb, "Claims mis à jour: %d\n", r.ClaimsUpdated)
+	fmt.Fprintf(&sb, "Labels poussés:    %d\n", r.LabelsPushed)
 	if len(r.Projects) > 0 {
 		sb.WriteString("\nProjets:\n")
 		for _, p := range r.Projects {
-			sb.WriteString(fmt.Sprintf("  %s\n", p))
+			fmt.Fprintf(&sb, "  %s\n", p)
 		}
 	}
 	if len(r.Warnings) > 0 {
 		sb.WriteString("\nWarnings:\n")
 		for _, w := range r.Warnings {
-			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
+			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
 		}
 	}
 	if len(r.Errors) > 0 {
 		sb.WriteString("\nErreurs:\n")
 		for _, e := range r.Errors {
-			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
+			fmt.Fprintf(&sb, "  ✗ %s\n", e)
 		}
 	}
 	return sb.String()

@@ -27,9 +27,9 @@ func TestDeepMerge_ScalarOverride(t *testing.T) {
 func TestDeepMerge_NestedMapAddition(t *testing.T) {
 	dst := map[string]interface{}{
 		"bash": map[string]interface{}{
-			"*":            "deny",
-			"git status*":  "allow",
-			"git diff*":    "allow",
+			"*":           "deny",
+			"git status*": "allow",
+			"git diff*":   "allow",
 		},
 	}
 	src := map[string]interface{}{

@@ -89,8 +89,7 @@ func (v *NotificationsView) Mount(content *tview.Flex, app *tview.Application) {
 	// j/k navigation
 	v.tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		row, col := v.tv.GetScrollOffset()
-		switch event.Key() {
-		case tcell.KeyRune:
+		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
 			case 'j':
 				v.tv.ScrollTo(row+1, col)

@@ -18,12 +18,12 @@ func TestSectionedList_NextSelectable(t *testing.T) {
 		from     int
 		expected int
 	}{
-		{-1, 1},  // before all → first selectable
-		{0, 1},   // header → next item
-		{1, 2},   // item → next item
-		{2, 4},   // item → skip header to item3
-		{3, 4},   // header → item3
-		{4, -1},  // last item → no more
+		{-1, 1}, // before all → first selectable
+		{0, 1},  // header → next item
+		{1, 2},  // item → next item
+		{2, 4},  // item → skip header to item3
+		{3, 4},  // header → item3
+		{4, -1}, // last item → no more
 	}
 
 	for _, tt := range tests {
@@ -48,12 +48,12 @@ func TestSectionedList_PrevSelectable(t *testing.T) {
 		from     int
 		expected int
 	}{
-		{0, -1},  // header, nothing before
-		{1, -1},  // first item, nothing before
-		{2, 1},   // item2 → item1
-		{3, 2},   // header → item2
-		{4, 2},   // item3 → skip header → item2
-		{5, 4},   // past end → item3
+		{0, -1}, // header, nothing before
+		{1, -1}, // first item, nothing before
+		{2, 1},  // item2 → item1
+		{3, 2},  // header → item2
+		{4, 2},  // item3 → skip header → item2
+		{5, 4},  // past end → item3
 	}
 
 	for _, tt := range tests {

@@ -80,16 +80,16 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 		for _, c := range claims {
 			status := strings.ToUpper(c.Status)
 			// Normalize common status variants
-			switch {
-			case status == "IN_PROGRESS" || status == "IN PROGRESS" || status == "PROGRESS":
+			switch status {
+			case "IN_PROGRESS", "IN PROGRESS", "PROGRESS":
 				status = "IN_PROGRESS"
-			case status == "TODO" || status == "PLANNED" || status == "":
+			case "TODO", "PLANNED", "":
 				status = "TODO"
-			case status == "REVIEW" || status == "IN_REVIEW":
+			case "REVIEW", "IN_REVIEW":
 				status = "REVIEW"
-			case status == "BLOCKED":
+			case "BLOCKED":
 				status = "BLOCKED"
-			case status == "DONE" || status == "COMPLETED":
+			case "DONE", "COMPLETED":
 				status = "DONE"
 			}
 			if _, ok := grouped[status]; !ok {
@@ -142,7 +142,7 @@ func handleTeamEvents(a *app.App) http.HandlerFunc {
 
 		writeJSON(w, map[string]interface{}{
 			"available": true,
-			"events":   events,
+			"events":    events,
 		})
 	}
 }
@@ -167,7 +167,7 @@ func handleTeamMembers(a *app.App) http.HandlerFunc {
 
 		writeJSON(w, map[string]interface{}{
 			"available": true,
-			"members":  members,
+			"members":   members,
 		})
 	}
 }
@@ -246,19 +246,19 @@ func costSparklineSVG(costs []opencode.DayCost) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">`, width, height, width, height))
+	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">`, width, height, width, height)
 	sb.WriteString(`<rect width="100%" height="100%" fill="transparent"/>`)
 
 	// Polyline
-	sb.WriteString(fmt.Sprintf(`<polyline fill="none" stroke="#6366f1" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" points="%s"/>`,
-		strokeW, strings.Join(points, " ")))
+	fmt.Fprintf(&sb, `<polyline fill="none" stroke="#6366f1" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" points="%s"/>`,
+		strokeW, strings.Join(points, " "))
 
 	// Fill area under curve
 	fillPoints := strings.Join(points, " ") + fmt.Sprintf(" %d,%d %d,%d", width-padX, height-padY, padX, height-padY)
-	sb.WriteString(fmt.Sprintf(`<polyline fill="rgba(99,102,241,0.1)" stroke="none" points="%s"/>`, fillPoints))
+	fmt.Fprintf(&sb, `<polyline fill="rgba(99,102,241,0.1)" stroke="none" points="%s"/>`, fillPoints)
 
 	// Total label
-	sb.WriteString(fmt.Sprintf(`<text x="%d" y="12" font-family="monospace" font-size="10" fill="#888">$%.2f total</text>`, width-padX, total))
+	fmt.Fprintf(&sb, `<text x="%d" y="12" font-family="monospace" font-size="10" fill="#888">$%.2f total</text>`, width-padX, total)
 
 	sb.WriteString(`</svg>`)
 	return sb.String()
@@ -330,6 +330,6 @@ func handleOpenCodeSessions(a *app.App) http.HandlerFunc {
 		})
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }

@@ -162,8 +162,7 @@ func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil {
 		return event
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.editByIndex(idx, item)
 		}
@@ -257,40 +256,58 @@ func (v *ProjectConfigView) buildLines() {
 		{kind: "section-header", section: "Team"},
 		{section: "Team", key: "team_id", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TeamID == nil { return "" }
+				if p.TeamID == nil {
+					return ""
+				}
 				return *p.TeamID
 			},
 			set: func(p *domain.Project, val string) {
-				if val == "" { p.TeamID = nil } else { p.TeamID = &val }
+				if val == "" {
+					p.TeamID = nil
+				} else {
+					p.TeamID = &val
+				}
 			}},
 
 		// ── Tracker Overrides ───────────────────────────────────────────────
 		{kind: "section-header", section: "Tracker"},
 		{section: "Tracker", key: "tracker_project", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil { return "" }
+				if p.TrackerConfig == nil {
+					return ""
+				}
 				return p.TrackerConfig.TrackerProject
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				if p.TrackerConfig == nil {
+					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+				}
 				p.TrackerConfig.TrackerProject = val
 			}},
 		{section: "Tracker", key: "tracker_url", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil { return "" }
+				if p.TrackerConfig == nil {
+					return ""
+				}
 				return p.TrackerConfig.TrackerURL
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				if p.TrackerConfig == nil {
+					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+				}
 				p.TrackerConfig.TrackerURL = val
 			}},
 		{section: "Tracker", key: "ticket_pattern", kind: "string",
 			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil { return "" }
+				if p.TrackerConfig == nil {
+					return ""
+				}
 				return p.TrackerConfig.TicketPattern
 			},
 			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil { p.TrackerConfig = &domain.ProjectTrackerConfig{} }
+				if p.TrackerConfig == nil {
+					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+				}
 				p.TrackerConfig.TicketPattern = val
 			}},
 
@@ -313,113 +330,51 @@ func (v *ProjectConfigView) buildLines() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func mcpServiceEnabled(p *domain.Project, name string) string {
-	if p.MCPConfig == nil { return "(inherit)" }
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.Enabled != nil { return boolStr(*svc.Enabled) }
+		if svc.Name == name && svc.Enabled != nil {
+			return boolStr(*svc.Enabled)
+		}
 	}
 	return "(inherit)"
 }
 
 func mcpServiceWriteEnabled(p *domain.Project, name string) string {
-	if p.MCPConfig == nil { return "(inherit)" }
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.WriteEnabled != nil { return boolStr(*svc.WriteEnabled) }
+		if svc.Name == name && svc.WriteEnabled != nil {
+			return boolStr(*svc.WriteEnabled)
+		}
 	}
 	return "(inherit)"
 }
 
-func (v *ProjectConfigView) mcpSetEnabled(name string) func(p *domain.Project, val string) {
-	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
-		for i, svc := range p.MCPConfig.Services {
-			if svc.Name == name {
-				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].Enabled = nil } else { b := val == "true"; p.MCPConfig.Services[i].Enabled = &b }
-				v.mcpChanged = true; return
-			}
-		}
-		if val == "(inherit)" || val == "" { return }
-		b := val == "true"
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, Enabled: &b})
-		v.mcpChanged = true
-	}
-}
-
-func (v *ProjectConfigView) mcpSetWriteEnabled(name string) func(p *domain.Project, val string) {
-	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
-		for i, svc := range p.MCPConfig.Services {
-			if svc.Name == name {
-				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].WriteEnabled = nil } else { b := val == "true"; p.MCPConfig.Services[i].WriteEnabled = &b }
-				v.mcpChanged = true; return
-			}
-		}
-		if val == "(inherit)" || val == "" { return }
-		b := val == "true"
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, WriteEnabled: &b})
-		v.mcpChanged = true
-	}
-}
-
 func mcpServiceURL(p *domain.Project, name string) string {
-	if p.MCPConfig == nil { return "(inherit)" }
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.URL != "" { return svc.URL }
+		if svc.Name == name && svc.URL != "" {
+			return svc.URL
+		}
 	}
 	return "(inherit)"
 }
 
 func mcpServiceToken(p *domain.Project, name string) string {
-	if p.MCPConfig == nil { return "(inherit)" }
+	if p.MCPConfig == nil {
+		return "(inherit)"
+	}
 	for _, svc := range p.MCPConfig.Services {
-		if svc.Name == name && svc.TokenKey != "" { return svc.TokenKey }
+		if svc.Name == name && svc.TokenKey != "" {
+			return svc.TokenKey
+		}
 	}
 	return "(inherit)"
-}
-
-func (v *ProjectConfigView) mcpSetURL(name string) func(p *domain.Project, val string) {
-	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
-		for i, svc := range p.MCPConfig.Services {
-			if svc.Name == name {
-				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].URL = "" } else { p.MCPConfig.Services[i].URL = val }
-				v.mcpChanged = true; return
-			}
-		}
-		if val == "(inherit)" || val == "" { return }
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, URL: val})
-		v.mcpChanged = true
-	}
-}
-
-func (v *ProjectConfigView) mcpSetToken(name string) func(p *domain.Project, val string) {
-	return func(p *domain.Project, val string) {
-		if p.MCPConfig == nil { p.MCPConfig = &domain.ProjectMCPConfig{} }
-		for i, svc := range p.MCPConfig.Services {
-			if svc.Name == name {
-				if val == "(inherit)" || val == "" { p.MCPConfig.Services[i].TokenKey = "" } else { p.MCPConfig.Services[i].TokenKey = val }
-				v.mcpChanged = true; return
-			}
-		}
-		if val == "(inherit)" || val == "" { return }
-		p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, TokenKey: val})
-		v.mcpChanged = true
-	}
-}
-
-func (v *ProjectConfigView) mcpSource(service, field string) func(p *domain.Project) string {
-	return func(_ *domain.Project) string {
-		if v.cfg.ResolveMCPSource == nil { return "" }
-		_, source, _ := v.cfg.ResolveMCPSource(service, field)
-		return source
-	}
-}
-
-func (v *ProjectConfigView) mcpLocked(service, field string) func(p *domain.Project) bool {
-	return func(_ *domain.Project) bool {
-		if v.cfg.ResolveMCPSource == nil { return false }
-		_, _, locked := v.cfg.ResolveMCPSource(service, field)
-		return locked
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,7 +602,9 @@ func (v *ProjectConfigView) toggleByRef(ref int) {
 	switch line.kind {
 	case "bool":
 		newVal := "true"
-		if cur == "true" { newVal = "false" }
+		if cur == "true" {
+			newVal = "false"
+		}
 		v.pushUndo()
 		line.set(v.live, newVal)
 		v.dirty = true
@@ -656,9 +613,12 @@ func (v *ProjectConfigView) toggleByRef(ref int) {
 	case "tri-bool":
 		var newVal string
 		switch cur {
-		case "true": newVal = "false"
-		case "false": newVal = "(inherit)"
-		default: newVal = "true"
+		case "true":
+			newVal = "false"
+		case "false":
+			newVal = "(inherit)"
+		default:
+			newVal = "true"
 		}
 		v.pushUndo()
 		line.set(v.live, newVal)
@@ -685,7 +645,7 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 
 	opts := make([]SelectOption, len(allAgents))
 	for i, a := range allAgents {
-		label := a
+		var label string
 		if currentSet[a] {
 			label = "✓ " + a
 		} else {
@@ -702,7 +662,9 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 		if currentSet[chosen] {
 			newAgents := make([]string, 0, len(v.live.Agents))
 			for _, a := range v.live.Agents {
-				if a != chosen { newAgents = append(newAgents, a) }
+				if a != chosen {
+					newAgents = append(newAgents, a)
+				}
 			}
 			v.live.Agents = newAgents
 		} else {

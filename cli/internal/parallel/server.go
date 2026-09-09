@@ -14,13 +14,13 @@ import (
 
 // OpenCodeServer manages a single opencode serve instance.
 type OpenCodeServer struct {
-	Port        int
-	Dir         string // worktree directory
-	BaseURL     string
-	Process     *exec.Cmd
-	TicketID    string
-	cancelFunc  context.CancelFunc
-	httpClient  *http.Client
+	Port       int
+	Dir        string // worktree directory
+	BaseURL    string
+	Process    *exec.Cmd
+	TicketID   string
+	cancelFunc context.CancelFunc
+	httpClient *http.Client
 }
 
 // NewServer creates a new server config (not yet started).
@@ -141,10 +141,11 @@ func (s *OpenCodeServer) GetSessionStatus() (map[string]string, error) {
 
 	statuses := make(map[string]string)
 	for id, v := range result {
-		if status, ok := v.(string); ok {
-			statuses[id] = status
-		} else if m, ok := v.(map[string]interface{}); ok {
-			if s, ok := m["status"].(string); ok {
+		switch val := v.(type) {
+		case string:
+			statuses[id] = val
+		case map[string]interface{}:
+			if s, ok := val["status"].(string); ok {
 				statuses[id] = s
 			}
 		}
@@ -192,7 +193,7 @@ func (s *OpenCodeServer) Dispose() error {
 	resp, err := s.post("/instance/dispose", "")
 	if err != nil {
 		// Server might already be down
-		return nil
+		return nil //nolint:nilerr // server may be down already
 	}
 	resp.Body.Close()
 	return nil

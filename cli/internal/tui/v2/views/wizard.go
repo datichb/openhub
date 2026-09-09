@@ -9,8 +9,8 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -173,13 +173,13 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 		// Completed steps with their info fields
 		for _, si := range infoAccumulator {
-			b.WriteString(fmt.Sprintf("  %s%s[-] %s%s[-]\n",
+			fmt.Fprintf(&b, "  %s%s[-] %s%s[-]\n",
 				widgets.ColorTag(theme.Success), theme.IconDone,
-				widgets.ColorTag(theme.FgPrimary), si.label))
+				widgets.ColorTag(theme.FgPrimary), si.label)
 			for _, f := range si.fields {
 				if f.Value != "" {
-					b.WriteString(fmt.Sprintf("    %s%s:[-] %s\n",
-						widgets.ColorTag(theme.FgSecondary), f.Label, f.Value))
+					fmt.Fprintf(&b, "    %s%s:[-] %s\n",
+						widgets.ColorTag(theme.FgSecondary), f.Label, f.Value)
 				}
 			}
 			b.WriteString("\n")
@@ -191,8 +191,8 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				continue
 			}
 			if steps[i].Status == widgets.StepSkipped {
-				b.WriteString(fmt.Sprintf("  %s%s %s (skipped)[-]\n",
-					widgets.ColorTag(theme.FgMuted), theme.IconSkipped, cfg.Steps[i].Label))
+				fmt.Fprintf(&b, "  %s%s %s (skipped)[-]\n",
+					widgets.ColorTag(theme.FgMuted), theme.IconSkipped, cfg.Steps[i].Label)
 				continue
 			}
 			icon := theme.IconPending
@@ -201,7 +201,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				icon = theme.IconActive
 				color = widgets.ColorTag(theme.Accent)
 			}
-			b.WriteString(fmt.Sprintf("  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label))
+			fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label)
 		}
 
 		shell.InfoPanel.SetText(b.String())
@@ -438,34 +438,34 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetButtonTextColor(theme.BgPanel)
 				form.SetBorder(false)
 
-			// Esc handling: Required steps block skip; optional steps use double-Esc
-			form.SetCancelFunc(func() {
-				// Required steps cannot be skipped
-				if step.Required {
-					shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
-					time.AfterFunc(2*time.Second, func() {
-						shell.App.QueueUpdateDraw(func() {
-							shell.StatusBar.SetHints(originalHints)
+				// Esc handling: Required steps block skip; optional steps use double-Esc
+				form.SetCancelFunc(func() {
+					// Required steps cannot be skipped
+					if step.Required {
+						shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
+						time.AfterFunc(2*time.Second, func() {
+							shell.App.QueueUpdateDraw(func() {
+								shell.StatusBar.SetHints(originalHints)
+							})
 						})
-					})
-					return
-				}
+						return
+					}
 
-				if !escPending {
-					// First Esc: show persistent confirmation hint
-					escPending = true
-					shell.StatusBar.SetHints(i18n.T("wizard.esc_to_skip"))
-					return
-				}
+					if !escPending {
+						// First Esc: show persistent confirmation hint
+						escPending = true
+						shell.StatusBar.SetHints(i18n.T("wizard.esc_to_skip"))
+						return
+					}
 
-				// Second Esc: confirm skip
-				escPending = false
-				shell.StatusBar.SetHints(originalHints)
-				skipCurrent()
-				if !result.Completed {
-					doRenderStep(currentStep)
-				}
-			})
+					// Second Esc: confirm skip
+					escPending = false
+					shell.StatusBar.SetHints(originalHints)
+					skipCurrent()
+					if !result.Completed {
+						doRenderStep(currentStep)
+					}
+				})
 
 				// Ctrl+S = submit (same as pressing the button)
 				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

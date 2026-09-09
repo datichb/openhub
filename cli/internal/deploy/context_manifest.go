@@ -16,8 +16,8 @@ const contextManifestFile = "context-manifest.json"
 // ContextManifest tracks the freshness of deployed context files.
 // Written at deploy time to .opencode/context-manifest.json.
 type ContextManifest struct {
-	GeneratedAt string                 `json:"generated_at"`
-	HubDir      string                 `json:"hub_dir"`
+	GeneratedAt string                   `json:"generated_at"`
+	HubDir      string                   `json:"hub_dir"`
 	Files       map[string]ManifestEntry `json:"files"` // relative path → entry
 }
 
@@ -58,7 +58,7 @@ func WriteContextManifest(hubDir, projectPath string) error {
 			rel, _ := filepath.Rel(hubDir, path)
 			hash, hashErr := hashFile(path)
 			if hashErr != nil {
-				return nil // skip files we can't read
+				return nil //nolint:nilerr // skip files we can't read
 			}
 			manifest.Files[rel] = ManifestEntry{
 				SHA256:     hash,

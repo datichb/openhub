@@ -132,8 +132,8 @@ func ResolveFullTrackerConfig(
 		eff.StatusMapping = shared.StatusMapping
 		eff.LabelStatusMapping = shared.LabelStatusMapping
 		// Backward compat: keep old maps
-		eff.Projects = shared.Projects
-		eff.TicketPatterns = shared.TicketPatterns
+		eff.Projects = shared.Projects             //nolint:staticcheck // backward compat: deprecated field
+		eff.TicketPatterns = shared.TicketPatterns //nolint:staticcheck // backward compat: deprecated field
 	}
 
 	// Per-project overrides (most specific wins)

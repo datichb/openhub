@@ -59,8 +59,8 @@ func (v *WorktreeView) StatusHints() string {
 }
 
 // Mount builds the worktree list.
-func (v *WorktreeView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *WorktreeView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 
 	v.list = tview.NewList().
 		ShowSecondaryText(true).
@@ -186,13 +186,13 @@ func (v *WorktreeView) addWorktree() {
 		}
 
 		v.shell.ShowToastMsg("Création du worktree en cours...", true)
-		app := v.app // capture stable reference before goroutine
+		tvApp := v.app // capture stable reference before goroutine
 		go func() {
 			_, err := worktree.ResolveOrCreate(projectPath, branch)
-			if app == nil {
+			if tvApp == nil {
 				return
 			}
-			app.QueueUpdateDraw(func() {
+			tvApp.QueueUpdateDraw(func() {
 				if v.shell == nil {
 					return
 				}
@@ -322,13 +322,13 @@ func (v *WorktreeView) cleanupWorktrees() {
 	}
 
 	baseBranch := worktree.DetectBaseBranch(projectPath)
-	app := v.app // capture stable reference before goroutine
+	tvApp := v.app // capture stable reference before goroutine
 	go func() {
 		result, err := worktree.CleanupMerged(projectPath, baseBranch, false)
-		if app == nil {
+		if tvApp == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.shell == nil {
 				return
 			}

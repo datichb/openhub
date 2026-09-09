@@ -194,26 +194,6 @@ func findHubDir() string {
 	return ""
 }
 
-// buildMCPServers constructs MCP server definitions from the hub config only.
-// The "team" entry uses the resolved team config rather than the raw hub flag.
-func buildMCPServers(a *app.App, resolvedTeam config.ResolvedTeamConfig) []deploy.MCPServerDef {
-	enabled := map[string]bool{
-		"figma":   a.Config.MCP.Figma.Enabled,
-		"gitlab":  a.Config.MCP.Gitlab.Enabled,
-		"gslides": a.Config.MCP.Gslides.Enabled,
-		"team":    resolvedTeam.Enabled,
-	}
-	tokenKeys := map[string]string{
-		"figma":   a.Config.MCP.Figma.Token,
-		"gitlab":  a.Config.MCP.Gitlab.Token,
-		"gslides": a.Config.MCP.Gslides.Token,
-	}
-	writeEnabled := map[string]bool{
-		"gitlab": a.Config.MCP.Gitlab.WriteEnabled,
-	}
-	return deploy.DefaultMCPServers(enabled, tokenKeys, writeEnabled)
-}
-
 // buildMCPServersForProject constructs MCP server definitions using the full
 // 3-level cascade: team-state (enforced/recommended) → hub → project.
 // Each service is resolved independently via tracker.ResolveFullMCPConfig.

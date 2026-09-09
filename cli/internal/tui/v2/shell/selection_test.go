@@ -263,13 +263,13 @@ func TestApplyHighlight_InactiveLeavesScreenUnchanged(t *testing.T) {
 	defer sc.Fini()
 
 	// Capture original style of first cell
-	_, _, styleBefore, _ := sc.GetContent(0, 0)
+	_, styleBefore, _ := sc.Get(0, 0)
 
 	sm := NewSelectionManager(nil)
 	// selection is inactive — ApplyHighlight must be a no-op
 	sm.ApplyHighlight(sc)
 
-	_, _, styleAfter, _ := sc.GetContent(0, 0)
+	_, styleAfter, _ := sc.Get(0, 0)
 	assert.Equal(t, styleBefore, styleAfter, "inactive selection must not modify any cell")
 }
 
@@ -286,13 +286,13 @@ func TestApplyHighlight_ActiveReversesSelectedCells(t *testing.T) {
 	}
 	sm.mu.Unlock()
 
-	_, _, styleBefore, _ := sc.GetContent(0, 0)
+	_, styleBefore, _ := sc.Get(0, 0)
 	sm.ApplyHighlight(sc)
-	_, _, styleAfter, _ := sc.GetContent(0, 0)
+	_, styleAfter, _ := sc.Get(0, 0)
 
 	assert.NotEqual(t, styleBefore, styleAfter, "selected cell style should change (reverse video)")
 	// Cell 5 (outside selection) must be unchanged
-	_, _, styleOutside, _ := sc.GetContent(5, 0)
-	_, _, styleOriginal, _ := sc.GetContent(5, 0)
+	_, styleOutside, _ := sc.Get(5, 0)
+	_, styleOriginal, _ := sc.Get(5, 0)
 	assert.Equal(t, styleOriginal, styleOutside, "non-selected cell must be unchanged")
 }

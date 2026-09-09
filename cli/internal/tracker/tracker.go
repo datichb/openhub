@@ -126,12 +126,12 @@ type Tracker interface {
 
 // CreateIssueOpts holds the parameters for creating a new issue.
 type CreateIssueOpts struct {
-	ProjectID   string // project identifier (e.g., "namespace/project" for GitLab, "KEY" for Jira)
-	Title       string // issue summary/title
-	Description string // body/description (optional)
-	IssueType   string // e.g., "Task", "Bug", "Story" (Jira); ignored for GitLab
+	ProjectID   string   // project identifier (e.g., "namespace/project" for GitLab, "KEY" for Jira)
+	Title       string   // issue summary/title
+	Description string   // body/description (optional)
+	IssueType   string   // e.g., "Task", "Bug", "Story" (Jira); ignored for GitLab
 	Labels      []string // labels to apply (optional)
-	AssignTo    string // username to assign (optional)
+	AssignTo    string   // username to assign (optional)
 }
 
 // CreatedIssue holds the result of a successful issue creation.

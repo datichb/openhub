@@ -45,7 +45,6 @@ func findOpencodeOrToast() (string, error) {
 	return bin, err
 }
 
-
 // initBeadsForActiveProject initialises beads for the currently active project.
 // Shows a confirmation modal before proceeding.
 func initBeadsForActiveProject(a *app.App) {
@@ -236,4 +235,3 @@ func resolveProviderCreds(a *app.App, project *domain.Project, opts *opencode.St
 		opts.APIKey = key
 	}
 }
-

@@ -68,7 +68,7 @@ func NewTeamModelsView(cfg TeamModelsViewConfig) *TeamModelsView {
 
 func (v *TeamModelsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *TeamModelsView) ID() string             { return "team.models" }
-func (v *TeamModelsView) Title() string           { return "Modèles" }
+func (v *TeamModelsView) Title() string          { return "Modèles" }
 
 func (v *TeamModelsView) StatusHints() string {
 	return fmt.Sprintf("%s  %s  %s  %s  %s",
@@ -275,8 +275,7 @@ func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.teamCfg == nil {
 		return event
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if v.list != nil {
 			if _, item, ok := v.list.CurrentItem(); ok {
 				v.editByItem(item)
@@ -357,7 +356,7 @@ func (v *TeamModelsView) addEntry() {
 		{Label: "Agent", Value: "agents"},
 	}
 
-	v.shell.ShowSelectModal("Type de recommandation", scopeOptions, "", func(scope string) {
+	v.shell.ShowSelectModal(i18n.T("tui.team.models.recommendation_type"), scopeOptions, "", func(scope string) {
 		if scope == "" {
 			return
 		}
@@ -379,7 +378,7 @@ func (v *TeamModelsView) addEntry() {
 				}
 				v.dirty = true
 				v.renderList()
-				v.shell.ShowToastMsg("Recommandation ajoutée", true)
+				v.shell.ShowToastMsg(i18n.T("tui.team.models.recommendation_added"), true)
 			})
 		})
 	})
@@ -475,21 +474,21 @@ func (v *TeamModelsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
 		{
 			ID: "team.models.save", Label: i18n.T("tui.hints.save"),
-			Aliases: []string{"save", "write", "sauvegarder"},
-			Description: "Sauvegarder les recommandations de modèles",
-			Category: "Modèles", Action: func() { v.save() },
+			Aliases:     []string{"save", "write", "sauvegarder"},
+			Description: i18n.T("tui.team.models.save_recommendations"),
+			Category:    "Modèles", Action: func() { v.save() },
 		},
 		{
 			ID: "team.models.undo", Label: i18n.T("tui.hints.undo"),
-			Aliases: []string{"undo", "annuler"},
+			Aliases:     []string{"undo", "annuler"},
 			Description: i18n.T("tui.settings.cmd_undo"),
-			Category: "Modèles", Action: func() { v.undo() },
+			Category:    "Modèles", Action: func() { v.undo() },
 		},
 		{
 			ID: "team.models.add", Label: i18n.T("tui.hints.add"),
-			Aliases: []string{"ajouter", "add"},
-			Description: "Ajouter une recommandation de modèle",
-			Category: "Modèles", Action: func() { v.addEntry() },
+			Aliases:     []string{"ajouter", "add"},
+			Description: i18n.T("tui.team.models.add_recommendation"),
+			Category:    "Modèles", Action: func() { v.addEntry() },
 		},
 	}
 }

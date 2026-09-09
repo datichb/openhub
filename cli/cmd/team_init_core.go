@@ -12,13 +12,13 @@ import (
 // teamInitParams holds the parameters for the core team initialization logic.
 // This struct is shared by runTeamInit (wizard), runTeamInitFromTUI, and runTeamCustomSetup.
 type teamInitParams struct {
-	StateRepo         string
-	StatePath         string // empty = use default
-	MemberID          string
-	DisplayName       string
-	GitLabUsername    string
+	StateRepo          string
+	StatePath          string // empty = use default
+	MemberID           string
+	DisplayName        string
+	GitLabUsername     string
 	MattermostUsername string
-	Role              string
+	Role               string
 }
 
 // teamInitCore performs the core git+member+config operations shared by:

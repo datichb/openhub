@@ -139,7 +139,7 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 
 // buildAgentBlock constructs the per-agent configuration block for opencode.json.
 // Returns nil if there's nothing meaningful to write (no mode, no permissions, no model).
-func buildAgentBlock(fm *AgentFrontmatter, family string, hubDir string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) map[string]interface{} {
+func buildAgentBlock(fm *AgentFrontmatter, family, hubDir string, projectOverrides, hubOverrides, teamOverrides *ModelOverrides, provider string) map[string]interface{} {
 	block := make(map[string]interface{})
 
 	// Description: required by opencode for agent display and delegation

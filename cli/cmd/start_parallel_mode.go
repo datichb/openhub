@@ -122,7 +122,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 				Command:     "parallel",
 				StatusHints: "↑↓ navigate · Enter attach · r refresh · q quit",
 			},
-			Sessions:    toParallelSessions(coord.State()),
+			Sessions: toParallelSessions(coord.State()),
 			RefreshFunc: func() []views.ParallelSession {
 				coord.RefreshState()
 				return toParallelSessions(coord.State())
@@ -331,7 +331,7 @@ func runGitMerge(projectPath, branch, ticketID string) error {
 	}
 	fmt.Printf("\n  ✓ Merge réussi\n")
 	fmt.Printf("  Appuyez sur Entrée pour continuer...")
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 	return nil
 }
 
@@ -343,7 +343,7 @@ func gitCommitCount(projectPath, base, branch string) int {
 		return 0
 	}
 	n := 0
-	fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &n)
+	_, _ = fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &n)
 	return n
 }
 

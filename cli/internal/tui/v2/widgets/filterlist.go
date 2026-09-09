@@ -24,13 +24,13 @@ type FilterItem struct {
 // Activate the filter with '/' and dismiss with Esc.
 type FilterableList struct {
 	*tview.Flex
-	list        *tview.List
-	input       *tview.InputField
-	allItems    []FilterItem
-	visible     []FilterItem
-	filtering   bool
-	onSelect    func(item FilterItem)
-	onCancel    func()
+	list      *tview.List
+	input     *tview.InputField
+	allItems  []FilterItem
+	visible   []FilterItem
+	filtering bool
+	onSelect  func(item FilterItem)
+	onCancel  func()
 }
 
 // NewFilterableList creates a filterable list with the given items.

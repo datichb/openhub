@@ -119,7 +119,7 @@ func (m *Merger) mergeSession(sess SessionInfo, baseBranch string) MergeResult {
 	diffCmd := exec.Command("git", "log", "--oneline", fmt.Sprintf("%s..%s", baseBranch, sess.Branch))
 	diffCmd.Dir = m.projectPath
 	diffOut, err := diffCmd.Output()
-	if err != nil || len(strings.TrimSpace(string(diffOut))) == 0 {
+	if err != nil || strings.TrimSpace(string(diffOut)) == "" {
 		result.Success = true
 		result.Message = "No changes to merge"
 		fmt.Fprintf(m.out, "    ✓ Pas de changements à merger\n")

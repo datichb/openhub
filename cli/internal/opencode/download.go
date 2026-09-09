@@ -288,7 +288,7 @@ func downloadAsset(asset *ReleaseAsset, dest *os.File, progress ProgressFunc) er
 			return false, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 		}
 
-		var reader io.Reader = io.LimitReader(resp.Body, maxDownloadSize)
+		reader := io.LimitReader(resp.Body, maxDownloadSize)
 		if progress != nil {
 			reader = &progressReader{
 				reader:   reader,

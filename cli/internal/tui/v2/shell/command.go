@@ -282,7 +282,7 @@ func fuzzyMatch(pattern, str string) bool {
 
 // MatchesQuery returns true if a command matches the given query string.
 // Used by the omnibar to filter contextual commands from views.
-func MatchesQuery(query string, id, label string, aliases []string, category string) bool {
+func MatchesQuery(query, id, label string, aliases []string, category string) bool {
 	if query == "" {
 		return true
 	}

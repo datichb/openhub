@@ -60,7 +60,7 @@ func runFirstRunWizard(a *app.App) bool {
 
   %sBienvenue dans OpenHub !%s
 
-  Ce wizard va configurer les éléments essentiels :
+  `+i18n.T("cmd.init.wizard_intro")+`
 
   %s1.%s Choisir un fournisseur IA (provider)
   %s2.%s Configurer les credentials
@@ -75,8 +75,8 @@ func runFirstRunWizard(a *app.App) bool {
 					muted, reset,
 				))
 
-			tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				if event.Key() == tcell.KeyEnter {
+				tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					if event.Key() == tcell.KeyEnter {
 						onDone()
 						return nil
 					}

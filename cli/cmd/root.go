@@ -13,16 +13,16 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/prettylog"
-	"github.com/datichb/openhub/cli/internal/tui/common"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/prettylog"
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/tui/common"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var (

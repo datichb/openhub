@@ -41,7 +41,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 				i18n.Tf("cmd.start.autodeploy_failed", err))
 			if !skipPrompt {
 				fmt.Fprintf(out, "  %s", i18n.T("cmd.start.autodeploy_continue"))
-				fmt.Scanln()
+				_, _ = fmt.Scanln()
 			}
 			return
 		}
@@ -88,7 +88,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 			i18n.Tf("cmd.start.autodeploy_failed", err))
 		if !skipPrompt {
 			fmt.Fprintf(out, "  %s", i18n.T("cmd.start.autodeploy_continue"))
-			fmt.Scanln()
+			_, _ = fmt.Scanln()
 		}
 		return
 	}

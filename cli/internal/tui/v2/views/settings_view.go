@@ -33,10 +33,10 @@ type SettingsViewConfig struct {
 
 // configLine represents a single editable line in the hub config view.
 type configLine struct {
-	section  string // e.g. "MCP GitLab" — internal ID (not translated)
-	label    string // display label (translated)
-	key      string // e.g. "enabled"
-	kind     string // "bool", "string", "tokenkey", "section-header", "select", "tri-bool", "int", "link", "readonly"
+	section string // e.g. "MCP GitLab" — internal ID (not translated)
+	label   string // display label (translated)
+	key     string // e.g. "enabled"
+	kind    string // "bool", "string", "tokenkey", "section-header", "select", "tri-bool", "int", "link", "readonly"
 	// options holds the allowed values for "select" kind fields.
 	options []SelectOption
 	// optionsFunc returns dynamic allowed values (takes precedence over options).
@@ -147,8 +147,7 @@ func (v *SettingsView) Unmount() {
 }
 
 func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.editByIndex(idx, item)
 		}
@@ -206,13 +205,13 @@ func (v *SettingsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
 		{
 			ID: "settings.save", Label: i18n.T("tui.hints.save"),
-			Aliases: []string{"save", "write", "sauvegarder"},
+			Aliases:     []string{"save", "write", "sauvegarder"},
 			Description: i18n.T("tui.settings.cmd_save"), Category: "Settings",
 			Action: v.save,
 		},
 		{
 			ID: "settings.refresh", Label: i18n.T("tui.hints.refresh"),
-			Aliases: []string{"refresh", "reload", "rafraîchir"},
+			Aliases:     []string{"refresh", "reload", "rafraîchir"},
 			Description: i18n.T("tui.settings.cmd_refresh"), Category: "Settings",
 			Action: func() {
 				if v.cfg.ReloadConfig != nil {
@@ -225,7 +224,7 @@ func (v *SettingsView) ContextCommands() []ContextCommand {
 		},
 		{
 			ID: "settings.undo", Label: i18n.T("tui.hints.undo"),
-			Aliases: []string{"undo", "annuler"},
+			Aliases:     []string{"undo", "annuler"},
 			Description: i18n.T("tui.settings.cmd_undo"), Category: "Settings",
 			Action: v.undo,
 		},
@@ -268,10 +267,10 @@ func (v *SettingsView) buildLines() {
 		// ── CLI ──────────────────────────────────────────────────────────────
 		{kind: "section-header", section: "CLI", label: "CLI"},
 		{section: "CLI", key: "language", kind: "select", label: "CLI",
-			options: languageOptions,
+			options:   languageOptions,
 			validator: &FieldValidator{AllowedValues: []string{"fr", "en"}},
-			get:     func(c *config.Config) string { return c.CLI.Language },
-			set:     func(c *config.Config, val string) { c.CLI.Language = val }},
+			get:       func(c *config.Config) string { return c.CLI.Language },
+			set:       func(c *config.Config, val string) { c.CLI.Language = val }},
 
 		// ── Opencode ─────────────────────────────────────────────────────────
 		{kind: "section-header", section: "Opencode", label: "Opencode"},
@@ -287,10 +286,12 @@ func (v *SettingsView) buildLines() {
 			set: func(c *config.Config, val string) { c.Opencode.AutoUpdate = val == "true" }},
 		{section: "Opencode", key: "default_provider", kind: "select", label: "Opencode",
 			optionsFunc: providerOptions,
-			validator:   &FieldValidator{AllowedFunc: func() []string {
+			validator: &FieldValidator{AllowedFunc: func() []string {
 				names := provider.AllProviders()
 				s := make([]string, len(names))
-				for i, n := range names { s[i] = string(n) }
+				for i, n := range names {
+					s[i] = string(n)
+				}
 				return s
 			}, AllowEmpty: true},
 			get: func(c *config.Config) string { return c.Opencode.DefaultProvider },
@@ -369,52 +370,83 @@ func (v *SettingsView) buildLines() {
 		{section: "Tracker", key: "enabled", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
 			options: triBoolOptions,
 			get: func(c *config.Config) string {
-				if c.Tracker.Enabled == nil { return "(hérité)" }
+				if c.Tracker.Enabled == nil {
+					return "(hérité)"
+				}
 				return boolStr(*c.Tracker.Enabled)
 			},
 			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" { c.Tracker.Enabled = nil; return }
-				b := val == "true"; c.Tracker.Enabled = &b
+				if val == "(hérité)" || val == "" {
+					c.Tracker.Enabled = nil
+					return
+				}
+				b := val == "true"
+				c.Tracker.Enabled = &b
 			}},
 		{section: "Tracker", key: "auto_sync", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
 			options: triBoolOptions,
 			get: func(c *config.Config) string {
-				if c.Tracker.AutoSync == nil { return "(hérité)" }
+				if c.Tracker.AutoSync == nil {
+					return "(hérité)"
+				}
 				return boolStr(*c.Tracker.AutoSync)
 			},
 			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" { c.Tracker.AutoSync = nil; return }
-				b := val == "true"; c.Tracker.AutoSync = &b
+				if val == "(hérité)" || val == "" {
+					c.Tracker.AutoSync = nil
+					return
+				}
+				b := val == "true"
+				c.Tracker.AutoSync = &b
 			}},
 		{section: "Tracker", key: "push_labels", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
 			options: triBoolOptions,
 			get: func(c *config.Config) string {
-				if c.Tracker.PushLabels == nil { return "(hérité)" }
+				if c.Tracker.PushLabels == nil {
+					return "(hérité)"
+				}
 				return boolStr(*c.Tracker.PushLabels)
 			},
 			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" { c.Tracker.PushLabels = nil; return }
-				b := val == "true"; c.Tracker.PushLabels = &b
+				if val == "(hérité)" || val == "" {
+					c.Tracker.PushLabels = nil
+					return
+				}
+				b := val == "true"
+				c.Tracker.PushLabels = &b
 			}},
 		{section: "Tracker", key: "auto_plan_assigned", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
 			options: triBoolOptions,
 			get: func(c *config.Config) string {
-				if c.Tracker.AutoPlanAssigned == nil { return "(hérité)" }
+				if c.Tracker.AutoPlanAssigned == nil {
+					return "(hérité)"
+				}
 				return boolStr(*c.Tracker.AutoPlanAssigned)
 			},
 			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" { c.Tracker.AutoPlanAssigned = nil; return }
-				b := val == "true"; c.Tracker.AutoPlanAssigned = &b
+				if val == "(hérité)" || val == "" {
+					c.Tracker.AutoPlanAssigned = nil
+					return
+				}
+				b := val == "true"
+				c.Tracker.AutoPlanAssigned = &b
 			}},
 		{section: "Tracker", key: "max_auto_plan_per_member", kind: "int", label: i18n.T("tui.settings.section_tracker"),
 			validator: &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100), AllowEmpty: true},
 			get: func(c *config.Config) string {
-				if c.Tracker.MaxAutoPlanPerMember == nil { return "(hérité)" }
+				if c.Tracker.MaxAutoPlanPerMember == nil {
+					return "(hérité)"
+				}
 				return strconv.Itoa(*c.Tracker.MaxAutoPlanPerMember)
 			},
 			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" { c.Tracker.MaxAutoPlanPerMember = nil; return }
-				if n, err := strconv.Atoi(val); err == nil { c.Tracker.MaxAutoPlanPerMember = &n }
+				if val == "(hérité)" || val == "" {
+					c.Tracker.MaxAutoPlanPerMember = nil
+					return
+				}
+				if n, err := strconv.Atoi(val); err == nil {
+					c.Tracker.MaxAutoPlanPerMember = &n
+				}
 			}},
 
 		// ── Raccourcis ───────────────────────────────────────────────────────
@@ -785,29 +817,4 @@ func boolStr(b bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-// formatConfigValue is kept for backward compat with any code that references it.
-func formatConfigValue(val, kind string) string {
-	switch kind {
-	case "bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ true%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ false%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
-		}
-	case "tokenkey":
-		if val == "" {
-			return fmt.Sprintf("%s(non configuré)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-		}
-		return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextSecondaryHex), val, theme.TagColor)
-	default:
-		if val == "" {
-			return fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-		}
-		return val
-	}
 }

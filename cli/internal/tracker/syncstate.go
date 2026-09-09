@@ -50,7 +50,7 @@ func LoadSyncState(stateDir string) (*SyncState, error) {
 	var s SyncState
 	if err := json.Unmarshal(data, &s); err != nil {
 		// Corrupt file — start fresh (don't block syncs).
-		return &SyncState{LastSyncAt: make(map[string]time.Time)}, nil
+		return &SyncState{LastSyncAt: make(map[string]time.Time)}, nil //nolint:nilerr // corrupt state file, start fresh
 	}
 	if s.LastSyncAt == nil {
 		s.LastSyncAt = make(map[string]time.Time)

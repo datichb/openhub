@@ -186,7 +186,7 @@ func (h *PrettyHandler) writeNamespaceHeader(namespace string) {
 }
 
 // levelStyle returns the icon and ANSI color for a log level.
-func (h *PrettyHandler) levelStyle(level slog.Level) (icon string, color string) {
+func (h *PrettyHandler) levelStyle(level slog.Level) (icon, color string) {
 	if h.noColor {
 		switch {
 		case level >= slog.LevelError:

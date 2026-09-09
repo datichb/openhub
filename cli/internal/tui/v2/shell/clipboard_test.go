@@ -79,7 +79,7 @@ func TestCopyToClipboard_DoesNotPanicOnAnyInput(t *testing.T) {
 		"multi\nline\ntext",
 		strings.Repeat("x", 10_000), // large payload
 		"unicode: 日本語 émoji 🎉",
-		"\x00\x01\x02binary",        // binary-safe via base64
+		"\x00\x01\x02binary", // binary-safe via base64
 	}
 	for _, input := range inputs {
 		assert.NotPanics(t, func() {

@@ -82,8 +82,8 @@ func (v *MCPView) StatusHints() string {
 }
 
 // Mount builds the MCP management interface.
-func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 	v.mountGen++
 	gen := v.mountGen
 
@@ -98,14 +98,14 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Load data and build UI asynchronously
 	go func() {
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return
 			}
 			v.loadServices()
 
 			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
+			v.list.SetApp(tvApp)
 			v.list.SetBorderPadding(1, 0, 2, 2)
 
 			v.populateList()
@@ -113,7 +113,7 @@ func (v *MCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
-			app.SetFocus(v.list)
+			tvApp.SetFocus(v.list)
 		})
 	}()
 }
@@ -197,11 +197,12 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 	var parts []string
 
 	// Token indicator
-	if svc.Name == "team" {
+	switch {
+	case svc.Name == "team":
 		parts = append(parts, fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.mcp.no_token"), theme.TagColor))
-	} else if svc.HasToken {
+	case svc.HasToken:
 		parts = append(parts, fmt.Sprintf("%s%s ✓%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.token"), theme.TagColor))
-	} else {
+	default:
 		parts = append(parts, fmt.Sprintf("%s%s !%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.mcp.token_missing"), theme.TagColor))
 	}
 
@@ -329,15 +330,16 @@ func (v *MCPView) toggleWriteCurrent() {
 
 func (v *MCPView) toggleService(name string, enable bool) {
 	for i := range v.services {
-		if v.services[i].Name == name {
-			v.services[i].Enabled = enable
-			cfg := v.cfg.GetConfig()
-			v.setMCPEnabled(cfg, name, enable)
-			_ = v.cfg.SaveConfig(cfg)
-			v.populateList()
-			v.buildCommands()
-			return
+		if v.services[i].Name != name {
+			continue
 		}
+		v.services[i].Enabled = enable
+		cfg := v.cfg.GetConfig()
+		v.setMCPEnabled(cfg, name, enable)
+		_ = v.cfg.SaveConfig(cfg)
+		v.populateList()
+		v.buildCommands()
+		return
 	}
 }
 
@@ -443,14 +445,4 @@ func (v *MCPView) buildCommands() {
 	})
 
 	v.commands = cmds
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Config helper — mcpSetupServiceOptions preserved for omnibar
-// ─────────────────────────────────────────────────────────────────────────────
-
-var mcpSetupServiceOptions = []SelectOption{
-	{Label: "Figma", Value: "figma"},
-	{Label: "GitLab", Value: "gitlab"},
-	{Label: "Google Slides", Value: "gslides"},
 }

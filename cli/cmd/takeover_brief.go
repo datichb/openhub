@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -16,8 +17,7 @@ var takeoverBriefCmd = &cobra.Command{
 	Use:     "takeover-brief",
 	Aliases: []string{"tb"},
 	Short:   "Gestion des briefs de reprise de ticket",
-	Long: `Affiche, liste et enrichit les briefs générés lors de transferts de tickets.
-Un brief contient le contexte nécessaire pour reprendre le travail d'un collègue.`,
+	Long:    i18n.T("cmd.takeover_brief.long"),
 }
 
 var takeoverBriefShowCmd = &cobra.Command{
@@ -36,11 +36,9 @@ var takeoverBriefListCmd = &cobra.Command{
 var takeoverBriefEnrichCmd = &cobra.Command{
 	Use:   "enrich <ticket-id>",
 	Short: "Enrichit un brief avec l'IA (lecture du code, analyse)",
-	Long: `Lance un agent IA en mode headless pour enrichir le brief existant
-avec une analyse du code source, des questions ouvertes identifiées,
-et des recommandations pour la suite du travail.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runTakeoverBriefEnrich,
+	Long:  i18n.T("cmd.takeover_brief.enrich.long"),
+	Args:  cobra.ExactArgs(1),
+	RunE:  runTakeoverBriefEnrich,
 }
 
 func init() {

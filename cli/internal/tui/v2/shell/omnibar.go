@@ -306,15 +306,15 @@ func (o *Omnibar) updateSuggestions(query string) {
 		if cp, ok := cur.(views.CommandProvider); ok {
 			for _, cc := range cp.ContextCommands() {
 				if MatchesQuery(query, cc.ID, cc.Label, cc.Aliases, cc.Category) {
-				contextual = append(contextual, Command{
-					ID:          cc.ID,
-					Label:       cc.Label,
-					Aliases:     cc.Aliases,
-					Description: cc.Description,
-					Category:    cc.Category,
-					Action:      cc.Action,
-					RunsDirect:  cc.RunsDirect,
-				})
+					contextual = append(contextual, Command{
+						ID:          cc.ID,
+						Label:       cc.Label,
+						Aliases:     cc.Aliases,
+						Description: cc.Description,
+						Category:    cc.Category,
+						Action:      cc.Action,
+						RunsDirect:  cc.RunsDirect,
+					})
 				}
 			}
 		}
@@ -357,16 +357,16 @@ func (o *Omnibar) updateSuggestions(query string) {
 	}
 
 	// Limit displayed results — keep it small to avoid covering too much content
-	max := 7
-	if len(merged) < max {
-		max = len(merged)
+	maxVisible := 7
+	if len(merged) < maxVisible {
+		maxVisible = len(merged)
 	}
 
 	// Truncate visible to match displayed items — prevents executeCurrent()
 	// from accidentally executing a hidden command via the overflow item.
-	o.visible = merged[:max]
+	o.visible = merged[:maxVisible]
 
-	for i := 0; i < max; i++ {
+	for i := 0; i < maxVisible; i++ {
 		cmd := merged[i]
 		// Single-line format: label padded to 18 chars + dimmed description
 		// This gives clean column alignment regardless of label length.

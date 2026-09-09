@@ -28,7 +28,7 @@ func TestClassifyConflictSeverity(t *testing.T) {
 		expected string
 	}{
 		{"src/auth/service.ts", "high"},
-		{"package-lock.json", "low"},      // contains "lock"
+		{"package-lock.json", "low"}, // contains "lock"
 		{"config/settings.toml", "medium"},
 		{"yarn.lock", "low"},
 		{"Gemfile.lock", "low"},

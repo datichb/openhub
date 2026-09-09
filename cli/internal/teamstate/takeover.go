@@ -14,10 +14,10 @@ import (
 
 // TakeoverBrief holds the raw data collected during a claim transfer.
 type TakeoverBrief struct {
-	Meta     TakeoverMeta       `toml:"meta"`
-	Activity TakeoverActivity   `toml:"activity"`
-	Git      TakeoverGit        `toml:"git"`
-	Events   []TakeoverEvent    `toml:"events"`
+	Meta     TakeoverMeta     `toml:"meta"`
+	Activity TakeoverActivity `toml:"activity"`
+	Git      TakeoverGit      `toml:"git"`
+	Events   []TakeoverEvent  `toml:"events"`
 }
 
 // TakeoverMeta holds transfer metadata.

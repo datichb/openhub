@@ -298,7 +298,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 				return form
 			},
 			OnDone: func() error {
-				fmt.Sscanf(rule, "%d", &maxVal)
+				_, _ = fmt.Sscanf(rule, "%d", &maxVal)
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
@@ -325,12 +325,12 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 
 	// Build the TOML block to append
 	var block strings.Builder
-	block.WriteString(fmt.Sprintf("\n[policies.%s]\n", name))
-	block.WriteString(fmt.Sprintf("type = %q\n", policyType))
+	fmt.Fprintf(&block, "\n[policies.%s]\n", name)
+	fmt.Fprintf(&block, "type = %q\n", policyType)
 
 	switch policyType {
 	case "regex":
-		block.WriteString(fmt.Sprintf("rule = %q\n", rule))
+		fmt.Fprintf(&block, "rule = %q\n", rule)
 	case "forbidden_pattern":
 		parts := strings.Split(patterns, ",")
 		trimmed := make([]string, 0, len(parts))
@@ -339,19 +339,19 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 				trimmed = append(trimmed, fmt.Sprintf("%q", t))
 			}
 		}
-		block.WriteString(fmt.Sprintf("patterns = [%s]\n", strings.Join(trimmed, ", ")))
+		fmt.Fprintf(&block, "patterns = [%s]\n", strings.Join(trimmed, ", "))
 		if scope != "" {
-			block.WriteString(fmt.Sprintf("scope = %q\n", scope))
+			fmt.Fprintf(&block, "scope = %q\n", scope)
 		}
 	case "limit":
-		block.WriteString(fmt.Sprintf("max = %d\n", maxVal))
+		fmt.Fprintf(&block, "max = %d\n", maxVal)
 	case "boolean":
 		block.WriteString("enabled = true\n")
 	}
 
-	block.WriteString(fmt.Sprintf("enforcement = %q\n", enforcement))
+	fmt.Fprintf(&block, "enforcement = %q\n", enforcement)
 	if message != "" {
-		block.WriteString(fmt.Sprintf("message = %q\n", message))
+		fmt.Fprintf(&block, "message = %q\n", message)
 	}
 
 	// Append to policies.toml

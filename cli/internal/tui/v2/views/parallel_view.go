@@ -203,7 +203,7 @@ func (v *ParallelView) refresh() {
 	sessions := v.cfg.RefreshFunc()
 	v.cfg.Sessions = sessions
 	v.app.QueueUpdateDraw(func() {
-	v.populateSessions(v.cfg.Sessions)
+		v.populateSessions(v.cfg.Sessions)
 	})
 }
 

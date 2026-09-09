@@ -147,7 +147,10 @@ func (a *AgentEventStore) TopSkillsForAgent(ctx context.Context, agentName strin
 	}
 
 	// Sort by frequency (simple insertion sort for small N)
-	type kv struct{ k string; v int }
+	type kv struct {
+		k string
+		v int
+	}
 	var sorted []kv
 	for k, v := range freq {
 		sorted = append(sorted, kv{k, v})

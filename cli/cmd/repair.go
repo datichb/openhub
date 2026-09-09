@@ -9,15 +9,15 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 var repairCmd = &cobra.Command{
 	Use:   "repair",
 	Short: "Diagnostiquer et réparer la base de données oh",
-	Long: `Vérifie l'intégrité de la base de données SQLite.
-En cas de corruption, tente une récupération et propose les options de restauration.`,
-	RunE: runRepair,
+	Long:  i18n.T("cmd.repair.long"),
+	RunE:  runRepair,
 }
 
 func init() {
@@ -35,7 +35,7 @@ func runRepair(cmd *cobra.Command, args []string) error {
 
 	// Check if DB exists
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		fmt.Fprintf(a.IO.Out, "  Base de données absente — sera créée au prochain démarrage.\n")
+		fmt.Fprintf(a.IO.Out, "%s", i18n.T("cmd.repair.db_missing"))
 		return nil
 	}
 

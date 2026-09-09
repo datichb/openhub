@@ -1,8 +1,8 @@
 package gitlab
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"

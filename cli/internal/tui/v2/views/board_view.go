@@ -537,31 +537,32 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 	for _, t := range tickets {
 		newMap[t.ID] = t
 		for i, col := range columns {
-			if t.Status == col.Status {
-				color := priorityColor(t.Priority)
-				prefix := priorityPrefix(t.Priority)
-				// Line 1 (main): "P1 · title" coloured by priority
-				mainText := fmt.Sprintf("%s%s%s%s",
-					widgets.ColorTag(color),
-					prefix,
-					truncateTitle(t.Title, 36),
-					"[-]",
-				)
-				// Line 2 (secondary): "ID · type"
-				secondary := fmt.Sprintf("%s · %s", t.ID, t.Type)
-				// Line 3 (meta): external ref if present
-				meta := ""
-				if t.ExternalRef != "" {
-					meta = fmt.Sprintf("← %s", t.ExternalRef)
-				}
-				v.columnCards[i].AddCard(widgets.Card{
-					MainText:      mainText,
-					SecondaryText: secondary,
-					MetaText:      meta,
-				})
-				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
-				break
+			if t.Status != col.Status {
+				continue
 			}
+			color := priorityColor(t.Priority)
+			prefix := priorityPrefix(t.Priority)
+			// Line 1 (main): "P1 · title" coloured by priority
+			mainText := fmt.Sprintf("%s%s%s%s",
+				widgets.ColorTag(color),
+				prefix,
+				truncateTitle(t.Title, 36),
+				"[-]",
+			)
+			// Line 2 (secondary): "ID · type"
+			secondary := fmt.Sprintf("%s · %s", t.ID, t.Type)
+			// Line 3 (meta): external ref if present
+			meta := ""
+			if t.ExternalRef != "" {
+				meta = fmt.Sprintf("← %s", t.ExternalRef)
+			}
+			v.columnCards[i].AddCard(widgets.Card{
+				MainText:      mainText,
+				SecondaryText: secondary,
+				MetaText:      meta,
+			})
+			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
+			break
 		}
 	}
 	v.ticketsByID = newMap

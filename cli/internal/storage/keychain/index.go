@@ -14,10 +14,10 @@ import (
 // The index only stores key names, NEVER values. It lives at
 // ~/.oh/secrets-index.json and is updated on every Set/Delete.
 type secretsIndex struct {
-	mu       sync.Mutex
-	path     string
-	entries  []indexEntry
-	loaded   bool
+	mu      sync.Mutex
+	path    string
+	entries []indexEntry
+	loaded  bool
 }
 
 type indexEntry struct {

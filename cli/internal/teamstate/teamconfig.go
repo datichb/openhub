@@ -11,11 +11,11 @@ import (
 
 // TeamConfig represents the team-state configuration (config.toml in the repo).
 type TeamConfig struct {
-	Notification NotificationConfig        `toml:"notification"`
-	Takeover     TakeoverConfig            `toml:"takeover"`
-	Parallel     ParallelConfig            `toml:"parallel"`
-	Claim        ClaimConfig               `toml:"claim"`
-	Tracker      TrackerConfig             `toml:"tracker"`
+	Notification NotificationConfig `toml:"notification"`
+	Takeover     TakeoverConfig     `toml:"takeover"`
+	Parallel     ParallelConfig     `toml:"parallel"`
+	Claim        ClaimConfig        `toml:"claim"`
+	Tracker      TrackerConfig      `toml:"tracker"`
 	// MCP holds team-level recommendations/enforcements for MCP services.
 	// Each key is a service name ("gitlab", "jira", "figma", "gslides").
 	MCP map[string]SharedMCPConfig `toml:"mcp"`
@@ -178,10 +178,12 @@ type TrackerConfig struct {
 	TicketPattern string `toml:"ticket_pattern,omitempty"`
 	// TicketPatterns maps hub project IDs to a regex with one capture group
 	// that extracts the external tracker IID from a ticket ID string.
+	//
 	// Deprecated: use TrackerProject + TicketPattern (simple fields) or
 	// per-project ProjectTrackerConfig overrides. Kept for backward compat.
 	TicketPatterns map[string]string `toml:"ticket_patterns,omitempty"`
 	// Projects maps hub project IDs to external tracker project identifiers.
+	//
 	// Deprecated: use TrackerProject (simple field) or per-project
 	// ProjectTrackerConfig overrides. Kept for backward compat.
 	Projects map[string]string `toml:"projects,omitempty"`

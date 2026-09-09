@@ -31,7 +31,7 @@ func Serve() error {
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"jql":        map[string]interface{}{"type": "string", "description": "JQL query (e.g. 'project = MYPROJ AND status = \"In Progress\"')"},
+				"jql":         map[string]interface{}{"type": "string", "description": "JQL query (e.g. 'project = MYPROJ AND status = \"In Progress\"')"},
 				"max_results": map[string]interface{}{"type": "integer", "description": "Max results (default 50)"},
 			},
 			"required": []string{"jql"},
@@ -178,7 +178,7 @@ func jiraAPI(path string, query url.Values) ([]byte, error) {
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()
 	}
-	req, err := http.NewRequest("GET", reqURL, nil)
+	req, err := http.NewRequest("GET", reqURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -192,7 +192,7 @@ func jiraAPI(path string, query url.Values) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Jira API request failed: %w", err)
+		return nil, fmt.Errorf("jira API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -201,7 +201,7 @@ func jiraAPI(path string, query url.Values) ([]byte, error) {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("Jira API error %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("jira API error %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return body, nil
 }
@@ -224,12 +224,12 @@ func jiraAPIPost(path string, payload interface{}) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Jira API POST failed: %w", err)
+		return nil, fmt.Errorf("jira API POST failed: %w", err)
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("Jira API error %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return nil, fmt.Errorf("jira API error %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	return respBody, nil
 }

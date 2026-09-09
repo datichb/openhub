@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	ohReleasesAPI    = "https://api.github.com/repos/datichb/openhub/releases/latest"
-	ohReleaseTagAPI  = "https://api.github.com/repos/datichb/openhub/releases/tags/v%s"
-	ohAPITimeout     = 15 * time.Second
+	ohReleasesAPI     = "https://api.github.com/repos/datichb/openhub/releases/latest"
+	ohReleaseTagAPI   = "https://api.github.com/repos/datichb/openhub/releases/tags/v%s"
+	ohAPITimeout      = 15 * time.Second
 	ohDownloadTimeout = 5 * time.Minute
-	ohMaxRetries     = 3
+	ohMaxRetries      = 3
 )
 
 // Release holds metadata from a GitHub release of oh.

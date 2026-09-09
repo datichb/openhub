@@ -101,8 +101,8 @@ func (v *ProviderView) StatusHints() string {
 }
 
 // Mount builds the provider configuration interface.
-func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 	v.mountGen++
 	gen := v.mountGen
 	v.dirty = false
@@ -125,7 +125,7 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 		secrets := v.prefetchSecrets()
 
 		// Phase 2: UI work on the event loop
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return
 			}
@@ -134,7 +134,7 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 			v.secretCache = secrets
 
 			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
+			v.list.SetApp(tvApp)
 			v.list.SetBorderPadding(1, 0, 2, 2)
 
 			v.buildLines()
@@ -150,7 +150,7 @@ func (v *ProviderView) Mount(content *tview.Flex, app *tview.Application) {
 			v.buildCommands()
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
-			app.SetFocus(v.list)
+			tvApp.SetFocus(v.list)
 		})
 	}()
 }
@@ -186,8 +186,7 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.refresh()
 		return nil
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		v.editCurrent()
 		return nil
 	}
@@ -837,19 +836,19 @@ func (v *ProviderView) buildCommands() {
 	v.commands = []ContextCommand{
 		{
 			ID: "provider.setup", Label: i18n.T("tui.hints.setup"),
-			Aliases: []string{"configurer", "configure", "setup"},
+			Aliases:     []string{"configurer", "configure", "setup"},
 			Description: i18n.T("tui.provider.cmd_setup"), Category: "Provider",
 			Action: v.setupProvider,
 		},
 		{
 			ID: "provider.refresh", Label: i18n.T("tui.hints.refresh"),
-			Aliases: []string{"rafraîchir", "reload", "refresh"},
+			Aliases:     []string{"rafraîchir", "reload", "refresh"},
 			Description: i18n.T("tui.provider.cmd_refresh"), Category: "Provider",
 			Action: v.refresh,
 		},
 		{
 			ID: "provider.save", Label: i18n.T("tui.hints.save"),
-			Aliases: []string{"save", "write", "sauvegarder"},
+			Aliases:     []string{"save", "write", "sauvegarder"},
 			Description: i18n.T("tui.provider.cmd_save"), Category: "Provider",
 			Action: v.save,
 		},

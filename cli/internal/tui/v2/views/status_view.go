@@ -13,8 +13,8 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -49,8 +49,8 @@ func (v *StatusView) StatusHints() string {
 }
 
 // Mount builds the status display with real data.
-func (v *StatusView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *StatusView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 
 	v.tv = tview.NewTextView().
 		SetDynamicColors(true).
@@ -66,7 +66,7 @@ func (v *StatusView) Mount(content *tview.Flex, app *tview.Application) {
 	// Load status data asynchronously (subprocess + DB calls)
 	go func() {
 		text := v.buildStatusText()
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.tv == nil {
 				return
 			}
@@ -107,27 +107,27 @@ func (v *StatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // buildStatusText builds the status display text. Safe to call from any goroutine.
 func (v *StatusView) buildStatusText() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n  [::b]Status du Hub%s\n\n", theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]Status du Hub%s\n\n", theme.TagReset)
 
 	// Hub name
 	hubName := "OpenHub"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		hubName = v.appCtx.Config.Name
 	}
-	sb.WriteString(fmt.Sprintf("  %sHub :%s              %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, hubName))
+	fmt.Fprintf(&sb, "  %sHub :%s              %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, hubName)
 
 	// Config path
-	sb.WriteString(fmt.Sprintf("  %sConfig :%s           %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, config.ConfigPath()))
+	fmt.Fprintf(&sb, "  %sConfig :%s           %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, config.ConfigPath())
 
 	// Language
 	lang := "en"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		lang = v.appCtx.Config.CLI.Language
 	}
-	sb.WriteString(fmt.Sprintf("  %sLangue :%s           %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, lang))
+	fmt.Fprintf(&sb, "  %sLangue :%s           %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, lang)
 
 	// Opencode version
 	ocVer, err := opencode.Version()
@@ -138,8 +138,8 @@ func (v *StatusView) buildStatusText() string {
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		channel = v.appCtx.Config.Opencode.Channel
 	}
-	sb.WriteString(fmt.Sprintf("  %sopencode :%s         %s (%s)\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ocVer, channel))
+	fmt.Fprintf(&sb, "  %sopencode :%s         %s (%s)\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ocVer, channel)
 
 	// Provider
 	provider := "—"
@@ -149,8 +149,8 @@ func (v *StatusView) buildStatusText() string {
 			provider = "non configuré"
 		}
 	}
-	sb.WriteString(fmt.Sprintf("  %sProvider :%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, provider))
+	fmt.Fprintf(&sb, "  %sProvider :%s         %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, provider)
 
 	// Projects count
 	sb.WriteString("\n")
@@ -159,8 +159,8 @@ func (v *StatusView) buildStatusText() string {
 		projects, _ := v.appCtx.Projects.List(context.Background(), "")
 		projectCount = len(projects)
 	}
-	sb.WriteString(fmt.Sprintf("  %sProjets :%s          %d enregistrés\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, projectCount))
+	fmt.Fprintf(&sb, "  %sProjets :%s          %d enregistrés\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, projectCount)
 
 	return sb.String()
 }

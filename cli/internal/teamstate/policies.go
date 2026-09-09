@@ -32,9 +32,9 @@ func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
 type PolicyType string
 
 const (
-	PolicyTypeRegex           PolicyType = "regex"
-	PolicyTypeBoolean         PolicyType = "boolean"
-	PolicyTypeLimit           PolicyType = "limit"
+	PolicyTypeRegex            PolicyType = "regex"
+	PolicyTypeBoolean          PolicyType = "boolean"
+	PolicyTypeLimit            PolicyType = "limit"
 	PolicyTypeForbiddenPattern PolicyType = "forbidden_pattern"
 )
 
@@ -48,16 +48,16 @@ const (
 
 // Policy represents a single team policy rule.
 type Policy struct {
-	Name        string           `toml:"-"`          // derived from TOML key
-	Type        PolicyType       `toml:"type"`
-	Rule        string           `toml:"rule,omitempty"`        // regex pattern
-	Enabled     bool             `toml:"enabled,omitempty"`     // for boolean type
-	Max         int              `toml:"max,omitempty"`         // for limit type
-	Unit        string           `toml:"unit,omitempty"`        // for limit type (e.g. "lines")
-	Patterns    []string         `toml:"patterns,omitempty"`    // for forbidden_pattern type
-	Scope       string           `toml:"scope,omitempty"`       // diff_only | all_files | modified_files | per_feature_branch
+	Name        string            `toml:"-"` // derived from TOML key
+	Type        PolicyType        `toml:"type"`
+	Rule        string            `toml:"rule,omitempty"`     // regex pattern
+	Enabled     bool              `toml:"enabled,omitempty"`  // for boolean type
+	Max         int               `toml:"max,omitempty"`      // for limit type
+	Unit        string            `toml:"unit,omitempty"`     // for limit type (e.g. "lines")
+	Patterns    []string          `toml:"patterns,omitempty"` // for forbidden_pattern type
+	Scope       string            `toml:"scope,omitempty"`    // diff_only | all_files | modified_files | per_feature_branch
 	Enforcement PolicyEnforcement `toml:"enforcement"`
-	Message     string           `toml:"message,omitempty"`
+	Message     string            `toml:"message,omitempty"`
 }
 
 // PolicyResult holds the outcome of a single policy check.

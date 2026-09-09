@@ -156,11 +156,11 @@ func TestIsStale(t *testing.T) {
 		staleDays    int
 		expected     bool
 	}{
-		{now.Add(-1 * time.Hour), 3, false},                     // 1h ago, not stale
-		{now.Add(-4 * 24 * time.Hour), 3, true},                 // 4 days ago, stale
-		{now.Add(-2 * 24 * time.Hour), 3, false},                // 2 days ago, not stale
-		{now.Add(-3*24*time.Hour - time.Hour), 3, true},         // 3d1h ago, stale
-		{time.Time{}, 3, false},                                  // zero time uses ClaimedAt
+		{now.Add(-1 * time.Hour), 3, false},             // 1h ago, not stale
+		{now.Add(-4 * 24 * time.Hour), 3, true},         // 4 days ago, stale
+		{now.Add(-2 * 24 * time.Hour), 3, false},        // 2 days ago, not stale
+		{now.Add(-3*24*time.Hour - time.Hour), 3, true}, // 3d1h ago, stale
+		{time.Time{}, 3, false},                         // zero time uses ClaimedAt
 	}
 
 	for i, tc := range tests {

@@ -123,7 +123,7 @@ func Init(projectPath, prefix string) error {
 	// Register default labels used by opencode agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
 		lctx, lcancel := context.WithTimeout(context.Background(), 10*time.Second)
-		exec.CommandContext(lctx, "bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck
+		exec.CommandContext(lctx, "bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck // best-effort label creation, failure is non-fatal
 		lcancel()
 	}
 	return nil
@@ -665,7 +665,7 @@ func sanitizeGitignoreReport(projectPath string) ([]string, error) {
 
 	content, err := os.ReadFile(gitignorePath)
 	if err != nil {
-		return nil, nil // no .gitignore — nothing to do
+		return nil, nil //nolint:nilerr // no .gitignore — nothing to do
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -858,8 +858,8 @@ func isBeadsAgentDir(dirPath string) bool {
 
 // DiagIssue describes a single zero-impact violation found in a project.
 type DiagIssue struct {
-	Kind    string // "hook", "gitignore", "exclude_missing", "agent_file"
-	Detail  string // human-readable description
+	Kind   string // "hook", "gitignore", "exclude_missing", "agent_file"
+	Detail string // human-readable description
 }
 
 // DiagnoseBeadsImpact checks a project for beads side effects that should not be present.

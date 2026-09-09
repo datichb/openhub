@@ -91,9 +91,9 @@ var (
 		Padding(0, 1)
 	// BoxActive is a panel with active/focused border.
 	BoxActive = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(LipBorderActive).
-		Padding(0, 1)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(LipBorderActive).
+			Padding(0, 1)
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

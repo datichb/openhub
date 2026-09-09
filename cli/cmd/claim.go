@@ -154,7 +154,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			// Propose generating a takeover brief
 			fmt.Fprintf(a.IO.Out, "%s", i18n.T("cmd.claim.stale_confirm"))
 			var response string
-			fmt.Scanln(&response)
+			_, _ = fmt.Scanln(&response)
 			if response == "" || response == "y" || response == "Y" {
 				previousOwner := existing.ClaimedBy
 				// Generate brief

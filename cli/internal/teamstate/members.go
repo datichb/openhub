@@ -19,9 +19,9 @@ type Member struct {
 	// TrackerUsername overrides GitLabUsername for tracker sync when the tracker
 	// points to a different GitLab/Jira instance than the team-state repo.
 	// Empty = fallback to GitLabUsername.
-	TrackerUsername    string `toml:"tracker_username,omitempty"`
-	Role               string `toml:"role"`         // lead | dev | reviewer
-	DefaultMode        string `toml:"default_mode"` // manual | semi-auto | auto
+	TrackerUsername string `toml:"tracker_username,omitempty"`
+	Role            string `toml:"role"`         // lead | dev | reviewer
+	DefaultMode     string `toml:"default_mode"` // manual | semi-auto | auto
 }
 
 // membersFile is the TOML structure of members.toml.

@@ -10,8 +10,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"

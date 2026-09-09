@@ -64,7 +64,7 @@ func NewResolvedFromTeam[T any](value T, teamID string, enforced bool) ResolvedV
 //  3. Hub has a value (non-nil)? → use hub value
 //  4. Team RECOMMENDED? → use team recommendation
 //  5. Fallback → system default
-func ResolveBool(teamValue *bool, teamEnforced *bool, hubValue *bool, projectValue *bool, teamID string, defaultValue bool) ResolvedValue[bool] {
+func ResolveBool(teamValue, teamEnforced, hubValue, projectValue *bool, teamID string, defaultValue bool) ResolvedValue[bool] {
 	// Step 1: Team enforced
 	if teamEnforced != nil && *teamEnforced && teamValue != nil {
 		return NewResolvedFromTeam(*teamValue, teamID, true)
@@ -90,7 +90,7 @@ func ResolveBool(teamValue *bool, teamEnforced *bool, hubValue *bool, projectVal
 }
 
 // ResolveString implements the 4-step cascade resolution for a string setting.
-func ResolveString(teamValue string, teamEnforced *bool, hubValue string, projectValue string, teamID string, defaultValue string) ResolvedValue[string] {
+func ResolveString(teamValue string, teamEnforced *bool, hubValue, projectValue, teamID, defaultValue string) ResolvedValue[string] {
 	// Step 1: Team enforced
 	if teamEnforced != nil && *teamEnforced && teamValue != "" {
 		return NewResolvedFromTeam(teamValue, teamID, true)

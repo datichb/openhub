@@ -29,8 +29,8 @@ type Config struct {
 	Team TeamConfig `mapstructure:"team" toml:"team,omitempty"`
 	// Teams holds the list of teams the user belongs to (ADR-029).
 	// Each project references a team by its ID (Project.TeamID).
-	Teams   []TeamConfig       `mapstructure:"teams" toml:"teams,omitempty"`
-	Models  ModelsConfig       `mapstructure:"models" toml:"models"`
+	Teams  []TeamConfig `mapstructure:"teams" toml:"teams,omitempty"`
+	Models ModelsConfig `mapstructure:"models" toml:"models"`
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
 	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
@@ -91,9 +91,9 @@ type TeamConfig struct {
 	// Optional — if empty, ID is used for display.
 	Name      string `mapstructure:"name" toml:"name,omitempty"`
 	Enabled   bool   `mapstructure:"enabled" toml:"enabled"`
-	StateRepo string `mapstructure:"state_repo" toml:"state_repo"` // Git remote URL for the team-state repo
+	StateRepo string `mapstructure:"state_repo" toml:"state_repo"`           // Git remote URL for the team-state repo
 	StatePath string `mapstructure:"state_path" toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
-	MemberID  string `mapstructure:"member_id" toml:"member_id"`  // Current user's member ID
+	MemberID  string `mapstructure:"member_id" toml:"member_id"`             // Current user's member ID
 }
 
 // DisplayName returns Name if set, otherwise falls back to ID.
@@ -148,7 +148,7 @@ func ValidateTeams(teams []TeamConfig) error {
 // WorktreeConfig holds git worktree management settings.
 type WorktreeConfig struct {
 	AutoCleanup   bool   `mapstructure:"auto_cleanup" toml:"auto_cleanup"`
-	BaseBranch    string `mapstructure:"base_branch" toml:"base_branch,omitempty"`    // empty = auto-detect (main/master)
+	BaseBranch    string `mapstructure:"base_branch" toml:"base_branch,omitempty"`       // empty = auto-detect (main/master)
 	BranchPattern string `mapstructure:"branch_pattern" toml:"branch_pattern,omitempty"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
 }
 
@@ -200,8 +200,8 @@ type MCPConfig struct {
 // MCPServerConfig holds individual MCP server settings.
 type MCPServerConfig struct {
 	Enabled      bool   `mapstructure:"enabled" toml:"enabled"`
-	Token        string `mapstructure:"token_key" toml:"token_key,omitempty"`     // keychain key name, not the secret itself
-	WriteEnabled bool   `mapstructure:"write_enabled" toml:"write_enabled"` // opt-in for write operations (e.g. GitLab MR creation)
+	Token        string `mapstructure:"token_key" toml:"token_key,omitempty"` // keychain key name, not the secret itself
+	WriteEnabled bool   `mapstructure:"write_enabled" toml:"write_enabled"`   // opt-in for write operations (e.g. GitLab MR creation)
 	// URL is an optional per-member override for the service base URL.
 	// Useful when the member needs to point to a different instance than
 	// the team recommendation stored in team-state config.toml.

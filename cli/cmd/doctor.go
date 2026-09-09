@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/skillregistry"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -178,7 +179,7 @@ func skillSearchCmd() *cobra.Command {
 			w.Flush()
 
 			if count == 0 {
-				fmt.Fprintf(a.IO.Out, "  Aucun skill correspondant à %q\n", query)
+				fmt.Fprintf(a.IO.Out, "%s", i18n.Tf("cmd.skill.no_match", query))
 			} else {
 				fmt.Fprintf(a.IO.Out, "\n  %d skill(s) trouvé(s). Utilisez 'oh skill add <nom>' pour installer.\n", count)
 			}
@@ -188,7 +189,7 @@ func skillSearchCmd() *cobra.Command {
 }
 
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 &&
+	return s != "" && substr != "" &&
 		(s == substr || len(s) >= len(substr) &&
 			(s[:len(substr)] == substr ||
 				containsSubstr(s, substr)))

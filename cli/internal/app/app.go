@@ -15,12 +15,12 @@ import (
 // App is the central dependency container injected into all commands.
 // Commands depend on App (and its interfaces), never on concrete implementations.
 type App struct {
-	Config       *config.Config
-	Projects     domain.ProjectStore
-	Sessions     domain.SessionStore
-	AgentEvents  domain.AgentEventStore
-	Secrets      domain.SecretStore
-	IO           *IOStreams
+	Config      *config.Config
+	Projects    domain.ProjectStore
+	Sessions    domain.SessionStore
+	AgentEvents domain.AgentEventStore
+	Secrets     domain.SecretStore
+	IO          *IOStreams
 }
 
 // IOStreams abstracts standard I/O for testability.

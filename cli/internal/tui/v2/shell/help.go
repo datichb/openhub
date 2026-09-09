@@ -30,8 +30,8 @@ func (s *Shell) showHelpOverlay() {
 	var b strings.Builder
 
 	// ── Section 1 : Global shortcuts ──────────────────────────────────────────
-	b.WriteString(fmt.Sprintf("\n  %s%s%s\n\n",
-		accent, i18n.T("tui.help.section.global"), reset))
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n",
+		accent, i18n.T("tui.help.section.global"), reset)
 	rows := []struct{ key, desc string }{
 		{"Ctrl+P", i18n.T("tui.help.ctrl_p")},
 		{"?  / F1", i18n.T("tui.help.help")},
@@ -42,7 +42,7 @@ func (s *Shell) showHelpOverlay() {
 		{"[lettre]", i18n.T("tui.help.rune_search")},
 	}
 	for _, r := range rows {
-		b.WriteString(fmt.Sprintf("  %s%-14s%s  %s\n", accent, r.key, reset, r.desc))
+		fmt.Fprintf(&b, "  %s%-14s%s  %s\n", accent, r.key, reset, r.desc)
 	}
 
 	// ── Section 2 : Contextual commands from the active view ──────────────────
@@ -50,8 +50,8 @@ func (s *Shell) showHelpOverlay() {
 		if cp, ok := cur.(views.CommandProvider); ok {
 			cmds := cp.ContextCommands()
 			if len(cmds) > 0 {
-				b.WriteString(fmt.Sprintf("\n  %s%s : %s%s\n\n",
-					accent, i18n.T("tui.help.section.view"), cur.Title(), reset))
+				fmt.Fprintf(&b, "\n  %s%s : %s%s\n\n",
+					accent, i18n.T("tui.help.section.view"), cur.Title(), reset)
 				for _, cmd := range cmds {
 					shortcut := cmd.ID
 					if len(cmd.Aliases) > 0 {
@@ -61,27 +61,27 @@ func (s *Shell) showHelpOverlay() {
 					if desc == "" {
 						desc = cmd.Label
 					}
-					b.WriteString(fmt.Sprintf("  %s%-14s%s  %s\n", accent, shortcut, reset, desc))
+					fmt.Fprintf(&b, "  %s%-14s%s  %s\n", accent, shortcut, reset, desc)
 				}
 			}
 		}
 	}
 
 	// ── Section 3 : Omnibar commands grouped by category ──────────────────────
-	b.WriteString(fmt.Sprintf("\n  %s%s%s\n\n",
-		accent, i18n.T("tui.help.section.commands"), reset))
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n",
+		accent, i18n.T("tui.help.section.commands"), reset)
 
 	groups := helpGroupByCategory(s.registry.All())
 	for _, g := range groups {
 		if g.name != "" {
-			b.WriteString(fmt.Sprintf("  %s%s%s\n", muted, g.name, reset))
+			fmt.Fprintf(&b, "  %s%s%s\n", muted, g.name, reset)
 		}
 		for _, cmd := range g.commands {
 			desc := cmd.Description
 			if desc == "" {
 				desc = cmd.Category
 			}
-			b.WriteString(fmt.Sprintf("    %-14s  %s\n", cmd.Label, desc))
+			fmt.Fprintf(&b, "    %-14s  %s\n", cmd.Label, desc)
 		}
 		b.WriteString("\n")
 	}

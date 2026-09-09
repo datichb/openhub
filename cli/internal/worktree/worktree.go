@@ -353,7 +353,7 @@ func IsDirty(path string) bool {
 	if err != nil {
 		return false // fail-open: assume clean if git fails
 	}
-	return len(strings.TrimSpace(string(out))) > 0
+	return strings.TrimSpace(string(out)) != ""
 }
 
 // Checkout switches the working tree at the given path to the specified branch.

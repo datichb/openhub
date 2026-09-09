@@ -58,25 +58,25 @@ func actionTeamInit() {
 								Type:  views.FieldText,
 								Hint:  "Votre nom tel qu'il apparaîtra dans les events team",
 							},
-						{
-							Key:     "role",
-							Label:   "Rôle",
-							Type:    views.FieldSelect,
-							Default: "dev",
-							Options: []views.SelectOption{
-								{Label: "Lead", Value: "lead"},
-								{Label: "Développeur", Value: "dev"},
-								{Label: "Reviewer", Value: "reviewer"},
+							{
+								Key:     "role",
+								Label:   "Rôle",
+								Type:    views.FieldSelect,
+								Default: "dev",
+								Options: []views.SelectOption{
+									{Label: "Lead", Value: "lead"},
+									{Label: "Développeur", Value: "dev"},
+									{Label: "Reviewer", Value: "reviewer"},
+								},
+								Hint: "← / → pour changer",
 							},
-							Hint: "← / → pour changer",
 						},
-					},
-					OnSubmit: func(values map[string]string, _ map[string][]string) {
-						memberID := values["member_id"]
-						if memberID == "" {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Member ID requis", shell.ToastError)
+						OnSubmit: func(values map[string]string, _ map[string][]string) {
+							memberID := values["member_id"]
+							if memberID == "" {
+								go func() {
+									tuiShell.App().QueueUpdateDraw(func() {
+										tuiShell.ShowToast("Member ID requis", shell.ToastError)
 									})
 								}()
 								return
@@ -171,27 +171,27 @@ func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func(
 								}()
 								return
 							}
-						go func() {
-							_ = teamstate.EnsureCredentialHelper(remote)
-							if err := teamstate.ConfigureCredential(tuiShell.Context(), remote, username, token); err != nil {
+							go func() {
+								_ = teamstate.EnsureCredentialHelper(remote)
+								if err := teamstate.ConfigureCredential(tuiShell.Context(), remote, username, token); err != nil {
+									tuiShell.App().QueueUpdateDraw(func() {
+										tuiShell.ShowToast("Erreur configuration credential : "+err.Error(), shell.ToastError)
+									})
+									return
+								}
+								// Sequential: toast first, then next modal.
+								// A single goroutine with sleep prevents the race that causes
+								// a hard TUI freeze when two QueueUpdateDraw calls run in the
+								// same draw cycle.
+								time.Sleep(50 * time.Millisecond)
 								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Erreur configuration credential : "+err.Error(), shell.ToastError)
+									tuiShell.ShowToast("Credential configuré — les pulls/pushs utiliseront ce token automatiquement", shell.ToastSuccess)
 								})
-								return
-							}
-							// Sequential: toast first, then next modal.
-							// A single goroutine with sleep prevents the race that causes
-							// a hard TUI freeze when two QueueUpdateDraw calls run in the
-							// same draw cycle.
-							time.Sleep(50 * time.Millisecond)
-							tuiShell.App().QueueUpdateDraw(func() {
-								tuiShell.ShowToast("Credential configuré — les pulls/pushs utiliseront ce token automatiquement", shell.ToastSuccess)
-							})
-							time.Sleep(50 * time.Millisecond)
-							tuiShell.App().QueueUpdateDraw(func() {
-								afterCredentials()
-							})
-						}()
+								time.Sleep(50 * time.Millisecond)
+								tuiShell.App().QueueUpdateDraw(func() {
+									afterCredentials()
+								})
+							}()
 						},
 						OnCancel: func() {
 							go func() {
@@ -276,229 +276,12 @@ func actionTeamConfigure() {
 	})
 }
 
-// collectCredentialsThenMember handles the HTTPS credential collection flow
-// before continuing with the member identity step.
-func collectCredentialsThenMember(a *app.App, projectID, customRepo string, hubMember hubMemberInfo) {
-	authOptions := []views.SelectOption{
-		{Label: "Oui, fournir un token", Value: "provide"},
-		{Label: "Déjà configuré (skip)", Value: "skip"},
-		{Label: "Non, accès public", Value: "public"},
-	}
-	tuiShell.ShowSelectModal("Étape 1 — Authentification", authOptions, "provide", func(authChoice string) {
-		if authChoice == "provide" {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowInlineForm(views.InlineFormConfig{
-						Title: "Étape 2 — Credentials",
-						Fields: []views.FormField{
-							{
-								Key:     "username",
-								Label:   "Username",
-								Type:    views.FieldText,
-								Default: "oauth2",
-								Hint:    "GitLab PAT : oauth2 · GitLab Project Token : nom du token · GitHub : votre username",
-							},
-							{
-								Key:   "token",
-								Label: "Token d'accès",
-								Type:  views.FieldPassword,
-								Hint:  "Stocké dans votre keychain système, jamais dans oh",
-							},
-						},
-						OnSubmit: func(values map[string]string, _ map[string][]string) {
-							username := values["username"]
-							if username == "" {
-								username = "oauth2"
-							}
-							token := values["token"]
-							if token == "" {
-								go func() {
-									tuiShell.App().QueueUpdateDraw(func() {
-										tuiShell.ShowToast("Token requis", shell.ToastError)
-									})
-								}()
-								return
-							}
-						go func() {
-							_ = teamstate.EnsureCredentialHelper(customRepo)
-							if err := teamstate.ConfigureCredential(tuiShell.Context(), customRepo, username, token); err != nil {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Erreur configuration credential : "+err.Error(), shell.ToastError)
-								})
-								return
-							}
-							// Sequential with sleep — same pattern as collectCredentialsForInit.
-							time.Sleep(50 * time.Millisecond)
-							tuiShell.App().QueueUpdateDraw(func() {
-								tuiShell.ShowToast("Credential configuré — les pulls/pushs utiliseront ce token automatiquement", shell.ToastSuccess)
-							})
-							time.Sleep(50 * time.Millisecond)
-							tuiShell.App().QueueUpdateDraw(func() {
-								continueCustomFlowWithMember(a, projectID, customRepo, hubMember)
-							})
-						}()
-						},
-						OnCancel: func() {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Annulé", shell.ToastInfo)
-								})
-							}()
-						},
-					})
-				})
-			}()
-		} else {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					continueCustomFlowWithMember(a, projectID, customRepo, hubMember)
-				})
-			}()
-		}
-	})
-}
-
-// continueCustomFlowWithMember continues the custom team setup flow
-// after credentials have been configured (or skipped). It handles the
-// identity selection step (reuse hub member or create new).
-func continueCustomFlowWithMember(a *app.App, projectID, customRepo string, hubMember hubMemberInfo) {
-	if hubMember.MemberID != "" {
-		reuseLabel := fmt.Sprintf("Utiliser l'existant (%s — %s)", hubMember.MemberID, hubMember.DisplayName)
-		identityOptions := []views.SelectOption{
-			{Label: reuseLabel, Value: "reuse"},
-			{Label: "Créer un nouveau membre", Value: "new"},
-		}
-		tuiShell.ShowSelectModal("Identité dans ce repo", identityOptions, "reuse", func(choice string) {
-			if choice == "reuse" {
-				runCustomSetupAndApply(a, projectID, customRepo,
-					hubMember.MemberID, hubMember.DisplayName, hubMember.Role)
-			} else {
-				go func() {
-					tuiShell.App().QueueUpdateDraw(func() {
-						collectNewMemberAndApply(a, projectID, customRepo)
-					})
-				}()
-			}
-		})
-	} else {
-		collectNewMemberAndApply(a, projectID, customRepo)
-	}
-}
-
-// collectNewMemberAndApply shows a single identity form (Member ID + Nom + Rôle)
-// and calls runCustomSetupAndApply once submitted.
-func collectNewMemberAndApply(a *app.App, projectID, customRepo string) {
-	tuiShell.ShowInlineForm(views.InlineFormConfig{
-		Title: "Étape 3 — Identité",
-		Fields: []views.FormField{
-			{
-				Key:      "member_id",
-				Label:    "Member ID",
-				Type:     views.FieldText,
-				Required: true,
-				Hint:     "Identifiant unique dans l'équipe (ex: benjamin, alice)",
-			},
-			{
-				Key:   "display_name",
-				Label: "Nom d'affichage",
-				Type:  views.FieldText,
-				Hint:  "Votre nom tel qu'il apparaîtra dans les events team",
-			},
-			{
-				Key:     "role",
-			Label:   "Rôle",
-			Type:    views.FieldSelect,
-			Default: "dev",
-			Options: []views.SelectOption{
-				{Label: "Lead", Value: "lead"},
-				{Label: "Développeur", Value: "dev"},
-				{Label: "Reviewer", Value: "reviewer"},
-			},
-			Hint: "← / → pour changer",
-		},
-	},
-	OnSubmit: func(values map[string]string, _ map[string][]string) {
-		memberID := values["member_id"]
-		if memberID == "" {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Member ID requis", shell.ToastError)
-				})
-			}()
-				return
-			}
-			runCustomSetupAndApply(a, projectID, customRepo, memberID, values["display_name"], values["role"])
-		},
-		OnCancel: func() {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Annulé", shell.ToastInfo)
-				})
-			}()
-		},
-	})
-}
-
-// runCustomSetupAndApply runs the full custom team setup in a single sequential
-// goroutine and persists the result in the DB.
-//
-// We use a single goroutine with a small sleep before the first QueueUpdateDraw.
-// This guarantees the event loop has finished the button-handler draw cycle
-// (RemovePage + SetFocus) before we attempt to add a new overlay (toast).
-// Using two parallel goroutines both calling QueueUpdateDraw causes a race that
-// hard-freezes tview because the second goroutine can enqueue its callback before
-// the first draw cycle completes, leading to two concurrent page mutations.
-func runCustomSetupAndApply(a *app.App, projectID, customRepo, memberID, displayName, role string) {
-	ctx := tuiShell.Context()
-
-	go func() {
-		// Wait for the event loop to finish the current button-handler draw cycle.
-		time.Sleep(50 * time.Millisecond)
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		// Show the "in progress" toast — QueueUpdateDraw blocks this goroutine
-		// until the toast is rendered, guaranteeing ordering.
-		tuiShell.App().QueueUpdateDraw(func() {
-			tuiShell.ShowToast("Initialisation de l'équipe pour ce projet...", shell.ToastInfo)
-		})
-
-		// Run the actual setup (git clone/init/member/push) — blocking, network I/O.
-		result, err := runTeamCustomSetup(a, customRepo, memberID, displayName, role)
-
-		// Show the result toast.
-		tuiShell.App().QueueUpdateDraw(func() {
-			if err != nil {
-				tuiShell.ShowToast("Erreur d'initialisation de l'équipe : "+err.Error(), shell.ToastError)
-				return
-			}
-
-			// Custom flow attaches the project to the hub's active team.
-			activeTeamID := a.Config.ActiveTeam().ID
-			applyProjectTeamID(a, projectID, activeTeamID)
-		})
-
-		// Surface pull warning as a separate toast (must not share the same
-		// QueueUpdateDraw as applyProjectTeamID to avoid double page mutation).
-		if result.PullWarning != "" {
-			time.Sleep(50 * time.Millisecond)
-			tuiShell.App().QueueUpdateDraw(func() {
-				tuiShell.ShowToast(result.PullWarning, shell.ToastWarning)
-			})
-		}
-	}()
-}
-
 // applyProjectTeamID persists the team ID for a project in the DB.
 //
 // IMPORTANT: This function MUST be called from within the tview event loop
 // (e.g. from a QueueUpdateDraw callback or a tview handler). It calls ShowToast
 // directly — never via QueueUpdateDraw — to avoid a nested-QueueUpdateDraw deadlock.
-func applyProjectTeamID(a *app.App, projectID string, teamID string) {
+func applyProjectTeamID(a *app.App, projectID, teamID string) {
 	ctx := context.Background()
 	p, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -715,26 +498,26 @@ func formatSyncResultModal(r *views.SyncTrackerResult) string {
 		return "Aucun résultat"
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Claims créés:      %d\n", r.ClaimsCreated))
-	sb.WriteString(fmt.Sprintf("Claims mis à jour: %d\n", r.ClaimsUpdated))
-	sb.WriteString(fmt.Sprintf("Labels poussés:    %d\n", r.LabelsPushed))
+	fmt.Fprintf(&sb, "Claims créés:      %d\n", r.ClaimsCreated)
+	fmt.Fprintf(&sb, "Claims mis à jour: %d\n", r.ClaimsUpdated)
+	fmt.Fprintf(&sb, "Labels poussés:    %d\n", r.LabelsPushed)
 
 	if len(r.Projects) > 0 {
 		sb.WriteString("\nProjets:\n")
 		for _, p := range r.Projects {
-			sb.WriteString(fmt.Sprintf("  %s\n", p))
+			fmt.Fprintf(&sb, "  %s\n", p)
 		}
 	}
 	if len(r.Warnings) > 0 {
 		sb.WriteString("\nWarnings:\n")
 		for _, w := range r.Warnings {
-			sb.WriteString(fmt.Sprintf("  ⚠ %s\n", w))
+			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
 		}
 	}
 	if len(r.Errors) > 0 {
 		sb.WriteString("\nErreurs:\n")
 		for _, e := range r.Errors {
-			sb.WriteString(fmt.Sprintf("  ✗ %s\n", e))
+			fmt.Fprintf(&sb, "  ✗ %s\n", e)
 		}
 	}
 	return sb.String()

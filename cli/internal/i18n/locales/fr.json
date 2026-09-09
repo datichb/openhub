@@ -1201,5 +1201,25 @@
 
   "board.claimable": "[disponible]",
   "board.pool_claimed": "Ticket récupéré : %s",
-  "board.pool_claim_failed": "Récupération échouée : %s"
+  "board.pool_claim_failed": "Récupération échouée : %s",
+
+  "cmd.export.flag.overwrite": "Écraser les données existantes sans confirmation",
+  "cmd.export.flag.merge": "Fusionner avec les données existantes (projets uniquement)",
+  "cmd.init.wizard_intro": "Ce wizard va configurer les éléments essentiels :",
+  "cmd.patterns.new_content": "# Pattern : %s\n\n## Contexte d'usage\n\n## Décomposition type\n\n## Dépendances typiques\n\n## Variantes connues\n",
+  "cmd.repair.long": "Vérifie l'intégrité de la base de données SQLite.\nEn cas de corruption, tente une récupération et propose les options de restauration.",
+  "cmd.repair.db_missing": "  Base de données absente — sera créée au prochain démarrage.\n",
+  "cmd.skill.no_match": "  Aucun skill correspondant à %q\n",
+  "cmd.takeover_brief.long": "Affiche, liste et enrichit les briefs générés lors de transferts de tickets.\nUn brief contient le contexte nécessaire pour reprendre le travail d'un collègue.",
+  "cmd.takeover_brief.enrich.long": "Lance un agent IA en mode headless pour enrichir le brief existant\navec une analyse du code source, des questions ouvertes identifiées,\net des recommandations pour la suite du travail.",
+  "cmd.team_config.push_labels_prompt": "Activer le push de labels ? (équipe recommande : %v)",
+  "cmd.team_config.team_recommends_true": " %s (équipe recommande : true)",
+  "cmd.team_config.team_recommends_val": " %s (équipe recommande : %v)",
+  "takeover.template.transferred_from": "**Transféré de** %s → %s | **Date** %s | **Raison** %s\n\n",
+  "takeover.template.activity_header": "## Activité\n\n",
+  "tui.takeover.no_briefs_desc": "  Les briefs sont créés lors des transferts de tickets",
+  "tui.team.models.recommendation_type": "Type de recommandation",
+  "tui.team.models.recommendation_added": "Recommandation ajoutée",
+  "tui.team.models.save_recommendations": "Sauvegarder les recommandations de modèles",
+  "tui.team.models.add_recommendation": "Ajouter une recommandation de modèle"
 }

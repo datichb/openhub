@@ -18,7 +18,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-
 // buildViews constructs all registered views for the shell.
 func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	var projectItems []views.ProjectItem
@@ -40,11 +39,12 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					}
 					m := make(map[string]string, len(p.MCPConfig.Services))
 					for _, svc := range p.MCPConfig.Services {
-						if svc.Enabled == nil {
+						switch {
+						case svc.Enabled == nil:
 							m[svc.Name] = "inherit"
-						} else if *svc.Enabled {
+						case *svc.Enabled:
 							m[svc.Name] = "enabled"
-						} else {
+						default:
 							m[svc.Name] = "disabled"
 						}
 					}
@@ -96,7 +96,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					case "disabled":
 						f := false
 						svc.Enabled = &f
-					// "inherit" → nil (omit, let hub config win)
+						// "inherit" → nil (omit, let hub config win)
 					}
 					services = append(services, svc)
 				}

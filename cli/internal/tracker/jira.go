@@ -46,8 +46,8 @@ type jiraIssue struct {
 				Key string `json:"key"` // "new" | "indeterminate" | "done"
 			} `json:"statusCategory"`
 		} `json:"status"`
-		Labels  []string `json:"labels"`
-		Updated string   `json:"updated"` // ISO 8601
+		Labels   []string `json:"labels"`
+		Updated  string   `json:"updated"` // ISO 8601
 		Assignee *struct {
 			Name        string `json:"name"`        // Jira Server username
 			AccountID   string `json:"accountId"`   // Jira Cloud
@@ -116,10 +116,10 @@ func (c *jiraClient) FetchIssue(ctx context.Context, projectID string, iid int) 
 
 func (c *jiraClient) ListAssignedIssues(ctx context.Context, projectID string, opts ListOpts) ([]IssueState, error) {
 	// Build JQL query.
-	jql := fmt.Sprintf(`project = "%s" AND assignee = "%s" AND statusCategory != Done`,
+	jql := fmt.Sprintf(`project = %q AND assignee = %q AND statusCategory != Done`,
 		projectID, opts.AssigneeUsername)
 	if !opts.UpdatedAfter.IsZero() {
-		jql += fmt.Sprintf(` AND updated >= "%s"`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
+		jql += fmt.Sprintf(` AND updated >= %q`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
 	}
 
 	maxResults := 20
@@ -151,7 +151,7 @@ func (c *jiraClient) ListAssignedIssues(ctx context.Context, projectID string, o
 
 func (c *jiraClient) ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error) {
 	// Build JQL query for unassigned issues.
-	jql := fmt.Sprintf(`project = "%s" AND assignee is EMPTY AND statusCategory != Done`, projectID)
+	jql := fmt.Sprintf(`project = %q AND assignee is EMPTY AND statusCategory != Done`, projectID)
 	if len(opts.Labels) > 0 {
 		// JQL label filter: labels in ("label1", "label2")
 		quoted := make([]string, 0, len(opts.Labels))
@@ -161,7 +161,7 @@ func (c *jiraClient) ListUnassignedIssues(ctx context.Context, projectID string,
 		jql += fmt.Sprintf(` AND labels in (%s)`, strings.Join(quoted, ","))
 	}
 	if !opts.UpdatedAfter.IsZero() {
-		jql += fmt.Sprintf(` AND updated >= "%s"`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
+		jql += fmt.Sprintf(` AND updated >= %q`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
 	}
 
 	maxResults := 20
@@ -344,7 +344,7 @@ func (c *jiraClient) CreateIssue(ctx context.Context, opts CreateIssueOpts) (*Cr
 	// Parse IID from key (e.g., "PROJ-42" → 42)
 	iid := 0
 	if parts := strings.Split(result.Key, "-"); len(parts) == 2 {
-		fmt.Sscanf(parts[1], "%d", &iid)
+		_, _ = fmt.Sscanf(parts[1], "%d", &iid)
 	}
 
 	return &CreatedIssue{

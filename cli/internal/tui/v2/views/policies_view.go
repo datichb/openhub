@@ -10,8 +10,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -212,12 +212,13 @@ func (v *PoliciesView) checkPolicies() {
 	passed := 0
 	for _, r := range results {
 		var icon string
-		if r.Passed {
+		switch {
+		case r.Passed:
 			icon = "[green]✓[-]"
 			passed++
-		} else if r.Enforcement == teamstate.EnforcementRefuse {
+		case r.Enforcement == teamstate.EnforcementRefuse:
 			icon = "[red]✗[-]"
-		} else {
+		default:
 			icon = "[yellow]⚠[-]"
 		}
 		text += fmt.Sprintf("  %s %s", icon, r.Name)
@@ -310,34 +311,34 @@ func (v *PoliciesView) addPolicy() {
 	})
 }
 
-func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, enforcement, message, rule string, patterns []string, scope string, max int) {
+func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, enforcement, message, rule string, patterns []string, scope string, maxVal int) {
 	// Build TOML block
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n[policies.%s]\n", name))
-	sb.WriteString(fmt.Sprintf("type = %q\n", pType))
+	fmt.Fprintf(&sb, "\n[policies.%s]\n", name)
+	fmt.Fprintf(&sb, "type = %q\n", pType)
 	if rule != "" {
-		sb.WriteString(fmt.Sprintf("rule = %q\n", rule))
+		fmt.Fprintf(&sb, "rule = %q\n", rule)
 	}
 	if len(patterns) > 0 {
-		sb.WriteString(fmt.Sprintf("patterns = [%s]\n", quoteSlice(patterns)))
+		fmt.Fprintf(&sb, "patterns = [%s]\n", quoteSlice(patterns))
 	}
 	if scope != "" {
-		sb.WriteString(fmt.Sprintf("scope = %q\n", scope))
+		fmt.Fprintf(&sb, "scope = %q\n", scope)
 	}
-	if max > 0 {
-		sb.WriteString(fmt.Sprintf("max = %d\n", max))
+	if maxVal > 0 {
+		fmt.Fprintf(&sb, "max = %d\n", maxVal)
 	}
 	if pType == "boolean" {
 		sb.WriteString("enabled = true\n")
 	}
-	sb.WriteString(fmt.Sprintf("enforcement = %q\n", enforcement))
+	fmt.Fprintf(&sb, "enforcement = %q\n", enforcement)
 	if message != "" {
-		sb.WriteString(fmt.Sprintf("message = %q\n", message))
+		fmt.Fprintf(&sb, "message = %q\n", message)
 	}
 
 	// Append to policies.toml
 	policiesPath := filepath.Join(repo.Path(), "policies.toml")
-	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)

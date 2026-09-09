@@ -28,8 +28,8 @@ func (v *mockView) Mount(content *tview.Flex, _ *tview.Application) {
 	v.unmounted = false
 	content.AddItem(tview.NewBox(), 0, 1, false)
 }
-func (v *mockView) Unmount()           { v.unmounted = true; v.mounted = false }
-func (v *mockView) StatusHints() string { return v.id + " hints" }
+func (v *mockView) Unmount()                                    { v.unmounted = true; v.mounted = false }
+func (v *mockView) StatusHints() string                         { return v.id + " hints" }
 func (v *mockView) HandleKey(_ *tcell.EventKey) *tcell.EventKey { return nil }
 
 func TestRouter_Push(t *testing.T) {

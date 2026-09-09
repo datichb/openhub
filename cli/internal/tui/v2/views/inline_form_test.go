@@ -44,9 +44,9 @@ func TestFormField_HintWithPasswordField(t *testing.T) {
 // TestFormField_HintWithSelectField verifies that Hint works for select fields.
 func TestFormField_HintWithSelectField(t *testing.T) {
 	f := FormField{
-		Key:  "role",
+		Key:   "role",
 		Label: "Rôle",
-		Type: FieldSelect,
+		Type:  FieldSelect,
 		Options: []SelectOption{
 			{Label: "Lead", Value: "lead"},
 			{Label: "Développeur", Value: "dev"},

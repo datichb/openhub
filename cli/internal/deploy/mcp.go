@@ -89,17 +89,17 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 					"command": command,
 					"enabled": true,
 				}
-			// Inject environment variables
-			env := make(map[string]string)
-			if s.WriteEnabled {
-				env["GITLAB_WRITE_ENABLED"] = "true"
-			}
-			for k, v := range s.Environment {
-				env[k] = v
-			}
-			if len(env) > 0 {
-				entry["environment"] = env
-			}
+				// Inject environment variables
+				env := make(map[string]string)
+				if s.WriteEnabled {
+					env["GITLAB_WRITE_ENABLED"] = "true"
+				}
+				for k, v := range s.Environment {
+					env[k] = v
+				}
+				if len(env) > 0 {
+					entry["environment"] = env
+				}
 				mcpServers[s.Name] = entry
 			}
 			config["mcp"] = mcpServers

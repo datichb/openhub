@@ -177,4 +177,3 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 	cmd.Flags().Bool("check", false, "Vérifier uniquement si une mise à jour est disponible")
 	return cmd
 }
-

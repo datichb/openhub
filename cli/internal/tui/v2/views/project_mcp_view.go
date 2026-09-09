@@ -148,8 +148,7 @@ func (v *ProjectMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil {
 		return event
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.editByIndex(idx, item)
 		}

@@ -142,12 +142,13 @@ func ResolveFullMCPConfig(
 		eff.URLEnforced = true
 	} else {
 		// 2. Project override
-		if project != nil && project.URL != "" {
+		switch {
+		case project != nil && project.URL != "":
 			eff.URL = project.URL
-		} else if hub.URL != "" {
+		case hub.URL != "":
 			// 3. Hub value
 			eff.URL = hub.URL
-		} else if shared != nil && shared.URL != "" {
+		case shared != nil && shared.URL != "":
 			// 4. Team recommended
 			eff.URL = shared.URL
 		}

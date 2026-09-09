@@ -105,22 +105,23 @@ func (r *Router) NavigateTo(viewID string) bool {
 
 	// Check if this view is already in the stack — pop to it instead of pushing a duplicate
 	for i := len(r.stack) - 1; i >= 0; i-- {
-		if r.stack[i].ID() == viewID {
-			if i == len(r.stack)-1 {
-				// Already the active view — no-op
-				r.mu.Unlock()
-				return true
-			}
-			// Unmount all views above the target, from top down
-			for j := len(r.stack) - 1; j > i; j-- {
-				r.stack[j].Unmount()
-			}
-			// Truncate stack to this point + remount
-			r.stack = r.stack[:i+1]
-			r.mountLocked(r.stack[i])
+		if r.stack[i].ID() != viewID {
+			continue
+		}
+		if i == len(r.stack)-1 {
+			// Already the active view — no-op
 			r.mu.Unlock()
 			return true
 		}
+		// Unmount all views above the target, from top down
+		for j := len(r.stack) - 1; j > i; j-- {
+			r.stack[j].Unmount()
+		}
+		// Truncate stack to this point + remount
+		r.stack = r.stack[:i+1]
+		r.mountLocked(r.stack[i])
+		r.mu.Unlock()
+		return true
 	}
 	r.mu.Unlock()
 

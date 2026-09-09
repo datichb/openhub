@@ -22,11 +22,11 @@ type SyncResult struct {
 	SyncedAt time.Time
 	Projects []ProjectSyncResult
 	// Aggregated counters.
-	ClaimsCreated  int
-	ClaimsUpdated  int
-	LabelsPushed   int
-	Warnings       []SyncWarning
-	Errors         []SyncError
+	ClaimsCreated int
+	ClaimsUpdated int
+	LabelsPushed  int
+	Warnings      []SyncWarning
+	Errors        []SyncError
 }
 
 // ProjectSyncResult holds the outcome for a single hub project.
@@ -99,7 +99,7 @@ func NewEngine(t Tracker, repo teamstate.TeamStateWriter, cfg teamstate.TrackerC
 // window for conflicts — if two members sync simultaneously, at most one of them
 // will encounter a non-fast-forward push and retry with rebase.
 func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
-	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned)
+	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned) //nolint:staticcheck // backward compat: deprecated field
 	start := time.Now()
 
 	// Global timeout to bound the total sync wall time.
@@ -142,7 +142,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 
 	trackerType := Type(e.cfg.Type)
 
-	for hubProjectID, trackerProjectID := range e.cfg.Projects {
+	for hubProjectID, trackerProjectID := range e.cfg.Projects { //nolint:staticcheck // backward compat: deprecated field
 		slog.Debug("tracker.sync.project", "hub_project", hubProjectID, "tracker_project", trackerProjectID)
 		start := time.Now()
 		pr, projectErr := e.reconcileProject(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab)
@@ -202,11 +202,11 @@ func (e *Engine) ShouldAutoSync() bool {
 // external tracker. Used for on-demand display in the TUI detail view.
 // Returns the title and the full (non-truncated) description.
 func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID string) (title, description string, err error) {
-	trackerProjectID, ok := e.cfg.Projects[hubProjectID]
+	trackerProjectID, ok := e.cfg.Projects[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 	if !ok {
 		// Try single-project config fallback
-		if len(e.cfg.Projects) == 1 {
-			for _, v := range e.cfg.Projects {
+		if len(e.cfg.Projects) == 1 { //nolint:staticcheck // backward compat: deprecated field
+			for _, v := range e.cfg.Projects { //nolint:staticcheck // backward compat: deprecated field
 				trackerProjectID = v
 			}
 		} else {
@@ -214,7 +214,7 @@ func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID s
 		}
 	}
 
-	pattern := e.cfg.TicketPatterns[hubProjectID]
+	pattern := e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 
 	// Try to get the claim to read the stored ExternalIID.
 	var storedIID int
@@ -247,10 +247,10 @@ func (e *Engine) AssignIssueToMember(ctx context.Context, hubProjectID string, e
 		return fmt.Errorf("no external IID for member assignment")
 	}
 
-	trackerProjectID, ok := e.cfg.Projects[hubProjectID]
+	trackerProjectID, ok := e.cfg.Projects[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 	if !ok {
-		if len(e.cfg.Projects) == 1 {
-			for _, v := range e.cfg.Projects {
+		if len(e.cfg.Projects) == 1 { //nolint:staticcheck // backward compat: deprecated field
+			for _, v := range e.cfg.Projects { //nolint:staticcheck // backward compat: deprecated field
 				trackerProjectID = v
 			}
 		} else {
@@ -290,7 +290,7 @@ func (e *Engine) reconcileProject(
 	}
 
 	// Get the regex pattern for this project (if configured).
-	pattern := e.cfg.TicketPatterns[hubProjectID]
+	pattern := e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 
 	// Load all claims for this project.
 	claims, err := e.repo.ListClaims(hubProjectID)
@@ -527,8 +527,7 @@ func (e *Engine) autoplan(
 
 	// Collect all claims to create, then batch commit.
 	type pendingClaim struct {
-		claim   teamstate.Claim
-		relPath string
+		claim teamstate.Claim
 	}
 	var pending []pendingClaim
 
@@ -553,7 +552,7 @@ func (e *Engine) autoplan(
 				break
 			}
 
-			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID])
+			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
 			if claimedTickets[ticketID] {
 				continue
 			}
@@ -646,13 +645,12 @@ func (e *Engine) autopoolUnassigned(
 
 	// Collect claims to create, then batch commit.
 	type pendingClaim struct {
-		claim   teamstate.Claim
-		relPath string
+		claim teamstate.Claim
 	}
 	var pending []pendingClaim
 
 	for _, issue := range issues {
-		ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID])
+		ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
 		if claimedTickets[ticketID] {
 			continue
 		}

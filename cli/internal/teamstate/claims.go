@@ -86,12 +86,12 @@ const (
 
 // Claim represents a ticket reservation by a team member.
 type Claim struct {
-	TicketID    string    `toml:"-"` // derived from filename
-	Project     string    `toml:"-"` // derived from directory
-	ClaimedBy   string    `toml:"claimed_by"`
-	ClaimedAt   time.Time `toml:"claimed_at"`
-	Worktree    string    `toml:"worktree,omitempty"`      // associated branch
-	Status      string    `toml:"status"`                  // see ClaimStatus* constants
+	TicketID     string    `toml:"-"` // derived from filename
+	Project      string    `toml:"-"` // derived from directory
+	ClaimedBy    string    `toml:"claimed_by"`
+	ClaimedAt    time.Time `toml:"claimed_at"`
+	Worktree     string    `toml:"worktree,omitempty"`      // associated branch
+	Status       string    `toml:"status"`                  // see ClaimStatus* constants
 	LastActivity time.Time `toml:"last_activity,omitempty"` // last session/commit activity
 	// Title is the issue title from the external tracker.
 	// Populated and updated by the tracker sync engine.
@@ -742,7 +742,7 @@ func (r *Repo) listAllClaims() ([]Claim, error) {
 		g.Go(func() error {
 			claims, err := r.listClaimsForProject(project)
 			if err != nil {
-				return nil // skip broken projects
+				return nil //nolint:nilerr // skip broken projects
 			}
 			mu.Lock()
 			all = append(all, claims...)
@@ -786,7 +786,7 @@ func (r *Repo) listClaimsForProject(project string) ([]Claim, error) {
 			continue
 		}
 		ticketID := strings.TrimSuffix(e.Name(), ".toml")
-	c, err := r.getClaim(project, ticketID)
+		c, err := r.getClaim(project, ticketID)
 		if err != nil {
 			slog.Warn("teamstate.claim.parse_failed", "project", project, "ticket", ticketID, "error", err)
 			continue // skip malformed

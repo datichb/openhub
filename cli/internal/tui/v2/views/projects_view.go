@@ -36,27 +36,27 @@ type ProjectConfigUpdate struct {
 // ProjectsViewConfig configures the projects list view.
 type ProjectsViewConfig struct {
 	Projects         []ProjectItem
-	AvailableAgents  []string // agents discovered from hub/agents/*.md
-	KnownMCPServices []string // MCP service names known by hub (e.g. figma, gitlab, gslides)
+	AvailableAgents  []string             // agents discovered from hub/agents/*.md
+	KnownMCPServices []string             // MCP service names known by hub (e.g. figma, gitlab, gslides)
 	RefreshFunc      func() []ProjectItem // optional — if set, called on 'r' to reload project list
 }
 
 // ProjectsView displays the list of registered projects with full CRUD.
 type ProjectsView struct {
-	cfg              ProjectsViewConfig
-	content          *tview.Flex
-	list             *tview.List
-	detail           *tview.TextView
-	app              *tview.Application
-	shell            ShellAccess
-	mountGen         uint64
-	onAdd            func(name, path string)
-	onRemove         func(id string)
-	onConfigure      func(id string, cfg ProjectConfigUpdate)
-	onRename         func(id, newName string)
-	onMove           func(id, newPath string)
-	onEnterProject   func(project *ActiveProject)
-	onInitBeads      func(id, name, path string)
+	cfg            ProjectsViewConfig
+	content        *tview.Flex
+	list           *tview.List
+	detail         *tview.TextView
+	app            *tview.Application
+	shell          ShellAccess
+	mountGen       uint64
+	onAdd          func(name, path string)
+	onRemove       func(id string)
+	onConfigure    func(id string, cfg ProjectConfigUpdate)
+	onRename       func(id, newName string)
+	onMove         func(id, newPath string)
+	onEnterProject func(project *ActiveProject)
+	onInitBeads    func(id, name, path string)
 }
 
 var _ View = (*ProjectsView)(nil)
@@ -393,11 +393,12 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 
 	// Line 3: Agents
 	var agentDisplay string
-	if len(p.Agents) == 0 {
+	switch {
+	case len(p.Agents) == 0:
 		agentDisplay = "-"
-	} else if len(p.Agents) <= 5 {
+	case len(p.Agents) <= 5:
 		agentDisplay = strings.Join(p.Agents, ", ")
-	} else {
+	default:
 		agentDisplay = fmt.Sprintf("%s (+%d)", strings.Join(p.Agents[:5], ", "), len(p.Agents)-5)
 	}
 	line3 := fmt.Sprintf("  %sAgents:%s %s (%d)",

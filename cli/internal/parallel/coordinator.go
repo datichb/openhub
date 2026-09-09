@@ -24,10 +24,10 @@ type CoordinatorOpts struct {
 
 // Coordinator orchestrates multiple parallel opencode sessions.
 type Coordinator struct {
-	opts       CoordinatorOpts
-	state      *ParallelState
-	servers    []*OpenCodeServer
-	context    *SharedContext
+	opts        CoordinatorOpts
+	state       *ParallelState
+	servers     []*OpenCodeServer
+	context     *SharedContext
 	opencodeBin string
 }
 

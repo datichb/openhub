@@ -119,6 +119,7 @@ type ShellAccess interface {
 	NavigateTo(viewID string)
 	// SetProjectMode activates or deactivates project mode with the given project.
 	// Passing nil deactivates project mode (returns to hub mode).
+	//
 	// Deprecated: use SetMode(ModeProject) + SetActiveProject instead.
 	SetProjectMode(project *ActiveProject)
 	// SetActiveProject sets the active project without triggering navigation.

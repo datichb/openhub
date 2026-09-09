@@ -36,7 +36,7 @@ type modalSizeHint struct {
 
 // termSize returns the terminal dimensions from the shell's pages root.
 // Falls back to 80x24 if dimensions cannot be determined.
-func (s *Shell) termSize() (int, int) {
+func (s *Shell) termSize() (width, height int) {
 	_, _, w, h := s.pages.GetInnerRect()
 	if w <= 0 || h <= 0 {
 		return 80, 24
@@ -155,12 +155,12 @@ func buildGridRows(height, termH int) []int {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-func clamp(v, min, max int) int {
-	if v < min {
-		return min
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
 	}
-	if v > max {
-		return max
+	if v > hi {
+		return hi
 	}
 	return v
 }

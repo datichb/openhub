@@ -77,7 +77,7 @@ func (s *Shell) showModal(cfg modalConfig) {
 // Returns the assembled frame and the list of focusable primitives (for Tab cycling).
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (s *Shell) buildModalFrame(cfg modalConfig) (tview.Primitive, []tview.Primitive) {
+func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, resultFocusables []tview.Primitive) {
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
 	frame.SetBackgroundColor(theme.BgPanel)
 	frame.SetBorder(true)

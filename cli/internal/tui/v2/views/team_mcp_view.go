@@ -7,6 +7,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -165,8 +167,7 @@ func (v *TeamMCPView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.editByIndex(idx, item)
 		}
@@ -300,7 +301,7 @@ func (v *TeamMCPView) buildLines() {
 		// ── Section header: service name ──
 		v.lines = append(v.lines, mcpLine{
 			kind:    "section-header",
-			section: "MCP " + strings.Title(svc),
+			section: "MCP " + cases.Title(language.Und).String(svc),
 		})
 
 		// ── Sub-section: Équipe (team-state config.toml) ──

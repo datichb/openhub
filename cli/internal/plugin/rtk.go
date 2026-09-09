@@ -49,8 +49,10 @@ func opencodePluginsDir() string {
 // RTKPlugin implements the Plugin interface for the RTK (context-mode) plugin.
 type RTKPlugin struct{}
 
-func (r *RTKPlugin) Name() string        { return "rtk" }
-func (r *RTKPlugin) Description() string { return "RTK (context-mode) — mémoire de session pour opencode" }
+func (r *RTKPlugin) Name() string { return "rtk" }
+func (r *RTKPlugin) Description() string {
+	return "RTK (context-mode) — mémoire de session pour opencode"
+}
 
 func (r *RTKPlugin) Install(_ context.Context, projectPath string) error {
 	return RTKInstall()
@@ -174,4 +176,3 @@ func copyPluginFile(src, dst string) error {
 	}
 	return os.WriteFile(dst, data, 0o644)
 }
-

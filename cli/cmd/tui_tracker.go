@@ -160,13 +160,13 @@ func buildCredentialSource(a *app.App, sharedMCP map[string]teamstate.SharedMCPC
 // For each active project, it resolves the TrackerProject and TicketPattern
 // using the 3-level cascade: project override → team default → old maps.
 // Returns the final maps ready for the engine config.
-func resolveTrackerProjects(ctx context.Context, a *app.App, eff tracker.EffectiveTrackerConfig) (map[string]string, map[string]string) {
+func resolveTrackerProjects(ctx context.Context, a *app.App, eff tracker.EffectiveTrackerConfig) (projects, ticketPatterns map[string]string) {
 	// Start with old maps for backward compat
-	projects := eff.Projects
+	projects = eff.Projects
 	if projects == nil {
 		projects = make(map[string]string)
 	}
-	ticketPatterns := eff.TicketPatterns
+	ticketPatterns = eff.TicketPatterns
 	if ticketPatterns == nil {
 		ticketPatterns = make(map[string]string)
 	}

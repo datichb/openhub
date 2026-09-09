@@ -72,7 +72,7 @@ func NewCardColumn(title string, titleColor tcell.Color) *CardColumn {
 		selected:   0,
 		offset:     0,
 	}
-	c.Box.SetBackgroundColor(theme.BgPanel)
+	c.SetBackgroundColor(theme.BgPanel)
 	return c
 }
 
@@ -130,7 +130,7 @@ func (c *CardColumn) GetItemCount() int {
 }
 
 // GetItemText returns the main and secondary text of the card at idx.
-func (c *CardColumn) GetItemText(idx int) (string, string) {
+func (c *CardColumn) GetItemText(idx int) (mainText, secondaryText string) {
 	if idx < 0 || idx >= len(c.cards) {
 		return "", ""
 	}
@@ -178,7 +178,7 @@ func (c *CardColumn) MoveSelection(delta int) {
 
 // Draw renders the column: header, then a vertical stack of bordered cards.
 func (c *CardColumn) Draw(screen tcell.Screen) {
-	c.Box.DrawForSubclass(screen, c)
+	c.DrawForSubclass(screen, c)
 	x, y, width, height := c.GetInnerRect()
 
 	if width < 4 || height < 2 {
@@ -432,7 +432,7 @@ func (c *CardColumn) parseColorTag(tag string, defaultStyle tcell.Style) (tcell.
 	}
 
 	// Handle [fg:bg] format
-	if len(tag) > 0 {
+	if tag != "" {
 		// Split by ':'
 		parts := splitTag(tag)
 		style := defaultStyle

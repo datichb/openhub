@@ -90,13 +90,9 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 
 		ResolveProjectByDirID: buildResolveProjectByDirID(a),
 
-		CreateWorktree: func(projectPath, branch string) (string, error) {
-			return worktree.ResolveOrCreate(projectPath, branch)
-		},
+		CreateWorktree: worktree.ResolveOrCreate,
 
-		EnsureWorktreeConfig: func(wtPath, projectPath string) error {
-			return worktree.EnsureWorktreeConfig(wtPath, projectPath)
-		},
+		EnsureWorktreeConfig: worktree.EnsureWorktreeConfig,
 
 		BranchPattern: func() string {
 			return a.Config.Worktree.BranchPattern
@@ -135,17 +131,11 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 			return branch
 		},
 
-		IsDirty: func(path string) bool {
-			return worktree.IsDirty(path)
-		},
+		IsDirty: worktree.IsDirty,
 
-		CheckoutBranch: func(path, branch string) error {
-			return worktree.Checkout(path, branch)
-		},
+		CheckoutBranch: worktree.Checkout,
 
-		StashAndCheckoutBranch: func(path, branch string) error {
-			return worktree.StashAndCheckout(path, branch)
-		},
+		StashAndCheckoutBranch: worktree.StashAndCheckout,
 	}
 }
 
@@ -172,7 +162,7 @@ func buildResolveProjectByDirID(a *app.App) func(dirID string) (string, string, 
 
 // resolveAgentForAction maps a QuickActionType + AuditType to the agent name and extra args
 // that opencode expects.
-func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (string, []string) {
+func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName string, extraArgs []string) {
 	switch action {
 	case views.QuickActionReview:
 		return "reviewer", nil

@@ -236,6 +236,7 @@ func Serve() error {
 // Resolution order:
 //  1. .opencode/team.json in the current working directory (written by "oh deploy")
 //  2. hub.toml [team] section (legacy / fallback for projects not yet redeployed)
+//
 // Repo cache: avoids re-creating the Repo + pulling on every handler call.
 // The TTL ensures freshness while preventing redundant network I/O during
 // bursts of tool calls within an agent session.
@@ -254,7 +255,6 @@ func resetRepoCache() {
 	cachedRepoMu.Unlock()
 }
 
-//
 // If neither source enables team features, an error is returned so callers can
 // surface a clear message to the agent.
 func getRepo() (*teamstate.Repo, error) {

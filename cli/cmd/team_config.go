@@ -373,7 +373,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				theme.WarningStyle.Render(theme.IconWarning))
 			fmt.Fprintf(out, "  Activez write_enabled dans [mcp.%s] pour activer le push\n", teamCfg.Tracker.Type)
 		} else if writeEnabled {
-			if askYN(out, fmt.Sprintf("Activer le push de labels ? (équipe recommande: %v)", sharedPush), sharedPush) {
+			if askYN(out, i18n.Tf("cmd.team_config.push_labels_prompt", sharedPush), sharedPush) {
 				writeLocal(config.ConfigPath(), "tracker.push_labels", "true")
 			} else {
 				writeLocal(config.ConfigPath(), "tracker.push_labels", "false")
@@ -384,71 +384,6 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 	}
 
 	return nil
-}
-
-func configureTrackerProjects(_ context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, teamCfg *teamstate.TeamConfig, trackerType tracker.Type) {
-	if teamCfg.Tracker.Projects == nil {
-		teamCfg.Tracker.Projects = make(map[string]string)
-	}
-	if teamCfg.Tracker.TicketPatterns == nil {
-		teamCfg.Tracker.TicketPatterns = make(map[string]string)
-	}
-
-	// List existing
-	if len(teamCfg.Tracker.Projects) > 0 {
-		fmt.Fprintf(out, "  Mappings existants:\n")
-		for hubID, trackerID := range teamCfg.Tracker.Projects {
-			pattern := teamCfg.Tracker.TicketPatterns[hubID]
-			fmt.Fprintf(out, "    %s → %s  (pattern: %s)\n", hubID, trackerID, pattern)
-		}
-	}
-
-	// Get hub projects
-	ctx := context.Background()
-	projects, _ := a.Projects.List(ctx, "")
-
-	for {
-		if !askYN(out, "\nAjouter/modifier un mapping projet ?", len(teamCfg.Tracker.Projects) == 0) {
-			break
-		}
-
-		// Select hub project
-		projectNames := make([]string, len(projects))
-		for i, p := range projects {
-			projectNames[i] = p.ID
-		}
-		projectNames = append(projectNames, "[ Saisir manuellement ]")
-
-		idx := askSelect(out, "Projet hub", projectNames)
-		var hubProjectID string
-		if idx == len(projects) {
-			hubProjectID = askInput(out, "ID projet hub", "")
-		} else {
-			hubProjectID = projects[idx].ID
-		}
-
-		// Tracker project ID
-		var prompt string
-		if trackerType == tracker.TypeGitLab {
-			prompt = "ID projet GitLab (numérique ou group/path)"
-		} else {
-			prompt = "Clé projet Jira (ex: SRU)"
-		}
-		trackerProjectID := askInput(out, prompt, teamCfg.Tracker.Projects[hubProjectID])
-
-		// Pattern
-		defaultPattern := fmt.Sprintf("%s-(\\d+)", strings.ToUpper(hubProjectID))
-		if existing := teamCfg.Tracker.TicketPatterns[hubProjectID]; existing != "" {
-			defaultPattern = existing
-		}
-		pattern := askInput(out, "Pattern regex ticket → IID (1 groupe capture)", defaultPattern)
-
-		teamCfg.Tracker.Projects[hubProjectID] = trackerProjectID
-		teamCfg.Tracker.TicketPatterns[hubProjectID] = pattern
-
-		fmt.Fprintf(out, "  %s Mapping ajouté: %s → %s  (pattern: %s)\n",
-			theme.SuccessStyle.Render(theme.IconSuccess), hubProjectID, trackerProjectID, pattern)
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -524,12 +459,12 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	_ = testAndDisplayConnection(ctx, out, src, trackerType)
 
 	// Test par projet mappé
-	if len(teamCfg.Tracker.Projects) > 0 {
+	if len(teamCfg.Tracker.Projects) > 0 { //nolint:staticcheck // backward compat: deprecated field
 		trackerCfg, err := tracker.ResolveCredentials(ctx, src, trackerType)
 		if err == nil {
 			t, err := tracker.New(trackerCfg)
 			if err == nil {
-				for hubID, trackerID := range teamCfg.Tracker.Projects {
+				for hubID, trackerID := range teamCfg.Tracker.Projects { //nolint:staticcheck // backward compat: deprecated field
 					projectName, err := t.TestProject(ctx, trackerID)
 					if err != nil {
 						fmt.Fprintf(out, "  %s %s → %s: %v\n",
@@ -597,7 +532,7 @@ func printMCPStatus(out interface{ Write([]byte) (int, error) },
 	writeStr := fmtBool(eff.WriteEnabled)
 	writeInsight := ""
 	if eff.WriteRecommended && !eff.WriteEnabled {
-		writeInsight = fmt.Sprintf(" %s (équipe recommande: true)", theme.Subtitle.Render("ℹ"))
+		writeInsight = i18n.Tf("cmd.team_config.team_recommends_true", theme.Subtitle.Render("ℹ"))
 	}
 	fmt.Fprintf(out, "  write_enabled: %s%s\n", writeStr, writeInsight)
 }
@@ -623,7 +558,7 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 	pushSrc := sourceLabel(local.PushLabels != nil, "local", "équipe")
 	pushInsight := ""
 	if eff.LocalOverrides.PushLabels {
-		pushInsight = fmt.Sprintf(" %s (équipe recommande: %v)", theme.Subtitle.Render("ℹ"), eff.SharedPushLabels)
+		pushInsight = i18n.Tf("cmd.team_config.team_recommends_val", theme.Subtitle.Render("ℹ"), eff.SharedPushLabels)
 	}
 	fmt.Fprintf(out, "%spush_labels:   %s  %s%s\n", indent, fmtBool(eff.PushLabels), pushSrc, pushInsight)
 
@@ -632,10 +567,10 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 	fmt.Fprintf(out, "%sauto_plan:     %s  %s\n", indent, fmtBool(eff.AutoPlanAssigned), autoPlanSrc)
 
 	// Mappings
-	if len(teamCfg.Tracker.Projects) > 0 {
+	if len(teamCfg.Tracker.Projects) > 0 { //nolint:staticcheck // backward compat: deprecated field
 		fmt.Fprintf(out, "%smappings:\n", indent)
-		for hubID, trackerID := range teamCfg.Tracker.Projects {
-			pattern := teamCfg.Tracker.TicketPatterns[hubID]
+		for hubID, trackerID := range teamCfg.Tracker.Projects { //nolint:staticcheck // backward compat: deprecated field
+			pattern := teamCfg.Tracker.TicketPatterns[hubID] //nolint:staticcheck // backward compat: deprecated field
 			fmt.Fprintf(out, "%s  %s → %s  (pattern: %s)\n", indent, hubID, trackerID, pattern)
 		}
 	}
@@ -811,6 +746,7 @@ func resolveField(out interface{ Write([]byte) (int, error) }, fieldName, target
 		return target
 	}
 }
+
 // reading the file, updating the value, and rewriting. This is intentionally
 // simple — for complex edits the user can edit hub.toml directly.
 func writeLocal(configPath, keyPath, value string) {
@@ -882,7 +818,7 @@ func askInput(out interface{ Write([]byte) (int, error) }, prompt, defaultVal st
 		fmt.Fprintf(out, "  %s: ", prompt)
 	}
 	var input string
-	fmt.Scanln(&input)
+	_, _ = fmt.Scanln(&input)
 	if input == "" {
 		return defaultVal
 	}
@@ -896,7 +832,7 @@ func askYN(out interface{ Write([]byte) (int, error) }, prompt string, defaultYe
 	}
 	fmt.Fprintf(out, "  %s %s ", prompt, hint)
 	var input string
-	fmt.Scanln(&input)
+	_, _ = fmt.Scanln(&input)
 	input = strings.ToLower(strings.TrimSpace(input))
 	if input == "" {
 		return defaultYes
@@ -911,7 +847,7 @@ func askSelect(out interface{ Write([]byte) (int, error) }, prompt string, optio
 	}
 	fmt.Fprintf(out, "  Choix [1]: ")
 	var input string
-	fmt.Scanln(&input)
+	_, _ = fmt.Scanln(&input)
 	if input == "" {
 		return 0
 	}
@@ -959,11 +895,4 @@ func parseInt(s string, dflt int) int {
 		return dflt
 	}
 	return n
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

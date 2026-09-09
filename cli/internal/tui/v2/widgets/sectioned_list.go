@@ -51,16 +51,16 @@ func NewSectionedList() *SectionedList {
 	sl := &SectionedList{
 		List: tview.NewList(),
 	}
-	sl.List.ShowSecondaryText(true).
+	sl.ShowSecondaryText(true).
 		SetHighlightFullLine(true).
 		SetMainTextColor(theme.FgPrimary).
 		SetSecondaryTextColor(theme.FgSecondary).
 		SetSelectedBackgroundColor(theme.BgElement).
 		SetSelectedTextColor(theme.Action)
-	sl.List.SetBackgroundColor(theme.BgPanel)
+	sl.SetBackgroundColor(theme.BgPanel)
 
-	sl.List.SetInputCapture(sl.handleInput)
-	sl.List.SetChangedFunc(sl.handleChanged)
+	sl.SetInputCapture(sl.handleInput)
+	sl.SetChangedFunc(sl.handleChanged)
 
 	return sl
 }
@@ -82,7 +82,7 @@ func (sl *SectionedList) SetTabCaptureDisabled(disabled bool) *SectionedList {
 // non-header item. The index corresponds to the position in the items slice.
 func (sl *SectionedList) SetItemSelectedFunc(fn func(index int, item SectionItem)) *SectionedList {
 	sl.onSelect = fn
-	sl.List.SetSelectedFunc(func(listIdx int, _ string, _ string, _ rune) {
+	sl.SetSelectedFunc(func(listIdx int, _ string, _ string, _ rune) {
 		itemIdx := sl.toItemIndex(listIdx)
 		if itemIdx < 0 {
 			return
@@ -120,7 +120,7 @@ func (sl *SectionedList) GetItems() []SectionItem {
 // CurrentItem returns the currently selected non-header item and its index.
 // Returns -1 and empty item if no selectable item is active.
 func (sl *SectionedList) CurrentItem() (int, SectionItem, bool) {
-	listIdx := sl.List.GetCurrentItem()
+	listIdx := sl.GetCurrentItem()
 	itemIdx := sl.toItemIndex(listIdx)
 	if itemIdx < 0 || itemIdx >= len(sl.items) {
 		return -1, SectionItem{}, false
@@ -168,14 +168,14 @@ func (sl *SectionedList) toListIndex(itemIdx int) int {
 
 // currentItemIndex returns the items-index of the currently focused tview.List row.
 func (sl *SectionedList) currentItemIndex() int {
-	return sl.toItemIndex(sl.List.GetCurrentItem())
+	return sl.toItemIndex(sl.GetCurrentItem())
 }
 
 // setListCurrent moves the tview.List cursor to the row corresponding to itemIdx.
 func (sl *SectionedList) setListCurrent(itemIdx int) {
 	listIdx := sl.toListIndex(itemIdx)
 	if listIdx >= 0 {
-		sl.List.SetCurrentItem(listIdx)
+		sl.SetCurrentItem(listIdx)
 	}
 }
 
@@ -184,20 +184,20 @@ func (sl *SectionedList) setListCurrent(itemIdx int) {
 // rebuild clears and re-adds all items to the underlying tview.List,
 // inserting blank spacer rows before section headers (except the first item).
 func (sl *SectionedList) rebuild() {
-	sl.List.Clear()
+	sl.Clear()
 	sl.listToItem = nil
 	sl.itemToList = make([]int, len(sl.items))
 
 	for i, item := range sl.items {
 		// Insert a blank spacer line before headers (except the very first item)
 		if item.IsHeader && i > 0 {
-			sl.List.AddItem("", "", 0, nil)
+			sl.AddItem("", "", 0, nil)
 			sl.listToItem = append(sl.listToItem, -1) // -1 = spacer
 		}
 
-		sl.itemToList[i] = sl.List.GetItemCount()
+		sl.itemToList[i] = sl.GetItemCount()
 		main, secondary := sl.formatItem(item)
-		sl.List.AddItem(main, secondary, 0, nil)
+		sl.AddItem(main, secondary, 0, nil)
 		sl.listToItem = append(sl.listToItem, i)
 	}
 
@@ -218,7 +218,7 @@ func (sl *SectionedList) rebuild() {
 }
 
 // formatItem returns the styled main and secondary text for a list item.
-func (sl *SectionedList) formatItem(item SectionItem) (string, string) {
+func (sl *SectionedList) formatItem(item SectionItem) (mainText, secondaryText string) {
 	if item.IsHeader {
 		return fmt.Sprintf("  %s── %s ──%s",
 			theme.ColorTag(theme.AccentHex), item.MainText, theme.TagColor), ""
@@ -273,7 +273,7 @@ func (sl *SectionedList) handleInput(event *tcell.EventKey) *tcell.EventKey {
 }
 
 // handleChanged is called by tview when the current item changes.
-func (sl *SectionedList) handleChanged(listIdx int, _ string, _ string, _ rune) {
+func (sl *SectionedList) handleChanged(listIdx int, _, _ string, _ rune) {
 	itemIdx := sl.toItemIndex(listIdx)
 	if itemIdx < 0 || itemIdx >= len(sl.items) {
 		return

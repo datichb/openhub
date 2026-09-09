@@ -22,8 +22,8 @@ type selectionMode int
 
 const (
 	selectionModeChar selectionMode = iota // drag extends character by character
-	selectionModeWord                       // double-click: extend to word boundaries
-	selectionModeLine                       // triple-click: extend to full line
+	selectionModeWord                      // double-click: extend to word boundaries
+	selectionModeLine                      // triple-click: extend to full line
 )
 
 // multiClickThreshold is the maximum duration between clicks for them to count
@@ -226,7 +226,14 @@ func (sm *SelectionManager) ApplyHighlight(screen tcell.Screen) {
 			if col < 0 || col >= w {
 				continue
 			}
-			mainc, combc, style, _ := screen.GetContent(col, row)
+			str, style, _ := screen.Get(col, row)
+			runes := []rune(str)
+			var mainc rune
+			var combc []rune
+			if len(runes) > 0 {
+				mainc = runes[0]
+				combc = runes[1:]
+			}
 			screen.SetContent(col, row, mainc, combc, style.Reverse(true))
 		}
 	}
@@ -264,11 +271,16 @@ func (sm *SelectionManager) ExtractText(s selectionState, screen tcell.Screen) s
 			if col < 0 || col >= w {
 				continue
 			}
-			mainc, _, _, _ := screen.GetContent(col, row)
-			if mainc == 0 {
-				mainc = ' '
+			str, _, _ := screen.Get(col, row)
+			runes := []rune(str)
+			var r rune
+			if len(runes) > 0 {
+				r = runes[0]
 			}
-			line.WriteRune(mainc)
+			if r == 0 {
+				r = ' '
+			}
+			line.WriteRune(r)
 		}
 		// Trim trailing spaces on each line
 		trimmed := strings.TrimRight(line.String(), " ")
@@ -296,7 +308,12 @@ func (sm *SelectionManager) expandToWord(x, y int, screen tcell.Screen) (anchor,
 		if col < 0 || col >= w {
 			return false
 		}
-		r, _, _, _ := screen.GetContent(col, y)
+		str, _, _ := screen.Get(col, y)
+		runes := []rune(str)
+		if len(runes) == 0 {
+			return false
+		}
+		r := runes[0]
 		return r != 0 && !unicode.IsSpace(r) && !unicode.IsPunct(r)
 	}
 
@@ -320,7 +337,12 @@ func (sm *SelectionManager) expandToLine(x, y int, screen tcell.Screen) (anchor,
 	// Find last non-space character on the line
 	lastCol := 0
 	for col := w - 1; col >= 0; col-- {
-		r, _, _, _ := screen.GetContent(col, y)
+		str, _, _ := screen.Get(col, y)
+		runes := []rune(str)
+		var r rune
+		if len(runes) > 0 {
+			r = runes[0]
+		}
 		if r != 0 && r != ' ' {
 			lastCol = col
 			break

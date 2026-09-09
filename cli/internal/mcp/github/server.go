@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	githubAPIBase    = "https://api.github.com"
-	maxResponseSize  = 2 * 1024 * 1024 // 2 MB
+	githubAPIBase   = "https://api.github.com"
+	maxResponseSize = 2 * 1024 * 1024 // 2 MB
 )
 
 var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.github")
@@ -326,7 +326,7 @@ func githubAPI(path string, query url.Values) ([]byte, error) {
 		reqURL += "?" + query.Encode()
 	}
 
-	req, err := http.NewRequest("GET", reqURL, nil)
+	req, err := http.NewRequest("GET", reqURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}

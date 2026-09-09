@@ -19,16 +19,16 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var teamCmd = &cobra.Command{
-	Use:   "team",
-	Short: i18n.T("cmd.team.short"),
-	Long:  i18n.T("cmd.team.long"),
+	Use:               "team",
+	Short:             i18n.T("cmd.team.short"),
+	Long:              i18n.T("cmd.team.long"),
 	PersistentPreRunE: teamPreRunE,
 }
 

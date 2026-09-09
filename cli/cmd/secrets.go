@@ -51,7 +51,7 @@ Utilisez --project pour cibler un projet spécifique.`,
 	RunE: runSecretsSet,
 }
 
-var secretsSetGlobal  bool
+var secretsSetGlobal bool
 var secretsSetProject string
 
 func init() {
@@ -109,8 +109,8 @@ var secretsGetCmd = &cobra.Command{
 	RunE:  runSecretsGet,
 }
 
-var secretsGetReveal  bool
-var secretsGetGlobal  bool
+var secretsGetReveal bool
+var secretsGetGlobal bool
 var secretsGetProject string
 
 func init() {
@@ -256,7 +256,7 @@ var secretsDeleteCmd = &cobra.Command{
 	RunE:  runSecretsDelete,
 }
 
-var secretsDeleteGlobal  bool
+var secretsDeleteGlobal bool
 var secretsDeleteProject string
 
 func init() {
@@ -278,7 +278,7 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 	// Confirmation
 	fmt.Fprintf(a.IO.Out, "Supprimer %q (%s) ? [y/N] ", key, scopeLabel)
 	var confirm string
-	fmt.Scanln(&confirm)
+	_, _ = fmt.Scanln(&confirm)
 	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
 		fmt.Fprintf(a.IO.Out, "Annulé\n")
 		return nil
@@ -340,7 +340,7 @@ func resolveSecretScope(ctx context.Context, a *app.App, forceGlobal bool, force
 
 // maskSecret returns "****<last4>" for display — never the full value.
 func maskSecret(s string) string {
-	if len(s) == 0 {
+	if s == "" {
 		return "(vide)"
 	}
 	if len(s) <= 4 {

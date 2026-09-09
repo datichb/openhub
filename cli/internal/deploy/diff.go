@@ -189,7 +189,7 @@ type configChange struct {
 }
 
 // deepDiffMaps recursively diffs two maps and returns a flat list of changes.
-func deepDiffMaps(prefix string, old, new map[string]interface{}) []configChange {
+func deepDiffMaps(prefix string, old, cur map[string]interface{}) []configChange {
 	var changes []configChange
 
 	for k, oldVal := range old {
@@ -197,7 +197,7 @@ func deepDiffMaps(prefix string, old, new map[string]interface{}) []configChange
 		if prefix != "" {
 			path = prefix + "." + k
 		}
-		newVal, exists := new[k]
+		newVal, exists := cur[k]
 		if !exists {
 			changes = append(changes, configChange{Path: path, Action: "removed", Old: formatVal(oldVal)})
 			continue
@@ -212,7 +212,7 @@ func deepDiffMaps(prefix string, old, new map[string]interface{}) []configChange
 		}
 	}
 
-	for k, newVal := range new {
+	for k, newVal := range cur {
 		path := k
 		if prefix != "" {
 			path = prefix + "." + k
@@ -246,11 +246,11 @@ func formatConfigChanges(changes []configChange) string {
 	for _, c := range changes {
 		switch c.Action {
 		case "added":
-			sb.WriteString(fmt.Sprintf("  + %s = %s\n", c.Path, c.New))
+			fmt.Fprintf(&sb, "  + %s = %s\n", c.Path, c.New)
 		case "removed":
-			sb.WriteString(fmt.Sprintf("  - %s (was: %s)\n", c.Path, c.Old))
+			fmt.Fprintf(&sb, "  - %s (was: %s)\n", c.Path, c.Old)
 		case "modified":
-			sb.WriteString(fmt.Sprintf("  ~ %s: %s → %s\n", c.Path, c.Old, c.New))
+			fmt.Fprintf(&sb, "  ~ %s: %s → %s\n", c.Path, c.Old, c.New)
 		}
 	}
 	return sb.String()

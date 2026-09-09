@@ -50,8 +50,8 @@ func (v *DoctorView) StatusHints() string {
 }
 
 // Mount builds the doctor checks display and runs all checks.
-func (v *DoctorView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 
 	v.tv = tview.NewTextView().
 		SetDynamicColors(true).
@@ -67,7 +67,7 @@ func (v *DoctorView) Mount(content *tview.Flex, app *tview.Application) {
 	// Run checks asynchronously (they invoke subprocesses)
 	go func() {
 		checks := v.collectChecks()
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.tv == nil {
 				return
 			}
@@ -121,7 +121,7 @@ func (v *DoctorView) render() {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\n  [::b]Vérification système%s\n\n", theme.TagReset))
+	fmt.Fprintf(&sb, "\n  [::b]Vérification système%s\n\n", theme.TagReset)
 
 	passed := 0
 	for _, c := range v.checks {
@@ -131,17 +131,17 @@ func (v *DoctorView) render() {
 		} else {
 			passed++
 		}
-		sb.WriteString(fmt.Sprintf("  %s  %-28s %s%s%s\n",
+		fmt.Fprintf(&sb, "  %s  %-28s %s%s%s\n",
 			icon, c.Name,
-			theme.ColorTag(theme.TextSecondaryHex), c.Detail, theme.TagColor))
+			theme.ColorTag(theme.TextSecondaryHex), c.Detail, theme.TagColor)
 	}
 
-	sb.WriteString(fmt.Sprintf("\n  %s%d/%d checks OK%s\n",
-		theme.ColorTag(theme.TextPrimaryHex), passed, len(v.checks), theme.TagColor))
+	fmt.Fprintf(&sb, "\n  %s%d/%d checks OK%s\n",
+		theme.ColorTag(theme.TextPrimaryHex), passed, len(v.checks), theme.TagColor)
 
 	if passed == len(v.checks) {
-		sb.WriteString(fmt.Sprintf("\n  %s%s Tout est en ordre.%s\n",
-			theme.ColorTag(theme.SuccessHex), theme.IconSuccess, theme.TagColor))
+		fmt.Fprintf(&sb, "\n  %s%s Tout est en ordre.%s\n",
+			theme.ColorTag(theme.SuccessHex), theme.IconSuccess, theme.TagColor)
 	}
 
 	v.tv.SetText(sb.String())

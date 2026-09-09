@@ -45,15 +45,20 @@ func extractFromTarGz(archivePath, destPath string) error {
 		if header.Size > maxBinarySize {
 			return fmt.Errorf("tar entry too large: %d bytes (max %d)", header.Size, maxBinarySize)
 		}
-		dst, err := os.Create(destPath)
-		if err != nil {
-			return fmt.Errorf("creating output file: %w", err)
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, io.LimitReader(tr, maxBinarySize)); err != nil {
-			return fmt.Errorf("extracting binary: %w", err)
-		}
-		return nil
+		return extractTarEntry(tr, destPath)
 	}
 	return fmt.Errorf("binary %q not found in archive", ohBinaryName)
+}
+
+// extractTarEntry writes the current tar entry to destPath.
+func extractTarEntry(tr *tar.Reader, destPath string) error {
+	dst, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("creating output file: %w", err)
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, io.LimitReader(tr, maxBinarySize)); err != nil {
+		return fmt.Errorf("extracting binary: %w", err)
+	}
+	return nil
 }

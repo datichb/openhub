@@ -280,7 +280,7 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 		time.Sleep(retryDelay * time.Duration(1<<uint(attempt)))
 	}
 
-	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries)
+	return fmt.Errorf("%w: push échoué après %d tentatives (conflit persistant)", ErrSyncConflict, maxPushRetries) //nolint:misspell // French error message
 }
 
 // InitStructure creates the base directory structure in the repo if missing.

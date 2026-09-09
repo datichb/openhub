@@ -63,8 +63,8 @@ func (v *ModelsView) StatusHints() string {
 }
 
 // Mount builds the models cascade table.
-func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
-	v.app = app
+func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
+	v.app = tvApp
 	v.mountGen++
 	gen := v.mountGen
 
@@ -79,7 +79,7 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Load entries and populate table asynchronously
 	go func() {
-		app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return // view was unmounted or re-mounted before the goroutine finished
 			}
@@ -107,7 +107,7 @@ func (v *ModelsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			content.RemoveItem(loading)
 			content.AddItem(v.table, 0, 1, true)
-			app.SetFocus(v.table)
+			tvApp.SetFocus(v.table)
 		})
 	}()
 }

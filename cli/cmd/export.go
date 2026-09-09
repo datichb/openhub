@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -45,8 +46,8 @@ func init() {
 	rootCmd.AddCommand(importCmd)
 
 	exportCmd.Flags().StringP("output", "o", "", "Chemin de sortie (défaut: ./oh-backup-<date>.tar.gz)")
-	importCmd.Flags().Bool("overwrite", false, "Écraser les données existantes sans confirmation")
-	importCmd.Flags().Bool("merge", false, "Fusionner avec les données existantes (projets uniquement)")
+	importCmd.Flags().Bool("overwrite", false, i18n.T("cmd.export.flag.overwrite"))
+	importCmd.Flags().Bool("merge", false, i18n.T("cmd.export.flag.merge"))
 }
 
 func runExport(cmd *cobra.Command, args []string) error {

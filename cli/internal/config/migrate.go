@@ -90,13 +90,13 @@ func BackupHubToml() (string, error) {
 // RunMigrationIfNeeded checks the loaded config and performs the [team] → [[teams]]
 // migration if applicable. It creates a backup of hub.toml before writing.
 // Returns (migrated bool, backupPath string, error).
-func RunMigrationIfNeeded(c *Config) (bool, string, error) {
+func RunMigrationIfNeeded(c *Config) (migrated bool, backupPath string, err error) {
 	if !MigrateTeamToTeams(c) {
 		return false, "", nil
 	}
 
 	// Create backup before persisting
-	backupPath, err := BackupHubToml()
+	backupPath, err = BackupHubToml()
 	if err != nil {
 		// Non-fatal: proceed without backup if hub.toml doesn't exist yet
 		backupPath = ""
@@ -139,8 +139,8 @@ func MigrateTokenKeys(c *Config) bool {
 
 	// Check each MCP service for legacy key names
 	type svcRef struct {
-		token   *string
-		name    string
+		token *string
+		name  string
 	}
 	services := []svcRef{
 		{&c.MCP.Gitlab.Token, "gitlab"},

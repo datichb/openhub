@@ -101,9 +101,9 @@ func (s *Store) IntegrityCheck() error {
 
 // migration represents a single schema change with an optional rollback.
 type migration struct {
-	version     int
-	up          string
-	down        string // empty means irreversible
+	version      int
+	up           string
+	down         string // empty means irreversible
 	irreversible bool
 }
 
@@ -226,33 +226,33 @@ var schemaMigrations = []migration{
 		down:    `DROP INDEX IF EXISTS idx_sessions_status`,
 	},
 	{
-		version:     7,
-		up:          `ALTER TABLE projects ADD COLUMN provider TEXT NOT NULL DEFAULT ''`,
-		down:        `ALTER TABLE projects DROP COLUMN provider`,
+		version:      7,
+		up:           `ALTER TABLE projects ADD COLUMN provider TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN provider`,
 		irreversible: false,
 	},
 	{
-		version:     8,
-		up:          `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
-		down:        `ALTER TABLE projects DROP COLUMN model`,
+		version:      8,
+		up:           `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN model`,
 		irreversible: false,
 	},
 	{
-		version:     9,
-		up:          `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`,
-		down:        `ALTER TABLE projects DROP COLUMN model_overrides`,
+		version:      9,
+		up:           `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN model_overrides`,
 		irreversible: false,
 	},
 	{
-		version:     10,
-		up:          `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`,
-		down:        `ALTER TABLE projects DROP COLUMN mcp_config`,
+		version:      10,
+		up:           `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN mcp_config`,
 		irreversible: false,
 	},
 	{
-		version:     11,
-		up:          `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`,
-		down:        `ALTER TABLE projects DROP COLUMN provider_config`,
+		version:      11,
+		up:           `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN provider_config`,
 		irreversible: false,
 	},
 	{
@@ -318,4 +318,3 @@ var schemaMigrations = []migration{
 		irreversible: false,
 	},
 }
-

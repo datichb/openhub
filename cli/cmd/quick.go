@@ -11,8 +11,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var quickCmd = &cobra.Command{

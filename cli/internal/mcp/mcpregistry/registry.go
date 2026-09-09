@@ -25,9 +25,9 @@ type MCPServer interface {
 
 // ServerManifest describes a custom MCP server in ~/.oh/mcp/<name>/manifest.json.
 type ServerManifest struct {
-	Name           string   `json:"name"`
-	Description    string   `json:"description"`
-	Version        string   `json:"version"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Version     string `json:"version"`
 	// Binary is the server binary to execute (relative to manifest dir or absolute).
 	Binary         string   `json:"binary"`
 	RequiredTokens []string `json:"required_tokens"`
@@ -126,8 +126,8 @@ type customMCPServer struct {
 	serverDir string
 }
 
-func (c *customMCPServer) Name() string           { return c.manifest.Name }
-func (c *customMCPServer) Description() string    { return c.manifest.Description }
+func (c *customMCPServer) Name() string             { return c.manifest.Name }
+func (c *customMCPServer) Description() string      { return c.manifest.Description }
 func (c *customMCPServer) RequiredTokens() []string { return c.manifest.RequiredTokens }
 
 func (c *customMCPServer) Serve() error {

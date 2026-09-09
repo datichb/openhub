@@ -10,8 +10,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -80,8 +80,8 @@ type TeamBoardView struct {
 	actions     *BoardActions
 
 	// Windowed column scroll — only a subset of columns is visible at a time.
-	colViewStart int // index of the first visible column in columnCards
-	visibleCols  int // number of columns visible (auto-detected from terminal width)
+	colViewStart int              // index of the first visible column in columnCards
+	visibleCols  int              // number of columns visible (auto-detected from terminal width)
 	allColumns   []BoardColumnDef // all column definitions for reference
 
 	// ticketIDLookup maps [colIndex][itemIndex] → ticket ID for selected-item resolution.
@@ -202,21 +202,22 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	hasTickets := len(v.cfg.Tickets) > 0
 	isConfigured := v.cfg.IsConfigured == nil || v.cfg.IsConfigured()
 
-	if !hasTickets && !isConfigured {
+	switch {
+	case !hasTickets && !isConfigured:
 		emptyTV := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		emptyTV.SetBackgroundColor(theme.BgPanel)
 		emptyTV.SetText("\n\n[yellow]Aucune équipe configurée.[-]\n\nUtilisez [white]Team Init[-] pour commencer.")
 		content.AddItem(emptyTV, 0, 1, true)
-	} else if !hasTickets {
+	case !hasTickets:
 		emptyTV := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		emptyTV.SetBackgroundColor(theme.BgPanel)
 		emptyTV.SetText("\n\n[yellow]Aucun ticket.[-]\n\nLancez [white]Sync Tracker[-] ([::b]r[::-]) pour synchroniser.")
 		content.AddItem(emptyTV, 0, 1, true)
-	} else {
+	default:
 		content.AddItem(v.boardLayout, 0, 1, true)
 	}
 
@@ -352,71 +353,72 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	}
 	for _, t := range filtered {
 		for i, col := range columns {
-			if t.Status == col.Status {
-				// ── Line 1: [Project] Title... [N/M] ──
-				projectTag := ""
-				projectDisplay := t.ProjectName
-				if projectDisplay == "" {
-					projectDisplay = t.Project
-				}
-				if projectDisplay != "" {
-					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-						theme.AccentHex, tview.Escape(projectDisplay))
-				}
-				// Truncate title to keep line 1 readable
-				title := t.Title
-				titleRunes := []rune(title)
-				if len(titleRunes) > 40 {
-					title = string(titleRunes[:37]) + "..."
-				}
-				// Beads badge: [done/total] when linked beads exist (ADR-032)
-				badgeStr := ""
-				if summary := v.getBeadsSummary(); summary != nil {
-					if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
-						color := theme.TextMutedHex
-						if bs.Done == bs.Total {
-							color = theme.SuccessHex
-						}
-						badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
-					}
-				}
-				mainText := projectTag + title + badgeStr
-
-				// ── Line 2: ID · priority ──
-				secondary := t.ID
-				if t.Priority != "" {
-					secondary += " · " + t.Priority
-				}
-
-				// ── Line 3: @assignee · label1 · label2 (filtered) ──
-				var parts []string
-				if t.Assignee != "" {
-					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
-				} else {
-					parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
-				}
-				// Filter out workflow labels (already reflected by column)
-				for _, l := range t.Labels {
-					if v.cfg.LabelStatusMapping != nil {
-						if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
-							continue
-						}
-					}
-					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
-				}
-				meta := ""
-				if len(parts) > 0 {
-					meta = strings.Join(parts, " · ")
-				}
-
-				v.columnCards[i].AddCard(widgets.Card{
-					MainText:      mainText,
-					SecondaryText: secondary,
-					MetaText:      meta,
-				})
-				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
-				break
+			if t.Status != col.Status {
+				continue
 			}
+			// ── Line 1: [Project] Title... [N/M] ──
+			projectTag := ""
+			projectDisplay := t.ProjectName
+			if projectDisplay == "" {
+				projectDisplay = t.Project
+			}
+			if projectDisplay != "" {
+				projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+					theme.AccentHex, tview.Escape(projectDisplay))
+			}
+			// Truncate title to keep line 1 readable
+			title := t.Title
+			titleRunes := []rune(title)
+			if len(titleRunes) > 40 {
+				title = string(titleRunes[:37]) + "..."
+			}
+			// Beads badge: [done/total] when linked beads exist (ADR-032)
+			badgeStr := ""
+			if summary := v.getBeadsSummary(); summary != nil {
+				if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
+					color := theme.TextMutedHex
+					if bs.Done == bs.Total {
+						color = theme.SuccessHex
+					}
+					badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
+				}
+			}
+			mainText := projectTag + title + badgeStr
+
+			// ── Line 2: ID · priority ──
+			secondary := t.ID
+			if t.Priority != "" {
+				secondary += " · " + t.Priority
+			}
+
+			// ── Line 3: @assignee · label1 · label2 (filtered) ──
+			var parts []string
+			if t.Assignee != "" {
+				parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+			} else {
+				parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
+			}
+			// Filter out workflow labels (already reflected by column)
+			for _, l := range t.Labels {
+				if v.cfg.LabelStatusMapping != nil {
+					if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
+						continue
+					}
+				}
+				parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+			}
+			meta := ""
+			if len(parts) > 0 {
+				meta = strings.Join(parts, " · ")
+			}
+
+			v.columnCards[i].AddCard(widgets.Card{
+				MainText:      mainText,
+				SecondaryText: secondary,
+				MetaText:      meta,
+			})
+			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
+			break
 		}
 	}
 }
@@ -520,10 +522,10 @@ func (v *TeamBoardView) renderTabBar() {
 		}
 		if i == v.activeTabIdx {
 			// Active tab: accent background
-			sb.WriteString(fmt.Sprintf("[black:%s] %s [-:-]", theme.AccentHex, tview.Escape(label)))
+			fmt.Fprintf(&sb, "[black:%s] %s [-:-]", theme.AccentHex, tview.Escape(label))
 		} else {
 			// Inactive tab: muted
-			sb.WriteString(fmt.Sprintf("[%s] %s [-]", theme.TextMutedHex, tview.Escape(label)))
+			fmt.Fprintf(&sb, "[%s] %s [-]", theme.TextMutedHex, tview.Escape(label))
 		}
 		sb.WriteString("  ")
 	}
@@ -772,36 +774,36 @@ func (v *TeamBoardView) showTicketDetail() {
 // formatTicketDetail builds the detail content string for a ticket.
 func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	var detail strings.Builder
-	detail.WriteString(fmt.Sprintf("\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset))
-	detail.WriteString(fmt.Sprintf("  %sID:%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID))
+	fmt.Fprintf(&detail, "\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset)
+	fmt.Fprintf(&detail, "  %sID:%s         %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID)
 	if ticket.Project != "" {
-		detail.WriteString(fmt.Sprintf("  %sProjet:%s     %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Project))
+		fmt.Fprintf(&detail, "  %sProjet:%s     %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Project)
 	}
-	detail.WriteString(fmt.Sprintf("  %sStatut:%s     %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Status))
+	fmt.Fprintf(&detail, "  %sStatut:%s     %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Status)
 
 	assignee := "-"
 	if ticket.Assignee != "" {
 		assignee = "@" + ticket.Assignee
 	}
-	detail.WriteString(fmt.Sprintf("  %sAssignee:%s   %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, assignee))
+	fmt.Fprintf(&detail, "  %sAssignee:%s   %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, assignee)
 
 	if ticket.Priority != "" {
-		detail.WriteString(fmt.Sprintf("  %sPriorité:%s   %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Priority))
+		fmt.Fprintf(&detail, "  %sPriorité:%s   %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Priority)
 	}
 
 	if len(ticket.Labels) > 0 {
-		detail.WriteString(fmt.Sprintf("  %sLabels:%s     %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", ")))
+		fmt.Fprintf(&detail, "  %sLabels:%s     %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", "))
 	}
 
 	if ticket.Description != "" {
-		detail.WriteString(fmt.Sprintf("\n  %sDescription:%s\n  %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tview.Escape(ticket.Description)))
+		fmt.Fprintf(&detail, "\n  %sDescription:%s\n  %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tview.Escape(ticket.Description))
 	}
 
 	return detail.String()
@@ -1171,56 +1173,57 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	}
 	for _, t := range filtered {
 		for i, col := range columns {
-			if t.Status == col.Status {
-				// ── Line 1: [Project] Title... ──
-				projectTag := ""
-				projectDisplay := t.ProjectName
-				if projectDisplay == "" {
-					projectDisplay = t.Project
-				}
-				if projectDisplay != "" {
-					projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-						theme.AccentHex, tview.Escape(projectDisplay))
-				}
-				title := t.Title
-				titleRunes := []rune(title)
-				if len(titleRunes) > 40 {
-					title = string(titleRunes[:37]) + "..."
-				}
-				mainText := projectTag + title
-
-				// ── Line 2: ID · priority ──
-				secondary := t.ID
-				if t.Priority != "" {
-					secondary += " · " + t.Priority
-				}
-
-				// ── Line 3: @assignee · labels (filtered) ──
-				var parts []string
-				if t.Assignee != "" {
-					parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
-				}
-				for _, l := range t.Labels {
-					if v.cfg.LabelStatusMapping != nil {
-						if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
-							continue
-						}
-					}
-					parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
-				}
-				meta := ""
-				if len(parts) > 0 {
-					meta = strings.Join(parts, " · ")
-				}
-
-				v.columnCards[i].AddCard(widgets.Card{
-					MainText:      mainText,
-					SecondaryText: secondary,
-					MetaText:      meta,
-				})
-				v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
-				break
+			if t.Status != col.Status {
+				continue
 			}
+			// ── Line 1: [Project] Title... ──
+			projectTag := ""
+			projectDisplay := t.ProjectName
+			if projectDisplay == "" {
+				projectDisplay = t.Project
+			}
+			if projectDisplay != "" {
+				projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+					theme.AccentHex, tview.Escape(projectDisplay))
+			}
+			title := t.Title
+			titleRunes := []rune(title)
+			if len(titleRunes) > 40 {
+				title = string(titleRunes[:37]) + "..."
+			}
+			mainText := projectTag + title
+
+			// ── Line 2: ID · priority ──
+			secondary := t.ID
+			if t.Priority != "" {
+				secondary += " · " + t.Priority
+			}
+
+			// ── Line 3: @assignee · labels (filtered) ──
+			var parts []string
+			if t.Assignee != "" {
+				parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+			}
+			for _, l := range t.Labels {
+				if v.cfg.LabelStatusMapping != nil {
+					if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
+						continue
+					}
+				}
+				parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+			}
+			meta := ""
+			if len(parts) > 0 {
+				meta = strings.Join(parts, " · ")
+			}
+
+			v.columnCards[i].AddCard(widgets.Card{
+				MainText:      mainText,
+				SecondaryText: secondary,
+				MetaText:      meta,
+			})
+			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
+			break
 		}
 	}
 }

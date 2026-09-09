@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -64,9 +64,11 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 		for _, cc := range columnCards {
 			cc.Clear()
 		}
-	for _, ticket := range tickets {
-		for i, col := range columns {
-			if ticket.Status == col.Status {
+		for _, ticket := range tickets {
+			for i, col := range columns {
+				if ticket.Status != col.Status {
+					continue
+				}
 				// Line 1: title + assignee
 				assignee := ""
 				if ticket.Assignee != "" {
@@ -76,21 +78,20 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 					assignee = fmt.Sprintf(" %s[claimable][-]",
 						widgets.ColorTag(theme.Warning))
 				}
-					mainText := ticket.Title + assignee
-					// Line 2: ID
-					secondary := ticket.ID
-					// Line 3: labels
-					meta := ""
-					if len(ticket.Labels) > 0 {
-						meta = formatTicketLabels(ticket.Labels)
-					}
-					columnCards[i].AddCard(widgets.Card{
-						MainText:      mainText,
-						SecondaryText: secondary,
-						MetaText:      meta,
-					})
-					break
+				mainText := ticket.Title + assignee
+				// Line 2: ID
+				secondary := ticket.ID
+				// Line 3: labels
+				meta := ""
+				if len(ticket.Labels) > 0 {
+					meta = formatTicketLabels(ticket.Labels)
 				}
+				columnCards[i].AddCard(widgets.Card{
+					MainText:      mainText,
+					SecondaryText: secondary,
+					MetaText:      meta,
+				})
+				break
 			}
 		}
 	}

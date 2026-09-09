@@ -27,10 +27,10 @@ type Project struct {
 	// TeamID links this project to a team by its ID (matching a teams[].id entry
 	// in hub.toml). nil = solo project (no team affiliation). When set, the project
 	// inherits team-level configuration (MCP, tracker, models, policies).
-	TeamID *string
-	Status ProjectStatus
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	TeamID    *string
+	Status    ProjectStatus
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // ProjectModelOverrides holds per-agent and per-family model overrides at the project level.

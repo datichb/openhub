@@ -287,7 +287,7 @@ func startOfDay(t time.Time) time.Time {
 
 // DayCost represents aggregated cost for a single calendar day.
 type DayCost struct {
-	Day  string  // "2026-08-20" (local time)
+	Day  string // "2026-08-20" (local time)
 	Cost float64
 }
 

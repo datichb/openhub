@@ -217,8 +217,7 @@ func (v *TeamModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 	}
 
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		active := v.list
 		if v.dual != nil {
 			active = v.dual.activeList()

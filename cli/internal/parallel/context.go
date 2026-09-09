@@ -29,10 +29,8 @@ func (sc *SharedContext) UpdateFromServers(servers []*OpenCodeServer) {
 
 		// Separate modified vs created
 		var modified, created []string
-		for _, f := range files {
-			// If we can't determine, treat all as modified
-			modified = append(modified, f)
-		}
+		// If we can't determine, treat all as modified
+		modified = append(modified, files...)
 
 		sc.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
 			s.FilesModified = modified
@@ -54,7 +52,9 @@ func (sc *SharedContext) detectConflicts() {
 		if sess.Status != StatusRunning && sess.Status != StatusCompleted {
 			continue
 		}
-		allFiles := append(sess.FilesModified, sess.FilesCreated...)
+		allFiles := make([]string, 0, len(sess.FilesModified)+len(sess.FilesCreated))
+		allFiles = append(allFiles, sess.FilesModified...)
+		allFiles = append(allFiles, sess.FilesCreated...)
 		for _, f := range allFiles {
 			fileToSessions[f] = append(fileToSessions[f], sess.TicketID)
 		}

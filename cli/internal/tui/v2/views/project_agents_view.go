@@ -192,8 +192,7 @@ func (v *ProjectAgentsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil {
 		return event
 	}
-	switch event.Key() {
-	case tcell.KeyEnter:
+	if event.Key() == tcell.KeyEnter {
 		v.toggleSelected()
 		return nil
 	}

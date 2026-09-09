@@ -1201,5 +1201,25 @@
 
   "board.claimable": "[claimable]",
   "board.pool_claimed": "Ticket claimed: %s",
-  "board.pool_claim_failed": "Claim failed: %s"
+  "board.pool_claim_failed": "Claim failed: %s",
+
+  "cmd.export.flag.overwrite": "Overwrite existing data without confirmation",
+  "cmd.export.flag.merge": "Merge with existing data (projects only)",
+  "cmd.init.wizard_intro": "This wizard will configure the essential elements:",
+  "cmd.patterns.new_content": "# Pattern: %s\n\n## Usage context\n\n## Typical decomposition\n\n## Typical dependencies\n\n## Known variants\n",
+  "cmd.repair.long": "Checks SQLite database integrity.\nIf corruption is detected, attempts recovery and proposes restoration options.",
+  "cmd.repair.db_missing": "  Database missing — will be created on next startup.\n",
+  "cmd.skill.no_match": "  No skill matching %q\n",
+  "cmd.takeover_brief.long": "Shows, lists and enriches briefs generated during ticket transfers.\nA brief contains the context needed to take over a colleague's work.",
+  "cmd.takeover_brief.enrich.long": "Launches an AI agent in headless mode to enrich the existing brief\nwith source code analysis, identified open questions,\nand recommendations for continued work.",
+  "cmd.team_config.push_labels_prompt": "Enable label push? (team recommends: %v)",
+  "cmd.team_config.team_recommends_true": " %s (team recommends: true)",
+  "cmd.team_config.team_recommends_val": " %s (team recommends: %v)",
+  "takeover.template.transferred_from": "**Transferred from** %s → %s | **Date** %s | **Reason** %s\n\n",
+  "takeover.template.activity_header": "## Activity\n\n",
+  "tui.takeover.no_briefs_desc": "  Briefs are created during ticket transfers",
+  "tui.team.models.recommendation_type": "Recommendation type",
+  "tui.team.models.recommendation_added": "Recommendation added",
+  "tui.team.models.save_recommendations": "Save model recommendations",
+  "tui.team.models.add_recommendation": "Add a model recommendation"
 }

@@ -51,7 +51,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
 	var initialTickets []views.TeamTicket
 	func() {
-		defer func() { recover() }()
+		defer func() { _ = recover() }()
 		if repo := resolveRepo(); repo != nil {
 			initialTickets = views.FetchTeamTickets(repo, projectNameResolver)
 		}
@@ -60,7 +60,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// Load label_status_mapping from team config for label filtering in the board view.
 	var labelStatusMapping map[string]string
 	func() {
-		defer func() { recover() }()
+		defer func() { _ = recover() }()
 		if repo := resolveRepo(); repo != nil {
 			if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
 				labelStatusMapping = cfg.Tracker.LabelStatusMapping
@@ -154,7 +154,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// Claim already exists — check if it's a pool ticket (unowned).
 				existing, getErr := repo.GetClaim(projectID, ticketID)
 				if getErr != nil {
-					return nil // can't read claim, treat as idempotent
+					return nil //nolint:nilerr // can't read claim, treat as idempotent
 				}
 				if existing.ClaimedBy != "" {
 					return nil // already owned, idempotent

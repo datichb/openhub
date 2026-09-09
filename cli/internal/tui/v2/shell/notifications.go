@@ -31,14 +31,14 @@ type NotificationStore struct {
 	max   int
 }
 
-// NewNotificationStore creates a store that retains at most max entries.
-func NewNotificationStore(max int) *NotificationStore {
-	if max <= 0 {
-		max = 50
+// NewNotificationStore creates a store that retains at most maxItems entries.
+func NewNotificationStore(maxItems int) *NotificationStore {
+	if maxItems <= 0 {
+		maxItems = 50
 	}
 	return &NotificationStore{
-		items: make([]Notification, 0, max),
-		max:   max,
+		items: make([]Notification, 0, maxItems),
+		max:   maxItems,
 	}
 }
 

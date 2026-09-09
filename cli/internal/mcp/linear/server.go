@@ -3,8 +3,8 @@
 package linear
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,10 +34,10 @@ func Serve() error {
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"team_key":  map[string]interface{}{"type": "string", "description": "Team identifier key (e.g. ENG)"},
-				"state":     map[string]interface{}{"type": "string", "description": "Filter by state name (e.g. In Progress)"},
-				"assignee":  map[string]interface{}{"type": "string", "description": "Filter by assignee name or email"},
-				"first":     map[string]interface{}{"type": "integer", "description": "Number of results (default 50)"},
+				"team_key": map[string]interface{}{"type": "string", "description": "Team identifier key (e.g. ENG)"},
+				"state":    map[string]interface{}{"type": "string", "description": "Filter by state name (e.g. In Progress)"},
+				"assignee": map[string]interface{}{"type": "string", "description": "Filter by assignee name or email"},
+				"first":    map[string]interface{}{"type": "integer", "description": "Number of results (default 50)"},
 			},
 		},
 	}, handleListIssues)
@@ -104,7 +104,7 @@ func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.Tool
 
 	filter := ""
 	if args.TeamKey != "" {
-		filter += fmt.Sprintf(`, filter: { team: { key: { eq: "%s" } } }`, args.TeamKey)
+		filter += fmt.Sprintf(`, filter: { team: { key: { eq: %q } } }`, args.TeamKey)
 	}
 
 	query := fmt.Sprintf(`{
@@ -188,13 +188,13 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 
 	input := ""
 	if args.StateID != "" {
-		input += fmt.Sprintf(`stateId: "%s"`, args.StateID)
+		input += fmt.Sprintf(`stateId: %q`, args.StateID)
 	}
 	if args.AssigneeID != "" {
 		if input != "" {
 			input += " "
 		}
-		input += fmt.Sprintf(`assigneeId: "%s"`, args.AssigneeID)
+		input += fmt.Sprintf(`assigneeId: %q`, args.AssigneeID)
 	}
 
 	mutation := fmt.Sprintf(`mutation {
@@ -230,7 +230,7 @@ func linearQuery(query string) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Linear API request failed: %w", err)
+		return nil, fmt.Errorf("linear API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -239,7 +239,7 @@ func linearQuery(query string) ([]byte, error) {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("Linear API error %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return nil, fmt.Errorf("linear API error %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	return respBody, nil
 }

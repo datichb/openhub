@@ -7,8 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -96,28 +96,29 @@ func RunBoard(cfg BoardConfig) error {
 		}
 		for _, ticket := range tickets {
 			for i, col := range columns {
-				if ticket.Status == col.Status {
-					// Line 1: priority + title
-					priority := ""
-					if ticket.Priority != "" {
-						priority = fmt.Sprintf("%s%s[-] ",
-							widgets.ColorTag(priorityColor(ticket.Priority)), ticket.Priority)
-					}
-					mainText := priority + ticket.Title
-					// Line 2: ID
-					secondary := ticket.ID
-					// Line 3: external ref (if any)
-					meta := ""
-					if ticket.ExternalRef != "" {
-						meta = fmt.Sprintf("← %s", ticket.ExternalRef)
-					}
-					columnCards[i].AddCard(widgets.Card{
-						MainText:      mainText,
-						SecondaryText: secondary,
-						MetaText:      meta,
-					})
-					break
+				if ticket.Status != col.Status {
+					continue
 				}
+				// Line 1: priority + title
+				priority := ""
+				if ticket.Priority != "" {
+					priority = fmt.Sprintf("%s%s[-] ",
+						widgets.ColorTag(priorityColor(ticket.Priority)), ticket.Priority)
+				}
+				mainText := priority + ticket.Title
+				// Line 2: ID
+				secondary := ticket.ID
+				// Line 3: external ref (if any)
+				meta := ""
+				if ticket.ExternalRef != "" {
+					meta = fmt.Sprintf("← %s", ticket.ExternalRef)
+				}
+				columnCards[i].AddCard(widgets.Card{
+					MainText:      mainText,
+					SecondaryText: secondary,
+					MetaText:      meta,
+				})
+				break
 			}
 		}
 	}

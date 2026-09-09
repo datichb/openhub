@@ -123,7 +123,7 @@ func Build(cfg Config) *Result {
 	content.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).
 		SetBorderColor(theme.BorderFocus).
-		SetTitle(" " + cfg.Command + " ").
+		SetTitle(" "+cfg.Command+" ").
 		SetTitleColor(theme.Accent).
 		SetBorderPadding(1, 0, 2, 2)
 

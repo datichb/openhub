@@ -247,7 +247,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 
 	// If no content from file, open editor or ask
 	if content == "" {
-		content = fmt.Sprintf("# Pattern : %s\n\n## Contexte d'usage\n\n## Décomposition type\n\n## Dépendances typiques\n\n## Variantes connues\n", name)
+		content = i18n.Tf("cmd.patterns.new_content", name)
 		fmt.Fprintf(a.IO.Out, "\n%s Contenu par défaut créé. Édite le fichier après création pour le compléter.\n",
 			theme.Subtitle.Render(theme.IconInfo))
 	}

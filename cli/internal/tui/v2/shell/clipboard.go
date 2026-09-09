@@ -82,7 +82,7 @@ func writeNative(text string) error {
 
 // nativeClipboardCmd returns the clipboard command and arguments for the
 // current platform. Returns ("", nil) if no command is available.
-func nativeClipboardCmd() (string, []string) {
+func nativeClipboardCmd() (cmd string, args []string) {
 	switch runtime.GOOS {
 	case "darwin":
 		return "pbcopy", nil
