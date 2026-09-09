@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -68,7 +68,7 @@ func runSecretsSet(cmd *cobra.Command, args []string) error {
 
 	// Read value from stdin (masked)
 	fmt.Fprintf(a.IO.Out, "Valeur pour %q (%s): ", key, scopeLabel)
-	valueBytes, err := term.ReadPassword(syscall.Stdin)
+	valueBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(a.IO.Out) // newline after masked input
 	if err != nil {
 		return fmt.Errorf("lecture du secret: %w", err)
