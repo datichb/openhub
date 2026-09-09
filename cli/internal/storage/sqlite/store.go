@@ -317,4 +317,10 @@ var schemaMigrations = []migration{
 		down:         `ALTER TABLE projects DROP COLUMN team_id`,
 		irreversible: false,
 	},
+	{
+		version:      21,
+		up:           `ALTER TABLE projects ADD COLUMN workflow_config TEXT NOT NULL DEFAULT ''`,
+		down:         `ALTER TABLE projects DROP COLUMN workflow_config`,
+		irreversible: false,
+	},
 }

@@ -6,6 +6,8 @@ package domain
 import (
 	"context"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Project represents a registered project in the hub.
@@ -24,6 +26,8 @@ type Project struct {
 	ModelOverrides *ProjectModelOverrides // per-project model cascade overrides (nil = no overrides)
 	TeamConfig     *ProjectTeamConfig     // deprecated: use TeamID. Kept for backward compat migration.
 	TrackerConfig  *ProjectTrackerConfig  // per-project tracker overrides (nil = inherit team defaults)
+	// WorkflowConfig holds per-project workflow overrides (nil = inherit team/hub workflow).
+	WorkflowConfig *ProjectWorkflowConfig
 	// TeamID links this project to a team by its ID (matching a teams[].id entry
 	// in hub.toml). nil = solo project (no team affiliation). When set, the project
 	// inherits team-level configuration (MCP, tracker, models, policies).
@@ -112,6 +116,11 @@ const (
 	ProjectTeamModeCustom   = "custom"
 	ProjectTeamModeDisabled = "disabled"
 )
+
+// ProjectWorkflowConfig holds per-project workflow overrides.
+type ProjectWorkflowConfig struct {
+	Overrides *workflow.WorkflowOverride `json:"overrides,omitempty"`
+}
 
 // ProjectStatus represents the lifecycle state of a project.
 type ProjectStatus string

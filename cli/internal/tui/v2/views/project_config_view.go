@@ -322,6 +322,9 @@ func (v *ProjectConfigView) buildLines() {
 		{section: i18n.T("tui.settings.section_shortcuts"), key: "models", kind: "link",
 			linkTarget: "project.models",
 			get:        func(_ *domain.Project) string { return "Modèles..." }},
+		{section: i18n.T("tui.settings.section_shortcuts"), key: "workflow", kind: "link",
+			linkTarget: "workflow",
+			get:        func(_ *domain.Project) string { return "Workflow..." }},
 	}
 }
 

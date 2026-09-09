@@ -249,6 +249,10 @@ func (v *TeamDetailView) buildLines() {
 		kind: "link", key: "models", linkTarget: "team.models",
 		get: func() string { return "Modèles..." },
 	})
+	v.lines = append(v.lines, teamConfigLine{
+		kind: "link", key: "workflow", linkTarget: "workflow",
+		get: func() string { return "Workflow..." },
+	})
 
 	// ── Tracker ──
 	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Tracker"})

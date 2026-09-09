@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -23,6 +24,24 @@ type TeamConfig struct {
 	// These are always recommendations (overridable) — never enforced.
 	// Resolution: Project > Hub > Team(recommended) > Agent Frontmatter.
 	Models TeamModelsConfig `toml:"models"`
+	// Workflow holds team-level workflow overrides.
+	// When Enforced is true, projects in the team cannot apply their own overrides.
+	Workflow *WorkflowTeamConfig `toml:"workflow,omitempty"`
+}
+
+// WorkflowTeamConfig holds team-level workflow customization.
+type WorkflowTeamConfig struct {
+	// Overrides are applied on top of the hub-level workflow (which itself
+	// is applied on top of the base workflow).
+	Overrides *workflow.WorkflowOverride `toml:"overrides,omitempty"`
+	// Enforced locks the workflow for all projects in this team.
+	// When true, project-level WorkflowOverrides are ignored.
+	Enforced *bool `toml:"enforced,omitempty"`
+}
+
+// IsEnforced reports whether the team workflow is enforced.
+func (w *WorkflowTeamConfig) IsEnforced() bool {
+	return w != nil && w.Enforced != nil && *w.Enforced
 }
 
 // TeamModelsConfig holds team-level model recommendations.
