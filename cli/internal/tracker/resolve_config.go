@@ -77,6 +77,8 @@ type EffectiveTrackerConfig struct {
 
 	// SharedPushLabels is the raw team recommendation before write_enabled gating.
 	SharedPushLabels bool
+	// PushLabelsEnforced is true when the team enforces push_labels (member cannot override).
+	PushLabelsEnforced bool
 	// LocalOverrides is the set of fields where the local config differs from
 	// the shared recommendation.
 	LocalOverrides OverrideSet
@@ -203,11 +205,18 @@ func ResolveFullTrackerConfig(
 	eff.AutoPlanAssigned, eff.LocalOverrides.AutoPlanAssigned = boolResolve(local.AutoPlanAssigned, sharedAutoPlan, false)
 	eff.MaxAutoPlanPerMember, eff.LocalOverrides.MaxAutoPlanPerMember = intResolve(local.MaxAutoPlanPerMember, sharedMaxAutoPlanVal, 5)
 
-	// push_labels: resolve recommendation first, then gate by write_enabled.
-	rawPushLabels, pushOverridden := boolResolve(local.PushLabels, sharedPushLabels, false)
-	eff.SharedPushLabels = sharedPushLabels
-	eff.PushLabels = rawPushLabels && writeEnabled // always requires write permission
-	eff.LocalOverrides.PushLabels = pushOverridden
+	// push_labels: if team enforces, use team value; otherwise resolve recommendation then gate by write_enabled.
+	if shared != nil && shared.IsPushLabelsEnforced() {
+		eff.SharedPushLabels = sharedPushLabels
+		eff.PushLabels = sharedPushLabels && writeEnabled
+		eff.LocalOverrides.PushLabels = false // cannot override when enforced
+		eff.PushLabelsEnforced = true
+	} else {
+		rawPushLabels, pushOverridden := boolResolve(local.PushLabels, sharedPushLabels, false)
+		eff.SharedPushLabels = sharedPushLabels
+		eff.PushLabels = rawPushLabels && writeEnabled // always requires write permission
+		eff.LocalOverrides.PushLabels = pushOverridden
+	}
 
 	_ = sharedMaxAutoPlan // suppress unused warning
 

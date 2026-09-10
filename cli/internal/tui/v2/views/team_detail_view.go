@@ -267,8 +267,19 @@ func (v *TeamDetailView) buildLines() {
 		section: "Tracker", key: "type", kind: "select", scope: scopeTeam,
 		hint:    "Type de tracker externe pour la sync issues",
 		options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
+		grayed:  func() bool { return v.teamCfg.Tracker.IsTypeEnforced() },
 		get:     func() string { return v.teamCfg.Tracker.Type },
 		set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "type_enforced", kind: "bool", scope: scopeTeam,
+		hint: "Impose le type de tracker (les membres ne peuvent pas changer)",
+		get:  func() string { return tdBoolToStr(v.teamCfg.Tracker.IsTypeEnforced()) },
+		set: func(val string) {
+			b := val == "true"
+			v.teamCfg.Tracker.TypeEnforced = &b
+			v.dirtyTeam = true
+		},
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "tracker_url", kind: "string", scope: scopeTeam,
@@ -303,8 +314,19 @@ func (v *TeamDetailView) buildLines() {
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "push_labels", kind: "bool", scope: scopeTeam,
-		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
-		set: func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
+		grayed: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
+		get:    func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
+		set:    func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
+	})
+	v.lines = append(v.lines, teamConfigLine{
+		section: "Tracker", key: "push_labels_enforced", kind: "bool", scope: scopeTeam,
+		hint: "Impose push_labels (les membres ne peuvent pas surcharger)",
+		get:  func() string { return tdBoolToStr(v.teamCfg.Tracker.IsPushLabelsEnforced()) },
+		set: func(val string) {
+			b := val == "true"
+			v.teamCfg.Tracker.PushLabelsEnforced = &b
+			v.dirtyTeam = true
+		},
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Tracker", key: "auto_plan_assigned", kind: "bool", scope: scopeTeam,
@@ -440,8 +462,9 @@ func (v *TeamDetailView) buildLines() {
 	})
 	v.lines = append(v.lines, teamConfigLine{
 		section: "Local", key: "push_labels", kind: "tri-state", scope: scopeLocal,
-		get: func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
-		set: func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
+		grayed: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
+		get:    func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
+		set:    func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
 	})
 }
 

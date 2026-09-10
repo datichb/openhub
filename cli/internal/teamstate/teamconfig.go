@@ -222,6 +222,16 @@ type TrackerConfig struct {
 	LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
 }
 
+// IsTypeEnforced reports whether the tracker Type is enforced by the team.
+func (t TrackerConfig) IsTypeEnforced() bool {
+	return t.TypeEnforced != nil && *t.TypeEnforced
+}
+
+// IsPushLabelsEnforced reports whether PushLabels is enforced by the team.
+func (t TrackerConfig) IsPushLabelsEnforced() bool {
+	return t.PushLabelsEnforced != nil && *t.PushLabelsEnforced
+}
+
 // LoadConfig reads config.toml from the team-state repo.
 func (r *Repo) LoadConfig() (*TeamConfig, error) {
 	r.mu.RLock()
