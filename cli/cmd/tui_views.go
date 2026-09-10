@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -688,6 +689,59 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			SaveProject: func(ctx context.Context, p *domain.Project) error {
 				return a.Projects.Update(ctx, p)
 			},
+			ResolveMCPSource: func(service, field string) (effective string, source string, locked bool) {
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+
+				// Load team shared MCP config
+				var shared *teamstate.SharedMCPConfig
+				var teamID string
+				if tc.Enabled && tc.StatePath != "" {
+					teamID = tc.TeamID
+					repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+					if repo.IsCloned() {
+						teamCfg, _ := repo.LoadConfig()
+						if teamCfg != nil {
+							if s, ok := teamCfg.MCP[service]; ok {
+								shared = &s
+							}
+						}
+					}
+				}
+
+				// Hub MCP config for this service
+				hub := hubMCPServerConfig(a.Config, service)
+
+				// Project MCP service
+				var projectSvc *domain.ProjectMCPService
+				if project != nil && project.MCPConfig != nil {
+					for i, svc := range project.MCPConfig.Services {
+						if svc.Name == service {
+							projectSvc = &project.MCPConfig.Services[i]
+							break
+						}
+					}
+				}
+
+				eff := tracker.ResolveFullMCPConfig(shared, hub, projectSvc, teamID)
+
+				switch field {
+				case "enabled":
+					src := ""
+					if eff.EnabledEnforced {
+						src = fmt.Sprintf("[%s: enforced]", teamID)
+					}
+					return strconv.FormatBool(eff.Enabled), src, eff.EnabledEnforced
+				case "url":
+					src := ""
+					if eff.URLEnforced {
+						src = fmt.Sprintf("[%s: enforced]", teamID)
+					}
+					return eff.URL, src, eff.URLEnforced
+				default:
+					return "", "", false
+				}
+			},
 		}),
 		views.NewProjectAgentsView(views.ProjectAgentsViewConfig{
 			GetProject: func() *domain.Project {
@@ -928,4 +982,20 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	)
 
 	return allViews
+}
+
+// hubMCPServerConfig maps a service name to the corresponding hub MCPServerConfig.
+func hubMCPServerConfig(cfg *config.Config, service string) config.MCPServerConfig {
+	switch service {
+	case "gitlab":
+		return cfg.MCP.Gitlab
+	case "jira":
+		return cfg.MCP.Jira
+	case "figma":
+		return cfg.MCP.Figma
+	case "gslides":
+		return cfg.MCP.Gslides
+	default:
+		return config.MCPServerConfig{}
+	}
 }
