@@ -52,6 +52,7 @@ type ProjectEntry struct {
 	Path         string
 	ActiveCount  int    // tasks in progress
 	ActiveBranch string // current git branch
+	DeployAge    string // human-readable deploy age ("il y a 2h", "jamais"), empty if unknown
 }
 
 // HomeView is the splash/landing view for the TUI shell.
@@ -230,6 +231,9 @@ func (v *HomeView) buildItems() []homeItem {
 				}
 				if proj.ActiveBranch != "" {
 					desc += fmt.Sprintf(" · %s", proj.ActiveBranch)
+				}
+				if proj.DeployAge != "" {
+					desc += fmt.Sprintf(" · %s", proj.DeployAge)
 				}
 				items = append(items, homeItem{
 					Icon:  "◈",

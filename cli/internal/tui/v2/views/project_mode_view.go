@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -21,6 +22,18 @@ type ProjectModeConfig struct {
 	OnNavigate func(viewID string)
 	// OnExitProjectMode is called when the user toggles back to hub mode.
 	OnExitProjectMode func()
+
+	// ── Deploy callbacks ────────────────────────────────────────────────
+	// OnDeploy triggers a deploy on the active project (shows diff preview + apply modal).
+	OnDeploy func(projectPath string)
+	// OnViewDiff shows a read-only diff modal comparing hub vs project.
+	OnViewDiff func(projectPath string)
+	// CheckDeployStatus returns a lightweight deploy status read from .deploy-state.
+	// Cheap (~1ms) — safe for synchronous use in Mount().
+	CheckDeployStatus func(projectPath string) *DeployStatusResult
+	// ComputeDeployDiff computes the full diff between hub and project.
+	// Expensive (~60-70 file reads) — must only be called from a goroutine.
+	ComputeDeployDiff func(projectPath string) (*DeployDiffResult, error)
 }
 
 // projectModeItem represents a navigable item in the project mode view.
@@ -43,6 +56,13 @@ type ProjectModeView struct {
 	dual        *homeDualLayout
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
+
+	// ── Deploy status state ─────────────────────────────────────────────
+	mountGen         uint64              // guards stale goroutines (standard pattern)
+	deployStatus     *DeployStatusResult // lightweight sync result (ReadDeployState)
+	deployDiff       *DeployDiffResult   // full async result (ComputeDiff)
+	deployToastShown bool                // prevents duplicate toasts per mount cycle
+	headerTV         *tview.TextView     // reference for async header updates
 }
 
 var _ View = (*ProjectModeView)(nil)
@@ -77,7 +97,7 @@ func (v *ProjectModeView) StatusHints() string {
 		return fmt.Sprintf("Aucun projet actif · Ctrl+T %s", i18n.T("tui.hints.hub_mode"))
 	}
 	return fmt.Sprintf(
-		"%s · j/k %s · Enter %s · Ctrl+P %s · Ctrl+T %s",
+		"%s · j/k %s · Enter %s · r refresh · Ctrl+P %s · Ctrl+T %s",
 		v.project.Name,
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.open"),
@@ -89,6 +109,10 @@ func (v *ProjectModeView) StatusHints() string {
 // Mount builds the project mode view.
 func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.mountGen++
+	gen := v.mountGen
+	v.deployToastShown = false
+	v.deployDiff = nil
 
 	// Refresh project from shell each time the view is mounted
 	if v.shell != nil {
@@ -110,6 +134,11 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		return
 	}
 
+	// ── Synchronous deploy status (~1ms) ────────────────────────────────
+	if v.cfg.CheckDeployStatus != nil {
+		v.deployStatus = v.cfg.CheckDeployStatus(v.project.Path)
+	}
+
 	v.items = v.buildItems()
 
 	// ── Header ──────────────────────────────────────────────────────────
@@ -117,30 +146,25 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetDynamicColors(true).
 		SetScrollable(false)
 	header.SetBackgroundColor(theme.BgPanel)
-	secondary := theme.ColorTag(theme.TextSecondaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
+	v.headerTV = header
 
-	banner := renderBanner(v.project.Name, 100)
-	header.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Projet%s\n  %s%s%s",
-		banner,
-		secondary, reset,
-		muted, v.project.Path, reset,
-	))
-	headerHeight := bannerHeight(v.project.Name, 100) + 5
+	v.renderHeader()
+	headerHeight := bannerHeight(v.project.Name, 100) + 6
 
 	// ── Footer ──────────────────────────────────────────────────────────
+	muted := theme.ColorTag(theme.TextMutedHex)
 	accent := theme.ColorTag(theme.AccentHex)
+	reset := theme.TagColor
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(fmt.Sprintf("\n%s%sCtrl+T%s mode hub  %sCtrl+P%s commandes  %s?%s aide",
-		muted, accent, reset, accent, reset, accent, reset,
+	footer.SetText(fmt.Sprintf("\n%s%sCtrl+T%s mode hub  %sCtrl+P%s commandes  %sr%s refresh  %s?%s aide",
+		muted, accent, reset, accent, reset, accent, reset, accent, reset,
 	))
 
-	// ── Split items for dual-column: left = Sessions+Board, right = Config+Team+Hub ──
+	// ── Split items for dual-column: left = Sessions+Board, right = Config+Deploy+Team+Hub ──
 	leftItems, rightItems := v.splitItems()
 
 	onSelect := func(_ int, item widgets.SectionItem) {
@@ -172,6 +196,25 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		v.dual = nil
 		v.list = initial.SingleList
 	}
+
+	// ── Async deploy diff (background goroutine) ────────────────────────
+	if v.cfg.ComputeDeployDiff != nil {
+		projectPath := v.project.Path
+		go func() {
+			result, err := v.cfg.ComputeDeployDiff(projectPath)
+			app.QueueUpdateDraw(func() {
+				if v.app == nil || v.mountGen != gen {
+					return // view was unmounted or re-mounted
+				}
+				if err != nil {
+					return // silently ignore diff errors
+				}
+				v.deployDiff = result
+				v.renderHeader()
+				v.maybeShowDeployToast()
+			})
+		}()
+	}
 }
 
 // Unmount cleans up resources.
@@ -179,6 +222,7 @@ func (v *ProjectModeView) Unmount() {
 	v.app = nil
 	v.list = nil
 	v.dual = nil
+	v.headerTV = nil
 }
 
 // HandleKey processes view-specific key events.
@@ -207,7 +251,50 @@ func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 
+	// Refresh deploy status via 'r' key
+	if event.Rune() == 'r' {
+		v.refreshDeployStatus()
+		return nil
+	}
+
 	return event
+}
+
+// RefreshDeployStatus re-checks deploy freshness asynchronously.
+// Exposed publicly so the post-deploy callback can trigger a refresh.
+func (v *ProjectModeView) RefreshDeployStatus() {
+	v.refreshDeployStatus()
+}
+
+func (v *ProjectModeView) refreshDeployStatus() {
+	if v.app == nil || v.project == nil {
+		return
+	}
+	gen := v.mountGen
+	app := v.app
+	projectPath := v.project.Path
+
+	// Quick sync refresh of timestamp
+	if v.cfg.CheckDeployStatus != nil {
+		v.deployStatus = v.cfg.CheckDeployStatus(projectPath)
+		v.renderHeader()
+	}
+
+	// Full async diff
+	if v.cfg.ComputeDeployDiff != nil {
+		go func() {
+			result, err := v.cfg.ComputeDeployDiff(projectPath)
+			app.QueueUpdateDraw(func() {
+				if v.app == nil || v.mountGen != gen {
+					return
+				}
+				if err == nil {
+					v.deployDiff = result
+					v.renderHeader()
+				}
+			})
+		}()
+	}
 }
 
 func (v *ProjectModeView) executeItem(idx int) {
@@ -219,6 +306,76 @@ func (v *ProjectModeView) executeItem(idx int) {
 		item.Action()
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Header rendering with deploy badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+// renderHeader sets (or re-sets) the header text including the deploy badge.
+func (v *ProjectModeView) renderHeader() {
+	if v.headerTV == nil || v.project == nil {
+		return
+	}
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
+	banner := renderBanner(v.project.Name, 100)
+	badge := v.buildDeployBadge()
+	v.headerTV.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Projet%s\n  %s%s%s\n  %s",
+		banner,
+		secondary, reset,
+		muted, v.project.Path, reset,
+		badge,
+	))
+}
+
+// buildDeployBadge returns a tview-colored string showing the deploy status.
+// It uses the sync result (deployStatus) for the timestamp and the async
+// result (deployDiff) for the exact change count when available.
+func (v *ProjectModeView) buildDeployBadge() string {
+	success := theme.ColorTag(theme.SuccessHex)
+	warning := theme.ColorTag(theme.WarningHex)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
+	if v.deployStatus == nil || !v.deployStatus.Deployed {
+		return fmt.Sprintf("%s○ Jamais déployé%s", warning, reset)
+	}
+
+	age := time.Since(v.deployStatus.DeployedAt)
+	ageStr := formatDeployAge(age)
+
+	// If async diff is available, use it for precise status
+	if v.deployDiff != nil {
+		if v.deployDiff.HasChanges {
+			return fmt.Sprintf("%s○ %d changement(s) en attente%s  %s· Déployé %s%s",
+				warning, v.deployDiff.ChangeCount, reset, muted, ageStr, reset)
+		}
+		return fmt.Sprintf("%s● À jour%s  %s· Déployé %s%s", success, reset, muted, ageStr, reset)
+	}
+
+	// Diff not yet computed — show timestamp only
+	return fmt.Sprintf("%sDéployé %s%s", muted, ageStr, reset)
+}
+
+// maybeShowDeployToast fires a one-shot warning toast when deploy changes are detected.
+func (v *ProjectModeView) maybeShowDeployToast() {
+	if v.deployToastShown || v.shell == nil || v.deployDiff == nil {
+		return
+	}
+	if v.deployDiff.HasChanges {
+		v.deployToastShown = true
+		v.shell.ShowToastMsg(
+			fmt.Sprintf("%d fichier(s) modifié(s) depuis le dernier deploy — Ctrl+P > deploy", v.deployDiff.ChangeCount),
+			false,
+		)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Items
+// ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectModeView) buildItems() []projectModeItem {
 	if v.project == nil {
@@ -257,6 +414,18 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "─", Label: "Configuration"},
 		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("project.config")},
 		{Icon: "⊜", Label: "Worktrees", Desc: "Gérer les git worktrees", Action: navigate("worktrees")},
+		// ── Deploy section ──
+		{Icon: "─", Label: "Deploy"},
+		{Icon: "⊘", Label: "Déployer", Desc: v.deployItemDesc(), Action: func() {
+			if v.cfg.OnDeploy != nil {
+				v.cfg.OnDeploy(p.Path)
+			}
+		}},
+		{Icon: "⊙", Label: "Voir les changements", Desc: "Comparer hub vs projet", Action: func() {
+			if v.cfg.OnViewDiff != nil {
+				v.cfg.OnViewDiff(p.Path)
+			}
+		}},
 	}
 
 	// ── Team items (conditional) ────────────────────────────────────────
@@ -284,8 +453,20 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	return items
 }
 
+// deployItemDesc returns the description for the "Déployer" menu item,
+// enriched with change count when the async diff is available.
+func (v *ProjectModeView) deployItemDesc() string {
+	if v.deployDiff != nil && v.deployDiff.HasChanges {
+		return fmt.Sprintf("Agents, skills et config (%d changement(s))", v.deployDiff.ChangeCount)
+	}
+	if v.deployStatus != nil && v.deployStatus.Deployed {
+		return "Agents, skills et configuration"
+	}
+	return "Premier déploiement"
+}
+
 // splitItems distributes project mode items into left/right columns for dual mode.
-// Left: Sessions + Board. Right: Configuration + Équipe + Mode Hub.
+// Left: Sessions + Board. Right: Configuration + Deploy + Équipe + Mode Hub.
 func (v *ProjectModeView) splitItems() (left, right []widgets.SectionItem) {
 	// Find the "Configuration" section boundary
 	configIdx := -1
@@ -318,6 +499,24 @@ func projectItemToSectionItem(it projectModeItem, idx int) widgets.SectionItem {
 		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
 		SecondaryText: it.Desc,
 		Reference:     idx,
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// formatDeployAge returns a human-readable relative time string.
+func formatDeployAge(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "à l'instant"
+	case d < time.Hour:
+		return fmt.Sprintf("il y a %dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("il y a %dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("il y a %dj", int(d.Hours()/24))
 	}
 }
 

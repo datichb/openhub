@@ -14,6 +14,16 @@ import (
 // Deploy / Sync / Upgrade actions
 // ─────────────────────────────────────────────────────────────────────────────
 
+// onDeployComplete is called after a successful deploy to notify the project
+// mode view so it can refresh its deploy status badge. Set during TUI wiring.
+var onDeployComplete func()
+
+func notifyDeployComplete() {
+	if onDeployComplete != nil {
+		onDeployComplete()
+	}
+}
+
 func actionDeploy() {
 	if tuiShell == nil {
 		return
@@ -76,6 +86,7 @@ func actionDeploy() {
 									tuiShell.ShowToast("Deploy échoué: "+err.Error(), shell.ToastError)
 								} else {
 									tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
+									notifyDeployComplete()
 								}
 							})
 						}()
@@ -113,6 +124,7 @@ func actionSync() {
 				tuiShell.ShowToast("Sync échoué: "+err.Error(), shell.ToastError)
 			} else {
 				tuiShell.ShowToast("Sync réussi", shell.ToastSuccess)
+				notifyDeployComplete()
 			}
 		})
 	}()
@@ -151,6 +163,58 @@ func actionUpgrade() {
 			} else {
 				tuiShell.ShowToast("opencode mis à jour", shell.ToastSuccess)
 			}
+		})
+	}()
+}
+
+// actionViewDiff shows a read-only diff modal comparing hub vs project.
+func actionViewDiff(projectPath string) {
+	if tuiShell == nil {
+		return
+	}
+	a := MustApp()
+	project, err := resolveActiveProject(a)
+	if err != nil {
+		tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
+		return
+	}
+
+	hubDir := findHubDir()
+	if hubDir == "" {
+		tuiShell.ShowToast("Hub content non trouvé", shell.ToastError)
+		return
+	}
+
+	tuiShell.ShowToast("Analyse des changements...", shell.ToastInfo)
+	ctx := tuiShell.Context()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents)
+		tuiShell.App().QueueUpdateDraw(func() {
+			if err != nil {
+				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)
+				return
+			}
+
+			if !report.HasChanges() {
+				tuiShell.ShowToast("Aucun changement détecté — tout est à jour", shell.ToastSuccess)
+				return
+			}
+
+			diffContent := deploy.FormatDiffReport(report, false)
+			tuiShell.ShowScrollableModal(
+				"Changements: "+project.Name,
+				diffContent,
+				[]views.ModalAction{
+					{Label: "Fermer", Callback: func() {}},
+				},
+			)
 		})
 	}()
 }

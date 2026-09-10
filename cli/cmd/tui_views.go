@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -183,6 +184,46 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				tuiShell.SetProjectMode(nil)
 			}
 		},
+		OnDeploy: func(_ string) {
+			actionDeploy()
+		},
+		OnViewDiff: func(projectPath string) {
+			actionViewDiff(projectPath)
+		},
+		CheckDeployStatus: func(projectPath string) *views.DeployStatusResult {
+			state := deploy.ReadDeployState(projectPath)
+			if state == nil {
+				return &views.DeployStatusResult{Deployed: false}
+			}
+			t, _ := time.Parse(time.RFC3339, state.DeployedAt)
+			return &views.DeployStatusResult{
+				Deployed:   true,
+				DeployedAt: t,
+				HubDir:     state.HubDir,
+			}
+		},
+		ComputeDeployDiff: func(projectPath string) (*views.DeployDiffResult, error) {
+			hubDir := findHubDir()
+			if hubDir == "" {
+				return nil, fmt.Errorf("hub content not found")
+			}
+			project, err := resolveActiveProject(a)
+			if err != nil {
+				return nil, err
+			}
+			report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents)
+			if err != nil {
+				return nil, err
+			}
+			added, modified, removed, _ := report.Summary()
+			changeCount := added + modified + removed
+			summary := fmt.Sprintf("%d ajouté(s), %d modifié(s), %d supprimé(s)", added, modified, removed)
+			return &views.DeployDiffResult{
+				HasChanges:  report.HasChanges(),
+				ChangeCount: changeCount,
+				Summary:     summary,
+			}, nil
+		},
 	})
 
 	allViews := []views.View{
@@ -219,6 +260,12 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				entries := make([]views.ProjectEntry, 0, len(projects))
 				for _, p := range projects {
 					entry := views.ProjectEntry{ID: p.ID, Name: p.Name, Path: p.Path}
+					// Lightweight deploy age from .deploy-state (~1ms per project)
+					if state := deploy.ReadDeployState(p.Path); state != nil {
+						if t, err := time.Parse(time.RFC3339, state.DeployedAt); err == nil {
+							entry.DeployAge = formatDeployAgeFromTime(t)
+						}
+					}
 					entries = append(entries, entry)
 				}
 				return entries
@@ -421,6 +468,17 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 	// Inject team resolution into project mode view (must be after projectModeView is created).
 	projectModeView.SetResolveTeam(makeResolveTeamFunc(a))
+
+	// Wire post-deploy refresh so the project mode badge updates after a deploy/sync.
+	onDeployComplete = func() {
+		go func() {
+			if tuiShell != nil && tuiShell.App() != nil {
+				tuiShell.App().QueueUpdateDraw(func() {
+					projectModeView.RefreshDeployStatus()
+				})
+			}
+		}()
+	}
 
 	// Team views — always registered; views handle "not configured" gracefully.
 	takeoverView := views.NewTakeoverView(makeResolveTeamFunc(a))

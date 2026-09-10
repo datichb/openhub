@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
@@ -233,5 +235,20 @@ func resolveProviderCreds(a *app.App, project *domain.Project, opts *opencode.St
 				"hint", "oh secrets set openhub.provider.openrouter.token <api-key>")
 		}
 		opts.APIKey = key
+	}
+}
+
+// formatDeployAgeFromTime returns a human-readable relative time string for the home view.
+func formatDeployAgeFromTime(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "déployé à l'instant"
+	case d < time.Hour:
+		return fmt.Sprintf("déployé il y a %dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("déployé il y a %dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("déployé il y a %dj", int(d.Hours()/24))
 	}
 }
