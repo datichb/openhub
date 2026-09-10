@@ -109,14 +109,25 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		SetColumns(0, toastWidth, 2).
 		SetRows(topRow, toastHeight, 0)
 	grid.AddItem(toast, 1, 1, 1, 1, 0, 0, false)
+	// Defense-in-depth: if focus somehow lands on the toast grid, do not let
+	// it consume any key events (arrow keys were causing the toast to "move"
+	// because tview's Grid navigates between its cells on arrow presses).
+	// Returning nil from InputCapture swallows the event at the widget level;
+	// the global key handler (Shell.globalKeyHandler) has already processed
+	// the event before tview delegates it to the focused primitive, so nothing
+	// is lost.
+	grid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		return nil
+	})
 
 	pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
 	s.activeToasts++
 	s.activeToastIDs = append(s.activeToastIDs, pageName)
 	s.pages.AddPage(pageName, grid, true, true)
 	// Pages.AddPage re-delegates focus to the last visible page (the toast),
-	// stealing it from the omnibar input. Restore it immediately.
-	s.omnibar.RestoreFocus()
+	// stealing it from whatever widget the user was interacting with.
+	// Restore focus immediately.
+	s.restoreFocusAfterToast()
 
 	// Auto-dismiss after duration
 	time.AfterFunc(duration, func() {
@@ -131,8 +142,8 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 func (s *Shell) dismissToast(pageName string) {
 	s.pages.RemovePage(pageName)
 	// Pages.RemovePage re-delegates focus to the last visible page (possibly
-	// the suggestions overlay), stealing it from the omnibar input. Restore.
-	s.omnibar.RestoreFocus()
+	// another toast or the suggestions overlay). Restore focus properly.
+	s.restoreFocusAfterToast()
 	if s.activeToasts > 0 {
 		s.activeToasts--
 	}
@@ -155,6 +166,20 @@ func (s *Shell) DismissOldestToast() bool {
 	oldest := s.activeToastIDs[0]
 	s.dismissToast(oldest)
 	return true
+}
+
+// restoreFocusAfterToast restores focus to the appropriate widget after a
+// toast page is added or removed. tview.Pages.AddPage / RemovePage re-delegate
+// focus to the topmost visible page (the toast Grid), stealing it from
+// whichever widget the user was interacting with. This helper restores focus:
+//   - to the omnibar input when the omnibar is active,
+//   - to the content area (active view) otherwise.
+func (s *Shell) restoreFocusAfterToast() {
+	if s.omnibar.IsActive() {
+		s.omnibar.RestoreFocus()
+		return
+	}
+	s.app.SetFocus(s.content)
 }
 
 func toastStyle(level ToastLevel) (string, tcell.Color) {

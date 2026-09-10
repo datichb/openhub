@@ -96,6 +96,16 @@ func (d *homeDualLayout) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			d.focusRight()
 		}
 		return nil
+	case tcell.KeyRight:
+		if d.activeCol == 0 {
+			d.focusRight()
+		}
+		return nil
+	case tcell.KeyLeft:
+		if d.activeCol == 1 {
+			d.focusLeft()
+		}
+		return nil
 	}
 	switch event.Rune() {
 	case 'l':
