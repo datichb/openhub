@@ -219,7 +219,6 @@ oh project add [options]
 | `--name` | `-n` | Nom du projet |
 | `--path` | `-d` | Chemin du projet (defaut : repertoire courant) |
 | `--language` | `-l` | Langage principal |
-| `--tracker` | `-t` | Issue tracker (github, gitlab, jira, linear) |
 
 **Exemple :**
 
@@ -302,13 +301,11 @@ oh project configure [project-id] [options]
 | `--provider` | `-P` | Provider LLM |
 | `--model` | `-m` | Modele LLM |
 | `--language` | `-l` | Langage principal |
-| `--tracker` | `-t` | Issue tracker |
 
 **Exemple :**
 
 ```bash
 oh project configure api -P anthropic -m claude-sonnet-4-20250514
-oh project configure frontend --tracker linear
 ```
 
 ---
@@ -927,27 +924,33 @@ oh repair --auto
 Lance un tableau de bord web local.
 
 ```
-oh serve [--port 8080] [--readonly]
+oh serve [--port 8080]
 ```
 
-Demarre un serveur HTTP lie a `127.0.0.1` uniquement (jamais expose sur le reseau). Le tableau de bord affiche les projets, sessions et la telemetrie des agents.
+Demarre un serveur HTTP lie a `127.0.0.1` uniquement (jamais expose sur le reseau). Le tableau de bord affiche les projets, sessions, telemetrie des agents, board equipe et graphiques de couts.
 
 **Endpoints API :**
+- `GET /api/v1/health`
 - `GET /api/v1/projects`
-- `GET /api/v1/sessions`
-- `GET /api/v1/metrics/agents`
+- `GET /api/v1/sessions?project_id=<id>`
+- `GET /api/v1/metrics/agents?project_id=<id>`
+- `GET /api/v1/opencode/stats?period=7d|30d|all`
+- `GET /api/v1/opencode/sessions?limit=20`
+- `GET /api/v1/team/board?project=<id>`
+- `GET /api/v1/team/events?limit=50&project=<id>`
+- `GET /api/v1/team/members`
+- `GET /api/v1/chart/costs?period=30d`
+- `GET /sse` (Server-Sent Events, temps reel)
 
 | Flag | Court | Description |
 |------|-------|-------------|
 | `--port` | `-p` | Port (defaut : 8080) |
-| `--readonly` | | Desactiver les endpoints d'ecriture (defaut : true) |
 
 **Exemple :**
 
 ```bash
 oh serve
 oh serve --port 9090
-oh serve --readonly=false
 ```
 
 > **Securite :** Le serveur est lie a `127.0.0.1` uniquement et n'est jamais accessible depuis le reseau.
@@ -1110,25 +1113,55 @@ oh worktree cleanup -b develop --force
 
 ## Analytique
 
-### oh claim
+### oh team claim
 
 Reclame un ticket et cree un claim dans la base de donnees equipe.
 
 ```
-oh claim <ticket-id> [options]
+oh team claim <ticket-id> [options]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--planned` | Cree le claim en statut `planned` (colonne TODO) au lieu de demarrer immediatement en `in_progress` |
+| `--project` | Projet cible |
+| `--worktree` | Creer un worktree pour le ticket reclame |
 
 Sans `--planned`, le claim est cree directement en statut `in_progress`.
 
 **Exemple :**
 
 ```bash
-oh claim TICKET-123
-oh claim TICKET-123 --planned
+oh team claim TICKET-123
+oh team claim TICKET-123 --planned
+```
+
+### oh team release
+
+Libere un ticket reclame.
+
+```
+oh team release <ticket-id> [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Projet cible |
+
+```bash
+oh team release TICKET-123
+```
+
+### oh team claim transfer
+
+Transfere un claim a un autre membre de l'equipe.
+
+```
+oh team claim transfer <ticket-id> --to <member-id>
+```
+
+```bash
+oh team claim transfer TICKET-123 --to bob
 ```
 
 ---

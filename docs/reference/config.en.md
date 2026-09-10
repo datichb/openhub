@@ -68,9 +68,6 @@ base_branch = ""                   # empty = auto-detect (main/master)
 [tracker]                          # local overrides for team tracker sync
 # enabled = false                  # uncomment to disable sync locally
 # push_labels = false              # uncomment to disable label push
-
-[websearch]
-enabled = true
 ```
 
 ---
@@ -125,23 +122,22 @@ Projects are stored in a **SQLite database** at `~/.oh/oh.db`.
 
 ## Notification Configuration
 
-Configure webhooks to send notifications on session events (completion, errors, audit results).
+Notifications are configured in the **team-state** `config.toml` file (not in `hub.toml`).
+They are managed via `oh team init` or by editing the team-state configuration directly.
+
+See [Team setup guide](../guides/team-setup.en.md) and [Configuration guide](../guides/configuration-guide.en.md#5-team-configuration) for setup instructions.
 
 ```toml
-[notify]
+# team-state config.toml (NOT hub.toml)
+[notification]
 enabled = true
+
+[[notification.destinations]]
 type = "slack"           # mattermost | slack | discord | teams
 webhook_url = "https://hooks.slack.com/services/..."
-channel = "#dev-ai"      # Mattermost only
 bot_name = "OpenHub"
 
-# Multi-destination (optional): notify multiple channels simultaneously
-[[notify.destinations]]
-type = "slack"
-webhook_url = "https://hooks.slack.com/..."
-bot_name = "OpenHub"
-
-[[notify.destinations]]
+[[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/..."
 ```
@@ -149,13 +145,10 @@ webhook_url = "https://discord.com/api/webhooks/..."
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | false | Enable notifications |
-| `type` | string | "mattermost" | Backend: mattermost, slack, discord, teams |
-| `webhook_url` | string | — | Incoming webhook URL |
-| `channel` | string | — | Channel name (Mattermost only) |
-| `bot_name` | string | "OpenHub" | Bot display name |
-| `destinations` | array | — | Multiple notification targets (overrides `type`/`webhook_url`) |
-
-> **Note:** When `destinations` is set, the top-level `type`/`webhook_url` fields are ignored.
+| `destinations[].type` | string | — | Backend: mattermost, slack, discord, teams |
+| `destinations[].webhook_url` | string | — | Incoming webhook URL |
+| `destinations[].channel` | string | — | Channel name (Mattermost only) |
+| `destinations[].bot_name` | string | "OpenHub" | Bot display name |
 
 ---
 

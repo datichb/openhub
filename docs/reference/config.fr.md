@@ -114,23 +114,22 @@ Les projets sont stockes dans une **base de donnees SQLite** : `~/.oh/oh.db`.
 
 ## Configuration des notifications
 
-Configurez des webhooks pour envoyer des notifications sur les evenements de session (completion, erreurs, resultats d'audit).
+Les notifications sont configurees dans le fichier `config.toml` du **team-state** (pas dans `hub.toml`).
+Elles sont gerees via `oh team init` ou en editant directement la configuration team-state.
+
+Voir le [guide de configuration equipe](../guides/team-setup.fr.md) et le [guide de configuration](../guides/configuration-guide.fr.md#5-configuration-equipe) pour les instructions.
 
 ```toml
-[notify]
+# team-state config.toml (PAS hub.toml)
+[notification]
 enabled = true
+
+[[notification.destinations]]
 type = "slack"           # mattermost | slack | discord | teams
 webhook_url = "https://hooks.slack.com/services/..."
-channel = "#dev-ai"      # Mattermost uniquement
 bot_name = "OpenHub"
 
-# Multi-destination (optionnel) : notifier plusieurs canaux simultanement
-[[notify.destinations]]
-type = "slack"
-webhook_url = "https://hooks.slack.com/..."
-bot_name = "OpenHub"
-
-[[notify.destinations]]
+[[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/..."
 ```
@@ -138,13 +137,10 @@ webhook_url = "https://discord.com/api/webhooks/..."
 | Champ | Type | Defaut | Description |
 |-------|------|--------|-------------|
 | `enabled` | bool | false | Activer les notifications |
-| `type` | string | "mattermost" | Backend : mattermost, slack, discord, teams |
-| `webhook_url` | string | — | URL du webhook entrant |
-| `channel` | string | — | Nom du canal (Mattermost uniquement) |
-| `bot_name` | string | "OpenHub" | Nom d'affichage du bot |
-| `destinations` | array | — | Plusieurs destinations (remplace `type`/`webhook_url`) |
-
-> **Note :** Quand `destinations` est defini, les champs `type`/`webhook_url` de premier niveau sont ignores.
+| `destinations[].type` | string | — | Backend : mattermost, slack, discord, teams |
+| `destinations[].webhook_url` | string | — | URL du webhook entrant |
+| `destinations[].channel` | string | — | Nom du canal (Mattermost uniquement) |
+| `destinations[].bot_name` | string | "OpenHub" | Nom d'affichage du bot |
 
 ---
 

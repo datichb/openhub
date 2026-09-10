@@ -87,7 +87,7 @@ oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 
 ```
 openhub/
-├── agents/          <- Definitions des roles IA (22 agents, 2 modes)
+├── agents/          <- Definitions des roles IA (19 agents, 7 familles)
 ├── skills/          <- Protocoles : Bucket A (inline) + Bucket B (on-demand)
 ├── cli/             <- Binaire Go (oh)
 │   └── internal/
@@ -114,37 +114,39 @@ oh deploy
 
 ## Agents
 
-22 agents specialises en deux modes :
+19 agents specialises en 7 familles, deux modes :
 
 - **`primary`** -- invocable directement par l'utilisateur dans OpenCode
 - **`subagent`** -- delegue par les agents coordinateurs
 
-### Agents primaires
+### Agents primaires (14)
 
 | Agent | Famille | Role |
 |-------|---------|------|
-| `orchestrator` | Coordinateur | Feature end-to-end |
-| `orchestrator-dev` | Coordinateur | Implementation tickets (dirige les developers) |
-| `auditor` | Coordinateur | Audit multi-domaine (7 domaines) |
-| `onboarder` | Coordinateur | Decouverte projet, creation wiki |
-| `planner` | Planification | Decouper features en tickets Beads |
-| `designer` | Design | Analyse Figma, specs UX/UI |
+| `orchestrator` | Planning | Coordinateur feature end-to-end |
+| `orchestrator-dev` | Planning | Implementation tickets (dirige les developers) |
+| `planner` | Planning | Decouper features en tickets Beads |
+| `pathfinder` | Planning | Reconnaissance rapide, estimation complexite |
+| `onboarder` | Planning | Decouverte projet, creation wiki |
+| `auditor` | Auditor | Coordinateur audit multi-domaine (7 domaines) |
+| `designer` | Design | Analyse Figma, specs UX/UI (4 modes : recon, ux, ui, ux+ui) |
 | `reviewer` | Qualite | Revue PR/MR par severite (multi-mode : standard, adversarial, edge-case) |
 | `debugger` | Qualite | Diagnostic bugs, root cause |
 | `benchmarker` | Qualite | Benchmarks Lighthouse, k6, pprof, py-spy |
 | `test-generator` | Qualite | Analyse des lacunes, generation tests unitaires/integration/property-based |
+| `database` | Developer | Schema, migration, optimisation requetes, audit securite DB |
+| `infra` | Developer | Revue Terraform/K8s, estimation couts, securite IaC |
 | `documentarian` | Documentation | README, CHANGELOG, ADR, API docs |
 
-### Sous-agents
+### Sous-agents (5)
 
 | Agent | Delegue par | Domaine |
 |-------|------------|---------|
 | `developer` | `orchestrator-dev` | Implementation (frontend, backend, fullstack, api, mobile, data, devops, platform, security) |
 | `developer-refactor` | `orchestrator-dev` | Refactoring structurel |
 | `developer-migrator` | `orchestrator-dev` | Migrations incrementales |
-| `database` | `orchestrator-dev` | Schema, migration, optimisation requetes, audit securite DB |
-| `infra` | `orchestrator-dev` | Revue Terraform/K8s, estimation couts, securite IaC |
 | `auditor-subagent` | `auditor` | Tous domaines d'audit (securite, performance, accessibilite, ecoconception, architecture, vie privee, observabilite) |
+| `brief-enricher` | Divers | Enrichissement takeover brief (lecture seule) |
 
 ---
 
@@ -206,9 +208,9 @@ Configuration via `oh mcp setup` (stockage tokens dans le keychain OS).
 | Document | Description |
 |----------|-------------|
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes |
-| [Agents](docs/architecture/agents.fr.md) | Reference des 22 agents |
+| [Agents](docs/architecture/agents.fr.md) | Reference des 19 agents |
 | [Skills](docs/architecture/skills.fr.md) | Systeme de skills hybrides |
-| [ADR](docs/architecture/adr/) | 21 decisions architecturales |
+| [ADR](docs/architecture/adr/) | 32 decisions architecturales |
 
 ### Reference
 

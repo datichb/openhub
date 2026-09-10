@@ -1,6 +1,6 @@
 # Référence des agents
 
-22 agents au total, organisés en 6 familles.
+19 agents au total, organisés en 7 familles (planning, developer, auditor, quality, design, documentation, utility).
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 

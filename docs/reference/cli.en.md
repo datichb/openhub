@@ -160,10 +160,9 @@ Register a new project. Aliases: `register`
 | `--name` | `-n` | string | Project name |
 | `--path` | `-d` | string | Project path (default: cwd) |
 | `--language` | `-l` | string | Main language |
-| `--tracker` | `-t` | string | Issue tracker (github, gitlab, jira, linear) |
 
 ```bash
-oh project add -n my-app -l typescript -t github
+oh project add -n my-app -l typescript
 oh project add --path ~/projects/api --name backend
 oh project register
 ```
@@ -216,11 +215,10 @@ Configure project settings. Interactive if args omitted.
 | `--provider` | `-P` | string | LLM provider |
 | `--model` | `-m` | string | LLM model |
 | `--language` | `-l` | string | Main language |
-| `--tracker` | `-t` | string | Issue tracker |
 
 ```bash
 oh project configure my-app --provider anthropic --model claude-sonnet-4-20250514
-oh project configure my-app -l go -t gitlab
+oh project configure my-app -l go
 oh project configure
 ```
 
@@ -675,25 +673,31 @@ oh repair --auto
 Start a local web dashboard.
 
 ```
-oh serve [--port 8080] [--readonly]
+oh serve [--port 8080]
 ```
 
-Starts an HTTP server bound to `127.0.0.1` only (never exposed to the network). Dashboard shows projects, sessions, and agent telemetry.
+Starts an HTTP server bound to `127.0.0.1` only (never exposed to the network). Dashboard shows projects, sessions, agent telemetry, team board, and cost charts.
 
 **API endpoints:**
+- `GET /api/v1/health`
 - `GET /api/v1/projects`
-- `GET /api/v1/sessions`
-- `GET /api/v1/metrics/agents`
+- `GET /api/v1/sessions?project_id=<id>`
+- `GET /api/v1/metrics/agents?project_id=<id>`
+- `GET /api/v1/opencode/stats?period=7d|30d|all`
+- `GET /api/v1/opencode/sessions?limit=20`
+- `GET /api/v1/team/board?project=<id>`
+- `GET /api/v1/team/events?limit=50&project=<id>`
+- `GET /api/v1/team/members`
+- `GET /api/v1/chart/costs?period=30d`
+- `GET /sse` (Server-Sent Events, real-time push)
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--port` | `-p` | int | Port (default: 8080) |
-| `--readonly` | | bool | Disable write endpoints (default: true) |
 
 ```bash
 oh serve
 oh serve --port 9090
-oh serve --readonly=false
 ```
 
 > **Security:** The server binds to `127.0.0.1` only and is never accessible from the network.
@@ -819,23 +823,53 @@ oh worktree cleanup -b main -f
 
 ## Analytics
 
-### oh claim
+### oh team claim
 
 Claim a ticket and create a claim entry in the team database.
 
 ```
-oh claim <ticket-id> [options]
+oh team claim <ticket-id> [options]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--planned` | bool | Create the claim in `planned` status (TODO column) instead of starting immediately in `in_progress` |
+| `--project` | string | Target project |
+| `--worktree` | bool | Create a worktree for the claimed ticket |
 
 Without `--planned`, the claim is created directly in `in_progress` status.
 
 ```bash
-oh claim TICKET-123
-oh claim TICKET-123 --planned
+oh team claim TICKET-123
+oh team claim TICKET-123 --planned
+```
+
+### oh team release
+
+Release a claimed ticket.
+
+```
+oh team release <ticket-id> [options]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project` | string | Target project |
+
+```bash
+oh team release TICKET-123
+```
+
+### oh team claim transfer
+
+Transfer a claim to another team member.
+
+```
+oh team claim transfer <ticket-id> --to <member-id>
+```
+
+```bash
+oh team claim transfer TICKET-123 --to bob
 ```
 
 ---
