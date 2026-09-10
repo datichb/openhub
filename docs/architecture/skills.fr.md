@@ -48,6 +48,202 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 
 ---
 
+## Inventaire complet des skills (source de verite)
+
+**176 fichiers skill** dans 13 repertoires (130 skills domaine + 46 skills stack).
+
+> Cet inventaire est genere depuis le filesystem. Pour savoir quels agents utilisent chaque skill, voir la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
+
+### `shared/` — 12 skills (transversaux)
+
+| Fichier | Description |
+|---------|-------------|
+| `universal-guardrails` | Contraintes de securite et garde-fous comportementaux (Bucket A dans tous les agents) |
+| `living-docs-enrichment` | Enrichissement incremental de la documentation vivante (Bucket B) |
+| `hub-workflow-reference` | Reference des modes workflow du hub (Bucket A) |
+| `rtk-usage` | Patterns et usage de RTK query (Bucket B) |
+| `websearch-usage` | Guide d'optimisation des queries WebSearch (Bucket A) |
+| `wiki-navigation` | Protocole de navigation du wiki vivant (Bucket A) |
+| `context-mode-usage` | Guide d'usage des outils context-mode (Bucket A) |
+| `elicitation-techniques` | Techniques d'elicitation pour le recueil de besoins (Bucket B) |
+| `skill-authoring-protocol` | Protocole de redaction de nouveaux skills (Bucket B) |
+| `team-awareness` | Conscience d'etat equipe pour la coordination multi-utilisateurs (Bucket B) |
+| `team-policies-enforcement` | Regles d'enforcement des policies equipe (Bucket B) |
+| `team-wiki-protocol` | Protocole pour les operations wiki equipe (Bucket B) |
+
+### `posture/` — 7 skills (posture comportementale)
+
+| Fichier | Description |
+|---------|-------------|
+| `coordination-only` | Agents coordinateurs : ne jamais coder, uniquement deleguer (Bucket A) |
+| `concision-posture` | Regles de formatage de sortie concise (Bucket A) |
+| `subagent-concision-posture` | Regles de concision specifiques aux sous-agents (Bucket A) |
+| `expert-posture` | Posture de raisonnement niveau expert (Bucket A) |
+| `retranscription-coordinateur` | Regles de retranscription structuree pour les coordinateurs (Bucket A) |
+| `tool-question` | Directives pour l'usage de l'outil `question` (Bucket A) |
+| `tool-todowrite` | Directives pour l'usage de l'outil `todowrite` (Bucket A) |
+
+### `orchestrator/` — 17 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `orchestrator-protocol` | Protocole workflow principal de l'orchestrateur (Bucket A) |
+| `orchestrator-workflow-modes` | Definitions des modes workflow manuel/semi-auto/auto (Bucket A) |
+| `orchestrator-handoff-format` | Format de handoff structure pour la delegation (Bucket A) |
+| `orchestrator-modes` | Reference des modes d'entree de l'orchestrateur (Bucket B) |
+| `orchestrator-ticket-routing` | Logique de routage ticket-vers-agent (Bucket B) |
+| `orchestrator-recap-edge` | Cas limites du formatage des recaps (Bucket B) |
+| `orchestrator-dev-protocol` | Protocole workflow orchestrator-dev (Bucket A) |
+| `orchestrator-dev-standalone` | Comportement en mode standalone (Bucket B) |
+| `orchestrator-dev-subagent` | Comportement en mode sous-agent (Bucket B) |
+| `orchestrator-dev-ticket-workflow` | Workflow du cycle de vie des tickets (Bucket B) |
+| `orchestrator-dev-parallel` | Coordination des sessions paralleles (Bucket B) |
+| `orchestrator-dev-recap` | Formatage des recaps de session (Bucket B) |
+| `orchestrator-dev-edge-cases` | Gestion des cas limites (Bucket B) |
+| `parallel-coordination` | Protocole de coordination de sessions paralleles |
+| `session-state-protocol` | Protocole de persistance d'etat de session (Bucket B) |
+| `takeover-context-protocol` | Protocole de generation de contexte de reprise |
+| `team-coordination` | Protocole de coordination d'equipe |
+
+### `planning/` — 18 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `planner-workflow` | Workflow planner en 6 phases (Bucket A) |
+| `planner-handoff-format` | Contrat de handoff du planner (Bucket A) |
+| `planner-design-templates` | Templates pour les livrables design (Bucket A) |
+| `planner-beads-templates` | Templates pour la creation de tickets Beads (Bucket A) |
+| `planner-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
+| `planner-patterns-protocol` | Integration de la bibliotheque de patterns (Bucket B) |
+| `planner-phase-0` a `planner-phase-5-6` | Protocoles detailles par phase (Bucket B, 5 fichiers) |
+| `pathfinder-protocol` | Protocole de reconnaissance pathfinder (Bucket A) |
+| `pathfinder-handoff-format` | Contrat de handoff pathfinder (Bucket A/B) |
+| `pathfinder-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
+| `onboarder-workflow` | Workflow onboarder en 6 phases (Bucket A) |
+| `onboarder-handoff-format` | Contrat de handoff onboarder (Bucket A) |
+| `onboarder-profiles` | 7 profils d'exploration adaptive (Bucket A) |
+| `onboarder-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
+| `onboarder-phase-0` a `onboarder-phase-5` | Protocoles detailles par phase (Bucket B, 5 fichiers) |
+| `websearch-stack-research` | WebSearch pour la recherche de stack (Bucket B) |
+
+### `developer/` — 16 skills generiques + 46 skills stack
+
+| Fichier | Description |
+|---------|-------------|
+| `dev-standards-universal` | Clean Code, SOLID, nommage (Bucket A) |
+| `dev-standards-simplicity` | KISS, YAGNI, seuils de complexite (Bucket A) |
+| `dev-standards-security` | Bonnes pratiques securite (Bucket B) |
+| `dev-standards-backend` | Architecture en couches, DTOs, services (Bucket B) |
+| `dev-standards-frontend` | Architecture composants, performance (Bucket B) |
+| `dev-standards-frontend-data` | Matrice de decision gestion d'etat frontend (Bucket B) |
+| `dev-standards-frontend-a11y` | Accessibilite WCAG 2.1 (Bucket B) |
+| `dev-standards-testing` | Strategie de tests, pyramide, couverture (Bucket B) |
+| `dev-standards-git` | Conventional Commits, branches, PRs (Bucket B) |
+| `dev-standards-api` | Versioning API, pagination, contrats (Bucket B) |
+| `dev-standards-devops` | Scripts shell, secrets, IaC (Bucket B) |
+| `dev-standards-security-hardening` | CORS, headers, JWT, rate limiting (Bucket B) |
+| `dev-standards-refactoring` | Patterns et strategies de refactoring (Bucket B) |
+| `dev-standards-migration` | Patterns et strategies de migration (Bucket B) |
+| `dev-drift-detection` | Detection de derive entre attendu et reel (Bucket B) |
+| `beads-plan` | Lecture et creation de tickets Beads (Bucket A) |
+| `beads-dev` | Workflow executeur Beads (Bucket A) |
+| `developer-handoff-format` | Contrat de handoff developer (Bucket A) |
+| `quick-fix` | Protocole quick fix pour petits changements (Bucket A) |
+
+**46 skills stack** dans `developer/stacks/` (tous Bucket B, injectes au deploy selon la stack detectee).
+
+### `auditor/` — 13 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `auditor-workflow` | Workflow auditor en 4 phases (Bucket A) |
+| `auditor-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
+| `audit-protocol-light` | Protocole d'audit leger (Bucket A) |
+| `audit-handoff-format` | Contrat de handoff audit (Bucket A) |
+| `audit-security` | Checklist domaine audit securite (Bucket B) |
+| `audit-performance` | Checklist domaine audit performance (Bucket B) |
+| `audit-architecture` | Checklist domaine audit architecture (Bucket B) |
+| `audit-accessibility` | Checklist domaine audit accessibilite (Bucket B) |
+| `audit-ecodesign` | Checklist domaine audit eco-conception (Bucket B) |
+| `audit-privacy` | Checklist domaine audit vie privee (Bucket B) |
+| `audit-observability` | Checklist domaine audit observabilite (Bucket B) |
+| `websearch-cve-lookup` | WebSearch pour la recherche de CVE (Bucket B) |
+| `websearch-performance-research` | WebSearch pour la recherche de performance (Bucket B) |
+
+### `quality/` — 8 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `debugger-workflow` | Workflow debugger multi-phases (Bucket A) |
+| `debugger-handoff-format` | Contrat de handoff debugger (Bucket A) |
+| `debugger-forensic` | Techniques d'analyse forensique (Bucket A) |
+| `debugger-report-templates` | Templates de rapports (Bucket A) |
+| `debugger-execution-modes` | Modes standalone vs sous-agent (Bucket B) |
+| `debugger-phase-0-1` a `debugger-phase-4-5` | Protocoles par phase (Bucket B, 3 fichiers) |
+
+### `reviewer/` — 8 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `review-protocol` | Protocole et checklist de revue de code (Bucket A) |
+| `reviewer-handoff-format` | Contrat de handoff reviewer (Bucket A) |
+| `reviewer-standalone` | Comportement en mode standalone (Bucket B) |
+| `reviewer-subagent` | Comportement en mode sous-agent (Bucket B) |
+| `reviewer-adversarial` | Mode de revue adversarial (Bucket B) |
+| `reviewer-edge-case` | Mode de revue edge cases (Bucket B) |
+| `review-merge` | Protocole de revue de merge (Bucket B) |
+| `reviewer-reception` | Protocole de reception de revue pour les developers (Bucket B) |
+
+### `designer/` — 12 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `designer-protocol` | Protocole principal designer avec 4 modes (Bucket A) |
+| `ux-protocol` | Protocole de specification UX (Bucket B) |
+| `ui-protocol` | Protocole de specification UI (Bucket B) |
+| `figma-recon-protocol` | Mode reconnaissance Figma (Bucket B) |
+| `figma-deep-protocol` | Protocole d'analyse Figma approfondie (Bucket B) |
+| `designer-standalone` | Comportement en mode standalone (Bucket B) |
+| `designer-subagent` | Comportement en mode sous-agent (Bucket B) |
+| `design-principles` | Reference de principes de design (Bucket B) |
+| `ui-patterns-reference` | Reference de patterns composants UI (Bucket B) |
+| `content-design` | Directives de content design (Bucket B) |
+| `tui-patterns` | Patterns UI terminal/TUI (Bucket B) |
+| `websearch-design-patterns` | WebSearch pour la recherche de patterns design (Bucket B) |
+
+### `design/` — 2 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `design-handoff-format` | Contrat de handoff design (Bucket A/B) |
+| `design-planner-format` | Format de livrable design pour le planner (Bucket A) |
+
+### `documentarian/` — 8 skills
+
+| Fichier | Description |
+|---------|-------------|
+| `doc-protocol` | Protocole principal de documentation (Bucket A) |
+| `documentarian-handoff-format` | Contrat de handoff documentarian (Bucket A) |
+| `doc-standards` | Standards de qualite de documentation (Bucket B) |
+| `doc-adr` | Protocole de redaction d'ADR (Bucket B) |
+| `doc-api` | Protocole de documentation API (Bucket B) |
+| `doc-changelog` | Protocole de redaction de changelog (Bucket B) |
+| `doc-slides` | Protocole de slides/presentations (Bucket B) |
+| `doc-wiki-protocol` | Protocole de documentation wiki (Bucket B) |
+
+### `adapters/` — 6 skills (integration trackers)
+
+| Fichier | Description |
+|---------|-------------|
+| `gitlab-planner-protocol` | Adaptateur GitLab pour l'agent planner |
+| `gitlab-pathfinder-protocol` | Adaptateur GitLab pour l'agent pathfinder |
+| `gitlab-onboarder-protocol` | Adaptateur GitLab pour l'agent onboarder |
+| `github-planner-protocol` | Adaptateur GitHub pour l'agent planner |
+| `github-pathfinder-protocol` | Adaptateur GitHub pour l'agent pathfinder |
+| `github-onboarder-protocol` | Adaptateur GitHub pour l'agent onboarder |
+
+---
+
 ## Format d'un skill
 
 ```markdown

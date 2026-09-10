@@ -50,6 +50,202 @@ Coordinator/orchestrator agents that never need contextual skills have `permissi
 
 ---
 
+## Complete Skill Inventory (source of truth)
+
+**176 skill files** across 13 directories (130 domain skills + 46 stack-specific skills).
+
+> This inventory is generated from the filesystem. For which agents use each skill, see the [Skill Assignment Matrix](./agents.en.md#skill-assignment-matrix-source-of-truth).
+
+### `shared/` — 12 skills (cross-cutting)
+
+| File | Description |
+|------|-------------|
+| `universal-guardrails` | Safety constraints and behavioral guardrails (Bucket A in all agents) |
+| `living-docs-enrichment` | Incremental enrichment of living documentation (Bucket B) |
+| `hub-workflow-reference` | Hub workflow modes reference (Bucket A) |
+| `rtk-usage` | RTK query patterns and usage (Bucket B) |
+| `websearch-usage` | WebSearch query optimization guide (Bucket A) |
+| `wiki-navigation` | Living wiki navigation protocol (Bucket A) |
+| `context-mode-usage` | Context-mode tool usage guide (Bucket A) |
+| `elicitation-techniques` | Elicitation techniques for requirements gathering (Bucket B) |
+| `skill-authoring-protocol` | Protocol for authoring new skills (Bucket B) |
+| `team-awareness` | Team state awareness for multi-user coordination (Bucket B) |
+| `team-policies-enforcement` | Enforcement rules for team policies (Bucket B) |
+| `team-wiki-protocol` | Protocol for team wiki operations (Bucket B) |
+
+### `posture/` — 7 skills (behavioral posture)
+
+| File | Description |
+|------|-------------|
+| `coordination-only` | Coordinator agents: never code, only delegate (Bucket A) |
+| `concision-posture` | Concise output formatting rules (Bucket A) |
+| `subagent-concision-posture` | Subagent-specific concision rules (Bucket A) |
+| `expert-posture` | Expert-level reasoning posture (Bucket A) |
+| `retranscription-coordinateur` | Structured retranscription rules for coordinators (Bucket A) |
+| `tool-question` | Guidelines for using the `question` tool (Bucket A) |
+| `tool-todowrite` | Guidelines for using the `todowrite` tool (Bucket A) |
+
+### `orchestrator/` — 13 skills
+
+| File | Description |
+|------|-------------|
+| `orchestrator-protocol` | Main orchestrator workflow protocol (Bucket A) |
+| `orchestrator-workflow-modes` | Manual/semi-auto/auto workflow mode definitions (Bucket A) |
+| `orchestrator-handoff-format` | Structured handoff format for delegation (Bucket A) |
+| `orchestrator-modes` | Orchestrator entry modes reference (Bucket B) |
+| `orchestrator-ticket-routing` | Ticket-to-agent routing logic (Bucket B) |
+| `orchestrator-recap-edge` | Edge cases in recap formatting (Bucket B) |
+| `orchestrator-dev-protocol` | Orchestrator-dev workflow protocol (Bucket A) |
+| `orchestrator-dev-standalone` | Standalone mode behavior (Bucket B) |
+| `orchestrator-dev-subagent` | Subagent mode behavior (Bucket B) |
+| `orchestrator-dev-ticket-workflow` | Ticket lifecycle workflow (Bucket B) |
+| `orchestrator-dev-parallel` | Parallel session coordination (Bucket B) |
+| `orchestrator-dev-recap` | Session recap formatting (Bucket B) |
+| `orchestrator-dev-edge-cases` | Edge case handling (Bucket B) |
+| `parallel-coordination` | Parallel session coordination protocol |
+| `session-state-protocol` | Session state persistence protocol (Bucket B) |
+| `takeover-context-protocol` | Takeover context generation protocol |
+| `team-coordination` | Team coordination protocol |
+
+### `planning/` — 18 skills
+
+| File | Description |
+|------|-------------|
+| `planner-workflow` | Planner 6-phase workflow (Bucket A) |
+| `planner-handoff-format` | Planner handoff contract (Bucket A) |
+| `planner-design-templates` | Templates for design deliverables (Bucket A) |
+| `planner-beads-templates` | Templates for Beads ticket creation (Bucket A) |
+| `planner-execution-modes` | Standalone vs subagent modes (Bucket B) |
+| `planner-patterns-protocol` | Patterns library integration (Bucket B) |
+| `planner-phase-0` through `planner-phase-5-6` | Per-phase detailed protocols (Bucket B, 5 files) |
+| `pathfinder-protocol` | Pathfinder reconnaissance protocol (Bucket A) |
+| `pathfinder-handoff-format` | Pathfinder handoff contract (Bucket A/B) |
+| `pathfinder-execution-modes` | Standalone vs subagent modes (Bucket B) |
+| `onboarder-workflow` | Onboarder 6-phase workflow (Bucket A) |
+| `onboarder-handoff-format` | Onboarder handoff contract (Bucket A) |
+| `onboarder-profiles` | 7 adaptive exploration profiles (Bucket A) |
+| `onboarder-execution-modes` | Standalone vs subagent modes (Bucket B) |
+| `onboarder-phase-0` through `onboarder-phase-5` | Per-phase detailed protocols (Bucket B, 5 files) |
+| `websearch-stack-research` | WebSearch for stack research (Bucket B) |
+
+### `developer/` — 16 generic skills + 46 stack skills
+
+| File | Description |
+|------|-------------|
+| `dev-standards-universal` | Clean Code, SOLID, naming (Bucket A) |
+| `dev-standards-simplicity` | KISS, YAGNI, complexity thresholds (Bucket A) |
+| `dev-standards-security` | Security best practices (Bucket B) |
+| `dev-standards-backend` | Layered architecture, DTOs, services (Bucket B) |
+| `dev-standards-frontend` | Component architecture, performance (Bucket B) |
+| `dev-standards-frontend-data` | Frontend state management decision matrix (Bucket B) |
+| `dev-standards-frontend-a11y` | WCAG 2.1 accessibility (Bucket B) |
+| `dev-standards-testing` | Testing strategy, pyramid, coverage (Bucket B) |
+| `dev-standards-git` | Conventional Commits, branches, PRs (Bucket B) |
+| `dev-standards-api` | API versioning, pagination, contracts (Bucket B) |
+| `dev-standards-devops` | Shell scripts, secrets, IaC (Bucket B) |
+| `dev-standards-security-hardening` | CORS, headers, JWT, rate limiting (Bucket B) |
+| `dev-standards-refactoring` | Refactoring patterns and strategies (Bucket B) |
+| `dev-standards-migration` | Migration patterns and strategies (Bucket B) |
+| `dev-drift-detection` | Code drift detection between expected and actual (Bucket B) |
+| `beads-plan` | Beads ticket reading and creation (Bucket A) |
+| `beads-dev` | Beads executor workflow (Bucket A) |
+| `developer-handoff-format` | Developer handoff contract (Bucket A) |
+| `quick-fix` | Quick fix protocol for small changes (Bucket A) |
+
+**46 stack-specific skills** in `developer/stacks/` (all Bucket B, injected at deploy based on detected stack).
+
+### `auditor/` — 11 skills
+
+| File | Description |
+|------|-------------|
+| `auditor-workflow` | Auditor 4-phase workflow (Bucket A) |
+| `auditor-execution-modes` | Standalone vs subagent modes (Bucket B) |
+| `audit-protocol-light` | Lightweight audit protocol (Bucket A) |
+| `audit-handoff-format` | Audit handoff contract (Bucket A) |
+| `audit-security` | Security audit domain checklist (Bucket B) |
+| `audit-performance` | Performance audit domain checklist (Bucket B) |
+| `audit-architecture` | Architecture audit domain checklist (Bucket B) |
+| `audit-accessibility` | Accessibility audit domain checklist (Bucket B) |
+| `audit-ecodesign` | Eco-design audit domain checklist (Bucket B) |
+| `audit-privacy` | Privacy audit domain checklist (Bucket B) |
+| `audit-observability` | Observability audit domain checklist (Bucket B) |
+| `websearch-cve-lookup` | WebSearch CVE vulnerability lookup (Bucket B) |
+| `websearch-performance-research` | WebSearch performance research (Bucket B) |
+
+### `quality/` — 8 skills
+
+| File | Description |
+|------|-------------|
+| `debugger-workflow` | Debugger multi-phase workflow (Bucket A) |
+| `debugger-handoff-format` | Debugger handoff contract (Bucket A) |
+| `debugger-forensic` | Forensic analysis techniques (Bucket A) |
+| `debugger-report-templates` | Report output templates (Bucket A) |
+| `debugger-execution-modes` | Standalone vs subagent modes (Bucket B) |
+| `debugger-phase-0-1` through `debugger-phase-4-5` | Per-phase protocols (Bucket B, 3 files) |
+
+### `reviewer/` — 8 skills
+
+| File | Description |
+|------|-------------|
+| `review-protocol` | Code review protocol and checklist (Bucket A) |
+| `reviewer-handoff-format` | Reviewer handoff contract (Bucket A) |
+| `reviewer-standalone` | Standalone mode behavior (Bucket B) |
+| `reviewer-subagent` | Subagent mode behavior (Bucket B) |
+| `reviewer-adversarial` | Adversarial review mode (Bucket B) |
+| `reviewer-edge-case` | Edge-case focused review mode (Bucket B) |
+| `review-merge` | Merge review protocol (Bucket B) |
+| `reviewer-reception` | Review reception protocol for developers (Bucket B) |
+
+### `designer/` — 12 skills
+
+| File | Description |
+|------|-------------|
+| `designer-protocol` | Main designer protocol with 4 modes (Bucket A) |
+| `ux-protocol` | UX specification protocol (Bucket B) |
+| `ui-protocol` | UI specification protocol (Bucket B) |
+| `figma-recon-protocol` | Figma reconnaissance mode (Bucket B) |
+| `figma-deep-protocol` | Deep Figma analysis protocol (Bucket B) |
+| `designer-standalone` | Standalone mode behavior (Bucket B) |
+| `designer-subagent` | Subagent mode behavior (Bucket B) |
+| `design-principles` | Design principles reference (Bucket B) |
+| `ui-patterns-reference` | UI component patterns reference (Bucket B) |
+| `content-design` | Content design guidelines (Bucket B) |
+| `tui-patterns` | TUI/terminal UI patterns (Bucket B) |
+| `websearch-design-patterns` | WebSearch for design pattern research (Bucket B) |
+
+### `design/` — 2 skills
+
+| File | Description |
+|------|-------------|
+| `design-handoff-format` | Design handoff contract (Bucket A/B) |
+| `design-planner-format` | Design deliverable format for planner (Bucket A) |
+
+### `documentarian/` — 8 skills
+
+| File | Description |
+|------|-------------|
+| `doc-protocol` | Main documentation protocol (Bucket A) |
+| `documentarian-handoff-format` | Documentarian handoff contract (Bucket A) |
+| `doc-standards` | Documentation quality standards (Bucket B) |
+| `doc-adr` | ADR authoring protocol (Bucket B) |
+| `doc-api` | API documentation protocol (Bucket B) |
+| `doc-changelog` | Changelog authoring protocol (Bucket B) |
+| `doc-slides` | Slide/presentation protocol (Bucket B) |
+| `doc-wiki-protocol` | Wiki documentation protocol (Bucket B) |
+
+### `adapters/` — 6 skills (tracker integration)
+
+| File | Description |
+|------|-------------|
+| `gitlab-planner-protocol` | GitLab adapter for planner agent |
+| `gitlab-pathfinder-protocol` | GitLab adapter for pathfinder agent |
+| `gitlab-onboarder-protocol` | GitLab adapter for onboarder agent |
+| `github-planner-protocol` | GitHub adapter for planner agent |
+| `github-pathfinder-protocol` | GitHub adapter for pathfinder agent |
+| `github-onboarder-protocol` | GitHub adapter for onboarder agent |
+
+---
+
 ## Skill format
 
 ```markdown

@@ -100,6 +100,69 @@ Pour modifier les modes d'un projet sans toucher aux frontmatter : `oh agent mod
 
 ---
 
+## Matrice d'assignation des skills (source de verite)
+
+Ce tableau est la reference faisant autorite pour les skills charges par chaque agent. Il est genere depuis les frontmatter reels des agents. Pour les descriptions des skills, voir [Reference des skills](./skills.fr.md).
+
+> `shared/universal-guardrails` est Bucket A (inline) dans **chaque** agent sauf `brief-enricher`.
+> `shared/living-docs-enrichment` est Bucket B (natif / a la demande) partout ou il apparait.
+
+### Famille planning
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **orchestrator** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-protocol`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` | `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `documentarian/documentarian-handoff-format`, `shared/rtk-usage`, `orchestrator/orchestrator-modes`, `orchestrator/orchestrator-ticket-routing`, `orchestrator/orchestrator-recap-edge` |
+| **orchestrator-dev** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` | `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases` |
+| **planner** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `planning/planner-design-templates`, `planning/planner-beads-templates`, `design/design-planner-format`, `adapters/gitlab-planner-protocol`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/hub-workflow-reference` | `planning/planner-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol`, `shared/living-docs-enrichment` |
+| **pathfinder** | `developer/beads-plan`, `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `adapters/gitlab-pathfinder-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/wiki-navigation` | `planning/pathfinder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **onboarder** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/websearch-usage`, `shared/wiki-navigation` | `planning/onboarder-execution-modes`, `planning/websearch-stack-research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `shared/living-docs-enrichment` |
+
+### Famille developer
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **developer** | `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/quick-fix`, `developer/beads-plan`, `developer/beads-dev`, `developer/developer-handoff-format`, `posture/subagent-concision-posture`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **developer-refactor** | *(identique a developer)* | *(identique a developer)* + `developer/dev-standards-refactoring` |
+| **developer-migrator** | *(identique a developer)* | *(identique a developer)* + `developer/dev-standards-migration` |
+| **database** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
+| **infra** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/living-docs-enrichment` |
+
+### Famille auditor
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **auditor** | `posture/coordination-only`, `posture/retranscription-coordinateur`, `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `posture/tool-question` | `auditor/auditor-execution-modes`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **auditor-subagent** | `auditor/audit-protocol-light`, `posture/expert-posture`, `posture/subagent-concision-posture`, `auditor/audit-handoff-format`, `shared/websearch-usage`, `shared/wiki-navigation` | `auditor/websearch-cve-lookup`, `auditor/websearch-performance-research`, `shared/rtk-usage` |
+
+### Famille quality
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **reviewer** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `reviewer/reviewer-handoff-format`, `shared/wiki-navigation` | `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `shared/rtk-usage`, `shared/living-docs-enrichment` |
+| **debugger** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `quality/debugger-forensic`, `quality/debugger-report-templates`, `posture/expert-posture`, `posture/tool-question`, `shared/wiki-navigation` | `quality/debugger-execution-modes`, `shared/rtk-usage`, `quality/debugger-phase-0-1`, `quality/debugger-phase-2-3`, `quality/debugger-phase-4-5`, `shared/living-docs-enrichment` |
+| **benchmarker** | `developer/dev-standards-universal`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+| **test-generator** | `developer/dev-standards-universal`, `developer/dev-standards-testing`, `posture/tool-question`, `shared/wiki-navigation` | `shared/living-docs-enrichment` |
+
+### Famille design
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **designer** | `designer/designer-protocol`, `developer/beads-plan`, `design/design-planner-format`, `design/design-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `shared/websearch-usage` | `designer/ux-protocol`, `designer/ui-protocol`, `designer/figma-recon-protocol`, `designer/figma-deep-protocol`, `designer/designer-subagent`, `designer/designer-standalone`, `design/websearch-design-patterns`, `shared/rtk-usage`, `designer/design-principles`, `designer/ui-patterns-reference`, `designer/content-design`, `designer/tui-patterns` |
+
+### Famille documentation
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **documentarian** | `developer/dev-standards-git`, `developer/beads-plan`, `developer/beads-dev`, `documentarian/doc-protocol`, `posture/expert-posture`, `posture/tool-question`, `documentarian/documentarian-handoff-format`, `shared/websearch-usage` | `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `documentarian/doc-wiki-protocol`, `shared/skill-authoring-protocol`, `shared/rtk-usage` |
+
+### Famille utility
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **brief-enricher** | *(aucun)* | *(aucun)* |
+
+---
+
 ## Famille — Coordinateurs
 
 Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
