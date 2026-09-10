@@ -108,6 +108,8 @@ type PoliciesView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
+	header      *tview.TextView
+	contentFlex *tview.Flex
 	shell       ShellAccess
 	policies    []teamstate.Policy
 
@@ -144,12 +146,21 @@ func (v *PoliciesView) StatusHints() string {
 		i18n.T("tui.hints.refresh"))
 }
 
-// Mount builds the policies view with SectionedList.
+// Mount builds the policies view with a descriptive header and SectionedList.
 func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
+	// Fixed-height descriptive header with word-wrap
+	v.header = tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(false).
+		SetWordWrap(true)
+	v.header.SetBackgroundColor(theme.BgPanel)
+	v.header.SetBorderPadding(1, 0, 2, 2)
+
+	// Sectioned list for policies grouped by type + actions
 	v.slist = widgets.NewSectionedList().SetApp(app)
-	v.slist.SetBorderPadding(1, 0, 2, 2)
+	v.slist.SetBorderPadding(0, 0, 2, 2)
 
 	v.slist.SetItemSelectedFunc(func(idx int, item widgets.SectionItem) {
 		if fn, ok := v.actionIndices[idx]; ok {
@@ -161,14 +172,22 @@ func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 	})
 
+	// Vertical layout: header (fixed) + list (flexible)
+	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(v.header, 5, 0, false).
+		AddItem(v.slist, 0, 1, true)
+	v.contentFlex.SetBackgroundColor(theme.BgPanel)
+
 	v.refresh()
-	content.AddItem(v.slist, 0, 1, true)
+	content.AddItem(v.contentFlex, 0, 1, true)
 }
 
 // Unmount cleans up resources.
 func (v *PoliciesView) Unmount() {
 	v.app = nil
 	v.slist = nil
+	v.header = nil
+	v.contentFlex = nil
 }
 
 // HandleKey processes policies view key events.
@@ -216,17 +235,22 @@ func (v *PoliciesView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		if v.slist != nil {
-			v.slist.SetItems([]widgets.SectionItem{
-				{MainText: "  " + i18n.T("tui.policies.team_not_configured"), IsHeader: false},
-			})
-		}
+		v.setHeaderText(i18n.T("tui.policies.team_not_configured"))
 		return
 	}
 
 	syncAsync(v.app, repo, v.shell, func(_ error) {
 		v.renderPolicies(repo)
 	})
+}
+
+func (v *PoliciesView) setHeaderText(text string) {
+	if v.header == nil {
+		return
+	}
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	reset := theme.TagReset
+	v.header.SetText(fmt.Sprintf("%s%s%s", secondary, text, reset))
 }
 
 // policySectionKey returns the i18n key for a policy type section header.
@@ -259,32 +283,18 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	}
 	v.policies = policies
 
+	// Update header text based on state
+	if len(policies) == 0 {
+		v.setHeaderText(i18n.T("tui.policies.getting_started"))
+	} else {
+		v.setHeaderText(i18n.T("tui.policies.about"))
+	}
+
 	var items []widgets.SectionItem
 	v.actionIndices = make(map[int]func())
 	v.policyIndices = make(map[int]int)
 
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagReset
-
-	// ── About section ──
-	items = append(items, widgets.SectionItem{
-		MainText: i18n.T("tui.policies.section_about"),
-		IsHeader: true,
-	})
-	items = append(items, widgets.SectionItem{
-		MainText: fmt.Sprintf("  %s%s%s", muted, i18n.T("tui.policies.about"), reset),
-	})
-
-	if len(policies) == 0 {
-		// ── Getting started ──
-		items = append(items, widgets.SectionItem{
-			MainText: i18n.T("tui.policies.section_actions"),
-			IsHeader: true,
-		})
-		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s%s%s", muted, i18n.T("tui.policies.getting_started"), reset),
-		})
-	} else {
+	if len(policies) > 0 {
 		// Group policies by type
 		typeOrder := []teamstate.PolicyType{
 			teamstate.PolicyTypeRegex,
@@ -320,7 +330,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 		}
 	}
 
-	// ── Actions section ──
+	// ── Actions ──
 	items = append(items, widgets.SectionItem{
 		MainText: i18n.T("tui.policies.section_actions"),
 		IsHeader: true,
@@ -328,22 +338,25 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 
 	templateIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText:      fmt.Sprintf("  %s%s%s  %s→%s", theme.ColorTag(theme.ActionHex), theme.IconArrow, theme.TagColor, theme.ColorTag(theme.AccentHex), reset),
-		SecondaryText: fmt.Sprintf("    %s%s%s", muted, i18n.T("tui.policies.action_template"), reset),
+		MainText: fmt.Sprintf("  %s%s %s%s",
+			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			i18n.T("tui.policies.action_template"), theme.TagReset),
 	})
 	v.actionIndices[templateIdx] = func() { v.addFromTemplate() }
 
 	customIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText:      fmt.Sprintf("  %s%s%s  %s→%s", theme.ColorTag(theme.ActionHex), theme.IconArrow, theme.TagColor, theme.ColorTag(theme.AccentHex), reset),
-		SecondaryText: fmt.Sprintf("    %s%s%s", muted, i18n.T("tui.policies.action_custom"), reset),
+		MainText: fmt.Sprintf("  %s%s %s%s",
+			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			i18n.T("tui.policies.action_custom"), theme.TagReset),
 	})
 	v.actionIndices[customIdx] = func() { v.addPolicy() }
 
 	checkIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText:      fmt.Sprintf("  %s%s%s  %s→%s", theme.ColorTag(theme.ActionHex), theme.IconArrow, theme.TagColor, theme.ColorTag(theme.AccentHex), reset),
-		SecondaryText: fmt.Sprintf("    %s%s%s", muted, i18n.T("tui.policies.action_check"), reset),
+		MainText: fmt.Sprintf("  %s%s %s%s",
+			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			i18n.T("tui.policies.action_check"), theme.TagReset),
 	})
 	v.actionIndices[checkIdx] = func() { v.checkPolicies() }
 
@@ -367,10 +380,10 @@ func (v *PoliciesView) buildPolicyItem(p teamstate.Policy) widgets.SectionItem {
 
 	mainText := fmt.Sprintf("  %s %-30s %s%s%s", enfIcon, p.Name, muted, meta, reset)
 
-	// Message as secondary text
+	// Message as secondary text in readable color
 	secondaryText := ""
 	if p.Message != "" {
-		secondaryText = fmt.Sprintf("    %s%s%s", muted, p.Message, reset)
+		secondaryText = fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextSecondaryHex), p.Message, reset)
 	}
 
 	return widgets.SectionItem{

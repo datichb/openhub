@@ -20,6 +20,8 @@ type PatternsView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
+	header      *tview.TextView
+	contentFlex *tview.Flex
 	shell       ShellAccess
 	patterns    []teamstate.Pattern
 
@@ -56,12 +58,21 @@ func (v *PatternsView) StatusHints() string {
 		i18n.T("tui.hints.refresh"))
 }
 
-// Mount builds the patterns view with SectionedList.
+// Mount builds the patterns view with a descriptive header and SectionedList.
 func (v *PatternsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
+	// Fixed-height descriptive header with word-wrap
+	v.header = tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(false).
+		SetWordWrap(true)
+	v.header.SetBackgroundColor(theme.BgPanel)
+	v.header.SetBorderPadding(1, 0, 2, 2)
+
+	// Sectioned list for patterns + actions
 	v.slist = widgets.NewSectionedList().SetApp(app)
-	v.slist.SetBorderPadding(1, 0, 2, 2)
+	v.slist.SetBorderPadding(0, 0, 2, 2)
 
 	v.slist.SetItemSelectedFunc(func(idx int, item widgets.SectionItem) {
 		if fn, ok := v.actionIndices[idx]; ok {
@@ -73,14 +84,22 @@ func (v *PatternsView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 	})
 
+	// Vertical layout: header (fixed) + list (flexible)
+	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(v.header, 5, 0, false).
+		AddItem(v.slist, 0, 1, true)
+	v.contentFlex.SetBackgroundColor(theme.BgPanel)
+
 	v.refresh()
-	content.AddItem(v.slist, 0, 1, true)
+	content.AddItem(v.contentFlex, 0, 1, true)
 }
 
 // Unmount cleans up resources.
 func (v *PatternsView) Unmount() {
 	v.app = nil
 	v.slist = nil
+	v.header = nil
+	v.contentFlex = nil
 }
 
 // HandleKey processes patterns view key events.
@@ -128,17 +147,22 @@ func (v *PatternsView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		if v.slist != nil {
-			v.slist.SetItems([]widgets.SectionItem{
-				{MainText: "  " + i18n.T("tui.patterns.team_not_configured"), IsHeader: false},
-			})
-		}
+		v.setHeaderText(i18n.T("tui.patterns.team_not_configured"))
 		return
 	}
 
 	syncAsync(v.app, repo, v.shell, func(_ error) {
 		v.renderPatterns(repo)
 	})
+}
+
+func (v *PatternsView) setHeaderText(text string) {
+	if v.header == nil {
+		return
+	}
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	reset := theme.TagReset
+	v.header.SetText(fmt.Sprintf("%s%s%s", secondary, text, reset))
 }
 
 func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
@@ -155,22 +179,16 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	}
 	v.patterns = patterns
 
+	// Update header text based on state
+	if len(patterns) == 0 {
+		v.setHeaderText(i18n.T("tui.patterns.getting_started"))
+	} else {
+		v.setHeaderText(i18n.T("tui.patterns.about"))
+	}
+
 	var items []widgets.SectionItem
 	v.actionIndices = make(map[int]func())
 	v.patternIndices = make(map[int]int)
-
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagReset
-
-	// ── About section ──
-	items = append(items, widgets.SectionItem{
-		MainText: i18n.T("tui.patterns.section_about"),
-		IsHeader: true,
-	})
-	items = append(items, widgets.SectionItem{
-		MainText:      fmt.Sprintf("  %s%s%s", muted, i18n.T("tui.patterns.about"), reset),
-		SecondaryText: "",
-	})
 
 	// Separate validated from pending
 	var validated, pending []int
@@ -182,20 +200,7 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 		}
 	}
 
-	if len(patterns) == 0 {
-		// ── Getting started section ──
-		items = append(items, widgets.SectionItem{
-			MainText: i18n.T("tui.patterns.section_actions"),
-			IsHeader: true,
-		})
-		aboutIdx := len(items)
-		items = append(items, widgets.SectionItem{
-			MainText:      fmt.Sprintf("  %s%s%s", muted, i18n.T("tui.patterns.getting_started"), reset),
-			SecondaryText: "",
-		})
-		// Make this item non-interactive (info only)
-		_ = aboutIdx
-	} else {
+	if len(patterns) > 0 {
 		// ── Validated patterns ──
 		if len(validated) > 0 {
 			items = append(items, widgets.SectionItem{
@@ -225,15 +230,16 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 		}
 	}
 
-	// ── Actions section ──
+	// ── Actions ──
 	items = append(items, widgets.SectionItem{
 		MainText: i18n.T("tui.patterns.section_actions"),
 		IsHeader: true,
 	})
 	createIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText:      fmt.Sprintf("  %s%s%s  %s→%s", theme.ColorTag(theme.ActionHex), theme.IconArrow, theme.TagColor, theme.ColorTag(theme.AccentHex), reset),
-		SecondaryText: fmt.Sprintf("    %s%s%s", muted, i18n.T("tui.patterns.action_create"), reset),
+		MainText: fmt.Sprintf("  %s%s %s%s",
+			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			i18n.T("tui.patterns.action_create"), theme.TagReset),
 	})
 	v.actionIndices[createIdx] = func() { v.addPattern() }
 
@@ -256,10 +262,10 @@ func (v *PatternsView) buildPatternItem(p teamstate.Pattern) widgets.SectionItem
 
 	mainText := fmt.Sprintf("  %s %-30s %s%s%s", icon, p.Name, muted, meta, reset)
 
-	// Description as secondary text
+	// Description as secondary text in readable color
 	secondaryText := ""
 	if p.Description != "" {
-		secondaryText = fmt.Sprintf("    %s%s%s", muted, p.Description, reset)
+		secondaryText = fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextSecondaryHex), p.Description, reset)
 	}
 
 	return widgets.SectionItem{
