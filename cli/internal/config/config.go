@@ -363,6 +363,7 @@ func Reset() {
 }
 
 // Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
+// The write is atomic (tmp file + rename) to prevent corruption on crash.
 // After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
 func Save(c *Config) error {
 	// Validate teams before persisting
@@ -380,12 +381,22 @@ func Save(c *Config) error {
 		return fmt.Errorf("marshaling hub.toml: %w", err)
 	}
 	path := ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return fmt.Errorf("writing hub.toml: %w", err)
+
+	// Atomic write: write to a temp file in the same directory, then rename.
+	// This prevents a half-written hub.toml on crash or power loss.
+	tmpFile := path + ".tmp"
+	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
+		return fmt.Errorf("writing hub.toml tmp: %w", err)
 	}
+	if err := os.Rename(tmpFile, path); err != nil {
+		os.Remove(tmpFile) // best-effort cleanup
+		return fmt.Errorf("renaming hub.toml tmp: %w", err)
+	}
+
 	// Invalidate the cache so the next Load() reflects the new state.
 	cfgOnce = sync.Once{}
 	cfg = nil
