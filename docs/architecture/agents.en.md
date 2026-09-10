@@ -173,7 +173,7 @@ Agents that drive other agents without ever coding themselves.
 |--|--|
 | **Label** | Onboarder |
 | **File** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/living-docs-enrichment` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — onboarder row |
 | **Invocation** | `"Onboard yourself on this project"` / `"Discover this project"` / `"Before starting, explore the project"` |
 
 Project discovery agent. Explores an existing project's codebase in 6 structured phases
@@ -201,7 +201,7 @@ Invocable directly, from `oh start` (suggestion displayed), or from the `orchest
 |--|--|
 | **Label** | Orchestrator |
 | **File** | `agents/planning/orchestrator.md` |
-| **Skills** | `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/planner-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — orchestrator row |
 | **Invocation** | `"Implement [feature]"` / `"Handle tickets [IDs]"` |
 
 AI project manager. Drives the complete delivery of a feature by mobilizing all
@@ -231,7 +231,7 @@ Never routes directly to `developer-*` — always delegates to `orchestrator-dev
 |--|--|
 | **Label** | OrchestratorDev |
 | **File** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `orchestrator/orchestrator-workflow-modes`, `posture/tool-question`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — orchestrator-dev row |
 | **Invocation** | `"Implement tickets [IDs]"` / `"Dev workflow for [feature]"` |
 
 AI tech lead specialized in driving implementation. Takes a list of ready-to-implement
@@ -253,7 +253,7 @@ CP-2 (commit or fix?) is always manual in all modes.
 |--|--|
 | **Label** | Auditor |
 | **File** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/auditor-workflow`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `shared/living-docs-enrichment`, `posture/tool-question` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — auditor row |
 | **Invocation** | `"Audit [project/scope]"` / `"Audit [domain]"` |
 
 Multi-domain audit coordinator. Drives audits in 5 structured phases: prerequisites check
@@ -398,7 +398,7 @@ Agents dedicated to code quality, invocable standalone or via the orchestrator.
 |--|--|
 | **Label** | CodeReviewer |
 | **File** | `agents/quality/reviewer.md` |
-| **Skills** | `dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native: `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `dev-standards-security`, `dev-standards-backend`, `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing`, `dev-standards-git`, `shared/rtk-usage` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — reviewer row |
 | **Invocation** | Branch name / PR URL + optionally `bd show <ID>` (the reviewer fetches the diff itself via `git diff`) |
 
 Analyzes PR/MR diffs. Produces a structured report by severity (Critical /
@@ -421,7 +421,7 @@ Combined modes (`standard+adversarial`, `all`) launch **parallel independent ses
 |--|--|
 | **Label** | Debugger |
 | **File** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — debugger row |
 | **Invocation** | `"This bug: [stacktrace]"` / `"Analyze these logs: [logs]"` |
 
 Diagnoses the root cause of a bug in 6 structured phases: artefact verification
@@ -488,7 +488,7 @@ Writes tests directly. Follows the project's existing testing conventions and st
 |--|--|
 | **Label** | ProjectPlanner |
 | **File** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `posture/expert-posture`, `posture/tool-question`, `planning/planner-handoff-format`, `shared/living-docs-enrichment` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — planner row |
 | **Invocation** | Natural language feature description |
 
 Functional and technical consultant who analyzes the project context before planning.
@@ -523,7 +523,7 @@ in Phase 1, the planner offers 3 options to the user:
 |--|--|
 | **Label** | Documentarian |
 | **File** | `agents/documentation/documentarian.md` |
-| **Skills** | `developer/dev-standards-git`, `developer/beads-plan`, `developer/beads-dev`, `documentarian/doc-protocol`, `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `posture/expert-posture`, `posture/tool-question` |
+| **Skills** | See [Skill Assignment Matrix](#skill-assignment-matrix-source-of-truth) — documentarian row |
 | **Invocation** | `"Document [topic]"` / `"Create an ADR for [decision]"` / `"Update the CHANGELOG"` / `"What's missing in the docs?"` / `"Create a presentation for [topic]"` |
 
 Writes and updates technical, functional, architectural documentation, API docs,

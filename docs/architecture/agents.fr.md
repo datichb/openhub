@@ -173,7 +173,7 @@ Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
 |--|--|
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
-| **Skills** | `planning/onboarder-workflow`, `planning/onboarder-handoff-format`, `adapters/figma-onboarder-protocol`, `adapters/gitlab-onboarder-protocol`, `posture/expert-posture`, `posture/tool-question`, `developer/beads-plan`, `developer/dev-standards-git`, `shared/websearch-usage`, `shared/living-docs-enrichment`, `shared/wiki-navigation` — native : `planning/onboarder-standalone`, `planning/onboarder-subagent`, `planning/websearch-stack-research`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne onboarder |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` / `"Avant de commencer, explore le projet"` |
 
@@ -217,7 +217,7 @@ En mode `orchestrator_feature` : utilise le mécanisme d'interruption de session
 |--|--|
 | **Label** | Orchestrator |
 | **Fichier** | `agents/planning/orchestrator.md` |
-| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-protocol`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-handoff-format`, `developer/beads-plan`, `posture/tool-question`, `posture/tool-todowrite`, `planning/planner-handoff-format`, `shared/hub-workflow-reference` — native : `planning/pathfinder-handoff-format`, `design/design-handoff-format`, `auditor/audit-handoff-format`, `planning/onboarder-handoff-format`, `quality/debugger-handoff-format`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator |
 | **MCP Servers** | _(aucun)_ |
 | **Invocation** | `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` / `"Implémente le ticket #42"` |
 
@@ -250,7 +250,7 @@ Ne route jamais directement vers les `developer-*` — délègue toujours à `or
 |--|--|
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | `posture/coordination-only`, `posture/concision-posture`, `posture/retranscription-coordinateur`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-handoff-format`, `posture/tool-question`, `posture/tool-todowrite`, `developer/developer-handoff-format`, `reviewer/reviewer-handoff-format`, `documentarian/documentarian-handoff-format` — native : `orchestrator/orchestrator-dev-standalone`, `orchestrator/orchestrator-dev-subagent`, `developer/dev-drift-detection`, `orchestrator/session-state-protocol`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator-dev |
 | **Invocation** | `"Implémente les tickets [IDs]"` / `"Workflow dev sur [feature]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
@@ -276,7 +276,7 @@ En mode `orchestrator_feature` : tous les CPs (CP-1, CP-3, branche dédiée, CP-
 |--|--|
 | **Label** | Auditeur |
 | **Fichier** | `agents/auditor/auditor.md` |
-| **Skills** | `auditor/auditor-workflow`, `posture/coordination-only`, `posture/retranscription-coordinateur`, `auditor/audit-protocol-light`, `auditor/audit-handoff-format`, `shared/living-docs-enrichment`, `posture/tool-question` — native : `auditor/auditor-standalone`, `auditor/auditor-subagent`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne auditor |
 | **Invocation** | `"Audite [projet/périmètre]"` / `"Audit [domaine]"` |
 
 Coordinateur d'audit multi-domaine. Pilote la réalisation d'audits en 5 phases structurées :
@@ -432,7 +432,7 @@ Agents dédiés à la qualité du code, invocables standalone ou via l'agent orc
 |--|--|
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
-| **Skills** | `developer/dev-standards-universal`, `reviewer/review-protocol`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `reviewer/reviewer-handoff-format` — native : `reviewer/reviewer-standalone`, `reviewer/reviewer-subagent`, `reviewer/reviewer-adversarial`, `reviewer/reviewer-edge-case`, `reviewer/review-merge`, `developer/dev-standards-security`, `developer/dev-standards-backend`, `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-testing`, `developer/dev-standards-git`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne reviewer |
 | **Invocation** | Nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
@@ -456,7 +456,7 @@ Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions paral
 |--|--|
 | **Label** | Debugger |
 | **Fichier** | `agents/quality/debugger.md` |
-| **Skills** | `quality/debugger-workflow`, `quality/debugger-handoff-format`, `shared/living-docs-enrichment`, `posture/expert-posture`, `posture/tool-question`, `shared/wiki-navigation` — native : `quality/debugger-standalone`, `quality/debugger-subagent`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne debugger |
 | **Invocation** | `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
 
 Diagnostique la cause racine d'un bug en 6 phases structurées : vérification des artefacts
@@ -534,7 +534,7 @@ Spécialiste en génération de tests. Opère en quatre modes :
 |--|--|
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
-| **Skills** | `developer/beads-plan`, `planning/planner-workflow`, `planning/planner-handoff-format`, `design/design-planner-format`, `posture/expert-posture`, `posture/concision-posture`, `posture/tool-question`, `shared/living-docs-enrichment`, `shared/websearch-usage`, `shared/hub-workflow-reference`, `adapters/figma-planner-protocol`, `adapters/gitlab-planner-protocol` — native : `planning/planner-standalone`, `planning/planner-subagent`, `planning/websearch-stack-research`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne planner |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | Description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
@@ -574,7 +574,7 @@ délègue l'écriture au `documentarian` via `task` (skill `living-docs-enrichme
 |--|--|
 | **Label** | Pathfinder |
 | **Fichier** | `agents/planning/pathfinder.md` |
-| **Skills** | `developer/beads-plan`, `planning/pathfinder-protocol`, `planning/pathfinder-handoff-format`, `posture/concision-posture`, `posture/tool-question`, `shared/websearch-usage`, `shared/living-docs-enrichment`, `shared/wiki-navigation`, `adapters/figma-pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol` — native : `planning/pathfinder-standalone`, `planning/pathfinder-subagent`, `planning/websearch-stack-research`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne pathfinder |
 | **MCP Servers** | `figma`, `gitlab` |
 | **Invocation** | `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
@@ -600,7 +600,7 @@ Workflow libre — pas de phases rigides. Suggère l'escalade vers le planner si
 |--|--|
 | **Label** | Documentarian |
 | **Fichier** | `agents/documentation/documentarian.md` |
-| **Skills** | `developer/dev-standards-git`, `developer/beads-plan`, `developer/beads-dev`, `documentarian/doc-protocol`, `posture/expert-posture`, `posture/tool-question`, `documentarian/documentarian-handoff-format`, `shared/websearch-usage` — native : `documentarian/doc-standards`, `documentarian/doc-adr`, `documentarian/doc-api`, `documentarian/doc-changelog`, `documentarian/doc-slides`, `documentarian/doc-wiki-protocol`, `shared/skill-authoring-protocol`, `shared/rtk-usage` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne documentarian |
 | **Invocation** | `"Documente [sujet]"` / `"Crée un ADR pour [décision]"` / `"Mets à jour le CHANGELOG"` / `"Qu'est-ce qui manque dans la doc ?"` / `"Crée une présentation pour [sujet]"` |
 
 Rédige et met à jour la documentation technique, fonctionnelle, architecturale, API,
