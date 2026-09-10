@@ -1,3 +1,5 @@
+> [Read in English](websearch-usage-examples.en.md)
+
 # Guide d'utilisation WebSearch : Exemples concrets
 
 **Version** : 1.0.0  

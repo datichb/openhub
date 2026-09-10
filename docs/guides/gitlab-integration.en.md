@@ -20,10 +20,10 @@ The GitLab integration enriches planning workflows (Orchestrator, Pathfinder, Pl
 
 ### 1. Configure via `oh service`
 
-The recommended method is to use the `oh service setup` command which guides you interactively:
+The recommended method is to use the `oh mcp setup` command which guides you interactively:
 
 ```bash
-oh service setup gitlab
+oh mcp setup gitlab
 # or via the alias:
 oh gitlab setup
 ```

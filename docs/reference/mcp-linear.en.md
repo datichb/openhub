@@ -54,7 +54,7 @@ List Linear issues using GraphQL filters.
 - `team_key` (string) — team key (e.g. `ENG`, `OPS`)
 - `state` (string) — workflow state name (e.g. `In Progress`, `Todo`, `Done`)
 - `assignee` (string) — assignee display name or email
-- `first` (integer) — number of results to return (default: 25, max: 100)
+- `first` (integer) — number of results to return (default: 50)
 
 **Example call:**
 ```json

@@ -479,7 +479,7 @@ If the keychain is unavailable, secrets are stored in `~/.oh/secrets.enc` (AES-2
 
 | Command | Description |
 |---------|-------------|
-| `oh service setup` | Store a token in the keychain |
+| `oh mcp setup` | Store a token in the keychain |
 
 ### Known Secret Keys
 

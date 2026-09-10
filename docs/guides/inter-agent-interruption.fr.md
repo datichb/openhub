@@ -1,3 +1,5 @@
+> [Read in English](inter-agent-interruption.en.md)
+
 ---
 title: Mécanisme d'interruption de session inter-agents
 description: Guide de référence pour le mécanisme qui permet aux agents invoqués via task de remonter des récaps intermédiaires et des questions à l'agent parent, en contournant la limitation technique du tool task qui ne retourne que le dernier message.

@@ -1,3 +1,5 @@
+> [Read in English](migration-designer-fusion.en.md)
+
 # Migration : fusion ux-designer + ui-designer → designer
 
 ## Résumé du changement

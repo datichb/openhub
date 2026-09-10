@@ -19,10 +19,10 @@ L'intégration Figma enrichit les workflows de planification (Pathfinder et Plan
 
 ### 1. Configurer via `oh service`
 
-La méthode recommandée est d'utiliser la commande `oh service setup` qui vous guide interactivement :
+La méthode recommandée est d'utiliser la commande `oh mcp setup` qui vous guide interactivement :
 
 ```bash
-oh service setup figma
+oh mcp setup figma
 # ou via l'alias :
 oh figma setup
 ```
@@ -286,7 +286,7 @@ Si les 3 tentatives échouent, l'onboarder te demande de préciser le nom du fic
 
 **Solution :**
 ```bash
-oh service setup figma
+oh mcp setup figma
 # Resaisir le FIGMA_TEAM_ID avec la valeur correcte
 ```
 
@@ -307,7 +307,7 @@ Le serveur MCP Figma étant intégré au binaire `oh`, il n'y a pas d'étape de 
 # Vérifier que le serveur fonctionne
 oh mcp serve figma
 # Vérifier la configuration du service
-oh service setup figma
+oh mcp setup figma
 ```
 
 ### Timeout API Figma
@@ -321,7 +321,7 @@ Le client effectue automatiquement **2 retries** avec backoff (1s, puis 2s) avan
 Pour augmenter le timeout (défaut : 30s) :
 
 ```bash
-# Via oh service setup
+# Via oh mcp setup
 oh figma setup
 # → saisir une valeur pour "Timeout des requêtes (ms)", ex : 60000
 
@@ -375,6 +375,6 @@ En cas de problème :
 1. Consulter ce guide de dépannage
 2. Vérifier les logs OpenCode
 3. Tester le MCP manuellement : `oh mcp serve figma`
-4. Vérifier configuration tokens Figma : `oh service setup figma`
+4. Vérifier configuration tokens Figma : `oh mcp setup figma`
 
 **L'intégration Figma est prête à enrichir vos workflows de planification !**

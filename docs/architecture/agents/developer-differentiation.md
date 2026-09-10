@@ -20,6 +20,8 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 | **security** | Hardening suite à audit (CORS, headers HTTP, JWT, rate limiting, secrets) | Audit sécurité (c'est `auditor` domaine security), nouvelles features |
 | **data** | Pipelines ETL, dbt, Airflow, jobs Spark, ML, BI | APIs web, composants UI, backend applicatif |
 | **mobile** | Apps iOS/Android (React Native, Flutter, Swift, Kotlin) | Backend, web frontend |
+| **go** | Services Go, CLI tools, APIs Go (activates `dev-standards-golang`) | Frontend, mobile |
+| **rust** | Crates Rust, systemes embarques, WASM, CLI Rust (activates `dev-standards-rust`) | Frontend, mobile |
 
 **Agents distincts (pas un domaine de `developer`) :**
 
@@ -139,6 +141,8 @@ L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt 
 | docker, CI/CD, script shell, pipeline de build | `devops` | `platform` (si K8s/Helm) |
 | mobile, React Native, Flutter, Swift, Kotlin | `mobile` | — |
 | Terraform, K8s, Helm, GitOps | `platform` | — |
+| Go, goroutine, go.mod, go.sum | `go` | `backend` (si pas specifique Go) |
+| Rust, Cargo.toml, crate, WASM | `rust` | `backend` (si pas specifique Rust) |
 | refactoring, extraction, renommage, dette | `developer-refactor` (agent dédié) | — |
 | migration, upgrade, version majeure | `developer-migrator` (agent dédié) | — |
 | sécurité, hardening, CORS, headers, audit | `security` | `backend` (si pas suite audit) |

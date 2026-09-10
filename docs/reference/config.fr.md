@@ -381,7 +381,7 @@ Si le trousseau n'est pas disponible, les secrets sont stockes dans `~/.oh/secre
 
 | Commande | Description |
 |----------|-------------|
-| `oh service setup` | Stocker un token dans le trousseau |
+| `oh mcp setup` | Stocker un token dans le trousseau |
 
 ### Cles de secrets connues
 

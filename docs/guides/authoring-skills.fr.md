@@ -1,3 +1,5 @@
+> [Read in English](authoring-skills.en.md)
+
 > 🏗️ Ce guide couvre la **méthodologie qualitative** d'écriture de skills : TDD, SDO, anti-patterns, gouvernance.
 > Pour la conception structurelle (agent vs skill, buckets, checklists), voir [authoring.fr.md](authoring.fr.md).
 

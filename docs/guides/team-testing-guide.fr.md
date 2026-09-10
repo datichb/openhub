@@ -1,3 +1,5 @@
+> [Read in English](team-testing-guide.en.md)
+
 # Guide de test exhaustif — Feature Team (`oh`)
 
 > Guide complet pour tester de fond en comble la feature Team d'OpenHub.
