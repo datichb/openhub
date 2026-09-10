@@ -966,6 +966,224 @@ oh board --watch
 
 ---
 
+## Team Management
+
+### oh teams list
+
+List all configured teams.
+
+```bash
+oh teams list
+```
+
+### oh teams add
+
+Add a new team.
+
+```bash
+oh teams add --repo git@github.com:org/team-state.git --member-id alice
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--repo` | string | Team-state Git repository URL |
+| `--member-id` | string | Your member ID in the team |
+| `--id` | string | Team identifier |
+| `--name` | string | Team display name |
+
+### oh teams remove
+
+Remove a team.
+
+```bash
+oh teams remove <team-id>
+```
+
+### oh teams detach
+
+Detach a project from its team.
+
+```bash
+oh teams detach <project-name>
+```
+
+### oh teams archive / restore
+
+Archive or restore a team:
+
+```bash
+oh teams archive <team-id>
+oh teams restore <team-id>
+```
+
+---
+
+### oh team init
+
+Initialize team features with an interactive wizard.
+
+```bash
+oh team init
+```
+
+### oh team config
+
+Manage team configuration.
+
+```bash
+oh team config
+oh team config status
+```
+
+### oh team board
+
+Display the team kanban board.
+
+```bash
+oh team board
+```
+
+### oh team notify test
+
+Test notification delivery.
+
+```bash
+oh team notify test
+```
+
+### oh team sync-tracker
+
+Sync claim ExternalIID links back to the external tracker (Jira, Linear, GitLab Issues).
+
+```bash
+oh team sync-tracker
+```
+
+---
+
+## Secrets Management
+
+### oh secrets
+
+Manage secrets stored in the OS keychain or encrypted fallback store.
+
+```bash
+oh secrets set <key> <value>    # store a secret
+oh secrets get <key>            # retrieve a secret
+oh secrets list                 # list all secret keys
+oh secrets delete <key>         # delete a secret
+```
+
+---
+
+## Governance
+
+### oh conventions check
+
+Validate the current project against team conventions.
+
+```bash
+oh conventions check
+```
+
+### oh patterns
+
+Manage the team patterns library.
+
+```bash
+oh patterns list               # list all patterns
+oh patterns show <name>        # display a pattern
+oh patterns add                # propose a new pattern
+oh patterns validate           # validate all patterns
+oh patterns remove <name>      # remove a pattern
+```
+
+### oh policies
+
+Manage and check team policies.
+
+```bash
+oh policies list               # list active policies
+oh policies check              # validate project against policies
+oh policies add                # add a new policy
+```
+
+---
+
+## Takeover Briefs
+
+### oh takeover-brief
+
+Manage takeover briefs for ticket handoffs. Alias: `tb`.
+
+```bash
+oh takeover-brief show <ticket-id>    # view takeover context
+oh takeover-brief list                # list available briefs
+oh takeover-brief enrich <ticket-id>  # enrich with code analysis
+```
+
+---
+
+## Provider & Model Configuration
+
+### oh provider setup
+
+Interactive setup for LLM provider credentials.
+
+```bash
+oh provider setup
+oh provider setup anthropic      # setup specific provider
+```
+
+### oh config model
+
+Manage model assignments at various levels.
+
+```bash
+oh config model default <model>           # set global default
+oh config model family <family> <model>   # set for agent family
+oh config model agent <agent> <model>     # set for specific agent
+oh config model show                      # display current config
+oh config model unset <level> [name]      # remove an override
+```
+
+---
+
+## Plugin Management
+
+### oh plugin
+
+Manage installed plugins.
+
+```bash
+oh plugin list                 # list installed plugins
+oh plugin install <name>       # install a plugin
+oh plugin remove <name>        # remove a plugin
+oh plugin status               # show plugin status
+```
+
+---
+
+## Worktree Management
+
+### oh worktree
+
+Manage Git worktrees for parallel AI sessions.
+
+```bash
+oh worktree list               # list active worktrees
+oh worktree add [branch]       # create a new worktree
+oh worktree remove [path]      # remove a worktree
+oh worktree cleanup            # remove merged worktrees
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--base` | string | Base branch (default: from config) |
+| `--force` | bool | Force removal even if not merged |
+
+---
+
 ## Utilities
 
 ### oh version

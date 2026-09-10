@@ -28,6 +28,12 @@ aws_profile = "default"            # AWS profile (bedrock only)
 aws_region = "eu-west-1"           # AWS region (bedrock only)
 auth_mode = "bearer"               # "bearer" | "profile" (bedrock only)
 
+[provider.anthropic]
+# Uses API key stored in keychain (no config fields needed)
+
+[provider.openrouter]
+# Uses API key stored in keychain (no config fields needed)
+
 [models]
 default = "claude-sonnet-4-20250514"  # hub-level default model
 
@@ -64,6 +70,13 @@ token_key = "openhub.mcp.gslides.token"
 [worktree]
 auto_cleanup = true                # auto-remove merged worktrees on start
 base_branch = ""                   # empty = auto-detect (main/master)
+branch_pattern = "oh/%s"           # branch naming pattern (%s = worktree name)
+
+[deploy]
+disable_native_agents = []         # list of agent IDs to exclude from deploy
+
+[workflow]
+# overrides applied during deploy (hub-level workflow customization)
 
 [tracker]                          # local overrides for team tracker sync
 # enabled = false                  # uncomment to disable sync locally

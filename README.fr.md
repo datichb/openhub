@@ -163,6 +163,82 @@ oh deploy
 | Decouvrir un projet | `oh start --onboard` | onboarder |
 | Planifier sans implementer | `oh start -a planner` | planner |
 | Revue d'une branche | `oh review` | reviewer |
+| Parallele multi-tickets | `oh start --parallel` | orchestrator-dev |
+
+## Commandes
+
+### Sessions
+
+| Commande | Description |
+|----------|-------------|
+| `oh start` | Lancer une session IA (avec confirmation) |
+| `oh quick` | Lancer immediatement (sans confirmation) |
+| `oh start --dev` | Mode dev : choisir des tickets a implementer |
+| `oh start --onboard` | Decouvrir et documenter un codebase |
+| `oh start --parallel` | Sessions paralleles sur plusieurs tickets |
+| `oh audit --type <t>` | Audit de code (security, performance, architecture, accessibility, ecodesign, observability) |
+| `oh review` | Revue de code (standard, adversarial, edge-case, complete) |
+| `oh debug --issue "..."` | Session de debogage |
+
+### Projets et deploiement
+
+| Commande | Description |
+|----------|-------------|
+| `oh project add` | Enregistrer un nouveau projet |
+| `oh project list` | Lister tous les projets |
+| `oh project configure` | Configurer les parametres d'un projet |
+| `oh project remove` | Desenregistrer un projet |
+| `oh deploy` | Deployer agents/skills dans le projet |
+| `oh sync --all` | Synchroniser vers tous les projets |
+
+### Configuration
+
+| Commande | Description |
+|----------|-------------|
+| `oh init` | Assistant de configuration initiale |
+| `oh config list` | Afficher tous les parametres |
+| `oh config model default <m>` | Definir le modele par defaut |
+| `oh provider setup` | Configurer les credentials provider |
+| `oh mcp setup` | Configurer les tokens MCP |
+| `oh secrets set <cle> <val>` | Stocker un secret |
+
+### Collaboration equipe
+
+| Commande | Description |
+|----------|-------------|
+| `oh team init` | Configurer les fonctionnalites equipe |
+| `oh team claim <id>` | Revendiquer un ticket |
+| `oh team release <id>` | Liberer un ticket |
+| `oh team status` | Vue d'ensemble equipe |
+| `oh team activity` | Evenements recents de l'equipe |
+| `oh team board` | Kanban equipe |
+| `oh team sync-tracker` | Synchroniser claims vers le tracker externe |
+| `oh teams list` | Lister toutes les equipes |
+| `oh takeover-brief show <id>` | Voir le contexte de reprise |
+
+### Qualite et gouvernance
+
+| Commande | Description |
+|----------|-------------|
+| `oh conventions check` | Valider les conventions |
+| `oh patterns list` | Lister les patterns d'equipe |
+| `oh policies check` | Valider les policies |
+| `oh worktree list` | Lister les worktrees actifs |
+
+### Systeme
+
+| Commande | Description |
+|----------|-------------|
+| `oh doctor` | Verification de sante (version, credentials, MCP) |
+| `oh status` | Statut hub et projet |
+| `oh metrics` | Stats d'usage et couts par agent |
+| `oh serve` | Demarrer le dashboard web local |
+| `oh export` | Exporter les donnees du hub |
+| `oh import` | Importer/restaurer les donnees |
+| `oh repair` | Reparer l'etat corrompu |
+| `oh upgrade oh` | Mettre a jour le binaire oh |
+| `oh upgrade opencode` | Mettre a jour le binaire opencode |
+| `oh plugin list` | Lister les plugins installes |
 
 ---
 

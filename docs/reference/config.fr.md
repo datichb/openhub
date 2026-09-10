@@ -28,6 +28,12 @@ aws_profile = "default"            # profil AWS (bedrock uniquement)
 aws_region = "eu-west-1"           # region AWS (bedrock uniquement)
 auth_mode = "bearer"               # "bearer" | "profile" (bedrock uniquement)
 
+[provider.anthropic]
+# Utilise la cle API stockee dans le trousseau (pas de champs de config)
+
+[provider.openrouter]
+# Utilise la cle API stockee dans le trousseau (pas de champs de config)
+
 [mcp.figma]
 enabled = true                     # activer le serveur MCP Figma
 token_key = "openhub.mcp.figma.token"          # nom de la cle dans le trousseau (PAS le token)
@@ -60,6 +66,17 @@ bot_name = "OpenHub"
 [worktree]
 auto_cleanup = true                # supprimer les worktrees mergees au demarrage
 base_branch = ""                   # vide = detection auto (main/master)
+branch_pattern = "oh/%s"           # pattern de nommage de branche (%s = nom worktree)
+
+[deploy]
+disable_native_agents = []         # liste d'IDs d'agents a exclure du deploy
+
+[workflow]
+# overrides appliques pendant le deploy (personnalisation workflow hub)
+
+[tracker]                          # overrides locaux pour la sync tracker equipe
+# enabled = false                  # decommenter pour desactiver la sync localement
+# push_labels = false              # decommenter pour desactiver le push de labels
 ```
 
 ---

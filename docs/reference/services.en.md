@@ -11,8 +11,8 @@ Manage MCP (Model Context Protocol) servers built into the `oh` binary.
 MCP servers are **built into the Go binary** — no separate `servers/` directory or Node.js build step. Each server is natively implemented in `cli/internal/mcp/` and served via stdio JSON-RPC.
 
 Available servers:
-- **figma** — Figma API integration (files, components, UI signals)
-- **gitlab** — GitLab API integration (issues, MRs, labels, milestones)
+- **figma** — Figma API integration (files, components, styles)
+- **gitlab** — GitLab API integration (issues, MRs, labels, notes, reviewers)
 - **gslides** — Google Slides integration
 - **team** — Team data (members, wiki, events, claims) — no token required; exposes claim lifecycle (5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`), claim labels (`agent-reviewed`, `needs-human-review`), `ExternalIID` for tracker linkage, and events emitted on claim/release/transfer operations
 - **github** — GitHub API integration (repos, issues, PRs, workflows)
@@ -239,6 +239,34 @@ Only servers with a valid token (env, keychain, or tokenless for `team`) are dep
 
 ---
 
+## GitLab server
+
+**Required:** `GITLAB_TOKEN` (Personal Access Token with `api` scope)
+
+**Optional:** `GITLAB_URL` for self-hosted instances (default: `https://gitlab.com`)
+
+**Write mode:** Set `GITLAB_WRITE_ENABLED=true` in hub.toml (`write_enabled = true`) to enable write tools.
+
+**Read tools:**
+
+| Tool | Description |
+|------|-------------|
+| `gitlab_get_project` | Get project metadata |
+| `gitlab_list_issues` | List issues with filters |
+| `gitlab_list_mrs` | List merge requests |
+
+**Write tools** (requires write mode):
+
+| Tool | Description |
+|------|-------------|
+| `gitlab_create_mr` | Create a merge request |
+| `gitlab_add_mr_note` | Add a note to a merge request |
+| `gitlab_update_issue` | Update an issue (labels, assignee, status) |
+| `gitlab_assign_reviewer` | Assign a reviewer to an MR |
+| `gitlab_add_label` | Add a label to an issue or MR |
+
+---
+
 ## GitHub server
 
 **Required:** `GITHUB_TOKEN` or `GH_TOKEN`
@@ -257,7 +285,8 @@ Only servers with a valid token (env, keychain, or tokenless for `team`) are dep
 | `github_list_prs` | List pull requests |
 | `github_get_pr` | Get a specific pull request |
 | `github_list_workflows` | List GitHub Actions workflows |
-| `github_get_workflow_run` | Get a specific workflow run |
+| `github_get_workflow_run` | Get runs of a workflow (by filename or ID) |
+| `github_create_issue` | Create a new issue *(write mode only)* |
 
 ---
 
@@ -267,7 +296,7 @@ Only servers with a valid token (env, keychain, or tokenless for `team`) are dep
 
 **Supports:** Jira Cloud (API v3) and Jira Server/Data Center.
 
-**Write mode:** Set `JIRA_WRITE_ENABLED=true` to enable `jira_transition_issue`.
+**Write mode:** Set `JIRA_WRITE_ENABLED=true` to enable write tools.
 
 **Available tools:**
 
@@ -277,6 +306,7 @@ Only servers with a valid token (env, keychain, or tokenless for `team`) are dep
 | `jira_get_issue` | Get a specific issue |
 | `jira_get_project` | Get project metadata |
 | `jira_transition_issue` | Transition issue status *(write mode only)* |
+| `jira_create_issue` | Create a new issue *(write mode only)* |
 
 ---
 

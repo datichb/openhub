@@ -1302,6 +1302,224 @@ oh board --watch
 
 ---
 
+## Gestion d'equipes
+
+### oh teams list
+
+Lister toutes les equipes configurees.
+
+```bash
+oh teams list
+```
+
+### oh teams add
+
+Ajouter une nouvelle equipe.
+
+```bash
+oh teams add --repo git@github.com:org/team-state.git --member-id alice
+```
+
+| Flag | Description |
+|------|-------------|
+| `--repo` | URL du depot Git team-state |
+| `--member-id` | Votre identifiant membre dans l'equipe |
+| `--id` | Identifiant de l'equipe |
+| `--name` | Nom d'affichage de l'equipe |
+
+### oh teams remove
+
+Supprimer une equipe.
+
+```bash
+oh teams remove <team-id>
+```
+
+### oh teams detach
+
+Detacher un projet de son equipe.
+
+```bash
+oh teams detach <project-name>
+```
+
+### oh teams archive / restore
+
+Archiver ou restaurer une equipe :
+
+```bash
+oh teams archive <team-id>
+oh teams restore <team-id>
+```
+
+---
+
+### oh team init
+
+Initialiser les fonctionnalites equipe avec un assistant interactif.
+
+```bash
+oh team init
+```
+
+### oh team config
+
+Gerer la configuration equipe.
+
+```bash
+oh team config
+oh team config status
+```
+
+### oh team board
+
+Afficher le kanban d'equipe.
+
+```bash
+oh team board
+```
+
+### oh team notify test
+
+Tester l'envoi de notifications.
+
+```bash
+oh team notify test
+```
+
+### oh team sync-tracker
+
+Synchroniser les liens ExternalIID des claims vers le tracker externe (Jira, Linear, GitLab Issues).
+
+```bash
+oh team sync-tracker
+```
+
+---
+
+## Gestion des secrets
+
+### oh secrets
+
+Gerer les secrets stockes dans le trousseau OS ou le stockage chiffre.
+
+```bash
+oh secrets set <cle> <valeur>    # stocker un secret
+oh secrets get <cle>             # recuperer un secret
+oh secrets list                  # lister toutes les cles
+oh secrets delete <cle>          # supprimer un secret
+```
+
+---
+
+## Gouvernance
+
+### oh conventions check
+
+Valider le projet courant contre les conventions d'equipe.
+
+```bash
+oh conventions check
+```
+
+### oh patterns
+
+Gerer la bibliotheque de patterns d'equipe.
+
+```bash
+oh patterns list               # lister tous les patterns
+oh patterns show <nom>         # afficher un pattern
+oh patterns add                # proposer un nouveau pattern
+oh patterns validate           # valider tous les patterns
+oh patterns remove <nom>       # supprimer un pattern
+```
+
+### oh policies
+
+Gerer et verifier les policies d'equipe.
+
+```bash
+oh policies list               # lister les policies actives
+oh policies check              # valider le projet contre les policies
+oh policies add                # ajouter une nouvelle policy
+```
+
+---
+
+## Takeover Briefs
+
+### oh takeover-brief
+
+Gerer les briefs de reprise pour les handoffs de tickets. Alias : `tb`.
+
+```bash
+oh takeover-brief show <ticket-id>    # voir le contexte de reprise
+oh takeover-brief list                # lister les briefs disponibles
+oh takeover-brief enrich <ticket-id>  # enrichir avec l'analyse du code
+```
+
+---
+
+## Configuration provider et modeles
+
+### oh provider setup
+
+Configuration interactive des credentials du provider LLM.
+
+```bash
+oh provider setup
+oh provider setup anthropic      # configurer un provider specifique
+```
+
+### oh config model
+
+Gerer les assignations de modeles a differents niveaux.
+
+```bash
+oh config model default <modele>            # definir le defaut global
+oh config model family <famille> <modele>   # definir pour une famille d'agents
+oh config model agent <agent> <modele>      # definir pour un agent specifique
+oh config model show                        # afficher la config actuelle
+oh config model unset <niveau> [nom]        # supprimer un override
+```
+
+---
+
+## Gestion des plugins
+
+### oh plugin
+
+Gerer les plugins installes.
+
+```bash
+oh plugin list                 # lister les plugins installes
+oh plugin install <nom>        # installer un plugin
+oh plugin remove <nom>         # supprimer un plugin
+oh plugin status               # afficher le statut des plugins
+```
+
+---
+
+## Gestion des worktrees
+
+### oh worktree
+
+Gerer les Git worktrees pour les sessions IA paralleles.
+
+```bash
+oh worktree list               # lister les worktrees actifs
+oh worktree add [branche]      # creer un nouveau worktree
+oh worktree remove [chemin]    # supprimer un worktree
+oh worktree cleanup            # supprimer les worktrees merges
+```
+
+| Flag | Description |
+|------|-------------|
+| `--base` | Branche de base (defaut : depuis la config) |
+| `--force` | Forcer la suppression meme si non merge |
+
+---
+
 ## Utilitaires
 
 ### oh version

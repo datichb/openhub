@@ -163,6 +163,82 @@ oh deploy
 | Discover a project | `oh start --onboard` | onboarder |
 | Plan without implementing | `oh start -a planner` | planner |
 | Review a branch | `oh review` | reviewer |
+| Parallel multi-ticket | `oh start --parallel` | orchestrator-dev |
+
+## Commands
+
+### Sessions
+
+| Command | Description |
+|---------|-------------|
+| `oh start` | Launch an AI session (with confirmation) |
+| `oh quick` | Launch immediately (no confirmation) |
+| `oh start --dev` | Dev mode: pick tickets to implement |
+| `oh start --onboard` | Discover and document a codebase |
+| `oh start --parallel` | Parallel sessions on multiple tickets |
+| `oh audit --type <t>` | Code audit (security, performance, architecture, accessibility, ecodesign, observability) |
+| `oh review` | Code review (standard, adversarial, edge-case, complete) |
+| `oh debug --issue "..."` | Debug session |
+
+### Projects & Deployment
+
+| Command | Description |
+|---------|-------------|
+| `oh project add` | Register a new project |
+| `oh project list` | List all projects |
+| `oh project configure` | Configure project settings |
+| `oh project remove` | Unregister a project |
+| `oh deploy` | Deploy agents/skills to project |
+| `oh sync --all` | Sync to all projects |
+
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `oh init` | First-time setup wizard |
+| `oh config list` | Show all settings |
+| `oh config model default <m>` | Set default model |
+| `oh provider setup` | Configure LLM provider credentials |
+| `oh mcp setup` | Configure MCP server tokens |
+| `oh secrets set <key> <val>` | Store a secret |
+
+### Team Collaboration
+
+| Command | Description |
+|---------|-------------|
+| `oh team init` | Set up team features |
+| `oh team claim <id>` | Claim a ticket |
+| `oh team release <id>` | Release a ticket |
+| `oh team status` | Team status overview |
+| `oh team activity` | Recent team events |
+| `oh team board` | Team kanban board |
+| `oh team sync-tracker` | Sync claims to external tracker |
+| `oh teams list` | List all teams |
+| `oh takeover-brief show <id>` | View takeover context |
+
+### Quality & Governance
+
+| Command | Description |
+|---------|-------------|
+| `oh conventions check` | Validate against conventions |
+| `oh patterns list` | List team patterns |
+| `oh policies check` | Validate against policies |
+| `oh worktree list` | List active worktrees |
+
+### System
+
+| Command | Description |
+|---------|-------------|
+| `oh doctor` | Health check (version, credentials, MCP) |
+| `oh status` | Hub and project status |
+| `oh metrics` | Agent usage and cost stats |
+| `oh serve` | Start local web dashboard |
+| `oh export` | Export hub data |
+| `oh import` | Import/restore hub data |
+| `oh repair` | Repair corrupted state |
+| `oh upgrade oh` | Upgrade oh binary |
+| `oh upgrade opencode` | Upgrade opencode binary |
+| `oh plugin list` | List installed plugins |
 
 ---
 
