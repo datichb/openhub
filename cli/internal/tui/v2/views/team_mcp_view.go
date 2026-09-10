@@ -40,26 +40,6 @@ type TeamMCPViewConfig struct {
 	SetSecret func(ctx context.Context, key, value string) error
 }
 
-// Legacy scope types for team_mcp_view (will be removed when migrated to configField).
-type configScope string
-
-const (
-	scopeTeam  configScope = "team"
-	scopeLocal configScope = "local"
-)
-
-// mcpLine represents a single editable field in the MCP config view.
-type mcpLine struct {
-	section string // e.g. "MCP Gitlab"
-	key     string // e.g. "enabled", "url", "token"
-	kind    string // "bool", "string", "password", "section-header", "sub-header"
-	scope   configScope
-	hint    string      // help text when value is empty
-	grayed  func() bool // returns true if field is enforced (non-editable)
-	get     func() string
-	set     func(string)
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // View
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +55,7 @@ type TeamMCPView struct {
 
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
-	lines      []mcpLine
+	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
 	undoStack  *widgets.UndoStack[teamMCPSnapshot]
@@ -148,11 +128,11 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 			v.list.SetBorderPadding(1, 0, 2, 2)
 
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByIndex(index, item)
+				v.onItemSelected(index, item)
 			})
 
-			v.buildLines()
-			v.renderLines()
+			v.buildFields()
+			v.renderFields()
 
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
@@ -190,7 +170,7 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	}
 	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	}
@@ -213,8 +193,8 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 			syncAsync(v.app, repo, v.shell, func(_ error) {
 				v.loadData()
-				v.buildLines()
-				v.renderLines()
+				v.buildFields()
+				v.renderFields()
 				v.dirtyTeam = false
 				v.dirtyLocal = false
 			})
@@ -242,8 +222,8 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 			Description: "Recharger depuis le disque", Category: "MCP",
 			Action: func() {
 				v.loadData()
-				v.buildLines()
-				v.renderLines()
+				v.buildFields()
+				v.renderFields()
 				v.dirtyTeam = false
 				v.dirtyLocal = false
 			},
@@ -287,43 +267,23 @@ func (v *TeamMCPView) loadData() {
 // Build config lines
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamMCPView) buildLines() {
-	v.lines = nil
-
-	urlLabels := map[string]string{
-		"gitlab":  "url (issues/MRs)",
-		"jira":    "url (issues)",
-		"figma":   "url (API)",
-		"gslides": "url (API)",
-	}
-	urlHintsTeam := map[string]string{
-		"gitlab":  "URL instance GitLab pour les issues et MRs",
-		"jira":    "URL instance Jira (ex: https://jira.company.com)",
-		"figma":   "URL API Figma (vide = SaaS public)",
-		"gslides": "URL API Google (vide = SaaS public)",
-	}
-	urlHintsPerso := map[string]string{
-		"gitlab":  "Override perso (vide = utilise celle de l'équipe)",
-		"jira":    "Override perso (vide = utilise celle de l'équipe)",
-		"figma":   "Override perso (vide = SaaS public)",
-		"gslides": "Override perso (vide = SaaS public)",
-	}
+func (v *TeamMCPView) buildFields() {
+	v.fields = nil
 
 	for _, svc := range []string{"gitlab", "jira", "figma", "gslides"} {
 		svc := svc // capture
+		svcTitle := cases.Title(language.Und).String(svc)
 
 		// ── Section header: service name ──
-		v.lines = append(v.lines, mcpLine{
-			kind:    "section-header",
-			section: "MCP " + cases.Title(language.Und).String(svc),
-		})
+		v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: "MCP " + svcTitle})
 
-		// ── Sub-section: Équipe (team-state config.toml) ──
-		v.lines = append(v.lines, mcpLine{kind: "sub-header", section: "Équipe"})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP", key: "enabled", kind: "bool", scope: scopeTeam,
-			get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].Enabled) },
-			set: func(val string) {
+		// ── Sub-section: Team (shared config.toml) ──
+		v.fields = append(v.fields, configField{Kind: CfgFieldSubHeader, Label: i18n.T("tui.config.section.team_shared")})
+		v.fields = append(v.fields, configField{
+			Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Scope: ScopeTeamShared, Section: svc,
+			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].Enabled) },
+			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				b := val == "true"
 				s.Enabled = &b
@@ -331,10 +291,11 @@ func (v *TeamMCPView) buildLines() {
 				v.dirtyTeam = true
 			},
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP", key: "enabled_enforced", kind: "bool", scope: scopeTeam,
-			get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].EnabledEnforced) },
-			set: func(val string) {
+		v.fields = append(v.fields, configField{
+			Key: "enabled_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enforced.label"),
+			Description: i18n.T("tui.config.field.mcp_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
+			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].EnabledEnforced) },
+			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				b := val == "true"
 				s.EnabledEnforced = &b
@@ -342,21 +303,23 @@ func (v *TeamMCPView) buildLines() {
 				v.dirtyTeam = true
 			},
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP", key: urlLabels[svc], kind: "string", scope: scopeTeam,
-			hint: urlHintsTeam[svc],
-			get:  func() string { return v.teamCfg.MCP[svc].URL },
-			set: func(val string) {
+		v.fields = append(v.fields, configField{
+			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
+			Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
+			Get: func() string { return v.teamCfg.MCP[svc].URL },
+			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				s.URL = val
 				v.teamCfg.MCP[svc] = s
 				v.dirtyTeam = true
 			},
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP", key: "url_enforced", kind: "bool", scope: scopeTeam,
-			get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
-			set: func(val string) {
+		v.fields = append(v.fields, configField{
+			Key: "url_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_url_enforced.label"),
+			Description: i18n.T("tui.config.field.mcp_url_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
+			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
+			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				b := val == "true"
 				s.URLEnforced = &b
@@ -364,10 +327,11 @@ func (v *TeamMCPView) buildLines() {
 				v.dirtyTeam = true
 			},
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP", key: "write_recommended", kind: "bool", scope: scopeTeam,
-			get: func() string { return mcpBoolStr(v.teamCfg.MCP[svc].WriteRecommended) },
-			set: func(val string) {
+		v.fields = append(v.fields, configField{
+			Key: "write_recommended", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_write_recommended.label"),
+			Description: i18n.T("tui.config.field.mcp_write_recommended.desc"), Scope: ScopeTeamShared, Section: svc,
+			Get: func() string { return mcpBoolStr(v.teamCfg.MCP[svc].WriteRecommended) },
+			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				s.WriteRecommended = val == "true"
 				v.teamCfg.MCP[svc] = s
@@ -375,30 +339,33 @@ func (v *TeamMCPView) buildLines() {
 			},
 		})
 
-		// ── Sub-section: Personnel (local hub.toml) ──
-		v.lines = append(v.lines, mcpLine{kind: "sub-header", section: "Personnel"})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP.perso", key: "enabled", kind: "bool", scope: scopeLocal,
-			grayed: func() bool { return v.teamCfg.MCP[svc].IsEnabledEnforced() },
-			get:    v.getMCPLocalEnabled(svc),
-			set:    v.setMCPLocalEnabled(svc),
+		// ── Sub-section: Personal (local hub.toml) ──
+		v.fields = append(v.fields, configField{Kind: CfgFieldSubHeader, Label: i18n.T("tui.config.section.personal")})
+		v.fields = append(v.fields, configField{
+			Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+			Locked: func() bool { return v.teamCfg.MCP[svc].IsEnabledEnforced() },
+			Get:    v.getMCPLocalEnabled(svc),
+			Set:    v.setMCPLocalEnabled(svc),
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP.perso", key: urlLabels[svc], kind: "string", scope: scopeLocal,
-			hint:   urlHintsPerso[svc],
-			grayed: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
-			get:    v.getMCPLocalURL(svc),
-			set:    v.setMCPLocalURL(svc),
+		v.fields = append(v.fields, configField{
+			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+			Locked: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
+			Get:    v.getMCPLocalURL(svc),
+			Set:    v.setMCPLocalURL(svc),
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP.perso", key: "token", kind: "password", scope: scopeLocal,
-			get: v.getMCPLocalToken(svc),
-			set: v.setMCPLocalToken(svc),
+		v.fields = append(v.fields, configField{
+			Key: "token", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
+			Description: i18n.T("tui.config.field.mcp_token.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+			Get: v.getMCPLocalToken(svc),
+			Set: v.setMCPLocalToken(svc),
 		})
-		v.lines = append(v.lines, mcpLine{
-			section: "MCP.perso", key: "write_enabled", kind: "bool", scope: scopeLocal,
-			get: v.getMCPLocalWrite(svc),
-			set: v.setMCPLocalWrite(svc),
+		v.fields = append(v.fields, configField{
+			Key: "write_enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_write.label"),
+			Description: i18n.T("tui.config.field.mcp_write.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+			Get: v.getMCPLocalWrite(svc),
+			Set: v.setMCPLocalWrite(svc),
 		})
 	}
 }
@@ -407,172 +374,76 @@ func (v *TeamMCPView) buildLines() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamMCPView) renderLines() {
+func (v *TeamMCPView) renderFields() {
 	if v.list == nil {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
-	ctx := context.Background()
 
-	items := make([]widgets.SectionItem, 0, len(v.lines))
-	for i, line := range v.lines {
-		switch line.kind {
-		case "section-header":
-			title := line.section
-			if i == 0 && (v.dirtyTeam || v.dirtyLocal) {
-				title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-			}
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: title,
-			})
-
-		case "sub-header":
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: line.section,
-			})
-
-		default:
-			val := ""
-			if line.get != nil {
-				val = line.get()
-			}
-
-			display := v.formatValue(val, line, ctx)
-
-			// Handle grayed-out fields (enforced by team)
-			grayedSuffix := ""
-			if line.grayed != nil && line.grayed() {
-				grayedSuffix = fmt.Sprintf("  %s(enforced par l'équipe)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-				rawVal := val
-				if rawVal == "" {
-					rawVal = "(vide)"
-				}
-				display = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), rawVal, theme.TagColor)
-			}
-
-			mainText := fmt.Sprintf("%-22s %s%s", line.key+":", display, grayedSuffix)
-			items = append(items, widgets.SectionItem{
-				MainText:  mainText,
-				Reference: i,
-				Locked:    line.grayed != nil && line.grayed(),
-			})
-		}
+	items := make([]widgets.SectionItem, 0, len(v.fields))
+	for i, f := range v.fields {
+		item := renderConfigItem(f, 28)
+		item.Reference = i
+		items = append(items, item)
 	}
 
 	v.list.SetItems(items)
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
-
-	_ = ctx
-}
-
-func (v *TeamMCPView) formatValue(val string, line mcpLine, ctx context.Context) string {
-	switch line.kind {
-	case "bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag("#FF5252"), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.not_configured"), theme.TagColor)
-		}
-
-	case "password":
-		return v.formatToken(val, ctx)
-
-	default: // string
-		if val == "" {
-			if line.hint != "" {
-				return fmt.Sprintf("%s(vide) ← %s%s", theme.ColorTag(theme.TextMutedHex), line.hint, theme.TagColor)
-			}
-			return fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-		}
-		return val
-	}
-}
-
-func (v *TeamMCPView) formatToken(tokenKey string, ctx context.Context) string {
-	if tokenKey == "" {
-		return fmt.Sprintf("%s(non configuré)%s  %s[✗ non configuré]%s",
-			theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-			theme.ColorTag("#FF5252"), theme.TagColor)
-	}
-	if v.cfg.CheckSecret != nil {
-		present, masked := v.cfg.CheckSecret(ctx, tokenKey)
-		if present {
-			return fmt.Sprintf("%s  %s[✓ configuré]%s", masked, theme.ColorTag(theme.SuccessHex), theme.TagColor)
-		}
-	}
-	return fmt.Sprintf("%s  %s[✗ non configuré]%s", tokenKey, theme.ColorTag("#FF5252"), theme.TagColor)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Editing
+// Editing (delegates to shared editConfigField / toggleConfigField)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamMCPView) editByIndex(index int, item widgets.SectionItem) {
+func (v *TeamMCPView) onItemSelected(_ int, item widgets.SectionItem) {
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	line := v.lines[ref]
-	if line.kind == "section-header" || line.kind == "sub-header" || line.get == nil {
+	f := &v.fields[ref]
+	if !isEditable(f.Kind) || f.Get == nil || v.shell == nil {
 		return
 	}
-	if v.shell == nil {
-		return
-	}
-
-	// Check grayed (enforced by team)
-	if line.grayed != nil && line.grayed() {
-		v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+	if f.Locked != nil && f.Locked() {
+		v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		return
 	}
 
-	switch line.kind {
-	case "bool":
-		v.toggleByRef(ref)
-
-	case "string":
-		cur := line.get()
-		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
-			if line.set != nil {
-				line.set(newVal)
-				v.renderLines()
-			}
-		})
-
-	case "password":
-		tokenKey := line.get()
+	// Password fields: token setup flow
+	if f.Kind == CfgFieldPassword {
+		tokenKey := f.Get()
 		if tokenKey == "" {
-			// Auto-assign default key name based on service
-			svc := v.serviceForLine(ref)
+			// Auto-assign default key name based on service section
+			svc := f.Section
+			if idx := strings.Index(svc, "."); idx >= 0 {
+				svc = svc[:idx]
+			}
 			tokenKey = config.DefaultTokenKeyForService(svc)
-			line.set(tokenKey)
+			f.Set(tokenKey)
 		}
-		v.shell.ShowPasswordModal("Valeur du token ("+tokenKey+")", func(val string) {
+		v.shell.ShowPasswordModal(i18n.T("tui.config.field.mcp_token.label")+" ("+tokenKey+")", func(val string) {
 			if val == "" {
 				return
 			}
 			if v.cfg.SetSecret != nil {
 				ctx := context.Background()
 				if err := v.cfg.SetSecret(ctx, tokenKey, val); err != nil {
-					if v.shell != nil {
-						v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
-					}
+					v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 					return
 				}
 			}
-			v.renderLines()
-			if v.shell != nil {
-				v.shell.ShowToastMsg("✓ Token enregistré", true)
-			}
+			v.renderFields()
+			v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
 		})
+		return
 	}
+
+	v.pushUndo()
+	editConfigField(v.shell, f, func() {
+		v.renderFields()
+	})
 }
 
 func (v *TeamMCPView) toggleSelected() {
@@ -584,47 +455,22 @@ func (v *TeamMCPView) toggleSelected() {
 		return
 	}
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	line := v.lines[ref]
-	if line.grayed != nil && line.grayed() {
+	f := &v.fields[ref]
+	if f.Locked != nil && f.Locked() {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+			v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		}
 		return
 	}
-	if line.kind == "bool" {
-		v.toggleByRef(ref)
-	}
-}
-
-func (v *TeamMCPView) toggleByRef(ref int) {
-	if ref < 0 || ref >= len(v.lines) {
+	if !isToggleable(f.Kind) {
 		return
 	}
-	line := v.lines[ref]
-	if line.kind != "bool" || line.set == nil {
-		return
-	}
-	cur := line.get()
-	if cur == "true" {
-		line.set("false")
-	} else {
-		line.set("true")
-	}
-	v.renderLines()
-}
-
-// serviceForLine determines which MCP service a line belongs to
-// by walking backward through lines to find the last section header.
-func (v *TeamMCPView) serviceForLine(lineIdx int) string {
-	for i := lineIdx; i >= 0; i-- {
-		if v.lines[i].kind == "section-header" && strings.HasPrefix(v.lines[i].section, "MCP ") {
-			return strings.ToLower(strings.TrimPrefix(v.lines[i].section, "MCP "))
-		}
-	}
-	return "gitlab"
+	v.pushUndo()
+	toggleConfigField(f)
+	v.renderFields()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -640,11 +486,15 @@ func (v *TeamMCPView) testConnection() {
 		return
 	}
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
 
-	svc := v.serviceForLine(ref)
+	// Determine service from field's Section (e.g. "gitlab", "gitlab.perso")
+	svc := v.fields[ref].Section
+	if idx := strings.Index(svc, "."); idx >= 0 {
+		svc = svc[:idx]
+	}
 	if svc == "" {
 		v.shell.ShowToastMsg("Sélectionnez un champ dans une section MCP", false)
 		return
@@ -688,8 +538,8 @@ func (v *TeamMCPView) undo() {
 	v.localMCP = prev.localMCP
 	v.dirtyTeam = v.undoStack.Len() > 0
 	v.dirtyLocal = v.undoStack.Len() > 0
-	v.buildLines()
-	v.renderLines()
+	v.buildFields()
+	v.renderFields()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
@@ -733,7 +583,7 @@ func (v *TeamMCPView) save() {
 		return
 	}
 	v.shell.ShowToastMsg(fmt.Sprintf("✓ Sauvegardé: %s", strings.Join(saved, " + ")), true)
-	v.renderLines()
+	v.renderFields()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
