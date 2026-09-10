@@ -1292,13 +1292,13 @@
   "tui.config.field.mcp_url.placeholder": "https://gitlab.example.com",
 
   "tui.config.field.auto_cleanup.label": "Nettoyage automatique",
-  "tui.config.field.auto_cleanup.desc": "Supprime automatiquement les worktrees des sessions terminées",
+  "tui.config.field.auto_cleanup.desc": "Au démarrage d'une session, supprime les worktrees dont la branche est déjà mergée (les worktrees modifiés sont conservés)",
   "tui.config.field.base_branch.label": "Branche de base",
-  "tui.config.field.base_branch.desc": "Branche source pour les nouveaux worktrees",
+  "tui.config.field.base_branch.desc": "Branche source pour les worktrees. Laisser vide = auto-détecté (main ou master)",
   "tui.config.field.base_branch.placeholder": "main",
   "tui.config.field.branch_pattern.label": "Pattern de branche",
-  "tui.config.field.branch_pattern.desc": "Format des noms de branches créées automatiquement",
-  "tui.config.field.branch_pattern.placeholder": "feat/{{ticket}}-{{slug}}",
+  "tui.config.field.branch_pattern.desc": "Format des noms de branches. %s est remplacé par l'ID du ticket. Vide = auto-détecté depuis les branches existantes",
+  "tui.config.field.branch_pattern.placeholder": "feat/%s",
 
   "tui.config.field.tracker_enabled.label": "Tracker activé",
   "tui.config.field.tracker_enabled.desc": "Active la synchronisation avec le tracker externe",

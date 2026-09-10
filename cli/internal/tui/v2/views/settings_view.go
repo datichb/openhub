@@ -236,23 +236,13 @@ func (v *SettingsView) buildFields() {
 	}
 
 	v.fields = []configField{
-		// ── Raccourcis (first section — immediately visible) ─────────────────
-		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.shortcuts")},
-		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "models",
-			Get: func() string { return "" }},
-		{Key: "teams", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.teams"), LinkTarget: "teams",
-			Get: func() string { return "" }},
-		{Key: "provider", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.provider"), LinkTarget: "provider",
-			Get: func() string { return "" }},
-		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
-			Get: func() string { return "" }},
-
 		// ── General ─────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.general")},
-		{Key: "name", Kind: CfgFieldString, Label: i18n.T("tui.config.field.name.label"),
+		{Key: "name", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.name.label"),
 			Description: i18n.T("tui.config.field.name.desc"),
-			Get:         func() string { return v.live.Name },
-			Set:         func(val string) { v.live.Name = val }},
+			Get:         func() string { return v.live.Name }},
+		{Key: "teams", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.teams"), LinkTarget: "teams",
+			Get: func() string { return "" }},
 
 		// ── CLI ─────────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.cli")},
@@ -291,6 +281,10 @@ func (v *SettingsView) buildFields() {
 			}, AllowEmpty: true},
 			Get: func() string { return v.live.Opencode.DefaultProvider },
 			Set: func(val string) { v.live.Opencode.DefaultProvider = val }},
+		{Key: "provider", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.provider"), LinkTarget: "provider",
+			Get: func() string { return "" }},
+		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "models",
+			Get: func() string { return "" }},
 
 		// ── Deploy ──────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.deploy")},
@@ -302,6 +296,8 @@ func (v *SettingsView) buildFields() {
 				}
 				return fmt.Sprintf("%v", v.live.Deploy.DisableNativeAgents)
 			}},
+		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+			Get: func() string { return "" }},
 
 		// ── MCP GitLab ──────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.mcp_gitlab")},
@@ -378,69 +374,53 @@ func (v *SettingsView) buildFields() {
 			Get:         func() string { return v.live.Worktree.BranchPattern },
 			Set:         func(val string) { v.live.Worktree.BranchPattern = val }},
 
-		// ── Tracker (hub level = TriDefault, NOT TriBool) ───────────────────
+		// ── Tracker (hub level = simple bool, NOT tri-state) ────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")},
-		{Key: "enabled", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.tracker_enabled.label"),
+		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
 			Description: i18n.T("tui.config.field.tracker_enabled.desc"),
 			Get: func() string {
 				if v.live.Tracker.Enabled == nil {
-					return ""
+					return "false"
 				}
 				return boolStr(*v.live.Tracker.Enabled)
 			},
 			Set: func(val string) {
-				if val == "" {
-					v.live.Tracker.Enabled = nil
-					return
-				}
 				b := val == "true"
 				v.live.Tracker.Enabled = &b
 			}},
-		{Key: "auto_sync", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.auto_sync.label"),
+		{Key: "auto_sync", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_sync.label"),
 			Description: i18n.T("tui.config.field.auto_sync.desc"),
 			Get: func() string {
 				if v.live.Tracker.AutoSync == nil {
-					return ""
+					return "false"
 				}
 				return boolStr(*v.live.Tracker.AutoSync)
 			},
 			Set: func(val string) {
-				if val == "" {
-					v.live.Tracker.AutoSync = nil
-					return
-				}
 				b := val == "true"
 				v.live.Tracker.AutoSync = &b
 			}},
-		{Key: "push_labels", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.push_labels.label"),
+		{Key: "push_labels", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels.label"),
 			Description: i18n.T("tui.config.field.push_labels.desc"),
 			Get: func() string {
 				if v.live.Tracker.PushLabels == nil {
-					return ""
+					return "false"
 				}
 				return boolStr(*v.live.Tracker.PushLabels)
 			},
 			Set: func(val string) {
-				if val == "" {
-					v.live.Tracker.PushLabels = nil
-					return
-				}
 				b := val == "true"
 				v.live.Tracker.PushLabels = &b
 			}},
-		{Key: "auto_plan_assigned", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
+		{Key: "auto_plan_assigned", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
 			Description: i18n.T("tui.config.field.auto_plan_assigned.desc"),
 			Get: func() string {
 				if v.live.Tracker.AutoPlanAssigned == nil {
-					return ""
+					return "false"
 				}
 				return boolStr(*v.live.Tracker.AutoPlanAssigned)
 			},
 			Set: func(val string) {
-				if val == "" {
-					v.live.Tracker.AutoPlanAssigned = nil
-					return
-				}
 				b := val == "true"
 				v.live.Tracker.AutoPlanAssigned = &b
 			}},

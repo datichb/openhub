@@ -205,17 +205,6 @@ func (v *ProjectConfigView) buildFields() {
 	}
 
 	v.fields = []configField{
-		// ── Shortcuts (first section) ───────────────────────────────────────
-		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.shortcuts")},
-		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
-			Get: func() string { return "" }},
-		{Key: "agents", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.agents"), LinkTarget: "project.agents",
-			Get: func() string { return "" }},
-		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "project.models",
-			Get: func() string { return "" }},
-		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
-			Get: func() string { return "" }},
-
 		// ── General ─────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.general")},
 		{Key: "id", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.project_id.label"),
@@ -248,6 +237,10 @@ func (v *ProjectConfigView) buildFields() {
 			Options:     statusOptions,
 			Get:         func() string { return string(v.live.Status) },
 			Set:         func(val string) { v.live.Status = domain.ProjectStatus(val) }},
+		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "project.models",
+			Get: func() string { return "" }},
+		{Key: "agents", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.agents"), LinkTarget: "project.agents",
+			Get: func() string { return "" }},
 
 		// ── Team ────────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.team")},
@@ -314,6 +307,10 @@ func (v *ProjectConfigView) buildFields() {
 				}
 				v.live.TrackerConfig.TicketPattern = val
 			}},
+		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
+			Get: func() string { return "" }},
+		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+			Get: func() string { return "" }},
 	}
 }
 
