@@ -98,7 +98,6 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.list.ShowSecondaryText(false)
 	v.list.SetBorderPadding(1, 0, 2, 2)
 
 	v.list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {

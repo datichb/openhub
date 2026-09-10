@@ -200,10 +200,10 @@ func (v *HomeView) buildItems() []homeItem {
 	if v.cfg.ListTeams != nil {
 		teams := v.cfg.ListTeams()
 		if len(teams) > 0 {
-			items = append(items, homeItem{Icon: "─", Label: "Équipes", Desc: ""})
+			items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""})
 			for _, t := range teams {
 				team := t // capture
-				desc := fmt.Sprintf("%d membres · %d en cours", team.MemberCount, team.ActiveCount)
+				desc := i18n.Tf("tui.home.team_desc", team.MemberCount, team.ActiveCount)
 				items = append(items, homeItem{
 					Icon:  "◫",
 					Label: team.Name,
@@ -222,12 +222,12 @@ func (v *HomeView) buildItems() []homeItem {
 	if v.cfg.ListProjects != nil {
 		projects := v.cfg.ListProjects()
 		if len(projects) > 0 {
-			items = append(items, homeItem{Icon: "─", Label: "Projets", Desc: ""})
+			items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""})
 			for _, p := range projects {
 				proj := p // capture
 				desc := proj.Path
 				if proj.ActiveCount > 0 {
-					desc = fmt.Sprintf("%d en cours · %s", proj.ActiveCount, proj.Path)
+					desc = i18n.Tf("tui.home.project_active", proj.ActiveCount, proj.Path)
 				}
 				if proj.ActiveBranch != "" {
 					desc += fmt.Sprintf(" · %s", proj.ActiveBranch)
@@ -250,11 +250,11 @@ func (v *HomeView) buildItems() []homeItem {
 	}
 
 	// ── System / navigation ──
-	items = append(items, homeItem{Icon: "─", Label: "Système", Desc: ""})
+	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
 	items = append(items,
-		homeItem{Icon: "⊟", Label: "Settings", Desc: "Configuration du hub", ViewID: "settings"},
-		homeItem{Icon: "◎", Label: "Métriques", Desc: "Statistiques d'usage", ViewID: "metrics"},
-		homeItem{Icon: "⊛", Label: "Worktrees", Desc: "Git worktrees", ViewID: "worktrees"},
+		homeItem{Icon: "⊟", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
+		homeItem{Icon: "◎", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
+		homeItem{Icon: "⊛", Label: i18n.T("tui.home.worktrees"), Desc: i18n.T("tui.home.worktrees_desc"), ViewID: "worktrees"},
 	)
 
 	return items
@@ -267,10 +267,10 @@ func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
 	projIdx := -1
 	sysIdx := -1
 	for i, it := range v.items {
-		if it.Icon == "─" && it.Label == "Projets" {
+		if it.Icon == "─" && it.Label == i18n.T("tui.home.section.projects") {
 			projIdx = i
 		}
-		if it.Icon == "─" && it.Label == "Système" {
+		if it.Icon == "─" && it.Label == i18n.T("tui.home.section.system") {
 			sysIdx = i
 		}
 	}
@@ -326,11 +326,11 @@ func buildShortcutsFooter() string {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	return fmt.Sprintf("\n%s%sCtrl+P%s commandes  %s?%s aide  %sCtrl+T%s mode équipe  %sCtrl+Q%s quitter",
+	return fmt.Sprintf("\n%s%sCtrl+P%s %s  %s?%s %s  %sCtrl+T%s %s  %sCtrl+Q%s %s",
 		muted,
-		accent, reset,
-		accent, reset,
-		accent, reset,
-		accent, reset,
+		accent, reset, i18n.T("tui.home.shortcut.commands"),
+		accent, reset, i18n.T("tui.home.shortcut.help"),
+		accent, reset, i18n.T("tui.home.shortcut.team_mode"),
+		accent, reset, i18n.T("tui.home.shortcut.quit"),
 	)
 }
