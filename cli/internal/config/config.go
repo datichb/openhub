@@ -2,17 +2,25 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 )
+
+// ErrExternalModification is returned by Save when the hub.toml file has been
+// modified externally (e.g. by a CLI command or another TUI instance) since the
+// last save or load performed by this process. Callers should reload from disk
+// before retrying.
+var ErrExternalModification = errors.New("hub.toml modified externally")
 
 // Config represents the hub configuration.
 type Config struct {
@@ -242,6 +250,9 @@ var (
 	cfgOnce sync.Once
 	cfgErr  error
 	cfgMu   sync.Mutex
+	// lastSaveMtime tracks the mtime of hub.toml after the last Save or Load
+	// by this process. Used to detect external modifications before auto-save.
+	lastSaveMtime time.Time
 )
 
 // Default keychain key names for MCP service tokens (ADR-030 convention).
@@ -348,6 +359,10 @@ func Load() (*Config, error) {
 		if cfgErr == nil && len(cfg.Teams) > 0 {
 			cfg.Team = TeamConfig{}
 		}
+		// Record mtime for external modification detection.
+		if cfgErr == nil {
+			recordMtime()
+		}
 	})
 	return cfg, cfgErr
 }
@@ -360,11 +375,15 @@ func Reset() {
 	cfgOnce = sync.Once{}
 	cfg = nil
 	cfgErr = nil
+	lastSaveMtime = time.Time{}
 }
 
 // Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
 // The write is atomic (tmp file + rename) to prevent corruption on crash.
 // After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
+//
+// If the file was modified externally since the last Save/Load by this process,
+// ErrExternalModification is returned. The caller should reload before retrying.
 func Save(c *Config) error {
 	// Validate teams before persisting
 	if len(c.Teams) > 0 {
@@ -375,6 +394,11 @@ func Save(c *Config) error {
 
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
+
+	// Check for external modifications before writing.
+	if err := checkExternalModification(); err != nil {
+		return err
+	}
 
 	data, err := toml.Marshal(c)
 	if err != nil {
@@ -397,9 +421,41 @@ func Save(c *Config) error {
 		return fmt.Errorf("renaming hub.toml tmp: %w", err)
 	}
 
+	// Record the new mtime after successful write.
+	recordMtime()
+
 	// Invalidate the cache so the next Load() reflects the new state.
 	cfgOnce = sync.Once{}
 	cfg = nil
 	cfgErr = nil
 	return nil
+}
+
+// checkExternalModification detects whether hub.toml was modified by another
+// process since we last read or wrote it. Must be called under cfgMu.
+func checkExternalModification() error {
+	if lastSaveMtime.IsZero() {
+		return nil // first save, nothing to compare against
+	}
+	path := ConfigPath()
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // file deleted externally — we'll recreate it
+		}
+		return fmt.Errorf("stat hub.toml: %w", err)
+	}
+	if info.ModTime().After(lastSaveMtime.Add(time.Millisecond)) {
+		return ErrExternalModification
+	}
+	return nil
+}
+
+// recordMtime records the current mtime of hub.toml. Must be called under cfgMu
+// (or during Load's sync.Once).
+func recordMtime() {
+	path := ConfigPath()
+	if info, err := os.Stat(path); err == nil {
+		lastSaveMtime = info.ModTime()
+	}
 }
