@@ -266,6 +266,9 @@ func (v *workflowView) Unmount() {
 }
 
 func (v *workflowView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.graph == nil {
+		return event
+	}
 	if v.cfg.IsLocked != nil && v.cfg.IsLocked() {
 		return event // readonly — pass through
 	}

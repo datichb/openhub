@@ -53,7 +53,6 @@ type ProviderView struct {
 
 	lines            []providerConfigLine
 	selectedProvider string // currently selected provider for detail section
-	dirty            bool
 	rendering        bool // true while renderList is executing — suppresses handleChanged cascades
 
 	// Caches populated off the event loop (goroutine) then consumed on the
@@ -88,14 +87,13 @@ func (v *ProviderView) Title() string { return "Provider" }
 
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · s %s · d reset · w %s · r %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · s %s · d reset · r %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.setup"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.refresh"),
 	)
 }
@@ -105,7 +103,6 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -157,15 +154,15 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *ProviderView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.provider.unsaved"), false)
-	}
 	v.app = nil
 	v.list = nil
 }
 
 // HandleKey processes provider view key events.
 func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list == nil {
+		return event
+	}
 	switch event.Rune() {
 	case ' ':
 		v.setAsDefault()
@@ -178,9 +175,6 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'd':
 		v.resetCurrentProvider()
-		return nil
-	case 'w':
-		v.save()
 		return nil
 	case 'r':
 		v.refresh()
@@ -546,7 +540,6 @@ func (v *ProviderView) editCurrent() {
 		v.shell.ShowSelectModal(line.key, line.options, cur, func(newVal string) {
 			if line.set != nil {
 				line.set(cfg, newVal)
-				v.dirty = true
 				v.buildLines() // Rebuild because visibility may change (e.g., auth_mode)
 				v.renderList()
 			}
@@ -560,7 +553,6 @@ func (v *ProviderView) editCurrent() {
 		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
 			if line.set != nil {
 				line.set(cfg, newVal)
-				v.dirty = true
 				v.renderList()
 			}
 		})
@@ -615,7 +607,6 @@ func (v *ProviderView) setAsDefault() {
 
 	cfg := v.vcfg.GetConfig()
 	cfg.Opencode.DefaultProvider = line.provider
-	v.dirty = true
 	v.renderList()
 	v.shell.ShowToastMsg(i18n.Tf("tui.provider.set_default", line.provider), true)
 }
@@ -661,24 +652,10 @@ func (v *ProviderView) resetCurrentProvider() {
 			if cfg.Opencode.DefaultProvider == name {
 				cfg.Opencode.DefaultProvider = ""
 			}
-			v.dirty = true
 			v.buildLines()
 			v.renderList()
 			v.shell.ShowToastMsg(i18n.Tf("tui.provider.reset_done", name), true)
 		})
-}
-
-func (v *ProviderView) save() {
-	if v.shell == nil {
-		return
-	}
-	cfg := v.vcfg.GetConfig()
-	if err := v.vcfg.SaveConfig(cfg); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.provider.save_error")+": "+err.Error(), false)
-		return
-	}
-	v.dirty = false
-	v.shell.ShowToastMsg(i18n.T("tui.provider.saved"), true)
 }
 
 func (v *ProviderView) refresh() {
@@ -766,7 +743,6 @@ func (v *ProviderView) setupBedrock() {
 					}
 					cfg.Opencode.DefaultProvider = "bedrock"
 					_ = v.vcfg.SaveConfig(cfg)
-					v.dirty = false
 					v.buildLines()
 					v.renderList()
 					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_bearer"), true)
@@ -788,7 +764,6 @@ func (v *ProviderView) setupBedrock() {
 					}
 					cfg.Opencode.DefaultProvider = "bedrock"
 					_ = v.vcfg.SaveConfig(cfg)
-					v.dirty = false
 					v.buildLines()
 					v.renderList()
 					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_profile"), true)
@@ -797,7 +772,6 @@ func (v *ProviderView) setupBedrock() {
 		case "env":
 			cfg.Opencode.DefaultProvider = "bedrock"
 			_ = v.vcfg.SaveConfig(cfg)
-			v.dirty = false
 			v.buildLines()
 			v.renderList()
 			v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_env"), true)
@@ -817,7 +791,6 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 		cfg := v.vcfg.GetConfig()
 		cfg.Opencode.DefaultProvider = string(name)
 		_ = v.vcfg.SaveConfig(cfg)
-		v.dirty = false
 		v.buildLines()
 		v.renderList()
 		v.shell.ShowToastMsg(i18n.Tf("tui.provider.configured", string(name)), true)
@@ -845,12 +818,6 @@ func (v *ProviderView) buildCommands() {
 			Aliases:     []string{"rafraîchir", "reload", "refresh"},
 			Description: i18n.T("tui.provider.cmd_refresh"), Category: "Provider",
 			Action: v.refresh,
-		},
-		{
-			ID: "provider.save", Label: i18n.T("tui.hints.save"),
-			Aliases:     []string{"save", "write", "sauvegarder"},
-			Description: i18n.T("tui.provider.cmd_save"), Category: "Provider",
-			Action: v.save,
 		},
 	}
 	for _, name := range provider.AllProviders() {
