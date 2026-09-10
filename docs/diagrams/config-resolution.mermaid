@@ -1,0 +1,30 @@
+%% D7: Config Resolution Decision Tree
+%% Decision tree showing the priority order for resolving a configuration value.
+%% Team ENFORCED policies take top priority, then project overrides, hub values,
+%% team RECOMMENDED defaults, and finally the system default.
+
+flowchart TD
+    Start([Resolve config value]) --> Q1{Team ENFORCED\npolicy exists?}
+
+    Q1 -- Yes --> R1([Use team ENFORCED value])
+    Q1 -- No --> Q2{Project override\nexists?}
+
+    Q2 -- Yes --> R2([Use project value])
+    Q2 -- No --> Q3{Hub value\nexists?}
+
+    Q3 -- Yes --> R3([Use hub value])
+    Q3 -- No --> Q4{Team RECOMMENDED\ndefault exists?}
+
+    Q4 -- Yes --> R4([Use team RECOMMENDED default])
+    Q4 -- No --> R5([Use system default])
+
+    style Start fill:#4a90d9,color:#fff
+    style R1 fill:#e74c3c,color:#fff
+    style R2 fill:#2ecc71,color:#fff
+    style R3 fill:#27ae60,color:#fff
+    style R4 fill:#f39c12,color:#fff
+    style R5 fill:#95a5a6,color:#fff
+    style Q1 fill:#fce4ec
+    style Q2 fill:#e8f5e9
+    style Q3 fill:#e8f5e9
+    style Q4 fill:#fff3e0

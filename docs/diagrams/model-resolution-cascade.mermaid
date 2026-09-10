@@ -1,0 +1,67 @@
+%% D6: Model Resolution Cascade
+%% Waterfall flowchart showing the 10-level model resolution order.
+%% Each level checks for a match; if found, resolution stops.
+%% Otherwise it falls through to the next level.
+
+flowchart TD
+    Start([Model resolution request]) --> L1
+
+    L1[/"1. Project — agent-level override"/]
+    L1 --> Q1{Match found?}
+    Q1 -- Yes --> Stop1([Use this model])
+    Q1 -- No --> L2
+
+    L2[/"2. Project — family-level override"/]
+    L2 --> Q2{Match found?}
+    Q2 -- Yes --> Stop2([Use this model])
+    Q2 -- No --> L3
+
+    L3[/"3. Project — default model"/]
+    L3 --> Q3{Match found?}
+    Q3 -- Yes --> Stop3([Use this model])
+    Q3 -- No --> L4
+
+    L4[/"4. Hub — agent-level override"/]
+    L4 --> Q4{Match found?}
+    Q4 -- Yes --> Stop4([Use this model])
+    Q4 -- No --> L5
+
+    L5[/"5. Hub — family-level override"/]
+    L5 --> Q5{Match found?}
+    Q5 -- Yes --> Stop5([Use this model])
+    Q5 -- No --> L6
+
+    L6[/"6. Hub — default model"/]
+    L6 --> Q6{Match found?}
+    Q6 -- Yes --> Stop6([Use this model])
+    Q6 -- No --> L7
+
+    L7[/"7. Team — agent-level override"/]
+    L7 --> Q7{Match found?}
+    Q7 -- Yes --> Stop7([Use this model])
+    Q7 -- No --> L8
+
+    L8[/"8. Team — family-level override"/]
+    L8 --> Q8{Match found?}
+    Q8 -- Yes --> Stop8([Use this model])
+    Q8 -- No --> L9
+
+    L9[/"9. Team — default model"/]
+    L9 --> Q9{Match found?}
+    Q9 -- Yes --> Stop9([Use this model])
+    Q9 -- No --> L10
+
+    L10[/"10. Agent frontmatter floor"/]
+    L10 --> Stop10([Use frontmatter default])
+
+    style Start fill:#4a90d9,color:#fff
+    style Stop1 fill:#2ecc71,color:#fff
+    style Stop2 fill:#2ecc71,color:#fff
+    style Stop3 fill:#2ecc71,color:#fff
+    style Stop4 fill:#2ecc71,color:#fff
+    style Stop5 fill:#2ecc71,color:#fff
+    style Stop6 fill:#2ecc71,color:#fff
+    style Stop7 fill:#2ecc71,color:#fff
+    style Stop8 fill:#2ecc71,color:#fff
+    style Stop9 fill:#2ecc71,color:#fff
+    style Stop10 fill:#e67e22,color:#fff

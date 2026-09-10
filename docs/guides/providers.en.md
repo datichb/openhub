@@ -10,7 +10,7 @@ This guide covers how OpenCode Hub resolves LLM providers, manages API tokens, a
 |----------|---------|-------------|
 | **bedrock** (default) | AWS Bedrock | AWS Bearer Token (via keychain) |
 | **anthropic** | Anthropic API | API Key (via env or keychain) |
-| **openai** | OpenAI / OpenRouter | API Key |
+| **github-copilot** | GitHub Copilot | OAuth |
 | **openrouter** | OpenRouter | API Key |
 
 ## Provider Resolution Order
@@ -63,7 +63,7 @@ oh project configure my-project --provider anthropic --model claude-sonnet-4-5
 Tokens are stored in the OS keychain. Configure via:
 
 ```bash
-oh service setup
+oh mcp setup
 # Select the provider -> enter your bearer token
 # Stored under key: bedrock-token-default (or bedrock-token-<project-id>)
 ```
@@ -98,13 +98,13 @@ Or configure via environment variables that opencode reads directly.
 MCP servers (Figma, GitLab, Google Slides) need their own tokens:
 
 ```bash
-oh service setup
+oh mcp setup
 ```
 
 Per-project configuration (overrides hub):
 
 ```bash
-oh service setup --project my-project
+oh mcp setup --project my-project
 ```
 The token is stored in the keychain with a project-specific key.
 
@@ -172,7 +172,7 @@ oh start --provider anthropic
 oh config set opencode.default_provider anthropic
 
 # Permanently (one project)
-oh project configure my-project --provider openai
+oh project configure my-project --provider github-copilot
 oh deploy -p my-project   # re-deploy to apply
 ```
 
@@ -187,7 +187,7 @@ oh config list             # shows all hub config including provider
 ## Security Best Practices
 
 - Never store API keys in plain text files
-- Use `oh service setup` which stores in OS keychain
+- Use `oh mcp setup` which stores in OS keychain
 - For CI/headless: use `OH_PASSPHRASE` env var for the encrypted fallback
 - Bedrock tokens are injected per-session, never written to disk
 - `opencode.json` may contain provider options but should be gitignored
@@ -196,8 +196,8 @@ oh config list             # shows all hub config including provider
 
 | Problem | Solution |
 |---------|----------|
-| "Token not configured" | Run `oh service setup` |
-| Provider not recognized | Check spelling: bedrock, anthropic, openai, openrouter |
+| "Token not configured" | Run `oh mcp setup` |
+| Provider not recognized | Check spelling: bedrock, anthropic, openrouter, github-copilot |
 | Wrong model | Use `oh project configure --model <name>` then `oh deploy` |
 | Keychain access denied | Grant terminal access in System Preferences > Privacy |
 | Fallback store errors | Check `OH_PASSPHRASE` or re-enter when prompted |

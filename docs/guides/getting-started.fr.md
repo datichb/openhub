@@ -42,7 +42,7 @@ Aucun besoin de Node.js, jq, sqlite3, bun ou Python. Le binaire Go est autonome.
 
 ## Installation
 
-**Plateformes supportees :** macOS (darwin), Linux et Windows — amd64 et arm64.
+**Plateformes supportees :** macOS (darwin) et Linux — amd64 et arm64.
 
 **Homebrew (recommande — macOS/Linux) :**
 
@@ -54,12 +54,6 @@ brew install datichb/tap/openhub
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
-```
-
-**Windows (PowerShell) :**
-
-```powershell
-irm https://raw.githubusercontent.com/datichb/openhub/main/install.ps1 | iex
 ```
 
 **Depuis les sources :**

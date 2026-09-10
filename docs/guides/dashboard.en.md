@@ -16,21 +16,13 @@
 oh serve
 ```
 
-Starts the dashboard on `http://127.0.0.1:4747`. Open in any browser.
+Starts the dashboard on `http://127.0.0.1:8080`. Open in any browser.
 
 ### Custom port
 
 ```bash
 oh serve --port 9090
 ```
-
-### Read-write mode
-
-```bash
-oh serve --readonly=false
-```
-
-In read-write mode, the API endpoints accept `POST` and `DELETE` requests for session management. Read-only mode (default) accepts only `GET` requests.
 
 ### Stop the server
 
@@ -102,16 +94,16 @@ The dashboard exposes a REST API for programmatic access:
 
 ```bash
 # Health check
-curl http://127.0.0.1:4747/api/v1/health
+curl http://127.0.0.1:8080/api/v1/health
 
 # List all projects
-curl http://127.0.0.1:4747/api/v1/projects
+curl http://127.0.0.1:8080/api/v1/projects
 
 # List last 10 sessions for a specific project
-curl "http://127.0.0.1:4747/api/v1/sessions?project=my-project&limit=10"
+curl "http://127.0.0.1:8080/api/v1/sessions?project=my-project&limit=10"
 
 # Get agent telemetry
-curl http://127.0.0.1:4747/api/v1/metrics/agents
+curl http://127.0.0.1:8080/api/v1/metrics/agents
 ```
 
 ### Health response example
@@ -173,10 +165,10 @@ Use the agent telemetry table to identify agents with high failure rates or unus
 
 ```bash
 # Export all agent telemetry to JSON
-curl http://127.0.0.1:4747/api/v1/metrics/agents > agent-metrics.json
+curl http://127.0.0.1:8080/api/v1/metrics/agents > agent-metrics.json
 
 # Export all sessions from the last 7 days (requires jq)
-curl "http://127.0.0.1:4747/api/v1/sessions?limit=1000" | \
+curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
   jq '[.[] | select(.started_at > "2026-07-15T00:00:00Z")]' > sessions-week.json
 ```
 

@@ -299,7 +299,7 @@ clone a été tenté. L'erreur apparaîtra dans la vue Notifications au prochain
 Les claims suivent un cycle de vie en 5 statuts :
 
 ```
-oh claim --planned → planned → (oh start --dev) → in_progress → review → done
+oh team claim --planned → planned → (oh start --dev) → in_progress → review → done
                                                               ↘ blocked
 ```
 
@@ -313,19 +313,19 @@ oh claim --planned → planned → (oh start --dev) → in_progress → review �
 
 ```bash
 # Réserver un ticket et démarrer immédiatement (statut : in_progress)
-oh claim SRU-142
+oh team claim SRU-142
 
 # Réserver pour plus tard sans démarrer (statut : planned, colonne TODO)
-oh claim SRU-142 --planned
+oh team claim SRU-142 --planned
 
 # Avec branche associée
-oh claim SRU-142 --worktree feat/SRU-142-user-auth
+oh team claim SRU-142 --worktree feat/SRU-142-user-auth
 
 # Libérer quand c'est terminé
-oh release SRU-142
+oh team release SRU-142
 
 # Transférer à un autre membre
-oh claim transfer SRU-142 --to alice
+oh team claim transfer SRU-142 --to alice
 ```
 
 > **Note :** Démarrer une session sur un ticket déjà claimé en `planned` (`oh start --dev`) le fait passer automatiquement en `in_progress`.
@@ -464,7 +464,7 @@ travail sans perte d'information.
 
 ```bash
 # Le brief est généré automatiquement au transfert
-oh claim transfer SRU-142 --to alice
+oh team claim transfer SRU-142 --to alice
 # → Brief de reprise généré. oh takeover-brief show SRU-142
 ```
 
@@ -473,7 +473,7 @@ dans `config.toml`), le hub détecte le ticket comme "stale" et propose de
 générer un brief lors du reclaim :
 
 ```bash
-oh claim SRU-142
+oh team claim SRU-142
 # → SRU-142 est assigné à benjamin depuis 5 jours sans activité.
 # → Générer un brief de reprise et transférer ? [Y/n]
 ```
@@ -643,7 +643,7 @@ oh teams remove <team-id>
 Retirer l'affiliation d'un projet sans supprimer l'équipe :
 
 ```bash
-oh teams detach <team-id> --project <project-id>
+oh teams detach <project-name>
 ```
 
 ### Archiver / Restaurer une équipe

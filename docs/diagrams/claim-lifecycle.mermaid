@@ -1,0 +1,20 @@
+%% D9: Claim Lifecycle
+%% State diagram showing the 5-status claim lifecycle.
+%% Main flow: planned -> in_progress -> review -> done
+%% Blocked is accessible from in_progress and review,
+%% and returns to in_progress.
+
+stateDiagram-v2
+    [*] --> planned
+
+    planned --> in_progress : Start work
+
+    in_progress --> review : Submit for review
+    in_progress --> blocked : Blocked
+
+    review --> done : Approved
+    review --> blocked : Blocked
+
+    blocked --> in_progress : Unblocked
+
+    done --> [*]

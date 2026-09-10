@@ -1,0 +1,22 @@
+%% D10: Beads Ticket Lifecycle
+%% State diagram showing the 6-status Beads ticket lifecycle.
+%% Main flow: open -> in_progress -> review -> closed
+%% Blocked is accessible from in_progress.
+%% Cancelled is accessible from open and in_progress.
+
+stateDiagram-v2
+    [*] --> open
+
+    open --> in_progress : Start work
+    open --> cancelled : Cancel
+
+    in_progress --> review : Submit for review
+    in_progress --> blocked : Blocked
+    in_progress --> cancelled : Cancel
+
+    blocked --> in_progress : Unblocked
+
+    review --> closed : Approved & merged
+
+    closed --> [*]
+    cancelled --> [*]

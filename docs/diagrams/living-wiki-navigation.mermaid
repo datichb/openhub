@@ -1,0 +1,30 @@
+%% D14: Living Wiki Navigation
+%% Flowchart showing the wiki page navigation and trust evaluation flow,
+%% plus the god node detection process.
+
+flowchart TD
+    subgraph Navigation["Page navigation flow"]
+        T([Task arrives]) --> R1[Read index.md]
+        R1 --> R2[Identify target page]
+        R2 --> R3[Read page]
+        R3 --> Q1{Confidence tag\npresent?}
+        Q1 -- Yes --> Trust([Trust content\nProceed with task])
+        Q1 -- No --> Flag([Flag for enrichment\nMark page as stale])
+    end
+
+    subgraph GodNode["God node detection"]
+        C1[Concept appears\nin page A] --> Check{Concept found\nin >= 2 pages?}
+        C2[Concept appears\nin page B] --> Check
+        Check -- Yes --> Candidate[Candidate god node]
+        Candidate --> Eval{Evaluate\ncriticality}
+        Eval -- High --> Create([Create dedicated\ngod node page])
+        Eval -- Low --> Skip([Leave as\ninline reference])
+        Check -- No --> Ignore([Not a god node])
+    end
+
+    style T fill:#4a90d9,color:#fff
+    style Trust fill:#2ecc71,color:#fff
+    style Flag fill:#e74c3c,color:#fff
+    style Create fill:#2ecc71,color:#fff
+    style Skip fill:#95a5a6,color:#fff
+    style Ignore fill:#95a5a6,color:#fff

@@ -16,21 +16,13 @@
 oh serve
 ```
 
-Démarre le tableau de bord sur `http://127.0.0.1:4747`. Ouvre dans n'importe quel navigateur.
+Démarre le tableau de bord sur `http://127.0.0.1:8080`. Ouvre dans n'importe quel navigateur.
 
 ### Port personnalisé
 
 ```bash
 oh serve --port 9090
 ```
-
-### Mode lecture-écriture
-
-```bash
-oh serve --readonly=false
-```
-
-En mode lecture-écriture, les endpoints API acceptent les requêtes `POST` et `DELETE` pour la gestion des sessions. Le mode lecture seule (par défaut) accepte uniquement les requêtes `GET`.
 
 ### Arrêter le serveur
 
@@ -102,16 +94,16 @@ Le tableau de bord expose une API REST pour l'accès programmatique :
 
 ```bash
 # Vérification de santé
-curl http://127.0.0.1:4747/api/v1/health
+curl http://127.0.0.1:8080/api/v1/health
 
 # Lister tous les projets
-curl http://127.0.0.1:4747/api/v1/projects
+curl http://127.0.0.1:8080/api/v1/projects
 
 # Lister les 10 dernières sessions d'un projet spécifique
-curl "http://127.0.0.1:4747/api/v1/sessions?project=mon-projet&limit=10"
+curl "http://127.0.0.1:8080/api/v1/sessions?project=mon-projet&limit=10"
 
 # Obtenir la télémétrie des agents
-curl http://127.0.0.1:4747/api/v1/metrics/agents
+curl http://127.0.0.1:8080/api/v1/metrics/agents
 ```
 
 ### Exemple de réponse health
@@ -173,10 +165,10 @@ Utilise le tableau de télémétrie des agents pour identifier les agents avec d
 
 ```bash
 # Exporter toute la télémétrie des agents en JSON
-curl http://127.0.0.1:4747/api/v1/metrics/agents > metriques-agents.json
+curl http://127.0.0.1:8080/api/v1/metrics/agents > metriques-agents.json
 
 # Exporter toutes les sessions des 7 derniers jours (nécessite jq)
-curl "http://127.0.0.1:4747/api/v1/sessions?limit=1000" | \
+curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
   jq '[.[] | select(.started_at > "2026-07-15T00:00:00Z")]' > sessions-semaine.json
 ```
 

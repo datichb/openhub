@@ -307,7 +307,7 @@ the omnibar).
 Claims follow a 5-status lifecycle:
 
 ```
-oh claim --planned → planned → (oh start --dev) → in_progress → review → done
+oh team claim --planned → planned → (oh start --dev) → in_progress → review → done
                                                               ↘ blocked
 ```
 
@@ -321,19 +321,19 @@ oh claim --planned → planned → (oh start --dev) → in_progress → review �
 
 ```bash
 # Reserve a ticket and start immediately (status: in_progress)
-oh claim SRU-142
+oh team claim SRU-142
 
 # Reserve for later without starting (status: planned, shows in TODO column)
-oh claim SRU-142 --planned
+oh team claim SRU-142 --planned
 
 # With associated branch
-oh claim SRU-142 --worktree feat/SRU-142-user-auth
+oh team claim SRU-142 --worktree feat/SRU-142-user-auth
 
 # Release when done
-oh release SRU-142
+oh team release SRU-142
 
 # Transfer to another member
-oh claim transfer SRU-142 --to alice
+oh team claim transfer SRU-142 --to alice
 ```
 
 > **Note:** Starting a session on a ticket already claimed as `planned` (`oh start --dev`) automatically transitions it to `in_progress`.
@@ -472,7 +472,7 @@ information loss.
 
 ```bash
 # Brief is generated automatically on transfer
-oh claim transfer SRU-142 --to alice
+oh team claim transfer SRU-142 --to alice
 # → Takeover brief generated. oh takeover-brief show SRU-142
 ```
 
@@ -481,7 +481,7 @@ in `config.toml`), the hub detects it as "stale" and proposes generating a
 brief when reclaiming:
 
 ```bash
-oh claim SRU-142
+oh team claim SRU-142
 # → SRU-142 is assigned to benjamin for 5 days with no activity.
 # → Generate a takeover brief and transfer? [Y/n]
 ```
@@ -651,7 +651,7 @@ oh teams remove <team-id>
 Remove the team affiliation from a project without deleting the team itself:
 
 ```bash
-oh teams detach <team-id> --project <project-id>
+oh teams detach <project-name>
 ```
 
 ### Archive / Restore a team

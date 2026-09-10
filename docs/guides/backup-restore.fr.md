@@ -52,7 +52,7 @@ oh export --output /mnt/sauvegardes/oh-$(date +%Y%m%d).tar.gz
 
 ```
 oh-backup-2026-07-22T09-00-00.tar.gz
-├── manifest.json      # Checksums + liste de fichiers + version oh
+├── manifest.json      # Checksum + liste de fichiers + version oh
 ├── oh.db              # Projets, sessions, claims, événements
 ├── hub.toml           # Configuration du hub
 └── secrets.enc        # Secrets chiffrés
@@ -62,13 +62,10 @@ Exemple de `manifest.json` :
 
 ```json
 {
-  "oh_version": "0.9.0",
+  "version": "0.9.0",
   "created_at": "2026-07-22T09:00:00Z",
-  "files": [
-    { "name": "oh.db",       "sha256": "abc123..." },
-    { "name": "hub.toml",    "sha256": "def456..." },
-    { "name": "secrets.enc", "sha256": "ghi789..." }
-  ]
+  "checksum": "sha256:abc123def456...",
+  "files": ["oh.db", "hub.toml", "secrets.enc"]
 }
 ```
 
@@ -95,10 +92,10 @@ Cette commande va :
 oh import ma-sauvegarde.tar.gz --overwrite
 ```
 
-### Restaurer dans un répertoire personnalisé
+### Fusionner avec les donnees existantes
 
 ```bash
-oh import ma-sauvegarde.tar.gz --dir /tmp/oh-restore
+oh import ma-sauvegarde.tar.gz --merge
 ```
 
 ---
@@ -112,10 +109,10 @@ Error: checksum mismatch for oh.db (expected abc123..., got xyz789...)
 Backup archive may be corrupted. Aborting restore.
 ```
 
-Pour vérifier une sauvegarde sans restaurer :
+Pour verifier une sauvegarde sans restaurer, extraire et verifier le manifest manuellement :
 
 ```bash
-oh import ma-sauvegarde.tar.gz --verify-only
+tar -tzf ma-sauvegarde.tar.gz manifest.json
 ```
 
 ---
@@ -156,15 +153,17 @@ Tente de récupérer la base de données en :
 |----------|-------------------|
 | Corruption mineure de la base de données | `oh repair` |
 | Corruption sévère de la base de données | `oh import` depuis la dernière sauvegarde |
-| `hub.toml` perdu | `oh import` (restaurer uniquement la config avec `--files hub.toml`) |
-| Nouvelle machine | Restauration complète avec `oh import` |
-| Secrets perdus | `oh import` + re-saisir la phrase de passe maître |
+| `hub.toml` perdu | `oh import` puis reconfigurer avec `oh init` |
+| Nouvelle machine | Restauration complete avec `oh import` |
+| Secrets perdus | `oh import` + re-saisir les credentials avec `oh provider setup` |
 
-### Restaurer un seul fichier
+### Recuperation partielle
+
+Pour les problemes partiels, restaurer depuis la sauvegarde puis corriger le probleme specifique :
 
 ```bash
-# Restaurer uniquement hub.toml depuis la sauvegarde
-oh import ma-sauvegarde.tar.gz --files hub.toml
+# Restauration complete
+oh import ma-sauvegarde.tar.gz --overwrite
 ```
 
 ---
@@ -183,8 +182,8 @@ scp ancienne-machine:~/oh-backup-latest.tar.gz .
 # 3. Restaurer depuis la sauvegarde
 oh import oh-backup-latest.tar.gz
 
-# 4. Re-saisir ta phrase de passe maître (pour déchiffrer secrets.enc)
-oh secrets unlock
+# 4. Re-saisir les credentials provider
+oh provider setup
 
 # 5. Vérifier que tout fonctionne
 oh doctor

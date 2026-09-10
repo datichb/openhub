@@ -52,7 +52,7 @@ oh export --output /mnt/backups/oh-$(date +%Y%m%d).tar.gz
 
 ```
 oh-backup-2026-07-22T09-00-00.tar.gz
-├── manifest.json      # Checksums + file list + oh version
+├── manifest.json      # Checksum + file list + oh version
 ├── oh.db              # Projects, sessions, claims, events
 ├── hub.toml           # Hub configuration
 └── secrets.enc        # Encrypted secrets
@@ -62,13 +62,10 @@ oh-backup-2026-07-22T09-00-00.tar.gz
 
 ```json
 {
-  "oh_version": "0.9.0",
+  "version": "0.9.0",
   "created_at": "2026-07-22T09:00:00Z",
-  "files": [
-    { "name": "oh.db",       "sha256": "abc123..." },
-    { "name": "hub.toml",    "sha256": "def456..." },
-    { "name": "secrets.enc", "sha256": "ghi789..." }
-  ]
+  "checksum": "sha256:abc123def456...",
+  "files": ["oh.db", "hub.toml", "secrets.enc"]
 }
 ```
 
@@ -95,10 +92,10 @@ This will:
 oh import my-backup.tar.gz --overwrite
 ```
 
-### Restore to a custom directory
+### Merge with existing data
 
 ```bash
-oh import my-backup.tar.gz --dir /tmp/oh-restore
+oh import my-backup.tar.gz --merge
 ```
 
 ---
@@ -112,10 +109,10 @@ Error: checksum mismatch for oh.db (expected abc123..., got xyz789...)
 Backup archive may be corrupted. Aborting restore.
 ```
 
-To verify a backup without restoring:
+To verify a backup without restoring, extract and check the manifest manually:
 
 ```bash
-oh import my-backup.tar.gz --verify-only
+tar -tzf my-backup.tar.gz manifest.json
 ```
 
 ---
@@ -156,15 +153,17 @@ Attempts to recover the database by:
 |----------|--------------------|
 | Minor DB corruption | `oh repair` |
 | Severe DB corruption | `oh import` from latest backup |
-| Lost `hub.toml` | `oh import` (restore config only with `--files hub.toml`) |
+| Lost `hub.toml` | `oh import` then reconfigure with `oh init` |
 | New machine setup | Full restore with `oh import` |
-| Secrets lost | `oh import` + re-enter master passphrase |
+| Secrets lost | `oh import` + re-enter credentials with `oh provider setup` |
 
-### Restore a single file
+### Partial recovery
+
+For partial issues, restore from backup then fix the specific problem:
 
 ```bash
-# Restore only hub.toml from backup
-oh import my-backup.tar.gz --files hub.toml
+# Full restore
+oh import my-backup.tar.gz --overwrite
 ```
 
 ---
@@ -183,8 +182,8 @@ scp old-machine:~/oh-backup-latest.tar.gz .
 # 3. Restore from backup
 oh import oh-backup-latest.tar.gz
 
-# 4. Re-enter your master passphrase (to decrypt secrets.enc)
-oh secrets unlock
+# 4. Re-enter your provider credentials
+oh provider setup
 
 # 5. Verify everything is working
 oh doctor

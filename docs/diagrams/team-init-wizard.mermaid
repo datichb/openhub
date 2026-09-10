@@ -1,0 +1,26 @@
+%% D13: Team Init Wizard
+%% Flowchart showing the oh team init wizard steps.
+%% 6 sequential steps producing 6 artefacts at the end.
+
+flowchart TD
+    Start([oh team init]) --> S1[1. Connect repo\nLink to Git repository]
+    S1 --> S2[2. Global config\nSet team-wide defaults]
+    S2 --> S3[3. Set identity\nAssign member-id to each member]
+    S3 --> S4[4. Configure notifications\nSet up alerts & channels]
+    S4 --> S5[5. Set policies\nDefine enforced & recommended rules]
+    S5 --> Done([Done])
+
+    Done --> Artefacts
+
+    subgraph Artefacts["6 artefacts generated"]
+        A1[team.yaml]
+        A2[members.yaml]
+        A3[policies.yaml]
+        A4[notifications.yaml]
+        A5[conventions.yaml]
+        A6[.openhub/team/]
+    end
+
+    style Start fill:#4a90d9,color:#fff
+    style Done fill:#2ecc71,color:#fff
+    style Artefacts fill:#f0f0f0,stroke:#ccc

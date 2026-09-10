@@ -10,7 +10,7 @@ Ce guide couvre la resolution des fournisseurs LLM par OpenCode Hub, la gestion 
 |-------------|---------|----------------------------|
 | **bedrock** (par defaut) | AWS Bedrock | Bearer Token AWS (via keychain) |
 | **anthropic** | API Anthropic | Cle API (via env ou keychain) |
-| **openai** | OpenAI / OpenRouter | Cle API |
+| **github-copilot** | GitHub Copilot | OAuth |
 | **openrouter** | OpenRouter | Cle API |
 
 ## Ordre de resolution du fournisseur
@@ -63,7 +63,7 @@ oh project configure my-project --provider anthropic --model claude-sonnet-4-5
 Les tokens sont stockes dans le keychain du systeme. Configuration via :
 
 ```bash
-oh service setup
+oh mcp setup
 # Selectionner le fournisseur -> entrer votre bearer token
 # Stocke sous la cle : bedrock-token-default (ou bedrock-token-<project-id>)
 ```
@@ -98,13 +98,13 @@ Ou configurer via des variables d'environnement lues directement par opencode.
 Les serveurs MCP (Figma, GitLab, Google Slides) necessitent leurs propres tokens :
 
 ```bash
-oh service setup
+oh mcp setup
 ```
 
 Configuration par projet (surcharge le hub) :
 
 ```bash
-oh service setup --project my-project
+oh mcp setup --project my-project
 ```
 Le token est stocke dans le keychain avec une cle specifique au projet.
 
@@ -172,7 +172,7 @@ oh start --provider anthropic
 oh config set opencode.default_provider anthropic
 
 # Definitivement (un projet)
-oh project configure my-project --provider openai
+oh project configure my-project --provider github-copilot
 oh deploy -p my-project   # re-deployer pour appliquer
 ```
 
@@ -187,7 +187,7 @@ oh config list             # affiche toute la config hub dont le fournisseur
 ## Bonnes pratiques de securite
 
 - Ne jamais stocker les cles API en clair dans des fichiers
-- Utiliser `oh service setup` qui stocke dans le keychain du systeme
+- Utiliser `oh mcp setup` qui stocke dans le keychain du systeme
 - Pour la CI/headless : utiliser la variable d'env `OH_PASSPHRASE` pour le fallback chiffre
 - Les tokens Bedrock sont injectes par session, jamais ecrits sur disque
 - `opencode.json` peut contenir des options provider mais doit etre gitignore
@@ -196,8 +196,8 @@ oh config list             # affiche toute la config hub dont le fournisseur
 
 | Probleme | Solution |
 |----------|----------|
-| "Token not configured" | Lancer `oh service setup` |
-| Fournisseur non reconnu | Verifier l'orthographe : bedrock, anthropic, openai, openrouter |
+| "Token not configured" | Lancer `oh mcp setup` |
+| Fournisseur non reconnu | Verifier l'orthographe : bedrock, anthropic, openrouter, github-copilot |
 | Mauvais modele | Utiliser `oh project configure --model <nom>` puis `oh deploy` |
 | Acces keychain refuse | Autoriser le terminal dans Preferences Systeme > Confidentialite |
 | Erreurs du store fallback | Verifier `OH_PASSPHRASE` ou ressaisir quand demande |

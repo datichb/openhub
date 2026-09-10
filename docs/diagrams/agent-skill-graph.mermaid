@@ -1,0 +1,53 @@
+%% D11: Agent-Skill Graph
+%% Simplified flowchart showing the most shared skills and their connections
+%% to agents. universal-guardrails is connected to ALL agents.
+%% beads-plan and living-docs-enrichment are connected to subsets.
+
+flowchart LR
+    subgraph Agents
+        A1[orchestrator]
+        A2[orchestrator-dev]
+        A3[planner]
+        A4[developer]
+        A5[reviewer]
+        A6[auditor]
+        A7[debugger]
+        A8[designer]
+        A9[documentarian]
+    end
+
+    subgraph Skills
+        S1[[universal-guardrails]]
+        S2[[beads-plan]]
+        S3[[living-docs-enrichment]]
+    end
+
+    %% universal-guardrails -> ALL agents
+    S1 --- A1
+    S1 --- A2
+    S1 --- A3
+    S1 --- A4
+    S1 --- A5
+    S1 --- A6
+    S1 --- A7
+    S1 --- A8
+    S1 --- A9
+
+    %% beads-plan -> orchestrator, planner, developer, designer, documentarian
+    S2 --- A1
+    S2 --- A3
+    S2 --- A4
+    S2 --- A8
+    S2 --- A9
+
+    %% living-docs-enrichment -> 6+ agents
+    S3 --- A1
+    S3 --- A2
+    S3 --- A3
+    S3 --- A4
+    S3 --- A8
+    S3 --- A9
+
+    style S1 fill:#e74c3c,color:#fff
+    style S2 fill:#3498db,color:#fff
+    style S3 fill:#2ecc71,color:#fff

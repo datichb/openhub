@@ -1,0 +1,43 @@
+%% D12: Workflow Scenarios Map
+%% Decision tree showing the 10 scenarios from the workflows guide.
+%% The user picks what they need and is routed to the right scenario.
+
+flowchart TD
+    Start([What do you need?]) --> Q1{First time\nusing OpenHub?}
+
+    Q1 -- Yes --> S0([Scenario 0\nFirst-time setup])
+    Q1 -- No --> Q2{What is the goal?}
+
+    Q2 --> B1[New feature]
+    Q2 --> B2[Ready tickets]
+    Q2 --> B3[Audit]
+    Q2 --> B4[Bug fix]
+    Q2 --> B5[Code review]
+    Q2 --> B6[Design only]
+    Q2 --> B7[Documentation]
+    Q2 --> B8[Plan + design]
+
+    B1 --> S1([Scenario 1\nNew feature\nend-to-end])
+    B2 --> S2([Scenario 2\nProcess ready\ntickets])
+    B3 --> S3([Scenario 3\nAudit codebase])
+    B4 --> S4([Scenario 4\nBug fix])
+
+    B5 --> Q3{Review type?}
+    Q3 -- PR review --> S5([Scenario 5\nPR review])
+    Q3 -- Deep review --> S6([Scenario 6\nDeep code review])
+
+    B6 --> S7([Scenario 7\nDesign only])
+    B7 --> S8([Scenario 8\nDocumentation])
+    B8 --> S9([Scenario 9\nPlan + design])
+
+    style Start fill:#4a90d9,color:#fff
+    style S0 fill:#95a5a6,color:#fff
+    style S1 fill:#2ecc71,color:#fff
+    style S2 fill:#2ecc71,color:#fff
+    style S3 fill:#e67e22,color:#fff
+    style S4 fill:#e74c3c,color:#fff
+    style S5 fill:#9b59b6,color:#fff
+    style S6 fill:#9b59b6,color:#fff
+    style S7 fill:#3498db,color:#fff
+    style S8 fill:#1abc9c,color:#fff
+    style S9 fill:#3498db,color:#fff
