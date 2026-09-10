@@ -119,8 +119,14 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
-		// Handled by SetItemSelectedFunc
-		return event
+		if idx, _, ok := v.slist.CurrentItem(); ok {
+			if fn, exists := v.actionIndices[idx]; exists {
+				fn()
+			} else if pi, exists := v.patternIndices[idx]; exists {
+				v.showPattern(pi)
+			}
+		}
+		return nil
 	}
 	return event
 }

@@ -207,8 +207,14 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
-		// Handled by SetItemSelectedFunc
-		return event
+		if idx, _, ok := v.slist.CurrentItem(); ok {
+			if fn, exists := v.actionIndices[idx]; exists {
+				fn()
+			} else if pi, exists := v.policyIndices[idx]; exists {
+				v.showDetail(pi)
+			}
+		}
+		return nil
 	}
 	return event
 }
