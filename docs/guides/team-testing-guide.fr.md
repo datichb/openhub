@@ -818,7 +818,7 @@ Légende:
 │  Push labels: [hériter]                                          │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│  [w]save  [s]sync-tracker  [t]test  [a]add  [d]del  [u]reload   │
+│  [w]save  [s]sync-tracker  [t]test  [a]add  [d]del  [u]undo      │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -834,7 +834,7 @@ Légende:
 | `t` | Tester connexion tracker (affiche username si OK) |
 | `a` | Ajouter entrée dynamique (mappings, families, agents) |
 | `d` | Supprimer entrée dynamique |
-| `u` | Recharger (undo modifications non sauvegardées) |
+| `u` | Annuler (undo dernière modification via UndoStack) |
 | `r` | Refresh (git pull + reload données) |
 
 ### Types de champs
@@ -853,7 +853,7 @@ Légende:
 |---|-----|-----|
 | **Accéder** | `oh team config` (wizard interactif) | `Enter` sur une team → vue `team.detail` |
 | **Voir statut** | `oh team config status` | Intégré dans la vue |
-| **Sauvegarder** | Automatique en fin de wizard | Touche `w` (explicite) |
+| **Sauvegarder** | Automatique en fin de wizard | Touche `w` (explicite, git push) pour vues team. Auto-save pour vues hub/projet. |
 | **Granularité** | Wizard complet | Champ par champ |
 
 ### Points de test
@@ -1626,5 +1626,5 @@ Timeout HTTP: 10 secondes pour tous les clients.
 | `t` | Test connexion |
 | `a` | Ajouter dynamique |
 | `d` | Supprimer dynamique |
-| `u` | Recharger |
+| `u` | Annuler (undo) |
 | `r` | Refresh |
