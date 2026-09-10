@@ -18,6 +18,15 @@ type TakeoverBrief struct {
 	Activity TakeoverActivity `toml:"activity"`
 	Git      TakeoverGit      `toml:"git"`
 	Events   []TakeoverEvent  `toml:"events"`
+	Workflow TakeoverWorkflow `toml:"workflow,omitempty"`
+}
+
+// TakeoverWorkflow holds workflow context at the time of transfer.
+type TakeoverWorkflow struct {
+	// ActiveMode is the workflow mode that was active during the session.
+	ActiveMode string `toml:"active_mode,omitempty"`
+	// CustomOverrides is true if the project has custom workflow overrides.
+	CustomOverrides bool `toml:"custom_overrides,omitempty"`
 }
 
 // TakeoverMeta holds transfer metadata.

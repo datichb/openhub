@@ -35,6 +35,20 @@ func GenerateWorkflowSkills(wf *workflow.WorkflowDefinition) (map[string]string,
 	}
 	result["shared/hub-workflow-reference"] = content
 
+	// 3. orchestrator-ticket-routing
+	content, err = generateTicketRouting(wf)
+	if err != nil {
+		return nil, fmt.Errorf("generating orchestrator-ticket-routing: %w", err)
+	}
+	result["orchestrator/orchestrator-ticket-routing"] = content
+
+	// 4. orchestrator-modes
+	content, err = generateOrchestratorModes(wf)
+	if err != nil {
+		return nil, fmt.Errorf("generating orchestrator-modes: %w", err)
+	}
+	result["orchestrator/orchestrator-modes"] = content
+
 	return result, nil
 }
 
@@ -110,6 +124,36 @@ func generateWorkflowReference(wf *workflow.WorkflowDefinition) (string, error) 
 }
 
 // ---------------------------------------------------------------------------
+// orchestrator-ticket-routing
+// ---------------------------------------------------------------------------
+
+type routingTemplateData struct {
+	ActiveAgents []workflow.AgentSlot
+}
+
+func generateTicketRouting(wf *workflow.WorkflowDefinition) (string, error) {
+	data := routingTemplateData{
+		ActiveAgents: wf.ActiveAgents(),
+	}
+	return executeTemplate("templates/orchestrator-ticket-routing.md.tmpl", data)
+}
+
+// ---------------------------------------------------------------------------
+// orchestrator-modes
+// ---------------------------------------------------------------------------
+
+type orchestratorModesData struct {
+	ActiveAgents []workflow.AgentSlot
+}
+
+func generateOrchestratorModes(wf *workflow.WorkflowDefinition) (string, error) {
+	data := orchestratorModesData{
+		ActiveAgents: wf.ActiveAgents(),
+	}
+	return executeTemplate("templates/orchestrator-modes.md.tmpl", data)
+}
+
+// ---------------------------------------------------------------------------
 // Template execution
 // ---------------------------------------------------------------------------
 
@@ -124,6 +168,27 @@ func executeTemplate(name string, data interface{}) (string, error) {
 				return "—"
 			}
 			return strings.Join(a.TaskPermissions.CanBeInvokedBy, ", ")
+		},
+		"hasAgent": func(agents []workflow.AgentSlot, id string) bool {
+			for _, a := range agents {
+				if a.AgentID == id && a.Role != workflow.RoleDisabled {
+					return true
+				}
+			}
+			return false
+		},
+		"planningAgent": func(agents []workflow.AgentSlot) string {
+			for _, a := range agents {
+				if a.AgentID == "planner" && a.Role != workflow.RoleDisabled {
+					return "planner"
+				}
+			}
+			for _, a := range agents {
+				if a.AgentID == "pathfinder" && a.Role != workflow.RoleDisabled {
+					return "pathfinder"
+				}
+			}
+			return "planning agent"
 		},
 	}
 

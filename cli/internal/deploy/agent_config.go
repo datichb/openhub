@@ -120,7 +120,18 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 				return fmt.Errorf("walking agents directory: %w", err)
 			}
 
-			// 4. Write back
+			// 4. Apply workflow-derived task permissions and mode overrides
+			if ctx.Plan.WorkflowResult != nil {
+				typedCfg := make(map[string]map[string]interface{})
+				for k, v := range agentCfg {
+					if m, ok := v.(map[string]interface{}); ok {
+						typedCfg[k] = m
+					}
+				}
+				ApplyWorkflowPermissions(&ctx.Plan.WorkflowResult.Resolved, typedCfg)
+			}
+
+			// 5. Write back
 			config["agent"] = agentCfg
 
 			data, err := json.MarshalIndent(config, "", "  ")

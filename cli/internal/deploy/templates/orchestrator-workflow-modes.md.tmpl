@@ -17,8 +17,8 @@ description: "Modes de workflow et comportement des checkpoints — GÉNÉRÉ AU
 
 | Checkpoint | {{- range .Modes.Available }} {{ . }} |{{- end }}
 |---|{{- range .Modes.Available }}---|{{- end }}
-{{- range .Checkpoints }}
-| **{{ .ID }}** — {{ .Label }} |{{- range $.Modes.Available }} {{ index $.BehaviorMatrix .ID . }} |{{- end }}
+{{- range $cp := .Checkpoints }}
+| **{{ $cp.ID }}** — {{ $cp.Label }} |{{- range $.Modes.Available }} {{ index $.BehaviorMatrix $cp.ID . }} |{{- end }}
 {{- end }}
 
 ### Règles absolues

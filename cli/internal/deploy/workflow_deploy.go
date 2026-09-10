@@ -2,8 +2,11 @@ package deploy
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -99,4 +102,72 @@ func (r *WorkflowDeployResult) IsAgentDisabled(agentID string) bool {
 		}
 	}
 	return false
+}
+
+// ValidateDeployedSkillRefs scans deployed skill .md files for references to
+// agent names and checkpoint IDs, and returns warnings for any that reference
+// agents disabled in the resolved workflow.
+//
+// This is a best-effort heuristic — it scans for known agent IDs as whole-word
+// matches in the Markdown content. It does NOT block the deploy; warnings are
+// informational to help the user understand potential inconsistencies.
+func ValidateDeployedSkillRefs(skillsDir string, wf *workflow.WorkflowDefinition) []string {
+	if wf == nil {
+		return nil
+	}
+
+	// Build set of disabled agent IDs.
+	disabledSet := make(map[string]bool)
+	for _, a := range wf.Agents {
+		if a.Role == workflow.RoleDisabled {
+			disabledSet[a.AgentID] = true
+		}
+	}
+	if len(disabledSet) == 0 {
+		return nil // nothing to check
+	}
+
+	// Build regex matching any disabled agent ID as a whole word.
+	var patterns []string
+	for id := range disabledSet {
+		patterns = append(patterns, regexp.QuoteMeta(id))
+	}
+	re := regexp.MustCompile(`\b(` + strings.Join(patterns, "|") + `)\b`)
+
+	var warnings []string
+
+	_ = filepath.WalkDir(skillsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		if filepath.Ext(path) != ".md" {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil //nolint:nilerr
+		}
+
+		matches := re.FindAllString(string(data), -1)
+		if len(matches) == 0 {
+			return nil
+		}
+
+		// Deduplicate matches per file.
+		seen := make(map[string]bool)
+		for _, m := range matches {
+			seen[m] = true
+		}
+
+		rel, _ := filepath.Rel(skillsDir, path)
+		for agent := range seen {
+			warnings = append(warnings, fmt.Sprintf(
+				"skill %q references disabled agent %q", rel, agent,
+			))
+		}
+		return nil
+	})
+
+	return warnings
 }

@@ -29,6 +29,7 @@ type Plan struct {
 	SelectedAgents      []string // agent names to deploy (empty = all)
 	EnabledMCPServers   []string // MCP server names enabled in hub config (for validation warnings)
 	DisableNativeAgents []string // override the default DisabledNativeAgents list (nil = use default)
+	WorkflowResult      *WorkflowDeployResult // resolved workflow (nil = no workflow customization)
 	Phases              []Phase
 }
 
@@ -292,6 +293,16 @@ func DeploySkills(hubDir string, selected []string) Phase {
 				}
 			}
 
+			// Deploy workflow-generated skills (overwrite static equivalents)
+			if ctx.Plan.WorkflowResult != nil && len(ctx.Plan.WorkflowResult.GeneratedSkills) > 0 {
+				if err := WriteGeneratedSkills(
+					filepath.Join(ctx.Plan.ProjectPath, ".opencode"),
+					ctx.Plan.WorkflowResult.GeneratedSkills,
+				); err != nil {
+					return fmt.Errorf("writing generated workflow skills: %w", err)
+				}
+			}
+
 			return nil
 		},
 	}
@@ -414,6 +425,13 @@ func DeployConfig(provider, model string) Phase {
 				config["instructions"] = instructions
 			}
 
+			// Inject resolved workflow default mode
+			if ctx.Plan.WorkflowResult != nil {
+				config["workflow"] = map[string]interface{}{
+					"defaultMode": ctx.Plan.WorkflowResult.Resolved.Modes.Default,
+				}
+			}
+
 			// Write atomically (temp file + rename)
 			data, err := json.MarshalIndent(config, "", "  ")
 			if err != nil {
@@ -500,6 +518,7 @@ type DeployState struct {
 	Provider       string                 `json:"provider"`
 	Model          string                 `json:"model"`
 	SelectedAgents []string               `json:"selected_agents"`
+	WorkflowHash   string                 `json:"workflow_hash,omitempty"` // SHA-256 of resolved workflow JSON
 }
 
 const deployStateFile = ".deploy-state"
@@ -528,6 +547,13 @@ func writeDeployState(plan *Plan) error {
 		Provider:       plan.Provider,
 		Model:          plan.Model,
 		SelectedAgents: plan.SelectedAgents,
+	}
+
+	// Record workflow hash for staleness detection
+	if plan.WorkflowResult != nil {
+		if wfData, err := json.Marshal(plan.WorkflowResult.Resolved); err == nil {
+			state.WorkflowHash = hashBytes(wfData)
+		}
 	}
 
 	data, err := json.MarshalIndent(state, "", "  ")

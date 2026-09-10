@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 var deployCmd = &cobra.Command{
@@ -342,6 +344,77 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 		MemberID:  resolvedTeam.MemberID,
 	}
 
+	// ── Workflow resolution ──────────────────────────────────────────────
+	// Resolve the configurable workflow (base → hub → team → project overrides).
+	// This produces: generated skills, disabled agent list, and derived permissions.
+	var wfResult *deploy.WorkflowDeployResult
+	{
+		// Collect overrides from each level.
+		var overrides []workflow.WorkflowOverride
+
+		// Hub overrides
+		if a.Config.Workflow != nil && a.Config.Workflow.Overrides != nil {
+			overrides = append(overrides, *a.Config.Workflow.Overrides)
+		}
+
+		// Team overrides (load team config if available)
+		if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
+			teamRepo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
+			if teamRepo.IsCloned() {
+				teamCfg, err := teamRepo.LoadConfig()
+				if err == nil && teamCfg.Workflow != nil && teamCfg.Workflow.Overrides != nil {
+					ov := *teamCfg.Workflow.Overrides
+					if teamCfg.Workflow.IsEnforced() {
+						ov.Enforced = true
+					}
+					overrides = append(overrides, ov)
+				}
+			}
+		}
+
+		// Project overrides
+		if project != nil && project.WorkflowConfig != nil && project.WorkflowConfig.Overrides != nil {
+			overrides = append(overrides, *project.WorkflowConfig.Overrides)
+		}
+
+		result, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow(), overrides...)
+		if err != nil {
+			slog.Warn("workflow resolution failed, using base workflow", "error", err)
+			// Fallback: use base workflow without overrides
+			result, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
+		}
+		wfResult = result
+	}
+
+	// ── Agent reconciliation ─────────────────────────────────────────────
+	// Reconcile project.Agents (user selection) with workflow agent slots:
+	// 1. Force-include mandatory workflow agents
+	// 2. Exclude workflow-disabled agents
+	if wfResult != nil {
+		effectiveAgents := make(map[string]bool, len(selectedAgents))
+		for _, a := range selectedAgents {
+			effectiveAgents[a] = true
+		}
+
+		// Force mandatory agents (they must always be deployed)
+		for _, slot := range wfResult.Resolved.Agents {
+			if slot.Mandatory && slot.Role != workflow.RoleDisabled {
+				effectiveAgents[slot.AgentID] = true
+			}
+		}
+
+		// Remove disabled agents
+		for _, disabled := range wfResult.DisabledAgents {
+			delete(effectiveAgents, disabled)
+		}
+
+		// Rebuild the slice
+		selectedAgents = make([]string, 0, len(effectiveAgents))
+		for a := range effectiveAgents {
+			selectedAgents = append(selectedAgents, a)
+		}
+	}
+
 	return &deploy.Plan{
 		ProjectPath:         projectPath,
 		ProjectID:           projectID,
@@ -352,6 +425,7 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 		SelectedAgents:      selectedAgents,
 		EnabledMCPServers:   enabledMCPServers,
 		DisableNativeAgents: a.Config.Deploy.DisableNativeAgents,
+		WorkflowResult:      wfResult,
 		Phases: []deploy.Phase{
 			deploy.DeployAgents(hubDir, selectedAgents),
 			deploy.DeploySkills(hubDir, selectedAgents),
