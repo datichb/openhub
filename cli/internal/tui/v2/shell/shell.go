@@ -713,8 +713,15 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	container.AddItem(form, 0, 1, true)
 	container.AddItem(hints, 1, 0, false)
 
-	// Content-aware sizing — estimate height from field count instead of stretching to fill.
-	size := s.computeModalSize(modalSizeHint{FieldCount: len(cfg.Fields), FixedWidth: theme.ModalMaxWidth})
+	// Content-aware sizing — estimate height from visible fields only.
+	// Conditional fields that are currently hidden should not inflate the modal height.
+	visibleFields := 0
+	for _, f := range cfg.Fields {
+		if f.Conditional == nil || f.Conditional(values) {
+			visibleFields++
+		}
+	}
+	size := s.computeModalSize(modalSizeHint{FieldCount: visibleFields, FixedWidth: theme.ModalMaxWidth})
 	grid := s.overlayGrid(container, size.cols, size.rows, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)

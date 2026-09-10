@@ -133,6 +133,7 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	if len(focusables) > 1 {
 		currentFocus := 0
 		frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			// Tab / BackTab: cycle through all focusables
 			if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
 				if event.Key() == tcell.KeyBacktab {
 					currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)
@@ -142,6 +143,35 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 				s.app.SetFocus(focusables[currentFocus])
 				return nil
 			}
+
+			// ↓ from content (index 0) → jump to first button
+			if event.Key() == tcell.KeyDown && currentFocus == 0 && len(focusables) > 1 {
+				currentFocus = 1
+				s.app.SetFocus(focusables[currentFocus])
+				return nil
+			}
+
+			// ↑ from a button → jump back to content
+			if event.Key() == tcell.KeyUp && currentFocus > 0 {
+				currentFocus = 0
+				s.app.SetFocus(focusables[currentFocus])
+				return nil
+			}
+
+			// ←/→ navigate between buttons when focus is on a button
+			if currentFocus > 0 && (event.Key() == tcell.KeyLeft || event.Key() == tcell.KeyRight) {
+				btnCount := len(focusables) - 1 // exclude content (index 0)
+				btnIdx := currentFocus - 1       // 0-based within buttons
+				if event.Key() == tcell.KeyLeft {
+					btnIdx = (btnIdx - 1 + btnCount) % btnCount
+				} else {
+					btnIdx = (btnIdx + 1) % btnCount
+				}
+				currentFocus = btnIdx + 1
+				s.app.SetFocus(focusables[currentFocus])
+				return nil
+			}
+
 			if event.Key() == tcell.KeyEscape {
 				s.pages.RemovePage(cfg.PageName)
 				if cfg.FocusReturn != nil {
@@ -223,8 +253,12 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 
 		btnWidth := len(a.Label) + theme.ModalButtonPadX*2
 		if i > 0 {
-			// Gap between buttons
-			bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), theme.ModalButtonGap, 0, false)
+			// Gap between buttons — wider when Separator is set to group actions visually
+			gap := theme.ModalButtonGap
+			if a.Separator {
+				gap = theme.ModalButtonGap * 3
+			}
+			bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), gap, 0, false)
 		}
 		bar.AddItem(btn, btnWidth, 0, isPrimary)
 		focusables = append(focusables, btn)

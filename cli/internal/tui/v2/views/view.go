@@ -100,8 +100,9 @@ type SelectOption struct {
 
 // ModalAction represents a button action in a scrollable modal.
 type ModalAction struct {
-	Label    string
-	Callback func()
+	Label     string
+	Callback  func()
+	Separator bool // insert a visual gap before this button to group actions
 }
 
 // ShellAccess provides access to shell overlay capabilities from views.

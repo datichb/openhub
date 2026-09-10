@@ -423,7 +423,7 @@ func (v *PoliciesView) showDetail(policyIdx int) {
 
 	detail := v.formatPolicyDetail(p)
 
-	// Build action buttons
+	// Build action buttons: enforcement toggles | separator | edit/delete/close
 	actions := []ModalAction{}
 
 	// Enforcement toggle buttons — only show states different from current
@@ -446,11 +446,11 @@ func (v *PoliciesView) showDetail(policyIdx int) {
 		})
 	}
 
-	// Edit + Delete + Close
+	// Edit + Delete + Close — separated visually from enforcement toggles
 	actions = append(actions,
-		ModalAction{Label: i18n.T("tui.policies.edit"), Callback: func() { v.editPolicy(policyIdx) }},
+		ModalAction{Label: i18n.T("tui.policies.edit"), Callback: func() { v.editPolicy(policyIdx) }, Separator: true},
 		ModalAction{Label: i18n.T("tui.policies.delete"), Callback: func() { v.removePolicy(policyIdx) }},
-		ModalAction{Label: i18n.T("tui.policies.close"), Callback: func() {}},
+		ModalAction{Label: i18n.T("tui.policies.close"), Callback: func() {}, Separator: true},
 	)
 
 	if v.shell != nil {
