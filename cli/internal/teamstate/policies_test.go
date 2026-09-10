@@ -449,3 +449,165 @@ func TestSavePoliciesOverwrite(t *testing.T) {
 		t.Errorf("expected new_policy, got %s", loaded[0].Name)
 	}
 }
+
+func TestCheckPolicy_DisabledSkipped(t *testing.T) {
+	p := Policy{
+		Name:        "branch-naming",
+		Type:        PolicyTypeRegex,
+		Target:      "branch_name",
+		Rule:        `^(feat|fix)/`,
+		Enforcement: EnforcementDisabled,
+	}
+	ctx := PolicyContext{BranchName: "bad-branch-name"}
+	result := CheckPolicy(p, ctx)
+	if !result.Passed {
+		t.Error("disabled policy should always pass")
+	}
+}
+
+func TestCheckAll_SkipsDisabled(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	content := `
+[policies.branch_naming]
+type = "regex"
+target = "branch_name"
+rule = "^(feat|fix)/"
+enforcement = "disabled"
+
+[policies.commit_format]
+type = "regex"
+target = "commit_message"
+rule = "^(feat|fix): .+"
+enforcement = "warn"
+`
+	if err := os.WriteFile(filepath.Join(dir, "policies.toml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := PolicyContext{
+		BranchName:    "bad-branch",
+		CommitMessage: "bad commit",
+	}
+	violations, err := repo.CheckAll("", ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only commit_format should appear as a violation; branch_naming is disabled.
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+	if violations[0].Name != "commit_format" {
+		t.Errorf("expected commit_format violation, got %s", violations[0].Name)
+	}
+}
+
+func TestCheckPolicy_WithExplicitTarget(t *testing.T) {
+	// Policy named generically but with explicit target — should work.
+	p := Policy{
+		Name:        "my-custom-naming-rule",
+		Type:        PolicyTypeRegex,
+		Target:      "branch_name",
+		Rule:        `^(feat|fix)/`,
+		Enforcement: EnforcementRefuse,
+	}
+	ctx := PolicyContext{BranchName: "feat/something"}
+	result := CheckPolicy(p, ctx)
+	if !result.Passed {
+		t.Error("branch feat/something should pass ^(feat|fix)/")
+	}
+
+	ctx2 := PolicyContext{BranchName: "bad-name"}
+	result2 := CheckPolicy(p, ctx2)
+	if result2.Passed {
+		t.Error("branch bad-name should fail ^(feat|fix)/")
+	}
+}
+
+func TestCheckPolicy_BooleanWithTarget(t *testing.T) {
+	p := Policy{
+		Name:        "must-have-review",
+		Type:        PolicyTypeBoolean,
+		Target:      "review",
+		Enabled:     true,
+		Enforcement: EnforcementRefuse,
+	}
+	result := CheckPolicy(p, PolicyContext{HasReview: false})
+	if result.Passed {
+		t.Error("should fail when HasReview is false")
+	}
+	result2 := CheckPolicy(p, PolicyContext{HasReview: true})
+	if !result2.Passed {
+		t.Error("should pass when HasReview is true")
+	}
+}
+
+func TestCheckPolicy_LimitWithTarget(t *testing.T) {
+	p := Policy{
+		Name:        "team-capacity",
+		Type:        PolicyTypeLimit,
+		Target:      "wip_tickets",
+		Max:         2,
+		Enforcement: EnforcementWarn,
+	}
+	result := CheckPolicy(p, PolicyContext{ActiveClaims: 3})
+	if result.Passed {
+		t.Error("should fail when ActiveClaims >= Max")
+	}
+	result2 := CheckPolicy(p, PolicyContext{ActiveClaims: 1})
+	if !result2.Passed {
+		t.Error("should pass when ActiveClaims < Max")
+	}
+}
+
+func TestMergePolicies_StrictnessOrder(t *testing.T) {
+	global := map[string]Policy{
+		"p1": {Type: PolicyTypeBoolean, Enforcement: EnforcementDisabled},
+		"p2": {Type: PolicyTypeBoolean, Enforcement: EnforcementWarn},
+		"p3": {Type: PolicyTypeBoolean, Enforcement: EnforcementRefuse},
+	}
+	overrides := map[string]Policy{
+		"p1": {Type: PolicyTypeBoolean, Enforcement: EnforcementWarn},   // disabled→warn: allowed (stricter)
+		"p2": {Type: PolicyTypeBoolean, Enforcement: EnforcementRefuse}, // warn→refuse: allowed (stricter)
+		"p3": {Type: PolicyTypeBoolean, Enforcement: EnforcementWarn},   // refuse→warn: NOT allowed (weaker)
+	}
+	merged := mergePolicies(global, overrides)
+
+	if merged["p1"].Enforcement != EnforcementWarn {
+		t.Errorf("p1: expected warn, got %s", merged["p1"].Enforcement)
+	}
+	if merged["p2"].Enforcement != EnforcementRefuse {
+		t.Errorf("p2: expected refuse, got %s", merged["p2"].Enforcement)
+	}
+	if merged["p3"].Enforcement != EnforcementRefuse {
+		t.Errorf("p3: should stay refuse (override cannot weaken), got %s", merged["p3"].Enforcement)
+	}
+}
+
+func TestLoadPolicies_WithTarget(t *testing.T) {
+	dir := t.TempDir()
+	repo := &Repo{path: dir}
+
+	content := `
+[policies.branch_naming]
+type = "regex"
+target = "branch_name"
+rule = "^feat/"
+enforcement = "refuse"
+`
+	if err := os.WriteFile(filepath.Join(dir, "policies.toml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	policies, err := repo.LoadPolicies("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policies) != 1 {
+		t.Fatalf("expected 1 policy, got %d", len(policies))
+	}
+	if policies[0].Target != "branch_name" {
+		t.Errorf("expected target branch_name, got %q", policies[0].Target)
+	}
+}

@@ -42,14 +42,31 @@ const (
 type PolicyEnforcement string
 
 const (
-	EnforcementRefuse PolicyEnforcement = "refuse"
-	EnforcementWarn   PolicyEnforcement = "warn"
+	EnforcementDisabled PolicyEnforcement = "disabled"
+	EnforcementWarn     PolicyEnforcement = "warn"
+	EnforcementRefuse   PolicyEnforcement = "refuse"
 )
+
+// enforcementStrictness returns a numeric strictness level for enforcement ordering.
+// Higher value = stricter. Used by mergePolicies to ensure overrides can only tighten.
+func enforcementStrictness(e PolicyEnforcement) int {
+	switch e {
+	case EnforcementDisabled:
+		return 0
+	case EnforcementWarn:
+		return 1
+	case EnforcementRefuse:
+		return 2
+	default:
+		return 1
+	}
+}
 
 // Policy represents a single team policy rule.
 type Policy struct {
-	Name        string            `toml:"-"` // derived from TOML key
+	Name        string            `toml:"-"`                  // derived from TOML key
 	Type        PolicyType        `toml:"type"`
+	Target      string            `toml:"target,omitempty"`   // what to check: branch_name, commit_message, review, tests, wip_tickets...
 	Rule        string            `toml:"rule,omitempty"`     // regex pattern
 	Enabled     bool              `toml:"enabled,omitempty"`  // for boolean type
 	Max         int               `toml:"max,omitempty"`      // for limit type
@@ -144,12 +161,18 @@ func (r *Repo) SavePolicies(ctx context.Context, policies map[string]Policy) err
 }
 
 // CheckPolicy evaluates a single policy against the provided context.
+// Disabled policies always pass.
 func CheckPolicy(p Policy, ctx PolicyContext) PolicyResult {
 	result := PolicyResult{
 		Name:        p.Name,
 		Enforcement: p.Enforcement,
 		Message:     p.Message,
 		Passed:      true,
+	}
+
+	// Disabled policies are never evaluated.
+	if p.Enforcement == EnforcementDisabled {
+		return result
 	}
 
 	switch p.Type {
@@ -167,7 +190,7 @@ func CheckPolicy(p Policy, ctx PolicyContext) PolicyResult {
 }
 
 // CheckAll evaluates all policies for a project against the given context.
-// Returns only violations (passed=false).
+// Returns only violations (passed=false). Disabled policies are skipped.
 func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, error) {
 	policies, err := r.LoadPolicies(project)
 	if err != nil {
@@ -176,6 +199,9 @@ func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, erro
 
 	var violations []PolicyResult
 	for _, p := range policies {
+		if p.Enforcement == EnforcementDisabled {
+			continue
+		}
 		result := CheckPolicy(p, ctx)
 		if !result.Passed {
 			violations = append(violations, result)
@@ -211,7 +237,7 @@ func (r *Repo) loadPoliciesFromFile(path string) (map[string]Policy, error) {
 }
 
 // mergePolicies applies overrides on top of global policies.
-// Overrides can only make enforcement stricter (warn -> refuse), never more permissive.
+// Overrides can only make enforcement stricter (disabled < warn < refuse), never more permissive.
 func mergePolicies(global, overrides map[string]Policy) map[string]Policy {
 	merged := make(map[string]Policy, len(global))
 	for k, v := range global {
@@ -220,8 +246,8 @@ func mergePolicies(global, overrides map[string]Policy) map[string]Policy {
 	for k, override := range overrides {
 		if base, exists := merged[k]; exists {
 			// Only allow stricter enforcement
-			if base.Enforcement == EnforcementWarn && override.Enforcement == EnforcementRefuse {
-				base.Enforcement = EnforcementRefuse
+			if enforcementStrictness(override.Enforcement) > enforcementStrictness(base.Enforcement) {
+				base.Enforcement = override.Enforcement
 			}
 			// Allow overriding message
 			if override.Message != "" {
@@ -235,6 +261,51 @@ func mergePolicies(global, overrides map[string]Policy) map[string]Policy {
 		}
 	}
 	return merged
+}
+
+// --- Target resolution helpers ---
+
+// resolveRegexTarget determines what a regex policy checks.
+func resolveRegexTarget(p Policy) string {
+	if p.Target != "" {
+		return p.Target
+	}
+	switch {
+	case strings.Contains(p.Name, "branch"):
+		return "branch_name"
+	case strings.Contains(p.Name, "commit"):
+		return "commit_message"
+	default:
+		return "file_path"
+	}
+}
+
+// resolveBooleanTarget determines what a boolean policy checks.
+func resolveBooleanTarget(p Policy) string {
+	if p.Target != "" {
+		return p.Target
+	}
+	switch {
+	case strings.Contains(p.Name, "review"):
+		return "review"
+	case strings.Contains(p.Name, "test"):
+		return "tests"
+	case strings.Contains(p.Name, "coverage"):
+		return "coverage"
+	default:
+		return ""
+	}
+}
+
+// resolveLimitTarget determines what a limit policy checks.
+func resolveLimitTarget(p Policy) string {
+	if p.Target != "" {
+		return p.Target
+	}
+	if strings.Contains(p.Name, "wip") || strings.Contains(p.Name, "ticket") {
+		return "wip_tickets"
+	}
+	return ""
 }
 
 // --- Check functions ---
@@ -251,37 +322,37 @@ func checkRegex(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 		return result
 	}
 
-	// Determine what to check based on common policy names
+	target := resolveRegexTarget(p)
+
 	var value string
 	var applicable bool
-	switch {
-	case strings.Contains(p.Name, "branch"):
+	switch target {
+	case "branch_name":
 		value = ctx.BranchName
 		applicable = ctx.BranchName != ""
-	case strings.Contains(p.Name, "commit"):
+	case "commit_message":
 		value = ctx.CommitMessage
-		// Empty commit message is always a violation if the policy applies
 		applicable = true
-	default:
-		// Generic: check if at least one modified file matches
+	case "file_path":
 		if len(ctx.ModifiedFiles) == 0 {
-			return result // no context, skip
+			return result
 		}
 		for _, f := range ctx.ModifiedFiles {
 			if re.MatchString(f) {
 				return result // pass
 			}
 		}
-		// For per_feature_branch scope, require at least one match
 		if p.Scope == "per_feature_branch" {
 			result.Passed = false
 			result.Details = "no file matching pattern found in branch"
 		}
 		return result
+	default:
+		return result
 	}
 
 	if !applicable {
-		return result // context not relevant for this check
+		return result
 	}
 
 	if !re.MatchString(value) {
@@ -293,21 +364,20 @@ func checkRegex(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 
 func checkBoolean(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 	if !p.Enabled {
-		// Policy disabled — always passes.
 		return result
 	}
 
-	// Match the policy name to a boolean context field.
+	target := resolveBooleanTarget(p)
+
 	var value bool
-	switch {
-	case strings.Contains(p.Name, "review"):
+	switch target {
+	case "review":
 		value = ctx.HasReview
-	case strings.Contains(p.Name, "test"):
+	case "tests":
 		value = ctx.HasTests
-	case strings.Contains(p.Name, "coverage"):
+	case "coverage":
 		value = ctx.HasCoverage
 	default:
-		// Unknown boolean policy — passes by default (backward compat).
 		return result
 	}
 
@@ -323,16 +393,14 @@ func checkLimit(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 		return result
 	}
 
-	// Check which limit to apply
-	switch {
-	case strings.Contains(p.Name, "wip") || strings.Contains(p.Name, "ticket"):
+	target := resolveLimitTarget(p)
+
+	switch target {
+	case "wip_tickets":
 		if ctx.ActiveClaims >= p.Max {
 			result.Passed = false
 			result.Details = fmt.Sprintf("active claims: %d (max: %d)", ctx.ActiveClaims, p.Max)
 		}
-	case p.Unit == "lines" && strings.Contains(p.Name, "file_length"):
-		// File length check is done at file level — skip here
-		// The CLI/agent handles per-file checks
 	}
 	return result
 }
@@ -342,13 +410,11 @@ func checkForbiddenPattern(p Policy, ctx PolicyContext, result PolicyResult) Pol
 		return result
 	}
 
-	// Choose lines to check based on scope
 	var linesToCheck []string
 	switch p.Scope {
 	case "diff_only":
 		linesToCheck = ctx.DiffLines
 	case "all_files", "modified_files":
-		// Would need file content — handled by the agent, not here
 		return result
 	default:
 		linesToCheck = ctx.DiffLines

@@ -21,6 +21,7 @@ type policyTemplate struct {
 	LabelKey    string // i18n key for the template label
 	Name        string
 	Type        string
+	Target      string
 	Rule        string
 	Patterns    string // comma-separated
 	Scope       string
@@ -37,6 +38,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			LabelKey:    "tui.policies.tpl_branch_naming",
 			Name:        "branch-naming",
 			Type:        "regex",
+			Target:      "branch_name",
 			Rule:        `^(feat|fix|chore|docs|refactor|test)/`,
 			Enforcement: "refuse",
 			Message:     "Branches must follow type/description format (feat/*, fix/*, ...)",
@@ -45,6 +47,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			LabelKey:    "tui.policies.tpl_conventional_commits",
 			Name:        "commit-message",
 			Type:        "regex",
+			Target:      "commit_message",
 			Rule:        `^(feat|fix|chore|docs|refactor|perf|test|ci|build|style)(\(.+\))?!?: .+`,
 			Enforcement: "warn",
 			Message:     "Commits must follow Conventional Commits format",
@@ -53,6 +56,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			LabelKey:    "tui.policies.tpl_max_wip",
 			Name:        "max-wip-tickets",
 			Type:        "limit",
+			Target:      "wip_tickets",
 			Max:         "3",
 			Enforcement: "warn",
 			Message:     "Maximum 3 in-progress tickets per member",
@@ -79,6 +83,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			LabelKey:    "tui.policies.tpl_require_review",
 			Name:        "require-review",
 			Type:        "boolean",
+			Target:      "review",
 			Enabled:     true,
 			Enforcement: "refuse",
 			Message:     "Every PR must have an approved review",
@@ -87,6 +92,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			LabelKey:    "tui.policies.tpl_require_tests",
 			Name:        "require-tests",
 			Type:        "boolean",
+			Target:      "tests",
 			Enabled:     true,
 			Enforcement: "warn",
 			Message:     "Changes must include tests",
@@ -123,7 +129,6 @@ var _ View = (*PoliciesView)(nil)
 var _ CommandProvider = (*PoliciesView)(nil)
 
 // NewPoliciesView creates a new policies view.
-// resolveTeam is called on every refresh to obtain the effective team config.
 func NewPoliciesView(resolveTeam ResolveTeamFunc) *PoliciesView {
 	return &PoliciesView{resolveTeam: resolveTeam}
 }
@@ -139,10 +144,11 @@ func (v *PoliciesView) Title() string { return i18n.T("tui.team.policies") }
 
 // StatusHints returns keybinding hints.
 func (v *PoliciesView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · t %s · c %s · r %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · t %s · e %s · d %s · c %s · r %s",
 		i18n.T("tui.hints.nav"), "sections",
 		i18n.T("tui.hints.detail"), i18n.T("tui.hints.add"),
-		"template", i18n.T("tui.hints.check"),
+		"template", i18n.T("tui.hints.edit"),
+		i18n.T("tui.hints.delete"), i18n.T("tui.hints.check"),
 		i18n.T("tui.hints.refresh"))
 }
 
@@ -150,7 +156,6 @@ func (v *PoliciesView) StatusHints() string {
 func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	// Fixed-height descriptive header with word-wrap
 	v.header = tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(false).
@@ -158,21 +163,9 @@ func (v *PoliciesView) Mount(content *tview.Flex, app *tview.Application) {
 	v.header.SetBackgroundColor(theme.BgPanel)
 	v.header.SetBorderPadding(1, 0, 2, 2)
 
-	// Sectioned list for policies grouped by type + actions
 	v.slist = widgets.NewSectionedList().SetApp(app)
 	v.slist.SetBorderPadding(0, 0, 2, 2)
 
-	v.slist.SetItemSelectedFunc(func(idx int, item widgets.SectionItem) {
-		if fn, ok := v.actionIndices[idx]; ok {
-			fn()
-			return
-		}
-		if pi, ok := v.policyIndices[idx]; ok {
-			v.showDetail(pi)
-		}
-	})
-
-	// Vertical layout: header (fixed) + list (flexible)
 	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(v.header, 5, 0, false).
 		AddItem(v.slist, 0, 1, true)
@@ -204,6 +197,12 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 't':
 		v.addFromTemplate()
+		return nil
+	case 'e':
+		v.editSelectedPolicy()
+		return nil
+	case 'd':
+		v.removeSelectedPolicy()
 		return nil
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -289,7 +288,6 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	}
 	v.policies = policies
 
-	// Update header text based on state
 	if len(policies) == 0 {
 		v.setHeaderText(i18n.T("tui.policies.getting_started"))
 	} else {
@@ -301,7 +299,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	v.policyIndices = make(map[int]int)
 
 	if len(policies) > 0 {
-		// Group policies by type
+		// Group policies by type, with disabled policies in a separate section
 		typeOrder := []teamstate.PolicyType{
 			teamstate.PolicyTypeRegex,
 			teamstate.PolicyTypeLimit,
@@ -310,8 +308,13 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 		}
 
 		grouped := make(map[teamstate.PolicyType][]int)
+		var disabledIndices []int
 		for i, p := range policies {
-			grouped[p.Type] = append(grouped[p.Type], i)
+			if p.Enforcement == teamstate.EnforcementDisabled {
+				disabledIndices = append(disabledIndices, i)
+			} else {
+				grouped[p.Type] = append(grouped[p.Type], i)
+			}
 		}
 
 		for _, pType := range typeOrder {
@@ -319,15 +322,26 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 			if !ok || len(indices) == 0 {
 				continue
 			}
-
-			// Section header with count
 			sectionKey := policySectionKey(pType)
 			items = append(items, widgets.SectionItem{
 				MainText: fmt.Sprintf(i18n.T(sectionKey), len(indices)),
 				IsHeader: true,
 			})
-
 			for _, pi := range indices {
+				p := policies[pi]
+				idx := len(items)
+				items = append(items, v.buildPolicyItem(p))
+				v.policyIndices[idx] = pi
+			}
+		}
+
+		// Disabled policies section
+		if len(disabledIndices) > 0 {
+			items = append(items, widgets.SectionItem{
+				MainText: fmt.Sprintf(i18n.T("tui.policies.section_disabled"), len(disabledIndices)),
+				IsHeader: true,
+			})
+			for _, pi := range disabledIndices {
 				p := policies[pi]
 				idx := len(items)
 				items = append(items, v.buildPolicyItem(p))
@@ -373,20 +387,21 @@ func (v *PoliciesView) buildPolicyItem(p teamstate.Policy) widgets.SectionItem {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagReset
 
-	enfIcon := fmt.Sprintf("%s⚠%s", theme.ColorTag(theme.WarningHex), theme.TagColor)
-	if p.Enforcement == teamstate.EnforcementRefuse {
+	var enfIcon string
+	switch p.Enforcement {
+	case teamstate.EnforcementDisabled:
+		enfIcon = fmt.Sprintf("%s○%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+	case teamstate.EnforcementRefuse:
 		enfIcon = fmt.Sprintf("%s✗%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
+	default: // warn
+		enfIcon = fmt.Sprintf("%s⚠%s", theme.ColorTag(theme.WarningHex), theme.TagColor)
 	}
 
-	// Type label
 	typeLabel := string(p.Type)
-
-	// Build metadata
 	meta := fmt.Sprintf("%s · %s", typeLabel, p.Enforcement)
 
 	mainText := fmt.Sprintf("  %s %-30s %s%s%s", enfIcon, p.Name, muted, meta, reset)
 
-	// Message as secondary text in readable color
 	secondaryText := ""
 	if p.Message != "" {
 		secondaryText = fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextSecondaryHex), p.Message, reset)
@@ -398,16 +413,69 @@ func (v *PoliciesView) buildPolicyItem(p teamstate.Policy) widgets.SectionItem {
 	}
 }
 
+// ── Detail modal with actions ────────────────────────────────────────────────
+
 func (v *PoliciesView) showDetail(policyIdx int) {
 	if policyIdx < 0 || policyIdx >= len(v.policies) {
 		return
 	}
 	p := v.policies[policyIdx]
 
+	detail := v.formatPolicyDetail(p)
+
+	// Build action buttons
+	actions := []ModalAction{}
+
+	// Enforcement toggle buttons — only show states different from current
+	if p.Enforcement != teamstate.EnforcementDisabled {
+		actions = append(actions, ModalAction{
+			Label:    i18n.T("tui.policies.status_disabled"),
+			Callback: func() { v.setEnforcement(policyIdx, teamstate.EnforcementDisabled) },
+		})
+	}
+	if p.Enforcement != teamstate.EnforcementWarn {
+		actions = append(actions, ModalAction{
+			Label:    i18n.T("tui.policies.status_warn"),
+			Callback: func() { v.setEnforcement(policyIdx, teamstate.EnforcementWarn) },
+		})
+	}
+	if p.Enforcement != teamstate.EnforcementRefuse {
+		actions = append(actions, ModalAction{
+			Label:    i18n.T("tui.policies.status_refuse"),
+			Callback: func() { v.setEnforcement(policyIdx, teamstate.EnforcementRefuse) },
+		})
+	}
+
+	// Edit + Delete + Close
+	actions = append(actions,
+		ModalAction{Label: i18n.T("tui.policies.edit"), Callback: func() { v.editPolicy(policyIdx) }},
+		ModalAction{Label: i18n.T("tui.policies.delete"), Callback: func() { v.removePolicy(policyIdx) }},
+		ModalAction{Label: i18n.T("tui.policies.close"), Callback: func() {}},
+	)
+
+	if v.shell != nil {
+		v.shell.ShowScrollableModal("Policy: "+p.Name, detail, actions)
+	}
+}
+
+func (v *PoliciesView) formatPolicyDetail(p teamstate.Policy) string {
 	var detail string
 	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_name")+":", p.Name)
 	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_type")+":", p.Type)
-	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_enforcement")+":", p.Enforcement)
+	if p.Target != "" {
+		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_target")+":", p.Target)
+	}
+	// Status with icon
+	var statusLabel string
+	switch p.Enforcement {
+	case teamstate.EnforcementDisabled:
+		statusLabel = "○ " + i18n.T("tui.policies.status_disabled")
+	case teamstate.EnforcementWarn:
+		statusLabel = "⚠ " + i18n.T("tui.policies.status_warn")
+	case teamstate.EnforcementRefuse:
+		statusLabel = "✗ " + i18n.T("tui.policies.status_refuse")
+	}
+	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_enforcement")+":", statusLabel)
 	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_message")+":", p.Message)
 	if p.Rule != "" {
 		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_rule")+":", p.Rule)
@@ -416,18 +484,173 @@ func (v *PoliciesView) showDetail(policyIdx int) {
 		detail += fmt.Sprintf("Max:          %d %s\n", p.Max, p.Unit)
 	}
 	if len(p.Patterns) > 0 {
-		detail += fmt.Sprintf("Patterns:     %v\n", p.Patterns)
+		detail += fmt.Sprintf("Patterns:     %s\n", strings.Join(p.Patterns, ", "))
 	}
 	if p.Scope != "" {
 		detail += fmt.Sprintf("Scope:        %s\n", p.Scope)
 	}
-
-	if v.shell != nil {
-		v.shell.ShowScrollableModal("Policy: "+p.Name, detail, []ModalAction{
-			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
-		})
-	}
+	return detail
 }
+
+// ── Enforcement toggle ───────────────────────────────────────────────────────
+
+func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.PolicyEnforcement) {
+	if policyIdx < 0 || policyIdx >= len(v.policies) {
+		return
+	}
+	p := v.policies[policyIdx]
+
+	repo := v.getRepo()
+	if repo == nil {
+		return
+	}
+
+	pMap, err := v.loadPoliciesMap(repo)
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+		}
+		return
+	}
+
+	updated := pMap[p.Name]
+	updated.Enforcement = enforcement
+	pMap[p.Name] = updated
+
+	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+		}
+		return
+	}
+
+	var statusLabel string
+	switch enforcement {
+	case teamstate.EnforcementDisabled:
+		statusLabel = i18n.T("tui.policies.status_disabled")
+	case teamstate.EnforcementWarn:
+		statusLabel = i18n.T("tui.policies.status_warn")
+	case teamstate.EnforcementRefuse:
+		statusLabel = i18n.T("tui.policies.status_refuse")
+	}
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.Tf("tui.policies.status_changed", p.Name, statusLabel), true)
+	}
+	v.refresh()
+}
+
+// ── Edit policy ──────────────────────────────────────────────────────────────
+
+func (v *PoliciesView) editSelectedPolicy() {
+	if v.slist == nil {
+		return
+	}
+	idx, _, ok := v.slist.CurrentItem()
+	if !ok {
+		return
+	}
+	pi, isPolicy := v.policyIndices[idx]
+	if !isPolicy {
+		return
+	}
+	v.editPolicy(pi)
+}
+
+func (v *PoliciesView) editPolicy(policyIdx int) {
+	if v.shell == nil || policyIdx < 0 || policyIdx >= len(v.policies) {
+		return
+	}
+	repo := v.getRepo()
+	if repo == nil {
+		return
+	}
+
+	p := v.policies[policyIdx]
+
+	// Build a template from the existing policy to pre-fill the form
+	tpl := &policyTemplate{
+		Name:        p.Name,
+		Type:        string(p.Type),
+		Target:      p.Target,
+		Rule:        p.Rule,
+		Patterns:    strings.Join(p.Patterns, ", "),
+		Scope:       p.Scope,
+		Max:         "",
+		Enforcement: string(p.Enforcement),
+		Message:     p.Message,
+		Enabled:     p.Enabled,
+	}
+	if p.Max > 0 {
+		tpl.Max = fmt.Sprintf("%d", p.Max)
+	}
+
+	v.showPolicyForm(repo, tpl, p.Name)
+}
+
+// ── Remove policy ────────────────────────────────────────────────────────────
+
+func (v *PoliciesView) removeSelectedPolicy() {
+	if v.slist == nil {
+		return
+	}
+	idx, _, ok := v.slist.CurrentItem()
+	if !ok {
+		return
+	}
+	pi, isPolicy := v.policyIndices[idx]
+	if !isPolicy {
+		return
+	}
+	v.removePolicy(pi)
+}
+
+func (v *PoliciesView) removePolicy(policyIdx int) {
+	if v.shell == nil || policyIdx < 0 || policyIdx >= len(v.policies) {
+		return
+	}
+	p := v.policies[policyIdx]
+	repo := v.getRepo()
+	if repo == nil {
+		return
+	}
+
+	v.shell.ShowSelectModal(i18n.Tf("tui.policies.confirm_delete", p.Name), []SelectOption{
+		{Label: i18n.T("tui.settings.cancel"), Value: ""},
+		{Label: i18n.T("tui.policies.yes_delete"), Value: "yes"},
+	}, "", func(choice string) {
+		if choice != "yes" {
+			return
+		}
+		pMap, err := v.loadPoliciesMap(repo)
+		if err != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			return
+		}
+		delete(pMap, p.Name)
+		if err := repo.SavePolicies(context.Background(), pMap); err != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			return
+		}
+		v.shell.ShowToastMsg(i18n.Tf("tui.policies.deleted", p.Name), true)
+		v.refresh()
+	})
+}
+
+// ── Helper ───────────────────────────────────────────────────────────────────
+
+func (v *PoliciesView) loadPoliciesMap(repo teamstate.TeamStateWriter) (map[string]teamstate.Policy, error) {
+	policies, err := repo.LoadPolicies("")
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]teamstate.Policy, len(policies))
+	for _, p := range policies {
+		m[p.Name] = p
+	}
+	return m, nil
+}
+
+// ── Check policies ───────────────────────────────────────────────────────────
 
 func (v *PoliciesView) checkPolicies() {
 	if v.shell == nil {
@@ -440,7 +663,6 @@ func (v *PoliciesView) checkPolicies() {
 		return
 	}
 
-	// Build minimal context (no git diff in TUI — just branch name check)
 	ctx := teamstate.PolicyContext{
 		MemberID: v.resolveTeam().MemberID,
 	}
@@ -456,7 +678,6 @@ func (v *PoliciesView) checkPolicies() {
 		return
 	}
 
-	// Format results
 	var text string
 	passed := 0
 	for _, r := range results {
@@ -487,7 +708,8 @@ func (v *PoliciesView) checkPolicies() {
 	})
 }
 
-// addFromTemplate shows the template picker, then opens the form pre-filled.
+// ── Add from template ────────────────────────────────────────────────────────
+
 func (v *PoliciesView) addFromTemplate() {
 	if v.shell == nil {
 		return
@@ -511,7 +733,6 @@ func (v *PoliciesView) addFromTemplate() {
 		if choice == "" {
 			return
 		}
-		// Find the selected template
 		var tpl policyTemplate
 		for _, t := range templates {
 			if t.Name == choice {
@@ -519,7 +740,7 @@ func (v *PoliciesView) addFromTemplate() {
 				break
 			}
 		}
-		v.showPolicyForm(repo, &tpl)
+		v.showPolicyForm(repo, &tpl, "")
 	})
 }
 
@@ -533,14 +754,18 @@ func (v *PoliciesView) addPolicy() {
 		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return
 	}
-	v.showPolicyForm(repo, nil)
+	v.showPolicyForm(repo, nil, "")
 }
 
-// showPolicyForm displays the policy creation form, optionally pre-filled from a template.
-func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *policyTemplate) {
-	// Set defaults from template or empty
+// ── Policy form (create + edit) ──────────────────────────────────────────────
+
+// showPolicyForm displays the policy creation/edit form.
+// If editName is non-empty, this is an edit: load-modify-save via SavePolicies.
+// If editName is empty, this is a creation: append to policies.toml.
+func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *policyTemplate, editName string) {
 	defaultName := ""
 	defaultType := "regex"
+	defaultTarget := ""
 	defaultEnforcement := "warn"
 	defaultMessage := ""
 	defaultRule := ""
@@ -551,6 +776,7 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 	if tpl != nil {
 		defaultName = tpl.Name
 		defaultType = tpl.Type
+		defaultTarget = tpl.Target
 		defaultEnforcement = tpl.Enforcement
 		defaultMessage = tpl.Message
 		defaultRule = tpl.Rule
@@ -563,14 +789,22 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 		}
 	}
 
+	title := i18n.T("tui.policies.create_title")
+	if editName != "" {
+		title = i18n.T("tui.policies.edit_title")
+	}
+
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: i18n.T("tui.policies.create_title"),
+		Title: title,
 		Fields: []FormField{
 			{Key: "name", Label: i18n.T("tui.policies.field_name_slug"), Type: FieldText, Required: true,
 				Default: defaultName, Hint: i18n.T("tui.policies.hint_name")},
 			{Key: "type", Label: i18n.T("tui.policies.field_type"), Type: FieldSelect,
 				Options: policyTypeOptions, Default: defaultType, Required: true,
 				Hint: i18n.T("tui.policies.hint_type")},
+			{Key: "target", Label: i18n.T("tui.policies.field_target"), Type: FieldText,
+				Default: defaultTarget, Hint: i18n.T("tui.policies.hint_target"),
+				Conditional: func(v map[string]string) bool { return v["type"] != "forbidden_pattern" }},
 			{Key: "enforcement", Label: i18n.T("tui.policies.field_enforcement"), Type: FieldSelect,
 				Options: policyEnforcementOptions, Default: defaultEnforcement,
 				Hint: i18n.T("tui.policies.hint_enforcement")},
@@ -598,6 +832,7 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 			pType := values["type"]
 			enforcement := values["enforcement"]
 			message := values["message"]
+			target := values["target"]
 
 			var patterns []string
 			maxVal := 0
@@ -611,9 +846,17 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 				}
 			}
 
-			v.writePolicyToml(repo, name, pType, enforcement, message,
-				values["rule"], patterns, values["scope"], maxVal,
-				tpl != nil && tpl.Type == "boolean" && tpl.Enabled)
+			if editName != "" {
+				// Edit mode: load → modify → save
+				v.savePolicyEdit(repo, editName, name, pType, target, enforcement, message,
+					values["rule"], patterns, values["scope"], maxVal,
+					tpl != nil && tpl.Enabled)
+			} else {
+				// Create mode: append to file
+				v.writePolicyToml(repo, name, pType, target, enforcement, message,
+					values["rule"], patterns, values["scope"], maxVal,
+					tpl != nil && tpl.Type == "boolean" && tpl.Enabled)
+			}
 		},
 		OnCancel: nil,
 	})
@@ -628,6 +871,7 @@ var policyTypeOptions = []SelectOption{
 }
 
 var policyEnforcementOptions = []SelectOption{
+	{Label: "Disabled", Value: "disabled"},
 	{Label: "Warn", Value: "warn"},
 	{Label: "Refuse", Value: "refuse"},
 }
@@ -638,11 +882,58 @@ var policyScopeOptions = []SelectOption{
 	{Label: "all_files", Value: "all_files"},
 }
 
-func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, enforcement, message, rule string, patterns []string, scope string, maxVal int, enabledBool bool) {
-	// Build TOML block
+// savePolicyEdit replaces an existing policy via load-modify-save.
+func (v *PoliciesView) savePolicyEdit(repo teamstate.TeamStateWriter, oldName, newName, pType, target, enforcement, message, rule string, patterns []string, scope string, maxVal int, enabledBool bool) {
+	pMap, err := v.loadPoliciesMap(repo)
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+		}
+		return
+	}
+
+	// Remove old entry (handles rename)
+	delete(pMap, oldName)
+
+	// Build new policy
+	p := teamstate.Policy{
+		Type:        teamstate.PolicyType(pType),
+		Target:      target,
+		Rule:        rule,
+		Patterns:    patterns,
+		Scope:       scope,
+		Enforcement: teamstate.PolicyEnforcement(enforcement),
+		Message:     message,
+	}
+	if maxVal > 0 {
+		p.Max = maxVal
+	}
+	if pType == "boolean" || enabledBool {
+		p.Enabled = true
+	}
+
+	pMap[newName] = p
+
+	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+		}
+		return
+	}
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.Tf("tui.policies.updated", newName), true)
+	}
+	v.refresh()
+}
+
+func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, target, enforcement, message, rule string, patterns []string, scope string, maxVal int, enabledBool bool) {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "\n[policies.%s]\n", name)
 	fmt.Fprintf(&sb, "type = %q\n", pType)
+	if target != "" {
+		fmt.Fprintf(&sb, "target = %q\n", target)
+	}
 	if rule != "" {
 		fmt.Fprintf(&sb, "rule = %q\n", rule)
 	}
@@ -663,7 +954,6 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 		fmt.Fprintf(&sb, "message = %q\n", message)
 	}
 
-	// Append to policies.toml
 	policiesPath := filepath.Join(repo.Path(), "policies.toml")
 	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -681,7 +971,6 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 		return
 	}
 
-	// Commit and push
 	if err := repo.CommitAndPush(context.Background(), fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.policies.commit_error")+": "+err.Error(), false)
@@ -700,6 +989,8 @@ func (v *PoliciesView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
 		{ID: "policies.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "template", "ajouter"}, Description: i18n.T("tui.policies.cmd_add"), Category: "Policies", Action: func() { v.addFromTemplate() }},
 		{ID: "policies.add.custom", Label: i18n.T("tui.hints.add"), Aliases: []string{"custom", "personnalisé"}, Description: i18n.T("tui.policies.cmd_add_custom"), Category: "Policies", Action: func() { v.addPolicy() }},
+		{ID: "policies.edit", Label: i18n.T("tui.hints.edit"), Aliases: []string{"edit", "éditer", "modifier"}, Description: i18n.T("tui.policies.cmd_edit"), Category: "Policies", Action: func() { v.editSelectedPolicy() }},
+		{ID: "policies.delete", Label: i18n.T("tui.hints.delete"), Aliases: []string{"delete", "remove", "supprimer"}, Description: i18n.T("tui.policies.cmd_delete"), Category: "Policies", Action: func() { v.removeSelectedPolicy() }},
 		{ID: "policies.check", Label: i18n.T("tui.hints.check"), Aliases: []string{"check", "verify", "vérifier"}, Description: i18n.T("tui.policies.cmd_check"), Category: "Policies", Action: func() { v.checkPolicies() }},
 	}
 }
