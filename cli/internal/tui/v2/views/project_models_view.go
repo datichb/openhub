@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -37,8 +38,8 @@ type ProjectModelsView struct {
 	mountGen uint64
 
 	live      *domain.Project
-	dirty     bool
 	undoStack *widgets.UndoStack[domain.Project]
+	autoSaver *AutoSaver
 }
 
 var _ View = (*ProjectModelsView)(nil)
@@ -57,12 +58,11 @@ func (v *ProjectModelsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectModelsView) ID() string    { return "project.models" }
 func (v *ProjectModelsView) Title() string { return "Modèles" }
 func (v *ProjectModelsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · w %s · u %s · Esc %s",
+	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.back"),
 	)
@@ -76,9 +76,12 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
+
+	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+		v.doSave()
+	})
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -124,8 +127,8 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *ProjectModelsView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
+	if v.autoSaver != nil {
+		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
 	v.app = nil
@@ -137,7 +140,7 @@ func (v *ProjectModelsView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.live == nil {
+	if v.live == nil || v.list == nil {
 		return event
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -152,9 +155,6 @@ func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'd':
 		v.deleteEntry()
-		return nil
-	case 'w':
-		v.save()
 		return nil
 	case 'u':
 		v.undo()
@@ -173,10 +173,7 @@ func (v *ProjectModelsView) renderList() {
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	title := v.live.Name + " · Modèles"
-	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-	}
+	title := v.live.Name + " · " + i18n.T("tui.config.section.models")
 
 	items := []widgets.SectionItem{
 		{IsHeader: true, MainText: title},
@@ -264,7 +261,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 		v.shell.ShowInputModal("model", cur, func(newVal string) {
 			v.pushUndo()
 			v.live.Model = newVal
-			v.dirty = true
+			if v.autoSaver != nil { v.autoSaver.Schedule() }
 			v.renderList()
 		})
 
@@ -277,7 +274,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Families = make(map[string]string)
 			}
 			v.live.ModelOverrides.Families[ref.key] = newVal
-			v.dirty = true
+			if v.autoSaver != nil { v.autoSaver.Schedule() }
 			v.renderList()
 		})
 
@@ -290,7 +287,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Agents = make(map[string]string)
 			}
 			v.live.ModelOverrides.Agents[ref.key] = newVal
-			v.dirty = true
+			if v.autoSaver != nil { v.autoSaver.Schedule() }
 			v.renderList()
 		})
 	}
@@ -332,7 +329,7 @@ func (v *ProjectModelsView) addEntry() {
 					}
 					v.live.ModelOverrides.Agents[key] = model
 				}
-				v.dirty = true
+				if v.autoSaver != nil { v.autoSaver.Schedule() }
 				v.renderList()
 				v.shell.ShowToastMsg("Override ajouté", true)
 			})
@@ -369,7 +366,7 @@ func (v *ProjectModelsView) deleteEntry() {
 		case "agents":
 			delete(v.live.ModelOverrides.Agents, ref.key)
 		}
-		v.dirty = true
+		if v.autoSaver != nil { v.autoSaver.Schedule() }
 		v.renderList()
 		v.shell.ShowToastMsg("Override supprimé", true)
 	})
@@ -388,31 +385,35 @@ func (v *ProjectModelsView) undo() {
 	prev, ok := v.undoStack.Pop()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
 		}
 		return
 	}
 	*v.live = prev
-	v.dirty = v.undoStack.Len() > 0
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.doSave()
 	v.renderList()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
 }
 
-func (v *ProjectModelsView) save() {
-	if v.shell == nil || v.live == nil {
+func (v *ProjectModelsView) doSave() {
+	if v.live == nil {
 		return
 	}
 	ctx := context.Background()
 	if err := v.cfg.SaveProject(ctx, v.live); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		}
 		return
 	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.renderList()
-	v.shell.ShowToastMsg(i18n.T("tui.project.saved"), true)
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -422,7 +423,6 @@ func (v *ProjectModelsView) save() {
 // ContextCommands implements CommandProvider.
 func (v *ProjectModelsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.models.save", Label: i18n.T("tui.hints.save"), Aliases: []string{"save", "write", "sauvegarder"}, Description: "Sauvegarder les overrides de modèles", Category: "Modèles", Action: func() { v.save() }},
 		{ID: "project.models.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Modèles", Action: func() { v.undo() }},
 		{ID: "project.models.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"ajouter", "add override"}, Description: "Ajouter un override de modèle", Category: "Modèles", Action: func() { v.addEntry() }},
 	}

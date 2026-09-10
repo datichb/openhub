@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -36,8 +37,8 @@ type ProjectAgentsView struct {
 	mountGen uint64
 
 	live      *domain.Project
-	dirty     bool
 	undoStack *widgets.UndoStack[domain.Project]
+	autoSaver *AutoSaver
 }
 
 var _ View = (*ProjectAgentsView)(nil)
@@ -57,10 +58,9 @@ func (v *ProjectAgentsView) ID() string    { return "project.agents" }
 func (v *ProjectAgentsView) Title() string { return "Agents" }
 
 func (v *ProjectAgentsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Space %s · w %s · u %s · Esc %s",
+	return fmt.Sprintf("j/k %s · Space %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.back"),
 	)
@@ -74,9 +74,12 @@ func (v *ProjectAgentsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
+
+	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+		v.doSave()
+	})
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -124,8 +127,8 @@ func (v *ProjectAgentsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *ProjectAgentsView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
+	if v.autoSaver != nil {
+		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
 	v.app = nil
@@ -154,9 +157,6 @@ func (v *ProjectAgentsView) renderLines() {
 
 	// Section header
 	title := "Agents"
-	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-	}
 	items = append(items, widgets.SectionItem{
 		IsHeader: true,
 		MainText: title,
@@ -215,7 +215,7 @@ func (v *ProjectAgentsView) renderLines() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectAgentsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.live == nil {
+	if v.live == nil || v.list == nil {
 		return event
 	}
 	if event.Key() == tcell.KeyEnter {
@@ -225,9 +225,6 @@ func (v *ProjectAgentsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case ' ':
 		v.toggleSelected()
-		return nil
-	case 'w':
-		v.save()
 		return nil
 	case 'u':
 		v.undo()
@@ -304,7 +301,9 @@ func (v *ProjectAgentsView) toggleSelected() {
 		sort.Strings(v.live.Agents)
 	}
 
-	v.dirty = true
+	if v.autoSaver != nil {
+		v.autoSaver.Schedule()
+	}
 	v.renderLines()
 }
 
@@ -321,35 +320,39 @@ func (v *ProjectAgentsView) undo() {
 	prev, ok := v.undoStack.Pop()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
 		}
 		return
 	}
 	*v.live = prev
-	v.dirty = v.undoStack.Len() > 0
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.doSave()
 	v.renderLines()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Save
+// Save (auto-save via AutoSaver)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectAgentsView) save() {
-	if v.shell == nil || v.live == nil {
+func (v *ProjectAgentsView) doSave() {
+	if v.live == nil {
 		return
 	}
 	ctx := context.Background()
 	if err := v.cfg.SaveProject(ctx, v.live); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		}
 		return
 	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.renderLines()
-	v.shell.ShowToastMsg(i18n.T("tui.project.saved"), true)
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,7 +362,6 @@ func (v *ProjectAgentsView) save() {
 // ContextCommands implements CommandProvider.
 func (v *ProjectAgentsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.agents.save", Label: i18n.T("tui.hints.save"), Aliases: []string{"save", "write", "sauvegarder"}, Description: i18n.T("tui.project.cmd_save"), Category: "Projet", Action: func() { v.save() }},
 		{ID: "project.agents.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Projet", Action: func() { v.undo() }},
 	}
 }
