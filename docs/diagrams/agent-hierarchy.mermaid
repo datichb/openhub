@@ -1,0 +1,83 @@
+%% OpenHub -- Agent Hierarchy
+%% 19 agents across 7 families, showing mode (primary/subagent)
+%% and delegation relationships
+
+flowchart TD
+    subgraph Planning ["Planning Family (5 agents)"]
+        direction TB
+        ORCH["fa:fa-sitemap <strong>orchestrator</strong><br/>Primary · Coordinator<br/>read-only"]
+        ORCHDEV["fa:fa-code-branch <strong>orchestrator-dev</strong><br/>Primary · Coordinator<br/>read-only"]
+        PLAN["fa:fa-tasks <strong>planner</strong><br/>Primary · Consultant<br/>read-only"]
+        PATH["fa:fa-compass <strong>pathfinder</strong><br/>Primary · Recon<br/>read-only"]
+        ONB["fa:fa-book <strong>onboarder</strong><br/>Primary · Discovery<br/>read-write"]
+    end
+
+    subgraph Developer ["Developer Family (5 agents)"]
+        direction TB
+        DEV["fa:fa-code <strong>developer</strong><br/>Subagent · Generic<br/>read-write"]
+        DEVR["fa:fa-recycle <strong>developer-refactor</strong><br/>Subagent · Refactoring<br/>read-write"]
+        DEVM["fa:fa-exchange <strong>developer-migrator</strong><br/>Subagent · Migration<br/>read-write"]
+        DB["fa:fa-database <strong>database</strong><br/>Primary · DB Specialist<br/>read-write"]
+        INFRA["fa:fa-server <strong>infra</strong><br/>Primary · DevOps<br/>read-write"]
+    end
+
+    subgraph Auditor ["Auditor Family (2 agents)"]
+        direction TB
+        AUD["fa:fa-shield <strong>auditor</strong><br/>Primary · Coordinator<br/>read-only"]
+        AUDS["fa:fa-search <strong>auditor-subagent</strong><br/>Subagent · Domain expert<br/>read-only"]
+    end
+
+    subgraph Quality ["Quality Family (4 agents)"]
+        direction TB
+        REV["fa:fa-check-circle <strong>reviewer</strong><br/>Primary · Code review<br/>read-only"]
+        DBG["fa:fa-bug <strong>debugger</strong><br/>Primary · Diagnostics<br/>read-only"]
+        BENCH["fa:fa-tachometer <strong>benchmarker</strong><br/>Primary · Performance<br/>read-write"]
+        TEST["fa:fa-flask <strong>test-generator</strong><br/>Primary · Testing<br/>read-write"]
+    end
+
+    subgraph Design ["Design Family (1 agent)"]
+        DES["fa:fa-paint-brush <strong>designer</strong><br/>Primary · UX+UI<br/>read-only · MCP: Figma"]
+    end
+
+    subgraph Documentation ["Documentation Family (1 agent)"]
+        DOC["fa:fa-file-text <strong>documentarian</strong><br/>Primary · Tech writer<br/>read-write"]
+    end
+
+    subgraph Utility ["Utility Family (1 agent)"]
+        BRF["fa:fa-info-circle <strong>brief-enricher</strong><br/>Subagent · Analysis<br/>read-only"]
+    end
+
+    %% Delegation edges
+    ORCH -->|delegates| PATH
+    ORCH -->|delegates| PLAN
+    ORCH -->|delegates| ONB
+    ORCH -->|delegates| DES
+    ORCH -->|delegates| ORCHDEV
+    ORCH -->|delegates| DBG
+    ORCH -->|delegates| DOC
+
+    ORCHDEV -->|routes to| DEV
+    ORCHDEV -->|routes to| DEVR
+    ORCHDEV -->|routes to| DEVM
+    ORCHDEV -->|routes to| REV
+    ORCHDEV -->|routes to| DOC
+
+    AUD -->|delegates| AUDS
+    AUD -->|delegates| DOC
+
+    PLAN -->|delegates| DOC
+    PLAN -->|delegates| DES
+    PATH -->|delegates| DOC
+    PATH -->|delegates| DES
+    DB -->|delegates| DOC
+    BENCH -->|delegates| DOC
+    TEST -->|delegates| DOC
+    TEST -->|delegates| REV
+
+    style Planning fill:#3498db15,stroke:#3498db
+    style Developer fill:#2ecc7115,stroke:#2ecc71
+    style Auditor fill:#e74c3c15,stroke:#e74c3c
+    style Quality fill:#f39c1215,stroke:#f39c12
+    style Design fill:#9b59b615,stroke:#9b59b6
+    style Documentation fill:#1abc9c15,stroke:#1abc9c
+    style Utility fill:#95a5a615,stroke:#95a5a6

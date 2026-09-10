@@ -1,0 +1,28 @@
+%% OpenHub -- Provider Decision Tree
+%% Helps new users choose the right LLM provider
+
+flowchart TD
+    Start(["Which provider<br/>should I choose?"]) --> Q1{"Do you have an<br/>AWS account with<br/>Bedrock access?"}
+
+    Q1 -->|Yes| Bedrock["fa:fa-aws <strong>Amazon Bedrock</strong><br/>Enterprise-grade<br/>Usage-based billing<br/>AWS IAM integration"]
+
+    Q1 -->|No| Q2{"Do you have an<br/>Anthropic API key?"}
+
+    Q2 -->|Yes| Anthropic["fa:fa-key <strong>Anthropic Direct</strong><br/>Simplest setup<br/>Pay-per-token<br/>console.anthropic.com"]
+
+    Q2 -->|No| Q3{"Do you want<br/>multi-model access?"}
+
+    Q3 -->|Yes| OpenRouter["fa:fa-exchange <strong>OpenRouter</strong><br/>Multiple models<br/>Single API key<br/>openrouter.ai"]
+
+    Q3 -->|No| Copilot["fa:fa-github <strong>GitHub Copilot</strong><br/>Use existing subscription<br/>OAuth flow"]
+
+    Bedrock --> Setup["<code>oh provider setup</code>"]
+    Anthropic --> Setup
+    OpenRouter --> Setup
+    Copilot --> Setup
+
+    style Anthropic fill:#2ecc71,color:white
+    style Bedrock fill:#ff9900,color:white
+    style OpenRouter fill:#3498db,color:white
+    style Copilot fill:#333,color:white
+    style Start fill:#ecf0f1,color:#333

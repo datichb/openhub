@@ -4,6 +4,52 @@
 Each agent is defined in `agents/<family>/<id>.md` with a frontmatter declaring its metadata,
 skills, and mode.
 
+> See the [Glossary](../reference/glossary.en.md) for definitions of Agent, Bucket A/B, Skill, and other terms.
+
+## Agent Hierarchy
+
+```mermaid
+flowchart TD
+    subgraph PL ["Planning (5)"]
+        ORCH["orchestrator<br/>Coordinator"]
+        ORCHDEV["orchestrator-dev<br/>Coordinator"]
+        PLAN["planner<br/>Consultant"]
+        PATH["pathfinder<br/>Recon"]
+        ONB["onboarder<br/>Discovery"]
+    end
+    subgraph DV ["Developer (5)"]
+        DEV["developer<br/>Subagent"]
+        DEVR["developer-refactor<br/>Subagent"]
+        DEVM["developer-migrator<br/>Subagent"]
+        DB["database<br/>Specialist"]
+        INFRA["infra<br/>DevOps"]
+    end
+    subgraph AU ["Auditor (2)"]
+        AUD["auditor<br/>Coordinator"]
+        AUDS["auditor-subagent<br/>Subagent"]
+    end
+    subgraph QU ["Quality (4)"]
+        REV["reviewer"]
+        DBG["debugger"]
+        BENCH["benchmarker"]
+        TEST["test-generator"]
+    end
+    subgraph DS ["Design (1)"]
+        DES["designer"]
+    end
+    subgraph DC ["Documentation (1)"]
+        DOC["documentarian"]
+    end
+    subgraph UT ["Utility (1)"]
+        BRF["brief-enricher<br/>Subagent"]
+    end
+    ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & DBG & DOC
+    ORCHDEV --> DEV & DEVR & DEVM & REV & DOC
+    AUD --> AUDS & DOC
+```
+
+> Standalone diagram source: [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
+
 ---
 
 ## Agent Format

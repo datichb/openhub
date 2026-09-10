@@ -83,7 +83,60 @@ Les sessions récentes affichent maintenant leur `slug` en suffix (grisé), util
 
 ---
 
-## Scénario 1 — Feature complète (orchestrateur)
+## Scenario 0 — Votre premiere session (agent simple)
+
+**Contexte :** vous voulez essayer OpenHub pour la premiere fois sur un projet existant.
+Pas de tickets Beads, pas d'orchestration complexe -- juste une interaction simple avec un agent.
+
+**Prerequis :**
+- `oh init` complete (voir [Tutoriel](tutorial.fr.md))
+- `oh deploy` execute dans votre repertoire de projet
+- Credentials provider configures
+
+### Explication de code simple
+
+```bash
+oh start -m "Explique l'architecture de ce projet"
+```
+
+L'orchestrateur analyse la structure du codebase et fournit une explication de haut niveau.
+Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
+
+### Revue de code simple
+
+```bash
+oh review
+```
+
+L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par severite.
+
+### Audit simple
+
+```bash
+oh audit --type security
+```
+
+L'agent auditor delegue a un sous-agent specialise securite qui scanne votre codebase et produit un rapport structure.
+
+### Diagramme
+
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant O as Agent
+
+    U->>O: "Explique l'architecture"
+    O->>O: Lit le codebase (lecture seule)
+    O-->>U: Explication structuree
+```
+
+**Point cle :** Vous pouvez utiliser n'importe quel agent directement pour une tache delimitee. L'orchestrateur n'est necessaire que lorsque vous voulez une coordination multi-agents (planification + design + implementation + review).
+
+> **Pret pour la suite ?** Voir le Scenario 1 pour un workflow feature complet avec plusieurs agents.
+
+---
+
+## Scenario 1 — Feature complete (orchestrateur)
 
 **Contexte :** vous voulez implémenter une nouvelle feature de A à Z,
 depuis la conception jusqu'au merge, en mobilisant tous les agents nécessaires.

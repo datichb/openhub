@@ -1,0 +1,28 @@
+%% OpenHub -- Golden Path
+%% The 3 essential steps for a new user: init -> deploy -> start
+
+flowchart TD
+    A["fa:fa-download 1. Install<br/><code>brew install datichb/tap/openhub</code>"] --> B
+
+    B["fa:fa-magic 2. oh init<br/>Configure hub, provider, MCP"] --> B1["Hub created at ~/.oh/"]
+    B1 --> B2["Provider credentials<br/>stored in keychain"]
+    B2 --> B3["OpenCode binary<br/>auto-downloaded"]
+
+    B3 --> C["fa:fa-rocket 3. oh deploy<br/>Deploy agents & skills to project"]
+    C --> C1["Phase 1: Agents (19)"]
+    C1 --> C2["Phase 2: Skills"]
+    C2 --> C3["Phase 3: Config"]
+    C3 --> C4["Phase 4: Models"]
+    C4 --> C5["Phase 5: MCP"]
+    C5 --> D[".opencode/ ready"]
+
+    D --> E["fa:fa-play 4. oh start<br/>Launch AI session"]
+    E --> E1["Resolve project & provider"]
+    E1 --> E2["Detect stack"]
+    E2 --> E3["Display recap"]
+    E3 --> E4["Launch OpenCode"]
+
+    style A fill:#3498db,color:white
+    style B fill:#2ecc71,color:white
+    style C fill:#e67e22,color:white
+    style E fill:#9b59b6,color:white

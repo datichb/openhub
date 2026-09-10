@@ -85,6 +85,59 @@ Recent sessions now display their `slug` as a dim suffix, usable as an identifie
 
 ---
 
+## Scenario 0 — Your first session (single agent)
+
+**Context:** you want to try OpenHub for the first time on an existing project.
+No Beads tickets, no complex orchestration -- just a simple interaction with one agent.
+
+**Prerequisites:**
+- `oh init` completed (see [Tutorial](tutorial.en.md))
+- `oh deploy` run in your project directory
+- Provider credentials configured
+
+### Simple code explanation
+
+```bash
+oh start -m "Explain the architecture of this project"
+```
+
+The orchestrator analyzes the codebase structure and provides a high-level explanation.
+No delegation, no tickets -- a single agent answering your question.
+
+### Simple code review
+
+```bash
+oh review
+```
+
+The reviewer agent analyzes your current branch's diff and produces a structured review report with findings categorized by severity.
+
+### Simple audit
+
+```bash
+oh audit --type security
+```
+
+The auditor agent delegates to a security-specialized sub-agent that scans your codebase and produces a structured report.
+
+### Diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant O as Agent
+
+    U->>O: "Explain the architecture"
+    O->>O: Reads codebase (read-only)
+    O-->>U: Structured explanation
+```
+
+**Key takeaway:** You can use any agent directly for a bounded task. The orchestrator is needed only when you want multi-agent coordination (planning + design + implementation + review).
+
+> **Ready for more?** See Scenario 1 for a full feature workflow with multiple agents.
+
+---
+
 ## Scenario 1 — Full feature (orchestrator)
 
 **Context:** you want to implement a new feature from A to Z,

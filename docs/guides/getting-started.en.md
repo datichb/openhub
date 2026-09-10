@@ -1,8 +1,34 @@
-> [Lire en français](getting-started.fr.md)
+> [Lire en francais](getting-started.fr.md)
 
 # Getting Started
 
-This guide covers installation, first-time setup, and daily usage of the `oh` CLI.
+## What is OpenHub?
+
+OpenHub (`oh`) is a central hub that manages AI coding assistants across your projects. It provides **19 specialized AI agents** organized into 7 families (planning, development, audit, quality, design, documentation, utility) that collaborate to handle everything from feature planning to code review.
+
+```mermaid
+flowchart LR
+    U[You] -->|oh start| CLI[oh CLI]
+    CLI -->|configures| OC[OpenCode Runtime]
+    OC -->|calls| LLM[LLM Provider<br/>Anthropic / Bedrock / OpenRouter]
+    CLI -.->|deploys| P1[Project A<br/>.opencode/]
+    CLI -.->|deploys| P2[Project B<br/>.opencode/]
+    HUB[(~/.oh/<br/>Hub Config)] -->|agents, skills,<br/>config| CLI
+    MCP[MCP Servers<br/>GitLab, Figma, Jira...] <-->|tools| OC
+```
+
+**Key concepts** (see the full [Glossary](../reference/glossary.en.md)):
+- **Hub** (`~/.oh/`) -- central configuration and agent/skill store
+- **Agent** -- a specialized AI role (orchestrator, developer, reviewer, etc.)
+- **Skill** -- a protocol document giving domain expertise to an agent
+- **Deploy** -- copying agents and skills from the hub to a project's `.opencode/` directory
+- **MCP Server** -- external tool integration (GitLab, Figma, Jira, etc.)
+
+> **New here?** Start with the [5-minute tutorial](tutorial.en.md) for a hands-on walkthrough.
+
+This guide is the comprehensive command reference. For configuration details, see the [Configuration guide](configuration-guide.en.md).
+
+---
 
 ## Prerequisites
 
@@ -130,18 +156,48 @@ oh quick                     # auto-detect project, launch immediately
 
 ## Day-to-Day Commands
 
+### Essential
+
+```bash
+oh start                     # launch AI session
+oh quick                     # launch AI session (skip confirmation)
+oh deploy                    # deploy/sync agents to current project
+oh status                    # show hub and current project status
+oh doctor                    # system health check
+```
+
+### Development
+
+```bash
+oh start --dev               # pick epic/ticket, launches orchestrator-dev
+oh start --dev --label bug   # filter tickets by label
+oh audit --type security     # code audit
+oh review                    # code review
+oh debug --issue "crash..."  # debug session
+```
+
+### Infrastructure
+
 ```bash
 oh sync --all                # sync agents/skills to all projects
-oh status                    # show hub and current project status
-oh doctor                    # system health check (also verifies provider credentials and oh version)
 oh provider setup            # configure provider credentials
-oh metrics                   # per-agent usage and cost stats (sessions, tokens, avg duration)
-oh serve                     # start local dashboard API + SPA on localhost
-oh dashboard                 # interactive TUI dashboard
+oh mcp setup                 # configure MCP server tokens
+oh metrics                   # per-agent usage and cost stats
+oh serve                     # start local web dashboard on localhost:8080
+oh                           # interactive TUI dashboard (no arguments)
 oh board                     # kanban board (requires bd)
-oh team sync-tracker         # sync claim ExternalIID links back to the external tracker (Jira, Linear, GitLab Issues)
-oh export                    # export all hub data (projects, sessions, secrets) to a backup file
+oh export                    # export all hub data to a backup file
 oh repair                    # repair corrupted database or config state
+```
+
+### Team (optional)
+
+```bash
+oh team init                 # set up team collaboration
+oh team claim <ticket-id>    # claim a ticket for yourself
+oh team release <ticket-id>  # release a claimed ticket
+oh team status               # show team status
+oh team sync-tracker         # sync claims back to external tracker
 ```
 
 ## Development Workflow
@@ -219,6 +275,6 @@ Common issues:
 
 - **opencode not found** — run `oh init` or `oh upgrade opencode`
 - **Missing provider credentials** — run `oh provider setup`
-- **MCP server errors** — verify tokens with `oh service setup --project <id>`
+- **MCP server errors** — verify tokens with `oh mcp setup`
 - **Project not detected** — ensure you're in a registered project directory (`oh project list`)
 - **Corrupted state** — run `oh repair` to attempt automatic recovery

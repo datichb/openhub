@@ -1,5 +1,40 @@
 # Architecture Overview
 
+> See also: [Glossary](../reference/glossary.en.md) for term definitions.
+
+## System Overview
+
+```mermaid
+flowchart LR
+    U["User"] -->|"oh start / oh deploy"| CLI["oh CLI"]
+
+    subgraph Hub ["~/.oh/ (Hub)"]
+        TOML["hub.toml"]
+        DB["oh.db"]
+        HC["hub/ agents & skills"]
+    end
+
+    CLI -->|reads| Hub
+    CLI -->|"deploys to .opencode/"| P1["Project A"]
+    CLI -->|"deploys to .opencode/"| P2["Project B"]
+    CLI -->|launches| OC["OpenCode Runtime"]
+    OC -->|API calls| LLM["LLM Provider"]
+
+    subgraph MCP ["MCP Servers"]
+        GL["GitLab"]
+        GH["GitHub"]
+        FIG["Figma"]
+        JI["Jira"]
+        LN["Linear"]
+        GS["Google Slides"]
+        TM["Team"]
+    end
+
+    OC <-->|tool calls| MCP
+```
+
+> Standalone diagram source: [`docs/diagrams/system-overview.mermaid`](../diagrams/system-overview.mermaid)
+
 ## Core Concepts
 
 ### Hub

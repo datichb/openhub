@@ -1,0 +1,30 @@
+%% OpenHub -- System Overview
+%% Shows the high-level architecture: User -> oh CLI -> OpenCode -> LLM Provider
+%% with Hub, Projects, and MCP Servers as supporting components.
+
+flowchart LR
+    U["fa:fa-user User"] -->|"oh start<br/>oh deploy<br/>oh audit"| CLI["fa:fa-terminal oh CLI"]
+
+    subgraph Hub ["~/.oh/ (Hub)"]
+        TOML["hub.toml<br/>Configuration"]
+        DB["oh.db<br/>Projects & Sessions"]
+        HC["hub/<br/>Agents & Skills"]
+    end
+
+    CLI -->|reads config| Hub
+    CLI -->|"deploys to .opencode/"| P1["fa:fa-folder Project A"]
+    CLI -->|"deploys to .opencode/"| P2["fa:fa-folder Project B"]
+    CLI -->|configures & launches| OC["fa:fa-robot OpenCode<br/>AI Runtime"]
+    OC -->|API calls| LLM["fa:fa-cloud LLM Provider<br/>Anthropic / Bedrock<br/>OpenRouter / Copilot"]
+
+    subgraph MCP ["MCP Servers (stdio)"]
+        GL["GitLab"]
+        GH["GitHub"]
+        FIG["Figma"]
+        JI["Jira"]
+        LN["Linear"]
+        GS["Google Slides"]
+        TM["Team"]
+    end
+
+    OC <-->|"tool calls"| MCP

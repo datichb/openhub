@@ -1,0 +1,44 @@
+%% OpenHub -- Skill Injection Flow
+%% Shows the 4 paths by which skills reach an agent at runtime
+
+flowchart TD
+    START(["Agent invoked"]) --> P1
+
+    subgraph P1 ["Path 1: Bucket A (Inline)"]
+        direction LR
+        A1["Agent frontmatter<br/><code>skills: [...]</code>"] --> A2["Injected into<br/>system prompt<br/>at deploy time"]
+    end
+
+    START --> P2
+
+    subgraph P2 ["Path 2: Bucket B (Native)"]
+        direction LR
+        B1["Agent frontmatter<br/><code>native_skills: [...]</code>"] --> B2["Deployed as<br/>.opencode/skills/*/SKILL.md"] --> B3["Loaded on-demand<br/>via <code>skill</code> tool"]
+    end
+
+    START --> P3
+
+    subgraph P3 ["Path 3: Stack Detection (Deploy-time)"]
+        direction LR
+        C1["<code>oh deploy</code> scans<br/>project files"] --> C2{"Detects stack<br/>package.json? go.mod?<br/>Cargo.toml?"}
+        C2 --> C3["Injects matching<br/>stack skills<br/>dev-standards-react<br/>dev-standards-golang<br/>etc."]
+    end
+
+    START --> P4
+
+    subgraph P4 ["Path 4: Domain Injection (Invocation-time)"]
+        direction LR
+        D1["orchestrator-dev<br/>picks a ticket"] --> D2{"Routes to domain<br/>frontend? backend?<br/>api? devops?"}
+        D2 --> D3["Injects domain<br/>native_skills into<br/>developer agent prompt"]
+    end
+
+    P1 --> AGENT["fa:fa-robot Agent Runtime<br/>All skills available"]
+    P2 --> AGENT
+    P3 --> AGENT
+    P4 --> AGENT
+
+    style P1 fill:#3498db10,stroke:#3498db
+    style P2 fill:#2ecc7110,stroke:#2ecc71
+    style P3 fill:#e67e2210,stroke:#e67e22
+    style P4 fill:#9b59b610,stroke:#9b59b6
+    style AGENT fill:#2c3e50,color:white

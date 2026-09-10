@@ -3,6 +3,35 @@
 Les skills contiennent des protocoles détaillés, des formats de sortie, des checklists et des règles que les agents appliquent.
 Le hub utilise une **architecture hybride** avec deux chemins de déploiement — voir [ADR-010](./adr/010-hybrid-skills-architecture.fr.md).
 
+> Voir le [Glossaire](../reference/glossary.fr.md) pour les definitions de Skill, Bucket A/B, Stack Skills et autres termes.
+
+## Vue d'ensemble de l'injection de skills
+
+```mermaid
+flowchart TD
+    START(["Agent invoque"]) --> P1 & P2 & P3 & P4
+
+    subgraph P1 ["Chemin 1 : Bucket A (Inline)"]
+        A1["skills: [...] dans le frontmatter"] --> A2["Toujours dans le system prompt"]
+    end
+
+    subgraph P2 ["Chemin 2 : Bucket B (Natif)"]
+        B1["native_skills: [...] dans le frontmatter"] --> B2["Charge a la demande via l'outil skill"]
+    end
+
+    subgraph P3 ["Chemin 3 : Detection de stack"]
+        C1["oh deploy detecte la stack"] --> C2["Injecte les stack skills correspondants"]
+    end
+
+    subgraph P4 ["Chemin 4 : Injection par domaine"]
+        D1["orchestrator-dev route le ticket"] --> D2["Injecte les native_skills du domaine"]
+    end
+
+    P1 & P2 & P3 & P4 --> AGENT["Runtime de l'agent"]
+```
+
+> Source du diagramme : [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
+
 ## Chemins de déploiement
 
 | Chemin | Champ frontmatter | Déployé vers | Quand chargé |

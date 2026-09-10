@@ -4,6 +4,52 @@
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses skills et son mode.
 
+> Voir le [Glossaire](../reference/glossary.fr.md) pour les definitions d'Agent, Bucket A/B, Skill et autres termes.
+
+## Hierarchie des agents
+
+```mermaid
+flowchart TD
+    subgraph PL ["Planning (5)"]
+        ORCH["orchestrator<br/>Coordinateur"]
+        ORCHDEV["orchestrator-dev<br/>Coordinateur"]
+        PLAN["planner<br/>Consultant"]
+        PATH["pathfinder<br/>Recon"]
+        ONB["onboarder<br/>Decouverte"]
+    end
+    subgraph DV ["Developer (5)"]
+        DEV["developer<br/>Sous-agent"]
+        DEVR["developer-refactor<br/>Sous-agent"]
+        DEVM["developer-migrator<br/>Sous-agent"]
+        DB["database<br/>Specialiste"]
+        INFRA["infra<br/>DevOps"]
+    end
+    subgraph AU ["Auditor (2)"]
+        AUD["auditor<br/>Coordinateur"]
+        AUDS["auditor-subagent<br/>Sous-agent"]
+    end
+    subgraph QU ["Quality (4)"]
+        REV["reviewer"]
+        DBG["debugger"]
+        BENCH["benchmarker"]
+        TEST["test-generator"]
+    end
+    subgraph DS ["Design (1)"]
+        DES["designer"]
+    end
+    subgraph DC ["Documentation (1)"]
+        DOC["documentarian"]
+    end
+    subgraph UT ["Utility (1)"]
+        BRF["brief-enricher<br/>Sous-agent"]
+    end
+    ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & DBG & DOC
+    ORCHDEV --> DEV & DEVR & DEVM & REV & DOC
+    AUD --> AUDS & DOC
+```
+
+> Source du diagramme : [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)
+
 ---
 
 ## Format d'un agent

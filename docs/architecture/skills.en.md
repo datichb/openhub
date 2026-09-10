@@ -5,6 +5,35 @@
 Skills contain detailed protocols, output formats, checklists, and rules that agents apply.
 The hub uses a **hybrid architecture** with two deployment paths — see [ADR-010](./adr/010-hybrid-skills-architecture.en.md).
 
+> See the [Glossary](../reference/glossary.en.md) for definitions of Skill, Bucket A/B, Stack Skills, and other terms.
+
+## Skill Injection Overview
+
+```mermaid
+flowchart TD
+    START(["Agent invoked"]) --> P1 & P2 & P3 & P4
+
+    subgraph P1 ["Path 1: Bucket A (Inline)"]
+        A1["skills: [...] in frontmatter"] --> A2["Always in system prompt"]
+    end
+
+    subgraph P2 ["Path 2: Bucket B (Native)"]
+        B1["native_skills: [...] in frontmatter"] --> B2["Loaded on-demand via skill tool"]
+    end
+
+    subgraph P3 ["Path 3: Stack Detection"]
+        C1["oh deploy detects stack"] --> C2["Injects matching stack skills"]
+    end
+
+    subgraph P4 ["Path 4: Domain Injection"]
+        D1["orchestrator-dev routes ticket"] --> D2["Injects domain native_skills"]
+    end
+
+    P1 & P2 & P3 & P4 --> AGENT["Agent Runtime"]
+```
+
+> Standalone diagram source: [`docs/diagrams/skill-injection-flow.mermaid`](../diagrams/skill-injection-flow.mermaid)
+
 ## Deployment paths
 
 | Path | Frontmatter field | Deployed to | When loaded |

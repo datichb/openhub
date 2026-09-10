@@ -2,7 +2,33 @@
 
 # Demarrage rapide
 
-Ce guide couvre l'installation, la configuration initiale et l'utilisation quotidienne du CLI `oh`.
+## Qu'est-ce qu'OpenHub ?
+
+OpenHub (`oh`) est un hub central qui gere les assistants IA de code a travers vos projets. Il fournit **19 agents IA specialises** organises en 7 familles (planning, developpement, audit, qualite, design, documentation, utilitaire) qui collaborent pour tout gerer, de la planification de fonctionnalites a la revue de code.
+
+```mermaid
+flowchart LR
+    U[Vous] -->|oh start| CLI[oh CLI]
+    CLI -->|configure| OC[Runtime OpenCode]
+    OC -->|appelle| LLM[Fournisseur LLM<br/>Anthropic / Bedrock / OpenRouter]
+    CLI -.->|deploie| P1[Projet A<br/>.opencode/]
+    CLI -.->|deploie| P2[Projet B<br/>.opencode/]
+    HUB[(~/.oh/<br/>Config Hub)] -->|agents, skills,<br/>config| CLI
+    MCP[Serveurs MCP<br/>GitLab, Figma, Jira...] <-->|outils| OC
+```
+
+**Concepts cles** (voir le [Glossaire](../reference/glossary.fr.md) complet) :
+- **Hub** (`~/.oh/`) -- configuration centrale et stockage agents/skills
+- **Agent** -- un role IA specialise (orchestrateur, developpeur, reviewer, etc.)
+- **Skill** -- un document de protocole donnant une expertise domaine a un agent
+- **Deploy** -- copie des agents et skills du hub vers le repertoire `.opencode/` d'un projet
+- **MCP Server** -- integration d'outils externes (GitLab, Figma, Jira, etc.)
+
+> **Nouveau ici ?** Commencez par le [tutoriel en 5 minutes](tutorial.fr.md) pour une prise en main pratique.
+
+Ce guide est la reference complete des commandes. Pour les details de configuration, voir le [Guide de configuration](configuration-guide.fr.md).
+
+---
 
 ## Prerequisites
 
@@ -130,18 +156,48 @@ oh quick                     # detection auto du projet, lancement immediat
 
 ## Commandes quotidiennes
 
+### Essentielles
+
+```bash
+oh start                     # lancer une session IA
+oh quick                     # lancer une session IA (sans confirmation)
+oh deploy                    # deployer/sync agents dans le projet courant
+oh status                    # afficher le statut du hub et du projet courant
+oh doctor                    # verification de sante du systeme
+```
+
+### Developpement
+
+```bash
+oh start --dev               # choisir epic/ticket, lance orchestrator-dev
+oh start --dev --label bug   # filtrer les tickets par label
+oh audit --type security     # audit de code
+oh review                    # revue de code
+oh debug --issue "crash..."  # session de debogage
+```
+
+### Infrastructure
+
 ```bash
 oh sync --all                # synchroniser agents/skills vers tous les projets
-oh status                    # afficher le statut du hub et du projet courant
-oh doctor                    # verification de sante du systeme (verifie aussi version oh et credentials provider)
 oh provider setup            # configurer les credentials provider
-oh metrics                   # stats d'utilisation par agent (sessions, tokens, cout, duree moy.)
-oh serve                     # demarrer le dashboard API + SPA sur localhost
-oh dashboard                 # tableau de bord TUI interactif
+oh mcp setup                 # configurer les tokens des serveurs MCP
+oh metrics                   # stats d'utilisation par agent
+oh serve                     # demarrer le dashboard web sur localhost:8080
+oh                           # tableau de bord TUI interactif (sans arguments)
 oh board                     # kanban (necessite bd)
-oh team sync-tracker         # synchroniser les liens ExternalIID des claims vers le tracker externe (Jira, Linear, GitLab Issues)
-oh export                    # exporter toutes les donnees du hub (projets, sessions, secrets) en fichier de sauvegarde
-oh repair                    # reparer la base de donnees ou l'etat de configuration corrompus
+oh export                    # exporter toutes les donnees du hub
+oh repair                    # reparer la base de donnees ou l'etat corrompus
+```
+
+### Equipe (optionnel)
+
+```bash
+oh team init                 # configurer la collaboration d'equipe
+oh team claim <ticket-id>    # revendiquer un ticket
+oh team release <ticket-id>  # liberer un ticket revendique
+oh team status               # afficher l'etat de l'equipe
+oh team sync-tracker         # synchroniser les claims vers le tracker externe
 ```
 
 ## Workflow de developpement
@@ -219,6 +275,6 @@ Problemes courants :
 
 - **opencode introuvable** — lancer `oh init` ou `oh upgrade opencode`
 - **Credentials provider manquantes** — lancer `oh provider setup`
-- **Erreurs de serveur MCP** — verifier les tokens avec `oh service setup --project <id>`
+- **Erreurs de serveur MCP** — verifier les tokens avec `oh mcp setup`
 - **Projet non detecte** — s'assurer d'etre dans un repertoire de projet enregistre (`oh project list`)
 - **Etat corrompu** — lancer `oh repair` pour tenter une recuperation automatique
