@@ -460,6 +460,9 @@ func (v *SettingsView) buildLines() {
 		{section: "Raccourcis", key: "provider", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
 			linkTarget: "provider",
 			get:        func(_ *config.Config) string { return i18n.T("tui.settings.link_provider") }},
+		{section: "Raccourcis", key: "workflow", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
+			linkTarget: "workflow",
+			get:        func(_ *config.Config) string { return "Workflow..." }},
 	}
 }
 

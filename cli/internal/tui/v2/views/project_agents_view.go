@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // ProjectAgentsViewConfig holds external dependencies for the project agents view.
@@ -22,6 +23,8 @@ type ProjectAgentsViewConfig struct {
 	SaveProject func(ctx context.Context, p *domain.Project) error
 	// AllAgents returns the list of all available agent IDs.
 	AllAgents func() []string
+	// GetWorkflow returns the resolved workflow definition (optional, nil = no workflow).
+	GetWorkflow func() *workflow.WorkflowDefinition
 }
 
 // ProjectAgentsView displays and edits the agent selection for the active project.
@@ -162,16 +165,39 @@ func (v *ProjectAgentsView) renderLines() {
 	// Agent rows
 	green := theme.ColorTag(theme.SuccessHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
+	warn := theme.ColorTag(theme.WarningHex)
 	reset := theme.TagColor
+
+	// Build workflow lookup for mandatory/disabled indicators.
+	var wfSlots map[string]*workflow.AgentSlot
+	if v.cfg.GetWorkflow != nil {
+		if wf := v.cfg.GetWorkflow(); wf != nil {
+			wfSlots = make(map[string]*workflow.AgentSlot, len(wf.Agents))
+			for i := range wf.Agents {
+				wfSlots[wf.Agents[i].AgentID] = &wf.Agents[i]
+			}
+		}
+	}
 
 	for idx, agent := range allAgents {
 		var status string
+		var suffix string
+
+		// Check workflow constraints.
+		if slot, ok := wfSlots[agent]; ok {
+			if slot.Role == workflow.RoleDisabled {
+				suffix = fmt.Sprintf(" %s[workflow: disabled]%s", muted, reset)
+			} else if slot.Mandatory {
+				suffix = fmt.Sprintf(" %s🔒%s", warn, reset)
+			}
+		}
+
 		if activeSet[agent] {
 			status = fmt.Sprintf("%s✓ %s%s", green, i18n.T("tui.settings.enabled"), reset)
 		} else {
 			status = fmt.Sprintf("%s✗ %s%s", muted, i18n.T("tui.settings.disabled"), reset)
 		}
-		mainText := fmt.Sprintf("%-28s %s", agent, status)
+		mainText := fmt.Sprintf("%-28s %s%s", agent, status, suffix)
 		items = append(items, widgets.SectionItem{
 			MainText:  mainText,
 			Reference: idx,
@@ -234,14 +260,37 @@ func (v *ProjectAgentsView) toggleSelected() {
 	}
 	agent := allAgents[ref]
 
-	v.pushUndo()
-
-	// Toggle: add or remove from live.Agents
+	// Build active set early (needed for workflow constraint checks).
 	activeSet := make(map[string]bool, len(v.live.Agents))
 	for _, a := range v.live.Agents {
 		activeSet[a] = true
 	}
 
+	// Check workflow constraints before toggling.
+	if v.cfg.GetWorkflow != nil {
+		if wf := v.cfg.GetWorkflow(); wf != nil {
+			if slot := wf.FindAgent(agent); slot != nil {
+				if slot.Mandatory && activeSet[agent] {
+					// Cannot deselect a mandatory agent.
+					if v.shell != nil {
+						v.shell.ShowToastMsg(fmt.Sprintf("Agent %q is mandatory in the workflow", agent), false)
+					}
+					return
+				}
+				if slot.Role == workflow.RoleDisabled && !activeSet[agent] {
+					// Cannot enable an agent disabled by workflow.
+					if v.shell != nil {
+						v.shell.ShowToastMsg(fmt.Sprintf("Agent %q is disabled by the workflow", agent), false)
+					}
+					return
+				}
+			}
+		}
+	}
+
+	v.pushUndo()
+
+	// Toggle: add or remove from live.Agents
 	if activeSet[agent] {
 		newAgents := make([]string, 0, len(v.live.Agents))
 		for _, a := range v.live.Agents {

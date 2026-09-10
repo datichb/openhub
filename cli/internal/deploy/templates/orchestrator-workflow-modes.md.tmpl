@@ -1,0 +1,68 @@
+---
+name: orchestrator-workflow-modes
+description: "Modes de workflow et comportement des checkpoints — GÉNÉRÉ AUTOMATIQUEMENT"
+---
+
+# Modes de workflow
+
+## Modes disponibles
+
+{{- range .Modes.Available }}
+- `{{ . }}`
+{{- end }}
+
+**Mode par défaut** : `{{ .Modes.Default }}`
+
+## Comportement des checkpoints par mode
+
+| Checkpoint | {{- range .Modes.Available }} {{ . }} |{{- end }}
+|---|{{- range .Modes.Available }}---|{{- end }}
+{{- range $cp := .Checkpoints }}
+| **{{ $cp.ID }}** — {{ $cp.Label }} |{{- range $.Modes.Available }} {{ index $.BehaviorMatrix $cp.ID . }} |{{- end }}
+{{- end }}
+
+### Règles absolues
+
+{{- range .Checkpoints }}
+{{- if .Mandatory }}
+- **{{ .ID }}** ({{ .Label }}) : checkpoint **obligatoire**, ne peut pas être supprimé.
+{{- end }}
+{{- if .Condition }}
+- **{{ .ID }}** : condition en mode `conditional` → {{ .Condition }}
+{{- end }}
+{{- end }}
+
+## Disjoncteur (circuit breaker)
+
+{{- if gt .CircuitBreaker.MaxConsecutiveInvocations 0 }}
+- **Limite** : {{ .CircuitBreaker.MaxConsecutiveInvocations }} invocations `task` consécutives sans interaction utilisateur.
+- **Action** : pause obligatoire avec question (continuer auto / pause pour review / arrêter session).
+- **Reset** : le compteur se réinitialise à chaque interaction utilisateur (CP-2, question manuelle).
+{{- else }}
+- Disjoncteur **désactivé**.
+{{- end }}
+
+## Protocole de sélection du mode (CP-0)
+
+Tu DOIS demander le mode de workflow à l'utilisateur avant de commencer.
+Utilise le tool `question` avec les options suivantes :
+
+```
+question({
+  question: "Quel mode de workflow ?",
+  options: [
+{{- range $i, $mode := .Modes.Available }}
+    { label: "{{ $mode }}"{{ if eq $mode $.Modes.Default }}, description: "(recommandé)"{{ end }} },
+{{- end }}
+  ]
+})
+```
+
+Le mode choisi doit être transmis en valeur canonique (`{{ join .Modes.Available "`, `" }}`) — jamais en label brut UI.
+
+## Transmission du mode
+
+Quand tu invoques un agent via `task`, tu DOIS inclure le mode de workflow dans le prompt :
+```
+Mode de workflow : <mode canonique>
+```

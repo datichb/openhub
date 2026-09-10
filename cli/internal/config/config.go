@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 )
@@ -34,6 +35,13 @@ type Config struct {
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
 	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
+	// Workflow holds hub-level workflow overrides (applied on top of the base workflow).
+	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
+}
+
+// WorkflowHubConfig holds workflow customization at the hub level.
+type WorkflowHubConfig struct {
+	Overrides *workflow.WorkflowOverride `mapstructure:"overrides" toml:"overrides,omitempty"`
 }
 
 // FindTeam looks up a team by ID. Returns nil if not found.

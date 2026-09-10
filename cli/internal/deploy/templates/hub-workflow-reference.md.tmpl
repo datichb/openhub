@@ -1,0 +1,57 @@
+---
+name: hub-workflow-reference
+description: "Catalogue des agents et séquences de workflow — GÉNÉRÉ AUTOMATIQUEMENT"
+---
+
+# Référence du workflow hub
+
+## Catalogue des agents
+
+### Agents du workflow (chaîne orchestrée)
+
+| Agent | Rôle | Mode | Position |
+|-------|------|------|----------|
+{{- range .WorkflowAgents }}
+| `{{ .AgentID }}` | workflow | {{ .Mode }} | {{ if .Position }}après {{ .Position.AfterCheckpoint }}{{ if .Position.Branch }} (branche: {{ .Position.Branch }}){{ end }}{{ else }}—{{ end }} |
+{{- end }}
+
+### Agents indépendants (disponibles à la demande)
+
+| Agent | Mode | Invocable par |
+|-------|------|---------------|
+{{- range .IndependentAgents }}
+| `{{ .AgentID }}` | {{ .Mode }} | {{ invokedBy . }} |
+{{- end }}
+
+## Graphe de permissions task
+
+Chaque agent ne peut invoquer via `task` que les agents listés ci-dessous.
+Tout appel `task` vers un agent non listé est **interdit**.
+
+{{- range $agent, $targets := .Permissions }}
+- **{{ $agent }}** → {{ join $targets ", " }}
+{{- end }}
+
+## Checkpoints
+
+{{- range .Checkpoints }}
+
+### {{ .ID }} — {{ .Label }}
+
+{{ .Description }}
+
+{{- if .Mandatory }}
+> ⚠️ Checkpoint **obligatoire** — ne peut pas être supprimé par configuration.
+{{- end }}
+
+Agents impliqués : {{ join .Agents ", " }}
+
+{{- end }}
+
+## Séquences standard
+
+Les séquences ci-dessous sont les parcours typiques. L'orchestrateur choisit
+la séquence en fonction du scoring de complexité et du contexte.
+
+La séquence exacte dépend du workflow configuré — les agents désactivés
+ou repositionnés modifient les parcours possibles.

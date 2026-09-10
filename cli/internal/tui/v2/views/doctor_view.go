@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // DoctorCheck represents a single health check result.
@@ -112,6 +113,7 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 		v.checkOpencode(),
 		v.checkConfig(),
 		v.checkDatabase(),
+		v.checkWorkflow(),
 	}
 }
 
@@ -200,4 +202,26 @@ func (v *DoctorView) checkDatabase() DoctorCheck {
 		return DoctorCheck{Name: "Base de données", Detail: err.Error(), OK: false}
 	}
 	return DoctorCheck{Name: "Base de données", Detail: fmt.Sprintf("OK (%d projets)", len(projects)), OK: true}
+}
+
+func (v *DoctorView) checkWorkflow() DoctorCheck {
+	base := workflow.BaseWorkflow()
+
+	// Collect hub-level overrides if config is available.
+	var overrides []workflow.WorkflowOverride
+	if v.appCtx != nil && v.appCtx.Config != nil {
+		if v.appCtx.Config.Workflow != nil && v.appCtx.Config.Workflow.Overrides != nil {
+			overrides = append(overrides, *v.appCtx.Config.Workflow.Overrides)
+		}
+	}
+
+	resolved, err := workflow.Resolve(base, overrides...)
+	if err != nil {
+		return DoctorCheck{Name: "Workflow", Detail: err.Error(), OK: false}
+	}
+
+	activeCount := len(resolved.ActiveAgents())
+	cpCount := len(resolved.Checkpoints)
+	detail := fmt.Sprintf("OK (%d agents, %d checkpoints, mode=%s)", activeCount, cpCount, resolved.Modes.Default)
+	return DoctorCheck{Name: "Workflow", Detail: detail, OK: true}
 }
