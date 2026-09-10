@@ -1242,6 +1242,7 @@
   "tui.config.saved_local": "Sauvegardé (local)",
   "tui.config.saved_team_local": "Sauvegardé (équipe + local)",
   "tui.config.reloaded": "Rechargé",
+  "tui.config.use_team_value": "Utiliser la valeur équipe",
 
   "tui.config.section.shortcuts": "Raccourcis",
   "tui.config.section.general": "Général",

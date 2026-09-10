@@ -374,56 +374,24 @@ func (v *SettingsView) buildFields() {
 			Get:         func() string { return v.live.Worktree.BranchPattern },
 			Set:         func(val string) { v.live.Worktree.BranchPattern = val }},
 
-		// ── Tracker (hub level = simple bool, NOT tri-state) ────────────────
+		// ── Tracker (dynamic: tri-state if team configured, bool if solo) ──
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")},
-		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
-			Description: i18n.T("tui.config.field.tracker_enabled.desc"),
-			Get: func() string {
-				if v.live.Tracker.Enabled == nil {
-					return "false"
-				}
-				return boolStr(*v.live.Tracker.Enabled)
-			},
-			Set: func(val string) {
-				b := val == "true"
-				v.live.Tracker.Enabled = &b
-			}},
-		{Key: "auto_sync", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_sync.label"),
-			Description: i18n.T("tui.config.field.auto_sync.desc"),
-			Get: func() string {
-				if v.live.Tracker.AutoSync == nil {
-					return "false"
-				}
-				return boolStr(*v.live.Tracker.AutoSync)
-			},
-			Set: func(val string) {
-				b := val == "true"
-				v.live.Tracker.AutoSync = &b
-			}},
-		{Key: "push_labels", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels.label"),
-			Description: i18n.T("tui.config.field.push_labels.desc"),
-			Get: func() string {
-				if v.live.Tracker.PushLabels == nil {
-					return "false"
-				}
-				return boolStr(*v.live.Tracker.PushLabels)
-			},
-			Set: func(val string) {
-				b := val == "true"
-				v.live.Tracker.PushLabels = &b
-			}},
-		{Key: "auto_plan_assigned", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
-			Description: i18n.T("tui.config.field.auto_plan_assigned.desc"),
-			Get: func() string {
-				if v.live.Tracker.AutoPlanAssigned == nil {
-					return "false"
-				}
-				return boolStr(*v.live.Tracker.AutoPlanAssigned)
-			},
-			Set: func(val string) {
-				b := val == "true"
-				v.live.Tracker.AutoPlanAssigned = &b
-			}},
+		v.trackerBoolField("enabled", i18n.T("tui.config.field.tracker_enabled.label"),
+			i18n.T("tui.config.field.tracker_enabled.desc"),
+			func() *bool { return v.live.Tracker.Enabled },
+			func(b *bool) { v.live.Tracker.Enabled = b }),
+		v.trackerBoolField("auto_sync", i18n.T("tui.config.field.auto_sync.label"),
+			i18n.T("tui.config.field.auto_sync.desc"),
+			func() *bool { return v.live.Tracker.AutoSync },
+			func(b *bool) { v.live.Tracker.AutoSync = b }),
+		v.trackerBoolField("push_labels", i18n.T("tui.config.field.push_labels.label"),
+			i18n.T("tui.config.field.push_labels.desc"),
+			func() *bool { return v.live.Tracker.PushLabels },
+			func(b *bool) { v.live.Tracker.PushLabels = b }),
+		v.trackerBoolField("auto_plan_assigned", i18n.T("tui.config.field.auto_plan_assigned.label"),
+			i18n.T("tui.config.field.auto_plan_assigned.desc"),
+			func() *bool { return v.live.Tracker.AutoPlanAssigned },
+			func(b *bool) { v.live.Tracker.AutoPlanAssigned = b }),
 		{Key: "max_auto_plan_per_member", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_auto_plan.label"),
 			Description: i18n.T("tui.config.field.max_auto_plan.desc"),
 			Placeholder: i18n.T("tui.config.field.max_auto_plan.placeholder"),
@@ -624,4 +592,59 @@ func boolStr(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// trackerBoolField builds a configField for a tracker *bool hub field.
+// If the user has at least one team configured, the field is tri-state:
+//   - "" = use team value (nil pointer)
+//   - "true" / "false" = explicit override
+//
+// If the user has no team, the field is a simple bool (oui/non).
+func (v *SettingsView) trackerBoolField(
+	key, label, desc string,
+	getter func() *bool,
+	setter func(*bool),
+) configField {
+	hasTeam := len(v.live.Teams) > 0
+
+	kind := CfgFieldBool
+	if hasTeam {
+		kind = CfgFieldTriBool
+	}
+
+	cf := configField{
+		Key:         key,
+		Kind:        kind,
+		Label:       label,
+		Description: desc,
+		Get: func() string {
+			p := getter()
+			if p == nil {
+				if hasTeam {
+					return "" // tri-state: use team value
+				}
+				return "false" // solo: nil = disabled
+			}
+			return boolStr(*p)
+		},
+		Set: func(val string) {
+			if val == "" {
+				setter(nil) // reset to team value
+				return
+			}
+			b := val == "true"
+			setter(&b)
+		},
+	}
+
+	// Custom options for tri-state: "Utiliser la valeur équipe" instead of generic "hérité"
+	if hasTeam {
+		cf.Options = []SelectOption{
+			{Label: "↩ " + i18n.T("tui.config.use_team_value"), Value: ""},
+			{Label: "✓ " + i18n.T("tui.config.enabled"), Value: "true"},
+			{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
+		}
+	}
+
+	return cf
 }
