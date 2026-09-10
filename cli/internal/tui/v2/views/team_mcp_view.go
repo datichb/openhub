@@ -70,6 +70,13 @@ type TeamMCPView struct {
 	lines      []mcpLine
 	dirtyTeam  bool
 	dirtyLocal bool
+	undoStack  *widgets.UndoStack[teamMCPSnapshot]
+}
+
+// teamMCPSnapshot holds combined state for undo.
+type teamMCPSnapshot struct {
+	teamCfg  teamstate.TeamConfig
+	localMCP config.MCPConfig
 }
 
 var _ View = (*TeamMCPView)(nil)
@@ -77,7 +84,10 @@ var _ CommandProvider = (*TeamMCPView)(nil)
 
 // NewTeamMCPView creates the MCP services configuration view.
 func NewTeamMCPView(cfg TeamMCPViewConfig) *TeamMCPView {
-	return &TeamMCPView{cfg: cfg}
+	return &TeamMCPView{
+		cfg:       cfg,
+		undoStack: widgets.NewUndoStack[teamMCPSnapshot](10),
+	}
 }
 
 // SetShell provides shell access for modals/toasts.
@@ -167,6 +177,9 @@ func (v *TeamMCPView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list == nil {
+		return event
+	}
 	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.editByIndex(idx, item)
@@ -181,14 +194,7 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.save()
 		return nil
 	case 'u':
-		v.loadData()
-		v.buildLines()
-		v.renderLines()
-		v.dirtyTeam = false
-		v.dirtyLocal = false
-		if v.shell != nil {
-			v.shell.ShowToastMsg("↩ Rechargé", true)
-		}
+		v.undo()
 		return nil
 	case 't':
 		v.testConnection()
@@ -640,6 +646,41 @@ func (v *TeamMCPView) testConnection() {
 	}
 
 	v.shell.ShowToastMsg(fmt.Sprintf("Test connexion %s...", svc), true)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Undo
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *TeamMCPView) pushUndo() {
+	if v.teamCfg == nil {
+		return
+	}
+	v.undoStack.Push(teamMCPSnapshot{
+		teamCfg:  deepCopyTeamConfig(v.teamCfg),
+		localMCP: v.localMCP,
+	})
+}
+
+func (v *TeamMCPView) undo() {
+	prev, ok := v.undoStack.Pop()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
+		}
+		return
+	}
+	if v.teamCfg != nil {
+		*v.teamCfg = prev.teamCfg
+	}
+	v.localMCP = prev.localMCP
+	v.dirtyTeam = v.undoStack.Len() > 0
+	v.dirtyLocal = v.undoStack.Len() > 0
+	v.buildLines()
+	v.renderLines()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

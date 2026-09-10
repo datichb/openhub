@@ -80,12 +80,23 @@ type TeamDetailView struct {
 	lines      []teamConfigLine
 	dirtyTeam  bool
 	dirtyLocal bool
+	undoStack  *widgets.UndoStack[teamDetailSnapshot]
+}
+
+// teamDetailSnapshot holds the combined state for undo (team + local).
+type teamDetailSnapshot struct {
+	teamCfg  teamstate.TeamConfig
+	localMCP config.MCPConfig
+	localTrk config.TrackerLocalConfig
 }
 
 var _ View = (*TeamDetailView)(nil)
 
 func NewTeamDetailView(cfg TeamDetailViewConfig) *TeamDetailView {
-	return &TeamDetailView{cfg: cfg}
+	return &TeamDetailView{
+		cfg:       cfg,
+		undoStack: widgets.NewUndoStack[teamDetailSnapshot](10),
+	}
 }
 
 func (v *TeamDetailView) SetShell(s ShellAccess) { v.shell = s }
@@ -146,6 +157,9 @@ func (v *TeamDetailView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list == nil {
+		return event
+	}
 	if event.Key() == tcell.KeyEnter {
 		v.editSelected()
 		return nil
@@ -170,14 +184,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.deleteDynamic()
 		return nil
 	case 'u':
-		v.loadData()
-		v.buildLines()
-		v.renderLines()
-		v.dirtyTeam = false
-		v.dirtyLocal = false
-		if v.shell != nil {
-			v.shell.ShowToastMsg("↩ Rechargé", true)
-		}
+		v.undo()
 		return nil
 	case 'r':
 		tc := v.cfg.ResolveTeam()
@@ -581,6 +588,7 @@ func (v *TeamDetailView) toggleSelected() {
 		}
 		return
 	}
+	v.pushUndo()
 	switch line.kind {
 	case "bool":
 		cur := line.get()
@@ -624,11 +632,13 @@ func (v *TeamDetailView) editSelected() {
 	case "bool", "tri-state":
 		v.toggleSelected()
 	case "select":
+		v.pushUndo()
 		v.shell.ShowSelectModal(line.key, line.options, line.get(), func(val string) {
 			line.set(val)
 			v.renderLines()
 		})
 	case "string":
+		v.pushUndo()
 		v.shell.ShowInputModal(line.key, line.get(), func(val string) {
 			line.set(val)
 			v.renderLines()
@@ -759,6 +769,43 @@ func (v *TeamDetailView) deleteDynamic() {
 	v.renderLines()
 	if v.shell != nil {
 		v.shell.ShowToastMsg("Supprimé: "+key, true)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Undo
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *TeamDetailView) pushUndo() {
+	if v.teamCfg == nil {
+		return
+	}
+	v.undoStack.Push(teamDetailSnapshot{
+		teamCfg:  deepCopyTeamConfig(v.teamCfg),
+		localMCP: v.localMCP,
+		localTrk: v.localTrk,
+	})
+}
+
+func (v *TeamDetailView) undo() {
+	prev, ok := v.undoStack.Pop()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
+		}
+		return
+	}
+	if v.teamCfg != nil {
+		*v.teamCfg = prev.teamCfg
+	}
+	v.localMCP = prev.localMCP
+	v.localTrk = prev.localTrk
+	v.dirtyTeam = v.undoStack.Len() > 0
+	v.dirtyLocal = v.undoStack.Len() > 0
+	v.buildLines()
+	v.renderLines()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
 }
 
