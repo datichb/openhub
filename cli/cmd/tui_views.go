@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // buildViews constructs all registered views for the shell.
@@ -720,6 +721,151 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SaveProject: func(ctx context.Context, p *domain.Project) error {
 				return a.Projects.Update(ctx, p)
+			},
+		}),
+		// Workflow view (scope-aware: adapts to current shell mode)
+		views.NewWorkflowView(views.WorkflowViewConfig{
+			Level: func() string {
+				if tuiShell == nil {
+					return "hub"
+				}
+				switch tuiShell.Mode() {
+				case views.ModeTeam:
+					return "team"
+				case views.ModeProject:
+					return "project"
+				default:
+					return "hub"
+				}
+			},
+			GetWorkflow: func() (*workflow.WorkflowDefinition, error) {
+				var teamCfg *teamstate.TeamConfig
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+				if tc.Enabled && tc.StatePath != "" {
+					repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+					if repo.IsCloned() {
+						teamCfg, _ = repo.LoadConfig()
+					}
+				}
+				resolved, err := config.ResolveWorkflow(a.Config, teamCfg, project)
+				if err != nil {
+					return nil, err
+				}
+				return &resolved.Definition, nil
+			},
+			GetOverrides: func() (*workflow.WorkflowOverride, error) {
+				mode := views.ModeHub
+				if tuiShell != nil {
+					mode = tuiShell.Mode()
+				}
+				switch mode {
+				case views.ModeTeam:
+					project, _ := resolveActiveProject(a)
+					tc := resolvedTeamConfig(a, project)
+					if tc.Enabled && tc.StatePath != "" {
+						repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+						if repo.IsCloned() {
+							teamCfg, err := repo.LoadConfig()
+							if err != nil {
+								return nil, err
+							}
+							if teamCfg.Workflow != nil {
+								return teamCfg.Workflow.Overrides, nil
+							}
+						}
+					}
+					return nil, nil
+				case views.ModeProject:
+					project, err := resolveActiveProject(a)
+					if err != nil || project == nil {
+						return nil, err
+					}
+					if project.WorkflowConfig != nil {
+						return project.WorkflowConfig.Overrides, nil
+					}
+					return nil, nil
+				default: // hub
+					if a.Config.Workflow != nil {
+						return a.Config.Workflow.Overrides, nil
+					}
+					return nil, nil
+				}
+			},
+			SaveOverrides: func(ov *workflow.WorkflowOverride) error {
+				mode := views.ModeHub
+				if tuiShell != nil {
+					mode = tuiShell.Mode()
+				}
+				switch mode {
+				case views.ModeTeam:
+					project, _ := resolveActiveProject(a)
+					tc := resolvedTeamConfig(a, project)
+					if !tc.Enabled {
+						return fmt.Errorf("equipe non configurée")
+					}
+					repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+					teamCfg, err := repo.LoadConfig()
+					if err != nil {
+						return err
+					}
+					if teamCfg.Workflow == nil {
+						teamCfg.Workflow = &teamstate.WorkflowTeamConfig{}
+					}
+					teamCfg.Workflow.Overrides = ov
+					return repo.SaveConfig(context.Background(), teamCfg)
+				case views.ModeProject:
+					project, err := resolveActiveProject(a)
+					if err != nil || project == nil {
+						return fmt.Errorf("aucun projet actif")
+					}
+					if project.WorkflowConfig == nil {
+						project.WorkflowConfig = &domain.ProjectWorkflowConfig{}
+					}
+					project.WorkflowConfig.Overrides = ov
+					return a.Projects.Update(context.Background(), project)
+				default: // hub
+					if a.Config.Workflow == nil {
+						a.Config.Workflow = &config.WorkflowHubConfig{}
+					}
+					a.Config.Workflow.Overrides = ov
+					if err := config.Save(a.Config); err != nil {
+						return err
+					}
+					config.Reset()
+					newCfg, err := config.Load()
+					if err == nil && newCfg != nil {
+						*a.Config = *newCfg
+					}
+					return nil
+				}
+			},
+			IsLocked: func() bool {
+				// Only project scope can be locked (by team enforcement)
+				if tuiShell == nil || tuiShell.Mode() != views.ModeProject {
+					return false
+				}
+				project, _ := resolveActiveProject(a)
+				tc := resolvedTeamConfig(a, project)
+				if !tc.Enabled || tc.StatePath == "" {
+					return false
+				}
+				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+				if !repo.IsCloned() {
+					return false
+				}
+				teamCfg, err := repo.LoadConfig()
+				if err != nil {
+					return false
+				}
+				return teamCfg.Workflow.IsEnforced()
+			},
+			Deploy: func() error {
+				p, err := resolveActiveProject(a)
+				if err != nil || p == nil {
+					return fmt.Errorf("no active project for deploy")
+				}
+				return runDeployForProject(a, p)
 			},
 		}),
 		// Secrets view

@@ -19,8 +19,10 @@ type WorkflowViewConfig struct {
 	GetOverrides func() (*workflow.WorkflowOverride, error)
 	// SaveOverrides persists overrides for the current level.
 	SaveOverrides func(ov *workflow.WorkflowOverride) error
-	// Level is "hub", "team", or "project".
-	Level string
+	// Level returns the current scope label ("hub", "team", or "project").
+	// A function is used so the title updates dynamically when the user
+	// switches mode without remounting the view.
+	Level func() string
 	// IsLocked returns true if a higher level has enforced the workflow.
 	IsLocked func() bool
 	// Deploy triggers a redeploy after saving.
@@ -49,7 +51,13 @@ func NewWorkflowView(cfg WorkflowViewConfig) View {
 }
 
 func (v *workflowView) ID() string    { return "workflow" }
-func (v *workflowView) Title() string { return "Workflow — " + v.cfg.Level }
+func (v *workflowView) Title() string {
+	level := "hub"
+	if v.cfg.Level != nil {
+		level = v.cfg.Level()
+	}
+	return "Workflow — " + level
+}
 
 func (v *workflowView) StatusHints() string {
 	if v.cfg.IsLocked != nil && v.cfg.IsLocked() {
