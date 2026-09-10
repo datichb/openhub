@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -32,27 +33,6 @@ type ProjectConfigViewConfig struct {
 	ResolveMCPSource func(service, field string) (effective string, source string, locked bool)
 }
 
-// projectConfigLine is a single editable row in the project config view.
-type projectConfigLine struct {
-	section string
-	key     string
-	kind    string // "string", "bool", "agents", "section-header", "readonly", "select", "tri-bool", "link"
-	// options holds allowed values for "select" kind fields.
-	options []SelectOption
-	// optionsFunc returns dynamic allowed values.
-	optionsFunc func() []SelectOption
-	// validator holds optional validation rules.
-	validator *FieldValidator
-	// linkTarget is the view ID to navigate to when kind is "link".
-	linkTarget string
-	get        func(p *domain.Project) string
-	set        func(p *domain.Project, v string)
-	// source returns the resolution source annotation (e.g., "[hub]", "[equipe: enforced]").
-	source func(p *domain.Project) string
-	// locked indicates this field is enforced by the team and cannot be edited.
-	locked func(p *domain.Project) bool
-}
-
 // ProjectConfigView displays and edits the active project's configuration.
 type ProjectConfigView struct {
 	app      *tview.Application
@@ -61,11 +41,10 @@ type ProjectConfigView struct {
 	cfg      ProjectConfigViewConfig
 	mountGen uint64
 
-	live       *domain.Project
-	dirty      bool
-	mcpChanged bool // track if MCP fields changed (triggers redeploy prompt)
-	lines      []projectConfigLine
-	undoStack  *widgets.UndoStack[domain.Project]
+	live      *domain.Project
+	fields    []configField
+	undoStack *widgets.UndoStack[domain.Project]
+	autoSaver *AutoSaver
 }
 
 var _ View = (*ProjectConfigView)(nil)
@@ -84,13 +63,11 @@ func (v *ProjectConfigView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectConfigView) ID() string    { return "project.config" }
 func (v *ProjectConfigView) Title() string { return i18n.T("tui.project.title") }
 func (v *ProjectConfigView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · w %s · u %s · Esc %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
 		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.back"),
 	)
@@ -100,12 +77,15 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
-	v.mcpChanged = false
 	v.undoStack.Clear()
-	v.live = v.cfg.GetProject() // synchronous: always available for save()
+	v.live = v.cfg.GetProject() // synchronous
 
-	// Show loading placeholder immediately
+	// Auto-save: SQLite is fast, 200ms debounce
+	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+		v.doSave()
+	})
+
+	// Loading placeholder
 	loading := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -114,7 +94,6 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build UI asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
@@ -137,11 +116,11 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 			}
 
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByIndex(index, item)
+				v.onItemSelected(index, item)
 			})
 
-			v.buildLines()
-			v.renderLines()
+			v.buildFields()
+			v.renderFields()
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
 			app.SetFocus(v.list)
@@ -150,8 +129,8 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *ProjectConfigView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
+	if v.autoSaver != nil {
+		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
 	v.app = nil
@@ -159,26 +138,23 @@ func (v *ProjectConfigView) Unmount() {
 }
 
 func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.live == nil {
+	if v.live == nil || v.list == nil {
 		return event
 	}
 	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	}
 	switch event.Rune() {
 	case 'e':
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	case ' ':
-		v.toggleSelected()
-		return nil
-	case 'w':
-		v.save()
+		v.onToggleSelected()
 		return nil
 	case 'u':
 		v.undo()
@@ -191,30 +167,33 @@ func (v *ProjectConfigView) undo() {
 	prev, ok := v.undoStack.Pop()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
 		}
 		return
 	}
 	*v.live = prev
-	v.dirty = v.undoStack.Len() > 0
-	v.renderLines()
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.doSave()
+	v.renderFields()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Line definitions
+// Field definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectConfigView) buildLines() {
+func (v *ProjectConfigView) buildFields() {
 	languageOptions := []SelectOption{
 		{Label: "Français", Value: "fr"},
 		{Label: "English", Value: "en"},
-		{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: ""},
+		{Label: fmt.Sprintf("(%s)", i18n.T("tui.config.inherited")), Value: ""},
 	}
 	providerOptionsFunc := func() []SelectOption {
-		opts := []SelectOption{{Label: fmt.Sprintf("(%s)", i18n.T("tui.settings.inherited")), Value: ""}}
+		opts := []SelectOption{{Label: fmt.Sprintf("(%s)", i18n.T("tui.config.inherited")), Value: ""}}
 		for _, p := range provider.AllProviders() {
 			opts = append(opts, SelectOption{Label: string(p), Value: string(p)})
 		}
@@ -225,228 +204,173 @@ func (v *ProjectConfigView) buildLines() {
 		{Label: "archived", Value: "archived"},
 	}
 
-	v.lines = []projectConfigLine{
-		// ── Général ──────────────────────────────────────────────────────────
-		{kind: "section-header", section: i18n.T("tui.settings.section_general")},
-		{section: i18n.T("tui.settings.section_general"), key: "id", kind: "readonly",
-			get: func(p *domain.Project) string { return p.ID }},
-		{section: i18n.T("tui.settings.section_general"), key: "name", kind: "string",
-			get: func(p *domain.Project) string { return p.Name },
-			set: func(p *domain.Project, v string) { p.Name = v }},
-		{section: i18n.T("tui.settings.section_general"), key: "path", kind: "string",
-			get: func(p *domain.Project) string { return p.Path },
-			set: func(p *domain.Project, v string) { p.Path = v }},
-		{section: i18n.T("tui.settings.section_general"), key: "language", kind: "select",
-			options: languageOptions,
-			get:     func(p *domain.Project) string { return p.Language },
-			set:     func(p *domain.Project, v string) { p.Language = v }},
-		{section: i18n.T("tui.settings.section_general"), key: "provider", kind: "select",
-			optionsFunc: providerOptionsFunc,
-			get:         func(p *domain.Project) string { return p.Provider },
-			set:         func(p *domain.Project, v string) { p.Provider = v }},
-		{section: i18n.T("tui.settings.section_general"), key: "model", kind: "string",
-			get: func(p *domain.Project) string { return p.Model },
-			set: func(p *domain.Project, v string) { p.Model = v }},
-		{section: i18n.T("tui.settings.section_general"), key: "status", kind: "select",
-			options: statusOptions,
-			get:     func(p *domain.Project) string { return string(p.Status) },
-			set:     func(p *domain.Project, v string) { p.Status = domain.ProjectStatus(v) }},
+	v.fields = []configField{
+		// ── Shortcuts (first section) ───────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.shortcuts")},
+		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
+			Get: func() string { return "" }},
+		{Key: "agents", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.agents"), LinkTarget: "project.agents",
+			Get: func() string { return "" }},
+		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "project.models",
+			Get: func() string { return "" }},
+		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+			Get: func() string { return "" }},
 
-		// ── Team ─────────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Team"},
-		{section: "Team", key: "team_id", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TeamID == nil {
+		// ── General ─────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.general")},
+		{Key: "id", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.project_id.label"),
+			Description: i18n.T("tui.config.field.project_id.desc"),
+			Get:         func() string { return v.live.ID }},
+		{Key: "name", Kind: CfgFieldString, Label: i18n.T("tui.config.field.project_name.label"),
+			Description: i18n.T("tui.config.field.project_name.desc"),
+			Get:         func() string { return v.live.Name },
+			Set:         func(val string) { v.live.Name = val }},
+		{Key: "path", Kind: CfgFieldString, Label: i18n.T("tui.config.field.project_path.label"),
+			Description: i18n.T("tui.config.field.project_path.desc"),
+			Get:         func() string { return v.live.Path },
+			Set:         func(val string) { v.live.Path = val }},
+		{Key: "language", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.project_language.label"),
+			Description: i18n.T("tui.config.field.project_language.desc"),
+			Options:     languageOptions,
+			Get:         func() string { return v.live.Language },
+			Set:         func(val string) { v.live.Language = val }},
+		{Key: "provider", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.project_provider.label"),
+			Description: i18n.T("tui.config.field.project_provider.desc"),
+			OptionsFunc: providerOptionsFunc,
+			Get:         func() string { return v.live.Provider },
+			Set:         func(val string) { v.live.Provider = val }},
+		{Key: "model", Kind: CfgFieldString, Label: i18n.T("tui.config.field.project_model.label"),
+			Description: i18n.T("tui.config.field.project_model.desc"),
+			Get:         func() string { return v.live.Model },
+			Set:         func(val string) { v.live.Model = val }},
+		{Key: "status", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.project_status.label"),
+			Description: i18n.T("tui.config.field.project_status.desc"),
+			Options:     statusOptions,
+			Get:         func() string { return string(v.live.Status) },
+			Set:         func(val string) { v.live.Status = domain.ProjectStatus(val) }},
+
+		// ── Team ────────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.team")},
+		{Key: "team_id", Kind: CfgFieldString, Label: i18n.T("tui.config.field.team_id.label"),
+			Description: i18n.T("tui.config.field.team_id.desc"),
+			Get: func() string {
+				if v.live.TeamID == nil {
 					return ""
 				}
-				return *p.TeamID
+				return *v.live.TeamID
 			},
-			set: func(p *domain.Project, val string) {
+			Set: func(val string) {
 				if val == "" {
-					p.TeamID = nil
+					v.live.TeamID = nil
 				} else {
-					p.TeamID = &val
+					v.live.TeamID = &val
 				}
 			}},
 
 		// ── Tracker Overrides ───────────────────────────────────────────────
-		{kind: "section-header", section: "Tracker"},
-		{section: "Tracker", key: "tracker_project", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil {
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")},
+		{Key: "tracker_project", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_project.label"),
+			Description: i18n.T("tui.config.field.tracker_project.desc"),
+			Placeholder: i18n.T("tui.config.field.tracker_project.placeholder"),
+			Get: func() string {
+				if v.live.TrackerConfig == nil {
 					return ""
 				}
-				return p.TrackerConfig.TrackerProject
+				return v.live.TrackerConfig.TrackerProject
 			},
-			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil {
-					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+			Set: func(val string) {
+				if v.live.TrackerConfig == nil {
+					v.live.TrackerConfig = &domain.ProjectTrackerConfig{}
 				}
-				p.TrackerConfig.TrackerProject = val
+				v.live.TrackerConfig.TrackerProject = val
 			}},
-		{section: "Tracker", key: "tracker_url", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil {
+		{Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_url.label"),
+			Description: i18n.T("tui.config.field.tracker_url.desc"),
+			Placeholder: i18n.T("tui.config.field.tracker_url.placeholder"),
+			Get: func() string {
+				if v.live.TrackerConfig == nil {
 					return ""
 				}
-				return p.TrackerConfig.TrackerURL
+				return v.live.TrackerConfig.TrackerURL
 			},
-			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil {
-					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+			Set: func(val string) {
+				if v.live.TrackerConfig == nil {
+					v.live.TrackerConfig = &domain.ProjectTrackerConfig{}
 				}
-				p.TrackerConfig.TrackerURL = val
+				v.live.TrackerConfig.TrackerURL = val
 			}},
-		{section: "Tracker", key: "ticket_pattern", kind: "string",
-			get: func(p *domain.Project) string {
-				if p.TrackerConfig == nil {
+		{Key: "ticket_pattern", Kind: CfgFieldString, Label: i18n.T("tui.config.field.ticket_pattern.label"),
+			Description: i18n.T("tui.config.field.ticket_pattern.desc"),
+			Placeholder: i18n.T("tui.config.field.ticket_pattern.placeholder"),
+			Get: func() string {
+				if v.live.TrackerConfig == nil {
 					return ""
 				}
-				return p.TrackerConfig.TicketPattern
+				return v.live.TrackerConfig.TicketPattern
 			},
-			set: func(p *domain.Project, val string) {
-				if p.TrackerConfig == nil {
-					p.TrackerConfig = &domain.ProjectTrackerConfig{}
+			Set: func(val string) {
+				if v.live.TrackerConfig == nil {
+					v.live.TrackerConfig = &domain.ProjectTrackerConfig{}
 				}
-				p.TrackerConfig.TicketPattern = val
+				v.live.TrackerConfig.TicketPattern = val
 			}},
-
-		// ── Raccourcis ──────────────────────────────────────────────────────
-		{kind: "section-header", section: i18n.T("tui.settings.section_shortcuts")},
-		{section: i18n.T("tui.settings.section_shortcuts"), key: "mcp_services", kind: "link",
-			linkTarget: "project.mcp",
-			get:        func(_ *domain.Project) string { return "MCP Services..." }},
-		{section: i18n.T("tui.settings.section_shortcuts"), key: "agents", kind: "link",
-			linkTarget: "project.agents",
-			get:        func(_ *domain.Project) string { return "Agents..." }},
-		{section: i18n.T("tui.settings.section_shortcuts"), key: "models", kind: "link",
-			linkTarget: "project.models",
-			get:        func(_ *domain.Project) string { return "Modèles..." }},
-		{section: i18n.T("tui.settings.section_shortcuts"), key: "workflow", kind: "link",
-			linkTarget: "workflow",
-			get:        func(_ *domain.Project) string { return "Workflow..." }},
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MCP helpers (operate on ProjectMCPConfig)
+// MCP helpers (used by project_mcp_view.go too)
 // ─────────────────────────────────────────────────────────────────────────────
 
 func mcpServiceEnabled(p *domain.Project, name string) string {
 	if p.MCPConfig == nil {
-		return "(inherit)"
+		return ""
 	}
 	for _, svc := range p.MCPConfig.Services {
 		if svc.Name == name && svc.Enabled != nil {
 			return boolStr(*svc.Enabled)
 		}
 	}
-	return "(inherit)"
+	return ""
 }
 
 func mcpServiceWriteEnabled(p *domain.Project, name string) string {
 	if p.MCPConfig == nil {
-		return "(inherit)"
+		return ""
 	}
 	for _, svc := range p.MCPConfig.Services {
 		if svc.Name == name && svc.WriteEnabled != nil {
 			return boolStr(*svc.WriteEnabled)
 		}
 	}
-	return "(inherit)"
+	return ""
 }
 
 func mcpServiceURL(p *domain.Project, name string) string {
 	if p.MCPConfig == nil {
-		return "(inherit)"
+		return ""
 	}
 	for _, svc := range p.MCPConfig.Services {
 		if svc.Name == name && svc.URL != "" {
 			return svc.URL
 		}
 	}
-	return "(inherit)"
+	return ""
 }
 
 func mcpServiceToken(p *domain.Project, name string) string {
 	if p.MCPConfig == nil {
-		return "(inherit)"
+		return ""
 	}
 	for _, svc := range p.MCPConfig.Services {
 		if svc.Name == name && svc.TokenKey != "" {
 			return svc.TokenKey
 		}
 	}
-	return "(inherit)"
+	return ""
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rendering
-// ─────────────────────────────────────────────────────────────────────────────
-
-func (v *ProjectConfigView) renderLines() {
-	if v.list == nil || v.live == nil {
-		return
-	}
-	savedIdx := v.list.GetCurrentItem()
-
-	items := make([]widgets.SectionItem, 0, len(v.lines)+1)
-
-	// Title item (as header)
-	title := v.live.Name
-	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-	}
-	items = append(items, widgets.SectionItem{
-		IsHeader: true,
-		MainText: fmt.Sprintf("Projet: %s", title),
-	})
-
-	for i, line := range v.lines {
-		if line.kind == "section-header" {
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: line.section,
-			})
-			continue
-		}
-
-		val := ""
-		if line.get != nil {
-			val = line.get(v.live)
-		}
-
-		isLocked := line.locked != nil && line.locked(v.live)
-		valDisplay := formatProjectValue(val, line.kind)
-
-		// Source annotation
-		sourceAnnotation := ""
-		if line.source != nil {
-			if src := line.source(v.live); src != "" {
-				sourceAnnotation = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), src, theme.TagColor)
-			}
-		}
-
-		readonlyMarker := ""
-		if line.kind == "readonly" {
-			readonlyMarker = fmt.Sprintf("  %s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.readonly"), theme.TagColor)
-		}
-
-		mainText := fmt.Sprintf("%-28s %s%s%s", line.key+":", valDisplay, sourceAnnotation, readonlyMarker)
-
-		items = append(items, widgets.SectionItem{
-			MainText:  mainText,
-			Locked:    isLocked,
-			Reference: i,
-		})
-	}
-
-	v.list.SetItems(items)
-	if savedIdx >= 0 {
-		v.list.SelectIndex(savedIdx)
-	}
-}
-
+// formatProjectValue is the legacy value formatter for project config views.
+// It is still used by project_mcp_view.go until that view is migrated.
 func formatProjectValue(val, kind string) string {
 	switch kind {
 	case "bool":
@@ -489,91 +413,65 @@ func formatProjectValue(val, kind string) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (v *ProjectConfigView) renderFields() {
+	if v.list == nil || v.live == nil {
+		return
+	}
+	savedIdx := v.list.GetCurrentItem()
+
+	items := make([]widgets.SectionItem, 0, len(v.fields))
+	for i, f := range v.fields {
+		item := renderConfigItem(f, 28)
+		item.Reference = i
+		items = append(items, item)
+	}
+
+	v.list.SetItems(items)
+	if savedIdx >= 0 {
+		v.list.SelectIndex(savedIdx)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Editing
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectConfigView) editByIndex(_ int, item widgets.SectionItem) {
+func (v *ProjectConfigView) onItemSelected(_ int, item widgets.SectionItem) {
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	line := v.lines[ref]
-	if v.shell == nil || line.kind == "section-header" || line.kind == "readonly" || line.get == nil {
+	f := &v.fields[ref]
+	if !isEditable(f.Kind) || f.Get == nil {
+		return
+	}
+	if v.shell == nil {
 		return
 	}
 
 	// Check lock (enforced by team)
-	if line.locked != nil && line.locked(v.live) {
-		v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
+	if f.Locked != nil && f.Locked() {
+		v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		return
 	}
 
-	switch line.kind {
-	case "link":
-		if line.linkTarget != "" {
-			v.shell.NavigateTo(line.linkTarget)
-		}
-
-	case "bool":
-		v.toggleByRef(ref)
-
-	case "tri-bool":
-		opts := line.options
-		if len(opts) == 0 {
-			opts = []SelectOption{
-				{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
-				{Label: "✓ " + i18n.T("tui.settings.enabled"), Value: "true"},
-				{Label: "✗ " + i18n.T("tui.settings.disabled"), Value: "false"},
-			}
-		}
-		cur := line.get(v.live)
-		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
-			if line.set != nil {
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
-
-	case "select":
-		opts := line.options
-		if line.optionsFunc != nil {
-			opts = line.optionsFunc()
-		}
-		cur := line.get(v.live)
-		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
-			if line.set != nil {
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
-
-	case "agents":
-		v.editAgents(line)
-
-	default: // string
-		cur := line.get(v.live)
-		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
-			if line.set != nil {
-				if line.validator != nil {
-					if err := line.validator.Validate(newVal); err != nil {
-						v.shell.ShowToastMsg("⚠ "+err.Error(), false)
-						return
-					}
-				}
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
+	// Agent editing is custom
+	if f.Kind == CfgFieldAgents {
+		v.editAgents()
+		return
 	}
+
+	v.pushUndo()
+	editConfigField(v.shell, f, func() {
+		v.scheduleAutoSave()
+		v.renderFields()
+	})
 }
 
-func (v *ProjectConfigView) toggleSelected() {
+func (v *ProjectConfigView) onToggleSelected() {
 	if v.list == nil {
 		return
 	}
@@ -582,55 +480,26 @@ func (v *ProjectConfigView) toggleSelected() {
 		return
 	}
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	line := v.lines[ref]
-	if line.locked != nil && line.locked(v.live) {
+	f := &v.fields[ref]
+	if !isToggleable(f.Kind) {
+		return
+	}
+	if f.Locked != nil && f.Locked() {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
+			v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		}
 		return
 	}
-	v.toggleByRef(ref)
+	v.pushUndo()
+	toggleConfigField(f)
+	v.scheduleAutoSave()
+	v.renderFields()
 }
 
-func (v *ProjectConfigView) toggleByRef(ref int) {
-	line := v.lines[ref]
-	if line.set == nil {
-		return
-	}
-	cur := line.get(v.live)
-
-	switch line.kind {
-	case "bool":
-		newVal := "true"
-		if cur == "true" {
-			newVal = "false"
-		}
-		v.pushUndo()
-		line.set(v.live, newVal)
-		v.dirty = true
-		v.renderLines()
-
-	case "tri-bool":
-		var newVal string
-		switch cur {
-		case "true":
-			newVal = "false"
-		case "false":
-			newVal = "(inherit)"
-		default:
-			newVal = "true"
-		}
-		v.pushUndo()
-		line.set(v.live, newVal)
-		v.dirty = true
-		v.renderLines()
-	}
-}
-
-func (v *ProjectConfigView) editAgents(line projectConfigLine) {
+func (v *ProjectConfigView) editAgents() {
 	if v.shell == nil {
 		return
 	}
@@ -674,9 +543,9 @@ func (v *ProjectConfigView) editAgents(line projectConfigLine) {
 			v.live.Agents = append(v.live.Agents, chosen)
 			sort.Strings(v.live.Agents)
 		}
-		v.dirty = true
-		v.renderLines()
-		v.editAgents(line) // Re-open for multi-toggle
+		v.scheduleAutoSave()
+		v.renderFields()
+		v.editAgents() // Re-open for multi-toggle
 	})
 }
 
@@ -685,61 +554,35 @@ func (v *ProjectConfigView) pushUndo() {
 	v.undoStack.Push(snapshot)
 }
 
+func (v *ProjectConfigView) scheduleAutoSave() {
+	if v.autoSaver != nil {
+		v.autoSaver.Schedule()
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Save
+// Save (auto-save via AutoSaver)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectConfigView) save() {
-	if v.shell == nil || v.live == nil {
+func (v *ProjectConfigView) doSave() {
+	if v.live == nil {
 		return
 	}
 	ctx := context.Background()
 	if err := v.cfg.SaveProject(ctx, v.live); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
+		}
 		return
 	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.shell.ShowToastMsg(i18n.T("tui.project.saved"), true)
-
-	// Propose redeploy if MCP changed
-	if v.mcpChanged && v.cfg.Deploy != nil {
-		v.shell.ShowSelectModal(
-			i18n.T("tui.project.mcp_changed"),
-			[]SelectOption{
-				{Label: i18n.T("tui.project.redeploy_now"), Value: "deploy"},
-				{Label: i18n.T("tui.project.redeploy_later"), Value: "later"},
-			},
-			"",
-			func(choice string) {
-				if choice == "deploy" {
-					go func() {
-						if err := v.cfg.Deploy(ctx, v.live); err != nil {
-							if v.app != nil {
-								v.app.QueueUpdateDraw(func() {
-									v.shell.ShowToastMsg(i18n.T("tui.project.deploy_error")+": "+err.Error(), false)
-								})
-							}
-							return
-						}
-						if v.app != nil {
-							v.app.QueueUpdateDraw(func() {
-								v.shell.ShowToastMsg(i18n.T("tui.project.redeployed"), true)
-							})
-						}
-					}()
-				} else {
-					v.shell.ShowToastMsg(i18n.T("tui.project.deploy_reminder"), true)
-				}
-				v.mcpChanged = false
-			})
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
 	}
 }
 
 // ContextCommands implements CommandProvider.
 func (v *ProjectConfigView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.save", Label: i18n.T("tui.hints.save"), Aliases: []string{"save", "write", "sauvegarder"}, Description: i18n.T("tui.project.cmd_save"), Category: "Projet", Action: func() { v.save() }},
 		{ID: "project.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Projet", Action: func() { v.undo() }},
 	}
 }

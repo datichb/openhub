@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -25,15 +26,6 @@ type ProjectMCPViewConfig struct {
 	ResolveMCPSource func(service, field string) (effective string, source string, locked bool)
 }
 
-// mcpFieldDef describes a single editable field within an MCP service section.
-type mcpFieldDef struct {
-	service string // "gitlab", "jira", "figma", "gslides", "team"
-	key     string // display key
-	kind    string // "tri-bool", "string"
-	get     func(p *domain.Project) string
-	set     func(p *domain.Project, val string)
-}
-
 // ProjectMCPView displays and edits per-project MCP service overrides.
 type ProjectMCPView struct {
 	app      *tview.Application
@@ -43,9 +35,9 @@ type ProjectMCPView struct {
 	mountGen uint64
 
 	live      *domain.Project
-	dirty     bool
-	fields    []mcpFieldDef
+	fields    []configField
 	undoStack *widgets.UndoStack[domain.Project]
+	autoSaver *AutoSaver
 }
 
 var _ View = (*ProjectMCPView)(nil)
@@ -59,37 +51,31 @@ func NewProjectMCPView(cfg ProjectMCPViewConfig) *ProjectMCPView {
 	}
 }
 
-// SetShell provides the shell reference for modal interactions.
 func (v *ProjectMCPView) SetShell(s ShellAccess) { v.shell = s }
-
-// ID returns the view identifier.
-func (v *ProjectMCPView) ID() string { return "project.mcp" }
-
-// Title returns the display title.
-func (v *ProjectMCPView) Title() string { return "MCP Services" }
-
-// StatusHints returns keybinding hints for the omnibar.
+func (v *ProjectMCPView) ID() string             { return "project.mcp" }
+func (v *ProjectMCPView) Title() string           { return i18n.T("tui.config.section.mcp_services") }
 func (v *ProjectMCPView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · Space %s · w %s · u %s · Esc %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · Space %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
+		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.edit"),
 		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.back"),
 	)
 }
 
-// Mount builds the MCP configuration list.
 func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
 
-	// Show loading placeholder immediately
+	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+		v.doSave()
+	})
+
 	loading := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -98,7 +84,6 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build UI asynchronously
 	go func() {
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
@@ -121,11 +106,11 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 			}
 
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByIndex(index, item)
+				v.onItemSelected(index, item)
 			})
 
 			v.buildFields()
-			v.renderList()
+			v.renderFields()
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
 			app.SetFocus(v.list)
@@ -133,33 +118,28 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	}()
 }
 
-// Unmount cleans up resources.
 func (v *ProjectMCPView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
+	if v.autoSaver != nil {
+		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
 	v.app = nil
 	v.list = nil
 }
 
-// HandleKey processes view-specific key events.
 func (v *ProjectMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.live == nil {
+	if v.live == nil || v.list == nil {
 		return event
 	}
 	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	}
 	switch event.Rune() {
 	case ' ':
-		v.toggleSelected()
-		return nil
-	case 'w':
-		v.save()
+		v.onToggleSelected()
 		return nil
 	case 'u':
 		v.undo()
@@ -168,10 +148,31 @@ func (v *ProjectMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
+func (v *ProjectMCPView) undo() {
+	prev, ok := v.undoStack.Pop()
+	if !ok {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
+		}
+		return
+	}
+	if v.live == nil {
+		return
+	}
+	*v.live = prev
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.doSave()
+	v.renderFields()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
+	}
+}
+
 // ContextCommands implements CommandProvider.
 func (v *ProjectMCPView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.mcp.save", Label: i18n.T("tui.hints.save"), Aliases: []string{"save", "write", "sauvegarder"}, Description: i18n.T("tui.project.cmd_save"), Category: "Projet", Action: func() { v.save() }},
 		{ID: "project.mcp.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Projet", Action: func() { v.undo() }},
 	}
 }
@@ -181,44 +182,135 @@ func (v *ProjectMCPView) ContextCommands() []ContextCommand {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *ProjectMCPView) buildFields() {
-	type svc struct {
+	type svcDef struct {
 		name   string
+		label  string
 		fields []struct {
-			key  string
-			kind string
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
 		}
 	}
 
-	services := []svc{
-		{name: "gitlab", fields: []struct{ key, kind string }{
-			{"enabled", "tri-bool"},
-			{"url", "string"},
-			{"token_key", "string"},
-			{"write_enabled", "tri-bool"},
+	services := []svcDef{
+		{name: "gitlab", label: "GitLab", fields: []struct {
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
+		}{
+			{"enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_enabled.label"), i18n.T("tui.config.field.mcp_enabled.desc")},
+			{"url", CfgFieldString, i18n.T("tui.config.field.mcp_url.label"), i18n.T("tui.config.field.mcp_url.desc")},
+			{"token_key", CfgFieldString, i18n.T("tui.config.field.mcp_token.label"), i18n.T("tui.config.field.mcp_token.desc")},
+			{"write_enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_write.label"), i18n.T("tui.config.field.mcp_write.desc")},
 		}},
-		{name: "jira", fields: []struct{ key, kind string }{
-			{"enabled", "tri-bool"},
-			{"url", "string"},
+		{name: "jira", label: "Jira", fields: []struct {
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
+		}{
+			{"enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_enabled.label"), i18n.T("tui.config.field.mcp_enabled.desc")},
+			{"url", CfgFieldString, i18n.T("tui.config.field.mcp_url.label"), i18n.T("tui.config.field.mcp_url.desc")},
 		}},
-		{name: "figma", fields: []struct{ key, kind string }{
-			{"enabled", "tri-bool"},
+		{name: "figma", label: "Figma", fields: []struct {
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
+		}{
+			{"enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_enabled.label"), i18n.T("tui.config.field.mcp_enabled.desc")},
 		}},
-		{name: "gslides", fields: []struct{ key, kind string }{
-			{"enabled", "tri-bool"},
+		{name: "gslides", label: "Google Slides", fields: []struct {
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
+		}{
+			{"enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_enabled.label"), i18n.T("tui.config.field.mcp_enabled.desc")},
 		}},
-		{name: "team", fields: []struct{ key, kind string }{
-			{"enabled", "tri-bool"},
+		{name: "team", label: "Team", fields: []struct {
+			key   string
+			kind  FieldKind
+			label string
+			desc  string
+		}{
+			{"enabled", CfgFieldTriBool, i18n.T("tui.config.field.mcp_enabled.label"), i18n.T("tui.config.field.mcp_enabled.desc")},
 		}},
 	}
 
 	v.fields = nil
 	for _, s := range services {
-		for _, f := range s.fields {
-			fd := mcpFieldDef{service: s.name, key: f.key, kind: f.kind}
-			fd.get = mcpFieldGetter(s.name, f.key)
-			fd.set = mcpFieldSetter(s.name, f.key)
-			v.fields = append(v.fields, fd)
+		svc := s // capture
+		// Section header for each service
+		v.fields = append(v.fields, configField{
+			Kind:  CfgFieldSectionHeader,
+			Label: svc.label,
+		})
+
+		for _, f := range svc.fields {
+			fld := f // capture
+			svcName := svc.name
+			fieldKey := fld.key
+
+			cf := configField{
+				Section:     svcName,
+				Key:         fieldKey,
+				Kind:        fld.kind,
+				Label:       fld.label,
+				Description: fld.desc,
+				Scope:       ScopeProject,
+				Get:         mcpClosureGetter(v, svcName, fieldKey),
+				Set:         mcpClosureSetter(v, svcName, fieldKey),
+			}
+
+			// Source and locked from resolution
+			if v.cfg.ResolveMCPSource != nil {
+				cf.Source = func() string {
+					_, src, _ := v.cfg.ResolveMCPSource(svcName, fieldKey)
+					return src
+				}
+				cf.Locked = func() bool {
+					_, _, locked := v.cfg.ResolveMCPSource(svcName, fieldKey)
+					return locked
+				}
+			}
+
+			v.fields = append(v.fields, cf)
 		}
+	}
+}
+
+// mcpClosureGetter returns a zero-arg getter closure for an MCP service field.
+func mcpClosureGetter(v *ProjectMCPView, service, field string) func() string {
+	switch field {
+	case "enabled":
+		return func() string { return mcpServiceEnabled(v.live, service) }
+	case "url":
+		return func() string { return mcpServiceURL(v.live, service) }
+	case "token_key":
+		return func() string { return mcpServiceToken(v.live, service) }
+	case "write_enabled":
+		return func() string { return mcpServiceWriteEnabled(v.live, service) }
+	default:
+		return func() string { return "" }
+	}
+}
+
+// mcpClosureSetter returns a zero-arg setter closure for an MCP service field.
+func mcpClosureSetter(v *ProjectMCPView, service, field string) func(string) {
+	switch field {
+	case "enabled":
+		return func(val string) { setMCPEnabled(v.live, service, val) }
+	case "url":
+		return func(val string) { setMCPURL(v.live, service, val) }
+	case "token_key":
+		return func(val string) { setMCPToken(v.live, service, val) }
+	case "write_enabled":
+		return func(val string) { setMCPWriteEnabled(v.live, service, val) }
+	default:
+		return nil
 	}
 }
 
@@ -226,58 +318,17 @@ func (v *ProjectMCPView) buildFields() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectMCPView) renderList() {
+func (v *ProjectMCPView) renderFields() {
 	if v.list == nil || v.live == nil {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	items := make([]widgets.SectionItem, 0, len(v.fields)+8)
-
-	// Title header
-	title := v.live.Name
-	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-	}
-	items = append(items, widgets.SectionItem{
-		IsHeader: true,
-		MainText: fmt.Sprintf("MCP Services: %s", title),
-	})
-
-	currentSection := ""
-	for i, fd := range v.fields {
-		// Section header when service changes
-		if fd.service != currentSection {
-			currentSection = fd.service
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: mcpSectionLabel(fd.service),
-			})
-		}
-
-		val := fd.get(v.live)
-		valDisplay := formatProjectValue(val, fd.kind)
-
-		// Source annotation
-		sourceAnnotation := ""
-		if v.cfg.ResolveMCPSource != nil {
-			if _, src, _ := v.cfg.ResolveMCPSource(fd.service, fd.key); src != "" {
-				sourceAnnotation = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), src, theme.TagColor)
-			}
-		}
-
-		mainText := fmt.Sprintf("%-28s %s%s", fd.key+":", valDisplay, sourceAnnotation)
-
-		locked := false
-		if v.cfg.ResolveMCPSource != nil {
-			_, _, locked = v.cfg.ResolveMCPSource(fd.service, fd.key)
-		}
-
-		items = append(items, widgets.SectionItem{
-			MainText:  mainText,
-			Locked:    locked,
-			Reference: i,
-		})
+	items := make([]widgets.SectionItem, 0, len(v.fields))
+	for i, f := range v.fields {
+		item := renderConfigItem(f, 28)
+		item.Reference = i
+		items = append(items, item)
 	}
 
 	v.list.SetItems(items)
@@ -286,76 +337,32 @@ func (v *ProjectMCPView) renderList() {
 	}
 }
 
-func mcpSectionLabel(service string) string {
-	switch service {
-	case "gitlab":
-		return "GitLab"
-	case "jira":
-		return "Jira"
-	case "figma":
-		return "Figma"
-	case "gslides":
-		return "Google Slides"
-	case "team":
-		return "Team"
-	default:
-		return service
-	}
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Editing
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectMCPView) editByIndex(_ int, item widgets.SectionItem) {
+func (v *ProjectMCPView) onItemSelected(_ int, item widgets.SectionItem) {
 	ref, ok := item.Reference.(int)
 	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	fd := v.fields[ref]
-	if v.shell == nil || fd.get == nil {
+	f := &v.fields[ref]
+	if !isEditable(f.Kind) || f.Get == nil || v.shell == nil {
+		return
+	}
+	if f.Locked != nil && f.Locked() {
+		v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		return
 	}
 
-	// Check lock
-	if v.cfg.ResolveMCPSource != nil {
-		if _, _, locked := v.cfg.ResolveMCPSource(fd.service, fd.key); locked {
-			v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
-			return
-		}
-	}
-
-	switch fd.kind {
-	case "tri-bool":
-		opts := []SelectOption{
-			{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(inherit)"},
-			{Label: "✓ " + i18n.T("tui.settings.enabled"), Value: "true"},
-			{Label: "✗ " + i18n.T("tui.settings.disabled"), Value: "false"},
-		}
-		cur := fd.get(v.live)
-		v.shell.ShowSelectModal(fd.key, opts, cur, func(newVal string) {
-			if fd.set != nil {
-				v.pushUndo()
-				fd.set(v.live, newVal)
-				v.dirty = true
-				v.renderList()
-			}
-		})
-
-	default: // string
-		cur := fd.get(v.live)
-		v.shell.ShowInputModal(fd.key, cur, func(newVal string) {
-			if fd.set != nil {
-				v.pushUndo()
-				fd.set(v.live, newVal)
-				v.dirty = true
-				v.renderList()
-			}
-		})
-	}
+	v.pushUndo()
+	editConfigField(v.shell, f, func() {
+		v.scheduleAutoSave()
+		v.renderFields()
+	})
 }
 
-func (v *ProjectMCPView) toggleSelected() {
+func (v *ProjectMCPView) onToggleSelected() {
 	if v.list == nil {
 		return
 	}
@@ -367,82 +374,61 @@ func (v *ProjectMCPView) toggleSelected() {
 	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	fd := v.fields[ref]
-
-	// Check lock
-	if v.cfg.ResolveMCPSource != nil {
-		if _, _, locked := v.cfg.ResolveMCPSource(fd.service, fd.key); locked {
-			if v.shell != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.project.locked"), false)
-			}
-			return
-		}
-	}
-
-	if fd.kind != "tri-bool" || fd.set == nil {
+	f := &v.fields[ref]
+	if !isToggleable(f.Kind) {
 		return
 	}
-
-	cur := fd.get(v.live)
-	var newVal string
-	switch cur {
-	case "true":
-		newVal = "false"
-	case "false":
-		newVal = "(inherit)"
-	default:
-		newVal = "true"
+	if f.Locked != nil && f.Locked() {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
+		}
+		return
 	}
 	v.pushUndo()
-	fd.set(v.live, newVal)
-	v.dirty = true
-	v.renderList()
+	toggleConfigField(f)
+	v.scheduleAutoSave()
+	v.renderFields()
 }
 
 func (v *ProjectMCPView) pushUndo() {
-	snapshot := deepCopyProject(v.live)
-	v.undoStack.Push(snapshot)
+	if v.live != nil {
+		snapshot := deepCopyProject(v.live)
+		v.undoStack.Push(snapshot)
+	}
+}
+
+func (v *ProjectMCPView) scheduleAutoSave() {
+	if v.autoSaver != nil {
+		v.autoSaver.Schedule()
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Save / Undo
+// Save (auto-save via AutoSaver)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *ProjectMCPView) save() {
-	if v.shell == nil || v.live == nil {
+func (v *ProjectMCPView) doSave() {
+	if v.live == nil {
 		return
 	}
-	ctx := v.shell.Context()
+	ctx := context.Background()
 	if err := v.cfg.SaveProject(ctx, v.live); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
-		return
-	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.renderList()
-	v.shell.ShowToastMsg(i18n.T("tui.project.saved"), true)
-}
-
-func (v *ProjectMCPView) undo() {
-	prev, ok := v.undoStack.Pop()
-	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
 		}
 		return
 	}
-	*v.live = prev
-	v.dirty = v.undoStack.Len() > 0
-	v.renderList()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Standalone MCP data helpers
+// MCP data helpers (setters operate on live project)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// mcpFieldGetter returns a typed getter for the legacy mcpFieldDef approach.
+// Retained for backward compatibility during migration.
 func mcpFieldGetter(service, field string) func(p *domain.Project) string {
 	switch field {
 	case "enabled":
@@ -473,14 +459,13 @@ func mcpFieldSetter(service, field string) func(p *domain.Project, val string) {
 	}
 }
 
-// setMCPEnabled sets the Enabled field for the given service.
 func setMCPEnabled(p *domain.Project, name, val string) {
 	if p.MCPConfig == nil {
 		p.MCPConfig = &domain.ProjectMCPConfig{}
 	}
 	for i, svc := range p.MCPConfig.Services {
 		if svc.Name == name {
-			if val == "(inherit)" || val == "" {
+			if val == "" {
 				p.MCPConfig.Services[i].Enabled = nil
 			} else {
 				b := val == "true"
@@ -489,63 +474,52 @@ func setMCPEnabled(p *domain.Project, name, val string) {
 			return
 		}
 	}
-	if val == "(inherit)" || val == "" {
+	if val == "" {
 		return
 	}
 	b := val == "true"
 	p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, Enabled: &b})
 }
 
-// setMCPURL sets the URL field for the given service.
 func setMCPURL(p *domain.Project, name, val string) {
 	if p.MCPConfig == nil {
 		p.MCPConfig = &domain.ProjectMCPConfig{}
 	}
 	for i, svc := range p.MCPConfig.Services {
 		if svc.Name == name {
-			if val == "(inherit)" || val == "" {
-				p.MCPConfig.Services[i].URL = ""
-			} else {
-				p.MCPConfig.Services[i].URL = val
-			}
+			p.MCPConfig.Services[i].URL = val
 			return
 		}
 	}
-	if val == "(inherit)" || val == "" {
+	if val == "" {
 		return
 	}
 	p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, URL: val})
 }
 
-// setMCPToken sets the TokenKey field for the given service.
 func setMCPToken(p *domain.Project, name, val string) {
 	if p.MCPConfig == nil {
 		p.MCPConfig = &domain.ProjectMCPConfig{}
 	}
 	for i, svc := range p.MCPConfig.Services {
 		if svc.Name == name {
-			if val == "(inherit)" || val == "" {
-				p.MCPConfig.Services[i].TokenKey = ""
-			} else {
-				p.MCPConfig.Services[i].TokenKey = val
-			}
+			p.MCPConfig.Services[i].TokenKey = val
 			return
 		}
 	}
-	if val == "(inherit)" || val == "" {
+	if val == "" {
 		return
 	}
 	p.MCPConfig.Services = append(p.MCPConfig.Services, domain.ProjectMCPService{Name: name, TokenKey: val})
 }
 
-// setMCPWriteEnabled sets the WriteEnabled field for the given service.
 func setMCPWriteEnabled(p *domain.Project, name, val string) {
 	if p.MCPConfig == nil {
 		p.MCPConfig = &domain.ProjectMCPConfig{}
 	}
 	for i, svc := range p.MCPConfig.Services {
 		if svc.Name == name {
-			if val == "(inherit)" || val == "" {
+			if val == "" {
 				p.MCPConfig.Services[i].WriteEnabled = nil
 			} else {
 				b := val == "true"
@@ -554,7 +528,7 @@ func setMCPWriteEnabled(p *domain.Project, name, val string) {
 			return
 		}
 	}
-	if val == "(inherit)" || val == "" {
+	if val == "" {
 		return
 	}
 	b := val == "true"
