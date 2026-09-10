@@ -13,13 +13,14 @@ import (
 
 // Pattern represents a reusable decomposition pattern.
 type Pattern struct {
-	Name       string   `toml:"name"`
-	Tags       []string `toml:"tags"`
-	Complexity string   `toml:"complexity"` // low | medium | high
-	Source     string   `toml:"source"`     // planner | pathfinder | manual
-	Project    string   `toml:"project"`    // originating project
-	Validated  bool     `toml:"validated"`
-	CreatedAt  string   `toml:"created_at"`
+	Name        string   `toml:"name"`
+	Description string   `toml:"description,omitempty"` // short one-line description
+	Tags        []string `toml:"tags"`
+	Complexity  string   `toml:"complexity"` // low | medium | high
+	Source      string   `toml:"source"`     // planner | pathfinder | manual
+	Project     string   `toml:"project"`    // originating project
+	Validated   bool     `toml:"validated"`
+	CreatedAt   string   `toml:"created_at"`
 }
 
 // patternsIndex is the TOML structure of patterns/index.toml.
