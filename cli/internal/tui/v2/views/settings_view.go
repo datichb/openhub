@@ -2,8 +2,10 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -31,26 +33,7 @@ type SettingsViewConfig struct {
 	SetSecret func(ctx context.Context, key, value string) error
 }
 
-// configLine represents a single editable line in the hub config view.
-type configLine struct {
-	section string // e.g. "MCP GitLab" — internal ID (not translated)
-	label   string // display label (translated)
-	key     string // e.g. "enabled"
-	kind    string // "bool", "string", "tokenkey", "section-header", "select", "tri-bool", "int", "link", "readonly"
-	// options holds the allowed values for "select" kind fields.
-	options []SelectOption
-	// optionsFunc returns dynamic allowed values (takes precedence over options).
-	optionsFunc func() []SelectOption
-	// validator holds optional validation rules.
-	validator *FieldValidator
-	// linkTarget is the view ID to navigate to for "link" kind.
-	linkTarget string
-	// get/set operate on the live *config.Config pointer held by the view
-	get func(c *config.Config) string
-	set func(c *config.Config, v string)
-}
-
-// SettingsView displays and edits hub.toml line by line.
+// SettingsView displays and edits hub.toml using the unified configField system.
 type SettingsView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
@@ -58,12 +41,12 @@ type SettingsView struct {
 	cfg      SettingsViewConfig
 	mountGen uint64
 
-	// live config being edited (copy from disk, modified in memory until saved)
-	live  *config.Config
-	dirty bool
+	// live config being edited (pointer to in-memory config, auto-saved on mutation)
+	live *config.Config
 
-	lines     []configLine
+	fields    []configField
 	undoStack *widgets.UndoStack[config.Config]
+	autoSaver *AutoSaver
 }
 
 var _ View = (*SettingsView)(nil)
@@ -83,12 +66,11 @@ func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SettingsView) ID() string    { return "settings" }
 func (v *SettingsView) Title() string { return "Settings" }
 func (v *SettingsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · w %s · u %s · r %s",
+	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · r %s",
 		i18n.T("tui.hints.nav"),
 		i18n.T("tui.hints.navigate"),
 		i18n.T("tui.hints.toggle"),
 		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.save"),
 		i18n.T("tui.hints.undo"),
 		i18n.T("tui.hints.refresh"),
 	)
@@ -99,9 +81,13 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.mountGen++
 	gen := v.mountGen
-	v.dirty = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
+
+	// Initialize auto-saver (500ms debounce for local hub.toml)
+	v.autoSaver = NewAutoSaver(500*time.Millisecond, app, func() {
+		v.doSave()
+	})
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -124,11 +110,11 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 			v.list.SetBorderPadding(1, 0, 2, 2)
 
 			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByIndex(index, item)
+				v.onItemSelected(index, item)
 			})
 
-			v.buildLines()
-			v.renderLines()
+			v.buildFields()
+			v.renderFields()
 
 			content.RemoveItem(loading)
 			content.AddItem(v.list, 0, 1, true)
@@ -138,8 +124,9 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *SettingsView) Unmount() {
-	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.unsaved"), false)
+	// Flush any pending auto-save
+	if v.autoSaver != nil {
+		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
 	v.app = nil
@@ -147,38 +134,29 @@ func (v *SettingsView) Unmount() {
 }
 
 func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list == nil {
+		return event
+	}
 	if event.Key() == tcell.KeyEnter {
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	}
 	switch event.Rune() {
 	case 'e':
 		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.editByIndex(idx, item)
+			v.onItemSelected(idx, item)
 		}
 		return nil
 	case ' ':
-		v.toggleSelected()
-		return nil
-	case 'w':
-		v.save()
+		v.onToggleSelected()
 		return nil
 	case 'u':
 		v.undo()
 		return nil
 	case 'r':
-		// Refresh from disk
-		if v.cfg.ReloadConfig != nil {
-			v.live = v.cfg.ReloadConfig()
-		}
-		v.dirty = false
-		v.undoStack.Clear()
-		v.renderLines()
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.refreshed"), true)
-		}
+		v.refresh()
 		return nil
 	}
 	return event
@@ -188,15 +166,33 @@ func (v *SettingsView) undo() {
 	prev, ok := v.undoStack.Pop()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.nothing_to_undo"), true)
+			v.shell.ShowToastMsg(i18n.T("tui.config.nothing_to_undo"), true)
 		}
 		return
 	}
 	*v.live = prev
-	v.dirty = v.undoStack.Len() > 0
-	v.renderLines()
+	// Cancel any pending auto-save, then save the restored state
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.doSave()
+	v.renderFields()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.undone"), true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
+	}
+}
+
+func (v *SettingsView) refresh() {
+	if v.cfg.ReloadConfig != nil {
+		v.live = v.cfg.ReloadConfig()
+	}
+	v.undoStack.Clear()
+	if v.autoSaver != nil {
+		v.autoSaver.Cancel()
+	}
+	v.renderFields()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.reloaded"), true)
 	}
 }
 
@@ -204,38 +200,25 @@ func (v *SettingsView) undo() {
 func (v *SettingsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
 		{
-			ID: "settings.save", Label: i18n.T("tui.hints.save"),
-			Aliases:     []string{"save", "write", "sauvegarder"},
-			Description: i18n.T("tui.settings.cmd_save"), Category: "Settings",
-			Action: v.save,
-		},
-		{
 			ID: "settings.refresh", Label: i18n.T("tui.hints.refresh"),
 			Aliases:     []string{"refresh", "reload", "rafraîchir"},
 			Description: i18n.T("tui.settings.cmd_refresh"), Category: "Settings",
-			Action: func() {
-				if v.cfg.ReloadConfig != nil {
-					v.live = v.cfg.ReloadConfig()
-				}
-				v.dirty = false
-				v.undoStack.Clear()
-				v.renderLines()
-			},
+			Action:      v.refresh,
 		},
 		{
 			ID: "settings.undo", Label: i18n.T("tui.hints.undo"),
 			Aliases:     []string{"undo", "annuler"},
 			Description: i18n.T("tui.settings.cmd_undo"), Category: "Settings",
-			Action: v.undo,
+			Action:      v.undo,
 		},
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Line definitions — maps every hub.toml field to a configLine
+// Field definitions — maps every hub.toml field to a configField
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *SettingsView) buildLines() {
+func (v *SettingsView) buildFields() {
 	languageOptions := []SelectOption{
 		{Label: "Français", Value: "fr"},
 		{Label: "English", Value: "en"},
@@ -251,42 +234,54 @@ func (v *SettingsView) buildLines() {
 		}
 		return opts
 	}
-	triBoolOptions := []SelectOption{
-		{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(hérité)"},
-		{Label: "✓ " + i18n.T("tui.settings.enabled"), Value: "true"},
-		{Label: "✗ " + i18n.T("tui.settings.disabled"), Value: "false"},
-	}
 
-	v.lines = []configLine{
-		// ── Général ──────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Général", label: i18n.T("tui.settings.section_general")},
-		{section: "Général", key: "name", kind: "string", label: i18n.T("tui.settings.section_general"),
-			get: func(c *config.Config) string { return c.Name },
-			set: func(c *config.Config, val string) { c.Name = val }},
+	v.fields = []configField{
+		// ── Raccourcis (first section — immediately visible) ─────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.shortcuts")},
+		{Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "models",
+			Get: func() string { return "" }},
+		{Key: "teams", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.teams"), LinkTarget: "teams",
+			Get: func() string { return "" }},
+		{Key: "provider", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.provider"), LinkTarget: "provider",
+			Get: func() string { return "" }},
+		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+			Get: func() string { return "" }},
 
-		// ── CLI ──────────────────────────────────────────────────────────────
-		{kind: "section-header", section: "CLI", label: "CLI"},
-		{section: "CLI", key: "language", kind: "select", label: "CLI",
-			options:   languageOptions,
-			validator: &FieldValidator{AllowedValues: []string{"fr", "en"}},
-			get:       func(c *config.Config) string { return c.CLI.Language },
-			set:       func(c *config.Config, val string) { c.CLI.Language = val }},
+		// ── General ─────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.general")},
+		{Key: "name", Kind: CfgFieldString, Label: i18n.T("tui.config.field.name.label"),
+			Description: i18n.T("tui.config.field.name.desc"),
+			Get:         func() string { return v.live.Name },
+			Set:         func(val string) { v.live.Name = val }},
 
-		// ── Opencode ─────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Opencode", label: "Opencode"},
-		{section: "Opencode", key: "version", kind: "readonly", label: "Opencode",
-			get: func(c *config.Config) string { return c.Opencode.Version }},
-		{section: "Opencode", key: "channel", kind: "select", label: "Opencode",
-			options:   channelOptions,
-			validator: &FieldValidator{AllowedValues: []string{"stable", "canary"}},
-			get:       func(c *config.Config) string { return c.Opencode.Channel },
-			set:       func(c *config.Config, val string) { c.Opencode.Channel = val }},
-		{section: "Opencode", key: "auto_update", kind: "bool", label: "Opencode",
-			get: func(c *config.Config) string { return boolStr(c.Opencode.AutoUpdate) },
-			set: func(c *config.Config, val string) { c.Opencode.AutoUpdate = val == "true" }},
-		{section: "Opencode", key: "default_provider", kind: "select", label: "Opencode",
-			optionsFunc: providerOptions,
-			validator: &FieldValidator{AllowedFunc: func() []string {
+		// ── CLI ─────────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.cli")},
+		{Key: "language", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.language.label"),
+			Description: i18n.T("tui.config.field.language.desc"),
+			Options:     languageOptions,
+			Validator:   &FieldValidator{AllowedValues: []string{"fr", "en"}},
+			Get:         func() string { return v.live.CLI.Language },
+			Set:         func(val string) { v.live.CLI.Language = val }},
+
+		// ── Opencode ────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.opencode")},
+		{Key: "version", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.version.label"),
+			Description: i18n.T("tui.config.field.version.desc"),
+			Get:         func() string { return v.live.Opencode.Version }},
+		{Key: "channel", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.channel.label"),
+			Description: i18n.T("tui.config.field.channel.desc"),
+			Options:     channelOptions,
+			Validator:   &FieldValidator{AllowedValues: []string{"stable", "canary"}},
+			Get:         func() string { return v.live.Opencode.Channel },
+			Set:         func(val string) { v.live.Opencode.Channel = val }},
+		{Key: "auto_update", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_update.label"),
+			Description: i18n.T("tui.config.field.auto_update.desc"),
+			Get:         func() string { return boolStr(v.live.Opencode.AutoUpdate) },
+			Set:         func(val string) { v.live.Opencode.AutoUpdate = val == "true" }},
+		{Key: "default_provider", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.default_provider.label"),
+			Description: i18n.T("tui.config.field.default_provider.desc"),
+			OptionsFunc: providerOptions,
+			Validator: &FieldValidator{AllowedFunc: func() []string {
 				names := provider.AllProviders()
 				s := make([]string, len(names))
 				for i, n := range names {
@@ -294,175 +289,180 @@ func (v *SettingsView) buildLines() {
 				}
 				return s
 			}, AllowEmpty: true},
-			get: func(c *config.Config) string { return c.Opencode.DefaultProvider },
-			set: func(c *config.Config, val string) { c.Opencode.DefaultProvider = val }},
+			Get: func() string { return v.live.Opencode.DefaultProvider },
+			Set: func(val string) { v.live.Opencode.DefaultProvider = val }},
 
-		// ── Deploy ───────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Deploy", label: "Deploy"},
-		{section: "Deploy", key: "disable_native_agents", kind: "readonly", label: "Deploy",
-			get: func(c *config.Config) string {
-				if len(c.Deploy.DisableNativeAgents) == 0 {
+		// ── Deploy ──────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.deploy")},
+		{Key: "disable_native_agents", Kind: CfgFieldReadonly, Label: i18n.T("tui.config.field.disable_native_agents.label"),
+			Description: i18n.T("tui.config.field.disable_native_agents.desc"),
+			Get: func() string {
+				if len(v.live.Deploy.DisableNativeAgents) == 0 {
 					return fmt.Sprintf("(%s)", i18n.T("tui.settings.default"))
 				}
-				return fmt.Sprintf("%v", c.Deploy.DisableNativeAgents)
+				return fmt.Sprintf("%v", v.live.Deploy.DisableNativeAgents)
 			}},
 
-		// ── MCP GitLab ───────────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP GitLab", label: "MCP GitLab"},
-		{section: "MCP GitLab", key: "enabled", kind: "bool", label: "MCP GitLab",
-			get: func(c *config.Config) string { return boolStr(c.MCP.Gitlab.Enabled) },
-			set: func(c *config.Config, val string) { c.MCP.Gitlab.Enabled = val == "true" }},
-		{section: "MCP GitLab", key: "token_key", kind: "tokenkey", label: "MCP GitLab",
-			get: func(c *config.Config) string { return c.MCP.Gitlab.Token },
-			set: func(c *config.Config, val string) { c.MCP.Gitlab.Token = val }},
-		{section: "MCP GitLab", key: "write_enabled", kind: "bool", label: "MCP GitLab",
-			get: func(c *config.Config) string { return boolStr(c.MCP.Gitlab.WriteEnabled) },
-			set: func(c *config.Config, val string) { c.MCP.Gitlab.WriteEnabled = val == "true" }},
-		{section: "MCP GitLab", key: "url", kind: "string", label: "MCP GitLab",
-			get: func(c *config.Config) string { return c.MCP.Gitlab.URL },
-			set: func(c *config.Config, val string) { c.MCP.Gitlab.URL = val }},
+		// ── MCP GitLab ──────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.mcp_gitlab")},
+		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Section: "MCP GitLab",
+			Get: func() string { return boolStr(v.live.MCP.Gitlab.Enabled) },
+			Set: func(val string) { v.live.MCP.Gitlab.Enabled = val == "true" }},
+		{Key: "token_key", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
+			Description: i18n.T("tui.config.field.mcp_token.desc"), Section: "MCP GitLab",
+			Get: func() string { return v.live.MCP.Gitlab.Token },
+			Set: func(val string) { v.live.MCP.Gitlab.Token = val }},
+		{Key: "write_enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_write.label"),
+			Description: i18n.T("tui.config.field.mcp_write.desc"), Section: "MCP GitLab",
+			Get: func() string { return boolStr(v.live.MCP.Gitlab.WriteEnabled) },
+			Set: func(val string) { v.live.MCP.Gitlab.WriteEnabled = val == "true" }},
+		{Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+			Description: i18n.T("tui.config.field.mcp_url.desc"), Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
+			Section: "MCP GitLab",
+			Get:     func() string { return v.live.MCP.Gitlab.URL },
+			Set:     func(val string) { v.live.MCP.Gitlab.URL = val }},
 
-		// ── MCP Jira ─────────────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP Jira", label: "MCP Jira"},
-		{section: "MCP Jira", key: "enabled", kind: "bool", label: "MCP Jira",
-			get: func(c *config.Config) string { return boolStr(c.MCP.Jira.Enabled) },
-			set: func(c *config.Config, val string) { c.MCP.Jira.Enabled = val == "true" }},
-		{section: "MCP Jira", key: "token_key", kind: "tokenkey", label: "MCP Jira",
-			get: func(c *config.Config) string { return c.MCP.Jira.Token },
-			set: func(c *config.Config, val string) { c.MCP.Jira.Token = val }},
-		// NOTE: write_enabled removed for Jira — Jira does not use this feature.
-		{section: "MCP Jira", key: "url", kind: "string", label: "MCP Jira",
-			get: func(c *config.Config) string { return c.MCP.Jira.URL },
-			set: func(c *config.Config, val string) { c.MCP.Jira.URL = val }},
+		// ── MCP Jira ────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.mcp_jira")},
+		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Section: "MCP Jira",
+			Get: func() string { return boolStr(v.live.MCP.Jira.Enabled) },
+			Set: func(val string) { v.live.MCP.Jira.Enabled = val == "true" }},
+		{Key: "token_key", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
+			Description: i18n.T("tui.config.field.mcp_token.desc"), Section: "MCP Jira",
+			Get: func() string { return v.live.MCP.Jira.Token },
+			Set: func(val string) { v.live.MCP.Jira.Token = val }},
+		{Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+			Description: i18n.T("tui.config.field.mcp_url.desc"), Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
+			Section: "MCP Jira",
+			Get:     func() string { return v.live.MCP.Jira.URL },
+			Set:     func(val string) { v.live.MCP.Jira.URL = val }},
 
-		// ── MCP Figma ────────────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP Figma", label: "MCP Figma"},
-		{section: "MCP Figma", key: "enabled", kind: "bool", label: "MCP Figma",
-			get: func(c *config.Config) string { return boolStr(c.MCP.Figma.Enabled) },
-			set: func(c *config.Config, val string) { c.MCP.Figma.Enabled = val == "true" }},
-		{section: "MCP Figma", key: "token_key", kind: "tokenkey", label: "MCP Figma",
-			get: func(c *config.Config) string { return c.MCP.Figma.Token },
-			set: func(c *config.Config, val string) { c.MCP.Figma.Token = val }},
+		// ── MCP Figma ───────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.mcp_figma")},
+		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Section: "MCP Figma",
+			Get: func() string { return boolStr(v.live.MCP.Figma.Enabled) },
+			Set: func(val string) { v.live.MCP.Figma.Enabled = val == "true" }},
+		{Key: "token_key", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
+			Description: i18n.T("tui.config.field.mcp_token.desc"), Section: "MCP Figma",
+			Get: func() string { return v.live.MCP.Figma.Token },
+			Set: func(val string) { v.live.MCP.Figma.Token = val }},
 
-		// ── MCP Gslides (NEW) ────────────────────────────────────────────────
-		{kind: "section-header", section: "MCP Gslides", label: "MCP Gslides"},
-		{section: "MCP Gslides", key: "enabled", kind: "bool", label: "MCP Gslides",
-			get: func(c *config.Config) string { return boolStr(c.MCP.Gslides.Enabled) },
-			set: func(c *config.Config, val string) { c.MCP.Gslides.Enabled = val == "true" }},
-		{section: "MCP Gslides", key: "token_key", kind: "tokenkey", label: "MCP Gslides",
-			get: func(c *config.Config) string { return c.MCP.Gslides.Token },
-			set: func(c *config.Config, val string) { c.MCP.Gslides.Token = val }},
+		// ── MCP Google Slides ───────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.mcp_gslides")},
+		{Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Section: "MCP Gslides",
+			Get: func() string { return boolStr(v.live.MCP.Gslides.Enabled) },
+			Set: func(val string) { v.live.MCP.Gslides.Enabled = val == "true" }},
+		{Key: "token_key", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
+			Description: i18n.T("tui.config.field.mcp_token.desc"), Section: "MCP Gslides",
+			Get: func() string { return v.live.MCP.Gslides.Token },
+			Set: func(val string) { v.live.MCP.Gslides.Token = val }},
 
-		// ── Worktree ─────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Worktree", label: "Worktree"},
-		{section: "Worktree", key: "auto_cleanup", kind: "bool", label: "Worktree",
-			get: func(c *config.Config) string { return boolStr(c.Worktree.AutoCleanup) },
-			set: func(c *config.Config, val string) { c.Worktree.AutoCleanup = val == "true" }},
-		{section: "Worktree", key: "base_branch", kind: "string", label: "Worktree",
-			get: func(c *config.Config) string { return c.Worktree.BaseBranch },
-			set: func(c *config.Config, val string) { c.Worktree.BaseBranch = val }},
-		{section: "Worktree", key: "branch_pattern", kind: "string", label: "Worktree",
-			get: func(c *config.Config) string { return c.Worktree.BranchPattern },
-			set: func(c *config.Config, val string) { c.Worktree.BranchPattern = val }},
+		// ── Worktree ────────────────────────────────────────────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.worktree")},
+		{Key: "auto_cleanup", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_cleanup.label"),
+			Description: i18n.T("tui.config.field.auto_cleanup.desc"),
+			Get:         func() string { return boolStr(v.live.Worktree.AutoCleanup) },
+			Set:         func(val string) { v.live.Worktree.AutoCleanup = val == "true" }},
+		{Key: "base_branch", Kind: CfgFieldString, Label: i18n.T("tui.config.field.base_branch.label"),
+			Description: i18n.T("tui.config.field.base_branch.desc"),
+			Placeholder: i18n.T("tui.config.field.base_branch.placeholder"),
+			Get:         func() string { return v.live.Worktree.BaseBranch },
+			Set:         func(val string) { v.live.Worktree.BaseBranch = val }},
+		{Key: "branch_pattern", Kind: CfgFieldString, Label: i18n.T("tui.config.field.branch_pattern.label"),
+			Description: i18n.T("tui.config.field.branch_pattern.desc"),
+			Placeholder: i18n.T("tui.config.field.branch_pattern.placeholder"),
+			Get:         func() string { return v.live.Worktree.BranchPattern },
+			Set:         func(val string) { v.live.Worktree.BranchPattern = val }},
 
-		// ── Tracker ──────────────────────────────────────────────────────────
-		{kind: "section-header", section: "Tracker", label: i18n.T("tui.settings.section_tracker")},
-		{section: "Tracker", key: "enabled", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
-			options: triBoolOptions,
-			get: func(c *config.Config) string {
-				if c.Tracker.Enabled == nil {
-					return "(hérité)"
+		// ── Tracker (hub level = TriDefault, NOT TriBool) ───────────────────
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")},
+		{Key: "enabled", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.tracker_enabled.label"),
+			Description: i18n.T("tui.config.field.tracker_enabled.desc"),
+			Get: func() string {
+				if v.live.Tracker.Enabled == nil {
+					return ""
 				}
-				return boolStr(*c.Tracker.Enabled)
+				return boolStr(*v.live.Tracker.Enabled)
 			},
-			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" {
-					c.Tracker.Enabled = nil
+			Set: func(val string) {
+				if val == "" {
+					v.live.Tracker.Enabled = nil
 					return
 				}
 				b := val == "true"
-				c.Tracker.Enabled = &b
+				v.live.Tracker.Enabled = &b
 			}},
-		{section: "Tracker", key: "auto_sync", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
-			options: triBoolOptions,
-			get: func(c *config.Config) string {
-				if c.Tracker.AutoSync == nil {
-					return "(hérité)"
+		{Key: "auto_sync", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.auto_sync.label"),
+			Description: i18n.T("tui.config.field.auto_sync.desc"),
+			Get: func() string {
+				if v.live.Tracker.AutoSync == nil {
+					return ""
 				}
-				return boolStr(*c.Tracker.AutoSync)
+				return boolStr(*v.live.Tracker.AutoSync)
 			},
-			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" {
-					c.Tracker.AutoSync = nil
+			Set: func(val string) {
+				if val == "" {
+					v.live.Tracker.AutoSync = nil
 					return
 				}
 				b := val == "true"
-				c.Tracker.AutoSync = &b
+				v.live.Tracker.AutoSync = &b
 			}},
-		{section: "Tracker", key: "push_labels", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
-			options: triBoolOptions,
-			get: func(c *config.Config) string {
-				if c.Tracker.PushLabels == nil {
-					return "(hérité)"
+		{Key: "push_labels", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.push_labels.label"),
+			Description: i18n.T("tui.config.field.push_labels.desc"),
+			Get: func() string {
+				if v.live.Tracker.PushLabels == nil {
+					return ""
 				}
-				return boolStr(*c.Tracker.PushLabels)
+				return boolStr(*v.live.Tracker.PushLabels)
 			},
-			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" {
-					c.Tracker.PushLabels = nil
+			Set: func(val string) {
+				if val == "" {
+					v.live.Tracker.PushLabels = nil
 					return
 				}
 				b := val == "true"
-				c.Tracker.PushLabels = &b
+				v.live.Tracker.PushLabels = &b
 			}},
-		{section: "Tracker", key: "auto_plan_assigned", kind: "tri-bool", label: i18n.T("tui.settings.section_tracker"),
-			options: triBoolOptions,
-			get: func(c *config.Config) string {
-				if c.Tracker.AutoPlanAssigned == nil {
-					return "(hérité)"
+		{Key: "auto_plan_assigned", Kind: CfgFieldTriDefault, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
+			Description: i18n.T("tui.config.field.auto_plan_assigned.desc"),
+			Get: func() string {
+				if v.live.Tracker.AutoPlanAssigned == nil {
+					return ""
 				}
-				return boolStr(*c.Tracker.AutoPlanAssigned)
+				return boolStr(*v.live.Tracker.AutoPlanAssigned)
 			},
-			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" {
-					c.Tracker.AutoPlanAssigned = nil
+			Set: func(val string) {
+				if val == "" {
+					v.live.Tracker.AutoPlanAssigned = nil
 					return
 				}
 				b := val == "true"
-				c.Tracker.AutoPlanAssigned = &b
+				v.live.Tracker.AutoPlanAssigned = &b
 			}},
-		{section: "Tracker", key: "max_auto_plan_per_member", kind: "int", label: i18n.T("tui.settings.section_tracker"),
-			validator: &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100), AllowEmpty: true},
-			get: func(c *config.Config) string {
-				if c.Tracker.MaxAutoPlanPerMember == nil {
-					return "(hérité)"
+		{Key: "max_auto_plan_per_member", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_auto_plan.label"),
+			Description: i18n.T("tui.config.field.max_auto_plan.desc"),
+			Placeholder: i18n.T("tui.config.field.max_auto_plan.placeholder"),
+			Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100), AllowEmpty: true},
+			Get: func() string {
+				if v.live.Tracker.MaxAutoPlanPerMember == nil {
+					return ""
 				}
-				return strconv.Itoa(*c.Tracker.MaxAutoPlanPerMember)
+				return strconv.Itoa(*v.live.Tracker.MaxAutoPlanPerMember)
 			},
-			set: func(c *config.Config, val string) {
-				if val == "(hérité)" || val == "" {
-					c.Tracker.MaxAutoPlanPerMember = nil
+			Set: func(val string) {
+				if val == "" {
+					v.live.Tracker.MaxAutoPlanPerMember = nil
 					return
 				}
 				if n, err := strconv.Atoi(val); err == nil {
-					c.Tracker.MaxAutoPlanPerMember = &n
+					v.live.Tracker.MaxAutoPlanPerMember = &n
 				}
 			}},
-
-		// ── Raccourcis ───────────────────────────────────────────────────────
-		{kind: "section-header", section: "Raccourcis", label: i18n.T("tui.settings.section_shortcuts")},
-		{section: "Raccourcis", key: "models", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
-			linkTarget: "models",
-			get:        func(_ *config.Config) string { return i18n.T("tui.settings.link_models") }},
-		{section: "Raccourcis", key: "teams", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
-			linkTarget: "teams",
-			get:        func(_ *config.Config) string { return i18n.T("tui.settings.link_teams") }},
-		{section: "Raccourcis", key: "provider", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
-			linkTarget: "provider",
-			get:        func(_ *config.Config) string { return i18n.T("tui.settings.link_provider") }},
-		{section: "Raccourcis", key: "workflow", kind: "link", label: i18n.T("tui.settings.section_shortcuts"),
-			linkTarget: "workflow",
-			get:        func(_ *config.Config) string { return "Workflow..." }},
 	}
 }
 
@@ -470,41 +470,17 @@ func (v *SettingsView) buildLines() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *SettingsView) renderLines() {
+func (v *SettingsView) renderFields() {
 	if v.list == nil || v.live == nil {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
-	ctx := context.Background()
 
-	items := make([]widgets.SectionItem, 0, len(v.lines))
-	for i, line := range v.lines {
-		switch line.kind {
-		case "section-header":
-			title := line.section
-			// Append dirty indicator to the first section header
-			if i == 0 && v.dirty {
-				title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
-			}
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: title,
-			})
-
-		default:
-			val := ""
-			if line.get != nil {
-				val = line.get(v.live)
-			}
-
-			valDisplay := v.formatValue(val, line, ctx)
-			mainText := fmt.Sprintf("%-24s %s", line.key+":", valDisplay)
-
-			items = append(items, widgets.SectionItem{
-				MainText:  mainText,
-				Reference: i,
-			})
-		}
+	items := make([]widgets.SectionItem, 0, len(v.fields))
+	for i, f := range v.fields {
+		item := renderConfigItem(f, 28)
+		item.Reference = i
+		items = append(items, item)
 	}
 
 	v.list.SetItems(items)
@@ -513,231 +489,37 @@ func (v *SettingsView) renderLines() {
 	}
 }
 
-func (v *SettingsView) formatValue(val string, line configLine, ctx context.Context) string {
-	switch line.kind {
-	case "bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
-		}
-
-	case "tri-bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
-		}
-
-	case "select":
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.empty"), theme.TagColor)
-		}
-		// Show label from options if available
-		opts := line.options
-		if line.optionsFunc != nil {
-			opts = line.optionsFunc()
-		}
-		for _, o := range opts {
-			if o.Value == val {
-				return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextSecondaryHex), o.Label, theme.TagColor)
-			}
-		}
-		return val
-
-	case "int":
-		if val == "(hérité)" || val == "" {
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
-		}
-		return val
-
-	case "tokenkey":
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.not_configured"), theme.TagColor)
-		}
-		display := fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextSecondaryHex), val, theme.TagColor)
-		present, masked := v.cfg.CheckSecret(ctx, val)
-		if present {
-			display += fmt.Sprintf("  %s✓ %s%s", theme.ColorTag(theme.SuccessHex), masked, theme.TagColor)
-		} else {
-			display += fmt.Sprintf("  %s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.absent"), theme.TagColor)
-		}
-		return display
-
-	case "link":
-		return fmt.Sprintf("%s→ %s%s", theme.ColorTag(theme.AccentHex), val, theme.TagColor)
-
-	case "readonly":
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.empty"), theme.TagColor)
-		}
-		return fmt.Sprintf("%s%s%s  %s(%s)%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor,
-			theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.readonly"), theme.TagColor)
-
-	default: // string
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.empty"), theme.TagColor)
-		}
-		return val
-	}
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Editing
+// Editing (delegates to shared editConfigField / toggleConfigField)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *SettingsView) editByIndex(index int, item widgets.SectionItem) {
+func (v *SettingsView) onItemSelected(_ int, item widgets.SectionItem) {
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	line := v.lines[ref]
-	if line.kind == "section-header" || line.get == nil {
+	f := &v.fields[ref]
+	if !isEditable(f.Kind) || f.Get == nil {
 		return
 	}
 	if v.shell == nil {
 		return
 	}
 
-	switch line.kind {
-	case "bool":
-		v.toggleByRef(ref)
-
-	case "tri-bool":
-		opts := line.options
-		if len(opts) == 0 {
-			opts = []SelectOption{
-				{Label: "↩ " + i18n.T("tui.settings.inherited"), Value: "(hérité)"},
-				{Label: "✓ " + i18n.T("tui.settings.yes"), Value: "true"},
-				{Label: "✗ " + i18n.T("tui.settings.no"), Value: "false"},
-			}
-		}
-		cur := line.get(v.live)
-		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
-			if line.set != nil {
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
-
-	case "select":
-		opts := line.options
-		if line.optionsFunc != nil {
-			opts = line.optionsFunc()
-		}
-		cur := line.get(v.live)
-		v.shell.ShowSelectModal(line.key, opts, cur, func(newVal string) {
-			if line.set != nil {
-				// Validate
-				if line.validator != nil {
-					if err := line.validator.Validate(newVal); err != nil {
-						v.shell.ShowToastMsg("⚠ "+err.Error(), false)
-						return
-					}
-				}
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
-
-	case "int":
-		cur := line.get(v.live)
-		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
-			if line.set != nil {
-				if line.validator != nil {
-					if err := line.validator.Validate(newVal); err != nil {
-						v.shell.ShowToastMsg("⚠ "+err.Error(), false)
-						return
-					}
-				}
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
-
-	case "tokenkey":
-		v.shell.ShowSelectModal(
-			line.key,
-			[]SelectOption{
-				{Label: i18n.T("tui.settings.edit_key_name"), Value: "keyname"},
-				{Label: i18n.T("tui.settings.edit_secret"), Value: "secret"},
-				{Label: i18n.T("tui.settings.cancel"), Value: ""},
-			},
-			"",
-			func(choice string) {
-				switch choice {
-				case "keyname":
-					v.shell.ShowInputModal(i18n.T("tui.settings.key_name"), line.get(v.live), func(newKey string) {
-						if newKey != "" {
-							v.pushUndo()
-							line.set(v.live, newKey)
-							v.dirty = true
-							v.renderLines()
-						}
-					})
-				case "secret":
-					keyName := line.get(v.live)
-					if keyName == "" {
-						return
-					}
-					v.shell.ShowPasswordModal(i18n.T("tui.settings.new_secret_value"), func(value string) {
-						if value == "" {
-							return
-						}
-						ctx := context.Background()
-						if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
-							v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
-							return
-						}
-						v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
-						v.renderLines()
-					})
-				}
-			})
-
-	case "link":
-		if line.linkTarget != "" && v.shell != nil {
-			v.shell.NavigateTo(line.linkTarget)
-		}
-
-	case "readonly":
-		v.shell.ShowToastMsg(i18n.T("tui.settings.readonly"), false)
-
-	default: // string
-		cur := ""
-		if line.get != nil {
-			cur = line.get(v.live)
-		}
-		v.shell.ShowInputModal(line.key, cur, func(newVal string) {
-			if line.set != nil {
-				if line.validator != nil {
-					if err := line.validator.Validate(newVal); err != nil {
-						v.shell.ShowToastMsg("⚠ "+err.Error(), false)
-						return
-					}
-				}
-				v.pushUndo()
-				line.set(v.live, newVal)
-				v.dirty = true
-				v.renderLines()
-			}
-		})
+	// Special handling for tokenkey fields (2-step: edit key name or set secret)
+	if f.Kind == CfgFieldPassword && f.Section != "" {
+		v.editTokenKey(f)
+		return
 	}
+
+	v.pushUndo()
+	editConfigField(v.shell, f, func() {
+		v.scheduleAutoSave()
+		v.renderFields()
+	})
 }
 
-func (v *SettingsView) toggleSelected() {
+func (v *SettingsView) onToggleSelected() {
 	if v.list == nil {
 		return
 	}
@@ -746,26 +528,60 @@ func (v *SettingsView) toggleSelected() {
 		return
 	}
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
+	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
 	}
-	v.toggleByRef(ref)
-}
-
-func (v *SettingsView) toggleByRef(ref int) {
-	line := v.lines[ref]
-	if line.kind != "bool" || line.set == nil {
+	f := &v.fields[ref]
+	if !isToggleable(f.Kind) {
 		return
-	}
-	cur := line.get(v.live)
-	newVal := "true"
-	if cur == "true" {
-		newVal = "false"
 	}
 	v.pushUndo()
-	line.set(v.live, newVal)
-	v.dirty = true
-	v.renderLines()
+	toggleConfigField(f)
+	v.scheduleAutoSave()
+	v.renderFields()
+}
+
+// editTokenKey handles the 2-step edit for token/keychain fields:
+// first choose between editing the key name or setting the secret value.
+func (v *SettingsView) editTokenKey(f *configField) {
+	v.shell.ShowSelectModal(
+		f.Label,
+		[]SelectOption{
+			{Label: i18n.T("tui.settings.edit_key_name"), Value: "keyname"},
+			{Label: i18n.T("tui.settings.edit_secret"), Value: "secret"},
+			{Label: i18n.T("tui.settings.cancel"), Value: ""},
+		},
+		"",
+		func(choice string) {
+			switch choice {
+			case "keyname":
+				v.shell.ShowInputModal(i18n.T("tui.settings.key_name"), f.Get(), func(newKey string) {
+					if newKey != "" {
+						v.pushUndo()
+						f.Set(newKey)
+						v.scheduleAutoSave()
+						v.renderFields()
+					}
+				})
+			case "secret":
+				keyName := f.Get()
+				if keyName == "" {
+					return
+				}
+				v.shell.ShowPasswordModal(i18n.T("tui.settings.new_secret_value"), func(value string) {
+					if value == "" {
+						return
+					}
+					ctx := context.Background()
+					if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
+						v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+						return
+					}
+					v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
+					v.renderFields()
+				})
+			}
+		})
 }
 
 func (v *SettingsView) pushUndo() {
@@ -773,42 +589,50 @@ func (v *SettingsView) pushUndo() {
 	v.undoStack.Push(snapshot)
 }
 
+func (v *SettingsView) scheduleAutoSave() {
+	if v.autoSaver != nil {
+		v.autoSaver.Schedule()
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Save
+// Save (auto-save: called by AutoSaver, also used by undo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *SettingsView) save() {
-	if v.shell == nil {
-		return
-	}
+func (v *SettingsView) doSave() {
 	if v.live == nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.loading"), false)
 		return
 	}
 
-	// Global validation pass
-	var errors []string
-	for _, line := range v.lines {
-		if line.kind == "section-header" || line.get == nil || line.validator == nil {
-			continue
+	// Validate all fields before saving
+	errs := validateAllFields(v.fields)
+	if len(errs) > 0 {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(fmt.Sprintf("⚠ %d %s", len(errs), i18n.T("tui.settings.validation_errors")), false)
 		}
-		val := line.get(v.live)
-		if err := line.validator.Validate(val); err != nil {
-			errors = append(errors, fmt.Sprintf("%s.%s: %s", line.section, line.key, err.Error()))
-		}
-	}
-	if len(errors) > 0 {
-		v.shell.ShowToastMsg(fmt.Sprintf("⚠ %d %s", len(errors), i18n.T("tui.settings.validation_errors")), false)
 		return
 	}
 
 	if err := v.cfg.SaveConfig(v.live); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.save_error")+": "+err.Error(), false)
+		if v.shell != nil {
+			if errors.Is(err, config.ErrExternalModification) {
+				// Reload from disk and notify user
+				if v.cfg.ReloadConfig != nil {
+					v.live = v.cfg.ReloadConfig()
+				}
+				v.undoStack.Clear()
+				v.renderFields()
+				v.shell.ShowToastMsg(i18n.T("tui.config.external_modification"), false)
+				return
+			}
+			v.shell.ShowToastMsg(i18n.Tf("tui.config.save_failed", err.Error()), false)
+		}
 		return
 	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.shell.ShowToastMsg(i18n.T("tui.settings.saved"), true)
+
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
