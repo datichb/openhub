@@ -68,7 +68,7 @@ func NewTeamModelsView(cfg TeamModelsViewConfig) *TeamModelsView {
 
 func (v *TeamModelsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *TeamModelsView) ID() string             { return "team.models" }
-func (v *TeamModelsView) Title() string          { return "Modèles" }
+func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.section.models") }
 
 func (v *TeamModelsView) StatusHints() string {
 	return fmt.Sprintf("%s  %s  %s  %s  %s",
@@ -195,67 +195,71 @@ func (v *TeamModelsView) renderList() {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+	notConfigured := i18n.T("tui.config.not_configured")
 
-	title := "Modèles d'équipe"
+	title := i18n.T("tui.config.section.models")
 	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + theme.TagColor
+		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + reset
 	}
 
 	items := []widgets.SectionItem{
 		{IsHeader: true, MainText: title},
 	}
 
-	// ── Général ──────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Général"})
+	// ── General ──────────────────────────────────────────────────────────
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.config.section.general")})
 
 	defaultVal := v.teamCfg.Models.Default
 	if defaultVal == "" {
-		defaultVal = fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+		defaultVal = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
 	}
 	items = append(items, widgets.SectionItem{
-		MainText:  fmt.Sprintf("%-28s %s", "default:", defaultVal),
-		Reference: teamModelsRef{section: "general", key: "default"},
+		MainText:      fmt.Sprintf("%-28s %s", i18n.T("tui.config.field.default_model.label"), defaultVal),
+		SecondaryText: fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.field.default_model.desc"), reset),
+		Reference:     teamModelsRef{section: "general", key: "default"},
 	})
 
-	// ── Familles ─────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Familles"})
+	// ── Families ─────────────────────────────────────────────────────────
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.config.section.families")})
 
 	families := v.teamCfg.Models.Families
 	if len(families) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor),
+			MainText: fmt.Sprintf("  %s%s%s", muted, notConfigured, reset),
 		})
 	} else {
 		fKeys := teamModelsSortedKeys(families)
 		for _, k := range fKeys {
 			val := families[k]
 			if val == "" {
-				val = fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+				val = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
 			}
 			items = append(items, widgets.SectionItem{
-				MainText:  fmt.Sprintf("%-28s %s", k+":", val),
+				MainText:  fmt.Sprintf("%-28s %s", k, val),
 				Reference: teamModelsRef{section: "families", key: k},
 			})
 		}
 	}
 
 	// ── Agents ───────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Agents"})
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.config.section.agents")})
 
 	agents := v.teamCfg.Models.Agents
 	if len(agents) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor),
+			MainText: fmt.Sprintf("  %s%s%s", muted, notConfigured, reset),
 		})
 	} else {
 		aKeys := teamModelsSortedKeys(agents)
 		for _, k := range aKeys {
 			val := agents[k]
 			if val == "" {
-				val = fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+				val = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
 			}
 			items = append(items, widgets.SectionItem{
-				MainText:  fmt.Sprintf("%-28s %s", k+":", val),
+				MainText:  fmt.Sprintf("%-28s %s", k, val),
 				Reference: teamModelsRef{section: "agents", key: k},
 			})
 		}
@@ -360,11 +364,11 @@ func (v *TeamModelsView) addEntry() {
 		if scope == "" {
 			return
 		}
-		v.shell.ShowInputModal("Clé", "", func(key string) {
+		v.shell.ShowInputModal("Key", "", func(key string) {
 			if key == "" {
 				return
 			}
-			v.shell.ShowInputModal("Modèle recommandé", "", func(model string) {
+			v.shell.ShowInputModal(i18n.T("tui.team.models.add_recommendation"), "", func(model string) {
 				if model == "" {
 					return
 				}
@@ -462,7 +466,7 @@ func (v *TeamModelsView) save() {
 	v.dirty = false
 	v.undoStack.Clear()
 	v.renderList()
-	v.shell.ShowToastMsg("Modèles sauvegardés", true)
+		v.shell.ShowToastMsg(i18n.T("tui.config.saved_team"), true)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
