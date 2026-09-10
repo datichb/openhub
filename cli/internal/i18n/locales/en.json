@@ -1243,6 +1243,8 @@
   "tui.config.saved_team_local": "Saved (team + local)",
   "tui.config.reloaded": "Reloaded",
   "tui.config.use_team_value": "Use team value",
+  "tui.config.inherits_from_hub": "inherits from hub",
+  "tui.config.inherits_from_team": "inherits from team",
 
   "tui.config.section.shortcuts": "Shortcuts",
   "tui.config.section.general": "General",

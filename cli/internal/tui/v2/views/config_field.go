@@ -19,8 +19,7 @@ const (
 	CfgFieldBool          FieldKind = iota // true/false toggle (Space key)
 	CfgFieldString                         // free-text input (Enter → InputModal)
 	CfgFieldSelect                         // choice from a list (Enter → SelectModal)
-	CfgFieldTriBool                        // project/team: nil=inherit from parent level
-	CfgFieldTriDefault                     // hub-level: nil=system default (NOT "inherited")
+	CfgFieldTriBool                        // tri-state: nil=not configured (with optional inheritance note based on Scope)
 	CfgFieldInt                            // integer input with optional min/max
 	CfgFieldPassword                       // masked input (Enter → PasswordModal) — unifies "tokenkey" and "password"
 	CfgFieldReadonly                        // display only (cannot edit)
@@ -63,7 +62,8 @@ type configField struct {
 	Kind FieldKind
 	// Placeholder is shown inside InputModal when the current value is empty.
 	Placeholder string
-	// Options provides static choices for CfgFieldSelect / CfgFieldTriBool / CfgFieldTriDefault.
+	// Options provides static choices for CfgFieldSelect / CfgFieldTriBool.
+	// For CfgFieldTriBool, if non-empty these override the default triStateOptions().
 	Options []SelectOption
 	// OptionsFunc provides dynamic choices (called at edit time).
 	OptionsFunc func() []SelectOption
@@ -72,6 +72,7 @@ type configField struct {
 	// LinkTarget is the view ID to navigate to for CfgFieldLink.
 	LinkTarget string
 	// Scope identifies the configuration level (hub/team-shared/team-local/project).
+	// Used by formatFieldValue to determine inheritance annotations on nil values.
 	Scope ConfigScope
 	// Source returns a resolution annotation (e.g. "[hub]", "[equipe: enforced]").
 	// nil means no annotation.
@@ -114,7 +115,7 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	if f.Get != nil {
 		val = f.Get()
 	}
-	formattedVal := formatFieldValue(f.Kind, val, f.Scope)
+	formattedVal := formatFieldValue(f, val)
 
 	// Build source annotation
 	sourceAnnotation := ""
@@ -145,68 +146,73 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 }
 
 // formatFieldValue produces a colored display string for a config value.
-func formatFieldValue(kind FieldKind, val string, scope ConfigScope) string {
-	switch kind {
+// It receives the full configField so it can use Scope for inheritance annotations.
+//
+// Principle: nil / empty = "non configuré" — never "disabled", "(empty)" or "default".
+// For CfgFieldTriBool at project/team-local scope, a parenthetical inheritance note
+// is appended: "non configuré (hérite du hub)".
+func formatFieldValue(f configField, val string) string {
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagReset
+
+	switch f.Kind {
 	case CfgFieldBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), theme.TagReset)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), reset)
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), theme.TagReset)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
 		default:
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.empty"), theme.TagReset)
+			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
 		}
 
 	case CfgFieldTriBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), theme.TagReset)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), reset)
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), theme.TagReset)
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
 		default:
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.inherited"), theme.TagReset)
-		}
-
-	case CfgFieldTriDefault:
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), theme.TagReset)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), theme.TagReset)
-		default:
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.system_default"), theme.TagReset)
+			label := i18n.T("tui.config.not_configured")
+			switch f.Scope {
+			case ScopeProject:
+				label += " (" + i18n.T("tui.config.inherits_from_hub") + ")"
+			case ScopeTeamLocal:
+				label += " (" + i18n.T("tui.config.inherits_from_team") + ")"
+			}
+			return fmt.Sprintf("%s%s%s", muted, label, reset)
 		}
 
 	case CfgFieldPassword:
 		if val != "" {
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.configured"), theme.TagReset)
+			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.configured"), reset)
 		}
-		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.not_configured"), theme.TagReset)
+		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.not_configured"), reset)
 
 	case CfgFieldSelect:
 		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.empty"), theme.TagReset)
+			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
 		}
 		return val
 
 	case CfgFieldInt:
 		if val == "" || val == "(hérité)" || val == "(inherit)" {
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.system_default"), theme.TagReset)
+			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
 		}
 		return val
 
 	case CfgFieldReadonly:
-		return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.TextMutedHex), val, i18n.T("tui.config.readonly"), theme.TagReset)
+		return fmt.Sprintf("%s%s %s%s", muted, val, i18n.T("tui.config.readonly"), reset)
 
 	case CfgFieldLink:
-		return fmt.Sprintf("%s→%s", theme.ColorTag(theme.AccentHex), theme.TagReset)
+		return fmt.Sprintf("%s→%s", theme.ColorTag(theme.AccentHex), reset)
 
 	case CfgFieldPlaceholder:
-		return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagReset)
+		return fmt.Sprintf("%s%s%s", muted, val, reset)
 
-	default: // CfgFieldString, FieldAgentsCfgFieldInfo, CfgFieldProviderItem, CfgFieldAction
+	default: // CfgFieldString, CfgFieldAgents, CfgFieldInfo, CfgFieldProviderItem, CfgFieldAction
 		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.empty"), theme.TagReset)
+			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
 		}
 		return val
 	}
@@ -230,17 +236,10 @@ func editConfigField(shell ShellAccess, f *configField, onDone func()) {
 		}
 
 	case CfgFieldTriBool:
-		options := triInheritOptions()
-		current := f.Get()
-		shell.ShowSelectModal(f.Label, options, current, func(val string) {
-			f.Set(val)
-			if onDone != nil {
-				onDone()
-			}
-		})
-
-	case CfgFieldTriDefault:
-		options := triDefaultOptions()
+		options := triStateOptions()
+		if len(f.Options) > 0 {
+			options = f.Options
+		}
 		current := f.Get()
 		shell.ShowSelectModal(f.Label, options, current, func(val string) {
 			f.Set(val)
@@ -347,18 +346,7 @@ func toggleConfigField(f *configField) {
 		case "true":
 			f.Set("false")
 		case "false":
-			f.Set("") // inherit
-		default:
-			f.Set("true")
-		}
-
-	case CfgFieldTriDefault:
-		current := f.Get()
-		switch current {
-		case "true":
-			f.Set("false")
-		case "false":
-			f.Set("") // system default
+			f.Set("") // not configured
 		default:
 			f.Set("true")
 		}
@@ -367,7 +355,7 @@ func toggleConfigField(f *configField) {
 
 // isToggleable returns true if the field kind supports Space-key toggling.
 func isToggleable(kind FieldKind) bool {
-	return kind == CfgFieldBool || kind == CfgFieldTriBool || kind == CfgFieldTriDefault
+	return kind == CfgFieldBool || kind == CfgFieldTriBool
 }
 
 // isEditable returns true if the field kind supports Enter-key editing.
@@ -411,21 +399,12 @@ func validateAllFields(fields []configField) []string {
 
 // ---------- Option helpers ----------
 
-// triInheritOptions returns the standard tri-bool options for project/team fields
-// where nil means "inherit from parent level".
-func triInheritOptions() []SelectOption {
+// triStateOptions returns the standard tri-state options for fields where nil
+// means "not configured". This is the default for CfgFieldTriBool unless
+// the field overrides Options.
+func triStateOptions() []SelectOption {
 	return []SelectOption{
-		{Label: "↩ " + i18n.T("tui.config.inherited"), Value: ""},
-		{Label: "✓ " + i18n.T("tui.config.enabled"), Value: "true"},
-		{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
-	}
-}
-
-// triDefaultOptions returns the standard tri-bool options for hub-level fields
-// where nil means "use system default" (NOT "inherited" — hub is top level).
-func triDefaultOptions() []SelectOption {
-	return []SelectOption{
-		{Label: "↩ " + i18n.T("tui.config.system_default"), Value: ""},
+		{Label: "↩ " + i18n.T("tui.config.not_configured"), Value: ""},
 		{Label: "✓ " + i18n.T("tui.config.enabled"), Value: "true"},
 		{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
 	}

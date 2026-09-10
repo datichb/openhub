@@ -595,56 +595,34 @@ func boolStr(b bool) string {
 }
 
 // trackerBoolField builds a configField for a tracker *bool hub field.
-// If the user has at least one team configured, the field is tri-state:
-//   - "" = use team value (nil pointer)
-//   - "true" / "false" = explicit override
-//
-// If the user has no team, the field is a simple bool (oui/non).
+// Always tri-state: nil = "non configuré", true = activé, false = désactivé.
+// The Scope is ScopeHub so formatFieldValue does NOT add inheritance parenthetical
+// (the hub is the top level — it does not inherit from anyone).
 func (v *SettingsView) trackerBoolField(
 	key, label, desc string,
 	getter func() *bool,
 	setter func(*bool),
 ) configField {
-	hasTeam := len(v.live.Teams) > 0
-
-	kind := CfgFieldBool
-	if hasTeam {
-		kind = CfgFieldTriBool
-	}
-
-	cf := configField{
+	return configField{
 		Key:         key,
-		Kind:        kind,
+		Kind:        CfgFieldTriBool,
 		Label:       label,
 		Description: desc,
+		Scope:       ScopeHub,
 		Get: func() string {
 			p := getter()
 			if p == nil {
-				if hasTeam {
-					return "" // tri-state: use team value
-				}
-				return "false" // solo: nil = disabled
+				return "" // not configured
 			}
 			return boolStr(*p)
 		},
 		Set: func(val string) {
 			if val == "" {
-				setter(nil) // reset to team value
+				setter(nil) // reset to not configured
 				return
 			}
 			b := val == "true"
 			setter(&b)
 		},
 	}
-
-	// Custom options for tri-state: "Utiliser la valeur équipe" instead of generic "hérité"
-	if hasTeam {
-		cf.Options = []SelectOption{
-			{Label: "↩ " + i18n.T("tui.config.use_team_value"), Value: ""},
-			{Label: "✓ " + i18n.T("tui.config.enabled"), Value: "true"},
-			{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
-		}
-	}
-
-	return cf
 }

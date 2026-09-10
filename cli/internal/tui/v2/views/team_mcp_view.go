@@ -464,10 +464,14 @@ func (v *TeamMCPView) renderLines() {
 func (v *TeamMCPView) formatValue(val string, line mcpLine, ctx context.Context) string {
 	switch line.kind {
 	case "bool":
-		if val == "true" {
+		switch val {
+		case "true":
 			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
+		case "false":
+			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag("#FF5252"), i18n.T("tui.settings.disabled"), theme.TagColor)
+		default:
+			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.not_configured"), theme.TagColor)
 		}
-		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag("#FF5252"), i18n.T("tui.settings.disabled"), theme.TagColor)
 
 	case "password":
 		return v.formatToken(val, ctx)
@@ -862,10 +866,10 @@ func (v *TeamMCPView) setMCPLocalWrite(svc string) func(string) {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// mcpBoolPtrToStr converts a *bool to "true"/"false" (nil → "false").
+// mcpBoolPtrToStr converts a *bool to "true"/"false" (nil → "" = not configured).
 func mcpBoolPtrToStr(b *bool) string {
 	if b == nil {
-		return "false"
+		return "" // not configured
 	}
 	if *b {
 		return "true"
