@@ -21,27 +21,6 @@ import (
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-type configScope string
-
-const (
-	scopeTeam  configScope = "team"
-	scopeLocal configScope = "local"
-)
-
-type teamConfigLine struct {
-	section    string
-	key        string
-	kind       string // "bool", "string", "select", "tri-state", "password", "section-header", "sub-header", "link", "placeholder"
-	options    []SelectOption
-	scope      configScope
-	dynamic    bool        // can be added/deleted (mappings)
-	grayed     func() bool // returns true if field is grayed-out (enforced elsewhere)
-	hint       string      // help text shown when value is empty
-	linkTarget string      // view ID to navigate to for "link" kind
-	get        func() string
-	set        func(val string)
-}
-
 // TeamDetailViewConfig holds the external dependencies for TeamDetailView.
 type TeamDetailViewConfig struct {
 	GetMCPConfig          func() config.MCPConfig
@@ -77,7 +56,7 @@ type TeamDetailView struct {
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
 	localTrk   config.TrackerLocalConfig
-	lines      []teamConfigLine
+	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
 	undoStack  *widgets.UndoStack[teamDetailSnapshot]
@@ -132,13 +111,13 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		syncAsync(v.app, repo, v.shell, func(_ error) {
 			v.loadData()
-			v.buildLines()
-			v.renderLines()
+			v.buildFields()
+			v.renderFields()
 		})
 	} else {
 		v.loadData()
-		v.buildLines()
-		v.renderLines()
+		v.buildFields()
+		v.renderFields()
 	}
 
 	content.AddItem(v.list, 0, 1, true)
@@ -192,8 +171,8 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 			syncAsync(v.app, repo, v.shell, func(_ error) {
 				v.loadData()
-				v.buildLines()
-				v.renderLines()
+				v.buildFields()
+				v.renderFields()
 				v.dirtyTeam = false
 				v.dirtyLocal = false
 			})
@@ -243,286 +222,260 @@ func (v *TeamDetailView) loadData() {
 // Build config lines
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) buildLines() {
-	v.lines = nil
+func (v *TeamDetailView) buildFields() {
+	v.fields = nil
 
-	// ── Raccourcis ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Raccourcis"})
-	v.lines = append(v.lines, teamConfigLine{
-		kind: "link", key: "mcp", linkTarget: "team.mcp",
-		get: func() string { return "MCP Services..." },
+	// ── Tracker ──────────────────────────────────────────────────────────
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")})
+	v.fields = append(v.fields, configField{
+		Key: "type", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.tracker_type.label"),
+		Description: i18n.T("tui.config.field.tracker_type.desc"), Scope: ScopeTeamShared,
+		Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
+		Locked:  func() bool { return v.teamCfg.Tracker.IsTypeEnforced() },
+		Get:     func() string { return v.teamCfg.Tracker.Type },
+		Set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		kind: "link", key: "models", linkTarget: "team.models",
-		get: func() string { return "Modèles..." },
-	})
-	v.lines = append(v.lines, teamConfigLine{
-		kind: "link", key: "workflow", linkTarget: "workflow",
-		get: func() string { return "Workflow..." },
-	})
-
-	// ── Tracker ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Tracker"})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "type", kind: "select", scope: scopeTeam,
-		hint:    "Type de tracker externe pour la sync issues",
-		options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
-		grayed:  func() bool { return v.teamCfg.Tracker.IsTypeEnforced() },
-		get:     func() string { return v.teamCfg.Tracker.Type },
-		set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
-	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "type_enforced", kind: "bool", scope: scopeTeam,
-		hint: "Impose le type de tracker (les membres ne peuvent pas changer)",
-		get:  func() string { return tdBoolToStr(v.teamCfg.Tracker.IsTypeEnforced()) },
-		set: func(val string) {
+	v.fields = append(v.fields, configField{
+		Key: "type_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.type_enforced.label"),
+		Description: i18n.T("tui.config.field.type_enforced.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.IsTypeEnforced()) },
+		Set: func(val string) {
 			b := val == "true"
 			v.teamCfg.Tracker.TypeEnforced = &b
 			v.dirtyTeam = true
 		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "tracker_url", kind: "string", scope: scopeTeam,
-		hint: "URL de l'instance GitLab/Jira (ex: https://gitlab.example.com)",
-		get:  func() string { return v.teamCfg.Tracker.TrackerURL },
-		set:  func(val string) { v.teamCfg.Tracker.TrackerURL = val; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_url.label"),
+		Description: i18n.T("tui.config.field.tracker_url.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.tracker_url.placeholder"),
+		Get:         func() string { return v.teamCfg.Tracker.TrackerURL },
+		Set:         func(val string) { v.teamCfg.Tracker.TrackerURL = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "tracker_token", kind: "password", scope: scopeLocal,
-		hint: "Token d'accès pour le tracker (stocké dans le keychain)",
-		get:  func() string { return v.resolveTrackerTokenKey() },
-		set: func(val string) {
+	v.fields = append(v.fields, configField{
+		Key: "tracker_token", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.tracker_token.label"),
+		Description: i18n.T("tui.config.field.tracker_token.desc"), Scope: ScopeTeamLocal,
+		Get: func() string { return v.resolveTrackerTokenKey() },
+		Set: func(val string) {
 			v.teamCfg.Tracker.TrackerTokenKey = val
 			v.dirtyTeam = true
 		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "tracker_project", kind: "string", scope: scopeTeam,
-		hint: "ID ou path du projet sur le tracker (ex: group/project ou 42)",
-		get:  func() string { return v.teamCfg.Tracker.TrackerProject },
-		set:  func(val string) { v.teamCfg.Tracker.TrackerProject = val; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "tracker_project", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_project.label"),
+		Description: i18n.T("tui.config.field.tracker_project.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.tracker_project.placeholder"),
+		Get:         func() string { return v.teamCfg.Tracker.TrackerProject },
+		Set:         func(val string) { v.teamCfg.Tracker.TrackerProject = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "enabled", kind: "bool", scope: scopeTeam,
-		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
-		set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
+		Description: i18n.T("tui.config.field.tracker_enabled.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
+		Set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "auto_sync", kind: "bool", scope: scopeTeam,
-		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoSync) },
-		set: func(val string) { v.teamCfg.Tracker.AutoSync = val == "true"; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "auto_sync", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_sync.label"),
+		Description: i18n.T("tui.config.field.auto_sync.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoSync) },
+		Set: func(val string) { v.teamCfg.Tracker.AutoSync = val == "true"; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "push_labels", kind: "bool", scope: scopeTeam,
-		grayed: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
-		get:    func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
-		set:    func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "push_labels", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels.label"),
+		Description: i18n.T("tui.config.field.push_labels.desc"), Scope: ScopeTeamShared,
+		Locked: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
+		Get:    func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
+		Set:    func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "push_labels_enforced", kind: "bool", scope: scopeTeam,
-		hint: "Impose push_labels (les membres ne peuvent pas surcharger)",
-		get:  func() string { return tdBoolToStr(v.teamCfg.Tracker.IsPushLabelsEnforced()) },
-		set: func(val string) {
+	v.fields = append(v.fields, configField{
+		Key: "push_labels_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels_enforced.label"),
+		Description: i18n.T("tui.config.field.push_labels_enforced.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.IsPushLabelsEnforced()) },
+		Set: func(val string) {
 			b := val == "true"
 			v.teamCfg.Tracker.PushLabelsEnforced = &b
 			v.dirtyTeam = true
 		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "auto_plan_assigned", kind: "bool", scope: scopeTeam,
-		get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoPlanAssigned) },
-		set: func(val string) { v.teamCfg.Tracker.AutoPlanAssigned = val == "true"; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "auto_plan_assigned", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
+		Description: i18n.T("tui.config.field.auto_plan_assigned.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoPlanAssigned) },
+		Set: func(val string) { v.teamCfg.Tracker.AutoPlanAssigned = val == "true"; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "max_auto_plan", kind: "string", scope: scopeTeam,
-		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.MaxAutoPlanPerMember) },
-		set: func(val string) {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				return
+	v.fields = append(v.fields, configField{
+		Key: "max_auto_plan", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_auto_plan.label"),
+		Description: i18n.T("tui.config.field.max_auto_plan.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.max_auto_plan.placeholder"),
+		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100)},
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.MaxAutoPlanPerMember) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				v.teamCfg.Tracker.MaxAutoPlanPerMember = n
+				v.dirtyTeam = true
 			}
-			v.teamCfg.Tracker.MaxAutoPlanPerMember = n
-			v.dirtyTeam = true
 		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Tracker", key: "sync_interval_min", kind: "string", scope: scopeTeam,
-		get: func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
-		set: func(val string) {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				return
+	v.fields = append(v.fields, configField{
+		Key: "sync_interval", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.sync_interval.label"),
+		Description: i18n.T("tui.config.field.sync_interval.desc"), Scope: ScopeTeamShared,
+		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(60)},
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				v.teamCfg.Tracker.SyncIntervalMinutes = n
+				v.dirtyTeam = true
 			}
-			v.teamCfg.Tracker.SyncIntervalMinutes = n
-			v.dirtyTeam = true
 		},
 	})
 
-	// ── Label → Status Mapping (ADR-032) ──
-	v.lines = append(v.lines, teamConfigLine{kind: "sub-header", section: "label_status_mapping",
-		hint: "Mappe les labels du tracker vers les colonnes du board. Premier label qui matche gagne."})
+	// ── Label → Status Mapping ───────────────────────────────────────────
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.label_mapping")})
+	v.fields = append(v.fields, configField{Kind: CfgFieldSubHeader,
+		Label: i18n.T("tui.config.field.label_mapping_hint.desc")})
 	for k := range v.teamCfg.Tracker.LabelStatusMapping {
 		k := k
-		v.lines = append(v.lines, teamConfigLine{
-			section: "label_status_mapping", key: k, kind: "select", scope: scopeTeam, dynamic: true,
-			hint:    "Statut du board pour le label '" + k + "'",
-			options: labelStatusOptions(),
-			get:     func() string { return v.teamCfg.Tracker.LabelStatusMapping[k] },
-			set:     func(val string) { v.teamCfg.Tracker.LabelStatusMapping[k] = val; v.dirtyTeam = true },
+		v.fields = append(v.fields, configField{
+			Section: "label_status_mapping", Key: k, Kind: CfgFieldSelect, Scope: ScopeTeamShared,
+			Label: k, Dynamic: true, Options: labelStatusOptions(),
+			Get: func() string { return v.teamCfg.Tracker.LabelStatusMapping[k] },
+			Set: func(val string) { v.teamCfg.Tracker.LabelStatusMapping[k] = val; v.dirtyTeam = true },
 		})
 	}
 	if len(v.teamCfg.Tracker.LabelStatusMapping) == 0 {
-		v.lines = append(v.lines, teamConfigLine{
-			section: "label_status_mapping", key: "(vide)", kind: "placeholder",
-			hint: "a pour ajouter un mapping label → statut",
-			get:  func() string { return "" },
+		v.fields = append(v.fields, configField{
+			Kind: CfgFieldPlaceholder, Section: "label_status_mapping",
+			Label: "(vide)",
+			Description: i18n.T("tui.hints.add") + " pour ajouter",
+			Get: func() string { return "" },
 		})
 	}
 
-	// ── Notifications ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Notifications"})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Notifications", key: "type", kind: "select", scope: scopeTeam,
-		options: []SelectOption{
+	// ── Notifications ────────────────────────────────────────────────────
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.notifications")})
+	v.fields = append(v.fields, configField{
+		Key: "type", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.notif_type.label"),
+		Description: i18n.T("tui.config.field.notif_type.desc"), Scope: ScopeTeamShared,
+		Options: []SelectOption{
 			{Label: "Mattermost", Value: "mattermost"},
 			{Label: "Slack", Value: "slack"},
 			{Label: "Discord", Value: "discord"},
 			{Label: "Teams", Value: "teams"},
 		},
-		get: func() string { return v.teamCfg.Notification.Type },
-		set: func(val string) { v.teamCfg.Notification.Type = val; v.dirtyTeam = true },
+		Get: func() string { return v.teamCfg.Notification.Type },
+		Set: func(val string) { v.teamCfg.Notification.Type = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Notifications", key: "webhook_url", kind: "string", scope: scopeTeam,
-		hint: "URL du webhook (Intégrations > Webhooks entrants)",
-		get:  func() string { return v.teamCfg.Notification.WebhookURL },
-		set:  func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "webhook_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.webhook_url.label"),
+		Description: i18n.T("tui.config.field.webhook_url.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.webhook_url.placeholder"),
+		Get:         func() string { return v.teamCfg.Notification.WebhookURL },
+		Set:         func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Notifications", key: "channel", kind: "string", scope: scopeTeam,
-		get: func() string { return v.teamCfg.Notification.Channel },
-		set: func(val string) { v.teamCfg.Notification.Channel = val; v.dirtyTeam = true },
+	v.fields = append(v.fields, configField{
+		Key: "channel", Kind: CfgFieldString, Label: i18n.T("tui.config.field.channel.label"),
+		Description: i18n.T("tui.config.field.channel.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return v.teamCfg.Notification.Channel },
+		Set: func(val string) { v.teamCfg.Notification.Channel = val; v.dirtyTeam = true },
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Notifications", key: "bot_name", kind: "string", scope: scopeTeam,
-		get: func() string { return v.teamCfg.Notification.BotName },
-		set: func(val string) { v.teamCfg.Notification.BotName = val; v.dirtyTeam = true },
-	})
-
-	// ── Collaboration ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Collaboration"})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Collaboration", key: "max_sessions", kind: "string", scope: scopeTeam,
-		get: func() string { return strconv.Itoa(v.teamCfg.Parallel.MaxSessions) },
-		set: func(val string) {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				return
-			}
-			v.teamCfg.Parallel.MaxSessions = n
-			v.dirtyTeam = true
-		},
-	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Collaboration", key: "stale_days", kind: "string", scope: scopeTeam,
-		get: func() string { return strconv.Itoa(v.teamCfg.Takeover.StaleDays) },
-		set: func(val string) {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				return
-			}
-			v.teamCfg.Takeover.StaleDays = n
-			v.dirtyTeam = true
-		},
-	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Collaboration", key: "done_retention_days", kind: "string", scope: scopeTeam,
-		get: func() string { return strconv.Itoa(v.teamCfg.Claim.DoneRetentionDays) },
-		set: func(val string) {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				return
-			}
-			v.teamCfg.Claim.DoneRetentionDays = n
-			v.dirtyTeam = true
-		},
+	v.fields = append(v.fields, configField{
+		Key: "bot_name", Kind: CfgFieldString, Label: i18n.T("tui.config.field.bot_name.label"),
+		Description: i18n.T("tui.config.field.bot_name.desc"), Scope: ScopeTeamShared,
+		Get: func() string { return v.teamCfg.Notification.BotName },
+		Set: func(val string) { v.teamCfg.Notification.BotName = val; v.dirtyTeam = true },
 	})
 
-	// ── Overrides locaux ──
-	v.lines = append(v.lines, teamConfigLine{kind: "section-header", section: "Overrides locaux"})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Local", key: "tracker enabled", kind: "tri-state", scope: scopeLocal,
-		get: func() string { return ptrBoolToTriState(v.localTrk.Enabled) },
-		set: func(val string) { v.localTrk.Enabled = triStateToPtrBool(val); v.dirtyLocal = true },
+	// ── Collaboration ────────────────────────────────────────────────────
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.collaboration")})
+	v.fields = append(v.fields, configField{
+		Key: "max_sessions", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_sessions.label"),
+		Description: i18n.T("tui.config.field.max_sessions.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.max_sessions.placeholder"),
+		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(20)},
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Parallel.MaxSessions) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				v.teamCfg.Parallel.MaxSessions = n
+				v.dirtyTeam = true
+			}
+		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Local", key: "auto_sync", kind: "tri-state", scope: scopeLocal,
-		get: func() string { return ptrBoolToTriState(v.localTrk.AutoSync) },
-		set: func(val string) { v.localTrk.AutoSync = triStateToPtrBool(val); v.dirtyLocal = true },
+	v.fields = append(v.fields, configField{
+		Key: "stale_days", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.stale_days.label"),
+		Description: i18n.T("tui.config.field.stale_days.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.stale_days.placeholder"),
+		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(30)},
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Takeover.StaleDays) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				v.teamCfg.Takeover.StaleDays = n
+				v.dirtyTeam = true
+			}
+		},
 	})
-	v.lines = append(v.lines, teamConfigLine{
-		section: "Local", key: "push_labels", kind: "tri-state", scope: scopeLocal,
-		grayed: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
-		get:    func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
-		set:    func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
+	v.fields = append(v.fields, configField{
+		Key: "done_retention_days", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.done_retention.label"),
+		Description: i18n.T("tui.config.field.done_retention.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.done_retention.placeholder"),
+		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(90)},
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Claim.DoneRetentionDays) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				v.teamCfg.Claim.DoneRetentionDays = n
+				v.dirtyTeam = true
+			}
+		},
 	})
+
+	// ── Surcharges locales ───────────────────────────────────────────────
+	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.local_overrides")})
+	v.fields = append(v.fields, configField{
+		Key: "tracker_enabled", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
+		Description: i18n.T("tui.config.field.tracker_enabled.desc"), Scope: ScopeTeamLocal,
+		Get: func() string { return ptrBoolToTriState(v.localTrk.Enabled) },
+		Set: func(val string) { v.localTrk.Enabled = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
+	v.fields = append(v.fields, configField{
+		Key: "auto_sync", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.auto_sync.label"),
+		Description: i18n.T("tui.config.field.auto_sync.desc"), Scope: ScopeTeamLocal,
+		Get: func() string { return ptrBoolToTriState(v.localTrk.AutoSync) },
+		Set: func(val string) { v.localTrk.AutoSync = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
+	v.fields = append(v.fields, configField{
+		Key: "push_labels", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.push_labels.label"),
+		Description: i18n.T("tui.config.field.push_labels.desc"), Scope: ScopeTeamLocal,
+		Locked: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
+		Get:    func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
+		Set:    func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
+	})
+
+	// Links at the bottom
+	v.fields = append(v.fields, configField{
+		Key: "mcp", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "team.mcp",
+		Get: func() string { return "" }})
+	v.fields = append(v.fields, configField{
+		Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "team.models",
+		Get: func() string { return "" }})
+	v.fields = append(v.fields, configField{
+		Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",
+		Get: func() string { return "" }})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) renderLines() {
+func (v *TeamDetailView) renderFields() {
 	if v.list == nil {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	var items []widgets.SectionItem
-	for i, line := range v.lines {
-		if line.kind == "section-header" || line.kind == "sub-header" {
-			items = append(items, widgets.SectionItem{
-				IsHeader: true,
-				MainText: line.section,
-			})
-			continue
-		}
-
-		val := ""
-		if line.get != nil {
-			val = line.get()
-		}
-
-		var display string
-		switch line.kind {
-		case "link":
-			display = fmt.Sprintf("%s→ %s%s", theme.ColorTag(theme.AccentHex), val, theme.TagColor)
-		case "password":
-			display = v.formatToken(val)
-		default:
-			display = v.formatValueWithHint(val, line.kind, line.hint)
-		}
-
-		grayedSuffix := ""
-		if line.grayed != nil && line.grayed() {
-			grayedSuffix = fmt.Sprintf("  %s(enforced par l'équipe)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-			rawVal := val
-			if rawVal == "" {
-				rawVal = "(vide)"
-			}
-			display = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), rawVal, theme.TagColor)
-		}
-
-		prefix := ""
-		if line.dynamic {
-			prefix = "  "
-		}
-
-		mainText := fmt.Sprintf("%s%-24s %s%s", prefix, line.key+":", display, grayedSuffix)
-		items = append(items, widgets.SectionItem{
-			MainText:  mainText,
-			Reference: i,
-		})
+	items := make([]widgets.SectionItem, 0, len(v.fields))
+	for i, f := range v.fields {
+		item := renderConfigItem(f, 28)
+		item.Reference = i
+		items = append(items, item)
 	}
 
 	v.list.SetItems(items)
@@ -533,173 +486,89 @@ func (v *TeamDetailView) renderLines() {
 
 func (v *TeamDetailView) formatToken(tokenKey string) string {
 	if tokenKey == "" {
-		return fmt.Sprintf("%s(non configuré)%s  %s[✗ non configuré]%s",
-			theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-			theme.ColorTag("#FF5252"), theme.TagColor)
+		return fmt.Sprintf("%s%s%s  %s[✗ %s]%s",
+			theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.not_configured"), theme.TagColor,
+			theme.ColorTag("#FF5252"), i18n.T("tui.config.not_configured"), theme.TagColor)
 	}
 	if v.cfg.CheckSecret != nil {
 		ctx := context.Background()
 		present, masked := v.cfg.CheckSecret(ctx, tokenKey)
 		if present {
-			return fmt.Sprintf("%s  %s[✓ configuré]%s", masked, theme.ColorTag(theme.SuccessHex), theme.TagColor)
+			return fmt.Sprintf("%s  %s[✓ %s]%s", masked, theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.configured"), theme.TagColor)
 		}
 	}
-	return fmt.Sprintf("%s  %s[✗ non configuré]%s", tokenKey, theme.ColorTag("#FF5252"), theme.TagColor)
-}
-
-func (v *TeamDetailView) formatValue(val, kind string) string {
-	switch kind {
-	case "bool":
-		if val == "true" {
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		}
-		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag("#FF5252"), i18n.T("tui.settings.disabled"), theme.TagColor)
-	case "tri-state":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag("#FF5252"), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
-		}
-	default:
-		if val == "" {
-			return fmt.Sprintf("%s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-		}
-		return val
-	}
-}
-
-// formatValueWithHint adds a hint annotation when the value is empty.
-func (v *TeamDetailView) formatValueWithHint(val, kind, hint string) string {
-	if val == "" && hint != "" {
-		return fmt.Sprintf("%s(vide) ← %s%s", theme.ColorTag(theme.TextMutedHex), hint, theme.TagColor)
-	}
-	return v.formatValue(val, kind)
+	return fmt.Sprintf("%s  %s[✗ %s]%s", tokenKey, theme.ColorTag("#FF5252"), i18n.T("tui.config.not_configured"), theme.TagColor)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Editing
+// Editing (delegates to shared editConfigField / toggleConfigField)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) selectedLine() (teamConfigLine, int, bool) {
+func (v *TeamDetailView) selectedField() (*configField, int, bool) {
 	_, item, ok := v.list.CurrentItem()
 	if !ok {
-		return teamConfigLine{}, -1, false
+		return nil, -1, false
 	}
 	ref, ok := item.Reference.(int)
-	if !ok || ref < 0 || ref >= len(v.lines) {
-		return teamConfigLine{}, -1, false
+	if !ok || ref < 0 || ref >= len(v.fields) {
+		return nil, -1, false
 	}
-	line := v.lines[ref]
-	if line.kind == "section-header" || line.kind == "sub-header" || line.get == nil {
-		return teamConfigLine{}, -1, false
+	f := &v.fields[ref]
+	if !isSelectable(f.Kind) || f.Get == nil {
+		return nil, -1, false
 	}
-	return line, ref, true
+	return f, ref, true
 }
 
 func (v *TeamDetailView) toggleSelected() {
-	line, _, ok := v.selectedLine()
+	f, _, ok := v.selectedField()
 	if !ok {
 		return
 	}
-	// Check grayed (enforced by team)
-	if line.grayed != nil && line.grayed() {
+	if f.Locked != nil && f.Locked() {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+			v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 		}
+		return
+	}
+	if !isToggleable(f.Kind) {
 		return
 	}
 	v.pushUndo()
-	switch line.kind {
-	case "bool":
-		cur := line.get()
-		if cur == "true" {
-			line.set("false")
-		} else {
-			line.set("true")
-		}
-	case "tri-state":
-		cur := line.get()
-		switch cur {
-		case "inherit":
-			line.set("true")
-		case "true":
-			line.set("false")
-		case "false":
-			line.set("inherit")
-		}
-	default:
-		return
-	}
-	v.renderLines()
+	toggleConfigField(f)
+	v.renderFields()
 }
 
 func (v *TeamDetailView) editSelected() {
-	line, _, ok := v.selectedLine()
+	f, _, ok := v.selectedField()
 	if !ok || v.shell == nil {
 		return
 	}
-	// Check grayed (enforced by team)
-	if line.grayed != nil && line.grayed() {
-		v.shell.ShowToastMsg("Imposé par l'équipe (non-modifiable)", false)
+	if f.Locked != nil && f.Locked() {
+		v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
+		return
+	}
+	if !isEditable(f.Kind) {
 		return
 	}
 
-	switch line.kind {
-	case "link":
-		if line.linkTarget != "" && v.shell != nil {
-			v.shell.NavigateTo(line.linkTarget)
-		}
-	case "bool", "tri-state":
-		v.toggleSelected()
-	case "select":
-		v.pushUndo()
-		v.shell.ShowSelectModal(line.key, line.options, line.get(), func(val string) {
-			line.set(val)
-			v.renderLines()
-		})
-	case "string":
-		v.pushUndo()
-		v.shell.ShowInputModal(line.key, line.get(), func(val string) {
-			line.set(val)
-			v.renderLines()
-		})
-	case "placeholder":
-		v.addDynamic()
-	case "password":
-		tokenKey := line.get()
-		if tokenKey == "" {
-			// For tracker token, derive default key from tracker type
-			if v.teamCfg.Tracker.Type != "" {
-				tokenKey = config.DefaultTokenKeyForService(v.teamCfg.Tracker.Type)
-			} else {
-				tokenKey = config.DefaultTokenKeyForService("gitlab")
-			}
-			line.set(tokenKey)
-		}
-		v.shell.ShowPasswordModal("Valeur du token ("+tokenKey+")", func(val string) {
-			if val == "" {
-				return
-			}
-			if v.cfg.SetSecret != nil {
-				ctx := context.Background()
-				if err := v.cfg.SetSecret(ctx, tokenKey, val); err != nil {
-					if v.shell != nil {
-						v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
-					}
-					return
-				}
-			}
-			v.renderLines()
-			if v.shell != nil {
-				v.shell.ShowToastMsg("✓ Token enregistré", true)
-			}
-		})
+	// Special handling for password fields (token setup flow)
+	if f.Kind == CfgFieldPassword {
+		v.promptTokenSetup()
+		return
 	}
-}
 
+	// Special handling for links
+	if f.Kind == CfgFieldLink {
+		editConfigField(v.shell, f, nil)
+		return
+	}
+
+	v.pushUndo()
+	editConfigField(v.shell, f, func() {
+		v.renderFields()
+	})
+}
 func (v *TeamDetailView) addDynamic() {
 	if v.shell == nil {
 		return
@@ -710,16 +579,16 @@ func (v *TeamDetailView) addDynamic() {
 	section := ""
 	if ok {
 		ref, refOk := item.Reference.(int)
-		if refOk && ref >= 0 && ref < len(v.lines) {
-			// Walk back from current line to find section
+		if refOk && ref >= 0 && ref < len(v.fields) {
+			// Walk back from current field to find section
 			for i := ref; i >= 0; i-- {
-				l := v.lines[i]
-				if l.kind == "section-header" || l.kind == "sub-header" {
-					section = l.section
+				f := v.fields[i]
+				if f.Kind == CfgFieldSectionHeader || f.Kind == CfgFieldSubHeader {
+					section = f.Label
 					break
 				}
-				if l.section != "" {
-					section = l.section
+				if f.Section != "" {
+					section = f.Section
 					break
 				}
 			}
@@ -741,8 +610,8 @@ func (v *TeamDetailView) addDynamic() {
 				}
 				v.teamCfg.Tracker.Projects[key] = val //nolint:staticcheck // backward compat: deprecated field
 				v.dirtyTeam = true
-				v.buildLines()
-				v.renderLines()
+				v.buildFields()
+				v.renderFields()
 			})
 		})
 	case "label_status_mapping":
@@ -759,8 +628,8 @@ func (v *TeamDetailView) addDynamic() {
 				}
 				v.teamCfg.Tracker.LabelStatusMapping[key] = val
 				v.dirtyTeam = true
-				v.buildLines()
-				v.renderLines()
+				v.buildFields()
+				v.renderFields()
 			})
 		})
 	default:
@@ -769,18 +638,16 @@ func (v *TeamDetailView) addDynamic() {
 }
 
 func (v *TeamDetailView) deleteDynamic() {
-	line, _, ok := v.selectedLine()
-	if !ok || !line.dynamic || v.shell == nil {
+	f, _, ok := v.selectedField()
+	if !ok || !f.Dynamic || v.shell == nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("'d' disponible uniquement sur les entrées dynamiques", false)
 		}
 		return
 	}
 
-	key := line.key
-	switch line.section {
-	case "Mappings":
-		delete(v.teamCfg.Tracker.Projects, key) //nolint:staticcheck // backward compat: deprecated field
+	key := f.Key
+	switch f.Section {
 	case "label_status_mapping":
 		delete(v.teamCfg.Tracker.LabelStatusMapping, key)
 	default:
@@ -788,8 +655,8 @@ func (v *TeamDetailView) deleteDynamic() {
 	}
 
 	v.dirtyTeam = true
-	v.buildLines()
-	v.renderLines()
+	v.buildFields()
+	v.renderFields()
 	if v.shell != nil {
 		v.shell.ShowToastMsg("Supprimé: "+key, true)
 	}
@@ -825,8 +692,8 @@ func (v *TeamDetailView) undo() {
 	v.localTrk = prev.localTrk
 	v.dirtyTeam = v.undoStack.Len() > 0
 	v.dirtyLocal = v.undoStack.Len() > 0
-	v.buildLines()
-	v.renderLines()
+	v.buildFields()
+	v.renderFields()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.config.undone"), true)
 	}
@@ -929,8 +796,8 @@ func (v *TeamDetailView) syncTracker() {
 			v.shell.ShowScrollableModal("Résultat sync tracker", content, []ModalAction{
 				{Label: "OK", Callback: func() {
 					v.loadData()
-					v.buildLines()
-					v.renderLines()
+					v.buildFields()
+					v.renderFields()
 				}},
 			})
 		})
@@ -997,8 +864,8 @@ func (v *TeamDetailView) promptTokenSetup() {
 
 		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
 		v.loadData()
-		v.buildLines()
-		v.renderLines()
+		v.buildFields()
+		v.renderFields()
 	})
 }
 
@@ -1138,7 +1005,7 @@ func tdBoolToStr(b bool) string {
 
 func ptrBoolToTriState(p *bool) string {
 	if p == nil {
-		return "inherit"
+		return "" // not configured
 	}
 	if *p {
 		return "true"
@@ -1155,7 +1022,7 @@ func triStateToPtrBool(val string) *bool {
 		b := false
 		return &b
 	default:
-		return nil
+		return nil // not configured
 	}
 }
 

@@ -836,7 +836,7 @@
   "cmd.teams.remove.short": "Remove a team",
   "cmd.teams.remove.long": "Remove a team from the hub. Attached projects become solo projects.",
   "tui.teams": "Teams",
-  "tui.team.detail": "Team Config",
+  "tui.team.detail": "Team Configuration",
   "tui.team.board": "Team Board",
   "tui.team.status": "Status",
   "tui.team.activity": "Activity",
@@ -988,6 +988,7 @@
   "cmd.team.status.summary": "%d active tickets %s %d in review %s %d blocked",
 
   "tui.settings.loading": "Loading configuration...",
+  "tui.settings.title": "Configuration",
   "tui.settings.unsaved": "Unsaved changes — w to save",
   "tui.settings.refreshed": "Refreshed from disk",
   "tui.settings.nothing_to_undo": "Nothing to undo",
@@ -1078,7 +1079,7 @@
   "tui.mcp.cmd_token": "Configure token",
   "tui.mcp.cmd_write_toggle": "Toggle GitLab write mode",
 
-  "tui.project.title": "Project Config",
+  "tui.project.title": "Project Configuration",
   "tui.project.loading": "Loading project configuration...",
   "tui.project.no_active": "No active project — select a project via the omnibar",
   "tui.project.unsaved": "Unsaved changes — w to save",
@@ -1330,6 +1331,12 @@
   "tui.config.field.ticket_pattern.placeholder": "PRJ-\\d+",
   "tui.config.field.sync_interval.label": "Sync interval (min)",
   "tui.config.field.sync_interval.desc": "Polling interval in minutes when the board is open",
+
+  "tui.config.field.type_enforced.label": "Type enforced",
+  "tui.config.field.type_enforced.desc": "Enforce tracker type (members cannot change it)",
+  "tui.config.field.push_labels_enforced.label": "Push labels enforced",
+  "tui.config.field.push_labels_enforced.desc": "Enforce push_labels (members cannot override)",
+  "tui.config.field.label_mapping_hint.desc": "Maps tracker labels to board columns. Use 'a' to add, 'd' to delete.",
 
   "tui.config.field.notif_type.label": "Notification type",
   "tui.config.field.notif_type.desc": "Notification platform (mattermost / slack / discord / teams)",

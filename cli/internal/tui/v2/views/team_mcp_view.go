@@ -40,6 +40,14 @@ type TeamMCPViewConfig struct {
 	SetSecret func(ctx context.Context, key, value string) error
 }
 
+// Legacy scope types for team_mcp_view (will be removed when migrated to configField).
+type configScope string
+
+const (
+	scopeTeam  configScope = "team"
+	scopeLocal configScope = "local"
+)
+
 // mcpLine represents a single editable field in the MCP config view.
 type mcpLine struct {
 	section string // e.g. "MCP Gitlab"

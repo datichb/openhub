@@ -64,7 +64,7 @@ func NewSettingsView(cfg SettingsViewConfig) *SettingsView {
 func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *SettingsView) ID() string    { return "settings" }
-func (v *SettingsView) Title() string { return "Settings" }
+func (v *SettingsView) Title() string { return i18n.T("tui.settings.title") }
 func (v *SettingsView) StatusHints() string {
 	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · r %s",
 		i18n.T("tui.hints.nav"),

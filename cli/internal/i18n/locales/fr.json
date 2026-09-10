@@ -836,7 +836,7 @@
   "cmd.teams.remove.short": "Retirer une équipe",
   "cmd.teams.remove.long": "Retire une équipe du hub. Les projets rattachés deviennent des projets solo.",
   "tui.teams": "Équipes",
-  "tui.team.detail": "Config équipe",
+  "tui.team.detail": "Configuration équipe",
   "tui.team.board": "Board Équipe",
   "tui.team.status": "Statut",
   "tui.team.activity": "Activité",
@@ -988,6 +988,7 @@
   "cmd.team.status.summary": "%d tickets actifs %s %d en review %s %d blocked",
 
   "tui.settings.loading": "Chargement de la configuration...",
+  "tui.settings.title": "Configuration",
   "tui.settings.unsaved": "Modifications non sauvegardées — w pour sauvegarder",
   "tui.settings.refreshed": "Rafraîchi depuis le disque",
   "tui.settings.nothing_to_undo": "Rien à annuler",
@@ -1078,7 +1079,7 @@
   "tui.mcp.cmd_token": "Configurer le token",
   "tui.mcp.cmd_write_toggle": "Toggle mode écriture GitLab",
 
-  "tui.project.title": "Config Projet",
+  "tui.project.title": "Configuration projet",
   "tui.project.loading": "Chargement de la configuration projet...",
   "tui.project.no_active": "Aucun projet actif — sélectionnez un projet via l'omnibar",
   "tui.project.unsaved": "Modifications non sauvegardées — w pour sauvegarder",
@@ -1330,6 +1331,12 @@
   "tui.config.field.ticket_pattern.placeholder": "PRJ-\\d+",
   "tui.config.field.sync_interval.label": "Intervalle de sync (min)",
   "tui.config.field.sync_interval.desc": "Intervalle de synchronisation en minutes quand le board est ouvert",
+
+  "tui.config.field.type_enforced.label": "Type imposé",
+  "tui.config.field.type_enforced.desc": "Impose le type de tracker (les membres ne peuvent pas changer)",
+  "tui.config.field.push_labels_enforced.label": "Push labels imposé",
+  "tui.config.field.push_labels_enforced.desc": "Impose le push des labels (non surchargeable par les membres)",
+  "tui.config.field.label_mapping_hint.desc": "Associe les labels du tracker aux colonnes du board. 'a' pour ajouter, 'd' pour supprimer.",
 
   "tui.config.field.notif_type.label": "Type de notification",
   "tui.config.field.notif_type.desc": "Plateforme de notification (mattermost / slack / discord / teams)",
