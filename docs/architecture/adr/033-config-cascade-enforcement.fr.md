@@ -39,6 +39,20 @@ Nous adoptons une matrice formelle documentant, pour chaque domaine et champ :
 3. **L'effet de l'enforcement** (blocage résolution + blocage TUI)
 4. **Les valeurs par défaut** quand aucun niveau ne définit la valeur
 
+### Principe d'affichage : nil = "non configuré"
+
+Toute valeur pointeur nil (`*bool`, `*int`) ou champ optionnel vide affiche
+**"non configuré"** dans la TUI — jamais "désactivé", "(vide)" ou "défaut système"
+quand l'utilisateur n'a rien configuré explicitement.
+
+Pour les champs avec héritage implicite au niveau projet, le texte ajoute
+une parenthèse précisant la source : `"non configuré (hérite du hub)"`.
+Au niveau hub (plus haut niveau), pas de parenthèse.
+
+`formatFieldValue` reçoit le `configField` complet et utilise `Scope` pour
+déterminer la parenthèse d'héritage. Le type `CfgFieldTriDefault` a été supprimé
+au profit de `CfgFieldTriBool` universel.
+
 ### Patterns de cascade par domaine
 
 | Pattern | Domaines | Mécanisme |
@@ -70,15 +84,16 @@ Nous adoptons une matrice formelle documentant, pour chaque domaine et champ :
 | MCP Token / WriteEnabled | Données personnelles/sécurité — jamais partagées via le team |
 | Worktree, CLI, Opencode, Deploy | Hub-only — pas de dimension team |
 
-### Hub Tracker *bool : sémantique dynamique
+### Hub Tracker *bool : tri-state uniforme
 
-Les champs Tracker hub (`*bool`) ont une sémantique qui dépend du contexte :
+Les champs Tracker hub (`*bool`) sont toujours tri-state via `CfgFieldTriBool` :
 
-- **Membre avec équipe** : tri-state (nil = utiliser la valeur équipe / true / false)
-- **Utilisateur solo** : bool simple (true / false, nil traité comme false)
+- `""` (nil) = non configuré
+- `"true"` = activé
+- `"false"` = désactivé
 
-Le Kind du champ (`CfgFieldTriBool` vs `CfgFieldBool`) est déterminé dynamiquement
-dans `buildFields()` en inspectant `Config.Teams`.
+Pas de distinction solo/team — le comportement est identique. Le `Scope: ScopeHub`
+empêche l'ajout de parenthèse d'héritage (le hub est le plus haut niveau).
 
 ## Conséquences
 
@@ -103,7 +118,7 @@ dans `buildFields()` en inspectant `Config.Teams`.
 | Cascade unique pour tous les domaines | Les sémantiques sont trop différentes (overlay workflow vs winner-takes-all MCP vs nil-inherit tracker) |
 | Supprimer TypeEnforced et PushLabelsEnforced | Cohérence : tous les champs d'enforcement du modèle de données doivent être wirés |
 | Auto-save pour les vues team | Le git push (2-7s) est trop coûteux pour un auto-save par mutation |
-| Toujours tri-state pour les champs tracker hub | Confusion pour les utilisateurs solo — un bool simple est plus clair quand il n'y a pas d'équipe |
+| Afficher "désactivé" pour nil | Mensonger — l'utilisateur n'a jamais fait ce choix. "Non configuré" est la vraie information |
 
 ## Fichiers concernés
 
@@ -112,4 +127,4 @@ dans `buildFields()` en inspectant `Config.Teams`.
 - `views/team_detail_view.go` — grayed + toggles enforcement
 - `views/settings_view.go` — trackerBoolField dynamique
 - `cmd/tui_views.go` — wiring ResolveMCPSource + WorkflowView
-- `views/config_field.go` — CfgFieldTriBool / CfgFieldBool / CfgFieldTriDefault
+- `views/config_field.go` — `CfgFieldTriBool` universel, `formatFieldValue(f, val)` avec annotations d'héritage par Scope

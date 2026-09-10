@@ -29,6 +29,15 @@ cascade logic with specific semantics.
 ```
 — `CONFIRMED` · developer · 2026-09-10 · config/resolution.go
 
+## Display Principle: nil = "not configured"
+
+Any nil value displays **"not configured"** — never "disabled" or "(empty)".
+At the project level, a parenthetical notes the inheritance source:
+`"not configured (inherits from hub)"` or `"not configured (inherits from team)"`.
+At the hub level (top level), no parenthetical is added.
+
+— `CONFIRMED` · developer · 2026-09-10 · views/config_field.go
+
 ## Cascade Matrix by Domain
 
 ### Hub-only (no cascade)
@@ -66,13 +75,13 @@ cascade logic with specific semantics.
 
 | Field | Hub (*bool) | Team (bool) | Default | Hub TUI |
 |-------|-------------|-------------|---------|---------|
-| enabled | `*bool` | `bool` | `true` | Tri-state if team, bool if solo |
-| auto_sync | `*bool` | `bool` | `false` | Tri-state if team, bool if solo |
-| push_labels | `*bool` | `bool` | `false` | Tri-state if team, bool if solo |
-| auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state if team, bool if solo |
+| enabled | `*bool` | `bool` | `true` | Tri-state (not configured / enabled / disabled) |
+| auto_sync | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
+| push_labels | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
+| auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
 | max_auto_plan | `*int` | `int` | `5` | Int (empty = default) |
 
-Hub `*bool` semantics: `nil` = use team value, `true/false` = explicit override.
+Hub `*bool` semantics: `nil` = not configured, `true/false` = explicit override.
 
 — `CONFIRMED` · developer · 2026-09-10 · tracker/resolve_config.go
 

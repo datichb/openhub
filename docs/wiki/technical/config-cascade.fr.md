@@ -29,6 +29,15 @@ logique de cascade avec des sémantiques spécifiques.
 ```
 — `CONFIRMÉ` · developer · 2026-09-10 · config/resolution.go
 
+## Principe d'affichage : nil = "non configuré"
+
+Toute valeur nil affiche **"non configuré"** — jamais "désactivé" ou "(vide)".
+Au niveau projet, une parenthèse précise la source d'héritage :
+`"non configuré (hérite du hub)"` ou `"non configuré (hérite de l'équipe)"`.
+Au niveau hub (plus haut niveau), pas de parenthèse.
+
+— `CONFIRMÉ` · developer · 2026-09-10 · views/config_field.go
+
 ## Matrice de cascade par domaine
 
 ### Hub-only (pas de cascade)
@@ -66,13 +75,13 @@ logique de cascade avec des sémantiques spécifiques.
 
 | Champ | Hub (*bool) | Team (bool) | Défaut | TUI hub |
 |-------|-------------|-------------|--------|---------|
-| enabled | `*bool` | `bool` | `true` | Tri-state si team, bool si solo |
-| auto_sync | `*bool` | `bool` | `false` | Tri-state si team, bool si solo |
-| push_labels | `*bool` | `bool` | `false` | Tri-state si team, bool si solo |
-| auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state si team, bool si solo |
+| enabled | `*bool` | `bool` | `true` | Tri-state (non configuré / activé / désactivé) |
+| auto_sync | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
+| push_labels | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
+| auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
 | max_auto_plan | `*int` | `int` | `5` | Int (vide = défaut) |
 
-Sémantique hub `*bool` : `nil` = utiliser la valeur équipe, `true/false` = surcharge explicite.
+Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge explicite.
 
 — `CONFIRMÉ` · developer · 2026-09-10 · tracker/resolve_config.go
 
