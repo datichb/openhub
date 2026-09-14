@@ -475,8 +475,12 @@ func (w *InlineWizardView) renderStep(idx int) {
 			form.SetFieldBackgroundColor(theme.BgElement)
 			form.SetFieldTextColor(theme.FgPrimary)
 			form.SetLabelColor(theme.FgPrimary)
-			form.SetButtonBackgroundColor(theme.Accent)
-			form.SetButtonTextColor(theme.BgPanel)
+			form.SetButtonStyle(tcell.StyleDefault.
+				Background(theme.Accent).
+				Foreground(theme.BgPanel))
+			form.SetButtonActivatedStyle(tcell.StyleDefault.
+				Background(theme.Action).
+				Foreground(theme.BgPanel))
 			form.SetBorder(false)
 
 			// Fix DropDown popup list colors (tview bakes them at construction

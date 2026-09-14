@@ -247,17 +247,21 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 
 		btn := tview.NewButton(a.Label)
 		if isPrimary {
-			// Primary button: accent background at rest (pill style)
-			btn.SetBackgroundColor(theme.Accent)
-			btn.SetLabelColor(theme.BgModal)
-			btn.SetBackgroundColorActivated(theme.Action)
-			btn.SetLabelColorActivated(theme.BgModal)
+			// Primary button: accent pill at rest, peach when focused
+			btn.SetStyle(tcell.StyleDefault.
+				Background(theme.Accent).
+				Foreground(theme.BgModal))
+			btn.SetActivatedStyle(tcell.StyleDefault.
+				Background(theme.Action).
+				Foreground(theme.BgModal))
 		} else {
-			// Secondary button: ghost style (modal highlight bg)
-			btn.SetBackgroundColor(theme.BgModalHighlight)
-			btn.SetLabelColor(theme.FgSecondary)
-			btn.SetBackgroundColorActivated(theme.Accent)
-			btn.SetLabelColorActivated(theme.BgModal)
+			// Secondary button: ghost style at rest, accent when focused
+			btn.SetStyle(tcell.StyleDefault.
+				Background(theme.BgModalHighlight).
+				Foreground(theme.FgSecondary))
+			btn.SetActivatedStyle(tcell.StyleDefault.
+				Background(theme.Accent).
+				Foreground(theme.BgModal))
 		}
 		btn.SetSelectedFunc(func() {
 			dismiss()

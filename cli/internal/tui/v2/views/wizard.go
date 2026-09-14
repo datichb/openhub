@@ -433,10 +433,14 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetBackgroundColor(theme.BgPanel)
 				form.SetFieldBackgroundColor(theme.BgElement)
 				form.SetFieldTextColor(theme.FgPrimary)
-				form.SetLabelColor(theme.FgPrimary)
-				form.SetButtonBackgroundColor(theme.Accent)
-				form.SetButtonTextColor(theme.BgPanel)
-				form.SetBorder(false)
+			form.SetLabelColor(theme.FgPrimary)
+			form.SetButtonStyle(tcell.StyleDefault.
+				Background(theme.Accent).
+				Foreground(theme.BgPanel))
+			form.SetButtonActivatedStyle(tcell.StyleDefault.
+				Background(theme.Action).
+				Foreground(theme.BgPanel))
+			form.SetBorder(false)
 
 				// Esc handling: Required steps block skip; optional steps use double-Esc
 				form.SetCancelFunc(func() {
