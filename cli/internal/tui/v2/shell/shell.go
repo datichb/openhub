@@ -403,16 +403,17 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 //   - Background dimmed to signal modal context
 func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	form := tview.NewForm()
-	form.SetBackgroundColor(theme.BgPanel)
+	form.SetBackgroundColor(theme.BgModal)
 	form.SetLabelColor(theme.FgPrimary)
-	form.SetFieldBackgroundColor(theme.BgElement)
+	form.SetFieldBackgroundColor(theme.BgModalField)
 	form.SetFieldTextColor(theme.FgPrimary)
-	form.SetButtonBackgroundColor(theme.BgElement)
-	form.SetButtonTextColor(theme.FgPrimary)
+	form.SetButtonBackgroundColor(theme.Accent)
+	form.SetButtonTextColor(theme.BgModal)
 	form.SetButtonActivatedStyle(
-		tcell.StyleDefault.Background(theme.Accent).Foreground(theme.BgPanel))
+		tcell.StyleDefault.Background(theme.Action).Foreground(theme.BgModal))
 	form.SetBorder(true)
 	form.SetBorderColor(theme.Accent)
+	applyRoundedCornersBox(form.Box, theme.Accent, theme.BgModal)
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	form.SetTitle(fmt.Sprintf("%s%s%s", pad, cfg.Title, pad))
 	form.SetTitleColor(theme.Accent)
@@ -468,8 +469,8 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				SetText(label).
 				SetFieldWidth(24).
 				SetAcceptanceFunc(func(string, rune) bool { return false }) // read-only
-			inp.SetBackgroundColor(theme.BgPanel)
-			inp.SetFieldBackgroundColor(theme.BgElement)
+			inp.SetBackgroundColor(theme.BgModal)
+			inp.SetFieldBackgroundColor(theme.BgModalField)
 			inp.SetFieldTextColor(theme.FgPrimary)
 			inp.SetLabelColor(theme.FgPrimary)
 			form.AddFormItem(inp)
@@ -488,8 +489,8 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				SetText(multiSummary(multi[field.Key], field.Options)).
 				SetFieldWidth(30).
 				SetAcceptanceFunc(func(string, rune) bool { return false }) // read-only
-			inp.SetBackgroundColor(theme.BgPanel)
-			inp.SetFieldBackgroundColor(theme.BgElement)
+			inp.SetBackgroundColor(theme.BgModal)
+			inp.SetFieldBackgroundColor(theme.BgModalField)
 			inp.SetFieldTextColor(theme.FgPrimary)
 			inp.SetLabelColor(theme.FgPrimary)
 			form.AddFormItem(inp)
@@ -697,10 +698,10 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// a no-op due to dontClear=true in the tview Grid constructor).
 	hints := tview.NewTextView().
 		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter)
-	hints.SetBackgroundColor(theme.BgDimOverlay)
+		SetTextAlign(tview.AlignLeft)
+	hints.SetBackgroundColor(theme.BgModal)
 	hints.SetText(fmt.Sprintf(
-		i18n.T("tui.shell.form_hints"),
+		"  "+i18n.T("tui.shell.form_hints"),
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
@@ -709,7 +710,7 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 	// No light-dismiss on the form — accidental click would discard in-progress edits.
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(theme.BgPanel)
+	container.SetBackgroundColor(theme.BgModal)
 	container.AddItem(form, 0, 1, true)
 	container.AddItem(hints, 1, 0, false)
 
@@ -769,6 +770,8 @@ func (s *Shell) showSubSelect(title string, options []views.SelectOption, curren
 	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
+	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
+	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
@@ -832,7 +835,8 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
-	list.SetBorderPadding(0, 0, 1, 1)
+	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
+	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
 
 	padStr := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", padStr, title, padStr))
@@ -1342,7 +1346,7 @@ func (s *Shell) listMouseToggle(list *tview.List, toggle func(idx int)) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {
-	input := tview.NewInputField().SetText(currentValue).SetFieldWidth(52)
+	input := tview.NewInputField().SetText(currentValue).SetFieldWidth(0)
 	styleInputField(input)
 
 	if masked {
@@ -1357,34 +1361,36 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		}
 	})
 
-	// Wrap input in a simple container with vertical centering
+	// Wrap input in a container with vertical centering
 	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(theme.BgPanel)
-	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // top spacer
+	container.SetBackgroundColor(theme.BgModal)
+	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 0, 1, false) // top spacer
 	container.AddItem(input, 1, 0, true)
-	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false) // bottom spacer
+	container.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 0, 1, false) // bottom spacer
 
-	// Use the builder for frame + sizing + title + hints
+	// Build frame with rounded corners
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
-	frame.SetBackgroundColor(theme.BgPanel)
+	frame.SetBackgroundColor(theme.BgModal)
 	frame.SetBorder(true)
 	frame.SetBorderColor(theme.Accent)
+	applyRoundedCorners(frame, theme.Accent, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
 	frame.SetTitleColor(theme.Accent)
 
-	// Hints line
+	frame.AddItem(container, 0, 1, true)
+
+	// Hints line at the bottom
 	hints := tview.NewTextView().
 		SetText("  " + i18n.T("tui.modal.hints.input")).
 		SetTextColor(theme.FgMuted).
 		SetDynamicColors(false)
-	hints.SetBackgroundColor(theme.BgPanel)
+	hints.SetBackgroundColor(theme.BgModal)
 	frame.AddItem(hints, 1, 0, false)
-	frame.AddItem(container, 0, 1, true)
 
 	// Content-aware sizing
-	size := s.computeModalSize(modalSizeHint{FixedWidth: theme.ModalMaxWidth, FixedHeight: 7})
+	size := s.computeModalSize(modalSizeHint{FixedWidth: theme.ModalMaxWidth, FixedHeight: theme.ModalMinHeight})
 	grid := s.overlayGrid(frame, size.cols, size.rows, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
@@ -1396,8 +1402,9 @@ func (s *Shell) showInlineSelect(title string, options []views.SelectOption, cur
 	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
+	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
+	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
 
-	// Uniform title: padded, no inline hints (hints are separate in the status bar).
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
 	list.SetTitleColor(theme.Accent)
@@ -1436,8 +1443,8 @@ func (s *Shell) showInlineSelect(title string, options []views.SelectOption, cur
 	// Click on item = immediate selection (macOS Finder / lazygit convention).
 	s.listMouseSelect(list, "inline-overlay", s.content, confirm)
 
-	// Content-aware sizing
-	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	// Content-aware sizing (add 2 for hints line + bottom padding)
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options) + theme.ModalHintsHeight, ProportionalWidth: -3})
 	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimOverlay, "inline-overlay", s.content)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
@@ -1459,6 +1466,8 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	styleSelectList(list)
 	list.SetBorder(true)
 	list.SetBorderColor(theme.Accent)
+	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
+	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
@@ -1516,8 +1525,8 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	// Click on item = toggle its checked state (standard checkbox UX).
 	s.listMouseToggle(list, toggleItem)
 
-	// Content-aware sizing
-	size := s.computeModalSize(modalSizeHint{OptionCount: len(options), ProportionalWidth: -3})
+	// Content-aware sizing (add for hints line)
+	size := s.computeModalSize(modalSizeHint{OptionCount: len(options) + theme.ModalHintsHeight, ProportionalWidth: -3})
 	grid := s.overlayGrid(list, size.cols, size.rows, theme.BgDimOverlay, "inline-overlay", s.content)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)

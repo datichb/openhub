@@ -79,9 +79,12 @@ func (s *Shell) showModal(cfg modalConfig) {
 
 func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, resultFocusables []tview.Primitive) {
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
-	frame.SetBackgroundColor(theme.BgPanel)
+	frame.SetBackgroundColor(theme.BgModal)
 	frame.SetBorder(true)
 	frame.SetBorderColor(theme.Accent)
+
+	// ── Rounded corners via DrawFunc ──
+	applyRoundedCorners(frame, theme.Accent, theme.BgModal)
 
 	// ── Title ──
 	titleText := cfg.Title
@@ -89,16 +92,6 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		pad := strings.Repeat(" ", theme.ModalTitlePad)
 		frame.SetTitle(fmt.Sprintf("%s%s%s", pad, titleText, pad))
 		frame.SetTitleColor(theme.Accent)
-	}
-
-	// ── Hints line (below title, inside frame) ──
-	if cfg.Hints != "" {
-		hints := tview.NewTextView().
-			SetText("  " + cfg.Hints).
-			SetTextColor(theme.FgMuted).
-			SetDynamicColors(false)
-		hints.SetBackgroundColor(theme.BgPanel)
-		frame.AddItem(hints, 1, 0, false)
 	}
 
 	// ── Content ──
@@ -125,8 +118,18 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		focusables = append(focusables, buttonFocusables...)
 
 		// Extra bottom padding
-		pad := tview.NewBox().SetBackgroundColor(theme.BgPanel)
+		pad := tview.NewBox().SetBackgroundColor(theme.BgModal)
 		frame.AddItem(pad, 1, 0, false)
+	}
+
+	// ── Hints line (at the bottom, inside frame) ──
+	if cfg.Hints != "" {
+		hints := tview.NewTextView().
+			SetText("  " + cfg.Hints).
+			SetTextColor(theme.FgMuted).
+			SetDynamicColors(false)
+		hints.SetBackgroundColor(theme.BgModal)
+		frame.AddItem(hints, 1, 0, false)
 	}
 
 	// ── Tab cycling for focusables ──
@@ -193,9 +196,9 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 // ─────────────────────────────────────────────────────────────────────────────
 
 func newSeparator() *tview.Box {
-	sep := tview.NewBox().SetBackgroundColor(theme.BgPanel)
+	sep := tview.NewBox().SetBackgroundColor(theme.BgModal)
 	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Background(theme.BgPanel).Foreground(theme.BorderCard)
+		style := tcell.StyleDefault.Background(theme.BgModal).Foreground(theme.FgMuted)
 		for dx := 0; dx < width; dx++ {
 			screen.SetContent(x+dx, y, theme.ModalSeparatorRune, nil, style)
 		}
@@ -210,7 +213,7 @@ func newSeparator() *tview.Box {
 
 func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, []tview.Primitive) {
 	bar := tview.NewFlex()
-	bar.SetBackgroundColor(theme.BgPanel)
+	bar.SetBackgroundColor(theme.BgModal)
 
 	var focusables []tview.Primitive
 
@@ -224,7 +227,7 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 	}
 
 	// Left spacer for centering (weight 1)
-	bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 0, 1, false)
 
 	for i, act := range actions {
 		a := act
@@ -232,17 +235,17 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 
 		btn := tview.NewButton(a.Label)
 		if isPrimary {
-			// Primary button: accent background at rest
+			// Primary button: accent background at rest (pill style)
 			btn.SetBackgroundColor(theme.Accent)
-			btn.SetLabelColor(theme.BgPanel)
+			btn.SetLabelColor(theme.BgModal)
 			btn.SetBackgroundColorActivated(theme.Action)
-			btn.SetLabelColorActivated(theme.BgPanel)
+			btn.SetLabelColorActivated(theme.BgModal)
 		} else {
-			// Secondary button: subtle background
-			btn.SetBackgroundColor(theme.BgElement)
-			btn.SetLabelColor(theme.FgPrimary)
+			// Secondary button: ghost style (modal highlight bg)
+			btn.SetBackgroundColor(theme.BgModalHighlight)
+			btn.SetLabelColor(theme.FgSecondary)
 			btn.SetBackgroundColorActivated(theme.Accent)
-			btn.SetLabelColorActivated(theme.BgPanel)
+			btn.SetLabelColorActivated(theme.BgModal)
 		}
 		btn.SetSelectedFunc(func() {
 			dismiss()
@@ -258,14 +261,14 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 			if a.Separator {
 				gap = theme.ModalButtonGap * 3
 			}
-			bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), gap, 0, false)
+			bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), gap, 0, false)
 		}
 		bar.AddItem(btn, btnWidth, 0, isPrimary)
 		focusables = append(focusables, btn)
 	}
 
 	// Right spacer for centering (weight 1)
-	bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	bar.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 0, 1, false)
 
 	return bar, focusables
 }
@@ -279,9 +282,9 @@ func styleSelectList(list *tview.List) {
 	list.ShowSecondaryText(false)
 	list.SetHighlightFullLine(true)
 	list.SetMainTextColor(theme.FgPrimary)
-	list.SetSelectedBackgroundColor(theme.BgElement)
+	list.SetSelectedBackgroundColor(theme.BgModalHighlight)
 	list.SetSelectedTextColor(theme.FgPrimary)
-	list.SetBackgroundColor(theme.BgPanel)
+	list.SetBackgroundColor(theme.BgModal)
 }
 
 // styleScrollableText applies the standard modal style to a tview.TextView used in scrollable modals.
@@ -289,15 +292,62 @@ func styleScrollableText(tv *tview.TextView) {
 	tv.SetDynamicColors(true)
 	tv.SetScrollable(true)
 	tv.SetWrap(true)
-	tv.SetBackgroundColor(theme.BgPanel)
+	tv.SetBackgroundColor(theme.BgModal)
 	tv.SetTextColor(theme.FgPrimary)
 	tv.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
 }
 
 // styleInputField applies the standard modal style to a tview.InputField.
 func styleInputField(input *tview.InputField) {
-	input.SetLabelColor(theme.Accent)
-	input.SetFieldBackgroundColor(theme.BgElement)
+	input.SetLabelColor(theme.FgPrimary)
+	input.SetFieldBackgroundColor(theme.BgModalField)
 	input.SetFieldTextColor(theme.FgPrimary)
-	input.SetBackgroundColor(theme.BgPanel)
+	input.SetBackgroundColor(theme.BgModal)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rounded corners helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+// applyRoundedCorners overdraws the four corners of a bordered primitive with
+// rounded arc glyphs (╭╮╰╯). This is safe because tview calls DrawFunc after
+// rendering the standard border, so we simply replace the corner runes.
+// This avoids mutating the global tview.Borders which would affect all views.
+func applyRoundedCorners(p *tview.Flex, borderColor, bgColor tcell.Color) {
+	original := p.GetDrawFunc()
+	p.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		// Call the original DrawFunc if any
+		ix, iy, iw, ih := x+1, y+1, width-2, height-2
+		if original != nil {
+			ix, iy, iw, ih = original(screen, x, y, width, height)
+		}
+		// Overdraw corners with rounded glyphs
+		if width >= 2 && height >= 2 {
+			style := tcell.StyleDefault.Foreground(borderColor).Background(bgColor)
+			screen.SetContent(x, y, '╭', nil, style)
+			screen.SetContent(x+width-1, y, '╮', nil, style)
+			screen.SetContent(x, y+height-1, '╰', nil, style)
+			screen.SetContent(x+width-1, y+height-1, '╯', nil, style)
+		}
+		return ix, iy, iw, ih
+	})
+}
+
+// applyRoundedCornersBox overdraws rounded corners on a tview.Box (for lists with borders).
+func applyRoundedCornersBox(p *tview.Box, borderColor, bgColor tcell.Color) {
+	original := p.GetDrawFunc()
+	p.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		ix, iy, iw, ih := x+1, y+1, width-2, height-2
+		if original != nil {
+			ix, iy, iw, ih = original(screen, x, y, width, height)
+		}
+		if width >= 2 && height >= 2 {
+			style := tcell.StyleDefault.Foreground(borderColor).Background(bgColor)
+			screen.SetContent(x, y, '╭', nil, style)
+			screen.SetContent(x+width-1, y, '╮', nil, style)
+			screen.SetContent(x, y+height-1, '╰', nil, style)
+			screen.SetContent(x+width-1, y+height-1, '╯', nil, style)
+		}
+		return ix, iy, iw, ih
+	})
 }

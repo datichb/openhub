@@ -15,8 +15,8 @@ const (
 
 // Modal height constraints.
 const (
-	// ModalMinHeight is the smallest usable modal height (border + 1 content line + button bar).
-	ModalMinHeight = 7
+	// ModalMinHeight is the smallest usable modal height (border + padding + 1 content line + hints).
+	ModalMinHeight = 9
 	// ModalMaxHeightPct is the maximum percentage of terminal height a modal may occupy.
 	ModalMaxHeightPct = 85
 	// ModalSelectMaxItems is the maximum number of visible items in a select list
@@ -29,13 +29,17 @@ const (
 	// ModalTitlePad is the number of spaces on each side of the title text in the border.
 	ModalTitlePad = 2
 	// ModalContentPadX is the horizontal inner padding (left/right) for text content.
-	ModalContentPadX = 1
+	ModalContentPadX = 2
+	// ModalContentPadY is the vertical inner padding (top/bottom) for breathing room.
+	ModalContentPadY = 1
 	// ModalButtonBarHeight is the number of rows reserved for the button bar (separator + buttons + spacing).
 	ModalButtonBarHeight = 3
 	// ModalButtonPadX is the padding inside each button (each side of the label).
 	ModalButtonPadX = 2
 	// ModalButtonGap is the gap between adjacent buttons.
 	ModalButtonGap = 2
+	// ModalHintsHeight is the number of rows for the bottom hints bar.
+	ModalHintsHeight = 1
 )
 
 // ModalSeparatorRune is the character drawn as a horizontal separator between content and buttons.

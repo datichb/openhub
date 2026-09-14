@@ -123,7 +123,7 @@ func computeHeight(hint modalSizeHint, termH int) int {
 
 	// Form modal: estimate height from field count
 	if hint.FieldCount > 0 {
-		h := hint.FieldCount*3 + 4 // ~3 rows per field + border + buttons
+		h := hint.FieldCount*3 + 4 + theme.ModalHintsHeight // ~3 rows per field + border + buttons + hints
 		return clamp(h, theme.ModalMinHeight, maxH)
 	}
 

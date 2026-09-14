@@ -62,6 +62,16 @@ var (
 	BorderCard = tcell.GetColor(BorderCardHex)
 )
 
+// Modal surfaces — 3-level depth hierarchy within modals.
+var (
+	// BgModal is the modal frame background (Surface0 — brighter than BgPanel).
+	BgModal = tcell.GetColor(BgModalHex)
+	// BgModalField is the recessed input field background within modals (Base).
+	BgModalField = tcell.GetColor(BgModalFieldHex)
+	// BgModalHighlight is for selected items, ghost buttons within modals (Surface1).
+	BgModalHighlight = tcell.GetColor(BgModalHighlightHex)
+)
+
 // Borders
 var (
 	// BorderNormal is for discreet panel delimiters.

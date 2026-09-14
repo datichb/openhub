@@ -66,6 +66,23 @@ const (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Modal — elevated overlay surface with its own 3-level depth hierarchy
+// Catppuccin Mocha: Base (#1e1e2e) < Surface0 (#313244) < Surface1 (#45475a)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const (
+	// BgModalHex is the modal surface background — Surface0.
+	// Brighter than BgPanel to create a "floating card" effect.
+	BgModalHex = "#313244"
+	// BgModalFieldHex is the background for input fields inside modals — Base.
+	// Darker than the modal surface so fields appear inset/recessed.
+	BgModalFieldHex = "#1e1e2e"
+	// BgModalHighlightHex is for selected items, hover states, ghost buttons — Surface1.
+	// Brighter than the modal surface to show active/selected state.
+	BgModalHighlightHex = "#45475a"
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Borders
 // ─────────────────────────────────────────────────────────────────────────────
 
