@@ -618,6 +618,8 @@
   "tui.modal.hints.scrollable": "↑↓ défiler · Tab actions · Esc fermer",
   "tui.modal.hints.input": "Enter confirmer · Esc annuler",
   "tui.modal.hints.form": "Tab champs · Enter confirmer · Esc annuler",
+  "tui.modal.btn.confirm": "Confirmer",
+  "tui.modal.btn.cancel": "Annuler",
   "cmd.start.dev_syncing": "Synchronisation des tickets...",
   "cmd.start.dev_sync_warning": "Synchronisation échouée — utilisation des tickets locaux",
   "cmd.start.dev_no_bd": "bd n'est pas installé. Installez-le : brew install datichb/tap/bd",

@@ -99,9 +99,19 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	frame.AddItem(cfg.Content, 0, 1, true) // flex weight 1 — fills available space
 	focusables = append(focusables, cfg.Content)
 
+	// ── Hints line (above separator, inside frame) ──
+	if cfg.Hints != "" {
+		hints := tview.NewTextView().
+			SetText("  " + cfg.Hints).
+			SetTextColor(theme.FgMuted).
+			SetDynamicColors(false)
+		hints.SetBackgroundColor(theme.BgModal)
+		frame.AddItem(hints, 1, 0, false)
+	}
+
 	// ── Separator + Button bar ──
 	if len(cfg.Actions) > 0 {
-		// Separator line
+		// Separator line (centered 60% rule)
 		sep := newSeparator()
 		frame.AddItem(sep, 1, 0, false)
 
@@ -120,16 +130,6 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		// Extra bottom padding
 		pad := tview.NewBox().SetBackgroundColor(theme.BgModal)
 		frame.AddItem(pad, 1, 0, false)
-	}
-
-	// ── Hints line (at the bottom, inside frame) ──
-	if cfg.Hints != "" {
-		hints := tview.NewTextView().
-			SetText("  " + cfg.Hints).
-			SetTextColor(theme.FgMuted).
-			SetDynamicColors(false)
-		hints.SetBackgroundColor(theme.BgModal)
-		frame.AddItem(hints, 1, 0, false)
 	}
 
 	// ── Tab cycling for focusables ──
@@ -192,15 +192,27 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Separator — thin horizontal rule between content and buttons
+// Separator — centered short rule (60% width) for a lighter visual weight
 // ─────────────────────────────────────────────────────────────────────────────
 
 func newSeparator() *tview.Box {
 	sep := tview.NewBox().SetBackgroundColor(theme.BgModal)
 	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Background(theme.BgModal).Foreground(theme.FgMuted)
+		bgStyle := tcell.StyleDefault.Background(theme.BgModal).Foreground(theme.BgModal)
+		fgStyle := tcell.StyleDefault.Background(theme.BgModal).Foreground(theme.FgMuted)
+
+		lineW := width * 60 / 100
+		if lineW < 3 {
+			lineW = width
+		}
+		pad := (width - lineW) / 2
+
 		for dx := 0; dx < width; dx++ {
-			screen.SetContent(x+dx, y, theme.ModalSeparatorRune, nil, style)
+			if dx >= pad && dx < pad+lineW {
+				screen.SetContent(x+dx, y, theme.ModalSeparatorRune, nil, fgStyle)
+			} else {
+				screen.SetContent(x+dx, y, ' ', nil, bgStyle)
+			}
 		}
 		return x, y, width, height
 	})

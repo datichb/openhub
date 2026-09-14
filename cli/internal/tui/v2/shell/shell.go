@@ -407,16 +407,7 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	form.SetLabelColor(theme.FgPrimary)
 	form.SetFieldBackgroundColor(theme.BgModalField)
 	form.SetFieldTextColor(theme.FgPrimary)
-	form.SetButtonBackgroundColor(theme.Accent)
-	form.SetButtonTextColor(theme.BgModal)
-	form.SetButtonActivatedStyle(
-		tcell.StyleDefault.Background(theme.Action).Foreground(theme.BgModal))
-	form.SetBorder(true)
-	form.SetBorderColor(theme.Accent)
-	applyRoundedCornersBox(form.Box, theme.Accent, theme.BgModal)
-	pad := strings.Repeat(" ", theme.ModalTitlePad)
-	form.SetTitle(fmt.Sprintf("%s%s%s", pad, cfg.Title, pad))
-	form.SetTitleColor(theme.Accent)
+	form.SetBorder(false)
 
 	values := make(map[string]string)
 	multi := make(map[string][]string)
@@ -649,8 +640,13 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		return event
 	})
 
-	// ── Buttons ───────────────────────────────────────────────────────────────
-	form.AddButton("Confirmer", func() {
+	// ── Dismiss helpers ─────────────────────────────────────────────────────
+	dismiss := func() {
+		s.pages.RemovePage("inline-overlay")
+		s.app.SetFocus(s.content)
+	}
+
+	submitForm := func() {
 		// Validate required fields
 		for _, f := range cfg.Fields {
 			if f.Required {
@@ -670,32 +666,39 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				}
 			}
 		}
-		s.pages.RemovePage("inline-overlay")
-		s.app.SetFocus(s.content)
+		dismiss()
 		if cfg.OnSubmit != nil {
 			cfg.OnSubmit(values, multi)
 		}
-	})
-	form.AddButton("Annuler", func() {
-		s.pages.RemovePage("inline-overlay")
-		s.app.SetFocus(s.content)
-		if cfg.OnCancel != nil {
-			cfg.OnCancel()
-		}
-	})
-	form.SetCancelFunc(func() {
-		s.pages.RemovePage("inline-overlay")
-		s.app.SetFocus(s.content)
-		if cfg.OnCancel != nil {
-			cfg.OnCancel()
-		}
-	})
+	}
 
-	// ── Layout ────────────────────────────────────────────────────────────────
-	// Wrap form + hints in a Flex so overlayGrid can handle the backdrop.
-	// overlayGrid fills surrounding cells with opaque dim boxes — the only
-	// reliable way to render a backdrop in tview (Grid.SetBackgroundColor is
-	// a no-op due to dontClear=true in the tview Grid constructor).
+	cancelForm := func() {
+		dismiss()
+		if cfg.OnCancel != nil {
+			cfg.OnCancel()
+		}
+	}
+
+	form.SetCancelFunc(cancelForm)
+
+	// Remove border from the form — the outer Flex will have the border
+	form.SetBorder(false)
+
+	// ── Layout: outer Flex with border + rounded corners ─────────────────
+	outerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	outerFlex.SetBackgroundColor(theme.BgModal)
+	outerFlex.SetBorder(true)
+	outerFlex.SetBorderColor(theme.Accent)
+	applyRoundedCorners(outerFlex, theme.Accent, theme.BgModal)
+
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	outerFlex.SetTitle(fmt.Sprintf("%s%s%s", pad, cfg.Title, pad))
+	outerFlex.SetTitleColor(theme.Accent)
+
+	// Form content (fills remaining space)
+	outerFlex.AddItem(form, 0, 1, true)
+
+	// Hints line (above separator)
 	hints := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -707,15 +710,72 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 		theme.ColorTag(theme.AccentHex), theme.TagColor,
 	))
+	outerFlex.AddItem(hints, 1, 0, false)
 
-	// No light-dismiss on the form — accidental click would discard in-progress edits.
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.SetBackgroundColor(theme.BgModal)
-	container.AddItem(form, 0, 1, true)
-	container.AddItem(hints, 1, 0, false)
+	// Separator (centered 60% rule)
+	outerFlex.AddItem(newSeparator(), 1, 0, false)
 
-	// Content-aware sizing — estimate height from visible fields only.
-	// Conditional fields that are currently hidden should not inflate the modal height.
+	// Button bar (unified buildButtonBar — primary/secondary differentiated)
+	buttonBar, buttonFocusables := buildButtonBar(
+		[]views.ModalAction{
+			{Label: i18n.T("tui.modal.btn.confirm"), Callback: submitForm},
+			{Label: i18n.T("tui.modal.btn.cancel"), Callback: cancelForm},
+		},
+		dismiss,
+	)
+	outerFlex.AddItem(buttonBar, 1, 0, false)
+
+	// Bottom padding
+	outerFlex.AddItem(tview.NewBox().SetBackgroundColor(theme.BgModal), 1, 0, false)
+
+	// ── Focus cycling: form ↔ buttons via Tab ────────────────────────────
+	var allFocusables []tview.Primitive
+	allFocusables = append(allFocusables, form)
+	allFocusables = append(allFocusables, buttonFocusables...)
+	currentFocus := 0
+
+	outerFlex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTab && currentFocus == 0 && len(allFocusables) > 1 {
+			// Tab from form → first button
+			currentFocus = 1
+			s.app.SetFocus(allFocusables[currentFocus])
+			return nil
+		}
+		if event.Key() == tcell.KeyBacktab && currentFocus > 0 {
+			// BackTab from button → form
+			currentFocus = 0
+			s.app.SetFocus(allFocusables[currentFocus])
+			return nil
+		}
+		if currentFocus > 0 {
+			// Navigate between buttons with ←/→
+			if event.Key() == tcell.KeyLeft || event.Key() == tcell.KeyRight {
+				btnCount := len(allFocusables) - 1
+				btnIdx := currentFocus - 1
+				if event.Key() == tcell.KeyLeft {
+					btnIdx = (btnIdx - 1 + btnCount) % btnCount
+				} else {
+					btnIdx = (btnIdx + 1) % btnCount
+				}
+				currentFocus = btnIdx + 1
+				s.app.SetFocus(allFocusables[currentFocus])
+				return nil
+			}
+			// Up from button → form
+			if event.Key() == tcell.KeyUp {
+				currentFocus = 0
+				s.app.SetFocus(allFocusables[currentFocus])
+				return nil
+			}
+		}
+		if event.Key() == tcell.KeyEscape {
+			cancelForm()
+			return nil
+		}
+		return event
+	})
+
+	// ── Sizing + overlay ─────────────────────────────────────────────────
 	visibleFields := 0
 	for _, f := range cfg.Fields {
 		if f.Conditional == nil || f.Conditional(values) {
@@ -723,7 +783,7 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 		}
 	}
 	size := s.computeModalSize(modalSizeHint{FieldCount: visibleFields, FixedWidth: theme.ModalMaxWidth})
-	grid := s.overlayGrid(container, size.cols, size.rows, theme.BgDimOverlay, "", nil)
+	grid := s.overlayGrid(outerFlex, size.cols, size.rows, theme.BgDimOverlay, "", nil)
 
 	s.pages.AddPage("inline-overlay", grid, true, true)
 	s.app.SetFocus(form)
