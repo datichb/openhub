@@ -26,25 +26,38 @@ Each team member runs:
 oh team init
 ```
 
-The wizard runs in two phases:
+Or from the TUI, type `team init` in the omnibar (`Ctrl+P`).
+
+### CLI mode (terminal)
+
+The wizard runs full-screen with 5 adaptive steps and a side info panel.
+
+### TUI mode (inline wizard)
+
+The wizard runs directly inside the TUI shell without leaving the interface. The omnibar
+and toasts remain accessible. Shortcuts: `Ctrl+S` submit, `Ctrl+B` back,
+double `Esc` to skip an optional step.
 
 ### Phase 1 — Repository connection (sequential)
 
 A form asks for the team-state repo URL, then:
 1. Clones the repo to `~/.oh/team-state/` (or pulls if already cloned)
 2. Creates the directory structure (if first member)
+3. Detects duplicate clones to prevent diverged state
 
-### Phase 2 — Configuration (interactive wizard with sidebar)
+If the repo is HTTPS, an extra step offers to configure credentials
+(token, or skip if already configured).
 
-A BubbleTea side-by-side wizard displays 4 adaptive steps.
+### Phase 2 — Configuration (interactive wizard)
+
 The wizard automatically detects the repository state and adapts behavior:
 
 | Step | If repo is empty (1st member) | If repo already configured |
 |------|------------------------------|---------------------------|
-| **Global config** | Creates `config.toml` (stale_days, sessions) | "✓ Modify?" or skip |
-| **Identity** | Registration (ID, name, role, usernames) | "✓ Update?" or skip |
-| **Notifications** | Mattermost webhook configuration | "✓ Modify?" or skip |
-| **Policies** | Multi-select of recommended policies | "✓ Modify?" or skip |
+| **Global config** | Creates `config.toml` (stale_days, sessions) | Updates if changed |
+| **Identity** | Registration (6 fields) + commit-and-push | Update + commit-and-push |
+| **Notifications** | Mattermost webhook configuration | Updates if changed |
+| **Policies** | Multi-select of recommended policies | Merges with existing |
 
 #### Profile fields (Identity step)
 
@@ -54,6 +67,7 @@ The wizard automatically detects the repository state and adapts behavior:
 | Display name | How your name appears in notifications | `Benjamin` |
 | GitLab username | For GitLab integration | `bdatiche` |
 | Mattermost username | For mentions in notifications | `benjamin.datiche` |
+| Tracker username | For external tracker issue assignment | `benjamin` |
 | Role | Your team role | `lead`, `dev`, or `reviewer` |
 
 #### Recommended policies (Policies step)
@@ -68,11 +82,13 @@ The wizard offers a recommended set to multi-select:
 
 At the end of the wizard:
 1. `config.toml` is created/updated in the team-state repo
-2. The member is registered in `members.toml`
+2. The member is registered in `members.toml` and committed + pushed
 3. Notifications are configured (optional)
-4. Policies are created in `policies.toml` (optional)
-5. `hub.toml` is updated with `[team]` configuration
-6. All changes are committed and pushed
+4. Policies are created in `policies.toml` and committed + pushed (optional)
+5. `hub.toml` is updated with `[[teams]]` configuration
+
+In TUI mode, a summary screen displays all configured values and offers
+to navigate to the team detail view (`Enter`) or return home (`Esc`).
 
 ## 3. Configure notifications (reference)
 

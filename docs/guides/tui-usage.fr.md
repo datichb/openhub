@@ -80,6 +80,7 @@ Quand une session demarre, le TUI se suspend et opencode prend le relais. Quand 
 | Commande | Vue | Description |
 |----------|-----|-------------|
 | `projects` | Liste des projets | Tous les projets enregistres avec statut |
+| `project add` | Wizard | Ajouter un nouveau projet (wizard complet 8 etapes) |
 | `board` | Kanban | Board de tickets du projet (necessite bd) |
 | `deploy` | - | Deployer agents/skills dans le projet courant |
 | `sync` | - | Synchroniser agents/skills sur tous les projets |
@@ -101,6 +102,7 @@ Dans la vue **Projets** :
 | `settings` | Parametres generaux | Langue, version opencode, auto-update |
 | `secrets` | Secrets et tokens | Gerer les credentials stockes |
 | `teams` | Liste des equipes | Gestion multi-equipes |
+| `init` | Wizard | Reconfigurer le hub (provider, credentials) |
 
 ### Equipe (necessite un depot team-state)
 
@@ -114,7 +116,7 @@ Dans la vue **Projets** :
 | `team patterns` | Patterns | Bibliotheque de patterns partages |
 | `team policies` | Policies | Policies appliquees par l'equipe |
 | `team sync` | - | Synchroniser les claims avec le tracker externe |
-| `team init` | - | Initialiser les fonctionnalites equipe |
+| `team init` | Wizard | Initialiser les fonctionnalites equipe (wizard 6 etapes) |
 
 ### Systeme
 
@@ -171,3 +173,28 @@ Dans la vue **Projets** :
 - **Edition de config** -- dans les vues de config, naviguez avec `j`/`k`, appuyez sur `Enter` pour modifier une valeur. Les changements sont sauvegardes automatiquement.
 - **Raccourcis contextuels** -- chaque vue affiche les raccourcis disponibles dans le texte passif de l'omnibar en bas.
 - **Detection automatique du projet** -- si vous avez lance `oh` depuis un repertoire de projet enregistre, il demarre en mode projet pour ce projet.
+
+---
+
+## Wizards inline
+
+Les commandes `team init`, `init` et `project add` lancent des **wizards multi-step inline** directement dans le TUI, sans quitter le shell. L'omnibar et les toasts restent accessibles pendant toute la duree du wizard.
+
+### Raccourcis wizard
+
+| Touche | Action |
+|--------|--------|
+| `Ctrl+S` | Valider le step courant (equivalent au bouton) |
+| `Ctrl+B` | Retour au step precedent |
+| `Esc` (1x) | Affiche un hint "appuyer encore pour passer" |
+| `Esc` (2x) | Passe le step (bloque si le step est requis) |
+
+### Ecran de resume
+
+A la fin du wizard, un ecran de resume affiche toutes les valeurs configurees. Deux choix :
+- `Enter` — naviguer vers la vue de detail (team.detail, settings, projects.list)
+- `Esc` — retour a la vue precedente
+
+### First-run
+
+Si aucun provider n'est configure, le wizard de configuration initiale se lance automatiquement au demarrage du TUI. Il guide a travers le choix du provider, les credentials et l'ajout d'un premier projet.

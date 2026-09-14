@@ -11,6 +11,8 @@ oh --no-tui # Force le mode CLI classique
 
 Le TUI se lance automatiquement quand `oh` est exécuté sans sous-commande dans un terminal interactif. Variables qui désactivent le TUI : `CI=true`, `TERM=dumb`, `OH_RICH_TUI=0`.
 
+Si aucun provider n'est configuré (premier lancement), un wizard inline de configuration initiale se lance automatiquement dans le shell. Voir [InlineWizardView](tui-inline-wizard.fr.md) pour les détails du composant.
+
 ## Principes de design
 
 Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telescope) et de l'approche minimaliste d'opencode :
@@ -200,6 +202,18 @@ Les tickets affichent des étiquettes compactes : `[AI]` (vert) pour `agent-revi
 |--------|--------|
 | `j` / `k` | Naviguer les clés |
 | `Enter` | Modifier la valeur |
+
+## Wizards inline
+
+Les flows de configuration multi-step (`team init`, `init`, `project add`) utilisent un composant **InlineWizardView** qui tourne dans le shell TUI sans switch alt-screen. Le wizard est pushé sur le router stack via `shell.PushView(v)` et pop automatiquement à la fin.
+
+Raccourcis : `Ctrl+S` valider, `Ctrl+B` retour, double `Esc` passer.
+
+Voir [Référence InlineWizardView](tui-inline-wizard.fr.md) pour l'API complète et les patterns de création de nouveaux wizards.
+
+### Architecture — PushView
+
+La méthode `PushView(v View)` sur `ShellAccess` permet de pusher une vue éphémère sur le router stack sans pré-enregistrement. Le wizard reçoit automatiquement `ShellAccess` via l'interface `shellAware`. Cette méthode est utilisée par les actions omnibar `team init`, `init`, et `project add`.
 
 ## Sessions opencode
 

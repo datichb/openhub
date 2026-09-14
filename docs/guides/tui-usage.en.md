@@ -80,6 +80,7 @@ When a session starts, the TUI suspends and opencode takes over. When you exit o
 | Command | View | Description |
 |---------|------|-------------|
 | `projects` | Projects list | All registered projects with status |
+| `project add` | Wizard | Add a new project (full 8-step wizard) |
 | `board` | Kanban board | Project tickets board (requires bd) |
 | `deploy` | - | Deploy agents/skills to current project |
 | `sync` | - | Sync agents/skills across all projects |
@@ -101,6 +102,7 @@ In the **Projects** view:
 | `settings` | General settings | Language, opencode version, auto-update |
 | `secrets` | Secrets & Tokens | Manage stored credentials |
 | `teams` | Teams list | Multi-team management |
+| `init` | Wizard | Reconfigure the hub (provider, credentials) |
 
 ### Team (requires team-state repo)
 
@@ -114,7 +116,7 @@ In the **Projects** view:
 | `team patterns` | Patterns | Shared team patterns library |
 | `team policies` | Policies | Team-enforced policies |
 | `team sync` | - | Sync claims with external tracker |
-| `team init` | - | Initialize team features |
+| `team init` | Wizard | Initialize team features (6-step wizard) |
 
 ### System
 
@@ -171,3 +173,28 @@ In the **Projects** view:
 - **Config editing** — in config views, navigate with `j`/`k`, press `Enter` to edit a value. Changes auto-save.
 - **Contextual shortcuts** — each view shows available shortcuts in the omnibar hint text at the bottom.
 - **Project auto-detection** — if you launched `oh` from a registered project directory, it starts in project mode for that project.
+
+---
+
+## Inline Wizards
+
+The `team init`, `init`, and `project add` commands launch **multi-step inline wizards** directly in the TUI without leaving the shell. The omnibar and toasts remain accessible throughout the wizard.
+
+### Wizard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+S` | Submit the current step (same as the button) |
+| `Ctrl+B` | Go back to the previous step |
+| `Esc` (1x) | Shows a "press again to skip" hint |
+| `Esc` (2x) | Skips the step (blocked if the step is required) |
+
+### Summary screen
+
+After the wizard finishes, a summary screen displays all configured values. Two choices:
+- `Enter` — navigate to the detail view (team.detail, settings, projects.list)
+- `Esc` — return to the previous view
+
+### First-run
+
+If no provider is configured, the initial setup wizard launches automatically when the TUI starts. It guides through provider selection, credentials, and adding a first project.

@@ -951,6 +951,17 @@ func (s *Shell) NavigateTo(viewID string) {
 	s.router.NavigateTo(viewID)
 }
 
+// PushView pushes an ephemeral view onto the router stack without prior
+// registration. Use this for on-demand views like inline wizards that are
+// created dynamically rather than at startup. Esc/Pop returns to the
+// previous view. If the view implements shellAware, SetShell is called.
+func (s *Shell) PushView(v views.View) {
+	if sv, ok := v.(shellAware); ok {
+		sv.SetShell(s)
+	}
+	s.router.Push(v)
+}
+
 // SetProjectMode activates or deactivates project mode.
 // Passing nil deactivates project mode (hub mode).
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {

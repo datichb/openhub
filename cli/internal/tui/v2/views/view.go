@@ -138,6 +138,12 @@ type ShellAccess interface {
 	SetActiveTeam(team *ActiveTeam)
 	// ActiveTeam returns the currently active team, or nil outside team mode.
 	ActiveTeam() *ActiveTeam
+
+	// ── Wizard support ──────────────────────────────────────────────────
+	// PushView pushes an ephemeral view (e.g. an inline wizard) onto the
+	// router stack without requiring prior registration. Esc/Pop returns
+	// to the previous view. The pushed view receives SetShell automatically.
+	PushView(v View)
 }
 
 // ActiveProject holds the minimal project context for the TUI project mode.

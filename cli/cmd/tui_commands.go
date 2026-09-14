@@ -605,5 +605,33 @@ func buildCommands(a *app.App) []shell.Command {
 		})
 	}
 
+	// ── Hub init — always visible (reconfigure hub) ─────────────────
+	commands = append(commands, shell.Command{
+		ID:          "init",
+		Label:       i18n.T("tui.cmd.init"),
+		Aliases:     []string{"init", "setup", "reconfigure", "configurer"},
+		Description: i18n.T("tui.cmd.init.desc"),
+		Category:    "Hub",
+		Priority:    30,
+		Action: func() {
+			if tuiShell == nil {
+				return
+			}
+			wizard := buildFirstRunInlineWizard(MustApp())
+			tuiShell.PushView(wizard)
+		},
+	})
+
+	// ── Project add — always visible ────────────────────────────────
+	commands = append(commands, shell.Command{
+		ID:          "project.add",
+		Label:       i18n.T("tui.cmd.project_add"),
+		Aliases:     []string{"project add", "add project", "nouveau projet"},
+		Description: i18n.T("tui.cmd.project_add.desc"),
+		Category:    i18n.T("tui.category.projects"),
+		Priority:    45,
+		Action:      actionProjectAdd,
+	})
+
 	return commands
 }

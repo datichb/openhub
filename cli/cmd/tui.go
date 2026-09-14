@@ -19,18 +19,22 @@ var tuiShell *shell.Shell
 func runTUIWithProject(projectName string) error {
 	a := MustApp()
 
-	// ── First-run detection: launch setup wizard if no provider configured ──
-	if needsFirstRunWizard(a) && projectName == "" {
+	// ── First-run detection ─────────────────────────────────────────────
+	// If no provider is configured and --no-tui was used (or no TTY),
+	// fall back to the standalone wizard. Otherwise, we launch the shell
+	// first and push an inline wizard inside it (see below).
+	firstRun := needsFirstRunWizard(a) && projectName == ""
+	if firstRun && !canLaunchTUI() {
 		completed := runFirstRunWizard(a)
 		if !completed {
-			return nil // user aborted wizard
+			return nil
 		}
-		// Reload config after wizard changes
 		var err error
 		a, err = ReloadApp()
 		if err != nil {
 			return fmt.Errorf("reload config after wizard: %w", err)
 		}
+		firstRun = false
 	}
 
 	homeViewID := "home"
@@ -81,6 +85,13 @@ func runTUIWithProject(projectName string) error {
 	}
 
 	tuiShell.NavigateHome(cfg.HomeViewID)
+
+	// ── Push first-run wizard inline if needed ──────────────────────────
+	if firstRun {
+		wizard := buildFirstRunInlineWizard(a)
+		tuiShell.PushView(wizard)
+	}
+
 	err := tuiShell.Run()
 
 	// ── Restore original logging ────────────────────────────────────────

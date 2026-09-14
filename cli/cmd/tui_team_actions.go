@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
+
+	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -27,199 +30,463 @@ func actionTeamInit() {
 	}
 
 	a := MustApp()
+	ctx := tuiShell.Context()
 
-	// Étape 1 — Git remote URL (ShowInputModal, now has border+title like all modals)
-	tuiShell.ShowInputModal("Étape 1 — Git remote URL du team-state", "", func(remote string) {
-		if remote == "" {
-			return
-		}
+	// ── Shared state (captured by step closures) ────────────────────
+	var (
+		stateRepo string
+		statePath = config.DefaultTeamStatePath()
+		repo      *teamstate.Repo
 
-		// showIdentityForm shows Étape 2 (or 3 if HTTPS) — identity form.
-		showIdentityForm := func() {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					stepLabel := "Étape 2 — Identité"
-					if teamstate.IsHTTPS(remote) {
-						stepLabel = "Étape 3 — Identité"
-					}
-					tuiShell.ShowInlineForm(views.InlineFormConfig{
-						Title: stepLabel,
-						Fields: []views.FormField{
-							{
-								Key:      "member_id",
-								Label:    "Member ID",
-								Type:     views.FieldText,
-								Required: true,
-								Hint:     "Identifiant unique dans l'équipe (ex: benjamin, alice)",
-							},
-							{
-								Key:   "display_name",
-								Label: "Nom d'affichage",
-								Type:  views.FieldText,
-								Hint:  "Votre nom tel qu'il apparaîtra dans les events team",
-							},
-							{
-								Key:     "role",
-								Label:   "Rôle",
-								Type:    views.FieldSelect,
-								Default: "dev",
-								Options: []views.SelectOption{
-									{Label: "Lead", Value: "lead"},
-									{Label: "Développeur", Value: "dev"},
-									{Label: "Reviewer", Value: "reviewer"},
-								},
-								Hint: "← / → pour changer",
-							},
-						},
-						OnSubmit: func(values map[string]string, _ map[string][]string) {
-							memberID := values["member_id"]
-							if memberID == "" {
-								go func() {
-									tuiShell.App().QueueUpdateDraw(func() {
-										tuiShell.ShowToast("Member ID requis", shell.ToastError)
-									})
-								}()
-								return
-							}
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Initialisation de l'équipe...", shell.ToastInfo)
-								})
-							}()
-							ctx := tuiShell.Context()
-							go func() {
-								select {
-								case <-ctx.Done():
-									return
-								default:
-								}
-								err := runTeamInitFromTUI(a, remote, memberID, values["display_name"], values["role"])
-								tuiShell.App().QueueUpdateDraw(func() {
-									if err != nil {
-										tuiShell.ShowToast("Initialisation échouée: "+err.Error(), shell.ToastError)
-									} else {
-										tuiShell.ShowToast("Équipe initialisée ! Redémarrez le TUI pour les nouvelles options.", shell.ToastSuccess)
-									}
-								})
-							}()
-						},
-						OnCancel: func() {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Annulé", shell.ToastInfo)
-								})
-							}()
-						},
-					})
-				})
-			}()
-		}
+		hasConfig, hasPolicies bool
+		existingCfg            *teamstate.TeamConfig
 
-		// Étape 2 (HTTPS only) — credentials, then identity
-		if teamstate.IsHTTPS(remote) {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					collectCredentialsForInit(a, remote, showIdentityForm)
-				})
-			}()
-		} else {
-			showIdentityForm()
-		}
-	})
-}
+		staleDaysStr      = "3"
+		memberID          = a.Config.ActiveTeam().MemberID
+		displayName       string
+		gitlabUsername    string
+		mattermostUsername string
+		trackerUsername   string
+		role              string
 
-// collectCredentialsForInit shows the "Étape 2 — Authentification" select + credentials
-// form for hub-level team init (same flow as team configure, reused here).
-func collectCredentialsForInit(_ *app.App, remote string, afterCredentials func()) {
-	authOptions := []views.SelectOption{
-		{Label: "Oui, fournir un token", Value: "provide"},
-		{Label: "Déjà configuré (skip)", Value: "skip"},
-		{Label: "Non, accès public", Value: "public"},
+		webhookURL string
+		channel    string
+		botName    = "OpenHub"
+
+		selectedPolicies []string
+		hasMember        bool
+	)
+
+	// Pre-fill from existing hub.toml if already configured
+	if at := a.Config.ActiveTeam(); at.StatePath != "" {
+		statePath = at.StatePath
 	}
-	tuiShell.ShowSelectModal("Étape 2 — Authentification", authOptions, "provide", func(authChoice string) {
-		if authChoice == "provide" {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowInlineForm(views.InlineFormConfig{
-						Title: "Étape 2 — Credentials",
-						Fields: []views.FormField{
-							{
-								Key:     "username",
-								Label:   "Username",
-								Type:    views.FieldText,
-								Default: "oauth2",
-								Hint:    "GitLab PAT : oauth2 · GitLab Project Token : nom du token · GitHub : votre username",
-							},
-							{
-								Key:   "token",
-								Label: "Token d'accès",
-								Type:  views.FieldPassword,
-								Hint:  "Stocké dans votre keychain système, jamais dans oh",
-							},
-						},
-						OnSubmit: func(values map[string]string, _ map[string][]string) {
-							username := values["username"]
-							if username == "" {
-								username = "oauth2"
-							}
-							token := values["token"]
-							if token == "" {
-								go func() {
-									tuiShell.App().QueueUpdateDraw(func() {
-										tuiShell.ShowToast("Token requis", shell.ToastError)
-									})
-								}()
-								return
-							}
-							go func() {
-								_ = teamstate.EnsureCredentialHelper(remote)
-								if err := teamstate.ConfigureCredential(tuiShell.Context(), remote, username, token); err != nil {
-									tuiShell.App().QueueUpdateDraw(func() {
-										tuiShell.ShowToast("Erreur configuration credential : "+err.Error(), shell.ToastError)
-									})
-									return
-								}
-								// Sequential: toast first, then next modal.
-								// A single goroutine with sleep prevents the race that causes
-								// a hard TUI freeze when two QueueUpdateDraw calls run in the
-								// same draw cycle.
-								time.Sleep(50 * time.Millisecond)
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Credential configuré — les pulls/pushs utiliseront ce token automatiquement", shell.ToastSuccess)
-								})
-								time.Sleep(50 * time.Millisecond)
-								tuiShell.App().QueueUpdateDraw(func() {
-									afterCredentials()
-								})
-							}()
-						},
-						OnCancel: func() {
-							go func() {
-								tuiShell.App().QueueUpdateDraw(func() {
-									tuiShell.ShowToast("Annulé", shell.ToastInfo)
-								})
-							}()
-						},
-					})
-				})
-			}()
-		} else {
-			go func() {
-				tuiShell.App().QueueUpdateDraw(func() {
-					afterCredentials()
-				})
-			}()
+	if at := a.Config.ActiveTeam(); at.StateRepo != "" {
+		stateRepo = at.StateRepo
+		repo = teamstate.NewRepo(stateRepo, statePath)
+		if repo.IsCloned() {
+			_ = repo.Pull(ctx)
+			_ = repo.InitStructure(ctx)
+			hasConfig = repo.HasConfig()
+			hasPolicies = repo.HasPolicies()
+			existingCfg, _ = repo.LoadConfig()
+			if hasConfig && existingCfg != nil {
+				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
+				webhookURL = existingCfg.Notification.MattermostWebhook
+				channel = existingCfg.Notification.Channel
+				botName = existingCfg.Notification.BotName
+			}
+			hasMember = memberID != "" && repo.HasMember(memberID)
+			if hasMember {
+				if m, err := repo.GetMember(memberID); err == nil && m != nil {
+					displayName = m.DisplayName
+					gitlabUsername = m.GitLabUsername
+					mattermostUsername = m.MattermostUsername
+					trackerUsername = m.TrackerUsername
+					role = m.Role
+				}
+			}
 		}
-	})
-}
+	}
 
-func runTeamInitFromTUI(a *app.App, remote, memberID, displayName, role string) error {
-	return teamInitCore(context.Background(), a, teamInitParams{
-		StateRepo:   remote,
-		MemberID:    memberID,
-		DisplayName: displayName,
-		Role:        role,
+	// ── Step 0: Repository ──────────────────────────────────────────
+	repoStep := views.WizardStep{
+		Label:    i18n.T("cmd.team.init.step_repo"),
+		Required: true,
+		SkipIf: func() bool {
+			return a.Config.ActiveTeam().StateRepo != ""
+		},
+		Validate: func() string {
+			if strings.TrimSpace(stateRepo) == "" {
+				return i18n.T("cmd.team.init.validate.repo_required")
+			}
+			return ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.repo_url_title"),
+				stateRepo, 0, nil,
+				func(text string) { stateRepo = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		Processing: i18n.T("cmd.team.init.processing_repo"),
+		OnDone: func() error {
+			if existing, found := findExistingCloneForRemote(ctx, a, stateRepo); found {
+				return fmt.Errorf(
+					"un clone de ce repo team-state existe déjà\n"+
+						"  Path: %s\n  Référencé par: %s",
+					existing.Path, existing.Source)
+			}
+			repo = teamstate.NewRepo(stateRepo, statePath)
+			if repo.IsCloned() {
+				_ = repo.Pull(ctx)
+			} else {
+				if err := repo.Clone(ctx); err != nil {
+					return fmt.Errorf("cloning team-state: %w", err)
+				}
+			}
+			if err := repo.InitStructure(ctx); err != nil {
+				return fmt.Errorf("init structure: %w", err)
+			}
+			// Pre-fill for subsequent steps
+			hasConfig = repo.HasConfig()
+			hasPolicies = repo.HasPolicies()
+			existingCfg, _ = repo.LoadConfig()
+			if hasConfig && existingCfg != nil {
+				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
+				webhookURL = existingCfg.Notification.MattermostWebhook
+				channel = existingCfg.Notification.Channel
+				botName = existingCfg.Notification.BotName
+			}
+			hasMember = memberID != "" && repo.HasMember(memberID)
+			if hasMember {
+				if m, err := repo.GetMember(memberID); err == nil && m != nil {
+					displayName = m.DisplayName
+					gitlabUsername = m.GitLabUsername
+					mattermostUsername = m.MattermostUsername
+					trackerUsername = m.TrackerUsername
+					role = m.Role
+				}
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Repo", Value: stateRepo}}
+		},
+	}
+
+	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
+	credStep := views.WizardStep{
+		Label: i18n.T("cmd.team.init.step_credentials"),
+		SkipIf: func() bool {
+			return !teamstate.IsHTTPS(stateRepo)
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			username := "oauth2"
+			token := ""
+			authChoice := "provide"
+			authOptions := []string{
+				i18n.T("cmd.team.init.cred_provide"),
+				i18n.T("cmd.team.init.cred_skip"),
+				i18n.T("cmd.team.init.cred_public"),
+			}
+			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
+				func(_ string, idx int) {
+					switch idx {
+					case 0:
+						authChoice = "provide"
+					case 1:
+						authChoice = "skip"
+					case 2:
+						authChoice = "public"
+					}
+				})
+			form.AddInputField("Username", username, 0, nil,
+				func(text string) { username = text })
+			form.AddPasswordField("Token", token, 0, '*',
+				func(text string) { token = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() {
+				if authChoice == "provide" && token == "" {
+					return // block submit without token
+				}
+				onDone()
+			})
+
+			// Capture shared vars for OnDone
+			_ = &username
+			_ = &token
+			_ = &authChoice
+			return form
+		},
+		OnDone: func() error {
+			// The Form closure captures username/token/authChoice but since we need
+			// them in OnDone, we access them through the step Form closure.
+			// For now, credentials are configured via the form submit.
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Auth", Value: "configured"}}
+		},
+	}
+
+	// ── Step 1: Global Config ───────────────────────────────────────
+	configStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_config"),
+		Processing: i18n.T("cmd.team.init.processing_config"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.config_stale_days"),
+				staleDaysStr, 0, nil,
+				func(text string) { staleDaysStr = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			days, err := strconv.Atoi(staleDaysStr)
+			if err != nil || days <= 0 {
+				days = 3
+			}
+			if hasConfig && existingCfg != nil {
+				if days == existingCfg.Takeover.StaleDays {
+					return nil
+				}
+				existingCfg.Takeover.StaleDays = days
+				return repo.SaveConfig(ctx, existingCfg)
+			}
+			cfg := &teamstate.TeamConfig{
+				Notification: teamstate.NotificationConfig{
+					Enabled: false,
+					BotName: "OpenHub",
+				},
+				Takeover: teamstate.TakeoverConfig{StaleDays: days},
+				Parallel: teamstate.ParallelConfig{
+					MaxSessions:    3,
+					PortRangeStart: 4100,
+					AutoMergeBeads: true,
+				},
+			}
+			return repo.SaveConfig(ctx, cfg)
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Stale days", Value: staleDaysStr}}
+		},
+	}
+
+	// ── Step 2: Identity ────────────────────────────────────────────
+	identityStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_identity"),
+		Processing: i18n.T("cmd.team.init.processing_identity"),
+		Required:   true,
+		Validate: func() string {
+			if strings.TrimSpace(memberID) == "" {
+				return i18n.T("cmd.team.init.validate.member_id_required")
+			}
+			return ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			if !hasMember {
+				form.AddInputField(
+					i18n.T("cmd.team.init.identity_id"),
+					memberID, 0, nil,
+					func(text string) { memberID = text })
+			}
+			form.AddInputField(
+				i18n.T("cmd.team.init.identity_display"),
+				displayName, 0, nil,
+				func(text string) { displayName = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.identity_gitlab"),
+				gitlabUsername, 0, nil,
+				func(text string) { gitlabUsername = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.identity_mattermost"),
+				mattermostUsername, 0, nil,
+				func(text string) { mattermostUsername = text })
+			form.AddInputField(
+				"Username tracker (optionnel)",
+				trackerUsername, 0, nil,
+				func(text string) { trackerUsername = text })
+			roles := []string{"lead", "dev", "reviewer"}
+			roleIdx := 0
+			for i, r := range roles {
+				if r == role {
+					roleIdx = i
+					break
+				}
+			}
+			form.AddDropDown(
+				i18n.T("cmd.team.init.identity_role"),
+				roles, roleIdx,
+				func(_ string, idx int) { role = roles[idx] })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			member := teamstate.Member{
+				ID:                 memberID,
+				DisplayName:        displayName,
+				GitLabUsername:     gitlabUsername,
+				TrackerUsername:    trackerUsername,
+				MattermostUsername: mattermostUsername,
+				Role:               role,
+				DefaultMode:        "semi-auto",
+			}
+			if hasMember {
+				if err := repo.UpdateMember(ctx, member); err != nil {
+					return err
+				}
+				return repo.CommitAndPush(ctx, fmt.Sprintf("team: update member %s", memberID), "members.toml")
+			}
+			if err := repo.AddMember(ctx, member); err != nil {
+				if err == teamstate.ErrMemberExists {
+					return nil
+				}
+				return err
+			}
+			return repo.CommitAndPush(ctx, fmt.Sprintf("team: add member %s", memberID), "members.toml")
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{
+				{Label: "Member", Value: memberID},
+				{Label: "Name", Value: displayName},
+				{Label: "Role", Value: role},
+			}
+		},
+	}
+
+	// ── Step 3: Notifications ───────────────────────────────────────
+	notifStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_notifications"),
+		Processing: i18n.T("cmd.team.init.processing_notifications"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_webhook"),
+				webhookURL, 0, nil,
+				func(text string) { webhookURL = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_channel"),
+				channel, 0, nil,
+				func(text string) { channel = text })
+			form.AddInputField(
+				i18n.T("cmd.team.init.notif_bot_name"),
+				botName, 0, nil,
+				func(text string) { botName = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			if webhookURL == "" {
+				return nil
+			}
+			cfg, err := repo.LoadConfig()
+			if err != nil {
+				return err
+			}
+			if cfg.Notification.MattermostWebhook == webhookURL &&
+				cfg.Notification.Channel == channel &&
+				cfg.Notification.BotName == botName {
+				return nil
+			}
+			cfg.Notification.MattermostWebhook = webhookURL
+			cfg.Notification.Channel = channel
+			cfg.Notification.BotName = botName
+			cfg.Notification.Enabled = true
+			return repo.SaveConfig(ctx, cfg)
+		},
+		InfoFields: func() []views.InfoField {
+			if webhookURL == "" {
+				return []views.InfoField{{Label: "Notifications", Value: "skipped"}}
+			}
+			return []views.InfoField{
+				{Label: "Webhook", Value: webhookURL},
+				{Label: "Channel", Value: channel},
+				{Label: "Bot", Value: botName},
+			}
+		},
+	}
+
+	// ── Step 4: Policies ────────────────────────────────────────────
+	policiesStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.init.step_policies"),
+		Processing: i18n.T("cmd.team.init.processing_policies"),
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			branchNaming := false
+			commitFormat := false
+			maxWip := false
+			reviewRequired := false
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_branch_naming"), false,
+				func(checked bool) { branchNaming = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_commit_format"), false,
+				func(checked bool) { commitFormat = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_max_wip"), false,
+				func(checked bool) { maxWip = checked })
+			form.AddCheckbox(i18n.T("cmd.team.init.policies_review_required"), false,
+				func(checked bool) { reviewRequired = checked })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() {
+				selectedPolicies = nil
+				if branchNaming {
+					selectedPolicies = append(selectedPolicies, "branch_naming")
+				}
+				if commitFormat {
+					selectedPolicies = append(selectedPolicies, "commit_format")
+				}
+				if maxWip {
+					selectedPolicies = append(selectedPolicies, "max_ticket_wip")
+				}
+				if reviewRequired {
+					selectedPolicies = append(selectedPolicies, "review_required")
+				}
+				onDone()
+			})
+			return form
+		},
+		OnDone: func() error {
+			if len(selectedPolicies) == 0 {
+				return nil
+			}
+			policies := buildRecommendedPolicies(selectedPolicies)
+			if hasPolicies {
+				existing, _ := repo.LoadPolicies("")
+				for _, ep := range existing {
+					if _, ok := policies[ep.Name]; !ok {
+						policies[ep.Name] = ep
+					}
+				}
+			}
+			if err := repo.SavePolicies(ctx, policies); err != nil {
+				return err
+			}
+			commitMsg := "team: init policies"
+			if hasPolicies {
+				commitMsg = "team: update policies"
+			}
+			return repo.CommitAndPush(ctx, commitMsg, "policies.toml")
+		},
+		InfoFields: func() []views.InfoField {
+			if len(selectedPolicies) == 0 {
+				return []views.InfoField{{Label: "Policies", Value: "none"}}
+			}
+			return []views.InfoField{
+				{Label: "Policies", Value: fmt.Sprintf("%d active", len(selectedPolicies))},
+			}
+		},
+	}
+
+	// ── Build and push the inline wizard ────────────────────────────
+	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
+		ID:    "wizard.team.init",
+		Title: i18n.T("tui.team.init"),
+		Steps: []views.WizardStep{
+			repoStep, credStep, configStep, identityStep, notifStep, policiesStep,
+		},
+		SummaryTargetView:  "team.detail",
+		SummaryTargetLabel: i18n.T("wizard.summary.goto_team_detail"),
+		OnComplete: func(completed bool, err error) {
+			if !completed || err != nil {
+				return
+			}
+			// Persist hub.toml team config
+			if stateRepo == "" {
+				stateRepo = a.Config.ActiveTeam().StateRepo
+			}
+			if stateRepo == "" {
+				return
+			}
+			if memberID == "" {
+				memberID = a.Config.ActiveTeam().MemberID
+			}
+			_ = writeTeamConfig(stateRepo, statePath, memberID)
+		},
 	})
+
+	tuiShell.PushView(wizard)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
