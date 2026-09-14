@@ -101,19 +101,135 @@ func TestComputeDiff_WithSkills(t *testing.T) {
 	hubDir := t.TempDir()
 	projectDir := t.TempDir()
 
-	// Hub skills with subdirectory
+	// Hub agent referencing a skill
+	agentsDir := filepath.Join(hubDir, "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
+	agentContent := "---\nnative_skills:\n  - frontend/react-patterns\n---\n# Dev Agent"
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte(agentContent), 0o644))
+
+	// Hub skill (category/name.md structure)
 	skillsDir := filepath.Join(hubDir, "skills", "frontend")
 	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte("# Frontend Skill"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "react-patterns.md"), []byte("# React Patterns"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, nil)
+	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"})
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
+	// 1 agent added + 1 skill added
 	added, _, _, _ := report.Summary()
-	assert.Equal(t, 1, added)
-	// Verify path includes skills prefix
-	assert.Contains(t, report.Files[0].RelPath, "skills/")
+	assert.Equal(t, 2, added)
+	// Verify skill path uses deployed format
+	var skillFound bool
+	for _, f := range report.Files {
+		if f.RelPath == filepath.Join("skills", "react-patterns", "SKILL.md") {
+			skillFound = true
+			assert.Equal(t, FileAdded, f.Status)
+		}
+	}
+	assert.True(t, skillFound, "skill diff should use deployed path format")
+}
+
+func TestComputeDiff_SkillsUnchangedAfterDeploy(t *testing.T) {
+	hubDir := t.TempDir()
+	projectDir := t.TempDir()
+	skillContent := []byte("# Coding Standards")
+
+	// Hub: agent referencing a skill (minimal frontmatter)
+	agentsDir := filepath.Join(hubDir, "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
+	agentContent := []byte("---\nnative_skills:\n  - shared/coding\n---\n# Dev")
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), agentContent, 0o644))
+
+	// Hub: skill source
+	require.NoError(t, os.MkdirAll(filepath.Join(hubDir, "skills", "shared"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(hubDir, "skills", "shared", "coding.md"), skillContent, 0o644))
+
+	// Deployed skill: .opencode/skills/coding/SKILL.md (same content as hub source)
+	deployedSkill := filepath.Join(projectDir, ".opencode", "skills", "coding")
+	require.NoError(t, os.MkdirAll(deployedSkill, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(deployedSkill, "SKILL.md"), skillContent, 0o644))
+
+	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"})
+	require.NoError(t, err)
+
+	// Count only skill diffs (ignore agents which may differ due to assembly)
+	var skillAdded, skillRemoved, skillModified, skillUnchanged int
+	for _, f := range report.Files {
+		if filepath.Dir(filepath.Dir(f.RelPath)) == "skills" || filepath.Dir(f.RelPath) == "skills" {
+			switch f.Status {
+			case FileAdded:
+				skillAdded++
+			case FileRemoved:
+				skillRemoved++
+			case FileModified:
+				skillModified++
+			case FileUnchanged:
+				skillUnchanged++
+			}
+		}
+	}
+	assert.Equal(t, 0, skillAdded, "no skill additions expected")
+	assert.Equal(t, 0, skillRemoved, "no skill removals expected")
+	assert.Equal(t, 0, skillModified, "no skill modifications expected")
+	assert.Equal(t, 1, skillUnchanged, "skill should be unchanged")
+}
+
+func TestComputeDiff_SkillsModified(t *testing.T) {
+	hubDir := t.TempDir()
+	projectDir := t.TempDir()
+
+	// Hub: agent + skill
+	agentsDir := filepath.Join(hubDir, "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
+	agentContent := []byte("---\nnative_skills:\n  - developer/security\n---\n# Dev")
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), agentContent, 0o644))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(hubDir, "skills", "developer"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(hubDir, "skills", "developer", "security.md"), []byte("# Security v2"), 0o644))
+
+	// Deployed: old version of skill
+	deployedSkill := filepath.Join(projectDir, ".opencode", "skills", "security")
+	require.NoError(t, os.MkdirAll(deployedSkill, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(deployedSkill, "SKILL.md"), []byte("# Security v1"), 0o644))
+
+	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"})
+	require.NoError(t, err)
+
+	// Count only skill diffs
+	var skillModified int
+	for _, f := range report.Files {
+		if filepath.Dir(filepath.Dir(f.RelPath)) == "skills" || filepath.Dir(f.RelPath) == "skills" {
+			if f.Status == FileModified {
+				skillModified++
+			}
+		}
+	}
+	assert.Equal(t, 1, skillModified, "skill should be modified")
+}
+
+func TestComputeDiff_UnreferencedSkillsIgnored(t *testing.T) {
+	hubDir := t.TempDir()
+	projectDir := t.TempDir()
+
+	// Hub: agent with NO native_skills
+	agentsDir := filepath.Join(hubDir, "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte("# Dev Agent"), 0o644))
+
+	// Hub: 3 skills that are NOT referenced by any agent
+	for _, cat := range []string{"shared", "developer", "reviewer"} {
+		dir := filepath.Join(hubDir, "skills", cat)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "unused.md"), []byte("# Unused"), 0o644))
+	}
+
+	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"})
+	require.NoError(t, err)
+
+	// Only the agent should appear as added, skills should be ignored
+	added, _, _, _ := report.Summary()
+	assert.Equal(t, 1, added, "only agent should be added, unreferenced skills ignored")
 }
 
 func TestComputeDiff_MixedScenario(t *testing.T) {

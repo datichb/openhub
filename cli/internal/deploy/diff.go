@@ -122,15 +122,13 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string) (*DiffRepo
 		return nil, fmt.Errorf("diff agents: %w", err)
 	}
 
-	// Compare skills (all — native skills are filtered at deploy time)
-	if err := diffDirectory(
-		filepath.Join(hubDir, "skills"),
-		filepath.Join(projectPath, ".opencode", "skills"),
-		"skills",
+	// Compare skills — resolve the same skill refs as DeploySkills to avoid phantom diffs.
+	// Skills have a path transformation: hub "skills/<category>/<name>.md" → deployed ".opencode/skills/<name>/SKILL.md".
+	if err := diffSkills(
+		hubDir,
+		projectPath,
+		selectedAgents,
 		report,
-		nil,   // no filtering for skills
-		nil,   // default hash function (raw file hash)
-		false, // skills preserve directory structure
 	); err != nil {
 		return nil, fmt.Errorf("diff skills: %w", err)
 	}
@@ -254,6 +252,100 @@ func formatConfigChanges(changes []configChange) string {
 		}
 	}
 	return sb.String()
+}
+
+// diffSkills compares the set of native skills that should be deployed (as
+// resolved by ResolveNativeSkillRefs) against the skills actually present in
+// the project's .opencode/skills/ directory.
+//
+// It handles the path transformation between hub and deployed structures:
+//   - Hub:      skills/<category>/<name>.md       (e.g., "developer/dev-standards-security.md")
+//   - Deployed: .opencode/skills/<name>/SKILL.md  (e.g., "dev-standards-security/SKILL.md")
+//
+// The comparison key is the skill name (last component of the ref).
+func diffSkills(hubDir, projectPath string, selectedAgents []string, report *DiffReport) error {
+	skillsDir := filepath.Join(hubDir, "skills")
+	agentsDir := filepath.Join(hubDir, "agents")
+	destDir := filepath.Join(projectPath, ".opencode", "skills")
+
+	// Resolve which skills should be deployed (same logic as DeploySkills)
+	nativeSkillRefs := ResolveNativeSkillRefs(agentsDir, selectedAgents, projectPath)
+
+	// Build source hash map: skill name → hash of hub source file
+	srcHashes := make(map[string]string) // key = skill name (e.g., "dev-standards-security")
+	for ref := range nativeSkillRefs {
+		srcPath := filepath.Join(skillsDir, ref+".md")
+		hash, err := fileHash(srcPath)
+		if err != nil {
+			continue // skip missing source skills (non-fatal)
+		}
+		// Extract skill name from ref (last component)
+		parts := strings.Split(ref, "/")
+		skillName := parts[len(parts)-1]
+		srcHashes[skillName] = hash
+	}
+
+	// Build destination hash map: skill name → hash of deployed SKILL.md
+	destHashes := make(map[string]string)
+	if _, err := os.Stat(destDir); err == nil {
+		entries, err := os.ReadDir(destDir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			skillFile := filepath.Join(destDir, entry.Name(), "SKILL.md")
+			hash, err := fileHash(skillFile)
+			if err != nil {
+				continue // skip dirs without SKILL.md
+			}
+			destHashes[entry.Name()] = hash
+		}
+	}
+
+	// Compare: skills in source
+	for name, srcHash := range srcHashes {
+		displayPath := filepath.Join("skills", name, "SKILL.md")
+		destHash, exists := destHashes[name]
+		switch {
+		case !exists:
+			report.Files = append(report.Files, FileDiff{
+				RelPath:    displayPath,
+				Status:     FileAdded,
+				SourceHash: srcHash,
+			})
+		case srcHash != destHash:
+			report.Files = append(report.Files, FileDiff{
+				RelPath:    displayPath,
+				Status:     FileModified,
+				SourceHash: srcHash,
+				DestHash:   destHash,
+			})
+		default:
+			report.Files = append(report.Files, FileDiff{
+				RelPath:    displayPath,
+				Status:     FileUnchanged,
+				SourceHash: srcHash,
+				DestHash:   destHash,
+			})
+		}
+	}
+
+	// Compare: skills only in destination (removed from source / custom skills)
+	for name, destHash := range destHashes {
+		if _, exists := srcHashes[name]; !exists {
+			displayPath := filepath.Join("skills", name, "SKILL.md")
+			report.Files = append(report.Files, FileDiff{
+				RelPath:  displayPath,
+				Status:   FileRemoved,
+				DestHash: destHash,
+			})
+		}
+	}
+
+	return nil
 }
 
 // diffDirectory compares all files between source and destination directories.

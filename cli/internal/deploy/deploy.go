@@ -253,37 +253,8 @@ func DeploySkills(hubDir string, selected []string) Phase {
 				return err
 			}
 
-			// Build allow set for agent filtering
-			allowSet := make(map[string]bool, len(selected))
-			for _, a := range selected {
-				allowSet[a] = true
-			}
-
-			// Collect all native_skills from selected agents
-			nativeSkillRefs := make(map[string]bool)
-			_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
-				if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
-					return err
-				}
-				name := strings.TrimSuffix(d.Name(), ".md")
-				if len(allowSet) > 0 && !allowSet[name] {
-					return nil
-				}
-				fm, err := ParseAgentFrontmatter(path)
-				if err != nil {
-					return nil //nolint:nilerr // intentional: skip unparseable agents
-				}
-				for _, ref := range fm.NativeSkills {
-					nativeSkillRefs[ref] = true
-				}
-				return nil
-			})
-
-			// Add stack-detected skills (based on project tech stack)
-			stackSkills := ResolveStackSkills(ctx.Plan.ProjectPath)
-			for _, ref := range stackSkills {
-				nativeSkillRefs[ref] = true
-			}
+			// Resolve which skills should be deployed
+			nativeSkillRefs := ResolveNativeSkillRefs(agentsDir, selected, ctx.Plan.ProjectPath)
 
 			// Deploy each referenced native skill in opencode format: <name>/SKILL.md
 			for ref := range nativeSkillRefs {
@@ -306,6 +277,50 @@ func DeploySkills(hubDir string, selected []string) Phase {
 			return nil
 		},
 	}
+}
+
+// ResolveNativeSkillRefs collects all native skill references that should be
+// deployed for the given set of selected agents. It parses native_skills from
+// agent frontmatter and adds stack-detected skills based on the project path.
+// This function is shared between DeploySkills and ComputeDiff to ensure the
+// same set of skills is considered in both paths.
+func ResolveNativeSkillRefs(agentsDir string, selectedAgents []string, projectPath string) map[string]bool {
+	allowSet := make(map[string]bool, len(selectedAgents))
+	for _, a := range selectedAgents {
+		allowSet[a] = true
+	}
+
+	nativeSkillRefs := make(map[string]bool)
+
+	if _, err := os.Stat(agentsDir); err == nil {
+		_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
+				return err
+			}
+			name := strings.TrimSuffix(d.Name(), ".md")
+			if len(allowSet) > 0 && !allowSet[name] {
+				return nil
+			}
+			fm, err := ParseAgentFrontmatter(path)
+			if err != nil {
+				return nil //nolint:nilerr // intentional: skip unparseable agents
+			}
+			for _, ref := range fm.NativeSkills {
+				nativeSkillRefs[ref] = true
+			}
+			return nil
+		})
+	}
+
+	// Add stack-detected skills (based on project tech stack)
+	if projectPath != "" {
+		stackSkills := ResolveStackSkills(projectPath)
+		for _, ref := range stackSkills {
+			nativeSkillRefs[ref] = true
+		}
+	}
+
+	return nativeSkillRefs
 }
 
 // DeployConfig writes or updates opencode.json with provider/model settings.
