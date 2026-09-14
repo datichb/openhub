@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/deploy"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -87,6 +88,13 @@ func actionDeploy() {
 								} else {
 									tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
 									notifyDeployComplete()
+									// Informational toast for optional MCP integrations
+									if mcpInfo := collectMissingMCPInfo(a, project); mcpInfo != "" {
+										tuiShell.ShowToast(
+											i18n.T("cmd.deploy.mcp_optional_toast"),
+											shell.ToastInfo,
+										)
+									}
 								}
 							})
 						}()

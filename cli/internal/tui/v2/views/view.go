@@ -224,4 +224,8 @@ type DeployDiffResult struct {
 	ChangeCount int
 	// Summary is a human-readable one-line summary (e.g. "3 ajouté(s), 1 modifié(s)").
 	Summary string
+	// MissingMCPInfo is an optional short summary of MCP integrations not enabled.
+	// Empty when all agent MCP requirements are satisfied.
+	// Example: "2 MCP optionnels (designer, planner)"
+	MissingMCPInfo string
 }

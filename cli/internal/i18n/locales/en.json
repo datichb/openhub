@@ -60,6 +60,8 @@
   "cmd.deploy.diff_title": "Change preview for %s",
   "cmd.deploy.done": "Deployment completed in %s",
   "cmd.deploy.failed": "Deployment failed (rolled back)",
+  "cmd.deploy.mcp_optional_intro": "Some agents have optional MCP integrations not enabled. They work fine without them, but enabling these services enriches their capabilities:",
+  "cmd.deploy.mcp_optional_toast": "Some agents have optional MCP integrations not enabled",
   "cmd.deploy.flags.check": "Check if agents/skills have changed since last deploy",
   "cmd.deploy.flags.diff": "Show changes without applying them",
   "cmd.deploy.flags.model": "Model to configure",

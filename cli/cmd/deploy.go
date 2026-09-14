@@ -94,6 +94,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	results, err := deploy.Execute(plan)
 
 	// Display results
+	var allMissing []deploy.MissingMCPIntegration
 	for _, r := range results {
 		icon := theme.SuccessStyle.Render(theme.IconSuccess)
 		if !r.Success {
@@ -103,9 +104,24 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		if !r.Success {
 			fmt.Fprintf(a.IO.Out, "    %s\n", theme.ErrorStyle.Render(r.Message))
 		}
+		if len(r.MissingIntegrations) > 0 {
+			allMissing = append(allMissing, r.MissingIntegrations...)
+		}
 	}
 
 	fmt.Fprintln(a.IO.Out)
+
+	// Display optional MCP integrations summary
+	if len(allMissing) > 0 {
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			theme.InfoStyle.Render("ℹ"),
+			i18n.T("cmd.deploy.mcp_optional_intro"))
+		for _, m := range allMissing {
+			fmt.Fprintf(a.IO.Out, "    · %s — %s\n", m.AgentID, m.Description)
+		}
+		fmt.Fprintln(a.IO.Out)
+	}
+
 	if err != nil {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.ErrorStyle.Render(theme.IconError), i18n.T("cmd.deploy.failed"))

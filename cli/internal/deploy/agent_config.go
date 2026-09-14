@@ -58,6 +58,8 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 				allowSet[a] = true
 			}
 
+			var missingIntegrations []MissingMCPIntegration
+
 			// Walk agents directory and build config for each selected agent
 			err := filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
@@ -91,10 +93,11 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 					return nil
 				}
 
-				// Validate MCP server requirements
-				if len(fm.MCPServers) > 0 && len(ctx.Plan.EnabledMCPServers) > 0 {
-					validateAgentMCPServers(fm.ID, fm.MCPServers, ctx.Plan.EnabledMCPServers)
-				}
+			// Collect missing MCP integrations (informational, not blocking)
+			if len(fm.MCPServers) > 0 && len(ctx.Plan.EnabledMCPServers) > 0 {
+				missing := CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, ctx.Plan.EnabledMCPServers)
+				missingIntegrations = append(missingIntegrations, missing...)
+			}
 
 				// Derive family from relative path
 				rel, _ := filepath.Rel(srcDir, path)
@@ -143,6 +146,10 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 			if err := os.WriteFile(tmpFile, data, 0o644); err != nil {
 				return err
 			}
+
+			// Store missing MCP integrations for the deploy summary
+			ctx.MissingMCPIntegrations = missingIntegrations
+
 			return os.Rename(tmpFile, configPath)
 		},
 	}
@@ -213,21 +220,24 @@ func convertPermissionForJSON(perm map[string]interface{}) map[string]interface{
 	return result
 }
 
-// validateAgentMCPServers checks if all MCP servers required by an agent are enabled.
-// Emits slog warnings for each missing server — does not fail the deploy.
-func validateAgentMCPServers(agentID string, required, enabled []string) {
+// CollectMissingMCPIntegrations returns a list of MCP servers that an agent
+// declares in its frontmatter but that are not currently enabled.
+// This replaces the former validateAgentMCPServers which emitted slog.Warn.
+func CollectMissingMCPIntegrations(agentID string, required, enabled []string) []MissingMCPIntegration {
 	enabledSet := make(map[string]bool, len(enabled))
 	for _, s := range enabled {
 		enabledSet[s] = true
 	}
 
+	var missing []MissingMCPIntegration
 	for _, req := range required {
 		if !enabledSet[req] {
-			slog.Warn("agent requires MCP server that is not enabled",
-				"agent", agentID,
-				"server", req,
-				"hint", fmt.Sprintf("enable with: oh config set mcp.%s.enabled true", req),
-			)
+			missing = append(missing, MissingMCPIntegration{
+				AgentID:     agentID,
+				ServerName:  req,
+				Description: describeMCPIntegration(agentID, req),
+			})
 		}
 	}
+	return missing
 }

@@ -336,6 +336,7 @@ func (v *ProjectModeView) renderHeader() {
 func (v *ProjectModeView) buildDeployBadge() string {
 	success := theme.ColorTag(theme.SuccessHex)
 	warning := theme.ColorTag(theme.WarningHex)
+	info := theme.ColorTag(theme.InfoHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
@@ -348,11 +349,15 @@ func (v *ProjectModeView) buildDeployBadge() string {
 
 	// If async diff is available, use it for precise status
 	if v.deployDiff != nil {
-		if v.deployDiff.HasChanges {
-			return fmt.Sprintf("%s○ %d changement(s) en attente%s  %s· Déployé %s%s",
-				warning, v.deployDiff.ChangeCount, reset, muted, ageStr, reset)
+		mcpSuffix := ""
+		if v.deployDiff.MissingMCPInfo != "" {
+			mcpSuffix = fmt.Sprintf("  %sℹ %s%s", info, v.deployDiff.MissingMCPInfo, reset)
 		}
-		return fmt.Sprintf("%s● À jour%s  %s· Déployé %s%s", success, reset, muted, ageStr, reset)
+		if v.deployDiff.HasChanges {
+			return fmt.Sprintf("%s○ %d changement(s) en attente%s  %s· Déployé %s%s%s",
+				warning, v.deployDiff.ChangeCount, reset, muted, ageStr, reset, mcpSuffix)
+		}
+		return fmt.Sprintf("%s● À jour%s  %s· Déployé %s%s%s", success, reset, muted, ageStr, reset, mcpSuffix)
 	}
 
 	// Diff not yet computed — show timestamp only

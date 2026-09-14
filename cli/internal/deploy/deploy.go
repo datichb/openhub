@@ -41,10 +41,11 @@ type Phase struct {
 
 // Context holds state during deployment.
 type Context struct {
-	Plan      *Plan
-	BackupDir string
-	Results   []PhaseResult
-	StartedAt time.Time
+	Plan                   *Plan
+	BackupDir              string
+	Results                []PhaseResult
+	StartedAt              time.Time
+	MissingMCPIntegrations []MissingMCPIntegration // populated by DeployAgentConfig
 }
 
 // PhaseResult holds the outcome of a phase.
@@ -53,6 +54,19 @@ type PhaseResult struct {
 	Success  bool
 	Message  string
 	Duration time.Duration
+	// MissingIntegrations lists optional MCP integrations that agents declare
+	// but that are not enabled. Populated only by the AgentConfig phase.
+	// nil for all other phases.
+	MissingIntegrations []MissingMCPIntegration
+}
+
+// MissingMCPIntegration describes an agent that declares an MCP server
+// dependency which is not currently enabled. This is informational —
+// agents work without these servers, but enabling them enriches capabilities.
+type MissingMCPIntegration struct {
+	AgentID     string // e.g. "designer"
+	ServerName  string // e.g. "figma"
+	Description string // e.g. "accès aux designs et composants via Figma"
 }
 
 // Snapshot holds the backup state for rollback.
@@ -81,10 +95,13 @@ func Execute(plan *Plan) ([]PhaseResult, error) {
 		start := time.Now()
 		err := phase.Execute(ctx)
 		result := PhaseResult{
-			Name:     phase.Name,
-			Success:  err == nil,
-			Duration: time.Since(start),
+			Name:                phase.Name,
+			Success:             err == nil,
+			Duration:            time.Since(start),
+			MissingIntegrations: ctx.MissingMCPIntegrations, // may be nil for non-AgentConfig phases
 		}
+		// Reset after capturing — only one phase should produce these
+		ctx.MissingMCPIntegrations = nil
 		if err != nil {
 			result.Message = err.Error()
 			ctx.Results = append(ctx.Results, result)

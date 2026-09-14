@@ -3,8 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -220,10 +223,15 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			added, modified, removed, _ := report.Summary()
 			changeCount := added + modified + removed
 			summary := fmt.Sprintf("%d ajouté(s), %d modifié(s), %d supprimé(s)", added, modified, removed)
+
+			// Check for optional MCP integrations not enabled
+			mcpInfo := collectMissingMCPInfo(a, project)
+
 			return &views.DeployDiffResult{
-				HasChanges:  report.HasChanges(),
-				ChangeCount: changeCount,
-				Summary:     summary,
+				HasChanges:     report.HasChanges(),
+				ChangeCount:    changeCount,
+				Summary:        summary,
+				MissingMCPInfo: mcpInfo,
 			}, nil
 		},
 	})
@@ -998,4 +1006,61 @@ func hubMCPServerConfig(cfg *config.Config, service string) config.MCPServerConf
 	default:
 		return config.MCPServerConfig{}
 	}
+}
+
+// collectMissingMCPInfo builds a short human-readable summary of agent MCP
+// integrations that are not enabled. Returns "" if all integrations are satisfied.
+func collectMissingMCPInfo(a *app.App, project *domain.Project) string {
+	hubDir := findHubDir()
+	if hubDir == "" {
+		return ""
+	}
+	agentsDir := filepath.Join(hubDir, "agents")
+
+	// Resolve which MCP servers are enabled
+	mcpServers := buildMCPServersForProject(a, project.MCPConfig, resolvedTeamConfig(a, project))
+	var enabled []string
+	for _, s := range mcpServers {
+		if s.Enabled {
+			enabled = append(enabled, s.Name)
+		}
+	}
+	if len(enabled) == 0 {
+		return "" // no MCP servers at all — skip the check
+	}
+
+	// Walk agents and collect missing integrations
+	allowSet := make(map[string]bool, len(project.Agents))
+	for _, ag := range project.Agents {
+		allowSet[ag] = true
+	}
+
+	var agents []string
+	seen := make(map[string]bool)
+	_ = filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || filepath.Ext(path) != ".md" {
+			return err
+		}
+		name := strings.TrimSuffix(d.Name(), ".md")
+		if len(allowSet) > 0 && !allowSet[name] {
+			return nil
+		}
+		fm, err := deploy.ParseAgentFrontmatter(path)
+		if err != nil || len(fm.MCPServers) == 0 {
+			return nil
+		}
+		missing := deploy.CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, enabled)
+		for _, m := range missing {
+			if !seen[m.AgentID] {
+				seen[m.AgentID] = true
+				agents = append(agents, m.AgentID)
+			}
+		}
+		return nil
+	})
+
+	if len(agents) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d MCP optionnel(s) (%s)", len(agents), strings.Join(agents, ", "))
 }

@@ -60,6 +60,8 @@
   "cmd.deploy.diff_title": "Preview des changements pour %s",
   "cmd.deploy.done": "Déploiement terminé en %s",
   "cmd.deploy.failed": "Déploiement échoué (rollback effectué)",
+  "cmd.deploy.mcp_optional_intro": "Certains agents disposent d'intégrations MCP non activées. Leur fonctionnement n'est pas affecté, mais activer ces services enrichit leurs capacités :",
+  "cmd.deploy.mcp_optional_toast": "Certains agents disposent d'intégrations MCP non activées",
   "cmd.deploy.flags.check": "Vérifie si les agents/skills ont changé depuis le dernier deploy",
   "cmd.deploy.flags.diff": "Affiche les changements sans les appliquer",
   "cmd.deploy.flags.model": "Modèle à configurer",
