@@ -55,7 +55,7 @@ func actionDeploy() {
 		default:
 		}
 
-		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents)
+		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)
@@ -195,7 +195,7 @@ func actionViewDiff(projectPath string) {
 		default:
 		}
 
-		report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents)
+		report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)

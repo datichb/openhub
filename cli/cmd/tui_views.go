@@ -213,7 +213,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err != nil {
 				return nil, err
 			}
-			report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents)
+			report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 			if err != nil {
 				return nil, err
 			}

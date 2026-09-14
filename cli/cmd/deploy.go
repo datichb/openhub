@@ -126,7 +126,7 @@ func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selecte
 		theme.Title.Render("oh deploy --check"), i18n.Tf("cmd.deploy.check_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
+	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}
@@ -169,7 +169,7 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 		theme.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents)
+	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}
@@ -435,4 +435,49 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 			deploy.DeployTeamConfig(deployedTeam),
 		},
 	}
+}
+
+// resolveWorkflowGeneratedSkills resolves the workflow cascade (base → hub → team → project)
+// and returns the map of generated skill refs → content. This is used by ComputeDiff to
+// produce an accurate skill comparison that accounts for workflow-generated skills.
+// Returns nil (not an error) if the workflow cannot be resolved — the diff will then
+// treat generated skills as phantom changes, which is acceptable as a graceful fallback.
+func resolveWorkflowGeneratedSkills(a *app.App, project *domain.Project) map[string]string {
+	var overrides []workflow.WorkflowOverride
+
+	// Hub overrides
+	if a.Config.Workflow != nil && a.Config.Workflow.Overrides != nil {
+		overrides = append(overrides, *a.Config.Workflow.Overrides)
+	}
+
+	// Team overrides
+	at := a.Config.ActiveTeam()
+	if at.StateRepo != "" && at.StatePath != "" {
+		teamRepo := teamstate.NewRepo(at.StateRepo, at.StatePath)
+		if teamRepo.IsCloned() {
+			teamCfg, err := teamRepo.LoadConfig()
+			if err == nil && teamCfg.Workflow != nil && teamCfg.Workflow.Overrides != nil {
+				ov := *teamCfg.Workflow.Overrides
+				if teamCfg.Workflow.IsEnforced() {
+					ov.Enforced = true
+				}
+				overrides = append(overrides, ov)
+			}
+		}
+	}
+
+	// Project overrides
+	if project != nil && project.WorkflowConfig != nil && project.WorkflowConfig.Overrides != nil {
+		overrides = append(overrides, *project.WorkflowConfig.Overrides)
+	}
+
+	wfResult, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow(), overrides...)
+	if err != nil {
+		// Fallback: base workflow only
+		wfResult, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
+	}
+	if wfResult == nil {
+		return nil
+	}
+	return wfResult.GeneratedSkills
 }

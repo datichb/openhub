@@ -53,7 +53,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 	}
 
 	// CASE 2: Already deployed — check staleness
-	report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents)
+	report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 	if err != nil || !report.HasChanges() {
 		// CASE 3: Up to date (or diff error — conservative, no redeploy)
 		fmt.Fprintf(out, "  %s %s\n",
