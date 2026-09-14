@@ -332,6 +332,11 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardColumnDef) {
+	// Defense-in-depth: if Unmount ran between the caller's check and this call,
+	// bail out to avoid index-out-of-range on v.columnCards.
+	if v.columnCards == nil {
+		return
+	}
 	v.allTickets = tickets
 
 	// Rebuild project tabs from latest ticket data
@@ -653,11 +658,20 @@ func (v *TeamBoardView) refreshLoop(rate time.Duration, columns []BoardColumnDef
 // Do NOT call from inside a QueueUpdateDraw callback — use refreshOnEventLoop instead.
 // Skips the refresh if an action is in progress to avoid overwriting fresh post-action data.
 func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
-	if v.cfg.RefreshFunc == nil || v.app == nil || v.actionInProgress {
+	// Capture app locally before the blocking RefreshFunc call.
+	// Unmount() may set v.app = nil while RefreshFunc is running.
+	// Using a local copy guarantees we never call nil.QueueUpdateDraw.
+	app := v.app
+	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil || v.actionInProgress {
 		return
 	}
 	tickets := v.cfg.RefreshFunc()
-	v.app.QueueUpdateDraw(func() {
+	app.QueueUpdateDraw(func() {
+		// Re-check inside the queued func — Unmount may have run between
+		// RefreshFunc() completing and the draw cycle executing this closure.
+		if v.columnCards == nil {
+			return
+		}
 		v.populateColumns(tickets, columns)
 	})
 }
@@ -1156,7 +1170,7 @@ func (v *TeamBoardView) clearFilters() {
 
 // repopulateWithFilters re-renders the board with current filters applied.
 func (v *TeamBoardView) repopulateWithFilters() {
-	if len(v.allTickets) == 0 {
+	if v.columnCards == nil || len(v.allTickets) == 0 {
 		return
 	}
 	columns := DefaultColumns()
