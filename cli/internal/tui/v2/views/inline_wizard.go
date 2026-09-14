@@ -479,6 +479,10 @@ func (w *InlineWizardView) renderStep(idx int) {
 			form.SetButtonTextColor(theme.BgPanel)
 			form.SetBorder(false)
 
+			// Fix DropDown popup list colors (tview bakes them at construction
+			// time from tview.Styles, which produces invisible text in our theme).
+			fixFormDropDownStyles(form)
+
 			// Esc handling: Required steps block skip; optional use double-Esc
 			form.SetCancelFunc(func() {
 				if step.Required {
@@ -709,4 +713,31 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 		return event
 	}
 	return event
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DropDown style fix
+// ─────────────────────────────────────────────────────────────────────────────
+
+// fixFormDropDownStyles iterates over all form items and applies the correct
+// list popup styles to any DropDown. This is needed because tview.DropDown
+// bakes the popup list colors from tview.Styles at construction time, and
+// our shell theme produces invisible text (same color as background).
+// See ADR-034 for the full analysis.
+func fixFormDropDownStyles(form *tview.Form) {
+	if form == nil {
+		return
+	}
+	unselected := tcell.StyleDefault.
+		Background(theme.BgElement).
+		Foreground(theme.FgPrimary)
+	selected := tcell.StyleDefault.
+		Background(theme.Accent).
+		Foreground(theme.BgPanel)
+
+	for i := 0; i < form.GetFormItemCount(); i++ {
+		if dd, ok := form.GetFormItem(i).(*tview.DropDown); ok {
+			dd.SetListStyles(unselected, selected)
+		}
+	}
 }
