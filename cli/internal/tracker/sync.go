@@ -39,6 +39,7 @@ type ProjectSyncResult struct {
 	ClaimsUpdated  int
 	LabelsPushed   int
 	Duration       time.Duration
+	Warnings       []string
 }
 
 // SyncWarning is a non-fatal condition worth surfacing (e.g. reassignment).
@@ -367,6 +368,7 @@ func (e *Engine) reconcileProject(
 		truncDesc := TruncateDescription(issue.Description)
 		if err := e.repo.UpdateClaimMetadata(ctx, hubProjectID, c.TicketID, issue.Title, truncDesc, issue.StatusName); err != nil {
 			slog.Warn("tracker.reconcile.metadata_failed", "ticket", c.TicketID, "error", err)
+			pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: metadata update failed: %v", c.TicketID, err))
 		}
 
 		// Status sync: use configurable mapping.
@@ -377,6 +379,7 @@ func (e *Engine) reconcileProject(
 				pr.ClaimsUpdated++
 			} else {
 				slog.Warn("tracker.reconcile.status_failed", "ticket", c.TicketID, "error", err)
+				pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: status update failed: %v", c.TicketID, err))
 			}
 		}
 
@@ -386,6 +389,7 @@ func (e *Engine) reconcileProject(
 			if !hasLabel(c.Labels, l) {
 				if err := e.repo.AddClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
 					slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+					pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: add label %q failed: %v", c.TicketID, l, err))
 				}
 			}
 		}
@@ -395,6 +399,7 @@ func (e *Engine) reconcileProject(
 			if isTrackerMirroredLabel(l) && !trackerLabelSet[l] {
 				if err := e.repo.RemoveClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
 					slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+					pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: remove label %q failed: %v", c.TicketID, l, err))
 				}
 			}
 		}

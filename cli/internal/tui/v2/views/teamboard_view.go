@@ -1034,6 +1034,9 @@ func (v *TeamBoardView) transferTicket() {
 	if v.actions == nil || v.actions.OnTransfer == nil || v.actions.Members == nil || v.shell == nil {
 		return
 	}
+	if v.actionInProgress {
+		return
+	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
@@ -1043,6 +1046,7 @@ func (v *TeamBoardView) transferTicket() {
 		v.shell.ShowToastMsg("Aucun membre dans l'équipe", false)
 		return
 	}
+	v.actionInProgress = true
 	v.shell.ShowSelectModal("Transférer "+ticketID+" à", members, "", func(toMember string) {
 		go func() {
 			err := v.actions.OnTransfer(ticketID, toMember)
@@ -1050,6 +1054,7 @@ func (v *TeamBoardView) transferTicket() {
 				return
 			}
 			v.app.QueueUpdateDraw(func() {
+				v.actionInProgress = false
 				if err != nil {
 					v.shell.ShowToastMsg("Transfert échoué: "+err.Error(), false)
 				} else {
@@ -1067,6 +1072,9 @@ func (v *TeamBoardView) changeStatus() {
 	if v.actions == nil || v.actions.OnStatus == nil || v.shell == nil {
 		return
 	}
+	if v.actionInProgress {
+		return
+	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
@@ -1077,6 +1085,7 @@ func (v *TeamBoardView) changeStatus() {
 		statusOptions[i] = SelectOption{Label: col.Name, Value: col.Status}
 	}
 
+	v.actionInProgress = true
 	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
 		go func() {
 			err := v.actions.OnStatus(ticketID, newStatus)
@@ -1084,6 +1093,7 @@ func (v *TeamBoardView) changeStatus() {
 				return
 			}
 			v.app.QueueUpdateDraw(func() {
+				v.actionInProgress = false
 				if err != nil {
 					v.shell.ShowToastMsg("Changement échoué: "+err.Error(), false)
 				} else {
