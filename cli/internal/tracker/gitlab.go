@@ -92,20 +92,8 @@ func (c *gitLabClient) ListAssignedIssues(ctx context.Context, projectID string,
 	}
 	q.Set("per_page", strconv.Itoa(perPage))
 
-	path := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var raw []glIssue
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("gitlab: parsing issues list: %w", err)
-	}
-	issues := make([]IssueState, 0, len(raw))
-	for _, g := range raw {
-		issues = append(issues, g.toIssueState())
-	}
-	return issues, nil
+	basePath := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
+	return c.paginatedListIssues(ctx, basePath, opts.MaxResults)
 }
 
 func (c *gitLabClient) ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error) {
@@ -124,20 +112,28 @@ func (c *gitLabClient) ListUnassignedIssues(ctx context.Context, projectID strin
 	}
 	q.Set("per_page", strconv.Itoa(perPage))
 
-	path := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
+	basePath := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
+	return c.paginatedListIssues(ctx, basePath, opts.MaxResults)
+}
+
+func (c *gitLabClient) ListIssuesByLabels(ctx context.Context, projectID string, opts ListByLabelsOpts) ([]IssueState, error) {
+	q := url.Values{}
+	q.Set("state", "opened")
+	if len(opts.Labels) > 0 {
+		q.Set("labels", strings.Join(opts.Labels, ","))
 	}
-	var raw []glIssue
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("gitlab: parsing unassigned issues list: %w", err)
+	// No assignee filter — fetch all open issues with the given labels.
+	if !opts.UpdatedAfter.IsZero() {
+		q.Set("updated_after", opts.UpdatedAfter.UTC().Format(time.RFC3339))
 	}
-	issues := make([]IssueState, 0, len(raw))
-	for _, g := range raw {
-		issues = append(issues, g.toIssueState())
+	perPage := 20
+	if opts.MaxResults > 0 && opts.MaxResults < perPage {
+		perPage = opts.MaxResults
 	}
-	return issues, nil
+	q.Set("per_page", strconv.Itoa(perPage))
+
+	basePath := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
+	return c.paginatedListIssues(ctx, basePath, opts.MaxResults)
 }
 
 func (c *gitLabClient) AssignIssue(ctx context.Context, projectID string, iid int, username string) error {
@@ -272,13 +268,20 @@ func (c *gitLabClient) CreateIssue(ctx context.Context, opts CreateIssueOpts) (*
 	}, nil
 }
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 func (c *gitLabClient) do(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
+	data, _, err := c.doWithHeaders(ctx, method, path, body)
+	return data, err
+}
+
+// doWithHeaders is like do but also returns response headers.
+// Used by the pagination helper to read X-Next-Page.
+func (c *gitLabClient) doWithHeaders(ctx context.Context, method, path string, body io.Reader) ([]byte, http.Header, error) {
 	rawURL := strings.TrimRight(c.cfg.BaseURL, "/") + path
 	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
 	if err != nil {
-		return nil, fmt.Errorf("gitlab: building request: %w", err)
+		return nil, nil, fmt.Errorf("gitlab: building request: %w", err)
 	}
 	req.Header.Set("PRIVATE-TOKEN", c.cfg.Token)
 	if body != nil {
@@ -287,27 +290,76 @@ func (c *gitLabClient) do(ctx context.Context, method, path string, body io.Read
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("gitlab: request failed: %w", err)
+		return nil, nil, fmt.Errorf("gitlab: request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, ErrTokenInvalid
+		return nil, nil, ErrTokenInvalid
 	case http.StatusNotFound:
-		return nil, ErrIssueNotFound
+		return nil, nil, ErrIssueNotFound
 	case http.StatusTooManyRequests:
 		ra := parseRetryAfter(resp.Header.Get("Retry-After"))
-		return nil, &ErrRateLimited{RetryAfter: ra}
+		return nil, nil, &ErrRateLimited{RetryAfter: ra}
 	}
 	if resp.StatusCode >= 400 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, fmt.Errorf("gitlab: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return nil, nil, fmt.Errorf("gitlab: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
 	// Cap response size to prevent OOM on abnormally large payloads.
 	const maxResponseSize = 2 * 1024 * 1024 // 2 MB
-	return io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	return data, resp.Header, err
+}
+
+// paginatedListIssues fetches all pages of a GitLab issues list endpoint
+// until maxResults is reached or there are no more pages.
+// basePath must include the query string (e.g. "/api/v4/projects/.../issues?state=opened&...").
+func (c *gitLabClient) paginatedListIssues(ctx context.Context, basePath string, maxResults int) ([]IssueState, error) {
+	var all []IssueState
+	page := 1
+
+	for {
+		sep := "&"
+		if !strings.Contains(basePath, "?") {
+			sep = "?"
+		}
+		pagePath := fmt.Sprintf("%s%spage=%d", basePath, sep, page)
+
+		data, headers, err := c.doWithHeaders(ctx, http.MethodGet, pagePath, nil)
+		if err != nil {
+			return all, err
+		}
+
+		var raw []glIssue
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return all, fmt.Errorf("gitlab: parsing issues list: %w", err)
+		}
+		for _, g := range raw {
+			all = append(all, g.toIssueState())
+		}
+
+		// Stop if we've reached the requested max.
+		if maxResults > 0 && len(all) >= maxResults {
+			all = all[:maxResults]
+			break
+		}
+
+		// Stop if there are no more pages.
+		nextPage := headers.Get("X-Next-Page")
+		if nextPage == "" {
+			break
+		}
+		np, err := strconv.Atoi(nextPage)
+		if err != nil || np <= page {
+			break
+		}
+		page = np
+	}
+
+	return all, nil
 }
 
 // parseRetryAfter parses the Retry-After header value (seconds as integer).

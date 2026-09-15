@@ -85,9 +85,6 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
-			// Tracker sync (GitLab/Jira API) is intentionally NOT triggered here to
-			// avoid slow API calls and timeout cascades on every board entry.
-			// Use the "Sync Tracker" omnibar command for a full tracker reconciliation.
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			repo := resolveRepo()
@@ -95,6 +92,24 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return nil
 			}
 			return repo.Pull(ctx)
+		},
+		TrackerSyncFunc: func() error {
+			// Full tracker API sync (GitLab/Jira) — called on manual 'r' key only.
+			// Recover guard: runSyncTrackerForTUI may panic if app state is
+			// partially initialized (e.g. Projects store not loaded yet).
+			var err error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("tracker sync panic: %v", r)
+						slog.Error("tracker_sync.panic", "error", r)
+					}
+				}()
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				_, err = runSyncTrackerForTUI(a, ctx)
+			}()
+			return err
 		},
 		Actions: &views.BoardActions{
 			Members: func() []views.SelectOption {

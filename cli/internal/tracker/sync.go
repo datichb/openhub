@@ -397,7 +397,7 @@ func (e *Engine) reconcileProject(
 	// ── Pool: unassigned tracker issues as claimable tickets ─────────────────
 	if e.cfg.AutoPlanUnassigned {
 		firstSync := len(claims) == 0
-		if err := e.autopoolUnassigned(ctx, hubProjectID, trackerProjectID, trackerType, claimedTickets, firstSync, &pr); err != nil {
+		if err := e.autopoolUnassigned(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab, claimedTickets, firstSync, &pr); err != nil {
 			// Non-fatal — log but continue.
 			slog.Warn("tracker.autopool.failed", "project", hubProjectID, "error", err)
 		}
@@ -611,14 +611,23 @@ func (e *Engine) autoplan(
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
-// autopoolUnassigned creates "pool" claims (ClaimedBy="") for unassigned tracker
-// issues so they appear on the team board as claimable tickets.
-// Respects MaxUnassignedIssues and the optional UnassignedLabels filter.
-// Claims are created locally in batch and committed in a single git operation.
+// autopoolUnassigned creates claims for tracker issues so they appear on the
+// team board as claimable tickets.
+//
+// When UnassignedLabels is configured, it fetches ALL open issues matching those
+// labels (regardless of assignee) via ListIssuesByLabels. Issues assigned to a
+// known team member get ClaimedBy=member.ID; others become pool claims (ClaimedBy="").
+//
+// When UnassignedLabels is empty, it falls back to the original behaviour:
+// fetching only issues with no assignee via ListUnassignedIssues (pool claims only).
+//
+// Respects MaxUnassignedIssues. Claims are created locally in batch and
+// committed in a single git operation.
 func (e *Engine) autopoolUnassigned(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
 	trackerType Type,
+	memberByGitLab map[string]teamstate.Member,
 	claimedTickets map[string]bool,
 	firstSync bool,
 	pr *ProjectSyncResult,
@@ -627,13 +636,25 @@ func (e *Engine) autopoolUnassigned(
 	if !firstSync {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
-	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync)
+	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "has_labels", len(e.cfg.UnassignedLabels) > 0)
 
-	issues, err := e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
-		Labels:       e.cfg.UnassignedLabels,
-		UpdatedAfter: lastSync,
-		MaxResults:   e.cfg.MaxUnassignedIssues,
-	})
+	// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
+	// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
+	var issues []IssueState
+	var err error
+	if len(e.cfg.UnassignedLabels) > 0 {
+		issues, err = e.tracker.ListIssuesByLabels(ctx, trackerProjectID, ListByLabelsOpts{
+			Labels:       e.cfg.UnassignedLabels,
+			UpdatedAfter: lastSync,
+			MaxResults:   e.cfg.MaxUnassignedIssues,
+		})
+	} else {
+		issues, err = e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
+			Labels:       e.cfg.UnassignedLabels,
+			UpdatedAfter: lastSync,
+			MaxResults:   e.cfg.MaxUnassignedIssues,
+		})
+	}
 	if err != nil {
 		if errors.Is(err, ErrTokenInvalid) {
 			return err
@@ -658,11 +679,21 @@ func (e *Engine) autopoolUnassigned(
 		initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
 		truncDesc := TruncateDescription(issue.Description)
 
+		// Resolve ClaimedBy: if the issue is assigned to a known team member,
+		// create the claim as theirs; otherwise create a pool claim.
+		claimedBy := ""
+		if len(issue.Assignees) > 0 {
+			assignee := strings.ToLower(issue.Assignees[0])
+			if m, ok := memberByGitLab[assignee]; ok {
+				claimedBy = m.ID
+			}
+		}
+
 		pending = append(pending, pendingClaim{
 			claim: teamstate.Claim{
 				TicketID:      ticketID,
 				Project:       hubProjectID,
-				ClaimedBy:     "", // pool claim — no owner yet
+				ClaimedBy:     claimedBy,
 				Status:        initialStatus,
 				Title:         issue.Title,
 				Description:   truncDesc,
@@ -698,7 +729,7 @@ func (e *Engine) autopoolUnassigned(
 			continue
 		}
 		relPaths = append(relPaths, relPath)
-		slog.Debug("tracker.autopool.created", "ticket", pending[i].claim.TicketID)
+		slog.Debug("tracker.autopool.created", "ticket", pending[i].claim.TicketID, "claimed_by", pending[i].claim.ClaimedBy)
 		pr.ClaimsCreated++
 	}
 
@@ -706,7 +737,7 @@ func (e *Engine) autopoolUnassigned(
 		return nil
 	}
 
-	msg := fmt.Sprintf("autopool: %d unassigned tickets for %s", len(relPaths), hubProjectID)
+	msg := fmt.Sprintf("autopool: %d tickets for %s", len(relPaths), hubProjectID)
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 

@@ -35,6 +35,10 @@ type TeamBoardViewConfig struct {
 	// Called asynchronously on Mount and on 'r' keypress before RefreshFunc.
 	// If nil, no pull is attempted by the board (behaviour unchanged from before).
 	SyncFunc func() error
+	// TrackerSyncFunc performs a full tracker API sync (GitLab/Jira).
+	// Called on manual refresh ('r' key) BEFORE SyncFunc+RefreshFunc, but NOT
+	// on the auto-refresh timer. If nil, only git pull + local refresh is performed.
+	TrackerSyncFunc func() error
 	// Actions wires the ticket action callbacks (claim, release, transfer, status).
 	// If nil, action keys (c/x/t/s) are no-ops.
 	Actions *BoardActions
@@ -306,10 +310,18 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'r':
 		if v.cfg.RefreshFunc != nil && !v.actionInProgress {
 			v.actionInProgress = true
-			// Async pull first, then refresh on completion.
-			syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
-				v.refreshOnEventLoop(DefaultColumns())
-				v.actionInProgress = false
+			// Chain: tracker sync (API) → git pull → local refresh.
+			// TrackerSyncFunc may be nil (no tracker configured) — skip to git pull.
+			trackerSync := v.cfg.TrackerSyncFunc
+			if trackerSync == nil {
+				trackerSync = func() error { return nil }
+			}
+			syncFuncAsync(v.app, trackerSync, v.shell, func(_ error) {
+				// Git pull to fetch our tracker-sync commits + colleagues' changes.
+				syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
+					v.refreshOnEventLoop(DefaultColumns())
+					v.actionInProgress = false
+				})
 			})
 		}
 		return nil

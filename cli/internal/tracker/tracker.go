@@ -86,6 +86,16 @@ type ListUnassignedOpts struct {
 	MaxResults int
 }
 
+// ListByLabelsOpts filters for ListIssuesByLabels.
+type ListByLabelsOpts struct {
+	// Labels restricts results to issues matching ALL of these labels.
+	Labels []string
+	// UpdatedAfter filters to issues updated after this time (zero = no filter).
+	UpdatedAfter time.Time
+	// MaxResults caps the number of returned issues (0 = use tracker default).
+	MaxResults int
+}
+
 // Tracker is the minimal interface a tracker backend must satisfy.
 // Implementations must be safe for concurrent use.
 type Tracker interface {
@@ -98,6 +108,12 @@ type Tracker interface {
 	// ListUnassignedIssues returns open issues that have no assignee.
 	// Used by the pool-claim feature to surface claimable tickets on the board.
 	ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error)
+
+	// ListIssuesByLabels returns open issues matching ALL of the given labels,
+	// regardless of assignee. Used by autopoolUnassigned when UnassignedLabels
+	// is configured, to fetch all matching tickets (assigned or not) so they
+	// appear on the team board.
+	ListIssuesByLabels(ctx context.Context, projectID string, opts ListByLabelsOpts) ([]IssueState, error)
 
 	// AssignIssue sets the assignee of an issue on the tracker.
 	// Used when a team member claims a pool ticket with push_labels enabled.

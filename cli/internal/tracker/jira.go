@@ -191,6 +191,47 @@ func (c *jiraClient) ListUnassignedIssues(ctx context.Context, projectID string,
 	return issues, nil
 }
 
+func (c *jiraClient) ListIssuesByLabels(ctx context.Context, projectID string, opts ListByLabelsOpts) ([]IssueState, error) {
+	// Build JQL query for issues matching labels, regardless of assignee.
+	jql := fmt.Sprintf(`project = %q AND statusCategory != Done`, projectID)
+	if len(opts.Labels) > 0 {
+		quoted := make([]string, 0, len(opts.Labels))
+		for _, l := range opts.Labels {
+			quoted = append(quoted, fmt.Sprintf("%q", l))
+		}
+		jql += fmt.Sprintf(` AND labels in (%s)`, strings.Join(quoted, ","))
+	}
+	if !opts.UpdatedAfter.IsZero() {
+		jql += fmt.Sprintf(` AND updated >= %q`, opts.UpdatedAfter.UTC().Format("2006-01-02"))
+	}
+
+	maxResults := 20
+	if opts.MaxResults > 0 {
+		maxResults = opts.MaxResults
+	}
+
+	body := fmt.Sprintf(`{"jql":%q,"maxResults":%d,"fields":["summary","description","status","labels","updated","assignee"]}`,
+		jql, maxResults)
+
+	data, err := c.do(ctx, http.MethodPost, "/rest/api/2/search", strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Issues []jiraIssue `json:"issues"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("jira: parsing label search response: %w", err)
+	}
+
+	issues := make([]IssueState, 0, len(resp.Issues))
+	for _, j := range resp.Issues {
+		issues = append(issues, j.toIssueState())
+	}
+	return issues, nil
+}
+
 func (c *jiraClient) AssignIssue(ctx context.Context, projectID string, iid int, username string) error {
 	if !c.cfg.WriteEnabled {
 		return ErrWriteDisabled

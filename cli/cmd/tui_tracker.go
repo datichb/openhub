@@ -189,6 +189,9 @@ func resolveTrackerProjects(ctx context.Context, a *app.App, eff tracker.Effecti
 		return projects, ticketPatterns
 	}
 
+	if a.Projects == nil {
+		return projects, ticketPatterns
+	}
 	allProjects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil || len(allProjects) == 0 {
 		return projects, ticketPatterns
