@@ -948,15 +948,19 @@ func actionTrackerDiscovery() {
 				return fmt.Errorf("initialisation tracker: %w", err)
 			}
 
+			// Wrap API calls in a 30s timeout to avoid hanging the wizard.
+			apiCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
 			// Test connection
-			username, err := t.TestConnection(ctx)
+			username, err := t.TestConnection(apiCtx)
 			if err != nil {
 				return fmt.Errorf("échec connexion: %w", err)
 			}
 			_ = username // connection OK
 
 			// Test project access
-			_, err = t.TestProject(ctx, projectID)
+			_, err = t.TestProject(apiCtx, projectID)
 			if err != nil {
 				return fmt.Errorf("projet inaccessible: %w", err)
 			}
@@ -1002,8 +1006,12 @@ func actionTrackerDiscovery() {
 				return fmt.Errorf("initialisation tracker: %w", err)
 			}
 
+			// Wrap API call in a 30s timeout to avoid hanging the wizard.
+			apiCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
 			// Discover project metadata (labels, statuses)
-			discoveryInfo, err = t.DiscoverProject(ctx, projectID)
+			discoveryInfo, err = t.DiscoverProject(apiCtx, projectID)
 			if err != nil {
 				return fmt.Errorf("découverte projet: %w", err)
 			}
@@ -1063,7 +1071,8 @@ func actionTrackerDiscovery() {
 				}
 				summary += fmt.Sprintf("  [%s] %s (%s)\n", roleLabel, col.Name, col.ID)
 			}
-			form.AddTextView("Colonnes", summary, 0, len(suggestedColumns)+3, false, false)
+			summary += "\n" + i18n.T("cmd.discovery.columns.role_legend") + "\n"
+			form.AddTextView("Colonnes", summary, 0, len(suggestedColumns)+5, false, false)
 
 			// Checkboxes for each column
 			columnEnabled := make([]bool, len(suggestedColumns))

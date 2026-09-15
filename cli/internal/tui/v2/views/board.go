@@ -100,11 +100,16 @@ func resolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Colo
 }
 
 // activeColorCycle is the DS palette for "active" columns, cycling through
-// Accent (Azure), FgSecondary (Overlay), Info (Sapphire).
+// six Catppuccin-derived hues so boards with many active columns stay visually
+// distinct: Azure (blue), Overlay (gray), Sapphire (cyan), Mauve (purple),
+// Yellow, Green.
 var activeColorCycle = []tcell.Color{
-	theme.Accent,
-	theme.FgSecondary,
-	theme.Info,
+	theme.Accent,                  // Azure (blue)
+	theme.FgSecondary,             // Overlay (gray)
+	theme.Info,                    // Sapphire (cyan)
+	tcell.GetColor("#cba6f7"),     // Mauve (purple)
+	tcell.GetColor("#f9e2af"),     // Yellow
+	tcell.GetColor("#a6e3a1"),     // Green (lighter than Success)
 }
 
 // colorOverrides maps user-facing color names to tcell.Color values.

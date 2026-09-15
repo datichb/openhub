@@ -1634,6 +1634,7 @@
   "cmd.discovery.btn.save": "Sauvegarder",
   "cmd.discovery.btn.test": "Tester et continuer",
   "cmd.discovery.columns.header": "Colonnes suggérées pour votre board :\n\n",
+  "cmd.discovery.columns.role_legend": "  Rôles: initial=tickets entrants, active=travail en cours, terminal=terminé, blocked=bloqué",
   "cmd.discovery.field.token": "Token (vide = keychain/env)",
   "cmd.discovery.field.tracker_project": "Projet (ID ou path)",
   "cmd.discovery.field.tracker_type": "Type de tracker",

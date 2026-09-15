@@ -1085,8 +1085,14 @@ func (v *TeamBoardView) changeStatus() {
 		statusOptions[i] = SelectOption{Label: col.Name, Value: col.Status}
 	}
 
+	// Pre-select the ticket's current status so the user sees it highlighted.
+	currentStatus := ""
+	if ticket, ok := v.selectedTeamTicket(); ok {
+		currentStatus = ticket.Status
+	}
+
 	v.actionInProgress = true
-	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
+	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, currentStatus, func(newStatus string) {
 		go func() {
 			err := v.actions.OnStatus(ticketID, newStatus)
 			if v.app == nil {
