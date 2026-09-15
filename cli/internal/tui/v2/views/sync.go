@@ -77,33 +77,43 @@ func syncFuncAsync(
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
+		// Guarantee onDone is always called, even if the context is cancelled
+		// mid-flight. Without this, callers that set actionInProgress=true before
+		// calling syncFuncAsync would never reset it, permanently disabling the
+		// 'r' key and auto-refresh on the board.
+		var err error
+		defer func() {
 			timer.Stop()
-			return
-		default:
-		}
-
-		err := pullFn()
-		timer.Stop()
+			if app != nil && onDone != nil {
+				app.QueueUpdateDraw(func() {
+					if err != nil && !teamstate.IsPullWarning(err) {
+						if shell != nil {
+							shell.ShowToastMsg("Sync impossible — données locales", false)
+						}
+					}
+					onDone(err)
+				})
+			}
+		}()
 
 		select {
 		case <-ctx.Done():
+			err = ctx.Err()
 			return
 		default:
 		}
 
-		app.QueueUpdateDraw(func() {
-			if err != nil && !teamstate.IsPullWarning(err) {
-				// Hard error (auth failure, no network) — warn the user.
-				if shell != nil {
-					shell.ShowToastMsg("Sync impossible — données locales", false)
-				}
+		err = pullFn()
+
+		select {
+		case <-ctx.Done():
+			// pullFn completed but context was cancelled before we could
+			// queue the result. The defer will handle onDone.
+			if err == nil {
+				err = ctx.Err()
 			}
-			// Always call onDone so the view refreshes from local data.
-			if onDone != nil {
-				onDone(err)
-			}
-		})
+			return
+		default:
+		}
 	}()
 }

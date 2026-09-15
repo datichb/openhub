@@ -1031,6 +1031,9 @@ func actionTrackerDiscovery() {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
+			if discoveryInfo == nil {
+				return nil
+			}
 			fields := []views.InfoField{
 				{Label: "Labels", Value: fmt.Sprintf("%d découverts", len(discoveryInfo.Labels))},
 				{Label: "Mappings", Value: fmt.Sprintf("%d suggérés", len(suggestedMappings))},
@@ -1143,7 +1146,7 @@ func actionTrackerDiscovery() {
 			if len(unmapped) > 0 {
 				textHeight += 3
 			}
-			form.AddTextView("Mappings", summary, 0, textHeight, false, false)
+			form.AddTextView("Mappings", summary, 0, textHeight, true, true)
 
 			form.AddButton("Accepter", func() { onDone() })
 			return form

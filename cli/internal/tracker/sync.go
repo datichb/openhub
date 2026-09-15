@@ -22,11 +22,12 @@ type SyncResult struct {
 	SyncedAt time.Time
 	Projects []ProjectSyncResult
 	// Aggregated counters.
-	ClaimsCreated int
-	ClaimsUpdated int
-	LabelsPushed  int
-	Warnings      []SyncWarning
-	Errors        []SyncError
+	ClaimsCreated  int
+	ClaimsUpdated  int
+	ClaimsReleased int // done claims cleaned up by retention policy
+	LabelsPushed   int
+	Warnings       []SyncWarning
+	Errors         []SyncError
 }
 
 // ProjectSyncResult holds the outcome for a single hub project.
@@ -201,6 +202,25 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	}
 
 	slog.Debug("tracker.sync.complete", "duration", time.Since(start), "created", result.ClaimsCreated, "updated", result.ClaimsUpdated)
+
+	// Cleanup done claims that exceeded their retention period.
+	// Uses the board config's terminal statuses for custom column support.
+	if reader, ok := e.repo.(teamstate.TeamStateReader); ok {
+		if teamCfg, cfgErr := reader.LoadConfig(); cfgErr == nil && teamCfg != nil {
+			retDays := teamCfg.Claim.DoneRetentionDays
+			if retDays <= 0 {
+				retDays = 7 // default
+			}
+			termStatuses := e.boardCfg.TerminalStatuses()
+			released, cleanErr := e.repo.CleanupDoneClaims(ctx, retDays, termStatuses...)
+			if cleanErr != nil {
+				slog.Warn("tracker.sync.cleanup_failed", "error", cleanErr)
+			} else if len(released) > 0 {
+				slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
+				result.ClaimsReleased = len(released)
+			}
+		}
+	}
 
 	return result, nil
 }
