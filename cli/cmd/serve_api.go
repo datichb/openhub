@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // ── API Handlers ─────────────────────────────────────────────────────────────
@@ -70,8 +71,13 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 			return
 		}
 
-		// Group claims by status into 5 kanban columns
-		columns := []string{"TODO", "IN_PROGRESS", "REVIEW", "BLOCKED", "DONE"}
+		// Group claims by status into kanban columns from board config
+		boardCfg := teamstate.DefaultBoardConfig()
+		// TODO: load from team config when repo is available
+		columns := make([]string, len(boardCfg.Columns))
+		for i, c := range boardCfg.Columns {
+			columns[i] = strings.ToUpper(c.ID)
+		}
 		grouped := make(map[string][]interface{})
 		for _, col := range columns {
 			grouped[col] = []interface{}{}
@@ -79,21 +85,19 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 
 		for _, c := range claims {
 			status := strings.ToUpper(c.Status)
-			// Normalize common status variants
-			switch status {
-			case "IN_PROGRESS", "IN PROGRESS", "PROGRESS":
-				status = "IN_PROGRESS"
-			case "TODO", "PLANNED", "":
-				status = "TODO"
-			case "REVIEW", "IN_REVIEW":
-				status = "REVIEW"
-			case "BLOCKED":
-				status = "BLOCKED"
-			case "DONE", "COMPLETED":
-				status = "DONE"
+			// Normalize known aliases to column IDs.
+			switch strings.ToLower(c.Status) {
+			case "planned":
+				status = strings.ToUpper(boardCfg.InitialStatus())
+			case "completed":
+				if len(boardCfg.TerminalStatuses()) > 0 {
+					status = strings.ToUpper(boardCfg.TerminalStatuses()[0])
+				}
 			}
 			if _, ok := grouped[status]; !ok {
-				status = "TODO" // fallback
+				if len(columns) > 0 {
+					status = columns[0] // fallback to first column
+				}
 			}
 			grouped[status] = append(grouped[status], c)
 		}

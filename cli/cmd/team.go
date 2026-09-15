@@ -812,6 +812,8 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		switch c.Status {
 		case "in_progress":
 			activeCount++
+		case "validation":
+			activeCount++
 		case "review":
 			reviewCount++
 		case "blocked":

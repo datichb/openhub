@@ -257,7 +257,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 						entry.MemberCount = len(members)
 						tickets := views.FetchTeamTickets(repo, nil)
 						for _, tk := range tickets {
-							if tk.Status == "in_progress" || tk.Status == "review" {
+							if tk.Status == "in_progress" || tk.Status == "review" || tk.Status == "validation" {
 								entry.ActiveCount++
 							}
 						}
@@ -356,7 +356,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				tickets := views.FetchTeamTickets(repo, nil)
 				active := 0
 				for _, t := range tickets {
-					if t.Status == "in_progress" || t.Status == "review" {
+					if t.Status == "in_progress" || t.Status == "review" || t.Status == "validation" {
 						active++
 					}
 				}

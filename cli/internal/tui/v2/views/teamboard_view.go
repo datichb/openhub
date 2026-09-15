@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -39,6 +40,9 @@ type TeamBoardViewConfig struct {
 	// Called on manual refresh ('r' key) BEFORE SyncFunc+RefreshFunc, but NOT
 	// on the auto-refresh timer. If nil, only git pull + local refresh is performed.
 	TrackerSyncFunc func() error
+	// BoardConfig holds the team's custom board column layout.
+	// When empty (no custom columns), DefaultColumns() is used.
+	BoardConfig teamstate.BoardConfig
 	// Actions wires the ticket action callbacks (claim, release, transfer, status).
 	// If nil, action keys (c/x/t/s) are no-ops.
 	Actions *BoardActions
@@ -167,7 +171,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.content = content
 	v.done = make(chan struct{})
 
-	columns := DefaultColumns()
+	columns := ColumnsFromConfig(v.cfg.BoardConfig)
 	v.allColumns = columns
 	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
@@ -319,7 +323,7 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			syncFuncAsync(v.app, trackerSync, v.shell, func(_ error) {
 				// Git pull to fetch our tracker-sync commits + colleagues' changes.
 				syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
-					v.refreshOnEventLoop(DefaultColumns())
+					v.refreshOnEventLoop(v.allColumns)
 					v.actionInProgress = false
 				})
 			})
@@ -988,7 +992,7 @@ func (v *TeamBoardView) claimTicket() {
 			} else {
 				v.shell.ShowToastMsg("Ticket claim: "+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refreshOnEventLoop(DefaultColumns())
+					v.refreshOnEventLoop(v.allColumns)
 				}
 			}
 		})
@@ -1019,7 +1023,7 @@ func (v *TeamBoardView) releaseTicket() {
 			} else {
 				v.shell.ShowToastMsg("Ticket libéré: "+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refreshOnEventLoop(DefaultColumns())
+					v.refreshOnEventLoop(v.allColumns)
 				}
 			}
 		})
@@ -1051,7 +1055,7 @@ func (v *TeamBoardView) transferTicket() {
 				} else {
 					v.shell.ShowToastMsg("Transféré à "+toMember, true)
 					if v.cfg.RefreshFunc != nil {
-						v.refreshOnEventLoop(DefaultColumns())
+						v.refreshOnEventLoop(v.allColumns)
 					}
 				}
 			})
@@ -1068,13 +1072,9 @@ func (v *TeamBoardView) changeStatus() {
 		return
 	}
 
-	statusOptions := []SelectOption{
-		{Label: "Planifié (TODO)", Value: "planned"},
-		{Label: "En cours", Value: "in_progress"},
-		{Label: "Revue", Value: "review"},
-		{Label: "Validation", Value: "validation"},
-		{Label: "Bloqué", Value: "blocked"},
-		{Label: "Terminé", Value: "done"},
+	statusOptions := make([]SelectOption, len(v.allColumns))
+	for i, col := range v.allColumns {
+		statusOptions[i] = SelectOption{Label: col.Name, Value: col.Status}
 	}
 
 	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, "", func(newStatus string) {
@@ -1089,7 +1089,7 @@ func (v *TeamBoardView) changeStatus() {
 				} else {
 					v.shell.ShowToastMsg("Status mis à jour", true)
 					if v.cfg.RefreshFunc != nil {
-						v.refreshOnEventLoop(DefaultColumns())
+						v.refreshOnEventLoop(v.allColumns)
 					}
 				}
 			})
@@ -1208,7 +1208,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	if v.columnCards == nil || len(v.allTickets) == 0 {
 		return
 	}
-	columns := DefaultColumns()
+	columns := v.allColumns
 	filtered := v.applyProjectFilter(v.allTickets)
 	filtered = v.applyFilters(filtered)
 

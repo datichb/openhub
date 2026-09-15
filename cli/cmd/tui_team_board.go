@@ -57,13 +57,15 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		}
 	}()
 
-	// Load label_status_mapping from team config for label filtering in the board view.
+	// Load label_status_mapping and board config from team config.
 	var labelStatusMapping map[string]string
+	var boardConfig teamstate.BoardConfig
 	func() {
 		defer func() { _ = recover() }()
 		if repo := resolveRepo(); repo != nil {
 			if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
 				labelStatusMapping = cfg.Tracker.LabelStatusMapping
+				boardConfig = cfg.Board
 			}
 		}
 	}()
@@ -72,6 +74,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		Tickets:            initialTickets,
 		RefreshRate:        5 * time.Second,
 		LabelStatusMapping: labelStatusMapping,
+		BoardConfig:        boardConfig,
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
 		},
