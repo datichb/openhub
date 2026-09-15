@@ -124,6 +124,34 @@ func IsValidStatus(s string) bool {
 	return false
 }
 
+// IsValidBoardStatus reports whether s is a valid status for the given
+// board statuses. Falls back to IsValidStatus if boardStatuses is empty.
+// This allows custom column IDs to be accepted as valid claim statuses.
+func IsValidBoardStatus(s string, boardStatuses []string) bool {
+	if len(boardStatuses) == 0 {
+		return IsValidStatus(s)
+	}
+	for _, v := range boardStatuses {
+		if v == s {
+			return true
+		}
+	}
+	// Legacy compat: "planned" is always valid.
+	return s == ClaimStatusPlanned
+}
+
+// IsValidBoardTransition reports whether the transition from→to is allowed.
+// For built-in statuses, it enforces ValidTransitions.
+// For custom statuses (not in AllClaimStatuses), all transitions are allowed.
+func IsValidBoardTransition(from, to string) bool {
+	// If both are built-in, use the strict transition rules.
+	if IsValidStatus(from) && IsValidStatus(to) {
+		return IsValidTransition(from, to)
+	}
+	// Custom statuses: allow any transition.
+	return true
+}
+
 // ListClaims returns all active claims for a project.
 // If project is empty, returns claims across all projects.
 func (r *Repo) ListClaims(project string) ([]Claim, error) {
@@ -674,7 +702,18 @@ func (r *Repo) SetClaimExternalIID(ctx context.Context, project, ticketID string
 // CleanupDoneClaims releases all claims in "done" status whose LastActivity is
 // older than retentionDays. Returns the list of released claims.
 // Called by the board timer and the oh team sync-tracker command.
-func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int) ([]Claim, error) {
+// terminalStatuses specifies which statuses are considered "done" for cleanup.
+// If empty, only ClaimStatusDone is used (backward compat).
+func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int, terminalStatuses ...string) ([]Claim, error) {
+	// Build terminal status set.
+	termSet := make(map[string]bool, len(terminalStatuses)+1)
+	if len(terminalStatuses) == 0 {
+		termSet[ClaimStatusDone] = true
+	} else {
+		for _, s := range terminalStatuses {
+			termSet[s] = true
+		}
+	}
 	var released []Claim
 	err := r.withWriteLock(ctx, func(ctx context.Context) error {
 		// List all claims without acquiring RLock (we already hold the write lock).
@@ -686,7 +725,7 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int) ([]Clai
 		cutoff := time.Now().UTC().AddDate(0, 0, -retentionDays)
 
 		for _, c := range claims {
-			if c.Status != ClaimStatusDone {
+			if !termSet[c.Status] {
 				continue
 			}
 			activity := c.LastActivity

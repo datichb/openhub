@@ -187,6 +187,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 			{teamstate.ClaimStatusPlanned, "planned"},
 			{teamstate.ClaimStatusInProgress, "in progress"},
 			{teamstate.ClaimStatusReview, "review"},
+			{teamstate.ClaimStatusValidation, "validation"},
 			{teamstate.ClaimStatusBlocked, "blocked"},
 			{teamstate.ClaimStatusDone, "done"},
 		}

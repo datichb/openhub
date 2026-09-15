@@ -1072,6 +1072,7 @@ func (v *TeamBoardView) changeStatus() {
 		{Label: "Planifié (TODO)", Value: "planned"},
 		{Label: "En cours", Value: "in_progress"},
 		{Label: "Revue", Value: "review"},
+		{Label: "Validation", Value: "validation"},
 		{Label: "Bloqué", Value: "blocked"},
 		{Label: "Terminé", Value: "done"},
 	}

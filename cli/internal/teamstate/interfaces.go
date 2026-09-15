@@ -83,7 +83,7 @@ type TeamStateWriter interface {
 	AddClaimLabel(ctx context.Context, project, ticketID, label string) error
 	RemoveClaimLabel(ctx context.Context, project, ticketID, label string) error
 	SetClaimExternalIID(ctx context.Context, project, ticketID string, iid int) error
-	CleanupDoneClaims(ctx context.Context, retentionDays int) ([]Claim, error)
+	CleanupDoneClaims(ctx context.Context, retentionDays int, terminalStatuses ...string) ([]Claim, error)
 
 	// Members
 	AddMember(ctx context.Context, m Member) error
