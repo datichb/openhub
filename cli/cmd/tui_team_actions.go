@@ -1118,51 +1118,66 @@ func actionTrackerDiscovery() {
 	}
 
 	// ── Step 4: Mappings ────────────────────────────────────────────
+	// Track which mappings the user accepts (pre-checked by default).
+	var acceptedMappingFlags []bool
+
 	mappingStep := views.WizardStep{
 		Label:      "Mappings labels/statuts",
 		Processing: "Validation des mappings...",
+		SkipIf: func() bool {
+			return len(suggestedMappings) == 0
+		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
-			// Build readable summary of suggested mappings
-			summary := "Mappings suggérés :\n\n"
-			for _, m := range suggestedMappings {
-				summary += fmt.Sprintf("  %s → %s (%s)\n", m.Source, m.ColumnID, m.Confidence)
-			}
+			// Show unmapped labels as info (read-only).
 			if len(unmapped) > 0 {
 				maxShow := 5
 				if len(unmapped) < maxShow {
 					maxShow = len(unmapped)
 				}
-				summary += fmt.Sprintf("\n  Labels non mappés (%d) : %s",
+				info := fmt.Sprintf("Labels non mappés (%d) : %s",
 					len(unmapped), strings.Join(unmapped[:maxShow], ", "))
 				if len(unmapped) > maxShow {
-					summary += "..."
+					info += "..."
 				}
-				summary += "\n"
+				form.AddTextView("Info", info, 0, 2, false, false)
 			}
 
-			textHeight := len(suggestedMappings) + 5
-			if len(unmapped) > 0 {
-				textHeight += 3
+			// Interactive checkboxes for each suggested mapping.
+			acceptedMappingFlags = make([]bool, len(suggestedMappings))
+			for i, m := range suggestedMappings {
+				acceptedMappingFlags[i] = true // pre-checked
+				idx := i
+				label := fmt.Sprintf("%s → %s (%s)", m.Source, m.ColumnID, m.Confidence)
+				form.AddCheckbox(label, true, func(checked bool) {
+					acceptedMappingFlags[idx] = checked
+				})
 			}
-			form.AddTextView("Mappings", summary, 0, textHeight, true, true)
 
 			form.AddButton("Accepter", func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			// Mappings are applied in the final save (step 5).
-			// This step only validates that we have at least some mappings.
-			if len(suggestedMappings) == 0 {
-				// Not an error — the user might have a project with no workflow labels
-				return nil
+			// Filter suggestedMappings to only accepted ones.
+			var accepted []tracker.SuggestedMapping
+			for i, m := range suggestedMappings {
+				if i < len(acceptedMappingFlags) && acceptedMappingFlags[i] {
+					accepted = append(accepted, m)
+				}
 			}
+			suggestedMappings = accepted
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
+			accepted := 0
+			for _, f := range acceptedMappingFlags {
+				if f {
+					accepted++
+				}
+			}
 			return []views.InfoField{
-				{Label: "Mappings", Value: fmt.Sprintf("%d acceptés", len(suggestedMappings))},
+				{Label: "Mappings", Value: fmt.Sprintf("%d acceptés", accepted)},
 				{Label: "Non mappés", Value: fmt.Sprintf("%d", len(unmapped))},
 			}
 		},

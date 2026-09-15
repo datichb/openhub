@@ -372,12 +372,21 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 							mappings := tracker.SuggestMappings(info, trackerType, existingCols)
 
 							if len(mappings) > 0 {
-								fmt.Fprintf(out, "\n  Mappings suggérés :\n")
-								var acceptedMappings []tracker.SuggestedMapping
+								fmt.Fprintf(out, "\n  Mappings suggérés (%d) :\n", len(mappings))
 								for _, m := range mappings {
-									label := fmt.Sprintf("    %s → %s (%s)", m.Source, m.ColumnID, m.Confidence)
-									if askYN(out, label, true) {
-										acceptedMappings = append(acceptedMappings, m)
+									fmt.Fprintf(out, "    %s → %s (%s)\n", m.Source, m.ColumnID, m.Confidence)
+								}
+
+								var acceptedMappings []tracker.SuggestedMapping
+								if askYN(out, fmt.Sprintf("  Accepter les %d mappings suggérés ?", len(mappings)), true) {
+									acceptedMappings = mappings
+								} else {
+									fmt.Fprintf(out, "  Confirmation individuelle :\n")
+									for _, m := range mappings {
+										label := fmt.Sprintf("    %s → %s (%s)", m.Source, m.ColumnID, m.Confidence)
+										if askYN(out, label, true) {
+											acceptedMappings = append(acceptedMappings, m)
+										}
 									}
 								}
 
