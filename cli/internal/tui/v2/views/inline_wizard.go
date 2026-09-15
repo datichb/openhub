@@ -213,12 +213,26 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if w.app == nil || w.stepContent == nil {
 		return event
 	}
-	// The step content (form/customview) has its own InputCapture that handles
-	// Ctrl+S, Ctrl+B, and Esc. We only need to handle Esc at the wizard level
-	// when in the summary screen (completed state).
 	if w.completed {
 		return w.handleSummaryKey(event)
 	}
+
+	// When a CustomView step is active, forward key events directly to the
+	// step content's widget tree. Without this, the shell's global handler
+	// intercepts runes (for omnibar activation) and Enter before they can
+	// reach the focused widget's InputCapture.
+	idx := w.currentStep
+	if idx >= 0 && idx < len(w.cfg.Steps) && w.cfg.Steps[idx].CustomView != nil {
+		// Let Esc bubble up to the shell for back-navigation.
+		if event.Key() == tcell.KeyEscape {
+			return event
+		}
+		if handler := w.stepContent.InputHandler(); handler != nil {
+			handler(event, func(p tview.Primitive) { w.app.SetFocus(p) })
+			return nil
+		}
+	}
+
 	return event
 }
 

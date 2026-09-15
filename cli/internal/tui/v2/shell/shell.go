@@ -1211,26 +1211,15 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 
-	// Esc: pop view (go back), or confirm mode exit at root (ADR-032 Phase 3)
+	// Esc: pop view (go back), or exit to hub at root of a non-hub mode.
 	if event.Key() == tcell.KeyEsc {
 		if s.router.StackDepth() > 1 {
 			s.router.Pop()
 			return nil
 		}
-		// At root of a non-hub mode → show confirmation modal
+		// At root of a non-hub mode → return to hub directly (Ctrl+T to come back)
 		if s.activeMode != views.ModeHub {
-			modeName := "Équipe"
-			if s.activeMode == views.ModeProject {
-				modeName = "Projet"
-			}
-			s.ShowScrollableModal(
-				i18n.T("tui.confirm_exit_mode"),
-				fmt.Sprintf("Quitter le mode %s et revenir au Hub ?", modeName),
-				[]views.ModalAction{
-					{Label: "Oui", Callback: func() { s.SetMode(views.ModeHub) }},
-					{Label: "Annuler", Callback: nil},
-				},
-			)
+			s.SetMode(views.ModeHub)
 			return nil
 		}
 		return nil
