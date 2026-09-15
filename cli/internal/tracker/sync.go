@@ -70,6 +70,7 @@ type Engine struct {
 	tracker  Tracker
 	repo     teamstate.TeamStateWriter
 	cfg      teamstate.TrackerConfig
+	boardCfg teamstate.BoardConfig
 	state    *SyncState
 	stateDir string
 	// consecutiveTokenErrors tracks auth failures to mute auto-sync after 3.
@@ -112,6 +113,13 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		return nil, fmt.Errorf("sync engine: loading state: %w", err)
 	}
 	e.state = state
+
+	// Load board config for dynamic status resolution.
+	if reader, ok := e.repo.(teamstate.TeamStateReader); ok {
+		if teamCfg, cfgErr := reader.LoadConfig(); cfgErr == nil && teamCfg != nil {
+			e.boardCfg = teamCfg.Board
+		}
+	}
 
 	result := &SyncResult{SyncedAt: time.Now().UTC()}
 
@@ -337,7 +345,7 @@ func (e *Engine) reconcileProject(
 		}
 
 		// Status sync: use configurable mapping.
-		mappedStatus := MapTrackerStatus(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+		mappedStatus := MapTrackerStatusWithBoard(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
 		if mappedStatus != c.Status {
 			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", mappedStatus, "tracker_status", issue.StatusName)
 			if err := e.repo.UpdateClaimStatusFromTracker(ctx, hubProjectID, c.TicketID, mappedStatus); err == nil {
@@ -471,7 +479,7 @@ func (e *Engine) recoverOrphans(
 		}
 
 		// Recreate the claim with current tracker data
-		initialStatus := MapTrackerStatus(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+		initialStatus := MapTrackerStatusWithBoard(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
 		truncDesc := TruncateDescription(issue.Description)
 		claim := teamstate.Claim{
 			TicketID:      orphan.TicketID,
@@ -558,7 +566,7 @@ func (e *Engine) autoplan(
 			}
 
 			// Use the configurable status mapping instead of always "planned".
-			initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+			initialStatus := MapTrackerStatusWithBoard(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
 			truncDesc := TruncateDescription(issue.Description)
 
 			pending = append(pending, pendingClaim{
@@ -676,7 +684,7 @@ func (e *Engine) autopoolUnassigned(
 			continue
 		}
 
-		initialStatus := MapTrackerStatus(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping)
+		initialStatus := MapTrackerStatusWithBoard(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
 		truncDesc := TruncateDescription(issue.Description)
 
 		// Resolve ClaimedBy: if the issue is assigned to a known team member,
@@ -797,6 +805,66 @@ func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[s
 	case "new":
 		return teamstate.ClaimStatusPlanned
 	default: // "indeterminate", "opened", or unknown
+		return teamstate.ClaimStatusInProgress
+	}
+}
+
+// MapTrackerStatusWithBoard is like MapTrackerStatus but uses the BoardConfig
+// for category fallback resolution. This ensures custom column IDs are used
+// instead of hardcoded defaults when the team has configured custom columns.
+func MapTrackerStatusWithBoard(issue *IssueState, statusMapping, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) string {
+	// Steps 1 and 2 are identical — delegate to MapTrackerStatus internals.
+	// Only the category fallback differs.
+
+	// 1. Label-based mapping.
+	if len(labelStatusMapping) > 0 && len(issue.Labels) > 0 {
+		lowerMap := make(map[string]string, len(labelStatusMapping))
+		for k, v := range labelStatusMapping {
+			lowerMap[strings.ToLower(k)] = v
+		}
+		for _, label := range issue.Labels {
+			if v, ok := lowerMap[strings.ToLower(label)]; ok {
+				if boardCfg.IsValidStatus(v) || teamstate.IsValidStatus(v) {
+					return v
+				}
+			}
+		}
+	}
+
+	// 2. Status name mapping.
+	if len(statusMapping) > 0 && issue.StatusName != "" {
+		nameLower := strings.ToLower(issue.StatusName)
+		for k, v := range statusMapping {
+			if strings.ToLower(k) == nameLower {
+				if boardCfg.IsValidStatus(v) || teamstate.IsValidStatus(v) {
+					return v
+				}
+			}
+		}
+	}
+
+	// 3. Category fallback — using board config roles.
+	if boardCfg.HasCustomColumns() {
+		switch strings.ToLower(issue.StatusCategory) {
+		case "done", "closed":
+			ts := boardCfg.TerminalStatuses()
+			if len(ts) > 0 {
+				return ts[0]
+			}
+		case "new":
+			return boardCfg.InitialStatus()
+		default:
+			return boardCfg.DefaultWorkStatus()
+		}
+	}
+
+	// Default fallback (no custom columns).
+	switch strings.ToLower(issue.StatusCategory) {
+	case "done", "closed":
+		return teamstate.ClaimStatusDone
+	case "new":
+		return teamstate.ClaimStatusPlanned
+	default:
 		return teamstate.ClaimStatusInProgress
 	}
 }

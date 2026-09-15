@@ -344,7 +344,7 @@ func (v *TeamDetailView) buildFields() {
 		k := k
 		v.fields = append(v.fields, configField{
 			Section: "label_status_mapping", Key: k, Kind: CfgFieldSelect, Scope: ScopeTeamShared,
-			Label: k, Dynamic: true, Options: labelStatusOptions(),
+			Label: k, Dynamic: true, Options: v.labelStatusOptions(),
 			Get: func() string { return v.teamCfg.Tracker.LabelStatusMapping[k] },
 			Set: func(val string) { v.teamCfg.Tracker.LabelStatusMapping[k] = val; v.dirtyTeam = true },
 		})
@@ -626,7 +626,7 @@ func (v *TeamDetailView) addDynamic() {
 			if key == "" {
 				return
 			}
-			v.shell.ShowSelectModal("Statut du board", labelStatusOptions(), "", func(val string) {
+			v.shell.ShowSelectModal("Statut du board", v.labelStatusOptions(), "", func(val string) {
 				if val == "" {
 					return
 				}
@@ -992,7 +992,20 @@ func (v *TeamDetailView) testConnection() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // labelStatusOptions returns the valid board statuses for the label_status_mapping select.
-func labelStatusOptions() []SelectOption {
+// When the team has custom board columns, returns those. Otherwise returns the 6 defaults.
+func (v *TeamDetailView) labelStatusOptions() []SelectOption {
+	// Use custom columns if available.
+	if v.teamCfg != nil && v.teamCfg.Board.HasCustomColumns() {
+		opts := make([]SelectOption, len(v.teamCfg.Board.Columns))
+		for i, c := range v.teamCfg.Board.Columns {
+			opts[i] = SelectOption{
+				Label: c.ID + " (" + c.Name + ")",
+				Value: c.ID,
+			}
+		}
+		return opts
+	}
+	// Default 6 statuses.
 	return []SelectOption{
 		{Label: "planned (TODO)", Value: "planned"},
 		{Label: "in_progress (IN PROGRESS)", Value: "in_progress"},
