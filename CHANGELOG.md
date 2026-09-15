@@ -19,6 +19,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`g`/`G` dans SectionedList** — Aller au premier/dernier item (navigation vim)
 - **Branch Git dans le header Project Home** — Affiche la branche courante à côté du path
 - **Empty states enrichis** — Suggestions d'actions (Ctrl+P > projects, team init) dans les états vides
+- **Colonnes de board personnalisables (ADR-035)** — Configuration `[board]` avec rôles sémantiques (`initial`, `active`, `terminal`, `blocked`), palette de couleurs DS cohérente, override par colonne
+- **Wizard de discovery tracker** — Assistant TUI 5 étapes (connexion, discovery, colonnes, mappings, pool) + CLI interactif. Analyse automatique des labels/statuts du tracker, suggestion de mappings, configuration guidée
+- **Éditeur de colonnes interactif** — Réordonnancement, ajout, renommage, suppression, cycle de rôle via `tview.List` dans le wizard step 3
+- **Commande omnibar `Discover Tracker`** + touche `y` dans la vue Config équipe pour lancer le wizard
+- **Étape optionnelle de discovery dans le wizard `team init`** — Propose la configuration tracker après l'initialisation de l'équipe
+- **API `DiscoverProject`** — Récupération des labels (GitLab) et statuts workflow (Jira) pour la configuration guidée
+- **Moteur heuristique bilingue FR/EN** — Suggestion de mappings label→colonne basée sur des patterns de nommage courants (READY TO DEV, DEV DOING, TESTING, BLOQUÉ, etc.)
+- **Sync tracker sur touche `r`** — Le refresh du board effectue un sync API tracker complet (GitLab/Jira) avant le git pull
+- **Récupération de tous les tickets par labels** — `autopoolUnassigned` récupère tous les tickets correspondant aux labels configurés, indépendamment de l'assignation
+- **Pagination GitLab** — `ListAssignedIssues`, `ListUnassignedIssues`, `ListIssuesByLabels` suivent `X-Next-Page` au-delà de 20 résultats
+- **Nettoyage automatique des claims terminés** — `CleanupDoneClaims` appelé après chaque sync tracker avec support des colonnes terminales custom
+- **Prévisualisation TOML** — Le summary du wizard affiche un snippet de la config générée
+- **37 clés i18n (FR + EN)** pour le wizard discovery
+- **53 tests unitaires et d'intégration** — BoardConfig, ColumnsFromConfig, MapClaimStatusWithConfig, moteur heuristique, DiscoverProject (httptest), pagination
 
 ### Changed
 
@@ -28,12 +42,30 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Séparateur dual-column en BorderCard** (`#45475a`) au lieu de FgMuted (`#7f849c`), conforme à Aurum
 - **`renderBanner` retourne `(string, int)`** — Fusion avec `bannerHeight()` pour éviter le double calcul figlet
 - **Split dual-column par `SectionID`** — Remplace la comparaison sur label string, immunisé aux changements i18n
+- **`changeStatus()` dynamique** — Les options de statut sont construites depuis les colonnes configurées, plus hardcodées
+- **`labelStatusOptions()` dynamique** — La vue Config équipe reflète les colonnes custom du board
+- **`MapTrackerStatusWithBoard`** — Utilise les rôles de colonnes pour le fallback catégorie (initial, terminal, active)
+- **`ClaimPoolTicket` configurable** — Accepte un `workStatus` au lieu de hardcoder `in_progress`
+- **`autoClaimTicket` (start dev)** — Utilise `BoardConfig.DefaultWorkStatus()` et `InitialStatus()`
+- **Active counting inclut `validation`** — Badges et summaries comptent les tickets en validation
+- **Palette de couleurs actives étendue** — 6 couleurs Catppuccin (Azure, Overlay, Sapphire, Mauve, Yellow, Green) au lieu de 3
+- **CLI wizard mode batch** — `oh team config` propose "Accepter tous les N mappings" avant le per-mapping
+- **InlineWizardView : Ctrl+B/Enter après erreur** — L'utilisateur peut revenir en arrière ou réessayer après une erreur `OnDone` (amélioration générique pour tous les wizards)
+- **Summary multi-lignes** — `renderSummaryScreen` supporte les `InfoField` avec valeurs multi-lignes
 
 ### Fixed
 
 - **Pointeurs stale après resize dans ProjectModeView et TeamModeView** (E1) — `v.list`/`v.dual` sont maintenant mis à jour dans le `buildFn` closure à chaque rebuild, comme HomeView
 - **Race condition dans adaptiveHomeMount** (T1) — `currentMode` utilise `atomic.Int32` pour éliminer le data race Go
 - **Guard mountGen manquant dans TeamModeView** (T4) — La goroutine async des stats ne peut plus écrire sur un header nillé après Unmount
+- **Option "Validation" manquante** dans le modal de changement de statut et le summary équipe
+- **`actionInProgress` bloqué définitivement** quand le contexte shell est annulé pendant le sync — `syncFuncAsync` garantit maintenant `onDone` via `defer`
+- **Nil pointer dereference dans `resolveTrackerProjects`** quand `a.Projects` est nil
+- **`UpdateClaimStatus` rejette les statuts custom** — Utilise maintenant `IsValidBoardStatus` + `IsValidBoardTransition`
+- **`transferTicket()` et `changeStatus()` sans guard `actionInProgress`** — Opérations git concurrentes désormais bloquées
+- **Noms de colonnes non échappés** — `tview.Escape()` appliqué dans `NewCardColumn` et `formatTicketLabels`
+- **Pagination labels GitLab sans cap** — Cap `maxLabelPages=50` et `maxIssuePages=100`
+- **IDs de colonnes sans validation path traversal** — `Validate()` rejette `..`, `/`, `\`
 
 ### Documentation
 
@@ -44,6 +76,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - Commandes mode-aware dans `docs/reference/tui.{en,fr}.md`
 - Entrées glossaire : Hub Mode, Project Mode, Team Mode
 - Diagramme Mermaid `docs/diagrams/tui-navigation-modes.mermaid`
+- ADR-035 — Colonnes de board dynamiques et discovery tracker (FR + EN)
+- Section `[board]` dans la référence config (FR + EN)
 
 ---
 
