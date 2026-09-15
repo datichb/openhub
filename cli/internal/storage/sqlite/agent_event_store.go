@@ -24,6 +24,9 @@ func NewAgentEventStore(s *Store) *AgentEventStore {
 // Ensure interface compliance at compile time.
 var _ domain.AgentEventStore = (*AgentEventStore)(nil)
 
+// agentEventColumns is the canonical column list used by SELECT queries.
+const agentEventColumns = `id, session_id, project_id, agent_name, skills_loaded, started_at, completed_at, status, tokens_in, tokens_out, cost_usd, error_message, member_id`
+
 func (a *AgentEventStore) Create(ctx context.Context, e *domain.AgentEvent) error {
 	if e.StartedAt.IsZero() {
 		e.StartedAt = time.Now()
@@ -31,11 +34,11 @@ func (a *AgentEventStore) Create(ctx context.Context, e *domain.AgentEvent) erro
 	skillsJSON, _ := json.Marshal(e.SkillsLoaded)
 	_, err := a.db.ExecContext(ctx,
 		`INSERT INTO agent_events
-		 (id, session_id, project_id, agent_name, skills_loaded, started_at, completed_at, status, tokens_in, tokens_out, cost_usd, error_message)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 (`+agentEventColumns+`)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID, e.SessionID, e.ProjectID, e.AgentName, string(skillsJSON),
 		e.StartedAt, e.CompletedAt, string(e.Status),
-		e.TokensIn, e.TokensOut, e.CostUSD, e.ErrorMessage,
+		e.TokensIn, e.TokensOut, e.CostUSD, e.ErrorMessage, e.MemberID,
 	)
 	if err != nil {
 		return fmt.Errorf("creating agent event: %w", err)
@@ -46,9 +49,9 @@ func (a *AgentEventStore) Create(ctx context.Context, e *domain.AgentEvent) erro
 func (a *AgentEventStore) Update(ctx context.Context, e *domain.AgentEvent) error {
 	skillsJSON, _ := json.Marshal(e.SkillsLoaded)
 	result, err := a.db.ExecContext(ctx,
-		`UPDATE agent_events SET completed_at=?, status=?, tokens_in=?, tokens_out=?, cost_usd=?, error_message=?, skills_loaded=?
+		`UPDATE agent_events SET completed_at=?, status=?, tokens_in=?, tokens_out=?, cost_usd=?, error_message=?, skills_loaded=?, member_id=?
 		 WHERE id=?`,
-		e.CompletedAt, string(e.Status), e.TokensIn, e.TokensOut, e.CostUSD, e.ErrorMessage, string(skillsJSON), e.ID,
+		e.CompletedAt, string(e.Status), e.TokensIn, e.TokensOut, e.CostUSD, e.ErrorMessage, string(skillsJSON), e.MemberID, e.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating agent event: %w", err)
@@ -62,7 +65,7 @@ func (a *AgentEventStore) Update(ctx context.Context, e *domain.AgentEvent) erro
 
 func (a *AgentEventStore) ListBySession(ctx context.Context, sessionID string) ([]domain.AgentEvent, error) {
 	rows, err := a.db.QueryContext(ctx,
-		`SELECT id, session_id, project_id, agent_name, skills_loaded, started_at, completed_at, status, tokens_in, tokens_out, cost_usd, error_message
+		`SELECT `+agentEventColumns+`
 		 FROM agent_events WHERE session_id = ? ORDER BY started_at ASC`,
 		sessionID,
 	)
@@ -179,8 +182,9 @@ func scanAgentEvents(rows *sql.Rows) ([]domain.AgentEvent, error) {
 		var completedAt sql.NullTime
 		var skillsJSON string
 		var errMsg sql.NullString
+		var memberID sql.NullString
 		if err := rows.Scan(&e.ID, &e.SessionID, &e.ProjectID, &e.AgentName, &skillsJSON,
-			&e.StartedAt, &completedAt, &status, &e.TokensIn, &e.TokensOut, &e.CostUSD, &errMsg); err != nil {
+			&e.StartedAt, &completedAt, &status, &e.TokensIn, &e.TokensOut, &e.CostUSD, &errMsg, &memberID); err != nil {
 			return nil, fmt.Errorf("scanning agent event: %w", err)
 		}
 		e.Status = domain.AgentEventStatus(status)
@@ -189,6 +193,9 @@ func scanAgentEvents(rows *sql.Rows) ([]domain.AgentEvent, error) {
 		}
 		if errMsg.Valid {
 			e.ErrorMessage = errMsg.String
+		}
+		if memberID.Valid {
+			e.MemberID = &memberID.String
 		}
 		_ = json.Unmarshal([]byte(skillsJSON), &e.SkillsLoaded)
 		// Normalise nil slice

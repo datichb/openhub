@@ -16,7 +16,8 @@ type Session struct {
 	Model      string
 	TokensIn   int64
 	TokensOut  int64
-	LaunchPath string // filesystem path where the session was launched (base or worktree)
+	LaunchPath string  // filesystem path where the session was launched (base or worktree)
+	MemberID   *string // team member who ran the session (nil = solo / unknown)
 }
 
 // SessionStatus represents the state of a session.

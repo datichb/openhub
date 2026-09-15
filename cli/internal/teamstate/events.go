@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -77,6 +78,31 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 		msg := fmt.Sprintf("event: %s by %s on %s", e.Type, e.Actor, e.Project)
 		return r.commitAndPush(ctx, msg, relPath)
 	})
+}
+
+// AppendEventAsync fires off AppendEvent in a background goroutine.
+// The event is written to the local JSONL file even if the push fails;
+// it will be pushed on the next successful operation.
+// Errors are logged as warnings and never block the caller.
+func (r *Repo) AppendEventAsync(e Event) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := r.AppendEvent(ctx, e); err != nil {
+			slog.Warn("teamstate.appendEventAsync", "event", e.Type, "actor", e.Actor, "project", e.Project, "error", err)
+		}
+	}()
+}
+
+// NewSessionCompleteEvent constructs a session.complete event with standard metadata.
+func NewSessionCompleteEvent(memberID, project string, data map[string]interface{}) Event {
+	return Event{
+		Timestamp: time.Now().UTC(),
+		Actor:     memberID,
+		Type:      EventSessionComplete,
+		Project:   project,
+		Data:      data,
+	}
 }
 
 // ListEvents returns events for a project since the given time, sorted newest first.

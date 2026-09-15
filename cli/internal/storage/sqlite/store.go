@@ -121,17 +121,40 @@ func (s *Store) migrate() error {
 	row := s.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`)
 	_ = row.Scan(&currentVersion)
 
-	// Define migrations (ordered by version)
+	// Define migrations (ordered by version).
+	// Each migration runs inside a transaction so that the schema change and the
+	// version record are committed atomically. Without this, a crash between the
+	// ALTER TABLE and the INSERT INTO schema_migrations leaves the database in an
+	// inconsistent state where the column exists but the migration is re-attempted
+	// on next startup, causing a "duplicate column name" error.
 	for _, m := range schemaMigrations {
 		if m.version <= currentVersion {
 			continue
 		}
-		if _, err := s.db.Exec(m.up); err != nil {
-			return fmt.Errorf("migration v%d: %w", m.version, err)
+		if err := s.runMigration(m); err != nil {
+			return err
 		}
-		if _, err := s.db.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
-			return fmt.Errorf("recording migration v%d: %w", m.version, err)
-		}
+	}
+	return nil
+}
+
+// runMigration executes a single migration inside a transaction so that the
+// schema change and the version record are committed atomically.
+func (s *Store) runMigration(m migration) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning transaction for migration v%d: %w", m.version, err)
+	}
+	if _, err := tx.Exec(m.up); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("migration v%d: %w", m.version, err)
+	}
+	if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("recording migration v%d: %w", m.version, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing migration v%d: %w", m.version, err)
 	}
 	return nil
 }
@@ -159,11 +182,20 @@ func (s *Store) MigrateDown(targetVersion int) error {
 		if m.down == "" {
 			return fmt.Errorf("migration v%d has no rollback defined", m.version)
 		}
-		if _, err := s.db.Exec(m.down); err != nil {
+		tx, err := s.db.Begin()
+		if err != nil {
+			return fmt.Errorf("beginning transaction for rollback v%d: %w", m.version, err)
+		}
+		if _, err := tx.Exec(m.down); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("rollback v%d: %w", m.version, err)
 		}
-		if _, err := s.db.Exec(`DELETE FROM schema_migrations WHERE version = ?`, m.version); err != nil {
+		if _, err := tx.Exec(`DELETE FROM schema_migrations WHERE version = ?`, m.version); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("removing migration record v%d: %w", m.version, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("committing rollback v%d: %w", m.version, err)
 		}
 	}
 	return nil
@@ -321,6 +353,18 @@ var schemaMigrations = []migration{
 		version:      21,
 		up:           `ALTER TABLE projects ADD COLUMN workflow_config TEXT NOT NULL DEFAULT ''`,
 		down:         `ALTER TABLE projects DROP COLUMN workflow_config`,
+		irreversible: false,
+	},
+	{
+		version:      22,
+		up:           `ALTER TABLE sessions ADD COLUMN member_id TEXT DEFAULT NULL`,
+		down:         `ALTER TABLE sessions DROP COLUMN member_id`,
+		irreversible: false,
+	},
+	{
+		version:      23,
+		up:           `ALTER TABLE agent_events ADD COLUMN member_id TEXT DEFAULT NULL`,
+		down:         `ALTER TABLE agent_events DROP COLUMN member_id`,
 		irreversible: false,
 	},
 }

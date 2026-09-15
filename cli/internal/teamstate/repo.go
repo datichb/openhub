@@ -26,6 +26,14 @@ const (
 // acquire the read lock so that multiple reads can proceed in parallel but
 // never overlap with a rebase/checkout that could leave files in a
 // transitional state.
+//
+// NOTE: This mutex only protects against concurrent goroutines within a single
+// process. Multiple oh processes (e.g., CLI and TUI running simultaneously, or
+// parallel sessions via oh parallel) that share the same local clone path may
+// produce corrupted git state. Callers performing one-shot mutations (team
+// rejoin, team init) should avoid running them while a TUI session is active
+// on the same team-state clone. A future improvement could use a filesystem
+// lock (flock) to serialize cross-process access.
 type Repo struct {
 	mu            sync.RWMutex
 	path          string   // local clone path (e.g. ~/.oh/team-state/)

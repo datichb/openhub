@@ -13,10 +13,12 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -217,6 +219,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 		Provider:   provider,
 		LaunchPath: launchPath,
 	}
+
+	// Inject member_id from team config if available
+	resolved := config.ResolveTeamForProject(a.Config, project)
+	if resolved.Enabled && resolved.MemberID != "" {
+		mid := resolved.MemberID
+		session.MemberID = &mid
+	}
+
 	if a.Sessions != nil {
 		if err := a.Sessions.Create(ctx, session); err != nil {
 			slog.Warn("session tracking failed", "error", err)
@@ -244,6 +254,27 @@ func runStart(cmd *cobra.Command, args []string) error {
 		now := time.Now()
 		session.EndedAt = &now
 		_ = a.Sessions.Update(ctx, session)
+
+		// Emit session.complete event to team-state (async, non-blocking)
+		if resolved.Enabled && resolved.MemberID != "" && resolved.StateRepo != "" {
+			repo := teamstate.NewRepo(resolved.StateRepo, resolved.StatePath)
+			if repo.IsCloned() {
+				durationSec := 0.0
+				if session.EndedAt != nil {
+					durationSec = session.EndedAt.Sub(session.StartedAt).Seconds()
+				}
+				event := teamstate.NewSessionCompleteEvent(resolved.MemberID, project.Name, map[string]interface{}{
+					"session_id":  session.ID,
+					"duration_s":  durationSec,
+					"tokens_in":   session.TokensIn,
+					"tokens_out":  session.TokensOut,
+					"provider":    session.Provider,
+					"model":       session.Model,
+					"status":      string(session.Status),
+				})
+				repo.AppendEventAsync(event)
+			}
+		}
 	}
 
 	return runErr

@@ -98,3 +98,52 @@ func TestSessionStore_ListAll(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, proj1, 2)
 }
+
+func TestSessionStore_MemberID(t *testing.T) {
+	s := openTestStore(t)
+	ps := NewProjectStore(s)
+	ss := NewSessionStore(s)
+	ctx := context.Background()
+
+	now := time.Now().Truncate(time.Second)
+	require.NoError(t, ps.Create(ctx, &domain.Project{
+		ID: "proj-1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive,
+		CreatedAt: now, UpdatedAt: now,
+	}))
+
+	// Create session without member_id
+	require.NoError(t, ss.Create(ctx, &domain.Session{
+		ID: "s-no-member", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
+	}))
+	got, err := ss.Get(ctx, "s-no-member")
+	require.NoError(t, err)
+	assert.Nil(t, got.MemberID, "MemberID should be nil when not set")
+
+	// Create session with member_id
+	mid := "alice"
+	require.NoError(t, ss.Create(ctx, &domain.Session{
+		ID: "s-with-member", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
+		MemberID: &mid,
+	}))
+	got2, err := ss.Get(ctx, "s-with-member")
+	require.NoError(t, err)
+	require.NotNil(t, got2.MemberID)
+	assert.Equal(t, "alice", *got2.MemberID)
+
+	// Update member_id
+	newMid := "bob"
+	got2.MemberID = &newMid
+	require.NoError(t, ss.Update(ctx, got2))
+	got3, err := ss.Get(ctx, "s-with-member")
+	require.NoError(t, err)
+	require.NotNil(t, got3.MemberID)
+	assert.Equal(t, "bob", *got3.MemberID)
+
+	// Retro-tag: update NULL member_id via raw SQL
+	_, err = s.DB().ExecContext(ctx, `UPDATE sessions SET member_id = ? WHERE member_id IS NULL`, "charlie")
+	require.NoError(t, err)
+	got4, err := ss.Get(ctx, "s-no-member")
+	require.NoError(t, err)
+	require.NotNil(t, got4.MemberID)
+	assert.Equal(t, "charlie", *got4.MemberID)
+}

@@ -195,3 +195,25 @@ func TestListEventsLimited_LimitZero(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, result, 5, "limit=0 should return all events")
 }
+
+func TestNewSessionCompleteEvent(t *testing.T) {
+	data := map[string]interface{}{
+		"session_id": "sess-123",
+		"duration_s": 120.5,
+		"tokens_in":  int64(5000),
+		"tokens_out": int64(2000),
+		"provider":   "bedrock",
+		"model":      "claude-opus-4",
+		"status":     "completed",
+	}
+
+	event := NewSessionCompleteEvent("alice", "my-project", data)
+
+	assert.Equal(t, "alice", event.Actor)
+	assert.Equal(t, EventSessionComplete, event.Type)
+	assert.Equal(t, "my-project", event.Project)
+	assert.False(t, event.Timestamp.IsZero())
+	assert.Equal(t, "sess-123", event.Data["session_id"])
+	assert.Equal(t, 120.5, event.Data["duration_s"])
+	assert.Equal(t, "completed", event.Data["status"])
+}

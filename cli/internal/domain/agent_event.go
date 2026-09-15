@@ -20,6 +20,7 @@ type AgentEvent struct {
 	TokensOut    int64
 	CostUSD      float64 // estimated cost in USD
 	ErrorMessage string  // populated if Status == "failed"
+	MemberID     *string // team member who triggered this agent (nil = solo / unknown)
 }
 
 // AgentEventStatus represents the outcome of an agent execution.

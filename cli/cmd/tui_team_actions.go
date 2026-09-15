@@ -625,6 +625,231 @@ func applyProjectTeamID(a *app.App, projectID, teamID string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Team Rejoin action (reconnect to existing team after reinstall)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func actionTeamRejoin() {
+	if tuiShell == nil {
+		return
+	}
+
+	a := MustApp()
+	ctx := tuiShell.Context()
+
+	// ── Shared state (captured by step closures) ────────────────────
+	var (
+		stateRepo string
+		statePath string
+		members   []teamstate.Member
+		memberID  string
+	)
+
+	// ── Step 0: Repository URL ──────────────────────────────────────
+	repoStep := views.WizardStep{
+		Label:    i18n.T("cmd.team.init.step_repo"),
+		Required: true,
+		Validate: func() string {
+			if strings.TrimSpace(stateRepo) == "" {
+				return i18n.T("cmd.team.init.validate.repo_required")
+			}
+			return ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.team.init.repo_url_title"),
+				stateRepo, 0, nil,
+				func(text string) { stateRepo = text })
+			form.AddButton("Next", func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			statePath = config.TeamStatePath(stateRepo)
+			var err error
+			_, members, err = listTeamMembers(ctx, stateRepo, statePath)
+			if err != nil {
+				return err
+			}
+			if len(members) == 0 {
+				return fmt.Errorf("aucun membre trouvé dans le repo team-state")
+			}
+			return nil
+		},
+		Processing: i18n.T("cmd.team.init.processing_repo"),
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Repo", Value: stateRepo}}
+		},
+	}
+
+	// ── Step 0b: HTTPS Credentials (conditional) ────────────────────
+	var credUsername = "oauth2"
+	var credToken string
+	var credAuthChoice = "provide"
+
+	httpsCredStep := views.WizardStep{
+		Label: i18n.T("cmd.team.init.step_credentials"),
+		SkipIf: func() bool {
+			return !teamstate.IsHTTPS(stateRepo)
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			authOptions := []string{
+				i18n.T("cmd.team.init.cred_provide"),
+				i18n.T("cmd.team.init.cred_skip"),
+				i18n.T("cmd.team.init.cred_public"),
+			}
+			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
+				func(_ string, idx int) {
+					switch idx {
+					case 0:
+						credAuthChoice = "provide"
+					case 1:
+						credAuthChoice = "skip"
+					case 2:
+						credAuthChoice = "public"
+					}
+				})
+			form.AddInputField("Username", credUsername, 0, nil,
+				func(text string) { credUsername = text })
+			form.AddPasswordField("Token", credToken, 0, '*',
+				func(text string) { credToken = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() {
+				if credAuthChoice == "provide" && credToken == "" {
+					return
+				}
+				onDone()
+			})
+			return form
+		},
+		OnDone: func() error {
+			if credAuthChoice == "provide" && credToken != "" {
+				return teamstate.ConfigureCredential(ctx, stateRepo, credUsername, credToken)
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Auth", Value: "configured"}}
+		},
+	}
+
+	// ── Step 1: Member selection ────────────────────────────────────
+	memberStep := views.WizardStep{
+		Label:    i18n.T("cmd.team.rejoin.select_member"),
+		Required: true,
+		CustomView: func(_ *tview.Application, container *tview.Flex, onDone func()) {
+			list := widgets.NewSectionedList()
+
+			var items []widgets.SectionItem
+			items = append(items, widgets.SectionItem{
+				MainText: "Membres de l'équipe",
+				IsHeader: true,
+			})
+			for _, m := range members {
+				label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
+				secondary := ""
+				if m.GitLabUsername != "" {
+					secondary = fmt.Sprintf("gitlab: %s", m.GitLabUsername)
+				}
+				if m.Role != "" {
+					if secondary != "" {
+						secondary += " — "
+					}
+					secondary += m.Role
+				}
+				items = append(items, widgets.SectionItem{
+					MainText:      label,
+					SecondaryText: secondary,
+					Reference:     m.ID,
+				})
+			}
+			list.SetItems(items)
+
+			list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
+				if id, ok := item.Reference.(string); ok {
+					memberID = id
+				}
+				onDone()
+			})
+
+			container.AddItem(list, 0, 1, true)
+		},
+		InfoFields: func() []views.InfoField {
+			if memberID == "" {
+				return nil
+			}
+			for _, m := range members {
+				if m.ID == memberID {
+					return []views.InfoField{
+						{Label: "Membre", Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
+					}
+				}
+			}
+			return []views.InfoField{{Label: "Membre", Value: memberID}}
+		},
+	}
+
+	// ── Step 2: GitLab identity validation + config write ───────────
+	validateStep := views.WizardStep{
+		Label:      i18n.T("cmd.team.rejoin.validating"),
+		Processing: i18n.T("cmd.team.rejoin.validating"),
+		OnDone: func() error {
+			result, err := teamRejoinCore(ctx, a, teamRejoinParams{
+				StateRepo: stateRepo,
+				StatePath: statePath,
+				MemberID:  memberID,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Retro-tag sessions in background
+			go func() {
+				bgCtx := context.Background()
+				count, err := retroTagSessions(bgCtx, memberID)
+				if err == nil && count > 0 && tuiShell != nil {
+					tuiShell.App().QueueUpdateDraw(func() {
+						tuiShell.ShowToast(
+							i18n.Tf("cmd.team.rejoin.retro_tagged", count),
+							shell.ToastSuccess,
+						)
+					})
+				}
+			}()
+
+			// Show result summary via toast
+			if tuiShell != nil {
+				msg := i18n.Tf("cmd.team.rejoin.success", result.Member.DisplayName, result.Member.ID, result.TeamName)
+				if result.EventCount > 0 {
+					msg += " — " + i18n.Tf("cmd.team.rejoin.events_found", result.EventCount)
+				}
+				tuiShell.App().QueueUpdateDraw(func() {
+					tuiShell.ShowToast(msg, shell.ToastSuccess)
+				})
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{
+				{Label: "Statut", Value: theme.SuccessStyle.Render("Reconnecté")},
+			}
+		},
+	}
+
+	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
+		ID:    "wizard.team.rejoin",
+		Title: i18n.T("tui.team.rejoin"),
+		Steps: []views.WizardStep{
+			repoStep,
+			httpsCredStep,
+			memberStep,
+			validateStep,
+		},
+	})
+
+	tuiShell.PushView(wizard)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Takeover brief enrichment
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -356,6 +356,24 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    90,
 			ViewID:      "help",
 		},
+		{
+			ID:          "history.export",
+			Label:       "History Export",
+			Aliases:     []string{"export history", "export sessions", "exporter"},
+			Description: "Exporter l'historique des sessions en JSON",
+			Category:    "Système",
+			Priority:    35,
+			Action:      actionHistoryExport,
+		},
+		{
+			ID:          "history.import",
+			Label:       "History Import",
+			Aliases:     []string{"import history", "import sessions", "importer"},
+			Description: "Importer un historique de sessions depuis un fichier JSON",
+			Category:    "Système",
+			Priority:    35,
+			Action:      actionHistoryImport,
+		},
 
 		// ── Navigation ───────────────────────────────────────────────────
 		{
@@ -587,6 +605,17 @@ func buildCommands(a *app.App) []shell.Command {
 			Action:      actionTeamConfigure,
 			Modes:       modeTeam,
 		})
+
+		commands = append(commands, shell.Command{
+			ID:          "history.team",
+			Label:       "Historique Équipe",
+			Aliases:     []string{"team history", "team sessions", "historique equipe"},
+			Description: "Historique des sessions de l'équipe",
+			Category:    i18n.T("tui.category.team"),
+			Priority:    55,
+			ViewID:      "team.activity",
+			Modes:       modeTeam,
+		})
 	} // end hasTeam
 
 	// ── Team init — always visible (needed to create a team) ─────────
@@ -598,6 +627,17 @@ func buildCommands(a *app.App) []shell.Command {
 		Category:    i18n.T("tui.category.team"),
 		Priority:    40,
 		Action:      actionTeamInit,
+	})
+
+	// ── Team rejoin — always visible (for reinstall recovery) ────────
+	commands = append(commands, shell.Command{
+		ID:          "team.rejoin",
+		Label:       i18n.T("tui.team.rejoin"),
+		Aliases:     []string{"team rejoin", "rejoindre", "rejoin"},
+		Description: i18n.T("tui.team.rejoin.desc"),
+		Category:    i18n.T("tui.category.team"),
+		Priority:    41,
+		Action:      actionTeamRejoin,
 	})
 
 	// ── Worktrees — always visible (git feature, not team-specific) ──

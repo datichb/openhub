@@ -38,10 +38,10 @@ var teamCmd = &cobra.Command{
 var teamRepo *teamstate.Repo
 
 // teamPreRunE resolves the team-state repo for all team subcommands.
-// It skips resolution if the command is `team init` (repo doesn't exist yet).
+// It skips resolution if the command is `team init` or `team rejoin` (repo doesn't exist yet).
 func teamPreRunE(cmd *cobra.Command, _ []string) error {
 	// Skip for commands that don't need an existing repo
-	if cmd.Name() == "init" {
+	if cmd.Name() == "init" || cmd.Name() == "rejoin" {
 		return nil
 	}
 	a := MustApp()
@@ -73,11 +73,22 @@ var teamActivityCmd = &cobra.Command{
 	RunE:  runTeamActivity,
 }
 
+var teamRejoinCmd = &cobra.Command{
+	Use:   "rejoin",
+	Short: i18n.T("cmd.team.rejoin.short"),
+	Long: i18n.T("cmd.team.rejoin.long") + "\n\n" +
+		"NOTE: Do not run rejoin while the TUI is actively performing team\n" +
+		"operations on the same team-state clone. The in-process lock does not\n" +
+		"protect against concurrent access from separate processes.",
+	RunE: runTeamRejoin,
+}
+
 func init() {
 	rootCmd.AddCommand(teamCmd)
 	teamCmd.AddCommand(teamInitCmd)
 	teamCmd.AddCommand(teamStatusCmd)
 	teamCmd.AddCommand(teamActivityCmd)
+	teamCmd.AddCommand(teamRejoinCmd)
 
 	teamActivityCmd.Flags().Bool("today", false, "Show only today's events")
 	teamActivityCmd.Flags().Bool("week", false, "Show last 7 days")
@@ -86,6 +97,10 @@ func init() {
 	teamActivityCmd.Flags().Int("limit", 20, "Maximum number of events to display")
 
 	teamStatusCmd.Flags().Bool("detail", false, i18n.T("cmd.team.status.flags.detail"))
+
+	teamRejoinCmd.Flags().String("repo", "", i18n.T("cmd.team.rejoin.flags.repo"))
+	teamRejoinCmd.Flags().String("member-id", "", i18n.T("cmd.team.rejoin.flags.member_id"))
+	teamRejoinCmd.Flags().Bool("no-retro-tag", false, i18n.T("cmd.team.rejoin.flags.no_retro_tag"))
 }
 
 func runTeamInit(cmd *cobra.Command, args []string) error {
@@ -1219,4 +1234,116 @@ func shortenPath(p string) string {
 		return "~" + p[len(home):]
 	}
 	return p
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// oh team rejoin
+// ══════════════════════════════════════════════════════════════════════════════
+
+func runTeamRejoin(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	a := MustApp()
+
+	// Prerequisite check
+	if _, err := os.Stat(config.ConfigPath()); os.IsNotExist(err) {
+		return fmt.Errorf("%s", i18n.Tf("cmd.team.rejoin.hub_not_configured", theme.Bold.Render("oh init")))
+	}
+
+	repoURL, _ := cmd.Flags().GetString("repo")
+	memberID, _ := cmd.Flags().GetString("member-id")
+	noRetroTag, _ := cmd.Flags().GetBool("no-retro-tag")
+
+	// ── Step 1: Repo URL ──
+	if repoURL == "" {
+		return fmt.Errorf("--repo is required: URL of the team-state Git repository")
+	}
+
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Team Rejoin  "))
+	fmt.Fprintln(a.IO.Out)
+
+	// ── Step 2: Clone/pull and list members ──
+	fmt.Fprintf(a.IO.Out, "  %s Cloning team-state...\n", theme.WarningStyle.Render(theme.IconDot))
+	_, members, err := listTeamMembers(ctx, repoURL, "")
+	if err != nil {
+		return err
+	}
+	if len(members) == 0 {
+		return fmt.Errorf("no members found in the team-state repository")
+	}
+
+	// ── Step 3: Member selection ──
+	if memberID == "" {
+		// Interactive: list members and let user choose
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintln(a.IO.Out, i18n.T("cmd.team.rejoin.select_member"))
+		fmt.Fprintln(a.IO.Out)
+		for i, m := range members {
+			gitlab := ""
+			if m.GitLabUsername != "" {
+				gitlab = fmt.Sprintf(" — gitlab: %s", m.GitLabUsername)
+			}
+			fmt.Fprintf(a.IO.Out, "  %d. %s (%s)%s\n", i+1, m.DisplayName, m.ID, gitlab)
+		}
+		fmt.Fprintln(a.IO.Out)
+		fmt.Fprintf(a.IO.Out, "%s", i18n.Tf("cmd.team.rejoin.choose", len(members)))
+
+		var choice int
+		if _, err := fmt.Fscanln(a.IO.In, &choice); err != nil || choice < 1 || choice > len(members) {
+			return fmt.Errorf("invalid selection")
+		}
+		memberID = members[choice-1].ID
+	} else {
+		// Verify the member exists
+		found := false
+		for _, m := range members {
+			if m.ID == memberID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("member %q not found in the team-state repository", memberID)
+		}
+	}
+
+	// ── Step 4: Validate GitLab identity + write config ──
+	fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.team.rejoin.validating"))
+	result, err := teamRejoinCore(ctx, a, teamRejoinParams{
+		StateRepo: repoURL,
+		MemberID:  memberID,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Success output
+	fmt.Fprintln(a.IO.Out)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.team.rejoin.success", result.Member.DisplayName, result.Member.ID, result.TeamName),
+	)
+
+	if result.EventCount > 0 {
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			theme.InfoStyle.Render(theme.IconInfo),
+			i18n.Tf("cmd.team.rejoin.events_found", result.EventCount),
+		)
+	}
+
+	// ── Step 5: Retro-tag sessions ──
+	if !noRetroTag {
+		count, err := retroTagSessions(ctx, memberID)
+		if err != nil {
+			slog.Warn("retro-tag failed", "error", err)
+		} else if count > 0 {
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf("cmd.team.rejoin.retro_tagged", count),
+			)
+		}
+	}
+
+	fmt.Fprintln(a.IO.Out)
+	return nil
 }

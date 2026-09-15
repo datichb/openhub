@@ -23,20 +23,24 @@ func NewSessionStore(s *Store) *SessionStore {
 var _ domain.SessionStore = (*SessionStore)(nil)
 
 // sessionColumns is the canonical column list used by all SELECT queries.
-const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path`
+const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id`
 
 // scanSession scans a row into a domain.Session. The row must match sessionColumns order.
 func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error) {
 	var s domain.Session
 	var status string
 	var endedAt sql.NullTime
+	var memberID sql.NullString
 	if err := scanner.Scan(&s.ID, &s.ProjectID, &s.StartedAt, &endedAt, &status,
-		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath); err != nil {
+		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID); err != nil {
 		return s, err
 	}
 	s.Status = domain.SessionStatus(status)
 	if endedAt.Valid {
 		s.EndedAt = &endedAt.Time
+	}
+	if memberID.Valid {
+		s.MemberID = &memberID.String
 	}
 	return s, nil
 }
@@ -85,10 +89,10 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 		s.StartedAt = time.Now()
 	}
 	_, err := ss.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ProjectID, s.StartedAt, s.EndedAt, string(s.Status),
-		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath,
+		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 	)
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
@@ -98,9 +102,9 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 
 func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.ExecContext(ctx,
-		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?
+		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?
 		 WHERE id=?`,
-		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.ID,
+		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating session %s: %w", s.ID, err)
