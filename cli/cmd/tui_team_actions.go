@@ -1665,7 +1665,7 @@ func buildColumnEditorStep(
 					h += fmt.Sprintf("%s%sCtrl+S[-] sauvegarder", hintSep, theme.ColorTag(theme.AccentHex))
 					hints.SetText(h)
 				} else {
-					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] ajouter label%s%sEnter[-] renommer%s%sd[-] supprimer%s%sEsc[-] retour aux colonnes",
+					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] ajouter label%s%sEnter[-] renommer%s%sd[-] supprimer%s%sq[-] retour aux colonnes",
 						theme.ColorTag(theme.AccentHex), hintSep,
 						theme.ColorTag(theme.AccentHex), hintSep,
 						theme.ColorTag(theme.AccentHex), hintSep,
@@ -1867,7 +1867,7 @@ func buildColumnEditorStep(
 				// ═══════════════════════════════════════════════════
 				if editingMappingsFor != "" {
 					switch {
-					case event.Key() == tcell.KeyEscape:
+					case event.Rune() == 'q':
 						editingMappingsFor = ""
 						renderColumns()
 						return nil
