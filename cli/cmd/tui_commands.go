@@ -493,6 +493,16 @@ func buildCommands(a *app.App) []shell.Command {
 				Modes:       modeTeam,
 			},
 			shell.Command{
+				ID:          "team.discover",
+				Label:       "Discover Tracker",
+				Aliases:     []string{"tracker discovery", "discover", "configurer tracker", "discovery"},
+				Description: "Lancer l'assistant de configuration tracker (discovery des labels/statuts)",
+				Category:    i18n.T("tui.category.configuration"),
+				Priority:    47,
+				Action:      actionTrackerDiscovery,
+				Modes:       modeTeam,
+			},
+			shell.Command{
 				ID:          "team.board",
 				Label:       i18n.T("tui.team.board"),
 				Aliases:     []string{"team board", "team kanban", "equipe board"},

@@ -569,6 +569,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
+			OnDiscoverTracker: actionTrackerDiscovery,
 		}),
 		// Team sub-pages
 		views.NewTeamMCPView(views.TeamMCPViewConfig{
@@ -662,7 +663,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("secret store non disponible")
+					return fmt.Errorf("keychain non disponible")
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},

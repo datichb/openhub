@@ -38,6 +38,9 @@ type TeamDetailViewConfig struct {
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
 	// SetSecret stores a secret value in the keychain.
 	SetSecret func(ctx context.Context, key, value string) error
+	// OnDiscoverTracker launches the tracker discovery wizard.
+	// Called when the user presses 'y' in the team detail view.
+	OnDiscoverTracker func()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,6 +178,11 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.dirtyTeam = false
 				v.dirtyLocal = false
 			})
+		}
+		return nil
+	case 'y':
+		if v.cfg.OnDiscoverTracker != nil {
+			v.cfg.OnDiscoverTracker()
 		}
 		return nil
 	}
