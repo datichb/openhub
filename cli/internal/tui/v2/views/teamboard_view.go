@@ -77,6 +77,8 @@ type TeamBoardView struct {
 	done        chan struct{}
 	once        sync.Once
 	shell       ShellAccess
+	content     *tview.Flex     // parent container — stored to swap empty↔board
+	emptyTV     *tview.TextView // empty-state placeholder, nil once board is shown
 	actions     *BoardActions
 
 	// Windowed column scroll — only a subset of columns is visible at a time.
@@ -158,6 +160,7 @@ func (v *TeamBoardView) StatusHints() string {
 // Mount builds the team board and inserts it into the content panel.
 func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 	v.done = make(chan struct{})
 
 	columns := DefaultColumns()
@@ -198,25 +201,28 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.populateColumns(v.cfg.Tickets, columns)
 
-	// Empty-state: show a helpful message when no tickets are available (ADR-032)
+	// Empty-state: show a helpful message when no tickets are available (ADR-032).
+	// The boardLayout is ALWAYS added to content so that async refresh (git pull)
+	// can populate it later. The empty-state message is shown on top and swapped
+	// out by populateColumns once real tickets arrive.
 	hasTickets := len(v.cfg.Tickets) > 0
 	isConfigured := v.cfg.IsConfigured == nil || v.cfg.IsConfigured()
 
 	switch {
 	case !hasTickets && !isConfigured:
-		emptyTV := tview.NewTextView().
+		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
-		emptyTV.SetBackgroundColor(theme.BgPanel)
-		emptyTV.SetText("\n\n[yellow]Aucune équipe configurée.[-]\n\nUtilisez [white]Team Init[-] pour commencer.")
-		content.AddItem(emptyTV, 0, 1, true)
+		v.emptyTV.SetBackgroundColor(theme.BgPanel)
+		v.emptyTV.SetText("\n\n[yellow]Aucune équipe configurée.[-]\n\nUtilisez [white]Team Init[-] pour commencer.")
+		content.AddItem(v.emptyTV, 0, 1, true)
 	case !hasTickets:
-		emptyTV := tview.NewTextView().
+		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
-		emptyTV.SetBackgroundColor(theme.BgPanel)
-		emptyTV.SetText("\n\n[yellow]Aucun ticket.[-]\n\nLancez [white]Sync Tracker[-] ([::b]r[::-]) pour synchroniser.")
-		content.AddItem(emptyTV, 0, 1, true)
+		v.emptyTV.SetBackgroundColor(theme.BgPanel)
+		v.emptyTV.SetText("\n\n[yellow]Aucun ticket.[-]\n\nLancez [white]Sync Tracker[-] ([::b]r[::-]) pour synchroniser.")
+		content.AddItem(v.emptyTV, 0, 1, true)
 	default:
 		content.AddItem(v.boardLayout, 0, 1, true)
 	}
@@ -263,6 +269,8 @@ func (v *TeamBoardView) Unmount() {
 		}
 	})
 	v.app = nil
+	v.content = nil
+	v.emptyTV = nil
 	v.columnFlex = nil
 	v.columnCards = nil
 	v.once = sync.Once{}
@@ -331,6 +339,72 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
+// buildTeamCard builds a single card for a team ticket. Centralizes the rendering
+// logic so that populateColumns and repopulateWithFilters produce identical output.
+func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
+	// ── Line 1: [Project] Title... [N/M] ──
+	projectTag := ""
+	projectDisplay := t.ProjectName
+	if projectDisplay == "" {
+		projectDisplay = t.Project
+	}
+	if projectDisplay != "" {
+		projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
+			theme.AccentHex, tview.Escape(projectDisplay))
+	}
+	// Truncate title to keep line 1 readable
+	title := t.Title
+	titleRunes := []rune(title)
+	if len(titleRunes) > 40 {
+		title = string(titleRunes[:37]) + "..."
+	}
+	// Beads badge: [done/total] when linked beads exist (ADR-032)
+	badgeStr := ""
+	if summary := v.getBeadsSummary(); summary != nil {
+		if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
+			color := theme.TextMutedHex
+			if bs.Done == bs.Total {
+				color = theme.SuccessHex
+			}
+			badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
+		}
+	}
+	mainText := projectTag + title + badgeStr
+
+	// ── Line 2: ID · priority ──
+	secondary := t.ID
+	if t.Priority != "" {
+		secondary += " · " + t.Priority
+	}
+
+	// ── Line 3: @assignee · label1 · label2 (filtered) ──
+	var parts []string
+	if t.Assignee != "" {
+		parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+	} else {
+		parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
+	}
+	// Filter out workflow labels (already reflected by column)
+	for _, l := range t.Labels {
+		if v.cfg.LabelStatusMapping != nil {
+			if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
+				continue
+			}
+		}
+		parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+	}
+	meta := ""
+	if len(parts) > 0 {
+		meta = strings.Join(parts, " · ")
+	}
+
+	return widgets.Card{
+		MainText:      mainText,
+		SecondaryText: secondary,
+		MetaText:      meta,
+	}
+}
+
 func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardColumnDef) {
 	// Defense-in-depth: if Unmount ran between the caller's check and this call,
 	// bail out to avoid index-out-of-range on v.columnCards.
@@ -338,6 +412,14 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 		return
 	}
 	v.allTickets = tickets
+
+	// Transition empty → populated: if we were showing the empty-state placeholder
+	// and real tickets arrived, swap the placeholder for the board layout.
+	if v.emptyTV != nil && len(tickets) > 0 && v.content != nil {
+		v.content.Clear()
+		v.content.AddItem(v.boardLayout, 0, 1, true)
+		v.emptyTV = nil
+	}
 
 	// Rebuild project tabs from latest ticket data
 	v.buildProjectTabs(tickets)
@@ -361,67 +443,7 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 			if t.Status != col.Status {
 				continue
 			}
-			// ── Line 1: [Project] Title... [N/M] ──
-			projectTag := ""
-			projectDisplay := t.ProjectName
-			if projectDisplay == "" {
-				projectDisplay = t.Project
-			}
-			if projectDisplay != "" {
-				projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-					theme.AccentHex, tview.Escape(projectDisplay))
-			}
-			// Truncate title to keep line 1 readable
-			title := t.Title
-			titleRunes := []rune(title)
-			if len(titleRunes) > 40 {
-				title = string(titleRunes[:37]) + "..."
-			}
-			// Beads badge: [done/total] when linked beads exist (ADR-032)
-			badgeStr := ""
-			if summary := v.getBeadsSummary(); summary != nil {
-				if bs, ok := summary[t.ID]; ok && bs.Total > 0 {
-					color := theme.TextMutedHex
-					if bs.Done == bs.Total {
-						color = theme.SuccessHex
-					}
-					badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
-				}
-			}
-			mainText := projectTag + title + badgeStr
-
-			// ── Line 2: ID · priority ──
-			secondary := t.ID
-			if t.Priority != "" {
-				secondary += " · " + t.Priority
-			}
-
-			// ── Line 3: @assignee · label1 · label2 (filtered) ──
-			var parts []string
-			if t.Assignee != "" {
-				parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
-			} else {
-				parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
-			}
-			// Filter out workflow labels (already reflected by column)
-			for _, l := range t.Labels {
-				if v.cfg.LabelStatusMapping != nil {
-					if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
-						continue
-					}
-				}
-				parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
-			}
-			meta := ""
-			if len(parts) > 0 {
-				meta = strings.Join(parts, " · ")
-			}
-
-			v.columnCards[i].AddCard(widgets.Card{
-				MainText:      mainText,
-				SecondaryText: secondary,
-				MetaText:      meta,
-			})
+			v.columnCards[i].AddCard(v.buildTeamCard(t))
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 			break
 		}
@@ -1174,7 +1196,8 @@ func (v *TeamBoardView) repopulateWithFilters() {
 		return
 	}
 	columns := DefaultColumns()
-	filtered := v.applyFilters(v.allTickets)
+	filtered := v.applyProjectFilter(v.allTickets)
+	filtered = v.applyFilters(filtered)
 
 	// Reset ticket ID lookup
 	v.ticketIDLookup = make([][]string, len(v.columnCards))
@@ -1190,52 +1213,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 			if t.Status != col.Status {
 				continue
 			}
-			// ── Line 1: [Project] Title... ──
-			projectTag := ""
-			projectDisplay := t.ProjectName
-			if projectDisplay == "" {
-				projectDisplay = t.Project
-			}
-			if projectDisplay != "" {
-				projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-					theme.AccentHex, tview.Escape(projectDisplay))
-			}
-			title := t.Title
-			titleRunes := []rune(title)
-			if len(titleRunes) > 40 {
-				title = string(titleRunes[:37]) + "..."
-			}
-			mainText := projectTag + title
-
-			// ── Line 2: ID · priority ──
-			secondary := t.ID
-			if t.Priority != "" {
-				secondary += " · " + t.Priority
-			}
-
-			// ── Line 3: @assignee · labels (filtered) ──
-			var parts []string
-			if t.Assignee != "" {
-				parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
-			}
-			for _, l := range t.Labels {
-				if v.cfg.LabelStatusMapping != nil {
-					if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
-						continue
-					}
-				}
-				parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
-			}
-			meta := ""
-			if len(parts) > 0 {
-				meta = strings.Join(parts, " · ")
-			}
-
-			v.columnCards[i].AddCard(widgets.Card{
-				MainText:      mainText,
-				SecondaryText: secondary,
-				MetaText:      meta,
-			})
+			v.columnCards[i].AddCard(v.buildTeamCard(t))
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 			break
 		}

@@ -47,9 +47,10 @@ func runTUIWithProject(projectName string) error {
 			return fmt.Errorf("projet introuvable: %q", projectName)
 		}
 		initialProject = &views.ActiveProject{
-			ID:   p.ID,
-			Name: p.Name,
-			Path: p.Path,
+			ID:     p.ID,
+			Name:   p.Name,
+			Path:   p.Path,
+			Branch: resolveGitBranch(p.Path),
 		}
 		homeViewID = "project.mode"
 	}

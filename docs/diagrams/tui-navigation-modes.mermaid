@@ -1,0 +1,35 @@
+stateDiagram-v2
+    [*] --> Hub : Default
+
+    Hub --> Project : Select project / Ctrl+T (single project)
+    Hub --> Team : Select team / Ctrl+T (single team)
+
+    Project --> Hub : "Mode Hub" / Ctrl+T
+    Project --> Team : Ctrl+T (team configured)
+
+    Team --> Hub : "Mode Hub" / Ctrl+T
+    Team --> Project : Select project
+
+    state Hub {
+        [*] --> HubHome
+        HubHome : Teams list
+        HubHome : Projects list
+        HubHome : System (Settings, Metrics, Worktrees, Doctor, Secrets)
+        HubHome : Quick Actions (Add project)
+    }
+
+    state Project {
+        [*] --> ProjectHome
+        ProjectHome : Sessions (Start Dev, Quick, Audit, Review, Debug, Parallel, Onboard)
+        ProjectHome : Projet (Board, Metrics, Status)
+        ProjectHome : Configuration (Config, Worktrees, Workflow)
+        ProjectHome : Deploy (Deploy, View diff)
+    }
+
+    state Team {
+        [*] --> TeamHome
+        TeamHome : Sessions (Start Dev, Quick, Audit, Review, Debug)
+        TeamHome : Board (Team Board, Status, Activity, Briefs)
+        TeamHome : Configuration (Patterns, Policies, Config, Workflow, Sync Tracker)
+        TeamHome : Navigation (Projects, Mode Hub)
+    }

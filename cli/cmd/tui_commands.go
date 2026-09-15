@@ -262,6 +262,15 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "mcp",
 		},
+		{
+			ID:          "workflow",
+			Label:       "Workflow",
+			Aliases:     []string{"wf", "pipeline", "steps"},
+			Description: "Configuration du workflow",
+			Category:    "Configuration",
+			Priority:    50,
+			ViewID:      "workflow",
+		},
 		// team-detail moved into hasTeam block (ADR-032)
 
 		// ── Système ──────────────────────────────────────────────────────

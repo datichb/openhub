@@ -2,7 +2,6 @@ package views
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -35,6 +34,8 @@ type HomeViewConfig struct {
 	OnSelectTeam func(teamID, teamName string)
 	// OnSelectProject is called when the user selects a project — enters project mode.
 	OnSelectProject func(projectID, projectName, projectPath string)
+	// OnAddProject is called when the user triggers the "add project" quick action.
+	OnAddProject func()
 }
 
 // TeamEntry represents a team with positive stats for the hub home.
@@ -57,13 +58,14 @@ type ProjectEntry struct {
 
 // HomeView is the splash/landing view for the TUI shell.
 type HomeView struct {
-	app     *tview.Application
-	content *tview.Flex
-	list    *widgets.SectionedList
-	dual    *homeDualLayout
-	shell   ShellAccess
-	cfg     HomeViewConfig
-	items   []homeItem
+	app      *tview.Application
+	content  *tview.Flex
+	list     *widgets.SectionedList
+	dual     *homeDualLayout
+	shell    ShellAccess
+	cfg      HomeViewConfig
+	items    []homeItem
+	mountGen uint64 // guards stale goroutines (standard pattern)
 }
 
 var _ View = (*HomeView)(nil)
@@ -76,13 +78,17 @@ func NewHomeView(cfg HomeViewConfig) *HomeView {
 func (v *HomeView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *HomeView) ID() string    { return "home" }
-func (v *HomeView) Title() string { return "Home" }
+func (v *HomeView) Title() string { return i18n.T("tui.home.title") }
 
 func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
+	v.mountGen++
+	gen := v.mountGen
 
-	v.items = v.buildItems()
+	// Build static items immediately (System + Actions rapides).
+	// Dynamic items (Teams, Projects) are loaded asynchronously below.
+	v.items = v.buildStaticItems()
 
 	// ── Logo (top) ──────────────────────────────────────────────────────
 	logo := tview.NewTextView().
@@ -90,7 +96,8 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
-	logo.SetText(buildLogo())
+	bannerStr, bh := renderBanner("OPENHUB", 100)
+	logo.SetText(fmt.Sprintf("\n%s", bannerStr))
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	footer := tview.NewTextView().
@@ -100,21 +107,22 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	footer.SetBackgroundColor(theme.BgPanel)
 	footer.SetText(buildShortcutsFooter())
 
-	// ── Split items for dual-column: left = Teams+System, right = Projects ──
-	leftItems, rightItems := v.splitItems()
-
 	onSelect := func(_ int, item widgets.SectionItem) {
 		if ref, ok := item.Reference.(int); ok {
 			v.executeItem(ref)
 		}
 	}
 
-	// ── Adaptive layout with resize ─────────────────────────────────────
+	headerHeight := bh + 3
+
+	// buildFn reads v.items at call time (not captured slices) so that
+	// both initial mount and async data arrival produce correct layouts.
 	buildFn := func(width int) homeFlexResult {
+		leftItems, rightItems := v.splitItems()
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
 			Header:       logo,
-			HeaderHeight: 9,
+			HeaderHeight: headerHeight,
 			Footer:       footer,
 			FooterHeight: 4,
 			LeftItems:    leftItems,
@@ -133,6 +141,22 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	adaptiveHomeMount(app, content, buildFn)
+
+	// ── Async: load Teams + Projects in background ─────────────────────
+	go func() {
+		items := v.buildItems()
+		if app != nil {
+			app.QueueUpdateDraw(func() {
+				if v.mountGen != gen {
+					return // view was re-mounted, discard stale result
+				}
+				v.items = items
+				// Full layout rebuild to update both columns with fresh data
+				content.Clear()
+				adaptiveHomeMount(app, content, buildFn)
+			})
+		}
+	}()
 }
 
 func (v *HomeView) Unmount() {
@@ -153,32 +177,7 @@ func (v *HomeView) StatusHints() string {
 }
 
 func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.list == nil {
-		return event
-	}
-
-	// Dual-column navigation (h/l/Tab)
-	if v.dual != nil {
-		if consumed := v.dual.HandleKey(event); consumed == nil {
-			return nil
-		}
-	}
-
-	if event.Key() == tcell.KeyEnter {
-		active := v.list
-		if v.dual != nil {
-			active = v.dual.activeList()
-		}
-		if _, item, ok := active.CurrentItem(); ok {
-			if ref, refOk := item.Reference.(int); refOk {
-				v.executeItem(ref)
-			}
-		}
-		return nil
-	}
-
-	// Let SectionedList handle j/k/arrows via its InputCapture
-	return event
+	return homeHandleKey(event, v.list, v.dual, v.executeItem)
 }
 
 func (v *HomeView) executeItem(idx int) {
@@ -191,6 +190,35 @@ func (v *HomeView) executeItem(idx int) {
 	} else if item.Action != nil {
 		item.Action()
 	}
+}
+
+// buildStaticItems returns items that don't require I/O (System + Actions rapides).
+// Used for the initial synchronous frame before async data arrives.
+func (v *HomeView) buildStaticItems() []homeItem {
+	var items []homeItem
+
+	// ── System / navigation ──
+	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
+	items = append(items,
+		homeItem{Icon: "⊟", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
+		homeItem{Icon: "◎", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
+		homeItem{Icon: "⊛", Label: i18n.T("tui.home.worktrees"), Desc: i18n.T("tui.home.worktrees_desc"), ViewID: "worktrees"},
+		homeItem{Icon: "◈", Label: i18n.T("tui.home.doctor"), Desc: i18n.T("tui.home.doctor_desc"), ViewID: "doctor"},
+		homeItem{Icon: "🔑", Label: i18n.T("tui.home.secrets"), Desc: i18n.T("tui.home.secrets_desc"), ViewID: "secrets"},
+		homeItem{Icon: "🔔", Label: i18n.T("tui.home.notifications"), Desc: i18n.T("tui.home.notifications_desc"), ViewID: "notifications"},
+	)
+
+	// ── Quick actions (displayed in right column for balance) ──
+	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.actions"), Desc: ""})
+	items = append(items,
+		homeItem{Icon: "+", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
+			if v.cfg.OnAddProject != nil {
+				v.cfg.OnAddProject()
+			}
+		}},
+	)
+
+	return items
 }
 
 func (v *HomeView) buildItems() []homeItem {
@@ -249,37 +277,29 @@ func (v *HomeView) buildItems() []homeItem {
 		}
 	}
 
-	// ── System / navigation ──
-	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
-	items = append(items,
-		homeItem{Icon: "⊟", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
-		homeItem{Icon: "◎", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
-		homeItem{Icon: "⊛", Label: i18n.T("tui.home.worktrees"), Desc: i18n.T("tui.home.worktrees_desc"), ViewID: "worktrees"},
-	)
+	// Append static items (System + Actions rapides) — shared with buildStaticItems
+	items = append(items, v.buildStaticItems()...)
 
 	return items
 }
 
 // splitItems distributes home items into left/right columns for dual mode.
-// Left: Équipes + Système. Right: Projets.
+// Left: Équipes + Système. Right: Projets + Actions rapides.
 func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
-	// Find the "Projets" section boundary
-	projIdx := -1
-	sysIdx := -1
-	for i, it := range v.items {
-		if it.Icon == "─" && it.Label == i18n.T("tui.home.section.projects") {
-			projIdx = i
-		}
-		if it.Icon == "─" && it.Label == i18n.T("tui.home.section.system") {
-			sysIdx = i
-		}
+	// Identify which sections go right
+	rightSections := map[string]bool{
+		i18n.T("tui.home.section.projects"): true,
+		i18n.T("tui.home.section.actions"):  true,
 	}
 
-	// Left: everything except Projets section
-	// Right: Projets section
+	inRight := false
 	for i, it := range v.items {
 		si := homeItemToSectionItem(it, i)
-		if projIdx >= 0 && i >= projIdx && (sysIdx < 0 || i < sysIdx) {
+		if it.Icon == "─" {
+			// Section header — check if this section goes right
+			inRight = rightSections[it.Label]
+		}
+		if inRight {
 			right = append(right, si)
 		} else {
 			left = append(left, si)
@@ -305,21 +325,6 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 // ─────────────────────────────────────────────────────────────────────────────
 // Static rendering helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-func buildLogo() string {
-	action := theme.ColorTag(theme.ActionHex)
-	reset := theme.TagColor
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "\n")
-	fmt.Fprintf(&b, "%s ██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s\n", action, reset)
-	fmt.Fprintf(&b, "%s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s\n", action, reset)
-	fmt.Fprintf(&b, "%s██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║██║   ██║██████╔╝%s\n", action, reset)
-	fmt.Fprintf(&b, "%s██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║   ██║██╔══██╗%s\n", action, reset)
-	fmt.Fprintf(&b, "%s╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║╚██████╔╝██████╔╝%s\n", action, reset)
-	fmt.Fprintf(&b, "%s ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝%s\n", action, reset)
-	return b.String()
-}
 
 func buildShortcutsFooter() string {
 	accent := theme.ColorTag(theme.AccentHex)

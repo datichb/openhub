@@ -140,6 +140,23 @@ In the **Projects** view:
 | `hub mode` | Switch to hub-level (global) view |
 | `quit` | Exit the TUI |
 
+### Navigation Modes
+
+The TUI provides three navigation modes that filter omnibar commands and adapt the Home page to the active context:
+
+- **Hub** (default): overview of all projects and teams. Auto-selected when multiple projects/teams are configured.
+- **Project** (`Ctrl+T` or selection from Home): focused on a single project. Omnibar filtered to project commands (sessions, board, deploy, project config).
+- **Team** (`Ctrl+T` or selection from Home): focused on a single team. Omnibar filtered to team commands (team board, status, policies).
+
+**Auto-detection**: 1 project configured → Project mode; 1 team → Team mode; otherwise → Hub.
+
+**Transitions**:
+- `Ctrl+T` to switch between modes
+- Select a project or team from the Hub Home
+- `hub mode` command to return to Hub mode
+
+Each mode has its own Home page with context-appropriate shortcuts.
+
 ---
 
 ## Session Types Reference

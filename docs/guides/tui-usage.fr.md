@@ -140,6 +140,23 @@ Dans la vue **Projets** :
 | `hub mode` | Basculer vers la vue hub (globale) |
 | `quit` | Quitter le TUI |
 
+### Modes de navigation
+
+Le TUI propose trois modes de navigation qui filtrent les commandes omnibar et adaptent la page Home au contexte actif :
+
+- **Hub** (defaut) : vue d'ensemble de tous les projets et equipes. Auto-selectionne si plusieurs projets/equipes sont configures.
+- **Projet** (`Ctrl+T` ou selection depuis Home) : focalise sur un projet. L'omnibar est filtree aux commandes projet (sessions, board, deploy, config projet).
+- **Equipe** (`Ctrl+T` ou selection depuis Home) : focalise sur une equipe. L'omnibar est filtree aux commandes equipe (team board, status, policies).
+
+**Auto-detection** : si un seul projet est configure → mode Projet ; si une seule equipe → mode Equipe ; sinon → Hub.
+
+**Transitions** :
+- `Ctrl+T` pour basculer entre les modes
+- Selection d'un projet ou d'une equipe depuis le Hub Home
+- Commande `hub mode` pour revenir au mode Hub
+
+Chaque mode a sa propre page Home avec des raccourcis adaptes au contexte.
+
 ---
 
 ## Reference des types de sessions

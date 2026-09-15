@@ -17,8 +17,9 @@ const bannerFont = "small"
 // Action/Peach. If the rendered text exceeds maxWidth columns, it falls
 // back to a simple bold-colored line.
 //
-// Returns a tview-compatible dynamic color tagged string (multi-line).
-func renderBanner(name string, maxWidth int) string {
+// Returns a tview-compatible dynamic color tagged string (multi-line)
+// and the number of visible lines the banner occupies.
+func renderBanner(name string, maxWidth int) (string, int) {
 	fig := figure.NewFigure(name, bannerFont, false)
 	lines := fig.Slicify()
 
@@ -29,7 +30,7 @@ func renderBanner(name string, maxWidth int) string {
 	trimmed := trimEmptyLines(lines)
 
 	if len(trimmed) == 0 {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset)
+		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset), 1
 	}
 
 	// Check width — find the longest line
@@ -42,7 +43,7 @@ func renderBanner(name string, maxWidth int) string {
 
 	// Fallback: if too wide, return simple bold text
 	if maxLine > maxWidth {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset)
+		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset), 1
 	}
 
 	// Color each line with left margin
@@ -50,32 +51,7 @@ func renderBanner(name string, maxWidth int) string {
 	for _, l := range trimmed {
 		fmt.Fprintf(&b, "  %s%s%s\n", action, l, reset)
 	}
-	return b.String()
-}
-
-// bannerHeight returns the number of visible lines the banner will occupy.
-func bannerHeight(name string, maxWidth int) int {
-	fig := figure.NewFigure(name, bannerFont, false)
-	lines := fig.Slicify()
-
-	trimmed := trimEmptyLines(lines)
-	if len(trimmed) == 0 {
-		return 1
-	}
-
-	maxLine := 0
-	for _, l := range trimmed {
-		if len(l) > maxLine {
-			maxLine = len(l)
-		}
-	}
-
-	// Fallback = 1 line
-	if maxLine > maxWidth {
-		return 1
-	}
-
-	return len(trimmed)
+	return b.String(), len(trimmed)
 }
 
 // trimEmptyLines removes fully blank lines from the start and end of a slice.

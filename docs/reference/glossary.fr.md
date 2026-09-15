@@ -56,6 +56,18 @@ Un agent peut fonctionner selon deux modes :
 - **Primary (principal)** : lance directement par l'utilisateur via `oh start` ou le TUI. Possede sa propre session.
 - **Subagent (sous-agent)** : invoque par un autre agent via l'outil `task`. S'execute dans la session de l'agent parent.
 
+### Mode Equipe
+
+Mode de navigation du TUI focalise sur une equipe active. L'omnibar affiche uniquement les commandes equipe (team board, status, policies) et les commandes globales. Active automatiquement si une seule equipe est configuree, ou manuellement via `Ctrl+T` / selection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
+
+### Mode Hub
+
+Mode de navigation par defaut du TUI, affichant tous les projets et equipes. Active automatiquement si plusieurs projets ou equipes sont configures. Permet de selectionner un projet ou une equipe pour basculer en mode focalise. Voir [Usage TUI](../guides/tui-usage.fr.md).
+
+### Mode Projet
+
+Mode de navigation du TUI focalise sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, deploy, config projet) et les commandes globales. Active automatiquement si un seul projet est configure, ou manuellement via `Ctrl+T` / selection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
+
 ### Onboarder
 
 Un agent principal de la famille planning qui explore un codebase existant, detecte la stack technique, identifie les risques et produit un [wiki vivant](#living-wiki-wiki-vivant). Invoque avec `oh start --onboard`.

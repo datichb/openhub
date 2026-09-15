@@ -136,10 +136,13 @@ Accepts text input with fuzzy suggestions displayed above:
 
 ### Navigation
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `home` | accueil, welcome | Return to splash screen |
-| `quit` | exit, q | Quit the TUI |
+| Command | Aliases | Description | Availability |
+|---------|---------|-------------|--------------|
+| `home` | accueil, welcome | Return to splash screen | Global |
+| `project.mode` | project mode | Project Mode | `Ctrl+T` (Hub, Team modes) |
+| `hub.mode` | hub mode | Hub Mode | `Ctrl+T` (Team, Project modes) |
+| `workflow` | wf | Workflow configuration | Global |
+| `quit` | exit, q | Quit the TUI | Global |
 
 ### Team (when enabled)
 
@@ -166,6 +169,8 @@ When a view is active, it may have additional shortcuts that work without activa
 | `j` / `↑` | Previous item |
 | `k` / `↓` | Next item |
 | `r` | Refresh |
+| `g` | Go to first item |
+| `G` | Go to last item |
 | `Enter` | Open item detail |
 
 ### Team Board View
@@ -185,6 +190,8 @@ Tickets display compact label tags: `[AI]` (green) for `agent-reviewed`, `[!]` (
 | `t` | Transfer the selected ticket to another team member |
 | `s` | Change the status of the selected ticket |
 | `r` | Refresh (pulls latest from git + tracker if configured) |
+| `g` | Go to first item |
+| `G` | Go to last item |
 | `q` / `Esc` | Back to hub |
 
 ### Projects View

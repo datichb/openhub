@@ -247,6 +247,50 @@ Widget : `cli/internal/tui/v2/widgets/cardcolumn.go` — custom `tview.Primitive
 - `board.go` / `board_view.go` — board personnel (projet)
 - `teamboard.go` / `teamboard_view.go` — board équipe (team-state)
 
+### Home Pages
+
+Les trois home views (Hub, Project, Team) partagent une structure visuelle
+commune documentée ici.
+
+#### Logo
+
+- Police : figlet font `small`
+- Couleur : Action/Peach (`#fab387`)
+- Fallback : texte bold Primary si la largeur disponible est inférieure à la
+  largeur du rendu figlet (terminaux < 60 cols)
+
+#### Layout dual-column
+
+- Séparateur vertical : `│` en BorderCard (`#45475a`)
+- Largeur par colonne : 65 chars
+- Gap entre colonnes : 4 chars
+- En mode single-column (< 140 cols), les sections sont empilées verticalement
+
+#### Section headers
+
+Format : `── Label ──` — rendus via des items `IsHeader: true` dans la liste.
+Couleur : Secondary (`#a6adc8`).
+
+#### Centrage vertical
+
+Ratio `1:5:1` — le contenu occupe 5/7 de la hauteur disponible, avec des
+marges égales en haut (1/7) et en bas (1/7).
+
+#### Modes
+
+| Mode | Logo | Contenu spécifique |
+|------|------|--------------------|
+| **Hub** | figlet "OPENHUB" | Listes équipes + projets, actions système |
+| **Project** | figlet du nom de projet | Badge deploy (● À jour / ⊘ En cours), sessions, config, board |
+| **Team** | figlet du nom d'équipe (UPPERCASE) | Stats membres/tickets, board équipe, patterns/policies |
+
+#### Champ structurel `SectionID`
+
+Chaque item de la home porte un `SectionID` (ex. `sessions`, `config`,
+`deploy`, `board`, `team`, `navigation`, `system`). Ce champ est utilisé par
+le layout engine pour répartir les sections entre les deux colonnes en mode
+dual-column. Les sections avec le même `SectionID` restent groupées.
+
 ## Anti-patterns
 
 - Ne **jamais** utiliser de séparateurs lourds (`━━━`, couleurs vives) pour délimiter des zones. Les séparateurs subtils en `BorderCard` (`│`, `─`) sont acceptés pour la structure (colonnes kanban, sections).

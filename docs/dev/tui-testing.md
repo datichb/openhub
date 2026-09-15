@@ -139,3 +139,51 @@ make test       # All tests complete
 - `t.Helper()` for all setup helpers
 - `testify/assert` for assertions, `testify/require` for fatals
 - Command tests verify fuzzy search ranking and `Enabled` filtering
+
+## Home Views Testing
+
+The 3 home views (Hub, Project, Team) have specific test patterns:
+
+### Mount / Unmount with mock shell
+
+```go
+func TestProjectModeView_MountUnmount(t *testing.T) {
+    v := NewProjectModeView(ProjectModeConfig{})
+    v.SetShell(&mockShell{
+        project: &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"},
+    })
+    content := tview.NewFlex()
+    app := tview.NewApplication()
+    v.Mount(content, app)
+    assert.Greater(t, content.GetItemCount(), 0)
+    v.Unmount()
+}
+```
+
+`mockShell` implements `ShellAccess` and returns preset `ActiveProject`/`ActiveTeam`.
+
+### Split items (dual-column balance)
+
+```go
+func TestProjectModeView_SplitItems(t *testing.T) {
+    v := &ProjectModeView{}
+    v.project = &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp"}
+    v.items = v.buildItems()
+    left, right := v.splitItems()
+    // Assert: Sessions + Projet → left; Configuration + Deploy → right
+}
+```
+
+Uses `SectionID` field for structural assertions (immune to i18n changes).
+
+### mountGen guard (stale goroutine protection)
+
+TeamModeView and HomeView use `mountGen` to discard async results from stale mounts. Test by calling `Mount → Unmount → Mount` and verifying the goroutine from the first mount is ignored.
+
+### Race detection
+
+Run with `-race` to verify `atomic.Int32` in `adaptiveHomeMount` eliminates data races:
+
+```bash
+rtk go test -race ./internal/tui/v2/views/ -count=1
+```

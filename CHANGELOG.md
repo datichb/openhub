@@ -9,6 +9,42 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Home pages enrichies (ADR-032)** — Chaque mode (Hub, Projet, Équipe) dispose de sa propre page Home avec des accès rapides contextuels
+  - Hub Home : +Doctor, +Secrets, +Ajouter un projet (nouvelle section "Actions rapides")
+  - Project Home : +Quick, +Parallel, +Onboard, +Workflow (7 sessions au lieu de 4)
+  - Team Home : +Debug, +Quick, +Workflow, +Sync Tracker, nouvelle section "Navigation"
+- **Commande omnibar `workflow`** — Vue workflow accessible directement depuis l'omnibar (Priority 50, Configuration)
+- **`g`/`G` dans SectionedList** — Aller au premier/dernier item (navigation vim)
+- **Branch Git dans le header Project Home** — Affiche la branche courante à côté du path
+- **Empty states enrichis** — Suggestions d'actions (Ctrl+P > projects, team init) dans les états vides
+
+### Changed
+
+- **Section "Board" renommée "Projet"** dans le Project Home pour éviter la redondance avec l'item Board
+- **Footer unifié** sur les 3 pages Home — même ordre de raccourcis (Ctrl+P, ?, Ctrl+T, Ctrl+Q)
+- **Logo Hub via figlet** — Remplace l'ASCII art hardcodé par `renderBanner("OPENHUB")` avec fallback automatique
+- **Séparateur dual-column en BorderCard** (`#45475a`) au lieu de FgMuted (`#7f849c`), conforme à Aurum
+- **`renderBanner` retourne `(string, int)`** — Fusion avec `bannerHeight()` pour éviter le double calcul figlet
+- **Split dual-column par `SectionID`** — Remplace la comparaison sur label string, immunisé aux changements i18n
+
+### Fixed
+
+- **Pointeurs stale après resize dans ProjectModeView et TeamModeView** (E1) — `v.list`/`v.dual` sont maintenant mis à jour dans le `buildFn` closure à chaque rebuild, comme HomeView
+- **Race condition dans adaptiveHomeMount** (T1) — `currentMode` utilise `atomic.Int32` pour éliminer le data race Go
+- **Guard mountGen manquant dans TeamModeView** (T4) — La goroutine async des stats ne peut plus écrire sur un header nillé après Unmount
+
+### Documentation
+
+- ADR-032 EN créé + FR passé en `accepted`
+- Mockups 3 modes dans `docs/design/tui-shell.md`
+- Composant "Home Pages" dans `docs/design/aurum.md`
+- Section "Modes de navigation" dans `docs/guides/tui-usage.{en,fr}.md`
+- Commandes mode-aware dans `docs/reference/tui.{en,fr}.md`
+- Entrées glossaire : Hub Mode, Project Mode, Team Mode
+- Diagramme Mermaid `docs/diagrams/tui-navigation-modes.mermaid`
+
 ---
 
 ## [4.0.1] — 2026-09-09

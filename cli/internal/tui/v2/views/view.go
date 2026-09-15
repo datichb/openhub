@@ -148,9 +148,10 @@ type ShellAccess interface {
 
 // ActiveProject holds the minimal project context for the TUI project mode.
 type ActiveProject struct {
-	ID   string
-	Name string
-	Path string
+	ID     string
+	Name   string
+	Path   string
+	Branch string // current git branch (empty if unknown)
 }
 
 // ActiveTeam holds the minimal team context for the TUI team mode (ADR-032 Phase 3).

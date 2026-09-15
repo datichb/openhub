@@ -2,7 +2,11 @@
 
 ## Statut
 
-proposed
+accepted
+
+> **Note d'implémentation (2026-09-14)** : Phase 1 réalisée — items Home page ajoutés
+> (projet/équipe), commande omnibar `workflow`, SectionID pour le split des vues,
+> layout responsive dual-column sur la Home.
 
 ## Date
 

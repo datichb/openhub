@@ -56,6 +56,18 @@ An agent can operate in two modes:
 - **Primary**: launched directly by the user via `oh start` or the TUI. Has its own session.
 - **Subagent**: invoked by another agent via the `task` tool. Runs within the parent agent's session.
 
+### Hub Mode
+
+Default navigation mode in the TUI, displaying all projects and teams. Auto-selected when multiple projects or teams are configured. Allows selecting a project or team to switch to a focused mode. See [TUI usage](../guides/tui-usage.en.md).
+
+### Project Mode
+
+TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, deploy, project config) and global commands. Auto-selected when a single project is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
+
+### Team Mode
+
+TUI navigation mode focused on an active team. The omnibar shows only team commands (team board, status, policies) and global commands. Auto-selected when a single team is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
+
 ### Onboarder
 
 A primary agent in the planning family that explores an existing codebase, detects the tech stack, identifies risks, and produces a [living wiki](#living-wiki). Invoked with `oh start --onboard`.

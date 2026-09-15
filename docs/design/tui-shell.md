@@ -105,39 +105,115 @@
 - Non-selected: text Primary, description Muted
 - Max 10 items visible
 
-## Splash Screen (Home View)
+## Home View (mode-aware)
+
+The home view adapts to the current navigation mode. Each mode displays a
+figlet logo, contextual sections, and mode-specific actions in a dual-column
+layout.
+
+### Hub Home
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                                                                   │
-│                                                                   │
-│              ___                   _   _       _                  │
-│             / _ \ _ __   ___ _ __ | | | |_   _| |__              │
-│            | | | | '_ \ / _ \ '_ \| |_| | | | | '_ \            │
-│            | |_| | |_) |  __/ | | |  _  | |_| | |_) |           │
-│             \___/| .__/ \___|_| |_|_| |_|\__,_|_.__/            │
-│                  |_|                                              │
-│                                                                   │
-│          ─────────────────────────────────────────                │
-│                                                                   │
-│            Ctrl+P  ouvrir l'omnibar       Esc  retour            │
-│            start   lancer une session     quit quitter           │
-│            board   kanban projet          help raccourcis         │
-│                                                                   │
-│          ─────────────────────────────────────────                │
-│                                                                   │
-│        Tapez n'importe quelle lettre pour chercher une commande  │
-│                                                                   │
-├───────────────────────────────────────────────────────────────────┤
-│  ◆ > _  Ctrl+P commande · Ctrl+Q quitter                         │
-└───────────────────────────────────────────────────────────────────┘
+╭──────────────────────────────────────────────────────────────╮
+│                                                              │
+│    ___  ___ ___ _  _ _  _ _   _ ___                         │
+│   / _ \| _ \ __| \| | || | | | | _ )                        │
+│  | (_) |  _/ _|| .` | __ | |_| | _ \                        │
+│   \___/|_| |___|_|\_|_||_|\___/|___/                         │
+│                                                              │
+│  ── Équipes ──              ── Projets ──                    │
+│  ◫  My Team                ◈  my-api                        │
+│     3 membres · 2 actifs      /home/dev/my-api · main · 2h  │
+│                             ◈  frontend                      │
+│  ── Système ──                 /home/dev/front · feat/x      │
+│  ⊟  Configuration                                           │
+│  ◎  Métriques              ── Actions rapides ──             │
+│  ⊛  Worktrees              +  Ajouter un projet             │
+│  ◈  Doctor                                                   │
+│  🔑  Secrets                                                 │
+│                                                              │
+│  Ctrl+P commandes · ? aide · Ctrl+T mode équipe · Ctrl+Q    │
+╰──────────────────────────────────────────────────────────────╯
 ```
+
+### Project Home
+
+```
+╭──────────────────────────────────────────────────────────────╮
+│    __  ____   __     _   ___ ___                             │
+│   |  \/  \ \ / /    /_\ | _ \_ _|                           │
+│   | |\/| |\ V /    / _ \|  _/| |                            │
+│   |_|  |_| |_|    /_/ \_\_| |___|                            │
+│   ◆ Mode Projet                                              │
+│   /home/dev/my-api · ● À jour (il y a 2h)                   │
+│                                                              │
+│  ── Sessions ──             ── Configuration ──              │
+│  ▶  Start Dev               ⊛  Config Projet                │
+│  ⚡  Quick                   ⊜  Worktrees                    │
+│  ◉  Audit                   ⊙  Workflow                      │
+│  ◎  Review                                                   │
+│  ◈  Debug                  ── Deploy ──                      │
+│  ⊞  Parallel               ⊘  Déployer                      │
+│  🎓  Onboard                ⊙  Voir les changements          │
+│                                                              │
+│  ── Projet ──              ── Équipe ──                      │
+│  ⊞  Board                  ◫  Team Status                    │
+│  ⊟  Métriques              ◫  Team Board                     │
+│  ⊝  Statut                 ◫  Team Activity                  │
+│                             ↩  Mode Hub                      │
+│                                                              │
+│  Ctrl+P commandes · ? aide · Ctrl+T mode · r refresh        │
+╰──────────────────────────────────────────────────────────────╯
+```
+
+### Team Home
+
+```
+╭──────────────────────────────────────────────────────────────╮
+│    __  ____   _____ ___   _   __  __                         │
+│   |  \/  \ \ / /_ _| __| /_\ |  \/  |                      │
+│   | |\/| |\ V / | || _| / _ \| |\/| |                      │
+│   |_|  |_| |_| |___|___/_/ \_\_|  |_|                       │
+│   ◆ Mode Équipe                                              │
+│   5 membres · 3 tickets actifs                               │
+│                                                              │
+│  ── Sessions ──             ── Configuration ──              │
+│  ▶  Start Dev               ◫  Patterns                     │
+│  ⚡  Quick                   ◫  Policies                     │
+│  ◉  Audit                   ⊛  Config Équipe                │
+│  ◈  Review                  ⊙  Workflow                      │
+│  ◈  Debug                   ⊘  Sync Tracker                  │
+│                                                              │
+│  ── Board ──               ── Navigation ──                  │
+│  ◫  Team Board              ◈  Projets                       │
+│  ◫  Team Status             ↩  Mode Hub                      │
+│  ◫  Activité                                                 │
+│  ◫  Reprises                                                 │
+│                                                              │
+│  Ctrl+P commandes · ? aide · Ctrl+T mode · Ctrl+Q quitter   │
+╰──────────────────────────────────────────────────────────────╯
+```
+
+### Visual Tokens
 
 - Logo: Action color (`#fab387`)
-- Hints keys: Accent (`#89b4fa`)
-- Hints commands: Secondary (`#a6adc8`)
-- Separators: Muted (`#7f849c`)
-- Bottom message: Muted
+- Section headers (`── Label ──`): Secondary (`#a6adc8`)
+- Item icons: Muted (`#7f849c`) or semantic color
+- Item labels: Primary (`#cdd6f4`)
+- Hint keys: Accent (`#89b4fa`)
+- Hint text: Muted (`#7f849c`)
+- Column separator: `│` in BorderCard (`#45475a`)
+
+### Responsive Layout
+
+| Breakpoint | Condition | Behavior |
+|------------|-----------|----------|
+| Narrow | `< 100` cols | Single column, 72 chars max width |
+| Wide | `100–139` cols | Single column, 90 chars max width |
+| Dual | `≥ 140` cols | Two columns as shown above (65 chars each + 4 gap) |
+
+In single-column mode, sections are stacked vertically in reading order
+(left column first, then right column).
 
 ## Toast Notifications
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -288,9 +289,13 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			OnSelectProject: func(projectID, projectName, projectPath string) {
 				if tuiShell != nil {
-					tuiShell.SetActiveProject(&views.ActiveProject{ID: projectID, Name: projectName, Path: projectPath})
+					branch := resolveGitBranch(projectPath)
+					tuiShell.SetActiveProject(&views.ActiveProject{ID: projectID, Name: projectName, Path: projectPath, Branch: branch})
 					tuiShell.SetMode(views.ModeProject)
 				}
+			},
+			OnAddProject: func() {
+				actionProjectAdd()
 			},
 		}),
 		views.NewBoardView(views.BoardViewConfig{
@@ -359,6 +364,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					MemberCount: len(members),
 					ActiveCount: active,
 				}
+			},
+			OnSyncTracker: func() {
+				actionSyncTracker()
 			},
 		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
@@ -1063,4 +1071,19 @@ func collectMissingMCPInfo(a *app.App, project *domain.Project) string {
 		return ""
 	}
 	return fmt.Sprintf("%d MCP optionnel(s) (%s)", len(agents), strings.Join(agents, ", "))
+}
+
+// resolveGitBranch returns the current git branch for a project path.
+// Returns "" on any error (not a git repo, git not found, etc.).
+func resolveGitBranch(projectPath string) string {
+	if projectPath == "" {
+		return ""
+	}
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = projectPath
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

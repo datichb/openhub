@@ -24,8 +24,13 @@ cli/internal/tui/
 │   ├── router/        ← Navigation
 │   │   └── router.go  ← Stack push/pop/replace
 │   ├── views/         ← All navigable views
-│   │   ├── view.go    ← View interface
-│   │   ├── home.go    ← Splash screen
+│   │   ├── view.go    ← View interface + ActiveProject/ActiveTeam
+│   │   ├── home.go    ← Hub Home (async teams/projects loading)
+│   │   ├── home_common.go ← Shared helpers (homeHandleKey, splitBySectionID, toSectionItem)
+│   │   ├── home_layout.go ← Adaptive layout (narrow/wide/dual columns)
+│   │   ├── project_mode_view.go ← Project Home (deploy badge, sessions)
+│   │   ├── team_mode_view.go    ← Team Home (async stats, sessions)
+│   │   ├── banner.go  ← Figlet banner rendering
 │   │   ├── board.go   ← Kanban
 │   │   └── ...
 │   └── widgets/       ← Reusable tview primitives
@@ -42,6 +47,7 @@ type Shell struct {
     omnibar   *Omnibar           // persistent input at bottom
     router    *router.Router     // view navigation stack
     registry  *CommandRegistry   // flat command list for omnibar
+    mode      NavigationMode     // Hub, Project, or Team (ADR-032)
 }
 ```
 
@@ -53,6 +59,47 @@ Pages
         ├── content (proportion 1) ← full screen
         └── omnibar (fixed 1 row)  ← always visible
 ```
+
+## Navigation Modes (ADR-032)
+
+The TUI has 3 navigation modes, each with its own home page:
+
+| Mode | Home View ID | Home View | Auto-detection |
+|------|-------------|-----------|----------------|
+| Hub | `home` | `HomeView` | Default, or multiple teams/projects |
+| Project | `project.mode` | `ProjectModeView` | Single active project |
+| Team | `team.mode` | `TeamModeView` | Single active team |
+
+Mode switching: `Ctrl+T`, or selecting a team/project from the Hub Home.
+
+### Home page shared patterns (`home_common.go`)
+
+All 3 home views share common behavior extracted into `home_common.go`:
+
+- **`homeHandleKey()`** — Common key handling: dual-column nav (h/l/Tab), Enter selection. ProjectModeView extends it with `'r'` for deploy refresh.
+- **`splitBySectionID()`** — Column distribution using structural `SectionID` field (immune to i18n label changes).
+- **`toSectionItem()`** — Converts generic `homeSectionItem` to `widgets.SectionItem`.
+
+### Async data loading in home pages
+
+Hub Home loads Teams and Projects asynchronously to avoid blocking the UI thread:
+
+```go
+// Mount() pattern:
+1. v.items = v.buildStaticItems()       // System + Actions (instant)
+2. adaptiveHomeMount(app, content, buildFn) // First frame with static items
+3. go func() {                          // Background I/O
+     items := v.buildItems()            // ListTeams + ListProjects (10-20ms)
+     app.QueueUpdateDraw(func() {
+       if v.mountGen != gen { return }  // Guard: discard stale goroutines
+       v.items = items
+       content.Clear()
+       adaptiveHomeMount(...)           // Full rebuild with fresh data
+     })
+   }()
+```
+
+**Key constraint**: `buildFn` must read `v.items` at call-time (not captured slices) so that resize and async data arrival don't fight each other.
 
 ## Command Registry
 

@@ -62,6 +62,22 @@ func NewSectionedList() *SectionedList {
 	sl.SetInputCapture(sl.handleInput)
 	sl.SetChangedFunc(sl.handleChanged)
 
+	// Draw a subtle scroll indicator when items overflow the visible area
+	sl.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		totalLines := sl.GetItemCount() * 2 // each item = main + secondary
+		if totalLines > height && sl.GetCurrentItem() < sl.GetItemCount()-1 {
+			// Draw ▼ at bottom-right corner
+			screen.SetContent(x+width-2, y+height-1, '▼', nil,
+				tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel))
+		}
+		if sl.GetCurrentItem() > 0 {
+			// Draw ▲ at top-right corner when scrolled down
+			screen.SetContent(x+width-2, y, '▲', nil,
+				tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel))
+		}
+		return x, y, width, height
+	})
+
 	return sl
 }
 
@@ -243,6 +259,12 @@ func (sl *SectionedList) handleInput(event *tcell.EventKey) *tcell.EventKey {
 		case 'k':
 			sl.moveUp()
 			return nil
+		case 'g':
+			sl.gotoFirst()
+			return nil
+		case 'G':
+			sl.gotoLast()
+			return nil
 		case '{':
 			sl.jumpPrevSection()
 			return nil
@@ -325,6 +347,24 @@ func (sl *SectionedList) prevSelectable(from int) int {
 		}
 	}
 	return -1
+}
+
+// gotoFirst moves the cursor to the first selectable item.
+func (sl *SectionedList) gotoFirst() {
+	first := sl.nextSelectable(-1)
+	if first >= 0 {
+		sl.setListCurrent(first)
+	}
+}
+
+// gotoLast moves the cursor to the last selectable item.
+func (sl *SectionedList) gotoLast() {
+	for i := len(sl.items) - 1; i >= 0; i-- {
+		if !sl.items[i].IsHeader {
+			sl.setListCurrent(i)
+			return
+		}
+	}
 }
 
 // jumpNextSection moves to the first selectable item of the next section.

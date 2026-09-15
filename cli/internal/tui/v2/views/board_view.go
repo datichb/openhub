@@ -59,6 +59,8 @@ type BoardView struct {
 	once           sync.Once
 	initialized    bool
 	shell          ShellAccess
+	content        *tview.Flex     // parent container — stored to swap empty↔board
+	emptyTV        *tview.TextView // empty-state placeholder, nil once board is shown
 }
 
 var _ View = (*BoardView)(nil)
@@ -101,6 +103,7 @@ func (v *BoardView) StatusHints() string {
 // Mount builds the kanban board and inserts it into the content panel.
 func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 	v.done = make(chan struct{})
 	v.ticketsByID = make(map[string]BoardTicket)
 
@@ -137,12 +140,12 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 
 	if len(v.cfg.Tickets) == 0 {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		emptyTV := tview.NewTextView().
+		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
-		emptyTV.SetBackgroundColor(theme.BgPanel)
-		emptyTV.SetText(fmt.Sprintf("\n\n  %sAucun ticket. Utilisez 'oh bd create' pour créer un ticket ou vérifiez les filtres.%s", muted, theme.TagColor))
-		content.AddItem(emptyTV, 0, 1, true)
+		v.emptyTV.SetBackgroundColor(theme.BgPanel)
+		v.emptyTV.SetText(fmt.Sprintf("\n\n  %sAucun ticket. Utilisez 'oh bd create' pour créer un ticket ou vérifiez les filtres.%s", muted, theme.TagColor))
+		content.AddItem(v.emptyTV, 0, 1, true)
 	} else {
 		content.AddItem(v.columnFlex, 0, 1, true)
 	}
@@ -194,6 +197,8 @@ func (v *BoardView) Unmount() {
 		}
 	})
 	v.app = nil
+	v.content = nil
+	v.emptyTV = nil
 	v.columnFlex = nil
 	v.columnCards = nil
 	v.ticketsByID = nil
@@ -522,6 +527,15 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 	if v.columnCards == nil {
 		return
 	}
+
+	// Transition empty → populated: if we were showing the empty-state placeholder
+	// and real tickets arrived, swap the placeholder for the board layout.
+	if v.emptyTV != nil && len(tickets) > 0 && v.content != nil {
+		v.content.Clear()
+		v.content.AddItem(v.columnFlex, 0, 1, true)
+		v.emptyTV = nil
+	}
+
 	for _, cc := range v.columnCards {
 		cc.Clear()
 	}

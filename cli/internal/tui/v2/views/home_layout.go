@@ -1,6 +1,8 @@
 package views
 
 import (
+	"sync/atomic"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -186,12 +188,25 @@ func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 	hCenter.AddItem(innerFlex, contentWidth, 0, true)
 	hCenter.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
 
-	// ── Vertical centering (1:5:1 ratio) ──
+	// ── Vertical centering (adaptive ratio based on content density) ──
+	totalItems := len(cfg.LeftItems) + len(cfg.RightItems)
+	topWeight, contentWeight, bottomWeight := 1, 5, 1
+	if totalItems > 25 {
+		// Very dense: no vertical centering, use full height
+		topWeight, contentWeight, bottomWeight = 0, 1, 0
+	} else if totalItems > 15 {
+		// Dense: reduce margins (1:9:1)
+		topWeight, contentWeight, bottomWeight = 1, 9, 1
+	}
 	root := tview.NewFlex().SetDirection(tview.FlexRow)
 	root.SetBackgroundColor(theme.BgPanel)
-	root.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
-	root.AddItem(hCenter, 0, 5, true)
-	root.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, 1, false)
+	if topWeight > 0 {
+		root.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, topWeight, false)
+	}
+	root.AddItem(hCenter, 0, contentWeight, true)
+	if bottomWeight > 0 {
+		root.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, bottomWeight, false)
+	}
 
 	result.Root = root
 	return result
@@ -244,10 +259,10 @@ func buildDualColumn(cfg homeFlexConfig) *homeDualLayout {
 func buildDualFlex(d *homeDualLayout) *tview.Flex {
 	sep := tview.NewBox().SetBackgroundColor(theme.BgPanel)
 	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		// Draw a thin vertical separator
+		// Draw a thin vertical separator (Aurum: BorderCard, subtle)
 		for row := y; row < y+height; row++ {
 			screen.SetContent(x, row, '│', nil,
-				tcell.StyleDefault.Foreground(theme.FgMuted).Background(theme.BgPanel))
+				tcell.StyleDefault.Foreground(theme.BorderCard).Background(theme.BgPanel))
 		}
 		return x, y, width, height
 	})
@@ -286,13 +301,14 @@ func adaptiveHomeMount(
 	result := buildFn(initWidth)
 	content.AddItem(result.Root, 0, 1, true)
 
-	// Track the current layout mode to detect breakpoint crossings
-	currentMode := result.Mode
+	// Track the current layout mode to detect breakpoint crossings (atomic for -race safety)
+	var currentMode atomic.Int32
+	currentMode.Store(int32(result.Mode))
 
 	content.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		newMode := layoutModeForWidth(width)
-		if newMode != currentMode {
-			currentMode = newMode
+		if int32(newMode) != currentMode.Load() {
+			currentMode.Store(int32(newMode))
 			// Rebuild on the next event loop tick to avoid mutating during draw
 			go func() {
 				if app != nil {

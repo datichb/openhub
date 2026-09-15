@@ -136,10 +136,13 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 
 ### Navigation
 
-| Commande | Alias | Description |
-|----------|-------|-------------|
-| `home` | accueil, welcome | Retour au splash |
-| `quit` | exit, q | Quitter le TUI |
+| Commande | Alias | Description | Disponibilité |
+|----------|-------|-------------|---------------|
+| `home` | accueil, welcome | Retour au splash | Global |
+| `project.mode` | project mode | Mode Projet | `Ctrl+T` (Hub, Team modes) |
+| `hub.mode` | hub mode | Mode Hub | `Ctrl+T` (Team, Project modes) |
+| `workflow` | wf | Configuration du workflow | Global |
+| `quit` | exit, q | Quitter le TUI | Global |
 
 ### Team (si activé)
 
@@ -166,6 +169,8 @@ Quand une vue est active, des raccourcis additionnels fonctionnent directement s
 | `j` / `↑` | Item précédent |
 | `k` / `↓` | Item suivant |
 | `r` | Rafraîchir |
+| `g` | Aller au premier item |
+| `G` | Aller au dernier item |
 | `Enter` | Ouvrir le détail |
 
 ### Vue Team Board
@@ -185,6 +190,8 @@ Les tickets affichent des étiquettes compactes : `[AI]` (vert) pour `agent-revi
 | `t` | Transférer le ticket à un autre membre |
 | `s` | Changer le statut du ticket sélectionné |
 | `r` | Rafraîchir (tire les dernières données git + tracker si configuré) |
+| `g` | Aller au premier item |
+| `G` | Aller au dernier item |
 | `q` / `Esc` | Retour au hub |
 
 ### Vue Projets

@@ -38,10 +38,11 @@ type ProjectModeConfig struct {
 
 // projectModeItem represents a navigable item in the project mode view.
 type projectModeItem struct {
-	Icon   string
-	Label  string
-	Desc   string
-	Action func()
+	Icon      string
+	Label     string
+	Desc      string
+	Action    func()
+	SectionID string // structural ID for split logic (headers only)
 }
 
 // ProjectModeView is the simplified project-scoped TUI view.
@@ -86,15 +87,15 @@ func (v *ProjectModeView) ID() string { return "project.mode" }
 // Title returns the display title.
 func (v *ProjectModeView) Title() string {
 	if v.project != nil {
-		return fmt.Sprintf("Projet · %s", v.project.Name)
+		return i18n.Tf("tui.pm.title", v.project.Name)
 	}
-	return "Mode Projet"
+	return i18n.T("tui.pm.title_default")
 }
 
 // StatusHints returns keybinding hints for the omnibar (passive mode).
 func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
-		return fmt.Sprintf("Aucun projet actif · Ctrl+T %s", i18n.T("tui.hints.hub_mode"))
+		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.pm.no_project"), i18n.T("tui.hints.hub_mode"))
 	}
 	return fmt.Sprintf(
 		"%s · j/k %s · Enter %s · r refresh · Ctrl+P %s · Ctrl+T %s",
@@ -127,8 +128,13 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		tv.SetBackgroundColor(theme.BgPanel)
 		tv.SetBorderPadding(1, 0, 2, 2)
 		tv.SetText(fmt.Sprintf(
-			"\n  [red]Aucun projet actif[-]\n\n  Utilisez %sCtrl+T%s pour revenir au mode hub.",
-			theme.ColorTag(theme.AccentHex), theme.TagColor,
+			"\n  [red]%s[-]\n\n  %s",
+			i18n.T("tui.pm.no_project"),
+			i18n.Tf("tui.pm.hint_hub",
+				theme.ColorTag(theme.AccentHex), theme.TagColor,
+				theme.ColorTag(theme.AccentHex), theme.TagColor,
+				theme.ColorTag(theme.ActionHex), theme.TagColor,
+			),
 		))
 		content.AddItem(tv, 0, 1, true)
 		return
@@ -149,7 +155,8 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.headerTV = header
 
 	v.renderHeader()
-	headerHeight := bannerHeight(v.project.Name, 100) + 6
+	_, bh := renderBanner(v.project.Name, 100)
+	headerHeight := bh + 6
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	muted := theme.ColorTag(theme.TextMutedHex)
@@ -160,11 +167,16 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(fmt.Sprintf("\n%s%sCtrl+T%s mode hub  %sCtrl+P%s commandes  %sr%s refresh  %s?%s aide",
-		muted, accent, reset, accent, reset, accent, reset, accent, reset,
+	footer.SetText(fmt.Sprintf("\n%s%sCtrl+P%s %s  %s?%s %s  %sCtrl+T%s %s  %sr%s %s  %sCtrl+Q%s %s",
+		muted,
+		accent, reset, i18n.T("tui.home.shortcut.commands"),
+		accent, reset, i18n.T("tui.home.shortcut.help"),
+		accent, reset, i18n.T("tui.home.shortcut.team_mode"),
+		accent, reset, i18n.T("tui.hints.refresh"),
+		accent, reset, i18n.T("tui.home.shortcut.quit"),
 	))
 
-	// ── Split items for dual-column: left = Sessions+Board, right = Config+Deploy+Team+Hub ──
+	// ── Split items for dual-column: left = Sessions+Projet, right = Config+Deploy+Team+Hub ──
 	leftItems, rightItems := v.splitItems()
 
 	onSelect := func(_ int, item widgets.SectionItem) {
@@ -175,7 +187,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// ── Adaptive layout with resize ─────────────────────────────────────
 	buildFn := func(width int) homeFlexResult {
-		return buildHomeLayout(width, homeFlexConfig{
+		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
 			Header:       header,
 			HeaderHeight: headerHeight,
@@ -185,17 +197,18 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 			RightItems:   rightItems,
 			OnSelect:     onSelect,
 		})
+		// Keep pointers in sync after every rebuild (including resize).
+		if r.Dual != nil {
+			v.dual = r.Dual
+			v.list = r.Dual.left
+		} else {
+			v.dual = nil
+			v.list = r.SingleList
+		}
+		return r
 	}
 
-	initial := adaptiveHomeMount(app, content, buildFn)
-
-	if initial.Dual != nil {
-		v.dual = initial.Dual
-		v.list = initial.Dual.left
-	} else {
-		v.dual = nil
-		v.list = initial.SingleList
-	}
+	adaptiveHomeMount(app, content, buildFn)
 
 	// ── Async deploy diff (background goroutine) ────────────────────────
 	if v.cfg.ComputeDeployDiff != nil {
@@ -227,27 +240,8 @@ func (v *ProjectModeView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.list == nil {
-		return event
-	}
-
-	// Dual-column navigation (h/l/Tab)
-	if v.dual != nil {
-		if consumed := v.dual.HandleKey(event); consumed == nil {
-			return nil
-		}
-	}
-
-	if event.Key() == tcell.KeyEnter {
-		active := v.list
-		if v.dual != nil {
-			active = v.dual.activeList()
-		}
-		if _, item, ok := active.CurrentItem(); ok {
-			if idx, refOk := item.Reference.(int); refOk {
-				v.executeItem(idx)
-			}
-		}
+	// Common home-like handling (dual-column nav, Enter)
+	if result := homeHandleKey(event, v.list, v.dual, v.executeItem); result == nil {
 		return nil
 	}
 
@@ -320,12 +314,16 @@ func (v *ProjectModeView) renderHeader() {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner := renderBanner(v.project.Name, 100)
+	banner, _ := renderBanner(v.project.Name, 100)
 	badge := v.buildDeployBadge()
-	v.headerTV.SetText(fmt.Sprintf("\n%s\n  %s◆ Mode Projet%s\n  %s%s%s\n  %s",
+	pathInfo := v.project.Path
+	if v.project.Branch != "" {
+		pathInfo += fmt.Sprintf(" · %s", v.project.Branch)
+	}
+	v.headerTV.SetText(fmt.Sprintf("\n%s\n  %s%s%s\n  %s%s%s\n  %s",
 		banner,
-		secondary, reset,
-		muted, v.project.Path, reset,
+		secondary, i18n.T("tui.pm.header_badge"), reset,
+		muted, pathInfo, reset,
 		badge,
 	))
 }
@@ -341,7 +339,7 @@ func (v *ProjectModeView) buildDeployBadge() string {
 	reset := theme.TagColor
 
 	if v.deployStatus == nil || !v.deployStatus.Deployed {
-		return fmt.Sprintf("%s○ Jamais déployé%s", warning, reset)
+		return fmt.Sprintf("%s%s%s", warning, i18n.T("tui.pm.deploy.never"), reset)
 	}
 
 	age := time.Since(v.deployStatus.DeployedAt)
@@ -354,14 +352,17 @@ func (v *ProjectModeView) buildDeployBadge() string {
 			mcpSuffix = fmt.Sprintf("  %sℹ %s%s", info, v.deployDiff.MissingMCPInfo, reset)
 		}
 		if v.deployDiff.HasChanges {
-			return fmt.Sprintf("%s○ %d changement(s) en attente%s  %s· Déployé %s%s%s",
-				warning, v.deployDiff.ChangeCount, reset, muted, ageStr, reset, mcpSuffix)
+			return fmt.Sprintf("%s%s%s  %s· %s%s%s",
+				warning, i18n.Tf("tui.pm.deploy.pending", v.deployDiff.ChangeCount), reset,
+				muted, i18n.Tf("tui.pm.deploy.deployed_ago", ageStr), reset, mcpSuffix)
 		}
-		return fmt.Sprintf("%s● À jour%s  %s· Déployé %s%s%s", success, reset, muted, ageStr, reset, mcpSuffix)
+		return fmt.Sprintf("%s%s%s  %s· %s%s%s",
+			success, i18n.T("tui.pm.deploy.up_to_date"), reset,
+			muted, i18n.Tf("tui.pm.deploy.deployed_ago", ageStr), reset, mcpSuffix)
 	}
 
 	// Diff not yet computed — show timestamp only
-	return fmt.Sprintf("%sDéployé %s%s", muted, ageStr, reset)
+	return fmt.Sprintf("%s%s%s", muted, i18n.Tf("tui.pm.deploy.deployed_ago", ageStr), reset)
 }
 
 // maybeShowDeployToast fires a one-shot warning toast when deploy changes are detected.
@@ -372,7 +373,7 @@ func (v *ProjectModeView) maybeShowDeployToast() {
 	if v.deployDiff.HasChanges {
 		v.deployToastShown = true
 		v.shell.ShowToastMsg(
-			fmt.Sprintf("%d fichier(s) modifié(s) depuis le dernier deploy — Ctrl+P > deploy", v.deployDiff.ChangeCount),
+			i18n.Tf("tui.pm.deploy.toast", v.deployDiff.ChangeCount),
 			false,
 		)
 	}
@@ -405,28 +406,32 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 
 	items := []projectModeItem{
 		// ── Sessions section ──
-		{Icon: "─", Label: "Sessions"},
-		{Icon: "▶", Label: "Start Dev", Desc: "Lancer une session de développement", Action: launch("", "--dev")},
-		{Icon: "◉", Label: "Audit", Desc: "Analyser le code (sécurité, perf, archi)", Action: launch("auditor")},
-		{Icon: "◎", Label: "Review", Desc: "Code review du projet", Action: launch("reviewer")},
-		{Icon: "◈", Label: "Debug", Desc: "Session de debug", Action: launch("")},
-		// ── Board section ──
-		{Icon: "─", Label: "Board"},
-		{Icon: "⊞", Label: "Board", Desc: "Kanban du projet", Action: navigate("board")},
-		{Icon: "⊟", Label: "Métriques", Desc: "Statistiques d'utilisation", Action: navigate("metrics")},
-		{Icon: "⊝", Label: "Statut", Desc: "Santé et informations du projet", Action: navigate("status")},
+		{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), SectionID: "sessions"},
+		{Icon: "▶", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
+		{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("", "--quick")},
+		{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: launch("auditor")},
+		{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: launch("reviewer")},
+		{Icon: "◈", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: launch("")},
+		{Icon: "⊞", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
+		{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: launch("onboarder")},
+		// ── Projet section ──
+		{Icon: "─", Label: i18n.T("tui.pm.section.project"), SectionID: "project"},
+		{Icon: "⊞", Label: i18n.T("tui.pm.item.board"), Desc: i18n.T("tui.pm.item.board_desc"), Action: navigate("board")},
+		{Icon: "⊟", Label: i18n.T("tui.pm.item.metrics"), Desc: i18n.T("tui.pm.item.metrics_desc"), Action: navigate("metrics")},
+		{Icon: "⊝", Label: i18n.T("tui.pm.item.status"), Desc: i18n.T("tui.pm.item.status_desc"), Action: navigate("status")},
 		// ── Configuration section ──
-		{Icon: "─", Label: "Configuration"},
-		{Icon: "⊛", Label: "Config Projet", Desc: "Modifier la configuration", Action: navigate("project.config")},
-		{Icon: "⊜", Label: "Worktrees", Desc: "Gérer les git worktrees", Action: navigate("worktrees")},
+		{Icon: "─", Label: i18n.T("tui.pm.section.configuration"), SectionID: "configuration"},
+		{Icon: "⊛", Label: i18n.T("tui.pm.item.config"), Desc: i18n.T("tui.pm.item.config_desc"), Action: navigate("project.config")},
+		{Icon: "⊜", Label: i18n.T("tui.pm.item.worktrees"), Desc: i18n.T("tui.pm.item.worktrees_desc"), Action: navigate("worktrees")},
+		{Icon: "⊙", Label: i18n.T("tui.pm.item.workflow"), Desc: i18n.T("tui.pm.item.workflow_desc"), Action: navigate("workflow")},
 		// ── Deploy section ──
-		{Icon: "─", Label: "Deploy"},
-		{Icon: "⊘", Label: "Déployer", Desc: v.deployItemDesc(), Action: func() {
+		{Icon: "─", Label: i18n.T("tui.pm.section.deploy"), SectionID: "deploy"},
+		{Icon: "⊘", Label: i18n.T("tui.pm.item.deploy"), Desc: v.deployItemDesc(), Action: func() {
 			if v.cfg.OnDeploy != nil {
 				v.cfg.OnDeploy(p.Path)
 			}
 		}},
-		{Icon: "⊙", Label: "Voir les changements", Desc: "Comparer hub vs projet", Action: func() {
+		{Icon: "⊙", Label: i18n.T("tui.pm.item.view_diff"), Desc: i18n.T("tui.pm.item.view_diff_desc"), Action: func() {
 			if v.cfg.OnViewDiff != nil {
 				v.cfg.OnViewDiff(p.Path)
 			}
@@ -437,17 +442,17 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	if v.resolveTeam != nil {
 		if tc := v.resolveTeam(); tc.Enabled {
 			items = append(items,
-				projectModeItem{Icon: "─", Label: "Équipe"},
-				projectModeItem{Icon: "◫", Label: "Team Status", Desc: "Statut de l'équipe", Action: navigate("team.status")},
-				projectModeItem{Icon: "◫", Label: "Team Board", Desc: "Kanban d'équipe", Action: navigate("team.board")},
-				projectModeItem{Icon: "◫", Label: "Team Activity", Desc: "Activité récente", Action: navigate("team.activity")},
+				projectModeItem{Icon: "─", Label: i18n.T("tui.pm.section.team"), SectionID: "team"},
+				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_status"), Desc: i18n.T("tui.pm.item.team_status_desc"), Action: navigate("team.status")},
+				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_board"), Desc: i18n.T("tui.pm.item.team_board_desc"), Action: navigate("team.board")},
+				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_activity"), Desc: i18n.T("tui.pm.item.team_activity_desc"), Action: navigate("team.activity")},
 			)
 		}
 	}
 
 	// ── Mode hub (standalone — no section) ──────────────────────────────
 	items = append(items, projectModeItem{
-		Icon: "↩", Label: "Mode Hub", Desc: "Revenir au TUI complet",
+		Icon: "↩", Label: i18n.T("tui.pm.item.hub_mode"), Desc: i18n.T("tui.pm.item.hub_mode_desc"),
 		Action: func() {
 			if v.cfg.OnExitProjectMode != nil {
 				v.cfg.OnExitProjectMode()
@@ -462,49 +467,22 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 // enriched with change count when the async diff is available.
 func (v *ProjectModeView) deployItemDesc() string {
 	if v.deployDiff != nil && v.deployDiff.HasChanges {
-		return fmt.Sprintf("Agents, skills et config (%d changement(s))", v.deployDiff.ChangeCount)
+		return i18n.Tf("tui.pm.deploy.desc_changes", v.deployDiff.ChangeCount)
 	}
 	if v.deployStatus != nil && v.deployStatus.Deployed {
-		return "Agents, skills et configuration"
+		return i18n.T("tui.pm.deploy.desc_deployed")
 	}
-	return "Premier déploiement"
+	return i18n.T("tui.pm.deploy.desc_first")
 }
 
 // splitItems distributes project mode items into left/right columns for dual mode.
-// Left: Sessions + Board. Right: Configuration + Deploy + Équipe + Mode Hub.
+// Left: Sessions + Projet. Right: Configuration + Deploy + Équipe + Mode Hub.
 func (v *ProjectModeView) splitItems() (left, right []widgets.SectionItem) {
-	// Find the "Configuration" section boundary
-	configIdx := -1
+	generic := make([]homeSectionItem, len(v.items))
 	for i, it := range v.items {
-		if it.Icon == "─" && it.Label == "Configuration" {
-			configIdx = i
-			break
-		}
+		generic[i] = homeSectionItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, SectionID: it.SectionID}
 	}
-
-	for i, it := range v.items {
-		si := projectItemToSectionItem(it, i)
-		if configIdx >= 0 && i >= configIdx {
-			right = append(right, si)
-		} else {
-			left = append(left, si)
-		}
-	}
-	return
-}
-
-func projectItemToSectionItem(it projectModeItem, idx int) widgets.SectionItem {
-	if it.Icon == "─" {
-		return widgets.SectionItem{
-			MainText: it.Label,
-			IsHeader: true,
-		}
-	}
-	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
-		SecondaryText: it.Desc,
-		Reference:     idx,
-	}
+	return splitBySectionID(generic, "configuration", toSectionItem)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,13 +493,13 @@ func projectItemToSectionItem(it projectModeItem, idx int) widgets.SectionItem {
 func formatDeployAge(d time.Duration) string {
 	switch {
 	case d < time.Minute:
-		return "à l'instant"
+		return i18n.T("tui.pm.age.now")
 	case d < time.Hour:
-		return fmt.Sprintf("il y a %dm", int(d.Minutes()))
+		return i18n.Tf("tui.pm.age.minutes", int(d.Minutes()))
 	case d < 24*time.Hour:
-		return fmt.Sprintf("il y a %dh", int(d.Hours()))
+		return i18n.Tf("tui.pm.age.hours", int(d.Hours()))
 	default:
-		return fmt.Sprintf("il y a %dj", int(d.Hours()/24))
+		return i18n.Tf("tui.pm.age.days", int(d.Hours()/24))
 	}
 }
 
