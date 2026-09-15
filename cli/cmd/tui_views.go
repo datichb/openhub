@@ -365,9 +365,12 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					ActiveCount: active,
 				}
 			},
-			OnSyncTracker: func() {
-				actionSyncTracker()
-			},
+		OnSyncTracker: func() {
+			actionSyncTracker()
+		},
+		OnBoardConfig: func() {
+			actionBoardColumnConfig()
+		},
 		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,

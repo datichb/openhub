@@ -1136,6 +1136,8 @@
   "tui.tm.item.activity_desc": "Flux d'activité récent",
   "tui.tm.item.briefs": "Reprises",
   "tui.tm.item.briefs_desc": "Briefs de reprise de tickets",
+  "tui.tm.item.board_config": "Colonnes du board",
+  "tui.tm.item.board_config_desc": "Personnaliser les colonnes du kanban",
   "tui.tm.item.patterns": "Patterns",
   "tui.tm.item.patterns_desc": "Patterns d'équipe",
   "tui.tm.item.policies": "Policies",

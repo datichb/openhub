@@ -1289,189 +1289,7 @@ func actionTrackerDiscovery() {
 	}
 
 	// ── Step 3: Columns (interactive editor) ────────────────────────
-	// allRoles is the cycle order for the 'r' key.
-	allRoles := []string{teamstate.ColumnRoleInitial, teamstate.ColumnRoleActive, teamstate.ColumnRoleTerminal, teamstate.ColumnRoleBlocked}
-
-	columnsStep := views.WizardStep{
-		Label:      i18n.T("cmd.discovery.step_columns"),
-		Processing: i18n.T("cmd.discovery.processing_columns"),
-		CustomView: func(app *tview.Application, container *tview.Flex, onDone func()) {
-			list := tview.NewList().ShowSecondaryText(false)
-			list.SetBackgroundColor(theme.BgPanel)
-			list.SetMainTextColor(theme.FgPrimary)
-			list.SetSelectedTextColor(theme.Accent)
-			list.SetSelectedBackgroundColor(theme.BgPanel)
-
-			// renderList rebuilds the tview.List items from suggestedColumns.
-			renderList := func() {
-				sel := list.GetCurrentItem()
-				list.Clear()
-				for _, col := range suggestedColumns {
-					roleLabel := col.Role
-					if roleLabel == "" {
-						roleLabel = "active"
-					}
-					item := fmt.Sprintf("[%s]  %s  (%s)", roleLabel, col.Name, col.ID)
-					list.AddItem(item, "", 0, nil)
-				}
-				if sel >= list.GetItemCount() {
-					sel = list.GetItemCount() - 1
-				}
-				if sel >= 0 {
-					list.SetCurrentItem(sel)
-				}
-			}
-			renderList()
-
-			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				idx := list.GetCurrentItem()
-				n := len(suggestedColumns)
-
-				switch {
-				// Shift+Up or K: move column up
-				case (event.Key() == tcell.KeyUp && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'K':
-					if idx > 0 {
-						suggestedColumns[idx], suggestedColumns[idx-1] = suggestedColumns[idx-1], suggestedColumns[idx]
-						renderList()
-						list.SetCurrentItem(idx - 1)
-					}
-					return nil
-
-				// Shift+Down or J: move column down
-				case (event.Key() == tcell.KeyDown && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'J':
-					if idx < n-1 {
-						suggestedColumns[idx], suggestedColumns[idx+1] = suggestedColumns[idx+1], suggestedColumns[idx]
-						renderList()
-						list.SetCurrentItem(idx + 1)
-					}
-					return nil
-
-				// 'a': add a new column
-				case event.Rune() == 'a':
-					if tuiShell != nil {
-						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
-							if name == "" {
-								return
-							}
-							id := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "_"))
-							role := tracker.SuggestColumnRole(name)
-							newCol := teamstate.BoardColumnConfig{ID: id, Name: strings.TrimSpace(name), Role: role}
-							// Insert after current position.
-							pos := idx + 1
-							if pos > n {
-								pos = n
-							}
-							suggestedColumns = append(suggestedColumns[:pos], append([]teamstate.BoardColumnConfig{newCol}, suggestedColumns[pos:]...)...)
-							renderList()
-							list.SetCurrentItem(pos)
-						})
-					}
-					return nil
-
-				// Enter: rename selected column
-				case event.Key() == tcell.KeyEnter:
-					if idx >= 0 && idx < n {
-						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), suggestedColumns[idx].Name, func(name string) {
-							if name != "" {
-								suggestedColumns[idx].Name = strings.TrimSpace(name)
-								renderList()
-							}
-						})
-					}
-					return nil
-
-				// 'd': delete selected column
-				case event.Rune() == 'd':
-					if n <= 2 {
-						if tuiShell != nil {
-							tuiShell.ShowToastMsg(i18n.T("cmd.discovery.validate.min_columns"), false)
-						}
-						return nil
-					}
-					if idx >= 0 && idx < n {
-						suggestedColumns = append(suggestedColumns[:idx], suggestedColumns[idx+1:]...)
-						renderList()
-					}
-					return nil
-
-				// 'r': cycle role
-				case event.Rune() == 'r':
-					if idx >= 0 && idx < n {
-						current := suggestedColumns[idx].Role
-						if current == "" {
-							current = teamstate.ColumnRoleActive
-						}
-						nextIdx := 0
-						for i, r := range allRoles {
-							if r == current {
-								nextIdx = (i + 1) % len(allRoles)
-								break
-							}
-						}
-						suggestedColumns[idx].Role = allRoles[nextIdx]
-						renderList()
-					}
-					return nil
-
-				// Ctrl+S: validate and submit
-				case event.Key() == tcell.KeyCtrlS:
-					finalColumns = make([]teamstate.BoardColumnConfig, len(suggestedColumns))
-					copy(finalColumns, suggestedColumns)
-					onDone()
-					return nil
-				}
-
-				return event
-			})
-
-			// Build the layout: legend + list + hints
-			legend := tview.NewTextView().SetDynamicColors(true)
-			legend.SetBackgroundColor(theme.BgPanel)
-			legend.SetText(i18n.T("cmd.discovery.columns.role_legend"))
-
-			hints := tview.NewTextView().SetDynamicColors(true)
-			hints.SetBackgroundColor(theme.BgPanel)
-			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav  %sShift+↑↓[-] réordonner  %sa[-] ajouter  %sEnter[-] renommer  %sd[-] supprimer  %sr[-] rôle  %sCtrl+S[-] valider",
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent)))
-
-			container.AddItem(legend, 2, 0, false)
-			container.AddItem(list, 0, 1, true)
-			container.AddItem(hints, 1, 0, false)
-			app.SetFocus(list)
-		},
-		Validate: func() string {
-			if len(finalColumns) < 2 {
-				return i18n.T("cmd.discovery.validate.min_columns")
-			}
-			hasTerminal := false
-			for _, c := range finalColumns {
-				if c.Role == teamstate.ColumnRoleTerminal {
-					hasTerminal = true
-					break
-				}
-			}
-			if !hasTerminal {
-				return i18n.T("cmd.discovery.validate.need_terminal")
-			}
-			return ""
-		},
-		OnDone: func() error {
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			names := make([]string, len(finalColumns))
-			for i, c := range finalColumns {
-				names[i] = c.Name
-			}
-			return []views.InfoField{
-				{Label: "Colonnes", Value: i18n.Tf("cmd.discovery.info.columns_selected", len(finalColumns))},
-				{Label: "Layout", Value: strings.Join(names, " → ")},
-			}
-		},
-	}
+	columnsStep := buildColumnEditorStep(&suggestedColumns, &finalColumns)
 
 	// ── Step 4: Mappings ────────────────────────────────────────────
 	// Track which mappings the user accepts (pre-checked by default).
@@ -1741,4 +1559,288 @@ func formatSyncResultModal(r *views.SyncTrackerResult) string {
 		}
 	}
 	return sb.String()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board column editor (shared helper + standalone action)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// columnEditorRoles is the cycle order for the 'r' key in the column editor.
+var columnEditorRoles = []string{
+	teamstate.ColumnRoleInitial,
+	teamstate.ColumnRoleActive,
+	teamstate.ColumnRoleTerminal,
+	teamstate.ColumnRoleBlocked,
+}
+
+// buildColumnEditorStep creates a WizardStep with an interactive column editor.
+// The editor allows adding, removing, renaming, reordering, and cycling roles
+// on board columns. It operates on the `columns` slice (input) and writes the
+// validated result to `result` on Ctrl+S.
+//
+// Used by both the discovery wizard (step 3) and the standalone board config action.
+func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]teamstate.BoardColumnConfig) views.WizardStep {
+	return views.WizardStep{
+		Label:      i18n.T("cmd.discovery.step_columns"),
+		Processing: i18n.T("cmd.discovery.processing_columns"),
+		CustomView: func(app *tview.Application, container *tview.Flex, onDone func()) {
+			list := tview.NewList().ShowSecondaryText(false)
+			list.SetBackgroundColor(theme.BgPanel)
+			list.SetMainTextColor(theme.FgPrimary)
+			list.SetSelectedTextColor(theme.Accent)
+			list.SetSelectedBackgroundColor(theme.BgPanel)
+
+			renderList := func() {
+				sel := list.GetCurrentItem()
+				list.Clear()
+				for _, col := range *columns {
+					roleLabel := col.Role
+					if roleLabel == "" {
+						roleLabel = "active"
+					}
+					item := fmt.Sprintf("[%s]  %s  (%s)", roleLabel, col.Name, col.ID)
+					list.AddItem(item, "", 0, nil)
+				}
+				if sel >= list.GetItemCount() {
+					sel = list.GetItemCount() - 1
+				}
+				if sel >= 0 {
+					list.SetCurrentItem(sel)
+				}
+			}
+			renderList()
+
+			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				idx := list.GetCurrentItem()
+				cols := *columns
+				n := len(cols)
+
+				switch {
+				case (event.Key() == tcell.KeyUp && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'K':
+					if idx > 0 {
+						cols[idx], cols[idx-1] = cols[idx-1], cols[idx]
+						renderList()
+						list.SetCurrentItem(idx - 1)
+					}
+					return nil
+
+				case (event.Key() == tcell.KeyDown && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'J':
+					if idx < n-1 {
+						cols[idx], cols[idx+1] = cols[idx+1], cols[idx]
+						renderList()
+						list.SetCurrentItem(idx + 1)
+					}
+					return nil
+
+				case event.Rune() == 'a':
+					if tuiShell != nil {
+						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
+							if name == "" {
+								return
+							}
+							id := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "_"))
+							role := tracker.SuggestColumnRole(name)
+							newCol := teamstate.BoardColumnConfig{ID: id, Name: strings.TrimSpace(name), Role: role}
+							pos := idx + 1
+							if pos > n {
+								pos = n
+							}
+							updated := make([]teamstate.BoardColumnConfig, 0, n+1)
+							updated = append(updated, cols[:pos]...)
+							updated = append(updated, newCol)
+							updated = append(updated, cols[pos:]...)
+							*columns = updated
+							renderList()
+							list.SetCurrentItem(pos)
+						})
+					}
+					return nil
+
+				case event.Key() == tcell.KeyEnter:
+					if idx >= 0 && idx < n && tuiShell != nil {
+						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), cols[idx].Name, func(name string) {
+							if name != "" {
+								(*columns)[idx].Name = strings.TrimSpace(name)
+								renderList()
+							}
+						})
+					}
+					return nil
+
+				case event.Rune() == 'd':
+					if n <= 2 {
+						if tuiShell != nil {
+							tuiShell.ShowToastMsg(i18n.T("cmd.discovery.validate.min_columns"), false)
+						}
+						return nil
+					}
+					if idx >= 0 && idx < n {
+						*columns = append(cols[:idx], cols[idx+1:]...)
+						renderList()
+					}
+					return nil
+
+				case event.Rune() == 'r':
+					if idx >= 0 && idx < n {
+						current := cols[idx].Role
+						if current == "" {
+							current = teamstate.ColumnRoleActive
+						}
+						nextIdx := 0
+						for i, r := range columnEditorRoles {
+							if r == current {
+								nextIdx = (i + 1) % len(columnEditorRoles)
+								break
+							}
+						}
+						(*columns)[idx].Role = columnEditorRoles[nextIdx]
+						renderList()
+					}
+					return nil
+
+				case event.Key() == tcell.KeyCtrlS:
+					*result = make([]teamstate.BoardColumnConfig, len(*columns))
+					copy(*result, *columns)
+					onDone()
+					return nil
+				}
+
+				return event
+			})
+
+			legend := tview.NewTextView().SetDynamicColors(true)
+			legend.SetBackgroundColor(theme.BgPanel)
+			legend.SetText(i18n.T("cmd.discovery.columns.role_legend"))
+
+			hints := tview.NewTextView().SetDynamicColors(true)
+			hints.SetBackgroundColor(theme.BgPanel)
+			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav  %sShift+↑↓[-] réordonner  %sa[-] ajouter  %sEnter[-] renommer  %sd[-] supprimer  %sr[-] rôle  %sCtrl+S[-] valider",
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent)))
+
+			container.AddItem(legend, 2, 0, false)
+			container.AddItem(list, 0, 1, true)
+			container.AddItem(hints, 1, 0, false)
+			app.SetFocus(list)
+		},
+		Validate: func() string {
+			if len(*result) < 2 {
+				return i18n.T("cmd.discovery.validate.min_columns")
+			}
+			hasTerminal := false
+			for _, c := range *result {
+				if c.Role == teamstate.ColumnRoleTerminal {
+					hasTerminal = true
+					break
+				}
+			}
+			if !hasTerminal {
+				return i18n.T("cmd.discovery.validate.need_terminal")
+			}
+			return ""
+		},
+		OnDone: func() error {
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			names := make([]string, len(*result))
+			for i, c := range *result {
+				names[i] = c.Name
+			}
+			return []views.InfoField{
+				{Label: "Colonnes", Value: i18n.Tf("cmd.discovery.info.columns_selected", len(*result))},
+				{Label: "Layout", Value: strings.Join(names, " → ")},
+			}
+		},
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board column config action (standalone, no tracker required)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func actionBoardColumnConfig() {
+	if tuiShell == nil {
+		return
+	}
+
+	a := MustApp()
+	ctx := tuiShell.Context()
+
+	// Resolve the active team
+	activeTeam := a.Config.ActiveTeam()
+	if !activeTeam.Enabled {
+		tuiShell.ShowToast("Aucune équipe active", shell.ToastError)
+		return
+	}
+
+	statePath := activeTeam.StatePath
+	if statePath == "" {
+		statePath = config.TeamStatePath(activeTeam.StateRepo)
+	}
+	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
+	if !repo.IsCloned() {
+		tuiShell.ShowToast("Repo team-state non cloné", shell.ToastError)
+		return
+	}
+
+	// Load current board config
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		tuiShell.ShowToast("Erreur chargement config : "+err.Error(), shell.ToastError)
+		return
+	}
+
+	// Use existing columns or defaults
+	var columns []teamstate.BoardColumnConfig
+	if cfg.Board.HasCustomColumns() {
+		columns = make([]teamstate.BoardColumnConfig, len(cfg.Board.Columns))
+		copy(columns, cfg.Board.Columns)
+	} else {
+		def := teamstate.DefaultBoardConfig()
+		columns = make([]teamstate.BoardColumnConfig, len(def.Columns))
+		copy(columns, def.Columns)
+	}
+
+	var finalColumns []teamstate.BoardColumnConfig
+
+	editorStep := buildColumnEditorStep(&columns, &finalColumns)
+
+	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
+		ID:    "wizard.board.columns",
+		Title: i18n.T("tui.tm.item.board_config"),
+		Steps: []views.WizardStep{editorStep},
+		OnComplete: func(completed bool, wizErr error) {
+			if !completed || wizErr != nil {
+				return
+			}
+			// Save the updated columns to team-state config
+			go func() {
+				freshCfg, err := repo.LoadConfig()
+				if err != nil {
+					tuiShell.App().QueueUpdateDraw(func() {
+						tuiShell.ShowToast("Erreur : "+err.Error(), shell.ToastError)
+					})
+					return
+				}
+				freshCfg.Board.Columns = finalColumns
+				if err := repo.SaveConfig(ctx, freshCfg); err != nil {
+					tuiShell.App().QueueUpdateDraw(func() {
+						tuiShell.ShowToast("Erreur sauvegarde : "+err.Error(), shell.ToastError)
+					})
+					return
+				}
+				tuiShell.App().QueueUpdateDraw(func() {
+					tuiShell.ShowToast(
+						fmt.Sprintf("%s %d colonnes sauvegardées", theme.IconSuccess, len(finalColumns)),
+						shell.ToastSuccess,
+					)
+				})
+			}()
+		},
+	})
+
+	tuiShell.PushView(wizard)
 }

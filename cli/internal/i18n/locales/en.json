@@ -1136,6 +1136,8 @@
   "tui.tm.item.activity_desc": "Recent activity feed",
   "tui.tm.item.briefs": "Takeovers",
   "tui.tm.item.briefs_desc": "Ticket takeover briefs",
+  "tui.tm.item.board_config": "Board Columns",
+  "tui.tm.item.board_config_desc": "Customize the kanban board columns",
   "tui.tm.item.patterns": "Patterns",
   "tui.tm.item.patterns_desc": "Team patterns",
   "tui.tm.item.policies": "Policies",

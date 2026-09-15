@@ -25,6 +25,8 @@ type TeamModeConfig struct {
 	TeamStats func() TeamModeStats
 	// OnSyncTracker is called when the user triggers a tracker sync from the home page.
 	OnSyncTracker func()
+	// OnBoardConfig is called when the user wants to configure board columns.
+	OnBoardConfig func()
 }
 
 // TeamModeStats holds the summary stats displayed in the team landing header.
@@ -274,6 +276,12 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.activity"), Desc: i18n.T("tui.tm.item.activity_desc"), Action: navigate("team.activity")},
 		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.briefs"), Desc: i18n.T("tui.tm.item.briefs_desc"), Action: navigate("team.briefs")},
 	)
+	if v.cfg.OnBoardConfig != nil {
+		boardCfgFn := v.cfg.OnBoardConfig
+		items = append(items,
+			teamModeItem{Icon: "⊛", Label: i18n.T("tui.tm.item.board_config"), Desc: i18n.T("tui.tm.item.board_config_desc"), Action: boardCfgFn},
+		)
+	}
 
 	// ── Configuration section ──
 	items = append(items,
