@@ -120,6 +120,15 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		initialStatus = teamstate.ClaimStatusPlanned
 	}
 
+	// Use board config for dynamic status resolution when available.
+	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil && cfg.Board.HasCustomColumns() {
+		if planned {
+			initialStatus = cfg.Board.InitialStatus()
+		} else {
+			initialStatus = cfg.Board.DefaultWorkStatus()
+		}
+	}
+
 	claim := teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project,

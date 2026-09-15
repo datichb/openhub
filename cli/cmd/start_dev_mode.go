@@ -189,14 +189,22 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 }
 
 // autoClaimTicket attempts to claim a ticket in team-state, printing status.
-// If the ticket is already claimed by this member in "planned" status, it
-// automatically transitions it to "in_progress" (the session is starting).
+// If the ticket is already claimed by this member in the initial status, it
+// automatically transitions it to the work status (the session is starting).
 func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, ticketID string) {
+	// Load board config for dynamic status resolution.
+	var boardCfg teamstate.BoardConfig
+	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+		boardCfg = cfg.Board
+	}
+	workStatus := boardCfg.DefaultWorkStatus()
+	initialStatus := boardCfg.InitialStatus()
+
 	existing, claimErr := repo.CreateClaim(ctx, teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project.ID,
 		ClaimedBy: a.Config.ActiveTeam().MemberID,
-		Status:    teamstate.ClaimStatusInProgress,
+		Status:    workStatus,
 	})
 	if claimErr == teamstate.ErrClaimExists && existing != nil {
 		if existing.ClaimedBy != a.Config.ActiveTeam().MemberID {
@@ -204,11 +212,11 @@ func autoClaimTicket(ctx context.Context, a *app.App, repo *teamstate.Repo, proj
 				theme.WarningStyle.Render(theme.IconWarning), ticketID, existing.ClaimedBy)
 			return
 		}
-		// The ticket belongs to this member. If it was planned, start it now.
-		if existing.Status == teamstate.ClaimStatusPlanned {
-			if err := repo.UpdateClaimStatus(ctx, project.ID, ticketID, teamstate.ClaimStatusInProgress); err == nil {
-				fmt.Fprintf(a.IO.Out, "  %s %s/%s: planned → in_progress\n",
-					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketID)
+		// The ticket belongs to this member. If it was in initial status, start it now.
+		if existing.Status == initialStatus || existing.Status == teamstate.ClaimStatusPlanned {
+			if err := repo.UpdateClaimStatus(ctx, project.ID, ticketID, workStatus); err == nil {
+				fmt.Fprintf(a.IO.Out, "  %s %s/%s: %s → %s\n",
+					theme.SuccessStyle.Render(theme.IconSuccess), project.ID, ticketID, existing.Status, workStatus)
 			}
 		}
 	} else if claimErr == nil {

@@ -183,7 +183,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Pool ticket: claim it for ourselves.
-				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID); poolErr != nil {
+				workStatus := boardConfig.DefaultWorkStatus()
+				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID, workStatus); poolErr != nil {
 					return poolErr
 				}
 

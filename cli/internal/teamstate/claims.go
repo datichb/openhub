@@ -249,7 +249,7 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 			c.ClaimedAt = time.Now().UTC()
 		}
 		if c.Status == "" {
-			c.Status = "in_progress"
+			c.Status = ClaimStatusInProgress
 		}
 
 		data, err := toml.Marshal(&c)
@@ -310,7 +310,7 @@ func (r *Repo) CreateClaimLocal(c Claim) (relPath string, err error) {
 		c.ClaimedAt = time.Now().UTC()
 	}
 	if c.Status == "" {
-		c.Status = "in_progress"
+		c.Status = ClaimStatusInProgress
 	}
 
 	data, err := toml.Marshal(&c)
@@ -388,9 +388,9 @@ func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner st
 
 // ClaimPoolTicket assigns an unowned pool ticket (ClaimedBy="") to a member.
 // Returns ErrClaimNotFound if no claim exists, ErrClaimAlreadyOwned if the
-// claim already has an owner. The status is set to in_progress and ClaimedAt
-// is updated to now.
-func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID string) error {
+// claim already has an owner. ClaimedAt is updated to now.
+// If workStatus is empty, defaults to ClaimStatusInProgress.
+func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID, workStatus string) error {
 	if _, err := SafeName(project); err != nil {
 		return fmt.Errorf("invalid project name: %w", err)
 	}
@@ -408,7 +408,11 @@ func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID 
 
 		c.ClaimedBy = memberID
 		c.ClaimedAt = time.Now().UTC()
-		c.Status = ClaimStatusInProgress
+		if workStatus != "" {
+			c.Status = workStatus
+		} else {
+			c.Status = ClaimStatusInProgress
+		}
 		c.LastActivity = time.Now().UTC()
 
 		data, marshalErr := toml.Marshal(c)
