@@ -1516,7 +1516,6 @@
   "tui.config.section.notifications": "Notifications",
   "tui.config.section.collaboration": "Collaboration",
   "tui.config.section.local_overrides": "Surcharges locales",
-  "tui.config.section.label_mapping": "Correspondance label → statut",
   "tui.config.section.team": "Équipe",
   "tui.config.section.mcp_services": "Services MCP",
   "tui.config.section.team_shared": "Équipe (partagé)",
@@ -1591,7 +1590,6 @@
   "tui.config.field.type_enforced.desc": "Impose le type de tracker (les membres ne peuvent pas changer)",
   "tui.config.field.push_labels_enforced.label": "Push labels imposé",
   "tui.config.field.push_labels_enforced.desc": "Impose le push des labels (non surchargeable par les membres)",
-  "tui.config.field.label_mapping_hint.desc": "Associe les labels du tracker aux colonnes du board. 'a' pour ajouter, 'd' pour supprimer.",
 
   "tui.config.field.notif_type.label": "Type de notification",
   "tui.config.field.notif_type.desc": "Plateforme de notification (mattermost / slack / discord / teams)",

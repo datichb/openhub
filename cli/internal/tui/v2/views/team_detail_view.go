@@ -336,28 +336,6 @@ func (v *TeamDetailView) buildFields() {
 		},
 	})
 
-	// ── Label → Status Mapping ───────────────────────────────────────────
-	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.label_mapping")})
-	v.fields = append(v.fields, configField{Kind: CfgFieldSubHeader,
-		Label: i18n.T("tui.config.field.label_mapping_hint.desc")})
-	for k := range v.teamCfg.Tracker.LabelStatusMapping {
-		k := k
-		v.fields = append(v.fields, configField{
-			Section: "label_status_mapping", Key: k, Kind: CfgFieldSelect, Scope: ScopeTeamShared,
-			Label: k, Dynamic: true, Options: v.labelStatusOptions(),
-			Get: func() string { return v.teamCfg.Tracker.LabelStatusMapping[k] },
-			Set: func(val string) { v.teamCfg.Tracker.LabelStatusMapping[k] = val; v.dirtyTeam = true },
-		})
-	}
-	if len(v.teamCfg.Tracker.LabelStatusMapping) == 0 {
-		v.fields = append(v.fields, configField{
-			Kind: CfgFieldPlaceholder, Section: "label_status_mapping",
-			Label: "(vide)",
-			Description: i18n.T("tui.hints.add") + " pour ajouter",
-			Get: func() string { return "" },
-		})
-	}
-
 	// ── Notifications ────────────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.notifications")})
 	v.fields = append(v.fields, configField{
@@ -622,25 +600,9 @@ func (v *TeamDetailView) addDynamic() {
 			})
 		})
 	case "label_status_mapping":
-		v.shell.ShowInputModal("Label du tracker (ex: Bloqué, TO REVIEW...)", "", func(key string) {
-			if key == "" {
-				return
-			}
-			v.shell.ShowSelectModal("Statut du board", v.labelStatusOptions(), "", func(val string) {
-				if val == "" {
-					return
-				}
-				if v.teamCfg.Tracker.LabelStatusMapping == nil {
-					v.teamCfg.Tracker.LabelStatusMapping = make(map[string]string)
-				}
-				v.teamCfg.Tracker.LabelStatusMapping[key] = val
-				v.dirtyTeam = true
-				v.buildFields()
-				v.renderFields()
-			})
-		})
+		v.shell.ShowToastMsg("Les mappings label→statut se configurent dans l'éditeur de colonnes (Ctrl+P → Colonnes du board)", false)
 	default:
-		v.shell.ShowToastMsg("'a' disponible dans: Mappings, label_status_mapping", false)
+		v.shell.ShowToastMsg("'a' disponible dans: Mappings", false)
 	}
 }
 
@@ -655,9 +617,8 @@ func (v *TeamDetailView) deleteDynamic() {
 
 	key := f.Key
 	switch f.Section {
-	case "label_status_mapping":
-		delete(v.teamCfg.Tracker.LabelStatusMapping, key)
 	default:
+		_ = key
 		return
 	}
 
@@ -990,31 +951,6 @@ func (v *TeamDetailView) testConnection() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// labelStatusOptions returns the valid board statuses for the label_status_mapping select.
-// When the team has custom board columns, returns those. Otherwise returns the 6 defaults.
-func (v *TeamDetailView) labelStatusOptions() []SelectOption {
-	// Use custom columns if available.
-	if v.teamCfg != nil && v.teamCfg.Board.HasCustomColumns() {
-		opts := make([]SelectOption, len(v.teamCfg.Board.Columns))
-		for i, c := range v.teamCfg.Board.Columns {
-			opts[i] = SelectOption{
-				Label: c.ID + " (" + c.Name + ")",
-				Value: c.ID,
-			}
-		}
-		return opts
-	}
-	// Default 6 statuses.
-	return []SelectOption{
-		{Label: "planned (TODO)", Value: "planned"},
-		{Label: "in_progress (IN PROGRESS)", Value: "in_progress"},
-		{Label: "review (REVIEW)", Value: "review"},
-		{Label: "validation (VALIDATION)", Value: "validation"},
-		{Label: "blocked (BLOCKED)", Value: "blocked"},
-		{Label: "done (DONE)", Value: "done"},
-	}
-}
 
 func tdBoolToStr(b bool) string {
 	if b {

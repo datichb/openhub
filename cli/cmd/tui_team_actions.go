@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1289,7 +1290,7 @@ func actionTrackerDiscovery() {
 	}
 
 	// ── Step 3: Columns (interactive editor) ────────────────────────
-	columnsStep := buildColumnEditorStep(&suggestedColumns, &finalColumns)
+	columnsStep := buildColumnEditorStep(&suggestedColumns, &finalColumns, nil, nil, "")
 
 	// ── Step 4: Mappings ────────────────────────────────────────────
 	// Track which mappings the user accepts (pre-checked by default).
@@ -1575,11 +1576,19 @@ var columnEditorRoles = []string{
 
 // buildColumnEditorStep creates a WizardStep with an interactive column editor.
 // The editor allows adding, removing, renaming, reordering, and cycling roles
-// on board columns. It operates on the `columns` slice (input) and writes the
-// validated result to `result` on Ctrl+S.
+// on board columns. When labelMappings/statusMappings are non-nil, the editor
+// also supports a "mappings mode" (toggled via 'm') for managing the label→column
+// translation rules.
 //
-// Used by both the discovery wizard (step 3) and the standalone board config action.
-func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]teamstate.BoardColumnConfig) views.WizardStep {
+// Used by both the discovery wizard (step 3, mappings=nil) and the standalone
+// board config action (mappings loaded from team-state).
+func buildColumnEditorStep(
+	columns *[]teamstate.BoardColumnConfig,
+	result *[]teamstate.BoardColumnConfig,
+	labelMappings *map[string]string,
+	statusMappings *map[string]string,
+	trackerType string,
+) views.WizardStep {
 	return views.WizardStep{
 		Label:      i18n.T("cmd.discovery.step_columns"),
 		Processing: i18n.T("cmd.discovery.processing_columns"),
@@ -1593,12 +1602,82 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 				SetSelectedTextColor(theme.Action)
 			list.SetBackgroundColor(theme.BgPanel)
 
-			// renderList rebuilds the tview.List items with rich styling.
-			renderList := func() {
+			hints := tview.NewTextView().SetDynamicColors(true)
+			hints.SetBackgroundColor(theme.BgPanel)
+			hintSep := fmt.Sprintf(" [%s]│[-] ", theme.TextMutedHex)
+
+			// ── State ──
+			hasMappings := labelMappings != nil
+			var editingMappingsFor string // "" = columns mode, "col_id" = mappings mode
+
+			// ── Helpers ──
+			labelsForCol := func(colID string) (labels []string, statuses []string) {
+				if labelMappings != nil {
+					for k, v := range *labelMappings {
+						if v == colID {
+							labels = append(labels, k)
+						}
+					}
+				}
+				if statusMappings != nil {
+					for k, v := range *statusMappings {
+						if v == colID {
+							statuses = append(statuses, k)
+						}
+					}
+				}
+				sort.Strings(labels)
+				sort.Strings(statuses)
+				return
+			}
+
+			truncLabels := func(items []string, max int) string {
+				if len(items) == 0 {
+					return "—"
+				}
+				if len(items) <= max {
+					return strings.Join(items, ", ")
+				}
+				return strings.Join(items[:max], ", ") + fmt.Sprintf(" +%d", len(items)-max)
+			}
+
+			type mappingRef struct {
+				kind string // "label" or "status"
+				key  string
+			}
+
+			// ── Render functions ──
+			var renderColumns func()
+			var renderMappings func()
+
+			updateHints := func() {
+				if editingMappingsFor == "" {
+					h := fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] déplacer ↕%s%sa[-] ajouter%s%sEnter[-] renommer%s%sd[-] supprimer%s%sr[-] rôle",
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex))
+					if hasMappings {
+						h += fmt.Sprintf("%s%sm[-] mappings", hintSep, theme.ColorTag(theme.AccentHex))
+					}
+					h += fmt.Sprintf("%s%sCtrl+S[-] sauvegarder", hintSep, theme.ColorTag(theme.AccentHex))
+					hints.SetText(h)
+				} else {
+					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] ajouter label%s%sEnter[-] renommer%s%sd[-] supprimer%s%sEsc[-] retour aux colonnes",
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex), hintSep,
+						theme.ColorTag(theme.AccentHex)))
+				}
+			}
+
+			renderColumns = func() {
 				sel := list.GetCurrentItem()
 				list.Clear()
 
-				// Section header
 				headerText := fmt.Sprintf("  %s── Colonnes (%d) ──%s",
 					theme.ColorTag(theme.AccentHex), len(*columns), theme.TagColor)
 				list.AddItem(headerText, "", 0, nil)
@@ -1609,49 +1688,45 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 					if role == "" {
 						role = teamstate.ColumnRoleActive
 					}
-
-					// Resolve color for the dot indicator
 					color := views.ResolveColumnColor(col, activeIdx)
 					if role == teamstate.ColumnRoleActive || col.Role == "" {
 						activeIdx++
 					}
 					colorDot := widgets.ColorTag(color) + "●" + "[-]"
-
-					// Role badge with inverted color
 					roleHex := columnRoleHex(role)
 					roleBadge := fmt.Sprintf("[black:%s] %s [-:-]", roleHex, role)
-
-					// Position indicator
 					posIndicator := fmt.Sprintf("[%s]%d/%d[-]", theme.TextMutedHex, i+1, len(*columns))
 
-					// Main text: color dot + bold name + role badge + position
 					mainText := fmt.Sprintf("  %s  [::b]%s[-:-:-]  %s  %s",
 						colorDot, col.Name, roleBadge, posIndicator)
 
-					// Secondary text: id + color info
 					colorName := columnColorName(col, color)
-					secondaryText := fmt.Sprintf("      [%s]id: %s · couleur: %s[-]",
-						theme.TextMutedHex, col.ID, colorName)
+					secParts := []string{
+						fmt.Sprintf("id: %s", col.ID),
+						fmt.Sprintf("couleur: %s", colorName),
+					}
+					if hasMappings {
+						labels, statuses := labelsForCol(col.ID)
+						all := append(labels, statuses...)
+						secParts = append(secParts, fmt.Sprintf("labels: %s", truncLabels(all, 3)))
+					}
+					secondaryText := fmt.Sprintf("      [%s]%s[-]",
+						theme.TextMutedHex, strings.Join(secParts, " · "))
 
 					list.AddItem(mainText, secondaryText, 0, nil)
 				}
 
-				// Spacer before role legend
 				list.AddItem("", "", 0, nil)
-
-				// Role legend (non-selectable)
 				legendText := fmt.Sprintf("  %s── Rôles ──%s",
 					theme.ColorTag(theme.AccentHex), theme.TagColor)
 				list.AddItem(legendText, "", 0, nil)
-
 				legendLine := fmt.Sprintf("    [%s]●[-] initial = entrée  [%s]●[-] active = en cours  [%s]●[-] terminal = terminé  [%s]●[-] blocked = bloqué",
 					theme.WarningHex, theme.AccentHex, theme.SuccessHex, theme.ErrorHex)
 				list.AddItem(legendLine,
 					fmt.Sprintf("      [%s]Les colonnes définissent les étapes du workflow kanban[-]", theme.TextMutedHex),
 					0, nil)
 
-				// Restore selection (offset +1 for header)
-				maxSel := len(*columns) // items 1..N are columns, header is 0
+				maxSel := len(*columns)
 				if sel < 1 {
 					sel = 1
 				}
@@ -1659,60 +1734,271 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 					sel = maxSel
 				}
 				list.SetCurrentItem(sel)
+				updateHints()
 			}
-			renderList()
+
+			renderMappings = func() {
+				list.Clear()
+
+				colName := editingMappingsFor
+				for _, c := range *columns {
+					if c.ID == editingMappingsFor {
+						colName = c.Name
+						break
+					}
+				}
+
+				headerText := fmt.Sprintf("  %s── Mappings → %s ──%s",
+					theme.ColorTag(theme.AccentHex), colName, theme.TagColor)
+				list.AddItem(headerText, "", 0, nil)
+
+				labels, statuses := labelsForCol(editingMappingsFor)
+
+				// Labels section
+				labelHeader := fmt.Sprintf("    %s── Labels ──%s",
+					theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+				list.AddItem(labelHeader, "", 0, nil)
+
+				if len(labels) == 0 {
+					list.AddItem(
+						fmt.Sprintf("    [%s](aucun label mappé)[-]", theme.TextMutedHex),
+						fmt.Sprintf("      [%s]Appuyez sur 'a' pour ajouter[-]", theme.TextMutedHex),
+						0, nil)
+				}
+				for _, l := range labels {
+					list.AddItem(
+						fmt.Sprintf("    %s▸[-] %s", theme.ColorTag(theme.AccentHex), l),
+						fmt.Sprintf("      [%s]→ %s[-]", theme.TextMutedHex, editingMappingsFor),
+						0, nil)
+				}
+
+				// Statuses section (Jira only)
+				if trackerType == "jira" && statusMappings != nil {
+					statusHeader := fmt.Sprintf("    %s── Statuses (Jira) ──%s",
+						theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+					list.AddItem(statusHeader, "", 0, nil)
+
+					if len(statuses) == 0 {
+						list.AddItem(
+							fmt.Sprintf("    [%s](aucun status mappé)[-]", theme.TextMutedHex),
+							fmt.Sprintf("      [%s]Appuyez sur 'a' pour ajouter[-]", theme.TextMutedHex),
+							0, nil)
+					}
+					for _, s := range statuses {
+						list.AddItem(
+							fmt.Sprintf("    %s▸[-] %s", theme.ColorTag(theme.InfoHex), s),
+							fmt.Sprintf("      [%s]→ %s[-]", theme.TextMutedHex, editingMappingsFor),
+							0, nil)
+					}
+				}
+
+				// Select first mapping item (skip headers)
+				total := list.GetItemCount()
+				sel := 1
+				for sel < total {
+					main, _ := list.GetItemText(sel)
+					if strings.Contains(main, "──") || main == "" {
+						sel++
+					} else {
+						break
+					}
+				}
+				if sel >= total {
+					sel = 0
+				}
+				list.SetCurrentItem(sel)
+				updateHints()
+			}
+
+			// ── Mapping item resolution ──
+			resolveMappingItem := func() *mappingRef {
+				if editingMappingsFor == "" {
+					return nil
+				}
+				idx := list.GetCurrentItem()
+				main, _ := list.GetItemText(idx)
+				if strings.Contains(main, "──") || strings.Contains(main, "(aucun") || main == "" {
+					return nil
+				}
+				// Strip tview color tags to get the raw name
+				name := main
+				for strings.Contains(name, "[") && strings.Contains(name, "]") {
+					start := strings.Index(name, "[")
+					end := strings.Index(name, "]")
+					if end > start {
+						name = name[:start] + name[end+1:]
+					} else {
+						break
+					}
+				}
+				name = strings.TrimPrefix(name, "▸ ")
+				name = strings.TrimSpace(name)
+				if name == "" {
+					return nil
+				}
+				if labelMappings != nil {
+					for k, v := range *labelMappings {
+						if k == name && v == editingMappingsFor {
+							return &mappingRef{kind: "label", key: k}
+						}
+					}
+				}
+				if statusMappings != nil {
+					for k, v := range *statusMappings {
+						if k == name && v == editingMappingsFor {
+							return &mappingRef{kind: "status", key: k}
+						}
+					}
+				}
+				return nil
+			}
+
+			isHeaderLine := func(listIdx int) bool {
+				main, _ := list.GetItemText(listIdx)
+				return strings.Contains(main, "──") || main == "" || strings.Contains(main, "(aucun")
+			}
+
+			renderColumns()
 
 			// ── Key handler ─────────────────────────────────────────
 			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				idx := list.GetCurrentItem() - 1 // offset for header row
+				// ═══════════════════════════════════════════════════
+				// MODE: Mappings
+				// ═══════════════════════════════════════════════════
+				if editingMappingsFor != "" {
+					switch {
+					case event.Key() == tcell.KeyEscape:
+						editingMappingsFor = ""
+						renderColumns()
+						return nil
+
+					case event.Key() == tcell.KeyDown || event.Rune() == 'j':
+						cur := list.GetCurrentItem()
+						total := list.GetItemCount()
+						next := cur + 1
+						for next < total && isHeaderLine(next) {
+							next++
+						}
+						if next < total {
+							list.SetCurrentItem(next)
+						}
+						return nil
+
+					case event.Key() == tcell.KeyUp || event.Rune() == 'k':
+						cur := list.GetCurrentItem()
+						prev := cur - 1
+						for prev >= 0 && isHeaderLine(prev) {
+							prev--
+						}
+						if prev >= 0 {
+							list.SetCurrentItem(prev)
+						}
+						return nil
+
+					case event.Rune() == 'a':
+						if tuiShell != nil {
+							tuiShell.ShowInputModal("Nom du label", "", func(name string) {
+								if name == "" {
+									return
+								}
+								name = strings.TrimSpace(name)
+								if labelMappings != nil {
+									if *labelMappings == nil {
+										*labelMappings = make(map[string]string)
+									}
+									(*labelMappings)[name] = editingMappingsFor
+								}
+								renderMappings()
+								if tuiShell != nil {
+									tuiShell.ShowToast(fmt.Sprintf("+ Label « %s » → %s", name, editingMappingsFor), shell.ToastSuccess)
+								}
+							})
+						}
+						return nil
+
+					case event.Key() == tcell.KeyEnter:
+						ref := resolveMappingItem()
+						if ref != nil && tuiShell != nil {
+							tuiShell.ShowInputModal("Renommer", ref.key, func(newName string) {
+								if newName == "" || newName == ref.key {
+									return
+								}
+								newName = strings.TrimSpace(newName)
+								if ref.kind == "label" && labelMappings != nil {
+									delete(*labelMappings, ref.key)
+									(*labelMappings)[newName] = editingMappingsFor
+								} else if ref.kind == "status" && statusMappings != nil {
+									delete(*statusMappings, ref.key)
+									(*statusMappings)[newName] = editingMappingsFor
+								}
+								renderMappings()
+							})
+						}
+						return nil
+
+					case event.Rune() == 'd':
+						ref := resolveMappingItem()
+						if ref != nil {
+							if ref.kind == "label" && labelMappings != nil {
+								delete(*labelMappings, ref.key)
+							} else if ref.kind == "status" && statusMappings != nil {
+								delete(*statusMappings, ref.key)
+							}
+							renderMappings()
+							if tuiShell != nil {
+								tuiShell.ShowToast(fmt.Sprintf("- Mapping « %s » supprimé", ref.key), shell.ToastSuccess)
+							}
+						}
+						return nil
+					}
+					return event
+				}
+
+				// ═══════════════════════════════════════════════════
+				// MODE: Columns
+				// ═══════════════════════════════════════════════════
+				idx := list.GetCurrentItem() - 1
 				cols := *columns
 				n := len(cols)
-
-				// Guard: ignore actions on non-column items (header, spacer, legend)
 				isOnColumn := idx >= 0 && idx < n
 
 				switch {
-				// Navigation: skip non-column items
 				case event.Key() == tcell.KeyDown || event.Rune() == 'j':
 					cur := list.GetCurrentItem()
-					maxItem := n // last column is at index n (1-based)
-					if cur < maxItem {
+					if cur < n {
 						list.SetCurrentItem(cur + 1)
 					}
 					return nil
 
 				case event.Key() == tcell.KeyUp || event.Rune() == 'k':
 					cur := list.GetCurrentItem()
-					if cur > 1 { // can't go above first column (index 1)
+					if cur > 1 {
 						list.SetCurrentItem(cur - 1)
 					}
 					return nil
 
-				// Shift+Up or K: move column up
 				case (event.Key() == tcell.KeyUp && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'K':
 					if isOnColumn && idx > 0 {
 						cols[idx], cols[idx-1] = cols[idx-1], cols[idx]
-						renderList()
-						list.SetCurrentItem(idx) // idx is now the position above (0-based +1 for header)
+						renderColumns()
+						list.SetCurrentItem(idx)
 						if tuiShell != nil {
 							tuiShell.ShowToast("↑ Colonne déplacée", shell.ToastSuccess)
 						}
 					}
 					return nil
 
-				// Shift+Down or J: move column down
 				case (event.Key() == tcell.KeyDown && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'J':
 					if isOnColumn && idx < n-1 {
 						cols[idx], cols[idx+1] = cols[idx+1], cols[idx]
-						renderList()
-						list.SetCurrentItem(idx + 2) // moved down: new pos is idx+1 (0-based) +1 for header
+						renderColumns()
+						list.SetCurrentItem(idx + 2)
 						if tuiShell != nil {
 							tuiShell.ShowToast("↓ Colonne déplacée", shell.ToastSuccess)
 						}
 					}
 					return nil
 
-				// 'a': add a new column
 				case event.Rune() == 'a':
 					if tuiShell != nil {
 						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
@@ -1734,26 +2020,24 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 							updated = append(updated, newCol)
 							updated = append(updated, cols[pos:]...)
 							*columns = updated
-							renderList()
-							list.SetCurrentItem(pos + 1) // +1 for header
+							renderColumns()
+							list.SetCurrentItem(pos + 1)
 							tuiShell.ShowToast(fmt.Sprintf("+ Colonne « %s » ajoutée", newCol.Name), shell.ToastSuccess)
 						})
 					}
 					return nil
 
-				// Enter: rename selected column
 				case event.Key() == tcell.KeyEnter:
 					if isOnColumn && tuiShell != nil {
 						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), cols[idx].Name, func(name string) {
 							if name != "" {
 								(*columns)[idx].Name = strings.TrimSpace(name)
-								renderList()
+								renderColumns()
 							}
 						})
 					}
 					return nil
 
-				// 'd': delete selected column
 				case event.Rune() == 'd':
 					if !isOnColumn {
 						return nil
@@ -1764,15 +2048,36 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 						}
 						return nil
 					}
+					deletedID := cols[idx].ID
 					deletedName := cols[idx].Name
 					*columns = append(cols[:idx], cols[idx+1:]...)
-					renderList()
+					cleaned := 0
+					if labelMappings != nil {
+						for k, v := range *labelMappings {
+							if v == deletedID {
+								delete(*labelMappings, k)
+								cleaned++
+							}
+						}
+					}
+					if statusMappings != nil {
+						for k, v := range *statusMappings {
+							if v == deletedID {
+								delete(*statusMappings, k)
+								cleaned++
+							}
+						}
+					}
+					renderColumns()
+					msg := fmt.Sprintf("- Colonne « %s » supprimée", deletedName)
+					if cleaned > 0 {
+						msg += fmt.Sprintf(" — %d mapping(s) nettoyé(s)", cleaned)
+					}
 					if tuiShell != nil {
-						tuiShell.ShowToast(fmt.Sprintf("- Colonne « %s » supprimée", deletedName), shell.ToastSuccess)
+						tuiShell.ShowToast(msg, shell.ToastSuccess)
 					}
 					return nil
 
-				// 'r': cycle role
 				case event.Rune() == 'r':
 					if isOnColumn {
 						current := cols[idx].Role
@@ -1787,13 +2092,18 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 							}
 						}
 						(*columns)[idx].Role = columnEditorRoles[nextIdx]
-						renderList()
+						renderColumns()
 					}
 					return nil
 
-				// Ctrl+S: validate and submit
+				case event.Rune() == 'm':
+					if hasMappings && isOnColumn {
+						editingMappingsFor = cols[idx].ID
+						renderMappings()
+					}
+					return nil
+
 				case event.Key() == tcell.KeyCtrlS:
-					// Run validation before accepting
 					if len(*columns) < 2 {
 						if tuiShell != nil {
 							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
@@ -1821,19 +2131,6 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 
 				return event
 			})
-
-			// ── Hints bar ───────────────────────────────────────────
-			hints := tview.NewTextView().SetDynamicColors(true)
-			hints.SetBackgroundColor(theme.BgPanel)
-			hintSep := fmt.Sprintf(" [%s]│[-] ", theme.TextMutedHex)
-			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] déplacer ↕%s%sa[-] ajouter%s%sEnter[-] renommer%s%sd[-] supprimer%s%sr[-] rôle%s%sCtrl+S[-] sauvegarder",
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex), hintSep,
-				theme.ColorTag(theme.AccentHex)))
 
 			container.AddItem(list, 0, 1, true)
 			container.AddItem(hints, 1, 0, false)
@@ -1943,9 +2240,20 @@ func actionBoardColumnConfig() {
 		copy(columns, def.Columns)
 	}
 
+	// Load label/status mappings for the integrated editor
+	labelMappings := cfg.Tracker.LabelStatusMapping
+	if labelMappings == nil {
+		labelMappings = make(map[string]string)
+	}
+	statusMappings := cfg.Tracker.StatusMapping
+	if statusMappings == nil {
+		statusMappings = make(map[string]string)
+	}
+	tType := cfg.Tracker.Type
+
 	var finalColumns []teamstate.BoardColumnConfig
 
-	editorStep := buildColumnEditorStep(&columns, &finalColumns)
+	editorStep := buildColumnEditorStep(&columns, &finalColumns, &labelMappings, &statusMappings, tType)
 
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
 		ID:    "wizard.board.columns",
@@ -1955,7 +2263,7 @@ func actionBoardColumnConfig() {
 			if !completed || wizErr != nil {
 				return
 			}
-			// Save the updated columns to team-state config
+			// Save columns + mappings to team-state config
 			go func() {
 				freshCfg, err := repo.LoadConfig()
 				if err != nil {
@@ -1965,6 +2273,8 @@ func actionBoardColumnConfig() {
 					return
 				}
 				freshCfg.Board.Columns = finalColumns
+				freshCfg.Tracker.LabelStatusMapping = labelMappings
+				freshCfg.Tracker.StatusMapping = statusMappings
 				if err := repo.SaveConfig(ctx, freshCfg); err != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
 						tuiShell.ShowToast("Erreur sauvegarde : "+err.Error(), shell.ToastError)
