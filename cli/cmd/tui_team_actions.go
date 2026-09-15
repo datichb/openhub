@@ -12,6 +12,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	toml "github.com/pelletier/go-toml/v2"
+
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -864,6 +866,9 @@ func actionTrackerDiscovery() {
 
 		// Step 5: Pool label selection
 		selectedPool []string
+
+		// Summary: TOML preview built after save
+		tomlPreview string
 	)
 
 	// Pre-fill tracker URL from team-state config or MCP config
@@ -1403,6 +1408,43 @@ func actionTrackerDiscovery() {
 				return fmt.Errorf("sauvegarde config: %w", err)
 			}
 
+			// Build TOML preview for the summary screen.
+			type previewColumn struct {
+				ID   string `toml:"id"`
+				Name string `toml:"name"`
+				Role string `toml:"role,omitempty"`
+			}
+			type previewBoard struct {
+				Columns []previewColumn `toml:"columns"`
+			}
+			type previewTracker struct {
+				LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
+				StatusMapping      map[string]string `toml:"status_mapping,omitempty"`
+				AutoPlanUnassigned bool              `toml:"auto_plan_unassigned,omitempty"`
+				UnassignedLabels   []string          `toml:"unassigned_labels,omitempty"`
+			}
+			type previewRoot struct {
+				Board   previewBoard   `toml:"board"`
+				Tracker previewTracker `toml:"tracker"`
+			}
+
+			cols := make([]previewColumn, len(cfg.Board.Columns))
+			for i, c := range cfg.Board.Columns {
+				cols[i] = previewColumn{ID: c.ID, Name: c.Name, Role: c.Role}
+			}
+			preview := previewRoot{
+				Board: previewBoard{Columns: cols},
+				Tracker: previewTracker{
+					LabelStatusMapping: cfg.Tracker.LabelStatusMapping,
+					StatusMapping:      cfg.Tracker.StatusMapping,
+					AutoPlanUnassigned: cfg.Tracker.AutoPlanUnassigned,
+					UnassignedLabels:   cfg.Tracker.UnassignedLabels,
+				},
+			}
+			if raw, err := toml.Marshal(preview); err == nil {
+				tomlPreview = strings.TrimSpace(string(raw))
+			}
+
 			return repo.CommitAndPush(ctx,
 				fmt.Sprintf("tracker: discovery config for %s (%s)", projectID, trackerType),
 				"config.toml")
@@ -1417,6 +1459,11 @@ func actionTrackerDiscovery() {
 			if len(selectedPool) > 0 {
 				fields = append(fields, views.InfoField{
 					Label: "Pool", Value: fmt.Sprintf("%d labels", len(selectedPool)),
+				})
+			}
+			if tomlPreview != "" {
+				fields = append(fields, views.InfoField{
+					Label: "Config TOML", Value: tomlPreview,
 				})
 			}
 			return fields

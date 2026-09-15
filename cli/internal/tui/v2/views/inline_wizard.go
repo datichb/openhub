@@ -689,8 +689,17 @@ func (w *InlineWizardView) renderSummaryScreen() {
 			widgets.ColorTag(theme.FgPrimary), si.label)
 		for _, f := range si.fields {
 			if f.Value != "" {
-				fmt.Fprintf(&b, "      %s%s:[-] %s\n",
-					widgets.ColorTag(theme.FgSecondary), f.Label, f.Value)
+				if strings.Contains(f.Value, "\n") {
+					// Multi-line value: label on its own line, content indented below.
+					fmt.Fprintf(&b, "      %s%s:[-]\n",
+						widgets.ColorTag(theme.FgSecondary), f.Label)
+					for _, line := range strings.Split(f.Value, "\n") {
+						fmt.Fprintf(&b, "        %s\n", line)
+					}
+				} else {
+					fmt.Fprintf(&b, "      %s%s:[-] %s\n",
+						widgets.ColorTag(theme.FgSecondary), f.Label, f.Value)
+				}
 			}
 		}
 		b.WriteString("\n")
