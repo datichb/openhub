@@ -3,12 +3,235 @@ package teamstate
 import (
 	"context"
 	"fmt"
+	"strings"
 	"os"
 	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Column role constants — semantic roles that drive business logic.
+const (
+	// ColumnRoleInitial marks the entry-point column (new tickets land here).
+	ColumnRoleInitial = "initial"
+	// ColumnRoleActive marks columns where work is actively happening.
+	ColumnRoleActive = "active"
+	// ColumnRoleTerminal marks completion columns (cleanup/retention applies).
+	ColumnRoleTerminal = "terminal"
+	// ColumnRoleBlocked marks impediment/waiting columns.
+	ColumnRoleBlocked = "blocked"
+)
+
+// BoardColumnConfig defines a single board column.
+type BoardColumnConfig struct {
+	// ID is the internal key used in claim status fields and column matching.
+	// Must be unique, lowercase, no spaces (e.g. "todo", "testing", "preprod").
+	ID string `toml:"id"`
+	// Name is the display label shown in the board header (e.g. "TESTING").
+	Name string `toml:"name"`
+	// Color overrides the DS palette color for this column.
+	// Accepted values: "orange", "blue", "gray", "cyan", "green", "red", "purple", "yellow".
+	// Empty = auto-assigned from role-based DS palette.
+	Color string `toml:"color,omitempty"`
+	// Role defines the semantic role of this column.
+	// Values: "initial", "active", "terminal", "blocked".
+	// Empty = "active" (default for columns without explicit role).
+	Role string `toml:"role,omitempty"`
+}
+
+// BoardConfig holds team-level board layout settings.
+// When Columns is empty, the default 6-column layout is used.
+type BoardConfig struct {
+	// Columns defines the ordered list of board columns.
+	// Each column has an ID (used as claim status) and a display Name.
+	// If empty, the default 6 columns are used.
+	Columns []BoardColumnConfig `toml:"columns,omitempty"`
+}
+
+// InitialStatus returns the ID of the first column with role "initial".
+// Falls back to the first column, or "planned" if no columns are configured.
+func (cfg BoardConfig) InitialStatus() string {
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleInitial {
+			return c.ID
+		}
+	}
+	if len(cfg.Columns) > 0 {
+		return cfg.Columns[0].ID
+	}
+	return ClaimStatusPlanned
+}
+
+// DefaultWorkStatus returns the ID of the first column with role "active".
+// This is the status assigned when a member starts working on a ticket.
+// Falls back to the second column, or "in_progress" if unavailable.
+func (cfg BoardConfig) DefaultWorkStatus() string {
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleActive {
+			return c.ID
+		}
+	}
+	if len(cfg.Columns) > 1 {
+		return cfg.Columns[1].ID
+	}
+	return ClaimStatusInProgress
+}
+
+// TerminalStatuses returns the IDs of all columns with role "terminal".
+// Used by CleanupDoneClaims to identify completed tickets.
+// Falls back to ["done"] if no columns are configured.
+func (cfg BoardConfig) TerminalStatuses() []string {
+	var ids []string
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleTerminal {
+			ids = append(ids, c.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return []string{ClaimStatusDone}
+	}
+	return ids
+}
+
+// ActiveStatuses returns the IDs of all columns with role "active".
+// Used for badge counts and summary displays.
+func (cfg BoardConfig) ActiveStatuses() []string {
+	var ids []string
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleActive {
+			ids = append(ids, c.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return []string{ClaimStatusInProgress, ClaimStatusReview}
+	}
+	return ids
+}
+
+// BlockedStatuses returns the IDs of all columns with role "blocked".
+func (cfg BoardConfig) BlockedStatuses() []string {
+	var ids []string
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleBlocked {
+			ids = append(ids, c.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return []string{ClaimStatusBlocked}
+	}
+	return ids
+}
+
+// AllStatuses returns the IDs of all configured columns in order.
+// Falls back to the default 6 statuses if no columns are configured.
+func (cfg BoardConfig) AllStatuses() []string {
+	if len(cfg.Columns) == 0 {
+		return []string{ClaimStatusPlanned, ClaimStatusInProgress, ClaimStatusReview, ClaimStatusValidation, ClaimStatusBlocked, ClaimStatusDone}
+	}
+	ids := make([]string, len(cfg.Columns))
+	for i, c := range cfg.Columns {
+		ids[i] = c.ID
+	}
+	return ids
+}
+
+// IsValidStatus reports whether s is a valid status for this board config.
+// If no columns are configured, falls back to the built-in 6 statuses.
+func (cfg BoardConfig) IsValidStatus(s string) bool {
+	for _, id := range cfg.AllStatuses() {
+		if id == s {
+			return true
+		}
+	}
+	// Legacy compat: "planned" is always valid (mapped to initial column at runtime).
+	if s == ClaimStatusPlanned {
+		return true
+	}
+	return false
+}
+
+// ColumnByID returns the column config for the given ID, or nil if not found.
+func (cfg BoardConfig) ColumnByID(id string) *BoardColumnConfig {
+	for i := range cfg.Columns {
+		if cfg.Columns[i].ID == id {
+			return &cfg.Columns[i]
+		}
+	}
+	return nil
+}
+
+// HasCustomColumns reports whether the board has user-configured columns
+// (as opposed to the default 6-column layout).
+func (cfg BoardConfig) HasCustomColumns() bool {
+	return len(cfg.Columns) > 0
+}
+
+// Validate checks the board config for structural errors.
+// Returns nil if valid or if no custom columns are configured.
+func (cfg BoardConfig) Validate() error {
+	if len(cfg.Columns) == 0 {
+		return nil // defaults will be used
+	}
+	if len(cfg.Columns) < 2 {
+		return fmt.Errorf("board: at least 2 columns required, got %d", len(cfg.Columns))
+	}
+	seen := make(map[string]bool, len(cfg.Columns))
+	var initialCount, terminalCount int
+	for _, c := range cfg.Columns {
+		if c.ID == "" {
+			return fmt.Errorf("board: column ID must not be empty")
+		}
+		if c.Name == "" {
+			return fmt.Errorf("board: column %q must have a display name", c.ID)
+		}
+		lower := strings.ToLower(c.ID)
+		if lower != c.ID || strings.ContainsAny(c.ID, " \t") {
+			return fmt.Errorf("board: column ID %q must be lowercase without spaces", c.ID)
+		}
+		if seen[c.ID] {
+			return fmt.Errorf("board: duplicate column ID %q", c.ID)
+		}
+		seen[c.ID] = true
+		switch c.Role {
+		case ColumnRoleInitial:
+			initialCount++
+		case ColumnRoleTerminal:
+			terminalCount++
+		case ColumnRoleActive, ColumnRoleBlocked, "":
+			// ok
+		default:
+			return fmt.Errorf("board: column %q has unknown role %q (valid: initial, active, terminal, blocked)", c.ID, c.Role)
+		}
+	}
+	if initialCount > 1 {
+		return fmt.Errorf("board: at most 1 column can have role %q, got %d", ColumnRoleInitial, initialCount)
+	}
+	if terminalCount == 0 {
+		return fmt.Errorf("board: at least 1 column must have role %q", ColumnRoleTerminal)
+	}
+	return nil
+}
+
+// DefaultBoardConfig returns the built-in 6-column board layout.
+// Used as fallback when no custom columns are configured and when the
+// discovery wizard needs a starting point.
+func DefaultBoardConfig() BoardConfig {
+	return BoardConfig{
+		Columns: []BoardColumnConfig{
+			{ID: "todo", Name: "TODO", Role: ColumnRoleInitial},
+			{ID: "in_progress", Name: "IN PROGRESS", Role: ColumnRoleActive},
+			{ID: "review", Name: "REVIEW", Role: ColumnRoleActive},
+			{ID: "validation", Name: "VALIDATION", Role: ColumnRoleActive},
+			{ID: "done", Name: "DONE", Role: ColumnRoleTerminal},
+			{ID: "blocked", Name: "BLOCKED", Role: ColumnRoleBlocked},
+		},
+	}
+}
 
 // TeamConfig represents the team-state configuration (config.toml in the repo).
 type TeamConfig struct {
@@ -17,6 +240,7 @@ type TeamConfig struct {
 	Parallel     ParallelConfig     `toml:"parallel"`
 	Claim        ClaimConfig        `toml:"claim"`
 	Tracker      TrackerConfig      `toml:"tracker"`
+	Board        BoardConfig        `toml:"board"`
 	// MCP holds team-level recommendations/enforcements for MCP services.
 	// Each key is a service name ("gitlab", "jira", "figma", "gslides").
 	MCP map[string]SharedMCPConfig `toml:"mcp"`

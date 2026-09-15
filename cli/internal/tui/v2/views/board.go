@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -51,6 +52,71 @@ func DefaultColumns() []BoardColumnDef {
 		{Name: "DONE", Status: "done", Color: theme.Success},
 		{Name: "BLOCKED", Status: "blocked", Color: theme.Error},
 	}
+}
+
+// ColumnsFromConfig builds board column definitions from a BoardConfig.
+// Falls back to DefaultColumns() if no custom columns are configured.
+// Colors are assigned based on column roles using the DS palette, with
+// optional per-column color overrides.
+func ColumnsFromConfig(cfg teamstate.BoardConfig) []BoardColumnDef {
+	if !cfg.HasCustomColumns() {
+		return DefaultColumns()
+	}
+	cols := make([]BoardColumnDef, len(cfg.Columns))
+	activeIdx := 0
+	for i, c := range cfg.Columns {
+		cols[i] = BoardColumnDef{
+			Name:   c.Name,
+			Status: c.ID,
+			Color:  resolveColumnColor(c, activeIdx),
+		}
+		if c.Role == teamstate.ColumnRoleActive || c.Role == "" {
+			activeIdx++
+		}
+	}
+	return cols
+}
+
+// resolveColumnColor determines the tcell.Color for a column.
+// Priority: explicit color override > role-based DS palette > active cycling.
+func resolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Color {
+	// Explicit color override.
+	if c.Color != "" {
+		if color, ok := colorOverrides[c.Color]; ok {
+			return color
+		}
+	}
+	// Role-based DS palette.
+	switch c.Role {
+	case teamstate.ColumnRoleInitial:
+		return theme.Warning
+	case teamstate.ColumnRoleTerminal:
+		return theme.Success
+	case teamstate.ColumnRoleBlocked:
+		return theme.Error
+	default: // active or unset
+		return activeColorCycle[activeIdx%len(activeColorCycle)]
+	}
+}
+
+// activeColorCycle is the DS palette for "active" columns, cycling through
+// Accent (Azure), FgSecondary (Overlay), Info (Sapphire).
+var activeColorCycle = []tcell.Color{
+	theme.Accent,
+	theme.FgSecondary,
+	theme.Info,
+}
+
+// colorOverrides maps user-facing color names to tcell.Color values.
+var colorOverrides = map[string]tcell.Color{
+	"orange": theme.Warning,
+	"blue":   theme.Accent,
+	"gray":   theme.FgSecondary,
+	"cyan":   theme.Info,
+	"green":  theme.Success,
+	"red":    theme.Error,
+	"purple": tcell.GetColor("#cba6f7"),
+	"yellow": tcell.GetColor("#f9e2af"),
 }
 
 // newColumnSeparator returns a 1-char-wide vertical line drawn between kanban

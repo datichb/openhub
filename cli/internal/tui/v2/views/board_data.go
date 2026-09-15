@@ -79,3 +79,29 @@ func MapClaimStatus(status string) string {
 		return "in_progress"
 	}
 }
+
+// MapClaimStatusWithConfig converts a claim status to a board column key
+// using the provided column definitions. With custom columns the status IS
+// the column ID, so this is mostly an identity function plus legacy compat.
+//
+// Resolution order:
+//  1. Direct match: status == column.Status → return status
+//  2. Legacy compat: "planned" → first column (the initial/todo column)
+//  3. Fallback: first column with role "active", or the first column overall
+func MapClaimStatusWithConfig(status string, columns []BoardColumnDef) string {
+	// Direct match against column keys.
+	for _, col := range columns {
+		if col.Status == status {
+			return status
+		}
+	}
+	// Legacy compat: "planned" → first column (initial/todo).
+	if status == teamstate.ClaimStatusPlanned && len(columns) > 0 {
+		return columns[0].Status
+	}
+	// Fallback: first column.
+	if len(columns) > 0 {
+		return columns[0].Status
+	}
+	return "in_progress"
+}
