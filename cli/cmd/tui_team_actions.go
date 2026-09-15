@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rivo/tview"
 
@@ -459,12 +460,38 @@ func actionTeamInit() {
 		},
 	}
 
+	// ── Step 7: Tracker discovery (optional) ──────────────────────────
+	var launchDiscoveryAfter bool
+	trackerStep := views.WizardStep{
+		Label: "Tracker",
+		SkipIf: func() bool {
+			// Skip if no team configured yet (repo step was skipped/failed).
+			return stateRepo == ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			options := []string{"Plus tard", "Oui, configurer maintenant"}
+			form.AddDropDown("Configurer le tracker sync ?", options, 0, func(_ string, idx int) {
+				launchDiscoveryAfter = idx == 1
+			})
+			form.AddButton("Suivant", func() { onDone() })
+			return form
+		},
+		InfoFields: func() []views.InfoField {
+			val := "Plus tard"
+			if launchDiscoveryAfter {
+				val = "Oui"
+			}
+			return []views.InfoField{{Label: "Tracker", Value: val}}
+		},
+	}
+
 	// ── Build and push the inline wizard ────────────────────────────
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
 		ID:    "wizard.team.init",
 		Title: i18n.T("tui.team.init"),
 		Steps: []views.WizardStep{
-			repoStep, credStep, configStep, identityStep, notifStep, policiesStep,
+			repoStep, credStep, configStep, identityStep, notifStep, policiesStep, trackerStep,
 		},
 		SummaryTargetView:  "team.detail",
 		SummaryTargetLabel: i18n.T("wizard.summary.goto_team_detail"),
@@ -483,6 +510,19 @@ func actionTeamInit() {
 				memberID = a.Config.ActiveTeam().MemberID
 			}
 			_ = writeTeamConfig(stateRepo, statePath, memberID)
+
+			// Launch discovery wizard if requested.
+			if launchDiscoveryAfter {
+				// Small delay to let the summary screen render before pushing the new wizard.
+				go func() {
+					time.Sleep(200 * time.Millisecond)
+					if tuiShell != nil {
+						tuiShell.App().QueueUpdateDraw(func() {
+							actionTrackerDiscovery()
+						})
+					}
+				}()
+			}
 		},
 	})
 
