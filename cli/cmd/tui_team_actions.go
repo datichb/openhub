@@ -875,18 +875,18 @@ func actionTrackerDiscovery() {
 
 	// ── Step 1: Connection & Project ────────────────────────────────
 	connStep := views.WizardStep{
-		Label:      "Connexion tracker",
+		Label:      i18n.T("cmd.discovery.step_connection"),
 		Required:   true,
-		Processing: "Test de connexion et validation du projet...",
+		Processing: i18n.T("cmd.discovery.processing_connection"),
 		Validate: func() string {
 			if strings.TrimSpace(trackerType) == "" {
-				return "Le type de tracker est requis"
+				return i18n.T("cmd.discovery.validate.type_required")
 			}
 			if strings.TrimSpace(trackerURL) == "" {
-				return "L'URL du tracker est requise"
+				return i18n.T("cmd.discovery.validate.url_required")
 			}
 			if strings.TrimSpace(projectID) == "" {
-				return "Le projet tracker est requis"
+				return i18n.T("cmd.discovery.validate.project_required")
 			}
 			return ""
 		},
@@ -902,22 +902,22 @@ func actionTrackerDiscovery() {
 					break
 				}
 			}
-			form.AddDropDown("Type de tracker", typeOptions, typeIdx,
+			form.AddDropDown(i18n.T("cmd.discovery.field.tracker_type"), typeOptions, typeIdx,
 				func(_ string, idx int) { trackerType = typeOptions[idx] })
 
 			// URL
-			form.AddInputField("URL du tracker", trackerURL, 0, nil,
+			form.AddInputField(i18n.T("cmd.discovery.field.tracker_url"), trackerURL, 0, nil,
 				func(text string) { trackerURL = text })
 
 			// Project ID
-			form.AddInputField("Projet (ID ou path)", projectID, 0, nil,
+			form.AddInputField(i18n.T("cmd.discovery.field.tracker_project"), projectID, 0, nil,
 				func(text string) { projectID = text })
 
 			// Token (optional — if empty, will try keychain/env)
-			form.AddPasswordField("Token (vide = keychain/env)", token, 0, '*',
+			form.AddPasswordField(i18n.T("cmd.discovery.field.token"), token, 0, '*',
 				func(text string) { token = text })
 
-			form.AddButton("Tester et continuer", func() { onDone() })
+			form.AddButton(i18n.T("cmd.discovery.btn.test"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
@@ -974,8 +974,8 @@ func actionTrackerDiscovery() {
 
 	// ── Step 2: Discovery (processing only, no form) ────────────────
 	discoveryStep := views.WizardStep{
-		Label:      "Découverte du projet",
-		Processing: "Analyse du projet tracker...",
+		Label:      i18n.T("cmd.discovery.step_discovery"),
+		Processing: i18n.T("cmd.discovery.processing_discovery"),
 		// No Form — this is a processing-only step
 		OnDone: func() error {
 			// Build tracker instance (same as step 1 but we need it again)
@@ -1035,8 +1035,8 @@ func actionTrackerDiscovery() {
 				return nil
 			}
 			fields := []views.InfoField{
-				{Label: "Labels", Value: fmt.Sprintf("%d découverts", len(discoveryInfo.Labels))},
-				{Label: "Mappings", Value: fmt.Sprintf("%d suggérés", len(suggestedMappings))},
+				{Label: "Labels", Value: i18n.Tf("cmd.discovery.info.labels_found", len(discoveryInfo.Labels))},
+				{Label: "Mappings", Value: i18n.Tf("cmd.discovery.info.mappings_suggested", len(suggestedMappings))},
 			}
 			if len(unmapped) > 0 {
 				fields = append(fields, views.InfoField{
@@ -1049,13 +1049,13 @@ func actionTrackerDiscovery() {
 
 	// ── Step 3: Columns ─────────────────────────────────────────────
 	columnsStep := views.WizardStep{
-		Label:      "Colonnes du board",
-		Processing: "Application des colonnes...",
+		Label:      i18n.T("cmd.discovery.step_columns"),
+		Processing: i18n.T("cmd.discovery.processing_columns"),
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
 			// Summary of suggested columns
-			summary := "Colonnes suggérées pour votre board :\n\n"
+			summary := i18n.T("cmd.discovery.columns.header")
 			for _, col := range suggestedColumns {
 				roleLabel := col.Role
 				if roleLabel == "" {
@@ -1076,7 +1076,7 @@ func actionTrackerDiscovery() {
 				})
 			}
 
-			form.AddButton("Suivant", func() {
+			form.AddButton(i18n.T("cmd.discovery.btn.next"), func() {
 				// Build finalColumns from checked ones
 				finalColumns = nil
 				for i, col := range suggestedColumns {
@@ -1090,7 +1090,7 @@ func actionTrackerDiscovery() {
 		},
 		Validate: func() string {
 			if len(finalColumns) < 2 {
-				return "Au moins 2 colonnes sont nécessaires"
+				return i18n.T("cmd.discovery.validate.min_columns")
 			}
 			hasTerminal := false
 			for _, c := range finalColumns {
@@ -1100,7 +1100,7 @@ func actionTrackerDiscovery() {
 				}
 			}
 			if !hasTerminal {
-				return "Au moins une colonne terminale (done) est requise"
+				return i18n.T("cmd.discovery.validate.need_terminal")
 			}
 			return ""
 		},
@@ -1114,7 +1114,7 @@ func actionTrackerDiscovery() {
 				names[i] = c.Name
 			}
 			return []views.InfoField{
-				{Label: "Colonnes", Value: fmt.Sprintf("%d sélectionnées", len(finalColumns))},
+				{Label: "Colonnes", Value: i18n.Tf("cmd.discovery.info.columns_selected", len(finalColumns))},
 				{Label: "Layout", Value: strings.Join(names, " → ")},
 			}
 		},
@@ -1125,8 +1125,8 @@ func actionTrackerDiscovery() {
 	var acceptedMappingFlags []bool
 
 	mappingStep := views.WizardStep{
-		Label:      "Mappings labels/statuts",
-		Processing: "Validation des mappings...",
+		Label:      i18n.T("cmd.discovery.step_mappings"),
+		Processing: i18n.T("cmd.discovery.processing_mappings"),
 		SkipIf: func() bool {
 			return len(suggestedMappings) == 0
 		},
@@ -1158,7 +1158,7 @@ func actionTrackerDiscovery() {
 				})
 			}
 
-			form.AddButton("Accepter", func() { onDone() })
+			form.AddButton(i18n.T("cmd.discovery.btn.accept"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
@@ -1180,7 +1180,7 @@ func actionTrackerDiscovery() {
 				}
 			}
 			return []views.InfoField{
-				{Label: "Mappings", Value: fmt.Sprintf("%d acceptés", accepted)},
+				{Label: "Mappings", Value: i18n.Tf("cmd.discovery.info.mappings_accepted", accepted)},
 				{Label: "Non mappés", Value: fmt.Sprintf("%d", len(unmapped))},
 			}
 		},
@@ -1188,8 +1188,8 @@ func actionTrackerDiscovery() {
 
 	// ── Step 5: Pool labels ─────────────────────────────────────────
 	poolStep := views.WizardStep{
-		Label:      "Labels pool (tickets disponibles)",
-		Processing: "Sauvegarde de la configuration...",
+		Label:      i18n.T("cmd.discovery.step_pool"),
+		Processing: i18n.T("cmd.discovery.processing_save"),
 		SkipIf: func() bool {
 			// Skip if no pool labels were suggested
 			return len(poolLabels) == 0
@@ -1198,15 +1198,13 @@ func actionTrackerDiscovery() {
 			form := tview.NewForm()
 
 			if len(poolLabels) == 0 {
-				form.AddTextView("Info", "Aucun label de pool détecté.", 0, 2, false, false)
-				form.AddButton("Sauvegarder", func() { onDone() })
+				form.AddTextView("Info", i18n.T("cmd.discovery.pool.none_detected"), 0, 2, false, false)
+				form.AddButton(i18n.T("cmd.discovery.btn.save"), func() { onDone() })
 				return form
 			}
 
 			form.AddTextView("Info",
-				"Les labels suivants correspondent à la colonne initiale (TODO).\n"+
-					"Les tickets avec ces labels seront importés comme tickets\n"+
-					"disponibles (pool) que les membres peuvent réclamer.\n", 0, 4, false, false)
+				i18n.T("cmd.discovery.pool.explanation"), 0, 4, false, false)
 
 			poolEnabled := make([]bool, len(poolLabels))
 			for i := range poolLabels {
@@ -1217,7 +1215,7 @@ func actionTrackerDiscovery() {
 				})
 			}
 
-			form.AddButton("Sauvegarder", func() {
+			form.AddButton(i18n.T("cmd.discovery.btn.save"), func() {
 				selectedPool = nil
 				for i, l := range poolLabels {
 					if poolEnabled[i] {
@@ -1305,7 +1303,7 @@ func actionTrackerDiscovery() {
 	// ── Build and push the inline wizard ────────────────────────────
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
 		ID:    "wizard.tracker.discovery",
-		Title: "Configuration Tracker",
+		Title: i18n.T("cmd.discovery.title"),
 		Steps: []views.WizardStep{
 			connStep,
 			discoveryStep,
@@ -1314,7 +1312,7 @@ func actionTrackerDiscovery() {
 			poolStep,
 		},
 		SummaryTargetView:  "team.board",
-		SummaryTargetLabel: "Aller au board équipe",
+		SummaryTargetLabel: i18n.T("cmd.discovery.summary.target"),
 	})
 
 	tuiShell.PushView(wizard)

@@ -494,9 +494,9 @@ func buildCommands(a *app.App) []shell.Command {
 			},
 			shell.Command{
 				ID:          "team.discover",
-				Label:       "Discover Tracker",
+				Label:       i18n.T("cmd.discovery.omnibar_label"),
 				Aliases:     []string{"tracker discovery", "discover", "configurer tracker", "discovery"},
-				Description: "Lancer l'assistant de configuration tracker (discovery des labels/statuts)",
+				Description: i18n.T("cmd.discovery.omnibar_desc"),
 				Category:    i18n.T("tui.category.configuration"),
 				Priority:    47,
 				Action:      actionTrackerDiscovery,
