@@ -251,6 +251,9 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 		if c.Status == "" {
 			c.Status = ClaimStatusInProgress
 		}
+		if len(r.boardStatuses) > 0 && !IsValidBoardStatus(c.Status, r.boardStatuses) {
+			return fmt.Errorf("creating claim: %w: %q", ErrInvalidStatus, c.Status)
+		}
 
 		data, err := toml.Marshal(&c)
 		if err != nil {
@@ -311,6 +314,9 @@ func (r *Repo) CreateClaimLocal(c Claim) (relPath string, err error) {
 	}
 	if c.Status == "" {
 		c.Status = ClaimStatusInProgress
+	}
+	if len(r.boardStatuses) > 0 && !IsValidBoardStatus(c.Status, r.boardStatuses) {
+		return "", fmt.Errorf("creating claim: %w: %q", ErrInvalidStatus, c.Status)
 	}
 
 	data, err := toml.Marshal(&c)

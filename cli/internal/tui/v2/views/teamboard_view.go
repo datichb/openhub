@@ -521,7 +521,7 @@ func formatTicketLabels(labels []string) string {
 		case "needs-human-review":
 			result += "[yellow][!][-]"
 		default:
-			result += "[gray][" + l + "][-]"
+			result += "[gray][" + tview.Escape(l) + "][-]"
 		}
 	}
 	return result
