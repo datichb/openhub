@@ -3,8 +3,12 @@ package tracker_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -438,5 +442,359 @@ func TestGitLab_FetchIssue_WithDescription(t *testing.T) {
 	}
 	if issue.StatusCategory != "opened" {
 		t.Errorf("statusCategory: got %q, want %q", issue.StatusCategory, "opened")
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GitLab DiscoverProject / ListIssuesByLabels / Pagination integration tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestGitLab_DiscoverProject_Labels(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v4/projects/myproject/labels" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		// No X-Next-Page header → single page.
+		json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"name": "bug", "description": "Something is broken", "color": "#d9534f"},
+			{"name": "feature", "description": "New functionality", "color": "#428bca"},
+			{"name": "urgent", "description": "", "color": "#d10069"},
+		})
+	}))
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
+	info, err := gl.DiscoverProject(context.Background(), "myproject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(info.Labels) != 3 {
+		t.Fatalf("labels count: got %d, want 3", len(info.Labels))
+	}
+
+	want := []struct{ name, desc, color string }{
+		{"bug", "Something is broken", "#d9534f"},
+		{"feature", "New functionality", "#428bca"},
+		{"urgent", "", "#d10069"},
+	}
+	for i, w := range want {
+		if info.Labels[i].Name != w.name {
+			t.Errorf("label[%d].Name: got %q, want %q", i, info.Labels[i].Name, w.name)
+		}
+		if info.Labels[i].Description != w.desc {
+			t.Errorf("label[%d].Description: got %q, want %q", i, info.Labels[i].Description, w.desc)
+		}
+		if info.Labels[i].Color != w.color {
+			t.Errorf("label[%d].Color: got %q, want %q", i, info.Labels[i].Color, w.color)
+		}
+	}
+}
+
+func TestGitLab_DiscoverProject_Pagination(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v4/projects/myproject/labels" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		page := r.URL.Query().Get("page")
+		w.Header().Set("Content-Type", "application/json")
+
+		switch page {
+		case "", "1":
+			w.Header().Set("X-Next-Page", "2")
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"name": "bug", "description": "Defect", "color": "#d9534f"},
+				{"name": "feature", "description": "Enhancement", "color": "#428bca"},
+			})
+		case "2":
+			// No X-Next-Page → last page.
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"name": "urgent", "description": "High priority", "color": "#d10069"},
+			})
+		default:
+			json.NewEncoder(w).Encode([]map[string]interface{}{})
+		}
+	}))
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
+	info, err := gl.DiscoverProject(context.Background(), "myproject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(info.Labels) != 3 {
+		t.Fatalf("labels count: got %d, want 3", len(info.Labels))
+	}
+	names := []string{info.Labels[0].Name, info.Labels[1].Name, info.Labels[2].Name}
+	if names[0] != "bug" || names[1] != "feature" || names[2] != "urgent" {
+		t.Errorf("label names: got %v", names)
+	}
+}
+
+func TestGitLab_DiscoverProject_PageCap(t *testing.T) {
+	var requestCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v4/projects/myproject/labels" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		requestCount++
+
+		page := r.URL.Query().Get("page")
+		pageNum := 1
+		if page != "" {
+			pageNum, _ = strconv.Atoi(page)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		// Always advertise a next page → infinite pagination.
+		w.Header().Set("X-Next-Page", strconv.Itoa(pageNum+1))
+		json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"name": fmt.Sprintf("label-page-%d", pageNum), "description": "", "color": "#000"},
+		})
+	}))
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
+	info, err := gl.DiscoverProject(context.Background(), "myproject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// maxLabelPages = 50 in gitlab.go. The loop should stop at page 50.
+	if requestCount > 51 {
+		t.Errorf("expected at most 51 requests (50-page cap), got %d", requestCount)
+	}
+	if len(info.Labels) == 0 {
+		t.Error("expected at least some labels")
+	}
+	if len(info.Labels) > 50 {
+		t.Errorf("expected at most 50 labels (one per page), got %d", len(info.Labels))
+	}
+}
+
+func TestGitLab_ListIssuesByLabels(t *testing.T) {
+	var capturedQuery url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		capturedQuery = r.URL.Query()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]map[string]interface{}{
+			{
+				"iid": 1, "state": "opened", "title": "First issue",
+				"labels": []string{"backend", "ready"}, "updated_at": "2026-07-01T10:00:00Z",
+				"assignees": []map[string]interface{}{{"username": "alice"}},
+			},
+			{
+				"iid": 2, "state": "opened", "title": "Second issue",
+				"labels": []string{"backend", "ready"}, "updated_at": "2026-07-02T10:00:00Z",
+				"assignees": []map[string]interface{}{},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
+	issues, err := gl.ListIssuesByLabels(context.Background(), "myproject", tracker.ListByLabelsOpts{
+		Labels: []string{"backend", "ready"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 2 {
+		t.Fatalf("issues count: got %d, want 2", len(issues))
+	}
+	if issues[0].IID != 1 || issues[1].IID != 2 {
+		t.Errorf("issue IIDs: got %d, %d", issues[0].IID, issues[1].IID)
+	}
+	// Verify the query string contains the expected parameters.
+	if capturedQuery.Get("state") != "opened" {
+		t.Errorf("query state: got %q, want %q", capturedQuery.Get("state"), "opened")
+	}
+	if capturedQuery.Get("labels") != "backend,ready" {
+		t.Errorf("query labels: got %q, want %q", capturedQuery.Get("labels"), "backend,ready")
+	}
+}
+
+func TestGitLab_PaginatedListIssues_MaxResults(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		page := r.URL.Query().Get("page")
+		w.Header().Set("Content-Type", "application/json")
+
+		switch page {
+		case "", "1":
+			w.Header().Set("X-Next-Page", "2")
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"iid": 1, "state": "opened", "title": "A", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+				{"iid": 2, "state": "opened", "title": "B", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+				{"iid": 3, "state": "opened", "title": "C", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+			})
+		case "2":
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"iid": 4, "state": "opened", "title": "D", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+				{"iid": 5, "state": "opened", "title": "E", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+				{"iid": 6, "state": "opened", "title": "F", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
+			})
+		default:
+			json.NewEncoder(w).Encode([]map[string]interface{}{})
+		}
+	}))
+	defer srv.Close()
+
+	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
+	issues, err := gl.ListIssuesByLabels(context.Background(), "myproject", tracker.ListByLabelsOpts{
+		MaxResults: 4,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 4 {
+		t.Fatalf("issues count: got %d, want 4", len(issues))
+	}
+	// Verify the first 4 issues are returned in order.
+	for i, iid := range []int{1, 2, 3, 4} {
+		if issues[i].IID != iid {
+			t.Errorf("issue[%d].IID: got %d, want %d", i, issues[i].IID, iid)
+		}
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Jira DiscoverProject / ListIssuesByLabels integration tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestJira_DiscoverProject_Statuses(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/rest/api/2/project/PROJ/statuses":
+			// Two issue types with overlapping statuses.
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{
+					"name": "Bug",
+					"statuses": []map[string]interface{}{
+						{"name": "To Do", "statusCategory": map[string]string{"key": "new"}},
+						{"name": "In Progress", "statusCategory": map[string]string{"key": "indeterminate"}},
+						{"name": "Done", "statusCategory": map[string]string{"key": "done"}},
+					},
+				},
+				{
+					"name": "Story",
+					"statuses": []map[string]interface{}{
+						{"name": "In Progress", "statusCategory": map[string]string{"key": "indeterminate"}}, // duplicate
+						{"name": "Code Review", "statusCategory": map[string]string{"key": "indeterminate"}},
+						{"name": "Done", "statusCategory": map[string]string{"key": "done"}}, // duplicate
+					},
+				},
+			})
+		case "/rest/api/2/label":
+			// Return empty labels (best-effort endpoint).
+			json.NewEncoder(w).Encode(map[string]interface{}{"values": []string{}})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "test-token"})
+	info, err := j.DiscoverProject(context.Background(), "PROJ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Expect 4 unique statuses: "To Do", "In Progress", "Done", "Code Review".
+	if len(info.Statuses) != 4 {
+		t.Fatalf("statuses count: got %d, want 4 (deduplicated)", len(info.Statuses))
+	}
+
+	// Build a lookup for assertion.
+	statusMap := make(map[string]string, len(info.Statuses))
+	for _, s := range info.Statuses {
+		statusMap[s.Name] = s.Category
+	}
+	wantStatuses := map[string]string{
+		"To Do":       "new",
+		"In Progress": "indeterminate",
+		"Done":        "done",
+		"Code Review": "indeterminate",
+	}
+	for name, wantCat := range wantStatuses {
+		gotCat, ok := statusMap[name]
+		if !ok {
+			t.Errorf("missing status %q", name)
+			continue
+		}
+		if gotCat != wantCat {
+			t.Errorf("status %q category: got %q, want %q", name, gotCat, wantCat)
+		}
+	}
+}
+
+func TestJira_ListIssuesByLabels(t *testing.T) {
+	var capturedJQL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/rest/api/2/search" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var reqBody struct {
+			JQL string `json:"jql"`
+		}
+		json.NewDecoder(r.Body).Decode(&reqBody)
+		capturedJQL = reqBody.JQL
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"issues": []map[string]interface{}{
+				{
+					"id":  "10001",
+					"key": "PROJ-10",
+					"fields": map[string]interface{}{
+						"summary": "Label-matched issue",
+						"status": map[string]interface{}{
+							"name":           "In Progress",
+							"statusCategory": map[string]interface{}{"key": "indeterminate"},
+						},
+						"labels":  []string{"backend", "sprint-42"},
+						"updated": "2026-07-01T10:00:00.000+0000",
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "test-token"})
+	issues, err := j.ListIssuesByLabels(context.Background(), "PROJ", tracker.ListByLabelsOpts{
+		Labels: []string{"backend", "sprint-42"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("issues count: got %d, want 1", len(issues))
+	}
+	if issues[0].Key != "PROJ-10" {
+		t.Errorf("issue key: got %q, want %q", issues[0].Key, "PROJ-10")
+	}
+	if issues[0].State != "open" {
+		t.Errorf("issue state: got %q, want %q", issues[0].State, "open")
+	}
+	// Verify the JQL contains the expected labels clause.
+	if !strings.Contains(capturedJQL, `labels in (`) {
+		t.Errorf("JQL missing labels clause: %q", capturedJQL)
+	}
+	if !strings.Contains(capturedJQL, `"backend"`) || !strings.Contains(capturedJQL, `"sprint-42"`) {
+		t.Errorf("JQL missing expected label values: %q", capturedJQL)
 	}
 }
