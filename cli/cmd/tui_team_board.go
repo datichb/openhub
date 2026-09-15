@@ -49,13 +49,6 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// Load tickets from the local clone immediately — no network call.
 	// The async SyncFunc will refresh after pulling remote changes.
 	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
-	var initialTickets []views.TeamTicket
-	func() {
-		defer func() { _ = recover() }()
-		if repo := resolveRepo(); repo != nil {
-			initialTickets = views.FetchTeamTickets(repo, projectNameResolver)
-		}
-	}()
 
 	// Load label_status_mapping and board config from team config.
 	var labelStatusMapping map[string]string
@@ -67,6 +60,17 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				labelStatusMapping = cfg.Tracker.LabelStatusMapping
 				boardConfig = cfg.Board
 			}
+		}
+	}()
+
+	// Build columns from board config for ticket status mapping.
+	columns := views.ColumnsFromConfig(boardConfig)
+
+	var initialTickets []views.TeamTicket
+	func() {
+		defer func() { _ = recover() }()
+		if repo := resolveRepo(); repo != nil {
+			initialTickets = views.FetchTeamTicketsWithColumns(repo, projectNameResolver, columns)
 		}
 	}()
 
@@ -84,7 +88,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			if repo == nil {
 				return nil
 			}
-			return views.FetchTeamTickets(repo, projectNameResolver)
+			return views.FetchTeamTicketsWithColumns(repo, projectNameResolver, columns)
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.

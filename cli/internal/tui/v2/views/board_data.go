@@ -11,7 +11,15 @@ type ProjectNameResolver func(projectDirID string) string
 // FetchTeamTickets builds the ticket list from team-state claims for the board views.
 // Members with no active claims are omitted — the board shows tickets, not people.
 // resolver is optional — if nil, project directory names are used as-is.
+// Uses DefaultColumns() for status mapping. For custom columns, use FetchTeamTicketsWithColumns.
 func FetchTeamTickets(repo teamstate.TeamStateReader, resolver ProjectNameResolver) []TeamTicket {
+	return FetchTeamTicketsWithColumns(repo, resolver, nil)
+}
+
+// FetchTeamTicketsWithColumns is like FetchTeamTickets but uses the provided
+// column definitions for status mapping. If columns is nil, falls back to
+// the legacy MapClaimStatus (DefaultColumns-compatible).
+func FetchTeamTicketsWithColumns(repo teamstate.TeamStateReader, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
 	members, err := repo.ListMembers()
 	if err != nil {
 		return nil
@@ -44,12 +52,19 @@ func FetchTeamTickets(repo teamstate.TeamStateReader, resolver ProjectNameResolv
 		if resolver != nil {
 			projName = resolver(c.Project)
 		}
+		// Map claim status to board column key.
+		var status string
+		if len(columns) > 0 {
+			status = MapClaimStatusWithConfig(c.Status, columns)
+		} else {
+			status = MapClaimStatus(c.Status)
+		}
 		tickets = append(tickets, TeamTicket{
 			ID:          c.TicketID,
 			Title:       title,
 			Project:     c.Project,
 			ProjectName: projName,
-			Status:      MapClaimStatus(c.Status),
+			Status:      status,
 			Assignee:    name,
 			Labels:      c.Labels,
 			Description: c.Description,
