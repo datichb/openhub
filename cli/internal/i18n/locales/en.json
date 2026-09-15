@@ -1635,6 +1635,8 @@
   "cmd.discovery.btn.test": "Test and continue",
   "cmd.discovery.columns.header": "Suggested columns for your board:\n\n",
   "cmd.discovery.columns.role_legend": "  Roles: initial=incoming tickets, active=work in progress, terminal=done, blocked=blocked",
+  "cmd.discovery.field.column_name": "Column name",
+  "cmd.discovery.field.column_rename": "Rename column",
   "cmd.discovery.field.token": "Token (empty = keychain/env)",
   "cmd.discovery.field.tracker_project": "Project (ID or path)",
   "cmd.discovery.field.tracker_type": "Tracker type",

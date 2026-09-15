@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -17,8 +18,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1055,47 +1058,159 @@ func actionTrackerDiscovery() {
 		},
 	}
 
-	// ── Step 3: Columns ─────────────────────────────────────────────
+	// ── Step 3: Columns (interactive editor) ────────────────────────
+	// allRoles is the cycle order for the 'r' key.
+	allRoles := []string{teamstate.ColumnRoleInitial, teamstate.ColumnRoleActive, teamstate.ColumnRoleTerminal, teamstate.ColumnRoleBlocked}
+
 	columnsStep := views.WizardStep{
 		Label:      i18n.T("cmd.discovery.step_columns"),
 		Processing: i18n.T("cmd.discovery.processing_columns"),
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
+		CustomView: func(app *tview.Application, container *tview.Flex, onDone func()) {
+			list := tview.NewList().ShowSecondaryText(false)
+			list.SetBackgroundColor(theme.BgPanel)
+			list.SetMainTextColor(theme.FgPrimary)
+			list.SetSelectedTextColor(theme.Accent)
+			list.SetSelectedBackgroundColor(theme.BgPanel)
 
-			// Summary of suggested columns
-			summary := i18n.T("cmd.discovery.columns.header")
-			for _, col := range suggestedColumns {
-				roleLabel := col.Role
-				if roleLabel == "" {
-					roleLabel = "active"
-				}
-				summary += fmt.Sprintf("  [%s] %s (%s)\n", roleLabel, col.Name, col.ID)
-			}
-			summary += "\n" + i18n.T("cmd.discovery.columns.role_legend") + "\n"
-			form.AddTextView("Colonnes", summary, 0, len(suggestedColumns)+5, false, false)
-
-			// Checkboxes for each column
-			columnEnabled := make([]bool, len(suggestedColumns))
-			for i := range suggestedColumns {
-				columnEnabled[i] = true // all enabled by default
-				idx := i
-				label := suggestedColumns[i].Name + " (" + suggestedColumns[i].ID + ")"
-				form.AddCheckbox(label, true, func(checked bool) {
-					columnEnabled[idx] = checked
-				})
-			}
-
-			form.AddButton(i18n.T("cmd.discovery.btn.next"), func() {
-				// Build finalColumns from checked ones
-				finalColumns = nil
-				for i, col := range suggestedColumns {
-					if columnEnabled[i] {
-						finalColumns = append(finalColumns, col)
+			// renderList rebuilds the tview.List items from suggestedColumns.
+			renderList := func() {
+				sel := list.GetCurrentItem()
+				list.Clear()
+				for _, col := range suggestedColumns {
+					roleLabel := col.Role
+					if roleLabel == "" {
+						roleLabel = "active"
 					}
+					item := fmt.Sprintf("[%s]  %s  (%s)", roleLabel, col.Name, col.ID)
+					list.AddItem(item, "", 0, nil)
 				}
-				onDone()
+				if sel >= list.GetItemCount() {
+					sel = list.GetItemCount() - 1
+				}
+				if sel >= 0 {
+					list.SetCurrentItem(sel)
+				}
+			}
+			renderList()
+
+			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				idx := list.GetCurrentItem()
+				n := len(suggestedColumns)
+
+				switch {
+				// Shift+Up or K: move column up
+				case (event.Key() == tcell.KeyUp && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'K':
+					if idx > 0 {
+						suggestedColumns[idx], suggestedColumns[idx-1] = suggestedColumns[idx-1], suggestedColumns[idx]
+						renderList()
+						list.SetCurrentItem(idx - 1)
+					}
+					return nil
+
+				// Shift+Down or J: move column down
+				case (event.Key() == tcell.KeyDown && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'J':
+					if idx < n-1 {
+						suggestedColumns[idx], suggestedColumns[idx+1] = suggestedColumns[idx+1], suggestedColumns[idx]
+						renderList()
+						list.SetCurrentItem(idx + 1)
+					}
+					return nil
+
+				// 'a': add a new column
+				case event.Rune() == 'a':
+					if tuiShell != nil {
+						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
+							if name == "" {
+								return
+							}
+							id := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "_"))
+							role := tracker.SuggestColumnRole(name)
+							newCol := teamstate.BoardColumnConfig{ID: id, Name: strings.TrimSpace(name), Role: role}
+							// Insert after current position.
+							pos := idx + 1
+							if pos > n {
+								pos = n
+							}
+							suggestedColumns = append(suggestedColumns[:pos], append([]teamstate.BoardColumnConfig{newCol}, suggestedColumns[pos:]...)...)
+							renderList()
+							list.SetCurrentItem(pos)
+						})
+					}
+					return nil
+
+				// Enter: rename selected column
+				case event.Key() == tcell.KeyEnter:
+					if idx >= 0 && idx < n {
+						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), suggestedColumns[idx].Name, func(name string) {
+							if name != "" {
+								suggestedColumns[idx].Name = strings.TrimSpace(name)
+								renderList()
+							}
+						})
+					}
+					return nil
+
+				// 'd': delete selected column
+				case event.Rune() == 'd':
+					if n <= 2 {
+						if tuiShell != nil {
+							tuiShell.ShowToastMsg(i18n.T("cmd.discovery.validate.min_columns"), false)
+						}
+						return nil
+					}
+					if idx >= 0 && idx < n {
+						suggestedColumns = append(suggestedColumns[:idx], suggestedColumns[idx+1:]...)
+						renderList()
+					}
+					return nil
+
+				// 'r': cycle role
+				case event.Rune() == 'r':
+					if idx >= 0 && idx < n {
+						current := suggestedColumns[idx].Role
+						if current == "" {
+							current = teamstate.ColumnRoleActive
+						}
+						nextIdx := 0
+						for i, r := range allRoles {
+							if r == current {
+								nextIdx = (i + 1) % len(allRoles)
+								break
+							}
+						}
+						suggestedColumns[idx].Role = allRoles[nextIdx]
+						renderList()
+					}
+					return nil
+
+				// Ctrl+S: validate and submit
+				case event.Key() == tcell.KeyCtrlS:
+					finalColumns = make([]teamstate.BoardColumnConfig, len(suggestedColumns))
+					copy(finalColumns, suggestedColumns)
+					onDone()
+					return nil
+				}
+
+				return event
 			})
-			return form
+
+			// Build the layout: legend + list + hints
+			legend := tview.NewTextView().SetDynamicColors(true)
+			legend.SetBackgroundColor(theme.BgPanel)
+			legend.SetText(i18n.T("cmd.discovery.columns.role_legend"))
+
+			hints := tview.NewTextView().SetDynamicColors(true)
+			hints.SetBackgroundColor(theme.BgPanel)
+			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav  %sShift+↑↓[-] réordonner  %sa[-] ajouter  %sEnter[-] renommer  %sd[-] supprimer  %sr[-] rôle  %sCtrl+S[-] valider",
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
+				widgets.ColorTag(theme.Accent)))
+
+			container.AddItem(legend, 2, 0, false)
+			container.AddItem(list, 0, 1, true)
+			container.AddItem(hints, 1, 0, false)
+			app.SetFocus(list)
 		},
 		Validate: func() string {
 			if len(finalColumns) < 2 {
@@ -1114,7 +1229,6 @@ func actionTrackerDiscovery() {
 			return ""
 		},
 		OnDone: func() error {
-			// Validation already done in Validate — just confirm columns are set.
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
