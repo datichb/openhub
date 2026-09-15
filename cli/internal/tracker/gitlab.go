@@ -198,6 +198,7 @@ func (c *gitLabClient) TestProject(ctx context.Context, projectID string) (strin
 
 func (c *gitLabClient) DiscoverProject(ctx context.Context, projectID string) (*DiscoveryInfo, error) {
 	// Fetch all project labels via paginated API.
+	const maxLabelPages = 50 // safety cap against runaway pagination
 	var allLabels []LabelInfo
 	page := 1
 	for {
@@ -227,7 +228,7 @@ func (c *gitLabClient) DiscoverProject(ctx context.Context, projectID string) (*
 			break
 		}
 		np, err := strconv.Atoi(nextPage)
-		if err != nil || np <= page {
+		if err != nil || np <= page || page >= maxLabelPages {
 			break
 		}
 		page = np
@@ -358,6 +359,7 @@ func (c *gitLabClient) doWithHeaders(ctx context.Context, method, path string, b
 // until maxResults is reached or there are no more pages.
 // basePath must include the query string (e.g. "/api/v4/projects/.../issues?state=opened&...").
 func (c *gitLabClient) paginatedListIssues(ctx context.Context, basePath string, maxResults int) ([]IssueState, error) {
+	const maxIssuePages = 100 // safety cap against runaway pagination
 	var all []IssueState
 	page := 1
 
@@ -393,7 +395,7 @@ func (c *gitLabClient) paginatedListIssues(ctx context.Context, basePath string,
 			break
 		}
 		np, err := strconv.Atoi(nextPage)
-		if err != nil || np <= page {
+		if err != nil || np <= page || page >= maxIssuePages {
 			break
 		}
 		page = np

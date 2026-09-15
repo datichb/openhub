@@ -177,7 +177,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.columnFlex = tview.NewFlex()
 
 	for i, col := range columns {
-		cc := widgets.NewCardColumn(col.Name, col.Color)
+		cc := widgets.NewCardColumn(tview.Escape(col.Name), col.Color)
 		v.columnCards[i] = cc
 	}
 

@@ -193,6 +193,9 @@ func (cfg BoardConfig) Validate() error {
 		if lower != c.ID || strings.ContainsAny(c.ID, " \t") {
 			return fmt.Errorf("board: column ID %q must be lowercase without spaces", c.ID)
 		}
+		if strings.Contains(c.ID, "..") || strings.ContainsAny(c.ID, "/\\") {
+			return fmt.Errorf("board: column ID %q contains invalid characters", c.ID)
+		}
 		if seen[c.ID] {
 			return fmt.Errorf("board: duplicate column ID %q", c.ID)
 		}
