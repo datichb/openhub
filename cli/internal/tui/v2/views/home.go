@@ -154,6 +154,12 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 				// Full layout rebuild to update both columns with fresh data
 				content.Clear()
 				adaptiveHomeMount(app, content, buildFn)
+				// Restore focus to the new widget (same pattern as resize handler)
+				if v.dual != nil {
+					v.dual.focusLeft()
+				} else if v.list != nil {
+					app.SetFocus(v.list)
+				}
 			})
 		}
 	}()
