@@ -442,7 +442,7 @@ func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStat
 	if _, err := SafeName(ticketID); err != nil {
 		return fmt.Errorf("invalid ticket ID: %w", err)
 	}
-	if !IsValidStatus(newStatus) {
+	if !IsValidBoardStatus(newStatus, r.boardStatuses) {
 		return fmt.Errorf("%w: %q", ErrInvalidStatus, newStatus)
 	}
 
@@ -452,7 +452,7 @@ func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStat
 			return err
 		}
 
-		if !IsValidTransition(c.Status, newStatus) {
+		if !IsValidBoardTransition(c.Status, newStatus) {
 			return fmt.Errorf("%w: cannot transition from %q to %q", ErrInvalidTransition, c.Status, newStatus)
 		}
 
@@ -578,7 +578,7 @@ func (r *Repo) UpdateClaimStatusFromTracker(ctx context.Context, project, ticket
 	if _, err := SafeName(ticketID); err != nil {
 		return fmt.Errorf("invalid ticket ID: %w", err)
 	}
-	if !IsValidStatus(newStatus) {
+	if !IsValidBoardStatus(newStatus, r.boardStatuses) {
 		return fmt.Errorf("%w: %q", ErrInvalidStatus, newStatus)
 	}
 

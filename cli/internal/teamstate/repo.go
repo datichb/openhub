@@ -27,9 +27,10 @@ const (
 // never overlap with a rebase/checkout that could leave files in a
 // transitional state.
 type Repo struct {
-	mu     sync.RWMutex
-	path   string // local clone path (e.g. ~/.oh/team-state/)
-	remote string // Git remote URL
+	mu            sync.RWMutex
+	path          string   // local clone path (e.g. ~/.oh/team-state/)
+	remote        string   // Git remote URL
+	boardStatuses []string // custom board column IDs (set via SetBoardStatuses)
 }
 
 // NewRepo creates a Repo instance. It does NOT clone or validate the repo.
@@ -38,6 +39,14 @@ func NewRepo(remote, localPath string) *Repo {
 		remote: remote,
 		path:   localPath,
 	}
+}
+
+// SetBoardStatuses configures the valid board statuses for custom column support.
+// When set, UpdateClaimStatus and UpdateClaimStatusFromTracker accept these
+// statuses in addition to the built-in 6 defaults.
+// Call this after loading the team config BoardConfig.AllStatuses().
+func (r *Repo) SetBoardStatuses(statuses []string) {
+	r.boardStatuses = statuses
 }
 
 // Path returns the local filesystem path to the team-state repo.

@@ -65,6 +65,16 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	// Build columns from board config for ticket status mapping.
 	columns := views.ColumnsFromConfig(boardConfig)
+	boardStatuses := boardConfig.AllStatuses()
+
+	// Wrap resolveRepo to propagate board statuses for custom column validation.
+	resolveRepoWithBoard := func() *teamstate.Repo {
+		repo := resolveRepo()
+		if repo != nil && len(boardStatuses) > 0 {
+			repo.SetBoardStatuses(boardStatuses)
+		}
+		return repo
+	}
 
 	var initialTickets []views.TeamTicket
 	func() {
@@ -84,7 +94,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
-			repo := resolveRepo()
+			repo := resolveRepoWithBoard()
 			if repo == nil {
 				return nil
 			}
@@ -147,7 +157,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return engine.FetchTicketDetail(ctx, project, ticketID)
 			},
 			OnClaim: func(ticketID string) error {
-				repo := resolveRepo()
+				repo := resolveRepoWithBoard()
 				if repo == nil {
 					return fmt.Errorf("team non configurée")
 				}
@@ -229,7 +239,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
 			OnStatus: func(ticketID, newStatus string) error {
-				repo := resolveRepo()
+				repo := resolveRepoWithBoard()
 				if repo == nil {
 					return fmt.Errorf("team non configurée")
 				}

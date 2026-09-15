@@ -118,6 +118,11 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	if reader, ok := e.repo.(teamstate.TeamStateReader); ok {
 		if teamCfg, cfgErr := reader.LoadConfig(); cfgErr == nil && teamCfg != nil {
 			e.boardCfg = teamCfg.Board
+			// Propagate custom statuses to the repo so UpdateClaimStatus
+			// and UpdateClaimStatusFromTracker accept them.
+			if repo, ok := e.repo.(*teamstate.Repo); ok {
+				repo.SetBoardStatuses(e.boardCfg.AllStatuses())
+			}
 		}
 	}
 
