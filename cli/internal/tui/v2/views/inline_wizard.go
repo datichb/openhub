@@ -363,17 +363,33 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 			w.spinner.Stop()
 			if err != nil {
 				w.wizardErr = err
-				w.completed = true
-				w.fireComplete()
-				// Show error in the step content
+				// Show error in the step content but do NOT mark as completed.
+				// The user can press Ctrl+B to go back and fix the issue,
+				// or Enter to retry the current step.
 				w.stepContent.Clear()
 				errView := tview.NewTextView().SetDynamicColors(true)
 				errView.SetBackgroundColor(theme.BgPanel)
-				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]",
+				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] retour  •  %sEnter[-] réessayer",
 					widgets.ColorTag(theme.Error), theme.IconError,
 					i18n.T("wizard.error"),
-					widgets.ColorTag(theme.FgSecondary), err.Error()))
-				w.stepContent.AddItem(errView, 0, 1, false)
+					widgets.ColorTag(theme.FgSecondary), err.Error(),
+					widgets.ColorTag(theme.Accent),
+					widgets.ColorTag(theme.Accent)))
+				errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					switch {
+					case event.Key() == tcell.KeyCtrlB:
+						w.goBack()
+						return nil
+					case event.Key() == tcell.KeyEnter:
+						// Retry: re-render the current step
+						w.wizardErr = nil
+						w.renderStep(w.currentStep)
+						return nil
+					}
+					return event
+				})
+				w.stepContent.AddItem(errView, 0, 1, true)
+				w.app.SetFocus(errView)
 				return
 			}
 			afterDone()

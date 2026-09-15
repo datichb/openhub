@@ -1088,10 +1088,9 @@ func actionTrackerDiscovery() {
 			})
 			return form
 		},
-		OnDone: func() error {
-			// Validate: need at least 2 columns with one terminal
+		Validate: func() string {
 			if len(finalColumns) < 2 {
-				return fmt.Errorf("au moins 2 colonnes sont nécessaires")
+				return "Au moins 2 colonnes sont nécessaires"
 			}
 			hasTerminal := false
 			for _, c := range finalColumns {
@@ -1101,8 +1100,12 @@ func actionTrackerDiscovery() {
 				}
 			}
 			if !hasTerminal {
-				return fmt.Errorf("au moins une colonne terminale (done) est requise")
+				return "Au moins une colonne terminale (done) est requise"
 			}
+			return ""
+		},
+		OnDone: func() error {
+			// Validation already done in Validate — just confirm columns are set.
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
