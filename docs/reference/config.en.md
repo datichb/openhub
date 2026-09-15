@@ -376,6 +376,43 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)", "T-FRONT" = "FRONT-(\\d+)" }
 - `push_labels` requires `write_enabled = true` on the corresponding MCP server in `hub.toml`.
 - Each `ticket_patterns` regex must contain **exactly one capture group** that extracts the numeric IID.
 
+### `[board]` section
+
+Configures the team board column layout. When this section is absent, the default 6-column layout is used (TODO, IN PROGRESS, REVIEW, VALIDATION, DONE, BLOCKED).
+
+Each column has a semantic **role** that drives business logic:
+
+| Role | Purpose |
+|------|---------|
+| `initial` | Entry-point column — new tickets land here. Used by pool claims and `--planned` flag. |
+| `active` | Work-in-progress columns — counted in active badges and summaries. |
+| `terminal` | Completion columns — triggers done-claim retention cleanup. |
+| `blocked` | Impediment columns — counted separately in status summaries. |
+
+```toml
+[board]
+columns = [
+    { id = "todo",        name = "TODO",         role = "initial" },
+    { id = "in_progress", name = "IN PROGRESS",  role = "active" },
+    { id = "review",      name = "CODE REVIEW",  role = "active" },
+    { id = "testing",     name = "TESTING",       role = "active",  color = "cyan" },
+    { id = "done",        name = "DONE",          role = "terminal" },
+    { id = "blocked",     name = "BLOCKED",       role = "blocked" },
+]
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `columns` | array of tables | 6 default columns | Ordered list of board columns. |
+| `columns[].id` | string | — | Internal identifier. Must be lowercase, no spaces, no `..` or `/`. Used as claim status value. |
+| `columns[].name` | string | — | Display label shown in the board header. |
+| `columns[].color` | string | auto (role-based) | Color override: `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow`. |
+| `columns[].role` | string | `"active"` | Semantic role: `initial`, `active`, `terminal`, `blocked`. |
+
+> **Tip**: Use the `Discover Tracker` command (omnibar or `y` key in team config) to auto-configure columns from your tracker's workflow labels.
+
+> **Backward compatibility**: When `[board]` is absent, the 6 default columns are used. Existing claims with status `"planned"` are automatically mapped to the first column.
+
 ---
 
 ## Notifications View

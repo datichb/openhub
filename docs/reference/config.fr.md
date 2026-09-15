@@ -278,6 +278,43 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)", "T-FRONT" = "FRONT-(\\d+)" }
 - `push_labels` nécessite `write_enabled = true` sur le serveur MCP correspondant dans `hub.toml`.
 - Chaque regex `ticket_patterns` doit contenir **exactement un groupe de capture** extrayant l'IID numérique.
 
+### Section `[board]`
+
+Configure la disposition des colonnes du board d'équipe. En l'absence de cette section, la disposition par défaut à 6 colonnes est utilisée (TODO, IN PROGRESS, REVIEW, VALIDATION, DONE, BLOCKED).
+
+Chaque colonne possède un **rôle** sémantique qui pilote la logique métier :
+
+| Rôle | Fonction |
+|------|----------|
+| `initial` | Colonne d'entrée — les nouveaux tickets arrivent ici. Utilisée par les claims de pool et le flag `--planned`. |
+| `active` | Colonnes de travail en cours — comptabilisées dans les badges et résumés d'activité. |
+| `terminal` | Colonnes de complétion — déclenche le nettoyage de rétention des claims terminés. |
+| `blocked` | Colonnes de blocage — comptabilisées séparément dans les résumés de statut. |
+
+```toml
+[board]
+columns = [
+    { id = "todo",        name = "TODO",         role = "initial" },
+    { id = "in_progress", name = "IN PROGRESS",  role = "active" },
+    { id = "review",      name = "CODE REVIEW",  role = "active" },
+    { id = "testing",     name = "TESTING",       role = "active",  color = "cyan" },
+    { id = "done",        name = "DONE",          role = "terminal" },
+    { id = "blocked",     name = "BLOCKED",       role = "blocked" },
+]
+```
+
+| Champ | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `columns` | array of tables | 6 colonnes par défaut | Liste ordonnée des colonnes du board. |
+| `columns[].id` | string | — | Identifiant interne. Doit être en minuscules, sans espaces, sans `..` ni `/`. Utilisé comme valeur de statut des claims. |
+| `columns[].name` | string | — | Libellé affiché dans l'en-tête du board. |
+| `columns[].color` | string | auto (basé sur le rôle) | Couleur personnalisée : `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow`. |
+| `columns[].role` | string | `"active"` | Rôle sémantique : `initial`, `active`, `terminal`, `blocked`. |
+
+> **Astuce** : Utilisez la commande `Discover Tracker` (omnibar ou touche `y` dans la config team) pour auto-configurer les colonnes à partir des labels de workflow de votre tracker.
+
+> **Rétrocompatibilité** : En l'absence de `[board]`, les 6 colonnes par défaut sont utilisées. Les claims existants avec le statut `"planned"` sont automatiquement mappés sur la première colonne.
+
 ---
 
 ## Vue Notifications
