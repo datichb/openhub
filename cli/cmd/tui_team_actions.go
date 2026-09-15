@@ -1584,54 +1584,135 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 		Label:      i18n.T("cmd.discovery.step_columns"),
 		Processing: i18n.T("cmd.discovery.processing_columns"),
 		CustomView: func(app *tview.Application, container *tview.Flex, onDone func()) {
-			list := tview.NewList().ShowSecondaryText(false)
+			list := tview.NewList().
+				ShowSecondaryText(true).
+				SetHighlightFullLine(true).
+				SetMainTextColor(theme.FgPrimary).
+				SetSecondaryTextColor(theme.FgSecondary).
+				SetSelectedBackgroundColor(theme.BgElement).
+				SetSelectedTextColor(theme.Action)
 			list.SetBackgroundColor(theme.BgPanel)
-			list.SetMainTextColor(theme.FgPrimary)
-			list.SetSelectedTextColor(theme.Accent)
-			list.SetSelectedBackgroundColor(theme.BgPanel)
 
+			// renderList rebuilds the tview.List items with rich styling.
 			renderList := func() {
 				sel := list.GetCurrentItem()
 				list.Clear()
-				for _, col := range *columns {
-					roleLabel := col.Role
-					if roleLabel == "" {
-						roleLabel = "active"
+
+				// Section header
+				headerText := fmt.Sprintf("  %s── Colonnes (%d) ──%s",
+					theme.ColorTag(theme.AccentHex), len(*columns), theme.TagColor)
+				list.AddItem(headerText, "", 0, nil)
+
+				activeIdx := 0
+				for i, col := range *columns {
+					role := col.Role
+					if role == "" {
+						role = teamstate.ColumnRoleActive
 					}
-					item := fmt.Sprintf("[%s]  %s  (%s)", roleLabel, col.Name, col.ID)
-					list.AddItem(item, "", 0, nil)
+
+					// Resolve color for the dot indicator
+					color := views.ResolveColumnColor(col, activeIdx)
+					if role == teamstate.ColumnRoleActive || col.Role == "" {
+						activeIdx++
+					}
+					colorDot := widgets.ColorTag(color) + "●" + "[-]"
+
+					// Role badge with inverted color
+					roleHex := columnRoleHex(role)
+					roleBadge := fmt.Sprintf("[black:%s] %s [-:-]", roleHex, role)
+
+					// Position indicator
+					posIndicator := fmt.Sprintf("[%s]%d/%d[-]", theme.TextMutedHex, i+1, len(*columns))
+
+					// Main text: color dot + bold name + role badge + position
+					mainText := fmt.Sprintf("  %s  [::b]%s[-:-:-]  %s  %s",
+						colorDot, col.Name, roleBadge, posIndicator)
+
+					// Secondary text: id + color info
+					colorName := columnColorName(col, color)
+					secondaryText := fmt.Sprintf("      [%s]id: %s · couleur: %s[-]",
+						theme.TextMutedHex, col.ID, colorName)
+
+					list.AddItem(mainText, secondaryText, 0, nil)
 				}
-				if sel >= list.GetItemCount() {
-					sel = list.GetItemCount() - 1
+
+				// Spacer before role legend
+				list.AddItem("", "", 0, nil)
+
+				// Role legend (non-selectable)
+				legendText := fmt.Sprintf("  %s── Rôles ──%s",
+					theme.ColorTag(theme.AccentHex), theme.TagColor)
+				list.AddItem(legendText, "", 0, nil)
+
+				legendLine := fmt.Sprintf("    [%s]●[-] initial = entrée  [%s]●[-] active = en cours  [%s]●[-] terminal = terminé  [%s]●[-] blocked = bloqué",
+					theme.WarningHex, theme.AccentHex, theme.SuccessHex, theme.ErrorHex)
+				list.AddItem(legendLine,
+					fmt.Sprintf("      [%s]Les colonnes définissent les étapes du workflow kanban[-]", theme.TextMutedHex),
+					0, nil)
+
+				// Restore selection (offset +1 for header)
+				maxSel := len(*columns) // items 1..N are columns, header is 0
+				if sel < 1 {
+					sel = 1
 				}
-				if sel >= 0 {
-					list.SetCurrentItem(sel)
+				if sel > maxSel {
+					sel = maxSel
 				}
+				list.SetCurrentItem(sel)
 			}
 			renderList()
 
+			// ── Key handler ─────────────────────────────────────────
 			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				idx := list.GetCurrentItem()
+				idx := list.GetCurrentItem() - 1 // offset for header row
 				cols := *columns
 				n := len(cols)
 
+				// Guard: ignore actions on non-column items (header, spacer, legend)
+				isOnColumn := idx >= 0 && idx < n
+
 				switch {
+				// Navigation: skip non-column items
+				case event.Key() == tcell.KeyDown || event.Rune() == 'j':
+					cur := list.GetCurrentItem()
+					maxItem := n // last column is at index n (1-based)
+					if cur < maxItem {
+						list.SetCurrentItem(cur + 1)
+					}
+					return nil
+
+				case event.Key() == tcell.KeyUp || event.Rune() == 'k':
+					cur := list.GetCurrentItem()
+					if cur > 1 { // can't go above first column (index 1)
+						list.SetCurrentItem(cur - 1)
+					}
+					return nil
+
+				// Shift+Up or K: move column up
 				case (event.Key() == tcell.KeyUp && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'K':
-					if idx > 0 {
+					if isOnColumn && idx > 0 {
 						cols[idx], cols[idx-1] = cols[idx-1], cols[idx]
 						renderList()
-						list.SetCurrentItem(idx - 1)
+						list.SetCurrentItem(idx) // idx is now the position above (0-based +1 for header)
+						if tuiShell != nil {
+							tuiShell.ShowToast("↑ Colonne déplacée", shell.ToastSuccess)
+						}
 					}
 					return nil
 
+				// Shift+Down or J: move column down
 				case (event.Key() == tcell.KeyDown && event.Modifiers()&tcell.ModShift != 0) || event.Rune() == 'J':
-					if idx < n-1 {
+					if isOnColumn && idx < n-1 {
 						cols[idx], cols[idx+1] = cols[idx+1], cols[idx]
 						renderList()
-						list.SetCurrentItem(idx + 1)
+						list.SetCurrentItem(idx + 2) // moved down: new pos is idx+1 (0-based) +1 for header
+						if tuiShell != nil {
+							tuiShell.ShowToast("↓ Colonne déplacée", shell.ToastSuccess)
+						}
 					}
 					return nil
 
+				// 'a': add a new column
 				case event.Rune() == 'a':
 					if tuiShell != nil {
 						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
@@ -1642,6 +1723,9 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 							role := tracker.SuggestColumnRole(name)
 							newCol := teamstate.BoardColumnConfig{ID: id, Name: strings.TrimSpace(name), Role: role}
 							pos := idx + 1
+							if pos < 0 {
+								pos = 0
+							}
 							if pos > n {
 								pos = n
 							}
@@ -1651,13 +1735,15 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 							updated = append(updated, cols[pos:]...)
 							*columns = updated
 							renderList()
-							list.SetCurrentItem(pos)
+							list.SetCurrentItem(pos + 1) // +1 for header
+							tuiShell.ShowToast(fmt.Sprintf("+ Colonne « %s » ajoutée", newCol.Name), shell.ToastSuccess)
 						})
 					}
 					return nil
 
+				// Enter: rename selected column
 				case event.Key() == tcell.KeyEnter:
-					if idx >= 0 && idx < n && tuiShell != nil {
+					if isOnColumn && tuiShell != nil {
 						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), cols[idx].Name, func(name string) {
 							if name != "" {
 								(*columns)[idx].Name = strings.TrimSpace(name)
@@ -1667,21 +1753,28 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 					}
 					return nil
 
+				// 'd': delete selected column
 				case event.Rune() == 'd':
+					if !isOnColumn {
+						return nil
+					}
 					if n <= 2 {
 						if tuiShell != nil {
-							tuiShell.ShowToastMsg(i18n.T("cmd.discovery.validate.min_columns"), false)
+							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
 						}
 						return nil
 					}
-					if idx >= 0 && idx < n {
-						*columns = append(cols[:idx], cols[idx+1:]...)
-						renderList()
+					deletedName := cols[idx].Name
+					*columns = append(cols[:idx], cols[idx+1:]...)
+					renderList()
+					if tuiShell != nil {
+						tuiShell.ShowToast(fmt.Sprintf("- Colonne « %s » supprimée", deletedName), shell.ToastSuccess)
 					}
 					return nil
 
+				// 'r': cycle role
 				case event.Rune() == 'r':
-					if idx >= 0 && idx < n {
+					if isOnColumn {
 						current := cols[idx].Role
 						if current == "" {
 							current = teamstate.ColumnRoleActive
@@ -1698,7 +1791,28 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 					}
 					return nil
 
+				// Ctrl+S: validate and submit
 				case event.Key() == tcell.KeyCtrlS:
+					// Run validation before accepting
+					if len(*columns) < 2 {
+						if tuiShell != nil {
+							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
+						}
+						return nil
+					}
+					hasTerminal := false
+					for _, c := range *columns {
+						if c.Role == teamstate.ColumnRoleTerminal {
+							hasTerminal = true
+							break
+						}
+					}
+					if !hasTerminal {
+						if tuiShell != nil {
+							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.need_terminal"), shell.ToastError)
+						}
+						return nil
+					}
 					*result = make([]teamstate.BoardColumnConfig, len(*columns))
 					copy(*result, *columns)
 					onDone()
@@ -1708,19 +1822,19 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 				return event
 			})
 
-			legend := tview.NewTextView().SetDynamicColors(true)
-			legend.SetBackgroundColor(theme.BgPanel)
-			legend.SetText(i18n.T("cmd.discovery.columns.role_legend"))
-
+			// ── Hints bar ───────────────────────────────────────────
 			hints := tview.NewTextView().SetDynamicColors(true)
 			hints.SetBackgroundColor(theme.BgPanel)
-			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav  %sShift+↑↓[-] réordonner  %sa[-] ajouter  %sEnter[-] renommer  %sd[-] supprimer  %sr[-] rôle  %sCtrl+S[-] valider",
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent), widgets.ColorTag(theme.Accent),
-				widgets.ColorTag(theme.Accent)))
+			hintSep := fmt.Sprintf(" [%s]│[-] ", theme.TextMutedHex)
+			hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] déplacer ↕%s%sa[-] ajouter%s%sEnter[-] renommer%s%sd[-] supprimer%s%sr[-] rôle%s%sCtrl+S[-] sauvegarder",
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex), hintSep,
+				theme.ColorTag(theme.AccentHex)))
 
-			container.AddItem(legend, 2, 0, false)
 			container.AddItem(list, 0, 1, true)
 			container.AddItem(hints, 1, 0, false)
 			app.SetFocus(list)
@@ -1755,6 +1869,31 @@ func buildColumnEditorStep(columns *[]teamstate.BoardColumnConfig, result *[]tea
 			}
 		},
 	}
+}
+
+// ── Column editor helpers ───────────────────────────────────────────────────
+
+// columnRoleHex returns the hex background color for a role badge.
+func columnRoleHex(role string) string {
+	switch role {
+	case teamstate.ColumnRoleInitial:
+		return theme.WarningHex
+	case teamstate.ColumnRoleTerminal:
+		return theme.SuccessHex
+	case teamstate.ColumnRoleBlocked:
+		return theme.ErrorHex
+	default:
+		return theme.AccentHex
+	}
+}
+
+// columnColorName returns a human-readable color description.
+func columnColorName(col teamstate.BoardColumnConfig, resolved tcell.Color) string {
+	if col.Color != "" {
+		return col.Color
+	}
+	r, g, b := resolved.RGB()
+	return fmt.Sprintf("auto (#%02x%02x%02x)", r, g, b)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

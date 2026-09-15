@@ -68,7 +68,7 @@ func ColumnsFromConfig(cfg teamstate.BoardConfig) []BoardColumnDef {
 		cols[i] = BoardColumnDef{
 			Name:   c.Name,
 			Status: c.ID,
-			Color:  resolveColumnColor(c, activeIdx),
+			Color:  ResolveColumnColor(c, activeIdx),
 		}
 		if c.Role == teamstate.ColumnRoleActive || c.Role == "" {
 			activeIdx++
@@ -77,9 +77,10 @@ func ColumnsFromConfig(cfg teamstate.BoardConfig) []BoardColumnDef {
 	return cols
 }
 
-// resolveColumnColor determines the tcell.Color for a column.
+// ResolveColumnColor determines the tcell.Color for a column.
 // Priority: explicit color override > role-based DS palette > active cycling.
-func resolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Color {
+// activeIdx should be the count of active-role columns seen so far (for color cycling).
+func ResolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Color {
 	// Explicit color override.
 	if c.Color != "" {
 		if color, ok := colorOverrides[c.Color]; ok {
