@@ -340,6 +340,110 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		trackerProject := askInput(out, "ID ou path du projet sur le tracker (ex: group/project)", teamCfg.Tracker.TrackerProject)
 		teamCfg.Tracker.TrackerProject = trackerProject
 
+		// ── Discovery: fetch labels/statuses and suggest mappings ─────────
+		if trackerProject != "" && teamCfg.Tracker.Type != "" {
+			if askYN(out, "Lancer la discovery du projet tracker ?", true) {
+				fmt.Fprintf(out, "\n%s Discovery du projet\n", theme.Bold.Render("→"))
+
+				// Build tracker client for discovery.
+				src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+				trackerType := tracker.Type(teamCfg.Tracker.Type)
+				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
+				if credErr != nil {
+					fmt.Fprintf(out, "  %s Credentials manquants : %s\n", theme.WarningStyle.Render(theme.IconWarning), credErr)
+				} else {
+					t, tErr := tracker.New(creds)
+					if tErr != nil {
+						fmt.Fprintf(out, "  %s Erreur tracker : %s\n", theme.WarningStyle.Render(theme.IconWarning), tErr)
+					} else {
+						fmt.Fprintf(out, "  Récupération des labels/statuts...\n")
+						info, discErr := t.DiscoverProject(ctx, trackerProject)
+						if discErr != nil {
+							fmt.Fprintf(out, "  %s Erreur discovery : %s\n", theme.WarningStyle.Render(theme.IconWarning), discErr)
+						} else {
+							fmt.Fprintf(out, "  %s %d labels, %d statuts découverts\n",
+								theme.SuccessStyle.Render(theme.IconSuccess), len(info.Labels), len(info.Statuses))
+
+							// Suggest mappings.
+							existingCols := teamCfg.Board.Columns
+							if len(existingCols) == 0 {
+								existingCols = teamstate.DefaultBoardConfig().Columns
+							}
+							mappings := tracker.SuggestMappings(info, trackerType, existingCols)
+
+							if len(mappings) > 0 {
+								fmt.Fprintf(out, "\n  Mappings suggérés :\n")
+								var acceptedMappings []tracker.SuggestedMapping
+								for _, m := range mappings {
+									label := fmt.Sprintf("    %s → %s (%s)", m.Source, m.ColumnID, m.Confidence)
+									if askYN(out, label, true) {
+										acceptedMappings = append(acceptedMappings, m)
+									}
+								}
+
+								// Apply accepted mappings.
+								if len(acceptedMappings) > 0 {
+									if trackerType == tracker.TypeGitLab {
+										if teamCfg.Tracker.LabelStatusMapping == nil {
+											teamCfg.Tracker.LabelStatusMapping = make(map[string]string)
+										}
+										for _, m := range acceptedMappings {
+											teamCfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
+										}
+									} else {
+										if teamCfg.Tracker.StatusMapping == nil {
+											teamCfg.Tracker.StatusMapping = make(map[string]string)
+										}
+										for _, m := range acceptedMappings {
+											if m.Origin == "status" {
+												teamCfg.Tracker.StatusMapping[m.Source] = m.ColumnID
+											} else {
+												if teamCfg.Tracker.LabelStatusMapping == nil {
+													teamCfg.Tracker.LabelStatusMapping = make(map[string]string)
+												}
+												teamCfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
+											}
+										}
+									}
+									fmt.Fprintf(out, "  %s %d mappings appliqués\n",
+										theme.SuccessStyle.Render(theme.IconSuccess), len(acceptedMappings))
+								}
+
+								// Suggest pool labels.
+								boardCfg := teamCfg.Board
+								if !boardCfg.HasCustomColumns() {
+									boardCfg = teamstate.DefaultBoardConfig()
+								}
+								poolLabels := tracker.SuggestPoolLabels(acceptedMappings, boardCfg)
+								if len(poolLabels) > 0 {
+									fmt.Fprintf(out, "\n%s Tickets à prendre (pool)\n", theme.Bold.Render("→"))
+									fmt.Fprintf(out, "  Labels détectés comme 'prêts' : %s\n", strings.Join(poolLabels, ", "))
+									if askYN(out, "  Afficher ces tickets sur le board même sans assigné ?", true) {
+										teamCfg.Tracker.AutoPlanUnassigned = true
+										teamCfg.Tracker.UnassignedLabels = poolLabels
+										fmt.Fprintf(out, "  %s Pool configuré : %s\n",
+											theme.SuccessStyle.Render(theme.IconSuccess), strings.Join(poolLabels, ", "))
+									}
+								}
+							}
+
+							// Suggest new columns.
+							newCols := tracker.SuggestNewColumns(info, existingCols)
+							if len(newCols) > 0 {
+								fmt.Fprintf(out, "\n%s Colonnes suggérées\n", theme.Bold.Render("→"))
+								for _, c := range newCols {
+									if askYN(out, fmt.Sprintf("  Ajouter la colonne '%s' (%s) ?", c.Name, c.Role), true) {
+										existingCols = append(existingCols, c)
+									}
+								}
+								teamCfg.Board.Columns = existingCols
+							}
+						}
+					}
+				}
+			}
+		}
+
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf("sauvegarde config tracker: %w", err)
 		}
