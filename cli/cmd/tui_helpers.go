@@ -149,20 +149,7 @@ func fetchBoardTicketsForPath(projectPath string) []views.BoardTicket {
 
 // boardNormalizeStatus maps beads status values to the board column statuses.
 func boardNormalizeStatus(s string) string {
-	switch strings.ToLower(s) {
-	case "todo", "to_do", "backlog", "open":
-		return "todo"
-	case "in_progress", "in-progress", "doing", "wip":
-		return "in_progress"
-	case "review", "in_review", "in-review":
-		return "review"
-	case "done", "completed", "closed", "cancelled":
-		return "done"
-	case "blocked", "stuck":
-		return "blocked"
-	default:
-		return "todo"
-	}
+	return normalizeStatus(s)
 }
 
 // resolveActiveProjectPath returns the path of the active project.

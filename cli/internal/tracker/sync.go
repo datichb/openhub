@@ -778,6 +778,39 @@ func (e *Engine) autopoolUnassigned(
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// matchLabelMapping checks if any of the issue's labels match the labelStatusMapping.
+// Returns the mapped status and true if found, or ("", false) if no match.
+func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string) (string, bool) {
+	if len(labelStatusMapping) == 0 || len(issue.Labels) == 0 {
+		return "", false
+	}
+	lowerMap := make(map[string]string, len(labelStatusMapping))
+	for k, v := range labelStatusMapping {
+		lowerMap[strings.ToLower(k)] = v
+	}
+	for _, label := range issue.Labels {
+		if v, ok := lowerMap[strings.ToLower(label)]; ok {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// matchStatusNameMapping checks if the issue's status name matches the statusMapping.
+// Returns the mapped status and true if found, or ("", false) if no match.
+func matchStatusNameMapping(issue *IssueState, statusMapping map[string]string) (string, bool) {
+	if len(statusMapping) == 0 || issue.StatusName == "" {
+		return "", false
+	}
+	nameLower := strings.ToLower(issue.StatusName)
+	for k, v := range statusMapping {
+		if strings.ToLower(k) == nameLower {
+			return v, true
+		}
+	}
+	return "", false
+}
+
 // MapTrackerStatus maps a tracker issue's status to a claim status using the
 // configured mappings. Falls back to category-based mapping when no match.
 //
@@ -789,47 +822,23 @@ func (e *Engine) autopoolUnassigned(
 //     - "new" → ClaimStatusPlanned
 //     - "indeterminate" / "opened" → ClaimStatusInProgress
 func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[string]string) string {
-	// 1. Try label-based mapping first (most relevant for GitLab label workflows).
-	// Iterate over issue.Labels in tracker order — the FIRST matching label wins.
-	// Pre-build a lowercase lookup map for O(1) matching.
-	if len(labelStatusMapping) > 0 && len(issue.Labels) > 0 {
-		lowerMap := make(map[string]string, len(labelStatusMapping))
-		for k, v := range labelStatusMapping {
-			lowerMap[strings.ToLower(k)] = v
-		}
-		for _, label := range issue.Labels {
-			if v, ok := lowerMap[strings.ToLower(label)]; ok {
-				if teamstate.IsValidStatus(v) {
-					slog.Debug("tracker.sync.label_mapped",
-						"ticket", issue.IID,
-						"label", label,
-						"status", v,
-					)
-					return v
-				}
-			}
+	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
+		if teamstate.IsValidStatus(v) {
+			return v
 		}
 	}
-
-	// 2. Try explicit status name mapping (case-insensitive).
-	if len(statusMapping) > 0 && issue.StatusName != "" {
-		nameLower := strings.ToLower(issue.StatusName)
-		for k, v := range statusMapping {
-			if strings.ToLower(k) == nameLower {
-				if teamstate.IsValidStatus(v) {
-					return v
-				}
-			}
+	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
+		if teamstate.IsValidStatus(v) {
+			return v
 		}
 	}
-
-	// 3. Category fallback.
+	// Category fallback
 	switch strings.ToLower(issue.StatusCategory) {
 	case "done", "closed":
 		return teamstate.ClaimStatusDone
 	case "new":
 		return teamstate.ClaimStatusPlanned
-	default: // "indeterminate", "opened", or unknown
+	default:
 		return teamstate.ClaimStatusInProgress
 	}
 }
@@ -838,37 +847,18 @@ func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[s
 // for category fallback resolution. This ensures custom column IDs are used
 // instead of hardcoded defaults when the team has configured custom columns.
 func MapTrackerStatusWithBoard(issue *IssueState, statusMapping, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) string {
-	// Steps 1 and 2 are identical — delegate to MapTrackerStatus internals.
-	// Only the category fallback differs.
-
-	// 1. Label-based mapping.
-	if len(labelStatusMapping) > 0 && len(issue.Labels) > 0 {
-		lowerMap := make(map[string]string, len(labelStatusMapping))
-		for k, v := range labelStatusMapping {
-			lowerMap[strings.ToLower(k)] = v
-		}
-		for _, label := range issue.Labels {
-			if v, ok := lowerMap[strings.ToLower(label)]; ok {
-				if boardCfg.IsValidStatus(v) || teamstate.IsValidStatus(v) {
-					return v
-				}
-			}
+	validFn := func(s string) bool { return boardCfg.IsValidStatus(s) || teamstate.IsValidStatus(s) }
+	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
+		if validFn(v) {
+			return v
 		}
 	}
-
-	// 2. Status name mapping.
-	if len(statusMapping) > 0 && issue.StatusName != "" {
-		nameLower := strings.ToLower(issue.StatusName)
-		for k, v := range statusMapping {
-			if strings.ToLower(k) == nameLower {
-				if boardCfg.IsValidStatus(v) || teamstate.IsValidStatus(v) {
-					return v
-				}
-			}
+	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
+		if validFn(v) {
+			return v
 		}
 	}
-
-	// 3. Category fallback — using board config roles.
+	// Category fallback using board config
 	if boardCfg.HasCustomColumns() {
 		switch strings.ToLower(issue.StatusCategory) {
 		case "done", "closed":
@@ -882,8 +872,6 @@ func MapTrackerStatusWithBoard(issue *IssueState, statusMapping, labelStatusMapp
 			return boardCfg.DefaultWorkStatus()
 		}
 	}
-
-	// Default fallback (no custom columns).
 	switch strings.ToLower(issue.StatusCategory) {
 	case "done", "closed":
 		return teamstate.ClaimStatusDone
