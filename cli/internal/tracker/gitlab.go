@@ -196,6 +196,46 @@ func (c *gitLabClient) TestProject(ctx context.Context, projectID string) (strin
 	return name, nil
 }
 
+func (c *gitLabClient) DiscoverProject(ctx context.Context, projectID string) (*DiscoveryInfo, error) {
+	// Fetch all project labels via paginated API.
+	var allLabels []LabelInfo
+	page := 1
+	for {
+		path := fmt.Sprintf("/api/v4/projects/%s/labels?per_page=100&page=%d",
+			url.PathEscape(projectID), page)
+		data, headers, err := c.doWithHeaders(ctx, http.MethodGet, path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("gitlab: fetching labels: %w", err)
+		}
+		var raw []struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Color       string `json:"color"`
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil, fmt.Errorf("gitlab: parsing labels response: %w", err)
+		}
+		for _, l := range raw {
+			allLabels = append(allLabels, LabelInfo{
+				Name:        l.Name,
+				Description: l.Description,
+				Color:       l.Color,
+			})
+		}
+		nextPage := headers.Get("X-Next-Page")
+		if nextPage == "" {
+			break
+		}
+		np, err := strconv.Atoi(nextPage)
+		if err != nil || np <= page {
+			break
+		}
+		page = np
+	}
+
+	return &DiscoveryInfo{Labels: allLabels}, nil
+}
+
 func (c *gitLabClient) AddLabels(ctx context.Context, projectID string, iid int, labels []string) error {
 	if !c.cfg.WriteEnabled {
 		return ErrWriteDisabled

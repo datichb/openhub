@@ -276,6 +276,58 @@ func (c *jiraClient) TestProject(ctx context.Context, projectID string) (string,
 	return fmt.Sprintf("%s (%s)", resp.Name, resp.Key), nil
 }
 
+func (c *jiraClient) DiscoverProject(ctx context.Context, projectID string) (*DiscoveryInfo, error) {
+	info := &DiscoveryInfo{}
+
+	// Fetch workflow statuses grouped by issue type.
+	statusPath := "/rest/api/2/project/" + url.PathEscape(projectID) + "/statuses"
+	data, err := c.do(ctx, http.MethodGet, statusPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("jira: fetching project statuses: %w", err)
+	}
+	var issueTypes []struct {
+		Name     string `json:"name"`
+		Statuses []struct {
+			Name           string `json:"name"`
+			StatusCategory struct {
+				Key string `json:"key"`
+			} `json:"statusCategory"`
+		} `json:"statuses"`
+	}
+	if err := json.Unmarshal(data, &issueTypes); err != nil {
+		return nil, fmt.Errorf("jira: parsing statuses response: %w", err)
+	}
+	// Deduplicate statuses across issue types.
+	seen := make(map[string]bool)
+	for _, it := range issueTypes {
+		for _, s := range it.Statuses {
+			if seen[s.Name] {
+				continue
+			}
+			seen[s.Name] = true
+			info.Statuses = append(info.Statuses, StatusInfo{
+				Name:     s.Name,
+				Category: s.StatusCategory.Key,
+			})
+		}
+	}
+
+	// Best-effort: fetch instance labels (Jira Cloud only).
+	labelData, err := c.do(ctx, http.MethodGet, "/rest/api/2/label", nil)
+	if err == nil {
+		var labelResp struct {
+			Values []string `json:"values"`
+		}
+		if json.Unmarshal(labelData, &labelResp) == nil {
+			for _, l := range labelResp.Values {
+				info.Labels = append(info.Labels, LabelInfo{Name: l})
+			}
+		}
+	}
+
+	return info, nil
+}
+
 func (c *jiraClient) AddLabels(ctx context.Context, projectID string, iid int, labels []string) error {
 	if !c.cfg.WriteEnabled {
 		return ErrWriteDisabled

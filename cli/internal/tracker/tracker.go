@@ -138,6 +138,33 @@ type Tracker interface {
 	// token. Returns the project name/path for display, or an error if not found
 	// or not accessible (404, 403).
 	TestProject(ctx context.Context, projectID string) (projectName string, err error)
+
+	// DiscoverProject fetches project metadata (labels, statuses) for setup
+	// and discovery. Used by the tracker discovery wizard to suggest
+	// label-to-column and status-to-column mappings.
+	DiscoverProject(ctx context.Context, projectID string) (*DiscoveryInfo, error)
+}
+
+// DiscoveryInfo holds discovered metadata about a tracker project.
+// Used by the discovery wizard to suggest board column mappings.
+type DiscoveryInfo struct {
+	// Labels are project-level labels (GitLab) or instance labels (Jira).
+	Labels []LabelInfo
+	// Statuses are workflow statuses with categories (Jira only; empty for GitLab).
+	Statuses []StatusInfo
+}
+
+// LabelInfo describes a single tracker label.
+type LabelInfo struct {
+	Name        string // display name (e.g., "READY TO DEV")
+	Description string // optional description
+	Color       string // hex color (e.g., "#428BCA")
+}
+
+// StatusInfo describes a tracker workflow status (Jira only).
+type StatusInfo struct {
+	Name     string // display name (e.g., "In Progress")
+	Category string // Jira statusCategory key: "new", "indeterminate", "done"
 }
 
 // CreateIssueOpts holds the parameters for creating a new issue.
