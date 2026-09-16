@@ -114,6 +114,7 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *ModelsView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.table = nil
 }

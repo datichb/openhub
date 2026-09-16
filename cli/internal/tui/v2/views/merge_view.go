@@ -131,6 +131,7 @@ func (v *MergeView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up.
 func (v *MergeView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
 	v.detailView = nil

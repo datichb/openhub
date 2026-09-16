@@ -243,6 +243,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *ProjectModeView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
 	v.dual = nil

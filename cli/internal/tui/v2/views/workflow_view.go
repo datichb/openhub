@@ -39,10 +39,11 @@ type workflowView struct {
 	dirty     bool
 
 	// TUI components
-	graph   *widgets.WorkflowGraph
-	detail  *tview.TextView
-	content *tview.Flex
-	app     *tview.Application
+	graph    *widgets.WorkflowGraph
+	detail   *tview.TextView
+	content  *tview.Flex
+	app      *tview.Application
+	mountGen uint64 // guards stale goroutines (standard pattern)
 }
 
 // NewWorkflowView creates a new workflow configuration view.
@@ -76,6 +77,8 @@ func (v *workflowView) SetShell(s ShellAccess) {
 func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 	v.content = content
 	v.app = app
+	v.mountGen++
+	gen := v.mountGen
 
 	// Show loading placeholder.
 	loading := tview.NewTextView().SetText("Loading workflow...").SetTextColor(theme.FgMuted)
@@ -85,6 +88,9 @@ func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 		wf, err := v.cfg.GetWorkflow()
 		if err != nil {
 			app.QueueUpdateDraw(func() {
+				if v.app == nil || v.mountGen != gen {
+					return // view was unmounted or re-mounted
+				}
 				content.Clear()
 				errView := tview.NewTextView().SetText("Error: " + err.Error()).SetTextColor(theme.Error)
 				content.AddItem(errView, 0, 1, false)
@@ -106,6 +112,9 @@ func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 		readonly := v.cfg.IsLocked != nil && v.cfg.IsLocked()
 
 		app.QueueUpdateDraw(func() {
+			if v.app == nil || v.mountGen != gen {
+				return // view was unmounted or re-mounted
+			}
 			content.Clear()
 			v.buildUI(content, readonly)
 			app.SetFocus(v.graph)
@@ -264,6 +273,7 @@ func (v *workflowView) handleElementAction(elem widgets.GraphElement) {
 }
 
 func (v *workflowView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	if v.dirty && v.shell != nil {
 		v.shell.ShowToastMsg("Workflow: unsaved changes discarded", false)
 	}

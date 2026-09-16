@@ -81,6 +81,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ---
 
+## [4.1.1] — 2026-09-16
+
+### Fixed
+
+- **Wizard d'init invisible après purge/re-install** — La goroutine async de `HomeView.Mount()` écrasait le wizard poussé par `PushView()` car `Unmount()` n'invalidait pas le compteur `mountGen`. Le guard `mountGen != gen` ne bloquait pas les callbacks stale lors d'un Unmount sans re-Mount
+- **DrawFunc stale après navigation** — `adaptiveHomeMount()` installait un `SetDrawFunc` sur le `content` Flex partagé, mais `Flex.Clear()` (appelé par le router) ne le nettoyait pas. Un resize crossing de breakpoint après navigation pouvait reconstruire le layout de la vue précédente par-dessus la vue active. `router.mountLocked()` clear maintenant le DrawFunc avant chaque mount
+- **workflowView sans guard de goroutine** — Les callbacks `QueueUpdateDraw` de `Mount()` pouvaient exécuter `content.Clear()` et `SetFocus()` sur des widgets stale après navigation. Ajout de `mountGen` + guards standard
+- **Homogénéisation des guards mountGen** — Les 17 vues utilisant `mountGen` incrémentent maintenant le compteur dans `Unmount()` (invalidation explicite), et `HomeView`/`TeamModeView` utilisent le double-guard `v.app == nil || v.mountGen != gen` comme les 14 autres vues
+
+---
+
 ## [4.0.1] — 2026-09-09
 
 ### Fixed

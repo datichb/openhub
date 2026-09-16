@@ -127,6 +127,7 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *SecretsView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.content = nil
 	v.list = nil

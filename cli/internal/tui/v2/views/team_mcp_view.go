@@ -153,6 +153,7 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *TeamMCPView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.settings.unsaved"), false)
 	}

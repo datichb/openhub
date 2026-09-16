@@ -120,6 +120,7 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
 	v.commands = nil

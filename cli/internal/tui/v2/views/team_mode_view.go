@@ -162,8 +162,8 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			stats := v.cfg.TeamStats()
 			if v.app != nil {
 				v.app.QueueUpdateDraw(func() {
-					if v.mountGen != gen {
-						return // view was re-mounted, discard stale result
+					if v.app == nil || v.mountGen != gen {
+						return // view was unmounted or re-mounted, discard stale result
 					}
 					v.header.SetText(fmt.Sprintf("\n%s\n  %s%s%s\n  %s%s%s",
 						banner,
@@ -227,6 +227,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *TeamModeView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
 	v.dual = nil

@@ -124,6 +124,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *SettingsView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	// Flush any pending auto-save
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()

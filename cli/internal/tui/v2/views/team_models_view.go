@@ -147,6 +147,7 @@ func (v *TeamModelsView) buildList(content *tview.Flex, loading tview.Primitive,
 }
 
 func (v *TeamModelsView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	if v.dirty && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
 	}

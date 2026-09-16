@@ -127,6 +127,7 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *ProjectModelsView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()
 	}

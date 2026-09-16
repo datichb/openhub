@@ -149,8 +149,8 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		items := v.buildItems()
 		if app != nil {
 			app.QueueUpdateDraw(func() {
-				if v.mountGen != gen {
-					return // view was re-mounted, discard stale result
+				if v.app == nil || v.mountGen != gen {
+					return // view was unmounted or re-mounted, discard stale result
 				}
 				v.items = items
 				// Full layout rebuild to update both columns with fresh data
@@ -168,6 +168,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *HomeView) Unmount() {
+	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.content = nil
 	v.list = nil

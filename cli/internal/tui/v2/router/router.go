@@ -152,6 +152,7 @@ func (r *Router) currentLocked() views.View {
 }
 
 func (r *Router) mountLocked(v views.View) {
+	r.content.SetDrawFunc(nil) // clear stale resize handler from previous view
 	r.content.Clear()
 	v.Mount(r.content, r.app)
 	r.app.SetFocus(r.content)
