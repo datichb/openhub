@@ -3,22 +3,18 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
-	"time"
 
-	"github.com/charmbracelet/huh"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
-	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -45,11 +41,15 @@ func init() {
 	startCmd.Flags().StringP("assignee", "A", "", "Filtrer tickets par assignee (requiert --dev)")
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
-	startCmd.Flags().BoolP("yes", "y", false, "Skip confirmation and launch immediately")
+	startCmd.Flags().Bool("recap", false, "Afficher le récap et demander confirmation avant le lancement")
+	startCmd.Flags().BoolP("yes", "y", false, "Deprecated: le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
 	startCmd.Flags().Bool("parallel", false, "Lance N sessions en parallèle sur des tickets différents")
 	startCmd.Flags().StringSlice("tickets", nil, "Liste des tickets à traiter en parallèle (séparés par des virgules)")
 	startCmd.Flags().Int("max-sessions", 0, "Nombre max de sessions parallèles (0 = valeur config, default: 3)")
 	startCmd.Flags().String("priority", "", "Ticket prioritaire (merge en premier)")
+
+	// Mark --yes as deprecated (no-op with warning)
+	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
 
 	_ = startCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
@@ -73,7 +73,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Resume mode ---
+	// --- Resume mode (special: uses Exec, not the launcher) ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -90,8 +90,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 	labelFlag, _ := cmd.Flags().GetString("label")
 	assigneeFlag, _ := cmd.Flags().GetString("assignee")
 	refreshFlag, _ := cmd.Flags().GetBool("refresh")
+	recapMode, _ := cmd.Flags().GetBool("recap")
 
-	// --- Parallel mode ---
+	// --- Parallel mode (delegates entirely) ---
 	if parallelMode {
 		return runParallelMode(cmd, a, ctx)
 	}
@@ -132,34 +133,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 		launchPath = project.Path
 	}
 
-	// --- Resolve provider + credentials ---
-	provider, _ := cmd.Flags().GetString("provider")
-	if provider == "" {
-		provider = project.Provider
-	}
-	if provider == "" {
-		provider = a.Config.Opencode.DefaultProvider
-	}
-	if provider == "" {
-		provider = "bedrock"
-	}
-
-	var bearerToken, apiKey, awsProfile, awsRegion string
-	if a.Secrets != nil {
-		bearerToken, apiKey, awsProfile, awsRegion = resolveCredentials(ctx, a, project, provider)
-	}
-
-	// --- Detect stack ---
-	stack := prompt.DetectStack(launchPath)
+	// --- Resolve agent + prompt (pre-launch, mode-specific) ---
+	providerFlag, _ := cmd.Flags().GetString("provider")
 	agent, _ := cmd.Flags().GetString("agent")
 	userPrompt, _ := cmd.Flags().GetString("prompt")
 
 	// --- Auto-deploy if needed ---
-	// Ensures the project's deployed config (.opencode/, opencode.json) is up
-	// to date before launching. Non-blocking on success; warns and pauses on error.
 	if !onboardMode {
-		skipConfirmEarly, _ := cmd.Flags().GetBool("yes")
-		autoDeployIfNeeded(a, project, findHubDir(), provider, "", skipConfirmEarly)
+		autoDeployIfNeeded(a, project, findHubDir(), providerFlag, "", !recapMode)
 	}
 
 	// --- Dev mode ---
@@ -186,107 +167,62 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Display summary ---
-	printStartSummary(a, project, launchPath, provider, stack, agent, bearerToken)
+	// --- Delegate to launcher ---
+	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
 
-	// --- Confirmation ---
-	skipConfirm, _ := cmd.Flags().GetBool("yes")
-	if !skipConfirm {
-		var confirm bool
-		err := theme.NewForm(
-			huh.NewGroup(
-				huh.NewConfirm().
-					Title(i18n.T("cmd.start.confirm_launch")).
-					Affirmative("Launch").
-					Negative("Cancel").
-					Value(&confirm),
-			),
-		).Run()
-		if err != nil || !confirm {
-			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.Subtitle.Render(theme.IconArrow), i18n.T("cmd.start.cancelled"))
-			return err
+	// Summary + confirmation only if --recap is explicitly set
+	skipSummary := !recapMode
+	skipConfirm := !recapMode
+
+	// Print summary inline if recap mode (the launcher doesn't own summary rendering)
+	if recapMode {
+		stack := prompt.DetectStack(launchPath)
+		var bearerToken string
+		if a.Secrets != nil {
+			bearerToken, _, _, _ = resolveCredentials(ctx, a, project, resolveProviderForDisplay(providerFlag, project, a))
 		}
+		printStartSummary(a, project, launchPath, resolveProviderForDisplay(providerFlag, project, a), stack, agent, bearerToken)
 	}
 
-	// --- Launch ---
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
 		theme.SuccessStyle.Render(theme.IconArrow), i18n.T("cmd.start.launching"))
 
-	session := &domain.Session{
-		ID:         uuid.New().String(),
-		ProjectID:  project.ID,
-		Status:     domain.SessionStatusRunning,
-		Provider:   provider,
-		LaunchPath: launchPath,
-	}
-
-	// Inject member_id from team config if available
-	resolved := config.ResolveTeamForProject(a.Config, project)
-	if resolved.Enabled && resolved.MemberID != "" {
-		mid := resolved.MemberID
-		session.MemberID = &mid
-	}
-
-	if a.Sessions != nil {
-		if err := a.Sessions.Create(ctx, session); err != nil {
-			slog.Warn("session tracking failed", "error", err)
-		}
-	}
-
-	runErr := opencode.Run(opencode.StartOpts{
-		ProjectPath: launchPath,
+	return l.Launch(ctx, launcher.LaunchOpts{
 		ProjectID:   project.ID,
+		ProjectPath: launchPath,
 		Agent:       agent,
 		Prompt:      userPrompt,
-		Provider:    provider,
-		BearerToken: bearerToken,
-		APIKey:      apiKey,
-		AWSProfile:  awsProfile,
-		AWSRegion:   awsRegion,
+		Provider:    providerFlag,
+		SkipSummary: skipSummary,
+		SkipConfirm: skipConfirm,
+		SkipDeploy:  true, // already handled above
 	})
+}
 
-	if a.Sessions != nil && session.ID != "" {
-		if runErr != nil {
-			session.Status = domain.SessionStatusFailed
-		} else {
-			session.Status = domain.SessionStatusCompleted
-		}
-		now := time.Now()
-		session.EndedAt = &now
-		_ = a.Sessions.Update(ctx, session)
-
-		// Emit session.complete event to team-state (async, non-blocking)
-		if resolved.Enabled && resolved.MemberID != "" && resolved.StateRepo != "" {
-			repo := teamstate.NewRepo(resolved.StateRepo, resolved.StatePath)
-			if repo.IsCloned() {
-				durationSec := 0.0
-				if session.EndedAt != nil {
-					durationSec = session.EndedAt.Sub(session.StartedAt).Seconds()
-				}
-				event := teamstate.NewSessionCompleteEvent(resolved.MemberID, project.Name, map[string]interface{}{
-					"session_id":  session.ID,
-					"duration_s":  durationSec,
-					"tokens_in":   session.TokensIn,
-					"tokens_out":  session.TokensOut,
-					"provider":    session.Provider,
-					"model":       session.Model,
-					"status":      string(session.Status),
-				})
-				repo.AppendEventAsync(event)
-			}
-		}
+// resolveProviderForDisplay returns the effective provider name for display purposes.
+func resolveProviderForDisplay(providerFlag string, project *domain.Project, a *app.App) string {
+	prov := providerFlag
+	if prov == "" {
+		prov = project.Provider
 	}
-
-	return runErr
+	if prov == "" {
+		prov = a.Config.Opencode.DefaultProvider
+	}
+	if prov == "" {
+		prov = "bedrock"
+	}
+	return prov
 }
 
 // resolveCredentials extracts provider-specific credentials from secrets.
-func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, provider string) (bearerToken, apiKey, awsProfile, awsRegion string) {
-	switch provider {
-	case "bedrock":
-		bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-"+project.ID)
+// Uses provider.KeychainKey() for canonical key naming (openhub.provider.<name>.token[.<projectID>]).
+func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
+	provName := provider.Name(prov)
+	switch provName {
+	case provider.Bedrock:
+		bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
 		if bearerToken == "" {
-			bearerToken, _ = a.Secrets.Get(ctx, "bedrock-token-default")
+			bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
 		}
 		if project.ProviderConfig != nil && project.ProviderConfig.AWSProfile != "" {
 			awsProfile = project.ProviderConfig.AWSProfile
@@ -298,15 +234,15 @@ func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project
 		} else {
 			awsRegion = a.Config.Provider.Bedrock.AWSRegion
 		}
-	case "anthropic":
-		apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-"+project.ID)
+	case provider.Anthropic:
+		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
 		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, "anthropic-api-key-default")
+			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
 		}
-	case "openrouter":
-		apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-"+project.ID)
+	case provider.OpenRouter:
+		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
 		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, "openrouter-api-key-default")
+			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
 		}
 	}
 	return

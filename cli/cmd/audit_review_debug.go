@@ -12,14 +12,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/notify"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // runAgentSession is a shared helper for commands that resolve a project
-// then launch opencode with a specific agent and prompt.
+// then launch opencode with a specific agent and prompt via the unified launcher.
 func runAgentSession(agent, prompt, titleLabel string, cmd *cobra.Command) error {
 	a := MustApp()
 	ctx := cmd.Context()
@@ -29,14 +29,26 @@ func runAgentSession(agent, prompt, titleLabel string, cmd *cobra.Command) error
 		return err
 	}
 
+	// Ensure opencode is installed
+	if err := ensureOpencode(a); err != nil {
+		return err
+	}
+
 	fmt.Fprintf(a.IO.Out, "%s %s sur %s\n",
 		theme.Title.Render("oh "+titleLabel), theme.Bold.Render(agent), project.Name)
 
-	return opencode.Exec(opencode.StartOpts{
-		ProjectPath: project.Path,
+	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
+	return l.Launch(ctx, launcher.LaunchOpts{
 		ProjectID:   project.ID,
+		ProjectPath: project.Path,
 		Agent:       agent,
 		Prompt:      prompt,
+		SkipSummary: true,
+		SkipConfirm: true,
+		SkipDeploy:  false, // let the launcher auto-deploy
+		DeployFunc: func(a *app.App, prov string) {
+			autoDeployIfNeeded(a, project, findHubDir(), prov, "", true)
+		},
 	})
 }
 

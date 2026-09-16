@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -149,30 +150,6 @@ func actionOpencode(agent, sessionPrompt string) func() {
 			tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
 		}
 	}
-}
-
-func actionStartLauncher() {
-	if tuiShell == nil {
-		return
-	}
-	tuiShell.ShowSessionLauncher(shell.SessionLaunchConfig{
-		Title: "Lancer une session",
-		Options: []shell.SessionOption{
-			{Label: "Standard", Description: "Session interactive classique", Agent: ""},
-			{Label: "Dev (ticket)", Description: "Session orientée développement", Agent: ""},
-			{Label: "Onboard", Description: "Session d'onboarding projet", Agent: "onboarder"},
-		},
-		OnLaunch: func(opt shell.SessionOption) {
-			switch opt.Label {
-			case "Dev (ticket)":
-				launchDevSession()
-			case "Onboard":
-				launchSessionWithPrompt("onboarder", buildOnboardPromptForTUI())
-			default:
-				launchSessionWithPrompt(opt.Agent, "")
-			}
-		},
-	})
 }
 
 func actionAuditLauncher() {
@@ -342,29 +319,18 @@ func launchSessionAtPath(launchPath, projectID, agent, sessionPrompt string) {
 
 	a := MustApp()
 
-	// Resolve the project from its ID for credential lookup.
-	project, err := a.Projects.Get(context.Background(), projectID)
-	if err != nil {
-		tuiShell.ShowToast("Projet introuvable", shell.ToastWarning)
-		return
-	}
-
-	opts := opencode.StartOpts{
-		ProjectPath: launchPath, // worktree or base — NOT necessarily project.Path
-		ProjectID:   project.ID,
+	l := launcher.New(a, launcher.NewTUIUI(tuiShell.SuspendAndExec, tuiShell.ShowToastMsg))
+	err := l.Launch(context.Background(), launcher.LaunchOpts{
+		ProjectID:   projectID,
+		ProjectPath: launchPath,
 		Agent:       agent,
 		Prompt:      sessionPrompt,
-	}
-	resolveProviderCreds(a, project, &opts)
-
-	err = tuiShell.SuspendAndExec(func() error {
-		return opencode.Run(opts)
+		SkipSummary: true,
+		SkipConfirm: true,
+		SkipDeploy:  true, // board path: deploy is handled upstream
 	})
 	if err != nil {
 		slog.Warn("quick-action session ended with error", "error", err, "path", launchPath)
-		tuiShell.ShowToast("Session terminée avec erreur", shell.ToastWarning)
-	} else {
-		tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
 	}
 }
 
