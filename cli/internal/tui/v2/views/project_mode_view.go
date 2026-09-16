@@ -443,7 +443,7 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	items := []projectModeItem{
 		// ── Sessions section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), SectionID: "sessions"},
-		{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("")},
+		{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("")},
 		{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
 		{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
 		{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},

@@ -283,7 +283,7 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 
 		items = append(items,
 			teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.sessions"), SectionID: "sessions"},
-			teamModeItem{Icon: "⚡", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("") }},
+			teamModeItem{Icon: "💻", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("") }},
 			teamModeItem{Icon: "🎯", Label: i18n.T("tui.tm.item.start_dev"), Desc: i18n.T("tui.tm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
 			teamModeItem{Icon: "🔍", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
 			teamModeItem{Icon: "👀", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},

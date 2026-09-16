@@ -72,7 +72,7 @@ func toSectionItem(it homeSectionItem, idx int) widgets.SectionItem {
 		}
 	}
 	iconWidth := runewidth.StringWidth(it.Icon)
-	pad := 3 - iconWidth
+	pad := 4 - iconWidth
 	if pad < 1 {
 		pad = 1
 	}

@@ -210,7 +210,7 @@ func (v *HomeView) buildStaticItems() []homeItem {
 		launch := v.cfg.OnLaunchSession
 		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), Desc: ""})
 		items = append(items,
-			homeItem{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
+			homeItem{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
 			homeItem{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
 			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
 			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() { launch("reviewer") }},
@@ -333,7 +333,7 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 		}
 	}
 	iconWidth := runewidth.StringWidth(it.Icon)
-	pad := 3 - iconWidth
+	pad := 4 - iconWidth
 	if pad < 1 {
 		pad = 1
 	}
