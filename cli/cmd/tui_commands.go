@@ -27,7 +27,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Description: i18n.T("tui.pm.item.quick_desc"),
 			Category:    "Sessions",
 			Priority:    80,
-			Action:      actionOpencode("", ""),
+			Action:      actionOpencode("orchestrator", ""),
 			RunsDirect:  true,
 			Modes:       modeSession,
 		},

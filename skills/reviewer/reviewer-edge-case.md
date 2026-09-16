@@ -21,6 +21,9 @@ Ce mode complète la review standard et la revue adversariale en se concentrant 
 ❌ Ne pas mélanger qualité du code et chemins non gérés — ce skill fait une seule chose
 ✅ Pour chaque chemin non géré : décrire la conséquence potentielle + suggestion de correction
 ✅ Revisiter chaque classe après l'analyse initiale pour confirmer la complétude
+✅ Chaque chemin non géré signalé DOIT être atteignable depuis le code modifié dans le diff — pas depuis du code existant non modifié (si `[DIFF-SCOPE:...]` est fourni → l'utiliser ; sinon → vérifier via `git diff --name-only`)
+✅ Si `[WIKI-CONTEXT:...]` est fourni → l'utiliser comme référence conventions/architecture pour comprendre les patterns intentionnels du projet
+✅ Chaque finding porte un score de confiance [1-5] (voir grille dans `review-protocol`)
 
 ---
 
@@ -96,12 +99,13 @@ Rapporter **uniquement** les chemins non gérés.
 
 #### <Classe 1 : ex. "Valeurs nulles">
 
-**[fichier:ligne]** `<contexte code>`
+**[fichier:ligne] [SCORE: X/5]** `<contexte code>`
 - Chemin non géré : <description précise du cas>
 - Conséquence potentielle : <crash / comportement incorrect / sécurité>
 - Suggestion : <correction minimale>
+- > Confiance X/5 : <justification>
 
-**[fichier:ligne]** `<contexte code>`
+**[fichier:ligne] [SCORE: X/5]** `<contexte code>`
 ...
 
 #### <Classe 2 : ex. "Erreurs API">

@@ -167,6 +167,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// --- Default agent fallback ---
+	if agent == "" {
+		agent = "orchestrator"
+	}
+
 	// --- Delegate to launcher ---
 	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
 

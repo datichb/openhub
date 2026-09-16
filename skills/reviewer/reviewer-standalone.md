@@ -1,6 +1,6 @@
 ---
 name: reviewer-standalone
-description: Parcours d'exécution du reviewer en mode standalone (invoqué directement par l'utilisateur) — sélection interactive du mode de review (standard, adversarial, edge-case, combinaisons), orchestration multi-mode avec sessions parallèles, fusion via review-merge, enrichissement des documents vivants proposé en fin de session, sans bloc handoff orchestrator-dev.
+description: Parcours d'exécution du reviewer en mode standalone (invoqué directement par l'utilisateur) — sélection interactive du mode de review (standard, adversarial, edge-case, combinaisons), préparation du contexte wiki pour injection dans les sous-sessions parallèles, fusion via review-merge, enrichissement des documents vivants proposé en fin de session, sans bloc handoff orchestrator-dev.
 ---
 
 # Skill — Parcours Reviewer Standalone
@@ -43,47 +43,61 @@ question({
 
 Exécuter directement la review dans cette session :
 
-1. Charger le skill correspondant via l'outil `skill` :
+1. Exécuter le workflow complet du `reviewer.md` (étapes 0 à 6)
+2. Charger le skill correspondant via l'outil `skill` :
    - Standard → skill `review-protocol` (déjà en Bucket A)
    - Adversarial → skill `reviewer-adversarial`
    - Edge-case → skill `reviewer-edge-case`
-2. Exécuter le workflow de review complet
 3. Produire le rapport au format défini par le skill chargé
 4. Passer à l'Étape 3
 
 ### Mode combiné (Standard + Adversarial, ou All)
 
-Orchestrer des **sessions parallèles indépendantes** pour garantir l'isolation contextuelle :
+Orchestrer des **sessions parallèles indépendantes** avec injection du contexte projet :
 
-1. **Lancer les sessions en parallèle** via l'outil `task` :
+1. **Préparer le contexte à injecter** (session parente — avant de lancer les sous-sessions) :
+   a. Exécuter les étapes 0 et 1 du workflow `reviewer.md` (wiki + diff + périmètre)
+   b. Identifier les standards pertinents (étape 1.5 du workflow)
+   c. Extraire une **synthèse compacte** (max ~60 lignes) contenant :
+      - Les conventions clés du projet (nommage, patterns, imports, structure)
+      - Les décisions architecturales structurantes
+      - Les review-rules spécifiques au projet (si `review-rules.md` existe)
+      - Les god nodes touchés par les fichiers du diff
+      - Le périmètre de fichiers modifiés (après exclusions path filters)
+   d. Formater :
+      - `[WIKI-CONTEXT:<synthèse>]` — les conventions/architecture/review-rules extraites
+      - `[DIFF-SCOPE:<liste fichiers>]` — les fichiers modifiés (périmètre de review)
+      - `[STANDARDS:<liste>]` — les dev-standards à charger (ex: `frontend,testing,security,git`)
+
+2. **Lancer les sessions en parallèle** via l'outil `task` :
 
    Pour "Standard + Adversarial" :
    ```
-   // Session 1 — Standard (contexte vierge)
-   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] Review de la branche <branche>. Diff:\n<diff ou instructions git>")
+   // Session 1 — Standard (contexte wiki injecté)
+   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review de la branche <branche>. git diff <base>..<branche>")
 
-   // Session 2 — Adversarial (contexte vierge)
-   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] Review adversariale de la branche <branche>. Diff:\n<diff ou instructions git>")
+   // Session 2 — Adversarial (contexte wiki injecté)
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] Review adversariale de la branche <branche>. git diff <base>..<branche>")
    ```
 
    Pour "Standard + Adversarial + Edge-case" :
    ```
    // Session 1 — Standard
-   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:standard] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
 
    // Session 2 — Adversarial
-   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:adversarial] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
 
    // Session 3 — Edge-case
-   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [SKILL:reviewer/reviewer-standalone-single] ...")
+   task(subagent_type: "reviewer", prompt: "[MODE:edge-case] [SKILL:reviewer/reviewer-standalone-single] [WIKI-CONTEXT:<synthèse>] [DIFF-SCOPE:<liste fichiers>] [STANDARDS:<liste>] ...")
    ```
 
-2. **Récupérer les rapports bruts** de chaque session
-3. **Fusionner** en appliquant le skill `review-merge` :
+3. **Récupérer les rapports bruts** de chaque session
+4. **Fusionner** en appliquant le skill `review-merge` :
    - Charger le skill `review-merge` via l'outil `skill`
    - Lui fournir les rapports bruts récupérés
    - Produire le rapport unifié final
-4. Passer à l'Étape 3
+5. Passer à l'Étape 3
 
 ---
 
@@ -112,7 +126,14 @@ L'utilisateur consulte le rapport et décide lui-même de l'action à prendre (c
 ## Skill auxiliaire : reviewer-standalone-single
 
 Quand une sous-session est lancée avec `[SKILL:reviewer/reviewer-standalone-single]` :
+
+- Si `[WIKI-CONTEXT:...]` est présent → l'utiliser comme contexte conventions/architecture (ne PAS relire le wiki depuis le disque — le contexte a été préparé par la session parente)
+- Si `[DIFF-SCOPE:...]` est présent → l'utiliser comme périmètre de fichiers modifiés pour le scope enforcement
+- Si `[STANDARDS:...]` est présent → charger uniquement ces dev-standards (ne PAS charger les autres)
 - Exécuter la review dans le mode indiqué par `[MODE:...]`
+- Inclure le walkthrough dans le rapport (construit à partir du diff et du DIFF-SCOPE)
+- Inclure le score de confiance sur chaque finding
+- Appliquer la checklist d'auto-vérification du `review-protocol`
 - Produire le rapport brut au format du mode (voir section "Format de sortie brut" dans `review-protocol`)
 - **Ne pas** proposer l'enrichissement des living docs (c'est le rôle de la session parente)
 - **Ne pas** poser de question de sélection de mode (le mode est explicite)

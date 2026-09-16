@@ -22,6 +22,10 @@ Ce mode ne remplace pas la review standard — il la complète quand une analyse
 ❌ Ne jamais produire un rapport "de façade" — chaque finding doit être cité avec `fichier:ligne`
 ✅ Minimum 10 findings — si difficile à atteindre, chercher dans les catégories sous-représentées
 ✅ Calibrer la sévérité honnêtement — pas tout en 🔴 pour paraître rigoureux
+✅ Chaque finding DOIT pointer un `fichier:ligne` dans le périmètre du diff (si `[DIFF-SCOPE:...]` est fourni → l'utiliser ; sinon → vérifier via `git diff --name-only`)
+✅ Si `[WIKI-CONTEXT:...]` est fourni → l'utiliser comme référence conventions/architecture avant de signaler un pattern comme problème
+✅ Chaque finding porte un score de confiance [1-5] (voir grille dans `review-protocol`)
+✅ Un finding score ≤ 2/5 ne peut pas être classé 🔴 Critique
 
 ---
 
@@ -106,15 +110,15 @@ Quand invoqué au CP-feature par l'orchestrator feature :
 
 ### 🔴 Critique — bloquant
 <Problèmes qui représentent un risque réel : bug, sécurité, data loss>
-Format : [fichier:ligne] Description — Risque — Suggestion
+Format : **[🔴 Critique] [SCORE: X/5]** `fichier:ligne` — Description — Risque — Suggestion — > Confiance X/5 : justification
 
 ### 🟠 Majeur — à corriger
 <Fragilités, dette significative, conception problématique>
-Format : [fichier:ligne] Description — Impact — Suggestion
+Format : **[🟠 Majeur] [SCORE: X/5]** `fichier:ligne` — Description — Impact — Suggestion — > Confiance X/5 : justification
 
 ### 🟡 Mineur — à améliorer
 <Lisibilité, conventions, petites incohérences>
-Format : [fichier:ligne] Description — Suggestion
+Format : **[🟡 Mineur] [SCORE: X/5]** `fichier:ligne` — Description — Suggestion — > Confiance X/5 : justification
 
 ### ⚠️ Hypothèses dangereuses
 <Comportements implicites qui pourraient casser en production>

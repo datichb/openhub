@@ -144,7 +144,15 @@ Sans flag --mode, un menu interactif est affiché.`,
 			}
 		}
 		if branch != "" {
-			prompt = fmt.Sprintf("[BRANCH:%s] %s", branch, prompt)
+			projectID, _ := cmd.Flags().GetString("project")
+			project, err := resolveProject(cmd.Context(), MustApp(), projectID)
+			baseBranch := "main"
+			if err == nil {
+				if detected := getBaseBranch(project.Path, branch); detected != "" {
+					baseBranch = detected
+				}
+			}
+			prompt = fmt.Sprintf("[BRANCH:%s] [BASE:%s] %s", branch, baseBranch, prompt)
 		}
 
 		return runAgentSession("reviewer", prompt, "review", cmd)
@@ -223,6 +231,26 @@ func getPublishBranch(dir string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// getBaseBranch returns the most likely trunk branch that the feature branch was forked from.
+// It tries common trunk names in order and returns the first one that is an ancestor of HEAD.
+func getBaseBranch(dir, feature string) string {
+	for _, trunk := range []string{"main", "master", "develop", "development"} {
+		// Check if the trunk branch exists locally
+		check := exec.Command("git", "rev-parse", "--verify", trunk)
+		check.Dir = dir
+		if check.Run() != nil {
+			continue
+		}
+		// Check if merge-base can be computed (trunk is an ancestor path)
+		mb := exec.Command("git", "merge-base", trunk, feature)
+		mb.Dir = dir
+		if out, err := mb.Output(); err == nil && len(strings.TrimSpace(string(out))) > 0 {
+			return trunk
+		}
+	}
+	return "" // caller falls back to "main"
 }
 
 // isMainBranch returns true if the branch is a trunk branch (not a feature branch).

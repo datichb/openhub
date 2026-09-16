@@ -318,6 +318,52 @@ agents: [<agents>]
 
 ---
 
+## Format canonique — `docs/wiki/technical/review-rules.md`
+
+Page **optionnelle** — créée quand le projet a des règles de review spécifiques qui ne sont pas
+couvertes par les conventions générales ou les standards de développement. Consultée par l'agent
+`reviewer` à chaque review (si elle existe) pour éviter les faux positifs et calibrer les findings.
+
+```markdown
+---
+updated: YYYY-MM-DD
+confidence: confirmed | mixed
+agents: [documentarian, reviewer]
+---
+
+# Règles de review — [Nom du projet]
+
+## Fichiers exclus (supplémentaires)
+
+<Patterns de fichiers spécifiques au projet à exclure de la review, en complément
+des exclusions par défaut du review-protocol (lock files, generated, minified, build output)>
+
+- `<pattern>` — <raison>
+
+## Patterns intentionnels — ne pas signaler
+
+<Pratiques qui pourraient sembler inhabituelles ou contraires aux standards génériques
+mais qui sont des choix délibérés du projet. Le reviewer NE DOIT PAS les signaler comme findings.>
+
+- **<Pattern>** — <justification> — `CONFIRMÉ` · <agent> · <date> · <fichier(s) source>
+
+## Points d'attention spécifiques
+
+<Ce que le reviewer doit toujours vérifier sur ce projet, au-delà de la checklist standard.>
+
+- <Règle spécifique> — <contexte / raison>
+
+## Seuils du projet
+
+<Seuils spécifiques qui overrident les standards génériques du review-protocol.>
+
+| Seuil | Standard générique | Seuil projet | Raison |
+|-------|--------------------|-------------|--------|
+| <ex: Longueur max fonction> | <30 lignes> | <50 lignes> | <ex: handlers de migration complexes> |
+```
+
+---
+
 ## Format canonique — `docs/wiki/business/index.md`
 
 ```markdown

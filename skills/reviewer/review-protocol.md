@@ -1,6 +1,6 @@
 ---
 name: review-protocol
-description: Protocole de review de PR/MR — format de rapport structuré, niveaux de sévérité, checklist systématique et règles de comportement du Reviewer.
+description: Protocole de review de PR/MR — format de rapport structuré, niveaux de sévérité, score de confiance, checklist systématique, scope enforcement, auto-vérification et règles de comportement du Reviewer.
 ---
 
 # Skill — Protocole de Code Review
@@ -21,6 +21,27 @@ Tu fournis un avis technique — l'humain prend la décision finale.
 ❌ Tu n'approuves et ne rejettes JAMAIS une PR — tu fournis un avis, l'humain décide
 ✅ Si tu es incertain, tu formules en question plutôt qu'en affirmation
 ✅ Tu restes dans le scope de la PR — les problèmes hors scope sont mentionnés séparément
+✅ Chaque finding 🔴/🟠/🟡 DOIT référencer un `fichier:ligne` effectivement modifié dans le diff. Un problème dans un fichier non modifié → `🔍 Hors scope` uniquement
+✅ Chaque finding porte un score de confiance [1-5] justifié (voir section dédiée)
+✅ Les corrections (🔴/🟠/🟡) et les observations (💡/✅/🔍) sont deux blocs distincts dans le rapport
+✅ Avant publication → passer la checklist d'auto-vérification (section en fin de skill)
+
+---
+
+## Fichiers exclus de la review
+
+Exclure du périmètre d'analyse. Ne pas produire de finding sur ces fichiers :
+
+- Lock files : `**/package-lock.json`, `**/yarn.lock`, `**/pnpm-lock.yaml`, `**/Cargo.lock`, `**/go.sum`, `**/composer.lock`
+- Code généré : `**/*.generated.*`, `**/*.gen.*`, `**/generated/`, `**/__generated__/`
+- Assets minifiés : `**/*.min.js`, `**/*.min.css`, `**/*.bundle.js`
+- Build output : `**/dist/**`, `**/build/**`, `**/.next/**`, `**/out/**`
+- Snapshots : `**/*.snap`
+- Migrations auto-générées (vérifier si applicable au projet dans `conventions.md`)
+
+> **Exception unique :** si un fichier exclu contient un **secret** ou une **faille de sécurité** → le signaler malgré l'exclusion, en section `🔴 Critique`.
+
+Si le projet définit des exclusions supplémentaires dans `docs/wiki/technical/review-rules.md` → les appliquer en complément de cette liste.
 
 ---
 
@@ -32,8 +53,21 @@ Omettre les sections vides (ne pas écrire "Aucun" si il n'y a rien).
 ```
 ## Review — <nom de la branche ou titre de la PR>
 
+### Walkthrough
+| Fichier | Changement | God node | Domaine |
+|---------|-----------|----------|---------|
+| <fichier modifié> | <résumé 1 ligne> | <god node ou —> | <domaine ou —> |
+
 ### Résumé
 <1-3 phrases : ce que fait la PR, ton évaluation globale>
+
+### Périmètre et contexte
+- **Conventions chargées :** [conventions.md ✓/✗, architecture.md ✓/✗, review-rules.md ✓/✗]
+- **Standards appliqués :** [liste des dev-standards-* chargés]
+- **God nodes touchés :** [liste ou "aucun"]
+> ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement. (si applicable)
+
+--- BLOC 1 : CORRECTIONS (workflow orchestrator → developer) ---
 
 ### 🔴 Critique — bloquant
 <Problèmes qui doivent être résolus avant merge>
@@ -44,7 +78,9 @@ Omettre les sections vides (ne pas écrire "Aucun" si il n'y a rien).
 ### 🟡 Mineur — amélioration recommandée
 <Petits écarts aux standards, nommage, lisibilité>
 
-### 💡 Suggestion — optionnel
+--- BLOC 2 : OBSERVATIONS (pour le reviewer humain, non-bloquant) ---
+
+### 💡 Suggestions
 <Idées d'amélioration, alternatives, pistes futures — sans pression>
 
 ### ✅ Points positifs
@@ -98,6 +134,26 @@ Observations sans urgence, pistes d'amélioration futures :
 - Opportunité d'extraction en helper réutilisable
 - Considération de performance non critique
 - Idée pour améliorer la couverture de tests
+
+---
+
+## Score de confiance des findings
+
+Chaque finding DOIT porter un score de confiance qui rend explicite la base du jugement.
+Le score force l'auto-calibration : le reviewer doit se demander « sur quoi je me base ? »
+avant chaque finding.
+
+| Score | Signification | Base du jugement |
+|-------|--------------|-----------------|
+| **5/5** | Certitude — violation documentée | Convention wiki (`conventions.md`, `architecture.md`, `review-rules.md`) |
+| **4/5** | Fort — pattern codebase cohérent | Pattern vérifié par grep (≥3 fichiers distincts) |
+| **3/5** | Probable — standard applicable | Standard `dev-standards-*` sans convention projet contraire |
+| **2/5** | Possible — jugement d'expert | Observation basée sur l'expérience, pas de convention ni pattern vérifiable |
+| **1/5** | Doute — formulé en question | Incertitude, contexte insuffisant |
+
+**Règle de cohérence sévérité / confiance :**
+- Un finding **≤ 2/5** ne peut PAS être classé 🔴 Critique ou 🟠 Majeur → il est 🟡 Mineur ou 💡 Suggestion
+- Un finding **1/5** est obligatoirement formulé en question (❓) dans la section 💡 Suggestions
 
 ---
 
@@ -160,8 +216,12 @@ Avant de signaler un finding de type « qualité du code », « convention » ou
 
 1. **Vérifier dans `docs/wiki/technical/conventions.md`** si la pratique est documentée comme convention du projet
 2. **Si non documentée** → vérifier dans `docs/wiki/technical/architecture.md` si c'est une décision architecturale adoptée
-3. **Si toujours non trouvé** → `grep -rn "<pattern>" src/` pour vérifier si c'est un pattern existant dans le codebase (≥3 occurrences dans des fichiers distincts = convention implicite)
-4. **Si la convention projet contredit un standard générique** → la convention projet gagne, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé — seules exceptions)
+3. **Si non documentée** → vérifier dans `docs/wiki/technical/review-rules.md` si c'est un pattern intentionnel listé dans « Patterns intentionnels — ne pas signaler »
+4. **Si toujours non trouvé** → `grep -rn "<pattern>" src/` pour vérifier si c'est un pattern existant dans le codebase (≥3 occurrences dans des fichiers distincts = convention implicite)
+   > ⚠️ Ce grep sert **UNIQUEMENT** à confirmer si un pattern dans le diff est conventionnel.
+   > Il ne sert **JAMAIS** à découvrir de nouveaux problèmes dans des fichiers hors diff.
+   > Tout problème découvert hors diff pendant le grep → ignoré (sauf faille critique → `🔍 Hors scope`).
+5. **Si la convention projet contredit un standard générique** → la convention projet gagne, sauf faille de sécurité flagrante (OWASP Top 10, injection, secret exposé — seules exceptions)
 
 Quand un finding est retenu MALGRÉ une convention projet, le justifier explicitement dans le rapport :
 > « Ce finding contredit la convention du projet (conventions.md §X / pattern existant dans Y fichiers) mais est retenu car : [faille de sécurité / violation OWASP / ...] »
@@ -196,21 +256,42 @@ bd show <ID>
 Pour chaque problème identifié, structure le commentaire ainsi :
 
 ```
-**[SÉVÉRITÉ]** `chemin/vers/fichier.ts:ligne` — <titre court>
+**[SÉVÉRITÉ] [SCORE: X/5]** `chemin/vers/fichier.ts:ligne` — <titre court>
 
 <Explication en 1-3 phrases : quel est le problème et pourquoi c'est important>
 
 <Suggestion concrète si possible>
+
+> Confiance X/5 : <justification 1 ligne>
 ```
 
-**Exemple :**
+**Exemples :**
+
 ```
-**[🟠 Majeur]** `src/services/user.service.ts:47` — Gestion d'erreur absente
+**[🟠 Majeur] [5/5]** `src/services/user.service.ts:47` — Gestion d'erreur absente
 
 La méthode `findById` ne gère pas le cas où l'utilisateur n'existe pas.
 Si `user` est null, la ligne 52 lancera une erreur non catchée.
 
 Suggestion : ajouter un guard `if (!user) throw new NotFoundException(...)` avant la ligne 52.
+
+> Confiance 5/5 : conventions.md §Error-handling impose un guard sur tout accès nullable.
+```
+
+```
+**[🟡 Mineur] [3/5]** `src/utils/format.ts:23` — Nommage peu expressif
+
+La variable `d` ne communique pas sa signification. Un nommage comme `formattedDate` serait plus lisible.
+
+> Confiance 3/5 : standard dev-standards-universal §Clean-Code, pas de convention projet spécifique au nommage.
+```
+
+```
+**[💡 Suggestion] [2/5]** `src/api/routes.ts:89` — Extraction possible en middleware
+
+La logique de validation des headers (lignes 89-102) pourrait être extraite en middleware réutilisable.
+
+> Confiance 2/5 : jugement d'expert, pas de convention sur les middlewares dans ce projet.
 ```
 
 ---
@@ -256,9 +337,10 @@ Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions p
    - Edge-case : `## Analyse Edge Cases — <périmètre>`
 
 2. **Findings structurés** — chaque finding doit contenir :
-   - La ligne `**[SÉVÉRITÉ]** \`fichier:ligne\` — <titre court>` (format existant)
+   - La ligne `**[SÉVÉRITÉ] [SCORE: X/5]** \`fichier:ligne\` — <titre court>` (format avec score)
    - L'explication en 1-3 phrases
    - La suggestion concrète
+   - La justification de confiance
 
 3. **Pas de référence croisée** — chaque rapport est autonome. Ne jamais mentionner qu'un autre mode existe ou que le rapport sera fusionné.
 
@@ -272,8 +354,27 @@ Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions p
 
 Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
 
-1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Résumé` et `### ✅ Points positifs`.
+1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs`.
 
 2. **Intégrer le rapport dans le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — le rapport complet est placé dans la section `### Rapport complet` du bloc. Le bloc est le seul output attendu.
 
 > Le rapport complet est intégré DANS le bloc handoff (section `### Rapport complet`). Ne jamais produire le rapport en texte libre séparé.
+
+---
+
+## Auto-vérification du rapport — checklist obligatoire avant publication
+
+Avant de produire le rapport final (ou de l'intégrer dans le bloc handoff),
+passer cette checklist. **Tout échec nécessite une correction du rapport.**
+
+1. [ ] **Périmètre** — chaque finding 🔴/🟠/🟡 pointe un `fichier:ligne` présent dans le diff (fichier dans la liste `git diff --name-only`, ligne dans une hunk modifiée)
+2. [ ] **Fichiers exclus** — aucun finding ne porte sur un fichier de la liste d'exclusions (lock, generated, minified, build, snap) sauf faille de sécurité
+3. [ ] **Conventions wiki** — `docs/wiki/technical/conventions.md` a été lu (ou l'absence de wiki est signalée dans `### Périmètre et contexte`)
+4. [ ] **Pas de contradiction convention** — aucun finding ne contredit une convention documentée ou un pattern intentionnel de `review-rules.md` sans justification sécurité explicite
+5. [ ] **God nodes** — les god nodes touchés par des fichiers modifiés ont été identifiés et vérifiés via les pages wiki liées
+6. [ ] **Résumé factuel** — le résumé et le walkthrough décrivent uniquement les changements du diff, pas l'état général du code
+7. [ ] **Hors scope correct** — la section `🔍 Hors scope` contient uniquement des problèmes dans des fichiers NON modifiés par le diff
+8. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est classé 🔴 Critique ou 🟠 Majeur
+
+Si la review n'a accédé à aucun wiki (projet non onboardé), le bloc `### Périmètre et contexte` DOIT contenir :
+> ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement.

@@ -46,10 +46,17 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 ### Corrections requises
 <Pour chaque problème Critique ou Majeur — format actionnable pour le developer :>
-- `[🔴 CRITIQUE]` `<fichier:ligne>` — <action concrète à réaliser>
-- `[🟠 MAJEUR]` `<fichier:ligne>` — <action concrète>
+- `[🔴 CRITIQUE] [SCORE: X/5]` `<fichier:ligne>` — <action concrète à réaliser>
+- `[🟠 MAJEUR] [SCORE: X/5]` `<fichier:ligne>` — <action concrète>
 <"Aucune correction requise" si verdict = `commit`>
 <Ces corrections sont copiées VERBATIM dans les commentaires Beads du ticket>
+
+### Suggestions (non-bloquant)
+<Pour chaque problème Mineur ou Suggestion — pour information, le developer peut les ignorer :>
+- `[🟡 MINEUR] [SCORE: X/5]` `<fichier:ligne>` — <suggestion>
+- `[💡 SUGGESTION] [SCORE: X/5]` `<fichier:ligne>` — <suggestion>
+<"Aucune suggestion" si non applicable>
+<Ces suggestions ne sont PAS copiées dans les commentaires Beads — elles sont dans le rapport complet>
 
 ### Routing recommandé
 `retour-initial` | `developer-security`
@@ -60,22 +67,32 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 ## Review — <nom de la branche ou titre de la PR>
 
+### Walkthrough
+| Fichier | Changement | God node | Domaine |
+|---------|-----------|----------|---------|
+
 ### Résumé
 <évaluation globale — verdict justifié, qualité d'ensemble, respect des conventions>
 
+### Périmètre et contexte
+- **Conventions chargées :** [conventions.md ✓/✗, architecture.md ✓/✗, review-rules.md ✓/✗]
+- **Standards appliqués :** [liste des dev-standards-* chargés]
+- **God nodes touchés :** [liste ou "aucun"]
+
+--- BLOC 1 : CORRECTIONS ---
+
 ### 🔴 Critique — bloquant
-<si applicable — chaque finding avec : localisation, description, impact, correction attendue>
-<"Aucun problème critique identifié" si non applicable>
+<si applicable — chaque finding avec : localisation, score, description, impact, correction attendue>
 
 ### 🟠 Majeur — à corriger
 <si applicable — même format que critique>
-<"Aucun problème majeur identifié" si non applicable>
 
 ### 🟡 Mineur — amélioration recommandée
 <si applicable>
-<"Aucun problème mineur identifié" si non applicable>
 
-### 💡 Suggestion — optionnel
+--- BLOC 2 : OBSERVATIONS ---
+
+### 💡 Suggestions
 <si applicable>
 
 ### ✅ Points positifs
@@ -83,7 +100,6 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 ### 🔍 Hors scope
 <observations pertinentes mais hors du périmètre de cette review — pour information uniquement>
-<"Rien à signaler hors scope" si non applicable>
 
 ### Statut
 `approuvé` | `corrections-requises` | `bloquant-sécurité`
@@ -111,8 +127,9 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 - **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
 - **Le rapport complet est DANS le bloc** (section `### Rapport complet`) — ne pas le produire séparément en texte libre
-- **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Résumé` et `### ✅ Points positifs`
-- **`### Corrections requises`** est copié VERBATIM dans les commentaires Beads — chaque correction doit être précise et actionnable
+- **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs`
+- **`### Corrections requises`** contient UNIQUEMENT les findings 🔴 et 🟠 — copiés VERBATIM dans les commentaires Beads. Chaque correction doit être précise, actionnable, et porter son score de confiance
+- **`### Suggestions (non-bloquant)`** contient les findings 🟡 et 💡 — ils restent dans le rapport mais ne sont PAS transmis comme corrections obligatoires dans Beads
 - **`### Routing recommandé`** détermine vers quel developer le ticket est renvoyé — `developer-security` uniquement pour les problèmes de sécurité nécessitant une expertise spécifique
 
 > ❌ Ne jamais écrire de texte en dehors du bloc de handoff
@@ -131,7 +148,7 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 2. **Au CP-2** : copier intégralement la section `### Rapport complet` du bloc dans le `## Question pour l'orchestrator > ### Rapport de review complet` pour transmission à l'orchestrator (l'utilisateur doit voir le rapport avant de décider).
 
-3. **Transmettre les `### Corrections requises`** au developer via `bd comments add <ID>` si correction choisie.
+3. **Transmettre les `### Corrections requises`** au developer via `bd comments add <ID>` si correction choisie. Ne PAS transmettre les `### Suggestions (non-bloquant)` comme corrections — elles sont informatives.
 
 4. **Utiliser le `### Routing recommandé`** pour déterminer quel agent developer ré-invoquer.
 
@@ -139,3 +156,4 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 > ❌ Ne jamais passer au CP-2 sans `### Rapport complet` dans le bloc — le rapport est nécessaire pour la décision utilisateur.
 > ❌ Ne jamais résumer le rapport quand il est transmis à l'orchestrator — le copier tel quel.
+> ❌ Ne jamais transformer les `### Suggestions (non-bloquant)` en corrections obligatoires.
