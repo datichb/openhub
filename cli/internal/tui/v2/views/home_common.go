@@ -61,6 +61,7 @@ type homeSectionItem struct {
 
 // toSectionItem converts a homeSectionItem to a widgets.SectionItem.
 // idx is the position in the original items slice, stored as Reference.
+// All icons are emoji (2-cell width) so a single space separator aligns labels.
 func toSectionItem(it homeSectionItem, idx int) widgets.SectionItem {
 	if it.Icon == "─" {
 		return widgets.SectionItem{
@@ -69,7 +70,7 @@ func toSectionItem(it homeSectionItem, idx int) widgets.SectionItem {
 		}
 	}
 	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+		MainText:      fmt.Sprintf("%s %s", it.Icon, it.Label),
 		SecondaryText: it.Desc,
 		Reference:     idx,
 	}

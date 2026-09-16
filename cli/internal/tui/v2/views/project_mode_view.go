@@ -444,30 +444,30 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		// ── Sessions section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), SectionID: "sessions"},
 		{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("")},
-		{Icon: "▶", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
-		{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
-		{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},
-		{Icon: "◈", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: v.debugAction(launch)},
-		{Icon: "⊞", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
+		{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
+		{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
+		{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},
+		{Icon: "🐛", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: v.debugAction(launch)},
+		{Icon: "🔀", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
 		{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: launch("onboarder")},
 		// ── Projet section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.project"), SectionID: "project"},
-		{Icon: "⊞", Label: i18n.T("tui.pm.item.board"), Desc: i18n.T("tui.pm.item.board_desc"), Action: navigate("board")},
-		{Icon: "⊟", Label: i18n.T("tui.pm.item.metrics"), Desc: i18n.T("tui.pm.item.metrics_desc"), Action: navigate("metrics")},
-		{Icon: "⊝", Label: i18n.T("tui.pm.item.status"), Desc: i18n.T("tui.pm.item.status_desc"), Action: navigate("status")},
+		{Icon: "📋", Label: i18n.T("tui.pm.item.board"), Desc: i18n.T("tui.pm.item.board_desc"), Action: navigate("board")},
+		{Icon: "📊", Label: i18n.T("tui.pm.item.metrics"), Desc: i18n.T("tui.pm.item.metrics_desc"), Action: navigate("metrics")},
+		{Icon: "📡", Label: i18n.T("tui.pm.item.status"), Desc: i18n.T("tui.pm.item.status_desc"), Action: navigate("status")},
 		// ── Configuration section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.configuration"), SectionID: "configuration"},
-		{Icon: "⊛", Label: i18n.T("tui.pm.item.config"), Desc: i18n.T("tui.pm.item.config_desc"), Action: navigate("project.config")},
-		{Icon: "⊜", Label: i18n.T("tui.pm.item.worktrees"), Desc: i18n.T("tui.pm.item.worktrees_desc"), Action: navigate("worktrees")},
-		{Icon: "⊙", Label: i18n.T("tui.pm.item.workflow"), Desc: i18n.T("tui.pm.item.workflow_desc"), Action: navigate("workflow")},
+		{Icon: "🔧", Label: i18n.T("tui.pm.item.config"), Desc: i18n.T("tui.pm.item.config_desc"), Action: navigate("project.config")},
+		{Icon: "🌿", Label: i18n.T("tui.pm.item.worktrees"), Desc: i18n.T("tui.pm.item.worktrees_desc"), Action: navigate("worktrees")},
+		{Icon: "🔗", Label: i18n.T("tui.pm.item.workflow"), Desc: i18n.T("tui.pm.item.workflow_desc"), Action: navigate("workflow")},
 		// ── Deploy section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.deploy"), SectionID: "deploy"},
-		{Icon: "⊘", Label: i18n.T("tui.pm.item.deploy"), Desc: v.deployItemDesc(), Action: func() {
+		{Icon: "🚀", Label: i18n.T("tui.pm.item.deploy"), Desc: v.deployItemDesc(), Action: func() {
 			if v.cfg.OnDeploy != nil {
 				v.cfg.OnDeploy(p.Path)
 			}
 		}},
-		{Icon: "⊙", Label: i18n.T("tui.pm.item.view_diff"), Desc: i18n.T("tui.pm.item.view_diff_desc"), Action: func() {
+		{Icon: "📝", Label: i18n.T("tui.pm.item.view_diff"), Desc: i18n.T("tui.pm.item.view_diff_desc"), Action: func() {
 			if v.cfg.OnViewDiff != nil {
 				v.cfg.OnViewDiff(p.Path)
 			}
@@ -479,16 +479,16 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		if tc := v.resolveTeam(); tc.Enabled {
 			items = append(items,
 				projectModeItem{Icon: "─", Label: i18n.T("tui.pm.section.team"), SectionID: "team"},
-				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_status"), Desc: i18n.T("tui.pm.item.team_status_desc"), Action: navigate("team.status")},
-				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_board"), Desc: i18n.T("tui.pm.item.team_board_desc"), Action: navigate("team.board")},
-				projectModeItem{Icon: "◫", Label: i18n.T("tui.pm.item.team_activity"), Desc: i18n.T("tui.pm.item.team_activity_desc"), Action: navigate("team.activity")},
+				projectModeItem{Icon: "👥", Label: i18n.T("tui.pm.item.team_status"), Desc: i18n.T("tui.pm.item.team_status_desc"), Action: navigate("team.status")},
+				projectModeItem{Icon: "📋", Label: i18n.T("tui.pm.item.team_board"), Desc: i18n.T("tui.pm.item.team_board_desc"), Action: navigate("team.board")},
+				projectModeItem{Icon: "📈", Label: i18n.T("tui.pm.item.team_activity"), Desc: i18n.T("tui.pm.item.team_activity_desc"), Action: navigate("team.activity")},
 			)
 		}
 	}
 
 	// ── Mode hub (standalone — no section) ──────────────────────────────
 	items = append(items, projectModeItem{
-		Icon: "↩", Label: i18n.T("tui.pm.item.hub_mode"), Desc: i18n.T("tui.pm.item.hub_mode_desc"),
+		Icon: "🏠", Label: i18n.T("tui.pm.item.hub_mode"), Desc: i18n.T("tui.pm.item.hub_mode_desc"),
 		Action: func() {
 			if v.cfg.OnExitProjectMode != nil {
 				v.cfg.OnExitProjectMode()

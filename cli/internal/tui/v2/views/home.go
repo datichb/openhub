@@ -209,25 +209,25 @@ func (v *HomeView) buildStaticItems() []homeItem {
 		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), Desc: ""})
 		items = append(items,
 			homeItem{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
-			homeItem{Icon: "▶", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			homeItem{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
-			homeItem{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() { launch("reviewer") }},
+			homeItem{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
+			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
+			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() { launch("reviewer") }},
 		)
 	}
 
 	// ── System / navigation ──
 	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
 	items = append(items,
-		homeItem{Icon: "⊟", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
-		homeItem{Icon: "◎", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
-		homeItem{Icon: "◈", Label: i18n.T("tui.home.doctor"), Desc: i18n.T("tui.home.doctor_desc"), ViewID: "doctor"},
+		homeItem{Icon: "🔧", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
+		homeItem{Icon: "📊", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
+		homeItem{Icon: "🔬", Label: i18n.T("tui.home.doctor"), Desc: i18n.T("tui.home.doctor_desc"), ViewID: "doctor"},
 		homeItem{Icon: "🔑", Label: i18n.T("tui.home.secrets"), Desc: i18n.T("tui.home.secrets_desc"), ViewID: "secrets"},
 	)
 
 	// ── Projets (enriched — replaces old "Quick Actions") ──
 	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""})
 	items = append(items,
-		homeItem{Icon: "+", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
+		homeItem{Icon: "➕", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
 			if v.cfg.OnAddProject != nil {
 				v.cfg.OnAddProject()
 			}
@@ -249,7 +249,7 @@ func (v *HomeView) buildItems() []homeItem {
 				team := t // capture
 				desc := i18n.Tf("tui.home.team_desc", team.MemberCount, team.ActiveCount)
 				items = append(items, homeItem{
-					Icon:  "◫",
+					Icon:  "👥",
 					Label: team.Name,
 					Desc:  desc,
 					Action: func() {
@@ -280,7 +280,7 @@ func (v *HomeView) buildItems() []homeItem {
 					desc += fmt.Sprintf(" · %s", proj.DeployAge)
 				}
 				items = append(items, homeItem{
-					Icon:  "◈",
+					Icon:  "📁",
 					Label: proj.Name,
 					Desc:  desc,
 					Action: func() {
@@ -331,7 +331,7 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 		}
 	}
 	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s  %s", it.Icon, it.Label),
+		MainText:      fmt.Sprintf("%s %s", it.Icon, it.Label),
 		SecondaryText: it.Desc,
 		Reference:     idx,
 	}

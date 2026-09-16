@@ -284,11 +284,11 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 		items = append(items,
 			teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.sessions"), SectionID: "sessions"},
 			teamModeItem{Icon: "⚡", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("") }},
-			teamModeItem{Icon: "▶", Label: i18n.T("tui.tm.item.start_dev"), Desc: i18n.T("tui.tm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			teamModeItem{Icon: "◉", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
-			teamModeItem{Icon: "◎", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},
-			teamModeItem{Icon: "◈", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: debugAction},
-			teamModeItem{Icon: "⊞", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
+			teamModeItem{Icon: "🎯", Label: i18n.T("tui.tm.item.start_dev"), Desc: i18n.T("tui.tm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
+			teamModeItem{Icon: "🔍", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
+			teamModeItem{Icon: "👀", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},
+			teamModeItem{Icon: "🐛", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: debugAction},
+			teamModeItem{Icon: "🔀", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
 			teamModeItem{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: func() { launch("onboarder") }},
 		)
 	}
@@ -296,40 +296,40 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	// ── Board section ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.board"), SectionID: "board"},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.team_board"), Desc: i18n.T("tui.tm.item.team_board_desc"), Action: navigate("team.board")},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.team_status"), Desc: i18n.T("tui.tm.item.team_status_desc"), Action: navigate("team.status")},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.activity"), Desc: i18n.T("tui.tm.item.activity_desc"), Action: navigate("team.activity")},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.briefs"), Desc: i18n.T("tui.tm.item.briefs_desc"), Action: navigate("team.briefs")},
+		teamModeItem{Icon: "📋", Label: i18n.T("tui.tm.item.team_board"), Desc: i18n.T("tui.tm.item.team_board_desc"), Action: navigate("team.board")},
+		teamModeItem{Icon: "👥", Label: i18n.T("tui.tm.item.team_status"), Desc: i18n.T("tui.tm.item.team_status_desc"), Action: navigate("team.status")},
+		teamModeItem{Icon: "📈", Label: i18n.T("tui.tm.item.activity"), Desc: i18n.T("tui.tm.item.activity_desc"), Action: navigate("team.activity")},
+		teamModeItem{Icon: "📄", Label: i18n.T("tui.tm.item.briefs"), Desc: i18n.T("tui.tm.item.briefs_desc"), Action: navigate("team.briefs")},
 	)
 	if v.cfg.OnBoardConfig != nil {
 		boardCfgFn := v.cfg.OnBoardConfig
 		items = append(items,
-			teamModeItem{Icon: "⊛", Label: i18n.T("tui.tm.item.board_config"), Desc: i18n.T("tui.tm.item.board_config_desc"), Action: boardCfgFn},
+			teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.board_config"), Desc: i18n.T("tui.tm.item.board_config_desc"), Action: boardCfgFn},
 		)
 	}
 
 	// ── Configuration section ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.configuration"), SectionID: "configuration"},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.patterns"), Desc: i18n.T("tui.tm.item.patterns_desc"), Action: navigate("team.patterns")},
-		teamModeItem{Icon: "◫", Label: i18n.T("tui.tm.item.policies"), Desc: i18n.T("tui.tm.item.policies_desc"), Action: navigate("team.policies")},
-		teamModeItem{Icon: "⊛", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: navigate("team.detail")},
-		teamModeItem{Icon: "⊙", Label: i18n.T("tui.tm.item.workflow"), Desc: i18n.T("tui.tm.item.workflow_desc"), Action: navigate("workflow")},
+		teamModeItem{Icon: "🔗", Label: i18n.T("tui.tm.item.patterns"), Desc: i18n.T("tui.tm.item.patterns_desc"), Action: navigate("team.patterns")},
+		teamModeItem{Icon: "📜", Label: i18n.T("tui.tm.item.policies"), Desc: i18n.T("tui.tm.item.policies_desc"), Action: navigate("team.policies")},
+		teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: navigate("team.detail")},
+		teamModeItem{Icon: "🔗", Label: i18n.T("tui.tm.item.workflow"), Desc: i18n.T("tui.tm.item.workflow_desc"), Action: navigate("workflow")},
 	)
 
 	// Sync Tracker (conditional — only if callback provided)
 	if v.cfg.OnSyncTracker != nil {
 		syncFn := v.cfg.OnSyncTracker
 		items = append(items,
-			teamModeItem{Icon: "⊘", Label: i18n.T("tui.tm.item.sync_tracker"), Desc: i18n.T("tui.tm.item.sync_tracker_desc"), Action: syncFn},
+			teamModeItem{Icon: "🔄", Label: i18n.T("tui.tm.item.sync_tracker"), Desc: i18n.T("tui.tm.item.sync_tracker_desc"), Action: syncFn},
 		)
 	}
 
 	// ── Navigation section ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.navigation"), SectionID: "navigation"},
-		teamModeItem{Icon: "◈", Label: i18n.T("tui.tm.item.projects"), Desc: i18n.T("tui.tm.item.projects_desc"), Action: navigate("projects.list")},
-		teamModeItem{Icon: "↩", Label: i18n.T("tui.tm.item.hub_mode"), Desc: i18n.T("tui.tm.item.hub_mode_desc"), Action: func() {
+		teamModeItem{Icon: "📂", Label: i18n.T("tui.tm.item.projects"), Desc: i18n.T("tui.tm.item.projects_desc"), Action: navigate("projects.list")},
+		teamModeItem{Icon: "🏠", Label: i18n.T("tui.tm.item.hub_mode"), Desc: i18n.T("tui.tm.item.hub_mode_desc"), Action: func() {
 			if v.cfg.OnExitTeamMode != nil {
 				v.cfg.OnExitTeamMode()
 			}
