@@ -35,6 +35,62 @@ func TestIsReadyStatus(t *testing.T) {
 	}
 }
 
+func TestIsInProgressStatus(t *testing.T) {
+	tests := []struct {
+		status     string
+		inProgress bool
+	}{
+		{"in_progress", true},
+		{"in-progress", true},
+		{"doing", true},
+		{"wip", true},
+		{"open", false},
+		{"ready", false},
+		{"todo", false},
+		{"done", false},
+		{"review", false},
+		{"blocked", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			assert.Equal(t, tt.inProgress, IsInProgressStatus(tt.status))
+		})
+	}
+}
+
+func TestIsDevPickableStatus(t *testing.T) {
+	tests := []struct {
+		status   string
+		pickable bool
+	}{
+		// Ready statuses — pickable
+		{"open", true},
+		{"ready", true},
+		{"todo", true},
+		{"to_do", true},
+		{"backlog", true},
+		// In-progress statuses — pickable (resume)
+		{"in_progress", true},
+		{"in-progress", true},
+		{"doing", true},
+		{"wip", true},
+		// Non-pickable
+		{"done", false},
+		{"closed", false},
+		{"review", false},
+		{"blocked", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			assert.Equal(t, tt.pickable, isDevPickableStatus(tt.status))
+		})
+	}
+}
+
 func TestHasLabel(t *testing.T) {
 	ticket := Ticket{
 		ID:     "bd-1",

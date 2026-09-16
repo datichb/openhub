@@ -457,12 +457,10 @@ func DeployConfig(provider, model string) Phase {
 				config["instructions"] = instructions
 			}
 
-			// Inject resolved workflow default mode
-			if ctx.Plan.WorkflowResult != nil {
-				config["workflow"] = map[string]interface{}{
-					"defaultMode": ctx.Plan.WorkflowResult.Resolved.Modes.Default,
-				}
-			}
+			// NOTE: The workflow defaultMode is already injected into the
+			// generated skill markdown (orchestrator-workflow-modes.md.tmpl).
+			// Do NOT inject a "workflow" key into opencode.json — opencode
+			// does not recognize it and rejects the config as invalid.
 
 			// Write atomically (temp file + rename)
 			data, err := json.MarshalIndent(config, "", "  ")

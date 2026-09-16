@@ -18,8 +18,14 @@ import (
 func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 	return &views.BoardQuickActions{
 		OnLaunch: func(action views.QuickActionType, auditType views.AuditType, ticket views.TicketContext, launchPath string) {
-			agent, extraArgs := resolveAgentForAction(action, auditType)
-			prompt := views.BuildTicketPrompt(action, auditType, ticket)
+			agent, agentPrompt := resolveAgentForAction(action, auditType)
+			ticketPrompt := views.BuildTicketPrompt(action, auditType, ticket)
+
+			// Combine: agent-specific prompt (e.g. audit type) + ticket context.
+			combinedPrompt := ticketPrompt
+			if agentPrompt != "" {
+				combinedPrompt = agentPrompt + "\n\n" + ticketPrompt
+			}
 
 			projectID := ticket.ProjectID
 			if projectID == "" {
@@ -28,7 +34,7 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 				}
 			}
 
-			launchOpcodeAtPath(launchPath, projectID, agent, append([]string{"--prompt", prompt}, extraArgs...)...)
+			launchSessionAtPath(launchPath, projectID, agent, combinedPrompt)
 		},
 
 		ListWorktrees: func(projectPath string) []views.WorktreeEntry {
@@ -160,30 +166,31 @@ func buildResolveProjectByDirID(a *app.App) func(dirID string) (string, string, 
 	}
 }
 
-// resolveAgentForAction maps a QuickActionType + AuditType to the agent name and extra args
-// that opencode expects.
-func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName string, extraArgs []string) {
+// resolveAgentForAction maps a QuickActionType + AuditType to the agent name and prompt
+// that opencode expects. Returns (agent, prompt) — no oh-specific flags.
+func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName string, agentPrompt string) {
 	switch action {
 	case views.QuickActionReview:
-		return "reviewer", nil
+		return "reviewer", buildReviewPrompt("")
 	case views.QuickActionDev:
-		return "", []string{"--dev"}
+		// For board quick actions, dev mode skips the ticket picker (ticket is already known).
+		return "orchestrator-dev", ""
 	case views.QuickActionAudit:
 		agent := "auditor"
 		switch auditType {
 		case views.AuditComplete:
-			return agent, []string{"--type", "all"}
+			return agent, buildAuditPrompt("security") // "all" is not a valid audit type in the map
 		case views.AuditSecurity, views.AuditPerformance, views.AuditArchitecture,
 			views.AuditAccessibility, views.AuditEcodesign, views.AuditObservability,
 			views.AuditPrivacy:
-			return agent, []string{"--type", string(auditType)}
+			return agent, buildAuditPrompt(string(auditType))
 		default:
-			return agent, nil
+			return agent, buildAuditPrompt("security")
 		}
 	case views.QuickActionDebug:
-		return "debugger", nil
+		return "debugger", buildDebugPrompt("")
 	default:
-		return "", nil
+		return "", ""
 	}
 }
 

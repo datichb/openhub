@@ -159,6 +159,13 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if tuiShell == nil {
 				return
 			}
+			// Translate oh-specific flags into opencode-compatible agent+prompt.
+			resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
+			if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
+				// --dev requires the ticket picker → delegate to the full dev flow.
+				launchDevSession()
+				return
+			}
 			if _, err := findOpencodeOrToast(); err != nil {
 				return
 			}
@@ -166,8 +173,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			opts := opencode.StartOpts{
 				ProjectPath: p.Path,
 				ProjectID:   p.ID,
-				Agent:       agent,
-				ExtraArgs:   extraArgs,
+				Agent:       resolvedAgent,
+				Prompt:      resolvedPrompt,
 			}
 			resolveProviderCreds(a, proj, &opts)
 			err := tuiShell.SuspendAndExec(func() error {
@@ -335,7 +342,12 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 			},
 			OnLaunchSession: func(agent string, extraArgs ...string) {
-				launchOpencode(agent, extraArgs...)
+				resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
+				if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
+					launchDevSession()
+					return
+				}
+				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
 			},
 			OnExitTeamMode: func() {
 				if tuiShell != nil {

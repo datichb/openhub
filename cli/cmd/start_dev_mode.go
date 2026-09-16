@@ -61,13 +61,13 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		return "orchestrator-dev", directPrompt, nil
 	}
 
-	// Query tickets
-	epics, err := beads.ListEpicsWithReadyChildren(launchPath)
+	// Query tickets — include both ready (todo) and in-progress (resumable)
+	epics, err := beads.ListEpicsWithDevPickableChildren(launchPath)
 	if err != nil {
 		slog.Warn("failed to list epics", "error", err)
 	}
 
-	withLabel, withoutLabel, err := beads.OrphanTickets(launchPath, labelFilter)
+	withLabel, withoutLabel, err := beads.DevPickableOrphanTickets(launchPath, labelFilter)
 	if err != nil {
 		return "", "", fmt.Errorf("querying tickets: %w", err)
 	}
@@ -99,7 +99,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		if labelFilter != "" {
 			label = labelFilter
 		}
-		return "", "", fmt.Errorf("%s", i18n.Tf("cmd.start.dev_no_tickets", label))
+		return "", "", fmt.Errorf("aucun ticket disponible (todo ou en cours) avec le label %q", label)
 	}
 
 	// Build picker
@@ -121,14 +121,14 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	}
 	for _, t := range withLabel {
 		items = append(items, pickerItem{
-			label:  fmt.Sprintf("[ai-delegated] %s — %s", t.ID, t.Title),
+			label:  fmt.Sprintf("[ai-delegated]%s %s — %s", devStatusTag(t.Status), t.ID, t.Title),
 			isEpic: false,
 			ticket: t,
 		})
 	}
 	for _, t := range withoutLabel {
 		items = append(items, pickerItem{
-			label:  fmt.Sprintf("%s — %s", t.ID, t.Title),
+			label:  fmt.Sprintf("%s%s — %s", t.ID, devStatusTag(t.Status), t.Title),
 			isEpic: false,
 			ticket: t,
 		})
@@ -157,7 +157,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	// Resolve tickets for selected item
 	var tickets []beads.Ticket
 	if selected.isEpic {
-		children, err := beads.ReadyChildren(launchPath, selected.epicID)
+		children, err := beads.DevPickableChildren(launchPath, selected.epicID)
 		if err != nil {
 			return "", "", fmt.Errorf("querying epic children: %w", err)
 		}
@@ -186,6 +186,15 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	devPrompt = prompt.BuildDevPrompt(tickets)
 	return "orchestrator-dev", devPrompt, nil
+}
+
+// devStatusTag returns a visual tag for the ticket status in the dev picker.
+// Ready tickets get no tag (default), in-progress tickets get " ▸EN COURS".
+func devStatusTag(status string) string {
+	if beads.IsInProgressStatus(status) {
+		return " ▸EN COURS"
+	}
+	return ""
 }
 
 // autoClaimTicket attempts to claim a ticket in team-state, printing status.

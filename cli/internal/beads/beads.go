@@ -229,6 +229,80 @@ func OrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []T
 	return withLabel, withoutLabel, nil
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dev picker variants — include both TODO and IN_PROGRESS tickets.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// DevPickableChildren returns children of an epic that are either ready or in-progress.
+func DevPickableChildren(projectPath, epicID string) ([]Ticket, error) {
+	children, err := Children(projectPath, epicID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pickable []Ticket
+	for _, t := range children {
+		if isDevPickableStatus(t.Status) {
+			pickable = append(pickable, t)
+		}
+	}
+	return pickable, nil
+}
+
+// ListEpicsWithDevPickableChildren returns epics that have at least one child
+// ticket in a dev-pickable status (ready or in-progress).
+func ListEpicsWithDevPickableChildren(projectPath string) ([]EpicWithCount, error) {
+	epics, err := ListEpics(projectPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []EpicWithCount
+	for _, epic := range epics {
+		children, err := DevPickableChildren(projectPath, epic.ID)
+		if err != nil {
+			continue
+		}
+		if len(children) > 0 {
+			result = append(result, EpicWithCount{
+				Ticket:     epic,
+				ReadyCount: len(children),
+			})
+		}
+	}
+	return result, nil
+}
+
+// DevPickableOrphanTickets returns tickets (ready or in-progress) that have no parent epic.
+// If labelFilter is non-empty, only returns tickets matching that label.
+func DevPickableOrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []Ticket, err error) {
+	all, err := ListAll(projectPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defaultLabel := "ai-delegated"
+	if labelFilter != "" {
+		defaultLabel = labelFilter
+	}
+
+	for _, t := range all {
+		if t.Type == "epic" || !isDevPickableStatus(t.Status) {
+			continue
+		}
+		if t.Parent != "" {
+			continue
+		}
+
+		if hasLabel(t, defaultLabel) {
+			withLabel = append(withLabel, t)
+		} else {
+			withoutLabel = append(withoutLabel, t)
+		}
+	}
+	return withLabel, withoutLabel, nil
+}
+
 // TicketDetail holds the full content of a bd ticket as returned by bd show --json.
 // Fields are optional — they are empty when not set on the ticket.
 // Field names match the exact JSON keys returned by bd (snake_case).
@@ -370,6 +444,23 @@ func isReadyStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// IsInProgressStatus returns true if the status indicates a ticket is currently being worked on.
+func IsInProgressStatus(status string) bool {
+	s := strings.ToLower(status)
+	switch s {
+	case "in_progress", "in-progress", "doing", "wip":
+		return true
+	default:
+		return false
+	}
+}
+
+// isDevPickableStatus returns true if the status indicates a ticket that can be
+// selected in the dev picker — either ready to start (todo) or resumable (in_progress).
+func isDevPickableStatus(status string) bool {
+	return isReadyStatus(status) || IsInProgressStatus(status)
 }
 
 // hasLabel checks if a ticket has a specific label.
