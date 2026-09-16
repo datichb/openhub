@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -20,21 +21,13 @@ func runTUIWithProject(projectName string) error {
 	a := MustApp()
 
 	// ── First-run detection ─────────────────────────────────────────────
-	// If no provider is configured and --no-tui was used (or no TTY),
-	// fall back to the standalone wizard. Otherwise, we launch the shell
-	// first and push an inline wizard inside it (see below).
+	// If no provider is configured, the inline wizard will be pushed into
+	// the TUI shell (see below). If the TUI cannot launch (no TTY, --no-tui),
+	// redirect to the CLI 'oh init' command.
 	firstRun := needsFirstRunWizard(a) && projectName == ""
 	if firstRun && !canLaunchTUI() {
-		completed := runFirstRunWizard(a)
-		if !completed {
-			return nil
-		}
-		var err error
-		a, err = ReloadApp()
-		if err != nil {
-			return fmt.Errorf("reload config after wizard: %w", err)
-		}
-		firstRun = false
+		fmt.Fprintln(a.IO.Out, i18n.T("cmd.init.wizard_no_tui_hint"))
+		return nil
 	}
 
 	homeViewID := "home"
