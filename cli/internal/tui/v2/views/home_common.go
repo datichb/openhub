@@ -1,9 +1,10 @@
 package views
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -61,7 +62,8 @@ type homeSectionItem struct {
 
 // toSectionItem converts a homeSectionItem to a widgets.SectionItem.
 // idx is the position in the original items slice, stored as Reference.
-// All icons are emoji (2-cell width) so a single space separator aligns labels.
+// Uses runewidth to ensure consistent alignment regardless of icon width
+// (emoji = 2 cells, geometric = 1 cell).
 func toSectionItem(it homeSectionItem, idx int) widgets.SectionItem {
 	if it.Icon == "─" {
 		return widgets.SectionItem{
@@ -69,8 +71,13 @@ func toSectionItem(it homeSectionItem, idx int) widgets.SectionItem {
 			IsHeader: true,
 		}
 	}
+	iconWidth := runewidth.StringWidth(it.Icon)
+	pad := 3 - iconWidth
+	if pad < 1 {
+		pad = 1
+	}
 	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s %s", it.Icon, it.Label),
+		MainText:      it.Icon + strings.Repeat(" ", pad) + it.Label,
 		SecondaryText: it.Desc,
 		Reference:     idx,
 	}

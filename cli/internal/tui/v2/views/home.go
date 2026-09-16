@@ -2,8 +2,10 @@ package views
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -330,8 +332,13 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 			IsHeader: true,
 		}
 	}
+	iconWidth := runewidth.StringWidth(it.Icon)
+	pad := 3 - iconWidth
+	if pad < 1 {
+		pad = 1
+	}
 	return widgets.SectionItem{
-		MainText:      fmt.Sprintf("%s %s", it.Icon, it.Label),
+		MainText:      it.Icon + strings.Repeat(" ", pad) + it.Label,
 		SecondaryText: it.Desc,
 		Reference:     idx,
 	}
