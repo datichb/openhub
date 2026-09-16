@@ -10,8 +10,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/opencode"
-	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -35,16 +33,6 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 			MemberID:  tc.MemberID,
 		}
 	}
-}
-
-// findOpencodeOrToast checks that the opencode binary exists, shows a toast if not.
-// Returns an error if the binary is not found.
-func findOpencodeOrToast() (string, error) {
-	bin, err := opencode.FindBinary()
-	if err != nil && tuiShell != nil {
-		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
-	}
-	return bin, err
 }
 
 // initBeadsForActiveProject initialises beads for the currently active project.
@@ -171,58 +159,6 @@ func resolveActiveProjectPath(a *app.App) string {
 		return ""
 	}
 	return projects[0].Path
-}
-
-// resolveProviderCreds populates provider credentials into opts.
-func resolveProviderCreds(a *app.App, project *domain.Project, opts *opencode.StartOpts) {
-	prov := project.Provider
-	if prov == "" {
-		prov = a.Config.Opencode.DefaultProvider
-	}
-	opts.Provider = prov
-
-	if a.Secrets == nil {
-		slog.Warn("secrets store non disponible — provider credentials non résolus",
-			"provider", prov,
-			"hint", "vérifiez que le keychain est accessible ou définissez OH_PASSPHRASE")
-		return
-	}
-
-	ctx := context.Background()
-	switch prov {
-	case "bedrock":
-		token, _ := a.Secrets.Get(ctx, "openhub.provider.bedrock.token."+project.ID)
-		if token == "" {
-			token, _ = a.Secrets.Get(ctx, "openhub.provider.bedrock.token")
-		}
-		if token == "" {
-			slog.Warn("bedrock token non trouvé",
-				"hint", "oh secrets set openhub.provider.bedrock.token <bearer-token>")
-		}
-		opts.BearerToken = token
-		opts.AWSProfile = a.Config.Provider.Bedrock.AWSProfile
-		opts.AWSRegion = a.Config.Provider.Bedrock.AWSRegion
-	case "anthropic":
-		key, _ := a.Secrets.Get(ctx, "openhub.provider.anthropic.token."+project.ID)
-		if key == "" {
-			key, _ = a.Secrets.Get(ctx, "openhub.provider.anthropic.token")
-		}
-		if key == "" {
-			slog.Warn("anthropic API key non trouvée",
-				"hint", "oh secrets set openhub.provider.anthropic.token <api-key>")
-		}
-		opts.APIKey = key
-	case "openrouter":
-		key, _ := a.Secrets.Get(ctx, "openhub.provider.openrouter.token."+project.ID)
-		if key == "" {
-			key, _ = a.Secrets.Get(ctx, "openhub.provider.openrouter.token")
-		}
-		if key == "" {
-			slog.Warn("openrouter API key non trouvée",
-				"hint", "oh secrets set openhub.provider.openrouter.token <api-key>")
-		}
-		opts.APIKey = key
-	}
 }
 
 // formatDeployAgeFromTime returns a human-readable relative time string for the home view.

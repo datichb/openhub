@@ -16,7 +16,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -166,26 +165,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				launchDevSession()
 				return
 			}
-			if _, err := findOpencodeOrToast(); err != nil {
-				return
-			}
 			proj := &domain.Project{ID: p.ID, Path: p.Path}
-			opts := opencode.StartOpts{
-				ProjectPath: p.Path,
-				ProjectID:   p.ID,
-				Agent:       resolvedAgent,
-				Prompt:      resolvedPrompt,
-			}
-			resolveProviderCreds(a, proj, &opts)
-			err := tuiShell.SuspendAndExec(func() error {
-				return opencode.Run(opts)
-			})
-			if err != nil {
-				slog.Warn("opencode session ended with error", "error", err)
-				tuiShell.ShowToast(fmt.Sprintf("Session: %s", err), shell.ToastWarning)
-			} else {
-				tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
-			}
+			launchSessionForProject(a, proj, resolvedAgent, resolvedPrompt)
 		},
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {

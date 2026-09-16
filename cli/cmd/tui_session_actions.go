@@ -110,45 +110,15 @@ func translateOhFlags(agent string, extraArgs ...string) (resolvedAgent, resolve
 // Session launchers — inline prompts au lieu de modal overlays
 // ─────────────────────────────────────────────────────────────────────────────
 
-// actionOpencode returns a menu action callback that suspends the TUI and launches opencode.
-// Used by the "quick" command — no extra flags, just agent + optional prompt.
+// actionOpencode returns a menu action callback that launches opencode
+// via the unified launcher pipeline. Used by the "coder" omnibar command
+// and the Hub Home session links.
 func actionOpencode(agent, sessionPrompt string) func() {
 	return func() {
 		if tuiShell == nil {
 			return
 		}
-
-		// Pre-flight: check binary exists
-		if _, err := opencode.FindBinary(); err != nil {
-			tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
-			return
-		}
-
-		a := MustApp()
-		project, err := resolveActiveProject(a)
-		if err != nil {
-			tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
-			return
-		}
-
-		opts := opencode.StartOpts{
-			ProjectPath: project.Path,
-			ProjectID:   project.ID,
-			Agent:       agent,
-			Prompt:      sessionPrompt,
-		}
-
-		resolveProviderCreds(a, project, &opts)
-
-		err = tuiShell.SuspendAndExec(func() error {
-			return opencode.Run(opts)
-		})
-		if err != nil {
-			slog.Warn("opencode session ended with error", "error", err)
-			tuiShell.ShowToast(fmt.Sprintf("Session: %s", err), shell.ToastWarning)
-		} else {
-			tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
-		}
+		launchSessionWithPrompt(agent, sessionPrompt)
 	}
 }
 
@@ -283,24 +253,21 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 	launchSessionForProject(a, project, agent, sessionPrompt)
 }
 
-// launchSessionForProject launches an opencode session on the given project.
-// Only passes --agent and --prompt to opencode (flags it understands).
+// launchSessionForProject launches an opencode session on the given project
+// via the unified launcher pipeline (session tracking, credentials, team events).
 func launchSessionForProject(a *app.App, project *domain.Project, agent, sessionPrompt string) {
-	opts := opencode.StartOpts{
-		ProjectPath: project.Path,
+	l := launcher.New(a, launcher.NewTUIUI(tuiShell.SuspendAndExec, tuiShell.ShowToastMsg))
+	err := l.Launch(context.Background(), launcher.LaunchOpts{
 		ProjectID:   project.ID,
+		ProjectPath: project.Path,
 		Agent:       agent,
 		Prompt:      sessionPrompt,
-	}
-	resolveProviderCreds(a, project, &opts)
-
-	err := tuiShell.SuspendAndExec(func() error {
-		return opencode.Run(opts)
+		SkipSummary: true,
+		SkipConfirm: true,
+		SkipDeploy:  true, // TUI auto-deploy is handled at project mode entry
 	})
 	if err != nil {
-		tuiShell.ShowToast("Session terminée avec erreur", shell.ToastWarning)
-	} else {
-		tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
+		slog.Warn("TUI session ended with error", "error", err)
 	}
 }
 
@@ -368,15 +335,17 @@ func launchDevSession() {
 		if devErr != nil {
 			return devErr
 		}
-		// Build opts and launch opencode in the same suspended context.
-		opts := opencode.StartOpts{
-			ProjectPath: project.Path,
+		// Already inside SuspendAndExec — use CLI UI (no re-suspend).
+		l := launcher.New(a, launcher.NewCLIUI(nil))
+		return l.Launch(context.Background(), launcher.LaunchOpts{
 			ProjectID:   project.ID,
+			ProjectPath: project.Path,
 			Agent:       devAgent,
 			Prompt:      devPrompt,
-		}
-		resolveProviderCreds(a, project, &opts)
-		return opencode.Run(opts)
+			SkipSummary: true,
+			SkipConfirm: true,
+			SkipDeploy:  true,
+		})
 	})
 	if devErr != nil {
 		tuiShell.ShowToast(fmt.Sprintf("Dev: %s", devErr), shell.ToastWarning)
