@@ -5,6 +5,7 @@ dist/
 # Embedded hub content (build artifact, populated by goreleaser/make)
 internal/hubcontent/hub/agents/
 internal/hubcontent/hub/skills/
+internal/hubcontent/hub/permissions/
 
 # Test coverage
 coverage.out

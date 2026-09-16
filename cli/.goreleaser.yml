@@ -10,7 +10,7 @@ release:
 before:
   hooks:
     - go mod tidy
-    - sh -c "rm -rf internal/hubcontent/hub && mkdir -p internal/hubcontent/hub && cp -r ../agents internal/hubcontent/hub/agents && cp -r ../skills internal/hubcontent/hub/skills"
+    - sh -c "rm -rf internal/hubcontent/hub && mkdir -p internal/hubcontent/hub && cp -r ../agents internal/hubcontent/hub/agents && cp -r ../skills internal/hubcontent/hub/skills && cp -r ../permissions internal/hubcontent/hub/permissions"
 
 builds:
   - main: .
