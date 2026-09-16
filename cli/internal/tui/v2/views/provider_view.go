@@ -246,7 +246,7 @@ func (v *ProviderView) buildLines() {
 				return v.selectedProvider == "bedrock" && cfg.Provider.Bedrock.AuthMode == "bearer"
 			},
 			get: func(_ *config.Config) string {
-				return v.cachedSecretDisplay("bedrock-token-default")
+				return v.cachedSecretDisplay(provider.KeychainKey(provider.Bedrock, ""))
 			},
 		},
 	)
@@ -327,7 +327,7 @@ func (v *ProviderView) prefetchDetections() map[string]provider.DetectionResult 
 func (v *ProviderView) prefetchSecrets() map[string]secretCacheEntry {
 	ctx := context.Background()
 	keys := []string{
-		"bedrock-token-default",
+		provider.KeychainKey(provider.Bedrock, ""),
 		provider.KeychainKey(provider.Anthropic, ""),
 		provider.KeychainKey(provider.OpenRouter, ""),
 	}
@@ -565,7 +565,7 @@ func (v *ProviderView) editCurrent() {
 			name := provider.Name(line.provider)
 			keychainKey := provider.KeychainKey(name, "")
 			if line.provider == "bedrock" {
-				keychainKey = "bedrock-token-default"
+				keychainKey = provider.KeychainKey(provider.Bedrock, "")
 			}
 			if keychainKey != "" {
 				_ = v.vcfg.SetSecret(context.Background(), keychainKey, val)
@@ -633,7 +633,7 @@ func (v *ProviderView) resetCurrentProvider() {
 			case "bedrock":
 				cfg.Provider.Bedrock = config.ProviderConfig{}
 				if v.vcfg.DeleteSecret != nil {
-					_ = v.vcfg.DeleteSecret(context.Background(), "bedrock-token-default")
+					_ = v.vcfg.DeleteSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""))
 				}
 			case "anthropic":
 				cfg.Provider.Anthropic = config.ProviderConfig{}
@@ -736,7 +736,7 @@ func (v *ProviderView) setupBedrock() {
 						return
 					}
 					if v.vcfg.SetSecret != nil {
-						_ = v.vcfg.SetSecret(context.Background(), "bedrock-token-default", token)
+						_ = v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token)
 					}
 					if region := values["region"]; region != "" {
 						cfg.Provider.Bedrock.AWSRegion = region

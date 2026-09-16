@@ -186,7 +186,10 @@ func runFirstRunWizard(a *app.App) bool {
 						vip.Set("provider.bedrock.aws_profile", profile)
 					}
 					if authMode == "bearer" && token != "" && a.Secrets != nil {
-						_ = a.Secrets.Set(context.Background(), "bedrock-token-default", token)
+						keychainKey := provider.KeychainKey(provider.Bedrock, "")
+						if keychainKey != "" {
+							_ = a.Secrets.Set(context.Background(), keychainKey, token)
+						}
 					}
 				case "anthropic":
 					if token != "" && a.Secrets != nil {
@@ -423,7 +426,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 						vip.Set("provider.bedrock.aws_profile", profileName)
 					}
 					if authMode == "bearer" && token != "" && a.Secrets != nil {
-						_ = a.Secrets.Set(context.Background(), "bedrock-token-default", token)
+						keychainKey := provider.KeychainKey(provider.Bedrock, "")
+						if keychainKey != "" {
+							_ = a.Secrets.Set(context.Background(), keychainKey, token)
+						}
 					}
 				case "anthropic":
 					if token != "" && a.Secrets != nil {
