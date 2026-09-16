@@ -1,0 +1,241 @@
+// Package launcher provides a unified session launch pipeline.
+//
+// Every path that starts an opencode session (CLI oh start, TUI project mode,
+// TUI omnibar, board quick actions, oh audit/review/debug) converges through
+// Launcher.Launch(). This ensures consistent behaviour: compatibility checks,
+// auto-deploy, session tracking, team-state events, and provider credential
+// resolution happen once, in one place.
+package launcher
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/prompt"
+	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/teamstate"
+)
+
+// Launcher orchestrates the full session launch pipeline.
+type Launcher struct {
+	App *app.App
+	UI  LaunchUI
+}
+
+// New creates a Launcher with the given app and UI layer.
+func New(a *app.App, ui LaunchUI) *Launcher {
+	return &Launcher{App: a, UI: ui}
+}
+
+// Launch executes the full session launch pipeline.
+//
+// The caller is responsible for resolving the project (opts.ProjectID/ProjectPath)
+// and the agent+prompt before calling Launch. The launcher handles:
+//   - compatibility check
+//   - provider + credentials resolution
+//   - stack detection
+//   - auto-deploy (unless SkipDeploy)
+//   - session summary (unless SkipSummary)
+//   - launch confirmation (unless SkipConfirm)
+//   - session persistence (create + update)
+//   - opencode.Run()
+//   - post-session team-state events
+func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
+	a := l.App
+
+	// ── 1. Compatibility check ──
+	if ocVersion, err := opencode.Version(); err == nil {
+		compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
+		if !compat.Compatible {
+			l.UI.Notify(compat.Warning, LevelWarning)
+		}
+	}
+
+	// ── 2. Resolve launch path ──
+	launchPath := opts.ProjectPath
+	if launchPath == "" {
+		return fmt.Errorf("launcher: project path is required")
+	}
+
+	// ── 3. Resolve provider ──
+	prov := opts.Provider
+	if prov == "" {
+		// Look up from project DB
+		if opts.ProjectID != "" && a.Projects != nil {
+			if proj, err := a.Projects.Get(ctx, opts.ProjectID); err == nil && proj.Provider != "" {
+				prov = proj.Provider
+			}
+		}
+	}
+	if prov == "" {
+		prov = a.Config.Opencode.DefaultProvider
+	}
+	if prov == "" {
+		prov = "bedrock"
+	}
+
+	// ── 4. Resolve credentials ──
+	var bearerToken, apiKey, awsProfile, awsRegion string
+	if a.Secrets != nil {
+		bearerToken, apiKey, awsProfile, awsRegion = l.resolveCredentials(ctx, opts.ProjectID, prov)
+	}
+
+	// ── 5. Detect stack ──
+	stack := prompt.DetectStack(launchPath)
+
+	// ── 6. Auto-deploy ──
+	if !opts.SkipDeploy && opts.DeployFunc != nil {
+		opts.DeployFunc(a, prov)
+	}
+
+	// ── 7. Summary ──
+	if !opts.SkipSummary && opts.SummaryFunc != nil {
+		opts.SummaryFunc(prov, stack, bearerToken)
+	}
+
+	// ── 8. Confirmation ──
+	if !opts.SkipConfirm {
+		ok, err := l.UI.Confirm("Press Enter to launch opencode...")
+		if err != nil || !ok {
+			return err
+		}
+	}
+
+	// ── 9. Persist session ──
+	session := &domain.Session{
+		ID:         uuid.New().String(),
+		ProjectID:  opts.ProjectID,
+		Status:     domain.SessionStatusRunning,
+		Provider:   prov,
+		LaunchPath: launchPath,
+	}
+
+	// Inject member_id from team config if available
+	var resolved config.ResolvedTeamConfig
+	if opts.ProjectID != "" && a.Projects != nil {
+		if proj, err := a.Projects.Get(ctx, opts.ProjectID); err == nil {
+			resolved = config.ResolveTeamForProject(a.Config, proj)
+			if resolved.Enabled && resolved.MemberID != "" {
+				mid := resolved.MemberID
+				session.MemberID = &mid
+			}
+		}
+	}
+
+	if a.Sessions != nil {
+		if err := a.Sessions.Create(ctx, session); err != nil {
+			slog.Warn("session tracking failed", "error", err)
+		}
+	}
+
+	// ── 10. Build StartOpts and run ──
+	startOpts := opencode.StartOpts{
+		ProjectPath: launchPath,
+		ProjectID:   opts.ProjectID,
+		Agent:       opts.Agent,
+		Prompt:      opts.Prompt,
+		Provider:    prov,
+		BearerToken: bearerToken,
+		APIKey:      apiKey,
+		AWSProfile:  awsProfile,
+		AWSRegion:   awsRegion,
+		ExtraArgs:   opts.ExtraArgs,
+	}
+
+	var runErr error
+	if l.UI.SuspendAndExec() != nil {
+		// TUI mode: suspend the UI, run opencode, then resume
+		runErr = l.UI.SuspendAndExec()(func() error {
+			return opencode.Run(startOpts)
+		})
+	} else {
+		// CLI mode: run directly
+		runErr = opencode.Run(startOpts)
+	}
+
+	// ── 11. Post-run: update session ──
+	if a.Sessions != nil && session.ID != "" {
+		if runErr != nil {
+			session.Status = domain.SessionStatusFailed
+		} else {
+			session.Status = domain.SessionStatusCompleted
+		}
+		now := time.Now()
+		session.EndedAt = &now
+		_ = a.Sessions.Update(ctx, session)
+
+		// Emit session.complete event to team-state (async, non-blocking)
+		if resolved.Enabled && resolved.MemberID != "" && resolved.StateRepo != "" {
+			repo := teamstate.NewRepo(resolved.StateRepo, resolved.StatePath)
+			if repo.IsCloned() {
+				durationSec := 0.0
+				if session.EndedAt != nil {
+					durationSec = session.EndedAt.Sub(session.StartedAt).Seconds()
+				}
+				event := teamstate.NewSessionCompleteEvent(resolved.MemberID, session.ProjectID, map[string]interface{}{
+					"session_id": session.ID,
+					"duration_s": durationSec,
+					"tokens_in":  session.TokensIn,
+					"tokens_out": session.TokensOut,
+					"provider":   session.Provider,
+					"model":      session.Model,
+					"status":     string(session.Status),
+				})
+				repo.AppendEventAsync(event)
+			}
+		}
+	}
+
+	return runErr
+}
+
+// resolveCredentials extracts provider-specific credentials from secrets.
+// Uses provider.KeychainKey() for canonical key naming.
+func (l *Launcher) resolveCredentials(ctx context.Context, projectID, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
+	a := l.App
+	provName := provider.Name(prov)
+	switch provName {
+	case provider.Bedrock:
+		bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
+		if bearerToken == "" {
+			bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
+		}
+		// AWS profile/region: project override → hub config
+		if projectID != "" && a.Projects != nil {
+			if proj, err := a.Projects.Get(ctx, projectID); err == nil && proj.ProviderConfig != nil {
+				if proj.ProviderConfig.AWSProfile != "" {
+					awsProfile = proj.ProviderConfig.AWSProfile
+				}
+				if proj.ProviderConfig.AWSRegion != "" {
+					awsRegion = proj.ProviderConfig.AWSRegion
+				}
+			}
+		}
+		if awsProfile == "" {
+			awsProfile = a.Config.Provider.Bedrock.AWSProfile
+		}
+		if awsRegion == "" {
+			awsRegion = a.Config.Provider.Bedrock.AWSRegion
+		}
+	case provider.Anthropic:
+		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
+		if apiKey == "" {
+			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
+		}
+	case provider.OpenRouter:
+		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
+		if apiKey == "" {
+			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
+		}
+	}
+	return
+}
