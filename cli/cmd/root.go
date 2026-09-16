@@ -67,15 +67,13 @@ et fournit un TUI interactif pour le suivi de développement.`,
 			return nil
 		}
 
-		// Gate: require hub initialization (except for init, doctor, and purge)
+		// Auto-bootstrap hub content if needed (extract embedded agents/skills/permissions).
+		// This replaces the former hard gate that required `oh init` before any command.
+		// The TUI's inline first-run wizard handles the rest (provider, credentials, project).
 		if cmd.Name() != "init" && cmd.Name() != "doctor" && cmd.Name() != "purge" {
-			if !hubcontent.IsInstalled() {
-				return fmt.Errorf("hub not initialized. Run 'oh init' first")
-			}
-			// Auto-upgrade hub content silently on version mismatch
 			if hubcontent.NeedsExtract() {
 				if err := hubcontent.Extract(hubcontent.HubContentDir()); err != nil {
-					slog.Warn("failed to auto-upgrade hub content", "error", err)
+					slog.Warn("failed to extract hub content", "error", err)
 				}
 			}
 		}
