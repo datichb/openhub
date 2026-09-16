@@ -100,7 +100,7 @@ Configure a fallback provider in `hub.json`. Rejected for this iteration because
 - Detection of the `/chat/completions` suffix prevents a recurring issue with MammouthAI.
 - litellm providers work correctly without `ProviderModelNotFoundError`.
 - Coverage of all entry paths (`adapter_start`) ensures the warning appears even from
-  `oh quick`, `oh review`, `oh audit`, etc.
+  `oh start`, `oh review`, `oh audit`, etc.
 
 ### Negative / constraints
 

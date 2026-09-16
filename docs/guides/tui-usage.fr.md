@@ -57,19 +57,9 @@ Les resultats d'actions apparaissent en toasts dans le coin haut-droit (succes/e
 | `start` | Lancer une session (affiche le selecteur : Standard, Dev, Onboard) |
 | `start dev` | Mode dev directement (workflow tickets) |
 | `start onboard` | Mode onboard directement (decouverte projet) |
-| `quick` | Lancement direct d'opencode (sans selection de mode) |
+| `coder` | Coder (session libre) |
 | `audit` | Lanceur d'audit (choisir le type) |
-| `audit security` | Audit securite |
-| `audit performance` | Audit performance |
-| `audit architecture` | Audit architecture |
-| `audit accessibility` | Audit accessibilite |
-| `audit ecodesign` | Audit eco-conception |
-| `audit observability` | Audit observabilite |
 | `review` | Lanceur de review (choisir le mode) |
-| `review standard` | Revue de code standard |
-| `review adversarial` | Revue adversariale |
-| `review edge` | Revue edge cases |
-| `review complete` | Revue complete (tous les modes) |
 | `debug` | Session debug avec description du probleme |
 | `parallel` | Vue sessions paralleles (multi-tickets) |
 

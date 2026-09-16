@@ -102,7 +102,7 @@ Configurer un provider de secours dans `hub.json`. Rejeté pour cette itération
 - La détection du suffixe `/chat/completions` prévient un problème récurrent avec MammouthAI.
 - Les providers litellm fonctionnent correctement sans `ProviderModelNotFoundError`.
 - La couverture de tous les chemins d'entrée (`adapter_start`) garantit le warning même
-  depuis `oh quick`, `oh review`, `oh audit`, etc.
+  depuis `oh start`, `oh review`, `oh audit`, etc.
 
 ### Négatives / contraintes
 

@@ -52,7 +52,7 @@ oh serve                       # Dashboard web local sur http://127.0.0.1:8080
 | `oh start` | Lancer une session opencode |
 | `oh start --dev` | Mode dev : picker tickets + orchestrator-dev |
 | `oh start --onboard` | Onboarding : creer/enrichir le wiki projet |
-| `oh quick` | Tache rapide avec detection auto du projet |
+| `oh start --recap` | Lancer avec récap de configuration |
 | `oh deploy` | Deployer agents, skills, config, MCP |
 | `oh sync` | Synchroniser tous les projets enregistres |
 | `oh project list` | Lister les projets enregistres |
@@ -171,8 +171,8 @@ oh deploy
 
 | Commande | Description |
 |----------|-------------|
-| `oh start` | Lancer une session IA (avec confirmation) |
-| `oh quick` | Lancer immediatement (sans confirmation) |
+| `oh start --recap` | Lancer avec récap de configuration + confirmation |
+| `oh start` | Lancer immédiatement (mode rapide par défaut) |
 | `oh start --dev` | Mode dev : choisir des tickets a implementer |
 | `oh start --onboard` | Decouvrir et documenter un codebase |
 | `oh start --parallel` | Sessions paralleles sur plusieurs tickets |

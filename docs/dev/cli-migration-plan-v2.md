@@ -267,7 +267,7 @@ type Plugin interface {
 **Objectif** : Pouvoir lancer une session opencode depuis `oh`.
 
 - `oh start` (préparation contexte + exec opencode)
-- `oh quick` (lancement rapide, sélection projet)
+- `oh start` (lancement rapide par défaut, sélection projet)
 - `oh worktree` (gestion git worktrees)
 - Modules : opencode (auto-download, version check, exec), prompt-builder, session-state
 
@@ -370,7 +370,7 @@ cd cli && go build -o oh . && mv oh /usr/local/bin/
 |-------|--------|-----------|
 | Phase 1 — Fondations | DONE | go mod, Cobra root, config TOML, i18n JSON, project SQLite, keychain, TUI styles, Makefile, GoReleaser, CI |
 | Phase 2 — Registre et config | DONE | `oh init`, `oh config`, `oh project`, `oh status`, `oh doctor`, picker TUI full-screen |
-| Phase 3 — Session et lancement | DONE | `oh start`, `oh quick`, `oh worktree`, modules opencode (exec/find), prompt (stack detect) |
+| Phase 3 — Session et lancement | DONE | `oh start`, `oh worktree`, modules opencode (exec/find), prompt (stack detect) |
 | Phase 4 — Déploiement | DONE | `oh deploy` (transactionnel avec rollback), `oh sync`, `oh agent`, `oh skills`, `oh plugin` |
 | Phase 5 — TUI avancé | DONE | `oh board` (kanban Bubbletea), `oh dashboard`, `oh metrics`, `oh optimize`, `oh yield` |
 | Phase 6 — MCP servers | DONE | `oh mcp serve` (figma/gitlab/gslides), protocole JSON-RPC stdio |

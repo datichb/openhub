@@ -57,19 +57,9 @@ Action results appear as toasts in the top-right corner (success/error/info). Th
 | `start` | Launch a session (shows mode picker: Standard, Dev, Onboard) |
 | `start dev` | Dev mode directly (ticket workflow) |
 | `start onboard` | Onboard mode directly (project discovery) |
-| `quick` | Direct opencode launch (no mode selection) |
+| `coder` | Launch opencode (free session) |
 | `audit` | Audit launcher (picks audit type) |
-| `audit security` | Security audit |
-| `audit performance` | Performance audit |
-| `audit architecture` | Architecture audit |
-| `audit accessibility` | Accessibility audit |
-| `audit ecodesign` | Eco-design audit |
-| `audit observability` | Observability audit |
 | `review` | Review launcher (picks review mode) |
-| `review standard` | Standard code review |
-| `review adversarial` | Adversarial review |
-| `review edge` | Edge case review |
-| `review complete` | Complete review (all modes) |
 | `debug` | Debug session with issue description |
 | `parallel` | Parallel sessions view (multi-ticket) |
 

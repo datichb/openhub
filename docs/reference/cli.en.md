@@ -33,7 +33,7 @@ Launch an opencode coding session.
 | `--assignee` | `-A` | string | Filter tickets by assignee (requires --dev) |
 | `--onboard` | | bool | Onboarding mode: creates/enriches project wiki |
 | `--refresh` | | bool | Force wiki re-discovery (requires --onboard) |
-| `--yes` | `-y` | bool | Skip confirmation and launch immediately |
+| `--recap` | | bool | Show summary and ask for confirmation before launching |
 
 ```bash
 oh start -p my-app -m "Fix the login bug"
@@ -41,18 +41,7 @@ oh start --resume abc123-session-id
 oh start -w feature/auth -a architect
 oh start --dev -l "priority:high" -A me
 oh start --onboard --refresh
-oh start -m "Refactor the auth module" -y
-```
-
----
-
-### oh quick
-
-Auto-detects project from cwd and launches opencode directly. No flags, no prompts.
-
-```bash
-cd ~/projects/my-app
-oh quick
+oh start -m "Refactor the auth module" --recap
 ```
 
 ---

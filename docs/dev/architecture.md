@@ -65,7 +65,6 @@ cli/
 │   ├── status.go                        # oh status
 │   ├── doctor.go                        # oh doctor
 │   ├── start.go                         # oh start (résolution projet, exec opencode)
-│   ├── quick.go                         # oh quick (sélection rapide)
 │   ├── project.go                       # oh project (parent)
 │   ├── project_list.go                  # oh project list
 │   ├── project_add.go                   # oh project add (interactif ou flags)

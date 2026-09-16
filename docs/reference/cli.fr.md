@@ -42,7 +42,7 @@ oh start [options]
 | `--assignee` | `-A` | Filtrer tickets par assignee (requiert --dev) |
 | `--onboard` | | Mode onboarding : cree/enrichit le wiki projet |
 | `--refresh` | | Force la re-decouverte du wiki (requiert --onboard) |
-| `--yes` | `-y` | Lancer directement sans confirmation |
+| `--recap` | | Afficher le récap et demander confirmation |
 
 **Exemple :**
 
@@ -51,25 +51,6 @@ oh start -p mon-projet -a coder -m "Ajoute un endpoint /health"
 oh start --resume abc123-def456
 oh start --worktree feat/auth --dev -l "priority:high"
 oh start --onboard --refresh
-```
-
----
-
-### oh quick
-
-Lancement rapide. Detection auto du projet depuis le repertoire courant.
-
-```
-oh quick
-```
-
-Pas de flags. Detecte automatiquement le projet et lance une session courte.
-
-**Exemple :**
-
-```bash
-cd ~/projects/api-gateway
-oh quick
 ```
 
 ---

@@ -129,7 +129,7 @@ oh start -a orchestrator     # use specific agent
 oh start -m "explain..."     # with initial prompt
 oh start --dev               # dev mode: pick epics/tickets
 oh start --onboard           # create project wiki
-oh start -y                  # skip confirmation prompt
+oh start --recap              # show configuration recap + confirmation
 oh start -r <session-id>     # resume a previous session
 ```
 
@@ -139,13 +139,13 @@ The start flow:
 2. Resolves provider and bearer token
 3. Detects project stack (language/framework)
 4. Displays a rich configuration recap
-5. Waits for confirmation (Press Enter or `--yes` to skip)
+5. Launches directly (use `--recap` to show summary + confirmation)
 6. Launches opencode
 
-## Quick Start (no recap)
+## Quick Start
 
 ```bash
-oh quick                     # auto-detect project, launch immediately
+oh start                     # auto-detect project, launch immediately
 ```
 
 ## Day-to-Day Commands
@@ -154,7 +154,6 @@ oh quick                     # auto-detect project, launch immediately
 
 ```bash
 oh start                     # launch AI session
-oh quick                     # launch AI session (skip confirmation)
 oh deploy                    # deploy/sync agents to current project
 oh status                    # show hub and current project status
 oh doctor                    # system health check

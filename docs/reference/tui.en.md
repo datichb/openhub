@@ -89,20 +89,10 @@ Accepts text input with fuzzy suggestions displayed above:
 | `start` | session, code, launch | Launch an opencode session (with mode selector) |
 | `start dev` | dev, ticket | Dev-oriented session |
 | `start onboard` | onboard | Project onboarding session |
-| `audit` | — | Launch an audit (type selector) |
-| `audit security` | secu | Security audit (OWASP) |
-| `audit performance` | perf | Performance audit |
-| `audit architecture` | archi | Architecture audit |
-| `audit accessibility` | a11y | Accessibility audit |
-| `audit ecodesign` | eco | Environmental impact audit |
-| `audit observability` | obs | Observability audit |
-| `review` | rev, cr | Launch a code review |
-| `review standard` | — | Classic code review |
-| `review adversarial` | adversarial | Adversarial review |
-| `review edge` | edge | Edge-case focused review |
-| `review complete` | complete, all | Full review (all modes) |
+| `audit` | — | Launch an audit (type picker) |
+| `review` | rev, cr | Launch a code review (mode picker) |
 | `debug` | dbg | Debug session (with issue prompt) |
-| `quick` | q, fast | Launch opencode directly |
+| `coder` | quick, q, fast | Launch opencode (free session) |
 | `parallel` | par, multi | Parallel sessions view |
 
 ### Projects

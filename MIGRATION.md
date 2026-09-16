@@ -71,7 +71,7 @@ oh deploy -p mon-projet
 | `oc start --parallel` | `oh start --dev` (multi-tickets) | Orchestrator gere le parallele |
 | `oc start --resume` | `oh start --resume ID` | |
 | `oc start --worktree BRANCH` | `oh start --worktree BRANCH` | |
-| `oc quick PROJECT "prompt"` | `oh quick` | Selection interactive |
+| `oc quick PROJECT "prompt"` | `oh start` | Quick launch is now the default |
 | `oc deploy opencode PROJECT` | `oh deploy -p PROJECT` | |
 | `oc deploy --check` | `oh deploy --check` | |
 | `oc deploy --diff` | `oh deploy --diff` | |

@@ -129,7 +129,7 @@ oh start -a orchestrator     # utiliser un agent specifique
 oh start -m "explique..."    # avec un prompt initial
 oh start --dev               # mode dev : choisir epics/tickets
 oh start --onboard           # creer le wiki du projet
-oh start -y                  # passer la confirmation
+oh start --recap              # afficher le récap + confirmation
 oh start -r <session-id>     # reprendre une session precedente
 ```
 
@@ -139,13 +139,13 @@ Le flux de demarrage :
 2. Resout le fournisseur et le token d'authentification
 3. Detecte la stack du projet (langage/framework)
 4. Affiche un recap de configuration detaille
-5. Attend la confirmation (Entree ou `--yes` pour passer)
+5. Lance directement (utilisez `--recap` pour afficher le récap + confirmation)
 6. Lance opencode
 
-## Demarrage rapide (sans recap)
+## Démarrage rapide
 
 ```bash
-oh quick                     # detection auto du projet, lancement immediat
+oh start                     # détection auto du projet, lancement immédiat
 ```
 
 ## Commandes quotidiennes
@@ -154,7 +154,6 @@ oh quick                     # detection auto du projet, lancement immediat
 
 ```bash
 oh start                     # lancer une session IA
-oh quick                     # lancer une session IA (sans confirmation)
 oh deploy                    # deployer/sync agents dans le projet courant
 oh status                    # afficher le statut du hub et du projet courant
 oh doctor                    # verification de sante du systeme

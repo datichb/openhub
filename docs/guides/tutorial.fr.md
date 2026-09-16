@@ -239,8 +239,8 @@ Vous avez maintenant un setup OpenHub fonctionnel. Voici vos prochaines etapes :
 ```
 oh init                 # assistant de configuration initiale
 oh deploy               # deployer agents/skills dans le projet courant
-oh start                # lancer une session IA (avec confirmation)
-oh quick                # lancer une session IA (sans confirmation)
+oh start                # lancer une session IA (lancement rapide)
+oh start --recap        # lancer une session IA (avec récap + confirmation)
 oh start --dev          # mode dev : choisir des tickets a implementer
 oh start --onboard      # decouvrir et documenter un codebase
 oh doctor               # diagnostiquer les problemes

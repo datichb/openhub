@@ -90,19 +90,9 @@ Accepte la saisie avec suggestions fuzzy au-dessus :
 | `start dev` | dev, ticket | Session orientée développement |
 | `start onboard` | onboard | Session d'onboarding projet |
 | `audit` | — | Lancer un audit (sélecteur de type) |
-| `audit security` | secu | Audit de sécurité (OWASP) |
-| `audit performance` | perf | Audit de performance |
-| `audit architecture` | archi | Audit d'architecture |
-| `audit accessibility` | a11y | Audit d'accessibilité |
-| `audit ecodesign` | eco | Audit éco-conception |
-| `audit observability` | obs | Audit d'observabilité |
-| `review` | rev, cr | Lancer une code review |
-| `review standard` | — | Review classique |
-| `review adversarial` | adversarial | Review adversariale |
-| `review edge` | edge | Review cas limites |
-| `review complete` | complete, all | Review complète (tous les modes) |
+| `review` | rev, cr | Lancer une code review (sélecteur de mode) |
 | `debug` | dbg | Session debug (avec prompt de description) |
-| `quick` | q, fast | Lancer opencode directement |
+| `coder` | quick, q, fast | Coder (session libre) |
 | `parallel` | par, multi | Vue sessions parallèles |
 
 ### Projets

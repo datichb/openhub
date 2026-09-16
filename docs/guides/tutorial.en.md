@@ -239,8 +239,8 @@ You now have a working OpenHub setup. Here are your next steps:
 ```
 oh init                 # first-time setup wizard
 oh deploy               # deploy agents/skills to current project
-oh start                # launch AI session (with confirmation)
-oh quick                # launch AI session (no confirmation)
+oh start                # launch AI session (quick launch)
+oh start --recap        # launch AI session (with recap + confirmation)
 oh start --dev          # dev mode: pick tickets to implement
 oh start --onboard      # discover and document a codebase
 oh doctor               # diagnose issues
