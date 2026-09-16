@@ -415,13 +415,12 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 	// Collect section headers from right column
 	rightHeaders := collectHeaders(right)
 
-	// Left should contain: Teams, System (and Doctor/Secrets are items under System, not section headers)
+	// Left should contain: Sessions, Teams, System
 	assert.Contains(t, leftHeaders, "Teams")
 	assert.Contains(t, leftHeaders, "System")
 
-	// Right should contain: Projects, Quick Actions
+	// Right should contain: Projects (replaces old Quick Actions)
 	assert.Contains(t, rightHeaders, "Projects")
-	assert.Contains(t, rightHeaders, "Quick Actions")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

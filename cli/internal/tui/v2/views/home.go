@@ -198,24 +198,34 @@ func (v *HomeView) executeItem(idx int) {
 	}
 }
 
-// buildStaticItems returns items that don't require I/O (System + Actions rapides).
+// buildStaticItems returns items that don't require I/O (Sessions + System + Projets).
 // Used for the initial synchronous frame before async data arrives.
 func (v *HomeView) buildStaticItems() []homeItem {
 	var items []homeItem
+
+	// ── Sessions section (4 links — each asks for project first) ──
+	if v.cfg.OnLaunchSession != nil {
+		launch := v.cfg.OnLaunchSession
+		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), Desc: ""})
+		items = append(items,
+			homeItem{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
+			homeItem{Icon: "▶", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
+			homeItem{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
+			homeItem{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() { launch("reviewer") }},
+		)
+	}
 
 	// ── System / navigation ──
 	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
 	items = append(items,
 		homeItem{Icon: "⊟", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
 		homeItem{Icon: "◎", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
-		homeItem{Icon: "⊛", Label: i18n.T("tui.home.worktrees"), Desc: i18n.T("tui.home.worktrees_desc"), ViewID: "worktrees"},
 		homeItem{Icon: "◈", Label: i18n.T("tui.home.doctor"), Desc: i18n.T("tui.home.doctor_desc"), ViewID: "doctor"},
 		homeItem{Icon: "🔑", Label: i18n.T("tui.home.secrets"), Desc: i18n.T("tui.home.secrets_desc"), ViewID: "secrets"},
-		homeItem{Icon: "🔔", Label: i18n.T("tui.home.notifications"), Desc: i18n.T("tui.home.notifications_desc"), ViewID: "notifications"},
 	)
 
-	// ── Quick actions (displayed in right column for balance) ──
-	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.actions"), Desc: ""})
+	// ── Projets (enriched — replaces old "Quick Actions") ──
+	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.projects"), Desc: ""})
 	items = append(items,
 		homeItem{Icon: "+", Label: i18n.T("tui.home.project_add"), Desc: i18n.T("tui.home.project_add_desc"), Action: func() {
 			if v.cfg.OnAddProject != nil {
@@ -290,12 +300,11 @@ func (v *HomeView) buildItems() []homeItem {
 }
 
 // splitItems distributes home items into left/right columns for dual mode.
-// Left: Équipes + Système. Right: Projets + Actions rapides.
+// Left: Sessions + Teams + System. Right: Projects.
 func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
 	// Identify which sections go right
 	rightSections := map[string]bool{
 		i18n.T("tui.home.section.projects"): true,
-		i18n.T("tui.home.section.actions"):  true,
 	}
 
 	inRight := false

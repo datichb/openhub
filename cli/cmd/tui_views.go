@@ -197,6 +197,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				tuiShell.SetProjectMode(nil)
 			}
 		},
+		OnAuditPicker:  actionAuditLauncher,
+		OnReviewPicker: actionReviewLauncher,
+		OnDebugPicker:  actionDebugLauncher,
 		OnDeploy: func(_ string) {
 			actionDeploy()
 		},
@@ -304,6 +307,14 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			OnAddProject: func() {
 				actionProjectAdd()
 			},
+			OnLaunchSession: func(agent string, extraArgs ...string) {
+				resolvedAgent, resolvedPrompt := translateOhFlags(agent, extraArgs...)
+				if resolvedAgent == "orchestrator-dev" && resolvedPrompt == "" {
+					launchDevSession()
+					return
+				}
+				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
+			},
 		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
@@ -383,6 +394,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		OnBoardConfig: func() {
 			actionBoardColumnConfig()
 		},
+		OnAuditPicker:  actionAuditLauncher,
+		OnReviewPicker: actionReviewLauncher,
+		OnDebugPicker:  actionDebugLauncher,
 		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,

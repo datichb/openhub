@@ -27,6 +27,14 @@ type TeamModeConfig struct {
 	OnSyncTracker func()
 	// OnBoardConfig is called when the user wants to configure board columns.
 	OnBoardConfig func()
+
+	// ── Session picker callbacks ────────────────────────────────────────
+	// OnAuditPicker opens the audit type picker.
+	OnAuditPicker func()
+	// OnReviewPicker opens the review mode picker.
+	OnReviewPicker func()
+	// OnDebugPicker opens the debug issue input.
+	OnDebugPicker func()
 }
 
 // TeamModeStats holds the summary stats displayed in the team landing header.
@@ -258,13 +266,30 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	// ── Session launchers (with dynamic project selection) ──
 	if v.cfg.OnLaunchSession != nil {
 		launch := v.cfg.OnLaunchSession
+
+		// Audit/review/debug: use pickers if available, otherwise fall back to direct launch.
+		auditAction := func() { launch("auditor") }
+		if v.cfg.OnAuditPicker != nil {
+			auditAction = v.cfg.OnAuditPicker
+		}
+		reviewAction := func() { launch("reviewer") }
+		if v.cfg.OnReviewPicker != nil {
+			reviewAction = v.cfg.OnReviewPicker
+		}
+		debugAction := func() { launch("debugger") }
+		if v.cfg.OnDebugPicker != nil {
+			debugAction = v.cfg.OnDebugPicker
+		}
+
 		items = append(items,
 			teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.sessions"), SectionID: "sessions"},
+			teamModeItem{Icon: "⚡", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("") }},
 			teamModeItem{Icon: "▶", Label: i18n.T("tui.tm.item.start_dev"), Desc: i18n.T("tui.tm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
-			teamModeItem{Icon: "⚡", Label: i18n.T("tui.tm.item.quick"), Desc: i18n.T("tui.tm.item.quick_desc"), Action: func() { launch("", "--quick") }},
-			teamModeItem{Icon: "◉", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: func() { launch("auditor") }},
-			teamModeItem{Icon: "◈", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: func() { launch("reviewer") }},
-			teamModeItem{Icon: "◈", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: func() { launch("") }},
+			teamModeItem{Icon: "◉", Label: i18n.T("tui.tm.item.audit"), Desc: i18n.T("tui.tm.item.audit_desc"), Action: auditAction},
+			teamModeItem{Icon: "◎", Label: i18n.T("tui.tm.item.review"), Desc: i18n.T("tui.tm.item.review_desc"), Action: reviewAction},
+			teamModeItem{Icon: "◈", Label: i18n.T("tui.tm.item.debug"), Desc: i18n.T("tui.tm.item.debug_desc"), Action: debugAction},
+			teamModeItem{Icon: "⊞", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
+			teamModeItem{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: func() { launch("onboarder") }},
 		)
 	}
 

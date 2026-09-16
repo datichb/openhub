@@ -23,6 +23,17 @@ type ProjectModeConfig struct {
 	// OnExitProjectMode is called when the user toggles back to hub mode.
 	OnExitProjectMode func()
 
+	// ── Session picker callbacks ────────────────────────────────────────
+	// OnAuditPicker opens the audit type picker (security, perf, arch, ...).
+	// If nil, falls back to OnLaunchSession("auditor").
+	OnAuditPicker func()
+	// OnReviewPicker opens the review mode picker (standard, adversarial, ...).
+	// If nil, falls back to OnLaunchSession("reviewer").
+	OnReviewPicker func()
+	// OnDebugPicker opens the debug issue input.
+	// If nil, falls back to OnLaunchSession("debugger").
+	OnDebugPicker func()
+
 	// ── Deploy callbacks ────────────────────────────────────────────────
 	// OnDeploy triggers a deploy on the active project (shows diff preview + apply modal).
 	OnDeploy func(projectPath string)
@@ -383,6 +394,31 @@ func (v *ProjectModeView) maybeShowDeployToast() {
 // Items
 // ─────────────────────────────────────────────────────────────────────────────
 
+// auditAction returns the callback for the audit link.
+// Uses the picker if OnAuditPicker is configured, otherwise falls back to direct launch.
+func (v *ProjectModeView) auditAction(launch func(string, ...string) func()) func() {
+	if v.cfg.OnAuditPicker != nil {
+		return v.cfg.OnAuditPicker
+	}
+	return launch("auditor")
+}
+
+// reviewAction returns the callback for the review link.
+func (v *ProjectModeView) reviewAction(launch func(string, ...string) func()) func() {
+	if v.cfg.OnReviewPicker != nil {
+		return v.cfg.OnReviewPicker
+	}
+	return launch("reviewer")
+}
+
+// debugAction returns the callback for the debug link.
+func (v *ProjectModeView) debugAction(launch func(string, ...string) func()) func() {
+	if v.cfg.OnDebugPicker != nil {
+		return v.cfg.OnDebugPicker
+	}
+	return launch("debugger")
+}
+
 func (v *ProjectModeView) buildItems() []projectModeItem {
 	if v.project == nil {
 		return nil
@@ -407,11 +443,11 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	items := []projectModeItem{
 		// ── Sessions section ──
 		{Icon: "─", Label: i18n.T("tui.pm.section.sessions"), SectionID: "sessions"},
+		{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("")},
 		{Icon: "▶", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: launch("", "--dev")},
-		{Icon: "⚡", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: launch("", "--quick")},
-		{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: launch("auditor")},
-		{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: launch("reviewer")},
-		{Icon: "◈", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: launch("")},
+		{Icon: "◉", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: v.auditAction(launch)},
+		{Icon: "◎", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: v.reviewAction(launch)},
+		{Icon: "◈", Label: i18n.T("tui.pm.item.debug"), Desc: i18n.T("tui.pm.item.debug_desc"), Action: v.debugAction(launch)},
 		{Icon: "⊞", Label: i18n.T("tui.pm.item.parallel"), Desc: i18n.T("tui.pm.item.parallel_desc"), Action: navigate("parallel")},
 		{Icon: "🎓", Label: i18n.T("tui.pm.item.onboard"), Desc: i18n.T("tui.pm.item.onboard_desc"), Action: launch("onboarder")},
 		// ── Projet section ──
