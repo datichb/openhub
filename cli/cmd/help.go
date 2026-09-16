@@ -447,6 +447,19 @@ func buildHelpSections() []helpSection {
 			Commands: []helpCommand{
 				{Name: "init", Desc: i18n.T("cmd.init.short")},
 				{Name: "doctor", Desc: i18n.T("cmd.doctor.short")},
+				{Name: "repair", Desc: i18n.T("cmd.repair.short")},
+				{Name: "export", Desc: i18n.T("cmd.export.short")},
+				{Name: "import", Desc: i18n.T("cmd.import.short")},
+				{
+					Name: "purge",
+					Desc: i18n.T("cmd.purge.short"),
+					Flags: []helpFlag{
+						{"dry-run", "", i18n.T("cmd.purge.flags.dry_run")},
+						{"force", "", i18n.T("cmd.purge.flags.force")},
+						{"keep-binary", "", i18n.T("cmd.purge.flags.keep_binary")},
+						{"include-opencode", "", i18n.T("cmd.purge.flags.include_opencode")},
+					},
+				},
 				{Name: "upgrade opencode", Desc: i18n.T("cmd.upgrade.short")},
 				{Name: "version", Desc: i18n.T("cmd.version.short")},
 				{Name: "completion", Desc: i18n.T("cmd.completion.short")},

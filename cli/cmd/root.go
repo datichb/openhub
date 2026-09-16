@@ -67,8 +67,8 @@ et fournit un TUI interactif pour le suivi de développement.`,
 			return nil
 		}
 
-		// Gate: require hub initialization (except for init and doctor)
-		if cmd.Name() != "init" && cmd.Name() != "doctor" {
+		// Gate: require hub initialization (except for init, doctor, and purge)
+		if cmd.Name() != "init" && cmd.Name() != "doctor" && cmd.Name() != "purge" {
 			if !hubcontent.IsInstalled() {
 				return fmt.Errorf("hub not initialized. Run 'oh init' first")
 			}
