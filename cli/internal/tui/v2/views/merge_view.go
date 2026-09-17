@@ -83,7 +83,7 @@ func (v *MergeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des branches...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.merge.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Build UI and populate list asynchronously
@@ -186,9 +186,9 @@ func (v *MergeView) handleMerge() {
 	}
 
 	if v.shell != nil {
-		v.shell.ShowSelectModal(fmt.Sprintf("Merger la branche %s ?", branch.Branch), []SelectOption{
-			{Label: "Annuler", Value: ""},
-			{Label: "Confirmer le merge", Value: "yes"},
+		v.shell.ShowSelectModal(i18n.Tf("tui.merge.confirm", branch.Branch), []SelectOption{
+			{Label: i18n.T("tui.merge.cancel"), Value: ""},
+			{Label: i18n.T("tui.merge.confirm_merge"), Value: "yes"},
 		}, "", func(choice string) {
 			if choice == "yes" {
 				doMerge()
@@ -224,7 +224,7 @@ func (v *MergeView) populateList() {
 
 	if len(v.cfg.Branches) == 0 {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		v.list.AddItem(fmt.Sprintf("%sAucune branche à merger.%s", muted, theme.TagColor), "", 0, nil)
+		v.list.AddItem(fmt.Sprintf("%s%s%s", muted, i18n.T("tui.merge.empty"), theme.TagColor), "", 0, nil)
 		return
 	}
 
@@ -259,23 +259,25 @@ func (v *MergeView) updateDetail(b MergeBranch) {
 	case "skipped":
 		statusColor = theme.TextMutedHex
 	}
-	fmt.Fprintf(&sb, "  %sStatut:%s    %s%s%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
+	fmt.Fprintf(&sb, "  %s%s%s    %s%s%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_status"), theme.TagColor,
 		theme.ColorTag(statusColor), b.Status, theme.TagColor)
 
 	if b.IsBeads {
-		fmt.Fprintf(&sb, "  %sType:%s      beads (auto-mergeable)\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s      %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_type"), theme.TagColor,
+			i18n.T("tui.merge.type_beads"))
 	} else {
-		fmt.Fprintf(&sb, "  %sType:%s      external (merge manuel via MR/PR)\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s      %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_type"), theme.TagColor,
+			i18n.T("tui.merge.type_external"))
 	}
 
-	fmt.Fprintf(&sb, "  %sCommits:%s   %d\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, b.CommitCount)
+	fmt.Fprintf(&sb, "  %s%s%s   %d\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_commits"), theme.TagColor, b.CommitCount)
 
 	if b.DiffStat != "" {
-		fmt.Fprintf(&sb, "\n  %sDiff:%s\n", theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "\n  %s%s%s\n", theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_diff"), theme.TagColor)
 		for _, line := range strings.Split(b.DiffStat, "\n") {
 			fmt.Fprintf(&sb, "    %s\n", line)
 		}

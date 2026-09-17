@@ -46,6 +46,7 @@ package shell
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -653,16 +654,16 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				switch f.Type {
 				case views.FieldBool:
 					// A bool is always set (true/false) — skip validation
-				case views.FieldMultiSelect:
-					if len(multi[f.Key]) == 0 {
-						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
-						return
-					}
-				default:
-					if values[f.Key] == "" {
-						s.ShowToast(fmt.Sprintf("Champ requis : %s", f.Label), ToastWarning)
-						return
-					}
+			case views.FieldMultiSelect:
+				if len(multi[f.Key]) == 0 {
+					s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
+					return
+				}
+			default:
+				if values[f.Key] == "" {
+					s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
+					return
+				}
 				}
 			}
 		}
@@ -999,7 +1000,7 @@ func (s *Shell) SuspendAndExec(fn func() error) error {
 		execErr = fn()
 	})
 	if !ok {
-		return fmt.Errorf("TUI suspend failed — session not launched")
+		return errors.New(i18n.T("tui.shell.suspend_failed"))
 	}
 	// Force full redraw from scratch. Marks all cells dirty and flushes them
 	// to the terminal. Handles the case where Resume() silently failed.

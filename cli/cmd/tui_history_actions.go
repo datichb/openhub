@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
@@ -20,7 +21,7 @@ func actionHistoryExport() {
 
 	defaultPath := fmt.Sprintf("oh-history-%s.json", time.Now().Format("20060102-150405"))
 
-	tuiShell.ShowInputModal("Fichier de sortie", defaultPath, func(outputPath string) {
+	tuiShell.ShowInputModal(i18n.T("tui.history.export_file"), defaultPath, func(outputPath string) {
 		if outputPath == "" {
 			return
 		}
@@ -31,7 +32,7 @@ func actionHistoryExport() {
 			sessions, err := a.Sessions.List(ctx, "")
 			if err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Erreur : "+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(i18n.T("tui.history.error_prefix")+err.Error(), shell.ToastError)
 				})
 				return
 			}
@@ -50,20 +51,20 @@ func actionHistoryExport() {
 			encoded, err := json.MarshalIndent(data, "", "  ")
 			if err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Erreur d'encodage : "+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(i18n.T("tui.history.encoding_error")+err.Error(), shell.ToastError)
 				})
 				return
 			}
 
 			if err := os.WriteFile(outputPath, encoded, 0o644); err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Erreur d'écriture : "+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(i18n.T("tui.history.write_error")+err.Error(), shell.ToastError)
 				})
 				return
 			}
 
-			msg := fmt.Sprintf("%s %d sessions exportées → %s",
-				theme.IconSuccess, len(sessions), outputPath)
+		msg := fmt.Sprintf("%s %s",
+			theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", len(sessions), outputPath))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
@@ -78,7 +79,7 @@ func actionHistoryImport() {
 	}
 	a := MustApp()
 
-	tuiShell.ShowInputModal("Fichier à importer", "", func(filePath string) {
+	tuiShell.ShowInputModal(i18n.T("tui.history.import_file"), "", func(filePath string) {
 		if filePath == "" {
 			return
 		}
@@ -89,7 +90,7 @@ func actionHistoryImport() {
 			raw, err := os.ReadFile(filePath)
 			if err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Erreur de lecture : "+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(i18n.T("tui.history.read_error")+err.Error(), shell.ToastError)
 				})
 				return
 			}
@@ -97,7 +98,7 @@ func actionHistoryImport() {
 			var data historyExportData
 			if err := json.Unmarshal(raw, &data); err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast("Fichier invalide : "+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(i18n.T("tui.history.invalid_file")+err.Error(), shell.ToastError)
 				})
 				return
 			}
@@ -124,8 +125,8 @@ func actionHistoryImport() {
 				imported++
 			}
 
-			msg := fmt.Sprintf("%s %d sessions importées (%d ignorées)",
-				theme.IconSuccess, imported, len(data.Sessions)-imported)
+		msg := fmt.Sprintf("%s %s",
+			theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", imported, len(data.Sessions)-imported))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})

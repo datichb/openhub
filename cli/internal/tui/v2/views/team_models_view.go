@@ -102,7 +102,7 @@ func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des modèles...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.team_models.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Async pull team-state then build the list
@@ -357,8 +357,8 @@ func (v *TeamModelsView) addEntry() {
 	}
 
 	scopeOptions := []SelectOption{
-		{Label: "Famille", Value: "families"},
-		{Label: "Agent", Value: "agents"},
+		{Label: i18n.T("tui.team_models.family"), Value: "families"},
+		{Label: i18n.T("tui.team_models.agent"), Value: "agents"},
 	}
 
 	v.shell.ShowSelectModal(i18n.T("tui.team.models.recommendation_type"), scopeOptions, "", func(scope string) {
@@ -403,10 +403,10 @@ func (v *TeamModelsView) deleteEntry() {
 		return
 	}
 
-	label := fmt.Sprintf("Supprimer %s:%s ?", ref.section, ref.key)
+	label := i18n.Tf("tui.team_models.delete_confirm", ref.section, ref.key)
 	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: i18n.T("tui.team_models.cancel"), Value: ""},
+		{Label: i18n.T("tui.team_models.confirm_delete"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
@@ -421,7 +421,7 @@ func (v *TeamModelsView) deleteEntry() {
 		}
 		v.dirty = true
 		v.renderList()
-		v.shell.ShowToastMsg("Supprimé: "+ref.key, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.team_models.deleted", ref.key), true)
 	})
 }
 
@@ -457,17 +457,17 @@ func (v *TeamModelsView) save() {
 	}
 	ctx := context.Background()
 	if v.cfg.SaveTeamConfig == nil {
-		v.shell.ShowToastMsg("SaveTeamConfig non configuré", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team_models.no_save_func"), false)
 		return
 	}
 	if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
-		v.shell.ShowToastMsg("Erreur sauvegarde équipe: "+err.Error(), false)
+		v.shell.ShowToastMsg(i18n.T("tui.team_models.save_error")+err.Error(), false)
 		return
 	}
 	v.dirty = false
 	v.undoStack.Clear()
 	v.renderList()
-		v.shell.ShowToastMsg(i18n.T("tui.config.saved_team"), true)
+	v.shell.ShowToastMsg(i18n.T("tui.config.saved_team"), true)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -481,19 +481,19 @@ func (v *TeamModelsView) ContextCommands() []ContextCommand {
 			ID: "team.models.save", Label: i18n.T("tui.hints.save"),
 			Aliases:     []string{"save", "write", "sauvegarder"},
 			Description: i18n.T("tui.team.models.save_recommendations"),
-			Category:    "Modèles", Action: func() { v.save() },
+			Category:    i18n.T("tui.config.section.models"), Action: func() { v.save() },
 		},
 		{
 			ID: "team.models.undo", Label: i18n.T("tui.hints.undo"),
 			Aliases:     []string{"undo", "annuler"},
 			Description: i18n.T("tui.settings.cmd_undo"),
-			Category:    "Modèles", Action: func() { v.undo() },
+			Category:    i18n.T("tui.config.section.models"), Action: func() { v.undo() },
 		},
 		{
 			ID: "team.models.add", Label: i18n.T("tui.hints.add"),
 			Aliases:     []string{"ajouter", "add"},
 			Description: i18n.T("tui.team.models.add_recommendation"),
-			Category:    "Modèles", Action: func() { v.addEntry() },
+			Category:    i18n.T("tui.config.section.models"), Action: func() { v.addEntry() },
 		},
 	}
 }

@@ -105,7 +105,7 @@ func (v *ProjectsView) SetAvailableAgents(agents []string) {
 func (v *ProjectsView) ID() string { return "projects.list" }
 
 // Title returns the display title.
-func (v *ProjectsView) Title() string { return "Projets" }
+func (v *ProjectsView) Title() string { return i18n.T("tui.projects.title") }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
@@ -135,7 +135,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des projets...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.projects.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Build list asynchronously
@@ -168,7 +168,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			if len(projects) == 0 {
 				muted := theme.ColorTag(theme.TextMutedHex)
-				v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
+				v.list.AddItem(fmt.Sprintf("%s%s%s", muted, i18n.T("tui.projects.empty"), theme.TagColor), "", 0, nil)
 			}
 
 			v.list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
@@ -240,10 +240,10 @@ func (v *ProjectsView) addProject() {
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Ajouter un projet",
+		Title: i18n.T("tui.projects.add_title"),
 		Fields: []FormField{
-			{Key: "name", Label: "Nom", Type: FieldText, Required: true},
-			{Key: "path", Label: "Chemin", Type: FieldText, Required: true},
+			{Key: "name", Label: i18n.T("tui.projects.field_name"), Type: FieldText, Required: true},
+			{Key: "path", Label: i18n.T("tui.projects.field_path"), Type: FieldText, Required: true},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			name := values["name"]
@@ -256,7 +256,7 @@ func (v *ProjectsView) addProject() {
 			}
 			v.cfg.Projects = append(v.cfg.Projects, ProjectItem{Name: name, Path: path})
 			v.list.AddItem(name, "    "+path, 0, nil)
-			v.shell.ShowToastMsg("Projet ajouté: "+name, true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.projects.added", name), true)
 		},
 		OnCancel: nil,
 	})
@@ -274,9 +274,9 @@ func (v *ProjectsView) removeProject() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer le projet %q ?", project.Name), []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+	v.shell.ShowSelectModal(i18n.Tf("tui.projects.delete_confirm", project.Name), []SelectOption{
+		{Label: i18n.T("tui.projects.cancel"), Value: ""},
+		{Label: i18n.T("tui.projects.confirm_delete"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
@@ -287,7 +287,7 @@ func (v *ProjectsView) removeProject() {
 		// Remove from local list
 		v.cfg.Projects = append(v.cfg.Projects[:idx], v.cfg.Projects[idx+1:]...)
 		v.list.RemoveItem(idx)
-		v.shell.ShowToastMsg("Projet supprimé: "+project.Name, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.projects.deleted", project.Name), true)
 	})
 }
 
@@ -309,7 +309,7 @@ func (v *ProjectsView) renameProject() {
 	}
 	project := &v.cfg.Projects[idx]
 
-	v.shell.ShowInputModal("Nouveau nom", project.Name, func(newName string) {
+	v.shell.ShowInputModal(i18n.T("tui.projects.new_name"), project.Name, func(newName string) {
 		if newName == "" || newName == project.Name {
 			return
 		}
@@ -325,7 +325,7 @@ func (v *ProjectsView) renameProject() {
 		}
 
 		v.showDetail(*project)
-		v.shell.ShowToastMsg(fmt.Sprintf("Renommé: %s → %s", oldName, newName), true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.projects.renamed", oldName, newName), true)
 	})
 }
 
@@ -343,7 +343,7 @@ func (v *ProjectsView) moveProject() {
 	}
 	project := &v.cfg.Projects[idx]
 
-	v.shell.ShowInputModal("Nouveau chemin", project.Path, func(newPath string) {
+	v.shell.ShowInputModal(i18n.T("tui.projects.new_path"), project.Path, func(newPath string) {
 		if newPath == "" || newPath == project.Path {
 			return
 		}
@@ -358,7 +358,7 @@ func (v *ProjectsView) moveProject() {
 		}
 
 		v.showDetail(*project)
-		v.shell.ShowToastMsg("Chemin mis à jour: "+project.Name, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.projects.path_updated", project.Name), true)
 	})
 }
 
@@ -374,22 +374,22 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 	sep := theme.ColorTag(theme.TextMutedHex) + "─────────────────────────────────────────────────────────────────" + theme.TagColor
 
 	// Line 1: ID and path
-	line1 := fmt.Sprintf("  %sID:%s %s  %s·%s  %sChemin:%s %s",
+	line1 := fmt.Sprintf("  %sID:%s %s  %s·%s  %s%s%s %s",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, p.ID,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, p.Path,
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_path"), p.Path,
 	)
 
 	// Line 2: Language, Provider, Model
 	lang := displayOrPlaceholder(p.Language, "-")
 	prov := displayOrPlaceholder(p.Provider, "hub default")
 	model := displayOrPlaceholder(p.Model, "hub default")
-	line2 := fmt.Sprintf("  %sLangage:%s %s  %s·%s  %sProvider:%s %s  %s·%s  %sModèle:%s %s",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, lang,
+	line2 := fmt.Sprintf("  %s%s%s %s  %s·%s  %sProvider:%s %s  %s·%s  %s%s%s %s",
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_language"), lang,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, prov,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, model,
+		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, i18n.T("tui.projects.label_model"), model,
 	)
 
 	// Line 3: Agents
@@ -484,11 +484,11 @@ func (v *ProjectsView) refreshProjects() {
 	}
 	if len(v.cfg.Projects) == 0 {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		v.list.AddItem(fmt.Sprintf("%sAucun projet configuré. Appuyez sur 'a' pour ajouter un projet.%s", muted, theme.TagColor), "", 0, nil)
+		v.list.AddItem(fmt.Sprintf("%s%s%s", muted, i18n.T("tui.projects.empty"), theme.TagColor), "", 0, nil)
 	} else {
 		v.showDetail(v.cfg.Projects[0])
 	}
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Liste des projets rafraîchie", true)
+		v.shell.ShowToastMsg(i18n.T("tui.projects.refreshed"), true)
 	}
 }

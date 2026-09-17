@@ -227,7 +227,7 @@ func TestProjectsView_MountUnmount(t *testing.T) {
 	v.Mount(content, app)
 	assert.Greater(t, content.GetItemCount(), 0)
 	assert.Equal(t, "projects.list", v.ID())
-	assert.Equal(t, "Projets", v.Title())
+	assert.Equal(t, i18n.T("tui.projects.title"), v.Title())
 
 	v.Unmount()
 }

@@ -149,7 +149,7 @@ func (v *ParallelView) populateSessions(sessions []ParallelSession) {
 
 	if len(sessions) == 0 {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		v.sessionList.AddItem(fmt.Sprintf("%sAucune session parallèle en cours.%s", muted, theme.TagColor), "", 0, nil)
+		v.sessionList.AddItem(fmt.Sprintf("%s%s%s", muted, i18n.T("tui.parallel.empty"), theme.TagColor), "", 0, nil)
 		return
 	}
 

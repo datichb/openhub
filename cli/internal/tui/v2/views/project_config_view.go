@@ -581,6 +581,6 @@ func (v *ProjectConfigView) doSave() {
 // ContextCommands implements CommandProvider.
 func (v *ProjectConfigView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Projet", Action: func() { v.undo() }},
+		{ID: "project.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: i18n.T("tui.project.category"), Action: func() { v.undo() }},
 	}
 }

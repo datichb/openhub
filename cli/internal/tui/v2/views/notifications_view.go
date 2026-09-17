@@ -61,7 +61,7 @@ func NewNotificationsView(cfg NotificationsViewConfig) *NotificationsView {
 func (v *NotificationsView) ID() string { return "notifications" }
 
 // Title returns the display title.
-func (v *NotificationsView) Title() string { return "Notifications" }
+func (v *NotificationsView) Title() string { return i18n.T("tui.notifications.title") }
 
 // StatusHints returns keybinding hints.
 func (v *NotificationsView) StatusHints() string {
@@ -106,7 +106,7 @@ func (v *NotificationsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Show loading placeholder immediately
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %sChargement des notifications...%s", muted, theme.TagColor))
+	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.notifications.loading"), theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
 
 	// Load entries from the persistent file asynchronously.
@@ -151,7 +151,7 @@ func (v *NotificationsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 func renderNotifications(entries []NotificationEntry) string {
 	if len(entries) == 0 {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		return fmt.Sprintf("\n  %sAucune notification.%s", muted, theme.TagColor)
+		return fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.notifications.empty"), theme.TagColor)
 	}
 
 	var sb strings.Builder

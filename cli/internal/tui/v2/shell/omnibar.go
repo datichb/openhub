@@ -349,7 +349,7 @@ func (o *Omnibar) updateSuggestions(query string) {
 	reset := theme.TagColor
 
 	if len(merged) == 0 && query != "" {
-		o.suggestions.AddItem(fmt.Sprintf("  %sAucun résultat%s", muted, reset), "", 0, nil)
+		o.suggestions.AddItem(fmt.Sprintf("  %s%s%s", muted, i18n.T("tui.omnibar.no_result"), reset), "", 0, nil)
 		if o.active {
 			o.shell.updateSuggestionsHeight()
 		}
@@ -387,7 +387,7 @@ func (o *Omnibar) updateSuggestions(query string) {
 	}
 
 	if len(merged) > 7 {
-		o.suggestions.AddItem(fmt.Sprintf("  %s...et %d autres%s", muted, len(merged)-7, reset), "", 0, nil)
+		o.suggestions.AddItem(fmt.Sprintf("  %s%s%s", muted, i18n.Tf("tui.omnibar.more_results", len(merged)-7), reset), "", 0, nil)
 	}
 
 	// Update the layout height if suggestions are visible

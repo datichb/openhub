@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -43,7 +43,7 @@ func initBeadsForActiveProject(a *app.App) {
 	}
 	path := resolveActiveProjectPath(a)
 	if path == "" {
-		tuiShell.ShowToastMsg("Aucun projet actif", false)
+		tuiShell.ShowToastMsg(i18n.T("tui.helpers.no_active_project"), false)
 		return
 	}
 	// Resolve project ID for the prefix
@@ -65,7 +65,7 @@ func initBeadsForProject(_ *app.App, id, name, path string) {
 		return
 	}
 	if beads.IsInitialized(path) {
-		tuiShell.ShowToastMsg("Board déjà initialisé pour "+name, true)
+		tuiShell.ShowToastMsg(i18n.Tf("tui.helpers.board_already_init", name), true)
 		tuiShell.NavigateTo("board")
 		return
 	}
@@ -76,10 +76,10 @@ func initBeadsForProject(_ *app.App, id, name, path string) {
 	}
 
 	tuiShell.ShowSelectModal(
-		"Initialiser le board pour "+label+" ?",
+		i18n.Tf("tui.helpers.init_board_confirm", label),
 		[]views.SelectOption{
-			{Label: "Oui, initialiser beads", Value: "yes"},
-			{Label: "Annuler", Value: "no"},
+			{Label: i18n.T("tui.helpers.yes_init_beads"), Value: "yes"},
+			{Label: i18n.T("tui.helpers.cancel"), Value: "no"},
 		}, "",
 		func(value string) {
 			if value != "yes" {
@@ -89,11 +89,11 @@ func initBeadsForProject(_ *app.App, id, name, path string) {
 			if prefix == "" {
 				prefix = strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 			}
-			if err := beads.Init(path, prefix); err != nil {
-				tuiShell.ShowToastMsg("Erreur init beads: "+err.Error(), false)
-				return
-			}
-			tuiShell.ShowToastMsg("Board initialisé pour "+label, true)
+		if err := beads.Init(path, prefix); err != nil {
+			tuiShell.ShowToastMsg(i18n.T("tui.helpers.init_beads_error")+err.Error(), false)
+			return
+		}
+		tuiShell.ShowToastMsg(i18n.Tf("tui.helpers.board_initialized", label), true)
 			tuiShell.NavigateTo("board")
 		},
 	)
@@ -166,12 +166,12 @@ func formatDeployAgeFromTime(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "déployé à l'instant"
+		return i18n.T("tui.helpers.deployed_just_now")
 	case d < time.Hour:
-		return fmt.Sprintf("déployé il y a %dm", int(d.Minutes()))
+		return i18n.Tf("tui.helpers.deployed_minutes_ago", int(d.Minutes()))
 	case d < 24*time.Hour:
-		return fmt.Sprintf("déployé il y a %dh", int(d.Hours()))
+		return i18n.Tf("tui.helpers.deployed_hours_ago", int(d.Hours()))
 	default:
-		return fmt.Sprintf("déployé il y a %dj", int(d.Hours()/24))
+		return i18n.Tf("tui.helpers.deployed_days_ago", int(d.Hours()/24))
 	}
 }

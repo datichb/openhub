@@ -1,8 +1,10 @@
 package views
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // FieldValidator defines validation rules for a configLine field.
@@ -37,7 +39,7 @@ func (fv *FieldValidator) Validate(value string) error {
 
 	// Required check
 	if fv.Required && value == "" {
-		return fmt.Errorf("valeur requise")
+		return errors.New(i18n.T("tui.config.validator.required"))
 	}
 
 	// Allow empty if explicitly permitted or not required
@@ -59,7 +61,7 @@ func (fv *FieldValidator) Validate(value string) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf("valeur invalide %q (attendu: %v)", value, allowed)
+			return errors.New(i18n.Tf("tui.config.validator.invalid_enum", value, allowed))
 		}
 	}
 
@@ -67,13 +69,13 @@ func (fv *FieldValidator) Validate(value string) error {
 	if fv.Numeric && value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil {
-			return fmt.Errorf("valeur numérique attendue, reçu %q", value)
+			return errors.New(i18n.Tf("tui.config.validator.expected_number", value))
 		}
 		if fv.MinInt != nil && n < *fv.MinInt {
-			return fmt.Errorf("valeur minimum: %d", *fv.MinInt)
+			return errors.New(i18n.Tf("tui.config.validator.min_value", *fv.MinInt))
 		}
 		if fv.MaxInt != nil && n > *fv.MaxInt {
-			return fmt.Errorf("valeur maximum: %d", *fv.MaxInt)
+			return errors.New(i18n.Tf("tui.config.validator.max_value", *fv.MaxInt))
 		}
 	}
 

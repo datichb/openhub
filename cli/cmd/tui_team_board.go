@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -151,15 +153,15 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				engine := resolveTrackerEngine(ctx, a)
-				if engine == nil {
-					return "", "", fmt.Errorf("tracker non configuré")
-				}
+			if engine == nil {
+				return "", "", errors.New(i18n.T("tui.team_board.tracker_not_configured"))
+			}
 				return engine.FetchTicketDetail(ctx, project, ticketID)
 			},
 			OnClaim: func(ticketID string) error {
 				repo := resolveRepoWithBoard()
 				if repo == nil {
-					return fmt.Errorf("team non configurée")
+					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
 				project, _ := resolveActiveProject(a)
 				projectID := ""
@@ -215,7 +217,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			OnRelease: func(ticketID string) error {
 				repo := resolveRepo()
 				if repo == nil {
-					return fmt.Errorf("team non configurée")
+					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
 				project, _ := resolveActiveProject(a)
 				projectID := ""
@@ -228,7 +230,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			OnTransfer: func(ticketID, toMember string) error {
 				repo := resolveRepo()
 				if repo == nil {
-					return fmt.Errorf("team non configurée")
+					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
 				project, _ := resolveActiveProject(a)
 				projectID := ""
@@ -241,7 +243,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			OnStatus: func(ticketID, newStatus string) error {
 				repo := resolveRepoWithBoard()
 				if repo == nil {
-					return fmt.Errorf("team non configurée")
+					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
 				project, _ := resolveActiveProject(a)
 				projectID := ""

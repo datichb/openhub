@@ -214,13 +214,13 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 		{
 			ID: "team.mcp.save", Label: i18n.T("tui.hints.save"),
 			Aliases:     []string{"save", "write", "sauvegarder"},
-			Description: "Sauvegarder la configuration MCP", Category: "MCP",
+			Description: i18n.T("tui.team_mcp.cmd_save_desc"), Category: "MCP",
 			Action: v.save,
 		},
 		{
 			ID: "team.mcp.reload", Label: i18n.T("tui.hints.refresh"),
 			Aliases:     []string{"refresh", "reload", "recharger"},
-			Description: "Recharger depuis le disque", Category: "MCP",
+			Description: i18n.T("tui.team_mcp.cmd_reload_desc"), Category: "MCP",
 			Action: func() {
 				v.loadData()
 				v.buildFields()
@@ -230,9 +230,9 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 			},
 		},
 		{
-			ID: "team.mcp.test", Label: "Test connexion",
+			ID: "team.mcp.test", Label: i18n.T("tui.team_mcp.cmd_test_label"),
 			Aliases:     []string{"test", "ping", "check"},
-			Description: "Tester la connexion au service MCP sélectionné", Category: "MCP",
+			Description: i18n.T("tui.team_mcp.cmd_test_desc"), Category: "MCP",
 			Action: v.testConnection,
 		},
 	}
@@ -497,18 +497,18 @@ func (v *TeamMCPView) testConnection() {
 		svc = svc[:idx]
 	}
 	if svc == "" {
-		v.shell.ShowToastMsg("Sélectionnez un champ dans une section MCP", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team_mcp.select_field"), false)
 		return
 	}
 
 	// Check that we have a token configured
 	token := v.getMCPLocalToken(svc)()
 	if token == "" {
-		v.shell.ShowToastMsg(fmt.Sprintf("Token non configuré pour %s", svc), false)
+		v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.token_missing", svc), false)
 		return
 	}
 
-	v.shell.ShowToastMsg(fmt.Sprintf("Test connexion %s...", svc), true)
+	v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.testing", svc), true)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -559,10 +559,10 @@ func (v *TeamMCPView) save() {
 
 	if v.dirtyTeam && v.cfg.SaveTeamConfig != nil {
 		if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
-			v.shell.ShowToastMsg("Erreur sauvegarde équipe: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_team")+err.Error(), false)
 			return
 		}
-		saved = append(saved, "équipe")
+		saved = append(saved, i18n.T("tui.team_mcp.scope_team"))
 		v.dirtyTeam = false
 	}
 
@@ -571,19 +571,19 @@ func (v *TeamMCPView) save() {
 		if hubCfg != nil {
 			hubCfg.MCP = v.localMCP
 			if err := config.Save(hubCfg); err != nil {
-				v.shell.ShowToastMsg("Erreur sauvegarde locale: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_local")+err.Error(), false)
 				return
 			}
 		}
-		saved = append(saved, "local")
+		saved = append(saved, i18n.T("tui.team_mcp.scope_local"))
 		v.dirtyLocal = false
 	}
 
 	if len(saved) == 0 {
-		v.shell.ShowToastMsg("Aucune modification à sauvegarder", true)
+		v.shell.ShowToastMsg(i18n.T("tui.team_mcp.no_changes"), true)
 		return
 	}
-	v.shell.ShowToastMsg(fmt.Sprintf("✓ Sauvegardé: %s", strings.Join(saved, " + ")), true)
+	v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.saved", strings.Join(saved, " + ")), true)
 	v.renderFields()
 }
 

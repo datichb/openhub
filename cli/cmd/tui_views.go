@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -202,7 +204,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		ComputeDeployDiff: func(projectPath string) (*views.DeployDiffResult, error) {
 			hubDir := findHubDir()
 			if hubDir == "" {
-				return nil, fmt.Errorf("hub content not found")
+				return nil, errors.New(i18n.T("tui.views.hub_content_not_found"))
 			}
 			project, err := resolveActiveProject(a)
 			if err != nil {
@@ -214,7 +216,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			}
 			added, modified, removed, _ := report.Summary()
 			changeCount := added + modified + removed
-			summary := fmt.Sprintf("%d ajouté(s), %d modifié(s), %d supprimé(s)", added, modified, removed)
+			summary := i18n.Tf("tui.views.deploy_diff_summary", added, modified, removed)
 
 			// Check for optional MCP integrations not enabled
 			mcpInfo := collectMissingMCPInfo(a, project)
@@ -317,11 +319,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return beads.IsInitialized(path)
 			},
 			OnInitBeads: func() { initBeadsForActiveProject(a) },
-			OnLinkTracker: func(ticketID, externalRef string) error {
-				path := resolveActiveProjectPath(a)
-				if path == "" {
-					return fmt.Errorf("aucun projet actif")
-				}
+		OnLinkTracker: func(ticketID, externalRef string) error {
+			path := resolveActiveProjectPath(a)
+			if path == "" {
+				return errors.New(i18n.T("tui.views.no_active_project"))
+			}
 				return beads.LinkToTracker(path, ticketID, externalRef)
 			},
 			QuickActions: buildBoardQuickActions(a),
@@ -403,7 +405,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				if tuiShell != nil {
-					tuiShell.ShowToast("Sync "+tc.DisplayName()+"...", shell.ToastInfo)
+					tuiShell.ShowToast(i18n.Tf("tui.views.sync_in_progress", tc.DisplayName()), shell.ToastInfo)
 				}
 				go func() {
 					ctx := tuiShell.Context()
@@ -414,10 +416,10 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					default:
 					}
 					tuiShell.App().QueueUpdateDraw(func() {
-						if err != nil && !teamstate.IsPullWarning(err) {
-							tuiShell.ShowToast("Sync échouée: "+err.Error(), shell.ToastError)
-						} else {
-							tuiShell.ShowToast("Sync "+tc.DisplayName()+" terminée", shell.ToastSuccess)
+					if err != nil && !teamstate.IsPullWarning(err) {
+						tuiShell.ShowToast(i18n.T("tui.views.sync_failed")+err.Error(), shell.ToastError)
+					} else {
+						tuiShell.ShowToast(i18n.Tf("tui.views.sync_done", tc.DisplayName()), shell.ToastSuccess)
 						}
 					})
 				}()
@@ -461,13 +463,13 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("keychain non disponible")
+					return errors.New(i18n.T("tui.views.keychain_unavailable"))
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
 			DeleteSecret: func(ctx context.Context, key string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("keychain non disponible")
+					return errors.New(i18n.T("tui.views.keychain_unavailable"))
 				}
 				return a.Secrets.Delete(ctx, key)
 			},
@@ -529,7 +531,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)
 				if !tc.Enabled {
-					return fmt.Errorf("équipe non configurée")
+					return errors.New(i18n.T("tui.views.team_not_configured"))
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				if err := repo.SaveConfig(ctx, cfg); err != nil {
@@ -575,7 +577,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("keychain non disponible")
+					return errors.New(i18n.T("tui.views.keychain_unavailable"))
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
@@ -589,7 +591,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)
 				if !tc.Enabled {
-					return fmt.Errorf("équipe non configurée")
+					return errors.New(i18n.T("tui.views.team_not_configured"))
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				return repo.SaveConfig(ctx, cfg)
@@ -611,7 +613,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("keychain non disponible")
+					return errors.New(i18n.T("tui.views.keychain_unavailable"))
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
@@ -622,7 +624,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				project, _ := resolveActiveProject(a)
 				tc := resolvedTeamConfig(a, project)
 				if !tc.Enabled {
-					return fmt.Errorf("équipe non configurée")
+					return errors.New(i18n.T("tui.views.team_not_configured"))
 				}
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				return repo.SaveConfig(ctx, cfg)
@@ -673,7 +675,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 			SetSecret: func(ctx context.Context, key, value string) error {
 				if a.Secrets == nil {
-					return fmt.Errorf("keychain non disponible")
+					return errors.New(i18n.T("tui.views.keychain_unavailable"))
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
@@ -883,7 +885,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					project, _ := resolveActiveProject(a)
 					tc := resolvedTeamConfig(a, project)
 					if !tc.Enabled {
-						return fmt.Errorf("equipe non configurée")
+						return errors.New(i18n.T("tui.views.team_not_configured"))
 					}
 					repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 					teamCfg, err := repo.LoadConfig()
@@ -895,11 +897,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					}
 					teamCfg.Workflow.Overrides = ov
 					return repo.SaveConfig(context.Background(), teamCfg)
-				case views.ModeProject:
-					project, err := resolveActiveProject(a)
-					if err != nil || project == nil {
-						return fmt.Errorf("aucun projet actif")
-					}
+			case views.ModeProject:
+				project, err := resolveActiveProject(a)
+				if err != nil || project == nil {
+					return errors.New(i18n.T("tui.views.no_active_project"))
+				}
 					if project.WorkflowConfig == nil {
 						project.WorkflowConfig = &domain.ProjectWorkflowConfig{}
 					}
@@ -941,11 +943,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				return teamCfg.Workflow.IsEnforced()
 			},
-			Deploy: func() error {
-				p, err := resolveActiveProject(a)
-				if err != nil || p == nil {
-					return fmt.Errorf("no active project for deploy")
-				}
+		Deploy: func() error {
+			p, err := resolveActiveProject(a)
+			if err != nil || p == nil {
+				return errors.New(i18n.T("tui.views.no_active_project_deploy"))
+			}
 				return runDeployForProject(a, p)
 			},
 		}),
@@ -1081,7 +1083,7 @@ func collectMissingMCPInfo(a *app.App, project *domain.Project) string {
 	if len(agents) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d MCP optionnel(s) (%s)", len(agents), strings.Join(agents, ", "))
+	return i18n.Tf("tui.views.mcp_optional", len(agents), strings.Join(agents, ", "))
 }
 
 // resolveGitBranch returns the current git branch for a project path.
