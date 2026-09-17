@@ -753,10 +753,10 @@ func (w *InlineWizardView) renderStep(idx int) {
 						w.escPending = false
 						w.hintsBar.SetHints(w.StatusHints())
 					}
-					// Tab/Enter on the last form field → focus buttonForm
+					// Tab/Enter on the last focusable form field → focus buttonForm
 					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
 						itemIdx, _ := form.GetFocusedItemIndex()
-						if itemIdx == form.GetFormItemCount()-1 {
+						if isLastFocusableFormItem(form, itemIdx) {
 							w.app.SetFocus(buttonForm)
 							return nil
 						}
@@ -1194,6 +1194,32 @@ func NewStyledButtonForm() *tview.Form {
 		Foreground(theme.BgPanel))
 	f.SetBorder(false)
 	return f
+}
+
+// isLastFocusableFormItem returns true if itemIdx is the last focusable
+// (interactive) item in the form. Non-scrollable TextViews are considered
+// non-focusable because tview's form handler skips them during Tab cycling.
+// This is used in grouped mode to decide when Tab should jump from the form
+// to the external buttonForm.
+func isLastFocusableFormItem(form *tview.Form, itemIdx int) bool {
+	if form == nil || itemIdx < 0 {
+		return false
+	}
+	count := form.GetFormItemCount()
+	if itemIdx >= count {
+		return false
+	}
+	// Check whether any item after itemIdx is focusable (interactive).
+	for i := itemIdx + 1; i < count; i++ {
+		item := form.GetFormItem(i)
+		// tview.TextView form items (added via AddTextView) are not interactive.
+		if _, isTV := item.(*tview.TextView); isTV {
+			continue
+		}
+		// Any other item type (InputField, DropDown, Checkbox, etc.) is focusable.
+		return false
+	}
+	return true
 }
 
 // fixFormDropDownStyles iterates over all form items and applies the correct
