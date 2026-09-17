@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -206,6 +208,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			SkipIf: func() bool {
 				return providerSkipped
 			},
+			Validate: func() string {
+				switch selectedProvider {
+				case "anthropic", "openrouter":
+					if token == "" {
+						return i18n.T("cmd.init.wizard_token_required")
+					}
+				case "bedrock":
+					if authMode == "bearer" && token == "" {
+						return i18n.T("cmd.init.wizard_token_required")
+					}
+				}
+				return ""
+			},
 			Form: func(app *tview.Application, onDone func()) *tview.Form {
 				// Initialize defaults on first render (zero values).
 				// On subsequent re-renders (after a DropDown change), these
@@ -319,21 +334,27 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					if authMode == "bearer" && token != "" && a.Secrets != nil {
 						keychainKey := provider.KeychainKey(provider.Bedrock, "")
 						if keychainKey != "" {
-							_ = a.Secrets.Set(context.Background(), keychainKey, token)
+							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
+								return fmt.Errorf("keychain: %w", err)
+							}
 						}
 					}
 				case "anthropic":
 					if token != "" && a.Secrets != nil {
 						keychainKey := provider.KeychainKey(provider.Anthropic, "")
 						if keychainKey != "" {
-							_ = a.Secrets.Set(context.Background(), keychainKey, token)
+							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
+								return fmt.Errorf("keychain: %w", err)
+							}
 						}
 					}
 				case "openrouter":
 					if token != "" && a.Secrets != nil {
 						keychainKey := provider.KeychainKey(provider.OpenRouter, "")
 						if keychainKey != "" {
-							_ = a.Secrets.Set(context.Background(), keychainKey, token)
+							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
+								return fmt.Errorf("keychain: %w", err)
+							}
 						}
 					}
 				case "github-copilot":
@@ -376,14 +397,31 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			SkipIf: func() bool {
 				return projectSkipped
 			},
+			Validate: func() string {
+				if projectName == "" {
+					return i18n.T("cmd.init.wizard_project_name_required")
+				}
+				p := expandPath(projectPath)
+				abs, err := filepath.Abs(p)
+				if err != nil {
+					return i18n.Tf("cmd.init.wizard_project_path_invalid", projectPath)
+				}
+				info, err := os.Stat(abs)
+				if err != nil {
+					return i18n.Tf("cmd.init.wizard_project_path_invalid", projectPath)
+				}
+				if !info.IsDir() {
+					return i18n.Tf("cmd.init.wizard_project_path_invalid", projectPath)
+				}
+				// Normalize for persistence
+				projectPath = abs
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), "", 40, nil, func(t string) { projectName = t })
 				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), ".", 50, nil, func(t string) { projectPath = t })
 				form.AddButton(i18n.T("wizard.hint.submit"), func() {
-					if projectName == "" || projectPath == "" {
-						return
-					}
 					if a.Projects != nil {
 						p := &domain.Project{
 							ID:     uuid.New().String()[:8],
@@ -498,7 +536,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					return nil
 				}
 				if a.Secrets != nil {
-					_ = a.Secrets.Set(context.Background(), config.DefaultFigmaTokenKey, figmaToken)
+					if err := a.Secrets.Set(context.Background(), config.DefaultFigmaTokenKey, figmaToken); err != nil {
+						return fmt.Errorf("keychain: %w", err)
+					}
 				}
 				// Enable in config
 				vip := viper.New()
@@ -546,7 +586,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					return nil
 				}
 				if a.Secrets != nil {
-					_ = a.Secrets.Set(context.Background(), config.DefaultGitLabTokenKey, gitlabToken)
+					if err := a.Secrets.Set(context.Background(), config.DefaultGitLabTokenKey, gitlabToken); err != nil {
+						return fmt.Errorf("keychain: %w", err)
+					}
 				}
 				vip := viper.New()
 				vip.SetConfigName("hub")
@@ -596,7 +638,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					return nil
 				}
 				if a.Secrets != nil {
-					_ = a.Secrets.Set(context.Background(), config.DefaultGslidesTokenKey, gslidesToken)
+					if err := a.Secrets.Set(context.Background(), config.DefaultGslidesTokenKey, gslidesToken); err != nil {
+						return fmt.Errorf("keychain: %w", err)
+					}
 				}
 				vip := viper.New()
 				vip.SetConfigName("hub")
@@ -648,7 +692,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				vip.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
 				_ = vip.ReadInConfig()
 				vip.Set("cli.setup_done", true)
-				_ = vip.WriteConfigAs(config.ConfigPath())
+				if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+					slog.Warn("failed to persist setup_done flag", "error", err)
+				}
 
 			config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
 			if newApp, reloadErr := ReloadApp(); reloadErr == nil {
