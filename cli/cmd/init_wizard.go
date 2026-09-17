@@ -61,6 +61,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		mcpSkipped       bool // true if user clicked "Ignorer" on the MCP intro
 	)
 
+	// Team wizard state — shared with buildInitWizardTeamSteps closures.
+	teamState := &initWizardTeamState{}
+
+	// appPtr lets team steps reload the app after hub.toml is updated.
+	appPtr := &a
+
 	providerOptions := []string{"bedrock", "anthropic", "openrouter", "github-copilot"}
 
 	// providerStepIdx is resolved dynamically after the steps slice is built
@@ -103,14 +109,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 
 %s1.%s `+i18n.T("cmd.init.wizard_step_lang_desc")+`
 %s2.%s `+i18n.T("cmd.init.wizard_step_provider_desc")+`
-%s3.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
-%s4.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
+%s3.%s `+i18n.T("cmd.init.wizard_step_team_desc_welcome")+`
+%s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
+%s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
 `,
 					accent, reset, accent, reset, accent, reset,
 					accent, reset, accent, reset, accent, reset,
 					accent, reset,
 					secondary, reset,
 					muted, reset,
+					accent, reset, accent, reset,
 					accent, reset, accent, reset,
 					accent, reset, accent, reset,
 				))
@@ -389,7 +397,31 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 4 — Intro Projet (group: Projet)
+		// STEP 4 — Intro Équipe (group: Équipe)
+		// ══════════════════════════════════════════════════════════════════════
+		buildIntroStep(
+			i18n.T("cmd.init.wizard_step_team"),
+			i18n.T("cmd.init.wizard_intro_team_title"),
+			i18n.T("cmd.init.wizard_intro_team_desc"),
+			"", "",
+			i18n.T("cmd.init.wizard_intro_team_optional"),
+			func() { teamState.Skipped = false },
+			func() { teamState.Skipped = true },
+		),
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEPS 5-6 — Team form + processing (appended below)
+		// ══════════════════════════════════════════════════════════════════════
+	}
+
+	// Inject the team wizard steps (form + processing).
+	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
+
+	// Continue with remaining steps: Projet, Deploy, MCP.
+	steps = append(steps,
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 7 — Intro Projet (group: Projet)
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"Projet",
@@ -402,9 +434,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		),
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 5 — First project (optional)
+		// STEP 8 — First project (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_project"),
 			SkipIf: func() bool {
 				return projectSkipped
@@ -433,15 +465,34 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				form := tview.NewForm()
 				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), "", 40, nil, func(t string) { projectName = t })
 				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), ".", 50, nil, func(t string) { projectPath = t })
+
+				// If a team was configured, offer to attach the project
+				if teamState.Configured && teamState.TeamID != "" {
+					attachOptions := []string{
+						i18n.Tf("cmd.init.wizard_project_attach_yes", teamState.TeamID),
+						i18n.T("cmd.init.wizard_project_attach_no"),
+					}
+					// Default to attaching
+					teamState.attachProject = true
+					form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
+						teamState.attachProject = idx == 0
+					})
+				}
+
 				form.AddButton(i18n.T("wizard.hint.submit"), func() {
-					if a.Projects != nil {
+					if (*appPtr).Projects != nil {
 						p := &domain.Project{
 							ID:     uuid.New().String()[:8],
 							Name:   projectName,
 							Path:   projectPath,
 							Status: domain.ProjectStatusActive,
 						}
-						if err := a.Projects.Create(context.Background(), p); err == nil {
+						// Attach to team if user chose to
+						if teamState.Configured && teamState.attachProject && teamState.TeamID != "" {
+							tid := teamState.TeamID
+							p.TeamID = &tid
+						}
+						if err := (*appPtr).Projects.Create(context.Background(), p); err == nil {
 							projectCreated = true
 						}
 					}
@@ -450,15 +501,22 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return form
 			},
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: i18n.T("cmd.init.wizard_project_added")}}
+				fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: i18n.T("cmd.init.wizard_project_added")}}
+				if teamState.Configured && teamState.attachProject && teamState.TeamID != "" {
+					fields = append(fields, views.InfoField{
+						Label: i18n.T("cmd.init.wizard_step_team"),
+						Value: i18n.Tf("cmd.init.wizard_project_attached", teamState.TeamID),
+					})
+				}
+				return fields
 			},
 			Processing: i18n.T("cmd.init.wizard_processing_project"),
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 6 — Deploy agents/skills (conditional on project)
+		// STEP 9 — Deploy agents/skills (conditional on project)
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_deploy"),
 			SkipIf: func() bool {
 				return projectSkipped || !projectCreated
@@ -488,7 +546,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				if err != nil {
 					return fmt.Errorf("reload: %w", err)
 				}
-				a = newApp
+				*appPtr = newApp
 
 				hubDir := findHubDir()
 				if hubDir == "" {
@@ -496,7 +554,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 
 				// Build a minimal deploy plan for the new project
-				plan := buildDeployPlan(a, projectPath, "", hubDir, selectedProvider, "", nil, nil, nil, nil)
+				plan := buildDeployPlan(*appPtr, projectPath, "", hubDir, selectedProvider, "", nil, nil, nil, nil)
 				_, err = deploy.Execute(plan)
 				return err
 			},
@@ -527,7 +585,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 8 — MCP Figma (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_mcp_figma"),
 			SkipIf: func() bool {
 				return mcpSkipped
@@ -573,7 +631,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 9 — MCP GitLab (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_mcp_gitlab"),
 			SkipIf: func() bool {
 				return mcpSkipped
@@ -629,7 +687,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 10 — MCP Google Slides (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_mcp_gslides"),
 			SkipIf: func() bool {
 				return mcpSkipped
@@ -670,7 +728,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return []views.InfoField{{Label: "Google Slides", Value: v}}
 			},
 		},
-	}
+	)
 
 	// Resolve providerStepIdx dynamically: find the Provider form step.
 	// It's the first step that has both Form and SkipIf (the provider
@@ -689,8 +747,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		Groups: []views.StepGroup{
 			{Label: i18n.T("cmd.init.wizard_group_lang"), StartIdx: 0},
 			{Label: i18n.T("cmd.init.wizard_group_provider"), StartIdx: 2},
-			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: 4},
-			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: 7},
+			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: 4},
+			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: 7},
+			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: 10},
 		},
 		SummaryTargetViewFunc: func() string {
 			if projectCreated {

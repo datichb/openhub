@@ -71,12 +71,19 @@ func runInit(cmd *cobra.Command, args []string) error {
 		gslidesToken string
 		gitlabWrite  bool
 
+		// Team state
+		configureTeam bool
+
 		// Project state
 		addProject bool
 
 		// App ref (set after config is written)
 		a *app.App
 	)
+
+	// Team wizard state — shared with buildInitWizardTeamSteps closures.
+	teamState := &initWizardTeamState{}
+	appPtr := &a
 
 	steps := []views.WizardStep{
 		// ══════════════════════════════════════════════════════════════════════
@@ -624,9 +631,45 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 14 — Update config + extract hub content
+		// STEP 14 — Team: configure?
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			Label: i18n.T("cmd.init.section_team"),
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddCheckbox(i18n.T("cmd.init.team_configure_prompt"), false, func(checked bool) {
+					configureTeam = checked
+					teamState.Skipped = !checked
+				})
+				form.AddTextView("", i18n.T("cmd.init.team_configure_hint"), 60, 3, true, false)
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if !configureTeam {
+					teamState.Skipped = true
+				}
+				return nil
+			},
+			InfoFields: func() []views.InfoField {
+				if configureTeam {
+					return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: "configure"}}
+				}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: "skipped"}}
+			},
+		},
+	}
+
+	// Inject team wizard steps (form + processing), skipped if configureTeam == false.
+	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
+
+	// Continue with finalize + project steps.
+	steps = append(steps,
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 17 — Update config + extract hub content
+		// ══════════════════════════════════════════════════════════════════════
+		views.WizardStep{
 			Label:      "Finalize config",
 			Processing: "Writing configuration...",
 			OnDone: func() error {
@@ -650,7 +693,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 15 — Add first project?
 		// ══════════════════════════════════════════════════════════════════════
-		{
+		views.WizardStep{
 			Label: i18n.T("cmd.init.section_project"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
@@ -668,7 +711,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				return []views.InfoField{{Label: "Project", Value: "skip"}}
 			},
 		},
-	}
+	)
 
 	wizResult := views.RunWizard(views.WizardConfig{
 		Layout: layout.Config{
