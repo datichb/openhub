@@ -120,7 +120,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					muted, reset,
 					accent, reset, accent, reset,
 					accent, reset, accent, reset,
-					accent, reset, accent, reset,
+					accent, reset,
 				))
 
 				// Button form for "Get started"
