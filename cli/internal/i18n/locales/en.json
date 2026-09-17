@@ -1412,6 +1412,8 @@
   "wizard.esc_to_skip": "Press Esc again to skip this step",
   "wizard.processing": "Processing...",
   "wizard.error": "An error occurred",
+  "wizard.error.back": "back",
+  "wizard.error.retry": "retry",
   "wizard.complete": "Configuration complete",
   "wizard.summary.goto_detail": "View configuration",
   "wizard.summary.go_home": "Return to home",

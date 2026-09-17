@@ -537,12 +537,12 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 				w.stepContent.Clear()
 				errView := tview.NewTextView().SetDynamicColors(true)
 				errView.SetBackgroundColor(theme.BgPanel)
-				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] retour  •  %sEnter[-] réessayer",
+				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
 					widgets.ColorTag(theme.Error), theme.IconError,
 					i18n.T("wizard.error"),
 					widgets.ColorTag(theme.FgSecondary), err.Error(),
-					widgets.ColorTag(theme.Accent),
-					widgets.ColorTag(theme.Accent)))
+					widgets.ColorTag(theme.Accent), i18n.T("wizard.error.back"),
+					widgets.ColorTag(theme.Accent), i18n.T("wizard.error.retry")))
 				errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 					switch {
 					case event.Key() == tcell.KeyCtrlB:

@@ -1412,6 +1412,8 @@
   "wizard.esc_to_skip": "Esc à nouveau pour passer cette étape",
   "wizard.processing": "Traitement...",
   "wizard.error": "Une erreur est survenue",
+  "wizard.error.back": "retour",
+  "wizard.error.retry": "réessayer",
   "wizard.complete": "Configuration terminée",
   "wizard.summary.goto_detail": "Voir la configuration",
   "wizard.summary.go_home": "Retour à l'accueil",
