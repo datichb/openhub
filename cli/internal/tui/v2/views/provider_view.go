@@ -569,7 +569,9 @@ func (v *ProviderView) editCurrent() {
 				keychainKey = provider.KeychainKey(provider.Bedrock, "")
 			}
 			if keychainKey != "" {
-				_ = v.vcfg.SetSecret(context.Background(), keychainKey, val)
+				if err := v.vcfg.SetSecret(context.Background(), keychainKey, val); err != nil {
+					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				}
 			}
 			v.renderList()
 			v.shell.ShowToastMsg(i18n.Tf("tui.provider.token_saved", line.provider), true)
@@ -634,19 +636,25 @@ func (v *ProviderView) resetCurrentProvider() {
 			case "bedrock":
 				cfg.Provider.Bedrock = config.ProviderConfig{}
 				if v.vcfg.DeleteSecret != nil {
-					_ = v.vcfg.DeleteSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""))
+					if err := v.vcfg.DeleteSecret(context.Background(), provider.KeychainKey(provider.Bedrock, "")); err != nil {
+						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					}
 				}
 			case "anthropic":
 				cfg.Provider.Anthropic = config.ProviderConfig{}
 				if v.vcfg.DeleteSecret != nil {
 					key := provider.KeychainKey(provider.Anthropic, "")
-					_ = v.vcfg.DeleteSecret(context.Background(), key)
+					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
+						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					}
 				}
 			case "openrouter":
 				cfg.Provider.OpenRouter = config.ProviderConfig{}
 				if v.vcfg.DeleteSecret != nil {
 					key := provider.KeychainKey(provider.OpenRouter, "")
-					_ = v.vcfg.DeleteSecret(context.Background(), key)
+					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
+						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					}
 				}
 			}
 			// Clear default if this was the default
@@ -737,13 +745,17 @@ func (v *ProviderView) setupBedrock() {
 						return
 					}
 					if v.vcfg.SetSecret != nil {
-						_ = v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token)
+						if err := v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token); err != nil {
+							v.shell.ShowToastMsg("Error: "+err.Error(), false)
+						}
 					}
 					if region := values["region"]; region != "" {
 						cfg.Provider.Bedrock.AWSRegion = region
 					}
 					cfg.Opencode.DefaultProvider = "bedrock"
-					_ = v.vcfg.SaveConfig(cfg)
+					if err := v.vcfg.SaveConfig(cfg); err != nil {
+						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					}
 					v.buildLines()
 					v.renderList()
 					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_bearer"), true)
@@ -764,7 +776,9 @@ func (v *ProviderView) setupBedrock() {
 						cfg.Provider.Bedrock.AWSRegion = region
 					}
 					cfg.Opencode.DefaultProvider = "bedrock"
-					_ = v.vcfg.SaveConfig(cfg)
+					if err := v.vcfg.SaveConfig(cfg); err != nil {
+						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					}
 					v.buildLines()
 					v.renderList()
 					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_profile"), true)
@@ -772,7 +786,9 @@ func (v *ProviderView) setupBedrock() {
 			})
 		case "env":
 			cfg.Opencode.DefaultProvider = "bedrock"
-			_ = v.vcfg.SaveConfig(cfg)
+			if err := v.vcfg.SaveConfig(cfg); err != nil {
+				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			}
 			v.buildLines()
 			v.renderList()
 			v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_env"), true)
@@ -787,11 +803,15 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 		}
 		keychainKey := provider.KeychainKey(name, "")
 		if v.vcfg.SetSecret != nil && keychainKey != "" {
-			_ = v.vcfg.SetSecret(context.Background(), keychainKey, key)
+			if err := v.vcfg.SetSecret(context.Background(), keychainKey, key); err != nil {
+				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			}
 		}
 		cfg := v.vcfg.GetConfig()
 		cfg.Opencode.DefaultProvider = string(name)
-		_ = v.vcfg.SaveConfig(cfg)
+		if err := v.vcfg.SaveConfig(cfg); err != nil {
+			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+		}
 		v.buildLines()
 		v.renderList()
 		v.shell.ShowToastMsg(i18n.Tf("tui.provider.configured", string(name)), true)

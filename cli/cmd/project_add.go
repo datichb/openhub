@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -207,7 +208,9 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				}
 				// Register default labels
 				for _, label := range []string{"ai-delegated", "feature", "fix"} {
-					_ = exec.Command("bd", "-C", absPath, "label", "create", label).Run()
+					if err := exec.Command("bd", "-C", absPath, "label", "create", label).Run(); err != nil {
+						slog.Warn("failed to create beads label", "label", label, "error", err)
+					}
 				}
 				return nil
 			},

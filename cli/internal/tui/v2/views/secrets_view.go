@@ -466,7 +466,9 @@ func (v *SecretsView) moveSecret(entry secretEntry) {
 		v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
 		return
 	}
-	_ = store.DeleteScoped(ctx, entry.Key, entry.Scope)
+	if err := store.DeleteScoped(ctx, entry.Key, entry.Scope); err != nil {
+		v.shell.ShowToastMsg("Error: "+err.Error(), false)
+	}
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.secrets.moved_to", newLabel), true)
 	v.refresh()

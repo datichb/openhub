@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -515,7 +516,9 @@ func actionTeamInit() {
 			if memberID == "" {
 				memberID = a.Config.ActiveTeam().MemberID
 			}
-			_ = writeTeamConfig(stateRepo, statePath, memberID)
+			if err := writeTeamConfig(stateRepo, statePath, memberID); err != nil {
+				slog.Warn("failed to write team config", "error", err)
+			}
 
 			// Launch discovery wizard if requested.
 			if launchDiscoveryAfter {

@@ -284,7 +284,9 @@ func (v *MCPView) promptTokenCurrent() {
 		v.shell.ShowPasswordModal("Token "+svc.Name, func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", svc.Name)
-				_ = v.appCtx.Secrets.Set(context.Background(), key, token)
+				if err := v.appCtx.Secrets.Set(context.Background(), key, token); err != nil {
+					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				}
 				v.services[idx].HasToken = true
 				v.populateList()
 				v.buildCommands()
@@ -337,7 +339,11 @@ func (v *MCPView) toggleService(name string, enable bool) {
 		v.services[i].Enabled = enable
 		cfg := v.cfg.GetConfig()
 		v.setMCPEnabled(cfg, name, enable)
-		_ = v.cfg.SaveConfig(cfg)
+		if err := v.cfg.SaveConfig(cfg); err != nil {
+			if v.shell != nil {
+				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			}
+		}
 		v.populateList()
 		v.buildCommands()
 		return

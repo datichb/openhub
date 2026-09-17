@@ -340,7 +340,9 @@ func (v *ModelsView) deleteEntry() {
 				delete(agents, entry.Scope[6:])
 				vip.Set("models.agents", agents)
 			}
-			_ = vip.WriteConfigAs(config.ConfigPath())
+			if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			}
 		} else {
 			v.deleteProjectModel(entry.Level, entry.Scope)
 		}
@@ -363,7 +365,11 @@ func (v *ModelsView) setHubModel(scope, model string) {
 		key := "models.agents." + scope[6:]
 		vip.Set(key, model)
 	}
-	_ = vip.WriteConfigAs(config.ConfigPath())
+	if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+		}
+	}
 	if v.shell != nil {
 		v.shell.ShowToastMsg("Override sauvegardé", true)
 	}
@@ -399,7 +405,11 @@ func (v *ModelsView) setProjectModel(projectName, scope, model string) {
 		}
 		project.ModelOverrides.Agents[scope[6:]] = model
 	}
-	_ = v.appCtx.Projects.Update(ctx, project)
+	if err := v.appCtx.Projects.Update(ctx, project); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+		}
+	}
 }
 
 func (v *ModelsView) deleteProjectModel(projectName, scope string) {
@@ -420,7 +430,11 @@ func (v *ModelsView) deleteProjectModel(projectName, scope string) {
 	case len(scope) > 6 && scope[:6] == "agent:":
 		delete(project.ModelOverrides.Agents, scope[6:])
 	}
-	_ = v.appCtx.Projects.Update(ctx, project)
+	if err := v.appCtx.Projects.Update(ctx, project); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+		}
+	}
 }
 
 func modelsConfigViper() *viper.Viper {

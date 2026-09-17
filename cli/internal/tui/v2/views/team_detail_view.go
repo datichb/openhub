@@ -813,7 +813,11 @@ func (v *TeamDetailView) promptTokenSetup() {
 					hubCfg.MCP.Jira.Token = tokenKey
 				}
 			}
-			_ = config.Save(hubCfg)
+			if err := config.Save(hubCfg); err != nil {
+				if v.shell != nil {
+					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				}
+			}
 		}
 
 		if secrets := v.cfg.GetSecrets(); secrets != nil {

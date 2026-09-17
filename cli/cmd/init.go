@@ -221,7 +221,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 							v.Set("provider.bedrock.aws_region", region)
 						}
 						cfgPath := config.ConfigPath()
-						_ = v.WriteConfigAs(cfgPath)
+						if err := v.WriteConfigAs(cfgPath); err != nil {
+							return fmt.Errorf("write config: %w", err)
+						}
 					}
 				}
 				return nil
@@ -266,7 +268,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 				v := configViper()
 				v.Set("provider.bedrock.auth_mode", authMode)
 				cfgPath := config.ConfigPath()
-				_ = v.WriteConfigAs(cfgPath)
+				if err := v.WriteConfigAs(cfgPath); err != nil {
+					return fmt.Errorf("write config: %w", err)
+				}
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
@@ -302,7 +306,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 				v := configViper()
 				v.Set("provider.bedrock.aws_region", bedrockRegion)
 				cfgPath := config.ConfigPath()
-				_ = v.WriteConfigAs(cfgPath)
+				if err := v.WriteConfigAs(cfgPath); err != nil {
+					return fmt.Errorf("write config: %w", err)
+				}
 
 				if bedrockToken != "" && a != nil && a.Secrets != nil {
 					keyName := providerPkg.KeychainKey(providerPkg.Bedrock, "")
@@ -354,7 +360,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 				v.Set("provider.bedrock.aws_profile", bedrockProfile)
 				v.Set("provider.bedrock.aws_region", bedrockRegion)
 				cfgPath := config.ConfigPath()
-				_ = v.WriteConfigAs(cfgPath)
+				if err := v.WriteConfigAs(cfgPath); err != nil {
+					return fmt.Errorf("write config: %w", err)
+				}
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
