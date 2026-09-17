@@ -683,6 +683,12 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 
 	// Remove border from the form — the outer Flex will have the border
 	form.SetBorder(false)
+	form.SetButtonStyle(tcell.StyleDefault.
+		Background(theme.Accent).
+		Foreground(theme.BgPanel))
+	form.SetButtonActivatedStyle(tcell.StyleDefault.
+		Background(theme.Action).
+		Foreground(theme.BgPanel))
 
 	// ── Layout: outer Flex with border + rounded corners ─────────────────
 	outerFlex := tview.NewFlex().SetDirection(tview.FlexRow)

@@ -142,6 +142,8 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 	var currentStep int
 	var spinner *widgets.Spinner
+	var activeTimers []*time.Timer
+	trackTimer := func(t *time.Timer) { activeTimers = append(activeTimers, t) }
 
 	// Double-Esc state: first Esc shows confirmation, second Esc confirms skip
 	var escPending bool
@@ -186,7 +188,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 	formContainer := tview.NewFlex().SetDirection(tview.FlexRow)
 	formContainer.SetBackgroundColor(theme.BgPanel)
 
-	spinner = widgets.NewSpinner("Processing...")
+	spinner = widgets.NewSpinner(i18n.T("wizard.processing"))
 	spinner.SetBackgroundColor(theme.BgPanel)
 
 	// ── Insert only the form container into the content panel ──
@@ -442,13 +444,13 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				// Run validation if defined
 				if step.Validate != nil {
 					if errMsg := step.Validate(); errMsg != "" {
-						shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
-						time.AfterFunc(3*time.Second, func() {
-							shell.App.QueueUpdateDraw(func() {
-								shell.StatusBar.SetHints(originalHints)
-							})
+					shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
+					trackTimer(time.AfterFunc(3*time.Second, func() {
+						shell.App.QueueUpdateDraw(func() {
+							shell.StatusBar.SetHints(originalHints)
 						})
-						return
+					}))
+					return
 					}
 				}
 				runWithSpinner(step, func() {
@@ -480,15 +482,15 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				// Esc handling: Required steps block skip; optional steps use double-Esc
 				form.SetCancelFunc(func() {
 					// Required steps cannot be skipped
-					if step.Required {
-						shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
-						time.AfterFunc(2*time.Second, func() {
-							shell.App.QueueUpdateDraw(func() {
-								shell.StatusBar.SetHints(originalHints)
-							})
+				if step.Required {
+					shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
+					trackTimer(time.AfterFunc(2*time.Second, func() {
+						shell.App.QueueUpdateDraw(func() {
+							shell.StatusBar.SetHints(originalHints)
 						})
-						return
-					}
+					}))
+					return
+				}
 
 					if !escPending {
 						// First Esc: show persistent confirmation hint
@@ -546,6 +548,12 @@ func RunWizard(cfg WizardConfig) WizardResult {
 	if err := shell.App.SetRoot(shell.Root, true).EnableMouse(true).Run(); err != nil {
 		return WizardResult{Err: err}
 	}
+
+	// Stop any pending timers to avoid goroutine leaks after the app exits.
+	for _, t := range activeTimers {
+		t.Stop()
+	}
+	activeTimers = nil
 
 	return result
 }
