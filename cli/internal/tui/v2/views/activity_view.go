@@ -93,14 +93,14 @@ func (v *ActivityView) refresh() {
 
 	tc := v.resolveTeam()
 	if !tc.Enabled {
-		v.list.SetText("  Équipe non configurée pour ce projet. Utilisez 'team configure' dans l'omnibar.")
+		v.list.SetText("  " + i18n.T("tui.activity.team_not_configured"))
 		return
 	}
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 
 	if !repo.IsCloned() {
-		v.list.SetText("  Team state non cloné. Lancez 'oh team init'.")
+		v.list.SetText("  " + i18n.T("tui.activity.repo_not_cloned"))
 		return
 	}
 
@@ -130,21 +130,21 @@ func (v *ActivityView) renderEvents(repo teamstate.TeamStateWriter) {
 	// Fetch events for all projects
 	events, err := repo.ListEvents("", since)
 	if err != nil {
-		v.list.SetText(fmt.Sprintf("  Erreur: %s", err.Error()))
+		v.list.SetText(fmt.Sprintf("  %s", i18n.Tf("tui.activity.error", err.Error())))
 		return
 	}
 
 	if len(events) == 0 {
 		filterLabel := v.filterLabel()
-		v.list.SetText(fmt.Sprintf("  Aucune activité (%s)", filterLabel))
+		v.list.SetText(fmt.Sprintf("  %s", i18n.Tf("tui.activity.no_activity", filterLabel)))
 		return
 	}
 
 	// Build display
 	var text string
 	filterLabel := v.filterLabel()
-	text += fmt.Sprintf("  %s%s%s  Filtre: %s\n\n",
-		theme.ColorTag(theme.AccentHex), "Activité équipe", theme.TagColor, filterLabel)
+	text += fmt.Sprintf("  %s%s%s  %s\n\n",
+		theme.ColorTag(theme.AccentHex), i18n.T("tui.activity.title_header"), theme.TagColor, i18n.Tf("tui.activity.filter_label", filterLabel))
 
 	for i := len(events) - 1; i >= 0; i-- { // newest first
 		e := events[i]
@@ -167,11 +167,11 @@ func (v *ActivityView) renderEvents(repo teamstate.TeamStateWriter) {
 func (v *ActivityView) filterLabel() string {
 	switch v.filter {
 	case "today":
-		return "aujourd'hui"
+		return i18n.T("tui.activity.filter_today")
 	case "week":
-		return "7 derniers jours"
+		return i18n.T("tui.activity.filter_week")
 	case "all":
-		return "tout"
+		return i18n.T("tui.activity.filter_all")
 	}
 	return v.filter
 }
@@ -200,9 +200,9 @@ func eventIcon(eventType string) string {
 func formatEventDescription(e teamstate.Event) string {
 	switch e.Type {
 	case teamstate.EventClaimTaken:
-		return fmt.Sprintf("a claim %q", e.Ticket)
+		return i18n.Tf("tui.activity.event_claim_taken", e.Ticket)
 	case teamstate.EventClaimReleased:
-		return fmt.Sprintf("a libéré %q", e.Ticket)
+		return i18n.Tf("tui.activity.event_claim_released", e.Ticket)
 	case teamstate.EventClaimTransferred:
 		to := ""
 		if e.Data != nil {
@@ -210,15 +210,15 @@ func formatEventDescription(e teamstate.Event) string {
 				to = t
 			}
 		}
-		return fmt.Sprintf("a transféré %q → %s", e.Ticket, to)
+		return i18n.Tf("tui.activity.event_claim_transferred", e.Ticket, to)
 	case teamstate.EventReviewReady:
-		return fmt.Sprintf("review prête sur %s", e.Project)
+		return i18n.Tf("tui.activity.event_review_ready", e.Project)
 	case teamstate.EventSessionComplete:
-		return fmt.Sprintf("session terminée sur %s", e.Project)
+		return i18n.Tf("tui.activity.event_session_complete", e.Project)
 	case teamstate.EventAuditFinding:
-		return fmt.Sprintf("finding audit sur %s", e.Project)
+		return i18n.Tf("tui.activity.event_audit_finding", e.Project)
 	case teamstate.EventClaimConflict:
-		return fmt.Sprintf("conflit de claim sur %q", e.Ticket)
+		return i18n.Tf("tui.activity.event_claim_conflict", e.Ticket)
 	default:
 		return e.Type
 	}

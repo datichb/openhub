@@ -96,25 +96,25 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	}
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]Statut de l'équipe%s\n\n", theme.TagReset)
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.teamstatus.title"), theme.TagReset)
 
 	if !tc.Enabled {
-		fmt.Fprintf(&sb, "  %sÉquipe non configurée pour ce projet.%s\n\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
-		fmt.Fprintf(&sb, "  %sUtilisez 'team configure' dans l'omnibar pour configurer.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.team_not_configured"), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.configure_hint"), theme.TagColor)
 		v.tv.SetText(sb.String())
 		return
 	}
 
-	fmt.Fprintf(&sb, "  %sRepo :%s    %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.StateRepo)
-	fmt.Fprintf(&sb, "  %sMembre :%s  %s\n\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tc.MemberID)
+	fmt.Fprintf(&sb, "  %s%s%s    %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.repo_label"), theme.TagColor, tc.StateRepo)
+	fmt.Fprintf(&sb, "  %s%s%s  %s\n\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.member_label"), theme.TagColor, tc.MemberID)
 
 	if repo == nil {
-		fmt.Fprintf(&sb, "  %sRepo non cloné. Exécutez 'oh team init'.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.repo_not_cloned"), theme.TagColor)
 		v.tv.SetText(sb.String())
 		return
 	}
@@ -131,7 +131,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 			} else {
 				errMsg = claimsErr.Error()
 			}
-			v.shell.ShowToastMsg("Erreur chargement: "+errMsg, false)
+			v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_loading", errMsg), false)
 		}
 	}
 
@@ -142,14 +142,15 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	}
 
 	if len(members) > 0 {
-		fmt.Fprintf(&sb, "  [::b]─── Membres (%d) ───%s\n\n", len(members), theme.TagReset)
+		fmt.Fprintf(&sb, "  [::b]%s%s\n\n", i18n.Tf("tui.teamstatus.members_header", len(members)), theme.TagReset)
 		for _, m := range members {
 			myClaims := memberClaims[m.ID]
-			countStr := fmt.Sprintf("[%d ticket", len(myClaims))
-			if len(myClaims) != 1 {
-				countStr += "s"
+			var countStr string
+			if len(myClaims) == 1 {
+				countStr = i18n.Tf("tui.teamstatus.ticket_count", len(myClaims))
+			} else {
+				countStr = i18n.Tf("tui.teamstatus.ticket_count_plural", len(myClaims))
 			}
-			countStr += "]"
 
 			// Highlight current user
 			nameColor := theme.ColorTag(theme.TextSecondaryHex)
@@ -179,7 +180,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 		statusCounts[c.Status]++
 	}
 	if len(claims) > 0 {
-		fmt.Fprintf(&sb, "  [::b]─── Résumé ───%s\n\n  ", theme.TagReset)
+		fmt.Fprintf(&sb, "  [::b]%s%s\n\n  ", i18n.T("tui.teamstatus.summary_header"), theme.TagReset)
 		statuses := []struct {
 			key   string
 			label string
@@ -203,12 +204,12 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 	// --- Recent activity ---
 	events, eventsErr := repo.ListEventsLimited("", 5)
 	if eventsErr != nil && v.shell != nil {
-		v.shell.ShowToastMsg("Erreur événements: "+eventsErr.Error(), false)
+		v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_events", eventsErr.Error()), false)
 	}
-	fmt.Fprintf(&sb, "  [::b]─── Activité récente ───%s\n\n", theme.TagReset)
+	fmt.Fprintf(&sb, "  [::b]%s%s\n\n", i18n.T("tui.teamstatus.recent_activity_header"), theme.TagReset)
 	if len(events) == 0 {
-		fmt.Fprintf(&sb, "  %sAucune activité récente.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.no_recent_activity"), theme.TagColor)
 	} else {
 		for _, e := range events {
 			ago := formatTimeAgo(e.Timestamp)
@@ -226,17 +227,17 @@ func formatTimeAgo(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "à l'instant"
+		return i18n.T("tui.teamstatus.time_just_now")
 	case d < time.Hour:
-		return fmt.Sprintf("il y a %dm", int(d.Minutes()))
+		return i18n.Tf("tui.teamstatus.time_minutes_ago", int(d.Minutes()))
 	case d < 24*time.Hour:
-		return fmt.Sprintf("il y a %dh", int(d.Hours()))
+		return i18n.Tf("tui.teamstatus.time_hours_ago", int(d.Hours()))
 	case d < 7*24*time.Hour:
 		days := int(d.Hours() / 24)
 		if days == 1 {
-			return "hier"
+			return i18n.T("tui.teamstatus.time_yesterday")
 		}
-		return fmt.Sprintf("il y a %dj", days)
+		return i18n.Tf("tui.teamstatus.time_days_ago", days)
 	default:
 		return t.Format("02 Jan")
 	}
@@ -246,17 +247,17 @@ func formatTimeAgo(t time.Time) string {
 func formatEventType(eventType string) string {
 	switch eventType {
 	case teamstate.EventClaimTaken:
-		return "a pris"
+		return i18n.T("tui.teamstatus.event_claim_taken")
 	case teamstate.EventClaimReleased:
-		return "a libéré"
+		return i18n.T("tui.teamstatus.event_claim_released")
 	case teamstate.EventClaimTransferred:
-		return "a transféré"
+		return i18n.T("tui.teamstatus.event_claim_transferred")
 	case teamstate.EventSessionComplete:
-		return "a terminé"
+		return i18n.T("tui.teamstatus.event_session_complete")
 	case teamstate.EventReviewReady:
-		return "review prête"
+		return i18n.T("tui.teamstatus.event_review_ready")
 	case teamstate.EventAuditFinding:
-		return "audit sur"
+		return i18n.T("tui.teamstatus.event_audit_finding")
 	default:
 		return eventType
 	}

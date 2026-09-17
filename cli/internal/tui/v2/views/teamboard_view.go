@@ -222,14 +222,14 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText("\n\n[yellow]Aucune équipe configurée.[-]\n\nUtilisez [white]Team Init[-] pour commencer.")
+		v.emptyTV.SetText(i18n.T("tui.teamboard.empty_no_team"))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	case !hasTickets:
 		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText("\n\n[yellow]Aucun ticket.[-]\n\nLancez [white]Sync Tracker[-] ([::b]r[::-]) pour synchroniser.")
+		v.emptyTV.SetText(i18n.T("tui.teamboard.empty_no_tickets"))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	default:
 		content.AddItem(v.boardLayout, 0, 1, true)
@@ -787,11 +787,12 @@ func (v *TeamBoardView) showTicketDetail() {
 	// Build detail content
 	detail := v.formatTicketDetail(ticket)
 
-	// Build actions: always "Fermer"; add "Actualiser" if FetchDetail is available.
-	actions := []ModalAction{{Label: "Fermer", Callback: nil}}
+	// Build actions: always "Close"; add "Full description" if FetchDetail is available.
+	closeLabel := i18n.T("tui.teamboard.close")
+	actions := []ModalAction{{Label: closeLabel, Callback: nil}}
 	if v.actions != nil && v.actions.FetchDetail != nil {
 		actions = []ModalAction{
-			{Label: "Description complète", Callback: func() {
+			{Label: i18n.T("tui.teamboard.full_description"), Callback: func() {
 				// Fetch full description on-demand from tracker.
 				go func() {
 					title, desc, err := v.actions.FetchDetail(ticket.Project, ticket.ID)
@@ -800,7 +801,7 @@ func (v *TeamBoardView) showTicketDetail() {
 					}
 					v.app.QueueUpdateDraw(func() {
 						if err != nil {
-							v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+							v.shell.ShowToastMsg(i18n.T("tui.teamboard.error_prefix")+err.Error(), false)
 							return
 						}
 						// Update cached ticket data with fresh info.
@@ -812,15 +813,15 @@ func (v *TeamBoardView) showTicketDetail() {
 						}
 						// Re-display with full description.
 						fullDetail := v.formatTicketDetail(ticket)
-						v.shell.ShowScrollableModal("Ticket: "+ticket.ID, fullDetail, []ModalAction{{Label: "Fermer", Callback: nil}})
+						v.shell.ShowScrollableModal(i18n.T("tui.teamboard.ticket_title")+ticket.ID, fullDetail, []ModalAction{{Label: closeLabel, Callback: nil}})
 					})
 				}()
 			}},
-			{Label: "Fermer", Callback: nil},
+			{Label: closeLabel, Callback: nil},
 		}
 	}
 
-	v.shell.ShowScrollableModal("Ticket: "+ticket.ID, detail, actions)
+	v.shell.ShowScrollableModal(i18n.T("tui.teamboard.ticket_title")+ticket.ID, detail, actions)
 }
 
 // formatTicketDetail builds the detail content string for a ticket.
@@ -830,11 +831,11 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	fmt.Fprintf(&detail, "  %sID:%s         %s\n",
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID)
 	if ticket.Project != "" {
-		fmt.Fprintf(&detail, "  %sProjet:%s     %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Project)
+		fmt.Fprintf(&detail, "  %s%s%s     %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.project"), theme.TagColor, ticket.Project)
 	}
-	fmt.Fprintf(&detail, "  %sStatut:%s     %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Status)
+	fmt.Fprintf(&detail, "  %s%s%s     %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.status"), theme.TagColor, ticket.Status)
 
 	assignee := "-"
 	if ticket.Assignee != "" {
@@ -844,8 +845,8 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, assignee)
 
 	if ticket.Priority != "" {
-		fmt.Fprintf(&detail, "  %sPriorité:%s   %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.Priority)
+		fmt.Fprintf(&detail, "  %s%s%s   %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.priority"), theme.TagColor, ticket.Priority)
 	}
 
 	if len(ticket.Labels) > 0 {
@@ -961,10 +962,10 @@ func (v *TeamBoardView) ContextCommands() []ContextCommand {
 
 	id := ticket.ID
 	return []ContextCommand{
-		{ID: "team.board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: "Code review du ticket", Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
-		{ID: "team.board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: "Session dev sur le ticket", Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
-		{ID: "team.board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: "Audit du ticket", Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
-		{ID: "team.board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: "Debug du ticket", Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
+		{ID: "team.board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: i18n.T("tui.teamboard.cmd.review"), Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
+		{ID: "team.board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: i18n.T("tui.teamboard.cmd.dev"), Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
+		{ID: "team.board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: i18n.T("tui.teamboard.cmd.audit"), Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
+		{ID: "team.board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: i18n.T("tui.teamboard.cmd.debug"), Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
 	}
 }
 
@@ -988,9 +989,9 @@ func (v *TeamBoardView) claimTicket() {
 		v.app.QueueUpdateDraw(func() {
 			v.actionInProgress = false
 			if err != nil {
-				v.shell.ShowToastMsg("Claim échoué: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
 			} else {
-				v.shell.ShowToastMsg("Ticket claim: "+ticketID, true)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_success")+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
 					v.refreshOnEventLoop(v.allColumns)
 				}
@@ -1019,9 +1020,9 @@ func (v *TeamBoardView) releaseTicket() {
 		v.app.QueueUpdateDraw(func() {
 			v.actionInProgress = false
 			if err != nil {
-				v.shell.ShowToastMsg("Release échoué: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
 			} else {
-				v.shell.ShowToastMsg("Ticket libéré: "+ticketID, true)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_success")+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
 					v.refreshOnEventLoop(v.allColumns)
 				}
@@ -1043,11 +1044,11 @@ func (v *TeamBoardView) transferTicket() {
 	}
 	members := v.actions.Members()
 	if len(members) == 0 {
-		v.shell.ShowToastMsg("Aucun membre dans l'équipe", false)
+		v.shell.ShowToastMsg(i18n.T("tui.teamboard.no_members"), false)
 		return
 	}
 	v.actionInProgress = true
-	v.shell.ShowSelectModal("Transférer "+ticketID+" à", members, "", func(toMember string) {
+	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
 		go func() {
 			err := v.actions.OnTransfer(ticketID, toMember)
 			if v.app == nil {
@@ -1056,9 +1057,9 @@ func (v *TeamBoardView) transferTicket() {
 			v.app.QueueUpdateDraw(func() {
 				v.actionInProgress = false
 				if err != nil {
-					v.shell.ShowToastMsg("Transfert échoué: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
 				} else {
-					v.shell.ShowToastMsg("Transféré à "+toMember, true)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toMember, true)
 					if v.cfg.RefreshFunc != nil {
 						v.refreshOnEventLoop(v.allColumns)
 					}
@@ -1092,7 +1093,7 @@ func (v *TeamBoardView) changeStatus() {
 	}
 
 	v.actionInProgress = true
-	v.shell.ShowSelectModal("Status de "+ticketID, statusOptions, currentStatus, func(newStatus string) {
+	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
 		go func() {
 			err := v.actions.OnStatus(ticketID, newStatus)
 			if v.app == nil {
@@ -1101,9 +1102,9 @@ func (v *TeamBoardView) changeStatus() {
 			v.app.QueueUpdateDraw(func() {
 				v.actionInProgress = false
 				if err != nil {
-					v.shell.ShowToastMsg("Changement échoué: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_failed")+err.Error(), false)
 				} else {
-					v.shell.ShowToastMsg("Status mis à jour", true)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_updated"), true)
 					if v.cfg.RefreshFunc != nil {
 						v.refreshOnEventLoop(v.allColumns)
 					}
@@ -1120,14 +1121,14 @@ func (v *TeamBoardView) showSearchFilter() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal("Rechercher (titre/ID/assignee)", v.filterText, func(text string) {
+	v.shell.ShowInputModal(i18n.T("tui.teamboard.search_prompt"), v.filterText, func(text string) {
 		v.filterText = text
 		if text == "" {
 			// Empty search clears all filters (replaces Esc clear-filter behavior)
 			v.clearFilters()
 		} else {
 			v.repopulateWithFilters()
-			v.shell.ShowToastMsg("Filtre: \""+text+"\" (/ vide pour effacer)", true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_search_applied", text), true)
 		}
 	})
 }
@@ -1139,13 +1140,13 @@ func (v *TeamBoardView) showFilterMenu() {
 	}
 
 	options := []SelectOption{
-		{Label: "Mes tickets", Value: "_mine"},
-		{Label: "Par assignee...", Value: "_assignee"},
-		{Label: "Par label...", Value: "_label"},
-		{Label: "Effacer les filtres", Value: "_clear"},
+		{Label: i18n.T("tui.teamboard.filter_my_tickets"), Value: "_mine"},
+		{Label: i18n.T("tui.teamboard.filter_by_assignee"), Value: "_assignee"},
+		{Label: i18n.T("tui.teamboard.filter_by_label"), Value: "_label"},
+		{Label: i18n.T("tui.teamboard.filter_clear"), Value: "_clear"},
 	}
 
-	v.shell.ShowSelectModal("Filtrer le board", options, "", func(choice string) {
+	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_title"), options, "", func(choice string) {
 		switch choice {
 		case "_mine":
 			// Use the MemberID from the config if available via Members
@@ -1153,7 +1154,7 @@ func (v *TeamBoardView) showFilterMenu() {
 				v.filterAssignee = v.cfg.Members[0] // first member is self by convention
 			}
 			v.repopulateWithFilters()
-			v.shell.ShowToastMsg("Filtre: mes tickets", true)
+			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_applied"), true)
 		case "_assignee":
 			v.showAssigneeFilter()
 		case "_label":
@@ -1183,14 +1184,14 @@ func (v *TeamBoardView) showAssigneeFilter() {
 		options = append(options, SelectOption{Label: "@" + a, Value: a})
 	}
 	if len(options) == 0 {
-		v.shell.ShowToastMsg("Aucun assignee trouvé", false)
+		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_no_assignee"), false)
 		return
 	}
 
-	v.shell.ShowSelectModal("Filtrer par assignee", options, "", func(assignee string) {
+	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_assignee_title"), options, "", func(assignee string) {
 		v.filterAssignee = assignee
 		v.repopulateWithFilters()
-		v.shell.ShowToastMsg("Filtre: @"+assignee, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_assignee_applied", assignee), true)
 	})
 }
 
@@ -1199,11 +1200,11 @@ func (v *TeamBoardView) showLabelFilter() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal("Filtrer par label", v.filterLabel, func(label string) {
+	v.shell.ShowInputModal(i18n.T("tui.teamboard.filter_label_title"), v.filterLabel, func(label string) {
 		v.filterLabel = label
 		v.repopulateWithFilters()
 		if label != "" {
-			v.shell.ShowToastMsg("Filtre: label="+label, true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_label_applied", label), true)
 		}
 	})
 }
@@ -1215,7 +1216,7 @@ func (v *TeamBoardView) clearFilters() {
 	v.filterLabel = ""
 	v.repopulateWithFilters()
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Filtres effacés", true)
+		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filters_cleared"), true)
 	}
 }
 

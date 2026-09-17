@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -122,10 +123,8 @@ func actionTeamInit() {
 		Processing: i18n.T("cmd.team.init.processing_repo"),
 		OnDone: func() error {
 			if existing, found := findExistingCloneForRemote(ctx, a, stateRepo); found {
-				return fmt.Errorf(
-					"un clone de ce repo team-state existe déjà\n"+
-						"  Path: %s\n  Référencé par: %s",
-					existing.Path, existing.Source)
+				return errors.New(
+					i18n.Tf("tui.team.clone_exists", existing.Path, existing.Source))
 			}
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
@@ -296,7 +295,7 @@ func actionTeamInit() {
 				mattermostUsername, 0, nil,
 				func(text string) { mattermostUsername = text })
 			form.AddInputField(
-				"Username tracker (optionnel)",
+				i18n.T("tui.team.identity_tracker_username"),
 				trackerUsername, 0, nil,
 				func(text string) { trackerUsername = text })
 			roles := []string{"lead", "dev", "reviewer"}
@@ -470,24 +469,24 @@ func actionTeamInit() {
 	// ── Step 7: Tracker discovery (optional) ──────────────────────────
 	var launchDiscoveryAfter bool
 	trackerStep := views.WizardStep{
-		Label: "Tracker",
+		Label: i18n.T("tui.team.tracker_step"),
 		SkipIf: func() bool {
 			// Skip if no team configured yet (repo step was skipped/failed).
 			return stateRepo == ""
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			options := []string{"Plus tard", "Oui, configurer maintenant"}
-			form.AddDropDown("Configurer le tracker sync ?", options, 0, func(_ string, idx int) {
+			options := []string{i18n.T("tui.team.tracker_later"), i18n.T("tui.team.tracker_configure_now")}
+			form.AddDropDown(i18n.T("tui.team.tracker_configure_prompt"), options, 0, func(_ string, idx int) {
 				launchDiscoveryAfter = idx == 1
 			})
-			form.AddButton("Suivant", func() { onDone() })
+			form.AddButton(i18n.T("tui.team.tracker_next"), func() { onDone() })
 			return form
 		},
 		InfoFields: func() []views.InfoField {
-			val := "Plus tard"
+			val := i18n.T("tui.team.tracker_later")
 			if launchDiscoveryAfter {
-				val = "Oui"
+				val = i18n.T("tui.team.tracker_info_yes")
 			}
 			return []views.InfoField{{Label: "Tracker", Value: val}}
 		},
@@ -556,7 +555,7 @@ func actionTeamConfigure() {
 
 	project := tuiShell.ActiveProject()
 	if project == nil {
-		tuiShell.ShowToast("Aucun projet actif — sélectionnez un projet d'abord", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.configure.no_project"), shell.ToastError)
 		return
 	}
 
@@ -567,14 +566,14 @@ func actionTeamConfigure() {
 	if hubTeam.Enabled && hubTeam.ID != "" {
 		modeOptions = []views.SelectOption{
 			{
-				Label: fmt.Sprintf("Attacher à l'équipe %s (%s)", hubTeam.ID, hubTeam.MemberID),
+				Label: i18n.Tf("tui.team.configure.attach_team", hubTeam.ID, hubTeam.MemberID),
 				Value: hubTeam.ID,
 			},
-			{Label: "Pas de team pour ce projet", Value: ""},
+			{Label: i18n.T("tui.team.configure.no_team"), Value: ""},
 		}
 	} else {
 		modeOptions = []views.SelectOption{
-			{Label: "Pas de team pour ce projet", Value: ""},
+			{Label: i18n.T("tui.team.configure.no_team"), Value: ""},
 		}
 	}
 
@@ -583,7 +582,7 @@ func actionTeamConfigure() {
 		defaultVal = hubTeam.ID
 	}
 
-	tuiShell.ShowSelectModal("Team pour ce projet", modeOptions, defaultVal, func(teamID string) {
+	tuiShell.ShowSelectModal(i18n.T("tui.team.configure.modal_title"), modeOptions, defaultVal, func(teamID string) {
 		go func() {
 			tuiShell.App().QueueUpdateDraw(func() {
 				applyProjectTeamID(a, project.ID, teamID)
@@ -601,7 +600,7 @@ func applyProjectTeamID(a *app.App, projectID, teamID string) {
 	ctx := context.Background()
 	p, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
-		tuiShell.ShowToast("Erreur : projet introuvable", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.configure.project_not_found"), shell.ToastError)
 		return
 	}
 
@@ -614,16 +613,16 @@ func applyProjectTeamID(a *app.App, projectID, teamID string) {
 	p.TeamConfig = nil
 
 	if err := a.Projects.Update(ctx, p); err != nil {
-		tuiShell.ShowToast("Erreur : "+err.Error(), shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.configure.error_prefix")+err.Error(), shell.ToastError)
 		return
 	}
 
-	label := "aucune"
+	label := i18n.T("tui.team.configure.team_none")
 	if teamID != "" {
 		label = teamID
 	}
 	tuiShell.ShowToast(
-		fmt.Sprintf("Équipe configurée : %s — redéployez pour appliquer", label),
+		i18n.Tf("tui.team.configure.team_set", label),
 		shell.ToastSuccess,
 	)
 }
@@ -664,7 +663,7 @@ func actionTeamRejoin() {
 				i18n.T("cmd.team.init.repo_url_title"),
 				stateRepo, 0, nil,
 				func(text string) { stateRepo = text })
-			form.AddButton("Next", func() { onDone() })
+			form.AddButton(i18n.T("tui.team.rejoin.next"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
@@ -675,7 +674,7 @@ func actionTeamRejoin() {
 				return err
 			}
 			if len(members) == 0 {
-				return fmt.Errorf("aucun membre trouvé dans le repo team-state")
+				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
 			return nil
 		},
@@ -745,7 +744,7 @@ func actionTeamRejoin() {
 
 			var items []widgets.SectionItem
 			items = append(items, widgets.SectionItem{
-				MainText: "Membres de l'équipe",
+				MainText: i18n.T("tui.team.rejoin.members_header"),
 				IsHeader: true,
 			})
 			for _, m := range members {
@@ -784,11 +783,11 @@ func actionTeamRejoin() {
 			for _, m := range members {
 				if m.ID == memberID {
 					return []views.InfoField{
-						{Label: "Membre", Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
+						{Label: i18n.T("tui.team.rejoin.member_label"), Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
 					}
 				}
 			}
-			return []views.InfoField{{Label: "Membre", Value: memberID}}
+			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: memberID}}
 		},
 	}
 
@@ -834,7 +833,7 @@ func actionTeamRejoin() {
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{
-				{Label: "Statut", Value: theme.SuccessStyle.Render("Reconnecté")},
+				{Label: i18n.T("tui.team.rejoin.status_label"), Value: theme.SuccessStyle.Render(i18n.T("tui.team.rejoin.reconnected"))},
 			}
 		},
 	}
@@ -912,7 +911,7 @@ func actionSyncTracker() {
 	a := MustApp()
 	ctx := tuiShell.Context()
 
-	tuiShell.ShowToast("Synchronisation en cours...", shell.ToastInfo)
+	tuiShell.ShowToast(i18n.T("tui.team.sync.in_progress"), shell.ToastInfo)
 
 	go func() {
 		select {
@@ -928,11 +927,11 @@ func actionSyncTracker() {
 		}
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("✗ Sync: "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast(i18n.T("tui.team.sync.error_prefix")+err.Error(), shell.ToastError)
 				return
 			}
 			content := formatSyncResultModal(result)
-			tuiShell.ShowScrollableModal("Résultat sync tracker", content, []views.ModalAction{
+			tuiShell.ShowScrollableModal(i18n.T("tui.team.sync.result_title"), content, []views.ModalAction{
 				{Label: "OK", Callback: func() {}},
 			})
 		})
@@ -944,21 +943,21 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 	// Resolve team config
 	tc := resolvedTeamConfig(a, nil)
 	if !tc.Enabled {
-		return nil, fmt.Errorf("équipe non configurée")
+		return nil, errors.New(i18n.T("tui.team.sync.team_not_configured"))
 	}
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
-		return nil, fmt.Errorf("team-state non cloné — lancez 'team init'")
+		return nil, errors.New(i18n.T("tui.team.sync.not_cloned"))
 	}
 
 	// Load team config
 	teamCfg, err := repo.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("chargement config: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), err)
 	}
 	if teamCfg.Tracker.Type == "" {
-		return nil, fmt.Errorf("tracker non configuré — utilisez 'g' dans la vue Config équipe")
+		return nil, errors.New(i18n.T("tui.team.sync.tracker_not_configured"))
 	}
 
 	// Merge shared team-state config with local hub.toml overrides.
@@ -974,7 +973,7 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 
 	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
 	if err != nil {
-		return nil, fmt.Errorf("credentials manquants — activez %s dans Settings: %w", teamCfg.Tracker.Type, err)
+		return nil, fmt.Errorf("%s: %w", i18n.Tf("tui.team.sync.credentials_missing", teamCfg.Tracker.Type), err)
 	}
 
 	t, err := tracker.New(creds)
@@ -985,7 +984,7 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 	// Build the Projects map from hub projects (same as CLI sync-tracker and resolveTrackerEngine).
 	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
 	if len(projects) == 0 {
-		return nil, fmt.Errorf("aucun projet configuré pour le tracker sync — vérifiez tracker_project dans la config team")
+		return nil, errors.New(i18n.T("tui.team.sync.no_projects"))
 	}
 
 	engineCfg := teamstate.TrackerConfig{
@@ -1055,20 +1054,20 @@ func actionTrackerDiscovery() {
 	// ── Resolve team config (same pattern as runSyncTrackerForTUI) ───
 	tc := resolvedTeamConfig(a, nil)
 	if !tc.Enabled {
-		tuiShell.ShowToast("Équipe non configurée — lancez 'team init' d'abord", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.discovery.team_not_configured"), shell.ToastError)
 		return
 	}
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
-		tuiShell.ShowToast("Team-state non cloné — lancez 'team init' d'abord", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.discovery.not_cloned"), shell.ToastError)
 		return
 	}
 
 	// Load existing team config for pre-fill
 	teamCfg, err := repo.LoadConfig()
 	if err != nil {
-		tuiShell.ShowToast("Erreur chargement config: "+err.Error(), shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.discovery.config_load_error")+err.Error(), shell.ToastError)
 		return
 	}
 
@@ -1171,7 +1170,7 @@ func actionTrackerDiscovery() {
 				credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
-					return fmt.Errorf("impossible de résoudre les credentials: %w", err)
+					return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.credentials_error"), err)
 				}
 				cfg.Token = resolved.Token
 				if cfg.BaseURL == "" {
@@ -1182,7 +1181,7 @@ func actionTrackerDiscovery() {
 			// Create tracker instance and test
 			t, err := tracker.New(cfg)
 			if err != nil {
-				return fmt.Errorf("initialisation tracker: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), err)
 			}
 
 			// Wrap API calls in a 30s timeout to avoid hanging the wizard.
@@ -1192,14 +1191,14 @@ func actionTrackerDiscovery() {
 			// Test connection
 			username, err := t.TestConnection(apiCtx)
 			if err != nil {
-				return fmt.Errorf("échec connexion: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.connection_failed"), err)
 			}
 			_ = username // connection OK
 
 			// Test project access
 			_, err = t.TestProject(apiCtx, projectID)
 			if err != nil {
-				return fmt.Errorf("projet inaccessible: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.project_inaccessible"), err)
 			}
 
 			return nil
@@ -1208,7 +1207,7 @@ func actionTrackerDiscovery() {
 			return []views.InfoField{
 				{Label: "Type", Value: trackerType},
 				{Label: "URL", Value: trackerURL},
-				{Label: "Projet", Value: projectID},
+				{Label: i18n.T("tui.team.discovery.info_project"), Value: projectID},
 			}
 		},
 	}
@@ -1240,7 +1239,7 @@ func actionTrackerDiscovery() {
 
 			t, err := tracker.New(cfg)
 			if err != nil {
-				return fmt.Errorf("initialisation tracker: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), err)
 			}
 
 			// Wrap API call in a 30s timeout to avoid hanging the wizard.
@@ -1250,7 +1249,7 @@ func actionTrackerDiscovery() {
 			// Discover project metadata (labels, statuses)
 			discoveryInfo, err = t.DiscoverProject(apiCtx, projectID)
 			if err != nil {
-				return fmt.Errorf("découverte projet: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.discovery_error"), err)
 			}
 
 			// Start from existing board columns or defaults
@@ -1285,7 +1284,7 @@ func actionTrackerDiscovery() {
 			}
 			if len(unmapped) > 0 {
 				fields = append(fields, views.InfoField{
-					Label: "Non mappés", Value: fmt.Sprintf("%d", len(unmapped)),
+					Label: i18n.T("tui.team.discovery.info_unmapped"), Value: fmt.Sprintf("%d", len(unmapped)),
 				})
 			}
 			return fields
@@ -1314,8 +1313,7 @@ func actionTrackerDiscovery() {
 				if len(unmapped) < maxShow {
 					maxShow = len(unmapped)
 				}
-				info := fmt.Sprintf("Labels non mappés (%d) : %s",
-					len(unmapped), strings.Join(unmapped[:maxShow], ", "))
+				info := i18n.Tf("tui.team.discovery.unmapped_labels", len(unmapped), strings.Join(unmapped[:maxShow], ", "))
 				if len(unmapped) > maxShow {
 					info += "..."
 				}
@@ -1356,7 +1354,7 @@ func actionTrackerDiscovery() {
 			}
 			return []views.InfoField{
 				{Label: "Mappings", Value: i18n.Tf("cmd.discovery.info.mappings_accepted", accepted)},
-				{Label: "Non mappés", Value: fmt.Sprintf("%d", len(unmapped))},
+				{Label: i18n.T("tui.team.discovery.info_unmapped"), Value: fmt.Sprintf("%d", len(unmapped))},
 			}
 		},
 	}
@@ -1405,7 +1403,7 @@ func actionTrackerDiscovery() {
 			// ── Save everything to team-state config ────────────
 			cfg, err := repo.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("chargement config: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), err)
 			}
 
 			// Tracker connection settings
@@ -1452,7 +1450,7 @@ func actionTrackerDiscovery() {
 
 			// Save config and commit
 			if err := repo.SaveConfig(ctx, cfg); err != nil {
-				return fmt.Errorf("sauvegarde config: %w", err)
+				return fmt.Errorf("%s: %w", i18n.T("tui.team.board_config.save_error_label"), err)
 			}
 
 			// Build TOML preview for the summary screen.
@@ -1499,13 +1497,13 @@ func actionTrackerDiscovery() {
 		InfoFields: func() []views.InfoField {
 			fields := []views.InfoField{
 				{Label: "Tracker", Value: fmt.Sprintf("%s @ %s", trackerType, trackerURL)},
-				{Label: "Projet", Value: projectID},
-				{Label: "Colonnes", Value: fmt.Sprintf("%d", len(finalColumns))},
+				{Label: i18n.T("tui.team.discovery.info_project"), Value: projectID},
+				{Label: i18n.T("tui.team.columns.header_label"), Value: fmt.Sprintf("%d", len(finalColumns))},
 				{Label: "Mappings", Value: fmt.Sprintf("%d", len(suggestedMappings))},
 			}
 			if len(selectedPool) > 0 {
 				fields = append(fields, views.InfoField{
-					Label: "Pool", Value: fmt.Sprintf("%d labels", len(selectedPool)),
+					Label: "Pool", Value: i18n.Tf("tui.team.discovery.pool_labels_count", len(selectedPool)),
 				})
 			}
 			if tomlPreview != "" {
@@ -1537,27 +1535,27 @@ func actionTrackerDiscovery() {
 
 func formatSyncResultModal(r *views.SyncTrackerResult) string {
 	if r == nil {
-		return "Aucun résultat"
+		return i18n.T("tui.team.sync.no_result")
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Claims créés:      %d\n", r.ClaimsCreated)
-	fmt.Fprintf(&sb, "Claims mis à jour: %d\n", r.ClaimsUpdated)
-	fmt.Fprintf(&sb, "Labels poussés:    %d\n", r.LabelsPushed)
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.claims_created", r.ClaimsCreated))
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.claims_updated", r.ClaimsUpdated))
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.labels_pushed", r.LabelsPushed))
 
 	if len(r.Projects) > 0 {
-		sb.WriteString("\nProjets:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.projects_header") + "\n")
 		for _, p := range r.Projects {
 			fmt.Fprintf(&sb, "  %s\n", p)
 		}
 	}
 	if len(r.Warnings) > 0 {
-		sb.WriteString("\nWarnings:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.warnings_header") + "\n")
 		for _, w := range r.Warnings {
 			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
 		}
 	}
 	if len(r.Errors) > 0 {
-		sb.WriteString("\nErreurs:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.errors_header") + "\n")
 		for _, e := range r.Errors {
 			fmt.Fprintf(&sb, "  ✗ %s\n", e)
 		}
@@ -1655,25 +1653,25 @@ func buildColumnEditorStep(
 
 			updateHints := func() {
 				if editingMappingsFor == "" {
-					h := fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] déplacer ↕%s%sa[-] ajouter%s%sEnter[-] renommer%s%sd[-] supprimer%s%sr[-] rôle",
+					h := fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] %s%s%sa[-] %s%s%sEnter[-] %s%s%sd[-] %s%s%sr[-] %s",
 						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex))
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_move"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_add"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_role"))
 					if hasMappings {
 						h += fmt.Sprintf("%s%sm[-] mappings", hintSep, theme.ColorTag(theme.AccentHex))
 					}
-					h += fmt.Sprintf("%s%sCtrl+S[-] sauvegarder", hintSep, theme.ColorTag(theme.AccentHex))
+					h += fmt.Sprintf("%s%sCtrl+S[-] %s", hintSep, theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_save"))
 					hints.SetText(h)
 				} else {
-					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] ajouter label%s%sEnter[-] renommer%s%sd[-] supprimer%s%sq[-] retour aux colonnes",
+					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] %s%s%sEnter[-] %s%s%sd[-] %s%s%sq[-] %s",
 						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex)))
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_add_label"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
+						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_back_columns")))
 				}
 			}
 
@@ -1681,8 +1679,8 @@ func buildColumnEditorStep(
 				sel := list.GetCurrentItem()
 				list.Clear()
 
-				headerText := fmt.Sprintf("  %s── Colonnes (%d) ──%s",
-					theme.ColorTag(theme.AccentHex), len(*columns), theme.TagColor)
+				headerText := fmt.Sprintf("  %s── %s (%d) ──%s",
+					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.header_label"), len(*columns), theme.TagColor)
 				list.AddItem(headerText, "", 0, nil)
 
 				activeIdx := 0
@@ -1706,12 +1704,12 @@ func buildColumnEditorStep(
 					colorName := columnColorName(col, color)
 					secParts := []string{
 						fmt.Sprintf("id: %s", col.ID),
-						fmt.Sprintf("couleur: %s", colorName),
+						fmt.Sprintf(i18n.T("tui.team.columns.color_label"), colorName),
 					}
 					if hasMappings {
 						labels, statuses := labelsForCol(col.ID)
 						all := append(labels, statuses...)
-						secParts = append(secParts, fmt.Sprintf("labels: %s", truncLabels(all, 3)))
+						secParts = append(secParts, fmt.Sprintf(i18n.T("tui.team.columns.labels_label"), truncLabels(all, 3)))
 					}
 					secondaryText := fmt.Sprintf("      [%s]%s[-]",
 						theme.TextMutedHex, strings.Join(secParts, " · "))
@@ -1720,13 +1718,16 @@ func buildColumnEditorStep(
 				}
 
 				list.AddItem("", "", 0, nil)
-				legendText := fmt.Sprintf("  %s── Rôles ──%s",
-					theme.ColorTag(theme.AccentHex), theme.TagColor)
+				legendText := fmt.Sprintf("  %s── %s ──%s",
+					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.roles_header"), theme.TagColor)
 				list.AddItem(legendText, "", 0, nil)
-				legendLine := fmt.Sprintf("    [%s]●[-] initial = entrée  [%s]●[-] active = en cours  [%s]●[-] terminal = terminé  [%s]●[-] blocked = bloqué",
-					theme.WarningHex, theme.AccentHex, theme.SuccessHex, theme.ErrorHex)
+				legendLine := fmt.Sprintf("    [%s]●[-] %s  [%s]●[-] %s  [%s]●[-] %s  [%s]●[-] %s",
+					theme.WarningHex, i18n.T("tui.team.columns.role_initial_desc"),
+					theme.AccentHex, i18n.T("tui.team.columns.role_active_desc"),
+					theme.SuccessHex, i18n.T("tui.team.columns.role_terminal_desc"),
+					theme.ErrorHex, i18n.T("tui.team.columns.role_blocked_desc"))
 				list.AddItem(legendLine,
-					fmt.Sprintf("      [%s]Les colonnes définissent les étapes du workflow kanban[-]", theme.TextMutedHex),
+					fmt.Sprintf("      [%s]%s[-]", theme.TextMutedHex, i18n.T("tui.team.columns.roles_explanation")),
 					0, nil)
 
 				maxSel := len(*columns)
@@ -1751,21 +1752,21 @@ func buildColumnEditorStep(
 					}
 				}
 
-				headerText := fmt.Sprintf("  %s── Mappings → %s ──%s",
-					theme.ColorTag(theme.AccentHex), colName, theme.TagColor)
+				headerText := fmt.Sprintf("  %s── %s → %s ──%s",
+					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.mappings_title"), colName, theme.TagColor)
 				list.AddItem(headerText, "", 0, nil)
 
 				labels, statuses := labelsForCol(editingMappingsFor)
 
 				// Labels section
-				labelHeader := fmt.Sprintf("    %s── Labels ──%s",
-					theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+				labelHeader := fmt.Sprintf("    %s── %s ──%s",
+					theme.ColorTag(theme.TextMutedHex), i18n.T("tui.team.columns.labels_section"), theme.TagColor)
 				list.AddItem(labelHeader, "", 0, nil)
 
 				if len(labels) == 0 {
 					list.AddItem(
-						fmt.Sprintf("    [%s](aucun label mappé)[-]", theme.TextMutedHex),
-						fmt.Sprintf("      [%s]Appuyez sur 'a' pour ajouter[-]", theme.TextMutedHex),
+						fmt.Sprintf("    [%s]%s[-]", theme.TextMutedHex, i18n.T("tui.team.columns.no_label_mapped")),
+						fmt.Sprintf("      [%s]%s[-]", theme.TextMutedHex, i18n.T("tui.team.columns.press_a_to_add")),
 						0, nil)
 				}
 				for _, l := range labels {
@@ -1783,8 +1784,8 @@ func buildColumnEditorStep(
 
 					if len(statuses) == 0 {
 						list.AddItem(
-							fmt.Sprintf("    [%s](aucun status mappé)[-]", theme.TextMutedHex),
-							fmt.Sprintf("      [%s]Appuyez sur 'a' pour ajouter[-]", theme.TextMutedHex),
+							fmt.Sprintf("    [%s]%s[-]", theme.TextMutedHex, i18n.T("tui.team.columns.no_status_mapped")),
+							fmt.Sprintf("      [%s]%s[-]", theme.TextMutedHex, i18n.T("tui.team.columns.press_a_to_add")),
 							0, nil)
 					}
 					for _, s := range statuses {
@@ -1820,7 +1821,7 @@ func buildColumnEditorStep(
 				}
 				idx := list.GetCurrentItem()
 				main, _ := list.GetItemText(idx)
-				if strings.Contains(main, "──") || strings.Contains(main, "(aucun") || main == "" {
+				if strings.Contains(main, "──") || strings.Contains(main, i18n.T("tui.team.columns.no_label_mapped")) || strings.Contains(main, i18n.T("tui.team.columns.no_status_mapped")) || main == "" {
 					return nil
 				}
 				// Strip tview color tags to get the raw name
@@ -1858,7 +1859,7 @@ func buildColumnEditorStep(
 
 			isHeaderLine := func(listIdx int) bool {
 				main, _ := list.GetItemText(listIdx)
-				return strings.Contains(main, "──") || main == "" || strings.Contains(main, "(aucun")
+				return strings.Contains(main, "──") || main == "" || strings.Contains(main, i18n.T("tui.team.columns.no_label_mapped")) || strings.Contains(main, i18n.T("tui.team.columns.no_status_mapped"))
 			}
 
 			renderColumns()
@@ -1900,7 +1901,7 @@ func buildColumnEditorStep(
 
 					case event.Rune() == 'a':
 						if tuiShell != nil {
-							tuiShell.ShowInputModal("Nom du label", "", func(name string) {
+							tuiShell.ShowInputModal(i18n.T("tui.team.columns.label_name_prompt"), "", func(name string) {
 								if name == "" {
 									return
 								}
@@ -1913,7 +1914,7 @@ func buildColumnEditorStep(
 								}
 								renderMappings()
 								if tuiShell != nil {
-									tuiShell.ShowToast(fmt.Sprintf("+ Label « %s » → %s", name, editingMappingsFor), shell.ToastSuccess)
+									tuiShell.ShowToast(i18n.Tf("tui.team.columns.label_added", name, editingMappingsFor), shell.ToastSuccess)
 								}
 							})
 						}
@@ -1922,7 +1923,7 @@ func buildColumnEditorStep(
 					case event.Key() == tcell.KeyEnter:
 						ref := resolveMappingItem()
 						if ref != nil && tuiShell != nil {
-							tuiShell.ShowInputModal("Renommer", ref.key, func(newName string) {
+							tuiShell.ShowInputModal(i18n.T("tui.team.columns.rename_prompt"), ref.key, func(newName string) {
 								if newName == "" || newName == ref.key {
 									return
 								}
@@ -1949,7 +1950,7 @@ func buildColumnEditorStep(
 							}
 							renderMappings()
 							if tuiShell != nil {
-								tuiShell.ShowToast(fmt.Sprintf("- Mapping « %s » supprimé", ref.key), shell.ToastSuccess)
+								tuiShell.ShowToast(i18n.Tf("tui.team.columns.mapping_deleted", ref.key), shell.ToastSuccess)
 							}
 						}
 						return nil
@@ -1986,7 +1987,7 @@ func buildColumnEditorStep(
 						renderColumns()
 						list.SetCurrentItem(idx)
 						if tuiShell != nil {
-							tuiShell.ShowToast("↑ Colonne déplacée", shell.ToastSuccess)
+							tuiShell.ShowToast(i18n.T("tui.team.columns.moved_up"), shell.ToastSuccess)
 						}
 					}
 					return nil
@@ -1997,7 +1998,7 @@ func buildColumnEditorStep(
 						renderColumns()
 						list.SetCurrentItem(idx + 2)
 						if tuiShell != nil {
-							tuiShell.ShowToast("↓ Colonne déplacée", shell.ToastSuccess)
+							tuiShell.ShowToast(i18n.T("tui.team.columns.moved_down"), shell.ToastSuccess)
 						}
 					}
 					return nil
@@ -2025,7 +2026,7 @@ func buildColumnEditorStep(
 							*columns = updated
 							renderColumns()
 							list.SetCurrentItem(pos + 1)
-							tuiShell.ShowToast(fmt.Sprintf("+ Colonne « %s » ajoutée", newCol.Name), shell.ToastSuccess)
+							tuiShell.ShowToast(i18n.Tf("tui.team.columns.column_added", newCol.Name), shell.ToastSuccess)
 						})
 					}
 					return nil
@@ -2072,9 +2073,9 @@ func buildColumnEditorStep(
 						}
 					}
 					renderColumns()
-					msg := fmt.Sprintf("- Colonne « %s » supprimée", deletedName)
+					msg := i18n.Tf("tui.team.columns.column_deleted", deletedName)
 					if cleaned > 0 {
-						msg += fmt.Sprintf(" — %d mapping(s) nettoyé(s)", cleaned)
+						msg += i18n.Tf("tui.team.columns.mappings_cleaned", cleaned)
 					}
 					if tuiShell != nil {
 						tuiShell.ShowToast(msg, shell.ToastSuccess)
@@ -2164,7 +2165,7 @@ func buildColumnEditorStep(
 				names[i] = c.Name
 			}
 			return []views.InfoField{
-				{Label: "Colonnes", Value: i18n.Tf("cmd.discovery.info.columns_selected", len(*result))},
+				{Label: i18n.T("tui.team.columns.header_label"), Value: i18n.Tf("cmd.discovery.info.columns_selected", len(*result))},
 				{Label: "Layout", Value: strings.Join(names, " → ")},
 			}
 		},
@@ -2211,7 +2212,7 @@ func actionBoardColumnConfig() {
 	// Resolve the active team
 	activeTeam := a.Config.ActiveTeam()
 	if !activeTeam.Enabled {
-		tuiShell.ShowToast("Aucune équipe active", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.board_config.no_team"), shell.ToastError)
 		return
 	}
 
@@ -2221,14 +2222,14 @@ func actionBoardColumnConfig() {
 	}
 	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
 	if !repo.IsCloned() {
-		tuiShell.ShowToast("Repo team-state non cloné", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.board_config.not_cloned"), shell.ToastError)
 		return
 	}
 
 	// Load current board config
 	cfg, err := repo.LoadConfig()
 	if err != nil {
-		tuiShell.ShowToast("Erreur chargement config : "+err.Error(), shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.team.board_config.config_load_error")+err.Error(), shell.ToastError)
 		return
 	}
 
@@ -2271,7 +2272,7 @@ func actionBoardColumnConfig() {
 				freshCfg, err := repo.LoadConfig()
 				if err != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
-						tuiShell.ShowToast("Erreur : "+err.Error(), shell.ToastError)
+						tuiShell.ShowToast(i18n.T("tui.team.board_config.error_prefix")+err.Error(), shell.ToastError)
 					})
 					return
 				}
@@ -2280,13 +2281,13 @@ func actionBoardColumnConfig() {
 				freshCfg.Tracker.StatusMapping = statusMappings
 				if err := repo.SaveConfig(ctx, freshCfg); err != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
-						tuiShell.ShowToast("Erreur sauvegarde : "+err.Error(), shell.ToastError)
+						tuiShell.ShowToast(i18n.T("tui.team.board_config.save_error")+err.Error(), shell.ToastError)
 					})
 					return
 				}
 				tuiShell.App().QueueUpdateDraw(func() {
 					tuiShell.ShowToast(
-						fmt.Sprintf("%s %d colonnes sauvegardées", theme.IconSuccess, len(finalColumns)),
+						i18n.Tf("tui.team.board_config.saved", theme.IconSuccess, len(finalColumns)),
 						shell.ToastSuccess,
 					)
 				})
