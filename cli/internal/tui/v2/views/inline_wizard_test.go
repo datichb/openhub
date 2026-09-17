@@ -1,6 +1,7 @@
 package views
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -406,4 +408,338 @@ func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
 	viewID, label = v.summaryTarget()
 	assert.Equal(t, "project.mode", viewID)
 	assert.Equal(t, "Go to project", label)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// N1 — isLastFocusableFormItem with trailing non-focusable TextView
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_TabToButtonFormWithTrailingTextView(t *testing.T) {
+	t.Run("InputField+TextView: InputField is last focusable", func(t *testing.T) {
+		form := tview.NewForm()
+		form.AddInputField("Name", "", 0, nil, nil)
+		form.AddTextView("hint", "some help text", 0, 1, true, false)
+
+		// Index 0 (InputField) should be treated as last focusable
+		// because the trailing TextView is non-interactive.
+		assert.True(t, isLastFocusableFormItem(form, 0),
+			"InputField at 0 should be last focusable when only a TextView follows")
+	})
+
+	t.Run("InputField+DropDown: InputField is NOT last focusable", func(t *testing.T) {
+		form := tview.NewForm()
+		form.AddInputField("Name", "", 0, nil, nil)
+		form.AddDropDown("Region", []string{"us", "eu"}, 0, nil)
+
+		// Index 0 (InputField) is NOT the last focusable because DropDown follows.
+		assert.False(t, isLastFocusableFormItem(form, 0),
+			"InputField at 0 should NOT be last focusable when a DropDown follows")
+	})
+
+	t.Run("nil form returns false", func(t *testing.T) {
+		assert.False(t, isLastFocusableFormItem(nil, 0))
+	})
+
+	t.Run("negative index returns false", func(t *testing.T) {
+		form := tview.NewForm()
+		form.AddInputField("Name", "", 0, nil, nil)
+		assert.False(t, isLastFocusableFormItem(form, -1))
+	})
+
+	t.Run("index out of bounds returns false", func(t *testing.T) {
+		form := tview.NewForm()
+		form.AddInputField("Name", "", 0, nil, nil)
+		assert.False(t, isLastFocusableFormItem(form, 5))
+	})
+
+	t.Run("single InputField is last focusable", func(t *testing.T) {
+		form := tview.NewForm()
+		form.AddInputField("Name", "", 0, nil, nil)
+		assert.True(t, isLastFocusableFormItem(form, 0),
+			"sole InputField should be last focusable")
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// N2 — Double-Esc on CustomView in a 3-step wizard
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_DoubleEscCustomView(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.dblesc",
+		Title: "DoubleEsc Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Welcome",
+				Required: false, // optional CustomView
+				CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView()
+					container.AddItem(tv, 0, 1, true)
+					tvApp.SetFocus(tv)
+				},
+			},
+			{
+				Label:    "Config",
+				Required: false,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Key", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+			{
+				Label:    "Confirm",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	require.Equal(t, 0, v.currentStep, "should start at step 0")
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+
+	// First Esc: sets escPending, does NOT advance
+	result := v.HandleKey(escEvent)
+	assert.Nil(t, result, "first esc consumed")
+	assert.True(t, v.escPending, "escPending should be true after first Esc")
+	assert.Equal(t, 0, v.currentStep, "still on step 0 after first Esc")
+
+	// Non-Esc key after first Esc: resets escPending
+	runeEvent := tcell.NewEventKey(tcell.KeyRune, 'x', tcell.ModNone)
+	v.HandleKey(runeEvent)
+	assert.False(t, v.escPending, "escPending should be reset by non-Esc key")
+	assert.Equal(t, 0, v.currentStep, "still on step 0 after non-Esc key")
+
+	// Re-arm double-Esc: first Esc again
+	v.HandleKey(escEvent)
+	assert.True(t, v.escPending, "escPending re-armed")
+
+	// Second Esc: should skip to next step
+	v.HandleKey(escEvent)
+	assert.False(t, v.escPending, "escPending cleared after skip")
+	assert.Equal(t, 1, v.currentStep, "should advance to step 1 after double-Esc")
+
+	v.Unmount()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// N3 — Ctrl+B from summary screen goes back to last step
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_SummaryCtrlB(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.summary.ctrlb",
+		Title: "Summary CtrlB Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Step A",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+			{
+				Label:    "Step B",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddCheckbox("Enable", false, nil)
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	require.Equal(t, 0, v.currentStep)
+
+	// Manually advance both steps to reach summary.
+	// advanceAfterDone marks the current step done and moves to next.
+	step0 := v.cfg.Steps[0]
+	v.advanceAfterDone(step0)
+	require.Equal(t, 1, v.currentStep, "should be on step 1 after advancing step 0")
+	require.False(t, v.completed, "not completed yet")
+
+	// Render step 1 so doRenderStep is usable from handleSummaryKey
+	v.doRenderStep(v.currentStep)
+
+	step1 := v.cfg.Steps[1]
+	v.advanceAfterDone(step1)
+	// After advancing the last step, wizardComplete is called
+	require.True(t, v.completed, "should be completed after all steps done")
+
+	// Now simulate Ctrl+B from the summary screen
+	ctrlBEvent := tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone)
+	result := v.HandleKey(ctrlBEvent)
+	assert.Nil(t, result, "ctrl+b should be consumed on summary")
+	assert.False(t, v.completed, "completed should be false after ctrl+b from summary")
+	assert.Equal(t, 1, v.currentStep, "should return to last real (non-hidden) step")
+
+	v.Unmount()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// N4 — Summary shows skipped steps with the skipped icon
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_SummaryShowsSkippedSteps(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.summary.skipped",
+		Title: "Skipped Summary Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Setup",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+			{
+				Label:    "Optional Config",
+				Required: false,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddCheckbox("Enable", false, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+			{
+				Label:    "Finish",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	require.Equal(t, 0, v.currentStep)
+
+	// Complete step 0 (Setup)
+	v.advanceAfterDone(v.cfg.Steps[0])
+	require.Equal(t, 1, v.currentStep, "should be on step 1")
+
+	// User-skip step 1 (Optional Config) via skipCurrent → marks it StepSkipped
+	v.skipCurrent()
+	require.Equal(t, 2, v.currentStep, "should advance to step 2 after skip")
+	assert.Equal(t, widgets.StepSkipped, v.stepStates[1].Status,
+		"step 1 should be StepSkipped after user skip")
+
+	// Render step 2 so the form is wired
+	v.doRenderStep(v.currentStep)
+
+	// Complete step 2 to trigger summary (wizardComplete → renderSummaryScreen)
+	v.advanceAfterDone(v.cfg.Steps[2])
+	require.True(t, v.completed, "wizard should be completed")
+
+	// renderSummaryScreen writes the summary (including skipped steps) into
+	// a TextView added to stepContent. Extract the text from the first item
+	// in stepContent (the summary TextView).
+	require.NotNil(t, v.stepContent, "stepContent should exist")
+	require.Greater(t, v.stepContent.GetItemCount(), 0, "stepContent should have items")
+
+	// The first item in stepContent after renderSummaryScreen is the summary TextView.
+	summaryPrimitive := v.stepContent.GetItem(0)
+	summaryTV, ok := summaryPrimitive.(*tview.TextView)
+	require.True(t, ok, "first stepContent item should be a *tview.TextView")
+
+	summaryText := summaryTV.GetText(false)
+	assert.True(t, strings.Contains(summaryText, theme.IconSkipped),
+		"summary should contain the skipped icon %q for user-skipped step, got: %s",
+		theme.IconSkipped, summaryText)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// N5 — Contextual hints per step
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_ContextualHints(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.hints",
+		Title: "Hints Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Required Step",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+			{
+				Label:    "Optional Step",
+				Required: false,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddCheckbox("Enable", false, nil)
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// ── Step 0: Required, first step (no back, no skip) ──
+	hints0 := v.statusHintsForStep(0)
+
+	// Required step should NOT mention esc/skip
+	assert.False(t, strings.Contains(strings.ToLower(hints0), "esc"),
+		"required step hints should not contain 'esc', got: %s", hints0)
+	assert.False(t, strings.Contains(strings.ToLower(hints0), "skip"),
+		"required step hints should not contain 'skip', got: %s", hints0)
+
+	// First step has no predecessor → no back hint
+	assert.False(t, strings.Contains(strings.ToLower(hints0), "ctrl+b"),
+		"first step hints should not contain 'ctrl+b' (no back), got: %s", hints0)
+
+	// Should at least contain submit hint
+	assert.True(t, strings.Contains(strings.ToLower(hints0), "ctrl+s"),
+		"step hints should contain submit shortcut 'ctrl+s', got: %s", hints0)
+
+	// ── Step 1: Optional, has a predecessor ──
+	// First mark step 0 as done so findPrev(1) finds it
+	v.stepStates[0].Status = widgets.StepDone
+	hints1 := v.statusHintsForStep(1)
+
+	// Optional step should mention skip (esc×2)
+	assert.True(t, strings.Contains(hints1, "esc"),
+		"optional step hints should contain 'esc' for skip, got: %s", hints1)
+
+	// Should have back since step 0 is done
+	assert.True(t, strings.Contains(strings.ToLower(hints1), "ctrl+b"),
+		"second step hints should contain 'ctrl+b' (back), got: %s", hints1)
+
+	v.Unmount()
 }
