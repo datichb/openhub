@@ -407,7 +407,9 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
 			if step.Required {
 				// Required: show transient message, do not skip.
-				w.hintsBar.SetHints(i18n.T("wizard.step_required"))
+				w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
+					widgets.ColorTag(theme.Error), theme.IconWarning,
+					i18n.T("wizard.step_required")))
 				w.trackTimer(time.AfterFunc(2*time.Second, func() {
 					if w.app != nil {
 						w.app.QueueUpdateDraw(func() {
@@ -687,12 +689,27 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 	// ── Form path ──
 	if step.Form != nil {
+		var form *tview.Form // pre-declare so onDone closure can reference it
+
 		onDone := func() {
 			// Run validation if defined
 			if step.Validate != nil {
 				if errMsg := step.Validate(); errMsg != "" {
-					w.hintsBar.SetHints(fmt.Sprintf("%s%s[-]",
-						widgets.ColorTag(theme.Error), errMsg))
+					w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
+						widgets.ColorTag(theme.Error), theme.IconWarning, errMsg))
+					// Mark the first form field with a ✗ error indicator.
+					if form != nil && form.GetFormItemCount() > 0 {
+						if input, ok := form.GetFormItem(0).(*tview.InputField); ok {
+							origLabel := input.GetLabel()
+							input.SetLabel(fmt.Sprintf("%s%s[-] %s",
+								widgets.ColorTag(theme.Error), theme.IconError, origLabel))
+							w.trackTimer(time.AfterFunc(3*time.Second, func() {
+								if w.app != nil {
+									w.app.QueueUpdateDraw(func() { input.SetLabel(origLabel) })
+								}
+							}))
+						}
+					}
 					w.trackTimer(time.AfterFunc(3*time.Second, func() {
 						if w.app != nil {
 							w.app.QueueUpdateDraw(func() {
@@ -713,7 +730,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 			})
 		}
 
-		form := step.Form(w.app, onDone)
+		form = step.Form(w.app, onDone)
 		if form != nil {
 			// Apply theme
 			form.SetBackgroundColor(theme.BgPanel)
@@ -735,7 +752,9 @@ func (w *InlineWizardView) renderStep(idx int) {
 			// Esc handling: Required steps block skip; optional use double-Esc
 			form.SetCancelFunc(func() {
 				if step.Required {
-					w.hintsBar.SetHints(i18n.T("wizard.step_required"))
+					w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
+						widgets.ColorTag(theme.Error), theme.IconWarning,
+						i18n.T("wizard.step_required")))
 					w.trackTimer(time.AfterFunc(2*time.Second, func() {
 						if w.app != nil {
 							w.app.QueueUpdateDraw(func() {
