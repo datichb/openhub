@@ -206,6 +206,12 @@ func (o *Omnibar) Activate() {
 	if o.active {
 		return
 	}
+	// Block activation when the current view captures all input (e.g. inline wizard).
+	if cur := o.shell.router.Current(); cur != nil {
+		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
+			return
+		}
+	}
 	o.active = true
 	// Suppress ChangedFunc during SetText to avoid a redundant
 	// updateSuggestions call — we call it explicitly right after.
@@ -224,6 +230,12 @@ func (o *Omnibar) Activate() {
 func (o *Omnibar) ActivateWithRune(r rune) {
 	if o.active {
 		return
+	}
+	// Block activation when the current view captures all input (e.g. inline wizard).
+	if cur := o.shell.router.Current(); cur != nil {
+		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
+			return
+		}
 	}
 	o.active = true
 	// Suppress ChangedFunc during SetText to avoid a redundant
