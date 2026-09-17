@@ -90,13 +90,18 @@ type InlineWizardView struct {
 	// spinner for async OnDone operations
 	spinner *widgets.Spinner
 
+	// activeTimers tracks pending time.AfterFunc timers so they can be
+	// cancelled on Unmount (avoids referencing a dead wizard).
+	activeTimers []*time.Timer
+
 	// forward declaration for recursive step rendering
 	doRenderStep func(int)
 }
 
 type inlineStepInfoEntry struct {
-	label  string
-	fields []InfoField
+	stepIdx int
+	label   string
+	fields  []InfoField
 }
 
 // Ensure InlineWizardView implements View.
@@ -111,6 +116,11 @@ func NewInlineWizardView(cfg InlineWizardConfig) *InlineWizardView {
 	return &InlineWizardView{
 		cfg: cfg,
 	}
+}
+
+// trackTimer registers a timer so it can be cancelled in Unmount.
+func (w *InlineWizardView) trackTimer(t *time.Timer) {
+	w.activeTimers = append(w.activeTimers, t)
 }
 
 // SetShell provides the shell reference (shellAware interface).
@@ -131,9 +141,26 @@ func (w *InlineWizardView) ID() string    { return w.cfg.ID }
 func (w *InlineWizardView) Title() string { return w.cfg.Title }
 
 func (w *InlineWizardView) StatusHints() string {
-	return "ctrl+s " + i18n.T("wizard.hint.submit") +
-		" · ctrl+b " + i18n.T("wizard.hint.back") +
-		" · esc " + i18n.T("wizard.hint.skip")
+	return w.statusHintsForStep(w.currentStep)
+}
+
+// statusHintsForStep returns context-sensitive keybind hints for the given step.
+func (w *InlineWizardView) statusHintsForStep(idx int) string {
+	if idx < 0 || idx >= len(w.cfg.Steps) {
+		return "enter " + i18n.T("wizard.hint.submit")
+	}
+	step := w.cfg.Steps[idx]
+	hasPrev := w.findPrev(idx) != -1
+
+	var parts []string
+	parts = append(parts, "ctrl+s "+i18n.T("wizard.hint.submit"))
+	if hasPrev {
+		parts = append(parts, "ctrl+b "+i18n.T("wizard.hint.back"))
+	}
+	if !step.Required {
+		parts = append(parts, "esc×2 "+i18n.T("wizard.hint.skip"))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
@@ -190,7 +217,7 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.infoPanel.SetBackgroundColor(theme.BgPanel)
 
 	// Hints bar
-	w.hintsBar = widgets.NewStatusBar(w.StatusHints())
+	w.hintsBar = widgets.NewStatusBar(w.statusHintsForStep(w.currentStep))
 
 	// Spinner (reused across steps)
 	w.spinner = widgets.NewSpinner(i18n.T("wizard.processing"))
@@ -333,6 +360,11 @@ func (w *InlineWizardView) Unmount() {
 	if w.spinner != nil {
 		w.spinner.Stop()
 	}
+	// Cancel pending timers to avoid referencing a dead wizard.
+	for _, t := range w.activeTimers {
+		t.Stop()
+	}
+	w.activeTimers = nil
 	if !w.completed && !w.aborted {
 		w.aborted = true
 		w.fireComplete()
@@ -373,15 +405,38 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	// ── CustomView steps: forward all non-Esc events to the widget tree ──
 	if step.CustomView != nil {
 		if event.Key() == tcell.KeyEscape {
-			// Required CustomView steps: Esc does nothing (cannot skip).
-			// Optional CustomView steps: skip on Esc.
-			if !step.Required {
-				w.skipCurrent()
-				if !w.completed {
-					w.doRenderStep(w.currentStep)
-				}
+			if step.Required {
+				// Required: show transient message, do not skip.
+				w.hintsBar.SetHints(i18n.T("wizard.step_required"))
+				w.trackTimer(time.AfterFunc(2*time.Second, func() {
+					if w.app != nil {
+						w.app.QueueUpdateDraw(func() {
+							if w.hintsBar != nil {
+								w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+							}
+						})
+					}
+				}))
+				return nil
 			}
-			return nil // consume Esc either way
+			// Optional: double-Esc to skip (consistent with Form steps).
+			if !w.escPending {
+				w.escPending = true
+				w.hintsBar.SetHints(i18n.T("wizard.esc_to_skip"))
+				return nil
+			}
+			w.escPending = false
+			w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+			w.skipCurrent()
+			if !w.completed {
+				w.doRenderStep(w.currentStep)
+			}
+			return nil
+		}
+		// Any non-Esc key resets double-Esc pending state
+		if w.escPending {
+			w.escPending = false
+			w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 		}
 		if handler := w.stepContent.InputHandler(); handler != nil {
 			handler(event, func(p tview.Primitive) { w.app.SetFocus(p) })
@@ -487,9 +542,9 @@ func (w *InlineWizardView) advanceAfterDone(step WizardStep) {
 	// Collect info fields
 	if step.InfoFields != nil {
 		fields := step.InfoFields()
-		w.infoAccum = append(w.infoAccum, inlineStepInfoEntry{label: step.Label, fields: fields})
+		w.infoAccum = append(w.infoAccum, inlineStepInfoEntry{stepIdx: w.currentStep, label: step.Label, fields: fields})
 	} else {
-		w.infoAccum = append(w.infoAccum, inlineStepInfoEntry{label: step.Label, fields: nil})
+		w.infoAccum = append(w.infoAccum, inlineStepInfoEntry{stepIdx: w.currentStep, label: step.Label, fields: nil})
 	}
 
 	w.syncStepBar(w.currentStep, widgets.StepDone)
@@ -614,7 +669,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 	// Reset double-Esc state
 	w.escPending = false
-	w.hintsBar.SetHints(w.StatusHints())
+	w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 
 	// ── CustomView path ──
 	if step.CustomView != nil {
@@ -638,15 +693,15 @@ func (w *InlineWizardView) renderStep(idx int) {
 				if errMsg := step.Validate(); errMsg != "" {
 					w.hintsBar.SetHints(fmt.Sprintf("%s%s[-]",
 						widgets.ColorTag(theme.Error), errMsg))
-					time.AfterFunc(3*time.Second, func() {
+					w.trackTimer(time.AfterFunc(3*time.Second, func() {
 						if w.app != nil {
 							w.app.QueueUpdateDraw(func() {
 								if w.hintsBar != nil {
-									w.hintsBar.SetHints(w.StatusHints())
+									w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 								}
 							})
 						}
-					})
+					}))
 					return
 				}
 			}
@@ -681,15 +736,15 @@ func (w *InlineWizardView) renderStep(idx int) {
 			form.SetCancelFunc(func() {
 				if step.Required {
 					w.hintsBar.SetHints(i18n.T("wizard.step_required"))
-					time.AfterFunc(2*time.Second, func() {
+					w.trackTimer(time.AfterFunc(2*time.Second, func() {
 						if w.app != nil {
 							w.app.QueueUpdateDraw(func() {
 								if w.hintsBar != nil {
-									w.hintsBar.SetHints(w.StatusHints())
+									w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 								}
 							})
 						}
-					})
+					}))
 					return
 				}
 
@@ -701,7 +756,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 				// Second Esc: confirm skip
 				w.escPending = false
-				w.hintsBar.SetHints(w.StatusHints())
+				w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 				w.skipCurrent()
 				if !w.completed {
 					w.doRenderStep(w.currentStep)
@@ -713,7 +768,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 				// Any non-Esc key resets double-Esc pending state
 				if w.escPending && event.Key() != tcell.KeyEscape {
 					w.escPending = false
-					w.hintsBar.SetHints(w.StatusHints())
+					w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 				}
 				if event.Key() == tcell.KeyCtrlS {
 					onDone()
@@ -751,7 +806,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 					// Reset double-Esc on non-Esc key
 					if w.escPending && event.Key() != tcell.KeyEscape {
 						w.escPending = false
-						w.hintsBar.SetHints(w.StatusHints())
+						w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 					}
 					// Tab/Enter on the last focusable form field → focus buttonForm
 					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
@@ -850,15 +905,10 @@ func (w *InlineWizardView) renderGroupedSidebar() {
 	fmt.Fprintf(&b, " %s%s %s%s\n", accent, theme.IconActive, i18n.T("wizard.sidebar.title"), reset)
 	fmt.Fprintf(&b, " %s─────────────────%s\n\n", muted, reset)
 
-	// Build a map of step index → accumulated info
+	// Build a map of step index → accumulated info (using stored stepIdx)
 	infoByStep := make(map[int][]InfoField)
 	for _, si := range w.infoAccum {
-		for idx, s := range w.cfg.Steps {
-			if s.Label == si.label {
-				infoByStep[idx] = si.fields
-				break
-			}
-		}
+		infoByStep[si.stepIdx] = si.fields
 	}
 
 	for gi, g := range w.cfg.Groups {
@@ -1110,11 +1160,28 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		b.WriteString("\n")
 	}
 
+	// Show skipped steps so the user knows what was not configured.
+	for i, ss := range w.stepStates {
+		if ss.Status != widgets.StepSkipped {
+			continue
+		}
+		step := w.cfg.Steps[i]
+		if step.SidebarHidden {
+			continue
+		}
+		fmt.Fprintf(&b, "  %s%s %s[-]\n",
+			widgets.ColorTag(theme.FgMuted), theme.IconSkipped, step.Label)
+	}
+
 	summary.SetText(b.String())
 	w.stepContent.AddItem(summary, 0, 1, false)
 
 	// ── Action button ──
-	targetView, _ := w.summaryTarget()
+	targetView, targetLabel := w.summaryTarget()
+	buttonLabel := targetLabel
+	if buttonLabel == "" {
+		buttonLabel = i18n.T("wizard.summary.start")
+	}
 	summaryForm := tview.NewForm()
 	summaryForm.SetBackgroundColor(theme.BgPanel)
 	summaryForm.SetButtonStyle(tcell.StyleDefault.
@@ -1125,7 +1192,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		Foreground(theme.BgPanel))
 	summaryForm.SetBorder(false)
 
-	summaryForm.AddButton(i18n.T("wizard.summary.start"), func() {
+	summaryForm.AddButton(buttonLabel, func() {
 		if targetView != "" && w.shell != nil {
 			w.shell.NavigateTo(targetView)
 		} else if w.shell != nil {
@@ -1137,7 +1204,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	w.app.SetFocus(summaryForm)
 
 	// Update hints
-	w.hintsBar.SetHints("enter " + i18n.T("wizard.hint.submit"))
+	w.hintsBar.SetHints("enter " + i18n.T("wizard.hint.submit") + " · ctrl+b " + i18n.T("wizard.hint.back"))
 
 	// Update info panel to show final state
 	w.renderInfoPanel()
@@ -1148,6 +1215,28 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 	case tcell.KeyEnter, tcell.KeyTab, tcell.KeyBacktab:
 		// Let tview deliver to the focused form button.
 		return event
+	case tcell.KeyCtrlB:
+		// Allow going back from summary to review/edit the last step.
+		w.completed = false
+		w.wizardErr = nil
+		// Find the last completed step to return to.
+		lastDone := -1
+		for i := len(w.stepStates) - 1; i >= 0; i-- {
+			if w.stepStates[i].Status == widgets.StepDone && !w.cfg.Steps[i].SidebarHidden {
+				lastDone = i
+				break
+			}
+		}
+		if lastDone >= 0 {
+			w.syncStepBar(lastDone, widgets.StepActive)
+			w.currentStep = lastDone
+			if len(w.infoAccum) > 0 {
+				w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
+			}
+			w.renderInfoPanel()
+			w.doRenderStep(lastDone)
+		}
+		return nil
 	}
 	// Block everything else (Esc, runes, etc.).
 	return nil

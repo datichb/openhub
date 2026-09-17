@@ -360,11 +360,17 @@ func TestInlineWizardView_HandleKey_CustomViewEscOptional(t *testing.T) {
 
 	assert.Equal(t, 0, v.currentStep)
 
-	// Esc on an optional CustomView step should skip to next
+	// First Esc on an optional CustomView step should NOT skip (double-Esc required)
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	result := v.HandleKey(escEvent)
 	assert.Nil(t, result, "esc should be consumed on optional CustomView step")
-	assert.Equal(t, 1, v.currentStep, "should advance to next step after skipping optional")
+	assert.Equal(t, 0, v.currentStep, "first esc should NOT advance (double-esc required)")
+	assert.True(t, v.escPending, "escPending should be set after first Esc")
+
+	// Second Esc should skip to next step
+	result = v.HandleKey(escEvent)
+	assert.Nil(t, result, "second esc should be consumed")
+	assert.Equal(t, 1, v.currentStep, "should advance to next step after double-esc skip")
 
 	v.Unmount()
 }
