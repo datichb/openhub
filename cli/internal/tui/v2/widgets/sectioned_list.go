@@ -56,7 +56,7 @@ func NewSectionedList() *SectionedList {
 		SetMainTextColor(theme.FgPrimary).
 		SetSecondaryTextColor(theme.FgSecondary).
 		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.Action)
+		SetSelectedTextColor(theme.FgPrimary)
 	sl.SetBackgroundColor(theme.BgPanel)
 
 	sl.SetInputCapture(sl.handleInput)

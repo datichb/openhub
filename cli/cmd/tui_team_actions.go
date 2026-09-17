@@ -1602,7 +1602,7 @@ func buildColumnEditorStep(
 				SetMainTextColor(theme.FgPrimary).
 				SetSecondaryTextColor(theme.FgSecondary).
 				SetSelectedBackgroundColor(theme.BgElement).
-				SetSelectedTextColor(theme.Action)
+				SetSelectedTextColor(theme.FgPrimary)
 			list.SetBackgroundColor(theme.BgPanel)
 
 			hints := tview.NewTextView().SetDynamicColors(true)

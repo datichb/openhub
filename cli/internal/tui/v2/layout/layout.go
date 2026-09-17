@@ -77,19 +77,7 @@ func Build(cfg Config) *Result {
 	app := tview.NewApplication()
 
 	// ── Apply global theme (once for all views) ──
-	tview.Styles = tview.Theme{
-		PrimitiveBackgroundColor:    theme.BgPanel,
-		ContrastBackgroundColor:     theme.BgPanel,
-		MoreContrastBackgroundColor: theme.BgElement,
-		BorderColor:                 theme.BorderNormal,
-		TitleColor:                  theme.FgPrimary,
-		GraphicsColor:               theme.BorderNormal,
-		PrimaryTextColor:            theme.FgPrimary,
-		SecondaryTextColor:          theme.FgSecondary,
-		TertiaryTextColor:           theme.FgMuted,
-		InverseTextColor:            theme.BgPanel,
-		ContrastSecondaryTextColor:  theme.Accent,
-	}
+	tview.Styles = theme.TviewTheme()
 
 	// ── Header bar ──
 	// 2 rows: 1 row of breathing space + 1 row centered bold text.
@@ -107,7 +95,7 @@ func Build(cfg Config) *Result {
 	sidebar := tview.NewList().
 		SetMainTextColor(theme.FgSecondary).
 		SetSelectedBackgroundColor(theme.BgElement).
-		SetSelectedTextColor(theme.Accent).
+		SetSelectedTextColor(theme.FgPrimary).
 		SetHighlightFullLine(true)
 	sidebar.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).

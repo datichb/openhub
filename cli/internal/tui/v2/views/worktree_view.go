@@ -68,10 +68,7 @@ func (v *WorktreeView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		SetMainTextColor(theme.FgPrimary).
 		SetSecondaryTextColor(theme.FgSecondary)
 	v.list.SetBackgroundColor(theme.BgPanel)
-	v.list.SetBorder(true)
-	v.list.SetBorderColor(theme.BorderFocus)
-	v.list.SetTitle(" Git Worktrees ")
-	v.list.SetTitleColor(theme.FgPrimary)
+	v.list.SetBorder(false)
 	v.list.SetBorderPadding(1, 0, 1, 1)
 
 	v.refresh()

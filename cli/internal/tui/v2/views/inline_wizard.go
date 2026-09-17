@@ -1182,15 +1182,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	if buttonLabel == "" {
 		buttonLabel = i18n.T("wizard.summary.start")
 	}
-	summaryForm := tview.NewForm()
-	summaryForm.SetBackgroundColor(theme.BgPanel)
-	summaryForm.SetButtonStyle(tcell.StyleDefault.
-		Background(theme.Accent).
-		Foreground(theme.BgPanel))
-	summaryForm.SetButtonActivatedStyle(tcell.StyleDefault.
-		Background(theme.Action).
-		Foreground(theme.BgPanel))
-	summaryForm.SetBorder(false)
+	summaryForm := NewStyledButtonForm()
 
 	summaryForm.AddButton(buttonLabel, func() {
 		if targetView != "" && w.shell != nil {
