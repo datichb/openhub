@@ -463,12 +463,12 @@ func buildCommands(a *app.App) []shell.Command {
 		)
 
 		// Sync tracker (team-only action)
-	commands = append(commands, shell.Command{
-		ID:          "team.sync",
-		Label:       i18n.T("tui.cmd.sync_tracker"),
-		Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
-		Description: i18n.T("tui.cmd.sync_tracker.desc"),
-		Category:    i18n.T("tui.category.team"),
+		commands = append(commands, shell.Command{
+			ID:          "team.sync",
+			Label:       i18n.T("tui.cmd.sync_tracker"),
+			Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
+			Description: i18n.T("tui.cmd.sync_tracker.desc"),
+			Category:    i18n.T("tui.category.team"),
 			Priority:    60,
 			Action:      actionSyncTracker,
 			Modes:       modeTeam,

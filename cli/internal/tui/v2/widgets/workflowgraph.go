@@ -80,7 +80,7 @@ func (g *WorkflowGraph) recomputeLayout() {
 
 // Draw renders the workflow graph.
 func (g *WorkflowGraph) Draw(screen tcell.Screen) {
-	g.Box.DrawForSubclass(screen, g)
+	g.DrawForSubclass(screen, g)
 	x, y, w, h := g.GetInnerRect()
 
 	if g.layout == nil || len(g.layout.Elements) == 0 {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -365,49 +364,6 @@ func mcpServiceToken(p *domain.Project, name string) string {
 		}
 	}
 	return ""
-}
-
-// formatProjectValue is the legacy value formatter for project config views.
-// It is still used by project_mcp_view.go until that view is migrated.
-func formatProjectValue(val, kind string) string {
-	switch kind {
-	case "bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
-		}
-	case "tri-bool":
-		switch val {
-		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.settings.enabled"), theme.TagColor)
-		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.settings.disabled"), theme.TagColor)
-		default:
-			return fmt.Sprintf("%s↩ %s%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
-		}
-	case "agents":
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.project.no_agents"), theme.TagColor)
-		}
-		agents := strings.Split(val, ",")
-		return fmt.Sprintf("%d agents", len(agents))
-	case "select":
-		if val == "" {
-			return fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
-		}
-		return val
-	case "link":
-		return fmt.Sprintf("%s→ %s%s", theme.ColorTag(theme.AccentHex), val, theme.TagColor)
-	default:
-		if val == "" || val == "(inherit)" {
-			return fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor)
-		}
-		return val
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

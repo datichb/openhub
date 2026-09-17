@@ -168,7 +168,7 @@ func buildResolveProjectByDirID(a *app.App) func(dirID string) (string, string, 
 
 // resolveAgentForAction maps a QuickActionType + AuditType to the agent name and prompt
 // that opencode expects. Returns (agent, prompt) — no oh-specific flags.
-func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName string, agentPrompt string) {
+func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName, agentPrompt string) {
 	switch action {
 	case views.QuickActionReview:
 		return "reviewer", buildReviewPrompt("")

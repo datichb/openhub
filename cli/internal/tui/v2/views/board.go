@@ -105,12 +105,12 @@ func ResolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Colo
 // distinct: Azure (blue), Overlay (gray), Sapphire (cyan), Mauve (purple),
 // Yellow, Green.
 var activeColorCycle = []tcell.Color{
-	theme.Accent,                  // Azure (blue)
-	theme.FgSecondary,             // Overlay (gray)
-	theme.Info,                    // Sapphire (cyan)
-	tcell.GetColor("#cba6f7"),     // Mauve (purple)
-	tcell.GetColor("#f9e2af"),     // Yellow
-	tcell.GetColor("#a6e3a1"),     // Green (lighter than Success)
+	theme.Accent,              // Azure (blue)
+	theme.FgSecondary,         // Overlay (gray)
+	theme.Info,                // Sapphire (cyan)
+	tcell.GetColor("#cba6f7"), // Mauve (purple)
+	tcell.GetColor("#f9e2af"), // Yellow
+	tcell.GetColor("#a6e3a1"), // Green (lighter than Success)
 }
 
 // colorOverrides maps user-facing color names to tcell.Color values.

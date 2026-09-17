@@ -398,20 +398,20 @@ func (v *WorktreeView) openInTerminal() {
 		if err == worktree.ErrProjectNotDeployed {
 			// Main project not deployed yet — trigger auto-deploy.
 			if v.cfg.DeployProject == nil {
-			v.app.QueueUpdateDraw(func() {
-				if v.shell != nil {
-					v.shell.ShowToastMsg(i18n.T("tui.worktree.not_deployed"), false)
-				}
-			})
+				v.app.QueueUpdateDraw(func() {
+					if v.shell != nil {
+						v.shell.ShowToastMsg(i18n.T("tui.worktree.not_deployed"), false)
+					}
+				})
 				return
 			}
 			// Deploy into the main project, then retry.
 			if deployErr := v.cfg.DeployProject(projectPath); deployErr != nil {
-			v.app.QueueUpdateDraw(func() {
-				if v.shell != nil {
-					v.shell.ShowToastMsg(i18n.T("tui.worktree.deploy_failed")+deployErr.Error(), false)
-				}
-			})
+				v.app.QueueUpdateDraw(func() {
+					if v.shell != nil {
+						v.shell.ShowToastMsg(i18n.T("tui.worktree.deploy_failed")+deployErr.Error(), false)
+					}
+				})
 				return
 			}
 			// Retry symlinks now that deploy is done.

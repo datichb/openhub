@@ -19,7 +19,7 @@ const bannerFont = "small"
 //
 // Returns a tview-compatible dynamic color tagged string (multi-line)
 // and the number of visible lines the banner occupies.
-func renderBanner(name string, maxWidth int) (string, int) {
+func renderBanner(name string, maxWidth int) (banner string, lineCount int) {
 	fig := figure.NewFigure(name, bannerFont, false)
 	lines := fig.Slicify()
 

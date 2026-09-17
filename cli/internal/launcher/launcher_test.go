@@ -65,9 +65,9 @@ func (m *mockProjectStore) List(_ context.Context, _ domain.ProjectStatus) ([]do
 	return out, nil
 }
 
-func (m *mockProjectStore) Create(_ context.Context, _ *domain.Project) error  { return nil }
-func (m *mockProjectStore) Update(_ context.Context, _ *domain.Project) error  { return nil }
-func (m *mockProjectStore) Delete(_ context.Context, _ string) error           { return nil }
+func (m *mockProjectStore) Create(_ context.Context, _ *domain.Project) error { return nil }
+func (m *mockProjectStore) Update(_ context.Context, _ *domain.Project) error { return nil }
+func (m *mockProjectStore) Delete(_ context.Context, _ string) error          { return nil }
 func (m *mockProjectStore) GetByPath(_ context.Context, _ string) (*domain.Project, error) {
 	return nil, domain.ErrNotFound
 }
@@ -104,9 +104,9 @@ func (m *mockSessionStore) ListRunning(_ context.Context, _ string) ([]domain.Se
 }
 
 type mockLaunchUI struct {
-	confirmed    bool
+	confirmed     bool
 	notifications []string
-	suspendFunc  func(func() error) error
+	suspendFunc   func(func() error) error
 }
 
 func (m *mockLaunchUI) Confirm(_ string) (bool, error) {

@@ -164,7 +164,7 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 			// ←/→ navigate between buttons when focus is on a button
 			if currentFocus > 0 && (event.Key() == tcell.KeyLeft || event.Key() == tcell.KeyRight) {
 				btnCount := len(focusables) - 1 // exclude content (index 0)
-				btnIdx := currentFocus - 1       // 0-based within buttons
+				btnIdx := currentFocus - 1      // 0-based within buttons
 				if event.Key() == tcell.KeyLeft {
 					btnIdx = (btnIdx - 1 + btnCount) % btnCount
 				} else {

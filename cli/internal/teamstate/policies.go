@@ -64,7 +64,7 @@ func enforcementStrictness(e PolicyEnforcement) int {
 
 // Policy represents a single team policy rule.
 type Policy struct {
-	Name        string            `toml:"-"`                  // derived from TOML key
+	Name        string            `toml:"-"` // derived from TOML key
 	Type        PolicyType        `toml:"type"`
 	Target      string            `toml:"target,omitempty"`   // what to check: branch_name, commit_message, review, tests, wip_tickets...
 	Rule        string            `toml:"rule,omitempty"`     // regex pattern
@@ -395,8 +395,7 @@ func checkLimit(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 
 	target := resolveLimitTarget(p)
 
-	switch target {
-	case "wip_tickets":
+	if target == "wip_tickets" {
 		if ctx.ActiveClaims >= p.Max {
 			result.Passed = false
 			result.Details = fmt.Sprintf("active claims: %d (max: %d)", ctx.ActiveClaims, p.Max)

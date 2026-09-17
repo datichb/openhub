@@ -3,9 +3,9 @@ package teamstate
 import (
 	"context"
 	"fmt"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/workflow"
 	toml "github.com/pelletier/go-toml/v2"

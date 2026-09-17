@@ -25,10 +25,10 @@ type Plan struct {
 	HubDir              string // source hub directory (agents/, skills/, etc.)
 	Provider            string
 	Model               string
-	WebsearchEnabled    bool     // inject permission.websearch/webfetch = "allow"
-	SelectedAgents      []string // agent names to deploy (empty = all)
-	EnabledMCPServers   []string // MCP server names enabled in hub config (for validation warnings)
-	DisableNativeAgents []string // override the default DisabledNativeAgents list (nil = use default)
+	WebsearchEnabled    bool                  // inject permission.websearch/webfetch = "allow"
+	SelectedAgents      []string              // agent names to deploy (empty = all)
+	EnabledMCPServers   []string              // MCP server names enabled in hub config (for validation warnings)
+	DisableNativeAgents []string              // override the default DisabledNativeAgents list (nil = use default)
 	WorkflowResult      *WorkflowDeployResult // resolved workflow (nil = no workflow customization)
 	Phases              []Phase
 }

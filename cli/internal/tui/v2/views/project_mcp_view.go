@@ -53,7 +53,7 @@ func NewProjectMCPView(cfg ProjectMCPViewConfig) *ProjectMCPView {
 
 func (v *ProjectMCPView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectMCPView) ID() string             { return "project.mcp" }
-func (v *ProjectMCPView) Title() string           { return i18n.T("tui.config.section.mcp_services") }
+func (v *ProjectMCPView) Title() string          { return i18n.T("tui.config.section.mcp_services") }
 func (v *ProjectMCPView) StatusHints() string {
 	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · Space %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
@@ -427,38 +427,6 @@ func (v *ProjectMCPView) doSave() {
 // ─────────────────────────────────────────────────────────────────────────────
 // MCP data helpers (setters operate on live project)
 // ─────────────────────────────────────────────────────────────────────────────
-
-// mcpFieldGetter returns a typed getter for the legacy mcpFieldDef approach.
-// Retained for backward compatibility during migration.
-func mcpFieldGetter(service, field string) func(p *domain.Project) string {
-	switch field {
-	case "enabled":
-		return func(p *domain.Project) string { return mcpServiceEnabled(p, service) }
-	case "url":
-		return func(p *domain.Project) string { return mcpServiceURL(p, service) }
-	case "token_key":
-		return func(p *domain.Project) string { return mcpServiceToken(p, service) }
-	case "write_enabled":
-		return func(p *domain.Project) string { return mcpServiceWriteEnabled(p, service) }
-	default:
-		return func(_ *domain.Project) string { return "" }
-	}
-}
-
-func mcpFieldSetter(service, field string) func(p *domain.Project, val string) {
-	switch field {
-	case "enabled":
-		return func(p *domain.Project, val string) { setMCPEnabled(p, service, val) }
-	case "url":
-		return func(p *domain.Project, val string) { setMCPURL(p, service, val) }
-	case "token_key":
-		return func(p *domain.Project, val string) { setMCPToken(p, service, val) }
-	case "write_enabled":
-		return func(p *domain.Project, val string) { setMCPWriteEnabled(p, service, val) }
-	default:
-		return nil
-	}
-}
 
 func setMCPEnabled(p *domain.Project, name, val string) {
 	if p.MCPConfig == nil {

@@ -319,11 +319,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				return beads.IsInitialized(path)
 			},
 			OnInitBeads: func() { initBeadsForActiveProject(a) },
-		OnLinkTracker: func(ticketID, externalRef string) error {
-			path := resolveActiveProjectPath(a)
-			if path == "" {
-				return errors.New(i18n.T("tui.views.no_active_project"))
-			}
+			OnLinkTracker: func(ticketID, externalRef string) error {
+				path := resolveActiveProjectPath(a)
+				if path == "" {
+					return errors.New(i18n.T("tui.views.no_active_project"))
+				}
 				return beads.LinkToTracker(path, ticketID, externalRef)
 			},
 			QuickActions: buildBoardQuickActions(a),
@@ -371,15 +371,15 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					ActiveCount: active,
 				}
 			},
-		OnSyncTracker: func() {
-			actionSyncTracker()
-		},
-		OnBoardConfig: func() {
-			actionBoardColumnConfig()
-		},
-		OnAuditPicker:  actionAuditLauncher,
-		OnReviewPicker: actionReviewLauncher,
-		OnDebugPicker:  actionDebugLauncher,
+			OnSyncTracker: func() {
+				actionSyncTracker()
+			},
+			OnBoardConfig: func() {
+				actionBoardColumnConfig()
+			},
+			OnAuditPicker:  actionAuditLauncher,
+			OnReviewPicker: actionReviewLauncher,
+			OnDebugPicker:  actionDebugLauncher,
 		}),
 		views.NewParallelView(views.ParallelViewConfig{}),
 		projectsView,
@@ -416,10 +416,10 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					default:
 					}
 					tuiShell.App().QueueUpdateDraw(func() {
-					if err != nil && !teamstate.IsPullWarning(err) {
-						tuiShell.ShowToast(i18n.T("tui.views.sync_failed")+err.Error(), shell.ToastError)
-					} else {
-						tuiShell.ShowToast(i18n.Tf("tui.views.sync_done", tc.DisplayName()), shell.ToastSuccess)
+						if err != nil && !teamstate.IsPullWarning(err) {
+							tuiShell.ShowToast(i18n.T("tui.views.sync_failed")+err.Error(), shell.ToastError)
+						} else {
+							tuiShell.ShowToast(i18n.Tf("tui.views.sync_done", tc.DisplayName()), shell.ToastSuccess)
 						}
 					})
 				}()
@@ -897,11 +897,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					}
 					teamCfg.Workflow.Overrides = ov
 					return repo.SaveConfig(context.Background(), teamCfg)
-			case views.ModeProject:
-				project, err := resolveActiveProject(a)
-				if err != nil || project == nil {
-					return errors.New(i18n.T("tui.views.no_active_project"))
-				}
+				case views.ModeProject:
+					project, err := resolveActiveProject(a)
+					if err != nil || project == nil {
+						return errors.New(i18n.T("tui.views.no_active_project"))
+					}
 					if project.WorkflowConfig == nil {
 						project.WorkflowConfig = &domain.ProjectWorkflowConfig{}
 					}
@@ -943,11 +943,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				return teamCfg.Workflow.IsEnforced()
 			},
-		Deploy: func() error {
-			p, err := resolveActiveProject(a)
-			if err != nil || p == nil {
-				return errors.New(i18n.T("tui.views.no_active_project_deploy"))
-			}
+			Deploy: func() error {
+				p, err := resolveActiveProject(a)
+				if err != nil || p == nil {
+					return errors.New(i18n.T("tui.views.no_active_project_deploy"))
+				}
 				return runDeployForProject(a, p)
 			},
 		}),
@@ -1068,7 +1068,7 @@ func collectMissingMCPInfo(a *app.App, project *domain.Project) string {
 		}
 		fm, err := deploy.ParseAgentFrontmatter(path)
 		if err != nil || len(fm.MCPServers) == 0 {
-			return nil
+			return nil //nolint:nilerr // agents with unparseable frontmatter are silently skipped
 		}
 		missing := deploy.CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, enabled)
 		for _, m := range missing {

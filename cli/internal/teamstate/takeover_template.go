@@ -107,7 +107,7 @@ func RenderTemplateBrief(brief *TakeoverBrief) string {
 	if brief.Workflow.ActiveMode != "" || brief.Workflow.CustomOverrides {
 		b.WriteString("## Workflow\n\n")
 		if brief.Workflow.ActiveMode != "" {
-			b.WriteString(fmt.Sprintf("- **Mode actif** : %s\n", brief.Workflow.ActiveMode))
+			fmt.Fprintf(&b, "- **Mode actif** : %s\n", brief.Workflow.ActiveMode)
 		}
 		if brief.Workflow.CustomOverrides {
 			b.WriteString("- **Workflow personnalise** : le projet utilise des overrides workflow\n")

@@ -52,7 +52,7 @@ func NewWorkflowView(cfg WorkflowViewConfig) View {
 	return &workflowView{cfg: cfg}
 }
 
-func (v *workflowView) ID() string    { return "workflow" }
+func (v *workflowView) ID() string { return "workflow" }
 func (v *workflowView) Title() string {
 	level := "hub"
 	if v.cfg.Level != nil {
@@ -289,8 +289,7 @@ func (v *workflowView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event // readonly — pass through
 	}
 
-	switch event.Key() {
-	case tcell.KeyRune:
+	if event.Key() == tcell.KeyRune {
 		switch event.Rune() {
 		case 'a':
 			v.handleAdd()
@@ -689,25 +688,26 @@ func appendOrUpdateCheckpointOverride(existing []workflow.CheckpointOverride, ne
 
 func appendOrUpdateAgentOverride(existing []workflow.AgentOverride, newOv workflow.AgentOverride) []workflow.AgentOverride {
 	for i, ov := range existing {
-		if ov.AgentID == newOv.AgentID {
-			// Merge non-nil fields.
-			if newOv.Role != nil {
-				existing[i].Role = newOv.Role
-			}
-			if newOv.Mode != nil {
-				existing[i].Mode = newOv.Mode
-			}
-			if newOv.Disabled != nil {
-				existing[i].Disabled = newOv.Disabled
-			}
-			if newOv.TaskPermissions != nil {
-				existing[i].TaskPermissions = newOv.TaskPermissions
-			}
-			if newOv.Position != nil {
-				existing[i].Position = newOv.Position
-			}
-			return existing
+		if ov.AgentID != newOv.AgentID {
+			continue
 		}
+		// Merge non-nil fields.
+		if newOv.Role != nil {
+			existing[i].Role = newOv.Role
+		}
+		if newOv.Mode != nil {
+			existing[i].Mode = newOv.Mode
+		}
+		if newOv.Disabled != nil {
+			existing[i].Disabled = newOv.Disabled
+		}
+		if newOv.TaskPermissions != nil {
+			existing[i].TaskPermissions = newOv.TaskPermissions
+		}
+		if newOv.Position != nil {
+			existing[i].Position = newOv.Position
+		}
+		return existing
 	}
 	return append(existing, newOv)
 }

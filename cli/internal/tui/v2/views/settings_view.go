@@ -204,13 +204,13 @@ func (v *SettingsView) ContextCommands() []ContextCommand {
 			ID: "settings.refresh", Label: i18n.T("tui.hints.refresh"),
 			Aliases:     []string{"refresh", "reload", "rafraîchir"},
 			Description: i18n.T("tui.settings.cmd_refresh"), Category: "Settings",
-			Action:      v.refresh,
+			Action: v.refresh,
 		},
 		{
 			ID: "settings.undo", Label: i18n.T("tui.hints.undo"),
 			Aliases:     []string{"undo", "annuler"},
 			Description: i18n.T("tui.settings.cmd_undo"), Category: "Settings",
-			Action:      v.undo,
+			Action: v.undo,
 		},
 	}
 }

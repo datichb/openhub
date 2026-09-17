@@ -13,7 +13,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -326,8 +325,8 @@ func (v *TeamDetailView) buildFields() {
 	v.fields = append(v.fields, configField{
 		Key: "sync_interval", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.sync_interval.label"),
 		Description: i18n.T("tui.config.field.sync_interval.desc"), Scope: ScopeTeamShared,
-		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(60)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
+		Validator: &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(60)},
+		Get:       func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
 		Set: func(val string) {
 			if n, err := strconv.Atoi(val); err == nil {
 				v.teamCfg.Tracker.SyncIntervalMinutes = n
@@ -469,22 +468,6 @@ func (v *TeamDetailView) renderFields() {
 	}
 }
 
-func (v *TeamDetailView) formatToken(tokenKey string) string {
-	if tokenKey == "" {
-		return fmt.Sprintf("%s%s%s  %s[✗ %s]%s",
-			theme.ColorTag(theme.TextMutedHex), i18n.T("tui.config.not_configured"), theme.TagColor,
-			theme.ColorTag("#FF5252"), i18n.T("tui.config.not_configured"), theme.TagColor)
-	}
-	if v.cfg.CheckSecret != nil {
-		ctx := context.Background()
-		present, masked := v.cfg.CheckSecret(ctx, tokenKey)
-		if present {
-			return fmt.Sprintf("%s  %s[✓ %s]%s", masked, theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.configured"), theme.TagColor)
-		}
-	}
-	return fmt.Sprintf("%s  %s[✗ %s]%s", tokenKey, theme.ColorTag("#FF5252"), i18n.T("tui.config.not_configured"), theme.TagColor)
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Editing (delegates to shared editConfigField / toggleConfigField)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -615,19 +598,10 @@ func (v *TeamDetailView) deleteDynamic() {
 		return
 	}
 
-	key := f.Key
-	switch f.Section {
-	default:
-		_ = key
-		return
-	}
-
-	v.dirtyTeam = true
-	v.buildFields()
-	v.renderFields()
-	if v.shell != nil {
-		v.shell.ShowToastMsg("Supprimé: "+key, true)
-	}
+	_ = f.Key
+	// NOTE: no sections support deletion yet; early-return above covers all cases.
+	// When a section supports deletion, add a switch on f.Section here and
+	// set v.dirtyTeam = true, then call v.buildFields() / v.renderFields().
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

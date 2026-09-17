@@ -262,7 +262,9 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 		v.shell.ShowInputModal("model", cur, func(newVal string) {
 			v.pushUndo()
 			v.live.Model = newVal
-			if v.autoSaver != nil { v.autoSaver.Schedule() }
+			if v.autoSaver != nil {
+				v.autoSaver.Schedule()
+			}
 			v.renderList()
 		})
 
@@ -275,7 +277,9 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Families = make(map[string]string)
 			}
 			v.live.ModelOverrides.Families[ref.key] = newVal
-			if v.autoSaver != nil { v.autoSaver.Schedule() }
+			if v.autoSaver != nil {
+				v.autoSaver.Schedule()
+			}
 			v.renderList()
 		})
 
@@ -288,7 +292,9 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Agents = make(map[string]string)
 			}
 			v.live.ModelOverrides.Agents[ref.key] = newVal
-			if v.autoSaver != nil { v.autoSaver.Schedule() }
+			if v.autoSaver != nil {
+				v.autoSaver.Schedule()
+			}
 			v.renderList()
 		})
 	}
@@ -330,7 +336,9 @@ func (v *ProjectModelsView) addEntry() {
 					}
 					v.live.ModelOverrides.Agents[key] = model
 				}
-				if v.autoSaver != nil { v.autoSaver.Schedule() }
+				if v.autoSaver != nil {
+					v.autoSaver.Schedule()
+				}
 				v.renderList()
 				v.shell.ShowToastMsg(i18n.T("tui.project_models.override_added"), true)
 			})
@@ -367,7 +375,9 @@ func (v *ProjectModelsView) deleteEntry() {
 		case "agents":
 			delete(v.live.ModelOverrides.Agents, ref.key)
 		}
-		if v.autoSaver != nil { v.autoSaver.Schedule() }
+		if v.autoSaver != nil {
+			v.autoSaver.Schedule()
+		}
 		v.renderList()
 		v.shell.ShowToastMsg(i18n.T("tui.project_models.override_deleted"), true)
 	})

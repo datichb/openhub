@@ -50,13 +50,13 @@ func actionTeamInit() {
 		hasConfig, hasPolicies bool
 		existingCfg            *teamstate.TeamConfig
 
-		staleDaysStr      = "3"
-		memberID          = a.Config.ActiveTeam().MemberID
-		displayName       string
-		gitlabUsername    string
+		staleDaysStr       = "3"
+		memberID           = a.Config.ActiveTeam().MemberID
+		displayName        string
+		gitlabUsername     string
 		mattermostUsername string
-		trackerUsername   string
-		role              string
+		trackerUsername    string
+		role               string
 
 		webhookURL string
 		channel    string
@@ -1080,11 +1080,11 @@ func actionTrackerDiscovery() {
 		token       string // resolved at runtime, not pre-filled
 
 		// Step 2: Discovery results
-		discoveryInfo    *tracker.DiscoveryInfo
-		suggestedColumns []teamstate.BoardColumnConfig
+		discoveryInfo     *tracker.DiscoveryInfo
+		suggestedColumns  []teamstate.BoardColumnConfig
 		suggestedMappings []tracker.SuggestedMapping
-		unmapped         []string
-		poolLabels       []string
+		unmapped          []string
+		poolLabels        []string
 
 		// Step 3: Final column selection
 		finalColumns []teamstate.BoardColumnConfig
@@ -1260,7 +1260,9 @@ func actionTrackerDiscovery() {
 
 			// Suggest new columns based on discovered labels/statuses
 			newCols := tracker.SuggestNewColumns(discoveryInfo, baseColumns)
-			suggestedColumns = append(baseColumns, newCols...)
+			suggestedColumns = make([]teamstate.BoardColumnConfig, len(baseColumns))
+			copy(suggestedColumns, baseColumns)
+			suggestedColumns = append(suggestedColumns, newCols...)
 
 			// Suggest label→column and status→column mappings
 			suggestedMappings = tracker.SuggestMappings(discoveryInfo, tracker.Type(trackerType), suggestedColumns)
@@ -1586,8 +1588,8 @@ var columnEditorRoles = []string{
 func buildColumnEditorStep(
 	columns *[]teamstate.BoardColumnConfig,
 	result *[]teamstate.BoardColumnConfig,
-	labelMappings *map[string]string,
-	statusMappings *map[string]string,
+	labelMappings *map[string]string, //nolint:gocritic // ptrToRefParam: pointer needed to lazily initialize nil maps in the caller
+	statusMappings *map[string]string, //nolint:gocritic // ptrToRefParam: pointer needed to lazily initialize nil maps in the caller
 	trackerType string,
 ) views.WizardStep {
 	return views.WizardStep{
@@ -1708,7 +1710,9 @@ func buildColumnEditorStep(
 					}
 					if hasMappings {
 						labels, statuses := labelsForCol(col.ID)
-						all := append(labels, statuses...)
+						all := make([]string, 0, len(labels)+len(statuses))
+						all = append(all, labels...)
+						all = append(all, statuses...)
 						secParts = append(secParts, fmt.Sprintf(i18n.T("tui.team.columns.labels_label"), truncLabels(all, 3)))
 					}
 					secondaryText := fmt.Sprintf("      [%s]%s[-]",
@@ -2054,7 +2058,8 @@ func buildColumnEditorStep(
 					}
 					deletedID := cols[idx].ID
 					deletedName := cols[idx].Name
-					*columns = append(cols[:idx], cols[idx+1:]...)
+					copy(cols[idx:], cols[idx+1:])
+					*columns = cols[:len(cols)-1]
 					cleaned := 0
 					if labelMappings != nil {
 						for k, v := range *labelMappings {

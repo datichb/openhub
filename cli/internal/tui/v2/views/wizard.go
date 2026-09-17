@@ -444,13 +444,13 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				// Run validation if defined
 				if step.Validate != nil {
 					if errMsg := step.Validate(); errMsg != "" {
-					shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
-					trackTimer(time.AfterFunc(3*time.Second, func() {
-						shell.App.QueueUpdateDraw(func() {
-							shell.StatusBar.SetHints(originalHints)
-						})
-					}))
-					return
+						shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
+						trackTimer(time.AfterFunc(3*time.Second, func() {
+							shell.App.QueueUpdateDraw(func() {
+								shell.StatusBar.SetHints(originalHints)
+							})
+						}))
+						return
 					}
 				}
 				runWithSpinner(step, func() {
@@ -467,30 +467,30 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetBackgroundColor(theme.BgPanel)
 				form.SetFieldBackgroundColor(theme.BgElement)
 				form.SetFieldTextColor(theme.FgPrimary)
-			form.SetLabelColor(theme.FgPrimary)
-			form.SetButtonStyle(tcell.StyleDefault.
-				Background(theme.Accent).
-				Foreground(theme.BgPanel))
-			form.SetButtonActivatedStyle(tcell.StyleDefault.
-				Background(theme.Action).
-				Foreground(theme.BgPanel))
-			form.SetBorder(false)
+				form.SetLabelColor(theme.FgPrimary)
+				form.SetButtonStyle(tcell.StyleDefault.
+					Background(theme.Accent).
+					Foreground(theme.BgPanel))
+				form.SetButtonActivatedStyle(tcell.StyleDefault.
+					Background(theme.Action).
+					Foreground(theme.BgPanel))
+				form.SetBorder(false)
 
-			// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
-			fixFormDropDownStyles(form)
+				// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
+				fixFormDropDownStyles(form)
 
 				// Esc handling: Required steps block skip; optional steps use double-Esc
 				form.SetCancelFunc(func() {
 					// Required steps cannot be skipped
-				if step.Required {
-					shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
-					trackTimer(time.AfterFunc(2*time.Second, func() {
-						shell.App.QueueUpdateDraw(func() {
-							shell.StatusBar.SetHints(originalHints)
-						})
-					}))
-					return
-				}
+					if step.Required {
+						shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
+						trackTimer(time.AfterFunc(2*time.Second, func() {
+							shell.App.QueueUpdateDraw(func() {
+								shell.StatusBar.SetHints(originalHints)
+							})
+						}))
+						return
+					}
 
 					if !escPending {
 						// First Esc: show persistent confirmation hint

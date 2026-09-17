@@ -48,8 +48,8 @@ func DeriveTaskPermissions(wf *WorkflowDefinition) map[string][]string {
 			// Find the checkpoint this agent sits at.
 			cpIdx, ok := cpOrder[agent.Position.AfterCheckpoint]
 			if ok {
-				// Can invoke agents at the next checkpoint(s).
-				for nextIdx := cpIdx + 1; nextIdx < len(wf.Checkpoints); nextIdx++ {
+				// Can invoke agents at the next checkpoint (one step downstream).
+				if nextIdx := cpIdx + 1; nextIdx < len(wf.Checkpoints) {
 					nextCP := wf.Checkpoints[nextIdx]
 					for _, downstream := range cpAgents[nextCP.ID] {
 						if activeSet[downstream] {
@@ -62,17 +62,10 @@ func DeriveTaskPermissions(wf *WorkflowDefinition) map[string][]string {
 							perms[cpAgent] = true
 						}
 					}
-					// Only go one step downstream for the implicit graph.
-					break
 				}
 
-				// Agents at the same checkpoint (same branch or different).
-				for _, peer := range cpAgents[agent.Position.AfterCheckpoint] {
-					if peer != agent.AgentID && activeSet[peer] {
-						// Same-checkpoint peers are not automatically invocable
-						// unless explicitly configured.
-					}
-				}
+				// Agents at the same checkpoint are not automatically invocable
+				// unless explicitly configured — no action needed here.
 			}
 		}
 

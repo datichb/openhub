@@ -227,14 +227,14 @@ func (c *gitLabClient) DiscoverProject(ctx context.Context, projectID string) (*
 		if nextPage == "" {
 			break
 		}
-		np, err := strconv.Atoi(nextPage)
-		if err != nil || np <= page || page >= maxLabelPages {
+		np, parseErr := strconv.Atoi(nextPage)
+		if parseErr != nil || np <= page || page >= maxLabelPages {
 			break
 		}
 		page = np
 	}
 
-	return &DiscoveryInfo{Labels: allLabels}, nil
+	return &DiscoveryInfo{Labels: allLabels}, nil //nolint:nilerr // parseErr from strconv.Atoi is handled by breaking the loop; partial results are valid
 }
 
 func (c *gitLabClient) AddLabels(ctx context.Context, projectID string, iid int, labels []string) error {
@@ -394,14 +394,14 @@ func (c *gitLabClient) paginatedListIssues(ctx context.Context, basePath string,
 		if nextPage == "" {
 			break
 		}
-		np, err := strconv.Atoi(nextPage)
-		if err != nil || np <= page || page >= maxIssuePages {
+		np, parseErr := strconv.Atoi(nextPage)
+		if parseErr != nil || np <= page || page >= maxIssuePages {
 			break
 		}
 		page = np
 	}
 
-	return all, nil
+	return all, nil //nolint:nilerr // parseErr from strconv.Atoi is handled by breaking the loop; partial results are valid
 }
 
 // parseRetryAfter parses the Retry-After header value (seconds as integer).

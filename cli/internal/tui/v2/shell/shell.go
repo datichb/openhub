@@ -654,16 +654,16 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 				switch f.Type {
 				case views.FieldBool:
 					// A bool is always set (true/false) — skip validation
-			case views.FieldMultiSelect:
-				if len(multi[f.Key]) == 0 {
-					s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
-					return
-				}
-			default:
-				if values[f.Key] == "" {
-					s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
-					return
-				}
+				case views.FieldMultiSelect:
+					if len(multi[f.Key]) == 0 {
+						s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
+						return
+					}
+				default:
+					if values[f.Key] == "" {
+						s.ShowToast(i18n.Tf("tui.shell.field_required", f.Label), ToastWarning)
+						return
+					}
 				}
 			}
 		}

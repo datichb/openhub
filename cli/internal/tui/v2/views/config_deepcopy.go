@@ -211,8 +211,8 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 		b := *c.Tracker.PushLabelsEnforced
 		cp.Tracker.PushLabelsEnforced = &b
 	}
-	cp.Tracker.TicketPatterns = cloneStringMap(c.Tracker.TicketPatterns)
-	cp.Tracker.Projects = cloneStringMap(c.Tracker.Projects)
+	cp.Tracker.TicketPatterns = cloneStringMap(c.Tracker.TicketPatterns) //nolint:staticcheck // SA1019: deep-copy must preserve deprecated fields for backward compat
+	cp.Tracker.Projects = cloneStringMap(c.Tracker.Projects)             //nolint:staticcheck // SA1019: deep-copy must preserve deprecated fields for backward compat
 	cp.Tracker.StatusMapping = cloneStringMap(c.Tracker.StatusMapping)
 	cp.Tracker.LabelStatusMapping = cloneStringMap(c.Tracker.LabelStatusMapping)
 	if c.Tracker.UnassignedLabels != nil {

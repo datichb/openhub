@@ -59,7 +59,7 @@ func TestColumnsFromConfig_Custom(t *testing.T) {
 	assert.Equal(t, theme.Warning, cols[0].Color)
 	// active columns cycle through activeColorCycle: Accent, FgSecondary, Info
 	assert.Equal(t, theme.Accent, cols[1].Color)      // first active
-	assert.Equal(t, theme.FgSecondary, cols[2].Color)  // second active
+	assert.Equal(t, theme.FgSecondary, cols[2].Color) // second active
 	// terminal → theme.Success
 	assert.Equal(t, theme.Success, cols[3].Color)
 	// blocked → theme.Error

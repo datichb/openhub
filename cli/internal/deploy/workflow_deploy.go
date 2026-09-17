@@ -146,7 +146,7 @@ func ValidateDeployedSkillRefs(skillsDir string, wf *workflow.WorkflowDefinition
 
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil //nolint:nilerr
+			return nil //nolint:nilerr // unreadable markdown files are silently skipped during workflow discovery
 		}
 
 		matches := re.FindAllString(string(data), -1)

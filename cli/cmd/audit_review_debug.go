@@ -246,7 +246,7 @@ func getBaseBranch(dir, feature string) string {
 		// Check if merge-base can be computed (trunk is an ancestor path)
 		mb := exec.Command("git", "merge-base", trunk, feature)
 		mb.Dir = dir
-		if out, err := mb.Output(); err == nil && len(strings.TrimSpace(string(out))) > 0 {
+		if out, err := mb.Output(); err == nil && strings.TrimSpace(string(out)) != "" {
 			return trunk
 		}
 	}

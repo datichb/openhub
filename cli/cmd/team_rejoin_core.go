@@ -21,11 +21,11 @@ type teamRejoinParams struct {
 
 // teamRejoinResult holds the output of a successful rejoin operation.
 type teamRejoinResult struct {
-	Member        teamstate.Member
-	TeamID        string
-	TeamName      string
-	EventCount    int // number of session.complete events found for this member
-	SessionCount  int // number of local sessions retro-tagged
+	Member       teamstate.Member
+	TeamID       string
+	TeamName     string
+	EventCount   int // number of session.complete events found for this member
+	SessionCount int // number of local sessions retro-tagged
 }
 
 // teamRejoinCore performs the core rejoin operations:

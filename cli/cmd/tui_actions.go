@@ -189,13 +189,8 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				doInit := true
-				form.AddCheckbox(i18n.T("form.project.beads_init"), true,
-					func(checked bool) { doInit = checked })
+				form.AddCheckbox(i18n.T("form.project.beads_init"), true, nil)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() {
-					if !doInit {
-						// Skip beads init but still advance
-					}
 					onDone()
 				})
 				return form

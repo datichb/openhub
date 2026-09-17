@@ -153,9 +153,9 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				engine := resolveTrackerEngine(ctx, a)
-			if engine == nil {
-				return "", "", errors.New(i18n.T("tui.team_board.tracker_not_configured"))
-			}
+				if engine == nil {
+					return "", "", errors.New(i18n.T("tui.team_board.tracker_not_configured"))
+				}
 				return engine.FetchTicketDetail(ctx, project, ticketID)
 			},
 			OnClaim: func(ticketID string) error {

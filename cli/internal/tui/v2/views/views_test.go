@@ -27,18 +27,18 @@ func (m *mockShell) ShowSelectModal(string, []SelectOption, string, func(string)
 func (m *mockShell) ShowMultiSelectModal(string, []SelectOption, []string, func([]string)) {
 }
 func (m *mockShell) ShowScrollableModal(string, string, []ModalAction) {}
-func (m *mockShell) ShowToastMsg(string, bool)                        {}
-func (m *mockShell) ShowInlineForm(InlineFormConfig)                  {}
-func (m *mockShell) NavigateTo(string)                                {}
-func (m *mockShell) SetProjectMode(*ActiveProject)                    {}
-func (m *mockShell) SetActiveProject(*ActiveProject)                  {}
-func (m *mockShell) ActiveProject() *ActiveProject                    { return m.project }
-func (m *mockShell) SetMode(Mode)                                     {}
-func (m *mockShell) Mode() Mode                                       { return ModeHub }
-func (m *mockShell) SetActiveTeam(*ActiveTeam)                        {}
-func (m *mockShell) ActiveTeam() *ActiveTeam                          { return m.team }
-func (m *mockShell) PushView(View)       {}
-func (m *mockShell) PopView() bool       { return true }
+func (m *mockShell) ShowToastMsg(string, bool)                         {}
+func (m *mockShell) ShowInlineForm(InlineFormConfig)                   {}
+func (m *mockShell) NavigateTo(string)                                 {}
+func (m *mockShell) SetProjectMode(*ActiveProject)                     {}
+func (m *mockShell) SetActiveProject(*ActiveProject)                   {}
+func (m *mockShell) ActiveProject() *ActiveProject                     { return m.project }
+func (m *mockShell) SetMode(Mode)                                      {}
+func (m *mockShell) Mode() Mode                                        { return ModeHub }
+func (m *mockShell) SetActiveTeam(*ActiveTeam)                         {}
+func (m *mockShell) ActiveTeam() *ActiveTeam                           { return m.team }
+func (m *mockShell) PushView(View)                                     {}
+func (m *mockShell) PopView() bool                                     { return true }
 
 func TestBoardView_ImplementsView(t *testing.T) {
 	var _ View = (*BoardView)(nil)

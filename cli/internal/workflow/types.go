@@ -220,7 +220,7 @@ func (w *WorkflowDefinition) IndependentAgents() []AgentSlot {
 // DeepCopy returns an independent deep copy of the workflow definition.
 func (w *WorkflowDefinition) DeepCopy() WorkflowDefinition {
 	data, _ := json.Marshal(w)
-	var copy WorkflowDefinition
-	_ = json.Unmarshal(data, &copy)
-	return copy
+	var clone WorkflowDefinition
+	_ = json.Unmarshal(data, &clone)
+	return clone
 }

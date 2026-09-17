@@ -818,7 +818,7 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
 			{Key: "scope", Label: i18n.T("tui.policies.field_scope"), Type: FieldSelect,
 				Options: policyScopeOptions, Default: defaultScope,
-				Hint: i18n.T("tui.policies.hint_scope"),
+				Hint:        i18n.T("tui.policies.hint_scope"),
 				Conditional: func(v map[string]string) bool { return v["type"] == "forbidden_pattern" }},
 			{Key: "max", Label: i18n.T("tui.policies.field_max"), Type: FieldText,
 				Default: defaultMax, Hint: i18n.T("tui.policies.hint_max"),

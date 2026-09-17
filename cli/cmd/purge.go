@@ -51,18 +51,18 @@ type purgeInventory struct {
 	opencodeConfigDir string // ~/.config/opencode/
 
 	// Binary info
-	binaryPath    string
-	isHomebrew    bool
-	keepBinary    bool
-	includeOC     bool
+	binaryPath string
+	isHomebrew bool
+	keepBinary bool
+	includeOC  bool
 }
 
 type purgeProject struct {
-	name           string
-	path           string
-	hasOpencode    bool // .opencode/ exists
-	hasOCJson      bool // opencode.json exists
-	hasBeadsDolt   bool // .beads/dolt/ exists
+	name         string
+	path         string
+	hasOpencode  bool // .opencode/ exists
+	hasOCJson    bool // opencode.json exists
+	hasBeadsDolt bool // .beads/dolt/ exists
 }
 
 func runPurge(cmd *cobra.Command, args []string) error {
@@ -444,16 +444,11 @@ func cleanPurgeProjects(out *os.File, projects []purgeProject) {
 }
 
 func cleanOpenCodeData(out *os.File, dataDir, configDir string) {
-	removed := 0
 	if dirExists(dataDir) {
-		if err := os.RemoveAll(dataDir); err == nil {
-			removed++
-		}
+		_ = os.RemoveAll(dataDir)
 	}
 	if dirExists(configDir) {
-		if err := os.RemoveAll(configDir); err == nil {
-			removed++
-		}
+		_ = os.RemoveAll(configDir)
 	}
 	printStepDone(out, "")
 }
@@ -530,7 +525,7 @@ func dirSizeHuman(path string) string {
 	var size int64
 	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // skip errors
+			return nil //nolint:nilerr // skip unreadable entries during size estimation
 		}
 		if !info.IsDir() {
 			size += info.Size()

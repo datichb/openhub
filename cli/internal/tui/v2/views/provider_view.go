@@ -53,7 +53,7 @@ type ProviderView struct {
 
 	lines            []providerConfigLine
 	selectedProvider string // currently selected provider for detail section
-	rendering        bool // true while renderList is executing — suppresses handleChanged cascades
+	rendering        bool   // true while renderList is executing — suppresses handleChanged cascades
 
 	// Caches populated off the event loop (goroutine) then consumed on the
 	// event loop (QueueUpdateDraw). This avoids blocking exec.Command, keychain

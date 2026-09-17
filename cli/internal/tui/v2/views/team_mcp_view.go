@@ -308,7 +308,7 @@ func (v *TeamMCPView) buildFields() {
 			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
 			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
 			Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
-			Get: func() string { return v.teamCfg.MCP[svc].URL },
+			Get:         func() string { return v.teamCfg.MCP[svc].URL },
 			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				s.URL = val

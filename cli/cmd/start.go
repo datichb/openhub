@@ -254,7 +254,7 @@ func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project
 }
 
 // printStartSummary prints the pre-launch info blocks to stdout.
-func printStartSummary(a *app.App, project *domain.Project, launchPath, provider string, stack prompt.StackInfo, agent, bearerToken string) {
+func printStartSummary(a *app.App, project *domain.Project, launchPath, providerName string, stack prompt.StackInfo, agent, bearerToken string) {
 	projCfg := opencode.ReadProjectConfig(launchPath)
 
 	branch := "—"
@@ -287,9 +287,9 @@ func printStartSummary(a *app.App, project *domain.Project, launchPath, provider
 		pluginsDisplay = strings.Join(projCfg.Plugins, ", ")
 	}
 
-	providerStatus := provider
+	providerStatus := providerName
 	if bearerToken != "" {
-		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + provider + " — " + i18n.T("cmd.start.token_configured")
+		providerStatus = theme.SuccessStyle.Render(theme.IconSuccess) + " " + providerName + " — " + i18n.T("cmd.start.token_configured")
 	}
 
 	gutter := theme.Subtitle.Render("│")
@@ -307,7 +307,7 @@ func printStartSummary(a *app.App, project *domain.Project, launchPath, provider
 
 	fmt.Fprintf(a.IO.Out, "%s  %s\n", header, theme.Bold.Render(i18n.T("cmd.start.section_config")))
 	fmt.Fprintf(a.IO.Out, "%s\n", gutter)
-	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), provider)
+	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_provider_short"), providerName)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_model"), model)
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_language"), displayOrDefault(stack.Language, project.Language))
 	fmt.Fprintf(a.IO.Out, "%s  %s%s\n", gutter, i18n.T("cmd.start.label_compaction"), compactionStatus)

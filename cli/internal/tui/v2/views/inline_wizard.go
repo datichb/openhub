@@ -67,11 +67,11 @@ type InlineWizardView struct {
 
 	// tview primitives — nil when unmounted.
 	app         *tview.Application
-	mainFlex    *tview.Flex        // root layout (classic: stepBar+header+content+info+hints)
+	mainFlex    *tview.Flex // root layout (classic: stepBar+header+content+info+hints)
 	stepBar     *widgets.StepBar
 	stepHeader  *tview.TextView
-	stepContent *tview.Flex        // swappable area for form/customview/spinner
-	infoPanel   *tview.TextView    // classic: bottom info panel  /  grouped: right sidebar
+	stepContent *tview.Flex     // swappable area for form/customview/spinner
+	infoPanel   *tview.TextView // classic: bottom info panel  /  grouped: right sidebar
 	hintsBar    *widgets.StatusBar
 
 	// grouped layout primitives (non-nil only when cfg.Groups is set)
@@ -464,7 +464,7 @@ func (w *InlineWizardView) shouldSkip(idx int) bool {
 	return s.Skip
 }
 
-func (w *InlineWizardView) countVisibleSteps(idx int) (total int, position int) {
+func (w *InlineWizardView) countVisibleSteps(idx int) (total, position int) {
 	pos := 0
 	for i := range w.cfg.Steps {
 		if w.cfg.Steps[i].Skip {

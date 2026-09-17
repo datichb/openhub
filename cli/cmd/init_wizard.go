@@ -777,10 +777,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					slog.Warn("failed to persist setup_done flag", "error", err)
 				}
 
-			config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
-			if newApp, reloadErr := ReloadApp(); reloadErr == nil {
-				_ = newApp
-			}
+				config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
+				if newApp, reloadErr := ReloadApp(); reloadErr == nil {
+					_ = newApp
+				}
 			}
 		},
 	})

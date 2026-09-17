@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -22,7 +21,7 @@ const (
 	CfgFieldTriBool                        // tri-state: nil=not configured (with optional inheritance note based on Scope)
 	CfgFieldInt                            // integer input with optional min/max
 	CfgFieldPassword                       // masked input (Enter → PasswordModal) — unifies "tokenkey" and "password"
-	CfgFieldReadonly                        // display only (cannot edit)
+	CfgFieldReadonly                       // display only (cannot edit)
 	CfgFieldLink                           // navigation link to another view (Enter → NavigateTo)
 	CfgFieldSectionHeader                  // section divider (non-selectable, rendered as ── Name ──)
 	CfgFieldSubHeader                      // sub-section divider
@@ -411,9 +410,3 @@ func triStateOptions() []SelectOption {
 }
 
 // ---------- Context helper ----------
-
-// fieldContext returns a background context. Views that need cancellation
-// should pass their shell.Context() instead.
-func fieldContext() context.Context {
-	return context.Background()
-}

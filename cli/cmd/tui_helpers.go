@@ -89,11 +89,11 @@ func initBeadsForProject(_ *app.App, id, name, path string) {
 			if prefix == "" {
 				prefix = strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 			}
-		if err := beads.Init(path, prefix); err != nil {
-			tuiShell.ShowToastMsg(i18n.T("tui.helpers.init_beads_error")+err.Error(), false)
-			return
-		}
-		tuiShell.ShowToastMsg(i18n.Tf("tui.helpers.board_initialized", label), true)
+			if err := beads.Init(path, prefix); err != nil {
+				tuiShell.ShowToastMsg(i18n.T("tui.helpers.init_beads_error")+err.Error(), false)
+				return
+			}
+			tuiShell.ShowToastMsg(i18n.Tf("tui.helpers.board_initialized", label), true)
 			tuiShell.NavigateTo("board")
 		},
 	)

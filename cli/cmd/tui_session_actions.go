@@ -346,11 +346,12 @@ func launchDevSession() {
 			SkipDeploy:  true,
 		})
 	})
-	if devErr != nil {
+	switch {
+	case devErr != nil:
 		tuiShell.ShowToast(i18n.Tf("tui.session.dev_error", devErr), shell.ToastWarning)
-	} else if err != nil {
+	case err != nil:
 		tuiShell.ShowToast(i18n.T("tui.session.session_ended_error"), shell.ToastWarning)
-	} else {
+	default:
 		tuiShell.ShowToast(i18n.T("tui.session.session_ended"), shell.ToastSuccess)
 	}
 }

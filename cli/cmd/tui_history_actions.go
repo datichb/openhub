@@ -63,8 +63,8 @@ func actionHistoryExport() {
 				return
 			}
 
-		msg := fmt.Sprintf("%s %s",
-			theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", len(sessions), outputPath))
+			msg := fmt.Sprintf("%s %s",
+				theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", len(sessions), outputPath))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
@@ -125,8 +125,8 @@ func actionHistoryImport() {
 				imported++
 			}
 
-		msg := fmt.Sprintf("%s %s",
-			theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", imported, len(data.Sessions)-imported))
+			msg := fmt.Sprintf("%s %s",
+				theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", imported, len(data.Sessions)-imported))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})

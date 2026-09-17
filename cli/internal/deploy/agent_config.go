@@ -93,11 +93,11 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 					return nil
 				}
 
-			// Collect missing MCP integrations (informational, not blocking)
-			if len(fm.MCPServers) > 0 && len(ctx.Plan.EnabledMCPServers) > 0 {
-				missing := CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, ctx.Plan.EnabledMCPServers)
-				missingIntegrations = append(missingIntegrations, missing...)
-			}
+				// Collect missing MCP integrations (informational, not blocking)
+				if len(fm.MCPServers) > 0 && len(ctx.Plan.EnabledMCPServers) > 0 {
+					missing := CollectMissingMCPIntegrations(fm.ID, fm.MCPServers, ctx.Plan.EnabledMCPServers)
+					missingIntegrations = append(missingIntegrations, missing...)
+				}
 
 				// Derive family from relative path
 				rel, _ := filepath.Rel(srcDir, path)
