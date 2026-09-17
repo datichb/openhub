@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rivo/tview"
 
@@ -172,22 +171,22 @@ func buildProjectTeamStep(a *app.App, out **string) views.WizardStep {
 	}
 
 	return views.WizardStep{
-		Label: "Team",
+		Label: i18n.T("form.project.team_label"),
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
 			if hubTeam.Enabled && hubTeam.ID != "" {
-				hubSummary := fmt.Sprintf("hub : %s (member : %s)", hubTeam.StateRepo, hubTeam.MemberID)
-				form.AddTextView("Équipe hub", hubSummary, 0, 1, false, false)
+				hubSummary := i18n.Tf("form.project.team_hub_summary", hubTeam.StateRepo, hubTeam.MemberID)
+				form.AddTextView(i18n.T("form.project.team_hub_label"), hubSummary, 0, 1, false, false)
 				modeOptions := []string{
-					fmt.Sprintf("Utiliser l'équipe du hub (%s)", hubTeam.MemberID),
-					"Pas d'équipe pour ce projet",
+					i18n.Tf("form.project.team_use_hub", hubTeam.MemberID),
+					i18n.T("form.project.team_no_team"),
 				}
-				form.AddDropDown("Équipe", modeOptions, 0, func(_ string, idx int) {
+				form.AddDropDown(i18n.T("form.project.team_dropdown"), modeOptions, 0, func(_ string, idx int) {
 					attachToTeam = idx == 0
 				})
 			} else {
-				form.AddTextView("Équipe hub", "Aucune équipe configurée au niveau du hub.", 0, 1, false, false)
+				form.AddTextView(i18n.T("form.project.team_hub_label"), i18n.T("form.project.team_none_configured"), 0, 1, false, false)
 			}
 
 			form.AddButton("Next", func() { onDone() })
@@ -204,9 +203,9 @@ func buildProjectTeamStep(a *app.App, out **string) views.WizardStep {
 		},
 		InfoFields: func() []views.InfoField {
 			if attachToTeam && hubTeam.ID != "" {
-				return []views.InfoField{{Label: "Team", Value: hubTeam.ID}}
+				return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: hubTeam.ID}}
 			}
-			return []views.InfoField{{Label: "Team", Value: "aucune"}}
+			return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: i18n.T("form.project.team_value_none")}}
 		},
 	}
 }
