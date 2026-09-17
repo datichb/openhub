@@ -391,8 +391,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 							Path:   projectPath,
 							Status: domain.ProjectStatusActive,
 						}
-						_ = a.Projects.Create(context.Background(), p)
-						projectCreated = true
+						if err := a.Projects.Create(context.Background(), p); err == nil {
+							projectCreated = true
+						}
 					}
 					onDone()
 				})
@@ -432,6 +433,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					return nil
 				}
 				// Reload app to pick up the new project + provider config
+				config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
 				newApp, err := ReloadApp()
 				if err != nil {
 					return fmt.Errorf("reload: %w", err)
@@ -648,9 +650,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				vip.Set("cli.setup_done", true)
 				_ = vip.WriteConfigAs(config.ConfigPath())
 
-				if newApp, reloadErr := ReloadApp(); reloadErr == nil {
-					_ = newApp
-				}
+			config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
+			if newApp, reloadErr := ReloadApp(); reloadErr == nil {
+				_ = newApp
+			}
 			}
 		},
 	})
