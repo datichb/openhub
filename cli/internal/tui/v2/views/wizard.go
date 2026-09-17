@@ -474,6 +474,9 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				Foreground(theme.BgPanel))
 			form.SetBorder(false)
 
+			// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
+			fixFormDropDownStyles(form)
+
 				// Esc handling: Required steps block skip; optional steps use double-Esc
 				form.SetCancelFunc(func() {
 					// Required steps cannot be skipped

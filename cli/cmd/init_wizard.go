@@ -63,11 +63,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 
 	providerOptions := []string{"bedrock", "anthropic", "openrouter", "github-copilot"}
 
-	// providerStepIdx is the 0-based index of the Provider form step in the
-	// steps slice below. Used by the Form callback to access step.Rerender
-	// (injected by the wizard engine at render time). Update if steps are
-	// reordered. With intro pages: 0=Welcome, 1=Lang, 2=IntroProvider, 3=Provider.
-	const providerStepIdx = 3
+	// providerStepIdx is resolved dynamically after the steps slice is built
+	// (see below). It locates the Provider form step so the DropDown callback
+	// can call step.Rerender to rebuild the form on provider change.
+	var providerStepIdx int
 
 	var steps []views.WizardStep
 	steps = []views.WizardStep{
@@ -138,22 +137,35 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 2 — Language
+		// STEP 1 — Language
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label:    i18n.T("cmd.init.wizard_step_lang"),
 			Required: true,
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				langOptions := []string{"Français", "English"}
+				// Detect system locale for sensible default
+				defaultIdx := 0 // Français
+				sysLang := os.Getenv("LANG")
+				if sysLang == "" {
+					sysLang = os.Getenv("LC_ALL")
+				}
+				if sysLang != "" && !strings.Contains(strings.ToLower(sysLang), "fr") {
+					defaultIdx = 1 // English
+				}
+				if defaultIdx == 1 {
+					selectedLang = "en"
+				} else {
+					selectedLang = "fr"
+				}
 				form := tview.NewForm()
-				form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, 0, func(option string, _ int) {
+				form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, defaultIdx, func(option string, _ int) {
 					if option == "English" {
 						selectedLang = "en"
 					} else {
 						selectedLang = "fr"
 					}
 				})
-				selectedLang = "fr" // default
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 				return form
 			},
@@ -188,7 +200,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_provider_title"),
 			i18n.T("cmd.init.wizard_intro_provider_desc"),
 			i18n.T("cmd.init.wizard_intro_provider_list"),
-			"Bedrock · Anthropic · OpenRouter · Copilot",
+			i18n.T("cmd.init.wizard_provider_list_items"),
 			"",
 			func() { providerSkipped = false },
 			func() { providerSkipped = true },
@@ -204,7 +216,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// the widget tree from inside a tview handler callback.
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Provider",
+			Label: i18n.T("cmd.init.wizard_step_provider_label"),
 			SkipIf: func() bool {
 				return providerSkipped
 			},
@@ -289,13 +301,13 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					)
 					switch authMode {
 					case "bearer":
-						form.AddPasswordField("Bearer token", "", 50, '*', func(t string) { token = t })
-						form.AddInputField("AWS Region", region, 30, nil, func(t string) { region = t })
+						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), "", 50, '*', func(t string) { token = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "profile":
-						form.AddInputField("AWS Profile", profileName, 30, nil, func(t string) { profileName = t })
-						form.AddInputField("AWS Region", region, 30, nil, func(t string) { region = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_aws_profile"), profileName, 30, nil, func(t string) { profileName = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "env":
-						form.AddInputField("AWS Region", region, 30, nil, func(t string) { region = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					}
 
 				case "anthropic":
@@ -444,7 +456,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 7 — Deploy agents/skills (conditional on project)
+		// STEP 6 — Deploy agents/skills (conditional on project)
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: i18n.T("cmd.init.wizard_step_deploy"),
@@ -506,7 +518,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_mcp_title"),
 			i18n.T("cmd.init.wizard_intro_mcp_desc"),
 			i18n.T("cmd.init.wizard_intro_mcp_list"),
-			"Figma · GitLab · Google Slides",
+			i18n.T("cmd.init.wizard_mcp_list_items"),
 			"",
 			func() { mcpSkipped = false },
 			func() { mcpSkipped = true },
@@ -516,7 +528,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 8 — MCP Figma (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "MCP Figma",
+			Label: i18n.T("cmd.init.wizard_step_mcp_figma"),
 			SkipIf: func() bool {
 				return mcpSkipped
 			},
@@ -562,7 +574,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 9 — MCP GitLab (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "MCP GitLab",
+			Label: i18n.T("cmd.init.wizard_step_mcp_gitlab"),
 			SkipIf: func() bool {
 				return mcpSkipped
 			},
@@ -618,7 +630,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 10 — MCP Google Slides (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "MCP Google Slides",
+			Label: i18n.T("cmd.init.wizard_step_mcp_gslides"),
 			SkipIf: func() bool {
 				return mcpSkipped
 			},
@@ -658,6 +670,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return []views.InfoField{{Label: "Google Slides", Value: v}}
 			},
 		},
+	}
+
+	// Resolve providerStepIdx dynamically: find the Provider form step.
+	// It's the first step that has both Form and SkipIf (the provider
+	// credential form that adapts dynamically).
+	for i, s := range steps {
+		if s.Form != nil && s.SkipIf != nil && s.Validate != nil {
+			providerStepIdx = i
+			break
+		}
 	}
 
 	return views.NewInlineWizardView(views.InlineWizardConfig{
