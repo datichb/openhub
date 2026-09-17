@@ -514,12 +514,20 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 	w.stepContent.AddItem(w.spinner.TextView, 3, 0, false)
 	w.spinner.Start(w.app)
 
+	// Capture app reference before launching goroutine to avoid nil
+	// dereference if Unmount() runs before QueueUpdateDraw fires.
+	tvApp := w.app
+
 	go func() {
 		var err error
 		if step.OnDone != nil {
 			err = step.OnDone()
 		}
-		w.app.QueueUpdateDraw(func() {
+		tvApp.QueueUpdateDraw(func() {
+			// Guard: wizard may have been unmounted while OnDone was running.
+			if w.app == nil {
+				return
+			}
 			w.spinner.Stop()
 			if err != nil {
 				w.wizardErr = err
@@ -1007,7 +1015,7 @@ func (w *InlineWizardView) renderClassicInfoPanel() {
 }
 
 func (w *InlineWizardView) updateInfoPanelSize(lines int) {
-	if w.mainFlex == nil || w.infoPanel == nil {
+	if w.mainFlex == nil || w.infoPanel == nil || w.stepBar == nil {
 		return
 	}
 	// Remove and re-add the info panel with the new height.
