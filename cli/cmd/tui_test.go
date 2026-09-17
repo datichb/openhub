@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
 
@@ -57,9 +58,8 @@ func TestBuildCommands_HasCategories(t *testing.T) {
 	}
 
 	assert.True(t, categories["Sessions"], "should have Sessions category")
-	assert.True(t, categories["Projets"], "should have Projets category")
-	assert.True(t, categories["Configuration"], "should have Configuration category")
-	assert.True(t, categories["Système"], "should have Système category")
+	assert.True(t, categories[i18n.T("tui.category.hub")], "should have Hub category")
+	assert.True(t, categories[i18n.T("tui.category.system")], "should have System category")
 }
 
 func TestBuildViews(t *testing.T) {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -24,22 +25,20 @@ import (
 // Audit type descriptions — mirrors audit_review_debug.go validTypes map.
 // ─────────────────────────────────────────────────────────────────────────────
 
-var auditTypeDescriptions = map[string]string{
-	"security":      "sécurité (vulnérabilités, injections, secrets, dépendances)",
-	"performance":   "performance (fuites mémoire, N+1, rendering, bundle size)",
-	"architecture":  "architecture (couplage, cohésion, patterns, dette technique)",
-	"accessibility": "accessibilité (WCAG, ARIA, contraste, navigation clavier)",
-	"ecodesign":     "éco-conception (empreinte carbone, poids, requêtes inutiles)",
-	"observability": "observabilité (logs, traces, métriques, alerting, SLI/SLO)",
-	"privacy":       "vie privée (RGPD, données personnelles, consentement, rétention)",
+// auditTypeDescription returns the localized description for an audit type.
+func auditTypeDescription(auditType string) string {
+	key := "tui.session.audit_type." + auditType
+	desc := i18n.T(key)
+	if desc == key {
+		// Key not found — fallback to raw type.
+		return auditType
+	}
+	return desc
 }
 
 // buildAuditPrompt constructs the --prompt value for an audit session.
 func buildAuditPrompt(auditType string) string {
-	desc := auditTypeDescriptions[auditType]
-	if desc == "" {
-		desc = auditType
-	}
+	desc := auditTypeDescription(auditType)
 	return i18n.Tf("cmd.audit.prompt", auditType, desc)
 }
 
@@ -127,24 +126,24 @@ func actionAuditLauncher() {
 		return
 	}
 	tuiShell.ShowSessionLauncher(shell.SessionLaunchConfig{
-		Title: "Lancer un audit",
+		Title: i18n.T("tui.session.audit_title"),
 		Options: []shell.SessionOption{
-			{Label: "Sécurité", Description: "Audit de sécurité (OWASP, injections, auth)", Agent: "auditor"},
-			{Label: "Performance", Description: "Audit de performance (N+1, mémoire, CPU)", Agent: "auditor"},
-			{Label: "Architecture", Description: "Audit d'architecture (couplage, patterns)", Agent: "auditor"},
-			{Label: "Accessibilité", Description: "Audit a11y (WCAG, ARIA, contraste)", Agent: "auditor"},
-			{Label: "Éco-conception", Description: "Audit impact environnemental", Agent: "auditor"},
-			{Label: "Observabilité", Description: "Audit logs, traces, métriques", Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_sec_label"), Description: i18n.T("tui.session.audit_sec_desc"), Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_perf_label"), Description: i18n.T("tui.session.audit_perf_desc"), Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_archi_label"), Description: i18n.T("tui.session.audit_archi_desc"), Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_a11y_label"), Description: i18n.T("tui.session.audit_a11y_desc"), Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_eco_label"), Description: i18n.T("tui.session.audit_eco_desc"), Agent: "auditor"},
+			{Label: i18n.T("tui.session.audit_obs_label"), Description: i18n.T("tui.session.audit_obs_desc"), Agent: "auditor"},
 		},
 		OnLaunch: func(opt shell.SessionOption) {
-			// Map label → audit type
+			// Map localized label → audit type
 			auditTypeByLabel := map[string]string{
-				"Sécurité":       "security",
-				"Performance":    "performance",
-				"Architecture":   "architecture",
-				"Accessibilité":  "accessibility",
-				"Éco-conception": "ecodesign",
-				"Observabilité":  "observability",
+				i18n.T("tui.session.audit_sec_label"):   "security",
+				i18n.T("tui.session.audit_perf_label"):  "performance",
+				i18n.T("tui.session.audit_archi_label"): "architecture",
+				i18n.T("tui.session.audit_a11y_label"):  "accessibility",
+				i18n.T("tui.session.audit_eco_label"):   "ecodesign",
+				i18n.T("tui.session.audit_obs_label"):   "observability",
 			}
 			auditType := auditTypeByLabel[opt.Label]
 			if auditType == "" {
@@ -161,31 +160,31 @@ func actionReviewLauncher() {
 	}
 
 	options := []shell.SessionOption{
-		{Label: "Standard", Description: "Code review classique", Agent: "reviewer"},
-		{Label: "Adversarial", Description: "Review adversariale (trouver les failles)", Agent: "reviewer"},
-		{Label: "Edge cases", Description: "Review orientée cas limites", Agent: "reviewer"},
-		{Label: "Complète", Description: "Review complète (tous les modes)", Agent: "reviewer"},
+		{Label: i18n.T("tui.session.review_standard_label"), Description: i18n.T("tui.session.review_standard_desc"), Agent: "reviewer"},
+		{Label: i18n.T("tui.session.review_adversarial_label"), Description: i18n.T("tui.session.review_adversarial_desc"), Agent: "reviewer"},
+		{Label: i18n.T("tui.session.review_edge_label"), Description: i18n.T("tui.session.review_edge_desc"), Agent: "reviewer"},
+		{Label: i18n.T("tui.session.review_complete_label"), Description: i18n.T("tui.session.review_complete_desc"), Agent: "reviewer"},
 	}
 
 	a := MustApp()
 	if a.Config.MCP.Gitlab.WriteEnabled {
 		options = append(options, shell.SessionOption{
-			Label: "Publish", Description: "Publier pour review (crée MR + notifie l'équipe)", Agent: "reviewer",
+			Label: i18n.T("tui.session.review_publish_label"), Description: i18n.T("tui.session.review_publish_desc"), Agent: "reviewer",
 		})
 	}
 
 	tuiShell.ShowSessionLauncher(shell.SessionLaunchConfig{
-		Title:   "Lancer une review",
+		Title:   i18n.T("tui.session.review_title"),
 		Options: options,
 		OnLaunch: func(opt shell.SessionOption) {
-			// Map label → review mode
+			// Map localized label → review mode
 			modeByLabel := map[string]string{
-				"Standard":    "",
-				"Adversarial": "adversarial",
-				"Edge cases":  "edge-case",
-				"Complète":    "all",
+				i18n.T("tui.session.review_standard_label"):    "",
+				i18n.T("tui.session.review_adversarial_label"): "adversarial",
+				i18n.T("tui.session.review_edge_label"):        "edge-case",
+				i18n.T("tui.session.review_complete_label"):    "all",
 			}
-			if opt.Label == "Publish" {
+			if opt.Label == i18n.T("tui.session.review_publish_label") {
 				// Publish is a special workflow — not a standard session launch.
 				// Delegate to the review publish logic (same as oh review --publish).
 				launchSessionWithPrompt("reviewer", "[PUBLISH] "+buildReviewPrompt(""))
@@ -201,7 +200,7 @@ func actionDebugLauncher() {
 	if tuiShell == nil {
 		return
 	}
-	tuiShell.ShowInputModal("Description du problème", "", func(issue string) {
+	tuiShell.ShowInputModal(i18n.T("tui.session.debug_input_title"), "", func(issue string) {
 		launchSessionWithPrompt("debugger", buildDebugPrompt(issue))
 	})
 }
@@ -214,7 +213,7 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 	}
 
 	if _, err := opencode.FindBinary(); err != nil {
-		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.session.opencode_not_found"), shell.ToastError)
 		return
 	}
 
@@ -227,7 +226,7 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 		// and offer a selector (ADR-032 Phase 3: dynamic project selection in team mode).
 		projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
 		if len(projects) == 0 {
-			tuiShell.ShowToast("Aucun projet configuré", shell.ToastWarning)
+			tuiShell.ShowToast(i18n.T("tui.session.no_project_configured"), shell.ToastWarning)
 			return
 		}
 		if len(projects) == 1 {
@@ -238,7 +237,7 @@ func launchSessionWithPrompt(agent, sessionPrompt string) {
 			for i, p := range projects {
 				opts[i] = views.SelectOption{Label: p.Name, Value: p.ID}
 			}
-			tuiShell.ShowSelectModal("Choisir un projet", opts, "", func(selected string) {
+			tuiShell.ShowSelectModal(i18n.T("tui.session.choose_project"), opts, "", func(selected string) {
 				for i := range projects {
 					if projects[i].ID == selected {
 						launchSessionForProject(a, &projects[i], agent, sessionPrompt)
@@ -280,7 +279,7 @@ func launchSessionAtPath(launchPath, projectID, agent, sessionPrompt string) {
 	}
 
 	if _, err := opencode.FindBinary(); err != nil {
-		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.session.opencode_not_found"), shell.ToastError)
 		return
 	}
 
@@ -314,14 +313,14 @@ func launchDevSession() {
 	}
 
 	if _, err := opencode.FindBinary(); err != nil {
-		tuiShell.ShowToast("opencode non trouvé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.session.opencode_not_found"), shell.ToastError)
 		return
 	}
 
 	a := MustApp()
 	project, err := resolveActiveProject(a)
 	if err != nil {
-		tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
+		tuiShell.ShowToast(i18n.T("tui.session.no_active_project"), shell.ToastWarning)
 		return
 	}
 
@@ -348,11 +347,11 @@ func launchDevSession() {
 		})
 	})
 	if devErr != nil {
-		tuiShell.ShowToast(fmt.Sprintf("Dev: %s", devErr), shell.ToastWarning)
+		tuiShell.ShowToast(i18n.Tf("tui.session.dev_error", devErr), shell.ToastWarning)
 	} else if err != nil {
-		tuiShell.ShowToast("Session terminée avec erreur", shell.ToastWarning)
+		tuiShell.ShowToast(i18n.T("tui.session.session_ended_error"), shell.ToastWarning)
 	} else {
-		tuiShell.ShowToast("Session terminée", shell.ToastSuccess)
+		tuiShell.ShowToast(i18n.T("tui.session.session_ended"), shell.ToastSuccess)
 	}
 }
 
@@ -372,7 +371,7 @@ func buildOnboardPromptForTUI() string {
 // Must be called from within SuspendAndExec (needs terminal control for huh forms).
 func handleDevModeTUI(a *app.App, project *domain.Project) (agentName, devPrompt string, err error) {
 	if err := beads.Available(); err != nil {
-		return "", "", fmt.Errorf("%s", i18n.T("cmd.start.dev_no_bd"))
+		return "", "", errors.New(i18n.T("cmd.start.dev_no_bd"))
 	}
 
 	ctx := context.Background()
@@ -404,7 +403,7 @@ func handleDevModeTUI(a *app.App, project *domain.Project) (agentName, devPrompt
 
 	totalOptions := len(epics) + len(withLabel) + len(withoutLabel)
 	if totalOptions == 0 {
-		return "", "", fmt.Errorf("aucun ticket disponible (todo ou en cours) avec le label %q", "ai-delegated")
+		return "", "", errors.New(i18n.Tf("tui.session.no_available_ticket", "ai-delegated"))
 	}
 
 	// Build picker

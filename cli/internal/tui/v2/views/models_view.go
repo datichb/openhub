@@ -74,7 +74,7 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des modèles...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.models.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Load entries and populate table asynchronously
@@ -142,9 +142,9 @@ func (v *ModelsView) loadEntries() {
 	// Hub default
 	hubDefault := vip.GetString("models.default")
 	if hubDefault != "" {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: "défaut", Value: hubDefault})
+		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: hubDefault})
 	} else {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: "défaut", Value: "(non défini)"})
+		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: i18n.T("tui.models.not_set")})
 	}
 
 	// Hub families
@@ -175,7 +175,7 @@ func (v *ModelsView) loadEntries() {
 		for _, p := range projects {
 			prefix := p.Name
 			if p.Model != "" {
-				v.entries = append(v.entries, modelEntry{Level: prefix, Scope: "default", Key: "défaut", Value: p.Model})
+				v.entries = append(v.entries, modelEntry{Level: prefix, Scope: "default", Key: i18n.T("tui.models.default"), Value: p.Model})
 			}
 			if p.ModelOverrides != nil {
 				fKeys := make([]string, 0, len(p.ModelOverrides.Families))
@@ -204,10 +204,10 @@ func (v *ModelsView) populateTable() {
 
 	// Header
 	headerStyle := tcell.StyleDefault.Foreground(theme.Accent).Bold(true)
-	v.table.SetCell(0, 0, tview.NewTableCell("  Niveau").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 1, tview.NewTableCell("Type").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 2, tview.NewTableCell("Clé").SetStyle(headerStyle).SetSelectable(false))
-	v.table.SetCell(0, 3, tview.NewTableCell("Modèle").SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 0, tview.NewTableCell("  "+i18n.T("tui.models.col_level")).SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 1, tview.NewTableCell(i18n.T("tui.models.col_type")).SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 2, tview.NewTableCell(i18n.T("tui.models.col_key")).SetStyle(headerStyle).SetSelectable(false))
+	v.table.SetCell(0, 3, tview.NewTableCell(i18n.T("tui.models.col_model")).SetStyle(headerStyle).SetSelectable(false))
 
 	for i, e := range v.entries {
 		levelColor := theme.FgSecondary
@@ -235,7 +235,7 @@ func (v *ModelsView) editEntry(idx int) {
 	}
 	entry := v.entries[idx]
 
-	v.shell.ShowInputModal("Modèle pour "+entry.Key, entry.Value, func(newModel string) {
+	v.shell.ShowInputModal(i18n.Tf("tui.models.edit_title", entry.Key), entry.Value, func(newModel string) {
 		if newModel == "" || newModel == entry.Value {
 			return
 		}
@@ -249,7 +249,7 @@ func (v *ModelsView) editEntry(idx int) {
 		v.loadEntries()
 		v.populateTable()
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Modèle mis à jour", true)
+			v.shell.ShowToastMsg(i18n.T("tui.models.updated"), true)
 		}
 	})
 }
@@ -260,8 +260,8 @@ func (v *ModelsView) addOverride() {
 	}
 
 	scopeOptions := []SelectOption{
-		{Label: "Famille", Value: "family"},
-		{Label: "Agent", Value: "agent"},
+		{Label: i18n.T("tui.models.scope_family"), Value: "family"},
+		{Label: i18n.T("tui.models.scope_agent"), Value: "agent"},
 	}
 
 	familyOptions := make([]SelectOption, len(modelFamilies))
@@ -270,14 +270,14 @@ func (v *ModelsView) addOverride() {
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Ajouter un override de modèle",
+		Title: i18n.T("tui.models.add_title"),
 		Fields: []FormField{
-			{Key: "scope", Label: "Type", Type: FieldSelect, Options: scopeOptions, Default: "family", Required: true},
-			{Key: "family", Label: "Famille", Type: FieldSelect, Options: familyOptions, Default: modelFamilies[0],
+			{Key: "scope", Label: i18n.T("tui.models.col_type"), Type: FieldSelect, Options: scopeOptions, Default: "family", Required: true},
+			{Key: "family", Label: i18n.T("tui.models.scope_family"), Type: FieldSelect, Options: familyOptions, Default: modelFamilies[0],
 				Conditional: func(vals map[string]string) bool { return vals["scope"] == "family" }},
-			{Key: "agent_id", Label: "Agent ID", Type: FieldText,
+			{Key: "agent_id", Label: i18n.T("tui.models.agent_id"), Type: FieldText,
 				Conditional: func(vals map[string]string) bool { return vals["scope"] == "agent" }},
-			{Key: "model", Label: "Modèle", Type: FieldText, Required: true},
+			{Key: "model", Label: i18n.T("tui.models.col_model"), Type: FieldText, Required: true},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			scope := values["scope"]
@@ -298,7 +298,7 @@ func (v *ModelsView) addOverride() {
 			v.loadEntries()
 			v.buildCommands()
 			v.populateTable()
-			v.shell.ShowToastMsg("Override ajouté", true)
+			v.shell.ShowToastMsg(i18n.T("tui.models.override_added"), true)
 		},
 		OnCancel: nil,
 	})
@@ -318,10 +318,10 @@ func (v *ModelsView) deleteEntry() {
 	if v.shell == nil {
 		return
 	}
-	label := fmt.Sprintf("Supprimer l'override %s (%s) ?", entry.Scope, entry.Level)
+	label := i18n.Tf("tui.models.delete_confirm", entry.Scope, entry.Level)
 	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: i18n.T("tui.models.cancel"), Value: ""},
+		{Label: i18n.T("tui.models.confirm_delete"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
@@ -349,7 +349,7 @@ func (v *ModelsView) deleteEntry() {
 
 		v.loadEntries()
 		v.populateTable()
-		v.shell.ShowToastMsg("Override supprimé", true)
+		v.shell.ShowToastMsg(i18n.T("tui.models.override_deleted"), true)
 	})
 }
 
@@ -371,7 +371,7 @@ func (v *ModelsView) setHubModel(scope, model string) {
 		}
 	}
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Override sauvegardé", true)
+		v.shell.ShowToastMsg(i18n.T("tui.models.override_saved"), true)
 	}
 }
 
@@ -452,7 +452,7 @@ func (v *ModelsView) buildCommands() {
 			ID:          "models.add.family",
 			Label:       "add family",
 			Aliases:     []string{"ajouter famille", "override family"},
-			Description: "Ajouter un override de famille",
+			Description: i18n.T("tui.models.cmd_add_family"),
 			Category:    "Models",
 			Action:      v.addOverride,
 		},
@@ -460,7 +460,7 @@ func (v *ModelsView) buildCommands() {
 			ID:          "models.delete",
 			Label:       "delete",
 			Aliases:     []string{"supprimer", "remove"},
-			Description: "Supprimer l'override sélectionné",
+			Description: i18n.T("tui.models.cmd_delete"),
 			Category:    "Models",
 			Action:      v.deleteEntry,
 		},

@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
@@ -31,22 +29,22 @@ func actionDeploy() {
 	}
 	a := MustApp()
 	if a.Projects == nil {
-		tuiShell.ShowToast("Hub non initialisé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.deploy.hub_not_init"), shell.ToastError)
 		return
 	}
 	project, err := resolveActiveProject(a)
 	if err != nil {
-		tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
+		tuiShell.ShowToast(i18n.T("tui.deploy.no_active_project"), shell.ToastWarning)
 		return
 	}
 
 	hubDir := findHubDir()
 	if hubDir == "" {
-		tuiShell.ShowToast("Hub content non trouvé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.deploy.hub_not_found"), shell.ToastError)
 		return
 	}
 
-	tuiShell.ShowToast("Analyse des changements...", shell.ToastInfo)
+	tuiShell.ShowToast(i18n.T("tui.deploy.analyzing"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
 	go func() {
@@ -59,22 +57,22 @@ func actionDeploy() {
 		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast(i18n.Tf("tui.deploy.diff_error", err.Error()), shell.ToastError)
 				return
 			}
 
 			if !report.HasChanges() {
-				tuiShell.ShowToast("Déjà à jour — rien à déployer", shell.ToastSuccess)
+				tuiShell.ShowToast(i18n.T("tui.deploy.already_up_to_date"), shell.ToastSuccess)
 				return
 			}
 
 			diffContent := deploy.FormatDiffReport(report, false)
 			tuiShell.ShowScrollableModal(
-				"Deploy Preview: "+project.Name,
+				i18n.Tf("tui.deploy.preview_title", project.Name),
 				diffContent,
 				[]views.ModalAction{
-					{Label: "Appliquer", Callback: func() {
-						tuiShell.ShowToast("Deploy en cours...", shell.ToastInfo)
+					{Label: i18n.T("tui.deploy.apply"), Callback: func() {
+						tuiShell.ShowToast(i18n.T("tui.deploy.in_progress"), shell.ToastInfo)
 						go func() {
 							select {
 							case <-ctx.Done():
@@ -84,9 +82,9 @@ func actionDeploy() {
 							err := runDeployForProject(a, project)
 							tuiShell.App().QueueUpdateDraw(func() {
 								if err != nil {
-									tuiShell.ShowToast("Deploy échoué: "+err.Error(), shell.ToastError)
+									tuiShell.ShowToast(i18n.Tf("tui.deploy.failed", err.Error()), shell.ToastError)
 								} else {
-									tuiShell.ShowToast("Deploy réussi", shell.ToastSuccess)
+									tuiShell.ShowToast(i18n.T("tui.deploy.success"), shell.ToastSuccess)
 									notifyDeployComplete()
 									// Informational toast for optional MCP integrations
 									if mcpInfo := collectMissingMCPInfo(a, project); mcpInfo != "" {
@@ -99,7 +97,7 @@ func actionDeploy() {
 							})
 						}()
 					}},
-					{Label: "Annuler", Callback: func() {}},
+					{Label: i18n.T("tui.deploy.cancel"), Callback: func() {}},
 				},
 			)
 		})
@@ -113,11 +111,11 @@ func actionSync() {
 
 	a := MustApp()
 	if a.Projects == nil {
-		tuiShell.ShowToast("Hub non initialisé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.deploy.hub_not_init"), shell.ToastError)
 		return
 	}
 
-	tuiShell.ShowToast("Sync en cours...", shell.ToastInfo)
+	tuiShell.ShowToast(i18n.T("tui.deploy.sync_in_progress"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
 	go func() {
@@ -129,9 +127,9 @@ func actionSync() {
 		err := runSyncAll(a)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Sync échoué: "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast(i18n.Tf("tui.deploy.sync_failed", err.Error()), shell.ToastError)
 			} else {
-				tuiShell.ShowToast("Sync réussi", shell.ToastSuccess)
+				tuiShell.ShowToast(i18n.T("tui.deploy.sync_success"), shell.ToastSuccess)
 				notifyDeployComplete()
 			}
 		})
@@ -143,7 +141,7 @@ func actionUpgrade() {
 		return
 	}
 
-	tuiShell.ShowToast("Mise à jour opencode...", shell.ToastInfo)
+	tuiShell.ShowToast(i18n.T("tui.deploy.upgrade_in_progress"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
 	go func() {
@@ -160,16 +158,16 @@ func actionUpgrade() {
 			}
 			pct := int(float64(downloaded) / float64(total) * 100)
 			tuiShell.App().QueueUpdateDraw(func() {
-				tuiShell.ShowToast(fmt.Sprintf("Téléchargement opencode... %d%%", pct), shell.ToastInfo)
+				tuiShell.ShowToast(i18n.Tf("tui.deploy.upgrade_download", pct), shell.ToastInfo)
 			})
 		})
 
 		err := runUpgradeOpencode(progressFn)
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Mise à jour échouée: "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast(i18n.Tf("tui.deploy.upgrade_failed", err.Error()), shell.ToastError)
 			} else {
-				tuiShell.ShowToast("opencode mis à jour", shell.ToastSuccess)
+				tuiShell.ShowToast(i18n.T("tui.deploy.upgrade_success"), shell.ToastSuccess)
 			}
 		})
 	}()
@@ -183,17 +181,17 @@ func actionViewDiff(projectPath string) {
 	a := MustApp()
 	project, err := resolveActiveProject(a)
 	if err != nil {
-		tuiShell.ShowToast("Aucun projet actif", shell.ToastWarning)
+		tuiShell.ShowToast(i18n.T("tui.deploy.no_active_project"), shell.ToastWarning)
 		return
 	}
 
 	hubDir := findHubDir()
 	if hubDir == "" {
-		tuiShell.ShowToast("Hub content non trouvé", shell.ToastError)
+		tuiShell.ShowToast(i18n.T("tui.deploy.hub_not_found"), shell.ToastError)
 		return
 	}
 
-	tuiShell.ShowToast("Analyse des changements...", shell.ToastInfo)
+	tuiShell.ShowToast(i18n.T("tui.deploy.analyzing"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
 	go func() {
@@ -206,21 +204,21 @@ func actionViewDiff(projectPath string) {
 		report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
-				tuiShell.ShowToast("Erreur diff: "+err.Error(), shell.ToastError)
+				tuiShell.ShowToast(i18n.Tf("tui.deploy.diff_error", err.Error()), shell.ToastError)
 				return
 			}
 
 			if !report.HasChanges() {
-				tuiShell.ShowToast("Aucun changement détecté — tout est à jour", shell.ToastSuccess)
+				tuiShell.ShowToast(i18n.T("tui.deploy.no_changes"), shell.ToastSuccess)
 				return
 			}
 
 			diffContent := deploy.FormatDiffReport(report, false)
 			tuiShell.ShowScrollableModal(
-				"Changements: "+project.Name,
+				i18n.Tf("tui.deploy.changes_title", project.Name),
 				diffContent,
 				[]views.ModalAction{
-					{Label: "Fermer", Callback: func() {}},
+					{Label: i18n.T("tui.deploy.close"), Callback: func() {}},
 				},
 			)
 		})

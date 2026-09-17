@@ -111,18 +111,18 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 	commands := []ContextCommand{
 		{
 			ID:          "teams.add",
-			Label:       "Ajouter une équipe",
+			Label:       i18n.T("tui.teams.add_team"),
 			Aliases:     []string{"add", "new", "ajouter"},
-			Description: "Configurer une nouvelle équipe",
-			Category:    "Équipes",
+			Description: i18n.T("tui.teams.add_team_desc"),
+			Category:    i18n.T("tui.teams.category"),
 			Action:      v.handleAdd,
 		},
 		{
 			ID:          "teams.refresh",
-			Label:       "Rafraîchir",
+			Label:       i18n.T("tui.teams.refresh"),
 			Aliases:     []string{"refresh", "reload"},
-			Description: "Recharger la liste des équipes",
-			Category:    "Équipes",
+			Description: i18n.T("tui.teams.refresh_desc"),
+			Category:    i18n.T("tui.teams.category"),
 			Action:      v.rebuild,
 		},
 	}
@@ -162,10 +162,10 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 		teamID := t.ID
 		commands = append(commands, ContextCommand{
 			ID:          fmt.Sprintf("teams.sync.%s", teamID),
-			Label:       fmt.Sprintf("Sync %s", t.DisplayName()),
+			Label:       i18n.Tf("tui.teams.sync_team", t.DisplayName()),
 			Aliases:     []string{"sync", teamID},
-			Description: fmt.Sprintf("Synchroniser le team-state de %s", t.DisplayName()),
-			Category:    "Équipes",
+			Description: i18n.Tf("tui.teams.sync_team_desc", t.DisplayName()),
+			Category:    i18n.T("tui.teams.category"),
 			Action:      func() { v.syncTeam(teamID) },
 		})
 	}
@@ -178,24 +178,24 @@ func (v *TeamsView) rebuild() {
 
 	if len(v.cfg.Teams) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText:      "Aucune équipe configurée",
-			SecondaryText: "Appuyez sur 'a' pour ajouter une équipe",
+			MainText:      i18n.T("tui.teams.no_teams"),
+			SecondaryText: i18n.T("tui.teams.no_teams_hint"),
 		})
 	} else {
 		items = append(items, widgets.SectionItem{
-			MainText: "Équipes",
+			MainText: i18n.T("tui.teams.header"),
 			IsHeader: true,
 		})
 
 		for _, t := range v.cfg.Teams {
-			status := fmt.Sprintf("%s actif", theme.ColorTag(theme.SuccessHex)+"✓"+theme.TagColor)
+			status := fmt.Sprintf("%s %s", theme.ColorTag(theme.SuccessHex)+"✓"+theme.TagColor, i18n.T("tui.teams.status_active"))
 			if !t.Enabled {
-				status = "inactif"
+				status = i18n.T("tui.teams.status_inactive")
 			}
 
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%s  %s", t.ID, t.DisplayName()),
-				SecondaryText: fmt.Sprintf("membre: %s | repo: %s | %s", t.MemberID, truncateString(t.StateRepo, 40), status),
+				SecondaryText: i18n.Tf("tui.teams.member_info", t.MemberID, truncateString(t.StateRepo, 40), status),
 				Reference:     t.ID,
 			})
 		}
@@ -220,12 +220,12 @@ func (v *TeamsView) handleAdd() {
 		return
 	}
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Ajouter une équipe",
+		Title: i18n.T("tui.teams.add_team"),
 		Fields: []FormField{
-			{Label: "URL du repo team-state", Key: "repo", Type: FieldText, Required: true},
-			{Label: "Votre member-id", Key: "member_id", Type: FieldText, Required: true},
-			{Label: "ID court de l'équipe", Key: "team_id", Type: FieldText, Required: true},
-			{Label: "Nom d'affichage (optionnel)", Key: "name", Type: FieldText},
+			{Label: i18n.T("tui.teams.field_repo_url"), Key: "repo", Type: FieldText, Required: true},
+			{Label: i18n.T("tui.teams.field_member_id"), Key: "member_id", Type: FieldText, Required: true},
+			{Label: i18n.T("tui.teams.field_team_id"), Key: "team_id", Type: FieldText, Required: true},
+			{Label: i18n.T("tui.teams.field_display_name"), Key: "name", Type: FieldText},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			repo := values["repo"]
@@ -233,7 +233,7 @@ func (v *TeamsView) handleAdd() {
 			teamID := values["team_id"]
 			name := values["name"]
 			if repo == "" || memberID == "" || teamID == "" {
-				v.shell.ShowToastMsg("Les champs URL, member-id et ID sont requis", false)
+				v.shell.ShowToastMsg(i18n.T("tui.teams.fields_required"), false)
 				return
 			}
 			v.undoStack.Push(copyTeams(v.cfg.Teams))
@@ -249,7 +249,7 @@ func (v *TeamsView) handleAdd() {
 				v.onSave(v.cfg)
 			}
 			v.rebuild()
-			v.shell.ShowToastMsg("Équipe ajoutée: "+newTeam.DisplayName(), true)
+			v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_added", newTeam.DisplayName()), true)
 		},
 	})
 }
@@ -269,9 +269,9 @@ func (v *TeamsView) handleDelete() {
 		return
 	}
 
-	v.shell.ShowSelectModal(fmt.Sprintf("Supprimer l'équipe %q ?", teamID), []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+	v.shell.ShowSelectModal(i18n.Tf("tui.teams.confirm_delete", teamID), []SelectOption{
+		{Label: i18n.T("tui.teams.cancel"), Value: ""},
+		{Label: i18n.T("tui.teams.confirm_delete_btn"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
@@ -295,7 +295,7 @@ func (v *TeamsView) handleDelete() {
 		}
 
 		v.rebuild()
-		v.shell.ShowToastMsg("Équipe "+teamID+" supprimée (u pour annuler)", true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_deleted", teamID), true)
 	})
 }
 

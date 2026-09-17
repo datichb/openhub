@@ -78,7 +78,7 @@ func (v *BoardView) SetShell(s ShellAccess) { v.shell = s }
 func (v *BoardView) ID() string { return "board" }
 
 // Title returns the display title.
-func (v *BoardView) Title() string { return "Board" }
+func (v *BoardView) Title() string { return i18n.T("tui.board.title") }
 
 // StatusHints returns keybinding hints.
 func (v *BoardView) StatusHints() string {
@@ -144,7 +144,7 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText(fmt.Sprintf("\n\n  %sAucun ticket. Utilisez 'oh bd create' pour créer un ticket ou vérifiez les filtres.%s", muted, theme.TagColor))
+		v.emptyTV.SetText(fmt.Sprintf("\n\n  %s%s%s", muted, i18n.T("tui.board.no_tickets"), theme.TagColor))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	} else {
 		content.AddItem(v.columnFlex, 0, 1, true)
@@ -169,14 +169,14 @@ func (v *BoardView) mountUninitializedScreen(content *tview.Flex) {
 	reset := theme.TagColor
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n\n  %s⊞ Board non configuré%s\n\n", accent, reset)
-	fmt.Fprintf(&b, "  %sCe projet n'utilise pas encore le suivi de tickets (beads).%s\n\n", muted, reset)
+	fmt.Fprintf(&b, "\n\n  %s⊞ %s%s\n\n", accent, i18n.T("tui.board.not_configured"), reset)
+	fmt.Fprintf(&b, "  %s%s%s\n\n", muted, i18n.T("tui.board.not_configured_desc"), reset)
 
 	if v.cfg.OnInitBeads != nil {
-		fmt.Fprintf(&b, "  %s[i]%s Initialiser le board  ·  %sCtrl+P%s commandes\n\n", accent, reset, accent, reset)
-		fmt.Fprintf(&b, "  %sLe board sera prêt dès l'initialisation — aucune donnée existante ne sera modifiée.%s\n", muted, reset)
+		fmt.Fprintf(&b, "  %s[i]%s %s  ·  %sCtrl+P%s %s\n\n", accent, reset, i18n.T("tui.board.init_board"), accent, reset, i18n.T("tui.hints.commands"))
+		fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.board.init_safe"), reset)
 	} else {
-		fmt.Fprintf(&b, "  %sUtilisez %soh beads init%s depuis le terminal pour initialiser.%s\n", muted, accent, muted, reset)
+		fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.board.init_terminal"), reset)
 	}
 
 	tv := tview.NewTextView().
@@ -289,7 +289,7 @@ func (v *BoardView) showTicketDetail() {
 				v.shell.ShowScrollableModal(
 					ticketID,
 					formatTicketDetail(detail),
-					[]ModalAction{{Label: "Fermer", Callback: nil}},
+					[]ModalAction{{Label: i18n.T("tui.board.close"), Callback: nil}},
 				)
 				return
 			}
@@ -300,7 +300,7 @@ func (v *BoardView) showTicketDetail() {
 	v.shell.ShowScrollableModal(
 		ticketID,
 		formatBoardTicket(ticket),
-		[]ModalAction{{Label: "Fermer", Callback: nil}},
+		[]ModalAction{{Label: i18n.T("tui.board.close"), Callback: nil}},
 	)
 }
 
@@ -384,10 +384,10 @@ func (v *BoardView) ContextCommands() []ContextCommand {
 
 	id := ticket.ID
 	return []ContextCommand{
-		{ID: "board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: "Code review du ticket", Category: "Actions", Action: makeAction(QuickActionReview), RunsDirect: true},
-		{ID: "board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: "Session dev sur le ticket", Category: "Actions", Action: makeAction(QuickActionDev), RunsDirect: true},
-		{ID: "board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: "Audit du ticket", Category: "Actions", Action: makeAction(QuickActionAudit), RunsDirect: true},
-		{ID: "board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: "Debug du ticket", Category: "Actions", Action: makeAction(QuickActionDebug), RunsDirect: true},
+		{ID: "board.review." + id, Label: "Review " + id, Aliases: []string{"review", "code review"}, Description: i18n.T("tui.board.action_review"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionReview), RunsDirect: true},
+		{ID: "board.dev." + id, Label: "Dev " + id, Aliases: []string{"dev", "develop"}, Description: i18n.T("tui.board.action_dev"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionDev), RunsDirect: true},
+		{ID: "board.audit." + id, Label: "Audit " + id, Aliases: []string{"audit"}, Description: i18n.T("tui.board.action_audit"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionAudit), RunsDirect: true},
+		{ID: "board.debug." + id, Label: "Debug " + id, Aliases: []string{"debug"}, Description: i18n.T("tui.board.action_debug"), Category: i18n.T("tui.board.category_actions"), Action: makeAction(QuickActionDebug), RunsDirect: true},
 	}
 }
 
@@ -408,16 +408,16 @@ func (v *BoardView) linkTicketToTracker() {
 		current = t.ExternalRef
 	}
 
-	v.shell.ShowInputModal("Réf. tracker (ex: gitlab-693)", current, func(ref string) {
+	v.shell.ShowInputModal(i18n.T("tui.board.link_prompt"), current, func(ref string) {
 		ref = strings.TrimSpace(ref)
 		if ref == "" {
 			return
 		}
 		if err := v.cfg.OnLinkTracker(ticketID, ref); err != nil {
-			v.shell.ShowToastMsg("Liaison échouée: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.board.link_failed")+err.Error(), false)
 			return
 		}
-		v.shell.ShowToastMsg("Ticket "+ticketID+" lié à "+ref, true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.board.link_success", ticketID, ref), true)
 		// Refresh to show the updated label
 		if v.cfg.RefreshFunc != nil {
 			go func() {
@@ -451,21 +451,21 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 		}
 		fmt.Fprintf(&b, "  %s%-14s%s %s\n", accent, label, reset, value)
 	}
-	field("Titre", d.Title)
-	field("Statut", d.Status)
-	field("Priorité", d.PriorityString())
-	field("Type", d.Type)
+	field(i18n.T("tui.board.field_title"), d.Title)
+	field(i18n.T("tui.board.field_status"), d.Status)
+	field(i18n.T("tui.board.field_priority"), d.PriorityString())
+	field(i18n.T("tui.board.field_type"), d.Type)
 	if d.Assignee != "" {
-		field("Assigné", d.Assignee)
+		field(i18n.T("tui.board.field_assignee"), d.Assignee)
 	}
 	if d.Parent != "" {
-		field("Parent", d.Parent)
+		field(i18n.T("tui.board.field_parent"), d.Parent)
 	}
 	if len(d.Labels) > 0 {
-		field("Labels", strings.Join(d.Labels, ", "))
+		field(i18n.T("tui.board.field_labels"), strings.Join(d.Labels, ", "))
 	}
 	if d.ExternalRef != "" {
-		field("Réf. externe", d.ExternalRef)
+		field(i18n.T("tui.board.field_external_ref"), d.ExternalRef)
 	}
 	if d.Estimate > 0 {
 		h := d.Estimate / 60
@@ -474,7 +474,7 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 		if h == 0 {
 			est = fmt.Sprintf("%dmin", m)
 		}
-		field("Estimation", est)
+		field(i18n.T("tui.board.field_estimate"), est)
 	}
 
 	section := func(title, content string) {
@@ -488,12 +488,12 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 		}
 	}
 
-	section("Description", d.Description)
-	section("Critères d'acceptation", d.Acceptance)
-	section("Notes", d.Notes)
-	section("Design", d.Design)
+	section(i18n.T("tui.board.section_description"), d.Description)
+	section(i18n.T("tui.board.section_acceptance"), d.Acceptance)
+	section(i18n.T("tui.board.section_notes"), d.Notes)
+	section(i18n.T("tui.board.section_design"), d.Design)
 	if d.CloseReason != "" {
-		section("Raison de clôture", d.CloseReason)
+		section(i18n.T("tui.board.section_close_reason"), d.CloseReason)
 	}
 
 	fmt.Fprintf(&b, "\n")
@@ -513,10 +513,10 @@ func formatBoardTicket(t BoardTicket) string {
 		}
 		fmt.Fprintf(&b, "  %s%-14s%s %s\n", accent, label, reset, value)
 	}
-	field("Titre", t.Title)
-	field("Statut", t.Status)
-	field("Priorité", t.Priority)
-	field("Type", t.Type)
+	field(i18n.T("tui.board.field_title"), t.Title)
+	field(i18n.T("tui.board.field_status"), t.Status)
+	field(i18n.T("tui.board.field_priority"), t.Priority)
+	field(i18n.T("tui.board.field_type"), t.Type)
 	fmt.Fprintf(&b, "\n")
 	return b.String()
 }

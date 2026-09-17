@@ -51,7 +51,7 @@ func (v *WorktreeView) SetShell(s ShellAccess) { v.shell = s }
 func (v *WorktreeView) ID() string { return "worktrees" }
 
 // Title returns the display title.
-func (v *WorktreeView) Title() string { return "Worktrees" }
+func (v *WorktreeView) Title() string { return i18n.T("tui.worktree.title") }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
@@ -118,7 +118,7 @@ func (v *WorktreeView) refresh() {
 	if projectPath == "" {
 		v.items = nil
 		v.list.Clear()
-		v.list.AddItem("  Aucun projet actif", "  Sélectionnez un projet", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.worktree.no_project"), "  "+i18n.T("tui.worktree.no_project_hint"), 0, nil)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (v *WorktreeView) refresh() {
 	if err != nil {
 		v.items = nil
 		v.list.Clear()
-		v.list.AddItem("  Aucun worktree détecté", "  Vérifiez que le projet actif est un repo git", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.worktree.no_worktree"), "  "+i18n.T("tui.worktree.no_worktree_hint"), 0, nil)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (v *WorktreeView) refresh() {
 
 	v.items = secondary
 	if len(secondary) == 0 {
-		v.list.AddItem("  Aucun worktree secondaire", "  Utilisez 'a' pour en créer un", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.worktree.no_secondary"), "  "+i18n.T("tui.worktree.no_secondary_hint"), 0, nil)
 		return
 	}
 
@@ -172,17 +172,17 @@ func (v *WorktreeView) addWorktree() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal("Nom de la branche", "", func(branch string) {
+	v.shell.ShowInputModal(i18n.T("tui.worktree.branch_name"), "", func(branch string) {
 		if branch == "" {
 			return
 		}
 		projectPath := v.getProjectPath()
 		if projectPath == "" {
-			v.shell.ShowToastMsg("Aucun projet actif", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
 			return
 		}
 
-		v.shell.ShowToastMsg("Création du worktree en cours...", true)
+		v.shell.ShowToastMsg(i18n.T("tui.worktree.creating"), true)
 		tvApp := v.app // capture stable reference before goroutine
 		go func() {
 			_, err := worktree.ResolveOrCreate(projectPath, branch)
@@ -194,9 +194,9 @@ func (v *WorktreeView) addWorktree() {
 					return
 				}
 				if err != nil {
-					v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.error")+err.Error(), false)
 				} else {
-					v.shell.ShowToastMsg("Worktree créé: "+branch, true)
+					v.shell.ShowToastMsg(i18n.Tf("tui.worktree.created", branch), true)
 					v.refresh()
 				}
 			})
@@ -221,7 +221,7 @@ func (v *WorktreeView) removeWorktree() {
 	wt, ok := v.selectedItem()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.select_secondary"), false)
 		}
 		return
 	}
@@ -234,18 +234,18 @@ func (v *WorktreeView) removeWorktree() {
 	// Safety guard: never allow removing the main worktree.
 	if filepath.Clean(wt.Path) == filepath.Clean(projectPath) {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Impossible de supprimer le worktree principal", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.cannot_remove_main"), false)
 		}
 		return
 	}
 
 	if err := worktree.Remove(projectPath, wt.Path, false); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.error")+err.Error(), false)
 		}
 	} else {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Worktree supprimé", true)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.removed"), true)
 		}
 		v.refresh()
 	}
@@ -259,7 +259,7 @@ func (v *WorktreeView) syncWorktree() {
 	wt, ok := v.selectedItem()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.select_secondary"), false)
 		}
 		return
 	}
@@ -267,20 +267,20 @@ func (v *WorktreeView) syncWorktree() {
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Aucun projet actif", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
 		}
 		return
 	}
 
 	if err := worktree.ResyncConfig(wt.Path, projectPath); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur sync: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.sync_error")+err.Error(), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Worktree synchronisé", true)
+		v.shell.ShowToastMsg(i18n.T("tui.worktree.synced"), true)
 	}
 }
 
@@ -288,18 +288,18 @@ func (v *WorktreeView) pruneWorktrees() {
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Aucun projet actif", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
 		}
 		return
 	}
 
 	if err := worktree.Prune(projectPath); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Prune échoué: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.prune_failed")+err.Error(), false)
 		}
 	} else {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Worktrees prunés", true)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.pruned"), true)
 		}
 		v.refresh()
 	}
@@ -309,13 +309,13 @@ func (v *WorktreeView) cleanupWorktrees() {
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Aucun projet actif", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Nettoyage des worktrees mergés...", true)
+		v.shell.ShowToastMsg(i18n.T("tui.worktree.cleaning_merged"), true)
 	}
 
 	baseBranch := worktree.DetectBaseBranch(projectPath)
@@ -330,19 +330,19 @@ func (v *WorktreeView) cleanupWorktrees() {
 				return
 			}
 			if err != nil {
-				v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.T("tui.worktree.error")+err.Error(), false)
 				return
 			}
 			switch {
 			case len(result.Removed) == 0 && len(result.Skipped) == 0:
-				v.shell.ShowToastMsg("Aucun worktree mergé à nettoyer", true)
+				v.shell.ShowToastMsg(i18n.T("tui.worktree.no_merged"), true)
 			case len(result.Skipped) > 0:
 				v.shell.ShowToastMsg(
-					fmt.Sprintf("%d nettoyé(s), %d ignoré(s) (modifications non commitées)", len(result.Removed), len(result.Skipped)),
+					i18n.Tf("tui.worktree.cleanup_partial", len(result.Removed), len(result.Skipped)),
 					len(result.Removed) > 0,
 				)
 			default:
-				v.shell.ShowToastMsg(fmt.Sprintf("%d worktree(s) nettoyé(s)", len(result.Removed)), true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.worktree.cleanup_done", len(result.Removed)), true)
 			}
 			v.refresh()
 		})
@@ -374,7 +374,7 @@ func (v *WorktreeView) openInTerminal() {
 	wt, ok := v.selectedItem()
 	if !ok {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Sélectionnez un worktree secondaire", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.select_secondary"), false)
 		}
 		return
 	}
@@ -382,13 +382,13 @@ func (v *WorktreeView) openInTerminal() {
 	projectPath := v.getProjectPath()
 	if projectPath == "" {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Aucun projet actif", false)
+			v.shell.ShowToastMsg(i18n.T("tui.worktree.no_active_project"), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Préparation du worktree...", true)
+		v.shell.ShowToastMsg(i18n.T("tui.worktree.preparing"), true)
 	}
 
 	go func() {
@@ -398,20 +398,20 @@ func (v *WorktreeView) openInTerminal() {
 		if err == worktree.ErrProjectNotDeployed {
 			// Main project not deployed yet — trigger auto-deploy.
 			if v.cfg.DeployProject == nil {
-				v.app.QueueUpdateDraw(func() {
-					if v.shell != nil {
-						v.shell.ShowToastMsg("Projet non déployé — lancez 'oh deploy' d'abord", false)
-					}
-				})
+			v.app.QueueUpdateDraw(func() {
+				if v.shell != nil {
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.not_deployed"), false)
+				}
+			})
 				return
 			}
 			// Deploy into the main project, then retry.
 			if deployErr := v.cfg.DeployProject(projectPath); deployErr != nil {
-				v.app.QueueUpdateDraw(func() {
-					if v.shell != nil {
-						v.shell.ShowToastMsg("Déploiement échoué: "+deployErr.Error(), false)
-					}
-				})
+			v.app.QueueUpdateDraw(func() {
+				if v.shell != nil {
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.deploy_failed")+deployErr.Error(), false)
+				}
+			})
 				return
 			}
 			// Retry symlinks now that deploy is done.
@@ -421,7 +421,7 @@ func (v *WorktreeView) openInTerminal() {
 		if err != nil {
 			v.app.QueueUpdateDraw(func() {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("Erreur config worktree: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.config_error")+err.Error(), false)
 				}
 			})
 			return
@@ -432,7 +432,7 @@ func (v *WorktreeView) openInTerminal() {
 		if binErr != nil {
 			v.app.QueueUpdateDraw(func() {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("opencode introuvable: "+binErr.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.opencode_not_found")+binErr.Error(), false)
 				}
 			})
 			return
@@ -443,13 +443,13 @@ func (v *WorktreeView) openInTerminal() {
 		v.app.QueueUpdateDraw(func() {
 			if termErr != nil {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("Impossible d'ouvrir le terminal: "+termErr.Error(), false)
+					v.shell.ShowToastMsg(i18n.T("tui.worktree.terminal_error")+termErr.Error(), false)
 				}
 				return
 			}
 			if v.shell != nil {
 				v.shell.ShowToastMsg(
-					fmt.Sprintf("opencode ouvert dans %s — %s", termlaunch.Detect(), wt.Branch),
+					i18n.Tf("tui.worktree.opened_in_terminal", termlaunch.Detect(), wt.Branch),
 					true,
 				)
 			}

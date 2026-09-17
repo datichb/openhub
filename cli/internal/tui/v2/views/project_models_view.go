@@ -56,7 +56,7 @@ func NewProjectModelsView(cfg ProjectModelsViewConfig) *ProjectModelsView {
 func (v *ProjectModelsView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *ProjectModelsView) ID() string    { return "project.models" }
-func (v *ProjectModelsView) Title() string { return "Modèles" }
+func (v *ProjectModelsView) Title() string { return i18n.T("tui.project_models.title") }
 func (v *ProjectModelsView) StatusHints() string {
 	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · u %s · Esc %s",
 		i18n.T("tui.hints.nav"),
@@ -89,7 +89,7 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	loading.SetBackgroundColor(theme.BgPanel)
 	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %sChargement des modèles...%s", muted, theme.TagColor))
+	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project_models.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
 	// Build UI asynchronously
@@ -181,7 +181,7 @@ func (v *ProjectModelsView) renderList() {
 	}
 
 	// ── Général ──────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Général"})
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.project_models.section_general")})
 	modelVal := v.live.Model
 	if modelVal == "" {
 		modelVal = fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
@@ -192,7 +192,7 @@ func (v *ProjectModelsView) renderList() {
 	})
 
 	// ── Familles ─────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Familles"})
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.project_models.section_families")})
 	families := v.modelOverrides().Families
 	if len(families) == 0 {
 		items = append(items, widgets.SectionItem{
@@ -209,7 +209,7 @@ func (v *ProjectModelsView) renderList() {
 	}
 
 	// ── Agents ───────────────────────────────────────────────────────────
-	items = append(items, widgets.SectionItem{IsHeader: true, MainText: "Agents"})
+	items = append(items, widgets.SectionItem{IsHeader: true, MainText: i18n.T("tui.project_models.section_agents")})
 	agents := v.modelOverrides().Agents
 	if len(agents) == 0 {
 		items = append(items, widgets.SectionItem{
@@ -300,19 +300,19 @@ func (v *ProjectModelsView) addEntry() {
 	}
 
 	scopeOptions := []SelectOption{
-		{Label: "Famille", Value: "families"},
-		{Label: "Agent", Value: "agents"},
+		{Label: i18n.T("tui.project_models.scope_family"), Value: "families"},
+		{Label: i18n.T("tui.project_models.scope_agent"), Value: "agents"},
 	}
 
-	v.shell.ShowSelectModal("Type d'override", scopeOptions, "", func(scope string) {
+	v.shell.ShowSelectModal(i18n.T("tui.project_models.override_type"), scopeOptions, "", func(scope string) {
 		if scope == "" {
 			return
 		}
-		v.shell.ShowInputModal("Clé", "", func(key string) {
+		v.shell.ShowInputModal(i18n.T("tui.project_models.key"), "", func(key string) {
 			if key == "" {
 				return
 			}
-			v.shell.ShowInputModal("Modèle", "", func(model string) {
+			v.shell.ShowInputModal(i18n.T("tui.project_models.model"), "", func(model string) {
 				if model == "" {
 					return
 				}
@@ -332,7 +332,7 @@ func (v *ProjectModelsView) addEntry() {
 				}
 				if v.autoSaver != nil { v.autoSaver.Schedule() }
 				v.renderList()
-				v.shell.ShowToastMsg("Override ajouté", true)
+				v.shell.ShowToastMsg(i18n.T("tui.project_models.override_added"), true)
 			})
 		})
 	})
@@ -351,10 +351,10 @@ func (v *ProjectModelsView) deleteEntry() {
 		return // cannot delete the default model field
 	}
 
-	label := fmt.Sprintf("Supprimer l'override %s:%s ?", ref.section, ref.key)
+	label := i18n.Tf("tui.project_models.confirm_delete", ref.section, ref.key)
 	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: "Annuler", Value: ""},
-		{Label: "Confirmer la suppression", Value: "yes"},
+		{Label: i18n.T("tui.project_models.cancel"), Value: ""},
+		{Label: i18n.T("tui.project_models.confirm_delete_btn"), Value: "yes"},
 	}, "", func(choice string) {
 		if choice != "yes" {
 			return
@@ -369,7 +369,7 @@ func (v *ProjectModelsView) deleteEntry() {
 		}
 		if v.autoSaver != nil { v.autoSaver.Schedule() }
 		v.renderList()
-		v.shell.ShowToastMsg("Override supprimé", true)
+		v.shell.ShowToastMsg(i18n.T("tui.project_models.override_deleted"), true)
 	})
 }
 
@@ -424,8 +424,8 @@ func (v *ProjectModelsView) doSave() {
 // ContextCommands implements CommandProvider.
 func (v *ProjectModelsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "project.models.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: "Modèles", Action: func() { v.undo() }},
-		{ID: "project.models.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"ajouter", "add override"}, Description: "Ajouter un override de modèle", Category: "Modèles", Action: func() { v.addEntry() }},
+		{ID: "project.models.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: i18n.T("tui.project_models.category"), Action: func() { v.undo() }},
+		{ID: "project.models.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"ajouter", "add override"}, Description: i18n.T("tui.project_models.add_override_desc"), Category: i18n.T("tui.project_models.category"), Action: func() { v.addEntry() }},
 	}
 }
 

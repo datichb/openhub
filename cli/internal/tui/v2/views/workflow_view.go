@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -57,14 +58,14 @@ func (v *workflowView) Title() string {
 	if v.cfg.Level != nil {
 		level = v.cfg.Level()
 	}
-	return "Workflow — " + level
+	return i18n.Tf("tui.workflow.title", level)
 }
 
 func (v *workflowView) StatusHints() string {
 	if v.cfg.IsLocked != nil && v.cfg.IsLocked() {
-		return "🔒 Locked by team · Esc back"
+		return i18n.T("tui.workflow.hints_locked")
 	}
-	return "h/j/k/l navigate · Enter/e edit · a add · d delete · t toggle mode · r toggle role · m modes · w save · u undo · R reset · Esc back"
+	return i18n.T("tui.workflow.hints")
 }
 
 func (v *workflowView) SetShell(s ShellAccess) {
@@ -78,7 +79,7 @@ func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 	gen := v.mountGen
 
 	// Show loading placeholder.
-	loading := tview.NewTextView().SetText("Loading workflow...").SetTextColor(theme.FgMuted)
+	loading := tview.NewTextView().SetText(i18n.T("tui.workflow.loading")).SetTextColor(theme.FgMuted)
 	content.AddItem(loading, 0, 1, false)
 
 	go func() {
@@ -89,7 +90,7 @@ func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 					return // view was unmounted or re-mounted
 				}
 				content.Clear()
-				errView := tview.NewTextView().SetText("Error: " + err.Error()).SetTextColor(theme.Error)
+				errView := tview.NewTextView().SetText(i18n.Tf("tui.workflow.error", err.Error())).SetTextColor(theme.Error)
 				content.AddItem(errView, 0, 1, false)
 			})
 			return
@@ -122,13 +123,13 @@ func (v *workflowView) Mount(content *tview.Flex, app *tview.Application) {
 func (v *workflowView) buildUI(content *tview.Flex, readonly bool) {
 	// Left: workflow graph (70%)
 	v.graph = widgets.NewWorkflowGraph(v.wf, readonly)
-	v.graph.SetBorder(true).SetTitle(" Workflow Graph ").SetBorderColor(theme.BorderNormal)
+	v.graph.SetBorder(true).SetTitle(" " + i18n.T("tui.workflow.graph_title") + " ").SetBorderColor(theme.BorderNormal)
 
 	// Right: detail panel (30%)
 	v.detail = tview.NewTextView().
 		SetDynamicColors(true).
 		SetWordWrap(true)
-	v.detail.SetBorder(true).SetTitle(" Détail ").SetBorderColor(theme.BorderNormal)
+	v.detail.SetBorder(true).SetTitle(" " + i18n.T("tui.workflow.detail_title") + " ").SetBorderColor(theme.BorderNormal)
 
 	v.graph.SetOnChange(func() {
 		v.updateDetailPanel()
@@ -157,7 +158,7 @@ func (v *workflowView) updateDetailPanel() {
 
 	sel := v.graph.SelectedElement()
 	if sel == nil {
-		fmt.Fprintf(v.detail, "[%s]Sélectionnez un élément[-]", theme.TextMutedHex)
+		fmt.Fprintf(v.detail, "[%s]%s[-]", theme.TextMutedHex, i18n.T("tui.workflow.select_element"))
 		return
 	}
 
@@ -169,7 +170,7 @@ func (v *workflowView) updateDetailPanel() {
 	case widgets.ElementEdge:
 		fmt.Fprintf(v.detail, "[%s::b]Edge[-:-:-]\n\n", theme.AccentHex)
 		fmt.Fprintf(v.detail, "%s\n\n", sel.ID)
-		fmt.Fprintf(v.detail, "[%s]Appuyer sur 'a' pour\najouter un checkpoint ici[-]", theme.TextMutedHex)
+		fmt.Fprintf(v.detail, "[%s]%s[-]", theme.TextMutedHex, i18n.T("tui.workflow.edge_hint"))
 	}
 }
 
@@ -183,14 +184,14 @@ func (v *workflowView) showCheckpointDetail(id string) {
 	fmt.Fprintf(v.detail, "%s\n\n", cp.Label)
 
 	if cp.Mandatory {
-		fmt.Fprintf(v.detail, "[%s]🔒 Obligatoire[-]\n\n", theme.WarningHex)
+		fmt.Fprintf(v.detail, "[%s]🔒 %s[-]\n\n", theme.WarningHex, i18n.T("tui.workflow.mandatory"))
 	}
 
 	if cp.Description != "" {
 		fmt.Fprintf(v.detail, "%s\n\n", cp.Description)
 	}
 
-	fmt.Fprintf(v.detail, "[%s::b]Behavior par mode :[-:-:-]\n", theme.TextSecondaryHex)
+	fmt.Fprintf(v.detail, "[%s::b]%s[-:-:-]\n", theme.TextSecondaryHex, i18n.T("tui.workflow.behavior_per_mode"))
 	for _, mode := range v.wf.Modes.Available {
 		behavior := cp.Behavior[mode]
 		icon := "○"
@@ -208,11 +209,11 @@ func (v *workflowView) showCheckpointDetail(id string) {
 	}
 
 	if cp.Condition != "" {
-		fmt.Fprintf(v.detail, "\n[%s::b]Condition :[-:-:-]\n%s\n", theme.TextSecondaryHex, cp.Condition)
+		fmt.Fprintf(v.detail, "\n[%s::b]%s[-:-:-]\n%s\n", theme.TextSecondaryHex, i18n.T("tui.workflow.condition"), cp.Condition)
 	}
 
 	if len(cp.Agents) > 0 {
-		fmt.Fprintf(v.detail, "\n[%s::b]Agents :[-:-:-]\n", theme.TextSecondaryHex)
+		fmt.Fprintf(v.detail, "\n[%s::b]%s[-:-:-]\n", theme.TextSecondaryHex, i18n.T("tui.workflow.agents"))
 		for _, a := range cp.Agents {
 			fmt.Fprintf(v.detail, "  • %s\n", a)
 		}
@@ -228,29 +229,29 @@ func (v *workflowView) showAgentDetail(id string) {
 	fmt.Fprintf(v.detail, "[%s::b]Agent: %s[-:-:-]\n\n", theme.AccentHex, agent.AgentID)
 
 	if agent.Mandatory {
-		fmt.Fprintf(v.detail, "[%s]🔒 Obligatoire[-]\n\n", theme.WarningHex)
+		fmt.Fprintf(v.detail, "[%s]🔒 %s[-]\n\n", theme.WarningHex, i18n.T("tui.workflow.mandatory"))
 	}
 
-	fmt.Fprintf(v.detail, "[%s::b]Rôle :[-:-:-] %s\n", theme.TextSecondaryHex, agent.Role)
-	fmt.Fprintf(v.detail, "[%s::b]Mode :[-:-:-] %s\n", theme.TextSecondaryHex, agent.Mode)
+	fmt.Fprintf(v.detail, "[%s::b]%s[-:-:-] %s\n", theme.TextSecondaryHex, i18n.T("tui.workflow.role"), agent.Role)
+	fmt.Fprintf(v.detail, "[%s::b]%s[-:-:-] %s\n", theme.TextSecondaryHex, i18n.T("tui.workflow.mode"), agent.Mode)
 
 	if agent.Position != nil {
-		fmt.Fprintf(v.detail, "[%s::b]Position :[-:-:-] après %s", theme.TextSecondaryHex, agent.Position.AfterCheckpoint)
+		fmt.Fprintf(v.detail, "[%s::b]%s[-:-:-] %s", theme.TextSecondaryHex, i18n.T("tui.workflow.position"), i18n.Tf("tui.workflow.after_checkpoint", agent.Position.AfterCheckpoint))
 		if agent.Position.Branch != "" {
-			fmt.Fprintf(v.detail, " (branche: %s)", agent.Position.Branch)
+			fmt.Fprintf(v.detail, " (%s)", i18n.Tf("tui.workflow.branch", agent.Position.Branch))
 		}
 		fmt.Fprintln(v.detail)
 	}
 
 	if agent.TaskPermissions != nil {
 		if len(agent.TaskPermissions.CanInvoke) > 0 {
-			fmt.Fprintf(v.detail, "\n[%s::b]Peut invoquer :[-:-:-]\n", theme.TextSecondaryHex)
+			fmt.Fprintf(v.detail, "\n[%s::b]%s[-:-:-]\n", theme.TextSecondaryHex, i18n.T("tui.workflow.can_invoke"))
 			for _, a := range agent.TaskPermissions.CanInvoke {
 				fmt.Fprintf(v.detail, "  → %s\n", a)
 			}
 		}
 		if len(agent.TaskPermissions.CanBeInvokedBy) > 0 {
-			fmt.Fprintf(v.detail, "\n[%s::b]Invocable par :[-:-:-]\n", theme.TextSecondaryHex)
+			fmt.Fprintf(v.detail, "\n[%s::b]%s[-:-:-]\n", theme.TextSecondaryHex, i18n.T("tui.workflow.invocable_by"))
 			for _, a := range agent.TaskPermissions.CanBeInvokedBy {
 				fmt.Fprintf(v.detail, "  ← %s\n", a)
 			}
@@ -272,7 +273,7 @@ func (v *workflowView) handleElementAction(elem widgets.GraphElement) {
 func (v *workflowView) Unmount() {
 	v.mountGen++ // invalidate in-flight async goroutine
 	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg("Workflow: unsaved changes discarded", false)
+		v.shell.ShowToastMsg(i18n.T("tui.workflow.unsaved_discarded"), false)
 	}
 	v.graph = nil
 	v.detail = nil
@@ -377,7 +378,7 @@ func (v *workflowView) toggleAgentRole() {
 	agent := v.wf.FindAgent(sel.ID)
 	if agent == nil || agent.Mandatory {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Agent obligatoire — ne peut pas changer de rôle", false)
+			v.shell.ShowToastMsg(i18n.T("tui.workflow.agent_mandatory_role"), false)
 		}
 		return
 	}
@@ -407,13 +408,13 @@ func (v *workflowView) save() {
 	}
 	if err := v.cfg.SaveOverrides(v.overrides); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.Tf("tui.workflow.save_error", err.Error()), false)
 		}
 		return
 	}
 	v.dirty = false
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Workflow sauvegardé", true)
+		v.shell.ShowToastMsg(i18n.T("tui.workflow.saved"), true)
 	}
 }
 
@@ -422,7 +423,7 @@ func (v *workflowView) reset() {
 	v.dirty = true
 	v.refreshWorkflow()
 	if v.shell != nil {
-		v.shell.ShowToastMsg("Overrides réinitialisés (non sauvegardé)", true)
+		v.shell.ShowToastMsg(i18n.T("tui.workflow.overrides_reset"), true)
 	}
 }
 
@@ -431,7 +432,7 @@ func (v *workflowView) refreshWorkflow() {
 	resolved, err := workflow.Resolve(base, *v.overrides)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Workflow invalide: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.Tf("tui.workflow.invalid", err.Error()), false)
 		}
 		return
 	}
@@ -477,14 +478,14 @@ func (v *workflowView) editCheckpoint(id string) {
 
 	fields = append(fields, FormField{
 		Key:     "condition",
-		Label:   "Condition (si conditional)",
+		Label:   i18n.T("tui.workflow.condition_label"),
 		Type:    FieldText,
 		Default: cp.Condition,
-		Hint:    "Règle en langage naturel pour les modes 'conditional'",
+		Hint:    i18n.T("tui.workflow.condition_hint"),
 	})
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title:  "Éditer Checkpoint: " + id,
+		Title:  i18n.Tf("tui.workflow.edit_checkpoint", id),
 		Fields: fields,
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			label := values["label"]
@@ -545,13 +546,13 @@ func (v *workflowView) editAgent(id string) {
 	}
 
 	fields := []FormField{
-		{Key: "role", Label: "Rôle", Type: FieldSelect, Options: roleOptions, Default: string(agent.Role)},
-		{Key: "mode", Label: "Mode", Type: FieldSelect, Options: modeOptions, Default: string(agent.Mode)},
-		{Key: "can_invoke", Label: "Peut invoquer", Type: FieldMultiSelect, Options: invokeOptions, DefaultMulti: invokeSelected},
+		{Key: "role", Label: i18n.T("tui.workflow.role"), Type: FieldSelect, Options: roleOptions, Default: string(agent.Role)},
+		{Key: "mode", Label: i18n.T("tui.workflow.mode"), Type: FieldSelect, Options: modeOptions, Default: string(agent.Mode)},
+		{Key: "can_invoke", Label: i18n.T("tui.workflow.can_invoke"), Type: FieldMultiSelect, Options: invokeOptions, DefaultMulti: invokeSelected},
 	}
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title:  "Configurer Agent: " + id,
+		Title:  i18n.Tf("tui.workflow.configure_agent", id),
 		Fields: fields,
 		OnSubmit: func(values map[string]string, multi map[string][]string) {
 			role := workflow.AgentRole(values["role"])
@@ -577,7 +578,7 @@ func (v *workflowView) editAgent(id string) {
 
 func (v *workflowView) editModes() {
 	modeStr := strings.Join(v.wf.Modes.Available, ", ")
-	v.shell.ShowInputModal("Modes disponibles (séparés par virgule)", modeStr, func(newValue string) {
+	v.shell.ShowInputModal(i18n.T("tui.workflow.modes_prompt"), modeStr, func(newValue string) {
 		modes := strings.Split(newValue, ",")
 		var cleaned []string
 		for _, m := range modes {
@@ -587,11 +588,11 @@ func (v *workflowView) editModes() {
 			}
 		}
 		if len(cleaned) == 0 {
-			v.shell.ShowToastMsg("Au moins un mode requis", false)
+			v.shell.ShowToastMsg(i18n.T("tui.workflow.at_least_one_mode"), false)
 			return
 		}
 
-		v.shell.ShowSelectModal("Mode par défaut", toSelectOptions(cleaned), v.wf.Modes.Default, func(def string) {
+		v.shell.ShowSelectModal(i18n.T("tui.workflow.default_mode"), toSelectOptions(cleaned), v.wf.Modes.Default, func(def string) {
 			v.overrides.ModeOverrides = &workflow.ModesOverride{
 				Available: &cleaned,
 				Default:   &def,
@@ -610,7 +611,7 @@ func (v *workflowView) addCheckpointOnEdge(edgeID string) {
 	afterCP := parts[0]
 
 	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: "Nouveau Checkpoint",
+		Title: i18n.T("tui.workflow.new_checkpoint"),
 		Fields: []FormField{
 			{Key: "id", Label: "ID", Type: FieldText, Required: true, Hint: "ex: cp-review-gate"},
 			{Key: "label", Label: "Label", Type: FieldText, Required: true},
@@ -638,7 +639,7 @@ func (v *workflowView) deleteCheckpoint(id string) {
 	}
 	if cp.Mandatory {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Checkpoint obligatoire — suppression impossible", false)
+			v.shell.ShowToastMsg(i18n.T("tui.workflow.checkpoint_mandatory"), false)
 		}
 		return
 	}
@@ -658,7 +659,7 @@ func (v *workflowView) disableAgent(id string) {
 	}
 	if agent.Mandatory {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Agent obligatoire — désactivation impossible", false)
+			v.shell.ShowToastMsg(i18n.T("tui.workflow.agent_mandatory_disable"), false)
 		}
 		return
 	}
@@ -726,8 +727,8 @@ func (v *workflowView) ContextCommands() []ContextCommand {
 		return cmds
 	}
 	cmds = append(cmds,
-		ContextCommand{ID: "workflow.save", Label: "Save workflow", Action: func() { v.save() }},
-		ContextCommand{ID: "workflow.reset", Label: "Reset overrides", Action: func() { v.reset() }},
+		ContextCommand{ID: "workflow.save", Label: i18n.T("tui.workflow.cmd_save"), Action: func() { v.save() }},
+		ContextCommand{ID: "workflow.reset", Label: i18n.T("tui.workflow.cmd_reset"), Action: func() { v.reset() }},
 	)
 	return cmds
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
+
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -57,7 +59,7 @@ func TestBoardView_MountUnmount(t *testing.T) {
 	v.Mount(content, app)
 	assert.Greater(t, content.GetItemCount(), 0)
 	assert.Equal(t, "board", v.ID())
-	assert.Equal(t, "Board", v.Title())
+	assert.Equal(t, i18n.T("tui.board.title"), v.Title())
 	assert.NotEmpty(t, v.StatusHints())
 
 	v.Unmount()
@@ -320,7 +322,7 @@ func TestWorktreeView_ImplementsView(t *testing.T) {
 	v.Mount(content, app)
 	assert.Greater(t, content.GetItemCount(), 0)
 	assert.Equal(t, "worktrees", v.ID())
-	assert.Equal(t, "Worktrees", v.Title())
+	assert.Equal(t, i18n.T("tui.worktree.title"), v.Title())
 	v.Unmount()
 }
 
@@ -464,12 +466,12 @@ func TestTeamModeView_SplitItems(t *testing.T) {
 	rightHeaders := collectHeaders(right)
 
 	// Left: Sessions + Board
-	assert.Contains(t, leftHeaders, "Sessions")
-	assert.Contains(t, leftHeaders, "Board")
+	assert.Contains(t, leftHeaders, i18n.T("tui.tm.section.sessions"))
+	assert.Contains(t, leftHeaders, i18n.T("tui.tm.section.board"))
 
 	// Right: Configuration + Navigation
-	assert.Contains(t, rightHeaders, "Configuration")
-	assert.Contains(t, rightHeaders, "Navigation")
+	assert.Contains(t, rightHeaders, i18n.T("tui.tm.section.configuration"))
+	assert.Contains(t, rightHeaders, i18n.T("tui.tm.section.navigation"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

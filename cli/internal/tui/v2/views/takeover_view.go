@@ -103,7 +103,7 @@ func (v *TakeoverView) refresh() {
 
 	repo := v.getRepo()
 	if repo == nil {
-		v.list.AddItem("  Équipe non configurée", "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.takeover.team_not_configured"), "", 0, nil)
 		return
 	}
 
@@ -121,13 +121,13 @@ func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 
 	briefs, err := repo.ListBriefs("")
 	if err != nil {
-		v.list.AddItem("  Erreur: "+err.Error(), "", 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.takeover.error")+err.Error(), "", 0, nil)
 		return
 	}
 	v.briefs = briefs
 
 	if len(briefs) == 0 {
-		v.list.AddItem("  Aucun takeover brief", i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
+		v.list.AddItem("  "+i18n.T("tui.takeover.no_briefs"), i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
 		return
 	}
 
@@ -156,14 +156,14 @@ func (v *TakeoverView) showBrief() {
 	content, err := repo.ReadBrief(b.Project, b.TicketID)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Erreur lecture: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.T("tui.takeover.read_error")+err.Error(), false)
 		}
 		return
 	}
 
 	if v.shell != nil {
 		v.shell.ShowScrollableModal("Brief: "+b.TicketID, content, []ModalAction{
-			{Label: "Fermer", Callback: func() {}},
+			{Label: i18n.T("tui.takeover.close"), Callback: func() {}},
 		})
 	}
 }
@@ -179,16 +179,16 @@ func (v *TakeoverView) enrichBrief() {
 		return
 	}
 
-	v.shell.ShowToastMsg("Enrichissement AI en cours: "+b.TicketID+"...", true)
+	v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriching", b.TicketID), true)
 
 	go func() {
 		err := v.onEnrich(b.Project, b.TicketID)
 		if v.app != nil {
 			v.app.QueueUpdateDraw(func() {
 				if err != nil {
-					v.shell.ShowToastMsg("Enrichissement échoué: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enrich_failed", err.Error()), false)
 				} else {
-					v.shell.ShowToastMsg("Brief enrichi: "+b.TicketID, true)
+					v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriched", b.TicketID), true)
 					v.refresh()
 				}
 			})
