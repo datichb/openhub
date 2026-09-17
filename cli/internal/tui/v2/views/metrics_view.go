@@ -43,7 +43,7 @@ func (v *MetricsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *MetricsView) ID() string { return "metrics" }
 
 // Title returns the display title.
-func (v *MetricsView) Title() string { return "Métriques" }
+func (v *MetricsView) Title() string { return i18n.T("tui.metrics.title") }
 
 // StatusHints returns keybinding hints.
 func (v *MetricsView) StatusHints() string {
@@ -62,7 +62,7 @@ func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Show loading placeholder immediately
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %sChargement des métriques...%s", muted, theme.TagColor))
+	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading_full"), theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
 
 	// Load metrics data asynchronously (opens database)
@@ -115,7 +115,7 @@ func (v *MetricsView) asyncRender() {
 		return
 	}
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %sChargement...%s", muted, theme.TagColor))
+	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading"), theme.TagColor))
 	go func() {
 		text := v.buildRenderText()
 		v.app.QueueUpdateDraw(func() {
@@ -137,9 +137,9 @@ func (v *MetricsView) buildRenderText() string {
 
 func (v *MetricsView) buildAgentsText() string {
 	if v.cfg.AgentEvents == nil {
-		return "\n  [::b]Télémétrie agents" + theme.TagReset + "\n\n  " +
-			theme.ColorTag(theme.TextSecondaryHex) + "Agent event store non disponible." + theme.TagColor +
-			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + "Appuyez sur Tab pour revenir aux métriques d'usage." + theme.TagColor
+		return "\n  [::b]" + i18n.T("tui.metrics.agent_telemetry") + theme.TagReset + "\n\n  " +
+			theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.agent_store_unavailable") + theme.TagColor +
+			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.press_tab_usage") + theme.TagColor
 	}
 
 	projectID := ""
@@ -153,24 +153,24 @@ func (v *MetricsView) buildAgentsText() string {
 
 	metrics, err := v.cfg.AgentEvents.Metrics(context.Background(), projectID)
 	if err != nil {
-		return fmt.Sprintf("  Erreur: %s", err.Error())
+		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
 	}
 
 	var sb strings.Builder
-	title := "Télémétrie agents"
+	title := i18n.T("tui.metrics.agent_telemetry")
 	if scopeLabel != "" {
-		title = fmt.Sprintf("Télémétrie agents · %s", scopeLabel)
+		title = i18n.Tf("tui.metrics.agent_telemetry_scoped", scopeLabel)
 	}
 	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	if len(metrics) == 0 {
-		fmt.Fprintf(&sb, "  %sAucune donnée d'agent disponible.%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s%s%s\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.no_agent_data"), theme.TagColor)
 	} else {
 		// Table header
 		fmt.Fprintf(&sb, "  %s%-18s %6s %6s %8s %10s %10s %8s%s\n",
 			theme.ColorTag(theme.TextSecondaryHex),
-			"Agent", "Runs", "Succ%", "Durée", "Tokens In", "Tokens Out", "Coût",
+			i18n.T("tui.metrics.col_agent"), i18n.T("tui.metrics.col_runs"), i18n.T("tui.metrics.col_success"), i18n.T("tui.metrics.col_duration"), i18n.T("tui.metrics.col_tokens_in"), i18n.T("tui.metrics.col_tokens_out"), i18n.T("tui.metrics.col_cost"),
 			theme.TagColor)
 		fmt.Fprintf(&sb, "  %s%s%s\n",
 			theme.ColorTag(theme.TextSecondaryHex),
@@ -194,8 +194,8 @@ func (v *MetricsView) buildAgentsText() string {
 		}
 	}
 
-	fmt.Fprintf(&sb, "\n  %s─── Tab: basculer usage/agents · [7] semaine · [3] mois · [0] tout ───%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.agent_footer"), theme.TagColor)
 
 	return sb.String()
 }
@@ -204,17 +204,18 @@ func (v *MetricsView) buildUsageText() string {
 	db, err := opencode.OpenStatsDB()
 	if err != nil {
 		return fmt.Sprintf(`
-  [::b]Métriques%s
+  [::b]%s%s
 
-  %sBase de données opencode non accessible :%s
+  %s%s%s
   %s%s%s
 
-  %sVérifiez que opencode a été utilisé au moins une fois.%s
+  %s%s%s
 `,
+			i18n.T("tui.metrics.title"),
 			theme.TagReset,
-			theme.ColorTag(theme.ErrorHex), theme.TagColor,
+			theme.ColorTag(theme.ErrorHex), i18n.T("tui.metrics.db_unavailable"), theme.TagColor,
 			theme.ColorTag(theme.TextSecondaryHex), err.Error(), theme.TagColor,
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.db_hint"), theme.TagColor,
 		)
 	}
 	defer db.Close()
@@ -232,75 +233,75 @@ func (v *MetricsView) buildUsageText() string {
 		stats, err = opencode.PeriodStats(db, v.period)
 	}
 	if err != nil {
-		return fmt.Sprintf("  Erreur: %s", err.Error())
+		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
 	}
 
 	// Period label
-	periodLabel := "toutes périodes"
+	periodLabel := i18n.T("tui.metrics.period_all")
 	switch v.period {
 	case "7d":
-		periodLabel = "7 derniers jours"
+		periodLabel = i18n.T("tui.metrics.period_7d")
 	case "30d":
-		periodLabel = "30 derniers jours"
+		periodLabel = i18n.T("tui.metrics.period_30d")
 	}
 
 	var sb strings.Builder
-	title := fmt.Sprintf("Métriques — %s", periodLabel)
+	title := i18n.Tf("tui.metrics.title_period", periodLabel)
 	if scopeLabel != "" {
-		title = fmt.Sprintf("Métriques · %s — %s", scopeLabel, periodLabel)
+		title = i18n.Tf("tui.metrics.title_scoped_period", scopeLabel, periodLabel)
 	}
 	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
 
 	// Main stats
-	fmt.Fprintf(&sb, "  %sSessions :%s          %d\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalSessions)
-	fmt.Fprintf(&sb, "  %sTokens in :%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensIn))
-	fmt.Fprintf(&sb, "  %sTokens out :%s        %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, formatTokens(stats.TotalTokensOut))
+	fmt.Fprintf(&sb, "  %s%-18s%s %d\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_sessions"), theme.TagColor, stats.TotalSessions)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_tokens_in"), theme.TagColor, formatTokens(stats.TotalTokensIn))
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_tokens_out"), theme.TagColor, formatTokens(stats.TotalTokensOut))
 
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
-		fmt.Fprintf(&sb, "  %sCache ratio :%s       %.0f%%\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, cacheRatio)
+		fmt.Fprintf(&sb, "  %s%-18s%s %.0f%%\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_cache_ratio"), theme.TagColor, cacheRatio)
 	}
 
 	if stats.TotalCost > 0 {
-		fmt.Fprintf(&sb, "  %sCoût estimé :%s      $%.2f\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, stats.TotalCost)
+		fmt.Fprintf(&sb, "  %s%-18s%s $%.2f\n",
+			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_estimated_cost"), theme.TagColor, stats.TotalCost)
 	}
 
-	fmt.Fprintf(&sb, "\n  %s─── Période: [7] semaine · [3] mois · [0] tout ───%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.usage_footer"), theme.TagColor)
 
 	// Optimization suggestions
-	fmt.Fprintf(&sb, "\n  [::b]Suggestions%s\n\n", theme.TagReset)
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.metrics.suggestions_title"), theme.TagReset)
 
 	hasSuggestions := false
 	if stats.TotalTokensIn > 100_000 {
-		fmt.Fprintf(&sb, "  %s•%s Tokens in élevés (%s) — pensez au pattern RTK pour réduire le contexte\n",
-			theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(stats.TotalTokensIn))
+		fmt.Fprintf(&sb, "  %s•%s %s\n",
+			theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_tokens_in", formatTokens(stats.TotalTokensIn)))
 		hasSuggestions = true
 	}
 	if stats.TotalSessions > 10 && stats.TotalTokensOut > 0 {
 		avgOut := stats.TotalTokensOut / int64(stats.TotalSessions)
 		if avgOut > 5000 {
-			fmt.Fprintf(&sb, "  %s•%s Output moyen élevé (%s/session) — des réponses plus concises réduisent les coûts\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, formatTokens(avgOut))
+			fmt.Fprintf(&sb, "  %s•%s %s\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_avg_out", formatTokens(avgOut)))
 			hasSuggestions = true
 		}
 	}
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
 		if cacheRatio < 30 {
-			fmt.Fprintf(&sb, "  %s•%s Cache ratio faible (%.0f%%) — activez la compaction pour améliorer le cache\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, cacheRatio)
+			fmt.Fprintf(&sb, "  %s•%s %s\n",
+				theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_low_cache", fmt.Sprintf("%.0f%%", cacheRatio)))
 			hasSuggestions = true
 		}
 	}
 	if !hasSuggestions {
-		fmt.Fprintf(&sb, "  %s✓ Aucune suggestion — utilisation optimale%s\n",
-			"[green]", "[-]")
+		fmt.Fprintf(&sb, "  %s%s%s\n",
+			"[green]", i18n.T("tui.metrics.no_suggestions"), "[-]")
 	}
 
 	return sb.String()

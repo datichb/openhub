@@ -2,11 +2,14 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,10 +144,10 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 	}
 
 	options := []SelectOption{
-		{Label: "Review — Code review", Value: string(QuickActionReview)},
-		{Label: "Dev — Session de développement", Value: string(QuickActionDev)},
-		{Label: "Audit — Choisir un type ▸", Value: string(QuickActionAudit)},
-		{Label: "Debug — Session de debugging", Value: string(QuickActionDebug)},
+		{Label: i18n.T("tui.board.action.review_label"), Value: string(QuickActionReview)},
+		{Label: i18n.T("tui.board.action.dev_label"), Value: string(QuickActionDev)},
+		{Label: i18n.T("tui.board.action.audit_label"), Value: string(QuickActionAudit)},
+		{Label: i18n.T("tui.board.action.debug_label"), Value: string(QuickActionDebug)},
 	}
 
 	shell.ShowSelectModal(title, options, "", func(selected string) {
@@ -164,17 +167,17 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 // showAuditSubMenu shows the 8 audit type options.
 func showAuditSubMenu(shell ShellAccess, ticket TicketContext, qa *BoardQuickActions) {
 	options := []SelectOption{
-		{Label: "Sécurité — OWASP, injections, auth", Value: string(AuditSecurity)},
-		{Label: "Performance — N+1, mémoire, CPU", Value: string(AuditPerformance)},
-		{Label: "Architecture — Couplage, patterns", Value: string(AuditArchitecture)},
-		{Label: "Accessibilité — WCAG, ARIA, contraste", Value: string(AuditAccessibility)},
-		{Label: "Éco-conception — Impact environnemental", Value: string(AuditEcodesign)},
-		{Label: "Observabilité — Logs, traces, métriques", Value: string(AuditObservability)},
-		{Label: "Vie privée — RGPD, données personnelles", Value: string(AuditPrivacy)},
-		{Label: "Complet — Tous les types d'audit", Value: string(AuditComplete)},
+		{Label: i18n.T("tui.board.action.audit_security_label"), Value: string(AuditSecurity)},
+		{Label: i18n.T("tui.board.action.audit_performance_label"), Value: string(AuditPerformance)},
+		{Label: i18n.T("tui.board.action.audit_architecture_label"), Value: string(AuditArchitecture)},
+		{Label: i18n.T("tui.board.action.audit_accessibility_label"), Value: string(AuditAccessibility)},
+		{Label: i18n.T("tui.board.action.audit_ecodesign_label"), Value: string(AuditEcodesign)},
+		{Label: i18n.T("tui.board.action.audit_observability_label"), Value: string(AuditObservability)},
+		{Label: i18n.T("tui.board.action.audit_privacy_label"), Value: string(AuditPrivacy)},
+		{Label: i18n.T("tui.board.action.audit_complete_label"), Value: string(AuditComplete)},
 	}
 
-	shell.ShowSelectModal("Type d'audit", options, "", func(selected string) {
+	shell.ShowSelectModal(i18n.T("tui.board.action.audit_type_title"), options, "", func(selected string) {
 		showLaunchEnvModal(shell, QuickActionAudit, selected, ticket, qa)
 	})
 }
@@ -199,7 +202,7 @@ func showLaunchEnvModal(shell ShellAccess, action QuickActionType, auditType str
 	}
 
 	if projectPath == "" {
-		shell.ShowToastMsg("Aucun projet actif", false)
+		shell.ShowToastMsg(i18n.T("tui.board.action.no_active_project"), false)
 		return
 	}
 
@@ -216,7 +219,7 @@ func showLaunchEnvModal(shell ShellAccess, action QuickActionType, auditType str
 	baseBranch := filepath.Base(projectPath)
 	baseLabel := fmt.Sprintf("Base (%s)", baseBranch)
 	if sessions, ok := activeSessions[projectPath]; ok && len(sessions) > 0 {
-		baseLabel += " [session active]"
+		baseLabel += i18n.T("tui.board.action.session_active_badge")
 	}
 	options = append(options, SelectOption{Label: baseLabel, Value: projectPath})
 
@@ -230,16 +233,16 @@ func showLaunchEnvModal(shell ShellAccess, action QuickActionType, auditType str
 			}
 			label := fmt.Sprintf("wt: %s", wt.Branch)
 			if sessions, ok := activeSessions[wt.Path]; ok && len(sessions) > 0 {
-				label += " [session active]"
+				label += i18n.T("tui.board.action.session_active_badge")
 			}
 			options = append(options, SelectOption{Label: label, Value: wt.Path})
 		}
 	}
 
 	// 3. New worktree option
-	options = append(options, SelectOption{Label: "+ Nouveau worktree...", Value: "__new_worktree__"})
+	options = append(options, SelectOption{Label: i18n.T("tui.board.action.new_worktree"), Value: "__new_worktree__"})
 
-	shell.ShowSelectModal("Où exécuter ?", options, "", func(selected string) {
+	shell.ShowSelectModal(i18n.T("tui.board.action.where_to_run"), options, "", func(selected string) {
 		if selected == "__new_worktree__" {
 			showNewWorktreeModal(shell, action, auditType, ticket, qa, projectPath, projectID, activeSessions)
 			return
@@ -313,18 +316,18 @@ func handleBaseWithBranchSwitch(
 
 	if !dirty {
 		// Clean tree — attempt direct checkout in a goroutine.
-		shell.ShowToastMsg(fmt.Sprintf("Checkout %s...", targetBranch), true)
+		shell.ShowToastMsg(i18n.Tf("tui.board.action.checkout_progress", targetBranch), true)
 		go func() {
 			if qa.CheckoutBranch == nil {
-				shell.ShowToastMsg("Checkout non configuré", false)
+				shell.ShowToastMsg(i18n.T("tui.board.action.checkout_not_configured"), false)
 				return
 			}
 			if err := qa.CheckoutBranch(projectPath, targetBranch); err != nil {
 				slog.Warn("quick-action: checkout failed", "branch", targetBranch, "error", err)
-				shell.ShowToastMsg(fmt.Sprintf("Checkout échoué: %s", err), false)
+				shell.ShowToastMsg(i18n.Tf("tui.board.action.checkout_failed", err), false)
 				return
 			}
-			shell.ShowToastMsg(fmt.Sprintf("Sur la branche %s", targetBranch), true)
+			shell.ShowToastMsg(i18n.Tf("tui.board.action.on_branch", targetBranch), true)
 			launchOnPath(projectPath)
 		}()
 		return
@@ -349,41 +352,36 @@ func showDirtyStateModal(
 	activeSessions map[string][]ActiveSessionInfo,
 	launchOnPath func(string),
 ) {
-	content := fmt.Sprintf(
-		"Des modifications non commitées ont été détectées.\n"+
-			"Branche cible : %s\n\n"+
-			"Comment souhaitez-vous procéder ?",
-		targetBranch,
-	)
+	content := i18n.Tf("tui.board.action.dirty_state_msg", targetBranch)
 
-	shell.ShowScrollableModal("Modifications en cours", content, []ModalAction{
+	shell.ShowScrollableModal(i18n.T("tui.board.action.dirty_state_title"), content, []ModalAction{
 		{
 			Label: "Stash & Checkout",
 			Callback: func() {
-				shell.ShowToastMsg("Stash + checkout en cours...", true)
+				shell.ShowToastMsg(i18n.T("tui.board.action.stash_checkout_progress"), true)
 				go func() {
 					if qa.StashAndCheckoutBranch == nil {
-						shell.ShowToastMsg("Stash non configuré", false)
+						shell.ShowToastMsg(i18n.T("tui.board.action.stash_not_configured"), false)
 						return
 					}
 					if err := qa.StashAndCheckoutBranch(projectPath, targetBranch); err != nil {
 						slog.Warn("quick-action: stash+checkout failed", "branch", targetBranch, "error", err)
-						shell.ShowToastMsg(fmt.Sprintf("Stash/checkout échoué: %s", err), false)
+						shell.ShowToastMsg(i18n.Tf("tui.board.action.stash_checkout_failed", err), false)
 						return
 					}
-					shell.ShowToastMsg(fmt.Sprintf("Sur la branche %s (stash sauvegardé)", targetBranch), true)
+					shell.ShowToastMsg(i18n.Tf("tui.board.action.on_branch_stashed", targetBranch), true)
 					launchOnPath(projectPath)
 				}()
 			},
 		},
 		{
-			Label: "Utiliser un worktree",
+			Label: i18n.T("tui.board.action.use_worktree"),
 			Callback: func() {
 				showNewWorktreeModal(shell, action, auditType, ticket, qa, projectPath, projectID, activeSessions)
 			},
 		},
 		{
-			Label:    "Annuler",
+			Label:    i18n.T("tui.board.action.cancel"),
 			Callback: func() {},
 		},
 	})
@@ -413,12 +411,12 @@ func showNewWorktreeModal(
 		}
 	}
 
-	shell.ShowInputModal("Nom de la branche", defaultBranch, func(branch string) {
+	shell.ShowInputModal(i18n.T("tui.board.action.branch_name_title"), defaultBranch, func(branch string) {
 		if branch == "" {
 			return
 		}
 
-		shell.ShowToastMsg("Création du worktree en cours...", true)
+		shell.ShowToastMsg(i18n.T("tui.board.action.worktree_creating"), true)
 
 		// Run worktree creation in a goroutine with timeout to avoid blocking the TUI.
 		go func() {
@@ -443,12 +441,12 @@ func showNewWorktreeModal(
 			case <-done:
 				// Completed normally.
 			case <-ctx.Done():
-				err = fmt.Errorf("timeout: création du worktree trop longue (>30s)")
+				err = errors.New(i18n.T("tui.board.action.worktree_timeout"))
 			}
 
 			if err != nil {
 				slog.Warn("quick-action: worktree creation failed", "branch", branch, "error", err)
-				shell.ShowToastMsg(fmt.Sprintf("Échec worktree: %s", err), false)
+				shell.ShowToastMsg(i18n.Tf("tui.board.action.worktree_failed", err), false)
 				return
 			}
 
@@ -456,12 +454,12 @@ func showNewWorktreeModal(
 			if qa.EnsureWorktreeConfig != nil {
 				if cfgErr := qa.EnsureWorktreeConfig(wtPath, projectPath); cfgErr != nil {
 					slog.Warn("quick-action: worktree config failed", "path", wtPath, "error", cfgErr)
-					shell.ShowToastMsg(fmt.Sprintf("Worktree créé mais config échouée: %s", cfgErr), false)
+					shell.ShowToastMsg(i18n.Tf("tui.board.action.worktree_config_failed", cfgErr), false)
 					// Continue anyway — the worktree exists, user can fix config later.
 				}
 			}
 
-			shell.ShowToastMsg(fmt.Sprintf("Worktree créé: %s", filepath.Base(wtPath)), true)
+			shell.ShowToastMsg(i18n.Tf("tui.board.action.worktree_created", filepath.Base(wtPath)), true)
 
 			// Launch the action on the new worktree.
 			// No session warning needed — it's brand new.
@@ -479,9 +477,9 @@ func showNewWorktreeModal(
 func showActiveSessionWarning(shell ShellAccess, sessions []ActiveSessionInfo, onConfirm func()) {
 	warning := formatSessionWarning(sessions)
 
-	shell.ShowScrollableModal("Session active", warning, []ModalAction{
-		{Label: "Continuer", Callback: onConfirm},
-		{Label: "Annuler", Callback: func() {}}, // dismiss only
+	shell.ShowScrollableModal(i18n.T("tui.board.action.active_session_title"), warning, []ModalAction{
+		{Label: i18n.T("tui.board.action.continue_btn"), Callback: onConfirm},
+		{Label: i18n.T("tui.board.action.cancel"), Callback: func() {}}, // dismiss only
 	})
 }
 
@@ -492,24 +490,15 @@ func formatSessionWarning(sessions []ActiveSessionInfo) string {
 	}
 	if len(sessions) == 1 {
 		elapsed := time.Since(sessions[0].StartedAt).Truncate(time.Minute)
-		return fmt.Sprintf(
-			"Une session est active sur ce chemin depuis %s.\n\n"+
-				"Lancer une nouvelle session peut provoquer des conflits\n"+
-				"(fichiers modifiés simultanément, lock git, etc.).",
-			formatDurationFr(elapsed),
-		)
+		return i18n.Tf("tui.board.action.session_warning_single", formatDurationFr(elapsed))
 	}
-	return fmt.Sprintf(
-		"%d sessions sont actives sur ce chemin.\n\n"+
-			"Lancer une nouvelle session peut provoquer des conflits.",
-		len(sessions),
-	)
+	return i18n.Tf("tui.board.action.session_warning_multi", len(sessions))
 }
 
 // formatDurationFr formats a duration in French.
 func formatDurationFr(d time.Duration) string {
 	if d < time.Minute {
-		return "moins d'une minute"
+		return i18n.T("tui.board.action.duration_less_than_minute")
 	}
 	hours := int(d.Hours())
 	minutes := int(d.Minutes()) % 60
@@ -550,35 +539,35 @@ func BuildTicketPrompt(action QuickActionType, auditType AuditType, ticket Ticke
 	case QuickActionReview:
 		prefix = "Review"
 	case QuickActionDev:
-		prefix = "Session dev sur"
+		prefix = i18n.T("tui.board.action.prompt_dev")
 	case QuickActionAudit:
 		switch auditType {
 		case AuditSecurity:
-			prefix = "Audit sécurité"
+			prefix = i18n.T("tui.board.action.prompt_audit_security")
 		case AuditPerformance:
-			prefix = "Audit performance"
+			prefix = i18n.T("tui.board.action.prompt_audit_performance")
 		case AuditArchitecture:
-			prefix = "Audit architecture"
+			prefix = i18n.T("tui.board.action.prompt_audit_architecture")
 		case AuditAccessibility:
-			prefix = "Audit accessibilité"
+			prefix = i18n.T("tui.board.action.prompt_audit_accessibility")
 		case AuditEcodesign:
-			prefix = "Audit éco-conception"
+			prefix = i18n.T("tui.board.action.prompt_audit_ecodesign")
 		case AuditObservability:
-			prefix = "Audit observabilité"
+			prefix = i18n.T("tui.board.action.prompt_audit_observability")
 		case AuditPrivacy:
-			prefix = "Audit vie privée"
+			prefix = i18n.T("tui.board.action.prompt_audit_privacy")
 		case AuditComplete:
-			prefix = "Audit complet"
+			prefix = i18n.T("tui.board.action.prompt_audit_complete")
 		default:
-			prefix = "Audit"
+			prefix = i18n.T("tui.board.action.prompt_audit_generic")
 		}
 	case QuickActionDebug:
 		prefix = "Debug"
 	default:
-		prefix = "Action sur"
+		prefix = i18n.T("tui.board.action.prompt_default")
 	}
 
-	prompt := fmt.Sprintf("%s du ticket %s", prefix, ticket.ID)
+	prompt := i18n.Tf("tui.board.action.prompt_ticket", prefix, ticket.ID)
 	if ticket.Title != "" {
 		prompt += fmt.Sprintf(" (%s)", ticket.Title)
 	}

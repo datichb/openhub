@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -24,7 +25,7 @@ func NewHelpView() *HelpView { return &HelpView{} }
 func (v *HelpView) ID() string { return "help" }
 
 // Title returns the display title.
-func (v *HelpView) Title() string { return "À propos" }
+func (v *HelpView) Title() string { return i18n.T("tui.help.title") }
 
 // StatusHints returns keybinding hints.
 func (v *HelpView) StatusHints() string {
@@ -40,32 +41,27 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	tv.SetBackgroundColor(theme.BgPanel)
 	tv.SetBorderPadding(1, 0, 2, 2)
-	tv.SetText(fmt.Sprintf(`
-  [::b]À propos%s
+	accent := theme.ColorTag(theme.AccentHex)
+	muted := theme.ColorTag(theme.TextSecondaryHex)
+	c := theme.TagColor
+	r := theme.TagReset
 
-  %sOpenHub%s — Hub d'agents IA pour le développement logiciel
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.help.title"), r)
+	fmt.Fprintf(&sb, "  %sOpenHub%s — %s\n\n", accent, c, i18n.T("tui.help.description"))
+	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.shortcuts_title"), c)
+	fmt.Fprintf(&sb, "    Ctrl+P       %s\n", i18n.T("tui.help.shortcut_palette"))
+	fmt.Fprintf(&sb, "    ?  / F1      %s\n", i18n.T("tui.help.shortcut_help"))
+	fmt.Fprintf(&sb, "    j / k        %s\n", i18n.T("tui.help.shortcut_navigate"))
+	fmt.Fprintf(&sb, "    Ctrl+T       %s\n", i18n.T("tui.help.shortcut_toggle"))
+	fmt.Fprintf(&sb, "    Ctrl+Q       %s\n\n", i18n.T("tui.help.shortcut_quit"))
+	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.sessions_title"), c)
+	fmt.Fprintf(&sb, "    %s\n", i18n.T("tui.help.sessions_line1"))
+	fmt.Fprintf(&sb, "    %s\n\n", i18n.T("tui.help.sessions_line2"))
+	fmt.Fprintf(&sb, "  %s%s%s  oh (OpenHub CLI)\n", muted, i18n.T("tui.help.version_label"), c)
+	fmt.Fprintf(&sb, "  %s%s%s     https://github.com/datichb/openhub\n", muted, i18n.T("tui.help.docs_label"), c)
 
-  %sRaccourcis principaux%s
-    Ctrl+P       Palette de commandes
-    ?  / F1      Aide contextuelle
-    j / k        Naviguer dans les listes
-    Ctrl+T       Basculer mode projet / hub
-    Ctrl+Q       Quitter
-
-  %sSessions%s
-    Les sessions opencode s'ouvrent en plein écran.
-    Le TUI se met en pause et reprend à la fin.
-
-  %sVersion :%s  oh (OpenHub CLI)
-  %sDocs :%s     https://github.com/datichb/openhub
-`,
-		theme.TagReset,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor,
-	))
+	tv.SetText(sb.String())
 
 	content.AddItem(tv, 0, 1, true)
 }

@@ -43,7 +43,7 @@ func NewDoctorView(a *app.App) *DoctorView {
 func (v *DoctorView) ID() string { return "doctor" }
 
 // Title returns the display title.
-func (v *DoctorView) Title() string { return "Doctor" }
+func (v *DoctorView) Title() string { return i18n.T("tui.doctor.title") }
 
 // StatusHints returns keybinding hints.
 func (v *DoctorView) StatusHints() string {
@@ -62,7 +62,7 @@ func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 	// Show loading placeholder immediately
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %sVérification du système...%s", muted, theme.TagColor))
+	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.doctor.loading"), theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
 
 	// Run checks asynchronously (they invoke subprocesses)
@@ -88,7 +88,7 @@ func (v *DoctorView) Unmount() {
 func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if event.Rune() == 'r' {
 		muted := theme.ColorTag(theme.TextMutedHex)
-		v.tv.SetText(fmt.Sprintf("\n  %sVérification...%s", muted, theme.TagColor))
+		v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.doctor.rechecking"), theme.TagColor))
 		go func() {
 			checks := v.collectChecks()
 			v.app.QueueUpdateDraw(func() {
@@ -123,7 +123,7 @@ func (v *DoctorView) render() {
 	}
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]Vérification système%s\n\n", theme.TagReset)
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.doctor.check_title"), theme.TagReset)
 
 	passed := 0
 	for _, c := range v.checks {
@@ -138,12 +138,12 @@ func (v *DoctorView) render() {
 			theme.ColorTag(theme.TextSecondaryHex), c.Detail, theme.TagColor)
 	}
 
-	fmt.Fprintf(&sb, "\n  %s%d/%d checks OK%s\n",
-		theme.ColorTag(theme.TextPrimaryHex), passed, len(v.checks), theme.TagColor)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n",
+		theme.ColorTag(theme.TextPrimaryHex), i18n.Tf("tui.doctor.summary", passed, len(v.checks)), theme.TagColor)
 
 	if passed == len(v.checks) {
-		fmt.Fprintf(&sb, "\n  %s%s Tout est en ordre.%s\n",
-			theme.ColorTag(theme.SuccessHex), theme.IconSuccess, theme.TagColor)
+		fmt.Fprintf(&sb, "\n  %s%s %s%s\n",
+			theme.ColorTag(theme.SuccessHex), theme.IconSuccess, i18n.T("tui.doctor.all_passed"), theme.TagColor)
 	}
 
 	v.tv.SetText(sb.String())
@@ -160,7 +160,7 @@ func (v *DoctorView) checkOS() DoctorCheck {
 func (v *DoctorView) checkBinary(name string) DoctorCheck {
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return DoctorCheck{Name: name, Detail: "non trouvé dans PATH", OK: false}
+		return DoctorCheck{Name: name, Detail: i18n.T("tui.doctor.not_found_in_path"), OK: false}
 	}
 	// Try to get version
 	out, err := exec.Command(path, "--version").Output()
@@ -179,29 +179,29 @@ func (v *DoctorView) checkOpencode() DoctorCheck {
 	if err != nil {
 		_, findErr := opencode.FindBinary()
 		if findErr != nil {
-			return DoctorCheck{Name: "opencode", Detail: "non trouvé", OK: false}
+			return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
 		}
-		return DoctorCheck{Name: "opencode", Detail: "installé (version inconnue)", OK: true}
+		return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.installed_unknown_version"), OK: true}
 	}
 	return DoctorCheck{Name: "opencode", Detail: ver, OK: true}
 }
 
 func (v *DoctorView) checkConfig() DoctorCheck {
 	if v.appCtx == nil || v.appCtx.Config == nil {
-		return DoctorCheck{Name: "Configuration", Detail: "non chargée", OK: false}
+		return DoctorCheck{Name: i18n.T("tui.doctor.check_config"), Detail: i18n.T("tui.doctor.not_loaded"), OK: false}
 	}
-	return DoctorCheck{Name: "Configuration", Detail: "hub.toml OK", OK: true}
+	return DoctorCheck{Name: i18n.T("tui.doctor.check_config"), Detail: "hub.toml OK", OK: true}
 }
 
 func (v *DoctorView) checkDatabase() DoctorCheck {
 	if v.appCtx == nil || v.appCtx.Projects == nil {
-		return DoctorCheck{Name: "Base de données", Detail: "non connectée", OK: false}
+		return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: i18n.T("tui.doctor.not_connected"), OK: false}
 	}
 	projects, err := v.appCtx.Projects.List(context.Background(), "")
 	if err != nil {
-		return DoctorCheck{Name: "Base de données", Detail: err.Error(), OK: false}
+		return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: err.Error(), OK: false}
 	}
-	return DoctorCheck{Name: "Base de données", Detail: fmt.Sprintf("OK (%d projets)", len(projects)), OK: true}
+	return DoctorCheck{Name: i18n.T("tui.doctor.check_database"), Detail: i18n.Tf("tui.doctor.db_ok_projects", len(projects)), OK: true}
 }
 
 func (v *DoctorView) checkWorkflow() DoctorCheck {
@@ -217,11 +217,11 @@ func (v *DoctorView) checkWorkflow() DoctorCheck {
 
 	resolved, err := workflow.Resolve(base, overrides...)
 	if err != nil {
-		return DoctorCheck{Name: "Workflow", Detail: err.Error(), OK: false}
+		return DoctorCheck{Name: i18n.T("tui.doctor.check_workflow"), Detail: err.Error(), OK: false}
 	}
 
 	activeCount := len(resolved.ActiveAgents())
 	cpCount := len(resolved.Checkpoints)
-	detail := fmt.Sprintf("OK (%d agents, %d checkpoints, mode=%s)", activeCount, cpCount, resolved.Modes.Default)
-	return DoctorCheck{Name: "Workflow", Detail: detail, OK: true}
+	detail := i18n.Tf("tui.doctor.workflow_ok", activeCount, cpCount, resolved.Modes.Default)
+	return DoctorCheck{Name: i18n.T("tui.doctor.check_workflow"), Detail: detail, OK: true}
 }

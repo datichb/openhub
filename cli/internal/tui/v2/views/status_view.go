@@ -41,7 +41,7 @@ func (v *StatusView) SetShell(s ShellAccess) { v.shell = s }
 func (v *StatusView) ID() string { return "status" }
 
 // Title returns the display title.
-func (v *StatusView) Title() string { return "Status" }
+func (v *StatusView) Title() string { return i18n.T("tui.status.title") }
 
 // StatusHints returns keybinding hints.
 func (v *StatusView) StatusHints() string {
@@ -60,7 +60,7 @@ func (v *StatusView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 	// Show loading placeholder immediately
 	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %sChargement du statut...%s", muted, theme.TagColor))
+	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.status.loading"), theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
 
 	// Load status data asynchronously (subprocess + DB calls)
@@ -86,7 +86,7 @@ func (v *StatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
 	case 'r':
 		muted := theme.ColorTag(theme.TextMutedHex)
-		v.tv.SetText(fmt.Sprintf("\n  %sChargement...%s", muted, theme.TagColor))
+		v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.status.loading_short"), theme.TagColor))
 		go func() {
 			text := v.buildStatusText()
 			v.app.QueueUpdateDraw(func() {
@@ -107,50 +107,50 @@ func (v *StatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // buildStatusText builds the status display text. Safe to call from any goroutine.
 func (v *StatusView) buildStatusText() string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]Status du Hub%s\n\n", theme.TagReset)
+	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.status.hub_title"), theme.TagReset)
 
 	// Hub name
 	hubName := "OpenHub"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		hubName = v.appCtx.Config.Name
 	}
-	fmt.Fprintf(&sb, "  %sHub :%s              %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, hubName)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_hub"), theme.TagColor, hubName)
 
 	// Config path
-	fmt.Fprintf(&sb, "  %sConfig :%s           %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, config.ConfigPath())
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_config"), theme.TagColor, config.ConfigPath())
 
 	// Language
 	lang := "en"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		lang = v.appCtx.Config.CLI.Language
 	}
-	fmt.Fprintf(&sb, "  %sLangue :%s           %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, lang)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_language"), theme.TagColor, lang)
 
 	// Opencode version
 	ocVer, err := opencode.Version()
 	if err != nil {
-		ocVer = "non trouvé"
+		ocVer = i18n.T("tui.status.not_found")
 	}
 	channel := "stable"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		channel = v.appCtx.Config.Opencode.Channel
 	}
-	fmt.Fprintf(&sb, "  %sopencode :%s         %s (%s)\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ocVer, channel)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s (%s)\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_opencode"), theme.TagColor, ocVer, channel)
 
 	// Provider
 	provider := "—"
 	if v.appCtx != nil && v.appCtx.Config != nil {
 		provider = v.appCtx.Config.Opencode.DefaultProvider
 		if provider == "" {
-			provider = "non configuré"
+			provider = i18n.T("tui.status.not_configured")
 		}
 	}
-	fmt.Fprintf(&sb, "  %sProvider :%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, provider)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_provider"), theme.TagColor, provider)
 
 	// Projects count
 	sb.WriteString("\n")
@@ -159,8 +159,8 @@ func (v *StatusView) buildStatusText() string {
 		projects, _ := v.appCtx.Projects.List(context.Background(), "")
 		projectCount = len(projects)
 	}
-	fmt.Fprintf(&sb, "  %sProjets :%s          %d enregistrés\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, projectCount)
+	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
+		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_projects"), theme.TagColor, i18n.Tf("tui.status.registered_count", projectCount))
 
 	return sb.String()
 }
@@ -190,17 +190,17 @@ func (v *StatusView) checkConventions() {
 			re, err := regexp.Compile(branchPattern)
 			if err == nil {
 				if re.MatchString(branch) {
-					text += "  [green]✓[-] Branch : " + branch + " (conforme)\n"
+					text += "  [green]✓[-] " + i18n.Tf("tui.status.branch_compliant", branch) + "\n"
 				} else {
-					text += "  [yellow]⚠[-] Branch : " + branch + " ne suit pas " + branchPattern + "\n"
+					text += "  [yellow]⚠[-] " + i18n.Tf("tui.status.branch_non_compliant", branch, branchPattern) + "\n"
 					issues++
 				}
 			}
 		} else {
-			text += "  · Branch : " + branch + " (pas de pattern configuré)\n"
+			text += "  · " + i18n.Tf("tui.status.branch_no_pattern", branch) + "\n"
 		}
 	} else {
-		text += "  · Branch : non détectée (pas un repo git ?)\n"
+		text += "  · " + i18n.T("tui.status.branch_not_detected") + "\n"
 	}
 
 	// 2. Commit format
@@ -216,26 +216,26 @@ func (v *StatusView) checkConventions() {
 				}
 			}
 			if nonConform == 0 {
-				text += fmt.Sprintf("  [green]✓[-] Commits : %d derniers conformes\n", len(commits))
+				text += fmt.Sprintf("  [green]✓[-] %s\n", i18n.Tf("tui.status.commits_compliant", len(commits)))
 			} else {
-				text += fmt.Sprintf("  [yellow]⚠[-] Commits : %d/%d non conformes\n", nonConform, len(commits))
+				text += fmt.Sprintf("  [yellow]⚠[-] %s\n", i18n.Tf("tui.status.commits_non_compliant", nonConform, len(commits)))
 				issues++
 			}
 		}
 	} else if len(commits) > 0 {
-		text += fmt.Sprintf("  · Commits : %d récents (pas de format configuré)\n", len(commits))
+		text += fmt.Sprintf("  · %s\n", i18n.Tf("tui.status.commits_no_format", len(commits)))
 	}
 
 	// 3. Summary
 	text += "\n"
 	if issues == 0 {
-		text += "  [green]✓[-] Tout est conforme"
+		text += "  [green]✓[-] " + i18n.T("tui.status.all_compliant")
 	} else {
-		text += fmt.Sprintf("  [yellow]⚠[-] %d warning(s)", issues)
+		text += fmt.Sprintf("  [yellow]⚠[-] %s", i18n.Tf("tui.status.warnings_count", issues))
 	}
 
-	v.shell.ShowScrollableModal("Conventions Check", text, []ModalAction{
-		{Label: "Fermer", Callback: func() {}},
+	v.shell.ShowScrollableModal(i18n.T("tui.status.conventions_title"), text, []ModalAction{
+		{Label: i18n.T("tui.status.close"), Callback: func() {}},
 	})
 }
 
