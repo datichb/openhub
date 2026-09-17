@@ -845,7 +845,17 @@ func buildIntroStep(badge, title, desc, listTitle, listItems, note string, onCon
 				onDone()
 			})
 			if onSkip != nil {
+				skipConfirmed := false
 				buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+					if !skipConfirmed {
+						// First click: ask for confirmation
+						skipConfirmed = true
+						if btn := buttonForm.GetButton(1); btn != nil {
+							btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+						}
+						return
+					}
+					// Second click: confirmed, skip the section
 					onSkip()
 					onDone()
 				})

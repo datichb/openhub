@@ -223,6 +223,7 @@ func actionTeamInit() {
 	configStep := views.WizardStep{
 		Label:      i18n.T("cmd.team.init.step_config"),
 		Processing: i18n.T("cmd.team.init.processing_config"),
+		SkipIf:     func() bool { return repo == nil },
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			form.AddInputField(
@@ -268,6 +269,7 @@ func actionTeamInit() {
 		Label:      i18n.T("cmd.team.init.step_identity"),
 		Processing: i18n.T("cmd.team.init.processing_identity"),
 		Required:   true,
+		SkipIf:     func() bool { return repo == nil },
 		Validate: func() string {
 			if strings.TrimSpace(memberID) == "" {
 				return i18n.T("cmd.team.init.validate.member_id_required")
@@ -350,6 +352,7 @@ func actionTeamInit() {
 	notifStep := views.WizardStep{
 		Label:      i18n.T("cmd.team.init.step_notifications"),
 		Processing: i18n.T("cmd.team.init.processing_notifications"),
+		SkipIf:     func() bool { return repo == nil },
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			form.AddInputField(
@@ -402,6 +405,7 @@ func actionTeamInit() {
 	policiesStep := views.WizardStep{
 		Label:      i18n.T("cmd.team.init.step_policies"),
 		Processing: i18n.T("cmd.team.init.processing_policies"),
+		SkipIf:     func() bool { return repo == nil },
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			branchNaming := false

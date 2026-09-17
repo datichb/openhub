@@ -1423,6 +1423,7 @@
   "wizard.sidebar.in_progress": "(en cours...)",
   "wizard.intro.continue": "Continuer",
   "wizard.intro.skip": "Ignorer",
+  "wizard.intro.skip_confirm": "Ignorer cette section ?",
   "cmd.init.wizard_group_lang": "Langue",
   "cmd.init.wizard_group_provider": "Provider",
   "cmd.init.wizard_group_team": "Équipe",

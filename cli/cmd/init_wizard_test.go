@@ -235,10 +235,13 @@ func TestBuildIntroStep_SkipCallback(t *testing.T) {
 	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
 	handler(tabEvent, setFocus)
 
-	// Enter to activate Skip
+	// First Enter: triggers confirmation (button label changes)
 	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
 	handler(enterEvent, setFocus)
+	assert.False(t, skipCalled, "onSkip should NOT fire on first click (confirmation pending)")
 
-	assert.True(t, skipCalled, "onSkip should have been called via Skip button")
+	// Second Enter: confirms skip
+	handler(enterEvent, setFocus)
+	assert.True(t, skipCalled, "onSkip should have been called via Skip button after confirmation")
 	assert.True(t, doneCalled, "onDone should have been called after Skip")
 }

@@ -1423,6 +1423,7 @@
   "wizard.sidebar.in_progress": "(in progress...)",
   "wizard.intro.continue": "Continue",
   "wizard.intro.skip": "Skip",
+  "wizard.intro.skip_confirm": "Skip this section?",
   "cmd.init.wizard_group_lang": "Language",
   "cmd.init.wizard_group_provider": "Provider",
   "cmd.init.wizard_group_team": "Team",
