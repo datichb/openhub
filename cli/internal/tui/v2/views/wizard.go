@@ -515,6 +515,10 @@ func RunWizard(cfg WizardConfig) WizardResult {
 						escPending = false
 						shell.StatusBar.SetHints(originalHints)
 					}
+					// Arrow keys → Tab/Backtab (except on DropDowns)
+					if remapped := remapArrowToTab(form, event); remapped != nil {
+						return remapped
+					}
 					if event.Key() == tcell.KeyCtrlS {
 						onDone()
 						return nil

@@ -789,6 +789,10 @@ func (w *InlineWizardView) renderStep(idx int) {
 					w.escPending = false
 					w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 				}
+				// Arrow keys → Tab/Backtab (except on DropDowns)
+				if remapped := remapArrowToTab(form, event); remapped != nil {
+					return remapped
+				}
 				if event.Key() == tcell.KeyCtrlS {
 					onDone()
 					return nil
@@ -826,6 +830,18 @@ func (w *InlineWizardView) renderStep(idx int) {
 					if w.escPending && event.Key() != tcell.KeyEscape {
 						w.escPending = false
 						w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+					}
+					// Arrow keys → Tab/Backtab (except on DropDowns)
+					if remapped := remapArrowToTab(form, event); remapped != nil {
+						// Also check if Down remap lands on last focusable → jump to buttonForm
+						if remapped.Key() == tcell.KeyTab {
+							itemIdx, _ := form.GetFocusedItemIndex()
+							if isLastFocusableFormItem(form, itemIdx) {
+								w.app.SetFocus(buttonForm)
+								return nil
+							}
+						}
+						return remapped
 					}
 					// Tab/Enter on the last focusable form field → focus buttonForm
 					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
@@ -1294,6 +1310,26 @@ func NewStyledButtonForm() *tview.Form {
 		Foreground(theme.BgPanel))
 	f.SetBorder(false)
 	return f
+}
+
+// remapArrowToTab converts Up/Down arrow keys to Backtab/Tab for inter-field
+// navigation in forms. DropDown fields are excluded because they use Down/Up
+// to open/navigate their popup list.
+// Returns the remapped event, or nil if no remapping was needed.
+func remapArrowToTab(form *tview.Form, event *tcell.EventKey) *tcell.EventKey {
+	if event.Key() != tcell.KeyDown && event.Key() != tcell.KeyUp {
+		return nil
+	}
+	itemIdx, _ := form.GetFocusedItemIndex()
+	if itemIdx >= 0 && itemIdx < form.GetFormItemCount() {
+		if _, isDD := form.GetFormItem(itemIdx).(*tview.DropDown); isDD {
+			return nil // let DropDown handle Down/Up natively
+		}
+	}
+	if event.Key() == tcell.KeyDown {
+		return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	}
+	return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
 }
 
 // isLastFocusableFormItem returns true if itemIdx is the last focusable
