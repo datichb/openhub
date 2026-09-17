@@ -62,12 +62,9 @@ func (v *workflowView) Title() string {
 
 func (v *workflowView) StatusHints() string {
 	if v.cfg.IsLocked != nil && v.cfg.IsLocked() {
-		return "[::b]🔒 Locked by team[-:-:-]  [::d]Esc[-:-:-] back"
+		return "🔒 Locked by team · Esc back"
 	}
-	hints := "[::d]h/j/k/l[-:-:-] navigate  [::d]Enter/e[-:-:-] edit  [::d]a[-:-:-] add  [::d]d[-:-:-] delete"
-	hints += "  [::d]t[-:-:-] toggle mode  [::d]r[-:-:-] toggle role  [::d]m[-:-:-] modes"
-	hints += "  [::d]w[-:-:-] save  [::d]u[-:-:-] undo  [::d]R[-:-:-] reset  [::d]Esc[-:-:-] back"
-	return hints
+	return "h/j/k/l navigate · Enter/e edit · a add · d delete · t toggle mode · r toggle role · m modes · w save · u undo · R reset · Esc back"
 }
 
 func (v *workflowView) SetShell(s ShellAccess) {

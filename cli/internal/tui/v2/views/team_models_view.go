@@ -71,7 +71,7 @@ func (v *TeamModelsView) ID() string             { return "team.models" }
 func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.section.models") }
 
 func (v *TeamModelsView) StatusHints() string {
-	return fmt.Sprintf("%s  %s  %s  %s  %s",
+	return fmt.Sprintf("%s · %s · %s · %s · %s",
 		i18n.T("tui.hints.enter"),
 		i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.del"),

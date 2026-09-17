@@ -55,7 +55,7 @@ func (v *TeamsView) ID() string    { return "teams" }
 func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
-	return fmt.Sprintf("Enter:%s  a:%s  d:%s  s:%s  r:%s  u:%s",
+	return fmt.Sprintf("Enter %s · a %s · d %s · s %s · r %s · u %s",
 		i18n.T("tui.hints.detail"),
 		i18n.T("tui.hints.add"),
 		i18n.T("tui.hints.delete"),
