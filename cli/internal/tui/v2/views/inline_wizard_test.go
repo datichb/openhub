@@ -3,6 +3,7 @@ package views
 import (
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,10 @@ import (
 
 func TestInlineWizardView_ImplementsView(t *testing.T) {
 	var _ View = (*InlineWizardView)(nil)
+}
+
+func TestInlineWizardView_ImplementsInputCapturing(t *testing.T) {
+	var _ InputCapturing = (*InlineWizardView)(nil)
 }
 
 func TestInlineWizardView_EmptySteps(t *testing.T) {
@@ -201,4 +206,198 @@ func TestInlineWizardView_NavigationHelpers(t *testing.T) {
 	total, pos := v.countVisibleSteps(1)
 	assert.Equal(t, 3, total) // A, B, D (C is skipped)
 	assert.Equal(t, 2, pos)   // B is 2nd visible
+}
+
+func TestInlineWizardView_CapturesInput(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.capture",
+		Title: "Capture Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Step 1",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	// Before mount: CapturesInput should return false
+	assert.False(t, v.CapturesInput(), "should not capture before mount")
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+
+	v.Mount(content, app)
+	assert.True(t, v.CapturesInput(), "should capture while mounted")
+
+	v.Unmount()
+	assert.False(t, v.CapturesInput(), "should not capture after unmount")
+}
+
+func TestInlineWizardView_HandleKey_FormPassthrough(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.form.keys",
+		Title: "Form Key Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Input Step",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// Rune events should pass through (not consumed) so tview delivers to form
+	runeEvent := tcell.NewEventKey(tcell.KeyRune, 'a', tcell.ModNone)
+	result := v.HandleKey(runeEvent)
+	assert.NotNil(t, result, "rune should pass through on form step")
+
+	// Enter should pass through
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	result = v.HandleKey(enterEvent)
+	assert.NotNil(t, result, "enter should pass through on form step")
+
+	// Esc should pass through (form's CancelFunc handles it)
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	result = v.HandleKey(escEvent)
+	assert.NotNil(t, result, "esc should pass through on form step")
+
+	// Ctrl+B should be consumed (go back)
+	ctrlBEvent := tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone)
+	result = v.HandleKey(ctrlBEvent)
+	assert.Nil(t, result, "ctrl+b should be consumed (go back)")
+
+	v.Unmount()
+}
+
+func TestInlineWizardView_HandleKey_CustomViewEscRequired(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.cv.esc",
+		Title: "CustomView Esc Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Welcome",
+				Required: true,
+				CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView()
+					tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						if event.Key() == tcell.KeyEnter {
+							onDone()
+							return nil
+						}
+						return event
+					})
+					container.AddItem(tv, 0, 1, true)
+					tvApp.SetFocus(tv)
+				},
+			},
+			{
+				Label: "Second",
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// Esc on a required CustomView step should be consumed (not skip)
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	result := v.HandleKey(escEvent)
+	assert.Nil(t, result, "esc should be consumed on required CustomView step")
+	assert.Equal(t, 0, v.currentStep, "should NOT advance past required step on Esc")
+
+	v.Unmount()
+}
+
+func TestInlineWizardView_HandleKey_CustomViewEscOptional(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.cv.skip",
+		Title: "CustomView Skip Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Optional Welcome",
+				Required: false,
+				CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView()
+					container.AddItem(tv, 0, 1, true)
+					tvApp.SetFocus(tv)
+				},
+			},
+			{
+				Label: "Second",
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Done", func() { onDone() })
+					return form
+				},
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	assert.Equal(t, 0, v.currentStep)
+
+	// Esc on an optional CustomView step should skip to next
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	result := v.HandleKey(escEvent)
+	assert.Nil(t, result, "esc should be consumed on optional CustomView step")
+	assert.Equal(t, 1, v.currentStep, "should advance to next step after skipping optional")
+
+	v.Unmount()
+}
+
+func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
+	projectCreated := false
+
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.target",
+		Title: "Target Test",
+		Steps: []WizardStep{},
+		SummaryTargetViewFunc: func() string {
+			if projectCreated {
+				return "project.mode"
+			}
+			return "home"
+		},
+		SummaryTargetLabelFunc: func() string {
+			if projectCreated {
+				return "Go to project"
+			}
+			return "Go home"
+		},
+	})
+
+	// Before project creation
+	viewID, label := v.summaryTarget()
+	assert.Equal(t, "home", viewID)
+	assert.Equal(t, "Go home", label)
+
+	// After project creation
+	projectCreated = true
+	viewID, label = v.summaryTarget()
+	assert.Equal(t, "project.mode", viewID)
+	assert.Equal(t, "Go to project", label)
 }

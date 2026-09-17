@@ -42,6 +42,19 @@ type InlineWizardConfig struct {
 	// SummaryTargetLabel is the label for the navigation proposal
 	// (e.g. "Voir la configuration de l'équipe"). If empty, a default is used.
 	SummaryTargetLabel string
+	// SummaryTargetViewFunc, if set, is called at summary render time instead of
+	// using the static SummaryTargetView field. Use this when the target depends
+	// on wizard choices (e.g. project creation).
+	SummaryTargetViewFunc func() string
+	// SummaryTargetLabelFunc, if set, is called at summary render time instead of
+	// using the static SummaryTargetLabel field.
+	SummaryTargetLabelFunc func() string
+	// Groups, when non-empty, switches the wizard to a "grouped" layout:
+	// centered content, right-side info sidebar, and the step bar shows
+	// group labels instead of individual step labels. Each group starts
+	// at the step index specified by StartIdx. When empty, the classic
+	// full-width layout with bottom info panel is used.
+	Groups []StepGroup
 }
 
 // InlineWizardView is a multi-step wizard that runs inside the TUI shell
@@ -54,16 +67,20 @@ type InlineWizardView struct {
 
 	// tview primitives — nil when unmounted.
 	app         *tview.Application
-	mainFlex    *tview.Flex     // root layout: stepBar + header + content + info + hints
+	mainFlex    *tview.Flex        // root layout (classic: stepBar+header+content+info+hints)
 	stepBar     *widgets.StepBar
 	stepHeader  *tview.TextView
-	stepContent *tview.Flex     // swappable area for form/customview/spinner
-	infoPanel   *tview.TextView
+	stepContent *tview.Flex        // swappable area for form/customview/spinner
+	infoPanel   *tview.TextView    // classic: bottom info panel  /  grouped: right sidebar
 	hintsBar    *widgets.StatusBar
+
+	// grouped layout primitives (non-nil only when cfg.Groups is set)
+	bodyRow *tview.Flex // horizontal: mainPanel + sidebar
 
 	// wizard state
 	currentStep int
 	stepStates  []widgets.Step
+	groupStates []widgets.Step // derived from stepStates when Groups is set
 	infoAccum   []inlineStepInfoEntry
 	escPending  bool
 	completed   bool
@@ -85,6 +102,9 @@ type inlineStepInfoEntry struct {
 // Ensure InlineWizardView implements View.
 var _ View = (*InlineWizardView)(nil)
 
+// Ensure InlineWizardView implements InputCapturing.
+var _ InputCapturing = (*InlineWizardView)(nil)
+
 // NewInlineWizardView creates an inline wizard view.
 // Push it onto the shell router via shell.PushView(v).
 func NewInlineWizardView(cfg InlineWizardConfig) *InlineWizardView {
@@ -95,6 +115,13 @@ func NewInlineWizardView(cfg InlineWizardConfig) *InlineWizardView {
 
 // SetShell provides the shell reference (shellAware interface).
 func (w *InlineWizardView) SetShell(s ShellAccess) { w.shell = s }
+
+// CapturesInput implements InputCapturing. Returns true while the wizard
+// is mounted and active — the shell delegates all key handling to us,
+// bypassing omnibar activation, vim-style navigation, and auto Esc-to-pop.
+func (w *InlineWizardView) CapturesInput() bool {
+	return w.app != nil && !w.aborted
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // View interface
@@ -148,10 +175,7 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 		return
 	}
 
-	// ── Build layout ──
-
-	// Step bar (horizontal progress)
-	w.stepBar = widgets.NewStepBar(w.stepStates)
+	// ── Build shared widgets ──
 
 	// Step header ("◆ 2/5 — Label")
 	w.stepHeader = tview.NewTextView().SetDynamicColors(true)
@@ -161,8 +185,8 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.stepContent = tview.NewFlex().SetDirection(tview.FlexRow)
 	w.stepContent.SetBackgroundColor(theme.BgPanel)
 
-	// Info panel (accumulated results)
-	w.infoPanel = tview.NewTextView().SetDynamicColors(true)
+	// Info panel (accumulated results — bottom in classic, sidebar in grouped)
+	w.infoPanel = tview.NewTextView().SetDynamicColors(true).SetScrollable(true)
 	w.infoPanel.SetBackgroundColor(theme.BgPanel)
 
 	// Hints bar
@@ -172,22 +196,137 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.spinner = widgets.NewSpinner(i18n.T("wizard.processing"))
 	w.spinner.SetBackgroundColor(theme.BgPanel)
 
-	// Assemble the main layout
-	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
-	w.mainFlex.SetBackgroundColor(theme.BgPanel)
-	w.mainFlex.
-		AddItem(w.stepBar.TextView, 1, 0, false).       // step bar (1 row)
-		AddItem(w.stepHeader, 2, 0, false).              // step header (2 rows)
-		AddItem(w.stepContent, 0, 1, true).              // step content (fills)
-		AddItem(w.infoPanel, 0, 0, false).               // info panel (dynamic, starts hidden)
-		AddItem(w.hintsBar.TextView, 1, 0, false)        // hints bar (1 row)
-
-	content.AddItem(w.mainFlex, 0, 1, true)
+	// ── Layout: grouped (centered + sidebar) or classic (full-width) ──
+	if len(w.cfg.Groups) > 0 {
+		w.mountGroupedLayout(content)
+	} else {
+		w.mountClassicLayout(content)
+	}
 
 	// ── Wire forward declaration and render first step ──
 	w.doRenderStep = w.renderStep
 	w.renderInfoPanel()
 	w.renderStep(w.currentStep)
+}
+
+// mountClassicLayout builds the original full-width layout (no groups).
+func (w *InlineWizardView) mountClassicLayout(content *tview.Flex) {
+	w.stepBar = widgets.NewStepBar(w.stepStates)
+
+	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
+	w.mainFlex.SetBackgroundColor(theme.BgPanel)
+	w.mainFlex.
+		AddItem(w.stepBar.TextView, 1, 0, false).
+		AddItem(w.stepHeader, 2, 0, false).
+		AddItem(w.stepContent, 0, 1, true).
+		AddItem(w.infoPanel, 0, 0, false).
+		AddItem(w.hintsBar.TextView, 1, 0, false)
+
+	content.AddItem(w.mainFlex, 0, 1, true)
+}
+
+// mountGroupedLayout builds the full-screen layout with a right-side info
+// sidebar. The step bar and step header are omitted (the sidebar provides
+// the progression view).
+func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
+	// Initialize group states (used by renderGroupedSidebar)
+	w.groupStates = w.buildGroupStates()
+	// No stepBar in grouped mode — sidebar replaces it.
+
+	// Info sidebar: padding
+	w.infoPanel.SetBorderPadding(1, 1, 1, 1)
+
+	// mainPanel wraps stepContent (left side)
+	mainPanel := tview.NewFlex().SetDirection(tview.FlexRow)
+	mainPanel.SetBackgroundColor(theme.BgPanel)
+	mainPanel.SetBorderPadding(0, 0, 2, 1)
+	mainPanel.AddItem(w.stepContent, 0, 1, true)
+
+	// Vertical separator (│) between mainPanel and sidebar
+	sep := tview.NewBox()
+	sep.SetBackgroundColor(theme.BgPanel)
+	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		style := tcell.StyleDefault.Foreground(theme.BorderCard).Background(theme.BgPanel)
+		for row := y; row < y+height; row++ {
+			screen.SetContent(x, row, '│', nil, style)
+		}
+		return x + 1, y, width - 1, height
+	})
+
+	// bodyRow: mainPanel (left, 3/4) + separator (1 col) + sidebar (right, 1/4)
+	w.bodyRow = tview.NewFlex().SetDirection(tview.FlexColumn)
+	w.bodyRow.SetBackgroundColor(theme.BgPanel)
+	w.bodyRow.
+		AddItem(mainPanel, 0, 3, true).
+		AddItem(sep, 1, 0, false).
+		AddItem(w.infoPanel, 0, 1, false)
+
+	// Full-screen layout: body + hints
+	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
+	w.mainFlex.SetBackgroundColor(theme.BgPanel)
+	w.mainFlex.
+		AddItem(w.bodyRow, 0, 1, true).
+		AddItem(w.hintsBar.TextView, 1, 0, false)
+
+	content.AddItem(w.mainFlex, 0, 1, true)
+}
+
+// buildGroupStates computes the step bar states from the per-step states,
+// aggregated by group boundaries.
+func (w *InlineWizardView) buildGroupStates() []widgets.Step {
+	groups := w.cfg.Groups
+	states := make([]widgets.Step, len(groups))
+	for gi, g := range groups {
+		states[gi] = widgets.Step{Label: g.Label, Status: widgets.StepPending}
+
+		// Determine end index (next group's start, or len(steps))
+		endIdx := len(w.cfg.Steps)
+		if gi+1 < len(groups) {
+			endIdx = groups[gi+1].StartIdx
+		}
+
+		allDone := true
+		hasActive := false
+		for si := g.StartIdx; si < endIdx; si++ {
+			switch w.stepStates[si].Status {
+			case widgets.StepActive:
+				hasActive = true
+				allDone = false
+			case widgets.StepPending:
+				allDone = false
+			}
+		}
+
+		if hasActive {
+			states[gi].Status = widgets.StepActive
+		} else if allDone {
+			states[gi].Status = widgets.StepDone
+		}
+	}
+	return states
+}
+
+// refreshGroupStates recomputes group states and updates the step bar (if present).
+func (w *InlineWizardView) refreshGroupStates() {
+	if len(w.cfg.Groups) == 0 {
+		return
+	}
+	w.groupStates = w.buildGroupStates()
+	if w.stepBar != nil {
+		w.stepBar.SetSteps(w.groupStates)
+	}
+}
+
+// syncStepBar updates the step bar after a step state change.
+// In grouped mode, it recomputes all group states. In classic mode,
+// it updates the individual step directly.
+func (w *InlineWizardView) syncStepBar(idx int, status widgets.StepStatus) {
+	w.stepStates[idx] = widgets.Step{Label: w.stepStates[idx].Label, Status: status}
+	if len(w.cfg.Groups) > 0 {
+		w.refreshGroupStates()
+	} else if w.stepBar != nil {
+		w.stepBar.UpdateStatus(idx, status)
+	}
 }
 
 func (w *InlineWizardView) Unmount() {
@@ -207,6 +346,8 @@ func (w *InlineWizardView) Unmount() {
 	w.hintsBar = nil
 	w.spinner = nil
 	w.doRenderStep = nil
+	w.bodyRow = nil
+	w.groupStates = nil
 }
 
 func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
@@ -217,22 +358,42 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return w.handleSummaryKey(event)
 	}
 
-	// When a CustomView step is active, forward key events directly to the
-	// step content's widget tree. Without this, the shell's global handler
-	// intercepts runes (for omnibar activation) and Enter before they can
-	// reach the focused widget's InputCapture.
 	idx := w.currentStep
-	if idx >= 0 && idx < len(w.cfg.Steps) && w.cfg.Steps[idx].CustomView != nil {
-		// Let Esc bubble up to the shell for back-navigation.
+	if idx < 0 || idx >= len(w.cfg.Steps) {
+		return event
+	}
+	step := w.cfg.Steps[idx]
+
+	// ── Ctrl+B: go back (all step types) ──
+	if event.Key() == tcell.KeyCtrlB {
+		w.goBack()
+		return nil
+	}
+
+	// ── CustomView steps: forward all non-Esc events to the widget tree ──
+	if step.CustomView != nil {
 		if event.Key() == tcell.KeyEscape {
-			return event
+			// Required CustomView steps: Esc does nothing (cannot skip).
+			// Optional CustomView steps: skip on Esc.
+			if !step.Required {
+				w.skipCurrent()
+				if !w.completed {
+					w.doRenderStep(w.currentStep)
+				}
+			}
+			return nil // consume Esc either way
 		}
 		if handler := w.stepContent.InputHandler(); handler != nil {
 			handler(event, func(p tview.Primitive) { w.app.SetFocus(p) })
 			return nil
 		}
+		return nil
 	}
 
+	// ── Form steps: let tview deliver to the focused form widget ──
+	// The form's own InputCapture handles Ctrl+S (submit) and its CancelFunc
+	// handles Esc (double-Esc skip for optional, block for required).
+	// We only intercept Ctrl+B (above); everything else passes through.
 	return event
 }
 
@@ -290,11 +451,7 @@ func (w *InlineWizardView) findPrev(from int) int {
 }
 
 func (w *InlineWizardView) skipCurrent() {
-	w.stepStates[w.currentStep] = widgets.Step{
-		Label:  w.stepStates[w.currentStep].Label,
-		Status: widgets.StepSkipped,
-	}
-	w.stepBar.UpdateStatus(w.currentStep, widgets.StepSkipped)
+	w.syncStepBar(w.currentStep, widgets.StepSkipped)
 
 	next := w.findNext(w.currentStep)
 	if next == -1 {
@@ -302,8 +459,7 @@ func (w *InlineWizardView) skipCurrent() {
 		return
 	}
 	w.currentStep = next
-	w.stepStates[next] = widgets.Step{Label: w.stepStates[next].Label, Status: widgets.StepActive}
-	w.stepBar.UpdateStatus(next, widgets.StepActive)
+	w.syncStepBar(next, widgets.StepActive)
 	w.renderInfoPanel()
 }
 
@@ -313,15 +469,10 @@ func (w *InlineWizardView) goBack() {
 		return
 	}
 	// Reset current to pending
-	w.stepStates[w.currentStep] = widgets.Step{
-		Label:  w.stepStates[w.currentStep].Label,
-		Status: widgets.StepPending,
-	}
-	w.stepBar.UpdateStatus(w.currentStep, widgets.StepPending)
+	w.syncStepBar(w.currentStep, widgets.StepPending)
 
 	// Reset previous to active
-	w.stepStates[prev] = widgets.Step{Label: w.stepStates[prev].Label, Status: widgets.StepActive}
-	w.stepBar.UpdateStatus(prev, widgets.StepActive)
+	w.syncStepBar(prev, widgets.StepActive)
 
 	// Pop last info entry
 	if len(w.infoAccum) > 0 {
@@ -341,11 +492,7 @@ func (w *InlineWizardView) advanceAfterDone(step WizardStep) {
 		w.infoAccum = append(w.infoAccum, inlineStepInfoEntry{label: step.Label, fields: nil})
 	}
 
-	w.stepStates[w.currentStep] = widgets.Step{
-		Label:  w.stepStates[w.currentStep].Label,
-		Status: widgets.StepDone,
-	}
-	w.stepBar.UpdateStatus(w.currentStep, widgets.StepDone)
+	w.syncStepBar(w.currentStep, widgets.StepDone)
 
 	next := w.findNext(w.currentStep)
 	if next == -1 {
@@ -353,8 +500,7 @@ func (w *InlineWizardView) advanceAfterDone(step WizardStep) {
 		return
 	}
 	w.currentStep = next
-	w.stepStates[next] = widgets.Step{Label: w.stepStates[next].Label, Status: widgets.StepActive}
-	w.stepBar.UpdateStatus(next, widgets.StepActive)
+	w.syncStepBar(next, widgets.StepActive)
 	w.renderInfoPanel()
 }
 
@@ -416,20 +562,21 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (w *InlineWizardView) renderStep(idx int) {
+	// Inject Rerender before reading the step so the Form callback can use it.
+	w.cfg.Steps[idx].Rerender = func() { w.doRenderStep(w.currentStep) }
+
 	step := w.cfg.Steps[idx]
 
 	// Dynamic skip check
 	if w.shouldSkip(idx) {
-		w.stepStates[idx] = widgets.Step{Label: w.stepStates[idx].Label, Status: widgets.StepDone}
-		w.stepBar.UpdateStatus(idx, widgets.StepDone)
+		w.syncStepBar(idx, widgets.StepDone)
 		next := w.findNext(idx)
 		if next == -1 {
 			w.wizardComplete()
 			return
 		}
 		w.currentStep = next
-		w.stepStates[next] = widgets.Step{Label: w.stepStates[next].Label, Status: widgets.StepActive}
-		w.stepBar.UpdateStatus(next, widgets.StepActive)
+		w.syncStepBar(next, widgets.StepActive)
 		w.renderInfoPanel()
 		w.doRenderStep(next)
 		return
@@ -438,10 +585,15 @@ func (w *InlineWizardView) renderStep(idx int) {
 	// Clear step content
 	w.stepContent.Clear()
 
-	// Step counter header ("◆ 2/5 — Label")
-	totalSteps, stepPos := w.countVisibleSteps(idx)
-	w.stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
-		widgets.ColorTag(theme.Accent), theme.IconActive, stepPos, totalSteps, step.Label))
+	// Step counter header — classic mode only (grouped mode uses sidebar)
+	if len(w.cfg.Groups) == 0 {
+		totalSteps, stepPos := w.countVisibleSteps(idx)
+		w.stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
+			widgets.ColorTag(theme.Accent), theme.IconActive, stepPos, totalSteps, step.Label))
+	}
+
+	// Refresh sidebar in grouped mode
+	w.renderInfoPanel()
 
 	// Wire Ctrl+B on the step content container
 	w.stepContent.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -566,7 +718,86 @@ func (w *InlineWizardView) renderStep(idx int) {
 				return event
 			})
 
-			w.stepContent.AddItem(form, 0, 1, true)
+			if len(w.cfg.Groups) > 0 {
+				// Grouped mode: remove buttons from the form and place them
+				// in a separate buttonForm at a fixed position (same as intros).
+				form.ClearButtons()
+
+				// Center the form content horizontally (max 60 cols)
+				form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+					const maxFormWidth = 60
+					if width > maxFormWidth {
+						pad := (width - maxFormWidth) / 2
+						return x + pad, y, maxFormWidth, height
+					}
+					return x, y, width, height
+				})
+
+				// Separate button form at fixed position
+				buttonForm := NewStyledButtonForm()
+				buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+
+				// Override the form's InputCapture to handle Tab→buttonForm
+				// on the last field, plus existing Ctrl+S/B shortcuts.
+				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					// Reset double-Esc on non-Esc key
+					if w.escPending && event.Key() != tcell.KeyEscape {
+						w.escPending = false
+						w.hintsBar.SetHints(w.StatusHints())
+					}
+					// Tab/Enter on the last form field → focus buttonForm
+					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
+						itemIdx, _ := form.GetFocusedItemIndex()
+						if itemIdx == form.GetFormItemCount()-1 {
+							w.app.SetFocus(buttonForm)
+							return nil
+						}
+					}
+					if event.Key() == tcell.KeyCtrlS {
+						onDone()
+						return nil
+					}
+					if event.Key() == tcell.KeyCtrlB {
+						w.goBack()
+						return nil
+					}
+					return event
+				})
+
+				// Backtab from buttonForm → back to form fields
+				buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					switch event.Key() {
+					case tcell.KeyLeft:
+						return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+					case tcell.KeyRight:
+						return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+					case tcell.KeyBacktab:
+						w.app.SetFocus(form)
+						return nil
+					case tcell.KeyCtrlS:
+						onDone()
+						return nil
+					}
+					return event
+				})
+
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				badge := BuildStepBadge(step.Label)
+				gapSpacer := tview.NewBox()
+				gapSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				w.stepContent.AddItem(topSpacer, 3, 0, false)
+				w.stepContent.AddItem(badge, 5, 0, false)
+				w.stepContent.AddItem(gapSpacer, 2, 0, false)
+				w.stepContent.AddItem(form, 0, 1, true)
+				w.stepContent.AddItem(buttonForm, 5, 0, false)
+				w.stepContent.AddItem(bottomSpacer, 3, 0, false)
+			} else {
+				w.stepContent.AddItem(form, 0, 1, true)
+			}
 			w.app.SetFocus(form)
 		}
 	} else {
@@ -589,6 +820,141 @@ func (w *InlineWizardView) renderInfoPanel() {
 		return
 	}
 
+	if len(w.cfg.Groups) > 0 {
+		w.renderGroupedSidebar()
+	} else {
+		w.renderClassicInfoPanel()
+	}
+}
+
+// renderGroupedSidebar renders the right-side info sidebar (grouped mode)
+// with a detailed tree-style recap including individual sub-steps.
+func (w *InlineWizardView) renderGroupedSidebar() {
+	var b strings.Builder
+
+	accent := widgets.ColorTag(theme.Accent)
+	success := widgets.ColorTag(theme.Success)
+	muted := widgets.ColorTag(theme.FgMuted)
+	secondary := widgets.ColorTag(theme.FgSecondary)
+	primary := widgets.ColorTag(theme.FgPrimary)
+	reset := "[-]"
+
+	fmt.Fprintf(&b, " %s%s %s%s\n", accent, theme.IconActive, i18n.T("wizard.sidebar.title"), reset)
+	fmt.Fprintf(&b, " %s─────────────────%s\n\n", muted, reset)
+
+	// Build a map of step index → accumulated info
+	infoByStep := make(map[int][]InfoField)
+	for _, si := range w.infoAccum {
+		for idx, s := range w.cfg.Steps {
+			if s.Label == si.label {
+				infoByStep[idx] = si.fields
+				break
+			}
+		}
+	}
+
+	for gi, g := range w.cfg.Groups {
+		endIdx := len(w.cfg.Steps)
+		if gi+1 < len(w.cfg.Groups) {
+			endIdx = w.cfg.Groups[gi+1].StartIdx
+		}
+
+		// Determine group status
+		groupStatus := widgets.StepPending
+		allDone := true
+		for si := g.StartIdx; si < endIdx; si++ {
+			switch w.stepStates[si].Status {
+			case widgets.StepActive:
+				groupStatus = widgets.StepActive
+				allDone = false
+			case widgets.StepPending:
+				allDone = false
+			}
+		}
+		if allDone && groupStatus != widgets.StepActive {
+			groupStatus = widgets.StepDone
+		}
+
+		// ── Group header ──
+		switch groupStatus {
+		case widgets.StepDone:
+			fmt.Fprintf(&b, " %s%s%s %s%s%s\n", success, theme.IconDone, reset, primary, g.Label, reset)
+		case widgets.StepActive:
+			fmt.Fprintf(&b, " %s%s%s %s%s%s\n", accent, theme.IconActive, reset, primary, g.Label, reset)
+		default:
+			fmt.Fprintf(&b, " %s%s %s%s\n", muted, theme.IconPending, g.Label, reset)
+		}
+
+		// ── Sub-steps within this group ──
+		// Collect visible sub-steps (skip SidebarHidden and dynamically skipped)
+		type subStep struct {
+			idx    int
+			label  string
+			status widgets.StepStatus
+		}
+		var subs []subStep
+		for si := g.StartIdx; si < endIdx; si++ {
+			step := w.cfg.Steps[si]
+			if step.SidebarHidden {
+				continue
+			}
+			if step.Skip {
+				continue
+			}
+			// Don't show dynamically-skipped future steps (e.g. Deploy without project)
+			if w.stepStates[si].Status == widgets.StepPending && step.SkipIf != nil && step.SkipIf() {
+				continue
+			}
+			subs = append(subs, subStep{idx: si, label: step.Label, status: w.stepStates[si].Status})
+		}
+
+		for _, ss := range subs {
+			switch ss.status {
+			case widgets.StepDone:
+				// Show InfoFields with tree connectors
+				fields := infoByStep[ss.idx]
+				if len(fields) == 0 {
+					fmt.Fprintf(&b, "   %s%s%s %s%s%s\n", success, theme.IconDone, reset, secondary, ss.label, reset)
+					continue
+				}
+				for fi, f := range fields {
+					if f.Value == "" {
+						continue
+					}
+					connector := "├"
+					if fi == len(fields)-1 {
+						connector = "└"
+					}
+					fmt.Fprintf(&b, "   %s%s %s:%s %s\n", muted, connector, f.Label, reset, f.Value)
+				}
+
+			case widgets.StepActive:
+				// ◆ Label ........ en cours
+				dots := " "
+				labelLen := len([]rune(ss.label))
+				// Fill dots to ~24 chars total (label + dots + " en cours")
+				if remaining := 20 - labelLen; remaining > 2 {
+					dots = " " + strings.Repeat(".", remaining) + " "
+				}
+				fmt.Fprintf(&b, "   %s%s %s%s%s%s%s\n",
+					accent, theme.IconActive, ss.label, muted, dots, i18n.T("wizard.sidebar.in_progress"), reset)
+
+			case widgets.StepSkipped:
+				fmt.Fprintf(&b, "   %s%s %s%s\n", muted, theme.IconSkipped, ss.label, reset)
+
+			default: // Pending
+				fmt.Fprintf(&b, "   %s%s %s%s\n", muted, theme.IconPending, ss.label, reset)
+			}
+		}
+
+		b.WriteString("\n")
+	}
+
+	w.infoPanel.SetText(b.String())
+}
+
+// renderClassicInfoPanel renders the bottom info panel (classic mode).
+func (w *InlineWizardView) renderClassicInfoPanel() {
 	var b strings.Builder
 
 	// Completed steps with their info fields
@@ -671,6 +1037,22 @@ func (w *InlineWizardView) fireComplete() {
 	}
 }
 
+// summaryTarget returns the target view ID and label for the summary screen,
+// preferring the Func callbacks (evaluated at render time) over static fields.
+func (w *InlineWizardView) summaryTarget() (viewID, label string) {
+	if w.cfg.SummaryTargetViewFunc != nil {
+		viewID = w.cfg.SummaryTargetViewFunc()
+	} else {
+		viewID = w.cfg.SummaryTargetView
+	}
+	if w.cfg.SummaryTargetLabelFunc != nil {
+		label = w.cfg.SummaryTargetLabelFunc()
+	} else {
+		label = w.cfg.SummaryTargetLabel
+	}
+	return
+}
+
 func (w *InlineWizardView) renderSummaryScreen() {
 	if w.stepContent == nil {
 		return
@@ -679,8 +1061,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	// Mark all remaining as done in the step bar
 	for i := range w.stepStates {
 		if w.stepStates[i].Status == widgets.StepActive {
-			w.stepStates[i].Status = widgets.StepDone
-			w.stepBar.UpdateStatus(i, widgets.StepDone)
+			w.syncStepBar(i, widgets.StepDone)
 		}
 	}
 
@@ -691,6 +1072,8 @@ func (w *InlineWizardView) renderSummaryScreen() {
 
 	// Build summary content
 	w.stepContent.Clear()
+
+	// ── Recap text ──
 	summary := tview.NewTextView().SetDynamicColors(true)
 	summary.SetBackgroundColor(theme.BgPanel)
 
@@ -719,26 +1102,34 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\n")
-
-	// Navigation proposals
-	if w.cfg.SummaryTargetView != "" {
-		label := w.cfg.SummaryTargetLabel
-		if label == "" {
-			label = i18n.T("wizard.summary.goto_detail")
-		}
-		fmt.Fprintf(&b, "  %s[Enter][-] %s\n",
-			widgets.ColorTag(theme.Accent), label)
-	}
-	fmt.Fprintf(&b, "  %s[Esc][-]   %s\n",
-		widgets.ColorTag(theme.FgMuted), i18n.T("wizard.summary.go_home"))
-
 	summary.SetText(b.String())
-	w.stepContent.AddItem(summary, 0, 1, true)
+	w.stepContent.AddItem(summary, 0, 1, false)
+
+	// ── Action button ──
+	targetView, _ := w.summaryTarget()
+	summaryForm := tview.NewForm()
+	summaryForm.SetBackgroundColor(theme.BgPanel)
+	summaryForm.SetButtonStyle(tcell.StyleDefault.
+		Background(theme.Accent).
+		Foreground(theme.BgPanel))
+	summaryForm.SetButtonActivatedStyle(tcell.StyleDefault.
+		Background(theme.Action).
+		Foreground(theme.BgPanel))
+	summaryForm.SetBorder(false)
+
+	summaryForm.AddButton(i18n.T("wizard.summary.start"), func() {
+		if targetView != "" && w.shell != nil {
+			w.shell.NavigateTo(targetView)
+		} else if w.shell != nil {
+			w.shell.PopView()
+		}
+	})
+
+	w.stepContent.AddItem(summaryForm, 3, 0, true)
+	w.app.SetFocus(summaryForm)
 
 	// Update hints
-	hints := "enter " + i18n.T("wizard.hint.navigate") + " · esc " + i18n.T("wizard.hint.close")
-	w.hintsBar.SetHints(hints)
+	w.hintsBar.SetHints("enter " + i18n.T("wizard.hint.submit"))
 
 	// Update info panel to show final state
 	w.renderInfoPanel()
@@ -746,21 +1137,56 @@ func (w *InlineWizardView) renderSummaryScreen() {
 
 func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
-	case tcell.KeyEnter:
-		if w.cfg.SummaryTargetView != "" && w.shell != nil {
-			w.shell.NavigateTo(w.cfg.SummaryTargetView)
-		}
-		return nil
-	case tcell.KeyEscape:
-		// Let the shell's global handler pop this view
+	case tcell.KeyEnter, tcell.KeyTab, tcell.KeyBacktab:
+		// Let tview deliver to the focused form button.
 		return event
 	}
-	return event
+	// Block everything else (Esc, runes, etc.).
+	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DropDown style fix
 // ─────────────────────────────────────────────────────────────────────────────
+
+// BuildStepBadge creates a centered rounded badge for use above form steps
+// in grouped mode. Returns a TextView with a fixed height of 5 rows.
+func BuildStepBadge(label string) *tview.TextView {
+	accent := widgets.ColorTag(theme.Accent)
+	border := widgets.ColorTag(theme.BorderCard)
+	reset := "[-]"
+
+	badgeText := fmt.Sprintf("   ◇  %s   ", label)
+	badgeWidth := len([]rune(badgeText))
+	top := "╭" + strings.Repeat("─", badgeWidth) + "╮"
+	bot := "╰" + strings.Repeat("─", badgeWidth) + "╯"
+
+	text := fmt.Sprintf("\n%s%s%s\n%s│%s%s%s%s│%s\n%s%s%s\n",
+		border, top, reset,
+		border, reset, accent, badgeText, border, reset,
+		border, bot, reset)
+
+	tv := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
+	tv.SetBackgroundColor(theme.BgPanel)
+	tv.SetText(text)
+	return tv
+}
+
+// NewStyledButtonForm creates a themed form with centered buttons for use
+// as the fixed-position button bar in grouped mode.
+func NewStyledButtonForm() *tview.Form {
+	f := tview.NewForm()
+	f.SetBackgroundColor(theme.BgPanel)
+	f.SetButtonsAlign(tview.AlignCenter)
+	f.SetButtonStyle(tcell.StyleDefault.
+		Background(theme.Accent).
+		Foreground(theme.BgPanel))
+	f.SetButtonActivatedStyle(tcell.StyleDefault.
+		Background(theme.Action).
+		Foreground(theme.BgPanel))
+	f.SetBorder(false)
+	return f
+}
 
 // fixFormDropDownStyles iterates over all form items and applies the correct
 // list popup styles to any DropDown. This is needed because tview.DropDown

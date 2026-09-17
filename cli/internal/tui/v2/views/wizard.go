@@ -67,11 +67,40 @@ type WizardStep struct {
 	// The user must either complete the form or quit the wizard (Ctrl+C).
 	Required bool
 
+	// SidebarHidden, when true, excludes this step from the sidebar in
+	// grouped mode. Use for transitional pages (intros, welcome) that
+	// don't configure anything.
+	SidebarHidden bool
+
 	// Validate is called before OnDone when the user submits the form.
 	// If it returns a non-empty string, the submission is blocked and
 	// the error message is displayed in the StatusBar for 3 seconds.
 	// If nil, no validation is performed (always passes).
 	Validate func() string
+
+	// Rerender is injected automatically by the wizard engine before calling
+	// Form. Dynamic forms (e.g. a DropDown that changes the set of fields)
+	// can call it to safely rebuild the current step from scratch.
+	//
+	// IMPORTANT: never call Rerender synchronously from a tview handler
+	// callback (InputCapture, SetSelectedFunc, etc.) — this would mutate
+	// the widget tree mid-handler. Always defer via a goroutine:
+	//
+	//   go func() { app.QueueUpdateDraw(func() { step.Rerender() }) }()
+	//
+	// This field is set automatically — do not set it in step definitions.
+	Rerender func()
+}
+
+// StepGroup defines a named group of wizard steps for the step bar.
+// When groups are configured on InlineWizardConfig, the step bar displays
+// group labels instead of individual step labels, providing a cleaner
+// high-level progression view.
+type StepGroup struct {
+	// Label is the display name shown in the step bar (e.g. "Provider").
+	Label string
+	// StartIdx is the 0-based index of the first step in this group.
+	StartIdx int
 }
 
 // WizardConfig configures the wizard.
@@ -349,6 +378,9 @@ func RunWizard(cfg WizardConfig) WizardResult {
 
 	// ── Step rendering ──
 	renderStep := func(idx int) {
+		// Inject Rerender before copying the step so the Form callback can use it.
+		cfg.Steps[idx].Rerender = func() { doRenderStep(currentStep) }
+
 		step := cfg.Steps[idx]
 
 		// Dynamic skip check

@@ -34,6 +34,15 @@ type TeamResolution struct {
 // The function must be cheap to call (cached in the wiring layer if necessary).
 type ResolveTeamFunc func() TeamResolution
 
+// InputCapturing is an optional interface that views implement when they
+// need full keyboard control (e.g. inline wizards with forms).
+// When CapturesInput() returns true, the shell's global key handler only
+// processes Ctrl+Q/Ctrl+C (quit) and delegates everything else to the
+// view's HandleKey, then to tview's focus-based widget delivery.
+type InputCapturing interface {
+	CapturesInput() bool
+}
+
 // View defines the contract for a navigable view in the TUI shell.
 // All views must be safe to Mount/Unmount multiple times throughout
 // the shell lifecycle.
@@ -144,6 +153,9 @@ type ShellAccess interface {
 	// router stack without requiring prior registration. Esc/Pop returns
 	// to the previous view. The pushed view receives SetShell automatically.
 	PushView(v View)
+	// PopView pops the current ephemeral view from the router stack,
+	// returning to the previous view. Returns false if already at root.
+	PopView() bool
 }
 
 // ActiveProject holds the minimal project context for the TUI project mode.

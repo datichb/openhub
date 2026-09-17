@@ -35,7 +35,8 @@ func (m *mockShell) SetMode(Mode)                                     {}
 func (m *mockShell) Mode() Mode                                       { return ModeHub }
 func (m *mockShell) SetActiveTeam(*ActiveTeam)                        {}
 func (m *mockShell) ActiveTeam() *ActiveTeam                          { return m.team }
-func (m *mockShell) PushView(View)                                    {}
+func (m *mockShell) PushView(View)       {}
+func (m *mockShell) PopView() bool       { return true }
 
 func TestBoardView_ImplementsView(t *testing.T) {
 	var _ View = (*BoardView)(nil)

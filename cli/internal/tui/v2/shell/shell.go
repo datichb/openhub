@@ -1026,6 +1026,12 @@ func (s *Shell) PushView(v views.View) {
 	s.router.Push(v)
 }
 
+// PopView pops the current ephemeral view from the router stack,
+// returning to the previous view. Returns false if already at root.
+func (s *Shell) PopView() bool {
+	return s.router.Pop()
+}
+
 // SetProjectMode activates or deactivates project mode.
 // Passing nil deactivates project mode (hub mode).
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {
@@ -1166,6 +1172,22 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	// If an inline overlay or sub-overlay is active, let it handle keys
 	if s.pages.HasPage("sub-overlay") || s.pages.HasPage("inline-overlay") {
 		return event
+	}
+
+	// ── InputCapturing views (e.g. inline wizards with forms) ────────
+	// When the current view captures input, only Ctrl+Q/C (handled above)
+	// and selection-clear remain global. Everything else is delegated to
+	// HandleKey first; if the view doesn't consume the event, it falls
+	// through to tview's normal focus-based widget delivery (forms, etc.).
+	if cur := s.router.Current(); cur != nil {
+		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
+			result := cur.HandleKey(event)
+			if result == nil {
+				return nil // view consumed the event
+			}
+			// View didn't consume → let tview deliver to the focused widget
+			return event
+		}
 	}
 
 	// Ctrl+P or /: activate omnibar

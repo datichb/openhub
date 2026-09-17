@@ -170,7 +170,8 @@ type WorktreeConfig struct {
 
 // CLIConfig holds CLI-specific settings.
 type CLIConfig struct {
-	Language string `mapstructure:"language" toml:"language"`
+	Language  string `mapstructure:"language" toml:"language"`
+	SetupDone bool   `mapstructure:"setup_done" toml:"setup_done,omitempty"`
 }
 
 // DeployConfig holds deployment behavior overrides.
