@@ -747,7 +747,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 			// Fix DropDown popup list colors (tview bakes them at construction
 			// time from tview.Styles, which produces invisible text in our theme).
-			fixFormDropDownStyles(form)
+			fixFormDropDownStyles(form, w.app, step.AutoAdvanceExclude...)
 
 			// Esc handling: Required steps block skip; optional use double-Esc
 			form.SetCancelFunc(func() {
@@ -1363,10 +1363,20 @@ func isLastFocusableFormItem(form *tview.Form, itemIdx int) bool {
 // bakes the popup list colors from tview.Styles at construction time, and
 // our shell theme produces invisible text (same color as background).
 // See ADR-034 for the full analysis.
-func fixFormDropDownStyles(form *tview.Form) {
+//
+// When app is non-nil, DropDowns also get auto-advance behavior: after the
+// user selects an option, focus moves to the next form field automatically.
+// excludeAutoAdvance lists form item indices whose DropDown should NOT
+// auto-advance (e.g. DropDowns that trigger a form rerender via Rerender).
+func fixFormDropDownStyles(form *tview.Form, app *tview.Application, excludeAutoAdvance ...int) {
 	if form == nil {
 		return
 	}
+	excludeSet := make(map[int]bool, len(excludeAutoAdvance))
+	for _, idx := range excludeAutoAdvance {
+		excludeSet[idx] = true
+	}
+
 	unselected := tcell.StyleDefault.
 		Background(theme.BgElement).
 		Foreground(theme.FgPrimary)
@@ -1379,6 +1389,30 @@ func fixFormDropDownStyles(form *tview.Form) {
 			dd.SetListStyles(unselected, selected)
 			// Add inner padding to the dropdown field and popup list items.
 			dd.SetTextOptions(" ", " ", " ", " ", "")
+
+			// Auto-advance: after the user picks an option, move focus to
+			// the next interactive field. Skip this for excluded indices
+			// (DropDowns whose callback rebuilds the form).
+			if app != nil && !excludeSet[i] {
+				capturedIdx := i
+				dd.SetSelectedFunc(func(_ string, _ int) {
+					app.QueueUpdateDraw(func() {
+						// Find the next focusable item (skip TextViews).
+						next := capturedIdx + 1
+						count := form.GetFormItemCount()
+						for next < count {
+							if _, isTV := form.GetFormItem(next).(*tview.TextView); !isTV {
+								break
+							}
+							next++
+						}
+						if next < count {
+							form.SetFocus(next)
+							app.SetFocus(form)
+						}
+					})
+				})
+			}
 		}
 	}
 }

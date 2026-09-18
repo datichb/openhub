@@ -257,6 +257,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 				return ""
 			},
+			// Exclude Provider (idx 0) and AuthMode (idx 1) DropDowns from
+			// auto-advance — their SetSelectedFunc triggers a full form rerender.
+			AutoAdvanceExclude: []int{0, 1},
 			Form: func(app *tview.Application, onDone func()) *tview.Form {
 				// Initialize defaults on first render (zero values).
 				// On subsequent re-renders (after a DropDown change), these
