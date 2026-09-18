@@ -55,6 +55,13 @@ type InlineWizardConfig struct {
 	// at the step index specified by StartIdx. When empty, the classic
 	// full-width layout with bottom info panel is used.
 	Groups []StepGroup
+
+	// RefreshLabels, when set, is called at the beginning of each step
+	// render to re-evaluate locale-dependent labels. Use this to support
+	// live locale switching: the callback should update Steps[i].Label,
+	// Steps[i].Processing, Groups[i].Label, and Title with fresh i18n.T()
+	// values. The engine then syncs stepStates and groupStates.
+	RefreshLabels func()
 }
 
 // InlineWizardView is a multi-step wizard that runs inside the TUI shell
@@ -627,6 +634,24 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (w *InlineWizardView) renderStep(idx int) {
+	// Re-evaluate locale-dependent labels before rendering.
+	if w.cfg.RefreshLabels != nil {
+		w.cfg.RefreshLabels()
+		// Sync stepStates and groupStates with updated labels.
+		for i, s := range w.cfg.Steps {
+			if i < len(w.stepStates) {
+				w.stepStates[i].Label = s.Label
+			}
+		}
+		if len(w.cfg.Groups) > 0 {
+			for gi, g := range w.cfg.Groups {
+				if gi < len(w.groupStates) {
+					w.groupStates[gi].Label = g.Label
+				}
+			}
+		}
+	}
+
 	// Inject Rerender before reading the step so the Form callback can use it.
 	w.cfg.Steps[idx].Rerender = func() { w.doRenderStep(w.currentStep) }
 

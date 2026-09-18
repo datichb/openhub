@@ -74,6 +74,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	// can call step.Rerender to rebuild the form on provider change.
 	var providerStepIdx int
 
+	// langStepIdx and langIdx track the Language step position and current
+	// selection. Used for live locale switching via Rerender.
+	var langStepIdx int
+	var langIdx int
+
 	var steps []views.WizardStep
 	steps = []views.WizardStep{
 		// ══════════════════════════════════════════════════════════════════════
@@ -162,35 +167,48 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 1 — Language
 		// ══════════════════════════════════════════════════════════════════════
-		{
+	{
 			Label:    i18n.T("cmd.init.wizard_step_lang"),
 			Required: true,
 			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 				langOptions := []string{"Français", "English"}
-				// Detect system locale for sensible default
-				defaultIdx := 0 // Français
-				sysLang := os.Getenv("LANG")
-				if sysLang == "" {
-					sysLang = os.Getenv("LC_ALL")
+				// Detect system locale on first render only
+				if selectedLang == "" {
+					sysLang := os.Getenv("LANG")
+					if sysLang == "" {
+						sysLang = os.Getenv("LC_ALL")
+					}
+					if sysLang != "" && !strings.Contains(strings.ToLower(sysLang), "fr") {
+						langIdx = 1
+						selectedLang = "en"
+					} else {
+						langIdx = 0
+						selectedLang = "fr"
+					}
+					i18n.SetLocale(selectedLang)
 				}
-				if sysLang != "" && !strings.Contains(strings.ToLower(sysLang), "fr") {
-					defaultIdx = 1 // English
+
+				rerenderLang := func() {
+					if fn := steps[langStepIdx].Rerender; fn != nil {
+						go func() { tvApp.QueueUpdateDraw(func() { fn() }) }()
+					}
 				}
-				if defaultIdx == 1 {
-					selectedLang = "en"
-				} else {
-					selectedLang = "fr"
-				}
+
 				form := tview.NewForm()
 				langMounted := false
-				form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, defaultIdx, func(option string, _ int) {
-					if option == "English" {
+				form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, langIdx, func(_ string, idx int) {
+					if langIdx == idx {
+						return // no change — avoid spurious rerender
+					}
+					langIdx = idx
+					if idx == 1 {
 						selectedLang = "en"
 					} else {
 						selectedLang = "fr"
 					}
+					i18n.SetLocale(selectedLang)
 					if langMounted {
-						views.AutoAdvanceFromDropDown(tvApp, form, 0)
+						rerenderLang()
 					}
 				})
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
@@ -225,11 +243,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"Provider",
-			i18n.T("cmd.init.wizard_intro_provider_title"),
-			i18n.T("cmd.init.wizard_intro_provider_desc"),
-			i18n.T("cmd.init.wizard_intro_provider_list"),
-			i18n.T("cmd.init.wizard_provider_list_items"),
-			i18n.T("cmd.init.wizard_provider_prereq"),
+			"cmd.init.wizard_intro_provider_title",
+			"cmd.init.wizard_intro_provider_desc",
+			"cmd.init.wizard_intro_provider_list",
+			"cmd.init.wizard_provider_list_items",
+			"cmd.init.wizard_provider_prereq",
 			"",
 			func() { providerSkipped = false },
 			func() { providerSkipped = true },
@@ -426,11 +444,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			i18n.T("cmd.init.wizard_step_team"),
-			i18n.T("cmd.init.wizard_intro_team_title"),
-			i18n.T("cmd.init.wizard_intro_team_desc"),
+			"cmd.init.wizard_intro_team_title",
+			"cmd.init.wizard_intro_team_desc",
 			"", "",
-			i18n.T("cmd.init.wizard_team_prereq"),
-			i18n.T("cmd.init.wizard_intro_team_optional"),
+			"cmd.init.wizard_team_prereq",
+			"cmd.init.wizard_intro_team_optional",
 			func() { teamState.Skipped = false },
 			func() { teamState.Skipped = true },
 		),
@@ -451,11 +469,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"Projet",
-			i18n.T("cmd.init.wizard_intro_project_title"),
-			i18n.T("cmd.init.wizard_intro_project_desc"),
+			"cmd.init.wizard_intro_project_title",
+			"cmd.init.wizard_intro_project_desc",
 			"", "",
 			"",
-			i18n.T("cmd.init.wizard_intro_project_optional"),
+			"cmd.init.wizard_intro_project_optional",
 			func() { projectSkipped = false },
 			func() { projectSkipped = true },
 		),
@@ -605,11 +623,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"MCP",
-			i18n.T("cmd.init.wizard_intro_mcp_title"),
-			i18n.T("cmd.init.wizard_intro_mcp_desc"),
-			i18n.T("cmd.init.wizard_intro_mcp_list"),
-			i18n.T("cmd.init.wizard_mcp_list_items"),
-			i18n.T("cmd.init.wizard_mcp_prereq"),
+			"cmd.init.wizard_intro_mcp_title",
+			"cmd.init.wizard_intro_mcp_desc",
+			"cmd.init.wizard_intro_mcp_list",
+			"cmd.init.wizard_mcp_list_items",
+			"cmd.init.wizard_mcp_prereq",
 			"",
 			func() { mcpSkipped = false },
 			func() { mcpSkipped = true },
@@ -763,6 +781,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 	)
 
+	// Resolve langStepIdx: Language step is always step 1.
+	langStepIdx = 1
+
 	// Resolve providerStepIdx dynamically: find the Provider form step.
 	// It's the first step that has both Form and SkipIf (the provider
 	// credential form that adapts dynamically).
@@ -773,7 +794,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		}
 	}
 
-	return views.NewInlineWizardView(views.InlineWizardConfig{
+	cfg := views.InlineWizardConfig{
 		ID:    "wizard.init",
 		Title: i18n.T("cmd.init.wizard_title"),
 		Steps: steps,
@@ -816,16 +837,48 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 			}
 		},
-	})
+	}
+
+	// RefreshLabels re-evaluates all construction-time i18n labels.
+	// Assigned after cfg is created because the closure references cfg.
+	cfg.RefreshLabels = func() {
+		cfg.Title = i18n.T("cmd.init.wizard_title")
+
+		// Group labels
+		cfg.Groups[0].Label = i18n.T("cmd.init.wizard_group_lang")
+		cfg.Groups[1].Label = i18n.T("cmd.init.wizard_group_provider")
+		cfg.Groups[2].Label = i18n.T("cmd.init.wizard_group_team")
+		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
+		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
+
+		// Step labels
+		steps[0].Label = i18n.T("cmd.init.wizard_step_welcome")
+		steps[1].Label = i18n.T("cmd.init.wizard_step_lang")
+		steps[3].Label = i18n.T("cmd.init.wizard_step_provider_label")
+		steps[3].Processing = i18n.T("cmd.init.wizard_processing_credentials")
+		steps[4].Label = i18n.T("cmd.init.wizard_step_team")
+		steps[5].Label = i18n.T("cmd.init.wizard_step_team")
+		steps[5].Processing = i18n.T("cmd.init.wizard_processing_team")
+		steps[6].Label = i18n.T("cmd.init.wizard_step_team")
+		steps[8].Label = i18n.T("cmd.init.wizard_step_project")
+		steps[8].Processing = i18n.T("cmd.init.wizard_processing_project")
+		steps[9].Label = i18n.T("cmd.init.wizard_step_deploy")
+		steps[9].Processing = i18n.T("cmd.init.wizard_deploy_processing")
+		steps[11].Label = i18n.T("cmd.init.wizard_step_mcp_figma")
+		steps[12].Label = i18n.T("cmd.init.wizard_step_mcp_gitlab")
+		steps[13].Label = i18n.T("cmd.init.wizard_step_mcp_gslides")
+	}
+
+	return views.NewInlineWizardView(cfg)
 }
 
-// buildIntroStep creates a CustomView step with a rounded badge, title,
-// description, optional list of items, and "Continue" / "Skip" buttons.
-// Used for group introduction pages in the first-run wizard.
+// buildIntroStep creates a CustomView step that serves as a group introduction.
+// Parameters are i18n KEYS (not resolved values) so the content is freshly
+// translated each time the step is rendered — essential for live locale switching.
 // When onSkip is non-nil, a "Skip" button is added alongside "Continue".
 // When onContinue is non-nil, it is called when "Continue" is clicked
 // (use to reset a skip flag when the user goes back and re-enters a group).
-func buildIntroStep(badge, title, desc, listTitle, listItems, prereqs, note string, onContinue, onSkip func()) views.WizardStep {
+func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereqsKey, noteKey string, onContinue, onSkip func()) views.WizardStep {
 	return views.WizardStep{
 		Label:         badge,
 		Required:      true,
@@ -835,6 +888,26 @@ func buildIntroStep(badge, title, desc, listTitle, listItems, prereqs, note stri
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor
+
+			// Resolve i18n keys at render time (not construction time)
+			title := i18n.T(titleKey)
+			desc := i18n.T(descKey)
+			listTitle := ""
+			listItems := ""
+			if listTitleKey != "" {
+				listTitle = i18n.T(listTitleKey)
+			}
+			if listItemsKey != "" {
+				listItems = i18n.T(listItemsKey)
+			}
+			prereqs := ""
+			if prereqsKey != "" {
+				prereqs = i18n.T(prereqsKey)
+			}
+			note := ""
+			if noteKey != "" {
+				note = i18n.T(noteKey)
+			}
 
 			var b strings.Builder
 			b.WriteString("\n")
