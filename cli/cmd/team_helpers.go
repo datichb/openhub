@@ -127,6 +127,7 @@ type initWizardTeamState struct {
 	Configured    bool   // true after successful teamInitCore or teamRejoinCore
 	TeamID        string // derived team ID (after init or rejoin)
 	attachProject bool   // true if user wants to attach the project to this team
+	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
 	Members       []teamstate.Member // fetched members for rejoin flow
 	// HTTPS credential state (shared by init and rejoin)
@@ -200,7 +201,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				if displayName == "" {
 					displayName = state.MemberID
 				}
-				err := teamInitCore(context.Background(), *a, teamInitParams{
+				err := teamInitCore(state.Ctx, *a, teamInitParams{
 					StateRepo:   state.Repo,
 					MemberID:    state.MemberID,
 					DisplayName: displayName,
@@ -305,7 +306,7 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 			OnDone: func() error {
 				if state.CredToken != "" {
 					return teamstate.ConfigureCredential(
-						context.Background(), state.Repo, state.CredUsername, state.CredToken,
+						state.Ctx, state.Repo, state.CredUsername, state.CredToken,
 					)
 				}
 				return nil
@@ -354,8 +355,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				return form
 			},
 			OnDone: func() error {
-				ctx := context.Background()
-				_, members, _, err := listTeamMembers(ctx, state.Repo, "")
+				_, members, _, err := listTeamMembers(state.Ctx, state.Repo, "")
 				if err != nil {
 					return err
 				}
@@ -445,8 +445,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				return state.Skipped || state.Mode != "rejoin"
 			},
 			OnDone: func() error {
-				ctx := context.Background()
-				result, err := teamRejoinCore(ctx, *a, teamRejoinParams{
+				result, err := teamRejoinCore(state.Ctx, *a, teamRejoinParams{
 					StateRepo: state.Repo,
 					MemberID:  state.MemberID,
 				})
@@ -458,7 +457,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				state.TeamID = result.TeamID
 
 				// Retro-tag sessions synchronously (wizard shows spinner)
-				_, _ = retroTagSessions(ctx, state.MemberID)
+				_, _ = retroTagSessions(state.Ctx, state.MemberID)
 
 				// Reload app so subsequent steps see the team
 				config.Reset()

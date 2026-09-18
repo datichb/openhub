@@ -62,7 +62,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	)
 
 	// Team wizard state — shared with buildInitWizardTeamSteps closures.
-	teamState := &initWizardTeamState{}
+	teamState := &initWizardTeamState{Ctx: context.Background()}
 
 	// appPtr lets team steps reload the app after hub.toml is updated.
 	appPtr := &a

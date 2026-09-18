@@ -106,7 +106,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	)
 
 	// Team wizard state — shared with buildInitWizardTeamSteps closures.
-	teamState := &initWizardTeamState{}
+	teamState := &initWizardTeamState{Ctx: ctx}
 	appPtr := &a
 
 	steps := []views.WizardStep{
@@ -133,7 +133,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 						language = "en"
 					}
 				})
-				form.AddInputField(i18n.T("cmd.init.opencode_version"), "", 0, nil, func(text string) {
+				form.AddInputField(i18n.T("cmd.init.opencode_version"), opencodeVer, 0, nil, func(text string) {
 					opencodeVer = text
 				})
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
@@ -350,7 +350,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					"", 0, '*',
 					func(text string) { bedrockToken = text },
 				)
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
 					bedrockRegion = text
 				})
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
@@ -397,10 +397,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddInputField(i18n.T("cmd.provider.bedrock.profile"), "", 0, nil, func(text string) {
+				form.AddInputField(i18n.T("cmd.provider.bedrock.profile"), bedrockProfile, 0, nil, func(text string) {
 					bedrockProfile = text
 				})
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
 					bedrockRegion = text
 				})
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
@@ -437,7 +437,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
 					bedrockRegion = text
 				})
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
