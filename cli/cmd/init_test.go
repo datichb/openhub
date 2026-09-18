@@ -1,68 +1,64 @@
 package cmd
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestBuildInitConfig_WithProvider(t *testing.T) {
-	result := buildInitConfig("fr", "latest", "bedrock", nil, "")
-	assert.Contains(t, result, `language = "fr"`)
-	assert.Contains(t, result, `version = "latest"`)
-	assert.Contains(t, result, `default_provider = "bedrock"`)
-	assert.Contains(t, result, "enabled = false") // no MCP selected
+func TestBuildInitialConfig_WithProvider(t *testing.T) {
+	result := buildInitialConfig("fr", "latest", "bedrock", nil, "")
+	assert.Equal(t, "fr", result.CLI.Language)
+	assert.Equal(t, "latest", result.Opencode.Version)
+	assert.Equal(t, "bedrock", result.Opencode.DefaultProvider)
+	assert.Equal(t, "stable", result.Opencode.Channel)
+	assert.Equal(t, false, result.Opencode.AutoUpdate)
+	assert.Equal(t, true, result.Worktree.AutoCleanup)
+	// No MCP selected — all disabled
+	assert.Equal(t, false, result.MCP.Figma.Enabled)
+	assert.Equal(t, false, result.MCP.Gitlab.Enabled)
+	assert.Equal(t, false, result.MCP.Gslides.Enabled)
 }
 
-func TestBuildInitConfig_WithMCP(t *testing.T) {
-	result := buildInitConfig("en", "1.17.15", "anthropic", []string{"figma", "gitlab"}, "")
-	assert.Contains(t, result, `language = "en"`)
-	assert.Contains(t, result, `version = "1.17.15"`)
-	assert.Contains(t, result, `default_provider = "anthropic"`)
-
-	// Figma and GitLab should be enabled
-	lines := strings.Split(result, "\n")
-	figmaSection := false
-	gitlabSection := false
-	gslidesSection := false
-	for _, line := range lines {
-		if strings.Contains(line, "[mcp.figma]") {
-			figmaSection = true
-			gitlabSection = false
-			gslidesSection = false
-		} else if strings.Contains(line, "[mcp.gitlab]") {
-			figmaSection = false
-			gitlabSection = true
-			gslidesSection = false
-		} else if strings.Contains(line, "[mcp.gslides]") {
-			figmaSection = false
-			gitlabSection = false
-			gslidesSection = true
-		}
-		if strings.TrimSpace(line) == "enabled = true" {
-			assert.True(t, figmaSection || gitlabSection, "only figma and gitlab should be enabled")
-			assert.False(t, gslidesSection, "gslides should not be enabled")
-		}
-	}
+func TestBuildInitialConfig_WithMCP(t *testing.T) {
+	result := buildInitialConfig("en", "1.17.15", "anthropic", []string{"figma", "gitlab"}, "")
+	assert.Equal(t, "en", result.CLI.Language)
+	assert.Equal(t, "1.17.15", result.Opencode.Version)
+	assert.Equal(t, "anthropic", result.Opencode.DefaultProvider)
+	// Figma and GitLab should be enabled, gslides should not
+	assert.Equal(t, true, result.MCP.Figma.Enabled)
+	assert.Equal(t, true, result.MCP.Gitlab.Enabled)
+	assert.Equal(t, false, result.MCP.Gslides.Enabled)
+	// Token keys should be set
+	assert.Equal(t, "figma-token", result.MCP.Figma.Token)
+	assert.Equal(t, "gitlab-token", result.MCP.Gitlab.Token)
 }
 
-func TestBuildInitConfig_NoMCP(t *testing.T) {
-	result := buildInitConfig("fr", "latest", "openrouter", []string{}, "")
-	assert.Contains(t, result, `default_provider = "openrouter"`)
+func TestBuildInitialConfig_NoMCP(t *testing.T) {
+	result := buildInitialConfig("fr", "latest", "openrouter", []string{}, "")
+	assert.Equal(t, "openrouter", result.Opencode.DefaultProvider)
 	// All MCP should be disabled
-	assert.Equal(t, 3, strings.Count(result, "enabled = false"))
-	assert.Equal(t, 0, strings.Count(result, "enabled = true"))
+	assert.Equal(t, false, result.MCP.Figma.Enabled)
+	assert.Equal(t, false, result.MCP.Gitlab.Enabled)
+	assert.Equal(t, false, result.MCP.Gslides.Enabled)
 }
 
-func TestBuildInitConfig_NilMCP(t *testing.T) {
-	// In the new flow, the initial config write passes nil for MCP services.
-	// All MCP sections should be present but disabled.
-	result := buildInitConfig("en", "latest", "bedrock", nil, "")
-	assert.Contains(t, result, `default_provider = "bedrock"`)
-	assert.Contains(t, result, "[mcp.figma]")
-	assert.Contains(t, result, "[mcp.gitlab]")
-	assert.Contains(t, result, "[mcp.gslides]")
-	assert.Equal(t, 3, strings.Count(result, "enabled = false"))
-	assert.Equal(t, 0, strings.Count(result, "enabled = true"))
+func TestBuildInitialConfig_NilMCP(t *testing.T) {
+	result := buildInitialConfig("en", "latest", "bedrock", nil, "")
+	assert.Equal(t, "bedrock", result.Opencode.DefaultProvider)
+	// All MCP disabled
+	assert.Equal(t, false, result.MCP.Figma.Enabled)
+	assert.Equal(t, false, result.MCP.Gitlab.Enabled)
+	assert.Equal(t, false, result.MCP.Gslides.Enabled)
+	// Token keys should still be populated
+	assert.Equal(t, "figma-token", result.MCP.Figma.Token)
+	assert.Equal(t, "gitlab-token", result.MCP.Gitlab.Token)
+	assert.Equal(t, "gslides-token", result.MCP.Gslides.Token)
+}
+
+func TestBuildInitialConfig_BranchPattern(t *testing.T) {
+	result := buildInitialConfig("en", "latest", "bedrock", nil, "feat/%s")
+	require.NotNil(t, result)
+	assert.Equal(t, "feat/%s", result.Worktree.BranchPattern)
 }

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -32,6 +32,286 @@ func init() {
 	configCmd.AddCommand(configWebsearchCmd())
 }
 
+// ─── configFieldMap: typed setter/unsetter for known config keys ─────────────
+
+// configField defines a setter and an unsetter for a known hub.toml key.
+type configField struct {
+	Set   func(c *config.Config, value string) error
+	Unset func(c *config.Config)
+}
+
+// parseBool accepts "true"/"false"/"1"/"0".
+func parseBoolValue(s string) (bool, error) {
+	switch strings.ToLower(s) {
+	case "true", "1", "yes":
+		return true, nil
+	case "false", "0", "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean value %q", s)
+	}
+}
+
+// configFieldMap maps dotted TOML keys to typed setters on the Config struct.
+// This is the canonical list of settable keys for "oh config set/unset".
+var configFieldMap = map[string]configField{
+	// CLI
+	"cli.language": {
+		Set:   func(c *config.Config, v string) error { c.CLI.Language = v; return nil },
+		Unset: func(c *config.Config) { c.CLI.Language = "" },
+	},
+	"cli.setup_done": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.CLI.SetupDone = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.CLI.SetupDone = false },
+	},
+	// Opencode
+	"opencode.version": {
+		Set:   func(c *config.Config, v string) error { c.Opencode.Version = v; return nil },
+		Unset: func(c *config.Config) { c.Opencode.Version = "" },
+	},
+	"opencode.channel": {
+		Set:   func(c *config.Config, v string) error { c.Opencode.Channel = v; return nil },
+		Unset: func(c *config.Config) { c.Opencode.Channel = "" },
+	},
+	"opencode.auto_update": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Opencode.AutoUpdate = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Opencode.AutoUpdate = false },
+	},
+	"opencode.install_dir": {
+		Set:   func(c *config.Config, v string) error { c.Opencode.InstallDir = v; return nil },
+		Unset: func(c *config.Config) { c.Opencode.InstallDir = "" },
+	},
+	"opencode.default_provider": {
+		Set:   func(c *config.Config, v string) error { c.Opencode.DefaultProvider = v; return nil },
+		Unset: func(c *config.Config) { c.Opencode.DefaultProvider = "" },
+	},
+	// Provider — Bedrock
+	"provider.bedrock.aws_profile": {
+		Set:   func(c *config.Config, v string) error { c.Provider.Bedrock.AWSProfile = v; return nil },
+		Unset: func(c *config.Config) { c.Provider.Bedrock.AWSProfile = "" },
+	},
+	"provider.bedrock.aws_region": {
+		Set:   func(c *config.Config, v string) error { c.Provider.Bedrock.AWSRegion = v; return nil },
+		Unset: func(c *config.Config) { c.Provider.Bedrock.AWSRegion = "" },
+	},
+	"provider.bedrock.auth_mode": {
+		Set:   func(c *config.Config, v string) error { c.Provider.Bedrock.AuthMode = v; return nil },
+		Unset: func(c *config.Config) { c.Provider.Bedrock.AuthMode = "" },
+	},
+	// Provider — Anthropic
+	"provider.anthropic.auth_mode": {
+		Set:   func(c *config.Config, v string) error { c.Provider.Anthropic.AuthMode = v; return nil },
+		Unset: func(c *config.Config) { c.Provider.Anthropic.AuthMode = "" },
+	},
+	// Provider — OpenRouter
+	"provider.openrouter.auth_mode": {
+		Set:   func(c *config.Config, v string) error { c.Provider.OpenRouter.AuthMode = v; return nil },
+		Unset: func(c *config.Config) { c.Provider.OpenRouter.AuthMode = "" },
+	},
+	// MCP — Figma
+	"mcp.figma.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.MCP.Figma.Enabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.MCP.Figma.Enabled = false },
+	},
+	"mcp.figma.token_key": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Figma.Token = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Figma.Token = "" },
+	},
+	// MCP — GitLab
+	"mcp.gitlab.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.MCP.Gitlab.Enabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.MCP.Gitlab.Enabled = false },
+	},
+	"mcp.gitlab.token_key": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Gitlab.Token = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Gitlab.Token = "" },
+	},
+	"mcp.gitlab.write_enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.MCP.Gitlab.WriteEnabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.MCP.Gitlab.WriteEnabled = false },
+	},
+	"mcp.gitlab.url": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Gitlab.URL = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Gitlab.URL = "" },
+	},
+	// MCP — Jira
+	"mcp.jira.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.MCP.Jira.Enabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.MCP.Jira.Enabled = false },
+	},
+	"mcp.jira.token_key": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Jira.Token = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Jira.Token = "" },
+	},
+	"mcp.jira.url": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Jira.URL = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Jira.URL = "" },
+	},
+	// MCP — Google Slides
+	"mcp.gslides.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.MCP.Gslides.Enabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.MCP.Gslides.Enabled = false },
+	},
+	"mcp.gslides.token_key": {
+		Set:   func(c *config.Config, v string) error { c.MCP.Gslides.Token = v; return nil },
+		Unset: func(c *config.Config) { c.MCP.Gslides.Token = "" },
+	},
+	// Worktree
+	"worktree.auto_cleanup": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Worktree.AutoCleanup = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Worktree.AutoCleanup = false },
+	},
+	"worktree.base_branch": {
+		Set:   func(c *config.Config, v string) error { c.Worktree.BaseBranch = v; return nil },
+		Unset: func(c *config.Config) { c.Worktree.BaseBranch = "" },
+	},
+	"worktree.branch_pattern": {
+		Set:   func(c *config.Config, v string) error { c.Worktree.BranchPattern = v; return nil },
+		Unset: func(c *config.Config) { c.Worktree.BranchPattern = "" },
+	},
+	// Models
+	"models.default": {
+		Set:   func(c *config.Config, v string) error { c.Models.Default = v; return nil },
+		Unset: func(c *config.Config) { c.Models.Default = "" },
+	},
+	// Websearch
+	"websearch.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Websearch.Enabled = b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Websearch.Enabled = false },
+	},
+	// Tracker
+	"tracker.enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Tracker.Enabled = &b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.Enabled = nil },
+	},
+	"tracker.auto_sync": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Tracker.AutoSync = &b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.AutoSync = nil },
+	},
+	"tracker.push_labels": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Tracker.PushLabels = &b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.PushLabels = nil },
+	},
+	"tracker.auto_plan_assigned": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Tracker.AutoPlanAssigned = &b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.AutoPlanAssigned = nil },
+	},
+	"tracker.max_auto_plan_per_member": {
+		Set: func(c *config.Config, v string) error {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("invalid integer value %q", v)
+			}
+			c.Tracker.MaxAutoPlanPerMember = &n
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.MaxAutoPlanPerMember = nil },
+	},
+}
+
+// configFieldKeys returns sorted keys from configFieldMap for completions.
+func configFieldKeys() []string {
+	keys := make([]string, 0, len(configFieldMap))
+	for k := range configFieldMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// ─── Commands ────────────────────────────────────────────────────────────────
+
 func configGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <key>",
@@ -41,18 +321,32 @@ func configGetCmd() *cobra.Command {
 			if len(args) > 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			v := configViper()
-			return v.AllKeys(), cobra.ShellCompDirectiveNoFileComp
+			cfg, err := config.Load()
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			m := cfg.ToMap()
+			keys := make([]string, 0, len(m))
+			for k := range m {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			return keys, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
 
-			v := configViper()
-			if !v.IsSet(key) {
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+			m := cfg.ToMap()
+			val, ok := m[key]
+			if !ok {
 				return fmt.Errorf("%s", i18n.Tf("cmd.config.key_not_found", key))
 			}
 
-			fmt.Fprintln(os.Stdout, v.Get(key))
+			fmt.Fprintln(os.Stdout, val)
 			return nil
 		},
 	}
@@ -64,19 +358,23 @@ func configSetCmd() *cobra.Command {
 		Use:   "set <key> <value>",
 		Short: "Modifie une valeur de configuration",
 		Args:  cobra.ExactArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return configFieldKeys(), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, value := args[0], args[1]
 
-			v := configViper()
-			v.Set(key, value)
-
-			// Ensure config directory exists
-			cfgPath := config.ConfigPath()
-			if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-				return fmt.Errorf("creating config directory: %w", err)
+			field, ok := configFieldMap[key]
+			if !ok {
+				return fmt.Errorf("unknown config key %q; run \"oh config list\" to see available keys", key)
 			}
 
-			if err := v.WriteConfigAs(cfgPath); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				return field.Set(c, value)
+			}); err != nil {
 				return fmt.Errorf("writing config: %w", err)
 			}
 
@@ -94,16 +392,19 @@ func configListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "Affiche toute la configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			v := configViper()
-			keys := v.AllKeys()
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+			m := cfg.ToMap()
+			keys := make([]string, 0, len(m))
+			for k := range m {
+				keys = append(keys, k)
+			}
 			sort.Strings(keys)
 
 			jsonOut, _ := cmd.Flags().GetBool("json")
 			if jsonOut {
-				m := make(map[string]interface{}, len(keys))
-				for _, k := range keys {
-					m[k] = v.Get(k)
-				}
 				return json.NewEncoder(os.Stdout).Encode(m)
 			}
 
@@ -115,7 +416,7 @@ func configListCmd() *cobra.Command {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, i18n.T("cmd.config.list.header"))
 			for _, k := range keys {
-				fmt.Fprintf(w, "%s\t%v\n", k, v.Get(k))
+				fmt.Fprintf(w, "%s\t%v\n", k, m[k])
 			}
 			w.Flush()
 			return nil
@@ -146,29 +447,20 @@ func configUnsetCmd() *cobra.Command {
 			if len(args) > 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			v := configViper()
-			return v.AllKeys(), cobra.ShellCompDirectiveNoFileComp
+			return configFieldKeys(), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := args[0]
 
-			v := configViper()
-			if !v.IsSet(key) {
-				return fmt.Errorf("%s", i18n.Tf("cmd.config.key_not_found", key))
+			field, ok := configFieldMap[key]
+			if !ok {
+				return fmt.Errorf("unknown config key %q; run \"oh config list\" to see available keys", key)
 			}
 
-			// Viper doesn't have a native "unset" — we need to read the raw TOML,
-			// remove the key, and rewrite. But for simplicity with Viper's API,
-			// we set the value to its zero value based on type.
-			// A cleaner approach: set to empty string and write.
-			v.Set(key, nil)
-
-			cfgPath := config.ConfigPath()
-			if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-				return fmt.Errorf("creating config directory: %w", err)
-			}
-
-			if err := v.WriteConfigAs(cfgPath); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				field.Unset(c)
+				return nil
+			}); err != nil {
 				return fmt.Errorf("writing config: %w", err)
 			}
 
@@ -188,11 +480,13 @@ func configLanguageCmd() *cobra.Command {
 		Long:  "Sans argument, affiche la langue actuelle. Avec argument (fr/en), change la langue.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			v := configViper()
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
 
 			if len(args) == 0 {
-				lang := v.GetString("cli.language")
-				fmt.Fprintf(os.Stdout, "%s\n", i18n.Tf("cmd.config.lang_current", theme.Bold.Render(lang)))
+				fmt.Fprintf(os.Stdout, "%s\n", i18n.Tf("cmd.config.lang_current", theme.Bold.Render(cfg.CLI.Language)))
 				return nil
 			}
 
@@ -204,14 +498,10 @@ func configLanguageCmd() *cobra.Command {
 				return fmt.Errorf("%s", i18n.Tf("cmd.config.lang_invalid", lang))
 			}
 
-			v.Set("cli.language", lang)
-
-			cfgPath := config.ConfigPath()
-			if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-				return fmt.Errorf("creating config directory: %w", err)
-			}
-
-			if err := v.WriteConfigAs(cfgPath); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				c.CLI.Language = lang
+				return nil
+			}); err != nil {
 				return fmt.Errorf("writing config: %w", err)
 			}
 
@@ -221,25 +511,6 @@ func configLanguageCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-// configViper returns a pre-configured Viper instance for the hub config.
-func configViper() *viper.Viper {
-	v := viper.New()
-	v.SetConfigName("hub")
-	v.SetConfigType("toml")
-	v.AddConfigPath(config.HubDir())
-	v.AddConfigPath(".")
-
-	// Defaults
-	v.SetDefault("cli.language", "en")
-	v.SetDefault("opencode.channel", "stable")
-	v.SetDefault("opencode.auto_update", false)
-	v.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-	v.SetDefault("websearch.enabled", false)
-
-	_ = v.ReadInConfig() // OK if not found
-	return v
 }
 
 func configWebsearchCmd() *cobra.Command {
@@ -254,16 +525,12 @@ La permission est injectée globalement dans opencode.json au deploy.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			action := args[0]
 
-			v := configViper()
-			cfgPath := config.ConfigPath()
-
 			switch action {
 			case "enable":
-				v.Set("websearch.enabled", true)
-				if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-					return fmt.Errorf("creating config directory: %w", err)
-				}
-				if err := v.WriteConfigAs(cfgPath); err != nil {
+				if err := config.Update(func(c *config.Config) error {
+					c.Websearch.Enabled = true
+					return nil
+				}); err != nil {
 					return fmt.Errorf("writing config: %w", err)
 				}
 				fmt.Fprintf(os.Stdout, "%s %s\n",
@@ -272,11 +539,10 @@ La permission est injectée globalement dans opencode.json au deploy.`,
 				fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
 
 			case "disable":
-				v.Set("websearch.enabled", false)
-				if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-					return fmt.Errorf("creating config directory: %w", err)
-				}
-				if err := v.WriteConfigAs(cfgPath); err != nil {
+				if err := config.Update(func(c *config.Config) error {
+					c.Websearch.Enabled = false
+					return nil
+				}); err != nil {
 					return fmt.Errorf("writing config: %w", err)
 				}
 				fmt.Fprintf(os.Stdout, "%s %s\n",
@@ -284,9 +550,12 @@ La permission est injectée globalement dans opencode.json au deploy.`,
 					i18n.T("cmd.config.websearch_disabled"))
 
 			case "status":
-				enabled := v.GetBool("websearch.enabled")
+				cfg, err := config.Load()
+				if err != nil {
+					return fmt.Errorf("loading config: %w", err)
+				}
 				status := i18n.T("cmd.config.websearch_off")
-				if enabled {
+				if cfg.Websearch.Enabled {
 					status = i18n.T("cmd.config.websearch_on")
 				}
 				fmt.Fprintf(os.Stdout, "%s\n",

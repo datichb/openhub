@@ -152,9 +152,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf("creating config directory: %w", err)
 				}
 
-				tomlContent := buildInitConfig(language, opencodeVer, provider, nil, detectBranchPatternHeuristic("."))
-				cfgPath := config.ConfigPath()
-				if err := os.WriteFile(cfgPath, []byte(tomlContent), 0o600); err != nil {
+				initialCfg := buildInitialConfig(language, opencodeVer, provider, nil, detectBranchPatternHeuristic("."))
+				if err := config.Save(initialCfg); err != nil {
 					return fmt.Errorf("writing config: %w", err)
 				}
 
@@ -215,20 +214,20 @@ func runInit(cmd *cobra.Command, args []string) error {
 					det := providerPkg.Detect(name)
 					// For bedrock with aws-profile source: persist profile/region in hub.toml
 					if name == providerPkg.Bedrock && det.Source == "aws-profile" {
-						v := configViper()
-						v.Set("provider.bedrock.auth_mode", "profile")
-						if awsProfile := os.Getenv("AWS_PROFILE"); awsProfile != "" {
-							v.Set("provider.bedrock.aws_profile", awsProfile)
-						} else {
-							v.Set("provider.bedrock.aws_profile", "default")
-						}
-						if region := os.Getenv("AWS_REGION"); region != "" {
-							v.Set("provider.bedrock.aws_region", region)
-						} else if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
-							v.Set("provider.bedrock.aws_region", region)
-						}
-						cfgPath := config.ConfigPath()
-						if err := v.WriteConfigAs(cfgPath); err != nil {
+						if err := config.Update(func(c *config.Config) error {
+							c.Provider.Bedrock.AuthMode = "profile"
+							if awsProfile := os.Getenv("AWS_PROFILE"); awsProfile != "" {
+								c.Provider.Bedrock.AWSProfile = awsProfile
+							} else {
+								c.Provider.Bedrock.AWSProfile = "default"
+							}
+							if region := os.Getenv("AWS_REGION"); region != "" {
+								c.Provider.Bedrock.AWSRegion = region
+							} else if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
+								c.Provider.Bedrock.AWSRegion = region
+							}
+							return nil
+						}); err != nil {
 							return fmt.Errorf("write config: %w", err)
 						}
 					}
@@ -272,13 +271,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 				return form
 			},
 			OnDone: func() error {
-				v := configViper()
-				v.Set("provider.bedrock.auth_mode", authMode)
-				cfgPath := config.ConfigPath()
-				if err := v.WriteConfigAs(cfgPath); err != nil {
-					return fmt.Errorf("write config: %w", err)
-				}
-				return nil
+				return config.Update(func(c *config.Config) error {
+					c.Provider.Bedrock.AuthMode = authMode
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{{Label: "Auth mode", Value: authMode}}
@@ -310,10 +306,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 				if bedrockRegion == "" {
 					bedrockRegion = "us-east-1"
 				}
-				v := configViper()
-				v.Set("provider.bedrock.aws_region", bedrockRegion)
-				cfgPath := config.ConfigPath()
-				if err := v.WriteConfigAs(cfgPath); err != nil {
+				if err := config.Update(func(c *config.Config) error {
+					c.Provider.Bedrock.AWSRegion = bedrockRegion
+					return nil
+				}); err != nil {
 					return fmt.Errorf("write config: %w", err)
 				}
 
@@ -363,14 +359,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 				if bedrockRegion == "" {
 					bedrockRegion = "us-east-1"
 				}
-				v := configViper()
-				v.Set("provider.bedrock.aws_profile", bedrockProfile)
-				v.Set("provider.bedrock.aws_region", bedrockRegion)
-				cfgPath := config.ConfigPath()
-				if err := v.WriteConfigAs(cfgPath); err != nil {
-					return fmt.Errorf("write config: %w", err)
-				}
-				return nil
+				return config.Update(func(c *config.Config) error {
+					c.Provider.Bedrock.AWSProfile = bedrockProfile
+					c.Provider.Bedrock.AWSRegion = bedrockRegion
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
@@ -765,73 +758,50 @@ func runInit(cmd *cobra.Command, args []string) error {
 // MCP helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// updateConfigMCP updates hub.toml to enable the selected MCP services.
+// updateConfigMCP enables the selected MCP services in hub.toml.
 func updateConfigMCP(mcpServices []string) {
-	v := configViper()
-	for _, svc := range mcpServices {
-		v.Set("mcp."+svc+".enabled", true)
-	}
-	cfgPath := config.ConfigPath()
-	_ = v.WriteConfigAs(cfgPath)
+	_ = config.Update(func(c *config.Config) error {
+		for _, svc := range mcpServices {
+			if s := c.MCPServer(svc); s != nil {
+				s.Enabled = true
+			}
+		}
+		return nil
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config generation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildInitConfig generates the hub.toml content.
+// buildInitialConfig creates the initial hub.toml Config struct.
 // branchPattern is optional: if non-empty it is written into [worktree].branch_pattern.
-func buildInitConfig(language, opencodeVer, provider string, mcpServices []string, branchPattern string) string {
-	var sb strings.Builder
-	sb.WriteString(`# oh — OpenHub CLI configuration
-# Generated by oh init
-
-[cli]
-`)
-	fmt.Fprintf(&sb, "language = %q\n", language)
-	sb.WriteString(`
-[opencode]
-`)
-	fmt.Fprintf(&sb, "version = %q\n", opencodeVer)
-	fmt.Fprintf(&sb, "default_provider = %q\n", provider)
-	sb.WriteString(`channel = "stable"
-auto_update = false
-install_dir = "~/.oh/bin"
-
-[worktree]
-auto_cleanup = true
-base_branch = ""
-`)
-	fmt.Fprintf(&sb, "branch_pattern = %q\n", branchPattern)
-	sb.WriteString("\n")
-
-	mcpSet := make(map[string]bool)
-	for _, s := range mcpServices {
-		mcpSet[s] = true
+func buildInitialConfig(language, opencodeVer, provider string, mcpServices []string, branchPattern string) *config.Config {
+	c := &config.Config{
+		CLI: config.CLIConfig{Language: language},
+		Opencode: config.OpencodeConfig{
+			Version:         opencodeVer,
+			DefaultProvider: provider,
+			Channel:         "stable",
+			AutoUpdate:      false,
+			InstallDir:      filepath.Join(config.HubDir(), "bin"),
+		},
+		Worktree: config.WorktreeConfig{
+			AutoCleanup:   true,
+			BranchPattern: branchPattern,
+		},
+		MCP: config.MCPConfig{
+			Figma:   config.MCPServerConfig{Token: "figma-token"},
+			Gitlab:  config.MCPServerConfig{Token: "gitlab-token"},
+			Gslides: config.MCPServerConfig{Token: "gslides-token"},
+		},
 	}
-
-	sb.WriteString(`
-[mcp.figma]
-`)
-	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["figma"])
-	sb.WriteString(`token_key = "figma-token"
-`)
-
-	sb.WriteString(`
-[mcp.gitlab]
-`)
-	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["gitlab"])
-	sb.WriteString(`token_key = "gitlab-token"
-`)
-
-	sb.WriteString(`
-[mcp.gslides]
-`)
-	fmt.Fprintf(&sb, "enabled = %v\n", mcpSet["gslides"])
-	sb.WriteString(`token_key = "gslides-token"
-`)
-
-	return sb.String()
+	for _, svc := range mcpServices {
+		if s := c.MCPServer(svc); s != nil {
+			s.Enabled = true
+		}
+	}
+	return c
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

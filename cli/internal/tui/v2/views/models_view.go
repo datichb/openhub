@@ -7,7 +7,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/spf13/viper"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -137,36 +136,36 @@ var modelFamilies = []string{"planning", "developer", "quality", "auditor", "des
 
 func (v *ModelsView) loadEntries() {
 	v.entries = nil
-	vip := modelsConfigViper()
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
 
 	// Hub default
-	hubDefault := vip.GetString("models.default")
-	if hubDefault != "" {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: hubDefault})
+	if cfg.Models.Default != "" {
+		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: cfg.Models.Default})
 	} else {
 		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: i18n.T("tui.models.not_set")})
 	}
 
 	// Hub families
-	hubFamilies := vip.GetStringMapString("models.families")
-	familyKeys := make([]string, 0, len(hubFamilies))
-	for k := range hubFamilies {
+	familyKeys := make([]string, 0, len(cfg.Models.Families))
+	for k := range cfg.Models.Families {
 		familyKeys = append(familyKeys, k)
 	}
 	sort.Strings(familyKeys)
 	for _, k := range familyKeys {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "family:" + k, Key: k, Value: hubFamilies[k]})
+		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "family:" + k, Key: k, Value: cfg.Models.Families[k]})
 	}
 
 	// Hub agents
-	hubAgents := vip.GetStringMapString("models.agents")
-	agentKeys := make([]string, 0, len(hubAgents))
-	for k := range hubAgents {
+	agentKeys := make([]string, 0, len(cfg.Models.Agents))
+	for k := range cfg.Models.Agents {
 		agentKeys = append(agentKeys, k)
 	}
 	sort.Strings(agentKeys)
 	for _, k := range agentKeys {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "agent:" + k, Key: k, Value: hubAgents[k]})
+		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "agent:" + k, Key: k, Value: cfg.Models.Agents[k]})
 	}
 
 	// Project-level overrides (first project for simplicity)
@@ -327,20 +326,17 @@ func (v *ModelsView) deleteEntry() {
 			return
 		}
 		if entry.Level == "hub" {
-			vip := modelsConfigViper()
-			switch {
-			case entry.Scope == "default":
-				vip.Set("models.default", "")
-			case len(entry.Scope) > 7 && entry.Scope[:7] == "family:":
-				families := vip.GetStringMapString("models.families")
-				delete(families, entry.Scope[7:])
-				vip.Set("models.families", families)
-			case len(entry.Scope) > 6 && entry.Scope[:6] == "agent:":
-				agents := vip.GetStringMapString("models.agents")
-				delete(agents, entry.Scope[6:])
-				vip.Set("models.agents", agents)
-			}
-			if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+			if err := config.Update(func(c *config.Config) error {
+				switch {
+				case entry.Scope == "default":
+					c.Models.Default = ""
+				case len(entry.Scope) > 7 && entry.Scope[:7] == "family:":
+					delete(c.Models.Families, entry.Scope[7:])
+				case len(entry.Scope) > 6 && entry.Scope[:6] == "agent:":
+					delete(c.Models.Agents, entry.Scope[6:])
+				}
+				return nil
+			}); err != nil {
 				v.shell.ShowToastMsg("Error: "+err.Error(), false)
 			}
 		} else {
@@ -354,18 +350,23 @@ func (v *ModelsView) deleteEntry() {
 }
 
 func (v *ModelsView) setHubModel(scope, model string) {
-	vip := modelsConfigViper()
-	switch {
-	case scope == "default":
-		vip.Set("models.default", model)
-	case len(scope) > 7 && scope[:7] == "family:":
-		key := "models.families." + scope[7:]
-		vip.Set(key, model)
-	case len(scope) > 6 && scope[:6] == "agent:":
-		key := "models.agents." + scope[6:]
-		vip.Set(key, model)
-	}
-	if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+	if err := config.Update(func(c *config.Config) error {
+		switch {
+		case scope == "default":
+			c.Models.Default = model
+		case len(scope) > 7 && scope[:7] == "family:":
+			if c.Models.Families == nil {
+				c.Models.Families = make(map[string]string)
+			}
+			c.Models.Families[scope[7:]] = model
+		case len(scope) > 6 && scope[:6] == "agent:":
+			if c.Models.Agents == nil {
+				c.Models.Agents = make(map[string]string)
+			}
+			c.Models.Agents[scope[6:]] = model
+		}
+		return nil
+	}); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg("Error: "+err.Error(), false)
 		}
@@ -435,10 +436,6 @@ func (v *ModelsView) deleteProjectModel(projectName, scope string) {
 			v.shell.ShowToastMsg("Error: "+err.Error(), false)
 		}
 	}
-}
-
-func modelsConfigViper() *viper.Viper {
-	return hubViper()
 }
 
 // ContextCommands returns contextual commands for the omnibar.

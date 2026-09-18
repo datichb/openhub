@@ -43,6 +43,8 @@ type Config struct {
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
 	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
+	// Websearch holds web search permission settings (Exa AI).
+	Websearch WebsearchConfig `mapstructure:"websearch" toml:"websearch,omitempty"`
 	// Workflow holds hub-level workflow overrides (applied on top of the base workflow).
 	Workflow *WorkflowHubConfig `mapstructure:"workflow" toml:"workflow,omitempty"`
 }
@@ -70,6 +72,24 @@ func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
 		}
 	}
 	return nil
+}
+
+// MCPServer returns a pointer to the MCPServerConfig for the given service name
+// (e.g. "figma", "gitlab", "jira", "gslides"). Returns nil if the name is unknown.
+// This allows dynamic dispatch by service name instead of hardcoding field access.
+func (c *Config) MCPServer(name string) *MCPServerConfig {
+	switch strings.ToLower(name) {
+	case "figma":
+		return &c.MCP.Figma
+	case "gitlab":
+		return &c.MCP.Gitlab
+	case "jira":
+		return &c.MCP.Jira
+	case "gslides":
+		return &c.MCP.Gslides
+	default:
+		return nil
+	}
 }
 
 // DefaultTeam returns the first enabled team, or nil if no teams are configured.
@@ -246,6 +266,12 @@ type TrackerLocalConfig struct {
 	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member" toml:"max_auto_plan_per_member,omitempty"`
 }
 
+// WebsearchConfig holds web search/fetch permission settings.
+// When Enabled is true, agents receive websearch and webfetch permissions via Exa AI.
+type WebsearchConfig struct {
+	Enabled bool `mapstructure:"enabled" toml:"enabled"`
+}
+
 var (
 	cfg     *Config
 	cfgOnce sync.Once
@@ -342,6 +368,7 @@ func Load() (*Config, error) {
 		v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
 		v.SetDefault("worktree.auto_cleanup", true)
 		v.SetDefault("worktree.base_branch", "")
+		v.SetDefault("websearch.enabled", false)
 
 		if err := v.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -430,6 +457,59 @@ func Save(c *Config) error {
 	cfg = nil
 	cfgErr = nil
 	return nil
+}
+
+// Update loads the current configuration, applies fn to mutate it, and saves the
+// result atomically. This is the recommended way to modify hub.toml for simple
+// mutations — it ensures the Load-Mutate-Save cycle is performed correctly.
+//
+// For complex flows that need to inspect the config before deciding what to change,
+// use Load() + direct mutation + Save() manually.
+func Update(fn func(*Config) error) error {
+	c, err := Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	if err := fn(c); err != nil {
+		return err
+	}
+	return Save(c)
+}
+
+// ToMap serializes the config to a flat dotted-key map suitable for display
+// (e.g. "oh config list", "oh config get <key>"). The map keys use the TOML
+// dotted notation (e.g. "cli.language", "mcp.gitlab.enabled").
+func (c *Config) ToMap() map[string]interface{} {
+	data, err := toml.Marshal(c)
+	if err != nil {
+		return nil
+	}
+	var m map[string]interface{}
+	if err := toml.Unmarshal(data, &m); err != nil {
+		return nil
+	}
+	flat := make(map[string]interface{})
+	flattenMap("", m, flat)
+	return flat
+}
+
+// flattenMap recursively flattens a nested map into dotted keys.
+func flattenMap(prefix string, src map[string]interface{}, dst map[string]interface{}) {
+	for k, v := range src {
+		key := k
+		if prefix != "" {
+			key = prefix + "." + k
+		}
+		switch val := v.(type) {
+		case map[string]interface{}:
+			flattenMap(key, val, dst)
+		case []interface{}:
+			// Keep arrays as-is (e.g. [[teams]], deploy.disable_native_agents)
+			dst[key] = val
+		default:
+			dst[key] = val
+		}
+	}
 }
 
 // checkExternalModification detects whether hub.toml was modified by another

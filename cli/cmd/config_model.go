@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -117,12 +115,15 @@ func configModelShowCmd() *cobra.Command {
 			projectID, _ := cmd.Flags().GetString("project")
 			jsonOut, _ := cmd.Flags().GetBool("json")
 
-			v := configViper()
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
 			a := MustApp()
 
-			hubDefault := v.GetString("models.default")
-			hubFamilies := v.GetStringMapString("models.families")
-			hubAgents := v.GetStringMapString("models.agents")
+			hubDefault := cfg.Models.Default
+			hubFamilies := cfg.Models.Families
+			hubAgents := cfg.Models.Agents
 
 			// JSON mode: output structured data and exit early
 			if jsonOut {
@@ -266,54 +267,69 @@ func configModelUnsetCmd() *cobra.Command {
 // --- Hub-level writers (hub.toml) ---
 
 func setHubModelDefault(model string) error {
-	v := configViper()
-	v.Set("models.default", model)
-	return writeHubConfig(v, "models.default", model)
+	if err := config.Update(func(c *config.Config) error {
+		c.Models.Default = model
+		return nil
+	}); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render("models.default"), model)
+	return nil
 }
 
 func setHubModelFamily(family, model string) error {
-	v := configViper()
-	v.Set("models.families."+family, model)
-	return writeHubConfig(v, "models.families."+family, model)
+	if err := config.Update(func(c *config.Config) error {
+		if c.Models.Families == nil {
+			c.Models.Families = make(map[string]string)
+		}
+		c.Models.Families[family] = model
+		return nil
+	}); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render("models.families."+family), model)
+	return nil
 }
 
 func setHubModelAgent(agentID, model string) error {
-	v := configViper()
-	v.Set("models.agents."+agentID, model)
-	return writeHubConfig(v, "models.agents."+agentID, model)
+	if err := config.Update(func(c *config.Config) error {
+		if c.Models.Agents == nil {
+			c.Models.Agents = make(map[string]string)
+		}
+		c.Models.Agents[agentID] = model
+		return nil
+	}); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess),
+		theme.Bold.Render("models.agents."+agentID), model)
+	return nil
 }
 
 func unsetHubModel(key string) error {
-	v := configViper()
-	v.Set(key, nil)
-
-	cfgPath := config.ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	if err := v.WriteConfigAs(cfgPath); err != nil {
-		return fmt.Errorf("writing config: %w", err)
+	if err := config.Update(func(c *config.Config) error {
+		switch {
+		case key == "models.default":
+			c.Models.Default = ""
+		case len(key) > 17 && key[:17] == "models.families.":
+			delete(c.Models.Families, key[17:])
+		case len(key) > 15 && key[:15] == "models.agents.":
+			delete(c.Models.Agents, key[15:])
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	fmt.Fprintf(os.Stdout, "%s %s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.T("cmd.config.unset_success"),
 		theme.Bold.Render(key))
-	return nil
-}
-
-func writeHubConfig(v *viper.Viper, key, value string) error {
-	cfgPath := config.ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	if err := v.WriteConfigAs(cfgPath); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
-
-	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(key), value)
 	return nil
 }
 

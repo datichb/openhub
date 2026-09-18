@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
@@ -109,13 +108,12 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 
 	if projectID == "" {
 		// Hub-level enable
-		v := configViper()
-		v.Set("mcp."+serviceName+".enabled", true)
-		cfgPath := config.ConfigPath()
-		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-			return fmt.Errorf("creating config dir: %w", err)
-		}
-		if err := v.WriteConfigAs(cfgPath); err != nil {
+		if err := config.Update(func(c *config.Config) error {
+			if s := c.MCPServer(serviceName); s != nil {
+				s.Enabled = true
+			}
+			return nil
+		}); err != nil {
 			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
@@ -204,13 +202,12 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 
 	if projectID == "" {
 		// Hub-level disable
-		v := configViper()
-		v.Set("mcp."+serviceName+".enabled", false)
-		cfgPath := config.ConfigPath()
-		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-			return fmt.Errorf("creating config dir: %w", err)
-		}
-		if err := v.WriteConfigAs(cfgPath); err != nil {
+		if err := config.Update(func(c *config.Config) error {
+			if s := c.MCPServer(serviceName); s != nil {
+				s.Enabled = false
+			}
+			return nil
+		}); err != nil {
 			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
@@ -456,18 +453,16 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 						return fmt.Errorf("updating project MCP config: %w", err)
 					}
 				} else {
-					v := configViper()
-					v.Set("mcp."+serviceName+".enabled", true)
-					v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
-					if serviceName == "gitlab" {
-						v.Set("mcp.gitlab.write_enabled", writeEnabled)
-					}
-
-					cfgPath := config.ConfigPath()
-					if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-						return fmt.Errorf("creating config dir: %w", err)
-					}
-					if err := v.WriteConfigAs(cfgPath); err != nil {
+					if err := config.Update(func(c *config.Config) error {
+						if s := c.MCPServer(serviceName); s != nil {
+							s.Enabled = true
+							s.Token = serviceName + "-token"
+							if serviceName == "gitlab" {
+								s.WriteEnabled = writeEnabled
+							}
+						}
+						return nil
+					}); err != nil {
 						return fmt.Errorf("writing config: %w", err)
 					}
 				}

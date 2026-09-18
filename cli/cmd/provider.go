@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rivo/tview"
@@ -475,21 +473,18 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 			i18n.Tf("cmd.provider.project_configured", string(name), project.Name))
 	} else {
 		// Hub-scoped: write to hub.toml
-		v := configViper()
 		if name == provider.Bedrock && rawConfig != "" {
 			parts := splitProviderRawConfig(rawConfig)
 			if len(parts) == 3 {
-				v.Set("provider.bedrock.aws_profile", parts[0])
-				v.Set("provider.bedrock.aws_region", parts[1])
-				v.Set("provider.bedrock.auth_mode", parts[2])
+				if err := config.Update(func(c *config.Config) error {
+					c.Provider.Bedrock.AWSProfile = parts[0]
+					c.Provider.Bedrock.AWSRegion = parts[1]
+					c.Provider.Bedrock.AuthMode = parts[2]
+					return nil
+				}); err != nil {
+					return fmt.Errorf("writing config: %w", err)
+				}
 			}
-		}
-		cfgPath := config.ConfigPath()
-		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-			return fmt.Errorf("creating config dir: %w", err)
-		}
-		if err := v.WriteConfigAs(cfgPath); err != nil {
-			return fmt.Errorf("writing config: %w", err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),

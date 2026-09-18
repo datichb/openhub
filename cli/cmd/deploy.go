@@ -295,8 +295,7 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 // project can be nil (pre-persist deployments); in that case hub-level team config is used.
 func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig, project *domain.Project) *deploy.Plan {
 	// Read websearch setting from hub config
-	v := configViper()
-	websearchEnabled := v.GetBool("websearch.enabled")
+	websearchEnabled := a.Config.Websearch.Enabled
 
 	// Resolve provider for model normalization
 	resolvedProvider := provider

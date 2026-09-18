@@ -123,6 +123,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 			Families: map[string]string{"quality": "claude-opus-4-20250514"},
 			Agents:   map[string]string{"reviewer": "claude-opus-4-20250514"},
 		},
+		Websearch: WebsearchConfig{Enabled: true},
 	}
 
 	// Save
@@ -188,6 +189,9 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 	assert.Equal(t, "claude-sonnet-4-20250514", loaded.Models.Default)
 	assert.Equal(t, "claude-opus-4-20250514", loaded.Models.Families["quality"])
 	assert.Equal(t, "claude-opus-4-20250514", loaded.Models.Agents["reviewer"])
+
+	// Websearch
+	assert.Equal(t, true, loaded.Websearch.Enabled)
 }
 
 // ─── TeamConfig.Validate + ValidateTeams tests ───────────────────────────────
@@ -282,4 +286,122 @@ func TestValidateTeams_Duplicates(t *testing.T) {
 	err := ValidateTeams(teams)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate")
+}
+
+// ─── Update tests ────────────────────────────────────────────────────────────
+
+func TestUpdate_Basic(t *testing.T) {
+	Reset()
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	ohDir := filepath.Join(tmpDir, ".oh")
+	require.NoError(t, os.MkdirAll(ohDir, 0o755))
+
+	initial := `[cli]
+language = "en"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(initial), 0o644))
+
+	// Update language
+	err := Update(func(c *Config) error {
+		c.CLI.Language = "fr"
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Reload and verify
+	Reset()
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, "fr", cfg.CLI.Language)
+}
+
+func TestUpdate_ChainedNoExternalModificationError(t *testing.T) {
+	Reset()
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	ohDir := filepath.Join(tmpDir, ".oh")
+	require.NoError(t, os.MkdirAll(ohDir, 0o755))
+
+	initial := `[cli]
+language = "en"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(initial), 0o644))
+
+	// Simulate wizard: multiple sequential Update calls must not trigger
+	// ErrExternalModification — this is the core bug fix verification.
+	err := Update(func(c *Config) error {
+		c.CLI.Language = "fr"
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = Update(func(c *Config) error {
+		c.Opencode.DefaultProvider = "bedrock"
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = Update(func(c *Config) error {
+		c.MCP.Figma.Enabled = true
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = Update(func(c *Config) error {
+		c.Websearch.Enabled = true
+		return nil
+	})
+	require.NoError(t, err)
+
+	// All four updates should succeed and all mutations should be preserved
+	Reset()
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, "fr", cfg.CLI.Language)
+	assert.Equal(t, "bedrock", cfg.Opencode.DefaultProvider)
+	assert.Equal(t, true, cfg.MCP.Figma.Enabled)
+	assert.Equal(t, true, cfg.Websearch.Enabled)
+}
+
+// ─── MCPServer tests ─────────────────────────────────────────────────────────
+
+func TestMCPServer_Dispatch(t *testing.T) {
+	c := &Config{}
+
+	assert.NotNil(t, c.MCPServer("figma"))
+	assert.NotNil(t, c.MCPServer("gitlab"))
+	assert.NotNil(t, c.MCPServer("jira"))
+	assert.NotNil(t, c.MCPServer("gslides"))
+	assert.NotNil(t, c.MCPServer("Figma")) // case-insensitive
+	assert.Nil(t, c.MCPServer("unknown"))
+
+	// Verify pointer identity — mutation through MCPServer must affect the config
+	c.MCPServer("gitlab").Enabled = true
+	c.MCPServer("gitlab").WriteEnabled = true
+	assert.Equal(t, true, c.MCP.Gitlab.Enabled)
+	assert.Equal(t, true, c.MCP.Gitlab.WriteEnabled)
+}
+
+// ─── ToMap tests ─────────────────────────────────────────────────────────────
+
+func TestToMap_AllKeys(t *testing.T) {
+	c := &Config{
+		CLI:      CLIConfig{Language: "fr"},
+		Opencode: OpencodeConfig{DefaultProvider: "bedrock", Channel: "stable"},
+		MCP: MCPConfig{
+			Gitlab: MCPServerConfig{Enabled: true, Token: "gitlab-token"},
+		},
+		Websearch: WebsearchConfig{Enabled: true},
+	}
+
+	m := c.ToMap()
+	require.NotNil(t, m)
+
+	assert.Equal(t, "fr", m["cli.language"])
+	assert.Equal(t, "bedrock", m["opencode.default_provider"])
+	assert.Equal(t, "stable", m["opencode.channel"])
+	assert.Equal(t, true, m["mcp.gitlab.enabled"])
+	assert.Equal(t, "gitlab-token", m["mcp.gitlab.token_key"])
+	assert.Equal(t, true, m["websearch.enabled"])
 }

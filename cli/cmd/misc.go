@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rivo/tview"
@@ -304,18 +303,16 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			i18n.Tf("cmd.service.project_configured", theme.Bold.Render(serviceName), project.Name))
 	} else {
 		// Hub-scoped: write to hub.toml
-		v := configViper()
-		v.Set("mcp."+serviceName+".enabled", true)
-		v.Set("mcp."+serviceName+".token_key", serviceName+"-token")
-		if serviceName == "gitlab" {
-			v.Set("mcp.gitlab.write_enabled", writeEnabled)
-		}
-
-		cfgPath := config.ConfigPath()
-		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-			return fmt.Errorf("creating config dir: %w", err)
-		}
-		if err := v.WriteConfigAs(cfgPath); err != nil {
+		if err := config.Update(func(c *config.Config) error {
+			if s := c.MCPServer(serviceName); s != nil {
+				s.Enabled = true
+				s.Token = serviceName + "-token"
+				if serviceName == "gitlab" {
+					s.WriteEnabled = writeEnabled
+				}
+			}
+			return nil
+		}); err != nil {
 			return fmt.Errorf("writing config: %w", err)
 		}
 
@@ -378,11 +375,12 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Disable in config
-	v := configViper()
-	v.Set("mcp."+serviceName+".enabled", false)
-
-	cfgPath := config.ConfigPath()
-	if err := v.WriteConfigAs(cfgPath); err != nil {
+	if err := config.Update(func(c *config.Config) error {
+		if s := c.MCPServer(serviceName); s != nil {
+			s.Enabled = false
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
 

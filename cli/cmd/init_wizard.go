@@ -11,7 +11,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
-	"github.com/spf13/viper"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -227,14 +226,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				i18n.SetLocale(selectedLang)
 
 				// Persist to hub.toml
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				vip.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-				_ = vip.ReadInConfig()
-				vip.Set("cli.language", selectedLang)
-				return vip.WriteConfigAs(config.ConfigPath())
+				return config.Update(func(c *config.Config) error {
+					c.CLI.Language = selectedLang
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				label := "Français"
@@ -383,24 +378,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return form
 			},
 			OnDone: func() error {
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				vip.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-				_ = vip.ReadInConfig()
-
-				vip.Set("opencode.default_provider", selectedProvider)
-
+				// Store secrets in keychain (non-config data)
 				switch selectedProvider {
 				case "bedrock":
-					vip.Set("provider.bedrock.auth_mode", authMode)
-					if region != "" {
-						vip.Set("provider.bedrock.aws_region", region)
-					}
-					if authMode == "profile" && profileName != "" {
-						vip.Set("provider.bedrock.aws_profile", profileName)
-					}
 					if authMode == "bearer" && token != "" && a.Secrets != nil {
 						keychainKey := provider.KeychainKey(provider.Bedrock, "")
 						if keychainKey != "" {
@@ -431,7 +411,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					// No token needed — uses gh auth
 				}
 
-				return vip.WriteConfigAs(config.ConfigPath())
+				return config.Update(func(c *config.Config) error {
+					c.Opencode.DefaultProvider = selectedProvider
+					if selectedProvider == "bedrock" {
+						c.Provider.Bedrock.AuthMode = authMode
+						if region != "" {
+							c.Provider.Bedrock.AWSRegion = region
+						}
+						if authMode == "profile" && profileName != "" {
+							c.Provider.Bedrock.AWSProfile = profileName
+						}
+					}
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				fields := []views.InfoField{{Label: "Provider", Value: selectedProvider}}
@@ -669,13 +661,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 				}
 				// Enable in config
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				_ = vip.ReadInConfig()
-				vip.Set("mcp.figma.enabled", true)
-				return vip.WriteConfigAs(config.ConfigPath())
+				return config.Update(func(c *config.Config) error {
+					c.MCP.Figma.Enabled = true
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				v := i18n.T("cmd.init.wizard_mcp_configured")
@@ -718,16 +707,13 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 						return fmt.Errorf("keychain: %w", err)
 					}
 				}
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				_ = vip.ReadInConfig()
-				vip.Set("mcp.gitlab.enabled", true)
-				if gitlabWrite {
-					vip.Set("mcp.gitlab.write", true)
-				}
-				return vip.WriteConfigAs(config.ConfigPath())
+				return config.Update(func(c *config.Config) error {
+					c.MCP.Gitlab.Enabled = true
+					if gitlabWrite {
+						c.MCP.Gitlab.WriteEnabled = true
+					}
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				v := i18n.T("cmd.init.wizard_mcp_configured")
@@ -770,13 +756,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 						return fmt.Errorf("keychain: %w", err)
 					}
 				}
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				_ = vip.ReadInConfig()
-				vip.Set("mcp.gslides.enabled", true)
-				return vip.WriteConfigAs(config.ConfigPath())
+				return config.Update(func(c *config.Config) error {
+					c.MCP.Gslides.Enabled = true
+					return nil
+				})
 			},
 			InfoFields: func() []views.InfoField {
 				v := i18n.T("cmd.init.wizard_mcp_configured")
@@ -828,14 +811,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		OnComplete: func(completed bool, err error) {
 			if completed && err == nil {
 				// Mark setup as done so the wizard doesn't re-launch
-				vip := viper.New()
-				vip.SetConfigName("hub")
-				vip.SetConfigType("toml")
-				vip.AddConfigPath(config.HubDir())
-				vip.SetDefault("opencode.install_dir", filepath.Join(config.HubDir(), "bin"))
-				_ = vip.ReadInConfig()
-				vip.Set("cli.setup_done", true)
-				if err := vip.WriteConfigAs(config.ConfigPath()); err != nil {
+				if err := config.Update(func(c *config.Config) error {
+					c.CLI.SetupDone = true
+					return nil
+				}); err != nil {
 					slog.Warn("failed to persist setup_done flag", "error", err)
 				}
 
