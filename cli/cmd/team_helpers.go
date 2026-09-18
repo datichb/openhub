@@ -49,6 +49,73 @@ func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeam
 // Wizard step (used in oh project add)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// httpsCredState holds mutable state for the HTTPS credential wizard step.
+type httpsCredState struct {
+	AuthChoice string // "provide", "skip", or "public"
+	Username   string // default "oauth2"
+	Token      string
+}
+
+// buildHTTPSCredStep returns a WizardStep that collects HTTPS credentials
+// (auth mode, username, token) and stores them via git credential approve.
+// The step auto-skips when the repo URL is not HTTPS.
+func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredState, extraSkipIf func() bool) views.WizardStep {
+	if state.Username == "" {
+		state.Username = "oauth2"
+	}
+	if state.AuthChoice == "" {
+		state.AuthChoice = "provide"
+	}
+	return views.WizardStep{
+		Label: i18n.T("cmd.team.init.step_credentials"),
+		SkipIf: func() bool {
+			if extraSkipIf != nil && extraSkipIf() {
+				return true
+			}
+			return !teamstate.IsHTTPS(*repoURL)
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			authOptions := []string{
+				i18n.T("cmd.team.init.cred_provide"),
+				i18n.T("cmd.team.init.cred_skip"),
+				i18n.T("cmd.team.init.cred_public"),
+			}
+			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
+				func(_ string, idx int) {
+					switch idx {
+					case 0:
+						state.AuthChoice = "provide"
+					case 1:
+						state.AuthChoice = "skip"
+					case 2:
+						state.AuthChoice = "public"
+					}
+				})
+			form.AddInputField("Username", state.Username, 0, nil,
+				func(text string) { state.Username = text })
+			form.AddPasswordField("Token", state.Token, 0, '*',
+				func(text string) { state.Token = text })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() {
+				if state.AuthChoice == "provide" && state.Token == "" {
+					return // block submit without token
+				}
+				onDone()
+			})
+			return form
+		},
+		OnDone: func() error {
+			if state.AuthChoice == "provide" && state.Token != "" {
+				return teamstate.ConfigureCredential(ctx, *repoURL, state.Username, state.Token)
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: "Auth", Value: "configured"}}
+		},
+	}
+}
+
 // initWizardTeamState holds mutable state shared across the team wizard steps.
 // It is allocated once by buildInitWizardTeamSteps and captured by closures.
 type initWizardTeamState struct {

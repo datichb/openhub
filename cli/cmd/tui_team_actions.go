@@ -170,51 +170,8 @@ func actionTeamInit() {
 	}
 
 	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
-	credStep := views.WizardStep{
-		Label: i18n.T("cmd.team.init.step_credentials"),
-		SkipIf: func() bool {
-			return !teamstate.IsHTTPS(stateRepo)
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			authOptions := []string{
-				i18n.T("cmd.team.init.cred_provide"),
-				i18n.T("cmd.team.init.cred_skip"),
-				i18n.T("cmd.team.init.cred_public"),
-			}
-			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
-				func(_ string, idx int) {
-					switch idx {
-					case 0:
-						credAuthChoice = "provide"
-					case 1:
-						credAuthChoice = "skip"
-					case 2:
-						credAuthChoice = "public"
-					}
-				})
-			form.AddInputField("Username", credUsername, 0, nil,
-				func(text string) { credUsername = text })
-			form.AddPasswordField("Token", credToken, 0, '*',
-				func(text string) { credToken = text })
-			form.AddButton(i18n.T("wizard.hint.submit"), func() {
-				if credAuthChoice == "provide" && credToken == "" {
-					return // block submit without token
-				}
-				onDone()
-			})
-			return form
-		},
-		OnDone: func() error {
-			if credAuthChoice == "provide" && credToken != "" {
-				return teamstate.ConfigureCredential(ctx, stateRepo, credUsername, credToken)
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Auth", Value: "configured"}}
-		},
-	}
+	credState := &httpsCredState{Username: credUsername, Token: credToken, AuthChoice: credAuthChoice}
+	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil)
 
 	// ── Step 1: Global Config ───────────────────────────────────────
 	configStep := views.WizardStep{
@@ -686,55 +643,8 @@ func actionTeamRejoin() {
 	}
 
 	// ── Step 0b: HTTPS Credentials (conditional) ────────────────────
-	var credUsername = "oauth2"
-	var credToken string
-	var credAuthChoice = "provide"
-
-	httpsCredStep := views.WizardStep{
-		Label: i18n.T("cmd.team.init.step_credentials"),
-		SkipIf: func() bool {
-			return !teamstate.IsHTTPS(stateRepo)
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			authOptions := []string{
-				i18n.T("cmd.team.init.cred_provide"),
-				i18n.T("cmd.team.init.cred_skip"),
-				i18n.T("cmd.team.init.cred_public"),
-			}
-			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
-				func(_ string, idx int) {
-					switch idx {
-					case 0:
-						credAuthChoice = "provide"
-					case 1:
-						credAuthChoice = "skip"
-					case 2:
-						credAuthChoice = "public"
-					}
-				})
-			form.AddInputField("Username", credUsername, 0, nil,
-				func(text string) { credUsername = text })
-			form.AddPasswordField("Token", credToken, 0, '*',
-				func(text string) { credToken = text })
-			form.AddButton(i18n.T("wizard.hint.submit"), func() {
-				if credAuthChoice == "provide" && credToken == "" {
-					return
-				}
-				onDone()
-			})
-			return form
-		},
-		OnDone: func() error {
-			if credAuthChoice == "provide" && credToken != "" {
-				return teamstate.ConfigureCredential(ctx, stateRepo, credUsername, credToken)
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Auth", Value: "configured"}}
-		},
-	}
+	rejoinCredState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
+	httpsCredStep := buildHTTPSCredStep(ctx, &stateRepo, rejoinCredState, nil)
 
 	// ── Step 1: Member selection ────────────────────────────────────
 	memberStep := views.WizardStep{
