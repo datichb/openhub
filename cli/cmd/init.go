@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -577,39 +578,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 11 — MCP: Figma token
 		// ══════════════════════════════════════════════════════════════════════
-		{
-			Label: i18n.T("cmd.init.step_figma_token"),
-			SkipIf: func() bool {
-				return !configureMCP || !mcpFigma
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddPasswordField(
-					i18n.Tf("cmd.init.mcp_token_prompt", "figma"),
-					"", 0, '*',
-					func(text string) { figmaToken = text },
-				)
-				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
-				return form
-			},
-			OnDone: func() error {
-				if figmaToken == "" {
-					return nil
-				}
-				if a != nil && a.Secrets != nil {
-					if err := a.Secrets.Set(ctx, config.DefaultFigmaTokenKey, figmaToken); err != nil {
-						return fmt.Errorf("storing figma token: %w", err)
-					}
-				}
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				if figmaToken == "" {
-					return []views.InfoField{{Label: "Figma", Value: "use env FIGMA_TOKEN"}}
-				}
-				return []views.InfoField{{Label: "Figma", Value: "stored in keychain"}}
-			},
-		},
+		buildMCPTokenStep(mcpTokenStepOpts{
+			LabelI18nKey: "cmd.init.step_figma_token",
+			DisplayName:  "Figma",
+			TokenKey:     config.DefaultFigmaTokenKey,
+			TokenVar:     &figmaToken,
+			SkipIf:       func() bool { return !configureMCP || !mcpFigma },
+			SecretsFunc:  func() domain.SecretStore { if a != nil { return a.Secrets }; return nil },
+		}),
 
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 12 — MCP: GitLab token
@@ -676,39 +652,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 14 — MCP: Google Slides token
 		// ══════════════════════════════════════════════════════════════════════
-		{
-			Label: i18n.T("cmd.init.step_gslides_token"),
-			SkipIf: func() bool {
-				return !configureMCP || !mcpGslides
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddPasswordField(
-					i18n.Tf("cmd.init.mcp_token_prompt", "gslides"),
-					"", 0, '*',
-					func(text string) { gslidesToken = text },
-				)
-				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
-				return form
-			},
-			OnDone: func() error {
-				if gslidesToken == "" {
-					return nil
-				}
-				if a != nil && a.Secrets != nil {
-					if err := a.Secrets.Set(ctx, config.DefaultGslidesTokenKey, gslidesToken); err != nil {
-						return fmt.Errorf("storing gslides token: %w", err)
-					}
-				}
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				if gslidesToken == "" {
-					return []views.InfoField{{Label: "Google Slides", Value: "use env GOOGLE_ACCESS_TOKEN"}}
-				}
-				return []views.InfoField{{Label: "Google Slides", Value: "stored in keychain"}}
-			},
-		},
+		buildMCPTokenStep(mcpTokenStepOpts{
+			LabelI18nKey: "cmd.init.step_gslides_token",
+			DisplayName:  "Google Slides",
+			TokenKey:     config.DefaultGslidesTokenKey,
+			TokenVar:     &gslidesToken,
+			SkipIf:       func() bool { return !configureMCP || !mcpGslides },
+			SecretsFunc:  func() domain.SecretStore { if a != nil { return a.Secrets }; return nil },
+		}),
 
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 15 — Team: create / rejoin / skip

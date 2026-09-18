@@ -23,10 +23,19 @@ type mcpTokenStepOpts struct {
 	HintI18nKey  string            // e.g. "cmd.init.mcp_hint_figma" (optional)
 	TokenVar     *string           // pointer to the caller's token variable
 	SkipIf       func() bool       // caller-specific skip logic
-	Secrets      domain.SecretStore // may be nil
+	Secrets      domain.SecretStore // may be nil; use SecretsFunc when not available at construction
+	SecretsFunc  func() domain.SecretStore // lazy alternative to Secrets (for init.go where app is nil at build time)
 	// AfterStore is called after the token is stored in keychain.
 	// Use it to enable the service in config.
 	AfterStore func() error
+}
+
+// resolveSecrets returns the secret store from opts, preferring SecretsFunc for lazy resolution.
+func (o mcpTokenStepOpts) resolveSecrets() domain.SecretStore {
+	if o.SecretsFunc != nil {
+		return o.SecretsFunc()
+	}
+	return o.Secrets
 }
 
 // buildMCPTokenStep returns a WizardStep that collects a token for an MCP
@@ -38,8 +47,8 @@ func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 		SkipIf: opts.SkipIf,
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			// Pre-fill from keychain if available
-			if *opts.TokenVar == "" && opts.Secrets != nil {
-				if existing, err := opts.Secrets.Get(context.Background(), opts.TokenKey); err == nil && existing != "" {
+			if secrets := opts.resolveSecrets(); *opts.TokenVar == "" && secrets != nil {
+				if existing, err := secrets.Get(context.Background(), opts.TokenKey); err == nil && existing != "" {
 					*opts.TokenVar = existing
 				}
 			}
@@ -59,8 +68,8 @@ func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 			if *opts.TokenVar == "" {
 				return nil
 			}
-			if opts.Secrets != nil {
-				if err := opts.Secrets.Set(context.Background(), opts.TokenKey, *opts.TokenVar); err != nil {
+			if secrets := opts.resolveSecrets(); secrets != nil {
+				if err := secrets.Set(context.Background(), opts.TokenKey, *opts.TokenVar); err != nil {
 					return fmt.Errorf("keychain: %w", err)
 				}
 			}
