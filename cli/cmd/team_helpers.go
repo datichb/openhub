@@ -71,7 +71,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 	return []views.WizardStep{
 		// ── Team form: repo + identity ──
 		{
-			Label: i18n.T("cmd.init.wizard_step_team"),
+			Label: i18n.T("cmd.init.wizard_step_team_form"),
 			SkipIf: func() bool {
 				return state.Skipped
 			},
@@ -110,7 +110,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 		},
 		// ── Team processing: clone + init + register ──
 		{
-			Label: i18n.T("cmd.init.wizard_step_team"),
+			Label: i18n.T("cmd.init.wizard_step_team_sync"),
 			SkipIf: func() bool {
 				return state.Skipped
 			},
@@ -142,11 +142,11 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			InfoFields: func() []views.InfoField {
 				if state.Configured {
 					return []views.InfoField{
-						{Label: i18n.T("cmd.init.wizard_step_team"), Value: i18n.T("cmd.init.wizard_team_connected")},
+						{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_connected")},
 					}
 				}
 				return []views.InfoField{
-					{Label: i18n.T("cmd.init.wizard_step_team"), Value: i18n.T("cmd.init.wizard_team_skipped")},
+					{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_skipped")},
 				}
 			},
 		},
