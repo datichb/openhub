@@ -392,3 +392,95 @@ func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
 	assert.Empty(t, state.Mode, "state.Mode should be empty after skip")
 	assert.True(t, doneCalled, "onDone should have been called after confirmed skip")
 }
+
+// ---------------------------------------------------------------------------
+// TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig
+//
+// P2.5: Verifies the wizard can be built and mounted with various
+// pre-existing configurations without panicking. Since the steps are
+// internal to the views package, we cannot programmatically advance
+// through all 19 steps from cmd. Instead we verify that different
+// configurations produce a valid wizard that mounts cleanly.
+// ---------------------------------------------------------------------------
+
+func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E wizard test in short mode")
+	}
+
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+
+	tests := []struct {
+		name   string
+		config *config.Config
+	}{
+		{
+			name:   "empty_config",
+			config: &config.Config{},
+		},
+		{
+			name: "provider_already_set",
+			config: &config.Config{
+				Opencode: config.OpencodeConfig{
+					DefaultProvider: "anthropic",
+				},
+			},
+		},
+		{
+			name: "team_already_configured",
+			config: &config.Config{
+				Teams: []config.TeamConfig{
+					{
+						ID:        "my-team",
+						Enabled:   true,
+						StateRepo: "https://example.com/team-state.git",
+						MemberID:  "alice",
+					},
+				},
+			},
+		},
+		{
+			name: "full_config",
+			config: &config.Config{
+				CLI: config.CLIConfig{Language: "fr"},
+				Opencode: config.OpencodeConfig{
+					DefaultProvider: "bedrock",
+					Channel:         "stable",
+				},
+				Teams: []config.TeamConfig{
+					{
+						ID:        "my-team",
+						Enabled:   true,
+						StateRepo: "https://example.com/team-state.git",
+						MemberID:  "bob",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := newMockApp(nil, nil)
+			a.Config = tt.config
+			a.Projects = &mockProjectStore{projects: []domain.Project{}}
+
+			wiz := buildFirstRunInlineWizard(a)
+			require.NotNil(t, wiz, "wizard should be built")
+
+			assert.Equal(t, "wizard.init", wiz.ID())
+
+			tvApp := tview.NewApplication()
+			content := tview.NewFlex().SetDirection(tview.FlexRow)
+			require.NotPanics(t, func() {
+				wiz.Mount(content, tvApp)
+			}, "wizard should mount without panic for config %s", tt.name)
+
+			assert.Greater(t, content.GetItemCount(), 0,
+				"mounted wizard should add items to the content container")
+
+			wiz.Unmount()
+		})
+	}
+}
