@@ -416,7 +416,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					mattermostUsername, 0, nil,
 					func(text string) { mattermostUsername = text })
 				form.AddInputField(
-					"Username tracker (optionnel)",
+					i18n.T("tui.team.identity_tracker_username"),
 					trackerUsername, 0, nil,
 					func(text string) { trackerUsername = text })
 				roles := []string{"lead", "dev", "reviewer"}
@@ -486,7 +486,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					mattermostUsername, 0, nil,
 					func(text string) { mattermostUsername = text })
 				form.AddInputField(
-					"Username tracker (optionnel)",
+					i18n.T("tui.team.identity_tracker_username"),
 					trackerUsername, 0, nil,
 					func(text string) { trackerUsername = text })
 				roles := []string{"lead", "dev", "reviewer"}

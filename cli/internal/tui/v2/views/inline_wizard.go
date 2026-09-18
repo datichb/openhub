@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -714,6 +715,12 @@ func (w *InlineWizardView) renderStep(idx int) {
 	// Reset double-Esc state
 	w.escPending = false
 	w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+
+	// ── Warn if both Form and CustomView are set (mutually exclusive) ──
+	if step.Form != nil && step.CustomView != nil {
+		slog.Warn("wizard step has both Form and CustomView set; CustomView takes precedence",
+			"step", step.Label, "idx", idx)
+	}
 
 	// ── CustomView path ──
 	if step.CustomView != nil {

@@ -64,11 +64,6 @@ func actionTeamInit() {
 
 		selectedPolicies []string
 		hasMember        bool
-
-		// HTTPS credential state (shared between Form and OnDone closures)
-		credUsername   = "oauth2"
-		credToken      string
-		credAuthChoice = "provide"
 	)
 
 	// Pre-fill from existing hub.toml if already configured
@@ -170,7 +165,7 @@ func actionTeamInit() {
 	}
 
 	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
-	credState := &httpsCredState{Username: credUsername, Token: credToken, AuthChoice: credAuthChoice}
+	credState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil)
 
 	// ── Step 1: Global Config ───────────────────────────────────────

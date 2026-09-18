@@ -25,14 +25,9 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialise oh pour la première fois",
-	Long: `Lance un wizard de configuration pour initialiser le hub et enregistrer le premier projet.
-
-Le wizard configure :
-  - La langue de l'interface et le provider LLM
-  - Les serveurs MCP (Figma, GitLab, Google Slides)
-  - Le projet (optionnel)`,
-	RunE: runInit,
+	Short: i18n.T("cmd.init.short"),
+	Long:  i18n.T("cmd.init.long"),
+	RunE:  runInit,
 }
 
 func init() {
@@ -432,7 +427,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 6b — Bedrock: env mode (region only)
+		// STEP 7 — Bedrock: env mode (region only)
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "Bedrock env config",
@@ -466,7 +461,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 7 — Anthropic / OpenRouter: API key
+		// STEP 8 — Anthropic / OpenRouter: API key
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "API Key",
@@ -515,7 +510,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 8 — MCP: configure?
+		// STEP 9 — MCP: configure?
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: i18n.T("cmd.init.section_mcp"),
@@ -537,7 +532,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 9 — MCP: service selection (checkboxes)
+		// STEP 10 — MCP: service selection (checkboxes)
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "MCP services",
@@ -580,7 +575,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 10 — MCP: Figma token
+		// STEP 11 — MCP: Figma token
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "Figma token",
@@ -617,7 +612,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 11 — MCP: GitLab token
+		// STEP 12 — MCP: GitLab token
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "GitLab token",
@@ -654,7 +649,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 12 — MCP: GitLab write permissions
+		// STEP 13 — MCP: GitLab write permissions
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "GitLab write mode",
@@ -679,7 +674,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 13 — MCP: Google Slides token
+		// STEP 14 — MCP: Google Slides token
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: "Google Slides token",
@@ -716,7 +711,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 14 — Team: create / rejoin / skip
+		// STEP 15 — Team: create / rejoin / skip
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: i18n.T("cmd.init.section_team"),
@@ -778,7 +773,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	steps = append(steps,
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 17 — Update config + extract hub content
+		// STEP 16 — Update config + extract hub content
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
 			Label:      "Finalize config",
@@ -804,7 +799,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 15 — Add first project?
+		// STEP 17 — Add first project?
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
 			Label: i18n.T("cmd.init.section_project"),

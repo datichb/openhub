@@ -524,7 +524,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		),
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 8 — First project (optional)
+		// STEP 5 — First project (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_project"),
@@ -618,7 +618,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 9 — Deploy agents/skills (conditional on project)
+		// STEP 6 — Deploy agents/skills (conditional on project)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_deploy"),
@@ -695,7 +695,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		),
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 8 — MCP Figma (optional)
+		// STEP 7 — MCP Figma (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		buildMCPTokenStep(mcpTokenStepOpts{
 			LabelI18nKey: "cmd.init.wizard_step_mcp_figma",
@@ -714,7 +714,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		}),
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 9 — MCP GitLab (optional)
+		// STEP 8 — MCP GitLab (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
 			Label: i18n.T("cmd.init.wizard_step_mcp_gitlab"),
@@ -773,7 +773,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 10 — MCP Google Slides (optional)
+		// STEP 9 — MCP Google Slides (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		buildMCPTokenStep(mcpTokenStepOpts{
 			LabelI18nKey: "cmd.init.wizard_step_mcp_gslides",
