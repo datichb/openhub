@@ -517,8 +517,14 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), "", 40, nil, func(t string) { projectName = t })
-				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), ".", 50, nil, func(t string) { projectPath = t })
+				// Use outer vars as initial values for retry-resilience.
+				initialName := projectName
+				initialPath := projectPath
+				if initialPath == "" {
+					initialPath = "."
+				}
+				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 40, nil, func(t string) { projectName = t })
+				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 50, nil, func(t string) { projectPath = t })
 
 				// If a team was configured, offer to attach the project
 				attachMounted := false
@@ -537,27 +543,30 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					})
 				}
 
-				form.AddButton(i18n.T("wizard.hint.submit"), func() {
-					if (*appPtr).Projects != nil {
-						p := &domain.Project{
-							ID:     uuid.New().String()[:8],
-							Name:   projectName,
-							Path:   projectPath,
-							Status: domain.ProjectStatusActive,
-						}
-						// Attach to team if user chose to
-						if teamState.Configured && teamState.attachProject && teamState.TeamID != "" {
-							tid := teamState.TeamID
-							p.TeamID = &tid
-						}
-						if err := (*appPtr).Projects.Create(context.Background(), p); err == nil {
-							projectCreated = true
-						}
-					}
-					onDone()
-				})
+				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 				attachMounted = true
 				return form
+			},
+			OnDone: func() error {
+				if (*appPtr).Projects == nil {
+					return fmt.Errorf("project store not initialized")
+				}
+				p := &domain.Project{
+					ID:     uuid.New().String()[:8],
+					Name:   projectName,
+					Path:   projectPath,
+					Status: domain.ProjectStatusActive,
+				}
+				// Attach to team if user chose to
+				if teamState.Configured && teamState.attachProject && teamState.TeamID != "" {
+					tid := teamState.TeamID
+					p.TeamID = &tid
+				}
+				if err := (*appPtr).Projects.Create(context.Background(), p); err != nil {
+					return fmt.Errorf("create project: %w", err)
+				}
+				projectCreated = true
+				return nil
 			},
 			InfoFields: func() []views.InfoField {
 				fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: i18n.T("cmd.init.wizard_project_added")}}

@@ -112,7 +112,7 @@ func TestListTeamMembers(t *testing.T) {
 
 	_, repo, _ := setupClaimTestApp(t)
 
-	_, members, err := listTeamMembers(context.Background(), repo.Remote(), repo.Path())
+	_, members, _, err := listTeamMembers(context.Background(), repo.Remote(), repo.Path())
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 	assert.Equal(t, "testuser", members[0].ID)

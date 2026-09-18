@@ -64,6 +64,11 @@ func actionTeamInit() {
 
 		selectedPolicies []string
 		hasMember        bool
+
+		// HTTPS credential state (shared between Form and OnDone closures)
+		credUsername   = "oauth2"
+		credToken      string
+		credAuthChoice = "provide"
 	)
 
 	// Pre-fill from existing hub.toml if already configured
@@ -172,9 +177,6 @@ func actionTeamInit() {
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			username := "oauth2"
-			token := ""
-			authChoice := "provide"
 			authOptions := []string{
 				i18n.T("cmd.team.init.cred_provide"),
 				i18n.T("cmd.team.init.cred_skip"),
@@ -184,34 +186,29 @@ func actionTeamInit() {
 				func(_ string, idx int) {
 					switch idx {
 					case 0:
-						authChoice = "provide"
+						credAuthChoice = "provide"
 					case 1:
-						authChoice = "skip"
+						credAuthChoice = "skip"
 					case 2:
-						authChoice = "public"
+						credAuthChoice = "public"
 					}
 				})
-			form.AddInputField("Username", username, 0, nil,
-				func(text string) { username = text })
-			form.AddPasswordField("Token", token, 0, '*',
-				func(text string) { token = text })
+			form.AddInputField("Username", credUsername, 0, nil,
+				func(text string) { credUsername = text })
+			form.AddPasswordField("Token", credToken, 0, '*',
+				func(text string) { credToken = text })
 			form.AddButton(i18n.T("wizard.hint.submit"), func() {
-				if authChoice == "provide" && token == "" {
+				if credAuthChoice == "provide" && credToken == "" {
 					return // block submit without token
 				}
 				onDone()
 			})
-
-			// Capture shared vars for OnDone
-			_ = &username
-			_ = &token
-			_ = &authChoice
 			return form
 		},
 		OnDone: func() error {
-			// The Form closure captures username/token/authChoice but since we need
-			// them in OnDone, we access them through the step Form closure.
-			// For now, credentials are configured via the form submit.
+			if credAuthChoice == "provide" && credToken != "" {
+				return teamstate.ConfigureCredential(ctx, stateRepo, credUsername, credToken)
+			}
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
@@ -673,7 +670,7 @@ func actionTeamRejoin() {
 		OnDone: func() error {
 			statePath = config.TeamStatePath(stateRepo)
 			var err error
-			_, members, err = listTeamMembers(ctx, stateRepo, statePath)
+			_, members, _, err = listTeamMembers(ctx, stateRepo, statePath)
 			if err != nil {
 				return err
 			}

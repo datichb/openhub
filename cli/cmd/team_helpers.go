@@ -288,7 +288,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 			OnDone: func() error {
 				ctx := context.Background()
-				_, members, err := listTeamMembers(ctx, state.Repo, "")
+				_, members, _, err := listTeamMembers(ctx, state.Repo, "")
 				if err != nil {
 					return err
 				}

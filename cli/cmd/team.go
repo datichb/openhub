@@ -1264,7 +1264,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 2: Clone/pull and list members ──
 	fmt.Fprintf(a.IO.Out, "  %s Cloning team-state...\n", theme.WarningStyle.Render(theme.IconDot))
-	_, members, err := listTeamMembers(ctx, repoURL, "")
+	_, members, _, err := listTeamMembers(ctx, repoURL, "")
 	if err != nil {
 		return err
 	}

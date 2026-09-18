@@ -25,8 +25,9 @@ type teamRejoinResult struct {
 	Member       teamstate.Member
 	TeamID       string
 	TeamName     string
-	EventCount   int // number of session.complete events found for this member
-	SessionCount int // number of local sessions retro-tagged
+	EventCount   int  // number of session.complete events found for this member
+	SessionCount int  // number of local sessions retro-tagged
+	StaleData    bool // true when pull failed and local (possibly outdated) content was used
 }
 
 // teamRejoinCore performs the core rejoin operations:
@@ -44,9 +45,16 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 	repo := teamstate.NewRepo(p.StateRepo, statePath)
 
-	// Ensure repo is ready (clone if needed, pull if already cloned)
+	// Ensure repo is ready (clone if needed, pull if already cloned).
+	// A PullWarning means the repo is cloned but pull failed (e.g. offline);
+	// proceed with local content rather than aborting.
+	var staleData bool
 	if err := repo.EnsureReady(ctx); err != nil {
-		return nil, fmt.Errorf("cloning team-state: %w", err)
+		if !teamstate.IsPullWarning(err) {
+			return nil, fmt.Errorf("cloning team-state: %w", err)
+		}
+		slog.Warn("team-state sync warning (using local content)", "error", err)
+		staleData = true
 	}
 
 	// Verify that the member exists in the repo
@@ -105,6 +113,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 		TeamID:     teamID,
 		TeamName:   newTeam.DisplayName(),
 		EventCount: eventCount,
+		StaleData:  staleData,
 	}, nil
 }
 
@@ -161,22 +170,28 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.
 // Used by the rejoin wizard to display the member selection list.
-func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamstate.Repo, []teamstate.Member, error) {
+// The stale return value is true when the pull failed and local (possibly outdated) content was used.
+func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamstate.Repo, []teamstate.Member, bool, error) {
 	if statePath == "" {
 		statePath = config.TeamStatePath(stateRepo)
 	}
 
 	repo := teamstate.NewRepo(stateRepo, statePath)
+	var stale bool
 	if err := repo.EnsureReady(ctx); err != nil {
-		return nil, nil, fmt.Errorf("cloning team-state: %w", err)
+		if !teamstate.IsPullWarning(err) {
+			return nil, nil, false, fmt.Errorf("cloning team-state: %w", err)
+		}
+		slog.Warn("team-state sync warning (using local content)", "error", err)
+		stale = true
 	}
 
 	members, err := repo.ListMembers()
 	if err != nil {
-		return nil, nil, fmt.Errorf("listing members: %w", err)
+		return nil, nil, false, fmt.Errorf("listing members: %w", err)
 	}
 
-	return repo, members, nil
+	return repo, members, stale, nil
 }
 
 // retroTagSessions updates existing sessions and agent_events that have no member_id
