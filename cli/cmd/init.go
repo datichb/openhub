@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
@@ -58,6 +59,18 @@ func runInit(cmd *cobra.Command, args []string) error {
 		if data, err := os.ReadFile(cfgPath); err == nil {
 			_ = os.WriteFile(cfgPath+".bak", data, 0o600)
 		}
+	}
+
+	// ── Lockfile: prevent concurrent wizard runs ─────────────────────────────
+	lockPath := filepath.Join(config.HubDir(), "init.lock")
+	if err := acquireInitLock(lockPath); err != nil {
+		return fmt.Errorf("another wizard is already running: %w", err)
+	}
+	defer releaseInitLock(lockPath)
+
+	// ── Pre-flight: check git availability ───────────────────────────────────
+	if _, err := exec.LookPath("git"); err != nil {
+		fmt.Fprintf(os.Stderr, "  %s %s\n", "⚠", i18n.T("cmd.init.git_not_found"))
 	}
 
 	// ── Shared state across wizard steps ──────────────────────────────────────
@@ -971,4 +984,35 @@ func detectBranchPatternHeuristic(dir string) string {
 	}
 
 	return ""
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lockfile helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// acquireInitLock creates a lockfile to prevent concurrent wizard runs.
+// The lock is considered stale after 1 hour.
+func acquireInitLock(path string) error {
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+
+	// Check for stale lock (older than 1 hour)
+	if info, err := os.Stat(path); err == nil {
+		if time.Since(info.ModTime()) > time.Hour {
+			_ = os.Remove(path) // stale, remove it
+		} else {
+			return fmt.Errorf("lockfile %s exists (created %s ago)", path, time.Since(info.ModTime()).Truncate(time.Second))
+		}
+	}
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(f, "%d\n", os.Getpid())
+	return f.Close()
+}
+
+// releaseInitLock removes the lockfile.
+func releaseInitLock(path string) {
+	_ = os.Remove(path)
 }

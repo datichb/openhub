@@ -6,7 +6,9 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"path/filepath"
 
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -52,6 +54,14 @@ func runTUIWithProject(projectName string) error {
 	// shell (which populates it via showToast) and the NotificationsView.
 	notifStore := shell.NewNotificationStore(200)
 
+	// ── Pre-warm secret store ──────────────────────────────────────────
+	// If filecrypt fallback is in use, the first Get() triggers a passphrase
+	// prompt via huh (BubbleTea). This MUST happen before tview takes over
+	// the terminal, otherwise the two TUI frameworks will conflict.
+	if a.Secrets != nil {
+		_, _ = a.Secrets.Get(context.Background(), "_probe_")
+	}
+
 	builtViews := buildViews(a, notifStore)
 
 	cfg := shell.Config{
@@ -82,8 +92,15 @@ func runTUIWithProject(projectName string) error {
 
 	// ── Push first-run wizard inline if needed ──────────────────────────
 	if firstRun {
-		wizard := buildFirstRunInlineWizard(a)
-		tuiShell.PushView(wizard)
+		lockPath := filepath.Join(config.HubDir(), "init.lock")
+		if err := acquireInitLock(lockPath); err != nil {
+			slog.Warn("skipping first-run wizard: another init may be running", "error", err)
+		} else {
+			wizard := buildFirstRunInlineWizard(a)
+			tuiShell.PushView(wizard)
+			// Lock is released when the TUI exits (deferred below).
+			defer releaseInitLock(lockPath)
+		}
 	}
 
 	err := tuiShell.Run()

@@ -84,6 +84,7 @@
   "cmd.doctor.tokens_ok": "%d/%d tokens OK",
   "cmd.init.already_initialized": "Warning: the hub is already initialized.",
   "cmd.init.confirm_reinit": "Re-running will reset your configuration. Continue? [y/N]",
+  "cmd.init.git_not_found": "git not found — team features, branch detection and git excludes will be unavailable.",
   "cmd.init.bd_already_init": "bd already initialized in this project.",
   "cmd.init.bd_init": "Initializing bd (ticket tracker)...",
   "cmd.init.bd_init_done": "Tracker bd initialized.",
