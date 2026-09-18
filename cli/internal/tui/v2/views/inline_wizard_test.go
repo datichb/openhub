@@ -867,3 +867,323 @@ func TestInlineWizardView_ErrorState_GoBack(t *testing.T) {
 
 	v.Unmount()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E2E full flow test (R20)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TestInlineWizardView_E2E_FullFlow exercises a complete wizard lifecycle:
+// advance, skip, goBack, error recovery, and completion across 8 synthetic steps.
+func TestInlineWizardView_E2E_FullFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E wizard test in short mode")
+	}
+
+	// Mutable state captured by step closures
+	var (
+		step1Value    string
+		step5Value    string
+		step6Attempts int
+		completed     bool
+		completedErr  error
+	)
+
+	skipStep2 := true // dynamic skip flag
+
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.e2e",
+		Title: "E2E Test",
+		Steps: []WizardStep{
+			// ── Step 0: CustomView (intro gate) ──
+			{
+				ID:       "intro",
+				Label:    "Welcome",
+				Required: true,
+				CustomView: func(_ *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView().SetText("Welcome to the wizard!")
+					container.AddItem(tv, 0, 1, false)
+				},
+			},
+
+			// ── Step 1: Form (required, captures input) ──
+			{
+				ID:       "form_required",
+				Label:    "Required Form",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Name", "", 0, nil, func(text string) { step1Value = text })
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+				OnDone: func() error { return nil },
+				InfoFields: func() []InfoField {
+					return []InfoField{{Label: "Name", Value: step1Value}}
+				},
+			},
+
+			// ── Step 2: Dynamically skipped ──
+			{
+				ID:     "skipped_dynamic",
+				Label:  "Skipped Step",
+				SkipIf: func() bool { return skipStep2 },
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Should not render", func() { onDone() })
+					return form
+				},
+			},
+
+			// ── Step 3: Optional (will be user-skipped via skipCurrent) ──
+			{
+				ID:    "optional",
+				Label: "Optional Step",
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Optional", "", 0, nil, nil)
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+			},
+
+			// ── Step 4: Processing-only (no Form, just OnDone) ──
+			{
+				ID:         "processing",
+				Label:      "Processing",
+				Processing: "Working...",
+				OnDone: func() error {
+					return nil
+				},
+				InfoFields: func() []InfoField {
+					return []InfoField{{Label: "Status", Value: "done"}}
+				},
+			},
+
+			// ── Step 5: Form with validation ──
+			{
+				ID:       "validated",
+				Label:    "Validated Step",
+				Required: true,
+				Validate: func() string {
+					if step5Value == "" {
+						return "value is required"
+					}
+					return ""
+				},
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddInputField("Value", step5Value, 0, nil, func(text string) { step5Value = text })
+					form.AddButton("Next", func() { onDone() })
+					return form
+				},
+				OnDone: func() error { return nil },
+				InfoFields: func() []InfoField {
+					return []InfoField{{Label: "Value", Value: step5Value}}
+				},
+			},
+
+			// ── Step 6: Form with OnDone that fails once then succeeds ──
+			{
+				ID:       "retry",
+				Label:    "Retry Step",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Submit", func() { onDone() })
+					return form
+				},
+				OnDone: func() error {
+					step6Attempts++
+					if step6Attempts == 1 {
+						return assert.AnError
+					}
+					return nil
+				},
+			},
+
+			// ── Step 7: Final step ──
+			{
+				ID:       "final",
+				Label:    "Summary",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					form := tview.NewForm()
+					form.AddButton("Finish", func() { onDone() })
+					return form
+				},
+				OnDone: func() error { return nil },
+			},
+		},
+		OnComplete: func(ok bool, err error) {
+			completed = ok
+			completedErr = err
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// ── Verify initial state ──
+	require.Equal(t, 0, v.currentStep, "should start on step 0 (intro)")
+	require.Len(t, v.stepStates, 8, "should have 8 step states")
+	assert.Equal(t, widgets.StepActive, v.stepStates[0].Status)
+
+	// ── Step 0 (CustomView): advance ──
+	v.advanceAfterDone(v.cfg.Steps[0])
+	assert.Equal(t, 1, v.currentStep, "should advance to step 1")
+	assert.Equal(t, widgets.StepDone, v.stepStates[0].Status)
+
+	// ── Step 1 (Form required): simulate input and advance ──
+	step1Value = "Alice"
+	v.advanceAfterDone(v.cfg.Steps[1])
+	// findNext skips step 2 (SkipIf=true) and returns step 3
+	assert.Equal(t, 3, v.currentStep, "should skip step 2 (SkipIf=true) and land on step 3")
+	assert.Equal(t, widgets.StepDone, v.stepStates[1].Status)
+	// Note: stepStates[2] stays StepPending (not StepSkipped) because the engine
+	// only marks skipped status when doRenderStep is called, not during findNext.
+
+	// ── Step 3 (Optional): user-skip via skipCurrent ──
+	v.skipCurrent()
+	assert.Equal(t, 4, v.currentStep, "should advance to step 4 after skip")
+	assert.Equal(t, widgets.StepSkipped, v.stepStates[3].Status)
+
+	// ── Step 4 (Processing-only): advance ──
+	v.advanceAfterDone(v.cfg.Steps[4])
+	assert.Equal(t, 5, v.currentStep, "should advance to step 5")
+	assert.Equal(t, widgets.StepDone, v.stepStates[4].Status)
+
+	// ── Step 5 (Validated): test validation failure then success ──
+	step5Value = ""
+	if v.cfg.Steps[5].Validate != nil {
+		assert.NotEmpty(t, v.cfg.Steps[5].Validate(), "validation should fail when empty")
+	}
+	step5Value = "important-data"
+	if v.cfg.Steps[5].Validate != nil {
+		assert.Empty(t, v.cfg.Steps[5].Validate(), "validation should pass when set")
+	}
+	v.advanceAfterDone(v.cfg.Steps[5])
+	assert.Equal(t, 6, v.currentStep, "should advance to step 6")
+	assert.Equal(t, widgets.StepDone, v.stepStates[5].Status)
+
+	// ── Step 6 (Retry): first attempt fails ──
+	err := v.cfg.Steps[6].OnDone()
+	assert.Error(t, err, "first attempt should fail")
+	assert.Equal(t, 1, step6Attempts)
+	v.wizardErr = err
+
+	// Retry: clear error and re-run
+	v.wizardErr = nil
+	err = v.cfg.Steps[6].OnDone()
+	assert.NoError(t, err, "second attempt should succeed")
+	v.advanceAfterDone(v.cfg.Steps[6])
+	assert.Equal(t, 7, v.currentStep, "should advance to step 7")
+	assert.Equal(t, widgets.StepDone, v.stepStates[6].Status)
+
+	// ── Test goBack from step 7 ──
+	v.goBack()
+	assert.Equal(t, 6, v.currentStep, "should go back to step 6")
+	v.advanceAfterDone(v.cfg.Steps[6])
+	assert.Equal(t, 7, v.currentStep)
+
+	// ── Step 7 (Final): complete ──
+	v.advanceAfterDone(v.cfg.Steps[7])
+	assert.True(t, v.completed, "wizard should be completed")
+	assert.True(t, completed, "OnComplete called with true")
+	assert.NoError(t, completedErr)
+
+	// ── Final step states ──
+	assert.Equal(t, widgets.StepDone, v.stepStates[0].Status, "step 0: done")
+	assert.Equal(t, widgets.StepDone, v.stepStates[1].Status, "step 1: done")
+	// step 2: skipped via SkipIf — status depends on engine rendering
+	assert.Equal(t, widgets.StepSkipped, v.stepStates[3].Status, "step 3: user-skipped")
+	assert.Equal(t, widgets.StepDone, v.stepStates[4].Status, "step 4: done")
+	assert.Equal(t, widgets.StepDone, v.stepStates[5].Status, "step 5: done")
+	assert.Equal(t, widgets.StepDone, v.stepStates[6].Status, "step 6: done")
+	assert.Equal(t, widgets.StepDone, v.stepStates[7].Status, "step 7: done")
+
+	// ── Verify info accumulator ──
+	assert.GreaterOrEqual(t, len(v.infoAccum), 3, "should have info from steps with InfoFields")
+
+	v.Unmount()
+}
+
+// TestInlineWizardView_E2E_HandleKey exercises InputCapture key events
+// (Ctrl+B for back) across multiple steps. Note: Esc handling for Form steps
+// is delegated to tview's form CancelFunc and cannot be tested without
+// Application.Run(); only CustomView Esc is handled by HandleKey directly.
+func TestInlineWizardView_E2E_HandleKey(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.keys",
+		Title: "Key Test",
+		Steps: []WizardStep{
+			{
+				ID:       "cv_required",
+				Label:    "CV Required",
+				Required: true,
+				CustomView: func(_ *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView().SetText("Intro")
+					container.AddItem(tv, 0, 1, false)
+				},
+			},
+			{
+				ID:    "cv_optional",
+				Label: "CV Optional",
+				CustomView: func(_ *tview.Application, container *tview.Flex, onDone func()) {
+					tv := tview.NewTextView().SetText("Optional")
+					container.AddItem(tv, 0, 1, false)
+				},
+			},
+			{
+				ID:    "form_step",
+				Label: "Form Step",
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddButton("Finish", func() { onDone() })
+					return f
+				},
+				OnDone: func() error { return nil },
+			},
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	assert.Equal(t, 0, v.currentStep)
+
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	ctrlBEvent := tcell.NewEventKey(tcell.KeyRune, 'b', tcell.ModCtrl)
+
+	// ── Esc on Required CustomView: NOT skipped, no escPending ──
+	result := v.HandleKey(escEvent)
+	assert.Nil(t, result, "Esc on required CustomView should be consumed")
+	assert.Equal(t, 0, v.currentStep, "Required CustomView not skipped")
+	assert.False(t, v.escPending, "Required CustomView should not set escPending")
+
+	// Advance step 0
+	v.advanceAfterDone(v.cfg.Steps[0])
+	assert.Equal(t, 1, v.currentStep)
+
+	// ── Single Esc on Optional CustomView: sets escPending ──
+	v.escPending = false
+	result = v.HandleKey(escEvent)
+	assert.Nil(t, result, "Esc should be consumed")
+	assert.True(t, v.escPending, "first Esc should set escPending on optional CustomView")
+	assert.Equal(t, 1, v.currentStep, "should not skip on single Esc")
+
+	// ── Double Esc on Optional CustomView: skips ──
+	result = v.HandleKey(escEvent)
+	assert.Nil(t, result)
+	assert.Equal(t, 2, v.currentStep, "double Esc should skip optional CustomView")
+	assert.Equal(t, widgets.StepSkipped, v.stepStates[1].Status)
+
+	// ── Ctrl+B on Form step: goes back to step 1 ──
+	result = v.HandleKey(ctrlBEvent)
+	assert.Nil(t, result, "Ctrl+B should be consumed")
+	// goBack finds prev non-skipped done step — step 1 was skipped, step 0 is done
+	assert.Equal(t, 0, v.currentStep, "Ctrl+B should go back past skipped step")
+
+	v.Unmount()
+}

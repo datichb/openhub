@@ -484,3 +484,59 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TestBuildFirstRunInlineWizard_E2E_HandleKey
+//
+// R20: Verifies that HandleKey events (Ctrl+B, Esc) on the real wizard
+// don't panic and behave correctly on the welcome CustomView step.
+// ---------------------------------------------------------------------------
+
+func TestBuildFirstRunInlineWizard_E2E_HandleKey(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E wizard HandleKey test in short mode")
+	}
+
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+
+	a := newMockApp(nil, nil)
+	a.Config = &config.Config{}
+	a.Projects = &mockProjectStore{projects: []domain.Project{}}
+
+	wiz := buildFirstRunInlineWizard(a)
+	require.NotNil(t, wiz)
+
+	tvApp := tview.NewApplication()
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	wiz.Mount(content, tvApp)
+
+	// The first step is the Welcome CustomView (Required). Verify HandleKey
+	// processes events without panicking.
+
+	// Esc on Required welcome: should be consumed without skip
+	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
+	require.NotPanics(t, func() {
+		wiz.HandleKey(escEvent)
+	}, "Esc on welcome step should not panic")
+
+	// Ctrl+B on first step: should not panic (no previous step)
+	ctrlBEvent := tcell.NewEventKey(tcell.KeyRune, 'b', tcell.ModCtrl)
+	require.NotPanics(t, func() {
+		wiz.HandleKey(ctrlBEvent)
+	}, "Ctrl+B on first step should not panic")
+
+	// Tab: should not panic
+	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	require.NotPanics(t, func() {
+		wiz.HandleKey(tabEvent)
+	}, "Tab on welcome step should not panic")
+
+	// Enter: should not panic
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	require.NotPanics(t, func() {
+		wiz.HandleKey(enterEvent)
+	}, "Enter on welcome step should not panic")
+
+	wiz.Unmount()
+}
