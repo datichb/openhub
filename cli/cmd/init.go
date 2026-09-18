@@ -45,6 +45,21 @@ func init() {
 func runInit(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	// ── Guard: warn if hub is already initialized ────────────────────────────
+	if existing, err := config.Load(); err == nil && existing.CLI.SetupDone {
+		fmt.Fprintf(os.Stderr, "%s\n", i18n.T("cmd.init.already_initialized"))
+		fmt.Fprintf(os.Stderr, "%s ", i18n.T("cmd.init.confirm_reinit"))
+		var answer string
+		if _, err := fmt.Fscanln(os.Stdin, &answer); err != nil || (answer != "y" && answer != "Y") {
+			return nil
+		}
+		// Backup existing config before overwriting.
+		cfgPath := config.ConfigPath()
+		if data, err := os.ReadFile(cfgPath); err == nil {
+			_ = os.WriteFile(cfgPath+".bak", data, 0o600)
+		}
+	}
+
 	// ── Shared state across wizard steps ──────────────────────────────────────
 	var (
 		language    string
@@ -694,7 +709,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			OnDone: func() error {
 				// Update hub.toml with MCP enabled flags
 				if len(mcpServices) > 0 {
-					updateConfigMCP(mcpServices)
+					if err := updateConfigMCP(mcpServices); err != nil {
+						return fmt.Errorf("updating MCP config: %w", err)
+					}
 				}
 
 				// Extract hub content
@@ -748,6 +765,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return wizResult.Err
 	}
 
+	// Mark setup as done so the TUI wizard doesn't re-trigger on next launch.
+	_ = config.Update(func(c *config.Config) error {
+		c.CLI.SetupDone = true
+		return nil
+	})
+
 	// Post-wizard: add project if requested
 	if addProject {
 		if a == nil {
@@ -785,8 +808,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // updateConfigMCP enables the selected MCP services in hub.toml.
-func updateConfigMCP(mcpServices []string) {
-	_ = config.Update(func(c *config.Config) error {
+func updateConfigMCP(mcpServices []string) error {
+	return config.Update(func(c *config.Config) error {
 		for _, svc := range mcpServices {
 			if s := c.MCPServer(svc); s != nil {
 				s.Enabled = true
@@ -817,9 +840,9 @@ func buildInitialConfig(language, opencodeVer, provider string, mcpServices []st
 			BranchPattern: branchPattern,
 		},
 		MCP: config.MCPConfig{
-			Figma:   config.MCPServerConfig{Token: "figma-token"},
-			Gitlab:  config.MCPServerConfig{Token: "gitlab-token"},
-			Gslides: config.MCPServerConfig{Token: "gslides-token"},
+			Figma:   config.MCPServerConfig{Token: config.DefaultFigmaTokenKey},
+			Gitlab:  config.MCPServerConfig{Token: config.DefaultGitLabTokenKey},
+			Gslides: config.MCPServerConfig{Token: config.DefaultGslidesTokenKey},
 		},
 	}
 	for _, svc := range mcpServices {

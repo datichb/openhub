@@ -82,6 +82,8 @@
   "cmd.doctor.some_failed": "Certaines vérifications ont échoué.",
   "cmd.doctor.tokens_missing": "%d/%d tokens trouvés (%d manquant(s) — lancez oh service setup)",
   "cmd.doctor.tokens_ok": "%d/%d tokens OK",
+  "cmd.init.already_initialized": "Attention : le hub est déjà initialisé.",
+  "cmd.init.confirm_reinit": "Relancer va réinitialiser votre configuration. Continuer ? [y/N]",
   "cmd.init.bd_already_init": "bd déjà initialisé dans ce projet.",
   "cmd.init.bd_init": "Initialisation de bd (ticket tracker)...",
   "cmd.init.bd_init_done": "Tracker bd initialisé.",
