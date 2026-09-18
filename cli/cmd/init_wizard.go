@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -310,12 +311,24 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				profileName = "default"
 			}
 
-			// ── Keychain detection: pre-fill token if already stored ──
-			if token == "" && a.Secrets != nil {
+			// ── Credential detection: check keychain and env vars ──
+			if token == "" {
 				name := providerPkg.Name(selectedProvider)
-				if key := providerPkg.KeychainKey(name, ""); key != "" {
-					if existing, err := a.Secrets.Get(context.Background(), key); err == nil && existing != "" {
-						token = existing
+				// Check keychain first
+				if a.Secrets != nil {
+					if key := providerPkg.KeychainKey(name, ""); key != "" {
+						if existing, err := a.Secrets.Get(context.Background(), key); err == nil && existing != "" {
+							token = existing
+						}
+					}
+				}
+				// Also check env/system via Detect (covers AWS profiles, env vars)
+				if token == "" {
+					det := providerPkg.Detect(name)
+					if det.Available && det.Source == "env" {
+						// Env-based credentials don't need a token field;
+						// signal is stored in detectedSource for InfoFields.
+						token = "" // keep empty — env credentials are implicit
 					}
 				}
 			}
@@ -458,6 +471,13 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					fields = append(fields, views.InfoField{
 						Label: "Warning",
 						Value: i18n.T("cmd.init.wizard_no_keyring"),
+					})
+				}
+				// Check opencode binary availability
+				if _, err := opencode.FindBinary(); err != nil {
+					fields = append(fields, views.InfoField{
+						Label: "Warning",
+						Value: i18n.T("cmd.init.wizard_opencode_not_found"),
 					})
 				}
 				return fields

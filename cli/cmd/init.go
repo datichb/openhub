@@ -120,6 +120,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		{
 			Label:    i18n.T("cmd.init.section_general"),
 			Required: true,
+			Validate: func() string {
+				if language == "" {
+					return i18n.T("cmd.init.wizard_lang_required")
+				}
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				langOptions := []string{"Français", "English"}
@@ -156,6 +162,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: i18n.T("cmd.init.section_provider"),
+			Validate: func() string {
+				if provider == "" {
+					return i18n.T("cmd.init.wizard_provider_required")
+				}
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				providerOptions := []string{
@@ -301,6 +313,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				authOptions := []string{
 					"Bearer Token (SSO/STS)",
 					"AWS Profile (~/.aws/credentials)",
+					"Environment Variables (AWS_ACCESS_KEY_ID)",
 				}
 				form.AddDropDown(i18n.T("cmd.provider.bedrock.auth_mode"), authOptions, -1, func(_ string, index int) {
 					switch index {
@@ -308,6 +321,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 						authMode = "bearer"
 					case 1:
 						authMode = "profile"
+					case 2:
+						authMode = "env"
 					}
 				})
 				form.AddButton("Next", func() { onDone() })
@@ -411,6 +426,40 @@ func runInit(cmd *cobra.Command, args []string) error {
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
 					{Label: "Profile", Value: bedrockProfile},
+					{Label: "Region", Value: bedrockRegion},
+				}
+			},
+		},
+
+		// ══════════════════════════════════════════════════════════════════════
+		// STEP 6b — Bedrock: env mode (region only)
+		// ══════════════════════════════════════════════════════════════════════
+		{
+			Label: "Bedrock env config",
+			SkipIf: func() bool {
+				return provider != "bedrock" || useExisting || !configureNow || authMode != "env"
+			},
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
+					bedrockRegion = text
+				})
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+			OnDone: func() error {
+				if bedrockRegion == "" {
+					bedrockRegion = "us-east-1"
+				}
+				return config.Update(func(c *config.Config) error {
+					c.Provider.Bedrock.AuthMode = "env"
+					c.Provider.Bedrock.AWSRegion = bedrockRegion
+					return nil
+				})
+			},
+			InfoFields: func() []views.InfoField {
+				return []views.InfoField{
+					{Label: "Auth", Value: "env"},
 					{Label: "Region", Value: bedrockRegion},
 				}
 			},
