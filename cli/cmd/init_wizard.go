@@ -112,6 +112,15 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 %s3.%s `+i18n.T("cmd.init.wizard_step_team_desc_welcome")+`
 %s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
 %s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
+
+%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s
+
+%s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
+
+%s`+i18n.T("cmd.init.wizard_checklist_note")+`%s
 `,
 					accent, reset, accent, reset, accent, reset,
 					accent, reset, accent, reset, accent, reset,
@@ -121,6 +130,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					accent, reset, accent, reset,
 					accent, reset, accent, reset,
 					accent, reset,
+					muted, reset,
+					secondary, reset,
+					accent, reset,
+					accent, reset,
+					accent, reset,
+					muted, reset,
 				))
 
 				// Button form for "Get started"
