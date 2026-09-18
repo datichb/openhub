@@ -1397,18 +1397,24 @@ func AutoAdvanceFromDropDown(app *tview.Application, form *tview.Form, currentId
 	if app == nil || form == nil {
 		return
 	}
-	app.QueueUpdateDraw(func() {
-		next := currentIdx + 1
-		count := form.GetFormItemCount()
-		for next < count {
-			if _, isTV := form.GetFormItem(next).(*tview.TextView); !isTV {
-				break
+	// Wrap in a goroutine: QueueUpdateDraw blocks on a done-channel until
+	// the event loop processes the update. If called directly from a
+	// SetSelectedFunc callback (which runs ON the event loop), this would
+	// deadlock. The goroutine moves the blocking <-ch off the event loop.
+	go func() {
+		app.QueueUpdateDraw(func() {
+			next := currentIdx + 1
+			count := form.GetFormItemCount()
+			for next < count {
+				if _, isTV := form.GetFormItem(next).(*tview.TextView); !isTV {
+					break
+				}
+				next++
 			}
-			next++
-		}
-		if next < count {
-			form.SetFocus(next)
-			app.SetFocus(form)
-		}
-	})
+			if next < count {
+				form.SetFocus(next)
+				app.SetFocus(form)
+			}
+		})
+	}()
 }
