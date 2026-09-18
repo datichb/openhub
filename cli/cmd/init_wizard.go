@@ -79,6 +79,25 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	var langStepIdx int
 	var langIdx int
 
+	// Detect system locale EARLY so the Welcome page and all construction-time
+	// labels render in the right language from the start.
+	sysLang := os.Getenv("LANG")
+	if sysLang == "" {
+		sysLang = os.Getenv("LC_ALL")
+	}
+	if sysLang != "" && strings.Contains(strings.ToLower(sysLang), "fr") {
+		selectedLang = "fr"
+		langIdx = 0
+	} else {
+		selectedLang = "en"
+		langIdx = 1
+	}
+	i18n.SetLocale(selectedLang)
+
+	// focusBtn is set to true by the Language DropDown callback before triggering
+	// a rerender — the engine reads it to focus the buttonForm instead of the form.
+	focusBtn := false
+
 	var steps []views.WizardStep
 	steps = []views.WizardStep{
 		// ══════════════════════════════════════════════════════════════════════
@@ -172,21 +191,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			Required: true,
 			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 				langOptions := []string{"Français", "English"}
-				// Detect system locale on first render only
-				if selectedLang == "" {
-					sysLang := os.Getenv("LANG")
-					if sysLang == "" {
-						sysLang = os.Getenv("LC_ALL")
-					}
-					if sysLang != "" && !strings.Contains(strings.ToLower(sysLang), "fr") {
-						langIdx = 1
-						selectedLang = "en"
-					} else {
-						langIdx = 0
-						selectedLang = "fr"
-					}
-					i18n.SetLocale(selectedLang)
-				}
+				// selectedLang and langIdx are already initialized by the
+				// early locale detection at the top of buildFirstRunInlineWizard.
 
 				rerenderLang := func() {
 					if fn := steps[langStepIdx].Rerender; fn != nil {
@@ -208,6 +214,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 					i18n.SetLocale(selectedLang)
 					if langMounted {
+						focusBtn = true
 						rerenderLang()
 					}
 				})
@@ -805,6 +812,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: 7},
 			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: 10},
 		},
+		FocusButtonAfterRender: &focusBtn,
 		SummaryTargetViewFunc: func() string {
 			if projectCreated {
 				return "project.mode"

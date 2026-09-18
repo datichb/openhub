@@ -62,6 +62,13 @@ type InlineWizardConfig struct {
 	// Steps[i].Processing, Groups[i].Label, and Title with fresh i18n.T()
 	// values. The engine then syncs stepStates and groupStates.
 	RefreshLabels func()
+
+	// FocusButtonAfterRender, when non-nil and pointing to true, causes the
+	// engine to focus the external buttonForm (grouped mode) instead of the
+	// form after the next renderStep. The flag is reset to false after use.
+	// Use this when a DropDown callback triggers a rerender and the user
+	// should land on the submit button rather than the DropDown again.
+	FocusButtonAfterRender *bool
 }
 
 // InlineWizardView is a multi-step wizard that runs inside the TUI shell
@@ -929,6 +936,19 @@ func (w *InlineWizardView) renderStep(idx int) {
 				w.stepContent.AddItem(form, 0, 1, true)
 			}
 			w.app.SetFocus(form)
+			// After a locale-change rerender (grouped mode), focus the
+			// submit button instead of the DropDown.
+			if len(w.cfg.Groups) > 0 && w.cfg.FocusButtonAfterRender != nil && *w.cfg.FocusButtonAfterRender {
+				*w.cfg.FocusButtonAfterRender = false
+				// Find the buttonForm in stepContent (last non-spacer flex item)
+				for i := 0; i < w.stepContent.GetItemCount(); i++ {
+					item := w.stepContent.GetItem(i)
+					if bf, ok := item.(*tview.Form); ok && bf != form {
+						w.app.SetFocus(bf)
+						break
+					}
+				}
+			}
 		}
 	} else {
 		// No form, no CustomView — processing-only step
