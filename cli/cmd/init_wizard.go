@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/provider"
+	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -306,11 +306,21 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				if region == "" {
 					region = "us-east-1"
 				}
-				if profileName == "" {
-					profileName = "default"
-				}
+			if profileName == "" {
+				profileName = "default"
+			}
 
-				// rerenderSafe schedules a full step re-render on the next
+			// ── Keychain detection: pre-fill token if already stored ──
+			if token == "" && a.Secrets != nil {
+				name := providerPkg.Name(selectedProvider)
+				if key := providerPkg.KeychainKey(name, ""); key != "" {
+					if existing, err := a.Secrets.Get(context.Background(), key); err == nil && existing != "" {
+						token = existing
+					}
+				}
+			}
+
+			// rerenderSafe schedules a full step re-render on the next
 				// tview event loop iteration. Safe to call from SetSelectedFunc.
 				rerenderSafe := func() {
 					if fn := steps[providerStepIdx].Rerender; fn != nil {
@@ -361,7 +371,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					)
 					switch authMode {
 					case "bearer":
-						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), "", 50, '*', func(t string) { token = t })
+						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), token, 50, '*', func(t string) { token = t })
 						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_bearer"), 60, 1, true, false)
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "profile":
@@ -373,11 +383,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 
 				case "anthropic":
-					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), "", 50, '*', func(t string) { token = t })
+					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), token, 50, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_anthropic"), 60, 1, true, false)
 
 				case "openrouter":
-					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), "", 50, '*', func(t string) { token = t })
+					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), token, 50, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_openrouter"), 60, 1, true, false)
 
 				case "github-copilot":
@@ -393,7 +403,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				switch selectedProvider {
 				case "bedrock":
 					if authMode == "bearer" && token != "" && a.Secrets != nil {
-						keychainKey := provider.KeychainKey(provider.Bedrock, "")
+						keychainKey := providerPkg.KeychainKey(providerPkg.Bedrock, "")
 						if keychainKey != "" {
 							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
 								return fmt.Errorf("keychain: %w", err)
@@ -402,7 +412,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 				case "anthropic":
 					if token != "" && a.Secrets != nil {
-						keychainKey := provider.KeychainKey(provider.Anthropic, "")
+						keychainKey := providerPkg.KeychainKey(providerPkg.Anthropic, "")
 						if keychainKey != "" {
 							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
 								return fmt.Errorf("keychain: %w", err)
@@ -411,7 +421,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 				case "openrouter":
 					if token != "" && a.Secrets != nil {
-						keychainKey := provider.KeychainKey(provider.OpenRouter, "")
+						keychainKey := providerPkg.KeychainKey(providerPkg.OpenRouter, "")
 						if keychainKey != "" {
 							if err := a.Secrets.Set(context.Background(), keychainKey, token); err != nil {
 								return fmt.Errorf("keychain: %w", err)
@@ -673,10 +683,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return mcpSkipped
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				// Pre-fill from keychain if available
+				if figmaToken == "" && a.Secrets != nil {
+					if existing, err := a.Secrets.Get(context.Background(), config.DefaultFigmaTokenKey); err == nil && existing != "" {
+						figmaToken = existing
+					}
+				}
 				form := tview.NewForm()
 				form.AddPasswordField(
 					i18n.Tf("cmd.init.mcp_token_prompt", "Figma"),
-					"", 50, '*',
+					figmaToken, 50, '*',
 					func(t string) { figmaToken = t },
 				)
 				form.AddTextView("", i18n.T("cmd.init.mcp_hint_figma"), 60, 2, true, false)
@@ -716,10 +732,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return mcpSkipped
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				// Pre-fill from keychain if available
+				if gitlabToken == "" && a.Secrets != nil {
+					if existing, err := a.Secrets.Get(context.Background(), config.DefaultGitLabTokenKey); err == nil && existing != "" {
+						gitlabToken = existing
+					}
+				}
 				form := tview.NewForm()
 				form.AddPasswordField(
 					i18n.Tf("cmd.init.mcp_token_prompt", "GitLab"),
-					"", 50, '*',
+					gitlabToken, 50, '*',
 					func(t string) { gitlabToken = t },
 				)
 				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gitlab"), 60, 2, true, false)
@@ -769,10 +791,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return mcpSkipped
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				// Pre-fill from keychain if available
+				if gslidesToken == "" && a.Secrets != nil {
+					if existing, err := a.Secrets.Get(context.Background(), config.DefaultGslidesTokenKey); err == nil && existing != "" {
+						gslidesToken = existing
+					}
+				}
 				form := tview.NewForm()
 				form.AddPasswordField(
 					i18n.Tf("cmd.init.mcp_token_prompt", "Google Slides"),
-					"", 50, '*',
+					gslidesToken, 50, '*',
 					func(t string) { gslidesToken = t },
 				)
 				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gslides"), 60, 2, true, false)
