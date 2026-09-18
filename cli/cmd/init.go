@@ -135,7 +135,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddInputField(i18n.T("cmd.init.opencode_version"), "", 0, nil, func(text string) {
 					opencodeVer = text
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -177,7 +177,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 						provider = providerValues[index]
 					}
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -215,7 +215,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 3 — Provider: detect existing credentials
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Detect credentials",
+			Label: i18n.T("cmd.init.step_detect_creds"),
 			SkipIf: func() bool {
 				// GitHub Copilot just detects, no wizard needed
 				return provider == "github-copilot"
@@ -255,7 +255,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 						func(checked bool) { configureNow = checked },
 					)
 				}
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -299,7 +299,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 4 — Bedrock: auth mode selection
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Bedrock auth mode",
+			Label: i18n.T("cmd.init.step_bedrock_auth"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow
 			},
@@ -320,7 +320,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 						authMode = "env"
 					}
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -338,7 +338,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 5 — Bedrock: bearer token + region
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Bedrock bearer token",
+			Label: i18n.T("cmd.init.step_bedrock_bearer"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "bearer"
 			},
@@ -352,7 +352,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
 					bedrockRegion = text
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -390,7 +390,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 6 — Bedrock: profile + region
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Bedrock AWS profile",
+			Label: i18n.T("cmd.init.step_bedrock_profile"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "profile"
 			},
@@ -402,7 +402,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
 					bedrockRegion = text
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -430,7 +430,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 7 — Bedrock: env mode (region only)
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Bedrock env config",
+			Label: i18n.T("cmd.init.step_bedrock_env"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "env"
 			},
@@ -439,7 +439,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), "", 0, nil, func(text string) {
 					bedrockRegion = text
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -464,7 +464,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 8 — Anthropic / OpenRouter: API key
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "API Key",
+			Label: i18n.T("cmd.init.step_api_key"),
 			SkipIf: func() bool {
 				return (provider != "anthropic" && provider != "openrouter") || useExisting || !configureNow
 			},
@@ -481,7 +481,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					i18n.Tf("cmd.provider.api_key_hint", envVar),
 					"", 0, nil, nil,
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -519,7 +519,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddCheckbox(i18n.T("cmd.init.mcp_configure_prompt"), true, func(checked bool) {
 					configureMCP = checked
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -535,7 +535,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 10 — MCP: service selection (checkboxes)
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "MCP services",
+			Label: i18n.T("cmd.init.step_mcp_services"),
 			SkipIf: func() bool {
 				return !configureMCP
 			},
@@ -550,7 +550,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddCheckbox("Google Slides (OAuth access token)", false, func(checked bool) {
 					mcpGslides = checked
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -578,7 +578,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 11 — MCP: Figma token
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Figma token",
+			Label: i18n.T("cmd.init.step_figma_token"),
 			SkipIf: func() bool {
 				return !configureMCP || !mcpFigma
 			},
@@ -589,7 +589,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					"", 0, '*',
 					func(text string) { figmaToken = text },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -615,7 +615,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 12 — MCP: GitLab token
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "GitLab token",
+			Label: i18n.T("cmd.init.step_gitlab_token"),
 			SkipIf: func() bool {
 				return !configureMCP || !mcpGitlab
 			},
@@ -626,7 +626,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					"", 0, '*',
 					func(text string) { gitlabToken = text },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -652,7 +652,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 13 — MCP: GitLab write permissions
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "GitLab write mode",
+			Label: i18n.T("cmd.init.step_gitlab_write"),
 			SkipIf: func() bool {
 				return !configureMCP || !mcpGitlab || gitlabToken == ""
 			},
@@ -661,7 +661,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddCheckbox(i18n.T("cmd.init.mcp_gitlab_write"), false, func(checked bool) {
 					gitlabWrite = checked
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -677,7 +677,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 14 — MCP: Google Slides token
 		// ══════════════════════════════════════════════════════════════════════
 		{
-			Label: "Google Slides token",
+			Label: i18n.T("cmd.init.step_gslides_token"),
 			SkipIf: func() bool {
 				return !configureMCP || !mcpGslides
 			},
@@ -688,7 +688,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					"", 0, '*',
 					func(text string) { gslidesToken = text },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -741,7 +741,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 						}
 					})
 				form.AddTextView("", i18n.T("cmd.init.team_configure_hint"), 60, 3, true, false)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -776,8 +776,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 16 — Update config + extract hub content
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
-			Label:      "Finalize config",
-			Processing: "Writing configuration...",
+			Label:      i18n.T("cmd.init.step_finalize"),
+			Processing: i18n.T("cmd.init.step_finalize_processing"),
 			OnDone: func() error {
 				// Update hub.toml with MCP enabled flags
 				if len(mcpServices) > 0 {
@@ -808,7 +808,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				form.AddCheckbox(i18n.T("cmd.init.add_project_prompt"), false, func(checked bool) {
 					addProject = checked
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
