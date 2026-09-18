@@ -328,9 +328,9 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 			huh.NewSelect[string]().
 				Title(i18n.T("cmd.service.select")).
 				Options(
-					huh.NewOption("Figma — design tokens & composants", "figma"),
-					huh.NewOption("GitLab — merge requests & pipelines", "gitlab"),
-					huh.NewOption("Google Slides — présentations", "gslides"),
+				huh.NewOption(i18n.T("cmd.mcp.setup.option_figma"), "figma"),
+				huh.NewOption(i18n.T("cmd.mcp.setup.option_gitlab"), "gitlab"),
+				huh.NewOption(i18n.T("cmd.mcp.setup.option_gslides"), "gslides"),
 				).
 				Value(&serviceName),
 		),
@@ -405,11 +405,11 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			SkipIf: func() bool { return envHint == "" },
 		},
 		{
-			Label: "GitLab write mode",
+			Label: i18n.T("cmd.mcp.setup.gitlab_write_label"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddCheckbox(
-					"Activer le mode écriture (créer MR, commenter, assigner) ?",
+					i18n.T("cmd.mcp.setup.gitlab_write_checkbox"),
 					false,
 					func(checked bool) { writeEnabled = checked },
 				)
@@ -420,9 +420,9 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
-				mode := "lecture seule"
+				mode := i18n.T("cmd.mcp.setup.mode_read_only")
 				if writeEnabled {
-					mode = "lecture + écriture"
+					mode = i18n.T("cmd.mcp.setup.mode_read_write")
 				}
 				return []views.InfoField{
 					{Label: "Mode", Value: mode},
@@ -431,8 +431,8 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			SkipIf: func() bool { return serviceName != "gitlab" },
 		},
 		{
-			Label:      "Persist configuration",
-			Processing: "Saving configuration...",
+			Label:      i18n.T("cmd.mcp.setup.persist_label"),
+			Processing: i18n.T("cmd.mcp.setup.persist_processing"),
 			OnDone: func() error {
 				if project != nil {
 					tokenKey := serviceName + "-token-" + project.ID
@@ -680,7 +680,7 @@ func injectTokenFromKeychain(serviceName, tokenKey string) error {
 		return fmt.Errorf("reading key %q: %w", tokenKey, err)
 	}
 	if token == "" {
-		return fmt.Errorf("token %q non trouvé dans le keychain. Configurez-le : oh secrets set %s <token>", tokenKey, tokenKey)
+		return fmt.Errorf("%s", i18n.Tf("cmd.mcp.setup.token_not_found", tokenKey, tokenKey))
 	}
 
 	return os.Setenv(envVar, token)

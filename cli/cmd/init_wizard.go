@@ -444,6 +444,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 						fields = append(fields, views.InfoField{Label: "Region", Value: region})
 					}
 				}
+				if a.Secrets == nil {
+					fields = append(fields, views.InfoField{
+						Label: "Warning",
+						Value: i18n.T("cmd.init.wizard_no_keyring"),
+					})
+				}
 				return fields
 			},
 			Processing: i18n.T("cmd.init.wizard_processing_credentials"),
@@ -836,12 +842,20 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 		OnComplete: func(completed bool, err error) {
 			if completed && err == nil {
-				// Mark setup as done so the wizard doesn't re-launch
-				if err := config.Update(func(c *config.Config) error {
-					c.CLI.SetupDone = true
-					return nil
-				}); err != nil {
-					slog.Warn("failed to persist setup_done flag", "error", err)
+				// Mark setup as done so the wizard doesn't re-launch.
+				// Retry once on failure to avoid a wizard-loop on next startup.
+				for attempt := 0; attempt < 2; attempt++ {
+					if err := config.Update(func(c *config.Config) error {
+						c.CLI.SetupDone = true
+						return nil
+					}); err == nil {
+						break
+					} else if attempt == 1 {
+						slog.Error("failed to persist setup_done flag after retry — wizard may re-launch", "error", err)
+					} else {
+						slog.Warn("retrying setup_done persistence", "error", err)
+						config.Reset()
+					}
 				}
 
 				config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml

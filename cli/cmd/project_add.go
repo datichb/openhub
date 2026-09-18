@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -267,7 +268,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				}
 				// Store API key in keychain if provided
 				if apiKey != "" && a.Secrets != nil {
-					keyName := provider + "-token-project"
+					keyName := providerPkg.KeychainKey(providerPkg.Name(provider), "")
 					if err := a.Secrets.Set(context.Background(), keyName, apiKey); err != nil {
 						fmt.Fprintf(a.IO.Out, "  %s %s\n",
 							theme.WarningStyle.Render(theme.IconWarning),
