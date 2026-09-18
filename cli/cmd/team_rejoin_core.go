@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -54,8 +55,8 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 		return nil, fmt.Errorf("member %q not found in team-state repository", p.MemberID)
 	}
 
-	// Validate identity via GitLab token
-	if err := validateGitLabIdentity(ctx, a, member); err != nil {
+	// Validate identity via GitLab token (if available)
+	if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
 		return nil, err
 	}
 
@@ -110,25 +111,31 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 // validateGitLabIdentity verifies that the current GitLab token belongs to the
 // member being rejoined. This prevents identity spoofing.
 // Returns nil if validation succeeds or if no GitLab token is available (with warning).
-func validateGitLabIdentity(ctx context.Context, a *app.App, member *teamstate.Member) error {
+func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member) error {
 	if member.GitLabUsername == "" {
 		// Member has no GitLab username configured — skip validation
 		return nil
 	}
 
-	// Try to resolve GitLab credentials
-	src := tracker.CredentialSource{
-		GitLabTokenKey: config.DefaultGitLabTokenKey,
-		Secrets:        a.Secrets,
+	// Build credential source from the team-state config (shared MCP + tracker)
+	// so that the correct GitLab instance URL and token are resolved.
+	var sharedMCP map[string]teamstate.SharedMCPConfig
+	var trackerCfg *teamstate.TrackerConfig
+	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg != nil {
+		sharedMCP = teamCfg.MCP
+		trackerCfg = &teamCfg.Tracker
 	}
+	src := buildCredentialSource(a, sharedMCP, trackerCfg)
+
 	cfg, err := tracker.ResolveCredentials(ctx, src, tracker.TypeGitLab)
 	if err != nil {
-		// No token available — cannot validate, but allow proceeding with a warning
-		return fmt.Errorf(
-			"impossible de valider l'identité GitLab : aucun token disponible. "+
-				"Configurez votre token via 'oh secrets set %s <token>' ou exportez GITLAB_TOKEN",
-			config.DefaultGitLabTokenKey,
+		// No token available — cannot validate, allow proceeding with a warning
+		slog.Warn("GitLab identity validation skipped: no token available",
+			"member", member.ID,
+			"gitlab_username", member.GitLabUsername,
+			"error", err,
 		)
+		return nil
 	}
 
 	// Call GitLab API to get the authenticated user

@@ -624,16 +624,35 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 14 — Team: configure?
+		// STEP 14 — Team: create / rejoin / skip
 		// ══════════════════════════════════════════════════════════════════════
 		{
 			Label: i18n.T("cmd.init.section_team"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddCheckbox(i18n.T("cmd.init.team_configure_prompt"), false, func(checked bool) {
-					configureTeam = checked
-					teamState.Skipped = !checked
-				})
+				modeOptions := []string{
+					i18n.T("cmd.init.wizard_team_mode_init"),
+					i18n.T("cmd.init.wizard_team_mode_rejoin"),
+					i18n.T("wizard.intro.skip"),
+				}
+				// Default to "skip" (index 2)
+				form.AddDropDown(i18n.T("cmd.init.wizard_team_mode_prompt"), modeOptions, 2,
+					func(_ string, idx int) {
+						switch idx {
+						case 0:
+							teamState.Mode = "init"
+							teamState.Skipped = false
+							configureTeam = true
+						case 1:
+							teamState.Mode = "rejoin"
+							teamState.Skipped = false
+							configureTeam = true
+						case 2:
+							teamState.Mode = ""
+							teamState.Skipped = true
+							configureTeam = false
+						}
+					})
 				form.AddTextView("", i18n.T("cmd.init.team_configure_hint"), 60, 3, true, false)
 				form.AddButton("Next", func() { onDone() })
 				return form
@@ -645,16 +664,23 @@ func runInit(cmd *cobra.Command, args []string) error {
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
-				if configureTeam {
-					return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: "configure"}}
+				switch teamState.Mode {
+				case "init":
+					return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: i18n.T("cmd.init.wizard_team_mode_init")}}
+				case "rejoin":
+					return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: i18n.T("cmd.init.wizard_team_mode_rejoin")}}
+				default:
+					return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: "skipped"}}
 				}
-				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_team"), Value: "skipped"}}
 			},
 		},
 	}
 
-	// Inject team wizard steps (form + processing), skipped if configureTeam == false.
+	// Inject team init wizard steps (form + processing), skipped if mode != "init".
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
+
+	// Inject team rejoin wizard steps (repo + creds + member + validate), skipped if mode != "rejoin".
+	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
 	// Continue with finalize + project steps.
 	steps = append(steps,

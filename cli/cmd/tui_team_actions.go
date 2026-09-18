@@ -743,8 +743,9 @@ func actionTeamRejoin() {
 	memberStep := views.WizardStep{
 		Label:    i18n.T("cmd.team.rejoin.select_member"),
 		Required: true,
-		CustomView: func(_ *tview.Application, container *tview.Flex, onDone func()) {
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
 			list := widgets.NewSectionedList()
+			list.SetApp(tvApp)
 
 			var items []widgets.SectionItem
 			items = append(items, widgets.SectionItem{
@@ -779,6 +780,7 @@ func actionTeamRejoin() {
 			})
 
 			container.AddItem(list, 0, 1, true)
+			tvApp.SetFocus(list)
 		},
 		InfoFields: func() []views.InfoField {
 			if memberID == "" {

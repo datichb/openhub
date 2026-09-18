@@ -165,6 +165,17 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				buttonForm := views.NewStyledButtonForm()
 				buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
 
+				// Arrow keys navigate between buttons (consistency with other intro steps)
+				buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					switch event.Key() {
+					case tcell.KeyLeft:
+						return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+					case tcell.KeyRight:
+						return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+					}
+					return event
+				})
+
 				// Unified layout: topSpacer + text(flex) + buttonForm(fixed) + bottomSpacer
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
@@ -439,32 +450,31 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 4 — Intro Équipe (group: Équipe)
+		// STEP 4 — Team mode choice (group: Équipe)
+		// Tri-choice: Create / Rejoin / Skip
 		// ══════════════════════════════════════════════════════════════════════
-		buildIntroStep(
-			i18n.T("cmd.init.wizard_step_team"),
-			"cmd.init.wizard_intro_team_title",
-			"cmd.init.wizard_intro_team_desc",
-			"", "",
-			"cmd.init.wizard_team_prereq",
-			"cmd.init.wizard_intro_team_optional",
-			func() { teamState.Skipped = false },
-			func() { teamState.Skipped = true },
-		),
+		buildTeamModeIntroStep(teamState),
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEPS 5-6 — Team form + processing (appended below)
+		// STEPS 5-6 — Team init form + processing (appended below)
+		// STEPS 7-10 — Team rejoin steps (appended below)
 		// ══════════════════════════════════════════════════════════════════════
 	}
 
 	// Inject the team wizard steps (form + processing).
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 
-	// Continue with remaining steps: Projet, Deploy, MCP.
+	// Inject the team rejoin steps (repo + HTTPS creds + member selection + validate).
+	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
+
+	// Record the start index for the project group (after all team steps).
+	projectGroupStart := len(steps)
+
+	// Continue with remaining steps: Projet, Deploy.
 	steps = append(steps,
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 7 — Intro Projet (group: Projet)
+		// Intro Projet (group: Projet)
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"Projet",
@@ -616,9 +626,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			Processing: i18n.T("cmd.init.wizard_deploy_processing"),
 		},
+	)
+
+	// Record the start index for the MCP group (after project steps).
+	mcpGroupStart := len(steps)
+
+	// Continue with MCP steps.
+	steps = append(steps,
 
 		// ══════════════════════════════════════════════════════════════════════
-		// STEP 7 — Intro MCP (group: Intégrations)
+		// Intro MCP (group: Intégrations)
 		// ══════════════════════════════════════════════════════════════════════
 		buildIntroStep(
 			"MCP",
@@ -792,8 +809,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			{Label: i18n.T("cmd.init.wizard_group_lang"), StartIdx: 0},
 			{Label: i18n.T("cmd.init.wizard_group_provider"), StartIdx: 2},
 			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: 4},
-			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: 7},
-			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: 10},
+			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: projectGroupStart},
+			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: mcpGroupStart},
 		},
 		FocusButtonAfterRender: &focusBtn,
 		SummaryTargetViewFunc: func() string {
@@ -838,22 +855,36 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
 		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
 
-		// Step labels
+		// Step labels — fixed indices (lang, provider, team intro)
 		steps[0].Label = i18n.T("cmd.init.wizard_step_welcome")
 		steps[1].Label = i18n.T("cmd.init.wizard_step_lang")
 		steps[3].Label = i18n.T("cmd.init.wizard_step_provider_label")
 		steps[3].Processing = i18n.T("cmd.init.wizard_processing_credentials")
 		steps[4].Label = i18n.T("cmd.init.wizard_step_team")
+
+		// Team init steps (indices 5-6, always at these positions)
 		steps[5].Label = i18n.T("cmd.init.wizard_step_team_form")
-		steps[5].Processing = i18n.T("cmd.init.wizard_processing_team")
 		steps[6].Label = i18n.T("cmd.init.wizard_step_team_sync")
-		steps[8].Label = i18n.T("cmd.init.wizard_step_project")
-		steps[8].Processing = i18n.T("cmd.init.wizard_processing_project")
-		steps[9].Label = i18n.T("cmd.init.wizard_step_deploy")
-		steps[9].Processing = i18n.T("cmd.init.wizard_deploy_processing")
-		steps[11].Label = i18n.T("cmd.init.wizard_step_mcp_figma")
-		steps[12].Label = i18n.T("cmd.init.wizard_step_mcp_gitlab")
-		steps[13].Label = i18n.T("cmd.init.wizard_step_mcp_gslides")
+
+		// Team rejoin steps (indices 7-11, always at these positions)
+		steps[7].Label = i18n.T("cmd.init.wizard_step_rejoin_repo")
+		steps[7].Processing = i18n.T("cmd.init.wizard_processing_rejoin_clone")
+		steps[8].Label = i18n.T("cmd.init.wizard_step_team_cred_mode")
+		steps[9].Label = i18n.T("cmd.init.wizard_step_team_creds")
+		steps[10].Label = i18n.T("cmd.init.wizard_step_rejoin_member")
+		steps[11].Label = i18n.T("cmd.init.wizard_step_rejoin_validate")
+		steps[11].Processing = i18n.T("cmd.init.wizard_processing_rejoin_validate")
+
+		// Project steps (dynamic start)
+		steps[projectGroupStart+1].Label = i18n.T("cmd.init.wizard_step_project")
+		steps[projectGroupStart+1].Processing = i18n.T("cmd.init.wizard_processing_project")
+		steps[projectGroupStart+2].Label = i18n.T("cmd.init.wizard_step_deploy")
+		steps[projectGroupStart+2].Processing = i18n.T("cmd.init.wizard_deploy_processing")
+
+		// MCP steps (dynamic start)
+		steps[mcpGroupStart+1].Label = i18n.T("cmd.init.wizard_step_mcp_figma")
+		steps[mcpGroupStart+2].Label = i18n.T("cmd.init.wizard_step_mcp_gitlab")
+		steps[mcpGroupStart+3].Label = i18n.T("cmd.init.wizard_step_mcp_gslides")
 	}
 
 	return views.NewInlineWizardView(cfg)

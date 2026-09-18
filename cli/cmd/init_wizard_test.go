@@ -18,13 +18,13 @@ import (
 // Builds the wizard with a mock app and verifies the overall shape:
 //   - ID is "wizard.init"
 //   - The wizard mounts without panicking (validates step/group integrity)
-//   - Steps 0, 2, 4, 7 are intro/welcome (SidebarHidden, Required, CustomView)
-//     — verified indirectly via buildIntroStep tests below.
+//   - Steps 0, 2 are intro/welcome (SidebarHidden, Required, CustomView)
+//   - Step 4 is the team mode intro (tri-choice: init/rejoin/skip)
 //
 // Note: InlineWizardView.cfg is unexported, so we cannot directly inspect
 // step count or group StartIdx from outside package views. The canonical
-// config values (11 steps, 4 groups at [0,2,4,7]) are asserted here via
-// the only accessible surface: ID(), Title(), and a successful Mount/Unmount
+// config values (19 steps, 5 groups) are asserted here via the only
+// accessible surface: ID(), Title(), and a successful Mount/Unmount
 // cycle which validates the internal coherence of steps ↔ groups.
 // ---------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
 	assert.Equal(t, "wizard.init", wiz.ID())
 	assert.NotEmpty(t, wiz.Title())
 
-	// Mount/Unmount cycle — exercises all 11 steps + 4 groups without panicking.
+	// Mount/Unmount cycle — exercises all 19 steps + 5 groups without panicking.
 	tvApp := tview.NewApplication()
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 
@@ -245,4 +245,150 @@ func TestBuildIntroStep_SkipCallback(t *testing.T) {
 	handler(enterEvent, setFocus)
 	assert.True(t, skipCalled, "onSkip should have been called via Skip button after confirmation")
 	assert.True(t, doneCalled, "onDone should have been called after Skip")
+}
+
+// ---------------------------------------------------------------------------
+// TestBuildTeamModeIntroStep_Layout
+//
+// buildTeamModeIntroStep returns a views.WizardStep with a CustomView
+// that has 3 buttons: Create / Rejoin / Skip.
+// ---------------------------------------------------------------------------
+
+func TestBuildTeamModeIntroStep_Layout(t *testing.T) {
+	state := &initWizardTeamState{}
+	step := buildTeamModeIntroStep(state)
+
+	assert.True(t, step.Required, "team mode intro step must be Required")
+	assert.True(t, step.SidebarHidden, "team mode intro step must be SidebarHidden")
+	require.NotNil(t, step.CustomView, "team mode intro step must have a CustomView")
+
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	doneCalled := false
+	onDone := func() { doneCalled = true }
+
+	step.CustomView(tvApp, container, onDone)
+
+	// The CustomView adds 6 children to the container:
+	//   topSpacer, badgeView, gapSpacer, tv (text), buttonForm, bottomSpacer
+	assert.Equal(t, 6, container.GetItemCount(),
+		"CustomView should add exactly 6 children to the container")
+
+	// Button form is at index 4
+	p := container.GetItem(4)
+	buttonForm, ok := p.(*tview.Form)
+	require.True(t, ok, "5th child should be a *tview.Form (button form)")
+
+	// Must have 3 buttons: Create, Rejoin, Skip
+	require.Equal(t, 3, buttonForm.GetButtonCount(),
+		"button form should have Create + Rejoin + Skip buttons")
+
+	// onDone should not have been called yet (no button pressed)
+	assert.False(t, doneCalled, "onDone should not fire without user interaction")
+}
+
+// ---------------------------------------------------------------------------
+// TestBuildTeamModeIntroStep_InitCallback
+//
+// Activates the "Create" button and verifies state.Mode is set to "init".
+// ---------------------------------------------------------------------------
+
+func TestBuildTeamModeIntroStep_InitCallback(t *testing.T) {
+	state := &initWizardTeamState{}
+	step := buildTeamModeIntroStep(state)
+
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	doneCalled := false
+	step.CustomView(tvApp, container, func() { doneCalled = true })
+
+	buttonForm := container.GetItem(4).(*tview.Form)
+	tvApp.SetFocus(buttonForm)
+
+	handler := buttonForm.InputHandler()
+	require.NotNil(t, handler)
+
+	// Enter activates the first button (Create)
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	handler(enterEvent, func(p tview.Primitive) {})
+
+	assert.Equal(t, "init", state.Mode, "state.Mode should be 'init' after Create button")
+	assert.False(t, state.Skipped, "state.Skipped should be false after Create button")
+	assert.True(t, doneCalled, "onDone should have been called after Create")
+}
+
+// ---------------------------------------------------------------------------
+// TestBuildTeamModeIntroStep_RejoinCallback
+//
+// Activates the "Rejoin" button and verifies state.Mode is set to "rejoin".
+// ---------------------------------------------------------------------------
+
+func TestBuildTeamModeIntroStep_RejoinCallback(t *testing.T) {
+	state := &initWizardTeamState{}
+	step := buildTeamModeIntroStep(state)
+
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	doneCalled := false
+	step.CustomView(tvApp, container, func() { doneCalled = true })
+
+	buttonForm := container.GetItem(4).(*tview.Form)
+	tvApp.SetFocus(buttonForm)
+
+	handler := buttonForm.InputHandler()
+	require.NotNil(t, handler)
+	setFocus := func(p tview.Primitive) {}
+
+	// Tab to move from Create → Rejoin
+	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	handler(tabEvent, setFocus)
+
+	// Enter activates the Rejoin button
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	handler(enterEvent, setFocus)
+
+	assert.Equal(t, "rejoin", state.Mode, "state.Mode should be 'rejoin' after Rejoin button")
+	assert.False(t, state.Skipped, "state.Skipped should be false after Rejoin button")
+	assert.True(t, doneCalled, "onDone should have been called after Rejoin")
+}
+
+// ---------------------------------------------------------------------------
+// TestBuildTeamModeIntroStep_SkipCallback
+//
+// Activates the "Skip" button (with double-click confirmation) and verifies
+// state.Skipped is set to true.
+// ---------------------------------------------------------------------------
+
+func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
+	state := &initWizardTeamState{}
+	step := buildTeamModeIntroStep(state)
+
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	doneCalled := false
+	step.CustomView(tvApp, container, func() { doneCalled = true })
+
+	buttonForm := container.GetItem(4).(*tview.Form)
+	tvApp.SetFocus(buttonForm)
+
+	handler := buttonForm.InputHandler()
+	require.NotNil(t, handler)
+	setFocus := func(p tview.Primitive) {}
+
+	// Tab twice: Create → Rejoin → Skip
+	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	handler(tabEvent, setFocus)
+	handler(tabEvent, setFocus)
+
+	// First Enter: triggers confirmation (button label changes)
+	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+	handler(enterEvent, setFocus)
+	assert.False(t, state.Skipped, "state.Skipped should NOT be true on first click (confirmation pending)")
+	assert.False(t, doneCalled, "onDone should NOT fire on first click (confirmation pending)")
+
+	// Second Enter: confirms skip
+	handler(enterEvent, setFocus)
+	assert.True(t, state.Skipped, "state.Skipped should be true after confirmed skip")
+	assert.Empty(t, state.Mode, "state.Mode should be empty after skip")
+	assert.True(t, doneCalled, "onDone should have been called after confirmed skip")
 }
