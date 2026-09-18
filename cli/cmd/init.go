@@ -147,8 +147,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Language", Value: language},
-					{Label: "OpenCode", Value: opencodeVer},
+					{Label: i18n.T("cmd.init.info.language"), Value: language},
+					{Label: i18n.T("cmd.init.info.opencode"), Value: opencodeVer},
 				}
 			},
 		},
@@ -207,7 +207,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Provider", Value: provider},
+					{Label: i18n.T("cmd.init.info.provider"), Value: provider},
 				}
 			},
 		},
@@ -287,12 +287,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				if useExisting {
-					return []views.InfoField{{Label: "Credentials", Value: "existing (detected)"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.credentials"), Value: i18n.T("cmd.init.info.creds_detected")}}
 				}
 				if configureNow {
-					return []views.InfoField{{Label: "Credentials", Value: "configure now"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.credentials"), Value: i18n.T("cmd.init.info.creds_configure")}}
 				}
-				return []views.InfoField{{Label: "Credentials", Value: "skipped"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.credentials"), Value: i18n.T("cmd.init.info.skipped")}}
 			},
 		},
 
@@ -331,7 +331,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				})
 			},
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Auth mode", Value: authMode}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.auth_mode"), Value: authMode}}
 			},
 		},
 
@@ -382,7 +382,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				}
 				return []views.InfoField{
 					{Label: "Token", Value: stored},
-					{Label: "Region", Value: bedrockRegion},
+					{Label: i18n.T("cmd.init.info.region"), Value: bedrockRegion},
 				}
 			},
 		},
@@ -421,7 +421,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Profile", Value: bedrockProfile},
+					{Label: i18n.T("cmd.init.info.profile"), Value: bedrockProfile},
 					{Label: "Region", Value: bedrockRegion},
 				}
 			},
@@ -455,7 +455,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Auth", Value: "env"},
+					{Label: i18n.T("cmd.init.info.auth_mode"), Value: "env"},
 					{Label: "Region", Value: bedrockRegion},
 				}
 			},
@@ -500,7 +500,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				if apiKey == "" {
-					return []views.InfoField{{Label: "API Key", Value: "skipped"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.api_key"), Value: i18n.T("cmd.init.info.skipped")}}
 				}
 				masked := "***"
 				if len(apiKey) > 8 {
@@ -526,9 +526,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			OnDone: func() error { return nil },
 			InfoFields: func() []views.InfoField {
 				if configureMCP {
-					return []views.InfoField{{Label: "MCP", Value: "configure"}}
+					return []views.InfoField{{Label: "MCP", Value: i18n.T("cmd.init.info.configure")}}
 				}
-				return []views.InfoField{{Label: "MCP", Value: "skipped"}}
+				return []views.InfoField{{Label: "MCP", Value: i18n.T("cmd.init.info.skipped")}}
 			},
 		},
 
@@ -569,9 +569,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				if len(mcpServices) == 0 {
-					return []views.InfoField{{Label: "Services", Value: "none"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.services"), Value: i18n.T("cmd.init.info.none")}}
 				}
-				return []views.InfoField{{Label: "Services", Value: strings.Join(mcpServices, ", ")}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.services"), Value: strings.Join(mcpServices, ", ")}}
 			},
 		},
 
@@ -618,9 +618,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			InfoFields: func() []views.InfoField {
 				if gitlabToken == "" {
-					return []views.InfoField{{Label: "GitLab", Value: "use env GITLAB_TOKEN"}}
+					return []views.InfoField{{Label: "GitLab", Value: i18n.T("cmd.init.info.use_env_gitlab")}}
 				}
-				return []views.InfoField{{Label: "GitLab", Value: "stored in keychain"}}
+				return []views.InfoField{{Label: "GitLab", Value: i18n.T("cmd.init.info.stored_keychain")}}
 			},
 		},
 
@@ -643,9 +643,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			OnDone: func() error { return nil },
 			InfoFields: func() []views.InfoField {
 				if gitlabWrite {
-					return []views.InfoField{{Label: "GitLab write", Value: "enabled"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.gitlab_write"), Value: i18n.T("cmd.init.info.enabled")}}
 				}
-				return []views.InfoField{{Label: "GitLab write", Value: "read-only"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.gitlab_write"), Value: i18n.T("cmd.init.info.read_only")}}
 			},
 		},
 
@@ -745,7 +745,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Status", Value: "config saved"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.status"), Value: i18n.T("cmd.init.info.config_saved")}}
 			},
 		},
 
@@ -765,9 +765,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 			OnDone: func() error { return nil },
 			InfoFields: func() []views.InfoField {
 				if addProject {
-					return []views.InfoField{{Label: "Project", Value: "will add"}}
+					return []views.InfoField{{Label: i18n.T("cmd.init.info.project"), Value: i18n.T("cmd.init.info.will_add")}}
 				}
-				return []views.InfoField{{Label: "Project", Value: "skip"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.info.project"), Value: i18n.T("cmd.init.info.skipped")}}
 			},
 		},
 	)
@@ -808,10 +808,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Final summary card
 	fields := []summary.Field{
-		{Label: "Provider", Value: provider},
+		{Label: i18n.T("cmd.init.info.provider"), Value: provider},
 	}
 	if language != "" {
-		fields = append(fields, summary.Field{Label: "Language", Value: language})
+		fields = append(fields, summary.Field{Label: i18n.T("cmd.init.info.language"), Value: language})
 	}
 	if len(mcpServices) > 0 {
 		fields = append(fields, summary.Field{Label: "MCP", Value: strings.Join(mcpServices, ", ")})
@@ -881,14 +881,18 @@ func buildInitialConfig(language, opencodeVer, provider string, mcpServices []st
 // ─────────────────────────────────────────────────────────────────────────────
 
 // addGitExcludes adds opencode and oh artifacts to .git/info/exclude.
-func addGitExcludes(projectPath string) {
+// Returns an error if any file operation fails (other than a missing .git directory).
+func addGitExcludes(projectPath string) error {
 	excludeFile := filepath.Join(projectPath, ".git", "info", "exclude")
 
 	if _, err := os.Stat(filepath.Join(projectPath, ".git")); err != nil {
-		return
+		return nil // not a git repo — nothing to do
 	}
 
-	existing, _ := os.ReadFile(excludeFile)
+	existing, err := os.ReadFile(excludeFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading %s: %w", excludeFile, err)
+	}
 	content := string(existing)
 
 	patterns := []string{".opencode/", "opencode.json"}
@@ -901,24 +905,33 @@ func addGitExcludes(projectPath string) {
 	}
 
 	if len(toAdd) == 0 {
-		return
+		return nil
 	}
 
-	_ = os.MkdirAll(filepath.Dir(excludeFile), 0o755)
+	if err := os.MkdirAll(filepath.Dir(excludeFile), 0o755); err != nil {
+		return fmt.Errorf("creating %s: %w", filepath.Dir(excludeFile), err)
+	}
 
 	f, err := os.OpenFile(excludeFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
-		return
+		return fmt.Errorf("opening %s: %w", excludeFile, err)
 	}
 	defer f.Close()
 
 	if len(existing) > 0 && !strings.HasSuffix(content, "\n") {
-		_, _ = f.WriteString("\n")
+		if _, err := f.WriteString("\n"); err != nil {
+			return err
+		}
 	}
-	_, _ = f.WriteString("\n# oh — OpenHub CLI artifacts\n")
+	if _, err := f.WriteString("\n# oh — OpenHub CLI artifacts\n"); err != nil {
+		return err
+	}
 	for _, p := range toAdd {
-		_, _ = f.WriteString(p + "\n")
+		if _, err := f.WriteString(p + "\n"); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // detectBranchPatternHeuristic scans local and remote branches in dir to infer

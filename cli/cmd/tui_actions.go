@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -396,7 +397,9 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 
 			if doDeploy {
 				_ = runDeployForProject(a, p)
-				addGitExcludes(absPath)
+				if err := addGitExcludes(absPath); err != nil {
+					slog.Warn("failed to update git excludes", "error", err)
+				}
 			}
 		},
 	})
