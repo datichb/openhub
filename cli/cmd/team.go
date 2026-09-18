@@ -330,329 +330,30 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	// ── Step 1: Config globale ──
-	configStep := views.WizardStep{
-		Label:      i18n.T("cmd.team.init.step_config"),
-		Processing: i18n.T("cmd.team.init.processing_config"),
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			form.AddInputField(
-				i18n.T("cmd.team.init.config_stale_days"),
-				staleDaysStr, 0, nil,
-				func(text string) { staleDaysStr = text })
-			form.AddButton("Next", func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			days, err := strconv.Atoi(staleDaysStr)
-			if err != nil || days <= 0 {
-				days = 3
-			}
-			if hasConfig && existingCfg != nil {
-				// Only save if changed
-				if days == existingCfg.Takeover.StaleDays {
-					return nil
-				}
-				existingCfg.Takeover.StaleDays = days
-				if err := repo.SaveConfig(ctx, existingCfg); err != nil {
-					return err
-				}
-			} else {
-				cfg := &teamstate.TeamConfig{
-					Notification: teamstate.NotificationConfig{
-						Enabled: false,
-						BotName: "OpenHub",
-					},
-					Takeover: teamstate.TakeoverConfig{
-						StaleDays: days,
-					},
-					Parallel: teamstate.ParallelConfig{
-						MaxSessions:    3,
-						PortRangeStart: 4100,
-						AutoMergeBeads: true,
-					},
-				}
-				if err := repo.SaveConfig(ctx, cfg); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{
-				{Label: "Stale days", Value: staleDaysStr},
-			}
-		},
+	// ── Build shared team step state ──
+	tss := &teamStepState{
+		Ctx:               ctx,
+		Repo:              repo,
+		HasConfig:         hasConfig,
+		HasPolicies:       hasPolicies,
+		ExistingCfg:       existingCfg,
+		HasMember:         hasMember,
+		StaleDaysStr:      staleDaysStr,
+		MemberID:          memberID,
+		DisplayName:       displayName,
+		GitLabUsername:     gitlabUsername,
+		TrackerUsername:    trackerUsername,
+		MattermostUsername: mattermostUsername,
+		Role:              role,
+		WebhookURL:        webhookURL,
+		Channel:           channel,
+		BotName:           botName,
 	}
-
-	// ── Step 2: Identité ──
-	var identityStep views.WizardStep
-	if !hasMember {
-		identityStep = views.WizardStep{
-			Label:      i18n.T("cmd.team.init.step_identity"),
-			Processing: i18n.T("cmd.team.init.processing_identity"),
-			Validate: func() string {
-				if strings.TrimSpace(memberID) == "" {
-					return i18n.T("cmd.team.init.validate.member_id_required")
-				}
-				return ""
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_id"),
-					memberID, 0, nil,
-					func(text string) { memberID = text })
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_display"),
-					displayName, 0, nil,
-					func(text string) { displayName = text })
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_gitlab"),
-					gitlabUsername, 0, nil,
-					func(text string) { gitlabUsername = text })
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_mattermost"),
-					mattermostUsername, 0, nil,
-					func(text string) { mattermostUsername = text })
-				form.AddInputField(
-					i18n.T("tui.team.identity_tracker_username"),
-					trackerUsername, 0, nil,
-					func(text string) { trackerUsername = text })
-				roles := []string{"lead", "dev", "reviewer"}
-				roleIdx := 0
-				for i, r := range roles {
-					if r == role {
-						roleIdx = i
-						break
-					}
-				}
-				form.AddDropDown(
-					i18n.T("cmd.team.init.identity_role"),
-					roles, roleIdx,
-					func(_ string, idx int) { role = roles[idx] })
-				form.AddButton("Next", func() { onDone() })
-				return form
-			},
-			OnDone: func() error {
-				member := teamstate.Member{
-					ID:                 memberID,
-					DisplayName:        displayName,
-					GitLabUsername:     gitlabUsername,
-					TrackerUsername:    trackerUsername,
-					MattermostUsername: mattermostUsername,
-					Role:               role,
-					DefaultMode:        "semi-auto",
-				}
-				if err := repo.AddMember(ctx, member); err != nil {
-					if err == teamstate.ErrMemberExists {
-						return nil
-					}
-					return err
-				}
-				return repo.CommitAndPush(ctx, fmt.Sprintf("team: add member %s", memberID), "members.toml")
-			},
-			InfoFields: func() []views.InfoField {
-				return []views.InfoField{
-					{Label: "Member", Value: memberID},
-					{Label: "Name", Value: displayName},
-					{Label: "Role", Value: role},
-				}
-			},
-		}
-	} else {
-		// Member exists — show pre-filled form for update (Esc to skip)
-		identityStep = views.WizardStep{
-			Label:      i18n.T("cmd.team.init.step_identity"),
-			Processing: i18n.T("cmd.team.init.processing_identity"),
-			Validate: func() string {
-				if strings.TrimSpace(displayName) == "" {
-					return i18n.T("cmd.team.init.validate.display_name_required")
-				}
-				return ""
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_display"),
-					displayName, 0, nil,
-					func(text string) { displayName = text })
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_gitlab"),
-					gitlabUsername, 0, nil,
-					func(text string) { gitlabUsername = text })
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_mattermost"),
-					mattermostUsername, 0, nil,
-					func(text string) { mattermostUsername = text })
-				form.AddInputField(
-					i18n.T("tui.team.identity_tracker_username"),
-					trackerUsername, 0, nil,
-					func(text string) { trackerUsername = text })
-				roles := []string{"lead", "dev", "reviewer"}
-				roleIdx := 0
-				for i, r := range roles {
-					if r == role {
-						roleIdx = i
-						break
-					}
-				}
-				form.AddDropDown(
-					i18n.T("cmd.team.init.identity_role"),
-					roles, roleIdx,
-					func(_ string, idx int) { role = roles[idx] })
-				form.AddButton("Next", func() { onDone() })
-				return form
-			},
-			OnDone: func() error {
-				member := teamstate.Member{
-					ID:                 memberID,
-					DisplayName:        displayName,
-					GitLabUsername:     gitlabUsername,
-					TrackerUsername:    trackerUsername,
-					MattermostUsername: mattermostUsername,
-					Role:               role,
-					DefaultMode:        "semi-auto",
-				}
-				if err := repo.UpdateMember(ctx, member); err != nil {
-					return err
-				}
-				return repo.CommitAndPush(ctx, fmt.Sprintf("team: update member %s", memberID), "members.toml")
-			},
-			InfoFields: func() []views.InfoField {
-				return []views.InfoField{
-					{Label: "Member", Value: memberID},
-					{Label: "Name", Value: displayName},
-					{Label: "Role", Value: role},
-				}
-			},
-		}
-	}
-
-	// ── Step 3: Notifications ──
-	notifStep := views.WizardStep{
-		Label:      i18n.T("cmd.team.init.step_notifications"),
-		Processing: i18n.T("cmd.team.init.processing_notifications"),
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			form.AddInputField(
-				i18n.T("cmd.team.init.notif_webhook"),
-				webhookURL, 0, nil,
-				func(text string) { webhookURL = text })
-			form.AddInputField(
-				i18n.T("cmd.team.init.notif_channel"),
-				channel, 0, nil,
-				func(text string) { channel = text })
-			form.AddInputField(
-				i18n.T("cmd.team.init.notif_bot_name"),
-				botName, 0, nil,
-				func(text string) { botName = text })
-			form.AddButton("Next", func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			if webhookURL == "" {
-				return nil // nothing to configure
-			}
-			cfg, err := repo.LoadConfig()
-			if err != nil {
-				return err
-			}
-			// Only save if something changed
-			if cfg.Notification.MattermostWebhook == webhookURL &&
-				cfg.Notification.Channel == channel &&
-				cfg.Notification.BotName == botName {
-				return nil
-			}
-			cfg.Notification.MattermostWebhook = webhookURL
-			cfg.Notification.Channel = channel
-			cfg.Notification.BotName = botName
-			cfg.Notification.Enabled = true
-			if err := repo.SaveConfig(ctx, cfg); err != nil {
-				return err
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			if webhookURL == "" {
-				return []views.InfoField{{Label: "Notifications", Value: "skipped"}}
-			}
-			return []views.InfoField{
-				{Label: "Webhook", Value: webhookURL},
-				{Label: "Channel", Value: channel},
-				{Label: "Bot", Value: botName},
-			}
-		},
-	}
-
-	// ── Step 4: Policies ──
-	policiesStep := views.WizardStep{
-		Label:      i18n.T("cmd.team.init.step_policies"),
-		Processing: i18n.T("cmd.team.init.processing_policies"),
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			branchNaming := false
-			commitFormat := false
-			maxWip := false
-			reviewRequired := false
-			form.AddCheckbox(i18n.T("cmd.team.init.policies_branch_naming"), false,
-				func(checked bool) { branchNaming = checked })
-			form.AddCheckbox(i18n.T("cmd.team.init.policies_commit_format"), false,
-				func(checked bool) { commitFormat = checked })
-			form.AddCheckbox(i18n.T("cmd.team.init.policies_max_wip"), false,
-				func(checked bool) { maxWip = checked })
-			form.AddCheckbox(i18n.T("cmd.team.init.policies_review_required"), false,
-				func(checked bool) { reviewRequired = checked })
-			form.AddButton("Confirm", func() {
-				selectedPolicies = nil
-				if branchNaming {
-					selectedPolicies = append(selectedPolicies, "branch_naming")
-				}
-				if commitFormat {
-					selectedPolicies = append(selectedPolicies, "commit_format")
-				}
-				if maxWip {
-					selectedPolicies = append(selectedPolicies, "max_ticket_wip")
-				}
-				if reviewRequired {
-					selectedPolicies = append(selectedPolicies, "review_required")
-				}
-				onDone()
-			})
-			return form
-		},
-		OnDone: func() error {
-			if len(selectedPolicies) == 0 {
-				return nil
-			}
-			policies := buildRecommendedPolicies(selectedPolicies)
-			if hasPolicies {
-				// Merge with existing
-				existing, _ := repo.LoadPolicies("")
-				for _, ep := range existing {
-					if _, ok := policies[ep.Name]; !ok {
-						policies[ep.Name] = ep
-					}
-				}
-			}
-			if err := repo.SavePolicies(ctx, policies); err != nil {
-				return err
-			}
-			commitMsg := "team: init policies"
-			if hasPolicies {
-				commitMsg = "team: update policies"
-			}
-			return repo.CommitAndPush(ctx, commitMsg, "policies.toml")
-		},
-		InfoFields: func() []views.InfoField {
-			if len(selectedPolicies) == 0 {
-				return []views.InfoField{{Label: "Policies", Value: "none"}}
-			}
-			return []views.InfoField{
-				{Label: "Policies", Value: fmt.Sprintf("%d active", len(selectedPolicies))},
-			}
-		},
-	}
+	stepOpts := teamStepOpts{} // CLI wizard has no extra SkipIf
+	configStep := buildTeamConfigStep(tss, stepOpts)
+	identityStep := buildTeamIdentityStep(tss, stepOpts)
+	notifStep := buildTeamNotifStep(tss, stepOpts)
+	policiesStep := buildTeamPoliciesStep(tss, stepOpts)
 
 	// ══════════════════════════════════════════════════════════════════════════
 	// LAUNCH WIZARD (tview alt-screen, cell-buffer, no banding)
@@ -673,8 +374,14 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
-	// POST-WIZARD: Update hub.toml + summary
+	// POST-WIZARD: Sync state from shared struct, then update hub.toml + summary
 	// ══════════════════════════════════════════════════════════════════════════
+	memberID = tss.MemberID
+	displayName = tss.DisplayName
+	role = tss.Role
+	staleDaysStr = tss.StaleDaysStr
+	webhookURL = tss.WebhookURL
+	selectedPolicies = tss.SelectedPolicies
 
 	// If nothing was configured (all steps skipped, no prior config), treat as abort
 	if stateRepo == "" && a.Config.ActiveTeam().StateRepo == "" {
