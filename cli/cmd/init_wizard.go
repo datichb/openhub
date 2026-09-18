@@ -326,9 +326,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					switch authMode {
 					case "bearer":
 						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), "", 50, '*', func(t string) { token = t })
+						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_bearer"), 60, 1, true, false)
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "profile":
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_profile"), profileName, 30, nil, func(t string) { profileName = t })
+						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_profile"), 60, 1, true, false)
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "env":
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
@@ -336,9 +338,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 
 				case "anthropic":
 					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), "", 50, '*', func(t string) { token = t })
+					form.AddTextView("", i18n.T("cmd.init.provider_hint_anthropic"), 60, 1, true, false)
 
 				case "openrouter":
 					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), "", 50, '*', func(t string) { token = t })
+					form.AddTextView("", i18n.T("cmd.init.provider_hint_openrouter"), 60, 1, true, false)
 
 				case "github-copilot":
 					form.AddTextView("", i18n.T("cmd.init.wizard_copilot_desc"), 60, 2, true, false)
@@ -616,7 +620,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					"", 50, '*',
 					func(t string) { figmaToken = t },
 				)
-				form.AddTextView("", i18n.Tf("cmd.init.mcp_token_hint", "FIGMA_TOKEN"), 60, 1, true, false)
+				form.AddTextView("", i18n.T("cmd.init.mcp_hint_figma"), 60, 2, true, false)
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 				return form
 			},
@@ -662,7 +666,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					"", 50, '*',
 					func(t string) { gitlabToken = t },
 				)
-				form.AddTextView("", i18n.Tf("cmd.init.mcp_token_hint", "GITLAB_TOKEN"), 60, 1, true, false)
+				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gitlab"), 60, 2, true, false)
 				form.AddCheckbox(i18n.T("cmd.init.mcp_gitlab_write"), false, func(checked bool) {
 					gitlabWrite = checked
 				})
@@ -718,7 +722,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					"", 50, '*',
 					func(t string) { gslidesToken = t },
 				)
-				form.AddTextView("", i18n.Tf("cmd.init.mcp_token_hint", "GOOGLE_ACCESS_TOKEN"), 60, 1, true, false)
+				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gslides"), 60, 2, true, false)
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 				return form
 			},
