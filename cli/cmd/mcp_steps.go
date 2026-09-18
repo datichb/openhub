@@ -17,6 +17,7 @@ import (
 
 // mcpTokenStepOpts configures a reusable MCP token wizard step.
 type mcpTokenStepOpts struct {
+	ID           string            // optional step ID for RefreshLabels lookup
 	LabelI18nKey string            // e.g. "cmd.init.wizard_step_mcp_figma"
 	DisplayName  string            // e.g. "Figma", "GitLab", "Google Slides"
 	TokenKey     string            // e.g. config.DefaultFigmaTokenKey
@@ -43,6 +44,7 @@ func (o mcpTokenStepOpts) resolveSecrets() domain.SecretStore {
 // The step pre-fills the token from keychain if already stored.
 func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 	return views.WizardStep{
+		ID:     opts.ID,
 		Label:  i18n.T(opts.LabelI18nKey),
 		SkipIf: opts.SkipIf,
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {

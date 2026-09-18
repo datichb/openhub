@@ -152,6 +152,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 	return []views.WizardStep{
 		// ── Team form: repo + identity ──
 		{
+			ID:    "team_form",
 			Label: i18n.T("cmd.init.wizard_step_team_form"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "init"
@@ -191,6 +192,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 		},
 		// ── Team processing: clone + init + register ──
 		{
+			ID:    "team_sync",
 			Label: i18n.T("cmd.init.wizard_step_team_sync"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "init"
@@ -254,6 +256,7 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 	return []views.WizardStep{
 		// ── Step 1: Auth mode selection ──
 		{
+			ID:    "team_cred_mode",
 			Label: i18n.T("cmd.init.wizard_step_team_cred_mode"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != requiredMode || !teamstate.IsHTTPS(state.Repo)
@@ -285,6 +288,7 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 		},
 		// ── Step 2: Username + Token (skipped when not "provide") ──
 		{
+			ID:    "team_creds",
 			Label: i18n.T("cmd.init.wizard_step_team_creds"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != requiredMode || !teamstate.IsHTTPS(state.Repo) || state.CredAuthChoice != "provide"
@@ -335,6 +339,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	steps := []views.WizardStep{
 		// ── Rejoin step 1: Repo URL + fetch members ──
 		{
+			ID:    "rejoin_repo",
 			Label: i18n.T("cmd.init.wizard_step_rejoin_repo"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "rejoin"
@@ -377,6 +382,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 	// ── Rejoin step 4: Member selection ──
 	steps = append(steps, views.WizardStep{
+			ID:    "rejoin_member",
 			Label: i18n.T("cmd.init.wizard_step_rejoin_member"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "rejoin"
@@ -439,6 +445,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 	// ── Rejoin step 5: Validate identity + write config ──
 	steps = append(steps, views.WizardStep{
+			ID:         "rejoin_validate",
 			Label:      i18n.T("cmd.init.wizard_step_rejoin_validate"),
 			Processing: i18n.T("cmd.init.wizard_processing_rejoin_validate"),
 			SkipIf: func() bool {
@@ -492,6 +499,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 // other wizard groups.
 func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 	return views.WizardStep{
+		ID:            "team_mode",
 		Label:         i18n.T("cmd.init.wizard_step_team"),
 		Required:      true,
 		SidebarHidden: true,

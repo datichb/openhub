@@ -104,6 +104,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 0 — Welcome (group: Langue)
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			ID:            "welcome",
 			Label:         i18n.T("cmd.init.wizard_step_welcome"),
 			Required:      true,
 			SidebarHidden: true,
@@ -198,6 +199,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 1 — Language
 		// ══════════════════════════════════════════════════════════════════════
 	{
+			ID:       "lang",
 			Label:    i18n.T("cmd.init.wizard_step_lang"),
 			Required: true,
 			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
@@ -277,6 +279,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// the widget tree from inside a tview handler callback.
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			ID:    "provider",
 			Label: i18n.T("cmd.init.wizard_step_provider_label"),
 			SkipIf: func() bool {
 				return providerSkipped
@@ -527,6 +530,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 5 — First project (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
+			ID:    "project",
 			Label: i18n.T("cmd.init.wizard_step_project"),
 			SkipIf: func() bool {
 				return projectSkipped
@@ -621,6 +625,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 6 — Deploy agents/skills (conditional on project)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
+			ID:    "deploy",
 			Label: i18n.T("cmd.init.wizard_step_deploy"),
 			SkipIf: func() bool {
 				return projectSkipped || !projectCreated
@@ -698,6 +703,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 7 — MCP Figma (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		buildMCPTokenStep(mcpTokenStepOpts{
+			ID:           "mcp_figma",
 			LabelI18nKey: "cmd.init.wizard_step_mcp_figma",
 			DisplayName:  "Figma",
 			TokenKey:     config.DefaultFigmaTokenKey,
@@ -717,6 +723,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 8 — MCP GitLab (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		views.WizardStep{
+			ID:    "mcp_gitlab",
 			Label: i18n.T("cmd.init.wizard_step_mcp_gitlab"),
 			SkipIf: func() bool {
 				return mcpSkipped
@@ -776,6 +783,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// STEP 9 — MCP Google Slides (optional)
 		// ══════════════════════════════════════════════════════════════════════
 		buildMCPTokenStep(mcpTokenStepOpts{
+			ID:           "mcp_gslides",
 			LabelI18nKey: "cmd.init.wizard_step_mcp_gslides",
 			DisplayName:  "Google Slides",
 			TokenKey:     config.DefaultGslidesTokenKey,
@@ -867,36 +875,43 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
 		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
 
-		// Step labels — fixed indices (lang, provider, team intro)
-		steps[0].Label = i18n.T("cmd.init.wizard_step_welcome")
-		steps[1].Label = i18n.T("cmd.init.wizard_step_lang")
-		steps[3].Label = i18n.T("cmd.init.wizard_step_provider_label")
-		steps[3].Processing = i18n.T("cmd.init.wizard_processing_credentials")
-		steps[4].Label = i18n.T("cmd.init.wizard_step_team")
+		// Step labels — resolved by ID (no fragile positional indices)
+		refresh := func(id, labelKey string) {
+			if s := views.StepByID(steps, id); s != nil {
+				s.Label = i18n.T(labelKey)
+			}
+		}
+		refreshP := func(id, labelKey, procKey string) {
+			if s := views.StepByID(steps, id); s != nil {
+				s.Label = i18n.T(labelKey)
+				s.Processing = i18n.T(procKey)
+			}
+		}
 
-		// Team init steps (indices 5-6, always at these positions)
-		steps[5].Label = i18n.T("cmd.init.wizard_step_team_form")
-		steps[6].Label = i18n.T("cmd.init.wizard_step_team_sync")
+		refresh("welcome", "cmd.init.wizard_step_welcome")
+		refresh("lang", "cmd.init.wizard_step_lang")
+		refreshP("provider", "cmd.init.wizard_step_provider_label", "cmd.init.wizard_processing_credentials")
+		refresh("team_mode", "cmd.init.wizard_step_team")
 
-		// Team rejoin steps (indices 7-11, always at these positions)
-		steps[7].Label = i18n.T("cmd.init.wizard_step_rejoin_repo")
-		steps[7].Processing = i18n.T("cmd.init.wizard_processing_rejoin_clone")
-		steps[8].Label = i18n.T("cmd.init.wizard_step_team_cred_mode")
-		steps[9].Label = i18n.T("cmd.init.wizard_step_team_creds")
-		steps[10].Label = i18n.T("cmd.init.wizard_step_rejoin_member")
-		steps[11].Label = i18n.T("cmd.init.wizard_step_rejoin_validate")
-		steps[11].Processing = i18n.T("cmd.init.wizard_processing_rejoin_validate")
+		// Team init steps
+		refresh("team_form", "cmd.init.wizard_step_team_form")
+		refresh("team_sync", "cmd.init.wizard_step_team_sync")
 
-		// Project steps (dynamic start)
-		steps[projectGroupStart+1].Label = i18n.T("cmd.init.wizard_step_project")
-		steps[projectGroupStart+1].Processing = i18n.T("cmd.init.wizard_processing_project")
-		steps[projectGroupStart+2].Label = i18n.T("cmd.init.wizard_step_deploy")
-		steps[projectGroupStart+2].Processing = i18n.T("cmd.init.wizard_deploy_processing")
+		// Team rejoin steps
+		refreshP("rejoin_repo", "cmd.init.wizard_step_rejoin_repo", "cmd.init.wizard_processing_rejoin_clone")
+		refresh("team_cred_mode", "cmd.init.wizard_step_team_cred_mode")
+		refresh("team_creds", "cmd.init.wizard_step_team_creds")
+		refresh("rejoin_member", "cmd.init.wizard_step_rejoin_member")
+		refreshP("rejoin_validate", "cmd.init.wizard_step_rejoin_validate", "cmd.init.wizard_processing_rejoin_validate")
 
-		// MCP steps (dynamic start)
-		steps[mcpGroupStart+1].Label = i18n.T("cmd.init.wizard_step_mcp_figma")
-		steps[mcpGroupStart+2].Label = i18n.T("cmd.init.wizard_step_mcp_gitlab")
-		steps[mcpGroupStart+3].Label = i18n.T("cmd.init.wizard_step_mcp_gslides")
+		// Project steps
+		refreshP("project", "cmd.init.wizard_step_project", "cmd.init.wizard_processing_project")
+		refreshP("deploy", "cmd.init.wizard_step_deploy", "cmd.init.wizard_deploy_processing")
+
+		// MCP steps
+		refresh("mcp_figma", "cmd.init.wizard_step_mcp_figma")
+		refresh("mcp_gitlab", "cmd.init.wizard_step_mcp_gitlab")
+		refresh("mcp_gslides", "cmd.init.wizard_step_mcp_gslides")
 	}
 
 	return views.NewInlineWizardView(cfg)

@@ -26,6 +26,11 @@ type InfoField struct {
 
 // WizardStep defines a single step in the wizard.
 type WizardStep struct {
+	// ID is an optional unique identifier for this step, used by RefreshLabels
+	// to update labels by name instead of fragile positional indices.
+	// Zero-value (empty string) is valid and means the step has no ID.
+	ID string
+
 	// Label is displayed in the info panel progression.
 	Label string
 
@@ -90,6 +95,17 @@ type WizardStep struct {
 	//
 	// This field is set automatically — do not set it in step definitions.
 	Rerender func()
+}
+
+// StepByID returns a pointer to the first step with the given ID, or nil if not found.
+// Use this in RefreshLabels to avoid hardcoded indices.
+func StepByID(steps []WizardStep, id string) *WizardStep {
+	for i := range steps {
+		if steps[i].ID == id {
+			return &steps[i]
+		}
+	}
+	return nil
 }
 
 // StepGroup defines a named group of wizard steps for the step bar.
