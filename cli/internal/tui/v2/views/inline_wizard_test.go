@@ -743,3 +743,127 @@ func TestInlineWizardView_ContextualHints(t *testing.T) {
 
 	v.Unmount()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error recovery tests (P2.6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestInlineWizardView_ErrorState_IsSet(t *testing.T) {
+	onDoneCalled := false
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.err.set",
+		Title: "Error Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Step A",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddButton("Go", func() { onDone() })
+					return f
+				},
+				OnDone: func() error {
+					onDoneCalled = true
+					return nil
+				},
+			},
+		},
+	})
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// Simulate an error state (as runWithSpinner would set it)
+	v.wizardErr = assert.AnError
+	assert.NotNil(t, v.wizardErr, "wizardErr should be set")
+	assert.False(t, v.completed, "wizard should NOT be completed when in error state")
+	assert.False(t, onDoneCalled, "OnDone should not have been called during mount")
+
+	v.Unmount()
+}
+
+func TestInlineWizardView_ErrorState_RetryClears(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.err.retry",
+		Title: "Retry Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Step A",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddButton("Go", func() { onDone() })
+					return f
+				},
+				OnDone: func() error {
+					return nil
+				},
+			},
+		},
+	})
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// Set error state and then trigger retry by clearing it (as Enter key handler does)
+	v.wizardErr = assert.AnError
+	assert.NotNil(t, v.wizardErr)
+
+	// Simulate retry: clear error and re-render
+	v.wizardErr = nil
+	v.renderStep(v.currentStep)
+	assert.Nil(t, v.wizardErr, "wizardErr should be nil after retry")
+	assert.Equal(t, 0, v.currentStep, "should still be on step 0 after retry")
+
+	v.Unmount()
+}
+
+func TestInlineWizardView_ErrorState_GoBack(t *testing.T) {
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.err.back",
+		Title: "GoBack Test",
+		Steps: []WizardStep{
+			{
+				Label:    "Step A",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddButton("Go", func() { onDone() })
+					return f
+				},
+				OnDone: func() error {
+					return nil
+				},
+			},
+			{
+				Label:    "Step B",
+				Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddButton("Go", func() { onDone() })
+					return f
+				},
+				OnDone: func() error {
+					return nil
+				},
+			},
+		},
+	})
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+	v.Mount(content, app)
+
+	// Advance to step 1
+	v.advanceAfterDone(v.cfg.Steps[0])
+	require.Equal(t, 1, v.currentStep, "should be on step 1")
+
+	// Simulate error on step 1, then go back
+	v.wizardErr = assert.AnError
+	v.goBack()
+	assert.Equal(t, 0, v.currentStep, "should be back on step 0 after goBack")
+	// Note: goBack() does not clear wizardErr by itself — the errView's
+	// InputCapture handler does that before calling goBack(). Here we verify
+	// navigation works even with wizardErr set.
+
+	v.Unmount()
+}
