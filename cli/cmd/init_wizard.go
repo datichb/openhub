@@ -165,7 +165,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		{
 			Label:    i18n.T("cmd.init.wizard_step_lang"),
 			Required: true,
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 				langOptions := []string{"Français", "English"}
 				// Detect system locale for sensible default
 				defaultIdx := 0 // Français
@@ -188,6 +188,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					} else {
 						selectedLang = "fr"
 					}
+					views.AutoAdvanceFromDropDown(tvApp, form, 0)
 				})
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 				return form
@@ -257,9 +258,6 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 				return ""
 			},
-			// Exclude Provider (idx 0) and AuthMode (idx 1) DropDowns from
-			// auto-advance — their SetSelectedFunc triggers a full form rerender.
-			AutoAdvanceExclude: []int{0, 1},
 			Form: func(app *tview.Application, onDone func()) *tview.Form {
 				// Initialize defaults on first render (zero values).
 				// On subsequent re-renders (after a DropDown change), these
@@ -486,7 +484,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				projectPath = abs
 				return ""
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), "", 40, nil, func(t string) { projectName = t })
 				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), ".", 50, nil, func(t string) { projectPath = t })
@@ -501,6 +499,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					teamState.attachProject = true
 					form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
 						teamState.attachProject = idx == 0
+						views.AutoAdvanceFromDropDown(tvApp, form, 2)
 					})
 				}
 

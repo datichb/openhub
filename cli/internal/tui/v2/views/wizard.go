@@ -90,12 +90,6 @@ type WizardStep struct {
 	//
 	// This field is set automatically — do not set it in step definitions.
 	Rerender func()
-
-	// AutoAdvanceExclude lists form item indices (0-based) whose DropDown
-	// should NOT auto-advance to the next field after selection. Use this
-	// for DropDowns whose SetSelectedFunc triggers a form rerender (e.g.
-	// the Provider selector that rebuilds the form on change).
-	AutoAdvanceExclude []int
 }
 
 // StepGroup defines a named group of wizard steps for the step bar.
@@ -483,7 +477,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetBorder(false)
 
 				// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
-				fixFormDropDownStyles(form, shell.App, step.AutoAdvanceExclude...)
+				fixFormDropDownStyles(form)
 
 				// Esc handling: Required steps block skip; optional steps use double-Esc
 				form.SetCancelFunc(func() {
