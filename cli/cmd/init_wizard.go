@@ -697,51 +697,21 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 8 — MCP Figma (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		views.WizardStep{
-			Label: i18n.T("cmd.init.wizard_step_mcp_figma"),
-			SkipIf: func() bool {
-				return mcpSkipped
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				// Pre-fill from keychain if available
-				if figmaToken == "" && a.Secrets != nil {
-					if existing, err := a.Secrets.Get(context.Background(), config.DefaultFigmaTokenKey); err == nil && existing != "" {
-						figmaToken = existing
-					}
-				}
-				form := tview.NewForm()
-				form.AddPasswordField(
-					i18n.Tf("cmd.init.mcp_token_prompt", "Figma"),
-					figmaToken, 50, '*',
-					func(t string) { figmaToken = t },
-				)
-				form.AddTextView("", i18n.T("cmd.init.mcp_hint_figma"), 60, 2, true, false)
-				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
-				return form
-			},
-			OnDone: func() error {
-				if figmaToken == "" {
-					return nil
-				}
-				if a.Secrets != nil {
-					if err := a.Secrets.Set(context.Background(), config.DefaultFigmaTokenKey, figmaToken); err != nil {
-						return fmt.Errorf("keychain: %w", err)
-					}
-				}
-				// Enable in config
+		buildMCPTokenStep(mcpTokenStepOpts{
+			LabelI18nKey: "cmd.init.wizard_step_mcp_figma",
+			DisplayName:  "Figma",
+			TokenKey:     config.DefaultFigmaTokenKey,
+			HintI18nKey:  "cmd.init.mcp_hint_figma",
+			TokenVar:     &figmaToken,
+			SkipIf:       func() bool { return mcpSkipped },
+			Secrets:      a.Secrets,
+			AfterStore: func() error {
 				return config.Update(func(c *config.Config) error {
 					c.MCP.Figma.Enabled = true
 					return nil
 				})
 			},
-			InfoFields: func() []views.InfoField {
-				v := i18n.T("cmd.init.wizard_mcp_configured")
-				if figmaToken == "" {
-					v = i18n.T("cmd.init.wizard_mcp_skipped")
-				}
-				return []views.InfoField{{Label: "Figma", Value: v}}
-			},
-		},
+		}),
 
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 9 — MCP GitLab (optional)
@@ -805,50 +775,21 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 10 — MCP Google Slides (optional)
 		// ══════════════════════════════════════════════════════════════════════
-		views.WizardStep{
-			Label: i18n.T("cmd.init.wizard_step_mcp_gslides"),
-			SkipIf: func() bool {
-				return mcpSkipped
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				// Pre-fill from keychain if available
-				if gslidesToken == "" && a.Secrets != nil {
-					if existing, err := a.Secrets.Get(context.Background(), config.DefaultGslidesTokenKey); err == nil && existing != "" {
-						gslidesToken = existing
-					}
-				}
-				form := tview.NewForm()
-				form.AddPasswordField(
-					i18n.Tf("cmd.init.mcp_token_prompt", "Google Slides"),
-					gslidesToken, 50, '*',
-					func(t string) { gslidesToken = t },
-				)
-				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gslides"), 60, 2, true, false)
-				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
-				return form
-			},
-			OnDone: func() error {
-				if gslidesToken == "" {
-					return nil
-				}
-				if a.Secrets != nil {
-					if err := a.Secrets.Set(context.Background(), config.DefaultGslidesTokenKey, gslidesToken); err != nil {
-						return fmt.Errorf("keychain: %w", err)
-					}
-				}
+		buildMCPTokenStep(mcpTokenStepOpts{
+			LabelI18nKey: "cmd.init.wizard_step_mcp_gslides",
+			DisplayName:  "Google Slides",
+			TokenKey:     config.DefaultGslidesTokenKey,
+			HintI18nKey:  "cmd.init.mcp_hint_gslides",
+			TokenVar:     &gslidesToken,
+			SkipIf:       func() bool { return mcpSkipped },
+			Secrets:      a.Secrets,
+			AfterStore: func() error {
 				return config.Update(func(c *config.Config) error {
 					c.MCP.Gslides.Enabled = true
 					return nil
 				})
 			},
-			InfoFields: func() []views.InfoField {
-				v := i18n.T("cmd.init.wizard_mcp_configured")
-				if gslidesToken == "" {
-					v = i18n.T("cmd.init.wizard_mcp_skipped")
-				}
-				return []views.InfoField{{Label: "Google Slides", Value: v}}
-			},
-		},
+		}),
 	)
 
 	// Resolve langStepIdx: Language step is always step 1.
