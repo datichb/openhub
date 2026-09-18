@@ -1533,6 +1533,7 @@
   "cmd.init.wizard_project_name_required": "Project name is required",
   "cmd.init.wizard_project_path_invalid": "Path \"%s\" does not exist or is not a directory",
   "cmd.init.wizard_token_required": "An API key or token is required for this provider",
+  "cmd.init.wizard_keychain_hint": "Existing token found in keychain — leave empty to keep it",
   "cmd.init.wizard_no_keyring": "No keyring available — tokens will NOT be stored",
   "cmd.init.wizard_processing_project": "Adding project...",
   "cmd.init.wizard_step_team": "Team",

@@ -225,17 +225,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 				name := providerPkg.Name(provider)
 				det := providerPkg.Detect(name)
 
-				// Also check keychain for existing token (Detect only checks env/system)
 				if !det.Available && a != nil && a.Secrets != nil {
 					if key := providerPkg.KeychainKey(name, ""); key != "" {
 						if existing, err := a.Secrets.Get(ctx, key); err == nil && existing != "" {
 							det.Available = true
 							det.Source = "keychain"
-							if len(existing) > 8 {
-								det.Details = existing[:4] + "..." + existing[len(existing)-4:]
-							} else {
-								det.Details = "***"
-							}
+							det.Details = "***"
 						}
 					}
 				}

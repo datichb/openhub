@@ -314,24 +314,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				profileName = "default"
 			}
 
-			// ── Credential detection: check keychain and env vars ──
+			// ── Credential detection: check keychain for existing token ──
+			hasKeychainToken := false
 			if token == "" {
 				name := providerPkg.Name(selectedProvider)
-				// Check keychain first
 				if a.Secrets != nil {
 					if key := providerPkg.KeychainKey(name, ""); key != "" {
 						if existing, err := a.Secrets.Get(context.Background(), key); err == nil && existing != "" {
-							token = existing
+							hasKeychainToken = true
+							// Do NOT pre-fill token — show hint instead (Option A)
 						}
-					}
-				}
-				// Also check env/system via Detect (covers AWS profiles, env vars)
-				if token == "" {
-					det := providerPkg.Detect(name)
-					if det.Available && det.Source == "env" {
-						// Env-based credentials don't need a token field;
-						// signal is stored in detectedSource for InfoFields.
-						token = "" // keep empty — env credentials are implicit
 					}
 				}
 			}
@@ -387,6 +379,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					)
 					switch authMode {
 					case "bearer":
+						if hasKeychainToken {
+							form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+						}
 						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), token, 50, '*', func(t string) { token = t })
 						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_bearer"), 60, 1, true, false)
 						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
@@ -399,10 +394,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 
 				case "anthropic":
+					if hasKeychainToken {
+						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+					}
 					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), token, 50, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_anthropic"), 60, 1, true, false)
 
 				case "openrouter":
+					if hasKeychainToken {
+						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+					}
 					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), token, 50, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_openrouter"), 60, 1, true, false)
 
@@ -729,13 +730,17 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				return mcpSkipped
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				// Pre-fill from keychain if available
+				// Check keychain for existing token (don't pre-fill)
+				hasKeychainGitlab := false
 				if gitlabToken == "" && a.Secrets != nil {
 					if existing, err := a.Secrets.Get(context.Background(), config.DefaultGitLabTokenKey); err == nil && existing != "" {
-						gitlabToken = existing
+						hasKeychainGitlab = true
 					}
 				}
 				form := tview.NewForm()
+				if hasKeychainGitlab {
+					form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+				}
 				form.AddPasswordField(
 					i18n.Tf("cmd.init.mcp_token_prompt", "GitLab"),
 					gitlabToken, 50, '*',

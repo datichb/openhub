@@ -1533,6 +1533,7 @@
   "cmd.init.wizard_project_name_required": "Le nom du projet est requis",
   "cmd.init.wizard_project_path_invalid": "Le chemin \"%s\" n'existe pas ou n'est pas un dossier",
   "cmd.init.wizard_token_required": "Une clé API ou un token est requis pour ce provider",
+  "cmd.init.wizard_keychain_hint": "Token existant trouvé dans le keychain — laisser vide pour le conserver",
   "cmd.init.wizard_no_keyring": "Pas de keyring disponible — les tokens ne seront PAS stockés",
   "cmd.init.wizard_processing_project": "Ajout du projet...",
   "cmd.init.wizard_step_team": "Équipe",

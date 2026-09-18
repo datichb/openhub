@@ -41,20 +41,25 @@ func (o mcpTokenStepOpts) resolveSecrets() domain.SecretStore {
 
 // buildMCPTokenStep returns a WizardStep that collects a token for an MCP
 // service, stores it in the keychain, and optionally runs an AfterStore hook.
-// The step pre-fills the token from keychain if already stored.
+// When a token already exists in the keychain, the field is left empty and a
+// hint is shown ("leave empty to keep existing").
 func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 	return views.WizardStep{
 		ID:     opts.ID,
 		Label:  i18n.T(opts.LabelI18nKey),
 		SkipIf: opts.SkipIf,
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			// Pre-fill from keychain if available
+			// Check keychain for existing token (don't pre-fill — show hint instead)
+			hasKeychainToken := false
 			if secrets := opts.resolveSecrets(); *opts.TokenVar == "" && secrets != nil {
 				if existing, err := secrets.Get(context.Background(), opts.TokenKey); err == nil && existing != "" {
-					*opts.TokenVar = existing
+					hasKeychainToken = true
 				}
 			}
 			form := tview.NewForm()
+			if hasKeychainToken {
+				form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+			}
 			form.AddPasswordField(
 				i18n.Tf("cmd.init.mcp_token_prompt", opts.DisplayName),
 				*opts.TokenVar, 50, '*',
