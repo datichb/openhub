@@ -106,6 +106,7 @@ func TestBuildIntroStep_Layout(t *testing.T) {
 		"My description",
 		"List title",
 		"item1\nitem2",
+		"You will need:\n• Item A\n• Item B",
 		"A note",
 		func() {}, // onContinue
 		func() {}, // onSkip
@@ -149,7 +150,7 @@ func TestBuildIntroStep_ContinueCallback(t *testing.T) {
 		"Continue",
 		"Title",
 		"Desc",
-		"", "", "", // no list, no note
+		"", "", "", "", // no list, no prereqs, no note
 		func() { continueCalled = true },
 		func() { t.Error("onSkip should not be called") },
 	)
@@ -201,7 +202,7 @@ func TestBuildIntroStep_SkipCallback(t *testing.T) {
 		"Skippable",
 		"Title",
 		"Desc",
-		"", "", "",
+		"", "", "", "",
 		func() { /* onContinue — not tested here */ },
 		func() { skipCalled = true },
 	)

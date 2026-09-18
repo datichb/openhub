@@ -224,6 +224,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_provider_desc"),
 			i18n.T("cmd.init.wizard_intro_provider_list"),
 			i18n.T("cmd.init.wizard_provider_list_items"),
+			i18n.T("cmd.init.wizard_provider_prereq"),
 			"",
 			func() { providerSkipped = false },
 			func() { providerSkipped = true },
@@ -419,6 +420,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_team_title"),
 			i18n.T("cmd.init.wizard_intro_team_desc"),
 			"", "",
+			i18n.T("cmd.init.wizard_team_prereq"),
 			i18n.T("cmd.init.wizard_intro_team_optional"),
 			func() { teamState.Skipped = false },
 			func() { teamState.Skipped = true },
@@ -443,6 +445,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_project_title"),
 			i18n.T("cmd.init.wizard_intro_project_desc"),
 			"", "",
+			"",
 			i18n.T("cmd.init.wizard_intro_project_optional"),
 			func() { projectSkipped = false },
 			func() { projectSkipped = true },
@@ -592,6 +595,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			i18n.T("cmd.init.wizard_intro_mcp_desc"),
 			i18n.T("cmd.init.wizard_intro_mcp_list"),
 			i18n.T("cmd.init.wizard_mcp_list_items"),
+			i18n.T("cmd.init.wizard_mcp_prereq"),
 			"",
 			func() { mcpSkipped = false },
 			func() { mcpSkipped = true },
@@ -807,7 +811,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 // When onSkip is non-nil, a "Skip" button is added alongside "Continue".
 // When onContinue is non-nil, it is called when "Continue" is clicked
 // (use to reset a skip flag when the user goes back and re-enters a group).
-func buildIntroStep(badge, title, desc, listTitle, listItems, note string, onContinue, onSkip func()) views.WizardStep {
+func buildIntroStep(badge, title, desc, listTitle, listItems, prereqs, note string, onContinue, onSkip func()) views.WizardStep {
 	return views.WizardStep{
 		Label:         badge,
 		Required:      true,
@@ -834,6 +838,21 @@ func buildIntroStep(badge, title, desc, listTitle, listItems, note string, onCon
 			if listTitle != "" && listItems != "" {
 				fmt.Fprintf(&b, "%s%s%s\n", muted, listTitle, reset)
 				fmt.Fprintf(&b, "%s%s%s\n", accent, listItems, reset)
+				b.WriteString("\n")
+			}
+
+			// Optional prerequisites (with visual separator)
+			if prereqs != "" {
+				fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
+				for _, line := range strings.Split(prereqs, "\n") {
+					if strings.HasPrefix(line, "• ") {
+						// Bullet items: bullet in accent, rest in muted
+						fmt.Fprintf(&b, "%s•%s %s%s%s\n", accent, reset, muted, line[len("• "):], reset)
+					} else {
+						// Section title
+						fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
+					}
+				}
 				b.WriteString("\n")
 			}
 
