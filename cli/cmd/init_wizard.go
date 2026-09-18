@@ -182,15 +182,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					selectedLang = "fr"
 				}
 				form := tview.NewForm()
+				langMounted := false
 				form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, defaultIdx, func(option string, _ int) {
 					if option == "English" {
 						selectedLang = "en"
 					} else {
 						selectedLang = "fr"
 					}
-					views.AutoAdvanceFromDropDown(tvApp, form, 0)
+					if langMounted {
+						views.AutoAdvanceFromDropDown(tvApp, form, 0)
+					}
 				})
 				form.AddButton(i18n.T("wizard.hint.submit"), onDone)
+				langMounted = true
 				return form
 			},
 			OnDone: func() error {
@@ -490,6 +494,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), ".", 50, nil, func(t string) { projectPath = t })
 
 				// If a team was configured, offer to attach the project
+				attachMounted := false
 				if teamState.Configured && teamState.TeamID != "" {
 					attachOptions := []string{
 						i18n.Tf("cmd.init.wizard_project_attach_yes", teamState.TeamID),
@@ -499,7 +504,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					teamState.attachProject = true
 					form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
 						teamState.attachProject = idx == 0
-						views.AutoAdvanceFromDropDown(tvApp, form, 2)
+						if attachMounted {
+							views.AutoAdvanceFromDropDown(tvApp, form, 2)
+						}
 					})
 				}
 
@@ -522,6 +529,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					}
 					onDone()
 				})
+				attachMounted = true
 				return form
 			},
 			InfoFields: func() []views.InfoField {

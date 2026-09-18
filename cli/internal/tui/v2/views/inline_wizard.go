@@ -847,6 +847,13 @@ func (w *InlineWizardView) renderStep(idx int) {
 					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
 						itemIdx, _ := form.GetFocusedItemIndex()
 						if isLastFocusableFormItem(form, itemIdx) {
+							// Don't intercept Enter on DropDowns — they need it
+							// to open the popup and confirm a selection.
+							if event.Key() == tcell.KeyEnter && itemIdx >= 0 && itemIdx < form.GetFormItemCount() {
+								if _, isDD := form.GetFormItem(itemIdx).(*tview.DropDown); isDD {
+									return event
+								}
+							}
 							w.app.SetFocus(buttonForm)
 							return nil
 						}
