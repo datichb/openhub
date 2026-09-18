@@ -1039,6 +1039,21 @@ func (s *Shell) PopView() bool {
 	return s.router.Pop()
 }
 
+// SetOmnibarVisible shows or hides the bottom omnibar. When hidden, the
+// omnibar's 5 rows are reclaimed for the content area. The omnibar is
+// deactivated before hiding to ensure suggestions are dismissed and focus
+// is properly restored.
+func (s *Shell) SetOmnibarVisible(visible bool) {
+	if !visible {
+		s.omnibar.Deactivate()
+	}
+	if visible {
+		s.root.ResizeItem(s.omnibar.Primitive(), 5, 0)
+	} else {
+		s.root.ResizeItem(s.omnibar.Primitive(), 0, 0)
+	}
+}
+
 // SetProjectMode activates or deactivates project mode.
 // Passing nil deactivates project mode (hub mode).
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {

@@ -156,6 +156,11 @@ type ShellAccess interface {
 	// PopView pops the current ephemeral view from the router stack,
 	// returning to the previous view. Returns false if already at root.
 	PopView() bool
+
+	// SetOmnibarVisible shows or hides the bottom omnibar. Hidden state
+	// reclaims the 5 rows for the content area. The omnibar is deactivated
+	// before hiding to ensure suggestions are dismissed and focus restored.
+	SetOmnibarVisible(visible bool)
 }
 
 // ActiveProject holds the minimal project context for the TUI project mode.

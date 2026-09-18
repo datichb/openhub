@@ -248,6 +248,11 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.doRenderStep = w.renderStep
 	w.renderInfoPanel()
 	w.renderStep(w.currentStep)
+
+	// Hide the shell omnibar — the wizard has its own hints bar.
+	if w.shell != nil {
+		w.shell.SetOmnibarVisible(false)
+	}
 }
 
 // mountClassicLayout builds the original full-width layout (no groups).
@@ -277,13 +282,15 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	// Info sidebar: padding
 	w.infoPanel.SetBorderPadding(1, 1, 1, 1)
 
-	// mainPanel wraps stepContent (left side)
-	mainPanel := tview.NewFlex().SetDirection(tview.FlexRow)
-	mainPanel.SetBackgroundColor(theme.BgPanel)
-	mainPanel.SetBorderPadding(0, 0, 2, 1)
-	mainPanel.AddItem(w.stepContent, 0, 1, true)
+	// leftCol wraps stepContent + hintsBar so that hints are centered
+	// relative to the content area, not the full width including the sidebar.
+	leftCol := tview.NewFlex().SetDirection(tview.FlexRow)
+	leftCol.SetBackgroundColor(theme.BgPanel)
+	leftCol.SetBorderPadding(0, 0, 2, 1)
+	leftCol.AddItem(w.stepContent, 0, 1, true)
+	leftCol.AddItem(w.hintsBar.TextView, 1, 0, false)
 
-	// Vertical separator (│) between mainPanel and sidebar
+	// Vertical separator (│) between left column and sidebar
 	sep := tview.NewBox()
 	sep.SetBackgroundColor(theme.BgPanel)
 	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
@@ -294,20 +301,18 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 		return x + 1, y, width - 1, height
 	})
 
-	// bodyRow: mainPanel (left, 3/4) + separator (1 col) + sidebar (right, 1/4)
+	// bodyRow: leftCol (left, 3/4) + separator (1 col) + sidebar (right, 1/4)
 	w.bodyRow = tview.NewFlex().SetDirection(tview.FlexColumn)
 	w.bodyRow.SetBackgroundColor(theme.BgPanel)
 	w.bodyRow.
-		AddItem(mainPanel, 0, 3, true).
+		AddItem(leftCol, 0, 3, true).
 		AddItem(sep, 1, 0, false).
 		AddItem(w.infoPanel, 0, 1, false)
 
-	// Full-screen layout: body + hints
+	// Full-screen layout
 	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
 	w.mainFlex.SetBackgroundColor(theme.BgPanel)
-	w.mainFlex.
-		AddItem(w.bodyRow, 0, 1, true).
-		AddItem(w.hintsBar.TextView, 1, 0, false)
+	w.mainFlex.AddItem(w.bodyRow, 0, 1, true)
 
 	content.AddItem(w.mainFlex, 0, 1, true)
 }
@@ -371,6 +376,11 @@ func (w *InlineWizardView) syncStepBar(idx int, status widgets.StepStatus) {
 }
 
 func (w *InlineWizardView) Unmount() {
+	// Restore the shell omnibar before cleanup.
+	if w.shell != nil {
+		w.shell.SetOmnibarVisible(true)
+	}
+
 	if w.spinner != nil {
 		w.spinner.Stop()
 	}
