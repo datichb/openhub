@@ -202,13 +202,14 @@ func actionTeamInit() {
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
-			// Show tracker info if already configured in the team-state.
 			sp := statePath
 			if sp == "" {
 				sp = config.TeamStatePath(stateRepo)
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
+			trackerConfigured := false
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				trackerConfigured = true
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
@@ -220,14 +221,25 @@ func actionTeamInit() {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
 
-			options := []string{
-				i18n.T("cmd.init.wizard_region_placeholder"),
-				i18n.T("cmd.init.wizard_tracker_configure_now"),
-				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			if trackerConfigured {
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_keep_existing"),
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+					launchDiscoveryAfter = idx == 2 // 1=keep, 2=reconfigure, 3=later
+				})
+			} else {
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+					launchDiscoveryAfter = idx == 1 // 1=configure, 2=later
+				})
 			}
-			form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-				launchDiscoveryAfter = idx == 1
-			})
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
@@ -660,7 +672,9 @@ func actionTeamRejoin() {
 				sp = config.TeamStatePath(stateRepo)
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
+			trackerConfigured := false
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				trackerConfigured = true
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
@@ -672,14 +686,25 @@ func actionTeamRejoin() {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
 
-			options := []string{
-				i18n.T("cmd.init.wizard_region_placeholder"),
-				i18n.T("cmd.init.wizard_tracker_configure_now"),
-				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			if trackerConfigured {
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_keep_existing"),
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+					launchDiscoveryAfterRejoin = idx == 2 // 1=keep, 2=reconfigure, 3=later
+				})
+			} else {
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+					launchDiscoveryAfterRejoin = idx == 1 // 1=configure, 2=later
+				})
 			}
-			form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-				launchDiscoveryAfterRejoin = idx == 1
-			})
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},

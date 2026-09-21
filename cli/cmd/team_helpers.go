@@ -197,31 +197,52 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 			// Load team-state config to check if a tracker is already configured.
 			statePath := config.TeamStatePath(state.Repo)
 			repo := teamstate.NewRepo(state.Repo, statePath)
-			var hint string
+			trackerConfigured := false
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
-				hint = i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
+				trackerConfigured = true
+				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
 						teamCfg.Tracker.TrackerURL,
 						teamCfg.Tracker.TrackerProject,
 					)
+				form.AddTextView("", hint, 60, 3, true, false)
 			} else {
-				hint = i18n.T("cmd.init.wizard_tracker_not_configured")
+				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
-			form.AddTextView("", hint, 60, 3, true, false)
 
-			options := []string{
-				i18n.T("cmd.init.wizard_region_placeholder"),
-				i18n.T("cmd.init.wizard_tracker_configure_now"),
-				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			// Build dropdown: options differ depending on whether a tracker exists.
+			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			if trackerConfigured {
+				// "Keep existing" / "Reconfigure" / "Later"
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_keep_existing"),
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(
+					i18n.T("cmd.init.wizard_step_tracker_setup"),
+					options, 0,
+					func(_ string, idx int) {
+						// 1=keep, 2=reconfigure (discovery), 3=later
+						state.LaunchTrackerDiscovery = idx == 2
+					},
+				)
+			} else {
+				// "Configure now" / "Later"
+				options = append(options,
+					i18n.T("cmd.init.wizard_tracker_configure_now"),
+					i18n.T("cmd.init.wizard_tracker_configure_later"),
+				)
+				form.AddDropDown(
+					i18n.T("cmd.init.wizard_step_tracker_setup"),
+					options, 0,
+					func(_ string, idx int) {
+						// 1=configure (discovery), 2=later
+						state.LaunchTrackerDiscovery = idx == 1
+					},
+				)
 			}
-			form.AddDropDown(
-				i18n.T("cmd.init.wizard_step_tracker_setup"),
-				options, 0,
-				func(_ string, idx int) {
-					state.LaunchTrackerDiscovery = idx == 1
-				},
-			)
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},

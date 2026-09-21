@@ -1585,6 +1585,7 @@
   "cmd.init.wizard_tracker_not_configured": "No tracker configured for this team.",
   "cmd.init.wizard_tracker_configure_now": "Configure now",
   "cmd.init.wizard_tracker_configure_later": "Later",
+  "cmd.init.wizard_tracker_keep_existing": "Keep existing configuration",
   "cmd.team.tracker_hint": "To configure the team tracker: oh tracker discover",
   "cmd.init.wizard_step_rejoin_validate": "Validation",
   "cmd.init.wizard_processing_rejoin_clone": "Cloning team repository...",
