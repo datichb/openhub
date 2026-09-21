@@ -137,7 +137,9 @@ type initWizardTeamState struct {
 	CredToken      string // HTTPS token/password
 	CredAuthChoice string // "provide", "skip", or "public"
 	// GitLab identity verification
-	GitLabToken string // token entered in the optional GitLab token prompt
+	GitLabToken    string // token entered in the optional GitLab token prompt
+	TokenChoice    string // "reuse", "new", or "skip"
+	TokenChoiceIdx int    // current dropdown index (0 = placeholder)
 }
 
 // selectedMemberGitLabUsername returns the GitLab username of the currently
@@ -152,22 +154,27 @@ func selectedMemberGitLabUsername(state *initWizardTeamState) string {
 }
 
 // gitlabTokenAvailable checks whether a GitLab API token is already
-// resolvable from the environment variable, the MCP keychain key, or the
-// default tracker keychain key. This is a lightweight pre-check to decide
-// whether the optional token prompt step should be shown.
-func gitlabTokenAvailable(ctx context.Context, a *app.App) bool {
+// gitlabTokenSource returns a human-readable label describing the first
+// available GitLab token source, or "" if no token is resolvable.
+// The teamID is used to check for a team-specific keychain key.
+func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
 	if os.Getenv("GITLAB_TOKEN") != "" {
-		return true
+		return "env GITLAB_TOKEN"
 	}
 	if a != nil && a.Secrets != nil {
+		if teamID != "" {
+			if val, err := a.Secrets.Get(ctx, config.TeamGitLabTokenKey(teamID)); err == nil && val != "" {
+				return i18n.Tf("cmd.init.wizard_rejoin_token_source_team", teamID)
+			}
+		}
 		if val, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && val != "" {
-			return true
+			return "MCP GitLab"
 		}
 		if val, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && val != "" {
-			return true
+			return "Tracker GitLab"
 		}
 	}
-	return false
+	return ""
 }
 
 // buildInitWizardTeamSteps returns the two WizardSteps for the "Team" group
@@ -370,7 +377,8 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 // After successful completion, state.Configured is true and the app should be
 // reloaded so subsequent steps can see the team.
 func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
-	steps := []views.WizardStep{
+	var steps []views.WizardStep
+	steps = []views.WizardStep{
 		// ── Rejoin step 1: Repo URL + fetch members ──
 		{
 			ID:    "rejoin_repo",
@@ -478,38 +486,91 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	)
 
 	// ── Rejoin step 4b: GitLab token (conditional) ──
-	// Shown only when the selected member has a gitlab_username but no
-	// GitLab token is resolvable yet. The user may leave the field empty
-	// to skip identity verification.
+	// Shown when the selected member has a gitlab_username. Offers a dropdown
+	// to reuse an existing token, enter a new one, or skip verification.
 	steps = append(steps, views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin" ||
-				selectedMemberGitLabUsername(state) == "" ||
-				gitlabTokenAvailable(state.Ctx, *a)
+				selectedMemberGitLabUsername(state) == ""
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+		Validate: func() string {
+			if state.TokenChoiceIdx == 0 {
+				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
+			}
+			return ""
+		},
+		Form: func(app *tview.Application, onDone func()) *tview.Form {
+			stepIdx := bedrockStepIndex(&steps, "rejoin_gitlab_token")
+			rerenderSafe := func() {
+				if stepIdx >= 0 {
+					if fn := steps[stepIdx].Rerender; fn != nil {
+						go func() { app.QueueUpdateDraw(func() { fn() }) }()
+					}
+				}
+			}
+
+			teamID := config.RepoNameFromRemote(state.Repo)
+			source := gitlabTokenSource(state.Ctx, *a, teamID)
+
+			// Build dropdown options: placeholder + [reuse if available] + new + skip
+			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			optionKeys := []string{"placeholder"}
+			if source != "" {
+				options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))
+				optionKeys = append(optionKeys, "reuse")
+			}
+			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_new"))
+			optionKeys = append(optionKeys, "new")
+			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_skip"))
+			optionKeys = append(optionKeys, "skip")
+
 			form := tview.NewForm()
-			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_gitlab_hint"), 60, 3, true, false)
-			form.AddPasswordField(
-				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-				"", 0, '*',
-				func(t string) { state.GitLabToken = t },
+			form.AddDropDown(
+				i18n.T("cmd.init.wizard_rejoin_token_choice"),
+				options, state.TokenChoiceIdx,
+				func(_ string, idx int) {
+					if state.TokenChoiceIdx == idx {
+						return
+					}
+					wasNew := state.TokenChoice == "new"
+					if idx >= 0 && idx < len(optionKeys) {
+						state.TokenChoice = optionKeys[idx]
+					}
+					state.TokenChoiceIdx = idx
+					isNew := state.TokenChoice == "new"
+					if wasNew != isNew {
+						rerenderSafe()
+					}
+				},
 			)
+			if state.TokenChoice == "new" {
+				form.AddPasswordField(
+					i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+					state.GitLabToken, 0, '*',
+					func(t string) { state.GitLabToken = t },
+				)
+			}
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			if state.GitLabToken != "" && (*a).Secrets != nil {
-				return (*a).Secrets.Set(state.Ctx, config.DefaultGitLabTokenKey, state.GitLabToken)
+			if state.TokenChoice == "new" && state.GitLabToken != "" && (*a).Secrets != nil {
+				teamID := config.RepoNameFromRemote(state.Repo)
+				return (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.GitLabToken)
 			}
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			status := i18n.T("cmd.init.wizard_team_skipped")
-			if state.GitLabToken != "" {
+			var status string
+			switch state.TokenChoice {
+			case "reuse":
+				status = i18n.T("cmd.init.wizard_rejoin_token_reuse_short")
+			case "new":
 				status = "stored"
+			default:
+				status = i18n.T("cmd.init.wizard_team_skipped")
 			}
 			return []views.InfoField{
 				{Label: "GitLab token", Value: status},

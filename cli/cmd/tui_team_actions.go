@@ -370,11 +370,14 @@ func actionTeamRejoin() {
 
 	// ── Shared state (captured by step closures) ────────────────────
 	var (
-		stateRepo    string
-		statePath    string
-		members      []teamstate.Member
-		memberID     string
-		gitlabToken  string
+		stateRepo      string
+		statePath      string
+		members        []teamstate.Member
+		memberID       string
+		gitlabToken    string
+		tokenChoice    string // "reuse", "new", or "skip"
+		tokenChoiceIdx int    // current dropdown index (0 = placeholder)
+		steps          []views.WizardStep
 	)
 
 	// ── Step 0: Repository URL ──────────────────────────────────────
@@ -488,29 +491,83 @@ func actionTeamRejoin() {
 					break
 				}
 			}
-			return glUser == "" || gitlabTokenAvailable(ctx, a)
+			return glUser == ""
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+		Validate: func() string {
+			if tokenChoiceIdx == 0 {
+				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
+			}
+			return ""
+		},
+		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
+			stepIdx := bedrockStepIndex(&steps, "rejoin_gitlab_token")
+			rerenderSafe := func() {
+				if stepIdx >= 0 {
+					if fn := steps[stepIdx].Rerender; fn != nil {
+						go func() { tvApp.QueueUpdateDraw(func() { fn() }) }()
+					}
+				}
+			}
+
+			teamID := config.RepoNameFromRemote(stateRepo)
+			source := gitlabTokenSource(ctx, a, teamID)
+
+			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			optionKeys := []string{"placeholder"}
+			if source != "" {
+				options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))
+				optionKeys = append(optionKeys, "reuse")
+			}
+			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_new"))
+			optionKeys = append(optionKeys, "new")
+			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_skip"))
+			optionKeys = append(optionKeys, "skip")
+
 			form := tview.NewForm()
-			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_gitlab_hint"), 60, 3, true, false)
-			form.AddPasswordField(
-				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-				"", 0, '*',
-				func(t string) { gitlabToken = t },
+			form.AddDropDown(
+				i18n.T("cmd.init.wizard_rejoin_token_choice"),
+				options, tokenChoiceIdx,
+				func(_ string, idx int) {
+					if tokenChoiceIdx == idx {
+						return
+					}
+					wasNew := tokenChoice == "new"
+					if idx >= 0 && idx < len(optionKeys) {
+						tokenChoice = optionKeys[idx]
+					}
+					tokenChoiceIdx = idx
+					isNew := tokenChoice == "new"
+					if wasNew != isNew {
+						rerenderSafe()
+					}
+				},
 			)
+			if tokenChoice == "new" {
+				form.AddPasswordField(
+					i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+					gitlabToken, 0, '*',
+					func(t string) { gitlabToken = t },
+				)
+			}
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			if gitlabToken != "" && a.Secrets != nil {
-				return a.Secrets.Set(ctx, config.DefaultGitLabTokenKey, gitlabToken)
+			if tokenChoice == "new" && gitlabToken != "" && a.Secrets != nil {
+				teamID := config.RepoNameFromRemote(stateRepo)
+				return a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), gitlabToken)
 			}
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			status := i18n.T("cmd.init.wizard_team_skipped")
-			if gitlabToken != "" {
+			var status string
+			switch tokenChoice {
+			case "reuse":
+				status = i18n.T("cmd.init.wizard_rejoin_token_reuse_short")
+			case "new":
 				status = "stored"
+			default:
+				status = i18n.T("cmd.init.wizard_team_skipped")
 			}
 			return []views.InfoField{
 				{Label: "GitLab token", Value: status},
@@ -565,16 +622,18 @@ func actionTeamRejoin() {
 		},
 	}
 
-	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
-		ID:    "wizard.team.rejoin",
-		Title: i18n.T("tui.team.rejoin"),
-		Steps: []views.WizardStep{
+	steps = []views.WizardStep{
 			repoStep,
 			httpsCredStep,
 			memberStep,
 			gitlabTokenStep,
 			validateStep,
-		},
+		}
+
+	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
+		ID:    "wizard.team.rejoin",
+		Title: i18n.T("tui.team.rejoin"),
+		Steps: steps,
 	})
 
 	tuiShell.PushView(wizard)

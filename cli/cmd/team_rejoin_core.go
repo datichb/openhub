@@ -136,6 +136,17 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 	}
 	src := buildCredentialSource(a, sharedMCP, trackerCfg)
 
+	// If a team-specific token exists in the keychain, prefer it over the
+	// global MCP key. This ensures teams pointing to different GitLab
+	// instances use the correct token.
+	teamID := config.RepoNameFromRemote(repo.Remote())
+	teamTokenKey := config.TeamGitLabTokenKey(teamID)
+	if a.Secrets != nil {
+		if val, err := a.Secrets.Get(ctx, teamTokenKey); err == nil && val != "" {
+			src.GitLabTokenKey = teamTokenKey
+		}
+	}
+
 	cfg, err := tracker.ResolveCredentials(ctx, src, tracker.TypeGitLab)
 	if err != nil {
 		// No token available — cannot validate, allow proceeding with a warning

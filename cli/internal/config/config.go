@@ -308,6 +308,14 @@ func DefaultTokenKeyForService(service string) string {
 	}
 }
 
+// TeamGitLabTokenKey returns the keychain key for a team-specific GitLab token.
+// Pattern: openhub.team.<teamID>.gitlab.token
+// This is separate from the MCP and tracker token keys so that teams pointing
+// to different GitLab instances do not overwrite each other's tokens.
+func TeamGitLabTokenKey(teamID string) string {
+	return "openhub.team." + teamID + ".gitlab.token"
+}
+
 // HubDir returns the path to the .oh configuration directory.
 func HubDir() string {
 	home, err := os.UserHomeDir()

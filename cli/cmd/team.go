@@ -1015,9 +1015,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// ── Step 3b: Prompt for GitLab token if needed ──
-	// If the selected member has a GitLab username but no token is available,
-	// offer the user a chance to provide one (optional — empty to skip).
+	// ── Step 3b: GitLab token prompt (conditional) ──
 	var selectedMember *teamstate.Member
 	for i := range members {
 		if members[i].ID == memberID {
@@ -1025,18 +1023,58 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			break
 		}
 	}
-	if selectedMember != nil && selectedMember.GitLabUsername != "" && !gitlabTokenAvailable(ctx, a) {
-		fmt.Fprintf(a.IO.Out, "\n  %s %s\n",
-			theme.WarningStyle.Render(theme.IconDot),
-			i18n.T("cmd.init.wizard_rejoin_gitlab_hint"),
-		)
-		fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
-		if term.IsTerminal(int(os.Stdin.Fd())) {
-			tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-			fmt.Fprintln(a.IO.Out) // newline after hidden input
-			if err == nil && len(tokenBytes) > 0 {
-				if a.Secrets != nil {
-					_ = a.Secrets.Set(ctx, config.DefaultGitLabTokenKey, string(tokenBytes))
+	if selectedMember != nil && selectedMember.GitLabUsername != "" {
+		teamID := config.RepoNameFromRemote(repoURL)
+		source := gitlabTokenSource(ctx, a, teamID)
+
+		fmt.Fprintln(a.IO.Out)
+		if source != "" {
+			// Token available — offer choice
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				theme.InfoStyle.Render(theme.IconInfo),
+				i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source),
+			)
+			fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_rejoin_token_reuse_short"))
+			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_new"))
+			fmt.Fprintf(a.IO.Out, "  [3] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
+			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
+			var choiceStr string
+			fmt.Fscanln(a.IO.In, &choiceStr)
+			switch choiceStr {
+			case "2":
+				// Enter new token
+				fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
+				if term.IsTerminal(int(os.Stdin.Fd())) {
+					tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Fprintln(a.IO.Out)
+					if err == nil && len(tokenBytes) > 0 && a.Secrets != nil {
+						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+					}
+				}
+			case "3":
+				// Skip — do nothing
+			default:
+				// "1" or empty — reuse existing token
+			}
+		} else {
+			// No token — offer to enter or skip
+			fmt.Fprintf(a.IO.Out, "  %s %s\n",
+				theme.WarningStyle.Render(theme.IconDot),
+				i18n.T("cmd.init.wizard_rejoin_gitlab_hint"),
+			)
+			fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_rejoin_token_new"))
+			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
+			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
+			var choiceStr string
+			fmt.Fscanln(a.IO.In, &choiceStr)
+			if choiceStr != "2" {
+				fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
+				if term.IsTerminal(int(os.Stdin.Fd())) {
+					tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Fprintln(a.IO.Out)
+					if err == nil && len(tokenBytes) > 0 && a.Secrets != nil {
+						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+					}
 				}
 			}
 		}
