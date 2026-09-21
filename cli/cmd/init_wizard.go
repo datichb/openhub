@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
@@ -910,6 +911,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				config.Reset() // clear cached singleton so ReloadApp re-reads hub.toml
 				if newApp, reloadErr := ReloadApp(); reloadErr == nil {
 					_ = newApp
+				}
+
+				// Launch the Tracker Discovery Wizard if the user chose
+				// "Configure now" during the team setup step.
+				if teamState.LaunchTrackerDiscovery {
+					go func() {
+						time.Sleep(200 * time.Millisecond)
+						if tuiShell != nil {
+							tuiShell.App().QueueUpdateDraw(func() {
+								actionTrackerDiscovery()
+							})
+						}
+					}()
 				}
 			}
 		},

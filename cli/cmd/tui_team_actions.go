@@ -195,24 +195,46 @@ func actionTeamInit() {
 	// ── Step 7: Tracker discovery (optional) ──────────────────────────
 	var launchDiscoveryAfter bool
 	trackerStep := views.WizardStep{
-		Label: i18n.T("tui.team.tracker_step"),
+		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
 		SkipIf: func() bool {
-			// Skip if no team configured yet (repo step was skipped/failed).
 			return stateRepo == ""
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			options := []string{i18n.T("tui.team.tracker_later"), i18n.T("tui.team.tracker_configure_now")}
-			form.AddDropDown(i18n.T("tui.team.tracker_configure_prompt"), options, 0, func(_ string, idx int) {
+
+			// Show tracker info if already configured in the team-state.
+			sp := statePath
+			if sp == "" {
+				sp = config.TeamStatePath(stateRepo)
+			}
+			repo := teamstate.NewRepo(stateRepo, sp)
+			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
+					i18n.Tf("cmd.init.wizard_tracker_info",
+						teamCfg.Tracker.Type,
+						teamCfg.Tracker.TrackerURL,
+						teamCfg.Tracker.TrackerProject,
+					)
+				form.AddTextView("", hint, 60, 3, true, false)
+			} else {
+				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
+			}
+
+			options := []string{
+				i18n.T("cmd.init.wizard_region_placeholder"),
+				i18n.T("cmd.init.wizard_tracker_configure_now"),
+				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			}
+			form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
 				launchDiscoveryAfter = idx == 1
 			})
-			form.AddButton(i18n.T("tui.team.tracker_next"), func() { onDone() })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		InfoFields: func() []views.InfoField {
-			val := i18n.T("tui.team.tracker_later")
+			val := i18n.T("cmd.init.wizard_tracker_configure_later")
 			if launchDiscoveryAfter {
-				val = i18n.T("tui.team.tracker_info_yes")
+				val = i18n.T("cmd.init.wizard_tracker_configure_now")
 			}
 			return []views.InfoField{{Label: "Tracker", Value: val}}
 		},
@@ -622,18 +644,79 @@ func actionTeamRejoin() {
 		},
 	}
 
+	// ── Step 3: Tracker setup (conditional) ─────────────────────────
+	var launchDiscoveryAfterRejoin bool
+	trackerStepRejoin := views.WizardStep{
+		ID:    "rejoin_tracker_setup",
+		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
+		SkipIf: func() bool {
+			return stateRepo == ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+
+			sp := statePath
+			if sp == "" {
+				sp = config.TeamStatePath(stateRepo)
+			}
+			repo := teamstate.NewRepo(stateRepo, sp)
+			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
+					i18n.Tf("cmd.init.wizard_tracker_info",
+						teamCfg.Tracker.Type,
+						teamCfg.Tracker.TrackerURL,
+						teamCfg.Tracker.TrackerProject,
+					)
+				form.AddTextView("", hint, 60, 3, true, false)
+			} else {
+				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
+			}
+
+			options := []string{
+				i18n.T("cmd.init.wizard_region_placeholder"),
+				i18n.T("cmd.init.wizard_tracker_configure_now"),
+				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			}
+			form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+				launchDiscoveryAfterRejoin = idx == 1
+			})
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		InfoFields: func() []views.InfoField {
+			val := i18n.T("cmd.init.wizard_tracker_configure_later")
+			if launchDiscoveryAfterRejoin {
+				val = i18n.T("cmd.init.wizard_tracker_configure_now")
+			}
+			return []views.InfoField{{Label: "Tracker", Value: val}}
+		},
+	}
+
 	steps = []views.WizardStep{
 			repoStep,
 			httpsCredStep,
 			memberStep,
 			gitlabTokenStep,
 			validateStep,
+			trackerStepRejoin,
 		}
 
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
 		ID:    "wizard.team.rejoin",
 		Title: i18n.T("tui.team.rejoin"),
 		Steps: steps,
+		OnComplete: func(completed bool, err error) {
+			if completed && err == nil && launchDiscoveryAfterRejoin {
+				go func() {
+					time.Sleep(200 * time.Millisecond)
+					if tuiShell != nil {
+						tuiShell.App().QueueUpdateDraw(func() {
+							actionTrackerDiscovery()
+						})
+					}
+				}()
+			}
+		},
 	})
 
 	tuiShell.PushView(wizard)

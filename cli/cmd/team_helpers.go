@@ -140,6 +140,8 @@ type initWizardTeamState struct {
 	GitLabToken    string // token entered in the optional GitLab token prompt
 	TokenChoice    string // "reuse", "new", or "skip"
 	TokenChoiceIdx int    // current dropdown index (0 = placeholder)
+	// Tracker setup
+	LaunchTrackerDiscovery bool // true if user chose "Configure now" for the tracker
 }
 
 // selectedMemberGitLabUsername returns the GitLab username of the currently
@@ -175,6 +177,65 @@ func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
 		}
 	}
 	return ""
+}
+
+// buildTrackerSetupStep returns a WizardStep that proposes tracker configuration
+// after a team init or rejoin. It loads the team-state config to display tracker
+// info (if already configured) and offers a dropdown: "Configure now" / "Later".
+// When "Configure now" is chosen, state.LaunchTrackerDiscovery is set to true;
+// the caller's OnComplete is responsible for actually launching the Discovery Wizard.
+func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
+	return views.WizardStep{
+		ID:    "tracker_setup",
+		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
+		SkipIf: func() bool {
+			return state.Skipped || !state.Configured
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+
+			// Load team-state config to check if a tracker is already configured.
+			statePath := config.TeamStatePath(state.Repo)
+			repo := teamstate.NewRepo(state.Repo, statePath)
+			var hint string
+			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				hint = i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
+					i18n.Tf("cmd.init.wizard_tracker_info",
+						teamCfg.Tracker.Type,
+						teamCfg.Tracker.TrackerURL,
+						teamCfg.Tracker.TrackerProject,
+					)
+			} else {
+				hint = i18n.T("cmd.init.wizard_tracker_not_configured")
+			}
+			form.AddTextView("", hint, 60, 3, true, false)
+
+			options := []string{
+				i18n.T("cmd.init.wizard_region_placeholder"),
+				i18n.T("cmd.init.wizard_tracker_configure_now"),
+				i18n.T("cmd.init.wizard_tracker_configure_later"),
+			}
+			form.AddDropDown(
+				i18n.T("cmd.init.wizard_step_tracker_setup"),
+				options, 0,
+				func(_ string, idx int) {
+					state.LaunchTrackerDiscovery = idx == 1
+				},
+			)
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error { return nil },
+		InfoFields: func() []views.InfoField {
+			status := i18n.T("cmd.init.wizard_tracker_configure_later")
+			if state.LaunchTrackerDiscovery {
+				status = i18n.T("cmd.init.wizard_tracker_configure_now")
+			}
+			return []views.InfoField{
+				{Label: "Tracker", Value: status},
+			}
+		},
+	}
 }
 
 // buildInitWizardTeamSteps returns the two WizardSteps for the "Team" group
@@ -274,6 +335,8 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				}
 			},
 		},
+		// ── Init: Tracker setup (conditional) ──
+		buildTrackerSetupStep(state),
 	}
 }
 
@@ -620,6 +683,9 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 		},
 	)
+
+	// ── Rejoin: Tracker setup (conditional) ──
+	steps = append(steps, buildTrackerSetupStep(state))
 
 	return steps
 }

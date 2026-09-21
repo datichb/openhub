@@ -446,6 +446,12 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		Footer:    i18n.Tf("cmd.team.init.done_hint_status", "oh team status"),
 	}))
 
+	// ── Tracker hint ──
+	fmt.Fprintf(a.IO.Out, "  %s %s\n\n",
+		theme.InfoStyle.Render(theme.IconInfo),
+		i18n.T("cmd.team.tracker_hint"),
+	)
+
 	return nil
 }
 
@@ -1116,6 +1122,12 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			)
 		}
 	}
+
+	// ── Tracker hint ──
+	fmt.Fprintf(a.IO.Out, "\n  %s %s\n",
+		theme.InfoStyle.Render(theme.IconInfo),
+		i18n.T("cmd.team.tracker_hint"),
+	)
 
 	fmt.Fprintln(a.IO.Out)
 	return nil
