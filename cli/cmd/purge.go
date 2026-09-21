@@ -410,6 +410,11 @@ func deletePurgeSecrets(ctx context.Context, out *os.File, secrets []keychain.Se
 			deleted++
 		}
 	}
+	// Safety net: delete any orphaned keychain entries not tracked by the index.
+	// keyring.DeleteAll loops until no entries remain for the service.
+	if ks, ok := resolveKeychainStore(); ok {
+		_ = ks.DeleteAllForService()
+	}
 	printStepDone(out, i18n.Tf("cmd.purge.secrets_deleted", deleted))
 }
 

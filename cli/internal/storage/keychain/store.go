@@ -4,7 +4,10 @@ package keychain
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/zalando/go-keyring"
@@ -155,4 +158,68 @@ func Probe() error {
 		return err
 	}
 	return nil
+}
+
+// ListKeychainAccounts returns all account names stored in the OS keychain
+// for the openhub service. This bypasses the index file and reads the actual
+// keychain. macOS only — uses "security dump-keychain". Returns
+// ErrNotSupported on other platforms.
+func (s *Store) ListKeychainAccounts() ([]string, error) {
+	if runtime.GOOS != "darwin" {
+		return nil, fmt.Errorf("keychain enumeration not supported on %s", runtime.GOOS)
+	}
+	out, err := exec.Command("security", "dump-keychain").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("security dump-keychain: %w", err)
+	}
+	return parseKeychainDump(string(out), serviceName), nil
+}
+
+// parseKeychainDump extracts account names for a given service from
+// the output of "security dump-keychain".
+func parseKeychainDump(output, service string) []string {
+	// Each keychain entry is a block separated by "keychain:" headers.
+	// Within each block we look for:
+	//   "svce"<blob>="<service>"
+	//   "acct"<blob>="<account>"
+	svceRe := regexp.MustCompile(`"svce"<blob>="` + regexp.QuoteMeta(service) + `"`)
+	acctRe := regexp.MustCompile(`"acct"<blob>="([^"]*)"`)
+
+	// Split on "keychain:" to get per-entry blocks.
+	blocks := regexp.MustCompile(`(?m)^keychain:`).Split(output, -1)
+	var accounts []string
+	for _, block := range blocks {
+		if !svceRe.MatchString(block) {
+			continue
+		}
+		if m := acctRe.FindStringSubmatch(block); m != nil {
+			accounts = append(accounts, m[1])
+		}
+	}
+	return accounts
+}
+
+// DeleteAllForService removes all keychain entries for the openhub service,
+// regardless of whether they are tracked in the index. This is a blunt
+// cross-platform operation that catches orphaned entries.
+func (s *Store) DeleteAllForService() error {
+	return keyring.DeleteAll(serviceName)
+}
+
+// DeleteDirect removes a single keychain entry by service and account name,
+// bypassing the secrets index. Used by the cleanup command to remove orphaned
+// entries that are not tracked in the index.
+func DeleteDirect(service, account string) error {
+	return keyring.Delete(service, account)
+}
+
+// IndexedKeys returns all key/scope pairs tracked in the secrets index.
+// Used by the cleanup command to compare against actual keychain entries.
+func (s *Store) IndexedKeys() []SecretEntry {
+	entries := s.idx.list()
+	result := make([]SecretEntry, len(entries))
+	for i, e := range entries {
+		result[i] = SecretEntry{Key: e.Key, Scope: e.Scope}
+	}
+	return result
 }

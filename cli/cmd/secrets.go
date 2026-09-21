@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -300,6 +301,87 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// oh secrets cleanup
+// ─────────────────────────────────────────────────────────────────────────────
+
+var secretsCleanupCmd = &cobra.Command{
+	Use:   "cleanup",
+	Short: i18n.T("cmd.secrets.cleanup_short"),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		return runSecretsCleanup(dryRun)
+	},
+}
+
+func init() {
+	secretsCleanupCmd.Flags().Bool("dry-run", false, "show orphaned entries without deleting them")
+}
+
+func runSecretsCleanup(dryRun bool) error {
+	ks, ok := resolveKeychainStore()
+	if !ok {
+		return fmt.Errorf("keychain not available")
+	}
+
+	// List actual keychain accounts (macOS only).
+	accounts, err := ks.ListKeychainAccounts()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
+		return nil
+	}
+
+	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))
+	fmt.Fprintf(os.Stdout, "  %s\n\n", i18n.Tf("cmd.secrets.cleanup_found", len(accounts)))
+
+	// Build a set of indexed account names for comparison.
+	indexed := make(map[string]bool)
+	for _, e := range ks.IndexedKeys() {
+		account := e.Key
+		if e.Scope != "" && e.Scope != "global" {
+			account = e.Scope + "/" + e.Key
+		}
+		indexed[account] = true
+	}
+
+	// Compare and classify each keychain account.
+	var orphans []string
+	for _, acct := range accounts {
+		if indexed[acct] {
+			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
+				theme.SuccessStyle.Render(theme.IconSuccess), acct, i18n.T("cmd.secrets.cleanup_indexed"))
+		} else {
+			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
+				theme.WarningStyle.Render(theme.IconDot), acct, i18n.T("cmd.secrets.cleanup_orphaned"))
+			orphans = append(orphans, acct)
+		}
+	}
+
+	fmt.Fprintln(os.Stdout)
+
+	if len(orphans) == 0 {
+		fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.secrets.cleanup_none"))
+		return nil
+	}
+
+	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_count", len(orphans)))
+
+	if dryRun {
+		fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.secrets.cleanup_dry_run"))
+		return nil
+	}
+
+	// Delete orphaned entries directly via the keyring library.
+	deleted := 0
+	for _, acct := range orphans {
+		if err := keychain.DeleteDirect("openhub-oh", acct); err == nil {
+			deleted++
+		}
+	}
+	fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Registration
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -308,6 +390,7 @@ func init() {
 	secretsCmd.AddCommand(secretsGetCmd)
 	secretsCmd.AddCommand(secretsListCmd)
 	secretsCmd.AddCommand(secretsDeleteCmd)
+	secretsCmd.AddCommand(secretsCleanupCmd)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
