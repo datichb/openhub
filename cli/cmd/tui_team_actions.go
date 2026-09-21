@@ -531,18 +531,12 @@ func actionTeamRejoin() {
 			if tokenChoiceIdx == 0 {
 				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
 			}
+			if tokenChoice == "new" && strings.TrimSpace(gitlabToken) == "" {
+				return i18n.T("cmd.init.wizard_rejoin_token_new_required")
+			}
 			return ""
 		},
-		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
-			stepIdx := bedrockStepIndex(&steps, "rejoin_gitlab_token")
-			rerenderSafe := func() {
-				if stepIdx >= 0 {
-					if fn := steps[stepIdx].Rerender; fn != nil {
-						go func() { tvApp.QueueUpdateDraw(func() { fn() }) }()
-					}
-				}
-			}
-
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(stateRepo)
 			source := gitlabTokenSource(ctx, a, teamID)
 
@@ -565,24 +559,18 @@ func actionTeamRejoin() {
 					if tokenChoiceIdx == idx {
 						return
 					}
-					wasNew := tokenChoice == "new"
 					if idx >= 0 && idx < len(optionKeys) {
 						tokenChoice = optionKeys[idx]
 					}
 					tokenChoiceIdx = idx
-					isNew := tokenChoice == "new"
-					if wasNew != isNew {
-						rerenderSafe()
-					}
 				},
 			)
-			if tokenChoice == "new" {
-				form.AddPasswordField(
-					i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-					gitlabToken, 0, '*',
-					func(t string) { gitlabToken = t },
-				)
-			}
+			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_token_new_hint"), 60, 2, true, false)
+			form.AddPasswordField(
+				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+				gitlabToken, 0, '*',
+				func(t string) { gitlabToken = t },
+			)
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},

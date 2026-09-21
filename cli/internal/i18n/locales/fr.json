@@ -1578,6 +1578,8 @@
   "cmd.init.wizard_rejoin_token_skip": "Ignorer la vérification",
   "cmd.init.wizard_rejoin_token_source_team": "équipe %s",
   "cmd.init.wizard_rejoin_token_choice_required": "Veuillez choisir une option",
+  "cmd.init.wizard_rejoin_token_new_required": "Un token est requis quand 'Saisir un nouveau token' est sélectionné",
+  "cmd.init.wizard_rejoin_token_new_hint": "Utilisé uniquement si 'Saisir un nouveau token' est sélectionné.",
   "cmd.init.wizard_rejoin_token_reuse_short": "réutilisé",
   "cmd.init.wizard_step_tracker_setup": "Tracker",
   "cmd.init.wizard_tracker_configured": "Le tracker de l'équipe est configuré :",

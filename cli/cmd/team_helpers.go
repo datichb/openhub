@@ -583,18 +583,12 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			if state.TokenChoiceIdx == 0 {
 				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
 			}
+			if state.TokenChoice == "new" && strings.TrimSpace(state.GitLabToken) == "" {
+				return i18n.T("cmd.init.wizard_rejoin_token_new_required")
+			}
 			return ""
 		},
-		Form: func(app *tview.Application, onDone func()) *tview.Form {
-			stepIdx := bedrockStepIndex(&steps, "rejoin_gitlab_token")
-			rerenderSafe := func() {
-				if stepIdx >= 0 {
-					if fn := steps[stepIdx].Rerender; fn != nil {
-						go func() { app.QueueUpdateDraw(func() { fn() }) }()
-					}
-				}
-			}
-
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(state.Repo)
 			source := gitlabTokenSource(state.Ctx, *a, teamID)
 
@@ -618,24 +612,21 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 					if state.TokenChoiceIdx == idx {
 						return
 					}
-					wasNew := state.TokenChoice == "new"
 					if idx >= 0 && idx < len(optionKeys) {
 						state.TokenChoice = optionKeys[idx]
 					}
 					state.TokenChoiceIdx = idx
-					isNew := state.TokenChoice == "new"
-					if wasNew != isNew {
-						rerenderSafe()
-					}
 				},
 			)
-			if state.TokenChoice == "new" {
-				form.AddPasswordField(
-					i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-					state.GitLabToken, 0, '*',
-					func(t string) { state.GitLabToken = t },
-				)
-			}
+			// Always show the password field — hint explains it is only used
+			// when "Enter a new token" is selected. This avoids the need for
+			// a dynamic rerender which can cause timing issues.
+			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_token_new_hint"), 60, 2, true, false)
+			form.AddPasswordField(
+				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+				state.GitLabToken, 0, '*',
+				func(t string) { state.GitLabToken = t },
+			)
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
