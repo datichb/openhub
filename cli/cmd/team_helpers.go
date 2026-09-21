@@ -3,10 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -134,6 +136,38 @@ type initWizardTeamState struct {
 	CredUsername   string // HTTPS username (default "oauth2")
 	CredToken      string // HTTPS token/password
 	CredAuthChoice string // "provide", "skip", or "public"
+	// GitLab identity verification
+	GitLabToken string // token entered in the optional GitLab token prompt
+}
+
+// selectedMemberGitLabUsername returns the GitLab username of the currently
+// selected member, or "" if the member has no GitLab username configured.
+func selectedMemberGitLabUsername(state *initWizardTeamState) string {
+	for _, m := range state.Members {
+		if m.ID == state.MemberID {
+			return m.GitLabUsername
+		}
+	}
+	return ""
+}
+
+// gitlabTokenAvailable checks whether a GitLab API token is already
+// resolvable from the environment variable, the MCP keychain key, or the
+// default tracker keychain key. This is a lightweight pre-check to decide
+// whether the optional token prompt step should be shown.
+func gitlabTokenAvailable(ctx context.Context, a *app.App) bool {
+	if os.Getenv("GITLAB_TOKEN") != "" {
+		return true
+	}
+	if a != nil && a.Secrets != nil {
+		if val, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && val != "" {
+			return true
+		}
+		if val, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && val != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // buildInitWizardTeamSteps returns the two WizardSteps for the "Team" group
@@ -169,15 +203,15 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 60, nil,
+					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 0, nil,
 					func(t string) { state.Repo = t },
 				)
 				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_member_id"), state.MemberID, 30, nil,
+					i18n.T("cmd.init.wizard_team_member_id"), state.MemberID, 0, nil,
 					func(t string) { state.MemberID = t },
 				)
 				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_display_name"), state.DisplayName, 40, nil,
+					i18n.T("cmd.init.wizard_team_display_name"), state.DisplayName, 0, nil,
 					func(t string) { state.DisplayName = t },
 				)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
@@ -353,7 +387,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 60, nil,
+					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 0, nil,
 					func(t string) { state.Repo = t },
 				)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
@@ -442,6 +476,46 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 		},
 	)
+
+	// ── Rejoin step 4b: GitLab token (conditional) ──
+	// Shown only when the selected member has a gitlab_username but no
+	// GitLab token is resolvable yet. The user may leave the field empty
+	// to skip identity verification.
+	steps = append(steps, views.WizardStep{
+		ID:    "rejoin_gitlab_token",
+		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
+		SkipIf: func() bool {
+			return state.Skipped || state.Mode != "rejoin" ||
+				selectedMemberGitLabUsername(state) == "" ||
+				gitlabTokenAvailable(state.Ctx, *a)
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_gitlab_hint"), 60, 3, true, false)
+			form.AddPasswordField(
+				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+				"", 0, '*',
+				func(t string) { state.GitLabToken = t },
+			)
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			if state.GitLabToken != "" && (*a).Secrets != nil {
+				return (*a).Secrets.Set(state.Ctx, config.DefaultGitLabTokenKey, state.GitLabToken)
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			status := i18n.T("cmd.init.wizard_team_skipped")
+			if state.GitLabToken != "" {
+				status = "stored"
+			}
+			return []views.InfoField{
+				{Label: "GitLab token", Value: status},
+			}
+		},
+	})
 
 	// ── Rejoin step 5: Validate identity + write config ──
 	steps = append(steps, views.WizardStep{
@@ -592,21 +666,41 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 				return event
 			})
 
-			// Unified layout: topSpacer + badge + gap + content + buttonForm + bottomSpacer
-			topSpacer := tview.NewBox()
-			topSpacer.SetBackgroundColor(theme.BgPanel)
-			badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"))
-			gapSpacer := tview.NewBox()
-			gapSpacer.SetBackgroundColor(theme.BgPanel)
-			bottomSpacer := tview.NewBox()
-			bottomSpacer.SetBackgroundColor(theme.BgPanel)
+			// Adaptive layout: reduce chrome when terminal is small.
+			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+			if termH <= 0 {
+				termH = 50
+			}
+			availH := termH - 7
 
-			container.AddItem(topSpacer, 3, 0, false)
-			container.AddItem(badgeView, 5, 0, false)
-			container.AddItem(gapSpacer, 2, 0, false)
-			container.AddItem(tv, 0, 1, false)
-			container.AddItem(buttonForm, 5, 0, true)
-			container.AddItem(bottomSpacer, 3, 0, false)
+			if availH >= 35 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), false)
+				gapSpacer := tview.NewBox()
+				gapSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 3, 0, false)
+				container.AddItem(badgeView, 5, 0, false)
+				container.AddItem(gapSpacer, 2, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 5, 0, true)
+				container.AddItem(bottomSpacer, 3, 0, false)
+			} else if availH >= 20 {
+				badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), true)
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 1, 0, false)
+				container.AddItem(badgeView, 3, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
+			} else {
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
+			}
 			tvApp.SetFocus(buttonForm)
 		},
 	}

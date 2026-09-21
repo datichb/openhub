@@ -58,11 +58,11 @@ func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 			}
 			form := tview.NewForm()
 			if hasKeychainToken {
-				form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+				form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 2, true, false)
 			}
 			form.AddPasswordField(
 				i18n.Tf("cmd.init.mcp_token_prompt", opts.DisplayName),
-				*opts.TokenVar, 50, '*',
+				*opts.TokenVar, 0, '*',
 				func(t string) { *opts.TokenVar = t },
 			)
 			if opts.HintI18nKey != "" {

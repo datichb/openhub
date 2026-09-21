@@ -3,11 +3,13 @@ package views
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -854,9 +856,20 @@ func (w *InlineWizardView) renderStep(idx int) {
 			})
 
 			if len(w.cfg.Groups) > 0 {
+				// Detect terminal height early to decide layout mode.
+				_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+				if termH <= 0 {
+					termH = 50 // safe fallback
+				}
+				groupedAvailH := termH - 7 // shell overhead: omnibar(5) + border_padding(1) + hints(1)
+				minimalLayout := groupedAvailH < 20
+
 				// Grouped mode: remove buttons from the form and place them
 				// in a separate buttonForm at a fixed position (same as intros).
-				form.ClearButtons()
+				// In minimal layout, keep buttons inside the form to save space.
+				if !minimalLayout {
+					form.ClearButtons()
+				}
 
 				// Center the form content horizontally (max 60 cols)
 				form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
@@ -879,6 +892,19 @@ func (w *InlineWizardView) renderStep(idx int) {
 					if w.escPending && event.Key() != tcell.KeyEscape {
 						w.escPending = false
 						w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+					}
+					// In minimal layout, buttons stay inside the form — no
+					// Tab-to-buttonForm interception needed.
+					if minimalLayout {
+						if event.Key() == tcell.KeyCtrlS {
+							onDone()
+							return nil
+						}
+						if event.Key() == tcell.KeyCtrlB {
+							w.goBack()
+							return nil
+						}
+						return event
 					}
 					// Arrow keys → Tab/Backtab (except on DropDowns)
 					if remapped := remapArrowToTab(form, event); remapped != nil {
@@ -935,20 +961,37 @@ func (w *InlineWizardView) renderStep(idx int) {
 					return event
 				})
 
-				topSpacer := tview.NewBox()
-				topSpacer.SetBackgroundColor(theme.BgPanel)
-				badge := BuildStepBadge(step.Label)
-				gapSpacer := tview.NewBox()
-				gapSpacer.SetBackgroundColor(theme.BgPanel)
-				bottomSpacer := tview.NewBox()
-				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+				// ── Adaptive layout: reduce chrome when terminal is small ──
+				if groupedAvailH >= 35 {
+					// Full layout — spacious terminal.
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
+					badge := BuildStepBadge(step.Label, false)
+					gapSpacer := tview.NewBox()
+					gapSpacer.SetBackgroundColor(theme.BgPanel)
+					bottomSpacer := tview.NewBox()
+					bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
-				w.stepContent.AddItem(topSpacer, 3, 0, false)
-				w.stepContent.AddItem(badge, 5, 0, false)
-				w.stepContent.AddItem(gapSpacer, 2, 0, false)
-				w.stepContent.AddItem(form, 0, 1, true)
-				w.stepContent.AddItem(buttonForm, 5, 0, false)
-				w.stepContent.AddItem(bottomSpacer, 3, 0, false)
+					w.stepContent.AddItem(topSpacer, 3, 0, false)
+					w.stepContent.AddItem(badge, 5, 0, false)
+					w.stepContent.AddItem(gapSpacer, 2, 0, false)
+					w.stepContent.AddItem(form, 0, 1, true)
+					w.stepContent.AddItem(buttonForm, 5, 0, false)
+					w.stepContent.AddItem(bottomSpacer, 3, 0, false)
+				} else if !minimalLayout {
+					// Compact layout — keep compact badge, reduce spacers.
+					badge := BuildStepBadge(step.Label, true)
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
+
+					w.stepContent.AddItem(topSpacer, 1, 0, false)
+					w.stepContent.AddItem(badge, 3, 0, false)
+					w.stepContent.AddItem(form, 0, 1, true)
+					w.stepContent.AddItem(buttonForm, 3, 0, false)
+				} else {
+					// Minimal layout — form only with inline buttons.
+					w.stepContent.AddItem(form, 0, 1, true)
+				}
 			} else {
 				w.stepContent.AddItem(form, 0, 1, true)
 			}
@@ -1343,8 +1386,9 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 // ─────────────────────────────────────────────────────────────────────────────
 
 // BuildStepBadge creates a centered rounded badge for use above form steps
-// in grouped mode. Returns a TextView with a fixed height of 5 rows.
-func BuildStepBadge(label string) *tview.TextView {
+// in grouped mode. When compact is false, returns a 5-row badge with vertical
+// padding; when true, returns a tight 3-row badge.
+func BuildStepBadge(label string, compact bool) *tview.TextView {
 	accent := widgets.ColorTag(theme.Accent)
 	border := widgets.ColorTag(theme.BorderCard)
 	reset := "[-]"
@@ -1354,10 +1398,18 @@ func BuildStepBadge(label string) *tview.TextView {
 	top := "╭" + strings.Repeat("─", badgeWidth) + "╮"
 	bot := "╰" + strings.Repeat("─", badgeWidth) + "╯"
 
-	text := fmt.Sprintf("\n%s%s%s\n%s│%s%s%s%s│%s\n%s%s%s\n",
-		border, top, reset,
-		border, reset, accent, badgeText, border, reset,
-		border, bot, reset)
+	var text string
+	if compact {
+		text = fmt.Sprintf("%s%s%s\n%s│%s%s%s%s│%s\n%s%s%s",
+			border, top, reset,
+			border, reset, accent, badgeText, border, reset,
+			border, bot, reset)
+	} else {
+		text = fmt.Sprintf("\n%s%s%s\n%s│%s%s%s%s│%s\n%s%s%s\n",
+			border, top, reset,
+			border, reset, accent, badgeText, border, reset,
+			border, bot, reset)
+	}
 
 	tv := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
 	tv.SetBackgroundColor(theme.BgPanel)

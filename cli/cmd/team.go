@@ -13,6 +13,7 @@ import (
 
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -1011,6 +1012,33 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		}
 		if !found {
 			return fmt.Errorf("member %q not found in the team-state repository", memberID)
+		}
+	}
+
+	// ── Step 3b: Prompt for GitLab token if needed ──
+	// If the selected member has a GitLab username but no token is available,
+	// offer the user a chance to provide one (optional — empty to skip).
+	var selectedMember *teamstate.Member
+	for i := range members {
+		if members[i].ID == memberID {
+			selectedMember = &members[i]
+			break
+		}
+	}
+	if selectedMember != nil && selectedMember.GitLabUsername != "" && !gitlabTokenAvailable(ctx, a) {
+		fmt.Fprintf(a.IO.Out, "\n  %s %s\n",
+			theme.WarningStyle.Render(theme.IconDot),
+			i18n.T("cmd.init.wizard_rejoin_gitlab_hint"),
+		)
+		fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Fprintln(a.IO.Out) // newline after hidden input
+			if err == nil && len(tokenBytes) > 0 {
+				if a.Secrets != nil {
+					_ = a.Secrets.Set(ctx, config.DefaultGitLabTokenKey, string(tokenBytes))
+				}
+			}
 		}
 	}
 

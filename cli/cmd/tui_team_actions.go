@@ -370,10 +370,11 @@ func actionTeamRejoin() {
 
 	// ── Shared state (captured by step closures) ────────────────────
 	var (
-		stateRepo string
-		statePath string
-		members   []teamstate.Member
-		memberID  string
+		stateRepo    string
+		statePath    string
+		members      []teamstate.Member
+		memberID     string
+		gitlabToken  string
 	)
 
 	// ── Step 0: Repository URL ──────────────────────────────────────
@@ -475,6 +476,48 @@ func actionTeamRejoin() {
 		},
 	}
 
+	// ── Step 1b: GitLab token (conditional) ─────────────────────────
+	gitlabTokenStep := views.WizardStep{
+		ID:    "rejoin_gitlab_token",
+		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
+		SkipIf: func() bool {
+			glUser := ""
+			for _, m := range members {
+				if m.ID == memberID {
+					glUser = m.GitLabUsername
+					break
+				}
+			}
+			return glUser == "" || gitlabTokenAvailable(ctx, a)
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_gitlab_hint"), 60, 3, true, false)
+			form.AddPasswordField(
+				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+				"", 0, '*',
+				func(t string) { gitlabToken = t },
+			)
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			if gitlabToken != "" && a.Secrets != nil {
+				return a.Secrets.Set(ctx, config.DefaultGitLabTokenKey, gitlabToken)
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			status := i18n.T("cmd.init.wizard_team_skipped")
+			if gitlabToken != "" {
+				status = "stored"
+			}
+			return []views.InfoField{
+				{Label: "GitLab token", Value: status},
+			}
+		},
+	}
+
 	// ── Step 2: GitLab identity validation + config write ───────────
 	validateStep := views.WizardStep{
 		Label:      i18n.T("cmd.team.rejoin.validating"),
@@ -529,6 +572,7 @@ func actionTeamRejoin() {
 			repoStep,
 			httpsCredStep,
 			memberStep,
+			gitlabTokenStep,
 			validateStep,
 		},
 	})

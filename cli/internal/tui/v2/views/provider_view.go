@@ -731,34 +731,79 @@ func (v *ProviderView) setupBedrock() {
 		cfg := v.vcfg.GetConfig()
 		cfg.Provider.Bedrock.AuthMode = authMode
 
+		// saveBedrock persists the bedrock config and refreshes the view.
+		saveBedrock := func(cfg *config.Config, toastKey string) {
+			cfg.Opencode.DefaultProvider = "bedrock"
+			if err := v.vcfg.SaveConfig(cfg); err != nil {
+				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			}
+			v.buildLines()
+			v.renderList()
+			v.shell.ShowToastMsg(i18n.T(toastKey), true)
+		}
+
+		// regionOptions builds the region select options including a "Custom..." entry.
+		regionOptions := func() []SelectOption {
+			opts := make([]SelectOption, 0, len(provider.BedrockRegions)+1)
+			for _, r := range provider.BedrockRegions {
+				opts = append(opts, SelectOption{Label: r.Label, Value: r.Code})
+			}
+			opts = append(opts, SelectOption{Label: i18n.T("cmd.init.wizard_custom_region"), Value: "custom"})
+			return opts
+		}
+
 		switch authMode {
 		case "bearer":
+			// Check if a bearer token already exists in the keychain.
+			hasKeychainToken := false
+			if v.vcfg.CheckSecret != nil {
+				present, _ := v.vcfg.CheckSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""))
+				hasKeychainToken = present
+			}
+
+			tokenField := FormField{Label: "Bearer token", Key: "token", Type: FieldPassword, Required: !hasKeychainToken}
+			if hasKeychainToken {
+				tokenField.Hint = i18n.T("cmd.init.wizard_keychain_hint")
+			}
+
 			v.shell.ShowInlineForm(InlineFormConfig{
 				Title: i18n.T("tui.provider.bedrock_bearer_title"),
 				Fields: []FormField{
-					{Label: "Bearer token", Key: "token", Type: FieldPassword, Required: true},
-					{Label: "AWS Region", Key: "region", Type: FieldText, Default: "us-east-1"},
+					tokenField,
+					{Label: "AWS Region", Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
 					token := values["token"]
-					if token == "" {
-						return
-					}
-					if v.vcfg.SetSecret != nil {
+					// Store new token in keychain if provided.
+					if token != "" && v.vcfg.SetSecret != nil {
 						if err := v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token); err != nil {
 							v.shell.ShowToastMsg("Error: "+err.Error(), false)
 						}
 					}
-					if region := values["region"]; region != "" {
+					// Reject if no token at all (neither new nor in keychain).
+					if token == "" && !hasKeychainToken {
+						v.shell.ShowToastMsg(i18n.T("cmd.init.wizard_token_required"), false)
+						return
+					}
+					region := values["region"]
+					if region == "custom" {
+						// Open a second form for custom region input.
+						v.shell.ShowInlineForm(InlineFormConfig{
+							Title: i18n.T("cmd.init.wizard_custom_region_input"),
+							Fields: []FormField{
+								{Label: "Region", Key: "region", Type: FieldText, Required: true},
+							},
+							OnSubmit: func(vals map[string]string, _ map[string][]string) {
+								cfg.Provider.Bedrock.AWSRegion = vals["region"]
+								saveBedrock(cfg, "tui.provider.bedrock_configured_bearer")
+							},
+						})
+						return
+					}
+					if region != "" {
 						cfg.Provider.Bedrock.AWSRegion = region
 					}
-					cfg.Opencode.DefaultProvider = "bedrock"
-					if err := v.vcfg.SaveConfig(cfg); err != nil {
-						v.shell.ShowToastMsg("Error: "+err.Error(), false)
-					}
-					v.buildLines()
-					v.renderList()
-					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_bearer"), true)
+					saveBedrock(cfg, "tui.provider.bedrock_configured_bearer")
 				},
 			})
 		case "profile":
@@ -766,22 +811,31 @@ func (v *ProviderView) setupBedrock() {
 				Title: i18n.T("tui.provider.bedrock_profile_title"),
 				Fields: []FormField{
 					{Label: "AWS Profile", Key: "profile", Type: FieldText, Default: "default"},
-					{Label: "AWS Region", Key: "region", Type: FieldText, Default: "us-east-1"},
+					{Label: "AWS Region", Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
 					if profile := values["profile"]; profile != "" {
 						cfg.Provider.Bedrock.AWSProfile = profile
 					}
-					if region := values["region"]; region != "" {
+					region := values["region"]
+					if region == "custom" {
+						// Open a second form for custom region input.
+						v.shell.ShowInlineForm(InlineFormConfig{
+							Title: i18n.T("cmd.init.wizard_custom_region_input"),
+							Fields: []FormField{
+								{Label: "Region", Key: "region", Type: FieldText, Required: true},
+							},
+							OnSubmit: func(vals map[string]string, _ map[string][]string) {
+								cfg.Provider.Bedrock.AWSRegion = vals["region"]
+								saveBedrock(cfg, "tui.provider.bedrock_configured_profile")
+							},
+						})
+						return
+					}
+					if region != "" {
 						cfg.Provider.Bedrock.AWSRegion = region
 					}
-					cfg.Opencode.DefaultProvider = "bedrock"
-					if err := v.vcfg.SaveConfig(cfg); err != nil {
-						v.shell.ShowToastMsg("Error: "+err.Error(), false)
-					}
-					v.buildLines()
-					v.renderList()
-					v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_profile"), true)
+					saveBedrock(cfg, "tui.provider.bedrock_configured_profile")
 				},
 			})
 		case "env":

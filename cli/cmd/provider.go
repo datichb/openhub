@@ -126,14 +126,20 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 
 	// Shared state across wizard steps
 	var (
-		useExisting bool
-		authMode    string
-		token       string
-		awsProfile  string
-		awsRegion   string
+		useExisting    bool
+		authMode       string
+		token          string
+		awsProfile     string
+		awsRegion      string
+		awsRegionIdx   int  // current index in region DropDown; -1 = no selection
+		awsCustomReg   bool // true when user selects "Custom..." in the region dropdown
 	)
 
-	steps := []views.WizardStep{
+	// awsRegionIdx starts at 0 (placeholder option) — the user must
+	// actively select a region for validation to pass.
+
+	var steps []views.WizardStep
+	steps = []views.WizardStep{
 		// Step 1: Use existing detected config?
 		{
 			Label: "Detect existing",
@@ -199,22 +205,34 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		},
 		// Step 3: Bearer token + region (conditional on authMode == "bearer")
 		{
+			ID:    "bedrock-bearer",
 			Label: "Bearer credentials",
 			SkipIf: func() bool {
 				return useExisting || authMode != "bearer"
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Validate: func() string {
+				if awsRegion == "" {
+					return i18n.T("cmd.init.wizard_region_required")
+				}
+				return ""
+			},
+			Form: func(app *tview.Application, onDone func()) *tview.Form {
+				stepIdx := bedrockStepIndex(&steps, "bedrock-bearer")
+				rerenderSafe := func() {
+					if stepIdx >= 0 {
+						if fn := steps[stepIdx].Rerender; fn != nil {
+							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+						}
+					}
+				}
+
 				form := tview.NewForm()
 				form.AddPasswordField(
 					i18n.T("cmd.provider.bedrock.bearer_token"),
 					"", 0, '*',
 					func(text string) { token = text },
 				)
-				form.AddInputField(
-					i18n.T("cmd.provider.bedrock.region"),
-					"us-east-1", 0, nil,
-					func(text string) { awsRegion = text },
-				)
+				addBedrockRegionDropDown(form, &awsRegion, &awsRegionIdx, &awsCustomReg, rerenderSafe)
 				form.AddButton("Next", func() { onDone() })
 				return form
 			},
@@ -232,22 +250,34 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		},
 		// Step 4: AWS profile + region (conditional on authMode == "profile")
 		{
+			ID:    "bedrock-profile",
 			Label: "Profile credentials",
 			SkipIf: func() bool {
 				return useExisting || authMode != "profile"
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Validate: func() string {
+				if awsRegion == "" {
+					return i18n.T("cmd.init.wizard_region_required")
+				}
+				return ""
+			},
+			Form: func(app *tview.Application, onDone func()) *tview.Form {
+				stepIdx := bedrockStepIndex(&steps, "bedrock-profile")
+				rerenderSafe := func() {
+					if stepIdx >= 0 {
+						if fn := steps[stepIdx].Rerender; fn != nil {
+							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+						}
+					}
+				}
+
 				form := tview.NewForm()
 				form.AddInputField(
 					i18n.T("cmd.provider.bedrock.profile"),
 					"default", 0, nil,
 					func(text string) { awsProfile = text },
 				)
-				form.AddInputField(
-					i18n.T("cmd.provider.bedrock.region"),
-					"us-east-1", 0, nil,
-					func(text string) { awsRegion = text },
-				)
+				addBedrockRegionDropDown(form, &awsRegion, &awsRegionIdx, &awsCustomReg, rerenderSafe)
 				form.AddButton("Next", func() { onDone() })
 				return form
 			},
@@ -269,9 +299,6 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 			OnDone: func() error {
 				if awsProfile == "" && authMode == "profile" {
 					awsProfile = "default"
-				}
-				if awsRegion == "" {
-					awsRegion = "us-east-1"
 				}
 
 				// Store token in keychain if provided

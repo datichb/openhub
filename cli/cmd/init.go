@@ -76,13 +76,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 		provider    string
 
 		// Provider credential state
-		useExisting    bool
-		configureNow   bool
-		authMode       string
-		bedrockToken   string
-		bedrockRegion  string
-		bedrockProfile string
-		apiKey         string
+		useExisting         bool
+		configureNow        bool
+		authMode            string
+		bedrockToken        string
+		bedrockRegion       string
+		bedrockProfile      string
+		bedrockRegionIdx    int  // current index in region DropDown; -1 = no selection
+		bedrockCustomRegion bool // true when user selects "Custom..." in the region dropdown
+		apiKey              string
 
 		// MCP state
 		configureMCP bool
@@ -105,11 +107,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 		a *app.App
 	)
 
+	// bedrockRegionIdx starts at 0 (placeholder option) — the user must
+	// actively select a region for validation to pass.
+
 	// Team wizard state — shared with buildInitWizardTeamSteps closures.
 	teamState := &initWizardTeamState{Ctx: ctx}
 	appPtr := &a
 
-	steps := []views.WizardStep{
+	var steps []views.WizardStep
+	steps = []views.WizardStep{
 		// ══════════════════════════════════════════════════════════════════════
 		// STEP 1 — Language & OpenCode version
 		// ══════════════════════════════════════════════════════════════════════
@@ -124,13 +130,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				langOptions := []string{"Français", "English"}
-				form.AddDropDown(i18n.T("cmd.init.language_select"), langOptions, -1, func(_ string, index int) {
+				langOptions := []string{i18n.T("cmd.init.wizard_lang_placeholder"), "Français", "English"}
+				form.AddDropDown(i18n.T("cmd.init.language_select"), langOptions, 0, func(_ string, index int) {
 					switch index {
-					case 0:
-						language = "fr"
 					case 1:
+						language = "fr"
+					case 2:
 						language = "en"
+					default:
+						language = ""
 					}
 				})
 				form.AddInputField(i18n.T("cmd.init.opencode_version"), opencodeVer, 0, nil, func(text string) {
@@ -167,13 +175,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				providerOptions := []string{
+					i18n.T("cmd.init.wizard_provider_placeholder"),
 					"Amazon Bedrock",
 					"Anthropic (direct API)",
 					"OpenRouter",
 					"GitHub Copilot",
 				}
-				providerValues := []string{"bedrock", "anthropic", "openrouter", "github-copilot"}
-				form.AddDropDown(i18n.T("cmd.init.provider_select"), providerOptions, -1, func(_ string, index int) {
+				providerValues := []string{"", "bedrock", "anthropic", "openrouter", "github-copilot"}
+				form.AddDropDown(i18n.T("cmd.init.provider_select"), providerOptions, 0, func(_ string, index int) {
 					if index >= 0 && index < len(providerValues) {
 						provider = providerValues[index]
 					}
@@ -299,21 +308,30 @@ func runInit(cmd *cobra.Command, args []string) error {
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow
 			},
+			Validate: func() string {
+				if authMode == "" {
+					return i18n.T("cmd.init.wizard_auth_required")
+				}
+				return ""
+			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				authOptions := []string{
+					i18n.T("cmd.init.wizard_auth_placeholder"),
 					"Bearer Token (SSO/STS)",
 					"AWS Profile (~/.aws/credentials)",
 					"Environment Variables (AWS_ACCESS_KEY_ID)",
 				}
-				form.AddDropDown(i18n.T("cmd.provider.bedrock.auth_mode"), authOptions, -1, func(_ string, index int) {
+				form.AddDropDown(i18n.T("cmd.provider.bedrock.auth_mode"), authOptions, 0, func(_ string, index int) {
 					switch index {
-					case 0:
-						authMode = "bearer"
 					case 1:
-						authMode = "profile"
+						authMode = "bearer"
 					case 2:
+						authMode = "profile"
+					case 3:
 						authMode = "env"
+					default:
+						authMode = ""
 					}
 				})
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
@@ -334,27 +352,38 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 5 — Bedrock: bearer token + region
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			ID:    "bedrock-bearer",
 			Label: i18n.T("cmd.init.step_bedrock_bearer"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "bearer"
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Validate: func() string {
+				if bedrockRegion == "" {
+					return i18n.T("cmd.init.wizard_region_required")
+				}
+				return ""
+			},
+			Form: func(app *tview.Application, onDone func()) *tview.Form {
+				stepIdx := bedrockStepIndex(&steps, "bedrock-bearer")
+				rerenderSafe := func() {
+					if stepIdx >= 0 {
+						if fn := steps[stepIdx].Rerender; fn != nil {
+							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+						}
+					}
+				}
+
 				form := tview.NewForm()
 				form.AddPasswordField(
 					i18n.T("cmd.provider.bedrock.bearer_token"),
 					"", 0, '*',
 					func(text string) { bedrockToken = text },
 				)
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
-					bedrockRegion = text
-				})
+				addBedrockRegionDropDown(form, &bedrockRegion, &bedrockRegionIdx, &bedrockCustomRegion, rerenderSafe)
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
-				if bedrockRegion == "" {
-					bedrockRegion = "us-east-1"
-				}
 				if err := config.Update(func(c *config.Config) error {
 					c.Provider.Bedrock.AWSRegion = bedrockRegion
 					return nil
@@ -386,27 +415,38 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 6 — Bedrock: profile + region
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			ID:    "bedrock-profile",
 			Label: i18n.T("cmd.init.step_bedrock_profile"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "profile"
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Validate: func() string {
+				if bedrockRegion == "" {
+					return i18n.T("cmd.init.wizard_region_required")
+				}
+				return ""
+			},
+			Form: func(app *tview.Application, onDone func()) *tview.Form {
+				stepIdx := bedrockStepIndex(&steps, "bedrock-profile")
+				rerenderSafe := func() {
+					if stepIdx >= 0 {
+						if fn := steps[stepIdx].Rerender; fn != nil {
+							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+						}
+					}
+				}
+
 				form := tview.NewForm()
 				form.AddInputField(i18n.T("cmd.provider.bedrock.profile"), bedrockProfile, 0, nil, func(text string) {
 					bedrockProfile = text
 				})
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
-					bedrockRegion = text
-				})
+				addBedrockRegionDropDown(form, &bedrockRegion, &bedrockRegionIdx, &bedrockCustomRegion, rerenderSafe)
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
 				if bedrockProfile == "" {
 					bedrockProfile = "default"
-				}
-				if bedrockRegion == "" {
-					bedrockRegion = "us-east-1"
 				}
 				return config.Update(func(c *config.Config) error {
 					c.Provider.Bedrock.AWSProfile = bedrockProfile
@@ -426,22 +466,33 @@ func runInit(cmd *cobra.Command, args []string) error {
 		// STEP 7 — Bedrock: env mode (region only)
 		// ══════════════════════════════════════════════════════════════════════
 		{
+			ID:    "bedrock-env",
 			Label: i18n.T("cmd.init.step_bedrock_env"),
 			SkipIf: func() bool {
 				return provider != "bedrock" || useExisting || !configureNow || authMode != "env"
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			Validate: func() string {
+				if bedrockRegion == "" {
+					return i18n.T("cmd.init.wizard_region_required")
+				}
+				return ""
+			},
+			Form: func(app *tview.Application, onDone func()) *tview.Form {
+				stepIdx := bedrockStepIndex(&steps, "bedrock-env")
+				rerenderSafe := func() {
+					if stepIdx >= 0 {
+						if fn := steps[stepIdx].Rerender; fn != nil {
+							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+						}
+					}
+				}
+
 				form := tview.NewForm()
-				form.AddInputField(i18n.T("cmd.provider.bedrock.region"), bedrockRegion, 0, nil, func(text string) {
-					bedrockRegion = text
-				})
+				addBedrockRegionDropDown(form, &bedrockRegion, &bedrockRegionIdx, &bedrockCustomRegion, rerenderSafe)
 				form.AddButton(i18n.T("wizard.hint.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
-				if bedrockRegion == "" {
-					bedrockRegion = "us-east-1"
-				}
 				return config.Update(func(c *config.Config) error {
 					c.Provider.Bedrock.AuthMode = "env"
 					c.Provider.Bedrock.AWSRegion = bedrockRegion
@@ -840,6 +891,58 @@ func updateConfigMCP(mcpServices []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 // Config generation
 // ─────────────────────────────────────────────────────────────────────────────
+
+// bedrockStepIndex finds a WizardStep by ID and returns its index, or -1.
+func bedrockStepIndex(steps *[]views.WizardStep, id string) int {
+	for i, s := range *steps {
+		if s.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// addBedrockRegionDropDown appends a region DropDown (with "Custom..." option)
+// to the form. It mutates the shared state via pointers and calls rerenderSafe
+// when the selection changes so the form rebuilds with/without the custom input.
+func addBedrockRegionDropDown(form *tview.Form, region *string, regionIdx *int, custom *bool, rerenderSafe func()) {
+	regionLabels := append(
+		[]string{i18n.T("cmd.init.wizard_region_placeholder")},
+		providerPkg.BedrockRegionLabels()...,
+	)
+	regionLabels = append(regionLabels, i18n.T("cmd.init.wizard_custom_region"))
+	customIdx := len(regionLabels) - 1
+
+	form.AddDropDown(
+		i18n.T("cmd.init.wizard_aws_region"),
+		regionLabels, *regionIdx,
+		func(_ string, idx int) {
+			if *regionIdx == idx {
+				return // no change — avoid spurious rerender
+			}
+			wasCustom := *custom
+			if idx == 0 {
+				// Placeholder selected — clear region.
+				*custom = false
+				*region = ""
+			} else if idx == customIdx {
+				*custom = true
+				*region = ""
+			} else if idx > 0 {
+				*custom = false
+				*region = providerPkg.BedrockRegions[idx-1].Code // -1 for placeholder offset
+			}
+			*regionIdx = idx
+			// Only rerender when the custom input field needs to appear/disappear.
+			if *custom != wasCustom {
+				rerenderSafe()
+			}
+		},
+	)
+	if *custom {
+		form.AddInputField(i18n.T("cmd.init.wizard_custom_region_input"), *region, 0, nil, func(t string) { *region = t })
+	}
+}
 
 // buildInitialConfig creates the initial hub.toml Config struct.
 // branchPattern is optional: if non-empty it is written into [worktree].branch_pattern.

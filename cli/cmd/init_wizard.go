@@ -11,6 +11,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
+	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -56,6 +57,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		gslidesToken     string
 		providerIdx      int  // current index in providerOptions DropDown
 		authIdx          int  // current index in authModes DropDown (bedrock)
+		regionIdx        int  // current index in region DropDown (bedrock); 0 = placeholder
+		customRegion     bool // true when user selects "Custom..." in the region dropdown
+		hasKeychainToken bool // true when a token for the current provider exists in the keychain
 		providerSkipped  bool // true if user clicked "Ignorer" on the Provider intro
 		projectSkipped   bool // true if user clicked "Ignorer" on the Project intro
 		mcpSkipped       bool // true if user clicked "Ignorer" on the MCP intro
@@ -225,7 +229,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 					} else {
 						selectedLang = "fr"
 					}
-					i18n.SetLocale(selectedLang)
+	i18n.SetLocale(selectedLang)
+
 					if langMounted {
 						focusBtn = true
 						rerenderLang()
@@ -287,12 +292,15 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			Validate: func() string {
 				switch selectedProvider {
 				case "anthropic", "openrouter":
-					if token == "" {
+					if token == "" && !hasKeychainToken {
 						return i18n.T("cmd.init.wizard_token_required")
 					}
 				case "bedrock":
-					if authMode == "bearer" && token == "" {
+					if authMode == "bearer" && token == "" && !hasKeychainToken {
 						return i18n.T("cmd.init.wizard_token_required")
+					}
+					if region == "" {
+						return i18n.T("cmd.init.wizard_region_required")
 					}
 				}
 				return ""
@@ -307,15 +315,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				if authMode == "" {
 					authMode = "bearer"
 				}
-				if region == "" {
-					region = "us-east-1"
-				}
 			if profileName == "" {
 				profileName = "default"
 			}
 
 			// ── Credential detection: check keychain for existing token ──
-			hasKeychainToken := false
+			hasKeychainToken = false
 			if token == "" {
 				name := providerPkg.Name(selectedProvider)
 				if a.Secrets != nil {
@@ -351,7 +356,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 						selectedProvider = providerOptions[idx]
 						// Reset credentials on provider change
 						token = ""
-						region = "us-east-1"
+						region = ""
+						regionIdx = 0
+						customRegion = false
+						hasKeychainToken = false
 						profileName = "default"
 						authMode = "bearer"
 						authIdx = 0
@@ -371,40 +379,79 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 							}
 							authIdx = idx
 							authMode = authModes[idx]
-							// Reset token/profile on auth change
+							// Reset token/profile/region on auth change
 							token = ""
 							profileName = "default"
+							region = ""
+							regionIdx = 0
+							customRegion = false
+							hasKeychainToken = false
 							rerenderSafe()
 						},
 					)
 					switch authMode {
 					case "bearer":
 						if hasKeychainToken {
-							form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+							form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 2, true, false)
 						}
-						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), token, 50, '*', func(t string) { token = t })
+						form.AddPasswordField(i18n.T("cmd.init.wizard_bearer_token"), token, 0, '*', func(t string) { token = t })
 						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_bearer"), 60, 1, true, false)
-						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "profile":
-						form.AddInputField(i18n.T("cmd.init.wizard_aws_profile"), profileName, 30, nil, func(t string) { profileName = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_aws_profile"), profileName, 0, nil, func(t string) { profileName = t })
 						form.AddTextView("", i18n.T("cmd.init.provider_hint_bedrock_profile"), 60, 1, true, false)
-						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
 					case "env":
-						form.AddInputField(i18n.T("cmd.init.wizard_aws_region"), region, 30, nil, func(t string) { region = t })
+						// No extra fields before the region dropdown.
+					}
+
+					// ── Region dropdown (shared by all bedrock auth modes) ──
+					regionLabels := append(
+						[]string{i18n.T("cmd.init.wizard_region_placeholder")},
+						providerPkg.BedrockRegionLabels()...,
+					)
+					regionLabels = append(regionLabels, i18n.T("cmd.init.wizard_custom_region"))
+					customIdx := len(regionLabels) - 1
+					form.AddDropDown(
+						i18n.T("cmd.init.wizard_aws_region"),
+						regionLabels, regionIdx,
+						func(_ string, idx int) {
+							if regionIdx == idx {
+								return // no change — avoid spurious rerender
+							}
+							wasCustom := customRegion
+							if idx == 0 {
+								// Placeholder selected — clear region.
+								customRegion = false
+								region = ""
+							} else if idx == customIdx {
+								customRegion = true
+								region = ""
+							} else if idx > 0 {
+								customRegion = false
+								region = providerPkg.BedrockRegions[idx-1].Code // -1 for placeholder offset
+							}
+							regionIdx = idx
+							// Only rerender when the custom input field needs to appear/disappear.
+							if customRegion != wasCustom {
+								rerenderSafe()
+							}
+						},
+					)
+					if customRegion {
+						form.AddInputField(i18n.T("cmd.init.wizard_custom_region_input"), region, 0, nil, func(t string) { region = t })
 					}
 
 				case "anthropic":
 					if hasKeychainToken {
-						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 2, true, false)
 					}
-					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), token, 50, '*', func(t string) { token = t })
+					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_anthropic"), token, 0, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_anthropic"), 60, 1, true, false)
 
 				case "openrouter":
 					if hasKeychainToken {
-						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 2, true, false)
 					}
-					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), token, 50, '*', func(t string) { token = t })
+					form.AddPasswordField(i18n.T("cmd.init.wizard_api_key_openrouter"), token, 0, '*', func(t string) { token = t })
 					form.AddTextView("", i18n.T("cmd.init.provider_hint_openrouter"), 60, 1, true, false)
 
 				case "github-copilot":
@@ -564,8 +611,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				if initialPath == "" {
 					initialPath = "."
 				}
-				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 40, nil, func(t string) { projectName = t })
-				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 50, nil, func(t string) { projectPath = t })
+				form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 0, nil, func(t string) { projectName = t })
+				form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 0, nil, func(t string) { projectPath = t })
 
 				// If a team was configured, offer to attach the project
 				attachMounted := false
@@ -739,11 +786,11 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				}
 				form := tview.NewForm()
 				if hasKeychainGitlab {
-					form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+					form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 2, true, false)
 				}
 				form.AddPasswordField(
 					i18n.Tf("cmd.init.mcp_token_prompt", "GitLab"),
-					gitlabToken, 50, '*',
+					gitlabToken, 0, '*',
 					func(t string) { gitlabToken = t },
 				)
 				form.AddTextView("", i18n.T("cmd.init.mcp_hint_gitlab"), 60, 2, true, false)
@@ -1043,21 +1090,41 @@ func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereq
 				return event
 			})
 
-			// Unified layout: topSpacer + badge + gap + content + buttonForm + bottomSpacer
-			topSpacer := tview.NewBox()
-			topSpacer.SetBackgroundColor(theme.BgPanel)
-			badgeView := views.BuildStepBadge(badge)
-			gapSpacer := tview.NewBox()
-			gapSpacer.SetBackgroundColor(theme.BgPanel)
-			bottomSpacer := tview.NewBox()
-			bottomSpacer.SetBackgroundColor(theme.BgPanel)
+			// Adaptive layout: reduce chrome when terminal is small.
+			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+			if termH <= 0 {
+				termH = 50
+			}
+			availH := termH - 7
 
-			container.AddItem(topSpacer, 3, 0, false)
-			container.AddItem(badgeView, 5, 0, false)
-			container.AddItem(gapSpacer, 2, 0, false)
-			container.AddItem(tv, 0, 1, false)
-			container.AddItem(buttonForm, 5, 0, true)
-			container.AddItem(bottomSpacer, 3, 0, false)
+			if availH >= 35 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				badgeView := views.BuildStepBadge(badge, false)
+				gapSpacer := tview.NewBox()
+				gapSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 3, 0, false)
+				container.AddItem(badgeView, 5, 0, false)
+				container.AddItem(gapSpacer, 2, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 5, 0, true)
+				container.AddItem(bottomSpacer, 3, 0, false)
+			} else if availH >= 20 {
+				badgeView := views.BuildStepBadge(badge, true)
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 1, 0, false)
+				container.AddItem(badgeView, 3, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
+			} else {
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
+			}
 			tvApp.SetFocus(buttonForm)
 		},
 	}
