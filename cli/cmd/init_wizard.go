@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -892,6 +893,24 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		},
 		OnComplete: func(completed bool, err error) {
 			if completed && err == nil {
+				// ── Extract hub content (agents, skills, permissions) ────
+				// Without this, oh start would lack agent/skill definitions.
+				hubContentDir := hubcontent.HubContentDir()
+				if extractErr := hubcontent.Extract(hubContentDir); extractErr != nil {
+					slog.Error("failed to extract hub content", "error", extractErr)
+				}
+
+				// ── Detect branch pattern heuristic ─────────────────────
+				// Best-effort: only applies if CWD is a git repo.
+				if pattern := detectBranchPatternHeuristic("."); pattern != "" {
+					_ = config.Update(func(c *config.Config) error {
+						if c.Worktree.BranchPattern == "" {
+							c.Worktree.BranchPattern = pattern
+						}
+						return nil
+					})
+				}
+
 				// Mark setup as done so the wizard doesn't re-launch.
 				// Retry once on failure to avoid a wizard-loop on next startup.
 				for attempt := 0; attempt < 2; attempt++ {

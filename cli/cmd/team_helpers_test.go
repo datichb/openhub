@@ -23,7 +23,7 @@ func TestBuildInitWizardTeamSteps_Structure(t *testing.T) {
 	state := &initWizardTeamState{}
 
 	steps := buildInitWizardTeamSteps(appPtr, state)
-	require.Len(t, steps, 2, "should return exactly 2 steps (form + processing)")
+	require.Len(t, steps, 3, "should return exactly 3 steps (form + processing + tracker)")
 
 	// Step 0: Team form
 	assert.NotNil(t, steps[0].Form, "team form step should have a Form")
@@ -35,6 +35,9 @@ func TestBuildInitWizardTeamSteps_Structure(t *testing.T) {
 	assert.NotNil(t, steps[1].OnDone, "team processing step should have OnDone")
 	assert.NotNil(t, steps[1].SkipIf, "team processing step should have SkipIf")
 	assert.NotEmpty(t, steps[1].Processing, "team processing step should have Processing label")
+
+	// Step 2: Tracker setup
+	assert.NotNil(t, steps[2].SkipIf, "tracker step should have SkipIf")
 }
 
 func TestBuildInitWizardTeamSteps_SkipIf(t *testing.T) {
