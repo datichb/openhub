@@ -111,7 +111,7 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			return s.Repo.SaveConfig(s.Ctx, cfg)
 		},
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Stale days", Value: s.StaleDaysStr}}
+			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_stale_days"), Value: s.StaleDaysStr}}
 		},
 	}
 }
@@ -155,6 +155,11 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 				s.TrackerUsername, 0, nil,
 				func(text string) { s.TrackerUsername = text })
 			roles := []string{"lead", "dev", "reviewer"}
+			roleLabels := []string{
+				i18n.T("cmd.init.wizard_team_role_lead"),
+				i18n.T("cmd.init.wizard_team_role_dev"),
+				i18n.T("cmd.init.wizard_team_role_reviewer"),
+			}
 			roleIdx := 0
 			for i, r := range roles {
 				if r == s.Role {
@@ -164,7 +169,7 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			}
 			form.AddDropDown(
 				i18n.T("cmd.team.init.identity_role"),
-				roles, roleIdx,
+				roleLabels, roleIdx,
 				func(_ string, idx int) { s.Role = roles[idx] })
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
@@ -195,9 +200,9 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{
-				{Label: "Member", Value: s.MemberID},
-				{Label: "Name", Value: s.DisplayName},
-				{Label: "Role", Value: s.Role},
+				{Label: i18n.T("cmd.init.wizard_team_info_member_id"), Value: s.MemberID},
+				{Label: i18n.T("cmd.init.wizard_team_info_name"), Value: s.DisplayName},
+				{Label: i18n.T("cmd.init.wizard_team_info_role"), Value: s.Role},
 			}
 		},
 	}
@@ -248,12 +253,12 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 		},
 		InfoFields: func() []views.InfoField {
 			if s.WebhookURL == "" {
-				return []views.InfoField{{Label: "Notifications", Value: "skipped"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_notifs"), Value: i18n.T("cmd.init.wizard_team_info_skipped")}}
 			}
 			return []views.InfoField{
-				{Label: "Webhook", Value: s.WebhookURL},
-				{Label: "Channel", Value: s.Channel},
-				{Label: "Bot", Value: s.BotName},
+				{Label: i18n.T("cmd.init.wizard_team_info_webhook"), Value: s.WebhookURL},
+				{Label: i18n.T("cmd.init.wizard_team_info_channel"), Value: s.Channel},
+				{Label: i18n.T("cmd.init.wizard_team_info_bot"), Value: s.BotName},
 			}
 		},
 	}
@@ -325,10 +330,10 @@ func buildTeamPoliciesStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 		},
 		InfoFields: func() []views.InfoField {
 			if len(s.SelectedPolicies) == 0 {
-				return []views.InfoField{{Label: "Policies", Value: "none"}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_policies"), Value: i18n.T("cmd.init.wizard_team_info_policies_none")}}
 			}
 			return []views.InfoField{
-				{Label: "Policies", Value: fmt.Sprintf("%d active", len(s.SelectedPolicies))},
+				{Label: i18n.T("cmd.init.wizard_team_info_policies"), Value: i18n.Tf("cmd.init.wizard_team_info_policies_active", len(s.SelectedPolicies))},
 			}
 		},
 	}

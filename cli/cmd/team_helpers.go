@@ -95,9 +95,9 @@ func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredSt
 						state.AuthChoice = "public"
 					}
 				})
-			form.AddInputField("Username", state.Username, 0, nil,
+			form.AddInputField(i18n.T("cmd.init.wizard_team_cred_username"), state.Username, 0, nil,
 				func(text string) { state.Username = text })
-			form.AddPasswordField("Token", state.Token, 0, '*',
+			form.AddPasswordField(i18n.T("cmd.init.wizard_team_cred_token"), state.Token, 0, '*',
 				func(text string) { state.Token = text })
 			form.AddButton(i18n.T("wizard.hint.submit"), func() {
 				if state.AuthChoice == "provide" && state.Token == "" {
@@ -114,7 +114,7 @@ func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredSt
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Auth", Value: "configured"}}
+			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_auth"), Value: i18n.T("cmd.init.wizard_team_info_configured")}}
 		},
 	}
 }
@@ -165,7 +165,7 @@ func selectedMemberGitLabUsername(state *initWizardTeamState) string {
 // The teamID is used to check for a team-specific keychain key.
 func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
 	if os.Getenv("GITLAB_TOKEN") != "" {
-		return "env GITLAB_TOKEN"
+		return i18n.T("cmd.init.wizard_rejoin_token_source_env")
 	}
 	if a != nil && a.Secrets != nil {
 		if teamID != "" {
@@ -174,10 +174,10 @@ func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
 			}
 		}
 		if val, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && val != "" {
-			return "MCP GitLab"
+			return i18n.T("cmd.init.wizard_rejoin_token_source_mcp")
 		}
 		if val, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && val != "" {
-			return "Tracker GitLab"
+			return i18n.T("cmd.init.wizard_rejoin_token_source_tracker")
 		}
 	}
 	return ""
@@ -256,7 +256,7 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 				status = i18n.T("cmd.init.wizard_tracker_configure_now")
 			}
 			return []views.InfoField{
-				{Label: "Tracker", Value: status},
+				{Label: i18n.T("cmd.init.wizard_team_info_tracker"), Value: status},
 			}
 		},
 	}
@@ -311,8 +311,8 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Repo", Value: state.Repo},
-					{Label: "Member", Value: state.MemberID},
+					{Label: i18n.T("cmd.init.wizard_team_info_repo"), Value: state.Repo},
+					{Label: i18n.T("cmd.init.wizard_team_info_member"), Value: state.MemberID},
 				}
 			},
 		},
@@ -413,7 +413,7 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 				return form
 			},
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Auth", Value: state.CredAuthChoice}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_auth"), Value: state.CredAuthChoice}}
 			},
 		},
 		// ── Step 2: Username + Token (skipped when not "provide") ──
@@ -425,9 +425,9 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddInputField("Username", state.CredUsername, 0, nil,
+				form.AddInputField(i18n.T("cmd.init.wizard_team_cred_username"), state.CredUsername, 0, nil,
 					func(text string) { state.CredUsername = text })
-				form.AddPasswordField("Token", state.CredToken, 0, '*',
+				form.AddPasswordField(i18n.T("cmd.init.wizard_team_cred_token"), state.CredToken, 0, '*',
 					func(text string) { state.CredToken = text })
 				form.AddButton(i18n.T("wizard.hint.submit"), func() {
 					if state.CredToken == "" {
@@ -503,7 +503,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 			Processing: i18n.T("cmd.init.wizard_processing_rejoin_clone"),
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Repo", Value: state.Repo}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_repo"), Value: state.Repo}}
 			},
 		},
 	}
@@ -532,7 +532,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 					label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
 					secondary := ""
 					if m.GitLabUsername != "" {
-						secondary = fmt.Sprintf("gitlab: %s", m.GitLabUsername)
+						secondary = i18n.Tf("cmd.init.wizard_rejoin_member_gitlab", m.GitLabUsername)
 					}
 					if m.Role != "" {
 						if secondary != "" {
@@ -648,12 +648,12 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			case "reuse":
 				status = i18n.T("cmd.init.wizard_rejoin_token_reuse_short")
 			case "new":
-				status = "stored"
+				status = i18n.T("cmd.init.wizard_rejoin_token_stored")
 			default:
 				status = i18n.T("cmd.init.wizard_team_skipped")
 			}
 			return []views.InfoField{
-				{Label: "GitLab token", Value: status},
+				{Label: i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"), Value: status},
 			}
 		},
 	})
@@ -803,9 +803,9 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 		InfoFields: func() []views.InfoField {
 			if state.MismatchChoice == "skip" {
-				return []views.InfoField{{Label: "Identity", Value: i18n.T("cmd.init.wizard_identity_skip")}}
+				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_identity"), Value: i18n.T("cmd.init.wizard_identity_skip")}}
 			}
-			return []views.InfoField{{Label: "Identity", Value: "verified"}}
+			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_identity"), Value: i18n.T("cmd.init.wizard_identity_verified")}}
 		},
 	})
 
@@ -994,7 +994,7 @@ func buildProjectTeamStep(a *app.App, out **string) views.WizardStep {
 				form.AddTextView(i18n.T("form.project.team_hub_label"), i18n.T("form.project.team_none_configured"), 0, 1, false, false)
 			}
 
-			form.AddButton("Next", func() { onDone() })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
