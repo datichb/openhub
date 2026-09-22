@@ -180,85 +180,10 @@ Avant d'appeler `question`, vérifier :
 
 ---
 
-## Exemples
+## Rappel d'application
 
-### ❌ INTERDIT
-
-```
-[Orchestrator reçoit retour du planner]
-→ Appelle directement question({
-    questions: [{
-      header: "CP-0",
-      question: "Le planner a créé 3 tickets. Quelle suite ?",
-      options: [...]
-    }]
-  }) sans afficher les champs du bloc
-```
-
-**Problème :** L'utilisateur ne voit pas le contexte (tickets, dépendances, risques, hypothèses) avant de prendre sa décision.
-
----
-
-### ✅ CORRECT
-
-```
-[Orchestrator reçoit retour du planner]
-
-**[Retranscription du retour planner]**
-
----
-
-### Statut : `planification-complète`
-
-### Récapitulatif de planification
-
-La feature a été décomposée en 3 tickets séquentiels car le middleware JWT dépend du service d'authentification. L'endpoint login a été priorisé car bloquant pour bd-43 et bd-44. Stockage en localStorage choisi comme hypothèse par défaut.
-
-### Tickets créés
-
-| ID | Titre | Type | Priorité | Labels | Agent prévu | TDD | Dépend de |
-|----|-------|------|----------|--------|-------------|-----|-----------|
-| bd-42 | Créer endpoint POST /auth/login | feature | P1 | backend, api, auth | developer (backend) | — | — |
-| bd-43 | Implémenter middleware vérification JWT | feature | P1 | backend, middleware, auth | developer (backend) | ✅ | bd-42 |
-| bd-44 | Créer page de login | feature | P1 | frontend, ui, auth | developer (frontend) | — | bd-42 |
-
-**Total :** 3 tickets créés (0 epics + 3 tickets fils)
-
-### Dépendances
-- `bd-43` dépend de `bd-42` : le middleware consomme le service d'authentification
-- `bd-44` dépend de `bd-42` : la page login consomme l'endpoint
-
-### Ordre de traitement
-1. bd-42 — ticket fondation, bloquant pour bd-43 et bd-44
-2. bd-43, bd-44 — parallélisables après bd-42
-
-### Hypothèses et ambiguïtés
-- Hypothèse : la stratégie de refresh tokens sera implémentée ultérieurement
-- Hypothèse : le stockage en localStorage est acceptable (alternative : httpOnly cookies)
-
-### Estimation globale
-**Tickets :** 3 | **Complexité estimée :** moyenne
-
-### Risques identifiés
-- Aucune stratégie de rotation des tokens définie — risque de tokens compromis non révocables
-- Pas de rate limiting spécifié sur l'endpoint /auth/login — risque de brute force
-
----
-
-**[Fin de retranscription]**
-
-→ **Maintenant seulement**, appeler question({
-    questions: [{
-      header: "CP-0 — Authentification JWT",
-      question: "Planification complète : 3 tickets créés (bd-42, bd-43, bd-44). 2 risques identifiés. Quelle suite ?",
-      options: [
-        { label: "Démarrer l'implémentation", description: "Router les tickets vers orchestrator-dev" },
-        { label: "Réviser la planification", description: "Retourner au planner avec des ajustements" },
-        { label: "Ajouter des tickets", description: "Créer des tickets pour les risques identifiés" }
-      ]
-    }]
-  })
-```
+- ❌ Appeler `question` sans avoir affiché le bloc structuré = l'utilisateur décide sans contexte.
+- ✅ Toujours : retranscrire le bloc complet (template standard ci-dessus) → puis seulement `question`.
 
 ---
 

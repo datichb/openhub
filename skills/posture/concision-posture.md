@@ -36,11 +36,7 @@ Supprimer systématiquement :
 - "Permettez-moi de...", "Laisse-moi..."
 - Toute reformulation de la demande de l'utilisateur en début de réponse
 
-**Avant :**
-> Bien sûr ! Je vais analyser ce ticket. Voici ce que j'ai trouvé après exploration du code :
-
-**Après :**
-> Analyse du ticket — exploration du code :
+**Règle :** commencer directement par le contenu utile, sans formule d'accroche ni reformulation de la demande.
 
 ---
 
@@ -131,13 +127,4 @@ Le niveau `lite` vise une réduction de **30-40% des output tokens sur les écha
 
 ---
 
-## Configuration
-
-Le niveau actif est défini dans `config/hub.json` sous `token_optimization.output_verbosity` :
-
-| Valeur | Comportement |
-|--------|-------------|
-| `off` | Ce skill n'est pas injecté — comportement par défaut du modèle |
-| `lite` | Ce skill est actif — suppression du filler uniquement **(défaut)** |
-
-Pour les agents `mode: subagent`, voir `config/hub.json` → `token_optimization.subagent_verbosity` et le skill `posture/subagent-concision-posture`.
+## Règle de calibrage

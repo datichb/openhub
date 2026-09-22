@@ -99,14 +99,6 @@ Le `planner` délègue à l'agent `designer` en **Phase 1.5** (après Phase 1 d'
 
 ---
 
-## Exemple complet
-
-### Prompt de délégation (planner → designer)
-
-> **Template :** exemples complets définis dans `templates/design-planner-prompts.md` (sections « Exemple — Prompt de délégation » et « Exemple — Retour de l'agent designer ») — charger via `read` quand tu as besoin de la référence.
-
----
-
 ## Référence
 
 **Source :** Workflow planner Phase 1.5 (ligne 93 de `planner-workflow.md`)  

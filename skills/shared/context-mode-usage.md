@@ -18,58 +18,19 @@ Avant d'exécuter une commande, déterminer si elle **se termine d'elle-même** 
 
 ## Pourquoi `ctx_batch_execute` sans timeout est dangereux
 
-Sans paramètre `timeout`, le spawner de processus n'installe **aucun timer** :
-
-```js
-// internals context-mode — si timeout === undefined, aucun kill n'est planifié
-let timer = timeout === undefined ? undefined : setTimeout(() => kill(process), timeout);
-```
-
-Avec `concurrency ≥ 2`, trois workers parallèles attendent tous un `Promise.allSettled` —
-si une commande bloque, **tout le batch est suspendu indéfiniment**.
+Sans `timeout`, aucun timer n'est installé. Avec `concurrency ≥ 2`, si une commande bloque, **tout le batch est suspendu indéfiniment**.
 
 ### Règle : `timeout` est obligatoire sur tout appel `ctx_batch_execute`
-
-```
-// ✅ correct
-ctx_batch_execute(commands: [...], timeout: 30000, concurrency: 3)
-
-// ❌ interdit — aucun timer, hang possible si une commande bloque
-ctx_batch_execute(commands: [...], concurrency: 3)
-```
 
 ---
 
 ## Commandes non-terminantes — utiliser `ctx_execute` avec `background: true`
 
-Pour lancer un serveur de dev, un watcher, ou tout process qui doit rester actif :
+Pour lancer un serveur de dev, un watcher, ou tout process qui doit rester actif, utiliser `ctx_execute(language: "shell", code: "<cmd> 2>&1", background: true)`.
 
-```
-ctx_execute(
-  language: "shell",
-  code: "yarn dev",
-  background: true
-)
-```
+`background: true` détache le process après le timeout : il continue de tourner sans bloquer l'agent. L'output partiel (démarrage, port, erreurs initiales) est retourné avant le détachement.
 
-`background: true` détache le process après le timeout : il continue de tourner sans bloquer
-l'agent. L'output partiel (démarrage, port, erreurs initiales) est retourné avant le détachement.
-
-### Cas d'usage typiques
-
-```
-// Serveur de dev frontend
-ctx_execute(language: "shell", code: "yarn dev", background: true)
-
-// Serveur de dev backend
-ctx_execute(language: "shell", code: "npm run start:dev", background: true)
-
-// Watcher de compilation
-ctx_execute(language: "shell", code: "tsc --watch", background: true)
-
-// Build en watch mode
-ctx_execute(language: "shell", code: "vite build --watch", background: true)
-```
+Exemples de commandes : `yarn dev`, `npm run start:dev`, `tsc --watch`, `vite build --watch`.
 
 ---
 
@@ -106,128 +67,36 @@ La commande se termine toute seule ?
 
 ---
 
-## Anti-patterns à éviter
+## Anti-patterns — règles compactes
 
-```
-// ❌ timeout absent
-ctx_batch_execute(commands: [{ label: "dev", command: "yarn dev" }])
-
-// ❌ commande non-terminante dans ctx_batch_execute
-ctx_batch_execute(commands: [{ label: "server", command: "npm run dev" }], timeout: 5000)
-// → le process est tué après 5s, serveur jamais démarré correctement
-
-// ❌ watcher dans un batch parallèle — bloque les autres workers
-ctx_batch_execute(
-  commands: [
-    { label: "typecheck", command: "tsc" },
-    { label: "watch", command: "tsc --watch" },  // bloque le worker
-  ],
-  timeout: 30000,
-  concurrency: 2
-)
-
-// ❌ commande shell timeout/gtimeout — indisponible sur macOS, mauvaise approche
-ctx_execute(language: "shell", code: "timeout 10 yarn dev")
-ctx_execute(language: "shell", code: "gtimeout 10 yarn dev")
-
-// ❌ terminer la tâche sans arrêter le process background
-// → port occupé, process zombie, run suivant cassé
-ctx_execute(language: "shell", code: "yarn dev", background: true)
-// [utiliser le serveur]
-// FIN DE TÂCHE — sans pkill → process toujours en vie
-```
+| Anti-pattern | Pourquoi c'est faux | Correct |
+|---|---|---|
+| `ctx_batch_execute` sans `timeout` | Aucun timer → hang indéfini | Toujours passer `timeout` |
+| Commande non-terminante dans `ctx_batch_execute` | Process tué au timeout, jamais démarré | `ctx_execute` avec `background: true` |
+| Watcher dans un batch parallèle | Bloque le worker indéfiniment | Séparer : batch pour les terminantes, `ctx_execute` pour le watcher |
+| `timeout`/`gtimeout` dans le champ `code` | Indisponible sur macOS, mauvaise couche | Utiliser le paramètre `timeout` de l'outil MCP |
+| Fin de tâche sans `pkill` du process background | Port occupé, process zombie | `Bash("pkill -f '<cmd>'")` avant de clore |
 
 ---
 
 ## Capturer les erreurs de démarrage d'un serveur
 
-Quand un serveur dev crashe au boot (port occupé, mauvaise config, dépendance manquante...),
-`ctx_execute` avec `background: true` capture automatiquement les logs de démarrage
-**avant** le détachement — l'erreur est dans l'output retourné.
+**Toujours rediriger stderr vers stdout** (`2>&1`) — sans cela, les erreurs de crash ne sont pas retournées.
 
-### Toujours rediriger stderr vers stdout
+`ctx_execute` avec `background: true` retourne l'output partiel accumulé pendant le démarrage :
+- Crash immédiat → l'output contient l'erreur complète
+- Démarrage OK → l'output contient les premières lignes (port, mode, URL)
 
-```
-// ✅ capture stdout + stderr (erreurs de boot incluses)
-ctx_execute(
-  language: "shell",
-  code: "yarn dev 2>&1",
-  background: true
-)
-```
-
-Sans `2>&1`, les erreurs écrites sur stderr (la majorité des crashs) ne sont **pas** retournées.
-
-### Lire l'output retourné
-
-`ctx_execute` avec `background: true` retourne l'output partiel accumulé pendant le démarrage.
-Si le serveur crashe immédiatement → l'output contient l'erreur complète.
-Si le serveur démarre correctement → l'output contient les premières lignes (port, mode, URL).
-
-```
-// Exemple de retour en cas de crash :
-// Error: listen EADDRINUSE: address already in use :::3000
-//   at Server.setupListenHandle [as _listen2] (node:net:1738:16)
-
-// Exemple de retour en cas de succès :
-// vite v5.0.0  ready in 312 ms
-// ➜  Local:   http://localhost:3000/
-```
-
-### Pattern complet — démarrer et vérifier
-
-```
-// 1. Lancer le serveur en background (stderr capturé)
-ctx_execute(language: "shell", code: "yarn dev 2>&1", background: true)
-
-// 2. Lire l'output retourné pour détecter un crash
-//    → erreur présente : diagnostiquer sans relancer
-//    → démarrage OK    : continuer avec l'URL affichée
-```
-
-Il n'est **pas nécessaire** d'utiliser `sleep`, `wait`, ou des boucles de polling —
-le détachement intervient après que le process a produit ses premiers outputs.
+**Pattern :** lancer avec `2>&1` + `background: true`, lire l'output retourné pour détecter un crash. Pas besoin de `sleep`, `wait` ou polling.
 
 ---
 
 ## Arrêter un process background — obligatoire
 
 **Tout process lancé en background doit être arrêté avant la fin de la tâche, sans exception.**
+Un process oublié occupe le port pour la session suivante et consomme des ressources.
 
-Un process oublié occupe le port pour la session suivante et consomme des ressources inutilement.
+**Arrêt par nom :** `Bash("pkill -f 'yarn dev'")`
+**Arrêt par PID (plus précis) :** capturer le PID au démarrage avec `& echo "PID:$!"`, puis `Bash("kill <pid>")`.
 
-### Pattern d'arrêt — par nom de commande
-
-```bash
-# Via Bash (hors sandbox — effet réel sur le système)
-Bash("pkill -f 'yarn dev'")
-Bash("pkill -f 'npm run start:dev'")
-Bash("pkill -f 'tsc --watch'")
-Bash("pkill -f 'vite'")
-```
-
-### Pattern d'arrêt — par PID (plus précis si plusieurs serveurs tournent)
-
-```
-// 1. Au démarrage, capturer le PID
-ctx_execute(language: "shell", code: "yarn dev 2>&1 & echo \"PID:$!\"", background: true)
-// → l'output contient "PID:12345" — noter la valeur
-
-// 2. En fin de tâche, tuer précisément ce process
-Bash("kill 12345")
-```
-
-### Timing obligatoire
-
-```
-1. ctx_execute(..., background: true)   ← démarrer
-2. [utiliser le serveur : tests, vérifications, requêtes]
-3. Bash("pkill -f 'yarn dev'")          ← arrêter AVANT de clore la tâche
-```
-
-### Anti-patterns à ajouter à la vigilance
-
-```
-// ❌ terminer la tâche sans arrêter le process background
-// → port occupé, process zombie, run suivant cassé
-```
+**Séquence obligatoire :** démarrer → utiliser → `pkill` AVANT de clore la tâche.

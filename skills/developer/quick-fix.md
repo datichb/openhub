@@ -17,222 +17,35 @@ aucune décision d'architecture, et aucune modification de la logique métier.
 
 ## ✅ Corrections éligibles (auto-applicables)
 
-### Lint fix
-
-Corrections automatiques suggérées par le linter du projet.
+### Exemples représentatifs
 
 ```typescript
-// Avant — erreur ESLint : prefer-const
-let value = 42;
-
-// Après — quick fix applicable
-const value = 42;
+// Lint fix — let value = 42  →  const value = 42
+// Import manquant — ajout de `import { ref } from 'vue'` quand ref() est utilisé
+// Typo — 'Invalide user ID' → 'Invalid user ID'
 ```
 
-```typescript
-// Avant — erreur ESLint : no-unused-vars (import)
-import { foo, bar } from './utils';
-console.log(foo);
+### Catégories éligibles
 
-// Après — quick fix applicable
-import { foo } from './utils';
-console.log(foo);
-```
-
-### Import manquant
-
-Ajout d'un import pour un symbole utilisé mais non importé.
-
-```typescript
-// Avant — TypeScript error: Cannot find name 'ref'
-const count = ref(0);
-
-// Après — quick fix applicable
-import { ref } from 'vue';
-const count = ref(0);
-```
-
-```python
-# Avant — NameError: name 'Path' is not defined
-config_path = Path("./config.json")
-
-# Après — quick fix applicable
-from pathlib import Path
-config_path = Path("./config.json")
-```
-
-### Typo évidente
-
-Correction d'une faute de frappe dans un identifiant, un commentaire ou une chaîne
-quand l'intention est **non ambiguë**.
-
-```typescript
-// Avant — typo évidente dans un commentaire
-// Initialzie the counter
-const counter = 0;
-
-// Après — quick fix applicable
-// Initialize the counter
-const counter = 0;
-```
-
-```typescript
-// Avant — typo dans une chaîne de message d'erreur
-throw new Error('Invalide user ID');
-
-// Après — quick fix applicable
-throw new Error('Invalid user ID');
-```
-
-### Formatage
-
-Corrections de formatage (indentation, espaces, sauts de ligne) conformes
-à la configuration du projet (Prettier, EditorConfig, etc.).
-
-```typescript
-// Avant — formatage incohérent
-function foo( a:number,b:string ){
-return a+b}
-
-// Après — quick fix applicable (Prettier)
-function foo(a: number, b: string) {
-  return a + b;
-}
-```
-
-### Point-virgule manquant / en trop
-
-Si le projet a une convention explicite (ESLint, Prettier).
-
-```typescript
-// Avant — point-virgule manquant (convention : semi)
-const value = 42
-
-// Après — quick fix applicable
-const value = 42;
-```
-
-### Trailing comma
-
-Ajout ou suppression des virgules finales selon la configuration du projet.
-
-```typescript
-// Avant — trailing comma manquante (convention : es5)
-const config = {
-  foo: 1,
-  bar: 2
-};
-
-// Après — quick fix applicable
-const config = {
-  foo: 1,
-  bar: 2,
-};
-```
+- **Lint fix** — corrections automatiques du linter (prefer-const, no-unused-vars, etc.)
+- **Import manquant** — ajout d'un import pour un symbole utilisé mais non importé
+- **Typo évidente** — faute de frappe non ambiguë dans identifiant, commentaire ou chaîne
+- **Formatage** — indentation, espaces, sauts de ligne conformes au formatter du projet
+- **Point-virgule** — ajout/suppression selon la convention configurée (ESLint, Prettier)
+- **Trailing comma** — ajout/suppression selon la configuration du projet
 
 ---
 
-## ❌ Corrections NON éligibles (nécessitent une review)
+## ❌ Corrections NON éligibles
 
-### Renommage de variable
+Toute correction impliquant un **jugement**, un **choix d'architecture** ou un **changement de comportement** nécessite une review :
 
-Un renommage implique un jugement sur le nommage approprié et peut avoir des
-impacts sur la lisibilité et la compréhension du code par l'équipe.
-
-```typescript
-// NON éligible — choix de nommage subjectif
-const x = calculateTotal(items);      // → totalPrice ? orderTotal ? sum ?
-```
-
-**Justification :** Le nom d'une variable est une décision de design.
-Même un "mauvais" nom peut avoir une raison historique ou contextuelle.
-
-### Refactoring
-
-Toute restructuration du code, même mineure, qui modifie l'organisation
-sans changer le comportement.
-
-```typescript
-// NON éligible — extraction de fonction
-if (user.age >= 18 && user.hasAcceptedTerms && user.isVerified) { ... }
-// → isEligible(user) ?
-
-// NON éligible — changement de structure de contrôle
-if (condition) {
-  return early;
-}
-doSomething();
-// → condition ? early : doSomething() ?
-```
-
-**Justification :** Le refactoring implique des choix d'architecture locale
-(extraction, inversion de condition, pattern). Ces choix doivent être validés.
-
-### Changement de signature
-
-Toute modification de la signature d'une fonction, méthode ou API.
-
-```typescript
-// NON éligible — ajout de paramètre optionnel
-function fetchUser(id: string) { ... }
-// → function fetchUser(id: string, options?: FetchOptions) { ... }
-
-// NON éligible — changement de type de retour
-function getUsers(): User[] { ... }
-// → function getUsers(): Promise<User[]> { ... }
-
-// NON éligible — réordonnancement des paramètres
-function createOrder(userId: string, items: Item[], discount?: number) { ... }
-// → function createOrder(items: Item[], userId: string, discount?: number) { ... }
-```
-
-**Justification :** Un changement de signature peut casser les appelants
-et constitue un breaking change potentiel.
-
-### Modification de logique métier
-
-Tout changement qui affecte le comportement de l'application, même subtil.
-
-```typescript
-// NON éligible — changement de condition métier
-if (user.age >= 18) { ... }  // → if (user.age > 18) { ... }
-
-// NON éligible — changement de valeur par défaut
-const timeout = options.timeout ?? 5000;  // → ?? 10000
-
-// NON éligible — ajout/suppression de validation
-if (!email.includes('@')) throw new Error('Invalid');  // → suppression
-```
-
-**Justification :** La logique métier est le cœur de l'application.
-Toute modification doit être tracée, testée et validée.
-
-### Changement de dépendance
-
-Ajout, suppression ou mise à jour de dépendances.
-
-```typescript
-// NON éligible — remplacement d'une lib par une autre
-import moment from 'moment';  // → import { format } from 'date-fns';
-
-// NON éligible — suppression d'une dépendance
-import _ from 'lodash';  // → utilisation native
-```
-
-**Justification :** Les dépendances impactent la taille du bundle,
-la sécurité, la compatibilité et la maintenabilité.
-
-### Suppression de code
-
-Même du code apparemment mort ou inutilisé.
-
-```typescript
-// NON éligible — suppression de fonction non appelée
-function legacyHelper() { ... }  // semble inutilisé → suppression ?
-```
-
-**Justification :** Le code "mort" peut être utilisé dynamiquement,
-documenté pour un usage futur, ou avoir une raison d'exister non évidente.
+- **Renommage de variable** — choix de nommage subjectif, décision de design
+- **Refactoring** — extraction de fonction, changement de structure de contrôle
+- **Changement de signature** — ajout/suppression de paramètre, changement de type de retour
+- **Modification de logique métier** — changement de condition, de valeur par défaut, de validation
+- **Changement de dépendance** — remplacement, ajout ou suppression de lib
+- **Suppression de code** — même apparemment mort (peut être utilisé dynamiquement)
 
 ---
 

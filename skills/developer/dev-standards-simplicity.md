@@ -19,16 +19,9 @@ La complexité accidentelle est une dette — elle ralentit, elle fragile, elle 
 
 Préfère toujours la solution la plus directe qui résout le problème posé.
 
-```
-✅ Un if/else pour 2 cas
-❌ Un pattern Strategy avec interface, factory et 3 fichiers pour 2 cas
-
-✅ Une fonction qui lit un fichier et retourne son contenu
-❌ Une classe FileReaderService avec injection de dépendance pour un usage unique
-
-✅ Une requête SQL avec une jointure
-❌ Un ORM avec 4 niveaux d'abstraction et un query builder custom pour la même requête
-```
+- Signal: Pattern Strategy/Factory/Interface pour ≤ 2 cas → utiliser un simple if/else
+- Signal: Classe avec injection de dépendance pour un usage unique → utiliser une fonction
+- Signal: ORM/query builder custom pour une requête simple → utiliser la requête directe
 
 **Question à poser avant d'implémenter :** "Est-ce que la version la plus naïve résout déjà le problème ?"
 Si oui, implémenter la version naïve. L'optimisation et l'abstraction viennent ensuite, si les faits les justifient.
@@ -39,15 +32,10 @@ Si oui, implémenter la version naïve. L'optimisation et l'abstraction viennent
 
 N'implémente pas ce qui n'est pas demandé par un ticket actif.
 
-```
-❌ Ajouter un système de plugins "au cas où on veuille étendre ça plus tard"
-❌ Prévoir un cache "parce que ça risque d'être lent un jour"
-❌ Créer une abstraction "pour quand on aura plusieurs implémentations"
-❌ Ajouter des paramètres de configuration pour des comportements qui n'existent pas encore
-```
-
-Les abstractions "au cas où" sont du code mort dès le premier jour.
-Elles complexifient sans apporter de valeur mesurable, et elles résistent souvent aux vrais besoins futurs — qui ne ressemblent jamais à ce qu'on avait imaginé.
+- Signal: système de plugins "au cas où"
+- Signal: cache "parce que ça risque d'être lent un jour"
+- Signal: abstraction "pour quand on aura plusieurs implémentations"
+- Signal: paramètres de configuration pour des comportements inexistants
 
 **Règle :** si ce n'est pas dans le ticket, ne l'implémente pas. Si c'est important, ça sera un ticket.
 
@@ -73,13 +61,8 @@ Elle contraint l'évolution au lieu de la faciliter.
 Copier-coller du code une fois est acceptable.
 Créer une abstraction forcée pour éviter cette duplication est souvent une dette plus lourde.
 
-```
-✅ Deux fonctions légèrement différentes, clairement nommées
-❌ Une fonction générique avec 5 paramètres booléens pour couvrir les deux cas
-
-✅ Deux composants similaires à 80%, avec des responsabilités distinctes
-❌ Un composant "universel" avec une prop `mode` qui pilote des dizaines de comportements
-```
+- Signal: fonction générique avec 5+ paramètres booléens pour couvrir 2 cas → dupliquer
+- Signal: composant "universel" avec prop `mode` pilotant des dizaines de comportements → séparer
 
 **Critère :** si l'abstraction nécessite plus de paramètres que ce qu'elle économise en lignes, elle n'est pas prête.
 
@@ -89,18 +72,12 @@ Créer une abstraction forcée pour éviter cette duplication est souvent une de
 
 N'optimise pas sans mesure préalable.
 
-```
-❌ Ajouter un cache Redis parce que "ça va être lent"
-❌ Paralléliser des opérations sans avoir mesuré leur durée
-❌ Dénormaliser une base de données par anticipation
-❌ Utiliser une structure de données complexe parce qu'elle est "théoriquement plus rapide"
-```
+- Signal: cache Redis ajouté "parce que ça va être lent"
+- Signal: parallélisation sans avoir mesuré la durée séquentielle
+- Signal: dénormalisation par anticipation
+- Signal: structure de données complexe "théoriquement plus rapide"
 
-**Processus correct :**
-1. Implémenter la version lisible et correcte
-2. Mesurer (profiler, bench, APM)
-3. Identifier le vrai goulot
-4. Optimiser uniquement ce goulot, avec un test de non-régression perf
+**Processus correct :** implémenter lisiblement → mesurer (profiler, bench, APM) → identifier le vrai goulot → optimiser uniquement ce goulot avec test de non-régression perf.
 
 La lisibilité et la correction passent toujours avant la performance, sauf contrainte explicite dans le ticket.
 
@@ -140,13 +117,4 @@ Ces patterns ne sont pas interdits, mais chacun doit être justifié par un beso
 
 ## Ce que ce skill ne dit PAS
 
-La simplicité n'est pas l'absence de rigueur ni un prétexte pour éviter les bonnes pratiques.
-
-```
-✅ Une architecture hexagonale est justifiée si le domaine est complexe et les ports/adapters sont réels
-✅ Un pattern Strategy est justifié si les variantes sont nombreuses et évolutives
-✅ Un cache est justifié si un benchmark démontre un problème de performance réel
-✅ Une abstraction est justifiée si elle réduit effectivement la complexité globale
-```
-
-Le critère n'est pas "est-ce que c'est complexe ?" mais "est-ce que cette complexité est justifiée par le besoin actuel ?"
+La simplicité ne dispense pas des bonnes pratiques. Une architecture hexagonale, un pattern Strategy, un cache ou une abstraction sont justifiés **quand le besoin actuel le démontre** (domaine complexe, variantes nombreuses, benchmark prouvant un problème perf, réduction effective de la complexité globale). Le critère : la complexité est-elle justifiée par le besoin actuel ?

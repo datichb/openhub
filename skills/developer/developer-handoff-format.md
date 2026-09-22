@@ -48,67 +48,9 @@ Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul 
 
 ---
 
-## Exemple complet
+## Exemple
 
-```
----
-
-## Retour vers orchestrator-dev
-
-**Agent :** developer (domaine backend)
-**Ticket :** #bd-42 — Fix missing null guard in UserService.findById
-**Branche :** fix/bd-42-null-guard-user-service
-
-### Contexte et décisions
-
-- Choix de créer une méthode `findById` dédiée plutôt que de patcher `findByEmail_legacy` — l'ancienne méthode n'avait pas de typage strict et propageait le null implicitement. Refactoring plus propre que patch.
-- Suppression de `findByEmail_legacy()` — grep confirme aucun autre appelant dans la codebase. La méthode était non typée et source du bug (retour implicitement nullable sans type).
-- Typage explicite `Promise<User | null>` sur `findByEmail` du repository — rend le contrat visible pour tout appelant futur.
-
-### Implémentation
-
-**Diff résumé :** 3 fichiers modifiés, 85 insertions, 5 suppressions
-
-**Changements par fichier :**
-
-`src/services/user.service.ts` (+42 / -3)
-  + findById(id: string): Promise<User | null>
-    — nouvelle méthode principale avec guard null explicite avant accès `.email`
-  ~ login(email: string, password: string): Promise<AuthToken>
-    — utilise désormais findById au lieu d'un accès direct au repository
-  - findByEmail_legacy()
-    — supprimé, remplacé par findById (était non typé et sans guard)
-
-`src/repositories/user.repository.ts` (+8 / -2)
-  ~ findByEmail(email: string): Promise<User | null>
-    — retour explicitement nullable (était `User` implicitement, source du bug)
-
-`tests/unit/user.service.test.ts` (+35 / -0)
-  + "devrait retourner null quand l'utilisateur n'existe pas"
-  + "devrait retourner l'utilisateur quand l'ID existe"
-  + "devrait lever NotFoundException si findById retourne null dans login()"
-
-**Tests écrits :** oui — 3 tests unitaires
-**Statut Beads :** `review`
-
-### Critères d'acceptance couverts
-- [x] La méthode findById retourne null au lieu de lever une TypeError quand l'utilisateur est inconnu
-- [x] login() retourne un 401 explicite sur email inexistant
-- [x] Tests unitaires couvrant les cas null et valide
-
-### Points d'attention pour la review
-- `findByEmail_legacy()` supprimé — vérifier qu'aucun autre appel n'existait ailleurs dans la codebase (grep effectué, rien trouvé, mais à re-vérifier)
-- Le typage de retour `Promise<User | null>` introduit sur `findByEmail` peut affecter d'autres appelants si le null n'est pas géré côté appelant
-
-### Données techniques brutes
-Aucune
-
-### Blocages rencontrés
-Aucun blocage rencontré.
-
-### Statut
-`implémenté`
-```
+> **Template et exemple complet :** définis dans `templates/developer-handoff-block.md` — charger via `read` quand tu produis ce bloc.
 
 ---
 

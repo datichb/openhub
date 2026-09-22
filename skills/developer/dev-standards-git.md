@@ -28,14 +28,7 @@ de contribution à suivre sur tous les projets.
 
 Format : `<type>(<scope>): <description>`
 
-```
-feat(auth): add OAuth2 login with Google
-fix(cart): correct total calculation when coupon is applied
-docs(readme): update installation steps for macOS
-refactor(api): extract pagination logic into shared helper
-test(user): add unit tests for email validation
-chore(deps): upgrade vue from 3.3 to 3.4
-```
+Exemples : `feat(auth): add OAuth2 login with Google` · `fix(cart): correct total calculation when coupon is applied` · `refactor(api): extract pagination logic into shared helper`
 
 ### Types
 
@@ -59,39 +52,16 @@ Le scope identifie le module ou la fonctionnalité concernée :
 
 ### Description
 
-- En **anglais**, impératif, minuscule, sans point final
-- Maximum 72 caractères sur la première ligne
-- Exemples :
-  - ✅ `add user profile picture upload`
-  - ❌ `Added user profile picture upload` (passé composé)
-  - ❌ `User profile picture upload` (pas de verbe)
+- En **anglais**, impératif, minuscule, sans point final, max 72 caractères
+- ✅ `add user profile picture upload` · ❌ `Added ...` (passé) · ❌ `User profile ...` (pas de verbe)
 
 ### Corps du commit (optionnel)
 
-Ajouter un corps quand :
-- La motivation du changement n'est pas évidente
-- Des alternatives ont été considérées
-- Le changement a des effets de bord non triviaux
-
-```
-feat(billing): add proration for mid-cycle plan upgrades
-
-Previously, upgrading mid-cycle charged the full new plan price.
-This change calculates the remaining days and applies a prorated
-credit before charging the difference.
-
-Closes #142
-```
+Ajouter un corps quand la motivation n'est pas évidente, des alternatives ont été considérées, ou le changement a des effets de bord non triviaux. Format : description impérative, contexte, `Closes #<ticket>`.
 
 ### Breaking changes
 
-Ajouter `!` après le type et documenter dans le corps :
-```
-feat(api)!: remove deprecated v1 endpoints
-
-BREAKING CHANGE: /api/v1/users and /api/v1/products have been removed.
-Migrate to /api/v2/users and /api/v2/products.
-```
+Ajouter `!` après le type (ex: `feat(api)!: remove deprecated v1 endpoints`) et documenter avec `BREAKING CHANGE:` dans le corps.
 
 ---
 
@@ -99,12 +69,7 @@ Migrate to /api/v2/users and /api/v2/products.
 
 Format : `<type>/<ticket-id>-<description-courte>`
 
-```
-feat/PROJ-42-user-oauth-login
-fix/PROJ-87-cart-total-coupon
-refactor/PROJ-103-pagination-helper
-chore/PROJ-55-upgrade-vue-3-4
-```
+Exemples : `feat/PROJ-42-user-oauth-login` · `fix/PROJ-87-cart-total-coupon` · `refactor/PROJ-103-pagination-helper`
 
 ### Règles
 
@@ -129,44 +94,17 @@ chore/PROJ-55-upgrade-vue-3-4
 
 ### Créer une branche
 
-```bash
-git checkout develop
-git pull origin develop
-git checkout -b feat/PROJ-42-user-oauth-login
-```
+Depuis `develop` à jour : `git checkout -b <type>/<ticket>-<desc>`.
 
 ### Committer
 
-```bash
-# Vérifier ce qu'on commit
-git diff --staged
-
-# Commit atomique
-git commit -m "feat(auth): add OAuth2 login with Google"
-
-# Ne jamais committer tout en vrac
-# git add . && git commit  ← à éviter si les changements sont hétérogènes
-```
+Vérifier avec `git diff --staged` avant chaque commit. Commit atomique avec message Conventional Commits. Ne jamais `git add .` si les changements sont hétérogènes.
 
 ### Ouvrir une Pull Request / Merge Request
 
-Titre de la PR : identique au(x) commit(s) principal(aux)
+Titre de la PR : identique au(x) commit(s) principal(aux).
 
-Corps de la PR (minimum) :
-```markdown
-## Résumé
-- Ce que cette PR fait en 1-3 points
-
-## Tickets
-Closes #42
-
-## Tests
-- [ ] Tests unitaires ajoutés / mis à jour
-- [ ] Tests d'intégration si applicable
-- [ ] Testé manuellement sur local
-
-## Captures d'écran (si UI)
-```
+Corps minimum : résumé en 1-3 points, ticket (`Closes #N`), checklist tests (unitaires, intégration si applicable, test manuel), captures d'écran si UI.
 
 ### Review
 
@@ -190,32 +128,7 @@ Closes #42
 
 ## `.gitignore` — Ce qui ne doit jamais être commité
 
-```
-# Environnement
-.env
-.env.local
-.env.*.local
-
-# Secrets
-*.pem
-*.key
-**/credentials.json
-**/secrets.json
-
-# Dépendances
-node_modules/
-vendor/
-
-# Build
-dist/
-build/
-.cache/
-
-# IDE
-.vscode/settings.json
-.idea/
-*.swp
-```
+Environnement (`.env`, `.env.local`, `.env.*.local`), secrets (`*.pem`, `*.key`, `credentials.json`, `secrets.json`), dépendances (`node_modules/`, `vendor/`), build (`dist/`, `build/`, `.cache/`), IDE (`.vscode/settings.json`, `.idea/`, `*.swp`).
 
 ---
 
