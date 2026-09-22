@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -597,6 +598,7 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 
 			hubDir := findHubDir()
 			if hubDir == "" {
+				slog.Warn("deploy step skipped: hub content directory not found")
 				return nil
 			}
 

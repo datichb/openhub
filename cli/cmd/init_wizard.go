@@ -231,8 +231,10 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 		}
 
 		config.Reset()
-		if newApp, reloadErr := ReloadApp(); reloadErr == nil {
-			_ = newApp
+		if newApp, reloadErr := ReloadApp(); reloadErr != nil {
+			slog.Warn("ReloadApp failed in init completion", "err", reloadErr)
+		} else {
+			*s.AppPtr = newApp
 		}
 
 		// Launch the Tracker Discovery Wizard if requested.

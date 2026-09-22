@@ -301,7 +301,9 @@ func acquireInitLock(path string) error {
 	// Check for stale lock (older than 1 hour)
 	if info, err := os.Stat(path); err == nil {
 		if time.Since(info.ModTime()) > time.Hour {
-			_ = os.Remove(path) // stale, remove it
+			if rmErr := os.Remove(path); rmErr != nil {
+				return fmt.Errorf("removing stale lockfile %s: %w (delete it manually to proceed)", path, rmErr)
+			}
 		} else {
 			return fmt.Errorf("lockfile %s exists (created %s ago)", path, time.Since(info.ModTime()).Truncate(time.Second))
 		}

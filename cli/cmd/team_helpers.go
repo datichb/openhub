@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -342,7 +343,9 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 
 				// Reload app so subsequent steps see the team
 				config.Reset()
-				if newApp, reloadErr := ReloadApp(); reloadErr == nil {
+				if newApp, reloadErr := ReloadApp(); reloadErr != nil {
+					slog.Warn("ReloadApp failed after team connect", "err", reloadErr)
+				} else {
 					*a = newApp
 				}
 				return nil
@@ -679,11 +682,17 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				state.TeamID = result.TeamID
 
 				// Retro-tag sessions synchronously (wizard shows spinner)
-				_, _ = retroTagSessions(state.Ctx, state.MemberID)
+				if tagged, tagErr := retroTagSessions(state.Ctx, state.MemberID); tagErr != nil {
+					slog.Warn("retro-tagging sessions failed", "err", tagErr)
+				} else if tagged > 0 {
+					slog.Info("retro-tagged sessions", "count", tagged)
+				}
 
 				// Reload app so subsequent steps see the team
 				config.Reset()
-				if newApp, reloadErr := ReloadApp(); reloadErr == nil {
+				if newApp, reloadErr := ReloadApp(); reloadErr != nil {
+					slog.Warn("ReloadApp failed after team rejoin", "err", reloadErr)
+				} else {
 					*a = newApp
 				}
 				return nil
