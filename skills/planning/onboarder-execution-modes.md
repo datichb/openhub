@@ -17,55 +17,7 @@ SI invoqué directement par l'utilisateur → **MODE STANDALONE**
 
 > Ce skill est chargé automatiquement quand l'onboarder est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
 
-## Principe fondamental
-
-En mode standalone, le texte de chaque phase est **directement visible** par l'utilisateur dans la discussion. La communication se fait via :
-1. Le texte de réponse (récap complet de la phase)
-2. L'outil `question` pour les validations et décisions
-
----
-
-## Ordering : récap → question
-
-**À CHAQUE fin de phase :**
-
-1. **TOUJOURS produire le récap en texte clair AVANT d'appeler l'outil `question`**
-   - Le récap doit être affiché comme texte de réponse dans la discussion
-   - Jamais intégré dans le champ `question` de l'outil
-   - Jamais omis
-
-2. **PUIS appeler l'outil `question` pour la validation**
-
-**Séquence obligatoire :**
-```
-[Texte de réponse]
-## [Phase X] <titre du récap>
-<contenu complet du récap>
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "...",
-    question: "[Onboarder — Phase X | Projet : <nom>]\n<question de validation>",
-    options: [...]
-  }]
-})
-```
-
-> ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
-
----
-
-## ✅ Checklist visuelle — AVANT CHAQUE CHECKPOINT
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
-| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
-| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
-| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
-
----
+> **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
 ## Format des questions de validation (standalone)
 
@@ -153,35 +105,10 @@ Produire uniquement le rapport d'onboarding complet (voir skill `onboarder-hando
 
 > Ce skill est chargé quand l'onboarder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/onboarder-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand l'onboarder est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[onboarder] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'agent orchestrator.`
-
----
-
-## Mécanisme d'interruption
-
-**À CHAQUE fin de phase :**
-
-1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrator`
-3. Produire le bloc `## Question pour l'orchestrator`
-4. **TERMINER LA SESSION**
-
----
-
-## ✅ Checklist visuelle — AVANT CHAQUE FIN DE SESSION
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrator` avec le récap intégral | ⬜ |
-| ✅ J'ai produit le bloc `## Question pour l'orchestrator` avec question + options + instruction de reprise | ⬜ |
-| ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
-| ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
 
 ---
 
@@ -385,11 +312,4 @@ Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `onboa
 
 ---
 
-## ❌ Erreurs fréquentes à éviter
-
-| Erreur | Impact | Correction |
-|--------|--------|------------|
-| Appeler l'outil `question` | Question invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
-| Continuer sans produire les blocs | L'orchestrateur ne reçoit rien | **Toujours interrompre** à chaque fin de phase |
-| Omettre le `task_id` | L'orchestrateur ne peut pas reprendre | **Toujours inclure** le sessionID |
-| Résumer le récap | L'utilisateur perd des informations | **Ne jamais résumer** — afficher le récap complet |
+> **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.

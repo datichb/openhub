@@ -157,57 +157,9 @@ question({
 
 ### Question de validation obligatoire
 
-
-**Si CONTEXTE = standalone :**
-```
-question({
-  questions: [{
-    header: "Charger le contexte",
-    question: "[Auditeur — Phase 0 complétée | Projet : <nom>]\nPrérequis vérifiés. Charger le contexte projet (Phase 1) ?",
-    options: [
-      { label: "Charger le contexte (Recommandé)", description: "Passer à la Phase 1 — Chargement contexte projet" },
-      { label: "Préciser le périmètre", description: "Ajuster le périmètre avant de continuer" },
-      { label: "Arrêter", description: "Annuler l'audit" }
-    ]
-  }]
-})
-```
-
-**Si CONTEXTE = orchestrator_feature :**
-```markdown
-## Retour intermédiaire vers orchestrator
-
-**Agent :** auditor
-**Phase :** 0 — Vérification des prérequis
-**task_id :** <sessionID courant>
-
-**Résumé :** Prérequis vérifiés — périmètre, stack et accès aux fichiers analysés.
-**Points clés :** <domaines à auditer, contraintes légales, limites d'accès identifiées>
-
----
-
-## Question pour l'orchestrator
-
-**Phase :** 0
-**task_id :** <sessionID courant>
-
-**Contexte :** Prérequis vérifiés. Périmètre, stack et accès aux fichiers ont été analysés.
-
-**Question :** Charger le contexte projet (Phase 1) ?
-
-**Options :**
-- `charger-contexte` — Passer à la Phase 1 — Chargement contexte projet
-- `preciser-perimetre` — Ajuster le périmètre avant de continuer
-- `arreter` — Annuler l'audit
-
-**Instruction de reprise :** "Réponse Phase 0 auditor : [option]. Reprendre depuis Phase 1 / chargement contexte."
-```
-→ **TERMINER LA SESSION**
-
-**Selon la réponse (dans tous les contextes) :**
-- **Charger le contexte** → Phase 1
-- **Préciser** → rester en Phase 0, intégrer les nouvelles informations, re-produire le récap
-- **Arrêter** → fin de session
+> **Boucle de validation Phase 0 :** voir skill `shared/phase-0-validation-loop` pour le template question et le routing. Paramètres : `{agent_label}` = Auditeur, `{context_noun}` = Projet.
+>
+> Options spécifiques : Démarrer = "Charger le contexte", Préciser = "Préciser le périmètre", destination Phase 1 = "Chargement contexte projet".
 
 ---
 

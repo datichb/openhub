@@ -17,59 +17,7 @@ SI invoqué directement par l'utilisateur → **MODE STANDALONE**
 
 > Ce skill est chargé automatiquement quand le planner est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
 
-## Principe fondamental
-
-En mode standalone, le texte de chaque phase est **directement visible** par l'utilisateur dans la discussion. La communication se fait via :
-1. Le texte de réponse (récap complet de la phase)
-2. L'outil `question` pour les validations et décisions
-
----
-
-## Ordering : récap → question
-
-**À CHAQUE fin de phase :**
-
-1. **TOUJOURS produire le récap en texte clair AVANT d'appeler l'outil `question`**
-   - Le récap doit être affiché comme texte de réponse dans la discussion
-   - Jamais intégré dans le champ `question` de l'outil
-   - Jamais omis
-
-2. **PUIS appeler l'outil `question` pour la validation**
-
-**Séquence obligatoire :**
-```
-[Texte de réponse]
-## [Phase X] <titre du récap>
-<contenu complet du récap — observations, découvertes, décisions>
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "...",
-    question: "[Planner — Phase X | Feature : <nom>]\n<question de validation>",
-    options: [...]
-  }]
-})
-```
-
-> ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
-
----
-
-## ✅ Checklist visuelle — AVANT CHAQUE CHECKPOINT
-
-**STOP — Vérifier MAINTENANT :**
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
-| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
-| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
-| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
-
-**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le contenu manquant MAINTENANT.**
-
----
+> **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
 ## Format des questions de validation (standalone)
 
@@ -235,47 +183,12 @@ Produire uniquement le récapitulatif de planification complet (voir section Pha
 
 > Ce skill est chargé quand le planner est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/planner-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand le planner est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'agent orchestrator retranscrira.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[planner] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'agent orchestrator.`
 
----
-
-## Mécanisme d'interruption
-
-**À CHAQUE fin de phase ET à chaque pause ad hoc :**
-
-1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrator`
-3. Produire le bloc `## Question pour l'orchestrator`
-4. **TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
-
-L'orchestrateur :
-- Affiche le `## Retour intermédiaire` en texte dans la discussion
-- Lit la `## Question pour l'orchestrator`
-- Pose la question à l'utilisateur via l'outil `question`
-- Re-invoque le planner avec `task_id` + la réponse → le planner recharge l'historique et continue
-
 ---> ⚠️ **RAPPEL CRITIQUE** : Le récap Phase 6 (contexte = orchestrator_feature) doit contenir le **contexte et le raisonnement** derrière les décisions de planification — pourquoi ces tickets, pourquoi cet ordre, quelles hypothèses, quels risques. Il n'a **pas** à reproduire le tableau des tickets ni les listes formelles — ceux-ci sont dans le bloc structuré `## Retour vers orchestrator`. L'orchestrateur retransmettra ce récap narratif intégralement à l'utilisateur pour le CP-0.
-
----
-
-## ✅ Checklist visuelle — AVANT CHAQUE FIN DE SESSION
-
-**STOP — Vérifier MAINTENANT :**
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrator` avec la synthèse condensée (résumé + points clés) | ⬜ |
-| ✅ J'ai produit le bloc `## Question pour l'orchestrator` avec question + options + instruction de reprise | ⬜ |
-| ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
-| ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
-
-**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le contenu manquant MAINTENANT.**
 
 ---
 
@@ -730,13 +643,6 @@ Phase 6 est le **retour final** — pas de question intermédiaire. Produire dan
 
 ---
 
-## ❌ Erreurs fréquentes à éviter
-
-| Erreur | Impact | Correction |
-|--------|--------|------------|
-| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
-| Continuer vers la phase suivante sans produire les blocs | L'orchestrateur ne reçoit rien avant la fin complète | **Toujours interrompre** à chaque fin de phase |
-| Omettre le `task_id` dans les blocs | L'orchestrateur ne peut pas re-invoquer pour reprendre | **Toujours inclure** le sessionID |
-| Résumer le récap dans le bloc intermédiaire | L'utilisateur perd des informations critiques | **Ne jamais résumer** — copier intégralement |
-| Pause ad hoc pour des détails mineurs | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** |
-| Utiliser `## Question pour l'orchestrator` en Phase 2 | Les N questions sont comprimées en 1 — l'utilisateur ne voit pas les vraies questions | **Utiliser `## Question batch pour l'orchestrator`** avec toutes les questions individuelles |
+> **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.
+>
+> **Erreur spécifique planner :** utiliser `## Question pour l'orchestrator` en Phase 2 au lieu de `## Question batch pour l'orchestrator` → les N questions sont comprimées en 1.

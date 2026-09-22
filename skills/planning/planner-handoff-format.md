@@ -12,9 +12,7 @@ Il est injecté dans le `planner` et dans l'`orchestrator` — producteur et con
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis l'`orchestrator`, ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le récapitulatif de planification (contexte, raisonnement, justification des choix) est **intégré dans le bloc** (section `### Récapitulatif de planification`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 En standalone, le bloc est également le seul output après la Phase 4 (vérification + validation finale).
 
@@ -36,18 +34,13 @@ En standalone, le bloc est également le seul output après la Phase 4 (vérific
 
 ## Règles pour le producteur (planner)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
-- **Le récapitulatif est DANS le bloc** (section `### Récapitulatif de planification`) — ne pas le produire séparément en texte libre
 - **`### Récapitulatif de planification`** doit capturer le raisonnement et les décisions — minimum 3-5 phrases
 - **Lister tous les tickets créés** dans le tableau — ne pas en omettre, même les tickets mineurs
 - **Renseigner la colonne `Agent prévu`** pour chaque ticket — cette colonne est la **source de vérité pour le routing**, l'orchestrator ne doit pas avoir à deviner l'agent depuis les labels ou le contenu du ticket
 - **Renseigner obligatoirement la section `### Ordre de traitement`** — cette section définit la séquence exacte d'exécution, l'orchestrator la suivra sans recalculer l'ordre depuis les dépendances
 - **Signaler toute hypothèse** faite lors de la planification — l'orchestrator doit pouvoir la valider avec l'utilisateur
 - Ce bloc est produit **après** la validation explicite du plan par l'utilisateur (après Phase 4)
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire de récapitulatif narratif séparé avant le bloc — il est DANS le bloc
-> ❌ Ne jamais omettre `### Récapitulatif de planification` — le tableau seul ne suffit pas, le "pourquoi" est nécessaire
+- Ne jamais omettre `### Récapitulatif de planification` — le tableau seul ne suffit pas, le "pourquoi" est nécessaire
 
 ---
 

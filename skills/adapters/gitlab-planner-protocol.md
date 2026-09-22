@@ -22,25 +22,9 @@ Lancer Phase 1.2bis si **au moins un** de ces critères :
 
 ### Workflow
 
-#### Étape 1 : Lire le ticket source
-
-Si un `issue_iid` est fourni :
-
-```
-Utiliser l'outil : get_gitlab_issue
-Arguments : project_path, issue_iid
-→ Obtenir : titre, description complète, labels, milestone, assignés, commentaires
-```
-
-**Exploiter le ticket pour :**
-- Utiliser la **description** comme cahier des charges initial
-- Extraire les **critères d'acceptation** si présents
-- Identifier les **contraintes** mentionnées dans les commentaires
-- Récupérer le **milestone** pour situer la priorité temporelle
-
-**Si ticket non trouvé (404) :**
-- Mentionner dans le récap : "Ticket #N introuvable ou accès refusé"
-- Continuer avec les informations fournies par l'utilisateur
+> **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour le workflow, la table d'impact, et la gestion d'erreurs.
+>
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = get_gitlab_issue, `{tool_list_issues}` = list_gitlab_issues.
 
 #### Étape 2 : Comprendre le contexte projet (si première utilisation)
 
@@ -60,21 +44,6 @@ Arguments : project_path, state: "active"
 - Comprendre la nomenclature de priorité du projet (`priority::high`, `P0`, etc.)
 - Identifier le sprint actuel et sa date de fin
 - Évaluer l'urgence de la feature
-
-#### Étape 3 : Vérifier les tickets liés (optionnel)
-
-Si la feature semble liée à d'autres tickets existants :
-
-```
-Utiliser l'outil : list_gitlab_issues
-Arguments : project_path, state: "opened", search: <mots-clés de la feature>
-→ Obtenir : tickets en cours sur le même périmètre
-```
-
-**Exploiter pour :**
-- Détecter des **dépendances** ou des **doublons**
-- Identifier des tickets **bloquants** à mentionner dans le plan
-- Éviter de re-décomposer un travail déjà en cours
 
 #### Étape 4 : Enrichissement du récap Phase 1
 
@@ -97,23 +66,3 @@ Ajouter cette section dans le récap si données GitLab disponibles :
 ```
 
 **Si aucune donnée GitLab :** ne pas inclure cette section.
-
-### Impact sur la décomposition
-
-Utiliser les données GitLab pour ajuster le plan :
-
-| Contexte GitLab | Ajustement |
-|---|---|
-| Milestone < 7 jours | Réduire le scope, prioriser le MVP |
-| Labels `priority::critical` ou `P0` | Mettre en avant dans les tickets Beads |
-| Commentaires avec blockers | Ajouter ticket de levée de blocage |
-| Description avec ACs détaillés | Pré-remplir les critères d'acceptation Beads |
-| Tickets liés ouverts | Ajouter section dépendances dans le plan |
-
-### Gestion des erreurs
-
-| Erreur | Comportement |
-|---|---|
-| Token invalide / expiré | Afficher : `⚠️ Token GitLab invalide — vérifier : oc gitlab status` |
-| Projet non trouvé (404) | Afficher : `⚠️ Projet introuvable — vérifier le chemin : mon-groupe/mon-projet` |
-| Pas de credentials | Skiper silencieusement Phase 1.2bis, continuer sans données GitLab |

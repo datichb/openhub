@@ -8,9 +8,7 @@ bucket: B
 
 > Ce skill est chargé quand le designer est invoqué via `task` depuis l'agent orchestrator. L'orchestrateur injecte `[SKILL:designer/designer-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand le designer est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'agent orchestrator retranscrira.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[designer] Mode : <recon|ux|ui|ux+ui> — Contexte détecté : invoqué depuis l'agent orchestrator. Session unique — je produirai la spec complète + le bloc Retour vers orchestrator et terminerai la session.`
@@ -135,26 +133,28 @@ Produire **uniquement** le bloc `## Retour vers orchestrator` (voir skill `desig
 
 ## ✅ Checklist finale — AVANT de terminer la session
 
+> Voir skill `shared/subagent-execution-protocol` pour la checklist générique.
+
+**Vérifications spécifiques designer :**
+
 | Vérification | Fait ? |
 |--------------|--------|
 | ✅ J'ai annoncé le mode détecté au démarrage | ⬜ |
 | ✅ Mon seul output est le bloc `## Retour vers orchestrator` | ⬜ |
 | ✅ La section `### Spec complète` du bloc contient la spec intégrale (jamais résumée) | ⬜ |
 | ✅ Aucun texte en dehors du bloc (pas de spec séparée, pas de narratif) | ⬜ |
-| ✅ Je n'ai pas appelé l'outil `question` | ⬜ |
-| ✅ Je vais TERMINER la session | ⬜ |
 
 **Si une case est ⬜ → corriger MAINTENANT avant de terminer.**
 
 ---
 
-## ❌ Erreurs fréquentes à éviter
+> **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.
+>
+> **Erreurs spécifiques designer :**
 
 | Erreur | Impact | Correction |
 |--------|--------|------------|
-| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'orchestrator | Formuler une hypothèse et continuer, ou produire les blocs d'interruption |
 | Produire la spec en texte libre AVANT le bloc | Duplication — la spec doit être DANS le bloc (`### Spec complète`) | **Intégrer la spec dans le bloc** |
 | Écrire du texte en dehors du bloc | Bruit pour le coordinateur — augmente le coût sans apporter de valeur | **Bloc unique, rien d'autre** |
-| Interrompre pour un détail non bloquant | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** — hypothèse si possible |
 | Résumer la spec "pour aller plus vite" | L'utilisateur perd des informations critiques | **Spec complète obligatoire dans `### Spec complète`** |
 | Spécifier sans explorer le design system existant (mode ui) | Incohérence visuelle — composants dupliqués | **Toujours explorer avant de créer** |

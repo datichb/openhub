@@ -13,9 +13,7 @@ Ce skill définit le format exact du rapport pathfinder et de son handoff vers l
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis l'`orchestrator` (CONTEXTE = orchestrator_feature), ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport pathfinder complet est **intégré dans le bloc** (section `### Rapport pathfinder complet`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 En standalone, le rapport est produit directement (sans le bloc `## Retour vers orchestrator`).
 
@@ -223,12 +221,10 @@ En standalone, le rapport est produit directement (sans le bloc `## Retour vers 
 
 ## Règles pour le producteur (pathfinder)
 
-- **En CONTEXTE = orchestrator_feature** : produire UNIQUEMENT le bloc `## Retour vers orchestrator` — aucun texte avant ou après. Le rapport complet est DANS le bloc.
+- **En CONTEXTE = orchestrator_feature** : le rapport complet est DANS le bloc `### Rapport pathfinder complet`.
 - **En standalone** : produire le rapport directement (sans le bloc `## Retour vers orchestrator`)
 - Le rapport intégré dans `### Rapport pathfinder complet` suit exactement le format défini ci-dessus
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff (en contexte orchestrator_feature)
-> ❌ Ne jamais résumer le rapport dans le bloc — il doit être complet et exhaustif
+- Ne jamais résumer le rapport dans le bloc — il doit être complet et exhaustif
 
 ---
 

@@ -17,40 +17,7 @@ SI invoqué directement par l'utilisateur → **MODE STANDALONE**
 
 > Ce skill est chargé automatiquement quand l'auditor est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
 
-## Principe fondamental
-
-En mode standalone, le texte de chaque phase est **directement visible** par l'utilisateur. La communication se fait via :
-1. Le texte de réponse (récap complet de la phase)
-2. L'outil `question` pour les validations et décisions
-
----
-
-## Ordering : récap → question
-
-**À CHAQUE fin de phase :**
-
-1. **TOUJOURS produire le récap en texte clair AVANT d'appeler l'outil `question`**
-2. **PUIS appeler l'outil `question` pour la validation**
-
-**Séquence obligatoire :**
-```
-[Texte de réponse]
-## [Phase X] <titre du récap>
-<contenu complet du récap>
-
-[Puis appel outil question]
-question({
-  questions: [{
-    header: "...",
-    question: "[Auditeur — Phase X | Projet : <nom>]\n<question de validation>",
-    options: [...]
-  }]
-})
-```
-
-> ✅ **TOUJOURS** : afficher le récap en texte → puis appeler `question`
-
----
+> **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
 ## Format des questions de validation (standalone)
 
@@ -141,31 +108,10 @@ Produire uniquement la synthèse exécutive multi-domaines, **sans** le bloc `##
 
 > Ce skill est chargé quand l'auditor est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:auditor/auditor-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand l'auditor est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[auditor] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque fin de phase pour remonter le récap et la question à l'agent orchestrator.`
-
----
-
-## Mécanisme d'interruption
-
-**À CHAQUE fin de phase (0 à 3) :**
-
-1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrator`
-3. Produire le bloc `## Question pour l'orchestrator`
-4. **TERMINER LA SESSION**
-
----
-
-## Vérification avant chaque fin de session
-
-> « Ai-je produit (1) le récap, (2) le bloc `## Retour intermédiaire vers orchestrator`, ET (3) le bloc `## Question pour l'orchestrator` ? »
-> - **Non** → produire les blocs manquants MAINTENANT
-> - **Oui** → terminer la session
 
 ---
 
@@ -348,11 +294,4 @@ Phase 4 est le **retour final**. Produire dans cet ordre :
 
 ---
 
-## ❌ Erreurs fréquentes à éviter
-
-| Erreur | Impact | Correction |
-|--------|--------|------------|
-| Appeler l'outil `question` | Question invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
-| Continuer sans produire les blocs | L'orchestrateur ne reçoit rien | **Toujours interrompre** à chaque fin de phase |
-| Omettre le `task_id` | L'orchestrateur ne peut pas reprendre | **Toujours inclure** le sessionID |
-| Résumer le récap | L'utilisateur perd des informations | **Ne jamais résumer** |
+> **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.

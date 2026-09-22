@@ -17,22 +17,7 @@ SI invoqué directement par l'utilisateur → **MODE STANDALONE**
 
 > Ce skill est chargé automatiquement quand le pathfinder est invoqué directement par l'utilisateur (aucun `[SKILL:...]` injecté dans le prompt).
 
-## Principe fondamental
-
-En mode standalone, le texte est **directement visible** par l'utilisateur. La communication se fait via :
-1. Le texte de réponse (rapport, contexte, récap)
-2. L'outil `question` pour les clarifications et pauses
-
----
-
-## Ordering : récap → question
-
-**Avant tout appel à l'outil `question` :**
-
-1. **TOUJOURS afficher le contexte en texte clair** dans la discussion avant d'appeler `question`
-2. **PUIS** appeler l'outil `question`
-
-> ✅ **TOUJOURS** : afficher le contexte → puis appeler `question`
+> **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
 ### Format standard pour une pause avec question
 
@@ -75,9 +60,7 @@ question({
 
 > Ce skill est chargé quand le pathfinder est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:planning/pathfinder-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand le pathfinder est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[pathfinder] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session pour remonter le rapport et les éventuelles clarifications à l'agent orchestrator.`

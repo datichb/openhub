@@ -12,10 +12,7 @@ Il est injecté dans le `documentarian` et dans `orchestrator-dev` — producteu
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task` à l'étape 6 — mise à jour du CHANGELOG),
-ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le contenu de documentation est déjà écrit dans les fichiers via l'outil `write` — il n'a pas besoin d'être reproduit dans la discussion. Le bloc est autosuffisant.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -35,14 +32,9 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 ## Règles pour le producteur (documentarian)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
 - Le contenu de documentation est écrit dans les fichiers (via `write`/`edit`) — il n'est PAS reproduit dans la discussion
 - **La section `### Résumé de l'entrée`** doit être suffisamment précise pour qu'`orchestrator-dev` puisse l'inclure dans le récap global sans relire le fichier
 - Si statut = `bloqué` : expliquer clairement la raison du blocage dans le résumé
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais reproduire le contenu de documentation dans la discussion — il est dans les fichiers
-> ❌ Ne jamais produire de résumé narratif ou d'introduction avant le bloc
 
 ---
 

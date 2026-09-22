@@ -47,26 +47,4 @@ question({
 
 ### Question de validation obligatoire
 
-
-**Si CONTEXTE = standalone :**
-```
-question({
-  questions: [{
-    header: "Démarrer l'exploration",
-    question: "[Onboarder — Phase 0 complétée | Projet : <nom>]\nPrérequis vérifiés. Démarrer l'exploration contextuelle (Phase 1) ?",
-    options: [
-      { label: "Démarrer (Recommandé)", description: "Passer à la Phase 1 — Exploration contextuelle" },
-      { label: "Préciser le contexte", description: "Ajouter des informations avant de démarrer" },
-      { label: "Arrêter", description: "Annuler l'onboarding" }
-    ]
-  }]
-})
-```
-
-
-**Selon la réponse (dans tous les contextes) :**
-- **Démarrer** → Phase 1
-- **Préciser** → rester en Phase 0, intégrer les nouvelles informations, re-produire le récap
-- **Arrêter** → fin de session
-
----
+> **Boucle de validation Phase 0 :** voir skill `shared/phase-0-validation-loop` pour le template question et le routing. Paramètres : `{agent_label}` = Onboarder, `{context_noun}` = Projet.

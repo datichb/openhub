@@ -12,10 +12,7 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis l'`orchestrator` (Mode C — projet inconnu),
-ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'onboarding (contexte de découverte, observations narratives) est **intégré dans le bloc** (section `### Rapport d'onboarding`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -35,17 +32,12 @@ ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous
 
 ## Règles pour le producteur (onboarder)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
-- **Le rapport d'onboarding est DANS le bloc** (section `### Rapport d'onboarding`) — ne pas le produire séparément en texte libre
 - **`### Rapport d'onboarding`** doit capturer les observations qualitatives — minimum 3-5 phrases
 - **Renseigner toutes les sections** — même si vides, utiliser la mention explicite correspondante
 - **Ne pas inventer** de conventions ou de stack — uniquement ce qui a été effectivement observé dans la codebase
 - **Signaler honnêtement les zones d'incertitude** — l'orchestrator en a besoin pour informer l'utilisateur avant de démarrer
 - Ce bloc est produit **après** l'écriture des fichiers (ou après refus explicite de les écrire)
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire de rapport narratif séparé avant le bloc — il est DANS le bloc
-> ❌ Ne jamais omettre `### Rapport d'onboarding` — les listes structurées seules ne suffisent pas
+- Ne jamais omettre `### Rapport d'onboarding` — les listes structurées seules ne suffisent pas
 
 ---
 

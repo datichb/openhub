@@ -12,10 +12,7 @@ Il est injecté dans chaque `auditor-*` et dans l'`orchestrator` — producteur 
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis l'`orchestrator` (et non en standalone),
-ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport d'audit complet (preuves, contexte, chemins d'exploitation) est **intégré dans le bloc** (section `### Rapport d'audit complet`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -108,16 +105,11 @@ ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous
 
 ## Règles pour le producteur (auditor-*)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
-- **Le rapport d'audit complet est DANS le bloc** (section `### Rapport d'audit complet`) — ne pas le produire séparément en texte libre
 - **Toujours inclure `### Rapport d'audit complet`** même si aucun problème n'est identifié — le rapport documente le périmètre audité et les bonnes pratiques observées
 - **Toujours renseigner le `### Périmètre audité`** — même si le périmètre est complet, l'indiquer explicitement
 - **Toujours renseigner le `### Risque résiduel`** — même si nul, l'indiquer explicitement
 - Si aucun problème n'est identifié, renseigner chaque section avec la mention explicite correspondante
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc
-> ❌ Ne jamais minimiser les preuves ou chemins d'exploitation dans le rapport
+- Ne jamais minimiser les preuves ou chemins d'exploitation dans le rapport
 
 ---
 

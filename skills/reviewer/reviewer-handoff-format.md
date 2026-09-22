@@ -12,10 +12,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`),
-ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de review complet est **intégré dans le bloc** (section `### Rapport complet`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -43,16 +40,11 @@ ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-des
 
 ## Règles pour le producteur (reviewer)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
-- **Le rapport complet est DANS le bloc** (section `### Rapport complet`) — ne pas le produire séparément en texte libre
 - **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs`
 - **`### Corrections requises`** contient UNIQUEMENT les findings 🔴 et 🟠 — copiés VERBATIM dans les commentaires Beads. Chaque correction doit être précise, actionnable, et porter son score de confiance
 - **`### Suggestions (non-bloquant)`** contient les findings 🟡 et 💡 — ils restent dans le rapport mais ne sont PAS transmis comme corrections obligatoires dans Beads
 - **`### Routing recommandé`** détermine vers quel developer le ticket est renvoyé — `developer-security` uniquement pour les problèmes de sécurité nécessitant une expertise spécifique
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc
-> ❌ Ne jamais résumer le rapport dans `### Rapport complet` — il doit être exhaustif
+- Ne jamais résumer le rapport dans `### Rapport complet` — il doit être exhaustif
 
 ---
 

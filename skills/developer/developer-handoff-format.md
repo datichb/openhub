@@ -12,9 +12,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul output** est le bloc `## Retour vers orchestrator-dev` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Pas de compte rendu narratif, pas d'introduction, pas de résumé, pas de conclusion. Le bloc est autosuffisant.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -56,7 +54,6 @@ Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul 
 
 ## Règles pour le producteur (developer-*)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator-dev`** — aucun texte avant ou après
 - **`### Contexte et décisions`** est le champ qui capture le "pourquoi" — minimum 2 entrées pour toute implémentation non triviale, chaque entrée = choix + raison
 - **`**Diff résumé**`** : exécuter `git diff --stat HEAD~1` (ou `git diff --stat <branche-base>...HEAD` si plusieurs commits) et coller la sortie sur une seule ligne condensée
 - **`**Changements par fichier**`** : pour chaque fichier du diff, lister les symboles changés avec la notation `+/-/~` — ne pas inventer, ne pas résumer arbitrairement
@@ -65,10 +62,7 @@ Quand tu es invoqué depuis `orchestrator-dev` (via l'outil `Task`), ton **seul 
 - **`### Données techniques brutes`** : stacktraces, diffs annotés, extraits de code — uniquement si nécessaire à la review ou au diagnostic. Sinon "Aucune"
 - **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire de compte rendu narratif, résumé ou introduction avant le bloc
-> ❌ Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
+- Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
 
 ---
 

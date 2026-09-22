@@ -12,10 +12,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 
 ## Principe fondamental — bloc unique
 
-Quand tu es invoqué depuis l'`orchestrator` (Mode D — bug signalé par l'utilisateur),
-ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. Le rapport de diagnostic complet (preuves, analyse, raisonnement) est **intégré dans le bloc** (section `### Rapport de diagnostic complet`), pas produit séparément en texte libre.
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
 
 ---
 
@@ -35,17 +32,12 @@ ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous
 
 ## Règles pour le producteur (debugger)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
-- **Le rapport de diagnostic complet est DANS le bloc** (section `### Rapport de diagnostic complet`) — ne pas le produire séparément en texte libre
 - **Toujours inclure `### Rapport de diagnostic complet`** même si le diagnostic est `non-reproductible` — le rapport documente ce qui a été tenté
 - **Ne jamais affirmer une cause racine sans éléments probants** — utiliser "confirmé / probable / incertain" dans `Niveau de certitude`
 - **Renseigner toutes les sections** — même si vides, utiliser la mention explicite correspondante
 - **Signaler honnêtement les hypothèses insuffisamment documentées** — l'orchestrator a besoin de cette information
 - Ce bloc est produit **après** la création du ticket (ou après refus explicite de l'utilisateur)
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire le rapport comme texte libre avant le bloc — il est DANS le bloc
-> ❌ Ne jamais minimiser l'impact si des régressions sont possibles
+- Ne jamais minimiser l'impact si des régressions sont possibles
 
 ---
 

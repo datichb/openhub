@@ -20,23 +20,9 @@ Activer si **au moins un** de ces critères :
 
 ### Workflow
 
-#### Cas A — Un ticket est fourni
-
-```
-Utiliser l'outil : github_get_issue
-Arguments : owner, repo, issue_number
-→ Obtenir : titre, description, labels, milestone, commentaires
-```
-
-**Exploiter pour affiner l'estimation :**
-
-| Donnée GitHub | Impact sur l'estimation |
-|---|---|
-| Description longue avec ACs détaillés | +1 niveau de complexité si > 5 ACs |
-| Labels `type: feature` + `area: frontend` + `area: backend` | Full-stack → +1 ticket minimum |
-| Commentaires avec questions ouvertes | Signaler incertitudes dans le rapport |
-| Milestone < 7 jours | Mentionner contrainte temporelle forte |
-| Assigné à quelqu'un d'autre | Mentionner dans le rapport |
+> **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour le workflow, la table d'impact, et la gestion d'erreurs.
+>
+> Paramètres pour cet adapter : `{platform}` = GitHub, `{platform_emoji}` = 🐙, `{tool_read_issue}` = github_get_issue, `{tool_list_issues}` = github_list_issues.
 
 #### Cas B — Une PR est fournie
 
@@ -56,10 +42,6 @@ Arguments : owner, repo, pull_number
 Si la feature semble liée à des travaux existants :
 
 ```
-Utiliser l'outil : github_list_issues
-Arguments : owner, repo, state: "open", labels: <labels pertinents>
-→ Vérifier : tickets déjà ouverts sur le même périmètre
-
 Utiliser l'outil : github_list_prs
 Arguments : owner, repo, state: "open"
 → Vérifier : PRs en cours sur le même périmètre
@@ -68,33 +50,3 @@ Arguments : owner, repo, state: "open"
 **Si ticket ou PR similaire trouvé :**
 - Mentionner dans le rapport Pathfinder : "Ticket similaire détecté : #N"
 - Recommander au planner de vérifier si c'est un doublon
-
-### Format de sortie enrichi
-
-Ajouter cette section dans le rapport Pathfinder si données GitHub disponibles :
-
-```markdown
-## 🐙 Contexte GitHub
-
-**Ticket source :** #<number> — <titre>
-**Labels :** <labels>
-**Milestone :** <titre> (échéance : <date ou "aucune">)
-**Complexité ajustée par GitHub :** <XS/S/M/L/XL> (depuis <estimation initiale>)
-
-**Facteurs d'ajustement :**
-- <raison 1>
-- <raison 2>
-
-**Points d'attention :**
-- <blockers / questions ouvertes / dépendances détectées>
-```
-
-**Si aucune donnée GitHub :** ne pas inclure cette section.
-
-### Gestion des erreurs
-
-| Erreur | Comportement |
-|---|---|
-| Token invalide / expiré | Afficher : `⚠️ Token GitHub invalide — vérifier : GITHUB_TOKEN` |
-| Ticket non trouvé (404) | Mentionner dans le rapport, continuer sans données GitHub |
-| Pas de credentials configurés | Skiper silencieusement, continuer l'estimation sans GitHub |

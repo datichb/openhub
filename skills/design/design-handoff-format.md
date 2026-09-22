@@ -12,6 +12,8 @@ Il est injecté dans `designer` et `orchestrator` — producteur et consommateur
 
 ## Principe fondamental — bloc unique
 
+> **Contrat de handoff :** voir skill `shared/handoff-bloc-unique-rule` pour les règles universelles producer/consumer.
+
 ### Détection du contexte d'invocation
 
 Au démarrage, charger le skill de parcours selon le contexte :
@@ -24,12 +26,6 @@ Au démarrage, charger le skill de parcours selon le contexte :
 - Sinon (standalone ou depuis `planner`) :
   - Utiliser l'outil `question` normalement
   - Produire la spec sans le bloc `## Retour vers orchestrator`
-
----
-
-Quand CONTEXTE = orchestrator_feature, ton **seul output** est le bloc `## Retour vers orchestrator` défini ci-dessous.
-
-**Format de sortie :** aucun texte avant, après ou en dehors de ce bloc. La spec complète (user flows, wireframes textuels, tokens, composants, critères UX/UI) est **intégrée dans le bloc** (section `### Spec complète`), pas produite séparément en texte libre.
 
 ---
 
@@ -49,16 +45,10 @@ Quand CONTEXTE = orchestrator_feature, ton **seul output** est le bloc `## Retou
 
 ## Règles pour le producteur (designer)
 
-- **Produire UNIQUEMENT le bloc `## Retour vers orchestrator`** — aucun texte avant ou après
-- **La spec complète est DANS le bloc** (section `### Spec complète`) — ne pas la produire séparément en texte libre
 - **`### Spec complète`** ne doit JAMAIS être résumée ou abrégée, même si longue — c'est le livrable principal
 - Le bloc est produit **après** la validation explicite de l'utilisateur, pas avant
 - Si invoqué depuis l'orchestrator via `Task`, utiliser ce format à la place du `bd close` habituel
 - Le `task_id` n'est pas requis dans ce format (contrairement au format `orchestrator-dev`) — l'orchestrator reprend naturellement après réception
-
-> ❌ Ne jamais écrire de texte en dehors du bloc de handoff
-> ❌ Ne jamais produire la spec comme texte libre avant le bloc — elle est DANS le bloc
-> ❌ Ne jamais résumer la spec dans `### Spec complète` — elle doit être exhaustive et exploitable
 
 ---
 

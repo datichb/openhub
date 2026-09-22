@@ -17,35 +17,10 @@ SI invoqué directement par l'utilisateur → **MODE STANDALONE**
 
 > Ce skill est chargé quand le debugger est invoqué directement par l'utilisateur (pas via `task` depuis un agent orchestrateur).
 
-## Principe fondamental
-
-En mode standalone, le contenu est directement visible par l'utilisateur dans la discussion. Les validations se font via l'outil `question` à chaque fin de phase.
+> **Protocole standalone :** voir skill `shared/standalone-execution-protocol` pour le mode detection, l'ordering recap→question, et la checklist.
 
 **Confirmer le contexte au démarrage :**
 > `[debugger] Mode standalone actif — je poserai une question de validation à chaque fin de phase via l'outil question.`
-
----
-
-## Règles de communication — ABSOLUES
-
-### À CHAQUE fin de phase :
-
-1. **Afficher le récap complet de la phase en texte** dans la discussion
-2. **PUIS appeler l'outil `question`** pour la validation
-
-> ✅ Récap en texte → puis question
-
-### ✅ Checklist visuelle — AVANT CHAQUE APPEL À `question`
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai affiché le récap complet de la phase actuelle en texte dans la discussion | ⬜ |
-| ✅ Le récap contient toutes les observations, découvertes et décisions de cette phase | ⬜ |
-| ✅ Le récap n'est PAS résumé — il est complet et détaillé | ⬜ |
-| ✅ Le récap est affiché AVANT cet appel à `question`, PAS après | ⬜ |
-| ✅ Le récap n'est PAS inclus dans le champ `question` de l'outil | ⬜ |
-
-**Si une seule case est ⬜ → ARRÊTER et produire le récap MAINTENANT.**
 
 ---
 
@@ -79,45 +54,10 @@ Produire uniquement :
 
 > Ce skill est chargé quand le debugger est invoqué via `task` depuis l'agent orchestrator feature. L'orchestrateur injecte `[SKILL:quality/debugger-subagent]` dans le prompt.
 
-## Principe fondamental
-
-Quand le debugger est invoqué via `task`, le texte de la session enfant n'est **PAS visible** par l'utilisateur dans la session parent. La seule façon de remonter du contenu est de **terminer la session** avec les blocs structurés, que l'agent orchestrator retranscrira.
+> **Protocole sub-agent :** voir skill `shared/subagent-execution-protocol` pour le mécanisme d'interruption, la checklist, et les erreurs fréquentes.
 
 **Confirmer le contexte au démarrage :**
 > `[debugger] Contexte détecté : invoqué depuis l'agent orchestrator feature. Mode interruption actif — je terminerai ma session à chaque checkpoint pour remonter le récap et la question à l'agent orchestrator.`
-
----
-
-## Mécanisme d'interruption
-
-**À CHAQUE fin de phase ET à chaque pause ad hoc :**
-
-1. Produire le récap de la phase en texte
-2. Produire le bloc `## Retour intermédiaire vers orchestrator`
-3. Produire le bloc `## Question pour l'orchestrator`
-4. **TERMINER LA SESSION** — ne pas appeler l'outil `question`, ne pas continuer
-
-L'orchestrateur :
-- Affiche le `## Retour intermédiaire` en texte dans la discussion
-- Lit la `## Question pour l'orchestrator`
-- Pose la question à l'utilisateur via l'outil `question`
-- Re-invoque le debugger avec `task_id` + la réponse → le debugger recharge l'historique et continue
-
----
-
-## ✅ Checklist visuelle — AVANT CHAQUE FIN DE SESSION
-
-**STOP — Vérifier MAINTENANT :**
-
-| Vérification | Fait ? |
-|--------------|--------|
-| ✅ J'ai produit le récap complet de la phase en texte | ⬜ |
-| ✅ J'ai produit le bloc `## Retour intermédiaire vers orchestrator` avec la synthèse condensée | ⬜ |
-| ✅ J'ai produit le bloc `## Question pour l'orchestrator` avec question + options + instruction de reprise | ⬜ |
-| ✅ Le `task_id` est renseigné dans les deux blocs | ⬜ |
-| ✅ Je vais TERMINER la session — pas appeler l'outil `question` | ⬜ |
-
-**Si une seule case est ⬜ (non cochée) → ARRÊTER et produire le contenu manquant MAINTENANT.**
 
 ---
 
@@ -650,13 +590,6 @@ Phase 5 est le **retour final** — pas de question intermédiaire après la cr�
 
 ---
 
-## ❌ Erreurs fréquentes à éviter
-
-| Erreur | Impact | Correction |
-|--------|--------|------------|
-| Appeler l'outil `question` | Question posée en session enfant — invisible pour l'agent orchestrator | **Terminer la session** avec les blocs structurés |
-| Continuer vers la phase suivante sans produire les blocs | L'orchestrateur ne reçoit rien avant la fin complète | **Toujours interrompre** à chaque fin de phase |
-| Omettre le `task_id` dans les blocs | L'orchestrateur ne peut pas re-invoquer pour reprendre | **Toujours inclure** le sessionID |
-| Résumer le récap dans le bloc intermédiaire | L'utilisateur perd des informations critiques | **Ne jamais résumer** — contenu complet |
-| Produire le bloc handoff sans le rapport narratif | L'orchestrateur reçoit un résumé sans les preuves | **Toujours produire le rapport d'abord** |
-| Pause ad hoc pour des détails mineurs | Trop de re-invocations, flux dégradé | **Réserver aux vrais blockers** |
+> **Erreurs fréquentes :** voir skill `shared/subagent-execution-protocol`.
+>
+> **Erreur spécifique debugger :** produire le bloc handoff sans le rapport narratif → l'orchestrateur reçoit un résumé sans les preuves → **toujours produire le rapport d'abord**.

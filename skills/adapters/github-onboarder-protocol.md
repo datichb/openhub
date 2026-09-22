@@ -146,8 +146,6 @@ Ajouter cette section si labels structurés détectés :
 
 ### Gestion des erreurs
 
-| Erreur | Comportement |
-|---|---|
-| Token invalide / expiré | Afficher : `⚠️ Token GitHub invalide — vérifier : GITHUB_TOKEN` |
-| Dépôt non trouvé (404) | Mentionner dans ONBOARDING.md : "Dépôt GitHub non accessible" |
-| Pas de credentials | Skiper silencieusement Phase 1.4bis |
+> **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour la gestion d'erreurs commune.
+>
+> Paramètres pour cet adapter : `{platform}` = GitHub, `{platform_emoji}` = 🐙, `{tool_read_issue}` = github_get_issue, `{tool_list_issues}` = github_list_issues.
