@@ -348,39 +348,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				}
 
 				// Region dropdown (shared by all bedrock auth modes)
-				regionLabels := append(
-					[]string{i18n.T("cmd.init.wizard_region_placeholder")},
-					providerPkg.BedrockRegionLabels()...,
-				)
-				regionLabels = append(regionLabels, i18n.T("cmd.init.wizard_custom_region"))
-				customIdx := len(regionLabels) - 1
-				form.AddDropDown(
-					i18n.T("cmd.init.wizard_aws_region"),
-					regionLabels, s.RegionIdx,
-					func(_ string, idx int) {
-						if s.RegionIdx == idx {
-							return
-						}
-						wasCustom := s.CustomRegion
-						if idx == 0 {
-							s.CustomRegion = false
-							s.Region = ""
-						} else if idx == customIdx {
-							s.CustomRegion = true
-							s.Region = ""
-						} else if idx > 0 {
-							s.CustomRegion = false
-							s.Region = providerPkg.BedrockRegions[idx-1].Code
-						}
-						s.RegionIdx = idx
-						if s.CustomRegion != wasCustom {
-							rerenderSafe()
-						}
-					},
-				)
-				if s.CustomRegion {
-					form.AddInputField(i18n.T("cmd.init.wizard_custom_region_input"), s.Region, 0, nil, func(t string) { s.Region = t })
-				}
+				addBedrockRegionDropDown(form, &s.Region, &s.RegionIdx, &s.CustomRegion, rerenderSafe)
 
 			case "anthropic":
 				if s.HasKeychainToken {
