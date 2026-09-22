@@ -404,14 +404,17 @@ func actionTeamRejoin() {
 
 	// ── Shared state (captured by step closures) ────────────────────
 	var (
-		stateRepo      string
-		statePath      string
-		members        []teamstate.Member
-		memberID       string
-		gitlabToken    string
-		tokenChoice    string // "reuse", "new", or "skip"
-		tokenChoiceIdx int    // current dropdown index (0 = placeholder)
-		steps          []views.WizardStep
+		stateRepo        string
+		statePath        string
+		members          []teamstate.Member
+		memberID         string
+		gitlabToken      string
+		tokenChoice      string // "reuse", "new", or "skip"
+		tokenChoiceIdx   int    // current dropdown index (0 = placeholder)
+		steps            []views.WizardStep
+		identityMismatch *identityMismatchError
+		mismatchPAT      string
+		mismatchChoice   string
 	)
 
 	// ── Step 0: Repository URL ──────────────────────────────────────
@@ -611,6 +614,9 @@ func actionTeamRejoin() {
 				return err
 			}
 
+			// Store identity mismatch for the next conditional step.
+			identityMismatch = result.IdentityMismatch
+
 			// Retro-tag sessions in background
 			go func() {
 				bgCtx := context.Background()
@@ -641,6 +647,102 @@ func actionTeamRejoin() {
 			return []views.InfoField{
 				{Label: i18n.T("tui.team.rejoin.status_label"), Value: theme.SuccessStyle.Render(i18n.T("tui.team.rejoin.reconnected"))},
 			}
+		},
+	}
+
+	// ── Step 2b: Identity mismatch recovery (conditional) ──────────
+	identityMismatchStep := views.WizardStep{
+		ID:    "rejoin_identity_mismatch",
+		Label: i18n.T("cmd.init.wizard_step_identity_mismatch"),
+		SkipIf: func() bool {
+			return identityMismatch == nil
+		},
+		Validate: func() string {
+			if mismatchChoice == "" {
+				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
+			}
+			if mismatchChoice == "verify" && strings.TrimSpace(mismatchPAT) == "" {
+				return i18n.T("cmd.init.wizard_rejoin_token_new_required")
+			}
+			return ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+
+			var msg string
+			if identityMismatch.IsBot {
+				msg = i18n.Tf("cmd.init.wizard_identity_bot_detected", identityMismatch.AuthenticatedAs)
+			} else {
+				msg = i18n.Tf("cmd.init.wizard_identity_user_mismatch",
+					identityMismatch.AuthenticatedAs,
+					identityMismatch.MemberID,
+					identityMismatch.ExpectedUser,
+				)
+			}
+			form.AddTextView("", msg, 60, 3, true, false)
+
+			options := []string{
+				i18n.T("cmd.init.wizard_select_placeholder"),
+				i18n.T("cmd.init.wizard_identity_verify"),
+				i18n.T("cmd.init.wizard_identity_skip"),
+			}
+			form.AddDropDown(
+				i18n.T("cmd.init.wizard_step_identity_mismatch"),
+				options, 0,
+				func(_ string, idx int) {
+					switch idx {
+					case 1:
+						mismatchChoice = "verify"
+					case 2:
+						mismatchChoice = "skip"
+					default:
+						mismatchChoice = ""
+					}
+				},
+			)
+
+			form.AddTextView("", i18n.T("cmd.init.wizard_identity_pat_hint"), 60, 2, true, false)
+			form.AddPasswordField(
+				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+				mismatchPAT, 0, '*',
+				func(t string) { mismatchPAT = t },
+			)
+
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			if mismatchChoice == "skip" {
+				identityMismatch = nil
+				return nil
+			}
+			// "verify" — store the PAT and re-validate
+			if mismatchPAT != "" && a.Secrets != nil {
+				teamID := config.RepoNameFromRemote(stateRepo)
+				if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), mismatchPAT); err != nil {
+					return fmt.Errorf("storing token: %w", err)
+				}
+			}
+			sp := statePath
+			if sp == "" {
+				sp = config.TeamStatePath(stateRepo)
+			}
+			repo := teamstate.NewRepo(stateRepo, sp)
+			member, err := repo.GetMember(memberID)
+			if err != nil {
+				return fmt.Errorf("member lookup: %w", err)
+			}
+			if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
+				return fmt.Errorf("identity verification: %w", err)
+			}
+			identityMismatch = nil
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			if mismatchChoice == "skip" {
+				return []views.InfoField{{Label: "Identity", Value: i18n.T("cmd.init.wizard_identity_skip")}}
+			}
+			return []views.InfoField{{Label: "Identity", Value: "verified"}}
 		},
 	}
 
@@ -711,6 +813,7 @@ func actionTeamRejoin() {
 			memberStep,
 			gitlabTokenStep,
 			validateStep,
+			identityMismatchStep,
 			trackerStepRejoin,
 		}
 

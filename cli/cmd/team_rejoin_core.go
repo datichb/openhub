@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -24,12 +25,35 @@ type teamRejoinParams struct {
 
 // teamRejoinResult holds the output of a successful rejoin operation.
 type teamRejoinResult struct {
-	Member       teamstate.Member
-	TeamID       string
-	TeamName     string
-	EventCount   int  // number of session.complete events found for this member
-	SessionCount int  // number of local sessions retro-tagged
-	StaleData    bool // true when pull failed and local (possibly outdated) content was used
+	Member           teamstate.Member
+	TeamID           string
+	TeamName         string
+	EventCount       int                    // number of session.complete events found for this member
+	SessionCount     int                    // number of local sessions retro-tagged
+	StaleData        bool                   // true when pull failed and local (possibly outdated) content was used
+	IdentityMismatch *identityMismatchError // non-nil when GitLab identity verification detected a mismatch
+}
+
+// identityMismatchError is returned by validateGitLabIdentity when the
+// authenticated GitLab user does not match the expected member username.
+type identityMismatchError struct {
+	AuthenticatedAs string // username returned by GET /api/v4/user (e.g. "project_1772_bot_...")
+	ExpectedUser    string // the member's gitlab_username (e.g. "benjamin.datiche1")
+	MemberID        string // the member ID (e.g. "bdatiche")
+	IsBot           bool   // true when the token is a Project/Group Access Token
+}
+
+func (e *identityMismatchError) Error() string {
+	if e.IsBot {
+		return fmt.Sprintf(
+			"le token appartient à un bot (%s), pas à un compte personnel — la vérification nécessite un Personal Access Token (PAT)",
+			e.AuthenticatedAs,
+		)
+	}
+	return fmt.Sprintf(
+		"le token appartient à %q mais le membre sélectionné (%s) a le username GitLab %q",
+		e.AuthenticatedAs, e.MemberID, e.ExpectedUser,
+	)
 }
 
 // teamRejoinCore performs the core rejoin operations:
@@ -66,8 +90,21 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	}
 
 	// Validate identity via GitLab token (if available)
+	var identityMismatch *identityMismatchError
 	if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
-		return nil, err
+		if errors.As(err, &identityMismatch) {
+			// Identity mismatch — store for caller to handle interactively.
+			// Don't block the rejoin; the caller will show a step for the user
+			// to provide a PAT or skip verification.
+			slog.Warn("GitLab identity mismatch (will prompt user)",
+				"member", member.ID,
+				"authenticated_as", identityMismatch.AuthenticatedAs,
+				"expected", identityMismatch.ExpectedUser,
+				"is_bot", identityMismatch.IsBot,
+			)
+		} else {
+			return nil, err
+		}
 	}
 
 	// Persist team config to hub.toml
@@ -111,11 +148,12 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	}
 
 	return &teamRejoinResult{
-		Member:     *member,
-		TeamID:     teamID,
-		TeamName:   newTeam.DisplayName(),
-		EventCount: eventCount,
-		StaleData:  staleData,
+		Member:           *member,
+		TeamID:           teamID,
+		TeamName:         newTeam.DisplayName(),
+		EventCount:       eventCount,
+		StaleData:        staleData,
+		IdentityMismatch: identityMismatch,
 	}, nil
 }
 
@@ -169,10 +207,13 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 
 	// Compare usernames (case-insensitive)
 	if !strings.EqualFold(username, member.GitLabUsername) {
-		return fmt.Errorf(
-			"identité GitLab invalide : le token appartient à %q mais le membre sélectionné (%s) a le username GitLab %q",
-			username, member.ID, member.GitLabUsername,
-		)
+		isBot := strings.HasPrefix(username, "project_") || strings.HasPrefix(username, "group_")
+		return &identityMismatchError{
+			AuthenticatedAs: username,
+			ExpectedUser:    member.GitLabUsername,
+			MemberID:        member.ID,
+			IsBot:           isBot,
+		}
 	}
 
 	return nil

@@ -1096,6 +1096,58 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// ── Step 4b: Handle identity mismatch (bot token or wrong user) ──
+	if result.IdentityMismatch != nil {
+		fmt.Fprintln(a.IO.Out)
+		// Show clear error message
+		var msg string
+		if result.IdentityMismatch.IsBot {
+			msg = i18n.Tf("cmd.init.wizard_identity_bot_detected", result.IdentityMismatch.AuthenticatedAs)
+		} else {
+			msg = i18n.Tf("cmd.init.wizard_identity_user_mismatch",
+				result.IdentityMismatch.AuthenticatedAs,
+				result.IdentityMismatch.MemberID,
+				result.IdentityMismatch.ExpectedUser,
+			)
+		}
+		fmt.Fprintf(a.IO.Out, "  %s %s\n",
+			theme.WarningStyle.Render(theme.IconDot), msg,
+		)
+		fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_identity_verify"))
+		fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_identity_skip"))
+		fmt.Fprintf(a.IO.Out, "  Choice [2]: ")
+		var choiceStr string
+		fmt.Fscanln(a.IO.In, &choiceStr)
+		if choiceStr == "1" {
+			fmt.Fprintf(a.IO.Out, "  %s: ", i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"))
+			if term.IsTerminal(int(os.Stdin.Fd())) {
+				tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+				fmt.Fprintln(a.IO.Out)
+				if err == nil && len(tokenBytes) > 0 {
+					teamID := config.RepoNameFromRemote(repoURL)
+					if a.Secrets != nil {
+						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+					}
+					// Re-validate
+					sp := config.TeamStatePath(repoURL)
+					repo := teamstate.NewRepo(repoURL, sp)
+					member, _ := repo.GetMember(memberID)
+					if member != nil {
+						if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
+							fmt.Fprintf(a.IO.Out, "  %s %s\n",
+								theme.WarningStyle.Render(theme.IconDot), err.Error(),
+							)
+						} else {
+							fmt.Fprintf(a.IO.Out, "  %s Identity verified\n",
+								theme.SuccessStyle.Render(theme.IconSuccess),
+							)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Success output
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s %s\n",
