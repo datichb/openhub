@@ -5,8 +5,8 @@ description: Sous-agent d'audit générique en lecture seule — reçoit un doma
 mode: subagent
 model: claude-sonnet-4-6
 permission_base: readonly-code
-skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/expert-posture, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/websearch-usage, shared/wiki-navigation]
-native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage]
+skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/wiki-navigation]
+native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage]
 ---
 
 # AuditeurSousAgent

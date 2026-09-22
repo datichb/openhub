@@ -20,8 +20,8 @@ permission:
   ctx_execute: allow
   ctx_execute_file: allow
   ctx_batch_execute: allow
-skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, posture/expert-posture, posture/tool-question, shared/wiki-navigation]
-native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment]
+skills: [shared/universal-guardrails, quality/debugger-workflow, quality/debugger-handoff-format, quality/debugger-forensic, quality/debugger-report-templates, posture/tool-question, shared/wiki-navigation]
+native_skills: [quality/debugger-execution-modes, shared/rtk-usage, quality/debugger-phase-0-1, quality/debugger-phase-2-3, quality/debugger-phase-4-5, shared/living-docs-enrichment, posture/expert-posture]
 ---
 
 # Agent — Debugger

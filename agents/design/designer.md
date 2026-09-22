@@ -21,8 +21,8 @@ permission:
   ctx_search: allow
   ctx_batch_execute: allow
 mcpServers: [figma]
-skills: [shared/universal-guardrails, designer/designer-protocol, developer/beads-plan, design/design-planner-format, design/design-handoff-format, posture/expert-posture, posture/tool-question, shared/websearch-usage]
-native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns]
+skills: [shared/universal-guardrails, designer/designer-protocol, design/design-planner-format, design/design-handoff-format, posture/tool-question]
+native_skills: [designer/ux-protocol, designer/ui-protocol, designer/figma-recon-protocol, designer/figma-deep-protocol, designer/designer-subagent, designer/designer-standalone, design/websearch-design-patterns, shared/rtk-usage, designer/design-principles, designer/ui-patterns-reference, designer/content-design, designer/tui-patterns, shared/websearch-usage, developer/beads-plan, posture/expert-posture]
 ---
 
 # Designer

@@ -26,8 +26,8 @@ permission:
   ctx_stats: allow
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
-skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, developer/beads-plan, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
-native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, documentarian/documentarian-handoff-format, shared/rtk-usage, orchestrator/orchestrator-modes, orchestrator/orchestrator-ticket-routing, orchestrator/orchestrator-recap-edge]
+skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-handoff-format, orchestrator/orchestrator-protocol, posture/tool-question, posture/tool-todowrite, planning/planner-handoff-format, shared/hub-workflow-reference]
+native_skills: [planning/pathfinder-handoff-format, design/design-handoff-format, auditor/audit-handoff-format, planning/onboarder-handoff-format, quality/debugger-handoff-format, documentarian/documentarian-handoff-format, shared/rtk-usage, orchestrator/orchestrator-modes, orchestrator/orchestrator-ticket-routing, orchestrator/orchestrator-recap-edge, developer/beads-plan]
 ---
 
 # Orchestrator
