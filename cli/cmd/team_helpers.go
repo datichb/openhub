@@ -212,9 +212,8 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 			}
 
 			// Build dropdown: options differ depending on whether a tracker exists.
-			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			if trackerConfigured {
-				// "Keep existing" / "Reconfigure" / "Later"
 				options = append(options,
 					i18n.T("cmd.init.wizard_tracker_keep_existing"),
 					i18n.T("cmd.init.wizard_tracker_configure_now"),
@@ -593,7 +592,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			source := gitlabTokenSource(state.Ctx, *a, teamID)
 
 			// Build dropdown options: placeholder + [reuse if available] + new + skip
-			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			optionKeys := []string{"placeholder"}
 			if source != "" {
 				options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))

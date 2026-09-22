@@ -1539,6 +1539,7 @@
   "cmd.init.wizard_custom_region_input": "Custom region code",
   "cmd.init.wizard_region_required": "An AWS region is required",
   "cmd.init.wizard_region_placeholder": "-- Select a region --",
+  "cmd.init.wizard_select_placeholder": "-- Select --",
   "cmd.init.wizard_lang_placeholder": "-- Select a language --",
   "cmd.init.wizard_provider_placeholder": "-- Select a provider --",
   "cmd.init.wizard_auth_placeholder": "-- Select auth mode --",

@@ -221,7 +221,7 @@ func actionTeamInit() {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
 
-			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			if trackerConfigured {
 				options = append(options,
 					i18n.T("cmd.init.wizard_tracker_keep_existing"),
@@ -540,7 +540,7 @@ func actionTeamRejoin() {
 			teamID := config.RepoNameFromRemote(stateRepo)
 			source := gitlabTokenSource(ctx, a, teamID)
 
-			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			optionKeys := []string{"placeholder"}
 			if source != "" {
 				options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))
@@ -674,7 +674,7 @@ func actionTeamRejoin() {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
 
-			options := []string{i18n.T("cmd.init.wizard_region_placeholder")}
+			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			if trackerConfigured {
 				options = append(options,
 					i18n.T("cmd.init.wizard_tracker_keep_existing"),
