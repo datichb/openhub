@@ -20,7 +20,17 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 
 > Quand un CP est `▶️ auto`, l'agent orchestrator affiche quand même l'information mais enchaîne sans attendre de confirmation.
 
-> **Parallélisme conditionnel (mode `auto` uniquement) :** en mode `auto`, `orchestrator-dev` peut traiter plusieurs tickets simultanément si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, maximum 3 tickets. Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. Voir `orchestrator-dev-protocol` pour le protocole complet.
+> **Parallélisme conditionnel (tous les modes) :** `orchestrator-dev` peut traiter plusieurs tickets simultanément **quel que soit le mode** si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, maximum 3 tickets. Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. En mode `manuel` ou `semi-auto`, l'orchestrator-dev propose le parallélisme à l'utilisateur qui confirme ou refuse. En mode `auto`, le parallélisme est lancé sans confirmation. Voir `orchestrator-dev-protocol` pour le protocole complet.
+>
+> **Comportement des CP en mode parallèle selon le mode :**
+>
+> | Mode | CP-0 | CP-1 | CP-2 | CP-3 |
+> |------|------|------|------|------|
+> | `manuel` parallèle | ⏸️ pause (avant lancement) | ⏸️ pause — FIFO par session, avec notification des CP en attente | ⏸️ pause — batch si tous `commit`, sinon FIFO | ⏸️ pause — FIFO par session |
+> | `semi-auto` parallèle | ⏸️ pause (avant lancement) | ▶️ auto | ⏸️ pause — batch si tous `commit`, sinon FIFO | ▶️ auto |
+> | `auto` parallèle | ⏸️ pause (avant lancement) | ▶️ auto | ⏸️ pause — batch si tous `commit`, sinon FIFO | ▶️ auto |
+>
+> **FIFO avec notification :** quand plusieurs sessions atteignent un CP simultanément en mode `manuel`, le premier CP arrivé est présenté à l'utilisateur. Les CP en attente sont listés : `« N CP en attente : #bd-42 CP-1, #bd-43 CP-3 »`. L'utilisateur traite chaque CP un par un dans l'ordre d'arrivée. Les sessions en attente de CP ne bloquent pas les autres sessions qui continuent de progresser.
 >
 > **Isolation filesystem via worktrees (`worktree.enabled = true`) :** si les worktrees sont activés pour le projet, l'étape 1b utilise `git worktree add` au lieu de `git checkout -b`. Chaque ticket reçoit un répertoire isolé `.worktrees/<slug>/` — les agents `developer-*` travaillent dans leur worktree sans risque de conflit filesystem. À CP-2 après commit validé, le worktree est proposé à la suppression.
 >
@@ -112,9 +122,9 @@ question({
     header: "Mode de workflow",
     question: "Quel mode de workflow pour les phases d'implémentation ?",
     options: [
-      { label: "Manuel (Recommandé)", description: "Chaque étape attend ta confirmation — CP-1, CP-2, CP-3 tous en pause" },
-      { label: "Semi-auto", description: "CP-1 et CP-3 automatiques, CP-2 (commit) reste manuel" },
-      { label: "Auto", description: "Workflow entièrement automatique sauf CP-2 (commit) — parallélisme conditionnel disponible pour les tickets indépendants" }
+      { label: "Manuel (Recommandé)", description: "Chaque étape attend ta confirmation — CP-1, CP-2, CP-3 tous en pause. Parallélisme disponible si les 4 critères sont remplis (CP sérialisés en FIFO)." },
+      { label: "Semi-auto", description: "CP-1 et CP-3 automatiques, CP-2 (commit) reste manuel. Parallélisme disponible si les 4 critères sont remplis (batch CP-2)." },
+      { label: "Auto", description: "Workflow entièrement automatique sauf CP-2 (commit). Parallélisme disponible si les 4 critères sont remplis (batch CP-2)." }
     ]
   }]
 })
@@ -138,12 +148,11 @@ Enregistrer le mode pour toute la session.
 
 ---
 
-## Option Batch CP-2 (mode `auto` avec parallélisme uniquement)
+## Option Batch CP-2 (parallélisme actif)
 
 ### Contexte d'application
 
-Cette option ne s'applique que lorsque :
-- Le mode de workflow est `auto`
+Cette option s'applique dans **tous les modes** lorsque :
 - Le parallélisme conditionnel est actif (4 critères vérifiés)
 - Plusieurs tickets atteignent CP-2 simultanément
 

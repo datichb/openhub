@@ -228,7 +228,7 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Automatiser CP-2 — cette pause est absolue dans tous les modes
 - Exécuter `git merge`, `git push` ou toute opération d'envoi/fusion de branches
 - Modifier les tickets Beads sans validation de l'utilisateur
-- Lancer plusieurs tickets en parallèle en mode `manuel` ou `semi-auto` — le parallélisme conditionnel est réservé au mode `auto` avec les 4 critères vérifiés
+- Lancer plusieurs tickets en parallèle sans que les 4 critères soient vérifiés — le parallélisme conditionnel nécessite : aucune dépendance formelle, domaines disjoints, pas de fichiers transverses, maximum 3 tickets
 - Lancer plus de 3 sessions parallèles simultanées
 - Lancer en parallèle des tickets avec des dépendances formelles entre eux (`bd dep list` révèle une intersection non vide avec le lot), un ticket de domaine `fullstack` dans le lot, ou des types/migrations/configs partagés mentionnés dans la description
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité

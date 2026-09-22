@@ -140,7 +140,7 @@ En mode **standalone**, `orchestrator-dev` pose les questions lui-même via l'ou
 
 ## Format du bloc `## Question batch pour l'orchestrator`
 
-Quand `orchestrator-dev` atteint un **CP-2 batch** (N tickets avec verdict `commit` en mode parallèle),
+Quand `orchestrator-dev` atteint un **CP-2 batch** (N tickets avec verdict `commit` en parallélisme actif),
 il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaires :
 
 ```
@@ -209,6 +209,57 @@ il produit ce bloc au lieu de N blocs `## Question pour l'orchestrator` unitaire
 | Rapport affiché | Par défaut — dans `### Rapport de review complet` | Sur demande — dans `### Rapports de review complets` via "Voir détails" |
 | Options | Commit / Corriger | Commit tous / Commit sélectif / Voir détails |
 | Verdict `corriger` possible | Oui | Non — présence d'un `corriger` force l'éclatement |
+
+---
+
+## Format du bloc `## Question CP pour l'orchestrator` (mode `manuel` parallèle — FIFO)
+
+Quand le parallélisme est actif en mode `manuel`, les CP-1 et CP-3 de chaque session parallèle sont sérialisés en FIFO. L'orchestrator-dev produit ce bloc pour chaque CP en attente :
+
+```
+---
+
+## Question CP pour l'orchestrator
+
+**Agent :** orchestrator-dev
+**Phase :** <CP-1 | CP-3>
+**Ticket :** #<ID> — <titre>
+**Domaine :** developer (<domaine>)
+
+### Contexte
+
+<Résumé court de l'état du ticket à ce CP — ce que le developer a fait ou va faire>
+
+### Question en attente
+
+<La question du CP — ex: "Lancer l'implémentation ?" pour CP-1, "Clore le ticket ?" pour CP-3>
+
+### Options disponibles
+- `Continuer` : Valider ce CP et poursuivre
+- `Détails` : Afficher plus d'informations avant de décider
+- `Arrêter ce ticket` : Suspendre le traitement de ce ticket
+
+### File d'attente CP
+<NB_EN_ATTENTE> CP en file : <liste — ex: #bd-43 CP-3, #bd-44 CP-1>
+
+### État de la session
+**task_id :** <task_id de la session en cours>
+```
+
+### Règles de production (orchestrator-dev)
+
+- **Condition de déclenchement :** mode `manuel` + parallélisme actif + une session atteint un CP-1 ou CP-3
+- **Ordre :** FIFO strict (premier arrivé = premier présenté)
+- **Non-blocage :** les sessions qui n'ont pas atteint de CP continuent de progresser
+- **CP-2 exclu :** les CP-2 suivent toujours le format unitaire ou batch — jamais ce format FIFO
+
+### Règles pour l'orchestrator (consommateur)
+
+- Afficher le `### Contexte` dans le texte de la discussion
+- Afficher la `### File d'attente CP` pour que l'utilisateur voie les CP en attente
+- Poser la question via l'outil `question` avec le champ : `[OrchestratorDev — <Phase> | Ticket #<ID>]\n<question>`
+- Ré-invoquer `orchestrator-dev` avec `task_id` et la réponse
+- Après traitement, présenter le CP suivant dans la file (s'il en reste)
 
 ---
 

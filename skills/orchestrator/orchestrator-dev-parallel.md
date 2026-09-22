@@ -1,11 +1,11 @@
 ---
 name: orchestrator-dev-parallel
-description: Workflow parallèle de l'orchestrator-dev — mode auto conditionnel, worktrees, pre-review et review en parallèle.
+description: Workflow parallèle de l'orchestrator-dev — conditionnel tous modes, worktrees, pre-review et review en parallèle, sérialisation FIFO des CP en mode manuel.
 ---
 
-## Workflow parallèle (mode `auto` conditionnel uniquement)
+## Workflow parallèle
 
-Ce workflow s'applique uniquement quand les 4 critères de parallélisabilité sont vérifiés.
+Ce workflow s'applique quand les 4 critères de parallélisabilité sont vérifiés, **quel que soit le mode de workflow** (manuel, semi-auto, auto).
 
 ### Phase 0 — Pré-création séquentielle des worktrees (si `worktree.enabled = true`)
 
@@ -41,6 +41,25 @@ Attendre les résultats de toutes les sessions. Pour chaque résultat reçu :
 1. Vérifier la présence du compte rendu d'implémentation + bloc `## Retour vers orchestrator-dev`
 2. Si `### Statut` = `bloqué` → traiter comme un "Ticket bloqué" (produire `## Question pour l'orchestrator` si invoqué depuis l'agent orchestrator)
 3. Détecter un éventuel conflit de fichiers : si un `developer-*` a modifié un fichier déjà modifié par une autre session parallèle, signaler et passer à l'étape Pre-review+Review en priorité pour ce ticket avant les autres
+
+### Sérialisation FIFO des CP (mode `manuel` parallèle)
+
+> Cette section s'applique uniquement en mode `manuel`. En mode `semi-auto` et `auto`, les CP-1 et CP-3 sont automatiques — seul le CP-2 fait l'objet d'une pause (voir "CP-2 en batch conditionnel" ci-dessous).
+
+En mode `manuel`, les CP-1 et CP-3 de chaque session parallèle sont des pauses obligatoires. Comme les sessions progressent à des vitesses différentes, ces CP arrivent de manière échelonnée.
+
+**Protocole FIFO :**
+
+1. **Collecte** — Maintenir une file d'attente des CP pendants, ordonnée par date d'arrivée (premier arrivé = premier traité)
+2. **Notification** — Quand un CP arrive alors qu'un autre est déjà en cours de traitement, notifier l'utilisateur :
+   ```
+   > ⏸️ [CP en attente] <NB> CP en file : #bd-42 CP-1, #bd-43 CP-3
+   ```
+3. **Présentation** — Présenter le CP suivant dès que l'utilisateur a répondu au précédent
+4. **Non-blocage** — Les sessions dont le CP n'a pas encore été traité restent en attente, mais les autres sessions qui n'ont pas atteint de CP continuent de progresser librement
+5. **Format** — Chaque CP est présenté via un bloc `## Question CP pour l'orchestrator` (voir `orchestrator-handoff-format`)
+
+> **Les CP-2 ne passent pas par ce mécanisme** — ils suivent toujours la logique batch/séquentielle décrite ci-dessous, y compris en mode `manuel`.
 
 ### Pre-review et Review en parallèle
 
@@ -140,6 +159,7 @@ question({
 
 Le batch ne supprime pas la validation humaine — il la regroupe pour les cas homogènes.
 CP-2 reste une pause dans **tous les modes** sans exception, y compris avec le batch.
+Le batch CP-2 est disponible dans **tous les modes** quand le parallélisme est actif — pas uniquement en mode `auto`.
 
 ### Récap global — synchronisation finale
 

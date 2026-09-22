@@ -190,6 +190,6 @@ fi
 
 ### Note sur le mode parallèle
 
-En mode `auto` avec parallélisme conditionnel, plusieurs tickets peuvent être `in_progress` simultanément.
+Quand le parallélisme conditionnel est actif (4 critères vérifiés), plusieurs tickets peuvent être `in_progress` simultanément — quel que soit le mode de workflow (manuel, semi-auto, auto).
 Dans ce cas, `current_ticket` reflète le dernier ticket mis à jour (le plus récent).
 Le champ `tickets[]` reste la source de vérité pour voir tous les tickets en cours.

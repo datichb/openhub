@@ -232,9 +232,9 @@ Afficher le récapitulatif des tickets reçus et démarrer directement sans rede
 
 ---
 
-### Évaluation du parallélisme conditionnel (mode `auto` uniquement)
+### Évaluation du parallélisme conditionnel
 
-En mode `auto`, avant de démarrer le traitement ticket par ticket, évaluer si le lot est éligible au parallélisme conditionnel.
+Avant de démarrer le traitement ticket par ticket, évaluer si le lot est éligible au parallélisme conditionnel — **quel que soit le mode de workflow**.
 
 **Les 4 critères — tous doivent être vérifiés :**
 
@@ -278,7 +278,26 @@ Raison : <critère non vérifié>
 
 → Traitement séquentiel normal ticket par ticket.
 
-**En mode `manuel` ou `semi-auto` :** ne pas évaluer le parallélisme — séquentiel forcé.
+**Proposition à l'utilisateur (modes `manuel` et `semi-auto`) :**
+
+En mode `manuel` ou `semi-auto`, quand les 4 critères sont vérifiés, proposer le parallélisme à l'utilisateur avant de lancer :
+
+```
+question({
+  questions: [{
+    header: "Parallélisme conditionnel",
+    question: "<NB_TICKETS> tickets éligibles au parallélisme (domaines disjoints, aucune dépendance, pas de fichiers transverses).\n\nLancer les tickets en parallèle ?",
+    options: [
+      { label: "Oui — parallèle", description: "Lancer <NB_TICKETS> sessions simultanées. Les CP seront présentés au fil de l'eau." },
+      { label: "Non — séquentiel", description: "Traiter les tickets un par un dans l'ordre de priorité" }
+    ]
+  }]
+})
+```
+
+- Si l'utilisateur accepte → lancer en parallèle (charger le skill `orchestrator/orchestrator-dev-parallel`)
+- Si l'utilisateur refuse → traitement séquentiel normal
+- **En mode `auto`** : ne pas poser la question, lancer directement en parallèle
 
 ---
 
@@ -287,7 +306,7 @@ Raison : <critère non vérifié>
 | Phase | Skill à charger | Déclencheur |
 |-------|----------------|-------------|
 | Workflow ticket | `orchestrator/orchestrator-dev-ticket-workflow` | Après CP-0, pour chaque ticket |
-| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si mode auto + conditions remplies |
+| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Si 4 critères remplis + confirmé par l'utilisateur (manuel/semi-auto) ou automatique (auto) |
 | Récap global | `orchestrator/orchestrator-dev-recap` | Après dernier ticket traité |
 | Cas particuliers | `orchestrator/orchestrator-dev-edge-cases` | Si drift, échec review, conflit |
 

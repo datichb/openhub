@@ -16,6 +16,10 @@ En mode parallele, plusieurs agents travaillent simultanement sur des tickets
 differents, chacun dans son propre worktree. Un coordinateur externe surveille
 les fichiers touches par chaque session pour detecter les conflits potentiels.
 
+> Ce protocole s'applique **quel que soit le mode de workflow** (manuel, semi-auto, auto).
+> Les 4 regles ci-dessous sont identiques dans tous les modes — seul le comportement
+> des checkpoints differe (voir `orchestrator-dev-parallel` pour les details).
+
 ## Regles en mode parallele
 
 ### 1. Independance
