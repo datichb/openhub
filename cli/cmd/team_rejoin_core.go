@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -119,6 +121,8 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 // validateGitLabIdentity verifies that the current GitLab token belongs to the
 // member being rejoined. This prevents identity spoofing.
+// The token is tested against the GitLab instance that hosts the team-state repo
+// (not the tracker instance, which may be different).
 // Returns nil if validation succeeds or if no GitLab token is available (with warning).
 func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member) error {
 	if member.GitLabUsername == "" {
@@ -126,39 +130,34 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 		return nil
 	}
 
-	// Build credential source from the team-state config (shared MCP + tracker)
-	// so that the correct GitLab instance URL and token are resolved.
-	var sharedMCP map[string]teamstate.SharedMCPConfig
-	var trackerCfg *teamstate.TrackerConfig
-	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg != nil {
-		sharedMCP = teamCfg.MCP
-		trackerCfg = &teamCfg.Tracker
-	}
-	src := buildCredentialSource(a, sharedMCP, trackerCfg)
-
-	// If a team-specific token exists in the keychain, prefer it over the
-	// global MCP key. This ensures teams pointing to different GitLab
-	// instances use the correct token.
-	teamID := config.RepoNameFromRemote(repo.Remote())
-	teamTokenKey := config.TeamGitLabTokenKey(teamID)
-	if a.Secrets != nil {
-		if val, err := a.Secrets.Get(ctx, teamTokenKey); err == nil && val != "" {
-			src.GitLabTokenKey = teamTokenKey
-		}
-	}
-
-	cfg, err := tracker.ResolveCredentials(ctx, src, tracker.TypeGitLab)
-	if err != nil {
-		// No token available — cannot validate, allow proceeding with a warning
-		slog.Warn("GitLab identity validation skipped: no token available",
+	// Resolve the GitLab base URL from the team-state repo remote.
+	// The member's gitlab_username belongs to this instance, not the tracker.
+	baseURL := gitlabBaseURLFromRemote(repo.Remote())
+	if baseURL == "" {
+		slog.Warn("GitLab identity validation skipped: cannot determine GitLab URL from repo remote",
 			"member", member.ID,
-			"gitlab_username", member.GitLabUsername,
-			"error", err,
+			"remote", repo.Remote(),
 		)
 		return nil
 	}
 
-	// Call GitLab API to get the authenticated user
+	// Resolve the token: env → team-specific key → MCP key → tracker key
+	teamID := config.RepoNameFromRemote(repo.Remote())
+	token := resolveGitLabTokenForIdentity(ctx, a, teamID)
+	if token == "" {
+		slog.Warn("GitLab identity validation skipped: no token available",
+			"member", member.ID,
+			"gitlab_username", member.GitLabUsername,
+		)
+		return nil
+	}
+
+	// Test connection against the team-state repo's GitLab instance
+	cfg := tracker.Config{
+		Type:    tracker.TypeGitLab,
+		BaseURL: baseURL,
+		Token:   token,
+	}
 	t, err := tracker.New(cfg)
 	if err != nil {
 		return fmt.Errorf("creating GitLab client: %w", err)
@@ -177,6 +176,61 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 	}
 
 	return nil
+}
+
+// gitlabBaseURLFromRemote extracts the base URL (scheme + host) from a git
+// remote URL. Supports HTTPS and SCP-style (git@host:path) formats.
+// Returns "" if the URL cannot be parsed.
+func gitlabBaseURLFromRemote(remote string) string {
+	// SCP-style: git@gitlab.octo.tools:org/repo.git → https://gitlab.octo.tools
+	if strings.Contains(remote, "@") && strings.Contains(remote, ":") && !strings.Contains(remote, "://") {
+		parts := strings.SplitN(remote, "@", 2)
+		if len(parts) == 2 {
+			hostPart := strings.SplitN(parts[1], ":", 2)
+			if len(hostPart) >= 1 && hostPart[0] != "" {
+				return "https://" + hostPart[0]
+			}
+		}
+		return ""
+	}
+	// HTTP(S) URL: https://gitlab.octo.tools/org/repo.git → https://gitlab.octo.tools
+	if u, err := url.Parse(remote); err == nil && u.Host != "" {
+		return u.Scheme + "://" + u.Host
+	}
+	return ""
+}
+
+// resolveGitLabTokenForIdentity tries to find a GitLab token suitable for
+// identity verification. The priority is:
+//  1. GITLAB_TOKEN environment variable
+//  2. Team-specific keychain key (openhub.team.<teamID>.gitlab.token)
+//  3. MCP GitLab keychain key (openhub.mcp.gitlab.token)
+//  4. Tracker GitLab keychain key (openhub.tracker.gitlab.token)
+//
+// Returns "" if no token is found.
+func resolveGitLabTokenForIdentity(ctx context.Context, a *app.App, teamID string) string {
+	// 1. Env var — always takes priority
+	if tok := os.Getenv("GITLAB_TOKEN"); tok != "" {
+		return tok
+	}
+	if a.Secrets == nil {
+		return ""
+	}
+	// 2. Team-specific key
+	if teamID != "" {
+		if tok, err := a.Secrets.Get(ctx, config.TeamGitLabTokenKey(teamID)); err == nil && tok != "" {
+			return tok
+		}
+	}
+	// 3. MCP GitLab key (might be for the same instance)
+	if tok, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && tok != "" {
+		return tok
+	}
+	// 4. Tracker GitLab key
+	if tok, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && tok != "" {
+		return tok
+	}
+	return ""
 }
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.
