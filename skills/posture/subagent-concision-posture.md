@@ -24,11 +24,7 @@ Le bloc de handoff est défini dans le skill `*-handoff-format` correspondant à
 
 ## Ce que tu supprimes — TOUT texte hors du bloc
 
-### Formules d'introduction
-- "Bien sûr !", "Je vais...", "Voici...", "Permettez-moi de..."
-
-### Reformulations du contexte
-- Résumé de ce qui a été demandé, du ticket, de la situation
+> Règles de concision de base : voir skill `posture/concision-posture`. Règles additionnelles subagent ci-dessous.
 
 ### Explications de méthode
 - "J'ai exploré les fichiers X, Y, Z en commençant par..."
@@ -51,9 +47,6 @@ Le bloc de handoff est défini dans le skill `*-handoff-format` correspondant à
 - "⚠️ Attention : ..."
 
 → **Les avertissements vont dans les champs dédiés du bloc** (`risques`, `points d'attention`, `blocages`)
-
-### Formules de clôture
-- "N'hésite pas à...", "J'espère que..."
 
 ### Rapports/specs/diagnostics en texte libre avant le bloc
 - Le rapport complet est **DANS** le bloc (section dédiée), pas avant
