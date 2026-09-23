@@ -126,6 +126,13 @@ func (s *OpenCodeServer) SendPromptAsync(sessionID, prompt, agent string) error 
 	return nil
 }
 
+// SendNotification sends a coordinator notification to a running session.
+// The message is prefixed with [PARALLEL-NOTIFICATION] so the agent skill
+// can recognize and handle it appropriately.
+func (s *OpenCodeServer) SendNotification(sessionID, message string) error {
+	return s.SendPromptAsync(sessionID, message, "")
+}
+
 // GetSessionStatus returns the status of all sessions.
 func (s *OpenCodeServer) GetSessionStatus() (map[string]string, error) {
 	resp, err := s.get("/session/status")

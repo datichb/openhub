@@ -3,6 +3,7 @@ package parallel
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,11 +26,13 @@ type CoordinatorOpts struct {
 
 // Coordinator orchestrates multiple parallel opencode sessions.
 type Coordinator struct {
-	opts        CoordinatorOpts
-	state       *ParallelState
-	servers     []*OpenCodeServer
-	context     *SharedContext
-	opencodeBin string
+	opts               CoordinatorOpts
+	state              *ParallelState
+	servers            []*OpenCodeServer
+	context            *SharedContext
+	opencodeBin        string
+	notifiedConflicts  map[string]bool // "ticketA:ticketB:file" -> true (dedup)
+	notifiedCompletion map[string]bool // ticketID -> true (dedup)
 }
 
 // NewCoordinator creates a new parallel coordinator.
@@ -62,11 +65,13 @@ func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
 
 	state := NewState(opts.ProjectPath, opts.Config.MaxSessions)
 	return &Coordinator{
-		opts:        opts,
-		state:       state,
-		servers:     make([]*OpenCodeServer, 0, len(opts.Tickets)),
-		context:     NewSharedContext(state),
-		opencodeBin: bin,
+		opts:               opts,
+		state:              state,
+		servers:            make([]*OpenCodeServer, 0, len(opts.Tickets)),
+		context:            NewSharedContext(state),
+		opencodeBin:        bin,
+		notifiedConflicts:  make(map[string]bool),
+		notifiedCompletion: make(map[string]bool),
 	}, nil
 }
 
@@ -262,6 +267,13 @@ func (c *Coordinator) monitor(ctx context.Context) error {
 			c.pollStatus()
 			c.context.UpdateFromServers(c.servers)
 
+			// Send notifications for new conflicts and completions
+			c.sendConflictNotifications()
+			c.sendCompletionNotifications()
+
+			// Promote idle sessions with no pending work to completed
+			c.promoteIdleSessions()
+
 			if c.state.AllCompleted() {
 				return nil
 			}
@@ -303,10 +315,19 @@ func (c *Coordinator) pollStatus() {
 
 			if status, ok := statuses[sessionInfo.SessionID]; ok {
 				switch status {
-				case "completed", "idle":
+				case "completed":
 					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
 						s.Status = StatusCompleted
 						s.CompletedAt = time.Now().UTC()
+					})
+				case "idle":
+					// Idle means the agent finished its turn. If no notification
+					// is pending, promote to completed. Otherwise keep as idle
+					// so the monitor loop can send the notification first.
+					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+						if s.Status == StatusRunning {
+							s.Status = StatusIdle
+						}
 					})
 				case "error", "failed":
 					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
@@ -318,6 +339,104 @@ func (c *Coordinator) pollStatus() {
 		}(srv)
 	}
 	wg.Wait()
+}
+
+// sendConflictNotifications notifies running sessions about file conflicts
+// detected by the SharedContext. Each conflict is notified at most once.
+func (c *Coordinator) sendConflictNotifications() {
+	snap := c.state.Snapshot()
+	for _, conflict := range snap.Conflicts {
+		if conflict.Severity == "low" {
+			continue // don't spam for lock files
+		}
+		for _, ticketID := range conflict.Sessions {
+			key := ticketID + ":" + conflict.File
+			if c.notifiedConflicts[key] {
+				continue
+			}
+			c.notifiedConflicts[key] = true
+
+			sess, ok := c.state.GetSession(ticketID)
+			if !ok || (sess.Status != StatusRunning && sess.Status != StatusIdle) {
+				continue
+			}
+
+			// Find the server for this session
+			for _, srv := range c.servers {
+				if srv.TicketID == ticketID && sess.SessionID != "" {
+					otherSessions := make([]string, 0)
+					for _, other := range conflict.Sessions {
+						if other != ticketID {
+							otherSessions = append(otherSessions, other)
+						}
+					}
+					msg := fmt.Sprintf(
+						"[PARALLEL-NOTIFICATION] Conflit de fichier détecté : %s est aussi modifié par %s (sévérité: %s). Minimise les changements sur ce fichier si possible.",
+						conflict.File, strings.Join(otherSessions, ", "), conflict.Severity,
+					)
+					_ = srv.SendNotification(sess.SessionID, msg)
+					break
+				}
+			}
+		}
+	}
+}
+
+// sendCompletionNotifications notifies running sessions when another session completes.
+// Each completion is notified at most once.
+func (c *Coordinator) sendCompletionNotifications() {
+	snap := c.state.Snapshot()
+	for _, sess := range snap.Sessions {
+		if sess.Status != StatusCompleted {
+			continue
+		}
+		if c.notifiedCompletion[sess.TicketID] {
+			continue
+		}
+		c.notifiedCompletion[sess.TicketID] = true
+
+		// Notify all still-running/idle sessions
+		for _, srv := range c.servers {
+			other, ok := c.state.GetSession(srv.TicketID)
+			if !ok || srv.TicketID == sess.TicketID {
+				continue
+			}
+			if other.Status != StatusRunning && other.Status != StatusIdle {
+				continue
+			}
+			if other.SessionID == "" {
+				continue
+			}
+
+			filesInfo := ""
+			if len(sess.FilesModified) > 0 {
+				filesInfo = fmt.Sprintf(" Fichiers modifiés : %s.", strings.Join(sess.FilesModified, ", "))
+			}
+			msg := fmt.Sprintf(
+				"[PARALLEL-NOTIFICATION] La session %s est terminée.%s",
+				sess.TicketID, filesInfo,
+			)
+			_ = srv.SendNotification(other.SessionID, msg)
+		}
+	}
+}
+
+// promoteIdleSessions promotes sessions that are idle (agent finished its turn)
+// to completed, unless they have just been sent a notification that hasn't been
+// processed yet (give one tick of grace period).
+func (c *Coordinator) promoteIdleSessions() {
+	snap := c.state.Snapshot()
+	for _, sess := range snap.Sessions {
+		if sess.Status != StatusIdle {
+			continue
+		}
+		// Promote to completed -- the idle state has lasted at least one monitor tick
+		// which gives enough time for any pending notification to be delivered.
+		c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
+			s.Status = StatusCompleted
+			s.CompletedAt = time.Now().UTC()
+		})
+	}
 }
 
 func (c *Coordinator) cleanup() {

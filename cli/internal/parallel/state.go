@@ -17,6 +17,7 @@ const (
 	StatusPending   SessionStatus = "pending"
 	StatusStarting  SessionStatus = "starting"
 	StatusRunning   SessionStatus = "running"
+	StatusIdle      SessionStatus = "idle"      // session finished its turn, waiting for next prompt or completion
 	StatusCompleted SessionStatus = "completed"
 	StatusFailed    SessionStatus = "failed"
 	StatusAborted   SessionStatus = "aborted"

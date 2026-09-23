@@ -56,6 +56,25 @@ Si tu dois modifier un fichier susceptible d'etre touche par d'autres sessions
 - Tu n'as PAS besoin de rebase sur main
 - Tu travailles sur ta branche isolee dans ton worktree
 
+## Messages du coordinateur
+
+Le coordinateur peut injecter des messages prefixes `[PARALLEL-NOTIFICATION]` dans ta session pendant que tu travailles. Ces messages t'informent de ce qui se passe dans les autres sessions paralleles.
+
+**Types de notifications :**
+
+| Prefixe | Signification | Action attendue |
+|---------|--------------|-----------------|
+| `Conflit de fichier detecte` | Un fichier que tu modifies est aussi modifie par une autre session | Minimiser tes changements sur ce fichier si possible. Privilegier l'ajout en fin de fichier. |
+| `La session X est terminee` | Une autre session parallele a fini son travail | Aucune action requise. Information contextuelle sur les fichiers modifies par l'autre session. |
+
+**Regles de traitement :**
+
+- Lire la notification et ajuster ton approche si pertinent
+- Ne PAS repondre a la notification (pas de message retour)
+- Ne PAS traiter la notification comme une nouvelle tache
+- Continuer ton travail normalement apres avoir pris note
+- Les notifications sont informatives, pas des ordres — utilise ton jugement
+
 ## Fin de session
 
 Quand ton ticket est termine :
