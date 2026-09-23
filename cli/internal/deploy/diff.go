@@ -282,7 +282,10 @@ func diffSkills(hubDir, projectPath string, selectedAgents []string, workflowSki
 	// Build source hash map: skill name → hash of hub source file
 	srcHashes := make(map[string]string) // key = skill name (e.g., "dev-standards-security")
 	for ref := range nativeSkillRefs {
-		srcPath := filepath.Join(skillsDir, ref+".md")
+		srcPath, err := resolveSkillPath(skillsDir, ref)
+		if err != nil {
+			continue // skip missing source skills (non-fatal)
+		}
 		hash, err := fileHash(srcPath)
 		if err != nil {
 			continue // skip missing source skills (non-fatal)

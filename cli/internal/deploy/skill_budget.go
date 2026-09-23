@@ -103,7 +103,10 @@ func ComputeAllBudgets(agentsDir, skillsDir string) ([]*AgentBudget, error) {
 }
 
 func countSkillLines(skillsDir, skillRef string) int {
-	skillPath := filepath.Join(skillsDir, skillRef+".md")
+	skillPath, err := resolveSkillPath(skillsDir, skillRef)
+	if err != nil {
+		return 0
+	}
 	data, err := os.ReadFile(skillPath)
 	if err != nil {
 		return 0

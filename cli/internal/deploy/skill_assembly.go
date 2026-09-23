@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/skillregistry"
 )
 
 // assembleAgentWithSkills reads an agent .md file, parses its frontmatter to find
@@ -63,8 +65,12 @@ func assembleAgentWithSkills(agentPath, skillsDir string) ([]byte, error) {
 
 // readSkillContent reads a skill file and returns its body content (without frontmatter).
 // skillRef is a path like "posture/concision-posture" → reads "skills/posture/concision-posture.md"
+// Falls back to community skills registry if the hub path doesn't exist.
 func readSkillContent(skillsDir, skillRef string) ([]byte, error) {
-	skillPath := filepath.Join(skillsDir, skillRef+".md")
+	skillPath, err := resolveSkillPath(skillsDir, skillRef)
+	if err != nil {
+		return nil, fmt.Errorf("reading skill %s: %w", skillRef, err)
+	}
 	data, err := os.ReadFile(skillPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading skill %s: %w", skillRef, err)
@@ -73,6 +79,32 @@ func readSkillContent(skillsDir, skillRef string) ([]byte, error) {
 	// Extract body only (skip frontmatter)
 	_, body := splitFrontmatterAndBody(data)
 	return body, nil
+}
+
+// resolveSkillPath resolves a skill reference to an absolute file path.
+// It first tries the hub skills directory (skills/<ref>.md), and falls back
+// to the community skills registry (~/.oh/skills/<name>/SKILL.md) if not found.
+func resolveSkillPath(skillsDir, skillRef string) (string, error) {
+	// Try hub path first
+	hubPath := filepath.Join(skillsDir, skillRef+".md")
+	if _, err := os.Stat(hubPath); err == nil {
+		return hubPath, nil
+	}
+
+	// Fall back to community registry: extract skill name from ref
+	parts := strings.Split(skillRef, "/")
+	skillName := parts[len(parts)-1]
+
+	reg := skillregistry.NewRegistry()
+	communityPath, err := reg.SkillMDPath(skillName)
+	if err == nil {
+		if _, statErr := os.Stat(communityPath); statErr == nil {
+			return communityPath, nil
+		}
+	}
+
+	// Neither found — return error pointing to the hub path
+	return "", fmt.Errorf("skill %q not found in hub (%s) or community registry", skillRef, hubPath)
 }
 
 // splitFrontmatterAndBody splits a markdown file into frontmatter (including delimiters)
@@ -181,7 +213,10 @@ func stripHubFields(frontmatter []byte) []byte {
 // (.opencode/skills/<name>/SKILL.md) and writes it to the destination.
 // The source skill already has valid frontmatter (name:, description:) so we just copy it.
 func deployNativeSkill(skillsDir, skillRef, destSkillsDir string) error {
-	skillPath := filepath.Join(skillsDir, skillRef+".md")
+	skillPath, err := resolveSkillPath(skillsDir, skillRef)
+	if err != nil {
+		return fmt.Errorf("reading native skill %s: %w", skillRef, err)
+	}
 	data, err := os.ReadFile(skillPath)
 	if err != nil {
 		return fmt.Errorf("reading native skill %s: %w", skillRef, err)
