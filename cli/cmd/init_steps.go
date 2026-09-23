@@ -535,7 +535,34 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 	}
 }
 
+// countHubContent returns the number of agent and skill files found
+// in the hub content directory. Returns (0, 0) when hubDir is empty or unreadable.
+func countHubContent(hubDir string) (agents int, skills int) {
+	if hubDir == "" {
+		return 0, 0
+	}
+	agentDir := filepath.Join(hubDir, "agents")
+	if entries, err := os.ReadDir(agentDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+				agents++
+			}
+		}
+	}
+	skillDir := filepath.Join(hubDir, "skills")
+	if entries, err := os.ReadDir(skillDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				skills++
+			}
+		}
+	}
+	return
+}
+
 // buildDeployStep creates the deploy agents/skills step (conditional on project).
+// The step displays a dynamic description listing the number of agents and skills
+// available, and offers two explicit buttons: "Deploy now" / "Skip".
 func buildDeployStep(s *initStepState) views.WizardStep {
 	return views.WizardStep{
 		ID:    "deploy",
@@ -546,11 +573,27 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			s.DeployConfirmed = false
 			form := tview.NewForm()
-			form.AddCheckbox(i18n.T("cmd.init.wizard_deploy_confirm"), false, func(checked bool) {
-				s.DeployConfirmed = checked
+
+			// Build dynamic description with agent/skill counts.
+			hubDir := findHubDir()
+			agentCount, skillCount := countHubContent(hubDir)
+
+			var desc string
+			if agentCount > 0 {
+				desc = i18n.Tf("cmd.init.wizard_deploy_desc", agentCount, skillCount)
+			} else {
+				desc = i18n.T("cmd.init.wizard_deploy_desc_fallback")
+			}
+			form.AddTextView("", desc, 60, 12, true, true)
+
+			form.AddButton(i18n.T("cmd.init.wizard_deploy_now"), func() {
+				s.DeployConfirmed = true
+				onDone()
 			})
-			form.AddTextView("", i18n.T("cmd.init.wizard_deploy_desc"), 60, 5, true, false)
-			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
+			form.AddButton(i18n.T("cmd.init.wizard_deploy_skip_btn"), func() {
+				s.DeployConfirmed = false
+				onDone()
+			})
 			return form
 		},
 		OnDone: func() error {

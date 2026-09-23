@@ -83,7 +83,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
-	// Group: Projet (intro + project + deploy)
+	// Group: Projet (intro + project)
 	projectGroupStart := len(steps)
 	steps = append(steps,
 		buildIntroStep(
@@ -97,7 +97,6 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			func() { s.ProjectSkipped = true },
 		),
 		buildProjectStep(s),
-		buildDeployStep(s),
 	)
 
 	// Group: MCP (intro + figma + gitlab + gslides)
@@ -149,6 +148,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		}),
 	)
 
+	// Group: Déploiement (deploy step with dynamic description)
+	deployGroupStart := len(steps)
+	steps = append(steps, buildDeployStep(s))
+
 	// ── Resolve step indices ─────────────────────────────────────────────
 	s.LangStepIdx = 1 // lang is always at index 1 (after welcome)
 	for i, step := range steps {
@@ -169,6 +172,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: 4},
 			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: projectGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: mcpGroupStart},
+			{Label: i18n.T("cmd.init.wizard_group_deploy"), StartIdx: deployGroupStart},
 		},
 		FocusButtonAfterRender: &focusBtn,
 		SummaryTargetViewFunc: func() string {
