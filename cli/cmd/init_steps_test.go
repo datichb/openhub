@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -215,12 +217,44 @@ func TestBuildDeployStep_SkipWithoutProject(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildMCPGitLabStep
+// MCP GitLab step (via buildMCPTokenStep with checkbox opts)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// buildTestMCPGitLabStep creates the GitLab MCP step the same way init_wizard.go does.
+func buildTestMCPGitLabStep(s *initStepState) views.WizardStep {
+	return buildMCPTokenStep(mcpTokenStepOpts{
+		ID:              "mcp_gitlab",
+		LabelI18nKey:    "cmd.init.wizard_step_mcp_gitlab",
+		DisplayName:     "GitLab",
+		TokenKey:        config.DefaultGitLabTokenKey,
+		HintI18nKey:     "cmd.init.mcp_hint_gitlab",
+		TokenVar:        &s.GitlabToken,
+		SkipIf:          func() bool { return s.MCPSkipped },
+		SecretsFunc:     func() domain.SecretStore { return (*s.AppPtr).Secrets },
+		CheckboxLabel:   i18n.T("cmd.init.mcp_gitlab_write_short"),
+		CheckboxDescKey: "cmd.init.mcp_gitlab_write_desc",
+		CheckboxVar:     &s.GitlabWrite,
+		AfterStore: func() error {
+			return config.Update(func(c *config.Config) error {
+				c.MCP.Gitlab.Enabled = true
+				if s.GitlabWrite {
+					c.MCP.Gitlab.WriteEnabled = true
+				}
+				return nil
+			})
+		},
+		ExtraInfoFields: func() []views.InfoField {
+			if s.GitlabToken != "" && s.GitlabWrite {
+				return []views.InfoField{{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")}}
+			}
+			return nil
+		},
+	})
+}
 
 func TestBuildMCPGitLabStep_Structure(t *testing.T) {
 	s := newTestState()
-	step := buildMCPGitLabStep(s)
+	step := buildTestMCPGitLabStep(s)
 
 	assert.Equal(t, "mcp_gitlab", step.ID)
 	assert.NotNil(t, step.Form, "gitlab must have Form")
@@ -231,7 +265,7 @@ func TestBuildMCPGitLabStep_Structure(t *testing.T) {
 
 func TestBuildMCPGitLabStep_SkipWhenFlagged(t *testing.T) {
 	s := newTestState()
-	step := buildMCPGitLabStep(s)
+	step := buildTestMCPGitLabStep(s)
 
 	s.MCPSkipped = false
 	assert.False(t, step.SkipIf(), "should not skip when flag is false")
@@ -242,7 +276,7 @@ func TestBuildMCPGitLabStep_SkipWhenFlagged(t *testing.T) {
 
 func TestBuildMCPGitLabStep_FormRendering(t *testing.T) {
 	s := newTestState()
-	step := buildMCPGitLabStep(s)
+	step := buildTestMCPGitLabStep(s)
 
 	app := tview.NewApplication()
 	form := step.Form(app, func() {})
@@ -493,7 +527,7 @@ func TestBuildMCPGitLabStep_OnDone_StoresAndEnables(t *testing.T) {
 		AppPtr:          appPtr,
 	}
 
-	step := buildMCPGitLabStep(s)
+	step := buildTestMCPGitLabStep(s)
 	err := step.OnDone()
 	require.NoError(t, err)
 
@@ -520,7 +554,7 @@ func TestBuildMCPGitLabStep_OnDone_EmptyNoOp(t *testing.T) {
 		AppPtr:          appPtr,
 	}
 
-	step := buildMCPGitLabStep(s)
+	step := buildTestMCPGitLabStep(s)
 	err := step.OnDone()
 	require.NoError(t, err)
 	assert.Empty(t, sc.secrets, "no secret should be stored when token is empty")

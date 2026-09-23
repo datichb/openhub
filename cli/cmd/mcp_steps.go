@@ -29,6 +29,18 @@ type mcpTokenStepOpts struct {
 	// AfterStore is called after the token is stored in keychain.
 	// Use it to enable the service in config.
 	AfterStore func() error
+
+	// Optional checkbox (e.g. GitLab write mode toggle).
+	// When CheckboxVar is non-nil, a checkbox is rendered after the hint.
+	// CheckboxLabel should be SHORT (~12 chars max) to avoid polluting
+	// tview's maxLabelWidth calculation, which would crush the password field.
+	CheckboxLabel   string // short label for the checkbox (e.g. "Write access")
+	CheckboxDescKey string // i18n key for description text shown above the checkbox
+	CheckboxVar     *bool  // pointer to the bool that stores the checkbox state
+
+	// ExtraInfoFields returns additional InfoField entries appended after the
+	// standard "Configured"/"Skipped" field. Used by GitLab to show write mode status.
+	ExtraInfoFields func() []views.InfoField
 }
 
 // resolveSecrets returns the secret store from opts, preferring SecretsFunc for lazy resolution.
@@ -68,6 +80,15 @@ func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 			if opts.HintI18nKey != "" {
 				form.AddTextView("", i18n.T(opts.HintI18nKey), 60, 2, true, false)
 			}
+			// Optional checkbox (e.g. GitLab write mode)
+			if opts.CheckboxVar != nil {
+				if opts.CheckboxDescKey != "" {
+					form.AddTextView("", i18n.T(opts.CheckboxDescKey), 60, 2, true, false)
+				}
+				form.AddCheckbox(opts.CheckboxLabel, *opts.CheckboxVar, func(checked bool) {
+					*opts.CheckboxVar = checked
+				})
+			}
 			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 			return form
 		},
@@ -90,7 +111,11 @@ func buildMCPTokenStep(opts mcpTokenStepOpts) views.WizardStep {
 			if *opts.TokenVar == "" {
 				v = i18n.T("cmd.init.wizard_mcp_skipped")
 			}
-			return []views.InfoField{{Label: opts.DisplayName, Value: v}}
+			fields := []views.InfoField{{Label: opts.DisplayName, Value: v}}
+			if opts.ExtraInfoFields != nil {
+				fields = append(fields, opts.ExtraInfoFields()...)
+			}
+			return fields
 		},
 	}
 }

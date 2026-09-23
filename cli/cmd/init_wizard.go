@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -129,7 +130,34 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				})
 			},
 		}),
-		buildMCPGitLabStep(s),
+		buildMCPTokenStep(mcpTokenStepOpts{
+			ID:           "mcp_gitlab",
+			LabelI18nKey: "cmd.init.wizard_step_mcp_gitlab",
+			DisplayName:  "GitLab",
+			TokenKey:     config.DefaultGitLabTokenKey,
+			HintI18nKey:  "cmd.init.mcp_hint_gitlab",
+			TokenVar:     &s.GitlabToken,
+			SkipIf:       func() bool { return s.MCPSkipped },
+			SecretsFunc:  func() domain.SecretStore { return (*s.AppPtr).Secrets },
+			CheckboxLabel:   i18n.T("cmd.init.mcp_gitlab_write_short"),
+			CheckboxDescKey: "cmd.init.mcp_gitlab_write_desc",
+			CheckboxVar:     &s.GitlabWrite,
+			AfterStore: func() error {
+				return config.Update(func(c *config.Config) error {
+					c.MCP.Gitlab.Enabled = true
+					if s.GitlabWrite {
+						c.MCP.Gitlab.WriteEnabled = true
+					}
+					return nil
+				})
+			},
+			ExtraInfoFields: func() []views.InfoField {
+				if s.GitlabToken != "" && s.GitlabWrite {
+					return []views.InfoField{{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")}}
+				}
+				return nil
+			},
+		}),
 		buildMCPTokenStep(mcpTokenStepOpts{
 			ID:           "mcp_gslides",
 			LabelI18nKey: "cmd.init.wizard_step_mcp_gslides",
