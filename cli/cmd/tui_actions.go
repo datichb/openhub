@@ -14,6 +14,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -198,16 +199,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			OnDone: func() error {
 				id := generateProjectID(name)
-				cmd := exec.Command("bd", "-C", absPath, "init", "--prefix", id, "--skip-hooks", "--skip-agents", "--setup-exclude")
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("bd init: %w", err)
-				}
-				for _, label := range []string{"ai-delegated", "feature", "fix"} {
-					if err := exec.Command("bd", "-C", absPath, "label", "create", label).Run(); err != nil {
-						return fmt.Errorf("bd label create %s: %w", label, err)
-					}
-				}
-				return nil
+				return beads.Init(absPath, id)
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{{Label: "Beads", Value: "initialized"}}

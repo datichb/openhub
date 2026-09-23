@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -197,21 +198,14 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			},
 			OnDone: func() error {
 				id := generateProjectID(name)
-				cmd := exec.Command("bd", "-C", absPath, "init", "--prefix", id, "--skip-hooks", "--skip-agents", "--setup-exclude")
-				if output, err := cmd.CombinedOutput(); err != nil {
+				if err := beads.Init(absPath, id); err != nil {
 					fmt.Fprintf(a.IO.Out, "  %s bd init: %s\n",
 						theme.WarningStyle.Render(theme.IconWarning),
-						strings.TrimSpace(string(output)))
+						err.Error())
 				} else {
 					fmt.Fprintf(a.IO.Out, "  %s %s\n",
 						theme.SuccessStyle.Render(theme.IconSuccess),
 						i18n.T("form.project.beads_initialized"))
-				}
-				// Register default labels
-				for _, label := range []string{"ai-delegated", "feature", "fix"} {
-					if err := exec.Command("bd", "-C", absPath, "label", "create", label).Run(); err != nil {
-						slog.Warn("failed to create beads label", "label", label, "error", err)
-					}
 				}
 				return nil
 			},

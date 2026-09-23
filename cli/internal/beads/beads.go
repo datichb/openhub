@@ -40,6 +40,17 @@ func Available() error {
 	return nil
 }
 
+// BdCommand creates an exec.Cmd for the bd binary with the
+// BD_ALLOW_REMOTE_MIGRATE=1 env var set, so that schema migrations
+// are never blocked when oh calls bd internally. This prevents the
+// "refusing to auto-apply pending schema migrations" error that occurs
+// when the bd binary is upgraded and the local database needs migration.
+func BdCommand(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "bd", args...)
+	cmd.Env = append(os.Environ(), "BD_ALLOW_REMOTE_MIGRATE=1")
+	return cmd
+}
+
 // ListReady returns tickets ready for implementation.
 // Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json
 func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
@@ -58,6 +69,13 @@ func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
 func ListAll(projectPath string) ([]Ticket, error) {
 	args := []string{"-C", projectPath, "list", "--json", "--flat"}
 	return runBdJSON(args)
+}
+
+// ListCWD returns all tickets from the current working directory (flat, no tree nesting).
+// Runs: bd list --json --flat
+// This is used by the CLI board command which operates in the cwd.
+func ListCWD() ([]Ticket, error) {
+	return runBdJSON([]string{"list", "--json", "--flat"})
 }
 
 // IsInitialized reports whether the project at projectPath has a .beads/ directory.
@@ -110,12 +128,20 @@ func Init(projectPath, prefix string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "init",
+	cmd := BdCommand(ctx, "-C", projectPath, "init",
 		"--prefix", prefix,
 		"--skip-hooks", "--skip-agents", "--setup-exclude")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("bd init: %s", strings.TrimSpace(string(out)))
 	}
+
+	// Ensure local-only mode so schema migrations auto-apply on bd upgrades.
+	// This prevents the "refusing to auto-apply pending schema migrations to a
+	// remote-backed database" error. Best-effort: ignore errors from older bd
+	// versions that may not support this config key.
+	localCtx, localCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer localCancel()
+	_ = BdCommand(localCtx, "-C", projectPath, "config", "set", "dolt.local-only", "true").Run()
 
 	// Belt & suspenders: sanitize in case flags were ignored or bd evolved.
 	_ = SanitizeBeadsInit(projectPath)
@@ -123,7 +149,7 @@ func Init(projectPath, prefix string) error {
 	// Register default labels used by opencode agents
 	for _, label := range []string{"ai-delegated", "feature", "fix"} {
 		lctx, lcancel := context.WithTimeout(context.Background(), 10*time.Second)
-		exec.CommandContext(lctx, "bd", "-C", projectPath, "label", "create", label).Run() //nolint:errcheck // best-effort label creation, failure is non-fatal
+		BdCommand(lctx, "-C", projectPath, "label", "create", label).Run() //nolint:errcheck // best-effort label creation, failure is non-fatal
 		lcancel()
 	}
 	return nil
@@ -338,7 +364,7 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "show", ticketID, "--json")
+	cmd := BdCommand(ctx, "-C", projectPath, "show", ticketID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -365,7 +391,7 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 func runBdJSON(args []string) ([]Ticket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", args...)
+	cmd := BdCommand(ctx, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -493,7 +519,7 @@ func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (strin
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", args...)
+	cmd := BdCommand(ctx, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bd create failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -517,7 +543,7 @@ func CreateSubtask(projectPath, parentID, title string, priority int) (string, e
 	args := []string{"-C", projectPath, "create", title, "-p", fmt.Sprintf("%d", priority), "--json"}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", args...)
+	cmd := BdCommand(ctx, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bd create subtask failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -534,7 +560,7 @@ func CreateSubtask(projectPath, parentID, title string, priority int) (string, e
 	depArgs := []string{"-C", projectPath, "dep", "add", created.ID, parentID}
 	depCtx, depCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer depCancel()
-	depCmd := exec.CommandContext(depCtx, "bd", depArgs...)
+	depCmd := BdCommand(depCtx, depArgs...)
 	if depOut, err := depCmd.CombinedOutput(); err != nil {
 		return created.ID, fmt.Errorf("bd dep add failed: %s: %w", strings.TrimSpace(string(depOut)), err)
 	}
@@ -556,7 +582,7 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "remember", msg)
+	cmd := BdCommand(ctx, "-C", projectPath, "remember", msg)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd remember failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -569,7 +595,7 @@ func RememberGitLabContext(projectPath, gitlabRef, title, description string) er
 func AddNote(projectPath, ticketID, note string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--note", note)
+	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--note", note)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd update note failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -582,7 +608,7 @@ func AddNote(projectPath, ticketID, note string) error {
 func ClaimTicket(projectPath, ticketID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--claim")
+	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--claim")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd claim failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -595,7 +621,7 @@ func ClaimTicket(projectPath, ticketID string) error {
 func CloseTicket(projectPath, ticketID, message string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "close", ticketID, message)
+	cmd := BdCommand(ctx, "-C", projectPath, "close", ticketID, message)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd close failed: %s: %w", strings.TrimSpace(string(output)), err)
@@ -609,7 +635,7 @@ func CloseTicket(projectPath, ticketID, message string) error {
 func LinkToTracker(projectPath, ticketID, externalRef string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "bd", "-C", projectPath, "update", ticketID, "--external-ref", externalRef)
+	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--external-ref", externalRef)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("bd link failed: %s: %w", strings.TrimSpace(string(output)), err)

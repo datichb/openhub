@@ -1,13 +1,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -32,7 +31,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 
 	if len(tickets) == 0 {
 		// Distinguish "bd not installed" from "0 tickets"
-		if _, err := exec.LookPath("bd"); err != nil {
+		if err := beads.Available(); err != nil {
 			fmt.Fprintln(a.IO.Out, theme.WarningStyle.Render(theme.IconWarning)+" "+i18n.T("tui.board.bd_not_installed"))
 		} else {
 			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("tui.board.no_tickets_hint")))
@@ -79,7 +78,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 	return views.RunBoard(cfg)
 }
 
-// boardTicket is a local struct for JSON deserialization from bd list.
+// boardTicket is a local struct for the CLI board display.
 type boardTicket struct {
 	ID       string
 	Title    string
@@ -88,29 +87,16 @@ type boardTicket struct {
 	Type     string
 }
 
-// fetchTickets attempts to get tickets from the beads system (bd list).
+// fetchTickets attempts to get tickets from the beads system via beads.ListCWD.
 // Returns nil if bd is not installed or returns no data.
 func fetchTickets() []boardTicket {
-	if _, err := exec.LookPath("bd"); err != nil {
-		return nil // bd not installed — caller handles the message
-	}
-
-	out, err := exec.Command("bd", "list", "--json").Output()
-	if err != nil {
+	if err := beads.Available(); err != nil {
 		return nil
 	}
-
-	var raw []struct {
-		ID       string `json:"id"`
-		Title    string `json:"title"`
-		Status   string `json:"status"`
-		Priority string `json:"priority"`
-		Type     string `json:"type"`
-	}
-	if err := json.Unmarshal(out, &raw); err != nil {
+	raw, err := beads.ListCWD()
+	if err != nil || len(raw) == 0 {
 		return nil
 	}
-
 	tickets := make([]boardTicket, len(raw))
 	for i, r := range raw {
 		tickets[i] = boardTicket{

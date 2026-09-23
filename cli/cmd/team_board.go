@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -69,11 +71,13 @@ func fetchSubBeadsJSON(parentID string) []struct {
 	Title  string `json:"title"`
 	Status string `json:"status"`
 } {
-	if _, err := exec.LookPath("bd"); err != nil {
+	if err := beads.Available(); err != nil {
 		return nil
 	}
 
-	out, err := exec.Command("bd", "list", "--parent", parentID, "--json").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := beads.BdCommand(ctx, "list", "--parent", parentID, "--json").Output()
 	if err != nil || len(out) == 0 {
 		return nil
 	}
