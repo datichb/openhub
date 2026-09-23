@@ -38,6 +38,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 - **Signaler honnêtement les hypothèses insuffisamment documentées** — l'orchestrator a besoin de cette information
 - Ce bloc est produit **après** la création du ticket (ou après refus explicite de l'utilisateur)
 - Ne jamais minimiser l'impact si des régressions sont possibles
+- **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 
 ---
 
@@ -45,7 +46,7 @@ Il est injecté dans le `debugger` et dans l'`orchestrator` — producteur et co
 
 **Spécificités debugger à vérifier :**
 
-- **Champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Rapport de diagnostic complet`, `Statut`. Si l'un est absent → demander au debugger de compléter avant de continuer.
+- **Champs obligatoires** : `Cause racine`, `Impact et régressions potentielles`, `Tickets de correction créés`, `Rapport de diagnostic complet`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander au debugger de compléter avant de continuer.
 - **Priorité absolue** : présenter `### Actions d'urgence si bug en prod` en premier si renseignées — elles priment sur toute autre décision.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport de diagnostic complet` est affiché intégralement.
 - **Suite** : si des tickets ont été créés → proposer à l'utilisateur de les intégrer dans le workflow (Mode A ou B). Si aucun ticket (cause non déterminée) → informer et proposer les options.

@@ -42,6 +42,11 @@
 <Diffs significatifs, résultats de tests globaux, informations nécessaires à l'orchestrator pour construire le CP-feature — uniquement si pertinent>
 <"Aucune" si non applicable>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 **Statut global :** `succès` | `partiel` | `bloqué`
 ```
 

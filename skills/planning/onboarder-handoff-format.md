@@ -38,6 +38,7 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 - **Signaler honnêtement les zones d'incertitude** — l'orchestrator en a besoin pour informer l'utilisateur avant de démarrer
 - Ce bloc est produit **après** l'écriture des fichiers (ou après refus explicite de les écrire)
 - Ne jamais omettre `### Rapport d'onboarding` — les listes structurées seules ne suffisent pas
+- **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 
 ---
 
@@ -45,7 +46,7 @@ Il est injecté dans l'`onboarder` et dans l'`orchestrator` — producteur et co
 
 **Spécificités onboarder à vérifier :**
 
-- **Champs obligatoires** : `Rapport d'onboarding`, `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Statut`. Si l'un est absent → demander à l'onboarder de compléter.
+- **Champs obligatoires** : `Rapport d'onboarding`, `Stack technique`, `Contexte métier`, `Design et maquettes`, `Stratégie de test`, `Conventions identifiées`, `Dette technique détectée`, `Zones d'incertitude`, `Fichiers de contexte produits`, `Questions bloquantes`, `Statut`. Si l'un est absent → demander à l'onboarder de compléter.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). Le `### Rapport d'onboarding` est affiché en premier.
 - **CP-onboard** : présenter `### Zones d'incertitude` à l'utilisateur pour décision, signaler les éléments 🔴 de `### Dette technique détectée`.
 - **Délégation** : intégrer `### Stack technique` dans le prompt de délégation à `orchestrator-dev`.

@@ -45,5 +45,10 @@
 - <risque 2>
 <"Aucun risque identifié" si le plan est clair et sans risque notable>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `planification-complète` | `planification-partielle` | `bloqué`

@@ -35,6 +35,7 @@ Il est injecté dans le `documentarian` et dans `orchestrator-dev` — producteu
 - Le contenu de documentation est écrit dans les fichiers (via `write`/`edit`) — il n'est PAS reproduit dans la discussion
 - **La section `### Résumé de l'entrée`** doit être suffisamment précise pour qu'`orchestrator-dev` puisse l'inclure dans le récap global sans relire le fichier
 - Si statut = `bloqué` : expliquer clairement la raison du blocage dans le résumé
+- **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 
 ---
 

@@ -21,5 +21,10 @@
 - <décision 2 — ex : entrée regroupée sous une seule version car tickets liés>
 <"Aucune décision notable" si documentation standard>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `documenté` | `partiellement-documenté` | `bloqué`

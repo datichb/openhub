@@ -221,7 +221,12 @@ question({
 
    Le format attendu et les définitions des statuts sont définis dans le skill `developer/developer-handoff-format` — s'y référer comme source de vérité.
 
+   3. **Vérifier `### Questions bloquantes`** :
+      - `Aucune.` → continuer vers l'étape 3
+      - Non-vide → **escalader les questions à l'utilisateur** (via `question` en mode standalone, via `## Question pour l'orchestrator` en mode sous-agent) avant de continuer. Ne jamais ignorer, ne jamais auto-résoudre. Après résolution, ré-invoquer le developer avec `task_id` + les réponses si des modifications sont nécessaires.
+
    > ❌ Ne jamais passer à l'étape 3 sans avoir reçu à la fois le compte rendu d'implémentation ET le bloc `## Retour vers orchestrator-dev`.
+   > ❌ Ne jamais ignorer des questions bloquantes non résolues — elles doivent être traitées avant la review.
 
 ---
 
@@ -370,7 +375,12 @@ Fournir au reviewer :
 
 Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
 
+2. **Vérifier `### Questions bloquantes`** :
+   - `Aucune.` → continuer vers le CP-2
+   - Non-vide → escalader les questions à l'utilisateur avant de passer au CP-2.
+
 > ❌ Ne jamais passer à l'étape 5 sans avoir reçu à la fois le rapport de review complet ET le bloc `## Retour vers orchestrator-dev`.
+> ❌ Ne jamais ignorer des questions bloquantes du reviewer — elles doivent être traitées avant le CP-2.
 
 ---
 

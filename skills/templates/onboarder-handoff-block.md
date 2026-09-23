@@ -61,5 +61,10 @@
 - `docs/context/technical.md` — <créé | mis à jour | non créé (raison)>
 - `docs/context/business/` — <liste des fichiers créés/mis à jour, ex : auth.md, billing.md | aucun>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `contexte-établi` | `contexte-partiel` | `bloqué`

@@ -77,5 +77,10 @@
 ### 🔍 Hors scope
 <observations pertinentes mais hors du périmètre de cette review — pour information uniquement>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `approuvé` | `corrections-requises` | `bloquant-sécurité`

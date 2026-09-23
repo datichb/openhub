@@ -72,5 +72,10 @@ Dry-run output : [résultat de la commande de preview]
 - <blocage 1 — résolu ou non, et comment>
 <"Aucun blocage rencontré" si l'implémentation s'est déroulée normalement>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `implémenté` | `partiellement-implémenté` | `bloqué`

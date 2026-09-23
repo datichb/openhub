@@ -60,6 +60,7 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 - **`### Critères d'acceptance couverts`** doit être basé sur `bd show <ID>` — cocher chaque critère explicitement
 - **`### Points d'attention pour la review`** est critique : c'est ce qui permet au reviewer de concentrer son attention sur les zones sensibles
 - **`### Données techniques brutes`** : stacktraces, diffs annotés, extraits de code — uniquement si nécessaire à la review ou au diagnostic. Sinon "Aucune"
+- **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
 - **Toujours passer le ticket en `review`** avant de produire ce bloc (sauf si statut = `bloqué`)
 - Si statut = `bloqué` : exécuter `bd update <ID> -s blocked` + `bd comments add <ID> "Bloqué par : <raison>"` avant de produire le bloc
 - Ne jamais dupliquer dans du texte libre ce qui est déjà dans les champs structurés du bloc
@@ -80,7 +81,9 @@ Il est injecté dans chaque `developer-*` et dans `orchestrator-dev` — product
 
 3. **Transmettre le nom de la branche** au reviewer à l'étape 4 — le reviewer récupère lui-même le diff complet via ses propres outils (`git diff`). Les `**Changements par fichier**` sont conservés pour le compte rendu d'étape (étape 6) uniquement.
 
-4. **Intégrer les données structurées du bloc** (`### Contexte et décisions`, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`) dans le récap global structuré (section "Récap global — Fin de session").
+4. **Traiter les `### Questions bloquantes`** — si la liste n'est pas `Aucune.`, résoudre chaque question avant de continuer le workflow.
+
+5. **Intégrer les données structurées du bloc** (`### Contexte et décisions`, `**Diff résumé**`, `**Changements par fichier**`, `### Critères d'acceptance couverts`, `### Points d'attention`, `### Questions bloquantes`) dans le récap global structuré (section "Récap global — Fin de session").
 
 5. **Si le bloc est absent** → demander explicitement au developer de le produire avant de continuer.
 

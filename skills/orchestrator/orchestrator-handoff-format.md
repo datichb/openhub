@@ -124,13 +124,15 @@ Quand le parallélisme est actif en mode `manuel`, les CP-1 et CP-3 de chaque se
 | `partiel` | Au moins un ticket ignoré ou bloqué après 3 cycles de review |
 | `bloqué` | Au moins un ticket est resté bloqué et nécessite une intervention manuelle |
 
+- **`### Questions bloquantes`** (obligatoire) — liste numérotée des questions nécessitant une réponse avant de poursuivre. Si aucune : écrire `Aucune.`. Le coordinateur **doit** résoudre ces questions avant de continuer le workflow.
+
 ---
 
 ## Règles pour l'orchestrator (consommateur)
 
 ### À la réception d'un `## Retour vers orchestrator`
 
-- **Retranscrire les champs du bloc de manière formatée** dans le fil de discussion — tous les champs sont affichés lisiblement à l'utilisateur (tableau `### Détail par ticket`, `### Contexte et décisions par ticket`, `### Points d'attention globaux`).
+- **Retranscrire les champs du bloc de manière formatée** dans le fil de discussion — tous les champs sont affichés lisiblement à l'utilisateur (tableau `### Détail par ticket`, `### Contexte et décisions par ticket`, `### Points d'attention globaux`, `### Questions bloquantes`).
 - Ce format structuré est requis pour construire le CP-feature.
 - Si le bloc ne contient pas les champs requis → les demander explicitement à `orchestrator-dev` avant de continuer.
 - Ne jamais construire le CP-feature à partir d'un bloc incomplet.

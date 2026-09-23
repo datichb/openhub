@@ -99,6 +99,11 @@
 - <critère 2>
 **Notes techniques :** <indication de fix si évidente>
 
+<!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
+### Questions bloquantes
+
+Aucune.
+
 ### Statut
 `diagnostiqué` | `partiellement-diagnostiqué` | `non-reproductible`
 ```
