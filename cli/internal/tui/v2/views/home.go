@@ -71,6 +71,7 @@ type HomeView struct {
 }
 
 var _ View = (*HomeView)(nil)
+var _ ModeInfoProvider = (*HomeView)(nil)
 
 func NewHomeView(cfg HomeViewConfig) *HomeView {
 	return &HomeView{cfg: cfg}
@@ -183,6 +184,15 @@ func (v *HomeView) StatusHints() string {
 		i18n.T("tui.hints.help"),
 		i18n.T("tui.hints.quit"),
 	)
+}
+
+// ModeInfo provides contextual information for the persistent mode bar.
+func (v *HomeView) ModeInfo() ModeBarInfo {
+	return ModeBarInfo{
+		Icon:  "🏠",
+		Label: i18n.T("tui.mode.hub"),
+		Right: "openhub",
+	}
 }
 
 func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {

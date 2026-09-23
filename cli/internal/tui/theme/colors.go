@@ -94,3 +94,16 @@ const (
 	// BorderActiveHex is for the active menu item border (= Action/Peach).
 	BorderActiveHex = ActionHex
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode indicator colors — used by the omnibar gutter and mode bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+const (
+	// ModeHubHex is the gutter/mode bar color for hub mode — Blue (Accent).
+	ModeHubHex = AccentHex
+	// ModeTeamHex is the gutter/mode bar color for team mode — Lavender (Info).
+	ModeTeamHex = InfoHex
+	// ModeProjectHex is the gutter/mode bar color for project mode — Peach (Action).
+	ModeProjectHex = ActionHex
+)

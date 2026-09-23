@@ -82,6 +82,16 @@ var (
 	BorderActive = tcell.GetColor(BorderActiveHex)
 )
 
+// Mode indicators — named aliases for clarity in the omnibar gutter / mode bar.
+var (
+	// ModeHubColor is the gutter color for hub mode (= Accent / Blue).
+	ModeHubColor = tcell.GetColor(ModeHubHex)
+	// ModeTeamColor is the gutter color for team mode (= Info / Lavender).
+	ModeTeamColor = tcell.GetColor(ModeTeamHex)
+	// ModeProjectColor is the gutter color for project mode (= Action / Peach).
+	ModeProjectColor = tcell.GetColor(ModeProjectHex)
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Pre-built tcell.Style values for convenience
 // ─────────────────────────────────────────────────────────────────────────────

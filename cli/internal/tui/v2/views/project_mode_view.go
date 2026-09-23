@@ -79,6 +79,7 @@ type ProjectModeView struct {
 
 var _ View = (*ProjectModeView)(nil)
 var _ CommandProvider = (*ProjectModeView)(nil)
+var _ ModeInfoProvider = (*ProjectModeView)(nil)
 
 // NewProjectModeView creates a new project mode view.
 func NewProjectModeView(cfg ProjectModeConfig) *ProjectModeView {
@@ -116,6 +117,29 @@ func (v *ProjectModeView) StatusHints() string {
 		i18n.T("tui.hints.commands"),
 		i18n.T("tui.hints.hub_mode"),
 	)
+}
+
+// ModeInfo provides contextual information for the persistent mode bar.
+func (v *ProjectModeView) ModeInfo() ModeBarInfo {
+	info := ModeBarInfo{Icon: "💻", Label: i18n.T("tui.mode.project")}
+	if v.project == nil {
+		return info
+	}
+	info.Label = v.project.Name
+
+	// Build right-side context: branch + deploy status.
+	right := ""
+	if v.project.Branch != "" {
+		right = v.project.Branch
+	}
+	if v.deployStatus != nil && v.deployStatus.Deployed {
+		if right != "" {
+			right += " · "
+		}
+		right += theme.IconSuccess + " deployed"
+	}
+	info.Right = right
+	return info
 }
 
 // Mount builds the project mode view.

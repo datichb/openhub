@@ -172,9 +172,10 @@ func New(cfg Config) *Shell {
 	// Build omnibar
 	s.omnibar = NewOmnibar(s, s.registry)
 
-	// Build router — callback updates omnibar hints
+	// Build router — callback updates omnibar hints and mode bar
 	s.router = router.New(s.content, app, func(v views.View) {
 		s.omnibar.SetHints(v.StatusHints())
+		s.updateModeBar(v)
 	})
 
 	// Register all views and wire ShellAccess
@@ -185,11 +186,12 @@ func New(cfg Config) *Shell {
 		}
 	}
 
-	// Build layout: content fills space, omnibar is 3 rows at bottom.
+	// Build layout: content fills space, omnibar is 6 rows at bottom
+	// (omnibar hints/input + 1-row mode bar + gutter).
 	// Suggestions list is inserted dynamically between content and omnibar when active.
 	s.root = tview.NewFlex().SetDirection(tview.FlexRow)
 	s.root.AddItem(s.content, 0, 1, true)
-	s.root.AddItem(s.omnibar.Primitive(), 5, 0, false)
+	s.root.AddItem(s.omnibar.Primitive(), 6, 0, false)
 
 	// Wrap in Pages for overlay support (toasts, inline prompts)
 	s.pages = tview.NewPages()
@@ -242,7 +244,7 @@ func (s *Shell) repositionSuggestions() {
 	}
 
 	height := s.omnibar.SuggestionsHeight()
-	const omnibarHeight = 5
+	const omnibarHeight = 6 // omnibar (5 visual rows) + mode bar (1 row)
 
 	y := screenH - omnibarHeight - height
 	if y < 0 {
@@ -1039,19 +1041,50 @@ func (s *Shell) PopView() bool {
 	return s.router.Pop()
 }
 
-// SetOmnibarVisible shows or hides the bottom omnibar. When hidden, the
-// omnibar's 5 rows are reclaimed for the content area. The omnibar is
-// deactivated before hiding to ensure suggestions are dismissed and focus
-// is properly restored.
+// SetOmnibarVisible shows or hides the bottom omnibar (including mode bar
+// and gutter). When hidden, the 6 rows are reclaimed for the content area.
+// The omnibar is deactivated before hiding to ensure suggestions are
+// dismissed and focus is properly restored.
 func (s *Shell) SetOmnibarVisible(visible bool) {
 	if !visible {
 		s.omnibar.Deactivate()
 	}
 	if visible {
-		s.root.ResizeItem(s.omnibar.Primitive(), 5, 0)
+		s.root.ResizeItem(s.omnibar.Primitive(), 6, 0)
 	} else {
 		s.root.ResizeItem(s.omnibar.Primitive(), 0, 0)
 	}
+}
+
+// updateModeBar refreshes the mode bar content based on the current view and
+// active mode. If the view implements ModeInfoProvider, its ModeInfo() is used;
+// otherwise a default is built from the shell's mode/project/team state.
+func (s *Shell) updateModeBar(v views.View) {
+	// If the view supplies its own mode info, use it.
+	if mp, ok := v.(views.ModeInfoProvider); ok {
+		s.omnibar.UpdateModeBar(s.activeMode, mp.ModeInfo())
+		return
+	}
+
+	// Fallback: build default info from shell state.
+	var info views.ModeBarInfo
+	switch s.activeMode {
+	case views.ModeHub:
+		info = views.ModeBarInfo{Icon: "🏠", Label: "Hub"}
+	case views.ModeTeam:
+		label := "Team"
+		if s.activeTeam != nil {
+			label = s.activeTeam.Name
+		}
+		info = views.ModeBarInfo{Icon: "👥", Label: label}
+	case views.ModeProject:
+		label := "Project"
+		if s.activeProject != nil {
+			label = s.activeProject.Name
+		}
+		info = views.ModeBarInfo{Icon: "💻", Label: label}
+	}
+	s.omnibar.UpdateModeBar(s.activeMode, info)
 }
 
 // SetProjectMode activates or deactivates project mode.

@@ -68,6 +68,7 @@ type TeamModeView struct {
 }
 
 var _ View = (*TeamModeView)(nil)
+var _ ModeInfoProvider = (*TeamModeView)(nil)
 
 // NewTeamModeView creates a new team mode view.
 func NewTeamModeView(cfg TeamModeConfig) *TeamModeView {
@@ -101,6 +102,24 @@ func (v *TeamModeView) StatusHints() string {
 		i18n.T("tui.hints.commands"),
 		i18n.T("tui.hints.hub_mode"),
 	)
+}
+
+// ModeInfo provides contextual information for the persistent mode bar.
+func (v *TeamModeView) ModeInfo() ModeBarInfo {
+	info := ModeBarInfo{Icon: "👥", Label: i18n.T("tui.mode.team")}
+	if v.team == nil {
+		return info
+	}
+	info.Label = v.team.Name
+
+	// Build right-side context: member count + active tickets.
+	if v.cfg.TeamStats != nil {
+		stats := v.cfg.TeamStats()
+		info.Right = fmt.Sprintf("%d %s · %d %s",
+			stats.MemberCount, i18n.T("tui.mode.members"),
+			stats.ActiveCount, i18n.T("tui.mode.active"))
+	}
+	return info
 }
 
 // Mount builds the team mode landing view.

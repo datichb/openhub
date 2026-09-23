@@ -201,6 +201,25 @@ type ModeAware interface {
 	SupportedModes() []Mode
 }
 
+// ModeBarInfo carries the data rendered in the persistent mode bar at the
+// bottom of the shell, below the omnibar.
+type ModeBarInfo struct {
+	// Label is the primary text (e.g. "Hub", "Team Infra", "api-gateway").
+	Label string
+	// Icon is a prefix glyph (e.g. "🏠", "👥", "💻").
+	Icon string
+	// Right is optional right-aligned context (e.g. "main · ✓ deployed").
+	Right string
+}
+
+// ModeInfoProvider is an optional interface that views implement to supply
+// contextual information for the persistent mode bar below the omnibar.
+// Views that don't implement this get a default label based on the active
+// mode and the current project/team context stored in the shell.
+type ModeInfoProvider interface {
+	ModeInfo() ModeBarInfo
+}
+
 // ProjectInfo is a minimal project representation for the tracker mapping UI.
 type ProjectInfo struct {
 	ID   string

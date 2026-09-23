@@ -16,6 +16,14 @@ import (
 // It replaces the menu sidebar, command palette, header, and status bar
 // with a single interaction point.
 //
+// Layout (bottom of screen):
+//
+//	┌──┬──────────────────────────────────────────┐
+//	│▎ │  hints or input (pages container)         │  ← omnibar
+//	│▎ │  🏠 Hub                    openhub v1.x   │  ← mode bar
+//	└──┴──────────────────────────────────────────┘
+//	 gutter (2 cols)         rightPane (flex)
+//
 // Modes:
 //   - Passive: displays contextual hints (view keybindings)
 //   - Active: accepts input with fuzzy suggestions above
@@ -25,6 +33,9 @@ type Omnibar struct {
 	input       *tview.InputField
 	hints       *tview.TextView
 	container   *tview.Pages // switches between input and hints
+	modeBar     *tview.TextView
+	gutter      *tview.TextView
+	wrapper     *tview.Flex // outermost primitive: gutter | rightPane
 	active      bool
 	suggestions *tview.List
 	visible     []Command
@@ -42,7 +53,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.hints.SetBackgroundColor(theme.BgElement)
-	o.hints.SetBorderPadding(1, 1, 2, 2)
+	o.hints.SetBorderPadding(1, 0, 1, 2)
 
 	// Input field (active mode)
 	o.input = tview.NewInputField().
@@ -52,7 +63,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetPlaceholder(i18n.T("tui.omnibar.placeholder")).
 		SetPlaceholderTextColor(theme.FgMuted)
 	o.input.SetBackgroundColor(theme.BgElement)
-	o.input.SetBorderPadding(1, 1, 2, 2)
+	o.input.SetBorderPadding(1, 0, 1, 2)
 
 	// Wire input change to filter suggestions
 	o.input.SetChangedFunc(func(text string) {
@@ -131,14 +142,41 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		return action, event
 	})
 
-	// Container: BgPanel background creates the visible margin around the bar.
-	// BorderPadding provides spacing: 1 row top/bottom, 2 chars left/right.
-	// The child pages (hints/input) have BgElement — they appear as a "floating bar".
+	// Container: pages switching between hints and input.
 	o.container = tview.NewPages()
-	o.container.SetBackgroundColor(theme.BgPanel)
-	o.container.SetBorderPadding(1, 1, 2, 2)
+	o.container.SetBackgroundColor(theme.BgElement)
 	o.container.AddPage("hints", o.hints, true, true)
 	o.container.AddPage("input", o.input, true, false)
+
+	// Mode bar: single-line bar below the omnibar showing mode + context info.
+	o.modeBar = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft)
+	o.modeBar.SetBackgroundColor(theme.BgElement)
+	o.modeBar.SetBorderPadding(0, 0, 1, 2)
+
+	// Gutter: 2-column colored bar on the left edge spanning the full height.
+	// Contains a single "▎" character colored per active mode.
+	o.gutter = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter)
+	o.gutter.SetBackgroundColor(theme.BgPanel)
+	o.gutter.SetText(fmt.Sprintf("%s%s%s", theme.ColorTag(theme.ModeHubHex), theme.IconGutter, theme.TagColor))
+
+	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (1 row).
+	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
+	rightPane.SetBackgroundColor(theme.BgPanel)
+	rightPane.AddItem(o.container, 0, 1, true) // omnibar fills available space
+	rightPane.AddItem(o.modeBar, 1, 0, false)  // mode bar: 1 row at bottom
+
+	// Wrapper: horizontal layout — gutter (2 cols) | rightPane (fills rest).
+	// BgPanel background creates the visible margin around the bar.
+	// Top/bottom padding provides vertical spacing.
+	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
+	o.wrapper.SetBackgroundColor(theme.BgPanel)
+	o.wrapper.SetBorderPadding(1, 1, 1, 0)
+	o.wrapper.AddItem(o.gutter, 2, 0, false)   // gutter: fixed 2 cols
+	o.wrapper.AddItem(rightPane, 0, 1, true)    // right pane: fills rest
 
 	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
 	// Return MouseConsumed so tview marks the event as consumed and triggers a
@@ -155,9 +193,9 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	return o
 }
 
-// Primitive returns the omnibar container for layout integration.
+// Primitive returns the outermost omnibar primitive (wrapper) for layout integration.
 func (o *Omnibar) Primitive() tview.Primitive {
-	return o.container
+	return o.wrapper
 }
 
 // SuggestionsPrimitive returns the suggestions list primitive.
@@ -193,6 +231,35 @@ func (o *Omnibar) SetHints(hints string) {
 			theme.ColorTag(theme.TextSecondaryHex), hints, theme.TagColor))
 	} else {
 		o.hints.SetText("")
+	}
+}
+
+// UpdateModeBar updates the mode bar content and gutter color based on the
+// active navigation mode and the contextual information provided by the view.
+func (o *Omnibar) UpdateModeBar(mode views.Mode, info views.ModeBarInfo) {
+	// Resolve the color hex for this mode.
+	colorHex := theme.ModeHubHex
+	switch mode {
+	case views.ModeTeam:
+		colorHex = theme.ModeTeamHex
+	case views.ModeProject:
+		colorHex = theme.ModeProjectHex
+	}
+
+	// Update gutter color.
+	o.gutter.SetText(fmt.Sprintf("%s%s%s", theme.ColorTag(colorHex), theme.IconGutter, theme.TagColor))
+
+	// Build mode bar text: icon + label on the left, context info right-aligned.
+	left := fmt.Sprintf("%s%s %s%s",
+		theme.ColorTag(colorHex), info.Icon,
+		theme.ColorTag(theme.TextPrimaryHex), info.Label)
+
+	if info.Right != "" {
+		// Right-aligned info is muted to avoid visual competition with the label.
+		right := fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), info.Right, theme.TagColor)
+		o.modeBar.SetText(left + right)
+	} else {
+		o.modeBar.SetText(left)
 	}
 }
 
