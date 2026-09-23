@@ -49,39 +49,42 @@ func (m *Merger) SetInput(r io.Reader) {
 }
 
 // ProposeMerge attempts to merge completed sessions back into the base branch.
-// For Beads tickets: sequential merge with conflict detection and human validation.
-// For external tickets: just reports the branches (no merge).
-func (m *Merger) ProposeMerge(isBeads func(ticketID string) bool) ([]MergeResult, error) {
+// For mergeable tasks (beads tickets, sweep tasks): sequential merge with conflict
+// detection and human validation. For external tasks: just reports the branches.
+//
+// The isMergeable callback determines which sessions are auto-merge candidates.
+// Callers typically pass task.Task.IsMergeable() or a simple prefix check.
+func (m *Merger) ProposeMerge(isMergeable func(ticketID string) bool) ([]MergeResult, error) {
 	snap := m.state.Snapshot()
 
-	// Separate beads vs external
-	var beadsSessions, extSessions []SessionInfo
+	// Separate mergeable vs external sessions
+	var mergeableSessions, externalSessions []SessionInfo
 	for _, sess := range snap.Sessions {
 		if sess.Status != StatusCompleted {
 			continue
 		}
-		if isBeads(sess.TicketID) {
-			beadsSessions = append(beadsSessions, sess)
+		if isMergeable(sess.TicketID) {
+			mergeableSessions = append(mergeableSessions, sess)
 		} else {
-			extSessions = append(extSessions, sess)
+			externalSessions = append(externalSessions, sess)
 		}
 	}
 
 	var results []MergeResult
 
-	// Sort beads: priority first
-	sortByPriority(beadsSessions)
+	// Sort mergeable: priority first
+	sortByPriority(mergeableSessions)
 
-	// Merge beads sequentially
-	if m.config.AutoMergeBeads && len(beadsSessions) > 0 {
-		fmt.Fprintf(m.out, "\n  Merge des tickets Beads (%d branches) :\n\n", len(beadsSessions))
+	// Merge mergeable sessions sequentially
+	if len(mergeableSessions) > 0 {
+		fmt.Fprintf(m.out, "\n  Merge des sessions (%d branches) :\n\n", len(mergeableSessions))
 
 		baseBranch, err := DetectBaseBranch(m.projectPath)
 		if err != nil {
 			baseBranch = "main"
 		}
 
-		for _, sess := range beadsSessions {
+		for _, sess := range mergeableSessions {
 			result := m.mergeSession(sess, baseBranch)
 			results = append(results, result)
 
@@ -93,7 +96,7 @@ func (m *Merger) ProposeMerge(isBeads func(ticketID string) bool) ([]MergeResult
 	}
 
 	// Report external branches (never merge)
-	for _, sess := range extSessions {
+	for _, sess := range externalSessions {
 		results = append(results, MergeResult{
 			TicketID: sess.TicketID,
 			Branch:   sess.Branch,

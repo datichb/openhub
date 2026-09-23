@@ -48,6 +48,17 @@ func init() {
 	startCmd.Flags().Int("max-sessions", 0, "Nombre max de sessions parallèles (0 = valeur config, default: 3)")
 	startCmd.Flags().String("priority", "", "Ticket prioritaire (merge en premier)")
 
+	// --- Sweep mode flags ---
+	startCmd.Flags().String("sweep", "", "Objectif sweep haut niveau (active le mode sweep)")
+	startCmd.Flags().String("sweep-strategy", "", "Stratégie de décomposition: manual, by-file, by-package, llm (obligatoire)")
+	startCmd.Flags().StringSlice("sweep-tasks", nil, "Liste manuelle de tâches (requiert --sweep-strategy=manual)")
+	startCmd.Flags().StringSlice("sweep-include", nil, "Glob patterns à inclure")
+	startCmd.Flags().StringSlice("sweep-exclude", nil, "Glob patterns à exclure")
+	startCmd.Flags().String("sweep-verify", "none", "Vérification post-sweep: none, tests, lint, build, all, custom")
+	startCmd.Flags().String("sweep-verify-cmd", "", "Commande de vérification custom (requiert --sweep-verify=custom)")
+	startCmd.Flags().Bool("sweep-dry-run", false, "Afficher le plan décomposé sans exécuter")
+	startCmd.Flags().String("sweep-branch-prefix", "sweep/", "Préfixe des branches sweep")
+
 	// Mark --yes as deprecated (no-op with warning)
 	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
 
@@ -87,14 +98,39 @@ func runStart(cmd *cobra.Command, args []string) error {
 	devMode, _ := cmd.Flags().GetBool("dev")
 	onboardMode, _ := cmd.Flags().GetBool("onboard")
 	parallelMode, _ := cmd.Flags().GetBool("parallel")
+	sweepMode := cmd.Flags().Changed("sweep")
 	labelFlag, _ := cmd.Flags().GetString("label")
 	assigneeFlag, _ := cmd.Flags().GetString("assignee")
 	refreshFlag, _ := cmd.Flags().GetBool("refresh")
 	recapMode, _ := cmd.Flags().GetBool("recap")
 
+	// Mutual exclusivity between major modes
+	modeCount := 0
+	if parallelMode {
+		modeCount++
+	}
+	if sweepMode {
+		modeCount++
+	}
+	if devMode {
+		modeCount++
+	}
+	if onboardMode {
+		modeCount++
+	}
+	if modeCount > 1 {
+		return fmt.Errorf("les modes --parallel, --sweep, --dev et --onboard sont mutuellement exclusifs")
+	}
+
 	// --- Parallel mode (delegates entirely) ---
 	if parallelMode {
 		return runParallelMode(cmd, a, ctx)
+	}
+
+	// --- Sweep mode (delegates entirely) ---
+	sweepGoal, _ := cmd.Flags().GetString("sweep")
+	if sweepGoal != "" {
+		return runSweepMode(cmd, a, ctx)
 	}
 
 	if labelFlag != "" && !devMode {

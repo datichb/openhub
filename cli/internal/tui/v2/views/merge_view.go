@@ -20,7 +20,7 @@ import (
 type MergeBranch struct {
 	TicketID    string
 	Branch      string
-	IsBeads     bool   // true = auto-mergeable; false = external (report only)
+	IsMergeable bool   // true = auto-mergeable (beads/sweep); false = external (report only)
 	DiffStat    string // git diff --stat summary (pre-computed)
 	CommitCount int    // number of commits ahead of base
 	Duration    time.Duration
@@ -167,7 +167,7 @@ func (v *MergeView) handleMerge() {
 	if branch.Status != "pending" {
 		return // already merged/skipped/conflict
 	}
-	if !branch.IsBeads {
+	if !branch.IsMergeable {
 		return // external branches can't be auto-merged
 	}
 
@@ -229,10 +229,10 @@ func (v *MergeView) populateList() {
 	}
 
 	for _, b := range v.cfg.Branches {
-		icon := mergeStatusIcon(b.Status, b.IsBeads)
-		typeLabel := "beads"
-		if !b.IsBeads {
-			typeLabel = "external"
+		icon := mergeStatusIcon(b.Status, b.IsMergeable)
+		typeLabel := "auto-merge"
+		if !b.IsMergeable {
+			typeLabel = "manual"
 		}
 		mainText := fmt.Sprintf("%s %s (%s)", icon, b.TicketID, typeLabel)
 		secondary := fmt.Sprintf("  %s · %d commit(s) · %s", b.Branch, b.CommitCount, b.Duration.Round(time.Second))
@@ -263,14 +263,14 @@ func (v *MergeView) updateDetail(b MergeBranch) {
 		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_status"), theme.TagColor,
 		theme.ColorTag(statusColor), b.Status, theme.TagColor)
 
-	if b.IsBeads {
+	if b.IsMergeable {
 		fmt.Fprintf(&sb, "  %s%s%s      %s\n",
 			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_type"), theme.TagColor,
-			i18n.T("tui.merge.type_beads"))
+			"auto-merge")
 	} else {
 		fmt.Fprintf(&sb, "  %s%s%s      %s\n",
 			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.merge.label_type"), theme.TagColor,
-			i18n.T("tui.merge.type_external"))
+			"manual")
 	}
 
 	fmt.Fprintf(&sb, "  %s%s%s   %d\n",
@@ -286,7 +286,7 @@ func (v *MergeView) updateDetail(b MergeBranch) {
 	v.detailView.SetText(sb.String())
 }
 
-func mergeStatusIcon(status string, isBeads bool) string {
+func mergeStatusIcon(status string, isMergeable bool) string {
 	switch status {
 	case "merged":
 		return theme.ColorTag(theme.SuccessHex) + "✓" + theme.TagColor
@@ -295,7 +295,7 @@ func mergeStatusIcon(status string, isBeads bool) string {
 	case "conflict":
 		return theme.ColorTag(theme.ErrorHex) + "!" + theme.TagColor
 	default: // pending
-		if isBeads {
+		if isMergeable {
 			return theme.ColorTag(theme.AccentHex) + "●" + theme.TagColor
 		}
 		return theme.ColorTag(theme.TextMutedHex) + "○" + theme.TagColor

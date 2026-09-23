@@ -379,7 +379,7 @@ func toMergeBranches(state *parallel.ParallelState, projectPath string, isBeads 
 		branches = append(branches, views.MergeBranch{
 			TicketID:    sess.TicketID,
 			Branch:      sess.Branch,
-			IsBeads:     isBeads(sess.TicketID),
+			IsMergeable: isBeads(sess.TicketID),
 			DiffStat:    diffStat,
 			CommitCount: commitCount,
 			Duration:    duration,
