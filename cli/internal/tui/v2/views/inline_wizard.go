@@ -72,6 +72,13 @@ type InlineWizardConfig struct {
 	// Use this when a DropDown callback triggers a rerender and the user
 	// should land on the submit button rather than the DropDown again.
 	FocusButtonAfterRender *bool
+
+	// SummaryOnAction, when set, replaces the default NavigateTo call when
+	// the summary button is clicked. Use this when the target view requires
+	// additional setup (e.g. setting the active project before navigating
+	// to project mode). The shell is passed so the callback can call
+	// SetProjectMode, SetMode, or NavigateTo as needed.
+	SummaryOnAction func(shell ShellAccess)
 }
 
 // InlineWizardView is a multi-step wizard that runs inside the TUI shell
@@ -1332,7 +1339,9 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	summaryForm := NewStyledButtonForm()
 
 	summaryForm.AddButton(buttonLabel, func() {
-		if targetView != "" && w.shell != nil {
+		if w.cfg.SummaryOnAction != nil && w.shell != nil {
+			w.cfg.SummaryOnAction(w.shell)
+		} else if targetView != "" && w.shell != nil {
 			w.shell.NavigateTo(targetView)
 		} else if w.shell != nil {
 			w.shell.PopView()

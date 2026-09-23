@@ -215,6 +215,17 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 			}
 			return i18n.T("wizard.summary.go_home")
 		},
+		SummaryOnAction: func(shell views.ShellAccess) {
+			if s.ProjectCreated {
+				shell.SetProjectMode(&views.ActiveProject{
+					ID:   s.ProjectID,
+					Name: s.ProjectName,
+					Path: s.ProjectPath,
+				})
+			} else {
+				shell.NavigateTo("home")
+			}
+		},
 		OnComplete: buildInitOnComplete(s),
 	}
 

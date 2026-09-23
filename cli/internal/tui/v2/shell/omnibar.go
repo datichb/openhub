@@ -153,15 +153,15 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.modeBar.SetBackgroundColor(theme.BgElement)
-	o.modeBar.SetBorderPadding(0, 0, 1, 2)
+	o.modeBar.SetBorderPadding(0, 1, 1, 2)
 
 	// Gutter: 2-column colored bar on the left edge spanning the full height.
-	// Contains a single "▎" character colored per active mode.
+	// The background color is set to the active mode color so the entire
+	// column acts as a visual mode indicator (not just a single character).
 	o.gutter = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	o.gutter.SetBackgroundColor(theme.BgPanel)
-	o.gutter.SetText(fmt.Sprintf("%s%s%s", theme.ColorTag(theme.ModeHubHex), theme.IconGutter, theme.TagColor))
+	o.gutter.SetBackgroundColor(theme.ModeHubColor)
 
 	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (1 row).
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -174,7 +174,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// Top/bottom padding provides vertical spacing.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
-	o.wrapper.SetBorderPadding(1, 1, 1, 0)
+	o.wrapper.SetBorderPadding(1, 0, 1, 0)
 	o.wrapper.AddItem(o.gutter, 2, 0, false)   // gutter: fixed 2 cols
 	o.wrapper.AddItem(rightPane, 0, 1, true)    // right pane: fills rest
 
@@ -239,15 +239,18 @@ func (o *Omnibar) SetHints(hints string) {
 func (o *Omnibar) UpdateModeBar(mode views.Mode, info views.ModeBarInfo) {
 	// Resolve the color hex for this mode.
 	colorHex := theme.ModeHubHex
+	gutterColor := theme.ModeHubColor
 	switch mode {
 	case views.ModeTeam:
 		colorHex = theme.ModeTeamHex
+		gutterColor = theme.ModeTeamColor
 	case views.ModeProject:
 		colorHex = theme.ModeProjectHex
+		gutterColor = theme.ModeProjectColor
 	}
 
-	// Update gutter color.
-	o.gutter.SetText(fmt.Sprintf("%s%s%s", theme.ColorTag(colorHex), theme.IconGutter, theme.TagColor))
+	// Update gutter background color to span the full height.
+	o.gutter.SetBackgroundColor(gutterColor)
 
 	// Build mode bar text: icon + label on the left, context info right-aligned.
 	left := fmt.Sprintf("%s%s %s%s",

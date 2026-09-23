@@ -54,6 +54,7 @@ type initStepState struct {
 	// ── Project ──
 	ProjectName     string
 	ProjectPath     string
+	ProjectID       string
 	ProjectCreated  bool
 	ProjectSkipped  bool
 	DeployConfirmed bool
@@ -518,6 +519,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			if err := (*s.AppPtr).Projects.Create(context.Background(), p); err != nil {
 				return fmt.Errorf("create project: %w", err)
 			}
+			s.ProjectID = p.ID
 			s.ProjectCreated = true
 			return nil
 		},
