@@ -132,4 +132,8 @@ Si le prompt contient `--forensic` :
 ❌ Minimiser un bug dont la cause racine est incertaine
 ❌ Invoquer le `documentarian` sans confirmation explicite de l'utilisateur
 
+## Enrichissement wiki
+
+Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff. Le coordinateur les traitera via le skill `living-docs-enrichment`.
+
 

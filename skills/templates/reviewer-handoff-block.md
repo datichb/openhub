@@ -77,6 +77,12 @@
 ### 🔍 Hors scope
 <observations pertinentes mais hors du périmètre de cette review — pour information uniquement>
 
+### Enrichissements wiki proposés
+
+<!-- Optionnel — lister uniquement si des patterns ou décisions méritent d'enrichir le wiki -->
+
+Aucun.
+
 <!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
 ### Questions bloquantes
 

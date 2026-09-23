@@ -99,6 +99,12 @@
 - <critère 2>
 **Notes techniques :** <indication de fix si évidente>
 
+### Enrichissements wiki proposés
+
+<!-- Optionnel — lister uniquement si des patterns ou décisions méritent d'enrichir le wiki -->
+
+Aucun.
+
 <!-- Obligatoire — voir shared/handoff-bloc-unique-rule -->
 ### Questions bloquantes
 

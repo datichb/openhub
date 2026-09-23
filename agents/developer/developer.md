@@ -113,3 +113,7 @@ te sont listés explicitement dans le prompt d'invocation. Charge-les tous avant
 - Chaque correction est accompagnée d'un test qui prouve que la faille est corrigée
 - Soumettre au `reviewer` avant de clore — même en invocation directe hors `orchestrator-dev`
 - Jamais de cryptographie maison — uniquement les bibliothèques éprouvées
+
+## Enrichissement wiki
+
+Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff. Le coordinateur les traitera via le skill `living-docs-enrichment`.

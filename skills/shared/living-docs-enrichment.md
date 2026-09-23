@@ -55,7 +55,9 @@ Chaque maillon a un rôle distinct : ce skill consolide et propose, le `document
 ## Contraintes absolues
 
 ❌ Ne jamais écrire directement dans `docs/wiki/`
-❌ Ne jamais invoquer le `documentarian` sans confirmation explicite de l'utilisateur
+❌ Ne jamais invoquer le `documentarian` sans respecter les règles de confirmation ci-dessous :
+   - Enrichissements **CONFIRMÉ** (faits observés dans le code, patterns vérifiés, résultats de tests) : auto-approuvés — délégation directe au documentarian sans confirmation
+   - Enrichissements **DÉDUIT** ou **INCERTAIN** (hypothèses, inférences, patterns supposés) : confirmation requise avant délégation (comportement actuel)
 ❌ Ne jamais proposer l'enrichissement **pendant** l'analyse — uniquement après le rapport complet
 ❌ Toujours **afficher le résumé des enrichissements proposés** en texte avant d'appeler `question`
 ❌ Si aucune découverte pertinente → ne pas proposer l'enrichissement, afficher simplement :
@@ -258,17 +260,23 @@ Avant tout appel à `question`, afficher en texte clair :
 
 ---
 
-### ÉTAPE 3 — Demander confirmation
+### ÉTAPE 3 — Demander confirmation (si nécessaire)
 
-Après affichage du résumé, utiliser l'outil `question` :
+**Règle de triage automatique :**
+- Si **tous** les enrichissements proposés sont tagués `CONFIRMÉ` → **auto-délégation** : passer directement à l'ÉTAPE 4 sans poser de question. Afficher :
+  `> 💾 Wiki documentaire : X enrichissements CONFIRMÉ — délégation automatique au documentarian.`
+- Si **au moins un** enrichissement est tagué `DÉDUIT` ou `INCERTAIN` → demander confirmation via `question` (comportement ci-dessous).
+
+Après affichage du résumé, si confirmation requise, utiliser l'outil `question` :
 
 ```
 question({
   questions: [{
     header: "Enrichir le wiki",
-    question: "[<Nom de l'agent> — Post-<audit/diagnostic/planification/implémentation/review/QA> | Projet : <nom>]\nJ'ai identifié X enrichissements à capitaliser dans le wiki (voir résumé ci-dessus). Déléguer l'écriture au documentarian ?",
+    question: "[<Nom de l'agent> — Post-<audit/diagnostic/planification/implémentation/review/QA> | Projet : <nom>]\nJ'ai identifié X enrichissements à capitaliser dans le wiki, dont Y tagués DÉDUIT/INCERTAIN (voir résumé ci-dessus). Déléguer l'écriture au documentarian ?",
     options: [
       { label: "Oui — déléguer au documentarian (Recommandé)", description: "Invoquer le documentarian pour enrichir le wiki de manière incrémentale" },
+      { label: "Oui — uniquement les CONFIRMÉ", description: "Déléguer seulement les enrichissements CONFIRMÉ, écarter les DÉDUIT/INCERTAIN" },
       { label: "Non — passer", description: "Conserver le wiki tel quel" }
     ]
   }]
@@ -276,7 +284,8 @@ question({
 ```
 
 **Selon la réponse :**
-- **Oui** → ÉTAPE 4 (déléguer au documentarian)
+- **Oui (tous)** → ÉTAPE 4 (déléguer au documentarian avec tous les enrichissements)
+- **Oui (uniquement CONFIRMÉ)** → ÉTAPE 4 (déléguer au documentarian en excluant les DÉDUIT/INCERTAIN)
 - **Non** → Fin — afficher `> 💾 Wiki documentaire conservé tel quel.`
 
 ---

@@ -147,3 +147,7 @@ Mode déterminé par le tag `[SKILL:...]` dans le prompt d'invocation (→ charg
 5. Produire le rapport au format défini (Walkthrough → Résumé → Périmètre → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍])
 6. Passer la checklist d'auto-vérification du `review-protocol` — corriger si nécessaire
 7. Appliquer le skill `living-docs-enrichment` : identifier les conventions et patterns observés dans le diff qui méritent d'être capitalisés dans le wiki — proposer l'enrichissement à l'utilisateur avant de clore
+
+## Enrichissement wiki
+
+Avant de produire le handoff final, si des décisions architecturales, des patterns découverts, ou des gotchas rencontrés méritent d'être documentés, les lister dans la section `### Enrichissements wiki proposés` du bloc de handoff. Le coordinateur les traitera via le skill `living-docs-enrichment`.
