@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/skillregistry"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
@@ -31,6 +33,7 @@ func init() {
 	skillCmd.AddCommand(skillAddCmd())
 	skillCmd.AddCommand(skillRemoveCmd())
 	skillCmd.AddCommand(skillSearchCmd())
+	skillCmd.AddCommand(skillBudgetCmd())
 }
 
 func skillListCmd() *cobra.Command {
@@ -213,4 +216,116 @@ func join(ss []string, sep string) string {
 		result += sep + s
 	}
 	return result
+}
+
+func skillBudgetCmd() *cobra.Command {
+	var allAgents bool
+	var threshold int
+
+	cmd := &cobra.Command{
+		Use:   "budget [agent-name]",
+		Short: "Affiche le budget context window par agent (Bucket A + body)",
+		Long: `Calcule le coût en lignes et tokens du system prompt toujours chargé
+pour un agent ou tous les agents. Identifie les skills les plus coûteux.
+
+Exemples:
+  oh skill budget orchestrator-dev    Budget d'un agent
+  oh skill budget --all               Budget de tous les agents
+  oh skill budget --all --threshold 200  Flag les skills > 200 lignes`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hubDir := findHubDir()
+			if hubDir == "" {
+				return fmt.Errorf("hub directory not found")
+			}
+			agentsDir := hubDir + "/agents"
+			skillsDir := hubDir + "/skills"
+
+			if allAgents || len(args) == 0 {
+				return runBudgetAll(agentsDir, skillsDir, threshold)
+			}
+			return runBudgetSingle(agentsDir, skillsDir, args[0], threshold)
+		},
+	}
+
+	cmd.Flags().BoolVarP(&allAgents, "all", "a", false, "Afficher le budget de tous les agents")
+	cmd.Flags().IntVarP(&threshold, "threshold", "t", 150, "Seuil en lignes pour flaguer un skill (défaut: 150)")
+
+	return cmd
+}
+
+func runBudgetAll(agentsDir, skillsDir string, threshold int) error {
+	budgets, err := deploy.ComputeAllBudgets(agentsDir, skillsDir)
+	if err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(w, "\n%s\n\n", theme.Title.Render("  Skill Budget — All Agents  "))
+	fmt.Fprintf(w, "AGENT\tMODE\tBODY\tBUCKET A\tTOTAL\t~TOKENS\t%% of 200K\n")
+	fmt.Fprintf(w, "─────\t────\t────\t────────\t─────\t───────\t────────\n")
+
+	for _, b := range budgets {
+		total := b.BodyLines + b.TotalALines
+		totalTokens := b.BodyTokens + b.TotalATokens
+		pct := float64(totalTokens) / 200000.0 * 100.0
+		fmt.Fprintf(w, "%s\t%s\t%d\t%d (%d skills)\t%d\t~%d\t%.1f%%\n",
+			b.AgentID, b.AgentMode, b.BodyLines, b.TotalALines, len(b.BucketA), total, totalTokens, pct)
+	}
+	w.Flush()
+	fmt.Println()
+	return nil
+}
+
+func runBudgetSingle(agentsDir, skillsDir, agentName string, threshold int) error {
+	// Find agent file by ID
+	budgets, err := deploy.ComputeAllBudgets(agentsDir, skillsDir)
+	if err != nil {
+		return err
+	}
+
+	var budget *deploy.AgentBudget
+	for _, b := range budgets {
+		if b.AgentID == agentName {
+			budget = b
+			break
+		}
+	}
+	if budget == nil {
+		return fmt.Errorf("agent %q not found", agentName)
+	}
+
+	fmt.Printf("\n%s\n\n", theme.Title.Render(fmt.Sprintf("  Skill Budget — %s  ", budget.AgentID)))
+	fmt.Printf("Agent: %s (mode: %s)\n\n", budget.AgentID, budget.AgentMode)
+
+	fmt.Println("Bucket A (always inlined):")
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	for _, e := range budget.BucketA {
+		flag := ""
+		if e.Lines > threshold {
+			flag = fmt.Sprintf("  ⚠️ >%dL", threshold)
+		}
+		fmt.Fprintf(w, "  %s\t%d lines\t~%d tokens%s\n", e.SkillRef, e.Lines, e.Tokens, flag)
+	}
+	fmt.Fprintf(w, "  ─────────────────────────────────\t\t\n")
+	fmt.Fprintf(w, "  Total Bucket A:\t%d lines\t~%d tokens\n", budget.TotalALines, budget.TotalATokens)
+	w.Flush()
+
+	fmt.Printf("\nAgent body:\t\t\t%d lines\t~%d tokens\n", budget.BodyLines, budget.BodyTokens)
+
+	totalLines := budget.BodyLines + budget.TotalALines
+	totalTokens := budget.BodyTokens + budget.TotalATokens
+	pct := float64(totalTokens) / 200000.0 * 100.0
+	fmt.Printf("─────────────────────────────────────────────────────\n")
+	fmt.Printf("TOTAL ALWAYS-LOADED:\t\t%d lines\t~%d tokens (%.1f%% of 200K)\n", totalLines, totalTokens, pct)
+
+	if len(budget.BucketB) > 0 {
+		fmt.Printf("\nBucket B (on-demand, not counted):\n")
+		for _, e := range budget.BucketB {
+			fmt.Printf("  %s (%d lines)\n", e.SkillRef, e.Lines)
+		}
+		fmt.Printf("  %d skills available on-demand\n", len(budget.BucketB))
+	}
+
+	fmt.Println()
+	return nil
 }
