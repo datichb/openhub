@@ -275,6 +275,30 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 // toParallelSessions converts the domain ParallelState sessions to the v2 views format.
 func toParallelSessions(state *parallel.ParallelState) []views.ParallelSession {
 	snap := state.Snapshot()
+
+	// Build per-session conflict map
+	conflictMap := make(map[string][]views.ConflictDetail) // ticketID -> conflicts
+	maxSeverityMap := make(map[string]string)
+	for _, c := range snap.Conflicts {
+		for _, tid := range c.Sessions {
+			others := make([]string, 0, len(c.Sessions)-1)
+			for _, other := range c.Sessions {
+				if other != tid {
+					others = append(others, other)
+				}
+			}
+			conflictMap[tid] = append(conflictMap[tid], views.ConflictDetail{
+				File:     c.File,
+				Others:   others,
+				Severity: c.Severity,
+			})
+			// Track max severity per session
+			if severityRank(c.Severity) > severityRank(maxSeverityMap[tid]) {
+				maxSeverityMap[tid] = c.Severity
+			}
+		}
+	}
+
 	sessions := make([]views.ParallelSession, 0, len(snap.Sessions))
 	for _, s := range snap.Sessions {
 		var duration time.Duration
@@ -285,18 +309,48 @@ func toParallelSessions(state *parallel.ParallelState) []views.ParallelSession {
 				duration = time.Since(s.StartedAt)
 			}
 		}
+
+		filesList := make([]string, 0, len(s.FilesModified)+len(s.FilesCreated))
+		filesList = append(filesList, s.FilesModified...)
+		filesList = append(filesList, s.FilesCreated...)
+
 		sessions = append(sessions, views.ParallelSession{
-			ID:           s.SessionID,
-			Name:         s.TicketID,
-			Status:       string(s.Status),
-			Branch:       s.Branch,
-			Duration:     duration,
-			Agent:        "orchestrator-dev",
-			SessionID:    s.SessionID,
-			WorktreePath: s.WorktreePath,
+			ID:              s.SessionID,
+			Name:            s.TicketID,
+			Status:          string(s.Status),
+			Branch:          s.Branch,
+			Duration:        duration,
+			Agent:           "orchestrator-dev",
+			SessionID:       s.SessionID,
+			WorktreePath:    s.WorktreePath,
+			Priority:        s.Priority,
+			EstimateMinutes: s.EstimateMinutes,
+			Error:           s.Error,
+			FilesModified:   len(s.FilesModified),
+			FilesCreated:    len(s.FilesCreated),
+			FilesList:       filesList,
+			ConflictCount:   len(conflictMap[s.TicketID]),
+			MaxSeverity:     maxSeverityMap[s.TicketID],
+			Conflicts:       conflictMap[s.TicketID],
+			RetryCount:      s.RetryCount,
+			RetryErrors:     s.RetryErrors,
 		})
 	}
 	return sessions
+}
+
+// severityRank returns a numeric rank for conflict severity comparison.
+func severityRank(severity string) int {
+	switch severity {
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	case "low":
+		return 1
+	default:
+		return 0
+	}
 }
 
 // toMergeBranches builds a MergeBranch list from completed sessions.

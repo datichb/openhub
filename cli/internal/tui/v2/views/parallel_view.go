@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -89,7 +90,7 @@ func (v *ParallelView) Mount(content *tview.Flex, app *tview.Application) {
 	// Vertical layout: list on top, footer detail at bottom
 	v.contentFlex = tview.NewFlex().SetDirection(tview.FlexRow)
 	v.contentFlex.AddItem(v.sessionList, 0, 3, true)
-	v.contentFlex.AddItem(v.detailView, 5, 0, false)
+	v.contentFlex.AddItem(v.detailView, 10, 0, false)
 
 	v.populateSessions(v.cfg.Sessions)
 	content.AddItem(v.contentFlex, 0, 1, true)
@@ -155,8 +156,37 @@ func (v *ParallelView) populateSessions(sessions []ParallelSession) {
 
 	for _, s := range sessions {
 		icon := parallelStatusIcon(s.Status)
-		mainText := fmt.Sprintf("%s %s", icon, s.Name)
+		priorityBadge := ""
+		if s.Priority {
+			priorityBadge = " ★"
+		}
+		mainText := fmt.Sprintf("%s %s%s", icon, s.Name, priorityBadge)
+
 		secondary := fmt.Sprintf("  %s · %s", s.Branch, s.Agent)
+		if s.FilesModified+s.FilesCreated > 0 {
+			secondary += fmt.Sprintf(" · %dM/%dC", s.FilesModified, s.FilesCreated)
+		}
+		if s.ConflictCount > 0 {
+			secondary += fmt.Sprintf(" · ⚠ %d conflicts (%s)", s.ConflictCount, s.MaxSeverity)
+		}
+		if s.Error != "" && s.Status == "failed" {
+			errMsg := s.Error
+			if len(errMsg) > 40 {
+				errMsg = errMsg[:40] + "…"
+			}
+			secondary += fmt.Sprintf(" · %s", errMsg)
+		}
+		if s.RetryCount > 0 {
+			secondary += fmt.Sprintf(" · retry %d", s.RetryCount)
+		}
+		if s.EstimateMinutes > 0 && s.Status == "running" {
+			pct := int(s.Duration.Minutes() / float64(s.EstimateMinutes) * 100)
+			if pct > 100 {
+				pct = 100
+			}
+			secondary += fmt.Sprintf(" · %d%%", pct)
+		}
+
 		v.sessionList.AddItem(mainText, secondary, 0, nil)
 	}
 	if len(sessions) > 0 {
@@ -170,7 +200,9 @@ func (v *ParallelView) updateDetail(s ParallelSession) {
 	}
 	statusColor := parallelStatusColorHex(s.Status)
 	sep := theme.ColorTag(theme.TextMutedHex) + "─────────────────────────────────────────────" + theme.TagColor
-	v.detailView.SetText(fmt.Sprintf("%s\n  [::b]%s%s  %s%s%s  %s·%s  %s  %s·%s  %s  %s·%s  %s",
+
+	// Line 1: separator + Line 2: name, status, branch, agent, duration
+	detail := fmt.Sprintf("%s\n  [::b]%s%s  %s%s%s  %s·%s  %s  %s·%s  %s  %s·%s  %s",
 		sep,
 		s.Name, theme.TagReset,
 		theme.ColorTag(statusColor), s.Status, theme.TagColor,
@@ -180,7 +212,66 @@ func (v *ParallelView) updateDetail(s ParallelSession) {
 		s.Agent,
 		theme.ColorTag(theme.TextMutedHex), theme.TagColor,
 		s.Duration.Round(time.Second).String(),
-	))
+	)
+
+	// Line 3: files info
+	if s.FilesModified+s.FilesCreated > 0 {
+		detail += fmt.Sprintf("\n  Files: %dM %dC", s.FilesModified, s.FilesCreated)
+		if len(s.FilesList) > 0 && len(s.FilesList) <= 10 {
+			detail += "  " + theme.ColorTag(theme.TextMutedHex) + strings.Join(s.FilesList, ", ") + theme.TagColor
+		}
+	}
+
+	// Line 4: conflicts
+	if s.ConflictCount > 0 {
+		detail += fmt.Sprintf("\n  %s⚠ Conflicts: %d (%s)%s", theme.ColorTag(theme.WarningHex), s.ConflictCount, s.MaxSeverity, theme.TagColor)
+		if len(s.Conflicts) > 0 && len(s.Conflicts) <= 10 {
+			files := make([]string, len(s.Conflicts))
+			for i, c := range s.Conflicts {
+				files[i] = c.File
+			}
+			detail += "  " + theme.ColorTag(theme.TextMutedHex) + strings.Join(files, ", ") + theme.TagColor
+		}
+	}
+
+	// Line 5: error
+	if s.Error != "" {
+		detail += fmt.Sprintf("\n  %sError: %s%s", theme.ColorTag(theme.ErrorHex), s.Error, theme.TagColor)
+	}
+
+	// Line 6: retry / recovery
+	if s.RetryCount > 0 {
+		line := fmt.Sprintf("\n  Recovery: attempt %d", s.RetryCount)
+		if len(s.RetryErrors) > 0 {
+			line += ", previous errors: [" + strings.Join(s.RetryErrors, "; ") + "]"
+		}
+		detail += line
+	}
+
+	// Line 7: progress bar
+	if s.EstimateMinutes > 0 && s.Status == "running" {
+		bar := renderProgressBar(s.Duration, s.EstimateMinutes, 10)
+		if bar != "" {
+			elapsedMin := int(s.Duration.Minutes())
+			detail += fmt.Sprintf("\n  %s (%dmin/%dmin est.)", bar, elapsedMin, s.EstimateMinutes)
+		}
+	}
+
+	v.detailView.SetText(detail)
+}
+
+func renderProgressBar(elapsed time.Duration, estimateMin int, width int) string {
+	if estimateMin <= 0 {
+		return ""
+	}
+	pct := int(elapsed.Minutes() / float64(estimateMin) * 100)
+	if pct > 100 {
+		pct = 100
+	}
+	filled := width * pct / 100
+	empty := width - filled
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", empty)
+	return fmt.Sprintf("[%s] %d%%", bar, pct)
 }
 
 func (v *ParallelView) refreshLoop(rate time.Duration) {
