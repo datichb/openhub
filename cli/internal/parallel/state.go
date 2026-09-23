@@ -24,19 +24,20 @@ const (
 
 // SessionInfo holds state for a single parallel session.
 type SessionInfo struct {
-	TicketID      string        `json:"ticket_id"`
-	Project       string        `json:"project"`
-	Branch        string        `json:"branch"`
-	WorktreePath  string        `json:"worktree_path"`
-	Port          int           `json:"port"`
-	SessionID     string        `json:"session_id"` // opencode session ID
-	Status        SessionStatus `json:"status"`
-	Priority      bool          `json:"priority"` // is this the priority ticket
-	StartedAt     time.Time     `json:"started_at,omitempty"`
-	CompletedAt   time.Time     `json:"completed_at,omitempty"`
-	Error         string        `json:"error,omitempty"`
-	FilesModified []string      `json:"files_modified,omitempty"`
-	FilesCreated  []string      `json:"files_created,omitempty"`
+	TicketID        string        `json:"ticket_id"`
+	Project         string        `json:"project"`
+	Branch          string        `json:"branch"`
+	WorktreePath    string        `json:"worktree_path"`
+	Port            int           `json:"port"`
+	SessionID       string        `json:"session_id"` // opencode session ID
+	Status          SessionStatus `json:"status"`
+	Priority        bool          `json:"priority"`         // is this the priority ticket
+	EstimateMinutes int           `json:"estimate_minutes"` // ticket estimate in minutes (0 = unknown)
+	StartedAt       time.Time     `json:"started_at,omitempty"`
+	CompletedAt     time.Time     `json:"completed_at,omitempty"`
+	Error           string        `json:"error,omitempty"`
+	FilesModified   []string      `json:"files_modified,omitempty"`
+	FilesCreated    []string      `json:"files_created,omitempty"`
 }
 
 // ConflictInfo represents a potential file conflict between sessions.

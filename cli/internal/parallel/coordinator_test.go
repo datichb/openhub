@@ -18,16 +18,84 @@ func TestNewCoordinator_NoTickets(t *testing.T) {
 }
 
 func TestNewCoordinator_TooManyTickets(t *testing.T) {
+	cfg := Config{MaxSessions: 3, PortRangeStart: 4100, DefaultTicketWeightMin: 60}
 	_, err := NewCoordinator(CoordinatorOpts{
 		ProjectPath: "/tmp/project",
 		ProjectID:   "test",
 		Tickets:     []string{"a", "b", "c", "d"},
-		Config:      Config{MaxSessions: 3, PortRangeStart: 4100},
+		Config:      cfg,
 		PromptFunc:  func(string) string { return "" },
 	})
 	if err == nil {
 		t.Error("expected error for too many tickets")
 	}
+}
+
+func TestNewCoordinator_BudgetExceeded(t *testing.T) {
+	cfg := Config{
+		MaxSessions:            10,
+		MaxBudgetMinutes:       180,
+		DefaultTicketWeightMin: 60,
+		PortRangeStart:         4100,
+	}
+	_, err := NewCoordinator(CoordinatorOpts{
+		ProjectPath: "/tmp/project",
+		ProjectID:   "test",
+		Tickets:     []string{"a", "b", "c", "d"},
+		TicketEstimates: map[string]int{
+			"a": 120,
+			"b": 120,
+			"c": 120,
+			"d": 120,
+		},
+		Config:     cfg,
+		PromptFunc: func(string) string { return "" },
+	})
+	if err == nil {
+		t.Error("expected error for budget exceeded (480 > 180)")
+	}
+}
+
+func TestNewCoordinator_BudgetDisabled(t *testing.T) {
+	cfg := Config{
+		MaxSessions:            10,
+		MaxBudgetMinutes:       0, // disabled
+		DefaultTicketWeightMin: 60,
+		PortRangeStart:         4100,
+	}
+	// This should NOT fail even though total weight is huge -- budget is disabled
+	_, err := NewCoordinator(CoordinatorOpts{
+		ProjectPath: "/tmp/project",
+		ProjectID:   "test",
+		Tickets:     []string{"a", "b", "c"},
+		TicketEstimates: map[string]int{
+			"a": 480,
+			"b": 480,
+			"c": 480,
+		},
+		Config:     cfg,
+		PromptFunc: func(string) string { return "" },
+	})
+	// Will fail at opencode.FindBinary, not at admission -- that's expected
+	if err != nil && err.Error() != "" {
+		// Check it's not a budget error
+		if contains(err.Error(), "budget") {
+			t.Errorf("should not fail on budget when disabled, got: %v", err)
+		}
+	}
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsImpl(s, sub))
+}
+
+func containsImpl(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }
 
 func TestNewCoordinator_Valid(t *testing.T) {

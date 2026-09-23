@@ -103,9 +103,11 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 				},
 				Takeover: teamstate.TakeoverConfig{StaleDays: days},
 				Parallel: teamstate.ParallelConfig{
-					MaxSessions:    3,
-					PortRangeStart: 4100,
-					AutoMergeBeads: true,
+					MaxSessions:            5,
+					MaxBudgetMinutes:       180,
+					DefaultTicketWeightMin: 60,
+					PortRangeStart:         4100,
+					AutoMergeBeads:         true,
 				},
 			}
 			return s.Repo.SaveConfig(s.Ctx, cfg)

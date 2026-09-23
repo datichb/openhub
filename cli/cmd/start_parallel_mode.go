@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -45,6 +46,12 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 			if err == nil {
 				if teamCfg.Parallel.MaxSessions > 0 {
 					cfg.MaxSessions = teamCfg.Parallel.MaxSessions
+				}
+				if teamCfg.Parallel.MaxBudgetMinutes > 0 {
+					cfg.MaxBudgetMinutes = teamCfg.Parallel.MaxBudgetMinutes
+				}
+				if teamCfg.Parallel.DefaultTicketWeightMin > 0 {
+					cfg.DefaultTicketWeightMin = teamCfg.Parallel.DefaultTicketWeightMin
 				}
 				if teamCfg.Parallel.PortRangeStart > 0 {
 					cfg.PortRangeStart = teamCfg.Parallel.PortRangeStart
@@ -82,13 +89,23 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	skipYes, _ := cmd.Flags().GetBool("yes")
 	autoDeployIfNeeded(a, project, findHubDir(), "", "", skipYes)
 
+	// Fetch ticket estimates for budget-based admission control.
+	ticketEstimates := make(map[string]int, len(tickets))
+	for _, tid := range tickets {
+		detail, err := beads.Show(project.Path, tid)
+		if err == nil && detail.Estimate > 0 {
+			ticketEstimates[tid] = detail.Estimate
+		}
+	}
+
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
-		ProjectPath: project.Path,
-		ProjectID:   project.ID,
-		Tickets:     tickets,
-		Priority:    priority,
-		Agent:       "orchestrator-dev",
-		Config:      cfg,
+		ProjectPath:     project.Path,
+		ProjectID:       project.ID,
+		Tickets:         tickets,
+		TicketEstimates: ticketEstimates,
+		Priority:        priority,
+		Agent:           "orchestrator-dev",
+		Config:          cfg,
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
 		},

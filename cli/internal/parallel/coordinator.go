@@ -12,14 +12,15 @@ import (
 
 // CoordinatorOpts holds options for launching a parallel run.
 type CoordinatorOpts struct {
-	ProjectPath   string
-	ProjectID     string
-	Tickets       []string
-	Priority      string // priority ticket ID (empty = no priority)
-	Agent         string // agent to use (default: orchestrator-dev)
-	BranchPattern string // e.g. "feat/%s"; empty = use worktree.BranchName default
-	Config        Config
-	PromptFunc    func(ticketID string) string // generates the prompt for each ticket
+	ProjectPath     string
+	ProjectID       string
+	Tickets         []string
+	TicketEstimates map[string]int // ticket ID -> estimated_minutes (0 = unknown, uses Config.DefaultTicketWeightMin)
+	Priority        string         // priority ticket ID (empty = no priority)
+	Agent           string         // agent to use (default: orchestrator-dev)
+	BranchPattern   string         // e.g. "feat/%s"; empty = use worktree.BranchName default
+	Config          Config
+	PromptFunc      func(ticketID string) string // generates the prompt for each ticket
 }
 
 // Coordinator orchestrates multiple parallel opencode sessions.
@@ -40,6 +41,15 @@ func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
 	}
 	if len(opts.Tickets) > opts.Config.MaxSessions {
 		return nil, fmt.Errorf("too many tickets (%d) for max_sessions (%d)", len(opts.Tickets), opts.Config.MaxSessions)
+	}
+	if opts.Config.MaxBudgetMinutes > 0 {
+		if opts.TicketEstimates == nil {
+			opts.TicketEstimates = make(map[string]int)
+		}
+		total := opts.Config.TotalBudget(opts.TicketEstimates, opts.Tickets)
+		if total > opts.Config.MaxBudgetMinutes {
+			return nil, fmt.Errorf("total ticket weight (%d min) exceeds max_budget (%d min)", total, opts.Config.MaxBudgetMinutes)
+		}
 	}
 	if opts.Agent == "" {
 		opts.Agent = "orchestrator-dev"
@@ -141,15 +151,20 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 
 		port := c.opts.Config.PortRangeStart + i
 		isPriority := c.opts.Priority != "" && c.opts.Priority == ticket
+		estimate := 0
+		if c.opts.TicketEstimates != nil {
+			estimate = c.opts.TicketEstimates[ticket]
+		}
 
 		c.state.AddSession(SessionInfo{
-			TicketID:     ticket,
-			Project:      c.opts.ProjectID,
-			Branch:       branch,
-			WorktreePath: wtPath,
-			Port:         port,
-			Status:       StatusPending,
-			Priority:     isPriority,
+			TicketID:        ticket,
+			Project:         c.opts.ProjectID,
+			Branch:          branch,
+			WorktreePath:    wtPath,
+			Port:            port,
+			Status:          StatusPending,
+			Priority:        isPriority,
+			EstimateMinutes: estimate,
 		})
 	}
 	return nil

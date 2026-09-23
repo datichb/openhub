@@ -351,9 +351,11 @@ type TakeoverConfig struct {
 
 // ParallelConfig holds settings for parallel session execution.
 type ParallelConfig struct {
-	MaxSessions    int  `toml:"max_sessions"`     // Max concurrent sessions (default: 3)
-	PortRangeStart int  `toml:"port_range_start"` // Starting port for opencode serve (default: 4100)
-	AutoMergeBeads bool `toml:"auto_merge_beads"` // Propose auto merge for Beads tickets (default: true)
+	MaxSessions            int  `toml:"max_sessions"`              // Max concurrent sessions (default: 5)
+	MaxBudgetMinutes       int  `toml:"max_budget_minutes"`        // Max total estimated minutes (default: 180, 0 = disabled)
+	DefaultTicketWeightMin int  `toml:"default_ticket_weight_min"` // Fallback weight when no estimate (default: 60)
+	PortRangeStart         int  `toml:"port_range_start"`          // Starting port for opencode serve (default: 4100)
+	AutoMergeBeads         bool `toml:"auto_merge_beads"`          // Propose auto merge for Beads tickets (default: true)
 }
 
 // ClaimConfig holds settings for the claim lifecycle.
@@ -488,7 +490,13 @@ func (r *Repo) LoadConfig() (*TeamConfig, error) {
 		cfg.Takeover.StaleDays = 3
 	}
 	if cfg.Parallel.MaxSessions <= 0 {
-		cfg.Parallel.MaxSessions = 3
+		cfg.Parallel.MaxSessions = 5
+	}
+	if cfg.Parallel.MaxBudgetMinutes < 0 {
+		cfg.Parallel.MaxBudgetMinutes = 0
+	}
+	if cfg.Parallel.DefaultTicketWeightMin <= 0 {
+		cfg.Parallel.DefaultTicketWeightMin = 60
 	}
 	if cfg.Parallel.PortRangeStart <= 0 {
 		cfg.Parallel.PortRangeStart = 4100
