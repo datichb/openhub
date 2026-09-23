@@ -191,7 +191,7 @@ func New(cfg Config) *Shell {
 	// Suggestions list is inserted dynamically between content and omnibar when active.
 	s.root = tview.NewFlex().SetDirection(tview.FlexRow)
 	s.root.AddItem(s.content, 0, 1, true)
-	s.root.AddItem(s.omnibar.Primitive(), 6, 0, false)
+	s.root.AddItem(s.omnibar.Primitive(), 7, 0, false)
 
 	// Wrap in Pages for overlay support (toasts, inline prompts)
 	s.pages = tview.NewPages()
@@ -244,7 +244,7 @@ func (s *Shell) repositionSuggestions() {
 	}
 
 	height := s.omnibar.SuggestionsHeight()
-	const omnibarHeight = 6 // omnibar (5 visual rows) + mode bar (1 row)
+	const omnibarHeight = 7 // wrapper padding (2) + hints/input (3) + mode bar (2)
 
 	y := screenH - omnibarHeight - height
 	if y < 0 {
@@ -1050,7 +1050,7 @@ func (s *Shell) SetOmnibarVisible(visible bool) {
 		s.omnibar.Deactivate()
 	}
 	if visible {
-		s.root.ResizeItem(s.omnibar.Primitive(), 6, 0)
+		s.root.ResizeItem(s.omnibar.Primitive(), 7, 0)
 	} else {
 		s.root.ResizeItem(s.omnibar.Primitive(), 0, 0)
 	}

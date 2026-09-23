@@ -154,7 +154,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.modeBar.SetBackgroundColor(theme.BgElement)
-	o.modeBar.SetBorderPadding(0, 0, 1, 2)
+	o.modeBar.SetBorderPadding(0, 1, 1, 2)
 
 	// Gutter: 1-column colored indicator on the left edge spanning the full height.
 	// Uses a DrawFunc to paint the "▎" character (1/8 block) on every row with
@@ -166,7 +166,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.gutter.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		style := tcell.StyleDefault.Background(theme.BgPanel).Foreground(o.gutterFg)
 		for dy := 0; dy < height; dy++ {
-			screen.SetContent(x, y+dy, '▎', nil, style)
+			screen.SetContent(x, y+dy, '▌', nil, style)
 		}
 		return x, y, width, height
 	})
@@ -175,7 +175,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
 	rightPane.SetBackgroundColor(theme.BgPanel)
 	rightPane.AddItem(o.container, 0, 1, true) // omnibar fills available space
-	rightPane.AddItem(o.modeBar, 1, 0, false)  // mode bar: 1 row at bottom
+	rightPane.AddItem(o.modeBar, 2, 0, false)  // mode bar: 2 rows (1 text + 1 bottom padding)
 
 	// Wrapper: horizontal layout — gutter (1 col) | rightPane (fills rest).
 	// BgPanel background creates the visible margin around the bar.
