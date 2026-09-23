@@ -29,7 +29,7 @@ Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: ".worktre
 
 ### Lancement simultané
 
-Invoquer N sessions `developer-*` dans le même appel — chacune reçoit son ticket, son contexte, et l'instruction TDD si applicable. Maximum 3 sessions simultanées.
+Invoquer N sessions `developer-*` dans le même appel — chacune reçoit son ticket, son contexte, et l'instruction TDD si applicable. Le nombre de sessions est limité par le budget de points et le plafond technique (voir critère 4 dans `orchestrator-dev-protocol`).
 
 Quand les worktrees sont activés, chaque developer reçoit dans son prompt le chemin du worktree **déjà existant** :
 > « Travaille exclusivement dans `.worktrees/<slug>/`. Le worktree et la branche `<nom-branche>` ont déjà été créés — ne pas relancer `git worktree add`. Tous tes changements doivent être faits depuis ce répertoire. »

@@ -241,7 +241,18 @@ Avant de démarrer le traitement ticket par ticket, évaluer si le lot est élig
 1. **Pas de dépendance formelle entre tickets du lot** : pour chaque ticket, `bd dep list <ID>` — l'intersection avec les IDs du lot est vide
 2. **Domaines disjoints** : tous les tickets sont routés vers des domaines différents de l'agent `developer`, pas de domaine `fullstack` dans le lot
 3. **Pas de fichiers transverses prévisibles** : aucune mention de types partagés, migrations de base de données, ou fichiers de configuration globaux dans les descriptions
-4. **Maximum 3 tickets dans le lot parallèle**
+4. **Budget du lot parallèle ≤ MaxSessionBudget** : pour chaque ticket, consulter l'estimation (`bd show <ID> --json` → `estimated_minutes`) et calculer le poids :
+
+   | Estimation | Poids |
+   |------------|-------|
+   | XS (< 30min) ou S (30-60min) | 1 pt |
+   | M (60-120min) | 2 pts |
+   | L (120-240min) | 3 pts |
+   | XL (> 240min) | 4 pts |
+   | Inconnu (pas d'estimation) | 2 pts |
+
+   La somme des poids ne doit pas dépasser le budget configuré (défaut : **6 points**).
+   Le nombre de sessions ne peut jamais dépasser le plafond technique (défaut : **5**, maximum : **10**).
 
 **Vérification complémentaire via le graphe de dépendances (si disponible) :**
 
@@ -265,7 +276,7 @@ Si `.opencode/dependency-graph.json` existe dans le projet, effectuer une vérif
 **Si tous les critères sont vérifiés :**
 ```
 ▶️ [Parallélisme conditionnel] <NB_TICKETS> tickets éligibles — lancement simultané.
-Critères vérifiés : (1) dépendances — aucune ✅ (2) agents — disjoints ✅ (3) fichiers — non transverses ✅ (4) taille — <NB_TICKETS> ≤ 3 ✅
+Critères vérifiés : (1) dépendances — aucune ✅ (2) agents — disjoints ✅ (3) fichiers — non transverses ✅ (4) budget — <TOTAL_PTS>/<MAX_BUDGET> pts ✅ (<NB_TICKETS> sessions)
 ```
 
 → Lancer N sessions `developer-*` simultanément (charger le skill `orchestrator/orchestrator-dev-parallel`).

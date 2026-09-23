@@ -20,7 +20,7 @@ Il est injecté dans `orchestrator` et `orchestrator-dev` — toute modification
 
 > Quand un CP est `▶️ auto`, l'agent orchestrator affiche quand même l'information mais enchaîne sans attendre de confirmation.
 
-> **Parallélisme conditionnel (tous les modes) :** `orchestrator-dev` peut traiter plusieurs tickets simultanément **quel que soit le mode** si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, maximum 3 tickets. Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. En mode `manuel` ou `semi-auto`, l'orchestrator-dev propose le parallélisme à l'utilisateur qui confirme ou refuse. En mode `auto`, le parallélisme est lancé sans confirmation. Voir `orchestrator-dev-protocol` pour le protocole complet.
+> **Parallélisme conditionnel (tous les modes) :** `orchestrator-dev` peut traiter plusieurs tickets simultanément **quel que soit le mode** si les 4 critères sont vérifiés : aucune dépendance formelle entre les tickets du lot, agents distincts avec domaines disjoints, pas de fichiers transverses prévisibles, budget de points respecté (défaut : 6 pts, XS/S=1, M=2, L=3, XL=4, inconnu=2). Le parallélisme ne supprime pas CP-2 — les rapports de review sont présentés en séquentiel dans l'ordre d'arrivée. En mode `manuel` ou `semi-auto`, l'orchestrator-dev propose le parallélisme à l'utilisateur qui confirme ou refuse. En mode `auto`, le parallélisme est lancé sans confirmation. Voir `orchestrator-dev-protocol` pour le protocole complet.
 >
 > **Comportement des CP en mode parallèle selon le mode :**
 >
