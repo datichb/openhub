@@ -118,7 +118,7 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 	})
 
 	// 9. Build recovery prompt -- include context about partial work
-	prompt := c.opts.PromptFunc(ticketID)
+	prompt := c.promptForTask(ticketID)
 	if len(sess.FilesModified) > 0 {
 		prompt += fmt.Sprintf("\n\n[RECOVERY] Cette session est une reprise après échec (tentative %d). "+
 			"Des fichiers ont déjà été modifiés dans une tentative précédente : %v. "+

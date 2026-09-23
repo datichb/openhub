@@ -8,20 +8,34 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/task"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // CoordinatorOpts holds options for launching a parallel run.
 type CoordinatorOpts struct {
-	ProjectPath     string
-	ProjectID       string
+	ProjectPath string
+	ProjectID   string
+
+	// Tasks is the generalized work-unit list. Use this for new code.
+	Tasks []task.Task
+
+	// Deprecated: Tickets is the legacy ticket ID list. If Tasks is nil,
+	// Tickets+TicketEstimates+Priority are auto-converted to Tasks via the shim.
 	Tickets         []string
-	TicketEstimates map[string]int // ticket ID -> estimated_minutes (0 = unknown, uses Config.DefaultTicketWeightMin)
-	Priority        string         // priority ticket ID (empty = no priority)
-	Agent           string         // agent to use (default: orchestrator-dev)
-	BranchPattern   string         // e.g. "feat/%s"; empty = use worktree.BranchName default
-	Config          Config
-	PromptFunc      func(ticketID string) string // generates the prompt for each ticket
+	TicketEstimates map[string]int
+	Priority        string
+
+	Agent         string // agent to use (default: orchestrator-dev)
+	BranchPattern string // e.g. "feat/%s"; empty = use worktree.BranchName default
+	Config        Config
+
+	// TaskPromptFunc generates the prompt for a task. Use this for new code.
+	TaskPromptFunc func(t task.Task) string
+
+	// Deprecated: PromptFunc generates the prompt from a ticket ID string.
+	// Used when TaskPromptFunc is nil.
+	PromptFunc func(ticketID string) string
 }
 
 // Coordinator orchestrates multiple parallel opencode sessions.
@@ -39,19 +53,33 @@ type Coordinator struct {
 func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
 	opts.Config.Validate()
 
-	if len(opts.Tickets) == 0 {
-		return nil, fmt.Errorf("no tickets specified")
+	// Backward compat shim: convert legacy Tickets to Tasks
+	if len(opts.Tasks) == 0 && len(opts.Tickets) > 0 {
+		opts.Tasks = task.TicketsToTasks(opts.Tickets, opts.TicketEstimates, opts.Priority)
 	}
-	if len(opts.Tickets) > opts.Config.MaxSessions {
-		return nil, fmt.Errorf("too many tickets (%d) for max_sessions (%d)", len(opts.Tickets), opts.Config.MaxSessions)
+	// Backward compat shim: wrap legacy PromptFunc into TaskPromptFunc
+	if opts.TaskPromptFunc == nil && opts.PromptFunc != nil {
+		legacyFn := opts.PromptFunc
+		opts.TaskPromptFunc = func(t task.Task) string { return legacyFn(t.ID) }
+	}
+
+	if len(opts.Tasks) == 0 {
+		return nil, fmt.Errorf("no tasks specified")
+	}
+	if len(opts.Tasks) > opts.Config.MaxSessions {
+		return nil, fmt.Errorf("too many tasks (%d) for max_sessions (%d)", len(opts.Tasks), opts.Config.MaxSessions)
 	}
 	if opts.Config.MaxBudgetMinutes > 0 {
-		if opts.TicketEstimates == nil {
-			opts.TicketEstimates = make(map[string]int)
+		total := 0
+		for _, t := range opts.Tasks {
+			est := t.EstimateMinutes
+			if est <= 0 {
+				est = opts.Config.DefaultTicketWeightMin
+			}
+			total += est
 		}
-		total := opts.Config.TotalBudget(opts.TicketEstimates, opts.Tickets)
 		if total > opts.Config.MaxBudgetMinutes {
-			return nil, fmt.Errorf("total ticket weight (%d min) exceeds max_budget (%d min)", total, opts.Config.MaxBudgetMinutes)
+			return nil, fmt.Errorf("total task weight (%d min) exceeds max_budget (%d min)", total, opts.Config.MaxBudgetMinutes)
 		}
 	}
 	if opts.Agent == "" {
@@ -67,7 +95,7 @@ func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
 	return &Coordinator{
 		opts:               opts,
 		state:              state,
-		servers:            make([]*OpenCodeServer, 0, len(opts.Tickets)),
+		servers:            make([]*OpenCodeServer, 0, len(opts.Tasks)),
 		context:            NewSharedContext(state),
 		opencodeBin:        bin,
 		notifiedConflicts:  make(map[string]bool),
@@ -134,42 +162,40 @@ func (c *Coordinator) Cleanup() {
 // --- Internal methods ---
 
 func (c *Coordinator) createWorktrees(ctx context.Context) error {
-	for i, ticket := range c.opts.Tickets {
+	for i, t := range c.opts.Tasks {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		branch := worktree.BranchName(c.opts.BranchPattern, ticket)
-		wtPath, err := worktree.ResolveOrCreate(c.opts.ProjectPath, branch)
+		branchName := t.BranchName
+		if branchName == "" {
+			branchName = worktree.BranchName(c.opts.BranchPattern, t.ID)
+		}
+		wtPath, err := worktree.ResolveOrCreate(c.opts.ProjectPath, branchName)
 		if err != nil {
-			return fmt.Errorf("creating worktree for %s: %w", ticket, err)
+			return fmt.Errorf("creating worktree for %s: %w", t.ID, err)
 		}
 
 		// Link the worktree to the main project's deployed config via relative
 		// symlinks. The main project must be deployed before coord.Run() is called
 		// (autoDeployIfNeeded in start_parallel_mode.go ensures this).
 		if err := worktree.EnsureWorktreeConfig(wtPath, c.opts.ProjectPath); err != nil {
-			return fmt.Errorf("linking config for worktree %s: %w", ticket, err)
+			return fmt.Errorf("linking config for worktree %s: %w", t.ID, err)
 		}
 
 		port := c.opts.Config.PortRangeStart + i
-		isPriority := c.opts.Priority != "" && c.opts.Priority == ticket
-		estimate := 0
-		if c.opts.TicketEstimates != nil {
-			estimate = c.opts.TicketEstimates[ticket]
-		}
 
 		c.state.AddSession(SessionInfo{
-			TicketID:        ticket,
+			TicketID:        t.ID,
 			Project:         c.opts.ProjectID,
-			Branch:          branch,
+			Branch:          branchName,
 			WorktreePath:    wtPath,
 			Port:            port,
 			Status:          StatusPending,
-			Priority:        isPriority,
-			EstimateMinutes: estimate,
+			Priority:        t.Priority,
+			EstimateMinutes: t.EstimateMinutes,
 		})
 	}
 	return nil
@@ -238,7 +264,7 @@ func (c *Coordinator) startSessions(ctx context.Context) error {
 		})
 
 		// Generate and send prompt
-		prompt := c.opts.PromptFunc(srv.TicketID)
+		prompt := c.promptForTask(srv.TicketID)
 		if err := srv.SendPromptAsync(sessionID, prompt, c.opts.Agent); err != nil {
 			c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
 				s.Status = StatusFailed
@@ -440,6 +466,21 @@ func (c *Coordinator) promoteIdleSessions() {
 			s.CompletedAt = time.Now().UTC()
 		})
 	}
+}
+
+// promptForTask generates the prompt for a task by ID, using TaskPromptFunc.
+func (c *Coordinator) promptForTask(taskID string) string {
+	if c.opts.TaskPromptFunc != nil {
+		// Find the task by ID
+		for _, t := range c.opts.Tasks {
+			if t.ID == taskID {
+				return c.opts.TaskPromptFunc(t)
+			}
+		}
+		// Fallback: create a minimal task
+		return c.opts.TaskPromptFunc(task.Task{ID: taskID, Kind: task.KindTicket})
+	}
+	return ""
 }
 
 // findServer returns the server for a given ticket ID, or nil.
