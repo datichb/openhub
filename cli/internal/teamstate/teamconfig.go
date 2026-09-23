@@ -356,6 +356,8 @@ type ParallelConfig struct {
 	DefaultTicketWeightMin int  `toml:"default_ticket_weight_min"` // Fallback weight when no estimate (default: 60)
 	PortRangeStart         int  `toml:"port_range_start"`          // Starting port for opencode serve (default: 4100)
 	AutoMergeBeads         bool `toml:"auto_merge_beads"`          // Propose auto merge for Beads tickets (default: true)
+	MaxRetries             int  `toml:"max_retries"`               // Max recovery attempts per failed session (default: 2)
+	RetryDelaySeconds      int  `toml:"retry_delay_seconds"`       // Seconds to wait before retry (default: 5)
 }
 
 // ClaimConfig holds settings for the claim lifecycle.
@@ -500,6 +502,12 @@ func (r *Repo) LoadConfig() (*TeamConfig, error) {
 	}
 	if cfg.Parallel.PortRangeStart <= 0 {
 		cfg.Parallel.PortRangeStart = 4100
+	}
+	if cfg.Parallel.MaxRetries < 0 {
+		cfg.Parallel.MaxRetries = 0
+	}
+	if cfg.Parallel.RetryDelaySeconds < 0 {
+		cfg.Parallel.RetryDelaySeconds = 0
 	}
 	if cfg.Claim.DoneRetentionDays <= 0 {
 		cfg.Claim.DoneRetentionDays = 7

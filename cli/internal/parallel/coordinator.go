@@ -267,6 +267,9 @@ func (c *Coordinator) monitor(ctx context.Context) error {
 			c.pollStatus()
 			c.context.UpdateFromServers(c.servers)
 
+			// Attempt recovery of failed sessions (before notifications)
+			c.attemptRecovery(ctx)
+
 			// Send notifications for new conflicts and completions
 			c.sendConflictNotifications()
 			c.sendCompletionNotifications()
@@ -285,7 +288,7 @@ func (c *Coordinator) pollStatus() {
 	var wg sync.WaitGroup
 	for _, srv := range c.servers {
 		sess, ok := c.state.GetSession(srv.TicketID)
-		if !ok || sess.Status != StatusRunning {
+		if !ok || (sess.Status != StatusRunning && sess.Status != StatusIdle) {
 			continue
 		}
 
@@ -437,6 +440,27 @@ func (c *Coordinator) promoteIdleSessions() {
 			s.CompletedAt = time.Now().UTC()
 		})
 	}
+}
+
+// findServer returns the server for a given ticket ID, or nil.
+func (c *Coordinator) findServer(ticketID string) *OpenCodeServer {
+	for _, srv := range c.servers {
+		if srv.TicketID == ticketID {
+			return srv
+		}
+	}
+	return nil
+}
+
+// replaceServer swaps the server for a ticket ID in the servers slice.
+func (c *Coordinator) replaceServer(ticketID string, newSrv *OpenCodeServer) {
+	for i, srv := range c.servers {
+		if srv.TicketID == ticketID {
+			c.servers[i] = newSrv
+			return
+		}
+	}
+	c.servers = append(c.servers, newSrv)
 }
 
 func (c *Coordinator) cleanup() {

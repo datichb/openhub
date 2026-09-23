@@ -57,6 +57,12 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 					cfg.PortRangeStart = teamCfg.Parallel.PortRangeStart
 				}
 				cfg.AutoMergeBeads = teamCfg.Parallel.AutoMergeBeads
+				if teamCfg.Parallel.MaxRetries > 0 {
+					cfg.MaxRetries = teamCfg.Parallel.MaxRetries
+				}
+				if teamCfg.Parallel.RetryDelaySeconds > 0 {
+					cfg.RetryDelaySeconds = teamCfg.Parallel.RetryDelaySeconds
+				}
 			}
 		}
 	}

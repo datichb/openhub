@@ -108,6 +108,8 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 					DefaultTicketWeightMin: 60,
 					PortRangeStart:         4100,
 					AutoMergeBeads:         true,
+					MaxRetries:             2,
+					RetryDelaySeconds:      5,
 				},
 			}
 			return s.Repo.SaveConfig(s.Ctx, cfg)

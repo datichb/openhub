@@ -49,7 +49,7 @@ func (sc *SharedContext) detectConflicts() {
 	// Map file → list of ticket IDs that touch it
 	fileToSessions := make(map[string][]string)
 	for _, sess := range snap.Sessions {
-		if sess.Status != StatusRunning && sess.Status != StatusCompleted {
+		if sess.Status != StatusRunning && sess.Status != StatusCompleted && sess.Status != StatusRetrying {
 			continue
 		}
 		allFiles := make([]string, 0, len(sess.FilesModified)+len(sess.FilesCreated))

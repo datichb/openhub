@@ -18,6 +18,7 @@ const (
 	StatusStarting  SessionStatus = "starting"
 	StatusRunning   SessionStatus = "running"
 	StatusIdle      SessionStatus = "idle"      // session finished its turn, waiting for next prompt or completion
+	StatusRetrying  SessionStatus = "retrying"  // session failed and is being restarted
 	StatusCompleted SessionStatus = "completed"
 	StatusFailed    SessionStatus = "failed"
 	StatusAborted   SessionStatus = "aborted"
@@ -39,6 +40,9 @@ type SessionInfo struct {
 	Error           string        `json:"error,omitempty"`
 	FilesModified   []string      `json:"files_modified,omitempty"`
 	FilesCreated    []string      `json:"files_created,omitempty"`
+	RetryCount      int           `json:"retry_count,omitempty"`       // number of recovery attempts
+	LastRetryAt     time.Time     `json:"last_retry_at,omitempty"`     // timestamp of last retry
+	RetryErrors     []string      `json:"retry_errors,omitempty"`      // error history from prior attempts
 }
 
 // ConflictInfo represents a potential file conflict between sessions.

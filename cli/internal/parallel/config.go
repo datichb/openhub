@@ -9,6 +9,8 @@ type Config struct {
 	AutoMergeBeads            bool `toml:"auto_merge_beads"`            // Propose auto merge for Beads tickets
 	AutoMergeExt              bool `toml:"auto_merge_external"`         // Never for external tickets (always false)
 	CleanupCompletedWorktrees bool `toml:"cleanup_completed_worktrees"` // Remove worktrees of completed sessions on shutdown (default: false)
+	MaxRetries                int  `toml:"max_retries"`                 // Max recovery attempts per failed session (default: 2, cap: 5)
+	RetryDelaySeconds         int  `toml:"retry_delay_seconds"`         // Seconds to wait before retrying a failed session (default: 5, cap: 60)
 }
 
 // DefaultConfig returns the default parallel configuration.
@@ -21,6 +23,8 @@ func DefaultConfig() Config {
 		AutoMergeBeads:            true,
 		AutoMergeExt:              false,
 		CleanupCompletedWorktrees: false,
+		MaxRetries:                2,
+		RetryDelaySeconds:         5,
 	}
 }
 
@@ -43,6 +47,18 @@ func (c *Config) Validate() {
 	}
 	if c.PortRangeStart <= 0 {
 		c.PortRangeStart = 4100
+	}
+	if c.MaxRetries < 0 {
+		c.MaxRetries = 0
+	}
+	if c.MaxRetries > 5 {
+		c.MaxRetries = 5
+	}
+	if c.RetryDelaySeconds < 0 {
+		c.RetryDelaySeconds = 0
+	}
+	if c.RetryDelaySeconds > 60 {
+		c.RetryDelaySeconds = 60
 	}
 	// External merge is never allowed
 	c.AutoMergeExt = false
