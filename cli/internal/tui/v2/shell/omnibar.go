@@ -18,11 +18,11 @@ import (
 //
 // Layout (bottom of screen):
 //
-//	┌──┬──────────────────────────────────────────┐
-//	│▎ │  hints or input (pages container)         │  ← omnibar
-//	│▎ │  🏠 Hub                    openhub v1.x   │  ← mode bar
-//	└──┴──────────────────────────────────────────┘
-//	 gutter (2 cols)         rightPane (flex)
+//	┌─┬───────────────────────────────────────────┐
+//	│▎│  hints or input (pages container)          │  ← omnibar
+//	│▎│  🏠 Hub                    openhub v1.x    │  ← mode bar
+//	└─┴───────────────────────────────────────────┘
+//	 gutter (1 col)          rightPane (flex)
 //
 // Modes:
 //   - Passive: displays contextual hints (view keybindings)
@@ -34,7 +34,8 @@ type Omnibar struct {
 	hints       *tview.TextView
 	container   *tview.Pages // switches between input and hints
 	modeBar     *tview.TextView
-	gutter      *tview.TextView
+	gutter      *tview.Box
+	gutterFg    tcell.Color // foreground color for the gutter indicator, updated per mode
 	wrapper     *tview.Flex // outermost primitive: gutter | rightPane
 	active      bool
 	suggestions *tview.List
@@ -153,15 +154,22 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.modeBar.SetBackgroundColor(theme.BgElement)
-	o.modeBar.SetBorderPadding(0, 1, 1, 2)
+	o.modeBar.SetBorderPadding(0, 0, 1, 2)
 
-	// Gutter: 2-column colored bar on the left edge spanning the full height.
-	// The background color is set to the active mode color so the entire
-	// column acts as a visual mode indicator (not just a single character).
-	o.gutter = tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter)
-	o.gutter.SetBackgroundColor(theme.ModeHubColor)
+	// Gutter: 1-column colored indicator on the left edge spanning the full height.
+	// Uses a DrawFunc to paint the "▎" character (1/8 block) on every row with
+	// the active mode color as foreground. The background matches BgPanel so
+	// only the thin vertical stroke is visible — not a solid color block.
+	o.gutterFg = theme.ModeHubColor
+	o.gutter = tview.NewBox()
+	o.gutter.SetBackgroundColor(theme.BgPanel)
+	o.gutter.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		style := tcell.StyleDefault.Background(theme.BgPanel).Foreground(o.gutterFg)
+		for dy := 0; dy < height; dy++ {
+			screen.SetContent(x, y+dy, '▎', nil, style)
+		}
+		return x, y, width, height
+	})
 
 	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (1 row).
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -169,13 +177,13 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	rightPane.AddItem(o.container, 0, 1, true) // omnibar fills available space
 	rightPane.AddItem(o.modeBar, 1, 0, false)  // mode bar: 1 row at bottom
 
-	// Wrapper: horizontal layout — gutter (2 cols) | rightPane (fills rest).
+	// Wrapper: horizontal layout — gutter (1 col) | rightPane (fills rest).
 	// BgPanel background creates the visible margin around the bar.
 	// Top/bottom padding provides vertical spacing.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
-	o.wrapper.SetBorderPadding(1, 0, 1, 0)
-	o.wrapper.AddItem(o.gutter, 2, 0, false)   // gutter: fixed 2 cols
+	o.wrapper.SetBorderPadding(1, 1, 1, 0)
+	o.wrapper.AddItem(o.gutter, 1, 0, false)   // gutter: fixed 1 col
 	o.wrapper.AddItem(rightPane, 0, 1, true)    // right pane: fills rest
 
 	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
@@ -249,8 +257,8 @@ func (o *Omnibar) UpdateModeBar(mode views.Mode, info views.ModeBarInfo) {
 		gutterColor = theme.ModeProjectColor
 	}
 
-	// Update gutter background color to span the full height.
-	o.gutter.SetBackgroundColor(gutterColor)
+	// Update gutter foreground color — the DrawFunc reads o.gutterFg on each render.
+	o.gutterFg = gutterColor
 
 	// Build mode bar text: icon + label on the left, context info right-aligned.
 	left := fmt.Sprintf("%s%s %s%s",
