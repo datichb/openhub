@@ -14,6 +14,27 @@ Il est chargé par le `documentarian` uniquement lors d'opérations d'écriture 
 
 ---
 
+## Étape -1 — Détection monorepo
+
+Avant toute action, vérifier si le dépôt est un monorepo :
+
+```bash
+ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
+ls packages/*/package.json apps/*/package.json 2>/dev/null
+cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+```
+
+**Si monorepo détecté :**
+1. Identifier le package cible de la tâche en cours (depuis le contexte, le ticket, ou en demandant à l'utilisateur)
+2. Définir `$PROJECT_DIR` = chemin du package (ex: `packages/api-gateway/`)
+3. Scoper toutes les recherches et chemins à `$PROJECT_DIR` au lieu de la racine du dépôt
+
+**Si pas de monorepo :** continuer normalement avec la racine comme scope.
+
+> **Note :** En monorepo, le wiki reste centralisé à `docs/wiki/` (racine). Les pages peuvent référencer des packages spécifiques via des sections dédiées.
+
+---
+
 ## Structure du wiki
 
 ```

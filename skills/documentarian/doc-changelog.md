@@ -5,6 +5,25 @@ description: Documentation du changelog — détection du format existant, Keep 
 
 # Skill — Changelog et Release Notes
 
+## Étape -1 — Détection monorepo
+
+Avant toute action, vérifier si le dépôt est un monorepo :
+
+```bash
+ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
+ls packages/*/package.json apps/*/package.json 2>/dev/null
+cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+```
+
+**Si monorepo détecté :**
+1. Identifier le package cible de la tâche en cours (depuis le contexte, le ticket, ou en demandant à l'utilisateur)
+2. Définir `$PROJECT_DIR` = chemin du package (ex: `packages/api-gateway/`)
+3. Scoper toutes les recherches et chemins à `$PROJECT_DIR` au lieu de la racine du dépôt
+
+**Si pas de monorepo :** continuer normalement avec la racine comme scope.
+
+---
+
 ## Étape 0 — Détecter le format existant
 
 Avant de modifier ou créer un CHANGELOG :
@@ -176,6 +195,52 @@ git log $(git describe --tags --abbrev=0)..HEAD --oneline --no-merges
 # 5. Mettre à jour les liens en bas du fichier
 # 6. Committer : "chore(release): v1.2.0"
 # 7. Taguer : git tag -a v1.2.0 -m "Release v1.2.0"
+```
+
+### Variante monorepo
+
+En monorepo, le changelog peut être géré par package ou de façon coordonnée à la racine.
+
+#### Changelogs par package
+
+Chaque package maintient son propre `$PROJECT_DIR/CHANGELOG.md`, scopé à ses changements :
+
+```bash
+# Git log scopé au package
+git log --oneline -- $PROJECT_DIR
+
+# Commits depuis le dernier tag du package
+git log @scope/package@1.2.0..HEAD --oneline -- $PROJECT_DIR
+```
+
+#### Changelog coordonné (racine)
+
+Un `CHANGELOG.md` à la racine avec des sections par package :
+
+```markdown
+## [2024-03-15]
+
+### @scope/api-gateway (1.3.0)
+- Added: Nouveau middleware de rate limiting (#142)
+
+### @scope/shared-utils (0.8.1)
+- Fixed: Correction du parser de dates (#155)
+```
+
+#### Outils de gestion
+
+| Outil | Usage | Commande type |
+|-------|-------|---------------|
+| `changesets` | Changelogs par package, versioning indépendant | `npx changeset add` puis `npx changeset version` |
+| `lerna version` | Versioning coordonné ou indépendant | `lerna version --conventional-commits` |
+| Independent versioning | Chaque package a son propre SemVer | Configuré dans `lerna.json` : `"version": "independent"` |
+
+#### Tags git scopés
+
+En monorepo, les tags suivent le format `@scope/package@version` :
+
+```bash
+git tag -a @scope/api-gateway@1.3.0 -m "Release @scope/api-gateway@1.3.0"
 ```
 
 ---
