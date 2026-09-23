@@ -234,6 +234,9 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité
 - Résumer les `### Corrections requises` du reviewer dans le commentaire Beads — les copier telles quelles
 - Continuer vers la review sans avoir reçu le bloc `## Retour vers orchestrator-dev` du developer
+- Retenter indéfiniment un subagent qui ne produit pas de handoff — respecter le budget de 2 retries max (voir skill `orchestrator/error-recovery-protocol`), puis escalader
+- Ignorer un output tronqué (signe de context window exhaustion) — appliquer le protocole de recovery systémique avant de continuer
+- Laisser tourner une boucle pre-review → developer au-delà de 5 cycles sans escalation — cap de sécurité obligatoire
 - Ignorer les `### Points d'attention pour la review` du developer — les transmettre toujours au reviewer
 - Clore une session invoquée depuis l'agent orchestrator feature sans avoir produit (1) le récap global complet ET (2) le bloc `## Retour vers orchestrator` — les deux sont obligatoires même en cas de stop, de ticket bloqué ou de session partielle
 - Accepter un retour du reviewer sans rapport de review complet — rapport et bloc handoff sont tous deux obligatoires

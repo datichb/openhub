@@ -206,7 +206,7 @@ question({
 
    1. **Détecter la présence du compte rendu d'implémentation complet** (description de ce qui a été fait, fichiers modifiés, tests écrits) :
       - **Présent** → continuer la vérification suivante
-      - **Absent** → demander explicitement au developer de produire le compte rendu complet avant de continuer.
+      - **Absent** → appliquer le protocole de retry (voir skill `orchestrator/error-recovery-protocol`) : max 2 re-invocations avec `task_id` + instruction corrective. Après 2 échecs → escalader à l'utilisateur.
 
    2. **Détecter la présence du bloc `## Retour vers orchestrator-dev`** :
        - **Présent** → lire le `### Statut` :
@@ -217,7 +217,7 @@ question({
             1. Lire le rapport de dérive fourni par le developer
             2. Présenter les 3 options à l'utilisateur (réviser scope / revert / bifurquer) via l'outil `question` ou bloc handoff selon le contexte
             3. Appliquer la décision : modifier le ticket Beads (Option A), relancer depuis l'étape 1b (Option B), ou créer le ticket de refactoring et mettre le ticket courant en `blocked` (Option C)
-       - **Absent** → demander explicitement au developer de produire le bloc avant de continuer.
+       - **Absent** → appliquer le protocole de retry (voir skill `orchestrator/error-recovery-protocol`) : max 2 re-invocations avec `task_id` + instruction corrective. Si le résultat est tronqué (indicateurs de progression mais pas de bloc de clôture) → suspecter un context window exhaustion et ré-invoquer dans une **nouvelle session** avec un prompt réduit. Après épuisement des retries → escalader à l'utilisateur.
 
    Le format attendu et les définitions des statuts sont définis dans le skill `developer/developer-handoff-format` — s'y référer comme source de vérité.
 
@@ -336,6 +336,8 @@ Action requise :
 | Échec non auto-fixable | Commentaire Beads + → Étape 2 (Developer) |
 
 > **Compteur de cycles :** Les boucles "Pre-review échoue → retour developer → Pre-review" ne comptent **pas** dans la limite des 3 cycles de review (étape 4). La limite de 3 cycles s'applique uniquement aux rejets du reviewer humain/automatique à l'étape 4. La Pre-review (étape 3) est un filtre technique préalable, pas un cycle de review.
+>
+> **Cap de sécurité pre-review :** Après **5 cycles** pre-review → developer sans résolution des erreurs, escalader à l'utilisateur (voir skill `orchestrator/error-recovery-protocol`, section "Boucle pre-review infinie"). Options : intervenir manuellement / passer à la review malgré les erreurs / passer ce ticket / stop.
 
 ---
 
@@ -370,8 +372,8 @@ Fournir au reviewer :
    - **Présent** → lire le `### Verdict` pour préparer le CP-2 :
      - `commit` → CP-2 avec information "reviewer approuve — aucun problème bloquant"
      - `corriger` ou `corriger-sécurité` → CP-2 avec synthèse des problèmes + routing recommandé
-   - **Absent** → demander explicitement au reviewer de produire le bloc avant de continuer.
-   - **`### Rapport complet` absent dans le bloc** → demander explicitement au reviewer de compléter le bloc avec le rapport intégral.
+   - **Absent** → appliquer le protocole de retry (voir skill `orchestrator/error-recovery-protocol`) : max 2 re-invocations avec `task_id` + instruction corrective. Après 2 échecs → escalader à l'utilisateur.
+   - **`### Rapport complet` absent dans le bloc** → appliquer le protocole de retry : max 2 re-invocations avec `task_id` + instruction listant les champs manquants. Après 2 échecs → escalader.
 
 Le format attendu, les définitions des verdicts et du routing sont définis dans le skill `reviewer/reviewer-handoff-format` — s'y référer comme source de vérité.
 

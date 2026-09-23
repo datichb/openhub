@@ -21,7 +21,12 @@ Pour chaque ticket du batch, **dans l'ordre, un par un** :
    git worktree add -b <nom-branche> .worktrees/<slug>
    ```
 4. Vérifier le succès de la commande avant de passer au ticket suivant
-5. En cas d'échec (branche déjà existante, verrou git, etc.) : résoudre le conflit avant de continuer — ne pas lancer les sessions parallèles tant que tous les worktrees ne sont pas créés
+5. En cas d'échec, appliquer le protocole de recovery worktree (voir skill `orchestrator/error-recovery-protocol`) :
+   - Branche déjà existante → `git worktree remove <path>` + `git branch -D <branch>` puis réessayer
+   - Verrou git (`.git/index.lock`) → attendre 5s, réessayer (max 3 tentatives)
+   - Échec persistant → **fallback séquentiel** pour ce ticket (le retirer du lot parallèle, le traiter après les sessions parallèles restantes)
+
+Ne pas lancer les sessions parallèles tant que tous les worktrees actifs ne sont pas créés.
 
 Stocker pour chaque ticket : `{ ticket_id, branch_name, worktree_path: ".worktrees/<slug>" }`
 
@@ -41,6 +46,7 @@ Attendre les résultats de toutes les sessions. Pour chaque résultat reçu :
 1. Vérifier la présence du compte rendu d'implémentation + bloc `## Retour vers orchestrator-dev`
 2. Si `### Statut` = `bloqué` → traiter comme un "Ticket bloqué" (produire `## Question pour l'orchestrator` si invoqué depuis l'agent orchestrator)
 3. Détecter un éventuel conflit de fichiers : si un `developer-*` a modifié un fichier déjà modifié par une autre session parallèle, signaler et passer à l'étape Pre-review+Review en priorité pour ce ticket avant les autres
+4. **Si un résultat est absent ou tronqué** (pas de bloc de handoff, indicateurs de progression mais pas de clôture) → appliquer le protocole de retry/recovery (voir skill `orchestrator/error-recovery-protocol`). Si le retry échoue, traiter ce ticket en **fallback séquentiel** après les sessions parallèles restantes — ne pas bloquer les autres sessions.
 
 ### Sérialisation FIFO des CP (mode `manuel` parallèle)
 
