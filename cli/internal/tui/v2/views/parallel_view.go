@@ -211,12 +211,22 @@ func parallelStatusIcon(status string) string {
 	switch status {
 	case "running":
 		return theme.ColorTag(theme.InfoHex) + theme.IconDone + theme.TagColor
-	case "done":
+	case "done", "completed":
 		return theme.ColorTag(theme.SuccessHex) + theme.IconSuccess + theme.TagColor
 	case "conflict":
 		return theme.ColorTag(theme.ErrorHex) + theme.IconWarning + theme.TagColor
 	case "idle":
 		return theme.ColorTag(theme.TextMutedHex) + theme.IconPending + theme.TagColor
+	case "retrying":
+		return theme.ColorTag(theme.WarningHex) + "↻" + theme.TagColor
+	case "failed":
+		return theme.ColorTag(theme.ErrorHex) + "✗" + theme.TagColor
+	case "pending":
+		return theme.ColorTag(theme.TextMutedHex) + theme.IconPending + theme.TagColor
+	case "starting":
+		return theme.ColorTag(theme.TextMutedHex) + "◐" + theme.TagColor
+	case "aborted":
+		return theme.ColorTag(theme.TextMutedHex) + "⊘" + theme.TagColor
 	default:
 		return theme.ColorTag(theme.TextMutedHex) + theme.IconDot + theme.TagColor
 	}
@@ -226,9 +236,13 @@ func parallelStatusColorHex(status string) string {
 	switch status {
 	case "running":
 		return theme.InfoHex
-	case "done":
+	case "done", "completed":
 		return theme.SuccessHex
 	case "conflict":
+		return theme.ErrorHex
+	case "retrying":
+		return theme.WarningHex
+	case "failed", "aborted":
 		return theme.ErrorHex
 	default:
 		return theme.TextMutedHex

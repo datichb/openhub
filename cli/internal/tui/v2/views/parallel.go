@@ -173,6 +173,18 @@ func statusIcon(status string) string {
 		return "●"
 	case "idle":
 		return "○"
+	case "retrying":
+		return "↻"
+	case "failed":
+		return "✗"
+	case "pending":
+		return "○"
+	case "starting":
+		return "◐"
+	case "aborted":
+		return "⊘"
+	case "completed":
+		return "✓"
 	case "conflict":
 		return "!"
 	case "done":
@@ -188,6 +200,18 @@ func statusColor(status string) tcell.Color {
 		return theme.Accent
 	case "idle":
 		return theme.FgSecondary
+	case "retrying":
+		return theme.Warning
+	case "failed":
+		return theme.Error
+	case "pending":
+		return theme.FgMuted
+	case "starting":
+		return theme.FgSecondary
+	case "aborted":
+		return theme.FgMuted
+	case "completed":
+		return theme.Success
 	case "conflict":
 		return theme.Error
 	case "done":
