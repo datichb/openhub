@@ -7,6 +7,7 @@ type Config struct {
 	DefaultTicketWeightMin    int  `toml:"default_ticket_weight_min"`   // Fallback weight when ticket has no estimate (default: 60 = "unknown/M")
 	PortRangeStart            int  `toml:"port_range_start"`            // Starting port for opencode serve (default: 4100)
 	AutoMergeBeads            bool `toml:"auto_merge_beads"`            // Propose auto merge for Beads tickets
+	AutoMergeSweep            bool `toml:"auto_merge_sweep"`            // Propose auto merge for sweep tasks (default: true)
 	AutoMergeExt              bool `toml:"auto_merge_external"`         // Never for external tickets (always false)
 	CleanupCompletedWorktrees bool `toml:"cleanup_completed_worktrees"` // Remove worktrees of completed sessions on shutdown (default: false)
 	MaxRetries                int  `toml:"max_retries"`                 // Max recovery attempts per failed session (default: 2, cap: 5)
@@ -21,6 +22,7 @@ func DefaultConfig() Config {
 		DefaultTicketWeightMin:    60,
 		PortRangeStart:            4100,
 		AutoMergeBeads:            true,
+		AutoMergeSweep:            true,
 		AutoMergeExt:              false,
 		CleanupCompletedWorktrees: false,
 		MaxRetries:                2,
