@@ -749,6 +749,7 @@ func actionTeamRejoin() {
 
 	// ── Step 3: Tracker setup (conditional) ─────────────────────────
 	var launchDiscoveryAfterRejoin bool
+	var tuiTrackerChoice string
 	var tuiTrackerToken string
 	trackerStepRejoin := views.WizardStep{
 		ID:    "rejoin_tracker_setup",
@@ -765,15 +766,8 @@ func actionTeamRejoin() {
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
 			trackerConfigured := false
-			var trackerType string
-			var trackerTokenKey string
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
-				trackerType = teamCfg.Tracker.Type
-				trackerTokenKey = teamCfg.Tracker.TrackerTokenKey
-				if trackerTokenKey == "" {
-					trackerTokenKey = "openhub.tracker." + trackerType + ".token"
-				}
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
@@ -785,28 +779,6 @@ func actionTeamRejoin() {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
 
-			// When tracker is configured, check if a token exists in keychain.
-			// If not, prompt the user for one so sync works immediately.
-			if trackerConfigured && a.Secrets != nil {
-				val, err := a.Secrets.Get(ctx, trackerTokenKey)
-				if err != nil || val == "" {
-					envKey := "GITLAB_TOKEN"
-					if trackerType == "jira" {
-						envKey = "JIRA_TOKEN"
-					}
-					if os.Getenv(envKey) == "" {
-						form.AddTextView("",
-							i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
-							60, 2, true, false)
-						form.AddPasswordField(
-							i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
-							"", 0, '*',
-							func(t string) { tuiTrackerToken = t },
-						)
-					}
-				}
-			}
-
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			if trackerConfigured {
 				options = append(options,
@@ -815,7 +787,20 @@ func actionTeamRejoin() {
 					i18n.T("cmd.init.wizard_tracker_configure_later"),
 				)
 				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-					launchDiscoveryAfterRejoin = idx == 2 // 1=keep, 2=reconfigure, 3=later
+					switch idx {
+					case 1:
+						tuiTrackerChoice = "keep"
+						launchDiscoveryAfterRejoin = false
+					case 2:
+						tuiTrackerChoice = "reconfigure"
+						launchDiscoveryAfterRejoin = true
+					case 3:
+						tuiTrackerChoice = "later"
+						launchDiscoveryAfterRejoin = false
+					default:
+						tuiTrackerChoice = ""
+						launchDiscoveryAfterRejoin = false
+					}
 				})
 			} else {
 				options = append(options,
@@ -823,14 +808,92 @@ func actionTeamRejoin() {
 					i18n.T("cmd.init.wizard_tracker_configure_later"),
 				)
 				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-					launchDiscoveryAfterRejoin = idx == 1 // 1=configure, 2=later
+					switch idx {
+					case 1:
+						tuiTrackerChoice = "reconfigure"
+						launchDiscoveryAfterRejoin = true
+					case 2:
+						tuiTrackerChoice = "later"
+						launchDiscoveryAfterRejoin = false
+					default:
+						tuiTrackerChoice = ""
+						launchDiscoveryAfterRejoin = false
+					}
 				})
 			}
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
+		OnDone: func() error { return nil },
+		InfoFields: func() []views.InfoField {
+			val := i18n.T("cmd.init.wizard_tracker_configure_later")
+			if launchDiscoveryAfterRejoin {
+				val = i18n.T("cmd.init.wizard_tracker_configure_now")
+			} else if tuiTrackerChoice == "keep" {
+				val = i18n.T("cmd.init.wizard_tracker_keep_existing")
+			}
+			return []views.InfoField{{Label: "Tracker", Value: val}}
+		},
+	}
+
+	// ── Step 3b: Tracker token (conditional on "keep" + missing token) ──
+	trackerTokenStepRejoin := views.WizardStep{
+		ID:    "rejoin_tracker_token",
+		Label: i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
+		SkipIf: func() bool {
+			if stateRepo == "" || tuiTrackerChoice != "keep" {
+				return true
+			}
+			sp := statePath
+			if sp == "" {
+				sp = config.TeamStatePath(stateRepo)
+			}
+			repo := teamstate.NewRepo(stateRepo, sp)
+			teamCfg, err := repo.LoadConfig()
+			if err != nil || teamCfg.Tracker.Type == "" {
+				return true
+			}
+			tokenKey := teamCfg.Tracker.TrackerTokenKey
+			if tokenKey == "" {
+				tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
+			}
+			envKey := "GITLAB_TOKEN"
+			if teamCfg.Tracker.Type == "jira" {
+				envKey = "JIRA_TOKEN"
+			}
+			if os.Getenv(envKey) != "" {
+				return true
+			}
+			if a.Secrets != nil {
+				if val, e := a.Secrets.Get(ctx, tokenKey); e == nil && val != "" {
+					return true
+				}
+			}
+			return false
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			trackerType := ""
+			sp := statePath
+			if sp == "" {
+				sp = config.TeamStatePath(stateRepo)
+			}
+			repo := teamstate.NewRepo(stateRepo, sp)
+			if teamCfg, err := repo.LoadConfig(); err == nil {
+				trackerType = teamCfg.Tracker.Type
+			}
+			form.AddTextView("",
+				i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
+				60, 2, true, false)
+			form.AddPasswordField(
+				i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
+				"", 0, '*',
+				func(t string) { tuiTrackerToken = t },
+			)
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
 		OnDone: func() error {
-			// Store tracker token if one was provided.
 			if tuiTrackerToken != "" && a.Secrets != nil {
 				sp := statePath
 				if sp == "" {
@@ -850,11 +913,14 @@ func actionTeamRejoin() {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			val := i18n.T("cmd.init.wizard_tracker_configure_later")
-			if launchDiscoveryAfterRejoin {
-				val = i18n.T("cmd.init.wizard_tracker_configure_now")
+			if tuiTrackerToken != "" {
+				return []views.InfoField{
+					{Label: "Tracker token", Value: i18n.T("cmd.init.wizard_tracker_token_stored")},
+				}
 			}
-			return []views.InfoField{{Label: "Tracker", Value: val}}
+			return []views.InfoField{
+				{Label: "Tracker token", Value: i18n.T("cmd.init.wizard_team_skipped")},
+			}
 		},
 	}
 
@@ -866,6 +932,7 @@ func actionTeamRejoin() {
 			validateStep,
 			identityMismatchStep,
 			trackerStepRejoin,
+			trackerTokenStepRejoin,
 		}
 
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{

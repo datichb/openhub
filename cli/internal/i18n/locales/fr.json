@@ -1600,6 +1600,7 @@
   "cmd.init.wizard_tracker_not_configured": "Aucun tracker configuré pour cette équipe.",
   "cmd.init.wizard_tracker_token_missing": "Le tracker nécessite un token personnel %s\npour synchroniser les tickets.",
   "cmd.init.wizard_tracker_token_label": "Token %s",
+  "cmd.init.wizard_tracker_token_stored": "Token enregistré",
   "cmd.init.wizard_tracker_configure_now": "Configurer maintenant",
   "cmd.init.wizard_tracker_configure_later": "Plus tard",
   "cmd.init.wizard_tracker_keep_existing": "Conserver la configuration existante",
