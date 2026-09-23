@@ -544,12 +544,12 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 			return s.ProjectSkipped || !s.ProjectCreated
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			s.DeployConfirmed = true
+			s.DeployConfirmed = false
 			form := tview.NewForm()
-			form.AddCheckbox(i18n.T("cmd.init.wizard_deploy_confirm"), true, func(checked bool) {
+			form.AddCheckbox(i18n.T("cmd.init.wizard_deploy_confirm"), false, func(checked bool) {
 				s.DeployConfirmed = checked
 			})
-			form.AddTextView("", i18n.T("cmd.init.wizard_deploy_desc"), 60, 3, true, false)
+			form.AddTextView("", i18n.T("cmd.init.wizard_deploy_desc"), 60, 5, true, false)
 			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
 			return form
 		},

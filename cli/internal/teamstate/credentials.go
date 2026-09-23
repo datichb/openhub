@@ -48,6 +48,17 @@ func IsHTTPS(remote string) bool {
 		strings.HasPrefix(remote, "http://")
 }
 
+// IsGitLabHost reports whether the remote URL points to a GitLab instance.
+// It checks for "gitlab" in the hostname, which covers gitlab.com and
+// self-hosted instances (e.g. gitlab.example.com, gitlab.octo.tools).
+func IsGitLabHost(remote string) bool {
+	u, err := url.Parse(remote)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(u.Host), "gitlab")
+}
+
 // ── Credential helper management ──────────────────────────────────────────────
 
 // EnsureCredentialHelper checks if a git credential helper is configured for

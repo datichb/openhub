@@ -164,7 +164,7 @@ func actionTeamInit() {
 
 	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
 	credState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
-	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil)
+	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil, a.Secrets)
 
 	// ── Build shared team step state ────────────────────────────────
 	tss := &teamStepState{
@@ -456,7 +456,7 @@ func actionTeamRejoin() {
 
 	// ── Step 0b: HTTPS Credentials (conditional) ────────────────────
 	rejoinCredState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
-	httpsCredStep := buildHTTPSCredStep(ctx, &stateRepo, rejoinCredState, nil)
+	httpsCredStep := buildHTTPSCredStep(ctx, &stateRepo, rejoinCredState, nil, a.Secrets)
 
 	// ── Step 1: Member selection ────────────────────────────────────
 	memberStep := views.WizardStep{
@@ -516,7 +516,8 @@ func actionTeamRejoin() {
 		},
 	}
 
-	// ── Step 1b: GitLab token (conditional) ─────────────────────────
+	// ── Step 1b: GitLab token for SSH repos (conditional) ──────────
+	// When HTTPS, the token is already stored by httpsCredStep.
 	gitlabTokenStep := views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
@@ -528,7 +529,7 @@ func actionTeamRejoin() {
 					break
 				}
 			}
-			return glUser == ""
+			return glUser == "" || teamstate.IsHTTPS(stateRepo)
 		},
 		Validate: func() string {
 			if tokenChoiceIdx == 0 {
@@ -748,6 +749,7 @@ func actionTeamRejoin() {
 
 	// ── Step 3: Tracker setup (conditional) ─────────────────────────
 	var launchDiscoveryAfterRejoin bool
+	var tuiTrackerToken string
 	trackerStepRejoin := views.WizardStep{
 		ID:    "rejoin_tracker_setup",
 		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
@@ -763,8 +765,15 @@ func actionTeamRejoin() {
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
 			trackerConfigured := false
+			var trackerType string
+			var trackerTokenKey string
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
+				trackerType = teamCfg.Tracker.Type
+				trackerTokenKey = teamCfg.Tracker.TrackerTokenKey
+				if trackerTokenKey == "" {
+					trackerTokenKey = "openhub.tracker." + trackerType + ".token"
+				}
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
@@ -774,6 +783,28 @@ func actionTeamRejoin() {
 				form.AddTextView("", hint, 60, 3, true, false)
 			} else {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
+			}
+
+			// When tracker is configured, check if a token exists in keychain.
+			// If not, prompt the user for one so sync works immediately.
+			if trackerConfigured && a.Secrets != nil {
+				val, err := a.Secrets.Get(ctx, trackerTokenKey)
+				if err != nil || val == "" {
+					envKey := "GITLAB_TOKEN"
+					if trackerType == "jira" {
+						envKey = "JIRA_TOKEN"
+					}
+					if os.Getenv(envKey) == "" {
+						form.AddTextView("",
+							i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
+							60, 2, true, false)
+						form.AddPasswordField(
+							i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
+							"", 0, '*',
+							func(t string) { tuiTrackerToken = t },
+						)
+					}
+				}
 			}
 
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
@@ -797,6 +828,26 @@ func actionTeamRejoin() {
 			}
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
+		},
+		OnDone: func() error {
+			// Store tracker token if one was provided.
+			if tuiTrackerToken != "" && a.Secrets != nil {
+				sp := statePath
+				if sp == "" {
+					sp = config.TeamStatePath(stateRepo)
+				}
+				repo := teamstate.NewRepo(stateRepo, sp)
+				if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+					tokenKey := teamCfg.Tracker.TrackerTokenKey
+					if tokenKey == "" {
+						tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
+					}
+					if err := a.Secrets.Set(ctx, tokenKey, tuiTrackerToken); err != nil {
+						return fmt.Errorf("storing tracker token: %w", err)
+					}
+				}
+			}
+			return nil
 		},
 		InfoFields: func() []views.InfoField {
 			val := i18n.T("cmd.init.wizard_tracker_configure_later")

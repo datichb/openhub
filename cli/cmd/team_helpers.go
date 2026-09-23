@@ -62,7 +62,10 @@ type httpsCredState struct {
 // buildHTTPSCredStep returns a WizardStep that collects HTTPS credentials
 // (auth mode, username, token) and stores them via git credential approve.
 // The step auto-skips when the repo URL is not HTTPS.
-func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredState, extraSkipIf func() bool) views.WizardStep {
+//
+// When secrets is non-nil and the repo host is a GitLab instance, the token
+// is also stored in the keychain for GitLab API use (identity verification, etc.).
+func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredState, extraSkipIf func() bool, secrets domain.SecretStore) views.WizardStep {
 	if state.Username == "" {
 		state.Username = "oauth2"
 	}
@@ -109,7 +112,16 @@ func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredSt
 		},
 		OnDone: func() error {
 			if state.AuthChoice == "provide" && state.Token != "" {
-				return teamstate.ConfigureCredential(ctx, *repoURL, state.Username, state.Token)
+				if err := teamstate.ConfigureCredential(ctx, *repoURL, state.Username, state.Token); err != nil {
+					return err
+				}
+				// When the host is GitLab, also store in the keychain for API use.
+				if teamstate.IsGitLabHost(*repoURL) && secrets != nil {
+					teamID := config.RepoNameFromRemote(*repoURL)
+					if err := secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), state.Token); err != nil {
+						slog.Warn("failed to store GitLab token in keychain", "err", err)
+					}
+				}
 			}
 			return nil
 		},
@@ -145,7 +157,8 @@ type initWizardTeamState struct {
 	MismatchPAT      string                  // PAT entered in the mismatch recovery step
 	MismatchChoice   string                  // "verify" or "skip"
 	// Tracker setup
-	LaunchTrackerDiscovery bool // true if user chose "Configure now" for the tracker
+	LaunchTrackerDiscovery bool   // true if user chose "Configure now" for the tracker
+	TrackerToken           string // token entered in the tracker setup prompt (if missing from keychain)
 }
 
 // selectedMemberGitLabUsername returns the GitLab username of the currently
@@ -188,7 +201,11 @@ func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
 // info (if already configured) and offers a dropdown: "Configure now" / "Later".
 // When "Configure now" is chosen, state.LaunchTrackerDiscovery is set to true;
 // the caller's OnComplete is responsible for actually launching the Discovery Wizard.
-func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
+//
+// When a tracker is already configured but no personal token is found in the
+// keychain, the step also prompts for a tracker token so that ticket sync works
+// immediately after rejoin (e.g. after a purge).
+func buildTrackerSetupStep(a **app.App, state *initWizardTeamState) views.WizardStep {
 	return views.WizardStep{
 		ID:    "tracker_setup",
 		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
@@ -202,8 +219,14 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 			statePath := config.TeamStatePath(state.Repo)
 			repo := teamstate.NewRepo(state.Repo, statePath)
 			trackerConfigured := false
+			var trackerType, trackerTokenKey string
 			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
+				trackerType = teamCfg.Tracker.Type
+				trackerTokenKey = teamCfg.Tracker.TrackerTokenKey
+				if trackerTokenKey == "" {
+					trackerTokenKey = "openhub.tracker." + trackerType + ".token"
+				}
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
 						teamCfg.Tracker.Type,
@@ -214,6 +237,32 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 			} else {
 				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
 			}
+
+			// When tracker is configured, check if a token exists in keychain.
+			// If not, prompt the user for one so sync works immediately.
+			tokenMissing := false
+			if trackerConfigured && *a != nil && (*a).Secrets != nil {
+				val, err := (*a).Secrets.Get(state.Ctx, trackerTokenKey)
+				if err != nil || val == "" {
+					// Also check env fallback
+					envKey := "GITLAB_TOKEN"
+					if trackerType == "jira" {
+						envKey = "JIRA_TOKEN"
+					}
+					if os.Getenv(envKey) == "" {
+						tokenMissing = true
+						form.AddTextView("",
+							i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
+							60, 2, true, false)
+						form.AddPasswordField(
+							i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
+							"", 0, '*',
+							func(t string) { state.TrackerToken = t },
+						)
+					}
+				}
+			}
+			_ = tokenMissing // used only to gate the password field above
 
 			// Build dropdown: options differ depending on whether a tracker exists.
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
@@ -249,7 +298,23 @@ func buildTrackerSetupStep(state *initWizardTeamState) views.WizardStep {
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
-		OnDone: func() error { return nil },
+		OnDone: func() error {
+			// Store tracker token if one was provided.
+			if state.TrackerToken != "" && *a != nil && (*a).Secrets != nil {
+				statePath := config.TeamStatePath(state.Repo)
+				repo := teamstate.NewRepo(state.Repo, statePath)
+				if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+					tokenKey := teamCfg.Tracker.TrackerTokenKey
+					if tokenKey == "" {
+						tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
+					}
+					if err := (*a).Secrets.Set(state.Ctx, tokenKey, state.TrackerToken); err != nil {
+						return fmt.Errorf("storing tracker token: %w", err)
+					}
+				}
+			}
+			return nil
+		},
 		InfoFields: func() []views.InfoField {
 			status := i18n.T("cmd.init.wizard_tracker_configure_later")
 			if state.LaunchTrackerDiscovery {
@@ -362,19 +427,24 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			},
 		},
 		// ── Init: Tracker setup (conditional) ──
-		buildTrackerSetupStep(state),
+		buildTrackerSetupStep(a, state),
 	}
 }
 
 // buildInitWizardHTTPSCredSteps returns two WizardSteps for HTTPS credential
-// configuration. They are used by the rejoin flow when the repo URL uses HTTPS.
+// configuration. They are used by the init and rejoin flows when the repo URL
+// uses HTTPS.
 //
 // The returned steps are:
 //  1. Auth mode selection — DropDown (provide/skip/public). Always shown for HTTPS.
 //  2. Credentials — Username + Token. Skipped when auth mode is "skip" or "public".
 //
 // Both steps are conditionally skipped if the repo is not HTTPS.
-func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode string) []views.WizardStep {
+//
+// When the repo host is a GitLab instance, the token is also stored in the
+// keychain (openhub.team.<teamID>.gitlab.token) so it can be reused for
+// GitLab API calls (identity verification, tracker sync, etc.).
+func buildInitWizardHTTPSCredSteps(a **app.App, state *initWizardTeamState, requiredMode string) []views.WizardStep {
 	// Initialize defaults
 	if state.CredUsername == "" {
 		state.CredUsername = "oauth2"
@@ -429,6 +499,11 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 					func(text string) { state.CredUsername = text })
 				form.AddPasswordField(i18n.T("cmd.init.wizard_team_cred_token"), state.CredToken, 0, '*',
 					func(text string) { state.CredToken = text })
+				// Show a hint when the repo is on a GitLab host: this single token
+				// will be used for both git access and GitLab API calls.
+				if teamstate.IsGitLabHost(state.Repo) {
+					form.AddTextView("", i18n.T("cmd.init.wizard_team_cred_gitlab_hint"), 60, 2, true, false)
+				}
 				form.AddButton(i18n.T("wizard.hint.submit"), func() {
 					if state.CredToken == "" {
 						return
@@ -439,9 +514,19 @@ func buildInitWizardHTTPSCredSteps(state *initWizardTeamState, requiredMode stri
 			},
 			OnDone: func() error {
 				if state.CredToken != "" {
-					return teamstate.ConfigureCredential(
+					// Store in git credential helper for clone/pull.
+					if err := teamstate.ConfigureCredential(
 						state.Ctx, state.Repo, state.CredUsername, state.CredToken,
-					)
+					); err != nil {
+						return err
+					}
+					// When the host is GitLab, also store in the keychain for API use.
+					if teamstate.IsGitLabHost(state.Repo) && *a != nil && (*a).Secrets != nil {
+						teamID := config.RepoNameFromRemote(state.Repo)
+						if err := (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.CredToken); err != nil {
+							slog.Warn("failed to store GitLab token in keychain", "err", err)
+						}
+					}
 				}
 				return nil
 			},
@@ -509,7 +594,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	}
 
 	// ── Rejoin steps 2-3: HTTPS Credentials (auth mode + username/token) ──
-	steps = append(steps, buildInitWizardHTTPSCredSteps(state, "rejoin")...)
+	steps = append(steps, buildInitWizardHTTPSCredSteps(a, state, "rejoin")...)
 
 	// ── Rejoin step 4: Member selection ──
 	steps = append(steps, views.WizardStep{
@@ -574,15 +659,17 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 	)
 
-	// ── Rejoin step 4b: GitLab token (conditional) ──
-	// Shown when the selected member has a gitlab_username. Offers a dropdown
-	// to reuse an existing token, enter a new one, or skip verification.
+	// ── Rejoin step 4b: GitLab token for SSH repos (conditional) ──
+	// When the repo uses HTTPS, the token was already stored in the keychain
+	// by buildInitWizardHTTPSCredSteps. This step only appears for SSH repos
+	// where the member has a gitlab_username and identity verification is needed.
 	steps = append(steps, views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin" ||
-				selectedMemberGitLabUsername(state) == ""
+				selectedMemberGitLabUsername(state) == "" ||
+				teamstate.IsHTTPS(state.Repo) // HTTPS flow already stores the token
 		},
 		Validate: func() string {
 			if state.TokenChoiceIdx == 0 {
@@ -623,9 +710,6 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 					state.TokenChoiceIdx = idx
 				},
 			)
-			// Always show the password field — hint explains it is only used
-			// when "Enter a new token" is selected. This avoids the need for
-			// a dynamic rerender which can cause timing issues.
 			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_token_new_hint"), 60, 2, true, false)
 			form.AddPasswordField(
 				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
@@ -810,7 +894,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	})
 
 	// ── Rejoin: Tracker setup (conditional) ──
-	steps = append(steps, buildTrackerSetupStep(state))
+	steps = append(steps, buildTrackerSetupStep(a, state))
 
 	return steps
 }
