@@ -19,10 +19,11 @@ import (
 // Layout (bottom of screen):
 //
 //	┌──────────────────────────────────────────────┐
-//	│▌ hints or input (pages container)             │  ← omnibar
-//	│▌ 🏠 Hub                     openhub v1.x     │  ← mode bar
+//	│  hints or input (pages container)             │  ← omnibar
+//	│  ─────────────────────────────────────────    │  ← mode separator (colored)
+//	│  🏠 Hub                     openhub v1.x     │  ← mode bar
+//	│                                               │  ← padding
 //	└──────────────────────────────────────────────┘
-//	 ↑ gutter drawn by rightPane DrawFunc (col 0)
 //
 // Modes:
 //   - Passive: displays contextual hints (view keybindings)
@@ -32,10 +33,10 @@ type Omnibar struct {
 	registry    *CommandRegistry
 	input       *tview.InputField
 	hints       *tview.TextView
-	container   *tview.Pages // switches between input and hints
-	modeBar     *tview.TextView
-	gutterFg    tcell.Color // foreground color for the gutter indicator, updated per mode
-	wrapper     *tview.Flex // outermost primitive: rightPane wrapped with BgPanel margins
+	container   *tview.Pages    // switches between input and hints
+	modeSep     *tview.Box      // horizontal separator line colored per mode
+	modeBar     *tview.TextView // mode label + contextual info
+	wrapper     *tview.Flex     // outermost primitive with BgPanel margins
 	active      bool
 	suggestions *tview.List
 	visible     []Command
@@ -53,7 +54,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.hints.SetBackgroundColor(theme.BgElement)
-	o.hints.SetBorderPadding(1, 0, 1, 2)
+	o.hints.SetBorderPadding(0, 0, 1, 2)
 
 	// Input field (active mode)
 	o.input = tview.NewInputField().
@@ -63,7 +64,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetPlaceholder(i18n.T("tui.omnibar.placeholder")).
 		SetPlaceholderTextColor(theme.FgMuted)
 	o.input.SetBackgroundColor(theme.BgElement)
-	o.input.SetBorderPadding(1, 0, 1, 2)
+	o.input.SetBorderPadding(0, 0, 1, 2)
 
 	// Wire input change to filter suggestions
 	o.input.SetChangedFunc(func(text string) {
@@ -155,29 +156,28 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.modeBar.SetBackgroundColor(theme.BgElement)
 	o.modeBar.SetBorderPadding(0, 1, 1, 2)
 
-	// Initial gutter color (updated dynamically by UpdateModeBar).
-	o.gutterFg = theme.ModeHubColor
-
-	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (2 rows).
-	// A DrawFunc on the rightPane paints a thin colored gutter indicator on
-	// its leftmost column using '▌' (LEFT HALF BLOCK) with fg=modeColor and
-	// bg=BgElement. The bg matches the children's background, so inter-line
-	// gaps in the glyph are invisible. The inner rect is shifted right by 1
-	// so children start at column 1, leaving column 0 for the gutter.
-	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
-	rightPane.SetBackgroundColor(theme.BgPanel)
-	rightPane.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Background(o.gutterFg).Foreground(theme.BgElement)
-		for dy := 0; dy < height; dy++ {
-			screen.SetContent(x, y+dy, '▐', nil, style)
+	// Mode separator: thin horizontal line between hints/input and mode bar.
+	// Color is updated dynamically by UpdateModeBar via theme.ActiveMode.
+	o.modeSep = tview.NewBox()
+	o.modeSep.SetBackgroundColor(theme.BgElement)
+	o.modeSep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		sepColor := theme.ActiveMode.Separator
+		style := tcell.StyleDefault.Foreground(sepColor).Background(theme.BgElement)
+		// Draw '─' with left/right padding matching the mode bar (left=1, right=2).
+		for dx := 1; dx < width-2; dx++ {
+			screen.SetContent(x+dx, y, '─', nil, style)
 		}
-		return x + 1, y, width - 1, height
+		return x, y, width, height
 	})
+
+	// Right pane: vertical stack of container + separator + mode bar.
+	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
+	rightPane.SetBackgroundColor(theme.BgElement)
 	rightPane.AddItem(o.container, 0, 1, true) // omnibar fills available space
+	rightPane.AddItem(o.modeSep, 1, 0, false)  // separator: 1 row
 	rightPane.AddItem(o.modeBar, 2, 0, false)  // mode bar: 2 rows (1 text + 1 bottom padding)
 
 	// Wrapper: BgPanel background creates symmetric margins around the bar.
-	// Top/bottom/left/right padding provides visual spacing.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
 	o.wrapper.SetBorderPadding(1, 1, 1, 1)
@@ -239,31 +239,17 @@ func (o *Omnibar) SetHints(hints string) {
 	}
 }
 
-// UpdateModeBar updates the mode bar content and gutter color based on the
-// active navigation mode and the contextual information provided by the view.
+// UpdateModeBar updates the mode bar content based on the active navigation
+// mode and the contextual information provided by the view. The separator
+// color is read from theme.ActiveMode (set by the shell on mode change).
 func (o *Omnibar) UpdateModeBar(mode views.Mode, info views.ModeBarInfo) {
-	// Resolve the color hex for this mode.
-	colorHex := theme.ModeHubHex
-	gutterColor := theme.ModeHubColor
-	switch mode {
-	case views.ModeTeam:
-		colorHex = theme.ModeTeamHex
-		gutterColor = theme.ModeTeamColor
-	case views.ModeProject:
-		colorHex = theme.ModeProjectHex
-		gutterColor = theme.ModeProjectColor
-	}
+	mt := theme.ActiveMode
 
-	// Update gutter foreground color — the DrawFunc reads o.gutterFg on each render.
-	o.gutterFg = gutterColor
-
-	// Build mode bar text: icon + label on the left, context info right-aligned.
+	// Build mode bar text: icon + label in mode color, context info muted.
 	left := fmt.Sprintf("%s%s %s%s",
-		theme.ColorTag(colorHex), info.Icon,
-		theme.ColorTag(theme.TextPrimaryHex), info.Label)
+		theme.ColorTag(mt.PrimaryHex), info.Icon, info.Label, theme.TagColor)
 
 	if info.Right != "" {
-		// Right-aligned info is muted to avoid visual competition with the label.
 		right := fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), info.Right, theme.TagColor)
 		o.modeBar.SetText(left + right)
 	} else {

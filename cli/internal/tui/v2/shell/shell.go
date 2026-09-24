@@ -1093,6 +1093,7 @@ func (s *Shell) SetProjectMode(project *views.ActiveProject) {
 	s.activeProject = project
 	if project != nil {
 		s.activeMode = views.ModeProject
+		theme.SetActiveMode(string(views.ModeProject))
 		s.router.NavigateTo("project.mode")
 	} else {
 		s.SetMode(views.ModeHub)
@@ -1117,6 +1118,7 @@ func (s *Shell) ActiveProject() *views.ActiveProject {
 // SetMode switches the shell to the given navigation mode and navigates to its landing view.
 func (s *Shell) SetMode(mode views.Mode) {
 	s.activeMode = mode
+	theme.SetActiveMode(string(mode))
 	switch mode {
 	case views.ModeHub:
 		s.activeProject = nil
