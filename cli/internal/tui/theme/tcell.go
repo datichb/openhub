@@ -84,13 +84,98 @@ var (
 
 // Mode indicators — named aliases for clarity in the omnibar gutter / mode bar.
 var (
-	// ModeHubColor is the gutter color for hub mode (= Accent / Blue).
+	// ModeHubColor is the primary color for hub mode (= Accent / Blue).
 	ModeHubColor = tcell.GetColor(ModeHubHex)
-	// ModeTeamColor is the gutter color for team mode (= Info / Lavender).
+	// ModeTeamColor is the primary color for team mode (= Info / Lavender).
 	ModeTeamColor = tcell.GetColor(ModeTeamHex)
-	// ModeProjectColor is the gutter color for project mode (= Action / Peach).
+	// ModeProjectColor is the primary color for project mode (= Action / Peach).
 	ModeProjectColor = tcell.GetColor(ModeProjectHex)
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ModeTheme instances — one per navigation mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ModeTheme holds the color palette for a navigation mode (Hub, Team, Project).
+// Views and widgets read theme.ActiveMode instead of hardcoding Accent/Action
+// tokens, so the entire UI adapts when the user switches context.
+//
+// Usage in views:
+//
+//	theme.ColorTag(theme.ActiveMode.PrimaryHex)  // banners, headers, borders
+//	theme.ActiveMode.Primary                      // tcell button bg, focus border
+//	theme.ColorTag(theme.ActiveMode.SecondaryHex) // activated buttons, CTA highlights
+type ModeTheme struct {
+	// PrimaryHex is the dominant mode color used for banners, section headers,
+	// focus borders, modal borders, button backgrounds, step indicators, and spinners.
+	PrimaryHex string
+	// Primary is the tcell.Color equivalent of PrimaryHex.
+	Primary tcell.Color
+
+	// SecondaryHex is a softer accent used for activated button backgrounds,
+	// CTA key highlights, filter labels, and active-item arrows.
+	SecondaryHex string
+	// Secondary is the tcell.Color equivalent of SecondaryHex.
+	Secondary tcell.Color
+
+	// SeparatorHex is the color for the horizontal mode separator in the omnibar.
+	SeparatorHex string
+	// Separator is the tcell.Color equivalent of SeparatorHex.
+	Separator tcell.Color
+}
+
+var (
+	// ThemeHub is the mode theme for hub navigation (Blue / Sapphire).
+	ThemeHub = ModeTheme{
+		PrimaryHex:   ModeHubHex,
+		Primary:      ModeHubColor,
+		SecondaryHex: SapphireHex,
+		Secondary:    tcell.GetColor(SapphireHex),
+		SeparatorHex: ModeHubHex,
+		Separator:    ModeHubColor,
+	}
+	// ThemeTeam is the mode theme for team navigation (Lavender / Mauve).
+	ThemeTeam = ModeTheme{
+		PrimaryHex:   ModeTeamHex,
+		Primary:      ModeTeamColor,
+		SecondaryHex: MauveHex,
+		Secondary:    tcell.GetColor(MauveHex),
+		SeparatorHex: ModeTeamHex,
+		Separator:    ModeTeamColor,
+	}
+	// ThemeProject is the mode theme for project navigation (Peach / Yellow).
+	ThemeProject = ModeTheme{
+		PrimaryHex:   ModeProjectHex,
+		Primary:      ModeProjectColor,
+		SecondaryHex: YellowHex,
+		Secondary:    tcell.GetColor(YellowHex),
+		SeparatorHex: ModeProjectHex,
+		Separator:    ModeProjectColor,
+	}
+
+	// ActiveMode is the current mode theme, read by all views and widgets.
+	// Updated by the shell via SetActiveMode when the user switches context.
+	ActiveMode = ThemeHub
+)
+
+// SetActiveMode updates the global ActiveMode theme to match the given mode.
+// The mode parameter is a string ("hub", "team", "project") to avoid a
+// circular dependency between the theme and views packages.
+func SetActiveMode(mode string) {
+	ActiveMode = ThemeForMode(mode)
+}
+
+// ThemeForMode returns the ModeTheme for the given mode string.
+func ThemeForMode(mode string) ModeTheme {
+	switch mode {
+	case "team":
+		return ThemeTeam
+	case "project":
+		return ThemeProject
+	default:
+		return ThemeHub
+	}
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pre-built tcell.Style values for convenience

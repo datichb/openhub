@@ -96,14 +96,32 @@ const (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mode indicator colors — used by the omnibar gutter and mode bar
+// Mode indicator colors — primary color per navigation mode
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// ModeHubHex is the gutter/mode bar color for hub mode — Blue (Accent).
+	// ModeHubHex is the primary color for hub mode — Blue (Accent).
 	ModeHubHex = AccentHex
-	// ModeTeamHex is the gutter/mode bar color for team mode — Lavender (Info).
+	// ModeTeamHex is the primary color for team mode — Lavender (Info).
 	ModeTeamHex = InfoHex
-	// ModeProjectHex is the gutter/mode bar color for project mode — Peach (Action).
+	// ModeProjectHex is the primary color for project mode — Peach (Action).
 	ModeProjectHex = ActionHex
 )
+
+// Additional accent colors used as secondary mode tints (Catppuccin Mocha).
+const (
+	// SapphireHex is used as the secondary accent for hub mode.
+	SapphireHex = "#74c7ec"
+	// MauveHex is used as the secondary accent for team mode.
+	MauveHex = "#cba6f7"
+	// YellowHex is the secondary accent for project mode (= WarningHex).
+	YellowHex = WarningHex
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ModeTheme — per-mode color palette consumed by views and widgets
+// ─────────────────────────────────────────────────────────────────────────────
+// See tcell.go for the ModeTheme struct definition, instances (ThemeHub,
+// ThemeTeam, ThemeProject), ActiveMode variable, and SetActiveMode/ThemeForMode
+// functions. The struct is defined in tcell.go because it contains tcell.Color
+// fields alongside hex string fields.
