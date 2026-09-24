@@ -161,7 +161,7 @@ func (v *PluginsView) render() {
 	var text string
 
 	text += fmt.Sprintf("  %s%s%s\n\n",
-		theme.ColorTag(theme.AccentHex), "Plugin: RTK", theme.TagColor)
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), "Plugin: RTK", theme.TagColor)
 
 	// Installed status
 	if s.Installed {

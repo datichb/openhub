@@ -202,7 +202,7 @@ func (v *TeamModelsView) renderList() {
 
 	title := i18n.T("tui.config.section.models")
 	if v.dirty {
-		title += "  " + theme.ColorTag(theme.AccentHex) + "● " + i18n.T("tui.settings.modified") + reset
+		title += "  " + theme.ColorTag(theme.ActiveMode.PrimaryHex) + "● " + i18n.T("tui.settings.modified") + reset
 	}
 
 	items := []widgets.SectionItem{

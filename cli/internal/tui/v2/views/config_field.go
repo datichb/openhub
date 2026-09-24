@@ -204,7 +204,7 @@ func formatFieldValue(f configField, val string) string {
 		return fmt.Sprintf("%s%s %s%s", muted, val, i18n.T("tui.config.readonly"), reset)
 
 	case CfgFieldLink:
-		return fmt.Sprintf("%s→%s", theme.ColorTag(theme.AccentHex), reset)
+		return fmt.Sprintf("%s→%s", theme.ColorTag(theme.ActiveMode.PrimaryHex), reset)
 
 	case CfgFieldPlaceholder:
 		return fmt.Sprintf("%s%s%s", muted, val, reset)

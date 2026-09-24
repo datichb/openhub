@@ -164,7 +164,7 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 
 // mountUninitializedScreen renders the "beads not configured" invite screen.
 func (v *BoardView) mountUninitializedScreen(content *tview.Flex) {
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
@@ -436,7 +436,7 @@ func (v *BoardView) linkTicketToTracker() {
 
 // formatTicketDetail formats a TicketDetail for the scrollable modal.
 func formatTicketDetail(d *beads.TicketDetail) string {
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 	sep := fmt.Sprintf("%s%s%s", muted, strings.Repeat("─", 40), reset)
@@ -502,7 +502,7 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 
 // formatBoardTicket formats a BoardTicket (fallback when bd show is unavailable).
 func formatBoardTicket(t BoardTicket) string {
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	reset := theme.TagColor
 
 	var b strings.Builder

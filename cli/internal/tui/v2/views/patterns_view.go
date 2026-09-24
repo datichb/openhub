@@ -244,7 +244,7 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	createIdx := len(items)
 	items = append(items, widgets.SectionItem{
 		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
 			i18n.T("tui.patterns.action_create"), theme.TagReset),
 	})
 	v.actionIndices[createIdx] = func() { v.addPattern() }

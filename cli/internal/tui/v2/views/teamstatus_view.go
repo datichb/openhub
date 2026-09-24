@@ -155,7 +155,7 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 			// Highlight current user
 			nameColor := theme.ColorTag(theme.TextSecondaryHex)
 			if m.ID == tc.MemberID {
-				nameColor = theme.ColorTag(theme.AccentHex)
+				nameColor = theme.ColorTag(theme.ActiveMode.PrimaryHex)
 			}
 
 			fmt.Fprintf(&sb, "  %s@%-12s%s %s%-14s%s",

@@ -168,7 +168,7 @@ func (v *workflowView) updateDetailPanel() {
 	case widgets.ElementAgent, widgets.ElementIndependentAgent:
 		v.showAgentDetail(sel.ID)
 	case widgets.ElementEdge:
-		fmt.Fprintf(v.detail, "[%s::b]Edge[-:-:-]\n\n", theme.AccentHex)
+		fmt.Fprintf(v.detail, "[%s::b]Edge[-:-:-]\n\n", theme.ActiveMode.PrimaryHex)
 		fmt.Fprintf(v.detail, "%s\n\n", sel.ID)
 		fmt.Fprintf(v.detail, "[%s]%s[-]", theme.TextMutedHex, i18n.T("tui.workflow.edge_hint"))
 	}
@@ -180,7 +180,7 @@ func (v *workflowView) showCheckpointDetail(id string) {
 		return
 	}
 
-	fmt.Fprintf(v.detail, "[%s::b]Checkpoint: %s[-:-:-]\n", theme.AccentHex, cp.ID)
+	fmt.Fprintf(v.detail, "[%s::b]Checkpoint: %s[-:-:-]\n", theme.ActiveMode.PrimaryHex, cp.ID)
 	fmt.Fprintf(v.detail, "%s\n\n", cp.Label)
 
 	if cp.Mandatory {
@@ -226,7 +226,7 @@ func (v *workflowView) showAgentDetail(id string) {
 		return
 	}
 
-	fmt.Fprintf(v.detail, "[%s::b]Agent: %s[-:-:-]\n\n", theme.AccentHex, agent.AgentID)
+	fmt.Fprintf(v.detail, "[%s::b]Agent: %s[-:-:-]\n\n", theme.ActiveMode.PrimaryHex, agent.AgentID)
 
 	if agent.Mandatory {
 		fmt.Fprintf(v.detail, "[%s]🔒 %s[-]\n\n", theme.WarningHex, i18n.T("tui.workflow.mandatory"))

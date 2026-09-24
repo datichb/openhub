@@ -296,7 +296,7 @@ func mergeStatusIcon(status string, isMergeable bool) string {
 		return theme.ColorTag(theme.ErrorHex) + "!" + theme.TagColor
 	default: // pending
 		if isMergeable {
-			return theme.ColorTag(theme.AccentHex) + "●" + theme.TagColor
+			return theme.ColorTag(theme.ActiveMode.PrimaryHex) + "●" + theme.TagColor
 		}
 		return theme.ColorTag(theme.TextMutedHex) + "○" + theme.TagColor
 	}

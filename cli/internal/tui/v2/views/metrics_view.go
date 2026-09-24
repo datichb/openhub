@@ -280,14 +280,14 @@ func (v *MetricsView) buildUsageText() string {
 	hasSuggestions := false
 	if stats.TotalTokensIn > 100_000 {
 		fmt.Fprintf(&sb, "  %s•%s %s\n",
-			theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_tokens_in", formatTokens(stats.TotalTokensIn)))
+			theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_tokens_in", formatTokens(stats.TotalTokensIn)))
 		hasSuggestions = true
 	}
 	if stats.TotalSessions > 10 && stats.TotalTokensOut > 0 {
 		avgOut := stats.TotalTokensOut / int64(stats.TotalSessions)
 		if avgOut > 5000 {
 			fmt.Fprintf(&sb, "  %s•%s %s\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_avg_out", formatTokens(avgOut)))
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_avg_out", formatTokens(avgOut)))
 			hasSuggestions = true
 		}
 	}
@@ -295,7 +295,7 @@ func (v *MetricsView) buildUsageText() string {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
 		if cacheRatio < 30 {
 			fmt.Fprintf(&sb, "  %s•%s %s\n",
-				theme.ColorTag(theme.AccentHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_low_cache", fmt.Sprintf("%.0f%%", cacheRatio)))
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_low_cache", fmt.Sprintf("%.0f%%", cacheRatio)))
 			hasSuggestions = true
 		}
 	}

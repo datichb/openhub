@@ -73,7 +73,7 @@ func RunPicker(cfg PickerConfig) (PickerResult, error) {
 	// ── Filter input ──
 	filterInput := tview.NewInputField().
 		SetLabel("/ ").
-		SetLabelColor(theme.Accent).
+		SetLabelColor(theme.ActiveMode.Primary).
 		SetFieldBackgroundColor(theme.BgPanel).
 		SetFieldTextColor(theme.FgPrimary).
 		SetPlaceholder("type to filter...").

@@ -202,7 +202,7 @@ func (v *ModelsView) populateTable() {
 	v.table.Clear()
 
 	// Header
-	headerStyle := tcell.StyleDefault.Foreground(theme.Accent).Bold(true)
+	headerStyle := tcell.StyleDefault.Foreground(theme.ActiveMode.Primary).Bold(true)
 	v.table.SetCell(0, 0, tview.NewTableCell("  "+i18n.T("tui.models.col_level")).SetStyle(headerStyle).SetSelectable(false))
 	v.table.SetCell(0, 1, tview.NewTableCell(i18n.T("tui.models.col_type")).SetStyle(headerStyle).SetSelectable(false))
 	v.table.SetCell(0, 2, tview.NewTableCell(i18n.T("tui.models.col_key")).SetStyle(headerStyle).SetSelectable(false))
@@ -211,7 +211,7 @@ func (v *ModelsView) populateTable() {
 	for i, e := range v.entries {
 		levelColor := theme.FgSecondary
 		if e.Level != "hub" {
-			levelColor = theme.Accent
+			levelColor = theme.ActiveMode.Primary
 		}
 
 		scopeDisplay := "default"

@@ -176,6 +176,6 @@ func notificationStyle(level int) (icon, colorTag string) {
 	case 2:
 		return theme.IconWarning, theme.ColorTag(theme.WarningHex)
 	default:
-		return theme.IconArrow, theme.ColorTag(theme.AccentHex)
+		return theme.IconArrow, theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	}
 }

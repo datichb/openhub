@@ -366,7 +366,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 	}
 	if projectDisplay != "" {
 		projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-			theme.AccentHex, tview.Escape(projectDisplay))
+			theme.ActiveMode.PrimaryHex, tview.Escape(projectDisplay))
 	}
 	// Truncate title to keep line 1 readable
 	title := t.Title
@@ -396,7 +396,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 	// ── Line 3: @assignee · label1 · label2 (filtered) ──
 	var parts []string
 	if t.Assignee != "" {
-		parts = append(parts, widgets.ColorTag(theme.Accent)+"@"+t.Assignee+"[-]")
+		parts = append(parts, widgets.ColorTag(theme.ActiveMode.Primary)+"@"+t.Assignee+"[-]")
 	} else {
 		parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
 	}
@@ -565,7 +565,7 @@ func (v *TeamBoardView) renderTabBar() {
 		}
 		if i == v.activeTabIdx {
 			// Active tab: accent background
-			fmt.Fprintf(&sb, "[black:%s] %s [-:-]", theme.AccentHex, tview.Escape(label))
+			fmt.Fprintf(&sb, "[black:%s] %s [-:-]", theme.ActiveMode.PrimaryHex, tview.Escape(label))
 		} else {
 			// Inactive tab: muted
 			fmt.Fprintf(&sb, "[%s] %s [-]", theme.TextMutedHex, tview.Escape(label))

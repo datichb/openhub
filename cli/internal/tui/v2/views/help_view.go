@@ -41,7 +41,7 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignLeft)
 	tv.SetBackgroundColor(theme.BgPanel)
 	tv.SetBorderPadding(1, 0, 2, 2)
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextSecondaryHex)
 	c := theme.TagColor
 	r := theme.TagReset

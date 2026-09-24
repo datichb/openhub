@@ -72,7 +72,7 @@ func RunParallel(cfg ParallelConfig) error {
 		SetBorder(true).
 		SetBorderColor(theme.BorderFocus).
 		SetTitle(" Sessions ").
-		SetTitleColor(theme.Accent)
+		SetTitleColor(theme.ActiveMode.Primary)
 
 	// ── Detail panel ──
 	detailView := tview.NewTextView().
@@ -193,7 +193,7 @@ func RunParallel(cfg ParallelConfig) error {
 		phaseColor := theme.FgSecondary
 		switch cfg.Phase {
 		case "running":
-			phaseColor = theme.Accent
+			phaseColor = theme.ActiveMode.Primary
 		case "merging":
 			phaseColor = theme.Warning
 		case "done":
@@ -304,7 +304,7 @@ func statusIcon(status string) string {
 func statusColor(status string) tcell.Color {
 	switch status {
 	case "running":
-		return theme.Accent
+		return theme.ActiveMode.Primary
 	case "idle":
 		return theme.FgSecondary
 	case "retrying":

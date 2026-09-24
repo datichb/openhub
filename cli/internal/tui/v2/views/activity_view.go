@@ -144,7 +144,7 @@ func (v *ActivityView) renderEvents(repo teamstate.TeamStateWriter) {
 	var text string
 	filterLabel := v.filterLabel()
 	text += fmt.Sprintf("  %s%s%s  %s\n\n",
-		theme.ColorTag(theme.AccentHex), i18n.T("tui.activity.title_header"), theme.TagColor, i18n.Tf("tui.activity.filter_label", filterLabel))
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), i18n.T("tui.activity.title_header"), theme.TagColor, i18n.Tf("tui.activity.filter_label", filterLabel))
 
 	for i := len(events) - 1; i >= 0; i-- { // newest first
 		e := events[i]

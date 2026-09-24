@@ -359,7 +359,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	templateIdx := len(items)
 	items = append(items, widgets.SectionItem{
 		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
 			i18n.T("tui.policies.action_template"), theme.TagReset),
 	})
 	v.actionIndices[templateIdx] = func() { v.addFromTemplate() }
@@ -367,7 +367,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	customIdx := len(items)
 	items = append(items, widgets.SectionItem{
 		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
 			i18n.T("tui.policies.action_custom"), theme.TagReset),
 	})
 	v.actionIndices[customIdx] = func() { v.addPolicy() }
@@ -375,7 +375,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	checkIdx := len(items)
 	items = append(items, widgets.SectionItem{
 		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActionHex), theme.IconArrow,
+			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
 			i18n.T("tui.policies.action_check"), theme.TagReset),
 	})
 	v.actionIndices[checkIdx] = func() { v.checkPolicies() }

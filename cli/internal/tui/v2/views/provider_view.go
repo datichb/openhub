@@ -414,7 +414,7 @@ func (v *ProviderView) renderList() {
 			}
 			defaultMarker := ""
 			if name == defaultProv {
-				defaultMarker = fmt.Sprintf("  %s★ %s%s", theme.ColorTag(theme.AccentHex), i18n.T("tui.provider.default"), theme.TagColor)
+				defaultMarker = fmt.Sprintf("  %s★ %s%s", theme.ColorTag(theme.ActiveMode.PrimaryHex), i18n.T("tui.provider.default"), theme.TagColor)
 			}
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%-18s %s%s", name, statusStr, defaultMarker),
