@@ -96,26 +96,48 @@ const (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mode indicator colors — primary color per navigation mode
+// Mode indicator colors — accent color per navigation mode
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// ModeHubHex is the primary color for hub mode — Blue (Accent).
-	ModeHubHex = AccentHex
-	// ModeTeamHex is the primary color for team mode — Lavender (Info).
-	ModeTeamHex = InfoHex
-	// ModeProjectHex is the primary color for project mode — Peach (Action).
+	// ModeHubHex is the accent color for hub mode — Teal.
+	ModeHubHex = TealHex
+	// ModeTeamHex is the accent color for team mode — Mauve.
+	ModeTeamHex = MauveHex
+	// ModeProjectHex is the accent color for project mode — Peach (Action).
 	ModeProjectHex = ActionHex
 )
 
-// Additional accent colors used as secondary mode tints (Catppuccin Mocha).
+// ─────────────────────────────────────────────────────────────────────────────
+// Extended Catppuccin Mocha palette — used by ModeTheme 4-level system
+// ─────────────────────────────────────────────────────────────────────────────
+
 const (
-	// SapphireHex is used as the secondary accent for hub mode.
+	// TealHex — Catppuccin Teal, hub mode accent.
+	TealHex = "#94e2d5"
+	// SkyHex — Catppuccin Sky, hub mode primary.
+	SkyHex = "#89dceb"
+	// SapphireHex — Catppuccin Sapphire, hub mode secondary.
 	SapphireHex = "#74c7ec"
-	// MauveHex is used as the secondary accent for team mode.
+	// MauveHex — Catppuccin Mauve, team mode accent.
 	MauveHex = "#cba6f7"
-	// YellowHex is the secondary accent for project mode (= WarningHex).
+	// PinkHex — Catppuccin Pink, team mode secondary.
+	PinkHex = "#f5c2e7"
+	// FlamingoHex — Catppuccin Flamingo, project mode secondary.
+	FlamingoHex = "#f2cdcd"
+	// YellowHex — Catppuccin Yellow, project mode primary (= WarningHex).
 	YellowHex = WarningHex
+)
+
+// Muted mode tints — darkened versions of each mode's accent for subtle
+// decorative elements (separators, background tints, discrete indicators).
+const (
+	// MutedHubHex is a dark teal for hub mode muted elements.
+	MutedHubHex = "#2d4f4f"
+	// MutedTeamHex is a dark violet for team mode muted elements.
+	MutedTeamHex = "#3a3450"
+	// MutedProjectHex is a dark peach for project mode muted elements.
+	MutedProjectHex = "#4a3828"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -161,7 +161,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.modeSep = tview.NewBox()
 	o.modeSep.SetBackgroundColor(theme.BgElement)
 	o.modeSep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		sepColor := theme.ActiveMode.Separator
+		sepColor := theme.ActiveMode.Muted
 		style := tcell.StyleDefault.Foreground(sepColor).Background(theme.BgElement)
 		for dx := 4; dx < width-4; dx++ {
 			screen.SetContent(x+dx, y, '─', nil, style)
