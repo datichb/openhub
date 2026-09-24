@@ -246,9 +246,9 @@ func RunWizard(cfg WizardConfig) WizardResult {
 			color := widgets.ColorTag(theme.FgMuted)
 			if i == currentStep {
 				icon = theme.IconActive
-				color = widgets.ColorTag(theme.Accent)
-			}
-			fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label)
+			color = widgets.ColorTag(theme.ActiveMode.Primary)
+		}
+		fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, cfg.Steps[i].Label)
 		}
 
 		shell.InfoPanel.SetText(b.String())
@@ -425,7 +425,7 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		stepHeader := tview.NewTextView().SetDynamicColors(true)
 		stepHeader.SetBackgroundColor(theme.BgPanel)
 		stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
-			widgets.ColorTag(theme.Accent), theme.IconActive, stepPos, totalSteps, step.Label))
+			widgets.ColorTag(theme.ActiveMode.Primary), theme.IconActive, stepPos, totalSteps, step.Label))
 		formContainer.AddItem(stepHeader, 2, 0, false)
 
 		formContainer.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -485,10 +485,10 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				form.SetFieldTextColor(theme.FgPrimary)
 				form.SetLabelColor(theme.FgPrimary)
 				form.SetButtonStyle(tcell.StyleDefault.
-					Background(theme.Accent).
+					Background(theme.ActiveMode.Primary).
 					Foreground(theme.BgPanel))
 				form.SetButtonActivatedStyle(tcell.StyleDefault.
-					Background(theme.Action).
+					Background(theme.ActiveMode.Secondary).
 					Foreground(theme.BgPanel))
 				form.SetBorder(false)
 

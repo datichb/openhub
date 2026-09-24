@@ -632,8 +632,8 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 					widgets.ColorTag(theme.Error), theme.IconError,
 					i18n.T("wizard.error"),
 					widgets.ColorTag(theme.FgSecondary), err.Error(),
-					widgets.ColorTag(theme.Accent), i18n.T("wizard.error.back"),
-					widgets.ColorTag(theme.Accent), i18n.T("wizard.error.retry")))
+				widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
+				widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.retry")))
 				errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 					switch {
 					case event.Key() == tcell.KeyCtrlB:
@@ -706,7 +706,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 	if len(w.cfg.Groups) == 0 {
 		totalSteps, stepPos := w.countVisibleSteps(idx)
 		w.stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
-			widgets.ColorTag(theme.Accent), theme.IconActive, stepPos, totalSteps, step.Label))
+			widgets.ColorTag(theme.ActiveMode.Primary), theme.IconActive, stepPos, totalSteps, step.Label))
 	}
 
 	// Refresh sidebar in grouped mode
@@ -796,10 +796,10 @@ func (w *InlineWizardView) renderStep(idx int) {
 			form.SetFieldTextColor(theme.FgPrimary)
 			form.SetLabelColor(theme.FgPrimary)
 			form.SetButtonStyle(tcell.StyleDefault.
-				Background(theme.Accent).
+				Background(theme.ActiveMode.Primary).
 				Foreground(theme.BgPanel))
 			form.SetButtonActivatedStyle(tcell.StyleDefault.
-				Background(theme.Action).
+				Background(theme.ActiveMode.Secondary).
 				Foreground(theme.BgPanel))
 			form.SetBorder(false)
 
@@ -1049,7 +1049,7 @@ func (w *InlineWizardView) renderInfoPanel() {
 func (w *InlineWizardView) renderGroupedSidebar() {
 	var b strings.Builder
 
-	accent := widgets.ColorTag(theme.Accent)
+	accent := widgets.ColorTag(theme.ActiveMode.Primary)
 	success := widgets.ColorTag(theme.Success)
 	muted := widgets.ColorTag(theme.FgMuted)
 	secondary := widgets.ColorTag(theme.FgSecondary)
@@ -1197,9 +1197,9 @@ func (w *InlineWizardView) renderClassicInfoPanel() {
 		color := widgets.ColorTag(theme.FgMuted)
 		if i == w.currentStep {
 			icon = theme.IconActive
-			color = widgets.ColorTag(theme.Accent)
-		}
-		fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, w.cfg.Steps[i].Label)
+		color = widgets.ColorTag(theme.ActiveMode.Primary)
+	}
+	fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, w.cfg.Steps[i].Label)
 	}
 
 	text := b.String()
@@ -1398,7 +1398,7 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 // in grouped mode. When compact is false, returns a 5-row badge with vertical
 // padding; when true, returns a tight 3-row badge.
 func BuildStepBadge(label string, compact bool) *tview.TextView {
-	accent := widgets.ColorTag(theme.Accent)
+	accent := widgets.ColorTag(theme.ActiveMode.Primary)
 	border := widgets.ColorTag(theme.BorderCard)
 	reset := "[-]"
 
@@ -1433,10 +1433,10 @@ func NewStyledButtonForm() *tview.Form {
 	f.SetBackgroundColor(theme.BgPanel)
 	f.SetButtonsAlign(tview.AlignCenter)
 	f.SetButtonStyle(tcell.StyleDefault.
-		Background(theme.Accent).
+		Background(theme.ActiveMode.Primary).
 		Foreground(theme.BgPanel))
 	f.SetButtonActivatedStyle(tcell.StyleDefault.
-		Background(theme.Action).
+		Background(theme.ActiveMode.Secondary).
 		Foreground(theme.BgPanel))
 	f.SetBorder(false)
 	return f
@@ -1501,7 +1501,7 @@ func fixFormDropDownStyles(form *tview.Form) {
 		Background(theme.BgElement).
 		Foreground(theme.FgPrimary)
 	selected := tcell.StyleDefault.
-		Background(theme.Accent).
+		Background(theme.ActiveMode.Primary).
 		Foreground(theme.BgPanel)
 
 	for i := 0; i < form.GetFormItemCount(); i++ {

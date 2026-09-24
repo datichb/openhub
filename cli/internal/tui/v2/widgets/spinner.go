@@ -104,6 +104,6 @@ func (s *Spinner) SetMessage(msg string) {
 func (s *Spinner) renderFrame() {
 	frame := spinnerFrames[s.frame]
 	s.SetText(fmt.Sprintf("  %s%s[-] %s%s[-]",
-		colorTag(theme.Accent), frame,
+		colorTag(theme.ActiveMode.Primary), frame,
 		colorTag(theme.FgSecondary), s.message))
 }

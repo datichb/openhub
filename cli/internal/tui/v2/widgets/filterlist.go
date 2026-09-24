@@ -51,7 +51,7 @@ func NewFilterableList(items []FilterItem, onSelect func(FilterItem)) *Filterabl
 
 	fl.input = tview.NewInputField().
 		SetLabel(" / ").
-		SetLabelColor(theme.Action).
+		SetLabelColor(theme.ActiveMode.Secondary).
 		SetFieldBackgroundColor(theme.BgElement).
 		SetFieldTextColor(theme.FgPrimary).
 		SetPlaceholder("filtrer...").

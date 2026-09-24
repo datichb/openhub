@@ -237,7 +237,7 @@ func (sl *SectionedList) rebuild() {
 func (sl *SectionedList) formatItem(item SectionItem) (mainText, secondaryText string) {
 	if item.IsHeader {
 		return fmt.Sprintf("  %s── %s ──%s",
-			theme.ColorTag(theme.AccentHex), item.MainText, theme.TagColor), ""
+			theme.ColorTag(theme.ActiveMode.PrimaryHex), item.MainText, theme.TagColor), ""
 	}
 	prefix := "  "
 	if item.Locked {

@@ -157,8 +157,8 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 
 		if i == s.selected {
 			if s.hasFocus {
-				cursor = fmt.Sprintf("%s› ", colorTag(theme.Accent))
-				cursorColor = theme.Accent
+				cursor = fmt.Sprintf("%s› ", colorTag(theme.ActiveMode.Primary))
+				cursorColor = theme.ActiveMode.Primary
 				textColor = theme.FgPrimary
 				bg = theme.BgElement
 			} else {

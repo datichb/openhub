@@ -74,7 +74,7 @@ func (sb *StepBar) render() {
 			color = colorTag(theme.Success)
 		case StepActive:
 			icon = theme.IconActive
-			color = colorTag(theme.Accent)
+			color = colorTag(theme.ActiveMode.Primary)
 		case StepSkipped:
 			icon = theme.IconSkipped
 			color = colorTag(theme.FgMuted)

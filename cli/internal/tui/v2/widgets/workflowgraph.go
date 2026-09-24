@@ -161,8 +161,8 @@ func (g *WorkflowGraph) drawNode(screen tcell.Screen, ox, oy, ow, oh int, node *
 	labelStyle := tcell.StyleDefault.Background(theme.BgCard).Foreground(theme.FgPrimary).Bold(true)
 
 	if selected {
-		borderStyle = tcell.StyleDefault.Background(theme.BgPanel).Foreground(theme.Accent)
-		labelStyle = tcell.StyleDefault.Background(theme.BgCard).Foreground(theme.Accent).Bold(true)
+		borderStyle = tcell.StyleDefault.Background(theme.BgPanel).Foreground(theme.ActiveMode.Primary)
+		labelStyle = tcell.StyleDefault.Background(theme.BgCard).Foreground(theme.ActiveMode.Primary).Bold(true)
 	}
 
 	if node.Locked {
