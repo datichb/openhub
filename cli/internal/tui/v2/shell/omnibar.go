@@ -54,7 +54,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.hints.SetBackgroundColor(theme.BgElement)
-	o.hints.SetBorderPadding(0, 0, 1, 2)
+	o.hints.SetBorderPadding(1, 0, 1, 2)
 
 	// Input field (active mode)
 	o.input = tview.NewInputField().
@@ -64,7 +64,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetPlaceholder(i18n.T("tui.omnibar.placeholder")).
 		SetPlaceholderTextColor(theme.FgMuted)
 	o.input.SetBackgroundColor(theme.BgElement)
-	o.input.SetBorderPadding(0, 0, 1, 2)
+	o.input.SetBorderPadding(1, 0, 1, 2)
 
 	// Wire input change to filter suggestions
 	o.input.SetChangedFunc(func(text string) {
@@ -163,9 +163,14 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.modeSep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		sepColor := theme.ActiveMode.Separator
 		style := tcell.StyleDefault.Foreground(sepColor).Background(theme.BgElement)
-		// Draw '─' with left/right padding matching the mode bar (left=1, right=2).
-		for dx := 1; dx < width-2; dx++ {
-			screen.SetContent(x+dx, y, '─', nil, style)
+		sepWidth := width * 60 / 100
+		if sepWidth < 10 {
+			sepWidth = width - 4
+		}
+		start := x + (width-sepWidth)/2
+		end := start + sepWidth
+		for dx := start; dx < end; dx++ {
+			screen.SetContent(dx, y, '─', nil, style)
 		}
 		return x, y, width, height
 	})
