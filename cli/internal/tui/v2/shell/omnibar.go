@@ -163,14 +163,8 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.modeSep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		sepColor := theme.ActiveMode.Separator
 		style := tcell.StyleDefault.Foreground(sepColor).Background(theme.BgElement)
-		sepWidth := width * 60 / 100
-		if sepWidth < 10 {
-			sepWidth = width - 4
-		}
-		start := x + (width-sepWidth)/2
-		end := start + sepWidth
-		for dx := start; dx < end; dx++ {
-			screen.SetContent(dx, y, '─', nil, style)
+		for dx := 4; dx < width-4; dx++ {
+			screen.SetContent(x+dx, y, '─', nil, style)
 		}
 		return x, y, width, height
 	})
@@ -185,7 +179,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// Wrapper: BgPanel background creates symmetric margins around the bar.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
-	o.wrapper.SetBorderPadding(1, 1, 1, 1)
+	o.wrapper.SetBorderPadding(1, 1, 2, 2)
 	o.wrapper.AddItem(rightPane, 0, 1, true)
 
 	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
