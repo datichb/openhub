@@ -164,9 +164,9 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.gutter = tview.NewBox()
 	o.gutter.SetBackgroundColor(theme.BgPanel)
 	o.gutter.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Background(theme.BgPanel).Foreground(o.gutterFg)
+		style := tcell.StyleDefault.Background(o.gutterFg).Foreground(theme.BgPanel)
 		for dy := 0; dy < height; dy++ {
-			screen.SetContent(x, y+dy, '▌', nil, style)
+			screen.SetContent(x, y+dy, '▐', nil, style)
 		}
 		return x, y, width, height
 	})
@@ -182,7 +182,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// Top/bottom padding provides vertical spacing.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
-	o.wrapper.SetBorderPadding(1, 1, 1, 0)
+	o.wrapper.SetBorderPadding(1, 1, 0, 0)
 	o.wrapper.AddItem(o.gutter, 1, 0, false)   // gutter: fixed 1 col
 	o.wrapper.AddItem(rightPane, 0, 1, true)    // right pane: fills rest
 
