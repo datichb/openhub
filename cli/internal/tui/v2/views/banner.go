@@ -13,24 +13,24 @@ import (
 // "small" is 4-5 lines tall, compact, and fits most names within 72 cols.
 const bannerFont = "small"
 
-// renderBanner generates ASCII art text using a figlet font, colored in
-// Action/Peach. If the rendered text exceeds maxWidth columns, it falls
+// renderBanner generates ASCII art text using a figlet font, colored with the
+// provided hex color. If the rendered text exceeds maxWidth columns, it falls
 // back to a simple bold-colored line.
 //
 // Returns a tview-compatible dynamic color tagged string (multi-line)
 // and the number of visible lines the banner occupies.
-func renderBanner(name string, maxWidth int) (banner string, lineCount int) {
+func renderBanner(name string, maxWidth int, colorHex string) (banner string, lineCount int) {
 	fig := figure.NewFigure(name, bannerFont, false)
 	lines := fig.Slicify()
 
-	action := theme.ColorTag(theme.ActionHex)
+	color := theme.ColorTag(colorHex)
 	reset := theme.TagColor
 
 	// Filter out fully empty leading/trailing lines
 	trimmed := trimEmptyLines(lines)
 
 	if len(trimmed) == 0 {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset), 1
+		return fmt.Sprintf("  %s[::b]%s[::-]%s", color, name, reset), 1
 	}
 
 	// Check width — find the longest line
@@ -43,13 +43,13 @@ func renderBanner(name string, maxWidth int) (banner string, lineCount int) {
 
 	// Fallback: if too wide, return simple bold text
 	if maxLine > maxWidth {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", action, name, reset), 1
+		return fmt.Sprintf("  %s[::b]%s[::-]%s", color, name, reset), 1
 	}
 
 	// Color each line with left margin
 	var b strings.Builder
 	for _, l := range trimmed {
-		fmt.Fprintf(&b, "  %s%s%s\n", action, l, reset)
+		fmt.Fprintf(&b, "  %s%s%s\n", color, l, reset)
 	}
 	return b.String(), len(trimmed)
 }

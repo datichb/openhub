@@ -143,9 +143,9 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			"\n  [red]%s[-]\n\n  %s",
 			i18n.T("tui.tm.no_team_active"),
 			i18n.Tf("tui.tm.hint_hub",
-				theme.ColorTag(theme.AccentHex), theme.TagColor,
-				theme.ColorTag(theme.AccentHex), theme.TagColor,
-				theme.ColorTag(theme.ActionHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.TagColor,
 			),
 		))
 		content.AddItem(tv, 0, 1, true)
@@ -160,12 +160,12 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	v.header.SetBackgroundColor(theme.BgPanel)
 
-	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	secondary := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
 	bannerName := strings.ToUpper(v.team.Name)
-	banner, bh := renderBanner(bannerName, 100)
+	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.PrimaryHex)
 	headerHeight := bh + 5
 
 	// Show header immediately with a "loading" placeholder for stats
@@ -195,7 +195,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	// ── Footer ──────────────────────────────────────────────────────────
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).

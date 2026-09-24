@@ -99,7 +99,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
-	bannerStr, bh := renderBanner("OPENHUB", 100)
+	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.PrimaryHex)
 	logo.SetText(fmt.Sprintf("\n%s", bannerStr))
 
 	// ── Footer ──────────────────────────────────────────────────────────
@@ -360,7 +360,7 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func buildShortcutsFooter() string {
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 

@@ -166,9 +166,9 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 			"\n  [red]%s[-]\n\n  %s",
 			i18n.T("tui.pm.no_project"),
 			i18n.Tf("tui.pm.hint_hub",
-				theme.ColorTag(theme.AccentHex), theme.TagColor,
-				theme.ColorTag(theme.AccentHex), theme.TagColor,
-				theme.ColorTag(theme.ActionHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+				theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.TagColor,
 			),
 		))
 		content.AddItem(tv, 0, 1, true)
@@ -190,12 +190,12 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.headerTV = header
 
 	v.renderHeader()
-	_, bh := renderBanner(v.project.Name, 100)
+	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.PrimaryHex)
 	headerHeight := bh + 6
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	muted := theme.ColorTag(theme.TextMutedHex)
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	reset := theme.TagColor
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
@@ -346,11 +346,11 @@ func (v *ProjectModeView) renderHeader() {
 	if v.headerTV == nil || v.project == nil {
 		return
 	}
-	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	secondary := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner, _ := renderBanner(v.project.Name, 100)
+	banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.PrimaryHex)
 	badge := v.buildDeployBadge()
 	pathInfo := v.project.Path
 	if v.project.Branch != "" {
