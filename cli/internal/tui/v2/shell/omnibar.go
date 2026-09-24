@@ -18,11 +18,11 @@ import (
 //
 // Layout (bottom of screen):
 //
-//	┌─┬───────────────────────────────────────────┐
-//	│▎│  hints or input (pages container)          │  ← omnibar
-//	│▎│  🏠 Hub                    openhub v1.x    │  ← mode bar
-//	└─┴───────────────────────────────────────────┘
-//	 gutter (1 col)          rightPane (flex)
+//	┌──────────────────────────────────────────────┐
+//	│▌ hints or input (pages container)             │  ← omnibar
+//	│▌ 🏠 Hub                     openhub v1.x     │  ← mode bar
+//	└──────────────────────────────────────────────┘
+//	 ↑ gutter drawn by rightPane DrawFunc (col 0)
 //
 // Modes:
 //   - Passive: displays contextual hints (view keybindings)
@@ -34,9 +34,8 @@ type Omnibar struct {
 	hints       *tview.TextView
 	container   *tview.Pages // switches between input and hints
 	modeBar     *tview.TextView
-	gutter      *tview.Box
 	gutterFg    tcell.Color // foreground color for the gutter indicator, updated per mode
-	wrapper     *tview.Flex // outermost primitive: gutter | rightPane
+	wrapper     *tview.Flex // outermost primitive: rightPane wrapped with BgPanel margins
 	active      bool
 	suggestions *tview.List
 	visible     []Command
@@ -156,35 +155,33 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.modeBar.SetBackgroundColor(theme.BgElement)
 	o.modeBar.SetBorderPadding(0, 1, 1, 2)
 
-	// Gutter: 1-column colored indicator on the left edge spanning the full height.
-	// Uses a DrawFunc to paint the "▎" character (1/8 block) on every row with
-	// the active mode color as foreground. The background matches BgPanel so
-	// only the thin vertical stroke is visible — not a solid color block.
+	// Initial gutter color (updated dynamically by UpdateModeBar).
 	o.gutterFg = theme.ModeHubColor
-	o.gutter = tview.NewBox()
-	o.gutter.SetBackgroundColor(theme.BgPanel)
-	o.gutter.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Background(o.gutterFg).Foreground(theme.BgPanel)
-		for dy := 0; dy < height; dy++ {
-			screen.SetContent(x, y+dy, '▐', nil, style)
-		}
-		return x, y, width, height
-	})
 
-	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (1 row).
+	// Right pane: vertical stack of omnibar container (flex=1) + mode bar (2 rows).
+	// A DrawFunc on the rightPane paints a thin colored gutter indicator on
+	// its leftmost column using '▌' (LEFT HALF BLOCK) with fg=modeColor and
+	// bg=BgElement. The bg matches the children's background, so inter-line
+	// gaps in the glyph are invisible. The inner rect is shifted right by 1
+	// so children start at column 1, leaving column 0 for the gutter.
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
 	rightPane.SetBackgroundColor(theme.BgPanel)
+	rightPane.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		style := tcell.StyleDefault.Foreground(o.gutterFg).Background(theme.BgElement)
+		for dy := 0; dy < height; dy++ {
+			screen.SetContent(x, y+dy, '▌', nil, style)
+		}
+		return x + 1, y, width - 1, height
+	})
 	rightPane.AddItem(o.container, 0, 1, true) // omnibar fills available space
 	rightPane.AddItem(o.modeBar, 2, 0, false)  // mode bar: 2 rows (1 text + 1 bottom padding)
 
-	// Wrapper: horizontal layout — gutter (1 col) | rightPane (fills rest).
-	// BgPanel background creates the visible margin around the bar.
-	// Top/bottom padding provides vertical spacing.
+	// Wrapper: BgPanel background creates symmetric margins around the bar.
+	// Top/bottom/left/right padding provides visual spacing.
 	o.wrapper = tview.NewFlex().SetDirection(tview.FlexColumn)
 	o.wrapper.SetBackgroundColor(theme.BgPanel)
-	o.wrapper.SetBorderPadding(1, 1, 0, 0)
-	o.wrapper.AddItem(o.gutter, 1, 0, false)   // gutter: fixed 1 col
-	o.wrapper.AddItem(rightPane, 0, 1, true)    // right pane: fills rest
+	o.wrapper.SetBorderPadding(1, 1, 1, 1)
+	o.wrapper.AddItem(rightPane, 0, 1, true)
 
 	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
 	// Return MouseConsumed so tview marks the event as consumed and triggers a
