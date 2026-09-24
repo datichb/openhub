@@ -62,7 +62,8 @@ type TeamModeView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
 	dual     *homeDualLayout
-	header   *tview.TextView // header with team name + stats (updated async)
+	header   *tview.TextView // header with badge + stats (updated async)
+	bannerTV *tview.TextView // centered ASCII art banner
 	items    []teamModeItem
 	mountGen uint64 // guards stale goroutines (standard pattern)
 }
@@ -154,7 +155,14 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.items = v.buildItems()
 
-	// ── Header with team name (stats loaded async) ──────────────────────
+	// ── Banner (centered) ──────────────────────────────────────────────
+	v.bannerTV = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetScrollable(false)
+	v.bannerTV.SetBackgroundColor(theme.BgPanel)
+
+	// ── Header with badge + stats (left-aligned, loaded async) ─────────
 	v.header = tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(false)
@@ -166,11 +174,13 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	bannerName := strings.ToUpper(v.team.Name)
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
-	headerHeight := bh + 5
+	headerHeight := bh + 4
+
+	// Set banner (centered)
+	v.bannerTV.SetText("\n" + banner)
 
 	// Show header immediately with a "loading" placeholder for stats
-	v.header.SetText(fmt.Sprintf("\n%s\n  %s%s%s\n  %s%s%s",
-		banner,
+	v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
 		secondary, i18n.T("tui.tm.header_badge"), reset,
 		muted, i18n.T("tui.tm.loading"), reset,
 	))
@@ -184,8 +194,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 					if v.app == nil || v.mountGen != gen {
 						return // view was unmounted or re-mounted, discard stale result
 					}
-					v.header.SetText(fmt.Sprintf("\n%s\n  %s%s%s\n  %s%s%s",
-						banner,
+					v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
 						secondary, i18n.T("tui.tm.header_badge"), reset,
 						muted, i18n.Tf("tui.tm.stats", stats.MemberCount, stats.ActiveCount), reset,
 					))
@@ -219,10 +228,16 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	// ── Adaptive layout with resize ─────────────────────────────────────
+	// Combine banner (centered) + header (left-aligned) in a vertical flex
+	combinedHeader := tview.NewFlex().SetDirection(tview.FlexRow)
+	combinedHeader.SetBackgroundColor(theme.BgPanel)
+	combinedHeader.AddItem(v.bannerTV, bh+1, 0, false) // banner + leading \n
+	combinedHeader.AddItem(v.header, 0, 1, false)       // badge/stats fills rest
+
 	buildFn := func(width int) homeFlexResult {
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
-			Header:       v.header,
+			Header:       combinedHeader,
 			HeaderHeight: headerHeight,
 			Footer:       footer,
 			FooterHeight: 4,
@@ -251,6 +266,7 @@ func (v *TeamModeView) Unmount() {
 	v.list = nil
 	v.dual = nil
 	v.header = nil
+	v.bannerTV = nil
 }
 
 // HandleKey processes view-specific key events.

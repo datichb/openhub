@@ -46,12 +46,25 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 		return fmt.Sprintf("  %s[::b]%s[::-]%s", color, name, reset), 1
 	}
 
-	// Color each line with left margin
+	// Color each line with left margin and bold
 	var b strings.Builder
 	for _, l := range trimmed {
-		fmt.Fprintf(&b, "  %s%s%s\n", color, l, reset)
+		fmt.Fprintf(&b, "  %s[::b]%s[::-]%s\n", color, l, reset)
 	}
-	return b.String(), len(trimmed)
+
+	// Decorative underline (60% of banner width, centered, in muted mode color)
+	underlineLen := maxLine * 60 / 100
+	if underlineLen < 10 {
+		underlineLen = maxLine
+	}
+	muted := theme.ColorTag(theme.ActiveMode.MutedHex)
+	fmt.Fprintf(&b, "  %s%s%s\n", muted, strings.Repeat("─", underlineLen), reset)
+
+	// Bottom spacing
+	fmt.Fprintf(&b, "\n")
+
+	// lineCount = banner lines + underline + empty line
+	return b.String(), len(trimmed) + 2
 }
 
 // trimEmptyLines removes fully blank lines from the start and end of a slice.

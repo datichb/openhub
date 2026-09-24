@@ -75,6 +75,7 @@ type ProjectModeView struct {
 	deployDiff       *DeployDiffResult   // full async result (ComputeDiff)
 	deployToastShown bool                // prevents duplicate toasts per mount cycle
 	headerTV         *tview.TextView     // reference for async header updates
+	bannerTV         *tview.TextView     // centered ASCII art banner
 }
 
 var _ View = (*ProjectModeView)(nil)
@@ -182,7 +183,15 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.items = v.buildItems()
 
-	// ── Header ──────────────────────────────────────────────────────────
+	// ── Banner (centered) ──────────────────────────────────────────────
+	bannerView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetScrollable(false)
+	bannerView.SetBackgroundColor(theme.BgPanel)
+	v.bannerTV = bannerView
+
+	// ── Header (left-aligned: badge + path + deploy status) ─────────
 	header := tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(false)
@@ -191,7 +200,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.renderHeader()
 	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
-	headerHeight := bh + 6
+	headerHeight := bh + 5
 
 	// ── Footer ──────────────────────────────────────────────────────────
 	muted := theme.ColorTag(theme.TextMutedHex)
@@ -221,10 +230,17 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	// ── Adaptive layout with resize ─────────────────────────────────────
+	// Combine banner (centered) + header (left-aligned) in a vertical flex
+	// so both can be passed as a single Header to the layout builder.
+	combinedHeader := tview.NewFlex().SetDirection(tview.FlexRow)
+	combinedHeader.SetBackgroundColor(theme.BgPanel)
+	combinedHeader.AddItem(bannerView, bh+1, 0, false) // banner + leading \n
+	combinedHeader.AddItem(header, 0, 1, false)         // badge/path fills rest
+
 	buildFn := func(width int) homeFlexResult {
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
-			Header:       header,
+			Header:       combinedHeader,
 			HeaderHeight: headerHeight,
 			Footer:       footer,
 			FooterHeight: 4,
@@ -272,6 +288,7 @@ func (v *ProjectModeView) Unmount() {
 	v.list = nil
 	v.dual = nil
 	v.headerTV = nil
+	v.bannerTV = nil
 }
 
 // HandleKey processes view-specific key events.
@@ -342,6 +359,7 @@ func (v *ProjectModeView) executeItem(idx int) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // renderHeader sets (or re-sets) the header text including the deploy badge.
+// The banner is rendered separately in bannerTV (centered).
 func (v *ProjectModeView) renderHeader() {
 	if v.headerTV == nil || v.project == nil {
 		return
@@ -350,14 +368,19 @@ func (v *ProjectModeView) renderHeader() {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
+	// Update banner (centered)
+	if v.bannerTV != nil {
+		banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
+		v.bannerTV.SetText("\n" + banner)
+	}
+
+	// Update header (badge + path + deploy)
 	badge := v.buildDeployBadge()
 	pathInfo := v.project.Path
 	if v.project.Branch != "" {
 		pathInfo += fmt.Sprintf(" · %s", v.project.Branch)
 	}
-	v.headerTV.SetText(fmt.Sprintf("\n%s\n  %s%s%s\n  %s%s%s\n  %s",
-		banner,
+	v.headerTV.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s\n  %s",
 		secondary, i18n.T("tui.pm.header_badge"), reset,
 		muted, pathInfo, reset,
 		badge,

@@ -133,11 +133,11 @@ const (
 // decorative elements (separators, background tints, discrete indicators).
 const (
 	// MutedHubHex is a dark teal for hub mode muted elements.
-	MutedHubHex = "#2d4f4f"
+	MutedHubHex = "#3a5f5f"
 	// MutedTeamHex is a dark violet for team mode muted elements.
-	MutedTeamHex = "#3a3450"
+	MutedTeamHex = "#4a4060"
 	// MutedProjectHex is a dark peach for project mode muted elements.
-	MutedProjectHex = "#4a3828"
+	MutedProjectHex = "#5a4838"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
