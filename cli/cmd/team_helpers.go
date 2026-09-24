@@ -145,6 +145,11 @@ type initWizardTeamState struct {
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
 	Members       []teamstate.Member // fetched members for rejoin flow
+	TeamRepo      *teamstate.Repo    // repo handle (set after clone in rejoin_repo)
+	AddingNewMember bool             // true when user chose "add new member" in rejoin flow
+	NewMemberDisplayName string      // display name for new member being added
+	NewMemberGitLab      string      // gitlab username for new member being added
+	NewMemberRole        string      // role for new member being added
 	// HTTPS credential state (shared by init and rejoin)
 	CredUsername   string // HTTPS username (default "oauth2")
 	CredToken      string // HTTPS token/password
@@ -639,7 +644,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				return form
 			},
 			OnDone: func() error {
-				_, members, _, err := listTeamMembers(state.Ctx, state.Repo, "")
+				repo, members, _, err := listTeamMembers(state.Ctx, state.Repo, "")
 				if err != nil {
 					return err
 				}
@@ -647,6 +652,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 					return fmt.Errorf("%s", i18n.T("cmd.init.wizard_rejoin_no_members"))
 				}
 				state.Members = members
+				state.TeamRepo = repo
 				return nil
 			},
 			Processing: i18n.T("cmd.init.wizard_processing_rejoin_clone"),
@@ -668,14 +674,13 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 			Required: true,
 			CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-				list := widgets.NewSectionedList()
-				list.SetApp(tvApp)
-
-				var items []widgets.SectionItem
-				items = append(items, widgets.SectionItem{
-					MainText: i18n.T("cmd.init.wizard_rejoin_members_header"),
-					IsHeader: true,
-				})
+				// Build filterable items: "add new" action + existing members.
+				items := []widgets.FilterItem{
+					{
+						MainText:  i18n.T("cmd.init.wizard_rejoin_add_member"),
+						Reference: "__add_new__",
+					},
+				}
 				for _, m := range state.Members {
 					label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
 					secondary := ""
@@ -688,27 +693,36 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 						}
 						secondary += m.Role
 					}
-					items = append(items, widgets.SectionItem{
+					items = append(items, widgets.FilterItem{
 						MainText:      label,
 						SecondaryText: secondary,
 						Reference:     m.ID,
 					})
 				}
-				list.SetItems(items)
 
-				list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
-					if id, ok := item.Reference.(string); ok {
+				fl := widgets.NewFilterableList(items, func(item widgets.FilterItem) {
+					if item.Reference == "__add_new__" {
+						state.AddingNewMember = true
+						state.MemberID = ""
+					} else if id, ok := item.Reference.(string); ok {
 						state.MemberID = id
+						state.AddingNewMember = false
 					}
 					onDone()
 				})
+				fl.SetApp(tvApp)
 
-				container.AddItem(list, 0, 1, true)
-				tvApp.SetFocus(list)
+				container.AddItem(fl, 0, 1, true)
+				tvApp.SetFocus(fl)
 			},
 			InfoFields: func() []views.InfoField {
-				if state.MemberID == "" {
+				if state.MemberID == "" && !state.AddingNewMember {
 					return nil
+				}
+				if state.AddingNewMember {
+					return []views.InfoField{
+						{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: i18n.T("cmd.init.wizard_rejoin_add_member")},
+					}
 				}
 				for _, m := range state.Members {
 					if m.ID == state.MemberID {
@@ -721,6 +735,94 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			},
 		},
 	)
+
+	// ── Rejoin step 4a: New member form (conditional) ──
+	// Only shown when the user selected "Add a new member" in the previous step.
+	steps = append(steps, views.WizardStep{
+		ID:    "rejoin_new_member",
+		Label: i18n.T("cmd.init.wizard_step_rejoin_new_member"),
+		SkipIf: func() bool {
+			return state.Skipped || state.Mode != "rejoin" || !state.AddingNewMember
+		},
+		Validate: func() string {
+			if strings.TrimSpace(state.MemberID) == "" {
+				return i18n.T("cmd.init.wizard_rejoin_new_member_id_required")
+			}
+			return ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddInputField(
+				i18n.T("cmd.init.wizard_rejoin_new_member_id"), state.MemberID, 0, nil,
+				func(t string) { state.MemberID = t },
+			)
+			form.AddInputField(
+				i18n.T("cmd.init.wizard_rejoin_new_member_display_name"), state.NewMemberDisplayName, 0, nil,
+				func(t string) { state.NewMemberDisplayName = t },
+			)
+			form.AddInputField(
+				i18n.T("cmd.init.wizard_rejoin_new_member_gitlab"), state.NewMemberGitLab, 0, nil,
+				func(t string) { state.NewMemberGitLab = t },
+			)
+			roles := []string{"dev", "lead", "reviewer"}
+			roleIdx := 0
+			for idx, r := range roles {
+				if r == state.NewMemberRole {
+					roleIdx = idx
+					break
+				}
+			}
+			form.AddDropDown(
+				i18n.T("cmd.init.wizard_rejoin_new_member_role"), roles, roleIdx,
+				func(_ string, idx int) {
+					if idx >= 0 && idx < len(roles) {
+						state.NewMemberRole = roles[idx]
+					}
+				},
+			)
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		OnDone: func() error {
+			displayName := state.NewMemberDisplayName
+			if displayName == "" {
+				displayName = state.MemberID
+			}
+			role := state.NewMemberRole
+			if role == "" {
+				role = "dev"
+			}
+			member := teamstate.Member{
+				ID:             state.MemberID,
+				DisplayName:    displayName,
+				GitLabUsername:  state.NewMemberGitLab,
+				Role:           role,
+			}
+			if state.TeamRepo == nil {
+				return fmt.Errorf("team-state repository not available")
+			}
+			if err := state.TeamRepo.AddMember(state.Ctx, member); err != nil {
+				return fmt.Errorf("adding member: %w", err)
+			}
+			// Update members list with the new member.
+			state.Members = append(state.Members, member)
+			state.AddingNewMember = false
+			return nil
+		},
+		Processing: i18n.T("cmd.init.wizard_rejoin_new_member_processing"),
+		InfoFields: func() []views.InfoField {
+			if state.MemberID == "" {
+				return nil
+			}
+			display := state.NewMemberDisplayName
+			if display == "" {
+				display = state.MemberID
+			}
+			return []views.InfoField{
+				{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: fmt.Sprintf("%s (%s)", display, state.MemberID)},
+			}
+		},
+	})
 
 	// ── Rejoin step 4b: GitLab token for SSH repos (conditional) ──
 	// When the repo uses HTTPS, the token was already stored in the keychain

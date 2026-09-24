@@ -29,6 +29,7 @@ type FilterableList struct {
 	allItems  []FilterItem
 	visible   []FilterItem
 	filtering bool
+	app       *tview.Application
 	onSelect  func(item FilterItem)
 	onCancel  func()
 }
@@ -63,6 +64,12 @@ func NewFilterableList(items []FilterItem, onSelect func(FilterItem)) *Filterabl
 
 	fl.setupKeys()
 	return fl
+}
+
+// SetApp stores the tview.Application reference so that the '/' key binding
+// can activate the filter without an external caller.
+func (fl *FilterableList) SetApp(app *tview.Application) {
+	fl.app = app
 }
 
 // SetOnCancel sets the callback for when filtering is cancelled.
@@ -120,12 +127,16 @@ func (fl *FilterableList) deactivateFilter(app *tview.Application) {
 
 func (fl *FilterableList) setupKeys() {
 	fl.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Rune() == '/' {
-			// Need app reference — handled via caller
-			return event
+		if event.Rune() == '/' && fl.app != nil {
+			fl.ActivateFilter(fl.app)
+			return nil
 		}
 		if event.Key() == tcell.KeyEnter {
 			fl.selectCurrent()
+			return nil
+		}
+		if event.Key() == tcell.KeyEscape && fl.onCancel != nil {
+			fl.onCancel()
 			return nil
 		}
 		return event
