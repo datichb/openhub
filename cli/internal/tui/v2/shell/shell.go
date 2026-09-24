@@ -174,6 +174,9 @@ func New(cfg Config) *Shell {
 
 	// Build router — callback updates omnibar hints and mode bar
 	s.router = router.New(s.content, app, func(v views.View) {
+		// Defensive: ensure theme matches active mode on every navigation.
+		// This catches any code path that navigates without calling SetMode.
+		theme.SetActiveMode(string(s.activeMode))
 		s.omnibar.SetHints(v.StatusHints())
 		s.updateModeBar(v)
 	})
@@ -341,8 +344,12 @@ func (s *Shell) Notifications() *NotificationStore {
 	return s.notifications
 }
 
-// NavigateHome navigates to the registered home view by ID.
-func (s *Shell) NavigateHome(homeID string) {
+// NavigateHome navigates to the registered home view by ID and sets the
+// active navigation mode accordingly. This ensures theme.ActiveMode is
+// correct when the TUI starts directly in project or team mode.
+func (s *Shell) NavigateHome(homeID string, mode views.Mode) {
+	s.activeMode = mode
+	theme.SetActiveMode(string(mode))
 	s.router.NavigateTo(homeID)
 }
 
@@ -1284,6 +1291,8 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 				}
 			} else {
 				// No TeamsProvider — fallback to previous behavior
+				s.activeMode = views.ModeTeam
+				theme.SetActiveMode(string(views.ModeTeam))
 				s.router.NavigateTo("teams")
 			}
 		}

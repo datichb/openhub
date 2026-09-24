@@ -88,7 +88,14 @@ func runTUIWithProject(projectName string) error {
 		tuiShell.SetActiveProject(initialProject)
 	}
 
-	tuiShell.NavigateHome(cfg.HomeViewID)
+	// Determine the navigation mode for the home view
+	homeMode := views.ModeHub
+	if cfg.HomeViewID == "project.mode" {
+		homeMode = views.ModeProject
+	} else if cfg.HomeViewID == "team.mode" {
+		homeMode = views.ModeTeam
+	}
+	tuiShell.NavigateHome(cfg.HomeViewID, homeMode)
 
 	// ── Push first-run wizard inline if needed ──────────────────────────
 	if firstRun {

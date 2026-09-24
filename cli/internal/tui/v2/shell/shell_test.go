@@ -63,7 +63,7 @@ func TestShell_NavigateHome(t *testing.T) {
 	}
 
 	s := New(cfg)
-	s.NavigateHome("home")
+	s.NavigateHome("home", views.ModeHub)
 
 	assert.True(t, homeView.mounted)
 	assert.Equal(t, "home", s.router.Current().ID())
@@ -99,7 +99,7 @@ func TestOmnibar_ActivateDeactivate(t *testing.T) {
 	}
 
 	s := New(cfg)
-	s.NavigateHome("home")
+	s.NavigateHome("home", views.ModeHub)
 
 	assert.False(t, s.omnibar.IsActive())
 	s.omnibar.Activate()
