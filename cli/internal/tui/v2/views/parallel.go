@@ -70,7 +70,7 @@ func RunParallel(cfg ParallelConfig) error {
 		SetSecondaryTextColor(theme.FgSecondary)
 	sessionList.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).
-		SetBorderColor(theme.BorderFocus).
+		SetBorderColor(theme.ActiveMode.Primary).
 		SetTitle(" Sessions ").
 		SetTitleColor(theme.ActiveMode.Primary)
 

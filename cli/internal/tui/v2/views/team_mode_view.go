@@ -165,7 +165,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	reset := theme.TagColor
 
 	bannerName := strings.ToUpper(v.team.Name)
-	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.PrimaryHex)
+	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
 	headerHeight := bh + 5
 
 	// Show header immediately with a "loading" placeholder for stats

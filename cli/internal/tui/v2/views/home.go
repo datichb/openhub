@@ -99,7 +99,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
-	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.PrimaryHex)
+	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.AccentHex)
 	logo.SetText(fmt.Sprintf("\n%s", bannerStr))
 
 	// ── Footer ──────────────────────────────────────────────────────────

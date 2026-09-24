@@ -190,7 +190,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.headerTV = header
 
 	v.renderHeader()
-	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.PrimaryHex)
+	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
 	headerHeight := bh + 6
 
 	// ── Footer ──────────────────────────────────────────────────────────
@@ -350,7 +350,7 @@ func (v *ProjectModeView) renderHeader() {
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
-	banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.PrimaryHex)
+	banner, _ := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
 	badge := v.buildDeployBadge()
 	pathInfo := v.project.Path
 	if v.project.Branch != "" {

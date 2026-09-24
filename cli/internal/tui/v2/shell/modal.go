@@ -81,17 +81,17 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
 	frame.SetBackgroundColor(theme.BgModal)
 	frame.SetBorder(true)
-	frame.SetBorderColor(theme.ActiveMode.Primary)
+	frame.SetBorderColor(theme.ActiveMode.Accent)
 
 	// ── Rounded corners via DrawFunc ──
-	applyRoundedCorners(frame, theme.ActiveMode.Primary, theme.BgModal)
+	applyRoundedCorners(frame, theme.ActiveMode.Accent, theme.BgModal)
 
 	// ── Title ──
 	titleText := cfg.Title
 	if titleText != "" {
 		pad := strings.Repeat(" ", theme.ModalTitlePad)
 		frame.SetTitle(fmt.Sprintf("%s%s%s", pad, titleText, pad))
-		frame.SetTitleColor(theme.ActiveMode.Primary)
+		frame.SetTitleColor(theme.ActiveMode.Accent)
 	}
 
 	// ── Content ──
@@ -249,7 +249,7 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 		if isPrimary {
 			// Primary button: mode accent pill at rest, secondary when focused
 			btn.SetStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Primary).
+				Background(theme.ActiveMode.Accent).
 				Foreground(theme.BgModal))
 			btn.SetActivatedStyle(tcell.StyleDefault.
 				Background(theme.ActiveMode.Secondary).
@@ -260,7 +260,7 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 				Background(theme.BgModalHighlight).
 				Foreground(theme.FgSecondary))
 			btn.SetActivatedStyle(tcell.StyleDefault.
-				Background(theme.ActiveMode.Primary).
+				Background(theme.ActiveMode.Accent).
 				Foreground(theme.BgModal))
 		}
 		btn.SetSelectedFunc(func() {

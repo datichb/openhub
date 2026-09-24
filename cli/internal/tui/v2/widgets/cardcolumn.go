@@ -286,7 +286,7 @@ func (c *CardColumn) drawCard(screen tcell.Screen, x, y, maxWidth int, card *Car
 	bgCard := theme.BgCard
 	borderColor := theme.BorderCard
 	if selected {
-		borderColor = theme.BorderFocus
+		borderColor = theme.ActiveMode.Primary
 	}
 
 	borderStyle := tcell.StyleDefault.Background(theme.BgPanel).Foreground(borderColor)
