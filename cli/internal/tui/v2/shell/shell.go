@@ -687,22 +687,22 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	// Remove border from the form — the outer Flex will have the border
 	form.SetBorder(false)
 	form.SetButtonStyle(tcell.StyleDefault.
-		Background(theme.Accent).
+		Background(theme.ActiveMode.Primary).
 		Foreground(theme.BgPanel))
 	form.SetButtonActivatedStyle(tcell.StyleDefault.
-		Background(theme.Action).
+		Background(theme.ActiveMode.Secondary).
 		Foreground(theme.BgPanel))
 
 	// ── Layout: outer Flex with border + rounded corners ─────────────────
 	outerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 	outerFlex.SetBackgroundColor(theme.BgModal)
 	outerFlex.SetBorder(true)
-	outerFlex.SetBorderColor(theme.Accent)
-	applyRoundedCorners(outerFlex, theme.Accent, theme.BgModal)
+	outerFlex.SetBorderColor(theme.ActiveMode.Primary)
+	applyRoundedCorners(outerFlex, theme.ActiveMode.Primary, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	outerFlex.SetTitle(fmt.Sprintf("%s%s%s", pad, cfg.Title, pad))
-	outerFlex.SetTitleColor(theme.Accent)
+	outerFlex.SetTitleColor(theme.ActiveMode.Primary)
 
 	// Form content (fills remaining space)
 	outerFlex.AddItem(form, 0, 1, true)
@@ -714,10 +714,10 @@ func (s *Shell) ShowInlineForm(cfg views.InlineFormConfig) {
 	hints.SetBackgroundColor(theme.BgModal)
 	hints.SetText(fmt.Sprintf(
 		"  "+i18n.T("tui.shell.form_hints"),
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
-		theme.ColorTag(theme.AccentHex), theme.TagColor,
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
+		theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
 	))
 	outerFlex.AddItem(hints, 1, 0, false)
 
@@ -838,13 +838,13 @@ func (s *Shell) showSubSelect(title string, options []views.SelectOption, curren
 	list := tview.NewList()
 	styleSelectList(list)
 	list.SetBorder(true)
-	list.SetBorderColor(theme.Accent)
+	list.SetBorderColor(theme.ActiveMode.Primary)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
+	applyRoundedCornersBox(list.Box, theme.ActiveMode.Primary, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
-	list.SetTitleColor(theme.Accent)
+	list.SetTitleColor(theme.ActiveMode.Primary)
 
 	currentIdx := 0
 	for i, opt := range options {
@@ -903,13 +903,13 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 	list := tview.NewList()
 	styleSelectList(list)
 	list.SetBorder(true)
-	list.SetBorderColor(theme.Accent)
+	list.SetBorderColor(theme.ActiveMode.Primary)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
+	applyRoundedCornersBox(list.Box, theme.ActiveMode.Primary, theme.BgModal)
 
-	padStr := strings.Repeat(" ", theme.ModalTitlePad)
-	list.SetTitle(fmt.Sprintf("%s%s%s", padStr, title, padStr))
-	list.SetTitleColor(theme.Accent)
+	pad := strings.Repeat(" ", theme.ModalTitlePad)
+	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
+	list.SetTitleColor(theme.ActiveMode.Primary)
 
 	renderItems := func() {
 		list.Clear()
@@ -1500,12 +1500,12 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 	frame := tview.NewFlex().SetDirection(tview.FlexRow)
 	frame.SetBackgroundColor(theme.BgModal)
 	frame.SetBorder(true)
-	frame.SetBorderColor(theme.Accent)
-	applyRoundedCorners(frame, theme.Accent, theme.BgModal)
+	frame.SetBorderColor(theme.ActiveMode.Primary)
+	applyRoundedCorners(frame, theme.ActiveMode.Primary, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
-	frame.SetTitleColor(theme.Accent)
+	frame.SetTitleColor(theme.ActiveMode.Primary)
 
 	frame.AddItem(container, 0, 1, true)
 
@@ -1529,13 +1529,13 @@ func (s *Shell) showInlineSelect(title string, options []views.SelectOption, cur
 	list := tview.NewList()
 	styleSelectList(list)
 	list.SetBorder(true)
-	list.SetBorderColor(theme.Accent)
+	list.SetBorderColor(theme.ActiveMode.Primary)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
+	applyRoundedCornersBox(list.Box, theme.ActiveMode.Primary, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
-	list.SetTitleColor(theme.Accent)
+	list.SetTitleColor(theme.ActiveMode.Primary)
 
 	currentIdx := 0
 	for i, opt := range options {
@@ -1593,13 +1593,13 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	list := tview.NewList()
 	styleSelectList(list)
 	list.SetBorder(true)
-	list.SetBorderColor(theme.Accent)
+	list.SetBorderColor(theme.ActiveMode.Primary)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	applyRoundedCornersBox(list.Box, theme.Accent, theme.BgModal)
+	applyRoundedCornersBox(list.Box, theme.ActiveMode.Primary, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
 	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
-	list.SetTitleColor(theme.Accent)
+	list.SetTitleColor(theme.ActiveMode.Primary)
 
 	renderItems := func() {
 		list.Clear()

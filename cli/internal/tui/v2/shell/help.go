@@ -23,7 +23,7 @@ func (s *Shell) showHelpOverlay() {
 		return
 	}
 
-	accent := theme.ColorTag(theme.AccentHex)
+	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
