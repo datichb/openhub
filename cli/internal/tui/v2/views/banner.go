@@ -30,7 +30,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 	trimmed := trimEmptyLines(lines)
 
 	if len(trimmed) == 0 {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", color, name, reset), 1
+		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
 	}
 
 	// Check width — find the longest line
@@ -43,13 +43,13 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 
 	// Fallback: if too wide, return simple bold text
 	if maxLine > maxWidth {
-		return fmt.Sprintf("  %s[::b]%s[::-]%s", color, name, reset), 1
+		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
 	}
 
 	// Color each line with left margin and bold
 	var b strings.Builder
 	for _, l := range trimmed {
-		fmt.Fprintf(&b, "  %s[::b]%s[::-]%s\n", color, l, reset)
+		fmt.Fprintf(&b, "%s[::b]%s[::-]%s\n", color, l, reset)
 	}
 
 	// Decorative underline (60% of banner width, centered, in muted mode color)
@@ -58,7 +58,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 		underlineLen = maxLine
 	}
 	muted := theme.ColorTag(theme.ActiveMode.MutedHex)
-	fmt.Fprintf(&b, "  %s%s%s\n", muted, strings.Repeat("─", underlineLen), reset)
+	fmt.Fprintf(&b, "%s%s%s\n", muted, strings.Repeat("─", underlineLen), reset)
 
 	// Bottom spacing
 	fmt.Fprintf(&b, "\n")

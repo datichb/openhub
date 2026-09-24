@@ -172,14 +172,11 @@ func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 		centerContent = list
 	}
 
-	// ── Inner flex: header + content + footer ──
+	// ── Inner flex: header + content (footer is anchored separately below) ──
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 	innerFlex.SetBackgroundColor(theme.BgPanel)
 	innerFlex.AddItem(cfg.Header, cfg.HeaderHeight, 0, false)
 	innerFlex.AddItem(centerContent, 0, 1, true)
-	if cfg.Footer != nil {
-		innerFlex.AddItem(cfg.Footer, cfg.FooterHeight, 0, false)
-	}
 
 	// ── Horizontal centering ──
 	hCenter := tview.NewFlex()
@@ -206,6 +203,11 @@ func buildHomeLayout(width int, cfg homeFlexConfig) homeFlexResult {
 	root.AddItem(hCenter, 0, contentWeight, true)
 	if bottomWeight > 0 {
 		root.AddItem(tview.NewBox().SetBackgroundColor(theme.BgPanel), 0, bottomWeight, false)
+	}
+	// Footer anchored at the bottom, outside vertical centering,
+	// so it stays close to the omnibar regardless of content density.
+	if cfg.Footer != nil {
+		root.AddItem(cfg.Footer, cfg.FooterHeight, 0, false)
 	}
 
 	result.Root = root
