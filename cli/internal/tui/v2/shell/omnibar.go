@@ -54,7 +54,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.hints.SetBackgroundColor(theme.BgElement)
-	o.hints.SetBorderPadding(1, 0, 1, 2)
+	o.hints.SetBorderPadding(1, 0, 2, 2)
 
 	// Input field (active mode)
 	o.input = tview.NewInputField().
@@ -64,7 +64,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetPlaceholder(i18n.T("tui.omnibar.placeholder")).
 		SetPlaceholderTextColor(theme.FgMuted)
 	o.input.SetBackgroundColor(theme.BgElement)
-	o.input.SetBorderPadding(1, 0, 1, 2)
+	o.input.SetBorderPadding(1, 0, 2, 2)
 
 	// Wire input change to filter suggestions
 	o.input.SetChangedFunc(func(text string) {
@@ -154,7 +154,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	o.modeBar.SetBackgroundColor(theme.BgElement)
-	o.modeBar.SetBorderPadding(0, 1, 1, 2)
+	o.modeBar.SetBorderPadding(0, 1, 2, 2)
 
 	// Mode separator: thin horizontal line between hints/input and mode bar.
 	// Color is updated dynamically by UpdateModeBar via theme.ActiveMode.
