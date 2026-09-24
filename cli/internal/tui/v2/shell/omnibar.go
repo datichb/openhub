@@ -167,9 +167,9 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
 	rightPane.SetBackgroundColor(theme.BgPanel)
 	rightPane.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		style := tcell.StyleDefault.Foreground(o.gutterFg).Background(theme.BgElement)
+		style := tcell.StyleDefault.Background(o.gutterFg).Foreground(theme.BgElement)
 		for dy := 0; dy < height; dy++ {
-			screen.SetContent(x, y+dy, '▌', nil, style)
+			screen.SetContent(x, y+dy, '▐', nil, style)
 		}
 		return x + 1, y, width - 1, height
 	})
