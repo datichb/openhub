@@ -15,8 +15,8 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -115,7 +115,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
 		},
-	})
+	}, a.Platform)
 	if err != nil {
 		return fmt.Errorf("initialisation parallèle: %w", err)
 	}
@@ -154,10 +154,11 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 			AttachFunc: func(sessionID string) error {
 				for _, s := range coord.State().Snapshot().Sessions {
 					if s.SessionID == sessionID {
-						return opencode.Run(opencode.StartOpts{
-							ResumeSessionID: sessionID,
-							ProjectPath:     s.WorktreePath,
+						_, err := a.Platform.RunInteractive(ctx, platform.RunOpts{
+							ProjectPath: s.WorktreePath,
+							ResumeID:    sessionID,
 						})
+						return err
 					}
 				}
 				return fmt.Errorf("session %s introuvable", sessionID)

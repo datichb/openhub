@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/task"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -38,19 +38,19 @@ type CoordinatorOpts struct {
 	PromptFunc func(ticketID string) string
 }
 
-// Coordinator orchestrates multiple parallel opencode sessions.
+// Coordinator orchestrates multiple parallel coding sessions.
 type Coordinator struct {
 	opts               CoordinatorOpts
 	state              *ParallelState
-	servers            []*OpenCodeServer
+	servers            []platform.SessionServer
 	context            *SharedContext
-	opencodeBin        string
+	platform           platform.SessionPlatform
 	notifiedConflicts  map[string]bool // "ticketA:ticketB:file" -> true (dedup)
 	notifiedCompletion map[string]bool // ticketID -> true (dedup)
 }
 
 // NewCoordinator creates a new parallel coordinator.
-func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
+func NewCoordinator(opts CoordinatorOpts, p platform.SessionPlatform) (*Coordinator, error) {
 	opts.Config.Validate()
 
 	// Backward compat shim: convert legacy Tickets to Tasks
@@ -86,18 +86,20 @@ func NewCoordinator(opts CoordinatorOpts) (*Coordinator, error) {
 		opts.Agent = "orchestrator-dev"
 	}
 
-	bin, err := opencode.FindBinary()
-	if err != nil {
-		return nil, fmt.Errorf("opencode binary not found: %w", err)
+	if p == nil || !p.Available() {
+		return nil, fmt.Errorf("platform backend not available")
+	}
+	if !p.SupportsServeMode() {
+		return nil, fmt.Errorf("platform %s does not support serve mode (required for parallel)", p.Name())
 	}
 
 	state := NewState(opts.ProjectPath, opts.Config.MaxSessions)
 	return &Coordinator{
 		opts:               opts,
 		state:              state,
-		servers:            make([]*OpenCodeServer, 0, len(opts.Tasks)),
+		servers:            make([]platform.SessionServer, 0, len(opts.Tasks)),
 		context:            NewSharedContext(state),
-		opencodeBin:        bin,
+		platform:           p,
 		notifiedConflicts:  make(map[string]bool),
 		notifiedCompletion: make(map[string]bool),
 	}, nil
@@ -109,7 +111,7 @@ func (c *Coordinator) State() *ParallelState {
 }
 
 // Servers returns the list of servers (for TUI attach).
-func (c *Coordinator) Servers() []*OpenCodeServer {
+func (c *Coordinator) Servers() []platform.SessionServer {
 	return c.servers
 }
 
@@ -204,18 +206,32 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 func (c *Coordinator) startServers(ctx context.Context) error {
 	snap := c.state.Snapshot()
 	for _, sess := range snap.Sessions {
-		srv := NewServer(sess.Port, sess.WorktreePath, sess.TicketID)
+		srv, err := c.platform.NewServer(sess.Port, sess.WorktreePath, sess.TicketID)
+		if err != nil {
+			c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
+				s.Status = StatusFailed
+				s.Error = fmt.Sprintf("failed to create server: %v", err)
+			})
+			continue
+		}
 		c.servers = append(c.servers, srv)
 
 		c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
 			s.Status = StatusStarting
 		})
 
-		if err := srv.Start(ctx, c.opencodeBin); err != nil {
+		if err := srv.Start(ctx); err != nil {
 			// Try next port if busy
 			retryPort := sess.Port + 10
-			srv = NewServer(retryPort, sess.WorktreePath, sess.TicketID)
-			if err := srv.Start(ctx, c.opencodeBin); err != nil {
+			srv, err = c.platform.NewServer(retryPort, sess.WorktreePath, sess.TicketID)
+			if err != nil {
+				c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
+					s.Status = StatusFailed
+					s.Error = fmt.Sprintf("failed to create retry server: %v", err)
+				})
+				continue
+			}
+			if err := srv.Start(ctx); err != nil {
 				c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
 					s.Status = StatusFailed
 					s.Error = fmt.Sprintf("failed to start server: %v", err)
@@ -243,37 +259,37 @@ func (c *Coordinator) startServers(ctx context.Context) error {
 
 func (c *Coordinator) startSessions(ctx context.Context) error {
 	for _, srv := range c.servers {
-		sess, ok := c.state.GetSession(srv.TicketID)
+		sess, ok := c.state.GetSession(srv.TicketID())
 		if !ok || sess.Status == StatusFailed {
 			continue
 		}
 
 		// Create session
-		title := fmt.Sprintf("parallel: %s", srv.TicketID)
+		title := fmt.Sprintf("parallel: %s", srv.TicketID())
 		sessionID, err := srv.CreateSession(title)
 		if err != nil {
-			c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+			c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 				s.Status = StatusFailed
 				s.Error = fmt.Sprintf("failed to create session: %v", err)
 			})
 			continue
 		}
 
-		c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+		c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 			s.SessionID = sessionID
 		})
 
 		// Generate and send prompt
-		prompt := c.promptForTask(srv.TicketID)
-		if err := srv.SendPromptAsync(sessionID, prompt, c.opts.Agent); err != nil {
-			c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+		prompt := c.promptForTask(srv.TicketID())
+		if err := srv.SendPrompt(sessionID, prompt, c.opts.Agent); err != nil {
+			c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 				s.Status = StatusFailed
 				s.Error = fmt.Sprintf("failed to send prompt: %v", err)
 			})
 			continue
 		}
 
-		c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+		c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 			s.Status = StatusRunning
 			s.StartedAt = time.Now().UTC()
 		})
@@ -313,17 +329,17 @@ func (c *Coordinator) monitor(ctx context.Context) error {
 func (c *Coordinator) pollStatus() {
 	var wg sync.WaitGroup
 	for _, srv := range c.servers {
-		sess, ok := c.state.GetSession(srv.TicketID)
+		sess, ok := c.state.GetSession(srv.TicketID())
 		if !ok || (sess.Status != StatusRunning && sess.Status != StatusIdle) {
 			continue
 		}
 
 		wg.Add(1)
-		go func(srv *OpenCodeServer) {
+		go func(srv platform.SessionServer) {
 			defer wg.Done()
 
 			if !srv.IsAlive() {
-				c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+				c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 					s.Status = StatusFailed
 					s.Error = "server process died"
 					s.CompletedAt = time.Now().UTC()
@@ -331,13 +347,13 @@ func (c *Coordinator) pollStatus() {
 				return
 			}
 
-			statuses, err := srv.GetSessionStatus()
+			statuses, err := srv.GetStatus()
 			if err != nil {
 				return
 			}
 
 			// Check if the session is done
-			sessionInfo, _ := c.state.GetSession(srv.TicketID)
+			sessionInfo, _ := c.state.GetSession(srv.TicketID())
 			if sessionInfo.SessionID == "" {
 				return
 			}
@@ -345,21 +361,18 @@ func (c *Coordinator) pollStatus() {
 			if status, ok := statuses[sessionInfo.SessionID]; ok {
 				switch status {
 				case "completed":
-					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+					c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 						s.Status = StatusCompleted
 						s.CompletedAt = time.Now().UTC()
 					})
 				case "idle":
-					// Idle means the agent finished its turn. If no notification
-					// is pending, promote to completed. Otherwise keep as idle
-					// so the monitor loop can send the notification first.
-					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+					c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 						if s.Status == StatusRunning {
 							s.Status = StatusIdle
 						}
 					})
 				case "error", "failed":
-					c.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+					c.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 						s.Status = StatusFailed
 						s.CompletedAt = time.Now().UTC()
 					})
@@ -392,7 +405,7 @@ func (c *Coordinator) sendConflictNotifications() {
 
 			// Find the server for this session
 			for _, srv := range c.servers {
-				if srv.TicketID == ticketID && sess.SessionID != "" {
+				if srv.TicketID() == ticketID && sess.SessionID != "" {
 					otherSessions := make([]string, 0)
 					for _, other := range conflict.Sessions {
 						if other != ticketID {
@@ -403,7 +416,7 @@ func (c *Coordinator) sendConflictNotifications() {
 						"[PARALLEL-NOTIFICATION] Conflit de fichier détecté : %s est aussi modifié par %s (sévérité: %s). Minimise les changements sur ce fichier si possible.",
 						conflict.File, strings.Join(otherSessions, ", "), conflict.Severity,
 					)
-					_ = srv.SendNotification(sess.SessionID, msg)
+					_ = sendNotification(srv, sess.SessionID, msg)
 					break
 				}
 			}
@@ -426,8 +439,8 @@ func (c *Coordinator) sendCompletionNotifications() {
 
 		// Notify all still-running/idle sessions
 		for _, srv := range c.servers {
-			other, ok := c.state.GetSession(srv.TicketID)
-			if !ok || srv.TicketID == sess.TicketID {
+			other, ok := c.state.GetSession(srv.TicketID())
+			if !ok || srv.TicketID() == sess.TicketID {
 				continue
 			}
 			if other.Status != StatusRunning && other.Status != StatusIdle {
@@ -445,7 +458,7 @@ func (c *Coordinator) sendCompletionNotifications() {
 				"[PARALLEL-NOTIFICATION] La session %s est terminée.%s",
 				sess.TicketID, filesInfo,
 			)
-			_ = srv.SendNotification(other.SessionID, msg)
+			_ = sendNotification(srv, other.SessionID, msg)
 		}
 	}
 }
@@ -484,9 +497,9 @@ func (c *Coordinator) promptForTask(taskID string) string {
 }
 
 // findServer returns the server for a given ticket ID, or nil.
-func (c *Coordinator) findServer(ticketID string) *OpenCodeServer {
+func (c *Coordinator) findServer(ticketID string) platform.SessionServer {
 	for _, srv := range c.servers {
-		if srv.TicketID == ticketID {
+		if srv.TicketID() == ticketID {
 			return srv
 		}
 	}
@@ -494,9 +507,9 @@ func (c *Coordinator) findServer(ticketID string) *OpenCodeServer {
 }
 
 // replaceServer swaps the server for a ticket ID in the servers slice.
-func (c *Coordinator) replaceServer(ticketID string, newSrv *OpenCodeServer) {
+func (c *Coordinator) replaceServer(ticketID string, newSrv platform.SessionServer) {
 	for i, srv := range c.servers {
-		if srv.TicketID == ticketID {
+		if srv.TicketID() == ticketID {
 			c.servers[i] = newSrv
 			return
 		}
@@ -515,7 +528,6 @@ func (c *Coordinator) cleanup() {
 	}
 
 	// Remove worktrees of successfully completed sessions only.
-	// Failed sessions are intentionally preserved for post-mortem inspection.
 	snap := c.state.Snapshot()
 	for _, sess := range snap.Sessions {
 		if sess.Status != StatusCompleted || sess.WorktreePath == "" {
@@ -523,4 +535,15 @@ func (c *Coordinator) cleanup() {
 		}
 		_ = worktree.Remove(c.opts.ProjectPath, sess.WorktreePath, false)
 	}
+}
+
+// sendNotification sends a message to a session via the server.
+// It tries to use the ServerAdapter extension method if available,
+// otherwise falls back to SendPrompt.
+func sendNotification(srv platform.SessionServer, sessionID, message string) error {
+	if adapter, ok := srv.(*ServerAdapter); ok {
+		return adapter.SendNotification(sessionID, message)
+	}
+	// Fallback: send as a regular prompt (the notification prefix is in the message)
+	return srv.SendPrompt(sessionID, message, "")
 }

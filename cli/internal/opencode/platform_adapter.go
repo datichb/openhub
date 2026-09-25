@@ -9,9 +9,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/platform"
 )
 
-// Platform implements platform.SessionPlatform for the OpenCode binary.
-type Platform struct{}
-
 // Compile-time check.
 var _ platform.SessionPlatform = (*Platform)(nil)
 
@@ -87,8 +84,31 @@ func (p *Platform) IsGhostSession(s platform.ActiveSession) bool {
 func (p *Platform) SupportsServeMode() bool { return true }
 
 func (p *Platform) NewServer(port int, dir string, id string) (platform.SessionServer, error) {
-	// Phase 3 — to be implemented when parallel mode is migrated
-	return nil, fmt.Errorf("platform opencode: NewServer not yet implemented (Phase 3)")
+	bin, err := FindBinary()
+	if err != nil {
+		return nil, fmt.Errorf("opencode binary not found for serve mode: %w", err)
+	}
+	// The actual server creation is done by the caller (parallel package)
+	// which has access to NewServerAdapter without import cycle.
+	// We return the binary path via a ServerFactory pattern.
+	if p.serverFactory != nil {
+		return p.serverFactory(port, dir, id, bin)
+	}
+	return nil, fmt.Errorf("platform opencode: server factory not configured (call SetServerFactory)")
+}
+
+// ServerFactory creates a platform.SessionServer given port, dir, id, and binary path.
+type ServerFactory func(port int, dir, id, bin string) (platform.SessionServer, error)
+
+// SetServerFactory configures the factory used by NewServer.
+// This breaks the import cycle: the parallel package sets the factory during wiring.
+func (p *Platform) SetServerFactory(f ServerFactory) {
+	p.serverFactory = f
+}
+
+// Platform implements platform.SessionPlatform for the OpenCode binary.
+type Platform struct {
+	serverFactory ServerFactory
 }
 
 func (p *Platform) RequiresDeploy() bool { return true }

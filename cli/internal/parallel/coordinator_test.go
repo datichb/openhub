@@ -1,8 +1,28 @@
 package parallel
 
 import (
+	"context"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/platform"
 )
+
+// testPlatform is a minimal mock that satisfies platform.SessionPlatform for
+// coordinator unit tests. Most methods are unreachable in these tests since
+// they only validate admission (ticket count, budget, etc.).
+type testPlatform struct{}
+
+func (testPlatform) Name() platform.Name                                                      { return platform.OpenCode }
+func (testPlatform) Available() bool                                                          { return true }
+func (testPlatform) Version() (string, error)                                                 { return "test", nil }
+func (testPlatform) RunInteractive(_ context.Context, _ platform.RunOpts) (*platform.RunResult, error) { return nil, nil }
+func (testPlatform) ExecReplace(_ platform.RunOpts) error                                     { return nil }
+func (testPlatform) RunHeadless(_ context.Context, _ platform.HeadlessOpts) (*platform.HeadlessResult, error) { return nil, nil }
+func (testPlatform) FindActiveSessions(_ context.Context, _ string) ([]platform.ActiveSession, error) { return nil, nil }
+func (testPlatform) IsGhostSession(_ platform.ActiveSession) bool                             { return false }
+func (testPlatform) SupportsServeMode() bool                                                  { return true }
+func (testPlatform) NewServer(port int, dir, id string) (platform.SessionServer, error)       { return nil, nil }
+func (testPlatform) RequiresDeploy() bool                                                     { return false }
 
 func TestNewCoordinator_NoTickets(t *testing.T) {
 	_, err := NewCoordinator(CoordinatorOpts{
@@ -11,7 +31,7 @@ func TestNewCoordinator_NoTickets(t *testing.T) {
 		Tickets:     nil,
 		Config:      DefaultConfig(),
 		PromptFunc:  func(string) string { return "" },
-	})
+	}, testPlatform{})
 	if err == nil {
 		t.Error("expected error for empty tickets")
 	}
@@ -25,7 +45,7 @@ func TestNewCoordinator_TooManyTickets(t *testing.T) {
 		Tickets:     []string{"a", "b", "c", "d"},
 		Config:      cfg,
 		PromptFunc:  func(string) string { return "" },
-	})
+	}, testPlatform{})
 	if err == nil {
 		t.Error("expected error for too many tickets")
 	}
@@ -50,7 +70,7 @@ func TestNewCoordinator_BudgetExceeded(t *testing.T) {
 		},
 		Config:     cfg,
 		PromptFunc: func(string) string { return "" },
-	})
+	}, testPlatform{})
 	if err == nil {
 		t.Error("expected error for budget exceeded (480 > 180)")
 	}
@@ -64,7 +84,7 @@ func TestNewCoordinator_BudgetDisabled(t *testing.T) {
 		PortRangeStart:         4100,
 	}
 	// This should NOT fail even though total weight is huge -- budget is disabled
-	_, err := NewCoordinator(CoordinatorOpts{
+	coord, err := NewCoordinator(CoordinatorOpts{
 		ProjectPath: "/tmp/project",
 		ProjectID:   "test",
 		Tickets:     []string{"a", "b", "c"},
@@ -75,14 +95,13 @@ func TestNewCoordinator_BudgetDisabled(t *testing.T) {
 		},
 		Config:     cfg,
 		PromptFunc: func(string) string { return "" },
-	})
-	// Will fail at opencode.FindBinary, not at admission -- that's expected
-	if err != nil && err.Error() != "" {
-		// Check it's not a budget error
+	}, testPlatform{})
+	if err != nil {
 		if contains(err.Error(), "budget") {
 			t.Errorf("should not fail on budget when disabled, got: %v", err)
 		}
 	}
+	_ = coord
 }
 
 func contains(s, sub string) bool {
@@ -106,7 +125,7 @@ func TestNewCoordinator_Valid(t *testing.T) {
 		Priority:    "bd-42",
 		Config:      DefaultConfig(),
 		PromptFunc:  func(id string) string { return "work on " + id },
-	})
+	}, testPlatform{})
 	if err != nil {
 		t.Fatalf("NewCoordinator failed: %v", err)
 	}

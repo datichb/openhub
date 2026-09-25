@@ -74,13 +74,20 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 	newPort := sess.Port + 10 + sess.RetryCount
 
 	// 5. Create new server on the same worktree
-	newSrv := NewServer(newPort, sess.WorktreePath, ticketID)
+	newSrv, err := c.platform.NewServer(newPort, sess.WorktreePath, ticketID)
+	if err != nil {
+		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
+			s.Status = StatusFailed
+			s.Error = fmt.Sprintf("retry %d: failed to create server: %v", s.RetryCount, err)
+		})
+		return
+	}
 	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
 		s.Status = StatusStarting
 		s.Port = newPort
 	})
 
-	if err := newSrv.Start(ctx, c.opencodeBin); err != nil {
+	if err := newSrv.Start(ctx); err != nil {
 		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
 			s.Status = StatusFailed
 			s.Error = fmt.Sprintf("retry %d: failed to start server: %v", s.RetryCount, err)
@@ -126,7 +133,7 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 			retryNum, sess.FilesModified)
 	}
 
-	if err := newSrv.SendPromptAsync(sessionID, prompt, c.opts.Agent); err != nil {
+	if err := newSrv.SendPrompt(sessionID, prompt, c.opts.Agent); err != nil {
 		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
 			s.Status = StatusFailed
 			s.Error = fmt.Sprintf("retry %d: failed to send prompt: %v", s.RetryCount, err)

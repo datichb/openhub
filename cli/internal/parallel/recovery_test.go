@@ -3,6 +3,8 @@ package parallel
 import (
 	"context"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/platform"
 )
 
 func TestAttemptRecovery_SkipsNonFailed(t *testing.T) {
@@ -15,11 +17,11 @@ func TestAttemptRecovery_SkipsNonFailed(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []*OpenCodeServer{},
+		servers:           []platform.SessionServer{},
+		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
 
-	// Should not panic or modify any session
 	c.attemptRecovery(context.Background())
 
 	for _, id := range []string{"bd-1", "bd-2", "bd-3"} {
@@ -39,7 +41,8 @@ func TestAttemptRecovery_SkipsExhaustedRetries(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []*OpenCodeServer{},
+		servers:           []platform.SessionServer{},
+		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
 
@@ -63,7 +66,8 @@ func TestAttemptRecovery_DisabledWhenMaxRetriesZero(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []*OpenCodeServer{},
+		servers:           []platform.SessionServer{},
+		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
 
@@ -73,6 +77,14 @@ func TestAttemptRecovery_DisabledWhenMaxRetriesZero(t *testing.T) {
 	if s.Status != StatusFailed {
 		t.Errorf("expected StatusFailed (recovery disabled), got %s", s.Status)
 	}
+}
+
+// failingPlatform returns errors from NewServer to test recovery failure path.
+type failingPlatform struct{ testPlatform }
+
+func (failingPlatform) NewServer(port int, dir, id string) (platform.SessionServer, error) {
+	// Return a server adapter that will fail on Start
+	return NewServerAdapter(port, dir, id, "/nonexistent/bin"), nil
 }
 
 func TestRecoverSession_TransitionsToRetrying(t *testing.T) {
@@ -86,10 +98,9 @@ func TestRecoverSession_TransitionsToRetrying(t *testing.T) {
 	})
 
 	cfg := DefaultConfig()
-	cfg.RetryDelaySeconds = 0 // no delay in tests
+	cfg.RetryDelaySeconds = 0
 
-	// Create a real-ish server (with http client) so Dispose() doesn't panic
-	srv := NewServer(4100, t.TempDir(), "bd-1")
+	srv := NewServerAdapter(4100, t.TempDir(), "bd-1", "/nonexistent/bin")
 
 	c := &Coordinator{
 		opts: CoordinatorOpts{
@@ -98,20 +109,16 @@ func TestRecoverSession_TransitionsToRetrying(t *testing.T) {
 			PromptFunc: func(string) string { return "test prompt" },
 		},
 		state:              state,
-		servers:            []*OpenCodeServer{srv},
+		servers:            []platform.SessionServer{srv},
+		platform:           failingPlatform{},
 		notifiedConflicts:  make(map[string]bool),
 		notifiedCompletion: make(map[string]bool),
-		opencodeBin:        "/nonexistent/bin", // will fail at Start()
 	}
 
 	sess, _ := state.GetSession("bd-1")
 	c.recoverSession(context.Background(), sess)
 
-	// The recovery will fail at Start() because the binary doesn't exist,
-	// but we can verify the state transitions happened correctly
 	s, _ := state.GetSession("bd-1")
-
-	// Should be back to Failed (because Start failed), with incremented RetryCount
 	if s.Status != StatusFailed {
 		t.Errorf("expected StatusFailed (start failed), got %s", s.Status)
 	}
@@ -135,7 +142,7 @@ func TestRecoverSession_PortOffset(t *testing.T) {
 
 	cfg := DefaultConfig()
 	cfg.RetryDelaySeconds = 0
-	srv := NewServer(4100, t.TempDir(), "bd-1")
+	srv := NewServerAdapter(4100, t.TempDir(), "bd-1", "/nonexistent/bin")
 
 	c := &Coordinator{
 		opts: CoordinatorOpts{
@@ -143,18 +150,16 @@ func TestRecoverSession_PortOffset(t *testing.T) {
 			PromptFunc: func(string) string { return "" },
 		},
 		state:              state,
-		servers:            []*OpenCodeServer{srv},
+		servers:            []platform.SessionServer{srv},
+		platform:           failingPlatform{},
 		notifiedConflicts:  make(map[string]bool),
 		notifiedCompletion: make(map[string]bool),
-		opencodeBin:        "/nonexistent/bin",
 	}
 
 	sess, _ := state.GetSession("bd-1")
 	c.recoverSession(context.Background(), sess)
 
 	s, _ := state.GetSession("bd-1")
-	// Port should be original + 10 + retryCount (which was 1 before recovery, now 2)
-	// newPort = 4100 + 10 + 1 = 4111 (retryCount at entry was 1)
 	expectedPort := 4100 + 10 + 1
 	if s.Port != expectedPort {
 		t.Errorf("expected port=%d, got %d", expectedPort, s.Port)
@@ -162,15 +167,15 @@ func TestRecoverSession_PortOffset(t *testing.T) {
 }
 
 func TestFindServer(t *testing.T) {
+	s1 := NewServerAdapter(4100, "/tmp/a", "bd-1", "")
+	s2 := NewServerAdapter(4101, "/tmp/b", "bd-2", "")
+
 	c := &Coordinator{
-		servers: []*OpenCodeServer{
-			{TicketID: "bd-1", Port: 4100},
-			{TicketID: "bd-2", Port: 4101},
-		},
+		servers: []platform.SessionServer{s1, s2},
 	}
 
 	srv := c.findServer("bd-2")
-	if srv == nil || srv.Port != 4101 {
+	if srv == nil || srv.Port() != 4101 {
 		t.Error("findServer should return the server for bd-2")
 	}
 
@@ -181,18 +186,18 @@ func TestFindServer(t *testing.T) {
 }
 
 func TestReplaceServer(t *testing.T) {
+	s1 := NewServerAdapter(4100, "/tmp/a", "bd-1", "")
+	s2 := NewServerAdapter(4101, "/tmp/b", "bd-2", "")
+
 	c := &Coordinator{
-		servers: []*OpenCodeServer{
-			{TicketID: "bd-1", Port: 4100},
-			{TicketID: "bd-2", Port: 4101},
-		},
+		servers: []platform.SessionServer{s1, s2},
 	}
 
-	newSrv := &OpenCodeServer{TicketID: "bd-1", Port: 4200}
+	newSrv := NewServerAdapter(4200, "/tmp/a", "bd-1", "")
 	c.replaceServer("bd-1", newSrv)
 
-	if c.servers[0].Port != 4200 {
-		t.Errorf("expected replaced server port=4200, got %d", c.servers[0].Port)
+	if c.servers[0].Port() != 4200 {
+		t.Errorf("expected replaced server port=4200, got %d", c.servers[0].Port())
 	}
 	if len(c.servers) != 2 {
 		t.Errorf("expected 2 servers, got %d", len(c.servers))
@@ -200,13 +205,13 @@ func TestReplaceServer(t *testing.T) {
 }
 
 func TestReplaceServer_AppendNew(t *testing.T) {
+	s1 := NewServerAdapter(4100, "/tmp/a", "bd-1", "")
+
 	c := &Coordinator{
-		servers: []*OpenCodeServer{
-			{TicketID: "bd-1", Port: 4100},
-		},
+		servers: []platform.SessionServer{s1},
 	}
 
-	newSrv := &OpenCodeServer{TicketID: "bd-99", Port: 4200}
+	newSrv := NewServerAdapter(4200, "/tmp/b", "bd-99", "")
 	c.replaceServer("bd-99", newSrv)
 
 	if len(c.servers) != 2 {

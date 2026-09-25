@@ -6,6 +6,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/llm"
 	"github.com/datichb/openhub/cli/internal/parallel"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/task"
 )
 
@@ -36,9 +37,13 @@ type RunOpts struct {
 	DryRun bool
 
 	// LLM is the completer used by the LLM splitting strategy.
-	// Injected by the CLI entry point — today it's OpenCodeCompleter,
+	// Injected by the CLI entry point — today it's PlatformCompleter,
 	// tomorrow it can be a direct API call.
 	LLM llm.Completer
+
+	// Platform is the session platform backend (ADR-036).
+	// Required for parallel execution (passed to the coordinator).
+	Platform platform.SessionPlatform
 }
 
 // RunResult holds the outcome of a complete sweep run.
@@ -125,7 +130,7 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		TaskPromptFunc: func(t task.Task) string {
 			return BuildSweepPrompt(t, goal)
 		},
-	})
+	}, opts.Platform)
 	if err != nil {
 		return nil, fmt.Errorf("sweep coordinator init: %w", err)
 	}

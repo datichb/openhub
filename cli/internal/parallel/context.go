@@ -3,6 +3,8 @@ package parallel
 import (
 	"sort"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/platform"
 )
 
 // SharedContext tracks which files each session touches to detect conflicts.
@@ -16,23 +18,29 @@ func NewSharedContext(state *ParallelState) *SharedContext {
 }
 
 // UpdateFromServers polls file status from each server and updates the state.
-func (sc *SharedContext) UpdateFromServers(servers []*OpenCodeServer) {
+func (sc *SharedContext) UpdateFromServers(servers []platform.SessionServer) {
 	for _, srv := range servers {
 		if !srv.IsAlive() {
 			continue
 		}
 
-		files, err := srv.GetFileStatus()
-		if err != nil || len(files) == 0 {
+		changes, err := srv.GetModifiedFiles()
+		if err != nil || len(changes) == 0 {
 			continue
 		}
 
-		// Separate modified vs created
+		// Separate modified vs created using the FileChange.Operation field
 		var modified, created []string
-		// If we can't determine, treat all as modified
-		modified = append(modified, files...)
+		for _, fc := range changes {
+			switch fc.Operation {
+			case "created":
+				created = append(created, fc.Path)
+			default: // "modified", "deleted", or unknown
+				modified = append(modified, fc.Path)
+			}
+		}
 
-		sc.state.UpdateSession(srv.TicketID, func(s *SessionInfo) {
+		sc.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
 			s.FilesModified = modified
 			s.FilesCreated = created
 		})
