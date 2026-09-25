@@ -2,8 +2,10 @@ package opencode
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/platform"
@@ -56,16 +58,20 @@ func (p *Platform) RunHeadless(ctx context.Context, opts platform.HeadlessOpts) 
 		Model:       opts.Model,
 		Files:       opts.Files,
 	})
-	if err != nil {
-		return &platform.HeadlessResult{
-			Content:   output,
-			RawOutput: output,
-		}, err
-	}
-	return &platform.HeadlessResult{
+
+	result := &platform.HeadlessResult{
 		Content:   output,
 		RawOutput: output,
-	}, nil
+	}
+
+	// Attempt to parse structured metadata from JSON output.
+	// opencode --format json emits JSONL; we try to extract metadata
+	// from the last parseable JSON object that contains usage info.
+	if output != "" {
+		parseHeadlessJSON(output, result)
+	}
+
+	return result, err
 }
 
 func (p *Platform) FindActiveSessions(ctx context.Context, projectPath string) ([]platform.ActiveSession, error) {
@@ -173,4 +179,91 @@ func (p *Platform) enrichFromDB(projectPath string, result *platform.RunResult) 
 		return nil
 	}
 	return lastErr
+}
+
+// parseHeadlessJSON attempts to extract structured metadata from opencode's
+// JSON/JSONL output. It scans lines from the end looking for objects that
+// contain usage/model information. This is best-effort — if parsing fails
+// the result keeps its raw Content and zero-valued metadata fields.
+//
+// Known output shapes from opencode --format json:
+//   - JSONL with event objects: {"type":"text","text":"..."}
+//   - Final summary object: {"model":"...","usage":{"input_tokens":N,...},"cost":N}
+//   - Plain text content (non-JSON) mixed with JSON lines
+func parseHeadlessJSON(output string, result *platform.HeadlessResult) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Scan from the end to find the most recent metadata-bearing line.
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" || line[0] != '{' {
+			continue
+		}
+
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue
+		}
+
+		// Look for model field
+		if m, ok := obj["model"].(string); ok && result.Model == "" {
+			result.Model = m
+		}
+
+		// Look for cost field
+		if c, ok := obj["cost"].(float64); ok && result.Cost == 0 {
+			result.Cost = c
+		}
+
+		// Look for usage/tokens in various shapes
+		if usage, ok := obj["usage"].(map[string]interface{}); ok {
+			if v, ok := usage["input_tokens"].(float64); ok {
+				result.TokensIn = int64(v)
+			}
+			if v, ok := usage["output_tokens"].(float64); ok {
+				result.TokensOut = int64(v)
+			}
+			if v, ok := usage["reasoning_tokens"].(float64); ok {
+				result.TokensReasoning = int64(v)
+			}
+			// Found usage data — this is likely the summary line
+			break
+		}
+
+		// Alternative: flat tokens fields
+		if v, ok := obj["tokens_input"].(float64); ok {
+			result.TokensIn = int64(v)
+			if v2, ok := obj["tokens_output"].(float64); ok {
+				result.TokensOut = int64(v2)
+			}
+			break
+		}
+
+		// If we found model or cost, keep scanning for usage
+		if result.Model != "" || result.Cost != 0 {
+			continue
+		}
+	}
+
+	// Extract text content from JSONL events if the output is structured.
+	// Look for {"type":"text","text":"..."} patterns and concatenate them.
+	var textParts []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] != '{' {
+			continue
+		}
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue
+		}
+		if t, ok := obj["type"].(string); ok && t == "text" {
+			if text, ok := obj["text"].(string); ok {
+				textParts = append(textParts, text)
+			}
+		}
+	}
+	if len(textParts) > 0 {
+		result.Content = strings.Join(textParts, "")
+	}
 }

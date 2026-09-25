@@ -273,9 +273,15 @@ func emptySVG(msg string) string {
 // ── Sessions with cost info (for the Sessions+Costs panel) ───────────────────
 
 // handlePlatformSessions handles GET /api/v1/platform/sessions?limit=20
-// Returns recent sessions with cost data.
+// Returns recent sessions with cost data from the platform stats provider.
+//
+// Deprecated: prefer /api/v1/sessions which now includes enrichment data
+// (cost, tokens, model) from the platform backend via post-run enrichment
+// (ADR-036, migration v24). This endpoint will be removed in a future release.
 func handlePlatformSessions(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "true")
+		w.Header().Set("Sunset", "2027-03-01")
 		limitStr := r.URL.Query().Get("limit")
 		limit := 20
 		if limitStr != "" {

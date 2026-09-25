@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -87,14 +88,23 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Resume mode (special: uses ExecReplace, not the launcher) ---
+	// --- Resume mode: run interactively with session tracking ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
-		return a.Platform.ExecReplace(platform.RunOpts{
+		result, err := a.Platform.RunInteractive(ctx, platform.RunOpts{
 			ResumeID: resumeID,
 		})
+		// Log enrichment data for resumed sessions
+		if result != nil && result.ExternalSessionID != "" {
+			slog.Debug("resume session completed",
+				"external_id", result.ExternalSessionID,
+				"model", result.Model,
+				"cost", result.Cost,
+				"tokens_in", result.TokensIn)
+		}
+		return err
 	}
 
 	// --- Validate flag combinations ---
