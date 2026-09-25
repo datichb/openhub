@@ -190,9 +190,7 @@ Produis un Markdown structuré complet avec les sections :
 		Prompt:      prompt,
 	})
 	if err != nil {
-		fmt.Fprintf(a.IO.Out, "%s L'enrichissement a échoué: %v\n",
-			theme.WarningStyle.Render(theme.IconWarning), err)
-		return nil
+		return fmt.Errorf("enrichment failed: %w", err)
 	}
 
 	// Save the enriched version

@@ -212,7 +212,7 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 			AttachFunc: func(sessionID string) error {
 				for _, s := range coord.State().Snapshot().Sessions {
 					if s.SessionID == sessionID {
-						return nil // TODO: attach to session
+						return coord.AttachTask(ctx, s.TicketID)
 					}
 				}
 				return fmt.Errorf("session %s introuvable", sessionID)
