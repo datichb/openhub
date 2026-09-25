@@ -11,29 +11,45 @@ import (
 	"github.com/datichb/openhub/cli/internal/platform"
 )
 
+// serverProvider is the internal interface for a single serve-mode server.
+// The real implementation is serverAdapter (wraps parallel.OpenCodeServer).
+// Tests inject a fake implementation via serverProviderFactory.
+type serverProvider interface {
+	start(ctx context.Context) error
+	waitReady(ctx context.Context, timeout time.Duration) error
+	isAlive() bool
+	dispose() error
+	kill()
+	port() int
+	dir() string
+	createSession(title string) (string, error)
+	sendPrompt(sessionID, prompt, agent string) error
+	sendNotification(sessionID, message string) error
+	getStatus() (map[string]string, error)
+	getModifiedFiles() ([]platform.FileChange, error)
+	abortSession(sessionID string) error
+}
+
+// serverProviderFactory creates a serverProvider for a given port, dir, id, and binary.
+// The default factory creates a real serverAdapter. Tests override this.
+type serverProviderFactory func(port int, dir, id, bin string) serverProvider
+
+// defaultServerFactory creates a real serverAdapter.
+func defaultServerFactory(port int, dir, id, bin string) serverProvider {
+	return newServerAdapter(port, dir, id, bin)
+}
+
 // OpenCodeParallelRunner implements platform.ParallelRunner using opencode serve.
-// It manages N serverAdapter instances internally, one per task.
-//
-// The coordinator delegates task lifecycle to this runner. The runner handles:
-//   - Server creation (port allocation, binary resolution)
-//   - Server startup and readiness
-//   - Session creation and prompt dispatch
-//   - Status polling (maps per-server status to per-task status)
-//   - File change tracking
-//   - Message delivery (notifications)
-//   - Graceful shutdown
-//
-// Recovery (retry) is managed by the coordinator, which calls AbortTask +
-// LaunchTask to restart a failed task. The runner allocates a new port for
-// the retry.
 type OpenCodeParallelRunner struct {
-	mu       sync.Mutex
-	servers  map[string]*serverAdapter // taskID -> server
-	opts     platform.ParallelRunnerOpts
-	portBase int
-	portNext int
-	bin      string
-	agent    string
+	mu            sync.Mutex
+	servers       map[string]serverProvider
+	sessionIDs    map[string]string // taskID -> backend session ID
+	opts          platform.ParallelRunnerOpts
+	portBase      int
+	portNext      int
+	bin           string
+	agent         string
+	serverFactory serverProviderFactory
 }
 
 // Compile-time check.
@@ -60,11 +76,13 @@ func NewOpenCodeParallelRunner(opts platform.ParallelRunnerOpts) (*OpenCodeParal
 	}
 
 	return &OpenCodeParallelRunner{
-		servers:  make(map[string]*serverAdapter),
-		opts:     opts,
-		portBase: portBase,
-		portNext: portBase,
-		bin:      bin,
+		servers:       make(map[string]serverProvider),
+		sessionIDs:    make(map[string]string),
+		opts:          opts,
+		portBase:      portBase,
+		portNext:      portBase,
+		bin:           bin,
+		serverFactory: defaultServerFactory,
 	}, nil
 }
 
@@ -74,7 +92,7 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 	r.portNext++
 	r.mu.Unlock()
 
-	srv := newServerAdapter(port, opts.WorktreePath, opts.TaskID, r.bin)
+	srv := r.serverFactory(port, opts.WorktreePath, opts.TaskID, r.bin)
 
 	// Start the server
 	if err := srv.start(ctx); err != nil {
@@ -83,7 +101,7 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 		port = r.portNext
 		r.portNext++
 		r.mu.Unlock()
-		srv = newServerAdapter(port, opts.WorktreePath, opts.TaskID, r.bin)
+		srv = r.serverFactory(port, opts.WorktreePath, opts.TaskID, r.bin)
 		if err := srv.start(ctx); err != nil {
 			return platform.TaskHandle{}, fmt.Errorf("failed to start server for %s: %w", opts.TaskID, err)
 		}
@@ -105,7 +123,6 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 		srv.kill()
 		return platform.TaskHandle{}, fmt.Errorf("failed to create session for %s: %w", opts.TaskID, err)
 	}
-	srv.sessionID = sessionID
 
 	// Send prompt
 	agent := opts.Agent
@@ -120,6 +137,7 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 	// Register
 	r.mu.Lock()
 	r.servers[opts.TaskID] = srv
+	r.sessionIDs[opts.TaskID] = sessionID
 	r.mu.Unlock()
 
 	return platform.TaskHandle{
@@ -130,10 +148,13 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 
 func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string]platform.TaskStatus, error) {
 	r.mu.Lock()
-	// Take a snapshot of servers to avoid holding the lock during HTTP calls
-	snapshot := make(map[string]*serverAdapter, len(r.servers))
+	snapshot := make(map[string]serverProvider, len(r.servers))
+	sessionSnapshot := make(map[string]string, len(r.sessionIDs))
 	for k, v := range r.servers {
 		snapshot[k] = v
+	}
+	for k, v := range r.sessionIDs {
+		sessionSnapshot[k] = v
 	}
 	r.mu.Unlock()
 
@@ -143,11 +164,12 @@ func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string
 
 	for taskID, srv := range snapshot {
 		wg.Add(1)
-		go func(taskID string, srv *serverAdapter) {
+		go func(taskID string, srv serverProvider) {
 			defer wg.Done()
 
+			sid := sessionSnapshot[taskID]
 			ts := platform.TaskStatus{
-				SessionID: srv.sessionID,
+				SessionID: sid,
 			}
 
 			if !srv.isAlive() {
@@ -159,17 +181,16 @@ func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string
 				return
 			}
 
-			// Poll session status
 			statuses, err := srv.getStatus()
 			if err != nil {
-				ts.Status = "running" // assume running if poll fails
+				ts.Status = "running"
 				mu.Lock()
 				result[taskID] = ts
 				mu.Unlock()
 				return
 			}
 
-			if status, ok := statuses[srv.sessionID]; ok {
+			if status, ok := statuses[sid]; ok {
 				switch status {
 				case "completed":
 					ts.Status = "completed"
@@ -184,7 +205,6 @@ func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string
 				ts.Status = "running"
 			}
 
-			// Poll modified files
 			files, err := srv.getModifiedFiles()
 			if err == nil {
 				for _, f := range files {
@@ -215,31 +235,34 @@ func (r *OpenCodeParallelRunner) GetModifiedFiles(ctx context.Context, taskID st
 func (r *OpenCodeParallelRunner) SendMessage(ctx context.Context, taskID, message string) error {
 	r.mu.Lock()
 	srv, ok := r.servers[taskID]
+	sid := r.sessionIDs[taskID]
 	r.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("task %s not found", taskID)
 	}
-	if srv.sessionID == "" {
+	if sid == "" {
 		return fmt.Errorf("task %s has no active session", taskID)
 	}
-	return srv.sendNotification(srv.sessionID, message)
+	return srv.sendNotification(sid, message)
 }
 
 func (r *OpenCodeParallelRunner) AbortTask(ctx context.Context, taskID string) error {
 	r.mu.Lock()
 	srv, ok := r.servers[taskID]
+	sid := r.sessionIDs[taskID]
 	r.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("task %s not found", taskID)
 	}
-	if srv.sessionID != "" {
-		_ = srv.abortSession(srv.sessionID)
+	if sid != "" {
+		_ = srv.abortSession(sid)
 	}
 	_ = srv.dispose()
 	srv.kill()
 
 	r.mu.Lock()
 	delete(r.servers, taskID)
+	delete(r.sessionIDs, taskID)
 	r.mu.Unlock()
 
 	return nil
@@ -248,19 +271,19 @@ func (r *OpenCodeParallelRunner) AbortTask(ctx context.Context, taskID string) e
 func (r *OpenCodeParallelRunner) AttachTask(ctx context.Context, taskID string) error {
 	r.mu.Lock()
 	srv, ok := r.servers[taskID]
+	sid := r.sessionIDs[taskID]
 	r.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("task %s not found", taskID)
 	}
-	if srv.sessionID == "" {
+	if sid == "" {
 		return fmt.Errorf("task %s has no active session to attach to", taskID)
 	}
 
-	// Use the platform's RunInteractive with ResumeID to attach
 	p := NewPlatform()
 	_, err := p.RunInteractive(ctx, platform.RunOpts{
 		ProjectPath: srv.dir(),
-		ResumeID:    srv.sessionID,
+		ResumeID:    sid,
 	})
 	return err
 }
@@ -275,5 +298,6 @@ func (r *OpenCodeParallelRunner) Cleanup(ctx context.Context) {
 		}
 		srv.kill()
 	}
-	r.servers = make(map[string]*serverAdapter)
+	r.servers = make(map[string]serverProvider)
+	r.sessionIDs = make(map[string]string)
 }

@@ -16,7 +16,6 @@ type serverAdapter struct {
 	inner       *parallel.OpenCodeServer
 	opencodeBin string
 	ticketID    string
-	sessionID   string
 }
 
 func newServerAdapter(port int, dir, id, opencodeBin string) *serverAdapter {
