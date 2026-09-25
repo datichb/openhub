@@ -45,6 +45,7 @@ type Coordinator struct {
 	servers            []platform.SessionServer
 	context            *SharedContext
 	platform           platform.SessionPlatform
+	mu                 sync.Mutex      // protects notifiedConflicts and notifiedCompletion
 	notifiedConflicts  map[string]bool // "ticketA:ticketB:file" -> true (dedup)
 	notifiedCompletion map[string]bool // ticketID -> true (dedup)
 }
@@ -386,6 +387,9 @@ func (c *Coordinator) pollStatus() {
 // sendConflictNotifications notifies running sessions about file conflicts
 // detected by the SharedContext. Each conflict is notified at most once.
 func (c *Coordinator) sendConflictNotifications() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	snap := c.state.Snapshot()
 	for _, conflict := range snap.Conflicts {
 		if conflict.Severity == "low" {
@@ -427,6 +431,9 @@ func (c *Coordinator) sendConflictNotifications() {
 // sendCompletionNotifications notifies running sessions when another session completes.
 // Each completion is notified at most once.
 func (c *Coordinator) sendCompletionNotifications() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	snap := c.state.Snapshot()
 	for _, sess := range snap.Sessions {
 		if sess.Status != StatusCompleted {

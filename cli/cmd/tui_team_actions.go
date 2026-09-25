@@ -968,9 +968,18 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		return fmt.Errorf("reading brief: %w", err)
 	}
 
+	// Resolve project path for the brief-enricher agent to access source files.
+	var projectPath string
+	if a.Projects != nil {
+		if proj, lookupErr := a.Projects.GetByName(context.Background(), project); lookupErr == nil {
+			projectPath = proj.Path
+		}
+	}
+
 	result, err := a.Platform.RunHeadless(context.Background(), platform.HeadlessOpts{
-		Agent:  "brief-enricher",
-		Prompt: content,
+		ProjectPath: projectPath,
+		Agent:       "brief-enricher",
+		Prompt:      content,
 	})
 	if err != nil {
 		return fmt.Errorf("enrichment: %w", err)

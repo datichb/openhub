@@ -198,7 +198,9 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 			}
 		}
 
-		_ = a.Sessions.Update(ctx, session)
+		if err := a.Sessions.Update(ctx, session); err != nil {
+			slog.Warn("post-run session update failed", "session_id", session.ID, "error", err)
+		}
 
 		// Emit session.complete event to team-state (async, non-blocking)
 		if resolved.Enabled && resolved.MemberID != "" && resolved.StateRepo != "" {
