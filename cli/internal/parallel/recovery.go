@@ -74,7 +74,7 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 	newPort := sess.Port + 10 + sess.RetryCount
 
 	// 5. Create new server on the same worktree
-	newSrv, err := c.platform.NewServer(newPort, sess.WorktreePath, ticketID)
+	newSrv, err := c.opts.ServerFactory(newPort, sess.WorktreePath, ticketID)
 	if err != nil {
 		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
 			s.Status = StatusFailed

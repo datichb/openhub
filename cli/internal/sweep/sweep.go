@@ -44,6 +44,10 @@ type RunOpts struct {
 	// Platform is the session platform backend (ADR-036).
 	// Required for parallel execution (passed to the coordinator).
 	Platform platform.SessionPlatform
+
+	// ServerFactory creates session servers for parallel mode.
+	// Injected by the CLI entry point to avoid import cycles.
+	ServerFactory func(port int, dir, id string) (parallel.SessionServer, error)
 }
 
 // RunResult holds the outcome of a complete sweep run.
@@ -130,6 +134,7 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		TaskPromptFunc: func(t task.Task) string {
 			return BuildSweepPrompt(t, goal)
 		},
+		ServerFactory: opts.ServerFactory,
 	}, opts.Platform)
 	if err != nil {
 		return nil, fmt.Errorf("sweep coordinator init: %w", err)

@@ -2,7 +2,7 @@
 
 ## Statut
 
-Proposé
+Accepté (Phases 0-4 implémentées, corrections Lot 1 appliquées, préparation structurelle Lot 2 faite)
 
 ## Date
 
@@ -213,3 +213,54 @@ Trois catégories de backends sont anticipées :
 | Interface unique `CodingPlatform` regroupant toutes les méthodes | Trop large (20+ méthodes), viole le principe de ségrégation des interfaces. Le découpage en `SessionPlatform`, `SessionServer` et `StatsProvider` permet aux backends de n'implémenter que ce qu'ils supportent. |
 | Bus d'événements au lieu d'interfaces | Sur-ingénierie pour la situation actuelle à 1 backend. Les interfaces sont plus simples, testables et suffisantes. Un bus peut être ajouté par-dessus plus tard. |
 | Ne rien faire — refactorer quand un second backend sera réellement nécessaire | La fragmentation du modèle de données (tokens à zéro, dual-DB, ghost sessions) doit être corrigée quoi qu'il arrive. Corriger ces problèmes sans la couche d'abstraction créerait du code jetable. |
+
+## Addendum : ParallelRunner et parallèle multi-backend (Lot 2)
+
+Après l'implémentation des Phases 0-4, une analyse concurrentielle des coding
+agents (OpenCode, Claude Code, Cline, Aider, Mammouth Code) a révélé que
+l'interface `SessionServer` était trop couplée au mode serve HTTP d'OpenCode.
+Aucun autre backend n'offre d'API HTTP équivalente. Cependant, l'exécution
+parallèle est réalisable via différents mécanismes selon le backend :
+
+| Backend | Mécanisme parallèle |
+|---------|-------------------|
+| OpenCode | API HTTP `opencode serve` (actuel) |
+| Claude Code | Daemon `claude --bg` + CLI `claude agents --json` |
+| Cline | Coordination multi-agent `cline --team-name` |
+| Aider / API directe | N process headless concurrents |
+
+### Nouvelles interfaces (Lot 2, implémenté)
+
+**`ParallelRunner`** (`platform/parallel.go`) — orchestration haut-niveau de
+tâches concurrentes. Agnostique du backend : fonctionne avec des serveurs HTTP,
+des daemons CLI ou des process headless. Méthodes : `LaunchTask`,
+`GetAllStatuses`, `GetModifiedFiles`, `SendMessage`, `AbortTask`, `AttachTask`,
+`Cleanup`.
+
+**`EventSource`** (`platform/parallel.go`) — flux d'événements temps réel
+optionnel. Quand un `ParallelRunner` implémente aussi `EventSource`, le
+coordinateur utilise les événements au lieu du polling. L'endpoint SSE
+d'OpenCode (`GET /event`) est le candidat principal.
+
+**`Capabilities`** — remplace `SupportsServeMode() bool` par une struct
+indiquant les fonctionnalités optionnelles supportées (`Parallel`, `Events`).
+
+**`SessionPlatform.NewParallelRunner()`** — remplace `NewServer()`. Retourne un
+`ParallelRunner` configuré pour la plateforme.
+
+### Changements structurels
+
+- `SessionServer` déplacé de `platform/` vers `parallel/` — c'est désormais un
+  détail d'implémentation du chemin parallèle OpenCode, pas une interface
+  publique de la plateforme.
+- `FileChange` reste dans `platform/` comme type partagé.
+- Le coordinateur reçoit une `ServerFactory` dans ses opts pour créer des
+  serveurs sans importer `opencode/`. Pattern transitoire en attendant que le
+  Lot 3 remplace les internes du coordinateur par `ParallelRunner`.
+
+### Lot 3 (différé)
+
+Refactorer le coordinateur pour dépendre de `ParallelRunner` au lieu de
+`SessionServer`. Créer `OpenCodeParallelRunner` qui encapsule la logique HTTP
+serve en interne. Sera déclenché quand un second backend nécessitera le
+support parallèle.

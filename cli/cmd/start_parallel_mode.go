@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -114,6 +115,13 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		Config:          cfg,
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
+		},
+		ServerFactory: func(port int, dir, id string) (parallel.SessionServer, error) {
+			bin, err := opencode.FindBinary()
+			if err != nil {
+				return nil, fmt.Errorf("opencode binary not found: %w", err)
+			}
+			return parallel.NewServerAdapter(port, dir, id, bin), nil
 		},
 	}, a.Platform)
 	if err != nil {

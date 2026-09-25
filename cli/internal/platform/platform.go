@@ -100,12 +100,18 @@ type ActiveSession struct {
 	PID        int // Process ID, 0 = unknown
 }
 
+// Capabilities describes optional features a platform supports.
+type Capabilities struct {
+	Parallel bool // can run multiple concurrent sessions (via ParallelRunner)
+	Events   bool // supports real-time event streaming (EventSource)
+}
+
 // SessionPlatform is the primary abstraction for an AI coding session backend.
 //
 // Implementations:
 //   - internal/opencode: OpenCode binary (TUI, headless, serve)
+//   - (future) internal/claudecode: Claude Code CLI (TUI, headless, --bg daemon)
 //   - (future) internal/directllm: direct Anthropic/Bedrock API calls
-//   - (future) internal/aider: Aider coding assistant
 //
 // Consumers (launcher, parallel coordinator, cmd/, tui/) depend on this
 // interface, never on a concrete adapter package.
@@ -139,16 +145,16 @@ type SessionPlatform interface {
 	// IsGhostSession reports whether a "running" session is likely dead.
 	IsGhostSession(s ActiveSession) bool
 
-	// SupportsServeMode reports whether this platform can run an HTTP
-	// server for parallel session management.
-	SupportsServeMode() bool
-
-	// NewServer creates a new serve-mode instance. Returns an error if
-	// serve mode is not supported.
-	NewServer(port int, dir string, id string) (SessionServer, error)
-
 	// RequiresDeploy reports whether this platform needs a deploy step
 	// (agents, skills, config written to the project directory) before
 	// sessions can run.
 	RequiresDeploy() bool
+
+	// Capabilities reports which optional interfaces this platform supports.
+	Capabilities() Capabilities
+
+	// NewParallelRunner creates a runner for parallel task orchestration.
+	// Returns an error if the platform does not support parallel execution
+	// (i.e. Capabilities().Parallel is false).
+	NewParallelRunner(opts ParallelRunnerOpts) (ParallelRunner, error)
 }

@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,7 +132,7 @@ func (m *mockPlatform) Name() platform.Name                        { return plat
 func (m *mockPlatform) Available() bool                            { return true }
 func (m *mockPlatform) Version() (string, error)                   { return "test-1.0.0", nil }
 func (m *mockPlatform) ExecReplace(_ platform.RunOpts) error       { return nil }
-func (m *mockPlatform) SupportsServeMode() bool                    { return false }
+func (m *mockPlatform) Capabilities() platform.Capabilities        { return platform.Capabilities{} }
 func (m *mockPlatform) RequiresDeploy() bool                       { return false }
 func (m *mockPlatform) IsGhostSession(_ platform.ActiveSession) bool { return false }
 
@@ -147,8 +148,8 @@ func (m *mockPlatform) FindActiveSessions(_ context.Context, _ string) ([]platfo
 	return nil, nil
 }
 
-func (m *mockPlatform) NewServer(_ int, _ string, _ string) (platform.SessionServer, error) {
-	return nil, nil
+func (m *mockPlatform) NewParallelRunner(_ platform.ParallelRunnerOpts) (platform.ParallelRunner, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func newTestApp(secrets map[string]string, projects map[string]*domain.Project) (*app.App, *mockSessionStore) {

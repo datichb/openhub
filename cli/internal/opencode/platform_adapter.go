@@ -11,6 +11,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/platform"
 )
 
+// Platform implements platform.SessionPlatform for the OpenCode binary.
+type Platform struct{}
+
 // Compile-time check.
 var _ platform.SessionPlatform = (*Platform)(nil)
 
@@ -87,34 +90,19 @@ func (p *Platform) IsGhostSession(s platform.ActiveSession) bool {
 	return time.Since(s.StartedAt) > ghostThreshold
 }
 
-func (p *Platform) SupportsServeMode() bool { return true }
-
-func (p *Platform) NewServer(port int, dir string, id string) (platform.SessionServer, error) {
-	bin, err := FindBinary()
-	if err != nil {
-		return nil, fmt.Errorf("opencode binary not found for serve mode: %w", err)
+func (p *Platform) Capabilities() platform.Capabilities {
+	return platform.Capabilities{
+		Parallel: true,
+		Events:   false, // TODO: implement SSE event consumption
 	}
-	// The actual server creation is done by the caller (parallel package)
-	// which has access to NewServerAdapter without import cycle.
-	// We return the binary path via a ServerFactory pattern.
-	if p.serverFactory != nil {
-		return p.serverFactory(port, dir, id, bin)
-	}
-	return nil, fmt.Errorf("platform opencode: server factory not configured (call SetServerFactory)")
 }
 
-// ServerFactory creates a platform.SessionServer given port, dir, id, and binary path.
-type ServerFactory func(port int, dir, id, bin string) (platform.SessionServer, error)
-
-// SetServerFactory configures the factory used by NewServer.
-// This breaks the import cycle: the parallel package sets the factory during wiring.
-func (p *Platform) SetServerFactory(f ServerFactory) {
-	p.serverFactory = f
-}
-
-// Platform implements platform.SessionPlatform for the OpenCode binary.
-type Platform struct {
-	serverFactory ServerFactory
+func (p *Platform) NewParallelRunner(opts platform.ParallelRunnerOpts) (platform.ParallelRunner, error) {
+	// The actual ParallelRunner implementation for opencode will be created
+	// in Lot 3 when the coordinator is refactored. For now, this is a
+	// placeholder that returns an error directing callers to use the
+	// legacy SessionServer path via the coordinator's current implementation.
+	return nil, fmt.Errorf("platform opencode: ParallelRunner not yet implemented (Lot 3); use the legacy coordinator path")
 }
 
 func (p *Platform) RequiresDeploy() bool { return true }

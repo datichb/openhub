@@ -36,13 +36,18 @@ type CoordinatorOpts struct {
 	// Deprecated: PromptFunc generates the prompt from a ticket ID string.
 	// Used when TaskPromptFunc is nil.
 	PromptFunc func(ticketID string) string
+
+	// ServerFactory creates a SessionServer for a given port, dir, and ID.
+	// This is injected by the caller to avoid import cycles between parallel/ and
+	// opencode/. In the future (Lot 3), this will be replaced by ParallelRunner.
+	ServerFactory func(port int, dir, id string) (SessionServer, error)
 }
 
 // Coordinator orchestrates multiple parallel coding sessions.
 type Coordinator struct {
 	opts               CoordinatorOpts
 	state              *ParallelState
-	servers            []platform.SessionServer
+	servers            []SessionServer
 	context            *SharedContext
 	platform           platform.SessionPlatform
 	mu                 sync.Mutex      // protects notifiedConflicts and notifiedCompletion
@@ -90,15 +95,15 @@ func NewCoordinator(opts CoordinatorOpts, p platform.SessionPlatform) (*Coordina
 	if p == nil || !p.Available() {
 		return nil, fmt.Errorf("platform backend not available")
 	}
-	if !p.SupportsServeMode() {
-		return nil, fmt.Errorf("platform %s does not support serve mode (required for parallel)", p.Name())
+	if !p.Capabilities().Parallel {
+		return nil, fmt.Errorf("platform %s does not support parallel execution", p.Name())
 	}
 
 	state := NewState(opts.ProjectPath, opts.Config.MaxSessions)
 	return &Coordinator{
 		opts:               opts,
 		state:              state,
-		servers:            make([]platform.SessionServer, 0, len(opts.Tasks)),
+		servers:            make([]SessionServer, 0, len(opts.Tasks)),
 		context:            NewSharedContext(state),
 		platform:           p,
 		notifiedConflicts:  make(map[string]bool),
@@ -112,7 +117,7 @@ func (c *Coordinator) State() *ParallelState {
 }
 
 // Servers returns the list of servers (for TUI attach).
-func (c *Coordinator) Servers() []platform.SessionServer {
+func (c *Coordinator) Servers() []SessionServer {
 	return c.servers
 }
 
@@ -207,7 +212,7 @@ func (c *Coordinator) createWorktrees(ctx context.Context) error {
 func (c *Coordinator) startServers(ctx context.Context) error {
 	snap := c.state.Snapshot()
 	for _, sess := range snap.Sessions {
-		srv, err := c.platform.NewServer(sess.Port, sess.WorktreePath, sess.TicketID)
+		srv, err := c.opts.ServerFactory(sess.Port, sess.WorktreePath, sess.TicketID)
 		if err != nil {
 			c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
 				s.Status = StatusFailed
@@ -224,7 +229,7 @@ func (c *Coordinator) startServers(ctx context.Context) error {
 		if err := srv.Start(ctx); err != nil {
 			// Try next port if busy
 			retryPort := sess.Port + 10
-			srv, err = c.platform.NewServer(retryPort, sess.WorktreePath, sess.TicketID)
+			srv, err = c.opts.ServerFactory(retryPort, sess.WorktreePath, sess.TicketID)
 			if err != nil {
 				c.state.UpdateSession(sess.TicketID, func(s *SessionInfo) {
 					s.Status = StatusFailed
@@ -336,7 +341,7 @@ func (c *Coordinator) pollStatus() {
 		}
 
 		wg.Add(1)
-		go func(srv platform.SessionServer) {
+		go func(srv SessionServer) {
 			defer wg.Done()
 
 			if !srv.IsAlive() {
@@ -504,7 +509,7 @@ func (c *Coordinator) promptForTask(taskID string) string {
 }
 
 // findServer returns the server for a given ticket ID, or nil.
-func (c *Coordinator) findServer(ticketID string) platform.SessionServer {
+func (c *Coordinator) findServer(ticketID string) SessionServer {
 	for _, srv := range c.servers {
 		if srv.TicketID() == ticketID {
 			return srv
@@ -514,7 +519,7 @@ func (c *Coordinator) findServer(ticketID string) platform.SessionServer {
 }
 
 // replaceServer swaps the server for a ticket ID in the servers slice.
-func (c *Coordinator) replaceServer(ticketID string, newSrv platform.SessionServer) {
+func (c *Coordinator) replaceServer(ticketID string, newSrv SessionServer) {
 	for i, srv := range c.servers {
 		if srv.TicketID() == ticketID {
 			c.servers[i] = newSrv
@@ -547,7 +552,7 @@ func (c *Coordinator) cleanup() {
 // sendNotification sends a message to a session via the server.
 // It tries to use the ServerAdapter extension method if available,
 // otherwise falls back to SendPrompt.
-func sendNotification(srv platform.SessionServer, sessionID, message string) error {
+func sendNotification(srv SessionServer, sessionID, message string) error {
 	if adapter, ok := srv.(*ServerAdapter); ok {
 		return adapter.SendNotification(sessionID, message)
 	}

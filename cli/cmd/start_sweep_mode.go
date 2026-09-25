@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/llm"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/sweep"
 	"github.com/datichb/openhub/cli/internal/task"
@@ -134,6 +135,14 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 		Agent:          "orchestrator-dev",
 		DryRun:         dryRun,
 		LLM:            completer,
+		Platform:       a.Platform,
+		ServerFactory: func(port int, dir, id string) (parallel.SessionServer, error) {
+			bin, err := opencode.FindBinary()
+			if err != nil {
+				return nil, fmt.Errorf("opencode binary not found: %w", err)
+			}
+			return parallel.NewServerAdapter(port, dir, id, bin), nil
+		},
 	}
 
 	// --- Header ---

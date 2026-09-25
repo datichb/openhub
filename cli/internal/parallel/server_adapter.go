@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/platform"
 )
 
-// ServerAdapter wraps OpenCodeServer to implement platform.SessionServer.
+// ServerAdapter wraps OpenCodeServer to implement SessionServer.
 // This allows the coordinator to be refactored toward the platform interface
 // while keeping the concrete HTTP implementation in server.go unchanged.
 type ServerAdapter struct {
@@ -16,9 +16,9 @@ type ServerAdapter struct {
 }
 
 // Compile-time check.
-var _ platform.SessionServer = (*ServerAdapter)(nil)
+var _ SessionServer = (*ServerAdapter)(nil)
 
-// NewServerAdapter creates a platform.SessionServer backed by an OpenCodeServer.
+// NewServerAdapter creates a SessionServer backed by an OpenCodeServer.
 func NewServerAdapter(port int, dir, id, opencodeBin string) *ServerAdapter {
 	return &ServerAdapter{
 		inner:       NewServer(port, dir, id),
@@ -73,7 +73,7 @@ func (a *ServerAdapter) AbortSession(sessionID string) error {
 }
 
 // SendNotification delegates to the underlying SendNotification method.
-// This is an extension beyond the platform.SessionServer interface, used
+// This is an extension beyond the SessionServer interface, used
 // by the coordinator for inter-session messaging.
 func (a *ServerAdapter) SendNotification(sessionID, message string) error {
 	return a.inner.SendNotification(sessionID, message)

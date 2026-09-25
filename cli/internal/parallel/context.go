@@ -3,8 +3,6 @@ package parallel
 import (
 	"sort"
 	"strings"
-
-	"github.com/datichb/openhub/cli/internal/platform"
 )
 
 // SharedContext tracks which files each session touches to detect conflicts.
@@ -18,7 +16,7 @@ func NewSharedContext(state *ParallelState) *SharedContext {
 }
 
 // UpdateFromServers polls file status from each server and updates the state.
-func (sc *SharedContext) UpdateFromServers(servers []platform.SessionServer) {
+func (sc *SharedContext) UpdateFromServers(servers []SessionServer) {
 	for _, srv := range servers {
 		if !srv.IsAlive() {
 			continue

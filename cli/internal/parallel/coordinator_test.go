@@ -20,8 +20,8 @@ func (testPlatform) ExecReplace(_ platform.RunOpts) error                       
 func (testPlatform) RunHeadless(_ context.Context, _ platform.HeadlessOpts) (*platform.HeadlessResult, error) { return nil, nil }
 func (testPlatform) FindActiveSessions(_ context.Context, _ string) ([]platform.ActiveSession, error) { return nil, nil }
 func (testPlatform) IsGhostSession(_ platform.ActiveSession) bool                             { return false }
-func (testPlatform) SupportsServeMode() bool                                                  { return true }
-func (testPlatform) NewServer(port int, dir, id string) (platform.SessionServer, error)       { return nil, nil }
+func (testPlatform) Capabilities() platform.Capabilities                                          { return platform.Capabilities{Parallel: true} }
+func (testPlatform) NewParallelRunner(_ platform.ParallelRunnerOpts) (platform.ParallelRunner, error) { return nil, nil }
 func (testPlatform) RequiresDeploy() bool                                                     { return false }
 
 func TestNewCoordinator_NoTickets(t *testing.T) {

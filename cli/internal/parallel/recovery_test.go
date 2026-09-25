@@ -17,7 +17,7 @@ func TestAttemptRecovery_SkipsNonFailed(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []platform.SessionServer{},
+		servers:           []SessionServer{},
 		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
@@ -41,7 +41,7 @@ func TestAttemptRecovery_SkipsExhaustedRetries(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []platform.SessionServer{},
+		servers:           []SessionServer{},
 		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
@@ -66,7 +66,7 @@ func TestAttemptRecovery_DisabledWhenMaxRetriesZero(t *testing.T) {
 	c := &Coordinator{
 		opts:              CoordinatorOpts{Config: cfg, PromptFunc: func(string) string { return "" }},
 		state:             state,
-		servers:           []platform.SessionServer{},
+		servers:           []SessionServer{},
 		platform:          testPlatform{},
 		notifiedConflicts: make(map[string]bool),
 	}
@@ -82,8 +82,12 @@ func TestAttemptRecovery_DisabledWhenMaxRetriesZero(t *testing.T) {
 // failingPlatform returns errors from NewServer to test recovery failure path.
 type failingPlatform struct{ testPlatform }
 
-func (failingPlatform) NewServer(port int, dir, id string) (platform.SessionServer, error) {
-	// Return a server adapter that will fail on Start
+func (failingPlatform) NewParallelRunner(_ platform.ParallelRunnerOpts) (platform.ParallelRunner, error) {
+	return nil, nil
+}
+
+// failingServerFactory creates a ServerAdapter that will fail on Start (binary doesn't exist).
+func failingServerFactory(port int, dir, id string) (SessionServer, error) {
 	return NewServerAdapter(port, dir, id, "/nonexistent/bin"), nil
 }
 
@@ -104,12 +108,13 @@ func TestRecoverSession_TransitionsToRetrying(t *testing.T) {
 
 	c := &Coordinator{
 		opts: CoordinatorOpts{
-			Config:     cfg,
-			Agent:      "test-agent",
-			PromptFunc: func(string) string { return "test prompt" },
+			Config:        cfg,
+			Agent:         "test-agent",
+			PromptFunc:    func(string) string { return "test prompt" },
+			ServerFactory: failingServerFactory,
 		},
 		state:              state,
-		servers:            []platform.SessionServer{srv},
+		servers:            []SessionServer{srv},
 		platform:           failingPlatform{},
 		notifiedConflicts:  make(map[string]bool),
 		notifiedCompletion: make(map[string]bool),
@@ -146,11 +151,12 @@ func TestRecoverSession_PortOffset(t *testing.T) {
 
 	c := &Coordinator{
 		opts: CoordinatorOpts{
-			Config:     cfg,
-			PromptFunc: func(string) string { return "" },
+			Config:        cfg,
+			PromptFunc:    func(string) string { return "" },
+			ServerFactory: failingServerFactory,
 		},
 		state:              state,
-		servers:            []platform.SessionServer{srv},
+		servers:            []SessionServer{srv},
 		platform:           failingPlatform{},
 		notifiedConflicts:  make(map[string]bool),
 		notifiedCompletion: make(map[string]bool),
@@ -171,7 +177,7 @@ func TestFindServer(t *testing.T) {
 	s2 := NewServerAdapter(4101, "/tmp/b", "bd-2", "")
 
 	c := &Coordinator{
-		servers: []platform.SessionServer{s1, s2},
+		servers: []SessionServer{s1, s2},
 	}
 
 	srv := c.findServer("bd-2")
@@ -190,7 +196,7 @@ func TestReplaceServer(t *testing.T) {
 	s2 := NewServerAdapter(4101, "/tmp/b", "bd-2", "")
 
 	c := &Coordinator{
-		servers: []platform.SessionServer{s1, s2},
+		servers: []SessionServer{s1, s2},
 	}
 
 	newSrv := NewServerAdapter(4200, "/tmp/a", "bd-1", "")
@@ -208,7 +214,7 @@ func TestReplaceServer_AppendNew(t *testing.T) {
 	s1 := NewServerAdapter(4100, "/tmp/a", "bd-1", "")
 
 	c := &Coordinator{
-		servers: []platform.SessionServer{s1},
+		servers: []SessionServer{s1},
 	}
 
 	newSrv := NewServerAdapter(4200, "/tmp/b", "bd-99", "")
