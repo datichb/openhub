@@ -76,12 +76,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// --- Compatibility warning ---
-	if ocVersion, err := opencode.Version(); err == nil {
-		compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
-		if !compat.Compatible {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				compat.Warning)
+	if a.Platform != nil {
+		if ocVersion, err := a.Platform.Version(); err == nil {
+			compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
+			if !compat.Compatible {
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					theme.WarningStyle.Render(theme.IconWarning),
+					compat.Warning)
+			}
 		}
 	}
 

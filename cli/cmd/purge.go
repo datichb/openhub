@@ -561,6 +561,6 @@ func formatBytes(b int64) string {
 // Ensure unused imports are referenced for compilation.
 var (
 	_ = domain.ErrNotFound
-	_ = opencode.DefaultDBPath
+	_ = opencode.ResolveDBPath
 	_ = sqlite.DBPath
 )

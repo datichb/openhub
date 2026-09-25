@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -129,10 +128,12 @@ func (v *StatusView) buildStatusText() string {
 	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
 		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.status.label_language"), theme.TagColor, lang)
 
-	// Opencode version
-	ocVer, err := opencode.Version()
-	if err != nil {
-		ocVer = i18n.T("tui.status.not_found")
+	// Opencode version (via platform abstraction)
+	ocVer := i18n.T("tui.status.not_found")
+	if v.appCtx != nil && v.appCtx.Platform != nil {
+		if ver, err := v.appCtx.Platform.Version(); err == nil {
+			ocVer = ver
+		}
 	}
 	channel := "stable"
 	if v.appCtx != nil && v.appCtx.Config != nil {

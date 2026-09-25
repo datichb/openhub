@@ -12,7 +12,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -175,15 +174,17 @@ func (v *DoctorView) checkBinary(name string) DoctorCheck {
 }
 
 func (v *DoctorView) checkOpencode() DoctorCheck {
-	ver, err := opencode.Version()
-	if err != nil {
-		_, findErr := opencode.FindBinary()
-		if findErr != nil {
-			return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
+	if v.appCtx != nil && v.appCtx.Platform != nil {
+		ver, err := v.appCtx.Platform.Version()
+		if err != nil {
+			if !v.appCtx.Platform.Available() {
+				return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
+			}
+			return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.installed_unknown_version"), OK: true}
 		}
-		return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.installed_unknown_version"), OK: true}
+		return DoctorCheck{Name: "opencode", Detail: ver, OK: true}
 	}
-	return DoctorCheck{Name: "opencode", Detail: ver, OK: true}
+	return DoctorCheck{Name: "opencode", Detail: i18n.T("tui.doctor.not_found"), OK: false}
 }
 
 func (v *DoctorView) checkConfig() DoctorCheck {

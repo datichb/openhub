@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -48,7 +49,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{"opencode", checkBinary("opencode")},
 		{"bd (beads)", checkOptionalBinary("bd", "brew install datichb/tap/bd")},
 		{"fzf (fuzzy finder)", checkOptionalBinary("fzf", "brew install fzf")},
-		{"Compatibilité oh ↔ opencode", checkCompatibility},
+		{"Compatibilité oh ↔ opencode", checkCompatibility(a)},
 		{"Version oh", checkOhUpdate},
 		{"Configuration hub.toml", checkConfig},
 		{"Provider credentials", checkProviderCredentials},
@@ -135,16 +136,21 @@ func checkDatabase() (string, bool) {
 	return i18n.Tf("cmd.doctor.db_ok", len(projects)), true
 }
 
-func checkCompatibility() (string, bool) {
-	ocVersion, err := opencode.Version()
-	if err != nil {
-		return i18n.T("cmd.doctor.opencode_unavailable"), false
+func checkCompatibility(a *app.App) func() (string, bool) {
+	return func() (string, bool) {
+		if a.Platform == nil {
+			return i18n.T("cmd.doctor.opencode_unavailable"), false
+		}
+		ocVersion, err := a.Platform.Version()
+		if err != nil {
+			return i18n.T("cmd.doctor.opencode_unavailable"), false
+		}
+		result := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
+		if result.Compatible {
+			return fmt.Sprintf("oh %s ↔ opencode %s — OK", buildinfo.Version, ocVersion), true
+		}
+		return result.Warning, false
 	}
-	result := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
-	if result.Compatible {
-		return fmt.Sprintf("oh %s ↔ opencode %s — OK", buildinfo.Version, ocVersion), true
-	}
-	return result.Warning, false
 }
 
 func indexOf(s string, c byte) int {
@@ -177,6 +183,8 @@ func checkOptionalBinary(name, installHint string) func() (string, bool) {
 }
 
 // checkAPIKeys validates that configured MCP tokens are accessible.
+// Reports per-service status so the user knows exactly which token is found,
+// where it was found (env / keychain), and which is missing.
 func checkAPIKeys() (string, bool) {
 	a := TryApp()
 	if a == nil {
@@ -193,10 +201,14 @@ func checkAPIKeys() (string, bool) {
 	keys := []keyCheck{
 		{"figma", a.Config.MCP.Figma.Enabled, "FIGMA_TOKEN", a.Config.MCP.Figma.Token},
 		{"gitlab", a.Config.MCP.Gitlab.Enabled, "GITLAB_TOKEN", a.Config.MCP.Gitlab.Token},
+		{"jira", a.Config.MCP.Jira.Enabled, "JIRA_TOKEN", a.Config.MCP.Jira.Token},
 		{"gslides", a.Config.MCP.Gslides.Enabled, "GOOGLE_ACCESS_TOKEN", a.Config.MCP.Gslides.Token},
 	}
 
-	var configured, found, missing int
+	var configured int
+	var foundDetails []string
+	var missingNames []string
+
 	for _, k := range keys {
 		if !k.enabled {
 			continue
@@ -205,30 +217,32 @@ func checkAPIKeys() (string, bool) {
 
 		// Check env var first
 		if k.envVar != "" && os.Getenv(k.envVar) != "" {
-			found++
+			foundDetails = append(foundDetails, fmt.Sprintf("%s (env)", k.service))
 			continue
 		}
 
 		// Check keychain
 		if k.keyName != "" && a.Secrets != nil {
 			if token, _ := a.Secrets.Get(context.Background(), k.keyName); token != "" {
-				found++
+				foundDetails = append(foundDetails, fmt.Sprintf("%s (keychain)", k.service))
 				continue
 			}
 		}
 
-		missing++
+		missingNames = append(missingNames, k.service)
 	}
 
 	if configured == 0 {
 		return i18n.T("cmd.doctor.no_mcp_enabled"), true
 	}
 
-	if missing > 0 {
-		return i18n.Tf("cmd.doctor.tokens_missing", found, configured, missing), false
+	found := len(foundDetails)
+
+	if len(missingNames) > 0 {
+		return i18n.Tf("cmd.doctor.tokens_missing", found, configured, strings.Join(missingNames, ", ")), false
 	}
 
-	return i18n.Tf("cmd.doctor.tokens_ok", found, configured), true
+	return i18n.Tf("cmd.doctor.tokens_ok", found, configured, strings.Join(foundDetails, ", ")), true
 }
 
 // checkProviderCredentials validates that the configured default provider has accessible credentials.
