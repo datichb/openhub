@@ -42,12 +42,12 @@ type RunOpts struct {
 	LLM llm.Completer
 
 	// Platform is the session platform backend (ADR-036).
-	// Required for parallel execution (passed to the coordinator).
+	// Required for parallel execution (to create a ParallelRunner).
 	Platform platform.SessionPlatform
 
-	// ServerFactory creates session servers for parallel mode.
-	// Injected by the CLI entry point to avoid import cycles.
-	ServerFactory func(port int, dir, id string) (parallel.SessionServer, error)
+	// Runner is the parallel runner for task orchestration.
+	// If nil, one is created from Platform.NewParallelRunner().
+	Runner platform.ParallelRunner
 }
 
 // RunResult holds the outcome of a complete sweep run.
@@ -123,6 +123,18 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 	}
 
 	// --- Step 3: Run in parallel ---
+	runner := opts.Runner
+	if runner == nil {
+		var err error
+		runner, err = opts.Platform.NewParallelRunner(platform.ParallelRunnerOpts{
+			ProjectPath: opts.ProjectPath,
+			ProjectID:   opts.ProjectID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("creating parallel runner: %w", err)
+		}
+	}
+
 	goal := opts.Goal
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
 		ProjectPath: opts.ProjectPath,
@@ -134,8 +146,7 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		TaskPromptFunc: func(t task.Task) string {
 			return BuildSweepPrompt(t, goal)
 		},
-		ServerFactory: opts.ServerFactory,
-	}, opts.Platform)
+	}, runner)
 	if err != nil {
 		return nil, fmt.Errorf("sweep coordinator init: %w", err)
 	}

@@ -75,7 +75,7 @@ func TestDetectConflicts(t *testing.T) {
 	})
 
 	ctx := NewSharedContext(state)
-	ctx.detectConflicts()
+	ctx.DetectConflicts()
 
 	conflicts := ctx.GetConflicts()
 	if len(conflicts) != 1 {
@@ -103,7 +103,7 @@ func TestDetectConflicts_NoConflict(t *testing.T) {
 	})
 
 	ctx := NewSharedContext(state)
-	ctx.detectConflicts()
+	ctx.DetectConflicts()
 
 	conflicts := ctx.GetConflicts()
 	if len(conflicts) != 0 {
@@ -125,7 +125,7 @@ func TestDetectConflicts_IgnoreNonRunning(t *testing.T) {
 	})
 
 	ctx := NewSharedContext(state)
-	ctx.detectConflicts()
+	ctx.DetectConflicts()
 
 	conflicts := ctx.GetConflicts()
 	if len(conflicts) != 0 {

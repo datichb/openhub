@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/platform"
 )
 
 // attemptRecovery checks for failed sessions eligible for retry and recovers them.
@@ -22,7 +24,6 @@ func (c *Coordinator) attemptRecovery(ctx context.Context) {
 			continue // exhausted retries
 		}
 
-		// Check context before attempting recovery
 		select {
 		case <-ctx.Done():
 			return
@@ -33,7 +34,7 @@ func (c *Coordinator) attemptRecovery(ctx context.Context) {
 	}
 }
 
-// recoverSession restarts a failed session on the same worktree with a new server and port.
+// recoverSession restarts a failed session by aborting the old task and launching a new one.
 func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 	ticketID := sess.TicketID
 
@@ -46,18 +47,14 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 			s.RetryErrors = append(s.RetryErrors, s.Error)
 		}
 		s.Error = ""
-		s.SessionID = ""          // will get a new session
-		s.CompletedAt = time.Time{} // reset
+		s.SessionID = ""
+		s.CompletedAt = time.Time{}
 	})
 
-	// 2. Kill old server (best-effort)
-	oldSrv := c.findServer(ticketID)
-	if oldSrv != nil {
-		_ = oldSrv.Dispose()
-		oldSrv.Kill()
-	}
+	// 2. Abort old task in the runner (best-effort)
+	_ = c.runner.AbortTask(ctx, ticketID)
 
-	// 3. Brief delay to let port/resources release
+	// 3. Brief delay to let resources release
 	if c.opts.Config.RetryDelaySeconds > 0 {
 		select {
 		case <-ctx.Done():
@@ -70,62 +67,9 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 		}
 	}
 
-	// 4. Compute new port (offset avoids the old port)
-	newPort := sess.Port + 10 + sess.RetryCount
-
-	// 5. Create new server on the same worktree
-	newSrv, err := c.opts.ServerFactory(newPort, sess.WorktreePath, ticketID)
-	if err != nil {
-		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-			s.Status = StatusFailed
-			s.Error = fmt.Sprintf("retry %d: failed to create server: %v", s.RetryCount, err)
-		})
-		return
-	}
-	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-		s.Status = StatusStarting
-		s.Port = newPort
-	})
-
-	if err := newSrv.Start(ctx); err != nil {
-		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-			s.Status = StatusFailed
-			s.Error = fmt.Sprintf("retry %d: failed to start server: %v", s.RetryCount, err)
-		})
-		return
-	}
-
-	// 6. Replace server in slice
-	c.replaceServer(ticketID, newSrv)
-
-	// 7. Wait ready (shorter timeout for retry -- worktree already exists)
-	if err := newSrv.WaitReady(ctx, 15*time.Second); err != nil {
-		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-			s.Status = StatusFailed
-			s.Error = fmt.Sprintf("retry %d: server did not become ready: %v", s.RetryCount, err)
-		})
-		newSrv.Kill()
-		return
-	}
-
-	// 8. Create session
-	retryNum := sess.RetryCount + 1
-	title := fmt.Sprintf("parallel: %s (retry %d)", ticketID, retryNum)
-	sessionID, err := newSrv.CreateSession(title)
-	if err != nil {
-		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-			s.Status = StatusFailed
-			s.Error = fmt.Sprintf("retry %d: failed to create session: %v", s.RetryCount, err)
-		})
-		return
-	}
-
-	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
-		s.SessionID = sessionID
-	})
-
-	// 9. Build recovery prompt -- include context about partial work
+	// 4. Build recovery prompt
 	prompt := c.promptForTask(ticketID)
+	retryNum := sess.RetryCount + 1
 	if len(sess.FilesModified) > 0 {
 		prompt += fmt.Sprintf("\n\n[RECOVERY] Cette session est une reprise après échec (tentative %d). "+
 			"Des fichiers ont déjà été modifiés dans une tentative précédente : %v. "+
@@ -133,16 +77,29 @@ func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 			retryNum, sess.FilesModified)
 	}
 
-	if err := newSrv.SendPrompt(sessionID, prompt, c.opts.Agent); err != nil {
+	// 5. Launch new task via the runner
+	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
+		s.Status = StatusStarting
+	})
+
+	handle, err := c.runner.LaunchTask(ctx, platform.TaskOpts{
+		TaskID:       ticketID,
+		Title:        fmt.Sprintf("parallel: %s (retry %d)", ticketID, retryNum),
+		WorktreePath: sess.WorktreePath,
+		Prompt:       prompt,
+		Agent:        c.opts.Agent,
+	})
+	if err != nil {
 		c.state.UpdateSession(ticketID, func(s *SessionInfo) {
 			s.Status = StatusFailed
-			s.Error = fmt.Sprintf("retry %d: failed to send prompt: %v", s.RetryCount, err)
+			s.Error = fmt.Sprintf("retry %d: %v", retryNum, err)
 		})
 		return
 	}
 
-	// 10. Success -- back to running
+	// 6. Success — back to running
 	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
+		s.SessionID = handle.SessionID
 		s.Status = StatusRunning
 		s.StartedAt = time.Now().UTC()
 	})

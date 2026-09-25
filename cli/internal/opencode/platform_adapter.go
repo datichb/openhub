@@ -98,11 +98,7 @@ func (p *Platform) Capabilities() platform.Capabilities {
 }
 
 func (p *Platform) NewParallelRunner(opts platform.ParallelRunnerOpts) (platform.ParallelRunner, error) {
-	// The actual ParallelRunner implementation for opencode will be created
-	// in Lot 3 when the coordinator is refactored. For now, this is a
-	// placeholder that returns an error directing callers to use the
-	// legacy SessionServer path via the coordinator's current implementation.
-	return nil, fmt.Errorf("platform opencode: ParallelRunner not yet implemented (Lot 3); use the legacy coordinator path")
+	return NewOpenCodeParallelRunner(opts)
 }
 
 func (p *Platform) RequiresDeploy() bool { return true }

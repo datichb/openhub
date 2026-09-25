@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -105,6 +105,16 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		}
 	}
 
+	// Create the parallel runner from the platform
+	runner, err := a.Platform.NewParallelRunner(platform.ParallelRunnerOpts{
+		ProjectPath: project.Path,
+		ProjectID:   project.ID,
+		Config:      marshalPortConfig(cfg.PortRangeStart),
+	})
+	if err != nil {
+		return fmt.Errorf("creating parallel runner: %w", err)
+	}
+
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
 		ProjectPath:     project.Path,
 		ProjectID:       project.ID,
@@ -116,14 +126,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
 		},
-		ServerFactory: func(port int, dir, id string) (parallel.SessionServer, error) {
-			bin, err := opencode.FindBinary()
-			if err != nil {
-				return nil, fmt.Errorf("opencode binary not found: %w", err)
-			}
-			return parallel.NewServerAdapter(port, dir, id, bin), nil
-		},
-	}, a.Platform)
+	}, runner)
 	if err != nil {
 		return fmt.Errorf("initialisation parallèle: %w", err)
 	}
@@ -160,13 +163,11 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 			},
 			RefreshRate: 5 * time.Second,
 			AttachFunc: func(sessionID string) error {
-				for _, s := range coord.State().Snapshot().Sessions {
+				// Find the task ID for this session
+				snap := coord.State().Snapshot()
+				for _, s := range snap.Sessions {
 					if s.SessionID == sessionID {
-						_, err := a.Platform.RunInteractive(ctx, platform.RunOpts{
-							ProjectPath: s.WorktreePath,
-							ResumeID:    sessionID,
-						})
-						return err
+						return coord.AttachTask(ctx, s.TicketID)
 					}
 				}
 				return fmt.Errorf("session %s introuvable", sessionID)
@@ -441,4 +442,12 @@ func gitDiffStat(projectPath, base, branch string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// marshalPortConfig encodes the port range start as backend-specific JSON config.
+func marshalPortConfig(portRangeStart int) json.RawMessage {
+	data, _ := json.Marshal(struct {
+		PortRangeStart int `json:"port_range_start"`
+	}{PortRangeStart: portRangeStart})
+	return data
 }

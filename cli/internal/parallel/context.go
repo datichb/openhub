@@ -15,41 +15,10 @@ func NewSharedContext(state *ParallelState) *SharedContext {
 	return &SharedContext{state: state}
 }
 
-// UpdateFromServers polls file status from each server and updates the state.
-func (sc *SharedContext) UpdateFromServers(servers []SessionServer) {
-	for _, srv := range servers {
-		if !srv.IsAlive() {
-			continue
-		}
-
-		changes, err := srv.GetModifiedFiles()
-		if err != nil || len(changes) == 0 {
-			continue
-		}
-
-		// Separate modified vs created using the FileChange.Operation field
-		var modified, created []string
-		for _, fc := range changes {
-			switch fc.Operation {
-			case "created":
-				created = append(created, fc.Path)
-			default: // "modified", "deleted", or unknown
-				modified = append(modified, fc.Path)
-			}
-		}
-
-		sc.state.UpdateSession(srv.TicketID(), func(s *SessionInfo) {
-			s.FilesModified = modified
-			s.FilesCreated = created
-		})
-	}
-
-	// Detect conflicts
-	sc.detectConflicts()
-}
-
-// detectConflicts finds files touched by multiple sessions.
-func (sc *SharedContext) detectConflicts() {
+// DetectConflicts finds files touched by multiple sessions and updates the
+// state's conflict list. Called by the coordinator after statuses are refreshed
+// (the coordinator populates FilesModified via ParallelRunner.GetAllStatuses).
+func (sc *SharedContext) DetectConflicts() {
 	snap := sc.state.Snapshot()
 
 	// Map file → list of ticket IDs that touch it
@@ -70,7 +39,6 @@ func (sc *SharedContext) detectConflicts() {
 	var conflicts []ConflictInfo
 	for file, sessions := range fileToSessions {
 		if len(sessions) > 1 {
-			// Deduplicate
 			unique := uniqueStrings(sessions)
 			if len(unique) > 1 {
 				severity := classifyConflictSeverity(file)
@@ -99,7 +67,6 @@ func (sc *SharedContext) GetConflicts() []ConflictInfo {
 
 // classifyConflictSeverity guesses severity based on file type/path.
 func classifyConflictSeverity(file string) string {
-	// Config files and lock files are usually trivial to merge
 	lower := strings.ToLower(file)
 	if strings.Contains(lower, "lock") || strings.HasSuffix(lower, ".lock") {
 		return "low"
@@ -107,7 +74,6 @@ func classifyConflictSeverity(file string) string {
 	if strings.Contains(lower, "config") || strings.HasSuffix(lower, ".json") || strings.HasSuffix(lower, ".toml") {
 		return "medium"
 	}
-	// Source files are typically higher severity
 	return "high"
 }
 
