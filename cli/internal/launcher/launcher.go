@@ -198,6 +198,9 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 			if result.Slug != "" {
 				session.Slug = &result.Slug
 			}
+			if result.Title != "" {
+				session.Title = &result.Title
+			}
 		}
 
 		if err := a.Sessions.Update(ctx, session); err != nil {

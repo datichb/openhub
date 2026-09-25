@@ -154,6 +154,7 @@ func (p *Platform) enrichFromDB(projectPath string, result *platform.RunResult) 
 
 		latest := sessions[0]
 		result.ExternalSessionID = latest.ID
+		result.Title = latest.Title
 		result.Model = latest.Model
 		result.Cost = latest.Cost
 		result.TokensIn = latest.TokensInput

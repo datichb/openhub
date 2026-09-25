@@ -57,6 +57,7 @@ type RunOpts struct {
 type RunResult struct {
 	ExternalSessionID string   // Session ID in the backend's own system
 	Slug              string   // Human-readable identifier (e.g. "shiny-nebula")
+	Title             string   // Session title from the backend (e.g. "Fix auth bug")
 	Model             string   // Model that was actually used
 	Cost              float64  // Session cost in USD
 	TokensIn          int64    // Input tokens consumed

@@ -27,6 +27,7 @@ type Session struct {
 	ExternalSessionID *string // session ID in the backend's own system
 	Slug              *string // human-readable session identifier
 	PID               int     // OS process ID that owns this session (0 = unknown/legacy)
+	Title             *string // session title from the backend (e.g. "Fix auth bug")
 }
 
 // SessionStatus represents the state of a session.

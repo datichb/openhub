@@ -382,4 +382,9 @@ ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 		up:           `ALTER TABLE sessions ADD COLUMN pid INTEGER NOT NULL DEFAULT 0`,
 		irreversible: false,
 	},
+	{
+		version:      26,
+		up:           `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT NULL`,
+		irreversible: false,
+	},
 }
