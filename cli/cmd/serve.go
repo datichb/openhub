@@ -96,11 +96,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	// ── New API endpoints ────────────────────────────────────────────────────
 
-	// GET /api/v1/opencode/stats?period=7d|30d|all
-	mux.HandleFunc("/api/v1/opencode/stats", handleOpenCodeStats(a))
+	// GET /api/v1/platform/stats?period=7d|30d|all (ADR-036)
+	mux.HandleFunc("/api/v1/platform/stats", handlePlatformStats(a))
 
-	// GET /api/v1/opencode/sessions?limit=20
-	mux.HandleFunc("/api/v1/opencode/sessions", handleOpenCodeSessions(a))
+	// GET /api/v1/platform/sessions?limit=20 (ADR-036)
+	mux.HandleFunc("/api/v1/platform/sessions", handlePlatformSessions(a))
 
 	// GET /api/v1/team/board?project=X
 	mux.HandleFunc("/api/v1/team/board", handleTeamBoard(a))

@@ -22,6 +22,28 @@ channel = "stable"                 # canal de release
 auto_update = false                # mise a jour automatique du binaire opencode
 install_dir = "~/.oh/bin"          # repertoire d'installation d'opencode
 default_provider = "bedrock"       # bedrock | anthropic | openai | openrouter
+```
+
+> **Migration prevue ([ADR-036](../architecture/adr/036-platform-abstraction-layer.fr.md)) :**
+> la section `[opencode]` sera restructuree en `[platforms.opencode]` dans une
+> future release pour supporter plusieurs backends de sessions IA. Le champ
+> `default_provider` sera deplace vers la section `[provider]` de niveau
+> superieur. Le format actuel reste pleinement supporte et sera auto-migre.
+>
+> Structure future :
+> ```toml
+> [platforms]
+> default = "opencode"               # backend plateforme actif
+>
+> [platforms.opencode]
+> version = "latest"
+> channel = "stable"
+> auto_update = false
+> install_dir = "~/.oh/bin"
+>
+> # [platforms.directllm]            # futur : mode API LLM directe
+> # default_model = "claude-sonnet-4-5"
+> ```
 
 [provider.bedrock]
 aws_profile = "default"            # profil AWS (bedrock uniquement)

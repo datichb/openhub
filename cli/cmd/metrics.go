@@ -8,7 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -49,22 +49,14 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "  %s\n\n", i18n.Tf("cmd.metrics.period_label", period))
 	}
 
-	// Open opencode's database for real metrics
-	db, err := opencode.OpenStatsDB()
-	if err != nil {
-		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.metrics.no_db", err))
+	// Check platform stats availability
+	if a.Stats == nil || !a.Stats.Available() {
 		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
 		return nil
 	}
-	if db == nil {
-		fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.no_db_file")))
-		return nil
-	}
-	defer db.Close()
 
 	// Get aggregate stats for the period
-	stats, err := opencode.PeriodStats(db, period)
+	stats, err := a.Stats.AggregateStats(period)
 	if err != nil {
 		return fmt.Errorf("%s", i18n.Tf("cmd.metrics.read_error", err))
 	}
@@ -114,7 +106,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(w, i18n.T("cmd.metrics.table.header"))
 
 	for _, p := range projects {
-		pStats, err := opencode.ProjectPeriodStats(db, p.Path, period)
+		pStats, err := a.Stats.ProjectStats(p.Path, period)
 		if err != nil || pStats.TotalSessions == 0 {
 			continue
 		}
@@ -159,7 +151,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 }
 
 // displayAISavings computes and shows AI cost savings from caching.
-func displayAISavings(a *app.App, stats *opencode.AggregateStats) {
+func displayAISavings(a *app.App, stats *platform.AggregateStats) {
 	// Cache hit ratio: tokens read from cache vs total input tokens
 	if stats.TotalTokensIn == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.metrics.savings_nodata"))

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -184,7 +184,7 @@ Produis un Markdown structuré complet avec les sections :
 ## Risques identifiés
 ## Prochaines étapes recommandées`, content)
 
-	output, err := opencode.RunHeadless(opencode.HeadlessOpts{
+	result, err := a.Platform.RunHeadless(cmd.Context(), platform.HeadlessOpts{
 		ProjectPath: p.Path,
 		Agent:       "brief-enricher",
 		Prompt:      prompt,
@@ -196,7 +196,7 @@ Produis un Markdown structuré complet avec les sections :
 	}
 
 	// Save the enriched version
-	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, output)
+	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, result.Content)
 	enrichedPath := filepath.Join(repo.Path(), "projects", project, "takeover-briefs")
 
 	// Find the latest brief file to derive the enriched filename

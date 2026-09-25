@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -968,7 +968,7 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		return fmt.Errorf("reading brief: %w", err)
 	}
 
-	enriched, err := opencode.RunHeadless(opencode.HeadlessOpts{
+	result, err := a.Platform.RunHeadless(context.Background(), platform.HeadlessOpts{
 		Agent:  "brief-enricher",
 		Prompt: content,
 	})
@@ -990,7 +990,7 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		latestBase = ticketID
 	}
 
-	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, enriched)
+	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, result.Content)
 	enrichedFile := filepath.Join(briefsDir, latestBase+".enriched.md")
 	if err := os.WriteFile(enrichedFile, []byte(enrichedContent), 0o644); err != nil {
 		return fmt.Errorf("writing enriched brief: %w", err)

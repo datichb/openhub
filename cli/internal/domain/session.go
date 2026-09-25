@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Session represents an opencode session launched via oh.
+// Session represents a coding session launched via oh.
 type Session struct {
 	ID         string
 	ProjectID  string
@@ -18,6 +18,14 @@ type Session struct {
 	TokensOut  int64
 	LaunchPath string  // filesystem path where the session was launched (base or worktree)
 	MemberID   *string // team member who ran the session (nil = solo / unknown)
+
+	// Platform enrichment fields (ADR-036, migration v24)
+	Cost              float64 // session cost in USD from the backend
+	TokensReasoning   int64   // reasoning/thinking tokens
+	TokensCacheRead   int64   // tokens served from cache
+	Platform          string  // backend name ("opencode", "directllm", ...)
+	ExternalSessionID *string // session ID in the backend's own system
+	Slug              *string // human-readable session identifier
 }
 
 // SessionStatus represents the state of a session.

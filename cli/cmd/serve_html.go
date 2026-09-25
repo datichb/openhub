@@ -251,7 +251,7 @@ async function loadProjects() {
 async function loadSessionsAndStats() {
   try {
     // Load aggregate stats
-    const statsData = await fetchJSON('/opencode/stats?period=' + selectedPeriod);
+    const statsData = await fetchJSON('/platform/stats?period=' + selectedPeriod);
     if (statsData.available && statsData.stats) {
       const s = statsData.stats;
       document.getElementById('stats-summary').innerHTML =
@@ -265,8 +265,8 @@ async function loadSessionsAndStats() {
       document.getElementById('stats-summary').innerHTML = '';
     }
 
-    // Load recent sessions (from opencode DB)
-    const sessData = await fetchJSON('/opencode/sessions?limit=10');
+    // Load recent sessions
+    const sessData = await fetchJSON('/platform/sessions?limit=10');
     if (!sessData.available) {
       document.getElementById('sessions-content').innerHTML = '<div class="empty">' + (sessData.message||'Non disponible') + '</div>';
       return;

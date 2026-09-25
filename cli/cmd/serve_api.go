@@ -9,31 +9,29 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // ── API Handlers ─────────────────────────────────────────────────────────────
 
-// handleOpenCodeStats handles GET /api/v1/opencode/stats?period=7d|30d|all
-func handleOpenCodeStats(a *app.App) http.HandlerFunc {
+// handlePlatformStats handles GET /api/v1/platform/stats?period=7d|30d|all
+func handlePlatformStats(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		period := r.URL.Query().Get("period")
 		if period == "" {
 			period = "7d"
 		}
 
-		db, err := opencode.OpenStatsDB()
-		if err != nil || db == nil {
+		if a.Stats == nil || !a.Stats.Available() {
 			writeJSON(w, map[string]interface{}{
 				"available": false,
-				"message":   "Opencode DB non disponible",
+				"message":   "Stats non disponibles",
 			})
 			return
 		}
-		defer db.Close()
 
-		stats, err := opencode.PeriodStats(db, period)
+		stats, err := a.Stats.AggregateStats(period)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return
@@ -185,15 +183,13 @@ func handleCostChart(a *app.App) http.HandlerFunc {
 			period = "30d"
 		}
 
-		db, err := opencode.OpenStatsDB()
-		if err != nil || db == nil {
+		if a.Stats == nil || !a.Stats.Available() {
 			w.Header().Set("Content-Type", "image/svg+xml")
-			fmt.Fprint(w, emptySVG("DB non disponible"))
+			fmt.Fprint(w, emptySVG("Stats non disponibles"))
 			return
 		}
-		defer db.Close()
 
-		costs, err := opencode.DailyCosts(db, period)
+		costs, err := a.Stats.DailyCosts(period)
 		if err != nil || len(costs) == 0 {
 			w.Header().Set("Content-Type", "image/svg+xml")
 			fmt.Fprint(w, emptySVG("Aucune donnée"))
@@ -208,7 +204,7 @@ func handleCostChart(a *app.App) http.HandlerFunc {
 
 // ── SVG Generation ───────────────────────────────────────────────────────────
 
-func costSparklineSVG(costs []opencode.DayCost) string {
+func costSparklineSVG(costs []platform.DayCost) string {
 	const (
 		width   = 300
 		height  = 60
@@ -276,9 +272,9 @@ func emptySVG(msg string) string {
 
 // ── Sessions with cost info (for the Sessions+Costs panel) ───────────────────
 
-// handleSessionsWithCost handles GET /api/v1/opencode/sessions?limit=20
-// Returns recent opencode sessions with cost data.
-func handleOpenCodeSessions(a *app.App) http.HandlerFunc {
+// handlePlatformSessions handles GET /api/v1/platform/sessions?limit=20
+// Returns recent sessions with cost data.
+func handlePlatformSessions(a *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")
 		limit := 20
@@ -288,17 +284,15 @@ func handleOpenCodeSessions(a *app.App) http.HandlerFunc {
 			}
 		}
 
-		db, err := opencode.OpenStatsDB()
-		if err != nil || db == nil {
+		if a.Stats == nil || !a.Stats.Available() {
 			writeJSON(w, map[string]interface{}{
 				"available": false,
-				"message":   "Opencode DB non disponible",
+				"message":   "Stats non disponibles",
 			})
 			return
 		}
-		defer db.Close()
 
-		sessions, err := opencode.RecentSessions(db, limit)
+		sessions, err := a.Stats.RecentSessions(limit)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return

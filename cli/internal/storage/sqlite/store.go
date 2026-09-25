@@ -367,4 +367,14 @@ var schemaMigrations = []migration{
 		down:         `ALTER TABLE agent_events DROP COLUMN member_id`,
 		irreversible: false,
 	},
+	{
+		version: 24,
+		up: `ALTER TABLE sessions ADD COLUMN cost REAL NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN tokens_reasoning INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN tokens_cache_read INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN platform TEXT NOT NULL DEFAULT 'opencode';
+ALTER TABLE sessions ADD COLUMN external_session_id TEXT DEFAULT NULL;
+ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
+		irreversible: false,
+	},
 }

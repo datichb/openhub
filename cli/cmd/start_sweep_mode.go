@@ -112,7 +112,7 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 	sweepCfg.VerifyCmd = verifyCmd
 
 	// --- Build LLM completer (injection point for future direct API calls) ---
-	completer := llm.NewOpenCodeCompleter(project.ID)
+	completer := llm.NewPlatformCompleter(a.Platform, project.ID)
 
 	// --- Build run options ---
 	runOpts := sweep.RunOpts{

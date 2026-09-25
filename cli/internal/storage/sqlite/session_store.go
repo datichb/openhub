@@ -23,7 +23,7 @@ func NewSessionStore(s *Store) *SessionStore {
 var _ domain.SessionStore = (*SessionStore)(nil)
 
 // sessionColumns is the canonical column list used by all SELECT queries.
-const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id`
+const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug`
 
 // scanSession scans a row into a domain.Session. The row must match sessionColumns order.
 func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error) {
@@ -31,8 +31,11 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	var status string
 	var endedAt sql.NullTime
 	var memberID sql.NullString
+	var externalSessionID sql.NullString
+	var slug sql.NullString
 	if err := scanner.Scan(&s.ID, &s.ProjectID, &s.StartedAt, &endedAt, &status,
-		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID); err != nil {
+		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID,
+		&s.Cost, &s.TokensReasoning, &s.TokensCacheRead, &s.Platform, &externalSessionID, &slug); err != nil {
 		return s, err
 	}
 	s.Status = domain.SessionStatus(status)
@@ -41,6 +44,12 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	}
 	if memberID.Valid {
 		s.MemberID = &memberID.String
+	}
+	if externalSessionID.Valid {
+		s.ExternalSessionID = &externalSessionID.String
+	}
+	if slug.Valid {
+		s.Slug = &slug.String
 	}
 	return s, nil
 }
@@ -88,11 +97,15 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 	if s.StartedAt.IsZero() {
 		s.StartedAt = time.Now()
 	}
+	if s.Platform == "" {
+		s.Platform = "opencode"
+	}
 	_, err := ss.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ProjectID, s.StartedAt, s.EndedAt, string(s.Status),
 		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
+		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
 	)
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
@@ -102,9 +115,11 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 
 func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.ExecContext(ctx,
-		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?
+		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?, cost=?, tokens_reasoning=?, tokens_cache_read=?, platform=?, external_session_id=?, slug=?
 		 WHERE id=?`,
-		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID, s.ID,
+		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
+		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
+		s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating session %s: %w", s.ID, err)

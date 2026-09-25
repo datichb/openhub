@@ -15,9 +15,17 @@ flowchart LR
     end
 
     CLI -->|reads| Hub
-    CLI -->|"deploys to .opencode/"| P1["Project A"]
-    CLI -->|"deploys to .opencode/"| P2["Project B"]
-    CLI -->|launches| OC["OpenCode Runtime"]
+
+    subgraph Platform ["Platform Abstraction (ADR-036)"]
+        OCA["OpenCode Adapter"]
+        DLA["Direct LLM Adapter (future)"]
+    end
+
+    CLI -->|"SessionPlatform interface"| Platform
+    OCA -->|"deploys to .opencode/"| P1["Project A"]
+    OCA -->|"deploys to .opencode/"| P2["Project B"]
+    OCA -->|launches| OC["OpenCode Runtime"]
+    DLA -.->|"API calls (future)"| LLM2["LLM Provider"]
     OC -->|API calls| LLM["LLM Provider"]
 
     subgraph MCP ["MCP Servers"]
@@ -42,6 +50,21 @@ flowchart LR
 The **hub** (`openhub`) is the central repository containing the canonical sources
 of all agents and skills. It is the single source of truth — always edit here,
 never in target projects.
+
+### Platform
+
+A **platform** is an AI session backend that executes coding sessions on behalf
+of the hub. The hub interacts with platforms through the `SessionPlatform`
+interface (`internal/platform/`), which abstracts execution, metrics, and
+session lifecycle management.
+
+Current platform: **OpenCode** (external binary with TUI, CLI headless, and
+HTTP serve modes).
+
+Future platforms may include direct LLM API calls (Anthropic, Bedrock) or
+other coding assistants.
+
+See [ADR-036](./adr/036-platform-abstraction-layer.en.md) for the abstraction decision.
 
 ### Agent
 
@@ -313,8 +336,11 @@ openhub/
 │       ├── deploy/      ← Transactional deployment engine
 │       ├── domain/      ← Domain types (Project, Session, Secret)
 │       ├── i18n/        ← Internationalization (fr/en)
+│       ├── llm/         ← LLM inference abstraction (Completer interface)
 │       ├── mcp/         ← Native MCP servers (figma, gitlab, gslides, github, jira, linear, team)
-│       ├── opencode/    ← Binary management, compatibility, project config
+│       ├── opencode/    ← OpenCode adapter (implements platform.SessionPlatform)
+│       ├── parallel/    ← Parallel session orchestration (uses platform.SessionServer)
+│       ├── platform/    ← Platform abstraction interfaces (SessionPlatform, SessionServer, StatsProvider) — ADR-036
 │       ├── plugin/      ← Plugin system (RTK embedded + dynamic registry)
 │       ├── prompt/      ← Stack detection, prompt builders
 │       ├── storage/     ← SQLite + keychain + filecrypt + agent_events telemetry

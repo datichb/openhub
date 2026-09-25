@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/platform"
 )
 
 // App is the central dependency container injected into all commands.
@@ -20,6 +21,8 @@ type App struct {
 	Sessions    domain.SessionStore
 	AgentEvents domain.AgentEventStore
 	Secrets     domain.SecretStore
+	Platform    platform.SessionPlatform // AI session backend (ADR-036)
+	Stats       platform.StatsProvider   // Session metrics provider (ADR-036)
 	IO          *IOStreams
 }
 
@@ -86,5 +89,17 @@ func (a *App) WithSecretStore(s domain.SecretStore) *App {
 // WithIO overrides the IO streams (useful for testing).
 func (a *App) WithIO(ioStreams *IOStreams) *App {
 	a.IO = ioStreams
+	return a
+}
+
+// WithPlatform sets the AI session platform backend (ADR-036).
+func (a *App) WithPlatform(p platform.SessionPlatform) *App {
+	a.Platform = p
+	return a
+}
+
+// WithStats sets the session metrics provider (ADR-036).
+func (a *App) WithStats(s platform.StatsProvider) *App {
+	a.Stats = s
 	return a
 }

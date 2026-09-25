@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -84,13 +85,13 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Resume mode (special: uses Exec, not the launcher) ---
+	// --- Resume mode (special: uses ExecReplace, not the launcher) ---
 	resumeID, _ := cmd.Flags().GetString("resume")
 	if resumeID != "" {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.start.resume", resumeID))
-		return opencode.Exec(opencode.StartOpts{
-			ResumeSessionID: resumeID,
+		return a.Platform.ExecReplace(platform.RunOpts{
+			ResumeID: resumeID,
 		})
 	}
 

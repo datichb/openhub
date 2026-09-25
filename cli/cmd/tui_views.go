@@ -186,8 +186,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		OnDeploy: func(_ string) {
 			actionDeploy()
 		},
-		OnViewDiff: func(projectPath string) {
-			actionViewDiff(projectPath)
+		OnViewDiff: func(_ string) {
+			actionViewDiff()
 		},
 		CheckDeployStatus: func(projectPath string) *views.DeployStatusResult {
 			state := deploy.ReadDeployState(projectPath)
@@ -210,7 +210,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err != nil {
 				return nil, err
 			}
-			report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents, resolveWorkflowGeneratedSkills(a, project))
+			report, err := deploy.ComputeDiff(context.Background(), hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 			if err != nil {
 				return nil, err
 			}
@@ -394,6 +394,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 		views.NewStatusView(a),
 		views.NewMetricsView(views.MetricsViewConfig{
 			AgentEvents: a.AgentEvents,
+			Stats:       a.Stats,
 		}),
 		views.NewDoctorView(a),
 		views.NewTeamsView(views.TeamsViewDeps{

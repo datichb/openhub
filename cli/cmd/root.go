@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/prettylog"
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -185,6 +186,10 @@ func initApp() error {
 	a.WithSessionStore(sqlite.NewSessionStore(s))
 	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
 	a.WithSecretStore(resolveSecretStore())
+
+	// Wire platform abstraction (ADR-036)
+	a.WithPlatform(opencode.NewPlatform())
+	a.WithStats(opencode.NewStatsProvider())
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.ID != "" {

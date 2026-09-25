@@ -15,9 +15,17 @@ flowchart LR
     end
 
     CLI -->|lit| Hub
-    CLI -->|"deploie vers .opencode/"| P1["Projet A"]
-    CLI -->|"deploie vers .opencode/"| P2["Projet B"]
-    CLI -->|lance| OC["Runtime OpenCode"]
+
+    subgraph Platform ["Abstraction Plateforme (ADR-036)"]
+        OCA["Adaptateur OpenCode"]
+        DLA["Adaptateur API LLM directe (futur)"]
+    end
+
+    CLI -->|"interface SessionPlatform"| Platform
+    OCA -->|"deploie vers .opencode/"| P1["Projet A"]
+    OCA -->|"deploie vers .opencode/"| P2["Projet B"]
+    OCA -->|lance| OC["Runtime OpenCode"]
+    DLA -.->|"appels API (futur)"| LLM2["Fournisseur LLM"]
     OC -->|appels API| LLM["Fournisseur LLM"]
 
     subgraph MCP ["Serveurs MCP"]
@@ -42,6 +50,21 @@ flowchart LR
 Le **hub** (`openhub`) est le dépôt central qui contient les sources canoniques
 de tous les agents et skills. C'est la source de vérité — on édite toujours ici,
 jamais dans les projets cibles.
+
+### Plateforme
+
+Une **plateforme** est un backend de session IA qui exécute les sessions de coding
+pour le compte du hub. Le hub interagit avec les plateformes via l'interface
+`SessionPlatform` (`internal/platform/`), qui abstrait l'exécution, les métriques
+et la gestion du cycle de vie des sessions.
+
+Plateforme actuelle : **OpenCode** (binaire externe avec modes TUI, CLI headless
+et HTTP serve).
+
+Les futures plateformes pourront inclure des appels API LLM directs (Anthropic,
+Bedrock) ou d'autres assistants de coding.
+
+Voir [ADR-036](./adr/036-platform-abstraction-layer.fr.md) pour la décision d'abstraction.
 
 ### Agent
 
@@ -314,8 +337,11 @@ openhub/
 │       ├── deploy/      ← Moteur de déploiement transactionnel
 │       ├── domain/      ← Types domaine (Project, Session, Secret)
 │       ├── i18n/        ← Internationalisation (fr/en)
-│       ├── mcp/         ← Serveurs MCP natifs (figma, gitlab, gslides, github, jira, linear, team)
-│       ├── opencode/    ← Gestion binaire, compatibilité, config projet
+│       ├── llm/         ← Abstraction inférence LLM (interface Completer)
+│       ├── mcp/         ← Serveurs MCP natifs
+│       ├── opencode/    ← Adaptateur OpenCode (implémente platform.SessionPlatform)
+│       ├── parallel/    ← Orchestration de sessions parallèles (utilise platform.SessionServer)
+│       ├── platform/    ← Interfaces d'abstraction plateforme (SessionPlatform, SessionServer, StatsProvider) — ADR-036
 │       ├── plugin/      ← Système de plugins (RTK embarqué + registre dynamique)
 │       ├── prompt/      ← Détection stack, prompt builders
 │       ├── storage/     ← SQLite + keychain + filecrypt + télémétrie agent_events

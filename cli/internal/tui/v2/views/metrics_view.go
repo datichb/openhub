@@ -10,13 +10,14 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // MetricsViewConfig holds dependencies for the metrics view.
 type MetricsViewConfig struct {
-	AgentEvents domain.AgentEventStore // optional — if nil, agent table is hidden
+	AgentEvents domain.AgentEventStore  // optional — if nil, agent table is hidden
+	Stats       platform.StatsProvider  // platform stats provider (ADR-036)
 }
 
 // MetricsView displays real usage metrics from opencode's database.
@@ -201,12 +202,10 @@ func (v *MetricsView) buildAgentsText() string {
 }
 
 func (v *MetricsView) buildUsageText() string {
-	db, err := opencode.OpenStatsDB()
-	if err != nil {
+	if v.cfg.Stats == nil || !v.cfg.Stats.Available() {
 		return fmt.Sprintf(`
   [::b]%s%s
 
-  %s%s%s
   %s%s%s
 
   %s%s%s
@@ -214,23 +213,22 @@ func (v *MetricsView) buildUsageText() string {
 			i18n.T("tui.metrics.title"),
 			theme.TagReset,
 			theme.ColorTag(theme.ErrorHex), i18n.T("tui.metrics.db_unavailable"), theme.TagColor,
-			theme.ColorTag(theme.TextSecondaryHex), err.Error(), theme.TagColor,
 			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.db_hint"), theme.TagColor,
 		)
 	}
-	defer db.Close()
 
 	// Determine scope: project-scoped or global
-	var stats *opencode.AggregateStats
+	var stats *platform.AggregateStats
+	var err error
 	var scopeLabel string
 	if v.shell != nil {
 		if ap := v.shell.ActiveProject(); ap != nil {
-			stats, err = opencode.ProjectPeriodStats(db, ap.Path, v.period)
+			stats, err = v.cfg.Stats.ProjectStats(ap.Path, v.period)
 			scopeLabel = ap.Name
 		}
 	}
 	if stats == nil {
-		stats, err = opencode.PeriodStats(db, v.period)
+		stats, err = v.cfg.Stats.AggregateStats(v.period)
 	}
 	if err != nil {
 		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))

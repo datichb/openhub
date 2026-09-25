@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/prompt"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -53,10 +53,12 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 	a := l.App
 
 	// ── 1. Compatibility check ──
-	if ocVersion, err := opencode.Version(); err == nil {
-		compat := opencode.CheckCompatibility(buildinfo.Version, ocVersion)
-		if !compat.Compatible {
-			l.UI.Notify(compat.Warning, LevelWarning)
+	if a.Platform != nil {
+		if ocVersion, err := a.Platform.Version(); err == nil {
+			compat := checkPlatformCompat(buildinfo.Version, ocVersion)
+			if compat != "" {
+				l.UI.Notify(compat, LevelWarning)
+			}
 		}
 	}
 
@@ -137,32 +139,37 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 		}
 	}
 
-	// ── 10. Build StartOpts and run ──
-	startOpts := opencode.StartOpts{
+	// ── 10. Build platform RunOpts and run (ADR-036) ──
+	platformOpts := platform.RunOpts{
 		ProjectPath: launchPath,
 		ProjectID:   opts.ProjectID,
 		Agent:       opts.Agent,
 		Prompt:      opts.Prompt,
 		Provider:    prov,
-		BearerToken: bearerToken,
-		APIKey:      apiKey,
-		AWSProfile:  awsProfile,
-		AWSRegion:   awsRegion,
-		ExtraArgs:   opts.ExtraArgs,
+		Credentials: platform.Credentials{
+			BearerToken: bearerToken,
+			APIKey:      apiKey,
+			AWSProfile:  awsProfile,
+			AWSRegion:   awsRegion,
+		},
+		ExtraArgs: opts.ExtraArgs,
 	}
 
+	var result *platform.RunResult
 	var runErr error
 	if l.UI.SuspendAndExec() != nil {
-		// TUI mode: suspend the UI, run opencode, then resume
+		// TUI mode: suspend the UI, run the platform, then resume
 		runErr = l.UI.SuspendAndExec()(func() error {
-			return opencode.Run(startOpts)
+			var err error
+			result, err = a.Platform.RunInteractive(ctx, platformOpts)
+			return err
 		})
 	} else {
 		// CLI mode: run directly
-		runErr = opencode.Run(startOpts)
+		result, runErr = a.Platform.RunInteractive(ctx, platformOpts)
 	}
 
-	// ── 11. Post-run: update session ──
+	// ── 11. Post-run: update session with enrichment data ──
 	if a.Sessions != nil && session.ID != "" {
 		if runErr != nil {
 			session.Status = domain.SessionStatusFailed
@@ -171,6 +178,26 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 		}
 		now := time.Now()
 		session.EndedAt = &now
+
+		// Enrich from platform result (ADR-036 — fixes zero-token problem)
+		if result != nil {
+			if result.Model != "" {
+				session.Model = result.Model
+			}
+			session.Cost = result.Cost
+			session.TokensIn = result.TokensIn
+			session.TokensOut = result.TokensOut
+			session.TokensReasoning = result.TokensReasoning
+			session.TokensCacheRead = result.TokensCacheRead
+			session.Platform = string(a.Platform.Name())
+			if result.ExternalSessionID != "" {
+				session.ExternalSessionID = &result.ExternalSessionID
+			}
+			if result.Slug != "" {
+				session.Slug = &result.Slug
+			}
+		}
+
 		_ = a.Sessions.Update(ctx, session)
 
 		// Emit session.complete event to team-state (async, non-blocking)
@@ -238,4 +265,15 @@ func (l *Launcher) resolveCredentials(ctx context.Context, projectID, prov strin
 		}
 	}
 	return
+}
+
+// checkPlatformCompat performs a basic compatibility check between the hub CLI
+// and the platform backend version. Returns a warning message or empty string.
+// Detailed compatibility logic remains in the opencode adapter package; this is
+// a lightweight placeholder until the Platform interface exposes CompatCheck().
+func checkPlatformCompat(_, _ string) string {
+	// TODO: delegate to platform.CompatibilityCheck() when available (Phase 4).
+	// For now, the opencode-specific compatibility matrix is still checked by
+	// cmd/start.go before entering the launcher.
+	return ""
 }

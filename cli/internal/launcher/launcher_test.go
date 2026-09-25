@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/provider"
 )
 
@@ -121,6 +122,35 @@ func (m *mockLaunchUI) SuspendAndExec() func(func() error) error {
 	return m.suspendFunc
 }
 
+// mockPlatform implements platform.SessionPlatform for testing.
+type mockPlatform struct {
+	runErr error
+}
+
+func (m *mockPlatform) Name() platform.Name                        { return platform.OpenCode }
+func (m *mockPlatform) Available() bool                            { return true }
+func (m *mockPlatform) Version() (string, error)                   { return "test-1.0.0", nil }
+func (m *mockPlatform) ExecReplace(_ platform.RunOpts) error       { return nil }
+func (m *mockPlatform) SupportsServeMode() bool                    { return false }
+func (m *mockPlatform) RequiresDeploy() bool                       { return false }
+func (m *mockPlatform) IsGhostSession(_ platform.ActiveSession) bool { return false }
+
+func (m *mockPlatform) RunInteractive(_ context.Context, _ platform.RunOpts) (*platform.RunResult, error) {
+	return &platform.RunResult{}, m.runErr
+}
+
+func (m *mockPlatform) RunHeadless(_ context.Context, _ platform.HeadlessOpts) (*platform.HeadlessResult, error) {
+	return &platform.HeadlessResult{Content: "test"}, nil
+}
+
+func (m *mockPlatform) FindActiveSessions(_ context.Context, _ string) ([]platform.ActiveSession, error) {
+	return nil, nil
+}
+
+func (m *mockPlatform) NewServer(_ int, _ string, _ string) (platform.SessionServer, error) {
+	return nil, nil
+}
+
 func newTestApp(secrets map[string]string, projects map[string]*domain.Project) (*app.App, *mockSessionStore) {
 	if secrets == nil {
 		secrets = make(map[string]string)
@@ -134,6 +164,7 @@ func newTestApp(secrets map[string]string, projects map[string]*domain.Project) 
 		Secrets:  &mockSecretStore{secrets: secrets},
 		Projects: &mockProjectStore{projects: projects},
 		Sessions: ss,
+		Platform: &mockPlatform{},
 	}, ss
 }
 

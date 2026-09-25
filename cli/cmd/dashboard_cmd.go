@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/opencode"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -44,14 +43,12 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		topProject = projects[0].Name
 	}
 
-	// Gather real metrics from opencode DB
+	// Gather real metrics from platform stats provider
 	var totalSessions, todaySessions int
 	var tokensUsed int64
-	db, err := opencode.OpenStatsDB()
-	if err == nil && db != nil {
-		defer db.Close()
-		stats, err := opencode.TotalStats(db)
-		if err == nil {
+	if a.Stats != nil && a.Stats.Available() {
+		stats, err := a.Stats.AggregateStats("all")
+		if err == nil && stats != nil {
 			totalSessions = stats.TotalSessions
 			todaySessions = stats.TodaySessions
 			tokensUsed = stats.TotalTokensIn + stats.TotalTokensOut
