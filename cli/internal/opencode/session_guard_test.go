@@ -3,6 +3,7 @@ package opencode
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -58,6 +59,57 @@ func TestIsGhostSession_RunningJustNow(t *testing.T) {
 	}
 	if IsGhostSession(s) {
 		t.Error("expected NOT ghost: session started 5 minutes ago")
+	}
+}
+
+// --- PID-based ghost detection tests ---
+
+func TestIsGhostSession_WithPID_ProcessAlive(t *testing.T) {
+	// Use our own PID — guaranteed to be alive
+	s := domain.Session{
+		Status:    domain.SessionStatusRunning,
+		StartedAt: time.Now().Add(-48 * time.Hour), // would be ghost by time heuristic
+		PID:       os.Getpid(),
+	}
+	if IsGhostSession(s) {
+		t.Error("expected NOT ghost: PID is alive (our own process), time heuristic should be bypassed")
+	}
+}
+
+func TestIsGhostSession_WithPID_ProcessDead(t *testing.T) {
+	// Use a PID that almost certainly doesn't exist
+	// PID 2147483647 (max int32) is extremely unlikely to be in use
+	s := domain.Session{
+		Status:    domain.SessionStatusRunning,
+		StartedAt: time.Now().Add(-5 * time.Minute), // would NOT be ghost by time heuristic
+		PID:       2147483647,
+	}
+	if !IsGhostSession(s) {
+		t.Error("expected ghost: PID does not exist, should be detected immediately")
+	}
+}
+
+func TestIsGhostSession_WithPID_ZeroFallsBackToTime(t *testing.T) {
+	// PID=0 means legacy session — should use time heuristic
+	s := domain.Session{
+		Status:    domain.SessionStatusRunning,
+		StartedAt: time.Now().Add(-5 * time.Minute),
+		PID:       0,
+	}
+	if IsGhostSession(s) {
+		t.Error("expected NOT ghost: PID=0 falls back to time heuristic, and session is only 5min old")
+	}
+}
+
+func TestIsGhostSession_WithPID_ZeroAndOld(t *testing.T) {
+	// PID=0, old session — time heuristic should kick in
+	s := domain.Session{
+		Status:    domain.SessionStatusRunning,
+		StartedAt: time.Now().Add(-25 * time.Hour),
+		PID:       0,
+	}
+	if !IsGhostSession(s) {
+		t.Error("expected ghost: PID=0 falls back to time heuristic, and session is > 24h")
 	}
 }
 

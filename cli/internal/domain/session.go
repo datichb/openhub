@@ -26,6 +26,7 @@ type Session struct {
 	Platform          string  // backend name ("opencode", "directllm", ...)
 	ExternalSessionID *string // session ID in the backend's own system
 	Slug              *string // human-readable session identifier
+	PID               int     // OS process ID that owns this session (0 = unknown/legacy)
 }
 
 // SessionStatus represents the state of a session.

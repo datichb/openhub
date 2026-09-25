@@ -23,7 +23,7 @@ func NewSessionStore(s *Store) *SessionStore {
 var _ domain.SessionStore = (*SessionStore)(nil)
 
 // sessionColumns is the canonical column list used by all SELECT queries.
-const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug`
+const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid`
 
 // scanSession scans a row into a domain.Session. The row must match sessionColumns order.
 func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error) {
@@ -35,7 +35,7 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	var slug sql.NullString
 	if err := scanner.Scan(&s.ID, &s.ProjectID, &s.StartedAt, &endedAt, &status,
 		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID,
-		&s.Cost, &s.TokensReasoning, &s.TokensCacheRead, &s.Platform, &externalSessionID, &slug); err != nil {
+		&s.Cost, &s.TokensReasoning, &s.TokensCacheRead, &s.Platform, &externalSessionID, &slug, &s.PID); err != nil {
 		return s, err
 	}
 	s.Status = domain.SessionStatus(status)
@@ -101,11 +101,12 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 		s.Platform = "opencode"
 	}
 	_, err := ss.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ProjectID, s.StartedAt, s.EndedAt, string(s.Status),
 		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
+		s.PID,
 	)
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
@@ -115,10 +116,11 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 
 func (ss *SessionStore) Update(ctx context.Context, s *domain.Session) error {
 	result, err := ss.db.ExecContext(ctx,
-		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?, cost=?, tokens_reasoning=?, tokens_cache_read=?, platform=?, external_session_id=?, slug=?
+		`UPDATE sessions SET ended_at=?, status=?, provider=?, model=?, tokens_in=?, tokens_out=?, launch_path=?, member_id=?, cost=?, tokens_reasoning=?, tokens_cache_read=?, platform=?, external_session_id=?, slug=?, pid=?
 		 WHERE id=?`,
 		s.EndedAt, string(s.Status), s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
+		s.PID,
 		s.ID,
 	)
 	if err != nil {

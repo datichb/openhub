@@ -3,6 +3,7 @@ package opencode
 import (
 	"context"
 	"fmt"
+	"syscall"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -70,14 +71,30 @@ func FindAllActiveSessionsByPath(ctx context.Context, store domain.SessionStore,
 }
 
 // IsGhostSession returns true if a "running" session is likely dead.
-// A session is considered a ghost if it has been running for longer than
-// ghostSessionThreshold without completing. This heuristic handles cases
-// where the process was killed (SIGKILL, OOM, power loss) without updating
-// the session status.
+//
+// Detection strategy:
+//  1. If a PID is recorded (migration v25+), check whether the process is still
+//     alive using syscall.Kill(pid, 0). This provides instant, deterministic
+//     ghost detection — no 24h wait.
+//  2. Fallback for legacy sessions (PID=0, pre-v25): use the time-based
+//     heuristic (ghostSessionThreshold = 24h).
 func IsGhostSession(s domain.Session) bool {
 	if s.Status != domain.SessionStatusRunning {
 		return false
 	}
+	// Fast path: PID-based detection
+	if s.PID > 0 {
+		err := syscall.Kill(s.PID, 0)
+		// err == nil means the process exists and we can signal it
+		// err == EPERM means the process exists but we don't have permission (still alive)
+		// err == ESRCH means no such process (ghost)
+		if err == syscall.ESRCH {
+			return true
+		}
+		// Process exists (err == nil or EPERM) — not a ghost
+		return false
+	}
+	// Fallback: time-based heuristic for legacy sessions without PID
 	return time.Since(s.StartedAt) > ghostSessionThreshold
 }
 

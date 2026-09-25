@@ -377,4 +377,9 @@ ALTER TABLE sessions ADD COLUMN external_session_id TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 		irreversible: false,
 	},
+	{
+		version:      25,
+		up:           `ALTER TABLE sessions ADD COLUMN pid INTEGER NOT NULL DEFAULT 0`,
+		irreversible: false,
+	},
 }

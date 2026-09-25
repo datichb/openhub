@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -119,6 +120,7 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 		Status:     domain.SessionStatusRunning,
 		Provider:   prov,
 		LaunchPath: launchPath,
+		PID:        os.Getpid(),
 	}
 
 	// Inject member_id from team config if available
