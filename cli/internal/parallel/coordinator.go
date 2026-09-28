@@ -3,6 +3,7 @@ package parallel
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,11 @@ type CoordinatorOpts struct {
 	Agent         string // agent to use (default: orchestrator-dev)
 	BranchPattern string // e.g. "feat/%s"; empty = use worktree.BranchName default
 	Config        Config
+
+	// StateDir is the directory where the parallel state file is persisted
+	// for cross-process visibility (e.g. the oh serve dashboard). If empty,
+	// state is not persisted to disk.
+	StateDir string
 
 	// TaskPromptFunc generates the prompt for a task. Use this for new code.
 	TaskPromptFunc func(t task.Task) string
@@ -117,6 +123,8 @@ func (c *Coordinator) AttachTask(ctx context.Context, taskID string) error {
 // Run executes the full parallel workflow.
 // This is the main entry point — blocks until all sessions complete or ctx is cancelled.
 func (c *Coordinator) Run(ctx context.Context) error {
+	slog.Info("parallel: starting run", "tickets", len(c.opts.Tickets))
+
 	// Phase 1: Setup worktrees (sequential to avoid index.lock)
 	c.state.SetPhase("setup")
 	if err := c.createWorktrees(ctx); err != nil {
@@ -129,6 +137,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 		c.cleanup(ctx)
 		return fmt.Errorf("launching tasks: %w", err)
 	}
+	slog.Info("parallel: all tasks launched, entering monitor phase")
 
 	// Phase 3: Monitor until all complete (or context cancelled)
 	if err := c.monitor(ctx); err != nil {
@@ -138,6 +147,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 
 	// Phase 4: Done (merge is handled by caller)
 	c.state.SetPhase("done")
+	slog.Info("parallel: run completed")
 	return nil
 }
 
@@ -242,6 +252,13 @@ func (c *Coordinator) monitorEvents(ctx context.Context, es platform.EventSource
 		return c.monitorPolling(ctx)
 	}
 
+	// Recovery ticker: periodically check for failed sessions eligible for retry.
+	// In polling mode this happens on every tick (5s). In event-driven mode we use
+	// a slightly longer interval (10s) since status changes are already captured by
+	// events — the ticker is a safety net for failures that don't emit events.
+	recoveryTicker := time.NewTicker(10 * time.Second)
+	defer recoveryTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -260,7 +277,14 @@ func (c *Coordinator) monitorEvents(ctx context.Context, es platform.EventSource
 			c.sendConflictNotifications(ctx)
 			c.sendCompletionNotifications(ctx)
 			c.promoteIdleSessions()
+			c.persistState()
 
+			if c.state.AllCompleted() {
+				return nil
+			}
+		case <-recoveryTicker.C:
+			c.attemptRecovery(ctx)
+			c.persistState()
 			if c.state.AllCompleted() {
 				return nil
 			}
@@ -282,6 +306,7 @@ func (c *Coordinator) monitorPolling(ctx context.Context) error {
 			c.sendConflictNotifications(ctx)
 			c.sendCompletionNotifications(ctx)
 			c.promoteIdleSessions()
+			c.persistState()
 
 			if c.state.AllCompleted() {
 				return nil
@@ -301,6 +326,17 @@ func (c *Coordinator) handleEvent(event platform.Event) {
 		c.updateStatuses(context.Background())
 	case "file_change":
 		c.updateStatuses(context.Background())
+	}
+}
+
+// persistState writes the current state to disk for cross-process visibility.
+// Best-effort — errors are logged but do not affect the coordinator.
+func (c *Coordinator) persistState() {
+	if c.opts.StateDir == "" {
+		return
+	}
+	if err := c.state.Save(c.opts.StateDir); err != nil {
+		slog.Debug("parallel: failed to persist state", "error", err)
 	}
 }
 
@@ -445,6 +481,11 @@ func (c *Coordinator) promptForTask(taskID string) string {
 
 func (c *Coordinator) cleanup(ctx context.Context) {
 	c.runner.Cleanup(ctx)
+
+	// Remove the state file so the dashboard no longer shows an active run.
+	if c.opts.StateDir != "" {
+		RemoveStateFile(c.opts.StateDir)
+	}
 
 	if !c.opts.Config.CleanupCompletedWorktrees {
 		return

@@ -3,6 +3,7 @@ package parallel
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/platform"
@@ -37,6 +38,7 @@ func (c *Coordinator) attemptRecovery(ctx context.Context) {
 // recoverSession restarts a failed session by aborting the old task and launching a new one.
 func (c *Coordinator) recoverSession(ctx context.Context, sess SessionInfo) {
 	ticketID := sess.TicketID
+	slog.Info("parallel: attempting recovery", "task", ticketID, "retry", sess.RetryCount+1, "maxRetries", c.opts.Config.MaxRetries)
 
 	// 1. Transition to Retrying, preserve error history
 	c.state.UpdateSession(ticketID, func(s *SessionInfo) {
