@@ -547,6 +547,14 @@ func EnsureWorktreeConfig(wtPath, projectPath string) error {
 		}
 	}
 
+	// ── .opencode-data/ exclude ─────────────────────────────────────────────
+	// Each parallel opencode serve instance gets its own OPENCODE_DATA_HOME
+	// inside the worktree (set via env in server.go). Exclude it from git so
+	// it doesn't appear as untracked. Uses .git/info/exclude which is per-repo
+	// (shared by all worktrees from the same parent).
+	excludePath := filepath.Join(wtPath, ".git", "info", "exclude")
+	ensureExcludeEntry(excludePath, ".opencode-data/")
+
 	return nil
 }
 
@@ -611,4 +619,31 @@ func BulkCreate(projectPath string, branches []string) ([]string, error) {
 		paths = append(paths, wtPath)
 	}
 	return paths, nil
+}
+
+// ensureExcludeEntry appends entry to the git exclude file if not already present.
+// Creates the file and parent directories if they don't exist.
+// This is a best-effort operation — errors are silently ignored.
+func ensureExcludeEntry(excludePath, entry string) {
+	data, _ := os.ReadFile(excludePath)
+	content := string(data)
+	for _, line := range strings.Split(content, "\n") {
+		if strings.TrimSpace(line) == entry {
+			return // already present
+		}
+	}
+	// Ensure parent directory exists (worktree .git may be a file, not a dir).
+	if err := os.MkdirAll(filepath.Dir(excludePath), 0755); err != nil {
+		return
+	}
+	f, err := os.OpenFile(excludePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	// Ensure newline before our entry if file doesn't end with one.
+	if len(content) > 0 && !strings.HasSuffix(content, "\n") {
+		f.WriteString("\n")
+	}
+	f.WriteString(entry + "\n")
 }

@@ -77,6 +77,9 @@ type TaskStatus struct {
 type ParallelRunnerOpts struct {
 	ProjectPath string
 	ProjectID   string
+	HubDir      string          // path to ~/.oh directory (for log files, state)
+	Provider    string          // LLM provider name for credential injection
+	Credentials Credentials     // Provider credentials injected into each task subprocess
 	Config      json.RawMessage // backend-specific config (port range, daemon opts, etc.)
 }
 
