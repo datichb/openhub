@@ -56,7 +56,13 @@ et fournit un TUI interactif pour le suivi de développement.`,
 		if verbose {
 			logLevel = slog.LevelDebug
 		}
-		slog.SetDefault(slog.New(prettylog.NewPrettyHandler(os.Stderr, &prettylog.Options{Level: logLevel})))
+		logFormat, _ := cmd.Flags().GetString("log-format")
+		switch logFormat {
+		case "json":
+			slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+		default:
+			slog.SetDefault(slog.New(prettylog.NewPrettyHandler(os.Stderr, &prettylog.Options{Level: logLevel})))
+		}
 
 		// Propagate --no-tui to the TUI detection layer
 		if noTUI, _ := cmd.Flags().GetBool("no-tui"); noTUI {
@@ -290,6 +296,7 @@ func init() {
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
+	rootCmd.PersistentFlags().String("log-format", "pretty", "Log output format: pretty (default) or json")
 	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
 	rootCmd.Flags().StringP("project", "p", "", "Démarrer directement en mode projet pour ce projet")
 	_ = rootCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
