@@ -87,9 +87,20 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 	}
 
 	// ── 4. Resolve credentials ──
-	var bearerToken, apiKey, awsProfile, awsRegion string
+	var creds platform.Credentials
 	if a.Secrets != nil {
-		bearerToken, apiKey, awsProfile, awsRegion = l.resolveCredentials(ctx, opts.ProjectID, prov)
+		var provCfg *provider.ProviderConfig
+		if opts.ProjectID != "" && a.Projects != nil {
+			if proj, err := a.Projects.Get(ctx, opts.ProjectID); err == nil && proj.ProviderConfig != nil {
+				provCfg = &provider.ProviderConfig{
+					AWSProfile: proj.ProviderConfig.AWSProfile,
+					AWSRegion:  proj.ProviderConfig.AWSRegion,
+				}
+			}
+		}
+		hubCfg := l.hubProviderConfig(prov)
+		mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+		creds = provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), opts.ProjectID, &mergedCfg)
 	}
 
 	// ── 5. Detect stack ──
@@ -102,7 +113,7 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 
 	// ── 7. Summary ──
 	if !opts.SkipSummary && opts.SummaryFunc != nil {
-		opts.SummaryFunc(prov, stack, bearerToken)
+		opts.SummaryFunc(prov, stack, creds.BearerToken)
 	}
 
 	// ── 8. Confirmation ──
@@ -148,13 +159,8 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 		Agent:       opts.Agent,
 		Prompt:      opts.Prompt,
 		Provider:    prov,
-		Credentials: platform.Credentials{
-			BearerToken: bearerToken,
-			APIKey:      apiKey,
-			AWSProfile:  awsProfile,
-			AWSRegion:   awsRegion,
-		},
-		ExtraArgs: opts.ExtraArgs,
+		Credentials: creds,
+		ExtraArgs:   opts.ExtraArgs,
 	}
 
 	var result *platform.RunResult
@@ -232,46 +238,18 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 	return runErr
 }
 
-// resolveCredentials extracts provider-specific credentials from secrets.
-// Uses provider.KeychainKey() for canonical key naming.
-func (l *Launcher) resolveCredentials(ctx context.Context, projectID, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
+// hubProviderConfig returns the hub-level provider.Config for the given provider name.
+func (l *Launcher) hubProviderConfig(prov string) provider.Config {
 	a := l.App
-	provName := provider.Name(prov)
-	switch provName {
+	switch provider.Name(prov) {
 	case provider.Bedrock:
-		bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
-		if bearerToken == "" {
-			bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
+		return provider.Config{
+			AWSProfile: a.Config.Provider.Bedrock.AWSProfile,
+			AWSRegion:  a.Config.Provider.Bedrock.AWSRegion,
 		}
-		// AWS profile/region: project override → hub config
-		if projectID != "" && a.Projects != nil {
-			if proj, err := a.Projects.Get(ctx, projectID); err == nil && proj.ProviderConfig != nil {
-				if proj.ProviderConfig.AWSProfile != "" {
-					awsProfile = proj.ProviderConfig.AWSProfile
-				}
-				if proj.ProviderConfig.AWSRegion != "" {
-					awsRegion = proj.ProviderConfig.AWSRegion
-				}
-			}
-		}
-		if awsProfile == "" {
-			awsProfile = a.Config.Provider.Bedrock.AWSProfile
-		}
-		if awsRegion == "" {
-			awsRegion = a.Config.Provider.Bedrock.AWSRegion
-		}
-	case provider.Anthropic:
-		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
-		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
-		}
-	case provider.OpenRouter:
-		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, projectID))
-		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
-		}
+	default:
+		return provider.Config{}
 	}
-	return
 }
 
 // checkPlatformCompat performs a basic compatibility check between the hub CLI

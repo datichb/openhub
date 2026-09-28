@@ -9,7 +9,11 @@
 // swap the injection site in cmd/start_sweep_mode.go.
 package llm
 
-import "context"
+import (
+	"context"
+
+	"github.com/datichb/openhub/cli/internal/platform"
+)
 
 // Request describes an LLM completion request.
 type Request struct {
@@ -36,6 +40,14 @@ type Request struct {
 
 	// Files attaches local files to the prompt context.
 	Files []string
+
+	// Provider is the LLM provider name for credential injection.
+	// Empty = use the platform's default resolution.
+	Provider string
+
+	// Credentials holds provider-specific authentication tokens.
+	// Passed through to the underlying platform.RunHeadless call.
+	Credentials platform.Credentials
 }
 
 // Response holds the LLM's output.

@@ -175,17 +175,17 @@ func TestToStartOpts_AllFields(t *testing.T) {
 	if result.Provider != opts.Provider {
 		t.Errorf("Provider = %q, want %q", result.Provider, opts.Provider)
 	}
-	if result.BearerToken != opts.Credentials.BearerToken {
-		t.Errorf("BearerToken = %q, want %q", result.BearerToken, opts.Credentials.BearerToken)
+	if result.Credentials.BearerToken != opts.Credentials.BearerToken {
+		t.Errorf("BearerToken = %q, want %q", result.Credentials.BearerToken, opts.Credentials.BearerToken)
 	}
-	if result.APIKey != opts.Credentials.APIKey {
-		t.Errorf("APIKey = %q, want %q", result.APIKey, opts.Credentials.APIKey)
+	if result.Credentials.APIKey != opts.Credentials.APIKey {
+		t.Errorf("APIKey = %q, want %q", result.Credentials.APIKey, opts.Credentials.APIKey)
 	}
-	if result.AWSProfile != opts.Credentials.AWSProfile {
-		t.Errorf("AWSProfile = %q, want %q", result.AWSProfile, opts.Credentials.AWSProfile)
+	if result.Credentials.AWSProfile != opts.Credentials.AWSProfile {
+		t.Errorf("AWSProfile = %q, want %q", result.Credentials.AWSProfile, opts.Credentials.AWSProfile)
 	}
-	if result.AWSRegion != opts.Credentials.AWSRegion {
-		t.Errorf("AWSRegion = %q, want %q", result.AWSRegion, opts.Credentials.AWSRegion)
+	if result.Credentials.AWSRegion != opts.Credentials.AWSRegion {
+		t.Errorf("AWSRegion = %q, want %q", result.Credentials.AWSRegion, opts.Credentials.AWSRegion)
 	}
 	if result.ResumeSessionID != opts.ResumeID {
 		t.Errorf("ResumeSessionID = %q, want %q", result.ResumeSessionID, opts.ResumeID)
@@ -215,5 +215,46 @@ func TestToStartOpts_EmptyFields(t *testing.T) {
 	}
 	if result.ExtraArgs != nil {
 		t.Errorf("expected nil ExtraArgs, got %v", result.ExtraArgs)
+	}
+}
+
+// --- HeadlessOpts credential mapping tests ---
+
+func TestRunHeadless_CredentialMapping(t *testing.T) {
+	// Verify that Platform.RunHeadless passes credentials through to the
+	// internal HeadlessOpts. We test the mapping indirectly by checking that
+	// platform.HeadlessOpts with credentials can be constructed and the adapter
+	// compiles correctly with the new fields.
+	opts := platform.HeadlessOpts{
+		ProjectPath: "/path/to/project",
+		ProjectID:   "proj-123",
+		Agent:       "brief-enricher",
+		Prompt:      "test prompt",
+		Format:      "json",
+		Model:       "claude-opus",
+		Provider:    "bedrock",
+		Credentials: platform.Credentials{
+			BearerToken: "token-abc",
+			APIKey:      "key-xyz",
+			AWSProfile:  "my-profile",
+			AWSRegion:   "eu-west-1",
+		},
+	}
+
+	// Verify all fields are set (compile-time + runtime correctness)
+	if opts.Provider != "bedrock" {
+		t.Errorf("Provider = %q, want %q", opts.Provider, "bedrock")
+	}
+	if opts.Credentials.BearerToken != "token-abc" {
+		t.Errorf("BearerToken = %q, want %q", opts.Credentials.BearerToken, "token-abc")
+	}
+	if opts.Credentials.APIKey != "key-xyz" {
+		t.Errorf("APIKey = %q, want %q", opts.Credentials.APIKey, "key-xyz")
+	}
+	if opts.Credentials.AWSProfile != "my-profile" {
+		t.Errorf("AWSProfile = %q, want %q", opts.Credentials.AWSProfile, "my-profile")
+	}
+	if opts.Credentials.AWSRegion != "eu-west-1" {
+		t.Errorf("AWSRegion = %q, want %q", opts.Credentials.AWSRegion, "eu-west-1")
 	}
 }

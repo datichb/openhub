@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -163,4 +164,18 @@ func displayOrDefault(detected, fallback string) string {
 		return fallback
 	}
 	return "—"
+}
+
+// hubProviderCfg returns the hub-level provider.Config for the given provider name.
+// Used as the fallback layer in the provider config cascade.
+func hubProviderCfg(a *app.App, prov string) provider.Config {
+	switch provider.Name(prov) {
+	case provider.Bedrock:
+		return provider.Config{
+			AWSProfile: a.Config.Provider.Bedrock.AWSProfile,
+			AWSRegion:  a.Config.Provider.Bedrock.AWSRegion,
+		}
+	default:
+		return provider.Config{}
+	}
 }

@@ -18,8 +18,11 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/headlesstrack"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -968,18 +971,51 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 		return fmt.Errorf("reading brief: %w", err)
 	}
 
-	// Resolve project path for the brief-enricher agent to access source files.
-	var projectPath string
+	// Resolve project for path and credentials.
+	var proj *domain.Project
 	if a.Projects != nil {
-		if proj, lookupErr := a.Projects.GetByName(context.Background(), project); lookupErr == nil {
-			projectPath = proj.Path
-		}
+		proj, _ = a.Projects.GetByName(context.Background(), project)
+	}
+	var projectPath string
+	if proj != nil {
+		projectPath = proj.Path
 	}
 
-	result, err := a.Platform.RunHeadless(context.Background(), platform.HeadlessOpts{
+	// Resolve provider + credentials for the headless run.
+	var projProvider string
+	var provCfg *provider.ProviderConfig
+	var projectID string
+	if proj != nil {
+		projProvider = proj.Provider
+		projectID = proj.ID
+		if proj.ProviderConfig != nil {
+			provCfg = &provider.ProviderConfig{
+				AWSProfile: proj.ProviderConfig.AWSProfile,
+				AWSRegion:  proj.ProviderConfig.AWSRegion,
+			}
+		}
+	}
+	prov := provider.ResolveProvider("", projProvider, a.Config.Opencode.DefaultProvider)
+	hubCfg := hubProviderCfg(a, prov)
+	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+	creds := provider.ResolveCredentials(context.Background(), a.Secrets, provider.Name(prov), projectID, &mergedCfg)
+
+	headlessOpts := platform.HeadlessOpts{
 		ProjectPath: projectPath,
 		Agent:       "brief-enricher",
 		Prompt:      content,
+		Provider:    prov,
+		Credentials: creds,
+	}
+	result, err := headlesstrack.Track(context.Background(), headlesstrack.Opts{
+		Sessions:     a.Sessions,
+		PlatformName: string(a.Platform.Name()),
+		ProjectID:    projectID,
+		ProjectPath:  projectPath,
+		Provider:     prov,
+		Label:        "brief-enrichment",
+	}, func(ctx context.Context) (*platform.HeadlessResult, error) {
+		return a.Platform.RunHeadless(ctx, headlessOpts)
 	})
 	if err != nil {
 		return fmt.Errorf("enrichment: %w", err)

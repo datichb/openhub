@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/headlesstrack"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -167,6 +170,19 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "\n%s Enrichissement du brief via IA...\n",
 		theme.Subtitle.Render(theme.IconArrow))
 
+	// Resolve provider + credentials for the headless run.
+	prov := provider.ResolveProvider("", p.Provider, a.Config.Opencode.DefaultProvider)
+	var provCfg *provider.ProviderConfig
+	if p.ProviderConfig != nil {
+		provCfg = &provider.ProviderConfig{
+			AWSProfile: p.ProviderConfig.AWSProfile,
+			AWSRegion:  p.ProviderConfig.AWSRegion,
+		}
+	}
+	hubCfg := hubProviderCfg(a, prov)
+	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), p.ID, &mergedCfg)
+
 	prompt := fmt.Sprintf(`Voici un brief de reprise de ticket. Enrichis-le en :
 1. Lisant les fichiers mentionnés pour comprendre l'état du code
 2. Identifiant les questions ouvertes (TODO, FIXME, patterns incomplets)
@@ -184,10 +200,22 @@ Produis un Markdown structuré complet avec les sections :
 ## Risques identifiés
 ## Prochaines étapes recommandées`, content)
 
-	result, err := a.Platform.RunHeadless(cmd.Context(), platform.HeadlessOpts{
+	headlessOpts := platform.HeadlessOpts{
 		ProjectPath: p.Path,
 		Agent:       "brief-enricher",
 		Prompt:      prompt,
+		Provider:    prov,
+		Credentials: creds,
+	}
+	result, err := headlesstrack.Track(ctx, headlesstrack.Opts{
+		Sessions:     a.Sessions,
+		PlatformName: string(a.Platform.Name()),
+		ProjectID:    p.ID,
+		ProjectPath:  p.Path,
+		Provider:     prov,
+		Label:        "brief-enrichment",
+	}, func(ctx context.Context) (*platform.HeadlessResult, error) {
+		return a.Platform.RunHeadless(ctx, headlessOpts)
 	})
 	if err != nil {
 		return fmt.Errorf("enrichment failed: %w", err)

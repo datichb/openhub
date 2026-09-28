@@ -52,7 +52,7 @@ func (p *Platform) ExecReplace(opts platform.RunOpts) error {
 }
 
 func (p *Platform) RunHeadless(ctx context.Context, opts platform.HeadlessOpts) (*platform.HeadlessResult, error) {
-	output, err := RunHeadless(HeadlessOpts{
+	output, err := RunHeadless(ctx, HeadlessOpts{
 		ProjectPath: opts.ProjectPath,
 		ProjectID:   opts.ProjectID,
 		Agent:       opts.Agent,
@@ -60,6 +60,9 @@ func (p *Platform) RunHeadless(ctx context.Context, opts platform.HeadlessOpts) 
 		Format:      opts.Format,
 		Model:       opts.Model,
 		Files:       opts.Files,
+		ExtraArgs:   opts.ExtraArgs,
+		Provider:    opts.Provider,
+		Credentials: Credentials(opts.Credentials),
 	})
 
 	result := &platform.HeadlessResult{
@@ -112,10 +115,9 @@ func toStartOpts(opts platform.RunOpts) StartOpts {
 		Agent:           opts.Agent,
 		Prompt:          opts.Prompt,
 		Provider:        opts.Provider,
-		BearerToken:     opts.Credentials.BearerToken,
-		APIKey:          opts.Credentials.APIKey,
-		AWSProfile:      opts.Credentials.AWSProfile,
-		AWSRegion:       opts.Credentials.AWSRegion,
+		Credentials:     Credentials(opts.Credentials),
+		Model:           opts.Model,
+		Files:           opts.Files,
 		ResumeSessionID: opts.ResumeID,
 		ExtraArgs:       opts.ExtraArgs,
 	}

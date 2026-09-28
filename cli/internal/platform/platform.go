@@ -47,6 +47,8 @@ type RunOpts struct {
 	Prompt      string
 	Provider    string
 	Credentials Credentials
+	Model       string   // Model override (empty = backend default)
+	Files       []string // Files to pre-attach to the session context
 	ResumeID    string   // Resume an existing session (empty = new session)
 	ExtraArgs   []string // Backend-specific passthrough arguments
 }
@@ -76,9 +78,12 @@ type HeadlessOpts struct {
 	ProjectID   string
 	Agent       string
 	Prompt      string
-	Format      string   // "" (free text) or "json"
-	Model       string   // Model override (empty = backend default)
-	Files       []string // Files to attach to the prompt context
+	Format      string      // "" (free text) or "json"
+	Model       string      // Model override (empty = backend default)
+	Files       []string    // Files to attach to the prompt context
+	ExtraArgs   []string    // Backend-specific passthrough arguments
+	Provider    string      // Provider name (same cascade as RunOpts)
+	Credentials Credentials // Provider credentials (same as RunOpts)
 }
 
 // HeadlessResult holds structured output from a headless run.

@@ -231,11 +231,22 @@ func runStart(cmd *cobra.Command, args []string) error {
 	// Print summary inline if recap mode (the launcher doesn't own summary rendering)
 	if recapMode {
 		stack := prompt.DetectStack(launchPath)
+		prov := provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
 		var bearerToken string
 		if a.Secrets != nil {
-			bearerToken, _, _, _ = resolveCredentials(ctx, a, project, resolveProviderForDisplay(providerFlag, project, a))
+			var provCfg *provider.ProviderConfig
+			if project.ProviderConfig != nil {
+				provCfg = &provider.ProviderConfig{
+					AWSProfile: project.ProviderConfig.AWSProfile,
+					AWSRegion:  project.ProviderConfig.AWSRegion,
+				}
+			}
+			hubCfg := hubProviderCfg(a, prov)
+			mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+			creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
+			bearerToken = creds.BearerToken
 		}
-		printStartSummary(a, project, launchPath, resolveProviderForDisplay(providerFlag, project, a), stack, agent, bearerToken)
+		printStartSummary(a, project, launchPath, prov, stack, agent, bearerToken)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n\n",
@@ -254,52 +265,27 @@ func runStart(cmd *cobra.Command, args []string) error {
 }
 
 // resolveProviderForDisplay returns the effective provider name for display purposes.
+// Deprecated: use provider.ResolveProvider() directly. Kept as a thin wrapper
+// for backward compatibility with tests in session_launch_test.go.
 func resolveProviderForDisplay(providerFlag string, project *domain.Project, a *app.App) string {
-	prov := providerFlag
-	if prov == "" {
-		prov = project.Provider
-	}
-	if prov == "" {
-		prov = a.Config.Opencode.DefaultProvider
-	}
-	if prov == "" {
-		prov = "bedrock"
-	}
-	return prov
+	return provider.ResolveProvider(providerFlag, project.Provider, a.Config.Opencode.DefaultProvider)
 }
 
 // resolveCredentials extracts provider-specific credentials from secrets.
-// Uses provider.KeychainKey() for canonical key naming (openhub.provider.<name>.token[.<projectID>]).
+// Deprecated: use provider.ResolveCredentials() directly. Kept as a thin wrapper
+// for backward compatibility with tests in session_launch_test.go.
 func resolveCredentials(ctx context.Context, a *app.App, project *domain.Project, prov string) (bearerToken, apiKey, awsProfile, awsRegion string) {
-	provName := provider.Name(prov)
-	switch provName {
-	case provider.Bedrock:
-		bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
-		if bearerToken == "" {
-			bearerToken, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
-		}
-		if project.ProviderConfig != nil && project.ProviderConfig.AWSProfile != "" {
-			awsProfile = project.ProviderConfig.AWSProfile
-		} else {
-			awsProfile = a.Config.Provider.Bedrock.AWSProfile
-		}
-		if project.ProviderConfig != nil && project.ProviderConfig.AWSRegion != "" {
-			awsRegion = project.ProviderConfig.AWSRegion
-		} else {
-			awsRegion = a.Config.Provider.Bedrock.AWSRegion
-		}
-	case provider.Anthropic:
-		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
-		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
-		}
-	case provider.OpenRouter:
-		apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, project.ID))
-		if apiKey == "" {
-			apiKey, _ = a.Secrets.Get(ctx, provider.KeychainKey(provName, ""))
+	var provCfg *provider.ProviderConfig
+	if project.ProviderConfig != nil {
+		provCfg = &provider.ProviderConfig{
+			AWSProfile: project.ProviderConfig.AWSProfile,
+			AWSRegion:  project.ProviderConfig.AWSRegion,
 		}
 	}
-	return
+	hubCfg := hubProviderCfg(a, prov)
+	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
+	return creds.BearerToken, creds.APIKey, creds.AWSProfile, creds.AWSRegion
 }
 
 // printStartSummary prints the pre-launch info blocks to stdout.

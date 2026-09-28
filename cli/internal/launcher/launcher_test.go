@@ -176,10 +176,9 @@ func TestLauncherResolveCredentials_Bedrock(t *testing.T) {
 		provider.KeychainKey(provider.Bedrock, "proj-1"): "project-token",
 	}, nil)
 
-	l := New(a, nil)
-	bearer, apiKey, _, _ := l.resolveCredentials(context.Background(), "proj-1", "bedrock")
-	assert.Equal(t, "project-token", bearer)
-	assert.Empty(t, apiKey)
+	creds := provider.ResolveCredentials(context.Background(), a.Secrets, provider.Bedrock, "proj-1", nil)
+	assert.Equal(t, "project-token", creds.BearerToken)
+	assert.Empty(t, creds.APIKey)
 }
 
 func TestLauncherResolveCredentials_BedrockFallback(t *testing.T) {
@@ -187,9 +186,8 @@ func TestLauncherResolveCredentials_BedrockFallback(t *testing.T) {
 		provider.KeychainKey(provider.Bedrock, ""): "default-token",
 	}, nil)
 
-	l := New(a, nil)
-	bearer, _, _, _ := l.resolveCredentials(context.Background(), "proj-2", "bedrock")
-	assert.Equal(t, "default-token", bearer)
+	creds := provider.ResolveCredentials(context.Background(), a.Secrets, provider.Bedrock, "proj-2", nil)
+	assert.Equal(t, "default-token", creds.BearerToken)
 }
 
 func TestLauncherResolveCredentials_Anthropic(t *testing.T) {
@@ -197,9 +195,8 @@ func TestLauncherResolveCredentials_Anthropic(t *testing.T) {
 		provider.KeychainKey(provider.Anthropic, ""): "sk-ant-key",
 	}, nil)
 
-	l := New(a, nil)
-	_, apiKey, _, _ := l.resolveCredentials(context.Background(), "proj-3", "anthropic")
-	assert.Equal(t, "sk-ant-key", apiKey)
+	creds := provider.ResolveCredentials(context.Background(), a.Secrets, provider.Anthropic, "proj-3", nil)
+	assert.Equal(t, "sk-ant-key", creds.APIKey)
 }
 
 func TestLaunchRequiresProjectPath(t *testing.T) {
