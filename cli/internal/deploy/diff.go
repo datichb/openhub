@@ -1,10 +1,9 @@
 package deploy
 
 import (
-	"crypto/sha256"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -89,7 +88,7 @@ func (r *DiffReport) Summary() (added, modified, removed, unchanged int) {
 // If workflowSkills is non-nil, it maps skill refs (e.g. "orchestrator/orchestrator-modes")
 // to their generated content — these override static hub files in the comparison,
 // matching what DeploySkills + WriteGeneratedSkills actually write to disk.
-func ComputeDiff(hubDir, projectPath string, selectedAgents []string, workflowSkills map[string]string) (*DiffReport, error) {
+func ComputeDiff(ctx context.Context, hubDir, projectPath string, selectedAgents []string, workflowSkills map[string]string) (*DiffReport, error) {
 	report := &DiffReport{
 		HubDir:      hubDir,
 		ProjectPath: projectPath,
@@ -108,9 +107,9 @@ func ComputeDiff(hubDir, projectPath string, selectedAgents []string, workflowSk
 		// to match what actually gets deployed
 		assembled, err := assembleAgentWithSkills(path, skillsDir)
 		if err != nil {
-			return fileHash(path) // fallback to raw hash
+				return FileHash(path) // fallback to raw hash
 		}
-		return fmt.Sprintf("%x", sha256.Sum256(assembled)), nil
+		return BytesHash(assembled), nil
 	}
 
 	if err := diffDirectory(
@@ -158,7 +157,7 @@ func checkConfigDrift(projectPath string, report *DiffReport) {
 		return
 	}
 
-	currentHash := hashBytes(data)
+	currentHash := BytesHash(data)
 	if currentHash == state.ConfigHash {
 		return // no change
 	}
@@ -286,7 +285,7 @@ func diffSkills(hubDir, projectPath string, selectedAgents []string, workflowSki
 		if err != nil {
 			continue // skip missing source skills (non-fatal)
 		}
-		hash, err := fileHash(srcPath)
+		hash, err := FileHash(srcPath)
 		if err != nil {
 			continue // skip missing source skills (non-fatal)
 		}
@@ -302,7 +301,7 @@ func diffSkills(hubDir, projectPath string, selectedAgents []string, workflowSki
 	for ref, content := range workflowSkills {
 		parts := strings.Split(ref, "/")
 		skillName := parts[len(parts)-1]
-		srcHashes[skillName] = hashBytes([]byte(content))
+		srcHashes[skillName] = BytesHash([]byte(content))
 	}
 
 	// Build destination hash map: skill name → hash of deployed SKILL.md
@@ -317,7 +316,7 @@ func diffSkills(hubDir, projectPath string, selectedAgents []string, workflowSki
 				continue
 			}
 			skillFile := filepath.Join(destDir, entry.Name(), "SKILL.md")
-			hash, err := fileHash(skillFile)
+			hash, err := FileHash(skillFile)
 			if err != nil {
 				continue // skip dirs without SKILL.md
 			}
@@ -405,7 +404,7 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 			if srcHashFn != nil {
 				hash, hashErr = srcHashFn(path)
 			} else {
-				hash, hashErr = fileHash(path)
+				hash, hashErr = FileHash(path)
 			}
 			if hashErr != nil {
 				return hashErr
@@ -428,7 +427,7 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 				return nil
 			}
 			rel, _ := filepath.Rel(destDir, path)
-			hash, err := fileHash(path)
+			hash, err := FileHash(path)
 			if err != nil {
 				return err
 			}
@@ -481,22 +480,6 @@ func diffDirectory(srcDir, destDir, prefix string, report *DiffReport, allowSet 
 	}
 
 	return nil
-}
-
-// fileHash returns the SHA-256 hex digest of a file using streaming to avoid
-// loading the entire file into memory.
-func fileHash(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 // FormatDiffReport produces a human-readable diff summary.

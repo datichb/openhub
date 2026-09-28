@@ -3,10 +3,11 @@
 package deploy
 
 import (
-	"crypto/sha256"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,17 +21,18 @@ var DisabledNativeAgents = []string{"build", "plan", "general", "explore", "scou
 
 // Plan represents a deployment plan with all phases.
 type Plan struct {
-	ProjectPath         string
-	ProjectID           string
-	HubDir              string // source hub directory (agents/, skills/, etc.)
-	Provider            string
-	Model               string
-	WebsearchEnabled    bool                  // inject permission.websearch/webfetch = "allow"
-	SelectedAgents      []string              // agent names to deploy (empty = all)
-	EnabledMCPServers   []string              // MCP server names enabled in hub config (for validation warnings)
-	DisableNativeAgents []string              // override the default DisabledNativeAgents list (nil = use default)
-	WorkflowResult      *WorkflowDeployResult // resolved workflow (nil = no workflow customization)
-	Phases              []Phase
+	ProjectPath           string
+	ProjectID             string
+	HubDir                string // source hub directory (agents/, skills/, etc.)
+	Provider              string
+	Model                 string
+	WebsearchEnabled      bool                  // inject permission.websearch/webfetch = "allow"
+	SelectedAgents        []string              // agent names to deploy (empty = all)
+	EnabledMCPServers     []string              // MCP server names enabled in hub config (for validation warnings)
+	DisableNativeAgents   []string              // override the default DisabledNativeAgents list (nil = use default)
+	ExtraInstructionFiles []string              // additional instruction files from hub.toml [deploy].instruction_files
+	WorkflowResult        *WorkflowDeployResult // resolved workflow (nil = no workflow customization)
+	Phases                []Phase
 }
 
 // Phase represents a single deployment phase.
@@ -41,10 +43,12 @@ type Phase struct {
 
 // Context holds state during deployment.
 type Context struct {
+	Ctx                    context.Context         // parent context for cancellation
 	Plan                   *Plan
 	BackupDir              string
 	Results                []PhaseResult
 	StartedAt              time.Time
+	ItemCount              int                     // accumulator: items processed by current phase (reset between phases)
 	MissingMCPIntegrations []MissingMCPIntegration // populated by DeployAgentConfig
 }
 
@@ -54,6 +58,9 @@ type PhaseResult struct {
 	Success  bool
 	Message  string
 	Duration time.Duration
+	// ItemCount is the number of items processed by this phase (agents deployed,
+	// skills copied, MCP servers injected, etc.). Zero for phases that don't track items.
+	ItemCount int
 	// MissingIntegrations lists optional MCP integrations that agents declare
 	// but that are not enabled. Populated only by the AgentConfig phase.
 	// nil for all other phases.
@@ -76,8 +83,11 @@ type Snapshot struct {
 }
 
 // Execute runs a full deployment with transactional rollback.
-func Execute(plan *Plan) ([]PhaseResult, error) {
+// The context is checked before each phase; if cancelled, the deployment
+// is rolled back and an error is returned.
+func Execute(goCtx context.Context, plan *Plan) ([]PhaseResult, error) {
 	ctx := &Context{
+		Ctx:       goCtx,
 		Plan:      plan,
 		StartedAt: time.Now(),
 	}
@@ -92,12 +102,24 @@ func Execute(plan *Plan) ([]PhaseResult, error) {
 
 	// Run all phases
 	for _, phase := range plan.Phases {
+		// Check cancellation before each phase
+		select {
+		case <-goCtx.Done():
+			if rbErr := rollback(plan.ProjectPath, snapshot); rbErr != nil {
+				return ctx.Results, fmt.Errorf("cancelled (rollback failed: %v)", rbErr)
+			}
+			return ctx.Results, fmt.Errorf("cancelled (rolled back): %w", goCtx.Err())
+		default:
+		}
+
 		start := time.Now()
+		ctx.ItemCount = 0 // reset accumulator for each phase
 		err := phase.Execute(ctx)
 		result := PhaseResult{
 			Name:                phase.Name,
 			Success:             err == nil,
 			Duration:            time.Since(start),
+			ItemCount:           ctx.ItemCount,
 			MissingIntegrations: ctx.MissingMCPIntegrations, // may be nil for non-AgentConfig phases
 		}
 		// Reset after capturing — only one phase should produce these
@@ -117,13 +139,14 @@ func Execute(plan *Plan) ([]PhaseResult, error) {
 
 	// Write deploy state for future --check comparisons
 	if err := writeDeployState(plan); err != nil {
-		// Non-fatal: deploy succeeded, state tracking is best-effort
-		_ = err
+		slog.Warn("failed to write deploy state (next deploy may re-run)", "error", err)
 	}
 
 	// Write context manifest for freshness checking
 	if plan.HubDir != "" {
-		_ = WriteContextManifest(plan.HubDir, plan.ProjectPath) // best-effort
+		if err := WriteContextManifest(plan.HubDir, plan.ProjectPath); err != nil {
+			slog.Warn("failed to write context manifest", "error", err)
+		}
 	}
 
 	return ctx.Results, nil
@@ -239,9 +262,17 @@ func DeployAgents(hubDir string, selected []string) Phase {
 				assembled, err := assembleAgentWithSkills(path, skillsDir)
 				if err != nil {
 					// Fall back to raw copy if assembly fails
-					return copyFile(path, dest)
+					if cpErr := copyFile(path, dest); cpErr != nil {
+						return cpErr
+					}
+					ctx.ItemCount++
+					return nil
 				}
-				return os.WriteFile(dest, assembled, 0o644)
+				if err := os.WriteFile(dest, assembled, 0o644); err != nil {
+					return err
+				}
+				ctx.ItemCount++
+				return nil
 			})
 		},
 	}
@@ -279,6 +310,7 @@ func DeploySkills(hubDir string, selected []string) Phase {
 					// Non-fatal: skip missing skills
 					continue
 				}
+				ctx.ItemCount++
 			}
 
 			// Deploy workflow-generated skills (overwrite static equivalents)
@@ -289,6 +321,7 @@ func DeploySkills(hubDir string, selected []string) Phase {
 				); err != nil {
 					return fmt.Errorf("writing generated workflow skills: %w", err)
 				}
+				ctx.ItemCount += len(ctx.Plan.WorkflowResult.GeneratedSkills)
 			}
 
 			return nil
@@ -430,14 +463,29 @@ func DeployConfig(provider, model string) Phase {
 			}
 			config["agent"] = agentCfg
 
-			// Inject plugin (always deploy context-mode)
-			config["plugin"] = []interface{}{"context-mode"}
+			// Inject plugin: ensure context-mode is present without removing
+			// other plugins the user may have configured manually.
+			existingPlugins, _ := config["plugin"].([]interface{})
+			hasContextMode := false
+			for _, p := range existingPlugins {
+				if p == "context-mode" {
+					hasContextMode = true
+					break
+				}
+			}
+			if !hasContextMode {
+				existingPlugins = append(existingPlugins, "context-mode")
+			}
+			config["plugin"] = existingPlugins
 
-			// Inject compaction settings (standard for all projects)
-			config["compaction"] = map[string]interface{}{
-				"auto":     true,
-				"prune":    true,
-				"reserved": 10000,
+			// Inject compaction settings only if not already configured,
+			// so users can tune reserved tokens or disable auto-compaction.
+			if _, exists := config["compaction"]; !exists {
+				config["compaction"] = map[string]interface{}{
+					"auto":     true,
+					"prune":    true,
+					"reserved": 10000,
+				}
 			}
 
 			// Inject subagent_depth to support the full delegation chain:
@@ -451,10 +499,23 @@ func DeployConfig(provider, model string) Phase {
 				config["subagent_depth"] = 3
 			}
 
-			// Inject instructions if documentation files exist in the project
-			instructions := discoverInstructionFiles(ctx.Plan.ProjectPath)
-			if len(instructions) > 0 {
-				config["instructions"] = instructions
+			// Inject instructions: merge discovered doc files with any
+			// user-configured instructions instead of overwriting them.
+			discovered := discoverInstructionFiles(ctx.Plan.ProjectPath, ctx.Plan.ExtraInstructionFiles)
+			if len(discovered) > 0 {
+				existing, _ := config["instructions"].([]interface{})
+				existingSet := make(map[string]bool, len(existing))
+				for _, e := range existing {
+					if s, ok := e.(string); ok {
+						existingSet[s] = true
+					}
+				}
+				for _, d := range discovered {
+					if s, ok := d.(string); ok && !existingSet[s] {
+						existing = append(existing, d)
+					}
+				}
+				config["instructions"] = existing
 			}
 
 			// NOTE: The workflow defaultMode is already injected into the
@@ -488,13 +549,15 @@ func providerOpencodeName(provider string) string {
 }
 
 // discoverInstructionFiles checks for documentation files in the project that should
-// be included as instructions for opencode. Returns a slice of relative paths.
-func discoverInstructionFiles(projectPath string) []interface{} {
+// be included as instructions for opencode. The extra parameter allows hub.toml to
+// specify additional files beyond the built-in defaults. Returns a slice of relative paths.
+func discoverInstructionFiles(projectPath string, extra []string) []interface{} {
 	candidates := []string{
 		"ONBOARDING.md",
 		"CONVENTIONS.md",
 		".claude/CLAUDE.md",
 	}
+	candidates = append(candidates, extra...)
 
 	var found []interface{}
 	for _, name := range candidates {
@@ -565,7 +628,7 @@ func writeDeployState(plan *Plan) error {
 	configHash := ""
 	var configSnapshot map[string]interface{}
 	if data, err := os.ReadFile(configPath); err == nil {
-		configHash = hashBytes(data)
+		configHash = BytesHash(data)
 		_ = json.Unmarshal(data, &configSnapshot) // best-effort; nil on parse failure
 	}
 
@@ -582,7 +645,7 @@ func writeDeployState(plan *Plan) error {
 	// Record workflow hash for staleness detection
 	if plan.WorkflowResult != nil {
 		if wfData, err := json.Marshal(plan.WorkflowResult.Resolved); err == nil {
-			state.WorkflowHash = hashBytes(wfData)
+			state.WorkflowHash = BytesHash(wfData)
 		}
 	}
 
@@ -607,14 +670,4 @@ func ReadDeployState(projectPath string) *DeployState {
 		return nil
 	}
 	return &state
-}
-
-// hashBytes returns the SHA-256 hex digest of a byte slice.
-func hashBytes(data []byte) string {
-	h := fmt.Sprintf("%x", sha256Sum(data))
-	return h
-}
-
-func sha256Sum(data []byte) [32]byte {
-	return [32]byte(sha256.Sum256(data))
 }

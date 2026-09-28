@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,7 +21,7 @@ func TestComputeDiff_AllNew(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "dev.md"), []byte("# Dev Agent"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "review.md"), []byte("# Review Agent"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, nil, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, nil, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -47,7 +48,7 @@ func TestComputeDiff_Unchanged(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), content, 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, nil, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, nil, nil)
 	require.NoError(t, err)
 
 	assert.False(t, report.HasChanges())
@@ -69,7 +70,7 @@ func TestComputeDiff_Modified(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "dev.md"), []byte("# Dev Agent v1"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, nil, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, nil, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -89,7 +90,7 @@ func TestComputeDiff_Removed(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, nil, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, nil, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -112,7 +113,7 @@ func TestComputeDiff_WithSkills(t *testing.T) {
 	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "react-patterns.md"), []byte("# React Patterns"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"}, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, []string{"dev"}, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())
@@ -150,7 +151,7 @@ func TestComputeDiff_SkillsUnchangedAfterDeploy(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedSkill, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedSkill, "SKILL.md"), skillContent, 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"}, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, []string{"dev"}, nil)
 	require.NoError(t, err)
 
 	// Count only skill diffs (ignore agents which may differ due to assembly)
@@ -193,7 +194,7 @@ func TestComputeDiff_SkillsModified(t *testing.T) {
 	require.NoError(t, os.MkdirAll(deployedSkill, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(deployedSkill, "SKILL.md"), []byte("# Security v1"), 0o644))
 
-	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"}, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, []string{"dev"}, nil)
 	require.NoError(t, err)
 
 	// Count only skill diffs
@@ -224,7 +225,7 @@ func TestComputeDiff_UnreferencedSkillsIgnored(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "unused.md"), []byte("# Unused"), 0o644))
 	}
 
-	report, err := ComputeDiff(hubDir, projectDir, []string{"dev"}, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, []string{"dev"}, nil)
 	require.NoError(t, err)
 
 	// Only the agent should appear as added, skills should be ignored
@@ -250,7 +251,7 @@ func TestComputeDiff_MixedScenario(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "old.md"), []byte("# Old Agent"), 0o644))   // will be "removed"
 	require.NoError(t, os.WriteFile(filepath.Join(deployedDir, "same.md"), []byte("# Same Agent"), 0o644)) // unchanged
 
-	report, err := ComputeDiff(hubDir, projectDir, nil, nil)
+	report, err := ComputeDiff(context.Background(), hubDir, projectDir, nil, nil)
 	require.NoError(t, err)
 
 	assert.True(t, report.HasChanges())

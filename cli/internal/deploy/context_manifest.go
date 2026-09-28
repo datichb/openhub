@@ -1,11 +1,8 @@
 package deploy
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -56,7 +53,7 @@ func WriteContextManifest(hubDir, projectPath string) error {
 				return err
 			}
 			rel, _ := filepath.Rel(hubDir, path)
-			hash, hashErr := hashFile(path)
+			hash, hashErr := FileHash(path)
 			if hashErr != nil {
 				return nil //nolint:nilerr // skip files we can't read
 			}
@@ -99,7 +96,7 @@ func CheckContextFreshness(hubDir, projectPath string) (*FreshnessReport, error)
 	// Check existing manifest entries against current source
 	for relPath, entry := range manifest.Files {
 		srcPath := filepath.Join(hubDir, relPath)
-		currentHash, err := hashFile(srcPath)
+		currentHash, err := FileHash(srcPath)
 		if err != nil {
 			report.Missing = append(report.Missing, relPath)
 			report.Fresh = false
@@ -132,17 +129,4 @@ func CheckContextFreshness(hubDir, projectPath string) (*FreshnessReport, error)
 	}
 
 	return report, nil
-}
-
-func hashFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

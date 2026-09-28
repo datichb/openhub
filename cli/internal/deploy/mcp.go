@@ -61,6 +61,8 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 				return nil // nothing to deploy
 			}
 
+			ctx.ItemCount = len(deployed)
+
 			// Read existing opencode.json
 			configPath := filepath.Join(ctx.Plan.ProjectPath, "opencode.json")
 			var config map[string]interface{}

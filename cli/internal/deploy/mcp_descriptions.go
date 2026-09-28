@@ -2,35 +2,36 @@ package deploy
 
 import "fmt"
 
-// mcpIntegrationDescriptions maps (agentID, serverName) pairs to a
-// human-readable description of what the integration provides.
-// Used by CollectMissingMCPIntegrations for the deploy summary.
-var mcpIntegrationDescriptions = map[string]map[string]string{
-	"designer":   {"figma": "accès aux designs et composants via Figma"},
-	"planner":    {"gitlab": "accès aux issues, merge requests et milestones via GitLab"},
-	"pathfinder": {"gitlab": "exploration du code et des pipelines via GitLab"},
-	"onboarder":  {"gitlab": "analyse de l'historique projet via GitLab"},
+// mcpIntegrationKeys maps (agentID, serverName) pairs to i18n keys.
+// The actual translation is resolved at the call site in the cmd layer
+// to keep the deploy package independent of the i18n system.
+var mcpIntegrationKeys = map[string]map[string]string{
+	"designer":   {"figma": "deploy.mcp.desc.designer.figma"},
+	"planner":    {"gitlab": "deploy.mcp.desc.planner.gitlab"},
+	"pathfinder": {"gitlab": "deploy.mcp.desc.pathfinder.gitlab"},
+	"onboarder":  {"gitlab": "deploy.mcp.desc.onboarder.gitlab"},
 }
 
-// mcpServerDescriptions provides a generic fallback description per server
-// when no agent-specific description exists.
-var mcpServerDescriptions = map[string]string{
-	"figma":   "intégration Figma",
-	"gitlab":  "intégration GitLab",
-	"gslides": "intégration Google Slides",
+// mcpServerKeys provides a generic i18n key fallback per server
+// when no agent-specific key exists.
+var mcpServerKeys = map[string]string{
+	"figma":   "deploy.mcp.desc.figma",
+	"gitlab":  "deploy.mcp.desc.gitlab",
+	"jira":    "deploy.mcp.desc.jira",
+	"gslides": "deploy.mcp.desc.gslides",
 }
 
-// describeMCPIntegration returns a human-readable description for an
-// agent/server pair. Falls back to a generic server description, then
-// to a minimal "intégration <server>" string.
+// describeMCPIntegration returns an i18n key for an agent/server pair.
+// The caller is responsible for resolving it via i18n.T().
+// Falls back to a generic server key, then to a formatted key for unknown servers.
 func describeMCPIntegration(agentID, serverName string) string {
-	if agentDescs, ok := mcpIntegrationDescriptions[agentID]; ok {
-		if desc, ok := agentDescs[serverName]; ok {
-			return desc
+	if agentKeys, ok := mcpIntegrationKeys[agentID]; ok {
+		if key, ok := agentKeys[serverName]; ok {
+			return key
 		}
 	}
-	if desc, ok := mcpServerDescriptions[serverName]; ok {
-		return desc
+	if key, ok := mcpServerKeys[serverName]; ok {
+		return key
 	}
-	return fmt.Sprintf("intégration %s", serverName)
+	return fmt.Sprintf("deploy.mcp.desc.%s", serverName)
 }

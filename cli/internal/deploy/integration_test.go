@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -44,7 +45,7 @@ func TestIntegration_FullDeployPipeline(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	assert.Len(t, results, 4)
 	for _, r := range results {
@@ -133,7 +134,7 @@ func TestIntegration_DeployFilterOnly(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 
 	// Verify only reviewer deployed (flat structure)
@@ -176,7 +177,7 @@ func TestIntegration_BedrockProviderNormalization(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	for _, r := range results {
 		assert.True(t, r.Success, "phase %s: %s", r.Name, r.Message)

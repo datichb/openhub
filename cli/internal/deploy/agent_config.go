@@ -103,19 +103,11 @@ func DeployAgentConfig(hubDir string, selected []string, projectOverrides, hubOv
 				rel, _ := filepath.Rel(srcDir, path)
 				family := AgentFamily(rel)
 
-				// Build agent config block
-				agentBlock := buildAgentBlock(fm, family, hubDir, projectOverrides, hubOverrides, teamOverrides, provider)
-				if agentBlock != nil {
-					// DEBUG TEMP: log task permissions for orchestrator
-					if fm.ID == "orchestrator" {
-						if perm, ok := agentBlock["permission"].(map[string]interface{}); ok {
-							if task, ok := perm["task"].(map[string]interface{}); ok {
-								slog.Info("DEBUG orchestrator task permissions", "keys", fmt.Sprintf("%v", task))
-							}
-						}
-					}
-					agentCfg[fm.ID] = agentBlock
-				}
+			// Build agent config block
+			agentBlock := buildAgentBlock(fm, family, hubDir, projectOverrides, hubOverrides, teamOverrides, provider)
+			if agentBlock != nil {
+				agentCfg[fm.ID] = agentBlock
+			}
 
 				return nil
 			})

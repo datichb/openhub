@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -92,7 +93,7 @@ func TestExecute_FullDeploy(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	assert.Len(t, results, 3)
 	for _, r := range results {
@@ -142,7 +143,7 @@ func TestExecute_Rollback(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "rolled back")
 	assert.Len(t, results, 2)
@@ -168,7 +169,7 @@ func TestExecute_NoAgents(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
 	for _, r := range results {
@@ -188,7 +189,7 @@ func TestDeployConfig_MergesExisting(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	assert.True(t, results[0].Success)
 
@@ -225,7 +226,7 @@ func TestDeployConfig_PluginAndCompaction(t *testing.T) {
 		},
 	}
 
-	results, err := Execute(plan)
+	results, err := Execute(context.Background(), plan)
 	require.NoError(t, err)
 	assert.True(t, results[0].Success)
 
@@ -245,4 +246,105 @@ func TestDeployConfig_PluginAndCompaction(t *testing.T) {
 	assert.Equal(t, true, compaction["auto"])
 	assert.Equal(t, true, compaction["prune"])
 	assert.Equal(t, float64(10000), compaction["reserved"]) // JSON numbers are float64
+}
+
+func TestDeployConfig_PreservesExistingPlugins(t *testing.T) {
+	projectDir := t.TempDir()
+
+	// Pre-existing config with a custom plugin and custom compaction
+	existing := `{
+		"plugin": ["my-custom-plugin"],
+		"compaction": {"auto": false, "prune": false, "reserved": 20000}
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "opencode.json"), []byte(existing), 0o644))
+
+	plan := &Plan{
+		ProjectPath: projectDir,
+		Phases: []Phase{
+			DeployConfig("anthropic", "claude-sonnet-4-5"),
+		},
+	}
+
+	results, err := Execute(context.Background(), plan)
+	require.NoError(t, err)
+	assert.True(t, results[0].Success)
+
+	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
+	var config map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &config))
+
+	// Plugin: context-mode added, custom plugin preserved
+	plugins, ok := config["plugin"].([]interface{})
+	require.True(t, ok, "plugin should be an array")
+	assert.Contains(t, plugins, "context-mode")
+	assert.Contains(t, plugins, "my-custom-plugin")
+
+	// Compaction: user's custom settings preserved (not overwritten)
+	compaction, ok := config["compaction"].(map[string]interface{})
+	require.True(t, ok, "compaction should be an object")
+	assert.Equal(t, false, compaction["auto"])
+	assert.Equal(t, float64(20000), compaction["reserved"])
+}
+
+func TestExecute_ItemCounts(t *testing.T) {
+	hubDir, projectDir := setupTestHub(t)
+
+	plan := &Plan{
+		ProjectPath: projectDir,
+		ProjectID:   "test-counts",
+		HubDir:      hubDir,
+		Provider:    "bedrock",
+		Model:       "claude-opus-4",
+		Phases: []Phase{
+			DeployAgents(hubDir, nil),
+			DeploySkills(hubDir, nil),
+			DeployConfig("bedrock", "claude-opus-4"),
+		},
+	}
+
+	results, err := Execute(context.Background(), plan)
+	require.NoError(t, err)
+	require.Len(t, results, 3)
+
+	// Agents phase: 2 agents in setupTestHub (coder + reviewer)
+	assert.Equal(t, "Agents", results[0].Name)
+	assert.Equal(t, 2, results[0].ItemCount, "should have deployed 2 agents")
+
+	// Skills phase: 1 native skill referenced by both agents (shared/coding)
+	assert.Equal(t, "Skills", results[1].Name)
+	assert.GreaterOrEqual(t, results[1].ItemCount, 1, "should have deployed at least 1 skill")
+
+	// Config phase does not track item counts
+	assert.Equal(t, "Configuration", results[2].Name)
+	assert.Equal(t, 0, results[2].ItemCount)
+}
+
+func TestDeployConfig_ExtraInstructionFiles(t *testing.T) {
+	projectDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, ".opencode"), 0o755))
+
+	// Create the default + extra instruction files in the project
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "ONBOARDING.md"), []byte("# Onboarding"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "ARCHITECTURE.md"), []byte("# Architecture"), 0o644))
+
+	plan := &Plan{
+		ProjectPath:           projectDir,
+		ExtraInstructionFiles: []string{"ARCHITECTURE.md"},
+		Phases: []Phase{
+			DeployConfig("anthropic", "claude-sonnet-4-5"),
+		},
+	}
+
+	results, err := Execute(context.Background(), plan)
+	require.NoError(t, err)
+	assert.True(t, results[0].Success)
+
+	data, _ := os.ReadFile(filepath.Join(projectDir, "opencode.json"))
+	var config map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &config))
+
+	instructions, ok := config["instructions"].([]interface{})
+	require.True(t, ok, "instructions should be an array")
+	assert.Contains(t, instructions, "ONBOARDING.md")
+	assert.Contains(t, instructions, "ARCHITECTURE.md")
 }
