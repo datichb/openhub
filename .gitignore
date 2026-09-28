@@ -39,3 +39,4 @@ tests/tmp_*
 
 docs/presentations/
 dist/oh
+cli/oh-backup-*.tar.gz

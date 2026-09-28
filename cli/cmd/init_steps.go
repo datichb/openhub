@@ -615,8 +615,8 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 				return nil
 			}
 
-			plan := buildDeployPlan(*s.AppPtr, s.ProjectPath, "", hubDir, s.SelectedProvider, "", nil, nil, nil, nil)
-			_, err = deploy.Execute(plan)
+			plan := buildDeployPlan(*s.AppPtr, DeployRequest{ProjectPath: s.ProjectPath, HubDir: hubDir, Provider: s.SelectedProvider})
+			_, err = deploy.Execute(context.Background(), plan)
 			return err
 		},
 		InfoFields: func() []views.InfoField {

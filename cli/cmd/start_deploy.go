@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -28,10 +29,9 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 		err := progress.Run(
 			i18n.T("cmd.start.autodeploy_first"),
 			func() error {
-				plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-					project.Agents, project.ModelOverrides, project.MCPConfig, project)
+				plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir, Provider: provider, Model: model})
 				var e error
-				results, e = deploy.Execute(plan)
+				results, e = deploy.Execute(context.Background(), plan)
 				return e
 			},
 		)
@@ -53,7 +53,7 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 	}
 
 	// CASE 2: Already deployed — check staleness
-	report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
+	report, err := deploy.ComputeDiff(context.Background(), hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 	if err != nil || !report.HasChanges() {
 		// CASE 3: Up to date (or diff error — conservative, no redeploy)
 		fmt.Fprintf(out, "  %s %s\n",
@@ -76,9 +76,8 @@ func autoDeployIfNeeded(a *app.App, project *domain.Project, hubDir, provider, m
 	err = progress.Run(
 		i18n.Tf("cmd.start.autodeploy_updating", added, modified, removed),
 		func() error {
-			plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model,
-				project.Agents, project.ModelOverrides, project.MCPConfig, project)
-			_, e := deploy.Execute(plan)
+			plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir, Provider: provider, Model: model})
+			_, e := deploy.Execute(context.Background(), plan)
 			return e
 		},
 	)
@@ -104,26 +103,13 @@ func countDeployResults(results []deploy.PhaseResult) (agents, skills, mcp int) 
 			continue
 		}
 		switch r.Name {
-		case "agents":
-			agents = parseCount(r.Message)
-		case "skills":
-			skills = parseCount(r.Message)
-		case "mcp":
-			mcp = parseCount(r.Message)
+		case "Agents":
+			agents = r.ItemCount
+		case "Skills":
+			skills = r.ItemCount
+		case "MCP Servers":
+			mcp = r.ItemCount
 		}
 	}
 	return
-}
-
-// parseCount extracts the first integer from a string like "3 deployed".
-func parseCount(s string) int {
-	n := 0
-	for _, c := range s {
-		if c >= '0' && c <= '9' {
-			n = n*10 + int(c-'0')
-		} else if n > 0 {
-			break
-		}
-	}
-	return n
 }

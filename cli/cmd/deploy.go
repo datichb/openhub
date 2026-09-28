@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -87,11 +88,11 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// Build deployment plan (use project's selected agents from DB)
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, provider, model, project.Agents, project.ModelOverrides, project.MCPConfig, project)
+	plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir, Provider: provider, Model: model})
 
 	// Execute
 	start := time.Now()
-	results, err := deploy.Execute(plan)
+	results, err := deploy.Execute(cmd.Context(), plan)
 
 	// Display results
 	var allMissing []deploy.MissingMCPIntegration
@@ -117,7 +118,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			theme.InfoStyle.Render("ℹ"),
 			i18n.T("cmd.deploy.mcp_optional_intro"))
 		for _, m := range allMissing {
-			fmt.Fprintf(a.IO.Out, "    · %s — %s\n", m.AgentID, m.Description)
+			fmt.Fprintf(a.IO.Out, "    · %s — %s\n", m.AgentID, i18n.T(m.Description))
 		}
 		fmt.Fprintln(a.IO.Out)
 	}
@@ -142,7 +143,7 @@ func runDeployCheck(a *app.App, hubDir, projectPath, projectName string, selecte
 		theme.Title.Render("oh deploy --check"), i18n.Tf("cmd.deploy.check_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
+	report, err := deploy.ComputeDiff(context.Background(), hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}
@@ -185,7 +186,7 @@ func runDeployDiff(a *app.App, hubDir, projectPath, projectName string, selected
 		theme.Title.Render("oh deploy --diff"), i18n.Tf("cmd.deploy.diff_title", projectName))
 	fmt.Fprintln(a.IO.Out)
 
-	report, err := deploy.ComputeDiff(hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
+	report, err := deploy.ComputeDiff(context.Background(), hubDir, projectPath, selectedAgents, resolveWorkflowGeneratedSkills(a, nil))
 	if err != nil {
 		return fmt.Errorf("calcul diff: %w", err)
 	}
@@ -247,6 +248,7 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 	tokenEnvs := map[string]string{
 		"figma":   "FIGMA_TOKEN",
 		"gitlab":  "GITLAB_TOKEN",
+		"jira":    "JIRA_TOKEN",
 		"gslides": "GOOGLE_ACCESS_TOKEN",
 	}
 
@@ -257,7 +259,7 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 
 	// Resolve each service using the full 3-level cascade
 	var servers []deploy.MCPServerDef
-	for _, name := range []string{"figma", "gitlab", "gslides"} {
+	for _, name := range []string{"figma", "gitlab", "jira", "gslides"} {
 		hub := hubServices[name]
 		var shared *teamstate.SharedMCPConfig
 		if sharedMCP != nil {
@@ -288,12 +290,57 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 	return servers
 }
 
+// DeployRequest holds the parameters for building a deployment plan.
+// It replaces the former long parameter list of buildDeployPlan.
+type DeployRequest struct {
+	// Project is the target project. Can be nil for pre-persist deployments
+	// (init wizard, project add before DB insert).
+	Project *domain.Project
+
+	// ProjectPath and ProjectID are used when Project is nil (pre-persist deployments).
+	// Ignored when Project is non-nil.
+	ProjectPath string
+	ProjectID   string
+
+	// HubDir is the path to the hub content directory.
+	HubDir string
+
+	// Provider overrides the project's provider (CLI flag). Empty = inherit.
+	Provider string
+
+	// Model overrides the project's model (CLI flag). Empty = inherit.
+	Model string
+
+	// SelectedAgents overrides the project's agent selection.
+	// If nil and Project is non-nil, uses Project.Agents.
+	SelectedAgents []string
+}
+
 // buildDeployPlan creates a standard deployment plan with all phases.
-// provider and model can be empty to inherit from project config.
-// projectModelOvr can be nil if the project has no per-agent/family overrides.
-// projectMCPCfg can be nil to inherit hub-level MCP config.
-// project can be nil (pre-persist deployments); in that case hub-level team config is used.
-func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model string, selectedAgents []string, projectModelOvr *domain.ProjectModelOverrides, projectMCPCfg *domain.ProjectMCPConfig, project *domain.Project) *deploy.Plan {
+func buildDeployPlan(a *app.App, req DeployRequest) *deploy.Plan {
+	// Extract fields from Project when available, falling back to explicit request fields
+	project := req.Project
+	projectPath := req.ProjectPath
+	projectID := req.ProjectID
+	provider := req.Provider
+	model := req.Model
+	selectedAgents := req.SelectedAgents
+	hubDir := req.HubDir
+	var projectModelOvr *domain.ProjectModelOverrides
+	var projectMCPCfg *domain.ProjectMCPConfig
+
+	if project != nil {
+		projectPath = project.Path
+		projectID = project.ID
+		if provider == "" {
+			provider = project.Provider
+		}
+		if selectedAgents == nil {
+			selectedAgents = project.Agents
+		}
+		projectModelOvr = project.ModelOverrides
+		projectMCPCfg = project.MCPConfig
+	}
 	// Read websearch setting from hub config
 	websearchEnabled := a.Config.Websearch.Enabled
 
@@ -364,38 +411,10 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	// This produces: generated skills, disabled agent list, and derived permissions.
 	var wfResult *deploy.WorkflowDeployResult
 	{
-		// Collect overrides from each level.
-		var overrides []workflow.WorkflowOverride
-
-		// Hub overrides
-		if a.Config.Workflow != nil && a.Config.Workflow.Overrides != nil {
-			overrides = append(overrides, *a.Config.Workflow.Overrides)
-		}
-
-		// Team overrides (load team config if available)
-		if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
-			teamRepo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
-			if teamRepo.IsCloned() {
-				teamCfg, err := teamRepo.LoadConfig()
-				if err == nil && teamCfg.Workflow != nil && teamCfg.Workflow.Overrides != nil {
-					ov := *teamCfg.Workflow.Overrides
-					if teamCfg.Workflow.IsEnforced() {
-						ov.Enforced = true
-					}
-					overrides = append(overrides, ov)
-				}
-			}
-		}
-
-		// Project overrides
-		if project != nil && project.WorkflowConfig != nil && project.WorkflowConfig.Overrides != nil {
-			overrides = append(overrides, *project.WorkflowConfig.Overrides)
-		}
-
+		overrides := collectWorkflowOverrides(a, project, resolvedTeam)
 		result, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow(), overrides...)
 		if err != nil {
 			slog.Warn("workflow resolution failed, using base workflow", "error", err)
-			// Fallback: use base workflow without overrides
 			result, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
 		}
 		wfResult = result
@@ -437,10 +456,11 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 		Provider:            provider,
 		Model:               model,
 		WebsearchEnabled:    websearchEnabled,
-		SelectedAgents:      selectedAgents,
-		EnabledMCPServers:   enabledMCPServers,
-		DisableNativeAgents: a.Config.Deploy.DisableNativeAgents,
-		WorkflowResult:      wfResult,
+		SelectedAgents:        selectedAgents,
+		EnabledMCPServers:     enabledMCPServers,
+		DisableNativeAgents:   a.Config.Deploy.DisableNativeAgents,
+		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
+		WorkflowResult:        wfResult,
 		Phases: []deploy.Phase{
 			deploy.DeployAgents(hubDir, selectedAgents),
 			deploy.DeploySkills(hubDir, selectedAgents),
@@ -452,12 +472,9 @@ func buildDeployPlan(a *app.App, projectPath, projectID, hubDir, provider, model
 	}
 }
 
-// resolveWorkflowGeneratedSkills resolves the workflow cascade (base → hub → team → project)
-// and returns the map of generated skill refs → content. This is used by ComputeDiff to
-// produce an accurate skill comparison that accounts for workflow-generated skills.
-// Returns nil (not an error) if the workflow cannot be resolved — the diff will then
-// treat generated skills as phantom changes, which is acceptable as a graceful fallback.
-func resolveWorkflowGeneratedSkills(a *app.App, project *domain.Project) map[string]string {
+// collectWorkflowOverrides gathers workflow overrides from the 3-level cascade:
+// hub config → team state → project config.
+func collectWorkflowOverrides(a *app.App, project *domain.Project, resolvedTeam config.ResolvedTeamConfig) []workflow.WorkflowOverride {
 	var overrides []workflow.WorkflowOverride
 
 	// Hub overrides
@@ -465,10 +482,9 @@ func resolveWorkflowGeneratedSkills(a *app.App, project *domain.Project) map[str
 		overrides = append(overrides, *a.Config.Workflow.Overrides)
 	}
 
-	// Team overrides
-	at := a.Config.ActiveTeam()
-	if at.StateRepo != "" && at.StatePath != "" {
-		teamRepo := teamstate.NewRepo(at.StateRepo, at.StatePath)
+	// Team overrides (load team config if available)
+	if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
+		teamRepo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
 		if teamRepo.IsCloned() {
 			teamCfg, err := teamRepo.LoadConfig()
 			if err == nil && teamCfg.Workflow != nil && teamCfg.Workflow.Overrides != nil {
@@ -486,9 +502,32 @@ func resolveWorkflowGeneratedSkills(a *app.App, project *domain.Project) map[str
 		overrides = append(overrides, *project.WorkflowConfig.Overrides)
 	}
 
+	return overrides
+}
+
+// resolveWorkflowGeneratedSkills resolves the workflow cascade (base → hub → team → project)
+// and returns the map of generated skill refs → content. This is used by ComputeDiff to
+// produce an accurate skill comparison that accounts for workflow-generated skills.
+// Returns nil (not an error) if the workflow cannot be resolved — the diff will then
+// treat generated skills as phantom changes, which is acceptable as a graceful fallback.
+func resolveWorkflowGeneratedSkills(a *app.App, project *domain.Project) map[string]string {
+	// Compute resolvedTeam for this project (same logic as buildDeployPlan)
+	var resolvedTeam config.ResolvedTeamConfig
+	if project != nil {
+		resolvedTeam = config.ResolveTeamForProject(a.Config, project)
+	} else {
+		at := a.Config.ActiveTeam()
+		resolvedTeam = config.ResolvedTeamConfig{
+			Enabled:   at.Enabled,
+			StateRepo: at.StateRepo,
+			StatePath: at.StatePath,
+			MemberID:  at.MemberID,
+		}
+	}
+
+	overrides := collectWorkflowOverrides(a, project, resolvedTeam)
 	wfResult, err := deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow(), overrides...)
 	if err != nil {
-		// Fallback: base workflow only
 		wfResult, _ = deploy.ResolveAndPrepareWorkflow(workflow.BaseWorkflow())
 	}
 	if wfResult == nil {

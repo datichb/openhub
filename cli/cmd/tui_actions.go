@@ -30,19 +30,19 @@ func runDeployForProject(a *app.App, project *domain.Project) error {
 		return fmt.Errorf("hub content not found")
 	}
 
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, project.Provider, "", project.Agents, project.ModelOverrides, project.MCPConfig, project)
+	plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir, Provider: project.Provider})
 
-	_, err := deploy.Execute(plan)
+	_, err := deploy.Execute(context.Background(), plan)
 	if err != nil {
 		return fmt.Errorf("deploy %s: %w", project.Name, err)
 	}
 	return nil
 }
 
-// runSyncAll synchronizes hub content to all registered projects.
+// runSyncAll synchronizes hub content to all active projects.
 func runSyncAll(a *app.App) error {
 	ctx := context.Background()
-	projects, err := a.Projects.List(ctx, "")
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
 		return fmt.Errorf("listing projects: %w", err)
 	}

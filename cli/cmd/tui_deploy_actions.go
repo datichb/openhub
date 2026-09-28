@@ -48,13 +48,7 @@ func actionDeploy() {
 	ctx := tuiShell.Context()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		report, err := deploy.ComputeDiff(hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
+		report, err := deploy.ComputeDiff(ctx, hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast(i18n.Tf("tui.deploy.diff_error", err.Error()), shell.ToastError)
@@ -74,11 +68,6 @@ func actionDeploy() {
 					{Label: i18n.T("tui.deploy.apply"), Callback: func() {
 						tuiShell.ShowToast(i18n.T("tui.deploy.in_progress"), shell.ToastInfo)
 						go func() {
-							select {
-							case <-ctx.Done():
-								return
-							default:
-							}
 							err := runDeployForProject(a, project)
 							tuiShell.App().QueueUpdateDraw(func() {
 								if err != nil {
@@ -174,7 +163,7 @@ func actionUpgrade() {
 }
 
 // actionViewDiff shows a read-only diff modal comparing hub vs project.
-func actionViewDiff(projectPath string) {
+func actionViewDiff() {
 	if tuiShell == nil {
 		return
 	}
@@ -195,13 +184,7 @@ func actionViewDiff(projectPath string) {
 	ctx := tuiShell.Context()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		report, err := deploy.ComputeDiff(hubDir, projectPath, project.Agents, resolveWorkflowGeneratedSkills(a, project))
+		report, err := deploy.ComputeDiff(ctx, hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
 				tuiShell.ShowToast(i18n.Tf("tui.deploy.diff_error", err.Error()), shell.ToastError)

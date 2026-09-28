@@ -200,6 +200,9 @@ type DeployConfig struct {
 	// If empty/nil, the built-in default list is used (build, plan, general, explore, scout).
 	// Set to an explicit list to control which native agents are disabled on deploy.
 	DisableNativeAgents []string `mapstructure:"disable_native_agents" toml:"disable_native_agents,omitempty"`
+	// InstructionFiles lists additional project files to include as opencode instructions.
+	// These are merged with the built-in defaults (ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md).
+	InstructionFiles []string `mapstructure:"instruction_files" toml:"instruction_files,omitempty"`
 }
 
 // OpencodeConfig holds opencode dependency settings.

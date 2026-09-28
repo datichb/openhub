@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -94,7 +95,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		}
 
 		if dryRun {
-			err := syncDryRun(a, hubDir, project.Path)
+			err := syncDryRun(a, hubDir, &project)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "    %s %v\n",
 					theme.ErrorStyle.Render(theme.IconError), err)
@@ -132,10 +133,10 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 // syncProject performs a full sync (agents + skills + config + MCP) on one project.
 func syncProject(a *app.App, hubDir string, project *domain.Project) error {
-	plan := buildDeployPlan(a, project.Path, project.ID, hubDir, "", "", project.Agents, project.ModelOverrides, project.MCPConfig, project)
+	plan := buildDeployPlan(a, DeployRequest{Project: project, HubDir: hubDir})
 
 	start := time.Now()
-	results, err := deploy.Execute(plan)
+	results, err := deploy.Execute(context.Background(), plan)
 
 	for _, r := range results {
 		icon := theme.SuccessStyle.Render(theme.IconSuccess)
@@ -154,8 +155,8 @@ func syncProject(a *app.App, hubDir string, project *domain.Project) error {
 }
 
 // syncDryRun shows what would change without applying.
-func syncDryRun(a *app.App, hubDir, projectPath string) error {
-	report, err := deploy.ComputeDiff(hubDir, projectPath, nil, nil)
+func syncDryRun(a *app.App, hubDir string, project *domain.Project) error {
+	report, err := deploy.ComputeDiff(context.Background(), hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 	if err != nil {
 		return fmt.Errorf("computing diff: %w", err)
 	}

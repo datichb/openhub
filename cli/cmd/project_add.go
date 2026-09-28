@@ -428,8 +428,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				theme.SuccessStyle.Render(theme.IconArrow), i18n.T("form.project.deploying"))
 
-			plan := buildDeployPlan(a, absPath, id, hubDir, provider, model, agents, nil, nil, nil)
-			results, err := deploy.Execute(plan)
+			plan := buildDeployPlan(a, DeployRequest{ProjectPath: absPath, ProjectID: id, HubDir: hubDir, Provider: provider, Model: model, SelectedAgents: agents})
+			results, err := deploy.Execute(context.Background(), plan)
 			if err != nil {
 				fmt.Fprintf(a.IO.Out, "  %s %s\n",
 					theme.ErrorStyle.Render(theme.IconError), err.Error())

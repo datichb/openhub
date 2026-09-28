@@ -77,7 +77,14 @@ func TestBuildDeployPlan(t *testing.T) {
 		IO:     app.DefaultIOStreams(),
 	}
 
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "anthropic", "claude-3", []string{"coder", "reviewer"}, nil, nil, nil)
+	plan := buildDeployPlan(a, DeployRequest{
+		ProjectPath:    "/tmp/project",
+		ProjectID:      "test-id",
+		HubDir:         "/tmp/hub",
+		Provider:       "anthropic",
+		Model:          "claude-3",
+		SelectedAgents: []string{"coder", "reviewer"},
+	})
 	require.NotNil(t, plan)
 	assert.Equal(t, "/tmp/project", plan.ProjectPath)
 	assert.Equal(t, "test-id", plan.ProjectID)
@@ -103,7 +110,12 @@ func TestBuildDeployPlan_TeamDisabled(t *testing.T) {
 	// Project explicitly opts out
 	projectTeamCfg := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
 	project := &domain.Project{TeamConfig: projectTeamCfg}
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, project)
+	plan := buildDeployPlan(a, DeployRequest{
+		Project:     project,
+		ProjectPath: "/tmp/project",
+		ProjectID:   "test-id",
+		HubDir:      "/tmp/hub",
+	})
 	require.NotNil(t, plan)
 
 	// Team MCP server should NOT appear in EnabledMCPServers
@@ -129,7 +141,12 @@ func TestBuildDeployPlan_TeamCustom(t *testing.T) {
 		MemberID:  "bob",
 	}
 	project := &domain.Project{TeamConfig: projectTeamCfg}
-	plan := buildDeployPlan(a, "/tmp/project", "test-id", "/tmp/hub", "", "", nil, nil, nil, project)
+	plan := buildDeployPlan(a, DeployRequest{
+		Project:     project,
+		ProjectPath: "/tmp/project",
+		ProjectID:   "test-id",
+		HubDir:      "/tmp/hub",
+	})
 	require.NotNil(t, plan)
 
 	// Team MCP server SHOULD appear in EnabledMCPServers
@@ -140,6 +157,40 @@ func TestBuildDeployPlan_TeamCustom(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "team MCP must be enabled for a custom-mode project")
+}
+
+func TestCountDeployResults_AllSuccess(t *testing.T) {
+	results := []deploy.PhaseResult{
+		{Name: "Agents", Success: true, ItemCount: 5},
+		{Name: "Skills", Success: true, ItemCount: 12},
+		{Name: "Configuration", Success: true, ItemCount: 0},
+		{Name: "Agent Configuration", Success: true, ItemCount: 0},
+		{Name: "MCP Servers", Success: true, ItemCount: 2},
+		{Name: "Team Config", Success: true, ItemCount: 0},
+	}
+	agents, skills, mcp := countDeployResults(results)
+	assert.Equal(t, 5, agents)
+	assert.Equal(t, 12, skills)
+	assert.Equal(t, 2, mcp)
+}
+
+func TestCountDeployResults_FailedPhase(t *testing.T) {
+	results := []deploy.PhaseResult{
+		{Name: "Agents", Success: false, ItemCount: 5}, // failed — should not count
+		{Name: "Skills", Success: true, ItemCount: 3},
+		{Name: "MCP Servers", Success: true, ItemCount: 1},
+	}
+	agents, skills, mcp := countDeployResults(results)
+	assert.Equal(t, 0, agents, "failed phase should not contribute to count")
+	assert.Equal(t, 3, skills)
+	assert.Equal(t, 1, mcp)
+}
+
+func TestCountDeployResults_Empty(t *testing.T) {
+	agents, skills, mcp := countDeployResults(nil)
+	assert.Equal(t, 0, agents)
+	assert.Equal(t, 0, skills)
+	assert.Equal(t, 0, mcp)
 }
 
 func TestCmdI18nKey(t *testing.T) {
