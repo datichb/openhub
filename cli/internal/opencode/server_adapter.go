@@ -16,13 +16,19 @@ type serverAdapter struct {
 	inner       *parallel.OpenCodeServer
 	opencodeBin string
 	ticketID    string
+	logger      *parallel.TaskLogger
 }
 
-func newServerAdapter(port int, dir, id, opencodeBin string) *serverAdapter {
+func newServerAdapter(port int, dir, id, opencodeBin, hubDir string, extraEnv []string) *serverAdapter {
+	logger := parallel.NewTaskLogger(hubDir, id)
+	srv := parallel.NewServer(port, dir, id)
+	srv.StderrWriter = logger.Writer()
+	srv.ExtraEnv = extraEnv
 	return &serverAdapter{
-		inner:       parallel.NewServer(port, dir, id),
+		inner:       srv,
 		opencodeBin: opencodeBin,
 		ticketID:    id,
+		logger:      logger,
 	}
 }
 
@@ -34,9 +40,19 @@ func (a *serverAdapter) waitReady(ctx context.Context, timeout time.Duration) er
 	return a.inner.WaitReady(ctx, timeout)
 }
 
-func (a *serverAdapter) isAlive() bool  { return a.inner.IsAlive() }
-func (a *serverAdapter) dispose() error { return a.inner.Dispose() }
-func (a *serverAdapter) kill()          { a.inner.Kill() }
+func (a *serverAdapter) isAlive() bool { return a.inner.IsAlive() }
+func (a *serverAdapter) dispose() error {
+	if a.logger != nil {
+		_ = a.logger.Close()
+	}
+	return a.inner.Dispose()
+}
+func (a *serverAdapter) kill() {
+	if a.logger != nil {
+		_ = a.logger.Close()
+	}
+	a.inner.Kill()
+}
 func (a *serverAdapter) port() int      { return a.inner.Port }
 func (a *serverAdapter) dir() string    { return a.inner.Dir }
 

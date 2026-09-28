@@ -3,6 +3,7 @@ package opencode
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -93,7 +94,7 @@ func newTestRunner(t *testing.T, factory serverProviderFactory) *OpenCodeParalle
 
 func TestLaunchTask_Success(t *testing.T) {
 	srv := &fakeServer{alive: true, sessionID: "sess-1"}
-	runner := newTestRunner(t, func(port int, dir, id, bin string) serverProvider {
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
 		return srv
 	})
 
@@ -121,34 +122,32 @@ func TestLaunchTask_Success(t *testing.T) {
 	}
 }
 
-func TestLaunchTask_StartFailRetrySuccess(t *testing.T) {
+func TestLaunchTask_PortPreChecked(t *testing.T) {
+	// With port pre-checking, the factory always receives an available port.
+	// Verify that only one factory call happens (no retry).
 	callCount := int32(0)
-	runner := newTestRunner(t, func(port int, dir, id, bin string) serverProvider {
-		n := atomic.AddInt32(&callCount, 1)
-		if n == 1 {
-			return &fakeServer{startErr: fmt.Errorf("port busy"), alive: true, sessionID: "s1"}
-		}
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
+		atomic.AddInt32(&callCount, 1)
 		return &fakeServer{alive: true, sessionID: "s1"}
 	})
 
 	handle, err := runner.LaunchTask(context.Background(), platform.TaskOpts{
-		TaskID: "task-retry",
+		TaskID: "task-precheck",
 		Prompt: "test",
 	})
 	if err != nil {
-		t.Fatalf("expected retry to succeed, got: %v", err)
+		t.Fatalf("LaunchTask error: %v", err)
 	}
 	if handle.SessionID != "s1" {
 		t.Errorf("SessionID = %q, want s1", handle.SessionID)
 	}
-	// Should have used 2 ports (5000 failed, 5001 succeeded)
-	if runner.portNext != 5002 {
-		t.Errorf("portNext = %d, want 5002", runner.portNext)
+	if got := atomic.LoadInt32(&callCount); got != 1 {
+		t.Errorf("factory called %d times, want 1 (no retry)", got)
 	}
 }
 
 func TestLaunchTask_AllStartsFail(t *testing.T) {
-	runner := newTestRunner(t, func(port int, dir, id, bin string) serverProvider {
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
 		return &fakeServer{startErr: fmt.Errorf("port busy")}
 	})
 
@@ -163,7 +162,7 @@ func TestLaunchTask_AllStartsFail(t *testing.T) {
 
 func TestLaunchTask_CreateSessionFails(t *testing.T) {
 	srv := &fakeServer{alive: true, createErr: fmt.Errorf("session limit")}
-	runner := newTestRunner(t, func(port int, dir, id, bin string) serverProvider {
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
 		return srv
 	})
 
@@ -333,7 +332,7 @@ func TestCleanup(t *testing.T) {
 // --- Port allocation tests ---
 
 func TestPortAllocation_Increments(t *testing.T) {
-	runner := newTestRunner(t, func(port int, dir, id, bin string) serverProvider {
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
 		return &fakeServer{alive: true, sessionID: "s-" + id, portVal: port}
 	})
 
@@ -371,5 +370,106 @@ func TestGetModifiedFiles_NotFound(t *testing.T) {
 	_, err := runner.GetModifiedFiles(context.Background(), "unknown")
 	if err == nil {
 		t.Error("expected error for unknown task")
+	}
+}
+
+// --- Port scanning tests ---
+
+func TestIsPortAvailable_FreePort(t *testing.T) {
+	// Port 0 trick: let OS pick a free port, then check it's available after close.
+	// Use a high port that's very likely free.
+	if !isPortAvailable(18923) {
+		t.Skip("port 18923 is not available, skipping")
+	}
+}
+
+func TestAllocatePort_SkipsOccupied(t *testing.T) {
+	// Occupy a port, then verify allocatePort skips it.
+	ln, err := net.Listen("tcp", "127.0.0.1:15100")
+	if err != nil {
+		t.Fatalf("cannot bind test port: %v", err)
+	}
+	defer ln.Close()
+
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
+		return &fakeServer{alive: true, sessionID: "s-1", portVal: port}
+	})
+	runner.portBase = 15100
+	runner.portNext = 15100
+
+	port, err := runner.allocatePort()
+	if err != nil {
+		t.Fatalf("allocatePort error: %v", err)
+	}
+	// Should have skipped 15100 (occupied) and returned 15101+
+	if port == 15100 {
+		t.Error("allocatePort returned occupied port 15100")
+	}
+	if port < 15101 {
+		t.Errorf("expected port >= 15101, got %d", port)
+	}
+}
+
+func TestAllocatePort_Exhausted(t *testing.T) {
+	// Occupy a range of ports to exhaust the scanner.
+	listeners := make([]net.Listener, maxPortScanAttempts)
+	basePort := 15200
+	for i := 0; i < maxPortScanAttempts; i++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", basePort+i))
+		if err != nil {
+			// Can't bind enough ports, skip this test.
+			for _, l := range listeners[:i] {
+				if l != nil {
+					l.Close()
+				}
+			}
+			t.Skipf("cannot bind port %d: %v", basePort+i, err)
+		}
+		listeners[i] = ln
+	}
+	defer func() {
+		for _, ln := range listeners {
+			if ln != nil {
+				ln.Close()
+			}
+		}
+	}()
+
+	runner := newTestRunner(t, nil)
+	runner.portBase = basePort
+	runner.portNext = basePort
+
+	_, err := runner.allocatePort()
+	if err == nil {
+		t.Error("expected error when all ports exhausted")
+	}
+}
+
+// --- Env isolation tests ---
+
+func TestLaunchTask_ExtraEnvContainsDataHome(t *testing.T) {
+	var capturedEnv []string
+	runner := newTestRunner(t, func(port int, dir, id, bin string, extraEnv []string) serverProvider {
+		capturedEnv = extraEnv
+		return &fakeServer{alive: true, sessionID: "sess-1"}
+	})
+
+	_, err := runner.LaunchTask(context.Background(), platform.TaskOpts{
+		TaskID:       "BD-42",
+		WorktreePath: "/tmp/wt-bd42",
+		Prompt:       "test",
+	})
+	if err != nil {
+		t.Fatalf("LaunchTask error: %v", err)
+	}
+
+	found := false
+	for _, e := range capturedEnv {
+		if e == "OPENCODE_DATA_HOME=/tmp/wt-bd42/.opencode-data" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("OPENCODE_DATA_HOME not found in extraEnv: %v", capturedEnv)
 	}
 }

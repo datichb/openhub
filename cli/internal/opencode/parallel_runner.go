@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -30,14 +32,20 @@ type serverProvider interface {
 	abortSession(sessionID string) error
 }
 
-// serverProviderFactory creates a serverProvider for a given port, dir, id, and binary.
+// serverProviderFactory creates a serverProvider for a given port, dir, id, binary, and extra env.
 // The default factory creates a real serverAdapter. Tests override this.
-type serverProviderFactory func(port int, dir, id, bin string) serverProvider
+type serverProviderFactory func(port int, dir, id, bin string, extraEnv []string) serverProvider
 
-// defaultServerFactory creates a real serverAdapter.
-func defaultServerFactory(port int, dir, id, bin string) serverProvider {
-	return newServerAdapter(port, dir, id, bin)
+// defaultServerFactory returns a factory that creates real serverAdapters
+// with logging to the given hubDir.
+func defaultServerFactory(hubDir string) serverProviderFactory {
+	return func(port int, dir, id, bin string, extraEnv []string) serverProvider {
+		return newServerAdapter(port, dir, id, bin, hubDir, extraEnv)
+	}
 }
+
+// maxPortScanAttempts is the number of ports to try before giving up.
+const maxPortScanAttempts = 20
 
 // OpenCodeParallelRunner implements platform.ParallelRunner using opencode serve.
 type OpenCodeParallelRunner struct {
@@ -49,6 +57,7 @@ type OpenCodeParallelRunner struct {
 	portNext      int
 	bin           string
 	agent         string
+	credentialEnv []string // pre-computed credential env vars for all tasks
 	serverFactory serverProviderFactory
 }
 
@@ -75,6 +84,12 @@ func NewOpenCodeParallelRunner(opts platform.ParallelRunnerOpts) (*OpenCodeParal
 		}
 	}
 
+	// Pre-compute credential env vars from provider/credentials (same as buildEnv).
+	var credEnv []string
+	if opts.Provider != "" || opts.Credentials != (platform.Credentials{}) {
+		credEnv = buildEnv(opts.Provider, Credentials(opts.Credentials))
+	}
+
 	return &OpenCodeParallelRunner{
 		servers:       make(map[string]serverProvider),
 		sessionIDs:    make(map[string]string),
@@ -82,29 +97,29 @@ func NewOpenCodeParallelRunner(opts platform.ParallelRunnerOpts) (*OpenCodeParal
 		portBase:      portBase,
 		portNext:      portBase,
 		bin:           bin,
-		serverFactory: defaultServerFactory,
+		credentialEnv: credEnv,
+		serverFactory: defaultServerFactory(opts.HubDir),
 	}, nil
 }
 
 func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.TaskOpts) (platform.TaskHandle, error) {
-	r.mu.Lock()
-	port := r.portNext
-	r.portNext++
-	r.mu.Unlock()
+	// Allocate an available port (pre-checked with net.Listen).
+	port, err := r.allocatePort()
+	if err != nil {
+		return platform.TaskHandle{}, fmt.Errorf("port allocation for %s: %w", opts.TaskID, err)
+	}
 
-	srv := r.serverFactory(port, opts.WorktreePath, opts.TaskID, r.bin)
+	slog.Info("parallel: launching task", "task", opts.TaskID, "port", port)
+
+	// Build per-task env: credentials + isolated OPENCODE_DATA_HOME in the worktree.
+	dataHome := filepath.Join(opts.WorktreePath, ".opencode-data")
+	extraEnv := append(r.credentialEnv, "OPENCODE_DATA_HOME="+dataHome)
+
+	srv := r.serverFactory(port, opts.WorktreePath, opts.TaskID, r.bin, extraEnv)
 
 	// Start the server
 	if err := srv.start(ctx); err != nil {
-		// Retry on next port
-		r.mu.Lock()
-		port = r.portNext
-		r.portNext++
-		r.mu.Unlock()
-		srv = r.serverFactory(port, opts.WorktreePath, opts.TaskID, r.bin)
-		if err := srv.start(ctx); err != nil {
-			return platform.TaskHandle{}, fmt.Errorf("failed to start server for %s: %w", opts.TaskID, err)
-		}
+		return platform.TaskHandle{}, fmt.Errorf("failed to start server for %s on port %d: %w", opts.TaskID, port, err)
 	}
 
 	// Wait ready
@@ -146,6 +161,36 @@ func (r *OpenCodeParallelRunner) LaunchTask(ctx context.Context, opts platform.T
 	}, nil
 }
 
+// allocatePort scans ports starting from portNext, pre-checking availability
+// with net.Listen. Returns the first available port or an error if the scan
+// range is exhausted.
+func (r *OpenCodeParallelRunner) allocatePort() (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	startPort := r.portNext
+	for i := 0; i < maxPortScanAttempts; i++ {
+		port := r.portNext
+		r.portNext++
+		if isPortAvailable(port) {
+			return port, nil
+		}
+		slog.Debug("parallel: port unavailable, skipping", "port", port)
+	}
+	return 0, fmt.Errorf("no available port in range %d-%d", startPort, r.portNext-1)
+}
+
+// isPortAvailable checks if a TCP port is free on localhost by attempting
+// to bind to it. The listener is closed immediately after the check.
+func isPortAvailable(port int) bool {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return false
+	}
+	ln.Close()
+	return true
+}
+
 func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string]platform.TaskStatus, error) {
 	r.mu.Lock()
 	snapshot := make(map[string]serverProvider, len(r.servers))
@@ -173,6 +218,7 @@ func (r *OpenCodeParallelRunner) GetAllStatuses(ctx context.Context) (map[string
 			}
 
 			if !srv.isAlive() {
+				slog.Warn("parallel: server process died", "task", taskID)
 				ts.Status = "failed"
 				ts.Error = "server process died"
 				mu.Lock()
@@ -292,6 +338,7 @@ func (r *OpenCodeParallelRunner) Cleanup(ctx context.Context) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	slog.Info("parallel: cleaning up servers", "count", len(r.servers))
 	for taskID, srv := range r.servers {
 		if err := srv.dispose(); err != nil {
 			slog.Debug("parallel runner: dispose failed", "task", taskID, "error", err)

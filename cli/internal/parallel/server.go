@@ -14,13 +14,15 @@ import (
 
 // OpenCodeServer manages a single opencode serve instance.
 type OpenCodeServer struct {
-	Port       int
-	Dir        string // worktree directory
-	BaseURL    string
-	Process    *exec.Cmd
-	TicketID   string
-	cancelFunc context.CancelFunc
-	httpClient *http.Client
+	Port         int
+	Dir          string // worktree directory
+	BaseURL      string
+	Process      *exec.Cmd
+	TicketID     string
+	StderrWriter io.Writer   // if set, subprocess stderr goes here instead of io.Discard
+	ExtraEnv     []string    // additional env vars injected into the subprocess (credentials, OPENCODE_DATA_HOME, etc.)
+	cancelFunc   context.CancelFunc
+	httpClient   *http.Client
 }
 
 // NewServer creates a new server config (not yet started).
@@ -49,10 +51,17 @@ func (s *OpenCodeServer) Start(ctx context.Context, opencodeBin string) error {
 
 	s.Process = exec.CommandContext(srvCtx, opencodeBin, args...)
 	s.Process.Dir = s.Dir
-	s.Process.Env = append(os.Environ(), "OPENCODE_DISABLE_AUTOUPDATE=true")
-	// Discard output (server logs go to its own log file)
+	// Build env: inherit parent + extra (credentials, OPENCODE_DATA_HOME) + autoupdate disable.
+	env := append(os.Environ(), s.ExtraEnv...)
+	env = append(env, "OPENCODE_DISABLE_AUTOUPDATE=true")
+	s.Process.Env = env
 	s.Process.Stdout = io.Discard
-	s.Process.Stderr = io.Discard
+	// Route subprocess stderr to the configured writer (slog + file) or discard.
+	if s.StderrWriter != nil {
+		s.Process.Stderr = s.StderrWriter
+	} else {
+		s.Process.Stderr = io.Discard
+	}
 
 	if err := s.Process.Start(); err != nil {
 		cancel()
