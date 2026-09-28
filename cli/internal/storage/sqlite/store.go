@@ -387,4 +387,11 @@ ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
 		up:           `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT NULL`,
 		irreversible: false,
 	},
+	{
+		version: 27,
+		up: `ALTER TABLE sessions ADD COLUMN type TEXT NOT NULL DEFAULT 'interactive';
+ALTER TABLE sessions ADD COLUMN label TEXT DEFAULT NULL;
+ALTER TABLE sessions ADD COLUMN correlation_id TEXT DEFAULT NULL`,
+		irreversible: false,
+	},
 }

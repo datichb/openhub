@@ -28,6 +28,11 @@ type Session struct {
 	Slug              *string // human-readable session identifier
 	PID               int     // OS process ID that owns this session (0 = unknown/legacy)
 	Title             *string // session title from the backend (e.g. "Fix auth bug")
+
+	// Headless tracking fields (migration v27)
+	Type          SessionType // "interactive" (default) or "headless"
+	Label         *string     // human-readable use-case label (e.g. "brief-enrichment", "sweep-decomposition")
+	CorrelationID *string     // groups related headless runs (e.g. all runs in a single sweep)
 }
 
 // SessionStatus represents the state of a session.
@@ -37,6 +42,14 @@ const (
 	SessionStatusRunning   SessionStatus = "running"
 	SessionStatusCompleted SessionStatus = "completed"
 	SessionStatusFailed    SessionStatus = "failed"
+)
+
+// SessionType distinguishes interactive (TUI) sessions from headless (batch) runs.
+type SessionType string
+
+const (
+	SessionTypeInteractive SessionType = "interactive"
+	SessionTypeHeadless    SessionType = "headless"
 )
 
 // SessionStore defines the contract for session persistence.
