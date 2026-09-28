@@ -1,0 +1,14 @@
+# CODEOWNERS — Require review on security-sensitive paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# CI/CD workflows and release configuration
+.github/                        @datichb
+cli/.goreleaser.yml             @datichb
+
+# Security-critical code (self-update, secrets, permissions)
+cli/internal/selfupdate/        @datichb
+cli/internal/hubcontent/        @datichb
+permissions/                    @datichb
+
+# Install script (distributed via curl | sh)
+install.sh                      @datichb

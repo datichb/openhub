@@ -12,6 +12,7 @@
 set -e
 
 REPO="datichb/openhub"
+PROJECT_NAME="openhub"
 BINARY_NAME="oh"
 DEFAULT_INSTALL_DIR="/usr/local/bin"
 
@@ -101,7 +102,7 @@ main() {
         fi
     fi
 
-    ARCHIVE_NAME="${BINARY_NAME}_${PLATFORM}.tar.gz"
+    ARCHIVE_NAME="${PROJECT_NAME}_${PLATFORM}.tar.gz"
     CHECKSUMS_NAME="checksums.txt"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ARCHIVE_NAME}"
     CHECKSUMS_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${CHECKSUMS_NAME}"

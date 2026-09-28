@@ -1,4 +1,4 @@
-.PHONY: build run test test-tui test-unit lint clean install
+.PHONY: build run test test-tui test-unit lint clean install embed-sync
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -65,3 +65,12 @@ deps:
 # Generate (if needed in the future)
 generate:
 	go generate ./...
+
+# Sync hub content from repo root into the embed directory (for development).
+# GoReleaser does this automatically at build time via its before-hook.
+embed-sync:
+	rm -rf internal/hubcontent/hub
+	mkdir -p internal/hubcontent/hub
+	cp -r ../agents internal/hubcontent/hub/agents
+	cp -r ../skills internal/hubcontent/hub/skills
+	cp -r ../permissions internal/hubcontent/hub/permissions

@@ -2,11 +2,16 @@
 package selfupdate
 
 import (
+	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,6 +28,21 @@ const (
 	ohAPITimeout      = 15 * time.Second
 	ohDownloadTimeout = 5 * time.Minute
 	ohMaxRetries      = 3
+
+	// maxDownloadSize is the upper bound for a downloaded archive (500 MB).
+	maxDownloadSize = 500 * 1024 * 1024
+
+	// maxAPIResponseSize is the upper bound for a GitHub API response (1 MB).
+	maxAPIResponseSize = 1 * 1024 * 1024
+
+	// maxChecksumFileSize is the upper bound for checksums.txt (10 KB).
+	maxChecksumFileSize = 10 * 1024
+
+	// checksumAssetName is the name of the checksums file in each release.
+	checksumAssetName = "checksums.txt"
+
+	// signatureBundleSuffix is the suffix appended to checksums.txt for the cosign bundle.
+	signatureBundleSuffix = ".sigstore.json"
 )
 
 // Release holds metadata from a GitHub release of oh.
@@ -85,7 +105,7 @@ func fetchRelease(url string) (*Release, error) {
 			return false, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 		}
 		var r Release
-		if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, maxAPIResponseSize)).Decode(&r); err != nil {
 			return false, fmt.Errorf("decoding release: %w", err)
 		}
 		release = &r
@@ -153,6 +173,23 @@ func Update(version string, progress ProgressFunc) (string, error) {
 		return "", fmt.Errorf("asset %q not found in release %s", assetName, release.TagName)
 	}
 
+	// Validate download URL points to a trusted host
+	if err := validateDownloadURL(asset.BrowserDownloadURL); err != nil {
+		return "", fmt.Errorf("untrusted download URL: %w", err)
+	}
+
+	// Find checksums asset for integrity verification
+	var checksumAsset *Asset
+	for i := range release.Assets {
+		if release.Assets[i].Name == checksumAssetName {
+			checksumAsset = &release.Assets[i]
+			break
+		}
+	}
+	if checksumAsset == nil {
+		return "", fmt.Errorf("checksums file %q not found in release %s — refusing to install unverified binary", checksumAssetName, release.TagName)
+	}
+
 	// Download to temp file
 	tmpFile, err := os.CreateTemp("", "oh-selfupdate-*")
 	if err != nil {
@@ -166,6 +203,36 @@ func Update(version string, progress ProgressFunc) (string, error) {
 		return "", err
 	}
 	tmpFile.Close()
+
+	// Download checksums and verify integrity
+	expectedHash, err := downloadAndParseChecksums(checksumAsset, assetName)
+	if err != nil {
+		return "", fmt.Errorf("fetching checksums: %w", err)
+	}
+	if err := verifyChecksum(tmpPath, expectedHash); err != nil {
+		return "", err
+	}
+
+	// Check for cosign signature bundle (graceful — warn if absent, don't block)
+	sigBundleName := checksumAssetName + signatureBundleSuffix
+	var hasSigBundle bool
+	for i := range release.Assets {
+		if release.Assets[i].Name == sigBundleName {
+			hasSigBundle = true
+			break
+		}
+	}
+	if !hasSigBundle {
+		slog.Warn("release has no cosign signature bundle — skipping signature verification",
+			"release", release.TagName,
+			"expected", sigBundleName,
+			"hint", "signature verification will be required in a future version")
+	} else {
+		slog.Debug("cosign signature bundle found",
+			"release", release.TagName,
+			"asset", sigBundleName,
+			"note", "client-side verification requires cosign CLI — run: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp 'github.com/datichb/openhub' checksums.txt")
+	}
 
 	// Extract binary from archive
 	extractedPath := tmpPath + "-bin"
@@ -237,10 +304,10 @@ func downloadAsset(asset *Asset, dest *os.File, progress ProgressFunc) error {
 			return false, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 		}
 
-		var reader io.Reader = resp.Body
+		var reader io.Reader = io.LimitReader(resp.Body, maxDownloadSize)
 		if progress != nil {
 			reader = &progressReader{
-				reader:   resp.Body,
+				reader:   reader,
 				total:    asset.Size,
 				progress: progress,
 			}
@@ -275,4 +342,106 @@ func extractBinary(archivePath, destPath string) error {
 		return extractFromTarGz(archivePath, destPath)
 	}
 	return fmt.Errorf("unsupported archive format for self-update")
+}
+
+// allowedDownloadHosts is the set of hosts trusted for binary downloads.
+var allowedDownloadHosts = []string{
+	"github.com",
+	"objects.githubusercontent.com",
+}
+
+// validateDownloadURL checks that a download URL uses HTTPS and points to a trusted host.
+func validateDownloadURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("insecure scheme %q — only HTTPS is allowed", u.Scheme)
+	}
+	for _, h := range allowedDownloadHosts {
+		if u.Host == h || strings.HasSuffix(u.Host, "."+h) {
+			return nil
+		}
+	}
+	return fmt.Errorf("untrusted host %q — expected github.com or objects.githubusercontent.com", u.Host)
+}
+
+// downloadAndParseChecksums downloads the checksums file and extracts the expected
+// SHA256 hash for the named asset. Returns the hex-encoded hash string.
+func downloadAndParseChecksums(checksumAsset *Asset, targetAssetName string) (string, error) {
+	if err := validateDownloadURL(checksumAsset.BrowserDownloadURL); err != nil {
+		return "", fmt.Errorf("untrusted checksums URL: %w", err)
+	}
+
+	var body []byte
+	retryErr := retry.Do(context.Background(), retry.Config{
+		MaxAttempts: ohMaxRetries,
+		BaseDelay:   time.Second,
+		MaxDelay:    30 * time.Second,
+		Jitter:      0.2,
+	}, func(attempt int) (bool, error) {
+		client := httplog.Wrap(&http.Client{Timeout: ohAPITimeout}, "selfupdate")
+		resp, err := client.Get(checksumAsset.BrowserDownloadURL)
+		if err != nil {
+			return true, fmt.Errorf("downloading checksums (attempt %d): %w", attempt, err)
+		}
+		defer resp.Body.Close()
+
+		if retry.IsTransientHTTP(resp.StatusCode) {
+			return true, fmt.Errorf("checksums download: HTTP %d (attempt %d)", resp.StatusCode, attempt)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return false, fmt.Errorf("checksums download failed: HTTP %d", resp.StatusCode)
+		}
+
+		body, err = io.ReadAll(io.LimitReader(resp.Body, maxChecksumFileSize))
+		if err != nil {
+			return true, fmt.Errorf("reading checksums (attempt %d): %w", attempt, err)
+		}
+		return false, nil
+	})
+	if retryErr != nil {
+		return "", retryErr
+	}
+
+	// Parse checksums.txt format: "<sha256>  <filename>\n"
+	scanner := bufio.NewScanner(strings.NewReader(string(body)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		// Format: "hash  filename" (two spaces) or "hash filename" (one space)
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[1] == targetAssetName {
+			return parts[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("no checksum found for %q in checksums file — refusing to install unverified binary", targetAssetName)
+}
+
+// verifyChecksum computes the SHA256 of the file at filePath and compares it
+// to the expected hex-encoded hash. Returns an error on mismatch.
+func verifyChecksum(filePath, expectedSHA256 string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("opening file for checksum: %w", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("computing checksum: %w", err)
+	}
+
+	actual := hex.EncodeToString(h.Sum(nil))
+	if actual != expectedSHA256 {
+		return fmt.Errorf("checksum mismatch: expected %s, got %s — the downloaded file may be corrupted or tampered with", expectedSHA256, actual)
+	}
+	return nil
 }
