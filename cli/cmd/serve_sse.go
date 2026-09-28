@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -69,6 +71,7 @@ func (h *sseHub) startBroadcaster(ctx context.Context, a *app.App) {
 	var lastSessionHash string
 	var lastEventsHash string
 	var lastBoardHash string
+	var lastParallelHash string
 
 	for {
 		select {
@@ -78,6 +81,7 @@ func (h *sseHub) startBroadcaster(ctx context.Context, a *app.App) {
 			h.pollSessions(ctx, a, &lastSessionHash)
 			h.pollTeamEvents(ctx, a, &lastEventsHash)
 			h.pollTeamBoard(ctx, a, &lastBoardHash)
+			h.pollParallelState(&lastParallelHash)
 		}
 	}
 }
@@ -196,4 +200,26 @@ func quickHash(v interface{}) string {
 	}
 	h := sha256.Sum256(data)
 	return fmt.Sprintf("%x", h[:8])
+}
+
+// pollParallelState checks the parallel state file for changes and broadcasts
+// a "parallel_update" SSE event when the state changes. If the file does not
+// exist, broadcasts an empty event to signal "no active run" (only once).
+func (h *sseHub) pollParallelState(lastHash *string) {
+	stateFile := filepath.Join(config.HubDir(), "parallel", "parallel-state.json")
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		// File doesn't exist → no active run. Broadcast once when transitioning from active to inactive.
+		if *lastHash != "" {
+			*lastHash = ""
+			h.broadcast("parallel_update", `{"active":false}`)
+		}
+		return
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(data))[:16]
+	if hash != *lastHash {
+		*lastHash = hash
+		// Wrap the raw state JSON with the active flag.
+		h.broadcast("parallel_update", fmt.Sprintf(`{"active":true,"state":%s}`, string(data)))
+	}
 }

@@ -114,6 +114,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// GET /api/v1/chart/costs?period=30d — SVG sparkline
 	mux.HandleFunc("/api/v1/chart/costs", handleCostChart(a))
 
+	// GET /api/v1/parallel/state — parallel run state for cross-process monitoring
+	mux.HandleFunc("/api/v1/parallel/state", handleParallelState(a))
+
 	// ── SSE endpoint ─────────────────────────────────────────────────────────
 
 	// GET /sse — Server-Sent Events stream

@@ -172,24 +172,44 @@ func (s *ParallelState) Snapshot() StateSnapshot {
 	return snap
 }
 
-// Save persists the state to a JSON file.
+// stateFileName is the canonical name for the parallel state file on disk.
+const stateFileName = "parallel-state.json"
+
+// Save persists the state to a JSON file using atomic write (write to .tmp then rename).
+// This ensures readers never see a partially-written file.
 func (s *ParallelState) Save(dir string) error {
 	snap := s.Snapshot()
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	path := filepath.Join(dir, "parallel-state.json")
 	data, err := json.MarshalIndent(&snap, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling parallel state: %w", err)
 	}
-	return os.WriteFile(path, data, 0o644)
+
+	path := filepath.Join(dir, stateFileName)
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return fmt.Errorf("writing temporary state file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("renaming state file: %w", err)
+	}
+	return nil
+}
+
+// RemoveStateFile removes the state file from disk. Called during cleanup
+// when the parallel run completes. Best-effort — errors are ignored.
+func RemoveStateFile(dir string) {
+	_ = os.Remove(filepath.Join(dir, stateFileName))
+	_ = os.Remove(filepath.Join(dir, stateFileName+".tmp"))
 }
 
 // LoadState reads a parallel state from disk.
 func LoadState(dir string) (*ParallelState, error) {
-	path := filepath.Join(dir, "parallel-state.json")
+	path := filepath.Join(dir, stateFileName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -199,4 +219,19 @@ func LoadState(dir string) (*ParallelState, error) {
 		return nil, fmt.Errorf("parsing parallel state: %w", err)
 	}
 	return &state, nil
+}
+
+// LoadStateSnapshot reads a parallel state snapshot from disk.
+// Returns nil if the file does not exist or is unreadable.
+func LoadStateSnapshot(dir string) *StateSnapshot {
+	path := filepath.Join(dir, stateFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var snap StateSnapshot
+	if err := json.Unmarshal(data, &snap); err != nil {
+		return nil
+	}
+	return &snap
 }
