@@ -3,6 +3,7 @@ package sweep
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/llm"
 	"github.com/datichb/openhub/cli/internal/parallel"
@@ -29,6 +30,15 @@ type RunOpts struct {
 
 	// ProjectID is the hub project identifier.
 	ProjectID string
+
+	// HubDir is the path to the .oh directory (for log files, state).
+	HubDir string
+
+	// Provider is the LLM provider name for credential injection in parallel tasks.
+	Provider string
+
+	// Credentials holds provider-specific authentication tokens for parallel tasks.
+	Credentials platform.Credentials
 
 	// Agent is the opencode agent to use for sweep sub-tasks.
 	Agent string
@@ -122,6 +132,14 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		}, nil
 	}
 
+	// --- Step 2b: Single task fast path ---
+	// When the decomposition produces exactly one task, skip the full parallel
+	// infrastructure (HTTP server, coordinator, TUI monitor) and run directly
+	// via RunHeadless. This is faster (~5s saved) and simpler.
+	if len(tasks) == 1 {
+		return runSingleTask(ctx, tasks[0], opts)
+	}
+
 	// --- Step 3: Run in parallel ---
 	runner := opts.Runner
 	if runner == nil {
@@ -129,6 +147,9 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		runner, err = opts.Platform.NewParallelRunner(platform.ParallelRunnerOpts{
 			ProjectPath: opts.ProjectPath,
 			ProjectID:   opts.ProjectID,
+			HubDir:      opts.HubDir,
+			Provider:    opts.Provider,
+			Credentials: opts.Credentials,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("creating parallel runner: %w", err)
@@ -143,6 +164,7 @@ func Run(ctx context.Context, opts RunOpts) (*RunResult, error) {
 		Agent:       opts.Agent,
 		BranchPattern: opts.Config.BranchPrefix + "%s",
 		Config:      opts.ParallelConfig,
+		StateDir:    filepath.Join(opts.HubDir, "parallel"),
 		TaskPromptFunc: func(t task.Task) string {
 			return BuildSweepPrompt(t, goal)
 		},
