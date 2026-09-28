@@ -3,18 +3,31 @@ package opencode
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 )
 
 // BinaryName is the name of the opencode binary.
 const BinaryName = "opencode"
+
+// Credentials holds provider-specific authentication tokens for opencode subprocesses.
+// This mirrors platform.Credentials at the adapter boundary — the core opencode
+// package intentionally does not import the platform package.
+type Credentials struct {
+	BearerToken string // Bedrock bearer token
+	APIKey      string // Provider API key (Anthropic, OpenRouter)
+	AWSProfile  string // AWS profile override
+	AWSRegion   string // AWS region override
+}
 
 // StartOpts configures how opencode is launched.
 type StartOpts struct {
@@ -23,12 +36,11 @@ type StartOpts struct {
 	Agent           string
 	Prompt          string
 	Provider        string
-	BearerToken     string // bedrock bearer token (legacy, still supported)
-	APIKey          string // provider API key (anthropic, openrouter)
-	AWSProfile      string // AWS profile override
-	AWSRegion       string // AWS region override
+	Credentials     Credentials
 	SessionTitle    string
 	ResumeSessionID string
+	Model           string   // Optional model override (e.g. "anthropic/claude-sonnet-4-20250514")
+	Files           []string // Files to pre-attach to the session context
 	ExtraArgs       []string
 }
 
@@ -83,7 +95,7 @@ func Exec(opts StartOpts) error {
 	}
 
 	args := buildArgs(opts)
-	env := buildEnv(opts)
+	env := buildEnv(opts.Provider, opts.Credentials)
 
 	// Change to project directory
 	if opts.ProjectPath != "" {
@@ -115,7 +127,7 @@ func Run(opts StartOpts) error {
 	}
 
 	// Set env
-	cmd.Env = buildEnv(opts)
+	cmd.Env = buildEnv(opts.Provider, opts.Credentials)
 
 	return cmd.Run()
 }
@@ -131,6 +143,12 @@ func buildArgs(opts StartOpts) []string {
 	if opts.Agent != "" {
 		args = append(args, "--agent", opts.Agent)
 	}
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
+	}
+	for _, f := range opts.Files {
+		args = append(args, "--file", f)
+	}
 	if opts.Prompt != "" {
 		args = append(args, "--prompt", opts.Prompt)
 	}
@@ -139,27 +157,27 @@ func buildArgs(opts StartOpts) []string {
 	return args
 }
 
-func buildEnv(opts StartOpts) []string {
+func buildEnv(provider string, creds Credentials) []string {
 	env := os.Environ()
 
-	switch opts.Provider {
+	switch provider {
 	case "bedrock":
-		if opts.BearerToken != "" {
-			env = appendEnv(env, "AWS_BEARER_TOKEN_BEDROCK", opts.BearerToken)
+		if creds.BearerToken != "" {
+			env = appendEnv(env, "AWS_BEARER_TOKEN_BEDROCK", creds.BearerToken)
 		}
-		if opts.AWSProfile != "" {
-			env = appendEnv(env, "AWS_PROFILE", opts.AWSProfile)
+		if creds.AWSProfile != "" {
+			env = appendEnv(env, "AWS_PROFILE", creds.AWSProfile)
 		}
-		if opts.AWSRegion != "" {
-			env = appendEnv(env, "AWS_REGION", opts.AWSRegion)
+		if creds.AWSRegion != "" {
+			env = appendEnv(env, "AWS_REGION", creds.AWSRegion)
 		}
 	case "anthropic":
-		if opts.APIKey != "" {
-			env = appendEnv(env, "ANTHROPIC_API_KEY", opts.APIKey)
+		if creds.APIKey != "" {
+			env = appendEnv(env, "ANTHROPIC_API_KEY", creds.APIKey)
 		}
 	case "openrouter":
-		if opts.APIKey != "" {
-			env = appendEnv(env, "OPENROUTER_API_KEY", opts.APIKey)
+		if creds.APIKey != "" {
+			env = appendEnv(env, "OPENROUTER_API_KEY", creds.APIKey)
 		}
 		// github-copilot: no env injection needed (relies on gh auth)
 	}
@@ -191,18 +209,32 @@ func expandHome(path string) string {
 
 // HeadlessOpts configures a non-interactive opencode run.
 type HeadlessOpts struct {
-	ProjectPath string   // Working directory
-	ProjectID   string   // Hub project ID (for env)
-	Agent       string   // Agent to use (e.g. "brief-enricher")
-	Prompt      string   // The prompt to send
-	Format      string   // Output format: "" (default) or "json"
-	Model       string   // Optional model override (provider/model)
-	Files       []string // Files to attach to the prompt
+	ProjectPath string      // Working directory
+	ProjectID   string      // Hub project ID (for env)
+	Agent       string      // Agent to use (e.g. "brief-enricher")
+	Prompt      string      // The prompt to send
+	Format      string      // Output format: "" (default) or "json"
+	Model       string      // Optional model override (provider/model)
+	Files       []string    // Files to attach to the prompt
+	ExtraArgs   []string    // Backend-specific passthrough arguments
+
+	// Provider credentials — injected into the subprocess environment via
+	// buildEnv(). Without these, headless runs rely on the parent shell's
+	// environment, which may not contain keychain-stored tokens.
+	Provider    string      // LLM provider name (bedrock, anthropic, openrouter)
+	Credentials Credentials // Provider authentication tokens
 }
+
+// gracefulShutdownTimeout is the grace period between SIGTERM and SIGKILL
+// when a headless run is cancelled via context.
+const gracefulShutdownTimeout = 5 * time.Second
 
 // RunHeadless executes opencode in non-interactive mode and captures output.
 // Uses `opencode run` under the hood — no TUI, no stdin required.
-func RunHeadless(opts HeadlessOpts) (string, error) {
+//
+// The context controls cancellation and timeouts: when ctx is done, the
+// subprocess receives SIGTERM followed by SIGKILL after a grace period.
+func RunHeadless(ctx context.Context, opts HeadlessOpts) (string, error) {
 	bin, err := FindBinary()
 	if err != nil {
 		return "", fmt.Errorf("opencode binary not found: %w", err)
@@ -221,6 +253,7 @@ func RunHeadless(opts HeadlessOpts) (string, error) {
 	for _, f := range opts.Files {
 		args = append(args, "--file", f)
 	}
+	args = append(args, opts.ExtraArgs...)
 	args = append(args, "--auto")
 	args = append(args, opts.Prompt)
 
@@ -228,7 +261,9 @@ func RunHeadless(opts HeadlessOpts) (string, error) {
 	if opts.ProjectPath != "" {
 		cmd.Dir = opts.ProjectPath
 	}
-	cmd.Env = os.Environ()
+
+	// Inject provider credentials into the subprocess environment.
+	cmd.Env = buildEnv(opts.Provider, opts.Credentials)
 
 	// Capture output with a size limit to prevent OOM on large headless runs.
 	const maxHeadlessOutput = 50 * 1024 * 1024 // 50 MB
@@ -244,16 +279,63 @@ func RunHeadless(opts HeadlessOpts) (string, error) {
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("starting opencode: %w", err)
 	}
-	if _, err := io.Copy(&buf, io.LimitReader(stdout, maxHeadlessOutput)); err != nil {
-		return "", fmt.Errorf("reading opencode output: %w", err)
+
+	// Read stdout and wait for completion in a goroutine so we can also
+	// monitor context cancellation for graceful shutdown.
+	type readResult struct {
+		n         int64
+		truncated bool
+		copyErr   error
+		waitErr   error
 	}
-	if err := cmd.Wait(); err != nil {
-		combined := buf.String()
-		if s := stderr.String(); s != "" {
-			combined += "\n" + s
+	done := make(chan readResult, 1)
+	go func() {
+		var r readResult
+		r.n, r.copyErr = io.Copy(&buf, io.LimitReader(stdout, maxHeadlessOutput))
+		r.truncated = r.n >= maxHeadlessOutput
+		if r.truncated {
+			// Drain remaining stdout to unblock the subprocess pipe.
+			go func() { _, _ = io.Copy(io.Discard, stdout) }()
 		}
-		return combined, fmt.Errorf("opencode run failed: %w\noutput: %s",
-			err, strings.TrimSpace(combined))
+		r.waitErr = cmd.Wait()
+		done <- r
+	}()
+
+	select {
+	case r := <-done:
+		// Normal completion — process exited before context was cancelled.
+		if r.copyErr != nil {
+			return buf.String(), fmt.Errorf("reading opencode output: %w", r.copyErr)
+		}
+		if r.waitErr != nil {
+			combined := buf.String()
+			if s := stderr.String(); s != "" {
+				combined += "\n" + s
+			}
+			return combined, fmt.Errorf("opencode run failed: %w\noutput: %s",
+				r.waitErr, strings.TrimSpace(combined))
+		}
+		if r.truncated {
+			return buf.String(), fmt.Errorf("headless output truncated at %d bytes (limit: %d); result may be incomplete",
+				r.n, maxHeadlessOutput)
+		}
+		return buf.String(), nil
+
+	case <-ctx.Done():
+		// Context cancelled — graceful shutdown: SIGTERM then SIGKILL.
+		if cmd.Process != nil {
+			_ = cmd.Process.Signal(syscall.SIGTERM)
+		}
+		select {
+		case <-done:
+			// Process exited after SIGTERM.
+		case <-time.After(gracefulShutdownTimeout):
+			// Force kill after grace period.
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			<-done
+		}
+		return buf.String(), ctx.Err()
 	}
-	return buf.String(), nil
 }
