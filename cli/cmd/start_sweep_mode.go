@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -14,13 +16,17 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/llm"
 	"github.com/datichb/openhub/cli/internal/parallel"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/sweep"
 	"github.com/datichb/openhub/cli/internal/task"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+
+	"github.com/google/uuid"
 )
 
 // runSweepMode handles the --sweep flag: decomposes a goal into sub-tasks and
@@ -112,7 +118,27 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 	sweepCfg.VerifyCmd = verifyCmd
 
 	// --- Build LLM completer (injection point for future direct API calls) ---
-	completer := llm.NewPlatformCompleter(a.Platform, project.ID)
+	prov := provider.ResolveProvider("", project.Provider, a.Config.Opencode.DefaultProvider)
+	var provCfg *provider.ProviderConfig
+	if project.ProviderConfig != nil {
+		provCfg = &provider.ProviderConfig{
+			AWSProfile: project.ProviderConfig.AWSProfile,
+			AWSRegion:  project.ProviderConfig.AWSRegion,
+		}
+	}
+	hubCfg := hubProviderCfg(a, prov)
+	mergedCfg := provider.ResolveProviderConfig(provCfg, hubCfg)
+	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
+	sweepCorrelationID := uuid.New().String()
+	completer := &llm.PlatformCompleter{
+		Platform:      a.Platform,
+		ProjectID:     project.ID,
+		Provider:      prov,
+		Credentials:   creds,
+		Sessions:      a.Sessions,
+		CorrelationID: sweepCorrelationID,
+		TrackLabel:    "sweep-decomposition",
+	}
 
 	// --- Build run options ---
 	runOpts := sweep.RunOpts{
@@ -131,6 +157,9 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 		ParallelConfig: cfg,
 		ProjectPath:    project.Path,
 		ProjectID:      project.ID,
+		HubDir:         config.HubDir(),
+		Provider:       prov,
+		Credentials:    creds,
 		Agent:          "orchestrator-dev",
 		DryRun:         dryRun,
 		LLM:            completer,
@@ -174,60 +203,70 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 		}
 	}
 
-	// --- Execute parallel sessions ---
-	fmt.Fprintf(a.IO.Out, "\n%s Création des worktrees et lancement des sessions...\n",
-		theme.Subtitle.Render(theme.IconArrow))
-
-	coord := result.Coordinator
-	defer coord.Cleanup()
-
-	if err := coord.Run(ctx); err != nil {
-		if errors.Is(err, context.Canceled) {
-			fmt.Fprintf(a.IO.Out, "\n%s Sessions annulées.\n",
-				theme.WarningStyle.Render(theme.IconWarning))
-			return nil
-		}
-		if coord.State().RunningCount() == 0 {
-			return fmt.Errorf("exécution sweep: %w", err)
-		}
-	}
-
-	// --- TUI parallel monitor ---
-	if coord.State().RunningCount() > 0 || coord.State().AllCompleted() {
-		fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur...\n\n",
+	// --- Execute sessions ---
+	if result.Coordinator != nil {
+		// Multi-task: full parallel pipeline with coordinator, TUI monitor, and signal handling.
+		fmt.Fprintf(a.IO.Out, "\n%s Création des worktrees et lancement des sessions...\n",
 			theme.Subtitle.Render(theme.IconArrow))
 
-		parallelCfg := views.ParallelConfig{
-			Layout: layout.Config{
-				ProjectName: a.Config.Name,
-				Command:     fmt.Sprintf("sweep: %s", sweepGoal),
-				StatusHints: "↑↓ navigate · Enter attach · r refresh · q quit",
-			},
-			Sessions: toParallelSessions(coord.State()),
-			RefreshFunc: func() []views.ParallelSession {
-				coord.RefreshState()
-				return toParallelSessions(coord.State())
-			},
-			RefreshRate: 5 * time.Second,
-			AttachFunc: func(sessionID string) error {
-				for _, s := range coord.State().Snapshot().Sessions {
-					if s.SessionID == sessionID {
-						return coord.AttachTask(ctx, s.TicketID)
-					}
-				}
-				return fmt.Errorf("session %s introuvable", sessionID)
-			},
+		coord := result.Coordinator
+		// Trap SIGINT/SIGTERM for graceful subprocess cleanup (same as parallel mode).
+		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		defer coord.Cleanup()
+
+		if err := coord.Run(ctx); err != nil {
+			if errors.Is(err, context.Canceled) {
+				fmt.Fprintf(a.IO.Out, "\n%s Sessions annulées.\n",
+					theme.WarningStyle.Render(theme.IconWarning))
+				return nil
+			}
+			if coord.State().RunningCount() == 0 {
+				return fmt.Errorf("exécution sweep: %w", err)
+			}
 		}
 
-		if err := views.RunParallel(parallelCfg); err != nil {
-			fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
-				theme.WarningStyle.Render(theme.IconWarning), err)
+		// --- TUI parallel monitor ---
+		if coord.State().RunningCount() > 0 || coord.State().AllCompleted() {
+			fmt.Fprintf(a.IO.Out, "%s Lancement du moniteur...\n\n",
+				theme.Subtitle.Render(theme.IconArrow))
+
+			parallelCfg := views.ParallelConfig{
+				Layout: layout.Config{
+					ProjectName: a.Config.Name,
+					Command:     fmt.Sprintf("sweep: %s", sweepGoal),
+					StatusHints: "↑↓ navigate · Enter attach · r refresh · q quit",
+				},
+				Sessions: toParallelSessions(coord.State()),
+				RefreshFunc: func() []views.ParallelSession {
+					coord.RefreshState()
+					return toParallelSessions(coord.State())
+				},
+				RefreshRate: 5 * time.Second,
+				AttachFunc: func(sessionID string) error {
+					for _, s := range coord.State().Snapshot().Sessions {
+						if s.SessionID == sessionID {
+							return coord.AttachTask(ctx, s.TicketID)
+						}
+					}
+					return fmt.Errorf("session %s introuvable", sessionID)
+				},
+			}
+
+			if err := views.RunParallel(parallelCfg); err != nil {
+				fmt.Fprintf(a.IO.Out, "%s TUI error: %v\n",
+					theme.WarningStyle.Render(theme.IconWarning), err)
+			}
 		}
+	} else {
+		// Single-task fast path: already executed via RunHeadless in sweep.Run().
+		fmt.Fprintf(a.IO.Out, "\n%s Tâche unique exécutée en mode direct (headless).\n",
+			theme.Subtitle.Render(theme.IconArrow))
 	}
 
 	// --- Collect and finalize ---
 	finalResult, err := sweep.CollectAndFinalize(
-		ctx, result.Tasks, coord.State(),
+		ctx, result.Tasks, result.State,
 		project.Path, cfg, sweepCfg,
 	)
 	if err != nil {
@@ -238,9 +277,9 @@ func runSweepMode(cmd *cobra.Command, a *app.App, ctx context.Context) error {
 	printSweepResults(a, finalResult)
 
 	// --- Merge TUI ---
-	if finalResult.Merged != nil && finalResult.Merged.MergedCount == 0 {
+	if finalResult.Merged != nil && finalResult.Merged.MergedCount == 0 && result.State != nil {
 		// Propose interactive merge via TUI
-		branches := toSweepMergeBranches(coord.State(), project.Path, result.Tasks)
+		branches := toSweepMergeBranches(result.State, project.Path, result.Tasks)
 		if len(branches) > 0 {
 			runSweepMergeView(a, branches, project.Path)
 		}

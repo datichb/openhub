@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -16,8 +19,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/parallel"
 	"github.com/datichb/openhub/cli/internal/platform"
+	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -106,15 +111,35 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	}
 
 	// Create the parallel runner from the platform
+	hubDir := config.HubDir()
+	parallel.CleanOldLogs(hubDir)
+
+	// Resolve provider + credentials for all parallel subprocess instances.
+	prov := provider.ResolveProvider("", project.Provider, a.Config.Opencode.DefaultProvider)
+	var provCfg *provider.ProviderConfig
+	if project.ProviderConfig != nil {
+		provCfg = &provider.ProviderConfig{
+			AWSProfile: project.ProviderConfig.AWSProfile,
+			AWSRegion:  project.ProviderConfig.AWSRegion,
+		}
+	}
+	hubProvCfg := hubProviderCfg(a, prov)
+	mergedCfg := provider.ResolveProviderConfig(provCfg, hubProvCfg)
+	creds := provider.ResolveCredentials(ctx, a.Secrets, provider.Name(prov), project.ID, &mergedCfg)
+
 	runner, err := a.Platform.NewParallelRunner(platform.ParallelRunnerOpts{
 		ProjectPath: project.Path,
 		ProjectID:   project.ID,
+		HubDir:      hubDir,
+		Provider:    prov,
+		Credentials: creds,
 		Config:      marshalPortConfig(cfg.PortRangeStart),
 	})
 	if err != nil {
 		return fmt.Errorf("creating parallel runner: %w", err)
 	}
 
+	stateDir := filepath.Join(hubDir, "parallel")
 	coord, err := parallel.NewCoordinator(parallel.CoordinatorOpts{
 		ProjectPath:     project.Path,
 		ProjectID:       project.ID,
@@ -123,6 +148,7 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 		Priority:        priority,
 		Agent:           "orchestrator-dev",
 		Config:          cfg,
+		StateDir:        stateDir,
 		PromptFunc: func(ticketID string) string {
 			return fmt.Sprintf("Travaille sur le ticket %s. Analyse, implémente et teste.", ticketID)
 		},
@@ -130,6 +156,13 @@ func runParallelMode(cmd *cobra.Command, a *app.App, ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("initialisation parallèle: %w", err)
 	}
+
+	// Trap SIGINT/SIGTERM to cancel the coordinator's context and allow
+	// graceful cleanup of subprocess servers. Without this, defer Cleanup()
+	// would not run on os.Exit() triggered by unhandled signals, leaving
+	// opencode serve processes orphaned.
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	defer coord.Cleanup()
 
 	fmt.Fprintf(a.IO.Out, "%s Création des worktrees et lancement des sessions...\n",
