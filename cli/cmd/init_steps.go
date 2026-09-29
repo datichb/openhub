@@ -277,27 +277,50 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				return event
 			})
 
+			// ── Center the mode selector ──
+			// Wrap modeForm in a horizontal Flex that centers it to ~50 columns,
+			// visually aligned with the centered text above and button below.
+			const modeMaxWidth = 50
+			modeLeftSpace := tview.NewBox()
+			modeLeftSpace.SetBackgroundColor(theme.BgPanel)
+			modeRightSpace := tview.NewBox()
+			modeRightSpace.SetBackgroundColor(theme.BgPanel)
+			modeWrapper := tview.NewFlex().SetDirection(tview.FlexColumn)
+			modeWrapper.SetBackgroundColor(theme.BgPanel)
+			modeWrapper.AddItem(modeLeftSpace, 0, 1, false)
+			modeWrapper.AddItem(modeForm, modeMaxWidth, 0, true)
+			modeWrapper.AddItem(modeRightSpace, 0, 1, false)
+
+			// Separator between text and mode selector.
+			modeSep := tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignCenter)
+			modeSep.SetBackgroundColor(theme.BgPanel)
+			modeSep.SetText(fmt.Sprintf("\n%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n", muted, reset))
+
 			// ── Adaptive layout ──
 			if availH >= 45 {
-				// Full: spacers + ASCII art + text + mode(desc) + button
+				// Full: spacers + ASCII art + text + sep + mode(desc) + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
 				container.AddItem(topSpacer, 2, 0, false)
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(modeSep, 3, 0, false)
+				container.AddItem(modeWrapper, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 5, 0, false)
 				container.AddItem(bottomSpacer, 2, 0, false)
 			} else if availH >= 25 {
-				// Compact: no spacers, compact title, text + mode(desc) + button
+				// Compact: no spacers, compact title, text + sep + mode(desc) + button
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(modeSep, 3, 0, false)
+				container.AddItem(modeWrapper, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 3, 0, false)
 			} else {
-				// Minimal: compact title, text + mode(no desc) + button
+				// Minimal: compact title, text + mode(no desc) + button (no centering for space)
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(modeWrapper, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 3, 0, false)
 			}
 			tvApp.SetFocus(modeForm)
