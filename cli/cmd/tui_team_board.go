@@ -177,7 +177,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 					projectID = project.ID
 				}
 				memberID := a.Config.ActiveTeam().MemberID
-				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
 
 				// Try creating a new claim first.
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
@@ -232,7 +233,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
-				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
 				return repo.ReleaseClaim(ctx, projectID, ticketID)
 			},
 			OnTransfer: func(ticketID, toMember string) error {
@@ -245,7 +247,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
-				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
 			OnStatus: func(ticketID, newStatus string) error {
@@ -258,7 +261,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if project != nil {
 					projectID = project.ID
 				}
-				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},

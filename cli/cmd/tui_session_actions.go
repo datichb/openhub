@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/charmbracelet/huh"
 
@@ -375,7 +376,8 @@ func handleDevModeTUI(a *app.App, project *domain.Project) (agentName, devPrompt
 		return "", "", errors.New(i18n.T("cmd.start.dev_no_bd"))
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Pull team-state for claim awareness
 	var teamRepo *teamstate.Repo
