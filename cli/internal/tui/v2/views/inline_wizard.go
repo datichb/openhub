@@ -386,10 +386,10 @@ func (w *InlineWizardView) syncStepBar(idx int, status widgets.StepStatus) {
 }
 
 func (w *InlineWizardView) Unmount() {
-	// Restore the shell omnibar before cleanup.
-	if w.shell != nil {
-		w.shell.SetOmnibarVisible(true)
-	}
+	// NOTE: omnibar visibility is now managed by the shell's onNavigate
+	// callback. This avoids a one-frame flash when transitioning between
+	// two wizards (Unmount would restore the omnibar, then Mount would
+	// hide it again — the intermediate state was visible for one draw).
 
 	if w.spinner != nil {
 		w.spinner.Stop()

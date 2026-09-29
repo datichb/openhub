@@ -176,8 +176,28 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		}),
 	)
 
-	// Group: Déploiement (deploy step with dynamic description)
+	// Group: Déploiement (intro + agent selection + deploy confirmation)
 	deployGroupStart := len(steps)
+	deployIntro := buildIntroStep(
+		i18n.T("cmd.init.wizard_group_deploy"),
+		"cmd.init.wizard_intro_deploy_title",
+		"cmd.init.wizard_intro_deploy_desc",
+		"cmd.init.wizard_intro_deploy_list",
+		"cmd.init.wizard_deploy_list_items",
+		"",
+		"cmd.init.wizard_intro_deploy_note",
+		func() { s.DeploySkipped = false },
+		func() { s.DeploySkipped = true },
+	)
+	deployIntro.SkipIf = func() bool { return s.ProjectSkipped || !s.ProjectCreated }
+	deployIntro.InfoFields = func() []views.InfoField {
+		if s.DeploySkipped {
+			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_group_deploy"), Value: i18n.T("cmd.init.wizard_deploy_section_skipped")}}
+		}
+		return nil
+	}
+	steps = append(steps, deployIntro)
+	steps = append(steps, buildAgentSelectionStep(s))
 	steps = append(steps, buildDeployStep(s))
 
 	// ── Resolve step indices ─────────────────────────────────────────────
@@ -305,6 +325,7 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		cfg.Groups[2].Label = i18n.T("cmd.init.wizard_group_team")
 		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
 		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
+		cfg.Groups[5].Label = i18n.T("cmd.init.wizard_group_deploy")
 
 		// Step labels — resolved by ID (no fragile positional indices)
 		refresh := func(id, labelKey string) {
@@ -337,7 +358,10 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 
 		// Project steps
 		refreshP("project", "cmd.init.wizard_step_project", "cmd.init.wizard_processing_project")
-		refreshP("deploy", "cmd.init.wizard_step_deploy", "cmd.init.wizard_deploy_processing")
+
+		// Deploy steps
+		refresh("agents", "cmd.init.wizard_step_agents")
+		refreshP("deploy", "cmd.init.wizard_step_deploy_confirm", "cmd.init.wizard_deploy_processing")
 
 		// MCP steps
 		refresh("mcp_figma", "cmd.init.wizard_step_mcp_figma")

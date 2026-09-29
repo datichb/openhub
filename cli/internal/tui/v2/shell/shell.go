@@ -179,6 +179,17 @@ func New(cfg Config) *Shell {
 		theme.SetActiveMode(string(s.activeMode))
 		s.omnibar.SetHints(v.StatusHints())
 		s.updateModeBar(v)
+
+		// Manage omnibar visibility based on the new view: views that
+		// capture all input (e.g. inline wizards) hide the omnibar;
+		// all other views restore it. This centralised check replaces
+		// the previous per-view Unmount/Mount toggle and eliminates the
+		// one-frame flash when transitioning between two wizards.
+		if ic, ok := v.(views.InputCapturing); ok && ic.CapturesInput() {
+			s.SetOmnibarVisible(false)
+		} else {
+			s.SetOmnibarVisible(true)
+		}
 	})
 
 	// Register all views and wire ShellAccess
