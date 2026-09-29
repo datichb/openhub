@@ -84,11 +84,11 @@ var (
 
 // Mode indicators — named aliases for the accent color of each mode.
 var (
-	// ModeHubColor is the accent color for hub mode (Peach).
+	// ModeHubColor is the accent color for hub mode (Tangerine).
 	ModeHubColor = tcell.GetColor(ModeHubHex)
 	// ModeTeamColor is the accent color for team mode (Mauve Saturated).
 	ModeTeamColor = tcell.GetColor(ModeTeamHex)
-	// ModeProjectColor is the accent color for project mode (Sapphire).
+	// ModeProjectColor is the accent color for project mode (Azure).
 	ModeProjectColor = tcell.GetColor(ModeProjectHex)
 )
 
@@ -131,15 +131,15 @@ type ModeTheme struct {
 }
 
 var (
-	// ThemeHub is the mode theme for hub navigation (Warm family).
+	// ThemeHub is the mode theme for hub navigation (Warm saturated family).
 	ThemeHub = ModeTheme{
-		AccentHex:    ActionHex,        // #fab387 Peach
-		Accent:       tcell.GetColor(ActionHex),
-		PrimaryHex:   YellowHex,        // #f9e2af Yellow
-		Primary:      tcell.GetColor(YellowHex),
-		SecondaryHex: FlamingoHex,      // #f2cdcd Flamingo
-		Secondary:    tcell.GetColor(FlamingoHex),
-		MutedHex:     MutedHubHex,      // #5a4838
+		AccentHex:    TangerineHex,     // #f28c50 Tangerine
+		Accent:       tcell.GetColor(TangerineHex),
+		PrimaryHex:   HoneyHex,         // #f5c468 Honey
+		Primary:      tcell.GetColor(HoneyHex),
+		SecondaryHex: CoralHex,         // #e89078 Coral
+		Secondary:    tcell.GetColor(CoralHex),
+		MutedHex:     MutedHubHex,      // #4d3828
 		Muted:        tcell.GetColor(MutedHubHex),
 	}
 	// ThemeTeam is the mode theme for team navigation (Saturated Violet family).
@@ -153,15 +153,15 @@ var (
 		MutedHex:     MutedTeamHex,      // #4a3060
 		Muted:        tcell.GetColor(MutedTeamHex),
 	}
-	// ThemeProject is the mode theme for project navigation (Sapphire/Blue family).
+	// ThemeProject is the mode theme for project navigation (Azure/Cobalt/Teal family).
 	ThemeProject = ModeTheme{
-		AccentHex:    SapphireHex,       // #74c7ec Sapphire
-		Accent:       tcell.GetColor(SapphireHex),
-		PrimaryHex:   BlueHex,           // #89b4fa Blue
-		Primary:      tcell.GetColor(BlueHex),
-		SecondaryHex: TealHex,           // #94e2d5 Teal
-		Secondary:    tcell.GetColor(TealHex),
-		MutedHex:     MutedProjectHex,   // #2d4050
+		AccentHex:    AzureHex,          // #60b8f0 Azure
+		Accent:       tcell.GetColor(AzureHex),
+		PrimaryHex:   CobaltHex,         // #78a8f5 Cobalt
+		Primary:      tcell.GetColor(CobaltHex),
+		SecondaryHex: TealVifHex,        // #68d8c0 Teal Vif
+		Secondary:    tcell.GetColor(TealVifHex),
+		MutedHex:     MutedProjectHex,   // #283f50
 		Muted:        tcell.GetColor(MutedProjectHex),
 	}
 

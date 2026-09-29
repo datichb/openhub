@@ -38,10 +38,12 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// AccentHex is the structural accent for focus borders, navigation — Blue.
-	AccentHex = "#89b4fa"
-	// ActionHex is the CTA accent for active menu items, buttons, spinners — Peach.
-	ActionHex = "#fab387"
+	// AccentHex is the structural accent for focus borders, navigation — Tangerine.
+	// Aligned with the Hub (default) mode accent.
+	AccentHex = TangerineHex
+	// ActionHex is the CTA accent for active menu items, buttons, spinners — Honey.
+	// Aligned with the Hub (default) mode primary.
+	ActionHex = HoneyHex
 	// SuccessHex is for confirmations and completed states — Green.
 	SuccessHex = "#a6e3a1"
 	// WarningHex is for non-blocking alerts — Yellow.
@@ -100,12 +102,12 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// ModeHubHex is the accent color for hub mode — Peach (Warm).
-	ModeHubHex = ActionHex
+	// ModeHubHex is the accent color for hub mode — Tangerine.
+	ModeHubHex = TangerineHex
 	// ModeTeamHex is the accent color for team mode — Mauve Saturated.
 	ModeTeamHex = MauveSaturatedHex
-	// ModeProjectHex is the accent color for project mode — Sapphire.
-	ModeProjectHex = SapphireHex
+	// ModeProjectHex is the accent color for project mode — Azure.
+	ModeProjectHex = AzureHex
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,39 +115,66 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// TealHex — Catppuccin Teal, project mode secondary.
-	TealHex = "#94e2d5"
-	// SkyHex — Catppuccin Sky.
-	SkyHex = "#89dceb"
-	// SapphireHex — Catppuccin Sapphire, project mode accent.
-	SapphireHex = "#74c7ec"
-	// BlueHex — Catppuccin Blue, project mode primary.
-	BlueHex = "#89b4fa"
-	// MauveHex — Catppuccin Mauve (base, unsaturated).
-	MauveHex = "#cba6f7"
-	// MauveSaturatedHex — Saturated mauve, team mode accent.
+	// ── Hub mode (Warm saturated) ──
+
+	// TangerineHex — hub mode accent.
+	TangerineHex = "#f28c50"
+	// HoneyHex — hub mode primary.
+	HoneyHex = "#f5c468"
+	// CoralHex — hub mode secondary.
+	CoralHex = "#e89078"
+
+	// ── Team mode (Violet saturated) ──
+
+	// MauveSaturatedHex — team mode accent.
 	MauveSaturatedHex = "#c37ef5"
 	// Violet350Hex — Violet 350, team mode primary.
 	Violet350Hex = "#b197fc"
 	// Violet300Hex — Violet 300, team mode secondary.
 	Violet300Hex = "#d8b4fe"
+
+	// ── Project mode (Blue saturated) ──
+
+	// AzureHex — project mode accent.
+	AzureHex = "#60b8f0"
+	// CobaltHex — project mode primary.
+	CobaltHex = "#78a8f5"
+	// TealVifHex — project mode secondary.
+	TealVifHex = "#68d8c0"
+
+	// ── Catppuccin Mocha reference palette ──
+
+	// TealHex — Catppuccin Teal.
+	TealHex = "#94e2d5"
+	// SkyHex — Catppuccin Sky.
+	SkyHex = "#89dceb"
+	// SapphireHex — Catppuccin Sapphire.
+	SapphireHex = "#74c7ec"
+	// BlueHex — Catppuccin Blue (used by board columns for data-driven "blue" color).
+	BlueHex = "#89b4fa"
+	// LavenderHex — Catppuccin Lavender (= InfoHex).
+	LavenderHex = "#b4befe"
+	// MauveHex — Catppuccin Mauve (base, unsaturated).
+	MauveHex = "#cba6f7"
 	// PinkHex — Catppuccin Pink.
 	PinkHex = "#f5c2e7"
-	// FlamingoHex — Catppuccin Flamingo, hub mode secondary.
+	// FlamingoHex — Catppuccin Flamingo.
 	FlamingoHex = "#f2cdcd"
-	// YellowHex — Catppuccin Yellow, hub mode primary (= WarningHex).
+	// PeachHex — Catppuccin Peach.
+	PeachHex = "#fab387"
+	// YellowHex — Catppuccin Yellow (= WarningHex).
 	YellowHex = WarningHex
 )
 
 // Muted mode tints — darkened versions of each mode's accent for subtle
 // decorative elements (separators, background tints, discrete indicators).
 const (
-	// MutedHubHex is a dark peach for hub mode muted elements.
-	MutedHubHex = "#5a4838"
+	// MutedHubHex is a dark tangerine for hub mode muted elements.
+	MutedHubHex = "#4d3828"
 	// MutedTeamHex is a dark violet for team mode muted elements.
 	MutedTeamHex = "#4a3060"
-	// MutedProjectHex is a dark sapphire for project mode muted elements.
-	MutedProjectHex = "#2d4050"
+	// MutedProjectHex is a dark azure for project mode muted elements.
+	MutedProjectHex = "#283f50"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,6 +185,6 @@ const (
 // functions. The struct is defined in tcell.go because it contains tcell.Color
 // fields alongside hex string fields.
 //
-// Hub     = Warm family   (Peach / Yellow / Flamingo)
+// Hub     = Warm family   (Tangerine / Honey / Coral)
 // Team    = Violet family (Mauve Saturated / Violet 350 / Violet 300)
-// Project = Blue family   (Sapphire / Blue / Teal)
+// Project = Blue family   (Azure / Cobalt / Teal Vif)

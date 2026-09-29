@@ -25,14 +25,14 @@ Base : **Catppuccin Mocha** — palette prouvée sur fond `#1e1e2e`, excellente 
 
 ### Couleurs sémantiques — système dual-accent
 
-Le design utilise deux accents complémentaires :
-- **Accent** (Blue) pour les éléments structurels : bordures focus, navigation, sélection
-- **Action** (Peach) pour les éléments interactifs : CTA, menu actif, spinners
+Le design utilise deux accents complémentaires, alignés sur le thème Hub (mode par défaut) :
+- **Accent** (Tangerine) pour les éléments structurels : bordures focus, navigation, sélection
+- **Action** (Honey) pour les éléments interactifs : CTA, menu actif, spinners
 
 | Rôle | Nom code | Hex | Usage |
 |------|----------|-----|-------|
-| **Accent** | Blue | `#89b4fa` | Bordure focus, navigation, sélection, badges projet |
-| **Action** | Peach | `#fab387` | CTA actif, menu item actif, bordure active, spinners |
+| **Accent** | Tangerine | `#f28c50` | Bordure focus, navigation, sélection, badges projet |
+| **Action** | Honey | `#f5c468` | CTA actif, menu item actif, bordure active, spinners |
 | **Success** | Green | `#a6e3a1` | Confirmations, étapes complétées, badges beads complets |
 | **Warning** | Yellow | `#f9e2af` | Avertissements, priorité medium, colonne TODO |
 | **Error** | Red | `#f38ba8` | Erreurs, bloqué, critique, priorité P0 |
@@ -60,8 +60,8 @@ Le design utilise deux accents complémentaires :
 |------|-----|-------|
 | BorderNormal | `#313244` | Bordures de panel discrètes |
 | BorderCard | `#45475a` | Bordures de cards et séparateurs de colonnes — subtiles |
-| BorderFocus | `#89b4fa` | = Accent (élément avec le focus) |
-| BorderActive | `#fab387` | = Action (menu item actif) |
+| BorderFocus | `#f28c50` | = Accent (élément avec le focus) |
+| BorderActive | `#f5c468` | = Action (menu item actif) |
 
 ## Variantes de thème
 
@@ -94,7 +94,7 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 | État | Icône | Fallback | Couleur |
 |------|-------|----------|---------|
 | Done | `●` | `●` | Success/Green |
-| Active | `◔` | `►` | Action/Peach |
+| Active | `◔` | `►` | Action/Honey |
 | Pending | `○` | `○` | Muted |
 | Skipped | `○` | `○` | Muted (dim) |
 
@@ -105,7 +105,7 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 | Succès | `✓` | Success/Green |
 | Erreur | `✗` | Error/Red |
 | Warning | `!` | Warning/Yellow |
-| Indicateur actif | `▸` | Action/Peach |
+| Indicateur actif | `▸` | Action/Honey |
 | Point neutre | `·` | Muted |
 
 ### Connecteurs
@@ -120,9 +120,9 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 |-----------|--------|
 | Type | Rounded (`╭╮╯╰`) — cards et panels |
 | Couleur card (repos) | BorderCard `#45475a` (subtile, visible sur BgPanel) |
-| Couleur card (focus) | BorderFocus `#89b4fa` (= Accent/Blue) |
+| Couleur card (focus) | BorderFocus `#f28c50` (= Accent/Tangerine) |
 | Couleur panel | BorderNormal `#313244` (quasi-invisible) |
-| Couleur active | BorderActive `#fab387` (= Action/Peach) |
+| Couleur active | BorderActive `#f5c468` (= Action/Honey) |
 | Séparateur colonne | `│` en BorderCard — trait vertical entre colonnes kanban |
 
 ## Espacement
@@ -168,7 +168,7 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
  
   Étapes
   ● Label complété         ← Success/Green
-  ◔ Label actif            ← Action/Peach
+  ◔ Label actif            ← Action/Honey
   ○ Label à venir          ← Muted
 ```
 
@@ -214,7 +214,7 @@ profondeur de fond (Panel vs Card).
 | Fond colonne | BgPanel | `#1e1e2e` |
 | Fond card | BgCard | `#313244` |
 | Bordure card (repos) | BorderCard | `#45475a` |
-| Bordure card (focus) | BorderFocus | `#89b4fa` |
+| Bordure card (focus) | BorderFocus | `#f28c50` |
 | Header colonne | titleColor (sémantique) | Yellow=TODO, Blue=In Progress, etc. |
 | Texte titre | Primary | `#cdd6f4` |
 | Texte metadata | Muted | `#7f849c` |
@@ -255,7 +255,7 @@ commune documentée ici.
 #### Logo
 
 - Police : figlet font `small`
-- Couleur : Action/Peach (`#fab387`)
+- Couleur : Action/Honey (`#f5c468`)
 - Fallback : texte bold Primary si la largeur disponible est inférieure à la
   largeur du rendu figlet (terminaux < 60 cols)
 
@@ -292,10 +292,10 @@ Chaque mode de navigation possède une palette 4 niveaux (`Accent`, `Primary`,
 
 | Niveau | Rôle | Hub (Warm) | Team (Violet) | Project (Blue) |
 |--------|------|------------|----------------|----------------|
-| **Accent** | Bannières ASCII, bordures modals, boutons primaires | Peach `#fab387` | Mauve Sat. `#c37ef5` | Sapphire `#74c7ec` |
-| **Primary** | Titres sections, badges, spinners, mode label, focus | Yellow `#f9e2af` | Violet 350 `#b197fc` | Blue `#89b4fa` |
-| **Secondary** | Boutons activés, CTA hover, cursors, flèches | Flamingo `#f2cdcd` | Violet 300 `#d8b4fe` | Teal `#94e2d5` |
-| **Muted** | Séparateur omnibar, indicateurs discrets | `#5a4838` | `#4a3060` | `#2d4050` |
+| **Accent** | Bannières ASCII, bordures modals, boutons primaires | Tangerine `#f28c50` | Mauve Sat. `#c37ef5` | Azure `#60b8f0` |
+| **Primary** | Titres sections, badges, spinners, mode label, focus | Honey `#f5c468` | Violet 350 `#b197fc` | Cobalt `#78a8f5` |
+| **Secondary** | Boutons activés, CTA hover, cursors, flèches | Coral `#e89078` | Violet 300 `#d8b4fe` | Teal Vif `#68d8c0` |
+| **Muted** | Séparateur omnibar, indicateurs discrets | `#4d3828` | `#4a3060` | `#283f50` |
 
 #### Champ structurel `SectionID`
 
@@ -307,7 +307,7 @@ dual-column. Les sections avec le même `SectionID` restent groupées.
 ## Anti-patterns
 
 - Ne **jamais** utiliser de séparateurs lourds (`━━━`, couleurs vives) pour délimiter des zones. Les séparateurs subtils en `BorderCard` (`│`, `─`) sont acceptés pour la structure (colonnes kanban, sections).
-- Ne **jamais** utiliser la couleur Action (Peach) pour du texte long (illisible). Réservé aux labels courts, icônes, bordures actives.
+- Ne **jamais** utiliser la couleur Action (Honey) pour du texte long (illisible). Réservé aux labels courts, icônes, bordures actives.
 - Ne **jamais** mélanger plus de 3 couleurs sémantiques dans la même zone visuelle.
 - Ne **jamais** utiliser de couleurs hardcodées (`lipgloss.Color("99")`) — toujours via `theme.*`.
 - Ne **jamais** coller un formulaire directement sous un titre sans espacement.
@@ -318,7 +318,7 @@ dual-column. Les sections avec le même `SectionID` restent groupées.
 ### Thème huh "Aurum" (`theme/huh.go`)
 
 Tous les formulaires huh utilisent un thème personnalisé qui applique la palette :
-- Bordure active : Action/Peach (`BorderActive`)
+- Bordure active : Action/Honey (`BorderActive`)
 - Titre : Action bold
 - Sélecteur : Accent/Blue
 - Selected : Success/Green (`✓`)
@@ -378,7 +378,7 @@ Fallback automatique vers `form.Run()` si `UseRichTUI()` retourne false.
 
 ### Wizard Spinner
 
-Pendant l'exécution d'un `OnDone` dans le wizard, un spinner Dot animé (Action/Peach) remplace la zone du formulaire :
+Pendant l'exécution d'un `OnDone` dans le wizard, un spinner Dot animé (Action/Honey) remplace la zone du formulaire :
 
 ```
   ⠋ Enregistrement du profil...

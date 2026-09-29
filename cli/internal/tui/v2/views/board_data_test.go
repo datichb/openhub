@@ -3,6 +3,7 @@ package views
 import (
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -26,7 +27,7 @@ func TestMapClaimStatusWithConfig_DirectMatch(t *testing.T) {
 func TestMapClaimStatusWithConfig_LegacyPlanned(t *testing.T) {
 	columns := []BoardColumnDef{
 		{Name: "BACKLOG", Status: "backlog", Color: theme.Warning},
-		{Name: "DEV", Status: "dev", Color: theme.Accent},
+		{Name: "DEV", Status: "dev", Color: tcell.GetColor(theme.BlueHex)},
 		{Name: "DONE", Status: "done", Color: theme.Success},
 	}
 	// "planned" is a legacy status — should map to the first column.
@@ -36,7 +37,7 @@ func TestMapClaimStatusWithConfig_LegacyPlanned(t *testing.T) {
 func TestMapClaimStatusWithConfig_Fallback(t *testing.T) {
 	columns := []BoardColumnDef{
 		{Name: "TODO", Status: "todo", Color: theme.Warning},
-		{Name: "DEV", Status: "dev", Color: theme.Accent},
+		{Name: "DEV", Status: "dev", Color: tcell.GetColor(theme.BlueHex)},
 		{Name: "DONE", Status: "done", Color: theme.Success},
 	}
 	// An unknown status should fall back to the first column.

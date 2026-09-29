@@ -3,6 +3,7 @@ package views
 import (
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,8 +58,8 @@ func TestColumnsFromConfig_Custom(t *testing.T) {
 	// Role-based colors:
 	// initial → theme.Warning
 	assert.Equal(t, theme.Warning, cols[0].Color)
-	// active columns cycle through activeColorCycle: Accent, FgSecondary, Info
-	assert.Equal(t, theme.Accent, cols[1].Color)      // first active
+	// active columns cycle through activeColorCycle: Blue, FgSecondary, Info
+	assert.Equal(t, tcell.GetColor(theme.BlueHex), cols[1].Color) // first active
 	assert.Equal(t, theme.FgSecondary, cols[2].Color) // second active
 	// terminal → theme.Success
 	assert.Equal(t, theme.Success, cols[3].Color)

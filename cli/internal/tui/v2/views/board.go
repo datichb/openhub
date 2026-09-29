@@ -46,7 +46,7 @@ type BoardColumnDef struct {
 func DefaultColumns() []BoardColumnDef {
 	return []BoardColumnDef{
 		{Name: "TODO", Status: "todo", Color: theme.Warning},
-		{Name: "IN PROGRESS", Status: "in_progress", Color: theme.Accent},
+		{Name: "IN PROGRESS", Status: "in_progress", Color: tcell.GetColor(theme.BlueHex)},
 		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary},
 		{Name: "VALIDATION", Status: "validation", Color: theme.Info},
 		{Name: "DONE", Status: "done", Color: theme.Success},
@@ -105,18 +105,18 @@ func ResolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Colo
 // distinct: Azure (blue), Overlay (gray), Sapphire (cyan), Mauve (purple),
 // Yellow, Green.
 var activeColorCycle = []tcell.Color{
-	theme.Accent,              // Azure (blue)
-	theme.FgSecondary,         // Overlay (gray)
-	theme.Info,                // Sapphire (cyan)
-	tcell.GetColor("#cba6f7"), // Mauve (purple)
-	tcell.GetColor("#f9e2af"), // Yellow
-	tcell.GetColor("#a6e3a1"), // Green (lighter than Success)
+	tcell.GetColor(theme.BlueHex), // Azure (blue)
+	theme.FgSecondary,             // Overlay (gray)
+	theme.Info,                    // Sapphire (cyan)
+	tcell.GetColor("#cba6f7"),     // Mauve (purple)
+	tcell.GetColor("#f9e2af"),     // Yellow
+	tcell.GetColor("#a6e3a1"),     // Green (lighter than Success)
 }
 
 // colorOverrides maps user-facing color names to tcell.Color values.
 var colorOverrides = map[string]tcell.Color{
 	"orange": theme.Warning,
-	"blue":   theme.Accent,
+	"blue":   tcell.GetColor(theme.BlueHex),
 	"gray":   theme.FgSecondary,
 	"cyan":   theme.Info,
 	"green":  theme.Success,

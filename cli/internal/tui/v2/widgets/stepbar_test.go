@@ -19,8 +19,8 @@ func TestColorTag_FormatsCorrectly(t *testing.T) {
 
 func TestColorTag_ThemeColors(t *testing.T) {
 	tag := ColorTag(theme.Accent)
-	// Accent is #89b4fa = Catppuccin Blue
-	assert.Equal(t, "[#89b4fa]", tag)
+	// Accent is #f28c50 = Tangerine (hub accent, aligned with global AccentHex)
+	assert.Equal(t, "[#f28c50]", tag)
 }
 
 func TestNewStepBar_CreatesWidget(t *testing.T) {
