@@ -572,9 +572,12 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 		SkipIf: func() bool {
 			return s.ProjectSkipped || !s.ProjectCreated
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
 			s.DeployConfirmed = false
-			form := tview.NewForm()
+
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+			secondary := theme.ColorTag(theme.TextSecondaryHex)
+			reset := theme.TagColor
 
 			// Build dynamic description with agent/skill counts.
 			hubDir := findHubDir()
@@ -586,17 +589,60 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 			} else {
 				desc = i18n.T("cmd.init.wizard_deploy_desc_fallback")
 			}
-			form.AddTextView("", desc, 60, 12, true, true)
 
-			form.AddButton(i18n.T("cmd.init.wizard_deploy_now"), func() {
+			var b strings.Builder
+			b.WriteString("\n")
+			fmt.Fprintf(&b, "%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_step_deploy"), reset)
+			for _, line := range strings.Split(desc, "\n") {
+				fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
+			}
+			tv := tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignCenter)
+			tv.SetBackgroundColor(theme.BgPanel)
+			tv.SetText(b.String())
+
+			buttonForm := views.NewStyledButtonForm()
+			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_deploy_now")+"  ", func() {
 				s.DeployConfirmed = true
 				onDone()
 			})
-			form.AddButton(i18n.T("cmd.init.wizard_deploy_skip_btn"), func() {
+			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_deploy_skip_btn")+"  ", func() {
 				s.DeployConfirmed = false
 				onDone()
 			})
-			return form
+
+			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				switch event.Key() {
+				case tcell.KeyLeft:
+					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+				case tcell.KeyRight:
+					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+				}
+				return event
+			})
+
+			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+			if termH <= 0 {
+				termH = 50
+			}
+			availH := termH - 7
+
+			if availH >= 25 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 3, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 5, 0, true)
+				container.AddItem(bottomSpacer, 3, 0, false)
+			} else {
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
+			}
+			tvApp.SetFocus(buttonForm)
 		},
 		OnDone: func() error {
 			if !s.DeployConfirmed || !s.ProjectCreated {
