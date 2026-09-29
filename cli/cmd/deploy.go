@@ -16,8 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -215,7 +215,7 @@ func findHubDir() string {
 
 // buildMCPServersForProject constructs MCP server definitions using the full
 // 3-level cascade: team-state (enforced/recommended) → hub → project.
-// Each service is resolved independently via tracker.ResolveFullMCPConfig.
+// Each service is resolved independently via mcpresolve.ResolveFull.
 func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, resolvedTeam config.ResolvedTeamConfig) []deploy.MCPServerDef {
 	// Load team-state shared MCP config (if team is enabled and cloned)
 	var sharedMCP map[string]teamstate.SharedMCPConfig
@@ -269,7 +269,7 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 		}
 		project := projectSet[name]
 
-		eff := tracker.ResolveFullMCPConfig(shared, hub, project, teamID)
+		eff := mcpresolve.ResolveFull(shared, hub, project, teamID)
 
 		servers = append(servers, deploy.MCPServerDef{
 			Name:         name,

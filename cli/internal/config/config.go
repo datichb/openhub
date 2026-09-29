@@ -261,12 +261,24 @@ type TrackerLocalConfig struct {
 	AutoSync *bool `mapstructure:"auto_sync" toml:"auto_sync,omitempty"`
 	// PushLabels overrides whether hub labels are pushed back to the tracker.
 	// nil = inherit team recommendation. The effective value is also gated by
-	// [mcp.<type>].write_enabled — push never happens without write permission.
+	// [tracker].write_enabled — push never happens without write permission.
 	PushLabels *bool `mapstructure:"push_labels" toml:"push_labels,omitempty"`
 	// AutoPlanAssigned overrides the auto-plan-from-tracker-assignee behaviour.
 	AutoPlanAssigned *bool `mapstructure:"auto_plan_assigned" toml:"auto_plan_assigned,omitempty"`
 	// MaxAutoPlanPerMember overrides the per-member auto-plan limit.
 	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member" toml:"max_auto_plan_per_member,omitempty"`
+	// TrackerURL is the base URL of the tracker instance for this member.
+	// When set, overrides the team-state TrackerURL.
+	// Allows standalone tracker usage without a team or MCP config.
+	TrackerURL string `mapstructure:"tracker_url" toml:"tracker_url,omitempty"`
+	// TrackerTokenKey is the keychain key for the tracker token.
+	// When set, overrides the team-state TrackerTokenKey.
+	// Allows standalone tracker usage without MCP config.
+	TrackerTokenKey string `mapstructure:"tracker_token_key" toml:"tracker_token_key,omitempty"`
+	// WriteEnabled controls whether the tracker can perform write operations
+	// (push labels, assign issues). nil = inherit team-state.
+	// Independent of MCP write_enabled — the tracker has its own permission.
+	WriteEnabled *bool `mapstructure:"write_enabled" toml:"write_enabled,omitempty"`
 }
 
 // WebsearchConfig holds web search/fetch permission settings.

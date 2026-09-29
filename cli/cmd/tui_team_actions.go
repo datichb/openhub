@@ -1113,11 +1113,10 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 	effTracker := tracker.ResolveTrackerConfig(
 		&teamCfg.Tracker,
 		a.Config.Tracker,
-		resolveWriteEnabledForTracker(a, teamCfg),
 	)
 
 	// Build credential source
-	credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+	credSrc := buildCredentialSource(a, effTracker)
 	trackerType := tracker.Type(effTracker.Type)
 
 	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
@@ -1316,7 +1315,11 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+				credSrc := tracker.CredentialSource{
+					URL:      teamCfg.Tracker.TrackerURL,
+					TokenKey: teamCfg.Tracker.TrackerTokenKey,
+					Secrets:  a.Secrets,
+				}
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.credentials_error"), err)
@@ -1375,7 +1378,11 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+				credSrc := tracker.CredentialSource{
+					URL:      teamCfg.Tracker.TrackerURL,
+					TokenKey: teamCfg.Tracker.TrackerTokenKey,
+					Secrets:  a.Secrets,
+				}
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("credentials: %w", err)

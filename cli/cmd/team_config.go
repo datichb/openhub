@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -156,9 +157,12 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		fmt.Fprintf(out, "\n%s Configuration locale\n", theme.Bold.Render("→"))
 
 		// Test de connexion avec les credentials actuels
-		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+		src := tracker.CredentialSource{
+			URL:      teamCfg.Tracker.TrackerURL,
+			TokenKey: teamCfg.Tracker.TrackerTokenKey,
+			Secrets:  a.Secrets,
+		}
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
-			// Proposer de configurer un nouveau token
 			if askYN(out, "Configurer un nouveau token GitLab ?", true) {
 				tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: gitlab-token)", a.Config.MCP.Gitlab.Token)
 				fmt.Fprintf(out, "  Pour stocker le token: %s\n",
@@ -207,7 +211,11 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 	if configLocal {
 		fmt.Fprintf(out, "\n%s Configuration locale\n", theme.Bold.Render("→"))
-		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+		src := tracker.CredentialSource{
+			URL:      teamCfg.Tracker.TrackerURL,
+			TokenKey: teamCfg.Tracker.TrackerTokenKey,
+			Secrets:  a.Secrets,
+		}
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
 			if askYN(out, "Configurer un nouveau token Jira ?", true) {
 				tokenKey := askInput(out, "Nom de la clé dans le keychain (ex: jira-token)", a.Config.MCP.Jira.Token)
@@ -296,7 +304,11 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		teamCfg.Tracker.TrackerTokenKey = trackerTokenKey
 
 		// Check if token exists, prompt if not
-		src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+		src := tracker.CredentialSource{
+			URL:      teamCfg.Tracker.TrackerURL,
+			TokenKey: teamCfg.Tracker.TrackerTokenKey,
+			Secrets:  a.Secrets,
+		}
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprintf(out, "\n  Test de connexion...\n")
 		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
@@ -309,7 +321,11 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 						fmt.Fprintf(out, "  %s Token stocké dans le keychain (%s)\n",
 							theme.SuccessStyle.Render(theme.IconSuccess), trackerTokenKey)
 						// Re-test connection
-						src = buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+						src = tracker.CredentialSource{
+							URL:      teamCfg.Tracker.TrackerURL,
+							TokenKey: teamCfg.Tracker.TrackerTokenKey,
+							Secrets:  a.Secrets,
+						}
 						fmt.Fprintf(out, "\n  Re-test de connexion...\n")
 						_ = testAndDisplayConnection(ctx, out, src, trackerType)
 					}
@@ -346,7 +362,11 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				fmt.Fprintf(out, "\n%s Discovery du projet\n", theme.Bold.Render("→"))
 
 				// Build tracker client for discovery.
-				src := buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker)
+				src := tracker.CredentialSource{
+					URL:      teamCfg.Tracker.TrackerURL,
+					TokenKey: teamCfg.Tracker.TrackerTokenKey,
+					Secrets:  a.Secrets,
+				}
 				trackerType := tracker.Type(teamCfg.Tracker.Type)
 				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
 				if credErr != nil {
@@ -480,7 +500,8 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 
 		// push_labels override
 		sharedPush := teamCfg.Tracker.PushLabels
-		writeEnabled := resolveWriteEnabledForTracker(a, teamCfg)
+		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+		writeEnabled := effLocal.WriteEnabled
 		if !writeEnabled && sharedPush {
 			fmt.Fprintf(out, "  %s push_labels recommandé par l'équipe mais write_enabled = false sur votre MCP\n",
 				theme.WarningStyle.Render(theme.IconWarning))
@@ -547,7 +568,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 				shared = &s
 			}
 		}
-		eff := tracker.ResolveMCPConfig(shared, svc.local)
+		eff := mcpresolve.Resolve(shared, svc.local)
 		printMCPStatus(out, svc.name, shared, svc.local, eff)
 	}
 
@@ -560,14 +581,13 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	writeEnabled := resolveWriteEnabledForTracker(a, teamCfg)
-	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker, writeEnabled)
+	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
 
 	printTrackerStatus(out, teamCfg, a.Config.Tracker, eff)
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
-	src := buildCredentialSource(a, sharedMCP, &teamCfg.Tracker)
+	src := buildCredentialSource(a, eff)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
 	_ = testAndDisplayConnection(ctx, out, src, trackerType)
 
@@ -609,7 +629,7 @@ func printMCPStatus(out interface{ Write([]byte) (int, error) },
 	name string,
 	shared *teamstate.SharedMCPConfig,
 	local config.MCPServerConfig,
-	eff tracker.EffectiveMCPConfig,
+	eff mcpresolve.EffectiveConfig,
 ) {
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("MCP "+strings.ToUpper(name[:1])+name[1:]))
 

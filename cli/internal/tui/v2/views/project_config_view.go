@@ -307,6 +307,26 @@ func (v *ProjectConfigView) buildFields() {
 				}
 				v.live.TrackerConfig.TicketPattern = val
 			}},
+		{Key: "write_enabled", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.tracker_write_enabled.label"),
+			Description: i18n.T("tui.config.field.tracker_write_enabled.desc"),
+			Scope:       ScopeProject,
+			Get: func() string {
+				if v.live.TrackerConfig == nil || v.live.TrackerConfig.WriteEnabled == nil {
+					return ""
+				}
+				return boolStr(*v.live.TrackerConfig.WriteEnabled)
+			},
+			Set: func(val string) {
+				if v.live.TrackerConfig == nil {
+					v.live.TrackerConfig = &domain.ProjectTrackerConfig{}
+				}
+				if val == "" {
+					v.live.TrackerConfig.WriteEnabled = nil
+					return
+				}
+				b := val == "true"
+				v.live.TrackerConfig.WriteEnabled = &b
+			}},
 		{Key: "mcp_services", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "project.mcp",
 			Get: func() string { return "" }},
 		{Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflow",

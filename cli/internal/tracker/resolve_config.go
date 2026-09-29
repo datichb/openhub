@@ -17,7 +17,7 @@ import (
 // nil-means-inherit semantics: if the local override is nil, the team-state
 // value is used.
 type EffectiveTrackerConfig struct {
-	// ── Factual (team-state + project override) ──────────────────────────────
+	// ── Factual (team-state + hub + project override) ───────────────────────
 
 	// Type is the tracker backend: "gitlab" or "jira".
 	Type string
@@ -25,10 +25,10 @@ type EffectiveTrackerConfig struct {
 	// Resolution: project.TrackerProject → shared.TrackerProject → ""
 	TrackerProject string
 	// TrackerURL is the resolved tracker instance URL.
-	// Resolution: project.TrackerURL → shared.TrackerURL → MCP URL → env → default
+	// Resolution: project.TrackerURL → hub.Tracker.TrackerURL → shared.TrackerURL → env → default
 	TrackerURL string
 	// TrackerTokenKey is the resolved keychain key for the tracker token.
-	// Resolution: project.TrackerTokenKey → shared.TrackerTokenKey → derived default
+	// Resolution: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → shared.TrackerTokenKey → derived default
 	TrackerTokenKey string
 	// TicketPattern is the resolved regex for extracting the tracker IID.
 	// Resolution: project.TicketPattern → shared.TicketPattern → ""
@@ -56,8 +56,12 @@ type EffectiveTrackerConfig struct {
 	// AutoSync controls whether sync runs automatically on team view open.
 	AutoSync bool
 	// PushLabels controls whether hub labels are pushed back to the tracker.
-	// This is the RESOLVED value: it already accounts for write_enabled.
+	// This is the RESOLVED value: it already accounts for WriteEnabled.
 	PushLabels bool
+	// WriteEnabled controls whether tracker write operations are allowed.
+	// Resolved from: hub.Tracker.WriteEnabled → team.Tracker.WriteEnabled → false.
+	// Independent of MCP write_enabled.
+	WriteEnabled bool
 	// AutoPlanAssigned controls whether assigned tracker issues without a claim
 	// automatically get a "planned" claim created.
 	AutoPlanAssigned bool
@@ -91,38 +95,38 @@ type OverrideSet struct {
 	PushLabels           bool
 	AutoPlanAssigned     bool
 	MaxAutoPlanPerMember bool
+	WriteEnabled         bool
 }
 
 // ResolveTrackerConfig merges the team-state TrackerConfig with the member's
-// local TrackerLocalConfig overrides and the effective write permission.
+// local TrackerLocalConfig overrides.
 //
 // If shared is nil (no team-state or tracker not configured), only local values
 // and defaults are used — graceful degradation to hub.toml-only mode.
 func ResolveTrackerConfig(
 	shared *teamstate.TrackerConfig,
 	local config.TrackerLocalConfig,
-	writeEnabled bool,
 ) EffectiveTrackerConfig {
-	return ResolveFullTrackerConfig(shared, local, writeEnabled, nil)
+	return ResolveFullTrackerConfig(shared, local, nil)
 }
 
-// ResolveFullTrackerConfig merges team-state, local, and per-project overrides.
-// projectCfg may be nil (no per-project override → inherit team defaults).
+// ResolveFullTrackerConfig merges team-state, local hub, and per-project overrides.
+// projectCfg may be nil (no per-project override → inherit team/hub defaults).
 //
 // Resolution cascade for factual fields:
 //
 //	project.TrackerProject → shared.TrackerProject → shared.Projects[projectID] → ""
-//	project.TrackerURL → shared.TrackerURL → "" (MCP URL resolved separately)
+//	project.TrackerURL → local.TrackerURL → shared.TrackerURL → ""
+//	project.TrackerTokenKey → local.TrackerTokenKey → shared.TrackerTokenKey → ""
 //	project.TicketPattern → shared.TicketPattern → shared.TicketPatterns[projectID] → ""
 func ResolveFullTrackerConfig(
 	shared *teamstate.TrackerConfig,
 	local config.TrackerLocalConfig,
-	writeEnabled bool,
 	projectCfg *domain.ProjectTrackerConfig,
 ) EffectiveTrackerConfig {
 	eff := EffectiveTrackerConfig{}
 
-	// ── Factual settings (team-state + project override) ─────────────────────
+	// ── Factual settings (team-state + hub + project override) ──────────────
 
 	if shared != nil {
 		eff.Type = shared.Type
@@ -136,6 +140,14 @@ func ResolveFullTrackerConfig(
 		// Backward compat: keep old maps
 		eff.Projects = shared.Projects             //nolint:staticcheck // backward compat: deprecated field
 		eff.TicketPatterns = shared.TicketPatterns //nolint:staticcheck // backward compat: deprecated field
+	}
+
+	// Hub-level overrides for URL and TokenKey (new: tracker has its own config)
+	if local.TrackerURL != "" {
+		eff.TrackerURL = local.TrackerURL
+	}
+	if local.TrackerTokenKey != "" {
+		eff.TrackerTokenKey = local.TrackerTokenKey
 	}
 
 	// Per-project overrides (most specific wins)
@@ -182,7 +194,7 @@ func ResolveFullTrackerConfig(
 	}
 
 	var sharedEnabled, sharedAutoSync, sharedAutoPlan bool
-	var sharedMaxAutoPlan, sharedPushLabels bool
+	var sharedPushLabels, sharedWriteEnabled bool
 	var sharedMaxAutoPlanVal int
 
 	if shared != nil {
@@ -191,6 +203,7 @@ func ResolveFullTrackerConfig(
 		sharedAutoPlan = shared.AutoPlanAssigned
 		sharedMaxAutoPlanVal = shared.MaxAutoPlanPerMember
 		sharedPushLabels = shared.PushLabels
+		sharedWriteEnabled = shared.WriteEnabled
 		// Pool (unassigned) settings — no local override, always from shared.
 		eff.AutoPlanUnassigned = shared.AutoPlanUnassigned
 		eff.UnassignedLabels = shared.UnassignedLabels
@@ -205,20 +218,27 @@ func ResolveFullTrackerConfig(
 	eff.AutoPlanAssigned, eff.LocalOverrides.AutoPlanAssigned = boolResolve(local.AutoPlanAssigned, sharedAutoPlan, false)
 	eff.MaxAutoPlanPerMember, eff.LocalOverrides.MaxAutoPlanPerMember = intResolve(local.MaxAutoPlanPerMember, sharedMaxAutoPlanVal, 5)
 
+	// WriteEnabled: resolved from tracker's own config, independent of MCP.
+	// Project override → hub override → team shared → false
+	if projectCfg != nil && projectCfg.WriteEnabled != nil {
+		eff.WriteEnabled = *projectCfg.WriteEnabled
+		eff.LocalOverrides.WriteEnabled = *projectCfg.WriteEnabled != sharedWriteEnabled
+	} else {
+		eff.WriteEnabled, eff.LocalOverrides.WriteEnabled = boolResolve(local.WriteEnabled, sharedWriteEnabled, false)
+	}
+
 	// push_labels: if team enforces, use team value; otherwise resolve recommendation then gate by write_enabled.
 	if shared != nil && shared.IsPushLabelsEnforced() {
 		eff.SharedPushLabels = sharedPushLabels
-		eff.PushLabels = sharedPushLabels && writeEnabled
+		eff.PushLabels = sharedPushLabels && eff.WriteEnabled
 		eff.LocalOverrides.PushLabels = false // cannot override when enforced
 		eff.PushLabelsEnforced = true
 	} else {
 		rawPushLabels, pushOverridden := boolResolve(local.PushLabels, sharedPushLabels, false)
 		eff.SharedPushLabels = sharedPushLabels
-		eff.PushLabels = rawPushLabels && writeEnabled // always requires write permission
+		eff.PushLabels = rawPushLabels && eff.WriteEnabled // always requires write permission
 		eff.LocalOverrides.PushLabels = pushOverridden
 	}
-
-	_ = sharedMaxAutoPlan // suppress unused warning
 
 	return eff
 }

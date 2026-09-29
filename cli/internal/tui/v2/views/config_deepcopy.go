@@ -62,6 +62,10 @@ func deepCopyConfig(c *config.Config) config.Config {
 		n := *c.Tracker.MaxAutoPlanPerMember
 		cp.Tracker.MaxAutoPlanPerMember = &n
 	}
+	if c.Tracker.WriteEnabled != nil {
+		b := *c.Tracker.WriteEnabled
+		cp.Tracker.WriteEnabled = &b
+	}
 
 	// Clone Workflow (contains nested slices, maps, and pointers)
 	cp.Workflow = deepCopyWorkflowHubConfig(c.Workflow)
@@ -89,6 +93,10 @@ func deepCopyProject(p *domain.Project) domain.Project {
 	// Clone TrackerConfig
 	if p.TrackerConfig != nil {
 		tc := *p.TrackerConfig
+		if p.TrackerConfig.WriteEnabled != nil {
+			b := *p.TrackerConfig.WriteEnabled
+			tc.WriteEnabled = &b
+		}
 		cp.TrackerConfig = &tc
 	}
 

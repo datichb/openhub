@@ -412,6 +412,20 @@ func (v *SettingsView) buildFields() {
 					v.live.Tracker.MaxAutoPlanPerMember = &n
 				}
 			}},
+		{Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_hub_url.label"),
+			Description: i18n.T("tui.config.field.tracker_hub_url.desc"),
+			Placeholder: i18n.T("tui.config.field.tracker_hub_url.placeholder"),
+			Get:         func() string { return v.live.Tracker.TrackerURL },
+			Set:         func(val string) { v.live.Tracker.TrackerURL = val }},
+		{Key: "tracker_token_key", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.tracker_hub_token.label"),
+			Description: i18n.T("tui.config.field.tracker_hub_token.desc"),
+			Section:     "Tracker",
+			Get:         func() string { return v.live.Tracker.TrackerTokenKey },
+			Set:         func(val string) { v.live.Tracker.TrackerTokenKey = val }},
+		v.trackerBoolField("write_enabled", i18n.T("tui.config.field.tracker_write_enabled.label"),
+			i18n.T("tui.config.field.tracker_write_enabled.desc"),
+			func() *bool { return v.live.Tracker.WriteEnabled },
+			func(b *bool) { v.live.Tracker.WriteEnabled = b }),
 	}
 }
 

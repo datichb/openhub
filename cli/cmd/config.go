@@ -298,6 +298,26 @@ var configFieldMap = map[string]configField{
 		},
 		Unset: func(c *config.Config) { c.Tracker.MaxAutoPlanPerMember = nil },
 	},
+	// Tracker — connection (independent of MCP)
+	"tracker.tracker_url": {
+		Set:   func(c *config.Config, v string) error { c.Tracker.TrackerURL = v; return nil },
+		Unset: func(c *config.Config) { c.Tracker.TrackerURL = "" },
+	},
+	"tracker.tracker_token_key": {
+		Set:   func(c *config.Config, v string) error { c.Tracker.TrackerTokenKey = v; return nil },
+		Unset: func(c *config.Config) { c.Tracker.TrackerTokenKey = "" },
+	},
+	"tracker.write_enabled": {
+		Set: func(c *config.Config, v string) error {
+			b, err := parseBoolValue(v)
+			if err != nil {
+				return err
+			}
+			c.Tracker.WriteEnabled = &b
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.WriteEnabled = nil },
+	},
 }
 
 // configFieldKeys returns sorted keys from configFieldMap for completions.

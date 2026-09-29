@@ -849,40 +849,9 @@ func (v *TeamDetailView) testConnection() {
 			return
 		default:
 		}
-		mcp := v.cfg.GetMCPConfig()
-		var sharedGitLab, sharedJira *teamstate.SharedMCPConfig
-		if v.teamCfg.MCP != nil {
-			if g, ok := v.teamCfg.MCP["gitlab"]; ok {
-				sharedGitLab = &g
-			}
-			if j, ok := v.teamCfg.MCP["jira"]; ok {
-				sharedJira = &j
-			}
-		}
-		effGL := tracker.ResolveMCPConfig(sharedGitLab, mcp.Gitlab)
-		effJira := tracker.ResolveMCPConfig(sharedJira, mcp.Jira)
-		src := tracker.CredentialSource{
-			GitLabEnabled:      effGL.Enabled,
-			GitLabTokenKey:     effGL.TokenKey,
-			GitLabWriteEnabled: effGL.WriteEnabled,
-			GitLabURL:          effGL.URL,
-			JiraEnabled:        effJira.Enabled,
-			JiraTokenKey:       effJira.TokenKey,
-			JiraWriteEnabled:   effJira.WriteEnabled,
-			JiraURL:            effJira.URL,
-			Secrets:            v.cfg.GetSecrets(),
-		}
-		// Apply tracker-specific overrides
-		if v.teamCfg.Tracker.TrackerURL != "" {
-			src.TrackerURL = v.teamCfg.Tracker.TrackerURL
-		}
-		tokenKey := v.teamCfg.Tracker.TrackerTokenKey
-		if tokenKey == "" && v.teamCfg.Tracker.TrackerURL != "" && v.teamCfg.Tracker.Type != "" {
-			tokenKey = "openhub.tracker." + v.teamCfg.Tracker.Type + ".token"
-		}
-		if tokenKey != "" {
-			src.TrackerTokenKey = tokenKey
-		}
+		// Resolve effective tracker config and build credential source
+		effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
+		src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
 
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)
 		cfg, err := tracker.ResolveCredentials(ctx, src, trackerType)

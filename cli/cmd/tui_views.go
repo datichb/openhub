@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -753,7 +754,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					}
 				}
 
-				eff := tracker.ResolveFullMCPConfig(shared, hub, projectSvc, teamID)
+				eff := mcpresolve.ResolveFull(shared, hub, projectSvc, teamID)
 
 				switch field {
 				case "enabled":

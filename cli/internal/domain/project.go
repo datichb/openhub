@@ -89,6 +89,9 @@ type ProjectTrackerConfig struct {
 	TrackerTokenKey string `json:"tracker_token_key,omitempty"`
 	// TicketPattern overrides the team-state TicketPattern regex for this project.
 	TicketPattern string `json:"ticket_pattern,omitempty"`
+	// WriteEnabled overrides the tracker write permission for this project.
+	// nil = inherit from hub/team. true/false = override.
+	WriteEnabled *bool `json:"write_enabled,omitempty"`
 }
 
 // ProjectTeamConfig holds per-project team configuration.

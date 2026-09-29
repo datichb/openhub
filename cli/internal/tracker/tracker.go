@@ -7,8 +7,8 @@
 //   - New(cfg, token, baseURL): factory that returns the right implementation.
 //
 // The connection credentials (token, base URL) are NOT stored in the team-state
-// config — they are resolved at runtime from the hub's MCP configuration
-// ([mcp.gitlab] / [mcp.jira] in hub.toml) via the App.Secrets store.
+// config — they are resolved at runtime from the hub's [tracker] configuration
+// (hub.toml) or environment variables, via the App.Secrets store.
 package tracker
 
 import (
@@ -117,10 +117,10 @@ type Tracker interface {
 
 	// AssignIssue sets the assignee of an issue on the tracker.
 	// Used when a team member claims a pool ticket with push_labels enabled.
-	// Requires write_enabled in the MCP config.
+	// Requires write_enabled in the tracker config.
 	AssignIssue(ctx context.Context, projectID string, iid int, username string) error
 
-	// AddLabels appends labels to an issue. Requires write_enabled in the MCP config.
+	// AddLabels appends labels to an issue. Requires write_enabled in the tracker config.
 	AddLabels(ctx context.Context, projectID string, iid int, labels []string) error
 
 	// RemoveLabels removes labels from an issue. Requires write_enabled.
@@ -194,7 +194,7 @@ type Config struct {
 }
 
 // ErrWriteDisabled is returned by AddLabels/RemoveLabels when WriteEnabled is false.
-var ErrWriteDisabled = errors.New("tracker write operations are disabled (set write_enabled in [mcp.gitlab] or [mcp.jira])")
+var ErrWriteDisabled = errors.New("tracker write operations are disabled (set write_enabled in [tracker] of hub.toml or team config)")
 
 // ErrIssueNotFound is returned when the requested issue does not exist.
 var ErrIssueNotFound = errors.New("issue not found")

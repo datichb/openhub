@@ -1,4 +1,10 @@
-package tracker
+// Package mcpresolve provides MCP (Model Context Protocol) service configuration
+// resolution. It merges team-state recommendations with local hub.toml overrides
+// and optional per-project overrides for any MCP service (gitlab, jira, figma, gslides).
+//
+// This package is independent of the tracker package — it handles generic MCP
+// service resolution only.
+package mcpresolve
 
 import (
 	"github.com/datichb/openhub/cli/internal/config"
@@ -6,12 +12,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// EffectiveMCPConfig is the resolved MCP configuration for a single service,
+// EffectiveConfig is the resolved MCP configuration for a single service,
 // merging team-state recommendations with local hub.toml overrides.
 //
 // Token and WriteEnabled are always local (never shared) — only Enabled and URL
 // can come from team-state recommendations or enforcements.
-type EffectiveMCPConfig struct {
+type EffectiveConfig struct {
 	// Enabled is the resolved "is this service active?" flag.
 	Enabled bool
 	// EnabledEnforced is true when Enabled is imposed by the team (cannot be overridden).
@@ -33,7 +39,7 @@ type EffectiveMCPConfig struct {
 	LocalOverridesEnabled bool
 }
 
-// ResolveMCPConfig merges a team-state MCP recommendation with a local hub.toml
+// Resolve merges a team-state MCP recommendation with a local hub.toml
 // MCP server config for a single service (e.g. "gitlab", "figma").
 //
 // Resolution cascade (ADR-030):
@@ -50,8 +56,8 @@ type EffectiveMCPConfig struct {
 //
 // If shared is nil (no team-state config available), only local values are used —
 // the function degrades gracefully to hub.toml-only mode.
-func ResolveMCPConfig(shared *teamstate.SharedMCPConfig, local config.MCPServerConfig) EffectiveMCPConfig {
-	eff := EffectiveMCPConfig{
+func Resolve(shared *teamstate.SharedMCPConfig, local config.MCPServerConfig) EffectiveConfig {
+	eff := EffectiveConfig{
 		TokenKey:     local.Token,
 		WriteEnabled: local.WriteEnabled,
 	}
@@ -100,7 +106,7 @@ func ResolveMCPConfig(shared *teamstate.SharedMCPConfig, local config.MCPServerC
 	return eff
 }
 
-// ResolveFullMCPConfig resolves MCP configuration across all 3 levels:
+// ResolveFull resolves MCP configuration across all 3 levels:
 // team-state (enforced/recommended) → hub (personal preference) → project (override).
 //
 // Resolution per field:
@@ -110,13 +116,13 @@ func ResolveMCPConfig(shared *teamstate.SharedMCPConfig, local config.MCPServerC
 //   - WriteEnabled: project.WriteEnabled → hub.WriteEnabled (always personal, never team)
 //
 // The teamID parameter is used for source annotations only.
-func ResolveFullMCPConfig(
+func ResolveFull(
 	shared *teamstate.SharedMCPConfig,
 	hub config.MCPServerConfig,
 	project *domain.ProjectMCPService,
 	teamID string,
-) EffectiveMCPConfig {
-	eff := EffectiveMCPConfig{}
+) EffectiveConfig {
+	eff := EffectiveConfig{}
 
 	// ─── TOKEN (always personal: project > hub, never team) ──────────
 	if project != nil && project.TokenKey != "" {

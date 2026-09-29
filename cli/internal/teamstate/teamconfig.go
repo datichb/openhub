@@ -410,12 +410,15 @@ type TrackerConfig struct {
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
 	// Default: 20.
 	MaxUnassignedIssues int `toml:"max_unassigned_issues"`
-	// PushLabels enables syncing claim labels back to the tracker (requires
-	// write_enabled on the MCP gitlab/jira server).
+	// PushLabels enables syncing claim labels back to the tracker.
+	// Requires write_enabled on the tracker config.
 	// When enabled, claiming a pool ticket also assigns it on the tracker.
 	PushLabels bool `toml:"push_labels"`
 	// PushLabelsEnforced marks PushLabels as enforced by the team.
 	PushLabelsEnforced *bool `toml:"push_labels_enforced,omitempty"`
+	// WriteEnabled controls whether tracker write operations (push labels,
+	// assign issues) are allowed. Independent of MCP write_enabled.
+	WriteEnabled bool `toml:"write_enabled"`
 	// TrackerProject is the default external tracker project identifier for the team.
 	// For GitLab this is the numeric project ID or URL-encoded path (e.g. "group/project").
 	// For Jira this is the project key (e.g. "SRU").

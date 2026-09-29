@@ -1,4 +1,4 @@
-package tracker
+package mcpresolve
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func boolPtr(b bool) *bool { return &b }
 
-func TestResolveFullMCPConfig_TeamEnforcedEnabled(t *testing.T) {
+func TestResolveFull_TeamEnforcedEnabled(t *testing.T) {
 	shared := &teamstate.SharedMCPConfig{
 		Enabled:         boolPtr(true),
 		EnabledEnforced: boolPtr(true),
@@ -18,7 +18,7 @@ func TestResolveFullMCPConfig_TeamEnforcedEnabled(t *testing.T) {
 	hub := config.MCPServerConfig{Enabled: false, Token: "tok"}
 	project := &domain.ProjectMCPService{Enabled: boolPtr(false)} // tries to override
 
-	eff := ResolveFullMCPConfig(shared, hub, project, "acme")
+	eff := ResolveFull(shared, hub, project, "acme")
 	if !eff.Enabled {
 		t.Error("team enforced should win over project and hub")
 	}
@@ -27,7 +27,7 @@ func TestResolveFullMCPConfig_TeamEnforcedEnabled(t *testing.T) {
 	}
 }
 
-func TestResolveFullMCPConfig_ProjectOverridesHub(t *testing.T) {
+func TestResolveFull_ProjectOverridesHub(t *testing.T) {
 	hub := config.MCPServerConfig{Enabled: true, Token: "hub-tok", WriteEnabled: true}
 	project := &domain.ProjectMCPService{
 		Enabled:      boolPtr(false),
@@ -36,7 +36,7 @@ func TestResolveFullMCPConfig_ProjectOverridesHub(t *testing.T) {
 		URL:          "https://proj.gitlab.com",
 	}
 
-	eff := ResolveFullMCPConfig(nil, hub, project, "")
+	eff := ResolveFull(nil, hub, project, "")
 	if eff.Enabled {
 		t.Error("project override should disable")
 	}
@@ -51,14 +51,14 @@ func TestResolveFullMCPConfig_ProjectOverridesHub(t *testing.T) {
 	}
 }
 
-func TestResolveFullMCPConfig_HubFallsToTeamRecommended(t *testing.T) {
+func TestResolveFull_HubFallsToTeamRecommended(t *testing.T) {
 	shared := &teamstate.SharedMCPConfig{
 		Enabled: boolPtr(true),
 		URL:     "https://team.gitlab.com",
 	}
 	hub := config.MCPServerConfig{} // empty hub — no explicit config
 
-	eff := ResolveFullMCPConfig(shared, hub, nil, "acme")
+	eff := ResolveFull(shared, hub, nil, "acme")
 	if !eff.Enabled {
 		t.Error("team recommendation should be used when hub is empty")
 	}
@@ -70,7 +70,7 @@ func TestResolveFullMCPConfig_HubFallsToTeamRecommended(t *testing.T) {
 	}
 }
 
-func TestResolveFullMCPConfig_URLEnforced(t *testing.T) {
+func TestResolveFull_URLEnforced(t *testing.T) {
 	shared := &teamstate.SharedMCPConfig{
 		URL:         "https://enforced.gitlab.com",
 		URLEnforced: boolPtr(true),
@@ -78,7 +78,7 @@ func TestResolveFullMCPConfig_URLEnforced(t *testing.T) {
 	hub := config.MCPServerConfig{URL: "https://my-override.com"}
 	project := &domain.ProjectMCPService{URL: "https://project.com"}
 
-	eff := ResolveFullMCPConfig(shared, hub, project, "acme")
+	eff := ResolveFull(shared, hub, project, "acme")
 	if eff.URL != "https://enforced.gitlab.com" {
 		t.Errorf("URL enforced should win, got %s", eff.URL)
 	}
@@ -87,27 +87,27 @@ func TestResolveFullMCPConfig_URLEnforced(t *testing.T) {
 	}
 }
 
-func TestResolveFullMCPConfig_TokenAlwaysPersonal(t *testing.T) {
+func TestResolveFull_TokenAlwaysPersonal(t *testing.T) {
 	shared := &teamstate.SharedMCPConfig{Enabled: boolPtr(true)}
 	hub := config.MCPServerConfig{Token: "hub-tok"}
 
 	// No project override → hub token
-	eff := ResolveFullMCPConfig(shared, hub, nil, "acme")
+	eff := ResolveFull(shared, hub, nil, "acme")
 	if eff.TokenKey != "hub-tok" {
 		t.Errorf("expected hub-tok, got %s", eff.TokenKey)
 	}
 
 	// Project override → project token
 	project := &domain.ProjectMCPService{TokenKey: "proj-tok"}
-	eff = ResolveFullMCPConfig(shared, hub, project, "acme")
+	eff = ResolveFull(shared, hub, project, "acme")
 	if eff.TokenKey != "proj-tok" {
 		t.Errorf("expected proj-tok, got %s", eff.TokenKey)
 	}
 }
 
-func TestResolveFullMCPConfig_AllNil(t *testing.T) {
+func TestResolveFull_AllNil(t *testing.T) {
 	hub := config.MCPServerConfig{}
-	eff := ResolveFullMCPConfig(nil, hub, nil, "")
+	eff := ResolveFull(nil, hub, nil, "")
 	if eff.Enabled {
 		t.Error("default should be disabled")
 	}
@@ -119,7 +119,7 @@ func TestResolveFullMCPConfig_AllNil(t *testing.T) {
 	}
 }
 
-func TestResolveFullMCPConfig_CascadeOrder(t *testing.T) {
+func TestResolveFull_CascadeOrder(t *testing.T) {
 	// Full cascade: team recommends, hub overrides, project overrides hub
 	shared := &teamstate.SharedMCPConfig{
 		Enabled: boolPtr(true),
@@ -136,7 +136,7 @@ func TestResolveFullMCPConfig_CascadeOrder(t *testing.T) {
 		// Token not set → inherits from hub
 	}
 
-	eff := ResolveFullMCPConfig(shared, hub, project, "acme")
+	eff := ResolveFull(shared, hub, project, "acme")
 	if !eff.Enabled {
 		t.Error("should be enabled (hub explicit)")
 	}

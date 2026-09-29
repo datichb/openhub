@@ -60,7 +60,6 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	effTracker := tracker.ResolveTrackerConfig(
 		&teamCfg.Tracker,
 		a.Config.Tracker,
-		resolveWriteEnabledForTracker(a, teamCfg),
 	)
 
 	if !effTracker.Enabled {
@@ -72,7 +71,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	}
 
 	trackerType := tracker.Type(effTracker.Type)
-	trackerCfg, err := tracker.ResolveCredentials(ctx, buildCredentialSource(a, teamCfg.MCP, &teamCfg.Tracker), trackerType)
+	trackerCfg, err := tracker.ResolveCredentials(ctx, buildCredentialSource(a, effTracker), trackerType)
 	if err != nil {
 		return fmt.Errorf("%w\n  %s",
 			err, i18n.Tf("cmd.team.sync_tracker.credential_hint", envVarForTracker(trackerType), effTracker.Type))
