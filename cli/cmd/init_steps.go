@@ -831,6 +831,7 @@ func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereq
 			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
+			warning := theme.ColorTag(theme.WarningHex)
 			reset := theme.TagColor
 
 			title := i18n.T(titleKey)
@@ -872,9 +873,9 @@ func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereq
 				fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
 				for _, line := range strings.Split(prereqs, "\n") {
 					if strings.HasPrefix(line, "• ") {
-						fmt.Fprintf(&b, "%s•%s %s%s%s\n", accent, reset, muted, line[len("• "):], reset)
+						fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
 					} else {
-						fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
+						fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
 					}
 				}
 				b.WriteString("\n")
