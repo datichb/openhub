@@ -495,6 +495,9 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
 				fixFormDropDownStyles(form)
 
+				// Apply initial label focus hierarchy.
+				fixFormLabelFocus(form)
+
 				// Esc handling: Required steps block skip; optional steps use double-Esc.
 				// When a DropDown has focus, the first Escape closes its popup
 				// rather than initiating the skip sequence.

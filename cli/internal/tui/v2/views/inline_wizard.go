@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -190,7 +191,7 @@ func (w *InlineWizardView) statusHintsForStep(idx int) string {
 // updateDropdownHints swaps the hints bar text when a DropDown gains or loses
 // focus. When a DropDown is focused, users see navigation-specific hints
 // (↑↓ navigate · enter select · tab next field) instead of the generic
-// wizard hints. This is called after any key event that may shift focus.
+// wizard hints. Also refreshes the label visual hierarchy via fixFormLabelFocus.
 func (w *InlineWizardView) updateDropdownHints(form *tview.Form) {
 	if w.hintsBar == nil || w.escPending {
 		return
@@ -200,6 +201,7 @@ func (w *InlineWizardView) updateDropdownHints(form *tview.Form) {
 	} else {
 		w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 	}
+	fixFormLabelFocus(form)
 }
 
 func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
@@ -923,6 +925,9 @@ func (w *InlineWizardView) renderStep(idx int) {
 			// Fix DropDown popup list colors (tview bakes them at construction
 			// time from tview.Styles, which produces invisible text in our theme).
 			fixFormDropDownStyles(form)
+
+			// Apply initial label focus hierarchy (bold on focused, muted on rest).
+			fixFormLabelFocus(form)
 
 			// Esc handling: Required steps block skip; optional use double-Esc.
 			// When a DropDown has focus, the first Escape closes its popup
@@ -1669,6 +1674,56 @@ func isDropDownFocused(form *tview.Form) bool {
 	}
 	_, isDD := form.GetFormItem(itemIdx).(*tview.DropDown)
 	return isDD
+}
+
+// tviewTagRe matches tview color/style tags like [#hex], [::b], [-:-:-], etc.
+var tviewTagRe = regexp.MustCompile(`\[[^\[\]]*\]`)
+
+// stripTviewTags removes all tview color/style tags from a string.
+func stripTviewTags(s string) string {
+	return tviewTagRe.ReplaceAllString(s, "")
+}
+
+// fixFormLabelFocus applies visual hierarchy to form labels based on which
+// field currently has focus. The focused field's label is rendered bold with
+// the primary text color; all other labels use the secondary text color.
+// This creates a clear visual trail guiding the user through the form.
+func fixFormLabelFocus(form *tview.Form) {
+	if form == nil {
+		return
+	}
+	focusedIdx, _ := form.GetFocusedItemIndex()
+	primary := widgets.ColorTag(theme.FgPrimary)
+	secondary := widgets.ColorTag(theme.FgSecondary)
+
+	for i := 0; i < form.GetFormItemCount(); i++ {
+		item := form.GetFormItem(i)
+		// Skip TextViews — they are info/hint elements, not interactive fields.
+		if _, isTV := item.(*tview.TextView); isTV {
+			continue
+		}
+		raw := stripTviewTags(item.GetLabel())
+		if raw == "" {
+			continue
+		}
+
+		var styled string
+		if i == focusedIdx {
+			styled = primary + "[::b]" + raw + "[::-]" + theme.TagReset
+		} else {
+			styled = secondary + raw + theme.TagReset
+		}
+
+		// SetLabel is not on the FormItem interface — type-assert to concrete types.
+		switch v := item.(type) {
+		case *tview.InputField:
+			v.SetLabel(styled)
+		case *tview.DropDown:
+			v.SetLabel(styled)
+		case *tview.Checkbox:
+			v.SetLabel(styled)
+		}
+	}
 }
 
 // AutoAdvanceFromDropDown moves focus to the next interactive form field
