@@ -272,11 +272,18 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
 
-			// Tab from modeForm → buttonForm
+			// Tab / ↓ from modeForm → buttonForm
+			lastModeIdx := len(modeOptions) - 1
 			modeForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				if event.Key() == tcell.KeyTab {
+				switch event.Key() {
+				case tcell.KeyTab:
 					tvApp.SetFocus(buttonForm)
 					return nil
+				case tcell.KeyDown:
+					if modeSelect.GetSelectedIndex() == lastModeIdx {
+						tvApp.SetFocus(buttonForm)
+						return nil
+					}
 				}
 				return event
 			})
@@ -287,7 +294,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
 				case tcell.KeyRight:
 					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-				case tcell.KeyBacktab:
+				case tcell.KeyBacktab, tcell.KeyUp:
 					tvApp.SetFocus(modeForm)
 					return nil
 				}
@@ -297,31 +304,33 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			// ── Adaptive layout ──
 			// The mode selector is centered via InlineSelect.SetCentered(true),
 			// so no horizontal wrapper is needed — modeForm takes full width.
-			// Spacers and thresholds are aligned with the engine/intro pattern
-			// (3/3 full, 1/0 compact, 0/0 minimal; thresholds 35/20).
-			modeBtnSpacer := tview.NewBox()
-			modeBtnSpacer.SetBackgroundColor(theme.BgPanel)
-
+			// A flexible spacer (proportion 2) between modeForm and buttonForm
+			// pushes the mode selector closer to the text above (proportion 1)
+			// while keeping the button anchored toward the bottom.
 			if availH >= 35 {
-				// Full: spacers + ASCII art + text + mode(desc) + spacer + button
+				// Full: spacers + ASCII art + text + mode(desc) + flex + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
+				flexSpacer := tview.NewBox()
+				flexSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
 				container.AddItem(topSpacer, 3, 0, false)
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(modeForm, modeFormHeight, 0, true)
-				container.AddItem(modeBtnSpacer, 1, 0, false)
+				container.AddItem(flexSpacer, 0, 2, false)
 				container.AddItem(buttonForm, 5, 0, false)
 				container.AddItem(bottomSpacer, 3, 0, false)
 			} else if availH >= 20 {
-				// Compact: compact title, text + mode(desc?) + spacer + button
+				// Compact: compact title, text + mode(desc?) + flex + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
+				flexSpacer := tview.NewBox()
+				flexSpacer.SetBackgroundColor(theme.BgPanel)
 				container.AddItem(topSpacer, 1, 0, false)
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(modeForm, modeFormHeight, 0, true)
-				container.AddItem(modeBtnSpacer, 1, 0, false)
+				container.AddItem(flexSpacer, 0, 2, false)
 				container.AddItem(buttonForm, 3, 0, false)
 			} else {
 				// Minimal: compact title, text + mode(no desc) + button

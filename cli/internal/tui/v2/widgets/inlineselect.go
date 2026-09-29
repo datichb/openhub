@@ -196,7 +196,7 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		if s.hasDescriptions() {
 			for _, desc := range s.descriptions {
 				for _, line := range strings.Split(desc, "\n") {
-					w := 6 + utf8.RuneCountInString(line) // desc indent
+					w := 4 + utf8.RuneCountInString(line) // desc indent (aligned with option text)
 					if w > maxW {
 						maxW = w
 					}
@@ -280,7 +280,7 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		if hasDesc && i < len(s.descriptions) && s.descriptions[i] != "" {
 			descStyle := tcell.StyleDefault.Background(bg).Foreground(theme.FgMuted)
 			for _, descLine := range strings.Split(s.descriptions[i], "\n") {
-				col = x + padLeft + 6 // extra indent for description
+				col = x + padLeft + 4 // aligned with option text (after cursor + space)
 				for _, ch := range descLine {
 					if col >= rightEdge {
 						break
