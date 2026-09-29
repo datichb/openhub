@@ -1187,3 +1187,84 @@ func TestInlineWizardView_E2E_HandleKey(t *testing.T) {
 
 	v.Unmount()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// stripTviewTags
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestStripTviewTags(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty", "", ""},
+		{"no tags", "hello world", "hello world"},
+		{"color tag", "[#ff0000]red[-]", "red"},
+		{"bold tag", "[::b]bold[::-]", "bold"},
+		{"reset tag", "[-:-:-]text", "text"},
+		{"mixed", "[#a6e3a1]success[-] and [#7f849c]muted[-]", "success and muted"},
+		{"nested-like", "[#ff0000][::b]both[::-][-]", "both"},
+		{"brackets in text", "no [tags] here", "no  here"}, // brackets without # : - get stripped too
+		{"empty tag", "[]empty", "empty"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, stripTviewTags(tc.input))
+		})
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isDropDownFocused
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestIsDropDownFocused_NilForm(t *testing.T) {
+	assert.False(t, isDropDownFocused(nil))
+}
+
+func TestIsDropDownFocused_WithInputField(t *testing.T) {
+	form := tview.NewForm()
+	form.AddInputField("Name", "", 0, nil, nil)
+	form.AddDropDown("Choice", []string{"a", "b"}, 0, nil)
+	form.SetFocus(0) // focus on InputField
+	assert.False(t, isDropDownFocused(form), "InputField focused should return false")
+}
+
+func TestIsDropDownFocused_WithDropDown(t *testing.T) {
+	form := tview.NewForm()
+	form.AddInputField("Name", "", 0, nil, nil)
+	form.AddDropDown("Choice", []string{"a", "b"}, 0, nil)
+	form.SetFocus(1) // focus on DropDown
+	assert.True(t, isDropDownFocused(form), "DropDown focused should return true")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fixFormLabelFocus
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestFixFormLabelFocus_AppliesColors(t *testing.T) {
+	form := tview.NewForm()
+	form.AddInputField("Name", "", 0, nil, nil)
+	form.AddInputField("Email", "", 0, nil, nil)
+
+	// Without real tview app focus, GetFocusedItemIndex returns -1.
+	// All labels should get the non-focused (secondary) style.
+	fixFormLabelFocus(form)
+
+	nameLabel := form.GetFormItem(0).GetLabel()
+	emailLabel := form.GetFormItem(1).GetLabel()
+
+	// Both should have secondary color tags (non-focused).
+	assert.Contains(t, nameLabel, theme.TextSecondaryHex, "label should contain secondary color")
+	assert.Contains(t, emailLabel, theme.TextSecondaryHex, "label should contain secondary color")
+
+	// The raw text should be preserved inside the tags.
+	assert.Contains(t, nameLabel, "Name", "label text should be preserved")
+	assert.Contains(t, emailLabel, "Email", "label text should be preserved")
+}
+
+func TestFixFormLabelFocus_NilForm(t *testing.T) {
+	// Should not panic.
+	fixFormLabelFocus(nil)
+}
