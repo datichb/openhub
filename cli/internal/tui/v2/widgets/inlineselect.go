@@ -29,6 +29,7 @@ type InlineSelect struct {
 	hasFocus     bool
 	disabled     bool
 	centered     bool // when true, the entire block (label + options + descriptions) is horizontally centered
+	contentWidth int  // when > 0 and centered, the block width is max(intrinsic, contentWidth)
 
 	// Style
 	labelWidth int
@@ -72,6 +73,15 @@ func (s *InlineSelect) SetDescriptions(descriptions []string) *InlineSelect {
 // drawn from the left edge with a small indent.
 func (s *InlineSelect) SetCentered(centered bool) *InlineSelect {
 	s.centered = centered
+	return s
+}
+
+// SetContentWidth sets the minimum block width used when centered. The actual
+// block width is max(intrinsic content width, contentWidth). This allows
+// aligning the select block with surrounding text of a known width — for
+// example, the longest line in a TextView displayed above the selector.
+func (s *InlineSelect) SetContentWidth(w int) *InlineSelect {
+	s.contentWidth = w
 	return s
 }
 
@@ -170,9 +180,12 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 	s.DrawForSubclass(screen, s)
 	x, y, width, _ := s.GetInnerRect()
 
-	// ── Compute centering offset ──
+	// ── Compute centering and block boundaries ──
 	padLeft := 0
+	rightEdge := x + width // default: full widget width
+
 	if s.centered {
+		// Intrinsic content width: the widest line among label, options, descriptions.
 		maxW := utf8.RuneCountInString(s.label)
 		for _, opt := range s.options {
 			w := 4 + utf8.RuneCountInString(opt) // indent(2) + cursor(1) + space(1) + text
@@ -190,8 +203,14 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 				}
 			}
 		}
-		if maxW < width {
-			padLeft = (width - maxW) / 2
+		// Use the larger of intrinsic width and external contentWidth.
+		blockWidth := maxW
+		if s.contentWidth > blockWidth {
+			blockWidth = s.contentWidth
+		}
+		if blockWidth < width {
+			padLeft = (width - blockWidth) / 2
+			rightEdge = x + padLeft + blockWidth
 		}
 	}
 
@@ -200,7 +219,7 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		labelStyle := tcell.StyleDefault.Background(s.bgColor).Foreground(s.labelColor)
 		col := x + padLeft
 		for _, ch := range s.label {
-			if col >= x+width {
+			if col >= rightEdge {
 				break
 			}
 			screen.SetContent(col, y, ch, nil, labelStyle)
@@ -244,14 +263,14 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		col++
 
 		for _, ch := range opt {
-			if col >= x+width {
+			if col >= rightEdge {
 				break
 			}
 			screen.SetContent(col, y+row, ch, nil, rowStyle)
 			col++
 		}
-		// Fill rest of line
-		for col < x+width {
+		// Fill to block edge (not full width)
+		for col < rightEdge {
 			screen.SetContent(col, y+row, ' ', nil, rowStyle)
 			col++
 		}
@@ -263,13 +282,13 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			for _, descLine := range strings.Split(s.descriptions[i], "\n") {
 				col = x + padLeft + 6 // extra indent for description
 				for _, ch := range descLine {
-					if col >= x+width {
+					if col >= rightEdge {
 						break
 					}
 					screen.SetContent(col, y+row, ch, nil, descStyle)
 					col++
 				}
-				for col < x+width {
+				for col < rightEdge {
 					screen.SetContent(col, y+row, ' ', nil, descStyle)
 					col++
 				}
@@ -279,7 +298,7 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			// Blank separator between options (except after last)
 			if i < len(s.options)-1 {
 				bgStyle := tcell.StyleDefault.Background(s.fieldBg)
-				for col := x; col < x+width; col++ {
+				for col := x + padLeft; col < rightEdge; col++ {
 					screen.SetContent(col, y+row, ' ', nil, bgStyle)
 				}
 				row++

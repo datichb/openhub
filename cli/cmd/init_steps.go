@@ -129,9 +129,10 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			tv.SetBackgroundColor(theme.BgPanel)
 			tv.SetBorderPadding(1, 0, 2, 2)
 
+			var tvText string
 			if availH >= 35 {
 				// Full layout: ASCII art banner
-				tv.SetText(fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
+				tvText = fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
 %s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s
 %s██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║██║   ██║██████╔╝%s
 %s██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║   ██║██╔══██╗%s
@@ -167,13 +168,13 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset,
 					muted, reset,
 					secondary, reset,
-					accent, reset,
-					accent, reset,
-					accent, reset,
-				))
-			} else {
-				// Compact layout: no ASCII art, title line only
-				tv.SetText(fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
+				accent, reset,
+				accent, reset,
+				accent, reset,
+			)
+		} else {
+			// Compact layout: no ASCII art, title line only
+			tvText = fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
 
 %s`+i18n.T("cmd.init.wizard_welcome_desc")+`%s
 
@@ -200,13 +201,25 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset,
 					muted, reset,
 					secondary, reset,
-					accent, reset,
-					accent, reset,
-					accent, reset,
-				))
-			}
+				accent, reset,
+				accent, reset,
+				accent, reset,
+			)
+		}
+		tv.SetText(tvText)
 
-			// ── Setup mode selector ──
+		// Compute the width of the longest visible line in the tv text.
+		// This is used to size the mode selector block so it visually
+		// aligns with the centered text above.
+		maxTextWidth := 0
+		for _, line := range strings.Split(tvText, "\n") {
+			w := tview.TaggedStringWidth(line)
+			if w > maxTextWidth {
+				maxTextWidth = w
+			}
+		}
+
+		// ── Setup mode selector ──
 			modeOptions := []string{
 				i18n.T("cmd.init.wizard_mode_solo"),
 				i18n.T("cmd.init.wizard_mode_team"),
@@ -233,7 +246,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					}
 				},
 			)
-			modeSelect.SetCentered(true)
+			modeSelect.SetCentered(true).SetContentWidth(maxTextWidth)
 
 			// Show descriptions only when there's enough vertical space.
 			// With multi-line descriptions (2 lines each): 3 options × (1 label + 2 desc)
