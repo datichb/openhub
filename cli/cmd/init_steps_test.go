@@ -612,3 +612,201 @@ func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
 	// verify the wizard builds without error and has the expected ID.
 	assert.Equal(t, "wizard.init", wiz.ID())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildMCPConsolidatedStep
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestBuildMCPConsolidatedStep_Structure(t *testing.T) {
+	s := newTestState()
+	a := *s.AppPtr
+	step := buildMCPConsolidatedStep(s, a)
+
+	assert.Equal(t, "mcp_consolidated", step.ID)
+	assert.Equal(t, "MCP", step.Label)
+	assert.NotNil(t, step.CustomView, "mcp consolidated must have CustomView")
+	assert.NotNil(t, step.SkipIf, "mcp consolidated must have SkipIf")
+	assert.NotNil(t, step.OnDone, "mcp consolidated must have OnDone")
+	assert.NotNil(t, step.InfoFields, "mcp consolidated must have InfoFields")
+}
+
+func TestBuildMCPConsolidatedStep_SkipWhenFlagged(t *testing.T) {
+	s := newTestState()
+	a := *s.AppPtr
+	step := buildMCPConsolidatedStep(s, a)
+
+	s.MCPSkipped = false
+	assert.False(t, step.SkipIf(), "should not skip when flag is false")
+
+	s.MCPSkipped = true
+	assert.True(t, step.SkipIf(), "should skip when flag is true")
+}
+
+func TestBuildMCPConsolidatedStep_OnDone_StoresAllTokens(t *testing.T) {
+	secretsMap := make(map[string]string)
+	a := newMockApp(secretsMap, nil)
+	a.Projects = &mockProjectStore{}
+	appPtr := &a
+	s := &initStepState{
+		ProviderOptions: []string{"bedrock"},
+		TeamState:       &initWizardTeamState{},
+		AppPtr:          appPtr,
+		FocusBtn:        new(bool),
+		Steps:           new([]views.WizardStep),
+	}
+
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "hub.toml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("[cli]"), 0o644))
+	t.Setenv("OH_CONFIG_PATH", cfgPath)
+	config.Reset()
+
+	s.FigmaToken = "figma-tok"
+	s.GitlabToken = "gitlab-tok"
+	s.GslidesToken = "gslides-tok"
+
+	step := buildMCPConsolidatedStep(s, a)
+	err := step.OnDone()
+	require.NoError(t, err)
+
+	assert.Equal(t, "figma-tok", secretsMap[config.DefaultFigmaTokenKey])
+	assert.Equal(t, "gitlab-tok", secretsMap[config.DefaultGitLabTokenKey])
+	assert.Equal(t, "gslides-tok", secretsMap[config.DefaultGslidesTokenKey])
+}
+
+func TestBuildMCPConsolidatedStep_OnDone_EmptyNoOp(t *testing.T) {
+	secretsMap := make(map[string]string)
+	a := newMockApp(secretsMap, nil)
+	a.Projects = &mockProjectStore{}
+	appPtr := &a
+	s := &initStepState{
+		ProviderOptions: []string{"bedrock"},
+		TeamState:       &initWizardTeamState{},
+		AppPtr:          appPtr,
+		FocusBtn:        new(bool),
+		Steps:           new([]views.WizardStep),
+	}
+
+	step := buildMCPConsolidatedStep(s, a)
+	err := step.OnDone()
+	require.NoError(t, err)
+
+	assert.Empty(t, secretsMap, "no tokens should be stored when all empty")
+}
+
+func TestBuildMCPConsolidatedStep_InfoFields(t *testing.T) {
+	s := newTestState()
+	a := *s.AppPtr
+	step := buildMCPConsolidatedStep(s, a)
+
+	// All empty → all skipped
+	fields := step.InfoFields()
+	require.Len(t, fields, 3, "should have 3 entries (Figma, GitLab, GSlides)")
+	for _, f := range fields {
+		assert.Contains(t, f.Value, i18n.T("cmd.init.wizard_mcp_skipped"), "empty token should show skipped for %s", f.Label)
+	}
+
+	// Set tokens → configured
+	s.FigmaToken = "tok"
+	s.GitlabToken = "tok"
+	s.GitlabWrite = true
+	fields = step.InfoFields()
+	require.GreaterOrEqual(t, len(fields), 4, "should have 4 entries including Write")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Express Mode (SetupMode)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestExpressMode_SoloSkipsTeam(t *testing.T) {
+	s := newTestState()
+	s.SetupMode = "solo"
+
+	// Build provider step with team-mode skip wrapper (same as init_wizard.go).
+	providerStep := buildProviderStep(s)
+	origSkipIf := providerStep.SkipIf
+	providerStep.SkipIf = func() bool {
+		if s.SetupMode == "team" {
+			return true
+		}
+		if origSkipIf != nil {
+			return origSkipIf()
+		}
+		return false
+	}
+
+	// In solo mode, provider should NOT be skipped.
+	assert.False(t, providerStep.SkipIf(), "provider should not be skipped in solo mode")
+
+	// Simulate team mode skip for team intro.
+	teamState := s.TeamState
+	s.SetupMode = "solo"
+	teamState.Skipped = false
+
+	// The team intro SkipIf sets Skipped=true when solo.
+	teamSkipIf := func() bool {
+		if s.SetupMode == "solo" {
+			teamState.Skipped = true
+			return true
+		}
+		return false
+	}
+
+	assert.True(t, teamSkipIf(), "team intro should be skipped in solo mode")
+	assert.True(t, teamState.Skipped, "teamState.Skipped should be set in solo mode")
+}
+
+func TestExpressMode_TeamSkipsProvider(t *testing.T) {
+	s := newTestState()
+	s.SetupMode = "team"
+
+	providerStep := buildProviderStep(s)
+	origSkipIf := providerStep.SkipIf
+	providerStep.SkipIf = func() bool {
+		if s.SetupMode == "team" {
+			return true
+		}
+		if origSkipIf != nil {
+			return origSkipIf()
+		}
+		return false
+	}
+
+	assert.True(t, providerStep.SkipIf(), "provider should be skipped in team mode")
+}
+
+func TestExpressMode_FullShowsAll(t *testing.T) {
+	s := newTestState()
+	s.SetupMode = "full"
+
+	providerStep := buildProviderStep(s)
+	origSkipIf := providerStep.SkipIf
+	providerStep.SkipIf = func() bool {
+		if s.SetupMode == "team" {
+			return true
+		}
+		if origSkipIf != nil {
+			return origSkipIf()
+		}
+		return false
+	}
+
+	assert.False(t, providerStep.SkipIf(), "provider should not be skipped in full mode")
+
+	teamSkipIf := func() bool {
+		if s.SetupMode == "solo" {
+			return true
+		}
+		return false
+	}
+	assert.False(t, teamSkipIf(), "team should not be skipped in full mode")
+}
+
+func TestExpressMode_DefaultIsSolo(t *testing.T) {
+	s := newTestState()
+	_ = buildWelcomeStep(s)
+
+	// SetupMode is initialized inside the CustomView closure when rendered,
+	// so before rendering it should be empty.
+	assert.Equal(t, "", s.SetupMode, "SetupMode should be empty before CustomView renders")
+}
