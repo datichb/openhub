@@ -208,6 +208,11 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 		}
 		tv.SetText(tvText)
 
+		// Compute the fixed height for the tv based on its actual content.
+		// This avoids the tv being either too large (pushing modeForm to the
+		// bottom) or too small (truncating text) when sharing flex space.
+		tvHeight := strings.Count(tvText, "\n") + 2 // text lines + top border padding
+
 		// Compute the width of the longest visible line in the tv text.
 		// This is used to size the mode selector block so it visually
 		// aligns with the centered text above.
@@ -302,38 +307,52 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			})
 
 			// ── Adaptive layout ──
-			// The mode selector is centered via InlineSelect.SetCentered(true),
-			// so no horizontal wrapper is needed — modeForm takes full width.
-			// A flexible spacer (proportion 2) between modeForm and buttonForm
-			// pushes the mode selector closer to the text above (proportion 1)
-			// while keeping the button anchored toward the bottom.
+			// The tv has a fixed height computed from its content so the mode
+			// selector sits directly below the text. A single flexible spacer
+			// between modeForm and buttonForm takes all remaining space,
+			// keeping the button anchored at the bottom.
+			// On small terminals, if the fixed content exceeds the available
+			// space, the flexSpacer shrinks to 0 and tv is scrollable.
 			if availH >= 35 {
-				// Full: spacers + ASCII art + text + mode(desc) + flex + button
+				// Full: topSpacer + text + mode(desc) + flex + button + bottomSpacer
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				flexSpacer := tview.NewBox()
 				flexSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				// Clamp tvHeight so button + bottomSpacer are always visible.
+				maxTvH := availH - 3 - modeFormHeight - 5 - 3 // top + mode + btn + bottom
+				if tvHeight > maxTvH && maxTvH > 5 {
+					tvHeight = maxTvH
+				}
+
 				container.AddItem(topSpacer, 3, 0, false)
-				container.AddItem(tv, 0, 1, false)
+				container.AddItem(tv, tvHeight, 0, false)
 				container.AddItem(modeForm, modeFormHeight, 0, true)
-				container.AddItem(flexSpacer, 0, 2, false)
+				container.AddItem(flexSpacer, 0, 1, false)
 				container.AddItem(buttonForm, 5, 0, false)
 				container.AddItem(bottomSpacer, 3, 0, false)
 			} else if availH >= 20 {
-				// Compact: compact title, text + mode(desc?) + flex + button
+				// Compact: topSpacer + text + mode(desc?) + flex + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				flexSpacer := tview.NewBox()
 				flexSpacer.SetBackgroundColor(theme.BgPanel)
+
+				maxTvH := availH - 1 - modeFormHeight - 3 // top + mode + btn
+				if tvHeight > maxTvH && maxTvH > 5 {
+					tvHeight = maxTvH
+				}
+
 				container.AddItem(topSpacer, 1, 0, false)
-				container.AddItem(tv, 0, 1, false)
+				container.AddItem(tv, tvHeight, 0, false)
 				container.AddItem(modeForm, modeFormHeight, 0, true)
-				container.AddItem(flexSpacer, 0, 2, false)
+				container.AddItem(flexSpacer, 0, 1, false)
 				container.AddItem(buttonForm, 3, 0, false)
 			} else {
-				// Minimal: compact title, text + mode(no desc) + button
+				// Minimal: text + mode(no desc) + button
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 3, 0, false)
