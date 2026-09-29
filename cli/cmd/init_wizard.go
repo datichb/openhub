@@ -70,21 +70,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
-	// Group: Projet (intro + project)
+	// Group: Projet (single step with embedded intro)
 	projectGroupStart := len(steps)
-	steps = append(steps,
-		buildIntroStep(
-			"Projet",
-			"cmd.init.wizard_intro_project_title",
-			"cmd.init.wizard_intro_project_desc",
-			"", "",
-			"",
-			"cmd.init.wizard_intro_project_optional",
-			func() { s.ProjectSkipped = false },
-			func() { s.ProjectSkipped = true },
-		),
-		buildProjectStep(s),
-	)
+	steps = append(steps, buildProjectStep(s))
 
 	// Group: MCP (single consolidated step with intro + checkboxes + tokens)
 	mcpGroupStart := len(steps)

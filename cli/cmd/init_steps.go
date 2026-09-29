@@ -479,6 +479,8 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 }
 
 // buildProjectStep creates the first project creation step.
+// The intro text (title, description, optional note) is embedded at the top
+// of the form, eliminating the need for a separate intro page.
 func buildProjectStep(s *initStepState) views.WizardStep {
 	return views.WizardStep{
 		ID:    "project",
@@ -507,6 +509,25 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 		},
 		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
+
+			// ── Embedded intro text ──
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+			secondary := theme.ColorTag(theme.TextSecondaryHex)
+			muted := theme.ColorTag(theme.TextMutedHex)
+			reset := theme.TagColor
+
+			var intro strings.Builder
+			fmt.Fprintf(&intro, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_intro_project_title"), reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_intro_project_desc"), "\n") {
+				fmt.Fprintf(&intro, "%s%s%s\n", secondary, line, reset)
+			}
+			note := i18n.T("cmd.init.wizard_intro_project_optional")
+			if note != "" {
+				fmt.Fprintf(&intro, "%s%s%s\n", muted, note, reset)
+			}
+			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
+			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
+
 			initialName := s.ProjectName
 			initialPath := s.ProjectPath
 			if initialPath == "" {
