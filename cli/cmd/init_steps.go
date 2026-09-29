@@ -318,6 +318,31 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			return ""
 		},
 		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
+			// ── Auto-detection: pre-select the first available provider ──
+			detectedSource := ""
+			if s.SelectedProvider == "" {
+				// Run provider detection to find available credentials.
+				detections := providerPkg.DetectAll()
+				for _, d := range detections {
+					if d.Available {
+						name := string(d.Provider)
+						for idx, opt := range s.ProviderOptions {
+							if opt == name {
+								s.SelectedProvider = name
+								s.ProviderIdx = idx
+								detectedSource = d.Source
+								if d.Details != "" {
+									detectedSource += " (" + d.Details + ")"
+								}
+								break
+							}
+						}
+						if s.SelectedProvider != "" {
+							break
+						}
+					}
+				}
+			}
 			if s.SelectedProvider == "" {
 				s.SelectedProvider = s.ProviderOptions[0]
 			}
@@ -397,6 +422,12 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 					rerenderSafe()
 				},
 			)
+
+			// Show detection source hint when provider was auto-detected.
+			if detectedSource != "" {
+				info := theme.ColorTag(theme.InfoHex)
+				form.AddTextView("", fmt.Sprintf("%s%s%s", info, i18n.Tf("cmd.init.wizard_detected_from", detectedSource), reset), 60, 1, true, false)
+			}
 
 			// Conditional fields based on current provider
 			switch s.SelectedProvider {

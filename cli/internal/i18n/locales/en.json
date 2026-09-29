@@ -1698,6 +1698,7 @@
   "cmd.init.wizard_mode_team_desc": "Create or join a team. Provider inherited from team.",
   "cmd.init.wizard_mode_full": "Full setup  ~5-8 min",
   "cmd.init.wizard_mode_full_desc": "Step through every option manually.",
+  "cmd.init.wizard_detected_from": "ℹ Detected from %s",
   "cmd.init.wizard_provider_prereq": "Have ready depending on your provider:\n• Anthropic → API key (console.anthropic.com → API Keys)\n• OpenRouter → API key (openrouter.ai → Dashboard → Keys)\n• Bedrock → bearer token, AWS profile, or env variables\n• Copilot → run 'gh auth login' (requires GitHub CLI)",
   "cmd.init.wizard_team_prereq": "You will need:\n• Git URL of the team-state repo (from your team lead)\n• Your unique member ID (agreed upon by the team)",
   "cmd.init.wizard_mcp_prereq": "Tokens required per service:\n• Figma → personal access token (figma.com → Settings → Tokens)\n• GitLab → access token, scope \"read_api\" (Settings → Access Tokens)\n• Google Slides → OAuth token (gcloud auth print-access-token)",
