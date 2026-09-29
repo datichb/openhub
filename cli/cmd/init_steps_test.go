@@ -194,7 +194,7 @@ func TestBuildDeployStep_Structure(t *testing.T) {
 	step := buildDeployStep(s)
 
 	assert.Equal(t, "deploy", step.ID)
-	assert.NotNil(t, step.Form, "deploy must have Form")
+	assert.NotNil(t, step.CustomView, "deploy must have CustomView")
 	assert.NotNil(t, step.SkipIf, "deploy must have SkipIf")
 	assert.NotNil(t, step.OnDone, "deploy must have OnDone")
 	assert.NotNil(t, step.InfoFields, "deploy must have InfoFields")
