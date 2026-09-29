@@ -263,6 +263,30 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.spinner.SetBackgroundColor(theme.BgPanel)
 
 	// ── Layout: grouped (centered + sidebar) or classic (full-width) ──
+	// Force-clear the shell content container's full rect including its
+	// padding (top=1, left=2, right=2). The container is a Flex with
+	// dontClear=true, so its padding areas are never repainted by default.
+	// The router clears any previous DrawFunc before Mount, so this one
+	// is installed fresh and only lives while the wizard is mounted.
+	content.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		bg := tcell.StyleDefault.Background(theme.BgPanel)
+		for row := y; row < y+height; row++ {
+			for col := x; col < x+width; col++ {
+				screen.SetContent(col, row, ' ', nil, bg)
+			}
+		}
+		// Return inner rect matching the shell's SetBorderPadding(1, 0, 2, 2).
+		innerW := width - 2 - 2
+		if innerW < 0 {
+			innerW = 0
+		}
+		innerH := height - 1
+		if innerH < 0 {
+			innerH = 0
+		}
+		return x + 2, y + 1, innerW, innerH
+	})
+
 	if len(w.cfg.Groups) > 0 {
 		w.mountGroupedLayout(content)
 	} else {
@@ -312,6 +336,24 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	leftCol := tview.NewFlex().SetDirection(tview.FlexRow)
 	leftCol.SetBackgroundColor(theme.BgPanel)
 	leftCol.SetBorderPadding(0, 0, 2, 1)
+	// Force-clear the full rect including padding columns. Flex has
+	// dontClear=true by default, so the 2-col left + 1-col right padding
+	// would never be repainted — stale pixels bleed through as a visible
+	// vertical strip.
+	leftCol.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		bg := tcell.StyleDefault.Background(theme.BgPanel)
+		for row := y; row < y+height; row++ {
+			for col := x; col < x+width; col++ {
+				screen.SetContent(col, row, ' ', nil, bg)
+			}
+		}
+		// Return inner rect matching SetBorderPadding(0, 0, 2, 1).
+		innerW := width - 2 - 1
+		if innerW < 0 {
+			innerW = 0
+		}
+		return x + 2, y, innerW, height
+	})
 	leftCol.AddItem(w.stepContent, 0, 1, true)
 	leftCol.AddItem(w.hintsBar.TextView, 1, 0, false)
 
@@ -618,6 +660,11 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 	w.spinner.SetMessage(msg)
 	w.stepContent.Clear()
 	w.stepContent.AddItem(w.spinner.TextView, 3, 0, false)
+	// Fill remaining space below the spinner with BgPanel to prevent
+	// stale pixels from the previous step bleeding through.
+	bgFill := tview.NewBox()
+	bgFill.SetBackgroundColor(theme.BgPanel)
+	w.stepContent.AddItem(bgFill, 0, 1, false)
 	w.spinner.Start(w.app)
 
 	// Capture app reference before launching goroutine to avoid nil
