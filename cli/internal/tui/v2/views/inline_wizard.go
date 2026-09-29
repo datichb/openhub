@@ -924,8 +924,19 @@ func (w *InlineWizardView) renderStep(idx int) {
 			// time from tview.Styles, which produces invisible text in our theme).
 			fixFormDropDownStyles(form)
 
-			// Esc handling: Required steps block skip; optional use double-Esc
+			// Esc handling: Required steps block skip; optional use double-Esc.
+			// When a DropDown has focus, the first Escape closes its popup
+			// rather than initiating the skip sequence (tview forwards the
+			// Escape via finishedFunc, so CancelFunc always fires).
 			form.SetCancelFunc(func() {
+				// If a DropDown is focused, swallow this Escape — it was
+				// triggered by closing the popup, not by the user wanting
+				// to skip the step.
+				if isDropDownFocused(form) {
+					w.updateDropdownHints(form)
+					return
+				}
+
 				if step.Required {
 					w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
 						widgets.ColorTag(theme.Error), theme.IconWarning,

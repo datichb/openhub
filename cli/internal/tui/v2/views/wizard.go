@@ -495,8 +495,13 @@ func RunWizard(cfg WizardConfig) WizardResult {
 				// Fix DropDown popup list colors (same fix as inline wizard, ADR-034).
 				fixFormDropDownStyles(form)
 
-				// Esc handling: Required steps block skip; optional steps use double-Esc
+				// Esc handling: Required steps block skip; optional steps use double-Esc.
+				// When a DropDown has focus, the first Escape closes its popup
+				// rather than initiating the skip sequence.
 				form.SetCancelFunc(func() {
+					if isDropDownFocused(form) {
+						return
+					}
 					// Required steps cannot be skipped
 					if step.Required {
 						shell.StatusBar.SetHints(i18n.T("wizard.step_required"))
