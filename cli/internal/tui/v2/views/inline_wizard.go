@@ -187,6 +187,21 @@ func (w *InlineWizardView) statusHintsForStep(idx int) string {
 	return strings.Join(parts, " · ")
 }
 
+// updateDropdownHints swaps the hints bar text when a DropDown gains or loses
+// focus. When a DropDown is focused, users see navigation-specific hints
+// (↑↓ navigate · enter select · tab next field) instead of the generic
+// wizard hints. This is called after any key event that may shift focus.
+func (w *InlineWizardView) updateDropdownHints(form *tview.Form) {
+	if w.hintsBar == nil || w.escPending {
+		return
+	}
+	if isDropDownFocused(form) {
+		w.hintsBar.SetHints(i18n.T("wizard.hint.dropdown"))
+	} else {
+		w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+	}
+}
+
 func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.app = app
 	w.completed = false
@@ -951,6 +966,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 				}
 				// Arrow keys → Tab/Backtab (except on DropDowns)
 				if remapped := remapArrowToTab(form, event); remapped != nil {
+					defer w.updateDropdownHints(form)
 					return remapped
 				}
 				if event.Key() == tcell.KeyCtrlS {
@@ -960,6 +976,11 @@ func (w *InlineWizardView) renderStep(idx int) {
 				if event.Key() == tcell.KeyCtrlB {
 					w.goBack()
 					return nil
+				}
+				// Update hints after any navigation key (Tab, Backtab, Enter)
+				// that may shift focus to or from a DropDown.
+				if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyEnter {
+					defer w.updateDropdownHints(form)
 				}
 				return event
 			})
@@ -1013,6 +1034,9 @@ func (w *InlineWizardView) renderStep(idx int) {
 							w.goBack()
 							return nil
 						}
+						if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyEnter {
+							defer w.updateDropdownHints(form)
+						}
 						return event
 					}
 					// Arrow keys → Tab/Backtab (except on DropDowns)
@@ -1025,6 +1049,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 								return nil
 							}
 						}
+						defer w.updateDropdownHints(form)
 						return remapped
 					}
 					// Tab/Enter on the last focusable form field → focus buttonForm
@@ -1050,6 +1075,10 @@ func (w *InlineWizardView) renderStep(idx int) {
 						w.goBack()
 						return nil
 					}
+					// Update hints after navigation keys that may change focus.
+					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyEnter {
+						defer w.updateDropdownHints(form)
+					}
 					return event
 				})
 
@@ -1062,6 +1091,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 						return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
 					case tcell.KeyBacktab:
 						w.app.SetFocus(form)
+						w.updateDropdownHints(form)
 						return nil
 					case tcell.KeyCtrlS:
 						onDone()
@@ -1615,6 +1645,19 @@ func fixFormDropDownStyles(form *tview.Form) {
 			dd.SetTextOptions(" ", " ▼ ", " ", " ", "")
 		}
 	}
+}
+
+// isDropDownFocused returns true if the currently focused form item is a DropDown.
+func isDropDownFocused(form *tview.Form) bool {
+	if form == nil {
+		return false
+	}
+	itemIdx, _ := form.GetFocusedItemIndex()
+	if itemIdx < 0 || itemIdx >= form.GetFormItemCount() {
+		return false
+	}
+	_, isDD := form.GetFormItem(itemIdx).(*tview.DropDown)
+	return isDD
 }
 
 // AutoAdvanceFromDropDown moves focus to the next interactive form field

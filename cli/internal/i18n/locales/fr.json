@@ -1485,6 +1485,7 @@
   "wizard.hint.submit": "valider",
   "wizard.hint.back": "retour",
   "wizard.hint.skip": "passer",
+  "wizard.hint.dropdown": "↑↓ naviguer · entrée sélectionner · tab champ suivant",
   "wizard.hint.navigate": "ouvrir",
   "wizard.hint.close": "fermer",
   "wizard.hint.next": "Suivant",
