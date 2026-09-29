@@ -96,6 +96,11 @@ type initStepState struct {
 // Step builders
 // ─────────────────────────────────────────────────────────────────────────────
 
+// infoColor wraps a value string in a tview color tag for the sidebar InfoFields.
+func infoSuccess(v string) string { return theme.ColorTag(theme.SuccessHex) + v + theme.TagReset }
+func infoMuted(v string) string   { return theme.ColorTag(theme.TextMutedHex) + v + theme.TagReset }
+func infoWarning(v string) string { return theme.ColorTag(theme.WarningHex) + v + theme.TagReset }
+
 // buildWelcomeStep creates the welcome/splash screen step.
 func buildWelcomeStep(s *initStepState) views.WizardStep {
 	return views.WizardStep{
@@ -624,13 +629,13 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			if a.Secrets == nil {
 				fields = append(fields, views.InfoField{
 					Label: "Warning",
-					Value: i18n.T("cmd.init.wizard_no_keyring"),
+					Value: infoWarning(i18n.T("cmd.init.wizard_no_keyring")),
 				})
 			}
 			if _, err := opencode.FindBinary(); err != nil {
 				fields = append(fields, views.InfoField{
 					Label: "Warning",
-					Value: i18n.T("cmd.init.wizard_opencode_not_found"),
+					Value: infoWarning(i18n.T("cmd.init.wizard_opencode_not_found")),
 				})
 			}
 			return fields
@@ -754,11 +759,11 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: i18n.T("cmd.init.wizard_project_added")}}
+			fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: infoSuccess(i18n.T("cmd.init.wizard_project_added"))}}
 			if s.TeamState.Configured && s.TeamState.attachProject && s.TeamState.TeamID != "" {
 				fields = append(fields, views.InfoField{
 					Label: i18n.T("cmd.init.wizard_step_team"),
-					Value: i18n.Tf("cmd.init.wizard_project_attached", s.TeamState.TeamID),
+					Value: infoSuccess(i18n.Tf("cmd.init.wizard_project_attached", s.TeamState.TeamID)),
 				})
 			}
 			return fields
@@ -1052,13 +1057,12 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 		},
 		InfoFields: func() []views.InfoField {
 			if s.DeploySkipped {
-				return []views.InfoField{{Label: "Deploy", Value: i18n.T("cmd.init.wizard_deploy_section_skipped")}}
+				return []views.InfoField{{Label: "Deploy", Value: infoMuted(i18n.T("cmd.init.wizard_deploy_section_skipped"))}}
 			}
-			status := i18n.T("cmd.init.wizard_deploy_done")
-			if !s.DeployConfirmed {
-				status = i18n.T("cmd.init.wizard_deploy_skipped")
+			if s.DeployConfirmed {
+				return []views.InfoField{{Label: "Deploy", Value: infoSuccess(i18n.T("cmd.init.wizard_deploy_done"))}}
 			}
-			return []views.InfoField{{Label: "Deploy", Value: status}}
+			return []views.InfoField{{Label: "Deploy", Value: infoMuted(i18n.T("cmd.init.wizard_deploy_skipped"))}}
 		},
 		Processing: i18n.T("cmd.init.wizard_deploy_processing"),
 	}
@@ -1276,14 +1280,14 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 		InfoFields: func() []views.InfoField {
 			var fields []views.InfoField
 			for _, entry := range entries {
-				v := i18n.T("cmd.init.wizard_mcp_configured")
 				if *entry.tokenVar == "" {
-					v = i18n.T("cmd.init.wizard_mcp_skipped")
+					fields = append(fields, views.InfoField{Label: entry.name, Value: infoMuted(i18n.T("cmd.init.wizard_mcp_skipped"))})
+				} else {
+					fields = append(fields, views.InfoField{Label: entry.name, Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_configured"))})
 				}
-				fields = append(fields, views.InfoField{Label: entry.name, Value: v})
 			}
 			if s.GitlabToken != "" && s.GitlabWrite {
-				fields = append(fields, views.InfoField{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")})
+				fields = append(fields, views.InfoField{Label: "Write", Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_enabled"))})
 			}
 			return fields
 		},
