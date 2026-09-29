@@ -813,6 +813,232 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MCP Consolidated Step — combines intro + 3 token steps into a single page
+// ─────────────────────────────────────────────────────────────────────────────
+
+// buildMCPConsolidatedStep returns a single WizardStep that replaces the MCP
+// intro page and the 3 individual token steps (Figma, GitLab, Google Slides).
+// Each integration has a checkbox to enable/disable it and a password field
+// that appears only when the checkbox is checked.
+func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
+	type mcpEntry struct {
+		name          string
+		tokenVar      *string
+		tokenKey      string
+		hintKey       string
+		checkboxVar   *bool
+		checkboxLabel string
+		checkboxDesc  string
+		afterStore    func() error
+	}
+
+	entries := []mcpEntry{
+		{
+			name: "Figma", tokenVar: &s.FigmaToken,
+			tokenKey: config.DefaultFigmaTokenKey, hintKey: "cmd.init.mcp_hint_figma",
+			afterStore: func() error {
+				return config.Update(func(c *config.Config) error { c.MCP.Figma.Enabled = true; return nil })
+			},
+		},
+		{
+			name: "GitLab", tokenVar: &s.GitlabToken,
+			tokenKey: config.DefaultGitLabTokenKey, hintKey: "cmd.init.mcp_hint_gitlab",
+			checkboxVar: &s.GitlabWrite, checkboxLabel: i18n.T("cmd.init.mcp_gitlab_write_short"),
+			checkboxDesc: "cmd.init.mcp_gitlab_write_desc",
+			afterStore: func() error {
+				return config.Update(func(c *config.Config) error {
+					c.MCP.Gitlab.Enabled = true
+					if s.GitlabWrite {
+						c.MCP.Gitlab.WriteEnabled = true
+					}
+					return nil
+				})
+			},
+		},
+		{
+			name: "Google Slides", tokenVar: &s.GslidesToken,
+			tokenKey: config.DefaultGslidesTokenKey, hintKey: "cmd.init.mcp_hint_gslides",
+			afterStore: func() error {
+				return config.Update(func(c *config.Config) error { c.MCP.Gslides.Enabled = true; return nil })
+			},
+		},
+	}
+
+	return views.WizardStep{
+		ID: "mcp_consolidated", Label: "MCP",
+		SkipIf: func() bool { return s.MCPSkipped },
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+			secondary := theme.ColorTag(theme.TextSecondaryHex)
+			muted := theme.ColorTag(theme.TextMutedHex)
+			warning := theme.ColorTag(theme.WarningHex)
+			reset := theme.TagColor
+
+			// Render intro text above the form.
+			var b strings.Builder
+			b.WriteString("\n")
+			fmt.Fprintf(&b, "%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_intro_mcp_title"), reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_intro_mcp_desc"), "\n") {
+				fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
+			}
+			b.WriteString("\n")
+			fmt.Fprintf(&b, "%s%s%s\n", muted, i18n.T("cmd.init.wizard_intro_mcp_list"), reset)
+			fmt.Fprintf(&b, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_mcp_list_items"), reset)
+			b.WriteString("\n")
+			fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_mcp_prereq"), "\n") {
+				if strings.HasPrefix(line, "• ") {
+					fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
+				} else {
+					fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
+				}
+			}
+			tv := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
+			tv.SetBackgroundColor(theme.BgPanel)
+			tv.SetText(b.String())
+
+			// Build the form with checkbox + token per integration.
+			form := tview.NewForm()
+			form.SetBackgroundColor(theme.BgPanel)
+			form.SetFieldBackgroundColor(theme.BgElement)
+			form.SetFieldTextColor(theme.FgPrimary)
+			form.SetLabelColor(theme.FgPrimary)
+			form.SetBorder(false)
+
+			enabled := make([]bool, len(entries))
+			for i := range entries {
+				enabled[i] = true
+			}
+
+			var rebuildForm func()
+			rebuildForm = func() {
+				form.Clear(true)
+				for idx := range entries {
+					ci := idx
+					e := entries[idx]
+					form.AddCheckbox(e.name, enabled[ci], func(checked bool) {
+						enabled[ci] = checked
+						go func() { tvApp.QueueUpdateDraw(func() { rebuildForm() }) }()
+					})
+					if !enabled[ci] {
+						continue
+					}
+					hasKeychainToken := false
+					if a.Secrets != nil && *e.tokenVar == "" {
+						if existing, err := a.Secrets.Get(context.Background(), e.tokenKey); err == nil && existing != "" {
+							hasKeychainToken = true
+						}
+					}
+					if hasKeychainToken {
+						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
+					}
+					form.AddPasswordField(
+						i18n.Tf("cmd.init.mcp_token_prompt", e.name), *e.tokenVar, 0, '*',
+						func(t string) { *entries[ci].tokenVar = t },
+					)
+					if e.hintKey != "" {
+						form.AddTextView("", i18n.T(e.hintKey), 60, 2, true, false)
+					}
+					if e.checkboxVar != nil {
+						if e.checkboxDesc != "" {
+							form.AddTextView("", i18n.T(e.checkboxDesc), 60, 2, true, false)
+						}
+						cbVar := e.checkboxVar
+						form.AddCheckbox(e.checkboxLabel, *cbVar, func(checked bool) { *cbVar = checked })
+					}
+				}
+				views.FixFormDropDownStyles(form)
+				views.FixFormLabelFocus(form)
+			}
+			rebuildForm()
+
+			// Button bar with Continue + Skip (double-click confirm).
+			buttonForm := views.NewStyledButtonForm()
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+				s.MCPSkipped = false
+				onDone()
+			})
+			skipConfirmed := false
+			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+				if !skipConfirmed {
+					skipConfirmed = true
+					if btn := buttonForm.GetButton(1); btn != nil {
+						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+					}
+					return
+				}
+				s.MCPSkipped = true
+				s.FigmaToken = ""
+				s.GitlabToken = ""
+				s.GslidesToken = ""
+				onDone()
+			})
+
+			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				switch event.Key() {
+				case tcell.KeyLeft:
+					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+				case tcell.KeyRight:
+					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+				case tcell.KeyBacktab:
+					tvApp.SetFocus(form)
+					return nil
+				}
+				return event
+			})
+
+			form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyTab {
+					itemIdx, _ := form.GetFocusedItemIndex()
+					if views.IsLastFocusableFormItem(form, itemIdx) {
+						tvApp.SetFocus(buttonForm)
+						return nil
+					}
+				}
+				return event
+			})
+
+			container.AddItem(tv, 0, 1, false)
+			container.AddItem(form, 0, 2, true)
+			container.AddItem(buttonForm, 3, 0, false)
+			tvApp.SetFocus(form)
+		},
+		OnDone: func() error {
+			for _, entry := range entries {
+				if *entry.tokenVar == "" {
+					continue
+				}
+				if a.Secrets != nil {
+					if err := a.Secrets.Set(context.Background(), entry.tokenKey, *entry.tokenVar); err != nil {
+						return fmt.Errorf("keychain %s: %w", entry.name, err)
+					}
+				}
+				if entry.afterStore != nil {
+					if err := entry.afterStore(); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		},
+		InfoFields: func() []views.InfoField {
+			var fields []views.InfoField
+			for _, entry := range entries {
+				v := i18n.T("cmd.init.wizard_mcp_configured")
+				if *entry.tokenVar == "" {
+					v = i18n.T("cmd.init.wizard_mcp_skipped")
+				}
+				fields = append(fields, views.InfoField{Label: entry.name, Value: v})
+			}
+			if s.GitlabToken != "" && s.GitlabWrite {
+				fields = append(fields, views.InfoField{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")})
+			}
+			return fields
+		},
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // buildIntroStep — group introduction page
 // ─────────────────────────────────────────────────────────────────────────────
 

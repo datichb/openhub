@@ -9,7 +9,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -100,81 +99,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		buildProjectStep(s),
 	)
 
-	// Group: MCP (intro + figma + gitlab + gslides)
+	// Group: MCP (single consolidated step with intro + checkboxes + tokens)
 	mcpGroupStart := len(steps)
-	steps = append(steps,
-		buildIntroStep(
-			"MCP",
-			"cmd.init.wizard_intro_mcp_title",
-			"cmd.init.wizard_intro_mcp_desc",
-			"cmd.init.wizard_intro_mcp_list",
-			"cmd.init.wizard_mcp_list_items",
-			"cmd.init.wizard_mcp_prereq",
-			"",
-			func() { s.MCPSkipped = false },
-			func() { s.MCPSkipped = true },
-		),
-		buildMCPTokenStep(mcpTokenStepOpts{
-			ID:           "mcp_figma",
-			LabelI18nKey: "cmd.init.wizard_step_mcp_figma",
-			DisplayName:  "Figma",
-			TokenKey:     config.DefaultFigmaTokenKey,
-			HintI18nKey:  "cmd.init.mcp_hint_figma",
-			TokenVar:     &s.FigmaToken,
-			SkipIf:       func() bool { return s.MCPSkipped },
-			Secrets:      a.Secrets,
-			AfterStore: func() error {
-				return config.Update(func(c *config.Config) error {
-					c.MCP.Figma.Enabled = true
-					return nil
-				})
-			},
-		}),
-		buildMCPTokenStep(mcpTokenStepOpts{
-			ID:           "mcp_gitlab",
-			LabelI18nKey: "cmd.init.wizard_step_mcp_gitlab",
-			DisplayName:  "GitLab",
-			TokenKey:     config.DefaultGitLabTokenKey,
-			HintI18nKey:  "cmd.init.mcp_hint_gitlab",
-			TokenVar:     &s.GitlabToken,
-			SkipIf:       func() bool { return s.MCPSkipped },
-			SecretsFunc:  func() domain.SecretStore { return (*s.AppPtr).Secrets },
-			CheckboxLabel:   i18n.T("cmd.init.mcp_gitlab_write_short"),
-			CheckboxDescKey: "cmd.init.mcp_gitlab_write_desc",
-			CheckboxVar:     &s.GitlabWrite,
-			AfterStore: func() error {
-				return config.Update(func(c *config.Config) error {
-					c.MCP.Gitlab.Enabled = true
-					if s.GitlabWrite {
-						c.MCP.Gitlab.WriteEnabled = true
-					}
-					return nil
-				})
-			},
-			ExtraInfoFields: func() []views.InfoField {
-				if s.GitlabToken != "" && s.GitlabWrite {
-					return []views.InfoField{{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")}}
-				}
-				return nil
-			},
-		}),
-		buildMCPTokenStep(mcpTokenStepOpts{
-			ID:           "mcp_gslides",
-			LabelI18nKey: "cmd.init.wizard_step_mcp_gslides",
-			DisplayName:  "Google Slides",
-			TokenKey:     config.DefaultGslidesTokenKey,
-			HintI18nKey:  "cmd.init.mcp_hint_gslides",
-			TokenVar:     &s.GslidesToken,
-			SkipIf:       func() bool { return s.MCPSkipped },
-			Secrets:      a.Secrets,
-			AfterStore: func() error {
-				return config.Update(func(c *config.Config) error {
-					c.MCP.Gslides.Enabled = true
-					return nil
-				})
-			},
-		}),
-	)
+	steps = append(steps, buildMCPConsolidatedStep(s, a))
 
 	// Group: Déploiement (intro + agent selection + deploy confirmation)
 	deployGroupStart := len(steps)

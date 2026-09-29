@@ -1761,3 +1761,19 @@ func AutoAdvanceFromDropDown(app *tview.Application, form *tview.Form, currentId
 		})
 	}()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exported wrappers for use by cmd package (hybrid steps that embed forms
+// inside CustomViews need access to the same theming helpers).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// FixFormDropDownStyles is the exported wrapper for fixFormDropDownStyles.
+func FixFormDropDownStyles(form *tview.Form) { fixFormDropDownStyles(form) }
+
+// FixFormLabelFocus is the exported wrapper for fixFormLabelFocus.
+func FixFormLabelFocus(form *tview.Form) { fixFormLabelFocus(form) }
+
+// IsLastFocusableFormItem is the exported wrapper for isLastFocusableFormItem.
+func IsLastFocusableFormItem(form *tview.Form, itemIdx int) bool {
+	return isLastFocusableFormItem(form, itemIdx)
+}
