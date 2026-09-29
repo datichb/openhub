@@ -181,7 +181,11 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 						s.SetupMode = modeKeys[idx]
 					}
 				},
-			)
+			).SetDescriptions([]string{
+				i18n.T("cmd.init.wizard_mode_solo_desc"),
+				i18n.T("cmd.init.wizard_mode_team_desc"),
+				i18n.T("cmd.init.wizard_mode_full_desc"),
+			})
 
 			modeForm := tview.NewForm()
 			modeForm.SetBackgroundColor(theme.BgPanel)
@@ -223,7 +227,9 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 
 			container.AddItem(topSpacer, 2, 0, false)
 			container.AddItem(tv, 0, 1, false)
-			container.AddItem(modeForm, len(modeOptions)+2, 0, true)
+			// Height = label(1) + field(options*2 + separators) + padding(1)
+			modeFormHeight := 1 + len(modeOptions)*2 + max(len(modeOptions)-1, 0) + 1
+			container.AddItem(modeForm, modeFormHeight, 0, true)
 			container.AddItem(buttonForm, 5, 0, false)
 			container.AddItem(bottomSpacer, 2, 0, false)
 			tvApp.SetFocus(modeForm)

@@ -1,8 +1,6 @@
 package widgets
 
 import (
-	"fmt"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -21,6 +19,7 @@ type InlineSelect struct {
 
 	label        string
 	options      []string
+	descriptions []string // optional: one description per option, shown below each option in muted color
 	selected     int
 	onChange     func(value string, idx int)
 	finishedFunc func(key tcell.Key)
@@ -57,6 +56,18 @@ func NewInlineSelect(label string, options []string, defaultIdx int, onChange fu
 	return s
 }
 
+// SetDescriptions adds descriptions displayed below each option in muted color.
+// The slice length must match the options length; extra entries are ignored.
+func (s *InlineSelect) SetDescriptions(descriptions []string) *InlineSelect {
+	s.descriptions = descriptions
+	return s
+}
+
+// hasDescriptions returns true when descriptions are configured.
+func (s *InlineSelect) hasDescriptions() bool {
+	return len(s.descriptions) > 0 && len(s.descriptions) >= len(s.options)
+}
+
 // GetLabel returns the item's label.
 func (s *InlineSelect) GetLabel() string {
 	return s.label
@@ -78,9 +89,16 @@ func (s *InlineSelect) GetFieldWidth() int {
 	return 0
 }
 
-// GetFieldHeight returns the number of options (all visible).
+// GetFieldHeight returns the number of lines needed for all options.
+// When descriptions are set, each option takes 2 lines (option + description)
+// plus a blank line between options for visual separation.
 func (s *InlineSelect) GetFieldHeight() int {
-	return len(s.options)
+	n := len(s.options)
+	if s.hasDescriptions() {
+		// 2 lines per option (label + desc) + (n-1) blank separators
+		return n*2 + max(n-1, 0)
+	}
+	return n
 }
 
 // SetFinishedFunc sets the handler called when the user confirms selection.
@@ -143,55 +161,39 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		y++
 	}
 
+	hasDesc := s.hasDescriptions()
+	row := 0 // current row offset from y
+
 	// Draw options
 	for i, opt := range s.options {
-		if y+i >= y+len(s.options) {
-			break
-		}
-
 		// Cursor indicator
-		cursor := "  "
 		cursorColor := theme.FgMuted
 		textColor := s.fieldText
 		bg := s.fieldBg
 
 		if i == s.selected {
 			if s.hasFocus {
-				cursor = fmt.Sprintf("%s› ", colorTag(theme.ActiveMode.Primary))
 				cursorColor = theme.ActiveMode.Primary
 				textColor = theme.FgPrimary
 				bg = theme.BgElement
 			} else {
-				cursor = "› "
 				cursorColor = theme.FgSecondary
 				textColor = theme.FgPrimary
 			}
 		}
 
-		// Draw the row
+		// Draw the option row
 		rowStyle := tcell.StyleDefault.Background(bg).Foreground(textColor)
 		cursorStyle := tcell.StyleDefault.Background(bg).Foreground(cursorColor)
 
 		col := x + 2 // indent
-		// Draw cursor
-		for _, ch := range cursor {
-			if ch == '[' || ch == ']' || ch == '#' || ch == '-' {
-				// Skip tview color tag chars in raw rendering
-				continue
-			}
-			screen.SetContent(col, y+i, ch, nil, cursorStyle)
-			col++
-		}
-
-		// Actually use a simpler approach: just draw "› " or "  "
-		col = x + 2
 		if i == s.selected {
-			screen.SetContent(col, y+i, '›', nil, cursorStyle)
+			screen.SetContent(col, y+row, '›', nil, cursorStyle)
 		} else {
-			screen.SetContent(col, y+i, ' ', nil, rowStyle)
+			screen.SetContent(col, y+row, ' ', nil, rowStyle)
 		}
 		col++
-		screen.SetContent(col, y+i, ' ', nil, rowStyle)
+		screen.SetContent(col, y+row, ' ', nil, rowStyle)
 		col++
 
 		// Draw option text
@@ -199,14 +201,43 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			if col >= x+width {
 				break
 			}
-			screen.SetContent(col, y+i, ch, nil, rowStyle)
+			screen.SetContent(col, y+row, ch, nil, rowStyle)
 			col++
 		}
 
 		// Fill rest of line with background
 		for col < x+width {
-			screen.SetContent(col, y+i, ' ', nil, rowStyle)
+			screen.SetContent(col, y+row, ' ', nil, rowStyle)
 			col++
+		}
+
+		row++
+
+		// Draw description below the option (if available)
+		if hasDesc && i < len(s.descriptions) && s.descriptions[i] != "" {
+			descStyle := tcell.StyleDefault.Background(bg).Foreground(theme.FgMuted)
+			col = x + 6 // extra indent for description
+			for _, ch := range s.descriptions[i] {
+				if col >= x+width {
+					break
+				}
+				screen.SetContent(col, y+row, ch, nil, descStyle)
+				col++
+			}
+			for col < x+width {
+				screen.SetContent(col, y+row, ' ', nil, descStyle)
+				col++
+			}
+			row++
+
+			// Blank separator between options (except after last)
+			if i < len(s.options)-1 {
+				bgStyle := tcell.StyleDefault.Background(s.fieldBg)
+				for col := x; col < x+width; col++ {
+					screen.SetContent(col, y+row, ' ', nil, bgStyle)
+				}
+				row++
+			}
 		}
 	}
 }
@@ -283,8 +314,23 @@ func (s *InlineSelect) MouseHandler() func(action tview.MouseAction, event *tcel
 			if s.label != "" {
 				optionY-- // account for label row
 			}
-			if optionY >= 0 && optionY < len(s.options) && mx >= x {
-				s.selected = optionY
+
+			// Map pixel row to option index.
+			optIdx := -1
+			if s.hasDescriptions() {
+				// With descriptions: each option occupies 3 rows (opt+desc+blank),
+				// except the last which occupies 2 (opt+desc).
+				linesPerOpt := 3
+				optIdx = optionY / linesPerOpt
+				if optIdx >= len(s.options) {
+					optIdx = len(s.options) - 1
+				}
+			} else {
+				optIdx = optionY
+			}
+
+			if optIdx >= 0 && optIdx < len(s.options) && mx >= x {
+				s.selected = optIdx
 				if s.onChange != nil {
 					s.onChange(s.options[s.selected], s.selected)
 				}
