@@ -235,6 +235,21 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	// Swappable step content area
 	w.stepContent = tview.NewFlex().SetDirection(tview.FlexRow)
 	w.stepContent.SetBackgroundColor(theme.BgPanel)
+	// Force-clear the entire area on every draw. tview.Flex sets dontClear=true
+	// by default, so it never repaints its own background. When stepContent is
+	// cleared (e.g. during spinner transitions), stale pixels from the previous
+	// step remain on screen — form input fields (#313244 BgElement) and the
+	// initial omnibar render produce visible artifacts. This DrawFunc paints
+	// BgPanel over the full rect before children draw, eliminating the issue.
+	w.stepContent.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		bg := tcell.StyleDefault.Background(theme.BgPanel)
+		for row := y; row < y+height; row++ {
+			for col := x; col < x+width; col++ {
+				screen.SetContent(col, row, ' ', nil, bg)
+			}
+		}
+		return x, y, width, height
+	})
 
 	// Info panel (accumulated results — bottom in classic, sidebar in grouped)
 	w.infoPanel = tview.NewTextView().SetDynamicColors(true).SetScrollable(true)
