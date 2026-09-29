@@ -115,40 +115,54 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.settings.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Async: pull team-state then load data
-	tc := v.cfg.ResolveTeam()
-	onDataReady := func() {
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+	// buildList creates the widget and swaps it in for the loading placeholder.
+	// MUST be called from inside a QueueUpdateDraw callback (or the tview event
+	// loop). Does NOT call QueueUpdateDraw itself — avoids the nested deadlock
+	// that would occur if QueueUpdateDraw were called from inside a running
+	// QueueUpdateDraw callback (the unbuffered done-channel would block forever).
+	buildList := func() {
+		if v.app == nil || v.mountGen != gen {
+			return
+		}
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			v.list.SetBorderPadding(1, 0, 2, 2)
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(app)
+		v.list.SetBorderPadding(1, 0, 2, 2)
 
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.onItemSelected(index, item)
-			})
-
-			v.buildFields()
-			v.renderFields()
-
-			content.RemoveItem(loading)
-			content.AddItem(v.list, 0, 1, true)
-			app.SetFocus(v.list)
+		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+			v.onItemSelected(index, item)
 		})
+
+		v.buildFields()
+		v.renderFields()
+
+		content.RemoveItem(loading)
+		content.AddItem(v.list, 0, 1, true)
+		app.SetFocus(v.list)
 	}
 
+	// Async: pull team-state then load data
+	tc := v.cfg.ResolveTeam()
 	if tc.Enabled {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+		// syncAsync's onDone is already called inside QueueUpdateDraw (sync.go),
+		// so we do UI work directly here — no nested QueueUpdateDraw.
 		syncAsync(app, repo, v.shell, func(_ error) {
 			v.loadData()
-			onDataReady()
+			buildList()
 		})
 	} else {
-		v.loadData()
-		onDataReady()
+		// No team — wrap in goroutine so QueueUpdateDraw is not called from
+		// the event loop (Mount runs on the event loop via router.mountLocked).
+		go func() {
+			app.QueueUpdateDraw(func() {
+				if v.app == nil || v.mountGen != gen {
+					return
+				}
+				v.loadData()
+				buildList()
+			})
+		}()
 	}
 }
 

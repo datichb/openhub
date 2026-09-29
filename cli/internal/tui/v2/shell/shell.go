@@ -1439,21 +1439,26 @@ func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.
 func (s *Shell) listMouseSelect(list *tview.List, pageName string, focusReturn tview.Primitive, onSelect func(idx int)) {
 	list.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		if action == tview.MouseLeftClick {
-			// Let tview update the highlighted item first, then confirm.
-			s.app.QueueUpdateDraw(func() {
-				idx := list.GetCurrentItem()
-				if idx >= 0 {
-					s.pages.RemovePage(pageName)
-					if focusReturn != nil {
-						s.app.SetFocus(focusReturn)
-					} else {
-						s.app.SetFocus(s.content)
+			// SetMouseCapture runs on the tview event loop. Calling
+			// QueueUpdateDraw from the event loop deadlocks (the unbuffered
+			// done-channel blocks forever). Spawn a goroutine so that
+			// QueueUpdateDraw is called from outside the event loop.
+			go func() {
+				s.app.QueueUpdateDraw(func() {
+					idx := list.GetCurrentItem()
+					if idx >= 0 {
+						s.pages.RemovePage(pageName)
+						if focusReturn != nil {
+							s.app.SetFocus(focusReturn)
+						} else {
+							s.app.SetFocus(s.content)
+						}
+						if onSelect != nil {
+							onSelect(idx)
+						}
 					}
-					if onSelect != nil {
-						onSelect(idx)
-					}
-				}
-			})
+				})
+			}()
 			return action, event
 		}
 		return action, event
@@ -1466,12 +1471,18 @@ func (s *Shell) listMouseSelect(list *tview.List, pageName string, focusReturn t
 func (s *Shell) listMouseToggle(list *tview.List, toggle func(idx int)) {
 	list.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		if action == tview.MouseLeftClick {
-			s.app.QueueUpdateDraw(func() {
-				idx := list.GetCurrentItem()
-				if idx >= 0 && toggle != nil {
-					toggle(idx)
-				}
-			})
+			// SetMouseCapture runs on the tview event loop. Calling
+			// QueueUpdateDraw from the event loop deadlocks (the unbuffered
+			// done-channel blocks forever). Spawn a goroutine so that
+			// QueueUpdateDraw is called from outside the event loop.
+			go func() {
+				s.app.QueueUpdateDraw(func() {
+					idx := list.GetCurrentItem()
+					if idx >= 0 && toggle != nil {
+						toggle(idx)
+					}
+				})
+			}()
 			return action, event
 		}
 		return action, event

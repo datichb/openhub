@@ -58,6 +58,13 @@ func toastMaxLen(level ToastLevel) int {
 	}
 }
 
+// showToast displays a toast notification. Thread-safe: can be called from any
+// goroutine. When called from outside the tview event loop, widget mutations
+// are scheduled via QueueUpdateDraw. When called from the event loop (key/mouse
+// handlers, QueueUpdateDraw callbacks), widget mutations run inline.
+//
+// The message is always persisted to the in-memory notification store and the
+// JSONL file, regardless of whether the visual toast is displayed.
 func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) {
 	icon, borderColor := toastStyle(level)
 
@@ -81,60 +88,76 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		msg = string(runes[:maxLen-3]) + "..."
 	}
 
-	toast := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetText(fmt.Sprintf(" %s %s ", icon, msg))
-	toast.SetBackgroundColor(theme.BgElement)
-	toast.SetBorder(true)
-	toast.SetBorderColor(borderColor)
+	// renderToast performs all tview widget mutations. MUST run on the event
+	// loop — either called inline (from a handler / QueueUpdateDraw callback)
+	// or scheduled via QueueUpdateDraw from a goroutine.
+	renderToast := func() {
+		toast := tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter).
+			SetText(fmt.Sprintf(" %s %s ", icon, msg))
+		toast.SetBackgroundColor(theme.BgElement)
+		toast.SetBorder(true)
+		toast.SetBorderColor(borderColor)
 
-	toastWidth := len([]rune(msg)) + 8
-	if toastWidth < 20 {
-		toastWidth = 20
-	}
-	if toastWidth > 120 {
-		toastWidth = 120
-	}
-	toastHeight := 3
+		toastWidth := len([]rune(msg)) + 8
+		if toastWidth < 20 {
+			toastWidth = 20
+		}
+		if toastWidth > 120 {
+			toastWidth = 120
+		}
+		toastHeight := 3
 
-	// Position at top-right using a Grid, offset vertically by the number
-	// of currently active toasts so they stack instead of overlapping.
-	// Cap at 5 visible toasts to avoid overflowing off-screen on small terminals.
-	if s.activeToasts >= 5 {
-		return // silently drop — the message is already persisted to notifications
-	}
-	topRow := 1 + (s.activeToasts * (toastHeight + 1))
-	grid := tview.NewGrid().
-		SetColumns(0, toastWidth, 2).
-		SetRows(topRow, toastHeight, 0)
-	grid.AddItem(toast, 1, 1, 1, 1, 0, 0, false)
-	// Defense-in-depth: if focus somehow lands on the toast grid, do not let
-	// it consume any key events (arrow keys were causing the toast to "move"
-	// because tview's Grid navigates between its cells on arrow presses).
-	// Returning nil from InputCapture swallows the event at the widget level;
-	// the global key handler (Shell.globalKeyHandler) has already processed
-	// the event before tview delegates it to the focused primitive, so nothing
-	// is lost.
-	grid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		return nil
-	})
-
-	pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
-	s.activeToasts++
-	s.activeToastIDs = append(s.activeToastIDs, pageName)
-	s.pages.AddPage(pageName, grid, true, true)
-	// Pages.AddPage re-delegates focus to the last visible page (the toast),
-	// stealing it from whatever widget the user was interacting with.
-	// Restore focus immediately.
-	s.restoreFocusAfterToast()
-
-	// Auto-dismiss after duration
-	time.AfterFunc(duration, func() {
-		s.app.QueueUpdateDraw(func() {
-			s.dismissToast(pageName)
+		// Position at top-right using a Grid, offset vertically by the number
+		// of currently active toasts so they stack instead of overlapping.
+		// Cap at 5 visible toasts to avoid overflowing off-screen on small terminals.
+		if s.activeToasts >= 5 {
+			return // silently drop — the message is already persisted to notifications
+		}
+		topRow := 1 + (s.activeToasts * (toastHeight + 1))
+		grid := tview.NewGrid().
+			SetColumns(0, toastWidth, 2).
+			SetRows(topRow, toastHeight, 0)
+		grid.AddItem(toast, 1, 1, 1, 1, 0, 0, false)
+		// Defense-in-depth: if focus somehow lands on the toast grid, do not let
+		// it consume any key events (arrow keys were causing the toast to "move"
+		// because tview's Grid navigates between its cells on arrow presses).
+		// Returning nil from InputCapture swallows the event at the widget level;
+		// the global key handler (Shell.globalKeyHandler) has already processed
+		// the event before tview delegates it to the focused primitive, so nothing
+		// is lost.
+		grid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			return nil
 		})
-	})
+
+		pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
+		s.activeToasts++
+		s.activeToastIDs = append(s.activeToastIDs, pageName)
+		s.pages.AddPage(pageName, grid, true, true)
+		// Pages.AddPage re-delegates focus to the last visible page (the toast),
+		// stealing it from whatever widget the user was interacting with.
+		// Restore focus immediately.
+		s.restoreFocusAfterToast()
+
+		// Auto-dismiss after duration
+		time.AfterFunc(duration, func() {
+			s.app.QueueUpdateDraw(func() {
+				s.dismissToast(pageName)
+			})
+		})
+	}
+
+	// Schedule the rendering on the event loop. Using a goroutine wrapper
+	// ensures QueueUpdateDraw is never called from inside the event loop
+	// (which would deadlock on the unbuffered done-channel). When showToast
+	// is called from a handler, the goroutine adds a negligible scheduling
+	// delay but avoids the need to know caller context.
+	go func() {
+		s.app.QueueUpdateDraw(func() {
+			renderToast()
+		})
+	}()
 }
 
 // dismissToast removes a toast by page name and updates tracking state.
