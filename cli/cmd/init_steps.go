@@ -119,9 +119,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			if termH <= 0 {
 				termH = 50
 			}
-			// The wizard hides the omnibar (resized to 0 rows), so the real
-			// overhead is only: content top padding (1) + hints bar (1) = 2.
-			availH := termH - 2
+			availH := termH - 7 // shell overhead (omnibar + border + hints)
 
 			// Build welcome text — full (with ASCII art) or compact (title only).
 			tv := tview.NewTextView().
@@ -131,7 +129,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			tv.SetBackgroundColor(theme.BgPanel)
 			tv.SetBorderPadding(1, 0, 2, 2)
 
-			if availH >= 46 {
+			if availH >= 35 {
 				// Full layout: ASCII art banner
 				tv.SetText(fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
 %s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s
@@ -235,16 +233,19 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					}
 				},
 			)
+			modeSelect.SetCentered(true)
 
 			// Show descriptions only when there's enough vertical space.
+			// With multi-line descriptions (2 lines each): 3 options × (1 label + 2 desc)
+			// + 2 blank separators = 11 field lines. Plus label row + padding = 13.
 			modeFormHeight := 1 + len(modeOptions) + 1 // label + options + padding
-			if availH >= 34 {
+			if availH >= 30 {
 				modeSelect.SetDescriptions([]string{
 					i18n.T("cmd.init.wizard_mode_solo_desc"),
 					i18n.T("cmd.init.wizard_mode_team_desc"),
 					i18n.T("cmd.init.wizard_mode_full_desc"),
 				})
-				modeFormHeight = 1 + len(modeOptions)*2 + max(len(modeOptions)-1, 0) + 1
+				modeFormHeight = 1 + modeSelect.GetFieldHeight() + 1
 			}
 
 			modeForm := tview.NewForm()
@@ -280,50 +281,39 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				return event
 			})
 
-			// ── Center the mode selector ──
-			// Wrap modeForm in a horizontal Flex that centers it to ~50 columns,
-			// visually aligned with the centered text above and button below.
-			const modeMaxWidth = 50
-			modeLeftSpace := tview.NewBox()
-			modeLeftSpace.SetBackgroundColor(theme.BgPanel)
-			modeRightSpace := tview.NewBox()
-			modeRightSpace.SetBackgroundColor(theme.BgPanel)
-			modeWrapper := tview.NewFlex().SetDirection(tview.FlexColumn)
-			modeWrapper.SetBackgroundColor(theme.BgPanel)
-			modeWrapper.AddItem(modeLeftSpace, 0, 1, false)
-			modeWrapper.AddItem(modeForm, modeMaxWidth, 0, true)
-			modeWrapper.AddItem(modeRightSpace, 0, 1, false)
-
 			// ── Adaptive layout ──
-			// The tv text already contains a ┄ separator line between the
-			// steps list and the checklist — no additional separator widget
-			// is needed. A 1-row spacer between the mode selector and the
-			// button provides visual breathing room.
+			// The mode selector is centered via InlineSelect.SetCentered(true),
+			// so no horizontal wrapper is needed — modeForm takes full width.
+			// Spacers and thresholds are aligned with the engine/intro pattern
+			// (3/3 full, 1/0 compact, 0/0 minimal; thresholds 35/20).
 			modeBtnSpacer := tview.NewBox()
 			modeBtnSpacer.SetBackgroundColor(theme.BgPanel)
 
-			if availH >= 46 {
+			if availH >= 35 {
 				// Full: spacers + ASCII art + text + mode(desc) + spacer + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
-				container.AddItem(topSpacer, 2, 0, false)
+				container.AddItem(topSpacer, 3, 0, false)
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeWrapper, modeFormHeight, 0, true)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(modeBtnSpacer, 1, 0, false)
 				container.AddItem(buttonForm, 5, 0, false)
-				container.AddItem(bottomSpacer, 2, 0, false)
-			} else if availH >= 25 {
+				container.AddItem(bottomSpacer, 3, 0, false)
+			} else if availH >= 20 {
 				// Compact: compact title, text + mode(desc?) + spacer + button
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				container.AddItem(topSpacer, 1, 0, false)
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeWrapper, modeFormHeight, 0, true)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(modeBtnSpacer, 1, 0, false)
 				container.AddItem(buttonForm, 3, 0, false)
 			} else {
 				// Minimal: compact title, text + mode(no desc) + button
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeWrapper, modeFormHeight, 0, true)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 3, 0, false)
 			}
 			tvApp.SetFocus(modeForm)
@@ -1010,7 +1000,7 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 			}
 			availH := termH - 7
 
-			if availH >= 25 {
+			if availH >= 35 {
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
@@ -1020,6 +1010,13 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(buttonForm, 5, 0, true)
 				container.AddItem(bottomSpacer, 3, 0, false)
+			} else if availH >= 20 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 1, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(buttonForm, 3, 0, true)
 			} else {
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(buttonForm, 3, 0, true)
@@ -1280,9 +1277,37 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				return event
 			})
 
-			container.AddItem(tv, 0, 1, false)
-			container.AddItem(form, 0, 2, true)
-			container.AddItem(buttonForm, 3, 0, false)
+			// ── Adaptive layout ──
+			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+			if termH <= 0 {
+				termH = 50
+			}
+			availH := termH - 7
+
+			if availH >= 35 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 3, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(form, 0, 2, true)
+				container.AddItem(buttonForm, 5, 0, false)
+				container.AddItem(bottomSpacer, 3, 0, false)
+			} else if availH >= 20 {
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+
+				container.AddItem(topSpacer, 1, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(form, 0, 2, true)
+				container.AddItem(buttonForm, 3, 0, false)
+			} else {
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(form, 0, 2, true)
+				container.AddItem(buttonForm, 3, 0, false)
+			}
 			tvApp.SetFocus(form)
 		},
 		OnDone: func() error {

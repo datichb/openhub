@@ -1,6 +1,9 @@
 package widgets
 
 import (
+	"strings"
+	"unicode/utf8"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -25,6 +28,7 @@ type InlineSelect struct {
 	finishedFunc func(key tcell.Key)
 	hasFocus     bool
 	disabled     bool
+	centered     bool // when true, the entire block (label + options + descriptions) is horizontally centered
 
 	// Style
 	labelWidth int
@@ -63,6 +67,14 @@ func (s *InlineSelect) SetDescriptions(descriptions []string) *InlineSelect {
 	return s
 }
 
+// SetCentered enables horizontal centering of the entire block (label, options,
+// descriptions) within the available width. When false (default), content is
+// drawn from the left edge with a small indent.
+func (s *InlineSelect) SetCentered(centered bool) *InlineSelect {
+	s.centered = centered
+	return s
+}
+
 // hasDescriptions returns true when descriptions are configured.
 func (s *InlineSelect) hasDescriptions() bool {
 	return len(s.descriptions) > 0 && len(s.descriptions) >= len(s.options)
@@ -90,15 +102,25 @@ func (s *InlineSelect) GetFieldWidth() int {
 }
 
 // GetFieldHeight returns the number of lines needed for all options.
-// When descriptions are set, each option takes 2 lines (option + description)
-// plus a blank line between options for visual separation.
+// When descriptions are set, each option takes 1 + descLines lines
+// (option label + description lines) plus a blank separator between options.
+// Descriptions may contain newlines for multi-line text.
 func (s *InlineSelect) GetFieldHeight() int {
 	n := len(s.options)
-	if s.hasDescriptions() {
-		// 2 lines per option (label + desc) + (n-1) blank separators
-		return n*2 + max(n-1, 0)
+	if !s.hasDescriptions() {
+		return n
 	}
-	return n
+	total := 0
+	for i := range s.options {
+		total++ // option label line
+		if i < len(s.descriptions) && s.descriptions[i] != "" {
+			total += strings.Count(s.descriptions[i], "\n") + 1 // description lines
+		}
+		if i < n-1 {
+			total++ // blank separator between options
+		}
+	}
+	return total
 }
 
 // SetFinishedFunc sets the handler called when the user confirms selection.
@@ -148,25 +170,50 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 	s.DrawForSubclass(screen, s)
 	x, y, width, _ := s.GetInnerRect()
 
-	// Draw label on the first line
+	// ── Compute centering offset ──
+	padLeft := 0
+	if s.centered {
+		maxW := utf8.RuneCountInString(s.label)
+		for _, opt := range s.options {
+			w := 4 + utf8.RuneCountInString(opt) // indent(2) + cursor(1) + space(1) + text
+			if w > maxW {
+				maxW = w
+			}
+		}
+		if s.hasDescriptions() {
+			for _, desc := range s.descriptions {
+				for _, line := range strings.Split(desc, "\n") {
+					w := 6 + utf8.RuneCountInString(line) // desc indent
+					if w > maxW {
+						maxW = w
+					}
+				}
+			}
+		}
+		if maxW < width {
+			padLeft = (width - maxW) / 2
+		}
+	}
+
+	// ── Draw label on the first line ──
 	if s.label != "" {
 		labelStyle := tcell.StyleDefault.Background(s.bgColor).Foreground(s.labelColor)
-		for i, ch := range s.label {
-			if i >= width {
+		col := x + padLeft
+		for _, ch := range s.label {
+			if col >= x+width {
 				break
 			}
-			screen.SetContent(x+i, y, ch, nil, labelStyle)
+			screen.SetContent(col, y, ch, nil, labelStyle)
+			col++
 		}
-		// Move to field area
 		y++
 	}
 
 	hasDesc := s.hasDescriptions()
-	row := 0 // current row offset from y
+	row := 0
 
-	// Draw options
+	// ── Draw options ──
 	for i, opt := range s.options {
-		// Cursor indicator
 		cursorColor := theme.FgMuted
 		textColor := s.fieldText
 		bg := s.fieldBg
@@ -182,11 +229,11 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			}
 		}
 
-		// Draw the option row
 		rowStyle := tcell.StyleDefault.Background(bg).Foreground(textColor)
 		cursorStyle := tcell.StyleDefault.Background(bg).Foreground(cursorColor)
 
-		col := x + 2 // indent
+		// Option label line
+		col := x + padLeft + 2 // indent
 		if i == s.selected {
 			screen.SetContent(col, y+row, '›', nil, cursorStyle)
 		} else {
@@ -196,7 +243,6 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		screen.SetContent(col, y+row, ' ', nil, rowStyle)
 		col++
 
-		// Draw option text
 		for _, ch := range opt {
 			if col >= x+width {
 				break
@@ -204,31 +250,31 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			screen.SetContent(col, y+row, ch, nil, rowStyle)
 			col++
 		}
-
-		// Fill rest of line with background
+		// Fill rest of line
 		for col < x+width {
 			screen.SetContent(col, y+row, ' ', nil, rowStyle)
 			col++
 		}
-
 		row++
 
-		// Draw description below the option (if available)
+		// Description lines (multi-line support via \n splitting)
 		if hasDesc && i < len(s.descriptions) && s.descriptions[i] != "" {
 			descStyle := tcell.StyleDefault.Background(bg).Foreground(theme.FgMuted)
-			col = x + 6 // extra indent for description
-			for _, ch := range s.descriptions[i] {
-				if col >= x+width {
-					break
+			for _, descLine := range strings.Split(s.descriptions[i], "\n") {
+				col = x + padLeft + 6 // extra indent for description
+				for _, ch := range descLine {
+					if col >= x+width {
+						break
+					}
+					screen.SetContent(col, y+row, ch, nil, descStyle)
+					col++
 				}
-				screen.SetContent(col, y+row, ch, nil, descStyle)
-				col++
+				for col < x+width {
+					screen.SetContent(col, y+row, ' ', nil, descStyle)
+					col++
+				}
+				row++
 			}
-			for col < x+width {
-				screen.SetContent(col, y+row, ' ', nil, descStyle)
-				col++
-			}
-			row++
 
 			// Blank separator between options (except after last)
 			if i < len(s.options)-1 {
