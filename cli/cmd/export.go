@@ -113,7 +113,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 	defer tw.Close()
 
 	// Write manifest
-	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling manifest: %w", err)
+	}
 	if err := writeTarEntry(tw, "manifest.json", manifestData); err != nil {
 		return fmt.Errorf("writing manifest: %w", err)
 	}
@@ -131,6 +134,14 @@ func runExport(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("archiving %s: %w", f.name, err)
 		}
 		fmt.Fprintf(a.IO.Out, "  Ajouté: %s (%d KB)\n", f.name, len(data)/1024)
+	}
+
+	// Explicitly close writers to catch flush errors (defers remain as safety net).
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("finalizing tar: %w", err)
+	}
+	if err := gw.Close(); err != nil {
+		return fmt.Errorf("finalizing gzip: %w", err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "\nBackup créé: %s\n", output)
