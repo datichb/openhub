@@ -262,8 +262,10 @@ func Update(version string, progress ProgressFunc) (string, error) {
 	}
 
 	if err := os.Rename(extractedPath, currentBin); err != nil {
-		// Attempt to restore
-		_ = os.Rename(oldPath, currentBin)
+		// Attempt to restore the old binary
+		if rbErr := os.Rename(oldPath, currentBin); rbErr != nil {
+			return "", fmt.Errorf("installing new binary: %w (rollback also failed: %v — your previous binary is at %s)", err, rbErr, oldPath)
+		}
 		return "", fmt.Errorf("installing new binary: %w", err)
 	}
 
