@@ -138,7 +138,7 @@ func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 			createdAt updatedAt
 			comments { nodes { body createdAt user { name } } }
 		}
-	}`, args.IssueID)
+	}`, escapeGraphQL(args.IssueID))
 
 	data, err := linearQuery(query)
 	if err != nil {
@@ -167,7 +167,7 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 			success
 			issue { id identifier title }
 		}
-	}`, args.TeamID, escapeGraphQL(args.Title), escapeGraphQL(args.Description), args.Priority)
+	}`, escapeGraphQL(args.TeamID), escapeGraphQL(args.Title), escapeGraphQL(args.Description), args.Priority)
 
 	data, err := linearQuery(mutation)
 	if err != nil {
@@ -202,7 +202,7 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 			success
 			issue { id identifier title state { name } }
 		}
-	}`, args.IssueID, input)
+	}`, escapeGraphQL(args.IssueID), input)
 
 	data, err := linearQuery(mutation)
 	if err != nil {
@@ -254,5 +254,7 @@ func escapeGraphQL(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `"`, `\"`)
 	s = strings.ReplaceAll(s, "\n", `\n`)
+	s = strings.ReplaceAll(s, "\r", `\r`)
+	s = strings.ReplaceAll(s, "\t", `\t`)
 	return s
 }
