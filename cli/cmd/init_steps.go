@@ -119,16 +119,19 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			if termH <= 0 {
 				termH = 50
 			}
-			availH := termH - 7 // shell overhead
+			// The wizard hides the omnibar (resized to 0 rows), so the real
+			// overhead is only: content top padding (1) + hints bar (1) = 2.
+			availH := termH - 2
 
 			// Build welcome text — full (with ASCII art) or compact (title only).
 			tv := tview.NewTextView().
 				SetDynamicColors(true).
-				SetTextAlign(tview.AlignCenter)
+				SetTextAlign(tview.AlignCenter).
+				SetScrollable(true)
 			tv.SetBackgroundColor(theme.BgPanel)
 			tv.SetBorderPadding(1, 0, 2, 2)
 
-			if availH >= 45 {
+			if availH >= 46 {
 				// Full layout: ASCII art banner
 				tv.SetText(fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
 %s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s
@@ -235,7 +238,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 
 			// Show descriptions only when there's enough vertical space.
 			modeFormHeight := 1 + len(modeOptions) + 1 // label + options + padding
-			if availH >= 30 {
+			if availH >= 34 {
 				modeSelect.SetDescriptions([]string{
 					i18n.T("cmd.init.wizard_mode_solo_desc"),
 					i18n.T("cmd.init.wizard_mode_team_desc"),
@@ -291,34 +294,34 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			modeWrapper.AddItem(modeForm, modeMaxWidth, 0, true)
 			modeWrapper.AddItem(modeRightSpace, 0, 1, false)
 
-			// Separator between text and mode selector.
-			modeSep := tview.NewTextView().
-				SetDynamicColors(true).
-				SetTextAlign(tview.AlignCenter)
-			modeSep.SetBackgroundColor(theme.BgPanel)
-			modeSep.SetText(fmt.Sprintf("\n%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n", muted, reset))
-
 			// ── Adaptive layout ──
-			if availH >= 45 {
-				// Full: spacers + ASCII art + text + sep + mode(desc) + button
+			// The tv text already contains a ┄ separator line between the
+			// steps list and the checklist — no additional separator widget
+			// is needed. A 1-row spacer between the mode selector and the
+			// button provides visual breathing room.
+			modeBtnSpacer := tview.NewBox()
+			modeBtnSpacer.SetBackgroundColor(theme.BgPanel)
+
+			if availH >= 46 {
+				// Full: spacers + ASCII art + text + mode(desc) + spacer + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				bottomSpacer := tview.NewBox()
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
 				container.AddItem(topSpacer, 2, 0, false)
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeSep, 3, 0, false)
 				container.AddItem(modeWrapper, modeFormHeight, 0, true)
+				container.AddItem(modeBtnSpacer, 1, 0, false)
 				container.AddItem(buttonForm, 5, 0, false)
 				container.AddItem(bottomSpacer, 2, 0, false)
 			} else if availH >= 25 {
-				// Compact: no spacers, compact title, text + sep + mode(desc) + button
+				// Compact: compact title, text + mode(desc?) + spacer + button
 				container.AddItem(tv, 0, 1, false)
-				container.AddItem(modeSep, 3, 0, false)
 				container.AddItem(modeWrapper, modeFormHeight, 0, true)
+				container.AddItem(modeBtnSpacer, 1, 0, false)
 				container.AddItem(buttonForm, 3, 0, false)
 			} else {
-				// Minimal: compact title, text + mode(no desc) + button (no centering for space)
+				// Minimal: compact title, text + mode(no desc) + button
 				container.AddItem(tv, 0, 1, false)
 				container.AddItem(modeWrapper, modeFormHeight, 0, true)
 				container.AddItem(buttonForm, 3, 0, false)
