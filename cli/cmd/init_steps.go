@@ -22,6 +22,7 @@ import (
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,6 +35,12 @@ import (
 // closure pattern (pointer capture), but the state is explicit and testable.
 
 type initStepState struct {
+	// ── Setup mode (selected on welcome screen) ──
+	// "solo"  = skip team group entirely
+	// "team"  = skip provider (inherited from team config)
+	// "full"  = show all steps (default)
+	SetupMode string
+
 	// ── Language ──
 	SelectedLang string
 	LangIdx      int
@@ -131,8 +138,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
-
-%s`+i18n.T("cmd.init.wizard_checklist_note")+`%s
 `,
 				accent, reset, accent, reset, accent, reset,
 				accent, reset, accent, reset, accent, reset,
@@ -147,11 +152,55 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				accent, reset,
 				accent, reset,
 				accent, reset,
-				muted, reset,
 			))
+
+			// ── Setup mode selector ──
+			modeOptions := []string{
+				i18n.T("cmd.init.wizard_mode_solo"),
+				i18n.T("cmd.init.wizard_mode_team"),
+				i18n.T("cmd.init.wizard_mode_full"),
+			}
+			modeKeys := []string{"solo", "team", "full"}
+			defaultMode := 0
+			if s.SetupMode == "team" {
+				defaultMode = 1
+			} else if s.SetupMode == "full" {
+				defaultMode = 2
+			}
+			if s.SetupMode == "" {
+				s.SetupMode = "solo"
+			}
+
+			modeSelect := widgets.NewInlineSelect(
+				i18n.T("cmd.init.wizard_mode_label"),
+				modeOptions,
+				defaultMode,
+				func(_ string, idx int) {
+					if idx >= 0 && idx < len(modeKeys) {
+						s.SetupMode = modeKeys[idx]
+					}
+				},
+			)
+
+			modeForm := tview.NewForm()
+			modeForm.SetBackgroundColor(theme.BgPanel)
+			modeForm.SetLabelColor(theme.FgPrimary)
+			modeForm.SetFieldBackgroundColor(theme.BgPanel)
+			modeForm.SetFieldTextColor(theme.FgPrimary)
+			modeForm.SetBorder(false)
+			modeForm.AddFormItem(modeSelect)
 
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
+
+			// Tab from modeForm → buttonForm
+			modeForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyTab {
+					tvApp.SetFocus(buttonForm)
+					return nil
+				}
+				return event
+			})
 
 			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 				switch event.Key() {
@@ -159,6 +208,9 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
 				case tcell.KeyRight:
 					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+				case tcell.KeyBacktab:
+					tvApp.SetFocus(modeForm)
+					return nil
 				}
 				return event
 			})
@@ -168,11 +220,12 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			bottomSpacer := tview.NewBox()
 			bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
-			container.AddItem(topSpacer, 3, 0, false)
+			container.AddItem(topSpacer, 2, 0, false)
 			container.AddItem(tv, 0, 1, false)
-			container.AddItem(buttonForm, 5, 0, true)
-			container.AddItem(bottomSpacer, 3, 0, false)
-			tvApp.SetFocus(buttonForm)
+			container.AddItem(modeForm, len(modeOptions)+2, 0, true)
+			container.AddItem(buttonForm, 5, 0, false)
+			container.AddItem(bottomSpacer, 2, 0, false)
+			tvApp.SetFocus(modeForm)
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{{Label: "Status", Value: i18n.T("cmd.init.wizard_started")}}

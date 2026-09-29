@@ -63,10 +63,36 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	)
 
 	// Group: Provider (single hybrid step with embedded intro)
-	steps = append(steps, buildProviderStep(s))
+	// In "team" mode, provider is inherited from team config → skip.
+	providerStep := buildProviderStep(s)
+	origProviderSkipIf := providerStep.SkipIf
+	providerStep.SkipIf = func() bool {
+		if s.SetupMode == "team" {
+			return true
+		}
+		if origProviderSkipIf != nil {
+			return origProviderSkipIf()
+		}
+		return false
+	}
+	steps = append(steps, providerStep)
 
 	// Group: Equipe (intro + init steps + rejoin steps)
-	steps = append(steps, buildTeamModeIntroStep(teamState))
+	// In "solo" mode, the entire team group is skipped.
+	teamModeIntro := buildTeamModeIntroStep(teamState)
+	teamModeIntro.SkipIf = func() bool {
+		if s.SetupMode == "solo" {
+			teamState.Skipped = true
+			return true
+		}
+		return false
+	}
+	// When the team intro is skipped (solo mode), its Required flag would
+	// block the skip. Override to non-required when solo.
+	origRequired := teamModeIntro.Required
+	_ = origRequired // keep the default for full/team modes
+	teamModeIntro.Required = false
+	steps = append(steps, teamModeIntro)
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
