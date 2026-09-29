@@ -109,12 +109,23 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor
 
+			// Detect terminal height for adaptive layout.
+			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+			if termH <= 0 {
+				termH = 50
+			}
+			availH := termH - 7 // shell overhead
+
+			// Build welcome text — full (with ASCII art) or compact (title only).
 			tv := tview.NewTextView().
 				SetDynamicColors(true).
 				SetTextAlign(tview.AlignCenter)
 			tv.SetBackgroundColor(theme.BgPanel)
 			tv.SetBorderPadding(1, 0, 2, 2)
-			tv.SetText(fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
+
+			if availH >= 45 {
+				// Full layout: ASCII art banner
+				tv.SetText(fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
 %s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s
 %s██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║██║   ██║██████╔╝%s
 %s██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║   ██║██╔══██╗%s
@@ -140,20 +151,54 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
 `,
-				accent, reset, accent, reset, accent, reset,
-				accent, reset, accent, reset, accent, reset,
-				accent, reset,
-				secondary, reset,
-				muted, reset,
-				accent, reset, accent, reset,
-				accent, reset, accent, reset,
-				accent, reset,
-				muted, reset,
-				secondary, reset,
-				accent, reset,
-				accent, reset,
-				accent, reset,
-			))
+					accent, reset, accent, reset, accent, reset,
+					accent, reset, accent, reset, accent, reset,
+					accent, reset,
+					secondary, reset,
+					muted, reset,
+					accent, reset, accent, reset,
+					accent, reset, accent, reset,
+					accent, reset,
+					muted, reset,
+					secondary, reset,
+					accent, reset,
+					accent, reset,
+					accent, reset,
+				))
+			} else {
+				// Compact layout: no ASCII art, title line only
+				tv.SetText(fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
+
+%s`+i18n.T("cmd.init.wizard_welcome_desc")+`%s
+
+%s`+i18n.T("cmd.init.wizard_welcome_detail")+`%s
+
+%s1.%s `+i18n.T("cmd.init.wizard_step_lang_desc")+`
+%s2.%s `+i18n.T("cmd.init.wizard_step_provider_desc")+`
+%s3.%s `+i18n.T("cmd.init.wizard_step_team_desc_welcome")+`
+%s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
+%s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
+
+%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s
+
+%s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
+%s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
+`,
+					accent, reset,
+					secondary, reset,
+					muted, reset,
+					accent, reset, accent, reset,
+					accent, reset, accent, reset,
+					accent, reset,
+					muted, reset,
+					secondary, reset,
+					accent, reset,
+					accent, reset,
+					accent, reset,
+				))
+			}
 
 			// ── Setup mode selector ──
 			modeOptions := []string{
@@ -181,11 +226,18 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 						s.SetupMode = modeKeys[idx]
 					}
 				},
-			).SetDescriptions([]string{
-				i18n.T("cmd.init.wizard_mode_solo_desc"),
-				i18n.T("cmd.init.wizard_mode_team_desc"),
-				i18n.T("cmd.init.wizard_mode_full_desc"),
-			})
+			)
+
+			// Show descriptions only when there's enough vertical space.
+			modeFormHeight := 1 + len(modeOptions) + 1 // label + options + padding
+			if availH >= 30 {
+				modeSelect.SetDescriptions([]string{
+					i18n.T("cmd.init.wizard_mode_solo_desc"),
+					i18n.T("cmd.init.wizard_mode_team_desc"),
+					i18n.T("cmd.init.wizard_mode_full_desc"),
+				})
+				modeFormHeight = 1 + len(modeOptions)*2 + max(len(modeOptions)-1, 0) + 1
+			}
 
 			modeForm := tview.NewForm()
 			modeForm.SetBackgroundColor(theme.BgPanel)
@@ -220,18 +272,29 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				return event
 			})
 
-			topSpacer := tview.NewBox()
-			topSpacer.SetBackgroundColor(theme.BgPanel)
-			bottomSpacer := tview.NewBox()
-			bottomSpacer.SetBackgroundColor(theme.BgPanel)
-
-			container.AddItem(topSpacer, 2, 0, false)
-			container.AddItem(tv, 0, 1, false)
-			// Height = label(1) + field(options*2 + separators) + padding(1)
-			modeFormHeight := 1 + len(modeOptions)*2 + max(len(modeOptions)-1, 0) + 1
-			container.AddItem(modeForm, modeFormHeight, 0, true)
-			container.AddItem(buttonForm, 5, 0, false)
-			container.AddItem(bottomSpacer, 2, 0, false)
+			// ── Adaptive layout ──
+			if availH >= 45 {
+				// Full: spacers + ASCII art + text + mode(desc) + button
+				topSpacer := tview.NewBox()
+				topSpacer.SetBackgroundColor(theme.BgPanel)
+				bottomSpacer := tview.NewBox()
+				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+				container.AddItem(topSpacer, 2, 0, false)
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(buttonForm, 5, 0, false)
+				container.AddItem(bottomSpacer, 2, 0, false)
+			} else if availH >= 25 {
+				// Compact: no spacers, compact title, text + mode(desc) + button
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(buttonForm, 3, 0, false)
+			} else {
+				// Minimal: compact title, text + mode(no desc) + button
+				container.AddItem(tv, 0, 1, false)
+				container.AddItem(modeForm, modeFormHeight, 0, true)
+				container.AddItem(buttonForm, 3, 0, false)
+			}
 			tvApp.SetFocus(modeForm)
 		},
 		InfoFields: func() []views.InfoField {

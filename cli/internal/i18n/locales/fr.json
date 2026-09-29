@@ -1678,6 +1678,7 @@
   "cmd.init.wizard_project_attached": "Rattaché à %s",
   "cmd.init.wizard_project_solo": "Projet solo",
   "cmd.init.wizard_welcome_title": "Bienvenue dans OpenHub !",
+  "cmd.init.wizard_welcome_title_compact": "◆ OpenHub — Assistant de configuration",
   "cmd.init.wizard_welcome_desc": "OpenHub orchestre vos sessions IA, gère les projets,\n  déploie les agents et skills, et fournit ce TUI interactif.",
   "cmd.init.wizard_step_lang": "Langue",
   "cmd.init.wizard_step_lang_desc": "Choisir la langue de l'interface",
