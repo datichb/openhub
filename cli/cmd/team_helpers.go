@@ -1079,7 +1079,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 		Required:      true,
 		SidebarHidden: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.AccentHex)
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor

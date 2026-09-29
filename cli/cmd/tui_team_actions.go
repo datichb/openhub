@@ -1814,24 +1814,24 @@ func buildColumnEditorStep(
 			updateHints := func() {
 				if editingMappingsFor == "" {
 					h := fmt.Sprintf("  %s↑↓[-] nav%s%sJ/K[-] %s%s%sa[-] %s%s%sEnter[-] %s%s%sd[-] %s%s%sr[-] %s",
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_move"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_add"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_role"))
+						theme.ColorTag(theme.ActiveMode.AccentHex), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_move"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_add"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_role"))
 					if hasMappings {
-						h += fmt.Sprintf("%s%sm[-] mappings", hintSep, theme.ColorTag(theme.AccentHex))
+						h += fmt.Sprintf("%s%sm[-] mappings", hintSep, theme.ColorTag(theme.ActiveMode.AccentHex))
 					}
-					h += fmt.Sprintf("%s%sCtrl+S[-] %s", hintSep, theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_save"))
+					h += fmt.Sprintf("%s%sCtrl+S[-] %s", hintSep, theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_save"))
 					hints.SetText(h)
 				} else {
 					hints.SetText(fmt.Sprintf("  %s↑↓[-] nav%s%sa[-] %s%s%sEnter[-] %s%s%sd[-] %s%s%sq[-] %s",
-						theme.ColorTag(theme.AccentHex), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_add_label"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
-						theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.hint_back_columns")))
+						theme.ColorTag(theme.ActiveMode.AccentHex), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_add_label"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_rename"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_delete"), hintSep,
+						theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.hint_back_columns")))
 				}
 			}
 
@@ -1840,7 +1840,7 @@ func buildColumnEditorStep(
 				list.Clear()
 
 				headerText := fmt.Sprintf("  %s── %s (%d) ──%s",
-					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.header_label"), len(*columns), theme.TagColor)
+					theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.header_label"), len(*columns), theme.TagColor)
 				list.AddItem(headerText, "", 0, nil)
 
 				activeIdx := 0
@@ -1881,11 +1881,11 @@ func buildColumnEditorStep(
 
 				list.AddItem("", "", 0, nil)
 				legendText := fmt.Sprintf("  %s── %s ──%s",
-					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.roles_header"), theme.TagColor)
+					theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.roles_header"), theme.TagColor)
 				list.AddItem(legendText, "", 0, nil)
 				legendLine := fmt.Sprintf("    [%s]●[-] %s  [%s]●[-] %s  [%s]●[-] %s  [%s]●[-] %s",
 					theme.WarningHex, i18n.T("tui.team.columns.role_initial_desc"),
-					theme.AccentHex, i18n.T("tui.team.columns.role_active_desc"),
+					theme.ActiveMode.AccentHex, i18n.T("tui.team.columns.role_active_desc"),
 					theme.SuccessHex, i18n.T("tui.team.columns.role_terminal_desc"),
 					theme.ErrorHex, i18n.T("tui.team.columns.role_blocked_desc"))
 				list.AddItem(legendLine,
@@ -1915,7 +1915,7 @@ func buildColumnEditorStep(
 				}
 
 				headerText := fmt.Sprintf("  %s── %s → %s ──%s",
-					theme.ColorTag(theme.AccentHex), i18n.T("tui.team.columns.mappings_title"), colName, theme.TagColor)
+					theme.ColorTag(theme.ActiveMode.AccentHex), i18n.T("tui.team.columns.mappings_title"), colName, theme.TagColor)
 				list.AddItem(headerText, "", 0, nil)
 
 				labels, statuses := labelsForCol(editingMappingsFor)
@@ -1933,7 +1933,7 @@ func buildColumnEditorStep(
 				}
 				for _, l := range labels {
 					list.AddItem(
-						fmt.Sprintf("    %s▸[-] %s", theme.ColorTag(theme.AccentHex), l),
+						fmt.Sprintf("    %s▸[-] %s", theme.ColorTag(theme.ActiveMode.AccentHex), l),
 						fmt.Sprintf("      [%s]→ %s[-]", theme.TextMutedHex, editingMappingsFor),
 						0, nil)
 				}

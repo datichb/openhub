@@ -92,7 +92,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 		Required:      true,
 		SidebarHidden: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.AccentHex)
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor
@@ -646,7 +646,7 @@ func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereq
 		Required:      true,
 		SidebarHidden: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.AccentHex)
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor
