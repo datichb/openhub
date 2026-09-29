@@ -1017,6 +1017,7 @@
   "cmd.claim.transfer.brief_error": "Impossible de générer le brief: %v",
   "cmd.claim.transfer.brief_save_error": "Impossible de sauvegarder le brief: %v",
   "cmd.claim.transfer.brief_done": "Brief de reprise généré. %s",
+  "cmd.claim.sync_pending": "Changements enregistrés localement mais la synchronisation a échoué. Ils seront poussés lors de la prochaine opération d'équipe.",
   "cmd.teams.detach.short": "Détacher un projet de son équipe",
   "cmd.teams.detach.long": "Détache un projet de son équipe actuelle sans supprimer la team. Le projet devient solo.",
   "cmd.teams.archive.short": "Archiver une équipe (désactiver sans supprimer)",

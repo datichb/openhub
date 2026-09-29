@@ -1017,6 +1017,7 @@
   "cmd.claim.transfer.brief_error": "Unable to generate brief: %v",
   "cmd.claim.transfer.brief_save_error": "Unable to save brief: %v",
   "cmd.claim.transfer.brief_done": "Takeover brief generated. %s",
+  "cmd.claim.sync_pending": "Changes saved locally but could not be synced. They will be pushed on the next team operation.",
   "cmd.teams.detach.short": "Detach a project from its team",
   "cmd.teams.detach.long": "Detach a project from its current team without deleting the team. The project becomes solo.",
   "cmd.teams.archive.short": "Archive a team (disable without deleting)",

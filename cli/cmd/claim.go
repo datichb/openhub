@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -169,13 +170,20 @@ func runClaim(cmd *cobra.Command, args []string) error {
 				// Generate brief
 				brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, "stale")
 				if briefErr == nil {
-					_ = repo.SaveBrief(ctx, brief)
+					if err := repo.SaveBrief(ctx, brief); err != nil {
+						slog.Warn("brief saved locally but sync failed", "ticket", ticketID, "error", err)
+					}
 					fmt.Fprintf(a.IO.Out, "%s %s\n",
 						theme.SuccessStyle.Render(theme.IconSuccess),
 						i18n.T("cmd.claim.brief_generated"))
 				}
 				// Transfer the claim
-				_ = repo.TransferClaim(ctx, project, ticketID, memberID)
+				if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
+					slog.Warn("claim transfer saved locally but sync failed", "ticket", ticketID, "error", err)
+					fmt.Fprintf(a.IO.Out, "%s %s\n",
+						theme.WarningStyle.Render(theme.IconWarning),
+						i18n.T("cmd.claim.sync_pending"))
+				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
 					i18n.Tf("cmd.claim.transferred_from_to",
@@ -183,7 +191,12 @@ func runClaim(cmd *cobra.Command, args []string) error {
 				return nil
 			}
 			// User declined brief but still wants to claim — do transfer
-			_ = repo.TransferClaim(ctx, project, ticketID, memberID)
+			if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
+				slog.Warn("claim transfer saved locally but sync failed", "ticket", ticketID, "error", err)
+				fmt.Fprintf(a.IO.Out, "%s %s\n",
+					theme.WarningStyle.Render(theme.IconWarning),
+					i18n.T("cmd.claim.sync_pending"))
+			}
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.claim.transferred_no_brief", project, ticketID))

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -246,7 +247,12 @@ Produis un Markdown structuré complet avec les sections :
 
 	// Commit and push
 	relPath := filepath.Join("projects", project, "takeover-briefs", latestBase+".enriched.md")
-	_ = repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
+	if err := repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath); err != nil {
+		slog.Warn("enriched brief saved locally but sync failed", "ticket", ticketID, "error", err)
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.T("cmd.claim.sync_pending"))
+	}
 
 	fmt.Fprintf(a.IO.Out, "%s Brief enrichi sauvegardé. %s\n\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),

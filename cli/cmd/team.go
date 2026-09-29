@@ -1054,7 +1054,9 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 					tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 					fmt.Fprintln(a.IO.Out)
 					if err == nil && len(tokenBytes) > 0 && a.Secrets != nil {
-						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+						if sErr := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes)); sErr != nil {
+							slog.Error("failed to save GitLab token to keychain", "team", teamID, "error", sErr)
+						}
 					}
 				}
 			case "3":
@@ -1079,7 +1081,9 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 					tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 					fmt.Fprintln(a.IO.Out)
 					if err == nil && len(tokenBytes) > 0 && a.Secrets != nil {
-						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+						if sErr := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes)); sErr != nil {
+							slog.Error("failed to save GitLab token to keychain", "team", teamID, "error", sErr)
+						}
 					}
 				}
 			}
@@ -1126,7 +1130,9 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 				if err == nil && len(tokenBytes) > 0 {
 					teamID := config.RepoNameFromRemote(repoURL)
 					if a.Secrets != nil {
-						_ = a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes))
+						if sErr := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes)); sErr != nil {
+							slog.Error("failed to save GitLab token to keychain", "team", teamID, "error", sErr)
+						}
 					}
 					// Re-validate
 					sp := config.TeamStatePath(repoURL)

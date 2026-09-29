@@ -1043,7 +1043,9 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 
 	relPath := filepath.Join("projects", project, "takeover-briefs", latestBase+".enriched.md")
 	ctx := tuiShell.Context()
-	_ = repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath)
+	if err := repo.CommitAndPush(ctx, fmt.Sprintf("takeover: enriched brief for %s/%s", project, ticketID), relPath); err != nil {
+		slog.Warn("enriched brief saved locally but sync failed", "ticket", ticketID, "error", err)
+	}
 
 	return nil
 }
