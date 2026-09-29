@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -612,12 +613,28 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
 			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
 
+			// ── Auto-detection: pre-fill project name from git remote ──
+			detectedProject := ""
+			if s.ProjectName == "" {
+				if out, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
+					remote := strings.TrimSpace(string(out))
+					if remote != "" {
+						s.ProjectName = config.RepoNameFromRemote(remote)
+						detectedProject = "git remote"
+					}
+				}
+			}
+			if s.ProjectPath == "" {
+				s.ProjectPath = "."
+			}
+
 			initialName := s.ProjectName
 			initialPath := s.ProjectPath
-			if initialPath == "" {
-				initialPath = "."
-			}
 			form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 0, nil, func(t string) { s.ProjectName = t })
+			if detectedProject != "" {
+				infoColor := theme.ColorTag(theme.InfoHex)
+				form.AddTextView("", fmt.Sprintf("%s%s%s", infoColor, i18n.Tf("cmd.init.wizard_detected_from", detectedProject), reset), 60, 1, true, false)
+			}
 			form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 0, nil, func(t string) { s.ProjectPath = t })
 
 			attachMounted := false
