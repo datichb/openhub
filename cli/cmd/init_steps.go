@@ -321,6 +321,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
 			// ── Auto-detection: pre-select the first available provider ──
 			detectedSource := ""
+			reusedFromConfig := false
 			if s.SelectedProvider == "" {
 				// Run provider detection to find available credentials.
 				detections := providerPkg.DetectAll()
@@ -343,6 +344,9 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 						}
 					}
 				}
+			} else {
+				// Provider was already set (from config pre-fill) — mark as reused.
+				reusedFromConfig = true
 			}
 			if s.SelectedProvider == "" {
 				s.SelectedProvider = s.ProviderOptions[0]
@@ -424,10 +428,13 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				},
 			)
 
-			// Show detection source hint when provider was auto-detected.
+			// Show detection/reuse source hint when provider was pre-selected.
 			if detectedSource != "" {
 				info := theme.ColorTag(theme.InfoHex)
 				form.AddTextView("", fmt.Sprintf("%s%s%s", info, i18n.Tf("cmd.init.wizard_detected_from", detectedSource), reset), 60, 1, true, false)
+			} else if reusedFromConfig {
+				info := theme.ColorTag(theme.InfoHex)
+				form.AddTextView("", fmt.Sprintf("%s%s%s", info, i18n.T("cmd.init.wizard_reused_from"), reset), 60, 1, true, false)
 			}
 
 			// Conditional fields based on current provider

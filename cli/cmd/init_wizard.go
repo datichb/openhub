@@ -38,6 +38,41 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		FocusBtn:        &focusBtn,
 	}
 
+	// ── Pre-fill from existing config (re-init scenario) ────────────────
+	// When SetupDone was previously true, provider/region values exist in
+	// the config. Pre-populate the state so the user sees their previous
+	// choices and can confirm or adjust them.
+	if a.Config.CLI.SetupDone {
+		if p := a.Config.Opencode.DefaultProvider; p != "" {
+			s.SelectedProvider = p
+			for idx, opt := range s.ProviderOptions {
+				if opt == p {
+					s.ProviderIdx = idx
+					break
+				}
+			}
+		}
+		if a.Config.Opencode.DefaultProvider == "bedrock" {
+			if am := a.Config.Provider.Bedrock.AuthMode; am != "" {
+				s.AuthMode = am
+				switch am {
+				case "bearer":
+					s.AuthIdx = 0
+				case "profile":
+					s.AuthIdx = 1
+					if p := a.Config.Provider.Bedrock.AWSProfile; p != "" {
+						s.ProfileName = p
+					}
+				case "env":
+					s.AuthIdx = 2
+				}
+			}
+			if r := a.Config.Provider.Bedrock.AWSRegion; r != "" {
+				s.Region = r
+			}
+		}
+	}
+
 	// ── Detect system locale early ───────────────────────────────────────
 	sysLang := os.Getenv("LANG")
 	if sysLang == "" {
