@@ -90,8 +90,9 @@ func (s *Server) Serve() error {
 	reader := bufio.NewReader(os.Stdin)
 	writer := os.Stdout
 
-	// Channel for lines read from stdin
-	lines := make(chan []byte)
+	// Channel for lines read from stdin (buffered to avoid leaking the
+	// reader goroutine when the context is cancelled between a read and a send).
+	lines := make(chan []byte, 1)
 	errs := make(chan error, 1)
 
 	go func() {
