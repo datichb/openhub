@@ -84,11 +84,11 @@ var (
 
 // Mode indicators — named aliases for the accent color of each mode.
 var (
-	// ModeHubColor is the accent color for hub mode (Teal).
+	// ModeHubColor is the accent color for hub mode (Peach).
 	ModeHubColor = tcell.GetColor(ModeHubHex)
-	// ModeTeamColor is the accent color for team mode (Mauve).
+	// ModeTeamColor is the accent color for team mode (Mauve Saturated).
 	ModeTeamColor = tcell.GetColor(ModeTeamHex)
-	// ModeProjectColor is the accent color for project mode (Peach).
+	// ModeProjectColor is the accent color for project mode (Sapphire).
 	ModeProjectColor = tcell.GetColor(ModeProjectHex)
 )
 
@@ -131,37 +131,37 @@ type ModeTheme struct {
 }
 
 var (
-	// ThemeHub is the mode theme for hub navigation (Teal family).
+	// ThemeHub is the mode theme for hub navigation (Warm family).
 	ThemeHub = ModeTheme{
-		AccentHex:    TealHex,      // #94e2d5 Teal
-		Accent:       tcell.GetColor(TealHex),
-		PrimaryHex:   SkyHex,       // #89dceb Sky
-		Primary:      tcell.GetColor(SkyHex),
-		SecondaryHex: SapphireHex,  // #74c7ec Sapphire
-		Secondary:    tcell.GetColor(SapphireHex),
-		MutedHex:     MutedHubHex,  // #2d4f4f
-		Muted:        tcell.GetColor(MutedHubHex),
-	}
-	// ThemeTeam is the mode theme for team navigation (Violet family).
-	ThemeTeam = ModeTheme{
-		AccentHex:    MauveHex,     // #cba6f7 Mauve
-		Accent:       tcell.GetColor(MauveHex),
-		PrimaryHex:   InfoHex,      // #b4befe Lavender
-		Primary:      tcell.GetColor(InfoHex),
-		SecondaryHex: PinkHex,      // #f5c2e7 Pink
-		Secondary:    tcell.GetColor(PinkHex),
-		MutedHex:     MutedTeamHex, // #3a3450
-		Muted:        tcell.GetColor(MutedTeamHex),
-	}
-	// ThemeProject is the mode theme for project navigation (Warm family).
-	ThemeProject = ModeTheme{
 		AccentHex:    ActionHex,        // #fab387 Peach
 		Accent:       tcell.GetColor(ActionHex),
 		PrimaryHex:   YellowHex,        // #f9e2af Yellow
 		Primary:      tcell.GetColor(YellowHex),
 		SecondaryHex: FlamingoHex,      // #f2cdcd Flamingo
 		Secondary:    tcell.GetColor(FlamingoHex),
-		MutedHex:     MutedProjectHex,  // #4a3828
+		MutedHex:     MutedHubHex,      // #5a4838
+		Muted:        tcell.GetColor(MutedHubHex),
+	}
+	// ThemeTeam is the mode theme for team navigation (Saturated Violet family).
+	ThemeTeam = ModeTheme{
+		AccentHex:    MauveSaturatedHex, // #c37ef5 Mauve Saturated
+		Accent:       tcell.GetColor(MauveSaturatedHex),
+		PrimaryHex:   Violet350Hex,      // #b197fc Violet 350
+		Primary:      tcell.GetColor(Violet350Hex),
+		SecondaryHex: Violet300Hex,      // #d8b4fe Violet 300
+		Secondary:    tcell.GetColor(Violet300Hex),
+		MutedHex:     MutedTeamHex,      // #4a3060
+		Muted:        tcell.GetColor(MutedTeamHex),
+	}
+	// ThemeProject is the mode theme for project navigation (Sapphire/Blue family).
+	ThemeProject = ModeTheme{
+		AccentHex:    SapphireHex,       // #74c7ec Sapphire
+		Accent:       tcell.GetColor(SapphireHex),
+		PrimaryHex:   BlueHex,           // #89b4fa Blue
+		Primary:      tcell.GetColor(BlueHex),
+		SecondaryHex: TealHex,           // #94e2d5 Teal
+		Secondary:    tcell.GetColor(TealHex),
+		MutedHex:     MutedProjectHex,   // #2d4050
 		Muted:        tcell.GetColor(MutedProjectHex),
 	}
 

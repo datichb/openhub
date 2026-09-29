@@ -100,12 +100,12 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// ModeHubHex is the accent color for hub mode — Teal.
-	ModeHubHex = TealHex
-	// ModeTeamHex is the accent color for team mode — Mauve.
-	ModeTeamHex = MauveHex
-	// ModeProjectHex is the accent color for project mode — Peach (Action).
-	ModeProjectHex = ActionHex
+	// ModeHubHex is the accent color for hub mode — Peach (Warm).
+	ModeHubHex = ActionHex
+	// ModeTeamHex is the accent color for team mode — Mauve Saturated.
+	ModeTeamHex = MauveSaturatedHex
+	// ModeProjectHex is the accent color for project mode — Sapphire.
+	ModeProjectHex = SapphireHex
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,31 +113,39 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// TealHex — Catppuccin Teal, hub mode accent.
+	// TealHex — Catppuccin Teal, project mode secondary.
 	TealHex = "#94e2d5"
-	// SkyHex — Catppuccin Sky, hub mode primary.
+	// SkyHex — Catppuccin Sky.
 	SkyHex = "#89dceb"
-	// SapphireHex — Catppuccin Sapphire, hub mode secondary.
+	// SapphireHex — Catppuccin Sapphire, project mode accent.
 	SapphireHex = "#74c7ec"
-	// MauveHex — Catppuccin Mauve, team mode accent.
+	// BlueHex — Catppuccin Blue, project mode primary.
+	BlueHex = "#89b4fa"
+	// MauveHex — Catppuccin Mauve (base, unsaturated).
 	MauveHex = "#cba6f7"
-	// PinkHex — Catppuccin Pink, team mode secondary.
+	// MauveSaturatedHex — Saturated mauve, team mode accent.
+	MauveSaturatedHex = "#c37ef5"
+	// Violet350Hex — Violet 350, team mode primary.
+	Violet350Hex = "#b197fc"
+	// Violet300Hex — Violet 300, team mode secondary.
+	Violet300Hex = "#d8b4fe"
+	// PinkHex — Catppuccin Pink.
 	PinkHex = "#f5c2e7"
-	// FlamingoHex — Catppuccin Flamingo, project mode secondary.
+	// FlamingoHex — Catppuccin Flamingo, hub mode secondary.
 	FlamingoHex = "#f2cdcd"
-	// YellowHex — Catppuccin Yellow, project mode primary (= WarningHex).
+	// YellowHex — Catppuccin Yellow, hub mode primary (= WarningHex).
 	YellowHex = WarningHex
 )
 
 // Muted mode tints — darkened versions of each mode's accent for subtle
 // decorative elements (separators, background tints, discrete indicators).
 const (
-	// MutedHubHex is a dark teal for hub mode muted elements.
-	MutedHubHex = "#3a5f5f"
+	// MutedHubHex is a dark peach for hub mode muted elements.
+	MutedHubHex = "#5a4838"
 	// MutedTeamHex is a dark violet for team mode muted elements.
-	MutedTeamHex = "#4a4060"
-	// MutedProjectHex is a dark peach for project mode muted elements.
-	MutedProjectHex = "#5a4838"
+	MutedTeamHex = "#4a3060"
+	// MutedProjectHex is a dark sapphire for project mode muted elements.
+	MutedProjectHex = "#2d4050"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,3 +155,7 @@ const (
 // ThemeTeam, ThemeProject), ActiveMode variable, and SetActiveMode/ThemeForMode
 // functions. The struct is defined in tcell.go because it contains tcell.Color
 // fields alongside hex string fields.
+//
+// Hub     = Warm family   (Peach / Yellow / Flamingo)
+// Team    = Violet family (Mauve Saturated / Violet 350 / Violet 300)
+// Project = Blue family   (Sapphire / Blue / Teal)

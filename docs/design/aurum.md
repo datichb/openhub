@@ -284,6 +284,19 @@ marges égales en haut (1/7) et en bas (1/7).
 | **Project** | figlet du nom de projet | Badge deploy (● À jour / ⊘ En cours), sessions, config, board |
 | **Team** | figlet du nom d'équipe (UPPERCASE) | Stats membres/tickets, board équipe, patterns/policies |
 
+#### Palettes de mode (ModeTheme)
+
+Chaque mode de navigation possède une palette 4 niveaux (`Accent`, `Primary`,
+`Secondary`, `Muted`) qui adapte dynamiquement l'ensemble de l'UI via
+`theme.ActiveMode`. Source de vérité : `theme/colors.go` + `theme/tcell.go`.
+
+| Niveau | Rôle | Hub (Warm) | Team (Violet) | Project (Blue) |
+|--------|------|------------|----------------|----------------|
+| **Accent** | Bannières ASCII, bordures modals, boutons primaires | Peach `#fab387` | Mauve Sat. `#c37ef5` | Sapphire `#74c7ec` |
+| **Primary** | Titres sections, badges, spinners, mode label, focus | Yellow `#f9e2af` | Violet 350 `#b197fc` | Blue `#89b4fa` |
+| **Secondary** | Boutons activés, CTA hover, cursors, flèches | Flamingo `#f2cdcd` | Violet 300 `#d8b4fe` | Teal `#94e2d5` |
+| **Muted** | Séparateur omnibar, indicateurs discrets | `#5a4838` | `#4a3060` | `#2d4050` |
+
 #### Champ structurel `SectionID`
 
 Chaque item de la home porte un `SectionID` (ex. `sessions`, `config`,
