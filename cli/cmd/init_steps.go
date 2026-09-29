@@ -572,7 +572,14 @@ func countHubContent(hubDir string) (agents int, skills int) {
 
 // buildAgentSelectionStep creates a form step with a checkbox per hub agent.
 // All agents are selected by default. The result is stored in s.SelectedAgents.
+// The collection of selected agents happens in Validate (called by the wizard
+// engine before advancing) rather than in a form button callback, because in
+// grouped mode the engine strips form buttons and replaces them with its own.
 func buildAgentSelectionStep(s *initStepState) views.WizardStep {
+	// Shared between Form and Validate closures.
+	var available []string
+	var selected map[string]bool
+
 	return views.WizardStep{
 		ID:    "agents",
 		Label: i18n.T("cmd.init.wizard_step_agents"),
@@ -581,8 +588,8 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			available := discoverAgents()
-			selected := make(map[string]bool, len(available))
+			available = discoverAgents()
+			selected = make(map[string]bool, len(available))
 			for _, ag := range available {
 				selected[ag] = true
 			}
@@ -592,16 +599,18 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 					selected[agName] = checked
 				})
 			}
-			form.AddButton(i18n.T("wizard.hint.submit"), func() {
-				s.SelectedAgents = nil
-				for _, ag := range available {
-					if selected[ag] {
-						s.SelectedAgents = append(s.SelectedAgents, ag)
-					}
-				}
-				onDone()
-			})
+			// No explicit button — grouped mode provides its own "valider" button.
 			return form
+		},
+		Validate: func() string {
+			// Collect selected agents into shared state before advancing.
+			s.SelectedAgents = nil
+			for _, ag := range available {
+				if selected[ag] {
+					s.SelectedAgents = append(s.SelectedAgents, ag)
+				}
+			}
+			return "" // no validation error
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{{
