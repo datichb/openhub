@@ -1019,7 +1019,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 				// Center the form content horizontally (max 60 cols)
 				form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-					const maxFormWidth = 60
+					const maxFormWidth = 80
 					if width > maxFormWidth {
 						pad := (width - maxFormWidth) / 2
 						return x + pad, y, maxFormWidth, height
@@ -1658,7 +1658,7 @@ func fixFormDropDownStyles(form *tview.Form) {
 			// Add inner padding to the dropdown field and popup list items.
 			// The suffix " ▼ " provides a visual affordance that the field is
 			// a selectable dropdown (not static text).
-			dd.SetTextOptions(" ", " ▼ ", " ", " ", "")
+			dd.SetTextOptions(" ", " ", " ", " ▼", "")
 		}
 	}
 }

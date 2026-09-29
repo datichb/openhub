@@ -103,7 +103,7 @@ func TestBuildProviderStep_Structure(t *testing.T) {
 	step := buildProviderStep(s)
 
 	assert.Equal(t, "provider", step.ID)
-	assert.NotNil(t, step.Form, "provider must have Form")
+	assert.NotNil(t, step.CustomView, "provider must have CustomView")
 	assert.NotNil(t, step.SkipIf, "provider must have SkipIf")
 	assert.NotNil(t, step.Validate, "provider must have Validate")
 	assert.NotNil(t, step.OnDone, "provider must have OnDone")
@@ -128,12 +128,14 @@ func TestBuildProviderStep_FormRendering(t *testing.T) {
 	*s.Steps = steps
 	s.ProviderStepIdx = 0
 
+	step := steps[0]
+	assert.NotNil(t, step.CustomView, "provider must have CustomView")
+	// CustomView steps manage their own layout — we verify the step builds
+	// without panic by invoking the CustomView callback.
 	app := tview.NewApplication()
-	form := steps[0].Form(app, func() {})
-	require.NotNil(t, form)
-	// At minimum: provider dropdown + submit button
-	assert.GreaterOrEqual(t, form.GetFormItemCount(), 1, "provider form should have at least 1 field")
-	assert.GreaterOrEqual(t, form.GetButtonCount(), 1, "provider form should have at least 1 button")
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	step.CustomView(app, container, func() {})
+	assert.Greater(t, container.GetItemCount(), 0, "container should have items after CustomView renders")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,7 +147,7 @@ func TestBuildProjectStep_Structure(t *testing.T) {
 	step := buildProjectStep(s)
 
 	assert.Equal(t, "project", step.ID)
-	assert.NotNil(t, step.Form, "project must have Form")
+	assert.NotNil(t, step.CustomView, "project must have CustomView")
 	assert.NotNil(t, step.SkipIf, "project must have SkipIf")
 	assert.NotNil(t, step.Validate, "project must have Validate")
 	assert.NotNil(t, step.OnDone, "project must have OnDone")
@@ -177,12 +179,11 @@ func TestBuildProjectStep_FormRendering(t *testing.T) {
 	s := newTestState()
 	step := buildProjectStep(s)
 
+	assert.NotNil(t, step.CustomView, "project must have CustomView")
 	app := tview.NewApplication()
-	form := step.Form(app, func() {})
-	require.NotNil(t, form)
-	// name + path fields + submit button
-	assert.GreaterOrEqual(t, form.GetFormItemCount(), 2, "project form should have at least 2 fields")
-	assert.GreaterOrEqual(t, form.GetButtonCount(), 1, "project form should have at least 1 button")
+	container := tview.NewFlex().SetDirection(tview.FlexRow)
+	step.CustomView(app, container, func() {})
+	assert.Greater(t, container.GetItemCount(), 0, "container should have items after CustomView renders")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -93,6 +93,135 @@ type initStepState struct {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layout helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// buildFormStepLayout builds the standard CustomView layout for steps that have
+// an intro text block above interactive form fields. The layout is:
+//
+//	topSpacer (fixed) → tv (fixed, computed) → form (flexible) → flexSpacer → buttonForm (fixed) → bottomSpacer (fixed)
+//
+// The intro text is displayed centered (AlignCenter) at its natural height.
+// The form is centered horizontally (maxFormWidth=80) and takes remaining space.
+// The flexible spacer between form and button keeps the button anchored at the
+// bottom while the intro+form stay near the top.
+//
+// Parameters:
+//   - tvApp: the tview Application
+//   - container: the Flex container (stepContent) to add items to
+//   - introText: the formatted intro text with tview color tags
+//   - form: the interactive form (DropDowns, InputFields, etc.)
+//   - buttonForm: the button bar (Valider, Skip, etc.)
+//   - focusTarget: the primitive to focus initially (usually form)
+func buildFormStepLayout(
+	tvApp *tview.Application,
+	container *tview.Flex,
+	introText string,
+	form *tview.Form,
+	buttonForm *tview.Form,
+	focusTarget tview.Primitive,
+) {
+	_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+	if termH <= 0 {
+		termH = 50
+	}
+	availH := termH - 7
+
+	// Intro text view — centered, fixed height computed from content.
+	tv := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetScrollable(true)
+	tv.SetBackgroundColor(theme.BgPanel)
+	tv.SetBorderPadding(1, 0, 2, 2)
+	tv.SetText(introText)
+	tvHeight := strings.Count(introText, "\n") + 2 // lines + top border padding
+
+	// Center the form horizontally.
+	form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		const maxFormWidth = 80
+		if width > maxFormWidth {
+			pad := (width - maxFormWidth) / 2
+			return x + pad, y, maxFormWidth, height
+		}
+		return x, y, width, height
+	})
+	form.SetBackgroundColor(theme.BgPanel)
+	form.SetFieldBackgroundColor(theme.BgElement)
+	form.SetFieldTextColor(theme.FgPrimary)
+	form.SetLabelColor(theme.FgPrimary)
+	form.SetBorder(false)
+
+	// Navigation: Tab on last form item → buttonForm, ↑ on buttonForm → form.
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTab {
+			itemIdx, _ := form.GetFocusedItemIndex()
+			if views.IsLastFocusableFormItem(form, itemIdx) {
+				tvApp.SetFocus(buttonForm)
+				return nil
+			}
+		}
+		return event
+	})
+	buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyLeft:
+			return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+		case tcell.KeyRight:
+			return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+		case tcell.KeyBacktab, tcell.KeyUp:
+			tvApp.SetFocus(form)
+			return nil
+		}
+		return event
+	})
+
+	// Adaptive layout: same thresholds as engine/intro (35/20/minimal).
+	if availH >= 35 {
+		topSpacer := tview.NewBox()
+		topSpacer.SetBackgroundColor(theme.BgPanel)
+		flexSpacer := tview.NewBox()
+		flexSpacer.SetBackgroundColor(theme.BgPanel)
+		bottomSpacer := tview.NewBox()
+		bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+		// Clamp tvHeight so button is always visible.
+		maxTvH := availH - 3 - 5 - 3 // top + btn + bottom
+		if tvHeight > maxTvH && maxTvH > 5 {
+			tvHeight = maxTvH
+		}
+
+		container.AddItem(topSpacer, 3, 0, false)
+		container.AddItem(tv, tvHeight, 0, false)
+		container.AddItem(form, 0, 1, true)
+		container.AddItem(flexSpacer, 0, 2, false)
+		container.AddItem(buttonForm, 5, 0, false)
+		container.AddItem(bottomSpacer, 3, 0, false)
+	} else if availH >= 20 {
+		topSpacer := tview.NewBox()
+		topSpacer.SetBackgroundColor(theme.BgPanel)
+		flexSpacer := tview.NewBox()
+		flexSpacer.SetBackgroundColor(theme.BgPanel)
+
+		maxTvH := availH - 1 - 3 // top + btn
+		if tvHeight > maxTvH && maxTvH > 5 {
+			tvHeight = maxTvH
+		}
+
+		container.AddItem(topSpacer, 1, 0, false)
+		container.AddItem(tv, tvHeight, 0, false)
+		container.AddItem(form, 0, 1, true)
+		container.AddItem(flexSpacer, 0, 2, false)
+		container.AddItem(buttonForm, 3, 0, false)
+	} else {
+		container.AddItem(tv, 0, 1, false)
+		container.AddItem(form, 0, 2, true)
+		container.AddItem(buttonForm, 3, 0, false)
+	}
+	tvApp.SetFocus(focusTarget)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Step builders
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -449,7 +578,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			}
 			return ""
 		},
-		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
 			// ── Auto-detection: pre-select the first available provider ──
 			detectedSource := ""
 			reusedFromConfig := false
@@ -508,9 +637,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				}
 			}
 
-			form := tview.NewForm()
-
-			// ── Embedded intro text (replaces the separate intro page) ──
+			// ── Intro text ──
 			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
@@ -533,8 +660,9 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 					fmt.Fprintf(&intro, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
 				}
 			}
-			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
 
+			// ── Form with interactive fields only ──
+			form := tview.NewForm()
 			authModes := []string{"bearer", "profile", "env"}
 
 			// Provider dropdown
@@ -625,8 +753,14 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				form.AddTextView("", "$ gh auth login", 60, 1, true, false)
 			}
 
-			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
-			return form
+			views.FixFormDropDownStyles(form)
+			views.FixFormLabelFocus(form)
+
+			// ── Button bar ──
+			buttonForm := views.NewStyledButtonForm()
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+
+			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			a := *s.AppPtr
@@ -730,10 +864,8 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			s.ProjectPath = abs
 			return ""
 		},
-		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-
-			// ── Embedded intro text ──
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+			// ── Intro text ──
 			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
@@ -749,7 +881,6 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				fmt.Fprintf(&intro, "%s%s%s\n", muted, note, reset)
 			}
 			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
-			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
 
 			// ── Auto-detection: pre-fill project name from git remote ──
 			detectedProject := ""
@@ -766,6 +897,8 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				s.ProjectPath = "."
 			}
 
+			// ── Form with interactive fields only ──
+			form := tview.NewForm()
 			initialName := s.ProjectName
 			initialPath := s.ProjectPath
 			form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 0, nil, func(t string) { s.ProjectName = t })
@@ -775,24 +908,31 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			}
 			form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 0, nil, func(t string) { s.ProjectPath = t })
 
-			attachMounted := false
 			if s.TeamState.Configured && s.TeamState.TeamID != "" {
 				attachOptions := []string{
 					i18n.Tf("cmd.init.wizard_project_attach_yes", s.TeamState.TeamID),
 					i18n.T("cmd.init.wizard_project_attach_no"),
 				}
 				s.TeamState.attachProject = true
+				attachMounted := false
 				form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
 					s.TeamState.attachProject = idx == 0
 					if attachMounted {
 						views.AutoAdvanceFromDropDown(tvApp, form, 2)
 					}
 				})
+				// Mark as mounted after the closure is created to avoid
+				// triggering auto-advance during initial render.
+				defer func() { attachMounted = true }()
 			}
 
-			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
-			attachMounted = true
-			return form
+			views.FixFormDropDownStyles(form)
+
+			// ── Button bar ──
+			buttonForm := views.NewStyledButtonForm()
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+
+			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			if (*s.AppPtr).Projects == nil {
@@ -865,7 +1005,7 @@ func countHubContent(hubDir string) (agents int, skills int) {
 // grouped mode the engine strips form buttons and replaces them with its own.
 // The deploy intro text is embedded at the top of the form.
 func buildAgentSelectionStep(s *initStepState) views.WizardStep {
-	// Shared between Form and Validate closures.
+	// Shared between CustomView and Validate closures.
 	var available []string
 	var selected map[string]bool
 
@@ -875,10 +1015,8 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 		SkipIf: func() bool {
 			return s.DeploySkipped || s.ProjectSkipped || !s.ProjectCreated
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-
-			// ── Embedded deploy intro text ──
+		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+			// ── Intro text ──
 			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
@@ -900,8 +1038,9 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 				fmt.Fprintf(&intro, "\n%s%s%s", muted, note, reset)
 			}
 			fmt.Fprintf(&intro, "\n%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
-			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
 
+			// ── Form with checkboxes only ──
+			form := tview.NewForm()
 			available = discoverAgents()
 			selected = make(map[string]bool, len(available))
 			for _, ag := range available {
@@ -913,8 +1052,12 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 					selected[agName] = checked
 				})
 			}
-			// No explicit button — grouped mode provides its own "valider" button.
-			return form
+
+			// ── Button bar ──
+			buttonForm := views.NewStyledButtonForm()
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+
+			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
 		},
 		Validate: func() string {
 			// Collect selected agents into shared state before advancing.
@@ -1213,17 +1356,9 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 					fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
 				}
 			}
-			tv := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter)
-			tv.SetBackgroundColor(theme.BgPanel)
-			tv.SetText(b.String())
 
 			// Build the form with checkbox + token per integration.
 			form := tview.NewForm()
-			form.SetBackgroundColor(theme.BgPanel)
-			form.SetFieldBackgroundColor(theme.BgElement)
-			form.SetFieldTextColor(theme.FgPrimary)
-			form.SetLabelColor(theme.FgPrimary)
-			form.SetBorder(false)
 
 			enabled := make([]bool, len(entries))
 			for i := range entries {
@@ -1294,62 +1429,7 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				onDone()
 			})
 
-			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				switch event.Key() {
-				case tcell.KeyLeft:
-					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
-				case tcell.KeyRight:
-					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-				case tcell.KeyBacktab:
-					tvApp.SetFocus(form)
-					return nil
-				}
-				return event
-			})
-
-			form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				if event.Key() == tcell.KeyTab {
-					itemIdx, _ := form.GetFocusedItemIndex()
-					if views.IsLastFocusableFormItem(form, itemIdx) {
-						tvApp.SetFocus(buttonForm)
-						return nil
-					}
-				}
-				return event
-			})
-
-			// ── Adaptive layout ──
-			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
-			if termH <= 0 {
-				termH = 50
-			}
-			availH := termH - 7
-
-			if availH >= 35 {
-				topSpacer := tview.NewBox()
-				topSpacer.SetBackgroundColor(theme.BgPanel)
-				bottomSpacer := tview.NewBox()
-				bottomSpacer.SetBackgroundColor(theme.BgPanel)
-
-				container.AddItem(topSpacer, 3, 0, false)
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(form, 0, 2, true)
-				container.AddItem(buttonForm, 5, 0, false)
-				container.AddItem(bottomSpacer, 3, 0, false)
-			} else if availH >= 20 {
-				topSpacer := tview.NewBox()
-				topSpacer.SetBackgroundColor(theme.BgPanel)
-
-				container.AddItem(topSpacer, 1, 0, false)
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(form, 0, 2, true)
-				container.AddItem(buttonForm, 3, 0, false)
-			} else {
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(form, 0, 2, true)
-				container.AddItem(buttonForm, 3, 0, false)
-			}
-			tvApp.SetFocus(form)
+			buildFormStepLayout(tvApp, container, b.String(), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			for _, entry := range entries {
