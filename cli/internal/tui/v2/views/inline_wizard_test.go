@@ -1268,3 +1268,25 @@ func TestFixFormLabelFocus_NilForm(t *testing.T) {
 	// Should not panic.
 	fixFormLabelFocus(nil)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exported wrappers
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestFixFormDropDownStyles_Export_NilSafety(t *testing.T) {
+	FixFormDropDownStyles(nil) // should not panic
+}
+
+func TestFixFormLabelFocus_Export_NilSafety(t *testing.T) {
+	FixFormLabelFocus(nil) // should not panic
+}
+
+func TestIsLastFocusableFormItem_Export(t *testing.T) {
+	form := tview.NewForm()
+	form.AddInputField("A", "", 0, nil, nil)
+	form.AddInputField("B", "", 0, nil, nil)
+
+	assert.False(t, IsLastFocusableFormItem(form, 0), "first item is not last")
+	assert.True(t, IsLastFocusableFormItem(form, 1), "second item is last")
+	assert.False(t, IsLastFocusableFormItem(nil, 0), "nil form returns false")
+}
