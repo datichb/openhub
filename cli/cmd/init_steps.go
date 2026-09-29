@@ -238,6 +238,8 @@ func buildLangStep(s *initStepState) views.WizardStep {
 // buildProviderStep creates the single dynamic provider + credentials step.
 // The form adapts its fields based on the selected provider (and auth mode
 // for bedrock). DropDown changes trigger a full step re-render via Rerender.
+// The intro text (title, description, prerequisites) is embedded at the top
+// of the form, eliminating the need for a separate intro page.
 func buildProviderStep(s *initStepState) views.WizardStep {
 	a := *s.AppPtr
 	return views.WizardStep{
@@ -293,6 +295,32 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			}
 
 			form := tview.NewForm()
+
+			// ── Embedded intro text (replaces the separate intro page) ──
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+			secondary := theme.ColorTag(theme.TextSecondaryHex)
+			muted := theme.ColorTag(theme.TextMutedHex)
+			warning := theme.ColorTag(theme.WarningHex)
+			reset := theme.TagColor
+
+			var intro strings.Builder
+			fmt.Fprintf(&intro, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_intro_provider_title"), reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_intro_provider_desc"), "\n") {
+				fmt.Fprintf(&intro, "%s%s%s\n", secondary, line, reset)
+			}
+			intro.WriteString("\n")
+			fmt.Fprintf(&intro, "%s%s%s  %s%s%s\n", muted, i18n.T("cmd.init.wizard_intro_provider_list"), reset, accent, i18n.T("cmd.init.wizard_provider_list_items"), reset)
+			intro.WriteString("\n")
+			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n", muted, reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_provider_prereq"), "\n") {
+				if strings.HasPrefix(line, "• ") {
+					fmt.Fprintf(&intro, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
+				} else {
+					fmt.Fprintf(&intro, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
+				}
+			}
+			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
+
 			authModes := []string{"bearer", "profile", "env"}
 
 			// Provider dropdown

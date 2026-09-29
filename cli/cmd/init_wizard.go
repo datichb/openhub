@@ -62,21 +62,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 		buildLangStep(s),
 	)
 
-	// Group: Provider (intro + dynamic form)
-	steps = append(steps,
-		buildIntroStep(
-			"Provider",
-			"cmd.init.wizard_intro_provider_title",
-			"cmd.init.wizard_intro_provider_desc",
-			"cmd.init.wizard_intro_provider_list",
-			"cmd.init.wizard_provider_list_items",
-			"cmd.init.wizard_provider_prereq",
-			"",
-			func() { s.ProviderSkipped = false },
-			func() { s.ProviderSkipped = true },
-		),
-		buildProviderStep(s),
-	)
+	// Group: Provider (single hybrid step with embedded intro)
+	steps = append(steps, buildProviderStep(s))
 
 	// Group: Equipe (intro + init steps + rejoin steps)
 	steps = append(steps, buildTeamModeIntroStep(teamState))
@@ -137,14 +124,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	}
 
 	// ── Build config ─────────────────────────────────────────────────────
+	// Provider group starts right after lang (welcome=0, lang=1, provider=2).
+	providerGroupStart := 2
+	// Team group starts right after provider step.
+	teamGroupStart := providerGroupStart + 1
+
 	cfg := views.InlineWizardConfig{
 		ID:    "wizard.init",
 		Title: i18n.T("cmd.init.wizard_title"),
 		Steps: steps,
 		Groups: []views.StepGroup{
 			{Label: i18n.T("cmd.init.wizard_group_lang"), StartIdx: 0},
-			{Label: i18n.T("cmd.init.wizard_group_provider"), StartIdx: 2},
-			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: 4},
+			{Label: i18n.T("cmd.init.wizard_group_provider"), StartIdx: providerGroupStart},
+			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: teamGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: projectGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: mcpGroupStart},
 			{Label: i18n.T("cmd.init.wizard_group_deploy"), StartIdx: deployGroupStart},
