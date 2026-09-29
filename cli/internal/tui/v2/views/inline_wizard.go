@@ -653,35 +653,75 @@ func (w *InlineWizardView) advanceAfterDone(step WizardStep) {
 }
 
 func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
+	// Fast path: no async work — transition directly without goroutine.
+	if step.OnDone == nil {
+		afterDone()
+		return
+	}
+
+	// Block input on the current step content while OnDone executes.
+	// The current content stays visible (no flash) until either OnDone
+	// completes (direct transition) or the spinner delay expires.
+	prevCapture := w.stepContent.GetInputCapture()
+	w.stepContent.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		return nil // absorb all keys during processing
+	})
+
 	msg := i18n.T("wizard.processing")
 	if step.Processing != "" {
 		msg = step.Processing
 	}
 	w.spinner.SetMessage(msg)
-	w.stepContent.Clear()
-	w.stepContent.AddItem(w.spinner.TextView, 3, 0, false)
-	// Fill remaining space below the spinner with BgPanel to prevent
-	// stale pixels from the previous step bleeding through.
-	bgFill := tview.NewBox()
-	bgFill.SetBackgroundColor(theme.BgPanel)
-	w.stepContent.AddItem(bgFill, 0, 1, false)
-	w.spinner.Start(w.app)
 
 	// Capture app reference before launching goroutine to avoid nil
 	// dereference if Unmount() runs before QueueUpdateDraw fires.
 	tvApp := w.app
+
+	// showSpinner replaces the current step content with the spinner.
+	// Called either by the delayed timer or not at all if OnDone is fast.
+	spinnerShown := false
+	showSpinner := func() {
+		if w.app == nil {
+			return
+		}
+		spinnerShown = true
+		w.stepContent.SetInputCapture(prevCapture)
+		w.stepContent.Clear()
+		w.stepContent.AddItem(w.spinner.TextView, 3, 0, false)
+		bgFill := tview.NewBox()
+		bgFill.SetBackgroundColor(theme.BgPanel)
+		w.stepContent.AddItem(bgFill, 0, 1, false)
+		w.spinner.Start(w.app)
+	}
+
+	// Delayed spinner: only show after 1s if OnDone hasn't finished yet.
+	// This keeps the previous step content visible during short operations,
+	// eliminating the flash that occurred when the spinner appeared briefly
+	// for fast OnDone callbacks.
+	spinnerTimer := time.AfterFunc(1*time.Second, func() {
+		tvApp.QueueUpdateDraw(func() {
+			showSpinner()
+		})
+	})
+	w.trackTimer(spinnerTimer)
 
 	go func() {
 		var err error
 		if step.OnDone != nil {
 			err = step.OnDone()
 		}
+		spinnerTimer.Stop()
 		tvApp.QueueUpdateDraw(func() {
 			// Guard: wizard may have been unmounted while OnDone was running.
 			if w.app == nil {
 				return
 			}
-			w.spinner.Stop()
+			if spinnerShown {
+				w.spinner.Stop()
+			}
+			// Restore input capture.
+			w.stepContent.SetInputCapture(prevCapture)
+
 			if err != nil {
 				w.wizardErr = err
 				// Show error in the step content but do NOT mark as completed.
@@ -694,8 +734,8 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 					widgets.ColorTag(theme.Error), theme.IconError,
 					i18n.T("wizard.error"),
 					widgets.ColorTag(theme.FgSecondary), err.Error(),
-				widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
-				widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.retry")))
+					widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
+					widgets.ColorTag(theme.ActiveMode.Primary), i18n.T("wizard.error.retry")))
 				errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 					switch {
 					case event.Key() == tcell.KeyCtrlB:
