@@ -56,7 +56,11 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	var labelStatusMapping map[string]string
 	var boardConfig teamstate.BoardConfig
 	func() {
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("board config init panic", "recover", r)
+			}
+		}()
 		if repo := resolveRepo(); repo != nil {
 			if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
 				labelStatusMapping = cfg.Tracker.LabelStatusMapping
@@ -80,7 +84,11 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	var initialTickets []views.TeamTicket
 	func() {
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("board tickets init panic", "recover", r)
+			}
+		}()
 		if repo := resolveRepo(); repo != nil {
 			initialTickets = views.FetchTeamTicketsWithColumns(repo, projectNameResolver, columns)
 		}
