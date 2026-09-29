@@ -78,27 +78,8 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	mcpGroupStart := len(steps)
 	steps = append(steps, buildMCPConsolidatedStep(s, a))
 
-	// Group: Déploiement (intro + agent selection + deploy confirmation)
+	// Group: Déploiement (agent selection with embedded intro + deploy confirmation)
 	deployGroupStart := len(steps)
-	deployIntro := buildIntroStep(
-		i18n.T("cmd.init.wizard_group_deploy"),
-		"cmd.init.wizard_intro_deploy_title",
-		"cmd.init.wizard_intro_deploy_desc",
-		"cmd.init.wizard_intro_deploy_list",
-		"cmd.init.wizard_deploy_list_items",
-		"",
-		"cmd.init.wizard_intro_deploy_note",
-		func() { s.DeploySkipped = false },
-		func() { s.DeploySkipped = true },
-	)
-	deployIntro.SkipIf = func() bool { return s.ProjectSkipped || !s.ProjectCreated }
-	deployIntro.InfoFields = func() []views.InfoField {
-		if s.DeploySkipped {
-			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_group_deploy"), Value: i18n.T("cmd.init.wizard_deploy_section_skipped")}}
-		}
-		return nil
-	}
-	steps = append(steps, deployIntro)
 	steps = append(steps, buildAgentSelectionStep(s))
 	steps = append(steps, buildDeployStep(s))
 

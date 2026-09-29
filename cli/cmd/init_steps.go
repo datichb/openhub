@@ -624,6 +624,7 @@ func countHubContent(hubDir string) (agents int, skills int) {
 // The collection of selected agents happens in Validate (called by the wizard
 // engine before advancing) rather than in a form button callback, because in
 // grouped mode the engine strips form buttons and replaces them with its own.
+// The deploy intro text is embedded at the top of the form.
 func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 	// Shared between Form and Validate closures.
 	var available []string
@@ -637,6 +638,31 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
+
+			// ── Embedded deploy intro text ──
+			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+			secondary := theme.ColorTag(theme.TextSecondaryHex)
+			muted := theme.ColorTag(theme.TextMutedHex)
+			reset := theme.TagColor
+
+			var intro strings.Builder
+			fmt.Fprintf(&intro, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_intro_deploy_title"), reset)
+			for _, line := range strings.Split(i18n.T("cmd.init.wizard_intro_deploy_desc"), "\n") {
+				fmt.Fprintf(&intro, "%s%s%s\n", secondary, line, reset)
+			}
+			intro.WriteString("\n")
+			listTitle := i18n.T("cmd.init.wizard_intro_deploy_list")
+			listItems := i18n.T("cmd.init.wizard_deploy_list_items")
+			if listTitle != "" && listItems != "" {
+				fmt.Fprintf(&intro, "%s%s%s  %s%s%s\n", muted, listTitle, reset, accent, listItems, reset)
+			}
+			note := i18n.T("cmd.init.wizard_intro_deploy_note")
+			if note != "" {
+				fmt.Fprintf(&intro, "\n%s%s%s", muted, note, reset)
+			}
+			fmt.Fprintf(&intro, "\n%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
+			form.AddTextView("", intro.String(), 0, strings.Count(intro.String(), "\n")+1, true, false)
+
 			available = discoverAgents()
 			selected = make(map[string]bool, len(available))
 			for _, ag := range available {
