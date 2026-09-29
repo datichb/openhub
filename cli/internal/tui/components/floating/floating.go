@@ -14,6 +14,8 @@
 package floating
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -49,7 +51,10 @@ func Run(cfg Config) error {
 		return err
 	}
 
-	fm := finalModel.(model)
+	fm, ok := finalModel.(model)
+	if !ok {
+		return fmt.Errorf("floating: unexpected model type %T", finalModel)
+	}
 	if fm.aborted {
 		return huh.ErrUserAborted
 	}
