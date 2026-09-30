@@ -1183,6 +1183,33 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 				choiceMounted = true
 				views.FixFormDropDownStyles(form)
 
+				// Center the form horizontally at the same width as the intro text
+				// (same pattern as buildFormStepLayout).
+				maxTextWidth := 0
+				for _, line := range strings.Split(b.String(), "\n") {
+					if w := tview.TaggedStringWidth(line); w > maxTextWidth {
+						maxTextWidth = w
+					}
+				}
+				formWidth := maxTextWidth
+				form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+					fw := formWidth
+					if fw > width {
+						fw = width
+					}
+					if fw < width {
+						pad := (width - fw) / 2
+						return x + pad, y, fw, height
+					}
+					return x, y, width, height
+				})
+				form.SetBackgroundColor(theme.BgPanel)
+				form.SetFieldBackgroundColor(theme.BgElement)
+				form.SetFieldTextColor(theme.FgPrimary)
+				form.SetLabelColor(theme.FgPrimary)
+				form.SetBorder(false)
+				form.SetBorderPadding(1, 1, 2, 2)
+
 				rebuildButtons = func() {
 					buttonForm.Clear(true)
 					switch state.TeamChoice {
