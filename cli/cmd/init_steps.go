@@ -852,9 +852,25 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			views.FixFormDropDownStyles(form)
 			views.FixFormLabelFocus(form)
 
-			// ── Button bar ──
+			// ── Button bar with Submit + Skip (double-click confirm) ──
 			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+				s.ProviderSkipped = false
+				onDone()
+			})
+			skipConfirmed := false
+			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+				if !skipConfirmed {
+					skipConfirmed = true
+					if btn := buttonForm.GetButton(1); btn != nil {
+						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+					}
+					return
+				}
+				s.ProviderSkipped = true
+				s.Token = ""
+				onDone()
+			})
 
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_config"), form, buttonForm, form)
 		},
@@ -1024,9 +1040,26 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 
 			views.FixFormDropDownStyles(form)
 
-			// ── Button bar ──
+			// ── Button bar with Submit + Skip (double-click confirm) ──
 			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+				s.ProjectSkipped = false
+				onDone()
+			})
+			skipConfirmed := false
+			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+				if !skipConfirmed {
+					skipConfirmed = true
+					if btn := buttonForm.GetButton(1); btn != nil {
+						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+					}
+					return
+				}
+				s.ProjectSkipped = true
+				s.ProjectName = ""
+				s.ProjectPath = ""
+				onDone()
+			})
 
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_project"), form, buttonForm, form)
 		},
@@ -1149,9 +1182,25 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 				})
 			}
 
-			// ── Button bar ──
+			// ── Button bar with Submit + Skip (double-click confirm) ──
 			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+				s.DeploySkipped = false
+				onDone()
+			})
+			skipConfirmed := false
+			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+				if !skipConfirmed {
+					skipConfirmed = true
+					if btn := buttonForm.GetButton(1); btn != nil {
+						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+					}
+					return
+				}
+				s.DeploySkipped = true
+				s.SelectedAgents = nil
+				onDone()
+			})
 
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_agents"), form, buttonForm, form)
 		},
