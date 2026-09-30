@@ -122,6 +122,16 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 
 	// Group: Provider (single hybrid step with embedded intro)
 	// In "team" mode, provider is inherited from team config → skip.
+	// Group: Provider (intro + form)
+	providerIntro := buildProviderIntroStep(s)
+	providerIntro.SkipIf = func() bool {
+		if s.SetupMode == "team" {
+			return true
+		}
+		return s.ProviderSkipped
+	}
+	steps = append(steps, providerIntro)
+
 	providerStep := buildProviderStep(s)
 	origProviderSkipIf := providerStep.SkipIf
 	providerStep.SkipIf = func() bool {
@@ -154,16 +164,19 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
-	// Group: Projet (single step with embedded intro)
+	// Group: Projet (intro + form)
 	projectGroupStart := len(steps)
+	steps = append(steps, buildProjectIntroStep(s))
 	steps = append(steps, buildProjectStep(s))
 
-	// Group: MCP (single consolidated step with intro + checkboxes + tokens)
+	// Group: MCP (intro + consolidated form with checkboxes + tokens)
 	mcpGroupStart := len(steps)
+	steps = append(steps, buildMCPIntroStep(s))
 	steps = append(steps, buildMCPConsolidatedStep(s, a))
 
-	// Group: Déploiement (agent selection with embedded intro + deploy confirmation)
+	// Group: Déploiement (intro + agent selection + deploy confirmation)
 	deployGroupStart := len(steps)
+	steps = append(steps, buildAgentSelectionIntroStep(s))
 	steps = append(steps, buildAgentSelectionStep(s))
 	steps = append(steps, buildDeployStep(s))
 
@@ -177,10 +190,10 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	}
 
 	// ── Build config ─────────────────────────────────────────────────────
-	// Provider group starts right after lang (welcome=0, lang=1, provider=2).
+	// Provider group starts right after lang (welcome=0, lang=1, provider_intro=2, provider=3).
 	providerGroupStart := 2
-	// Team group starts right after provider step.
-	teamGroupStart := providerGroupStart + 1
+	// Team group starts right after provider group (intro + form = 2 steps).
+	teamGroupStart := providerGroupStart + 2
 
 	cfg := views.InlineWizardConfig{
 		ID:    "wizard.init",

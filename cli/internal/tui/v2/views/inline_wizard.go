@@ -91,13 +91,14 @@ type InlineWizardView struct {
 	shell ShellAccess
 
 	// tview primitives — nil when unmounted.
-	app         *tview.Application
-	mainFlex    *tview.Flex // root layout (classic: stepBar+header+content+info+hints)
-	stepBar     *widgets.StepBar
-	stepHeader  *tview.TextView
-	stepContent *tview.Flex     // swappable area for form/customview/spinner
-	infoPanel   *tview.TextView // classic: bottom info panel  /  grouped: right sidebar
-	hintsBar    *widgets.StatusBar
+	app              *tview.Application
+	mainFlex         *tview.Flex // root layout (classic: stepBar+header+content+info+hints)
+	stepBar          *widgets.StepBar
+	stepHeader       *tview.TextView
+	stepContent      *tview.Flex // outer container — keeps DrawFunc + InputCapture
+	stepContentInner *tview.Flex // inner content area — all mutations (Clear/AddItem) go here
+	infoPanel        *tview.TextView // classic: bottom info panel  /  grouped: right sidebar
+	hintsBar         *widgets.StatusBar
 
 	// grouped layout primitives (non-nil only when cfg.Groups is set)
 	bodyRow *tview.Flex // horizontal: mainPanel + sidebar
@@ -267,6 +268,9 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 		return x, y, width, height
 	})
+	// Default: inner = outer (classic mode). Grouped mode overrides this
+	// in mountGroupedLayout by inserting a centering wrapper.
+	w.stepContentInner = w.stepContent
 
 	// Info panel (accumulated results — bottom in classic, sidebar in grouped)
 	w.infoPanel = tview.NewTextView().SetDynamicColors(true).SetScrollable(true)
@@ -347,6 +351,21 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 
 	// Info sidebar: padding
 	w.infoPanel.SetBorderPadding(1, 1, 1, 1)
+
+	// ── Centered content wrapper (flexbox-style) ──
+	// All wizard pages get the same width via proportional spacers,
+	// like CSS `max-width` + `margin: auto`. Pages fill stepContentInner
+	// without knowing their width — the wrapper decides.
+	bg := theme.BgPanel
+	w.stepContentInner = tview.NewFlex().SetDirection(tview.FlexRow)
+	w.stepContentInner.SetBackgroundColor(bg)
+	centeredWrapper := tview.NewFlex().SetDirection(tview.FlexColumn)
+	centeredWrapper.SetBackgroundColor(bg)
+	centeredWrapper.
+		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false).  // left spacer
+		AddItem(w.stepContentInner, 0, 5, true).                      // content (5/7 of width)
+		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false)   // right spacer
+	w.stepContent.AddItem(centeredWrapper, 0, 1, true)
 
 	// leftCol wraps stepContent + hintsBar so that hints are centered
 	// relative to the content area, not the full width including the sidebar.
@@ -482,6 +501,7 @@ func (w *InlineWizardView) Unmount() {
 	w.stepBar = nil
 	w.stepHeader = nil
 	w.stepContent = nil
+	w.stepContentInner = nil
 	w.infoPanel = nil
 	w.hintsBar = nil
 	w.spinner = nil
@@ -703,11 +723,11 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 		}
 		spinnerShown = true
 		w.stepContent.SetInputCapture(prevCapture)
-		w.stepContent.Clear()
-		w.stepContent.AddItem(w.spinner.TextView, 3, 0, false)
+		w.stepContentInner.Clear()
+		w.stepContentInner.AddItem(w.spinner.TextView, 3, 0, false)
 		bgFill := tview.NewBox()
 		bgFill.SetBackgroundColor(theme.BgPanel)
-		w.stepContent.AddItem(bgFill, 0, 1, false)
+		w.stepContentInner.AddItem(bgFill, 0, 1, false)
 		w.spinner.Start(w.app)
 	}
 
@@ -744,8 +764,8 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 				// Show error in the step content but do NOT mark as completed.
 				// The user can press Ctrl+B to go back and fix the issue,
 				// or Enter to retry the current step.
-				w.stepContent.Clear()
-				errView := tview.NewTextView().SetDynamicColors(true)
+			w.stepContentInner.Clear()
+			errView := tview.NewTextView().SetDynamicColors(true)
 				errView.SetBackgroundColor(theme.BgPanel)
 				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
 					widgets.ColorTag(theme.Error), theme.IconError,
@@ -766,7 +786,7 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 					}
 					return event
 				})
-				w.stepContent.AddItem(errView, 0, 1, true)
+				w.stepContentInner.AddItem(errView, 0, 1, true)
 				w.app.SetFocus(errView)
 				return
 			}
@@ -818,8 +838,8 @@ func (w *InlineWizardView) renderStep(idx int) {
 		return
 	}
 
-	// Clear step content
-	w.stepContent.Clear()
+	// Clear step content (inner only — outer keeps its wrapper/DrawFunc)
+	w.stepContentInner.Clear()
 
 	// Step counter header — classic mode only (grouped mode uses sidebar)
 	if len(w.cfg.Groups) == 0 {
@@ -877,7 +897,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 				}
 			})
 		}
-		step.CustomView(w.app, w.stepContent, onDone)
+		step.CustomView(w.app, w.stepContentInner, onDone)
 		return
 	}
 
@@ -1034,9 +1054,9 @@ func (w *InlineWizardView) renderStep(idx int) {
 					form.ClearButtons()
 				}
 
-				if minimalLayout {
-					// ── Minimal layout — form only with inline buttons ──
-					w.stepContent.AddItem(form, 0, 1, true)
+			if minimalLayout {
+				// ── Minimal layout — form only with inline buttons ──
+				w.stepContentInner.AddItem(form, 0, 1, true)
 
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 						if w.escPending && event.Key() != tcell.KeyEscape {
@@ -1079,7 +1099,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 					buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
 
 					// Assemble the page layout via BuildWizardPage.
-					pageResult := BuildWizardPage(nil, w.stepContent, WizardPageLayout{
+					pageResult := BuildWizardPage(nil, w.stepContentInner, WizardPageLayout{
 						Badge:           step.Label,
 						Content:         form,
 						ContentMaxWidth: formMaxWidth,
@@ -1150,8 +1170,8 @@ func (w *InlineWizardView) renderStep(idx int) {
 					}
 				}
 			} else {
-				w.stepContent.AddItem(form, 0, 1, true)
-				w.app.SetFocus(form)
+			w.stepContentInner.AddItem(form, 0, 1, true)
+			w.app.SetFocus(form)
 			}
 		}
 	} else {
@@ -1403,7 +1423,7 @@ func (w *InlineWizardView) summaryTarget() (viewID, label string) {
 }
 
 func (w *InlineWizardView) renderSummaryScreen() {
-	if w.stepContent == nil {
+	if w.stepContentInner == nil {
 		return
 	}
 
@@ -1420,7 +1440,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		i18n.T("wizard.complete")))
 
 	// Build summary content
-	w.stepContent.Clear()
+	w.stepContentInner.Clear()
 
 	// ── Recap text ──
 	summary := tview.NewTextView().SetDynamicColors(true)
@@ -1465,7 +1485,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	}
 
 	summary.SetText(b.String())
-	w.stepContent.AddItem(summary, 0, 1, false)
+	w.stepContentInner.AddItem(summary, 0, 1, false)
 
 	// ── Action button ──
 	targetView, targetLabel := w.summaryTarget()
@@ -1485,7 +1505,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		}
 	})
 
-	w.stepContent.AddItem(summaryForm, 3, 0, true)
+	w.stepContentInner.AddItem(summaryForm, 3, 0, true)
 	w.app.SetFocus(summaryForm)
 
 	// Update hints

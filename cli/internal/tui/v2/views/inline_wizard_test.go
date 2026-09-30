@@ -659,13 +659,13 @@ func TestInlineWizardView_SummaryShowsSkippedSteps(t *testing.T) {
 	require.True(t, v.completed, "wizard should be completed")
 
 	// renderSummaryScreen writes the summary (including skipped steps) into
-	// a TextView added to stepContent. Extract the text from the first item
-	// in stepContent (the summary TextView).
-	require.NotNil(t, v.stepContent, "stepContent should exist")
-	require.Greater(t, v.stepContent.GetItemCount(), 0, "stepContent should have items")
+	// a TextView added to stepContentInner. Extract the text from the first item
+	// in stepContentInner (the summary TextView).
+	require.NotNil(t, v.stepContentInner, "stepContentInner should exist")
+	require.Greater(t, v.stepContentInner.GetItemCount(), 0, "stepContentInner should have items")
 
-	// The first item in stepContent after renderSummaryScreen is the summary TextView.
-	summaryPrimitive := v.stepContent.GetItem(0)
+	// The first item in stepContentInner after renderSummaryScreen is the summary TextView.
+	summaryPrimitive := v.stepContentInner.GetItem(0)
 	summaryTV, ok := summaryPrimitive.(*tview.TextView)
 	require.True(t, ok, "first stepContent item should be a *tview.TextView")
 
