@@ -555,10 +555,11 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			styleWizardForm(form)
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       i18n.T("cmd.init.wizard_step_provider_label"),
-				Content:     form,
-				Buttons:     buttonForm,
-				FocusTarget: form,
+				Badge:           i18n.T("cmd.init.wizard_step_provider_label"),
+				Content:         form,
+				ContentMaxWidth: views.ComputeFormMaxWidth(form),
+				Buttons:         buttonForm,
+				FocusTarget:     form,
 			})
 			views.SetupFormNavigation(form)
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
@@ -891,10 +892,11 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			styleWizardForm(form)
 
 			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       i18n.T("cmd.init.wizard_step_project"),
-				Content:     form,
-				Buttons:     buttonForm,
-				FocusTarget: form,
+				Badge:           i18n.T("cmd.init.wizard_step_project"),
+				Content:         form,
+				ContentMaxWidth: views.ComputeFormMaxWidth(form),
+				Buttons:         buttonForm,
+				FocusTarget:     form,
 			})
 			onFormRebuilt = func() {
 				if pageResult.ResizeContent != nil {
@@ -1081,10 +1083,11 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 			styleWizardForm(form)
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       i18n.T("cmd.init.wizard_step_agents"),
-				Content:     form,
-				Buttons:     buttonForm,
-				FocusTarget: form,
+				Badge:           i18n.T("cmd.init.wizard_step_agents"),
+				Content:         form,
+				ContentMaxWidth: views.ComputeFormMaxWidth(form),
+				Buttons:         buttonForm,
+				FocusTarget:     form,
 			})
 			views.SetupFormNavigation(form)
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
@@ -1206,6 +1209,7 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 			})
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
+				Badge:       i18n.T("cmd.init.wizard_step_deploy_confirm"),
 				Intro:       b.String(),
 				Buttons:     buttonForm,
 				FocusTarget: buttonForm,
@@ -1445,10 +1449,11 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			styleWizardForm(form)
 
 			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       "MCP",
-				Content:     form,
-				Buttons:     buttonForm,
-				FocusTarget: form,
+				Badge:           "MCP",
+				Content:         form,
+				ContentMaxWidth: views.ComputeFormMaxWidth(form),
+				Buttons:         buttonForm,
+				FocusTarget:     form,
 			})
 			onFormRebuilt = func() {
 				if pageResult.ResizeContent != nil {

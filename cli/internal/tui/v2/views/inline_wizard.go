@@ -1079,20 +1079,24 @@ func (w *InlineWizardView) renderStep(idx int) {
 				} else {
 					// ── Normal grouped layout — BuildWizardPage ──
 
-					// Compute dynamic max width from form content.
-					formMaxWidth := 60
-					for i := 0; i < form.GetFormItemCount(); i++ {
-						label := form.GetFormItem(i).GetLabel()
-						w2 := tview.TaggedStringWidth(label) + 40
-						if w2 > formMaxWidth {
-							formMaxWidth = w2
-						}
+				// Compute dynamic max width from form content.
+				formMaxWidth := 60
+				for i := 0; i < form.GetFormItemCount(); i++ {
+					label := form.GetFormItem(i).GetLabel()
+					w2 := tview.TaggedStringWidth(label) + 40
+					if w2 > formMaxWidth {
+						formMaxWidth = w2
 					}
-					if formMaxWidth > 80 {
-						formMaxWidth = 80
-					}
+				}
+				if formMaxWidth > 80 {
+					formMaxWidth = 80
+				}
+				// Cap at available width to prevent clipping on small terminals.
+				if innerW := StepContentInnerWidth(); innerW > 0 && formMaxWidth > innerW {
+					formMaxWidth = innerW
+				}
 
-					form.SetBorderPadding(1, 1, 1, 1)
+					form.SetBorderPadding(1, 1, 2, 2) // match styleWizardForm for visual consistency
 
 					// Separate button form at fixed position.
 					buttonForm := NewStyledButtonForm()
@@ -1596,6 +1600,7 @@ func NewStyledButtonForm() *tview.Form {
 		Background(theme.ActiveMode.Secondary).
 		Foreground(theme.BgPanel))
 	f.SetBorder(false)
+	f.SetBorderPadding(1, 1, 1, 1) // must match estimateButtonFormHeight assumptions
 	return f
 }
 

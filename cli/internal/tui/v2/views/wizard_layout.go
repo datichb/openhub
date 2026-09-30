@@ -102,6 +102,12 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 	if layout.ContentMaxWidth > 0 && layout.ContentMaxWidth < minFormWidth {
 		layout.ContentMaxWidth = minFormWidth
 	}
+	// Cap at available width to prevent clipping on small terminals.
+	if layout.ContentMaxWidth > 0 {
+		if innerW := StepContentInnerWidth(); innerW > 0 && layout.ContentMaxWidth > innerW {
+			layout.ContentMaxWidth = innerW
+		}
+	}
 
 	_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
 	if termH <= 0 {
@@ -401,4 +407,62 @@ func maxVisibleWidth(text string) int {
 // MaxVisibleWidth is the exported version of maxVisibleWidth.
 func MaxVisibleWidth(text string) int {
 	return maxVisibleWidth(text)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Width helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// StepContentInnerWidth computes the theoretical width of the
+// stepContentInner wrapper for a grouped layout. This mirrors the
+// proportional layout built by mountGroupedLayout:
+//
+//	shell content   = termW − 4  (SetBorderPadding left=2, right=2)
+//	bodyRow         = shell content
+//	leftCol         = (bodyRow − 1) × 3/4   (proportion 3, minus separator)
+//	leftCol inner   = leftCol − 3           (SetBorderPadding left=2, right=1)
+//	stepContentInner = leftCol inner × 5/7  (centering wrapper proportion 5)
+//
+// Returns 0 if the terminal width cannot be determined.
+func StepContentInnerWidth() int {
+	termW, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || termW <= 0 {
+		return 0
+	}
+	bodyRow := termW - 4       // shell padding left=2 + right=2
+	remaining := bodyRow - 1   // minus vertical separator
+	leftCol := remaining * 3 / 4
+	leftColInner := leftCol - 3 // leftCol padding left=2 + right=1
+	if leftColInner <= 0 {
+		return 0
+	}
+	innerW := leftColInner * 5 / 7
+	return innerW
+}
+
+// ComputeFormMaxWidth computes a dynamic max width for a form based on its
+// label widths. This mirrors the engine's formMaxWidth computation (inline
+// wizard grouped mode) to ensure visual consistency between CustomView and
+// engine-managed forms.
+//
+// The result is clamped to [minFormWidth, 80], then capped at the available
+// stepContentInner width (if determinable) to prevent clipping on small
+// terminals.
+func ComputeFormMaxWidth(form *tview.Form) int {
+	maxW := minFormWidth // 60
+	for i := 0; i < form.GetFormItemCount(); i++ {
+		label := form.GetFormItem(i).GetLabel()
+		w := tview.TaggedStringWidth(label) + 40
+		if w > maxW {
+			maxW = w
+		}
+	}
+	if maxW > 80 {
+		maxW = 80
+	}
+	// Cap at available width to prevent clipping on small terminals.
+	if innerW := StepContentInnerWidth(); innerW > 0 && maxW > innerW {
+		maxW = innerW
+	}
+	return maxW
 }
