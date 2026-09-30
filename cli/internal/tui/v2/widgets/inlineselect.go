@@ -14,8 +14,9 @@ import (
 // InlineSelect — a FormItem that displays all options inline with ↑↓ navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// InlineSelect is a custom form item that shows all options as a vertical list.
-// The user navigates with ↑↓ and confirms with Enter or Tab.
+// InlineSelect is a custom form item that shows all options as a vertical list
+// with radio-style indicators (◉/○). The user navigates with ↑↓ (moves the
+// cursor highlight) and confirms with Enter or Space (commits the selection).
 // It implements tview.FormItem and can be added to a Form via AddFormItem().
 type InlineSelect struct {
 	*tview.Box
@@ -23,7 +24,8 @@ type InlineSelect struct {
 	label        string
 	options      []string
 	descriptions []string // optional: one description per option, shown below each option in muted color
-	selected     int
+	cursor       int      // the highlighted option (moved by ↑↓, visual only)
+	selected     int      // the confirmed selection (changed by Enter/Space, triggers onChange)
 	onChange     func(value string, idx int)
 	finishedFunc func(key tcell.Key)
 	hasFocus     bool
@@ -158,6 +160,12 @@ func (s *InlineSelect) GetSelectedValue() string {
 	return ""
 }
 
+// GetCursorIndex returns the index of the currently highlighted option.
+// This is the navigation cursor, NOT the confirmed selection.
+func (s *InlineSelect) GetCursorIndex() int {
+	return s.cursor
+}
+
 // Focus is called when this primitive receives focus.
 func (s *InlineSelect) Focus(delegate func(p tview.Primitive)) {
 	s.hasFocus = true
@@ -232,31 +240,43 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 	row := 0
 
 	// ── Draw options ──
+	// Two visual indicators:
+	//   ◉/○ = radio indicator (follows s.selected — the confirmed choice)
+	//   BgElement highlight = cursor (follows s.cursor — navigation position)
 	for i, opt := range s.options {
-		cursorColor := theme.FgMuted
-		textColor := s.fieldText
-		bg := s.fieldBg
+		isCursor := i == s.cursor && s.hasFocus
+		isSelected := i == s.selected
 
-		if i == s.selected {
-			if s.hasFocus {
-				cursorColor = theme.ActiveMode.Primary
-				textColor = theme.FgPrimary
-				bg = theme.BgElement
-			} else {
-				cursorColor = theme.FgSecondary
-				textColor = theme.FgPrimary
-			}
+		// Determine background: cursor position gets BgElement highlight.
+		bg := s.fieldBg
+		if isCursor {
+			bg = theme.BgElement
+		}
+
+		// Determine text color based on cursor and selection state.
+		textColor := s.fieldText
+		radioColor := theme.FgMuted
+		if isSelected {
+			radioColor = theme.ActiveMode.Primary
+			textColor = theme.FgPrimary
+		}
+		if isCursor {
+			textColor = theme.FgPrimary
+		}
+		if !s.hasFocus && isSelected {
+			radioColor = theme.FgSecondary
+			textColor = theme.FgPrimary
 		}
 
 		rowStyle := tcell.StyleDefault.Background(bg).Foreground(textColor)
-		cursorStyle := tcell.StyleDefault.Background(bg).Foreground(cursorColor)
+		radioStyle := tcell.StyleDefault.Background(bg).Foreground(radioColor)
 
 		// Option label line — radio style (◉ selected, ○ unselected)
 		col := x + padLeft + 2 // indent
-		if i == s.selected {
-			screen.SetContent(col, y+row, '◉', nil, cursorStyle)
+		if isSelected {
+			screen.SetContent(col, y+row, '◉', nil, radioStyle)
 		} else {
-			screen.SetContent(col, y+row, '○', nil, rowStyle)
+			screen.SetContent(col, y+row, '○', nil, radioStyle)
 		}
 		col++
 		screen.SetContent(col, y+row, ' ', nil, rowStyle)
@@ -316,20 +336,22 @@ func (s *InlineSelect) InputHandler() func(event *tcell.EventKey, setFocus func(
 
 		switch event.Key() {
 		case tcell.KeyUp:
-			if s.selected > 0 {
-				s.selected--
-				if s.onChange != nil {
-					s.onChange(s.options[s.selected], s.selected)
-				}
+			if s.cursor > 0 {
+				s.cursor--
 			}
 		case tcell.KeyDown:
-			if s.selected < len(s.options)-1 {
-				s.selected++
+			if s.cursor < len(s.options)-1 {
+				s.cursor++
+			}
+		case tcell.KeyEnter:
+			// Confirm selection: move selected to cursor position.
+			if s.cursor != s.selected {
+				s.selected = s.cursor
 				if s.onChange != nil {
 					s.onChange(s.options[s.selected], s.selected)
 				}
 			}
-		case tcell.KeyEnter, tcell.KeyTab:
+		case tcell.KeyTab:
 			if s.finishedFunc != nil {
 				s.finishedFunc(tcell.KeyTab)
 			}
@@ -342,18 +364,19 @@ func (s *InlineSelect) InputHandler() func(event *tcell.EventKey, setFocus func(
 				s.finishedFunc(tcell.KeyEscape)
 			}
 		default:
-			// Handle rune keys for vim-style navigation
 			switch event.Rune() {
 			case 'j':
-				if s.selected < len(s.options)-1 {
-					s.selected++
-					if s.onChange != nil {
-						s.onChange(s.options[s.selected], s.selected)
-					}
+				if s.cursor < len(s.options)-1 {
+					s.cursor++
 				}
 			case 'k':
-				if s.selected > 0 {
-					s.selected--
+				if s.cursor > 0 {
+					s.cursor--
+				}
+			case ' ':
+				// Space also confirms selection.
+				if s.cursor != s.selected {
+					s.selected = s.cursor
 					if s.onChange != nil {
 						s.onChange(s.options[s.selected], s.selected)
 					}
@@ -395,6 +418,7 @@ func (s *InlineSelect) MouseHandler() func(action tview.MouseAction, event *tcel
 			}
 
 			if optIdx >= 0 && optIdx < len(s.options) && mx >= x {
+				s.cursor = optIdx
 				s.selected = optIdx
 				if s.onChange != nil {
 					s.onChange(s.options[s.selected], s.selected)

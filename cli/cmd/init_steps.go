@@ -477,7 +477,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					tvApp.SetFocus(buttonForm)
 					return nil
 				case tcell.KeyDown:
-					if modeSelect.GetSelectedIndex() == lastModeIdx {
+					if modeSelect.GetCursorIndex() == lastModeIdx {
 						tvApp.SetFocus(buttonForm)
 						return nil
 					}
