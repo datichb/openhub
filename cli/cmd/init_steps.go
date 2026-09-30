@@ -238,11 +238,13 @@ func buildFormStepLayout(
 	}
 
 	// Adaptive layout: same thresholds as engine/intro (35/20/minimal).
+	// The form is the sole flexible item — it absorbs all remaining space.
+	// Its fields render at the top; the empty area below acts as a natural
+	// spacer between the form content and the button bar (same pattern as
+	// the welcome step).
 	if availH >= 35 {
 		topSpacer := tview.NewBox()
 		topSpacer.SetBackgroundColor(theme.BgPanel)
-		flexSpacer := tview.NewBox()
-		flexSpacer.SetBackgroundColor(theme.BgPanel)
 		bottomSpacer := tview.NewBox()
 		bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
@@ -256,14 +258,11 @@ func buildFormStepLayout(
 		container.AddItem(tv, tvHeight, 0, false)
 		addHeader()
 		container.AddItem(form, 0, 1, true)
-		container.AddItem(flexSpacer, 0, 2, false)
 		container.AddItem(buttonForm, 5, 0, false)
 		container.AddItem(bottomSpacer, 3, 0, false)
 	} else if availH >= 20 {
 		topSpacer := tview.NewBox()
 		topSpacer.SetBackgroundColor(theme.BgPanel)
-		flexSpacer := tview.NewBox()
-		flexSpacer.SetBackgroundColor(theme.BgPanel)
 
 		maxTvH := availH - 1 - headerFixedH - 3 // top + header + btn
 		if tvHeight > maxTvH && maxTvH > 5 {
@@ -274,7 +273,6 @@ func buildFormStepLayout(
 		container.AddItem(tv, tvHeight, 0, false)
 		addHeader()
 		container.AddItem(form, 0, 1, true)
-		container.AddItem(flexSpacer, 0, 2, false)
 		container.AddItem(buttonForm, 3, 0, false)
 	} else {
 		container.AddItem(tv, 0, 1, false)
