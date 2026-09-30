@@ -135,12 +135,15 @@ func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredSt
 // It is allocated once by buildInitWizardTeamSteps and captured by closures.
 type initWizardTeamState struct {
 	Skipped       bool   // user chose not to configure team
-	Mode          string // "init" or "rejoin" (empty = not chosen yet)
+	Mode          string // "init", "rejoin", or "keep" (empty = not chosen yet)
 	Repo          string // team-state repo URL
 	MemberID      string // member identifier
 	DisplayName   string // optional display name
 	Configured    bool   // true after successful teamInitCore or teamRejoinCore
 	TeamID        string // derived team ID (after init or rejoin)
+	// Existing team detection (re-init)
+	ExistingTeam *config.TeamConfig // non-nil if a team is already configured
+	TeamChoice   string             // "keep", "reconfigure", "skip" (only when ExistingTeam != nil)
 	attachProject bool   // true if user wants to attach the project to this team
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
@@ -1083,6 +1086,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			warning := theme.ColorTag(theme.WarningHex)
+			infoColor := theme.ColorTag(theme.InfoHex)
 			reset := theme.TagColor
 
 			title := i18n.T("cmd.init.wizard_intro_team_title")
@@ -1098,17 +1102,28 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 			}
 			b.WriteString("\n")
 
-			// Prerequisites
-			if prereqs != "" {
-				fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
-				for _, line := range strings.Split(prereqs, "\n") {
-					if strings.HasPrefix(line, "• ") {
-						fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
-					} else {
-						fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
+			if state.ExistingTeam != nil {
+				// ── Existing team recap ──
+				fmt.Fprintf(&b, "%s%s %s%s\n", infoColor, theme.IconInfo,
+					i18n.T("cmd.init.wizard_team_existing"), reset)
+				fmt.Fprintf(&b, "%s  %s%s\n\n", muted,
+					i18n.Tf("cmd.init.wizard_team_existing_info",
+						state.ExistingTeam.ID,
+						state.ExistingTeam.StateRepo,
+						state.ExistingTeam.MemberID), reset)
+			} else {
+				// ── Prerequisites (only when no existing team) ──
+				if prereqs != "" {
+					fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
+					for _, line := range strings.Split(prereqs, "\n") {
+						if strings.HasPrefix(line, "• ") {
+							fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
+						} else {
+							fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
+						}
 					}
+					b.WriteString("\n")
 				}
-				b.WriteString("\n")
 			}
 
 			// Note
@@ -1125,85 +1140,245 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 			tv.SetBackgroundColor(theme.BgPanel)
 			tv.SetText(b.String())
 
-			// Button form with 3 choices
-			buttonForm := views.NewStyledButtonForm()
+			// ── Build interaction layer ──
+			var focusPrimitive tview.Primitive
 
-			// Button 1: Create a new team
-			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_init")+"  ", func() {
-				state.Mode = "init"
-				state.Skipped = false
-				onDone()
-			})
+			if state.ExistingTeam != nil {
+				// ── Existing team detected: dropdown + buttons ──
+				form := tview.NewForm()
+				options := []string{
+					i18n.T("cmd.init.wizard_select_placeholder"),
+					i18n.T("cmd.init.wizard_team_choice_keep"),
+					i18n.T("cmd.init.wizard_team_choice_reconfigure"),
+					i18n.T("wizard.intro.skip"),
+				}
+				defaultIdx := 0
+				if state.TeamChoice == "keep" {
+					defaultIdx = 1
+				} else if state.TeamChoice == "reconfigure" {
+					defaultIdx = 2
+				} else if state.TeamChoice == "skip" {
+					defaultIdx = 3
+				}
 
-			// Button 2: Rejoin an existing team
-			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_rejoin")+"  ", func() {
-				state.Mode = "rejoin"
-				state.Skipped = false
-				onDone()
-			})
+				var rebuildButtons func()
+				buttonForm := views.NewStyledButtonForm()
 
-			// Button 3: Skip (with double-click confirmation)
-			skipConfirmed := false
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
-				if !skipConfirmed {
-					skipConfirmed = true
-					if btn := buttonForm.GetButton(2); btn != nil {
-						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+				choiceMounted := false
+				form.AddDropDown(i18n.T("cmd.init.wizard_team_choice_label"), options, defaultIdx, func(_ string, idx int) {
+					switch idx {
+					case 1:
+						state.TeamChoice = "keep"
+					case 2:
+						state.TeamChoice = "reconfigure"
+					case 3:
+						state.TeamChoice = "skip"
+					default:
+						state.TeamChoice = ""
 					}
-					return
+					if choiceMounted {
+						go func() { tvApp.QueueUpdateDraw(func() { rebuildButtons() }) }()
+					}
+				})
+				choiceMounted = true
+				views.FixFormDropDownStyles(form)
+
+				rebuildButtons = func() {
+					buttonForm.Clear(true)
+					switch state.TeamChoice {
+					case "keep":
+						buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+							state.Mode = "keep"
+							state.Configured = true
+							state.TeamID = state.ExistingTeam.ID
+							state.Skipped = false
+							onDone()
+						})
+					case "reconfigure":
+						buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_init")+"  ", func() {
+							state.Mode = "init"
+							state.Skipped = false
+							onDone()
+						})
+						buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_rejoin")+"  ", func() {
+							state.Mode = "rejoin"
+							state.Skipped = false
+							onDone()
+						})
+					case "skip":
+						buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+							state.Skipped = true
+							state.Mode = ""
+							onDone()
+						})
+					default:
+						// Placeholder selected — show a disabled submit.
+						buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
+							// No-op: Validate will reject missing choice.
+							onDone()
+						})
+					}
+					// Arrow keys navigate between buttons.
+					buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						switch event.Key() {
+						case tcell.KeyLeft:
+							return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+						case tcell.KeyRight:
+							return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+						case tcell.KeyUp:
+							tvApp.SetFocus(form)
+							return nil
+						}
+						return event
+					})
 				}
-				state.Skipped = true
-				state.Mode = ""
-				onDone()
-			})
+				rebuildButtons()
 
-			// Arrow keys navigate between buttons
-			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				switch event.Key() {
-				case tcell.KeyLeft:
-					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
-				case tcell.KeyRight:
-					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+				// Tab from form → buttonForm.
+				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					if event.Key() == tcell.KeyTab {
+						tvApp.SetFocus(buttonForm)
+						return nil
+					}
+					return event
+				})
+
+				// Adaptive layout with badge.
+				_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+				if termH <= 0 {
+					termH = 50
 				}
-				return event
-			})
+				availH := termH - 7
 
-			// Adaptive layout: reduce chrome when terminal is small.
-			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
-			if termH <= 0 {
-				termH = 50
-			}
-			availH := termH - 7
+				if availH >= 35 {
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
+					badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), false)
+					gapSpacer := tview.NewBox()
+					gapSpacer.SetBackgroundColor(theme.BgPanel)
+					bottomSpacer := tview.NewBox()
+					bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
-			if availH >= 35 {
-				topSpacer := tview.NewBox()
-				topSpacer.SetBackgroundColor(theme.BgPanel)
-				badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), false)
-				gapSpacer := tview.NewBox()
-				gapSpacer.SetBackgroundColor(theme.BgPanel)
-				bottomSpacer := tview.NewBox()
-				bottomSpacer.SetBackgroundColor(theme.BgPanel)
+					container.AddItem(topSpacer, 3, 0, false)
+					container.AddItem(badgeView, 5, 0, false)
+					container.AddItem(gapSpacer, 2, 0, false)
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(form, 3, 0, false)
+					container.AddItem(buttonForm, 5, 0, true)
+					container.AddItem(bottomSpacer, 3, 0, false)
+				} else if availH >= 20 {
+					badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), true)
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
 
-				container.AddItem(topSpacer, 3, 0, false)
-				container.AddItem(badgeView, 5, 0, false)
-				container.AddItem(gapSpacer, 2, 0, false)
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(buttonForm, 5, 0, true)
-				container.AddItem(bottomSpacer, 3, 0, false)
-			} else if availH >= 20 {
-				badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), true)
-				topSpacer := tview.NewBox()
-				topSpacer.SetBackgroundColor(theme.BgPanel)
-
-				container.AddItem(topSpacer, 1, 0, false)
-				container.AddItem(badgeView, 3, 0, false)
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(buttonForm, 3, 0, true)
+					container.AddItem(topSpacer, 1, 0, false)
+					container.AddItem(badgeView, 3, 0, false)
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(form, 3, 0, false)
+					container.AddItem(buttonForm, 3, 0, true)
+				} else {
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(form, 3, 0, false)
+					container.AddItem(buttonForm, 3, 0, true)
+				}
+				focusPrimitive = form
 			} else {
-				container.AddItem(tv, 0, 1, false)
-				container.AddItem(buttonForm, 3, 0, true)
+				// ── No existing team: 3 buttons (original layout) ──
+				buttonForm := views.NewStyledButtonForm()
+
+				// Button 1: Create a new team
+				buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_init")+"  ", func() {
+					state.Mode = "init"
+					state.Skipped = false
+					onDone()
+				})
+
+				// Button 2: Rejoin an existing team
+				buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_team_mode_rejoin")+"  ", func() {
+					state.Mode = "rejoin"
+					state.Skipped = false
+					onDone()
+				})
+
+				// Button 3: Skip (with double-click confirmation)
+				skipConfirmed := false
+				buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
+					if !skipConfirmed {
+						skipConfirmed = true
+						if btn := buttonForm.GetButton(2); btn != nil {
+							btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
+						}
+						return
+					}
+					state.Skipped = true
+					state.Mode = ""
+					onDone()
+				})
+
+				// Arrow keys navigate between buttons
+				buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					switch event.Key() {
+					case tcell.KeyLeft:
+						return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
+					case tcell.KeyRight:
+						return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+					}
+					return event
+				})
+
+				// Adaptive layout: reduce chrome when terminal is small.
+				_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+				if termH <= 0 {
+					termH = 50
+				}
+				availH := termH - 7
+
+				if availH >= 35 {
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
+					badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), false)
+					gapSpacer := tview.NewBox()
+					gapSpacer.SetBackgroundColor(theme.BgPanel)
+					bottomSpacer := tview.NewBox()
+					bottomSpacer.SetBackgroundColor(theme.BgPanel)
+
+					container.AddItem(topSpacer, 3, 0, false)
+					container.AddItem(badgeView, 5, 0, false)
+					container.AddItem(gapSpacer, 2, 0, false)
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(buttonForm, 5, 0, true)
+					container.AddItem(bottomSpacer, 3, 0, false)
+				} else if availH >= 20 {
+					badgeView := views.BuildStepBadge(i18n.T("cmd.init.wizard_step_team"), true)
+					topSpacer := tview.NewBox()
+					topSpacer.SetBackgroundColor(theme.BgPanel)
+
+					container.AddItem(topSpacer, 1, 0, false)
+					container.AddItem(badgeView, 3, 0, false)
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(buttonForm, 3, 0, true)
+				} else {
+					container.AddItem(tv, 0, 1, false)
+					container.AddItem(buttonForm, 3, 0, true)
+				}
+				focusPrimitive = buttonForm
 			}
-			tvApp.SetFocus(buttonForm)
+
+			tvApp.SetFocus(focusPrimitive)
+		},
+		Validate: func() string {
+			if state.ExistingTeam != nil && state.TeamChoice == "" {
+				return i18n.T("cmd.init.wizard_project_choice_required") // reuse: "Please select an option"
+			}
+			return ""
+		},
+		InfoFields: func() []views.InfoField {
+			if state.Mode == "keep" && state.ExistingTeam != nil {
+				return []views.InfoField{
+					{Label: i18n.T("cmd.init.wizard_step_team"), Value: infoSuccess(i18n.T("cmd.init.wizard_team_kept"))},
+				}
+			}
+			return nil // for init/rejoin/skip, sub-steps provide InfoFields.
 		},
 	}
 }

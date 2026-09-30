@@ -4,11 +4,13 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -71,6 +73,27 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 				s.Region = r
 			}
 		}
+	}
+
+	// ── Pre-fill project from existing DB entry at CWD ──────────────────
+	if a.Projects != nil {
+		if cwd, err := filepath.Abs("."); err == nil {
+			if existing, err := a.Projects.GetByPath(context.Background(), cwd); err == nil &&
+				existing != nil && existing.Status == domain.ProjectStatusActive {
+				s.ExistingProject = existing
+				s.ProjectName = existing.Name
+				s.ProjectPath = existing.Path
+				s.ProjectID = existing.ID
+			}
+		}
+	}
+
+	// ── Pre-fill team from existing hub config ──────────────────────────
+	if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled && activeTeam.StateRepo != "" {
+		tc := activeTeam // copy to avoid pointer aliasing
+		teamState.ExistingTeam = &tc
+		teamState.Repo = activeTeam.StateRepo
+		teamState.MemberID = activeTeam.MemberID
 	}
 
 	// ── Detect system locale early ───────────────────────────────────────

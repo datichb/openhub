@@ -67,6 +67,8 @@ type initStepState struct {
 	ProjectCreated  bool
 	ProjectSkipped  bool
 	DeployConfirmed bool
+	ProjectChoice   string          // "keep" or "reconfigure" (only when ExistingProject != nil)
+	ExistingProject *domain.Project // non-nil if a project was found at CWD
 
 	// ── MCP ──
 	FigmaToken   string
@@ -967,6 +969,12 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			if s.ProjectSkipped {
 				return "" // Skip mode: bypass validation.
 			}
+			if s.ExistingProject != nil && s.ProjectChoice == "" {
+				return i18n.T("cmd.init.wizard_project_choice_required")
+			}
+			if s.ExistingProject != nil && s.ProjectChoice == "keep" {
+				return "" // Keeping existing project — no field validation needed.
+			}
 			if s.ProjectName == "" {
 				return i18n.T("cmd.init.wizard_project_name_required")
 			}
@@ -1001,6 +1009,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			secondary := theme.ColorTag(theme.TextSecondaryHex)
 			muted := theme.ColorTag(theme.TextMutedHex)
 			reset := theme.TagColor
+			infoColor := theme.ColorTag(theme.InfoHex)
 
 			var intro strings.Builder
 			fmt.Fprintf(&intro, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_intro_project_title"), reset)
@@ -1011,6 +1020,20 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			if note != "" {
 				fmt.Fprintf(&intro, "%s%s%s\n", muted, note, reset)
 			}
+
+			// ── Existing project recap ──
+			if s.ExistingProject != nil {
+				intro.WriteString("\n")
+				fmt.Fprintf(&intro, "%s%s %s%s\n", infoColor, theme.IconInfo,
+					i18n.T("cmd.init.wizard_project_existing"), reset)
+				fmt.Fprintf(&intro, "%s  %s%s\n", muted,
+					i18n.Tf("cmd.init.wizard_project_existing_info", s.ExistingProject.Name, s.ExistingProject.Path), reset)
+				if s.ExistingProject.TeamID != nil && *s.ExistingProject.TeamID != "" {
+					fmt.Fprintf(&intro, "%s  %s%s\n", muted,
+						i18n.Tf("cmd.init.wizard_project_existing_team", *s.ExistingProject.TeamID), reset)
+				}
+			}
+
 			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
 
 			// ── Auto-detection: pre-fill project name from git remote ──
@@ -1028,36 +1051,89 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				s.ProjectPath = "."
 			}
 
-			// ── Form with interactive fields only ──
+			// ── Form rebuilt dynamically based on existing project + choice ──
 			form := tview.NewForm()
-			initialName := s.ProjectName
-			initialPath := s.ProjectPath
-			form.AddInputField(i18n.T("cmd.init.wizard_project_name"), initialName, 0, nil, func(t string) { s.ProjectName = t })
-			if detectedProject != "" {
-				infoColor := theme.ColorTag(theme.InfoHex)
-				form.AddTextView("", fmt.Sprintf("%s%s%s", infoColor, i18n.Tf("cmd.init.wizard_detected_from", detectedProject), reset), 60, 1, true, false)
-			}
-			form.AddInputField(i18n.T("cmd.init.wizard_project_path"), initialPath, 0, nil, func(t string) { s.ProjectPath = t })
 
-			if s.TeamState.Configured && s.TeamState.TeamID != "" {
-				attachOptions := []string{
-					i18n.Tf("cmd.init.wizard_project_attach_yes", s.TeamState.TeamID),
-					i18n.T("cmd.init.wizard_project_attach_no"),
-				}
-				s.TeamState.attachProject = true
-				attachMounted := false
-				form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
-					s.TeamState.attachProject = idx == 0
-					if attachMounted {
-						views.AutoAdvanceFromDropDown(tvApp, form, 2)
+			// addTeamAttachment adds the team dropdown if a team is configured.
+			addTeamAttachment := func() {
+				if s.TeamState.Configured && s.TeamState.TeamID != "" {
+					attachOptions := []string{
+						i18n.Tf("cmd.init.wizard_project_attach_yes", s.TeamState.TeamID),
+						i18n.T("cmd.init.wizard_project_attach_no"),
 					}
-				})
-				// Mark as mounted after the closure is created to avoid
-				// triggering auto-advance during initial render.
-				defer func() { attachMounted = true }()
+					s.TeamState.attachProject = true
+					attachMounted := false
+					form.AddDropDown(i18n.T("cmd.init.wizard_project_attach_team"), attachOptions, 0, func(_ string, idx int) {
+						s.TeamState.attachProject = idx == 0
+						if attachMounted {
+							views.AutoAdvanceFromDropDown(tvApp, form, 2)
+						}
+					})
+					defer func() { attachMounted = true }()
+				}
 			}
 
-			views.FixFormDropDownStyles(form)
+			var rebuildForm func(focusIdx int)
+			rebuildForm = func(focusIdx int) {
+				form.Clear(true)
+
+				if s.ExistingProject != nil {
+					// ── Existing project detected: show choice dropdown ──
+					options := []string{
+						i18n.T("cmd.init.wizard_select_placeholder"),
+						i18n.T("cmd.init.wizard_project_choice_keep"),
+						i18n.T("cmd.init.wizard_project_choice_reconfigure"),
+					}
+					defaultIdx := 0
+					if s.ProjectChoice == "keep" {
+						defaultIdx = 1
+					} else if s.ProjectChoice == "reconfigure" {
+						defaultIdx = 2
+					}
+					choiceMounted := false
+					form.AddDropDown(i18n.T("cmd.init.wizard_project_choice_label"), options, defaultIdx, func(_ string, idx int) {
+						switch idx {
+						case 1:
+							s.ProjectChoice = "keep"
+						case 2:
+							s.ProjectChoice = "reconfigure"
+						default:
+							s.ProjectChoice = ""
+						}
+						if choiceMounted {
+							go func() { tvApp.QueueUpdateDraw(func() { rebuildForm(0) }) }()
+						}
+					})
+					choiceMounted = true
+
+					if s.ProjectChoice == "keep" {
+						// Keep mode: only show team attachment option.
+						addTeamAttachment()
+					} else if s.ProjectChoice == "reconfigure" {
+						// Reconfigure mode: show editable fields (pre-filled).
+						form.AddInputField(i18n.T("cmd.init.wizard_project_name"), s.ProjectName, 0, nil, func(t string) { s.ProjectName = t })
+						form.AddInputField(i18n.T("cmd.init.wizard_project_path"), s.ProjectPath, 0, nil, func(t string) { s.ProjectPath = t })
+						addTeamAttachment()
+					}
+					// else: placeholder selected, show nothing extra.
+				} else {
+					// ── No existing project: standard creation form ──
+					form.AddInputField(i18n.T("cmd.init.wizard_project_name"), s.ProjectName, 0, nil, func(t string) { s.ProjectName = t })
+					if detectedProject != "" {
+						form.AddTextView("", fmt.Sprintf("%s%s%s", infoColor, i18n.Tf("cmd.init.wizard_detected_from", detectedProject), reset), 60, 1, true, false)
+					}
+					form.AddInputField(i18n.T("cmd.init.wizard_project_path"), s.ProjectPath, 0, nil, func(t string) { s.ProjectPath = t })
+					addTeamAttachment()
+				}
+
+				views.FixFormDropDownStyles(form)
+				if focusIdx >= 0 {
+					form.SetFocus(focusIdx)
+				}
+				views.FixFormLabelFocus(form)
+				tvApp.SetFocus(form)
+			}
+			rebuildForm(-1)
 
 			// ── Button bar with Submit + Skip (double-click confirm) ──
 			buttonForm := views.NewStyledButtonForm()
@@ -1092,6 +1168,30 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			}
 			ctx := context.Background()
 
+			if s.ExistingProject != nil && s.ProjectChoice == "keep" {
+				// Keep existing project, but update team attachment if changed.
+				existing := s.ExistingProject
+				needUpdate := false
+				if s.TeamState.Configured && s.TeamState.attachProject && s.TeamState.TeamID != "" {
+					tid := s.TeamState.TeamID
+					if existing.TeamID == nil || *existing.TeamID != tid {
+						existing.TeamID = &tid
+						needUpdate = true
+					}
+				}
+				if needUpdate {
+					if err := store.Update(ctx, existing); err != nil {
+						return fmt.Errorf("update project: %w", err)
+					}
+				}
+				s.ProjectID = existing.ID
+				s.ProjectName = existing.Name
+				s.ProjectPath = existing.Path
+				s.ProjectCreated = true
+				return nil
+			}
+
+			// "reconfigure" or new project — upsert logic.
 			p := &domain.Project{
 				ID:     uuid.New().String()[:8],
 				Name:   s.ProjectName,
@@ -1112,7 +1212,13 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: infoSuccess(i18n.T("cmd.init.wizard_project_added"))}}
+			var status string
+			if s.ExistingProject != nil && s.ProjectChoice == "keep" {
+				status = infoSuccess(i18n.T("cmd.init.wizard_project_kept"))
+			} else {
+				status = infoSuccess(i18n.T("cmd.init.wizard_project_added"))
+			}
+			fields := []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_project"), Value: status}}
 			if s.TeamState.Configured && s.TeamState.attachProject && s.TeamState.TeamID != "" {
 				fields = append(fields, views.InfoField{
 					Label: i18n.T("cmd.init.wizard_step_team"),
