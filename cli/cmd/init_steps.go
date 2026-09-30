@@ -197,7 +197,7 @@ func buildFormStepLayout(
 			SetTextAlign(tview.AlignCenter)
 		headerView.SetBackgroundColor(theme.BgPanel)
 		headerView.SetText(headerText)
-		headerFixedH = 2 // 1 line header + 1 line gap above
+		headerFixedH = 3 // 1 line gap above + 1 line header + 1 line gap below
 	}
 
 	// Navigation: Tab on last form item → buttonForm, ↑ on buttonForm → form.
@@ -224,13 +224,16 @@ func buildFormStepLayout(
 		return event
 	})
 
-	// addHeader inserts the gap + header separator into the container.
+	// addHeader inserts gap + header separator + gap into the container.
 	addHeader := func() {
 		if headerView != nil {
-			gapSpacer := tview.NewBox()
-			gapSpacer.SetBackgroundColor(theme.BgPanel)
-			container.AddItem(gapSpacer, 1, 0, false)
+			gapAbove := tview.NewBox()
+			gapAbove.SetBackgroundColor(theme.BgPanel)
+			container.AddItem(gapAbove, 1, 0, false)
 			container.AddItem(headerView, 1, 0, false)
+			gapBelow := tview.NewBox()
+			gapBelow.SetBackgroundColor(theme.BgPanel)
+			container.AddItem(gapBelow, 1, 0, false)
 		}
 	}
 
@@ -496,6 +499,36 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			})
 
 			// ── Adaptive layout ──
+			// Build section header for the mode selector.
+			sectionTitle := i18n.T("cmd.init.wizard_section_mode")
+			titleLen := utf8.RuneCountInString(sectionTitle)
+			leftDashes := 3
+			rightDashes := maxTextWidth - titleLen - leftDashes - 5
+			if rightDashes < 3 {
+				rightDashes = 3
+			}
+			headerText := fmt.Sprintf("%s╶%s %s%s%s %s%s╴%s",
+				muted, strings.Repeat("─", leftDashes), accent, sectionTitle, reset,
+				muted, strings.Repeat("─", rightDashes), reset)
+			modeHeader := tview.NewTextView().
+				SetDynamicColors(true).
+				SetTextAlign(tview.AlignCenter)
+			modeHeader.SetBackgroundColor(theme.BgPanel)
+			modeHeader.SetText(headerText)
+
+			const headerFixedH = 3 // gap above + header + gap below
+
+			// addModeHeader inserts gap + header + gap into the container.
+			addModeHeader := func() {
+				gapAbove := tview.NewBox()
+				gapAbove.SetBackgroundColor(theme.BgPanel)
+				container.AddItem(gapAbove, 1, 0, false)
+				container.AddItem(modeHeader, 1, 0, false)
+				gapBelow := tview.NewBox()
+				gapBelow.SetBackgroundColor(theme.BgPanel)
+				container.AddItem(gapBelow, 1, 0, false)
+			}
+
 			// The tv has a fixed height computed from its content so the mode
 			// selector sits directly below the text. A single flexible spacer
 			// between modeForm and buttonForm takes all remaining space,
@@ -503,7 +536,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			// On small terminals, if the fixed content exceeds the available
 			// space, the flexSpacer shrinks to 0 and tv is scrollable.
 			if availH >= 35 {
-				// Full: topSpacer + text + mode(desc) + flex + button + bottomSpacer
+				// Full: topSpacer + text + header + mode(desc) + flex + button + bottomSpacer
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				flexSpacer := tview.NewBox()
@@ -512,31 +545,33 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
 				// Clamp tvHeight so button + bottomSpacer are always visible.
-				maxTvH := availH - 3 - modeFormHeight - 5 - 3 // top + mode + btn + bottom
+				maxTvH := availH - 3 - headerFixedH - modeFormHeight - 5 - 3 // top + header + mode + btn + bottom
 				if tvHeight > maxTvH && maxTvH > 5 {
 					tvHeight = maxTvH
 				}
 
 				container.AddItem(topSpacer, 3, 0, false)
 				container.AddItem(tv, tvHeight, 0, false)
+				addModeHeader()
 				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(flexSpacer, 0, 1, false)
 				container.AddItem(buttonForm, 5, 0, false)
 				container.AddItem(bottomSpacer, 3, 0, false)
 			} else if availH >= 20 {
-				// Compact: topSpacer + text + mode(desc?) + flex + button
+				// Compact: topSpacer + text + header + mode(desc?) + flex + button
 				topSpacer := tview.NewBox()
 				topSpacer.SetBackgroundColor(theme.BgPanel)
 				flexSpacer := tview.NewBox()
 				flexSpacer.SetBackgroundColor(theme.BgPanel)
 
-				maxTvH := availH - 1 - modeFormHeight - 3 // top + mode + btn
+				maxTvH := availH - 1 - headerFixedH - modeFormHeight - 3 // top + header + mode + btn
 				if tvHeight > maxTvH && maxTvH > 5 {
 					tvHeight = maxTvH
 				}
 
 				container.AddItem(topSpacer, 1, 0, false)
 				container.AddItem(tv, tvHeight, 0, false)
+				addModeHeader()
 				container.AddItem(modeForm, modeFormHeight, 0, true)
 				container.AddItem(flexSpacer, 0, 1, false)
 				container.AddItem(buttonForm, 3, 0, false)
