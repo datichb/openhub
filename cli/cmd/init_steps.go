@@ -1229,7 +1229,6 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Intro:       b.String(),
-				IntroFlex:   true,
 				Buttons:     buttonForm,
 				FocusTarget: buttonForm,
 			})
@@ -1639,7 +1638,6 @@ func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereq
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Badge:       badge,
 				Intro:       b.String(),
-				IntroFlex:   true,
 				Buttons:     buttonForm,
 				FocusTarget: buttonForm,
 			})

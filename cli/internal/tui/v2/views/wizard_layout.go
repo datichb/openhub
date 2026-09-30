@@ -16,11 +16,19 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 // Wizard Page Layout — unified layout builder for all wizard step pages.
 //
-// Replaces the duplicated 3-tier adaptive layout blocks scattered across
-// init_steps.go, team_helpers.go, and inline_wizard.go.
+// Every item has a FIXED height derived from its content, except for a single
+// flexSpacer that absorbs all remaining space. This produces a layout where
+// all content is compact at the top and buttons are anchored at the bottom:
 //
-// All vertical spacing uses proportional Flex weights — no hardcoded row
-// counts. Horizontal centering uses a Flex wrapper with proportional spacers
+//	[badge]        fixed (5 or 3, content-derived)
+//	[gap]          fixed 1 (only if badge present)
+//	[intro]        fixed (line count + padding)
+//	[header]       fixed 3 (gap + separator + gap)
+//	[content]      fixed (estimateFormHeight)
+//	flexSpacer     proportional — SOLE flex item, absorbs all free space
+//	buttons        fixed (estimateButtonFormHeight)
+//
+// Horizontal centering uses a Flex wrapper with proportional spacers
 // instead of SetDrawFunc (which silently breaks SetBorderPadding in tview).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -33,10 +41,8 @@ type WizardPageLayout struct {
 
 	// Intro is raw text (with tview color tags) for the intro area.
 	// When non-empty, a centered TextView is created with auto-padding.
-	// When IntroFlex is true, the intro takes flexible space (for text-only
-	// pages like intro/recap). Otherwise, height is derived from content.
-	Intro     string
-	IntroFlex bool
+	// Height is derived from line count.
+	Intro string
 
 	// SectionTitle is a header separator between intro and content.
 	// Format: ╶─── Title ───╴ (centered, accent title, muted dashes).
@@ -72,36 +78,17 @@ type BuildWizardPageResult struct {
 	ResizeContent func(form *tview.Form)
 }
 
-// Proportional weights for the vertical Flex layout.
-// These are relative — a weight of 5 gets 5× the space of weight 1.
-// When Content is a *tview.Form, its height is computed from field count
-// (fixed sizing). The flexSpacer absorbs remaining space and pushes
-// buttons to the bottom.
-const (
-	wPad     = 1 // top padding
-	wGap     = 1 // gap after badge
-	wContent = 1 // fallback for non-Form content or IntroFlex text
-	wPush    = 1 // spacer that pushes buttons to the bottom
-	wButtons = 1 // button bar
-)
-
 // defaultFormVerticalPadding is the sum of top + bottom border padding
 // applied to wizard forms. This must match the values set by
 // styleWizardForm() (1,1,2,2 → vertical=2) and the engine Form path
 // (1,1,1,1 → vertical=2). If padding values change, update this constant.
 const defaultFormVerticalPadding = 2
 
-// minButtonReserve is the minimum number of rows reserved for the
-// flexSpacer + buttons zone so buttons are never pushed off-screen.
-const minButtonReserve = 3
-
-// BuildWizardPage assembles a wizard page into the given container using
-// proportional Flex layout. All spacing is proportional to available terminal
-// height — no hardcoded row counts.
-//
-// The container is expected to be a vertical Flex (tview.FlexRow) that has
-// been cleared by the caller (the wizard engine clears stepContent before
-// each render).
+// BuildWizardPage assembles a wizard page into the given container.
+// All items use fixed heights derived from their content. The only
+// proportional item is the flexSpacer between content and buttons,
+// which absorbs all remaining space — content stays at the top,
+// buttons anchor at the bottom.
 func BuildWizardPage(app *tview.Application, container *tview.Flex, layout WizardPageLayout) BuildWizardPageResult {
 	bg := theme.BgPanel
 
@@ -133,72 +120,75 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 		headerH = 3 // gap above + line + gap below
 	}
 
+	contentH := 0
+	if form, ok := layout.Content.(*tview.Form); ok {
+		contentH = estimateFormHeight(form)
+	}
+
+	buttonH := 0
+	if layout.Buttons != nil {
+		buttonH = estimateButtonFormHeight(layout.Buttons)
+	}
+
 	// ── Decide what chrome fits ──
 
-	fixedH := introH + headerH
-	if layout.IntroFlex {
-		fixedH = headerH // intro will be flex, not fixed
-	}
-
-	// Estimate proportional space consumed by chrome to decide badge visibility.
-	// Badge is the first item to drop when space is tight.
-	remaining := availH - fixedH
-	showBadge := layout.Badge != "" && remaining > 20
-	compactBadge := showBadge && remaining <= 28
-
-	// ── Top padding ──
-	container.AddItem(newSpacer(bg), 0, wPad, false)
-
-	// ── Badge (fixed, content-derived height) ──
-	if showBadge {
-		badgeH := 5
-		if compactBadge {
+	badgeH := 0
+	gapH := 0
+	showBadge := false
+	if layout.Badge != "" {
+		// Badge + gap = 6 normal or 4 compact. Show only if enough room.
+		totalFixed := introH + headerH + contentH + buttonH
+		spare := availH - totalFixed
+		if spare > 12 {
+			badgeH = 5
+			gapH = 1
+			showBadge = true
+		} else if spare > 8 {
 			badgeH = 3
+			gapH = 1
+			showBadge = true
 		}
-		badge := BuildStepBadge(layout.Badge, compactBadge)
+	}
+
+	// ── Clamp intro and content for small terminals ──
+	// Reserve: badge + gap + header + content + spacer(1 min) + buttons.
+	fixedAboveIntro := badgeH + gapH
+	fixedBelowIntro := headerH + contentH + 1 + buttonH // 1 = min spacer
+	maxIntroH := availH - fixedAboveIntro - fixedBelowIntro
+	if introH > maxIntroH && maxIntroH > 3 {
+		introH = maxIntroH
+	}
+
+	fixedAboveContent := badgeH + gapH + introH + headerH
+	maxContentH := availH - fixedAboveContent - 1 - buttonH // 1 = min spacer
+	if maxContentH < 3 {
+		maxContentH = 3
+	}
+	if contentH > maxContentH {
+		contentH = maxContentH // form will scroll internally
+	}
+
+	// ── Assemble layout: all fixed except the spacer ──
+
+	// Badge
+	if showBadge {
+		compact := badgeH == 3
+		badge := BuildStepBadge(layout.Badge, compact)
 		container.AddItem(badge, badgeH, 0, false)
-		container.AddItem(newSpacer(bg), 0, wGap, false)
+		container.AddItem(newSpacer(bg), gapH, 0, false)
 	}
 
-	// ── Intro text ──
+	// Intro text (fixed height)
 	if introTV != nil {
-		if layout.IntroFlex {
-			container.AddItem(introTV, 0, wContent, false)
-		} else {
-			// Clamp intro height so content and buttons remain visible.
-			maxIntroH := availH - fixedH - 8 // leave room for content + buttons
-			if introH > maxIntroH && maxIntroH > 5 {
-				introH = maxIntroH
-			}
-			container.AddItem(introTV, introH, 0, false)
-		}
+		container.AddItem(introTV, introH, 0, false)
 	}
 
-	// ── Section header separator ──
+	// Section header separator
 	if headerTV != nil {
 		addSectionHeaderToContainer(container, headerTV, bg)
 	}
 
-	// ── Compute fixed chrome consumed so far ──
-	fixedChrome := 0
-	if showBadge {
-		if compactBadge {
-			fixedChrome += 3
-		} else {
-			fixedChrome += 5
-		}
-	}
-	if introTV != nil && !layout.IntroFlex {
-		fixedChrome += introH
-	}
-	fixedChrome += headerH
-
-	// ── Content (horizontally centered if ContentMaxWidth > 0) ──
-	// When Content is a *tview.Form, compute its natural height from field
-	// count and use fixed sizing. This ensures the form gets exactly the
-	// space it needs — no more, no less. The flexSpacer absorbs the
-	// remaining space and pushes buttons to the bottom.
-	// When Content is not a Form (or nil), use proportional sizing.
+	// Content (fixed height, horizontally centered if requested)
 	result := BuildWizardPageResult{}
 	if layout.Content != nil {
 		var contentItem tview.Primitive
@@ -212,47 +202,34 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 			contentItem = layout.Content
 		}
 
-		if form, ok := layout.Content.(*tview.Form); ok {
-			contentH := estimateFormHeight(form)
-			// Clamp: reserve minimum space for spacer + buttons.
-			maxContentH := availH - fixedChrome - minButtonReserve
-			if maxContentH < 3 {
-				maxContentH = 3 // absolute minimum for at least 1 field
-			}
-			if contentH > maxContentH {
-				contentH = maxContentH // form will scroll internally
-			}
-			container.AddItem(contentItem, contentH, 0, true)
+		container.AddItem(contentItem, contentH, 0, true)
 
-			// ResizeContent closure for callers that use rebuildForm.
+		// ResizeContent closure for callers that use rebuildForm.
+		if _, ok := layout.Content.(*tview.Form); ok {
 			capturedContainer := container
 			capturedItem := contentItem
+			capturedMaxH := maxContentH
 			result.ResizeContent = func(f *tview.Form) {
 				newH := estimateFormHeight(f)
-				if newH > maxContentH {
-					newH = maxContentH
+				if newH > capturedMaxH {
+					newH = capturedMaxH
 				}
 				capturedContainer.ResizeItem(capturedItem, newH, 0)
 			}
-		} else {
-			// Non-Form content (custom widget): proportional fallback.
-			container.AddItem(contentItem, 0, wContent, true)
 		}
 	}
 
-	// ── Flex spacer — pushes buttons to the bottom ──
-	container.AddItem(newSpacer(bg), 0, wPush, false)
+	// Flex spacer — SOLE proportional item, absorbs all remaining space.
+	// Pushes buttons to the bottom of the page.
+	container.AddItem(newSpacer(bg), 0, 1, false)
 
-	// ── Buttons (anchored at the bottom via flexSpacer above) ──
+	// Buttons (fixed height, anchored at bottom)
 	if layout.Buttons != nil {
 		result.ButtonForm = layout.Buttons
-		container.AddItem(layout.Buttons, 0, wButtons, false)
+		container.AddItem(layout.Buttons, buttonH, 0, false)
 	}
 
-	// No bottomPad — the buttons zone (wButtons=1) provides natural bottom
-	// margin since the button renders at the top of its allocated zone.
-
-	// ── Focus ──
+	// Focus
 	if layout.FocusTarget != nil && app != nil {
 		app.SetFocus(layout.FocusTarget)
 	}
@@ -289,6 +266,19 @@ func estimateFormHeight(form *tview.Form) int {
 		}
 	}
 	return h
+}
+
+// estimateButtonFormHeight computes the natural height of a button-only form
+// (NewStyledButtonForm). This mirrors tview.Form.Draw()'s button layout:
+// padding(top=1) + gap(1, "empty line after items") + buttons(1 row) + padding(bottom=1).
+func estimateButtonFormHeight(form *tview.Form) int {
+	if form.GetButtonCount() == 0 {
+		return 0
+	}
+	// default padding (1,1,1,1) → top(1) + bottom(1) = 2
+	// + 1 gap line (form.Draw always inserts an empty line before buttons)
+	// + 1 button row
+	return defaultFormVerticalPadding + 1 + 1
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
