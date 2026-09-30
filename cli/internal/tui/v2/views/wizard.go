@@ -443,6 +443,18 @@ func RunWizard(cfg WizardConfig) WizardResult {
 		// ── CustomView path ──
 		if step.CustomView != nil {
 			onDone := func() {
+				// Run validation if defined (same contract as the Form path).
+				if step.Validate != nil {
+					if errMsg := step.Validate(); errMsg != "" {
+						shell.StatusBar.SetHints(fmt.Sprintf("%s%s[-]", widgets.ColorTag(theme.Error), errMsg))
+						trackTimer(time.AfterFunc(3*time.Second, func() {
+							shell.App.QueueUpdateDraw(func() {
+								shell.StatusBar.SetHints(originalHints)
+							})
+						}))
+						return
+					}
+				}
 				runWithSpinner(step, func() {
 					advanceAfterDone(step)
 					if !result.Completed {

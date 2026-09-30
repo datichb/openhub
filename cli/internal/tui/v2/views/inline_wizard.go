@@ -853,6 +853,23 @@ func (w *InlineWizardView) renderStep(idx int) {
 	// ── CustomView path ──
 	if step.CustomView != nil {
 		onDone := func() {
+			// Run validation if defined (same contract as the Form path).
+			if step.Validate != nil {
+				if errMsg := step.Validate(); errMsg != "" {
+					w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
+						widgets.ColorTag(theme.Error), theme.IconWarning, errMsg))
+					w.trackTimer(time.AfterFunc(3*time.Second, func() {
+						if w.app != nil {
+							w.app.QueueUpdateDraw(func() {
+								if w.hintsBar != nil {
+									w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+								}
+							})
+						}
+					}))
+					return
+				}
+			}
 			w.runWithSpinner(step, func() {
 				w.advanceAfterDone(step)
 				if !w.completed {
