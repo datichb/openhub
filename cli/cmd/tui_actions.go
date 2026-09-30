@@ -385,10 +385,14 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				CreatedAt: now,
 				UpdatedAt: now,
 			}
-			_ = a.Projects.Create(ctx, p)
+			result, _, upsertErr := upsertProject(ctx, a.Projects, p)
+			if upsertErr != nil {
+				slog.Warn("failed to create/update project", "error", upsertErr)
+				return
+			}
 
 			if doDeploy {
-				_ = runDeployForProject(a, p)
+				_ = runDeployForProject(a, result)
 				if err := addGitExcludes(absPath); err != nil {
 					slog.Warn("failed to update git excludes", "error", err)
 				}

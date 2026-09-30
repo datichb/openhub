@@ -1549,6 +1549,7 @@
   "cmd.init.wizard_project_added": "Ajouté",
   "cmd.init.wizard_project_name_required": "Le nom du projet est requis",
   "cmd.init.wizard_project_path_invalid": "Le chemin \"%s\" n'existe pas ou n'est pas un dossier",
+  "cmd.init.wizard_project_name_duplicate": "Un projet nommé \"%s\" existe déjà sur un chemin différent",
   "cmd.init.wizard_token_required": "Une clé API ou un token est requis pour ce provider",
   "cmd.init.wizard_keychain_hint": "Token existant dans le keychain — laisser vide pour garder",
   "cmd.init.wizard_no_keyring": "Pas de keyring disponible — les tokens ne seront PAS stockés",

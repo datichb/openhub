@@ -974,6 +974,16 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				return i18n.Tf("cmd.init.wizard_project_path_invalid", s.ProjectPath)
 			}
 			s.ProjectPath = abs
+
+			// Reject if another project (different path) already uses this name.
+			if store := (*s.AppPtr).Projects; store != nil {
+				if existing, err := store.GetByName(context.Background(), s.ProjectName); err == nil && existing != nil {
+					if existing.Path != abs {
+						return i18n.Tf("cmd.init.wizard_project_name_duplicate", s.ProjectName)
+					}
+					// Same path → will be updated in OnDone, not a conflict.
+				}
+			}
 			return ""
 		},
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
@@ -1064,9 +1074,12 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_project"), form, buttonForm, form)
 		},
 		OnDone: func() error {
-			if (*s.AppPtr).Projects == nil {
+			store := (*s.AppPtr).Projects
+			if store == nil {
 				return fmt.Errorf("project store not initialized")
 			}
+			ctx := context.Background()
+
 			p := &domain.Project{
 				ID:     uuid.New().String()[:8],
 				Name:   s.ProjectName,
@@ -1077,10 +1090,12 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				tid := s.TeamState.TeamID
 				p.TeamID = &tid
 			}
-			if err := (*s.AppPtr).Projects.Create(context.Background(), p); err != nil {
-				return fmt.Errorf("create project: %w", err)
+
+			result, _, err := upsertProject(ctx, store, p)
+			if err != nil {
+				return err
 			}
-			s.ProjectID = p.ID
+			s.ProjectID = result.ID
 			s.ProjectCreated = true
 			return nil
 		},

@@ -410,9 +410,11 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		UpdatedAt: now,
 	}
 
-	if err := a.Projects.Create(ctx, p); err != nil {
+	result, _, err := upsertProject(ctx, a.Projects, p)
+	if err != nil {
 		return fmt.Errorf("creating project: %w", err)
 	}
+	id = result.ID
 
 	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
@@ -528,7 +530,7 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 		UpdatedAt: now,
 	}
 
-	if err := a.Projects.Create(ctx, p); err != nil {
+	if _, _, err := upsertProject(ctx, a.Projects, p); err != nil {
 		return fmt.Errorf("creating project: %w", err)
 	}
 

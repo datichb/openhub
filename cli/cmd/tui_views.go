@@ -70,9 +70,14 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	})
 	if a.Projects != nil {
 		projectsView.SetOnAdd(func(name, path string) {
-			p := &domain.Project{Name: name, Path: path}
-			if err := a.Projects.Create(context.Background(), p); err != nil {
-				slog.Warn("failed to add project", "error", err)
+			p := &domain.Project{
+				ID:     generateProjectID(name),
+				Name:   name,
+				Path:   path,
+				Status: domain.ProjectStatusActive,
+			}
+			if _, _, err := upsertProject(context.Background(), a.Projects, p); err != nil {
+				slog.Warn("failed to create/update project", "error", err)
 			}
 		})
 		projectsView.SetOnRemove(func(id string) {
