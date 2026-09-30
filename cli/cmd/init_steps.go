@@ -160,8 +160,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 %s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
 %s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
 
-%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s
-
 %s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
@@ -175,7 +173,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset, accent, reset,
 					accent, reset, accent, reset,
 					accent, reset,
-					muted, reset,
 					secondary, reset,
 				accent, reset,
 				accent, reset,
@@ -195,8 +192,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 %s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
 %s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
 
-%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s
-
 %s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
 %s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
@@ -208,7 +203,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 					accent, reset, accent, reset,
 					accent, reset, accent, reset,
 					accent, reset,
-					muted, reset,
 					secondary, reset,
 				accent, reset,
 				accent, reset,
@@ -480,7 +474,6 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			intro.WriteString("\n")
 			fmt.Fprintf(&intro, "%s%s%s  %s%s%s\n", muted, i18n.T("cmd.init.wizard_intro_provider_list"), reset, accent, i18n.T("cmd.init.wizard_provider_list_items"), reset)
 			intro.WriteString("\n")
-			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n", muted, reset)
 			for _, line := range strings.Split(i18n.T("cmd.init.wizard_provider_prereq"), "\n") {
 				if strings.HasPrefix(line, "• ") {
 					fmt.Fprintf(&intro, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
@@ -778,8 +771,6 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				}
 			}
 
-			fmt.Fprintf(&intro, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
-
 			// ── Auto-detection: pre-fill project name from git remote ──
 			detectedProject := ""
 			if s.ProjectName == "" {
@@ -1060,7 +1051,6 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 			if note != "" {
 				fmt.Fprintf(&intro, "\n%s%s%s", muted, note, reset)
 			}
-			fmt.Fprintf(&intro, "\n%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s", muted, reset)
 
 			// ── Form with checkboxes only ──
 			form := tview.NewForm()
@@ -1379,7 +1369,6 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			fmt.Fprintf(&b, "%s%s%s\n", muted, i18n.T("cmd.init.wizard_intro_mcp_list"), reset)
 			fmt.Fprintf(&b, "%s%s%s\n", accent, i18n.T("cmd.init.wizard_mcp_list_items"), reset)
 			b.WriteString("\n")
-			fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
 			for _, line := range strings.Split(i18n.T("cmd.init.wizard_mcp_prereq"), "\n") {
 				if strings.HasPrefix(line, "• ") {
 					fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)

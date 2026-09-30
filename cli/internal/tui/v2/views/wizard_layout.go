@@ -67,11 +67,14 @@ type BuildWizardPageResult struct {
 
 // Proportional weights for the vertical Flex layout.
 // These are relative — a weight of 5 gets 5× the space of weight 1.
+// The flexSpacer (wPush) between content and buttons pushes buttons to the
+// bottom of the page, achieving a CSS-like justify-content: space-between.
 const (
-	wPad     = 1 // top & bottom padding
+	wPad     = 1 // top padding
 	wGap     = 1 // gap after badge
-	wContent = 5 // main content area (form, list, intro flex)
-	wButtons = 2 // button bar
+	wContent = 1 // main content area (form fields render at top of zone)
+	wPush    = 5 // spacer that pushes buttons to the bottom
+	wButtons = 1 // button bar (small zone, buttons render at top = near bottom)
 )
 
 // BuildWizardPage assembles a wizard page into the given container using
@@ -173,15 +176,18 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 		container.AddItem(contentItem, 0, wContent, true)
 	}
 
-	// ── Buttons ──
+	// ── Flex spacer — pushes buttons to the bottom ──
+	container.AddItem(newSpacer(bg), 0, wPush, false)
+
+	// ── Buttons (anchored at the bottom via flexSpacer above) ──
 	result := BuildWizardPageResult{}
 	if layout.Buttons != nil {
 		result.ButtonForm = layout.Buttons
 		container.AddItem(layout.Buttons, 0, wButtons, false)
 	}
 
-	// ── Bottom padding ──
-	container.AddItem(newSpacer(bg), 0, wPad, false)
+	// No bottomPad — the buttons zone (wButtons=1) provides natural bottom
+	// margin since the button renders at the top of its allocated zone.
 
 	// ── Focus ──
 	if layout.FocusTarget != nil && app != nil {

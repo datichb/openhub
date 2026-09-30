@@ -12,6 +12,18 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
+// findButtonForm scans a Flex container for the last *tview.Form child
+// that has buttons (the button bar). This is layout-agnostic — it doesn't
+// depend on a specific child index.
+func findButtonForm(container *tview.Flex) *tview.Form {
+	for i := container.GetItemCount() - 1; i >= 0; i-- {
+		if f, ok := container.GetItem(i).(*tview.Form); ok && f.GetButtonCount() > 0 {
+			return f
+		}
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // TestBuildFirstRunInlineWizard_Structure
 //
@@ -161,11 +173,9 @@ func TestBuildIntroStep_ContinueCallback(t *testing.T) {
 
 	step.CustomView(tvApp, container, onDone)
 
-	// The buttonForm is the 5th child (index 4) of the container.
-	// It is a *tview.Form with the Continue button at index 0.
-	p := container.GetItem(4)
-	buttonForm, ok := p.(*tview.Form)
-	require.True(t, ok, "5th child should be a *tview.Form (button form)")
+	// Find the button form (layout-agnostic).
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button form")
 	require.Greater(t, buttonForm.GetButtonCount(), 0, "button form must have at least one button")
 
 	// Verify the Continue button exists.
@@ -213,10 +223,9 @@ func TestBuildIntroStep_SkipCallback(t *testing.T) {
 
 	step.CustomView(tvApp, container, onDone)
 
-	// Button form is at index 4 of the container.
-	p := container.GetItem(4)
-	buttonForm, ok := p.(*tview.Form)
-	require.True(t, ok, "5th child should be a *tview.Form")
+	// Find the button form (layout-agnostic).
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button form")
 
 	// With onSkip provided, the form should have 2 buttons:
 	// [0] = Continue, [1] = Skip.
@@ -269,15 +278,9 @@ func TestBuildTeamModeIntroStep_Layout(t *testing.T) {
 
 	step.CustomView(tvApp, container, onDone)
 
-	// The CustomView adds 6 children to the container:
-	//   topSpacer, badgeView, gapSpacer, tv (text), buttonForm, bottomSpacer
-	assert.Equal(t, 6, container.GetItemCount(),
-		"CustomView should add exactly 6 children to the container")
-
-	// Button form is at index 4
-	p := container.GetItem(4)
-	buttonForm, ok := p.(*tview.Form)
-	require.True(t, ok, "5th child should be a *tview.Form (button form)")
+	// Find the button form by scanning container children (layout-agnostic).
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button *tview.Form")
 
 	// Must have 3 buttons: Create, Rejoin, Skip
 	require.Equal(t, 3, buttonForm.GetButtonCount(),
@@ -302,7 +305,8 @@ func TestBuildTeamModeIntroStep_InitCallback(t *testing.T) {
 	doneCalled := false
 	step.CustomView(tvApp, container, func() { doneCalled = true })
 
-	buttonForm := container.GetItem(4).(*tview.Form)
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button form")
 	tvApp.SetFocus(buttonForm)
 
 	handler := buttonForm.InputHandler()
@@ -332,7 +336,8 @@ func TestBuildTeamModeIntroStep_RejoinCallback(t *testing.T) {
 	doneCalled := false
 	step.CustomView(tvApp, container, func() { doneCalled = true })
 
-	buttonForm := container.GetItem(4).(*tview.Form)
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button form")
 	tvApp.SetFocus(buttonForm)
 
 	handler := buttonForm.InputHandler()
@@ -368,7 +373,8 @@ func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
 	doneCalled := false
 	step.CustomView(tvApp, container, func() { doneCalled = true })
 
-	buttonForm := container.GetItem(4).(*tview.Form)
+	buttonForm := findButtonForm(container)
+	require.NotNil(t, buttonForm, "container should contain a button form")
 	tvApp.SetFocus(buttonForm)
 
 	handler := buttonForm.InputHandler()
