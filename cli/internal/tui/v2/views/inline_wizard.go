@@ -1777,3 +1777,8 @@ func FixFormLabelFocus(form *tview.Form) { fixFormLabelFocus(form) }
 func IsLastFocusableFormItem(form *tview.Form, itemIdx int) bool {
 	return isLastFocusableFormItem(form, itemIdx)
 }
+
+// RemapArrowToTab is the exported wrapper for remapArrowToTab.
+func RemapArrowToTab(form *tview.Form, event *tcell.EventKey) *tcell.EventKey {
+	return remapArrowToTab(form, event)
+}

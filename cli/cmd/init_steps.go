@@ -200,8 +200,11 @@ func buildFormStepLayout(
 		headerFixedH = 3 // 1 line gap above + 1 line header + 1 line gap below
 	}
 
-	// Navigation: Tab on last form item → buttonForm, ↑ on buttonForm → form.
+	// Navigation: ↑/↓ remap to Backtab/Tab, Tab on last form item → buttonForm, ↑ on buttonForm → form.
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if remapped := views.RemapArrowToTab(form, event); remapped != nil {
+			return remapped
+		}
 		if event.Key() == tcell.KeyTab {
 			itemIdx, _ := form.GetFocusedItemIndex()
 			if views.IsLastFocusableFormItem(form, itemIdx) {
@@ -1458,15 +1461,23 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				enabled[i] = true
 			}
 
-			var rebuildForm func()
-			rebuildForm = func() {
+			// rebuildForm reconstructs the form after a checkbox toggle.
+			// focusEntry is the index of the entry whose checkbox was toggled
+			// (-1 on the initial build). After rebuild, focus is restored to
+			// that checkbox so keyboard navigation keeps working.
+			var rebuildForm func(focusEntry int)
+			rebuildForm = func(focusEntry int) {
 				form.Clear(true)
+				targetFormIdx := 0
 				for idx := range entries {
 					ci := idx
 					e := entries[idx]
+					if ci == focusEntry {
+						targetFormIdx = form.GetFormItemCount()
+					}
 					form.AddCheckbox(e.name, enabled[ci], func(checked bool) {
 						enabled[ci] = checked
-						go func() { tvApp.QueueUpdateDraw(func() { rebuildForm() }) }()
+						go func() { tvApp.QueueUpdateDraw(func() { rebuildForm(ci) }) }()
 					})
 					if !enabled[ci] {
 						continue
@@ -1496,9 +1507,11 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 					}
 				}
 				views.FixFormDropDownStyles(form)
+				form.SetFocus(targetFormIdx)
 				views.FixFormLabelFocus(form)
+				tvApp.SetFocus(form)
 			}
-			rebuildForm()
+			rebuildForm(-1)
 
 			// Button bar with Continue + Skip (double-click confirm).
 			buttonForm := views.NewStyledButtonForm()
