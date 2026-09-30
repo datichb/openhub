@@ -1034,31 +1034,15 @@ func (w *InlineWizardView) renderStep(idx int) {
 					form.ClearButtons()
 				}
 
-				// Center the form content horizontally (max 60 cols)
-				form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-					const maxFormWidth = 80
-					if width > maxFormWidth {
-						pad := (width - maxFormWidth) / 2
-						return x + pad, y, maxFormWidth, height
-					}
-					return x, y, width, height
-				})
+				if minimalLayout {
+					// ── Minimal layout — form only with inline buttons ──
+					w.stepContent.AddItem(form, 0, 1, true)
 
-				// Separate button form at fixed position
-				buttonForm := NewStyledButtonForm()
-				buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
-
-				// Override the form's InputCapture to handle Tab→buttonForm
-				// on the last field, plus existing Ctrl+S/B shortcuts.
-				form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-					// Reset double-Esc on non-Esc key
-					if w.escPending && event.Key() != tcell.KeyEscape {
-						w.escPending = false
-						w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
-					}
-					// In minimal layout, buttons stay inside the form — no
-					// Tab-to-buttonForm interception needed.
-					if minimalLayout {
+					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						if w.escPending && event.Key() != tcell.KeyEscape {
+							w.escPending = false
+							w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+						}
 						if event.Key() == tcell.KeyCtrlS {
 							onDone()
 							return nil
@@ -1071,115 +1055,103 @@ func (w *InlineWizardView) renderStep(idx int) {
 							defer w.updateDropdownHints(form)
 						}
 						return event
-					}
-					// Arrow keys → Tab/Backtab (except on DropDowns)
-					if remapped := remapArrowToTab(form, event); remapped != nil {
-						// Also check if Down remap lands on last focusable → jump to buttonForm
-						if remapped.Key() == tcell.KeyTab {
-							itemIdx, _ := form.GetFocusedItemIndex()
-							if isLastFocusableFormItem(form, itemIdx) {
-								w.app.SetFocus(buttonForm)
-								return nil
-							}
+					})
+				} else {
+					// ── Normal grouped layout — BuildWizardPage ──
+
+					// Compute dynamic max width from form content.
+					formMaxWidth := 60
+					for i := 0; i < form.GetFormItemCount(); i++ {
+						label := form.GetFormItem(i).GetLabel()
+						w2 := tview.TaggedStringWidth(label) + 40
+						if w2 > formMaxWidth {
+							formMaxWidth = w2
 						}
-						defer w.updateDropdownHints(form)
-						return remapped
 					}
-					// Tab/Enter on the last focusable form field → focus buttonForm
-					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyEnter {
-						itemIdx, _ := form.GetFocusedItemIndex()
-						if isLastFocusableFormItem(form, itemIdx) {
-							// Don't intercept Enter on DropDowns — they need it
-							// to open the popup and confirm a selection.
-							if event.Key() == tcell.KeyEnter && itemIdx >= 0 && itemIdx < form.GetFormItemCount() {
-								if _, isDD := form.GetFormItem(itemIdx).(*tview.DropDown); isDD {
-									return event
-								}
-							}
-							w.app.SetFocus(buttonForm)
+					if formMaxWidth > 80 {
+						formMaxWidth = 80
+					}
+
+					form.SetBorderPadding(1, 1, 1, 1)
+
+					// Separate button form at fixed position.
+					buttonForm := NewStyledButtonForm()
+					buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+
+					// Assemble the page layout via BuildWizardPage.
+					pageResult := BuildWizardPage(nil, w.stepContent, WizardPageLayout{
+						Badge:           step.Label,
+						Content:         form,
+						ContentMaxWidth: formMaxWidth,
+						Buttons:         buttonForm,
+						// FocusTarget: nil — we handle focus below.
+					})
+
+					// Install navigation: arrow remap + cross-section.
+					SetupFormNavigation(form)
+					SetupCrossSectionNav(CrossSectionNavConfig{
+						App:     w.app,
+						Content: form,
+						Buttons: buttonForm,
+					})
+
+					// Compose engine-specific captures ON TOP of navigation captures.
+					// Engine wraps nav (saves nav capture, installs its own that delegates).
+					navFormCapture := form.GetInputCapture()
+					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						// Reset double-Esc on non-Esc key.
+						if w.escPending && event.Key() != tcell.KeyEscape {
+							w.escPending = false
+							w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+						}
+						if event.Key() == tcell.KeyCtrlS {
+							onDone()
 							return nil
 						}
-					}
-					if event.Key() == tcell.KeyCtrlS {
-						onDone()
-						return nil
-					}
-					if event.Key() == tcell.KeyCtrlB {
-						w.goBack()
-						return nil
-					}
-					// Update hints after navigation keys that may change focus.
-					if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyEnter {
-						defer w.updateDropdownHints(form)
-					}
-					return event
-				})
+						if event.Key() == tcell.KeyCtrlB {
+							w.goBack()
+							return nil
+						}
+						// Delegate to navigation capture.
+						var result *tcell.EventKey
+						if navFormCapture != nil {
+							result = navFormCapture(event)
+						} else {
+							result = event
+						}
+						// Update hints after navigation keys.
+						if result != nil && (event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyEnter ||
+							event.Key() == tcell.KeyDown || event.Key() == tcell.KeyUp) {
+							w.updateDropdownHints(form)
+						}
+						return result
+					})
 
-				// Backtab from buttonForm → back to form fields
-				buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-					switch event.Key() {
-					case tcell.KeyLeft:
-						return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
-					case tcell.KeyRight:
-						return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-					case tcell.KeyBacktab:
-						w.app.SetFocus(form)
-						w.updateDropdownHints(form)
-						return nil
-					case tcell.KeyCtrlS:
-						onDone()
-						return nil
+					navBtnCapture := buttonForm.GetInputCapture()
+					buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						if event.Key() == tcell.KeyCtrlS {
+							onDone()
+							return nil
+						}
+						if navBtnCapture != nil {
+							return navBtnCapture(event)
+						}
+						return event
+					})
+
+					// Store the buttonForm reference for FocusButtonAfterRender.
+					_ = pageResult // buttonForm is used directly below.
+
+					// FocusButtonAfterRender: use direct reference instead of scanning.
+					w.app.SetFocus(form)
+					if w.cfg.FocusButtonAfterRender != nil && *w.cfg.FocusButtonAfterRender {
+						*w.cfg.FocusButtonAfterRender = false
+						w.app.SetFocus(buttonForm)
 					}
-					return event
-				})
-
-				// ── Adaptive layout: reduce chrome when terminal is small ──
-				if groupedAvailH >= 35 {
-					// Full layout — spacious terminal.
-					topSpacer := tview.NewBox()
-					topSpacer.SetBackgroundColor(theme.BgPanel)
-					badge := BuildStepBadge(step.Label, false)
-					gapSpacer := tview.NewBox()
-					gapSpacer.SetBackgroundColor(theme.BgPanel)
-					bottomSpacer := tview.NewBox()
-					bottomSpacer.SetBackgroundColor(theme.BgPanel)
-
-					w.stepContent.AddItem(topSpacer, 3, 0, false)
-					w.stepContent.AddItem(badge, 5, 0, false)
-					w.stepContent.AddItem(gapSpacer, 2, 0, false)
-					w.stepContent.AddItem(form, 0, 1, true)
-					w.stepContent.AddItem(buttonForm, 5, 0, false)
-					w.stepContent.AddItem(bottomSpacer, 3, 0, false)
-				} else if !minimalLayout {
-					// Compact layout — keep compact badge, reduce spacers.
-					badge := BuildStepBadge(step.Label, true)
-					topSpacer := tview.NewBox()
-					topSpacer.SetBackgroundColor(theme.BgPanel)
-
-					w.stepContent.AddItem(topSpacer, 1, 0, false)
-					w.stepContent.AddItem(badge, 3, 0, false)
-					w.stepContent.AddItem(form, 0, 1, true)
-					w.stepContent.AddItem(buttonForm, 3, 0, false)
-				} else {
-					// Minimal layout — form only with inline buttons.
-					w.stepContent.AddItem(form, 0, 1, true)
 				}
 			} else {
 				w.stepContent.AddItem(form, 0, 1, true)
-			}
-			w.app.SetFocus(form)
-			// After a locale-change rerender (grouped mode), focus the
-			// submit button instead of the DropDown.
-			if len(w.cfg.Groups) > 0 && w.cfg.FocusButtonAfterRender != nil && *w.cfg.FocusButtonAfterRender {
-				*w.cfg.FocusButtonAfterRender = false
-				// Find the buttonForm in stepContent (last non-spacer flex item)
-				for i := 0; i < w.stepContent.GetItemCount(); i++ {
-					item := w.stepContent.GetItem(i)
-					if bf, ok := item.(*tview.Form); ok && bf != form {
-						w.app.SetFocus(bf)
-						break
-					}
-				}
+				w.app.SetFocus(form)
 			}
 		}
 	} else {
