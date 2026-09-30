@@ -53,6 +53,7 @@ func NewInlineSelect(label string, options []string, defaultIdx int, onChange fu
 		label:      label,
 		options:    options,
 		selected:   defaultIdx,
+		cursor:     defaultIdx,
 		onChange:   onChange,
 		labelColor: theme.FgPrimary,
 		bgColor:    theme.BgPanel,

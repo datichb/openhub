@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"golang.org/x/term"
@@ -262,34 +261,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
 
-			// Tab / ↓ from modeForm → buttonForm
 			lastModeIdx := len(modeOptions) - 1
-			modeForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				switch event.Key() {
-				case tcell.KeyTab:
-					tvApp.SetFocus(buttonForm)
-					return nil
-				case tcell.KeyDown:
-					if modeSelect.GetCursorIndex() == lastModeIdx {
-						tvApp.SetFocus(buttonForm)
-						return nil
-					}
-				}
-				return event
-			})
-
-			buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				switch event.Key() {
-				case tcell.KeyLeft:
-					return tcell.NewEventKey(tcell.KeyBacktab, 0, tcell.ModNone)
-				case tcell.KeyRight:
-					return tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-				case tcell.KeyBacktab, tcell.KeyUp:
-					tvApp.SetFocus(modeForm)
-					return nil
-				}
-				return event
-			})
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Intro:        tvText,

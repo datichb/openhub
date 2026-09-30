@@ -119,19 +119,6 @@ func SetupCrossSectionNav(cfg CrossSectionNavConfig) {
 		isAtEnd = func() bool { return false }
 	}
 
-	// Determine if the focused item is a DropDown (Enter should open the
-	// popup, not jump to buttons).
-	isDropDownFocused := func() bool {
-		if form, ok := cfg.Content.(*tview.Form); ok {
-			itemIdx, _ := form.GetFocusedItemIndex()
-			if itemIdx >= 0 && itemIdx < form.GetFormItemCount() {
-				_, isDD := form.GetFormItem(itemIdx).(*tview.DropDown)
-				return isDD
-			}
-		}
-		return false
-	}
-
 	// inputCapturable is a subset of tview.Box methods for input capture.
 	type inputCapturable interface {
 		GetInputCapture() func(event *tcell.EventKey) *tcell.EventKey
@@ -145,17 +132,12 @@ func SetupCrossSectionNav(cfg CrossSectionNavConfig) {
 
 	prevContentCapture := capturable.GetInputCapture()
 	capturable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyTab:
-			if isAtEnd() {
-				cfg.App.SetFocus(cfg.Buttons)
-				return nil
-			}
-		case tcell.KeyEnter:
-			if isAtEnd() && !isDropDownFocused() {
-				cfg.App.SetFocus(cfg.Buttons)
-				return nil
-			}
+		// Tab on last content item → focus buttons.
+		// Enter is NOT intercepted — it's an action key (confirm selection,
+		// open dropdown, validate field), not a navigation key.
+		if event.Key() == tcell.KeyTab && isAtEnd() {
+			cfg.App.SetFocus(cfg.Buttons)
+			return nil
 		}
 		if prevContentCapture != nil {
 			return prevContentCapture(event)

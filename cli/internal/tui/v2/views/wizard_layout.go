@@ -170,6 +170,9 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 
 	// ── Assemble layout: all fixed except the spacer ──
 
+	// Breathing room at the top of the page.
+	container.AddItem(newSpacer(bg), 1, 0, false)
+
 	// Badge
 	if showBadge {
 		compact := badgeH == 3
