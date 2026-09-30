@@ -1658,7 +1658,7 @@ func fixFormDropDownStyles(form *tview.Form) {
 			// Add inner padding to the dropdown field and popup list items.
 			// The suffix " ▼ " provides a visual affordance that the field is
 			// a selectable dropdown (not static text).
-			dd.SetTextOptions(" ", " ", " ", " ▼", "")
+			dd.SetTextOptions("  ", "  ", "  ", "  ▼ ", "")
 		}
 	}
 }

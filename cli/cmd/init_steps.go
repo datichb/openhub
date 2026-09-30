@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
@@ -99,17 +100,20 @@ type initStepState struct {
 // buildFormStepLayout builds the standard CustomView layout for steps that have
 // an intro text block above interactive form fields. The layout is:
 //
-//	topSpacer (fixed) → tv (fixed, computed) → form (flexible) → flexSpacer → buttonForm (fixed) → bottomSpacer (fixed)
+//	topSpacer → tv (intro) → [header separator] → form → flexSpacer → buttonForm → bottomSpacer
 //
 // The intro text is displayed centered (AlignCenter) at its natural height.
-// The form is centered horizontally (maxFormWidth=80) and takes remaining space.
-// The flexible spacer between form and button keeps the button anchored at the
-// bottom while the intro+form stay near the top.
+// When sectionTitle is non-empty, a visual header separator is inserted between
+// the intro and the form:  ╶─── Title ─────────────────────╴
+// The form is centered horizontally at the same width as the intro text and
+// takes remaining flexible space. A flexible spacer between form and button
+// keeps the button anchored at the bottom.
 //
 // Parameters:
 //   - tvApp: the tview Application
 //   - container: the Flex container (stepContent) to add items to
 //   - introText: the formatted intro text with tview color tags
+//   - sectionTitle: title for the header separator (empty = no header)
 //   - form: the interactive form (DropDowns, InputFields, etc.)
 //   - buttonForm: the button bar (Valider, Skip, etc.)
 //   - focusTarget: the primitive to focus initially (usually form)
@@ -117,6 +121,7 @@ func buildFormStepLayout(
 	tvApp *tview.Application,
 	container *tview.Flex,
 	introText string,
+	sectionTitle string,
 	form *tview.Form,
 	buttonForm *tview.Form,
 	focusTarget tview.Primitive,
@@ -137,12 +142,26 @@ func buildFormStepLayout(
 	tv.SetText(introText)
 	tvHeight := strings.Count(introText, "\n") + 2 // lines + top border padding
 
-	// Center the form horizontally.
+	// Compute the width of the widest visible line in the intro text.
+	// Used to center the form and build the header separator at the same width.
+	maxTextWidth := 0
+	for _, line := range strings.Split(introText, "\n") {
+		w := tview.TaggedStringWidth(line)
+		if w > maxTextWidth {
+			maxTextWidth = w
+		}
+	}
+
+	// Center the form horizontally at the same width as the intro text.
+	formWidth := maxTextWidth
 	form.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		const maxFormWidth = 80
-		if width > maxFormWidth {
-			pad := (width - maxFormWidth) / 2
-			return x + pad, y, maxFormWidth, height
+		fw := formWidth
+		if fw > width {
+			fw = width
+		}
+		if fw < width {
+			pad := (width - fw) / 2
+			return x + pad, y, fw, height
 		}
 		return x, y, width, height
 	})
@@ -151,6 +170,35 @@ func buildFormStepLayout(
 	form.SetFieldTextColor(theme.FgPrimary)
 	form.SetLabelColor(theme.FgPrimary)
 	form.SetBorder(false)
+	form.SetBorderPadding(1, 1, 2, 2)
+
+	// Build the section header separator if a title is provided.
+	// Format: ╶─── Title ─────────────────────╴ (centered, accent title, muted dashes)
+	var headerView *tview.TextView
+	headerFixedH := 0
+	if sectionTitle != "" {
+		accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+		muted := theme.ColorTag(theme.TextMutedHex)
+		reset := theme.TagColor
+
+		titleLen := utf8.RuneCountInString(sectionTitle)
+		leftDashes := 3
+		rightDashes := maxTextWidth - titleLen - leftDashes - 5 // 5 = len("╶") + "─"*left + " " + " " + "╴"
+		if rightDashes < 3 {
+			rightDashes = 3
+		}
+
+		headerText := fmt.Sprintf("%s╶%s %s%s%s %s%s╴%s",
+			muted, strings.Repeat("─", leftDashes), accent, sectionTitle, reset,
+			muted, strings.Repeat("─", rightDashes), reset)
+
+		headerView = tview.NewTextView().
+			SetDynamicColors(true).
+			SetTextAlign(tview.AlignCenter)
+		headerView.SetBackgroundColor(theme.BgPanel)
+		headerView.SetText(headerText)
+		headerFixedH = 2 // 1 line header + 1 line gap above
+	}
 
 	// Navigation: Tab on last form item → buttonForm, ↑ on buttonForm → form.
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -176,6 +224,16 @@ func buildFormStepLayout(
 		return event
 	})
 
+	// addHeader inserts the gap + header separator into the container.
+	addHeader := func() {
+		if headerView != nil {
+			gapSpacer := tview.NewBox()
+			gapSpacer.SetBackgroundColor(theme.BgPanel)
+			container.AddItem(gapSpacer, 1, 0, false)
+			container.AddItem(headerView, 1, 0, false)
+		}
+	}
+
 	// Adaptive layout: same thresholds as engine/intro (35/20/minimal).
 	if availH >= 35 {
 		topSpacer := tview.NewBox()
@@ -186,13 +244,14 @@ func buildFormStepLayout(
 		bottomSpacer.SetBackgroundColor(theme.BgPanel)
 
 		// Clamp tvHeight so button is always visible.
-		maxTvH := availH - 3 - 5 - 3 // top + btn + bottom
+		maxTvH := availH - 3 - headerFixedH - 5 - 3 // top + header + btn + bottom
 		if tvHeight > maxTvH && maxTvH > 5 {
 			tvHeight = maxTvH
 		}
 
 		container.AddItem(topSpacer, 3, 0, false)
 		container.AddItem(tv, tvHeight, 0, false)
+		addHeader()
 		container.AddItem(form, 0, 1, true)
 		container.AddItem(flexSpacer, 0, 2, false)
 		container.AddItem(buttonForm, 5, 0, false)
@@ -203,13 +262,14 @@ func buildFormStepLayout(
 		flexSpacer := tview.NewBox()
 		flexSpacer.SetBackgroundColor(theme.BgPanel)
 
-		maxTvH := availH - 1 - 3 // top + btn
+		maxTvH := availH - 1 - headerFixedH - 3 // top + header + btn
 		if tvHeight > maxTvH && maxTvH > 5 {
 			tvHeight = maxTvH
 		}
 
 		container.AddItem(topSpacer, 1, 0, false)
 		container.AddItem(tv, tvHeight, 0, false)
+		addHeader()
 		container.AddItem(form, 0, 1, true)
 		container.AddItem(flexSpacer, 0, 2, false)
 		container.AddItem(buttonForm, 3, 0, false)
@@ -760,7 +820,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
 
-			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
+			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_config"), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			a := *s.AppPtr
@@ -932,7 +992,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
 
-			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
+			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_project"), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			if (*s.AppPtr).Projects == nil {
@@ -1057,7 +1117,7 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
 
-			buildFormStepLayout(tvApp, container, intro.String(), form, buttonForm, form)
+			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_agents"), form, buttonForm, form)
 		},
 		Validate: func() string {
 			// Collect selected agents into shared state before advancing.
@@ -1429,7 +1489,7 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				onDone()
 			})
 
-			buildFormStepLayout(tvApp, container, b.String(), form, buttonForm, form)
+			buildFormStepLayout(tvApp, container, b.String(), i18n.T("cmd.init.wizard_section_mcp"), form, buttonForm, form)
 		},
 		OnDone: func() error {
 			for _, entry := range entries {
