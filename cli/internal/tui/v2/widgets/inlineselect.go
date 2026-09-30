@@ -251,12 +251,12 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		rowStyle := tcell.StyleDefault.Background(bg).Foreground(textColor)
 		cursorStyle := tcell.StyleDefault.Background(bg).Foreground(cursorColor)
 
-		// Option label line
+		// Option label line — radio style (◉ selected, ○ unselected)
 		col := x + padLeft + 2 // indent
 		if i == s.selected {
-			screen.SetContent(col, y+row, '›', nil, cursorStyle)
+			screen.SetContent(col, y+row, '◉', nil, cursorStyle)
 		} else {
-			screen.SetContent(col, y+row, ' ', nil, rowStyle)
+			screen.SetContent(col, y+row, '○', nil, rowStyle)
 		}
 		col++
 		screen.SetContent(col, y+row, ' ', nil, rowStyle)

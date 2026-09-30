@@ -423,14 +423,14 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				i18n.T("cmd.init.wizard_mode_full"),
 			}
 			modeKeys := []string{"solo", "team", "full"}
-			defaultMode := 0
-			if s.SetupMode == "team" {
+			defaultMode := 2 // "full" by default — all steps visible
+			if s.SetupMode == "solo" {
+				defaultMode = 0
+			} else if s.SetupMode == "team" {
 				defaultMode = 1
-			} else if s.SetupMode == "full" {
-				defaultMode = 2
 			}
 			if s.SetupMode == "" {
-				s.SetupMode = "solo"
+				s.SetupMode = "full"
 			}
 
 			modeSelect := widgets.NewInlineSelect(
