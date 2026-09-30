@@ -84,6 +84,12 @@ type BuildWizardPageResult struct {
 // (1,1,1,1 → vertical=2). If padding values change, update this constant.
 const defaultFormVerticalPadding = 2
 
+// minFormWidth is the minimum width for form content and section headers.
+// This prevents narrow intro texts (e.g., the project step at ~47 chars)
+// from producing visually compressed forms. The value is derived from
+// standard terminal width (80 cols) minus sidebar (~18 cols) minus margins.
+const minFormWidth = 60
+
 // BuildWizardPage assembles a wizard page into the given container.
 // All items use fixed heights derived from their content. The only
 // proportional item is the flexSpacer between content and buttons,
@@ -91,6 +97,11 @@ const defaultFormVerticalPadding = 2
 // buttons anchor at the bottom.
 func BuildWizardPage(app *tview.Application, container *tview.Flex, layout WizardPageLayout) BuildWizardPageResult {
 	bg := theme.BgPanel
+
+	// Apply minimum width floor for visual consistency across steps.
+	if layout.ContentMaxWidth > 0 && layout.ContentMaxWidth < minFormWidth {
+		layout.ContentMaxWidth = minFormWidth
+	}
 
 	_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
 	if termH <= 0 {
@@ -116,7 +127,7 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 	headerH := 0
 	var headerTV *tview.TextView
 	if layout.SectionTitle != "" {
-		headerTV = BuildSectionHeader(layout.Intro, layout.SectionTitle)
+		headerTV = BuildSectionHeader(layout.Intro, layout.SectionTitle, layout.ContentMaxWidth)
 		headerH = 3 // gap above + line + gap below
 	}
 
@@ -321,15 +332,18 @@ func CenteredPrimitive(p tview.Primitive, maxWidth int) *tview.Flex {
 // Section header
 // ─────────────────────────────────────────────────────────────────────────────
 
-// BuildSectionHeader creates a ╶─── Title ───╴ separator centered at the
-// width of the intro text. The intro text is used to compute the max visible
-// line width.
-func BuildSectionHeader(introText, title string) *tview.TextView {
+// BuildSectionHeader creates a ╶─── Title ───╴ separator. The width is
+// derived from the widest visible line in introText, floored at minWidth
+// (typically ContentMaxWidth) for alignment with the centered form.
+func BuildSectionHeader(introText, title string, minWidth int) *tview.TextView {
 	accent := theme.ColorTag(theme.ActiveMode.AccentHex)
 	muted := theme.ColorTag(theme.TextMutedHex)
 	reset := theme.TagColor
 
 	maxTextWidth := maxVisibleWidth(introText)
+	if minWidth > maxTextWidth {
+		maxTextWidth = minWidth
+	}
 
 	titleLen := utf8.RuneCountInString(title)
 	leftDashes := 3

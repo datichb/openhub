@@ -1749,6 +1749,7 @@
   "cmd.init.wizard_section_project": "Project",
   "cmd.init.wizard_section_agents": "Agents",
   "cmd.init.wizard_section_mcp": "MCP Integrations",
+  "cmd.init.wizard_section_team": "Team",
   "cmd.init.wizard_section_mode": "Setup mode",
   "cmd.init.wizard_deploy_done": "Deployed",
   "cmd.init.wizard_deploy_skipped": "Deferred",

@@ -1215,6 +1215,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 				views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 					Badge:           i18n.T("cmd.init.wizard_step_team"),
 					Intro:           introText,
+					SectionTitle:    i18n.T("cmd.init.wizard_section_team"),
 					Content:         form,
 					ContentMaxWidth: maxW,
 					Buttons:         buttonForm,
