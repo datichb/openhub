@@ -659,6 +659,9 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			return s.ProviderSkipped
 		},
 		Validate: func() string {
+			if s.ProviderSkipped {
+				return "" // Skip mode: bypass validation.
+			}
 			switch s.SelectedProvider {
 			case "anthropic", "openrouter":
 				if s.Token == "" && !s.HasKeychainToken {
@@ -875,6 +878,9 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_config"), form, buttonForm, form)
 		},
 		OnDone: func() error {
+			if s.ProviderSkipped {
+				return nil // Skip mode: nothing to persist.
+			}
 			a := *s.AppPtr
 			switch s.SelectedProvider {
 			case "bedrock":
@@ -958,6 +964,9 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return s.ProjectSkipped
 		},
 		Validate: func() string {
+			if s.ProjectSkipped {
+				return "" // Skip mode: bypass validation.
+			}
 			if s.ProjectName == "" {
 				return i18n.T("cmd.init.wizard_project_name_required")
 			}
@@ -1074,6 +1083,9 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_project"), form, buttonForm, form)
 		},
 		OnDone: func() error {
+			if s.ProjectSkipped {
+				return nil // Skip mode: nothing to persist.
+			}
 			store := (*s.AppPtr).Projects
 			if store == nil {
 				return fmt.Errorf("project store not initialized")
@@ -1220,6 +1232,9 @@ func buildAgentSelectionStep(s *initStepState) views.WizardStep {
 			buildFormStepLayout(tvApp, container, intro.String(), i18n.T("cmd.init.wizard_section_agents"), form, buttonForm, form)
 		},
 		Validate: func() string {
+			if s.DeploySkipped {
+				return "" // Skip mode: bypass validation.
+			}
 			// Collect selected agents into shared state before advancing.
 			s.SelectedAgents = nil
 			for _, ag := range available {
