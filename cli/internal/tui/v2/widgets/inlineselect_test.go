@@ -9,14 +9,14 @@ import (
 
 func TestInlineSelect_GetFieldHeight_NoDescriptions(t *testing.T) {
 	s := NewInlineSelect("Label", []string{"a", "b", "c"}, 0, nil)
-	assert.Equal(t, 3, s.GetFieldHeight(), "without descriptions, height = len(options)")
+	assert.Equal(t, 4, s.GetFieldHeight(), "without descriptions, height = len(options) + 1 label")
 }
 
 func TestInlineSelect_GetFieldHeight_WithDescriptions(t *testing.T) {
 	s := NewInlineSelect("Label", []string{"a", "b", "c"}, 0, nil)
 	s.SetDescriptions([]string{"desc a", "desc b", "desc c"})
-	// 3 options * 2 lines + 2 separators = 8
-	assert.Equal(t, 8, s.GetFieldHeight(), "with descriptions, height = n*2 + (n-1)")
+	// 3 options * 2 lines + 2 separators + 1 label = 9
+	assert.Equal(t, 9, s.GetFieldHeight(), "with descriptions, height = n*2 + (n-1) + 1 label")
 }
 
 func TestInlineSelect_GetSelectedIndex(t *testing.T) {

@@ -117,10 +117,16 @@ func (s *InlineSelect) GetFieldWidth() int {
 // When descriptions are set, each option takes 1 + descLines lines
 // (option label + description lines) plus a blank separator between options.
 // Descriptions may contain newlines for multi-line text.
+// When the widget has a label, an additional row is included for the label line
+// (drawn above the options in Draw).
 func (s *InlineSelect) GetFieldHeight() int {
 	n := len(s.options)
+	labelH := 0
+	if s.label != "" {
+		labelH = 1
+	}
 	if !s.hasDescriptions() {
-		return n
+		return n + labelH
 	}
 	total := 0
 	for i := range s.options {
@@ -132,7 +138,7 @@ func (s *InlineSelect) GetFieldHeight() int {
 			total++ // blank separator between options
 		}
 	}
-	return total
+	return total + labelH
 }
 
 // SetFinishedFunc sets the handler called when the user confirms selection.

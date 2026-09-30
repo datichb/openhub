@@ -59,23 +59,41 @@ type WizardPageLayout struct {
 }
 
 // BuildWizardPageResult holds references to layout components that callers
-// may need after assembly (e.g., for focus management or FocusButtonAfterRender).
+// may need after assembly (e.g., for focus management or dynamic resizing).
 type BuildWizardPageResult struct {
 	// ButtonForm is the button bar primitive, if Buttons were provided.
 	ButtonForm *tview.Form
+
+	// ResizeContent updates the content area height after a rebuildForm
+	// (form.Clear + repopulate). Call this whenever the form's item count
+	// changes dynamically. Not needed for Rerender (full page rebuild) or
+	// for static forms.
+	// nil when Content is nil or not a *tview.Form.
+	ResizeContent func(form *tview.Form)
 }
 
 // Proportional weights for the vertical Flex layout.
 // These are relative — a weight of 5 gets 5× the space of weight 1.
-// The flexSpacer (wPush) between content and buttons pushes buttons to the
-// bottom of the page, achieving a CSS-like justify-content: space-between.
+// When Content is a *tview.Form, its height is computed from field count
+// (fixed sizing). The flexSpacer absorbs remaining space and pushes
+// buttons to the bottom.
 const (
 	wPad     = 1 // top padding
 	wGap     = 1 // gap after badge
-	wContent = 1 // main content area (form fields render at top of zone)
-	wPush    = 5 // spacer that pushes buttons to the bottom
-	wButtons = 1 // button bar (small zone, buttons render at top = near bottom)
+	wContent = 1 // fallback for non-Form content or IntroFlex text
+	wPush    = 1 // spacer that pushes buttons to the bottom
+	wButtons = 1 // button bar
 )
+
+// defaultFormVerticalPadding is the sum of top + bottom border padding
+// applied to wizard forms. This must match the values set by
+// styleWizardForm() (1,1,2,2 → vertical=2) and the engine Form path
+// (1,1,1,1 → vertical=2). If padding values change, update this constant.
+const defaultFormVerticalPadding = 2
+
+// minButtonReserve is the minimum number of rows reserved for the
+// flexSpacer + buttons zone so buttons are never pushed off-screen.
+const minButtonReserve = 3
 
 // BuildWizardPage assembles a wizard page into the given container using
 // proportional Flex layout. All spacing is proportional to available terminal
@@ -161,7 +179,27 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 		addSectionHeaderToContainer(container, headerTV, bg)
 	}
 
+	// ── Compute fixed chrome consumed so far ──
+	fixedChrome := 0
+	if showBadge {
+		if compactBadge {
+			fixedChrome += 3
+		} else {
+			fixedChrome += 5
+		}
+	}
+	if introTV != nil && !layout.IntroFlex {
+		fixedChrome += introH
+	}
+	fixedChrome += headerH
+
 	// ── Content (horizontally centered if ContentMaxWidth > 0) ──
+	// When Content is a *tview.Form, compute its natural height from field
+	// count and use fixed sizing. This ensures the form gets exactly the
+	// space it needs — no more, no less. The flexSpacer absorbs the
+	// remaining space and pushes buttons to the bottom.
+	// When Content is not a Form (or nil), use proportional sizing.
+	result := BuildWizardPageResult{}
 	if layout.Content != nil {
 		var contentItem tview.Primitive
 		if layout.ContentMaxWidth > 0 {
@@ -173,14 +211,39 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 		} else {
 			contentItem = layout.Content
 		}
-		container.AddItem(contentItem, 0, wContent, true)
+
+		if form, ok := layout.Content.(*tview.Form); ok {
+			contentH := estimateFormHeight(form)
+			// Clamp: reserve minimum space for spacer + buttons.
+			maxContentH := availH - fixedChrome - minButtonReserve
+			if maxContentH < 3 {
+				maxContentH = 3 // absolute minimum for at least 1 field
+			}
+			if contentH > maxContentH {
+				contentH = maxContentH // form will scroll internally
+			}
+			container.AddItem(contentItem, contentH, 0, true)
+
+			// ResizeContent closure for callers that use rebuildForm.
+			capturedContainer := container
+			capturedItem := contentItem
+			result.ResizeContent = func(f *tview.Form) {
+				newH := estimateFormHeight(f)
+				if newH > maxContentH {
+					newH = maxContentH
+				}
+				capturedContainer.ResizeItem(capturedItem, newH, 0)
+			}
+		} else {
+			// Non-Form content (custom widget): proportional fallback.
+			container.AddItem(contentItem, 0, wContent, true)
+		}
 	}
 
 	// ── Flex spacer — pushes buttons to the bottom ──
 	container.AddItem(newSpacer(bg), 0, wPush, false)
 
 	// ── Buttons (anchored at the bottom via flexSpacer above) ──
-	result := BuildWizardPageResult{}
 	if layout.Buttons != nil {
 		result.ButtonForm = layout.Buttons
 		container.AddItem(layout.Buttons, 0, wButtons, false)
@@ -195,6 +258,37 @@ func BuildWizardPage(app *tview.Application, container *tview.Flex, layout Wizar
 	}
 
 	return result
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Form height estimation
+// ─────────────────────────────────────────────────────────────────────────────
+
+// estimateFormHeight computes the natural height of a tview.Form based on
+// its items' GetFieldHeight() values. This mirrors the layout algorithm in
+// tview.Form.Draw() (form.go:539-600):
+//
+//	totalH = paddingTop + paddingBottom + sum(fieldH_i) + itemPadding * (n-1)
+//
+// where itemPadding defaults to 1 and fieldH_i is each item's GetFieldHeight()
+// (with a fallback to 5 if <= 0, matching DefaultFormFieldHeight).
+func estimateFormHeight(form *tview.Form) int {
+	n := form.GetFormItemCount()
+	if n == 0 {
+		return defaultFormVerticalPadding
+	}
+	h := defaultFormVerticalPadding
+	for i := 0; i < n; i++ {
+		fh := form.GetFormItem(i).GetFieldHeight()
+		if fh <= 0 {
+			fh = 5 // tview.DefaultFormFieldHeight fallback
+		}
+		h += fh
+		if i < n-1 {
+			h += 1 // itemPadding (default = 1)
+		}
+	}
+	return h
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

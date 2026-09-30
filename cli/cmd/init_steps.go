@@ -808,6 +808,8 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				}
 			}
 
+			var onFormRebuilt func()
+
 			var rebuildForm func(focusIdx int)
 			rebuildForm = func(focusIdx int) {
 				form.Clear(true)
@@ -867,6 +869,9 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				}
 				views.FixFormLabelFocus(form)
 				tvApp.SetFocus(form)
+				if onFormRebuilt != nil {
+					onFormRebuilt()
+				}
 			}
 			rebuildForm(-1)
 
@@ -895,7 +900,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			maxW := views.MaxVisibleWidth(introText)
 			styleWizardForm(form)
 
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
+			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Intro:           introText,
 				SectionTitle:    i18n.T("cmd.init.wizard_section_project"),
 				Content:         form,
@@ -903,6 +908,11 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				Buttons:         buttonForm,
 				FocusTarget:     form,
 			})
+			onFormRebuilt = func() {
+				if pageResult.ResizeContent != nil {
+					pageResult.ResizeContent(form)
+				}
+			}
 			views.SetupFormNavigation(form)
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
 				App:     tvApp,
@@ -1389,6 +1399,7 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			// focusEntry is the index of the entry whose checkbox was toggled
 			// (-1 on the initial build). After rebuild, focus is restored to
 			// that checkbox so keyboard navigation keeps working.
+			var onFormRebuilt func()
 			var rebuildForm func(focusEntry int)
 			rebuildForm = func(focusEntry int) {
 				form.Clear(true)
@@ -1434,6 +1445,9 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				form.SetFocus(targetFormIdx)
 				views.FixFormLabelFocus(form)
 				tvApp.SetFocus(form)
+				if onFormRebuilt != nil {
+					onFormRebuilt()
+				}
 			}
 			rebuildForm(-1)
 
@@ -1463,7 +1477,7 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			maxW := views.MaxVisibleWidth(introText)
 			styleWizardForm(form)
 
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
+			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Intro:           introText,
 				SectionTitle:    i18n.T("cmd.init.wizard_section_mcp"),
 				Content:         form,
@@ -1471,6 +1485,11 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				Buttons:         buttonForm,
 				FocusTarget:     form,
 			})
+			onFormRebuilt = func() {
+				if pageResult.ResizeContent != nil {
+					pageResult.ResizeContent(form)
+				}
+			}
 			views.SetupFormNavigation(form)
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
 				App:     tvApp,
