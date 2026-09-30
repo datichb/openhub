@@ -261,8 +261,6 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
 
-			lastModeIdx := len(modeOptions) - 1
-
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
 				Intro:        tvText,
 				SectionTitle: i18n.T("cmd.init.wizard_section_mode"),
@@ -271,12 +269,10 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 				FocusTarget:  modeForm,
 			})
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Content: modeForm,
-				Buttons: buttonForm,
-				IsContentAtEnd: func() bool {
-					return modeSelect.GetCursorIndex() == lastModeIdx
-				},
+				App:            tvApp,
+				Content:        modeForm,
+				Buttons:        buttonForm,
+				IsContentAtEnd: func() bool { return true },
 			})
 		},
 		InfoFields: func() []views.InfoField {
