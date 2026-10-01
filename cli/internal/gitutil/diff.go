@@ -5,7 +5,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -17,6 +20,12 @@ const (
 	maxFileSize = 1 * 1024 * 1024 // 1 MB
 	// gitTimeout is the default timeout for git subprocesses.
 	gitTimeout = 10 * time.Second
+	// maxTotalFiles caps the number of files ReadFileLines will process.
+	maxTotalFiles = 5_000
+	// maxTotalBytes caps the total bytes ReadFileLines will read across all files.
+	maxTotalBytes = 50_000_000 // 50 MB
+	// maxAllFileLines caps the total lines ReadFileLines will return.
+	maxAllFileLines = 500_000
 )
 
 // DetectBaseBranch returns the base/trunk branch for the repo at dir.
@@ -150,6 +159,62 @@ func TrackedFiles(dir string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+// ReadFileLines reads the content of the given files (relative to dir) and
+// returns all lines as a flat slice. Binary files, files larger than maxFileSize,
+// symlinks, and deleted files are silently skipped. Reading stops when
+// maxTotalBytes or maxAllFileLines is reached.
+//
+// Returns an error only if the file list itself exceeds maxTotalFiles
+// (to prevent runaway reads in monorepos).
+func ReadFileLines(dir string, files []string) ([]string, error) {
+	if len(files) > maxTotalFiles {
+		return nil, fmt.Errorf("too many files: %d (max %d)", len(files), maxTotalFiles)
+	}
+
+	var (
+		allLines   []string
+		totalBytes int64
+	)
+
+	for _, relPath := range files {
+		fullPath := filepath.Join(dir, relPath)
+
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue // deleted in working tree, broken symlink, etc.
+		}
+		if !info.Mode().IsRegular() {
+			continue // skip symlinks, directories, etc.
+		}
+		if info.Size() > maxFileSize {
+			continue
+		}
+		if totalBytes+info.Size() > maxTotalBytes {
+			break // total read budget exhausted
+		}
+
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			continue
+		}
+		if IsBinary(data) {
+			continue
+		}
+
+		totalBytes += int64(len(data))
+
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+		for scanner.Scan() {
+			allLines = append(allLines, scanner.Text())
+			if len(allLines) >= maxAllFileLines {
+				return allLines, nil
+			}
+		}
+	}
+
+	return allLines, nil
 }
 
 // HasTestFiles checks if any of the given file paths look like test files

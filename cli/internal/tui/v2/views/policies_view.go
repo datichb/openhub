@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -112,6 +115,7 @@ func builtinPolicyTemplates() []policyTemplate {
 // PoliciesView displays and manages team policies.
 type PoliciesView struct {
 	app         *tview.Application
+	appCtx      *app.App
 	resolveTeam ResolveTeamFunc
 	slist       *widgets.SectionedList
 	header      *tview.TextView
@@ -129,8 +133,8 @@ var _ View = (*PoliciesView)(nil)
 var _ CommandProvider = (*PoliciesView)(nil)
 
 // NewPoliciesView creates a new policies view.
-func NewPoliciesView(resolveTeam ResolveTeamFunc) *PoliciesView {
-	return &PoliciesView{resolveTeam: resolveTeam}
+func NewPoliciesView(resolveTeam ResolveTeamFunc, appCtx *app.App) *PoliciesView {
+	return &PoliciesView{resolveTeam: resolveTeam, appCtx: appCtx}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -665,6 +669,62 @@ func (v *PoliciesView) checkPolicies() {
 
 	ctx := teamstate.PolicyContext{
 		MemberID: v.resolveTeam().MemberID,
+	}
+
+	// Enrich context with git data if we can resolve a project path.
+	if v.appCtx != nil && v.appCtx.Projects != nil {
+		if p, err := resolveFirstProject(v.appCtx); err == nil && p.Path != "" {
+			baseBranch := gitutil.DetectBaseBranch(p.Path, "")
+			if v.appCtx.Config != nil {
+				baseBranch = gitutil.DetectBaseBranch(p.Path, v.appCtx.Config.Worktree.BaseBranch)
+			}
+
+			if b := gitCurrentBranch(p.Path); b != "" {
+				ctx.BranchName = b
+			}
+
+			if diffLines, err := gitutil.DiffAddedLines(p.Path, baseBranch); err == nil {
+				ctx.DiffLines = diffLines
+			} else {
+				slog.Debug("tui policies: failed to get diff lines", "error", err)
+			}
+			if modFiles, err := gitutil.ModifiedFiles(p.Path, baseBranch); err == nil {
+				ctx.ModifiedFiles = modFiles
+				ctx.HasTests = gitutil.HasTestFiles(modFiles)
+			} else {
+				slog.Debug("tui policies: failed to get modified files", "error", err)
+			}
+
+			// Lazy population of file content for all_files and modified_files scopes.
+			policies, _ := repo.LoadPolicies("")
+			needsAllFiles, needsModifiedContent := false, false
+			for _, pol := range policies {
+				if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
+					switch pol.Scope {
+					case "all_files":
+						needsAllFiles = true
+					case "modified_files":
+						needsModifiedContent = true
+					}
+				}
+			}
+			if needsAllFiles {
+				if tracked, err := gitutil.TrackedFiles(p.Path); err == nil {
+					if lines, err := gitutil.ReadFileLines(p.Path, tracked); err == nil {
+						ctx.AllFileLines = lines
+					} else {
+						slog.Debug("tui policies: failed to read tracked files", "error", err)
+					}
+				}
+			}
+			if needsModifiedContent && len(ctx.ModifiedFiles) > 0 {
+				if lines, err := gitutil.ReadFileLines(p.Path, ctx.ModifiedFiles); err == nil {
+					ctx.ModifiedFileLines = lines
+				} else {
+					slog.Debug("tui policies: failed to read modified file contents", "error", err)
+				}
+			}
+		}
 	}
 
 	results, err := repo.CheckAll("", ctx)

@@ -89,12 +89,14 @@ type PolicyResult struct {
 
 // PolicyContext provides the data needed to evaluate policies.
 type PolicyContext struct {
-	BranchName    string   // current branch name
-	CommitMessage string   // commit message to validate
-	DiffLines     []string // lines from the diff (added lines only)
-	ModifiedFiles []string // file paths modified
-	MemberID      string   // who is performing the action
-	ActiveClaims  int      // number of active claims for this member
+	BranchName        string   // current branch name
+	CommitMessage     string   // commit message to validate
+	DiffLines         []string // lines from the diff (added lines only)
+	ModifiedFiles     []string // file paths modified
+	ModifiedFileLines []string // full content lines of modified files (for scope: modified_files)
+	AllFileLines      []string // full content lines of all tracked files (for scope: all_files)
+	MemberID          string   // who is performing the action
+	ActiveClaims      int      // number of active claims for this member
 	// Boolean policy context fields — callers set these based on the current state.
 	HasReview   bool // true if at least one review/approval exists
 	HasTests    bool // true if test files are present or modified
@@ -432,25 +434,24 @@ func checkForbiddenPattern(p Policy, ctx PolicyContext, result PolicyResult) Pol
 	case "diff_only":
 		linesToCheck = ctx.DiffLines
 	case "modified_files":
-		// Scan each modified file's content (provided by caller via DiffLines).
-		// If ModifiedFiles is empty, mark as not evaluable.
-		if len(ctx.ModifiedFiles) == 0 {
+		if len(ctx.ModifiedFileLines) > 0 {
+			linesToCheck = ctx.ModifiedFileLines
+		} else if len(ctx.ModifiedFiles) == 0 {
 			result.NotEvaluable = true
 			result.Details = "no modified files context available"
 			return result
+		} else {
+			// Fallback: use DiffLines when full file content is not available.
+			linesToCheck = ctx.DiffLines
 		}
-		// Use DiffLines which should contain the content of modified files
-		// when the caller populates them for this scope.
-		linesToCheck = ctx.DiffLines
 	case "all_files":
-		// all_files uses DiffLines populated from git ls-files content.
-		// If not populated, mark as not evaluable.
-		if len(ctx.DiffLines) == 0 {
+		if len(ctx.AllFileLines) > 0 {
+			linesToCheck = ctx.AllFileLines
+		} else {
 			result.NotEvaluable = true
-			result.Details = "no file content context available"
+			result.Details = "no file content context available (all_files requires project context)"
 			return result
 		}
-		linesToCheck = ctx.DiffLines
 	default:
 		linesToCheck = ctx.DiffLines
 	}

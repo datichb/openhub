@@ -557,7 +557,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 	})
 	allViews = append(allViews,
 		views.NewPatternsView(makeResolveTeamFunc(a)),
-		views.NewPoliciesView(makeResolveTeamFunc(a)),
+		views.NewPoliciesView(makeResolveTeamFunc(a), a),
 		views.NewWikiView(makeResolveTeamFunc(a)),
 		takeoverView,
 		views.NewTeamDetailView(views.TeamDetailViewConfig{

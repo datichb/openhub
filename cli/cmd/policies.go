@@ -189,6 +189,37 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 		} else {
 			slog.Debug("policies: failed to get modified files", "error", err)
 		}
+
+		// Lazy population of file content for all_files and modified_files scopes.
+		// Only read files if the loaded policies actually use these scopes.
+		policies, _ := repo.LoadPolicies(project)
+		needsAllFiles, needsModifiedContent := false, false
+		for _, pol := range policies {
+			if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
+				switch pol.Scope {
+				case "all_files":
+					needsAllFiles = true
+				case "modified_files":
+					needsModifiedContent = true
+				}
+			}
+		}
+		if needsAllFiles {
+			if tracked, err := gitutil.TrackedFiles(p.Path); err == nil {
+				if lines, err := gitutil.ReadFileLines(p.Path, tracked); err == nil {
+					policyCtx.AllFileLines = lines
+				} else {
+					slog.Debug("policies: failed to read tracked files", "error", err)
+				}
+			}
+		}
+		if needsModifiedContent && len(policyCtx.ModifiedFiles) > 0 {
+			if lines, err := gitutil.ReadFileLines(p.Path, policyCtx.ModifiedFiles); err == nil {
+				policyCtx.ModifiedFileLines = lines
+			} else {
+				slog.Debug("policies: failed to read modified file contents", "error", err)
+			}
+		}
 	}
 
 	violations, err := repo.CheckAll(project, policyCtx)

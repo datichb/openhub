@@ -1,9 +1,12 @@
 package gitutil
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHasTestFiles(t *testing.T) {
@@ -93,4 +96,51 @@ func TestDetectBaseBranch_ConfiguredOverride(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// ── ReadFileLines ─────────────────────────────────────────────────────────────
+
+func TestReadFileLines_Basic(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\nfunc main() {}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("hello\nworld\n"), 0o644))
+
+	lines, err := ReadFileLines(dir, []string{"a.go", "b.txt"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"package main", "func main() {}", "hello", "world"}, lines)
+}
+
+func TestReadFileLines_SkipBinary(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "img.png"), []byte{0x89, 0x50, 0x4E, 0x47, 0x00, 0x00}, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ok.txt"), []byte("text\n"), 0o644))
+
+	lines, err := ReadFileLines(dir, []string{"img.png", "ok.txt"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"text"}, lines)
+}
+
+func TestReadFileLines_SkipMissing(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "exists.txt"), []byte("yes\n"), 0o644))
+
+	lines, err := ReadFileLines(dir, []string{"gone.txt", "exists.txt"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"yes"}, lines)
+}
+
+func TestReadFileLines_EmptyList(t *testing.T) {
+	lines, err := ReadFileLines(t.TempDir(), nil)
+	require.NoError(t, err)
+	assert.Nil(t, lines)
+}
+
+func TestReadFileLines_TooManyFiles(t *testing.T) {
+	files := make([]string, maxTotalFiles+1)
+	for i := range files {
+		files[i] = "file.txt"
+	}
+	_, err := ReadFileLines(t.TempDir(), files)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too many files")
 }
