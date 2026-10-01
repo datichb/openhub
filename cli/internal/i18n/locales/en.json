@@ -2586,5 +2586,12 @@
 
   "tui.parallel.empty": "No parallel session running.",
 
-  "tui.project.category": "Project"
+  "tui.project.category": "Project",
+
+  "tui.teamstatus.event_wiki_proposal": "proposed wiki entry",
+  "tui.teamstatus.event_wiki_accepted": "wiki entry accepted",
+  "tui.teamstatus.event_wiki_rejected": "wiki proposal rejected",
+  "tui.activity.event_wiki_proposal": "proposed wiki entry %s",
+  "tui.activity.event_wiki_accepted": "wiki entry %s accepted",
+  "tui.activity.event_wiki_rejected": "wiki proposal %s rejected"
 }

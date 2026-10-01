@@ -787,6 +787,8 @@ func eventIcon(eventType string) string {
 		return theme.SuccessStyle.Render(theme.IconInfo)
 	case teamstate.EventWikiAccepted:
 		return theme.SuccessStyle.Render(theme.IconSuccess)
+	case teamstate.EventWikiRejected:
+		return theme.ErrorStyle.Render(theme.IconWarning)
 	default:
 		return theme.Subtitle.Render(theme.IconDot)
 	}
@@ -816,6 +818,8 @@ func formatEvent(e teamstate.Event) string {
 		return "a proposé une entrée wiki"
 	case teamstate.EventWikiAccepted:
 		return "entrée wiki acceptée"
+	case teamstate.EventWikiRejected:
+		return "proposition wiki rejetée"
 	default:
 		return e.Type
 	}

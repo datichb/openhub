@@ -258,6 +258,12 @@ func formatEventType(eventType string) string {
 		return i18n.T("tui.teamstatus.event_review_ready")
 	case teamstate.EventAuditFinding:
 		return i18n.T("tui.teamstatus.event_audit_finding")
+	case teamstate.EventWikiProposal:
+		return i18n.T("tui.teamstatus.event_wiki_proposal")
+	case teamstate.EventWikiAccepted:
+		return i18n.T("tui.teamstatus.event_wiki_accepted")
+	case teamstate.EventWikiRejected:
+		return i18n.T("tui.teamstatus.event_wiki_rejected")
 	default:
 		return eventType
 	}

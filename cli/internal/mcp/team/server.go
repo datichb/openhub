@@ -285,6 +285,15 @@ func Serve() error {
 		},
 	}, handleTeamReviewVerdict)
 
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_wiki_pending",
+		Description: "List pending wiki proposals awaiting human review",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	}, handleTeamWikiPending)
+
 	return server.Serve()
 }
 
@@ -529,6 +538,33 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 			Type: "text",
 			Text: fmt.Sprintf("Proposal created for page %q. Awaiting human review.", args.Page),
 		}},
+	}, nil
+}
+
+func handleTeamWikiPending(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	pending, err := repo.WikiListPending()
+	if err != nil {
+		return nil, fmt.Errorf("listing pending proposals: %w", err)
+	}
+
+	if len(pending) == 0 {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{Type: "text", Text: "No pending proposals"}},
+		}, nil
+	}
+
+	data, err := json.MarshalIndent(pending, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}, nil
 }
 

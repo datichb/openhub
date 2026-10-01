@@ -192,6 +192,12 @@ func eventIcon(eventType string) string {
 		return "[red]![-]"
 	case teamstate.EventClaimConflict:
 		return "[red]✗[-]"
+	case teamstate.EventWikiProposal:
+		return "[blue]📝[-]"
+	case teamstate.EventWikiAccepted:
+		return "[green]✓[-]"
+	case teamstate.EventWikiRejected:
+		return "[red]✗[-]"
 	default:
 		return "[white]·[-]"
 	}
@@ -219,6 +225,30 @@ func formatEventDescription(e teamstate.Event) string {
 		return i18n.Tf("tui.activity.event_audit_finding", e.Project)
 	case teamstate.EventClaimConflict:
 		return i18n.Tf("tui.activity.event_claim_conflict", e.Ticket)
+	case teamstate.EventWikiProposal:
+		page := ""
+		if e.Data != nil {
+			if p, ok := e.Data["page"].(string); ok {
+				page = p
+			}
+		}
+		return i18n.Tf("tui.activity.event_wiki_proposal", page)
+	case teamstate.EventWikiAccepted:
+		page := ""
+		if e.Data != nil {
+			if p, ok := e.Data["page"].(string); ok {
+				page = p
+			}
+		}
+		return i18n.Tf("tui.activity.event_wiki_accepted", page)
+	case teamstate.EventWikiRejected:
+		page := ""
+		if e.Data != nil {
+			if p, ok := e.Data["page"].(string); ok {
+				page = p
+			}
+		}
+		return i18n.Tf("tui.activity.event_wiki_rejected", page)
 	default:
 		return e.Type
 	}
