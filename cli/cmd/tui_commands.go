@@ -542,6 +542,17 @@ func buildCommands(a *app.App) []shell.Command {
 			RunsDirect:  true,
 			Modes:       modeSession,
 		})
+
+		commands = append(commands, shell.Command{
+			ID:          "review.feedback",
+			Label:       "Review Feedback",
+			Aliases:     []string{"feedback", "rf", "retours"},
+			Description: "Intégrer les retours reviewer d'une MR GitLab",
+			Category:    "Sessions",
+			Action:      func() { actionReviewFeedback() },
+			RunsDirect:  true,
+			Modes:       modeSession,
+		})
 	}
 
 	// ── Hub init — always visible (reconfigure hub) ─────────────────

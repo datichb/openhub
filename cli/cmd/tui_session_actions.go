@@ -197,6 +197,25 @@ func actionReviewLauncher() {
 	})
 }
 
+// actionReviewFeedback launches a feedback session from the TUI.
+// It uses the current branch to detect the ticket reference.
+func actionReviewFeedback() {
+	if tuiShell == nil {
+		return
+	}
+	branch := getCurrentBranch(".")
+	ref := extractTicketFromBranch(branch)
+	if ref == "" {
+		ref = branch
+	}
+	if ref == "" {
+		tuiShell.ShowToastMsg("Aucune branche détectée — lance 'oh review feedback <ticket>' depuis le CLI", false)
+		return
+	}
+	prompt := fmt.Sprintf("[MODE:feedback] [BRANCH:%s] Review feedback pour %s", branch, ref)
+	launchSessionWithPrompt("orchestrator-dev", prompt)
+}
+
 func actionDebugLauncher() {
 	if tuiShell == nil {
 		return
