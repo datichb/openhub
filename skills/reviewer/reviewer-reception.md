@@ -135,6 +135,8 @@ pas à ce que tu voulais, dis-moi."
 
 ### Pushback — quand le finding n'est pas valide ou pas approprié
 
+> **Findings tagués `[HUMAN:xxx]`** : Ces findings proviennent d'un reviewer humain qui a du contexte business et projet que tu n'as peut-être pas. Applique le pushback avec un niveau de rigueur plus élevé — ne pushback que si tu peux **démontrer techniquement dans le code** que le finding est invalide. En cas de doute, implémente la correction demandée.
+
 ```
 ✅ Pushback technique :
 "J'ai regardé [fichier:ligne] et voici ce que le code fait réellement :
