@@ -407,7 +407,14 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 				continue
 			}
 		}
-		parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+		switch l {
+		case teamstate.LabelAgentReviewed:
+			parts = append(parts, "[green][AI][-]")
+		case teamstate.LabelNeedsHumanReview:
+			parts = append(parts, "[yellow][!][-]")
+		default:
+			parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
+		}
 	}
 	meta := ""
 	if len(parts) > 0 {

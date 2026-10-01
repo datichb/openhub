@@ -499,6 +499,12 @@ Les labels sont dynamiques selon le verdict (même logique que le mode standalon
 
 CP-2 est **toujours une pause, dans tous les modes**.
 
+**Après chaque décision CP-2, si l'outil `team_review_verdict` est disponible :**
+- Sur **commit** : `team_review_verdict({ project, ticket_id, verdict: "approved", reviewer_verdict: "<verdict original>", cycle: <N> })`
+- Sur **corriger** : `team_review_verdict({ project, ticket_id, verdict: "rejected", reason: "corrections-requises", reviewer_verdict: "<verdict original>", cycle: <N> })`
+
+> Cet appel enregistre le verdict dans le journal d'équipe, transite le statut du claim, ajoute le label `agent-reviewed` (si approved), et notifie l'équipe.
+
 - **commit** →
   1. Formuler le message de commit selon Conventional Commits :
      `<type>(<scope>): <description>` — basé sur le type du ticket, l'ID et son titre

@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -258,9 +258,9 @@ func runReviewPublish(cmd *cobra.Command) error {
 		}
 	}
 
-	// Emit team event if team is enabled for this project.
+	// Emit team event + transition claim if team is enabled for this project.
 	if teamEnabledForProject(a, project) {
-		emitReviewReadyEvent(ctx, a, project.ID, ticketRef, branch, mr.WebURL)
+		publishReviewToTeamState(ctx, a, project.ID, ticketRef, branch, mr.WebURL)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -389,7 +389,10 @@ func isMainBranch(name string) bool {
 	return false
 }
 
-func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
+// publishReviewToTeamState uses PublishReviewBatch to atomically transition
+// the claim to review, store the MR URL, append the review.ready event, and
+// dispatch a notification — all in a single git commit+push.
+func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
 	statePath := a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
@@ -399,29 +402,26 @@ func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, br
 		return
 	}
 
-	data := map[string]interface{}{"branch": branch}
-	if mrURL != "" {
-		data["mr_url"] = mrURL
+	if ticket == "" || projectID == "" {
+		return
 	}
 
-	event := teamstate.Event{
-		Timestamp: time.Now().UTC(),
-		Actor:     a.Config.ActiveTeam().MemberID,
-		Type:      teamstate.EventReviewReady,
-		Project:   projectID,
-		Ticket:    ticket,
-		Data:      data,
+	event, err := repo.PublishReviewBatch(ctx, teamstate.PublishReviewParams{
+		Project:  projectID,
+		TicketID: ticket,
+		Actor:    a.Config.ActiveTeam().MemberID,
+		Branch:   branch,
+		MRURL:    mrURL,
+		// Label intentionally empty: agent-reviewed is now set by
+		// team_review_verdict when the actual review completes (R3 fix).
+	})
+	if err != nil {
+		slog.Warn("teamstate.publish.batch_failed", "project", projectID, "ticket", ticket, "error", err)
+		return
 	}
 
-	_ = repo.AppendEvent(ctx, event)
-
-	// Add "agent-reviewed" label to the claim (best-effort — do not block).
-	if ticket != "" && projectID != "" {
-		_ = repo.AddClaimLabel(ctx, projectID, ticket, teamstate.LabelAgentReviewed)
-	}
-
-	// Notify
-	if teamCfg, err := repo.LoadConfig(); err == nil {
+	// Best-effort notification dispatch.
+	if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}

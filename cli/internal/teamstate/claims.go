@@ -112,6 +112,10 @@ type Claim struct {
 	// Resolved from TicketID via TrackerConfig.TicketPatterns at sync time; stored here
 	// to avoid re-parsing on every sync cycle.
 	ExternalIID int `toml:"external_iid,omitempty"`
+	// MRURL is the web URL of the merge request created for this claim.
+	// Set by PublishReviewBatch (oh review --publish); read by oh review feedback
+	// and TUI board detail for context. Empty for claims without an MR.
+	MRURL string `toml:"mr_url,omitempty"`
 }
 
 // IsValidStatus reports whether s is one of the known claim statuses.
@@ -843,4 +847,156 @@ func (r *Repo) listClaimsForProject(project string) ([]Claim, error) {
 		claims = append(claims, *c)
 	}
 	return claims, nil
+}
+
+// ── Local helpers (no commit/push, caller MUST hold write lock) ─────────────
+
+// updateClaimFieldsLocal reads a claim, applies fn, writes back to disk.
+// Returns the repo-relative path of the modified file.
+// Caller MUST hold the write lock via withWriteLock.
+func (r *Repo) updateClaimFieldsLocal(project, ticketID string, fn func(c *Claim) error) (string, error) {
+	c, err := r.getClaim(project, ticketID)
+	if err != nil {
+		return "", err
+	}
+
+	if err := fn(c); err != nil {
+		return "", err
+	}
+
+	c.LastActivity = time.Now().UTC()
+
+	data, err := toml.Marshal(c)
+	if err != nil {
+		return "", fmt.Errorf("marshaling claim: %w", err)
+	}
+
+	path := r.claimFilePath(project, ticketID)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", fmt.Errorf("writing claim: %w", err)
+	}
+
+	return r.claimRelPath(project, ticketID), nil
+}
+
+// updateClaimStatusLocal changes a claim status on disk without commit/push.
+// Validates the transition. Caller MUST hold the write lock.
+func (r *Repo) updateClaimStatusLocal(project, ticketID, newStatus string) (string, error) {
+	return r.updateClaimFieldsLocal(project, ticketID, func(c *Claim) error {
+		if !IsValidBoardTransition(c.Status, newStatus) {
+			return fmt.Errorf("%w: cannot transition from %q to %q", ErrInvalidTransition, c.Status, newStatus)
+		}
+		c.Status = newStatus
+		return nil
+	})
+}
+
+// addClaimLabelLocal adds a label to a claim on disk without commit/push.
+// Idempotent: returns the relPath even if label was already present.
+// Caller MUST hold the write lock.
+func (r *Repo) addClaimLabelLocal(project, ticketID, label string) (string, error) {
+	return r.updateClaimFieldsLocal(project, ticketID, func(c *Claim) error {
+		for _, l := range c.Labels {
+			if l == label {
+				return nil // already present
+			}
+		}
+		c.Labels = append(c.Labels, label)
+		return nil
+	})
+}
+
+// setClaimMRURLLocal sets the MR URL on a claim without commit/push.
+// Caller MUST hold the write lock.
+func (r *Repo) setClaimMRURLLocal(project, ticketID, mrURL string) (string, error) {
+	return r.updateClaimFieldsLocal(project, ticketID, func(c *Claim) error {
+		c.MRURL = mrURL
+		return nil
+	})
+}
+
+// ── PublishReviewBatch ──────────────────────────────────────────────────────
+
+// PublishReviewParams holds the parameters for a PublishReviewBatch operation.
+type PublishReviewParams struct {
+	Project  string
+	TicketID string
+	Actor    string // member ID performing the publish
+	Branch   string
+	MRURL    string // merge request URL (may be empty if MR was not created)
+	Label    string // label to add (e.g. LabelAgentReviewed); empty = skip
+}
+
+// PublishReviewBatch atomically transitions a claim to review status, sets the
+// MR URL, appends a review.ready event, and adds a label — all in a single
+// git commit+push. Returns the Event that was appended (for notification).
+//
+// This replaces the pattern of calling UpdateClaimStatus + AppendEvent +
+// AddClaimLabel as 3+ separate locked/committed operations.
+func (r *Repo) PublishReviewBatch(ctx context.Context, p PublishReviewParams) (Event, error) {
+	if _, err := SafeName(p.Project); err != nil {
+		return Event{}, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(p.TicketID); err != nil {
+		return Event{}, fmt.Errorf("invalid ticket ID: %w", err)
+	}
+
+	var event Event
+
+	err := r.withWriteLock(ctx, func(ctx context.Context) error {
+		// ── 1. Transition claim status: * → review ──
+		_, err := r.updateClaimStatusLocal(p.Project, p.TicketID, ClaimStatusReview)
+		if err != nil {
+			// If already in review, skip silently (idempotent on double-publish).
+			if errors.Is(err, ErrInvalidTransition) {
+				c, getErr := r.getClaim(p.Project, p.TicketID)
+				if getErr == nil && c.Status == ClaimStatusReview {
+					slog.Debug("teamstate.publish.already_review", "project", p.Project, "ticket", p.TicketID)
+				} else {
+					return fmt.Errorf("status transition: %w", err)
+				}
+			} else {
+				return fmt.Errorf("status transition: %w", err)
+			}
+		}
+
+		// ── 2. Set MR URL on claim ──
+		if p.MRURL != "" {
+			if _, err := r.setClaimMRURLLocal(p.Project, p.TicketID, p.MRURL); err != nil {
+				slog.Warn("teamstate.publish.mr_url_failed", "ticket", p.TicketID, "error", err)
+			}
+		}
+
+		// ── 3. Add label (non-fatal) ──
+		if p.Label != "" {
+			if _, err := r.addClaimLabelLocal(p.Project, p.TicketID, p.Label); err != nil {
+				slog.Warn("teamstate.publish.label_failed", "ticket", p.TicketID, "label", p.Label, "error", err)
+			}
+		}
+
+		// ── 4. Append review.ready event ──
+		event = Event{
+			Timestamp: time.Now().UTC(),
+			Actor:     p.Actor,
+			Type:      EventReviewReady,
+			Project:   p.Project,
+			Ticket:    p.TicketID,
+			Data:      map[string]interface{}{"branch": p.Branch},
+		}
+		if p.MRURL != "" {
+			event.Data["mr_url"] = p.MRURL
+		}
+		eventRelPath, err := r.appendEventLocal(event)
+		if err != nil {
+			return fmt.Errorf("appending event: %w", err)
+		}
+
+		// ── 5. Single commit+push ──
+		claimRelPath := r.claimRelPath(p.Project, p.TicketID)
+		msg := fmt.Sprintf("publish-review: %s/%s → review", p.Project, p.TicketID)
+		slog.Info("teamstate.publish.review", "project", p.Project, "ticket", p.TicketID, "actor", p.Actor)
+		return r.commitAndPush(ctx, msg, claimRelPath, eventRelPath)
+	})
+
+	return event, err
 }

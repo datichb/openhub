@@ -96,6 +96,42 @@ func (r *Repo) AppendEventAsync(e Event) {
 	}()
 }
 
+// appendEventLocal writes an event to the monthly JSONL file without commit/push.
+// Returns the repo-relative path. Caller MUST hold the write lock.
+func (r *Repo) appendEventLocal(e Event) (string, error) {
+	if e.Timestamp.IsZero() {
+		e.Timestamp = time.Now().UTC()
+	}
+
+	month := e.Timestamp.Format("2006-01")
+	dir := filepath.Join(r.path, "projects", e.Project, "events")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating events dir: %w", err)
+	}
+
+	filename := month + ".jsonl"
+	path := filepath.Join(dir, filename)
+
+	line, err := json.Marshal(e)
+	if err != nil {
+		return "", fmt.Errorf("marshaling event: %w", err)
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("opening events file: %w", err)
+	}
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		f.Close()
+		return "", fmt.Errorf("writing event: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("closing events file: %w", err)
+	}
+
+	return filepath.Join("projects", e.Project, "events", filename), nil
+}
+
 // NewSessionCompleteEvent constructs a session.complete event with standard metadata.
 func NewSessionCompleteEvent(memberID, project string, data map[string]interface{}) Event {
 	return Event{

@@ -6,6 +6,7 @@ package team
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -246,6 +247,43 @@ func Serve() error {
 			"required": []string{"project", "ticket_id"},
 		},
 	}, handleTeamClaimFlagHumanReview)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_review_verdict",
+		Description: "Record the review verdict for a ticket. Emits review.approved or review.rejected event, transitions claim status (approved→done, rejected→in_progress), adds agent-reviewed label on approval, and sends team notification. Call after CP-2 decision in the review workflow.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project": map[string]interface{}{
+					"type":        "string",
+					"description": "Project ID",
+				},
+				"ticket_id": map[string]interface{}{
+					"type":        "string",
+					"description": "Ticket ID",
+				},
+				"verdict": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"approved", "rejected"},
+					"description": "Review verdict: approved (commit) or rejected (corriger/corriger-sécurité)",
+				},
+				"reason": map[string]interface{}{
+					"type":        "string",
+					"description": "Reason for the verdict. Optional for approved, recommended for rejected.",
+				},
+				"reviewer_verdict": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"commit", "corriger", "corriger-sécurité"},
+					"description": "Original AI reviewer verdict (stored for audit trail).",
+				},
+				"cycle": map[string]interface{}{
+					"type":        "integer",
+					"description": "Review cycle number (1-based). Helps track iteration count.",
+				},
+			},
+			"required": []string{"project", "ticket_id", "verdict"},
+		},
+	}, handleTeamReviewVerdict)
 
 	return server.Serve()
 }
@@ -629,6 +667,110 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: content}},
+	}, nil
+}
+
+// ── Review verdict handler ──────────────────────────────────────────────────
+
+func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Project         string  `json:"project"`
+		TicketID        string  `json:"ticket_id"`
+		Verdict         string  `json:"verdict"`
+		Reason          string  `json:"reason"`
+		ReviewerVerdict string  `json:"reviewer_verdict"`
+		Cycle           float64 `json:"cycle"` // JSON numbers are float64
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	if args.Verdict != "approved" && args.Verdict != "rejected" {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: fmt.Sprintf("Invalid verdict %q. Must be 'approved' or 'rejected'.", args.Verdict),
+			}},
+			IsError: true,
+		}, nil
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	// ── 1. Determine event type and target status ──
+	var eventType, targetStatus string
+	switch args.Verdict {
+	case "approved":
+		eventType = teamstate.EventReviewApproved
+		targetStatus = teamstate.ClaimStatusDone
+	case "rejected":
+		eventType = teamstate.EventReviewRejected
+		targetStatus = teamstate.ClaimStatusInProgress
+	}
+
+	// ── 2. Transition claim status (best-effort) ──
+	statusMsg := ""
+	if err := repo.UpdateClaimStatus(ctx, args.Project, args.TicketID, targetStatus); err != nil {
+		if errors.Is(err, teamstate.ErrClaimNotFound) {
+			return &protocol.ToolResult{
+				Content: []protocol.ContentBlock{{
+					Type: "text",
+					Text: fmt.Sprintf("Claim not found for ticket %q in project %q.", args.TicketID, args.Project),
+				}},
+				IsError: true,
+			}, nil
+		}
+		// Non-fatal: log but continue (claim may already be in the target status).
+		slog.Warn("teamstate.verdict.status_failed", "ticket", args.TicketID, "target", targetStatus, "error", err)
+		statusMsg = fmt.Sprintf(" (status transition skipped: %s)", err)
+	} else {
+		statusMsg = fmt.Sprintf(" Claim status → %s.", targetStatus)
+	}
+
+	// ── 3. Add agent-reviewed label on approval ──
+	if args.Verdict == "approved" {
+		if err := repo.AddClaimLabel(ctx, args.Project, args.TicketID, teamstate.LabelAgentReviewed); err != nil {
+			slog.Warn("teamstate.verdict.label_failed", "ticket", args.TicketID, "error", err)
+		}
+	}
+
+	// ── 4. Emit event ──
+	data := make(map[string]interface{})
+	if args.Reason != "" {
+		data["reason"] = args.Reason
+	}
+	if args.ReviewerVerdict != "" {
+		data["reviewer_verdict"] = args.ReviewerVerdict
+	}
+	if args.Cycle > 0 {
+		data["cycle"] = int(args.Cycle)
+	}
+
+	event := teamstate.Event{
+		Actor:   "orchestrator-dev",
+		Type:    eventType,
+		Project: args.Project,
+		Ticket:  args.TicketID,
+		Data:    data,
+	}
+	if err := repo.AppendEvent(ctx, event); err != nil {
+		slog.Warn("teamstate.verdict.event_failed", "ticket", args.TicketID, "error", err)
+	}
+
+	// ── 5. Best-effort notification ──
+	if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+		d := notify.NewDispatcher(teamCfg)
+		_ = d.Dispatch(ctx, event)
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{
+			Type: "text",
+			Text: fmt.Sprintf("Review verdict '%s' recorded for %s/%s.%s", args.Verdict, args.Project, args.TicketID, statusMsg),
+		}},
 	}, nil
 }
 
