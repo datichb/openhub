@@ -555,9 +555,9 @@ func buildCommands(a *app.App) []shell.Command {
 
 		commands = append(commands, shell.Command{
 			ID:          "review.feedback",
-			Label:       "Review Feedback",
+			Label:       i18n.T("tui.cmd.review_feedback"),
 			Aliases:     []string{"feedback", "rf", "retours"},
-			Description: "Intégrer les retours reviewer d'une MR GitLab",
+			Description: i18n.T("tui.cmd.review_feedback.desc"),
 			Category:    "Sessions",
 			Action:      func() { actionReviewFeedback() },
 			RunsDirect:  true,

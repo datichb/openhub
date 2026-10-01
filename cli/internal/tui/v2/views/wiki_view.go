@@ -53,7 +53,7 @@ func (v *WikiView) Title() string { return i18n.T("tui.team.wiki") }
 func (v *WikiView) StatusHints() string {
 	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · x %s · r %s",
 		i18n.T("tui.hints.nav"), "sections",
-		i18n.T("tui.hints.see"), "accept", "reject",
+		i18n.T("tui.hints.see"), i18n.T("tui.wiki.hints_accept"), i18n.T("tui.wiki.hints_reject"),
 		i18n.T("tui.hints.refresh"))
 }
 
@@ -195,11 +195,11 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 
 	// Update header text
 	if len(proposals) == 0 && len(pages) == 0 {
-		v.setHeaderText("Wiki is empty. Proposals from agents will appear here for review.")
+		v.setHeaderText(i18n.T("tui.wiki.empty_state"))
 	} else if len(proposals) > 0 {
-		v.setHeaderText(fmt.Sprintf("%d pending proposal(s) to review. Press Enter to view, 'a' to accept, 'x' to reject.", len(proposals)))
+		v.setHeaderText(i18n.Tf("tui.wiki.pending_header_hint", len(proposals)))
 	} else {
-		v.setHeaderText("Team wiki pages. Press Enter to view content.")
+		v.setHeaderText(i18n.T("tui.wiki.pages_header_hint"))
 	}
 
 	var items []widgets.SectionItem
@@ -209,7 +209,7 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 	// ── Pending Proposals ──
 	if len(proposals) > 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  Pending Proposals (%d)", len(proposals)),
+			MainText: "  " + i18n.Tf("tui.wiki.section_pending", len(v.proposals)),
 			IsHeader: true,
 		})
 		for i, p := range proposals {
@@ -222,7 +222,7 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 	// ── Wiki Pages ──
 	if len(pages) > 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  Wiki Pages (%d)", len(pages)),
+			MainText: "  " + i18n.Tf("tui.wiki.section_pages", len(v.pages)),
 			IsHeader: true,
 		})
 		for i, page := range pages {
@@ -238,7 +238,7 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 
 	if len(items) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: "  No wiki pages or proposals yet.",
+			MainText: "  " + i18n.T("tui.wiki.empty_list"),
 		})
 	}
 
@@ -284,22 +284,22 @@ func (v *WikiView) showProposal(proposalIdx int) {
 	p := v.proposals[proposalIdx]
 
 	// Build detail content
-	content := fmt.Sprintf("Author:     %s\nConfidence: %s\nProject:    %s\nDate:       %s\n\n────────────────────────────────\n\n%s",
-		tview.Escape(p.Author),
-		tview.Escape(p.Confidence),
-		tview.Escape(p.Project),
-		p.CreatedAt.Format("2006-01-02 15:04"),
+	content := fmt.Sprintf("%s     %s\n%s %s\n%s    %s\n%s       %s\n\n────────────────────────────────\n\n%s",
+		i18n.T("tui.wiki.detail_author"), tview.Escape(p.Author),
+		i18n.T("tui.wiki.detail_confidence"), tview.Escape(p.Confidence),
+		i18n.T("tui.wiki.detail_project"), tview.Escape(p.Project),
+		i18n.T("tui.wiki.detail_date"), p.CreatedAt.Format("2006-01-02 15:04"),
 		tview.Escape(p.Content),
 	)
 
-	v.shell.ShowScrollableModal("Proposal: "+tview.Escape(p.Page), content, []ModalAction{
-		{Label: "[Accept]", Callback: func() {
+	v.shell.ShowScrollableModal(i18n.Tf("tui.wiki.proposal_title", p.Page), content, []ModalAction{
+		{Label: i18n.T("tui.wiki.btn_accept"), Callback: func() {
 			v.doAcceptProposal(p)
 		}},
-		{Label: "[Reject]", Callback: func() {
+		{Label: i18n.T("tui.wiki.btn_reject"), Callback: func() {
 			v.doRejectProposal(p)
 		}},
-		{Label: "[Close]", Callback: func() {}},
+		{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}},
 	})
 }
 
@@ -319,12 +319,12 @@ func (v *WikiView) showPage(pageIdx int) {
 
 	content, err := repo.WikiReadPage(pageName)
 	if err != nil {
-		v.shell.ShowToastMsg("Read error: "+err.Error(), false)
+		v.shell.ShowToastMsg(i18n.Tf("tui.wiki.read_error", err.Error()), false)
 		return
 	}
 
 	v.shell.ShowScrollableModal(tview.Escape(pageName), tview.Escape(content), []ModalAction{
-		{Label: "[Close]", Callback: func() {}},
+		{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}},
 	})
 }
 
@@ -375,7 +375,7 @@ func (v *WikiView) doAcceptProposal(proposal teamstate.WikiProposal) {
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("Accept failed: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.Tf("tui.wiki.accept_failed", err.Error()), false)
 				}
 				return
 			}
@@ -391,7 +391,7 @@ func (v *WikiView) doAcceptProposal(proposal teamstate.WikiProposal) {
 				},
 			})
 			if v.shell != nil {
-				v.shell.ShowToastMsg("Proposal accepted: "+proposal.Page, true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.wiki.proposal_accepted", proposal.Page), true)
 			}
 			v.refresh()
 		})
@@ -415,7 +415,7 @@ func (v *WikiView) doRejectProposal(proposal teamstate.WikiProposal) {
 		v.app.QueueUpdateDraw(func() {
 			if err != nil {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("Reject failed: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.Tf("tui.wiki.reject_failed", err.Error()), false)
 				}
 				return
 			}
@@ -431,7 +431,7 @@ func (v *WikiView) doRejectProposal(proposal teamstate.WikiProposal) {
 				},
 			})
 			if v.shell != nil {
-				v.shell.ShowToastMsg("Proposal rejected: "+proposal.Page, true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.wiki.proposal_rejected", proposal.Page), true)
 			}
 			v.refresh()
 		})
@@ -441,8 +441,8 @@ func (v *WikiView) doRejectProposal(proposal teamstate.WikiProposal) {
 // ContextCommands implements CommandProvider.
 func (v *WikiView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "wiki.accept", Label: "Accept", Aliases: []string{"accept", "approve", "merge"}, Description: "Accept selected proposal", Category: "Wiki", Action: func() { v.acceptSelected() }},
-		{ID: "wiki.reject", Label: "Reject", Aliases: []string{"reject", "refuse", "decline"}, Description: "Reject selected proposal", Category: "Wiki", Action: func() { v.rejectSelected() }},
+		{ID: "wiki.accept", Label: i18n.T("tui.wiki.cmd_accept"), Aliases: []string{"accept", "approve", "merge"}, Description: i18n.T("tui.wiki.cmd_accept_desc"), Category: i18n.T("tui.wiki.cmd_category"), Action: func() { v.acceptSelected() }},
+		{ID: "wiki.reject", Label: i18n.T("tui.wiki.cmd_reject"), Aliases: []string{"reject", "refuse", "decline"}, Description: i18n.T("tui.wiki.cmd_reject_desc"), Category: i18n.T("tui.wiki.cmd_category"), Action: func() { v.rejectSelected() }},
 	}
 }
 
@@ -454,25 +454,25 @@ func wikiFormatTimeAgo(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "just now"
+		return i18n.T("tui.wiki.time_just_now")
 	case d < time.Hour:
 		m := int(d.Minutes())
 		if m == 1 {
-			return "1 min ago"
+			return i18n.T("tui.wiki.time_1min")
 		}
-		return fmt.Sprintf("%d min ago", m)
+		return i18n.Tf("tui.wiki.time_nmin", m)
 	case d < 24*time.Hour:
 		h := int(d.Hours())
 		if h == 1 {
-			return "1 hour ago"
+			return i18n.T("tui.wiki.time_1hour")
 		}
-		return fmt.Sprintf("%d hours ago", h)
+		return i18n.Tf("tui.wiki.time_nhours", h)
 	case d < 7*24*time.Hour:
 		days := int(d.Hours() / 24)
 		if days == 1 {
-			return "yesterday"
+			return i18n.T("tui.wiki.time_yesterday")
 		}
-		return fmt.Sprintf("%d days ago", days)
+		return i18n.Tf("tui.wiki.time_ndays", days)
 	default:
 		return t.Format("02 Jan")
 	}

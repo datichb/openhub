@@ -19,18 +19,14 @@ import (
 var reviewFeedbackCmd = &cobra.Command{
 	Use:   "feedback <ticket-or-branch>",
 	Short: i18n.T("cmd.review.feedback.short"),
-	Long: `Récupère les commentaires non résolus d'une MR GitLab et lance une session
-de correction pour traiter le feedback du reviewer humain.
-
-L'argument peut être un identifiant de ticket (e.g. SRU-142) ou un nom de branche
-(e.g. feat/SRU-142-auth-refactor). La MR est résolue automatiquement.`,
+	Long: i18n.T("cmd.review.feedback.long"),
 	Args: cobra.ExactArgs(1),
 	RunE: runReviewFeedback,
 }
 
 func init() {
-	reviewFeedbackCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	reviewFeedbackCmd.Flags().Bool("yes", false, "Passer la confirmation")
+	reviewFeedbackCmd.Flags().StringP("project", "p", "", i18n.T("cmd.review.feedback.flag_project"))
+	reviewFeedbackCmd.Flags().Bool("yes", false, i18n.T("cmd.review.feedback.flag_yes"))
 	_ = reviewFeedbackCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }
 
@@ -50,14 +46,12 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	// ── 2. Resolve GitLab credentials ──
 	glToken := resolveGitLabToken(ctx, a)
 	if glToken == "" {
-		return fmt.Errorf("aucun token GitLab trouvé — configure via %s ou GITLAB_TOKEN",
-			theme.Bold.Render("oh service setup"))
+		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh service setup")))
 	}
 	glURL := resolveGitLabURL(a)
 	glProject := resolveGitLabProject(a, project)
 	if glProject == "" {
-		return fmt.Errorf("projet GitLab non configuré — ajoute %s dans la config tracker",
-			theme.Bold.Render("tracker_project"))
+		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_project", theme.Bold.Render("tracker_project")))
 	}
 
 	gl := gitlabapi.NewClient(glURL, glToken)
@@ -68,28 +62,28 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if mr == nil {
-		return fmt.Errorf("aucune MR ouverte trouvée pour %q", ref)
+		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_mr", ref))
 	}
 
 	// ── 4. Fetch MR discussions ──
 	discussions, err := gl.ListMRDiscussions(ctx, glProject, mr.IID, true)
 	if err != nil {
-		return fmt.Errorf("impossible de récupérer les discussions : %w", err)
+		return fmt.Errorf("%s: %w", i18n.T("cmd.review.feedback.discussions_error"), err)
 	}
 
 	// ── 5. Preview ──
 	displayFeedbackPreview(a, mr, branch, discussions)
 
 	if len(discussions) == 0 {
-		fmt.Fprintf(a.IO.Out, "\n  %s Aucune discussion non résolue. Rien à corriger.\n",
-			theme.SuccessStyle.Render(theme.IconSuccess))
+		fmt.Fprintf(a.IO.Out, "\n  %s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.review.feedback.no_discussions"))
 		return nil
 	}
 
 	// ── 6. Confirm ──
 	noConfirm, _ := cmd.Flags().GetBool("yes")
 	if !noConfirm {
-		fmt.Fprintf(a.IO.Out, "\n  Lancer la session de correction ? [Y/n] ")
+		fmt.Fprintf(a.IO.Out, "\n  %s", i18n.T("cmd.review.feedback.confirm"))
 		var resp string
 		fmt.Scanln(&resp)
 		resp = strings.TrimSpace(strings.ToLower(resp))
@@ -104,8 +98,8 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	}
 
 	prompt := buildFeedbackPrompt(mr, branch, discussions)
-	fmt.Fprintf(a.IO.Out, "\n%s Lancement session feedback sur %s\n",
-		theme.Title.Render("oh review feedback"), theme.Bold.Render(project.Name))
+	fmt.Fprintf(a.IO.Out, "\n%s %s\n",
+		theme.Title.Render("oh review feedback"), i18n.Tf("cmd.review.feedback.launching", theme.Bold.Render(project.Name)))
 
 	l := launcher.New(a, launcher.NewCLIUI(a.IO.Out))
 	return l.Launch(ctx, launcher.LaunchOpts{
@@ -183,8 +177,8 @@ func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, dis
 	}
 	fmt.Fprintf(a.IO.Out, "\n  %s MR !%d — %s → %s\n",
 		theme.Subtitle.Render(theme.IconArrow), mr.IID, theme.Bold.Render(branch), baseBranch)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render("Titre:"), mr.Title)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render("URL:"), mr.WebURL)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.review.feedback.label_title")), mr.Title)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.review.feedback.label_url")), mr.WebURL)
 
 	if len(discussions) == 0 {
 		return
@@ -202,14 +196,14 @@ func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, dis
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "  %s %d\n", theme.Subtitle.Render("Discussions non résolues:"), len(discussions))
+	fmt.Fprintf(a.IO.Out, "  %s %d\n", theme.Subtitle.Render(i18n.T("cmd.review.feedback.label_unresolved")), len(discussions))
 
 	// Authors.
 	var authorParts []string
 	for name, count := range authors {
 		authorParts = append(authorParts, fmt.Sprintf("@%s (%d)", name, count))
 	}
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render("Auteurs:"), strings.Join(authorParts, ", "))
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.review.feedback.label_authors")), strings.Join(authorParts, ", "))
 
 	// Files.
 	if len(files) > 0 {
@@ -217,7 +211,7 @@ func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, dis
 		for path, count := range files {
 			fileParts = append(fileParts, fmt.Sprintf("%s (%d)", path, count))
 		}
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render("Fichiers:"), strings.Join(fileParts, ", "))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.review.feedback.label_files")), strings.Join(fileParts, ", "))
 	}
 }
 

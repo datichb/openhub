@@ -174,8 +174,8 @@ func actionReviewLauncher() {
 		})
 	} else {
 		options = append(options, shell.SessionOption{
-			Label:       i18n.T("tui.session.review_publish_label") + " (requires oh service setup)",
-			Description: "GitLab write not enabled — run 'oh service setup' to configure",
+			Label:       i18n.T("tui.session.review_publish_label") + i18n.T("tui.session.review_publish_disabled_suffix"),
+			Description: i18n.T("tui.session.review_publish_disabled_desc"),
 			Agent:       "__disabled__",
 		})
 	}
@@ -186,7 +186,7 @@ func actionReviewLauncher() {
 		OnLaunch: func(opt shell.SessionOption) {
 			// Handle disabled options (e.g., Publish without WriteEnabled).
 			if opt.Agent == "__disabled__" {
-				tuiShell.ShowToastMsg("GitLab write not enabled. Run 'oh service setup' to configure.", false)
+				tuiShell.ShowToastMsg(i18n.T("tui.session.review_publish_disabled_toast"), false)
 				return
 			}
 
@@ -221,7 +221,7 @@ func actionReviewFeedback() {
 		ref = branch
 	}
 	if ref == "" {
-		tuiShell.ShowToastMsg("Aucune branche détectée — lance 'oh review feedback <ticket>' depuis le CLI", false)
+		tuiShell.ShowToastMsg(i18n.T("tui.session.feedback_no_branch"), false)
 		return
 	}
 	prompt := fmt.Sprintf("[MODE:feedback] [BRANCH:%s] Review feedback pour %s", branch, ref)

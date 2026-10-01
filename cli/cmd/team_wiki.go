@@ -63,7 +63,7 @@ func runTeamWikiList(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Title.Render("  Team Wiki  "))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.T("cmd.team.wiki.title")))
 	fmt.Fprintln(a.IO.Out)
 
 	// Pages
@@ -150,7 +150,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		fmt.Fprintln(a.IO.Out, theme.Title.Render("  Pending Proposals  "))
+		fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.T("cmd.team.wiki.pending_title")))
 		fmt.Fprintln(a.IO.Out)
 		for _, pr := range pending {
 			fmt.Fprintf(a.IO.Out, "    %s [%s] %s ← %s (%s, %s)\n",
@@ -190,21 +190,21 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 	// Show proposal details
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Proposal %s  ", id)))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.Tf("cmd.team.wiki.proposal_detail_title", id)))
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render("Page:"), proposal.Page)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render("Author:"), proposal.Author)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render("Project:"), proposal.Project)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render("Confidence:"), proposal.Confidence)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render("Date:"), proposal.CreatedAt.Local().Format("2006-01-02 15:04"))
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_page")), proposal.Page)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_author")), proposal.Author)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_project")), proposal.Project)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_confidence")), proposal.Confidence)
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_date")), proposal.CreatedAt.Local().Format("2006-01-02 15:04"))
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  ── Content ──"))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("cmd.team.wiki.content_header")))
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintln(a.IO.Out, proposal.Content)
 	fmt.Fprintln(a.IO.Out)
 
 	// Prompt
-	fmt.Fprintf(a.IO.Out, "  %s [A]ccept / [R]eject / [S]kip ? ", theme.Bold.Render("Action:"))
+	fmt.Fprintf(a.IO.Out, "  %s", theme.Bold.Render(i18n.T("cmd.team.wiki.action_prompt")))
 	var response string
 	_, _ = fmt.Scanln(&response)
 	response = strings.TrimSpace(strings.ToLower(response))
