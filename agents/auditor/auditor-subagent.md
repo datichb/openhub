@@ -6,7 +6,7 @@ mode: subagent
 model: claude-sonnet-4-6
 permission_base: readonly-code
 skills: [shared/universal-guardrails, auditor/audit-protocol-light, posture/subagent-concision-posture, auditor/audit-handoff-format, shared/wiki-navigation]
-native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage]
+native_skills: [auditor/websearch-cve-lookup, auditor/websearch-performance-research, shared/rtk-usage, posture/expert-posture, shared/websearch-usage, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # AuditeurSousAgent

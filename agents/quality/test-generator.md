@@ -12,7 +12,7 @@ permission:
     "reviewer": allow
 model: claude-opus-4-6
 skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-testing, posture/tool-question, shared/wiki-navigation]
-native_skills: [shared/living-docs-enrichment]
+native_skills: [shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Agent Test Generator

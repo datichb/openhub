@@ -21,7 +21,7 @@ permission:
     "vault *": allow
 model: claude-opus-4-6
 skills: [shared/universal-guardrails, developer/dev-standards-universal, posture/tool-question, shared/wiki-navigation]
-native_skills: [developer/dev-standards-security, shared/living-docs-enrichment]
+native_skills: [developer/dev-standards-security, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Agent Infra/DevOps

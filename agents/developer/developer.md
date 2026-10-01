@@ -5,7 +5,7 @@ description: Assistant de développement générique — implémente les tickets
 mode: subagent
 permission_base: developer-rw
 skills: [shared/universal-guardrails, developer/dev-standards-universal, developer/dev-standards-simplicity, developer/quick-fix, developer/beads-dev, developer/developer-handoff-format, posture/subagent-concision-posture, shared/wiki-navigation, shared/context-mode-usage]
-native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan]
+native_skills: [developer/dev-standards-security, developer/dev-standards-git, developer/dev-standards-testing, reviewer/reviewer-reception, shared/rtk-usage, shared/living-docs-enrichment, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Developer

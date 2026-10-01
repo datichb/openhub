@@ -46,7 +46,7 @@ permission:
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, posture/coordination-only, posture/concision-posture, posture/retranscription-coordinateur, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-dev-protocol, orchestrator/orchestrator-handoff-format, posture/tool-question, posture/tool-todowrite, developer/developer-handoff-format, reviewer/reviewer-handoff-format, documentarian/documentarian-handoff-format]
-native_skills: [orchestrator/orchestrator-dev-standalone, orchestrator/orchestrator-dev-subagent, developer/dev-drift-detection, orchestrator/session-state-protocol, shared/rtk-usage, orchestrator/orchestrator-dev-ticket-workflow, orchestrator/orchestrator-dev-parallel, orchestrator/orchestrator-dev-recap, orchestrator/orchestrator-dev-edge-cases, orchestrator/error-recovery-protocol]
+native_skills: [orchestrator/orchestrator-dev-standalone, orchestrator/orchestrator-dev-subagent, developer/dev-drift-detection, orchestrator/session-state-protocol, shared/rtk-usage, orchestrator/orchestrator-dev-ticket-workflow, orchestrator/orchestrator-dev-parallel, orchestrator/orchestrator-dev-recap, orchestrator/orchestrator-dev-edge-cases, orchestrator/error-recovery-protocol, shared/team-awareness, shared/team-policies-enforcement, orchestrator/team-coordination, orchestrator/takeover-context-protocol, orchestrator/parallel-coordination]
 ---
 
 # OrchestratorDev

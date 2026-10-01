@@ -17,7 +17,7 @@ permission:
   webfetch: deny
   todowrite: deny
 skills: []
-native_skills: []
+native_skills: [shared/team-awareness, shared/team-policies-enforcement]
 ---
 
 # Brief Enricher

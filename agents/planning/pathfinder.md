@@ -41,7 +41,7 @@ permission:
   ctx_batch_execute: allow
 model: claude-sonnet-4-6
 skills: [shared/universal-guardrails, developer/beads-plan, planning/pathfinder-protocol, planning/pathfinder-handoff-format, adapters/gitlab-pathfinder-protocol, posture/concision-posture, posture/tool-question, shared/websearch-usage, shared/wiki-navigation]
-native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment]
+native_skills: [planning/pathfinder-execution-modes, planning/websearch-stack-research, shared/rtk-usage, shared/living-docs-enrichment, shared/team-awareness, shared/team-policies-enforcement]
 mcpServers: [gitlab]
 ---
 

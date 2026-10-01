@@ -1,6 +1,6 @@
 ---
 id: takeover-context-protocol
-bucket: A
+bucket: B
 scope: orchestrator
 condition: team_enabled
 ---
