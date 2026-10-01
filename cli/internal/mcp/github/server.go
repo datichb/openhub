@@ -240,9 +240,20 @@ func handleGetPR(_ context.Context, params json.RawMessage) (*protocol.ToolResul
 	if err != nil {
 		return nil, err
 	}
+
+	// Extract head SHA for the check-runs endpoint (requires a commit ref, not a PR number).
+	var checks []byte
+	var pr struct {
+		Head struct {
+			SHA string `json:"sha"`
+		} `json:"head"`
+	}
+	if err := json.Unmarshal(data, &pr); err == nil && pr.Head.SHA != "" {
+		checks, _ = githubAPI(fmt.Sprintf("/repos/%s/commits/%s/check-runs", args.Repo, pr.Head.SHA), nil)
+	}
+
 	// Also fetch review status
 	reviews, _ := githubAPI(fmt.Sprintf("/repos/%s/pulls/%d/reviews", args.Repo, args.PRNumber), nil)
-	checks, _ := githubAPI(fmt.Sprintf("/repos/%s/commits/%d/check-runs", args.Repo, args.PRNumber), nil)
 
 	combined := fmt.Sprintf("{\"pr\":%s,\"reviews\":%s,\"checks\":%s}",
 		string(data),
