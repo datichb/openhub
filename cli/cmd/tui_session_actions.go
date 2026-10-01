@@ -172,12 +172,24 @@ func actionReviewLauncher() {
 		options = append(options, shell.SessionOption{
 			Label: i18n.T("tui.session.review_publish_label"), Description: i18n.T("tui.session.review_publish_desc"), Agent: "reviewer",
 		})
+	} else {
+		options = append(options, shell.SessionOption{
+			Label:       i18n.T("tui.session.review_publish_label") + " (requires oh service setup)",
+			Description: "GitLab write not enabled — run 'oh service setup' to configure",
+			Agent:       "__disabled__",
+		})
 	}
 
 	tuiShell.ShowSessionLauncher(shell.SessionLaunchConfig{
 		Title:   i18n.T("tui.session.review_title"),
 		Options: options,
 		OnLaunch: func(opt shell.SessionOption) {
+			// Handle disabled options (e.g., Publish without WriteEnabled).
+			if opt.Agent == "__disabled__" {
+				tuiShell.ShowToastMsg("GitLab write not enabled. Run 'oh service setup' to configure.", false)
+				return
+			}
+
 			// Map localized label → review mode
 			modeByLabel := map[string]string{
 				i18n.T("tui.session.review_standard_label"):    "",
