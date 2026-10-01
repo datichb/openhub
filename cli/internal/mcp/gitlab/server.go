@@ -284,7 +284,7 @@ func handleListMRDiscussions(_ context.Context, params json.RawMessage) (*protoc
 	}
 
 	var filtered []json.RawMessage
-	for i, raw := range all {
+	for _, raw := range all {
 		var d discussion
 		if err := json.Unmarshal(raw, &d); err != nil {
 			filtered = append(filtered, raw) // keep if unparseable
@@ -314,7 +314,6 @@ func handleListMRDiscussions(_ context.Context, params json.RawMessage) (*protoc
 				continue
 			}
 		}
-		_ = i
 		filtered = append(filtered, raw)
 	}
 

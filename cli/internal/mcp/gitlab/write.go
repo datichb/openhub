@@ -94,6 +94,21 @@ func registerWriteTools(server *protocol.Server) {
 			"required": []string{"project_id", "issue_iid", "labels"},
 		},
 	}, handleAddLabel)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "gitlab_reply_to_mr_discussion",
+		Description: "Reply to a specific discussion thread on a merge request. Use this to respond to reviewer comments after applying corrections.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project_id":    map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
+				"mr_iid":        map[string]interface{}{"type": "integer", "description": "MR internal ID (iid)"},
+				"discussion_id": map[string]interface{}{"type": "string", "description": "Discussion thread ID (from gitlab_list_mr_discussions)"},
+				"body":          map[string]interface{}{"type": "string", "description": "Reply body (markdown supported)"},
+			},
+			"required": []string{"project_id", "mr_iid", "discussion_id", "body"},
+		},
+	}, handleReplyToMRDiscussion)
 }
 
 func handleCreateMR(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
@@ -255,6 +270,31 @@ func handleAddLabel(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 		url.PathEscape(args.ProjectID), args.IssueIID)
 
 	data, err := gitlabAPIWrite("PUT", path, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+func handleReplyToMRDiscussion(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		ProjectID    string `json:"project_id"`
+		MrIID        int    `json:"mr_iid"`
+		DiscussionID string `json:"discussion_id"`
+		Body         string `json:"body"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	payload, _ := json.Marshal(map[string]string{"body": args.Body})
+	replyPath := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/discussions/%s/notes",
+		url.PathEscape(args.ProjectID), args.MrIID, url.PathEscape(args.DiscussionID))
+
+	data, err := gitlabAPIWrite("POST", replyPath, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
