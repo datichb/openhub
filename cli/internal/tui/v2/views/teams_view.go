@@ -21,7 +21,7 @@ type TeamsView struct {
 	shell      ShellAccess
 	cfg        *config.Config
 	onSync     func(teamID string)
-	onSave     func(cfg *config.Config)
+	onSave     func(cfg *config.Config) error
 	onNavigate func(viewID string)
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 }
@@ -29,9 +29,9 @@ type TeamsView struct {
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
 type TeamsViewDeps struct {
 	Config     *config.Config
-	OnSync     func(teamID string)      // Called when user requests team-state sync
-	OnSave     func(cfg *config.Config) // Called to persist config changes
-	OnNavigate func(viewID string)      // Called to navigate to another view
+	OnSync     func(teamID string)            // Called when user requests team-state sync
+	OnSave     func(cfg *config.Config) error // Called to persist config changes
+	OnNavigate func(viewID string)            // Called to navigate to another view
 }
 
 // NewTeamsView creates a new TeamsView.
@@ -246,7 +246,15 @@ func (v *TeamsView) handleAdd() {
 			}
 			v.cfg.Teams = append(v.cfg.Teams, newTeam)
 			if v.onSave != nil {
-				v.onSave(v.cfg)
+				if err := v.onSave(v.cfg); err != nil {
+					// Rollback in-memory state.
+					if prev, ok := v.undoStack.Pop(); ok {
+						v.cfg.Teams = prev
+					}
+					v.rebuild()
+					v.shell.ShowToastMsg("save failed: "+err.Error(), false)
+					return
+				}
 			}
 			v.rebuild()
 			v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_added", newTeam.DisplayName()), true)
@@ -291,7 +299,15 @@ func (v *TeamsView) handleDelete() {
 
 		// Auto-save
 		if v.onSave != nil {
-			v.onSave(v.cfg)
+			if err := v.onSave(v.cfg); err != nil {
+				// Rollback in-memory state.
+				if prev, ok := v.undoStack.Pop(); ok {
+					v.cfg.Teams = prev
+				}
+				v.rebuild()
+				v.shell.ShowToastMsg("save failed: "+err.Error(), false)
+				return
+			}
 		}
 
 		v.rebuild()
@@ -322,9 +338,16 @@ func (v *TeamsView) handleUndo() {
 	if !ok {
 		return
 	}
+	current := copyTeams(v.cfg.Teams)
 	v.cfg.Teams = prev
 	if v.onSave != nil {
-		v.onSave(v.cfg)
+		if err := v.onSave(v.cfg); err != nil {
+			// Restore pre-undo state and re-push the snapshot.
+			v.cfg.Teams = current
+			v.undoStack.Push(prev)
+			v.shell.ShowToastMsg("undo failed: "+err.Error(), false)
+			return
+		}
 	}
 	v.rebuild()
 }

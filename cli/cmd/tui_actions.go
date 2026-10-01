@@ -392,7 +392,12 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			}
 
 			if doDeploy {
-				_ = runDeployForProject(a, result)
+				if err := runDeployForProject(a, result); err != nil {
+					slog.Warn("deploy failed during project add", "project", result.Name, "error", err)
+					if tuiShell != nil {
+						tuiShell.ShowToastMsg("Deploy failed: "+err.Error(), false)
+					}
+				}
 				if err := addGitExcludes(absPath); err != nil {
 					slog.Warn("failed to update git excludes", "error", err)
 				}

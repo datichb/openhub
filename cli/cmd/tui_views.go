@@ -95,11 +95,17 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			}
 			if _, _, err := upsertProject(context.Background(), a.Projects, p); err != nil {
 				slog.Warn("failed to create/update project", "error", err)
+				if tuiShell != nil {
+					tuiShell.ShowToastMsg("Project save failed: "+err.Error(), false)
+				}
 			}
 		})
 		projectsView.SetOnRemove(func(id string) {
 			if err := a.Projects.Delete(context.Background(), id); err != nil {
 				slog.Warn("failed to remove project", "error", err)
+				if tuiShell != nil {
+					tuiShell.ShowToastMsg("Project delete failed: "+err.Error(), false)
+				}
 			}
 		})
 		projectsView.SetOnConfigure(func(id string, cfg views.ProjectConfigUpdate) {
@@ -138,6 +144,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to update project config", "id", id, "error", err)
+				if tuiShell != nil {
+					tuiShell.ShowToastMsg("Config save failed: "+err.Error(), false)
+				}
 			}
 		})
 		projectsView.SetOnRename(func(id, newName string) {
@@ -151,6 +160,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			project.UpdatedAt = time.Now()
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to rename project", "id", id, "error", err)
+				if tuiShell != nil {
+					tuiShell.ShowToastMsg("Rename failed: "+err.Error(), false)
+				}
 			}
 		})
 		projectsView.SetOnMove(func(id, newPath string) {
@@ -164,6 +176,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			project.UpdatedAt = time.Now()
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to move project", "id", id, "error", err)
+				if tuiShell != nil {
+					tuiShell.ShowToastMsg("Move failed: "+err.Error(), false)
+				}
 			}
 		})
 		// Enter project mode from the projects list view
@@ -448,8 +463,8 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					})
 				}()
 			},
-			OnSave: func(cfg *config.Config) {
-				_ = config.Save(cfg)
+			OnSave: func(cfg *config.Config) error {
+				return config.Save(cfg)
 			},
 			OnNavigate: func(viewID string) {
 				if tuiShell != nil {
