@@ -88,6 +88,8 @@ func Serve() error {
 	return server.Serve()
 }
 
+// ── Handlers ────────────────────────────────────────────────────────────────
+
 func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		TeamKey  string `json:"team_key"`
@@ -102,22 +104,30 @@ func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.Tool
 		args.First = 50
 	}
 
-	filter := ""
-	if args.TeamKey != "" {
-		filter += fmt.Sprintf(`, filter: { team: { key: { eq: %q } } }`, args.TeamKey)
-	}
-
-	query := fmt.Sprintf(`{
-		issues(first: %d%s) {
+	query := `query($first: Int!, $filter: IssueFilter) {
+		issues(first: $first, filter: $filter) {
 			nodes {
 				id identifier title state { name } assignee { name email }
 				priority createdAt updatedAt
 				description
 			}
 		}
-	}`, args.First, filter)
+	}`
 
-	data, err := linearQuery(query)
+	variables := map[string]interface{}{
+		"first": args.First,
+	}
+	if args.TeamKey != "" {
+		variables["filter"] = map[string]interface{}{
+			"team": map[string]interface{}{
+				"key": map[string]interface{}{
+					"eq": args.TeamKey,
+				},
+			},
+		}
+	}
+
+	data, err := linearQuery(query, variables)
 	if err != nil {
 		return nil, err
 	}
@@ -131,16 +141,17 @@ func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	query := fmt.Sprintf(`{
-		issue(id: "%s") {
+
+	query := `query($id: String!) {
+		issue(id: $id) {
 			id identifier title description state { name }
 			assignee { name email } priority
 			createdAt updatedAt
 			comments { nodes { body createdAt user { name } } }
 		}
-	}`, escapeGraphQL(args.IssueID))
+	}`
 
-	data, err := linearQuery(query)
+	data, err := linearQuery(query, map[string]interface{}{"id": args.IssueID})
 	if err != nil {
 		return nil, err
 	}
@@ -157,19 +168,22 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	mutation := fmt.Sprintf(`mutation {
-		issueCreate(input: {
-			teamId: "%s"
-			title: "%s"
-			description: "%s"
-			priority: %d
-		}) {
+
+	query := `mutation($input: IssueCreateInput!) {
+		issueCreate(input: $input) {
 			success
 			issue { id identifier title }
 		}
-	}`, escapeGraphQL(args.TeamID), escapeGraphQL(args.Title), escapeGraphQL(args.Description), args.Priority)
+	}`
 
-	data, err := linearQuery(mutation)
+	input := map[string]interface{}{
+		"teamId":      args.TeamID,
+		"title":       args.Title,
+		"description": args.Description,
+		"priority":    args.Priority,
+	}
+
+	data, err := linearQuery(query, map[string]interface{}{"input": input})
 	if err != nil {
 		return nil, err
 	}
@@ -186,38 +200,46 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 		return nil, err
 	}
 
-	input := ""
-	if args.StateID != "" {
-		input += fmt.Sprintf(`stateId: %q`, args.StateID)
-	}
-	if args.AssigneeID != "" {
-		if input != "" {
-			input += " "
-		}
-		input += fmt.Sprintf(`assigneeId: %q`, args.AssigneeID)
-	}
-
-	mutation := fmt.Sprintf(`mutation {
-		issueUpdate(id: "%s", input: { %s }) {
+	query := `mutation($id: String!, $input: IssueUpdateInput!) {
+		issueUpdate(id: $id, input: $input) {
 			success
 			issue { id identifier title state { name } }
 		}
-	}`, escapeGraphQL(args.IssueID), input)
+	}`
 
-	data, err := linearQuery(mutation)
+	input := map[string]interface{}{}
+	if args.StateID != "" {
+		input["stateId"] = args.StateID
+	}
+	if args.AssigneeID != "" {
+		input["assigneeId"] = args.AssigneeID
+	}
+
+	data, err := linearQuery(query, map[string]interface{}{
+		"id":    args.IssueID,
+		"input": input,
+	})
 	if err != nil {
 		return nil, err
 	}
 	return textResult(data), nil
 }
 
-func linearQuery(query string) ([]byte, error) {
+// ── GraphQL transport ───────────────────────────────────────────────────────
+
+// linearQuery executes a GraphQL query against the Linear API using variables
+// for parameterization. This eliminates GraphQL injection risks by separating
+// the query structure from user-supplied data.
+func linearQuery(query string, variables map[string]interface{}) ([]byte, error) {
 	token := os.Getenv("LINEAR_API_KEY")
 	if token == "" {
 		return nil, fmt.Errorf("LINEAR_API_KEY environment variable not set")
 	}
 
-	payload := map[string]string{"query": query}
+	payload := map[string]interface{}{"query": query}
+	if len(variables) > 0 {
+		payload["variables"] = variables
+	}
 	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequest("POST", linearAPIURL, bytes.NewReader(body))
@@ -248,13 +270,4 @@ func textResult(data []byte) *protocol.ToolResult {
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}
-}
-
-func escapeGraphQL(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, "\n", `\n`)
-	s = strings.ReplaceAll(s, "\r", `\r`)
-	s = strings.ReplaceAll(s, "\t", `\t`)
-	return s
 }
