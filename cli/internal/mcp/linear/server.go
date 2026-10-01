@@ -90,7 +90,7 @@ func Serve() error {
 
 // ── Handlers ────────────────────────────────────────────────────────────────
 
-func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+func handleListIssues(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		TeamKey  string `json:"team_key"`
 		State    string `json:"state"`
@@ -127,14 +127,14 @@ func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.Tool
 		}
 	}
 
-	data, err := linearQuery(query, variables)
+	data, err := linearQuery(ctx, query, variables)
 	if err != nil {
 		return nil, err
 	}
 	return textResult(data), nil
 }
 
-func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+func handleGetIssue(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueID string `json:"issue_id"`
 	}
@@ -151,14 +151,14 @@ func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 		}
 	}`
 
-	data, err := linearQuery(query, map[string]interface{}{"id": args.IssueID})
+	data, err := linearQuery(ctx, query, map[string]interface{}{"id": args.IssueID})
 	if err != nil {
 		return nil, err
 	}
 	return textResult(data), nil
 }
 
-func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateIssue(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		TeamID      string `json:"team_id"`
 		Title       string `json:"title"`
@@ -183,14 +183,14 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 		"priority":    args.Priority,
 	}
 
-	data, err := linearQuery(query, map[string]interface{}{"input": input})
+	data, err := linearQuery(ctx, query, map[string]interface{}{"input": input})
 	if err != nil {
 		return nil, err
 	}
 	return textResult(data), nil
 }
 
-func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+func handleUpdateIssue(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		IssueID    string `json:"issue_id"`
 		StateID    string `json:"state_id"`
@@ -198,6 +198,16 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 	}
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
+	}
+
+	if args.StateID == "" && args.AssigneeID == "" {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: "No fields to update. Provide at least one of: state_id, assignee_id.",
+			}},
+			IsError: true,
+		}, nil
 	}
 
 	query := `mutation($id: String!, $input: IssueUpdateInput!) {
@@ -215,7 +225,7 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 		input["assigneeId"] = args.AssigneeID
 	}
 
-	data, err := linearQuery(query, map[string]interface{}{
+	data, err := linearQuery(ctx, query, map[string]interface{}{
 		"id":    args.IssueID,
 		"input": input,
 	})
@@ -230,7 +240,7 @@ func handleUpdateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 // linearQuery executes a GraphQL query against the Linear API using variables
 // for parameterization. This eliminates GraphQL injection risks by separating
 // the query structure from user-supplied data.
-func linearQuery(query string, variables map[string]interface{}) ([]byte, error) {
+func linearQuery(ctx context.Context, query string, variables map[string]interface{}) ([]byte, error) {
 	token := os.Getenv("LINEAR_API_KEY")
 	if token == "" {
 		return nil, fmt.Errorf("LINEAR_API_KEY environment variable not set")
@@ -242,7 +252,7 @@ func linearQuery(query string, variables map[string]interface{}) ([]byte, error)
 	}
 	body, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", linearAPIURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", linearAPIURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
