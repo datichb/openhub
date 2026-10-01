@@ -68,6 +68,7 @@ func FetchTeamTicketsWithColumns(repo teamstate.TeamStateReader, resolver Projec
 			Assignee:    name,
 			Labels:      c.Labels,
 			Description: c.Description,
+			MRURL:       c.MRURL,
 		})
 	}
 

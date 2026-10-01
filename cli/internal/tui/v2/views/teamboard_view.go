@@ -861,6 +861,11 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", "))
 	}
 
+	if ticket.MRURL != "" {
+		fmt.Fprintf(&detail, "  %sMR:%s         %s\n",
+			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.MRURL)
+	}
+
 	if ticket.Description != "" {
 		fmt.Fprintf(&detail, "\n  %sDescription:%s\n  %s\n",
 			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tview.Escape(ticket.Description))

@@ -28,6 +28,8 @@ type TeamTicket struct {
 	Description string
 	// Labels are displayed as compact tags on the board item.
 	Labels []string
+	// MRURL is the merge request URL (from claim). Empty if no MR published.
+	MRURL string
 }
 
 // TeamBoardConfig configures the team board.
