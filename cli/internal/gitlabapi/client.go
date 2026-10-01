@@ -167,3 +167,121 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	return data, err
 }
+
+// ── MR discussion types ─────────────────────────────────────────────────────
+
+// Discussion represents a GitLab MR discussion thread.
+type Discussion struct {
+	ID    string `json:"id"`
+	Notes []Note `json:"notes"`
+}
+
+// Note represents a single note in a discussion.
+type Note struct {
+	ID         int      `json:"id"`
+	Body       string   `json:"body"`
+	Author     Author   `json:"author"`
+	CreatedAt  string   `json:"created_at"`
+	System     bool     `json:"system"`
+	Resolvable bool     `json:"resolvable"`
+	Resolved   bool     `json:"resolved"`
+	Position   *NotePos `json:"position,omitempty"`
+}
+
+// Author represents a GitLab user reference.
+type Author struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
+// NotePos represents the position of an inline code comment.
+type NotePos struct {
+	NewPath string `json:"new_path"`
+	NewLine int    `json:"new_line"`
+	OldPath string `json:"old_path"`
+	OldLine int    `json:"old_line"`
+}
+
+// ── MR discussion methods ───────────────────────────────────────────────────
+
+// FindMRByBranch finds the first open merge request for the given source branch.
+// Returns nil (no error) if no open MR exists.
+func (c *Client) FindMRByBranch(ctx context.Context, projectID, branch string) (*MRInfo, error) {
+	encoded := url.PathEscape(projectID)
+	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests?source_branch=%s&state=opened",
+		encoded, url.QueryEscape(branch))
+	data, err := c.get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("finding MR by branch: %w", err)
+	}
+	var mrs []MRInfo
+	if err := json.Unmarshal(data, &mrs); err != nil {
+		return nil, fmt.Errorf("parsing MR list: %w", err)
+	}
+	if len(mrs) == 0 {
+		return nil, nil
+	}
+	return &mrs[0], nil
+}
+
+// ListMRDiscussions returns all discussion threads for a merge request.
+// System notes are excluded. If unresolvedOnly is true, only unresolved
+// resolvable discussions are returned.
+func (c *Client) ListMRDiscussions(ctx context.Context, projectID string, mrIID int, unresolvedOnly bool) ([]Discussion, error) {
+	encoded := url.PathEscape(projectID)
+	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/discussions", encoded, mrIID)
+	data, err := c.get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("listing MR discussions: %w", err)
+	}
+	var all []Discussion
+	if err := json.Unmarshal(data, &all); err != nil {
+		return nil, fmt.Errorf("parsing discussions: %w", err)
+	}
+
+	// Filter: remove system notes and optionally keep only unresolved threads.
+	var filtered []Discussion
+	for _, d := range all {
+		var notes []Note
+		for _, n := range d.Notes {
+			if n.System {
+				continue
+			}
+			notes = append(notes, n)
+		}
+		if len(notes) == 0 {
+			continue
+		}
+		d.Notes = notes
+
+		// For unresolved-only filtering, check if the first resolvable note is unresolved.
+		if unresolvedOnly {
+			hasUnresolved := false
+			for _, n := range d.Notes {
+				if n.Resolvable && !n.Resolved {
+					hasUnresolved = true
+					break
+				}
+			}
+			if !hasUnresolved {
+				continue
+			}
+		}
+
+		filtered = append(filtered, d)
+	}
+	return filtered, nil
+}
+
+// ReplyToDiscussion posts a reply note on a specific MR discussion thread.
+func (c *Client) ReplyToDiscussion(ctx context.Context, projectID string, mrIID int, discussionID, body string) error {
+	encoded := url.PathEscape(projectID)
+	payload, _ := json.Marshal(map[string]string{"body": body})
+	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/discussions/%s/notes",
+		encoded, mrIID, url.PathEscape(discussionID))
+	_, err := c.post(ctx, path, payload)
+	if err != nil {
+		return fmt.Errorf("replying to discussion: %w", err)
+	}
+	return nil
+}

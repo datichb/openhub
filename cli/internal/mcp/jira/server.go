@@ -62,6 +62,18 @@ func Serve() error {
 		},
 	}, handleGetProject)
 
+	server.RegisterTool(protocol.Tool{
+		Name:        "jira_list_comments",
+		Description: "List comments on a Jira issue. Returns comment body (ADF format), author, and creation date. Useful for reading review feedback posted as issue comments.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"issue_key": map[string]interface{}{"type": "string", "description": "Issue key (e.g. PROJ-123)"},
+			},
+			"required": []string{"issue_key"},
+		},
+	}, handleListComments)
+
 	if os.Getenv("JIRA_WRITE_ENABLED") == "true" {
 		server.RegisterTool(protocol.Tool{
 			Name:        "jira_transition_issue",
@@ -289,4 +301,20 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 	webURL := base + "/browse/" + result.Key
 	output := fmt.Sprintf("Created issue %s: %s", result.Key, webURL)
 	return textResult([]byte(output)), nil
+}
+
+// ── Comment handler ─────────────────────────────────────────────────────────
+
+func handleListComments(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		IssueKey string `json:"issue_key"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+	data, err := jiraAPI(fmt.Sprintf("/rest/api/3/issue/%s/comment", args.IssueKey), nil)
+	if err != nil {
+		return nil, err
+	}
+	return textResult(data), nil
 }

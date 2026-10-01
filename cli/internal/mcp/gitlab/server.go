@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/httplog"
@@ -58,6 +59,33 @@ func Serve() error {
 			"required": []string{"project_id"},
 		},
 	}, handleListMRs)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "gitlab_list_mr_discussions",
+		Description: "List discussion threads on a merge request. Returns inline code comments and general discussions with author, body, resolved status, and file position. System notes are excluded.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project_id":      map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
+				"mr_iid":          map[string]interface{}{"type": "integer", "description": "Merge request IID (internal ID)"},
+				"unresolved_only": map[string]interface{}{"type": "boolean", "description": "Return only unresolved discussions (default: true)"},
+			},
+			"required": []string{"project_id", "mr_iid"},
+		},
+	}, handleListMRDiscussions)
+
+	server.RegisterTool(protocol.Tool{
+		Name:        "gitlab_get_mr_approvals",
+		Description: "Get approval status for a merge request. Returns who approved, how many approvals are required, and how many remain. Note: requires GitLab Premium or Ultimate — returns an explicit message on GitLab Free.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project_id": map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
+				"mr_iid":     map[string]interface{}{"type": "integer", "description": "Merge request IID (internal ID)"},
+			},
+			"required": []string{"project_id", "mr_iid"},
+		},
+	}, handleGetMRApprovals)
 
 	// Write tools (registered only if GITLAB_WRITE_ENABLED=true)
 	if isWriteEnabled() {
@@ -212,6 +240,117 @@ func validateGitLabURL(rawURL string) error {
 		return fmt.Errorf("GITLAB_URL must not point to a private/internal address")
 	}
 	return nil
+}
+
+// ── MR discussion & approval handlers ───────────────────────────────────────
+
+func handleListMRDiscussions(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		ProjectID      string  `json:"project_id"`
+		MRIID          float64 `json:"mr_iid"` // JSON numbers
+		UnresolvedOnly *bool   `json:"unresolved_only"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	unresolvedOnly := true
+	if args.UnresolvedOnly != nil {
+		unresolvedOnly = *args.UnresolvedOnly
+	}
+
+	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/discussions",
+		url.PathEscape(args.ProjectID), int(args.MRIID))
+	data, err := gitlabAPI(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Client-side filtering: remove system notes and optionally filter unresolved.
+	var all []json.RawMessage
+	if err := json.Unmarshal(data, &all); err != nil {
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
+		}, nil
+	}
+
+	type note struct {
+		System     bool `json:"system"`
+		Resolvable bool `json:"resolvable"`
+		Resolved   bool `json:"resolved"`
+	}
+	type discussion struct {
+		Notes []note `json:"notes"`
+	}
+
+	var filtered []json.RawMessage
+	for i, raw := range all {
+		var d discussion
+		if err := json.Unmarshal(raw, &d); err != nil {
+			filtered = append(filtered, raw) // keep if unparseable
+			continue
+		}
+		// Skip discussions with only system notes.
+		hasHumanNote := false
+		for _, n := range d.Notes {
+			if !n.System {
+				hasHumanNote = true
+				break
+			}
+		}
+		if !hasHumanNote {
+			continue
+		}
+		// Filter by resolved status.
+		if unresolvedOnly {
+			hasUnresolved := false
+			for _, n := range d.Notes {
+				if n.Resolvable && !n.Resolved {
+					hasUnresolved = true
+					break
+				}
+			}
+			if !hasUnresolved {
+				continue
+			}
+		}
+		_ = i
+		filtered = append(filtered, raw)
+	}
+
+	result, _ := json.MarshalIndent(filtered, "", "  ")
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(result)}},
+	}, nil
+}
+
+func handleGetMRApprovals(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		ProjectID string  `json:"project_id"`
+		MRIID     float64 `json:"mr_iid"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/approvals",
+		url.PathEscape(args.ProjectID), int(args.MRIID))
+	data, err := gitlabAPI(path)
+	if err != nil {
+		// GitLab Free returns 403 for the approvals API.
+		if strings.Contains(err.Error(), "403") {
+			return &protocol.ToolResult{
+				Content: []protocol.ContentBlock{{
+					Type: "text",
+					Text: `{"error": "Approvals API requires GitLab Premium or Ultimate. This project appears to be on GitLab Free."}`,
+				}},
+			}, nil
+		}
+		return nil, err
+	}
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
+	}, nil
 }
 
 // isPrivateHost checks if a hostname or IP belongs to a private/reserved range.
