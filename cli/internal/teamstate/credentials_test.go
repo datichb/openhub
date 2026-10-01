@@ -74,10 +74,3 @@ func TestAuthErrorMessage_ContainsActionableHints(t *testing.T) {
 	assert.Contains(t, msg, "token", "should mention token")
 	assert.Contains(t, msg, "team configure", "should tell user how to reconfigure")
 }
-
-// ── credentialHelperForPlatform ───────────────────────────────────────────────
-
-func TestCredentialHelperForPlatform_NeverReturnsEmpty(t *testing.T) {
-	helper := credentialHelperForPlatform()
-	assert.NotEmpty(t, helper, "a credential helper must always be available")
-}

@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -57,56 +56,6 @@ func IsGitLabHost(remote string) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(u.Host), "gitlab")
-}
-
-// ── Credential helper management ──────────────────────────────────────────────
-
-// EnsureCredentialHelper checks if a git credential helper is configured for
-// the remote's host. If none is found (scoped or global), it configures one
-// automatically, scoped to the specific host so other remotes are unaffected.
-//
-// Platform defaults:
-//   - macOS: osxkeychain (stores in macOS Keychain, encrypted)
-//   - Linux/other: store (~/.git-credentials, plain-text but functional)
-func EnsureCredentialHelper(remote string) error {
-	u, err := url.Parse(remote)
-	if err != nil {
-		return fmt.Errorf("parsing remote URL: %w", err)
-	}
-
-	scope := fmt.Sprintf("credential.%s://%s.helper", u.Scheme, u.Host)
-
-	// Check for a scoped helper (most specific)
-	out, _ := exec.Command("git", "config", "--global", scope).Output()
-	if strings.TrimSpace(string(out)) != "" {
-		return nil // already configured for this host
-	}
-
-	// Check for a global helper (covers all remotes)
-	out, _ = exec.Command("git", "config", "--global", "credential.helper").Output()
-	if strings.TrimSpace(string(out)) != "" {
-		return nil // global helper will handle this host
-	}
-
-	// No helper found — configure one scoped to this host
-	helper := credentialHelperForPlatform()
-	if err := exec.Command("git", "config", "--global", scope, helper).Run(); err != nil {
-		return fmt.Errorf("configuring credential helper for %s: %w", u.Host, err)
-	}
-	return nil
-}
-
-// credentialHelperForPlatform returns the best credential helper for the
-// current operating system.
-func credentialHelperForPlatform() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "osxkeychain"
-	case "windows":
-		return "manager"
-	default: // linux and others
-		return "store"
-	}
 }
 
 // ── Credential injection ──────────────────────────────────────────────────────
