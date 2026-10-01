@@ -289,8 +289,8 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
 				if err := repo.Pull(ctx); err != nil {
-					// Non-fatal: continue with local state
-					_ = err
+					// Non-fatal: continue with potentially stale local state.
+					slog.Debug("team.pull.skipped", "error", err)
 				}
 			} else {
 				if err := repo.Clone(ctx); err != nil {
