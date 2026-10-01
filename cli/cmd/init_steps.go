@@ -71,8 +71,11 @@ type initStepState struct {
 	// ── MCP ──
 	FigmaToken   string
 	GitlabToken  string
+	GitlabURL    string
 	GitlabWrite  bool
 	GslidesToken string
+	JiraToken    string
+	JiraURL      string
 	MCPSkipped   bool
 
 	// ── Deploy ──
@@ -1175,6 +1178,9 @@ func buildDeployStep(s *initStepState) views.WizardStep {
 			if s.GitlabToken != "" {
 				mcpList = append(mcpList, "GitLab")
 			}
+			if s.JiraToken != "" {
+				mcpList = append(mcpList, "Jira")
+			}
 			if s.GslidesToken != "" {
 				mcpList = append(mcpList, "Google Slides")
 			}
@@ -1314,14 +1320,18 @@ func buildMCPIntroStep(s *initStepState) views.WizardStep {
 // that appears only when the checkbox is checked.
 func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 	type mcpEntry struct {
-		name          string
-		tokenVar      *string
-		tokenKey      string
-		hintKey       string
-		checkboxVar   *bool
-		checkboxLabel string
-		checkboxDesc  string
-		afterStore    func() error
+		name           string
+		tokenVar       *string
+		tokenKey       string
+		hintKey        string
+		urlVar         *string // nil = no URL field shown
+		urlPlaceholder string  // placeholder text inside the URL input
+		urlHintKey     string  // i18n key for hint below URL field
+		urlRequired    bool    // when true, service is not enabled without a URL
+		checkboxVar    *bool
+		checkboxLabel  string
+		checkboxDesc   string
+		afterStore     func() error
 	}
 
 	entries := []mcpEntry{
@@ -1335,13 +1345,36 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 		{
 			name: "GitLab", tokenVar: &s.GitlabToken,
 			tokenKey: config.DefaultGitLabTokenKey, hintKey: "cmd.init.mcp_hint_gitlab",
+			urlVar: &s.GitlabURL, urlPlaceholder: "https://gitlab.com",
+			urlHintKey: "cmd.init.mcp_url_hint_gitlab",
 			checkboxVar: &s.GitlabWrite, checkboxLabel: i18n.T("cmd.init.mcp_gitlab_write_short"),
 			checkboxDesc: "cmd.init.mcp_gitlab_write_desc",
 			afterStore: func() error {
 				return config.Update(func(c *config.Config) error {
 					c.MCP.Gitlab.Enabled = true
+					if s.GitlabURL != "" {
+						c.MCP.Gitlab.URL = s.GitlabURL
+					}
 					if s.GitlabWrite {
 						c.MCP.Gitlab.WriteEnabled = true
+					}
+					return nil
+				})
+			},
+		},
+		{
+			name: "Jira", tokenVar: &s.JiraToken,
+			tokenKey: config.DefaultJiraTokenKey, hintKey: "cmd.init.mcp_hint_jira",
+			urlVar: &s.JiraURL, urlPlaceholder: "https://mycompany.atlassian.net",
+			urlHintKey: "cmd.init.mcp_url_hint_jira", urlRequired: true,
+			afterStore: func() error {
+				return config.Update(func(c *config.Config) error {
+					// Option D: only enable Jira when URL is provided.
+					// The token is always stored in the keychain (handled by the
+					// OnDone loop), but without a URL the MCP server cannot start.
+					if s.JiraURL != "" {
+						c.MCP.Jira.Enabled = true
+						c.MCP.Jira.URL = s.JiraURL
 					}
 					return nil
 				})
@@ -1406,6 +1439,23 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 					if e.hintKey != "" {
 						form.AddTextView("", i18n.T(e.hintKey), 60, 2, true, false)
 					}
+					if e.urlVar != nil {
+						urlIdx := ci
+						form.AddInputField(
+							i18n.Tf("cmd.init.mcp_url_prompt", e.name), *e.urlVar, 0,
+							nil, func(t string) { *entries[urlIdx].urlVar = t },
+						)
+						// Set placeholder on the just-added InputField.
+						if e.urlPlaceholder != "" {
+							if inp, ok := form.GetFormItem(form.GetFormItemCount() - 1).(*tview.InputField); ok {
+								inp.SetPlaceholder(e.urlPlaceholder)
+								inp.SetPlaceholderTextColor(theme.FgMuted)
+							}
+						}
+						if e.urlHintKey != "" {
+							form.AddTextView("", i18n.T(e.urlHintKey), 60, 2, true, false)
+						}
+					}
 					if e.checkboxVar != nil {
 						if e.checkboxDesc != "" {
 							form.AddTextView("", i18n.T(e.checkboxDesc), 60, 2, true, false)
@@ -1442,6 +1492,9 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 				s.MCPSkipped = true
 				s.FigmaToken = ""
 				s.GitlabToken = ""
+				s.GitlabURL = ""
+				s.JiraToken = ""
+				s.JiraURL = ""
 				s.GslidesToken = ""
 				onDone()
 			})
@@ -1490,6 +1543,9 @@ func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
 			for _, entry := range entries {
 				if *entry.tokenVar == "" {
 					fields = append(fields, views.InfoField{Label: entry.name, Value: infoMuted(i18n.T("cmd.init.wizard_mcp_skipped"))})
+				} else if entry.urlRequired && entry.urlVar != nil && *entry.urlVar == "" {
+					// Token saved but URL required to activate (option D for Jira).
+					fields = append(fields, views.InfoField{Label: entry.name, Value: infoWarning(i18n.T("cmd.init.wizard_mcp_token_saved_url_required"))})
 				} else {
 					fields = append(fields, views.InfoField{Label: entry.name, Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_configured"))})
 				}

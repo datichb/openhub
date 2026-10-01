@@ -349,8 +349,6 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		refreshP("deploy", "cmd.init.wizard_step_deploy_confirm", "cmd.init.wizard_deploy_processing")
 
 		// MCP steps
-		refresh("mcp_figma", "cmd.init.wizard_step_mcp_figma")
-		refresh("mcp_gitlab", "cmd.init.wizard_step_mcp_gitlab")
-		refresh("mcp_gslides", "cmd.init.wizard_step_mcp_gslides")
+		refresh("mcp_consolidated", "cmd.init.wizard_step_mcp")
 	}
 }

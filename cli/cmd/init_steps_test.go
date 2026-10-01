@@ -656,14 +656,12 @@ func TestBuildMCPConsolidatedStep_OnDone_StoresAllTokens(t *testing.T) {
 		Steps:           new([]views.WizardStep),
 	}
 
-	tmpDir := t.TempDir()
-	cfgPath := filepath.Join(tmpDir, "hub.toml")
-	require.NoError(t, os.WriteFile(cfgPath, []byte("[cli]"), 0o644))
-	t.Setenv("OH_CONFIG_PATH", cfgPath)
-	config.Reset()
+	setupConfigDir(t)
 
 	s.FigmaToken = "figma-tok"
 	s.GitlabToken = "gitlab-tok"
+	s.JiraToken = "jira-tok"
+	s.JiraURL = "https://jira.test.com"
 	s.GslidesToken = "gslides-tok"
 
 	step := buildMCPConsolidatedStep(s, a)
@@ -672,7 +670,15 @@ func TestBuildMCPConsolidatedStep_OnDone_StoresAllTokens(t *testing.T) {
 
 	assert.Equal(t, "figma-tok", secretsMap[config.DefaultFigmaTokenKey])
 	assert.Equal(t, "gitlab-tok", secretsMap[config.DefaultGitLabTokenKey])
+	assert.Equal(t, "jira-tok", secretsMap[config.DefaultJiraTokenKey])
 	assert.Equal(t, "gslides-tok", secretsMap[config.DefaultGslidesTokenKey])
+
+	// Verify Jira is enabled because URL was provided.
+	config.Reset()
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.MCP.Jira.Enabled, "Jira should be enabled when URL is provided")
+	assert.Equal(t, "https://jira.test.com", cfg.MCP.Jira.URL)
 }
 
 func TestBuildMCPConsolidatedStep_OnDone_EmptyNoOp(t *testing.T) {
@@ -702,17 +708,93 @@ func TestBuildMCPConsolidatedStep_InfoFields(t *testing.T) {
 
 	// All empty → all skipped
 	fields := step.InfoFields()
-	require.Len(t, fields, 3, "should have 3 entries (Figma, GitLab, GSlides)")
+	require.Len(t, fields, 4, "should have 4 entries (Figma, GitLab, Jira, GSlides)")
 	for _, f := range fields {
 		assert.Contains(t, f.Value, i18n.T("cmd.init.wizard_mcp_skipped"), "empty token should show skipped for %s", f.Label)
 	}
 
-	// Set tokens → configured
+	// Set tokens → configured (Jira without URL → warning)
 	s.FigmaToken = "tok"
 	s.GitlabToken = "tok"
 	s.GitlabWrite = true
+	s.JiraToken = "tok"
 	fields = step.InfoFields()
-	require.GreaterOrEqual(t, len(fields), 4, "should have 4 entries including Write")
+	require.GreaterOrEqual(t, len(fields), 5, "should have 5+ entries including Write and Jira warning")
+
+	// Jira with token but no URL shows warning
+	var jiraField views.InfoField
+	for _, f := range fields {
+		if f.Label == "Jira" {
+			jiraField = f
+			break
+		}
+	}
+	assert.Contains(t, jiraField.Value, i18n.T("cmd.init.wizard_mcp_token_saved_url_required"),
+		"Jira with token but no URL should show warning")
+}
+
+func TestBuildMCPConsolidatedStep_OnDone_JiraTokenWithoutURL(t *testing.T) {
+	secretsMap := make(map[string]string)
+	a := newMockApp(secretsMap, nil)
+	a.Projects = &mockProjectStore{}
+	appPtr := &a
+	s := &initStepState{
+		ProviderOptions: []string{"bedrock"},
+		TeamState:       &initWizardTeamState{},
+		AppPtr:          appPtr,
+		FocusBtn:        new(bool),
+		Steps:           new([]views.WizardStep),
+	}
+
+	setupConfigDir(t)
+
+	s.JiraToken = "jira-tok"
+	s.JiraURL = "" // no URL → token stored but service NOT enabled
+
+	step := buildMCPConsolidatedStep(s, a)
+	err := step.OnDone()
+	require.NoError(t, err)
+
+	// Token is always stored in keychain.
+	assert.Equal(t, "jira-tok", secretsMap[config.DefaultJiraTokenKey])
+
+	// Jira must NOT be enabled without URL.
+	config.Reset()
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.False(t, cfg.MCP.Jira.Enabled, "Jira should NOT be enabled without URL")
+	assert.Empty(t, cfg.MCP.Jira.URL, "Jira URL should remain empty")
+}
+
+func TestBuildMCPConsolidatedStep_OnDone_GitLabURLPersisted(t *testing.T) {
+	secretsMap := make(map[string]string)
+	a := newMockApp(secretsMap, nil)
+	a.Projects = &mockProjectStore{}
+	appPtr := &a
+	s := &initStepState{
+		ProviderOptions: []string{"bedrock"},
+		TeamState:       &initWizardTeamState{},
+		AppPtr:          appPtr,
+		FocusBtn:        new(bool),
+		Steps:           new([]views.WizardStep),
+	}
+
+	setupConfigDir(t)
+
+	s.GitlabToken = "gl-tok"
+	s.GitlabURL = "https://gitlab.corp.com"
+
+	step := buildMCPConsolidatedStep(s, a)
+	err := step.OnDone()
+	require.NoError(t, err)
+
+	assert.Equal(t, "gl-tok", secretsMap[config.DefaultGitLabTokenKey])
+
+	config.Reset()
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.MCP.Gitlab.Enabled, "GitLab should be enabled")
+	assert.Equal(t, "https://gitlab.corp.com", cfg.MCP.Gitlab.URL, "GitLab URL should be persisted")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
