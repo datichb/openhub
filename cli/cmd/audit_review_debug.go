@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitlabapi"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/notify"
@@ -173,7 +177,7 @@ var debugCmd = &cobra.Command{
 	},
 }
 
-// runReviewPublish creates a MR on GitLab for the current branch and assigns a reviewer.
+// runReviewPublish creates a MR on GitLab for the current branch and optionally assigns a reviewer.
 func runReviewPublish(cmd *cobra.Command) error {
 	a := MustApp()
 	ctx := cmd.Context()
@@ -189,38 +193,161 @@ func runReviewPublish(cmd *cobra.Command) error {
 		return err
 	}
 
-	// Get current branch
+	// Get current branch.
 	branch := getPublishBranch(project.Path)
-	if branch == "" || branch == "main" || branch == "master" || branch == "develop" {
+	if branch == "" || isMainBranch(branch) {
 		return fmt.Errorf("branche courante (%s) n'est pas une feature branch", branch)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Création MR pour la branche %s...\n",
-		theme.Subtitle.Render(theme.IconArrow), theme.Bold.Render(branch))
+	// Detect base/target branch.
+	targetBranch := gitutil.DetectBaseBranch(project.Path, a.Config.Worktree.BaseBranch)
 
-	fmt.Fprintf(a.IO.Out, "%s MR prête à être créée pour %s → main\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), branch)
-
-	// Extract ticket ref from branch for the title
+	// Extract ticket ref from branch for the title.
 	ticketRef := extractTicketFromBranch(branch)
 	title := branch
 	if ticketRef != "" {
 		title = fmt.Sprintf("%s: %s", ticketRef, strings.TrimPrefix(branch, fmt.Sprintf("feat/%s-", ticketRef)))
 	}
-	fmt.Fprintf(a.IO.Out, "  Titre : %s\n", title)
 
-	// Emit team event if team is enabled for this project
+	fmt.Fprintf(a.IO.Out, "%s Création MR pour %s → %s...\n",
+		theme.Subtitle.Render(theme.IconArrow), theme.Bold.Render(branch), targetBranch)
+
+	// Resolve GitLab credentials (MCP cascade).
+	glToken := resolveGitLabToken(ctx, a)
+	if glToken == "" {
+		return fmt.Errorf("aucun token GitLab trouvé. Configure via %s ou la variable GITLAB_TOKEN",
+			theme.Bold.Render("oh service setup"))
+	}
+	glURL := a.Config.MCP.Gitlab.URL
+	if glURL == "" {
+		glURL = os.Getenv("GITLAB_URL")
+	}
+	if glURL == "" {
+		glURL = "https://gitlab.com"
+	}
+
+	// Resolve GitLab project path (tracker config).
+	glProject := resolveGitLabProject(a, project)
+	if glProject == "" {
+		return fmt.Errorf("projet GitLab non configuré. Ajoute %s dans la config tracker",
+			theme.Bold.Render("tracker_project"))
+	}
+
+	// Create GitLab API client.
+	gl := gitlabapi.NewClient(glURL, glToken)
+
+	// Create or find existing MR.
+	mr, err := gl.CreateMR(ctx, glProject, branch, targetBranch, title, "")
+	if err != nil {
+		return fmt.Errorf("création MR échouée: %w", err)
+	}
+
+	fmt.Fprintf(a.IO.Out, "%s MR créée : %s\n",
+		theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(mr.WebURL))
+	fmt.Fprintf(a.IO.Out, "  Titre : %s\n", mr.Title)
+
+	// Assign reviewer if requested.
+	reviewerFlag, _ := cmd.Flags().GetString("reviewer")
+	if reviewerFlag != "" {
+		if err := assignReviewer(ctx, a, gl, glProject, mr.IID, reviewerFlag); err != nil {
+			fmt.Fprintf(a.IO.Out, "%s Assignation reviewer échouée: %s\n",
+				theme.WarningStyle.Render(theme.IconWarning), err)
+		} else {
+			fmt.Fprintf(a.IO.Out, "%s Reviewer assigné : %s\n",
+				theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(reviewerFlag))
+		}
+	}
+
+	// Emit team event if team is enabled for this project.
 	if teamEnabledForProject(a, project) {
-		emitReviewReadyEvent(ctx, a, project.ID, ticketRef, branch)
+		emitReviewReadyEvent(ctx, a, project.ID, ticketRef, branch, mr.WebURL)
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s La MR sera créée par l'agent en session, ou manuellement.\n",
-		theme.Subtitle.Render(theme.IconInfo))
 	fmt.Fprintf(a.IO.Out, "  %s Le merge reste TOUJOURS une action manuelle du développeur.\n",
 		theme.WarningStyle.Render(theme.IconWarning))
 
 	return nil
+}
+
+// resolveGitLabToken resolves a GitLab token from available sources (MCP cascade).
+func resolveGitLabToken(ctx context.Context, a *app.App) string {
+	// 1. Env var
+	if tok := os.Getenv("GITLAB_TOKEN"); tok != "" {
+		return tok
+	}
+	if a.Secrets == nil {
+		return ""
+	}
+	// 2. MCP configured key
+	tokenKey := a.Config.MCP.Gitlab.Token
+	if tokenKey == "" {
+		tokenKey = config.DefaultGitLabTokenKey
+	}
+	if tok, err := a.Secrets.Get(ctx, tokenKey); err == nil && tok != "" {
+		return tok
+	}
+	// 3. Default key
+	if tokenKey != config.DefaultGitLabTokenKey {
+		if tok, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && tok != "" {
+			return tok
+		}
+	}
+	return ""
+}
+
+// resolveGitLabProject resolves the GitLab project path/ID from config.
+func resolveGitLabProject(a *app.App, project *domain.Project) string {
+	// 1. Per-project override.
+	if project.TrackerConfig != nil && project.TrackerConfig.TrackerProject != "" {
+		return project.TrackerConfig.TrackerProject
+	}
+	// 2. Team tracker config.
+	teamCfg := a.Config.ActiveTeam()
+	if teamCfg.StateRepo != "" {
+		statePath := teamCfg.StatePath
+		if statePath == "" {
+			statePath = config.DefaultTeamStatePath()
+		}
+		repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
+		if repo.IsCloned() {
+			if tc, err := repo.LoadConfig(); err == nil && tc.Tracker.TrackerProject != "" {
+				return tc.Tracker.TrackerProject
+			}
+		}
+	}
+	return ""
+}
+
+// assignReviewer resolves a team member to a GitLab user and assigns them as reviewer.
+func assignReviewer(ctx context.Context, a *app.App, gl *gitlabapi.Client, glProject string, mrIID int, memberID string) error {
+	// Find the member in team state to get their GitLab username.
+	teamCfg := a.Config.ActiveTeam()
+	statePath := teamCfg.StatePath
+	if statePath == "" {
+		statePath = config.DefaultTeamStatePath()
+	}
+	repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
+	if !repo.IsCloned() {
+		return fmt.Errorf("team state non cloné — impossible de résoudre le reviewer")
+	}
+
+	member, err := repo.GetMember(memberID)
+	if err != nil {
+		return fmt.Errorf("membre %q non trouvé dans l'équipe", memberID)
+	}
+	if member.GitLabUsername == "" {
+		return fmt.Errorf("le membre %q n'a pas de gitlab_username configuré", memberID)
+	}
+
+	// Resolve GitLab user ID.
+	userID, err := gl.ResolveUserID(ctx, member.GitLabUsername)
+	if err != nil {
+		return err
+	}
+
+	// Assign as reviewer.
+	return gl.AssignReviewers(ctx, glProject, mrIID, []int{userID})
 }
 
 func getPublishBranch(dir string) string {
@@ -262,7 +389,7 @@ func isMainBranch(name string) bool {
 	return false
 }
 
-func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch string) {
+func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
 	statePath := a.Config.ActiveTeam().StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
@@ -272,13 +399,18 @@ func emitReviewReadyEvent(ctx context.Context, a *app.App, projectID, ticket, br
 		return
 	}
 
+	data := map[string]interface{}{"branch": branch}
+	if mrURL != "" {
+		data["mr_url"] = mrURL
+	}
+
 	event := teamstate.Event{
 		Timestamp: time.Now().UTC(),
 		Actor:     a.Config.ActiveTeam().MemberID,
 		Type:      teamstate.EventReviewReady,
 		Project:   projectID,
 		Ticket:    ticket,
-		Data:      map[string]interface{}{"branch": branch},
+		Data:      data,
 	}
 
 	_ = repo.AppendEvent(ctx, event)
@@ -305,7 +437,8 @@ func init() {
 	reviewCmd.Flags().StringP("project", "p", "", "Nom du projet")
 	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
 	reviewCmd.Flags().StringP("branch", "b", "", "Branche à reviewer (diff vs main). Par défaut : branche courante si feature branch")
-	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et assigner un reviewer (nécessite write_enabled)")
+	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et optionnellement assigner un reviewer (nécessite write_enabled)")
+	reviewCmd.Flags().String("reviewer", "", "Member ID du reviewer à assigner sur la MR (utilisé avec --publish)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	_ = reviewCmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"standard", "adversarial", "edge-case", "standard+adversarial", "all"}, cobra.ShellCompDirectiveNoFileComp
