@@ -460,6 +460,16 @@ func buildCommands(a *app.App) []shell.Command {
 				ViewID:      "team.policies",
 				Modes:       modeTeam,
 			},
+			shell.Command{
+				ID:          "team.wiki",
+				Label:       "Wiki",
+				Aliases:     []string{"wiki", "proposals", "pending"},
+				Description: "Browse wiki pages and review pending proposals",
+				Category:    i18n.T("tui.category.team"),
+				Priority:    55,
+				ViewID:      "team.wiki",
+				Modes:       modeTeam,
+			},
 		)
 
 		// Sync tracker (team-only action)
