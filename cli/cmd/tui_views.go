@@ -336,6 +336,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 				launchSessionWithPrompt(resolvedAgent, resolvedPrompt)
 			},
+			OnReviewPicker: actionReviewLauncher,
 		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),

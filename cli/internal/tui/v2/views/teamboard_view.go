@@ -964,9 +964,12 @@ func (v *TeamBoardView) ContextCommands() []ContextCommand {
 					tc.ProjectID = pid
 				}
 			}
-			if action == QuickActionAudit {
+			switch action {
+			case QuickActionAudit:
 				showAuditSubMenu(v.shell, tc, v.cfg.QuickActions)
-			} else {
+			case QuickActionReview:
+				showReviewSubMenu(v.shell, tc, v.cfg.QuickActions)
+			default:
 				showLaunchEnvModal(v.shell, action, "", tc, v.cfg.QuickActions)
 			}
 		}

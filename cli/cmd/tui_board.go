@@ -171,7 +171,8 @@ func buildResolveProjectByDirID(a *app.App) func(dirID string) (string, string, 
 func resolveAgentForAction(action views.QuickActionType, auditType views.AuditType) (agentName, agentPrompt string) {
 	switch action {
 	case views.QuickActionReview:
-		return "reviewer", buildReviewPrompt("")
+		// auditType carries the review mode when triggered from the board review sub-menu.
+		return "reviewer", buildReviewPrompt(string(auditType))
 	case views.QuickActionDev:
 		// For board quick actions, dev mode skips the ticket picker (ticket is already known).
 		return "orchestrator-dev", ""

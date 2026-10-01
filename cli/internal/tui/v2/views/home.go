@@ -25,6 +25,9 @@ type homeItem struct {
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
 	OnLaunchSession func(agent string, args ...string)
+	// OnReviewPicker is called when the user selects the Review item.
+	// If non-nil, shows the review mode picker instead of launching directly.
+	OnReviewPicker func()
 	// HasProject returns true when at least one active project exists.
 	// Used to conditionally show project-specific items (ADR-032).
 	HasProject func() bool
@@ -224,7 +227,13 @@ func (v *HomeView) buildStaticItems() []homeItem {
 			homeItem{Icon: "💻", Label: i18n.T("tui.pm.item.quick"), Desc: i18n.T("tui.pm.item.quick_desc"), Action: func() { launch("") }},
 			homeItem{Icon: "🎯", Label: i18n.T("tui.pm.item.start_dev"), Desc: i18n.T("tui.pm.item.start_dev_desc"), Action: func() { launch("", "--dev") }},
 			homeItem{Icon: "🔍", Label: i18n.T("tui.pm.item.audit"), Desc: i18n.T("tui.pm.item.audit_desc"), Action: func() { launch("auditor") }},
-			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() { launch("reviewer") }},
+			homeItem{Icon: "👀", Label: i18n.T("tui.pm.item.review"), Desc: i18n.T("tui.pm.item.review_desc"), Action: func() {
+				if v.cfg.OnReviewPicker != nil {
+					v.cfg.OnReviewPicker()
+					return
+				}
+				launch("reviewer")
+			}},
 		)
 	}
 

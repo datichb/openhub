@@ -152,9 +152,12 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 
 	shell.ShowSelectModal(title, options, "", func(selected string) {
 		action := QuickActionType(selected)
-		if action == QuickActionAudit {
+		switch action {
+		case QuickActionAudit:
 			showAuditSubMenu(shell, ticket, qa)
-		} else {
+		case QuickActionReview:
+			showReviewSubMenu(shell, ticket, qa)
+		default:
 			showLaunchEnvModal(shell, action, "", ticket, qa)
 		}
 	})
@@ -179,6 +182,24 @@ func showAuditSubMenu(shell ShellAccess, ticket TicketContext, qa *BoardQuickAct
 
 	shell.ShowSelectModal(i18n.T("tui.board.action.audit_type_title"), options, "", func(selected string) {
 		showLaunchEnvModal(shell, QuickActionAudit, selected, ticket, qa)
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review sub-menu
+// ─────────────────────────────────────────────────────────────────────────────
+
+// showReviewSubMenu shows the 4 review mode options.
+func showReviewSubMenu(shell ShellAccess, ticket TicketContext, qa *BoardQuickActions) {
+	options := []SelectOption{
+		{Label: i18n.T("tui.session.review_standard_label"), Value: ""},
+		{Label: i18n.T("tui.session.review_adversarial_label"), Value: "adversarial"},
+		{Label: i18n.T("tui.session.review_edge_label"), Value: "edge-case"},
+		{Label: i18n.T("tui.session.review_complete_label"), Value: "all"},
+	}
+
+	shell.ShowSelectModal(i18n.T("tui.session.review_title"), options, "", func(selected string) {
+		showLaunchEnvModal(shell, QuickActionReview, selected, ticket, qa)
 	})
 }
 
