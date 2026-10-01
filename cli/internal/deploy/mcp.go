@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // TeamConfigFile is the filename written into .opencode/ for team config.
@@ -95,6 +96,12 @@ func DeployMCP(servers []MCPServerDef, binaryName string) Phase {
 				env := make(map[string]string)
 				if s.WriteEnabled {
 					env["GITLAB_WRITE_ENABLED"] = "true"
+				}
+				// Inject base URL so the subprocess targets the correct instance
+				// (e.g. self-hosted GitLab or Jira). Guard: do NOT inject an empty
+				// value — it would override the built-in default (gitlab.com, etc.).
+				if s.URL != "" {
+					env[strings.ToUpper(s.Name)+"_URL"] = s.URL
 				}
 				for k, v := range s.Environment {
 					env[k] = v
