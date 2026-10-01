@@ -74,6 +74,14 @@ question({
 
 ### Blocage après 3 cycles de review
 
+**Avant toute escalade**, si l'outil `team_claim_flag_human_review` est disponible, l'appeler pour marquer le ticket :
+
+```
+team_claim_flag_human_review({ project: "<project_id>", ticket_id: "<ticket_id>" })
+```
+
+> Si le label `needs-human-review` est déjà présent (outil renvoie un succès sans modification), cela signifie qu'une session précédente a déjà escaladé ce ticket. Informer l'utilisateur de cette situation.
+
 **En mode standalone** → afficher les problèmes persistants, puis utiliser l'outil `question` :
 
 ```

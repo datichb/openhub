@@ -228,6 +228,25 @@ func Serve() error {
 		},
 	}, handleTeamPatternsPropose)
 
+	server.RegisterTool(protocol.Tool{
+		Name:        "team_claim_flag_human_review",
+		Description: "Flag a claim as needing human review (adds the 'needs-human-review' label). Use when the review cycle limit is reached or when an agent detects it cannot resolve an issue autonomously.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"project": map[string]interface{}{
+					"type":        "string",
+					"description": "Project ID",
+				},
+				"ticket_id": map[string]interface{}{
+					"type":        "string",
+					"description": "Ticket ID to flag",
+				},
+			},
+			"required": []string{"project", "ticket_id"},
+		},
+	}, handleTeamClaimFlagHumanReview)
+
 	return server.Serve()
 }
 
@@ -470,7 +489,7 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{
 			Type: "text",
-			Text: fmt.Sprintf("Proposal created for page %q. Awaiting human review via `oh team wiki review`.", args.Page),
+			Text: fmt.Sprintf("Proposal created for page %q. Awaiting human review.", args.Page),
 		}},
 	}, nil
 }
@@ -712,6 +731,41 @@ func handleTeamPatternsPropose(ctx context.Context, params json.RawMessage) (*pr
 		Content: []protocol.ContentBlock{{
 			Type: "text",
 			Text: fmt.Sprintf("Pattern %q proposed. Awaiting human validation via `oh patterns validate %s`.", args.Name, args.Name),
+		}},
+	}, nil
+}
+
+func handleTeamClaimFlagHumanReview(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+	var args struct {
+		Project  string `json:"project"`
+		TicketID string `json:"ticket_id"`
+	}
+	if err := json.Unmarshal(params, &args); err != nil {
+		return nil, err
+	}
+
+	repo, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := repo.AddClaimLabel(ctx, args.Project, args.TicketID, teamstate.LabelNeedsHumanReview); err != nil {
+		if err == teamstate.ErrClaimNotFound {
+			return &protocol.ToolResult{
+				Content: []protocol.ContentBlock{{
+					Type: "text",
+					Text: fmt.Sprintf("Claim not found for ticket %q in project %q.", args.TicketID, args.Project),
+				}},
+				IsError: true,
+			}, nil
+		}
+		return nil, fmt.Errorf("adding label: %w", err)
+	}
+
+	return &protocol.ToolResult{
+		Content: []protocol.ContentBlock{{
+			Type: "text",
+			Text: fmt.Sprintf("Ticket %q flagged as needs-human-review in project %q.", args.TicketID, args.Project),
 		}},
 	}, nil
 }
