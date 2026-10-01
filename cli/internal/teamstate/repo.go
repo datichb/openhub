@@ -54,6 +54,8 @@ func NewRepo(remote, localPath string) *Repo {
 // statuses in addition to the built-in 6 defaults.
 // Call this after loading the team config BoardConfig.AllStatuses().
 func (r *Repo) SetBoardStatuses(statuses []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.boardStatuses = statuses
 }
 

@@ -352,7 +352,7 @@ func (v *PatternsView) addPattern() {
 			}
 
 			// Build richer markdown template
-			descLine := "TODO"
+			descLine := "Décrivez ce pattern ici."
 			if description != "" {
 				descLine = description
 			}

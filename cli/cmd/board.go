@@ -113,12 +113,14 @@ func fetchTickets() []boardTicket {
 func normalizeStatus(s string) string {
 	s = strings.ToLower(s)
 	switch s {
-	case "todo", "to_do", "backlog", "open":
+	case "todo", "to_do", "backlog", "open", "planned":
 		return "todo"
 	case "in_progress", "in-progress", "doing", "wip":
 		return "in_progress"
 	case "review", "in_review", "in-review":
 		return "review"
+	case "validation", "testing", "qa", "pre-release":
+		return "validation"
 	case "done", "completed", "closed", "cancelled":
 		return "done"
 	case "blocked", "stuck":

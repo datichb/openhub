@@ -100,15 +100,37 @@ func TestFormatEvent(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "session complete",
+			name: "session complete with duration",
 			event: teamstate.Event{
 				Type:    teamstate.EventSessionComplete,
 				Actor:   "benjamin",
 				Project: "T-SRU",
 				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"duration_min": float64(75)},
+				Data:    map[string]interface{}{"duration_s": float64(4500)},
 			},
 			expected: "[T-SRU] benjamin a terminé SRU-142 (75 min)",
+		},
+		{
+			name: "session complete with summary",
+			event: teamstate.Event{
+				Type:    teamstate.EventSessionComplete,
+				Actor:   "benjamin",
+				Project: "T-SRU",
+				Ticket:  "SRU-142",
+				Data:    map[string]interface{}{"duration_s": float64(120), "summary": "fix login bug"},
+			},
+			expected: "[T-SRU] benjamin a terminé SRU-142 (2 min) — fix login bug",
+		},
+		{
+			name: "session complete zero duration",
+			event: teamstate.Event{
+				Type:    teamstate.EventSessionComplete,
+				Actor:   "benjamin",
+				Project: "T-SRU",
+				Ticket:  "SRU-142",
+				Data:    map[string]interface{}{"duration_s": float64(0)},
+			},
+			expected: "[T-SRU] benjamin a terminé SRU-142",
 		},
 		{
 			name: "claim taken",
@@ -170,6 +192,37 @@ func TestFormatEvent(t *testing.T) {
 				Project: "X",
 			},
 			expected: "",
+		},
+		{
+			name: "wiki rejected",
+			event: teamstate.Event{
+				Type:    teamstate.EventWikiRejected,
+				Actor:   "benjamin",
+				Project: "T-SRU",
+				Data:    map[string]interface{}{"page": "architecture"},
+			},
+			expected: "[Équipe] Proposition wiki architecture rejetée par benjamin",
+		},
+		{
+			name: "review approved",
+			event: teamstate.Event{
+				Type:    teamstate.EventReviewApproved,
+				Actor:   "reviewer",
+				Project: "T-SRU",
+				Ticket:  "SRU-142",
+			},
+			expected: "[T-SRU] Review approuvée pour SRU-142 par reviewer",
+		},
+		{
+			name: "review rejected with reason",
+			event: teamstate.Event{
+				Type:    teamstate.EventReviewRejected,
+				Actor:   "reviewer",
+				Project: "T-SRU",
+				Ticket:  "SRU-142",
+				Data:    map[string]interface{}{"reason": "corrections-requises"},
+			},
+			expected: "[T-SRU] Review rejetée pour SRU-142 par reviewer (corrections-requises)",
 		},
 	}
 

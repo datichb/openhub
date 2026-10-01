@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -79,14 +80,14 @@ func FormatEvent(e teamstate.Event) string {
 	switch e.Type {
 	case teamstate.EventSessionComplete:
 		duration := ""
-		if d, ok := e.Data["duration_min"]; ok {
-			duration = fmt.Sprintf(" (%v min)", d)
+		if d, ok := e.Data["duration_s"].(float64); ok && d > 0 {
+			duration = fmt.Sprintf(" (%.0f min)", math.Round(d/60))
 		}
-		branch := ""
-		if b, ok := e.Data["branch"]; ok {
-			branch = fmt.Sprintf(" (%s)", b)
+		summary := ""
+		if s, ok := e.Data["summary"].(string); ok && s != "" {
+			summary = fmt.Sprintf(" — %s", s)
 		}
-		return fmt.Sprintf("%s %s a terminé %s%s%s", prefix, e.Actor, e.Ticket, duration, branch)
+		return fmt.Sprintf("%s %s a terminé %s%s%s", prefix, e.Actor, e.Ticket, duration, summary)
 	case teamstate.EventReviewReady:
 		mr := ""
 		if url, ok := e.Data["mr_url"]; ok {
@@ -131,6 +132,20 @@ func FormatEvent(e teamstate.Event) string {
 			page = fmt.Sprintf(" %s", p)
 		}
 		return fmt.Sprintf("[Équipe] Wiki%s mis à jour par %s", page, e.Actor)
+	case teamstate.EventWikiRejected:
+		page := ""
+		if p, ok := e.Data["page"]; ok {
+			page = fmt.Sprintf(" %s", p)
+		}
+		return fmt.Sprintf("[Équipe] Proposition wiki%s rejetée par %s", page, e.Actor)
+	case teamstate.EventReviewApproved:
+		return fmt.Sprintf("%s Review approuvée pour %s par %s", prefix, e.Ticket, e.Actor)
+	case teamstate.EventReviewRejected:
+		reason := ""
+		if r, ok := e.Data["reason"].(string); ok && r != "" {
+			reason = fmt.Sprintf(" (%s)", r)
+		}
+		return fmt.Sprintf("%s Review rejetée pour %s par %s%s", prefix, e.Ticket, e.Actor, reason)
 	case "custom.notification":
 		if msg, ok := e.Data["message"]; ok {
 			return fmt.Sprintf("%v", msg)
