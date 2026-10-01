@@ -218,13 +218,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 		return fmt.Errorf("aucun token GitLab trouvé. Configure via %s ou la variable GITLAB_TOKEN",
 			theme.Bold.Render("oh service setup"))
 	}
-	glURL := a.Config.MCP.Gitlab.URL
-	if glURL == "" {
-		glURL = os.Getenv("GITLAB_URL")
-	}
-	if glURL == "" {
-		glURL = "https://gitlab.com"
-	}
+	glURL := resolveGitLabURL(a)
 
 	// Resolve GitLab project path (tracker config).
 	glProject := resolveGitLabProject(a, project)

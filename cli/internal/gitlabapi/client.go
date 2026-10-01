@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,8 +34,17 @@ type Client struct {
 // baseURL is the GitLab instance URL (e.g. "https://gitlab.com").
 // token is a personal/project access token with api scope.
 func NewClient(baseURL, token string) *Client {
+	trimmed := strings.TrimRight(baseURL, "/")
+
+	// Warn if the token will be sent over a non-HTTPS connection.
+	if trimmed != "" {
+		if u, err := url.Parse(trimmed); err == nil && u.Scheme != "https" {
+			slog.Warn("gitlabapi: PRIVATE-TOKEN will be sent over non-HTTPS connection — token may be exposed in transit", "url", trimmed)
+		}
+	}
+
 	return &Client{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL: trimmed,
 		token:   token,
 		client:  httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "gitlabapi"),
 	}
@@ -42,10 +52,11 @@ func NewClient(baseURL, token string) *Client {
 
 // MRInfo holds the result of creating or finding a merge request.
 type MRInfo struct {
-	IID    int    `json:"iid"`
-	WebURL string `json:"web_url"`
-	Title  string `json:"title"`
-	State  string `json:"state"`
+	IID          int    `json:"iid"`
+	WebURL       string `json:"web_url"`
+	Title        string `json:"title"`
+	State        string `json:"state"`
+	TargetBranch string `json:"target_branch"`
 }
 
 // CreateMR creates a merge request or returns an existing open one for the same branch.

@@ -177,7 +177,10 @@ func findBranchForTicket(projectPath, ticketRef string) string {
 
 // displayFeedbackPreview shows a summary of the MR and discussions.
 func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, discussions []gitlabapi.Discussion) {
-	baseBranch := "main"
+	baseBranch := mr.TargetBranch
+	if baseBranch == "" {
+		baseBranch = "main"
+	}
 	fmt.Fprintf(a.IO.Out, "\n  %s MR !%d — %s → %s\n",
 		theme.Subtitle.Render(theme.IconArrow), mr.IID, theme.Bold.Render(branch), baseBranch)
 	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Subtitle.Render("Titre:"), mr.Title)
@@ -220,7 +223,10 @@ func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, dis
 
 // buildFeedbackPrompt constructs the prompt for the feedback correction session.
 func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitlabapi.Discussion) string {
-	baseBranch := gitutil.DetectBaseBranch(".", "")
+	baseBranch := mr.TargetBranch
+	if baseBranch == "" {
+		baseBranch = gitutil.DetectBaseBranch(".", "")
+	}
 
 	var sb strings.Builder
 	sb.WriteString("[MODE:feedback] ")
