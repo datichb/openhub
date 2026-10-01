@@ -138,9 +138,15 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.projects.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build list asynchronously
+	// Build list asynchronously — refresh from DB if a RefreshFunc is available.
 	go func() {
-		// Capture data needed (cfg.Projects is a slice — safe to read)
+		// Reload from the store so data is always fresh on each navigation.
+		if v.cfg.RefreshFunc != nil {
+			projects := v.cfg.RefreshFunc()
+			// Assign inside the goroutine before QueueUpdateDraw; the event loop
+			// cannot race here because we haven't queued the draw callback yet.
+			v.cfg.Projects = projects
+		}
 		projects := v.cfg.Projects
 
 		app.QueueUpdateDraw(func() {

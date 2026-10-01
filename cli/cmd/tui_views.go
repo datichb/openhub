@@ -27,46 +27,63 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// buildViews constructs all registered views for the shell.
-func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
-	var projectItems []views.ProjectItem
-	if a.Projects != nil {
-		projects, _ := a.Projects.List(context.Background(), "")
-		for _, p := range projects {
-			projectItems = append(projectItems, views.ProjectItem{
-				ID:       p.ID,
-				Name:     p.Name,
-				Path:     p.Path,
-				Language: p.Language,
-				Provider: p.Provider,
-				Model:    p.Model,
-				Agents:   p.Agents,
-				Status:   string(p.Status),
-				MCPOverrides: func() map[string]string {
-					if p.MCPConfig == nil || len(p.MCPConfig.Services) == 0 {
-						return nil
-					}
-					m := make(map[string]string, len(p.MCPConfig.Services))
-					for _, svc := range p.MCPConfig.Services {
-						switch {
-						case svc.Enabled == nil:
-							m[svc.Name] = "inherit"
-						case *svc.Enabled:
-							m[svc.Name] = "enabled"
-						default:
-							m[svc.Name] = "disabled"
-						}
-					}
-					return m
-				}(),
-			})
+// domainProjectToViewItem converts a domain.Project to a views.ProjectItem.
+func domainProjectToViewItem(p domain.Project) views.ProjectItem {
+	var mcpOverrides map[string]string
+	if p.MCPConfig != nil && len(p.MCPConfig.Services) > 0 {
+		mcpOverrides = make(map[string]string, len(p.MCPConfig.Services))
+		for _, svc := range p.MCPConfig.Services {
+			switch {
+			case svc.Enabled == nil:
+				mcpOverrides[svc.Name] = "inherit"
+			case *svc.Enabled:
+				mcpOverrides[svc.Name] = "enabled"
+			default:
+				mcpOverrides[svc.Name] = "disabled"
+			}
 		}
 	}
+	return views.ProjectItem{
+		ID:           p.ID,
+		Name:         p.Name,
+		Path:         p.Path,
+		Language:     p.Language,
+		Provider:     p.Provider,
+		Model:        p.Model,
+		Agents:       p.Agents,
+		Status:       string(p.Status),
+		MCPOverrides: mcpOverrides,
+	}
+}
+
+// loadProjectItems fetches all projects from the store and converts them to view items.
+func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
+	if store == nil {
+		return nil
+	}
+	projects, err := store.List(context.Background(), "")
+	if err != nil {
+		slog.Warn("failed to list projects for view", "error", err)
+		return nil
+	}
+	items := make([]views.ProjectItem, 0, len(projects))
+	for _, p := range projects {
+		items = append(items, domainProjectToViewItem(p))
+	}
+	return items
+}
+
+// buildViews constructs all registered views for the shell.
+func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
+	projectItems := loadProjectItems(a.Projects)
 
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
 		Projects:         projectItems,
 		AvailableAgents:  discoverAgents(),
 		KnownMCPServices: []string{"figma", "gitlab", "gslides"},
+		RefreshFunc: func() []views.ProjectItem {
+			return loadProjectItems(a.Projects)
+		},
 	})
 	if a.Projects != nil {
 		projectsView.SetOnAdd(func(name, path string) {

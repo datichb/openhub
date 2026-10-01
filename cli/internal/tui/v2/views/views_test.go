@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -229,6 +230,58 @@ func TestProjectsView_MountUnmount(t *testing.T) {
 	assert.Greater(t, content.GetItemCount(), 0)
 	assert.Equal(t, "projects.list", v.ID())
 	assert.Equal(t, i18n.T("tui.projects.title"), v.Title())
+
+	v.Unmount()
+}
+
+func TestProjectsView_RefreshFunc_CalledOnMount(t *testing.T) {
+	called := make(chan struct{}, 1)
+	freshProjects := []ProjectItem{
+		{ID: "p2", Name: "refreshed-app", Path: "/tmp/refreshed"},
+	}
+	v := NewProjectsView(ProjectsViewConfig{
+		Projects: nil, // start empty
+		RefreshFunc: func() []ProjectItem {
+			called <- struct{}{}
+			return freshProjects
+		},
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+
+	// Mount launches a goroutine that calls RefreshFunc before QueueUpdateDraw.
+	v.Mount(content, app)
+
+	// Wait for the goroutine to call RefreshFunc (with timeout to avoid hanging).
+	select {
+	case <-called:
+		// ok
+	case <-time.After(2 * time.Second):
+		t.Fatal("RefreshFunc was not called within timeout")
+	}
+
+	assert.Equal(t, freshProjects, v.cfg.Projects, "cfg.Projects should be updated by RefreshFunc")
+
+	v.Unmount()
+}
+
+func TestProjectsView_NoRefreshFunc_UsesStaticProjects(t *testing.T) {
+	staticProjects := []ProjectItem{
+		{ID: "p1", Name: "static-app", Path: "/tmp/static"},
+	}
+	v := NewProjectsView(ProjectsViewConfig{
+		Projects: staticProjects,
+		// RefreshFunc intentionally nil
+	})
+
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	app := tview.NewApplication()
+
+	v.Mount(content, app)
+
+	// Without RefreshFunc, the original slice should be preserved.
+	assert.Equal(t, staticProjects, v.cfg.Projects, "cfg.Projects should remain unchanged without RefreshFunc")
 
 	v.Unmount()
 }
