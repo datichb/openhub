@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -164,6 +166,31 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 		ActiveClaims:  activeClaims,
 	}
 
+	// Enrich context with git data if we can resolve a project path.
+	if p, err := resolveProject(ctx, a, project); err == nil && p.Path != "" {
+		baseBranch := gitutil.DetectBaseBranch(p.Path, a.Config.Worktree.BaseBranch)
+
+		// Auto-detect branch name if not provided via flag.
+		if policyCtx.BranchName == "" {
+			if b := getCurrentBranch(p.Path); b != "" {
+				policyCtx.BranchName = b
+			}
+		}
+
+		// Populate diff lines and modified files.
+		if diffLines, err := gitutil.DiffAddedLines(p.Path, baseBranch); err == nil {
+			policyCtx.DiffLines = diffLines
+		} else {
+			slog.Debug("policies: failed to get diff lines", "error", err)
+		}
+		if modFiles, err := gitutil.ModifiedFiles(p.Path, baseBranch); err == nil {
+			policyCtx.ModifiedFiles = modFiles
+			policyCtx.HasTests = gitutil.HasTestFiles(modFiles)
+		} else {
+			slog.Debug("policies: failed to get modified files", "error", err)
+		}
+	}
+
 	violations, err := repo.CheckAll(project, policyCtx)
 	if err != nil {
 		return fmt.Errorf("checking policies: %w", err)
@@ -180,6 +207,14 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	for _, v := range violations {
+		if v.NotEvaluable {
+			fmt.Fprintf(a.IO.Out, "  %s %s [non évaluable]\n", theme.Subtitle.Render("?"), theme.Bold.Render(v.Name))
+			if v.Details != "" {
+				fmt.Fprintf(a.IO.Out, "    %s\n", theme.Subtitle.Render(v.Details))
+			}
+			fmt.Fprintln(a.IO.Out)
+			continue
+		}
 		icon := theme.WarningStyle.Render(theme.IconWarning)
 		if v.Enforcement == teamstate.EnforcementRefuse {
 			icon = theme.ErrorStyle.Render(theme.IconWarning)

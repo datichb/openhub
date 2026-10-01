@@ -533,9 +533,10 @@ func TestCheckPolicy_BooleanWithTarget(t *testing.T) {
 		Enabled:     true,
 		Enforcement: EnforcementRefuse,
 	}
+	// HasReview=false should mark as NotEvaluable (review status requires external API).
 	result := CheckPolicy(p, PolicyContext{HasReview: false})
-	if result.Passed {
-		t.Error("should fail when HasReview is false")
+	if !result.NotEvaluable {
+		t.Error("should be not evaluable when HasReview is false (no external API)")
 	}
 	result2 := CheckPolicy(p, PolicyContext{HasReview: true})
 	if !result2.Passed {

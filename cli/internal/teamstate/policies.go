@@ -79,11 +79,12 @@ type Policy struct {
 
 // PolicyResult holds the outcome of a single policy check.
 type PolicyResult struct {
-	Name        string
-	Passed      bool
-	Enforcement PolicyEnforcement
-	Message     string
-	Details     string // additional context (e.g. which pattern matched)
+	Name         string
+	Passed       bool
+	NotEvaluable bool // true when the context is insufficient to evaluate the policy
+	Enforcement  PolicyEnforcement
+	Message      string
+	Details      string // additional context (e.g. which pattern matched)
 }
 
 // PolicyContext provides the data needed to evaluate policies.
@@ -203,7 +204,7 @@ func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, erro
 			continue
 		}
 		result := CheckPolicy(p, ctx)
-		if !result.Passed {
+		if !result.Passed || result.NotEvaluable {
 			violations = append(violations, result)
 		}
 	}
@@ -213,7 +214,7 @@ func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, erro
 // HasRefuseViolations returns true if any violation has enforcement = refuse.
 func HasRefuseViolations(results []PolicyResult) bool {
 	for _, r := range results {
-		if !r.Passed && r.Enforcement == EnforcementRefuse {
+		if !r.Passed && !r.NotEvaluable && r.Enforcement == EnforcementRefuse {
 			return true
 		}
 	}
@@ -330,6 +331,11 @@ func checkRegex(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult {
 	case "branch_name":
 		value = ctx.BranchName
 		applicable = ctx.BranchName != ""
+		if !applicable {
+			result.NotEvaluable = true
+			result.Details = "branch name not available in this context"
+			return result
+		}
 	case "commit_message":
 		value = ctx.CommitMessage
 		applicable = true
@@ -369,22 +375,34 @@ func checkBoolean(p Policy, ctx PolicyContext, result PolicyResult) PolicyResult
 
 	target := resolveBooleanTarget(p)
 
-	var value bool
 	switch target {
 	case "review":
-		value = ctx.HasReview
+		// HasReview requires external API integration (GitLab/GitHub) which
+		// is not available in all contexts. Mark as not evaluable when false
+		// to avoid false violations.
+		if !ctx.HasReview {
+			result.NotEvaluable = true
+			result.Details = "review status cannot be determined in this context"
+			return result
+		}
 	case "tests":
-		value = ctx.HasTests
+		if !ctx.HasTests {
+			result.Passed = false
+			result.Details = fmt.Sprintf("boolean check failed: %s is not satisfied", p.Name)
+		}
+		return result
 	case "coverage":
-		value = ctx.HasCoverage
+		// Coverage requires running tests with coverage reporting, which is
+		// not available in this context.
+		if !ctx.HasCoverage {
+			result.NotEvaluable = true
+			result.Details = "coverage data cannot be determined in this context"
+			return result
+		}
 	default:
 		return result
 	}
 
-	if !value {
-		result.Passed = false
-		result.Details = fmt.Sprintf("boolean check failed: %s is not satisfied", p.Name)
-	}
 	return result
 }
 
@@ -413,8 +431,26 @@ func checkForbiddenPattern(p Policy, ctx PolicyContext, result PolicyResult) Pol
 	switch p.Scope {
 	case "diff_only":
 		linesToCheck = ctx.DiffLines
-	case "all_files", "modified_files":
-		return result
+	case "modified_files":
+		// Scan each modified file's content (provided by caller via DiffLines).
+		// If ModifiedFiles is empty, mark as not evaluable.
+		if len(ctx.ModifiedFiles) == 0 {
+			result.NotEvaluable = true
+			result.Details = "no modified files context available"
+			return result
+		}
+		// Use DiffLines which should contain the content of modified files
+		// when the caller populates them for this scope.
+		linesToCheck = ctx.DiffLines
+	case "all_files":
+		// all_files uses DiffLines populated from git ls-files content.
+		// If not populated, mark as not evaluable.
+		if len(ctx.DiffLines) == 0 {
+			result.NotEvaluable = true
+			result.Details = "no file content context available"
+			return result
+		}
+		linesToCheck = ctx.DiffLines
 	default:
 		linesToCheck = ctx.DiffLines
 	}
