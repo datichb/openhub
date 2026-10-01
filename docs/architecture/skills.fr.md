@@ -69,7 +69,7 @@ Les agents coordinateurs/orchestrateurs qui n'ont jamais besoin de skills contex
 | `skill-authoring-protocol` | Protocole de redaction de nouveaux skills (Bucket B) |
 | `team-awareness` | Conscience d'etat equipe pour la coordination multi-utilisateurs (Bucket B) |
 | `team-policies-enforcement` | Regles d'enforcement des policies equipe (Bucket B) |
-| `team-wiki-protocol` | Protocole pour les operations wiki equipe (Bucket B) |
+
 
 ### `posture/` — 7 skills (posture comportementale)
 

@@ -31,9 +31,6 @@ var (
 	// ErrProposalInvalid is returned when a wiki proposal fails validation.
 	ErrProposalInvalid = errors.New("wiki proposal validation failed")
 
-	// ErrPolicyViolation is returned when a team policy check fails with
-	// enforcement = "refuse".
-	ErrPolicyViolation = errors.New("team policy violation")
 	// ErrPolicyFileInvalid is returned when policies.toml cannot be parsed.
 	ErrPolicyFileInvalid = errors.New("policies file is invalid")
 	// ErrBriefNotFound is returned when a takeover brief does not exist for a ticket.

@@ -143,14 +143,6 @@ func TryApp() *app.App {
 	return application
 }
 
-// GetApp returns the application instance. Returns nil before initialization.
-//
-// Deprecated: use MustApp() for commands that require an initialized app,
-// or TryApp() for commands that handle the nil case.
-func GetApp() *app.App {
-	return application
-}
-
 // RootCmd returns the root cobra command (used by subpackages to register commands).
 func RootCmd() *cobra.Command {
 	return rootCmd

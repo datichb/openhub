@@ -1342,8 +1342,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
    ┌─────────────────────────────────────────────────────────────┐
    │  Bucket A (TOUS les agents quand team_enabled):             │
    │  ├── team-awareness          (règles collaboration)         │
-   │  ├── team-policies-enforcement (vérif avant action)         │
-   │  └── team-wiki-protocol      (contribution wiki)            │
+   │  └── team-policies-enforcement (vérif avant action)         │
    │                                                             │
    │  Bucket B (orchestrator-dev seulement):                     │
    │  └── team-coordination       (sélection tickets, claims)    │

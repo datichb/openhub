@@ -71,7 +71,7 @@ Coordinator/orchestrator agents that never need contextual skills have `permissi
 | `skill-authoring-protocol` | Protocol for authoring new skills (Bucket B) |
 | `team-awareness` | Team state awareness for multi-user coordination (Bucket B) |
 | `team-policies-enforcement` | Enforcement rules for team policies (Bucket B) |
-| `team-wiki-protocol` | Protocol for team wiki operations (Bucket B) |
+
 
 ### `posture/` — 7 skills (behavioral posture)
 
