@@ -230,6 +230,9 @@ func (l *Launcher) Launch(ctx context.Context, opts LaunchOpts) error {
 					"model":      session.Model,
 					"status":     string(session.Status),
 				})
+				if session.Title != nil && *session.Title != "" {
+					event.Data["summary"] = *session.Title
+				}
 				repo.AppendEventAsync(event)
 			}
 		}

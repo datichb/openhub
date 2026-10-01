@@ -27,6 +27,8 @@ type Event struct {
 const (
 	EventSessionComplete  = "session.complete"
 	EventReviewReady      = "review.ready"
+	EventReviewApproved   = "review.approved"
+	EventReviewRejected   = "review.rejected"
 	EventAuditFinding     = "audit.finding"
 	EventClaimTaken       = "claim.taken"
 	EventClaimConflict    = "claim.conflict"

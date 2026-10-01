@@ -213,6 +213,16 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "%s\n",
 			i18n.Tf("cmd.claim.transfer_hint",
 				theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))
+
+		// Emit conflict event (best-effort).
+		_ = repo.AppendEvent(ctx, teamstate.Event{
+			Actor:   memberID,
+			Type:    teamstate.EventClaimConflict,
+			Project: project,
+			Ticket:  ticketID,
+			Data:    map[string]interface{}{"current_owner": existing.ClaimedBy},
+		})
+
 		return nil
 	}
 	if err != nil {
