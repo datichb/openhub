@@ -591,6 +591,11 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
 				memberCol, roleCol, ticketStr, c.Status, sinceStr)
 
+			// Show MR URL as indented detail line when present.
+			if c.MRURL != "" {
+				fmt.Fprintf(w, "  \t\t  └ MR: %s\t\t\n", c.MRURL)
+			}
+
 			// Detail mode: show sub-beads
 			if detail {
 				subBeads := fetchSubBeadsJSON(c.TicketID)
