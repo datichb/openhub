@@ -117,14 +117,29 @@ func handleListIssues(ctx context.Context, params json.RawMessage) (*protocol.To
 	variables := map[string]interface{}{
 		"first": args.First,
 	}
+
+	// Build filter incrementally — sub-filters are siblings in IssueFilter, ANDed by Linear.
+	filter := map[string]interface{}{}
 	if args.TeamKey != "" {
-		variables["filter"] = map[string]interface{}{
-			"team": map[string]interface{}{
-				"key": map[string]interface{}{
-					"eq": args.TeamKey,
-				},
+		filter["team"] = map[string]interface{}{
+			"key": map[string]interface{}{"eq": args.TeamKey},
+		}
+	}
+	if args.State != "" {
+		filter["state"] = map[string]interface{}{
+			"name": map[string]interface{}{"eq": args.State},
+		}
+	}
+	if args.Assignee != "" {
+		filter["assignee"] = map[string]interface{}{
+			"or": []map[string]interface{}{
+				{"name": map[string]interface{}{"containsIgnoreCase": args.Assignee}},
+				{"email": map[string]interface{}{"containsIgnoreCase": args.Assignee}},
 			},
 		}
+	}
+	if len(filter) > 0 {
+		variables["filter"] = filter
 	}
 
 	data, err := linearQuery(ctx, query, variables)
