@@ -283,16 +283,3 @@ func (c *Client) ListMRDiscussions(ctx context.Context, projectID string, mrIID 
 	}
 	return filtered, nil
 }
-
-// ReplyToDiscussion posts a reply note on a specific MR discussion thread.
-func (c *Client) ReplyToDiscussion(ctx context.Context, projectID string, mrIID int, discussionID, body string) error {
-	encoded := url.PathEscape(projectID)
-	payload, _ := json.Marshal(map[string]string{"body": body})
-	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests/%d/discussions/%s/notes",
-		encoded, mrIID, url.PathEscape(discussionID))
-	_, err := c.post(ctx, path, payload)
-	if err != nil {
-		return fmt.Errorf("replying to discussion: %w", err)
-	}
-	return nil
-}
