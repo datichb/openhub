@@ -221,6 +221,12 @@ func displayFeedbackPreview(a *app.App, mr *gitlabapi.MRInfo, branch string, dis
 	}
 }
 
+// Prompt size caps to prevent token overflow with large MRs.
+const (
+	maxFeedbackDiscussions = 30
+	maxNoteBodyChars       = 2000
+)
+
 // buildFeedbackPrompt constructs the prompt for the feedback correction session.
 func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitlabapi.Discussion) string {
 	baseBranch := mr.TargetBranch
@@ -239,9 +245,14 @@ func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitl
 	sb.WriteString(fmt.Sprintf("Titre: %s\n", mr.Title))
 	sb.WriteString(fmt.Sprintf("Branche: %s → %s\n\n", branch, baseBranch))
 
-	sb.WriteString(fmt.Sprintf("Commentaires de review non résolus (%d):\n\n", len(discussions)))
+	total := len(discussions)
+	shown := total
+	if shown > maxFeedbackDiscussions {
+		shown = maxFeedbackDiscussions
+	}
+	sb.WriteString(fmt.Sprintf("Commentaires de review non résolus (%d):\n\n", total))
 
-	for i, d := range discussions {
+	for i, d := range discussions[:shown] {
 		if len(d.Notes) == 0 {
 			continue
 		}
@@ -251,15 +262,27 @@ func buildFeedbackPrompt(mr *gitlabapi.MRInfo, branch string, discussions []gitl
 		if n.Position != nil && n.Position.NewPath != "" {
 			fmt.Fprintf(&sb, "Fichier: %s:%d\n", n.Position.NewPath, n.Position.NewLine)
 		}
-		fmt.Fprintf(&sb, "Commentaire:\n%s\n", n.Body)
+		body := n.Body
+		if len(body) > maxNoteBodyChars {
+			body = body[:maxNoteBodyChars] + "... [truncated]"
+		}
+		fmt.Fprintf(&sb, "Commentaire:\n%s\n", body)
 
 		// Include replies for context.
 		if len(d.Notes) > 1 {
 			for _, reply := range d.Notes[1:] {
-				fmt.Fprintf(&sb, "  ↳ @%s: %s\n", reply.Author.Username, reply.Body)
+				replyBody := reply.Body
+				if len(replyBody) > maxNoteBodyChars {
+					replyBody = replyBody[:maxNoteBodyChars] + "... [truncated]"
+				}
+				fmt.Fprintf(&sb, "  ↳ @%s: %s\n", reply.Author.Username, replyBody)
 			}
 		}
 		sb.WriteString("\n")
+	}
+
+	if total > shown {
+		fmt.Fprintf(&sb, "... et %d discussions supplémentaires non affichées.\n\n", total-shown)
 	}
 
 	sb.WriteString("Workflow:\n")
