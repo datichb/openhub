@@ -239,7 +239,7 @@ Le serveur MCP gère les réponses 429 avec une relance automatique en backoff e
 
 ## Voir aussi
 
-- [Référence MCP Team Server](mcp-team.md)
+- [Référence MCP Team Server](mcp-team.fr.md)
 - [Référence MCP GitHub Server](mcp-github.fr.md)
 - [Référence MCP Linear Server](mcp-linear.fr.md)
 - [Documentation API REST Jira](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)

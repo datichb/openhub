@@ -239,7 +239,7 @@ The MCP server handles 429 responses with automatic retry using exponential back
 
 ## See Also
 
-- [MCP Team Server Reference](mcp-team.md)
+- [MCP Team Server Reference](mcp-team.en.md)
 - [MCP GitHub Server Reference](mcp-github.en.md)
 - [MCP Linear Server Reference](mcp-linear.en.md)
 - [Jira REST API documentation](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)

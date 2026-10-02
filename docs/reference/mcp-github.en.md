@@ -368,7 +368,7 @@ The MCP server returns HTTP 429 responses when the limit is exceeded. Check the 
 
 ## See Also
 
-- [MCP Team Server Reference](mcp-team.md)
+- [MCP Team Server Reference](mcp-team.en.md)
 - [MCP Jira Server Reference](mcp-jira.en.md)
 - [MCP Linear Server Reference](mcp-linear.en.md)
 - [GitHub REST API documentation](https://docs.github.com/en/rest)

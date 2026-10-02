@@ -368,7 +368,7 @@ Le serveur MCP retourne des réponses HTTP 429 lorsque la limite est dépassée.
 
 ## Voir aussi
 
-- [Référence MCP Team Server](mcp-team.md)
+- [Référence MCP Team Server](mcp-team.fr.md)
 - [Référence MCP Jira Server](mcp-jira.fr.md)
 - [Référence MCP Linear Server](mcp-linear.fr.md)
 - [Documentation API REST GitHub](https://docs.github.com/en/rest)

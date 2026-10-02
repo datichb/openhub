@@ -1,7 +1,86 @@
 # Guide de contribution
 
-Ce guide explique comment ajouter un agent, un skill ou un adapter au hub,
-et comment contribuer via une PR.
+> [Read in English](contributing.en.md)
+
+Ce guide explique comment contribuer au hub : développement du CLI Go,
+ajout d'agents et de skills, et processus de PR.
+
+---
+
+## Developpement du CLI (contributions code)
+
+### Prerequis
+
+| Outil | Version | Installation |
+|-------|---------|-------------|
+| Go | 1.26.4+ | [go.dev/dl](https://go.dev/dl/) |
+| golangci-lint | 2.1+ | `brew install golangci-lint` ou [docs](https://golangci-lint.run/welcome/install/) |
+| git | 2.5+ | Fourni par le systeme |
+
+### Installation locale
+
+```bash
+git clone https://github.com/datichb/openhub.git
+cd openhub/cli
+
+# Telecharger les dependances
+make deps
+
+# Synchroniser agents/skills/permissions dans le repertoire embed Go
+# (etape OBLIGATOIRE avant le premier build — GoReleaser le fait automatiquement en release)
+make embed-sync
+
+# Compiler le binaire
+make build          # -> bin/oh
+```
+
+> **Attention :** `make embed-sync` copie `agents/`, `skills/` et `permissions/` dans
+> `internal/hubcontent/hub/`. Si vous modifiez un agent ou un skill, relancez
+> `make embed-sync` avant de rebuilder.
+
+### Lancer les tests
+
+```bash
+make test           # Tous les tests avec -race detector
+make test-unit      # Tests unitaires uniquement (-short, plus rapide)
+make test-tui       # Tests TUI uniquement (./internal/tui/...)
+make test-cover     # Genere coverage.out + coverage.html
+```
+
+Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
+
+### Linting et formatage
+
+```bash
+make lint           # golangci-lint run ./...
+make vet            # go vet ./...
+make fmt            # gofmt -s -w .
+```
+
+Les linters actifs incluent : `bodyclose`, `gocritic` (diagnostic + style), `misspell`, `nilerr`.
+
+### Vue d'ensemble du code
+
+Le CLI est un binaire Go unique (`cli/main.go` -> `cli/cmd/root.go`). L'architecture interne :
+
+| Package | Responsabilite |
+|---------|---------------|
+| `cmd/` | Commandes Cobra (point d'entree CLI) |
+| `internal/deploy/` | Moteur de deploiement transactionnel (agents -> opencode.json) |
+| `internal/config/` | Configuration hub (`hub.toml`, TOML + Viper) |
+| `internal/mcp/` | 7 serveurs MCP built-in (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
+| `internal/teamstate/` | Gestion de l'etat equipe (claims, wiki, policies, patterns) |
+| `internal/opencode/` | Integration OpenCode (sessions, platform, parallel runner) |
+| `internal/tui/` | Interface TUI (BubbleTea + tview, shell, vues, widgets) |
+| `internal/workflow/` | Definitions de workflows, permissions, validation |
+| `internal/storage/` | SQLite (projets, sessions), keychain, chiffrement fichier |
+| `internal/parallel/` | Coordination de sessions paralleles |
+| `internal/sweep/` | Mode sweep (split, collect, verify) |
+| `internal/tracker/` | Sync trackers externes (GitLab, Jira) |
+| `internal/i18n/` | Internationalisation (FR + EN, JSON) |
+
+Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/hubcontent/`).
+`CGO_ENABLED=0` — pas de dependance C, binaire statique.
 
 ---
 
@@ -259,6 +338,8 @@ oh deploy --diff
 - [ ] Si le skill définit un format de retour structuré : injecté dans l'agent producteur ET l'agent consommateur (toujours Bucket A)
 - [ ] Si décision architecturale : un ADR est créé dans `docs/architecture/adr/`
 - [ ] Le commit respecte les Conventional Commits
+- [ ] `make test` passe sans erreur (ou `make test-unit` au minimum)
+- [ ] `make lint` ne produit aucun warning
 - [ ] `oh deploy` et `oh deploy --check` passent sans erreur
 - [ ] `oh deploy --diff` ne montre aucune divergence inattendue
 

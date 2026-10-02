@@ -8,6 +8,8 @@ cli/.goreleaser.yml             @datichb
 # Security-critical code (self-update, secrets, permissions)
 cli/internal/selfupdate/        @datichb
 cli/internal/hubcontent/        @datichb
+cli/internal/storage/keychain/  @datichb
+cli/internal/storage/filecrypt/ @datichb
 permissions/                    @datichb
 
 # Install script (distributed via curl | sh)

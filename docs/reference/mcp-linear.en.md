@@ -242,7 +242,7 @@ The MCP server handles `429` responses with automatic retry using exponential ba
 
 ## See Also
 
-- [MCP Team Server Reference](mcp-team.md)
+- [MCP Team Server Reference](mcp-team.en.md)
 - [MCP GitHub Server Reference](mcp-github.en.md)
 - [MCP Jira Server Reference](mcp-jira.en.md)
 - [Linear GraphQL API documentation](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)

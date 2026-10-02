@@ -242,7 +242,7 @@ Le serveur MCP gère les réponses `429` avec une relance automatique en backoff
 
 ## Voir aussi
 
-- [Référence MCP Team Server](mcp-team.md)
+- [Référence MCP Team Server](mcp-team.fr.md)
 - [Référence MCP GitHub Server](mcp-github.fr.md)
 - [Référence MCP Jira Server](mcp-jira.fr.md)
 - [Documentation API GraphQL Linear](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)

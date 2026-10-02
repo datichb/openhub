@@ -1,9 +1,86 @@
-> 🇫🇷 [Lire en français](contributing.fr.md)
+> [Lire en francais](contributing.fr.md)
 
 # Contribution Guide
 
-This guide explains how to add an agent, a skill, or an adapter to the hub,
-and how to contribute via a PR.
+This guide explains how to contribute to the hub: Go CLI development,
+adding agents and skills, and the PR process.
+
+---
+
+## CLI Development (code contributions)
+
+### Prerequisites
+
+| Tool | Version | Installation |
+|------|---------|-------------|
+| Go | 1.26.4+ | [go.dev/dl](https://go.dev/dl/) |
+| golangci-lint | 2.1+ | `brew install golangci-lint` or [docs](https://golangci-lint.run/welcome/install/) |
+| git | 2.5+ | System-provided |
+
+### Local setup
+
+```bash
+git clone https://github.com/datichb/openhub.git
+cd openhub/cli
+
+# Download dependencies
+make deps
+
+# Sync agents/skills/permissions into the Go embed directory
+# (MANDATORY step before first build — GoReleaser does this automatically in release)
+make embed-sync
+
+# Build the binary
+make build          # -> bin/oh
+```
+
+> **Important:** `make embed-sync` copies `agents/`, `skills/`, and `permissions/` into
+> `internal/hubcontent/hub/`. If you modify an agent or skill, re-run
+> `make embed-sync` before rebuilding.
+
+### Running tests
+
+```bash
+make test           # All tests with -race detector
+make test-unit      # Unit tests only (-short, faster)
+make test-tui       # TUI tests only (./internal/tui/...)
+make test-cover     # Generates coverage.out + coverage.html
+```
+
+CI enforces a minimum coverage threshold of **60%** with the race detector enabled.
+
+### Linting and formatting
+
+```bash
+make lint           # golangci-lint run ./...
+make vet            # go vet ./...
+make fmt            # gofmt -s -w .
+```
+
+Active linters include: `bodyclose`, `gocritic` (diagnostic + style), `misspell`, `nilerr`.
+
+### Code overview
+
+The CLI is a single Go binary (`cli/main.go` -> `cli/cmd/root.go`). Internal architecture:
+
+| Package | Responsibility |
+|---------|---------------|
+| `cmd/` | Cobra commands (CLI entry point) |
+| `internal/deploy/` | Transactional deployment engine (agents -> opencode.json) |
+| `internal/config/` | Hub configuration (`hub.toml`, TOML + Viper) |
+| `internal/mcp/` | 7 built-in MCP servers (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team) |
+| `internal/teamstate/` | Team state management (claims, wiki, policies, patterns) |
+| `internal/opencode/` | OpenCode integration (sessions, platform, parallel runner) |
+| `internal/tui/` | TUI interface (BubbleTea + tview, shell, views, widgets) |
+| `internal/workflow/` | Workflow definitions, permissions, validation |
+| `internal/storage/` | SQLite (projects, sessions), keychain, file encryption |
+| `internal/parallel/` | Parallel session coordination |
+| `internal/sweep/` | Sweep mode (split, collect, verify) |
+| `internal/tracker/` | External tracker sync (GitLab, Jira) |
+| `internal/i18n/` | Internationalization (FR + EN, JSON) |
+
+The binary embeds agents, skills, and permissions via `go:embed` (`internal/hubcontent/`).
+`CGO_ENABLED=0` — no C dependencies, static binary.
 
 ---
 
@@ -261,6 +338,8 @@ oh deploy --diff
 - [ ] If the skill defines a structured return format: injected in both the producing agent AND the consuming agent (always Bucket A)
 - [ ] If architectural decision: an ADR is created in `docs/architecture/adr/`
 - [ ] The commit follows Conventional Commits
+- [ ] `make test` passes without errors (or `make test-unit` at minimum)
+- [ ] `make lint` produces no warnings
 - [ ] `oh deploy` and `oh deploy --check` pass without errors
 - [ ] `oh deploy --diff` shows no unexpected divergence
 

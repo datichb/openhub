@@ -11,6 +11,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ### Added
 
+#### Home pages et navigation (ADR-032)
+
 - **Home pages enrichies (ADR-032)** — Chaque mode (Hub, Projet, Équipe) dispose de sa propre page Home avec des accès rapides contextuels
   - Hub Home : +Doctor, +Secrets, +Ajouter un projet (nouvelle section "Actions rapides")
   - Project Home : +Quick, +Parallel, +Onboard, +Workflow (7 sessions au lieu de 4)
@@ -19,65 +21,260 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`g`/`G` dans SectionedList** — Aller au premier/dernier item (navigation vim)
 - **Branch Git dans le header Project Home** — Affiche la branche courante à côté du path
 - **Empty states enrichis** — Suggestions d'actions (Ctrl+P > projects, team init) dans les états vides
+
+#### Board personnalisable (ADR-035) et discovery tracker
+
 - **Colonnes de board personnalisables (ADR-035)** — Configuration `[board]` avec rôles sémantiques (`initial`, `active`, `terminal`, `blocked`), palette de couleurs DS cohérente, override par colonne
 - **Wizard de discovery tracker** — Assistant TUI 5 étapes (connexion, discovery, colonnes, mappings, pool) + CLI interactif. Analyse automatique des labels/statuts du tracker, suggestion de mappings, configuration guidée
 - **Éditeur de colonnes interactif** — Réordonnancement, ajout, renommage, suppression, cycle de rôle via `tview.List` dans le wizard step 3
 - **Commande omnibar `Discover Tracker`** + touche `y` dans la vue Config équipe pour lancer le wizard
 - **Étape optionnelle de discovery dans le wizard `team init`** — Propose la configuration tracker après l'initialisation de l'équipe
 - **API `DiscoverProject`** — Récupération des labels (GitLab) et statuts workflow (Jira) pour la configuration guidée
-- **Moteur heuristique bilingue FR/EN** — Suggestion de mappings label→colonne basée sur des patterns de nommage courants (READY TO DEV, DEV DOING, TESTING, BLOQUÉ, etc.)
+- **Moteur heuristique bilingue FR/EN** — Suggestion de mappings label→colonne basée sur des patterns de nommage courants
 - **Sync tracker sur touche `r`** — Le refresh du board effectue un sync API tracker complet (GitLab/Jira) avant le git pull
-- **Récupération de tous les tickets par labels** — `autopoolUnassigned` récupère tous les tickets correspondant aux labels configurés, indépendamment de l'assignation
+- **Récupération de tous les tickets par labels** — `autopoolUnassigned` récupère tous les tickets correspondant aux labels configurés
 - **Pagination GitLab** — `ListAssignedIssues`, `ListUnassignedIssues`, `ListIssuesByLabels` suivent `X-Next-Page` au-delà de 20 résultats
-- **Nettoyage automatique des claims terminés** — `CleanupDoneClaims` appelé après chaque sync tracker avec support des colonnes terminales custom
+- **Nettoyage automatique des claims terminés** — `CleanupDoneClaims` après chaque sync tracker avec support des colonnes terminales custom
 - **Prévisualisation TOML** — Le summary du wizard affiche un snippet de la config générée
-- **37 clés i18n (FR + EN)** pour le wizard discovery
-- **53 tests unitaires et d'intégration** — BoardConfig, ColumnsFromConfig, MapClaimStatusWithConfig, moteur heuristique, DiscoverProject (httptest), pagination
+- **53 tests unitaires et d'intégration** — BoardConfig, ColumnsFromConfig, moteur heuristique, DiscoverProject (httptest), pagination
+
+#### Système de thèmes ModeTheme
+
+- **Système ModeTheme** — Palette de couleurs 4 niveaux par mode (Hub/Projet/Équipe) avec palettes Teal, Mauve et Peach
+- **Migration complète vers ActiveMode** — 18 vues, shell, modals, aide, wizards et widgets migrés vers les couleurs contextuelles
+- **Bannières colorées par mode** — Badges, mises en surbrillance de touches et bannières adaptées au mode actif
+- **Palettes saturées et réalignées** — Orange (hub), bleu (projet), violet saturé (équipe), tokens globaux alignés avec le hub
+- **Barre de mode persistante** — Gutter coloré sous l'omnibar, séparateur de mode dans l'omnibar
+
+#### Refonte du wizard d'initialisation
+
+- **Wizard TUI-first** — Refonte complète du wizard de première exécution avec étapes groupées, sidebar et pages d'introduction
+- **Mode Express** — Sélecteur de mode (Express/Full) sur l'écran de bienvenue
+- **Navigation et layout unifiés** — Infrastructure de navigation entre pages, layout adaptatif 3 paliers selon la taille du terminal
+- **Détection automatique** — Nom de projet depuis le remote git, credentials provider existants, projet/équipe existants en cas de ré-init
+- **Changement de langue en direct** — Tous les textes se mettent à jour au changement de locale
+- **Étapes MCP consolidées** — 3 étapes de tokens MCP fusionnées en 1 page, ajout des champs URL GitLab/Jira
+- **Sélection d'agents et récap deploy** — Nouvelle étape de sélection d'agents avec récapitulatif de déploiement
+- **Validation et ergonomie** — Lockfile, pre-flight git, pre-warm secrets, détection tokens existants, hints contextuels sur les champs
+- **Étape optionnelle équipe** — Setup équipe intégré au wizard init (rejoin / création)
+- **Wizard-engine amélioré** — Feedback visuel pour étapes requises, navigation, hints, summary, timers, spinner différé
+
+#### Abstraction plateforme (ADR-036)
+
+- **`SessionPlatform` abstraction layer** — Nouvelle couche d'abstraction pour les backends de session (ADR-036, Phases 0-3)
+- **Interface `ParallelRunner`** — Restructuration multi-backend pour le coordinateur parallèle
+- **Migration vers `SessionServer`** — Coordinateur parallèle migré vers l'interface SessionServer
+
+#### Mode parallèle et sweep
+
+- **Moteur de récupération automatique** — Récupération des sessions échouées avec tickets (R13)
+- **Contrôle d'admission budgétaire** — Admission basée sur les estimations de tickets
+- **Messaging inter-agents** — Notifications du coordinateur pour la communication entre sessions
+- **Double logging** — slog + fichier pour les sous-processus serve
+- **Mode sweep** — Nouveau package avec config, splitter, collector, verifier et orchestrateur
+  - Entrée CLI avec flags, fast path headless pour les sweeps single-task
+  - Politique de merge généralisée, skill agent dédié
+- **Type `Task` universel** — Généralisation du coordinateur parallèle (R10)
+
+#### Système de review
+
+- **`oh review --publish`** — Réimplémentation avec création réelle de MR, flag `--reviewer`
+- **`oh review feedback`** — Nouvelle commande et intégration TUI pour le feedback de review
+- **Skill feedback-mode** — Clause de confiance pour les findings humains
+- **Outils MCP review** — Discussions MR, approbations, commentaires Jira via MCP
+- **`PublishReviewBatch`** — Publication par lot, `team_review_verdict` MCP tool
+- **`team_claim_flag_human_review`** — Nouvel outil MCP pour le flag de review humaine
+- **Events review** — Types d'événements verdict, émission de conflit de claim, résumé de session
+
+#### Collaboration équipe et wiki
+
+- **Coordination skills** — Skills de coordination wirées aux 19 agents
+- **URL MR dans le statut** — `oh team status` affiche l'URL de la merge request
+- **Setup tracker après init** — Étape tracker proposée après `oh team init` / `rejoin`
+- **Détection de tokens bot** — Récupération en cas de mismatch d'identité, prompt identité 3 options
+- **Tokens GitLab par équipe** — Clés de token spécifiques par équipe
+- **`oh team wiki`** — Commandes wiki, outil MCP `pending`, formatage des événements
+- **WikiView TUI** — Navigation des pages et review des propositions
+
+#### Intégrations externes
+
+- **GitLab** — Client API léger pour les opérations MR, outil MCP `gitlab_reply_to_mr_discussion`
+- **Linear** — Filtrage par état et assignee dans `handleListIssues`
+- **GitHub** — Corrections endpoint check-runs (head SHA au lieu du numéro PR)
+
+#### Commandes CLI
+
+- **`oh purge`** — Reset complet du hub
+- **`oh skill budget`** — Monitoring de la fenêtre de contexte
+- **`oh secrets cleanup`** — Nettoyage des secrets avec filet de sécurité
+- **`--log-format`** — Flag pour le logging JSON structuré
+- **Auto-bootstrap** — Bootstrap automatique du hub au premier lancement TUI
+- **Pipeline de lancement unifié** — Nouveau launcher avec pipeline de session unifié
+- **Tracking headless** — Suivi des exécutions headless dans le session store (coût/tokens)
+- **Centralisation credentials** — Résolution de credentials centralisée et injection dans les modes headless/parallèle
+- **API REST et SSE** — État des exécutions parallèles exposé via REST et Server-Sent Events
+- **Détection de sessions fantômes** — Détection basée sur le PID
+- **Dénormalisation titre de session** — Titre copié depuis opencode.db vers oh.db
+
+#### TUI
+
+- **Mode picker review** — Sélecteur de mode review dans les quick-actions du board et la home
+- **Runner standalone InlineWizardView** — Exécution isolée du wizard inline
+- **Bannières bold avec soulignement** — Centrées dans tous les modes, Muted plus lumineux
+- **URL MR dans le board** — Affichage de l'URL MR dans le détail ticket du board équipe
+- **Omnibar masquée pendant les wizards** — Hints centrés par rapport au contenu
+- **Moniteur parallèle enrichi** — 7 améliorations de données (R14)
+- **Option Publish désactivée** — Affichage avec hint de setup quand WriteEnabled=false
+
+#### Protocoles et skills
+
+- **Auto-memory avec wiki par paliers** — Enrichissement wiki contextuel automatique
+- **Pattern Design It Twice** — Variations UI dans le protocole designer
+- **Glossaire domaine** — Template de page wiki glossaire avec cible d'enrichissement
+- **Session split Enterprise** — Carte de décision pour le découpage de sessions
+- **Récupération d'erreur subagent** — Protocole de récupération pour les échecs de sous-agents
+- **Classification FACT/DECISION** — Nouvelle classification en Phase 2 du planner
+- **Questionnement frontier** — Pour la planification Large/Enterprise
+- **Concepts d'analyse d'architecture** — Ajout de concepts génériques
+- **`questions_bloquantes` obligatoire** — Champ requis dans tous les handoff blocks
+- **Support monorepo** — Détection et support dans 4 doc-skills
+- **Prototype-protocol** — Skill injectable pour le designer
+- **Page wiki décisions rejetées** — Gestion du cycle de vie des décisions rejetées
+- **Bloc rétrospective** — Dans le récap CP-feature
+- **Test seams et anti-patterns** — Review de conformité spec
+- **Décomposition tracer bullet** — Règle dans la Phase 3 du planner
+- **Understanding gate (Phase 2.5)** — Porte de compréhension avant la décomposition du plan
+- **Détection signal "ungrillable"** — Avec option prototype
+- **Parallélisme conditionnel étendu** — À tous les modes de workflow
+- **Système de budget** — Remplace la limite hardcodée 'max 3' parallèle
+
+#### Internationalisation
+
+- **~641 chaînes extraites** — Extraction de chaînes hardcodées en 4 lots depuis 40+ fichiers Go
+- **37 clés i18n discovery** — Clés pour le wizard discovery tracker (FR + EN)
+
+#### Politiques
+
+- **Scopes `all_files`/`modified_files`** — Implémentation réelle avec lecture de fichiers, état `NotEvaluable`, helper git diff
 
 ### Changed
 
-- **Section "Board" renommée "Projet"** dans le Project Home pour éviter la redondance avec l'item Board
-- **Footer unifié** sur les 3 pages Home — même ordre de raccourcis (Ctrl+P, ?, Ctrl+T, Ctrl+Q)
-- **Logo Hub via figlet** — Remplace l'ASCII art hardcodé par `renderBanner("OPENHUB")` avec fallback automatique
-- **Séparateur dual-column en BorderCard** (`#45475a`) au lieu de FgMuted (`#7f849c`), conforme à Aurum
-- **`renderBanner` retourne `(string, int)`** — Fusion avec `bannerHeight()` pour éviter le double calcul figlet
-- **Split dual-column par `SectionID`** — Remplace la comparaison sur label string, immunisé aux changements i18n
-- **`changeStatus()` dynamique** — Les options de statut sont construites depuis les colonnes configurées, plus hardcodées
-- **`labelStatusOptions()` dynamique** — La vue Config équipe reflète les colonnes custom du board
-- **`MapTrackerStatusWithBoard`** — Utilise les rôles de colonnes pour le fallback catégorie (initial, terminal, active)
-- **`ClaimPoolTicket` configurable** — Accepte un `workStatus` au lieu de hardcoder `in_progress`
-- **`autoClaimTicket` (start dev)** — Utilise `BoardConfig.DefaultWorkStatus()` et `InitialStatus()`
-- **Active counting inclut `validation`** — Badges et summaries comptent les tickets en validation
-- **Palette de couleurs actives étendue** — 6 couleurs Catppuccin (Azure, Overlay, Sapphire, Mauve, Yellow, Green) au lieu de 3
-- **CLI wizard mode batch** — `oh team config` propose "Accepter tous les N mappings" avant le per-mapping
-- **InlineWizardView : Ctrl+B/Enter après erreur** — L'utilisateur peut revenir en arrière ou réessayer après une erreur `OnDone` (amélioration générique pour tous les wizards)
-- **Summary multi-lignes** — `renderSummaryScreen` supporte les `InfoField` avec valeurs multi-lignes
+- **Section "Board" renommée "Projet"** dans le Project Home pour éviter la redondance
+- **Footer unifié** sur les 3 pages Home — même ordre de raccourcis
+- **Logo Hub via figlet** — Remplace l'ASCII art hardcodé par `renderBanner("OPENHUB")`
+- **Séparateur dual-column en BorderCard** — Conforme à Aurum
+- **`changeStatus()` dynamique** — Options de statut depuis les colonnes configurées
+- **`MapTrackerStatusWithBoard`** — Fallback catégorie via rôles de colonnes
+- **`ClaimPoolTicket` configurable** — Accepte un `workStatus`
+- **Palette de couleurs actives étendue** — 6 couleurs Catppuccin au lieu de 3
+- **InlineWizardView : Ctrl+B/Enter après erreur** — Retour ou réessai après erreur `OnDone`
+- **Summary multi-lignes** — Support des `InfoField` avec valeurs multi-lignes
+- **Unification wizard init** — `oh init` utilise le wizard inline (Option C) au lieu du formulaire séparé
+- **Convergence sessions TUI** — Tous les chemins de session TUI convergent vers le launcher
+- **Simplification `oh start`** — Commandes de lancement simplifiées
+- **Standardisation StatusHints** — Format uniforme dans toutes les vues
+- **Unification styles tview** — `tview.Styles`, couleurs de sélection et boutons unifiés
+- **Migration `BuildWizardPage`** — Engine Form, intro, deploy, welcome et team steps migrés
+- **Extraction builders** — `buildHTTPSCredStep`, `buildMCPTokenStep` et 4 builders d'étapes team partagés
+- **Découplage tracker/MCP** — Configuration tracker découplée de la config MCP
+- **5 shared skills** — Création de 5 skills partagées pour éliminer la duplication Bucket B
+- **`ActiveMode.AccentHex`** — Remplace le `AccentHex` statique par le token contextuel
+- **Migration Platform** — Vues TUI et doctor migrés vers l'interface Platform (Phase 4)
+- **Propagation contexte deploy** — Extraction de hash et clés i18n pour les descriptions MCP
 
 ### Fixed
 
-- **Pointeurs stale après resize dans ProjectModeView et TeamModeView** (E1) — `v.list`/`v.dual` sont maintenant mis à jour dans le `buildFn` closure à chaque rebuild, comme HomeView
-- **Race condition dans adaptiveHomeMount** (T1) — `currentMode` utilise `atomic.Int32` pour éliminer le data race Go
-- **Guard mountGen manquant dans TeamModeView** (T4) — La goroutine async des stats ne peut plus écrire sur un header nillé après Unmount
-- **Option "Validation" manquante** dans le modal de changement de statut et le summary équipe
-- **`actionInProgress` bloqué définitivement** quand le contexte shell est annulé pendant le sync — `syncFuncAsync` garantit maintenant `onDone` via `defer`
-- **Nil pointer dereference dans `resolveTrackerProjects`** quand `a.Projects` est nil
-- **`UpdateClaimStatus` rejette les statuts custom** — Utilise maintenant `IsValidBoardStatus` + `IsValidBoardTransition`
-- **`transferTicket()` et `changeStatus()` sans guard `actionInProgress`** — Opérations git concurrentes désormais bloquées
-- **Noms de colonnes non échappés** — `tview.Escape()` appliqué dans `NewCardColumn` et `formatTicketLabels`
-- **Pagination labels GitLab sans cap** — Cap `maxLabelPages=50` et `maxIssuePages=100`
-- **IDs de colonnes sans validation path traversal** — `Validate()` rejette `..`, `/`, `\`
+#### TUI et shell
+
+- **Deadlock `QueueUpdateDraw`** — Évitement du deadlock depuis les callers de la boucle d'événements
+- **Erreurs silencieuses propagées** — `config.Save` et deploy failures remontés en toasts d'erreur
+- **Goroutines stale invalidées** — Invalidation des goroutines async stale lors du Unmount des vues
+- **Centrage bannière** — Footer ancré au-dessus de l'omnibar
+- **Omnibar bloquée** — Activation bloquée pendant les vues capturant l'input
+- **Reset thème de mode** — Le thème se réinitialise en revenant au mode hub
+- **Pointeurs stale après resize** (E1) — `v.list`/`v.dual` mis à jour dans le `buildFn` closure
+- **Race condition `adaptiveHomeMount`** (T1) — `currentMode` utilise `atomic.Int32`
+- **Guard `mountGen` manquant TeamModeView** (T4) — Goroutine async protégée
+- **`actionInProgress` bloqué** — `syncFuncAsync` garantit `onDone` via `defer`
+- **Colonnes non échappées** — `tview.Escape()` appliqué dans `NewCardColumn`
+- **Pagination labels sans cap** — `maxLabelPages=50`, `maxIssuePages=100`
+- **Path traversal IDs colonnes** — `Validate()` rejette `..`, `/`, `\`
+
+#### Wizard et init
+
+- **Layout welcome page** — Suppression doublons séparateur, espacement corrigé
+- **Sélecteur de mode** — Centrage, indicateurs radio, largeur alignée, navigation flèches
+- **Hauteur formulaire** — Calcul depuis le contenu pour dimensionnement correct
+- **Navigation Tab** — `Tab->buttonForm` accessible quand des TextViews trailing existent
+- **Écran d'erreur i18n** — Hints i18n au lieu du français hardcodé
+- **Race condition wizard-engine** — `runWithSpinner` + guard nil `stepBar`
+- **Step deploy** — CustomView pour préserver les deux boutons
+- **Agents collectés via Validate** — Au lieu du bouton form
+- **`SetupDone` / guard overwrite** — Propagation erreur MCP, alignement clés token
+- **Troncature texte welcome** — Hauteur tv fixe
+
+#### Intégrations
+
+- **GitLab** — Warning HTTPS, déduplication résolution URL, `TargetBranch` dans `MRInfo`
+- **Linear** — Propagation de contexte dans les appels API, guard mutation update vide
+- **GitHub** — Head SHA au lieu du numéro PR pour l'endpoint check-runs
+- **Deploy** — Injection `GITLAB_URL`/`JIRA_URL` dans l'environnement subprocess MCP, embed permission YAML, résolution community skills
+
+#### Review et parallèle
+
+- **Cap taille prompt feedback** — Prévention du dépassement de tokens
+- **`duration_s`, `normalizeStatus`** — Correction champ durée et race `SetBoardStatuses`
+- **Recovery ticker** — Ajout dans la boucle moniteur event-driven du mode parallèle
+- **Signal handling** — Trap SIGINT/SIGTERM pour cleanup gracieux des sous-processus
+
+#### Divers
+
+- **Deadlock stdout headless** — Correction deadlock pipe et troncature silencieuse à 50MB
+- **Upsert projet** — Upsert sur path dupliqué au lieu d'échouer
+- **Format keychain unifié** — Format de clé keychain unifié CLI et TUI
+- **Écriture `hub.toml` unifiée** — Via `config.Save()`, correction `ErrExternalModification` dans le wizard
+- **Channel buffered MCP** — Prévention fuite de goroutine dans le serveur de protocole MCP
+- **Auto-migration schema Beads** — Centralisation création commandes bd
+- **0 issue golangci-lint** — Résolution de tous les issues lint
+- **Validation identité GitLab** — Validation contre l'hôte du repo, pas le tracker
+- **Token bot détecté** — Affichage champ password dans l'étape token GitLab, correction validation
+- **Erreurs silencieuses loguées** — `CommitAndPush`, `Secrets.Set`, panics board init, `Pull` error
+
+#### Internationalisation
+
+- **64 chaînes extraites** — Extraction vers fichiers locale dans 6 fichiers Go
+- **16 clés manquantes** — Wiki et review feedback commands
+- **Labels et boutons init internationalisés** — R6-R7
+- **Placeholder générique** — Pour les dropdowns non-région
+
+### Security
+
+- **Linear GraphQL** — Migration des interpolations de chaînes vers des variables GraphQL
+
+### Performance
+
+- **5 skills lourdes de Bucket A vers Bucket B** — Réduction du prompt de base
+- **Déduplication concision** — Règles de concision dans `subagent-concision-posture`
+- **Templates externalisés** — Blocs templates déplacés dans `skills/templates/`
+- **Exemples verbeux élaguéd** — Exemples détaillés supprimés de 9 skills Bucket A
 
 ### Documentation
 
 - ADR-032 EN créé + FR passé en `accepted`
+- ADR-035 — Colonnes de board dynamiques et discovery tracker (FR + EN)
+- ADR-036 — Abstraction plateforme (FR + EN)
 - Mockups 3 modes dans `docs/design/tui-shell.md`
 - Composant "Home Pages" dans `docs/design/aurum.md`
 - Section "Modes de navigation" dans `docs/guides/tui-usage.{en,fr}.md`
 - Commandes mode-aware dans `docs/reference/tui.{en,fr}.md`
+- Section `[board]` dans la référence config (FR + EN)
 - Entrées glossaire : Hub Mode, Project Mode, Team Mode
 - Diagramme Mermaid `docs/diagrams/tui-navigation-modes.mermaid`
-- ADR-035 — Colonnes de board dynamiques et discovery tracker (FR + EN)
-- Section `[board]` dans la référence config (FR + EN)
+- `SECURITY.md` et `SECURITY.fr.md` — Politique de sécurité bilingue
+- `CONTRIBUTING.md` enrichi — Guide de développement CLI (prérequis, build, tests, lint)
+- ADR-012 corrigé — Renommage bilingue, suppression doublon, traduction EN
+- ADR-020 — Traduction EN ajoutée
+- `mcp-team.en.md` — Renommage pour cohérence bilingue
 
 ---
 
