@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -880,6 +881,22 @@ func resolveField(out interface{ Write([]byte) (int, error) }, fieldName, target
 	}
 }
 
+// coerceValue converts string representations of booleans and integers
+// to their native Go types so that TOML marshaling produces the correct
+// syntax (e.g., enabled = true instead of enabled = "true").
+func coerceValue(s string) interface{} {
+	if s == "true" {
+		return true
+	}
+	if s == "false" {
+		return false
+	}
+	if i, err := strconv.Atoi(s); err == nil {
+		return i
+	}
+	return s
+}
+
 // reading the file, updating the value, and rewriting. This is intentionally
 // simple — for complex edits the user can edit hub.toml directly.
 func writeLocal(configPath, keyPath, value string) {
@@ -919,7 +936,7 @@ func writeLocal(configPath, keyPath, value string) {
 			return
 		}
 	}
-	current[parts[len(parts)-1]] = value
+	current[parts[len(parts)-1]] = coerceValue(value)
 
 	// Marshal and write atomically
 	out, err := toml.Marshal(tree)

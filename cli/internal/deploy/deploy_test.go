@@ -156,6 +156,43 @@ func TestExecute_Rollback(t *testing.T) {
 	assert.Equal(t, originalConfig, string(data))
 }
 
+func TestExecute_Rollback_NewProject(t *testing.T) {
+	hubDir, _ := setupTestHub(t)
+	projectDir := t.TempDir()
+
+	// No .opencode/ or opencode.json exist before deploy — virgin project.
+
+	failingPhase := Phase{
+		Name: "Failing",
+		Execute: func(ctx *Context) error {
+			// Simulate a phase that creates files then fails.
+			ocDir := filepath.Join(ctx.Plan.ProjectPath, ".opencode")
+			os.MkdirAll(filepath.Join(ocDir, "agents"), 0o755)
+			os.WriteFile(filepath.Join(ocDir, "agents", "test.md"), []byte("# test"), 0o644)
+			os.WriteFile(filepath.Join(ctx.Plan.ProjectPath, "opencode.json"), []byte(`{"leftover":true}`), 0o644)
+			return fmt.Errorf("intentional failure after creating files")
+		},
+	}
+
+	plan := &Plan{
+		ProjectPath: projectDir,
+		ProjectID:   "test-project",
+		HubDir:      hubDir,
+		Phases:      []Phase{failingPhase},
+	}
+
+	_, err := Execute(context.Background(), plan)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "rolled back")
+
+	// Verify rollback: .opencode/ and opencode.json should NOT exist
+	// because they did not exist before the deploy.
+	assert.NoDirExists(t, filepath.Join(projectDir, ".opencode"),
+		".opencode/ should be removed by rollback since it did not exist before deploy")
+	assert.NoFileExists(t, filepath.Join(projectDir, "opencode.json"),
+		"opencode.json should be removed by rollback since it did not exist before deploy")
+}
+
 func TestExecute_NoAgents(t *testing.T) {
 	emptyHub := t.TempDir()
 	projectDir := t.TempDir()

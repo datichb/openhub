@@ -78,8 +78,10 @@ type MissingMCPIntegration struct {
 
 // Snapshot holds the backup state for rollback.
 type Snapshot struct {
-	BackupDir string
-	CreatedAt time.Time
+	BackupDir       string
+	CreatedAt       time.Time
+	HadOpencodeDir  bool // .opencode/ existed before deploy
+	HadOpencodeJSON bool // opencode.json existed before deploy
 }
 
 // Execute runs a full deployment with transactional rollback.
@@ -159,9 +161,12 @@ func createSnapshot(projectPath string) (*Snapshot, error) {
 		return nil, err
 	}
 
+	snap := &Snapshot{BackupDir: backupDir, CreatedAt: time.Now()}
+
 	// Backup .opencode/ directory
 	ocDir := filepath.Join(projectPath, ".opencode")
 	if info, err := os.Stat(ocDir); err == nil && info.IsDir() {
+		snap.HadOpencodeDir = true
 		if err := copyDir(ocDir, filepath.Join(backupDir, ".opencode")); err != nil {
 			os.RemoveAll(backupDir)
 			return nil, fmt.Errorf("backing up .opencode/: %w", err)
@@ -171,34 +176,42 @@ func createSnapshot(projectPath string) (*Snapshot, error) {
 	// Backup opencode.json
 	ocJson := filepath.Join(projectPath, "opencode.json")
 	if _, err := os.Stat(ocJson); err == nil {
+		snap.HadOpencodeJSON = true
 		if err := copyFile(ocJson, filepath.Join(backupDir, "opencode.json")); err != nil {
 			os.RemoveAll(backupDir)
 			return nil, fmt.Errorf("backing up opencode.json: %w", err)
 		}
 	}
 
-	return &Snapshot{BackupDir: backupDir, CreatedAt: time.Now()}, nil
+	return snap, nil
 }
 
 // rollback restores the project from the snapshot.
 func rollback(projectPath string, snapshot *Snapshot) error {
-	// Restore .opencode/
-	backupOC := filepath.Join(snapshot.BackupDir, ".opencode")
 	destOC := filepath.Join(projectPath, ".opencode")
-	if _, err := os.Stat(backupOC); err == nil {
+	destJson := filepath.Join(projectPath, "opencode.json")
+
+	// Restore or remove .opencode/
+	if snapshot.HadOpencodeDir {
+		backupOC := filepath.Join(snapshot.BackupDir, ".opencode")
 		os.RemoveAll(destOC)
 		if err := copyDir(backupOC, destOC); err != nil {
 			return fmt.Errorf("restoring .opencode/: %w", err)
 		}
+	} else {
+		// .opencode/ did not exist before deploy — remove whatever was created
+		os.RemoveAll(destOC)
 	}
 
-	// Restore opencode.json
-	backupJson := filepath.Join(snapshot.BackupDir, "opencode.json")
-	destJson := filepath.Join(projectPath, "opencode.json")
-	if _, err := os.Stat(backupJson); err == nil {
+	// Restore or remove opencode.json
+	if snapshot.HadOpencodeJSON {
+		backupJson := filepath.Join(snapshot.BackupDir, "opencode.json")
 		if err := copyFile(backupJson, destJson); err != nil {
 			return fmt.Errorf("restoring opencode.json: %w", err)
 		}
+	} else {
+		// opencode.json did not exist before deploy — remove if created
+		os.Remove(destJson)
 	}
 
 	return nil

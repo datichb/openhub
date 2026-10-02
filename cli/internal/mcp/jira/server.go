@@ -230,8 +230,11 @@ func jiraAPIPost(path string, payload interface{}) ([]byte, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "oh-cli-jira-mcp")
 	if token := os.Getenv("JIRA_TOKEN"); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	} else if user := os.Getenv("JIRA_USER"); user != "" {
+		req.SetBasicAuth(user, os.Getenv("JIRA_API_TOKEN"))
 	}
 
 	resp, err := httpClient.Do(req)
