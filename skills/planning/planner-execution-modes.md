@@ -437,8 +437,10 @@ Quelques questions issues de l'exploration pour affiner la planification :
 **Phase :** 2 — Questions complémentaires
 **task_id :** <sessionID courant>
 **Nombre de questions :** <N>
+**Round :** <R>/<R_max estimé> *(omettre si mode batch unique — complexité < Large)*
 
 **Contexte global :** <condensé des observations Phase 1 — architecture détectée, zones d'ombre identifiées, signaux — ce contexte aide l'utilisateur à répondre aux questions>
+**Questions débloquées par :** <résumé des réponses du round précédent qui ont débloqué ces questions> *(omettre si Round 1 ou mode batch unique)*
 
 ### Questions
 
@@ -468,11 +470,14 @@ Quelques questions issues de l'exploration pour affiner la planification :
 → **TERMINER LA SESSION**
 
 > **Règles de production du batch :**
-> - Inclure **toutes** les questions identifiées (métier + technique contextualisé + design si applicable + skip)
+> - Inclure **toutes** les questions `[DECISION]` identifiées (métier + technique contextualisé + design si applicable + skip). Les `[FACT]` sont résolues avant le batch et listées dans le recap intermédiaire.
+> - **Mode frontier (complexité >= Large)** : chaque round produit un bloc batch séparé. Le champ `**Round**` indique la progression. Les questions invalidées par les réponses du round précédent sont retirées silencieusement.
+> - **Mode batch unique (complexité < Large)** : omettre le champ `**Round**` et `**Questions débloquées par**`.
 > - Le `### Contexte global` doit contenir un condensé des observations Phase 1 (architecture, zones d'ombre, signaux) — c'est la seule info visible côté orchestrator
 > - Chaque question a son propre header `#### QN — <header>` avec question + options
 > - La dernière question est toujours le skip global
 > - Ne jamais appeler l'outil `question` — le batch structuré remplace l'outil en mode subagent
+> - **Skip en mode frontier** : si l'utilisateur choisit `skip-toutes` à n'importe quel round, les rounds suivants sont annulés. Passer directement au récap Phase 2.
 
 ### Phase 2 — Questions complémentaires (réponses traitées)
 

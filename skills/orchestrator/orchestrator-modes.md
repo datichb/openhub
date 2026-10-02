@@ -351,15 +351,15 @@ Le résultat contient `## Question pour l'orchestrator` (mais PAS `## Question b
 
 Le résultat contient `## Question batch pour l'orchestrator`. Ce bloc est produit par le planner en Phase 2 et contient **plusieurs questions de clarification** à poser à l'utilisateur en un seul appel.
 
-> ⚠️ Ce cas est **spécifique à la Phase 2** du planner. C'est le seul moment où un batch de questions remonte.
+> ⚠️ Ce cas est **spécifique à la Phase 2** du planner. C'est le seul moment où un batch de questions remonte. En mode frontier (complexité >= Large), le Cas C peut se produire **plusieurs fois** (un par round).
 
 **Comportement obligatoire :**
 
-1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — y compris le contexte global (observations Phase 1).
+1. **Afficher intégralement le bloc `## Retour intermédiaire vers orchestrator`** dans la discussion — y compris le contexte global (observations Phase 1) et les questions FACT résolues par exploration (si présentes).
 
-2. **Lire le bloc `## Question batch pour l'orchestrator`** — récupérer : le contexte global, chaque question (header, question, options), `task_id`, instruction de reprise.
+2. **Lire le bloc `## Question batch pour l'orchestrator`** — récupérer : le contexte global, le round (si présent), les questions débloquées par (si présent), chaque question (header, question, options), `task_id`, instruction de reprise.
 
-3. **Afficher le contexte global** du batch dans la discussion (résumé de l'exploration Phase 1) — ne pas inclure dans l'outil `question`.
+3. **Afficher le contexte global** du batch dans la discussion (résumé de l'exploration Phase 1). **Si un champ `Round` est présent**, afficher également la progression : "Round N sur M estimé — questions débloquées par les réponses précédentes."
 
 4. **Poser TOUTES les questions à l'utilisateur** via un **seul appel `question`** avec une entrée par question du batch :
 

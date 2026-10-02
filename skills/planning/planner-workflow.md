@@ -156,6 +156,7 @@ Si l'utilisateur demande explicitement de revenir à une phase ("reviens à l'ex
 Pour éviter les boucles infinies, maintenir un compteur interne par phase :
 - **Limite : 3 itérations par phase maximum**
 - À la 3ème itération, proposer de terminer ou de passer à la phase suivante même si incomplet
+- **Phase 2 en mode frontier** : chaque round compte comme une itération. Max 3 rounds.
 
 ---
 

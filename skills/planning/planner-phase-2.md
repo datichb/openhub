@@ -90,7 +90,62 @@ Poser une question par fichier partagé avec impact non couvert :
 - Quels composants du design system (DSFR ou autre) sont attendus ?
 - Y a-t-il des contraintes d'accessibilité spécifiques (RGAA, WCAG) ?
 
+---
+
+## Mode de questionnement : batch ou frontier
+
+### Sélection du mode (basée sur le score de complexité Phase 0)
+
+| Complexité | Mode | Comportement |
+|-----------|------|-------------|
+| **Small (4-6 pts)** | Batch unique | Toutes les questions `[DECISION]` en un seul appel |
+| **Medium (7-10 pts)** | Batch unique | Idem — un seul appel |
+| **Large (11-13 pts)** | Frontier | Questions organisées en rounds par prérequis (voir ci-dessous) |
+| **Enterprise (14-16 pts)** | Frontier | Idem Large |
+
+### Mode frontier — Rounds par prérequis
+
+En mode frontier, les questions `[DECISION]` ne sont PAS toutes posées d'un coup. Elles sont organisées en **rounds** basés sur un arbre de dépendances entre décisions.
+
+**Principe :** Une question est dans la **frontier** d'un round si tous ses prérequis sont résolus (soit par un round précédent, soit sans prérequis). Un round pose toute la frontier d'un coup.
+
+**Processus :**
+
+1. **Construire l'arbre de dépendances** — pour chaque question `[DECISION]`, identifier si sa pertinence dépend de la réponse à une autre question :
+   - "Quel design system utiliser ?" est **indépendante** (pas de prérequis)
+   - "Faut-il un thème sombre pour le design system ?" **dépend** de la question précédente
+
+2. **Round 1** — poser toutes les questions sans prérequis (racines de l'arbre)
+
+3. **Après les réponses** — re-évaluer la frontier :
+   - Certaines réponses débloquent de nouvelles questions (prérequis résolu)
+   - Certaines réponses invalident des questions (ex : "Hors périmètre" rend les questions de détail inutiles)
+   - Certaines réponses ne débloquent rien → frontier vide → fin Phase 2
+
+4. **Round 2** — poser la nouvelle frontier (questions débloquées par Round 1)
+
+5. **Répéter** jusqu'à frontier vide ou **max 3 rounds** (constraint d'itération existante)
+
+**Format du contexte de round (en standalone) :**
+
+```markdown
+## [Phase 2 — Round N/M estimé] Questions complémentaires
+
+Quelques questions issues de l'exploration pour affiner la planification :
+*(Round N — questions débloquées par les réponses précédentes)*
+```
+
+> **En mode subagent** : chaque round produit un `## Question batch pour l'orchestrator` séparé avec le champ `### Round` (voir `planner-execution-modes`).
+
+> **Skip global** : si l'utilisateur choisit "Skip toutes" à n'importe quel round, les rounds suivants sont annulés. Les questions restantes sont marquées "non répondu" dans le récap.
+
+> **Frontier vide avant le max** : si les réponses du Round 1 résolvent tout, passer directement au récap. Ne pas forcer 3 rounds.
+
+---
+
 ## Format de la question
+
+> Les templates ci-dessous servent de **modèle de contenu** pour les questions `[DECISION]`. En mode batch, toutes les questions d'un coup. En mode frontier, réparties par rounds.
 
 Afficher d'abord le contexte en texte :
 
