@@ -23,6 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -622,7 +623,7 @@ func actionTeamRejoin() {
 			identityMismatch = result.IdentityMismatch
 
 			// Retro-tag sessions in background
-			go func() {
+			safego.Go(func() {
 				bgCtx := context.Background()
 				count, err := retroTagSessions(bgCtx, memberID)
 				if err == nil && count > 0 && tuiShell != nil {
@@ -633,7 +634,7 @@ func actionTeamRejoin() {
 						)
 					})
 				}
-			}()
+			})
 
 			// Show result summary via toast
 			if tuiShell != nil {
@@ -1064,7 +1065,7 @@ func actionSyncTracker() {
 
 	tuiShell.ShowToast(i18n.T("tui.team.sync.in_progress"), shell.ToastInfo)
 
-	go func() {
+	safego.Go(func() {
 		select {
 		case <-ctx.Done():
 			return
@@ -1086,7 +1087,7 @@ func actionSyncTracker() {
 				{Label: "OK", Callback: func() {}},
 			})
 		})
-	}()
+	})
 }
 
 // runSyncTrackerForTUI executes the tracker sync and returns a result for display.
@@ -2431,7 +2432,7 @@ func actionBoardColumnConfig() {
 				return
 			}
 			// Save columns + mappings to team-state config
-			go func() {
+			safego.Go(func() {
 				freshCfg, err := repo.LoadConfig()
 				if err != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
@@ -2454,7 +2455,7 @@ func actionBoardColumnConfig() {
 						shell.ToastSuccess,
 					)
 				})
-			}()
+			})
 		},
 	})
 

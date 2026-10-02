@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Event represents a team activity event stored in JSONL files.
@@ -87,13 +89,13 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 // it will be pushed on the next successful operation.
 // Errors are logged as warnings and never block the caller.
 func (r *Repo) AppendEventAsync(e Event) {
-	go func() {
+	safego.Go(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := r.AppendEvent(ctx, e); err != nil {
 			slog.Warn("teamstate.appendEventAsync", "event", e.Type, "actor", e.Actor, "project", e.Project, "error", err)
 		}
-	}()
+	})
 }
 
 // appendEventLocal writes an event to the monthly JSONL file without commit/push.

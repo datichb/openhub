@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -111,7 +112,7 @@ type TeamBoardView struct {
 	boardLayout  *tview.Flex // vertical flex: tabBar + columnFlex
 
 	// Debouncing: prevents double-press on non-modal actions (claim, release, refresh).
-	actionInProgress bool
+	actionInProgress atomic.Bool
 
 	// Beads summary cache — populated by a background goroutine (ADR-032).
 	// Stores a map[string]BeadsSummary keyed by external ref (e.g. "gitlab-693").
@@ -312,8 +313,8 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.nextProjectTab()
 		return nil
 	case 'r':
-		if v.cfg.RefreshFunc != nil && !v.actionInProgress {
-			v.actionInProgress = true
+		if v.cfg.RefreshFunc != nil && !v.actionInProgress.Load() {
+			v.actionInProgress.Store(true)
 			// Chain: tracker sync (API) → git pull → local refresh.
 			// TrackerSyncFunc may be nil (no tracker configured) — skip to git pull.
 			trackerSync := v.cfg.TrackerSyncFunc
@@ -324,7 +325,7 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				// Git pull to fetch our tracker-sync commits + colleagues' changes.
 				syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
 					v.refreshOnEventLoop(v.allColumns)
-					v.actionInProgress = false
+					v.actionInProgress.Store(false)
 				})
 			})
 		}
@@ -707,7 +708,7 @@ func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
 	// Unmount() may set v.app = nil while RefreshFunc is running.
 	// Using a local copy guarantees we never call nil.QueueUpdateDraw.
 	app := v.app
-	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil || v.actionInProgress {
+	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil || v.actionInProgress.Load() {
 		return
 	}
 	tickets := v.cfg.RefreshFunc()
@@ -801,7 +802,7 @@ func (v *TeamBoardView) showTicketDetail() {
 		actions = []ModalAction{
 			{Label: i18n.T("tui.teamboard.full_description"), Callback: func() {
 				// Fetch full description on-demand from tracker.
-				go func() {
+				safego.Go(func() {
 					title, desc, err := v.actions.FetchDetail(ticket.Project, ticket.ID)
 					if v.app == nil {
 						return
@@ -822,7 +823,7 @@ func (v *TeamBoardView) showTicketDetail() {
 						fullDetail := v.formatTicketDetail(ticket)
 						v.shell.ShowScrollableModal(i18n.T("tui.teamboard.ticket_title")+ticket.ID, fullDetail, []ModalAction{{Label: closeLabel, Callback: nil}})
 					})
-				}()
+				})
 			}},
 			{Label: closeLabel, Callback: nil},
 		}
@@ -988,21 +989,21 @@ func (v *TeamBoardView) claimTicket() {
 	if v.actions == nil || v.actions.OnClaim == nil || v.shell == nil {
 		return
 	}
-	if v.actionInProgress {
+	if v.actionInProgress.Load() {
 		return
 	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
-	v.actionInProgress = true
+	v.actionInProgress.Store(true)
 	go func() {
 		err := v.actions.OnClaim(ticketID)
 		if v.app == nil {
 			return
 		}
 		v.app.QueueUpdateDraw(func() {
-			v.actionInProgress = false
+			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
 			} else {
@@ -1019,21 +1020,21 @@ func (v *TeamBoardView) releaseTicket() {
 	if v.actions == nil || v.actions.OnRelease == nil || v.shell == nil {
 		return
 	}
-	if v.actionInProgress {
+	if v.actionInProgress.Load() {
 		return
 	}
 	ticketID := v.selectedTicketID()
 	if ticketID == "" {
 		return
 	}
-	v.actionInProgress = true
+	v.actionInProgress.Store(true)
 	go func() {
 		err := v.actions.OnRelease(ticketID)
 		if v.app == nil {
 			return
 		}
 		v.app.QueueUpdateDraw(func() {
-			v.actionInProgress = false
+			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
 			} else {
@@ -1050,7 +1051,7 @@ func (v *TeamBoardView) transferTicket() {
 	if v.actions == nil || v.actions.OnTransfer == nil || v.actions.Members == nil || v.shell == nil {
 		return
 	}
-	if v.actionInProgress {
+	if v.actionInProgress.Load() {
 		return
 	}
 	ticketID := v.selectedTicketID()
@@ -1062,7 +1063,7 @@ func (v *TeamBoardView) transferTicket() {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.no_members"), false)
 		return
 	}
-	v.actionInProgress = true
+	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
 		go func() {
 			err := v.actions.OnTransfer(ticketID, toMember)
@@ -1070,7 +1071,7 @@ func (v *TeamBoardView) transferTicket() {
 				return
 			}
 			v.app.QueueUpdateDraw(func() {
-				v.actionInProgress = false
+				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
 				} else {
@@ -1088,7 +1089,7 @@ func (v *TeamBoardView) changeStatus() {
 	if v.actions == nil || v.actions.OnStatus == nil || v.shell == nil {
 		return
 	}
-	if v.actionInProgress {
+	if v.actionInProgress.Load() {
 		return
 	}
 	ticketID := v.selectedTicketID()
@@ -1107,7 +1108,7 @@ func (v *TeamBoardView) changeStatus() {
 		currentStatus = ticket.Status
 	}
 
-	v.actionInProgress = true
+	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
 		go func() {
 			err := v.actions.OnStatus(ticketID, newStatus)
@@ -1115,7 +1116,7 @@ func (v *TeamBoardView) changeStatus() {
 				return
 			}
 			v.app.QueueUpdateDraw(func() {
-				v.actionInProgress = false
+				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_failed")+err.Error(), false)
 				} else {

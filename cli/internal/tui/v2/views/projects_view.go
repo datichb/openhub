@@ -141,18 +141,20 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	// Build list asynchronously — refresh from DB if a RefreshFunc is available.
 	go func() {
 		// Reload from the store so data is always fresh on each navigation.
+		var projects []ProjectItem
 		if v.cfg.RefreshFunc != nil {
-			projects := v.cfg.RefreshFunc()
-			// Assign inside the goroutine before QueueUpdateDraw; the event loop
-			// cannot race here because we haven't queued the draw callback yet.
-			v.cfg.Projects = projects
+			projects = v.cfg.RefreshFunc()
+		} else {
+			projects = v.cfg.Projects
 		}
-		projects := v.cfg.Projects
 
 		app.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return // view was unmounted or re-mounted before the goroutine finished
 			}
+			// Assign inside QueueUpdateDraw so the write is serialized with
+			// any reader on the tview event loop (fixes data race).
+			v.cfg.Projects = projects
 
 			v.list = tview.NewList().
 				ShowSecondaryText(true).

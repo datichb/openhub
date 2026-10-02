@@ -288,13 +288,17 @@ func (v *ParallelView) refreshLoop(rate time.Duration) {
 }
 
 func (v *ParallelView) refresh() {
-	if v.cfg.RefreshFunc == nil || v.app == nil {
+	app := v.app // capture before the blocking RefreshFunc call
+	if v.cfg.RefreshFunc == nil || app == nil {
 		return
 	}
 	sessions := v.cfg.RefreshFunc()
-	v.cfg.Sessions = sessions
-	v.app.QueueUpdateDraw(func() {
-		v.populateSessions(v.cfg.Sessions)
+	app.QueueUpdateDraw(func() {
+		if v.sessionList == nil { // guard: Unmount may have run
+			return
+		}
+		v.cfg.Sessions = sessions
+		v.populateSessions(sessions)
 	})
 }
 

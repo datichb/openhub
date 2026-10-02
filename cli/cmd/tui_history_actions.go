@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
@@ -26,7 +27,7 @@ func actionHistoryExport() {
 			return
 		}
 
-		go func() {
+		safego.Go(func() {
 			ctx := context.Background()
 
 			sessions, err := a.Sessions.List(ctx, "")
@@ -68,7 +69,7 @@ func actionHistoryExport() {
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
-		}()
+		})
 	})
 }
 
@@ -84,7 +85,7 @@ func actionHistoryImport() {
 			return
 		}
 
-		go func() {
+		safego.Go(func() {
 			ctx := context.Background()
 
 			raw, err := os.ReadFile(filePath)
@@ -130,6 +131,6 @@ func actionHistoryImport() {
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
-		}()
+		})
 	})
 }

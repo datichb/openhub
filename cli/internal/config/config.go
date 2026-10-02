@@ -288,10 +288,10 @@ type WebsearchConfig struct {
 }
 
 var (
-	cfg     *Config
-	cfgOnce sync.Once
-	cfgErr  error
-	cfgMu   sync.Mutex
+	cfg       *Config
+	cfgLoaded bool
+	cfgErr    error
+	cfgMu     sync.Mutex
 	// lastSaveMtime tracks the mtime of hub.toml after the last Save or Load
 	// by this process. Used to detect external modifications before auto-save.
 	lastSaveMtime time.Time
@@ -374,56 +374,65 @@ func (c *Config) ActiveTeam() TeamConfig {
 	return TeamConfig{}
 }
 
-// Load reads the hub.toml configuration. It is safe to call multiple times.
+// Load reads the hub.toml configuration. It is safe to call from any goroutine.
+// The first call reads from disk; subsequent calls return the cached result
+// until Reset or Save invalidates it.
 func Load() (*Config, error) {
-	cfgOnce.Do(func() {
-		v := viper.New()
-		v.SetConfigName("hub")
-		v.SetConfigType("toml")
-		v.AddConfigPath(HubDir())
-		v.AddConfigPath(".")
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
 
-		// Defaults
-		v.SetDefault("name", "OpenHub")
-		v.SetDefault("cli.language", "en")
-		v.SetDefault("opencode.channel", "stable")
-		v.SetDefault("opencode.auto_update", false)
-		v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
-		v.SetDefault("worktree.auto_cleanup", true)
-		v.SetDefault("worktree.base_branch", "")
-		v.SetDefault("websearch.enabled", false)
+	if cfgLoaded {
+		return cfg, cfgErr
+	}
 
-		if err := v.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				cfgErr = err
-				return
-			}
-			// Config not found is OK — use defaults
-		}
+	v := viper.New()
+	v.SetConfigName("hub")
+	v.SetConfigType("toml")
+	v.AddConfigPath(HubDir())
+	v.AddConfigPath(".")
 
-		cfg = &Config{}
-		cfgErr = v.Unmarshal(cfg)
-		// Post-load cleanup: if Teams is populated (either from [[teams]] in file
-		// or from RunMigrationIfNeeded), clear the legacy Team field to ensure
-		// omitempty suppresses it on next Save. Viper may have populated Team
-		// from a residual [team] section in the file.
-		if cfgErr == nil && len(cfg.Teams) > 0 {
-			cfg.Team = TeamConfig{}
+	// Defaults
+	v.SetDefault("name", "OpenHub")
+	v.SetDefault("cli.language", "en")
+	v.SetDefault("opencode.channel", "stable")
+	v.SetDefault("opencode.auto_update", false)
+	v.SetDefault("opencode.install_dir", filepath.Join(HubDir(), "bin"))
+	v.SetDefault("worktree.auto_cleanup", true)
+	v.SetDefault("worktree.base_branch", "")
+	v.SetDefault("websearch.enabled", false)
+
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			cfgErr = err
+			cfgLoaded = true
+			return cfg, cfgErr
 		}
-		// Record mtime for external modification detection.
-		if cfgErr == nil {
-			recordMtime()
-		}
-	})
+		// Config not found is OK — use defaults
+	}
+
+	cfg = &Config{}
+	cfgErr = v.Unmarshal(cfg)
+	// Post-load cleanup: if Teams is populated (either from [[teams]] in file
+	// or from RunMigrationIfNeeded), clear the legacy Team field to ensure
+	// omitempty suppresses it on next Save. Viper may have populated Team
+	// from a residual [team] section in the file.
+	if cfgErr == nil && len(cfg.Teams) > 0 {
+		cfg.Team = TeamConfig{}
+	}
+	// Record mtime for external modification detection.
+	if cfgErr == nil {
+		recordMtime()
+	}
+	cfgLoaded = true
 	return cfg, cfgErr
 }
 
-// Reset clears the cached config (useful for tests).
-// Must not be called concurrently with Load.
+// Reset clears the cached config so the next Load re-reads from disk.
+// Safe to call concurrently with Load — both are serialized by cfgMu.
 func Reset() {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
-	cfgOnce = sync.Once{}
+	cfgLoaded = false
 	cfg = nil
 	cfgErr = nil
 	lastSaveMtime = time.Time{}
@@ -476,7 +485,7 @@ func Save(c *Config) error {
 	recordMtime()
 
 	// Invalidate the cache so the next Load() reflects the new state.
-	cfgOnce = sync.Once{}
+	cfgLoaded = false
 	cfg = nil
 	cfgErr = nil
 	return nil
@@ -555,8 +564,7 @@ func checkExternalModification() error {
 	return nil
 }
 
-// recordMtime records the current mtime of hub.toml. Must be called under cfgMu
-// (or during Load's sync.Once).
+// recordMtime records the current mtime of hub.toml. Must be called under cfgMu.
 func recordMtime() {
 	path := ConfigPath()
 	if info, err := os.Stat(path); err == nil {

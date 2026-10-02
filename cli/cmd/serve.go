@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -37,6 +38,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	port, _ := cmd.Flags().GetInt("port")
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	serveCORSOrigin = fmt.Sprintf("http://%s", addr)
 
 	// SSE hub for real-time push
 	hub := newSSEHub()
@@ -154,7 +156,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Start SSE broadcaster
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
-	go hub.startBroadcaster(ctx, a)
+	safego.Go(func() { hub.startBroadcaster(ctx, a) })
 
 	// Handle graceful shutdown
 	go func() {
@@ -172,14 +174,24 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 // ── JSON helpers ─────────────────────────────────────────────────────────────
 
+// serveCORSOrigin is set by runServe to restrict CORS to the dashboard's own origin.
+var serveCORSOrigin string
+
+func setCORS(w http.ResponseWriter) {
+	if serveCORSOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", serveCORSOrigin)
+	}
+}
+
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORS(w)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, err error, code int) {
 	w.Header().Set("Content-Type", "application/json")
+	setCORS(w)
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }

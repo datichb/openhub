@@ -4,6 +4,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/deploy"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/opencode"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -47,7 +48,7 @@ func actionDeploy() {
 	tuiShell.ShowToast(i18n.T("tui.deploy.analyzing"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
-	go func() {
+	safego.Go(func() {
 		report, err := deploy.ComputeDiff(ctx, hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
@@ -67,7 +68,7 @@ func actionDeploy() {
 				[]views.ModalAction{
 					{Label: i18n.T("tui.deploy.apply"), Callback: func() {
 						tuiShell.ShowToast(i18n.T("tui.deploy.in_progress"), shell.ToastInfo)
-						go func() {
+						safego.Go(func() {
 							err := runDeployForProject(a, project)
 							tuiShell.App().QueueUpdateDraw(func() {
 								if err != nil {
@@ -84,13 +85,13 @@ func actionDeploy() {
 									}
 								}
 							})
-						}()
+						})
 					}},
 					{Label: i18n.T("tui.deploy.cancel"), Callback: func() {}},
 				},
 			)
 		})
-	}()
+	})
 }
 
 func actionSync() {
@@ -133,7 +134,7 @@ func actionUpgrade() {
 	tuiShell.ShowToast(i18n.T("tui.deploy.upgrade_in_progress"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
-	go func() {
+	safego.Go(func() {
 		select {
 		case <-ctx.Done():
 			return
@@ -159,7 +160,7 @@ func actionUpgrade() {
 				tuiShell.ShowToast(i18n.T("tui.deploy.upgrade_success"), shell.ToastSuccess)
 			}
 		})
-	}()
+	})
 }
 
 // actionViewDiff shows a read-only diff modal comparing hub vs project.
@@ -183,7 +184,7 @@ func actionViewDiff() {
 	tuiShell.ShowToast(i18n.T("tui.deploy.analyzing"), shell.ToastInfo)
 	ctx := tuiShell.Context()
 
-	go func() {
+	safego.Go(func() {
 		report, err := deploy.ComputeDiff(ctx, hubDir, project.Path, project.Agents, resolveWorkflowGeneratedSkills(a, project))
 		tuiShell.App().QueueUpdateDraw(func() {
 			if err != nil {
@@ -205,7 +206,7 @@ func actionViewDiff() {
 				},
 			)
 		})
-	}()
+	})
 }
 
 // canLaunchTUI returns true if the environment supports launching the TUI shell.

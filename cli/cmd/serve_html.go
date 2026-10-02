@@ -187,6 +187,12 @@ let selectedPeriod = '7d';
 let sseConnected = false;
 
 // ── Helpers ────────────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 async function fetchJSON(path) {
   const r = await fetch(API + path);
   if (!r.ok) throw new Error(r.statusText);
@@ -195,7 +201,7 @@ async function fetchJSON(path) {
 
 function badge(status) {
   const s = (status||'').replace(/ /g,'_').toUpperCase();
-  return '<span class="badge ' + s + '">' + (status||'—') + '</span>';
+  return '<span class="badge ' + esc(s) + '">' + esc(status||'—') + '</span>';
 }
 
 function truncate(s, len) {
@@ -232,18 +238,18 @@ async function loadProjects() {
     const current = sel.value;
     sel.innerHTML = '<option value="">Tous les projets</option>';
     for (const p of data) {
-      sel.innerHTML += '<option value="' + (p.ID||p.Name) + '">' + p.Name + '</option>';
+      sel.innerHTML += '<option value="' + esc(p.ID||p.Name) + '">' + esc(p.Name) + '</option>';
     }
     sel.value = current || '';
 
     let html = '<table><tr><th>Nom</th><th>Langage</th><th>Provider</th><th>Statut</th></tr>';
     for (const p of data) {
-      html += '<tr><td>' + p.Name + '</td><td>' + (p.Language||'—') + '</td><td>' + (p.Provider||'—') + '</td><td>' + badge(p.Status||'active') + '</td></tr>';
+      html += '<tr><td>' + esc(p.Name) + '</td><td>' + esc(p.Language||'—') + '</td><td>' + esc(p.Provider||'—') + '</td><td>' + badge(p.Status||'active') + '</td></tr>';
     }
     html += '</table>';
     document.getElementById('projects-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('projects-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('projects-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 
@@ -268,7 +274,7 @@ async function loadSessionsAndStats() {
     // Load recent sessions
     const sessData = await fetchJSON('/platform/sessions?limit=10');
     if (!sessData.available) {
-      document.getElementById('sessions-content').innerHTML = '<div class="empty">' + (sessData.message||'Non disponible') + '</div>';
+      document.getElementById('sessions-content').innerHTML = '<div class="empty">' + esc(sessData.message||'Non disponible') + '</div>';
       return;
     }
     const sessions = sessData.sessions || [];
@@ -278,7 +284,7 @@ async function loadSessionsAndStats() {
     }
     let html = '<table><tr><th>Titre</th><th>Modèle</th><th>Coût</th><th>Tokens</th><th>Date</th></tr>';
     for (const s of sessions) {
-      html += '<tr><td>' + truncate(s.title||s.id, 24) + '</td><td>' + truncate(s.model,16) + '</td><td>$' + s.cost.toFixed(3) + '</td><td>' + formatTokens(s.tokens_in+s.tokens_out) + '</td><td>' + s.created_at + '</td></tr>';
+      html += '<tr><td>' + esc(truncate(s.title||s.id, 24)) + '</td><td>' + esc(truncate(s.model,16)) + '</td><td>$' + s.cost.toFixed(3) + '</td><td>' + formatTokens(s.tokens_in+s.tokens_out) + '</td><td>' + esc(s.created_at) + '</td></tr>';
     }
     html += '</table>';
     document.getElementById('sessions-content').innerHTML = html;
@@ -286,7 +292,7 @@ async function loadSessionsAndStats() {
     // Update sparkline
     document.getElementById('sparkline').src = '/api/v1/chart/costs?period=' + selectedPeriod + '&t=' + Date.now();
   } catch(e) {
-    document.getElementById('sessions-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('sessions-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 
@@ -303,12 +309,12 @@ async function loadAgents() {
     for (const m of data) {
       const dur = m.AvgDurationSec > 0 ? Math.round(m.AvgDurationSec) + 's' : '—';
       const tok = formatTokens(m.TotalTokensIn + m.TotalTokensOut);
-      html += '<tr><td>' + m.AgentName + '</td><td>' + m.TotalRuns + '</td><td>' + m.SuccessRate.toFixed(0) + '%%</td><td>' + dur + '</td><td>' + tok + '</td><td>$' + m.TotalCostUSD.toFixed(2) + '</td></tr>';
+      html += '<tr><td>' + esc(m.AgentName) + '</td><td>' + m.TotalRuns + '</td><td>' + m.SuccessRate.toFixed(0) + '%%</td><td>' + dur + '</td><td>' + tok + '</td><td>$' + m.TotalCostUSD.toFixed(2) + '</td></tr>';
     }
     html += '</table>';
     document.getElementById('agents-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('agents-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('agents-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 
@@ -318,7 +324,7 @@ async function loadBoard() {
     const qp = selectedProject ? '?project=' + selectedProject : '';
     const data = await fetchJSON('/team/board' + qp);
     if (!data.available) {
-      document.getElementById('board-content').innerHTML = '<div class="empty">' + (data.message||'Non disponible') + '</div>';
+      document.getElementById('board-content').innerHTML = '<div class="empty">' + esc(data.message||'Non disponible') + '</div>';
       return;
     }
     const columns = data.columns || [];
@@ -326,15 +332,15 @@ async function loadBoard() {
     for (const col of columns) {
       const claims = col.claims || [];
       html += '<div class="kanban-col">';
-      html += '<div class="kanban-col-header"><span>' + col.name.replace('_',' ') + '</span><span class="count">' + claims.length + '</span></div>';
+      html += '<div class="kanban-col-header"><span>' + esc(col.name).replace('_',' ') + '</span><span class="count">' + claims.length + '</span></div>';
       for (const c of claims) {
         html += '<div class="kanban-card">';
-        html += '<div class="ticket">' + (c.TicketID||c.ticket_id||'?') + '</div>';
-        html += '<div class="actor">' + (c.ClaimedBy||c.claimed_by||'') + '</div>';
+        html += '<div class="ticket">' + esc(c.TicketID||c.ticket_id||'?') + '</div>';
+        html += '<div class="actor">' + esc(c.ClaimedBy||c.claimed_by||'') + '</div>';
         const labels = c.Labels || c.labels || [];
         if (labels.length > 0) {
           html += '<div class="labels">';
-          for (const l of labels) html += '<span class="label-tag">' + l + '</span>';
+          for (const l of labels) html += '<span class="label-tag">' + esc(l) + '</span>';
           html += '</div>';
         }
         html += '</div>';
@@ -345,7 +351,7 @@ async function loadBoard() {
     html += '</div>';
     document.getElementById('board-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('board-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('board-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 
@@ -355,7 +361,7 @@ async function loadTimeline() {
     const qp = selectedProject ? '&project=' + selectedProject : '';
     const data = await fetchJSON('/team/events?limit=50' + qp);
     if (!data.available) {
-      document.getElementById('timeline-content').innerHTML = '<div class="empty">' + (data.message||'Non disponible') + '</div>';
+      document.getElementById('timeline-content').innerHTML = '<div class="empty">' + esc(data.message||'Non disponible') + '</div>';
       return;
     }
     const events = data.events || [];
@@ -367,15 +373,15 @@ async function loadTimeline() {
     for (const e of events) {
       const ts = e.ts ? relativeTime(e.ts) : '';
       html += '<div class="timeline-item">';
-      html += '<span class="ts">' + ts + '</span> ';
-      html += '<span class="actor">' + (e.actor||'') + '</span> ';
-      html += '<span class="event-type">' + (e.event||e.type||'') + '</span>';
-      if (e.ticket) html += ' <span style="color:var(--muted)">' + e.ticket + '</span>';
+      html += '<span class="ts">' + esc(ts) + '</span> ';
+      html += '<span class="actor">' + esc(e.actor||'') + '</span> ';
+      html += '<span class="event-type">' + esc(e.event||e.type||'') + '</span>';
+      if (e.ticket) html += ' <span style="color:var(--muted)">' + esc(e.ticket) + '</span>';
       html += '</div>';
     }
     document.getElementById('timeline-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('timeline-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('timeline-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 
@@ -384,7 +390,7 @@ async function loadMembers() {
   try {
     const data = await fetchJSON('/team/members');
     if (!data.available) {
-      document.getElementById('members-content').innerHTML = '<div class="empty">' + (data.message||'Non disponible') + '</div>';
+      document.getElementById('members-content').innerHTML = '<div class="empty">' + esc(data.message||'Non disponible') + '</div>';
       return;
     }
     const members = data.members || [];
@@ -395,15 +401,15 @@ async function loadMembers() {
     let html = '<div class="member-grid">';
     for (const m of members) {
       html += '<div class="member-card">';
-      html += '<div class="name">' + (m.DisplayName||m.display_name||m.ID||m.id||'?') + '</div>';
-      html += '<div class="role">' + (m.Role||m.role||'dev') + '</div>';
-      html += '<div class="mode">' + (m.DefaultMode||m.default_mode||'manual') + '</div>';
+      html += '<div class="name">' + esc(m.DisplayName||m.display_name||m.ID||m.id||'?') + '</div>';
+      html += '<div class="role">' + esc(m.Role||m.role||'dev') + '</div>';
+      html += '<div class="mode">' + esc(m.DefaultMode||m.default_mode||'manual') + '</div>';
       html += '</div>';
     }
     html += '</div>';
     document.getElementById('members-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('members-content').innerHTML = '<div class="empty">Erreur: ' + e.message + '</div>';
+    document.getElementById('members-content').innerHTML = '<div class="empty">Erreur: ' + esc(e.message) + '</div>';
   }
 }
 

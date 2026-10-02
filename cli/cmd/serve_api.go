@@ -338,7 +338,7 @@ func handlePlatformSessions(a *app.App) http.HandlerFunc {
 			"sessions":  views,
 		})
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w)
 		_, _ = w.Write(data)
 	}
 }
@@ -351,7 +351,7 @@ func handleParallelState(_ *app.App) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setCORS(w)
 
 		snap := parallel.LoadStateSnapshot(stateDir)
 		if snap == nil {

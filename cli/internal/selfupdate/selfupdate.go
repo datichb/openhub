@@ -241,10 +241,6 @@ func Update(version string, progress ProgressFunc) (string, error) {
 	}
 	defer os.Remove(extractedPath)
 
-	if err := os.Chmod(extractedPath, 0o755); err != nil {
-		return "", fmt.Errorf("setting permissions: %w", err)
-	}
-
 	// Find current binary path
 	currentBin, err := os.Executable()
 	if err != nil {
@@ -255,13 +251,43 @@ func Update(version string, progress ProgressFunc) (string, error) {
 		return "", fmt.Errorf("resolving symlinks: %w", err)
 	}
 
-	// Atomic replace: rename current → .old, new → current
-	oldPath := currentBin + ".old"
-	if err := os.Rename(currentBin, oldPath); err != nil {
-		return "", fmt.Errorf("backing up current binary: %w", err)
+	// Atomic replace: stage the new binary in the same directory as
+	// currentBin so that os.Rename is a same-filesystem rename (atomic
+	// on POSIX). A crash between the backup rename and the final rename
+	// previously left no binary at currentBin; this approach keeps the
+	// current binary in place until the single atomic rename succeeds.
+	binDir := filepath.Dir(currentBin)
+	staged, err := os.CreateTemp(binDir, ".oh-update-*")
+	if err != nil {
+		return "", fmt.Errorf("creating staged binary: %w", err)
+	}
+	stagedPath := staged.Name()
+	defer os.Remove(stagedPath) // cleanup on any failure path
+
+	src, err := os.Open(extractedPath)
+	if err != nil {
+		staged.Close()
+		return "", fmt.Errorf("opening extracted binary: %w", err)
+	}
+	if _, err := io.Copy(staged, src); err != nil {
+		src.Close()
+		staged.Close()
+		return "", fmt.Errorf("staging new binary: %w", err)
+	}
+	src.Close()
+	staged.Close()
+
+	if err := os.Chmod(stagedPath, 0o755); err != nil {
+		return "", fmt.Errorf("setting staged binary permissions: %w", err)
 	}
 
-	if err := os.Rename(extractedPath, currentBin); err != nil {
+	// Best-effort backup of current binary for manual rollback.
+	oldPath := currentBin + ".old"
+	_ = os.Remove(oldPath)
+	_ = os.Rename(currentBin, oldPath)
+
+	// Single atomic rename (same filesystem guaranteed).
+	if err := os.Rename(stagedPath, currentBin); err != nil {
 		// Attempt to restore the old binary
 		if rbErr := os.Rename(oldPath, currentBin); rbErr != nil {
 			return "", fmt.Errorf("installing new binary: %w (rollback also failed: %v — your previous binary is at %s)", err, rbErr, oldPath)
@@ -339,11 +365,11 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 }
 
 func extractBinary(archivePath, destPath string) error {
-	// Determine format from extension
-	if strings.HasSuffix(archivePath, ".tar.gz") || strings.HasSuffix(archivePath, ".tgz") {
-		return extractFromTarGz(archivePath, destPath)
-	}
-	return fmt.Errorf("unsupported archive format for self-update")
+	// oh releases are always tar.gz archives (see AssetName).
+	// The archivePath may be a temp file without a .tar.gz extension
+	// (e.g. from os.CreateTemp), so we extract directly instead of
+	// relying on the filename suffix.
+	return extractFromTarGz(archivePath, destPath)
 }
 
 // allowedDownloadHosts is the set of hosts trusted for binary downloads.

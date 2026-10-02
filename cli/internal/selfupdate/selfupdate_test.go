@@ -296,6 +296,32 @@ func TestExtractFromTarGz_NestedPathExtractsCorrectly(t *testing.T) {
 	}
 }
 
+// TestExtractBinary_TempFileWithoutExtension verifies that extractBinary works
+// when the archive path has no .tar.gz extension (as happens with os.CreateTemp
+// in the Update flow). This was a bug: the old code checked the file suffix
+// and always returned "unsupported archive format" for temp files.
+func TestExtractBinary_TempFileWithoutExtension(t *testing.T) {
+	dir := t.TempDir()
+	// Simulate os.CreateTemp naming: no .tar.gz extension
+	archivePath := filepath.Join(dir, "oh-selfupdate-123456789")
+	destPath := filepath.Join(dir, "oh-extracted")
+
+	binaryContent := []byte("#!/bin/sh\necho updated\n")
+	createTestTarGz(t, archivePath, "oh", binaryContent)
+
+	if err := extractBinary(archivePath, destPath); err != nil {
+		t.Fatalf("extractBinary failed on temp file without extension: %v", err)
+	}
+
+	got, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("reading extracted file: %v", err)
+	}
+	if string(got) != string(binaryContent) {
+		t.Errorf("extracted content = %q, want %q", got, binaryContent)
+	}
+}
+
 func TestExtractFromTarGz_PathTraversalSafe(t *testing.T) {
 	dir := t.TempDir()
 	archivePath := filepath.Join(dir, "test.tar.gz")
