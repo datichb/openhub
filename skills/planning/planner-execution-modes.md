@@ -573,6 +573,47 @@ Quelques questions issues de l'exploration pour affiner la planification :
 ```
 → **TERMINER LA SESSION**
 
+### Split Enterprise — Decision Map (complexité >= 14 pts uniquement)
+
+> Produit uniquement si Phase 2.5 est validée ET complexité Enterprise (14+ pts). Le planner recommande un split de session.
+
+```markdown
+## Retour intermédiaire vers orchestrator
+
+**Agent :** planner
+**Phase :** 2.5 — Split Enterprise recommandé
+**task_id :** <sessionID courant>
+
+**Résumé :** Compréhension validée. Decision map produit pour projet Enterprise. Split de session recommandé pour Phase 3-6.
+**Points clés :** <objectif métier, décisions clés, risques principaux>
+
+### Decision Map
+<decision map complet au format défini dans planner-phase-2.md §Split Enterprise>
+
+---
+
+## Question pour l'orchestrator
+
+**Phase :** 2.5-split
+**task_id :** <sessionID courant>
+
+**Contexte :** Projet Enterprise (complexité <X> pts). Decision map produit. Recommandation : démarrer une session fraîche pour Phase 3-6 avec le decision map comme contexte d'entrée.
+
+**Question :** Valider le decision map et démarrer Phase 3 dans une nouvelle session ?
+
+**Options :**
+- `nouvelle-session` — Démarrer Phase 3 dans une session fraîche (recommandé)
+- `continuer-ici` — Poursuivre dans cette session (contexte potentiellement saturé)
+- `corriger-map` — Ajuster le decision map avant de continuer
+
+**Instruction de reprise :** "Réponse split : [option]. Si 'corriger-map' : corrections = [texte utilisateur]. Si 'nouvelle-session' : le decision map sera transmis à une nouvelle session planner."
+```
+→ **TERMINER LA SESSION**
+
+> **Si l'orchestrateur reçoit `nouvelle-session`** : il détecte le Cas E (voir `orchestrator-modes.md`) et démarre une nouvelle session planner avec le decision map en contexte, sans `task_id`.
+> **Si `continuer-ici`** : ré-invoquer avec `task_id` comme d'habitude → planner continue à Phase 3.
+> **Si `corriger-map`** : ré-invoquer avec `task_id` + corrections → planner met à jour le map et re-propose le split.
+
 ### Phase 3 — Plan hiérarchique
 
 ```markdown

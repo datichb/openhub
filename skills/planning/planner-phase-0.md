@@ -89,7 +89,7 @@ Calibrer la profondeur de planification avant l'exploration. Un projet simple m�
 | **Small** | 4–6 | Plan léger — pathfinder optionnel, 3–5 tâches Beads attendues, Phase 4 allégée |
 | **Medium** | 7–10 | Flow standard — pathfinder recommandé, 5–15 tâches Beads |
 | **Large** | 11–13 | Pathfinder obligatoire + audit pré-implem recommandé, tickets structurés |
-| **Enterprise** | 14–16 | Toutes phases obligatoires + onboarder pre-flight si contexte absent, architecture review |
+| **Enterprise** | 14–16 | Toutes phases obligatoires + onboarder pre-flight si contexte absent, architecture review + split de session recommandé à Phase 2.5 (decision map → session fraîche pour Phase 3-6) |
 
 ## Calcul et annonce
 

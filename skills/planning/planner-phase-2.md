@@ -383,10 +383,105 @@ question({
 ```
 
 **Selon la réponse :**
-- **Correct** → Phase 3 (avec le résumé de compréhension comme brief)
+- **Correct** → Phase 3 (avec le résumé de compréhension comme brief). Si Enterprise : produire le decision map d'abord (voir ci-dessous).
 - **Corriger** → l'utilisateur précise ce qui est incorrect, le planner met à jour le résumé et le re-présente (max 3 itérations)
 - **Poser d'autres questions** → retour en Phase 2
 - **Revenir à Phase 1** → Phase 1
+
+---
+
+## Split Enterprise — Decision Map (complexité >= 14 pts uniquement)
+
+### Déclenchement
+
+Quand la compréhension partagée est validée (Phase 2.5) **et** que la complexité est Enterprise (14+ pts), le planner produit un **decision map** et recommande de démarrer une nouvelle session pour la décomposition.
+
+### Pourquoi
+
+Les projets Enterprise accumulent un contexte important en Phase 0-2 (exploration codebase, libs, impacts cascade, questions multi-rounds). Continuer dans la même session pour Phase 3-6 dégrade la qualité du plan — le context window se sature. Démarrer une session fraîche avec un decision map condensé garantit un plan de meilleure qualité.
+
+### Format du decision map
+
+Le decision map est un document auto-suffisant qui contient tout ce que Phase 3 a besoin pour décomposer :
+
+```markdown
+## Decision Map — <nom de la feature>
+
+### Métadonnées
+- **Feature :** <nom>
+- **Complexité :** Enterprise (<X> pts)
+- **Date :** <date>
+
+### Objectif et périmètre
+<understanding statement de Phase 2.5 — copié tel quel>
+
+### Exploration codebase (résumé Phase 1)
+- **Architecture détectée :** <patterns>
+- **Stack :** <technologies>
+- **Fichiers structurants :** <liste avec chemins relatifs>
+- **Tests existants :** <état de la couverture>
+
+### Bibliothèques analysées (Phase 1.2bis)
+| Lib | Comportement | Statut | Source |
+|-----|-------------|--------|--------|
+| <lib 1> | <comportement> | ✅/⚠️/❌ | <source> |
+
+### Impacts cascade (Phase 1.2ter)
+| Fichier partagé | Consommateurs | Statut |
+|-----------------|--------------|--------|
+| <fichier 1> | <liste> | couvert / ticket séparé / exclu |
+
+### Design (Phase 1.5)
+<résumé des specs UX/UI si applicable, sinon "N/A">
+
+### Décisions utilisateur [DECISION]
+| Question | Réponse |
+|----------|---------|
+| <question 1> | <réponse> |
+
+### Faits vérifiés [FACT]
+| Question | Réponse | Source |
+|----------|---------|--------|
+| <question 1> | <réponse> | <source> |
+
+### Hypothèses retenues
+- <hypothèse 1>
+
+### Hors périmètre confirmé
+- <élément 1>
+
+### Risques identifiés
+- <risque 1>
+
+### Priorités déduites
+- P0 : <bloquants>
+- P1 : <chemin critique>
+- P2 : <enrichissement>
+- P3 : <nice-to-have>
+```
+
+### Comportement en standalone
+
+```
+question({
+  questions: [{
+    header: "Split Enterprise",
+    question: "[Planner — Phase 2.5 Enterprise | Feature : <nom>]\nLe decision map est prêt (ci-dessus). Pour un projet de cette complexité, je recommande de démarrer une nouvelle session pour la décomposition (Phase 3-6) avec un contexte frais.\n\nVoulez-vous :",
+    options: [
+      { label: "Nouvelle session (Recommandé)", description: "Démarrer Phase 3 dans une session fraîche avec le decision map" },
+      { label: "Continuer ici", description: "Poursuivre dans cette session (contexte potentiellement saturé)" }
+    ]
+  }]
+})
+```
+
+**Selon la réponse :**
+- **Nouvelle session** → le planner produit le decision map comme artefact final (copié dans le récap). L'utilisateur lance une nouvelle session avec le decision map en contexte. Le planner démarre directement à Phase 3.
+- **Continuer ici** → Phase 3 dans la session courante (l'utilisateur assume le risque de dégradation)
+
+### Comportement en subagent
+
+En mode orchestrator, le split est géré par l'orchestrateur (voir `orchestrator-modes.md` Cas E) :
 
 ---
 

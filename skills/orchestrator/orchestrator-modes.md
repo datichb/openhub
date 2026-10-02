@@ -301,6 +301,7 @@ Quand le planner atteint un checkpoint (fin de phase ou clarification critique),
 |-----------|------|------------|
 | `## Question pour l'orchestrator` | Question unitaire (fin de phase) | → **Cas B** ci-dessous |
 | `## Question batch pour l'orchestrator` | Questions multiples (Phase 2) | → **Cas C** ci-dessous |
+| `## Question pour l'orchestrator` avec `Phase : 2.5-split` | Split Enterprise (decision map) | → **Cas E** ci-dessous |
 
 > ⚠️ **RAPPEL IMPÉRATIF** : Tu DOIS afficher le contenu du bloc `## Retour intermédiaire vers orchestrator` AVANT d'appeler l'outil `question`. Ne jamais appeler `question` sans avoir d'abord affiché le récap en texte.
 
@@ -425,6 +426,43 @@ question({
   }]
 })
 ```
+
+---
+
+**Cas E — Split Enterprise (decision map reçu) :**
+
+Le résultat contient `## Question pour l'orchestrator` avec `**Phase :** 2.5-split`. Ce cas est produit par le planner quand la complexité est Enterprise (14+ pts) et que la compréhension partagée est validée. Le planner recommande de démarrer une session fraîche pour Phase 3-6.
+
+**Comportement obligatoire :**
+
+1. **Afficher le decision map** intégralement dans la discussion (section `### Decision Map` du retour intermédiaire).
+
+2. **Relayer la question de split** à l'utilisateur via `question()` avec les options du bloc.
+
+3. **Selon la réponse :**
+
+   - **`nouvelle-session`** — démarrer une **nouvelle session planner** (PAS de `task_id`) avec le decision map en contexte :
+     ```
+     task(
+       subagent_type: "planner",
+       prompt: "[CONTEXTE] Invoqué depuis l'orchestrateur feature. Split Enterprise — session fraîche.\n\n[DECISION MAP]\n<decision map complet copié du retour intermédiaire>\n[/DECISION MAP]\n\nReprendre depuis Phase 3 avec le decision map ci-dessus comme source de vérité. [SKILL:planning/planner-subagent]"
+     )
+     ```
+   
+   - **`continuer-ici`** — ré-invoquer avec `task_id` normalement :
+     ```
+     task(
+       subagent_type: "planner",
+       task_id: "<task_id du bloc>",
+       prompt: "Réponse split : continuer-ici. Reprendre depuis Phase 3 dans la session courante. [CONTEXTE] Invoqué depuis l'orchestrateur feature. [SKILL:planning/planner-subagent]"
+     )
+     ```
+   
+   - **`corriger-map`** — ré-invoquer avec `task_id` + corrections de l'utilisateur
+
+4. **Attendre le résultat** et recommencer la détection (Cas A, B, C, D ou E).
+
+> **Detection** : Cas E est identifié par `**Phase :** 2.5-split` dans le bloc question. Si le planner produit un bloc Phase 2.5 standard (sans `-split`), c'est un Cas B normal.
 
 ---
 

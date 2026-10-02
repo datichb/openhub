@@ -180,9 +180,14 @@ Phase 2 → Phase 2 (autres questions)
 Phase 2 → Phase 1 (nouvelle exploration)
 
 Phase 2.5 → Phase 3 (compréhension validée)
+Phase 2.5 → Phase 2.5-split (decision map, si Enterprise — session fraîche recommandée)
 Phase 2.5 → Phase 2.5 (corriger la compréhension — max 3 itérations)
 Phase 2.5 → Phase 2 (nouvelles questions nécessaires)
 Phase 2.5 → Phase 1 (nouvelle exploration)
+
+Phase 2.5-split → Phase 3 (nouvelle session avec decision map — recommandé Enterprise)
+Phase 2.5-split → Phase 3 (même session — utilisateur choisit de continuer)
+Phase 2.5-split → Phase 2.5-split (corriger le decision map)
 
 Phase 3 → Phase 4 (normal)
 Phase 3 → Phase 3 (modifier le plan)
