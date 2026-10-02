@@ -75,6 +75,28 @@ Un découpage peut être **suggéré** (jamais imposé) si **plusieurs** de ces 
 
 Un seul critère ne suffit pas à proposer un découpage. Si un découpage semble pertinent, le **signaler comme option** à l'utilisateur sans l'inclure dans le plan par défaut. L'utilisateur décide toujours.
 
+## Règle — Tracer bullet (premier ticket)
+
+Le premier ticket de chaque epic devrait être un **tracer bullet** : une tranche verticale mince qui traverse toutes les couches concernées de bout en bout, même si chaque couche est minimale.
+
+**Objectif :** prouver que le chemin d'intégration fonctionne avant d'élargir chaque couche individuellement. Les tickets suivants enrichissent et étendent — ils ne découvrent pas les problèmes d'intégration.
+
+**Signaux d'un bon tracer bullet :**
+- Il touche toutes les couches listées dans l'epic (DB + service + API + UI si applicable)
+- Il a un comportement observable testable de bout en bout
+- Il est le plus petit possible tout en traversant toutes les couches
+- Les tickets suivants élargissent chaque couche sans toucher l'intégration
+
+**Signaux d'un mauvais découpage (horizontal slicing) :**
+- Ticket 1 = DB uniquement, Ticket 2 = API uniquement, Ticket 3 = UI uniquement
+- Le premier ticket n'a pas de valeur testable isolément
+- L'intégration n'est prouvée qu'au dernier ticket
+
+**Exceptions acceptées :**
+- Un ticket technique fondation (migration DB, setup CI, config infra) peut précéder le tracer bullet si l'intégration n'est pas possible sans ce prérequis
+- Un epic mono-couche (ex : refactoring pur backend) n'a pas besoin de tracer bullet — le premier ticket est le cas nominal de cette couche
+- L'utilisateur peut préférer un découpage horizontal — la règle est une recommandation, pas une obligation
+
 ## Récap de fin de Phase 3
 
 (Le récap est le plan lui-même tel que présenté ci-dessus)

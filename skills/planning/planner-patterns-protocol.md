@@ -73,3 +73,22 @@ Phase 7 - Cloture (post-execution reussie) :
   1. Evaluer si le plan merite d'etre un pattern
   2. Si oui : team_patterns_propose
 ```
+
+## Strategies de decomposition
+
+En complement de la bibliotheque de patterns, appliquer ces strategies :
+
+### Tracer bullet
+
+Le premier ticket de chaque epic traverse toutes les couches concernees
+de bout en bout, meme de maniere minimale. Les tickets suivants
+elargissent chaque couche individuellement.
+
+Ce principe est detaille dans Phase 3 (`planner-phase-3-4` §Tracer bullet).
+
+### Vertical slicing
+
+Privilegier les tickets qui traversent plusieurs couches (vertical)
+plutot que les tickets isoles a une seule couche (horizontal).
+Un ticket avec une valeur testable isolement est toujours preferable
+a un ticket qui ne produit rien de verifiable seul.
