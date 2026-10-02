@@ -158,6 +158,41 @@ agents: [onboarder]
 
 > Si aucun terme ambigu détecté : ne pas créer la page. Elle sera créée plus tard par enrichissement si un agent détecte un terme ambigu.
 
+**`docs/wiki/decisions-rejetees.md`** — toujours créer cette page (même vide) pour que les agents puissent la consulter et l'enrichir :
+
+```markdown
+---
+updated: <YYYY-MM-DD>
+confidence: confirmed
+agents: [onboarder]
+---
+
+# Décisions rejetées
+
+> Cette page trace les concepts, approches et fonctionnalités explicitement rejetés
+> avec la raison du rejet. Consultée par le planner en Phase 4 pour éviter de
+> re-proposer des concepts déjà rejetés.
+
+## Entrées
+
+*(Aucune décision rejetée enregistrée pour le moment.)*
+
+<!-- Format pour chaque entrée :
+### [Titre du concept rejeté]
+- **Date :** YYYY-MM-DD
+- **Raison :** <pourquoi ce concept a été rejeté>
+- **Tickets liés :** <IDs Beads si applicable>
+- **Statut :** ACTIVE | EXPIRED | SUPERSEDED
+- **Contexte de réévaluation :** <dans quelles conditions reconsidérer>
+— `CONFIRMÉ` · <agent> · YYYY-MM-DD
+-->
+```
+
+> **Cycle de vie des entrées :**
+> - `ACTIVE` : le rejet tient toujours — le planner filtre uniquement sur ce statut
+> - `EXPIRED` : le contexte a changé, le rejet n'est plus pertinent — marqué par le onboarder en re-onboarding si l'entrée a > 6 mois ou si le contexte technique a évolué
+> - `SUPERSEDED` : remplacé par une autre décision — avec référence au ticket/ADR qui a décidé autrement
+
 ---
 
 ### ÉTAPE 5.3 — Créer les pages `docs/wiki/business/`

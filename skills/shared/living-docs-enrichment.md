@@ -19,6 +19,7 @@ docs/wiki/
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
 │   ├── conventions.md          ← nommage, git, linting, config, patterns équipe
 │   ├── glossary.md             ← terminologie du domaine (optionnel — créé si termes ambigus)
+│   ├── decisions-rejetees.md   ← concepts rejetés avec raison et cycle de vie (ACTIVE/EXPIRED/SUPERSEDED)
 │   └── retro-log.md            ← observations rétrospectives post-feature (optionnel)
 └── business/
     ├── index.md                ← carte des domaines métier
