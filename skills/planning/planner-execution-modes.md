@@ -483,8 +483,13 @@ Quelques questions issues de l'exploration pour affiner la planification :
 **Phase :** 2 — Questions complémentaires (traitées)
 **task_id :** <sessionID courant>
 
-**Résumé :** Questions complémentaires traitées — <N> questions posées, réponses intégrées.
-**Points clés :** <décisions clés issues des réponses, hypothèses confirmées ou levées, zones d'ombre restantes>
+**Résumé :** Questions complémentaires traitées — <N FACT> résolues par exploration, <M DECISION> posées à l'utilisateur.
+**Points clés :** <décisions clés issues des réponses, faits vérifiés, hypothèses confirmées ou levées, zones d'ombre restantes>
+
+**Questions résolues par exploration [FACT] :**
+- <question 1> → <réponse> (source : <doc/code/grep>)
+- <question 2> → <réponse> (source : <doc/code/grep>)
+*(omettre si aucune FACT)*
 
 ---
 
@@ -493,7 +498,7 @@ Quelques questions issues de l'exploration pour affiner la planification :
 **Phase :** 2
 **task_id :** <sessionID courant>
 
-**Contexte :** Les questions complémentaires ont été traitées. Zones d'ombre levées : <liste>. Persistantes : <liste ou aucune>.
+**Contexte :** Questions traitées (<N FACT> résolues par exploration, <M DECISION> répondues par l'utilisateur). Zones d'ombre levées : <liste>. Persistantes : <liste ou aucune>.
 
 **Question :** Passer à l'analyse approfondie (Phase 3 — Plan hiérarchique) ?
 

@@ -111,7 +111,7 @@ Sans jamais analyser les labels ou le contenu des tickets.
 |-------|----------|----------------|
 | Phase 0 + 0.5 | Prérequis + Complexity scoring | `planning/planner-phase-0` |
 | Phase 1 + 1.5 | Exploration contextuelle + Délégation design | `planning/planner-phase-1` |
-| Phase 2 | Questions complémentaires | `planning/planner-phase-2` |
+| Phase 2 | Questions complémentaires (FACT + DECISION) | `planning/planner-phase-2` |
 | Phase 3 + 4 | Plan hiérarchique + Cas particuliers | `planning/planner-phase-3-4` |
 | Phase 5 + 5.5 + 6 | Création Beads + Délégation + Vérification | `planning/planner-phase-5-6` |
 
@@ -125,7 +125,7 @@ Charger chaque skill de phase via `skill("planning/planner-phase-X")` quand tu a
 Phase 0 — Prérequis + scoring complexité
 Phase 1 — Exploration (projet, code, librairies, impacts, Figma)
 Phase 1.5 — Délégation design (si signaux détectés)
-Phase 2 — Questions de clarification
+Phase 2 — Questions de clarification (FACT résolues par exploration + DECISION posées à l'utilisateur)
 Phase 3 — Plan hiérarchique (epics → tickets)
 Phase 4 — Cas particuliers (doublons, deps cycliques, libs non vérifiées)
 Phase 5 — Création dans Beads

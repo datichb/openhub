@@ -6,15 +6,50 @@ description: Phase 2 du workflow planner — questions complémentaires contextu
 # Phase 2 — Questions complémentaires
 
 ## Objectif
-Poser les questions de clarification identifiées en Phase 1 pour lever les zones d'ombre.
+Lever les zones d'ombre identifiées en Phase 1 : résoudre les questions factuelles par exploration, poser les questions de décision à l'utilisateur.
 
 ## Ce qu'on fait
 
-1. **Regrouper TOUTES les questions** de clarification en un seul appel `question`
-2. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques
-3. **Prioriser les questions par impact** — les plus bloquantes en premier
+1. **Identifier TOUTES les questions** de clarification issues de Phase 1
+2. **Classifier chaque question** : `[FACT]` ou `[DECISION]` (voir section ci-dessous)
+3. **Résoudre les `[FACT]`** par exploration (lecture code, doc, API, websearch) — ne pas les poser à l'utilisateur
+4. **Regrouper les `[DECISION]`** en un seul appel `question` (ou en rounds si mode frontier, voir R3)
+5. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques
+6. **Prioriser les questions par impact** — les plus bloquantes en premier
 
-## Questions à poser
+---
+
+## Classification des questions : FACT vs DECISION
+
+Avant de formuler les questions, classifier chaque zone d'ombre :
+
+### `[FACT]` — Résolvable par exploration
+
+Une question est `[FACT]` si sa réponse peut être trouvée par lecture de code, documentation officielle, API publique, ou analyse de la codebase. L'utilisateur n'a pas besoin d'intervenir.
+
+**Exemples de FACT :**
+- "La lib X supporte-t-elle le mode streaming ?" → lire la doc officielle
+- "Le module Y a-t-il des tests ?" → `grep -rn "test" src/Y/`
+- "Le composant Z est-il utilisé ailleurs ?" → `grep -rn "Z" src/`
+- "Quelle version de la lib est installée ?" → lire `package.json` / `go.mod`
+
+**Résolution :** Explorer immédiatement (lecture fichier, websearch, grep). Documenter la réponse et la source dans le récap Phase 2.
+
+### `[DECISION]` — Nécessite un choix humain
+
+Une question est `[DECISION]` si elle implique un arbitrage métier, une préférence utilisateur, un choix de périmètre, ou une priorisation. Seul l'utilisateur peut répondre.
+
+**Exemples de DECISION :**
+- "L'optimisation performance est-elle dans le périmètre ?" → choix de scope
+- "Quel design system utiliser ?" → préférence
+- "Le module partagé doit-il rester rétrocompatible ?" → arbitrage technique/métier
+- "Quelle priorité pour les edge cases ?" → priorisation
+
+**En cas de doute → classifier comme `[DECISION]`.** Il vaut mieux poser une question de trop que de résoudre un fait de travers silencieusement.
+
+---
+
+## Questions à poser (`[DECISION]` uniquement)
 
 Les questions doivent être **contextualisées** — s'appuyer sur ce qui a été lu, pas des questions génériques.
 
@@ -199,9 +234,17 @@ Toujours expliquer le raisonnement :
 ```markdown
 ## [Phase 2] Questions complémentaires traitées
 
-**Questions posées :** X questions (via outil question multi-questions)
+**Questions classifiées :** X au total — Y résolues par exploration [FACT], Z posées à l'utilisateur [DECISION]
 
-**Réponses reçues :**
+### Questions résolues par exploration [FACT]
+| Question | Réponse | Source |
+|----------|---------|--------|
+| <question FACT 1> | <réponse trouvée> | <doc officielle v3.2 / grep src/ / package.json / ...> |
+| <question FACT 2> | <réponse trouvée> | <source> |
+
+> Si aucune question FACT : omettre cette section.
+
+### Questions résolues par l'utilisateur [DECISION]
 | Question | Réponse |
 |----------|---------|
 | Objectif métier | <label sélectionné ou texte libre> |
@@ -210,8 +253,7 @@ Toujours expliquer le raisonnement :
 | Maquettes UX | <label sélectionné ou texte libre> |
 
 **Zones d'ombre levées :**
-- <zone 1 qui était floue et qui est maintenant claire grâce à la réponse>
-- <Exemple : "L'objectif métier est maintenant clair : gain de temps sur le processus de validation">
+- <zone 1 qui était floue et qui est maintenant claire grâce à la réponse ou l'exploration>
 
 **Zones d'ombre persistantes :**
 - <zone 1 qui reste floue — impact sur l'analyse>
@@ -225,6 +267,7 @@ Toujours expliquer le raisonnement :
 ```
 
 > **Traitement des réponses libres :** Si l'utilisateur a saisi une réponse libre (texte personnalisé), l'intégrer telle quelle dans le tableau. Ces réponses libres sont souvent plus précises que les labels prédéfinis.
+> **Validation des FACT :** Les questions résolues par exploration sont listées dans le récap pour que l'utilisateur puisse les contester. Si une réponse FACT est incorrecte, l'utilisateur la corrige au récap ou à Phase 2.5 (understanding gate).
 
 ---
 
