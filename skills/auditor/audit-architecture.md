@@ -90,6 +90,22 @@ description: Référentiel d'architecture logicielle — principes SOLID, coupla
 - [ ] Les fonctions d'un même module travaillent sur les mêmes données
 - [ ] Les constantes et helpers sont proches des modules qui les utilisent
 
+### Signaux complémentaires à observer
+
+**Law of Demeter** (principe du moindre savoir) — un module ne devrait interagir qu'avec ses collaborateurs directs, pas avec les collaborateurs de ses collaborateurs.
+- Signal : chaînes d'appels profondes (`a.getB().getC().doSomething()`)
+- Signal : un module qui connaît la structure interne d'un objet distant
+- Exception admise : API fluent / DSL avec chaînage intentionnel (documenter dans `conventions.md`)
+
+**Tell, Don't Ask** — demander à un objet d'agir plutôt que de lui demander ses données pour agir à sa place.
+- Signal : pattern "getter then act" récurrent (`if (obj.getX()) { doY(obj.getZ()) }`)
+- Signal : méthodes publiques qui ne font que renvoyer des données internes sans logique
+
+**Composition over Inheritance** — préférer la composition d'objets aux hiérarchies de classes profondes.
+- Signal : hiérarchie d'héritage > 3 niveaux
+- Signal : classes abstraites avec plus de logique que les sous-classes
+- Signal : override systématique de méthodes parentes (signe que l'héritage est forcé)
+
 ---
 
 ## Checklist — Architecture en couches
@@ -163,6 +179,13 @@ src/
 - [ ] Les composants sont conçus pour être testables (DIP, injection)
 - [ ] Les tests reflètent le comportement métier (pas le détail d'implémentation)
 - [ ] Absence de "test de l'implémentation" (tester les internals d'une classe privée)
+
+### Signaux de maintenabilité à observer
+
+**Deletion test** (Ousterhout) — "Si on supprime ce module, la complexité se concentre ou se disperse ?"
+- Un module dont la suppression ne simplifie rien apporte de l'indirection sans valeur
+- Un module dont la suppression disperse la complexité dans 10 endroits est un bon module (il centralise)
+- Utiliser comme question de reflexion quand un module semble "trop simple" ou "inutile" — la simplification n'est pas toujours un gain
 
 ### Nommage et lisibilité
 

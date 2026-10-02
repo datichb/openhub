@@ -29,6 +29,30 @@ Un refactoring modifie la structure interne sans altérer :
 
 ---
 
+## Questions de réflexion avant refactoring
+
+Avant d'appliquer un pattern de refactoring, se poser ces questions pour valider que le refactoring apporte de la valeur :
+
+**Deletion test** — "Si je supprime ce module/cette classe, la complexité se concentre ou se disperse ?"
+- Si la suppression simplifie sans disperser : le code est de l'indirection inutile → simplifier
+- Si la suppression disperse la complexité dans N endroits : le code centralise utilement → ne pas supprimer
+
+**Law of Demeter** — "Ce code connaît-il la structure interne d'objets distants ?"
+- Chaînes d'appels profondes (`a.getB().getC().doSomething()`) → candidat pour Extract + delegation
+- Exception : API fluent / DSL avec chaînage intentionnel
+
+**Tell, Don't Ask** — "Ce code demande des données pour agir, au lieu de demander à l'objet d'agir ?"
+- Pattern `if (obj.getX()) { doY(obj.getZ()) }` → candidat pour Move method vers l'objet
+- Le refactoring déplace la logique là où vivent les données
+
+**Composition vs Inheritance** — "Cette hiérarchie d'héritage est-elle nécessaire ?"
+- Hiérarchie > 3 niveaux → candidat pour Replace Inheritance with Composition
+- Override systématique de méthodes parentes → signe que l'héritage est forcé
+
+> Ces questions sont des **lentilles d'analyse**, pas des règles. La convention projet prévaut toujours si elle documente un choix intentionnel contraire.
+
+---
+
 ## Patterns de refactoring
 
 ### Extract Function / Method
