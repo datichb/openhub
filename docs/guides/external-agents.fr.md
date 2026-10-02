@@ -225,5 +225,5 @@ Un agent de substitution est déployé **tel quel** depuis son fichier source, e
 ## Voir aussi
 
 - [ADR-011 — Agents externes par projet](../architecture/adr/011-external-agents-per-project.fr.md)
-- [Référence CLI — `oh agent discover`](../reference/cli.fr.md#oc-agent)
+- [Référence CLI — `oh agent discover`](../reference/cli-infra.fr.md)
 - [Guide d'authoring](./authoring.fr.md)

@@ -9,6 +9,22 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Documentation
+
+- **Référence MCP GitLab** — `mcp-gitlab.{en,fr}.md` : 11 outils documentés (5 read + 6 write)
+- **Guide GitLab réécrit** — Noms d'outils v1→v2, variables d'env corrigées, mode write ajouté
+- **Skills adapters GitLab corrigés** — Noms d'outils v1→v2 dans pathfinder, planner, onboarder ; outils supprimés (`list_gitlab_labels`, `list_gitlab_milestones`) remplacés par alternatives
+- **Deny-lists orchestrateur** — Surface MCP GitLab mise à jour (3→11 outils interdits)
+- **Référence CLI découpée** — `cli.{en,fr}.md` splitté en 1 index + 8 fichiers thématiques (sessions, projects, deploy, config, infra, mcp, team, tools)
+- **24 entrées CLI ajoutées** — `--parallel`, `--sweep` (9 flags), `--ticket`, `review feedback`, `review --publish`, `oh purge`, `oh secrets cleanup`, `oh skill budget`, `oh team wiki` (3 sous-commandes)
+- **docs/README.md** — Liens SECURITY + CONTRIBUTING ajoutés, section CLI reference mise à jour
+- **ADR-037** — Politique de documentation (companion rule, changelog discipline, bilingue, CI gates)
+- **CI gates** — Changelog freshness + parité bilingue (failure, pas warning)
+- **PR template** — Checklist documentation intégrée
+- **Wiki enrichi** — 3 pages bilingues (conventions, architecture, stack)
+- **6 nouveaux guides bilingues** — parallel mode, sweep mode, review feedback, notifications, Google Slides, troubleshooting
+- **SVG tui-navigation-modes** — Généré depuis le .mermaid source
+
 ## [4.2.0] — 2026-10-02
 
 ### Added

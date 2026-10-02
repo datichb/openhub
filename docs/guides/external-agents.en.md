@@ -225,5 +225,5 @@ A substitution agent is deployed **as-is** from its source file, going through t
 ## See Also
 
 - [ADR-011 — External Agents per Project](../architecture/adr/011-external-agents-per-project.en.md)
-- [CLI Reference — `oh agent discover`](../reference/cli.en.md#oc-agent)
+- [CLI Reference — `oh agent discover`](../reference/cli-infra.en.md)
 - [Authoring Guide](./authoring.en.md)

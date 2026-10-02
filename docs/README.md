@@ -2,6 +2,8 @@
 
 Complete index of all openhub documentation. Guides and references are bilingual (EN/FR).
 
+**Project governance:** [CONTRIBUTING.md](../CONTRIBUTING.md) | [SECURITY.md](../SECURITY.md) | [CHANGELOG.md](../CHANGELOG.md)
+
 ---
 
 ## Guides (35 guides)
@@ -87,7 +89,15 @@ Complete index of all openhub documentation. Guides and references are bilingual
 
 | Document | Description |
 |----------|-------------|
-| [CLI Reference](reference/cli.en.md) | All commands with options and examples |
+| [CLI Reference (Index)](reference/cli.en.md) | Table of contents, global flags, exit codes |
+| [CLI — Sessions](reference/cli-sessions.en.md) | `oh start`, `oh review`, `oh audit`, `oh debug` |
+| [CLI — Projects](reference/cli-projects.en.md) | `oh project list\|add\|remove\|rename\|move\|configure` |
+| [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` |
+| [CLI — Configuration](reference/cli-config.en.md) | `oh config *`, `oh provider setup`, `oh config model` |
+| [CLI — Infrastructure](reference/cli-infra.en.md) | `oh init`, `oh doctor`, `oh repair`, `oh upgrade`, `oh purge`, `oh serve` |
+| [CLI — MCP & Plugins](reference/cli-mcp.en.md) | `oh mcp *`, `oh plugin *` |
+| [CLI — Team](reference/cli-team.en.md) | `oh team *`, `oh teams *`, `oh conventions`, `oh policies` |
+| [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
 | [Configuration](reference/config.en.md) | hub.toml, project settings, team config |
 | [Beads Model](reference/beads-model.en.md) | Ticket system data model |
 | [Glossary](reference/glossary.en.md) | Terms and definitions |
