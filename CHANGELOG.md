@@ -9,6 +9,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [4.2.0] — 2026-10-02
+
 ### Added
 
 #### Home pages et navigation (ADR-032)
@@ -183,6 +185,18 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Propagation contexte deploy** — Extraction de hash et clés i18n pour les descriptions MCP
 
 ### Fixed
+
+#### Sécurité et fiabilité (audit pre-release)
+
+- **Self-update cassé** — `extractBinary` vérifiait l'extension `.tar.gz` du fichier temporaire (sans extension). `oh upgrade oh` retournait systématiquement "unsupported archive format"
+- **Remplacement binaire non-atomique** — Le double-rename lors du self-update pouvait laisser le système sans binaire en cas de crash. Remplacé par un staging dans le même répertoire + single rename POSIX atomique
+- **XSS dashboard** — 16 injections `innerHTML` non-échappées dans le dashboard HTML. Ajout d'un helper `esc()` sur toutes les données dynamiques (noms de projets, tickets, membres, labels, acteurs, messages d'erreur)
+- **CORS wildcard** — `Access-Control-Allow-Origin: *` remplacé par l'origin du serveur (`http://127.0.0.1:<port>`)
+- **Data race `parallel_view`** — Écriture de `cfg.Sessions` hors event loop. Déplacée dans le callback `QueueUpdateDraw`
+- **Data race `teamboard_view`** — `actionInProgress` (bool) lu/écrit sans synchronisation entre goroutines. Migré vers `atomic.Bool` (16 sites d'usage)
+- **Data race `projects_view`** — Même pattern que `parallel_view`, corrigé identiquement
+- **Race condition config** — `sync.Once` dans `Load()` non protégé par `cfgMu`, pouvait être reset par `Save()` concurrent. Remplacé par un flag `cfgLoaded` sous mutex unifié
+- **Panic recovery goroutines** — Nouveau package `safego` avec `defer recover()` + stack trace. Appliqué aux 15 goroutines les plus risquées (réseau, git, tracker API, deploy, self-update, SSE broadcaster)
 
 #### TUI et shell
 
