@@ -189,4 +189,4 @@ Pour garantir l'isolation contextuelle, orchestrer des sessions parallèles **av
 ...
 ```
 
-> Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs` dans la section `### Rapport complet` du bloc.
+> Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs` dans la section `### Rapport complet` du bloc.

@@ -17,6 +17,17 @@
 - **God nodes touchés :** [liste ou "aucun"]
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement. (si applicable)
 
+### Couverture des critères d'acceptance
+*(Inclure uniquement si un ticket Beads avec critères d'acceptance est disponible. Omettre sinon.)*
+
+| Critère | Implémenté | Testé | Fichier(s) |
+|---------|-----------|-------|------------|
+| <critère 1 du ticket> | ✅/⚠️/❌ | ✅/❌ | `fichier:ligne` ou — |
+| <critère 2 du ticket> | ✅/⚠️/❌ | ✅/❌ | `fichier:ligne` ou — |
+
+> Légende : ✅ = vérifié dans le diff, ⚠️ = partiellement implémenté ou ambigu, ❌ = non identifié dans le diff.
+> Les ❌ et ⚠️ sont repris comme findings dans les sections de corrections ci-dessous.
+
 --- BLOC 1 : CORRECTIONS (workflow orchestrator → developer) ---
 
 ### 🔴 Critique — bloquant

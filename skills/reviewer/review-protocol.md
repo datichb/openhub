@@ -128,10 +128,17 @@ Pour chaque PR, passer en revue ces points dans l'ordre :
 - [ ] Les cas d'erreur sont gérés (null, undefined, réseau, etc.)
 - [ ] Pas de régression évidente sur les chemins existants
 - [ ] Les edge cases identifiables sont couverts
+- [ ] **Vérification par critère d'acceptance** (si ticket Beads disponible avec critères) :
+  - Pour chaque critère : identifier le(s) fichier(s) et ligne(s) du diff qui l'implémentent
+  - Si un critère n'est pas identifiable dans le diff → signaler en 🟠 Majeur
+  - Si un critère est partiellement implémenté → signaler en 🟡 Mineur avec ce qui manque
+  - Si un critère est ambigu ou non-vérifiable → formuler en question (💡 Suggestion, ≤ 2/5)
 
 ### 2. Tests et couverture
 - [ ] Les nouvelles fonctions / branches ont des tests unitaires
 - [ ] Les critères d'acceptance du ticket sont couverts par au moins un test chacun
+- [ ] Les tests sont écrits à la frontière de test indiquée dans le ticket (si spécifiée dans `## Tests`)
+- [ ] Pas d'anti-pattern de test : couplage à l'implémentation, test tautologique, horizontal slicing (voir `dev-standards-testing` §Anti-patterns)
 - [ ] Les cas d'erreur et edge cases critiques sont testés
 - [ ] Les mocks ne masquent pas la logique testée
 - [ ] Les noms de tests décrivent le comportement attendu (format AAA)
@@ -195,10 +202,10 @@ Quand un finding est retenu MALGRÉ une convention projet, le justifier explicit
 
 ---
 
-## Lecture du contexte Beads (optionnel)
+## Lecture du contexte Beads
 
-Si un ID de ticket Beads est fourni ou mentionné, tu peux lire son contexte
-pour calibrer ta review :
+Si un ID de ticket Beads est fourni ou mentionné, tu **dois** lire son contexte
+avant de commencer la review :
 
 ```bash
 bd show <ID>
@@ -206,10 +213,14 @@ bd show <ID>
 
 **Ce que tu cherches dans le ticket :**
 - La description de la fonctionnalité attendue — pour vérifier que la PR y répond
-- Les critères d'acceptance — pour vérifier qu'ils sont tous couverts
+- Les critères d'acceptance — pour vérifier qu'ils sont **tous implémentés et testés** (voir section « Vérification des critères d'acceptance » ci-dessous)
 - Les notes techniques — pour vérifier que les contraintes sont respectées
 
 **⚠️ Tu ne modifies jamais le ticket.** Tu lis uniquement.
+
+**Cas de fallback :**
+- Si `bd show <ID>` échoue (BD non installé, ID invalide, réseau) → signaler dans `### Périmètre et contexte` : « Ticket Beads non accessible — review sans contexte ticket » et omettre le tableau de couverture des critères d'acceptance
+- Si le ticket ne contient pas de critères d'acceptance (champ vide ou absent) → omettre le tableau de couverture et signaler en 💡 Suggestion : « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec »
 
 ---
 
@@ -316,7 +327,7 @@ Quand le reviewer est invoqué dans le cadre d'une review multi-mode (sessions p
 
 Quand tu es invoqué via l'outil `Task` par `orchestrator-dev` :
 
-1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs`.
+1. **Produire toujours le rapport de review complet** au format défini ci-dessus, même si la review ne trouve aucun problème (review propre). Un rapport sans problèmes comporte au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`.
 
 2. **Intégrer le rapport dans le bloc `## Retour vers orchestrator-dev`** défini dans le skill `reviewer-handoff-format` — le rapport complet est placé dans la section `### Rapport complet` du bloc. Le bloc est le seul output attendu.
 
@@ -337,6 +348,7 @@ passer cette checklist. **Tout échec nécessite une correction du rapport.**
 6. [ ] **Résumé factuel** — le résumé et le walkthrough décrivent uniquement les changements du diff, pas l'état général du code
 7. [ ] **Hors scope correct** — la section `🔍 Hors scope` contient uniquement des problèmes dans des fichiers NON modifiés par le diff
 8. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est classé 🔴 Critique ou 🟠 Majeur
+9. [ ] **Couverture critères d'acceptance** — si un ticket Beads avec critères d'acceptance est disponible, le tableau `### Couverture des critères d'acceptance` est présent et chaque critère a un statut (✅/⚠️/❌). Si le ticket est inaccessible ou sans critères, l'absence du tableau est signalée dans `### Périmètre et contexte`
 
 Si la review n'a accédé à aucun wiki (projet non onboardé), le bloc `### Périmètre et contexte` DOIT contenir :
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement.

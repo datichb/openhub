@@ -25,14 +25,14 @@ Décomposer la feature en epics et tickets structurés, avec ordre d'implémenta
     → [Description courte en 1 phrase : état actuel → état cible]
     → Contexte métier : [pourquoi ce ticket existe]
     → Couches touchées : [use case / DTO / API / composant / store / etc.]
-    → Tests attendus : [type de test + cas à couvrir]
+    → Tests attendus : [type de test + frontière de test (si identifiable) + cas à couvrir]
     → Acceptance : [critère 1] / [critère 2] / [critère 3]
     → Dépend de : —
 
   - [ ] Ticket 1.1.2 (P2, task, ~[Xh]) — [Titre du ticket]
     → [Description courte]
     → Couches touchées : [...]
-    → Tests attendus : [...]
+    → Tests attendus : [type de test + frontière de test (si identifiable) + cas à couvrir]
     → Acceptance : [critère]
     → Dépend de : Ticket 1.1.1
 

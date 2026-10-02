@@ -40,7 +40,7 @@ Il est injecté dans le `reviewer` et dans `orchestrator-dev` — producteur et 
 
 ## Règles pour le producteur (reviewer)
 
-- **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Walkthrough`, `### Résumé`, `### Périmètre et contexte` et `### ✅ Points positifs`
+- **Toujours inclure `### Rapport complet`** même si la review ne trouve aucun problème (review propre) — le rapport minimal comporte `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Couverture des critères d'acceptance` (si ticket Beads avec critères disponible) et `### ✅ Points positifs`
 - **`### Corrections requises`** contient UNIQUEMENT les findings 🔴 et 🟠 — copiés VERBATIM dans les commentaires Beads. Chaque correction doit être précise, actionnable, et porter son score de confiance
 - **`### Suggestions (non-bloquant)`** contient les findings 🟡 et 💡 — ils restent dans le rapport mais ne sont PAS transmis comme corrections obligatoires dans Beads
 - **`### Routing recommandé`** détermine vers quel developer le ticket est renvoyé — `developer-security` uniquement pour les problèmes de sécurité nécessitant une expertise spécifique

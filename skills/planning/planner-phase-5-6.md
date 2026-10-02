@@ -73,7 +73,7 @@ EOF
 - [Critère observable 2]
 - [Critère observable 3]
 
-## Tests
+## Tests (frontière : [interface publique identifiée, si identifiable])
 - [ ] Test unitaire (Vitest) : [cas nominal — décrire le scénario]
 - [ ] Test unitaire (Vitest) : [cas limite — décrire le scénario]
 - [ ] Pas de régression sur [fonctionnalité connexe]
@@ -132,7 +132,7 @@ EOF
 - [Interface ou comportement observable 1]
 - [Interface ou comportement observable 2]
 
-## Tests
+## Tests (frontière : [interface publique identifiée, si identifiable])
 - [ ] Test unitaire (Vitest) : [cas nominal — décrire le scénario]
 - [ ] Test unitaire (Vitest) : [cas limite ou cas d'erreur]
 - [ ] Pas de régression : [ce qui ne doit pas changer]

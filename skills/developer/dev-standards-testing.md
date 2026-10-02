@@ -44,6 +44,34 @@ couverture minimale, organisation, nomenclature et règles de non-régression.
 
 ---
 
+## Frontières de test
+
+### Principe
+
+Une **frontière de test** est l'interface publique à travers laquelle un test observe le comportement d'un module, sans accéder à ses détails d'implémentation. C'est le point d'entrée que les tests utilisent — le même que les appelants réels.
+
+Chaque ticket devrait indiquer la frontière de test prévue dans sa section « Tests attendus ». Le developer teste à cette frontière — pas en-dessous.
+
+### Comment choisir la frontière
+
+- Privilégier la frontière la plus haute possible qui reste rapide et déterministe
+- Tester à travers l'interface publique du module, pas ses fonctions internes
+- Un module peut avoir des frontières internes pour ses propres tests unitaires, mais les tests d'intégration traversent la frontière externe
+- Si la frontière indiquée dans le ticket n'est plus adaptée (refactoring, changement d'architecture), le signaler via le mécanisme de drift detection
+
+### Exemples
+
+| Module | Bonne frontière | Mauvaise frontière | Pourquoi |
+|--------|----------------|-------------------|----------|
+| Service métier | Méthode publique du service | Méthode privée interne | Un refactoring interne casse les tests sans changer le comportement |
+| API endpoint | Requête HTTP → réponse | Appel direct au controller | Le test doit vérifier le contrat HTTP, pas l'implémentation |
+| Composant UI | Interaction utilisateur → rendu visible | État interne du composant | Le rendu visible est ce que l'utilisateur observe |
+| Store / State | Action publique → état résultant | Mutation interne du store | Le consommateur du store ne voit que l'état via l'API publique |
+
+> **Quand la frontière n'est pas identifiable** (code legacy, module en cours de création) : tester au niveau le plus haut disponible et documenter le choix dans le test. Le reviewer évalue le choix, pas son absence.
+
+---
+
 ## Tests unitaires
 
 ### Quand écrire un test unitaire
@@ -129,6 +157,51 @@ vérifier que fonction a été appelée avec les bons arguments
 ```
 
 Les spécificités syntaxiques (vi.mock, jest.mock, unittest.mock, etc.) sont définies dans le skill dédié au framework de test du projet.
+
+---
+
+## Anti-patterns de test
+
+Trois patterns qui dégradent la durabilité des tests. Les identifier pour les éviter — et les nommer lors des reviews pour faciliter la communication.
+
+### Test couplé à l'implémentation
+
+Le test casse quand on renomme une fonction interne ou qu'on refactorise, alors que le **comportement observable n'a pas changé**.
+
+**Signaux :**
+- Mocks de collaborateurs internes au module (pas de dépendance externe)
+- Assertions sur le nombre d'appels à des fonctions internes
+- Vérification de queries SQL ou de requêtes ORM au lieu du résultat métier
+- Le test importe des fonctions non exportées
+
+**Correction :** tester le comportement observable à la frontière du module. Si un refactoring interne casse le test, le test est au mauvais niveau.
+
+### Test tautologique
+
+La valeur attendue est calculée de la même manière que le code testé. Le test passe **par construction** et ne détecte rien.
+
+**Signaux :**
+- La valeur attendue est une expression calculée, pas un littéral
+- `expect(fn(x)).toBe(fn(x))` ou équivalent indirect
+- La valeur attendue est copiée depuis l'implémentation
+
+**Correction :** les valeurs attendues doivent venir d'une source indépendante :
+- Un littéral connu et vérifié à la main
+- Un exemple documenté dans les critères d'acceptance du ticket
+- Un jeu de données représentatif (section `## Jeux de données représentatifs` du ticket)
+
+### Horizontal slicing (tous les tests d'abord)
+
+Un batch de tests apparaît avant toute implémentation. Les tests vérifient la **forme** des choses (structure, types, présence de champs) plutôt que les comportements utilisateur.
+
+**Signaux :**
+- 10+ tests écrits d'un coup sans implémentation correspondante
+- Les tests décrivent des structures (« le champ X existe ») plutôt que des actions (« l'utilisateur peut Y »)
+- Les noms de tests sont des noms de champs, pas des comportements
+
+**Correction :** un test à la fois, puis l'implémentation qui le fait passer (vertical slice). Le premier test est un chemin complet de bout en bout, pas un layer isolé.
+
+> **Convention projet :** si l'équipe pratique intentionnellement l'écriture de tests en batch comme convention documentée dans `conventions.md` ou `review-rules.md`, cette convention prévaut sur cet anti-pattern.
 
 ---
 
