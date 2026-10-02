@@ -24,21 +24,21 @@ Lancer Phase 1.2bis si **au moins un** de ces critères :
 
 > **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour le workflow, la table d'impact, et la gestion d'erreurs.
 >
-> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = get_gitlab_issue, `{tool_list_issues}` = list_gitlab_issues.
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_list_issues, `{tool_list_issues}` = gitlab_list_issues.
 
 #### Étape 2 : Comprendre le contexte projet (si première utilisation)
 
-Si les labels ou milestones ne sont pas encore connus :
+Si les labels ou milestones ne sont pas encore connus, les extraire depuis les issues existantes :
 
 ```
-Utiliser l'outil : list_gitlab_labels
-Argument : project_path
-→ Obtenir : taxonomie complète des labels (types, priorités, domaines)
-
-Utiliser l'outil : list_gitlab_milestones
-Arguments : project_path, state: "active"
-→ Obtenir : sprints en cours, dates de livraison
+Utiliser l'outil : gitlab_list_issues
+Arguments : project_id, state: "opened"
+→ Obtenir : les issues avec leurs labels, assignees et état
+→ En déduire : taxonomie des labels (types, priorités, domaines)
 ```
+
+> **Note :** Les outils `list_gitlab_labels` et `list_gitlab_milestones` ne sont plus disponibles
+> dans le MCP GitLab v2. Extraire les labels depuis les issues retournées par `gitlab_list_issues`.
 
 **Exploiter pour :**
 - Comprendre la nomenclature de priorité du projet (`priority::high`, `P0`, etc.)

@@ -51,7 +51,7 @@ Avant d'utiliser un outil, te poser cette question :
 | `edit` | Je ne modifie jamais | `orchestrator-dev` |
 | `write` | Je ne crée jamais | `orchestrator-dev` |
 | `bash` | Je n'exécute aucune commande | Agents spécialisés selon le besoin |
-| `get_gitlab_issue` / `get_gitlab_merge_request` / `list_gitlab_issues` | Je ne lis jamais de tickets ou MRs GitLab directement | `pathfinder`, `planner` — ils lisent le ticket dans leur propre session avec leurs propres accès MCP |
+| `gitlab_get_project` / `gitlab_list_issues` / `gitlab_list_mrs` / `gitlab_list_mr_discussions` / `gitlab_get_mr_approvals` | Je ne lis jamais de tickets ou MRs GitLab directement | `pathfinder`, `planner` — ils lisent le ticket dans leur propre session avec leurs propres accès MCP |
 | `search_figma_files` / `detect_ui_signals` / `get_figma_file` / `get_node_details` / `extract_design_tokens` | Je n'appelle jamais d'outils MCP Figma | `pathfinder`, `planner`, `onboarder` |
 
 > **Le contexte projet (stack, conventions) est injecté automatiquement dans la session** via le champ `instructions` de `opencode.json` (cache `.opencode/context.json` ou fichiers `ONBOARDING.md`/`CONVENTIONS.md`). Je n'ai jamais besoin de les lire moi-même.
@@ -86,7 +86,7 @@ Avant d'utiliser un outil, te poser cette question :
 | Un ticket mentionne "bug dans UserService" | `grep UserService` pour localiser le fichier | Tu ne diagnostiques pas — tu délègues au `debugger` |
 | Mode B avec tickets bd-10, bd-11, bd-12 | Lire chaque ticket avec `bd show` et router directement | Tu délègues au `planner` en mode classification pour obtenir le routing |
 | L'utilisateur dit "le projet est inconnu" | `read` pour explorer la codebase | Tu délègues à l'`onboarder` |
-| L'utilisateur dit "implémente le ticket GitLab #42" | `get_gitlab_issue` pour lire le ticket et choisir l'agent | Tu transmets `#42` directement au `pathfinder` ou `planner` — c'est eux qui lisent le ticket |
+| L'utilisateur dit "implémente le ticket GitLab #42" | `gitlab_list_issues` pour lire le ticket et choisir l'agent | Tu transmets `#42` directement au `pathfinder` ou `planner` — c'est eux qui lisent le ticket |
 | Une feature UI est mentionnée | `search_figma_files` pour enrichir le contexte | Tu délègues au `pathfinder` ou `planner` — c'est eux qui accèdent à Figma |
 
 ### ✅ CORRECT — Délégation

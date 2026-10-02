@@ -22,13 +22,13 @@ Activer si **au moins un** de ces critères :
 
 > **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour le workflow, la table d'impact, et la gestion d'erreurs.
 >
-> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = get_gitlab_issue, `{tool_list_issues}` = list_gitlab_issues.
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_list_issues, `{tool_list_issues}` = gitlab_list_issues.
 
 #### Cas B — Une MR est fournie
 
 ```
-Utiliser l'outil : get_gitlab_merge_request
-Arguments : project_path, merge_request_iid
+Utiliser l'outil : gitlab_list_mrs
+Arguments : project_id, state: "opened"
 → Obtenir : titre, description, branches, état, labels, changements
 ```
 

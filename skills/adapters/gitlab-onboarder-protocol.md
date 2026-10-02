@@ -31,10 +31,14 @@ Lancer Phase 1.4bis si :
 > "Je vais explorer la taxonomie GitLab du projet."
 
 ```
-Utiliser l'outil : list_gitlab_labels
-Argument : project_path
-→ Obtenir : tous les labels avec description et compteurs d'usage
+Utiliser l'outil : gitlab_list_issues
+Arguments : project_id, state: "opened"
+→ Obtenir : les issues avec leurs labels et descriptions
+→ En déduire : taxonomie des labels (types, priorités, domaines)
 ```
+
+> **Note :** L'outil `list_gitlab_labels` n'est plus disponible dans le MCP GitLab v2.
+> Extraire les labels depuis les issues retournées par `gitlab_list_issues`.
 
 **Analyser et regrouper les labels par catégorie :**
 
@@ -51,10 +55,14 @@ Argument : project_path
 #### Étape 2 : Milestones actifs
 
 ```
-Utiliser l'outil : list_gitlab_milestones
-Arguments : project_path, state: "active"
-→ Obtenir : sprints/releases en cours avec dates
+Utiliser l'outil : gitlab_list_issues
+Arguments : project_id, state: "opened"
+→ Obtenir : les issues avec leurs labels et milestones
+→ En déduire : cadence de release (si milestones renseignés dans les issues)
 ```
+
+> **Note :** L'outil `list_gitlab_milestones` n'est plus disponible dans le MCP GitLab v2.
+> Déduire les informations de sprint depuis les données milestone des issues.
 
 **Exploiter pour :**
 - Identifier la **cadence de release** (sprints de 2 semaines ? releases mensuelles ?)
@@ -64,9 +72,9 @@ Arguments : project_path, state: "active"
 #### Étape 3 : Aperçu du backlog (optionnel)
 
 ```
-Utiliser l'outil : list_gitlab_issues
-Arguments : project_path, state: "opened", per_page: 20
-→ Obtenir : aperçu des 20 premiers tickets ouverts
+Utiliser l'outil : gitlab_list_issues
+Arguments : project_id, state: "opened"
+→ Obtenir : aperçu des tickets ouverts
 ```
 
 **Exploiter uniquement pour :**
@@ -83,7 +91,7 @@ Ajouter cette section si données GitLab disponibles :
 ```markdown
 ## Gestion de projet GitLab
 
-**Instance :** <GITLAB_BASE_URL ou gitlab.com>
+**Instance :** <GITLAB_URL ou gitlab.com>
 **Projet :** <project_path>
 
 ### Taxonomie des labels
@@ -139,4 +147,4 @@ Ajouter cette section si labels structurés détectés :
 
 > **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour la gestion d'erreurs commune.
 >
-> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = get_gitlab_issue, `{tool_list_issues}` = list_gitlab_issues.
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_list_issues, `{tool_list_issues}` = gitlab_list_issues.

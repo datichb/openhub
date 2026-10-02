@@ -1,274 +1,248 @@
-# GitLab Integration - Getting Started Guide
+> [Lire en francais](gitlab-integration.fr.md)
 
-> 🇫🇷 [Lire en français](gitlab-integration.fr.md)
+# GitLab Integration — Getting Started Guide
 
 ## Overview
 
-The GitLab integration enriches planning workflows (Orchestrator, Pathfinder, Planner and Onboarder) with project context by automatically querying the GitLab API to read tickets, merge requests, labels and milestones.
+The GitLab integration connects agents to your GitLab projects — issues, merge requests, discussions, and approvals — supporting both **GitLab.com** and **self-hosted** instances. It provides **read** capabilities for planning and onboarding workflows, and optional **write** capabilities for development feedback and code review.
 
 ### Features
 
-- **Ticket reading**: full description, labels, milestone, human comments
-- **MR reading**: title, branches, state, number of changed files
-- **Label taxonomy**: automatic understanding of the project's classification system
-- **Active milestones**: sprint context and delivery dates
-- **Issue search**: filtering by state, labels, keywords
+**Read capabilities:**
+
+- **Project metadata**: project info, default branch, visibility, namespace
+- **Issue listing**: filter by state, labels, search keywords
+- **Merge request listing**: open/merged/closed MRs with branch and change info
+- **MR discussions**: threaded review comments and conversations
+- **MR approvals**: approval state, required approvers, approval rules
+
+**Write capabilities** (requires `GITLAB_WRITE_ENABLED=true`):
+
+- **Create merge requests**: open MRs from a source to a target branch
+- **Add MR notes**: post comments on merge requests
+- **Update issues**: change state, labels, assignees, milestone
+- **Assign reviewers**: set reviewers on merge requests
+- **Add labels**: apply labels to issues or MRs
+- **Reply to MR discussions**: respond to existing review threads
 
 ---
 
-## Quick Setup
+## Prerequisites
 
-### 1. Configure via `oh service`
+1. A GitLab account with access to the target project(s)
+2. A **Personal Access Token** (PAT) with the `api` scope:
+   - Go to `<your-gitlab>/-/profile/personal_access_tokens`
+   - Click **"Add new token"**
+   - Name it (e.g. `openhub`)
+   - Select the `api` scope — this covers issues, MRs, labels, milestones, and discussions
+   - Set an expiry date
+   - Copy the generated token (format: `glpat-xxxxxxxxxxxxxxxxxxxx`)
+3. Set the `GITLAB_TOKEN` environment variable to your PAT
+4. (Optional) For self-hosted instances, set `GITLAB_URL` to your instance URL
 
-The recommended method is to use the `oh mcp setup` command which guides you interactively:
+---
+
+## Setup
+
+### 1. Configure via `oh mcp setup`
 
 ```bash
 oh mcp setup gitlab
-# or via the alias:
-oh gitlab setup
 ```
 
-This command will:
+The interactive wizard will:
 1. Ask for your GitLab **Personal Access Token**
 2. Ask for your **instance URL** (leave empty for gitlab.com)
 3. Validate the connection to the GitLab API
-4. Save the configuration in `~/.config/opencode/config.json`
-5. Automatically build the MCP server if needed
+4. Store credentials securely in the system keychain
+5. Update `hub.toml` with the `[mcp.gitlab]` block
 
-Check status at any time:
-```bash
-oh service status gitlab
-# or:
-oh gitlab status
-```
+### 2. Manual configuration
 
-### 2. Obtain your Personal Access Token
-
-1. Go to `<your-gitlab>/-/profile/personal_access_tokens`
-2. Click **"Add new token"**
-3. Choose a name (e.g. `openhub`)
-4. Select the required scopes:
-   - `api` — full access to issues, MRs, labels, milestones
-   - `read_user` — identity validation
-5. Set an expiry date
-6. Copy the generated token (format: `glpat-xxxxxxxxxxxxxxxxxxxx`)
-
-> For a **self-hosted** instance, replace the URL with your GitLab instance URL during setup.
-
-### 3. Manual configuration (alternative)
-
-Create or edit `~/.config/opencode/config.json`:
-
-```json
-{
-  "env": {
-    "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-xxxxxxxxxxxxxxxxxxxx",
-    "GITLAB_BASE_URL": "https://gitlab.mycompany.com"
-  }
-}
-```
-
-> `GITLAB_BASE_URL` is optional. Leave empty or omit to use `gitlab.com`.
-
-### 4. Deploy to a project
+Set environment variables before launching `oh`:
 
 ```bash
-oh deploy opencode MY-PROJECT
-# or only the GitLab MCP:
-oh service deploy gitlab --project MY-PROJECT
-# or via the alias:
-oh gitlab deploy --project MY-PROJECT
+export GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+
+# Self-hosted only:
+export GITLAB_URL=https://gitlab.mycompany.com
+
+# To enable write tools:
+export GITLAB_WRITE_ENABLED=true
 ```
 
 ---
 
-## Usage
+## Configuration in hub.toml
 
-### With the Orchestrator
-
-The Orchestrator does not read GitLab tickets directly. When the user provides a ticket ID, it passes it as-is to the `pathfinder` or `planner`, which perform the read in their own session:
-
-```
-"Implement ticket #42 from project my-group/my-project"
-"Handle issue #42"
-"Work on MR !15"
+```toml
+[mcp.gitlab]
+enabled = true
+# Credentials set via env vars (recommended) or keychain
+# gitlab_url = "https://gitlab.mycompany.com"  # omit for gitlab.com
+write_enabled = false  # Set to true to enable write tools
 ```
 
-The Orchestrator forwards the raw ID (`#42`, `!15`) to the `pathfinder` or `planner` — those agents read the ticket via their own GitLab MCP access and route accordingly.
+Deploy after changes:
 
-### With the Pathfinder
-
-The Pathfinder enriches its estimation with GitLab context:
-
+```bash
+oh deploy
 ```
-"Pathfinder ticket #42"
-"Estimate the complexity of issue #42 from project my-group/my-project"
-```
-
-The `gitlab-pathfinder-protocol` skill adjusts the estimate based on:
-- The richness of the description and acceptance criteria
-- Type and priority labels
-- Milestone and its due date
-- Comments with blockers or open questions
-
-### With the Planner
-
-The Planner uses the ticket as the source of truth for decomposition:
-
-```
-"Plan issue #42 from project my-group/my-project"
-"Break down ticket #42 into sub-tickets"
-```
-
-The `gitlab-planner-protocol` skill leverages:
-- The **description** as the requirements document
-- **Acceptance criteria** to pre-fill Beads tickets
-- The **milestone** to calibrate priority
-- **Linked tickets** to detect dependencies
-
-### With the Onboarder
-
-The Onboarder maps the GitLab project during discovery:
-
-```
-"Onboard on project my-group/my-project (GitLab)"
-```
-
-The `gitlab-onboarder-protocol` skill produces in `ONBOARDING.md`:
-- Label taxonomy (types, priorities, domains)
-- Delivery cadence (sprints, milestones)
-- Backlog state (volume and distribution)
-
-And in `CONVENTIONS.md`:
-- Project labelling conventions
-- Ticket workflow (triage → in-progress → review → done)
 
 ---
 
-## Available MCP Tools
+## Available Tools
 
 | Tool | Description | Used by |
-|---|---|---|
-| `get_gitlab_issue` | Reads a full ticket (title, description, labels, milestone, comments) | Pathfinder, Planner |
-| `list_gitlab_issues` | Lists tickets with filters (state, labels, search) | Planner, Pathfinder, Onboarder |
-| `get_gitlab_merge_request` | Reads an MR (title, branches, state, changes count) | Pathfinder |
-| `list_gitlab_labels` | Lists all project labels | Onboarder, Planner |
-| `list_gitlab_milestones` | Lists active/closed milestones | Onboarder, Planner |
+|------|-------------|---------|
+| `gitlab_get_project` | Project metadata (name, default branch, visibility, namespace) | Onboarder |
+| `gitlab_list_issues` | List issues with filters (state, labels, search) | Planner, Pathfinder, Onboarder |
+| `gitlab_list_mrs` | List merge requests with filters (state, labels, source/target branch) | Planner, Pathfinder, Onboarder |
+| `gitlab_list_mr_discussions` | List threaded discussions on a merge request | Pathfinder |
+| `gitlab_get_mr_approvals` | Approval state, required approvers, and approval rules for a MR | Pathfinder |
+| `gitlab_create_mr` | Create a merge request (write mode) | Orchestrator-dev (feedback mode) |
+| `gitlab_add_mr_note` | Post a comment on a merge request (write mode) | Orchestrator-dev (feedback mode) |
+| `gitlab_update_issue` | Update issue state, labels, assignees, milestone (write mode) | Orchestrator-dev (feedback mode) |
+| `gitlab_assign_reviewer` | Set reviewers on a merge request (write mode) | Review system |
+| `gitlab_add_label` | Apply labels to issues or merge requests (write mode) | Review system |
+| `gitlab_reply_to_mr_discussion` | Reply to an existing MR discussion thread (write mode) | Review system |
 
 ---
 
-## Architecture
+## Write Mode
 
-The GitLab MCP server is **built into the `oh` binary** — there is no separate source directory. The implementation lives in `cli/internal/mcp/gitlab/`.
+By default the GitLab MCP server is **read-only**. To enable write tools:
 
-```
-cli/internal/mcp/
-└── gitlab/             ← Go implementation of the GitLab MCP server
-    ├── server.go       ← MCP entry point (stdio JSON-RPC, 5 tools)
-    ├── client.go       ← GitLabClient (HTTP + retry)
-    ├── config.go       ← Environment variables
-    └── tools/
-        ├── get_issue.go
-        ├── list_issues.go
-        ├── get_merge_request.go
-        ├── list_labels.go
-        └── list_milestones.go
-
-skills/adapters/
-├── gitlab-planner-protocol.md
-├── gitlab-pathfinder-protocol.md
-└── gitlab-onboarder-protocol.md
-```
-
-At runtime, the server is started via:
 ```bash
-oh mcp serve gitlab
+export GITLAB_WRITE_ENABLED=true
 ```
+
+Or in `hub.toml`:
+
+```toml
+[mcp.gitlab]
+write_enabled = true
+```
+
+This unlocks the 6 write tools: `gitlab_create_mr`, `gitlab_add_mr_note`, `gitlab_update_issue`, `gitlab_assign_reviewer`, `gitlab_add_label`, and `gitlab_reply_to_mr_discussion`.
+
+Write mode is used by:
+- **Orchestrator-dev** in feedback mode — creates MRs, posts review notes, updates issue state
+- **Review system** — assigns reviewers, applies labels, replies to discussion threads
+
+---
+
+## Usage Examples
+
+### Listing issues for planning
+
+```
+"List open issues in project my-group/my-project"
+"Show me bugs labelled priority::high in my-group/my-project"
+```
+
+The planner reads issue descriptions, labels, and milestones to decompose work into Beads tickets.
+
+### Creating a merge request
+
+```
+"Create a MR from feature/auth to main in my-group/my-project"
+"Open a merge request for my changes"
+```
+
+Requires write mode. The orchestrator-dev creates the MR and optionally assigns reviewers.
+
+### Reviewing feedback
+
+```
+"Post review feedback on MR !42 in my-group/my-project"
+"Reply to the discussion about error handling on MR !42"
+```
+
+Requires write mode. The review system adds notes and replies to existing discussion threads.
+
+---
+
+## Self-Hosted GitLab
+
+For self-hosted GitLab instances, set `GITLAB_URL`:
+
+```bash
+export GITLAB_URL=https://gitlab.mycompany.com
+```
+
+Requirements:
+- The URL **must use HTTPS** — HTTP connections are rejected
+- The URL must point to the GitLab instance root (e.g. `https://gitlab.mycompany.com`, not `https://gitlab.mycompany.com/api/v4`)
+- The GitLab instance must be running version **13.0+** (REST API v4)
+
+If `GITLAB_URL` is not set, the server defaults to `https://gitlab.com`.
 
 ---
 
 ## Troubleshooting
 
-### Token not recognized
+### 401 Unauthorized
 
-```
-Error: GITLAB_PERSONAL_ACCESS_TOKEN is required
-```
-
-**Solution:** Check that the token is configured:
+The token is invalid or expired:
 ```bash
-oh gitlab status
+oh mcp setup gitlab  # reconfigure
+```
+Make sure you are using a **Personal Access Token** (starts with `glpat-`), not an OAuth token or deploy token.
+
+### 403 Forbidden
+
+The token lacks the required scope or project permissions:
+- Verify the token has the `api` scope
+- Verify the token owner has at least **Reporter** role on the target project
+- For write operations: the token owner needs **Developer** role or higher
+
+### 404 Project Not Found
+
+The project path is incorrect or the token does not have access:
+- Check the format: `my-group/my-subgroup/my-project`
+- Verify the token can access the project (try `curl -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_URL/api/v4/projects/my-group%2Fmy-project"`)
+
+### Self-hosted URL issues
+
+```
+Error: GITLAB_URL must use HTTPS
 ```
 
-### Access denied (403)
+Ensure `GITLAB_URL` starts with `https://`. HTTP is not supported.
 
-The token is missing required scopes. Create a new token with `api` and `read_user` scopes.
-
-### Project not found (404)
-
-The project path is incorrect or the token doesn't have access to that project. Check:
-- The format: `my-group/my-subgroup/my-project`
-- Permissions: the token must have at least the **Reporter** role on the project
-
-### Self-hosted instance unreachable
-
-Check that `GITLAB_BASE_URL` is set:
-```bash
-oh gitlab status
-# If missing:
-oh gitlab setup
+```
+Error: cannot reach GitLab API
 ```
 
-### Request timeouts
+Verify the URL is correct and the instance is reachable from your machine. Check for VPN or firewall requirements.
 
-Increase the timeout for slow instances:
-```bash
-# During setup
-GITLAB_TIMEOUT=60000 oh gitlab setup
-```
+### Approvals unavailable on Free tier
 
-### MCP server issues
-
-Since the GitLab MCP server is built into the `oh` binary, there is no separate build step. If the server fails to start:
-
-```bash
-# Check the server runs correctly
-oh mcp serve gitlab
-# Reconfigure the service
-oh gitlab setup
-```
+The `gitlab_get_mr_approvals` tool requires GitLab **Premium** or **Ultimate**. On GitLab Free (including gitlab.com Free), the API returns empty approval data. The tool will still work but will return no approval rules.
 
 ---
 
-## Current limitations (v1)
+## Current Limitations
 
-- ❌ Read-only — no ticket, comment or MR creation
-- ❌ MR diffs not included (code content too large for agent context)
-- ❌ Pagination not exposed for `list_gitlab_issues` beyond 100 tickets
-- ❌ GitLab webhooks not supported
-- ❌ GitLab GraphQL not used (REST only)
-
----
-
-## Future roadmap
-
-- **v2**: Ticket creation via the planner agent (`create_gitlab_issue`)
-- **v3**: MR diff reading for the reviewer agent
-- **v4**: Bidirectional links between Beads tickets and GitLab issues
+- No automatic pagination — list tools return up to 100 results per call
+- No retry on HTTP 429 (rate limiting) — back off manually if hitting limits
+- No dedicated tools for labels or milestones listing — use `gitlab_list_issues` filters or the project metadata
 
 ---
 
 ## Resources
 
-- [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
+- [GitLab MCP Reference](../reference/mcp-gitlab.en.md)
+- [GitLab REST API Documentation](https://docs.gitlab.com/ee/api/)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
-- [`oh service` CLI Reference](../reference/services.en.md)
-- [MCP Protocol](https://modelcontextprotocol.io/)
+- [Jira Integration Guide](jira-integration.en.md)
+- [GitHub Integration Guide](github-integration.en.md)
 
 ---
 
 ## Support
 
-- `oh gitlab status` — check configuration
-- `oh gitlab setup` — reconfigure the service
+- `oh mcp status gitlab` — check configuration and connection status
+- `oh mcp setup gitlab` — reconfigure the service interactively
 - Persistent issue → report on [GitHub Issues](https://github.com/anomalyco/opencode)
