@@ -78,4 +78,17 @@ Accompagne toujours un `## Retour intermédiaire vers orchestrator`.
 - **Retranscription** : afficher les champs du bloc de manière formatée dans la discussion (voir skill `retranscription-coordinateur`). La `### Spec complète` est affichée intégralement.
 - **Délégation** : intégrer `### Contraintes d'implémentation` dans le prompt de délégation à `orchestrator-dev`.
 - **CP-spec** : signaler `### Points ouverts` à l'utilisateur pour décision avant implémentation.
-- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev`.
+- **Statut** : `spec-complète` ou `spec-partielle` → CP-spec normal · `bloqué` → ne pas router vers `orchestrator-dev` · `prototype-livré` → la réponse est dans le bloc, pas de spec à implémenter.
+
+---
+
+## Bloc `## Retour prototype vers orchestrator` (mode prototype uniquement)
+
+Produit quand le skill `prototype-protocol` est chargé. Ce bloc remplace le bloc standard `## Retour vers orchestrator` — il ne contient pas de spec complète mais un artefact ciblé répondant à une question précise.
+
+> **Template :** format défini dans `templates/designer-handoff-blocks.md` (section « Bloc Prototype ») — charger via `read` quand tu produis ce bloc.
+
+**Règles pour le consommateur (orchestrator) :**
+- Le prototype n'est PAS une spec à implémenter — c'est une réponse à une question
+- La `### Recommandation` indique la suite : spec complète nécessaire, aucun besoin, ou clarification supplémentaire
+- Si recommandation = "spec complète" → proposer une délégation design classique (ux/ui/ux+ui)

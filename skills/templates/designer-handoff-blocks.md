@@ -81,3 +81,32 @@
 
 **Instruction de reprise :** "Réponse clarification design : [option]. [Information si applicable]. Reprendre la production de la spec."
 ```
+
+---
+
+## Bloc Prototype
+
+Produit quand le skill `prototype-protocol` est chargé. Remplace le bloc standard.
+
+```markdown
+## Retour prototype vers orchestrator
+
+**Agent :** designer (prototype)
+**Mode :** <ux | ui | ux+ui>
+**Question :** <la question exacte qui a déclenché le prototype>
+**task_id :** <sessionID courant>
+
+### Artefact
+<wireframe ASCII, description structurée de layout, schéma de flow,
+ou tableau de variantes — selon le type de question>
+
+### Réponse à la question
+<1-3 phrases : ce que l'artefact révèle sur la question posée>
+
+### Recommandation
+- `spec-complete-necessaire` — L'artefact révèle qu'une spec UX/UI complète est nécessaire pour ce ticket
+- `resolu` — La question est résolue, pas besoin de spec supplémentaire
+- `clarification` — L'artefact soulève une nouvelle question : <question>
+
+### Statut : prototype-livré
+```
