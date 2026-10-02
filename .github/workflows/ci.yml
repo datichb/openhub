@@ -72,3 +72,59 @@ jobs:
 
       - name: Build
         run: go build -o bin/oh .
+
+  docs-checks:
+    name: Documentation checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Check changelog freshness
+        run: |
+          LAST_CHANGELOG=$(git log -1 --format=%H -- CHANGELOG.md)
+          if [ -z "$LAST_CHANGELOG" ]; then
+            echo "::error::CHANGELOG.md has never been modified"
+            exit 1
+          fi
+          COMMITS_SINCE=$(git rev-list --count "$LAST_CHANGELOG"..HEAD)
+          echo "Commits since last CHANGELOG.md update: $COMMITS_SINCE"
+          if [ "$COMMITS_SINCE" -gt 50 ]; then
+            echo "::error::CHANGELOG.md has not been updated in $COMMITS_SINCE commits (threshold: 50). See ADR-037."
+            exit 1
+          fi
+
+      - name: Check bilingual parity
+        run: |
+          ERRORS=0
+          for DIR in docs/guides docs/reference docs/architecture/adr; do
+            if [ ! -d "$DIR" ]; then
+              continue
+            fi
+            # Check for .fr.md without .en.md
+            for FR_FILE in "$DIR"/*.fr.md; do
+              [ -f "$FR_FILE" ] || continue
+              EN_FILE="${FR_FILE%.fr.md}.en.md"
+              if [ ! -f "$EN_FILE" ]; then
+                echo "::error file=$FR_FILE::Missing English counterpart: $EN_FILE"
+                ERRORS=$((ERRORS + 1))
+              fi
+            done
+            # Check for .en.md without .fr.md
+            for EN_FILE in "$DIR"/*.en.md; do
+              [ -f "$EN_FILE" ] || continue
+              FR_FILE="${EN_FILE%.en.md}.fr.md"
+              if [ ! -f "$FR_FILE" ]; then
+                echo "::error file=$EN_FILE::Missing French counterpart: $FR_FILE"
+                ERRORS=$((ERRORS + 1))
+              fi
+            done
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::Found $ERRORS bilingual parity violations. See ADR-037."
+            exit 1
+          fi
+          echo "Bilingual parity check passed."

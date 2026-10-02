@@ -268,11 +268,17 @@ Configuration via `oh mcp setup` (stockage tokens dans le keychain OS).
 |----------|-------------|
 | [Demarrage rapide](docs/guides/getting-started.fr.md) | Installation, premier deploiement |
 | [Workflows](docs/guides/workflows.fr.md) | Scenarios feature, audit, debug |
+| [Mode parallele](docs/guides/parallel-mode.fr.md) | N sessions IA concurrentes dans des worktrees isoles |
+| [Mode sweep](docs/guides/sweep-mode.fr.md) | Decomposition d'objectif et execution parallele |
+| [Review & Feedback](docs/guides/review-feedback.fr.md) | Revue de code IA, publication MR, traitement feedback |
+| [Depannage](docs/guides/troubleshooting.fr.md) | `oh doctor`, `oh repair`, erreurs courantes |
+| [Notifications](docs/guides/notifications.fr.md) | Notifications Slack, Discord, Mattermost, Teams |
 | [Integration Figma](docs/guides/figma-integration.fr.md) | Configuration MCP Figma |
 | [Integration GitLab](docs/guides/gitlab-integration.fr.md) | Configuration MCP GitLab |
 | [Integration GitHub](docs/guides/github-integration.fr.md) | Configuration MCP GitHub |
 | [Integration Jira](docs/guides/jira-integration.fr.md) | Configuration MCP Jira |
 | [Integration Linear](docs/guides/linear-integration.fr.md) | Configuration MCP Linear |
+| [Integration Google Slides](docs/guides/gslides-integration.fr.md) | Configuration MCP Google Slides |
 | [Marketplace de skills](docs/guides/skill-marketplace.fr.md) | Installer des skills communautaires |
 | [Dashboard](docs/guides/dashboard.fr.md) | Configuration et utilisation du dashboard web |
 | [Sauvegarde & Restauration](docs/guides/backup-restore.fr.md) | Export/import, reparation |
@@ -286,7 +292,7 @@ Configuration via `oh mcp setup` (stockage tokens dans le keychain OS).
 | [Vue d'ensemble](docs/architecture/overview.fr.md) | Concepts, diagrammes |
 | [Agents](docs/architecture/agents.fr.md) | Reference des 19 agents |
 | [Skills](docs/architecture/skills.fr.md) | Systeme de skills hybrides |
-| [ADR](docs/architecture/adr/) | 32 decisions architecturales |
+| [ADR](docs/architecture/adr/) | 36 decisions architecturales |
 
 ### Reference
 
@@ -316,6 +322,16 @@ Si vous utilisiez la CLI bash (`oc`), consultez le [Guide de migration](MIGRATIO
 Aucun Node.js, jq, sqlite3 ou bun requis. Le binaire Go est autonome.
 
 **Plateformes supportees :** macOS (amd64/arm64), Linux (amd64/arm64), Windows (amd64/arm64).
+
+---
+
+## Contribuer
+
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour le setup de developpement, les conventions et le processus de PR.
+
+## Securite
+
+Voir [SECURITY.md](SECURITY.md) (EN) / [SECURITY.fr.md](SECURITY.fr.md) (FR) pour le signalement de vulnerabilites et le perimetre de securite.
 
 ---
 

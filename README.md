@@ -268,11 +268,17 @@ Configure via `oh mcp setup` (stores tokens in OS keychain).
 |----------|-------------|
 | [Getting started](docs/guides/getting-started.en.md) | Installation, first deployment |
 | [Workflows](docs/guides/workflows.en.md) | Full feature, audit, debug scenarios |
+| [Parallel Mode](docs/guides/parallel-mode.en.md) | Run N concurrent AI sessions in isolated worktrees |
+| [Sweep Mode](docs/guides/sweep-mode.en.md) | Goal-driven task decomposition and parallel execution |
+| [Review & Feedback](docs/guides/review-feedback.en.md) | AI code review, MR publication, feedback processing |
+| [Troubleshooting](docs/guides/troubleshooting.en.md) | `oh doctor`, `oh repair`, common errors |
+| [Notifications](docs/guides/notifications.en.md) | Slack, Discord, Mattermost, Teams notifications |
 | [Figma Integration](docs/guides/figma-integration.en.md) | MCP setup and usage |
 | [GitLab Integration](docs/guides/gitlab-integration.en.md) | GitLab MCP setup |
 | [GitHub Integration](docs/guides/github-integration.en.md) | GitHub MCP setup |
 | [Jira Integration](docs/guides/jira-integration.en.md) | Jira MCP setup |
 | [Linear Integration](docs/guides/linear-integration.en.md) | Linear MCP setup |
+| [Google Slides Integration](docs/guides/gslides-integration.en.md) | Google Slides MCP setup |
 | [Skill Marketplace](docs/guides/skill-marketplace.en.md) | Installing community skills |
 | [Dashboard](docs/guides/dashboard.en.md) | Web dashboard setup and usage |
 | [Backup & Restore](docs/guides/backup-restore.en.md) | Export/import, repair |
@@ -286,7 +292,7 @@ Configure via `oh mcp setup` (stores tokens in OS keychain).
 | [Overview](docs/architecture/overview.en.md) | Concepts, flow diagrams |
 | [Agents](docs/architecture/agents.en.md) | All 19 agents reference |
 | [Skills](docs/architecture/skills.en.md) | Hybrid skill system |
-| [ADRs](docs/architecture/adr/) | 32 architectural decision records |
+| [ADRs](docs/architecture/adr/) | 36 architectural decision records |
 
 ### Reference
 
@@ -316,6 +322,16 @@ If you were using the bash CLI (`oc`), see the [Migration Guide](MIGRATION.md) f
 No Node.js, jq, sqlite3, or bun required. The Go binary is self-contained.
 
 **Platform support:** macOS (amd64/arm64), Linux (amd64/arm64), Windows (amd64/arm64).
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, conventions, and PR process.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and security scope.
 
 ---
 
