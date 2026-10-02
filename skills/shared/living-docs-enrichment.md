@@ -17,7 +17,9 @@ docs/wiki/
 │   ├── architecture.md         ← patterns dominants, découpage, décisions structurantes
 │   ├── stack.md                ← stack complète, versions, librairies clés
 │   ├── tests.md                ← stratégie, conventions, seuils, frameworks
-│   └── conventions.md          ← nommage, git, linting, config, patterns équipe
+│   ├── conventions.md          ← nommage, git, linting, config, patterns équipe
+│   ├── glossary.md             ← terminologie du domaine (optionnel — créé si termes ambigus)
+│   └── retro-log.md            ← observations rétrospectives post-feature (optionnel)
 └── business/
     ├── index.md                ← carte des domaines métier
     └── <domain>.md             ← règles de gestion, flux, entités, risques
@@ -366,22 +368,22 @@ Le `documentarian` a enrichi les pages suivantes :
 
 ## Tableau de correspondance — Origine → Pages wiki prioritaires
 
-| Origine | index.md | conventions.md | architecture.md | stack.md | tests.md | business/\<domain\>.md |
-|---------|----------|----------------|-----------------|----------|----------|------------------------|
-| Audit sécurité | Points critiques 🔴, Zones d'ombre | Patterns (auth, validation) | Points de fragilité | Librairies (CVE) | — | Risques (auth/billing) |
-| Audit performance | Points importants 🟠 | — | Architecture (N+1, cache) | Librairies (alternatives) | — | — |
-| Audit accessibilité | Points importants 🟠 | Patterns (ARIA) | — | — | Conventions a11y | — |
-| Audit éco-conception | — | — | — | Librairies (légères) | — | — |
-| Audit architecture | Architecture, Points critiques 🔴 | — | Structure, Décisions, Fragilités | — | — | — |
-| Audit privacy | Points critiques 🔴, Zones d'ombre | Config & secrets | — | — | — | Risques (données) |
-| Audit observabilité | Points importants 🟠 | Patterns (logging) | Architecture (métriques) | — | — | — |
-| Diagnostic bug | Points critiques 🔴, Zones d'ombre | Patterns (gestion d'erreur) | Points de fragilité | — | — | Règles, Risques |
-| Planification feature | Architecture, Zones d'ombre | — | Architecture, Décisions | Stack | — | Flux, Règles |
-| Implémentation ticket | — | Patterns, Nommage | — | Librairies | — | Règles de gestion |
-| Code review | Zones d'ombre, Points importants 🟠 | Nommage, Patterns | — | — | — | — |
-| Cycle QA | — | — | — | — | Frameworks, Conventions | — |
-| Reconnaissance rapide (pathfinder) | Stack, Architecture | — | Structure globale | Stack, Dépendances | — | Flux, Entités |
-| Re-onboarding (onboarder) | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections |
+| Origine | index.md | conventions.md | architecture.md | stack.md | tests.md | glossary.md | business/\<domain\>.md |
+|---------|----------|----------------|-----------------|----------|----------|-------------|------------------------|
+| Audit sécurité | Points critiques 🔴, Zones d'ombre | Patterns (auth, validation) | Points de fragilité | Librairies (CVE) | — | — | Risques (auth/billing) |
+| Audit performance | Points importants 🟠 | — | Architecture (N+1, cache) | Librairies (alternatives) | — | — | — |
+| Audit accessibilité | Points importants 🟠 | Patterns (ARIA) | — | — | Conventions a11y | — | — |
+| Audit éco-conception | — | — | — | Librairies (légères) | — | — | — |
+| Audit architecture | Architecture, Points critiques 🔴 | — | Structure, Décisions, Fragilités | — | — | — | — |
+| Audit privacy | Points critiques 🔴, Zones d'ombre | Config & secrets | — | — | — | — | Risques (données) |
+| Audit observabilité | Points importants 🟠 | Patterns (logging) | Architecture (métriques) | — | — | — | — |
+| Diagnostic bug | Points critiques 🔴, Zones d'ombre | Patterns (gestion d'erreur) | Points de fragilité | — | — | — | Règles, Risques |
+| Planification feature | Architecture, Zones d'ombre | — | Architecture, Décisions | Stack | — | Termes ambigus | Flux, Règles |
+| Implémentation ticket | — | Patterns, Nommage | — | Librairies | — | Termes métier découverts | Règles de gestion |
+| Code review | Zones d'ombre, Points importants 🟠 | Nommage, Patterns | — | — | — | Termes inconsistants | — |
+| Cycle QA | — | — | — | — | Frameworks, Conventions | — | — |
+| Reconnaissance rapide (pathfinder) | Stack, Architecture | — | Structure globale | Stack, Dépendances | — | Termes de domaine | Flux, Entités |
+| Re-onboarding (onboarder) | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections | Toutes sections |
 
 ---
 

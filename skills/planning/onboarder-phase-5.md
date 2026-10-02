@@ -131,6 +131,33 @@ Chaque convention détectée porte le tag de confiance approprié :
 **⚠️ Si des pages `docs/wiki/technical/` existent déjà (re-onboarding) :**
 Appliquer le skill `shared/living-docs-enrichment` avec les nouvelles découvertes.
 
+**`docs/wiki/technical/glossary.md`** — **optionnel**, créer uniquement si des termes de domaine ambigus sont détectés en Phase 1 (entités avec noms similaires, abréviations non évidentes, termes métier spécifiques au projet) :
+
+```markdown
+---
+updated: <YYYY-MM-DD>
+confidence: mixed
+agents: [onboarder]
+---
+
+# Glossaire du domaine
+
+## Termes métier
+
+| Terme | Définition | Contexte | Exemples |
+|-------|-----------|----------|----------|
+| <terme> | <définition précise dans ce projet> | <module/contexte d'usage> | <fichier:ligne> |
+— `CONFIRMÉ` · onboarder · <date> · <fichier source>
+
+## Termes techniques projet
+
+| Terme | Définition | Contexte |
+|-------|-----------|----------|
+| <terme> | <ce que ça signifie dans CE projet (si différent du sens standard)> | <où c'est utilisé> |
+```
+
+> Si aucun terme ambigu détecté : ne pas créer la page. Elle sera créée plus tard par enrichissement si un agent détecte un terme ambigu.
+
 ---
 
 ### ÉTAPE 5.3 — Créer les pages `docs/wiki/business/`
