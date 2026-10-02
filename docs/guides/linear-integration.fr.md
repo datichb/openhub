@@ -8,10 +8,10 @@ L'intégration Linear connecte les agents à ton workspace Linear via l'**API Gr
 
 ### Fonctionnalités
 
-- **Lecture des issues** : description complète, état, priorité, labels, assignee, cycle, projet
-- **Création d'issues** (mode écriture) : créer des issues avec titre, description, équipe, état, priorité
-- **Mise à jour d'issues** (mode écriture) : changer l'état, l'assignee, la priorité ou ajouter des commentaires
-- **Filtrage flexible** : par équipe, état, assignee, label, priorité ou cycle
+- **Lecture des issues** : description complète, état, priorité, assignee, commentaires
+- **Création d'issues** (mode écriture) : créer des issues avec titre, description, équipe, priorité
+- **Mise à jour d'issues** (mode écriture) : changer l'état ou l'assignee
+- **Filtrage flexible** : par équipe, état ou assignee
 
 ---
 
@@ -84,10 +84,10 @@ oh deploy
 
 | Outil | Description | Utilisé par |
 |-------|-------------|-------------|
-| `linear_list_issues` | Lister les issues avec filtres (équipe, état, assignee, label, priorité) | Planner, Pathfinder |
-| `linear_get_issue` | Détails complets d'une issue (description, commentaires, sous-issues, relations) | Planner, Pathfinder |
+| `linear_list_issues` | Lister les issues avec filtres (équipe, état, assignee) | Planner, Pathfinder |
+| `linear_get_issue` | Détails complets d'une issue (description, commentaires) | Planner, Pathfinder |
 | `linear_create_issue` | Créer une nouvelle issue (mode écriture uniquement) | Planner |
-| `linear_update_issue` | Mettre à jour l'état, l'assignee, la priorité ou ajouter un commentaire (mode écriture uniquement) | Planner |
+| `linear_update_issue` | Mettre à jour l'état ou l'assignee (mode écriture uniquement) | Planner |
 
 ---
 
@@ -97,8 +97,7 @@ Filtre les issues par équipe, état ou assignee dans les prompts agents :
 
 ```
 "Liste toutes les issues In Progress dans l'équipe BACKEND"
-"Montre-moi les issues haute priorité assignées à alice dans l'équipe FRONTEND"
-"Trouve toutes les issues du cycle courant pour l'équipe PLATFORM"
+"Montre-moi les issues assignées à alice dans l'équipe FRONTEND"
 ```
 
 Ou avec des paramètres de filtre explicites passés via l'outil MCP :
@@ -114,8 +113,8 @@ Ou avec des paramètres de filtre explicites passés via l'outil MCP :
 ```json
 {
   "team_key": "FRONTEND",
-  "priority": 1,
-  "label": "bug"
+  "state": "Todo",
+  "first": 25
 }
 ```
 
@@ -185,14 +184,13 @@ oh mcp setup linear
 Error: Team "XYZ" not found in your workspace
 ```
 
-Utilise `linear_list_teams` (disponible via `oh mcp tools linear`) pour voir toutes les clés d'équipe dans ton workspace. Les clés d'équipe sont sensibles à la casse (ex. `BACKEND`, pas `backend`).
+Vérifie la clé d'équipe dans les paramètres de ton workspace Linear. Les clés d'équipe sont sensibles à la casse (ex. `BACKEND`, pas `backend`).
 
 ### Erreurs GraphQL
 
 L'API GraphQL de Linear retourne des messages d'erreur détaillés. Causes fréquentes :
-- Paramètres de filtre malformés (vérifie les types : la priorité est un entier 0–4)
+- Paramètres de filtre malformés (vérifie les types : `first` est un entier)
 - Tentative d'utiliser les outils d'écriture sans `write_enabled = true`
-- IDs de cycle/projet ne correspondant pas à l'équipe cible
 
 ---
 

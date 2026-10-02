@@ -8,10 +8,10 @@ The Linear integration connects agents to your Linear workspace via the **Linear
 
 ### Features
 
-- **Issue reading**: full description, state, priority, labels, assignee, cycle, project
-- **Issue creation** (write mode): create issues with title, description, team, state, priority
-- **Issue updates** (write mode): change state, assignee, priority, or add comments
-- **Flexible filtering**: by team, state, assignee, label, priority, or cycle
+- **Issue reading**: full description, state, priority, assignee, comments
+- **Issue creation** (write mode): create issues with title, description, team, priority
+- **Issue updates** (write mode): change state or assignee
+- **Flexible filtering**: by team, state, or assignee
 
 ---
 
@@ -84,10 +84,10 @@ oh deploy
 
 | Tool | Description | Used by |
 |------|-------------|---------|
-| `linear_list_issues` | List issues with filters (team, state, assignee, label, priority) | Planner, Pathfinder |
-| `linear_get_issue` | Full issue details (description, comments, sub-issues, relations) | Planner, Pathfinder |
+| `linear_list_issues` | List issues with filters (team, state, assignee) | Planner, Pathfinder |
+| `linear_get_issue` | Full issue details (description, comments) | Planner, Pathfinder |
 | `linear_create_issue` | Create a new issue (write mode only) | Planner |
-| `linear_update_issue` | Update state, assignee, priority, or add comment (write mode only) | Planner |
+| `linear_update_issue` | Update state or assignee (write mode only) | Planner |
 
 ---
 
@@ -97,8 +97,7 @@ Filter issues by team, state, or assignee in agent prompts:
 
 ```
 "List all In Progress issues in team BACKEND"
-"Show me high priority issues assigned to alice in the FRONTEND team"
-"Find all issues in the current cycle for team PLATFORM"
+"Show me issues assigned to alice in the FRONTEND team"
 ```
 
 Or with explicit filter parameters passed through the MCP tool:
@@ -114,8 +113,8 @@ Or with explicit filter parameters passed through the MCP tool:
 ```json
 {
   "team_key": "FRONTEND",
-  "priority": 1,
-  "label": "bug"
+  "state": "Todo",
+  "first": 25
 }
 ```
 
@@ -185,14 +184,13 @@ oh mcp setup linear
 Error: Team "XYZ" not found in your workspace
 ```
 
-Use `linear_list_teams` (available via `oh mcp tools linear`) to see all team keys in your workspace. Team keys are case-sensitive (e.g. `BACKEND`, not `backend`).
+Verify the team key in your Linear workspace settings. Team keys are case-sensitive (e.g. `BACKEND`, not `backend`).
 
 ### GraphQL errors
 
 Linear's GraphQL API returns detailed error messages. Common causes:
-- Malformed filter parameters (check types: priority is an integer 0–4)
+- Malformed filter parameters (check types: `first` is an integer)
 - Trying to use write tools without `write_enabled = true`
-- Cycle/project IDs not matching the target team
 
 ---
 

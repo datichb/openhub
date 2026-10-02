@@ -162,7 +162,7 @@ Comment out lines 209–214 in the plugin:
 1. Check that RTK is installed:
    ```bash
    which rtk
-   rtk --version  # Must be >= 0.33.1
+   rtk --version  # Must be >= 0.42.0
    ```
 
 2. Check that the plugin file exists:
@@ -306,5 +306,6 @@ Then restart OpenCode.
 
 ---
 
-**Version:** 1.1.0 (2026-06-15)  
-**Compatible with:** RTK 0.42.0+, OpenCode 1.15.0+
+**Version:** 1.2.0 (2026-06-12)  
+**Compatible with:** RTK 0.42.0+, OpenCode 1.15.0+  
+**Changelog:** v1.2.0 adds lazy initialization (RTK binary check deferred to first tool call) and WebSearch/WebFetch call tracking.

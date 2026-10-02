@@ -54,7 +54,7 @@ Lister les issues Linear avec des filtres GraphQL.
 - `team_key` (string) — clé de l'équipe (ex. `ENG`, `OPS`)
 - `state` (string) — nom de l'état de workflow (ex. `In Progress`, `Todo`, `Done`)
 - `assignee` (string) — nom d'affichage ou email de l'assigné
-- `first` (integer) — nombre de résultats à retourner (défaut : 25, max : 100)
+- `first` (integer) — nombre de résultats à retourner (défaut : 50)
 
 **Exemple d'appel :**
 ```json
@@ -238,7 +238,7 @@ L'API GraphQL de Linear impose les limites suivantes :
 | Free | 60 | 50 000 |
 | Plus / Pro | 120 | 150 000 |
 
-Le serveur MCP gère les réponses `429` avec une relance automatique en backoff exponentiel (max 3 tentatives). Les requêtes GraphQL complexes (avec des champs imbriqués) consomment davantage de budget de complexité.
+Si l'API Linear retourne `429` (rate limit), l'agent appelant doit attendre avant de réessayer. Les requêtes GraphQL complexes (avec des champs imbriqués) consomment davantage de budget de complexité.
 
 ## Voir aussi
 

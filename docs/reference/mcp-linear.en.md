@@ -238,7 +238,7 @@ The Linear GraphQL API enforces the following rate limits:
 | Free | 60 | 50,000 |
 | Plus / Pro | 120 | 150,000 |
 
-The MCP server handles `429` responses with automatic retry using exponential backoff (max 3 retries). Complex GraphQL queries (with nested fields) consume more complexity budget.
+If the Linear API returns `429` (rate limit), the calling agent should wait before retrying. Complex GraphQL queries (with nested fields) consume more complexity budget.
 
 ## See Also
 
